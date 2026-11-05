@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Cada vendedora ve SOLO las propuestas que son para ella (nunca las de repartir); Gerencia las ve todas.
+         Las reglas de grupos distintos se suman: Gerencia (que también es del equipo de ventas) ve todo. -->
+    <record id="regla_sofia_propuesta_vendedora" model="ir.rule">
+        <field name="name">Sofía: cada vendedora ve lo suyo</field>
+        <field name="model_id" ref="model_dcasa_sofia_propuesta"/>
+        <field name="domain_force">[('usuario_id', '=', user.id), ('solo_gerencia', '=', False)]</field>
+        <field name="groups" eval="[(4, ref('sales_team.group_sale_salesman'))]"/>
+    </record>
+    <record id="regla_sofia_propuesta_gerencia" model="ir.rule">
+        <field name="name">Sofía: Gerencia ve todo</field>
+        <field name="model_id" ref="model_dcasa_sofia_propuesta"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('sales_team.group_sale_manager'))]"/>
+    </record>
+</odoo>

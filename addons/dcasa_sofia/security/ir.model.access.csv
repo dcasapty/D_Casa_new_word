@@ -1,0 +1,6 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_sofia_propuesta_vendedora,dcasa.sofia.propuesta vendedora,model_dcasa_sofia_propuesta,sales_team.group_sale_salesman,1,0,0,0
+access_sofia_propuesta_gerencia,dcasa.sofia.propuesta gerencia,model_dcasa_sofia_propuesta,sales_team.group_sale_manager,1,0,0,0
+access_sofia_corrida_gerencia,dcasa.sofia.corrida gerencia,model_dcasa_sofia_corrida,sales_team.group_sale_manager,1,0,0,0
+access_sofia_plantilla_vendedora,dcasa.sofia.plantilla vendedora,model_dcasa_sofia_plantilla,sales_team.group_sale_salesman,1,0,0,0
+access_sofia_plantilla_gerencia,dcasa.sofia.plantilla gerencia,model_dcasa_sofia_plantilla,sales_team.group_sale_manager,1,1,0,0

@@ -364,6 +364,9 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `main` (`741930d`, árbol = `de1fb04`) a staging y Desplegar con ese `app_version`. **Regla:** un cambio del borde
   (rutas, `vars`, `workers_dev`) se despliega con un `app_version` que lo contenga, o sea con una imagen construida
   de ese commit.
+- **Desplegar 42** (01:57 UTC del 5 nov, `71d0040`, imagen `sha256:d02db548…` de CI #252, respaldo previo) · sano y
+  confirmado 02:12 (versión `71d0040c988b`, base al día, humo ok): tasa de cierre en el Resumen de Juan (PR #72, `main`
+  = `57d718b`, árbol = `43eed13`). Esta vez el staging del CI sí pasó el respaldo previo.
 - **Desplegar 41** (21:50 UTC del 4 nov, `43a105d`, imagen `sha256:0dde5051…` de CI #250, respaldo previo) · sano y
   confirmado 22:04 (versión `43a105db925a`, base al día, humo ok): clientes repetidos (buscar por celular, datos del
   cliente en la cotización y la factura, «Es esta persona»; PR #71, `main` = `23026ec`, árbol = `0350a3d`). **Tercera
@@ -512,6 +515,19 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 
 ### Odoo 19
 
+- **`enviar_respuesta` (y todo lo que llama a `dcasa.mensaje._enviar`) confirma la base A MITAD de la petición**
+  (`transaccion.confirmar` antes de llamar al Worker): suelta los candados `FOR UPDATE` y deja escrito lo de antes. Si
+  después algo choca, Odoo repite la petición entera y el cliente puede recibir el mensaje dos veces. Lo que marque
+  «ya se hizo» (Sofía: la propuesta aprobada) se escribe ANTES de enviar, con `flush_all()`, para que quede en la misma
+  confirmación (revisión adversarial, 2026-11-05). Las pruebas no lo ven: en pruebas no se confirma nada.
+- **Pasar un texto de una pantalla a otra (Sofía → chat): nunca en `params` de la acción.** Odoo guarda la acción en la
+  pestaña y en la dirección: al recargar volvía a aparecer el mensaje ya enviado, y cualquiera podía armar un enlace con
+  un texto. Va por `sessionStorage`, se lee una vez y se borra, con vencimiento y solo para esa conversación.
+- **Botón arriba del tablero o de la lista sin JS:** `<header><button ... display="always"/></header>` dentro de
+  `<kanban>` (o en el `<header>` de la `<list>`); el método recibe un recordset vacío y devuelve una acción.
+- **El servidor de capturas corre los crons** (el CRM automático enfría los clientes inventados y Juan les programa
+  seguimientos): `servidor.sh` ahora va con `--max-cron-threads=0`, y los datos de prueba del CRM con `dcasa_auto_off`.
+  Y en Playwright, mover el puntero lejos del menú lateral antes de cada captura (si no, el menú queda abierto encima).
 - **Datos de otra ficha editables en un documento (2026-11-04, `dcasa_contactos/models/datos_del_cliente.py`):**
   (1) un `related` con `readonly=False` reescribe la ficha **en cada guardado que lo incluye**, y el formulario manda
   todos los campos no-readonly al crear el documento o al cambiar el many2one, aunque estén invisibles: con datos
