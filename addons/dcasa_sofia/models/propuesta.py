@@ -18,7 +18,8 @@ TIPOS = [
     ('escribir', 'Escribirle'),
     ('llamar', 'Llamarlo'),
     ('pedir_datos', 'Pedir sus datos'),
-    ('guardar_correo', 'Guardar su correo'),
+    ('guardar_correo', 'Guardar su correo'),   # antes de «Guardar sus datos»: queda en el historial
+    ('guardar_datos', 'Guardar sus datos'),
     ('asignar', 'Darle una vendedora'),
     ('sincronizar', 'Poner a su vendedora en la oportunidad'),
 ]
@@ -26,7 +27,8 @@ NOMBRE_TIPO = dict(TIPOS)
 # Cómo se agrupan en la pantalla.
 GRUPO_DEL_TIPO = {
     'contestar': 'escribir', 'escribir': 'escribir', 'vence': 'mantener', 'llamar': 'mantener',
-    'pedir_datos': 'datos', 'guardar_correo': 'datos', 'asignar': 'repartir', 'sincronizar': 'repartir',
+    'pedir_datos': 'datos', 'guardar_correo': 'datos', 'guardar_datos': 'datos',
+    'asignar': 'repartir', 'sincronizar': 'repartir',
 }
 SOLO_GERENCIA = frozenset({'asignar', 'sincronizar'})
 CON_MENSAJE = frozenset({'vence', 'escribir', 'pedir_datos'})
@@ -38,6 +40,7 @@ ACCIONES = {
     'pedir_datos': ('chat', 'enviar'),
     'llamar': ('tarea',),
     'guardar_correo': ('guardar',),
+    'guardar_datos': ('guardar',),
     'asignar': ('asignar',),
     'sincronizar': ('asignar',),
 }

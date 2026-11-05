@@ -3036,7 +3036,7 @@
    "categoria": "vender",
    "grupo": "Hoy",
    "titulo": "Que Sofía te diga qué hacer hoy con tus clientes",
-   "logras": "Sofía revisa el CRM cada mañana (o cuando tocas «Organizar con Sofía» arriba del tablero del CRM) y te propone: a quién contestar, a quién escribirle, qué cotización vence y a qué cliente pedirle su nombre y su correo. El mensaje ya viene escrito: lo cambias si quieres y tocas «Abrir el chat con este mensaje» o «Enviar ya». Nada sale sin que tú lo apruebes.",
+   "logras": "Sofía revisa el CRM cada mañana (o cuando tocas «Organizar con Sofía» arriba del tablero del CRM) y te propone: a quién contestar, a quién escribirle, qué cotización vence y a qué cliente pedirle su nombre y su correo. El mensaje ya viene escrito: lo cambias si quieres y tocas «Abrir el chat con este mensaje» o «Enviar ya». Cuando el cliente te contesta su nombre, su correo o su cumpleaños, toca «Revisar ahora»: Sofía te muestra «Guarda sus datos», los revisas y tocas «Guardar en su ficha». Nada sale ni se guarda sin que tú lo apruebes.",
    "nota": "Cada vendedora ve solo lo suyo. Gerencia ve todo y además aprueba cómo repartir las oportunidades sin vendedora. Lo que descartas no vuelve en unos días.",
    "destino": {
     "menu": "dcasa_sofia.menu_sofia"
@@ -3049,6 +3049,9 @@
     "seguimiento",
     "pedir datos",
     "pedir correo",
+    "guardar datos del cliente",
+    "guardar correo",
+    "cumpleaños del cliente",
     "clientes sin nombre",
     "emoji",
     "repartir oportunidades",

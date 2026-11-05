@@ -102,6 +102,21 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 > Más reciente arriba. Cada entrada: fecha, qué quedó en producción (con el commit), qué quedó solo en staging, qué
 > sigue. Se guardan unas diez; las viejas se resumen en una línea.
 
+### 2026-11-05 (3): Sofía baja con scroll; «Guarda sus datos» (en la rama, esperando el visto bueno)
+
+- **Scroll de Sofía** (pedido de la dueña: «la ventana no hace scroll»): `.o_action` de Odoo cortaba la pantalla; ahora
+  lleva la regla fuerte como el Inicio. Una prueba nueva (`dcasa_interfaz/tests/test_scroll.py`) exige esa regla a toda
+  pantalla propia. **En producción**: Desplegar 45, sano 18:27 UTC (PR #74, `main` = `91507ca`, árbol = `63bcdef`;
+  imagen `sha256:32b31395…` de CI #256; el staging del CI se frenó por un 429 de R2 y salió con Desplegar 44).
+- **«Guarda sus datos»** (pregunta de una vendedora y pedido de la dueña): cuando el cliente contesta su nombre, correo
+  o cumpleaños (a Sofía, a una vendedora o a Juan), «Revisar ahora» propone una tarjeta con todo; la vendedora lo
+  revisa, lo corrige si hace falta y toca «Guardar en su ficha». Nunca crea fichas, no pisa lo bueno, no repite el
+  correo de otra ficha, guarda con nuestro formato y deja nota en la ficha. A quien ya se le pidieron los datos en el
+  chat no se le vuelven a pedir. Revisión adversarial: sin huecos de permisos; se corrigieron lecturas falsas (frases
+  como nombre, fechas de entrega como cumpleaños, mensajes que no piden datos) y lo demás (docs/SOFIA.md). 60 pruebas
+  de Sofía en verde (dos en el navegador). **En la rama**, con capturas enviadas a la dueña: falta su visto bueno →
+  CI → staging → producción.
+
 ### 2026-11-05 (2): Sofía, la asistente del CRM (módulo nuevo `dcasa_sofia`)
 
 - Decisiones de la dueña: **propone y una persona aprueba**; **con un botón y cada mañana**; **Gerencia todo, cada

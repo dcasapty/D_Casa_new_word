@@ -97,3 +97,48 @@ class TestSofiaEnElNavegador(HttpCase):
         self.assertFalse(self.env['dcasa.mensaje'].search([('conversacion_id', '=', self.emoji.id),
                                                            ('tipo', '=', 'mensaje')]),
                          'abrir el chat no envía nada')
+
+    def test_guarda_sus_datos_en_un_clic(self):
+        """El cliente contestó su nombre, su correo y su cumpleaños: la vendedora los revisa, corrige uno y guarda."""
+        conv = self._cliente('🌻', '50760004004', self.vendedora)
+        ahora = fields.Datetime.now()
+        Mensaje = self.env['dcasa.mensaje']
+        Mensaje.create({'conversacion_id': conv.id, 'id_mensaje': 'sofia.nav.pedido', 'direccion': 'saliente',
+                        'autor': 'vendedora', 'tipo': 'mensaje', 'usuario_id': self.vendedora.id,
+                        'texto': '¿Me regalas tu nombre y apellido y tu correo? Si quieres, dime también el día y el '
+                                 'mes de tu cumpleaños.', 'ts': ahora - timedelta(hours=6)})
+        Mensaje.create({'conversacion_id': conv.id, 'id_mensaje': 'sofia.nav.respuesta', 'direccion': 'entrante',
+                        'autor': 'cliente', 'tipo': 'mensaje', 'texto': 'maria ruiz\nMaria.Ruiz@Example.com\n12/03',
+                        'ts': ahora - timedelta(hours=5)})
+        codigo = '(async () => {' + COMUN + """
+            const boton = await esperar(() => document.querySelector('.o_sofia_boton_revisar:not([disabled])'),
+                                        'el botón «Revisar ahora»');
+            boton.click();
+            const tarjeta = await esperar(() => [...document.querySelectorAll('.o_sofia_tarjeta')]
+                .find((t) => t.textContent.includes('Guarda sus datos')), 'la tarjeta «Guarda sus datos»');
+            sinErrores();
+            const nombre = tarjeta.querySelector('input[id^="o_sofia_nombre_"]');
+            const correo = tarjeta.querySelector('input[id^="o_sofia_correo_"]');
+            const [dia, mes] = tarjeta.querySelectorAll('.o_sofia_cumple select');
+            if (nombre.value !== 'Maria Ruiz' || correo.value !== 'maria.ruiz@example.com' || dia.value !== '12'
+                    || mes.value !== '3') {
+                throw new Error(`No muestra lo que escribió: ${nombre.value} ${correo.value} ${dia.value}/`
+                                + mes.value);
+            }
+            if (!tarjeta.textContent.includes('Su ficha dice: 🌻')) {
+                throw new Error('No muestra lo que hoy dice su ficha');
+            }
+            nombre.value = 'MARÍA ruiz castillo';
+            nombre.dispatchEvent(new Event('input', { bubbles: true }));
+            dia.value = '5';
+            dia.dispatchEvent(new Event('change', { bubbles: true }));
+            tarjeta.querySelector('.o_sofia_accion[data-accion="guardar"]').click();
+            await esperar(() => !document.body.contains(tarjeta), 'que se vaya la tarjeta guardada');
+            sinErrores();
+            console.log('test successful');
+        })();"""
+        self.browser_js('/odoo/sofia', codigo, login='vend_sofia', timeout=120)
+        partner = conv.partner_id
+        self.assertEqual(partner.name, 'María Ruiz Castillo')
+        self.assertEqual(partner.email, 'maria.ruiz@example.com')
+        self.assertEqual(partner.dcasa_cumple, '03-05')

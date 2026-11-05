@@ -3,9 +3,10 @@
 Todos exigen ser del equipo de ventas EN EL SERVIDOR y validan cada argumento. La vendedora solo ve y resuelve LO SUYO
 (regla de registro de ``dcasa.sofia.propuesta``); repartir es solo de Gerencia. Cada acción se hace con los permisos de
 quien la aprueba (sin ``sudo``): asignar una oportunidad, escribirle al cliente por la MISMA ruta que la pantalla de
-Conversaciones (``enviar_respuesta``), crear una tarea o guardar el correo en la ficha. Antes de hacerla se revisa que
-todavía haga falta; si ya no, la propuesta queda «ya no hacía falta» y no se hace nada.
+Conversaciones (``enviar_respuesta``), crear una tarea o guardar en la ficha los datos que el cliente escribió. Antes
+de hacerla se revisa que todavía haga falta; si ya no, la propuesta queda «ya no hacía falta» y no se hace nada.
 """
+import re
 from datetime import timedelta
 
 from markupsafe import escape
@@ -17,6 +18,7 @@ from odoo.addons.dcasa_conversaciones.models import crm_reglas as CRM
 from odoo.addons.dcasa_conversaciones.models import horario as H
 from odoo.addons.dcasa_conversaciones.models.conversacion_panel import MAX_RESPUESTA
 from odoo.addons.dcasa_socios.models import bien_escrito as B
+from odoo.addons.dcasa_socios.models import reglas as RS
 from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.fields import Domain
 from odoo.tools import SQL
@@ -31,6 +33,8 @@ GRUPO_GERENCIA = 'sales_team.group_sale_manager'
 MAX_EN_PANTALLA = 500
 SEGUNDOS_ENTRE_REVISIONES = 60   # el botón no vuelve a revisar si alguien acaba de hacerlo
 MINUTOS_DOBLE_CLIC = 5           # quien acaba de resolverla y vuelve a tocar: «ya quedó», no un error
+CAMPOS_DE_LA_FICHA = ('nombre', 'correo', 'cumple')   # lo que «Guarda sus datos» deja corregir antes de guardar
+MAX_CAMPO = 120
 
 
 class YaNoHaceFalta(Exception):
@@ -137,6 +141,8 @@ class SofiaPanel(models.AbstractModel):
         if not self._abierta(lead):
             acciones = [a for a in acciones if a != 'tarea']
         datos = p.datos or {}
+        if p.tipo == 'guardar_datos':
+            aviso = datos.get('aviso') or ''
         return {
             'id': p.id,
             'tipo': p.tipo,
@@ -163,6 +169,9 @@ class SofiaPanel(models.AbstractModel):
             'correo': datos.get('correo') or '',
             'celular': datos.get('celular') or '',
             'oportunidad': lead.name or '',
+            # «Guarda sus datos»: lo que escribió (se puede corregir antes de guardar) y lo que tiene hoy su ficha.
+            'campos': dict(datos.get('campos') or {}) if p.tipo == 'guardar_datos' else {},
+            'antes': dict(datos.get('antes') or {}) if p.tipo == 'guardar_datos' else {},
         }
 
     @api.model
@@ -180,8 +189,11 @@ class SofiaPanel(models.AbstractModel):
     # ------------------------------------------------------------------
 
     @api.model
-    def aplicar(self, propuesta_id, accion, texto=None):
-        """Aprueba la propuesta con ``accion`` (una de las que ofrece la pantalla): ``{resultado, accion?}``."""
+    def aplicar(self, propuesta_id, accion, texto=None, campos=None):
+        """Aprueba la propuesta con ``accion`` (una de las que ofrece la pantalla): ``{resultado, accion?}``.
+
+        ``campos`` solo con «Guarda sus datos»: lo que la vendedora dejó en la tarjeta (``{nombre, correo, cumple}``,
+        texto; vacío = no guardar ese dato). Sin ``campos`` se guarda lo que propuso Sofía."""
         self._exigir_vendedora()
         try:
             propuesta = self._propuesta(propuesta_id)
@@ -195,9 +207,20 @@ class SofiaPanel(models.AbstractModel):
             texto = texto.strip()
             if len(texto) > MAX_RESPUESTA:
                 raise UserError(self.env._('El mensaje es muy largo (máximo %s letras).', MAX_RESPUESTA))
+        if campos is not None:
+            propuestos = (propuesta.sudo().datos or {}).get('campos') or {}
+            if propuesta.tipo != 'guardar_datos' or not isinstance(campos, dict) \
+                    or any(clave not in CAMPOS_DE_LA_FICHA for clave in campos) \
+                    or any(not isinstance(valor, str) or len(valor) > MAX_CAMPO for valor in campos.values()):
+                raise UserError(self.env._('Esos datos no son válidos.'))
+            if any(clave not in propuestos for clave in campos):
+                raise UserError(self.env._('Sofía puso al día esta propuesta: vuelve a cargar la pantalla.'))
         p = propuesta.sudo()
         try:
-            resultado, extra = getattr(self, f'_aplicar_{accion}')(p, texto or '')
+            if accion == 'guardar':
+                resultado, extra = self._aplicar_guardar(p, campos)
+            else:
+                resultado, extra = getattr(self, f'_aplicar_{accion}')(p, texto or '')
         except YaNoHaceFalta as motivo:
             p._resolver('vencida', str(motivo), self.env.user)
             return {'resultado': str(motivo), 'ya_no_hace_falta': True}
@@ -334,7 +357,106 @@ class SofiaPanel(models.AbstractModel):
             note=nota, user_id=usuario.id)
         return self.env._('Tarea creada para %s.', usuario.name), {}
 
-    def _aplicar_guardar(self, p, _texto):
+    def _aplicar_guardar(self, p, campos=None):
+        """«Guardar en su ficha»: solo los datos que la ficha todavía no tiene, con nuestro formato, sin duplicar a
+        nadie y con los permisos de quien aprueba. Deja una nota en la ficha con el antes y el después."""
+        if p.tipo == 'guardar_correo':   # las de antes de «Guarda sus datos» (solo el correo)
+            return self._aplicar_guardar_correo(p)
+        partner, conv = self._exigir_ficha_para_guardar(p)
+        propuestos = (p.datos or {}).get('campos') or {}
+        if campos is None:
+            campos = propuestos
+        campos = {clave: ' '.join((valor or '').split()) for clave, valor in campos.items()}
+        provisionales = self._provisionales(conv) if conv else ()
+        revisar = (('nombre', self.env._('su nombre'), lambda v: self._nombre_para_guardar(partner, v, provisionales)),
+                   ('correo', self.env._('su correo'), lambda v: self._correo_para_guardar(partner, v)),
+                   ('cumple', self.env._('su cumpleaños'), lambda v: self._cumple_para_guardar(partner, v)))
+        valores, ya_tenia, notas = {}, [], []
+        for clave, nombre_del_dato, revisar_dato in revisar:
+            if not campos.get(clave):
+                continue
+            listo = revisar_dato(campos[clave])   # ``None`` si la ficha ya lo tiene; un dato mal escrito: UserError
+            if listo is None:
+                ya_tenia.append(nombre_del_dato)
+                continue
+            campo, valor, nota = listo
+            valores[campo] = valor
+            if campos[clave] != propuestos.get(clave):   # que la nota no diga «lo escribió» si se corrigió
+                nota += self.env._(' (lo corrigió %(quien)s; en el chat: «%(chat)s»)', quien=self.env.user.name,
+                                   chat=propuestos.get(clave) or '')
+            notas.append(nota)
+        if not valores:
+            if ya_tenia:
+                raise YaNoHaceFalta(self.env._('Su ficha ya tiene esos datos.'))
+            raise UserError(self.env._('No queda ningún dato para guardar. Si no sirve, descártala.'))
+        ficha = self.env['res.partner'].browse(partner.id)   # con los permisos de quien aprueba
+        try:
+            with self.env.cr.savepoint():
+                ficha.write(valores)
+        except (UserError, ValidationError) as error:
+            raise UserError(self.env._('No se pudo guardar en su ficha: %s', error.args[0] if error.args else error)) \
+                from None
+        ficha.message_post(body=escape(self.env._(
+            'Sofía guardó los datos que escribió en el chat (lo aprobó %(quien)s). %(cambios)s.',
+            quien=self.env.user.name, cambios='. '.join(notas))), subtype_xmlid='mail.mt_note')
+        guardado = self.env._('Guardado en su ficha.')
+        if ya_tenia:
+            guardado += self.env._(' Ya tenía %s.', ', '.join(ya_tenia))
+        return guardado, {}
+
+    def _exigir_ficha_para_guardar(self, p):
+        partner, conv = p.partner_id, p.conversacion_id
+        if not partner:
+            raise YaNoHaceFalta(self.env._('Ese cliente ya no existe.'))
+        if partner.is_company:
+            raise YaNoHaceFalta(self.env._('Es la ficha de una empresa: los datos de la persona que escribe van en su '
+                                           'propio contacto.'))
+        if conv and conv.partner_id != partner:
+            raise YaNoHaceFalta(self.env._('Ese chat ahora es de otra ficha de cliente.'))
+        return partner, conv
+
+    def _nombre_para_guardar(self, partner, valor, provisionales):
+        nombre = R.nombre_con_formato(valor)
+        if not R.falta_el_nombre(partner.name, provisionales):
+            return None
+        motivo = R.falta_el_nombre(nombre)
+        if not nombre or (motivo and motivo != R.SOLO_EL_NOMBRE):
+            raise UserError(self.env._('«%(nombre)s» no sirve como nombre: %(motivo)s. Escribe su nombre y '
+                                       'apellido o borra ese dato.', nombre=valor, motivo=motivo or ''))
+        if not R.mejora_el_nombre(partner.name, nombre, provisionales):
+            raise UserError(self.env._(
+                'Su ficha dice «%s»: escribe ese nombre con su apellido o borra este dato (si de verdad se llama '
+                'distinto, corrígelo en su ficha).', partner.name))
+        return 'name', nombre, self.env._('Nombre: «%(antes)s» → «%(ahora)s»', antes=partner.name or '', ahora=nombre)
+
+    def _correo_para_guardar(self, partner, valor):
+        if not R.falta_el_correo(partner.email):
+            return None
+        correo = B.correo_limpio(valor)
+        if not correo:
+            _codigo, sugerencia = B.problema_del_correo(valor)
+            raise UserError(self.env._('El correo «%s» no está bien escrito.', valor)
+                            + (self.env._(' ¿Quisiste decir %s?', sugerencia) if sugerencia else ''))
+        if correo in self.env['res.partner']._dcasa_correos_del_equipo():
+            raise UserError(self.env._('%s es un correo de D\'CASA, no del cliente.', correo))
+        llave = claves.llave_correo(correo)
+        otra = llave and partner._dcasa_otra_ficha('correo', llave)
+        if otra:
+            raise UserError(self.env._(
+                'El correo %(correo)s ya es de «%(otra)s». Si es la misma persona, Gerencia las une en Posibles '
+                'duplicados. Para guardar lo demás, borra el correo.', correo=correo, otra=otra.display_name))
+        nota = (self.env._('Correo: %(antes)s → %(ahora)s', antes=partner.email, ahora=correo) if partner.email
+                else self.env._('Correo: %s', correo))
+        return 'email', correo, nota
+
+    def _cumple_para_guardar(self, partner, valor):
+        if partner.dcasa_cumple:
+            return None
+        if not re.fullmatch(r'[0-9]{2}-[0-9]{2}', valor) or not RS.cumple_valido(valor):
+            raise UserError(self.env._('Ese cumpleaños no es una fecha: elige el día y el mes.'))
+        return 'dcasa_cumple', valor, self.env._('Cumpleaños: %s', R.cumple_para_mostrar(valor))
+
+    def _aplicar_guardar_correo(self, p):
         partner = p.partner_id
         correo = B.correo_limpio((p.datos or {}).get('correo') or '')
         if not partner or not correo:

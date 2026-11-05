@@ -81,7 +81,8 @@
                         <p class="o_sofia_que" t-esc="p.titulo"/>
                         <p class="o_sofia_motivo" t-esc="p.motivo"/>
                         <div t-if="p.aviso" class="o_sofia_aviso" role="status">
-                            <i class="fa fa-clock-o me-1" aria-hidden="true"/><t t-esc="p.aviso"/>
+                            <i t-attf-class="fa {{ p.tipo === 'guardar_datos' ? 'fa-exclamation-triangle' : 'fa-clock-o' }} me-1"
+                               aria-hidden="true"/><t t-esc="p.aviso"/>
                         </div>
                         <t t-if="editable(p)">
                             <label class="o_sofia_etiqueta" t-att-for="'o_sofia_msj_' + p.id">Mensaje que propone
@@ -89,10 +90,48 @@
                             <textarea t-att-id="'o_sofia_msj_' + p.id" class="form-control o_sofia_mensaje" t-att-rows="filas(state.textos[p.id])"
                                       t-model="state.textos[p.id]"/>
                         </t>
+                        <div t-if="p.tipo === 'guardar_datos' and state.campos[p.id]" class="o_sofia_ficha">
+                            <p class="o_sofia_etiqueta">Lo que escribió (revísalo; si algo está mal, corrígelo o
+                                bórralo y no se guarda):</p>
+                            <div t-if="'nombre' in p.campos" class="o_sofia_dato">
+                                <label t-att-for="'o_sofia_nombre_' + p.id">Nombre y apellido</label>
+                                <input t-att-id="'o_sofia_nombre_' + p.id" type="text" class="form-control"
+                                       maxlength="120" autocomplete="off" t-model="state.campos[p.id].nombre"/>
+                                <small class="text-muted">Su ficha dice: <t t-esc="p.antes.nombre or '(nada)'"/></small>
+                            </div>
+                            <div t-if="'correo' in p.campos" class="o_sofia_dato">
+                                <label t-att-for="'o_sofia_correo_' + p.id">Correo</label>
+                                <input t-att-id="'o_sofia_correo_' + p.id" type="email" class="form-control"
+                                       maxlength="120" autocomplete="off" inputmode="email"
+                                       t-model="state.campos[p.id].correo"/>
+                                <small class="text-muted">Su ficha dice: <t t-esc="p.antes.correo or '(sin correo)'"/></small>
+                            </div>
+                            <div t-if="'cumple' in p.campos" class="o_sofia_dato">
+                                <span class="o_sofia_dato_nombre" t-att-id="'o_sofia_cumple_' + p.id">Cumpleaños</span>
+                                <div class="o_sofia_cumple" role="group" t-att-aria-labelledby="'o_sofia_cumple_' + p.id">
+                                    <select class="form-select" aria-label="Día" t-model="state.campos[p.id].dia">
+                                        <option value="" t-att-selected="!state.campos[p.id].dia">Día</option>
+                                        <t t-foreach="dias" t-as="dia" t-key="dia">
+                                            <!-- t-model solo no marca la opción al dibujar: va también t-att-selected -->
+                                            <option t-att-value="dia" t-att-selected="state.campos[p.id].dia == dia"
+                                                    t-esc="dia"/>
+                                        </t>
+                                    </select>
+                                    <select class="form-select" aria-label="Mes" t-model="state.campos[p.id].mes">
+                                        <option value="" t-att-selected="!state.campos[p.id].mes">Mes</option>
+                                        <t t-foreach="meses" t-as="mes" t-key="mes_index">
+                                            <option t-att-value="mes_index + 1"
+                                                    t-att-selected="state.campos[p.id].mes == mes_index + 1" t-esc="mes"/>
+                                        </t>
+                                    </select>
+                                </div>
+                                <small class="text-muted">Dijo: <t t-esc="cumpleLegible(p.campos.cumple)"/></small>
+                            </div>
+                        </div>
                         <p t-if="p.pide_datos" class="o_sofia_nota_datos">
                             <i class="fa fa-id-card-o me-1" aria-hidden="true"/>
                             Le pide sus datos para avisarle de promociones, del programa Socios y de su cumpleaños.
-                            Cuando conteste, corrígelos en su ficha.
+                            Cuando conteste, toca «Revisar ahora» y Sofía te propone guardarlos en su ficha.
                         </p>
                         <div class="o_sofia_botones">
                             <t t-foreach="p.acciones" t-as="accion" t-key="accion">
