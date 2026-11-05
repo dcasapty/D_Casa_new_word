@@ -471,7 +471,12 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 - **PostgreSQL local puede quedar apagado** tras una pausa larga de la sesión: `service postgresql start`.
 - **Varios agentes a la vez** comparten 4 CPU y el límite de uso de la sesión: si el límite corta a los agentes, su
   trabajo queda SIN commit en sus worktrees; se retoma con un agente nuevo que continúe ese worktree (no se borra).
-- **Un 429 de R2** en el respaldo previo frena «Desplegar» sin tocar producción: volver a lanzarlo.
+- **Un 429 de R2** en el respaldo previo frena «Desplegar» sin tocar producción: volver a lanzarlo. Le pasó también
+  al staging del CI #256 (2026-11-05): Desplegar 44 a staging con el mismo digest salió sano.
+- **No subir la rama entre el CI y el *squash* del PR:** el PR toma la punta de la rama, y lo nuevo (sin probar) se
+  colaría a `main`. Mientras tanto se hace commit local; o, si los tests del CI ya están verdes, se une el PR (con
+  `expectedHeadSha` = el commit probado) antes de que termine staging: unirlo no despliega nada, y producción sigue
+  esperando a que staging quede sano (2026-11-05, PR #74).
 - **`main` se une por *squash*:** al traer `main` a una rama que ya tiene ese mismo árbol (p. ej. la integración que
   se acaba de subir), `git merge` normal choca en decenas de archivos falsos; `git merge -s ours origin/main` lo deja
   en la historia sin tocar nada (comprobar antes que el árbol de `main` es igual al de un commit de la rama) (2026-10-23).
@@ -520,6 +525,16 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 
 ### Odoo 19
 
+- **Plantillas OWL: no hay `String()`, `Number()` ni otros globales de JavaScript** (`ctx.String is not a function`
+  rompe la pantalla entera). Un número en `t-att-value` ya sale como texto. Y **`<select t-model>` no marca la opción
+  al dibujar** (pone el valor antes de que existan las opciones): cada `<option>` lleva también `t-att-selected`, como
+  en Conversaciones. Las dos las atrapó la prueba en el navegador de «Guarda sus datos» (2026-11-05), no las de Python.
+- **Leer datos de lo que escribe la gente (nombres, fechas, correos) da falsos positivos que no se ven en las pruebas
+  felices:** «Muy amable» o «Calle Principal» parecen un nombre; «entréguenmelo el 15/11», «cama 3/4» o «el cumpleaños
+  de mi mamá» parecen un cumpleaños; «te envié la cotización a tu correo, ¿la recibiste?» parece un pedido de datos.
+  Una revisión adversarial con frases reales de chat los encontró todos (Sofía, 2026-11-05). **Regla:** lo que se lee
+  de un chat se propone, nunca se guarda solo; la lectura suelta solo vale para la respuesta directa a un pedido; y
+  cada regla de lectura lleva pruebas de lo que NO debe leer.
 - **`enviar_respuesta` (y todo lo que llama a `dcasa.mensaje._enviar`) confirma la base A MITAD de la petición**
   (`transaccion.confirmar` antes de llamar al Worker): suelta los candados `FOR UPDATE` y deja escrito lo de antes. Si
   después algo choca, Odoo repite la petición entera y el cliente puede recibir el mensaje dos veces. Lo que marque
