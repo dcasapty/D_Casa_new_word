@@ -364,6 +364,9 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `main` (`741930d`, árbol = `de1fb04`) a staging y Desplegar con ese `app_version`. **Regla:** un cambio del borde
   (rutas, `vars`, `workers_dev`) se despliega con un `app_version` que lo contenga, o sea con una imagen construida
   de ese commit.
+- **Desplegar 46** (19:33 UTC del 5 nov, `cbaff7a`, imagen `sha256:14f3fe34…` de CI #258, respaldo previo) · sano
+  19:47 (versión `cbaff7ab9c2d`, base al día, humo ok): Sofía «Guarda sus datos» (PR #75, `main` = `42f379c`, árbol =
+  `cbaff7a`). El staging del CI pasó el respaldo previo; el CI del PR (#259) se canceló. Juan no cambió.
 - **Desplegar 45** (18:12 UTC del 5 nov, `63bcdef`, imagen `sha256:32b31395…` de CI #256, respaldo previo) · sano
   18:27 (versión `63bcdef9ebbe`, base al día, humo ok): Sofía baja con scroll y la prueba de scroll de toda pantalla
   propia (PR #74, `main` = `91507ca`, árbol = `63bcdef`). El staging del CI #256 se frenó en el respaldo previo por un

@@ -102,7 +102,7 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 > Más reciente arriba. Cada entrada: fecha, qué quedó en producción (con el commit), qué quedó solo en staging, qué
 > sigue. Se guardan unas diez; las viejas se resumen en una línea.
 
-### 2026-11-05 (3): Sofía baja con scroll; «Guarda sus datos» (en la rama, esperando el visto bueno)
+### 2026-11-05 (3): Sofía baja con scroll; «Guarda sus datos»
 
 - **Scroll de Sofía** (pedido de la dueña: «la ventana no hace scroll»): `.o_action` de Odoo cortaba la pantalla; ahora
   lleva la regla fuerte como el Inicio. Una prueba nueva (`dcasa_interfaz/tests/test_scroll.py`) exige esa regla a toda
@@ -114,8 +114,11 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
   correo de otra ficha, guarda con nuestro formato y deja nota en la ficha. A quien ya se le pidieron los datos en el
   chat no se le vuelven a pedir. Revisión adversarial: sin huecos de permisos; se corrigieron lecturas falsas (frases
   como nombre, fechas de entrega como cumpleaños, mensajes que no piden datos) y lo demás (docs/SOFIA.md). 60 pruebas
-  de Sofía en verde (dos en el navegador). **En la rama**, con capturas enviadas a la dueña: falta su visto bueno →
-  CI → staging → producción.
+  de Sofía en verde (dos en el navegador). Con el visto bueno de la dueña y un caso real que ella mandó (el cliente
+  saludó, luego dio su nombre y luego su correo: la primera versión solo leía la primera respuesta), Sofía lee ahora
+  las primeras 4 respuestas al pedido. **En producción**: Desplegar 46, sano 19:47 UTC (PR #75, `main` = `42f379c`,
+  árbol = `cbaff7a`; imagen `sha256:14f3fe34…` de CI #258). Sigue: que la vendedora toque «Revisar ahora» y guarde los
+  datos de los clientes que ya contestaron; mirar con la dueña las primeras tarjetas.
 
 ### 2026-11-05 (2): Sofía, la asistente del CRM (módulo nuevo `dcasa_sofia`)
 
