@@ -464,19 +464,24 @@ class Sofia(models.AbstractModel):
         return pedidos, sorted(chats, reverse=True)
 
     @api.model
-    def _datos_del_chat(self, conv, pedido, ctx):
-        """Lo que el cliente escribió en ese chat (``{nombre, correo, cumple}``). Justo después de que se le pidieron
-        sus datos se lee con más soltura (una línea que es solo un nombre); antes y después, solo frases claras."""
+    def _datos_del_chat(self, conv, pedido, ctx, correos_del_equipo=()):
+        """Lo que el cliente escribió en ese chat (``{nombre, correo, cumple}``). Su respuesta a quien le pidió sus
+        datos (el primer mensaje después del pedido, o uno con su correo, hasta 48 horas después) se lee con más
+        soltura (una línea que es solo un nombre); lo demás, solo frases claras."""
         mensajes = self.env['dcasa.mensaje'].sudo().search_read([
             ('conversacion_id', '=', conv.id), ('autor', '=', 'cliente'), ('tipo', '=', 'mensaje'),
             ('tiene_sensible', '=', False), ('ts', '>=', ctx['ahora'] - timedelta(days=DIAS_DATOS))],
             ['texto', 'ts'], order='ts desc, id desc', limit=MAX_MENSAJES_POR_CHAT)
         cuando, pidio_el_cumple = pedido or (None, False)
+        respuestas = [fila for fila in mensajes
+                      if cuando and cuando <= fila['ts'] <= cuando + timedelta(hours=HORAS_PARA_CONTESTAR)]
+        primera = respuestas[-1]['id'] if respuestas else None   # vienen del más nuevo al más viejo
         leidos = []
         for fila in mensajes:
-            contesta = bool(cuando and cuando <= fila['ts'] <= cuando + timedelta(hours=HORAS_PARA_CONTESTAR))
-            leidos.append((fila['texto'] or '', contesta, contesta and pidio_el_cumple))
-        return R.datos_en(leidos)
+            texto = fila['texto'] or ''
+            contesta = fila in respuestas and (fila['id'] == primera or '@' in texto)
+            leidos.append((texto, contesta, contesta and pidio_el_cumple))
+        return R.datos_en(leidos, correos_del_equipo)
 
     @api.model
     def _guardar_datos(self, ctx):
@@ -491,20 +496,20 @@ class Sofia(models.AbstractModel):
         for conv in self.env['dcasa.conversacion'].sudo().browse(chats):
             partner = conv.partner_id
             clave = f'guardar_datos:partner:{partner.id}'
-            if not partner or partner.id in vistos or clave in ctx['suprimidas'] \
+            # La ficha de una empresa no recibe el nombre, el correo ni el cumpleaños de la persona que escribe.
+            if not partner or partner.is_company or partner.id in vistos or clave in ctx['suprimidas'] \
                     or not self._cliente(partner, ctx, conv):
                 continue
             provisionales = self._provisionales(conv)
-            # El nombre de una empresa no se cambia por el de la persona que escribe.
-            faltan = {'nombre': not partner.is_company and bool(R.falta_el_nombre(partner.name, provisionales)),
+            faltan = {'nombre': bool(R.falta_el_nombre(partner.name, provisionales)),
                       'correo': R.falta_el_correo(partner.email), 'cumple': not partner.dcasa_cumple}
             if not any(faltan.values()):
                 continue
-            datos = self._datos_del_chat(conv, pedidos.get(conv.id), ctx)
+            datos = self._datos_del_chat(conv, pedidos.get(conv.id), ctx, correos_del_equipo)
             campos, aviso = {}, ''
             if faltan['nombre'] and R.mejora_el_nombre(partner.name, datos.get('nombre'), provisionales):
                 campos['nombre'] = datos['nombre']
-            if faltan['correo'] and datos.get('correo') and datos['correo'] not in correos_del_equipo:
+            if faltan['correo'] and datos.get('correo'):
                 llave = claves.llave_correo(datos['correo'])
                 otra = llave and partner._dcasa_otra_ficha('correo', llave)
                 if otra:

@@ -111,13 +111,13 @@
                                     <select class="form-select" aria-label="Día" t-model="state.campos[p.id].dia">
                                         <option value="">Día</option>
                                         <t t-foreach="dias" t-as="dia" t-key="dia">
-                                            <option t-att-value="String(dia)" t-esc="dia"/>
+                                            <option t-att-value="dia" t-esc="dia"/>
                                         </t>
                                     </select>
                                     <select class="form-select" aria-label="Mes" t-model="state.campos[p.id].mes">
                                         <option value="">Mes</option>
                                         <t t-foreach="meses" t-as="mes" t-key="mes_index">
-                                            <option t-att-value="String(mes_index + 1)" t-esc="mes"/>
+                                            <option t-att-value="mes_index + 1" t-esc="mes"/>
                                         </t>
                                     </select>
                                 </div>

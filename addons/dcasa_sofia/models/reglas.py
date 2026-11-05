@@ -47,14 +47,19 @@ def ventana_abierta(canal, ultimo_mensaje_cliente, ahora):
     return bool(ultimo_mensaje_cliente) and ahora - ultimo_mensaje_cliente < VENTANA
 
 
+# Caracteres invisibles (espacio de ancho cero, cambio de dirección del texto…): nunca van en un nombre.
+INVISIBLES = frozenset({'Cf', 'Cc', 'Cn'})
+
+
 def _es_emoji_o_simbolo(caracter):
-    return unicodedata.category(caracter) in ('So', 'Sk', 'Cs', 'Co') or ord(caracter) >= 0x1F000
+    return unicodedata.category(caracter) in ('So', 'Sk', 'Cs', 'Co', *INVISIBLES) or ord(caracter) >= 0x1F000
 
 
 def palabras_del_nombre(nombre):
     """Las palabras con letras de un nombre, sin signos alrededor («Ana,» → «Ana»)."""
     palabras = []
-    for parte in (nombre or '').split():
+    visible = ''.join(c if unicodedata.category(c) not in INVISIBLES else ' ' for c in (nombre or ''))
+    for parte in visible.split():
         limpia = parte.strip('.,;:!¡?¿"\'()[]«»-_*~')
         if any(c.isalpha() for c in limpia):
             palabras.append(limpia)
@@ -147,7 +152,12 @@ def correos_en(texto):
     """Los correos que aparecen en un mensaje, en el orden en que aparecen y sin repetir."""
     vistos = []
     for encontrado in _CORREO.findall(texto or ''):
-        correo = encontrado.strip('.').lower()
+        local, dominio = encontrado.strip('.').split('@', 1)
+        partes = dominio.split('.')
+        # «ana@empresa.com.Saludos» → ana@empresa.com (pero «ana@empresa.com.pa» se queda entero)
+        while len(partes) > 2 and partes[-1][:1].isupper() and len(partes[-1]) > 3:
+            partes.pop()
+        correo = f'{local}@{".".join(partes)}'.lower()
         if correo not in vistos:
             vistos.append(correo)
     return vistos
@@ -160,12 +170,13 @@ def correos_en(texto):
 MESES = {
     'enero': 1, 'febrero': 2, 'marzo': 3, 'abril': 4, 'mayo': 5, 'junio': 6, 'julio': 7, 'agosto': 8,
     'septiembre': 9, 'setiembre': 9, 'octubre': 10, 'noviembre': 11, 'diciembre': 12,
-    'ene': 1, 'feb': 2, 'mar': 3, 'abr': 4, 'jun': 6, 'jul': 7, 'ago': 8, 'sep': 9, 'sept': 9, 'set': 9, 'oct': 10,
-    'nov': 11, 'dic': 12,
+    # abreviaturas (no «mar», «ago» ni «set»: son palabras de todos los días, como en «set 2»)
+    'ene': 1, 'feb': 2, 'abr': 4, 'jun': 6, 'jul': 7, 'sep': 9, 'sept': 9, 'oct': 10, 'nov': 11, 'dic': 12,
 }
+MAX_LETRAS_POR_MENSAJE = 2000   # una respuesta con sus datos es corta; un texto enorme no se lee entero
 DIAS_DEL_MES = (31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
 # Palabras que van en minúscula dentro de un nombre («María de los Ángeles», «Juan del Carmen»).
-PARTICULAS = frozenset({'de', 'del', 'la', 'las', 'los', 'y', 'e', 'da', 'das', 'do', 'dos', 'van', 'von', 'di'})
+PARTICULAS = frozenset({'de', 'del', 'la', 'las', 'los', 'y', 'van', 'von'})
 # Lo que contesta la gente y no es un nombre («Hola buenas», «Ok gracias», «Sí claro»).
 NO_ES_RESPUESTA_DE_NOMBRE = frozenset({
     'hola', 'buenas', 'buenos', 'buen', 'dia', 'día', 'dias', 'días', 'tardes', 'noches', 'gracias', 'ok', 'okay',
@@ -174,8 +185,16 @@ NO_ES_RESPUESTA_DE_NOMBRE = frozenset({
     'whatsapp', 'precio', 'cuanto', 'cuánto', 'quiero', 'tienen', 'hay', 'disponible', 'cotizacion', 'cotización',
     # «soy de La Chorrera», «me interesa», «es para mi casa»: una frase, no un nombre
     'soy', 'me', 'llamo', 'es', 'el', 'yo', 'un', 'una', 'aqui', 'aquí', 'interesa', 'casa',
-    # «Mañana paso», «Ahorita voy», «Ya listo»
-    'mañana', 'hoy', 'luego', 'ahorita', 'ahora', 'después', 'despues', 'paso', 'voy', 'ya', 'tarde',
+    # «Mañana paso», «Ahorita voy», «Ya listo», «Te aviso», «Lo pienso», «Muy amable», «Excelente servicio»
+    'mañana', 'hoy', 'luego', 'ahorita', 'ahora', 'después', 'despues', 'paso', 'voy', 'ya', 'tarde', 'ayer',
+    'te', 'lo', 'le', 'se', 'aviso', 'pienso', 'muy', 'amable', 'excelente', 'servicio', 'atención', 'atencion',
+    'caro', 'cara', 'barato', 'barata', 'mandame', 'mándame', 'envíame', 'enviame', 'foto', 'fotos', 'mucho',
+    'nadie', 'todo', 'nada', 'igual', 'tambien', 'también', 'exacto', 'entendido', 'dale', 'genial', 'super', 'súper',
+    # «Ella se llama Ana Gómez» es otra persona
+    'ella', 'él', 'llama', 'esposo', 'esposa', 'hijo', 'hija', 'mamá', 'mama', 'papá', 'papa',
+    # una dirección no es un nombre («Calle Principal», «Puerto Caimito»)
+    'calle', 'avenida', 'ave', 'vía', 'via', 'puerto', 'barrio', 'barriada', 'urbanización', 'urbanizacion', 'sector',
+    'edificio', 'apartamento', 'apto', 'local', 'frente', 'cerca', 'chorrera', 'arraiján', 'arraijan',
     # muebles, medidas y colores: «cama queen gris» no es un nombre
     'cama', 'camas', 'sofa', 'sofá', 'sofás', 'mueble', 'muebles', 'colchon', 'colchón', 'mesa', 'silla', 'sillas',
     'comedor', 'juego', 'sala', 'closet', 'clóset', 'ropero', 'escritorio', 'gavetero', 'base', 'cabecera',
@@ -186,20 +205,30 @@ NO_ES_RESPUESTA_DE_NOMBRE = frozenset({
 CORTE_DEL_NOMBRE = frozenset({'mi', 'correo', 'email', 'mail', 'cumplo', 'cumpleaños', 'naci', 'nací', 'tel', 'cel',
                               'celular', 'gracias', 'para', 'por', 'con', 'que', 'pero', 'me', 'es', 'soy', 'estoy',
                               'quiero', 'tengo', 'busco', 'necesito', 'vivo', 'desde', 'en', 'a', 'al'})
-# Un mensaje que PIDE sus datos: nombra el dato («tu nombre», «nombre y apellido», «tu correo»…) y lo pide (una
-# pregunta o «regálame», «compárteme», «indícame»…). «Te envié la cotización a tu correo» no pide nada.
-_DATO_PEDIDO = re.compile(r'(?:tu|su)\s+(?:nombre|apellido|correo|e-?mail|cumplea)|nombre\s+y\s+apellido|'
-                          r'nombre\s+completo|d[ií]a\s+y\s+(?:el\s+)?mes', re.IGNORECASE)
-_VERBO_DE_PEDIR = re.compile(r'\?|reg[aá]l|comp[aá]rt|ind[ií]c|facil[ií]t|d[ií]me|d[aá]me|p[aá]same|escr[ií]beme|'
-                             r'env[ií]ame|confirm', re.IGNORECASE)
+# Un mensaje que PIDE sus datos: un verbo de pedir junto al dato («¿me regalas tu nombre…?», «compárteme tu correo»,
+# «¿cuál es tu correo?», «tu nombre completo, por favor»). «Te envié la cotización a tu correo, ¿la recibiste?» o «la
+# factura sale a su nombre, ¿verdad?» no piden nada.
+_DATO = r'(?:tu|su)\s+(?:nombre|apellido|correo|e-?mail|cumplea[ñn]os|fecha)'
+_PIDE_UN_DATO = re.compile(
+    r'(?:reg[aá]l\w*|comp[aá]rt\w*|ind[ií]c\w*|facil[ií]t\w*|confirm[aá](?:me|nos|s)?|d[ií]me|d[aá]me|p[aá]same|'
+    r'escr[ií]beme|env[ií]ame|me\s+(?:das|dices|pasas|escribes|env[ií]as))\s+(?:\w+\s+){0,3}?' + _DATO
+    + r'|cu[aá]l\s+es\s+' + _DATO + r'|' + _DATO + r'(?:\s+completo)?\s*(?:,\s*)?(?:por\s+favor|\?)',
+    re.IGNORECASE)
 _NOMBRE_DICHO = re.compile(
-    r'(?:me\s+llamo|mi\s+nombre(?:\s+completo)?\s+es|nombre(?:\s+completo)?\s*[:=])\s*(?P<nombre>[^\n,.;:0-9@()]+)',
+    r'(?:(?<!no\s)me\s+llamo|mi\s+nombre(?:\s+completo)?\s+es|nombre(?:\s+completo)?\s*[:=])\s*(?P<nombre>[^\n,.;:0-9@()]+)',
     re.IGNORECASE)
 _SOY = re.compile(r'(?:^|[\s,.;])soy\s+(?P<nombre>[^\n,.;:0-9@()]+)', re.IGNORECASE)
-# «cumplo el 12 de marzo», «mi cumpleaños es…», «nací el…» (no «fecha» a secas ni «nacional»: una entrega también
-# tiene fecha).
-_HABLA_DE_CUMPLE = re.compile(r'\bcumplea[ñn]os|\bcumplo\b|\bmi\s+cumple\b|\bnac[ií](?:\b|da\b|do\b|miento\b)',
-                              re.IGNORECASE)
+# SU cumpleaños: «cumplo el 12 de marzo», «mi cumpleaños es…», «nací el…» (no «fecha» a secas, ni «cumplo con el
+# abono», ni el cumpleaños de otra persona: una entrega también tiene fecha).
+_HABLA_DE_CUMPLE = re.compile(r'\bmi\s+cumplea[ñn]os|\bmi\s+cumple\b|\bcumplo\s+(?:a[ñn]os\b|el\b|en\b|\d)|\bnac[ií]\b|'
+                              r'\bmi\s+fecha\s+de\s+nacimiento', re.IGNORECASE)
+# El mensaje habla de otra persona («el cumpleaños de mi mamá», «nacimiento de mi bebé»): esa fecha no es la suya.
+_OTRA_PERSONA = re.compile(r'\b(?:mam[aá]|pap[aá]|madre|padre|hij[oa]s?|espos[oa]|beb[eé]|novi[oa]|herman[oa]|'
+                           r'abuel[oa]|amig[oa]|t[ií][oa]|prim[oa]|suegr[oa]|sobrin[oa]|niet[oa]|jef[ea]|cuñad[oa])\b',
+                           re.IGNORECASE)
+# Lo que puede acompañar a la fecha en una línea que es solo su cumpleaños («el 12 de marzo», «mi cumple: 12/03»).
+_RELLENO_DE_LA_FECHA = frozenset({'el', 'de', 'del', 'mi', 'cumple', 'cumpleaños', 'es', 'fecha', 'nacimiento', 'día',
+                                  'dia', 'y', 'mes'})
 # Quien le pidió sus datos le pidió también el día y el mes de su cumpleaños (la plantilla «Pedir sus datos» lo hace).
 _PIDE_EL_CUMPLE = re.compile(r'd[ií]a\s+y\s+(?:el\s+)?mes|fecha\s+de\s+(?:nacimiento|cumplea)|cu[aá]ndo\s+(?:es\s+)?'
                              r'(?:tu\s+|su\s+)?cumple|cu[aá]ndo\s+naci', re.IGNORECASE)
@@ -210,8 +239,7 @@ _FECHA_NUMERICA = re.compile(r'(?<![\d$])(?P<dia>\d{1,2})[/-](?P<mes>\d{1,2})(?:
 
 def pide_datos(texto):
     """¿Un mensaje del equipo (o de Juan) le pide al cliente su nombre, su correo o su cumpleaños?"""
-    texto = texto or ''
-    return bool(_DATO_PEDIDO.search(texto) and _VERBO_DE_PEDIR.search(texto))
+    return bool(_PIDE_UN_DATO.search(texto or ''))
 
 
 def pide_el_cumple(texto):
@@ -223,8 +251,11 @@ def pide_el_cumple(texto):
 def nombre_con_formato(texto):
     """«maría DE LOS ángeles pérez» → «María de los Ángeles Pérez» (cada palabra con mayúscula inicial; las
     partículas en minúscula, salvo al empezar; los nombres compuestos con guion, cada parte)."""
+    palabras = palabras_del_nombre(texto)
+    while len(palabras) > 1 and palabras[-1].casefold() in PARTICULAS:   # «Ana Pérez y» → «Ana Pérez»
+        palabras.pop()
     salida = []
-    for i, palabra in enumerate(palabras_del_nombre(texto)):
+    for i, palabra in enumerate(palabras):
         if i and palabra.casefold() in PARTICULAS:
             salida.append(palabra.casefold())
             continue
@@ -282,18 +313,23 @@ def nombre_en(texto, despues_de_pedirlo=False):
 def mejora_el_nombre(actual, nuevo, provisionales=()):
     """¿Vale la pena cambiar el nombre de la ficha por ``nuevo``? Solo si el de ahora no sirve y el nuevo es mejor: un
     nombre y apellido siempre; un nombre solo, únicamente en lugar de un emoji, una frase o nada (nunca en lugar de
-    otro nombre de pila)."""
+    otro nombre de pila). Si la ficha ya tiene un nombre de pila, el nuevo tiene que llevarlo («Ana» → «Ana Pérez»,
+    nunca «Ana» → «Carla Ruiz»)."""
     motivo_actual = falta_el_nombre(actual, provisionales)
     if not nuevo or not motivo_actual:
         return False
-    if not falta_el_nombre(nuevo):
-        return True
-    return motivo_actual != SOLO_EL_NOMBRE
+    if motivo_actual == SOLO_EL_NOMBRE:
+        pila = _sin_tildes(palabras_del_nombre(actual)[0])
+        return not falta_el_nombre(nuevo) and pila in {_sin_tildes(p) for p in palabras_del_nombre(nuevo)}
+    return not falta_el_nombre(nuevo) or falta_el_nombre(nuevo) == SOLO_EL_NOMBRE
+
+
+def _sin_tildes(palabra):
+    return unicodedata.normalize('NFKD', palabra.casefold()).encode('ascii', 'ignore').decode()
 
 
 def _mes(palabra):
-    return MESES.get(unicodedata.normalize('NFKD', palabra.casefold()).encode('ascii', 'ignore').decode()) \
-        or MESES.get(palabra.casefold())
+    return MESES.get(_sin_tildes(palabra)) or MESES.get(palabra.casefold())
 
 
 def _como_cumple(dia, mes):
@@ -302,25 +338,39 @@ def _como_cumple(dia, mes):
     return f'{mes:02d}-{dia:02d}'
 
 
+def _fechas_en(linea):
+    """``(cumple, lo demás de la línea)`` por cada fecha que existe en la línea, en orden de preferencia."""
+    for patron, numerico in ((_FECHA_CON_MES, False), (_MES_Y_DIA, False), (_FECHA_NUMERICA, True)):
+        for encontrado in patron.finditer(linea):
+            mes = int(encontrado['mes']) if numerico else _mes(encontrado['mes'])
+            cumple = mes and _como_cumple(int(encontrado['dia']), mes)
+            if cumple:
+                yield cumple, f'{linea[:encontrado.start()]} {linea[encontrado.end():]}'
+
+
+def _solo_la_fecha(resto):
+    """¿Lo demás de la línea es relleno («el», «de», «mi cumple»…), sin otras palabras ni números?"""
+    return not any(c.isdigit() for c in resto) and all(
+        palabra.casefold() in _RELLENO_DE_LA_FECHA for palabra in re.findall(r'[^\W\d_]+', resto))
+
+
 def cumple_en(texto, despues_de_pedirlo=False):
     """El cumpleaños que el cliente escribió, como lo guarda Socios (``MM-DD``), o ``None``.
 
-    «12 de marzo», «marzo 12», «12/03» o «12-03-1990» (día primero, como en Panamá). Solo si el mensaje habla de su
-    cumpleaños o de cuándo nació, o contesta a quien le pidió sus datos. Nunca con un precio en el mensaje."""
-    texto = texto or ''
-    if '$' in texto or not (despues_de_pedirlo or _HABLA_DE_CUMPLE.search(texto)):
+    «12 de marzo», «marzo 12», «12/03» o «12-03-1990» (día primero, como en Panamá). Si el mensaje dice que es SU
+    cumpleaños («cumplo el…», «mi cumpleaños es…», «nací el…»). Contestando a quien le pidió el día y el mes, también
+    una línea que es solo la fecha («12/03»), nunca una fecha en medio de otra frase («entréguenmelo el 15/11»). Nunca
+    con un precio ni si habla de otra persona («el cumpleaños de mi mamá»)."""
+    texto = (texto or '')[:MAX_LETRAS_POR_MENSAJE]
+    if '$' in texto or _OTRA_PERSONA.search(texto):
         return None
-    for patron in (_FECHA_CON_MES, _MES_Y_DIA):
-        for encontrado in patron.finditer(texto):
-            mes = _mes(encontrado['mes'])
-            if mes:
-                cumple = _como_cumple(int(encontrado['dia']), mes)
-                if cumple:
-                    return cumple
-    for encontrado in _FECHA_NUMERICA.finditer(texto):
-        cumple = _como_cumple(int(encontrado['dia']), int(encontrado['mes']))
-        if cumple:
-            return cumple
+    dice_que_es_suyo = bool(_HABLA_DE_CUMPLE.search(texto))
+    if not (dice_que_es_suyo or despues_de_pedirlo):
+        return None
+    for linea in texto.splitlines():
+        for cumple, resto in _fechas_en(linea):
+            if dice_que_es_suyo or _solo_la_fecha(resto):
+                return cumple
     return None
 
 
@@ -331,14 +381,15 @@ def cumple_para_mostrar(cumple):
     return f'{cumple[3:]}/{cumple[:2]}'
 
 
-def datos_en(mensajes):
+def datos_en(mensajes, correos_que_no=()):
     """``{nombre, correo, cumple}`` que el cliente escribió en ``mensajes``, del más nuevo al más viejo: de cada dato,
     el más reciente. El correo, escrito como se guarda (minúsculas, bien escrito).
 
     Cada mensaje es ``(texto, despues_de_pedirlo, despues_de_pedir_el_cumple)``: si contesta a quien le pidió sus datos
-    (y su cumpleaños) se lee con más soltura."""
+    (y su cumpleaños) se lee con más soltura. ``correos_que_no``: los del equipo (se sigue buscando el suyo)."""
     datos = {}
-    for texto, despues, despues_cumple in mensajes:
+    for escrito_completo, despues, despues_cumple in mensajes:
+        texto = (escrito_completo or '')[:MAX_LETRAS_POR_MENSAJE]
         if 'nombre' not in datos:
             nombre = nombre_en(texto, despues)
             if nombre:
@@ -346,7 +397,7 @@ def datos_en(mensajes):
         if 'correo' not in datos:
             for escrito in correos_en(texto):
                 correo = B.correo_limpio(escrito)
-                if correo:
+                if correo and correo not in correos_que_no:
                     datos['correo'] = correo
                     break
         if 'cumple' not in datos:

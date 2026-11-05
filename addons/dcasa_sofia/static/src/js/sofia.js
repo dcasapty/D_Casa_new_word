@@ -81,6 +81,9 @@ export class SofiaPanel extends Component {
         this.meses = MESES;
         this.dias = DIAS;
         this.cumpleLegible = cumpleLegible;
+        /** Lo que Sofía proponía cuando se llenaron los campos de cada tarjeta (si una revisión lo cambia, se ponen
+         * los datos nuevos en vez de dejar los viejos). */
+        this.camposBase = {};
         this.state = useState({
             datos: null,
             cargando: true,
@@ -128,7 +131,10 @@ export class SofiaPanel extends Component {
         for (const p of datos.propuestas) {
             textos[p.id] = p.id in this.state.textos ? this.state.textos[p.id] : p.mensaje;
             if (p.tipo === "guardar_datos") {
-                campos[p.id] = this.state.campos[p.id] || camposEditables(p.campos || {});
+                const base = JSON.stringify(p.campos || {});
+                const igual = this.state.campos[p.id] && this.camposBase[p.id] === base;
+                campos[p.id] = igual ? this.state.campos[p.id] : camposEditables(p.campos || {});
+                this.camposBase[p.id] = base;
             }
         }
         this.state.textos = textos;

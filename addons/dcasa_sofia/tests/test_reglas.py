@@ -100,6 +100,10 @@ class TestReglasDeSofia(BaseCase):
         self.assertEqual(R.nombre_con_formato('ANA o\'neill'), "Ana O'Neill")
         self.assertEqual(R.nombre_con_formato('josé-luis del carmen'), 'José-Luis del Carmen')
         self.assertEqual(R.nombre_con_formato('de gracia luis'), 'De Gracia Luis', 'al empezar, con mayúscula')
+        self.assertEqual(R.nombre_con_formato('ana e pérez y'), 'Ana E Pérez', 'una inicial no es partícula')
+        self.assertEqual(R.nombre_con_formato('Ana\u200b Pérez\u202e'), 'Ana Pérez',
+                         'los caracteres invisibles no entran a la ficha')
+        self.assertEqual(R.falta_el_nombre('Ana\u200b Pérez'), 'su nombre tiene emojis')
 
     def test_lee_el_nombre_solo_cuando_lo_dice_claro(self):
         self.assertEqual(R.nombre_en('Hola, me llamo ingrid pérez y mi correo es ingrid@example.com'), 'Ingrid Pérez')
@@ -112,8 +116,12 @@ class TestReglasDeSofia(BaseCase):
         # Contestando a quien se lo pidió, sí.
         self.assertEqual(R.nombre_en('Ingrid Pérez\ningrid@example.com', despues_de_pedirlo=True), 'Ingrid Pérez')
         self.assertEqual(R.nombre_en('Claro, soy Ingrid Pérez', despues_de_pedirlo=True), 'Ingrid Pérez')
+        self.assertIsNone(R.nombre_en('no me llamo nadie'))
+        self.assertIsNone(R.nombre_en('me llamo mucho la atención ese sofá'))
         for texto in ('Hola buenas', 'Ok gracias', 'Cama queen gris', 'Juego de sala', 'soy de La Chorrera',
-                      'Ana', '🙏', '6000-1234', 'Mañana paso', 'Ahorita voy'):
+                      'Ana', '🙏', '6000-1234', 'Mañana paso', 'Ahorita voy', 'Muy amable', 'Excelente servicio',
+                      'Lo pienso', 'Muy caro', 'Te aviso', 'Mándame fotos', 'Calle Principal', 'Puerto Caimito',
+                      'Ella se llama Ana Gómez'):
             with self.subTest(texto=texto):
                 self.assertIsNone(R.nombre_en(texto, despues_de_pedirlo=True))
 
@@ -122,6 +130,9 @@ class TestReglasDeSofia(BaseCase):
         self.assertTrue(R.mejora_el_nombre('🙏', 'Ana'), 'un nombre solo es mejor que un emoji')
         self.assertTrue(R.mejora_el_nombre('Ana', 'Ana Pérez'))
         self.assertFalse(R.mejora_el_nombre('Ana', 'Carla'), 'nunca un nombre de pila en lugar de otro')
+        self.assertFalse(R.mejora_el_nombre('Ana', 'Carla Ruiz'), 'si ya tiene un nombre de pila, que sea el suyo')
+        self.assertTrue(R.mejora_el_nombre('ana', 'Ána María Pérez'))
+        self.assertFalse(R.mejora_el_nombre('🙏', 'Dios Te Bendiga'))
         self.assertFalse(R.mejora_el_nombre('Ana Pérez', 'Ana María Pérez Ruiz'), 'lo bueno no se pisa')
         self.assertFalse(R.mejora_el_nombre('🙏', None))
         self.assertTrue(R.mejora_el_nombre('WhatsApp +507 6000', 'Ana Pérez', ('WhatsApp +507 6000',)))
@@ -135,6 +146,15 @@ class TestReglasDeSofia(BaseCase):
         self.assertIsNone(R.cumple_en('Lo quiero para el 15/12'), 'una entrega no es su cumpleaños')
         self.assertIsNone(R.cumple_en('La fecha de entrega es el 15/12'))
         self.assertIsNone(R.cumple_en('Cuesta $12/03'), 'nunca con un precio')
+        self.assertIsNone(R.cumple_en('Es un regalo para el cumpleaños de mi mamá, es el 20 de diciembre'),
+                          'el de otra persona')
+        self.assertIsNone(R.cumple_en('Cumplo con el abono el 15/11'))
+        self.assertIsNone(R.cumple_en('Nacimiento de mi bebé, marzo 15'))
+        # Contestando a quien le pidió el día y el mes: solo una línea que es la fecha.
+        for texto in ('¿Me lo pueden entregar el 15 de noviembre?', 'Paso el sábado 8/11', 'Cama 3/4 gris', 'set 2'):
+            with self.subTest(texto=texto):
+                self.assertIsNone(R.cumple_en(texto, despues_de_pedirlo=True))
+        self.assertEqual(R.cumple_en('Ana Pérez\nel 12 de marzo', despues_de_pedirlo=True), '03-12')
         self.assertEqual(R.cumple_en('15/12', despues_de_pedirlo=True), '12-15')
         self.assertEqual(R.cumple_para_mostrar('03-12'), '12/03')
         self.assertEqual(R.cumple_para_mostrar(''), '')
@@ -143,6 +163,10 @@ class TestReglasDeSofia(BaseCase):
         self.assertTrue(R.pide_datos('¿Me regalas tu nombre y apellido y tu correo?'))
         self.assertFalse(R.pide_datos('¡Hola! ¿Te puedo ayudar con el sofá?'))
         self.assertFalse(R.pide_datos('Te envié la cotización a tu correo.'), 'nombra el dato pero no lo pide')
+        self.assertFalse(R.pide_datos('Te envié la cotización a tu correo, ¿la recibiste?'))
+        self.assertFalse(R.pide_datos('La factura sale a su nombre, ¿verdad?'))
+        self.assertTrue(R.pide_datos('¿Cuál es tu correo?'))
+        self.assertTrue(R.pide_datos('Tu nombre completo, por favor'))
         self.assertTrue(R.pide_datos('Compárteme tu nombre completo para la factura'))
         self.assertTrue(R.pide_el_cumple('si quieres, dime también el día y el mes'))
         self.assertTrue(R.pide_el_cumple('¿Cuándo es tu cumpleaños?'))
@@ -150,16 +174,22 @@ class TestReglasDeSofia(BaseCase):
 
     def test_junta_los_datos_de_varios_mensajes(self):
         mensajes = [   # del más nuevo al más viejo
-            ('Mi correo es Ingrid.P@Gmail.com', True, True),
+            ('Mi correo es Ingrid.P@Example.com', True, True),
             ('Ingrid Pérez\n12/03', True, True),
             ('Me llamo Ingrid Vieja', False, False),
         ]
         self.assertEqual(R.datos_en(mensajes),
-                         {'correo': 'ingrid.p@gmail.com', 'nombre': 'Ingrid Pérez', 'cumple': '03-12'})
+                         {'correo': 'ingrid.p@example.com', 'nombre': 'Ingrid Pérez', 'cumple': '03-12'})
         self.assertEqual(R.datos_en([('Ingrid Pérez\n12/03', True, False)]), {'nombre': 'Ingrid Pérez'},
                          'si no le pidieron el cumpleaños, una fecha suelta no lo es')
         self.assertEqual(R.datos_en([('Hola buenas, ¿tienen la cama?', True, True)]), {})
         self.assertEqual(R.datos_en([('mi correo es ana@gmial', False, False)]), {}, 'mal escrito no se propone')
+        self.assertEqual(R.datos_en([('Escríbele a ventas@dcasa.example.com', False, False),
+                                     ('mi correo es ana@example.com', False, False)],
+                                    correos_que_no={'ventas@dcasa.example.com'}),
+                         {'correo': 'ana@example.com'}, 'el del equipo no tapa el suyo')
+        self.assertEqual(R.correos_en('ana@empresa.com.Saludos'), ['ana@empresa.com'])
+        self.assertEqual(R.correos_en('ana@empresa.com.pa'), ['ana@empresa.com.pa'])
 
     def test_prioridad_de_guardar_sus_datos(self):
         self.assertEqual(R.prioridad('guardar_datos', CRM.CALIENTE), R.MEDIA)

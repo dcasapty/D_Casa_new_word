@@ -6,6 +6,7 @@ quien la aprueba (sin ``sudo``): asignar una oportunidad, escribirle al cliente 
 Conversaciones (``enviar_respuesta``), crear una tarea o guardar en la ficha los datos que el cliente escribió. Antes
 de hacerla se revisa que todavía haga falta; si ya no, la propuesta queda «ya no hacía falta» y no se hace nada.
 """
+import re
 from datetime import timedelta
 
 from markupsafe import escape
@@ -361,14 +362,10 @@ class SofiaPanel(models.AbstractModel):
         nadie y con los permisos de quien aprueba. Deja una nota en la ficha con el antes y el después."""
         if p.tipo == 'guardar_correo':   # las de antes de «Guarda sus datos» (solo el correo)
             return self._aplicar_guardar_correo(p)
-        partner = p.partner_id
-        conv = p.conversacion_id
-        if not partner:
-            raise YaNoHaceFalta(self.env._('Ese cliente ya no existe.'))
-        if conv and conv.partner_id != partner:
-            raise YaNoHaceFalta(self.env._('Ese chat ahora es de otra ficha de cliente.'))
+        partner, conv = self._exigir_ficha_para_guardar(p)
+        propuestos = (p.datos or {}).get('campos') or {}
         if campos is None:
-            campos = (p.datos or {}).get('campos') or {}
+            campos = propuestos
         campos = {clave: ' '.join((valor or '').split()) for clave, valor in campos.items()}
         provisionales = self._provisionales(conv) if conv else ()
         revisar = (('nombre', self.env._('su nombre'), lambda v: self._nombre_para_guardar(partner, v, provisionales)),
@@ -384,6 +381,9 @@ class SofiaPanel(models.AbstractModel):
                 continue
             campo, valor, nota = listo
             valores[campo] = valor
+            if campos[clave] != propuestos.get(clave):   # que la nota no diga «lo escribió» si se corrigió
+                nota += self.env._(' (lo corrigió %(quien)s; en el chat: «%(chat)s»)', quien=self.env.user.name,
+                                   chat=propuestos.get(clave) or '')
             notas.append(nota)
         if not valores:
             if ya_tenia:
@@ -397,24 +397,36 @@ class SofiaPanel(models.AbstractModel):
             raise UserError(self.env._('No se pudo guardar en su ficha: %s', error.args[0] if error.args else error)) \
                 from None
         ficha.message_post(body=escape(self.env._(
-            'Sofía guardó lo que escribió en el chat (lo aprobó %(quien)s). %(cambios)s.',
+            'Sofía guardó los datos que escribió en el chat (lo aprobó %(quien)s). %(cambios)s.',
             quien=self.env.user.name, cambios='. '.join(notas))), subtype_xmlid='mail.mt_note')
         guardado = self.env._('Guardado en su ficha.')
         if ya_tenia:
             guardado += self.env._(' Ya tenía %s.', ', '.join(ya_tenia))
         return guardado, {}
 
+    def _exigir_ficha_para_guardar(self, p):
+        partner, conv = p.partner_id, p.conversacion_id
+        if not partner:
+            raise YaNoHaceFalta(self.env._('Ese cliente ya no existe.'))
+        if partner.is_company:
+            raise YaNoHaceFalta(self.env._('Es la ficha de una empresa: los datos de la persona que escribe van en su '
+                                           'propio contacto.'))
+        if conv and conv.partner_id != partner:
+            raise YaNoHaceFalta(self.env._('Ese chat ahora es de otra ficha de cliente.'))
+        return partner, conv
+
     def _nombre_para_guardar(self, partner, valor, provisionales):
         nombre = R.nombre_con_formato(valor)
-        if partner.is_company or not R.falta_el_nombre(partner.name, provisionales):
+        if not R.falta_el_nombre(partner.name, provisionales):
             return None
         motivo = R.falta_el_nombre(nombre)
         if not nombre or (motivo and motivo != R.SOLO_EL_NOMBRE):
             raise UserError(self.env._('«%(nombre)s» no sirve como nombre: %(motivo)s. Escribe su nombre y '
                                        'apellido o borra ese dato.', nombre=valor, motivo=motivo or ''))
         if not R.mejora_el_nombre(partner.name, nombre, provisionales):
-            raise UserError(self.env._('Su ficha ya dice «%s»: escribe también su apellido o borra ese dato.',
-                                       partner.name))
+            raise UserError(self.env._(
+                'Su ficha dice «%s»: escribe ese nombre con su apellido o borra este dato (si de verdad se llama '
+                'distinto, corrígelo en su ficha).', partner.name))
         return 'name', nombre, self.env._('Nombre: «%(antes)s» → «%(ahora)s»', antes=partner.name or '', ahora=nombre)
 
     def _correo_para_guardar(self, partner, valor):
@@ -440,7 +452,7 @@ class SofiaPanel(models.AbstractModel):
     def _cumple_para_guardar(self, partner, valor):
         if partner.dcasa_cumple:
             return None
-        if len(valor) != 5 or not RS.cumple_valido(valor):
+        if not re.fullmatch(r'[0-9]{2}-[0-9]{2}', valor) or not RS.cumple_valido(valor):
             raise UserError(self.env._('Ese cumpleaños no es una fecha: elige el día y el mes.'))
         return 'dcasa_cumple', valor, self.env._('Cumpleaños: %s', R.cumple_para_mostrar(valor))
 

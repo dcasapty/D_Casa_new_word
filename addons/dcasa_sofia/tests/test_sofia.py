@@ -185,13 +185,13 @@ class TestSofia(JuanCase):
         self.mensaje(conv, "¡Hola! Soy Vendedora de D'CASA. ¿Me regalas tu nombre y apellido y tu correo? Si quieres, "
                            "dime también el día y el mes de tu cumpleaños.", 6, autor='vendedora',
                      usuario=self.vendedora)
-        self.mensaje(conv, 'ingrid DE LA pérez\nIngrid.P@Gmail.com\n12/03', 5)
+        self.mensaje(conv, 'ingrid DE LA pérez\nIngrid.P@Example.com\n12/03', 5)
         fichas_antes = self.Partner.search_count([])
         self.analizar()
         propuesta = self.propuestas(partner_id=partner.id, tipo='guardar_datos')
         self.assertEqual(len(propuesta), 1)
         self.assertEqual(propuesta.datos['campos'],
-                         {'nombre': 'Ingrid de la Pérez', 'correo': 'ingrid.p@gmail.com', 'cumple': '03-12'})
+                         {'nombre': 'Ingrid de la Pérez', 'correo': 'ingrid.p@example.com', 'cumple': '03-12'})
         self.assertEqual(propuesta.usuario_id, self.vendedora)
         self.assertEqual(propuesta.prioridad, 2)
         self.assertIn('Ingrid de la Pérez', propuesta.titulo)
@@ -204,7 +204,7 @@ class TestSofia(JuanCase):
         resultado = self.Sofia.with_user(self.vendedora).aplicar(propuesta.id, 'guardar')
         self.assertEqual(resultado['resultado'], 'Guardado en su ficha.')
         self.assertEqual(partner.name, 'Ingrid de la Pérez')
-        self.assertEqual(partner.email, 'ingrid.p@gmail.com')
+        self.assertEqual(partner.email, 'ingrid.p@example.com')
         self.assertEqual(partner.dcasa_cumple, '03-12')
         self.assertEqual(propuesta.estado, 'aplicada')
         self.assertEqual(self.Partner.search_count([]), fichas_antes, 'nunca crea fichas')
