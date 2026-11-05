@@ -898,7 +898,9 @@ LISTA_BLANCA = {
                 'no más de una por minuto.',
     ('dcasa_sofia', 'dcasa.sofia', 'aplicar'):
         SOFIA + ' Cada acción corre con los permisos de quien aprueba (sin sudo): asignar exige Gerencia; escribir va '
-                'por enviar_respuesta (las mismas reglas que la pantalla de Conversaciones).',
+                'por enviar_respuesta (las mismas reglas que la pantalla de Conversaciones); guardar sus datos valida '
+                'cada campo (solo los que Sofía propuso), no pisa lo que la ficha ya tiene y pasa por las reglas de '
+                'Contactos.',
     ('dcasa_sofia', 'dcasa.sofia', 'descartar'): SOFIA,
     ('dcasa_sofia', 'crm.lead', 'action_dcasa_sofia'): ACCION_VENTANA,
     # --- dcasa_nomina: adelantos y préstamos (G7) y comprobante de pago por correo (G4), 2026-10-22 ----------------

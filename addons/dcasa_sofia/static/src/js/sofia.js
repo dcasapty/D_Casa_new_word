@@ -32,6 +32,43 @@ const BOTONES = {
 
 const SIN_VENDEDORA = "__sin__";
 
+export const MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre",
+    "Noviembre", "Diciembre"];
+const DIAS = Array.from({ length: 31 }, (_, i) => i + 1);
+
+/** «Guarda sus datos»: lo que se ve en los campos de la tarjeta (el cumpleaños «MM-DD» en día y mes). */
+export function camposEditables(campos) {
+    const [mes, dia] = (campos.cumple || "").split("-");
+    return {
+        nombre: campos.nombre || "",
+        correo: campos.correo || "",
+        dia: dia ? String(Number(dia)) : "",
+        mes: mes ? String(Number(mes)) : "",
+    };
+}
+
+/** Lo que se manda al servidor: solo los datos que Sofía propuso; vacío = no guardar ese dato. */
+export function camposParaGuardar(propuestos, editados) {
+    const salida = {};
+    if ("nombre" in propuestos) {
+        salida.nombre = editados.nombre.trim();
+    }
+    if ("correo" in propuestos) {
+        salida.correo = editados.correo.trim();
+    }
+    if ("cumple" in propuestos) {
+        const dos = (n) => String(n).padStart(2, "0");
+        salida.cumple = editados.dia && editados.mes ? `${dos(editados.mes)}-${dos(editados.dia)}` : "";
+    }
+    return salida;
+}
+
+/** «03-12» → «12 de marzo». */
+export function cumpleLegible(cumple) {
+    const [mes, dia] = (cumple || "").split("-").map(Number);
+    return mes && dia ? `${dia} de ${MESES[mes - 1].toLowerCase()}` : "";
+}
+
 export class SofiaPanel extends Component {
     static template = "dcasa_sofia.Panel";
     static props = ["*"];
@@ -41,6 +78,9 @@ export class SofiaPanel extends Component {
         this.action = useService("action");
         this.notification = useService("notification");
         this.grupos = GRUPOS;
+        this.meses = MESES;
+        this.dias = DIAS;
+        this.cumpleLegible = cumpleLegible;
         this.state = useState({
             datos: null,
             cargando: true,
@@ -49,6 +89,7 @@ export class SofiaPanel extends Component {
             grupo: "todas",
             para: "todas",
             textos: {},
+            campos: {},
             ocupada: null,
         });
         onMounted(() => (this.props.action?.params?.analizar ? this.analizar() : this.cargar()));
@@ -80,13 +121,18 @@ export class SofiaPanel extends Component {
         }
     }
 
-    /** Pone los datos nuevos sin perder lo que alguien estaba editando en un mensaje. */
+    /** Pone los datos nuevos sin perder lo que alguien estaba editando (un mensaje o los datos para su ficha). */
     poner(datos) {
         const textos = {};
+        const campos = {};
         for (const p of datos.propuestas) {
             textos[p.id] = p.id in this.state.textos ? this.state.textos[p.id] : p.mensaje;
+            if (p.tipo === "guardar_datos") {
+                campos[p.id] = this.state.campos[p.id] || camposEditables(p.campos || {});
+            }
         }
         this.state.textos = textos;
+        this.state.campos = campos;
         this.state.datos = datos;
         this.state.error = null;
     }
@@ -178,6 +224,7 @@ export class SofiaPanel extends Component {
     quitar(propuesta) {
         this.d.propuestas = this.d.propuestas.filter((p) => p.id !== propuesta.id);
         delete this.state.textos[propuesta.id];
+        delete this.state.campos[propuesta.id];
     }
 
     async aplicar(propuesta, accion) {
@@ -187,7 +234,11 @@ export class SofiaPanel extends Component {
         this.state.ocupada = propuesta.id;
         try {
             const texto = propuesta.mensaje ? this.state.textos[propuesta.id] ?? "" : null;
-            const respuesta = await this.orm.call(MODELO, "aplicar", [propuesta.id, accion], { texto });
+            const extra = { texto };
+            if (propuesta.tipo === "guardar_datos" && this.state.campos[propuesta.id]) {
+                extra.campos = camposParaGuardar(propuesta.campos || {}, this.state.campos[propuesta.id]);
+            }
+            const respuesta = await this.orm.call(MODELO, "aplicar", [propuesta.id, accion], extra);
             this.quitar(propuesta);
             this.notification.add(respuesta.resultado, { type: respuesta.ya_no_hace_falta ? "warning" : "success" });
             if (respuesta.texto && respuesta.conversacion_id) {

@@ -23,6 +23,7 @@ FRASES = {
     'llamar': ('cliente para llamar', 'clientes para llamar'),
     'pedir_datos': ('cliente para pedirle sus datos', 'clientes para pedirles sus datos'),
     'guardar_correo': ('correo para guardar en su ficha', 'correos para guardar en sus fichas'),
+    'guardar_datos': ('cliente con datos para guardar en su ficha', 'clientes con datos para guardar en sus fichas'),
     'asignar': ('oportunidad sin vendedora', 'oportunidades sin vendedora'),
     'sincronizar': ('oportunidad con otra vendedora en el chat', 'oportunidades con otra vendedora en el chat'),
 }

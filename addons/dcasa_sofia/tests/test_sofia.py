@@ -169,15 +169,178 @@ class TestSofia(JuanCase):
         self.assertIn(orden.name, texto)
         self.assertIn(orden.validity_date.strftime('%d/%m/%Y'), texto)
 
-    def test_guarda_el_correo_que_escribio_en_el_chat(self):
-        partner, conv, lead = self.cliente('Ana Correo', '+507 6000-3010', temperatura=CRM.FRIO,
-                                           vendedora=self.vendedora)
-        self.Mensaje.create({'conversacion_id': conv.id, 'id_mensaje': 'sofia.2', 'direccion': 'entrante',
-                             'autor': 'cliente', 'tipo': 'mensaje', 'texto': 'Mi correo es Ana.Correo@Example.com',
-                             'ts': fields.Datetime.now() - timedelta(hours=6)})
+    # ------------------------------------------------------------------
+    # «Guarda sus datos»
+    # ------------------------------------------------------------------
+
+    def mensaje(self, conv, texto, horas, autor='cliente', usuario=None):
+        entrante = autor == 'cliente'
+        return self.Mensaje.create({
+            'conversacion_id': conv.id, 'id_mensaje': f'sofia.datos.{conv.id}.{horas}.{autor}',
+            'direccion': 'entrante' if entrante else 'saliente', 'autor': autor, 'tipo': 'mensaje', 'texto': texto,
+            'ts': fields.Datetime.now() - timedelta(hours=horas), 'usuario_id': usuario.id if usuario else False})
+
+    def test_guarda_los_datos_que_contesto_cuando_se_los_pidieron(self):
+        partner, conv, lead = self.cliente('🙏', '+507 6000-3061', vendedora=self.vendedora)
+        self.mensaje(conv, "¡Hola! Soy Vendedora de D'CASA. ¿Me regalas tu nombre y apellido y tu correo? Si quieres, "
+                           "dime también el día y el mes de tu cumpleaños.", 6, autor='vendedora',
+                     usuario=self.vendedora)
+        self.mensaje(conv, 'ingrid DE LA pérez\nIngrid.P@Gmail.com\n12/03', 5)
+        fichas_antes = self.Partner.search_count([])
         self.analizar()
-        propuesta = self.propuestas(partner_id=partner.id, tipo='guardar_correo')
-        self.assertEqual(propuesta.datos['correo'], 'ana.correo@example.com')
+        propuesta = self.propuestas(partner_id=partner.id, tipo='guardar_datos')
+        self.assertEqual(len(propuesta), 1)
+        self.assertEqual(propuesta.datos['campos'],
+                         {'nombre': 'Ingrid de la Pérez', 'correo': 'ingrid.p@gmail.com', 'cumple': '03-12'})
+        self.assertEqual(propuesta.usuario_id, self.vendedora)
+        self.assertEqual(propuesta.prioridad, 2)
+        self.assertIn('Ingrid de la Pérez', propuesta.titulo)
+        # La vendedora la ve con lo que escribió y lo que hoy dice su ficha.
+        fila = next(f for f in self.Sofia.with_user(self.vendedora).panel()['propuestas'] if f['id'] == propuesta.id)
+        self.assertEqual(fila['campos']['cumple'], '03-12')
+        self.assertEqual(fila['antes']['nombre'], '🙏')
+        self.assertEqual(fila['acciones'], ['guardar'])
+        # Un clic: todo a su ficha, con nuestro formato, sin crear ninguna ficha nueva.
+        resultado = self.Sofia.with_user(self.vendedora).aplicar(propuesta.id, 'guardar')
+        self.assertEqual(resultado['resultado'], 'Guardado en su ficha.')
+        self.assertEqual(partner.name, 'Ingrid de la Pérez')
+        self.assertEqual(partner.email, 'ingrid.p@gmail.com')
+        self.assertEqual(partner.dcasa_cumple, '03-12')
+        self.assertEqual(propuesta.estado, 'aplicada')
+        self.assertEqual(self.Partner.search_count([]), fichas_antes, 'nunca crea fichas')
+        nota = partner.message_ids[0].body
+        self.assertIn('Sofía guardó', nota)
+        self.assertIn('🙏', nota, 'el antes queda escrito en la ficha')
+        # Ya no hay nada que pedirle ni que guardar.
+        with freeze_time('2026-11-05 15:05:00'):
+            self.analizar()
+        self.assertFalse(self.propuestas(partner_id=partner.id, tipo='guardar_datos'))
+        self.assertFalse(self.propuestas(partner_id=partner.id, tipo='pedir_datos'))
+
+    def test_si_ya_se_los_pidieron_en_el_chat_no_se_los_vuelve_a_pedir(self):
+        partner, conv, lead = self.cliente('🙏', '+507 6000-3062', vendedora=self.vendedora)
+        self.mensaje(conv, '¿Me regalas tu nombre y apellido y tu correo?', 30, autor='vendedora',
+                     usuario=self.vendedora)
+        self.analizar()
+        self.assertFalse(self.propuestas(partner_id=partner.id, tipo='pedir_datos'))
+        escribir = self.propuestas(lead_id=lead.id, tipo='escribir')
+        self.assertTrue(escribir, 'el seguimiento sí: nadie le escribió en 24 horas')
+        self.assertFalse(escribir.pide_datos, 'sin volver a pedirle sus datos')
+
+    def test_sin_que_se_los_pidan_solo_lee_lo_que_dice_claro(self):
+        p1, conv1, _l1 = self.cliente('🌸', '+507 6000-3063', temperatura=CRM.FRIO)
+        self.mensaje(conv1, 'Hola, me llamo carla ruiz y mi correo es Carla.Ruiz@Example.com', 3)
+        p2, conv2, _l2 = self.cliente('😊', '+507 6000-3064', temperatura=CRM.FRIO)
+        self.mensaje(conv2, 'Ana Pérez', 3)   # una línea suelta: nadie le pidió su nombre
+        self.mensaje(conv2, 'Lo quiero para el 15/12, cumple con lo que busco', 2)
+        self.analizar()
+        propuesta = self.propuestas(partner_id=p1.id, tipo='guardar_datos')
+        self.assertEqual(propuesta.datos['campos'], {'nombre': 'Carla Ruiz', 'correo': 'carla.ruiz@example.com'})
+        self.assertEqual(propuesta.prioridad, 1)
+        self.assertFalse(self.propuestas(partner_id=p2.id, tipo='guardar_datos'))
+
+    def test_no_pisa_lo_bueno_ni_duplica_un_correo(self):
+        partner, conv, _lead = self.cliente('Pedro Gómez', '+507 6000-3065', vendedora=self.vendedora)
+        otra = self.Partner.create({'name': 'Pedro Otra Ficha', 'email': 'pedro.gomez@example.com'})
+        self.mensaje(conv, 'Me llamo Pedro Gómez Castillo, mi correo es pedro.gomez@example.com y cumplo el 5 de mayo',
+                     3)
+        self.analizar()
+        propuesta = self.propuestas(partner_id=partner.id, tipo='guardar_datos')
+        self.assertEqual(propuesta.datos['campos'], {'cumple': '05-05'}, 'su nombre ya sirve; el correo es de otra')
+        self.assertIn(otra.name, propuesta.motivo)
+        fila = next(f for f in self.Sofia.with_user(self.vendedora).panel()['propuestas'] if f['id'] == propuesta.id)
+        self.assertIn('Posibles duplicados', fila['aviso'])
+        # Lo que Sofía no propuso no se cuela desde la pantalla.
+        with self.assertRaises(UserError):
+            self.Sofia.with_user(self.vendedora).aplicar(propuesta.id, 'guardar',
+                                                          campos={'correo': 'pedro.gomez@example.com'})
+        self.Sofia.with_user(self.vendedora).aplicar(propuesta.id, 'guardar')
+        self.assertEqual(partner.name, 'Pedro Gómez')
+        self.assertFalse(partner.email)
+        self.assertEqual(partner.dcasa_cumple, '05-05')
+        self.assertFalse(otra.dcasa_cumple)
+
+    def test_el_nombre_de_una_empresa_no_se_cambia(self):
+        partner, conv, _lead = self.cliente('Muebles y Más S.A.', '+507 6000-3066')
+        partner.is_company = True
+        self.mensaje(conv, 'Me llamo Rosa Díaz, compras', 3)
+        self.analizar()
+        self.assertFalse(self.propuestas(partner_id=partner.id, tipo='guardar_datos'))
+
+    def test_al_guardar_corrige_el_formato_valida_y_revisa_otra_vez(self):
+        partner, conv, _lead = self.cliente('❤️', '+507 6000-3067', vendedora=self.vendedora)
+        self.mensaje(conv, 'Me llamo maría ruiz, mi correo es maria.ruiz@example.com y cumplo el 29 de febrero', 3)
+        self.analizar()
+        propuesta = self.propuestas(partner_id=partner.id, tipo='guardar_datos')
+        self.assertEqual(set(propuesta.datos['campos']), {'nombre', 'correo', 'cumple'})
+        Sofia = self.Sofia.with_user(self.vendedora)
+        malos = [
+            {'nombre': '🙏🙏'},
+            {'nombre': 'Dios te bendiga'},
+            {'correo': 'maria@gmial'},
+            {'correo': self.vendedora.partner_id.email or 'vendedora@dcasa.example.com'},
+            {'cumple': '02-30'},
+            {'cumple': '29/02'},
+            {'nombre': 'x' * 200},
+            {'telefono': '6000-0000'},
+            {'nombre': 5},
+            ['nombre'],
+        ]
+        self.vendedora.partner_id.email = self.vendedora.partner_id.email or 'vendedora@dcasa.example.com'
+        for campos in malos:
+            with self.subTest(campos=campos), self.assertRaises(UserError):
+                Sofia.aplicar(propuesta.id, 'guardar', campos=campos)
+        with self.assertRaises(UserError):
+            Sofia.aplicar(propuesta.id, 'guardar', campos={'nombre': '', 'correo': '', 'cumple': ''})
+        self.assertEqual(propuesta.estado, 'pendiente', 'un dato mal escrito no la resuelve')
+        # Mientras tanto otra ficha quedó con ese correo: no se duplica (y lo demás se puede guardar sin él).
+        self.Partner.create({'name': 'María Repetida', 'email': 'maria.ruiz@example.com'})
+        with self.assertRaisesRegex(UserError, 'Posibles duplicados'):
+            Sofia.aplicar(propuesta.id, 'guardar')
+        resultado = Sofia.aplicar(propuesta.id, 'guardar', campos={
+            'nombre': '  MARÍA  de los ángeles RUIZ ', 'correo': '', 'cumple': '02-29'})
+        self.assertEqual(partner.name, 'María de los Ángeles Ruiz')
+        self.assertFalse(partner.email)
+        self.assertEqual(partner.dcasa_cumple, '02-29')
+        self.assertEqual(propuesta.estado, 'aplicada')
+        self.assertEqual(resultado['resultado'], 'Guardado en su ficha.')
+
+    def test_si_alguien_ya_lo_guardo_no_lo_pisa(self):
+        partner, conv, _lead = self.cliente('⭐', '+507 6000-3068', vendedora=self.vendedora)
+        self.mensaje(conv, 'Me llamo Rosa Díaz y mi correo es rosa.diaz@example.com', 3)
+        self.analizar()
+        propuesta = self.propuestas(partner_id=partner.id, tipo='guardar_datos')
+        partner.write({'email': 'rosa@example.com'})   # alguien lo escribió a mano en su ficha
+        resultado = self.Sofia.with_user(self.vendedora).aplicar(propuesta.id, 'guardar')
+        self.assertEqual(partner.email, 'rosa@example.com')
+        self.assertEqual(partner.name, 'Rosa Díaz')
+        self.assertIn('Ya tenía su correo', resultado['resultado'])
+        # Y si ya tenía todo, no hace nada: «ya no hacía falta».
+        p2, conv2, _l2 = self.cliente('🌙', '+507 6000-3069', vendedora=self.vendedora)
+        self.mensaje(conv2, 'Me llamo Luna Vega', 3)
+        self.analizar()
+        propuesta2 = self.propuestas(partner_id=p2.id, tipo='guardar_datos')
+        p2.name = 'Luna Vega Castillo'
+        resultado = self.Sofia.with_user(self.vendedora).aplicar(propuesta2.id, 'guardar')
+        self.assertTrue(resultado.get('ya_no_hace_falta'))
+        self.assertEqual(p2.name, 'Luna Vega Castillo')
+        self.assertEqual(propuesta2.estado, 'vencida')
+
+    def test_otra_vendedora_no_guarda_los_datos_de_tu_cliente(self):
+        partner, conv, _lead = self.cliente('🎈', '+507 6000-3070', vendedora=self.vendedora)
+        self.mensaje(conv, 'Me llamo Sara Mora', 3)
+        self.analizar()
+        propuesta = self.propuestas(partner_id=partner.id, tipo='guardar_datos')
+        with self.assertRaises(AccessError):
+            self.Sofia.with_user(self.vendedora2).aplicar(propuesta.id, 'guardar')
+        self.assertEqual(partner.name, '🎈')
+
+    def test_las_de_guardar_correo_de_antes_siguen_funcionando(self):
+        partner, conv, _lead = self.cliente('Ana Correo', '+507 6000-3071', vendedora=self.vendedora)
+        propuesta = self.Propuesta.sudo().create({
+            'clave': f'guardar_correo:partner:{partner.id}', 'tipo': 'guardar_correo', 'prioridad': 1,
+            'usuario_id': self.vendedora.id, 'partner_id': partner.id, 'conversacion_id': conv.id,
+            'titulo': 'Guarda su correo', 'datos': {'correo': 'ana.correo@example.com'}})
         self.Sofia.with_user(self.vendedora).aplicar(propuesta.id, 'guardar')
         self.assertEqual(partner.email, 'ana.correo@example.com')
         self.assertEqual(propuesta.estado, 'aplicada')

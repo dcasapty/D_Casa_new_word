@@ -28,7 +28,7 @@ proponga mensajes y seguimientos según el estado de cada cliente, mantenga el C
 | Su cotización vence | Cotización sin confirmar (borrador o enviada) que vence hoy o mañana y el cliente tiene chat. | Mensaje de recordatorio (abrir el chat con él, enviarlo ya o crear tarea). |
 | Escribirle | Tibio o caliente al que ninguna vendedora le escribió en 24 horas («A quién escribirle hoy»). | Mensaje de seguimiento según su estado: tiene cotización, dijo para cuándo, o le interesó algo. |
 | Pedir sus datos | Tibio o caliente cuya ficha no tiene nombre y apellido de verdad o no tiene correo. Si además toca escribirle, va al final del mismo mensaje. | El mensaje que pide los datos. |
-| Guardar su correo | El cliente escribió su correo en el chat (últimos 30 días) y su ficha no tiene. | Guardarlo en su ficha. |
+| Guarda sus datos | El cliente escribió en el chat (últimos 30 días) su nombre y apellido, su correo o su cumpleaños, y su ficha no los tiene. Ver «Guarda sus datos» abajo. | Revisar (y corregir si hace falta) y guardar todo en su ficha en un clic. |
 | Llamarlo | Por WhatsApp oficial, Messenger o Instagram ya pasaron 24 horas desde su último mensaje (Meta no deja escribirle) y tiene celular. | Crear una tarea de llamada. |
 | Darle una vendedora (Gerencia) | Tibia o caliente sin vendedora: a su vendedora de siempre (los días del reparto de Juan) o a quien lleva menos oportunidades abiertas. | Asignar la oportunidad. |
 | Poner a su vendedora en la oportunidad (Gerencia) | La vendedora que atiende su chat no es la de la oportunidad. | Asignar la oportunidad. |
@@ -42,6 +42,33 @@ Reglas fijas (`models/reglas.py`, `falta_el_nombre`): sin nombre o el provisiona
 con emojis o números; más de 5 palabras (una frase); palabras de frase o de empresa («Dios», «bendiga», «amor»,
 «tienda», «S.A.»…, lista corta y prudente: «Jesús», «Luz» o «Paz» son nombres); o un solo nombre (falta el apellido).
 El saludo usa el nombre de pila solo si es un nombre: nunca «Hola 🙏».
+
+## Guarda sus datos (pedido de la dueña, 2026-11-05)
+
+Cuando el cliente contesta lo que se le pidió, al tocar «Revisar ahora» Sofía muestra **una tarjeta con todo** («Guarda
+sus datos: Ingrid Pérez · ingrid@… · cumpleaños 12/03»). La vendedora ve lo que escribió y lo que hoy dice su ficha,
+puede corregir o borrar cualquier dato, y toca **«Guardar en su ficha»**.
+
+* **Qué lee** (`reglas.datos_en`, del mensaje más nuevo al más viejo). Siempre: «me llamo …», «mi nombre es …»,
+  «nombre: …», un correo bien escrito, y el cumpleaños si el mensaje habla de él («cumplo el 12 de marzo», «mi
+  cumpleaños es…», «nací el 12/03/1990»). Solo cuando contesta (hasta 48 horas después) a quien le pidió sus datos —Sofía,
+  una vendedora o Juan— también «soy …» o una línea que es solo un nombre y apellido («Ingrid Pérez»), y una fecha
+  suelta («12/03») solo si el pedido incluía el día y el mes del cumpleaños (la plantilla «Pedir sus datos» lo pide).
+  Nunca un saludo, un mueble o un color («Cama queen gris»), una fecha de entrega ni un mensaje con precio.
+* **Nuestro formato.** Nombre con mayúscula inicial y las partículas en minúscula («María de los Ángeles Pérez»,
+  «O'Neill», «José-Luis»); correo en minúsculas; cumpleaños como lo guarda Socios (`MM-DD`, sin año), elegido en la
+  tarjeta con día y mes.
+* **Nunca pisa lo bueno.** El nombre solo si el de la ficha no sirve (emoji, frase, empresa, solo un nombre o el
+  provisional del canal) y el nuevo es mejor (un nombre solo nunca reemplaza a otro nombre de pila); el de una empresa
+  nunca se cambia. El correo solo si falta o está mal escrito. El cumpleaños solo si falta.
+* **Nunca duplica.** No crea fichas. Si el correo ya es de otra ficha, no se propone: la tarjeta lo avisa («Gerencia
+  las une en Posibles duplicados»). Un correo del equipo de D'CASA nunca se guarda en un cliente.
+* **Al aprobar se revisa todo otra vez** (alguien pudo escribirlo a mano o otra ficha pudo quedarse con ese correo).
+  Lo que la ficha ya tiene se salta («Ya tenía su correo»); si ya tenía todo, queda «Ya no hacía falta». Un dato mal
+  escrito no se guarda: la vendedora lo corrige o lo borra. Se guarda con los permisos de quien aprueba y pasa por las
+  reglas de Contactos; en la ficha queda una nota con el antes y el después.
+* **No vuelve a pedir lo que ya se pidió.** Si alguien del equipo (o Juan) ya le pidió sus datos en ese chat en los
+  días de Ajustes, Sofía no propone pedírselos otra vez: si contestó, propone guardarlos.
 
 ## Lo que no hace (y por qué)
 
@@ -73,13 +100,13 @@ El saludo usa el nombre de pila solo si es un nombre: nunca «Hola 🙏».
 * Los métodos de la pantalla (`panel`, `analizar`, `aplicar`, `descartar`) exigen el grupo de ventas en el servidor,
   leen la propuesta como el usuario (la regla de registro manda), la bloquean antes de resolverla (`FOR UPDATE NOWAIT`)
   y validan cada argumento. Cada acción corre con los permisos de quien la aprueba (sin `sudo`): asignar exige
-  Gerencia; guardar el correo pasa por las reglas de Contactos (sin repetir el correo de otra ficha).
+  Gerencia; guardar sus datos pasa por las reglas de Contactos (sin repetir el correo de otra ficha).
 * Antes de hacer algo se revisa otra vez lo mismo que miró la revisión, porque entre la revisión y el clic pasa el día:
   que el cliente no pidió que no lo contacten, que el chat sigue siendo de esa ficha, que no está conversando con Juan
   ni Juan está por escribirle, que nadie del equipo le escribió (escribirle), que la cotización sigue sin confirmar y
   con la misma fecha (su cotización vence), que todavía faltan sus datos (pedirlos), que sigue esperando (contestar),
-  que nadie cambió la vendedora y que el chat lo sigue atendiendo ella (repartir), y que la ficha sigue sin correo
-  (guardar). Si no, la propuesta queda «Ya no hacía falta» y no se hace nada.
+  que nadie cambió la vendedora y que el chat lo sigue atendiendo ella (repartir), y que a la ficha todavía le faltan
+  esos datos y nadie más tiene ese correo (guardar). Si no, la propuesta queda «Ya no hacía falta» y no se hace nada.
 * «Pedir sus datos» solo cuenta como pedido (para no repetirlo en 30 días) si el mensaje salió: con «Enviar ya», o con
   «Abrir el chat» y una vendedora escribió después en ese chat. Si alguien descarta «Escribirle», tampoco se le piden
   los datos aparte en esos días.

@@ -224,6 +224,35 @@
 
     .o_sofia_nota_datos { margin: 6px 0 0; font-size: 0.8rem; color: var(--dc-tinta-3, #4A5878); }
 
+    // «Guarda sus datos»: lo que escribió el cliente, para revisarlo antes de guardarlo en su ficha.
+    .o_sofia_ficha {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 10px 16px;
+        margin-top: 4px;
+
+        > .o_sofia_etiqueta { grid-column: 1 / -1; margin: 0; }
+    }
+
+    .o_sofia_dato {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+
+        > label, .o_sofia_dato_nombre { font-size: 0.85rem; font-weight: 600; color: var(--dc-tinta, #0B1B3F); }
+        .form-control, .form-select { font-size: 0.95rem; }
+        .form-control:focus, .form-select:focus { border-color: var(--dc-azul-600, #1340B1); box-shadow: none; }
+        small { overflow-wrap: anywhere; }
+    }
+
+    .o_sofia_cumple {
+        display: flex;
+        gap: 8px;
+
+        > .form-select:first-child { flex: 0 0 6rem; }
+        > .form-select:last-child { flex: 1 1 auto; }
+    }
+
     .o_sofia_botones {
         display: flex;
         flex-wrap: wrap;

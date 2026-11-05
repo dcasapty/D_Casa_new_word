@@ -12,7 +12,8 @@ Lo que mira, en este orden (una sola propuesta de mensaje por cliente y por revi
    de verdad (un emoji, una frase, una empresa, solo un nombre) o no tiene correo, un mensaje profesional que se los
    pide para avisarle de promociones, del programa Socios y de los beneficios de cumpleaños. Si ya toca escribirle, va
    al final del mismo mensaje. A quien ya se le pidió no se le vuelve a pedir en 30 días.
-5. **Guardar su correo**: el cliente escribió su correo en el chat y su ficha no lo tiene.
+5. **Guardar sus datos**: el cliente contestó su nombre y apellido, su correo o su cumpleaños (a Sofía, a una
+   vendedora o a Juan) y su ficha no los tiene: una tarjeta con todo, que la vendedora revisa y guarda con un toque.
 6. **Llamarlo**: por Messenger, Instagram o WhatsApp oficial ya pasaron 24 horas desde su último mensaje (Meta no deja
    escribirle) y tiene celular: una tarea para llamarlo.
 7. **Repartir** (solo Gerencia): oportunidades tibias o calientes sin vendedora (a su vendedora de siempre o a quien
@@ -30,7 +31,6 @@ from odoo.addons.dcasa_contactos.models import claves
 from odoo.addons.dcasa_conversaciones.models import crm_reglas as CRM
 from odoo.addons.dcasa_conversaciones.models import horario as H
 from odoo.addons.dcasa_conversaciones.models.ajustes import CANALES
-from odoo.addons.dcasa_socios.models import bien_escrito as B
 from odoo.exceptions import UserError
 from odoo.fields import Domain
 from odoo.tools import SQL
@@ -47,8 +47,11 @@ DIAS_SIN_CONTESTAR = 7        # …y desde hace menos de una semana (más que es
 HORAS_EN_CURSO = 2            # Juan está conversando con el cliente ahora: no se mete nadie
 JUAN_POR_ESCRIBIR = timedelta(hours=2)   # Juan está por mandarle su seguimiento automático: se le deja
 HORAS_APROBADA = 20           # lo que se aprobó hoy no vuelve en la revisión siguiente del mismo día
-DIAS_CORREOS = 30             # mensajes del cliente en los que se busca su correo
-MAX_MENSAJES_CON_CORREO = 500
+DIAS_DATOS = 30               # mensajes del cliente en los que se buscan sus datos (nombre, correo, cumpleaños)
+MAX_PEDIDOS_DE_DATOS = 1000   # mensajes del equipo o de Juan que le piden sus datos
+MAX_MENSAJES_CON_DATOS = 1000  # mensajes del cliente con algo que se lee siempre (un correo, «me llamo»…)
+MAX_MENSAJES_POR_CHAT = 20
+HORAS_PARA_CONTESTAR = 48     # lo que el cliente escribe hasta 2 días después de que se le pidieron sus datos
 DIAS_VENCE = 1                # cotizaciones que vencen hoy o mañana
 INTERES_POR_DEFECTO = 'nuestros muebles'
 CANDADO = 'dcasa_sofia_revision'
@@ -88,6 +91,8 @@ class Sofia(models.AbstractModel):
             'omitidas': {},
         }
         ctx['suprimidas'] = self._claves_suprimidas(ctx)
+        # Los chats donde alguien (Sofía, una vendedora o Juan) ya le pidió sus datos, y los que pueden traerlos.
+        ctx['pedidos_en_chat'], ctx['chats_con_datos'] = self._chats_con_datos(ctx)
         corrida = self.env['dcasa.sofia.corrida'].sudo().create({
             'origen': origen, 'usuario_id': self.env.uid if origen == 'boton' else False, 'dia': ctx['hoy']})
         leads = self._oportunidades(ctx)
@@ -95,7 +100,7 @@ class Sofia(models.AbstractModel):
         candidatas += self._contestar(ctx)
         candidatas += self._vencen(ctx)
         candidatas += self._escribir_y_pedir_datos(leads, ctx)
-        candidatas += self._guardar_correos(ctx)
+        candidatas += self._guardar_datos(ctx)
         candidatas += self._repartir(leads, ctx)
         cuentas = self._guardar(candidatas, corrida, ctx)
         corrida.write({'fin': fields.Datetime.now(), **cuentas, 'omitidas': ctx['omitidas'] or False})
@@ -202,7 +207,7 @@ class Sofia(models.AbstractModel):
     def _faltan_datos(self, partner, conv, ctx):
         """``(sin_nombre, sin_correo, motivo)``: los datos de contacto que le faltan a su ficha (o ``False`` si ya se le
         pidieron hace poco o no falta nada)."""
-        if partner.id in ctx['datos_pedidos']:
+        if partner.id in ctx['datos_pedidos'] or self._se_los_pidieron_en_el_chat(conv, ctx):
             return False, False, ''
         sin_nombre = R.falta_el_nombre(partner.name, self._provisionales(conv))
         sin_correo = R.falta_el_correo(partner.email)
@@ -212,6 +217,14 @@ class Sofia(models.AbstractModel):
         if sin_correo:
             partes.append('no tiene correo' if not partner.email else 'su correo está mal escrito')
         return bool(sin_nombre), sin_correo, ', '.join(partes)
+
+    @api.model
+    def _se_los_pidieron_en_el_chat(self, conv, ctx):
+        """¿Alguien del equipo (o Juan) ya le pidió sus datos en ese chat en los días de Ajustes? Entonces no se le
+        vuelven a pedir: si contestó, «Guarda sus datos» lo propone; si no, no se le insiste."""
+        pedido = ctx.get('pedidos_en_chat', {}).get(conv.id) if conv else None
+        dias = ctx['ajustes'].sofia_dias_datos or 30
+        return bool(pedido and pedido[0] >= ctx['ahora'] - timedelta(days=dias))
 
     @api.model
     def _valores(self, partner, conv, lead=None, orden=None):
@@ -421,43 +434,104 @@ class Sofia(models.AbstractModel):
         return salida
 
     # ------------------------------------------------------------------
-    # 5. Guardar su correo
+    # 5. Guardar sus datos (lo que el cliente contestó)
     # ------------------------------------------------------------------
 
     @api.model
-    def _guardar_correos(self, ctx):
-        mensajes = self.env['dcasa.mensaje'].sudo().search([
-            ('autor', '=', 'cliente'), ('tipo', '=', 'mensaje'), ('texto', 'ilike', '@'),
-            ('tiene_sensible', '=', False), ('ts', '>=', ctx['ahora'] - timedelta(days=DIAS_CORREOS)),
-            ('conversacion_id.partner_id', '!=', False)], order='ts desc, id desc', limit=MAX_MENSAJES_CON_CORREO)
+    def _chats_con_datos(self, ctx):
+        """``(pedidos, chats)``: cuándo se le pidieron los datos en cada chat (Sofía, una vendedora o Juan) y si se le
+        pidió también su cumpleaños (``{chat: (cuando, cumple)}``), y los chats donde puede haber datos que el cliente
+        escribió."""
+        Mensaje = self.env['dcasa.mensaje'].sudo()
+        desde = ctx['ahora'] - timedelta(days=DIAS_DATOS)
+        # Los pedidos, en los días de Ajustes («no volver a pedir sus datos en»), si son más.
+        pedidos_desde = min(desde, ctx['ahora'] - timedelta(days=ctx['ajustes'].sofia_dias_datos or DIAS_DATOS))
+        pedidos = {}
+        for fila in Mensaje.search_read([
+                ('autor', 'in', ('vendedora', 'bot')), ('tipo', '=', 'mensaje'), ('ts', '>=', pedidos_desde),
+                ('estado_envio', 'not in', ('programado', 'fallido')),
+                '|', '|', '|', '|', ('texto', 'ilike', 'nombre'), ('texto', 'ilike', 'apellido'),
+                ('texto', 'ilike', 'correo'), ('texto', 'ilike', 'mail'), ('texto', 'ilike', 'cumplea')],
+                ['conversacion_id', 'ts', 'texto'], order='ts desc', limit=MAX_PEDIDOS_DE_DATOS):
+            if R.pide_datos(fila['texto']):
+                pedidos.setdefault(fila['conversacion_id'][0], (fila['ts'], R.pide_el_cumple(fila['texto'])))
+        claros = Mensaje.search_read([
+            ('autor', '=', 'cliente'), ('tipo', '=', 'mensaje'), ('tiene_sensible', '=', False), ('ts', '>=', desde),
+            '|', '|', '|', '|', ('texto', 'ilike', '@'), ('texto', 'ilike', 'llamo'), ('texto', 'ilike', 'nombre'),
+            ('texto', 'ilike', 'cumpl'), ('texto', 'ilike', 'nac')],
+            ['conversacion_id'], order='ts desc', limit=MAX_MENSAJES_CON_DATOS)
+        chats = set(pedidos) | {fila['conversacion_id'][0] for fila in claros}
+        return pedidos, sorted(chats, reverse=True)
+
+    @api.model
+    def _datos_del_chat(self, conv, pedido, ctx):
+        """Lo que el cliente escribió en ese chat (``{nombre, correo, cumple}``). Justo después de que se le pidieron
+        sus datos se lee con más soltura (una línea que es solo un nombre); antes y después, solo frases claras."""
+        mensajes = self.env['dcasa.mensaje'].sudo().search_read([
+            ('conversacion_id', '=', conv.id), ('autor', '=', 'cliente'), ('tipo', '=', 'mensaje'),
+            ('tiene_sensible', '=', False), ('ts', '>=', ctx['ahora'] - timedelta(days=DIAS_DATOS))],
+            ['texto', 'ts'], order='ts desc, id desc', limit=MAX_MENSAJES_POR_CHAT)
+        cuando, pidio_el_cumple = pedido or (None, False)
+        leidos = []
+        for fila in mensajes:
+            contesta = bool(cuando and cuando <= fila['ts'] <= cuando + timedelta(hours=HORAS_PARA_CONTESTAR))
+            leidos.append((fila['texto'] or '', contesta, contesta and pidio_el_cumple))
+        return R.datos_en(leidos)
+
+    @api.model
+    def _guardar_datos(self, ctx):
+        """Los datos que el cliente contestó y su ficha no tiene: UNA tarjeta con todo («Guarda sus datos»).
+
+        Nunca crea fichas ni pisa un dato bueno: el nombre solo si el de la ficha no sirve (un emoji, una frase, solo
+        un nombre) y el nuevo es mejor; el correo solo si falta y no es de otra ficha (si lo es, la tarjeta lo dice
+        para que Gerencia las una); el cumpleaños solo si falta."""
+        pedidos, chats = ctx['pedidos_en_chat'], ctx['chats_con_datos']
         correos_del_equipo = self.env['res.partner']._dcasa_correos_del_equipo()
         salida, vistos = [], set()
-        for mensaje in mensajes:
-            conv = mensaje.conversacion_id
+        for conv in self.env['dcasa.conversacion'].sudo().browse(chats):
             partner = conv.partner_id
-            if partner.id in vistos or partner.email or not self._cliente(partner, ctx) \
-                    or f'guardar_correo:partner:{partner.id}' in ctx['suprimidas']:
+            clave = f'guardar_datos:partner:{partner.id}'
+            if not partner or partner.id in vistos or clave in ctx['suprimidas'] \
+                    or not self._cliente(partner, ctx, conv):
                 continue
-            for escrito in R.correos_en(mensaje.texto):
-                correo = B.correo_limpio(escrito)
-                if not correo or correo in correos_del_equipo:
-                    continue
-                llave = claves.llave_correo(correo)
+            provisionales = self._provisionales(conv)
+            # El nombre de una empresa no se cambia por el de la persona que escribe.
+            faltan = {'nombre': not partner.is_company and bool(R.falta_el_nombre(partner.name, provisionales)),
+                      'correo': R.falta_el_correo(partner.email), 'cumple': not partner.dcasa_cumple}
+            if not any(faltan.values()):
+                continue
+            datos = self._datos_del_chat(conv, pedidos.get(conv.id), ctx)
+            campos, aviso = {}, ''
+            if faltan['nombre'] and R.mejora_el_nombre(partner.name, datos.get('nombre'), provisionales):
+                campos['nombre'] = datos['nombre']
+            if faltan['correo'] and datos.get('correo') and datos['correo'] not in correos_del_equipo:
+                llave = claves.llave_correo(datos['correo'])
                 otra = llave and partner._dcasa_otra_ficha('correo', llave)
                 if otra:
-                    continue   # ese correo es de otra ficha: lo resuelve Gerencia en «Posibles duplicados»
-                vistos.add(partner.id)
-                lead = conv.oportunidad_id
-                usuario = self._para_quien(ctx, lead.user_id, conv.asignada_a)
-                salida.append(self._base(
-                    'guardar_correo', f'guardar_correo:partner:{partner.id}', ctx,
-                    temperatura=lead.dcasa_temperatura or False, usuario_id=usuario.id or False,
-                    lead_id=lead.id or False, conversacion_id=conv.id, partner_id=partner.id,
-                    titulo=self.env._('Guarda su correo: %s', correo),
-                    motivo=self.env._('Lo escribió en el chat %s y su ficha no tiene correo.',
-                                      self.env['dcasa.reparto']._hace_cuanto(mensaje.ts)),
-                    datos={'correo': correo}))
-                break
+                    aviso = self.env._(
+                        'El correo %(correo)s ya es de «%(otra)s»: si es la misma persona, Gerencia las une en '
+                        'Posibles duplicados.', correo=datos['correo'], otra=otra.display_name)
+                else:
+                    campos['correo'] = datos['correo']
+            if faltan['cumple'] and datos.get('cumple'):
+                campos['cumple'] = datos['cumple']
+            if not campos:
+                continue
+            vistos.add(partner.id)
+            lead = self._abierta(conv.oportunidad_id)
+            usuario = self._para_quien(ctx, conv.oportunidad_id.user_id, conv.asignada_a)
+            partes = [campos.get('nombre'), campos.get('correo'),
+                      self.env._('cumpleaños %s', R.cumple_para_mostrar(campos['cumple'])) if 'cumple' in campos
+                      else None]
+            salida.append(self._base(
+                'guardar_datos', clave, ctx, temperatura=lead.dcasa_temperatura or False,
+                usuario_id=usuario.id or False, lead_id=lead.id or False, conversacion_id=conv.id,
+                partner_id=partner.id, titulo=self.env._('Guarda sus datos: %s', ' · '.join(p for p in partes if p)),
+                motivo=self.env._('Los escribió en el chat y su ficha no los tiene. Revísalos antes de guardar.')
+                + (f' {aviso}' if aviso else ''),
+                datos={'campos': campos, 'aviso': aviso,
+                       'antes': {'nombre': partner.name or '', 'correo': partner.email or '',
+                                 'cumple': partner.dcasa_cumple or ''}}))
         return salida
 
     # ------------------------------------------------------------------
