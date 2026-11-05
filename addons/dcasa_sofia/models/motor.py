@@ -217,7 +217,8 @@ class Sofia(models.AbstractModel):
     def _valores(self, partner, conv, lead=None, orden=None):
         """Los datos para llenar la plantilla (todo menos {vendedora}, que es quien la envía)."""
         # Lo que anotó Juan y lo que dijo el cliente pueden traer un precio: entonces no se usa (nunca cifras).
-        interes = R.sin_montos(conv._interes() if conv and conv.oportunidad_id else '')
+        interes = R.sin_montos(R.sin_canal(conv._interes() if conv and conv.oportunidad_id else '',
+                                           [nombre for _clave, nombre in CANALES]))
         return {
             'nombre': R.primer_nombre(partner.name, self._provisionales(conv)) if conv else '',
             'interes': (interes or INTERES_POR_DEFECTO)[:80],

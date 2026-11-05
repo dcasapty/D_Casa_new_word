@@ -625,7 +625,7 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 - Método público + `sudo()` = puerta abierta por RPC; todo método público nuevo va a la lista blanca de
   `test_superficie_rpc.py` con su motivo.
 - SCSS `min(%, px)` rompe el bundle entero: usar `unquote()`.
-- `.o_action` tiene `overflow:hidden`: las pantallas propias necesitan la regla fuerte para hacer scroll.
+- `.o_action` tiene `overflow:hidden`: las pantallas propias necesitan la regla fuerte para hacer scroll. Volvió a pasar con Sofía (2026-11-05): ahora `dcasa_interfaz/tests/test_scroll.py` revisa TODA plantilla cuya raíz lleva `o_action` y falla si no tiene `.o_web_client > .o_action_manager > .<clase>.o_action { overflow-y: auto; > * { flex-shrink: 0; } }` (excepciones con su porqué: Conversaciones, Vista previa, Armar combo en diálogo). En el navegador, `scrollTop = N` funciona aunque la pantalla tenga `overflow: hidden` (lo bloqueado es la rueda y el dedo): la prueba mira `getComputedStyle(...).overflowY`.
 - wkhtmltopdf pide estilos a `web.base.url`: en el contenedor debe ser `127.0.0.1`.
 - PyPDF2 deja escapes octales al fusionar PDF: comparar con `textos()`.
 - Panamá es UTC−5: el día cambia a las 05:00 UTC; las pruebas con fecha se congelan.

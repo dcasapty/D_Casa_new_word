@@ -126,6 +126,16 @@ def rellenar(plantilla, valores):
     return '\n'.join(linea.strip() for linea in texto.splitlines()).strip()
 
 
+def sin_canal(texto, canales):
+    """Lo que le interesó, sin el canal delante: «WhatsApp (QR): colchón queen» → «colchón queen» (Juan nombra así las
+    oportunidades; si el canal del chat cambió o alguien la renombró, el prefijo puede ser de otro canal)."""
+    texto = (texto or '').strip()
+    for canal in canales:
+        if texto.casefold().startswith(f'{canal}:'.casefold()):
+            return texto[len(canal) + 1:].strip()
+    return texto
+
+
 def sin_montos(texto):
     """El texto tal cual, o vacío si trae un monto o un precio («sofá $899», «unos 450.00»)."""
     texto = ' '.join(str(texto or '').split())
