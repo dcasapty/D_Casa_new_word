@@ -109,15 +109,18 @@
                                 <span class="o_sofia_dato_nombre" t-att-id="'o_sofia_cumple_' + p.id">Cumpleaños</span>
                                 <div class="o_sofia_cumple" role="group" t-att-aria-labelledby="'o_sofia_cumple_' + p.id">
                                     <select class="form-select" aria-label="Día" t-model="state.campos[p.id].dia">
-                                        <option value="">Día</option>
+                                        <option value="" t-att-selected="!state.campos[p.id].dia">Día</option>
                                         <t t-foreach="dias" t-as="dia" t-key="dia">
-                                            <option t-att-value="dia" t-esc="dia"/>
+                                            <!-- t-model solo no marca la opción al dibujar: va también t-att-selected -->
+                                            <option t-att-value="dia" t-att-selected="state.campos[p.id].dia == dia"
+                                                    t-esc="dia"/>
                                         </t>
                                     </select>
                                     <select class="form-select" aria-label="Mes" t-model="state.campos[p.id].mes">
-                                        <option value="">Mes</option>
+                                        <option value="" t-att-selected="!state.campos[p.id].mes">Mes</option>
                                         <t t-foreach="meses" t-as="mes" t-key="mes_index">
-                                            <option t-att-value="mes_index + 1" t-esc="mes"/>
+                                            <option t-att-value="mes_index + 1"
+                                                    t-att-selected="state.campos[p.id].mes == mes_index + 1" t-esc="mes"/>
                                         </t>
                                     </select>
                                 </div>
