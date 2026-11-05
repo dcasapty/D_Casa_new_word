@@ -1,0 +1,241 @@
+// Sofía — marca D'CASA: sistema plano (sin degradados ni sombras dramáticas). Azul #1340B1; el amarillo #FED00F solo
+// aparece SOBRE azul (nunca sobre blanco). Anton en el título, Oswald en lo que destaca, Inter en el cuerpo.
+
+.o_sofia {
+    height: 100%;
+    overflow-y: auto;
+    background: var(--dc-niebla, #F5F7FB);
+    color: var(--dc-tinta, #0B1B3F);
+    font-family: "Inter", system-ui, sans-serif;
+
+    .o_sofia_encabezado {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 16px 24px;
+        background: var(--dc-azul-600, #1340B1);
+        color: #FFFFFF;
+    }
+
+    .o_sofia_titulo {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+
+        h1 {
+            margin: 0;
+            font-family: "Anton", "Oswald", sans-serif;
+            font-size: 1.75rem;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            color: #FFFFFF;
+        }
+
+        p { margin: 0; color: rgba(255, 255, 255, 0.85); }
+    }
+
+    .o_sofia_avatar {
+        display: inline-flex;
+        flex: 0 0 auto;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background: var(--dc-amarillo, #FED00F);   // amarillo sobre azul
+        color: var(--dc-azul-700, #0E3190);
+        font-family: "Anton", sans-serif;
+        font-size: 1.4rem;
+    }
+
+    .o_sofia_revisar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+
+        .o_sofia_ultima { color: rgba(255, 255, 255, 0.85); font-size: 0.875rem; }
+    }
+
+    .o_sofia_boton_revisar {
+        background: var(--dc-amarillo, #FED00F);   // CTA amarillo, solo sobre el azul del encabezado
+        border-color: var(--dc-amarillo, #FED00F);
+        color: var(--dc-azul-700, #0E3190);
+        font-weight: 600;
+
+        &:hover, &:focus-visible { background: #FFFFFF; border-color: #FFFFFF; color: var(--dc-azul-700, #0E3190); }
+    }
+
+    .o_sofia_cuerpo {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 16px 24px 48px;
+    }
+
+    .o_sofia_filtros {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+    }
+
+    .o_sofia_grupos {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .o_sofia_chip {
+        border: 1px solid var(--dc-linea, #D7DEEA);
+        border-radius: 999px;
+        padding: 6px 14px;
+        background: #FFFFFF;
+        color: var(--dc-tinta, #0B1B3F);
+        font-family: "Oswald", "Inter", sans-serif;
+        font-size: 0.95rem;
+
+        .o_sofia_cuenta {
+            display: inline-block;
+            min-width: 1.5em;
+            margin-left: 4px;
+            border-radius: 999px;
+            padding: 0 6px;
+            background: var(--dc-azul-50, #F2F6FE);
+            color: var(--dc-azul-600, #1340B1);
+            text-align: center;
+        }
+
+        &.o_activa {
+            background: var(--dc-azul-600, #1340B1);
+            border-color: var(--dc-azul-600, #1340B1);
+            color: #FFFFFF;
+
+            .o_sofia_cuenta { background: #FFFFFF; }
+        }
+
+        &:focus-visible { outline: 2px solid var(--dc-azul-600, #1340B1); outline-offset: 2px; }
+    }
+
+    .o_sofia_para {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0;
+
+        .form-select { min-width: 180px; }
+    }
+
+    .o_sofia_omitidas { color: var(--dc-tinta-3, #4A5878); font-size: 0.875rem; }
+
+    .o_sofia_vacio {
+        padding: 48px 16px;
+        text-align: center;
+        color: var(--dc-tinta-3, #4A5878);
+
+        .fa { font-size: 2rem; color: var(--dc-azul-600, #1340B1); }
+    }
+
+    .o_sofia_lista {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .o_sofia_tarjeta {
+        border: 1px solid var(--dc-linea, #D7DEEA);
+        border-left: 4px solid var(--dc-linea, #D7DEEA);
+        border-radius: 8px;
+        padding: 14px 16px;
+        background: #FFFFFF;
+        min-width: 0;
+
+        &.o_sofia_p3 { border-left-color: var(--dc-azul-600, #1340B1); }
+        &.o_sofia_p2 { border-left-color: #7A93D6; }
+        &.o_ocupada { opacity: 0.6; }
+    }
+
+    .o_sofia_cabeza {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 6px;
+        font-size: 0.8rem;
+
+        > span {
+            border-radius: 4px;
+            padding: 2px 8px;
+            background: var(--dc-niebla, #F5F7FB);
+            color: var(--dc-tinta-3, #4A5878);
+        }
+
+        .o_sofia_prioridad { font-weight: 600; color: var(--dc-azul-700, #0E3190); background: var(--dc-azul-50, #F2F6FE); }
+        .o_sofia_t3 { background: #FDECEC; color: #A61B1B; }
+        .o_sofia_t2 { background: var(--dc-azul-50, #F2F6FE); color: var(--dc-azul-600, #1340B1); }
+        .o_sofia_para_quien { margin-left: auto; }
+    }
+
+    .o_sofia_cliente {
+        margin: 0 0 2px;
+        font-family: "Oswald", "Inter", sans-serif;
+        font-size: 1.15rem;
+        color: var(--dc-tinta, #0B1B3F);
+        overflow-wrap: anywhere;
+    }
+
+    .o_sofia_que { margin: 0; font-weight: 600; color: var(--dc-azul-600, #1340B1); }
+    .o_sofia_motivo { margin: 2px 0 8px; color: var(--dc-tinta-3, #4A5878); }
+
+    .o_sofia_aviso {
+        margin-bottom: 8px;
+        border-radius: 6px;
+        padding: 8px 10px;
+        background: #FFF6E0;
+        color: #6B4A00;
+        font-size: 0.875rem;
+    }
+
+    .o_sofia_etiqueta { display: block; margin-bottom: 4px; font-size: 0.8rem; color: var(--dc-tinta-3, #4A5878); }
+
+    .o_sofia_mensaje {
+        width: 100%;
+        resize: vertical;
+        font-size: 0.95rem;
+
+        &:focus { border-color: var(--dc-azul-600, #1340B1); box-shadow: none; }
+    }
+
+    .o_sofia_nota_datos { margin: 6px 0 0; font-size: 0.8rem; color: var(--dc-tinta-3, #4A5878); }
+
+    .o_sofia_botones {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        margin-top: 10px;
+
+        .o_sofia_ver { margin-left: auto; }
+    }
+}
+
+@media (max-width: 767.98px) {
+    .o_sofia {
+        .o_sofia_encabezado { padding: 12px 16px; }
+        .o_sofia_cuerpo { padding: 12px 16px 40px; }
+        .o_sofia_titulo h1 { font-size: 1.4rem; }
+        .o_sofia_para { width: 100%; .form-select { flex: 1; min-width: 0; } }
+        .o_sofia_botones {
+            .btn { flex: 1 1 auto; }
+            .o_sofia_ver { margin-left: 0; }
+        }
+        .o_sofia_cabeza .o_sofia_para_quien { margin-left: 0; }
+    }
+}

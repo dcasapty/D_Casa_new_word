@@ -3032,6 +3032,49 @@
    ]
   },
   {
+   "id": "sofia-organizar",
+   "categoria": "vender",
+   "grupo": "Hoy",
+   "titulo": "Que Sofía te diga qué hacer hoy con tus clientes",
+   "logras": "Sofía revisa el CRM cada mañana (o cuando tocas «Organizar con Sofía» arriba del tablero del CRM) y te propone: a quién contestar, a quién escribirle, qué cotización vence y a qué cliente pedirle su nombre y su correo. El mensaje ya viene escrito: lo cambias si quieres y tocas «Abrir el chat con este mensaje» o «Enviar ya». Nada sale sin que tú lo apruebes.",
+   "nota": "Cada vendedora ve solo lo suyo. Gerencia ve todo y además aprueba cómo repartir las oportunidades sin vendedora. Lo que descartas no vuelve en unos días.",
+   "destino": {
+    "menu": "dcasa_sofia.menu_sofia"
+   },
+   "palabras": [
+    "sofia",
+    "organizar",
+    "crm",
+    "a quien escribirle",
+    "seguimiento",
+    "pedir datos",
+    "pedir correo",
+    "clientes sin nombre",
+    "emoji",
+    "repartir oportunidades",
+    "prioridades del dia",
+    "asistente del crm"
+   ]
+  },
+  {
+   "id": "sofia-mensajes",
+   "categoria": "vender",
+   "grupo": "Hoy",
+   "titulo": "Cambiar los mensajes que propone Sofía",
+   "logras": "En CRM › Configuración › Sofía › Mensajes de Sofía cambias el texto de cada mensaje (seguimiento, cotización que vence, pedir datos). Puedes usar {nombre}, {vendedora}, {interes}, {cotizacion}, {vence}, {para_cuando} y {que_falta}.",
+   "nota": "Solo Gerencia. No pongas precios ni cifras: eso lo confirma la vendedora con las reglas vigentes. Los ajustes (revisar cada mañana, el resumen por Telegram) están en Ajustes de Juan, en el grupo «Sofía».",
+   "destino": {
+    "menu": "dcasa_sofia.menu_sofia_plantillas"
+   },
+   "palabras": [
+    "mensajes de sofia",
+    "plantillas",
+    "cambiar mensaje",
+    "texto del seguimiento",
+    "sofia ajustes"
+   ]
+  },
+  {
    "id": "dinero-en-bancos-y-caja",
    "categoria": "reportes",
    "grupo": "Dinero",

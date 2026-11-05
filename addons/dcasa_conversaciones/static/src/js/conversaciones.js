@@ -72,6 +72,8 @@ export class DcasaConversaciones extends Component {
             // «Abrir» de la pantalla Reparto (y volver a cargar la página) dependen de que todavía esté.
             // «Abrir el chat» del CRM o de la ficha del contacto manda cuál abrir; si no, la que estaba a la vista.
             const recordada = Number(this.props.action?.params?.conversacion_id) || leerAbierta();
+            // Sofía puede mandar el mensaje que propuso: queda escrito en el borrador de esa conversación.
+            const textoPropuesto = this.props.action?.params?.conversacion_id && this.props.action?.params?.texto;
             document.addEventListener("visibilitychange", this.alVolverAVer);
             this.dejarDeEscucharElTamano = escucharCambioDeTamano(() => this.almacen.alCambiarElTamano());
             this.pulso = setInterval(() => {
@@ -89,6 +91,9 @@ export class DcasaConversaciones extends Component {
             await this.almacen.iniciar();
             this.almacen.latido();
             if (recordada && !this.almacen.errorInicio) {
+                if (textoPropuesto) {
+                    this.almacen.proponerTexto(recordada, String(textoPropuesto));
+                }
                 this.almacen.abrir(recordada);
             }
         });

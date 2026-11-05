@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Cada 30 minutos mira si ya toca la revisión de la mañana (media hora después de abrir, una vez al día). -->
+    <record id="ir_cron_sofia_manana" model="ir.cron">
+        <field name="name">Sofía: revisión del CRM de cada mañana</field>
+        <field name="model_id" ref="model_dcasa_sofia"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_manana()</field>
+        <field name="interval_number">30</field>
+        <field name="interval_type">minutes</field>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>

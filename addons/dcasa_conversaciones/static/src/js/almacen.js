@@ -126,6 +126,22 @@ export class Almacen {
         return this.borradores[id];
     }
 
+    /** Un mensaje que trae otra pantalla (Sofía: «Abrir el chat con este mensaje») queda escrito en el borrador de esa
+     * conversación, sin enviarse. No pisa lo que la vendedora ya estaba escribiendo ahí. */
+    proponerTexto(id, texto) {
+        if (!id || !texto) {
+            return;
+        }
+        if (!this.borradores[id]) {
+            this.borradores[id] = { texto: "", modo: "respuesta", adjuntos: [], menciones: [], tareaPara: "", programarPara: "" };
+        }
+        const borrador = this.borradores[id];
+        if (!borrador.texto.trim()) {
+            borrador.texto = texto;
+            borrador.modo = "respuesta";
+        }
+    }
+
     // ------------------------------------------------------------------
     // Arranque y tiempo real
     // ------------------------------------------------------------------

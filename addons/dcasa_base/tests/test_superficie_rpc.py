@@ -35,6 +35,10 @@ PANEL_GERENCIA = ('API de la pantalla de Juan solo para Gerencia: exige sales_te
 PANEL_VENTAS = ('API de la pantalla de conversaciones: exige sales_team.group_sale_salesman en el servidor '
                 '(_exigir_vendedora) ANTES de leer o escribir con sudo; valida cada argumento.')
 
+SOFIA = ('API de la pantalla de Sofía: exige sales_team.group_sale_salesman en el servidor (_exigir_vendedora); la '
+         'propuesta se lee como el usuario (regla de registro: la vendedora solo las suyas, repartir solo Gerencia) y '
+         'se bloquea antes de resolverla; valida cada argumento.')
+
 COSTO_CERRADO = (OVERRIDE + ' Costo cerrado (models/costos_cerrados.py): solo NIEGA o quita los campos de costo, '
                             'precio del proveedor y margen a quien no es Gerencia, contabilidad, compras o inventario; '
                             'sin sudo().')
@@ -887,6 +891,16 @@ LISTA_BLANCA = {
                    'mail.mail es solo de administradores (ACL).',
     ('dcasa_correo', 'res.config.settings', 'action_dcasa_correo_prueba'):
         'Exige base.group_system en el servidor; manda la prueba solo al correo de quien la pide.',
+    # --- dcasa_sofia (Sofía, la asistente del CRM, 2026-11-05) ----------------------------------------------------
+    ('dcasa_sofia', 'dcasa.sofia', 'panel'): SOFIA,
+    ('dcasa_sofia', 'dcasa.sofia', 'analizar'):
+        SOFIA + ' Revisar solo crea o pone al día propuestas (nada se cambia sin aprobación); una a la vez (candado) y '
+                'no más de una por minuto.',
+    ('dcasa_sofia', 'dcasa.sofia', 'aplicar'):
+        SOFIA + ' Cada acción corre con los permisos de quien aprueba (sin sudo): asignar exige Gerencia; escribir va '
+                'por enviar_respuesta (las mismas reglas que la pantalla de Conversaciones).',
+    ('dcasa_sofia', 'dcasa.sofia', 'descartar'): SOFIA,
+    ('dcasa_sofia', 'crm.lead', 'action_dcasa_sofia'): ACCION_VENTANA,
     # --- dcasa_nomina: adelantos y préstamos (G7) y comprobante de pago por correo (G4), 2026-10-22 ----------------
     ('dcasa_nomina', 'dcasa.nomina.prestamo', 'create'):
         'Exige «Administra la nómina» en el servidor y solo deja escribir los datos del borrador (el estado, la '

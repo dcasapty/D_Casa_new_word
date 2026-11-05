@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!-- Los mensajes que Sofía propone. Gerencia los cambia en CRM › Configuración › Mensajes de Sofía (por eso
+         noupdate: una actualización no pisa lo que ella escribió). Sin precios ni cifras: eso lo confirma la
+         vendedora con las reglas vigentes. -->
+    <record id="plantilla_seguimiento_cotizacion" model="dcasa.sofia.plantilla">
+        <field name="clave">seguimiento_cotizacion</field>
+        <field name="texto">¡Hola {nombre}! Soy {vendedora} de D'CASA. ¿Pudiste revisar la cotización {cotizacion}? Si quieres la ajustamos (medidas, color o entrega) o te ayudo a apartarla.</field>
+    </record>
+    <record id="plantilla_seguimiento_cuando" model="dcasa.sofia.plantilla">
+        <field name="clave">seguimiento_cuando</field>
+        <field name="texto">¡Hola {nombre}! Soy {vendedora} de D'CASA. Me comentaste que lo querías para {para_cuando}. ¿Seguimos con {interes}? Así te lo tenemos listo a tiempo.</field>
+    </record>
+    <record id="plantilla_seguimiento_interes" model="dcasa.sofia.plantilla">
+        <field name="clave">seguimiento_interes</field>
+        <field name="texto">¡Hola {nombre}! Soy {vendedora} de D'CASA. Vi que te interesó {interes}. ¿Te ayudo con medidas, fotos o la entrega? Con gusto te preparo una cotización.</field>
+    </record>
+    <record id="plantilla_cotizacion_por_vencer" model="dcasa.sofia.plantilla">
+        <field name="clave">cotizacion_por_vencer</field>
+        <field name="texto">¡Hola {nombre}! Soy {vendedora} de D'CASA. Tu cotización {cotizacion} vale hasta el {vence}. Si la quieres, avísame y te ayudo a confirmarla a tiempo.</field>
+    </record>
+    <record id="plantilla_pedir_datos" model="dcasa.sofia.plantilla">
+        <field name="clave">pedir_datos</field>
+        <field name="texto">¡Hola {nombre}! Soy {vendedora} de D'CASA. Para atenderte mejor, ¿me regalas {que_falta}? Así te avisamos de promociones, del programa Socios D'CASA y de los beneficios de cumpleaños (si quieres, dime también el día y el mes). Solo los usamos para eso y puedes pedir que no te escribamos cuando quieras.</field>
+    </record>
+    <record id="plantilla_posdata_datos" model="dcasa.sofia.plantilla">
+        <field name="clave">posdata_datos</field>
+        <field name="texto">Por cierto, ¿me regalas {que_falta}? Así te avisamos de promociones, del programa Socios D'CASA y de los beneficios de cumpleaños. Solo los usamos para eso.</field>
+    </record>
+</odoo>

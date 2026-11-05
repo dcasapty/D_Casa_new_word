@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <t t-name="dcasa_sofia.Panel">
+        <div class="o_action o_sofia">
+            <header class="o_sofia_encabezado">
+                <div class="o_sofia_titulo">
+                    <span class="o_sofia_avatar" aria-hidden="true">S</span>
+                    <div>
+                        <h1>Sofía</h1>
+                        <p>Revisa el CRM y te propone qué hacer hoy. Nada sale sin que tú lo apruebes.</p>
+                    </div>
+                </div>
+                <div class="o_sofia_revisar">
+                    <span class="o_sofia_ultima" t-if="d and d.ultima">
+                        Última revisión: <t t-esc="d.ultima.hace"/>
+                        <t t-if="d.ultima.quien"> (la pidió <t t-esc="d.ultima.quien"/>)</t>
+                        <t t-else=""> (<t t-esc="d.ultima.origen.toLowerCase()"/>)</t>
+                    </span>
+                    <button type="button" class="btn btn-primary o_sofia_boton_revisar" t-on-click="analizar"
+                            t-att-disabled="state.revisando">
+                        <i class="fa fa-magic me-1" aria-hidden="true"/>
+                        <t t-if="state.revisando">Revisando…</t>
+                        <t t-else="">Revisar ahora</t>
+                    </button>
+                </div>
+            </header>
+
+            <div class="o_sofia_cuerpo">
+                <div t-if="state.error" class="alert alert-danger" role="alert" t-esc="state.error"/>
+
+                <div class="o_sofia_filtros" t-if="d">
+                    <nav class="o_sofia_grupos" aria-label="Qué mirar">
+                        <t t-foreach="gruposVisibles" t-as="g" t-key="g.clave">
+                            <button type="button" t-attf-class="o_sofia_chip {{ state.grupo === g.clave ? 'o_activa' : '' }}"
+                                    t-att-aria-pressed="state.grupo === g.clave ? 'true' : 'false'"
+                                    t-on-click="() => this.elegirGrupo(g.clave)">
+                                <t t-esc="g.nombre"/> <span class="o_sofia_cuenta" t-esc="cuantas(g.clave)"/>
+                            </button>
+                        </t>
+                    </nav>
+                    <label t-if="esGerencia and personas.length" class="o_sofia_para">
+                        <span>Para</span>
+                        <select class="form-select" t-on-change="elegirPersona" t-att-value="state.para">
+                            <option value="todas">Todo el equipo</option>
+                            <t t-foreach="personas" t-as="persona" t-key="persona.id">
+                                <option t-att-value="persona.id" t-esc="persona.nombre"/>
+                            </t>
+                        </select>
+                    </label>
+                </div>
+
+                <p t-if="esGerencia and omitidas" class="o_sofia_omitidas" role="status">
+                    Hay <t t-esc="omitidas"/> más que no caben aquí: se muestran las más urgentes de cada tipo.
+                </p>
+
+                <div t-if="state.cargando and !d" class="o_sofia_vacio">Cargando…</div>
+                <div t-elif="d and !propuestas.length" class="o_sofia_vacio">
+                    <i class="fa fa-check-circle" aria-hidden="true"/>
+                    <p>Nada pendiente por aquí. <t t-if="d.manana">Sofía vuelve a revisar mañana temprano, o cuando
+                        toques «Revisar ahora».</t></p>
+                </div>
+
+                <ol class="o_sofia_lista" t-if="d and propuestas.length">
+                    <li t-foreach="propuestas" t-as="p" t-key="p.id"
+                        t-attf-class="o_sofia_tarjeta o_sofia_p{{ p.prioridad }} {{ state.ocupada === p.id ? 'o_ocupada' : '' }}">
+                        <div class="o_sofia_cabeza">
+                            <span class="o_sofia_prioridad" t-esc="p.prioridad_nombre"/>
+                            <span t-if="p.temperatura" t-attf-class="o_sofia_temp o_sofia_t{{ p.temperatura }}"
+                                  t-esc="p.temperatura_nombre"/>
+                            <span class="o_sofia_tipo" t-esc="p.tipo_nombre"/>
+                            <span t-if="esGerencia and p.grupo !== 'repartir'" class="o_sofia_para_quien">
+                                <t t-if="p.para">Para <t t-esc="p.para"/></t>
+                                <t t-else="">Sin vendedora</t>
+                            </span>
+                        </div>
+                        <h2 class="o_sofia_cliente">
+                            <t t-esc="p.cliente"/>
+                            <small t-if="p.canal" class="text-muted"> · <t t-esc="p.canal"/></small>
+                        </h2>
+                        <p class="o_sofia_que" t-esc="p.titulo"/>
+                        <p class="o_sofia_motivo" t-esc="p.motivo"/>
+                        <div t-if="p.aviso" class="o_sofia_aviso" role="status">
+                            <i class="fa fa-clock-o me-1" aria-hidden="true"/><t t-esc="p.aviso"/>
+                        </div>
+                        <t t-if="editable(p)">
+                            <label class="o_sofia_etiqueta" t-att-for="'o_sofia_msj_' + p.id">Mensaje que propone
+                                (puedes cambiarlo)</label>
+                            <textarea t-att-id="'o_sofia_msj_' + p.id" class="form-control o_sofia_mensaje" t-att-rows="filas(state.textos[p.id])"
+                                      t-model="state.textos[p.id]"/>
+                        </t>
+                        <p t-if="p.pide_datos" class="o_sofia_nota_datos">
+                            <i class="fa fa-id-card-o me-1" aria-hidden="true"/>
+                            Le pide sus datos para avisarle de promociones, del programa Socios y de su cumpleaños.
+                            Cuando conteste, corrígelos en su ficha.
+                        </p>
+                        <div class="o_sofia_botones">
+                            <t t-foreach="p.acciones" t-as="accion" t-key="accion">
+                                <t t-set="b" t-value="boton(p, accion)"/>
+                                <button type="button" t-attf-class="btn {{ b.clase }} o_sofia_accion"
+                                        t-att-data-accion="accion" t-att-disabled="state.ocupada === p.id"
+                                        t-on-click="() => this.aplicar(p, accion)">
+                                    <i t-attf-class="fa {{ b.icono }} me-1" aria-hidden="true"/><t t-esc="b.texto"/>
+                                </button>
+                            </t>
+                            <button type="button" class="btn btn-link o_sofia_descartar"
+                                    t-att-disabled="state.ocupada === p.id" t-on-click="() => this.descartar(p)">
+                                Descartar
+                            </button>
+                            <button t-if="p.lead_id" type="button" class="btn btn-link o_sofia_ver"
+                                    t-on-click="() => this.abrirOportunidad(p)">Ver la oportunidad</button>
+                        </div>
+                    </li>
+                </ol>
+            </div>
+        </div>
+    </t>
+
+</templates>

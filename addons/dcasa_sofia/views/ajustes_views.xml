@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_dcasa_juan_ajustes_form_sofia" model="ir.ui.view">
+        <field name="name">dcasa.juan.ajustes.form.sofia</field>
+        <field name="model">dcasa.juan.ajustes</field>
+        <field name="inherit_id" ref="dcasa_conversaciones.view_dcasa_juan_ajustes_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='crm_dias_para_perdida']/.." position="after">
+                <group string="Sofía, la asistente del CRM">
+                    <field name="sofia_manana"/>
+                    <field name="sofia_telegram" invisible="not sofia_manana"/>
+                    <field name="sofia_dias_sin_repetir"/>
+                    <field name="sofia_dias_datos"/>
+                    <div class="text-muted" colspan="2">
+                        Sofía no cambia nada sola: propone a quién escribirle, qué cotización vence, a quién pedirle
+                        su nombre y su correo y cómo repartir, y una persona lo aprueba. Se abre en CRM › Sofía o con
+                        el botón «Organizar con Sofía».
+                    </div>
+                </group>
+            </xpath>
+        </field>
+    </record>
+</odoo>
