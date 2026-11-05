@@ -51,7 +51,8 @@ DIAS_DATOS = 30               # mensajes del cliente en los que se buscan sus da
 MAX_PEDIDOS_DE_DATOS = 1000   # mensajes del equipo o de Juan que le piden sus datos
 MAX_MENSAJES_CON_DATOS = 1000  # mensajes del cliente con algo que se lee siempre (un correo, «me llamo»…)
 MAX_MENSAJES_POR_CHAT = 20
-HORAS_PARA_CONTESTAR = 48     # lo que el cliente escribe hasta 2 días después de que se le pidieron sus datos
+HORAS_PARA_CONTESTAR = 48     # lo que el cliente escribe hasta 2 días después de que se le pidieron sus datos…
+RESPUESTAS_AL_PEDIDO = 4      # …en sus primeros mensajes («Hola buenas tardes» / «Ana Pérez» / su correo / …)
 DIAS_VENCE = 1                # cotizaciones que vencen hoy o mañana
 INTERES_POR_DEFECTO = 'nuestros muebles'
 CANDADO = 'dcasa_sofia_revision'
@@ -466,8 +467,9 @@ class Sofia(models.AbstractModel):
     @api.model
     def _datos_del_chat(self, conv, pedido, ctx, correos_del_equipo=()):
         """Lo que el cliente escribió en ese chat (``{nombre, correo, cumple}``). Su respuesta a quien le pidió sus
-        datos (el primer mensaje después del pedido, o uno con su correo, hasta 48 horas después) se lee con más
-        soltura (una línea que es solo un nombre); lo demás, solo frases claras."""
+        datos (sus primeros mensajes después del pedido, o uno con su correo, hasta 48 horas después) se lee con más
+        soltura (una línea que es solo un nombre); lo demás, solo frases claras. La gente contesta en varios mensajes:
+        «Hola buenas tardes», «Ana Pérez», su correo (caso real del 2026-11-05)."""
         mensajes = self.env['dcasa.mensaje'].sudo().search_read([
             ('conversacion_id', '=', conv.id), ('autor', '=', 'cliente'), ('tipo', '=', 'mensaje'),
             ('tiene_sensible', '=', False), ('ts', '>=', ctx['ahora'] - timedelta(days=DIAS_DATOS))],
@@ -475,11 +477,12 @@ class Sofia(models.AbstractModel):
         cuando, pidio_el_cumple = pedido or (None, False)
         respuestas = [fila for fila in mensajes
                       if cuando and cuando <= fila['ts'] <= cuando + timedelta(hours=HORAS_PARA_CONTESTAR)]
-        primera = respuestas[-1]['id'] if respuestas else None   # vienen del más nuevo al más viejo
+        # vienen del más nuevo al más viejo: las primeras respuestas son las últimas de la lista
+        primeras = {fila['id'] for fila in respuestas[-RESPUESTAS_AL_PEDIDO:]}
         leidos = []
         for fila in mensajes:
             texto = fila['texto'] or ''
-            contesta = fila in respuestas and (fila['id'] == primera or '@' in texto)
+            contesta = fila in respuestas and (fila['id'] in primeras or '@' in texto)
             leidos.append((texto, contesta, contesta and pidio_el_cumple))
         return R.datos_en(leidos, correos_del_equipo)
 

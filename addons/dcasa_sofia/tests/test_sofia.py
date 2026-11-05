@@ -227,6 +227,32 @@ class TestSofia(JuanCase):
         self.assertTrue(escribir, 'el seguimiento sí: nadie le escribió en 24 horas')
         self.assertFalse(escribir.pide_datos, 'sin volver a pedirle sus datos')
 
+    def test_contesta_en_varios_mensajes(self):
+        """Como pasó de verdad (2026-11-05): saluda, después su nombre, después su correo y después pregunta algo."""
+        partner, conv, _lead = self.cliente('Lucía', '+507 6000-3080', vendedora=self.vendedora)
+        ahora = fields.Datetime.now()
+        textos = [
+            ('vendedora', "¡Hola Lucía! Soy Vendedora de D'CASA. Para atenderte mejor, ¿me regalas tu nombre y "
+                          "apellido y tu correo? Así te avisamos de promociones, del programa Socios D'CASA y de los "
+                          'beneficios de cumpleaños (si quieres, dime también el día y el mes).'),
+            ('cliente', 'Hola buenas tardes'),
+            ('cliente', 'Lucía Prado'),
+            ('cliente', 'Luciaprado.Prueba@example.com'),
+            ('cliente', 'Me gustaría saber de unos combos de cama y colchón queen'),
+        ]
+        for minuto, (autor, texto) in enumerate(textos):
+            self.Mensaje.create({
+                'conversacion_id': conv.id, 'id_mensaje': f'sofia.varios.{minuto}', 'autor': autor, 'tipo': 'mensaje',
+                'direccion': 'entrante' if autor == 'cliente' else 'saliente', 'texto': texto,
+                'usuario_id': self.vendedora.id if autor == 'vendedora' else False,
+                'ts': ahora - timedelta(minutes=60 - minuto)})
+        self.analizar()
+        propuesta = self.propuestas(partner_id=partner.id, tipo='guardar_datos')
+        self.assertEqual(propuesta.datos['campos'],
+                         {'nombre': 'Lucía Prado', 'correo': 'luciaprado.prueba@example.com'})
+        self.Sofia.with_user(self.vendedora).aplicar(propuesta.id, 'guardar')
+        self.assertEqual((partner.name, partner.email), ('Lucía Prado', 'luciaprado.prueba@example.com'))
+
     def test_sin_que_se_los_pidan_solo_lee_lo_que_dice_claro(self):
         p1, conv1, _l1 = self.cliente('🌸', '+507 6000-3063', temperatura=CRM.FRIO)
         self.mensaje(conv1, 'Hola, me llamo carla ruiz y mi correo es Carla.Ruiz@Example.com', 3)

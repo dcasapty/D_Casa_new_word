@@ -51,10 +51,12 @@ puede corregir o borrar cualquier dato, y toca **«Guardar en su ficha»**.
 
 * **Qué lee** (`reglas.datos_en`, del mensaje más nuevo al más viejo). Siempre: «me llamo …», «mi nombre es …»,
   «nombre: …», un correo bien escrito, y el cumpleaños si el mensaje habla de él («cumplo el 12 de marzo», «mi
-  cumpleaños es…», «nací el 12/03/1990»). Solo cuando contesta (hasta 48 horas después) a quien le pidió sus datos —Sofía,
-  una vendedora o Juan— también «soy …» o una línea que es solo un nombre y apellido («Ingrid Pérez»), y una fecha
-  suelta («12/03») solo si el pedido incluía el día y el mes del cumpleaños (la plantilla «Pedir sus datos» lo pide).
-  Nunca un saludo, un mueble o un color («Cama queen gris»), una fecha de entrega ni un mensaje con precio.
+  cumpleaños es…», «nací el 12/03/1990»). Solo en sus primeros mensajes después de que alguien le pidió sus datos
+  —Sofía, una vendedora o Juan— (hasta 4 mensajes y 48 horas; la gente contesta por partes: «Hola buenas tardes»,
+  «Ana Pérez», su correo), también «soy …» o una línea que es solo un nombre y apellido, y una línea que es solo la
+  fecha («12/03») si el pedido incluía el día y el mes del cumpleaños (la plantilla «Pedir sus datos» lo pide). Nunca
+  un saludo, una frase («Muy amable», «Te aviso»), una dirección, un mueble o un color, una fecha de entrega, el
+  cumpleaños de otra persona ni un mensaje con precio.
 * **Nuestro formato.** Nombre con mayúscula inicial y las partículas en minúscula («María de los Ángeles Pérez»,
   «O'Neill», «José-Luis»); correo en minúsculas; cumpleaños como lo guarda Socios (`MM-DD`, sin año), elegido en la
   tarjeta con día y mes.
