@@ -18,6 +18,23 @@ import { escucharCambioDeTamano } from "./preferencias";
 import { VisorImagenes } from "./visor";
 
 const CLAVE_ABIERTA = "dcasa.conversaciones.abierta";
+/** La misma clave que usa Sofía (dcasa_sofia/static/src/js/sofia.js) para pasar su mensaje al chat. */
+const CLAVE_MENSAJE_DE_SOFIA = "dcasa.sofia.mensaje_para_el_chat";
+
+/** El mensaje que Sofía dejó para esta conversación (y lo borra: se usa una sola vez). Vacío si no hay o venció. */
+function leerMensajeDeSofia(conversacionId) {
+    try {
+        const crudo = window.sessionStorage.getItem(CLAVE_MENSAJE_DE_SOFIA);
+        window.sessionStorage.removeItem(CLAVE_MENSAJE_DE_SOFIA);
+        const datos = crudo ? JSON.parse(crudo) : null;
+        if (!datos || !conversacionId || Number(datos.conversacion_id) !== conversacionId || !(datos.vence > Date.now())) {
+            return "";
+        }
+        return typeof datos.texto === "string" ? datos.texto.slice(0, 4000) : "";
+    } catch {
+        return "";
+    }
+}
 const CADA_CUANTO = 30_000;
 /** Cada cuánto esta pantalla dice «sigo aquí, viendo esta conversación». */
 const CADA_CUANTO_PULSO = 20_000;
@@ -72,8 +89,9 @@ export class DcasaConversaciones extends Component {
             // «Abrir» de la pantalla Reparto (y volver a cargar la página) dependen de que todavía esté.
             // «Abrir el chat» del CRM o de la ficha del contacto manda cuál abrir; si no, la que estaba a la vista.
             const recordada = Number(this.props.action?.params?.conversacion_id) || leerAbierta();
-            // Sofía puede mandar el mensaje que propuso: queda escrito en el borrador de esa conversación.
-            const textoPropuesto = this.props.action?.params?.conversacion_id && this.props.action?.params?.texto;
+            // Sofía puede mandar el mensaje que propuso: queda escrito en el borrador de esa conversación. Se usa una
+            // sola vez y solo si es de la conversación que se abre (recargar la página no lo vuelve a poner).
+            const textoPropuesto = leerMensajeDeSofia(recordada);
             document.addEventListener("visibilitychange", this.alVolverAVer);
             this.dejarDeEscucharElTamano = escucharCambioDeTamano(() => this.almacen.alCambiarElTamano());
             this.pulso = setInterval(() => {

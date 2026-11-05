@@ -85,8 +85,8 @@ class SofiaManana(models.AbstractModel):
                 continue
             try:
                 with self.env.cr.savepoint():
-                    Enlace._enviar(enlace.chat_id, texto)
-                    enviados += 1
+                    if Enlace._enviar(enlace.chat_id, texto):   # sin respuesta de Telegram no cuenta como enviado
+                        enviados += 1
             except Exception:   # noqa: BLE001 — el aviso es un extra: nunca tumba la revisión
                 _logger.exception('Sofía: no se pudo avisar por Telegram a %s', usuario.login)
         return enviados

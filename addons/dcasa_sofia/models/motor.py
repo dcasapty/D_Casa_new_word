@@ -23,6 +23,8 @@ Lo que NO toca: el proceso de Juan (sus conversaciones, su reparto, sus seguimie
 import logging
 from datetime import timedelta
 
+from psycopg2.errors import UniqueViolation
+
 from odoo import api, fields, models
 from odoo.addons.dcasa_contactos.models import claves
 from odoo.addons.dcasa_conversaciones.models import crm_reglas as CRM
@@ -81,10 +83,11 @@ class Sofia(models.AbstractModel):
             'ajustes': self.env['dcasa.juan.ajustes'].obtener(),
             'juan': self.env.ref('dcasa_conversaciones.user_juan', raise_if_not_found=False) or self.env['res.users'],
             'equipo_partners': set(self.env['res.partner']._dcasa_contactos_del_equipo().ids),
-            'con_mensaje': set(),      # clientes que ya tienen una propuesta de mensaje en esta revisión
+            'con_mensaje': set(),      # ('p', cliente) y ('c', chat) que ya tienen un mensaje en esta revisión
             'datos_pedidos': self._datos_pedidos_hace_poco(),
             'omitidas': {},
         }
+        ctx['suprimidas'] = self._claves_suprimidas(ctx)
         corrida = self.env['dcasa.sofia.corrida'].sudo().create({
             'origen': origen, 'usuario_id': self.env.uid if origen == 'boton' else False, 'dia': ctx['hoy']})
         leads = self._oportunidades(ctx)
@@ -128,17 +131,60 @@ class Sofia(models.AbstractModel):
 
     @api.model
     def _datos_pedidos_hace_poco(self):
-        """Clientes a los que ya se les pidió su nombre o su correo en los días de Ajustes (para no insistir)."""
+        """Clientes a los que ya se les pidió su nombre o su correo en los días de Ajustes (para no insistir).
+
+        Solo cuenta si el mensaje salió de verdad: con «Enviar ya», o con «Abrir el chat» y después una vendedora le
+        escribió en ese chat. Aprobar con «Crear tarea» o abrir el chat sin escribir no cuenta como pedido."""
         dias = self.env['dcasa.juan.ajustes'].obtener().sofia_dias_datos or 30
         desde = fields.Datetime.now() - timedelta(days=dias)
         propuestas = self.env['dcasa.sofia.propuesta'].sudo().search([
-            ('pide_datos', '=', True), ('estado', '=', 'aplicada'), ('resuelta_en', '>=', desde)])
-        return set(propuestas.partner_id.ids)
+            ('pide_datos', '=', True), ('estado', '=', 'aplicada'), ('resuelta_en', '>=', desde),
+            ('accion', 'in', ('enviar', 'chat'))])
+        pedidos = set(propuestas.filtered(lambda p: p.accion == 'enviar').partner_id.ids)
+        Mensaje = self.env['dcasa.mensaje'].sudo()
+        for propuesta in propuestas.filtered(lambda p: p.accion == 'chat' and p.conversacion_id):
+            if Mensaje.search_count([
+                    ('conversacion_id', '=', propuesta.conversacion_id.id), ('autor', '=', 'vendedora'),
+                    ('tipo', '=', 'mensaje'), ('ts', '>=', propuesta.resuelta_en),
+                    ('estado_envio', 'not in', ('programado', 'fallido'))], limit=1):
+                pedidos.add(propuesta.partner_id.id)
+        return pedidos
 
     @api.model
-    def _cliente(self, partner, ctx):
-        """¿Es un cliente al que se le puede escribir? (no del equipo, no pidió que no lo contacten)."""
-        return bool(partner) and partner.id not in ctx['equipo_partners'] and not partner.dcasa_no_contactar
+    def _claves_suprimidas(self, ctx):
+        """Lo que no se vuelve a proponer todavía: lo descartado en los días de Ajustes y lo aprobado hace menos de
+        20 horas. Se mira ANTES de apartar el mensaje del cliente: algo descartado no le quita lugar a lo demás."""
+        dias = ctx['ajustes'].sofia_dias_sin_repetir or 7
+        aprobada = ctx['ahora'] - timedelta(hours=HORAS_APROBADA)
+        suprimidas = set()
+        for fila in self.env['dcasa.sofia.propuesta'].sudo().search_read(
+                [('estado', 'in', ('aplicada', 'descartada')),
+                 ('resuelta_en', '>=', ctx['ahora'] - timedelta(days=dias))], ['clave', 'estado', 'resuelta_en']):
+            if fila['estado'] == 'descartada' or fila['resuelta_en'] >= aprobada:
+                suprimidas.add(fila['clave'])
+        return suprimidas
+
+    @api.model
+    def _ocupado(self, ctx, partner, conv):
+        """¿Ese cliente o ese chat ya tienen un mensaje propuesto en esta revisión? (uno solo, el más urgente)"""
+        return ('p', partner.id) in ctx['con_mensaje'] or ('c', conv.id) in ctx['con_mensaje']
+
+    @api.model
+    def _ocupar(self, ctx, partner, conv):
+        ctx['con_mensaje'].update({('p', partner.id), ('c', conv.id)})
+
+    @api.model
+    def _abierta(self, lead):
+        """La oportunidad si sigue abierta (ni ganada ni perdida); si no, vacío."""
+        return lead if lead and lead.active and lead.won_status == 'pending' else lead.browse()
+
+    @api.model
+    def _cliente(self, partner, ctx, conv=None):
+        """¿Es un cliente al que se le puede escribir? (no del equipo, no pidió que no lo contacten). Se mira la ficha
+        y también la del chat (pueden ser distintas: el contacto de una empresa)."""
+        fichas = [f for f in (partner, conv.partner_id if conv else None) if f]
+        return bool(partner) and all(
+            f.id not in ctx['equipo_partners'] and not f.dcasa_no_contactar for f in fichas)
 
     @api.model
     def _provisionales(self, conv):
@@ -170,13 +216,14 @@ class Sofia(models.AbstractModel):
     @api.model
     def _valores(self, partner, conv, lead=None, orden=None):
         """Los datos para llenar la plantilla (todo menos {vendedora}, que es quien la envía)."""
-        interes = conv._interes() if conv and conv.oportunidad_id else ''
+        # Lo que anotó Juan y lo que dijo el cliente pueden traer un precio: entonces no se usa (nunca cifras).
+        interes = R.sin_montos(conv._interes() if conv and conv.oportunidad_id else '')
         return {
             'nombre': R.primer_nombre(partner.name, self._provisionales(conv)) if conv else '',
             'interes': (interes or INTERES_POR_DEFECTO)[:80],
             'cotizacion': orden.name if orden else '',
             'vence': orden.validity_date.strftime('%d/%m/%Y') if orden and orden.validity_date else '',
-            'para_cuando': (lead.dcasa_para_cuando or '') if lead else '',
+            'para_cuando': R.sin_montos(lead.dcasa_para_cuando) if lead else '',
         }
 
     @api.model
@@ -211,10 +258,12 @@ class Sofia(models.AbstractModel):
         """Ya no se le puede escribir por su canal (ventana de 24 horas de Meta): una tarea para llamarlo, si tiene
         celular. Si no lo tiene, no hay nada que proponer."""
         celular = self._celular(partner, conv)
-        if not celular:
+        clave = f'llamar:partner:{partner.id}'
+        if not celular or clave in ctx['suprimidas']:
             return []
+        self._ocupar(ctx, partner, conv)
         return [self._base(
-            'llamar', f'llamar:partner:{partner.id}', ctx, temperatura=lead.dcasa_temperatura if lead else False,
+            'llamar', clave, ctx, temperatura=lead.dcasa_temperatura if lead else False,
             usuario_id=usuario.id or False, lead_id=lead.id if lead else False, conversacion_id=conv.id,
             partner_id=partner.id, titulo=self.env._('Llámalo al %s', celular),
             motivo=self.env._('%(motivo)s. Por %(canal)s ya pasaron 24 horas desde su último mensaje y no se le '
@@ -235,20 +284,24 @@ class Sofia(models.AbstractModel):
         salida = []
         for conv in conversaciones:
             partner = conv.partner_id
-            if not self._cliente(partner, ctx) or partner.id in ctx['con_mensaje']:
+            if not self._cliente(partner, ctx, conv) or self._ocupado(ctx, partner, conv):
                 continue
-            lead = conv.oportunidad_id
-            usuario = self._para_quien(ctx, conv.asignada_a, lead.user_id)
+            lead = self._abierta(conv.oportunidad_id)   # quien ya compró también espera respuesta
+            usuario = self._para_quien(ctx, conv.asignada_a, conv.oportunidad_id.user_id)
             espera = self.env['dcasa.reparto']._hace_cuanto(conv.ultimo_mensaje_cliente)
             horas = int((ahora - conv.ultimo_mensaje_cliente).total_seconds() // 3600)
             motivo = self.env._('Te escribió %(cuando)s (hace %(horas)s h) y espera respuesta.',
                                 cuando=espera, horas=horas)
-            ctx['con_mensaje'].add(partner.id)
             if not R.ventana_abierta(conv.canal, conv.ultimo_mensaje_cliente, ahora):
                 salida += self._llamar_o_nada(conv, partner, usuario, lead, ctx, motivo)
                 continue
+            # Cada vez que el cliente vuelve a escribir es otra espera: descartar una no esconde las siguientes.
+            clave = f'contestar:conv:{conv.id}:{conv.ultimo_cliente_msg_id or 0}'
+            if clave in ctx['suprimidas']:
+                continue
+            self._ocupar(ctx, partner, conv)
             salida.append(self._base(
-                'contestar', f'contestar:conv:{conv.id}', ctx, temperatura=lead.dcasa_temperatura or False,
+                'contestar', clave, ctx, temperatura=lead.dcasa_temperatura or False,
                 usuario_id=usuario.id or False, lead_id=lead.id or False, conversacion_id=conv.id,
                 partner_id=partner.id, titulo=self.env._('Contéstale: espera respuesta'), motivo=motivo))
         return salida
@@ -268,33 +321,36 @@ class Sofia(models.AbstractModel):
         Conversacion = self.env['dcasa.conversacion'].sudo()
         for orden in ordenes:
             partner = orden.partner_id.commercial_partner_id if orden.partner_id.parent_id else orden.partner_id
-            if not self._cliente(partner, ctx) or partner.id in ctx['con_mensaje']:
+            clave = f'vence:orden:{orden.id}'
+            if clave in ctx['suprimidas']:
                 continue
-            lead = orden.opportunity_id
-            conv = (lead.dcasa_conversacion_ids[:1] if lead else Conversacion) or Conversacion.search(
-                [('partner_id', '=', partner.id)], limit=1)
-            if not conv or self._juan_esta_por_escribir(conv, ctx):
-                continue   # sin chat no hay a dónde escribirle; si Juan está por escribirle, se le deja
-            usuario = self._para_quien(ctx, orden.user_id, lead.user_id, conv.asignada_a)
+            lead = self._abierta(orden.opportunity_id)
+            conv = (orden.opportunity_id.dcasa_conversacion_ids[:1] if orden.opportunity_id else Conversacion) \
+                or Conversacion.search([('partner_id', '=', partner.id)], limit=1)
+            if not conv or not self._cliente(partner, ctx, conv) or self._ocupado(ctx, partner, conv):
+                continue
+            if self._juan_esta_por_escribir(conv, ctx):
+                continue   # si Juan está por escribirle, se le deja
+            usuario = self._para_quien(ctx, orden.user_id, orden.opportunity_id.user_id, conv.asignada_a)
             vence_hoy = orden.validity_date == hoy
             cuando = self.env._('hoy') if vence_hoy else self.env._('mañana')
             motivo = self.env._('Su cotización %(n)s vence %(cuando)s y no la ha confirmado.', n=orden.name,
                                 cuando=cuando)
-            ctx['con_mensaje'].add(partner.id)
             if not R.ventana_abierta(conv.canal, conv.ultimo_mensaje_cliente, ctx['ahora']):
                 salida += self._llamar_o_nada(conv, partner, usuario, lead, ctx, motivo)
                 continue
+            self._ocupar(ctx, partner, conv)
             sin_nombre, sin_correo, falta = self._faltan_datos(partner, conv, ctx)
             valores = self._valores(partner, conv, lead, orden)
             valores['que_falta'] = R.que_falta(sin_nombre, sin_correo)
             salida.append(self._base(
-                'vence', f'vence:orden:{orden.id}', ctx, vence_hoy=vence_hoy,
+                'vence', clave, ctx, vence_hoy=vence_hoy,
                 temperatura=lead.dcasa_temperatura or False, usuario_id=usuario.id or False, lead_id=lead.id or False,
                 conversacion_id=conv.id, partner_id=partner.id, orden_id=orden.id,
                 titulo=self.env._('Recuérdale su cotización (vence %s)', cuando),
                 motivo=motivo + (self.env._(' Además, %s.', falta) if falta else '') + self._nota_de_juan(conv, ctx),
                 plantilla='cotizacion_por_vencer', pide_datos=bool(sin_nombre or sin_correo),
-                datos={'valores': valores}))
+                datos={'valores': valores, 'vence_el': fields.Date.to_string(orden.validity_date)}))
         return salida
 
     # ------------------------------------------------------------------
@@ -311,7 +367,7 @@ class Sofia(models.AbstractModel):
         for lead in tibias:
             conv = lead.dcasa_conversacion_ids[:1]
             partner = lead.partner_id or conv.partner_id
-            if not conv or not self._cliente(partner, ctx) or partner.id in ctx['con_mensaje']:
+            if not conv or not self._cliente(partner, ctx, conv) or self._ocupado(ctx, partner, conv):
                 continue
             if conv.estado == 'humano' and conv.ultimo_mensaje_autor == 'cliente':
                 continue   # le está esperando a una persona: eso es «contestar»
@@ -320,21 +376,22 @@ class Sofia(models.AbstractModel):
                 continue   # Juan está conversando con él ahora mismo: nadie se mete
             if self._juan_esta_por_escribir(conv, ctx):
                 continue   # Juan está por mandarle su seguimiento (o ya lo está mandando): se le deja
+            if f'escribir:lead:{lead.id}' in ctx['suprimidas']:
+                continue   # alguien descartó (o acaba de aprobar) escribirle: tampoco se le piden datos aparte
             sin_nombre, sin_correo, falta = self._faltan_datos(partner, conv, ctx)
             pide = sin_nombre or sin_correo
             toca_escribir = lead.id in para_hoy
-            if not toca_escribir and not pide:
+            if not toca_escribir and (not pide or f'pedir_datos:partner:{partner.id}' in ctx['suprimidas']):
                 continue
             usuario = self._para_quien(ctx, lead.user_id, conv.asignada_a)
             temperatura = lead.dcasa_temperatura
             nivel = CRM.NOMBRE_TEMPERATURA.get(temperatura, '').lower()
             if not R.ventana_abierta(conv.canal, conv.ultimo_mensaje_cliente, ahora):
                 if toca_escribir:
-                    ctx['con_mensaje'].add(partner.id)
                     salida += self._llamar_o_nada(conv, partner, usuario, lead, ctx, self.env._(
                         'Está %(nivel)s y nadie del equipo le ha escrito en 24 horas', nivel=nivel))
                 continue
-            ctx['con_mensaje'].add(partner.id)
+            self._ocupar(ctx, partner, conv)
             orden = lead.order_ids.filtered(lambda o: o.state in ('draft', 'sent'))[:1]
             valores = self._valores(partner, conv, lead, orden)
             valores['que_falta'] = R.que_falta(sin_nombre, sin_correo)
@@ -343,7 +400,7 @@ class Sofia(models.AbstractModel):
                      'pide_datos': bool(pide), 'datos': {'valores': valores}}
             if toca_escribir:
                 plantilla = ('seguimiento_cotizacion' if orden else
-                             'seguimiento_cuando' if lead.dcasa_para_cuando else 'seguimiento_interes')
+                             'seguimiento_cuando' if valores['para_cuando'] else 'seguimiento_interes')
                 motivo = self.env._('Está %(nivel)s (%(por_que)s) y nadie del equipo le ha escrito en 24 horas.',
                                     nivel=nivel, por_que=lead.dcasa_temperatura_motivo or nivel)
                 salida.append(self._base(
@@ -377,7 +434,8 @@ class Sofia(models.AbstractModel):
         for mensaje in mensajes:
             conv = mensaje.conversacion_id
             partner = conv.partner_id
-            if partner.id in vistos or partner.email or not self._cliente(partner, ctx):
+            if partner.id in vistos or partner.email or not self._cliente(partner, ctx) \
+                    or f'guardar_correo:partner:{partner.id}' in ctx['suprimidas']:
                 continue
             for escrito in R.correos_en(mensaje.texto):
                 correo = B.correo_limpio(escrito)
@@ -424,6 +482,8 @@ class Sofia(models.AbstractModel):
             asignada = conv.asignada_a
             temperatura = lead.dcasa_temperatura
             if asignada and lead.user_id != asignada:
+                if f'sincronizar:lead:{lead.id}' in ctx['suprimidas']:
+                    continue
                 antes = lead.user_id.name or self.env._('nadie')
                 salida.append(self._base(
                     'sincronizar', f'sincronizar:lead:{lead.id}', ctx, temperatura=temperatura, lead_id=lead.id,
@@ -436,7 +496,7 @@ class Sofia(models.AbstractModel):
                 continue
             if temperatura not in (CRM.TIBIO, CRM.CALIENTE) or self._vale_como_vendedora(lead.user_id, ctx):
                 continue
-            if not disponibles:
+            if not disponibles or f'asignar:lead:{lead.id}' in ctx['suprimidas']:
                 continue
             conv = lead.dcasa_conversacion_ids[:1]
             destino, momento = Reparto._vendedora_de_siempre(conv, equipo, dias)
@@ -464,43 +524,43 @@ class Sofia(models.AbstractModel):
         """Crea las nuevas, pone al día las que siguen y deja «ya no hacía falta» las que no. Devuelve las cuentas."""
         Propuesta = self.env['dcasa.sofia.propuesta'].sudo()
         ahora = ctx['ahora']
-        dias = ctx['ajustes'].sofia_dias_sin_repetir or 7
         pendientes = {p.clave: p for p in Propuesta.search([('estado', '=', 'pendiente')])}
-        recientes = {}
-        for p in Propuesta.search([('estado', 'in', ('aplicada', 'descartada')),
-                                   ('resuelta_en', '>=', ahora - timedelta(days=dias))], order='resuelta_en'):
-            recientes[p.clave] = p
         # Las más urgentes primero; por tipo, solo hasta el tope (el resto se cuenta, no se esconde en silencio).
         candidatas.sort(key=lambda c: (-c['prioridad'], -int(c.get('temperatura') or 0)))
         por_tipo, vistas, quedan = {}, set(), []
+        siguen = set()
         for c in candidatas:
-            if c['clave'] in vistas:
+            if c['clave'] in vistas or c['clave'] in ctx['suprimidas']:
                 continue
             vistas.add(c['clave'])
-            resuelta = recientes.get(c['clave'])
-            if resuelta and (resuelta.estado == 'descartada'
-                             or resuelta.resuelta_en >= ahora - timedelta(hours=HORAS_APROBADA)):
-                continue
             por_tipo[c['tipo']] = por_tipo.get(c['tipo'], 0) + 1
             if por_tipo[c['tipo']] > MAX_POR_TIPO:
                 ctx['omitidas'][c['tipo']] = ctx['omitidas'].get(c['tipo'], 0) + 1
+                if c['clave'] in pendientes:
+                    siguen.add(pendientes[c['clave']].id)   # sigue haciendo falta: no se marca «ya no hacía falta»
                 continue
             quedan.append(c)
         nuevas = 0
-        siguen = set()
         for c in quedan:
-            valores = {**c, 'corrida_id': corrida.id}
+            valores = dict(c)
             valores.setdefault('plantilla', False)
             valores.setdefault('pide_datos', False)
             for campo in ('usuario_id', 'lead_id', 'conversacion_id', 'partner_id', 'orden_id', 'destino_id'):
                 valores.setdefault(campo, False)
             existente = pendientes.get(c['clave'])
             if existente:
-                existente.write(valores)
                 siguen.add(existente.id)
-            else:
-                Propuesta.create(valores)
+                cambios = self._cambios(existente, valores)
+                if cambios:   # solo lo que cambió: menos choques con quien la está aprobando
+                    existente.write(cambios)
+                continue
+            try:
+                # Otra revisión (de una foto de la base anterior) pudo crearla un instante antes: no es un error.
+                with self.env.cr.savepoint():
+                    Propuesta.create({**valores, 'corrida_id': corrida.id})
                 nuevas += 1
+            except UniqueViolation:
+                _logger.info('Sofía: la propuesta %s ya la había creado otra revisión.', c['clave'])
         sobran = Propuesta.browse([p.id for p in pendientes.values() if p.id not in siguen])
         if sobran:
             sobran._resolver('vencida', self.env._('Ya no hacía falta en la revisión de %s.',
@@ -509,6 +569,18 @@ class Sofia(models.AbstractModel):
         for c in quedan:
             resumen[c['tipo']] = resumen.get(c['tipo'], 0) + 1
         return {'total': len(quedan), 'nuevas': nuevas, 'vencidas': len(sobran), 'resumen': resumen}
+
+    @api.model
+    def _cambios(self, propuesta, valores):
+        """Los campos de ``valores`` que difieren de lo que ya tiene la propuesta."""
+        cambios = {}
+        for campo, valor in valores.items():
+            actual = propuesta[campo]
+            if propuesta._fields[campo].type == 'many2one':
+                actual = actual.id or False
+            if actual != valor and not (not actual and not valor):
+                cambios[campo] = valor
+        return cambios
 
     # ------------------------------------------------------------------
     # El mensaje que se propone

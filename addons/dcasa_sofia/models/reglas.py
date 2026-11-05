@@ -35,6 +35,8 @@ MAX_PALABRAS_DE_UN_NOMBRE = 5
 CLAVES_DE_PLANTILLA = ('nombre', 'vendedora', 'interes', 'cotizacion', 'vence', 'para_cuando', 'que_falta')
 _CLAVE = re.compile(r'\{([a-z_]+)\}')
 _CORREO = re.compile(r'[\w.+-]+@[\w-]+(?:\.[\w-]+)+')
+# Un monto o un precio (para que nunca se cuele una cifra en un mensaje desde lo que anotó Juan o dijo el cliente).
+_MONTO = re.compile(r'\$|\bb/\.|\busd\b|d[oó]lar|balboa|\d+[.,]\d{2}\b', re.IGNORECASE)
 
 
 def ventana_abierta(canal, ultimo_mensaje_cliente, ahora):
@@ -122,6 +124,12 @@ def rellenar(plantilla, valores):
     texto = re.sub(r' +([!?.,;:])', r'\1', texto)
     texto = re.sub(r'([¡¿]) +', r'\1', texto)
     return '\n'.join(linea.strip() for linea in texto.splitlines()).strip()
+
+
+def sin_montos(texto):
+    """El texto tal cual, o vacío si trae un monto o un precio («sofá $899», «unos 450.00»)."""
+    texto = ' '.join(str(texto or '').split())
+    return '' if _MONTO.search(texto) else texto
 
 
 def correos_en(texto):

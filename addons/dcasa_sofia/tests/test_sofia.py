@@ -267,8 +267,9 @@ class TestSofia(JuanCase):
         resultado = self.Sofia.with_user(self.vendedora).aplicar(propuesta.id, 'chat', texto='Hola, ¿seguimos?')
         accion = resultado['accion']
         self.assertEqual(accion['type'], 'ir.actions.client')
-        self.assertEqual(accion['params'], {'conversacion_id': conv.id, 'texto': 'Hola, ¿seguimos?'})
-        self.assertEqual(propuesta.estado, 'aplicada')
+        self.assertEqual(accion['params'], {'conversacion_id': conv.id}, 'el texto no viaja en la acción')
+        self.assertEqual((resultado['texto'], resultado['conversacion_id']), ('Hola, ¿seguimos?', conv.id))
+        self.assertEqual((propuesta.estado, propuesta.accion), ('aplicada', 'chat'))
         self.assertEqual(propuesta.resuelta_por, self.vendedora)
         self.assertFalse(self.Mensaje.search([('conversacion_id', '=', conv.id)]), 'abrir el chat no envía nada')
 
@@ -286,6 +287,99 @@ class TestSofia(JuanCase):
         with freeze_time('2026-11-07 15:00:00'):
             self.analizar()
             self.assertFalse(self.propuestas(partner_id=partner.id).filtered('pide_datos'))
+
+    def test_un_doble_clic_no_envia_dos_veces(self):
+        _p, conv, lead = self.cliente('Doble Clic', '+507 6000-3027', vendedora=self.vendedora,
+                                      correo='doble@example.com')
+        self.analizar()
+        propuesta = self.propuestas(lead_id=lead.id)
+        Sofia = self.Sofia.with_user(self.vendedora)
+        Sofia.aplicar(propuesta.id, 'enviar', texto='Hola, ¿seguimos?')
+        segunda = Sofia.aplicar(propuesta.id, 'enviar', texto='Hola, ¿seguimos?')
+        self.assertTrue(segunda['ya_estaba'])
+        self.assertEqual(self.Mensaje.search_count([('conversacion_id', '=', conv.id), ('tipo', '=', 'mensaje')]), 1)
+        with self.assertRaises(UserError):   # otra persona: ya se resolvió
+            self.Sofia.with_user(self.gerente).aplicar(propuesta.id, 'enviar', texto='Hola')
+
+    def test_al_aprobar_revisa_otra_vez(self):
+        _p1, conv1, lead1 = self.cliente('Ya Le Escribieron', '+507 6000-3028', vendedora=self.vendedora,
+                                         correo='ya@example.com')
+        _p2, conv2, lead2 = self.cliente('Juan Va A Escribir', '+507 6000-3029', vendedora=self.vendedora,
+                                         correo='juanva@example.com')
+        p3, conv3, lead3 = self.cliente('Cotizacion Confirmada', '+507 6000-3030', temperatura=CRM.FRIO,
+                                        vendedora=self.vendedora, correo='conf@example.com')
+        orden = self.env['sale.order'].create({
+            'partner_id': p3.id, 'opportunity_id': lead3.id, 'user_id': self.vendedora.id,
+            'order_line': [(0, 0, {'product_id': self.producto.id, 'product_uom_qty': 1})]})
+        orden.validity_date = self.env['dcasa.reparto']._hoy()
+        self.analizar()
+        escribir1 = self.propuestas(lead_id=lead1.id)
+        escribir2 = self.propuestas(lead_id=lead2.id)
+        vence = self.propuestas(partner_id=p3.id)
+        self.assertEqual((escribir1.tipo, escribir2.tipo, vence.tipo), ('escribir', 'escribir', 'vence'))
+        self.Mensaje.create({'conversacion_id': conv1.id, 'id_mensaje': 'sofia.4', 'direccion': 'saliente',
+                             'autor': 'vendedora', 'tipo': 'mensaje', 'texto': 'Hola', 'ts': fields.Datetime.now(),
+                             'usuario_id': self.vendedora.id, 'estado_envio': 'enviado'})
+        conv2.seguimiento_proximo = fields.Datetime.now() + timedelta(minutes=30)
+        orden.action_confirm()
+        Sofia = self.Sofia.with_user(self.vendedora)
+        for propuesta, motivo, conv in ((escribir1, 'ya le escribió', conv1), (escribir2, 'Juan está por', conv2),
+                                        (vence, 'ya no está por vencer', conv3)):
+            with self.subTest(motivo=motivo):
+                antes = self.Mensaje.search_count([('conversacion_id', '=', conv.id), ('tipo', '=', 'mensaje')])
+                resultado = Sofia.aplicar(propuesta.id, 'enviar', texto='Hola')
+                self.assertTrue(resultado['ya_no_hace_falta'])
+                self.assertIn(motivo, resultado['resultado'])
+                self.assertEqual(propuesta.estado, 'vencida')
+                self.assertEqual(antes, self.Mensaje.search_count([('conversacion_id', '=', conv.id),
+                                                                   ('tipo', '=', 'mensaje')]))
+
+    def test_nunca_se_cuela_un_precio_en_el_mensaje(self):
+        _p, _c, lead = self.cliente('Precio Cuela', '+507 6000-3031', vendedora=self.vendedora,
+                                    correo='precio@example.com', interes='sofá gris de $899')
+        self.analizar()
+        texto = self.Sofia._texto(self.propuestas(lead_id=lead.id), self.vendedora)
+        self.assertNotIn('899', texto)
+        self.assertNotIn('$', texto)
+        self.assertIn('nuestros muebles', texto)
+
+    def test_crear_tarea_no_cuenta_como_datos_pedidos(self):
+        partner, _c, lead = self.cliente('🌻', '+507 6000-3032', vendedora=self.vendedora)
+        self.analizar()
+        propuesta = self.propuestas(lead_id=lead.id)
+        self.assertTrue(propuesta.pide_datos)
+        self.Sofia.with_user(self.vendedora).aplicar(propuesta.id, 'tarea')
+        with freeze_time('2026-11-07 15:00:00'):
+            self.Sofia.sudo()._analizar('boton')
+            self.assertTrue(self.propuestas(partner_id=partner.id).filtered('pide_datos'),
+                            'una tarea no le pidió nada al cliente')
+
+    def test_contestar_a_quien_ya_compro_y_lo_descartado_no_tapa_lo_demas(self):
+        partner, conv, lead = self.cliente('Ya Compró', '+507 6000-3033', vendedora=self.vendedora, estado='humano',
+                                           autor='cliente', asignada=self.vendedora, horas_sin_escribir=3,
+                                           correo='compro@example.com')
+        lead.with_context(dcasa_auto=True).action_set_won()
+        self.analizar()
+        contestar = self.propuestas(partner_id=partner.id)
+        self.assertEqual(contestar.tipo, 'contestar')
+        self.assertFalse(contestar.lead_id, 'la oportunidad ganada no frena la respuesta')
+        resultado = self.Sofia.with_user(self.vendedora).aplicar(contestar.id, 'chat')
+        self.assertEqual(resultado['accion']['params'], {'conversacion_id': conv.id})
+        # Descartar la cotización que vence no le quita lugar a su seguimiento.
+        p2, _c2, lead2 = self.cliente('Vence Descartada', '+507 6000-3034', vendedora=self.vendedora,
+                                      correo='vd@example.com')
+        orden = self.env['sale.order'].create({
+            'partner_id': p2.id, 'opportunity_id': lead2.id, 'user_id': self.vendedora.id,
+            'order_line': [(0, 0, {'product_id': self.producto.id, 'product_uom_qty': 1})]})
+        orden.validity_date = self.env['dcasa.reparto']._hoy()
+        with freeze_time('2026-11-05 15:05:00'):
+            self.Sofia.sudo()._analizar('boton')
+        vence = self.propuestas(partner_id=p2.id)
+        self.assertEqual(vence.tipo, 'vence')
+        self.Sofia.with_user(self.vendedora).descartar(vence.id)
+        with freeze_time('2026-11-05 15:10:00'):
+            self.Sofia.sudo()._analizar('boton')
+        self.assertEqual(self.propuestas(partner_id=p2.id).tipo, 'escribir')
 
     def test_no_envia_pasadas_las_24_horas_ni_a_quien_pidio_que_no(self):
         partner, conv, lead = self.cliente('Instagram Uno', '+507 6000-3018', canal='instagram',
@@ -383,7 +477,7 @@ class TestSofia(JuanCase):
             Enlace.create({'user_id': usuario.id, 'chat_id': chat})
         enviados = []
         with patch.object(type(Enlace), '_enviar', lambda self, chat_id, texto, botones=None:
-                          enviados.append((chat_id, texto))):
+                          enviados.append((chat_id, texto)) or {'ok': True}):
             with freeze_time('2026-11-05 13:10:00'):   # 8:10 a. m.: todavía no
                 self.assertFalse(self.Sofia._cron_manana())
             with freeze_time('2026-11-05 13:40:00'):   # 8:40 a. m.

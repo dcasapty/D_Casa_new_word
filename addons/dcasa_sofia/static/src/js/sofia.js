@@ -9,6 +9,10 @@ import { useService } from "@web/core/utils/hooks";
 import { mensajeDeError } from "@dcasa_conversaciones/js/utilidades";
 
 const MODELO = "dcasa.sofia";
+/** Por aquí pasa el mensaje a la pantalla de Conversaciones, UNA sola vez (ver conversaciones.js). No viaja en la acción:
+ * quedaría guardado en la dirección y volvería a aparecer al recargar. */
+export const CLAVE_MENSAJE_PARA_EL_CHAT = "dcasa.sofia.mensaje_para_el_chat";
+const VIGENCIA_DEL_MENSAJE = 2 * 60 * 1000;
 
 export const GRUPOS = [
     { clave: "todas", nombre: "Todo" },
@@ -186,6 +190,17 @@ export class SofiaPanel extends Component {
             const respuesta = await this.orm.call(MODELO, "aplicar", [propuesta.id, accion], { texto });
             this.quitar(propuesta);
             this.notification.add(respuesta.resultado, { type: respuesta.ya_no_hace_falta ? "warning" : "success" });
+            if (respuesta.texto && respuesta.conversacion_id) {
+                try {
+                    window.sessionStorage.setItem(CLAVE_MENSAJE_PARA_EL_CHAT, JSON.stringify({
+                        conversacion_id: respuesta.conversacion_id,
+                        texto: respuesta.texto,
+                        vence: Date.now() + VIGENCIA_DEL_MENSAJE,
+                    }));
+                } catch {
+                    // Sin almacenamiento del navegador el chat abre igual, sin el mensaje escrito.
+                }
+            }
             if (respuesta.accion) {
                 await this.action.doAction(respuesta.accion);
             }

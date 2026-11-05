@@ -52,10 +52,15 @@ El saludo usa el nombre de pila solo si es un nombre: nunca «Hola 🙏».
   (como siempre que una vendedora escribe). Repartir asigna la **oportunidad**, nunca el chat.
 * **No escribe sola.** «Enviar ya» manda el mensaje por la misma ruta que la pantalla de Conversaciones
   (`enviar_respuesta`), con quien lo aprueba como autora: la conversación pasa a ella y Juan calla, como siempre.
-  «Abrir el chat con este mensaje» deja el texto escrito en la caja del chat, sin enviarlo.
+  «Abrir el chat con este mensaje» deja el texto escrito en la caja del chat, sin enviarlo. El texto pasa al chat una
+  sola vez (por el almacenamiento de la pestaña, no por la dirección): recargar la página no lo vuelve a poner.
+* **Nunca dos veces.** Enviar confirma la base a mitad de la petición (antes de llamar al Worker): la propuesta queda
+  aprobada en esa misma confirmación. Un doble clic, otra persona o Odoo repitiendo la petición la encuentran resuelta;
+  si fue la misma persona hace un momento, contesta «ya quedó» en vez de un error.
 * **No inventa cifras.** Los mensajes salen de plantillas (CRM › Configuración › Sofía) con datos que Odoo ya sabe: el
   nombre de pila, lo que le interesó, el número de su cotización y hasta cuándo vale. Una plantilla no acepta claves
-  que Sofía no sabe llenar. Sin precios ni cifras del programa Socios: eso lo confirma la vendedora.
+  que Sofía no sabe llenar. Sin precios ni cifras del programa Socios: eso lo confirma la vendedora. Si lo que anotó
+  Juan («lo que le interesó») o lo que dijo el cliente («para cuándo») trae un monto, no se usa.
 * **No escribe a quien pidió que no lo contacten**, ni a empleados, usuarios o la empresa propia. Fuera de las 24 horas
   de Meta no ofrece escribir (Meta lo rechazaría): propone llamar.
 * **No gasta IA.** Esta etapa es de reglas y plantillas. Para un mensaje más a la medida está el botón «Sugerir» del
@@ -69,10 +74,23 @@ El saludo usa el nombre de pila solo si es un nombre: nunca «Hola 🙏».
   leen la propuesta como el usuario (la regla de registro manda), la bloquean antes de resolverla (`FOR UPDATE NOWAIT`)
   y validan cada argumento. Cada acción corre con los permisos de quien la aprueba (sin `sudo`): asignar exige
   Gerencia; guardar el correo pasa por las reglas de Contactos (sin repetir el correo de otra ficha).
-* Antes de hacer algo se revisa que todavía haga falta (la oportunidad sigue abierta, nadie cambió la vendedora, la
-  ficha sigue sin correo, el cliente no pidió que no lo contacten). Si no, la propuesta queda «Ya no hacía falta».
+* Antes de hacer algo se revisa otra vez lo mismo que miró la revisión, porque entre la revisión y el clic pasa el día:
+  que el cliente no pidió que no lo contacten, que el chat sigue siendo de esa ficha, que no está conversando con Juan
+  ni Juan está por escribirle, que nadie del equipo le escribió (escribirle), que la cotización sigue sin confirmar y
+  con la misma fecha (su cotización vence), que todavía faltan sus datos (pedirlos), que sigue esperando (contestar),
+  que nadie cambió la vendedora y que el chat lo sigue atendiendo ella (repartir), y que la ficha sigue sin correo
+  (guardar). Si no, la propuesta queda «Ya no hacía falta» y no se hace nada.
+* «Pedir sus datos» solo cuenta como pedido (para no repetirlo en 30 días) si el mensaje salió: con «Enviar ya», o con
+  «Abrir el chat» y una vendedora escribió después en ese chat. Si alguien descarta «Escribirle», tampoco se le piden
+  los datos aparte en esos días.
 * Una sola revisión a la vez (candado de la base) y el botón no vuelve a revisar si alguien lo hizo hace menos de un
-  minuto.
+  minuto. Si dos revisiones se cruzan, la segunda no duplica: lo que ya existe se salta. Una revisión solo reescribe
+  lo que cambió de una propuesta pendiente (menos choques con quien la está aprobando) y lo que pasa del tope de la
+  pantalla queda pendiente (no se marca «ya no hacía falta»).
+* Revisión adversarial (2026-11-05): ningún hueco de permisos; se arreglaron el doble envío, la revisión al aprobar, el
+  texto en el chat de un solo uso, el conteo de datos pedidos, montos en los mensajes, contestar a quien ya compró, lo
+  descartado que tapaba lo demás y el conteo de avisos de Telegram. Pendiente a propósito: si Gerencia envía una
+  propuesta de una vendedora, sale con su nombre y la conversación pasa a Gerencia (como en el chat).
 
 ## Cada mañana
 

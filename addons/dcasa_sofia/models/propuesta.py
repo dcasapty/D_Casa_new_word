@@ -78,14 +78,16 @@ class SofiaPropuesta(models.Model):
     resuelta_por = fields.Many2one('res.users', 'Resuelta por', readonly=True, ondelete='set null')
     resuelta_en = fields.Datetime('Resuelta el', readonly=True, index='btree_not_null')
     resultado = fields.Char('Qué pasó', readonly=True)
+    accion = fields.Char('Cómo se aprobó', readonly=True,
+                         help='chat (abrió el chat con el mensaje), enviar, tarea, guardar o asignar.')
 
     _clave_pendiente_unica = models.UniqueIndex(
         "(clave) WHERE estado = 'pendiente'", 'Sofía ya tiene esa propuesta pendiente.')
 
-    def _resolver(self, estado, resultado, usuario=None):
+    def _resolver(self, estado, resultado, usuario=None, accion=None):
         """La deja aprobada, descartada o vencida (con sudo: quien llama ya comprobó el permiso)."""
         self.sudo().write({'estado': estado, 'resultado': (resultado or '')[:300], 'resuelta_en': fields.Datetime.now(),
-                           'resuelta_por': usuario.id if usuario else False})
+                           'resuelta_por': usuario.id if usuario else False, 'accion': accion or False})
 
     def _prioridad_nombre(self):
         return dict((int(k), v) for k, v in R.PRIORIDADES).get(self.prioridad, '')

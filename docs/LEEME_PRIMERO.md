@@ -102,6 +102,21 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 > Más reciente arriba. Cada entrada: fecha, qué quedó en producción (con el commit), qué quedó solo en staging, qué
 > sigue. Se guardan unas diez; las viejas se resumen en una línea.
 
+### 2026-11-05 (2): Sofía, la asistente del CRM (módulo nuevo `dcasa_sofia`)
+
+- Decisiones de la dueña: **propone y una persona aprueba**; **con un botón y cada mañana**; **Gerencia todo, cada
+  vendedora lo suyo** (resumen por Telegram); nombre **Sofía**. A media sesión pidió además la **campaña de datos**: a
+  tibios y calientes sin nombre de verdad (emoji, frase, empresa, solo un nombre) o sin correo, un mensaje profesional
+  que pide nombre y apellido y correo (promociones, Socios, cumpleaños).
+- Hecho (docs/SOFIA.md): CRM › Sofía y «Organizar con Sofía» en el tablero y la lista del CRM; contestar, cotización
+  que vence, escribirle, pedir sus datos, guardar el correo del chat, llamar (24 h de Meta), repartir y poner a su
+  vendedora (Gerencia). Plantillas editables (CRM › Configuración › Sofía), sin cifras; ajustes en Ajustes de Juan. No
+  toca a Juan: revisar no escribe; se aparta si Juan conversa o está por mandar su seguimiento (2 h).
+- Revisión adversarial: sin huecos de permisos; se arregló un posible **doble envío** (enviar confirma la base a mitad de
+  la petición), la revisión al aprobar, el texto del chat de un solo uso y lo demás (ver docs/SOFIA.md). 43 pruebas.
+- **Estado:** en la rama, con capturas enviadas a la dueña; **esperando su visto bueno** para staging y producción.
+  `dcasa_sofia` ya está en `ODOO_MODULES` (docker/entrypoint.sh) y en el Makefile.
+
 ### 2026-11-05: tasa de cierre en el Resumen de Juan; idea del agente del CRM
 
 - Pedido de la dueña: en el Resumen, ventas cerradas ÷ conversaciones × 100 (el asistente y una persona, solo el
