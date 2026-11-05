@@ -532,8 +532,7 @@ class Sofia(models.AbstractModel):
                 'guardar_datos', clave, ctx, temperatura=lead.dcasa_temperatura or False,
                 usuario_id=usuario.id or False, lead_id=lead.id or False, conversacion_id=conv.id,
                 partner_id=partner.id, titulo=self.env._('Guarda sus datos: %s', ' · '.join(p for p in partes if p)),
-                motivo=self.env._('Los escribió en el chat y su ficha no los tiene. Revísalos antes de guardar.')
-                + (f' {aviso}' if aviso else ''),
+                motivo=self.env._('Los escribió en el chat y su ficha no los tiene. Revísalos antes de guardar.'),
                 datos={'campos': campos, 'aviso': aviso,
                        'antes': {'nombre': partner.name or '', 'correo': partner.email or '',
                                  'cumple': partner.dcasa_cumple or ''}}))

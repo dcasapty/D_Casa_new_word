@@ -81,7 +81,8 @@
                         <p class="o_sofia_que" t-esc="p.titulo"/>
                         <p class="o_sofia_motivo" t-esc="p.motivo"/>
                         <div t-if="p.aviso" class="o_sofia_aviso" role="status">
-                            <i class="fa fa-clock-o me-1" aria-hidden="true"/><t t-esc="p.aviso"/>
+                            <i t-attf-class="fa {{ p.tipo === 'guardar_datos' ? 'fa-exclamation-triangle' : 'fa-clock-o' }} me-1"
+                               aria-hidden="true"/><t t-esc="p.aviso"/>
                         </div>
                         <t t-if="editable(p)">
                             <label class="o_sofia_etiqueta" t-att-for="'o_sofia_msj_' + p.id">Mensaje que propone

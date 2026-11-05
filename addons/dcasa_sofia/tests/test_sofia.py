@@ -247,7 +247,7 @@ class TestSofia(JuanCase):
         self.analizar()
         propuesta = self.propuestas(partner_id=partner.id, tipo='guardar_datos')
         self.assertEqual(propuesta.datos['campos'], {'cumple': '05-05'}, 'su nombre ya sirve; el correo es de otra')
-        self.assertIn(otra.name, propuesta.motivo)
+        self.assertIn(otra.name, propuesta.datos['aviso'])
         fila = next(f for f in self.Sofia.with_user(self.vendedora).panel()['propuestas'] if f['id'] == propuesta.id)
         self.assertIn('Posibles duplicados', fila['aviso'])
         # Lo que Sofía no propuso no se cuela desde la pantalla.
