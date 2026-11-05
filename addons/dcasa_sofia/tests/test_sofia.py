@@ -199,7 +199,7 @@ class TestSofia(JuanCase):
         fila = next(f for f in self.Sofia.with_user(self.vendedora).panel()['propuestas'] if f['id'] == propuesta.id)
         self.assertEqual(fila['campos']['cumple'], '03-12')
         self.assertEqual(fila['antes']['nombre'], '🙏')
-        self.assertEqual(fila['acciones'], ['guardar'])
+        self.assertEqual(fila['acciones'], ['responder', 'guardar'])
         # Un clic: todo a su ficha, con nuestro formato, sin crear ninguna ficha nueva.
         resultado = self.Sofia.with_user(self.vendedora).aplicar(propuesta.id, 'guardar')
         self.assertEqual(resultado['resultado'], 'Guardado en su ficha.')
@@ -226,6 +226,39 @@ class TestSofia(JuanCase):
         escribir = self.propuestas(lead_id=lead.id, tipo='escribir')
         self.assertTrue(escribir, 'el seguimiento sí: nadie le escribió en 24 horas')
         self.assertFalse(escribir.pide_datos, 'sin volver a pedirle sus datos')
+
+    def test_guardar_y_responderle(self):
+        """Pedido de la dueña (2026-11-05): después de guardar sus datos, darle las gracias y seguir con la venta. Se
+        abre su chat y Juan deja un borrador; no se envía nada."""
+        partner, conv, _lead = self.cliente('🌵', '+507 6000-3090', vendedora=self.vendedora)
+        self.mensaje(conv, 'Me llamo Elsa Barrios y mi correo es elsa.barrios@example.com', 3)
+        self.analizar()
+        propuesta = self.propuestas(partner_id=partner.id, tipo='guardar_datos')
+        enviados_antes = conv.mensaje_ids.filtered(lambda m: m.autor == 'vendedora')
+        resultado = self.Sofia.with_user(self.vendedora).aplicar(propuesta.id, 'responder')
+        self.assertEqual((partner.name, partner.email), ('Elsa Barrios', 'elsa.barrios@example.com'))
+        self.assertTrue(resultado['sugerir'])
+        self.assertEqual(resultado['conversacion_id'], conv.id)
+        self.assertTrue(resultado['accion'])
+        self.assertIn('borrador', resultado['resultado'])
+        self.assertEqual((propuesta.estado, propuesta.accion), ('aplicada', 'responder'))
+        self.assertEqual(conv.mensaje_ids.filtered(lambda m: m.autor == 'vendedora'), enviados_antes,
+                         'no se envía nada: la vendedora lee el borrador y lo envía ella')
+
+    def test_sin_ventana_de_meta_solo_guardar(self):
+        partner, conv, _lead = self.cliente('🌙', '+507 6000-3091', canal='messenger', horas_sin_escribir=30,
+                                            vendedora=self.vendedora)
+        self.mensaje(conv, 'Me llamo Inés Mora', 30)
+        self.analizar()
+        propuesta = self.propuestas(partner_id=partner.id, tipo='guardar_datos')
+        fila = next(f for f in self.Sofia.with_user(self.vendedora).panel()['propuestas'] if f['id'] == propuesta.id)
+        self.assertEqual(fila['acciones'], ['guardar'], 'pasadas las 24 horas de Meta no se le puede escribir')
+        with self.assertRaisesRegex(UserError, 'Solo guardar'):
+            self.Sofia.with_user(self.vendedora).aplicar(propuesta.id, 'responder')
+        self.assertEqual(partner.name, '🌙', 'si no se puede responder, no se guarda a medias')
+        self.assertEqual(propuesta.estado, 'pendiente')
+        self.Sofia.with_user(self.vendedora).aplicar(propuesta.id, 'guardar')
+        self.assertEqual(partner.name, 'Inés Mora')
 
     def test_contesta_en_varios_mensajes(self):
         """Como pasó de verdad (2026-11-05): saluda, después su nombre, después su correo y después pregunta algo."""

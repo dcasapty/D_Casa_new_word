@@ -40,7 +40,7 @@ ACCIONES = {
     'pedir_datos': ('chat', 'enviar'),
     'llamar': ('tarea',),
     'guardar_correo': ('guardar',),
-    'guardar_datos': ('guardar',),
+    'guardar_datos': ('responder', 'guardar'),   # «Guardar y responderle» / «Solo guardar»
     'asignar': ('asignar',),
     'sincronizar': ('asignar',),
 }

@@ -143,6 +143,8 @@ class SofiaPanel(models.AbstractModel):
         datos = p.datos or {}
         if p.tipo == 'guardar_datos':
             aviso = datos.get('aviso') or ''
+            if not self._se_le_puede_responder(p, ahora):
+                acciones = [a for a in acciones if a != 'responder']
         return {
             'id': p.id,
             'tipo': p.tipo,
@@ -217,8 +219,8 @@ class SofiaPanel(models.AbstractModel):
                 raise UserError(self.env._('Sofía puso al día esta propuesta: vuelve a cargar la pantalla.'))
         p = propuesta.sudo()
         try:
-            if accion == 'guardar':
-                resultado, extra = self._aplicar_guardar(p, campos)
+            if accion in ('guardar', 'responder'):
+                resultado, extra = self._aplicar_guardar(p, campos, responder=accion == 'responder')
             else:
                 resultado, extra = getattr(self, f'_aplicar_{accion}')(p, texto or '')
         except YaNoHaceFalta as motivo:
@@ -357,12 +359,23 @@ class SofiaPanel(models.AbstractModel):
             note=nota, user_id=usuario.id)
         return self.env._('Tarea creada para %s.', usuario.name), {}
 
-    def _aplicar_guardar(self, p, campos=None):
+    def _se_le_puede_responder(self, p, ahora):
+        """¿Se le puede escribir ahora por su chat? (para «Guardar y responderle»)"""
+        conv, partner = p.conversacion_id, p.partner_id
+        return bool(conv) and not partner.dcasa_no_contactar and not conv.partner_id.dcasa_no_contactar \
+            and R.ventana_abierta(conv.canal, conv.ultimo_mensaje_cliente, ahora)
+
+    def _aplicar_guardar(self, p, campos=None, responder=False):
         """«Guardar en su ficha»: solo los datos que la ficha todavía no tiene, con nuestro formato, sin duplicar a
-        nadie y con los permisos de quien aprueba. Deja una nota en la ficha con el antes y el después."""
+        nadie y con los permisos de quien aprueba. Deja una nota en la ficha con el antes y el después.
+
+        Con ``responder`` («Guardar y responderle», pedido de la dueña 2026-11-05: después de que da sus datos falta
+        darle las gracias y seguir con la venta) además abre su chat y Juan deja ahí un borrador de respuesta según su
+        conversación (el mismo «Sugerir» del chat). No se envía nada: la vendedora lo lee, lo ajusta y lo envía."""
         if p.tipo == 'guardar_correo':   # las de antes de «Guarda sus datos» (solo el correo)
             return self._aplicar_guardar_correo(p)
         partner, conv = self._exigir_ficha_para_guardar(p)
+        chat = self._chat_para_responder(p) if responder else None   # antes de guardar: si no se puede, nada cambia
         propuestos = (p.datos or {}).get('campos') or {}
         if campos is None:
             campos = propuestos
@@ -402,7 +415,21 @@ class SofiaPanel(models.AbstractModel):
         guardado = self.env._('Guardado en su ficha.')
         if ya_tenia:
             guardado += self.env._(' Ya tenía %s.', ', '.join(ya_tenia))
+        if chat:
+            # El chat se abre con «sugerir»: la pantalla de Conversaciones le pide a Juan el borrador una sola vez.
+            return guardado + self.env._(' Juan te deja un borrador de respuesta en el chat.'), {
+                'accion': chat._accion_abrir_en_panel(), 'conversacion_id': chat.id, 'sugerir': True}
         return guardado, {}
+
+    def _chat_para_responder(self, p):
+        if not self._se_le_puede_responder(p, fields.Datetime.now()):
+            conv = p.conversacion_id
+            if conv and not R.ventana_abierta(conv.canal, conv.ultimo_mensaje_cliente, fields.Datetime.now()):
+                raise UserError(self.env._(
+                    'Ya pasaron 24 horas desde su último mensaje: por %s no se le puede escribir. Usa «Solo guardar».',
+                    self._canal(conv)))
+            raise UserError(self.env._('A este cliente no se le puede escribir por su chat. Usa «Solo guardar».'))
+        return self.env['dcasa.conversacion']._para_panel(p.conversacion_id.id, escritura=True)
 
     def _exigir_ficha_para_guardar(self, p):
         partner, conv = p.partner_id, p.conversacion_id

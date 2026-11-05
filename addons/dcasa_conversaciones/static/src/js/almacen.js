@@ -66,6 +66,8 @@ export class Almacen {
         this.errorLista = null;
         // Conversación abierta
         this.seleccionadaId = null;
+        /** Sofía («Guardar y responderle»): al abrir esta conversación, la caja pide a Juan un borrador una vez. */
+        this.sugerirAlAbrir = null;
         this.conversacion = null;
         this.mensajes = [];
         this.programados = []; // lo que está escrito para más tarde (aparte del hilo)
