@@ -155,6 +155,10 @@ class TestReglasDeSofia(BaseCase):
             with self.subTest(texto=texto):
                 self.assertIsNone(R.cumple_en(texto, despues_de_pedirlo=True))
         self.assertEqual(R.cumple_en('Ana Pérez\nel 12 de marzo', despues_de_pedirlo=True), '03-12')
+        # Caso real (2026-11-05): el año pegado al «del» mal escrito.
+        self.assertEqual(R.cumple_en('19 de octubre deln1985', despues_de_pedirlo=True), '10-19')
+        self.assertEqual(R.cumple_en('19 de octubre del 1985', despues_de_pedirlo=True), '10-19')
+        self.assertIsNone(R.cumple_en('El 19 de octubre paso a las 1985', despues_de_pedirlo=True))
         self.assertEqual(R.cumple_en('15/12', despues_de_pedirlo=True), '12-15')
         self.assertEqual(R.cumple_para_mostrar('03-12'), '12/03')
         self.assertEqual(R.cumple_para_mostrar(''), '')

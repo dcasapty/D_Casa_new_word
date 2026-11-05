@@ -228,7 +228,8 @@ _OTRA_PERSONA = re.compile(r'\b(?:mam[aá]|pap[aá]|madre|padre|hij[oa]s?|espos[
                            re.IGNORECASE)
 # Lo que puede acompañar a la fecha en una línea que es solo su cumpleaños («el 12 de marzo», «mi cumple: 12/03»).
 _RELLENO_DE_LA_FECHA = frozenset({'el', 'de', 'del', 'mi', 'cumple', 'cumpleaños', 'es', 'fecha', 'nacimiento', 'día',
-                                  'dia', 'y', 'mes'})
+                                  'dia', 'y', 'mes', 'año', 'ano'})
+_ANO = re.compile(r'(?<!\d)(?:19|20)\d{2}(?!\d)')   # el año en que nació («del 1985»): no se guarda, pero no estorba
 # Quien le pidió sus datos le pidió también el día y el mes de su cumpleaños (la plantilla «Pedir sus datos» lo hace).
 _PIDE_EL_CUMPLE = re.compile(r'd[ií]a\s+y\s+(?:el\s+)?mes|fecha\s+de\s+(?:nacimiento|cumplea)|cu[aá]ndo\s+(?:es\s+)?'
                              r'(?:tu\s+|su\s+)?cumple|cu[aá]ndo\s+naci', re.IGNORECASE)
@@ -349,9 +350,12 @@ def _fechas_en(linea):
 
 
 def _solo_la_fecha(resto):
-    """¿Lo demás de la línea es relleno («el», «de», «mi cumple»…), sin otras palabras ni números?"""
+    """¿Lo demás de la línea es relleno («el», «de», «mi cumple»…) o el año en que nació, sin otras palabras ni
+    números? Se perdona el «del» mal escrito y pegado al año («19 de octubre deln1985», caso real del 2026-11-05)."""
+    resto = _ANO.sub(' ', resto)
     return not any(c.isdigit() for c in resto) and all(
-        palabra.casefold() in _RELLENO_DE_LA_FECHA for palabra in re.findall(r'[^\W\d_]+', resto))
+        palabra.casefold() in _RELLENO_DE_LA_FECHA or (len(palabra) <= 4 and palabra.casefold().startswith('de'))
+        for palabra in re.findall(r'[^\W\d_]+', resto))
 
 
 def cumple_en(texto, despues_de_pedirlo=False):

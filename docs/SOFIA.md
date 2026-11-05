@@ -28,7 +28,7 @@ proponga mensajes y seguimientos según el estado de cada cliente, mantenga el C
 | Su cotización vence | Cotización sin confirmar (borrador o enviada) que vence hoy o mañana y el cliente tiene chat. | Mensaje de recordatorio (abrir el chat con él, enviarlo ya o crear tarea). |
 | Escribirle | Tibio o caliente al que ninguna vendedora le escribió en 24 horas («A quién escribirle hoy»). | Mensaje de seguimiento según su estado: tiene cotización, dijo para cuándo, o le interesó algo. |
 | Pedir sus datos | Tibio o caliente cuya ficha no tiene nombre y apellido de verdad o no tiene correo. Si además toca escribirle, va al final del mismo mensaje. | El mensaje que pide los datos. |
-| Guarda sus datos | El cliente escribió en el chat (últimos 30 días) su nombre y apellido, su correo o su cumpleaños, y su ficha no los tiene. Ver «Guarda sus datos» abajo. | Revisar (y corregir si hace falta) y guardar todo en su ficha en un clic. |
+| Guarda sus datos | El cliente escribió en el chat (últimos 30 días) su nombre y apellido, su correo o su cumpleaños, y su ficha no los tiene. Ver «Guarda sus datos» abajo. | Revisar (y corregir si hace falta) y «Guardar y responderle» (guarda y abre el chat con el borrador de Juan) o «Solo guardar». |
 | Llamarlo | Por WhatsApp oficial, Messenger o Instagram ya pasaron 24 horas desde su último mensaje (Meta no deja escribirle) y tiene celular. | Crear una tarea de llamada. |
 | Darle una vendedora (Gerencia) | Tibia o caliente sin vendedora: a su vendedora de siempre (los días del reparto de Juan) o a quien lleva menos oportunidades abiertas. | Asignar la oportunidad. |
 | Poner a su vendedora en la oportunidad (Gerencia) | La vendedora que atiende su chat no es la de la oportunidad. | Asignar la oportunidad. |
@@ -47,7 +47,14 @@ El saludo usa el nombre de pila solo si es un nombre: nunca «Hola 🙏».
 
 Cuando el cliente contesta lo que se le pidió, al tocar «Revisar ahora» Sofía muestra **una tarjeta con todo** («Guarda
 sus datos: Ingrid Pérez · ingrid@… · cumpleaños 12/03»). La vendedora ve lo que escribió y lo que hoy dice su ficha,
-puede corregir o borrar cualquier dato, y toca **«Guardar en su ficha»**.
+puede corregir o borrar cualquier dato, y toca:
+
+* **«Guardar y responderle»** (pedido de la dueña, 2026-11-05: «se completa la ficha, pero falta las gracias y la
+  oportunidad de cierre»): guarda, abre su chat y Juan deja en la caja un borrador según su conversación (el mismo
+  «Sugerir» del chat: le da las gracias y sigue con lo que le interesa). **No se envía nada**: la vendedora lo lee, lo
+  ajusta y lo envía ella. Solo si se le puede escribir (las 24 horas de Meta, no pidió que no lo contacten); si no,
+  la tarjeta ofrece solo guardar. Si no se puede abrir su chat, no se guarda a medias.
+* **«Solo guardar»**: guarda y sigue con la siguiente tarjeta.
 
 * **Qué lee** (`reglas.datos_en`, del mensaje más nuevo al más viejo). Siempre: «me llamo …», «mi nombre es …»,
   «nombre: …», un correo bien escrito, y el cumpleaños si el mensaje habla de él («cumplo el 12 de marzo», «mi

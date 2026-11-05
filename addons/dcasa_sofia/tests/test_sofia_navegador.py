@@ -5,6 +5,7 @@
 * «Descartar» quita la tarjeta. «Abrir el chat con este mensaje» lleva a Conversaciones con el mensaje escrito en la
   caja, sin enviarlo."""
 from datetime import timedelta
+from unittest.mock import patch
 
 from odoo import fields
 from odoo.addons.dcasa_contactos.tests.test_fijo_y_copiar_navegador import COMUN
@@ -142,3 +143,35 @@ class TestSofiaEnElNavegador(HttpCase):
         self.assertEqual(partner.name, 'María Ruiz Castillo')
         self.assertEqual(partner.email, 'maria.ruiz@example.com')
         self.assertEqual(partner.dcasa_cumple, '03-05')
+
+    def test_guardar_y_responderle_deja_el_borrador_de_juan_en_el_chat(self):
+        """Después de guardar sus datos se abre su chat con el borrador de Juan («Sugerir»), sin enviarlo."""
+        conv = self._cliente('🌵', '50760004005', self.vendedora)
+        self.env['dcasa.mensaje'].create({
+            'conversacion_id': conv.id, 'id_mensaje': 'sofia.nav.responder', 'direccion': 'entrante',
+            'autor': 'cliente', 'tipo': 'mensaje', 'texto': 'Me llamo Elsa Barrios, elsa.barrios@example.com',
+            'ts': fields.Datetime.now() - timedelta(hours=4)})
+        borrador = 'Gracias por tus datos, Elsa. ¿Te muestro los juegos de comedor que tenemos?'
+        Cliente = type(self.env['dcasa.juan.cliente'])
+        codigo = '(async () => {' + COMUN + """
+            const boton = await esperar(() => document.querySelector('.o_sofia_boton_revisar:not([disabled])'),
+                                        'el botón «Revisar ahora»');
+            boton.click();
+            const tarjeta = await esperar(() => [...document.querySelectorAll('.o_sofia_tarjeta')]
+                .find((t) => t.textContent.includes('Elsa Barrios')), 'la tarjeta «Guarda sus datos»');
+            const solo = tarjeta.querySelector('.o_sofia_accion[data-accion="guardar"]');
+            if (!solo || !solo.textContent.includes('Solo guardar')) {
+                throw new Error('Falta «Solo guardar»');
+            }
+            tarjeta.querySelector('.o_sofia_accion[data-accion="responder"]').click();
+            const caja = await esperar(() => document.querySelector('#o_dcj_texto'), 'la caja del chat');
+            await esperar(() => caja.value === BORRADOR, 'el borrador de Juan en la caja del chat');
+            sinErrores();
+            console.log('test successful');
+        })();""".replace('BORRADOR', repr(borrador))
+        with patch.object(Cliente, 'configurado', return_value=True), \
+                patch.object(Cliente, 'sugerir', return_value={'ok': True, 'texto': borrador, 'avisos': []}) as sugerir:
+            self.browser_js('/odoo/sofia', codigo, login='vend_sofia', timeout=120)
+        self.assertEqual(sugerir.call_count, 1, 'el borrador se pide una sola vez')
+        self.assertEqual((conv.partner_id.name, conv.partner_id.email), ('Elsa Barrios', 'elsa.barrios@example.com'))
+        self.assertFalse(conv.mensaje_ids.filtered(lambda m: m.autor == 'vendedora'), 'no se envió nada')

@@ -27,6 +27,7 @@ const BOTONES = {
     enviar: { texto: "Enviar ya", clase: "btn-secondary", icono: "fa-paper-plane" },
     tarea: { texto: "Crear tarea", clase: "btn-secondary", icono: "fa-calendar-check-o" },
     guardar: { texto: "Guardar en su ficha", clase: "btn-primary", icono: "fa-check" },
+    responder: { texto: "Guardar y responderle", clase: "btn-primary", icono: "fa-comments" },
     asignar: { texto: "Asignar", clase: "btn-primary", icono: "fa-user-plus" },
 };
 
@@ -205,6 +206,8 @@ export class SofiaPanel extends Component {
             texto = `Asignar a ${propuesta.destino}`;
         } else if (accion === "tarea" && propuesta.tipo === "llamar") {
             texto = "Crear tarea: llamarlo";
+        } else if (accion === "guardar" && propuesta.acciones.includes("responder")) {
+            return { ...base, texto: "Solo guardar", clase: "btn-secondary" };
         }
         return { ...base, texto };
     }
@@ -247,11 +250,13 @@ export class SofiaPanel extends Component {
             const respuesta = await this.orm.call(MODELO, "aplicar", [propuesta.id, accion], extra);
             this.quitar(propuesta);
             this.notification.add(respuesta.resultado, { type: respuesta.ya_no_hace_falta ? "warning" : "success" });
-            if (respuesta.texto && respuesta.conversacion_id) {
+            // «Abrir el chat con este mensaje» deja el texto; «Guardar y responderle» pide a Juan un borrador.
+            if ((respuesta.texto || respuesta.sugerir) && respuesta.conversacion_id) {
                 try {
                     window.sessionStorage.setItem(CLAVE_MENSAJE_PARA_EL_CHAT, JSON.stringify({
                         conversacion_id: respuesta.conversacion_id,
-                        texto: respuesta.texto,
+                        texto: respuesta.texto || "",
+                        sugerir: !!respuesta.sugerir,
                         vence: Date.now() + VIGENCIA_DEL_MENSAJE,
                     }));
                 } catch {

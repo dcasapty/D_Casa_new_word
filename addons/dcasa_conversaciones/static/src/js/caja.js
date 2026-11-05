@@ -47,7 +47,10 @@ export class CajaRespuesta extends Component {
         this.cuando = (iso) => cuando(iso, this.almacen.ahora);
         this.esTactil = window.matchMedia?.("(pointer: coarse)")?.matches;
         this._conversacion = null;
-        onMounted(() => this.ajustarAlto());
+        onMounted(() => {
+            this.ajustarAlto();
+            this.sugerirSiLoPidioSofia();
+        });
         onPatched(() => {
             this.ajustarAlto();
             if (this._conversacion !== this.almacen.seleccionadaId) {
@@ -59,7 +62,21 @@ export class CajaRespuesta extends Component {
                 this.local.programando = !!this.borrador.programarPara;
             }
             this.enfocarLoPendiente();
+            this.sugerirSiLoPidioSofia();
         });
+    }
+
+    /** Sofía («Guardar y responderle»): con la conversación ya abierta, se le pide a Juan el borrador UNA vez, como si
+     * la vendedora tocara «Sugerir». Si ya estaba escribiendo algo, no se le pisa. */
+    sugerirSiLoPidioSofia() {
+        const id = this.almacen.sugerirAlAbrir;
+        if (!id || id !== this.almacen.seleccionadaId || !this.almacen.conversacion) {
+            return;
+        }
+        this.almacen.sugerirAlAbrir = null;
+        if (!this.borrador.texto.trim()) {
+            this.sugerir();
+        }
     }
 
     /** Cuando algo se acaba de abrir (el menú «Más», la fecha de programar), el foco va a su primer control. */
