@@ -318,7 +318,8 @@ class TestSofia(JuanCase):
         # Y si ya tenía todo, no hace nada: «ya no hacía falta».
         p2, conv2, _l2 = self.cliente('🌙', '+507 6000-3069', vendedora=self.vendedora)
         self.mensaje(conv2, 'Me llamo Luna Vega', 3)
-        self.analizar()
+        with freeze_time('2026-11-05 15:05:00'):   # el botón no vuelve a revisar en el mismo minuto
+            self.analizar()
         propuesta2 = self.propuestas(partner_id=p2.id, tipo='guardar_datos')
         p2.name = 'Luna Vega Castillo'
         resultado = self.Sofia.with_user(self.vendedora).aplicar(propuesta2.id, 'guardar')

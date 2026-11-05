@@ -190,8 +190,8 @@ CORTE_DEL_NOMBRE = frozenset({'mi', 'correo', 'email', 'mail', 'cumplo', 'cumple
 # pregunta o «regálame», «compárteme», «indícame»…). «Te envié la cotización a tu correo» no pide nada.
 _DATO_PEDIDO = re.compile(r'(?:tu|su)\s+(?:nombre|apellido|correo|e-?mail|cumplea)|nombre\s+y\s+apellido|'
                           r'nombre\s+completo|d[ií]a\s+y\s+(?:el\s+)?mes', re.IGNORECASE)
-_VERBO_DE_PEDIR = re.compile(r'\?|regal|compart|indic|facilit|d[ií]me|d[aá]me|p[aá]same|escr[ií]beme|env[ií]ame|'
-                             r'confirm', re.IGNORECASE)
+_VERBO_DE_PEDIR = re.compile(r'\?|reg[aá]l|comp[aá]rt|ind[ií]c|facil[ií]t|d[ií]me|d[aá]me|p[aá]same|escr[ií]beme|'
+                             r'env[ií]ame|confirm', re.IGNORECASE)
 _NOMBRE_DICHO = re.compile(
     r'(?:me\s+llamo|mi\s+nombre(?:\s+completo)?\s+es|nombre(?:\s+completo)?\s*[:=])\s*(?P<nombre>[^\n,.;:0-9@()]+)',
     re.IGNORECASE)
