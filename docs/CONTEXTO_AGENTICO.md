@@ -364,6 +364,11 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `main` (`741930d`, árbol = `de1fb04`) a staging y Desplegar con ese `app_version`. **Regla:** un cambio del borde
   (rutas, `vars`, `workers_dev`) se despliega con un `app_version` que lo contenga, o sea con una imagen construida
   de ese commit.
+- **Desplegar 45** (18:12 UTC del 5 nov, `63bcdef`, imagen `sha256:32b31395…` de CI #256, respaldo previo) · sano
+  18:27 (versión `63bcdef9ebbe`, base al día, humo ok): Sofía baja con scroll y la prueba de scroll de toda pantalla
+  propia (PR #74, `main` = `91507ca`, árbol = `63bcdef`). El staging del CI #256 se frenó en el respaldo previo por un
+  **429 de R2**; **Desplegar 44** (staging, mismo digest) salió sano. El PR se unió con los tests ya verdes y antes de
+  que terminara staging, para poder subir la rama sin colar código sin probar; el CI del PR (#257) se canceló.
 - **Desplegar 43** (05:12 UTC del 5 nov, `a1d4b7d`, imagen `sha256:2003322b…` de CI #254, respaldo previo) · sano y
   confirmado 05:26 (versión `a1d4b7d62fc6`, base al día, humo ok): **módulo nuevo `dcasa_sofia`** (Sofía, la asistente
   del CRM; PR #73, `main` = `ff2ddd3`, árbol = `2de05a8`). El módulo se instaló solo en el arranque porque ya estaba en

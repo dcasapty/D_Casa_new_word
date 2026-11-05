@@ -7,6 +7,11 @@ jefe» (<https://claude.ai/code/artifact/8ffcbb80-6521-4e46-a2a7-8ddc59cb20b2>).
 
 Cada etapa sale a staging para que la dueña la vea; a producción solo con su «sí» explícito (por cada etapa).
 
+**Estado al 2026-11-05, tarde:** **en producción** (Desplegar 45, PR #74) Sofía baja con scroll. **En la rama,
+esperando el visto bueno de la dueña** (capturas enviadas): «Guarda sus datos» (Sofía propone guardar en la ficha el
+nombre, el correo y el cumpleaños que el cliente contestó). Orden: (1) su visto bueno → CI → staging → producción;
+(2) lo de abajo.
+
 **Estado al 2026-11-05:** **en producción** (Desplegar 43, PR #73) **Sofía, la asistente del CRM** (`dcasa_sofia`,
 docs/SOFIA.md): revisa el CRM con un botón y cada mañana y propone (contestar, escribirle, la cotización que vence,
 pedir nombre y correo a quien llegó con un emoji o una frase, repartir); una persona aprueba. Orden: (1) que Gerencia
