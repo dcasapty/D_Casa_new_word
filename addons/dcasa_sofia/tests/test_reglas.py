@@ -49,6 +49,13 @@ class TestReglasDeSofia(BaseCase):
                          ['ana.perez@example.com'])
         self.assertEqual(R.correos_en('sin correo'), [])
 
+    def test_quita_el_canal_de_lo_que_le_interesa(self):
+        canales = ['WhatsApp (QR)', 'WhatsApp (API oficial)', 'Messenger']
+        self.assertEqual(R.sin_canal('WhatsApp (QR): colchón queen', canales), 'colchón queen')
+        self.assertEqual(R.sin_canal('Messenger:  juego de sala', canales), 'juego de sala')
+        self.assertEqual(R.sin_canal('Juego de sala en L', canales), 'Juego de sala en L')
+        self.assertEqual(R.sin_canal('', canales), '')
+
     def test_que_falta(self):
         self.assertEqual(R.que_falta(True, True), 'tu nombre y apellido y tu correo')
         self.assertEqual(R.que_falta(True, False), 'tu nombre y apellido')

@@ -50,6 +50,26 @@ class TestSofiaEnElNavegador(HttpCase):
             const tarjetas = () => [...document.querySelectorAll('.o_sofia_tarjeta')];
             await esperar(() => tarjetas().length === 2, 'las dos propuestas de la vendedora');
             sinErrores();
+            // La pantalla baja con scroll (bug del 2026-11-05: Odoo corta las pantallas propias con overflow hidden).
+            const pantalla = document.querySelector('.o_action.o_sofia');
+            // Por código se puede mover aunque esté cortada: lo que bloquea la rueda y el dedo es overflow hidden.
+            const desborde = getComputedStyle(pantalla).overflowY;
+            if (!['auto', 'scroll'].includes(desborde)) {
+                throw new Error('Sofía no baja con scroll: la pantalla tiene overflow-y: ' + desborde);
+            }
+            if (pantalla.scrollHeight <= pantalla.clientHeight + 50) {
+                throw new Error('La pantalla no es más alta que la ventana: no se puede probar el scroll');
+            }
+            pantalla.scrollTop = 100000;
+            await new Promise((ok) => setTimeout(ok, 150));
+            if (pantalla.scrollTop < 50) {
+                throw new Error('Sofía no baja con scroll (overflow-y: ' + getComputedStyle(pantalla).overflowY + ')');
+            }
+            const ultima = tarjetas().at(-1).getBoundingClientRect();
+            if (ultima.bottom > window.innerHeight + 2) {
+                throw new Error('Abajo del todo, la última tarjeta sigue cortada');
+            }
+            pantalla.scrollTop = 0;
             if (document.body.textContent.includes('Cliente Ajeno')) {
                 throw new Error('La vendedora ve lo de otra');
             }

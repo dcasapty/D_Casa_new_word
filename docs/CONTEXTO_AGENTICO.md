@@ -364,6 +364,11 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `main` (`741930d`, árbol = `de1fb04`) a staging y Desplegar con ese `app_version`. **Regla:** un cambio del borde
   (rutas, `vars`, `workers_dev`) se despliega con un `app_version` que lo contenga, o sea con una imagen construida
   de ese commit.
+- **Desplegar 43** (05:12 UTC del 5 nov, `a1d4b7d`, imagen `sha256:2003322b…` de CI #254, respaldo previo) · sano y
+  confirmado 05:26 (versión `a1d4b7d62fc6`, base al día, humo ok): **módulo nuevo `dcasa_sofia`** (Sofía, la asistente
+  del CRM; PR #73, `main` = `ff2ddd3`, árbol = `2de05a8`). El módulo se instaló solo en el arranque porque ya estaba en
+  `ODOO_MODULES` (docker/entrypoint.sh) en esa misma imagen. El CI que abrió el PR (#255) se canceló: era el mismo árbol.
+  Después, la rama se puso al día con un merge de `main` (el clasificador no deja `reset` + `push --force`).
 - **Desplegar 42** (01:57 UTC del 5 nov, `71d0040`, imagen `sha256:d02db548…` de CI #252, respaldo previo) · sano y
   confirmado 02:12 (versión `71d0040c988b`, base al día, humo ok): tasa de cierre en el Resumen de Juan (PR #72, `main`
   = `57d718b`, árbol = `43eed13`). Esta vez el staging del CI sí pasó el respaldo previo.
@@ -620,7 +625,7 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 - Método público + `sudo()` = puerta abierta por RPC; todo método público nuevo va a la lista blanca de
   `test_superficie_rpc.py` con su motivo.
 - SCSS `min(%, px)` rompe el bundle entero: usar `unquote()`.
-- `.o_action` tiene `overflow:hidden`: las pantallas propias necesitan la regla fuerte para hacer scroll.
+- `.o_action` tiene `overflow:hidden`: las pantallas propias necesitan la regla fuerte para hacer scroll. Volvió a pasar con Sofía (2026-11-05): ahora `dcasa_interfaz/tests/test_scroll.py` revisa TODA plantilla cuya raíz lleva `o_action` y falla si no tiene `.o_web_client > .o_action_manager > .<clase>.o_action { overflow-y: auto; > * { flex-shrink: 0; } }` (excepciones con su porqué: Conversaciones, Vista previa, Armar combo en diálogo). En el navegador, `scrollTop = N` funciona aunque la pantalla tenga `overflow: hidden` (lo bloqueado es la rueda y el dedo): la prueba mira `getComputedStyle(...).overflowY`.
 - wkhtmltopdf pide estilos a `web.base.url`: en el contenedor debe ser `127.0.0.1`.
 - PyPDF2 deja escapes octales al fusionar PDF: comparar con `textos()`.
 - Panamá es UTC−5: el día cambia a las 05:00 UTC; las pruebas con fecha se congelan.
