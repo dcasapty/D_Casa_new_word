@@ -364,6 +364,9 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `main` (`741930d`, árbol = `de1fb04`) a staging y Desplegar con ese `app_version`. **Regla:** un cambio del borde
   (rutas, `vars`, `workers_dev`) se despliega con un `app_version` que lo contenga, o sea con una imagen construida
   de ese commit.
+- **Desplegar 42** (01:57 UTC del 5 nov, `71d0040`, imagen `sha256:d02db548…` de CI #252, respaldo previo) · sano y
+  confirmado 02:12 (versión `71d0040c988b`, base al día, humo ok): tasa de cierre en el Resumen de Juan (PR #72, `main`
+  = `57d718b`, árbol = `43eed13`). Esta vez el staging del CI sí pasó el respaldo previo.
 - **Desplegar 41** (21:50 UTC del 4 nov, `43a105d`, imagen `sha256:0dde5051…` de CI #250, respaldo previo) · sano y
   confirmado 22:04 (versión `43a105db925a`, base al día, humo ok): clientes repetidos (buscar por celular, datos del
   cliente en la cotización y la factura, «Es esta persona»; PR #71, `main` = `23026ec`, árbol = `0350a3d`). **Tercera

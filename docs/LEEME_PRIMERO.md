@@ -102,6 +102,14 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 > Más reciente arriba. Cada entrada: fecha, qué quedó en producción (con el commit), qué quedó solo en staging, qué
 > sigue. Se guardan unas diez; las viejas se resumen en una línea.
 
+### 2026-11-05: tasa de cierre en el Resumen de Juan; idea del agente del CRM
+
+- Pedido de la dueña: en el Resumen, ventas cerradas ÷ conversaciones × 100 (el asistente y una persona, solo el
+  asistente y el total), en el periodo elegido y en una tabla con hoy, 7, 30 y 90 días y 12 meses. **En producción:**
+  Desplegar 42, sano y confirmado 02:12 UTC del 5 nov (PR #72, `57d718b`; imagen `sha256:d02db548…` de CI #252).
+- Pidió también un **agente aparte para el CRM** (como Brian lo es de Juan): con un botón analiza, reparte, actualiza
+  etapas y propone seguimientos. En diseño: se le presentan opciones antes de construir.
+
 ### 2026-11-04: tarifas de envío (propuesta, en pausa) y clientes repetidos (buscar por celular, «Es esta persona»)
 
 - **Tarifas de envío (en pausa hasta que Gerencia apruebe):** fórmula con los tres precios de la dueña ($15 cerca, $20 a
