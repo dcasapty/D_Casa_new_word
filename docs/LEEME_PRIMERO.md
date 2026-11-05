@@ -102,6 +102,16 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 > Más reciente arriba. Cada entrada: fecha, qué quedó en producción (con el commit), qué quedó solo en staging, qué
 > sigue. Se guardan unas diez; las viejas se resumen en una línea.
 
+### 2026-11-05 (4): «Guardar y responderle»
+
+- Pedido de la dueña con un caso real (la clienta dio sus datos; la ficha se completó, pero faltaban «las gracias y la
+  oportunidad de cierre»): la tarjeta «Guarda sus datos» ofrece **«Guardar y responderle»** (guarda, abre su chat y la
+  caja pide a Juan un borrador con el mismo «Sugerir» del chat, una sola vez; no se envía nada) y **«Solo guardar»**.
+  Sin la ventana de 24 h de Meta o si pidió que no lo contacten, solo guardar; nunca se guarda a medias. También lee
+  el cumpleaños con el año pegado («19 de octubre deln1985», el mismo caso real). 64 pruebas de Sofía.
+- **En producción** con su visto bueno: Desplegar 47, sano 21:45 UTC (PR #76, `main` = `700c34a`, árbol = `e97958e`;
+  imagen `sha256:aa3c4c06…` de CI #260). Juan no cambió.
+
 ### 2026-11-05 (3): Sofía baja con scroll; «Guarda sus datos»
 
 - **Scroll de Sofía** (pedido de la dueña: «la ventana no hace scroll»): `.o_action` de Odoo cortaba la pantalla; ahora
