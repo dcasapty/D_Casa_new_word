@@ -87,6 +87,21 @@ class TestCalculos(BaseCase):
         self.assertEqual(C.duracion_corta(4000), '1 h 6 min')
         self.assertEqual(C.duracion_corta(3 * 86400), '3 d')
 
+    def test_tasa_de_cierre(self):
+        """Con los números de la dueña (2026-11-05): 812 conversaciones, 8 ventas del asistente y una persona y 2 solo
+        del asistente."""
+        self.assertEqual(C.tasa(8, 812), 0.99)
+        self.assertEqual(C.tasa(2, 812), 0.25)
+        self.assertEqual(C.tasa(10, 812), 1.23)
+        self.assertIsNone(C.tasa(3, 0), 'sin conversaciones no hay tasa (no se inventa un 0 %)')
+        ventas = {'juan_y_vendedora': {'facturas': 8, 'monto': 0.0}, 'solo_juan': {'facturas': 2, 'monto': 0.0}}
+        self.assertEqual(C.tasas_de_cierre(812, ventas), {
+            'conversaciones': 812,
+            'juan_y_vendedora': {'ventas': 8, 'tasa': 0.99},
+            'solo_juan': {'ventas': 2, 'tasa': 0.25},
+            'total': {'ventas': 10, 'tasa': 1.23},
+        })
+
     def test_limites_del_periodo_son_a_medianoche_de_panama(self):
         ahora = datetime(2026, 10, 9, 13, 30)
         self.assertEqual(C.limites_del_periodo('hoy', ahora), (datetime(2026, 10, 9), datetime(2026, 10, 10)))
@@ -242,6 +257,36 @@ class TestResumen(JuanCase):
         self.assertEqual(r['juan_y_vendedora'], {'facturas': 1, 'monto': 200.0})
         self.assertEqual(r['solo_vendedora'], {'facturas': 1, 'monto': 70.0})
         self.assertEqual(r['de_cotizacion_de_juan'], {'facturas': 0, 'monto': 0.0})
+
+    def test_tasa_de_cierre_del_periodo_y_de_todos_los_periodos(self):
+        """Pedido de la dueña (2026-11-05): ventas cerradas ÷ conversaciones, partidas como «Ventas atribuidas», en cada
+        periodo (hoy, 7, 30 y 90 días, 12 meses)."""
+        ana = self.hablan('50761000001', panama(2026, 10, 7, 9, 0), panama(2026, 10, 7, 9, 1), nombre='Ana')
+        beto = self.hablan('50761000002', panama(2026, 10, 7, 9, 0), panama(2026, 10, 7, 9, 1),
+                           panama(2026, 10, 7, 9, 30), nombre='Beto')
+        carla = self.hablan('50761000003', panama(2026, 10, 7, 9, 0), None, panama(2026, 10, 7, 9, 5),
+                            nombre='Carla')
+        self.hablan('50761000004', panama(2026, 10, 8, 9, 0), panama(2026, 10, 8, 9, 1), nombre='Diego')
+        self.factura(ana.partner_id, 100.0)
+        self.factura(beto.partner_id, 200.0)
+        self.factura(carla.partner_id, 70.0)       # solo personas: no entra en la tasa del asistente
+        r = self.panel.resumen('7_dias')['tasa_de_cierre']
+        self.assertEqual(r, {'conversaciones': 4,
+                             'juan_y_vendedora': {'ventas': 1, 'tasa': 25.0},
+                             'solo_juan': {'ventas': 1, 'tasa': 25.0},
+                             'total': {'ventas': 2, 'tasa': 50.0}})
+        hoy = self.panel.resumen('hoy')['tasa_de_cierre']
+        self.assertEqual((hoy['conversaciones'], hoy['total']['tasa']), (0, None), 'hoy nadie escribió')
+        filas = self.panel.tasas_de_cierre()
+        self.assertEqual([f['periodo'] for f in filas], ['hoy', '7_dias', '30_dias', '90_dias', '12_meses'])
+        siete = next(f for f in filas if f['periodo'] == '7_dias')
+        self.assertEqual({k: siete[k] for k in r}, r, 'la tabla dice lo mismo que la tarjeta del periodo')
+        self.assertEqual(siete['nombre'], 'Últimos 7 días')
+
+    def test_la_tasa_de_cierre_es_del_equipo_de_ventas(self):
+        for usuario in (self.interno, self.portal):
+            with self.assertRaises(AccessError):
+                call_kw(self.env(user=usuario)['dcasa.juan.panel'], 'tasas_de_cierre', [], {})
 
     def test_solo_cuenta_lo_que_hablaron_en_los_30_dias_antes_de_la_factura(self):
         vieja = self.hablan('50761000001', panama(2026, 9, 1, 9, 0), panama(2026, 9, 1, 9, 1), nombre='Ana')

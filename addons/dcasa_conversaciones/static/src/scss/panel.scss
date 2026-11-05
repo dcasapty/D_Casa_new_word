@@ -1307,6 +1307,21 @@ body.o_dcj_arrastrando_ancho { cursor: col-resize; user-select: none; }
     &.o_dcj_fuera_del_reparto { cursor: default; }
 }
 
+// Resumen · «Tasa de cierre por periodo»: el periodo elegido arriba, resaltado; los números a la derecha.
+.o_dcj_p .o_dcj_p_tasas {
+    margin-top: 24px;
+    h2 { font-family: Oswald, sans-serif; font-size: 1.1rem; margin: 0 0 10px; color: $dcj-marino; }
+    .o_dcj_p_tabla_caja { overflow-x: auto; }
+    .o_dcj_p_tabla { width: 100%; border-collapse: collapse; font-size: .9rem;
+        th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--dc-perla, #ECF0F6); white-space: nowrap; }
+        thead th { font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; color: var(--dc-tinta-3, #6B7690); }
+        tbody th { font-weight: 700; color: $dcj-marino; }
+        .o_dcj_num { text-align: right; font-variant-numeric: tabular-nums; }
+    }
+    td small { color: var(--dc-tinta-3, #6B7690); }
+    tr.o_activa th, tr.o_activa td { background: var(--dc-azul-50, #F2F6FE); }
+}
+
 // Resumen · «Por persona» (solo Gerencia).
 .o_dcj_p .o_dcj_p_personas {
     margin-top: 24px;

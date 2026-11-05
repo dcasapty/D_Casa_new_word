@@ -1,6 +1,7 @@
 /**
- * «Resumen» de Juan: los números del día (o de 7 y 30 días) con lo que Odoo ya guarda. Sin cifras inventadas: lo que
- * no se puede calcular se muestra como «—».
+ * «Resumen» de Juan: los números del día (o de 7, 30 y 90 días y 12 meses) con lo que Odoo ya guarda. Sin cifras
+ * inventadas: lo que no se puede calcular se muestra como «—». La tasa de cierre sale en una tarjeta del periodo elegido
+ * y, abajo, en una tabla con todos los periodos.
  */
 import { Component, onMounted, onWillUnmount, useRef, useState } from "@odoo/owl";
 import { registry } from "@web/core/registry";
@@ -62,7 +63,7 @@ export class ResumenJuan extends Component {
         this.periodos = PERIODOS;
         this.numero = numero;
         this.dolares = dolares;
-        this.state = useState({ periodo: "hoy", datos: null, cargando: true, error: null, personas: null });
+        this.state = useState({ periodo: "hoy", datos: null, cargando: true, error: null, personas: null, tasas: null });
         onMounted(() => {
             this.cargar();
             this.reloj = setInterval(() => this.cargar(true), 60_000);
@@ -80,6 +81,10 @@ export class ResumenJuan extends Component {
             if (periodo === this.state.periodo) {
                 this.state.datos = datos;
                 this.state.error = null;
+            }
+            // La tasa de cierre de todos los periodos (no cambia al elegir otro): al abrir y en cada refresco.
+            if (!this.state.tasas || silencioso) {
+                this.cargarTasas();
             }
             // Cómo le fue a cada persona: solo lo ve Gerencia. Si falla, el resto del Resumen sigue igual.
             if (datos.es_gerencia) {
@@ -101,6 +106,21 @@ export class ResumenJuan extends Component {
         } finally {
             this.state.cargando = false;
         }
+    }
+
+    async cargarTasas() {
+        try {
+            this.state.tasas = await this.orm.silent.call("dcasa.juan.panel", "tasas_de_cierre", []);
+        } catch {
+            // Si falla, el resto del Resumen sigue igual; la tabla no se muestra.
+        }
+    }
+
+    /** 0.9852 → «0.99 %»; sin conversaciones, «—». */
+    porcentaje(valor) {
+        return valor === null || valor === undefined
+            ? "—"
+            : `${new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(valor)} %`;
     }
 
     elegir(periodo) {

@@ -17,7 +17,7 @@ conciliación bancaria de `dcasa_contabilidad`.
 
 | Panel de Baby Caleb | Pantalla en Odoo | Cambio |
 |---|---|---|
-| Resumen (mensajes de hoy, clientes únicos, resueltas sin humano, costo del mes) | **Resumen** | Mismos indicadores, más: oportunidades creadas, ventas atribuidas (facturas pagadas de clientes que hablaron con el bot), tiempo de primera respuesta. |
+| Resumen (mensajes de hoy, clientes únicos, resueltas sin humano, costo del mes) | **Resumen** | Mismos indicadores, más: oportunidades creadas, ventas atribuidas (facturas pagadas de clientes que hablaron con el bot), **tasa de cierre** (ventas atribuidas ÷ conversaciones × 100: el asistente y una persona, solo el asistente y el total; tarjeta del periodo elegido y tabla con hoy, 7, 30 y 90 días y 12 meses, 2026-11-05), tiempo de primera respuesta. |
 | Conversaciones (lista + hilo + pausar/continuar/responder/sugerir) | **Conversaciones** (la pantalla principal) | Lo mismo, más adjuntos, etiquetas, fotos del catálogo, respuestas rápidas, notas internas, búsqueda. Abajo. |
 | Leads | **Oportunidades** (CRM de Odoo) | Ya existe: el interés se vuelve `crm.lead`; el panel muestra el enlace y el estado. |
 | Tickets | Actividades de Odoo | «Pasar a vendedora» crea una actividad con fecha; no hay otro sistema de tickets. |

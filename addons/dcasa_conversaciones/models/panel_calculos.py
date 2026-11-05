@@ -122,6 +122,27 @@ def duracion_corta(segundos):
     return f'{horas // 24} d {horas % 24} h' if horas % 24 else f'{horas // 24} d'
 
 
+def tasa(ventas, conversaciones):
+    """Ventas cerradas por cada 100 conversaciones (porcentaje, dos decimales), o ``None`` si no hubo conversaciones."""
+    if not conversaciones:
+        return None
+    return round(100.0 * ventas / conversaciones, 2)
+
+
+def tasas_de_cierre(conversaciones, ventas):
+    """La tasa de cierre del periodo (pedido de la dueña, 2026-11-05): ventas cerradas ÷ conversaciones × 100, con las
+    ventas atribuidas partidas como en «Ventas atribuidas»: el asistente y una persona, solo el asistente y el total de
+    las dos (donde participó el asistente). ``ventas`` es lo que devuelve ``_ventas_atribuidas``."""
+    con_persona = ventas['juan_y_vendedora']['facturas']
+    solo = ventas['solo_juan']['facturas']
+    return {
+        'conversaciones': conversaciones,
+        'juan_y_vendedora': {'ventas': con_persona, 'tasa': tasa(con_persona, conversaciones)},
+        'solo_juan': {'ventas': solo, 'tasa': tasa(solo, conversaciones)},
+        'total': {'ventas': con_persona + solo, 'tasa': tasa(con_persona + solo, conversaciones)},
+    }
+
+
 def limites_del_periodo(periodo, ahora_local):
     """``(inicio_local, fin_local)`` del periodo, a la medianoche de Panamá. El fin es exclusivo (mañana 00:00)."""
     if periodo not in PERIODOS:

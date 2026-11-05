@@ -803,6 +803,7 @@ LISTA_BLANCA = {
     ('dcasa_conversaciones', 'dcasa.conversacion', 'subir_adjunto'): PANEL_VENTAS,
     ('dcasa_conversaciones', 'dcasa.conversacion', 'sugerir_respuesta'): PANEL_VENTAS,
     ('dcasa_conversaciones', 'dcasa.juan.panel', 'resumen'): PANEL_VENTAS,
+    ('dcasa_conversaciones', 'dcasa.juan.panel', 'tasas_de_cierre'): PANEL_VENTAS,
     ('dcasa_conversaciones', 'dcasa.juan.panel', 'costos'): PANEL_GERENCIA,
     ('dcasa_conversaciones', 'dcasa.juan.panel', 'por_persona'): PANEL_GERENCIA,
     ('dcasa_conversaciones', 'dcasa.juan.panel', 'reparto'):

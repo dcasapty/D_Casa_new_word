@@ -120,8 +120,11 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
   persona» con su ficha y el botón **«Es esta persona»**. Revisión adversarial: 1 alta (cada cotización nueva
   reescribía la ficha) y 5 medias o bajas, todas corregidas con pruebas; en el arreglo apareció otra (un solo inverso
   borraba los datos no tocados) que atraparon las pruebas nuevas. Ver `docs/CONTACTOS.md`.
-- Estado: en la rama (`c65e383` y los docs), CI #249 corriendo; **falta el visto bueno de la dueña** para staging y
-  producción.
+- **En producción** con su «sí» («pásalo a producción cuanto antes»): Desplegar 41, sano y confirmado 22:04 UTC del
+  4 nov (5:04 pm Panamá) (PR #71, `23026ec`; imagen `sha256:0dde5051…` de CI #250 sobre `43a105d`; staging en
+  Desplegar 40 porque el del CI se frenó en el respaldo previo). Juan no cambió.
+- Sigue: que la dueña y las vendedoras lo prueben con un cliente real del chat; la decisión de Gerencia sobre las
+  tarifas de envío.
 
 ### 2026-11-03 (tarde y noche): tres paneles en el Inicio, CRM al chat, vendedoras activas, notas de voz y fotos
 

@@ -1148,13 +1148,13 @@ class TestPantallasDeJuan(PanelUiCase):
         parche.start()
         self.addCleanup(parche.stop)
 
-    def test_resumen_los_seis_numeros_y_los_periodos(self):
+    def test_resumen_los_siete_numeros_y_los_periodos(self):
         self.datos_de_ejemplo()
         self.navegador("""
 (async () => {
-    await esperar(() => document.querySelectorAll(".o_dcj_p_dato").length === 6, "las seis tarjetas");
+    await esperar(() => document.querySelectorAll(".o_dcj_p_dato").length === 7, "las siete tarjetas");
     const titulos = [...document.querySelectorAll(".o_dcj_p_dato h2")].map((e) => e.textContent.trim());
-    const esperados = ["Mensajes", "Clientes únicos", "Resueltas sin una persona", "Oportunidades creadas", "Ventas atribuidas", "Primera respuesta"];
+    const esperados = ["Mensajes", "Clientes únicos", "Resueltas sin una persona", "Oportunidades creadas", "Ventas atribuidas", "Tasa de cierre", "Primera respuesta"];
     if (titulos.join("|") !== esperados.join("|")) { throw new Error("tarjetas distintas: " + titulos.join("|")); }
     for (const v of document.querySelectorAll(".o_dcj_p_valor")) {
         if (!v.textContent.trim()) { throw new Error("una tarjeta sin valor"); }
@@ -1162,10 +1162,17 @@ class TestPantallasDeJuan(PanelUiCase):
     if (aqui("body", "Falta conectar el bot")) { throw new Error("con el bot conectado no debe decir que falta conectarlo"); }
     const valorDe = (titulo) => aqui(".o_dcj_p_dato", titulo).querySelector(".o_dcj_p_valor").textContent.trim();
     if (!/^\\$[\\d,]+\\.\\d\\d$/.test(valorDe("Ventas atribuidas"))) { throw new Error("las ventas deben verse en dólares: " + valorDe("Ventas atribuidas")); }
+    if (!/^(—|[\\d,]+\\.\\d\\d %)$/.test(valorDe("Tasa de cierre"))) { throw new Error("la tasa de cierre en %: " + valorDe("Tasa de cierre")); }
+    // La tabla de la tasa de cierre: los cinco periodos, con el elegido resaltado.
+    const filasTasa = await esperar(() => { const f = document.querySelectorAll(".o_dcj_p_tasas tbody tr"); return f.length === 5 && f; }, "la tabla de la tasa de cierre");
+    const periodosTasa = [...filasTasa].map((f) => f.querySelector("th").textContent.trim());
+    if (periodosTasa.join("|") !== "Hoy|Últimos 7 días|Últimos 30 días|Últimos 90 días|Últimos 12 meses") { throw new Error("periodos de la tabla: " + periodosTasa.join("|")); }
+    if (!filasTasa[0].classList.contains("o_activa")) { throw new Error("el periodo elegido (hoy) debe verse resaltado"); }
     // Cambiar de periodo vuelve a pedir los números.
     aqui(".o_dcj_p_segmento button", "30 días").click();
     await esperar(() => aqui(".o_dcj_p_segmento button", "30 días").getAttribute("aria-pressed") === "true", "el periodo de 30 días");
     await esperar(() => Number(valorDe("Mensajes").replace(/[^0-9]/g, "")) >= 5, "los mensajes de 30 días");
+    await esperar(() => document.querySelectorAll(".o_dcj_p_tasas tbody tr")[2].classList.contains("o_activa"), "la fila de 30 días resaltada");
     // Una vendedora no ve cómo le fue a cada persona (es de Gerencia).
     if (document.querySelector(".o_dcj_p_personas")) { throw new Error("la sección «Por persona» es solo de Gerencia"); }
     // Una vendedora no ve Costos ni Conexiones en la barra.
@@ -1198,7 +1205,7 @@ class TestPantallasDeJuan(PanelUiCase):
         self.navegador("""
 (async () => {
     await esperar(() => aqui(".o_dcj_p_aviso", "Falta conectar el bot"), "el aviso de que falta el bot");
-    await esperar(() => document.querySelectorAll(".o_dcj_p_dato").length === 6, "los números de Odoo siguen ahí");
+    await esperar(() => document.querySelectorAll(".o_dcj_p_dato").length === 7, "los números de Odoo siguen ahí");
     console.log("test successful");
 })().catch((e) => console.error(e.message || e));
 """, url=ACCION_RESUMEN)
