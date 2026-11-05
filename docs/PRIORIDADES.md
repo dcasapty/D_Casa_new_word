@@ -7,11 +7,12 @@ jefe» (<https://claude.ai/code/artifact/8ffcbb80-6521-4e46-a2a7-8ddc59cb20b2>).
 
 Cada etapa sale a staging para que la dueña la vea; a producción solo con su «sí» explícito (por cada etapa).
 
-**Estado al 2026-11-05:** **Sofía, la asistente del CRM** (`dcasa_sofia`, docs/SOFIA.md) lista en la rama, con
-capturas para la dueña: revisa el CRM con un botón y cada mañana y propone (contestar, escribirle, la cotización que
-vence, pedir nombre y correo a quien llegó con un emoji o una frase, repartir); una persona aprueba. Orden: (1) su visto
-bueno → staging → producción; (2) que Gerencia ajuste los mensajes y cada vendedora vincule su Telegram; (3) siguiente
-etapa de Sofía (mensajes con IA y plantillas de WhatsApp para después de 24 horas); (4) lo de abajo.
+**Estado al 2026-11-05:** **en producción** (Desplegar 43, PR #73) **Sofía, la asistente del CRM** (`dcasa_sofia`,
+docs/SOFIA.md): revisa el CRM con un botón y cada mañana y propone (contestar, escribirle, la cotización que vence,
+pedir nombre y correo a quien llegó con un emoji o una frase, repartir); una persona aprueba. Orden: (1) que Gerencia
+ajuste los mensajes (CRM › Configuración › Sofía) y cada vendedora vincule su Telegram; (2) mirar con la dueña la
+primera semana de propuestas; (3) siguiente etapa de Sofía (mensajes con IA, plantillas de WhatsApp para después de
+24 horas, herramienta de Brian); (4) lo de abajo.
 
 **Estado al 2026-11-04:** **en producción** (Desplegar 41, PR #71) **clientes repetidos**: buscar por celular, corregir
 sus datos dentro de la cotización y la factura, «Ya existe esta persona» con «Es esta persona». **Tarifas de envío** en pausa: la dueña tiene el HTML con la

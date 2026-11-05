@@ -114,8 +114,10 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
   toca a Juan: revisar no escribe; se aparta si Juan conversa o está por mandar su seguimiento (2 h).
 - Revisión adversarial: sin huecos de permisos; se arregló un posible **doble envío** (enviar confirma la base a mitad de
   la petición), la revisión al aprobar, el texto del chat de un solo uso y lo demás (ver docs/SOFIA.md). 43 pruebas.
-- **Estado:** en la rama, con capturas enviadas a la dueña; **esperando su visto bueno** para staging y producción.
-  `dcasa_sofia` ya está en `ODOO_MODULES` (docker/entrypoint.sh) y en el Makefile.
+- **En producción** con el visto bueno de la dueña: Desplegar 43, sano y confirmado 05:26 UTC del 5 nov (PR #73,
+  `ff2ddd3`; imagen `sha256:2003322b…` de CI #254). `dcasa_sofia` está en `ODOO_MODULES` (docker/entrypoint.sh) y en
+  el Makefile. Sigue: que Gerencia ajuste los mensajes y cada vendedora vincule su Telegram; la primera revisión de la
+  mañana corre sola media hora después de abrir.
 
 ### 2026-11-05: tasa de cierre en el Resumen de Juan; idea del agente del CRM
 
