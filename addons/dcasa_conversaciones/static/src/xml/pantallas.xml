@@ -90,6 +90,21 @@
                                 <t t-out="numero(d.ventas.de_cotizacion_de_juan.facturas)"/> <t t-out="d.ventas.de_cotizacion_de_juan.facturas === 1 ? 'salió' : 'salieron'"/> de una cotización que armó el asistente.
                             </p>
                         </article>
+                        <article class="o_dcj_p_dato o_dcj_p_tasa">
+                            <t t-set="tc" t-value="d.tasa_de_cierre"/>
+                            <h2>Tasa de cierre</h2>
+                            <p class="o_dcj_p_valor" t-out="porcentaje(tc.total.tasa)"/>
+                            <p class="o_dcj_p_detalle">
+                                <t t-if="tc.conversaciones"><t t-out="numero(tc.total.ventas)"/> <t t-out="tc.total.ventas === 1 ? 'venta cerrada' : 'ventas cerradas'"/> de <t t-out="numero(tc.conversaciones)"/> <t t-out="tc.conversaciones === 1 ? 'conversación' : 'conversaciones'"/>, donde participó el asistente.</t>
+                                <t t-else="">Todavía no hay conversaciones en este periodo.</t>
+                            </p>
+                            <ul class="o_dcj_p_partes list-unstyled mb-0">
+                                <li class="o_dcj_p_tasa_juan_y_vendedora"><span>El asistente y una persona</span>
+                                    <strong t-out="porcentaje(tc.juan_y_vendedora.tasa)"/> <small t-out="'(' + numero(tc.juan_y_vendedora.ventas) + ')'"/></li>
+                                <li class="o_dcj_p_tasa_solo_juan"><span>Solo el asistente</span>
+                                    <strong t-out="porcentaje(tc.solo_juan.tasa)"/> <small t-out="'(' + numero(tc.solo_juan.ventas) + ')'"/></li>
+                            </ul>
+                        </article>
                         <article class="o_dcj_p_dato">
                             <h2>Primera respuesta</h2>
                             <p class="o_dcj_p_valor" t-out="d.primera_respuesta.cualquiera_texto"/>
@@ -98,6 +113,24 @@
                                 <t t-if="d.primera_respuesta.con_respuesta_persona"> Una vendedora: <strong t-out="d.primera_respuesta.persona_texto"/>.</t>
                             </p>
                         </article>
+                    </section>
+                    <section t-if="state.tasas" class="o_dcj_p_tasas" aria-label="Tasa de cierre por periodo">
+                        <h2>Tasa de cierre por periodo</h2>
+                        <div class="o_dcj_p_tabla_caja">
+                            <table class="o_dcj_p_tabla">
+                                <thead><tr><th>Periodo</th><th class="o_dcj_num">Conversaciones</th><th class="o_dcj_num">El asistente y una persona</th><th class="o_dcj_num">Solo el asistente</th><th class="o_dcj_num">Total</th></tr></thead>
+                                <tbody>
+                                    <tr t-foreach="state.tasas" t-as="t" t-key="t.periodo" t-att-class="{ o_activa: t.periodo === state.periodo }">
+                                        <th scope="row" t-out="t.nombre"/>
+                                        <td class="o_dcj_num" t-out="numero(t.conversaciones)"/>
+                                        <td class="o_dcj_num"><t t-out="porcentaje(t.juan_y_vendedora.tasa)"/> <small t-out="'(' + numero(t.juan_y_vendedora.ventas) + ')'"/></td>
+                                        <td class="o_dcj_num"><t t-out="porcentaje(t.solo_juan.tasa)"/> <small t-out="'(' + numero(t.solo_juan.ventas) + ')'"/></td>
+                                        <td class="o_dcj_num"><strong t-out="porcentaje(t.total.tasa)"/> <small t-out="'(' + numero(t.total.ventas) + ')'"/></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <p class="o_dcj_p_nota">Tasa de cierre = ventas cerradas ÷ conversaciones × 100. Ventas cerradas: las facturas pagadas del periodo de clientes que hablaron con el asistente en los <t t-out="state.datos.ventas.ventana_dias"/> días antes de la factura (las mismas de «Ventas atribuidas»). Conversaciones: aquellas en las que el cliente escribió en el periodo. Entre paréntesis, cuántas ventas. En los periodos cortos (hoy, 7 días) la tasa puede salir alta: una venta de hoy puede venir de una conversación de días antes.</p>
                     </section>
                     <section t-if="state.personas" class="o_dcj_p_personas" aria-label="Por persona">
                         <h2>Por persona <span class="o_dcj_p_solo_gerencia">solo Gerencia</span></h2>

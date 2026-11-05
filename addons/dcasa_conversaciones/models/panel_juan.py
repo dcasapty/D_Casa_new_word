@@ -1,7 +1,8 @@
 """Las pantallas «Resumen», «Costos de IA» y «Conexiones» de Juan (docs/JUAN_PANEL.md).
 
-* **Resumen** (ventas): mensajes, clientes únicos, resueltas sin una persona, oportunidades creadas, ventas atribuidas
-  y tiempo de primera respuesta. Todo sale de lo que Odoo ya guarda; no se inventa ninguna cifra.
+* **Resumen** (ventas): mensajes, clientes únicos, resueltas sin una persona, oportunidades creadas, ventas atribuidas,
+  tasa de cierre (en el periodo y comparada en todos los periodos) y tiempo de primera respuesta. Todo sale de lo que
+  Odoo ya guarda; no se inventa ninguna cifra.
 * **Costos de IA** (gerencia): gasto del mes, tope, proyección «terminarás el mes en…», por modelo y por día. Lo que
   gastó el Worker se lee de ``GET /odoo/salud`` y ``GET /odoo/costos``. El Worker solo guarda el acumulado del mes por
   modelo, así que el gasto POR DÍA lo arma Odoo con una foto diaria del acumulado (``dcasa.juan.costo.dia``).
@@ -105,7 +106,7 @@ class DcasaJuanPanel(models.AbstractModel):
 
     @api.model
     def resumen(self, periodo='hoy'):
-        """Los números del periodo (``hoy``, ``7_dias`` o ``30_dias``, en la hora de Panamá)."""
+        """Los números del periodo (``hoy``, ``7_dias``, ``30_dias``, ``90_dias`` o ``12_meses``; hora de Panamá)."""
         self.env['dcasa.conversacion']._exigir_vendedora()
         if periodo not in C.PERIODOS:
             raise UserError(self.env._('Periodo desconocido: %s.', periodo))
@@ -125,12 +126,7 @@ class DcasaJuanPanel(models.AbstractModel):
         del_asistente = por_autor.get(('saliente', 'bot'), 0)
         de_vendedoras = por_autor.get(('saliente', 'vendedora'), 0)
 
-        cr.execute("""
-            SELECT COUNT(DISTINCT COALESCE(partner_id::text, 'c' || conversacion_id::text)),
-                   COUNT(DISTINCT conversacion_id)
-              FROM dcasa_mensaje
-             WHERE tipo = 'mensaje' AND autor = 'cliente' AND ts >= %s AND ts < %s""", [inicio, fin])
-        clientes_unicos, conversaciones = cr.fetchone()
+        clientes_unicos, conversaciones = self._clientes_y_conversaciones(inicio, fin)
 
         # «Resuelta sin humano»: el cliente escribió, contestó el asistente y ninguna persona escribió ni la tomó.
         cr.execute("""
@@ -152,6 +148,7 @@ class DcasaJuanPanel(models.AbstractModel):
              WHERE l.create_date >= %s AND l.create_date < %s""", [inicio, fin])
         oportunidades = cr.fetchone()[0]
 
+        ventas = self._ventas_atribuidas(inicio_local.date(), fin_local.date())
         return {
             'periodo': periodo, 'periodo_nombre': C.NOMBRES_PERIODO[periodo],
             'desde': H.a_iso(inicio), 'hasta': H.a_iso(fin),
@@ -160,7 +157,8 @@ class DcasaJuanPanel(models.AbstractModel):
             'clientes_unicos': clientes_unicos, 'conversaciones': conversaciones,
             'resueltas_sin_humano': resueltas_sin_humano,
             'oportunidades_creadas': oportunidades,
-            'ventas': self._ventas_atribuidas(inicio_local.date(), fin_local.date()),
+            'ventas': ventas,
+            'tasa_de_cierre': C.tasas_de_cierre(conversaciones, ventas),
             'primera_respuesta': self._primera_respuesta(inicio, fin),
             'necesitan_atencion': self.env['dcasa.conversacion'].search_count(
                 [('estado', '=', 'humano'), ('ultimo_mensaje_autor', '=', 'cliente')]),
@@ -170,6 +168,32 @@ class DcasaJuanPanel(models.AbstractModel):
             'bot_encendido': bool(self.env['dcasa.juan.ajustes'].obtener().bot_activo_global),
             'zona': horario.zona,
         }
+
+    @api.model
+    def _clientes_y_conversaciones(self, inicio, fin):
+        """``(clientes únicos, conversaciones)``: las conversaciones donde el cliente escribió en el periodo (UTC)."""
+        self.env.cr.execute("""
+            SELECT COUNT(DISTINCT COALESCE(partner_id::text, 'c' || conversacion_id::text)),
+                   COUNT(DISTINCT conversacion_id)
+              FROM dcasa_mensaje
+             WHERE tipo = 'mensaje' AND autor = 'cliente' AND ts >= %s AND ts < %s""", [inicio, fin])
+        return self.env.cr.fetchone()
+
+    @api.model
+    def tasas_de_cierre(self):
+        """La tasa de cierre de todos los periodos juntos (hoy, 7, 30 y 90 días y 12 meses), para compararlos en una
+        tabla (pedido de la dueña, 2026-11-05). Lo mismo que la tarjeta «Tasa de cierre» del Resumen en cada periodo:
+        ventas atribuidas (facturas pagadas del periodo) ÷ conversaciones del periodo × 100."""
+        self.env['dcasa.conversacion']._exigir_vendedora()
+        ahora_local = self._ahora_local()
+        filas = []
+        for periodo in C.PERIODOS:
+            inicio_local, fin_local = C.limites_del_periodo(periodo, ahora_local)
+            _clientes, conversaciones = self._clientes_y_conversaciones(H.a_utc(inicio_local), H.a_utc(fin_local))
+            ventas = self._ventas_atribuidas(inicio_local.date(), fin_local.date())
+            filas.append({'periodo': periodo, 'nombre': C.NOMBRES_PERIODO[periodo],
+                          **C.tasas_de_cierre(conversaciones, ventas)})
+        return filas
 
     @api.model
     def por_persona(self, periodo='hoy'):
