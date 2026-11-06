@@ -102,7 +102,7 @@ const ESPERA_COLA_LENTA_MS = 6 * 3600_000;
  * lo atiende la alarma. Holgado frente a lo que tarda el Worker (configuración ≤ ~21 s, descargas ≤ 15 s) para no hacerlo dos veces.
  */
 const RESCATE_MS = 2 * 60_000;
-/** Los id de lo recibido por la bandeja se recuerdan más que los 7 días en que Meta puede seguir reintentando una entrega. */
+/** Las huellas de los id recibidos por la bandeja duran más que los 7 días en que Meta puede seguir reintentando una entrega. */
 const VIDA_RECIBIDOS_MS = 8 * 24 * 3600_000;
 /** El rescate no puede decidir porque Odoo no dio su configuración: no es un fallo del mensaje (no cuenta como intento). */
 class ConfigDesconocida extends Error {}
@@ -1566,8 +1566,8 @@ export class MotorConversacion {
    * «Borrar mis datos» (Ley 81): Odoo ya borró la conversación y aquí se borra la copia de trabajo (mensajes, cola,
    * archivos, memoria de la persona). Sin esto, el bot seguiría «recordando» lo que se borró. Devuelve cuántos mensajes había.
    * Lo que se estaba atendiendo en ese momento (una nota de voz que se transcribía, un rescate de la bandeja) se suelta sin guardar
-   * (`generacion`). Solo quedan los `id_mensaje` de lo recibido por la bandeja (`recibidos`, sin contenido, unos días): así un
-   * reintento de Meta de un mensaje anterior al borrado no lo vuelve a traer.
+   * (`generacion`). De lo recibido por la bandeja queda solo una huella (SHA-256) del id, sin contenido ni teléfono, 8 días
+   * (`recibidos_huella`): así un reintento de Meta de un mensaje anterior al borrado no lo vuelve a traer.
    */
   async olvidar(): Promise<{ ok: true; mensajes: number }> {
     this.generacion++;

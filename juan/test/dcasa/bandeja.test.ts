@@ -4,6 +4,7 @@
  * falla el Durable Object a mitad), la alarma lo atiende desde la bandeja: nada se pierde y nada se contesta dos veces.
  */
 import { describe, expect, it } from "vitest";
+import { crearEsquema, huellaDeId } from "../../src/motor/almacen";
 import { crearMundo } from "../helpers/mundo";
 
 const MINUTO = 60_000;
@@ -350,5 +351,65 @@ describe("revisión adversarial del 2026-11-06", () => {
     await m.pasar(20_000);
     expect(transcripciones).toBe(1);
     expect(m.canal.salidas).toHaveLength(1);
+  });
+});
+
+describe("lo que queda después de «Borrar mis datos»: solo la huella del id", () => {
+  // Un wamid como los de WhatsApp: protobuf en base64 con el celular del cliente adentro (aquí uno inventado).
+  const CELULAR = "50761234567";
+  const WAMID = `wamid.${Buffer.from([0x1c, 0x18, CELULAR.length, ...Buffer.from(CELULAR), 0x15, 0x02, 0x00, 0x12, 0x18, 0x14, ...Buffer.from("3A0123456789ABCDEF01")]).toString("base64")}`;
+
+  const todasLasFilas = (m: ReturnType<typeof nube>) =>
+    m.deps.sql
+      .todos<{ name: string }>("SELECT name FROM sqlite_master WHERE type = 'table'")
+      .flatMap((t) => m.deps.sql.todos(`SELECT * FROM ${t.name}`).map((fila) => ({ tabla: t.name, fila })));
+
+  it("el wamid de prueba de verdad lleva el celular (por eso no se guarda crudo)", () => {
+    expect(Buffer.from(WAMID.slice("wamid.".length), "base64").toString("latin1")).toContain(CELULAR);
+  });
+
+  it("después de olvidar, ninguna fila guarda el id crudo ni los dígitos del celular; queda solo su SHA-256", async () => {
+    const m = nube({ idExterno: CELULAR });
+    const e = m.entrante("Hola, ¿tienen camas?", { id_mensaje: WAMID });
+    await m.motor.guardarRecibido(e);
+    await m.motor.ingest(e);
+    await m.pasar(20_000);
+    await m.motor.olvidar();
+    const filas = todasLasFilas(m);
+    // Fuera de los contadores internos de SQLite (`sqlite_sequence`), lo único que queda es la huella.
+    const propias = filas.filter((f) => !f.tabla.startsWith("sqlite_"));
+    expect(propias.map((f) => f.tabla)).toEqual(["recibidos_huella"]);
+    expect(propias[0].fila).toMatchObject({ huella: huellaDeId(WAMID) });
+    expect(huellaDeId(WAMID)).toMatch(/^[0-9a-f]{64}$/);
+    const volcado = JSON.stringify(filas);
+    expect(volcado).not.toContain(WAMID);
+    expect(volcado).not.toContain(WAMID.slice("wamid.".length));
+    expect(volcado).not.toContain(CELULAR);
+  });
+
+  it("un reintento de Meta del mismo id después de olvidar se sigue reconociendo y no se atiende", async () => {
+    const m = nube({ idExterno: CELULAR });
+    const e = m.entrante("Hola", { id_mensaje: WAMID });
+    await m.motor.guardarRecibido(e);
+    await m.motor.ingest(e);
+    await m.pasar(20_000);
+    const respuestas = m.canal.salidas.length;
+    const registros = m.odoo.mensajes.length;
+    await m.motor.olvidar();
+    expect(await m.motor.guardarRecibido({ ...e })).toEqual({ nuevo: false, pendiente: false });
+    expect((await m.motor.ingest({ ...e })).accion).toBe("duplicado");
+    await m.pasar(RESCATE + 20_000);
+    expect(m.motor.mensajes.ultimos(10)).toEqual([]);
+    expect(m.canal.salidas).toHaveLength(respuestas);
+    expect(m.odoo.mensajes).toHaveLength(registros);
+  });
+
+  it("un objeto que tenga la tabla de la primera versión (con el id crudo) la pierde al arrancar, sin tronar", () => {
+    const m = nube();
+    m.deps.sql.correr("CREATE TABLE recibidos (id_mensaje TEXT PRIMARY KEY, ts INTEGER NOT NULL)");
+    m.deps.sql.correr("INSERT INTO recibidos (id_mensaje, ts) VALUES (?, ?)", WAMID, 1);
+    crearEsquema(m.deps.sql);
+    expect(m.deps.sql.todos("SELECT name FROM sqlite_master WHERE name = 'recibidos'")).toEqual([]);
+    expect(m.motor.recibidos.existe(WAMID)).toBe(false);
   });
 });

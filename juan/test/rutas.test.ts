@@ -739,6 +739,10 @@ describe("webhooks de Meta (WhatsApp Cloud, Messenger, Instagram): el 200 sale D
   };
   const cloud = (cuerpo: object, secreto?: string) => firmado("/webhooks/whatsapp-cloud", cuerpo, secreto);
   const montarMeta = (config: Record<string, unknown> = encendidos) => montar({ config, adaptadores: adaptadoresMeta() });
+  /** Espera, con el bucle de eventos real (setImmediate no se falsea), a que algo pase. */
+  const hasta = async (listo: () => boolean) => {
+    for (let i = 0; i < 5000 && !listo(); i++) await new Promise((r) => setImmediate(r));
+  };
 
   it("el 200 no sale hasta que el Durable Object guardó el mensaje; lo lento (atenderlo) va después", async () => {
     const m = montarMeta();
@@ -832,6 +836,7 @@ describe("webhooks de Meta (WhatsApp Cloud, Messenger, Instagram): el 200 sale D
       const req = await cloud(lote([wa("wamid.M")]));
       let res: Response | undefined;
       void m.pedir(req, envMeta).then((r) => (res = r));
+      await hasta(() => pedido !== null); // la firma (WebCrypto) corre en tiempo real: el reloj falso arranca recién aquí
       for (let i = 0; i < 100 && !res; i++) await vi.advanceTimersByTimeAsync(100);
       expect(res?.status).toBe(500);
       expect(pedido).not.toBeNull();
@@ -906,6 +911,7 @@ describe("webhooks de Meta (WhatsApp Cloud, Messenger, Instagram): el 200 sale D
       const req = await cloud(lote([wa("wamid.I")]));
       let res: Response | undefined;
       const p = m.pedir(req, envMeta).then((r) => (res = r));
+      await hasta(() => pedido !== null); // la firma (WebCrypto) corre en tiempo real: el reloj falso arranca recién aquí
       for (let i = 0; i < 100 && !res; i++) await vi.advanceTimersByTimeAsync(100);
       await p;
       expect(res!.status).toBe(200);

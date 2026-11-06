@@ -2,6 +2,7 @@
 // Odoo guarda el historial permanente; aquí solo vive lo necesario para contestar bien:
 // los últimos mensajes, la ráfaga pendiente, una cola de escrituras a Odoo y archivos temporales.
 
+import { createHash } from "node:crypto";
 import { bytesDeBlob, type Sql } from "./sql";
 
 const ESQUEMA = [
@@ -46,9 +47,12 @@ const ESQUEMA = [
      proximo INTEGER NOT NULL,
      creado INTEGER NOT NULL
    )`,
-  // Los id de todo lo que entró por la bandeja, unos días: un reintento de Meta que llega tarde (después de un eco, de un canal
-  // apagado o de «Borrar mis datos», que no dejan fila en `mensajes`) se reconoce y no se atiende como nuevo.
-  "CREATE TABLE IF NOT EXISTS recibidos (id_mensaje TEXT PRIMARY KEY, ts INTEGER NOT NULL)",
+  // De todo lo que entró por la bandeja queda solo una huella (SHA-256) del id, sin contenido ni teléfono, 8 días: un reintento de
+  // Meta que llega tarde (después de un eco, de un canal apagado o de «Borrar mis datos», que no dejan fila en `mensajes`) se
+  // reconoce y no se atiende como nuevo. El id crudo NO se guarda: el `wamid` de WhatsApp lleva el celular del cliente adentro.
+  "CREATE TABLE IF NOT EXISTS recibidos_huella (huella TEXT PRIMARY KEY, ts INTEGER NOT NULL)",
+  // La primera versión (nunca desplegada) guardaba el id crudo en `recibidos`: si un objeto la tiene, se borra.
+  "DROP TABLE IF EXISTS recibidos",
 ];
 
 export function crearEsquema(sql: Sql): void {
@@ -256,18 +260,23 @@ export class Bandeja {
   }
 }
 
-/** Los `id_mensaje` que entraron por la bandeja (solo el id y cuándo): ver el esquema. */
+/** La huella (SHA-256 en hex) de un `id_mensaje`: reconoce el mismo id sin guardarlo. Síncrona (node:crypto, `nodejs_compat`). */
+export function huellaDeId(idMensaje: string): string {
+  return createHash("sha256").update(idMensaje).digest("hex");
+}
+
+/** Lo que entró por la bandeja: solo la huella del id y cuándo (ver el esquema). */
 export class Recibidos {
   constructor(private readonly sql: Sql) {}
 
   existe(idMensaje: string): boolean {
-    return !!this.sql.uno("SELECT 1 AS x FROM recibidos WHERE id_mensaje = ?", idMensaje);
+    return !!this.sql.uno("SELECT 1 AS x FROM recibidos_huella WHERE huella = ?", huellaDeId(idMensaje));
   }
   anotar(idMensaje: string, ahora: number): void {
-    this.sql.correr("INSERT OR IGNORE INTO recibidos (id_mensaje, ts) VALUES (?, ?)", idMensaje, ahora);
+    this.sql.correr("INSERT OR IGNORE INTO recibidos_huella (huella, ts) VALUES (?, ?)", huellaDeId(idMensaje), ahora);
   }
   purgar(antesDe: number): void {
-    this.sql.correr("DELETE FROM recibidos WHERE ts < ?", antesDe);
+    this.sql.correr("DELETE FROM recibidos_huella WHERE ts < ?", antesDe);
   }
 }
 
