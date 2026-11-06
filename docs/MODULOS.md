@@ -13,10 +13,10 @@ Reglas que valen para todos (de [`CLAUDE.md`](../CLAUDE.md)):
 
 ## Cuáles se instalan
 
-`addons/` tiene **30 módulos** (2026-11-06). El contenedor instala (y actualiza en cada versión nueva) los **29** de la
+`addons/` tiene **31 módulos** (2026-11-06). El contenedor instala (y actualiza en cada versión nueva) los **30** de la
 lista `ODOO_MODULES` de [`docker/entrypoint.sh`](../docker/entrypoint.sh) (línea 176): **todos menos `dcasa_fe_pa`**, que
 no está en la lista a propósito y por eso **no se instala en producción**. `make init` (el [`Makefile`](../Makefile))
-instala una lista más corta (26): le faltan también `dcasa_seguridad`, `dcasa_sesiones` y `dcasa_adjuntos_r2`. `scripts/test.sh` sin argumentos prueba **todos** los
+instala una lista más corta (27): le faltan también `dcasa_seguridad`, `dcasa_sesiones` y `dcasa_adjuntos_r2`. `scripts/test.sh` sin argumentos prueba **todos** los
 de `addons/`, también `dcasa_fe_pa`.
 
 ## Resumen
@@ -48,6 +48,7 @@ pero sin efecto hasta que alguien lo enciende.
 | `dcasa_envios` | **Envíos**: la calculadora (buscar el lugar como lo dice el cliente, el precio con su desglose), la lista de lugares y la tarifa que aprueba Gerencia; un motor en Python puro que mañana sirve a la web | base, interfaz, contabilidad, brian | 1 | Sin datos hasta que Gerencia carga el archivo; la tarifa nace «en revisión»; sin ruta pública | [ENVIOS.md](ENVIOS.md) |
 | `dcasa_conversaciones` | Bandeja de conversaciones con clientes, reparto, CRM automático y la API de Juan | brian, catalogo, interfaz, socios, contactos | 2 (+13 de Juan) | Sin los tokens de Juan, la API responde 503 | [JUAN_ODOO.md](JUAN_ODOO.md) · [JUAN.md](JUAN.md) · [JUAN_CANALES.md](JUAN_CANALES.md) |
 | `dcasa_sofia` | Sofía, la asistente del CRM: revisa con un botón y cada mañana y propone; una persona aprueba | conversaciones, contactos | — | No (las propuestas siempre las aprueba una persona) | [SOFIA.md](SOFIA.md) |
+| `dcasa_camila` | Camila, la asistente del mail marketing: arma la campaña de correo cada 15 días con lo que hay en tienda y el precio de la tienda en línea; una persona la aprueba y sale por Resend Broadcasts solo a quien dijo que sí (permiso en la ficha) | correo, marketing, conversaciones, sofia, brian, contactos, website_dcasa | 1 | **Sí**: sin `RESEND_CAMPANAS_API_KEY` no sale ninguna campaña; staging nunca envía; el cron solo arma borradores | [CAMILA.md](CAMILA.md) |
 | `dcasa_correo` | Correo a clientes por Resend (factura, abono, bienvenida) | base, invoice, socios, website_dcasa, conversaciones | 2 | **Sí**: sin `RESEND_API_KEY` y sin encenderlo en Ajustes no sale nada (en producción, encendido desde el 2026-10-27) | [CORREO.md](CORREO.md) |
 | `dcasa_meta_catalogo` | El catálogo de la tienda por URL para los anuncios de Facebook e Instagram | base, catalogo, website_dcasa | — | **Sí**: la dirección no entrega nada hasta que Gerencia lo enciende | [META_CATALOGO.md](META_CATALOGO.md) |
 | `dcasa_meta_eventos` | Píxel de Meta con consentimiento y las ventas pagadas por la Conversions API | base, contactos, tienda_borde, website_dcasa | — | **Sí**: interruptor, sección de Meta en la política de privacidad, `META_CAPI_TOKEN` y el consentimiento de la persona | [META_EVENTOS.md](META_EVENTOS.md) |
@@ -118,6 +119,9 @@ flowchart TD
   contactos --> metaev
   borde --> metaev
   base --> metaev
+  correo --> camila[dcasa_camila]
+  marketing --> camila
+  sofia --> camila
   seguridad[dcasa_seguridad]
   sesiones[dcasa_sesiones]
   r2[dcasa_adjuntos_r2]
@@ -444,6 +448,30 @@ además como módulo de todo el servidor (`server_wide_modules = base,web,dcasa_
   de Sofía, Historial de Sofía); su grupo en *Ajustes de Juan*.
 - **Crons:** «Sofía: revisión del CRM de cada mañana» (mira cada 30 minutos si ya toca).
 - **Apagado de fábrica:** no; la revisión de la mañana y el resumen por Telegram se apagan en *Ajustes de Juan*.
+
+## `dcasa_camila` — Camila, la asistente del mail marketing
+
+- **Para qué:** el **permiso** del cliente para recibir novedades por correo (cuándo, por dónde y con quién: la casilla
+  de la ficha, el enlace firmado «¿Te avisamos de lo nuevo? Sí, quiero» al pie de la factura y de la bienvenida, y el
+  correo que dio cuando Sofía se lo pidió para avisarle de promociones) y la **campaña** de cada 15 días: productos en
+  tienda, con foto y publicados (lo nuevo, lo más vendido y lo quieto de Marketing), el precio de la tienda en línea, el
+  texto de la IA de Brian con revisión de marca (o un texto fijo), la vista previa, la prueba y el envío por **Resend
+  Broadcasts** con su propia clave. Los resultados: chats con la marca de la campaña, sus ventas y lo que da Resend
+  ([CAMILA.md](CAMILA.md)).
+- **Depende de (Odoo):** los de sus módulos propios (`website_sale`, `mail`, `crm`…).
+- **Modelos:** `dcasa.camila` (abstracto: la pantalla, el armado, Resend y los crones), `dcasa.camila.campana`,
+  `dcasa.camila.linea`, `dcasa.camila.llegada` (chats que llegaron con la marca); campos `dcasa_promos_*` en
+  `res.partner` (permiso y baja, con historial). Hereda `dcasa.correo` (la línea del pie), `dcasa.conversacion` (la marca
+  en el mensaje del cliente) y la fusión de fichas.
+- **Seguridad:** las campañas son de solo lectura por RPC para el rol Marketing, Gerencia y administradores; todo pasa
+  por los métodos de `dcasa.camila`, que exigen el grupo en el servidor. El permiso no se escribe a mano.
+- **Pantallas y menús:** *Marketing › Camila* (y *Marketing › Tablero*, lo de siempre); la casilla «Novedades por
+  correo» en la ficha del cliente; la página pública `/novedades/si`.
+- **Herramientas de Brian:** `estado_campanas`.
+- **Crons:** «Camila: preparar el borrador de la campaña» (diario; nunca envía) y «Camila: bajas y contactos con Resend»
+  (cada hora).
+- **Apagado de fábrica:** **sí** para enviar: sin `RESEND_CAMPANAS_API_KEY` (secreto del panel de Cloudflare, Full
+  access) no sale ninguna campaña, y fuera de producción tampoco. El permiso y los borradores funcionan desde el día uno.
 
 ## `dcasa_meta_catalogo` — Catálogo para Meta
 

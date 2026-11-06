@@ -36,13 +36,18 @@ Más abajo: [roles y grupos](#roles-y-grupos-mapa-completo) · [interruptores](#
 | Ver las fotos de un producto en grande (tocar la foto: ficha, lista, tarjetas, Escáner) y descargarlas | Sí | Sí | Sí | Sí | Sí |
 | **Cambiar las fotos** de un producto: subir varias, reemplazar, recortar, girar, ordenar, elegir la principal, quitar (2026-10-22; las «Imágenes extra» de la tienda incluidas) | Sí (decisión de la dueña, 2026-10-22) | Sí | (si edita productos) | Sí | Sí |
 | La app **Marketing** (stock por categoría, más vendidos, movimiento, quietos, fotos que faltan) y su acceso en el Inicio | No | No | No | Sí | Sí |
+| **Marketing › Camila** (2026-11-06): armar, editar, mandarse la prueba y **aprobar el envío** de la campaña de correo (también el rol «Marketing») | No | No | No | Sí | Sí |
+| Ver **cuánto dinero** vendieron los clientes que llegaron por una campaña de correo (cuántos chats y ventas lo ve también el rol Marketing) | No | No | No | Sí | Sí |
+| Marcar en la ficha que el cliente **quiere recibir novedades por correo** (cuando lo dice; una ficha a la vez) y **«Darle de baja»** cuando lo pide (la baja es final), 2026-11-06 | Sí | Sí | Sí | Sí | Sí |
+| **Camila:** apagar o encender la línea «Sí, quiero» del pie de la factura y la bienvenida, y descartar una campaña **aprobada** que quedó trabada (si en Resend no salió), 2026-11-06 | No | No | No | Sí | Sí |
 | **Envíos › Calculadora** y **Lugares** (ver precios, cotizar por km) y **agregar un lugar que falta** (queda su nombre), 2026-11-06 | Sí | Sí | Sí | Sí | Sí |
 | **Envíos:** editar o archivar lugares, cambiar y **aprobar la tarifa**, cargar el archivo de envíos | No | No | No | Sí | Sí |
 
 **Rol «Marketing»** (2026-10-22, selector propio «Marketing» en la sección D'CASA de la ficha del usuario; se suma a
 cualquier otro rol): ve la app Marketing **completa, igual que Gerencia y administradores** (todas las secciones y su
-acceso en el Inicio), **cambia las fotos** de cualquier producto (solo las fotos: no el nombre, el precio ni lo demás) y
-usa las herramientas de Brian de marketing. **No** ve dinero, costos, facturas, cobros, pedidos de venta, contabilidad,
+acceso en el Inicio), **cambia las fotos** de cualquier producto (solo las fotos: no el nombre, el precio ni lo demás),
+usa las herramientas de Brian de marketing y **Camila** (2026-11-06: arma, edita, se manda la prueba y aprueba el envío
+de la campaña de correo; ve a cuántos se envió y cuántos chats y ventas trajo, **no** cuánto dinero). **No** ve dinero, costos, facturas, cobros, pedidos de venta, contabilidad,
 Estadísticas ni ninguna otra pantalla de Gerencia (no implica ningún grupo de Ventas, Contabilidad ni Inventario).
 | Crear facturas **de clientes**, buscarlas, imprimirlas y enviarlas | Sí | Sí | Sí | Sí | Sí |
 | Hacer una factura de cliente **suelta** (sin cotización ni pedido; Facturación › Facturas › Nuevo o Subir, RPC o Brian), 2026-10-19 | **No**: cotiza y factura desde el pedido (también anticipos). Tampoco le salen «Nuevo» ni «Subir» (2026-10-22) | Sí | Sí | Sí | Sí |
@@ -465,7 +470,7 @@ Los roles se arman con grupos estándar de Odoo; casi no hay permisos nuevos.
 | **Gerencia** | `dcasa_base.group_gerencia` | Vendedora + gerente de Ventas + contador (`account.group_account_user`) + gerente de Inventario y de Compras + gestor de productos + **Administra la nómina** | Todo lo de la tienda: descuentos sin tope, existencias a mano, fusión de contactos, costos y ganancia, Estadísticas, Comparar ventas, reglas del programa de vendedores. El usuario `admin` nace en Gerencia. No incluye Ajustes técnicos ni gestión de usuarios ni el diseñador del sitio. |
 | **Contabilidad** | `account.group_account_user` / `account.group_account_manager` / `account.group_account_readonly` | Grupos de Odoo | Todo lo contable (reglas «todo» en `dcasa_reglas_contables.xml`); el lector solo lee. Ven el menú Empleados. |
 | **Administra la nómina** | `dcasa_nomina.group_nomina` | Gerente de RR. HH. + contador | Planillas, sueldos, liquidaciones, reembolsos, bono por meta. Gerencia lo incluye. |
-| **Marketing** | `dcasa_marketing.group_marketing` (decisión de la dueña, 2026-10-22) | Solo usuario interno (`base.group_user`): ningún grupo de Ventas, Contabilidad ni Inventario | La app **Marketing** completa (stock por categoría, más vendidos, movimiento, quietos, fotos que faltan), cambiar las fotos de cualquier producto y las herramientas de marketing de Brian. Sus cifras son unidades, no dinero: sin costos, contabilidad ni ventas de otros. |
+| **Marketing** | `dcasa_marketing.group_marketing` (decisión de la dueña, 2026-10-22) | Solo usuario interno (`base.group_user`): ningún grupo de Ventas, Contabilidad ni Inventario | La app **Marketing** completa (stock por categoría, más vendidos, movimiento, quietos, fotos que faltan), cambiar las fotos de cualquier producto, **Camila** (armar y aprobar la campaña de correo, [CAMILA.md](CAMILA.md)) y las herramientas de marketing de Brian. Sus cifras son unidades, no dinero: sin costos, contabilidad ni ventas de otros (de una campaña ve cuántas ventas, no cuánto). |
 | **Administradores** | `base.group_system` | Ajustes técnicos y usuarios | Lo anterior más: Registro de acciones, Consumo y Ajustes de Brian; Accesos al panel; Cargar datos del sistema anterior; Correo a clientes. Su doble factor es obligatorio con `DCASA_2FA_OBLIGATORIO=1`. |
 | **Bodega** | *no hay grupo propio*: `stock.group_stock_user` (usuario) o `stock.group_stock_manager` (gerente) de Odoo | — | Usuario: entregas, recepciones, el panel **Bodega** (despachar y validar entregas; también lo tienen la Vendedora y Gerencia) y **Escáner** (buscar). Gerente: además *Códigos de barras* e *Historial de etiquetas*. Contar existencias y cambiar precios en el Escáner: solo Gerencia. |
 | **Juan** (usuario técnico) | `dcasa_conversaciones.group_juan` | Ningún otro grupo | Solo ve las herramientas de Juan; sin permisos internos, sin clave de API ni contraseña. |
@@ -491,6 +496,7 @@ Lo que se enciende o se apaga sin tocar código (o con un cambio de una línea).
 | Programa de vendedores | `vendedores.programaActivo` en `addons/dcasa_socios/data/puntos.json` | encendido | Comisiones del programa |
 | Canje de vendedores externos / en efectivo | `canje.externosHabilitado` / `efectivoHabilitado` en `puntos.json` | **apagados** | Esperan dictamen del abogado y la contadora; Ajustes los muestra de solo lectura y el servidor los ignora |
 | Correo a clientes | `RESEND_API_KEY` + *Ventas › Configuración › Correo a clientes* (`dcasa_correo.enviar_a_clientes`, `al_pagar`) | **apagado** (en producción, encendido desde el 2026-10-27) | Factura, abono y bienvenida por correo |
+| Campañas de correo (Camila) | `RESEND_CAMPANAS_API_KEY` (secreto del panel de Cloudflare, permiso «Full access») + `DCASA_ENTORNO=produccion` | **apagado** (sin la clave) | Enviar la campaña de cada 15 días a quien dijo que sí ([CAMILA.md](CAMILA.md)); sin la clave se arma y se prueba, pero no sale |
 | Factura electrónica DGI | `l10n_pa_fe_activo` de la empresa (`dcasa_fe_pa`) | **apagada** y el módulo no se instala | Envío al PAC |
 | Constructor visual del sitio | `dcasa_interfaz.sitio_editable` (Ajustes técnicos) | **apagado** | El sitio se edita por código |
 | Black Weekend | `DCASA_BLACK_WEEKEND` y su ventana | producción `0`, staging `1` | Campaña visible |
@@ -546,6 +552,13 @@ despachar. Un método público que usa `sudo()` sin exigir grupo sería una puer
 - **Datos personales solo en Odoo.** Nombres, correos, celulares, cédulas y facturas de clientes y del equipo nunca van al
   repositorio, a documentos ni a pruebas (hay pruebas que buscan correos reales dentro de los módulos). La carga del
   sistema anterior viaja por la pantalla de Odoo, nunca por Git.
+- **Permiso de novedades por correo** (`dcasa_camila`, 2026-11-06): solo se le escribe una campaña a quien dijo que
+  sí, con cuándo, por dónde, con quién y **a qué correo** (si cambia de correo, hay que volver a preguntar); una baja
+  es final y vale para **ese correo en cualquier ficha** (repetidas, archivadas o contactos hijos). La casilla se marca
+  de una ficha a la vez; desmarcarla quita el permiso sin baja. El enlace «Sí, quiero» solo va al pie del correo que
+  recibe la propia ficha (no a un contacto hijo ni a varios) y Gerencia lo puede apagar. A Resend solo sube el
+  **correo** (sin nombre ni nada más) de quien tiene permiso; a la IA que escribe el texto solo le llegan nombres de
+  productos. Detalle: [CAMILA.md](CAMILA.md).
 - **PIN de socios:** PBKDF2-SHA256 con sal por socio y la pimienta `DCASA_PIN_PEPPER`, que vive fuera de la base
   (`dcasa_socios/models/res_partner.py`). Un volcado robado sin la pimienta no se puede atacar por fuerza bruta.
   Intentos fallidos bloquean la cuenta; Gerencia reinicia el PIN (queda nota en el historial).

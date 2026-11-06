@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- La pantalla «Camila» (OWL: static/src/js/camila.js), dentro de la app Marketing. La app ya abría su tablero:
+         ahora tiene dos entradas arriba, «Tablero» (lo de siempre) y «Camila». El servidor exige los mismos grupos
+         (dcasa.camila._exigir: rol Marketing, Gerencia y administradores). -->
+    <record id="accion_camila" model="ir.actions.client">
+        <field name="name">Camila</field>
+        <field name="tag">dcasa_camila.panel</field>
+        <field name="path">camila</field>
+    </record>
+
+    <menuitem id="menu_marketing_tablero" name="Tablero" parent="dcasa_marketing.menu_marketing" sequence="1"
+              action="dcasa_marketing.accion_marketing"
+              groups="sales_team.group_sale_manager,base.group_system,dcasa_marketing.group_marketing"/>
+    <menuitem id="menu_camila" name="Camila" parent="dcasa_marketing.menu_marketing" sequence="5"
+              action="accion_camila"
+              groups="sales_team.group_sale_manager,base.group_system,dcasa_marketing.group_marketing"/>
+</odoo>

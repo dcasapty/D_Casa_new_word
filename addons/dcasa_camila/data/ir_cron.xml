@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Cada día: si pasaron 15 días desde la última campaña (o nunca salió ninguna) y no hay una abierta, Camila deja
+         un borrador para que alguien de marketing lo revise. NUNCA envía. -->
+    <record id="ir_cron_camila_preparar" model="ir.cron">
+        <field name="name">Camila: preparar el borrador de la campaña</field>
+        <field name="model_id" ref="model_dcasa_camila"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_preparar()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="active" eval="True"/>
+    </record>
+
+    <!-- Cada hora: los permisos de Sofía y, en producción con la clave de campañas, las bajas de Resend y los
+         contactos nuevos; cada 6 horas, los resultados de las campañas de los últimos 30 días. -->
+    <record id="ir_cron_camila_sincronizar" model="ir.cron">
+        <field name="name">Camila: bajas y contactos con Resend</field>
+        <field name="model_id" ref="model_dcasa_camila"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_sincronizar()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">hours</field>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>

@@ -27,7 +27,7 @@
 | Anunciar los productos en Facebook e Instagram: el catálogo que lee Meta y las campañas | [META_CATALOGO.md](META_CATALOGO.md) |
 | Medir los anuncios de Meta: el píxel, las ventas que se le reportan y el consentimiento del cliente | [META_EVENTOS.md](META_EVENTOS.md) |
 | Las fotos de los productos en grande y la app Marketing | [MARKETING.md](MARKETING.md) |
-| Camila, la asistente del mail marketing y la página web (diseño; todavía sin código) | [CAMILA.md](CAMILA.md) |
+| Camila, la asistente del mail marketing: el permiso del cliente, la campaña de cada 15 días (Marketing › Camila) y cómo crear la clave de campañas de Resend | [CAMILA.md](CAMILA.md) |
 | Saber cuánto cuesta un envío (la calculadora), cargar los lugares y la tarifa, aprobarla, y cómo se encendería en la página web | [ENVIOS.md](ENVIOS.md) |
 | Saber qué ve un cliente en «Mi cuenta» (sus compras, cuánto le falta de un abono, sus puntos) | [SOCIOS.md › Mi cuenta](SOCIOS.md#mi-cuenta) |
 | Crear o ubicar al equipo en Odoo (sin invitaciones por error) | [EQUIPO.md](EQUIPO.md) |
@@ -65,6 +65,7 @@
 | `dcasa_conversaciones` y el Worker `juan/` | [JUAN.md](JUAN.md) (contrato y el Worker por dentro) · [JUAN_ODOO.md](JUAN_ODOO.md) (bandeja, reparto, CRM) · [JUAN_CANALES.md](JUAN_CANALES.md) (canales) |
 | `dcasa_sofia` (Sofía, la asistente del CRM) | [SOFIA.md](SOFIA.md) |
 | `dcasa_envios` (calculadora de envíos; los datos los carga Gerencia, no están en el repositorio) | [ENVIOS.md](ENVIOS.md) |
+| `dcasa_camila` (Camila, la asistente del mail marketing; las campañas salen por Resend con su propia clave) | [CAMILA.md](CAMILA.md) |
 | `puente-wa/` (WhatsApp por QR, nunca desplegado) | [JUAN_PUENTE.md](JUAN_PUENTE.md) · [JUAN_CANALES.md](JUAN_CANALES.md#4-el-puente-de-whatsapp-por-qr-no-se-usa-en-producción) |
 | `dcasa_seguridad`, `dcasa_sesiones` | [SEGURIDAD_ACCESO.md](SEGURIDAD_ACCESO.md) · [PUERTA_MASTER.md](PUERTA_MASTER.md) |
 | `dcasa_adjuntos_r2`, `dcasa_tienda_borde`, `edge/`, `docker/` | [ARQUITECTURA.md](ARQUITECTURA.md) · [DESPLIEGUE.md](DESPLIEGUE.md) · [`edge/CONTRATO_CONTENEDOR.md`](../edge/CONTRATO_CONTENEDOR.md) |

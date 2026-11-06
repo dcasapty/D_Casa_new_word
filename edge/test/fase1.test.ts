@@ -315,6 +315,9 @@ describe("contenedor único con PostgreSQL local", () => {
     expect(variablesDelContenedor({ DCASA_BLACK_WEEKEND_FIN: "" })).not.toHaveProperty("DCASA_BLACK_WEEKEND_FIN");
     // La clave de Resend (correo a clientes, docs/CORREO.md) llega al contenedor cuando existe; vacía, no.
     expect(variablesDelContenedor({ RESEND_API_KEY: "re_clave_de_prueba" }).RESEND_API_KEY).toBe("re_clave_de_prueba");
+    // La clave de campañas de Camila (docs/CAMILA.md) es otra: secreto del panel; llega cuando existe, vacía no.
+    expect(variablesDelContenedor({ RESEND_CAMPANAS_API_KEY: "re_campanas" }).RESEND_CAMPANAS_API_KEY).toBe("re_campanas");
+    expect(variablesDelContenedor({ RESEND_CAMPANAS_API_KEY: "" })).not.toHaveProperty("RESEND_CAMPANAS_API_KEY");
     // Las opciones de Brian documentadas como variables (docs/BRIAN.md) llegan al contenedor.
     expect(variablesDelContenedor({ BRIAN_ESFUERZO: "medium", BRIAN_CACHE: "0" })).toMatchObject({
       BRIAN_ESFUERZO: "medium",

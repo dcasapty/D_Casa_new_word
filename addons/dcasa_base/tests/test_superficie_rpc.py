@@ -54,6 +54,9 @@ FOTOS_EDITAR = ('Fotos del producto: exige poder editar ESE producto (has_access
                 'lectura del producto (AccessError si no) ANTES del sudo con que se escriben sus fotos (product.image '
                 'de ese producto; la clave se busca solo entre las suyas); valida cada foto (formato, peso, '
                 'megapíxeles) y cada argumento.')
+CAMILA = ('API de la pantalla Camila (Marketing): exige el rol Marketing, Gerencia o administrador en el servidor '
+          '(dcasa.camila._exigir) ANTES de leer o escribir con sudo; la campaña se bloquea (FOR UPDATE NOWAIT) antes '
+          'de cambiarla y se valida cada argumento.')
 ENVIOS_LECTURA = ('Lectura de la calculadora de envíos: exige poder leer dcasa.envio.lugar (check_access, todo usuario '
                   'interno; un portal no) ANTES de leer; lee los lugares por SQL y la tarifa con sudo, igual para '
                   'cualquiera del equipo; valida y recorta cada argumento (texto, tipo, distrito, límite, km); no '
@@ -1025,6 +1028,31 @@ LISTA_BLANCA = {
     ('dcasa_envios', 'dcasa.envio.importar', 'action_cargar'):
         ASISTENTE + ' Además exige Gerencia o administrador en el servidor; escribe los lugares y la tarifa como el '
                     'usuario (sin sudo), valida cada dato del archivo y no toca lo agregado en Odoo.',
+    # --- dcasa_camila (Camila, la asistente del mail marketing, 2026-11-06) ------------------------------------------
+    ('dcasa_camila', 'dcasa.camila', 'panel'): CAMILA,
+    ('dcasa_camila', 'dcasa.camila', 'armar'): CAMILA + ' Nunca envía.',
+    ('dcasa_camila', 'dcasa.camila', 'guardar'):
+        CAMILA + ' Solo un borrador; el texto pasa por la revisión de marca y los productos y precios los pone Odoo.',
+    ('dcasa_camila', 'dcasa.camila', 'buscar_productos'): CAMILA + ' Solo lee productos en tienda y publicados.',
+    ('dcasa_camila', 'dcasa.camila', 'enviar_prueba'):
+        CAMILA + ' La prueba sale solo al correo de quien la pide, por la política de siempre (clase «prueba»).',
+    ('dcasa_camila', 'dcasa.camila', 'enviar'):
+        CAMILA + ' Revisa producción, la clave, los 15 días, los precios de ahora y el permiso de cada cliente; '
+                 'confirma la base antes de hablar con Resend (sin doble envío).',
+    ('dcasa_camila', 'dcasa.camila', 'descartar'):
+        CAMILA + ' Una campaña aprobada (trabada) solo la descartan Gerencia o un administrador, y solo si en Resend '
+                 'no salió ni va a salir.',
+    ('dcasa_camila', 'dcasa.camila', 'actualizar_resultados'): CAMILA + ' Solo lee los resultados de Resend.',
+    ('dcasa_camila', 'dcasa.camila', 'ajustar_enlace_pie'):
+        CAMILA + ' Además exige Gerencia o administrador (AccessError) para prender o apagar la línea «Sí, quiero» '
+                 'del pie; el valor tiene que ser verdadero o falso.',
+    ('dcasa_camila', 'res.partner', 'action_dcasa_promos_baja'):
+        'Botón «Darle de baja» de la ficha: una ficha a la vez y check_access("write") en el servidor ANTES del sudo '
+        'que anota la baja (final) del permiso de novedades.',
+    ('dcasa_camila', 'res.partner', 'write'):
+        OVERRIDE + ' Solo IMPIDE escribir a mano (sin sudo) los campos del permiso de novedades por correo.',
+    ('dcasa_camila', 'res.partner', 'create'):
+        OVERRIDE + ' Solo IMPIDE crear una ficha con el permiso de novedades escrito a mano.',
 }
 
 # Modelos abstractos sin ACL: por RPC no se puede llamar NINGÚN método suyo (S-09).

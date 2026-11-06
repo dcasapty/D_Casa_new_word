@@ -24,6 +24,12 @@ empresa). Sin amarillo, sin degradados ni sombras. Salen desde **D'CASA Panamá 
 contesta, la respuesta llega a **info@dcasapty.com**. (En el correo, el botón principal lleva a Mi cuenta por pedido de
 la dueña; WhatsApp sigue siendo el CTA único del sitio.)
 
+**Al pie de la factura y de la bienvenida** (desde el 2026-11-06, con `dcasa_camila`): si el cliente todavía no dijo
+que sí a las novedades ni se dio de baja, va una línea de texto «¿Te avisamos de lo nuevo? **Sí, quiero**». El enlace
+va firmado y lleva a una página con la marca donde toca «Sí, quiero»; así queda su permiso para las campañas (ver
+[CAMILA.md](CAMILA.md)). Si algo falla al armar esa línea, el correo sale igual, sin ella. Las campañas salen por otra
+clave y otro servicio de Resend: nunca se comen el cupo de estos correos.
+
 Además, **el comprobante de pago de la planilla** (Nómina, desde el 2026-10-22) sale por el mismo camino y con el
 mismo interruptor: con los correos apagados, en staging o sin clave, no le llega a nadie (ver [NOMINA.md](NOMINA.md)).
 
