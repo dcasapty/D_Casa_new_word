@@ -1094,8 +1094,9 @@ export class Almacen {
         this.panel = null;
     }
 
-    async buscarCatalogo(consulta) {
-        return this.orm.silent.call(MODELO, "buscar_catalogo", [consulta]);
+    /** ``desde``: cuántos productos ya se muestran («Ver más» pide los siguientes). */
+    async buscarCatalogo(consulta, desde = 0) {
+        return this.orm.silent.call(MODELO, "buscar_catalogo", [consulta], { desde });
     }
 
     async fotosDelCatalogo(productoId) {

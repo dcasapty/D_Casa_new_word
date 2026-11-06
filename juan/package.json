@@ -10,15 +10,15 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^3.0.126",
-    "@ai-sdk/openai-compatible": "^2.0.81",
-    "ai": "^6.0.300"
+    "@ai-sdk/anthropic": "^4.0.96",
+    "@ai-sdk/openai-compatible": "^3.0.84",
+    "ai": "^7.0.162"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260929.1",
     "@types/node": "^22.0.0",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.2",
+    "vitest": "^5.1.0",
     "wrangler": "^4.143.0"
   }
 }

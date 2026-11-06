@@ -68,6 +68,10 @@ LEEME_PRIMERO §2).
     - velocidad: `/web/image` lee el archivo de R2 antes de contestar «no cambió», el ZIP de comprobantes ocupa la CPU
       mientras se arma (pedirlo fuera de horario) y el costo de lo vendido hoy se busca producto por producto;
     - pruebas de humo a mano después de cada despliegue a producción y una revisión de secretos;
+    - una pantalla propia abierta desde antes de un despliegue sigue con el JavaScript viejo y puede romperse con los
+      datos nuevos (2026-11-06: Camila en el celular de la dueña, «ctx['d'].proxima.ya», tras Desplegar 54; se arregla
+      recargando). Que las pantallas propias avisen «Hay una versión nueva: toca para recargar» cuando cambie
+      `APP_VERSION`;
     - los PR de Dependabot abiertos (#7 del borde; #78 a #81 de Juan y del puente, abiertos el 2026-11-06): revisarlos
       y probarlos antes de unir (el grupo «ia» de Juan toca los clientes de la IA);
     - `abrir` de Bodega no exige pago a una entrega en borrador (hoy no hay entregas de venta en borrador);

@@ -30,6 +30,11 @@ updates:
       prefix: "Borde"
     labels: [dependencias]
     open-pull-requests-limit: 5
+    # Todo corre en Node 22 (CI, contenedor, despliegue): @types/node de otra versión mayor rompe el typecheck
+    # (URL y Buffer chocan con workers-types; 2026-11-06, PR #79 y #81). Se sube a mano junto con Node.
+    ignore:
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     groups:
       cloudflare:
         patterns: ["wrangler", "@cloudflare/*"]
@@ -49,6 +54,11 @@ updates:
       prefix: "Juan"
     labels: [dependencias]
     open-pull-requests-limit: 5
+    # Todo corre en Node 22 (CI, contenedor, despliegue): @types/node de otra versión mayor rompe el typecheck
+    # (URL y Buffer chocan con workers-types; 2026-11-06, PR #79 y #81). Se sube a mano junto con Node.
+    ignore:
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     groups:
       ia:
         patterns: ["ai", "@ai-sdk/*"]
@@ -69,6 +79,11 @@ updates:
     commit-message:
       prefix: "Puente"
     labels: [dependencias]
+    # Todo corre en Node 22 (CI, contenedor, despliegue): @types/node de otra versión mayor rompe el typecheck
+    # (URL y Buffer chocan con workers-types; 2026-11-06, PR #79 y #81). Se sube a mano junto con Node.
+    ignore:
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     groups:
       todo:
         patterns: ["*"]
