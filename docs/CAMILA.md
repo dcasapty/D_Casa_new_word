@@ -1,6 +1,6 @@
 # Camila, la asistente del mail marketing y la página web (diseño)
 
-**Estado: diseño aprobado en sus decisiones; todavía no hay código.** Pedido de la dueña (2026-11-06):
+**Estado: diseño aprobado en sus decisiones; en construcción desde el 2026-11-06.** Pedido de la dueña (2026-11-06):
 
 > «No olvidemos el mail marketing, ¿quién llevará esta tarea tan importante? Ya para el tema de las redes sociales
 > estoy yo y está mi otro compañero de marketing. Pero una rama que estamos dejando por fuera es el tema de la página
@@ -15,6 +15,8 @@
 | Cada cuánto sale una campaña | **Cada 15 días** a lo sumo (Camila la prepara; una persona la aprueba). |
 | Precios en el correo | **Con el precio real de Odoo** del día del envío. Nunca un precio escrito a mano ni inventado. |
 | Por dónde sale | **El servicio de campañas de Resend** (*Broadcasts*), aparte del de las facturas, para que una campaña nunca se coma el cupo de los correos de factura y abono. |
+| Los correos que ya pidió Sofía | **Cuentan como permiso** (2026-11-06): el mensaje de Sofía decía que el correo era «para avisarles de promociones, del programa Socios y de los beneficios de cumpleaños». Queda anotado que aceptó por WhatsApp, con la fecha en que dio el correo; cada campaña trae «Darme de baja». |
+| Cuándo se construye | **En paralelo con el arreglo de la varita mágica** (2026-11-06). |
 
 Las redes sociales las llevan la dueña y su compañero de marketing: Camila no publica en redes.
 
@@ -119,6 +121,3 @@ descripciones solo con datos reales del producto (medidas, material).
 
 - Crear en Resend la clave nueva para campañas y pegarla como secreto en Cloudflare (la guía paso a paso irá en este
   documento cuando el módulo esté listo).
-- Decidir si cuentan como permiso los clientes que **ya dieron su correo** cuando Sofía se lo pidió «para avisarles de
-  promociones, del programa Socios y de los beneficios de cumpleaños» (el mensaje lo decía). Mientras no lo decida, no
-  cuentan.

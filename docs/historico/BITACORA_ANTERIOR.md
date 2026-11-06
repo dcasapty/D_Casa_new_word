@@ -1,8 +1,39 @@
 # Bitácora anterior (entradas viejas de LEEME_PRIMERO)
 
 > **Archivado el 2026-11-06.** Texto completo de las entradas de la bitácora de
-> [LEEME_PRIMERO.md](../LEEME_PRIMERO.md) del 2026-10-16 al 2026-10-23 (tarde). Allí quedan resumidas en una línea
+> [LEEME_PRIMERO.md](../LEEME_PRIMERO.md) del 2026-10-16 al 2026-10-27 (tarde). Allí quedan resumidas en una línea
 > cada una. Se conservan tal cual (con los nombres de personas quitados), como registro.
+
+### 2026-10-27 (tarde): «Rastrear inventario» bloqueado
+
+- Un jefe reportó (urgente, llega un contenedor): productos nuevos creados en una compra sin «Rastrear inventario» no
+  sumaron al validar la recepción y no se podían contar. Al marcar la casilla salía «Escribe el motivo del ajuste…»:
+  `_reset_inventory` de Odoo hace un ajuste a cero y nuestra regla del motivo obligatorio lo bloqueaba. Arreglo en
+  `dcasa_existencias` (motivo del sistema, queda en la bitácora, sigue siendo de Gerencia), revisión adversarial sin
+  bloqueantes, CI #231 y #232 verdes, PR #65 (`86ab654`, árbol = `53c7b18`) y **Desplegar 32 sano y confirmado a las
+  23:46 UTC** (6:46 pm Panamá, la hora que pidió la dueña). Uso: marcar la casilla y **guardar** (sin escribir «A la
+  mano» en la misma vez), el producto queda en 0 y se cuenta con Escáner › Contar cuando llega la mercancía.
+- Para después (de la revisión): prueba de la Vendedora con `assertRaisesRegex(UserError, 'Solo Gerencia')` y pasar
+  también `inventory_name` para que el movimiento muestre el motivo en el historial.
+
+### 2026-10-26 (noche) y 2026-10-27
+
+- **Traslado del dominio, hecho.** Con el consentimiento firmado de la gerencia (acta de una página, dos firmas
+  «Aprobado por», cargo neutral) y el pedido «lo más pronto posible»: DNS de `dcasapty.com` pasado al Cloudflare de
+  D'CASA (`emerson`/`vita`, Active), destino `dcasapty.com/master*` en Access, permiso *Workers Routes* en el token,
+  `URL_SITIO` = `https://dcasapty.com` (la dueña), A `@` y CNAME `www` viejos borrados y PR #64 (`routes` con
+  `custom_domain`, `workers_dev: true`, `routes: []` en staging) en `main` (`741930d`).
+- **Tres despliegues:** Desplegar 29 se frenó en el respaldo previo (el dominio aún no resolvía); Desplegar 30 (sin
+  respaldo, con el «sí») salió **sin dominio** porque Desplegar hace checkout de `app_version` y usé `ab94128`, que no
+  traía `routes` (la dueña agregó los dos dominios a mano en Workers › dcasa › Domains y el sitio abrió ~23:30 UTC);
+  **Desplegar 31** (CI #230 sobre `main`, imagen `sha256:efb5f5ac…`, respaldo previo) **sano y confirmado 00:42 UTC**,
+  con «dcasapty.com (custom domain)» y «www.dcasapty.com (custom domain)» en el registro. Lecciones en
+  CONTEXTO_AGENTICO › Despliegue.
+- **Correo:** Resend con `dcasapty.com` verificado (DKIM `resend._domainkey`, CNAME `send` y `rsend`; sin `_dmarc`
+  nuevo). La clave quedó como secreto en el panel del Worker `dcasa` (decisión de la dueña; no en GitHub). Nadie
+  usaba el buzón de Zoho: Email Routing de Cloudflare reenvía `info@` y el catch-all al Gmail de la empresa (MX y SPF
+  de Zoho borrados) y ese Gmail manda «como» `info@dcasapty.com` por `smtp.resend.com`. **Encendido en Odoo el 27 oct**: la prueba llegó a la bandeja principal y la respuesta volvió al Gmail.
+- Formas de cobro y acta: ver la entrada del 23 oct; el acta se hizo fuera del repositorio (no se guarda en GitHub).
 
 ### 2026-10-23 (tarde)
 

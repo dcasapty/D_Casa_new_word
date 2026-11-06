@@ -66,8 +66,10 @@ export class Almacen {
         this.errorLista = null;
         // Conversación abierta
         this.seleccionadaId = null;
-        /** Sofía («Guardar y responderle»): al abrir esta conversación, la caja pide a Juan un borrador una vez. */
-        this.sugerirAlAbrir = null;
+        /** «Sugerir» por conversación: { pidiendo, error: {mensaje, detalle, reintentar} | null, avisos }. Es de la
+         * conversación (no de la caja): si la vendedora cambia de chat mientras Juan escribe, el borrador llega al chat
+         * para el que se pidió, no al que está a la vista. */
+        this.sugerencias = {};
         this.conversacion = null;
         this.mensajes = [];
         this.programados = []; // lo que está escrito para más tarde (aparte del hilo)
@@ -122,6 +124,11 @@ export class Almacen {
         if (!id) {
             return { texto: "", modo: "respuesta", adjuntos: [], menciones: [], tareaPara: "", programarPara: "" };
         }
+        return this.borradorDe(id);
+    }
+
+    /** El borrador de una conversación cualquiera (no solo la abierta). */
+    borradorDe(id) {
         if (!this.borradores[id]) {
             this.borradores[id] = { texto: "", modo: "respuesta", adjuntos: [], menciones: [], tareaPara: "", programarPara: "" };
         }
@@ -134,10 +141,7 @@ export class Almacen {
         if (!id || !texto) {
             return;
         }
-        if (!this.borradores[id]) {
-            this.borradores[id] = { texto: "", modo: "respuesta", adjuntos: [], menciones: [], tareaPara: "", programarPara: "" };
-        }
-        const borrador = this.borradores[id];
+        const borrador = this.borradorDe(id);
         if (!borrador.texto.trim()) {
             borrador.texto = texto;
             borrador.modo = "respuesta";
@@ -1172,7 +1176,72 @@ export class Almacen {
         return r.texto;
     }
 
-    async sugerir() {
-        return this.orm.call(MODELO, "sugerir_respuesta", [this.seleccionadaId]);
+    /** El estado de «Sugerir» de una conversación (lo crea si no existe). */
+    sugerenciaDe(id) {
+        if (!this.sugerencias[id]) {
+            this.sugerencias[id] = { pidiendo: false, error: null, avisos: [] };
+        }
+        return this.sugerencias[id];
+    }
+
+    /**
+     * «Sugerir»: pide a Juan un borrador para la conversación `id` y lo deja en SU caja (aunque la vendedora ya esté en
+     * otro chat). Si mientras esperaba escribió algo, no se le pisa: el borrador va debajo. Si no llega, la caja dice
+     * por qué, en corto, y ofrece «Reintentar» (antes era una notificación que se iba sola: «a veces no escribe»).
+     * Devuelve true si dejó el borrador.
+     */
+    async sugerir(id = this.seleccionadaId) {
+        if (!id) {
+            return false;
+        }
+        const estado = this.sugerenciaDe(id);
+        if (estado.pidiendo) {
+            return false;
+        }
+        estado.pidiendo = true;
+        estado.error = null;
+        estado.avisos = [];
+        const antes = this.borradorDe(id).texto;
+        let r;
+        try {
+            // Sin el «Cargando» de Odoo: la caja ya dice «Juan está escribiendo…» (puede tardar hasta un minuto).
+            r = await this.orm.silent.call(MODELO, "sugerir_respuesta", [id]);
+        } catch (error) {
+            r = { ok: false, error: mensajeDeError(error), reintentar: true };
+        }
+        estado.pidiendo = false;
+        const texto = r && r.ok ? String(r.texto || "").trim() : "";
+        if (!texto) {
+            estado.error = {
+                mensaje: (r && r.error) || "No llegó el borrador.",
+                detalle: (r && r.detalle) || "",
+                reintentar: !r || r.reintentar !== false,
+            };
+            return false;
+        }
+        const borrador = this.borradorDe(id);
+        const ahora = borrador.texto;
+        borrador.modo = "respuesta";
+        borrador.texto = ahora.trim() && ahora !== antes ? `${ahora.trimEnd()}\n\n${texto}` : texto;
+        estado.avisos = r.avisos && r.avisos.length ? r.avisos : ["Es un borrador: léelo, ajústalo y envíalo tú."];
+        return true;
+    }
+
+    /** Sofía («Guardar y responderle»): el borrador se pide una vez al abrir el chat, sin esperar a que la caja exista,
+     * y solo si la vendedora todavía no escribió nada ahí. */
+    sugerirSiEstaVacio(id) {
+        if (id && !this.borradorDe(id).texto.trim()) {
+            return this.sugerir(id);
+        }
+        return Promise.resolve(false);
+    }
+
+    /** Cierra el aviso de «Sugerir» (el error o lo que se quitó del borrador). */
+    olvidarSugerencia(id) {
+        const estado = this.sugerencias[id];
+        if (estado && !estado.pidiendo) {
+            estado.error = null;
+            estado.avisos = [];
+        }
     }
 }

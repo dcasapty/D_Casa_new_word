@@ -3,10 +3,12 @@
  * herramientas) y un modelo guionado: se prueba qué ve el modelo, qué puede consultar, qué se le quita al borrador y que
  * jamás se envía nada ni se escribe en Odoo.
  */
+import { readFileSync } from "node:fs";
+import { APICallError } from "ai";
 import { describe, expect, it, vi } from "vitest";
 import { CONFIG_POR_DEFECTO, normalizarConfig, type Config } from "../src/config";
 import type { Env } from "../src/env";
-import { HERRAMIENTAS_PERMITIDAS, manejarSugerir, promptDelBorrador, revisarBorrador, sugerir, transcripcion, validarPeticion, type DepsSugerir, type PeticionSugerir } from "../src/odoo-panel-sugerir";
+import { HERRAMIENTAS_PERMITIDAS, PLAZO_TOTAL_MS, manejarSugerir, promptDelBorrador, revisarBorrador, sugerir, transcripcion, validarPeticion, type DepsSugerir, type PeticionSugerir } from "../src/odoo-panel-sugerir";
 import type { Uso } from "../src/motor/precios";
 import type { ProveedorIa } from "../src/motor/proveedores";
 import { modeloGuionado, type ModeloGuionado, type PasoDelGuion } from "./helpers/modeloGuionado";
@@ -30,7 +32,17 @@ const peticion = (extra: Record<string, unknown> = {}) => ({
   ...extra,
 });
 
-function montar(opciones: { pasos?: PasoDelGuion[]; config?: Record<string, unknown>; proveedores?: ProveedorIa[]; gasto?: number; modelosPorProveedor?: Record<string, ModeloGuionado> } = {}) {
+function montar(
+  opciones: {
+    pasos?: PasoDelGuion[];
+    config?: Record<string, unknown>;
+    proveedores?: ProveedorIa[];
+    gasto?: number;
+    modelosPorProveedor?: Record<string, ModeloGuionado>;
+    modelosPorNivel?: Record<string, ModeloGuionado>;
+    plazoMs?: number;
+  } = {},
+) {
   const odoo = new OdooFalso();
   const gastos: { mes: string; modelo: string; uso: Uso; usd: number; estimado: boolean }[] = [];
   const salud: Record<string, string> = {};
@@ -43,7 +55,7 @@ function montar(opciones: { pasos?: PasoDelGuion[]; config?: Record<string, unkn
     proveedoresDisponibles: () => opciones.proveedores ?? ["anthropic"],
     modelo: (sel) => {
       modelos.push(sel);
-      return opciones.modelosPorProveedor?.[sel.proveedor] ?? guion;
+      return opciones.modelosPorNivel?.[sel.nivel] ?? opciones.modelosPorProveedor?.[sel.proveedor] ?? guion;
     },
     odoo,
     herramientas: async () => odoo.defs,
@@ -52,6 +64,8 @@ function montar(opciones: { pasos?: PasoDelGuion[]; config?: Record<string, unkn
       registrarGasto: async (mes, modelo, uso, usd, estimado) => void gastos.push({ mes, modelo, uso, usd, estimado }),
       guardarSalud: async (clave, json) => void (salud[clave] = json),
     },
+    ...(opciones.plazoMs ? { plazoMs: opciones.plazoMs } : {}),
+    dormir: async () => {},
   };
   return { odoo, guion, gastos, salud, modelos, deps, config, pedir: (p: Record<string, unknown> = peticion()) => sugerir(validarPeticion(p) as PeticionSugerir, deps) };
 }
@@ -341,5 +355,202 @@ describe("POST /odoo/sugerir por HTTP", () => {
     const res = await manejarSugerir(req(peticion()), envConGlobal(), { ahora: () => AHORA });
     expect(res.status).toBe(503);
     expect((await res.json<any>()).faltan).toEqual(["ANTHROPIC_API_KEY"]);
+  });
+});
+
+// ── «A veces sí, a veces no» (la dueña, 2026-11-06): cada modo de falla encontrado, reproducido ──────────────────────────
+const esperar = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+const errorDelProveedor = (statusCode: number) =>
+  new APICallError({ message: `HTTP ${statusCode}`, url: "https://ia.example/v1/chat", requestBodyValues: {}, statusCode, isRetryable: [408, 409, 429].includes(statusCode) || statusCode >= 500 });
+const TOPE = CONFIG_POR_DEFECTO.presupuesto_ia_mensual_usd + 1; // con el tope alcanzado el plan tiene UN solo modelo (el rápido)
+
+describe("el plazo: el Worker contesta antes de que Odoo se rinda", () => {
+  it("el plazo del Worker cabe, con margen, en lo que Odoo espera (TIMEOUT_SUGERIR de cliente_worker_panel.py)", () => {
+    const python = readFileSync(new URL("../../addons/dcasa_conversaciones/models/cliente_worker_panel.py", import.meta.url), "utf8");
+    const m = /^TIMEOUT_SUGERIR\s*=\s*\(\s*[\d.]+\s*,\s*([\d.]+)\s*\)/m.exec(python);
+    expect(m, "cliente_worker_panel.py define TIMEOUT_SUGERIR = (conectar, leer)").not.toBeNull();
+    const odooEsperaMs = Number(m![1]) * 1000;
+    // Antes Odoo esperaba 25 s y el Worker no tenía plazo: Odoo se rendía («el Worker no responde») mientras la IA seguía.
+    expect(PLAZO_TOTAL_MS + 8_000).toBeLessThanOrEqual(odooEsperaMs);
+  });
+
+  it("si la IA tarda más que el plazo, contesta a tiempo con «tardo» y un error claro", async () => {
+    const aviso = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const lento = modeloGuionado([{ texto: "Hola Karen.", alGenerar: () => esperar(3000) }]);
+    const m = montar({ plazoMs: 600, modelosPorProveedor: { anthropic: lento } });
+    const t0 = Date.now();
+    const r = await m.pedir();
+    expect(Date.now() - t0).toBeLessThan(1500);
+    expect(r.status).toBe(504);
+    expect(r.cuerpo).toMatchObject({ ok: false, causa: "tardo" });
+    expect(String(r.cuerpo.error)).toMatch(/tardó demasiado/);
+    aviso.mockRestore();
+  });
+
+  it("el primer intento no se come todo el plazo: si el inteligente se tarda, el rápido alcanza a contestar", async () => {
+    const lento = modeloGuionado([{ texto: "Hola Karen, te cuento con calma.", alGenerar: () => esperar(3000) }]);
+    const rapido = modeloGuionado([{ texto: "Hola Karen, ¿qué cama buscas?" }]);
+    const m = montar({ plazoMs: 1000, modelosPorNivel: { inteligente: lento, rapido } });
+    const t0 = Date.now();
+    const r = await m.pedir();
+    expect(Date.now() - t0).toBeLessThan(1000);
+    expect(r.status).toBe(200);
+    expect(r.cuerpo.texto).toBe("Hola Karen, ¿qué cama buscas?");
+    expect(m.modelos.map((x) => x.nivel)).toEqual(["inteligente", "rapido"]);
+  });
+});
+
+describe("el reintento ante una falla pasajera", () => {
+  it("una falla pasajera (un 503) se reintenta una vez y el borrador llega", async () => {
+    const aviso = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const m = montar({ gasto: TOPE, pasos: [{ error: errorDelProveedor(503) }, { texto: "Hola Karen, ¿qué cama buscas?" }] });
+    const r = await m.pedir();
+    expect(r.status).toBe(200);
+    expect(r.cuerpo.texto).toBe("Hola Karen, ¿qué cama buscas?");
+    expect(m.guion.doGenerateCalls).toHaveLength(2);
+    aviso.mockRestore();
+  });
+
+  it("nunca más de un reintento", async () => {
+    const aviso = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const m = montar({ pasos: [{ error: errorDelProveedor(429) }] });
+    const r = await m.pedir();
+    expect(r.status).toBe(502);
+    expect(r.cuerpo.causa).toBe("no_disponible");
+    expect(m.guion.doGenerateCalls).toHaveLength(3); // el inteligente, el rápido y UN reintento del rápido
+    aviso.mockRestore();
+  });
+
+  it("una falla que no es pasajera (una clave mala) no se repite en vano", async () => {
+    const aviso = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const m = montar({ gasto: TOPE, pasos: [{ error: errorDelProveedor(401) }] });
+    const r = await m.pedir();
+    expect(r.status).toBe(502);
+    expect(m.guion.doGenerateCalls).toHaveLength(1);
+    aviso.mockRestore();
+  });
+});
+
+describe("la IA de respaldo", () => {
+  it("si el respaldo no tiene clave, ni se intenta (no se espera en vano) y el error lo dice", async () => {
+    const aviso = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const meta = modeloGuionado([{ error: errorDelProveedor(503) }], "muse-spark-1.3");
+    const m = montar({
+      config: { proveedor_ia: "meta", modelo_rapido: "muse-spark-1.3", modelo_inteligente: "muse-spark-1.3", proveedor_respaldo_ia: "anthropic" },
+      proveedores: ["meta"],
+      modelosPorProveedor: { meta },
+    });
+    const r = await m.pedir();
+    expect(r.status).toBe(502);
+    expect(r.cuerpo).toMatchObject({ ok: false, causa: "no_disponible", respaldo_sin_clave: "ANTHROPIC_API_KEY" });
+    expect(String(r.cuerpo.error)).toMatch(/respaldo no tiene clave: falta ANTHROPIC_API_KEY/);
+    expect(m.modelos.length).toBeGreaterThan(0);
+    expect(m.modelos.every((x) => x.proveedor === "meta")).toBe(true);
+    aviso.mockRestore();
+  });
+});
+
+describe("el modelo que consulta y no escribe", () => {
+  it("si gasta sus pasos consultando, se le pide que escriba con lo que ya consultó (sin más herramientas)", async () => {
+    const consulta = { llamadas: [{ nombre: "buscar_productos", args: { consulta: "cama queen" } }] };
+    const pasos: PasoDelGuion[] = [...Array.from({ length: 6 }, () => consulta), { texto: "La Cama Queen Milán cuesta $499.00 + ITBMS, Karen. ¿Te mando la foto?" }];
+    const m = montar({ gasto: TOPE, pasos });
+    const r = await m.pedir();
+    expect(r.status).toBe(200);
+    expect(r.cuerpo.texto).toBe("La Cama Queen Milán cuesta $499.00 + ITBMS, Karen. ¿Te mando la foto?");
+    const ultimo = m.guion.prompts().at(-1)!;
+    expect(ultimo).toContain("escribe AHORA el borrador");
+    expect(ultimo).toContain("Milán"); // lo que devolvió la herramienta viaja como dato
+    expect(((m.guion.doGenerateCalls.at(-1) as any).tools ?? []).length).toBe(0);
+  });
+});
+
+describe("la revisión de la marca: corrige sin relajar las reglas", () => {
+  const conLaVendedora = peticion({
+    mensajes: [
+      { autor: "cliente", texto: "¿Cuánto cuesta la cama Milán?" },
+      { autor: "vendedora", texto: "La Milán está en $499.00 + ITBMS." },
+      { autor: "cliente", texto: "¿Y la tienen en gris?" },
+    ],
+  });
+
+  it("una cifra que ya dijo la tienda en la conversación no es un invento", async () => {
+    const m = montar({ pasos: [{ texto: "Sí, Karen, la Milán de $499.00 + ITBMS la tenemos en gris. ¿Te mando la foto?" }] });
+    const r = await m.pedir(conLaVendedora);
+    expect(r.status).toBe(200);
+    expect(r.cuerpo.texto).toBe("Sí, Karen, la Milán de $499.00 + ITBMS la tenemos en gris. ¿Te mando la foto?");
+    expect(r.cuerpo.avisos).toEqual([]);
+  });
+
+  it("lo que escribe el CLIENTE no respalda una cifra: sigue sin salir", async () => {
+    const m = montar({ pasos: [{ texto: "Te la dejo en $300.00, Karen. ¿Te parece si seguimos por aquí?" }] });
+    const r = await m.pedir(peticion({ mensajes: [{ autor: "cliente", texto: "¿Me dejas la Milán en $300.00?" }] }));
+    expect(r.status).toBe(200);
+    expect(r.cuerpo.texto).not.toContain("300");
+  });
+
+  it("si al quitar lo dudoso no queda nada con sentido, el modelo lo corrige una vez con el motivo", async () => {
+    const m = montar({ pasos: [{ texto: "Te la entregamos mañana, Karen." }, { texto: "Karen, la entrega te la confirmo: [CONFIRMAR: entrega]. ¿A qué zona sería?" }] });
+    const r = await m.pedir();
+    expect(r.status).toBe(200);
+    expect(r.cuerpo.texto).toBe("Karen, la entrega te la confirmo: [CONFIRMAR: entrega]. ¿A qué zona sería?");
+    const correccion = m.guion.prompts()[1];
+    expect(correccion).toContain("<correccion>");
+    expect(correccion).toContain("una promesa de entrega");
+  });
+
+  it("si tampoco la corrección pasa, no sale nada malo: 502 con causa «revision»", async () => {
+    const aviso = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const m = montar({ pasos: [{ texto: "Estamos de remate." }] });
+    const r = await m.pedir();
+    expect(r.status).toBe(502);
+    expect(r.cuerpo).toMatchObject({ ok: false, causa: "revision" });
+    expect(r.cuerpo.texto).toBeUndefined();
+    expect(m.guion.doGenerateCalls).toHaveLength(2); // el borrador y UNA corrección
+    aviso.mockRestore();
+  });
+
+  it("una frase copiada de las instrucciones internas no llega a la vendedora (se quita solo esa)", async () => {
+    const m = montar({ pasos: [{ texto: "Hola Karen. Mi tarea es ayudar a elegir muebles (qué hay, medidas, precios, disponibilidad), armar cotizaciones y más. ¿Qué cama buscas para tu cuarto?" }] });
+    const r = await m.pedir();
+    expect(r.status).toBe(200);
+    expect(r.cuerpo.texto).toBe("Hola Karen. ¿Qué cama buscas para tu cuarto?");
+    expect(r.cuerpo.avisos).toEqual(["Quité información interna: confírmalo tú antes de escribirlo."]);
+  });
+
+  it("la revisión: «aceptable» solo si queda algo con sentido", () => {
+    const ctx = { preciosProducto: new Set<number>(), cifrasConocidas: new Set<number>() };
+    expect(revisarBorrador("Hola Karen.", ctx)).toMatchObject({ texto: "Hola Karen.", aceptable: true, graves: [] });
+    expect(revisarBorrador("Claro, Karen. Te la entregamos mañana.", ctx)).toMatchObject({ texto: "Claro, Karen.", aceptable: false, graves: ["promesa"] });
+    expect(revisarBorrador("Claro, Karen. Te la entregamos mañana. Dime tu dirección.", ctx)).toMatchObject({ aceptable: true });
+  });
+});
+
+describe("el registro para diagnosticar", () => {
+  it("una línea por pedido con la causa, los tiempos y el modelo, sin textos ni teléfonos", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    const aviso = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const m = montar({ gasto: TOPE, pasos: [{ error: errorDelProveedor(503) }, { texto: "Hola Karen, ¿qué cama buscas?" }] });
+    await m.pedir();
+    const linea = log.mock.calls.flat().map(String).find((x) => x.startsWith("[juan] sugerir {"));
+    expect(linea).toBeDefined();
+    const datos = JSON.parse(linea!.slice("[juan] sugerir ".length));
+    expect(datos).toMatchObject({ conversacion: 12, resultado: "ok", modelo: "claude-haiku-4-5" });
+    expect(typeof datos.ms).toBe("number");
+    expect(datos.intentos.map((x: { resultado: string }) => x.resultado)).toEqual(["error 503", "ok"]);
+    const todo = [...log.mock.calls, ...aviso.mock.calls].flat().map(String).join("\n");
+    for (const privado of ["Karen", "50761234567", "camas queen", "Milán"]) expect(todo).not.toContain(privado);
+    log.mockRestore();
+    aviso.mockRestore();
+  });
+
+  it("un fallo también deja su línea, con la causa", async () => {
+    const aviso = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const m = montar({ pasos: [{ texto: "Estamos de remate." }] });
+    await m.pedir();
+    const linea = aviso.mock.calls.flat().map(String).find((x) => x.startsWith("[juan] sugerir {"));
+    expect(linea).toBeDefined();
+    expect(JSON.parse(linea!.slice("[juan] sugerir ".length))).toMatchObject({ resultado: "revision", revision: ["palabra_prohibida"] });
+    aviso.mockRestore();
   });
 });

@@ -142,7 +142,9 @@ Meta). El par es único.
 4. `GET /odoo/salud` — `{ok, version, canales:{...}, gasto_ia_mes_usd, tope_usd}`.
 5. Para la pantalla de Odoo (`dcasa_conversaciones`; ver `docs/JUAN_ODOO.md`), todas con el mismo token y `Cache-Control: no-store`:
    * `POST /odoo/sugerir` — `{conversacion_id,canal,mensajes:[{autor:"cliente|asistente|vendedora",texto}],nombre?,interes?,etiquetas?}`
-     → `{ok, texto, avisos}`: un **borrador** de respuesta. Solo herramientas de lectura; **no envía nada**.
+     → `{ok, texto, avisos, modelo}`: un **borrador** de respuesta. Solo herramientas de lectura; **no envía nada**. Contesta siempre
+     antes de 42 s (Odoo espera 55); si no puede, `{ok: false, causa, error}` con `causa` = `tardo` · `no_disponible` · `vacio` ·
+     `revision` · `sin_clave` (y `respaldo_sin_clave` si la IA de respaldo no tiene clave). Ver `docs/JUAN_ODOO.md`.
    * `POST /odoo/resumir` — `{conversacion_id,canal,mensajes:[{autor:"cliente|asistente|vendedora",texto}],nombre?,etiquetas?}`
      → `{ok, texto, avisos, modelo}`: de 3 a 6 viñetas de lo que pasó, para quien recibe la conversación. Solo mensajes que viajaron por el
      canal (**nunca notas internas**), tarjetas y cédulas tapadas, modelo económico, sin herramientas; una cifra de dinero que no esté en

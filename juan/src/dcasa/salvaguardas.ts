@@ -336,6 +336,11 @@ function fuga(texto: string, ctx: ContextoRevision): string | null {
   return ctx.textoDelPrompt ? copiaDelPrompt(texto, ctx.textoDelPrompt) : null;
 }
 
+/** Lo que delata información interna en un texto (una etiqueta o una frase copiada del prompt, el nombre de una herramienta), o null. */
+export function detectarFuga(texto: string, ctx: ContextoRevision): string | null {
+  return fuga(limpiarForma(texto), ctx);
+}
+
 // ── Análisis y reparación ───────────────────────────────────────────────────
 
 export interface Analisis {

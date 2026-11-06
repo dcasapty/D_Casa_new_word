@@ -44,6 +44,16 @@ export interface EntradaDelTurno {
   herramientas: ToolSet;
   /** false = no marcar el prompt para caché (los que no se repiten, como el seguimiento). */
   cachear?: boolean;
+  /** Corta la llamada al proveedor (el borrador de «Sugerir» tiene un plazo: Odoo no espera para siempre). */
+  abortSignal?: AbortSignal;
+  /** Menos pasos que PASOS_MAXIMOS cuando hay prisa (cada paso es una vuelta completa al modelo). */
+  pasosMaximos?: number;
+}
+
+/** Lo que devolvió una herramienta en este turno (para pedirle al modelo que escriba con eso sin volver a consultar). */
+export interface ConsultaDelTurno {
+  herramienta: string;
+  resultado: unknown;
 }
 
 export interface SalidaDelTurno {
@@ -52,6 +62,8 @@ export interface SalidaDelTurno {
   pasos: number;
   /** El modelo llegó al límite de pasos o de tokens sin escribir nada: hay que pedirle que responda ya. */
   sinTexto: boolean;
+  /** Los resultados de las herramientas que usó, en orden. */
+  consultas: ConsultaDelTurno[];
 }
 
 export async function correrTurno(e: EntradaDelTurno): Promise<SalidaDelTurno> {
@@ -73,12 +85,14 @@ export async function correrTurno(e: EntradaDelTurno): Promise<SalidaDelTurno> {
         : `${e.sistemaEstable}\n\n${e.sistemaDinamico}`,
     messages: e.mensajes,
     tools: e.herramientas,
-    stopWhen: stepCountIs(PASOS_MAXIMOS),
+    stopWhen: stepCountIs(e.pasosMaximos ?? PASOS_MAXIMOS),
     maxOutputTokens: topeDeSalida(e.proveedor, e.nivel),
     // Los reintentos y el respaldo los maneja el motor (motor/conversacion.ts → correrConRespaldo): el SDK no debe esperar segundos
     // por su cuenta antes de pasar al otro proveedor.
     maxRetries: 0,
+    ...(e.abortSignal ? { abortSignal: e.abortSignal } : {}),
   });
   const texto = r.text.trim();
-  return { texto, uso: usoDelSdk(r.totalUsage), pasos: r.steps.length, sinTexto: texto.length === 0 };
+  const consultas = r.steps.flatMap((paso) => paso.toolResults.map((t) => ({ herramienta: t.toolName, resultado: t.output })));
+  return { texto, uso: usoDelSdk(r.totalUsage), pasos: r.steps.length, sinTexto: texto.length === 0, consultas };
 }

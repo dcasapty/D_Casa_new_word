@@ -18,6 +18,7 @@ caso es cuando la pantalla de Conexiones lo necesita. El token no se escribe en 
 (el QR viaja en él).
 """
 import logging
+import time
 
 import requests
 
@@ -29,6 +30,15 @@ _logger = logging.getLogger(__name__)
 
 TIMEOUT_RAPIDO = (2, 4)             # una búsqueda en vivo: o contesta enseguida o se sigue sin ella
 MAX_RESPUESTA_GRANDE = 256 * 1024    # el QR (una imagen en base64) cabe de sobra
+# «Sugerir»: el Worker contesta SIEMPRE antes de 42 s (juan/src/odoo-panel-sugerir.ts, PLAZO_TOTAL_MS), con el borrador
+# o con un error claro. Odoo espera más que eso para no rendirse antes que él (con 25 s se rendía mientras la IA seguía
+# pensando: «a veces sí, a veces no», 2026-11-06). Una prueba del Worker lee esta línea y exige que encajen.
+TIMEOUT_SUGERIR = (3.05, 55)
+# Si ni siquiera se pudo hablar con el Worker (la red se cortó), se reintenta una vez: un borrador no escribe nada.
+PAUSA_ANTES_DE_REINTENTAR = 1.0
+REINTENTAR_SI_FALLO_ANTES_DE = 5.0
+# Lo que el Worker dice que pasó (juan/src/odoo-panel-sugerir.ts, CausaDeFallo).
+CAUSAS_DEL_WORKER = {'tardo', 'no_disponible', 'vacio', 'revision', 'sin_clave'}
 
 
 class JuanClientePanel(models.AbstractModel):
@@ -36,11 +46,15 @@ class JuanClientePanel(models.AbstractModel):
 
     @api.model
     def _pedir(self, metodo, ruta, datos=None, timeout=TIMEOUT):
-        """``{conectado, estado_http, cuerpo, error, sin_configurar}``; ``cuerpo`` es siempre un diccionario."""
+        """``{conectado, estado_http, cuerpo, error, sin_configurar, causa}``; ``cuerpo`` es siempre un diccionario.
+
+        ``causa`` (solo si no hubo respuesta): ``tardo`` si el Worker no contestó dentro del plazo, ``sin_conexion``
+        si ni siquiera se pudo hablar con él."""
         ajustes = self.env['dcasa.juan.ajustes']
         url = ajustes.url_worker()
         token = ajustes.token_worker()
-        vacio = {'conectado': False, 'estado_http': None, 'cuerpo': {}, 'error': None, 'sin_configurar': False}
+        vacio = {'conectado': False, 'estado_http': None, 'cuerpo': {}, 'error': None, 'sin_configurar': False,
+                 'causa': None}
         if not url or not token:
             return {**vacio, 'sin_configurar': True,
                     'error': 'Falta conectar el bot: no hay dirección o clave del Worker de Juan.'}
@@ -54,7 +68,9 @@ class JuanClientePanel(models.AbstractModel):
         except requests.RequestException as error:
             # Solo el tipo de error: el mensaje de requests puede traer la URL.
             _logger.warning('Juan: el Worker no respondió a %s %s (%s).', metodo, ruta, type(error).__name__)
-            return {**vacio, 'error': 'El Worker de Juan no responde.'}
+            tardo = isinstance(error, requests.ReadTimeout)
+            return {**vacio, 'causa': 'tardo' if tardo else 'sin_conexion',
+                    'error': 'El Worker de Juan tardó demasiado.' if tardo else 'El Worker de Juan no responde.'}
         try:
             cuerpo = respuesta.json() if respuesta.content and len(respuesta.content) <= MAX_RESPUESTA_GRANDE else {}
         except ValueError:
@@ -66,19 +82,37 @@ class JuanClientePanel(models.AbstractModel):
         if respuesta.status_code >= 400:
             error = str(cuerpo.get('error') or f'El Worker respondió {respuesta.status_code}.')[:300]
         return {'conectado': True, 'estado_http': respuesta.status_code, 'cuerpo': cuerpo, 'error': error,
-                'sin_configurar': False}
+                'sin_configurar': False, 'causa': None}
 
     @api.private
     @api.model
     def sugerir(self, conversacion_id, canal, id_externo, mensajes, nombre=None, interes=None, etiquetas=None):
-        """Un borrador de respuesta: ``{ok, texto, avisos}`` o ``{ok: False, error}``."""
-        respuesta = self._pedir('POST', '/odoo/sugerir', {
-            'conversacion_id': conversacion_id, 'canal': canal, 'id_externo': id_externo, 'mensajes': mensajes,
-            'nombre': nombre or '', 'interes': interes or '', 'etiquetas': etiquetas or []})
-        if respuesta['error'] or respuesta['cuerpo'].get('ok') is False:
-            return {'ok': False, 'error': respuesta['error'] or str(respuesta['cuerpo'].get('error') or '')[:300]
-                    or 'El Worker no pudo redactar el borrador.', 'sin_configurar': respuesta['sin_configurar']}
-        return {**respuesta['cuerpo'], 'ok': True}
+        """Un borrador de respuesta: ``{ok, texto, avisos, modelo}`` o ``{ok: False, causa, error, ...}``.
+
+        ``causa``: ``sin_configurar`` · ``sin_conexion`` · ``tardo`` · lo que dijo el Worker (``CAUSAS_DEL_WORKER``) ·
+        ``error``. ``estado_http`` y ``ms`` son para el registro."""
+        datos = {'conversacion_id': conversacion_id, 'canal': canal, 'id_externo': id_externo, 'mensajes': mensajes,
+                 'nombre': nombre or '', 'interes': interes or '', 'etiquetas': etiquetas or []}
+        inicio = time.monotonic()
+        respuesta = self._pedir('POST', '/odoo/sugerir', datos, timeout=TIMEOUT_SUGERIR)
+        if respuesta['causa'] == 'sin_conexion' and time.monotonic() - inicio < REINTENTAR_SI_FALLO_ANTES_DE:
+            time.sleep(PAUSA_ANTES_DE_REINTENTAR)
+            respuesta = self._pedir('POST', '/odoo/sugerir', datos, timeout=TIMEOUT_SUGERIR)
+        ms = int((time.monotonic() - inicio) * 1000)
+        cuerpo = respuesta['cuerpo']
+        if respuesta['sin_configurar']:
+            causa = 'sin_configurar'
+        elif not respuesta['conectado']:
+            causa = respuesta['causa'] or 'sin_conexion'
+        elif respuesta['error'] or cuerpo.get('ok') is False:
+            causa = cuerpo.get('causa') if cuerpo.get('causa') in CAUSAS_DEL_WORKER else 'error'
+        else:
+            return {**cuerpo, 'ok': True, 'ms': ms, 'estado_http': respuesta['estado_http']}
+        return {'ok': False, 'causa': causa, 'ms': ms, 'estado_http': respuesta['estado_http'],
+                'error': respuesta['error'] or str(cuerpo.get('error') or '')[:300]
+                or 'El Worker no pudo redactar el borrador.',
+                'respaldo_sin_clave': str(cuerpo.get('respaldo_sin_clave') or '')[:40],
+                'sin_configurar': respuesta['sin_configurar']}
 
     @api.private
     @api.model
