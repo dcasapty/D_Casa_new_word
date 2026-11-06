@@ -7,6 +7,9 @@ import type { Env } from "../src/env";
 import { CONFIG_POR_DEFECTO, normalizarConfig, type Config } from "../src/config";
 import { crearTelegram } from "../src/canales/telegram";
 import { crearWhatsappQr } from "../src/canales/whatsappQr";
+import { crearWhatsappCloud } from "../src/canales/whatsappCloud";
+import { crearMeta } from "../src/canales/meta";
+import { hmacHex } from "../src/seguridad";
 import type { AdaptadorCanal, CanalId, Entrante } from "../src/canales/tipos";
 import { claveDeConversacion, firmarUrlMedio, VIDA_URL_MEDIO_MS } from "../src/motor/mediosUrl";
 import { manejar, type ConversacionApi, type DepsRutas } from "../src/rutas";
@@ -33,6 +36,14 @@ const envCompleto = {
 
 class ConversacionDoble implements ConversacionApi {
   ingestados: Entrante[] = [];
+  /** Lo que se guardó crudo antes de contestar (webhooks de Meta), en orden. */
+  guardados: Entrante[] = [];
+  /** Si no es null, `guardarRecibido` lanza esto (el Durable Object no pudo guardar). */
+  fallaGuardar: string | null = null;
+  /** Mientras exista, `guardarRecibido` espera a que se resuelva (para ver que el 200 no sale antes). */
+  puertaGuardar: Promise<void> | null = null;
+  /** Solo este id_mensaje falla al guardarse (un lote donde uno sí y otro no). */
+  fallarSoloA: string | null = null;
   enviados: unknown[] = [];
   estados: unknown[] = [];
   seguimientos: unknown[] = [];
@@ -41,10 +52,28 @@ class ConversacionDoble implements ConversacionApi {
   falla: string | null = null;
   seguimientoResultado: any = { ok: true, resultado: "enviado" };
 
+  /** Guarda, pero la respuesta del Durable Object se pierde en la red («Network connection lost»). */
+  perderRespuesta = false;
+
+  private guardado = (id: string) => this.guardados.some((g) => g.id_mensaje === id);
+  private atendido = (id: string) => this.ingestados.some((g) => g.id_mensaje === id);
+
   async ingest(e: Entrante) {
     if (this.falla) throw new Error(this.falla);
+    // Como el Durable Object: lo que entró por la bandeja y ya se atendió es un repetido.
+    if (this.guardado(e.id_mensaje) && this.atendido(e.id_mensaje)) return { ok: true as const, accion: "duplicado" as const };
     this.ingestados.push(e);
     return { ok: true as const, accion: "en_espera" as const };
+  }
+  async guardarRecibido(e: Entrante) {
+    if (this.puertaGuardar) await this.puertaGuardar;
+    if (this.fallaGuardar) throw new Error(this.fallaGuardar);
+    if (this.fallarSoloA === e.id_mensaje) throw new Error("no se pudo guardar este");
+    // Como el Durable Object: el mismo id_mensaje (un reintento de Meta) no es nuevo; sigue pendiente mientras nadie lo atendió.
+    const nuevo = !this.guardado(e.id_mensaje);
+    if (nuevo) this.guardados.push(e);
+    if (this.perderRespuesta) throw new Error("Network connection lost.");
+    return { nuevo, pendiente: !this.atendido(e.id_mensaje) };
   }
   async enviarVendedora(s: unknown) {
     if (this.falla) throw new Error(this.falla);
@@ -687,6 +716,244 @@ describe("webhook del puente de WhatsApp (se responde DESPUÉS de guardar)", () 
     const m = montar();
     await m.pedir(hook({ ...msg, propio: true, texto: "Te atiendo yo" }));
     expect(m.conv.ingestados[0].propio).toBe(true);
+  });
+});
+
+describe("webhooks de Meta (WhatsApp Cloud, Messenger, Instagram): el 200 sale DESPUÉS de guardar", () => {
+  const SECRETO_META = "secreto-de-la-app-meta-0123456789";
+  const TOKEN_CLOUD = "token-cloud-de-prueba-0123456789";
+  const envMeta = { ...envCompleto, META_APP_SECRET: SECRETO_META, META_VERIFY_TOKEN: "verificacion-0123456789", WHATSAPP_CLOUD_TOKEN: TOKEN_CLOUD, WHATSAPP_PHONE_NUMBER_ID: "109876543210", META_PAGE_TOKEN: "pagina-0123456789" } as unknown as Env;
+  const encendidos = { canales_activos: { whatsapp_cloud: true, messenger: true, instagram: true } };
+  const red = vi.fn(async () => new Response("{}"));
+  const adaptadoresMeta = () => [
+    crearWhatsappCloud({ fetch: red as unknown as typeof fetch, dormir: async () => {} }),
+    crearMeta({ fetch: red as unknown as typeof fetch, dormir: async () => {} }),
+    crearTelegram({ fetch: red as unknown as typeof fetch, dormir: async () => {} }),
+    crearWhatsappQr({ fetch: red as unknown as typeof fetch }),
+  ];
+  const wa = (id: string, texto = "Hola, ¿tienen camas?") => ({ from: "50760261919", id, timestamp: "1790000000", type: "text", text: { body: texto } });
+  const lote = (mensajes: object[]) => ({ object: "whatsapp_business_account", entry: [{ id: "WABA", changes: [{ field: "messages", value: { contacts: [{ profile: { name: "Karen" }, wa_id: "50760261919" }], messages: mensajes } }] }] });
+  const firmado = async (ruta: string, cuerpo: object, secreto = SECRETO_META) => {
+    const crudo = JSON.stringify(cuerpo);
+    return new Request(`https://juan.example${ruta}`, { method: "POST", headers: { "content-type": "application/json", "x-hub-signature-256": `sha256=${await hmacHex(secreto, crudo)}` }, body: crudo });
+  };
+  const cloud = (cuerpo: object, secreto?: string) => firmado("/webhooks/whatsapp-cloud", cuerpo, secreto);
+  const montarMeta = (config: Record<string, unknown> = encendidos) => montar({ config, adaptadores: adaptadoresMeta() });
+  /** Espera, con el bucle de eventos real (setImmediate no se falsea), a que algo pase. */
+  const hasta = async (listo: () => boolean) => {
+    for (let i = 0; i < 5000 && !listo(); i++) await new Promise((r) => setImmediate(r));
+  };
+
+  it("el 200 no sale hasta que el Durable Object guardó el mensaje; lo lento (atenderlo) va después", async () => {
+    const m = montarMeta();
+    let abrir!: () => void;
+    m.conv.puertaGuardar = new Promise<void>((r) => (abrir = r));
+    let contestado = false;
+    const respuesta = m.pedir(await cloud(lote([wa("wamid.A")])), envMeta).then((r) => ((contestado = true), r));
+    for (let i = 0; i < 20; i++) await new Promise((r) => setTimeout(r, 0));
+    expect(contestado).toBe(false); // el Durable Object todavía no confirmó: Meta sigue esperando
+    expect(m.conv.guardados).toEqual([]);
+    abrir();
+    const res = await respuesta;
+    expect(res.status).toBe(200);
+    expect(m.conv.guardados.map((e) => [e.canal, e.id_externo, e.id_mensaje, e.texto])).toEqual([["whatsapp_cloud", "50760261919", "wamid.A", "Hola, ¿tienen camas?"]]);
+    expect(m.pedidas[0]).toEqual(["whatsapp_cloud", "50760261919"]);
+    await m.despues(); // como ctx.waitUntil: descargas, IA y respuesta, después del 200
+    expect(m.conv.ingestados.map((e) => e.id_mensaje)).toEqual(["wamid.A"]);
+  });
+
+  it("si no se pudo guardar: 500 para que Meta reintente, y nada se atiende", async () => {
+    const m = montarMeta();
+    m.conv.fallaGuardar = "el Durable Object no respondió";
+    const err = vi.spyOn(console, "error").mockImplementation(() => {});
+    const res = await m.pedir(await cloud(lote([wa("wamid.B")])), envMeta);
+    await m.despues();
+    expect(res.status).toBe(500);
+    expect(m.conv.ingestados).toEqual([]);
+    expect(err).toHaveBeenCalled();
+    err.mockRestore();
+    // Meta reintenta el mismo POST: ahora sí se guarda, 200 y se atiende una vez.
+    m.conv.fallaGuardar = null;
+    expect((await m.pedir(await cloud(lote([wa("wamid.B")])), envMeta)).status).toBe(200);
+    await m.despues();
+    expect(m.conv.ingestados.map((e) => e.id_mensaje)).toEqual(["wamid.B"]);
+  });
+
+  it("un reintento de Meta con el mismo id (no oyó el 200): 200 otra vez y NO se atiende dos veces", async () => {
+    const m = montarMeta();
+    const primero = await m.pedir(await cloud(lote([wa("wamid.C")])), envMeta);
+    const reintento = await m.pedir(await cloud(lote([wa("wamid.C")])), envMeta); // antes de que termine lo de después
+    await m.despues();
+    const tarde = await m.pedir(await cloud(lote([wa("wamid.C")])), envMeta); // y después de atenderlo
+    await m.despues();
+    expect([primero.status, reintento.status, tarde.status]).toEqual([200, 200, 200]);
+    expect(m.conv.ingestados.map((e) => e.id_mensaje)).toEqual(["wamid.C"]);
+  });
+
+  it("un lote donde uno no se pudo guardar: 500 (Meta reintenta), el que sí se guardó se atiende y el reintento no lo repite", async () => {
+    const m = montarMeta();
+    m.conv.fallarSoloA = "wamid.E";
+    const err = vi.spyOn(console, "error").mockImplementation(() => {});
+    const res = await m.pedir(await cloud(lote([wa("wamid.D", "uno"), wa("wamid.E", "dos")])), envMeta);
+    await m.despues();
+    expect(res.status).toBe(500);
+    expect(m.conv.ingestados.map((e) => e.id_mensaje)).toEqual(["wamid.D"]);
+    m.conv.fallarSoloA = null;
+    expect((await m.pedir(await cloud(lote([wa("wamid.D", "uno"), wa("wamid.E", "dos")])), envMeta)).status).toBe(200);
+    await m.despues();
+    expect(m.conv.ingestados.map((e) => e.id_mensaje)).toEqual(["wamid.D", "wamid.E"]);
+    err.mockRestore();
+  });
+
+  it("5 · se guardó pero la respuesta del Durable Object se perdió en la red: 500, y el reintento de Meta lo atiende ya (no espera al rescate)", async () => {
+    const m = montarMeta();
+    m.conv.perderRespuesta = true;
+    const err = vi.spyOn(console, "error").mockImplementation(() => {});
+    expect((await m.pedir(await cloud(lote([wa("wamid.L")])), envMeta)).status).toBe(500);
+    await m.despues();
+    expect(m.conv.ingestados).toEqual([]);
+    m.conv.perderRespuesta = false;
+    expect((await m.pedir(await cloud(lote([wa("wamid.L")])), envMeta)).status).toBe(200);
+    await m.despues();
+    expect(m.conv.ingestados.map((e) => e.id_mensaje)).toEqual(["wamid.L"]);
+    // Y otro reintento, ya atendido, no lo repite.
+    expect((await m.pedir(await cloud(lote([wa("wamid.L")])), envMeta)).status).toBe(200);
+    await m.despues();
+    expect(m.conv.ingestados).toHaveLength(1);
+    err.mockRestore();
+  });
+
+  it("5 · si el Durable Object no contesta, el webhook no se queda colgado: 500 a los 3 s (dentro de los 5 s de Meta)", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    const err = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const m = montarMeta();
+      let pedido: number | null = null;
+      m.conv.guardarRecibido = () => {
+        pedido ??= Date.now();
+        return new Promise(() => {}); // el Durable Object nunca contesta
+      };
+      const req = await cloud(lote([wa("wamid.M")]));
+      let res: Response | undefined;
+      void m.pedir(req, envMeta).then((r) => (res = r));
+      await hasta(() => pedido !== null); // la firma (WebCrypto) corre en tiempo real: el reloj falso arranca recién aquí
+      for (let i = 0; i < 100 && !res; i++) await vi.advanceTimersByTimeAsync(100);
+      expect(res?.status).toBe(500);
+      expect(pedido).not.toBeNull();
+      expect(Date.now() - pedido!).toBeLessThanOrEqual(3_100);
+    } finally {
+      err.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
+  it("si falla el PRIMERO de una misma persona, los que siguen de ella tampoco se guardan: el reintento los trae en orden", async () => {
+    const m = montarMeta();
+    m.conv.fallarSoloA = "wamid.K1";
+    const err = vi.spyOn(console, "error").mockImplementation(() => {});
+    expect((await m.pedir(await cloud(lote([wa("wamid.K1", "uno"), wa("wamid.K2", "dos")])), envMeta)).status).toBe(500);
+    await m.despues();
+    expect(m.conv.guardados).toEqual([]);
+    expect(m.conv.ingestados).toEqual([]);
+    m.conv.fallarSoloA = null;
+    expect((await m.pedir(await cloud(lote([wa("wamid.K1", "uno"), wa("wamid.K2", "dos")])), envMeta)).status).toBe(200);
+    await m.despues();
+    expect(m.conv.ingestados.map((e) => e.texto)).toEqual(["uno", "dos"]);
+    err.mockRestore();
+  });
+
+  it("lo que se guarda son datos planos: el archivo va con su media_id (`ref`), sin funciones ni el token; se baja DESPUÉS del 200", async () => {
+    red.mockClear();
+    const m = montarMeta();
+    let abrir!: () => void;
+    m.conv.puertaGuardar = new Promise<void>((r) => (abrir = r));
+    const foto = { from: "50760261919", id: "wamid.F", type: "image", image: { id: "MEDIA1", caption: "así", mime_type: "image/jpeg" } };
+    const respuesta = m.pedir(await cloud(lote([foto])), envMeta);
+    for (let i = 0; i < 20; i++) await new Promise((r) => setTimeout(r, 0));
+    expect(red).not.toHaveBeenCalled(); // mientras se guarda (antes del 200) no se baja nada: contestar no depende de Meta
+    abrir();
+    expect((await respuesta).status).toBe(200);
+    const [g] = m.conv.guardados;
+    expect(g.adjuntos).toEqual([{ tipo: "imagen", mime: "image/jpeg", ref: "MEDIA1" }]);
+    expect(JSON.stringify(g)).not.toContain(TOKEN_CLOUD);
+    await m.despues();
+    expect(red).toHaveBeenCalled(); // la descarga va en lo de después
+  });
+
+  it("canal APAGADO en Odoo (configuración conocida): 200 y no se guarda ni se atiende", async () => {
+    const m = montarMeta({ canales_activos: { whatsapp_cloud: false } });
+    const res = await m.pedir(await cloud(lote([wa("wamid.G")])), envMeta);
+    await m.despues();
+    expect(res.status).toBe(200);
+    expect(m.pedidas).toEqual([]);
+  });
+
+  it("configuración desconocida (Odoo dormido y sin copia): el mensaje se GUARDA igual (antes se perdía: el canal arranca apagado)", async () => {
+    const m = montarMeta();
+    m.deps.config = async () => CONFIG_POR_DEFECTO;
+    const res = await m.pedir(await cloud(lote([wa("wamid.H")])), envMeta);
+    await m.despues();
+    expect(res.status).toBe(200);
+    expect(m.conv.guardados.map((e) => e.id_mensaje)).toEqual(["wamid.H"]);
+    // El Worker no lo atiende sin saber si el canal está encendido: queda en la bandeja y lo decide el rescate del Durable Object.
+    expect(m.conv.ingestados).toEqual([]);
+  });
+
+  it("si Odoo tarda con la configuración, no se le espera más de 1 s: el mensaje se guarda y Meta recibe su 200", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    try {
+      const m = montarMeta();
+      let pedido: number | null = null;
+      m.deps.config = () => {
+        pedido ??= Date.now();
+        return new Promise<Config>(() => {}); // Odoo colgado
+      };
+      const req = await cloud(lote([wa("wamid.I")]));
+      let res: Response | undefined;
+      const p = m.pedir(req, envMeta).then((r) => (res = r));
+      await hasta(() => pedido !== null); // la firma (WebCrypto) corre en tiempo real: el reloj falso arranca recién aquí
+      for (let i = 0; i < 100 && !res; i++) await vi.advanceTimersByTimeAsync(100);
+      await p;
+      expect(res!.status).toBe(200);
+      expect(Date.now() - pedido!).toBeLessThanOrEqual(1_100);
+      expect(m.conv.guardados.map((e) => e.id_mensaje)).toEqual(["wamid.I"]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("firma mala: 401 y nada se guarda (la verificación no cambió)", async () => {
+    const m = montarMeta();
+    expect((await m.pedir(await cloud(lote([wa("wamid.J")]), "otra-clave"), envMeta)).status).toBe(401);
+    await m.despues();
+    expect(m.pedidas).toEqual([]);
+  });
+
+  it("Messenger e Instagram comparten el camino: también se guardan antes del 200 y un fallo da 500", async () => {
+    const evento = (mid: string, object = "page") => ({ object, entry: [{ id: "PAGINA", messaging: [{ sender: { id: "PSID1" }, recipient: { id: "PAGINA" }, timestamp: 1_790_000_000_000, message: { mid, text: "Hola" } }] }] });
+    const m = montarMeta();
+    expect((await m.pedir(await firmado("/webhooks/meta", evento("m_1")), envMeta)).status).toBe(200);
+    expect((await m.pedir(await firmado("/webhooks/meta", evento("ig_1", "instagram")), envMeta)).status).toBe(200);
+    expect(m.conv.guardados.map((e) => [e.canal, e.id_mensaje])).toEqual([["messenger", "m_1"], ["instagram", "ig_1"]]);
+    await m.despues();
+    expect(m.conv.ingestados.map((e) => e.id_mensaje)).toEqual(["m_1", "ig_1"]);
+    m.conv.fallaGuardar = "caído";
+    const err = vi.spyOn(console, "error").mockImplementation(() => {});
+    expect((await m.pedir(await firmado("/webhooks/meta", evento("m_2")), envMeta)).status).toBe(500);
+    err.mockRestore();
+  });
+
+  it("Telegram y el puente QR siguen igual: no pasan por la bandeja", async () => {
+    const m = montarMeta();
+    const qr = await m.pedir(post("/webhooks/whatsapp-qr", { id_mensaje: "3EB0X", de: "50760261919@s.whatsapp.net", tipo: "texto", texto: "Hola", ts: 1_790_000_000 }, { "x-wa-token": WA_TOKEN }), envMeta);
+    expect(qr.status).toBe(200);
+    expect(m.conv.ingestados.map((e) => e.id_mensaje)).toEqual(["3EB0X"]); // QR: guardado ANTES del 200, como siempre
+    const tg = await m.pedir(post("/webhooks/telegram", { update_id: 1, message: { message_id: 7, from: { id: 555, first_name: "K" }, chat: { id: 555, type: "private" }, date: 1_790_000_000, text: "hola" } }, { "x-telegram-bot-api-secret-token": SECRETO_TG }), envMeta);
+    expect(tg.status).toBe(200);
+    expect(m.conv.ingestados).toHaveLength(1); // Telegram: después del 200, como siempre
+    await m.despues();
+    expect(m.conv.ingestados.map((e) => e.canal)).toEqual(["whatsapp_qr", "telegram"]);
+    expect(m.conv.guardados).toEqual([]);
   });
 });
 

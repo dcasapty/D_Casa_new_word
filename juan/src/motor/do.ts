@@ -1,4 +1,4 @@
-// El Durable Object de una conversación: SQLite propio, alarma para la ráfaga de 15 s y la cola de Odoo.
+// El Durable Object de una conversación: SQLite propio, alarma para la ráfaga de 15 s, la cola de Odoo y la bandeja de Meta.
 // La lógica vive en MotorConversacion (motor/conversacion.ts); esto solo le presta Cloudflare.
 // Un objeto por `canal:id_externo`: dos mensajes de la misma persona se atienden uno a la vez.
 
@@ -66,6 +66,11 @@ export class Conversacion extends DurableObject<Env> {
 
   ingest(e: Entrante) {
     return this.motor.ingest(e);
+  }
+
+  /** Webhooks de Meta: guardar el mensaje crudo antes de contestar 200 (motor/conversacion.ts → `guardarRecibido`). */
+  guardarRecibido(e: Entrante) {
+    return this.motor.guardarRecibido(e);
   }
 
   /** Cloudflare la llama al vencer la ráfaga, la cola de Odoo o la limpieza. */
