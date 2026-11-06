@@ -379,6 +379,10 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `main` (`741930d`, árbol = `de1fb04`) a staging y Desplegar con ese `app_version`. **Regla:** un cambio del borde
   (rutas, `vars`, `workers_dev`) se despliega con un `app_version` que lo contenga, o sea con una imagen construida
   de ese commit.
+- **Desplegar 51 y Desplegar Juan 6** (08:59 UTC del 6 nov, `a307425`, imagen `sha256:f0b0b240…` de CI #274, respaldo
+  previo) · Odoo sano y confirmado 09:13 (versión `a30742505947`, base al día, humo ok): la varita («Sugerir») escribe
+  siempre o dice por qué (PR #84, `main` = `237d2f3`, árbol = `a307425`). Juan desde `main` a la vez: `/salud` con la
+  versión `237d2f3` y `whatsapp_cloud` configurado. El CI del PR (#275) se canceló.
 - **Desplegar 50** (07:33 UTC del 6 nov, `3682053`, imagen `sha256:53e76dc6…` de CI #272, respaldo previo) · sano y
   confirmado 07:47 (versión `3682053cbbbc`, base al día, humo ok): la calculadora de envíos, módulo nuevo
   `dcasa_envios` (PR #83, `main` = `e924a9c`, árbol = `3682053`). CI #271 había fallado por la descripción de una

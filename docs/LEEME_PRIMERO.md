@@ -128,9 +128,10 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 - Registro sin datos personales: `[juan] sugerir {conversacion, resultado, ms, modelo, intentos, respaldo}` en el Worker
   y «Juan: «Sugerir» sin borrador (conversación N, causa X, N ms, HTTP N)» en Odoo.
 - Pruebas: 16 nuevas del Worker (14 fallaban antes), 10 nuevas de Odoo (todas fallaban antes; 4 en el navegador) y 6
-  ajustadas al contrato nuevo. Capturas con el Worker de mentira (fuera del repositorio). **Sin subir ni desplegar.**
-- Sigue: capturas a la dueña, CI, staging, producción y **Desplegar Juan**. Lo de la dueña: `ANTHROPIC_API_KEY` en
-  `dcasa-juan` (sin ella, si Meta falla no hay respaldo).
+  ajustadas al contrato nuevo. Capturas con el Worker de mentira (fuera del repositorio).
+- **En producción** con su autorización («tan pronto esté todo pásalo a producción»): Desplegar 51 y Desplegar Juan 6,
+  sano 09:13 UTC (PR #84, `main` = `237d2f3`, árbol = `a307425`; imagen `sha256:f0b0b240…` de CI #274). Lo de la dueña:
+  `ANTHROPIC_API_KEY` en `dcasa-juan` (sin ella, si Meta falla no hay respaldo).
 
 ### 2026-11-06 (2): la calculadora de envíos en el menú Envíos (módulo nuevo `dcasa_envios`)
 
