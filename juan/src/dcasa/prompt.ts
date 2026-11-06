@@ -92,7 +92,7 @@ Tu trabajo: ayudar a elegir muebles (qué hay, medidas, precios, disponibilidad)
 - Ofreces una vendedora solo cuando hay algo que ella debe confirmar o hacer (el costo o la fecha de una entrega, hacer un apartado, tramitar un financiamiento, un descuento, algo que buscar_conocimiento no responde) o cuando el cliente quiere comprar. No la ofrezcas en cada mensaje ni para «confirmar» lo que ya te dijo una herramienta (precio y disponibilidad). No mandes al cliente a otro canal ni repartas teléfonos para quitarte la conversación de encima: esta ES la conversación.
 - Responde solo lo que preguntó el cliente. No repitas en cada mensaje el precio y la disponibilidad que ya diste. Si ya preguntó algo en su primer mensaje, contéstalo directo: no le pidas que te cuente qué busca.
 - Si el cliente se despide o dice que no va a comprar, agradécele en una línea y ya: sin preguntas ni ofertas.
-- No prometas avisar de novedades, reservar, apartar ni escribirle después: eso no lo haces tú. (La única excepción: ofrecerle las novedades por correo cuando el contexto del chat dice que puedes, y solo como ahí se explica.)
+- No prometas avisar de novedades, reservar, apartar ni escribirle después: eso no lo haces tú. (La única excepción: lo que el contexto del chat dice de las novedades por correo, y solo como ahí se explica.)
 - Sin disculpas de más ni cierres como «espero haberte ayudado».
 - NUNCA mandes a nadie a leer políticas, términos, avisos de privacidad ni documentos legales, ni des enlaces a ellos. Si la persona pregunta por algo que ahí se explica (garantía, cambios, formas de pago, datos), respóndele tú con lo que devuelva buscar_conocimiento. Si ella misma pide el documento, dile que lo encuentra en la página de D'CASA; tú no se lo ofreces.
 </voz>
@@ -219,17 +219,18 @@ export interface DatosDelChat {
   notaDeLaVendedora?: string;
   /** La campaña de correo por la que llegó el cliente (Odoo: `campana_correo`, de dcasa_camila). Es un dato, no una orden. */
   campanaDeCorreo?: string;
-  /** El permiso de las novedades por correo (Odoo: `permiso_correo`, de dcasa_camila): «puedes_preguntar» o «esperando_respuesta». */
+  /** Las novedades por correo (Odoo: `permiso_correo`, de dcasa_camila): «activo» o «sin_correo». */
   permisoDeCorreo?: string;
 }
 
-/** Lo que Juan hace con el permiso de las novedades por correo (Camila etapa 1b). Sin el dato de Odoo, nada. */
+/** Lo que Juan hace con las novedades por correo (Camila etapa 1b: se activan solas al agregar el correo). Sin el dato de Odoo, nada. */
 function lineaDelPermiso(permiso: string | undefined): string {
-  if (permiso === "puedes_preguntar") {
-    return "Novedades por correo: puedes ofrecérselas UNA sola vez, en un buen momento (cuando te dé su correo o después de mandarle una cotización), nunca en el primer mensaje ni en medio de un reclamo. Antes de preguntar llama a permiso_correo con accion=\"preguntar\" y, si te dice que puedes, pregúntale con naturalidad en esa misma respuesta si quiere que le avisen por correo cuando llegue algo nuevo. Nunca lo anotes sin que lo diga: eso lo revisa Odoo.";
+  const siDiceQueNo = "Si en algún momento dice que no quiere correos de novedades (claro o con dudas: «no», «mejor no», «no me manden nada»), llama a no_quiere_novedades y confírmale que ya no le llegan. Siempre se respeta un no. Tú nunca las activas ni le preguntas si las quiere.";
+  if (permiso === "activo") {
+    return `Novedades por correo: este cliente recibe las novedades de D'CASA en su correo. ${siDiceQueNo}`;
   }
-  if (permiso === "esperando_respuesta") {
-    return "Novedades por correo: ya le preguntaste si quiere que le avisen por correo. Si contesta que sí, llama a permiso_correo con accion=\"anotar\" (si te pide su correo y lo escribe, pásalo en correo tal cual); si dice que no, accion=\"no\". Si habla de otra cosa, atiéndela y no vuelvas a preguntar.";
+  if (permiso === "sin_correo") {
+    return `Novedades por correo: su ficha no tiene correo. No se lo pidas solo para eso; si te lo da (por ejemplo para una cotización), guárdalo con guardar_correo tal como lo escribió y dile lo que te indique la herramienta (casi siempre: que le van a llegar las novedades de D'CASA a ese correo y que puede decir que no cuando quiera). ${siDiceQueNo}`;
   }
   return "";
 }

@@ -562,10 +562,14 @@ despachar. Un método público que usa `sudo()` sin exigir grupo sería una puer
   recibe la propia ficha (no a un contacto hijo ni a varios) y Gerencia lo puede apagar. A Resend solo sube el
   **correo** (sin nombre ni nada más) de quien tiene permiso; a la IA que escribe el texto solo le llegan datos de
   productos (nombre, categoría, atributos, descripción, medidas, material) y la idea que escribe el equipo: ningún dato
-  de clientes. Etapa 1b: el «sí» también llega de la pregunta al confirmar una venta o registrar un pago (origen «En la
-  venta», con quién, cuándo y la venta o el pago) y de Juan por WhatsApp (origen «WhatsApp (Juan)», solo si el último
-  mensaje del cliente después de la pregunta de Juan dice que sí; queda el id de ese mensaje). Un «No» queda con su
-  fecha y no se vuelve a preguntar en 180 días (ajuste `dcasa_camila.dias_entre_preguntas`). El público de cada campaña (los chips del CRM) se muestra en cuántos, nunca en nombres ni correos. Detalle: [CAMILA.md](CAMILA.md).
+  de clientes. Etapa 1b (decisión de la dueña, 2026-11-06): **se activa sola al agregar el correo** a una ficha (origen
+  honesto «Se activó sola al agregar su correo», con quién lo agregó; nunca «tienda»), una ficha a la vez y solo si lo
+  agrega alguien del equipo o Juan con el correo que escribió el cliente: nunca importando, en bloque, instalando, por
+  el sistema, desde la web pública o el portal, con baja o «no contactar» de ese correo en cualquier ficha ni después
+  de un «no», y nada hacia atrás. El «no» queda anotado (cuándo, dónde y quién: desmarcar la casilla, en la venta o
+  con Juan) y con él ya no se activa sola. Al confirmar una venta o registrar un pago, la casilla sale ya activada con
+  su correo (si dijo que no, se desactiva); Juan honra siempre un «no». Cada campaña dice «Te llega porque nos diste
+  tu correo en D'CASA. ¿No quieres más? Date de baja aquí». El público de cada campaña (los chips del CRM) se muestra en cuántos, nunca en nombres ni correos. Detalle: [CAMILA.md](CAMILA.md).
 - **PIN de socios:** PBKDF2-SHA256 con sal por socio y la pimienta `DCASA_PIN_PEPPER`, que vive fuera de la base
   (`dcasa_socios/models/res_partner.py`). Un volcado robado sin la pimienta no se puede atacar por fuerza bruta.
   Intentos fallidos bloquean la cuenta; Gerencia reinicia el PIN (queda nota en el historial).

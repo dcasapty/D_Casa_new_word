@@ -1,9 +1,9 @@
 /**
- * Juan pregunta por WhatsApp si el cliente quiere las novedades por correo (Camila etapa 1b, decisión de la dueña,
- * 2026-11-06). Odoo manda `permiso_correo` en /mensaje y /estado: «puedes_preguntar» (se puede, una sola vez y en un buen
- * momento) o «esperando_respuesta» (ya preguntó). La herramienta `permiso_correo` vive en Odoo, con sus candados: solo
- * anota si el último mensaje del cliente, después de ESA pregunta, dice que sí. Si Odoo no manda el dato, Juan no
- * pregunta.
+ * Juan y las novedades por correo (Camila etapa 1b, decisiones de la dueña del 2026-11-06: se activan solas al agregar
+ * el correo y se quitan cuando el cliente dice que no). Odoo manda `permiso_correo` en /mensaje y /estado: «activo» (le
+ * llegan) o «sin_correo» (su ficha no tiene correo). Las herramientas viven en Odoo: `guardar_correo` (el correo que
+ * escribió el cliente; Odoo activa las novedades) y `no_quiere_novedades` (siempre se honra un no). Juan nunca las
+ * activa ni pregunta si las quiere.
  */
 import { describe, expect, it } from "vitest";
 import { CONFIG_POR_DEFECTO } from "../../src/config";
@@ -14,52 +14,63 @@ const base = { canal: "whatsapp_qr" as const, ahora: AHORA_INICIAL, presentacion
 const prompt = (m: ReturnType<typeof crearMundo>) => JSON.stringify(m.modelo.doGenerateCalls.at(-1)?.prompt ?? "");
 
 describe("permiso_correo", () => {
-  it("con «puedes_preguntar», Juan sabe cuándo y cómo preguntar (una vez, y la herramienta antes)", () => {
-    const c = contextoDelChat(CONFIG_POR_DEFECTO, { ...base, permisoDeCorreo: "puedes_preguntar" });
-    expect(c).toMatch(/novedades por correo/i);
-    expect(c).toMatch(/permiso_correo/);
-    expect(c).toMatch(/accion="preguntar"/);
-    expect(c).toMatch(/una sola vez/i);
-    expect(c).toMatch(/cuando te dé su correo|después de mandarle una cotización/);
-    expect(c).toMatch(/nunca lo anotes sin que (lo diga|diga que sí)/i);
+  it("con «activo», si el cliente dice que no (aunque sea con dudas) Juan lo honra con la herramienta", () => {
+    const c = contextoDelChat(CONFIG_POR_DEFECTO, { ...base, permisoDeCorreo: "activo" });
+    expect(c).toMatch(/recibe las novedades de D'CASA en su correo/);
+    expect(c).toMatch(/no_quiere_novedades/);
+    expect(c).toMatch(/claro o con dudas/);
+    expect(c).toMatch(/siempre se respeta un no/i);
+    expect(c).toMatch(/nunca las activas ni le preguntas si las quiere/i);
+    expect(c).not.toMatch(/guardar_correo/);
   });
 
-  it("con «esperando_respuesta», si dice que sí lo anota con la herramienta (y si no, no insiste)", () => {
-    const c = contextoDelChat(CONFIG_POR_DEFECTO, { ...base, permisoDeCorreo: "esperando_respuesta" });
-    expect(c).toMatch(/accion="anotar"/);
-    expect(c).toMatch(/accion="no"/);
-    expect(c).toMatch(/no vuelvas a preguntar/i);
+  it("con «sin_correo», si da su correo lo guarda y le avisa que le llegarán (y que puede decir que no)", () => {
+    const c = contextoDelChat(CONFIG_POR_DEFECTO, { ...base, permisoDeCorreo: "sin_correo" });
+    expect(c).toMatch(/guardar_correo/);
+    expect(c).toMatch(/tal como lo escribió/);
+    expect(c).toMatch(/puede decir que no cuando quiera/);
+    expect(c).toMatch(/no se lo pidas solo para eso/i);
+    expect(c).toMatch(/no_quiere_novedades/);
   });
 
-  it("sin el dato de Odoo, Juan no pregunta por las novedades", () => {
+  it("sin el dato de Odoo (o con uno que no conoce), nada de novedades", () => {
     const c = contextoDelChat(CONFIG_POR_DEFECTO, base);
-    expect(c).not.toMatch(/permiso_correo/);
-    expect(contextoDelChat(CONFIG_POR_DEFECTO, { ...base, permisoDeCorreo: "cualquier otra cosa" })).not.toMatch(/permiso_correo/);
+    expect(c).not.toMatch(/no_quiere_novedades|guardar_correo/);
+    for (const viejo of ["puedes_preguntar", "esperando_respuesta", "cualquier otra cosa"]) {
+      expect(contextoDelChat(CONFIG_POR_DEFECTO, { ...base, permisoDeCorreo: viejo })).not.toMatch(/no_quiere_novedades/);
+    }
   });
 
-  it("llega en la respuesta de Odoo a /mensaje y, cuando Odoo ya no lo manda, el bot no pregunta", async () => {
+  it("llega en la respuesta de Odoo a /mensaje y, cuando Odoo ya no lo manda, se va del prompt", async () => {
     const m = crearMundo();
     m.guion([{ texto: "Listo, te mando la cotización." }, { texto: "¡Perfecto!" }]);
-    m.odoo.estadoActual = { ...m.odoo.estadoActual, permiso_correo: "puedes_preguntar" };
-    await m.conversar("Hola, mi correo es carla.zzcm@example.com, ¿me mandas la cotización?");
-    expect(prompt(m)).toContain("permiso_correo");
+    m.odoo.estadoActual = { ...m.odoo.estadoActual, permiso_correo: "activo" };
+    await m.conversar("Hola, ¿me mandas la cotización?");
+    expect(prompt(m)).toContain("no_quiere_novedades");
     m.odoo.estadoActual = { ...m.odoo.estadoActual, permiso_correo: undefined };
     await m.conversar("gracias");
-    expect(prompt(m)).not.toContain("accion=\\\"preguntar\\\"");
+    expect(prompt(m)).not.toContain("no_quiere_novedades");
   });
 
-  it("la herramienta de Odoo llega al modelo como cualquier otra (la publica Odoo con Camila instalada)", async () => {
+  it("las herramientas de Odoo llegan al modelo como cualquier otra (las publica Odoo con Camila instalada)", async () => {
     const m = crearMundo();
     m.odoo.defs = [
       ...m.odoo.defs,
       {
-        nombre: "permiso_correo",
-        descripcion: "El permiso del cliente para recibir las novedades por correo.",
-        parametros: { type: "object", properties: { accion: { type: "string", enum: ["preguntar", "anotar", "no"] } }, required: ["accion"] },
+        nombre: "guardar_correo",
+        descripcion: "Guarda en su ficha el correo que el cliente te escribió en el chat.",
+        parametros: { type: "object", properties: { correo: { type: "string" } }, required: ["correo"] },
+      },
+      {
+        nombre: "no_quiere_novedades",
+        descripcion: "El cliente no quiere recibir novedades por correo.",
+        parametros: { type: "object", properties: {} },
       },
     ];
     m.guion([{ texto: "Claro." }]);
     await m.conversar("hola");
-    expect(JSON.stringify(m.modelo.doGenerateCalls.at(-1)?.tools ?? [])).toContain("permiso_correo");
+    const herramientas = JSON.stringify(m.modelo.doGenerateCalls.at(-1)?.tools ?? []);
+    expect(herramientas).toContain("guardar_correo");
+    expect(herramientas).toContain("no_quiere_novedades");
   });
 });

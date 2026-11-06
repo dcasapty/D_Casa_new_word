@@ -21,9 +21,9 @@ RAIZ = '/dcasa/juan/v1'
 PUBLICAS = {'buscar_productos', 'ver_producto', 'listar_categorias', 'reglas_socios', 'horario_y_tienda',
             'saldo_puntos', 'crear_oportunidad', 'anotar_conversacion', 'pasar_a_vendedora',
             'buscar_conocimiento', 'registrar_pregunta_sin_respuesta', 'etiquetar_conversacion', 'cotizar'}
-# Las que agregan otros módulos cuando están instalados (dcasa_camila: el permiso de las novedades por correo).
-DE_OTROS_MODULOS = {'permiso_correo'}
-# Lo mismo con las claves de la respuesta de /mensaje y /estado (dcasa_camila: si Juan puede preguntar).
+# Las que agregan otros módulos cuando están instalados (dcasa_camila: el correo del cliente y el «no» a las novedades).
+DE_OTROS_MODULOS = {'guardar_correo', 'no_quiere_novedades'}
+# Lo mismo con las claves de la respuesta de /mensaje y /estado (dcasa_camila: las novedades por correo).
 CLAVES_DE_OTROS_MODULOS = {'permiso_correo'}
 RUTAS = (('POST', 'mensaje'), ('GET', 'estado'), ('GET', 'config'), ('GET', 'herramientas'), ('POST', 'herramienta'),
          ('POST', 'seguimiento/hecho'), ('POST', 'escribiendo'), ('POST', 'foto-perfil'))

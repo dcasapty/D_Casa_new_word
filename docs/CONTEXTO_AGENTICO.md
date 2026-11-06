@@ -678,6 +678,14 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
       `dcasa_brian` (`test_contrato_para_modelos_pequenos`: la descripción de una herramienta, menos de 260 letras; el
       detalle va en los parámetros y en el prompt). Solo se ven con los módulos instalados juntos: correr la lista
       completa, no solo el módulo propio.
+    - Algo que se dispara «cuando una persona agrega un correo» (la activación automática de las novedades) se decide
+      por `self.env.uid` (interno y distinto de `SUPERUSER_ID`), no por `env.su`: el código de la vendedora suele
+      escribir con `sudo()` y el `uid` sigue siendo el de ella. Así quedan fuera solos los crones, los scripts, las
+      migraciones y los datos de los módulos (corren como `SUPERUSER_ID`), y también las pruebas que crean fichas con
+      `self.env` (que es `SUPERUSER_ID`): las pruebas viejas no cambian y las nuevas usan `with_user(vendedora)`.
+      Además: `import_file`, `install_mode`, `registry.ready` y una sola ficha por escritura.
+    - Una ficha de usuario nuevo se crea por `_inherits` dentro de `res.users.create`: para que no se active nada ahí,
+      `res.users.create` pone una marca en el contexto (`dcasa_promos_sin_auto`).
 - **Calculadora de envíos (2026-11-06, `dcasa_envios`), lo aprendido:**
   - Un `<input type="number" step="0.1">` dentro de un `<form>` **bloquea el envío** si el valor no es múltiplo del paso
     (7.04): el navegador no llama al `submit` y no hay error visible. Lo atrapó la prueba en el navegador; ahora

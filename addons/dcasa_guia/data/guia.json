@@ -1636,9 +1636,9 @@
    "id": "camila-permiso",
    "categoria": "clientes",
    "grupo": "Correo",
-   "titulo": "Anotar que un cliente quiere recibir novedades por correo",
-   "logras": "Al confirmar una venta o registrar un pago, Odoo te pregunta «¿Quiere recibir novedades de D'CASA por correo?»: se lo preguntas al cliente y tocas «Sí» o «No» (si dice que sí y no tiene correo, el mismo cuadro te lo pide). También puedes marcarlo en su ficha, en «Quiere recibir novedades y promociones por correo». Queda con la fecha, con tu nombre, con su correo y con la venta. Si pide que no le escriban más, tocas «Darle de baja».",
-   "nota": "Toca «Sí» solo si el cliente dijo que sí. A quien dice que no, no se le vuelve a preguntar en un buen tiempo; a quien ya dijo que sí, se dio de baja o pidió que no lo contacten, no se le pregunta. Juan también lo pregunta por WhatsApp y se anota solo si el cliente contesta que sí. Si cambia de correo, hay que volver a preguntarle. Desmarcarla quita el permiso, pero no es la baja. También dicen que sí con el enlace «Sí, quiero» al pie del correo de su factura o de la bienvenida. Una baja es final para ese correo: no se vuelve a marcar.",
+   "titulo": "Novedades por correo: se activan solas con su correo y se quitan si dice que no",
+   "logras": "Cuando le agregas el correo a la ficha de un cliente, la casilla «Quiere recibir novedades y promociones por correo» se activa sola y la ficha dice «Se activó sola al agregar su correo». Si el cliente te dice que no, la desmarcas: queda anotado y ya no se activa sola. Al confirmar una venta o registrar un pago te sale la casilla ya activada con su correo: si el cliente dijo que no, la desactivas y tocas «Listo» (si no tiene correo, te pregunta «Sí» o «No» y te lo pide). Si pide que no le escriban más, tocas «Darle de baja».",
+   "nota": "Si el cliente te dijo que sí de verdad, toca «El cliente dijo que sí» en su ficha. Juan también guarda el correo que el cliente le escribe y le avisa que le llegarán las novedades; si el cliente le dice que no, Juan las quita. Nunca se activan solas importando clientes, ni a quien se dio de baja, pidió que no lo contacten o ya dijo que no. Cada correo de novedades dice «Te llega porque nos diste tu correo en D'CASA. ¿No quieres más? Date de baja aquí». Desmarcarla no es la baja: la baja es final para ese correo.",
    "destino": {
     "menu": "contacts.res_partner_menu_contacts"
    },
@@ -1653,7 +1653,10 @@
     "consentimiento correo",
     "pregunta al confirmar",
     "pregunta al cobrar",
-    "novedades en la venta"
+    "novedades en la venta",
+    "se activa sola",
+    "dijo que no",
+    "quitar novedades"
    ]
   },
   {

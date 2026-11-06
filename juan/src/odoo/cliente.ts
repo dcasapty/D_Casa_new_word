@@ -62,9 +62,9 @@ export interface RespuestaMensaje {
    */
   campana_correo?: string | null;
   /**
-   * El permiso de las novedades por correo (Camila etapa 1b): «puedes_preguntar» (Juan puede preguntarlo, una vez y en un
-   * buen momento) o «esperando_respuesta» (ya preguntó). Si el campo no viene, Juan no pregunta. Lo anota Odoo con la
-   * herramienta `permiso_correo`, que revisa que el cliente haya dicho que sí a ESA pregunta.
+   * Las novedades por correo (Camila etapa 1b; la dueña: se activan solas al agregar el correo): «activo» (le llegan; si
+   * dice que no las quiere, Juan llama a `no_quiere_novedades`) o «sin_correo» (su ficha no tiene correo: si lo da, Juan
+   * lo guarda con `guardar_correo` y le avisa que le llegarán). Si el campo no viene, nada. Juan nunca las activa.
    */
   permiso_correo?: string | null;
 }

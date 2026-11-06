@@ -105,21 +105,28 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 > sigue. Se guardan las diez más recientes; las viejas se resumen en una línea abajo y su texto completo pasa a
 > [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md).
 
-### 2026-11-06 (6): Camila etapa 1b: la lista de las novedades crece sola (en la venta y con Juan), sin desplegar
+### 2026-11-06 (6): Camila etapa 1b: la lista de las novedades crece sola (se activa al agregar el correo), sin desplegar
 
-- La dueña vio «0 clientes con permiso» de unos 3,000 y no quiere marcar a nadie de golpe ([CAMILA.md](CAMILA.md) §1c):
-  **al confirmar una venta o registrar un pago desde la pantalla**, Odoo pregunta «¿Quiere recibir novedades por
-  correo? Sí / No» (sin la X; si no tiene correo, lo pide y lo guarda con las reglas de contactos). Sale DESPUÉS de
-  confirmar o pagar y solo con la marca de los botones de la pantalla: nunca traba la venta ni el pago, ni sale en
-  Juan, la web, Brian, crones o RPC. Queda «En la venta» con quién, cuándo y la venta o el pago; un «No», 180 días
-  sin volver a preguntar (ajuste `dcasa_camila.dias_entre_preguntas`).
-- **Juan por WhatsApp**: herramienta `permiso_correo` (preguntar, anotar, no) con candados: el id del mensaje del bot
-  que preguntó, el último mensaje del cliente después y en menos de 6 horas, un sí claro sin negación, el correo
-  escrito por el cliente. `permiso_correo` en `/mensaje` y `/estado`; el prompt de Juan solo pregunta con ese dato.
-  Queda «WhatsApp (Juan)» con el id del mensaje del cliente.
-- La pantalla de Camila cuenta por camino. Pruebas: `test_etapa1b.py` (25 de 27 en rojo sobre el código de antes; las
-  otras dos son resguardo) y `juan/test/dcasa/permiso-correo.test.ts` (3 de 5 en rojo). **Sin push ni despliegue**:
-  espera la revisión adversarial; al desplegar va también el Worker de Juan.
+- La dueña vio «0 clientes con permiso» de unos 3,000 y no quiere marcar a nadie de golpe ([CAMILA.md](CAMILA.md) §1c).
+  Primero se hizo una pregunta «Sí / No» en cada venta y Juan preguntando por WhatsApp (commit `55a6f4b`); ese mismo
+  día la dueña cambió el diseño: «en el momento en el que se añade un correo, ya debe activarse automáticamente».
+- **Se activa sola** al crear la ficha con correo, al agregárselo o cambiarlo, con «Guarda sus datos» de Sofía y
+  cuando Juan guarda el correo que escribió el cliente: origen honesto «Se activó sola al agregar su correo» (nunca
+  «tienda»), con quién; la ficha lo dice hasta que una persona toca «El cliente dijo que sí». Nunca con baja o «no
+  contactar» del correo en cualquier ficha, después de un «no», importando, en bloque, instalando, por el sistema
+  (`SUPERUSER_ID`), desde la web pública o el portal, y nada hacia atrás. El «no» queda anotado (cuándo, dónde, quién)
+  y con él ya no se activa sola.
+- **Al confirmar una venta o registrar un pago desde la pantalla**, la casilla sale ya activada con su correo (si el
+  cliente dijo que no, se desactiva: queda el «no»); sin correo, «Sí / No» y lo pide. Sale DESPUÉS de confirmar o
+  pagar y solo con la marca de los botones: nunca traba la venta ni el pago. No vuelve a salir en 180 días (ajuste
+  `dcasa_camila.dias_entre_preguntas`).
+- **Juan** nunca las activa: `guardar_correo` (el correo que escribió el cliente; le avisa que le llegarán y que
+  puede decir que no) y `no_quiere_novedades` (siempre honra un no). `permiso_correo` en `/mensaje` y `/estado`:
+  «activo» o «sin_correo». El pie de cada campaña: «Te llega porque nos diste tu correo en D'CASA. ¿No quieres más?
+  Date de baja aquí».
+- La pantalla de Camila cuenta por camino. Pruebas: `test_etapa1b.py` (primero en rojo sobre el código de antes) y
+  `juan/test/dcasa/permiso-correo.test.ts` (3 de 5 en rojo). **Sin push ni despliegue**: espera la revisión
+  adversarial; al desplegar va también el Worker de Juan.
 
 ### 2026-11-06 (5): Camila etapa 2 («a lo grande, todo conectado con todo»), en producción
 

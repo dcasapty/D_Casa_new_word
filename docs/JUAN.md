@@ -309,12 +309,12 @@ Entrada: `env.DCASA.fetch("https://dcasa/dcasa/juan/v1/…")` por **service bind
   (sin ella, la borra) y la pone en el contexto del chat como un dato de Odoo, no una orden: Juan reconoce el correo
   con naturalidad, pregunta qué le interesó, no repite el código «DCN-…» y los precios los da la herramienta de
   siempre. Detalle: [CAMILA.md](CAMILA.md) §3.9.
-- `permiso_correo` (2026-11-06, `dcasa_camila`, etapa 1b, decisión de la dueña): «puedes_preguntar» (Juan puede ofrecerle
-  las novedades por correo, una sola vez y en un buen momento: cuando da su correo o después de una cotización) o
-  «esperando_respuesta» (ya preguntó). Si no viene, Juan no pregunta. Va con la herramienta `permiso_correo`
-  («preguntar», «anotar», «no»), que publica Odoo solo con Camila instalada y que solo anota si el último mensaje del
-  cliente, después de LA pregunta del bot (Odoo guarda su id) y en menos de 6 horas, dice que sí de forma clara; sin
-  correo, Juan se lo pide y tiene que escribirlo el cliente. Detalle: [CAMILA.md](CAMILA.md) §3.11.
+- `permiso_correo` (2026-11-06, `dcasa_camila`, etapa 1b, decisión de la dueña: las novedades se activan solas al
+  agregar el correo): «activo» (le llegan: si dice que no, claro o con dudas, Juan llama a `no_quiere_novedades`) o
+  «sin_correo» (si da su correo, Juan lo guarda con `guardar_correo` y le dice que le llegarán las novedades y que
+  puede decir que no cuando quiera). Si no viene, nada. Juan nunca las activa por su cuenta ni pregunta si las quiere.
+  Las dos herramientas las publica Odoo solo con Camila instalada; `guardar_correo` solo guarda un correo que el
+  cliente escribió en el chat, si la ficha no tiene uno. Detalle: [CAMILA.md](CAMILA.md) §3.11.
 - `adjuntos[].url`: si es `null` (el Worker no tiene `URL_PUBLICA`), el mensaje **se guarda igual** y el adjunto cuenta como
   «no se pudo traer» (`adjuntos_fallidos`); antes se rechazaba todo el mensaje con 400.
 - `POST /herramienta` con `pasar_a_vendedora` devuelve `{texto_para_el_cliente, dentro_de_horario, urgente}`: **el texto que el bot

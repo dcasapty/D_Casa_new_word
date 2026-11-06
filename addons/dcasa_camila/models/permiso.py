@@ -19,17 +19,26 @@ historial:
   permiso pero NO es la baja: la baja final solo sale del botón, que pide confirmación.
 * Los campos no se escriben a mano ni por RPC: solo el sistema, desde la casilla, el botón, el enlace o el cron.
 * Al fusionar dos fichas se conserva el permiso más reciente y cualquier baja manda (``partner_merge.py``).
-* **Etapa 1b (decisión de la dueña, 2026-11-06): la lista crece sola**, sin marcar a nadie de golpe. Dos caminos
-  nuevos: **«En la venta»** (``venta``: Odoo le pregunta a la persona del equipo al confirmar una venta o registrar un
-  pago desde la pantalla, ``pregunta.py``) y **«WhatsApp (Juan)»** (``juan_whatsapp``: Juan lo pregunta y Odoo solo lo
-  anota si el cliente contestó que sí a ESA pregunta, ``juan_permiso.py``). Queda con quién, cuándo y la referencia
-  (la venta, el pago o el mensaje del cliente). Un «No» queda con su fecha y no se vuelve a preguntar en
-  ``dcasa_camila.dias_entre_preguntas`` días (180 de fábrica); Juan tampoco pregunta dos veces en ese plazo.
+* **Etapa 1b (decisiones de la dueña, 2026-11-06): la lista crece sola**, sin marcar a nadie de golpe.
+  - **Se activa sola al agregar el correo** («en el momento en el que se añade un correo, ya debe activarse
+    automáticamente»): cuando la ficha comercial pasa de no tener un correo bien escrito a tenerlo, o a otro distinto,
+    queda con permiso y el origen honesto ``al_agregar_correo`` («Se activó sola al agregar su correo», con quién lo
+    agregó), nunca «tienda». La ficha lo muestra así hasta que una persona lo confirma. Una ficha a la vez y solo si
+    lo agrega una persona del equipo (o Juan con el correo que escribió el cliente): nunca importando, instalando
+    módulos, en escrituras de muchas fichas, desde la web pública ni por el sistema (``SUPERUSER_ID``), y nada hacia
+    atrás. Nunca con baja o «no contactar» de ese correo (en cualquier ficha) ni si alguien ya anotó un «no».
+  - **El «no» queda anotado** (``dcasa_promos_no_*``: cuándo, por dónde y quién): desmarcar la casilla, el «no» en la
+    venta o el que el cliente le dice a Juan. Con un «no», la casilla nunca se vuelve a activar sola (solo una persona
+    puede volver a marcarla si el cliente cambia de idea).
+  - **En la venta** (``pregunta.py``): al confirmar una venta o registrar un pago desde la pantalla, un cuadro con la
+    casilla ya activada y su correo (si el cliente dijo que no, se desactiva); sin correo, «Sí / No» y lo pide.
+  - **Juan** (``juan_permiso.py``) guarda el correo que el cliente escribió (se activa sola, y le avisa que puede decir
+    que no) y honra siempre un «no». Nunca las activa por su cuenta.
 """
 import logging
 from datetime import timedelta
 
-from odoo import api, fields, models
+from odoo import SUPERUSER_ID, api, fields, models
 from odoo.addons.dcasa_correo.models.correo import correo_valido
 from odoo.addons.dcasa_sofia.models import reglas as reglas_sofia
 from odoo.exceptions import AccessError, UserError
@@ -45,8 +54,17 @@ ORIGENES = [
     ('bienvenida', 'Enlace del correo de bienvenida'),
     ('sofia_whatsapp', 'WhatsApp (pidió Sofía)'),
     ('web', 'Sitio web'),
-    ('venta', 'En la venta (se le preguntó al confirmar o cobrar)'),
+    ('venta', 'En la venta (al confirmar o cobrar)'),
     ('juan_whatsapp', 'WhatsApp (Juan)'),
+    ('al_agregar_correo', 'Se activó sola al agregar su correo'),
+]
+# La activación automática (cambio de la dueña, 2026-11-06): nunca se registra como «tienda».
+AUTOMATICO = 'al_agregar_correo'
+# Dónde quedó el «no» (desmarcar la casilla, en la venta o con Juan): con él, la casilla no se activa sola nunca más.
+ORIGENES_NO = [
+    ('ficha', 'Desmarcó la casilla de su ficha'),
+    ('venta', 'En la venta (al confirmar o cobrar)'),
+    ('juan_whatsapp', 'Se lo dijo a Juan en el chat'),
 ]
 ORIGENES_BAJA = [
     ('correo', 'Con el enlace del correo de la campaña'),
@@ -55,15 +73,17 @@ ORIGENES_BAJA = [
 CAMPOS_PERMISO = frozenset({
     'dcasa_promos_fecha', 'dcasa_promos_origen', 'dcasa_promos_usuario_id', 'dcasa_promos_correo',
     'dcasa_promos_baja_fecha', 'dcasa_promos_baja_origen', 'dcasa_promos_baja_usuario_id',
-    'dcasa_promos_referencia', 'dcasa_promos_no_fecha', 'dcasa_promos_pregunta_fecha',
+    'dcasa_promos_referencia', 'dcasa_promos_no_fecha', 'dcasa_promos_no_origen', 'dcasa_promos_no_usuario_id',
+    'dcasa_promos_pregunta_fecha',
 })
 SIN_PERMISO = {'dcasa_promos_fecha': False, 'dcasa_promos_origen': False, 'dcasa_promos_usuario_id': False,
                'dcasa_promos_correo': False, 'dcasa_promos_referencia': False}
 # Cómo se llama cada camino en la pantalla de Camila (los conteos de la etapa 1b). «web» solo si hay alguno.
-CAMINOS = [('venta', 'En la venta'), ('juan_whatsapp', 'Juan (WhatsApp)'), ('factura', 'Enlace de la factura'),
+CAMINOS = [('al_agregar_correo', 'Al agregar su correo'), ('venta', 'En la venta'),
+           ('juan_whatsapp', 'Juan (WhatsApp)'), ('factura', 'Enlace de la factura'),
            ('bienvenida', 'Enlace de bienvenida'), ('sofia_whatsapp', 'Sofía (WhatsApp)'),
            ('tienda', 'Casilla de la ficha'), ('web', 'Sitio web')]
-# Cuántos días no se vuelve a preguntar a quien dijo que no (y Juan, a quien ya preguntó): un ajuste.
+# Cuántos días el cuadro de la venta no vuelve a salir (después de mostrarlo o de un «no»): un ajuste.
 P_DIAS_PREGUNTA = 'dcasa_camila.dias_entre_preguntas'
 DIAS_PREGUNTA = 180
 # Sofía: lo que el cliente contesta hasta 2 días después de que se le pidió (como Sofía, docs/SOFIA.md) y hasta cuándo
@@ -91,10 +111,15 @@ class ResPartner(models.Model):
         help='La venta, el pago o el mensaje del chat en que el cliente dijo que sí.')
     dcasa_promos_no_fecha = fields.Datetime(
         'Novedades: dijo que no el', readonly=True, copy=False, tracking=True,
-        help='No se le vuelve a preguntar hasta que pasen los días del ajuste (180 de fábrica).')
+        help='Con un «no» la casilla ya no se activa sola al agregar un correo (solo una persona puede volver a '
+             'marcarla) y el cuadro de la venta no sale hasta que pasen los días del ajuste (180 de fábrica).')
+    dcasa_promos_no_origen = fields.Selection(ORIGENES_NO, 'Novedades: dónde dijo que no', readonly=True,
+                                              copy=False, tracking=True)
+    dcasa_promos_no_usuario_id = fields.Many2one('res.users', 'Novedades: anotó el no', readonly=True, copy=False,
+                                                 tracking=True, ondelete='set null')
     dcasa_promos_pregunta_fecha = fields.Datetime(
         'Novedades: se le preguntó el', readonly=True, copy=False,
-        help='La última vez que se le preguntó (en la venta o por WhatsApp).')
+        help='La última vez que salió el cuadro de la venta para esta ficha.')
     dcasa_promos_baja_fecha = fields.Datetime(
         'Novedades: se dio de baja el', readonly=True, copy=False, tracking=True,
         help='Con baja no se le vuelve a escribir ninguna campaña: es final.')
@@ -104,7 +129,8 @@ class ResPartner(models.Model):
                                                    tracking=True, ondelete='set null')
     dcasa_promos = fields.Boolean(
         'Quiere recibir novedades por correo', compute='_compute_dcasa_promos', inverse='_inverse_dcasa_promos',
-        help='Márcalo solo si el cliente dijo que sí. Queda con la fecha, con tu nombre y con su correo.')
+        help='Se activa sola al agregar su correo. Desmárcala si el cliente dice que no (queda anotado y ya no se '
+             'activa sola). Queda con la fecha, con quién y con su correo.')
     dcasa_promos_estado = fields.Selection(
         [('sin', 'Sin permiso'), ('si', 'Con permiso'), ('otro_correo', 'Cambió de correo'),
          ('baja', 'Se dio de baja')], 'Novedades por correo', compute='_compute_dcasa_promos_estado')
@@ -161,7 +187,7 @@ class ResPartner(models.Model):
         partner = cambian[0]
         ficha = partner.commercial_partner_id
         if not partner.dcasa_promos:
-            ficha._dcasa_promos_quitar(self.env.user)
+            ficha._dcasa_promos_anotar_no('ficha', self.env.user)
             return
         if estados[partner] == 'baja':
             raise UserError(self.env._(
@@ -173,71 +199,54 @@ class ResPartner(models.Model):
         ficha._dcasa_promos_registrar('tienda', self.env.user)
 
     def write(self, vals):
-        """El permiso solo lo escribe el sistema (la casilla, el botón, el enlace o el cron), nunca a mano."""
+        """El permiso solo lo escribe el sistema (la casilla, el botón, el enlace o el cron), nunca a mano. Si una
+        persona le agrega (o le cambia) el correo a UNA ficha, las novedades se activan solas
+        (``_dcasa_promos_activar_al_agregar_correo``)."""
         if CAMPOS_PERMISO.intersection(vals) and not self.env.su:
             raise AccessError(self.env._(
                 'El permiso de novedades se marca con su casilla y la baja con su botón; no se escribe a mano.'))
-        return super().write(vals)
+        vigilar = 'email' in vals and len(self) == 1 and self._dcasa_promos_auto_permitido()
+        antes = correo_valido(self.commercial_partner_id.sudo().email) if vigilar else None
+        resultado = super().write(vals)
+        if vigilar:
+            self._dcasa_promos_activar_al_agregar_correo(antes)
+        return resultado
 
     @api.model_create_multi
     def create(self, vals_list):
         if not self.env.su and any(CAMPOS_PERMISO.intersection(vals) for vals in vals_list):
             raise AccessError(self.env._('El permiso de novedades no se escribe a mano.'))
-        return super().create(vals_list)
+        partners = super().create(vals_list)
+        # Una ficha a la vez (crear muchas de una vez, p. ej. importando, nunca las activa) y solo la ficha comercial:
+        # el correo de un contacto hijo no cambia el de su ficha.
+        if len(partners) == 1 and partners.email and partners.commercial_partner_id == partners \
+                and self._dcasa_promos_auto_permitido():
+            partners._dcasa_promos_activar_al_agregar_correo(None)
+        return partners
 
     # ------------------------------------------------------------------
-    # Anotar el sí, quitarlo y la baja
-    # ------------------------------------------------------------------
-
-    def _dcasa_promos_registrar(self, origen, usuario=None, fecha=None, referencia=None):
-        """Anota el «sí» en la ficha comercial (con quién, cuándo y a qué correo). Exige poder escribir la ficha (salvo
-        el sistema).
-
-        Nunca toca una ficha sin correo bien escrito, una que ya dijo que sí con ese mismo correo, ni una cuyo correo se
-        dio de baja en CUALQUIER ficha (la baja es final). Si dijo que sí con otro correo, queda el «sí» del nuevo.
-        Devuelve las fichas que quedaron con el permiso nuevo."""
-        if origen not in dict(ORIGENES):
-            raise ValueError(origen)
-        if not self.env.su:
-            self.check_access('write')
-        fichas = self.commercial_partner_id.sudo()
-        correos = {ficha: correo_valido(ficha.email) for ficha in fichas}
-        bloqueos = self._dcasa_promos_bloqueos_por_correo(correos.values())
-        nuevas = fichas.filtered(lambda f: correos[f] and not f.dcasa_promos_baja_fecha
-                                 and bloqueos.get(correos[f]) != 'baja'
-                                 and not (f.dcasa_promos_fecha and f.dcasa_promos_correo == correos[f]))
-        usuario = usuario if usuario and not usuario._is_public() else self.env['res.users']
-        for ficha in nuevas:
-            ficha.write({
-                'dcasa_promos_fecha': fecha or fields.Datetime.now(),
-                'dcasa_promos_origen': origen,
-                'dcasa_promos_usuario_id': usuario.id or False,
-                'dcasa_promos_correo': correos[ficha],
-                'dcasa_promos_referencia': (referencia or '')[:120] or False,
-                'dcasa_promos_pregunta_fecha': fields.Datetime.now(),
-                'dcasa_promos_no_fecha': False,
-            })
-        return nuevas
-
-    # ------------------------------------------------------------------
-    # Preguntar (etapa 1b): en la venta y por WhatsApp
+    # Se activa sola al agregar el correo (cambio de la dueña, 2026-11-06)
     # ------------------------------------------------------------------
 
     @api.model
-    def _dcasa_promos_dias_pregunta(self):
-        """Los días sin volver a preguntar (``dcasa_camila.dias_entre_preguntas``, 180 de fábrica; de 1 a 3650)."""
-        valor = self.env['ir.config_parameter'].sudo().get_param(P_DIAS_PREGUNTA)
-        try:
-            dias = int(valor) if valor not in (None, False, '') else DIAS_PREGUNTA
-        except (TypeError, ValueError):
-            dias = DIAS_PREGUNTA
-        return min(max(dias, 1), 3650)
+    def _dcasa_promos_auto_permitido(self):
+        """¿Esta escritura puede activar sola las novedades? Solo si la hace una persona del equipo (``uid`` interno,
+        aunque el código use ``sudo``) y no es una importación, la instalación de un módulo (sus datos) ni el sistema
+        (crones, scripts y migraciones corren como ``SUPERUSER_ID``): así nadie da de alta en bloque a los clientes
+        de siempre. La web pública y el portal tampoco (alguien podría escribir el correo de otro en un formulario;
+        el «sí» desde la web es la etapa siguiente). Juan, que no es del equipo, lo llama aparte con el correo que
+        escribió el cliente (``juan_permiso.py``)."""
+        contexto = self.env.context
+        if contexto.get('import_file') or contexto.get('install_mode') or contexto.get('dcasa_promos_sin_auto') \
+                or not self.env.registry.ready or self.env.uid == SUPERUSER_ID:
+            return False
+        return self.env.user._is_internal()
 
-    def _dcasa_promos_motivo_para_no_preguntar(self, juan=False):
-        """``None`` si a esta ficha se le puede preguntar si quiere las novedades; si no, por qué (para las pruebas y
-        el registro). No se pregunta: a una ficha archivada o de empresa (sin persona), del equipo, que ya tiene permiso
-        con su correo de hoy, con baja o «no contactar» (por correo, en cualquier ficha), ni a quien dijo que no hace
-        menos del ajuste. ``juan``: tampoco si ya se le preguntó en ese plazo (Juan pregunta una vez)."""
+    def _dcasa_promos_motivo_para_no_activar(self):
+        """``None`` si esta ficha puede quedar con las novedades activadas solas; si no, por qué: ``empresa``
+        (archivada o de empresa, sin persona), ``equipo``, ``baja`` (baja o «no contactar» de su correo en CUALQUIER
+        ficha, o de la ficha), ``dijo_que_no`` (alguien anotó un «no», de cuando sea), ``ya_confirmado`` (ya dijo que
+        sí con su correo de hoy, por un camino que no es el automático) o ``ya_activada`` (ya se activó sola)."""
         self.ensure_one()
         ficha = self.commercial_partner_id.sudo()
         if not ficha.active or ficha.is_company:
@@ -248,38 +257,140 @@ class ResPartner(models.Model):
         if (equipo and not equipo.share) or ficha in self.env['res.company'].sudo().search([]).partner_id \
                 or (correo and correo in self._dcasa_correos_del_equipo()):
             return 'equipo'
-        if ficha.dcasa_no_contactar or ficha.dcasa_promos_baja_fecha:
+        if ficha.dcasa_no_contactar or ficha.dcasa_promos_baja_fecha \
+                or (correo and self._dcasa_promos_bloqueos_por_correo([correo]).get(correo)):
             return 'baja'
-        if correo:
-            bloqueo = self._dcasa_promos_bloqueos_por_correo([correo]).get(correo)
-            if bloqueo:
-                return 'baja'
-            if ficha.dcasa_promos_fecha and ficha.dcasa_promos_correo == correo:
-                return 'ya_dijo_que_si'
-        corte = fields.Datetime.now() - timedelta(days=self._dcasa_promos_dias_pregunta())
-        if ficha.dcasa_promos_no_fecha and ficha.dcasa_promos_no_fecha > corte:
+        if ficha.dcasa_promos_no_fecha:
             return 'dijo_que_no'
-        if juan and ficha.dcasa_promos_pregunta_fecha and ficha.dcasa_promos_pregunta_fecha > corte:
-            return 'ya_se_le_pregunto'
+        if correo and ficha.dcasa_promos_fecha and ficha.dcasa_promos_correo == correo:
+            return 'ya_activada' if ficha.dcasa_promos_origen == AUTOMATICO else 'ya_confirmado'
         return None
 
-    def _dcasa_promos_anotar_pregunta(self):
-        """Se le preguntó (hoy): Juan no vuelve a preguntar en el plazo del ajuste."""
-        self.commercial_partner_id.sudo().write({'dcasa_promos_pregunta_fecha': fields.Datetime.now()})
+    def _dcasa_promos_activar_al_agregar_correo(self, antes, usuario=None, referencia=None):
+        """Si la ficha comercial ahora tiene un correo bien escrito distinto de ``antes``, activa las novedades con el
+        origen honesto «Se activó sola al agregar su correo» y quién lo agregó (salvo los motivos de
+        ``_dcasa_promos_motivo_para_no_activar``). Nunca hace fallar la escritura del correo. Devuelve las fichas que
+        quedaron activadas."""
+        vacio = self.browse()
+        try:
+            with self.env.cr.savepoint():
+                ficha = self.commercial_partner_id.sudo()
+                ahora = correo_valido(ficha.email)
+                if len(ficha) != 1 or not ahora or ahora == antes or ficha._dcasa_promos_motivo_para_no_activar():
+                    return vacio
+                quien = usuario if usuario is not None else self.env.user
+                return ficha._dcasa_promos_registrar(AUTOMATICO, quien, referencia=referencia)
+        except Exception:   # noqa: BLE001 — guardar el correo (una venta, Sofía, Juan) nunca falla por esto
+            _logger.warning('DCASA_CAMILA no se pudieron activar solas las novedades de la ficha %s', self.ids,
+                            exc_info=True)
+            return vacio
 
-    def _dcasa_promos_anotar_no(self):
-        """Dijo que no: no se le vuelve a preguntar en el plazo del ajuste (no es la baja ni quita nada)."""
-        ahora = fields.Datetime.now()
-        self.commercial_partner_id.sudo().write({'dcasa_promos_no_fecha': ahora, 'dcasa_promos_pregunta_fecha': ahora})
+    # ------------------------------------------------------------------
+    # Anotar el sí, quitarlo y la baja
+    # ------------------------------------------------------------------
 
-    def _dcasa_promos_quitar(self, usuario=None):
-        """Desmarcar la casilla: quita el permiso (queda en el historial de la ficha) sin anotar baja."""
+    def _dcasa_promos_registrar(self, origen, usuario=None, fecha=None, referencia=None):
+        """Anota el «sí» en la ficha comercial (con quién, cuándo y a qué correo). Exige poder escribir la ficha (salvo
+        el sistema).
+
+        Nunca toca una ficha sin correo bien escrito, una que ya dijo que sí con ese mismo correo, ni una cuyo correo se
+        dio de baja en CUALQUIER ficha (la baja es final). Si dijo que sí con otro correo, queda el «sí» del nuevo. Un
+        «sí» de verdad (cualquier origen salvo el automático) reemplaza al que se activó solo con el mismo correo: es la
+        persona que lo confirma. Un «sí» borra el «no» anterior. Devuelve las fichas que quedaron con el permiso
+        nuevo."""
+        if origen not in dict(ORIGENES):
+            raise ValueError(origen)
         if not self.env.su:
             self.check_access('write')
-        fichas = self.commercial_partner_id.sudo().filtered('dcasa_promos_fecha')
+        fichas = self.commercial_partner_id.sudo()
+        correos = {ficha: correo_valido(ficha.email) for ficha in fichas}
+        bloqueos = self._dcasa_promos_bloqueos_por_correo(correos.values())
+        nuevas = fichas.filtered(lambda f: correos[f] and not f.dcasa_promos_baja_fecha
+                                 and bloqueos.get(correos[f]) != 'baja'
+                                 and not (f.dcasa_promos_fecha and f.dcasa_promos_correo == correos[f]
+                                          and (origen == AUTOMATICO or f.dcasa_promos_origen != AUTOMATICO)))
+        usuario = usuario if usuario and not usuario._is_public() else self.env['res.users']
+        for ficha in nuevas:
+            ficha.write({
+                'dcasa_promos_fecha': fecha or fields.Datetime.now(),
+                'dcasa_promos_origen': origen,
+                'dcasa_promos_usuario_id': usuario.id or False,
+                'dcasa_promos_correo': correos[ficha],
+                'dcasa_promos_referencia': (referencia or '')[:120] or False,
+                'dcasa_promos_no_fecha': False,
+                'dcasa_promos_no_origen': False,
+                'dcasa_promos_no_usuario_id': False,
+            })
+        return nuevas
+
+    # ------------------------------------------------------------------
+    # El cuadro de la venta y el «no» (etapa 1b)
+    # ------------------------------------------------------------------
+
+    @api.model
+    def _dcasa_promos_dias_pregunta(self):
+        """Los días sin volver a mostrar el cuadro de la venta (``dcasa_camila.dias_entre_preguntas``, 180 de fábrica;
+        de 1 a 3650)."""
+        valor = self.env['ir.config_parameter'].sudo().get_param(P_DIAS_PREGUNTA)
+        try:
+            dias = int(valor) if valor not in (None, False, '') else DIAS_PREGUNTA
+        except (TypeError, ValueError):
+            dias = DIAS_PREGUNTA
+        return min(max(dias, 1), 3650)
+
+    def _dcasa_promos_que_preguntar(self):
+        """El cuadro de la venta para esta ficha: ``(paso, casilla)`` o ``(None, None)`` si no sale.
+
+        * ``casilla``: tiene un correo bien escrito. La casilla viene activada (se le enviarán novedades; si dijo que
+          no, se desactiva), salvo que haya un «no» de hace más del plazo (entonces viene desactivada).
+        * ``pregunta``: sin correo, «Sí / No» y, con «Sí», lo pide.
+
+        No sale: a empresas, al equipo, con baja o «no contactar», a quien ya lo confirmó (un «sí» que no es el
+        automático, con su correo de hoy), ni si el cuadro salió o dijo que no hace menos del ajuste."""
+        self.ensure_one()
+        ficha = self.commercial_partner_id.sudo()
+        motivo = ficha._dcasa_promos_motivo_para_no_activar()
+        if motivo in ('empresa', 'equipo', 'baja', 'ya_confirmado'):
+            return None, None
+        corte = fields.Datetime.now() - timedelta(days=self._dcasa_promos_dias_pregunta())
+        if (ficha.dcasa_promos_pregunta_fecha and ficha.dcasa_promos_pregunta_fecha > corte) \
+                or (ficha.dcasa_promos_no_fecha and ficha.dcasa_promos_no_fecha > corte):
+            return None, None
+        if not correo_valido(ficha.email):
+            return 'pregunta', False
+        return 'casilla', not ficha.dcasa_promos_no_fecha
+
+    def _dcasa_promos_anotar_pregunta(self):
+        """El cuadro de la venta salió hoy: no vuelve a salir en el plazo del ajuste."""
+        self.commercial_partner_id.sudo().write({'dcasa_promos_pregunta_fecha': fields.Datetime.now()})
+
+    def _dcasa_promos_anotar_no(self, origen, usuario=None):
+        """El cliente dijo que no: quita el permiso (queda en el historial) y anota el «no» con cuándo, dónde y quién.
+        No es la baja (esa es final y sube a Resend), pero con un «no» la casilla ya no se activa sola. Exige poder
+        escribir la ficha (salvo el sistema)."""
+        if origen not in dict(ORIGENES_NO):
+            raise ValueError(origen)
+        if not self.env.su:
+            self.check_access('write')
+        fichas = self.commercial_partner_id.sudo()
+        usuario = usuario if usuario and not usuario._is_public() else self.env['res.users']
+        ahora = fields.Datetime.now()
         if fichas:
-            fichas.write(SIN_PERMISO)
+            fichas.write(dict(SIN_PERMISO, dcasa_promos_no_fecha=ahora, dcasa_promos_no_origen=origen,
+                              dcasa_promos_no_usuario_id=usuario.id or False, dcasa_promos_pregunta_fecha=ahora))
         return fichas
+
+    def action_dcasa_promos_confirmar(self):
+        """Botón «El cliente dijo que sí» de la ficha, cuando la casilla se activó sola: la persona lo confirma y queda
+        «tienda» (lo marcó la vendedora), con su nombre. Una ficha a la vez, quien puede editar al cliente."""
+        if len(self) != 1:
+            raise UserError(self.env._('Se confirma de un cliente a la vez, desde su ficha.'))
+        self.check_access('write')
+        if self._dcasa_promos_motivo_para_no_activar() != 'ya_activada':
+            raise UserError(self.env._('Las novedades de esta ficha no están activadas solas: no hay nada que '
+                                       'confirmar.'))
+        self.commercial_partner_id._dcasa_promos_registrar('tienda', self.env.user)
+        return True
 
     def _dcasa_promos_baja(self, origen, usuario=None, fecha=None):
         """Anota la baja (final). La ficha la anota quien puede escribirla; el enlace de Resend, el sistema."""
@@ -402,7 +513,8 @@ class ResPartner(models.Model):
             if not ficha or ficha != propuesta.partner_id.commercial_partner_id or ficha.dcasa_promos_baja_fecha:
                 continue
             correo = correo_valido(ficha.email)
-            if not correo or (ficha.dcasa_promos_fecha and ficha.dcasa_promos_correo == correo):
+            if not correo or (ficha.dcasa_promos_fecha and ficha.dcasa_promos_correo == correo
+                              and ficha.dcasa_promos_origen != AUTOMATICO):   # la que se activó sola, se confirma
                 continue
             pedido = self._dcasa_pedido_de_sofia(propuesta)
             if not pedido or pedido.estado_envio != 'enviado' or not R.pide_correo_para_promociones(pedido.texto):
@@ -420,3 +532,13 @@ class ResPartner(models.Model):
                     'sofia_whatsapp', quien, fecha=respuesta.ts):
                 anotadas += 1
         return anotadas
+
+
+class ResUsers(models.Model):
+    _inherit = 'res.users'
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        """La ficha de un usuario nuevo (del equipo o del portal) no activa sola las novedades: el equipo no las
+        recibe y el «sí» desde la web es la etapa siguiente."""
+        return super(ResUsers, self.with_context(dcasa_promos_sin_auto=True)).create(vals_list)

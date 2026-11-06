@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- El permiso de novedades por correo en la ficha del cliente (decisión de la dueña, 2026-11-06): la vendedora lo
-         marca solo si el cliente dijo que sí; queda con la fecha, por dónde, quién y a qué correo (con historial).
-         Desmarcarla quita el permiso pero no es la baja. «Darle de baja» (final, con confirmación) lo anota quien puede
-         editar al cliente cuando el cliente lo pide. Con baja (en esta ficha o en otra con el mismo correo) ya no se
+    <!-- El permiso de novedades por correo en la ficha del cliente (decisiones de la dueña, 2026-11-06): se activa
+         sola al agregar el correo (y lo dice: «Se activó sola al agregar su correo», hasta que una persona lo confirma
+         con «El cliente dijo que sí»); queda con la fecha, por dónde, quién y a qué correo (con historial).
+         Desmarcarla quita el permiso y anota el «no» (ya no se activa sola), pero no es la baja. «Darle de baja»
+         (final, con confirmación) lo anota quien puede editar al cliente cuando el cliente lo pide. Con baja (en esta ficha o en otra con el mismo correo) ya no se
          vuelve a marcar. -->
     <record id="view_partner_form_dcasa_camila" model="ir.ui.view">
         <field name="name">res.partner.form.dcasa.camila</field>
@@ -12,21 +13,38 @@
         <field name="arch" type="xml">
             <xpath expr="//sheet/group//field[@name='category_id']" position="after">
                 <field name="dcasa_promos_estado" invisible="1"/>
+                <field name="dcasa_promos_no_fecha" invisible="1"/>
                 <label for="dcasa_promos" string="Novedades por correo" invisible="parent_id"/>
                 <div class="o_dcasa_promos" invisible="parent_id">
                     <div class="d-flex align-items-baseline" invisible="dcasa_promos_estado == 'baja'">
                         <field name="dcasa_promos" nolabel="1" class="w-auto me-2"/>
                         <span>Quiere recibir novedades y promociones por correo</span>
                     </div>
-                    <div class="text-muted small" invisible="dcasa_promos_estado not in ('sin', 'otro_correo')">
-                        Pregúntale: «¿Te avisamos por correo de lo nuevo y de las promociones de D'CASA? Te puedes dar
-                        de baja cuando quieras.» Márcalo solo si dice que sí (la ficha necesita su correo).
+                    <div class="text-muted small" invisible="dcasa_promos_estado not in ('sin', 'otro_correo') or dcasa_promos_no_fecha">
+                        Se activa sola cuando le agregas su correo. Si el cliente te dice que no, desmárcala.
+                    </div>
+                    <div class="text-muted small o_dcasa_promos_no" invisible="dcasa_promos_estado not in ('sin', 'otro_correo') or not dcasa_promos_no_fecha">
+                        Dijo que no el <field name="dcasa_promos_no_fecha" class="oe_inline" readonly="1"/>
+                        · <field name="dcasa_promos_no_origen" class="oe_inline" readonly="1"/>
+                        <span invisible="not dcasa_promos_no_usuario_id">
+                            · lo anotó <field name="dcasa_promos_no_usuario_id" class="oe_inline" readonly="1"
+                                              options="{'no_open': True}"/>
+                        </span>
+                        · Ya no se activa sola: márcala solo si ahora te dice que sí.
                     </div>
                     <div class="text-muted small" invisible="dcasa_promos_estado != 'otro_correo'">
                         Dijo que sí con otro correo (<field name="dcasa_promos_correo" class="oe_inline" readonly="1"/>):
                         al correo de ahora no le llega nada hasta que vuelva a decir que sí.
                     </div>
-                    <div class="text-muted small" invisible="dcasa_promos_estado != 'si'">
+                    <div class="text-muted small o_dcasa_promos_auto" invisible="dcasa_promos_estado != 'si' or dcasa_promos_origen != 'al_agregar_correo'">
+                        Se activó sola al agregar su correo el <field name="dcasa_promos_fecha" class="oe_inline" readonly="1"/>
+                        <span invisible="not dcasa_promos_usuario_id"> (lo agregó <field name="dcasa_promos_usuario_id"
+                            class="oe_inline" readonly="1" options="{'no_open': True}"/>)</span>. Nadie le ha
+                        preguntado todavía: si el cliente dice que no, desmárcala.
+                        <button name="action_dcasa_promos_confirmar" type="object" string="El cliente dijo que sí"
+                                class="btn-link px-0 ms-1 o_dcasa_promos_confirmar" icon="fa-check"/>
+                    </div>
+                    <div class="text-muted small" invisible="dcasa_promos_estado != 'si' or dcasa_promos_origen == 'al_agregar_correo'">
                         Dijo que sí el <field name="dcasa_promos_fecha" class="oe_inline" readonly="1"/>
                         · <field name="dcasa_promos_origen" class="oe_inline" readonly="1"/>
                         <span invisible="not dcasa_promos_usuario_id">

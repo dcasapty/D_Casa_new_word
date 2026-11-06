@@ -15,8 +15,9 @@ from .permiso import CAMPOS_PERMISO
 
 PERMISO = ('dcasa_promos_fecha', 'dcasa_promos_origen', 'dcasa_promos_usuario_id', 'dcasa_promos_correo',
            'dcasa_promos_referencia')
-# Etapa 1b: el «no» más reciente y la última vez que se le preguntó también pasan (no se le pregunta otra vez).
-NO = ('dcasa_promos_no_fecha',)
+# Etapa 1b: el «no» más reciente (con dónde y quién: con él no se activa sola) y la última vez que salió el cuadro de
+# la venta también pasan.
+NO = ('dcasa_promos_no_fecha', 'dcasa_promos_no_origen', 'dcasa_promos_no_usuario_id')
 PREGUNTA = ('dcasa_promos_pregunta_fecha',)
 BAJA = ('dcasa_promos_baja_fecha', 'dcasa_promos_baja_origen', 'dcasa_promos_baja_usuario_id')
 
@@ -39,5 +40,13 @@ class BasePartnerMergeAutomaticWizard(models.TransientModel):
                 for campo in campos:
                     valor = mas_reciente[campo]
                     valores[campo] = valor.id if campo.endswith('_id') else valor
+        # Un «sí» y un «no» de fichas distintas: queda el más reciente (si no, la ficha diría las dos cosas).
+        si = valores.get('dcasa_promos_fecha', destino.dcasa_promos_fecha)
+        no = valores.get('dcasa_promos_no_fecha', destino.dcasa_promos_no_fecha)
+        if si and no:
+            if no >= si:
+                valores.update({campo: False for campo in PERMISO})
+            else:
+                valores.update({campo: False for campo in NO})
         if valores:
             destino.write(valores)

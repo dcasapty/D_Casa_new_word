@@ -1,11 +1,16 @@
-"""«¿El cliente quiere recibir novedades por correo?» al confirmar una venta o registrar un pago (etapa 1b, decisión de
-la dueña, 2026-11-06).
+"""Las novedades por correo al confirmar una venta o registrar un pago (etapa 1b, decisiones de la dueña, 2026-11-06).
 
-La lista crece sola: cuando una persona del equipo confirma una venta o registra un pago **desde la pantalla**, Odoo le
-pregunta en un cuadro corto, con «Sí» y «No» (sin «Cancelar»). Si es «Sí» y la ficha no tiene un correo bien escrito,
-el mismo cuadro lo pide, lo revisa y lo guarda en la ficha con las reglas de contactos de siempre. Queda «En la venta»
-(``venta``), con quién lo preguntó, cuándo y la venta o el pago. Un «No» queda con su fecha y no se vuelve a preguntar
-en el plazo del ajuste.
+Cuando una persona del equipo confirma una venta o registra un pago **desde la pantalla**, sale un cuadro corto, sin
+«Cancelar» ni X:
+
+* **Con correo**: la casilla «Quiere recibir novedades por correo» ya viene activada (la regla de la dueña: se activan
+  solas con el correo) y dice a qué correo le llegarían. Si el cliente dijo que no, se desactiva: queda el «no» (con
+  cuándo, en qué venta y quién) y ya no se activa sola. Si quedó activada y no tenía permiso, queda «En la venta» con
+  la referencia «venía activada» (lo honesto: nadie le preguntó). Si ya se había activado sola, sigue así.
+* **Sin correo**: «Sí / No». Con «Sí», el mismo cuadro pide el correo, lo revisa y lo guarda en la ficha con las reglas
+  de contactos de siempre; queda «En la venta». Con «No», queda el «no».
+
+El cuadro no vuelve a salir para esa ficha en el plazo del ajuste (``dcasa_camila.dias_entre_preguntas``, 180 días).
 
 **La regla de oro: esto NUNCA traba ni hace fallar una venta o un pago.** El cuadro sale DESPUÉS de confirmar o de
 pagar (la venta o el pago ya quedaron hechos y confirmados en esa petición) y solo cuando el botón de la pantalla trae
@@ -38,8 +43,11 @@ class CamilaPregunta(models.TransientModel):
     move_ids = fields.Many2many('account.move', string='Facturas pagadas', readonly=True)
     referencia = fields.Char('Dónde', readonly=True)
     correo_actual = fields.Char('Correo de la ficha', readonly=True)
-    paso = fields.Selection([('pregunta', 'Pregunta'), ('correo', 'Pide el correo')], default='pregunta',
-                            required=True, readonly=True)
+    paso = fields.Selection([('casilla', 'La casilla (tiene correo)'), ('pregunta', 'Pregunta (sin correo)'),
+                             ('correo', 'Pide el correo')], default='pregunta', required=True, readonly=True)
+    quiere = fields.Boolean('Quiere recibir novedades por correo', default=True)
+    venia_activada = fields.Boolean('La casilla venía activada', readonly=True)
+    no_fecha = fields.Datetime(related='partner_id.dcasa_promos_no_fecha', string='Dijo que no el')
     correo = fields.Char('Su correo')
     siguiente = fields.Text(readonly=True, help='La acción que seguía (p. ej. «Imprimir documentos» tras pagar).')
 
@@ -51,7 +59,10 @@ class CamilaPregunta(models.TransientModel):
     def _accion_para(self, partner, orden=None, facturas=None, siguiente=None):
         """La acción que abre el cuadro para la ficha comercial de ``partner``, o ``None`` si no hay que preguntar."""
         ficha = partner.commercial_partner_id
-        if not ficha or ficha._dcasa_promos_motivo_para_no_preguntar():
+        if not ficha:
+            return None
+        paso, casilla = ficha._dcasa_promos_que_preguntar()
+        if not paso:
             return None
         if orden:
             referencia = self.env._('Venta %s', orden.name)
@@ -59,6 +70,9 @@ class CamilaPregunta(models.TransientModel):
             referencia = self.env._('Pago de %s', ', '.join(facturas.mapped('name'))[:90])
         cuadro = self.create({
             'partner_id': ficha.id,
+            'paso': paso,
+            'quiere': bool(casilla),
+            'venia_activada': bool(casilla),
             'orden_id': orden.id if orden else False,
             'move_ids': [fields.Command.set(facturas.ids)] if facturas else [],
             'referencia': referencia,
@@ -116,8 +130,26 @@ class CamilaPregunta(models.TransientModel):
                 pass
         return {'type': 'ir.actions.act_window_close'}
 
+    def action_listo(self):
+        """Con correo: la casilla como la dejó la persona. Desactivada, queda el «no»; activada, queda el permiso (si ya
+        lo tenía, sigue igual: si se había activado sola, sigue diciendo eso)."""
+        ficha = self._revisar()
+        if self.paso != 'casilla':
+            raise UserError(self.env._('Esta pregunta ya no está en ese paso: ciérrala y vuelve a abrir la venta.'))
+        if not self.quiere:
+            ficha._dcasa_promos_anotar_no('venta', self.env.user)
+            return self._siguiente()
+        if ficha._dcasa_promos_motivo_para_no_activar() == 'baja':
+            raise UserError(self.env._('Ese correo se dio de baja de las novedades: no se le vuelve a escribir.'))
+        if ficha.sudo().dcasa_promos_estado != 'si':
+            detalle = self.env._('venía activada') if self.venia_activada else self.env._('la activó quien atendió')
+            ficha._dcasa_promos_registrar('venta', self.env.user, referencia=f'{self.referencia} · {detalle}')
+        ficha._dcasa_promos_anotar_pregunta()
+        return self._siguiente()
+
     def action_si(self):
-        """«Sí»: anota «En la venta». Sin un correo bien escrito en la ficha, primero lo pide (sin correo no hay sí)."""
+        """Sin correo, «Sí»: el mismo cuadro pide el correo, lo guarda en la ficha y anota «En la venta» (sin correo no
+        hay sí)."""
         ficha = self._revisar()
         correo_ficha = correo_valido(ficha.sudo().email)
         if not correo_ficha:
@@ -133,16 +165,17 @@ class CamilaPregunta(models.TransientModel):
             except ValidationError as error:
                 raise UserError(str(error.args[0] if error.args else error)) from None
             correo_ficha = correo_valido(ficha.sudo().email)
-        if ficha._dcasa_promos_motivo_para_no_preguntar() == 'baja':
+        if ficha._dcasa_promos_motivo_para_no_activar() == 'baja':
             raise UserError(self.env._('Ese correo se dio de baja de las novedades: no se le vuelve a escribir.'))
         if not ficha._dcasa_promos_registrar('venta', self.env.user, referencia=self.referencia):
             _logger.info('DCASA_CAMILA el sí en la venta no cambió nada (ficha %s)', ficha.id)
         return self._siguiente()
 
     def action_no(self):
-        """«No»: queda con su fecha y no se le vuelve a preguntar en el plazo del ajuste."""
+        """«No»: queda el «no» (cuándo, en qué venta, quién); ya no se activa sola y el cuadro no vuelve a salir en el
+        plazo del ajuste."""
         ficha = self._revisar()
-        ficha._dcasa_promos_anotar_no()
+        ficha._dcasa_promos_anotar_no('venta', self.env.user)
         return self._siguiente()
 
     def action_sin_correo(self):

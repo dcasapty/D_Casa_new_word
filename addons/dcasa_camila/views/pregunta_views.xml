@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Etapa 1b (decisión de la dueña, 2026-11-06): «¿El cliente quiere recibir novedades por correo?» al confirmar una
-         venta o registrar un pago DESDE LA PANTALLA. La marca dcasa_camila_preguntar va solo en estos botones: Juan, la
+    <!-- Etapa 1b (decisiones de la dueña, 2026-11-06): las novedades por correo al confirmar una venta o registrar un
+         pago DESDE LA PANTALLA (con correo, la casilla ya activada; sin correo, «Sí / No»). La marca dcasa_camila_preguntar va solo en estos botones: Juan, la
          web, Brian, los crones y un RPC sin ella nunca ven la pregunta. Sale DESPUÉS de confirmar o pagar: nunca traba
          la venta ni el pago (models/pregunta.py). -->
     <record id="sale_order_form_dcasa_camila_pregunta" model="ir.ui.view">
@@ -32,20 +32,41 @@
         </field>
     </record>
 
-    <!-- El cuadro: «Sí» o «No», sin «Cancelar» (la X de arriba no se muestra: camila.scss). Con la regla del scroll. -->
+    <!-- El cuadro, sin «Cancelar» (la X de arriba no se muestra: camila.scss). Con correo: la casilla ya activada y
+         «Listo» (si el cliente dijo que no, se desactiva). Sin correo: «Sí» o «No» y, con «Sí», pide el correo. Con la
+         regla del scroll. -->
     <record id="dcasa_camila_pregunta_form" model="ir.ui.view">
         <field name="name">dcasa.camila.pregunta.form</field>
         <field name="model">dcasa.camila.pregunta</field>
         <field name="arch" type="xml">
             <form string="Novedades por correo" create="0" delete="0" class="o_dcasa_camila_pregunta">
                 <field name="paso" invisible="1"/>
+                <field name="venia_activada" invisible="1"/>
                 <div class="o_camila_pregunta_cuerpo">
-                    <p class="o_camila_pregunta_titulo">
+                    <p class="o_camila_pregunta_titulo" invisible="paso == 'casilla'">
                         ¿<field name="nombre" readonly="1" class="oe_inline"/> quiere recibir novedades de D'CASA por correo?
                     </p>
+                    <div class="o_camila_pregunta_paso_casilla" invisible="paso != 'casilla'">
+                        <p class="o_camila_pregunta_titulo">
+                            Novedades de D'CASA para <field name="nombre" readonly="1" class="oe_inline"/>
+                        </p>
+                        <div class="d-flex align-items-center o_camila_pregunta_casilla">
+                            <field name="quiere" nolabel="1" widget="boolean_toggle" class="w-auto me-2"/>
+                            <label for="quiere" string="Quiere recibir novedades por correo" class="fw-bold"/>
+                        </div>
+                        <p class="o_camila_pregunta_ayuda" invisible="not venia_activada">
+                            Se le enviarán novedades a <field name="correo_actual" readonly="1" class="oe_inline"/>.
+                            Si el cliente dijo que no, desactívala.
+                        </p>
+                        <p class="o_camila_pregunta_ayuda" invisible="venia_activada">
+                            El <field name="no_fecha" readonly="1" class="oe_inline" widget="date"/> dijo que no. Si
+                            ahora quiere recibirlas en <field name="correo_actual" readonly="1" class="oe_inline"/>,
+                            actívala.
+                        </p>
+                    </div>
                     <p class="o_camila_pregunta_ayuda" invisible="paso != 'pregunta'">
                         Pregúntale: «¿Te avisamos por correo cuando llegue algo nuevo a la tienda?». Toca «Sí» solo si te
-                        dice que sí; «No» si no quiere (no se le vuelve a preguntar en un buen tiempo).
+                        dice que sí; «No» si no quiere (queda anotado y ya no se le activan solas).
                     </p>
                     <p class="o_camila_pregunta_correo_actual text-muted" invisible="paso != 'pregunta' or not correo_actual">
                         Le llegarían a <field name="correo_actual" readonly="1" class="oe_inline"/>.
@@ -62,6 +83,8 @@
                     </p>
                 </div>
                 <footer>
+                    <button name="action_listo" type="object" string="Listo" class="btn-primary o_camila_pregunta_listo"
+                            invisible="paso != 'casilla'"/>
                     <button name="action_si" type="object" string="Sí" class="btn-primary o_camila_pregunta_si"
                             invisible="paso != 'pregunta'" data-hotkey="s"/>
                     <button name="action_no" type="object" string="No" class="btn-secondary o_camila_pregunta_no"

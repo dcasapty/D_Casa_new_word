@@ -607,3 +607,12 @@
     .o_camila_pregunta_paso_correo { margin-top: 8px; }
     .o_camila_pregunta_correo { max-width: 100%; }
 }
+
+// La ficha del cliente: quién agregó el correo o anotó el «sí» o el «no» va dentro de la frase (en el celular, el campo
+// de usuario de Odoo se iba a una línea propia y partía el texto).
+.o_dcasa_promos .o_field_many2one.oe_inline,
+.o_dcasa_promos .o_field_many2one.oe_inline * {
+    display: inline !important;
+    width: auto !important;
+    min-width: 0 !important;
+}
