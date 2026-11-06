@@ -193,6 +193,10 @@ PGPASSWORD=odoo TEST_TAGS=/dcasa_envios,/dcasa_interfaz:TestInicioScroll scripts
 ## Decisiones pendientes de la dueña / Gerencia
 
 - **Aprobar la tarifa** (y decidir el redondeo, el viático, los honorarios y el peaje): hasta entonces, «en revisión».
+- **Hasta dónde se envía:** decidido (2026-11-06): **«Cotizar aparte desde» = 100 km**. Hasta Colón son unos 90 km
+  y cuesta alrededor de $90 (el segundo precio de la tarifa), y es lo más lejos que D'CASA envía; los 100 km dejan un
+  margen sobre Colón. Más allá, la calculadora (y Brian) dicen «Cotizar aparte». Lo cambió la dueña en Envíos › Tarifa;
+  como todo cambio de la fórmula, la tarifa vuelve a «en revisión» hasta aprobarla otra vez.
 - **Bajar la lista a Excel:** decidido (2026-11-06): «es innecesario». La lista se ve en Envíos › Lugares; el «Exportar»
   de Odoo queda solo para quien ya tiene ese permiso (los administradores) y no se agrega un botón propio.
 - **La web:** encenderla cuando haya flota propia (pasos de arriba), con su «sí».

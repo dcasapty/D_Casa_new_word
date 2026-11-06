@@ -757,6 +757,34 @@ class TestPanelEnElNavegador(PanelUiCase):
         self.assertTrue(envio['texto'].startswith('Zzcama Roble Queen\n$349.99 + ITBMS\nMedidas:'))
         self.assertTrue(envio['texto'].endswith(self.cama.website_url))
 
+    def test_foto_del_catalogo_ver_mas_trae_los_siguientes(self):
+        """Pedido de la dueña (2026-11-06): con 38 bibliotecas solo salían 8 y no siempre se saben los códigos.
+        Ahora salen 12 y «Ver más» suma los siguientes debajo, sin perder lo elegido."""
+        self.datos_de_ejemplo()
+        Plantilla = self.env['product.template']
+        for n in range(15):
+            Plantilla.create({'name': f'ZZBIBLIOTECA NIVELES {n:02d}', 'default_code': f'ZZ-BIB-{n:02d}',
+                              'list_price': 100 + n, 'type': 'consu', 'sale_ok': True, 'is_published': True,
+                              'image_1920': foto()})
+        self.navegador("""
+(async () => {
+    await abrirConversacion("Karen");
+    aqui(".o_dcj_herramienta", "Foto del catálogo").click();
+    const dialogo = await esperar(() => document.querySelector(".o_dcj_hoja[role=dialog]"), "el buscador de fotos");
+    await escribir(dialogo.querySelector("input[type=search]"), "zzbiblioteca");
+    await esperar(() => dialogo.querySelectorAll(".o_dcj_producto").length === 12, "12 productos a la primera");
+    aqui(".o_dcj_producto button", "Elegir").click();
+    const boton = await esperar(() => aqui(".o_dcj_ver_mas button", "Ver más (3)"), "el botón «Ver más (3)»");
+    boton.click();
+    await esperar(() => dialogo.querySelectorAll(".o_dcj_producto").length === 15, "los 15 después de «Ver más»");
+    if (dialogo.querySelector(".o_dcj_ver_mas")) { throw new Error("ya no queda «Ver más» con todos a la vista"); }
+    const nombres = [...dialogo.querySelectorAll(".o_dcj_producto")].map((li) => li.textContent);
+    if (new Set(nombres).size !== 15) { throw new Error("ninguno repetido"); }
+    if (!aqui(".o_dcj_producto", "Elegida")) { throw new Error("lo elegido antes de «Ver más» sigue elegido"); }
+    console.log("test successful");
+})().catch((e) => console.error(e.message || e));
+""")
+
     def test_foto_del_catalogo_galeria_varias_fotos(self):
         self.datos_de_ejemplo()
         self.producto_de_ejemplo()
