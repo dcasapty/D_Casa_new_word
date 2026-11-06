@@ -37,21 +37,21 @@ pero sin efecto hasta que alguien lo enciende.
 | `dcasa_contabilidad` | Reportes contables, bancos, conciliación, cierre de mes, presupuestos, cheques | base, invoice, interfaz | — | No | [CONTABILIDAD.md](CONTABILIDAD.md) |
 | `dcasa_consolidacion` | Estados financieros de varias empresas en uno | contabilidad | — | No | [CONSOLIDACION.md](CONSOLIDACION.md) |
 | `dcasa_nomina` | Planilla de Panamá, décimo, vacaciones, liquidación, reembolsos, adelantos y préstamos, comprobante de pago, bono por meta | base, contabilidad | (3 en `dcasa_brian`) | El correo del comprobante sigue el interruptor de `dcasa_correo` | [NOMINA.md](NOMINA.md) |
-| `dcasa_contactos` | Una persona, una ficha (celular, correo y RUC no se repiten) | base, socios | — | No | [CONTACTOS.md](CONTACTOS.md) |
+| `dcasa_contactos` | Una persona, una ficha (celular, correo y RUC no se repiten) | base, socios | (1 en `dcasa_brian`) | No | [CONTACTOS.md](CONTACTOS.md) |
 | `dcasa_equipo` | Ícono y visibilidad del menú Empleados | base | — | No | [EQUIPO.md](EQUIPO.md) |
 | `dcasa_migracion` | Carga única desde el sistema anterior | base, contactos, catalogo | — | No (solo administradores) | [MIGRACION.md](MIGRACION.md) |
 | `dcasa_barras` | Escáner de códigos de barras y etiquetas; panel de Bodega (despachar entregas) | catalogo, interfaz, invoice | — | No | [BARRAS.md](BARRAS.md) |
 | `dcasa_existencias` | Mermas, daños, muestras y regalos (F6); bitácora de bodega; alertas diarias por Telegram; el hueco del Inventario físico | base, brian, contabilidad, interfaz | (3 en `dcasa_brian`) | Alertas **sí** (y sin umbrales); cuentas de mermas vacías | [EXISTENCIAS.md](EXISTENCIAS.md) |
-| `dcasa_brian` | Brian, el asistente del panel (chat, Telegram, MCP) | interfaz, contabilidad, catalogo, socios, contactos | 70 | Sin `BRIAN_API_KEY` no contesta (el despliegue la exige) | [BRIAN.md](BRIAN.md) |
+| `dcasa_brian` | Brian, el asistente del panel (chat, Telegram, MCP) | interfaz, contabilidad, catalogo, socios, contactos | 105 | Sin `BRIAN_API_KEY` no contesta (el despliegue la exige) | [BRIAN.md](BRIAN.md) |
 | `dcasa_guia` | «¿Qué necesitas hacer hoy?»: atajos en palabras sencillas | interfaz | — | No | [GUIA.md](GUIA.md) |
 | `dcasa_marketing` | Fotos del producto en grande (ver, subir varias, ordenar, recortar) y la app **Marketing** (stock por categoría, más vendidos, movimiento, quietos, fotos que faltan) | catalogo, interfaz, barras, brian | 2 | No | [MARKETING.md](MARKETING.md) |
 | `dcasa_envios` | **Envíos**: la calculadora (buscar el lugar como lo dice el cliente, el precio con su desglose), la lista de lugares y la tarifa que aprueba Gerencia; un motor en Python puro que mañana sirve a la web | base, interfaz, contabilidad, brian | 1 | Sin datos hasta que Gerencia carga el archivo; la tarifa nace «en revisión»; sin ruta pública | [ENVIOS.md](ENVIOS.md) |
-| `dcasa_conversaciones` | Bandeja de conversaciones con clientes, reparto, CRM automático y la API de Juan | brian, catalogo, interfaz, socios, contactos | 2 (+13 de Juan) | Sin los tokens de Juan, la API responde 503 | [JUAN_ODOO.md](JUAN_ODOO.md) · [JUAN.md](JUAN.md) · [JUAN_CANALES.md](JUAN_CANALES.md) |
-| `dcasa_sofia` | Sofía, la asistente del CRM: revisa con un botón y cada mañana y propone; una persona aprueba | conversaciones, contactos | — | No (las propuestas siempre las aprueba una persona) | [SOFIA.md](SOFIA.md) |
+| `dcasa_conversaciones` | Bandeja de conversaciones con clientes, reparto, CRM automático y la API de Juan | brian, catalogo, interfaz, socios, contactos | 5 (+13 de Juan) | Sin los tokens de Juan, la API responde 503 | [JUAN_ODOO.md](JUAN_ODOO.md) · [JUAN.md](JUAN.md) · [JUAN_CANALES.md](JUAN_CANALES.md) |
+| `dcasa_sofia` | Sofía, la asistente del CRM: revisa con un botón y cada mañana y propone; una persona aprueba | conversaciones, contactos | (2 en `dcasa_brian`) | No (las propuestas siempre las aprueba una persona) | [SOFIA.md](SOFIA.md) |
 | `dcasa_camila` | Camila, la asistente del mail marketing: arma la campaña de correo cada 15 días con lo que hay en tienda y el precio de la tienda en línea; una persona la aprueba y sale por Resend Broadcasts solo a quien dijo que sí (permiso en la ficha) | correo, marketing, conversaciones, sofia, brian, contactos, website_dcasa | 1 | **Sí**: sin `RESEND_CAMPANAS_API_KEY` no sale ninguna campaña; staging nunca envía; el cron solo arma borradores | [CAMILA.md](CAMILA.md) |
-| `dcasa_correo` | Correo a clientes por Resend (factura, abono, bienvenida) | base, invoice, socios, website_dcasa, conversaciones | 2 | **Sí**: sin `RESEND_API_KEY` y sin encenderlo en Ajustes no sale nada (en producción, encendido desde el 2026-10-27) | [CORREO.md](CORREO.md) |
-| `dcasa_meta_catalogo` | El catálogo de la tienda por URL para los anuncios de Facebook e Instagram | base, catalogo, website_dcasa | — | **Sí**: la dirección no entrega nada hasta que Gerencia lo enciende | [META_CATALOGO.md](META_CATALOGO.md) |
-| `dcasa_meta_eventos` | Píxel de Meta con consentimiento y las ventas pagadas por la Conversions API | base, contactos, tienda_borde, website_dcasa | — | **Sí**: interruptor, sección de Meta en la política de privacidad, `META_CAPI_TOKEN` y el consentimiento de la persona | [META_EVENTOS.md](META_EVENTOS.md) |
+| `dcasa_correo` | Correo a clientes por Resend (factura, abono, bienvenida) | base, invoice, socios, website_dcasa, conversaciones | 3 | **Sí**: sin `RESEND_API_KEY` y sin encenderlo en Ajustes no sale nada (en producción, encendido desde el 2026-10-27) | [CORREO.md](CORREO.md) |
+| `dcasa_meta_catalogo` | El catálogo de la tienda por URL para los anuncios de Facebook e Instagram | base, catalogo, website_dcasa | (`estado_de_meta` en `dcasa_brian`) | **Sí**: la dirección no entrega nada hasta que Gerencia lo enciende | [META_CATALOGO.md](META_CATALOGO.md) |
+| `dcasa_meta_eventos` | Píxel de Meta con consentimiento y las ventas pagadas por la Conversions API | base, contactos, tienda_borde, website_dcasa | (`estado_de_meta` en `dcasa_brian`) | **Sí**: interruptor, sección de Meta en la política de privacidad, `META_CAPI_TOKEN` y el consentimiento de la persona | [META_EVENTOS.md](META_EVENTOS.md) |
 | `dcasa_fe_pa` | Factura electrónica de la DGI (preparación, PAC simulado) | base, invoice | (1 en `dcasa_brian`) | **Sí**, y además no se instala | [FACTURA_ELECTRONICA.md](FACTURA_ELECTRONICA.md) |
 | `dcasa_seguridad` | Doble factor, bloqueos, accesos, puerta del equipo `/master`, Turnstile, robots.txt | — | — | La obligatoriedad y la puerta dependen de variables | [SEGURIDAD_ACCESO.md](SEGURIDAD_ACCESO.md) |
 | `dcasa_sesiones` | Sesiones de Odoo en PostgreSQL y `/dcasa/salud` | — | — | No | [DESPLIEGUE.md](DESPLIEGUE.md) |
@@ -344,7 +344,8 @@ además como módulo de todo el servidor (`server_wide_modules = base,web,dcasa_
 
 ## `dcasa_brian` — Brian, el asistente del panel
 
-- **Para qué:** chat de IA en todas las pantallas (Ctrl + J), por Telegram y como servidor MCP, con un solo catálogo de
+- **Para qué:** chat de IA en todas las pantallas (Ctrl + J; en computadora, un botón flotante que no tapa nada en
+  las pantallas propias), por Telegram y como servidor MCP, con un solo catálogo de
   herramientas. Todo corre con los permisos de quien conversa; lo sensible pide **Permitir** en una tarjeta; lo
   prohibido no tiene herramienta. Proveedores: Anthropic, OpenAI y compatibles (xAI, Groq, Together, OpenRouter,
   Ollama).
@@ -355,10 +356,11 @@ además como módulo de todo el servidor (`server_wide_modules = base,web,dcasa_
 - **Pantallas y menús:** app **Brian** (Conversaciones, Telegram, Importaciones de productos para Gerencia; Registro de
   acciones, Consumo de IA y Ajustes para administradores).
 - **Rutas web:** `/brian/mcp` y `/brian/telegram/<secreto>` (el borde no las guarda en caché).
-- **Herramientas (73):** catálogo 8, clientes 7, contabilidad 16, factura electrónica 1, generales 4, guía 1,
-  importación 3, operación (compras, inventario, entregas por despachar, consumo) 11, usuarios 5, vendedores 6,
-  ventas 11. Niveles: lectura,
-  construcción, sensible. Lista viva: `grep -rn "@herramienta" addons/dcasa_brian/models`.
+- **Herramientas (105, 2026-11-06):** por categoría, catálogo 32, clientes 15, contabilidad 24, generales 6 (pantalla
+  actual, ayuda, buscar en todo, abrir, abrir una pantalla propia, la Guía), usuarios 6 y ventas 22. Las de Sofía y Meta
+  viven aquí aunque esos módulos no son dependencia (si faltan, la herramienta lo dice). Niveles: lectura,
+  construcción, sensible. Lista viva: `grep -rn "@herramienta" addons/dcasa_brian/models`; qué hace cada una:
+  [BRIAN.md](BRIAN.md).
 - **Crons:** borrar conversaciones viejas y adjuntos huérfanos (mensual).
 - **Apagado de fábrica:** el tope de gasto de IA viene en 0 (sin tope) hasta que la dueña ponga la cifra.
 
@@ -422,7 +424,8 @@ además como módulo de todo el servidor (`server_wide_modules = base,web,dcasa_
   Configuración › Etiquetas, Respuestas rápidas, Ajustes de Juan).
 - **Rutas web:** `/dcasa/juan/v1/mensaje`, `/estado`, `/config`, `/herramientas`, `/herramienta`,
   `/seguimiento/hecho`, `/escribiendo`, `/foto-perfil`, y enlaces firmados de adjuntos.
-- **Herramientas:** de Brian, `oportunidades_abiertas` y `resumen_del_crm`; de Juan (prefijo `juan_`), 13: buscar y ver
+- **Herramientas:** de Brian, `oportunidades_abiertas`, `resumen_del_crm` y (2026-11-06) `resumen_de_conversaciones`,
+  `reparto_de_conversaciones` y `cotizaciones_que_vencen`; de Juan (prefijo `juan_`), 13: buscar y ver
   productos, categorías, reglas y saldo de Socios, horario y tienda, buscar en el conocimiento, registrar pregunta sin
   respuesta, crear oportunidad, anotar, etiquetar, pasar a una vendedora y cotizar.
 - **Crons:** ajustar el CRM y pedir seguimientos (cada 15 min), reintentar envíos (cada 5 min), foto diaria del gasto
@@ -446,6 +449,8 @@ además como módulo de todo el servidor (`server_wide_modules = base,web,dcasa_
   (`security/sofia_security.xml`). Nadie crea ni borra propuestas a mano.
 - **Pantallas y menús:** *CRM › Sofía* (y el botón del tablero y la lista del CRM); *CRM › Configuración › Sofía* (Mensajes
   de Sofía, Historial de Sofía); su grupo en *Ajustes de Juan*.
+- **Herramientas de Brian (en `dcasa_brian`, 2026-11-06):** `propuestas_de_sofia` y `revisar_con_sofia` (el «Revisar
+  ahora»; aprobar sigue siendo de la pantalla).
 - **Crons:** «Sofía: revisión del CRM de cada mañana» (mira cada 30 minutos si ya toca).
 - **Apagado de fábrica:** no; la revisión de la mañana y el resumen por Telegram se apagan en *Ajustes de Juan*.
 
@@ -510,7 +515,7 @@ además como módulo de todo el servidor (`server_wide_modules = base,web,dcasa_
 - **Modelos:** `dcasa.correo` (abstracto, sin superficie RPC), `dcasa.correo.envio` (registro de envíos).
 - **Pantallas y menús:** *Ventas › Configuración › Correo a clientes* (administradores) y *Correos a clientes
   (enviados)* (Gerencia y administradores).
-- **Herramientas de Brian:** `enviar_factura_por_correo`, `enviar_cotizacion_por_correo`.
+- **Herramientas de Brian:** `enviar_factura_por_correo`, `enviar_cotizacion_por_correo` y `estado_del_correo`.
 - **Crons:** armar pendientes (10 min) y reintentar (15 min).
 - **Apagado de fábrica:** **sí**: sin `RESEND_API_KEY` no sale nada, y aun con la clave hay que encender
   `dcasa_correo.enviar_a_clientes` (y `al_pagar`) en Ajustes.

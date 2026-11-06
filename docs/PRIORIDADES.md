@@ -30,7 +30,10 @@ LEEME_PRIMERO §2).
    Marketing o Gerencia apruebe la campaña. Falta de la dueña: la primera campaña y confirmar el «Sí, quiero» de dos
    toques. Sigue: etapa 1b (que Juan pregunte el permiso por WhatsApp), cumpleaños, «tu cotización sigue aquí» y la
    etapa de la página web.
-2. **Brian al día** con lo nuevo (la dueña: «indispensable, pero desactualizado»). La vuelta a la **pantalla de Sofía**
+2. **Brian al día** con lo nuevo (la dueña: «indispensable, pero desactualizado»): hecho en su rama el 2026-11-06
+   (9 herramientas nuevas de lectura y una de construcción, prompt y Guía al día, y el botón flotante ya no tapa
+   «Enviar»; ver la bitácora). La dueña vio las capturas y dijo que sí; una revisión adversarial no encontró nada que
+   frene (sus 6 arreglos, hechos con pruebas). Falta: CI, staging y producción. La vuelta a la **pantalla de Sofía**
    está hecha en su rama (2026-11-06 (7), solo interfaz): falta que la dueña vea las capturas antes/después y diga que
    sí, y después CI, staging y producción.
 3. **Que el equipo use lo nuevo** (lo hace la dueña con el equipo; ver «Lo que falta de la dueña»): el Reparto
@@ -51,8 +54,8 @@ LEEME_PRIMERO §2).
     (Desplegar 50). Sigue: que Gerencia cargue el archivo en Envíos › Tarifa y **apruebe la tarifa** (redondeo,
     viático, honorarios y peaje); después, con su «sí», que Juan cotice y la sección de envíos del sitio (cuando haya
     flota propia).
-11. **Siguiente etapa de Sofía:** mensajes con IA, plantillas de WhatsApp para después de 24 horas y su herramienta de
-    Brian.
+11. **Siguiente etapa de Sofía:** mensajes con IA y plantillas de WhatsApp para después de 24 horas (sus herramientas
+    de Brian, de lectura y «Revisar ahora», ya están en la rama de «Brian al día»).
 12. **Privacidad (issues #22 y #23):** borrar la oportunidad junto con la conversación y lo que «Eliminar conversación»
     todavía no borra.
 13. **Juan: hallazgos menores** que quedaron para después (issue #24).
@@ -67,8 +70,6 @@ LEEME_PRIMERO §2).
     - velocidad: `/web/image` lee el archivo de R2 antes de contestar «no cambió», el ZIP de comprobantes ocupa la CPU
       mientras se arma (pedirlo fuera de horario) y el costo de lo vendido hoy se busca producto por producto;
     - pruebas de humo a mano después de cada despliegue a producción y una revisión de secretos;
-    - en Conversaciones (computadora), el botón flotante de Brian tapa en parte el botón «Enviar» de la caja (se vio
-      en las capturas de la varita del 2026-11-06);
     - una pantalla propia abierta desde antes de un despliegue sigue con el JavaScript viejo y puede romperse con los
       datos nuevos (2026-11-06: Camila en el celular de la dueña, «ctx['d'].proxima.ya», tras Desplegar 54; se arregla
       recargando). Que las pantallas propias avisen «Hay una versión nueva: toca para recargar» cuando cambie
@@ -78,8 +79,8 @@ LEEME_PRIMERO §2).
     - `abrir` de Bodega no exige pago a una entrega en borrador (hoy no hay entregas de venta en borrador);
     - «Rastrear inventario»: la prueba de la Vendedora con el mensaje exacto y el motivo en el historial del movimiento;
     - «Cobrado» suma `amount` y todo cobro entrante (igual que la Caja de hoy); no hay prueba con costo FIFO;
-    - Brian sin huecos: descuentos, facturar desde una cotización, fusionar contactos, margen por producto, recibir
-      compras.
+    - Brian sin huecos: descuentos, facturar desde una cotización, margen por producto, recibir compras (fusionar
+      contactos: ya los lista con `clientes_repetidos`; fusionar sigue en la pantalla, a propósito).
 
 **Nombres reservados** (2026-11-06, el jefe): **Daniela, Alejandra y Andrés** quedan para futuras herramientas; se
 asignan con la dueña cuando toque (Camila ya es la del mail marketing y la web).

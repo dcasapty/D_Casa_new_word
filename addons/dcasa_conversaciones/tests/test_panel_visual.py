@@ -85,6 +85,9 @@ PREPARAR = """
             .o_brian_lanzador { display: none !important; }
         `;
         document.head.appendChild(estilo);
+        // Sin el botón de Brian en la foto y sin la reserva que deja libre su esquina mientras se ve (dcasa_brian,
+        // 2026-11-06: «el botón no tapa nada»); es la misma clase que pone el panel abierto.
+        document.querySelector('.o_brian_lanzador')?.classList.add('o_brian_oculto');
         const fotos = [...document.querySelectorAll('.o_dcj img, .o_dcj_p img')];
         await Promise.race([
             Promise.all([document.fonts.ready, ...fotos.filter((img) => !img.complete).map(

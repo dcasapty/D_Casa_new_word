@@ -605,6 +605,24 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   (`test_superficie_rpc.py`), como `create`/`action_draft` en la tanda anterior.
 - **«Conéctate a Cloudflare y mira las cifras»:** las cifras de Odoo (ventas, inventario) viven en el PostgreSQL del
   contenedor; ningún conector de Cloudflare las lee. Se responden con una pantalla o con Brian, no desde aquí.
+- **Varios agentes a la vez, puertos y Chrome (2026-11-06, «Brian al día»):** antes de levantar Odoo o correr
+  `scripts/test.sh`, mirar qué puertos usan los otros (`ps -eo args | grep -o "http-port=[0-9]*"`): el 8194 lo tenía
+  otro agente y la corrida murió con «Address already in use» después de instalar. El enlace `chromium` viejo del
+  scratchpad apuntaba a `chromium-1194`, que ya no existe: usar `/opt/pw-browsers/chromium` (enlace a la versión de
+  hoy). Un agente aislado en su worktree no puede correr comandos compuestos con `cd …&&`, heredocs seguidos de otro
+  comando ni `nohup` con variables: se escribe un script en el scratchpad y se corre con su ruta completa.
+- **Medir si algo «tapa» otra cosa en el navegador:** `getBoundingClientRect` no recorta lo que queda escondido por un
+  contenedor con scroll; hay que intersecarlo con el rectángulo de cada padre con `overflow` distinto de `visible`
+  (si no, un enlace oculto debajo del borde de la ficha «choca» con el botón de Brian). `test_boton_no_tapa.py` lo hace.
+- **Una herramienta de Brian que toma candados va en su propia transacción** (revisión adversarial, 2026-11-06): el
+  turno de Brian es UNA transacción de hasta 150 s con llamadas a la IA; lo que una herramienta bloquee ahí (el
+  `pg_try_advisory_xact_lock` de Sofía, las filas de sus propuestas) queda tomado todo ese tiempo y la pantalla falla.
+  Se usa `with self.env.registry.cursor() as cr:` (+ `SET LOCAL lock_timeout`) y se cuenta lo que hizo DENTRO de ese
+  cursor: Odoo usa REPEATABLE READ y la transacción del turno no ve lo que otra confirmó después. En las pruebas, un
+  savepoint (`modules.module.current_test`). Ver `revisar_con_sofia`.
+- **Reservar espacio solo mientras algo se ve:** `body:has(.o_brian_lanzador:not(.o_brian_oculto)) …` dentro de
+  `media-breakpoint-up(lg)` (libsass lo acepta; `:is()` no se probó y se evitó con un `@each`). Así el hueco para el
+  botón flotante no aparece en el celular (donde Brian va arriba) ni con el panel abierto.
 
 ### Odoo 19
 
