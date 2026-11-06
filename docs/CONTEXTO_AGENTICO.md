@@ -379,6 +379,10 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `main` (`741930d`, árbol = `de1fb04`) a staging y Desplegar con ese `app_version`. **Regla:** un cambio del borde
   (rutas, `vars`, `workers_dev`) se despliega con un `app_version` que lo contenga, o sea con una imagen construida
   de ese commit.
+- **Desplegar 53** (16:15 UTC del 6 nov, `61d5c44`, imagen `sha256:14d30d8e…` de CI #278, respaldo previo) · sano y
+  confirmado 16:30 (versión `61d5c442dffa`, base al día, humo ok): solo documentación (PR #86, `main` = `dc45e48`),
+  desplegada con imagen nueva para que el contenedor arrancara con `RESEND_CAMPANAS_API_KEY`, que la dueña pegó en el
+  panel. El CI del PR (#279) se canceló.
 - **Desplegar 52** (11:13 UTC del 6 nov, `b84e57d`, imagen `sha256:dfbf424f…` de CI #276, respaldo previo) · sano y
   confirmado 11:27 (versión `b84e57d2dacb`, base al día, humo ok): Camila etapa 1, módulo nuevo `dcasa_camila`, con
   los 12 arreglos de su revisión adversarial (PR #85, `main` = `0d69999`, árbol = `b84e57d`). Incluye `edge/` (la
