@@ -271,6 +271,11 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 
 ### Tests de Odoo
 
+- **CI #271** (`98f6c51`, 2026-11-06) · La calculadora de envíos: 1 falla en 4674,
+  `TestHerramientas.test_contrato_para_modelos_pequenos` («269 not less than 260 : cotizar_envio»). La descripción de
+  una herramienta de Brian tiene que tener **menos de 260 letras** y como mucho 5 parámetros (para los modelos
+  pequeños). El agente que la hizo corrió «como el CI» sus módulos, pero no las pruebas de `dcasa_brian`. Arreglo:
+  `3682053` (227 letras). **Regla:** toda herramienta nueva de Brian se prueba con `TEST_TAGS=/dcasa_brian:TestHerramientas`.
 - **CI #211** (`52fa1ec`, 2026-10-22) · Tanda del 22 oct unida (ocho ramas). El registro no se pudo bajar (la API da
   la dirección del blob y el proxy de esta máquina la bloquea con 403; `get_job_logs` del MCP de GitHub con
   `tail_lines` sí funciona). Una corrida completa en local halló las causas: (a) `dcasa_existencias` exige motivo en
@@ -367,6 +372,17 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `main` (`741930d`, árbol = `de1fb04`) a staging y Desplegar con ese `app_version`. **Regla:** un cambio del borde
   (rutas, `vars`, `workers_dev`) se despliega con un `app_version` que lo contenga, o sea con una imagen construida
   de ese commit.
+- **Desplegar 49 y Desplegar Juan 5** (05:46 UTC del 6 nov, `8701e17`, imagen `sha256:64ae4de1…` de CI #264, respaldo
+  previo) · Odoo sano y confirmado 05:59 (versión `8701e17f1afa`, base al día, humo ok): WhatsApp oficial guarda el
+  mensaje antes del 200 a Meta y la documentación unida (PR #82, `main` = `24d3207`, árbol = `8701e17`). Juan desde
+  `main` (`desplegar-juan.yml`, `entorno = production`, `dry_run = false`), a la vez: `wrangler deploy` bien;
+  `/salud` con `whatsapp_cloud` configurado y la versión `24d3207`; el único aviso es el de siempre (falta
+  `ANTHROPIC_API_KEY` de respaldo). El CI del PR (#270) se canceló.
+- **Desplegar 48** (03:42 UTC del 6 nov, `ca5f98f`, imagen `sha256:46c5231f…` de CI #262, respaldo previo) · sano y
+  confirmado 03:56 (versión `ca5f98f69b51`, base al día, humo ok): el mantenimiento (PR #77, `main` = `4f66c2c`,
+  árbol = `ca5f98f`). El CI del PR (#263) se canceló. Las dependencias nuevas de Juan entraron con Desplegar Juan 5.
+- **Primer ensayo de «Volver a una versión estable»** (staging, `estable-3`, run 42149850218, 6 nov) · sano en unos
+  12 minutos, ya con las acciones nuevas de Dependabot. Ver [VERSIONES_ESTABLES.md](VERSIONES_ESTABLES.md).
 - **Desplegar 47** (21:31 UTC del 5 nov, `e97958e`, imagen `sha256:aa3c4c06…` de CI #260, respaldo previo) · sano
   21:45 (versión `e97958e01847`, base al día, humo ok): «Guardar y responderle» (PR #76, `main` = `700c34a`, árbol =
   `e97958e`). El CI del PR (#261) se canceló. Juan no cambió.
@@ -468,6 +484,16 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 
 ### Esta máquina (sesiones de Claude)
 
+- **El worktree de un agente (`isolation: worktree`) nace de `main` (la rama por defecto de origin), no de la rama de
+  la sesión** (2026-11-06: los dos agentes salieron de `700c34a` aunque la rama tenía 10 commits más sin unir). Al unir
+  su rama hay conflictos en lo que la sesión cambió mientras tanto (docs) y sus pruebas no vieron el resto de la rama.
+  Decirle al agente que haga `git merge <rama>` al empezar, o esperar los conflictos y dejar que el CI pruebe la unión.
+- **El proxy bloquea `git push --delete` de otra rama** (2026-11-06). Para borrar una rama ya unida: la dueña, en GitHub
+  › Branches › el ícono de la papelera.
+- **`npm audit fix --omit=dev` poda las `devDependencies` de `node_modules`** (vitest, wrangler, tsc desaparecen y las
+  pruebas no corren): después, `npm ci`.
+- **`pkill -n -f <patrón>` mata el proceso MÁS NUEVO** que calza, que puede ser el vigilante que se acaba de lanzar en
+  segundo plano y no el viejo. Matar por PID.
 - `$!` después de `nohup cd … && python3 odoo-bin … &` es el PID de la subshell, no el de Odoo: al «matarlo» Odoo sigue
   vivo en el puerto y el siguiente arranque falla con «Address already in use» (y las capturas salen con el código
   viejo). Arrancar con un script que haga `exec python3 odoo-bin …` o matar por el PID real (`ps -eo pid,args | grep
@@ -809,6 +835,12 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 
 ### GitHub
 
+- **Dependabot: dos PR que tocan el mismo `package-lock.json` chocan** (2026-11-06, #7 y #8 de `edge/`): se juntan a mano
+  en `package.json`, luego `npm install --package-lock-only` y `npm ci`, y se prueba. Cambiar `.github/dependabot.yml`
+  en `main` lanza Dependabot enseguida: al unir el PR #77 abrió los PR #78 a #81 (Juan y el puente).
+- **`up-media.yml` corre con todo push a `main` que toque `up media/**`** y puede subir a `main` un commit propio
+  («[skip up-media] [skip ci]») que reescribe `RESUMEN.md`. Un *squash* con «[skip ci]» en el título no lo dispara. Si
+  aparece ese commit, la rama se pone al día con un `merge` normal, no con `-s ours`.
 - **Un PR que trae commits ya unidos por *squash* sale «con conflictos»** aunque el contenido sea el mismo (2026-10-18,
   PR #56 tras el #55). Si `git diff origin/main <punta probada del lote anterior>` está vacío, unir `main` en la rama
   con `git merge -s ours origin/main`, comprobar que el árbol sigue igual al probado (`git diff --quiet HEAD <sha

@@ -105,6 +105,29 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 > sigue. Se guardan las diez más recientes; las viejas se resumen en una línea abajo y su texto completo pasa a
 > [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md).
 
+### 2026-11-06 (1): limpieza y mantenimiento; WhatsApp guarda antes de contestar; Camila (diseño)
+
+- Pedido de la dueña: «limpieza y mantenimiento... revisar y auditar, actualizar el repositorio y la documentación»; y
+  que el código quede bien documentado «para ser clonado e implementado en otras empresas». Aprobó todo lo propuesto.
+- **En producción** (Desplegar 48, sano 03:56 UTC; PR #77): sin costos de compra en el repositorio público (y una
+  prueba que lo impide), código sin usar fuera, el «hoy» de Brian en hora de Panamá, avisos de seguridad de Juan
+  (undici, zod) y del borde, Dependabot también para Juan y el puente, ruff fijado, la guía para otra empresa
+  ([REPLICAR.md](REPLICAR.md) y `docs/replicar/`) y la **versión estable 3**, ensayada en staging (el primer ensayo de
+  volver que se hace).
+- **WhatsApp oficial** (Desplegar 49 y Desplegar Juan 5, sano 05:59 UTC; PR #82): el webhook guarda el mensaje en el
+  Durable Object antes de contestarle 200 a Meta; una alarma atiende a los 2 minutos lo que el Worker no alcanzó, en
+  orden y sin contestar dos veces; «Borrar mis datos» suelta lo que estaba en curso; de lo recibido queda solo una
+  huella SHA-256 del id (el `wamid` lleva el celular). Revisión adversarial: 6 hallazgos, corregidos con pruebas.
+- **Documentación unida:** lo viejo a `docs/historico/`, Juan en 3 documentos, una sola receta de producción
+  ([DESPLIEGUE.md](DESPLIEGUE.md)), bitácora corta, PRIORIDADES con una sola lista y sin datos de personas.
+- **Camila** ([CAMILA.md](CAMILA.md)): el jefe propuso cuatro nombres para futuras herramientas (Daniela, Camila,
+  Alejandra, Andrés). La dueña eligió **Camila para el mail marketing y la página web**, empezando por el correo: una
+  campaña cada 15 días, con el precio real de Odoo, por el servicio de campañas de Resend (aparte de las facturas). Los
+  otros tres nombres quedan reservados. Todavía no hay código.
+- La dueña también contó: la varita mágica («Sugerir») a veces no escribe el borrador, en el chat y en «Guardar y
+  responderle»; Brian está desactualizado; la pantalla de Sofía puede mejorar. Quedaron en PRIORIDADES.
+- La puerta del equipo `/master` sigue sin fecha (la dueña decide cuando el equipo se adapte).
+
 ### 2026-11-06 (2): la calculadora de envíos en el menú Envíos (módulo nuevo `dcasa_envios`)
 
 - Pedido de la dueña: poner el HTML de envíos del 4 nov en el menú «Envíos», con el scroll que funcione, y dejar el
