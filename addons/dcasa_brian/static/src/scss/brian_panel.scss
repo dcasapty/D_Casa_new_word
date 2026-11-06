@@ -99,6 +99,32 @@ $brian-ancho: 400px;
     }
 }
 
+// --- El botón flotante no tapa nada en las pantallas propias (2026-11-06) ---------------------------------------------
+// En Conversaciones tapaba «Enviar» y «Nota interna». Mientras el botón se ve (computadora, panel cerrado):
+// * Conversaciones: la caja de responder deja libre su esquina derecha (Enviar queda a la izquierda del botón); con la
+//   ficha del cliente abierta (queda a la derecha), su desplazamiento termina por encima del botón.
+// * Las pantallas propias que bajan con scroll (Sofía, Camila, Envíos, Inicio, Marketing, Juan, Contabilidad…) terminan
+//   con un espacio libre del alto del botón: lo último siempre sube por encima de él.
+// Brian no se esconde. Prueba de geometría: dcasa_brian/tests/test_boton_no_tapa.py.
+$brian-hueco-ancho: 84px;   // 20 de margen + 52 del botón + 12 de aire
+$brian-hueco-alto: 88px;    // 20 de margen + 52 del botón + 16 de aire
+$brian-pantallas-con-scroll: o_sofia, o_camila, o_dcasa_envios, o_dcasa_guia, o_dcasa_inicio, o_dcasa_mk,
+                             o_dcasa_reponer, o_dc_conta, o_dcj_p;
+@include media-breakpoint-up(lg) {
+    body:has(.o_brian_lanzador:not(.o_brian_oculto)) {
+        .o_dcj:not(.o_dcj_ficha_abierta) .o_dcj_caja { padding-right: $brian-hueco-ancho; }
+        .o_dcj.o_dcj_ficha_abierta .o_dcj_ficha { padding-bottom: $brian-hueco-alto; }
+        @each $pantalla in $brian-pantallas-con-scroll {
+            .o_action_manager > .o_action.#{$pantalla}::after {
+                content: "";
+                display: block;
+                flex: none;
+                height: $brian-hueco-alto;
+            }
+        }
+    }
+}
+
 @include media-breakpoint-down(md) {
     .o_brian_panel {
         width: 100vw;

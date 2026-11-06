@@ -16,10 +16,9 @@ class BrianHerramientasGuia(models.AbstractModel):
     @api.model
     @herramienta(
         nombre='buscar_en_guia',
-        descripcion='Busca en la Guía del negocio qué pantalla sirve para lo que la persona quiere hacer '
-                    '(declaración de renta, ITBMS, cerrar el mes, planilla, cobrar, conciliar el banco, crear un '
-                    'producto…) y dice en qué parte del menú queda y qué se logra allí. Úsala cuando la persona no '
-                    'sepa por dónde empezar.',
+        descripcion='Busca en la Guía qué pantalla sirve para lo que la persona quiere hacer (renta, ITBMS, cerrar '
+                    'el mes, planilla, cobrar, conciliar el banco…): dónde queda en el menú y qué se logra allí. Úsala '
+                    'si no sabe por dónde empezar.',
         parametros={'consulta': {'type': 'string', 'description': 'Lo que quiere hacer, con sus palabras.'}},
         requeridos=['consulta'],
         nivel='lectura',
@@ -57,11 +56,14 @@ class BrianHerramientasGuia(models.AbstractModel):
 
     @api.model
     def _abrir_de_guia(self, destino, titulo):
-        """El botón «abrir» de Brian para un menú de la Guía que abre la lista de un modelo (las pantallas a medida
-        no tienen: Brian dice la ruta del menú)."""
+        """El botón «abrir» de Brian para un menú de la Guía: la lista del modelo si el menú abre una lista; si abre
+        una pantalla propia (Sofía, Conversaciones, Envíos…), esa acción (la Guía ya comprobó que la persona ve el
+        menú)."""
         if not destino or destino['tipo'] != 'menu':
             return None
         accion = self.env['ir.ui.menu'].browse(destino['menu_id']).sudo().action
         if accion and accion._name == 'ir.actions.act_window' and accion.res_model:
             return {'modelo': accion.res_model, 'titulo': titulo}
+        if accion and accion._name == 'ir.actions.client':
+            return {'accion': accion.id, 'titulo': titulo}
         return None

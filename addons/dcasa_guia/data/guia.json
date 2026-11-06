@@ -1615,6 +1615,7 @@
    "destino": {
     "menu": "dcasa_camila.menu_camila"
    },
+   "brian": "¿Cómo va la campaña de correo?",
    "palabras": [
     "camila",
     "campana de correo",
@@ -2232,6 +2233,7 @@
    "destino": {
     "menu": "dcasa_contactos.menu_duplicados"
    },
+   "brian": "¿Hay clientes repetidos?",
    "palabras": [
     "repetidos",
     "fusionar",
@@ -2456,6 +2458,7 @@
    "destino": {
     "menu": "dcasa_conversaciones.menu_dcasa_panel_conversaciones"
    },
+   "brian": "¿Cuántos clientes esperan respuesta ahora?",
    "palabras": [
     "whatsapp",
     "mensajes",
@@ -2491,6 +2494,7 @@
     "menu": "dcasa_conversaciones.menu_dcasa_juan_ajustes"
    },
    "nota": "Viene en 3 días. No se borra: queda cancelada con una nota y se reabre con «Establecer como cotización». Las cotizaciones de las vendedoras no se tocan. 0 = nunca se cancelan.",
+   "brian": "¿Qué cotizaciones de Juan o de la web vencen pronto?",
    "palabras": [
     "cotizacion vencida",
     "cancelar sola",
@@ -2619,6 +2623,7 @@
     "menu": "dcasa_meta_catalogo.menu_meta_catalogo"
    },
    "nota": "Viene apagado: lo enciendes cuando vayas a pegar la dirección en Meta (Commerce Manager › Orígenes de datos). Los precios salen igual que en la página, sin ITBMS, y los productos que marques «No anunciar en Facebook e Instagram» no van.",
+   "brian": "¿Cómo va Meta?",
    "palabras": [
     "facebook",
     "instagram",
@@ -2680,6 +2685,7 @@
    "destino": {
     "menu": "dcasa_meta_eventos.menu_meta_eventos"
    },
+   "brian": "¿Se están reportando las ventas a Meta?",
    "palabras": [
     "meta",
     "facebook",
@@ -2866,6 +2872,7 @@
    "destino": {
     "menu": "dcasa_correo.menu_dcasa_correo_envios"
    },
+   "brian": "¿Qué correos a clientes no salieron esta semana?",
    "palabras": [
     "correos enviados",
     "no le llego el correo",
@@ -2991,6 +2998,7 @@
    "destino": {
     "menu": "dcasa_conversaciones.menu_dcasa_panel_reparto"
    },
+   "brian": "¿Qué vendedoras están recibiendo clientes ahora?",
    "palabras": [
     "reparto",
     "equitativo",
@@ -3093,11 +3101,12 @@
    "categoria": "vender",
    "grupo": "Hoy",
    "titulo": "Que Sofía te diga qué hacer hoy con tus clientes",
-   "logras": "Sofía revisa el CRM cada mañana (o cuando tocas «Organizar con Sofía» arriba del tablero del CRM) y te propone: a quién contestar, a quién escribirle, qué cotización vence y a qué cliente pedirle su nombre y su correo. El mensaje ya viene escrito: lo cambias si quieres y tocas «Abrir el chat con este mensaje» o «Enviar ya». Cuando el cliente te contesta su nombre, su correo o su cumpleaños, toca «Revisar ahora»: Sofía te muestra «Guarda sus datos», los revisas y tocas «Guardar y responderle» (se guardan y se abre su chat con un borrador para darle las gracias y seguir con la venta) o «Solo guardar». Nada sale ni se guarda sin que tú lo apruebes.",
-   "nota": "Cada vendedora ve solo lo suyo. Gerencia ve todo y además aprueba cómo repartir las oportunidades sin vendedora. Lo que descartas no vuelve en unos días.",
+   "logras": "Sofía revisa el CRM cada mañana (o cuando tocas «Organizar con Sofía» arriba del tablero del CRM) y te propone: a quién contestar, a quién escribirle, qué cotización vence y a qué cliente pedirle su nombre y su correo. Lo urgente sale arriba, en «Hoy sin falta»; con los botones de «Qué mirar» ves un solo tipo (Gerencia también por vendedora). El mensaje ya viene escrito: lo cambias con «Editar» si quieres y tocas «Abrir el chat con este mensaje» o «Enviar ya». Cuando el cliente te contesta su nombre, su correo o su cumpleaños, toca «Revisar ahora»: Sofía te muestra «Guarda sus datos», los revisas y tocas «Guardar y responderle» (se guardan y se abre su chat con un borrador para darle las gracias y seguir con la venta) o «Solo guardar». Nada sale ni se guarda sin que tú lo apruebes.",
+   "nota": "Cada vendedora ve solo lo suyo. Gerencia ve todo y además aprueba cómo repartir las oportunidades sin vendedora. Lo que descartas no vuelve en unos días. Cuando no queda nada, Sofía dice «Todo al día».",
    "destino": {
     "menu": "dcasa_sofia.menu_sofia"
    },
+   "brian": "¿Qué me propone Sofía hoy?",
    "palabras": [
     "sofia",
     "organizar",
@@ -3113,6 +3122,8 @@
     "emoji",
     "repartir oportunidades",
     "prioridades del dia",
+    "hoy sin falta",
+    "filtrar por vendedora",
     "asistente del crm"
    ]
   },
@@ -3147,6 +3158,7 @@
    "destino": {
     "menu": "dcasa_envios.menu_envios_calculadora"
    },
+   "brian": "¿Cuánto cuesta el envío a Villa Lucre?",
    "palabras": [
     "envio",
     "envios",

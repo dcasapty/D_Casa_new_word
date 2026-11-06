@@ -56,7 +56,16 @@ class BrianHerramientasVentas(models.AbstractModel):
             'fecha': c.fecha(orden.date_order),
             'estado': self._b_estado_venta(orden),
             'total': c.moneda(orden.amount_total),
+            'origen': self._b_origen(orden),
         }
+
+    @api.model
+    def _b_origen(self, registro):
+        """«Chatbot» (la armó Juan), «Web» (la tienda en línea) o «Vendedora» (dcasa_interfaz, ``dcasa_origen``)."""
+        campo = registro._fields.get('dcasa_origen')
+        if not campo or not registro.dcasa_origen:
+            return ''
+        return dict(campo._description_selection(self.env)).get(registro.dcasa_origen, registro.dcasa_origen)
 
     @api.model
     def _b_cotizacion_editable(self, texto):
@@ -403,23 +412,31 @@ class BrianHerramientasVentas(models.AbstractModel):
 
     @herramienta(
         nombre='buscar_ventas',
-        descripcion='Busca ventas y cotizaciones por cliente o número, estado y periodo.',
+        descripcion='Busca ventas y cotizaciones por cliente o número, estado, periodo y origen (las que armó Juan, '
+                    'el chatbot; las de la tienda en línea, o las de una vendedora).',
         parametros={
             'texto': {'type': 'string', 'description': 'Cliente o número, p. ej. «Juan Pérez» o «S00012». Opcional.'},
             'estado': {'type': 'string', 'enum': ['cotizacion', 'confirmada', 'cancelada', 'todas'],
                        'description': 'Filtrar por estado. Por defecto «todas».'},
             'periodo': c.PARAM_PERIODO,
+            'origen': {'type': 'string', 'enum': ['chatbot', 'web', 'vendedora'],
+                       'description': 'Opcional: chatbot (la armó Juan), web (tienda en línea) o vendedora.'},
             'limite': c.PARAM_LIMITE,
         },
         nivel='lectura', categoria='ventas', grupos=VENDEDOR,
-        ejemplos=['cotizaciones abiertas → estado=cotizacion', 'ventas de María este mes'],
+        ejemplos=['cotizaciones abiertas → estado=cotizacion', 'ventas de María este mes',
+                  'cotizaciones que armó Juan → origen=chatbot'],
     )
-    def _h_buscar_ventas(self, texto=None, estado='todas', periodo=None, limite=10):
+    def _h_buscar_ventas(self, texto=None, estado='todas', periodo=None, origen=None, limite=10):
         dominio = []
         if estado and estado != 'todas':
             if estado not in ESTADOS:
                 raise BrianError('Estado desconocido. Usa cotizacion, confirmada, cancelada o todas.')
             dominio.append(('state', 'in', ESTADOS[estado]))
+        if origen:
+            if origen not in ('chatbot', 'web', 'vendedora'):
+                raise BrianError('Origen desconocido. Usa chatbot, web o vendedora.')
+            dominio.append(('dcasa_origen', '=', origen))
         if texto:
             dominio += ['|', ('name', 'ilike', texto), ('partner_id', 'ilike', texto)]
         if periodo:
@@ -446,6 +463,7 @@ class BrianHerramientasVentas(models.AbstractModel):
         resumen.update({
             'fecha': c.fecha(orden.date_order),
             'vendedor': orden.user_id.name or '',
+            'origen': self._b_origen(orden),
             'facturacion': facturacion.get(orden.invoice_status, orden.invoice_status or ''),
             'facturas': [f'{self._b_numero_factura(f)} ({self._b_estado_factura(f)})' for f in orden.invoice_ids],
         })

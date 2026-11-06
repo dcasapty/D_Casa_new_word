@@ -20,6 +20,40 @@ proponga mensajes y seguimientos según el estado de cada cliente, mantenga el C
 * **Conversaciones › Configuración › Ajustes de Juan**, grupo «Sofía»: revisar cada mañana (sí), resumen por Telegram
   (sí), lo descartado no vuelve en (7 días), no volver a pedir sus datos en (30 días).
 
+## Cómo se ve y se usa (la pantalla, 2026-11-06)
+
+Pedido de la dueña: «Sofía puede mejorar mucho, sobre todo la interfaz visual». Pensada para la vendedora con el
+celular entre clientes y para Gerencia en la computadora. **Solo cambió la interfaz**: lo que Sofía propone, los
+permisos y lo que hace cada botón son los mismos de antes (`static/src/`; el servidor no se tocó).
+
+* **Arriba, en azul:** «Revisar ahora» (amarillo), cuándo revisó y quién lo pidió («Revisó hoy a las 2:53 p. m. (la
+  pidió Ana)») y cuántas hay de cada prioridad («12 hoy sin falta · 13 hoy · 4 cuando puedas»).
+* **Lo urgente primero, por secciones:** «Hoy sin falta» (franja azul con el número en amarillo y tarjetas con borde
+  azul), «Hoy» y «Cuando puedas», cada una con su número.
+* **Filtro rápido con conteos:** «Qué mirar», por tipo (Contestarle, Cotización vence, Escribirle, Pedir sus datos,
+  Guardar sus datos, Llamarlo, Darle vendedora, Poner su vendedora; solo los que hay) y, para Gerencia, «Para quién»
+  (cada vendedora y «Sin vendedora»). Los números se cruzan: con un tipo elegido, cada vendedora dice cuántas de ese
+  tipo tiene, y al revés. En la computadora van a la izquierda y se quedan a la vista al bajar; en el celular son una
+  tira que se desliza de lado y se queda pegada arriba.
+* **La tarjeta, compacta:** el cliente y su canal, la temperatura, qué hacer (con su ícono), el porqué y, para
+  Gerencia, para quién es. El mensaje se lee como en el chat (una burbuja) y se cambia con **«Editar»** («Listo» lo
+  cierra; si se cambió, dice «lo cambiaste»). La primera acción es la grande (a todo el ancho en el celular) y las
+  demás van al lado. «Ver la oportunidad» y «Descartar» van abajo, aparte y discretos (lejos del botón principal).
+* **«Descartar» como siempre:** un toque, sin pregunta (nunca tuvo confirmación y no se le agregó; la dueña lo decidió
+  así el 2026-11-06: «no quiero, déjalo así»); la tarjeta dice «Descartada…» en su lugar.
+* **Al aprobar, la pantalla no salta:** la tarjeta se queda en su lugar y del mismo alto diciendo lo que pasó («Tarea
+  creada para Ana.», «Guardado en su ficha.», o en ámbar lo que «ya no hacía falta») durante 2,5 segundos, y después se
+  cierra despacio. Nada nuevo queda bajo el dedo. Lo que abre el chat («Abrir el chat…», «Guardar y responderle») se
+  va al chat como antes, con su aviso; un error sale en un aviso y la tarjeta se queda.
+* **Todo al día:** sin nada pendiente, «Todo al día» y cuándo vuelve a revisar. Si el filtro elegido se quedó vacío,
+  «Listo por aquí» con «Ver todo (N)»; el filtro elegido se queda (en 0) para que la tira no salte.
+* **Mientras carga:** la forma de las tarjetas. Desde «Organizar con Sofía» se ven primero las que ya había y Sofía
+  revisa encima (una franja dice «Sofía está revisando el CRM…»); lo que se resolvió en la pantalla mientras tanto no
+  vuelve a aparecer.
+* **Baja con la rueda y con el dedo** (la regla fuerte de `.o_action`, como el Inicio; prueba con eventos de verdad).
+* Marca: azul `#1340B1`; el amarillo solo sobre azul (avatar, «Revisar ahora», el número de «Hoy sin falta», el conteo
+  del filtro elegido y el ícono de «Todo al día»); Anton, Oswald e Inter; plano, sin sombras.
+
 ## Qué propone (en este orden; un solo mensaje por cliente por revisión)
 
 | Tipo | Cuándo | Qué se aprueba |
@@ -141,7 +175,10 @@ tiene cada vendedora). El aviso nunca hace fallar la revisión.
 
 `addons/dcasa_sofia/tests/`: reglas puras (`test_reglas.py`), motor, permisos, aprobar cada acción, lo que ya no hace
 falta, descartar, la revisión de la mañana y Telegram (`test_sofia.py`), y en el navegador revisar, descartar y abrir el
-chat con el mensaje escrito (`test_sofia_navegador.py`).
+chat con el mensaje escrito (`test_sofia_navegador.py`). La pantalla (`test_sofia_pantalla.py`): lo urgente arriba y
+en azul, el filtro por tipo y por vendedora con conteos que cuadran, «Todo al día», «Listo por aquí» con «Ver todo»,
+que no salte al aprobar o descartar, y el scroll con la rueda (computadora) y con el dedo (celular) mandados por el
+protocolo de Chrome, con los filtros a la vista.
 
 ## Siguientes etapas (ideas, sin hacer)
 
