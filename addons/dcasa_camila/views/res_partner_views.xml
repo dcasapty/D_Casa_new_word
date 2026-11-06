@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- El permiso de novedades por correo en la ficha del cliente (decisión de la dueña, 2026-11-06): la vendedora lo
+         marca solo si el cliente dijo que sí; queda con la fecha, por dónde y quién (con historial). «Darle de baja» lo
+         anota quien puede editar al cliente (cuando el cliente lo pide). Con baja ya no se vuelve a marcar. -->
+    <record id="view_partner_form_dcasa_camila" model="ir.ui.view">
+        <field name="name">res.partner.form.dcasa.camila</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet/group//field[@name='category_id']" position="after">
+                <field name="dcasa_promos_estado" invisible="1"/>
+                <label for="dcasa_promos" string="Novedades por correo" invisible="parent_id"/>
+                <div class="o_dcasa_promos" invisible="parent_id">
+                    <div class="d-flex align-items-baseline" invisible="dcasa_promos_estado == 'baja'">
+                        <field name="dcasa_promos" nolabel="1" class="w-auto me-2" readonly="dcasa_promos_estado != 'sin'"/>
+                        <span>Quiere recibir novedades y promociones por correo</span>
+                    </div>
+                    <div class="text-muted small" invisible="dcasa_promos_estado != 'sin'">
+                        Pregúntale: «¿Te avisamos por correo de lo nuevo y de las promociones de D'CASA? Te puedes dar
+                        de baja cuando quieras.» Márcalo solo si dice que sí.
+                    </div>
+                    <div class="text-muted small" invisible="dcasa_promos_estado != 'si'">
+                        Dijo que sí el <field name="dcasa_promos_fecha" class="oe_inline" readonly="1"/>
+                        · <field name="dcasa_promos_origen" class="oe_inline" readonly="1"/>
+                        <span invisible="not dcasa_promos_usuario_id">
+                            · lo registró <field name="dcasa_promos_usuario_id" class="oe_inline" readonly="1"
+                                                 options="{'no_open': True}"/>
+                        </span>
+                    </div>
+                    <button name="action_dcasa_promos_baja" type="object" string="Darle de baja"
+                            class="btn-link px-0" icon="fa-times-circle-o"
+                            invisible="dcasa_promos_estado != 'si'"
+                            confirm="No le volverá a llegar ninguna campaña de novedades (no se puede deshacer). ¿Darle de baja?"/>
+                    <div class="text-muted small o_dcasa_promos_baja" invisible="dcasa_promos_estado != 'baja'">
+                        <i class="fa fa-ban me-1" aria-hidden="true"/>Se dio de baja el
+                        <field name="dcasa_promos_baja_fecha" class="oe_inline" readonly="1"/>
+                        · <field name="dcasa_promos_baja_origen" class="oe_inline" readonly="1"/>.
+                        No se le vuelve a escribir ninguna campaña.
+                    </div>
+                </div>
+            </xpath>
+        </field>
+    </record>
+</odoo>

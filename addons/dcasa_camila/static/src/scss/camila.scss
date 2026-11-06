@@ -1,0 +1,351 @@
+// Camila — marca D'CASA: sistema plano (sin degradados ni sombras dramáticas). Azul #1340B1; el amarillo #FED00F solo
+// SOBRE azul (nunca sobre blanco). Anton en el título, Oswald en lo que destaca, Inter en el cuerpo. En el celular: 16 px
+// de margen y sin scroll de lado.
+
+// Odoo pone a todo `.o_action` en columna con `overflow: hidden` (webclient_layout.scss) y esa regla pesa más que una
+// clase suelta: sin esta regla fuerte la pantalla no baja con la rueda ni con el dedo (el bug de siempre; ver
+// docs/CONTEXTO_AGENTICO.md y dcasa_interfaz/tests/test_scroll.py).
+.o_web_client > .o_action_manager > .o_camila.o_action {
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    &::-webkit-scrollbar { display: block; width: 8px; }
+    &::-webkit-scrollbar-thumb { background: var(--dc-linea, #D7DEEA); border-radius: 4px; }
+    > * { flex-shrink: 0; }
+}
+
+.o_camila {
+    --cm-azul: var(--dc-azul-600, #1340B1);
+    --cm-navy: var(--dc-azul-800, #0E2A6B);
+    --cm-amarillo: var(--dc-amarillo, #FED00F);
+    --cm-tinta: var(--dc-tinta, #0E1A33);
+    --cm-tinta-2: var(--dc-tinta-2, #44506A);
+    --cm-linea: var(--dc-linea, #E2E7F0);
+    --cm-suave: var(--dc-perla, #ECF0F6);
+    background: var(--dc-niebla, #F4F6FA);
+    color: var(--cm-tinta);
+    font-family: "Inter", system-ui, sans-serif;
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    .o_camila_encabezado {
+        padding: 16px 24px;
+        background: var(--cm-azul);
+        color: #FFFFFF;
+    }
+
+    .o_camila_titulo {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+
+        h1 {
+            margin: 0;
+            font-family: "Anton", "Oswald", sans-serif;
+            font-size: 1.75rem;
+            font-weight: normal;
+            letter-spacing: .02em;
+            text-transform: uppercase;
+            color: #FFFFFF;
+        }
+
+        p { margin: 2px 0 0; color: #FFFFFF; opacity: .92; }
+    }
+
+    // El avatar: amarillo sobre la banda azul (nunca sobre blanco).
+    .o_camila_avatar {
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background: var(--cm-amarillo);
+        color: var(--cm-navy);
+        font-family: "Anton", "Oswald", sans-serif;
+        font-size: 1.4rem;
+    }
+
+    .o_camila_cuerpo {
+        width: 100%;
+        max-width: 1240px;
+        margin: 0 auto;
+        padding: 20px 24px 40px;
+    }
+
+    .o_camila_cifras {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+
+    .o_camila_cifra {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: 14px 16px;
+        background: #FFFFFF;
+        border: 1px solid var(--cm-linea);
+        border-radius: 12px;
+        min-width: 0;
+    }
+
+    .o_camila_cifra_valor {
+        font-family: "Anton", "Oswald", sans-serif;
+        font-size: 2rem;
+        line-height: 1.1;
+        color: var(--cm-azul);
+    }
+
+    .o_camila_cifra_fecha { font-size: 1.45rem; }
+    .o_camila_cifra_nombre { color: var(--cm-tinta-2); font-size: .9rem; }
+
+    .o_camila_bloqueos {
+        margin-bottom: 16px;
+        padding: 12px 16px;
+        background: #FFFFFF;
+        border: 1px solid var(--cm-linea);
+        border-left: 4px solid var(--cm-azul);
+        border-radius: 8px;
+        color: var(--cm-navy);
+
+        ul { margin: 6px 0 0; padding-left: 20px; }
+    }
+
+    .o_camila_vacio {
+        padding: 28px 24px;
+        background: #FFFFFF;
+        border: 1px solid var(--cm-linea);
+        border-radius: 12px;
+        text-align: center;
+
+        h2 { font-family: "Oswald", sans-serif; color: var(--cm-navy); font-size: 1.35rem; }
+        p { max-width: 40rem; margin: 8px auto 16px; color: var(--cm-tinta-2); }
+    }
+
+    .o_camila_trabajo {
+        display: grid;
+        grid-template-columns: minmax(0, 430px) minmax(0, 1fr);
+        gap: 20px;
+        align-items: start;
+    }
+
+    .o_camila_previa,
+    .o_camila_editor,
+    .o_camila_historial {
+        background: #FFFFFF;
+        border: 1px solid var(--cm-linea);
+        border-radius: 12px;
+        padding: 16px;
+        min-width: 0;
+    }
+
+    .o_camila_previa_cabecera {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 8px;
+
+        h2 { margin: 0; font-family: "Oswald", sans-serif; font-size: 1.15rem; color: var(--cm-navy); }
+    }
+
+    .o_camila_asunto_previa {
+        margin: 0 0 10px;
+        color: var(--cm-tinta);
+        span { color: var(--cm-tinta-2); }
+    }
+
+    .o_camila_marco {
+        margin: 0 auto;
+        border: 1px solid var(--cm-linea);
+        border-radius: 18px;
+        overflow: hidden;
+        background: #F4F1EA;
+        max-width: 100%;
+    }
+
+    .o_camila_marco_celular { width: 390px; }
+    .o_camila_marco_computadora { width: 100%; }
+
+    .o_camila_previa_correo {
+        display: block;
+        width: 100%;
+        border: 0;
+    }
+
+    .o_camila_estado {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 6px;
+        margin-bottom: 10px;
+    }
+
+    .o_camila_badge { background: var(--cm-suave); color: var(--cm-navy); }
+    .o_camila_nombre { font-family: "Oswald", sans-serif; font-weight: 600; color: var(--cm-navy); }
+    .o_camila_detalle { color: var(--cm-tinta-2); font-size: .9rem; }
+
+    .o_camila_etiqueta {
+        display: block;
+        margin: 12px 0 4px;
+        font-weight: 600;
+        color: var(--cm-navy);
+    }
+
+    .o_camila_subtitulo {
+        margin: 18px 0 8px;
+        font-family: "Oswald", sans-serif;
+        font-size: 1.1rem;
+        color: var(--cm-navy);
+        small { font-family: "Inter", sans-serif; font-size: .8rem; color: var(--cm-tinta-2); }
+    }
+
+    .o_camila_productos {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .o_camila_producto {
+        display: flex;
+        gap: 12px;
+        padding: 10px;
+        border: 1px solid var(--cm-linea);
+        border-radius: 10px;
+        min-width: 0;
+    }
+
+    .o_camila_miniatura {
+        flex: 0 0 auto;
+        width: 64px;
+        height: 64px;
+        object-fit: cover;
+        border-radius: 8px;
+        background: var(--cm-suave);
+    }
+
+    .o_camila_producto_cuerpo { flex: 1 1 auto; min-width: 0; }
+
+    .o_camila_producto_cabeza {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 4px 12px;
+    }
+
+    .o_camila_producto_nombre { color: var(--cm-navy); overflow-wrap: anywhere; }
+    .o_camila_producto_precio { color: var(--cm-azul); font-weight: 700; white-space: nowrap; }
+
+    .o_camila_grupo {
+        display: inline-block;
+        margin: 2px 0 6px;
+        padding: 0 8px;
+        border-radius: 999px;
+        background: var(--cm-suave);
+        color: var(--cm-navy);
+        font-size: .78rem;
+    }
+
+    .o_camila_producto_botones {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 2px;
+        margin-top: 4px;
+        .btn { padding-left: 6px; padding-right: 6px; }
+    }
+
+    .o_camila_busqueda {
+        margin-top: 10px;
+        padding: 12px;
+        border: 1px solid var(--cm-linea);
+        border-radius: 10px;
+        background: var(--cm-suave);
+    }
+
+    .o_camila_busqueda_cabeza {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 6px;
+        color: var(--cm-navy);
+    }
+
+    .o_camila_resultados {
+        list-style: none;
+        margin: 8px 0 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .o_camila_resultado {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        padding: 6px;
+        text-align: left;
+        background: #FFFFFF;
+        border: 1px solid var(--cm-linea);
+        border-radius: 8px;
+
+        .o_camila_miniatura { width: 44px; height: 44px; }
+    }
+
+    .o_camila_resultado_nombre { flex: 1 1 auto; min-width: 0; color: var(--cm-navy); overflow-wrap: anywhere; }
+    .o_camila_resultado_precio { color: var(--cm-azul); font-weight: 700; white-space: nowrap; }
+
+    .o_camila_acciones {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 18px;
+        padding-top: 14px;
+        border-top: 1px solid var(--cm-linea);
+
+        .btn { white-space: normal; }
+    }
+
+    .o_camila_prueba_hecha,
+    .o_camila_ayuda,
+    .o_camila_tabla_nota,
+    .o_camila_historial_vacio {
+        margin: 10px 0 0;
+        color: var(--cm-tinta-2);
+        font-size: .88rem;
+    }
+
+    .o_camila_historial {
+        margin-top: 20px;
+
+        h2 { font-family: "Oswald", sans-serif; font-size: 1.15rem; color: var(--cm-navy); }
+    }
+
+    .o_camila_tabla_envoltura { overflow-x: auto; }
+    .o_camila_tabla { margin: 0; min-width: 560px; }
+    .o_camila_tabla_asunto { color: var(--cm-tinta-2); font-size: .85rem; }
+
+    @media (max-width: 991.98px) {
+        .o_camila_trabajo { grid-template-columns: minmax(0, 1fr); }
+    }
+
+    @media (max-width: 767.98px) {
+        .o_camila_encabezado { padding: 14px 16px; }
+        .o_camila_cuerpo { padding: 16px 16px 32px; }
+        .o_camila_cifras { grid-template-columns: minmax(0, 1fr); }
+        .o_camila_marco_celular { width: 100%; }
+        .o_camila_previa,
+        .o_camila_editor,
+        .o_camila_historial { padding: 12px; }
+        .o_camila_acciones .btn { flex: 1 1 100%; }
+    }
+}

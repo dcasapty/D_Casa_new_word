@@ -416,6 +416,18 @@ usan con clientes» y Brian tiene que decirlo.
 Ejemplos: «¿cuánto cuesta el envío a Villa Lucre?» → `cotizar_envio(lugar=Villa Lucre)`; «¿y a 34 km con peaje?» →
 `cotizar_envio(km=34, peaje=true)`.
 
+## Camila, el correo de novedades (2026-11-06, módulo `dcasa_camila`)
+
+Las mismas cifras de la pantalla **Marketing › Camila** ([CAMILA.md](CAMILA.md)); nada lo calcula el modelo de IA. Brian
+no arma ni envía campañas: eso se aprueba en la pantalla.
+
+| Herramienta | Qué hace | Nivel | Quién |
+|---|---|---|---|
+| `estado_campanas(cuantas?)` | El borrador abierto (asunto y productos con su precio de la tienda), cuántos clientes tienen permiso, si está la clave de campañas de Resend, desde cuándo puede salir la próxima (una cada 15 días), por qué no puede salir ahora y los resultados de las últimas `cuantas` campañas (enviados, chats que llegaron con la marca, ventas; el monto solo para Gerencia y administradores; aperturas y clics de Resend) | lectura | Gerencia, administradores y el rol Marketing |
+
+Ejemplos: «¿cómo va la campaña de correo?» → `estado_campanas`; «¿cuántos clientes reciben las novedades?» →
+`estado_campanas`; «resultados de las últimas 5 campañas» → `estado_campanas(cuantas=5)`.
+
 ## Marketing y fotos (2026-10-22, módulo `dcasa_marketing`)
 
 Las mismas cifras de la app **Marketing** ([MARKETING.md](MARKETING.md)); nada lo calcula el modelo de IA.

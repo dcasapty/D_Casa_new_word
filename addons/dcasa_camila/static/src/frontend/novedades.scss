@@ -1,0 +1,56 @@
+// /novedades/si — la página del enlace «Sí, quiero» (marca D'CASA: sistema plano, sin degradados ni sombras). Banda
+// azul; el amarillo SOLO sobre azul (el botón). Anton en el título, Inter en el cuerpo. En el celular: 16 px de margen.
+.o_camila_novedades {
+    background: #F4F1EA;
+
+    .o_camila_novedades_banda {
+        background: #1340B1;
+        color: #FFFFFF;
+        padding: clamp(2.5rem, 7vw, 5rem) 16px;
+    }
+
+    .o_camila_novedades_caja {
+        max-width: 640px;
+        margin: 0 auto;
+        text-align: center;
+    }
+
+    .o_camila_novedades_kicker {
+        margin: 0 0 .75rem;
+        font-family: "Oswald", "Arial Narrow", Arial, sans-serif;
+        font-size: .95rem;
+        letter-spacing: .06em;
+        text-transform: uppercase;
+        color: #FFFFFF;
+    }
+
+    .o_camila_novedades_titulo {
+        margin: 0 0 1rem;
+        font-family: "Anton", Impact, "Arial Narrow Bold", Arial, sans-serif;
+        font-size: clamp(2rem, 6vw, 3.25rem);
+        font-weight: normal;
+        line-height: 1.1;
+        text-transform: uppercase;
+        color: #FFFFFF;
+        overflow-wrap: anywhere;
+    }
+
+    .o_camila_novedades_texto {
+        margin: 0 auto 1.75rem;
+        max-width: 34rem;
+        font-family: "Inter", Arial, Helvetica, sans-serif;
+        font-size: 1.05rem;
+        line-height: 1.6;
+        color: #FFFFFF;
+    }
+
+    .o_camila_novedades_form {
+        margin: 0;
+    }
+
+    .btn {
+        min-width: 14rem;
+        max-width: 100%;
+        white-space: normal;
+    }
+}

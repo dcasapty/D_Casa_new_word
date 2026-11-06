@@ -317,6 +317,7 @@ Cuatro lugares. Ningún valor secreto está en el repositorio.
 | Secret | **`DCASA_PIN_PEPPER`** | sí (≥ 32) | Pimienta del PIN de los socios. **Nunca se rota.** Se sube solo si el Worker no la tiene |
 | Secret | `BRIAN_API_KEY` | sí | Clave del proveedor de IA de Brian |
 | Secret | `RESEND_API_KEY` | no | Correo a clientes ([CORREO.md](CORREO.md)) |
+| Secret | `RESEND_CAMPANAS_API_KEY` | no | Campañas de Camila por Resend Broadcasts (permiso «Full access»; solo en el panel de Cloudflare del Worker `dcasa`, no en GitHub) ([CAMILA.md](CAMILA.md)) |
 | Secret | `TELEGRAM_BOT_TOKEN`, `BRIAN_TELEGRAM_SECRETO` | no | Brian por Telegram (y alertas del Worker) |
 | Secret | `TIENDA_FEED_TOKEN` | no (sí para la caché) | Lo comparten el Worker y Odoo |
 | Secret | `TURNSTILE_SECRET` | no | Turnstile (con `TURNSTILE_SITE_KEY`) |

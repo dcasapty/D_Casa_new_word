@@ -550,6 +550,10 @@ export const VARIABLES_DEL_CONTENEDOR = [
   // Correo a clientes por Resend (addons/dcasa_correo, docs/CORREO.md). Opcional: sin la clave Odoo no manda ningún
   // correo. Viaja desde el secreto de GitHub con cada despliegue (.github/scripts/secretos_despliegue.sh).
   "RESEND_API_KEY",
+  // Campañas de Camila por Resend Broadcasts (addons/dcasa_camila, docs/CAMILA.md): otra clave, con permiso «Full
+  // access» (la de arriba es de solo envío y no sirve para contactos ni campañas). Opcional: sin ella Odoo no envía
+  // campañas. Es un secreto del panel de Cloudflare del Worker `dcasa` (no pasa por GitHub).
+  "RESEND_CAMPANAS_API_KEY",
   // Meta: Conversions API (addons/dcasa_meta_eventos, docs/META_EVENTOS.md). Opcional: sin el token Odoo no le manda
   // nada a Meta. Viaja desde el secreto de GitHub con cada despliegue; Odoo lo lee del entorno al enviar y jamás lo
   // guarda en la base ni lo escribe en un registro.

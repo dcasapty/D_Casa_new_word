@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- /novedades/si (controllers/main.py): la página del enlace «¿Te avisamos de lo nuevo? Sí, quiero». Banda azul de
+         la marca; el amarillo solo sobre azul (el botón); un solo CTA de WhatsApp en la página de gracias. -->
+    <template id="pagina_novedades" name="Camila: página «Sí, quiero»">
+        <t t-call="website.layout">
+            <t t-set="additional_title" t-value="titulo"/>
+            <div id="wrap" class="o_camila_novedades">
+                <section class="o_camila_novedades_banda" t-att-data-estado="estado">
+                    <div class="o_camila_novedades_caja">
+                        <p class="o_camila_novedades_kicker">D'CASA Panamá · Novedades por correo</p>
+                        <h1 class="o_camila_novedades_titulo" t-out="titulo"/>
+                        <t t-if="estado == 'confirmar'">
+                            <p class="o_camila_novedades_texto">Te escribimos cuando llegue algo nuevo a la tienda o
+                                haya una promoción: como mucho un correo cada dos semanas. Te puedes dar de baja cuando
+                                quieras con el enlace de cada correo.</p>
+                            <form method="post" action="/novedades/si" class="o_camila_novedades_form">
+                                <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                                <input type="hidden" name="t" t-att-value="token"/>
+                                <button type="submit" class="btn btn-lg o_dcasa_btn_amarillo o_camila_si_quiero">Sí, quiero</button>
+                            </form>
+                        </t>
+                        <t t-elif="estado == 'gracias'">
+                            <p class="o_camila_novedades_texto">Quedaste anotado. Te avisaremos de lo nuevo y de las
+                                promociones de D'CASA. Si un día no quieres más, cada correo trae el enlace para darte de
+                                baja.</p>
+                        </t>
+                        <t t-elif="estado == 'ya'">
+                            <p class="o_camila_novedades_texto">Ya nos habías dicho que sí: no tienes que hacer nada
+                                más.</p>
+                        </t>
+                        <t t-elif="estado == 'baja'">
+                            <p class="o_camila_novedades_texto">Antes nos pediste no recibir más novedades y lo
+                                respetamos: con este enlace no te volvemos a anotar.</p>
+                        </t>
+                        <t t-else="">
+                            <p class="o_camila_novedades_texto">El enlace venció o está incompleto. Si quieres recibir
+                                novedades, escríbenos y te anotamos.</p>
+                        </t>
+                        <a t-if="estado != 'confirmar'" t-att-href="whatsapp" target="_blank" rel="noopener"
+                           class="btn btn-lg o_dcasa_btn_amarillo o_camila_novedades_whatsapp">
+                            <i class="fa fa-whatsapp me-2" aria-hidden="true"/>Escríbenos por WhatsApp
+                            <span class="visually-hidden">(se abre en una pestaña nueva)</span></a>
+                    </div>
+                </section>
+            </div>
+        </t>
+    </template>
+</odoo>
