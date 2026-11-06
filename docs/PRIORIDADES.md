@@ -10,9 +10,9 @@ LEEME_PRIMERO §2).
 ## Estado al 2026-11-06
 
 - **Producción funciona desde el 2026-10-13** y **`dcasapty.com` (y `www`) apunta al sistema nuevo desde el
-  2026-10-27** (Desplegar 31). El último despliegue es Desplegar 50 (6 nov, PR #83: la calculadora de envíos); Juan,
-  Desplegar Juan 5 (PR #82: WhatsApp guarda antes de contestarle a Meta).
-  El contenedor instala 29 de los 30 módulos de `addons/` (todos menos `dcasa_fe_pa`, a propósito).
+  2026-10-27** (Desplegar 31). El último despliegue es Desplegar 51 con Desplegar Juan 6 (6 nov, PR #84: la varita «Sugerir»
+  escribe siempre o dice por qué; antes, PR #83 la calculadora de envíos y PR #82 WhatsApp).
+  El contenedor instala 30 de los 31 módulos de `addons/` (todos menos `dcasa_fe_pa`, a propósito).
 - **Juan atiende el WhatsApp de la tienda por la API oficial de Meta** desde el 2026-11-02 (modelo «contributor» de
   Meta, llave permanente). Telegram también funciona. Messenger e Instagram tienen el código listo pero no están
   conectados. El puente de WhatsApp por QR (`puente-wa/`) **nunca se desplegó** a producción. Ver
@@ -25,39 +25,36 @@ LEEME_PRIMERO §2).
 
 ## Lo que sigue, en orden
 
-1. **La varita mágica («Sugerir») que a veces no escribe el borrador**, en el chat y en «Guardar y responderle» de Sofía
-   (la dueña, 2026-11-06: «a veces sí, a veces no»). **Arreglado y probado en la rama el 2026-11-06** (causas en la
-   bitácora): falta capturas a la dueña, CI, staging, producción y **Desplegar Juan** (cambió `juan/`). Después de
-   desplegar, si vuelve a pasar, la causa queda en el registro (`[juan] sugerir {...}` en el Worker y «Juan: «Sugerir»
-   sin borrador (… causa …)» en Odoo).
-2. **Camila, etapa 1: mail marketing** ([CAMILA.md](CAMILA.md)). Decisiones tomadas el 2026-11-06: campaña cada 15
-   días, con el precio real de Odoo, por el servicio de campañas de Resend. Primero el permiso del cliente.
-3. **Brian al día** con lo nuevo (la dueña: «indispensable, pero desactualizado») y una vuelta a la pantalla de Sofía.
-4. **Que el equipo use lo nuevo** (lo hace la dueña con el equipo; ver «Lo que falta de la dueña»): el Reparto
+1. **Camila, etapa 1: mail marketing** ([CAMILA.md](CAMILA.md)). **Construida y probada en la rama el 2026-11-06**
+   (módulo `dcasa_camila`: el permiso del cliente, la campaña de cada 15 días y el envío por Resend Broadcasts). Falta:
+   capturas a la dueña, CI, staging y producción; la clave de campañas (§6 de CAMILA.md) y revisar la política de
+   privacidad antes de la primera campaña. Etapa 1b: que Juan pregunte el permiso por WhatsApp.
+2. **Brian al día** con lo nuevo (la dueña: «indispensable, pero desactualizado») y una vuelta a la pantalla de Sofía.
+3. **Que el equipo use lo nuevo** (lo hace la dueña con el equipo; ver «Lo que falta de la dueña»): el Reparto
    «Parejo», el Telegram de cada vendedora, «Revisar ahora» de Sofía y los mensajes de Sofía.
-5. **Respaldo de la IA de Juan:** `ANTHROPIC_API_KEY` en el Worker `dcasa-juan` por si Meta pasa su límite o se cae (hoy
+4. **Respaldo de la IA de Juan:** `ANTHROPIC_API_KEY` en el Worker `dcasa-juan` por si Meta pasa su límite o se cae (hoy
    el cliente recibiría «una vendedora te atiende» y la varita dice «La IA no está disponible… la IA de respaldo no
    tiene clave»), una alerta de gasto en Meta y **plantillas de WhatsApp** aprobadas por
    Meta para escribir después de 24 horas (también para los seguimientos de Juan, que hoy no salen fuera de esa ventana).
-6. **Brian: topes de dinero** (issue #26: `ajustar_puntos`, `crear_factura`, `ajustar_existencias` sin tope) y la cifra
+5. **Brian: topes de dinero** (issue #26: `ajustar_puntos`, `crear_factura`, `ajustar_existencias` sin tope) y la cifra
    del tope mensual de gasto de IA (hoy en 0 = sin tope). Esperan las cifras de la dueña.
-7. **Conversaciones: permisos de escritura y seguimiento por persona** (issue #25).
-8. **Contabilidad:** el menú raíz propio «Contabilidad» (reportes, bancos, cierre de mes, en un solo lugar) y las
+6. **Conversaciones: permisos de escritura y seguimiento por persona** (issue #25).
+7. **Contabilidad:** el menú raíz propio «Contabilidad» (reportes, bancos, cierre de mes, en un solo lugar) y las
    **facturas del sistema anterior** (el importador está listo; espera a la contadora: ver abajo).
-9. **Messenger e Instagram:** conectarlos con la guía de [JUAN_CANALES.md](JUAN_CANALES.md).
-10. **Códigos de barras:** etiquetas del proveedor y prueba de los lectores (issues #9, #10 y #12); con eso, verificar el
+8. **Messenger e Instagram:** conectarlos con la guía de [JUAN_CANALES.md](JUAN_CANALES.md).
+9. **Códigos de barras:** etiquetas del proveedor y prueba de los lectores (issues #9, #10 y #12); con eso, verificar el
    despacho con el escáner ([BARRAS.md](BARRAS.md)).
-11. **Envíos:** la calculadora (`dcasa_envios`, [ENVIOS.md](ENVIOS.md)) está **en producción** desde el 2026-11-06
+10. **Envíos:** la calculadora (`dcasa_envios`, [ENVIOS.md](ENVIOS.md)) está **en producción** desde el 2026-11-06
     (Desplegar 50). Sigue: que Gerencia cargue el archivo en Envíos › Tarifa y **apruebe la tarifa** (redondeo,
     viático, honorarios y peaje); después, con su «sí», que Juan cotice y la sección de envíos del sitio (cuando haya
     flota propia).
-12. **Siguiente etapa de Sofía:** mensajes con IA, plantillas de WhatsApp para después de 24 horas y su herramienta de
+11. **Siguiente etapa de Sofía:** mensajes con IA, plantillas de WhatsApp para después de 24 horas y su herramienta de
     Brian.
-13. **Privacidad (issues #22 y #23):** borrar la oportunidad junto con la conversación y lo que «Eliminar conversación»
+12. **Privacidad (issues #22 y #23):** borrar la oportunidad junto con la conversación y lo que «Eliminar conversación»
     todavía no borra.
-14. **Juan: hallazgos menores** que quedaron para después (issue #24).
-15. **CRM, fase 2** (issues #15 a #21): se eligen con la dueña.
-16. **Cabos técnicos menores** (sin urgencia):
+13. **Juan: hallazgos menores** que quedaron para después (issue #24).
+14. **CRM, fase 2** (issues #15 a #21): se eligen con la dueña.
+15. **Cabos técnicos menores** (sin urgencia):
     - que el respaldo previo de staging despierte el sitio antes de pedir el volcado (el despliegue a staging del CI se
       frenó así tres veces; ver CONTEXTO_AGENTICO › Despliegue);
     - por qué Odoo de producción estaba apagado el 2026-10-23 a las 06:38 UTC si debe estar encendido siempre (sin
@@ -99,6 +96,10 @@ Lo que no es programación. Absorbe lo que seguía vigente de la lista vieja
   proveedor) y, si se quieren, las alertas de bodega con sus umbrales ([EXISTENCIAS.md](EXISTENCIAS.md)).
 - **QR y código público** en la factura y la cotización (vienen apagados: Ajustes › Empresas › Documentos D'CASA;
   aprobar antes las imágenes) y el **QR de la nota de entrega** (lo lee el panel de Bodega; encenderlo si todavía no).
+- **Camila** (cuando entre): crear en Resend la clave de campañas con permiso «Full access» y pegarla como secreto
+  `RESEND_CAMPANAS_API_KEY` en el panel de Cloudflare del Worker `dcasa` (paso a paso en [CAMILA.md](CAMILA.md) §6;
+  nunca en el chat), revisar la política de privacidad (novedades por correo y Resend) y pedirle a las vendedoras que
+  marquen la casilla «Novedades por correo» cuando el cliente diga que sí.
 - **Guía:** confirmar las listas «En tu puesto lo que más se usa» (`addons/dcasa_guia/data/guia_roles.json`).
 
 ### Decisiones

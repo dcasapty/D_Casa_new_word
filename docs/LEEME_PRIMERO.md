@@ -105,6 +105,32 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 > sigue. Se guardan las diez más recientes; las viejas se resumen en una línea abajo y su texto completo pasa a
 > [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md).
 
+### 2026-11-06 (4): Camila, la asistente del mail marketing (módulo nuevo `dcasa_camila`, etapa 1)
+
+- Hecho en la rama (sin subir ni desplegar), con las decisiones de la dueña del 2026-11-06 ([CAMILA.md](CAMILA.md)):
+  el **permiso** del cliente en su ficha (casilla de la vendedora, enlace firmado «Sí, quiero» al pie de la factura y
+  la bienvenida, y el correo que dio a Sofía si el mensaje enviado decía «promociones»; la baja es final) y
+  **Marketing › Camila**: borrador con productos en tienda, con foto y publicados, el precio de la tienda en línea, el
+  texto de la IA de Brian con revisión de marca, vista previa en el celular, prueba solo al equipo y «Enviar a N
+  clientes» por **Resend Broadcasts** con su propia clave (`RESEND_CAMPANAS_API_KEY`, Full access). Una cada 15 días;
+  staging nunca envía. Resultados: chats con la marca de la campaña, sus ventas y aperturas y clics de Resend. Brian:
+  `estado_campanas`. La pantalla baja con scroll (prueba de navegador).
+- Decisión técnica a confirmar con la dueña: abrir el enlace «Sí, quiero» no anota nada (los filtros de correo abren
+  los enlaces solos); el «sí» queda al tocar el botón de la página (dos toques).
+- Revisión adversarial (mismo día), 12 hallazgos arreglados, cada uno con su prueba (`test_revision.py`, primero en
+  rojo): la baja se mira **por correo** en cualquier ficha (repetidas, archivadas, hijos; también «no contactar»); el
+  «Sí, quiero» solo a la ficha firmada en la factura y la bienvenida que arma `_postear` (no a un contacto hijo, ni el
+  asistente, ni el recordatorio) y con interruptor de Gerencia; Sofía solo con el mensaje que salió y la frase de la
+  plantilla; el permiso es **del correo** (`dcasa_promos_correo`); el segmento se limpia por id y se revisa antes de
+  mandar; una aprobada trabada la descarta Gerencia; la casilla una ficha a la vez y desmarcar no es la baja; revisión
+  de marca más dura; tokens raros sin 500; tope a las pruebas; bajas de los resultados; la marca solo en el primer
+  mensaje desde la campaña.
+- Corrida completa en local (todos los módulos): 4744 pruebas, 3 fallas ajenas a Camila: el contrato visual de Juan a
+  390 px («conexiones», la diferencia de Chromium ya conocida, y «lista», cuya referencia quedó vieja desde el PR #69)
+  y `test_cabecera_con_la_pagina_abierta_desplazada`, que sola pasa (carrera de `is-ready`, ver contexto agéntico).
+- Sigue: capturas a la dueña, CI y staging; la clave de campañas en Cloudflare; revisar la política de privacidad.
+  Etapa 1b: que Juan pregunte el permiso por WhatsApp (no se tocó `juan/`).
+
 ### 2026-11-06 (3): la varita mágica («Sugerir») escribe siempre, o dice por qué y deja reintentar
 
 - Pedido de la dueña: «a veces sí, a veces no» escribe el borrador, en el chat y en «Guardar y responderle» de Sofía.
@@ -128,9 +154,10 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 - Registro sin datos personales: `[juan] sugerir {conversacion, resultado, ms, modelo, intentos, respaldo}` en el Worker
   y «Juan: «Sugerir» sin borrador (conversación N, causa X, N ms, HTTP N)» en Odoo.
 - Pruebas: 16 nuevas del Worker (14 fallaban antes), 10 nuevas de Odoo (todas fallaban antes; 4 en el navegador) y 6
-  ajustadas al contrato nuevo. Capturas con el Worker de mentira (fuera del repositorio). **Sin subir ni desplegar.**
-- Sigue: capturas a la dueña, CI, staging, producción y **Desplegar Juan**. Lo de la dueña: `ANTHROPIC_API_KEY` en
-  `dcasa-juan` (sin ella, si Meta falla no hay respaldo).
+  ajustadas al contrato nuevo. Capturas con el Worker de mentira (fuera del repositorio).
+- **En producción** con su autorización («tan pronto esté todo pásalo a producción»): Desplegar 51 y Desplegar Juan 6,
+  sano 09:13 UTC (PR #84, `main` = `237d2f3`, árbol = `a307425`; imagen `sha256:f0b0b240…` de CI #274). Lo de la dueña:
+  `ANTHROPIC_API_KEY` en `dcasa-juan` (sin ella, si Meta falla no hay respaldo).
 
 ### 2026-11-06 (2): la calculadora de envíos en el menú Envíos (módulo nuevo `dcasa_envios`)
 

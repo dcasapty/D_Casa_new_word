@@ -379,6 +379,10 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `main` (`741930d`, árbol = `de1fb04`) a staging y Desplegar con ese `app_version`. **Regla:** un cambio del borde
   (rutas, `vars`, `workers_dev`) se despliega con un `app_version` que lo contenga, o sea con una imagen construida
   de ese commit.
+- **Desplegar 51 y Desplegar Juan 6** (08:59 UTC del 6 nov, `a307425`, imagen `sha256:f0b0b240…` de CI #274, respaldo
+  previo) · Odoo sano y confirmado 09:13 (versión `a30742505947`, base al día, humo ok): la varita («Sugerir») escribe
+  siempre o dice por qué (PR #84, `main` = `237d2f3`, árbol = `a307425`). Juan desde `main` a la vez: `/salud` con la
+  versión `237d2f3` y `whatsapp_cloud` configurado. El CI del PR (#275) se canceló.
 - **Desplegar 50** (07:33 UTC del 6 nov, `3682053`, imagen `sha256:53e76dc6…` de CI #272, respaldo previo) · sano y
   confirmado 07:47 (versión `3682053cbbbc`, base al día, humo ok): la calculadora de envíos, módulo nuevo
   `dcasa_envios` (PR #83, `main` = `e924a9c`, árbol = `3682053`). CI #271 había fallado por la descripción de una
@@ -559,7 +563,13 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 - **Referencias del contrato visual (`dcasa_conversaciones/tests/referencia/panel-*.webp`): nunca se regeneran en
   esta máquina** (2026-11-03). Chromium y las fuentes de aquí pintan distinto (la de «conexiones» a 390 px sale 13.7 %
   distinta sin cambiar código); el CI compara con 6 % de tolerancia y en local con 1.5 %. Se regeneraron una vez y hubo
-  que devolver las de siempre; con las viejas el CI pasó.
+  que devolver las de siempre; con las viejas el CI pasó. Desde el PR #69 (`[skip ci]`, «sin leer» pasó a «espera» y
+  «Esperan respuesta») la de «lista» a 390 px quedó vieja de verdad (7.7 % local, 2026-11-06): hay que regenerarla
+  donde pinta como el CI.
+- **`odoo.__WOWL_DEBUG__.root` en el sitio público no está listo cuando `body[is-ready]`** (2026-11-06): en
+  `public_root.js` el `is-ready` puede llegar antes de que `app.mount` termine y se asigne `__WOWL_DEBUG__`. Una
+  prueba de navegador que use el `root` espera las dos cosas; si no, falla a veces en corridas largas («Cannot read
+  properties of undefined (reading 'root')», `test_cabecera_con_la_pagina_abierta_desplazada`).
 - **Juan y las fotos del chat:** el Worker `dcasa-juan` necesita la variable de texto `URL_PUBLICA` (su propia
   dirección `https://dcasa-juan.dcasapty.workers.dev`, sin `/` final) para que Odoo pueda bajar las fotos, notas de voz y
   stickers; sin ella salía «No se pudo traer 1 archivo». `/salud` de Juan la marca como problema desde el PR #68.
@@ -576,6 +586,32 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 
 ### Odoo 19
 
+- **Camila (2026-11-06, `dcasa_camila`), lo aprendido:**
+  - **Una casilla con `readonly="<el mismo campo>"` no se guarda nunca.** Al marcarla, el modificador se cumple al
+    instante y el formulario deja fuera del guardado los campos de solo lectura: el botón de la nube no se enciende, el
+    `web_save` no lleva el campo y la casilla vuelve a quedar sin marcar. El `readonly` tiene que depender de lo
+    guardado (un campo calculado aparte, p. ej. `dcasa_promos_estado != 'sin'`). La casilla de Meta
+    (`dcasa_meta_eventos`) usa ese patrón: revisar.
+  - **Un booleano calculado con inverso no comparte el método de cálculo con otro campo** que el inverso lee: leer el
+    otro dentro del inverso vuelve a calcular los dos y borra lo que la persona marcó. La prueba con el ORM pasaba
+    porque el otro ya estaba en memoria; con `self.env.invalidate_all()` antes del `write` (como el formulario) falla.
+  - En el navegador, `.o_form_button_save` existe siempre (oculto con `visibility: hidden`, así que `offsetParent` no
+    sirve): para saber si hay un cambio sin guardar, mirar que `.o_form_status_indicator_buttons` no tenga `invisible`.
+  - Una `<iframe srcdoc>` con `sandbox="allow-same-origin …"` (sin `allow-scripts`) deja medir su alto desde la
+    pantalla y no corre nada del correo: así la vista previa crece entera y la pantalla baja con su propio scroll.
+  - `lxml.html.cssselect` necesita el paquete `cssselect`, que no está en las dependencias: en las pruebas, `xpath`.
+  - La base de pruebas trae el catálogo con existencias y fotos: una prueba que escoge productos «elegibles» tiene que
+    despublicar los demás en su `setUpClass`.
+  - Otros agentes usan los puertos 8191 y 8192 en esta máquina: mirar `ps` antes de levantar Odoo (`--http-port`).
+  - **Revisión adversarial del mismo día (12 hallazgos):** un consentimiento o una baja **se mira por correo, no ficha
+    por ficha** (la misma persona tiene fichas repetidas, archivadas o como contacto hijo); un enlace firmado del pie
+    va solo si el destinatario único ES la ficha firmada (si no, quien recibe el correo da el «sí» de otro); un
+    permiso guarda **el correo** al que se dio; con Resend, sacar y dar de baja **por el id** del contacto (por el
+    correo, otra grafía da 404 y se traga); antes de mandar un *broadcast*, volver a listar el segmento; una revisión
+    de texto tiene que quitar (no volver espacio) los caracteres invisibles y rechazar letras de otro alfabeto; un
+    token de URL se valida con una expresión ASCII antes de `int()` o `compare_digest` (si no, 500).
+  - La herramienta Edit escribe `​` como el carácter invisible (no como la secuencia): para dejar escapes en una
+    prueba, un script de Python en el scratchpad que reemplace `chr(…)`.
 - **Calculadora de envíos (2026-11-06, `dcasa_envios`), lo aprendido:**
   - Un `<input type="number" step="0.1">` dentro de un `<form>` **bloquea el envío** si el valor no es múltiplo del paso
     (7.04): el navegador no llama al `submit` y no hay error visible. Lo atrapó la prueba en el navegador; ahora

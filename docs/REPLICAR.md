@@ -56,7 +56,7 @@ instalación nueva están resumidas en el §10).
 | Pieza | Carpeta | Qué es |
 |---|---|---|
 | Odoo 19 Community | `vendor/odoo` (submódulo, `.gitmodules`) | El ERP, fijado a un commit de la rama 19.0. No se toca |
-| 30 módulos propios | `addons/` | Prefijo `dcasa_` (y `website_dcasa`). El contenedor instala 29: la lista `ODOO_MODULES` de `docker/entrypoint.sh:176`; `dcasa_fe_pa` es opcional y no se instala. `make init` usa una lista más corta (`Makefile:5`) |
+| 31 módulos propios | `addons/` | Prefijo `dcasa_` (y `website_dcasa`). El contenedor instala 30: la lista `ODOO_MODULES` de `docker/entrypoint.sh:176`; `dcasa_fe_pa` es opcional y no se instala. `make init` usa una lista más corta (`Makefile:5`) |
 | Imagen de producción | `docker/` | Odoo + PostgreSQL 16 en **un** contenedor; `entrypoint.sh` restaura la base desde R2, instala o actualiza módulos y arranca |
 | Worker `dcasa` | `edge/` | La puerta de entrada pública: seguridad, caché, puerta del equipo, respaldo a mano, crons, y el contenedor de Odoo |
 | Worker `dcasa-juan` | `juan/` | Juan, el asistente de los clientes (Durable Objects; WhatsApp por la API oficial de Meta, Telegram, Messenger e Instagram preparados) |

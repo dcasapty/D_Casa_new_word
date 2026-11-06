@@ -1603,6 +1603,54 @@
    "nota": "También la tienes como acceso directo «Marketing» en el Inicio. Es de Gerencia y de quien tiene el rol Marketing."
   },
   {
+   "id": "camila-campana",
+   "categoria": "clientes",
+   "tambien": [
+    "productos"
+   ],
+   "grupo": "Correo",
+   "titulo": "Preparar y enviar la campaña de correo de novedades (Camila)",
+   "logras": "Camila arma el correo con productos que hay en tienda, con foto y publicados en la web, con el precio de hoy de la tienda en línea, y escribe el texto. Ves cómo le llega al cliente en el celular, cambias el asunto, el texto o los productos, te mandas una prueba y tocas «Enviar a N clientes». Solo les llega a los clientes que dijeron que sí.",
+   "nota": "Sale una campaña cada 15 días como mucho y solo desde producción. Para enviar hace falta la clave de campañas de Resend (la crea y la pega quien administra el sistema). Es del rol Marketing, de Gerencia y de los administradores.",
+   "destino": {
+    "menu": "dcasa_camila.menu_camila"
+   },
+   "palabras": [
+    "camila",
+    "campana de correo",
+    "correo de novedades",
+    "mail marketing",
+    "email marketing",
+    "boletin",
+    "newsletter",
+    "enviar correo a clientes",
+    "promociones por correo",
+    "resend",
+    "darse de baja"
+   ]
+  },
+  {
+   "id": "camila-permiso",
+   "categoria": "clientes",
+   "grupo": "Correo",
+   "titulo": "Anotar que un cliente quiere recibir novedades por correo",
+   "logras": "En la ficha del cliente marcas «Quiere recibir novedades y promociones por correo» cuando te dice que sí; queda con la fecha, con tu nombre y con su correo. Si pide que no le escriban más, tocas «Darle de baja».",
+   "nota": "Márcalo solo si el cliente dijo que sí y su ficha tiene su correo (si cambia de correo, hay que volver a preguntarle). Desmarcarla quita el permiso, pero no es la baja. También dicen que sí con el enlace «Sí, quiero» al pie del correo de su factura o de la bienvenida. Una baja es final para ese correo: no se vuelve a marcar.",
+   "destino": {
+    "menu": "contacts.res_partner_menu_contacts"
+   },
+   "palabras": [
+    "permiso de correo",
+    "novedades por correo",
+    "acepta correos",
+    "quiere promociones",
+    "suscribir",
+    "dar de baja",
+    "no quiere correos",
+    "consentimiento correo"
+   ]
+  },
+  {
    "id": "fotos-producto",
    "categoria": "productos",
    "grupo": "Catálogo",
