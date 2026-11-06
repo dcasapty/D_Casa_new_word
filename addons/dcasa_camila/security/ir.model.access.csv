@@ -8,3 +8,4 @@ access_camila_linea_admin,dcasa.camila.linea admin,model_dcasa_camila_linea,base
 access_camila_llegada_marketing,dcasa.camila.llegada marketing,model_dcasa_camila_llegada,dcasa_marketing.group_marketing,1,0,0,0
 access_camila_llegada_gerencia,dcasa.camila.llegada gerencia,model_dcasa_camila_llegada,sales_team.group_sale_manager,1,0,0,0
 access_camila_llegada_admin,dcasa.camila.llegada admin,model_dcasa_camila_llegada,base.group_system,1,0,0,0
+access_camila_prueba_admin,dcasa.camila.prueba admin,model_dcasa_camila_prueba,base.group_system,1,0,0,0

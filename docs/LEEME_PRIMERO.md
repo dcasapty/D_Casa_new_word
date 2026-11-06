@@ -117,6 +117,14 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
   `estado_campanas`. La pantalla baja con scroll (prueba de navegador).
 - Decisión técnica a confirmar con la dueña: abrir el enlace «Sí, quiero» no anota nada (los filtros de correo abren
   los enlaces solos); el «sí» queda al tocar el botón de la página (dos toques).
+- Revisión adversarial (mismo día), 12 hallazgos arreglados, cada uno con su prueba (`test_revision.py`, primero en
+  rojo): la baja se mira **por correo** en cualquier ficha (repetidas, archivadas, hijos; también «no contactar»); el
+  «Sí, quiero» solo a la ficha firmada en la factura y la bienvenida que arma `_postear` (no a un contacto hijo, ni el
+  asistente, ni el recordatorio) y con interruptor de Gerencia; Sofía solo con el mensaje que salió y la frase de la
+  plantilla; el permiso es **del correo** (`dcasa_promos_correo`); el segmento se limpia por id y se revisa antes de
+  mandar; una aprobada trabada la descarta Gerencia; la casilla una ficha a la vez y desmarcar no es la baja; revisión
+  de marca más dura; tokens raros sin 500; tope a las pruebas; bajas de los resultados; la marca solo en el primer
+  mensaje desde la campaña.
 - Corrida completa en local (todos los módulos): 4744 pruebas, 3 fallas ajenas a Camila: el contrato visual de Juan a
   390 px («conexiones», la diferencia de Chromium ya conocida, y «lista», cuya referencia quedó vieja desde el PR #69)
   y `test_cabecera_con_la_pagina_abierta_desplazada`, que sola pasa (carrera de `is-ready`, ver contexto agéntico).

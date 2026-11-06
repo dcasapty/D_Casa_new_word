@@ -5,3 +5,4 @@ from . import test_campana
 from . import test_enlace
 from . import test_resultados
 from . import test_navegador
+from . import test_revision

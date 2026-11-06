@@ -1,17 +1,22 @@
 """Camila: la sincronización con Resend, el envío, la prueba, los resultados, el enlace «Sí, quiero» y los crones.
 
 * **Antes de cada envío** (y cada hora con el cron) el segmento de Resend queda igual a lo que dice Odoo: las bajas de
-  Resend pasan a la ficha, sale del segmento quien ya no tiene permiso (y si se dio de baja en Odoo, la baja sube a
-  Resend) y entra quien dijo que sí. Resend es la lista de contactos del segmento: no hay otra copia que se desfase.
+  Resend pasan a las fichas con ese correo, sale del segmento (por el id del contacto) todo el que no está en la lista
+  de Odoo, aunque Odoo no sepa leer su correo, y si ese correo se dio de baja en cualquier ficha la baja sube a Resend;
+  entra quien dijo que sí. Justo antes de mandar se vuelve a listar el segmento: si queda alguien suscrito que no está
+  en la lista de Odoo, no sale. Resend es la lista de contactos del segmento: no hay otra copia que se desfase.
 * **Al enviar, el servidor revisa todo** aunque llegue por RPC: el grupo, producción (``DCASA_ENTORNO=produccion``;
   staging nunca envía), la clave, los 15 días, los productos y precios de ahora (si cambió algo desde que la persona
   lo vio, no sale y se le muestra otra vez), al menos un cliente con permiso y que las bajas se trajeron recién. Se
   confirma la base a mitad de la petición (como Sofía): un doble clic o dos personas a la vez no la mandan dos veces.
+  Ningún error deja la campaña a medias; una «aprobada» que quedó trabada (Resend la canceló, quedó en borrador allá o
+  nunca llegó) la descartan Gerencia o un administrador.
 * **Un error de Camila o de Resend nunca hace fallar una venta, un pago ni el correo de una factura**: nada de esto
   corre dentro de esos flujos (el enlace del pie se arma en un savepoint y, si falla, el correo sale sin la línea).
 """
 import hmac as hmac_py
 import logging
+import re
 import time
 from datetime import timedelta
 
@@ -21,8 +26,8 @@ from odoo import api, fields, models
 from odoo.addons.dcasa_conversaciones.models import transaccion
 from odoo.addons.dcasa_correo.models.correo import correo_valido, motivo_legible
 from odoo.addons.dcasa_correo.models.resend import remitente_visible
-from odoo.exceptions import UserError
-from odoo.tools import SQL
+from odoo.exceptions import AccessError, UserError
+from odoo.tools import SQL, email_normalize
 from odoo.tools.misc import hmac as hmac_odoo
 
 from . import reglas as R
@@ -44,6 +49,14 @@ ALCANCE_FIRMA = 'dcasa_camila_novedades'
 ORIGEN_DEL_CODIGO = {'f': 'factura', 'b': 'bienvenida'}
 CODIGO_DEL_ORIGEN = {origen: codigo for codigo, origen in ORIGEN_DEL_CODIGO.items()}
 VIGENCIA_ENLACE = timedelta(days=400)
+# ficha.origen.momento.firma, solo ASCII (``[0-9]``, no ``\d``: «²» o «１» no son dígitos aquí). La ficha cabe en un
+# entero de PostgreSQL y el momento son 10 cifras de segundos.
+TOKEN = re.compile(r'([1-9][0-9]{0,8})\.([fb])\.([0-9]{10})\.([0-9a-f]{40})')
+# El interruptor de Gerencia de la línea del pie (encendido de fábrica: la dueña la quiere).
+P_ENLACE_PIE = 'dcasa_camila.enlace_pie'
+# «Enviarme una prueba» sale por los correos de siempre (el mismo cupo diario que las facturas): con tope.
+MINUTOS_ENTRE_PRUEBAS = 2
+MAX_PRUEBAS_24H = 10
 
 
 class DcasaCamila(models.AbstractModel):
@@ -67,37 +80,56 @@ class DcasaCamila(models.AbstractModel):
         return segmento
 
     @api.model
+    def _claves_correo(self, texto):
+        """Las formas de un correo con las que Odoo lo busca (la estricta de Camila y la ``email_normalized``)."""
+        return {clave for clave in (correo_valido(texto), email_normalize(texto or '')) if clave}
+
+    @api.model
+    def _anotar_bajas_de_resend(self, correos):
+        """Las bajas que dio Resend quedan en TODAS las fichas con esos correos (la baja es final)."""
+        claves = sorted({clave for correo in correos for clave in self._claves_correo(correo)})
+        if not claves:
+            return self.env['res.partner']
+        Partner = self.env['res.partner'].sudo().with_context(active_test=False)
+        return Partner.search([('email_normalized', 'in', claves)]).commercial_partner_id._dcasa_promos_baja('correo')
+
+    @api.model
+    def _sobran_en_el_segmento(self, cliente, segmento, permitidos):
+        """Los contactos SUSCRITOS del segmento que no están en la lista de Odoo (ni uno debe quedar al enviar)."""
+        return [contacto for contacto in cliente.contactos_del_segmento(segmento)
+                if not contacto.get('unsubscribed') and correo_valido(contacto.get('email')) not in permitidos]
+
+    @api.model
     def _sincronizar(self, limite=None, cliente=None):
         """Deja el segmento de Resend igual a Odoo. Devuelve ``{bajas, sacados, subidos, faltan, en_segmento}``.
 
-        1. Cada contacto del segmento dado de baja en Resend queda con baja en su ficha (la baja es final).
-        2. Sale del segmento todo correo que no tiene permiso en Odoo; si su ficha se dio de baja en Odoo, la baja
-           también se anota en Resend (vale para todas las campañas).
+        1. Cada contacto del segmento dado de baja en Resend queda con baja en las fichas con ese correo (final).
+        2. Sale del segmento, POR SU ID, todo contacto suscrito que no está en la lista de Odoo: también los correos
+           que Odoo no sabe leer («o'brien@…», «José@…») y lo que hubiera en un segmento reusado. Si ese correo tiene
+           baja en CUALQUIER ficha, la baja se anota también en Resend, por su id (vale para todas las campañas; por
+           el correo, otra grafía en Resend daba 404 y la baja se perdía).
         3. Entra quien tiene permiso y no está (hasta ``limite``; el resto en la siguiente vuelta)."""
         cliente = cliente or self._cliente()
         segmento = self._segmento(cliente)
-        Partner = self.env['res.partner'].sudo().with_context(active_test=False)
-        en_resend = {}
-        for contacto in cliente.contactos_del_segmento(segmento):
-            correo = correo_valido(contacto.get('email'))
-            if correo:
-                en_resend[correo] = bool(contacto.get('unsubscribed')) or en_resend.get(correo, False)
-        dados_de_baja = [correo for correo, baja in en_resend.items() if baja]
-        bajas = Partner.browse()
-        if dados_de_baja:
-            fichas = Partner.search([('email_normalized', 'in', dados_de_baja)]).commercial_partner_id
-            bajas = fichas._dcasa_promos_baja('correo')
-        permitidos = self.env['res.partner'].sudo()._dcasa_promos_con_permiso()
+        contactos = cliente.contactos_del_segmento(segmento)
+        bajas = self._anotar_bajas_de_resend(c.get('email') for c in contactos if c.get('unsubscribed'))
+        Partner = self.env['res.partner'].sudo()
+        permitidos = Partner._dcasa_promos_con_permiso()
+        bloqueos = Partner._dcasa_promos_bloqueos_por_correo()
+        presentes = set()
         sacados = 0
-        for correo, baja in en_resend.items():
-            if correo in permitidos or baja:
+        for contacto in contactos:
+            correo = correo_valido(contacto.get('email'))
+            if contacto.get('unsubscribed') or correo in permitidos:
+                if correo:
+                    presentes.add(correo)   # con su baja no recibe nada y no se vuelve a subir
                 continue
-            if Partner.search_count([('email_normalized', '=', correo),
-                                     ('commercial_partner_id.dcasa_promos_baja_fecha', '!=', False)], limit=1):
-                cliente.dar_de_baja(correo)
-            cliente.sacar_del_segmento(correo, segmento)
+            referencia = contacto.get('id') or contacto.get('email')
+            if any(bloqueos.get(clave) == 'baja' for clave in self._claves_correo(contacto.get('email'))):
+                cliente.dar_de_baja(referencia)
+            cliente.sacar_del_segmento(referencia, segmento)
             sacados += 1
-        faltan = [correo for correo in permitidos if correo not in en_resend]
+        faltan = [correo for correo in permitidos if correo not in presentes]
         subidos = 0
         for correo in faltan[:limite] if limite else faltan:
             cliente.agregar_contacto(correo, None, segmento)   # solo el correo: nada más de la persona
@@ -144,14 +176,22 @@ class DcasaCamila(models.AbstractModel):
         transaccion.confirmar(self.env)   # aprobada y «enviándose» para todos antes de hablar con Resend
         try:
             destinatarios = self._mandar_a_resend(campana)
-        except RC.ErrorResend as error:
-            valores = {'error': error.mensaje[:300], 'enviando_desde': False}
+        except Exception as error:   # noqa: BLE001 — ningún error deja la campaña «enviándose» a medias
+            if isinstance(error, RC.ErrorResend):
+                mensaje = error.mensaje
+                _logger.warning('DCASA_CAMILA no se pudo enviar la campaña %s: %s', campana.id, mensaje)
+            else:
+                transaccion.deshacer(self.env)   # lo de esta vuelta; lo ya confirmado (el broadcast creado) queda
+                self.env.invalidate_all()
+                mensaje = self.env._('algo falló al hablar con Resend (%s). Avísale a quien administra el sistema.',
+                                     type(error).__name__)
+                _logger.exception('DCASA_CAMILA error inesperado al enviar la campaña %s', campana.id)
+            valores = {'error': mensaje[:300], 'enviando_desde': False}
             if not campana.resend_broadcast_id:
                 valores['estado'] = 'borrador'   # nada quedó en Resend: se puede editar y volver a intentar
             campana.write(valores)
             transaccion.confirmar(self.env)
-            _logger.warning('DCASA_CAMILA no se pudo enviar la campaña %s: %s', campana.id, error.mensaje)
-            return {'ok': False, 'mensaje': self.env._('No salió: %s', error.mensaje)}
+            return {'ok': False, 'mensaje': self.env._('No salió: %s', mensaje)}
         campana.write({'estado': 'enviada', 'enviada_en': fields.Datetime.now(), 'destinatarios': destinatarios,
                        'enviando_desde': False, 'error': False})
         _logger.info('DCASA_CAMILA campaña %s enviada a %s contactos', campana.id, destinatarios)
@@ -210,11 +250,59 @@ class DcasaCamila(models.AbstractModel):
             transaccion.confirmar(self.env)
         estado = cliente.estado_broadcast(campana.resend_broadcast_id)
         if estado == 'draft':
+            # La última revisión: si en el segmento queda alguien suscrito que no está en la lista de Odoo, no sale.
+            permitidos = self.env['res.partner'].sudo()._dcasa_promos_con_permiso()
+            sobran = self._sobran_en_el_segmento(cliente, resumen['segmento'], permitidos)
+            if sobran:
+                raise RC.ErrorResend(self.env._(
+                    'En el segmento de Resend quedan %s contactos sin permiso en Odoo: no salió. Prueba otra vez en '
+                    'unos minutos; si sigue, revisa el segmento en Resend.', len(sobran)))
             cliente.enviar_broadcast(campana.resend_broadcast_id)
         elif estado not in RC.ESTADOS_YA_SALIO:
             raise RC.ErrorResend(self.env._('En Resend la campaña quedó «%s»: revísala allá antes de reintentar.',
                                             estado))
         return destinatarios
+
+    # ------------------------------------------------------------------
+    # Descartar (también una «aprobada» que quedó trabada)
+    # ------------------------------------------------------------------
+
+    @api.model
+    def _descartar(self, campana):
+        """Descarta la campaña: queda en el historial como cancelada y ya se puede armar otra.
+
+        * Un borrador (nada en Resend): cualquiera del equipo de marketing.
+        * Una «aprobada» que quedó trabada (no puede salir y bloquea a las demás por la regla de una abierta): solo
+          Gerencia o un administrador, y solo si no salió ni va a salir: sin broadcast y pasada la ventana de envío,
+          o con el broadcast «canceled» o «draft» en Resend (el borrador se borra allá para que nadie lo mande)."""
+        if campana.estado not in ABIERTAS:
+            raise UserError(self.env._('Esa campaña ya no se puede descartar (ya salió o ya se descartó).'))
+        if campana.estado == 'aprobada' and not campana.resend_broadcast_id and campana.enviando_desde \
+                and fields.Datetime.now() - campana.enviando_desde < timedelta(minutes=MINUTOS_ENVIANDO):
+            raise UserError(self.env._('Esta campaña se está enviando en este momento: espera unos minutos y vuelve '
+                                       'a mirar.'))
+        if campana.estado == 'borrador' and not campana.resend_broadcast_id:
+            return self._cancelar(campana)
+        if not self._ve_dinero():
+            raise UserError(self.env._('Esta campaña ya se aprobó para salir: solo Gerencia o un administrador la '
+                                       'pueden descartar.'))
+        if campana.resend_broadcast_id:
+            try:
+                cliente = self._cliente()
+                estado = cliente.estado_broadcast(campana.resend_broadcast_id)
+                if estado == 'draft':
+                    cliente.borrar_broadcast(campana.resend_broadcast_id)
+            except RC.ErrorResend as error:
+                raise UserError(self.env._('No se pudo revisar la campaña en Resend: %s', error.mensaje)) from None
+            if estado not in ('draft', 'canceled'):
+                raise UserError(self.env._('En Resend esta campaña está «%s»: ya salió o va a salir, no se descarta.',
+                                           estado))
+        return self._cancelar(campana)
+
+    @api.model
+    def _cancelar(self, campana):
+        campana.write({'estado': 'cancelada', 'cancelada_por': self.env.uid, 'enviando_desde': False})
+        return campana
 
     # ------------------------------------------------------------------
     # La prueba (solo al correo de quien aprueba, por el camino de siempre)
@@ -223,7 +311,10 @@ class DcasaCamila(models.AbstractModel):
     @api.model
     def _enviar_prueba(self, campana_id):
         """Manda la campaña al correo de quien la pide, ahora, por los correos de siempre (clase «prueba» de
-        ``politica.py``: solo sale a correos del equipo). Sin el enlace de baja de Resend (va solo en la real)."""
+        ``politica.py``: solo sale a correos del equipo). Sin el enlace de baja de Resend (va solo en la real).
+
+        Con tope: sale por la misma clave y el mismo cupo diario que las facturas, así que una prueba cada
+        ``MINUTOS_ENTRE_PRUEBAS`` minutos por persona y ``MAX_PRUEBAS_24H`` en 24 horas."""
         from odoo.addons.base.models.ir_mail_server import MailDeliveryException
 
         campana = self._bloquear(campana_id)
@@ -237,6 +328,16 @@ class DcasaCamila(models.AbstractModel):
         if not destino:
             raise UserError(self.env._('Tu usuario no tiene un correo bien escrito: escríbelo en tu perfil (Mis '
                                        'preferencias) y vuelve a probar.'))
+        Prueba = self.env['dcasa.camila.prueba'].sudo()
+        ahora = fields.Datetime.now()
+        ultima = Prueba.search([('usuario_id', '=', usuario.id)], order='enviada_en desc, id desc', limit=1)
+        if ultima and ahora - ultima.enviada_en < timedelta(minutes=MINUTOS_ENTRE_PRUEBAS):
+            raise UserError(self.env._('Te mandé una prueba hace un momento: espera %s minutos para la siguiente.',
+                                       MINUTOS_ENTRE_PRUEBAS))
+        if Prueba.search_count([('usuario_id', '=', usuario.id),
+                                ('enviada_en', '>=', ahora - timedelta(hours=24))]) >= MAX_PRUEBAS_24H:
+            raise UserError(self.env._('Ya te mandé %s pruebas en las últimas 24 horas: es el máximo (salen por el '
+                                       'mismo cupo que los correos de las facturas).', MAX_PRUEBAS_24H))
         mail = self.env['mail.mail'].sudo().create({
             'subject': self.env._('[Prueba] %s', campana.asunto or ''),
             'body_html': self._html(campana, prueba=True),
@@ -251,6 +352,7 @@ class DcasaCamila(models.AbstractModel):
             mail.send(raise_exception=True)
         except MailDeliveryException as error:
             raise UserError(self.env._('No salió la prueba: %s', motivo_legible(error, correo._clave()))) from None
+        Prueba.create({'usuario_id': usuario.id, 'campana_id': campana.id, 'enviada_en': ahora})
         campana.write({'prueba_a': destino, 'prueba_en': fields.Datetime.now()})
         return destino
 
@@ -300,12 +402,17 @@ class DcasaCamila(models.AbstractModel):
 
     @api.model
     def _actualizar_resultados(self, campana):
-        """Entregados, aperturas, clics y bajas de Resend (``GET /broadcasts/{id}/recipients``)."""
+        """Entregados, aperturas, clics y bajas de Resend (``GET /broadcasts/{id}/recipients``). Los que se dieron de
+        baja con el enlace de esta campaña quedan también con la baja en Odoo (por si el segmento ya no los lista)."""
         if not (campana.resend_broadcast_id and self._clave() and self._entorno() == 'produccion'):
             return False
         cliente = self._cliente()
-        valores = {campo: cliente.contar_destinatarios(campana.resend_broadcast_id, tipo)
-                   for campo, tipo in TIPOS_RESEND}
+        valores = {}
+        for campo, tipo in TIPOS_RESEND:
+            filas = cliente.destinatarios(campana.resend_broadcast_id, tipo)
+            valores[campo] = len(filas)
+            if tipo == 'unsubscribed':
+                self._anotar_bajas_de_resend(fila.get('email') for fila in filas)
         campana.sudo().write(dict(valores, resultados_en=fields.Datetime.now()))
         return True
 
@@ -315,13 +422,20 @@ class DcasaCamila(models.AbstractModel):
 
     @api.model
     def _anotar_llegada(self, conversacion, mensaje):
-        """Si el mensaje del cliente trae la marca de una campaña enviada («Ref. DCN-0007»), cuenta ese chat una vez."""
+        """Si el PRIMER mensaje del cliente desde que salió la campaña trae su marca («Ref. DCN-0007»), cuenta ese chat
+        una vez. La conversación de un cliente es una sola, de siempre: un cliente de antes que vuelve por el correo
+        cuenta; una marca escrita después de otros mensajes, no."""
         numero = R.campana_de_la_marca(mensaje.texto)
         if not numero:
             return False
         campana = self.env['dcasa.camila.campana'].sudo().browse(numero).exists()
-        if not campana or campana.estado != 'enviada' or not campana.enviada_en \
-                or mensaje.ts < campana.enviada_en - timedelta(minutes=5):
+        desde = campana.enviada_en - timedelta(minutes=5) if campana and campana.enviada_en else None
+        if not campana or campana.estado != 'enviada' or not desde or mensaje.ts < desde:
+            return False
+        antes = self.env['dcasa.mensaje'].sudo().search([
+            ('conversacion_id', '=', conversacion.id), ('autor', '=', 'cliente'), ('tipo', '=', 'mensaje'),
+            ('id', '!=', mensaje.id), ('ts', '>=', desde), ('ts', '<=', mensaje.ts)])
+        if antes.filtered(lambda m: m.ts < mensaje.ts or m.id < mensaje.id):
             return False
         Llegada = self.env['dcasa.camila.llegada'].sudo()
         if Llegada.search_count([('campana_id', '=', campana.id), ('conversacion_id', '=', conversacion.id)], limit=1):
@@ -340,22 +454,36 @@ class DcasaCamila(models.AbstractModel):
         return hmac_odoo(self.env(su=True), ALCANCE_FIRMA, f'{ficha_id}:{origen}:{correo}:{momento}')[:40]
 
     @api.model
-    def _enlace_si(self, registro):
-        """El enlace firmado del pie, o ``None`` si no va: solo en la factura de cliente y en la bienvenida, a una ficha
-        con correo, que no es del equipo, que todavía no dijo que sí y que no se dio de baja."""
-        if registro is None or not getattr(registro, '_name', None) or not registro:
+    def _enlace_pie_encendido(self):
+        """El interruptor de Gerencia (encendido de fábrica). Apagado, la línea no va y los enlaces no anotan nada."""
+        return (self.env['ir.config_parameter'].sudo().get_param(P_ENLACE_PIE) or 'encendido') != 'apagado'
+
+    @api.model
+    def _enlace_si(self, registro, destino):
+        """El enlace firmado del pie, o ``None`` si no va.
+
+        Solo en la factura de cliente y en la bienvenida, cuando el correo va a UNA sola persona y esa persona ES la
+        ficha comercial firmada (no un contacto hijo, ni varios destinatarios: el «sí» lo da quien recibe el correo),
+        con su correo bien escrito, que no es del equipo, que no dijo ya que sí con ese correo y sin baja ni «no
+        contactar» en ninguna ficha con ese correo. Con el interruptor apagado, nunca."""
+        if not self._enlace_pie_encendido() or registro is None or not getattr(registro, '_name', None) \
+                or not registro or not destino or len(destino) != 1:
             return None
-        registro = registro[:1].sudo()
+        registro, destino = registro[:1].sudo(), destino.sudo()
         if registro._name == 'account.move' and registro.move_type == 'out_invoice':
             origen, ficha = 'factura', registro.commercial_partner_id
         elif registro._name == 'res.partner':
             origen, ficha = 'bienvenida', registro.commercial_partner_id
         else:
             return None
-        if not ficha or ficha.dcasa_promos_fecha or ficha.dcasa_promos_baja_fecha or ficha.dcasa_no_contactar:
+        if not ficha or destino != ficha or ficha.dcasa_promos_baja_fecha or ficha.dcasa_no_contactar:
             return None
         correo = correo_valido(ficha.email)
-        if not correo or correo in self.env['res.partner']._dcasa_correos_del_equipo():
+        if not correo or correo != correo_valido(destino.email) \
+                or (ficha.dcasa_promos_fecha and ficha.dcasa_promos_correo == correo):
+            return None
+        Partner = self.env['res.partner']
+        if correo in Partner._dcasa_correos_del_equipo() or Partner._dcasa_promos_bloqueos_por_correo([correo]):
             return None
         momento = int(time.time())
         token = f'{ficha.id}.{CODIGO_DEL_ORIGEN[origen]}.{momento}.{self._firma(ficha.id, origen, correo, momento)}'
@@ -363,27 +491,39 @@ class DcasaCamila(models.AbstractModel):
 
     @api.model
     def _enlace_leer(self, token):
-        """``(estado, ficha, origen)`` del enlace: «confirmar», «ya» (ya tenía permiso), «baja» (se dio de baja: no se
-        vuelve a dar de alta) o «invalido» (firma mala, vencido, o la ficha ya no tiene ese correo)."""
+        """``(estado, ficha, origen)`` del enlace: «confirmar», «ya» (ya tenía permiso con ese correo), «baja» (ese
+        correo se dio de baja en alguna ficha: no se vuelve a dar de alta) o «invalido» (mal formado, firma mala,
+        vencido, la ficha ya no tiene ese correo o el interruptor está apagado).
+
+        Primero la forma exacta (solo ASCII); la firma se calcula siempre y se compara en bytes, exista o no la ficha:
+        la respuesta es la misma."""
         Partner = self.env['res.partner']
-        partes = str(token or '').strip().split('.')
-        if len(partes) != 4 or not partes[0].isdigit() or partes[1] not in ORIGEN_DEL_CODIGO or not partes[2].isdigit():
+        encontrado = TOKEN.fullmatch(token) if isinstance(token, str) else None
+        if not encontrado or not self._enlace_pie_encendido():
             return 'invalido', Partner, None
-        ficha = Partner.sudo().browse(int(partes[0])).exists()
-        origen, momento = ORIGEN_DEL_CODIGO[partes[1]], int(partes[2])
+        ficha_id, codigo, momento, firma = encontrado.groups()
+        ficha_id, momento, origen = int(ficha_id), int(momento), ORIGEN_DEL_CODIGO[codigo]
+        ficha = Partner.sudo().browse(ficha_id).exists()
         correo = correo_valido(ficha.email) if ficha else None
-        if not ficha or not correo or ficha != ficha.commercial_partner_id:
+        esperada = self._firma(ficha_id, origen, correo or '', momento)
+        firma_buena = hmac_py.compare_digest(esperada.encode('ascii'), firma.encode('ascii'))
+        if not (firma_buena and ficha and correo and ficha == ficha.commercial_partner_id):
             return 'invalido', Partner, None
-        esperada = self._firma(ficha.id, origen, correo, momento)
-        if not hmac_py.compare_digest(esperada, partes[3]):
+        if not 0 <= time.time() - momento <= VIGENCIA_ENLACE.total_seconds():
             return 'invalido', Partner, None
-        if time.time() - momento > VIGENCIA_ENLACE.total_seconds():
-            return 'invalido', Partner, None
-        if ficha.dcasa_promos_baja_fecha:
+        if ficha.dcasa_promos_baja_fecha or Partner._dcasa_promos_bloqueos_por_correo([correo]).get(correo) == 'baja':
             return 'baja', ficha, origen
-        if ficha.dcasa_promos_fecha:
+        if ficha.dcasa_promos_fecha and ficha.dcasa_promos_correo == correo:
             return 'ya', ficha, origen
         return 'confirmar', ficha, origen
+
+    @api.model
+    def _enlace_ajustar(self, encendido):
+        """Prende o apaga la línea del pie (Gerencia o administradores)."""
+        if not self._ve_dinero():
+            raise AccessError(self.env._('La línea «Sí, quiero» del pie la prenden o apagan Gerencia o un '
+                                         'administrador.'))
+        self.env['ir.config_parameter'].sudo().set_param(P_ENLACE_PIE, 'encendido' if encendido else 'apagado')
 
     @api.model
     def _enlace_confirmar(self, token):

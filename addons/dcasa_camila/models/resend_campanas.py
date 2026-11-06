@@ -8,13 +8,15 @@ Revisado en la documentación oficial el 2026-11-06 (``https://resend.com/docs/l
 * **Segmento** («Audiences are now called Segments»): ``GET /segments`` y ``POST /segments {name}``;
   ``GET /segments/{id}/contacts?limit=100&after=…`` (``{data: [{id, email, unsubscribed}], has_more}``).
 * **Contactos**: ``POST /contacts {email, first_name, segments: [{id}]}``; ``POST /contacts/{email}/segments/{id}``
-  (agregar uno que ya existe); ``DELETE /contacts/{email}/segments/{id}`` (sacarlo); ``PATCH /contacts/{email}
-  {unsubscribed: true}`` (la baja vale para todas las campañas).
+  (agregar uno que ya existe); ``DELETE /contacts/{id o email}/segments/{id}`` (sacarlo); ``PATCH /contacts/{id o
+  email} {unsubscribed: true}`` (la baja vale para todas las campañas). «Either id or email must be provided»: Camila
+  saca y da de baja **por el id** del contacto que listó el segmento (un correo con otra grafía en Resend daba 404).
 * **Broadcast**: ``POST /broadcasts {segment_id, from, subject, html, reply_to, name}`` lo crea en borrador y
   ``POST /broadcasts/{id}/send`` lo manda. ``GET /broadcasts/{id}`` dice su ``status`` (draft, scheduled, queued,
-  sent, canceled). La baja va en el HTML con ``{{{RESEND_UNSUBSCRIBE_URL}}}``.
-* **Resultados**: ``GET /broadcasts/{id}/recipients?type=delivered|opened|clicked|unsubscribed&limit=100`` (Resend
-  avisa que las aperturas pueden no ser exactas).
+  sent, canceled). ``DELETE /broadcasts/{id}`` borra uno que no ha salido (draft o scheduled). La baja va en el HTML
+  con ``{{{RESEND_UNSUBSCRIBE_URL}}}``.
+* **Resultados**: ``GET /broadcasts/{id}/recipients?type=delivered|opened|clicked|unsubscribed&limit=100``, filas
+  ``{id (cursor), contact_id, email}`` (Resend avisa que las aperturas pueden no ser exactas).
 * **Límite**: 10 peticiones por segundo por equipo (429 ``rate_limit_exceeded`` con ``retry-after``).
 
 Reglas que no se rompen: la clave nunca sale (ni en un error ni en un log ni en ``repr``); los correos de las personas
@@ -52,6 +54,12 @@ class ErrorResend(Exception):
 
 def correo_en_ruta(correo):
     return quote((correo or '').strip().lower(), safe='@')
+
+
+def contacto_en_ruta(contacto):
+    """El contacto en la ruta: su id (tal cual) o, si es un correo, el correo en minúsculas."""
+    contacto = (contacto or '').strip()
+    return correo_en_ruta(contacto) if '@' in contacto else quote(contacto, safe='')
 
 
 class ClienteCampanas:
@@ -159,18 +167,20 @@ class ClienteCampanas:
         # Ya existía (Resend no documenta ese error): se agrega al segmento por su correo.
         return self._llamar('POST', f'/contacts/{correo_en_ruta(correo)}/segments/{quote(segmento_id)}')
 
-    def sacar_del_segmento(self, correo, segmento_id):
+    def sacar_del_segmento(self, contacto, segmento_id):
+        """``contacto``: su id (lo que lista el segmento) o su correo. Si ya no existe, no hay nada que sacar."""
         try:
-            return self._llamar('DELETE', f'/contacts/{correo_en_ruta(correo)}/segments/{quote(segmento_id)}')
+            return self._llamar('DELETE', f'/contacts/{contacto_en_ruta(contacto)}/segments/{quote(segmento_id)}')
         except ErrorResend as error:
             if error.estado == 404:
                 return {}
             raise
 
-    def dar_de_baja(self, correo):
-        """La baja vale para todas las campañas (``unsubscribed: true``). Si el contacto no existe, no hay nada."""
+    def dar_de_baja(self, contacto):
+        """La baja vale para todas las campañas (``unsubscribed: true``). ``contacto``: su id o su correo. Si el
+        contacto no existe, no hay nada."""
         try:
-            return self._llamar('PATCH', f'/contacts/{correo_en_ruta(correo)}', {'unsubscribed': True})
+            return self._llamar('PATCH', f'/contacts/{contacto_en_ruta(contacto)}', {'unsubscribed': True})
         except ErrorResend as error:
             if error.estado == 404:
                 return {}
@@ -195,6 +205,20 @@ class ClienteCampanas:
     def enviar_broadcast(self, broadcast_id):
         return self._llamar('POST', f'/broadcasts/{quote(broadcast_id)}/send', {})
 
+    def borrar_broadcast(self, broadcast_id):
+        """Borra en Resend una campaña que no salió (draft o scheduled). Si ya no existe, no hay nada."""
+        try:
+            return self._llamar('DELETE', f'/broadcasts/{quote(broadcast_id)}')
+        except ErrorResend as error:
+            if error.estado == 404:
+                return {}
+            raise
+
+    def destinatarios(self, broadcast_id, tipo):
+        """Las filas ``{id, contact_id, email}`` de quienes tuvieron ese evento (delivered, opened, clicked,
+        unsubscribed)."""
+        return self._paginas(f'/broadcasts/{quote(broadcast_id)}/recipients', {'type': tipo})
+
     def contar_destinatarios(self, broadcast_id, tipo):
-        """Cuántas personas tuvieron ese evento (delivered, opened, clicked, unsubscribed)."""
-        return len(self._paginas(f'/broadcasts/{quote(broadcast_id)}/recipients', {'type': tipo}))
+        """Cuántas personas tuvieron ese evento."""
+        return len(self.destinatarios(broadcast_id, tipo))

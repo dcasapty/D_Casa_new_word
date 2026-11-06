@@ -102,7 +102,8 @@ class TestFusion(CamilaComun):
 @tagged('post_install', '-at_install')
 class TestPermisoDeSofia(CamilaComun):
     """Gerencia puede cambiar el texto de Sofía y la vendedora puede editarlo antes de enviarlo: solo cuenta lo que
-    de verdad salió por el chat."""
+    de verdad salió por el chat (aquí, «Abrir el chat»: el primer mensaje de la vendedora; «Enviar ya» en
+    test_revision)."""
 
     PEDIDO = ('¡Hola Ana! Soy Vendedora de D\'CASA. Para atenderte mejor, ¿me regalas tu correo? Así te avisamos de '
               'promociones, del programa Socios D\'CASA y de los beneficios de cumpleaños.')
@@ -114,7 +115,7 @@ class TestPermisoDeSofia(CamilaComun):
             'canal': 'whatsapp_cloud', 'id_externo': '50760001020', 'partner_id': self.ficha.id, 'estado': 'humano'})
         self.hace_un_dia = fields.Datetime.now() - timedelta(days=1)
 
-    def propuesta(self, accion='enviar'):
+    def propuesta(self, accion='chat'):
         return self.env['dcasa.sofia.propuesta'].sudo().create({
             'clave': f'pedir_datos:partner:{self.ficha.id}', 'tipo': 'pedir_datos', 'estado': 'aplicada',
             'pide_datos': True, 'partner_id': self.ficha.id, 'conversacion_id': self.conv.id, 'accion': accion,
@@ -137,6 +138,7 @@ class TestPermisoDeSofia(CamilaComun):
         self.assertEqual(self.env['res.partner']._dcasa_promos_de_sofia(), 1)
         self.assertEqual(self.ficha.dcasa_promos_origen, 'sofia_whatsapp')
         self.assertEqual(self.ficha.dcasa_promos_fecha, respuesta.ts, 'La fecha es la de cuando dio el correo')
+        self.assertEqual(self.ficha.dcasa_promos_correo, 'dani.zzcm@example.com')
         self.assertEqual(self.ficha.dcasa_promos_usuario_id, self.vendedora)
         self.assertEqual(self.env['res.partner']._dcasa_promos_de_sofia(), 0, 'Una sola vez')
 

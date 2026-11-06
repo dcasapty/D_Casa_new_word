@@ -1,15 +1,22 @@
 """El permiso del cliente para recibir novedades por correo (decisión de la dueña, 2026-11-06).
 
-Solo se le escribe a quien dijo que sí, con **cuándo, por dónde y con quién** (el mismo patrón que el consentimiento
-de Meta en ``dcasa_meta_eventos``). Vive en la ficha comercial (``commercial_partner_id``), con historial:
+Solo se le escribe a quien dijo que sí, con **cuándo, por dónde, con quién y a qué correo** (el mismo patrón que el
+consentimiento de Meta en ``dcasa_meta_eventos``). Vive en la ficha comercial (``commercial_partner_id``), con
+historial:
 
 * **Formas de decir que sí** en la etapa 1: la casilla de la ficha (la marca la vendedora cuando el cliente se lo
   dice: «tienda»), el enlace firmado «Sí, quiero» al pie del correo de la factura o de la bienvenida («factura»,
   «bienvenida») y el correo que dio cuando Sofía se lo pidió para avisarle de promociones («sofia_whatsapp»: solo si el
-  texto que de verdad se le mandó lo decía; ``_dcasa_promos_de_sofia``). «web» queda para la etapa siguiente.
-* **Una baja se respeta siempre** y es final en esta etapa: con baja, nada la vuelve a dar de alta (ni la casilla, ni
-  el enlace, ni Sofía) y nunca sale en un segmento. Llega del enlace de Resend en cada campaña (lo lee el cron y,
-  siempre, el envío antes de mandar) o se anota en la ficha («Darle de baja»); la de la ficha también se sube a Resend.
+  mensaje que de verdad salió tenía la frase de la plantilla; ``_dcasa_promos_de_sofia``). «web» queda para la etapa
+  siguiente.
+* **El permiso es del correo** al que se dio (``dcasa_promos_correo``): si la ficha cambia de correo, al nuevo no le
+  llega nada hasta que vuelva a decir que sí. Sin un correo bien escrito no se marca.
+* **Una baja se respeta siempre, por correo y no ficha por ficha**: si CUALQUIER ficha con ese correo (otra repetida,
+  una archivada, un contacto hijo, la de su empresa) se dio de baja o pidió que no la contacten, ese correo no recibe
+  campañas, no se vuelve a dar de alta y la baja sube a Resend. Es final en esta etapa. Llega del enlace de Resend en
+  cada campaña (lo lee el cron y, siempre, el envío antes de mandar) o del botón «Darle de baja» de la ficha.
+* **La casilla, una ficha a la vez** y solo desde la ficha (ni en grupo por RPC ni importando). Desmarcarla quita el
+  permiso pero NO es la baja: la baja final solo sale del botón, que pide confirmación.
 * Los campos no se escriben a mano ni por RPC: solo el sistema, desde la casilla, el botón, el enlace o el cron.
 * Al fusionar dos fichas se conserva el permiso más reciente y cualquier baja manda (``partner_merge.py``).
 """
@@ -20,6 +27,7 @@ from odoo import api, fields, models
 from odoo.addons.dcasa_correo.models.correo import correo_valido
 from odoo.addons.dcasa_sofia.models import reglas as reglas_sofia
 from odoo.exceptions import AccessError, UserError
+from odoo.fields import Domain
 
 from . import reglas as R
 
@@ -37,9 +45,11 @@ ORIGENES_BAJA = [
     ('ficha', 'Lo pidió y se anotó en su ficha'),
 ]
 CAMPOS_PERMISO = frozenset({
-    'dcasa_promos_fecha', 'dcasa_promos_origen', 'dcasa_promos_usuario_id',
+    'dcasa_promos_fecha', 'dcasa_promos_origen', 'dcasa_promos_usuario_id', 'dcasa_promos_correo',
     'dcasa_promos_baja_fecha', 'dcasa_promos_baja_origen', 'dcasa_promos_baja_usuario_id',
 })
+SIN_PERMISO = {'dcasa_promos_fecha': False, 'dcasa_promos_origen': False, 'dcasa_promos_usuario_id': False,
+               'dcasa_promos_correo': False}
 # Sofía: lo que el cliente contesta hasta 2 días después de que se le pidió (como Sofía, docs/SOFIA.md) y hasta cuándo
 # se miran sus pedidos (lo de antes ya quedó anotado en una vuelta anterior del cron).
 HORAS_PARA_CONTESTAR = 48
@@ -56,6 +66,10 @@ class ResPartner(models.Model):
     dcasa_promos_origen = fields.Selection(ORIGENES, 'Novedades: por dónde', readonly=True, copy=False, tracking=True)
     dcasa_promos_usuario_id = fields.Many2one('res.users', 'Novedades: lo registró', readonly=True, copy=False,
                                               tracking=True, ondelete='set null')
+    dcasa_promos_correo = fields.Char(
+        'Novedades: correo al que dijo que sí', readonly=True, copy=False, tracking=True,
+        help='El permiso es de este correo: si la ficha cambia de correo, al nuevo no le llega nada hasta que el '
+             'cliente vuelva a decir que sí.')
     dcasa_promos_baja_fecha = fields.Datetime(
         'Novedades: se dio de baja el', readonly=True, copy=False, tracking=True,
         help='Con baja no se le vuelve a escribir ninguna campaña: es final.')
@@ -65,43 +79,73 @@ class ResPartner(models.Model):
                                                    tracking=True, ondelete='set null')
     dcasa_promos = fields.Boolean(
         'Quiere recibir novedades por correo', compute='_compute_dcasa_promos', inverse='_inverse_dcasa_promos',
-        help='Márcalo solo si el cliente dijo que sí. Queda con la fecha y con tu nombre.')
+        help='Márcalo solo si el cliente dijo que sí. Queda con la fecha, con tu nombre y con su correo.')
     dcasa_promos_estado = fields.Selection(
-        [('sin', 'Sin permiso'), ('si', 'Con permiso'), ('baja', 'Se dio de baja')], 'Novedades por correo',
-        compute='_compute_dcasa_promos_estado')
+        [('sin', 'Sin permiso'), ('si', 'Con permiso'), ('otro_correo', 'Cambió de correo'),
+         ('baja', 'Se dio de baja')], 'Novedades por correo', compute='_compute_dcasa_promos_estado')
 
-    @api.depends('commercial_partner_id.dcasa_promos_fecha', 'commercial_partner_id.dcasa_promos_baja_fecha')
+    # ------------------------------------------------------------------
+    # El estado y la casilla
+    # ------------------------------------------------------------------
+
+    def _dcasa_promos_estado_de(self, bloqueos):
+        """El estado de UNA ficha comercial (sudo) con los bloqueos por correo ya leídos."""
+        correo = correo_valido(self.email)
+        if self.dcasa_promos_baja_fecha or (correo and bloqueos.get(correo) == 'baja'):
+            return 'baja'
+        if self.dcasa_promos_fecha:
+            return 'si' if correo and correo == self.dcasa_promos_correo else 'otro_correo'
+        return 'sin'
+
+    def _dcasa_promos_estados(self):
+        """``{partner: estado}`` con una sola consulta de bajas por correo."""
+        fichas = self.commercial_partner_id.sudo()
+        bloqueos = self._dcasa_promos_bloqueos_por_correo(correo_valido(f.email) for f in fichas)
+        return {partner: partner.commercial_partner_id.sudo()._dcasa_promos_estado_de(bloqueos) for partner in self}
+
+    @api.depends('commercial_partner_id.dcasa_promos_fecha', 'commercial_partner_id.dcasa_promos_correo',
+                 'commercial_partner_id.dcasa_promos_baja_fecha', 'commercial_partner_id.email')
     def _compute_dcasa_promos_estado(self):
+        estados = self._dcasa_promos_estados()
         for partner in self:
-            ficha = partner.commercial_partner_id.sudo()
-            if ficha.dcasa_promos_baja_fecha:
-                partner.dcasa_promos_estado = 'baja'
-            elif ficha.dcasa_promos_fecha:
-                partner.dcasa_promos_estado = 'si'
-            else:
-                partner.dcasa_promos_estado = 'sin'
+            partner.dcasa_promos_estado = estados[partner]
 
     # Aparte del estado: si compartieran el cálculo, leer el estado dentro del inverso volvería a calcular la casilla y
     # borraría lo que la persona acaba de marcar.
-    @api.depends('commercial_partner_id.dcasa_promos_fecha', 'commercial_partner_id.dcasa_promos_baja_fecha')
+    @api.depends('commercial_partner_id.dcasa_promos_fecha', 'commercial_partner_id.dcasa_promos_correo',
+                 'commercial_partner_id.dcasa_promos_baja_fecha', 'commercial_partner_id.email')
     def _compute_dcasa_promos(self):
+        estados = self._dcasa_promos_estados()
         for partner in self:
-            ficha = partner.commercial_partner_id.sudo()
-            partner.dcasa_promos = bool(ficha.dcasa_promos_fecha and not ficha.dcasa_promos_baja_fecha)
+            partner.dcasa_promos = estados[partner] == 'si'
 
     def _inverse_dcasa_promos(self):
-        for partner in self:
-            quiere = partner.dcasa_promos
-            ficha = partner.commercial_partner_id
-            guardado = ficha.sudo()
-            tiene, baja = bool(guardado.dcasa_promos_fecha), bool(guardado.dcasa_promos_baja_fecha)
-            if quiere and baja:
-                raise UserError(self.env._(
-                    'Este cliente se dio de baja de las novedades: no se le vuelve a escribir.'))
-            if quiere and not tiene:
-                ficha._dcasa_promos_registrar('tienda', self.env.user)
-            elif not quiere and tiene and not baja:
-                ficha._dcasa_promos_baja('ficha', self.env.user)
+        """Marcar: «tienda», con quién y a qué correo. Desmarcar: quita el permiso, sin baja (la baja es el botón).
+
+        Una ficha a la vez y solo desde la ficha: ni muchas de una vez por RPC ni importando (la casilla es lo que el
+        cliente le dijo a una persona)."""
+        estados = self._dcasa_promos_estados()
+        cambian = [p for p in self if p.dcasa_promos != (estados[p] == 'si')
+                   and (p.dcasa_promos or estados[p] in ('si', 'otro_correo'))]
+        if not cambian:
+            return
+        if len(self) > 1 or self.env.context.get('import_file'):
+            raise UserError(self.env._(
+                'La casilla de novedades se marca de una ficha a la vez, desde la ficha del cliente (ni en grupo ni '
+                'importando): es lo que el cliente le dijo a una persona.'))
+        partner = cambian[0]
+        ficha = partner.commercial_partner_id
+        if not partner.dcasa_promos:
+            ficha._dcasa_promos_quitar(self.env.user)
+            return
+        if estados[partner] == 'baja':
+            raise UserError(self.env._(
+                'Este correo se dio de baja de las novedades (en esta ficha o en otra con el mismo correo): no se le '
+                'vuelve a escribir.'))
+        if not correo_valido(ficha.sudo().email):
+            raise UserError(self.env._(
+                'Para marcarla, la ficha necesita un correo bien escrito: el permiso es de ese correo.'))
+        ficha._dcasa_promos_registrar('tienda', self.env.user)
 
     def write(self, vals):
         """El permiso solo lo escribe el sistema (la casilla, el botón, el enlace o el cron), nunca a mano."""
@@ -117,27 +161,43 @@ class ResPartner(models.Model):
         return super().create(vals_list)
 
     # ------------------------------------------------------------------
-    # Anotar el sí y la baja
+    # Anotar el sí, quitarlo y la baja
     # ------------------------------------------------------------------
 
     def _dcasa_promos_registrar(self, origen, usuario=None, fecha=None):
-        """Anota el «sí» en la ficha comercial (con quién y cuándo). Exige poder escribir la ficha (salvo el sistema).
+        """Anota el «sí» en la ficha comercial (con quién, cuándo y a qué correo). Exige poder escribir la ficha (salvo
+        el sistema).
 
-        Nunca toca una ficha que ya dijo que sí ni una que se dio de baja (la baja es final). Devuelve las fichas que
-        quedaron con el permiso nuevo."""
+        Nunca toca una ficha sin correo bien escrito, una que ya dijo que sí con ese mismo correo, ni una cuyo correo se
+        dio de baja en CUALQUIER ficha (la baja es final). Si dijo que sí con otro correo, queda el «sí» del nuevo.
+        Devuelve las fichas que quedaron con el permiso nuevo."""
         if origen not in dict(ORIGENES):
             raise ValueError(origen)
         if not self.env.su:
             self.check_access('write')
-        fichas = self.commercial_partner_id.sudo().filtered(
-            lambda f: not f.dcasa_promos_fecha and not f.dcasa_promos_baja_fecha)
+        fichas = self.commercial_partner_id.sudo()
+        correos = {ficha: correo_valido(ficha.email) for ficha in fichas}
+        bloqueos = self._dcasa_promos_bloqueos_por_correo(correos.values())
+        nuevas = fichas.filtered(lambda f: correos[f] and not f.dcasa_promos_baja_fecha
+                                 and bloqueos.get(correos[f]) != 'baja'
+                                 and not (f.dcasa_promos_fecha and f.dcasa_promos_correo == correos[f]))
         usuario = usuario if usuario and not usuario._is_public() else self.env['res.users']
-        if fichas:
-            fichas.write({
+        for ficha in nuevas:
+            ficha.write({
                 'dcasa_promos_fecha': fecha or fields.Datetime.now(),
                 'dcasa_promos_origen': origen,
                 'dcasa_promos_usuario_id': usuario.id or False,
+                'dcasa_promos_correo': correos[ficha],
             })
+        return nuevas
+
+    def _dcasa_promos_quitar(self, usuario=None):
+        """Desmarcar la casilla: quita el permiso (queda en el historial de la ficha) sin anotar baja."""
+        if not self.env.su:
+            self.check_access('write')
+        fichas = self.commercial_partner_id.sudo().filtered('dcasa_promos_fecha')
+        if fichas:
+            fichas.write(SIN_PERMISO)
         return fichas
 
     def _dcasa_promos_baja(self, origen, usuario=None, fecha=None):
@@ -157,7 +217,10 @@ class ResPartner(models.Model):
         return fichas
 
     def action_dcasa_promos_baja(self):
-        """Botón «Darle de baja» de la ficha: quien puede editar al cliente (check_access ANTES del sudo)."""
+        """Botón «Darle de baja» de la ficha (pide confirmación): una ficha a la vez, quien puede editar al cliente
+        (check_access ANTES del sudo)."""
+        if len(self) != 1:
+            raise UserError(self.env._('La baja se anota de un cliente a la vez, desde su ficha.'))
         self.check_access('write')
         self._dcasa_promos_baja('ficha', self.env.user)
         return True
@@ -167,21 +230,49 @@ class ResPartner(models.Model):
     # ------------------------------------------------------------------
 
     @api.model
+    def _dcasa_promos_bloqueos_por_correo(self, correos=None):
+        """``{correo: 'baja' | 'no_contactar'}``: los correos que no reciben campañas por NINGUNA ficha.
+
+        Mira todas las fichas con ese correo (archivadas y contactos hijos incluidos): basta que una, o la ficha de su
+        empresa, se haya dado de baja o haya pedido que no la contacten. Con ``correos`` solo mira esos (vacío:
+        nada)."""
+        Partner = self.env['res.partner'].sudo().with_context(active_test=False)
+        dominio = Domain.OR([
+            [('dcasa_promos_baja_fecha', '!=', False)],
+            [('commercial_partner_id.dcasa_promos_baja_fecha', '!=', False)],
+            [('dcasa_no_contactar', '=', True)], [('commercial_partner_id.dcasa_no_contactar', '=', True)]])
+        if correos is not None:
+            correos = sorted({correo for correo in correos if correo})
+            if not correos:
+                return {}
+            dominio = Domain.AND([[('email_normalized', 'in', correos)], dominio])
+        salida = {}
+        for partner in Partner.search(dominio):
+            baja = partner.dcasa_promos_baja_fecha or partner.commercial_partner_id.dcasa_promos_baja_fecha
+            for correo in {correo_valido(partner.email), partner.email_normalized} - {None, False, ''}:
+                if salida.get(correo) != 'baja':
+                    salida[correo] = 'baja' if baja else 'no_contactar'
+        return salida
+
+    @api.model
     def _dcasa_promos_dominio(self):
         """Fichas comerciales activas con permiso, sin baja, con correo y que no pidieron que no las contacten."""
         return [('active', '=', True), ('parent_id', '=', False), ('dcasa_promos_fecha', '!=', False),
-                ('dcasa_promos_baja_fecha', '=', False), ('email_normalized', '!=', False),
-                ('dcasa_no_contactar', '=', False)]
+                ('dcasa_promos_correo', '!=', False), ('dcasa_promos_baja_fecha', '=', False),
+                ('email_normalized', '!=', False), ('dcasa_no_contactar', '=', False)]
 
     @api.model
     def _dcasa_promos_con_permiso(self):
-        """``{correo: ficha}`` de quienes reciben la campaña: un correo una sola vez, bien escrito y nunca del equipo
-        (usuarios internos y la empresa propia)."""
+        """``{correo: ficha}`` de quienes reciben la campaña: un correo una sola vez, bien escrito, el MISMO al que dijo
+        que sí, sin baja ni «no contactar» en ninguna ficha con ese correo y nunca del equipo (usuarios internos y la
+        empresa propia)."""
         del_equipo = self._dcasa_correos_del_equipo()
+        bloqueos = self._dcasa_promos_bloqueos_por_correo()
         salida = {}
         for ficha in self.sudo().search(self._dcasa_promos_dominio(), order='dcasa_promos_fecha, id'):
             correo = correo_valido(ficha.email)
-            if correo and correo not in del_equipo and correo not in salida:
+            if correo and correo == ficha.dcasa_promos_correo and correo not in del_equipo \
+                    and correo not in bloqueos and correo not in salida:
                 salida[correo] = ficha
         return salida
 
@@ -190,14 +281,31 @@ class ResPartner(models.Model):
     # ------------------------------------------------------------------
 
     @api.model
+    def _dcasa_pedido_de_sofia(self, propuesta):
+        """El mensaje que DE VERDAD salió de la propuesta de Sofía que pedía sus datos (o un registro vacío).
+
+        * «Enviar ya»: el que se guardó al enviarlo (``dcasa_camila_mensaje_id``).
+        * «Abrir el chat»: el PRIMER mensaje de la vendedora en ese chat después de aprobarla (la vendedora pudo
+          cambiar el texto o escribir otra cosa: cuenta lo que salió primero)."""
+        Mensaje = self.env['dcasa.mensaje'].sudo()
+        conv = propuesta.conversacion_id
+        if propuesta.accion == 'enviar':
+            mensaje = propuesta.dcasa_camila_mensaje_id.sudo()
+            return mensaje if mensaje.conversacion_id == conv else Mensaje
+        return Mensaje.search([
+            ('conversacion_id', '=', conv.id), ('autor', '=', 'vendedora'), ('tipo', '=', 'mensaje'),
+            ('estado_envio', '=', 'enviado'), ('ts', '>=', propuesta.resuelta_en - HOLGURA_ENVIO),
+            ('ts', '<=', propuesta.resuelta_en + timedelta(hours=HORAS_PARA_CONTESTAR))], order='ts, id', limit=1)
+
+    @api.model
     def _dcasa_promos_de_sofia(self, dias=DIAS_DE_PEDIDOS):
         """Anota el permiso de quien dio su correo cuando Sofía se lo pidió «para avisarle de promociones».
 
-        Cuenta solo si el mensaje que de verdad salió por el chat (Gerencia puede cambiar los textos de Sofía, y la
-        vendedora puede cambiarlo antes de enviarlo) decía que era para promociones, y el cliente contestó hasta 2 días
-        después con el MISMO correo que hoy tiene su ficha. Fecha: la de su respuesta; origen «WhatsApp (pidió
-        Sofía)»; con quién: la persona que le escribió. Nunca da de alta a quien se dio de baja. Devuelve cuántas
-        fichas quedaron con permiso."""
+        Cuenta solo si el mensaje que de verdad salió de esa propuesta (``_dcasa_pedido_de_sofia``) tenía la frase de
+        la plantilla («te avisamos de promociones», sin negar) y le pedía el correo, y el cliente contestó hasta 2 días
+        después con el MISMO correo que hoy tiene su ficha. Fecha: la de su respuesta; origen «WhatsApp (pidió Sofía)»;
+        con quién: la persona que le escribió. Nunca da de alta a quien se dio de baja. Devuelve cuántas fichas
+        quedaron con permiso."""
         if 'dcasa.sofia.propuesta' not in self.env:
             return 0
         desde = fields.Datetime.now() - timedelta(days=dias)
@@ -210,18 +318,13 @@ class ResPartner(models.Model):
         for propuesta in propuestas:
             conv = propuesta.conversacion_id
             ficha = conv.partner_id.commercial_partner_id
-            if not ficha or ficha != propuesta.partner_id.commercial_partner_id \
-                    or ficha.dcasa_promos_fecha or ficha.dcasa_promos_baja_fecha:
+            if not ficha or ficha != propuesta.partner_id.commercial_partner_id or ficha.dcasa_promos_baja_fecha:
                 continue
             correo = correo_valido(ficha.email)
-            if not correo:
+            if not correo or (ficha.dcasa_promos_fecha and ficha.dcasa_promos_correo == correo):
                 continue
-            pedido = Mensaje.search([
-                ('conversacion_id', '=', conv.id), ('autor', '=', 'vendedora'), ('tipo', '=', 'mensaje'),
-                ('estado_envio', '=', 'enviado'), ('ts', '>=', propuesta.resuelta_en - HOLGURA_ENVIO),
-                ('ts', '<=', propuesta.resuelta_en + timedelta(hours=HORAS_PARA_CONTESTAR))],
-                order='ts, id', limit=20).filtered(lambda m: R.menciona_promociones(m.texto))[:1]
-            if not pedido:
+            pedido = self._dcasa_pedido_de_sofia(propuesta)
+            if not pedido or pedido.estado_envio != 'enviado' or not R.pide_correo_para_promociones(pedido.texto):
                 continue
             respuestas = Mensaje.search([
                 ('conversacion_id', '=', conv.id), ('autor', '=', 'cliente'), ('tipo', '=', 'mensaje'),
@@ -236,4 +339,3 @@ class ResPartner(models.Model):
                     'sofia_whatsapp', quien, fecha=respuesta.ts):
                 anotadas += 1
         return anotadas
-

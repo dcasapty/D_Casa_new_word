@@ -9,3 +9,4 @@ from . import panel
 from . import correo
 from . import conversacion
 from . import herramientas_camila
+from . import sofia

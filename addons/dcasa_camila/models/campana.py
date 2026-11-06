@@ -6,7 +6,9 @@
   exigen el grupo en el servidor antes de tocar nada.
 * Cada línea guarda el producto con **el precio de la tienda en línea** del día en que se armó o se aprobó (nunca un
   precio escrito por la IA ni a mano).
-* ``dcasa.camila.llegada``: los chats que llegaron con la marca de la campaña («Ref. DCN-0007») en su primer mensaje.
+* ``dcasa.camila.llegada``: los chats que llegaron con la marca de la campaña («Ref. DCN-0007») en el primer mensaje
+  del cliente desde que salió.
+* ``dcasa.camila.prueba``: cada «Enviarme una prueba» que salió (para el tope por persona; sin datos de clientes).
 """
 from odoo import fields, models
 
@@ -103,3 +105,15 @@ class CamilaLlegada(models.Model):
 
     _una_por_chat = models.Constraint('UNIQUE(campana_id, conversacion_id)',
                                       'Ese chat ya está contado en esa campaña.')
+
+
+class CamilaPrueba(models.Model):
+    """Las pruebas que salieron (salen por el mismo cupo que los correos de las facturas): una cada 2 minutos por
+    persona y pocas en 24 horas (``envio.py``). Solo las escribe el sistema."""
+    _name = 'dcasa.camila.prueba'
+    _description = 'Prueba de una campaña de Camila (para el tope)'
+    _order = 'enviada_en desc, id desc'
+
+    usuario_id = fields.Many2one('res.users', required=True, ondelete='cascade', index=True, readonly=True)
+    campana_id = fields.Many2one('dcasa.camila.campana', ondelete='set null', readonly=True)
+    enviada_en = fields.Datetime(required=True, default=fields.Datetime.now, index=True, readonly=True)

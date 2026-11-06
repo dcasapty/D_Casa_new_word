@@ -3,8 +3,8 @@
 Contactos (``dcasa_contactos``) trae a la ficha que queda, campo por campo, los datos que no se copian. Con el
 permiso eso mezclaría dos registros (la fecha de una ficha con el «quién» de otra). Aquí:
 
-* el «sí» va entero (fecha, por dónde y quién) desde la ficha con el permiso más reciente, sea la que queda o una de
-  las que se van;
+* el «sí» va entero (fecha, por dónde, quién y a qué correo) desde la ficha con el permiso más reciente, sea la que
+  queda o una de las que se van (si el correo de la que queda es otro, el permiso no le sirve: es de aquel correo);
 * la baja también va entera, y con una sola ficha dada de baja la que queda queda dada de baja (la baja es final);
 * el correo que estaba en Resend no se trae: la sincronización saca del segmento a quien ya no tiene ficha con
   permiso.
@@ -13,7 +13,7 @@ from odoo import models
 
 from .permiso import CAMPOS_PERMISO
 
-PERMISO = ('dcasa_promos_fecha', 'dcasa_promos_origen', 'dcasa_promos_usuario_id')
+PERMISO = ('dcasa_promos_fecha', 'dcasa_promos_origen', 'dcasa_promos_usuario_id', 'dcasa_promos_correo')
 BAJA = ('dcasa_promos_baja_fecha', 'dcasa_promos_baja_origen', 'dcasa_promos_baja_usuario_id')
 
 

@@ -3,14 +3,16 @@
 Cada método exige en el servidor el grupo de marketing (rol «Marketing», Gerencia o administradores) ANTES de tocar
 nada, valida cada argumento y escribe con ``sudo`` solo después (el ACL de las campañas es de solo lectura). Lo que
 la persona ve del dinero de las ventas que trajo una campaña depende de que vea la ganancia (Gerencia y
-administradores): el rol Marketing ve cuántas, no cuánto.
+administradores): el rol Marketing ve cuántas, no cuánto. Gerencia y administradores también prenden o apagan la línea
+«Sí, quiero» del pie y descartan una campaña aprobada que quedó trabada.
 """
-from odoo import Command, api, models
+from datetime import timedelta
+
+from odoo import Command, api, fields, models
 from odoo.exceptions import UserError
 from odoo.fields import Domain
 
 from . import reglas as R
-from .campana import ABIERTAS
 
 MAX_HISTORIAL = 8
 MAX_BUSQUEDA = 12
@@ -49,6 +51,7 @@ class DcasaCamila(models.AbstractModel):
             'limites': {'asunto': R.MAX_ASUNTO, 'entrada': R.MAX_ENTRADA, 'linea': R.MAX_LINEA,
                         'productos': R.MAX_PRODUCTOS},
             'dias': R.DIAS_ENTRE_CAMPANAS,
+            'enlace_pie': {'encendido': self._enlace_pie_encendido(), 'puede_cambiar': self._ve_dinero()},
         }
 
     @api.model
@@ -72,6 +75,7 @@ class DcasaCamila(models.AbstractModel):
             'prueba': {'a': campana.prueba_a, 'fecha': self._fecha_texto(self._dia_panama(campana.prueba_en))}
             if campana.prueba_a else None,
             'editable': campana.estado == 'borrador',
+            'puede_descartar': self._puede_intentar_descartar(campana),
             'lineas': [{
                 'producto_id': linea.producto_id.id, 'nombre': linea.nombre, 'texto': linea.texto or '',
                 'grupo': linea.grupo, 'grupo_nombre': dict(R.GRUPOS).get(linea.grupo, ''),
@@ -80,6 +84,19 @@ class DcasaCamila(models.AbstractModel):
                 if linea.producto_id else '',
             } for linea in campana.linea_ids],
         }
+
+    @api.model
+    def _puede_intentar_descartar(self, campana):
+        """Si la pantalla ofrece «Descartar»: el borrador siempre; una aprobada, solo a Gerencia o un administrador
+        cuando ya no se está enviando (el servidor revisa lo demás en Resend al tocarlo)."""
+        if campana.estado == 'borrador':
+            return True
+        if campana.estado != 'aprobada' or not self._ve_dinero():
+            return False
+        from .envio import MINUTOS_ENVIANDO
+
+        return bool(campana.resend_broadcast_id or not campana.enviando_desde
+                    or fields.Datetime.now() - campana.enviando_desde >= timedelta(minutes=MINUTOS_ENVIANDO))
 
     # ------------------------------------------------------------------
     # Lo que se hace
@@ -210,12 +227,20 @@ class DcasaCamila(models.AbstractModel):
 
     @api.model
     def descartar(self, campana_id):
-        """Descarta el borrador (queda en el historial como cancelado). Uno que ya está en Resend no se descarta."""
+        """Descarta el borrador (queda en el historial como cancelado). Una aprobada que quedó trabada solo la
+        descartan Gerencia o un administrador, y solo si en Resend no salió ni va a salir (ver ``_descartar``)."""
         self._exigir()
-        campana = self._bloquear(campana_id)
-        if campana.estado not in ABIERTAS or campana.resend_broadcast_id or campana.estado == 'aprobada':
-            raise UserError(self.env._('Esa campaña ya no se puede descartar (ya salió o se está enviando).'))
-        campana.write({'estado': 'cancelada', 'cancelada_por': self.env.uid})
+        self._descartar(self._bloquear(campana_id))
+        return self.panel()
+
+    @api.model
+    def ajustar_enlace_pie(self, encendido):
+        """Prende o apaga la línea «¿Te avisamos de lo nuevo? Sí, quiero» del pie de la factura y la bienvenida (y si
+        sus enlaces anotan). Gerencia o administradores; de fábrica, encendida."""
+        self._exigir()
+        if not isinstance(encendido, bool):
+            raise UserError(self.env._('No entendí si prenderla o apagarla.'))
+        self._enlace_ajustar(encendido)
         return self.panel()
 
     @api.model

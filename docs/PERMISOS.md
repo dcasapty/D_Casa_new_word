@@ -38,7 +38,8 @@ Más abajo: [roles y grupos](#roles-y-grupos-mapa-completo) · [interruptores](#
 | La app **Marketing** (stock por categoría, más vendidos, movimiento, quietos, fotos que faltan) y su acceso en el Inicio | No | No | No | Sí | Sí |
 | **Marketing › Camila** (2026-11-06): armar, editar, mandarse la prueba y **aprobar el envío** de la campaña de correo (también el rol «Marketing») | No | No | No | Sí | Sí |
 | Ver **cuánto dinero** vendieron los clientes que llegaron por una campaña de correo (cuántos chats y ventas lo ve también el rol Marketing) | No | No | No | Sí | Sí |
-| Marcar en la ficha que el cliente **quiere recibir novedades por correo** (cuando lo dice) y **«Darle de baja»** cuando lo pide (la baja es final), 2026-11-06 | Sí | Sí | Sí | Sí | Sí |
+| Marcar en la ficha que el cliente **quiere recibir novedades por correo** (cuando lo dice; una ficha a la vez) y **«Darle de baja»** cuando lo pide (la baja es final), 2026-11-06 | Sí | Sí | Sí | Sí | Sí |
+| **Camila:** apagar o encender la línea «Sí, quiero» del pie de la factura y la bienvenida, y descartar una campaña **aprobada** que quedó trabada (si en Resend no salió), 2026-11-06 | No | No | No | Sí | Sí |
 | **Envíos › Calculadora** y **Lugares** (ver precios, cotizar por km) y **agregar un lugar que falta** (queda su nombre), 2026-11-06 | Sí | Sí | Sí | Sí | Sí |
 | **Envíos:** editar o archivar lugares, cambiar y **aprobar la tarifa**, cargar el archivo de envíos | No | No | No | Sí | Sí |
 
@@ -552,9 +553,12 @@ despachar. Un método público que usa `sudo()` sin exigir grupo sería una puer
   repositorio, a documentos ni a pruebas (hay pruebas que buscan correos reales dentro de los módulos). La carga del
   sistema anterior viaja por la pantalla de Odoo, nunca por Git.
 - **Permiso de novedades por correo** (`dcasa_camila`, 2026-11-06): solo se le escribe una campaña a quien dijo que
-  sí, con cuándo, por dónde y con quién; una baja es final. A Resend solo sube el **correo** (sin nombre ni nada más)
-  de quien tiene permiso; a la IA que escribe el texto solo le llegan nombres de productos. Detalle:
-  [CAMILA.md](CAMILA.md).
+  sí, con cuándo, por dónde, con quién y **a qué correo** (si cambia de correo, hay que volver a preguntar); una baja
+  es final y vale para **ese correo en cualquier ficha** (repetidas, archivadas o contactos hijos). La casilla se marca
+  de una ficha a la vez; desmarcarla quita el permiso sin baja. El enlace «Sí, quiero» solo va al pie del correo que
+  recibe la propia ficha (no a un contacto hijo ni a varios) y Gerencia lo puede apagar. A Resend solo sube el
+  **correo** (sin nombre ni nada más) de quien tiene permiso; a la IA que escribe el texto solo le llegan nombres de
+  productos. Detalle: [CAMILA.md](CAMILA.md).
 - **PIN de socios:** PBKDF2-SHA256 con sal por socio y la pimienta `DCASA_PIN_PEPPER`, que vive fuera de la base
   (`dcasa_socios/models/res_partner.py`). Un volcado robado sin la pimienta no se puede atacar por fuerza bruta.
   Intentos fallidos bloquean la cuenta; Gerencia reinicia el PIN (queda nota en el historial).

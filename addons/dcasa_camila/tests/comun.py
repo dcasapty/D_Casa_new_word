@@ -101,21 +101,21 @@ class ResendFalso:
             return respuesta(200, {'object': 'contact', 'id': self.contactos[correo]['id']})
         encontrado = re.fullmatch(r'/contacts/([^/]+)/segments/([^/]+)', ruta)
         if encontrado:
-            correo = unquote(encontrado.group(1))
-            if correo not in self.contactos:
+            contacto = self._contacto_de(encontrado.group(1))
+            if not contacto:
                 return respuesta(404, {'message': 'Contact not found'})
             if metodo == 'POST':
-                self.contactos[correo]['segmentos'].add(encontrado.group(2))
+                contacto['segmentos'].add(encontrado.group(2))
             else:
-                self.contactos[correo]['segmentos'].discard(encontrado.group(2))
+                contacto['segmentos'].discard(encontrado.group(2))
             return respuesta(200, {'id': encontrado.group(2)})
         encontrado = re.fullmatch(r'/contacts/([^/]+)', ruta)
         if encontrado and metodo == 'PATCH':
-            correo = unquote(encontrado.group(1))
-            if correo not in self.contactos:
+            contacto = self._contacto_de(encontrado.group(1))
+            if not contacto:
                 return respuesta(404, {'message': 'Contact not found'})
-            self.contactos[correo]['unsubscribed'] = bool(cuerpo.get('unsubscribed'))
-            return respuesta(200, {'object': 'contact', 'id': self.contactos[correo]['id']})
+            contacto['unsubscribed'] = bool(cuerpo.get('unsubscribed'))
+            return respuesta(200, {'object': 'contact', 'id': contacto['id']})
         if ruta == '/broadcasts' and metodo == 'POST':
             nuevo = self._id('bc')
             self.broadcasts[nuevo] = dict(cuerpo, status='draft')
@@ -129,12 +129,27 @@ class ResendFalso:
                                                 if not baja)
                 return respuesta(200, {'id': encontrado.group(1)})
             if encontrado.group(2) == '/recipients' and metodo == 'GET':
-                cuantos = self.destinatarios.get((encontrado.group(1), params.get('type')), 0)
-                return self._pagina([{'id': f'r{i}', 'email': f'r{i}@example.com'} for i in range(cuantos)], params)
+                # Un número (cuántos, con correos inventados) o la lista de correos de ese evento.
+                valor = self.destinatarios.get((encontrado.group(1), params.get('type')), 0)
+                correos = valor if isinstance(valor, list) else [f'r{i}@example.com' for i in range(valor)]
+                return self._pagina([{'id': f'r{i}', 'contact_id': None, 'email': correo}
+                                     for i, correo in enumerate(correos)], params)
             if not encontrado.group(2) and metodo == 'GET':
                 return respuesta(200, {'object': 'broadcast', 'id': encontrado.group(1),
                                        'status': broadcast['status']})
+            if not encontrado.group(2) and metodo == 'DELETE':
+                if broadcast['status'] not in ('draft', 'scheduled'):
+                    return respuesta(422, {'message': 'Only draft or scheduled broadcasts can be deleted'})
+                del self.broadcasts[encontrado.group(1)]
+                return respuesta(200, {'object': 'broadcast', 'id': encontrado.group(1), 'deleted': True})
         return respuesta(404, {'message': 'not found'})
+
+    def _contacto_de(self, clave):
+        """El contacto por su correo (tal como se escribió en Resend) o por su id, como la API de Resend."""
+        clave = unquote(clave)
+        if clave in self.contactos:
+            return self.contactos[clave]
+        return next((c for c in self.contactos.values() if c['id'] == clave), None)
 
 
 class CamilaComun(TransactionCase):

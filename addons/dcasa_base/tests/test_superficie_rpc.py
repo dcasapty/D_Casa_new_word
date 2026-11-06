@@ -1039,11 +1039,16 @@ LISTA_BLANCA = {
     ('dcasa_camila', 'dcasa.camila', 'enviar'):
         CAMILA + ' Revisa producción, la clave, los 15 días, los precios de ahora y el permiso de cada cliente; '
                  'confirma la base antes de hablar con Resend (sin doble envío).',
-    ('dcasa_camila', 'dcasa.camila', 'descartar'): CAMILA,
+    ('dcasa_camila', 'dcasa.camila', 'descartar'):
+        CAMILA + ' Una campaña aprobada (trabada) solo la descartan Gerencia o un administrador, y solo si en Resend '
+                 'no salió ni va a salir.',
     ('dcasa_camila', 'dcasa.camila', 'actualizar_resultados'): CAMILA + ' Solo lee los resultados de Resend.',
+    ('dcasa_camila', 'dcasa.camila', 'ajustar_enlace_pie'):
+        CAMILA + ' Además exige Gerencia o administrador (AccessError) para prender o apagar la línea «Sí, quiero» '
+                 'del pie; el valor tiene que ser verdadero o falso.',
     ('dcasa_camila', 'res.partner', 'action_dcasa_promos_baja'):
-        'Botón «Darle de baja» de la ficha: check_access("write") en el servidor ANTES del sudo que anota la baja '
-        '(final) del permiso de novedades.',
+        'Botón «Darle de baja» de la ficha: una ficha a la vez y check_access("write") en el servidor ANTES del sudo '
+        'que anota la baja (final) del permiso de novedades.',
     ('dcasa_camila', 'res.partner', 'write'):
         OVERRIDE + ' Solo IMPIDE escribir a mano (sin sudo) los campos del permiso de novedades por correo.',
     ('dcasa_camila', 'res.partner', 'create'):

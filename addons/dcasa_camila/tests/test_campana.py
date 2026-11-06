@@ -332,7 +332,9 @@ class TestEnviar(CamilaComun):
         self.assertIn('Prueba:', datos['html'])
         self.assertNotIn('RESEND_UNSUBSCRIBE_URL', datos['html'])
         self.assertFalse(self.resend.llamadas, 'La prueba no toca la lista de clientes ni las campañas')
-        # Si su correo no fuera del equipo, la política de siempre no la deja salir.
+        # Si su correo no fuera del equipo, la política de siempre no la deja salir (pasados los 2 minutos del tope).
+        self.env['dcasa.camila.prueba'].sudo().search([]).write(
+            {'enviada_en': fields.Datetime.now() - timedelta(minutes=5)})
         with self.correo_transaccional() as post, patch(
                 'odoo.addons.dcasa_correo.models.correo.DcasaCorreo._correos_internos', return_value=[]):
             with self.assertRaisesRegex(UserError, 'No salió la prueba'):

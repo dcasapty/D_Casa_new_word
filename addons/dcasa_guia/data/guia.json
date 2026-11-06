@@ -1634,8 +1634,8 @@
    "categoria": "clientes",
    "grupo": "Correo",
    "titulo": "Anotar que un cliente quiere recibir novedades por correo",
-   "logras": "En la ficha del cliente marcas «Quiere recibir novedades y promociones por correo» cuando te dice que sí; queda con la fecha y con tu nombre. Si pide que no le escriban más, tocas «Darle de baja».",
-   "nota": "Márcalo solo si el cliente dijo que sí. También dicen que sí con el enlace «Sí, quiero» al pie del correo de su factura o de la bienvenida. Una baja es final: no se vuelve a marcar.",
+   "logras": "En la ficha del cliente marcas «Quiere recibir novedades y promociones por correo» cuando te dice que sí; queda con la fecha, con tu nombre y con su correo. Si pide que no le escriban más, tocas «Darle de baja».",
+   "nota": "Márcalo solo si el cliente dijo que sí y su ficha tiene su correo (si cambia de correo, hay que volver a preguntarle). Desmarcarla quita el permiso, pero no es la baja. También dicen que sí con el enlace «Sí, quiero» al pie del correo de su factura o de la bienvenida. Una baja es final para ese correo: no se vuelve a marcar.",
    "destino": {
     "menu": "contacts.res_partner_menu_contacts"
    },

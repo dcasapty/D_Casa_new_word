@@ -330,6 +330,18 @@
         h2 { font-family: "Oswald", sans-serif; font-size: 1.15rem; color: var(--cm-navy); }
     }
 
+    // El interruptor de Gerencia de la línea «Sí, quiero» del pie de la factura y la bienvenida.
+    .o_camila_pie_ajuste {
+        margin-top: 20px;
+        background: #FFFFFF;
+        border: 1px solid var(--cm-linea);
+        border-radius: 12px;
+        padding: 16px;
+
+        h2 { font-family: "Oswald", sans-serif; font-size: 1.05rem; color: var(--cm-navy); }
+        p { margin: 6px 0 10px; color: var(--cm-tinta-2); }
+    }
+
     .o_camila_tabla_envoltura { overflow-x: auto; }
     .o_camila_tabla { margin: 0; min-width: 560px; }
     .o_camila_tabla_asunto { color: var(--cm-tinta-2); font-size: .85rem; }

@@ -562,6 +562,15 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   - La base de pruebas trae el catálogo con existencias y fotos: una prueba que escoge productos «elegibles» tiene que
     despublicar los demás en su `setUpClass`.
   - Otros agentes usan los puertos 8191 y 8192 en esta máquina: mirar `ps` antes de levantar Odoo (`--http-port`).
+  - **Revisión adversarial del mismo día (12 hallazgos):** un consentimiento o una baja **se mira por correo, no ficha
+    por ficha** (la misma persona tiene fichas repetidas, archivadas o como contacto hijo); un enlace firmado del pie
+    va solo si el destinatario único ES la ficha firmada (si no, quien recibe el correo da el «sí» de otro); un
+    permiso guarda **el correo** al que se dio; con Resend, sacar y dar de baja **por el id** del contacto (por el
+    correo, otra grafía da 404 y se traga); antes de mandar un *broadcast*, volver a listar el segmento; una revisión
+    de texto tiene que quitar (no volver espacio) los caracteres invisibles y rechazar letras de otro alfabeto; un
+    token de URL se valida con una expresión ASCII antes de `int()` o `compare_digest` (si no, 500).
+  - La herramienta Edit escribe `​` como el carácter invisible (no como la secuencia): para dejar escapes en una
+    prueba, un script de Python en el scratchpad que reemplace `chr(…)`.
 - **Calculadora de envíos (2026-11-06, `dcasa_envios`), lo aprendido:**
   - Un `<input type="number" step="0.1">` dentro de un `<form>` **bloquea el envío** si el valor no es múltiplo del paso
     (7.04): el navegador no llama al `submit` y no hay error visible. Lo atrapó la prueba en el navegador; ahora

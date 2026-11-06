@@ -196,8 +196,11 @@
                                     <t t-elif="campana.estado == 'aprobada'">Reintentar el envío</t>
                                     <t t-else="" t-esc="textoEnviar"/>
                                 </button>
-                                <button t-if="editable" type="button" class="btn btn-link text-danger o_camila_descartar"
-                                        t-att-disabled="state.ocupado" t-on-click="confirmarDescartar">Descartar borrador</button>
+                                <button t-if="campana.puede_descartar" type="button" class="btn btn-link text-danger o_camila_descartar"
+                                        t-att-disabled="state.ocupado" t-on-click="confirmarDescartar">
+                                    <t t-if="editable">Descartar borrador</t>
+                                    <t t-else="">Descartar (no salió)</t>
+                                </button>
                             </div>
                             <p t-if="campana.prueba" class="o_camila_prueba_hecha">
                                 Última prueba a <t t-esc="campana.prueba.a"/> (<t t-esc="campana.prueba.fecha"/>).
@@ -244,9 +247,24 @@
                                 </tbody>
                             </table>
                             <p class="o_camila_tabla_nota">Abrieron y tocaron: lo que dice Resend (las aperturas pueden no
-                                ser exactas). Chats: los que llegaron con la marca de la campaña. Ventas: facturas pagadas de
-                                esos clientes con el chat en los 30 días antes de la factura.</p>
+                                ser exactas). Chats: los que llegaron con la marca de la campaña en su primer mensaje. Ventas:
+                                facturas pagadas de esos clientes con el chat en los 30 días antes de la factura.</p>
                         </div>
+                    </section>
+
+                    <section class="o_camila_pie_ajuste">
+                        <h2>«¿Te avisamos de lo nuevo? Sí, quiero»</h2>
+                        <p>
+                            La línea al pie del correo de la factura y de la bienvenida, para que el cliente diga que sí
+                            con un enlace: <strong class="o_camila_pie_estado" t-esc="d.enlace_pie.encendido ? 'encendida' : 'apagada'"/>.
+                            <t t-if="!d.enlace_pie.encendido">Apagada, la línea no va y los enlaces que ya salieron no anotan nada.</t>
+                        </p>
+                        <button t-if="d.enlace_pie.puede_cambiar" type="button" class="btn btn-secondary btn-sm o_camila_pie_cambiar"
+                                t-att-disabled="state.ocupado" t-on-click="() => this.cambiarEnlacePie(!d.enlace_pie.encendido)">
+                            <t t-if="d.enlace_pie.encendido">Apagar la línea</t>
+                            <t t-else="">Encender la línea</t>
+                        </button>
+                        <p t-else="" class="text-muted small">La prenden o apagan Gerencia o un administrador.</p>
                     </section>
                 </t>
             </div>

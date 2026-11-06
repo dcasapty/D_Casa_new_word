@@ -250,10 +250,21 @@ export class CamilaPanel extends Component {
         }
     }
 
+    async cambiarEnlacePie(encendido) {
+        const d = await this.llamar("enlace-pie", "ajustar_enlace_pie", [encendido]);
+        if (d) {
+            this.ponerPanel(d);
+            this.notification.add(encendido ? "La línea «Sí, quiero» quedó encendida." : "La línea «Sí, quiero» quedó apagada.",
+                { type: "success" });
+        }
+    }
+
     confirmarDescartar() {
         this.dialog.add(ConfirmationDialog, {
-            title: "¿Descartar este borrador?",
-            body: "Queda en el historial como descartado. Puedes armar otro cuando quieras.",
+            title: this.editable ? "¿Descartar este borrador?" : "¿Descartar esta campaña?",
+            body: this.editable
+                ? "Queda en el historial como descartado. Puedes armar otro cuando quieras."
+                : "Se revisa en Resend que no haya salido ni vaya a salir. Queda en el historial como descartada y ya se puede armar otra.",
             confirmLabel: "Descartar",
             cancelLabel: "Cancelar",
             confirm: async () => {

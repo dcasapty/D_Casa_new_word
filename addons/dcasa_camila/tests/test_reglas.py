@@ -85,7 +85,13 @@ class TestMarcaYTope(BaseCase):
         self.assertFalse(R.puede_salir_hoy(date(2026, 11, 20), date(2026, 11, 6)))
         self.assertTrue(R.puede_salir_hoy(date(2026, 11, 21), date(2026, 11, 6)))
 
-    def test_solo_cuenta_el_mensaje_de_sofia_que_decia_promociones(self):
-        self.assertTrue(R.menciona_promociones('Así te avisamos de promociones, del programa Socios…'))
-        self.assertTrue(R.menciona_promociones('Te aviso de PROMOCIÓN y novedades'))
-        self.assertFalse(R.menciona_promociones('¿Me regalas tu correo para enviarte la cotización?'))
+    def test_solo_cuenta_el_mensaje_de_sofia_con_la_frase_de_la_plantilla(self):
+        self.assertTrue(R.pide_correo_para_promociones(
+            '¿Me regalas tu correo? Así te avisamos de promociones, del programa Socios…'))
+        self.assertTrue(R.pide_correo_para_promociones('¿ME REGALAS TU CORREO? ASÍ TE AVISAMOS DE PROMOCIONES'))
+        for texto in ('Te aviso de PROMOCIÓN y novedades, ¿me das tu correo?',     # no es la frase
+                      'Así te avisamos de promociones.',                            # no pide el correo
+                      'No te avisamos de promociones: ¿me das tu correo para la factura?',
+                      '¿Me regalas tu correo para enviarte la cotización?'):
+            with self.subTest(texto):
+                self.assertFalse(R.pide_correo_para_promociones(texto))
