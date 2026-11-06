@@ -32,6 +32,13 @@ Armado el 2026-10-16 a partir de `docs/`, los commits y los registros de GitHub 
    subir, y lleva una prueba de que no crece con los registros.** El 2026-10-23 un acceso nuevo del Inicio y el panel de
    Bodega (cada minuto) hacían 1.500-1.800 consultas por carga y volvieron lento todo el sistema (incidente 6). En un
    servidor de ½ vCPU con un solo proceso de Odoo, una pantalla pesada frena a todas las demás.
+10. **Cuando uno llama a otro (Odoo → Worker → IA), el que llama espera MÁS que el plazo del que contesta, y una prueba
+   lo exige.** La varita («Sugerir», 2026-11-06): Odoo se rendía a los 25 s y el Worker no tenía plazo (Meta con
+   herramientas tarda más), así que «a veces» la vendedora veía «el Worker no responde» mientras la IA seguía (y se
+   pagaba). Ahora el Worker contesta antes de 42 s (`PLAZO_TOTAL_MS`, con el borrador o con un error claro) y Odoo espera
+   55 (`TIMEOUT_SUGERIR`); `juan/test/odoo-panel-sugerir.test.ts` lee la línea de Python y exige el margen.
+11. **Un fallo que la persona necesita ver no va en una notificación que se va sola**: queda en la pantalla, dice la
+   causa en corto y ofrece «Reintentar». La dueña no pudo decir qué salía en pantalla porque el aviso duraba segundos.
 
 ---
 
@@ -576,6 +583,15 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   así que basta `patch.object(type(self.env['dcasa.juan.cliente']), 'sugerir', return_value=...)` (y `configurado`)
   alrededor de `browser_js`. Para capturas en la base de prueba (sin Worker), Playwright `page.route` sobre
   `/web/dataset/call_kw/dcasa.conversacion/sugerir_respuesta` (y decirle a la dueña que ese texto es de ejemplo).
+- **Lo que llega tarde se guarda donde se pidió, no donde se está mirando** (la varita, 2026-11-06): la caja escribía
+  el borrador en `almacen.borrador` (= la conversación a la vista) al volver la respuesta; si la vendedora cambiaba de
+  chat mientras Juan escribía, el borrador de una clienta caía en la caja de otra, y lo que ella tecleaba mientras
+  esperaba se pisaba. El estado de «Sugerir» vive en el almacén por conversación (`sugerencias[id]`, `borradorDe(id)`),
+  no en el componente. Pruebas en el navegador con un Worker de mentira que tarda (`self.rutas[...] = función`).
+- **La revisión de la marca: `quitarGraves` no quita fugas** (`analizarOracion` no mira `fuga`, y `analizar` se detiene en
+  la primera fuga sin buscar lo demás). En el bot da igual (una fuga se cambia por `TEXTO_FUGA`), pero en el borrador de
+  «Sugerir» la frase copiada del prompt pasaba entera con el aviso «Quité información interna». `revisarBorrador` ahora
+  quita las oraciones con fuga (`detectarFuga`) y revisa el resto.
 - **Pasar un texto de una pantalla a otra (Sofía → chat): nunca en `params` de la acción.** Odoo guarda la acción en la
   pestaña y en la dirección: al recargar volvía a aparecer el mensaje ya enviado, y cualquiera podía armar un enlace con
   un texto. Va por `sessionStorage`, se lee una vez y se borra, con vencimiento y solo para esa conversación.

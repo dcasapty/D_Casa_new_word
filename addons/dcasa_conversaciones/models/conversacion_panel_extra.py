@@ -29,6 +29,19 @@ CONTEXTO_PARA_SUGERIR = 14          # últimos mensajes que se le pasan al Worke
 CONTEXTO_PARA_RESUMIR = 60          # un resumen lee más que un borrador (el máximo que acepta el Worker)
 ESPERA_ENTRE_RESUMENES = timedelta(seconds=60)
 MAX_TEXTO_PARA_SUGERIR = 1500
+# «Sugerir» cuando no llega el borrador: lo que ve la vendedora en la caja (corto, en palabras sencillas) y si tiene
+# sentido el botón «Reintentar». La causa la dice el Worker (o Odoo, si ni siquiera pudo hablar con él).
+AVISOS_DE_SUGERIR = {
+    'tardo': ('La IA tardó demasiado y no llegó el borrador.', True),
+    'no_disponible': ('La IA no está disponible ahora.', True),
+    'vacio': ('La IA no escribió nada esta vez.', True),
+    'revision': ('El borrador no pasó la revisión de la marca.', True),
+    'sin_conexion': ('No pude hablar con el asistente.', True),
+    'error': ('No llegó el borrador.', True),
+    'sin_clave': ('La IA no tiene su clave cargada: avísale a Gerencia.', False),
+    'sin_configurar': ('Falta conectar el bot: pídele a Gerencia que lo conecte (Conversaciones › Conexiones).', False),
+    'sin_cliente': ('Todavía no hay nada del cliente a lo que responder.', False),
+}
 # Lo que una vendedora puede mandar por el canal. Nada que un navegador pueda ejecutar (HTML, SVG, JS…).
 TIPOS_QUE_SE_SUBEN = {
     'image/jpeg': ('.jpg', '.jpeg'), 'image/png': ('.png',), 'image/webp': ('.webp',), 'image/gif': ('.gif',),
@@ -385,24 +398,40 @@ class DcasaConversacionPanelExtra(models.Model):
         return (ultimo.texto or '')[:200]
 
     @api.model
+    def _sin_borrador(self, causa, conv_id, ms=0, estado_http=None, respaldo_sin_clave=''):
+        """El «no llegó el borrador» para la caja: ``{ok: False, causa, error, reintentar, detalle}``, y su línea en el
+        registro (causa y tiempo; nunca el texto del cliente ni su teléfono)."""
+        mensaje, reintentar = AVISOS_DE_SUGERIR.get(causa) or AVISOS_DE_SUGERIR['error']
+        detalle = ''
+        if respaldo_sin_clave:
+            detalle = self.env._('La IA de respaldo no tiene clave (falta %s): avísale a Gerencia.', respaldo_sin_clave)
+        _logger.warning('Juan: «Sugerir» sin borrador (conversación %s, causa %s, %d ms, HTTP %s%s).', conv_id, causa,
+                        ms, estado_http or '-', ', respaldo sin clave' if respaldo_sin_clave else '')
+        return {'ok': False, 'causa': causa if causa in AVISOS_DE_SUGERIR else 'error', 'error': mensaje,
+                'reintentar': reintentar, 'detalle': detalle}
+
+    @api.model
     def sugerir_respuesta(self, conversacion_id):
-        """Pide al Worker un borrador para la vendedora: ``{texto, avisos}``. No envía ni guarda nada."""
+        """Pide al Worker un borrador para la vendedora. No envía ni guarda nada.
+
+        ``{ok: True, texto, avisos}``, o ``{ok: False, causa, error, reintentar, detalle}`` cuando no llegó: la caja lo
+        muestra con «Reintentar» (antes era una notificación que se iba sola y la caja quedaba vacía, 2026-11-06)."""
         conv = self._para_panel(conversacion_id, escritura=True)
         mensajes = conv._mensajes_para_sugerir()
         if not any(m['autor'] == 'cliente' for m in mensajes):
-            raise UserError(self.env._('Todavía no hay nada del cliente a lo que responder.'))
+            return self._sin_borrador('sin_cliente', conv.id)
         Cliente = self.env['dcasa.juan.cliente']
         if not Cliente.configurado():
-            raise UserError(self.env._(
-                'Falta conectar el bot: no hay dirección o clave del Worker de Juan. Pídele a Gerencia que la '
-                'cargue (Conversaciones › Conexiones).'))
+            return self._sin_borrador('sin_configurar', conv.id)
         respuesta = Cliente.sugerir(
             conv.id, conv.canal, conv.id_externo, mensajes, nombre=conv._nombre_de_pila(),
             interes=conv._interes_para_sugerir(), etiquetas=conv.etiqueta_ids.mapped('name'))
         texto = str(respuesta.get('texto') or '').strip() if respuesta.get('ok') else ''
         if not texto:
-            raise UserError(self.env._(
-                'No pude armar un borrador ahora: %s',
-                (respuesta.get('error') or 'el Worker no devolvió texto')[:300]))
+            causa = respuesta.get('causa') or ('vacio' if respuesta.get('ok') else 'error')
+            return self._sin_borrador(causa, conv.id, respuesta.get('ms') or 0, respuesta.get('estado_http'),
+                                      respuesta.get('respaldo_sin_clave') or '')
         avisos = [str(a)[:200] for a in (respuesta.get('avisos') or []) if isinstance(a, str)][:5]
-        return {'texto': texto[:4000], 'avisos': avisos}
+        _logger.info('Juan: «Sugerir» con borrador (conversación %s, %d ms, modelo %s).', conv.id,
+                     respuesta.get('ms') or 0, str(respuesta.get('modelo') or '-')[:60])
+        return {'ok': True, 'texto': texto[:4000], 'avisos': avisos}

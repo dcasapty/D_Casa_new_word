@@ -27,15 +27,18 @@ LEEME_PRIMERO §2).
 1. **WhatsApp oficial: guardar el mensaje antes de contestarle a Meta.** Arreglado y probado en la rama el 2026-11-06
    (falta CI, staging y Desplegar Juan); cuando entre, se anota en la bitácora y sale de esta lista.
 2. **La varita mágica («Sugerir») que a veces no escribe el borrador**, en el chat y en «Guardar y responderle» de Sofía
-   (la dueña, 2026-11-06: «a veces sí, a veces no»). Sospechas: el plazo de 25 s de Odoo al Worker, el cambio de modelo
-   y la revisión de marca que rechaza el borrador entero. Falta el mensaje exacto que sale en pantalla.
+   (la dueña, 2026-11-06: «a veces sí, a veces no»). **Arreglado y probado en la rama el 2026-11-06** (causas en la
+   bitácora): falta capturas a la dueña, CI, staging, producción y **Desplegar Juan** (cambió `juan/`). Después de
+   desplegar, si vuelve a pasar, la causa queda en el registro (`[juan] sugerir {...}` en el Worker y «Juan: «Sugerir»
+   sin borrador (… causa …)» en Odoo).
 3. **Camila, etapa 1: mail marketing** ([CAMILA.md](CAMILA.md)). Decisiones tomadas el 2026-11-06: campaña cada 15
    días, con el precio real de Odoo, por el servicio de campañas de Resend. Primero el permiso del cliente.
 4. **Brian al día** con lo nuevo (la dueña: «indispensable, pero desactualizado») y una vuelta a la pantalla de Sofía.
 5. **Que el equipo use lo nuevo** (lo hace la dueña con el equipo; ver «Lo que falta de la dueña»): el Reparto
    «Parejo», el Telegram de cada vendedora, «Revisar ahora» de Sofía y los mensajes de Sofía.
-6. **Respaldo de la IA de Juan:** `ANTHROPIC_API_KEY` en el Worker `dcasa-juan` por si Meta pasa su límite (hoy el
-   cliente recibiría «una vendedora te atiende»), una alerta de gasto en Meta y **plantillas de WhatsApp** aprobadas por
+6. **Respaldo de la IA de Juan:** `ANTHROPIC_API_KEY` en el Worker `dcasa-juan` por si Meta pasa su límite o se cae (hoy
+   el cliente recibiría «una vendedora te atiende» y la varita dice «La IA no está disponible… la IA de respaldo no
+   tiene clave»), una alerta de gasto en Meta y **plantillas de WhatsApp** aprobadas por
    Meta para escribir después de 24 horas (también para los seguimientos de Juan, que hoy no salen fuera de esa ventana).
 7. **Brian: topes de dinero** (issue #26: `ajustar_puntos`, `crear_factura`, `ajustar_existencias` sin tope) y la cifra
    del tope mensual de gasto de IA (hoy en 0 = sin tope). Esperan las cifras de la dueña.

@@ -175,3 +175,45 @@ class TestSofiaEnElNavegador(HttpCase):
         self.assertEqual(sugerir.call_count, 1, 'el borrador se pide una sola vez')
         self.assertEqual((conv.partner_id.name, conv.partner_id.email), ('Elsa Barrios', 'elsa.barrios@example.com'))
         self.assertFalse(conv.mensaje_ids.filtered(lambda m: m.autor == 'vendedora'), 'no se envió nada')
+
+    def test_guardar_y_responderle_si_el_borrador_no_llega_lo_dice_y_deja_reintentar(self):
+        """«A veces la caja queda vacía» (la dueña, 2026-11-06): si Juan no alcanza a escribir el borrador, los datos ya
+        quedaron guardados y el chat abierto; la caja dice por qué, en corto, y ofrece «Reintentar»."""
+        conv = self._cliente('🌴', '50760004006', self.vendedora)
+        self.env['dcasa.mensaje'].create({
+            'conversacion_id': conv.id, 'id_mensaje': 'sofia.nav.reintentar', 'direccion': 'entrante',
+            'autor': 'cliente', 'tipo': 'mensaje', 'texto': 'Me llamo Rita Gómez, rita.gomez@example.com',
+            'ts': fields.Datetime.now() - timedelta(hours=4)})
+        borrador = 'Gracias por tus datos, Rita. ¿Te muestro los juegos de comedor que tenemos?'
+        Cliente = type(self.env['dcasa.juan.cliente'])
+        codigo = '(async () => {' + COMUN + """
+            const boton = await esperar(() => document.querySelector('.o_sofia_boton_revisar:not([disabled])'),
+                                        'el botón «Revisar ahora»');
+            boton.click();
+            const tarjeta = await esperar(() => [...document.querySelectorAll('.o_sofia_tarjeta')]
+                .find((t) => t.textContent.includes('Rita Gómez')), 'la tarjeta «Guarda sus datos»');
+            tarjeta.querySelector('.o_sofia_accion[data-accion="responder"]').click();
+            const caja = await esperar(() => document.querySelector('#o_dcj_texto'), 'la caja del chat');
+            const aviso = await esperar(() => [...document.querySelectorAll('.o_dcj_sugerencia_error')]
+                .find((a) => a.textContent.includes('La IA no está disponible')), 'el aviso de que no llegó');
+            if (!aviso.textContent.includes('respaldo')) {
+                throw new Error('Dice que falta la IA de respaldo: ' + aviso.textContent);
+            }
+            if (caja.value) {
+                throw new Error('Sin borrador la caja queda vacía: ' + caja.value);
+            }
+            aviso.querySelector('.o_dcj_reintentar').click();
+            await esperar(() => caja.value === BORRADOR, 'el borrador de Juan al reintentar');
+            sinErrores();
+            console.log('test successful');
+        })();""".replace('BORRADOR', repr(borrador))
+        falla = {'ok': False, 'causa': 'no_disponible', 'error': 'La IA no está disponible ahora.',
+                 'respaldo_sin_clave': 'ANTHROPIC_API_KEY', 'ms': 900, 'estado_http': 502}
+        exito = {'ok': True, 'texto': borrador, 'avisos': []}
+        with patch.object(Cliente, 'configurado', return_value=True), \
+                patch.object(Cliente, 'sugerir', side_effect=[falla, exito]) as sugerir:
+            self.browser_js('/odoo/sofia', codigo, login='vend_sofia', timeout=120)
+        self.assertEqual(sugerir.call_count, 2, 'una vez al abrir el chat y otra al reintentar')
+        self.assertEqual((conv.partner_id.name, conv.partner_id.email), ('Rita Gómez', 'rita.gomez@example.com'),
+                         'los datos quedaron guardados aunque el borrador no llegó')
+        self.assertFalse(conv.mensaje_ids.filtered(lambda m: m.autor == 'vendedora'), 'no se envió nada')

@@ -23,8 +23,6 @@ export class CajaRespuesta extends Component {
             devolviendo: false,
             notaParaElBot: "",
             enviando: false,
-            sugiriendo: false,
-            avisos: [],
             opcion: 0,
             rapidasAbiertas: false,
             programando: false,
@@ -49,34 +47,18 @@ export class CajaRespuesta extends Component {
         this._conversacion = null;
         onMounted(() => {
             this.ajustarAlto();
-            this.sugerirSiLoPidioSofia();
         });
         onPatched(() => {
             this.ajustarAlto();
             if (this._conversacion !== this.almacen.seleccionadaId) {
                 this._conversacion = this.almacen.seleccionadaId;
                 this.local.devolviendo = false;
-                this.local.avisos = [];
                 this.local.rapidasAbiertas = false;
                 this.local.masAbierto = false;
                 this.local.programando = !!this.borrador.programarPara;
             }
             this.enfocarLoPendiente();
-            this.sugerirSiLoPidioSofia();
         });
-    }
-
-    /** Sofía («Guardar y responderle»): con la conversación ya abierta, se le pide a Juan el borrador UNA vez, como si
-     * la vendedora tocara «Sugerir». Si ya estaba escribiendo algo, no se le pisa. */
-    sugerirSiLoPidioSofia() {
-        const id = this.almacen.sugerirAlAbrir;
-        if (!id || id !== this.almacen.seleccionadaId || !this.almacen.conversacion) {
-            return;
-        }
-        this.almacen.sugerirAlAbrir = null;
-        if (!this.borrador.texto.trim()) {
-            this.sugerir();
-        }
     }
 
     /** Cuando algo se acaba de abrir (el menú «Más», la fecha de programar), el foco va a su primer control. */
@@ -98,7 +80,9 @@ export class CajaRespuesta extends Component {
             this.borrador.adjuntos.length ||
             (this.esNota && this.mencionadas.length) ||
             this.programando ||
-            this.local.avisos.length
+            this.sugiriendo ||
+            !!this.sugerencia?.error ||
+            !!this.sugerencia?.avisos.length
         );
     }
 
@@ -498,7 +482,7 @@ export class CajaRespuesta extends Component {
                 const modo = this.borrador.modo;
                 this.almacen.vaciarBorrador();
                 this.borrador.modo = modo;
-                this.local.avisos = [];
+                this.almacen.olvidarSugerencia(this.almacen.seleccionadaId);
                 this.local.programando = false;
             }
         } finally {
@@ -510,23 +494,28 @@ export class CajaRespuesta extends Component {
 
     // --- Sugerir ------------------------------------------------------------------------------------
 
+    /** «Sugerir» de la conversación a la vista: si está pidiendo, si no llegó (y por qué) y qué se quitó. */
+    get sugerencia() {
+        return this.almacen.sugerencias[this.almacen.seleccionadaId] || null;
+    }
+
+    get sugiriendo() {
+        return !!this.sugerencia?.pidiendo;
+    }
+
+    /** Pide el borrador para ESTA conversación (también «Reintentar»). El almacén lo deja en su caja aunque la
+     * vendedora cambie de chat mientras tanto; aquí solo se enfoca si sigue a la vista. */
     async sugerir() {
-        if (this.local.sugiriendo) {
-            return;
-        }
-        this.local.sugiriendo = true;
-        this.local.avisos = [];
-        try {
-            const r = await this.almacen.sugerir();
-            this.cambiarModo("respuesta");
-            this.borrador.texto = r.texto;
-            this.local.avisos = r.avisos.length ? r.avisos : ["Es un borrador: léelo, ajústalo y envíalo tú."];
+        const id = this.almacen.seleccionadaId;
+        const llego = await this.almacen.sugerir(id);
+        if (llego && this.almacen.seleccionadaId === id) {
+            this.refTexto.el?.focus();
             this.ajustarAlto();
-        } catch (error) {
-            this.almacen.notification.add(mensajeDeError(error), { type: "danger", sticky: false });
-        } finally {
-            this.local.sugiriendo = false;
         }
+    }
+
+    cerrarAvisoDeSugerencia() {
+        this.almacen.olvidarSugerencia(this.almacen.seleccionadaId);
     }
 
     abrirCatalogo() {

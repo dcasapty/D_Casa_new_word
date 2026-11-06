@@ -19,6 +19,8 @@ from ..models.conversacion_panel_extra import tipo_de_archivo
 from .common import respuesta_http
 from .test_panel import PanelCase
 
+CLIENTE_PANEL = 'odoo.addons.dcasa_conversaciones.models.cliente_worker_panel'
+
 
 def png():
     salida = io.BytesIO()
@@ -280,7 +282,7 @@ class TestSugerir(PanelCase):
         self.worker.return_value = respuesta_http({'ok': True, 'texto': 'Claro, Zzcliente, te cuento.',
                                                    'avisos': ['Quité un precio sin respaldo.']})
         resultado = self.panel.sugerir_respuesta(self.conv.id)
-        self.assertEqual(resultado, {'texto': 'Claro, Zzcliente, te cuento.',
+        self.assertEqual(resultado, {'ok': True, 'texto': 'Claro, Zzcliente, te cuento.',
                                      'avisos': ['Quité un precio sin respaldo.']})
         (llamada,) = [c for c in self.worker.call_args_list if c.args[1].endswith('/odoo/sugerir')]
         self.assertEqual(llamada.args[0], 'POST')
@@ -332,25 +334,96 @@ class TestSugerir(PanelCase):
         self.assertEqual(llamada.kwargs['json']['mensajes'][-1]['texto'], 'Otro 29')
 
     def test_sin_el_worker_configurado_dice_falta_conectar_el_bot(self):
-        with patch.dict(os.environ, {'JUAN_URL': '', 'JUAN_WORKER_TOKEN': ''}), self.assertRaises(UserError) as error:
-            self.panel.sugerir_respuesta(self.conv.id)
-        self.assertIn('Falta conectar el bot', str(error.exception))
+        with patch.dict(os.environ, {'JUAN_URL': '', 'JUAN_WORKER_TOKEN': ''}):
+            resultado = self.panel.sugerir_respuesta(self.conv.id)
+        self.assertEqual((resultado['ok'], resultado['causa'], resultado['reintentar']),
+                         (False, 'sin_configurar', False))
+        self.assertIn('Falta conectar el bot', resultado['error'])
 
     def test_si_el_worker_falla_el_error_es_claro_y_no_se_cae(self):
-        self.worker.return_value = respuesta_http({'ok': False, 'error': 'la IA no pudo redactar'}, 502)
-        with self.assertRaises(UserError) as error:
-            self.panel.sugerir_respuesta(self.conv.id)
-        self.assertIn('la IA no pudo redactar', str(error.exception))
+        self.worker.return_value = respuesta_http({'ok': False, 'causa': 'no_disponible',
+                                                   'error': 'La IA no está disponible ahora.'}, 502)
+        resultado = self.panel.sugerir_respuesta(self.conv.id)
+        self.assertEqual((resultado['ok'], resultado['causa'], resultado['reintentar']), (False, 'no_disponible', True))
+        self.assertEqual(resultado['error'], 'La IA no está disponible ahora.')
         self.worker.side_effect = requests.ConnectionError('sin red')
-        with self.assertRaises(UserError):
-            self.panel.sugerir_respuesta(self.conv.id)
+        with patch(f'{CLIENTE_PANEL}.PAUSA_ANTES_DE_REINTENTAR', 0):
+            resultado = self.panel.sugerir_respuesta(self.conv.id)
+        self.assertEqual((resultado['ok'], resultado['causa']), (False, 'sin_conexion'))
+        self.assertEqual(resultado['error'], 'No pude hablar con el asistente.')
 
     def test_un_borrador_vacio_es_un_error(self):
         self.worker.return_value = respuesta_http({'ok': True, 'texto': '   '})
-        with self.assertRaises(UserError):
-            self.panel.sugerir_respuesta(self.conv.id)
+        resultado = self.panel.sugerir_respuesta(self.conv.id)
+        self.assertEqual((resultado['ok'], resultado['causa'], resultado['reintentar']), (False, 'vacio', True))
 
     def test_sin_nada_del_cliente_no_hay_a_que_responder(self):
         vacia = self.Conversacion.sudo().create({'canal': 'telegram', 'id_externo': '777'})
-        with self.assertRaises(UserError):
-            self.panel.sugerir_respuesta(vacia.id)
+        resultado = self.panel.sugerir_respuesta(vacia.id)
+        self.assertEqual((resultado['ok'], resultado['causa'], resultado['reintentar']), (False, 'sin_cliente', False))
+        self.assertFalse([c for c in self.worker.call_args_list if c.args[1].endswith('/odoo/sugerir')])
+
+    # --- «A veces sí, a veces no» (la dueña, 2026-11-06): cada modo de falla, reproducido ---------------------------
+
+    def _llamadas_a_sugerir(self):
+        return [c for c in self.worker.call_args_list if c.args[1].endswith('/odoo/sugerir')]
+
+    def test_odoo_espera_al_worker_mas_que_su_plazo(self):
+        """Con 25 s Odoo se rendía mientras el Worker seguía pensando (Meta con herramientas tarda más): «el Worker no
+        responde» y la caja vacía. El Worker contesta antes de 42 s (juan/src/odoo-panel-sugerir.ts); Odoo espera 55."""
+        self.worker.return_value = respuesta_http({'ok': True, 'texto': 'Hola'})
+        self.panel.sugerir_respuesta(self.conv.id)
+        (llamada,) = self._llamadas_a_sugerir()
+        conectar, leer = llamada.kwargs['timeout']
+        self.assertLessEqual(conectar, 5)
+        self.assertGreaterEqual(leer, 50, 'Odoo no puede rendirse antes que el Worker (42 s)')
+
+    def test_si_el_worker_tarda_demasiado_lo_dice_y_deja_reintentar(self):
+        self.worker.side_effect = requests.ReadTimeout('tardó')
+        resultado = self.panel.sugerir_respuesta(self.conv.id)
+        self.assertEqual(resultado, {'ok': False, 'causa': 'tardo', 'reintentar': True, 'detalle': '',
+                                     'error': 'La IA tardó demasiado y no llegó el borrador.'})
+        self.assertEqual(len(self._llamadas_a_sugerir()), 1, 'si ya tardó, no se reintenta solo: decide ella')
+
+    def test_cada_causa_del_worker_tiene_su_aviso_en_palabras_sencillas(self):
+        casos = {'tardo': ('La IA tardó demasiado', 504), 'no_disponible': ('La IA no está disponible', 502),
+                 'vacio': ('La IA no escribió nada', 502), 'revision': ('no pasó la revisión de la marca', 502),
+                 'sin_clave': ('no tiene su clave', 503)}
+        for causa, (texto, estado) in casos.items():
+            with self.subTest(causa=causa):
+                self.worker.return_value = respuesta_http({'ok': False, 'causa': causa, 'error': 'x'}, estado)
+                resultado = self.panel.sugerir_respuesta(self.conv.id)
+                self.assertEqual((resultado['ok'], resultado['causa']), (False, causa))
+                self.assertIn(texto, resultado['error'])
+                self.assertEqual(resultado['reintentar'], causa != 'sin_clave')
+
+    def test_sin_respaldo_de_la_ia_lo_dice_claro(self):
+        self.worker.return_value = respuesta_http({'ok': False, 'causa': 'no_disponible', 'error': 'x',
+                                                   'respaldo_sin_clave': 'ANTHROPIC_API_KEY'}, 502)
+        resultado = self.panel.sugerir_respuesta(self.conv.id)
+        self.assertIn('respaldo', resultado['detalle'])
+        self.assertIn('ANTHROPIC_API_KEY', resultado['detalle'])
+
+    def test_si_la_red_se_corta_una_vez_reintenta_solo_y_llega_el_borrador(self):
+        self.worker.side_effect = [requests.ConnectionError('se cortó'),
+                                   respuesta_http({'ok': True, 'texto': 'Hola, te cuento.', 'avisos': []})]
+        with patch(f'{CLIENTE_PANEL}.PAUSA_ANTES_DE_REINTENTAR', 0):
+            resultado = self.panel.sugerir_respuesta(self.conv.id)
+        self.assertEqual(resultado, {'ok': True, 'texto': 'Hola, te cuento.', 'avisos': []})
+        self.assertEqual(len(self._llamadas_a_sugerir()), 2)
+
+    def test_deja_en_el_registro_la_causa_y_el_tiempo_sin_datos_del_cliente(self):
+        self.registrar('Mi número es 6123-4567, llámame', id_externo=self.conv.id_externo)
+        self.worker.return_value = respuesta_http({'ok': False, 'causa': 'revision', 'error': 'x'}, 502)
+        with self.assertLogs('odoo.addons.dcasa_conversaciones.models.conversacion_panel_extra', 'INFO') as registro:
+            self.panel.sugerir_respuesta(self.conv.id)
+        self.worker.return_value = respuesta_http({'ok': True, 'texto': 'Hola', 'modelo': 'muse-spark-1.3'})
+        with self.assertLogs('odoo.addons.dcasa_conversaciones.models.conversacion_panel_extra', 'INFO') as registro2:
+            self.panel.sugerir_respuesta(self.conv.id)
+        todo = '\n'.join(registro.output + registro2.output)
+        self.assertIn('causa revision', todo)
+        self.assertIn(f'conversación {self.conv.id}', todo)
+        self.assertIn('modelo muse-spark-1.3', todo)
+        self.assertRegex(todo, r'\d+ ms')
+        for privado in ('6123-4567', 'llámame', self.conv.id_externo, 'camas queen', 'Hola'):
+            self.assertNotIn(privado, todo)

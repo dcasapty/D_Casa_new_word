@@ -93,9 +93,28 @@
                     </button>
                 </div>
 
-                <div t-if="local.avisos.length" class="o_dcj_sugerencia" role="status">
+                <!-- «Sugerir»: mientras Juan escribe, si no llegó el borrador (por qué, en corto, y «Reintentar») y qué se quitó -->
+                <div t-if="sugiriendo" class="o_dcj_sugerencia o_dcj_sugerencia_pidiendo" role="status">
+                    <i class="fa fa-circle-o-notch fa-spin" aria-hidden="true"/>
+                    <span>Juan está escribiendo un borrador… Puede tardar hasta un minuto.</span>
+                </div>
+                <div t-elif="sugerencia and sugerencia.error" class="o_dcj_sugerencia o_dcj_sugerencia_error" role="alert">
+                    <i class="fa fa-exclamation-triangle" aria-hidden="true"/>
+                    <p class="o_dcj_sugerencia_texto">
+                        <strong t-out="sugerencia.error.mensaje"/>
+                        <span t-if="sugerencia.error.detalle" t-out="' ' + sugerencia.error.detalle"/>
+                        <span t-if="sugerencia.error.reintentar"> Reintenta o escríbelo tú.</span>
+                    </p>
+                    <button t-if="sugerencia.error.reintentar" type="button" class="btn btn-primary o_dcj_boton o_dcj_reintentar" t-on-click="sugerir">
+                        <i class="fa fa-repeat" aria-hidden="true"/> Reintentar
+                    </button>
+                    <button type="button" class="o_dcj_icono_boton" aria-label="Cerrar el aviso" title="Cerrar el aviso" t-on-click="cerrarAvisoDeSugerencia">
+                        <i class="fa fa-times" aria-hidden="true"/>
+                    </button>
+                </div>
+                <div t-elif="sugerencia and sugerencia.avisos.length" class="o_dcj_sugerencia" role="status">
                     <i class="fa fa-magic" aria-hidden="true"/>
-                    <ul><li t-foreach="local.avisos" t-as="aviso" t-key="aviso_index" t-out="aviso"/></ul>
+                    <ul><li t-foreach="sugerencia.avisos" t-as="aviso" t-key="aviso_index" t-out="aviso"/></ul>
                 </div>
             </div>
 
@@ -137,8 +156,8 @@
                     <button type="button" class="o_dcj_herramienta" title="Respuestas rápidas (también escribiendo / en la caja)" aria-label="Respuestas rápidas" t-att-disabled="esNota" t-on-click="abrirRapidas">
                         <i class="fa fa-bolt" aria-hidden="true"/><span class="o_dcj_solo_lector">Rápidas</span>
                     </button>
-                    <button type="button" class="o_dcj_herramienta" title="Sugerir: pide un borrador de respuesta; tú lo editas y lo envías" aria-label="Sugerir una respuesta" t-att-disabled="local.sugiriendo or esNota" t-on-click="sugerir">
-                        <i t-if="local.sugiriendo" class="fa fa-circle-o-notch fa-spin" aria-hidden="true"/>
+                    <button type="button" class="o_dcj_herramienta" title="Sugerir: pide un borrador de respuesta; tú lo editas y lo envías" aria-label="Sugerir una respuesta" t-att-disabled="sugiriendo or esNota" t-on-click="sugerir">
+                        <i t-if="sugiriendo" class="fa fa-circle-o-notch fa-spin" aria-hidden="true"/>
                         <i t-else="" class="fa fa-magic" aria-hidden="true"/><span class="o_dcj_solo_lector">Sugerir</span>
                     </button>
                     <div class="o_dcj_mas_caja" t-ref="mas" t-on-keydown="alTeclearMas">
