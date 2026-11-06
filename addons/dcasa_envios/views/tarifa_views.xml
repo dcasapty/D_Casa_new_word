@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Envíos › Tarifa (Gerencia y administradores): la tarifa vigente, sus cargos aparte, aprobarla y cargar el
+         archivo. El menú abre siempre la única tarifa (action_abrir la crea vacía, sin cifras, la primera vez). -->
+    <record id="vista_envio_tarifa_ficha" model="ir.ui.view">
+        <field name="name">dcasa.envio.tarifa.form</field>
+        <field name="model">dcasa.envio.tarifa</field>
+        <field name="arch" type="xml">
+            <form string="Tarifa de envíos" create="0" delete="0" class="o_dcasa_envios_tarifa">
+                <header>
+                    <button name="action_cargar_archivo" type="object" string="Cargar lugares y tarifa desde el archivo"
+                            class="btn-primary" icon="fa-upload"/>
+                    <button name="action_aprobar" type="object" string="Aprobar la tarifa" class="btn-primary"
+                            icon="fa-check" invisible="aprobada or not configurada"
+                            confirm="¿Aprobar esta tarifa? Desde ahora estos precios se pueden usar con clientes."/>
+                    <button name="action_quitar_aprobacion" type="object" string="Quitar la aprobación"
+                            invisible="not aprobada"
+                            confirm="¿Quitar la aprobación? La calculadora vuelve a decir «Tarifa en revisión»."/>
+                    <button name="action_abrir_calculadora" type="object" string="Abrir la calculadora"
+                            icon="fa-calculator"/>
+                </header>
+                <sheet>
+                    <div class="alert alert-info" role="status" invisible="configurada">
+                        <b>Todavía no hay tarifa.</b> Toca «Cargar lugares y tarifa desde el archivo» y sube el
+                        envios-dcasa.html, o escribe abajo el mínimo y los dos puntos.
+                    </div>
+                    <div class="o_dcasa_envios_aviso" role="status" invisible="aprobada or not configurada">
+                        <span class="o_dcasa_envios_aviso_chip">En revisión</span>
+                        <span><b>Tarifa en revisión:</b> estos precios todavía no se usan con clientes. Cuando estén
+                            bien, toca «Aprobar la tarifa».</span>
+                    </div>
+                    <div class="alert alert-success" role="status" invisible="not aprobada">
+                        <b>Tarifa aprobada</b> por <field name="aprobada_por" class="d-inline" readonly="1"/>
+                        el <field name="aprobada_el" class="d-inline" readonly="1"/>.
+                    </div>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                        <field name="regla_html" class="o_dcasa_envios_regla" invisible="not configurada"/>
+                    </div>
+                    <separator string="Subir o bajar todo en proporción"/>
+                    <div class="o_dcasa_envios_ajuste">
+                        <button name="action_bajar_5" type="object" string="−5 %" class="btn-secondary"/>
+                        <field name="ajuste_pct" class="o_dcasa_envios_pct" nolabel="1"/>
+                        <span>%</span>
+                        <button name="action_subir_5" type="object" string="+5 %" class="btn-secondary"/>
+                    </div>
+                    <p class="text-muted mt-2">Sube o baja la tarifa base completa (salida, kilómetros y mínimo). 0 % =
+                        la tarifa sin cambios. Los cargos marcados «Sube con el %» también.</p>
+                    <field name="efecto_html" invisible="not configurada"/>
+                    <group string="Tarifa base: tres precios que ya conoces">
+                        <group>
+                            <field name="minimo"/>
+                            <field name="ancla_a_km"/>
+                            <field name="ancla_a_precio"/>
+                            <field name="ancla_b_km"/>
+                            <field name="ancla_b_precio"/>
+                            <field name="ancla_b_nombre"/>
+                        </group>
+                        <group>
+                            <field name="paso"/>
+                            <field name="modo" invisible="paso == '0'"/>
+                            <field name="max_km"/>
+                            <field name="formula_txt" invisible="not configurada"/>
+                            <field name="configurada" invisible="1"/>
+                            <field name="aprobada" invisible="1"/>
+                        </group>
+                    </group>
+                    <separator string="Cargos aparte de la tarifa"/>
+                    <p class="text-muted">Viático, honorarios, peaje o lo que haga falta. Nada se cobra hasta que pongas
+                        el monto y marques «Se cobra». Solo las cifras que Gerencia decida.</p>
+                    <field name="cargo_ids">
+                        <list editable="bottom">
+                            <field name="sequence" widget="handle"/>
+                            <field name="activo"/>
+                            <field name="name"/>
+                            <field name="como"/>
+                            <field name="monto"/>
+                            <field name="desde" invisible="como not in ('desde_km', 'km_desde')"/>
+                            <field name="ajusta"/>
+                            <field name="codigo" optional="hide"/>
+                        </list>
+                    </field>
+                    <separator string="Tarifa base por tramos de kilómetros"/>
+                    <field name="tramos_html" invisible="not configurada"/>
+                    <group string="Del archivo">
+                        <group>
+                            <field name="version_archivo" invisible="not version_archivo"/>
+                            <field name="fecha_archivo" invisible="not fecha_archivo"/>
+                            <field name="cargada_por" invisible="not cargada_por"/>
+                            <field name="cargada_el" invisible="not cargada_el"/>
+                        </group>
+                        <group>
+                            <field name="nota"/>
+                        </group>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="accion_tarifa" model="ir.actions.server">
+        <field name="name">Tarifa de envíos</field>
+        <field name="model_id" ref="model_dcasa_envio_tarifa"/>
+        <field name="state">code</field>
+        <field name="code">action = model.action_abrir()</field>
+        <field name="group_ids" eval="[(4, ref('dcasa_base.group_gerencia')), (4, ref('base.group_system'))]"/>
+    </record>
+</odoo>

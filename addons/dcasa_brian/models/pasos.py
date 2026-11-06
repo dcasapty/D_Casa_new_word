@@ -44,6 +44,8 @@ TITULOS = {
     # dcasa_marketing
     'movimiento_de_productos': 'Revisando qué se mueve y qué está quieto',
     'fotos_que_faltan': 'Buscando productos sin fotos',
+    # dcasa_envios
+    'cotizar_envio': 'Calculando el precio del envío',
 }
 
 # Argumentos que identifican lo que se está tocando (el primero que aparezca va en el título).

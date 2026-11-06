@@ -1,0 +1,258 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <t t-name="dcasa_envios.Calculadora">
+        <div class="o_action o_dcasa_envios">
+            <header class="o_de_cabecera">
+                <div class="o_de_envoltura o_de_cabecera_dentro">
+                    <div class="o_de_marca">D'CASA Panamá · desde la tienda en La Chorrera</div>
+                    <h1>Envíos</h1>
+                    <div class="o_de_regla" t-if="tarifa.regla and tarifa.regla.length"
+                         aria-label="Cómo se calcula la tarifa">
+                        <t t-foreach="tarifa.regla" t-as="f" t-key="f_index">
+                            <span t-att-class="f.clase === 'ficha' ? 'o_de_ficha' : 'o_de_mas'" t-esc="f.texto"/>
+                        </t>
+                    </div>
+                    <div class="o_de_buscar_caja" t-if="hayDatos">
+                        <label for="o_de_q">¿A dónde va el envío?</label>
+                        <input id="o_de_q" class="o_de_q" type="search" autocomplete="off" spellcheck="false"
+                               placeholder="Barrio, urbanización, PH, o «cerca del hospital de Chorrera»"
+                               t-ref="buscador" t-att-value="state.q" t-on-input="alEscribir"/>
+                        <p class="o_de_ayuda" t-if="!state.q">Escribe como lo dice el cliente: sin tildes, con abreviaturas (urb.,
+                            res., bda.) o con una frase. También busca por lugares conocidos: malls, hospitales,
+                            escuelas, iglesias, estaciones del metro.</p>
+                    </div>
+                </div>
+            </header>
+
+            <main class="o_de_envoltura o_de_cuerpo">
+                <div t-if="state.error" class="alert alert-danger" role="alert" t-esc="state.error"/>
+
+                <div t-if="state.cargando and !state.datos" class="o_de_vacio">Cargando…</div>
+
+                <section t-elif="!hayDatos" class="o_de_sin_datos">
+                    <h2>Todavía no hay lugares ni tarifa cargados</h2>
+                    <t t-if="datos.es_gerencia">
+                        <p>Sube el archivo de la calculadora (<b>envios-dcasa.html</b>) y aquí aparecen los lugares con
+                            su precio. Volver a cargarlo después actualiza sin duplicar.</p>
+                        <button type="button" class="btn btn-primary o_de_cargar" t-on-click="cargarArchivo">
+                            <i class="fa fa-upload me-1" aria-hidden="true"/>Cargar lugares y tarifa desde el archivo
+                        </button>
+                    </t>
+                    <p t-else="">Pídele a Gerencia que cargue el archivo de envíos en <b>Envíos › Tarifa</b>. Mientras
+                        tanto, mide la ruta en Google Maps («Cómo llegar» en carro desde D'CASA).</p>
+                </section>
+
+                <t t-else="">
+                    <p class="o_de_aviso" t-if="!tarifa.aprobada" role="status">
+                        <span class="o_de_aviso_chip">En revisión</span>
+                        <span t-if="tarifa.configurada"><strong>Tarifa en revisión:</strong> estos precios todavía no
+                            se usan con clientes.</span>
+                        <span t-else="">Todavía no hay tarifa de envíos cargada: los lugares salen sin precio.</span>
+                        <button t-if="datos.es_gerencia" type="button" class="btn btn-link o_de_aviso_enlace"
+                                t-on-click="abrirTarifa">Ver la tarifa</button>
+                    </p>
+
+                    <section class="o_de_seccion" aria-label="Resultados">
+                        <div class="o_de_filtros" role="group" aria-label="Qué buscar">
+                            <t t-foreach="tipos" t-as="t" t-key="t.valor">
+                                <button type="button" class="o_de_filtro" t-att-aria-pressed="state.tipo === t.valor ? 'true' : 'false'"
+                                        t-on-click="() => this.elegirTipo(t.valor)" t-esc="t.nombre"/>
+                            </t>
+                            <select class="form-select o_de_distrito" aria-label="Distrito o provincia"
+                                    t-on-change="elegirDistrito">
+                                <option value="" t-att-selected="!state.distrito">Todos los distritos</option>
+                                <optgroup label="Provincias">
+                                    <t t-foreach="datos.provincias" t-as="p" t-key="'p' + p">
+                                        <option t-att-value="p" t-att-selected="state.distrito === p" t-esc="p"/>
+                                    </t>
+                                </optgroup>
+                                <optgroup label="Distritos">
+                                    <t t-foreach="datos.distritos" t-as="d" t-key="'d' + d">
+                                        <option t-att-value="d" t-att-selected="state.distrito === d" t-esc="d"/>
+                                    </t>
+                                </optgroup>
+                            </select>
+                        </div>
+                        <p class="o_de_contador" role="status">
+                            <t t-esc="contador"/><t t-if="state.buscando"> · buscando…</t>
+                        </p>
+
+                        <div class="o_de_resultados">
+                            <div t-if="vacio" class="o_de_vacio o_de_no_encontrado">
+                                <strong>No encontramos «<t t-esc="state.q.trim()"/>».</strong>
+                                <t t-if="state.resultado.sugerencias.length">
+                                    <div>¿Quisiste decir…?</div>
+                                    <div class="o_de_sugerencias">
+                                        <t t-foreach="state.resultado.sugerencias" t-as="s" t-key="s.id">
+                                            <button type="button" class="o_de_filtro o_de_sugerencia"
+                                                    t-on-click="() => this.usarSugerencia(s.nombre)" t-esc="s.nombre"/>
+                                        </t>
+                                    </div>
+                                </t>
+                                <div>Si es un lugar nuevo: mídelo en Google Maps y ponlo en «Calcular por kilómetros»,
+                                    o agrégalo para que la próxima vez salga.</div>
+                                <div>
+                                    <button type="button" class="btn btn-primary o_de_agregar_boton"
+                                            t-on-click="() => this.abrirAgregar(state.q.trim())">
+                                        <i class="fa fa-plus me-1" aria-hidden="true"/>Agregar este lugar
+                                    </button>
+                                </div>
+                            </div>
+
+                            <t t-foreach="resultados" t-as="l" t-key="l.id">
+                                <article class="o_de_tarjeta">
+                                    <div class="o_de_info">
+                                        <div class="o_de_nombre">
+                                            <span t-esc="l.nombre"/>
+                                            <t t-foreach="l.chips" t-as="c" t-key="c_index">
+                                                <span t-attf-class="o_de_chip o_de_chip_{{ c.clase }}" t-esc="c.texto"/>
+                                            </t>
+                                        </div>
+                                        <div class="o_de_donde" t-esc="l.zona"/>
+                                        <div class="o_de_tambien" t-if="l.tambien" t-esc="l.tambien"/>
+                                        <div class="o_de_tambien" t-if="l.nota" t-esc="l.nota"/>
+                                    </div>
+                                    <div class="o_de_precio">
+                                        <t t-if="l.con_precio">
+                                            <div class="o_de_total" t-esc="l.total_txt"/>
+                                            <div class="o_de_km"><t t-esc="l.km_txt"/><t t-if="l.google"> · Google</t></div>
+                                        </t>
+                                        <t t-else="">
+                                            <div class="o_de_total o_de_total_aparte">Cotizar aparte</div>
+                                            <div class="o_de_km" t-if="l.km_txt" t-esc="l.km_txt"/>
+                                        </t>
+                                    </div>
+                                    <div class="o_de_desglose" t-if="l.con_precio">
+                                        <t t-foreach="l.desglose" t-as="d" t-key="d_index">
+                                            <span><t t-esc="d.texto"/> <b t-esc="d.monto"/></span>
+                                        </t>
+                                    </div>
+                                    <div class="o_de_acciones">
+                                        <a t-att-href="l.url_mapa" target="_blank" rel="noopener">
+                                            <i class="fa fa-map-marker me-1" aria-hidden="true"/>Ver la ruta en Google Maps
+                                        </a>
+                                        <button t-if="l.con_precio" type="button" class="o_de_copiar"
+                                                t-on-click="() => this.copiar(l)">
+                                            <i class="fa fa-clone me-1" aria-hidden="true"/>
+                                            <t t-if="state.copiado === l.id">Copiado</t>
+                                            <t t-else="">Copiar el precio</t>
+                                        </button>
+                                    </div>
+                                </article>
+                            </t>
+                        </div>
+                        <div class="o_de_botonera" t-if="hayMas">
+                            <button type="button" class="o_de_filtro o_de_mas_resultados" t-on-click="verMas">
+                                Ver más resultados
+                            </button>
+                        </div>
+                        <div class="o_de_botonera" t-if="!state.agregar.abierto and !vacio">
+                            <button type="button" class="btn btn-link o_de_agregar_enlace" t-on-click="() => this.abrirAgregar(state.q.trim())">
+                                <i class="fa fa-plus me-1" aria-hidden="true"/>Agregar un lugar que falta
+                            </button>
+                        </div>
+                    </section>
+
+                    <section t-if="state.agregar.abierto" class="o_de_panel o_de_agregar" aria-labelledby="o_de_t_agregar">
+                        <h2 id="o_de_t_agregar">Agregar un lugar que falta</h2>
+                        <p class="o_de_sub">Queda tu nombre y la fecha. Mide los kilómetros en Google Maps, en carro
+                            desde la tienda.</p>
+                        <form t-on-submit="guardarLugar">
+                            <div class="o_de_rejilla">
+                                <label class="o_de_campo">Nombre
+                                    <input type="text" class="form-control" name="nombre" required="required"
+                                           t-att-value="state.agregar.nombre" t-on-input="(ev) => this.cambiarAgregar('nombre', ev)"/>
+                                </label>
+                                <label class="o_de_campo">Otros nombres
+                                    <input type="text" class="form-control" name="alias"
+                                           t-att-value="state.agregar.alias" t-on-input="(ev) => this.cambiarAgregar('alias', ev)"/>
+                                    <span class="o_de_sub">separados por coma, como lo dicen los clientes</span>
+                                </label>
+                                <label class="o_de_campo">Qué es
+                                    <select class="form-select" name="tipo" t-on-change="(ev) => this.cambiarAgregar('tipo', ev)">
+                                        <t t-foreach="tiposNuevos" t-as="t" t-key="t.valor">
+                                            <option t-att-value="t.valor" t-att-selected="state.agregar.tipo === t.valor" t-esc="t.nombre"/>
+                                        </t>
+                                    </select>
+                                </label>
+                                <label class="o_de_campo">Distrito
+                                    <select class="form-select" name="dist" t-on-change="(ev) => this.cambiarAgregar('dist', ev)">
+                                        <t t-foreach="datos.distritos" t-as="d" t-key="d">
+                                            <option t-att-value="d" t-att-selected="state.agregar.dist === d" t-esc="d"/>
+                                        </t>
+                                    </select>
+                                </label>
+                                <label class="o_de_campo">Corregimiento
+                                    <input type="text" class="form-control" name="corr" list="o_de_lista_corr"
+                                           t-att-value="state.agregar.corr" t-on-input="(ev) => this.cambiarAgregar('corr', ev)"/>
+                                    <datalist id="o_de_lista_corr">
+                                        <t t-foreach="corregimientosDelDistrito" t-as="c" t-key="c">
+                                            <option t-att-value="c"/>
+                                        </t>
+                                    </datalist>
+                                </label>
+                                <label class="o_de_campo">Km desde la tienda
+                                    <input type="number" class="form-control" name="km" inputmode="decimal" min="0"
+                                           step="any" required="required" t-att-value="state.agregar.km"
+                                           t-on-input="(ev) => this.cambiarAgregar('km', ev)"/>
+                                    <a class="o_de_sub" t-att-href="urlMedirNuevo" target="_blank" rel="noopener">Medir en Google Maps</a>
+                                </label>
+                                <label class="o_de_campo o_de_casilla">
+                                    <input type="checkbox" name="peaje" t-att-checked="state.agregar.peaje"
+                                           t-on-change="(ev) => this.cambiarAgregar('peaje', ev)"/>
+                                    La ruta pasa por peaje
+                                </label>
+                            </div>
+                            <div t-if="state.agregar.error" class="alert alert-danger mt-2" role="alert" t-esc="state.agregar.error"/>
+                            <div class="o_de_botonera mt-2">
+                                <button type="submit" class="btn btn-primary o_de_guardar" t-att-disabled="state.agregar.guardando">Agregar</button>
+                                <button type="button" class="btn btn-secondary" t-on-click="cerrarAgregar">Cancelar</button>
+                            </div>
+                        </form>
+                    </section>
+
+                    <div class="o_de_fila2">
+                        <section class="o_de_panel o_de_calc" aria-labelledby="o_de_t_calc">
+                            <h2 id="o_de_t_calc">Calcular por kilómetros</h2>
+                            <p class="o_de_sub">Para una dirección exacta: mide en Google Maps «Cómo llegar» en carro
+                                desde D'CASA y pon los km aquí.</p>
+                            <label for="o_de_km">Kilómetros por carretera</label>
+                            <input id="o_de_km" class="form-control o_de_km_entrada" type="number" inputmode="decimal"
+                                   min="0" max="2000" step="any" t-att-value="state.km" t-on-input="alCambiarKm"/>
+                            <label class="o_de_casilla">
+                                <input type="checkbox" class="o_de_km_peaje" t-att-checked="state.peaje"
+                                       t-on-change="alCambiarPeaje"/> La ruta pasa por peaje
+                            </label>
+                            <div class="o_de_calc_precio" t-if="state.calc and state.calc.con_precio" t-esc="state.calc.total_txt"/>
+                            <div class="o_de_calc_precio" t-else="">—</div>
+                            <div class="o_de_desglose">
+                                <t t-if="state.calc and state.calc.con_precio">
+                                    <t t-foreach="state.calc.desglose" t-as="d" t-key="d_index">
+                                        <span><t t-esc="d.texto"/> <b t-esc="d.monto"/></span>
+                                    </t>
+                                    <span t-if="state.calc.aviso_lejos" t-esc="state.calc.aviso_lejos"/>
+                                </t>
+                                <span t-elif="state.calc" t-esc="state.calc.mensaje"/>
+                                <span t-else="">Escribe los kilómetros.</span>
+                            </div>
+                            <a t-att-href="urlMapaTienda" target="_blank" rel="noopener">Abrir Google Maps desde la tienda</a>
+                        </section>
+                        <section class="o_de_panel" aria-labelledby="o_de_t_tramos" t-if="tarifa.configurada">
+                            <h2 id="o_de_t_tramos">Tarifa base por tramos de kilómetros</h2>
+                            <p class="o_de_sub" t-esc="tarifa.nota_tramos"/>
+                            <div class="o_de_tramos">
+                                <t t-foreach="tarifa.tramos" t-as="t" t-key="t_index">
+                                    <div class="o_de_tramo"><span t-esc="t.km_txt"/><b t-esc="t.precio_txt"/></div>
+                                </t>
+                            </div>
+                        </section>
+                    </div>
+                </t>
+
+                <p class="o_de_atribucion">Datos de mapas © colaboradores de OpenStreetMap (ODbL) y GeoNames (CC BY 4.0)</p>
+            </main>
+        </div>
+    </t>
+
+</templates>

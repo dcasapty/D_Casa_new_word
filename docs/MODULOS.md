@@ -13,10 +13,10 @@ Reglas que valen para todos (de [`CLAUDE.md`](../CLAUDE.md)):
 
 ## Cuáles se instalan
 
-`addons/` tiene **29 módulos** (2026-11-06). El contenedor instala (y actualiza en cada versión nueva) los **28** de la
+`addons/` tiene **30 módulos** (2026-11-06). El contenedor instala (y actualiza en cada versión nueva) los **29** de la
 lista `ODOO_MODULES` de [`docker/entrypoint.sh`](../docker/entrypoint.sh) (línea 176): **todos menos `dcasa_fe_pa`**, que
 no está en la lista a propósito y por eso **no se instala en producción**. `make init` (el [`Makefile`](../Makefile))
-instala una lista más corta (25): le faltan también `dcasa_seguridad`, `dcasa_sesiones` y `dcasa_adjuntos_r2`. `scripts/test.sh` sin argumentos prueba **todos** los
+instala una lista más corta (26): le faltan también `dcasa_seguridad`, `dcasa_sesiones` y `dcasa_adjuntos_r2`. `scripts/test.sh` sin argumentos prueba **todos** los
 de `addons/`, también `dcasa_fe_pa`.
 
 ## Resumen
@@ -45,6 +45,7 @@ pero sin efecto hasta que alguien lo enciende.
 | `dcasa_brian` | Brian, el asistente del panel (chat, Telegram, MCP) | interfaz, contabilidad, catalogo, socios, contactos | 70 | Sin `BRIAN_API_KEY` no contesta (el despliegue la exige) | [BRIAN.md](BRIAN.md) |
 | `dcasa_guia` | «¿Qué necesitas hacer hoy?»: atajos en palabras sencillas | interfaz | — | No | [GUIA.md](GUIA.md) |
 | `dcasa_marketing` | Fotos del producto en grande (ver, subir varias, ordenar, recortar) y la app **Marketing** (stock por categoría, más vendidos, movimiento, quietos, fotos que faltan) | catalogo, interfaz, barras, brian | 2 | No | [MARKETING.md](MARKETING.md) |
+| `dcasa_envios` | **Envíos**: la calculadora (buscar el lugar como lo dice el cliente, el precio con su desglose), la lista de lugares y la tarifa que aprueba Gerencia; un motor en Python puro que mañana sirve a la web | base, interfaz, contabilidad, brian | 1 | Sin datos hasta que Gerencia carga el archivo; la tarifa nace «en revisión»; sin ruta pública | [ENVIOS.md](ENVIOS.md) |
 | `dcasa_conversaciones` | Bandeja de conversaciones con clientes, reparto, CRM automático y la API de Juan | brian, catalogo, interfaz, socios, contactos | 2 (+13 de Juan) | Sin los tokens de Juan, la API responde 503 | [JUAN_ODOO.md](JUAN_ODOO.md) · [JUAN.md](JUAN.md) · [JUAN_CANALES.md](JUAN_CANALES.md) |
 | `dcasa_sofia` | Sofía, la asistente del CRM: revisa con un botón y cada mañana y propone; una persona aprueba | conversaciones, contactos | — | No (las propuestas siempre las aprueba una persona) | [SOFIA.md](SOFIA.md) |
 | `dcasa_correo` | Correo a clientes por Resend (factura, abono, bienvenida) | base, invoice, socios, website_dcasa, conversaciones | 2 | **Sí**: sin `RESEND_API_KEY` y sin encenderlo en Ajustes no sale nada (en producción, encendido desde el 2026-10-27) | [CORREO.md](CORREO.md) |
@@ -101,6 +102,9 @@ flowchart TD
   interfaz --> marketing
   barras --> marketing
   brian --> marketing
+  interfaz --> envios[dcasa_envios]
+  conta --> envios
+  brian --> envios
   contactos --> migracion[dcasa_migracion]
   catalogo --> migracion
   invoice --> fe[dcasa_fe_pa]
@@ -377,6 +381,24 @@ además como módulo de todo el servidor (`server_wide_modules = base,web,dcasa_
   Escáner (cambiar fotos: quien puede editar el producto).
 - **Herramientas de Brian (2):** `movimiento_de_productos`, `fotos_que_faltan`.
 - **Apagado de fábrica:** no.
+
+## `dcasa_envios` — Envíos (la calculadora)
+
+- **Para qué:** cuánto cuesta un envío desde la tienda. La calculadora busca el lugar como lo dice el cliente (sin
+  tildes, abreviaturas, frases, errores de dedo, lugares conocidos) y da el precio con su desglose, «Copiar el precio»,
+  la ruta en Google Maps, «¿Quisiste decir…?», «Agregar este lugar» y «Calcular por kilómetros» con la tabla por tramos.
+  Reemplaza el «En desarrollo» del menú Envíos (lo apaga; al desinstalar vuelve).
+- **Motor:** `motor/` en Python puro (sin Odoo), puerto fiel del HTML de la propuesta: la única fuente de verdad del
+  precio (pantalla por RPC, Brian y, mañana, la web y Juan).
+- **Depende de (Odoo):** `mail` (historial de la tarifa).
+- **Modelos:** `dcasa.envio.lugar` (los lugares; del archivo o agregados en Odoo con quién y cuándo; precio calculado
+  para la lista y Excel), `dcasa.envio.tarifa` (una sola; aprobada con quién y cuándo, chatter) con
+  `dcasa.envio.cargo` (cargos aparte), `dcasa.envio.importar` (cargar el archivo).
+- **Pantallas y menús:** Envíos › **Calculadora** (todos), **Lugares** (todos; edita Gerencia), **Tarifa** (Gerencia y
+  administradores).
+- **Herramientas de Brian (1):** `cotizar_envio`.
+- **Apagado de fábrica:** sin lugares ni tarifa hasta que Gerencia carga el archivo (no están en el repositorio); la
+  tarifa nace en revisión; no hay ruta pública (ver [ENVIOS.md](ENVIOS.md), «Cómo se encendería en el sitio»).
 
 ## `dcasa_conversaciones` — Conversaciones (la bandeja de Juan)
 

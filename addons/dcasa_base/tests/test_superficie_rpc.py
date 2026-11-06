@@ -54,6 +54,15 @@ FOTOS_EDITAR = ('Fotos del producto: exige poder editar ESE producto (has_access
                 'lectura del producto (AccessError si no) ANTES del sudo con que se escriben sus fotos (product.image '
                 'de ese producto; la clave se busca solo entre las suyas); valida cada foto (formato, peso, '
                 'megapíxeles) y cada argumento.')
+ENVIOS_LECTURA = ('Lectura de la calculadora de envíos: exige poder leer dcasa.envio.lugar (check_access, todo usuario '
+                  'interno; un portal no) ANTES de leer; lee los lugares por SQL y la tarifa con sudo, igual para '
+                  'cualquiera del equipo; valida y recorta cada argumento (texto, tipo, distrito, límite, km); no '
+                  'escribe.')
+ENVIOS_TARIFA = ('Tarifa de envíos: exige Gerencia o administrador en el servidor (además del ACL) para cambiar la '
+                 'fórmula, los cargos o la aprobación; quién y cuándo aprobó lo pone siempre el servidor (lo que '
+                 'llegue en los valores se ignora) y un cambio de precios la devuelve a revisión; sin sudo().')
+ENVIOS_CARGO = ('Cargos aparte de la tarifa de envíos: exige Gerencia o administrador en el servidor (además del ACL) '
+                'y devuelve la tarifa a revisión si cambia un precio; sin sudo().')
 MARKETING_LECTURA = ('Lectura de Marketing: exige Gerencia (ventas administrador), administrador o el rol Marketing '
                      'ANTES de leer (_exigir, AccessError); facturas, entregas y adjuntos los suma con sudo ya '
                      'comprobado el grupo; valida periodo, categoría y filtro; no escribe.')
@@ -977,6 +986,45 @@ LISTA_BLANCA = {
         ASISTENTE + ' Exige el gerente de Inventario; solo devuelve el PDF del reclamo.',
     ('dcasa_existencias', 'dcasa.merma.reclamo', 'action_marcar_reclamadas'):
         ASISTENTE + ' Exige el gerente de Inventario en el servidor ANTES del sudo que marca las mermas.',
+    # --- dcasa_envios (calculadora de envíos, 2026-11-06) ----------------------------------------------------------
+    ('dcasa_envios', 'dcasa.envio.lugar', 'buscar_para_cotizar'): ENVIOS_LECTURA,
+    ('dcasa_envios', 'dcasa.envio.lugar', 'datos_de_la_calculadora'): ENVIOS_LECTURA,
+    ('dcasa_envios', 'dcasa.envio.tarifa', 'cotizar_km'): ENVIOS_LECTURA,
+    ('dcasa_envios', 'dcasa.envio.tarifa', 'cotizar_lugar'):
+        ENVIOS_LECTURA + ' Con un id lee ese lugar con sudo ya comprobado el permiso de lectura.',
+    ('dcasa_envios', 'dcasa.envio.lugar', 'get_view'):
+        OVERRIDE + ' Solo quita «Nuevo», editar y borrar a quien no es Gerencia; no lee ni escribe datos.',
+    ('dcasa_envios', 'dcasa.envio.lugar', 'create'):
+        'El ACL deja crear a todo el equipo (agregar un lugar que falta); quien no es Gerencia solo escribe nombre, '
+        'otros nombres, tipo (barrio, edificio o lugar conocido), distrito, corregimiento, km y peaje; el origen, '
+        'quién lo agregó y cuándo los pone el servidor; sin sudo().',
+    ('dcasa_envios', 'dcasa.envio.lugar', 'write'):
+        'ACL: solo Gerencia y administradores escriben; los campos del sistema (origen, llave, quién lo agregó) no se '
+        'escriben a mano y un lugar del archivo queda marcado «cambiado en Odoo»; sin sudo().',
+    ('dcasa_envios', 'dcasa.envio.lugar', 'unlink'): 'ACL: solo administradores borran; sube la versión del índice.',
+    ('dcasa_envios', 'dcasa.envio.lugar', 'action_volver_al_archivo'):
+        'Exige Gerencia o administrador y check_access("write") en el servidor; solo borra la marca «cambiado en '
+        'Odoo».',
+    ('dcasa_envios', 'dcasa.envio.tarifa', 'create'):
+        'Exige Gerencia o administrador en el servidor (y el ACL); una sola tarifa; la aprobación nunca viene en los '
+        'valores; sin sudo().',
+    ('dcasa_envios', 'dcasa.envio.tarifa', 'write'): ENVIOS_TARIFA,
+    ('dcasa_envios', 'dcasa.envio.tarifa', 'unlink'): 'Siempre falla: la tarifa no se borra (queda el historial).',
+    ('dcasa_envios', 'dcasa.envio.tarifa', 'action_aprobar'): ENVIOS_TARIFA,
+    ('dcasa_envios', 'dcasa.envio.tarifa', 'action_quitar_aprobacion'): ENVIOS_TARIFA,
+    ('dcasa_envios', 'dcasa.envio.tarifa', 'action_subir_5'): ENVIOS_TARIFA,
+    ('dcasa_envios', 'dcasa.envio.tarifa', 'action_bajar_5'): ENVIOS_TARIFA,
+    ('dcasa_envios', 'dcasa.envio.tarifa', 'action_cargar_archivo'):
+        'Exige Gerencia o administrador; solo devuelve la acción de ventana del asistente (que además exige el ACL).',
+    ('dcasa_envios', 'dcasa.envio.tarifa', 'action_abrir'):
+        'Exige Gerencia o administrador; crea la única tarifa vacía (sin cifras) si falta, como el usuario, y la abre.',
+    ('dcasa_envios', 'dcasa.envio.tarifa', 'action_abrir_calculadora'): ACCION_VENTANA,
+    ('dcasa_envios', 'dcasa.envio.cargo', 'create'): ENVIOS_CARGO,
+    ('dcasa_envios', 'dcasa.envio.cargo', 'write'): ENVIOS_CARGO,
+    ('dcasa_envios', 'dcasa.envio.cargo', 'unlink'): ENVIOS_CARGO,
+    ('dcasa_envios', 'dcasa.envio.importar', 'action_cargar'):
+        ASISTENTE + ' Además exige Gerencia o administrador en el servidor; escribe los lugares y la tarifa como el '
+                    'usuario (sin sudo), valida cada dato del archivo y no toca lo agregado en Odoo.',
 }
 
 # Modelos abstractos sin ACL: por RPC no se puede llamar NINGÚN método suyo (S-09).

@@ -403,6 +403,19 @@ cotización (`ver_venta`, `crear_cotizacion`…) marca las líneas que van en co
 máx. 30). Los modelos pequeños pueden mandar números y sí/no como texto: el registro los convierte
 (`registro.coercer`), y un parámetro mal puesto responde con la lista de los válidos.
 
+## Envíos (2026-11-06, módulo `dcasa_envios`)
+
+Las mismas cifras de la calculadora de envíos ([ENVIOS.md](ENVIOS.md)): el motor del servidor calcula, nunca el modelo
+de IA. Mientras Gerencia no apruebe la tarifa, la respuesta trae `tarifa` = «en revisión: estos precios todavía no se
+usan con clientes» y Brian tiene que decirlo.
+
+| Herramienta | Qué hace | Nivel | Quién |
+|---|---|---|---|
+| `cotizar_envio(lugar? \| km? + peaje?, distrito?, limite?)` | Busca el lugar como lo dice el cliente (barrio, urbanización, PH, corregimiento o un lugar conocido) y da hasta 5 parecidos con su `total`, `km`, `desglose` y `texto_para_el_cliente`; o, con `km`, el precio de ese viaje (con `peaje`). Sin resultados: `quisiste_decir`. Lejos o sin carretera: «se cotiza aparte» | lectura | Interno |
+
+Ejemplos: «¿cuánto cuesta el envío a Villa Lucre?» → `cotizar_envio(lugar=Villa Lucre)`; «¿y a 34 km con peaje?» →
+`cotizar_envio(km=34, peaje=true)`.
+
 ## Marketing y fotos (2026-10-22, módulo `dcasa_marketing`)
 
 Las mismas cifras de la app **Marketing** ([MARKETING.md](MARKETING.md)); nada lo calcula el modelo de IA.

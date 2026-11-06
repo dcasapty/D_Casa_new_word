@@ -3078,6 +3078,51 @@
    ]
   },
   {
+   "id": "envio-cuanto-cuesta",
+   "categoria": "vender",
+   "tambien": [
+    "tienda"
+   ],
+   "grupo": "Envíos",
+   "titulo": "Saber cuánto cuesta un envío",
+   "logras": "Escribes a dónde va como lo dice el cliente (un barrio, una urbanización, un PH o «cerca del hospital») y ves el precio con su desglose, la ruta en Google Maps desde la tienda y el botón «Copiar el precio». Si el lugar no está, lo agregas o calculas por kilómetros.",
+   "nota": "Mientras Gerencia no apruebe la tarifa, la pantalla dice «Tarifa en revisión»: esos precios todavía no se usan con clientes. También se lo puedes preguntar a Brian.",
+   "destino": {
+    "menu": "dcasa_envios.menu_envios_calculadora"
+   },
+   "palabras": [
+    "envio",
+    "envios",
+    "cuanto cuesta el envio",
+    "delivery",
+    "flete",
+    "llevar a domicilio",
+    "calculadora de envios",
+    "precio del envio",
+    "kilometros"
+   ]
+  },
+  {
+   "id": "envio-tarifa",
+   "categoria": "vender",
+   "grupo": "Envíos",
+   "titulo": "Cambiar o aprobar la tarifa de envíos",
+   "logras": "Cargas el archivo de envíos (lugares y tarifa), cambias el mínimo, los dos precios de referencia, el redondeo y los cargos aparte (viático, honorarios, peaje), subes o bajas todo en proporción y apruebas la tarifa para que se pueda usar con clientes. Cada cambio queda en el historial.",
+   "nota": "Solo Gerencia. Cualquier cambio de precios la devuelve a revisión hasta que la apruebes otra vez.",
+   "destino": {
+    "menu": "dcasa_envios.menu_envios_tarifa"
+   },
+   "palabras": [
+    "tarifa de envio",
+    "tarifa de envios",
+    "aprobar tarifa",
+    "viatico",
+    "peaje",
+    "cargar archivo de envios",
+    "precio por kilometro"
+   ]
+  },
+  {
    "id": "dinero-en-bancos-y-caja",
    "categoria": "reportes",
    "grupo": "Dinero",

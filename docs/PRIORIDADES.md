@@ -11,7 +11,7 @@ LEEME_PRIMERO §2).
 
 - **Producción funciona desde el 2026-10-13** y **`dcasapty.com` (y `www`) apunta al sistema nuevo desde el
   2026-10-27** (Desplegar 31). El último despliegue es Desplegar 47 (5 nov, PR #76: Sofía «Guardar y responderle»).
-  El contenedor instala 28 de los 29 módulos de `addons/` (todos menos `dcasa_fe_pa`, a propósito).
+  El contenedor instala 29 de los 30 módulos de `addons/` (todos menos `dcasa_fe_pa`, a propósito).
 - **Juan atiende el WhatsApp de la tienda por la API oficial de Meta** desde el 2026-11-02 (modelo «contributor» de
   Meta, llave permanente). Telegram también funciona. Messenger e Instagram tienen el código listo pero no están
   conectados. El puente de WhatsApp por QR (`puente-wa/`) **nunca se desplegó** a producción. Ver
@@ -45,8 +45,10 @@ LEEME_PRIMERO §2).
 10. **Messenger e Instagram:** conectarlos con la guía de [JUAN_CANALES.md](JUAN_CANALES.md).
 11. **Códigos de barras:** etiquetas del proveedor y prueba de los lectores (issues #9, #10 y #12); con eso, verificar el
    despacho con el escáner ([BARRAS.md](BARRAS.md)).
-12. **Tarifas de envío:** en pausa desde el 2026-11-04 hasta que Gerencia apruebe la propuesta (redondeo, viático,
-   honorarios y peaje). Después, la sección de envíos del sitio y que Juan calcule.
+12. **Envíos:** la calculadora (`dcasa_envios`, [ENVIOS.md](ENVIOS.md)) está hecha y la dueña vio las capturas
+    (2026-11-06; «es innecesario» bajar la lista a Excel). Sigue: CI, staging y producción con su «sí»; que Gerencia
+    cargue el archivo en Envíos › Tarifa y **apruebe la tarifa** (redondeo, viático, honorarios y peaje); después, con
+    su «sí», que Juan cotice y la sección de envíos del sitio (cuando haya flota propia).
 13. **Siguiente etapa de Sofía:** mensajes con IA, plantillas de WhatsApp para después de 24 horas y su herramienta de
     Brian.
 14. **Privacidad (issues #22 y #23):** borrar la oportunidad junto con la conversación y lo que «Eliminar conversación»
@@ -99,7 +101,7 @@ Lo que no es programación. Absorbe lo que seguía vigente de la lista vieja
 
 - Las **cifras** de los topes de Brian (puntos por ajuste, monto de una factura, unidades por ajuste) y del tope mensual
   de gasto de IA.
-- **Tarifas de envío** (Gerencia): aprobar la propuesta.
+- **Tarifas de envío** (Gerencia): cargar el archivo en Envíos › Tarifa y aprobar la tarifa.
 - **Anuncios en Meta** (catálogo, píxel y ventas reportadas): todo apagado hasta que diga; las decisiones están en
   [META_CATALOGO.md](META_CATALOGO.md) y [META_EVENTOS.md](META_EVENTOS.md) («Decisiones de la dueña»).
 - **Segundo factor para todos y apagar la cuenta genérica `admin`** (pregunta I4 de la gerencia, sin respuesta).

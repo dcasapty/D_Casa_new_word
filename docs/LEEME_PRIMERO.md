@@ -105,6 +105,23 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 > sigue. Se guardan las diez más recientes; las viejas se resumen en una línea abajo y su texto completo pasa a
 > [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md).
 
+### 2026-11-06 (2): la calculadora de envíos en el menú Envíos (módulo nuevo `dcasa_envios`)
+
+- Pedido de la dueña: poner el HTML de envíos del 4 nov en el menú «Envíos», con el scroll que funcione, y dejar el
+  código listo para que mañana el cliente cotice su envío en la web. Hecho en la rama (sin subir ni desplegar):
+  Envíos › **Calculadora** (todos), **Lugares** (todos; edita Gerencia) y **Tarifa** (Gerencia), «En desarrollo» apagado.
+  Ver [ENVIOS.md](ENVIOS.md).
+- **Un solo motor** en Python puro (`addons/dcasa_envios/motor/`, sin Odoo): la fórmula y el buscador portados del
+  HTML. Paridad medida en local con los datos reales: 945 de 946 comparaciones iguales (la diferencia: buscar
+  «constructor» rompía el HTML). En el repositorio solo un fixture sintético con sus esperados sacados del JavaScript.
+- **Los datos no están en el repositorio** (público; la dueña no dio su «sí»): Gerencia sube `envios-dcasa.html` en
+  Envíos › Tarifa. La carga es idempotente (11 299 lugares en ~2 s; volver a cargar, 0 nuevos), respeta lo de Odoo y la
+  tarifa nace y vuelve «en revisión». Brian: `cotizar_envio`. Guía: «Saber cuánto cuesta un envío» y «Cambiar o
+  aprobar la tarifa de envíos». Sin ruta pública todavía (pasos para encenderla en ENVIOS.md); Juan no cotiza.
+- La dueña vio las capturas (con datos reales, fuera del repositorio) y dijo que sí; bajar la lista a Excel «es
+  innecesario» (no se agrega). Sigue: CI y staging, producción con su «sí»; que Gerencia cargue el archivo y apruebe
+  la tarifa (redondeo, viático, honorarios, peaje).
+
 ### 2026-11-05 (4): «Guardar y responderle»
 
 - Pedido de la dueña con un caso real (la clienta dio sus datos; la ficha se completó, pero faltaban «las gracias y la
