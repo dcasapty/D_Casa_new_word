@@ -52,7 +52,8 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
    ~25 de pruebas de Odoo y ~20 del despliegue a staging, CI #260 del 2026-11-05).
 3. Con staging sano y el «sí» de la dueña: PR con `[skip ci]` en el título, *squash* con `expectedHeadSha` = el commit
    probado, y comprobar que el árbol de `main` es el del commit probado.
-4. **Desplegar** desde `main` a `production` con el `imagen_digest` y el `app_version` (SHA de 40) probados y
+4. **Desplegar** desde `main` a `production` con el `imagen_digest` y el `app_version` probados: **`app_version` es el
+   SHA de 40 de la rama que construyó el CI, nunca el del *squash*** (se repitió en Desplegar 55), y
    `respaldo_previo = true`: unos **15 minutos**, contando los 600 s de vigilancia del final (`esperar_salud.sh`).
 5. Mirar `/dcasa/salud`, avisarle a la dueña qué cambió para ella (sin tecnicismos), cancelar el CI que abrió el PR y
    traer `main` a la rama con `git merge -s ours origin/main`. **Desplegar Juan** solo si cambió `juan/`.
@@ -104,6 +105,99 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 > Más reciente arriba. Cada entrada: fecha, qué quedó en producción (con el commit), qué quedó solo en staging, qué
 > sigue. Se guardan las diez más recientes; las viejas se resumen en una línea abajo y su texto completo pasa a
 > [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md).
+
+### 2026-11-06 (8): «Ver más» en la foto del catálogo y Dependabot, en producción
+
+- Pedido de la dueña: en «Foto del catálogo» había 38 bibliotecas y solo salían 8. Ahora 12 por vuelta y «Ver más»
+  trae las siguientes sin repetir (`buscar_catalogo(…, desde=)`, tope 40 por vuelta). Con las actualizaciones de
+  Dependabot #7 y #78 a #81 (Juan con el SDK de IA 7 y una prueba que vigila cómo arma la llamada) y la regla de no
+  proponer `@types/node` de otra versión mayor.
+- **En producción:** PR #88 (`main` = `513b094`, árbol = `3a1c1d3`), **Desplegar 56** sano y confirmado 21:22 UTC
+  (versión `3a1c1d3fc144`) y **Desplegar Juan 8** (`513b094`). El **Desplegar 55 falló** por pasar el SHA del *squash*
+  como `app_version` (trampa ya escrita; ver CONTEXTO_AGENTICO). Producción nunca dejó de estar sana.
+- Un reinicio del contenedor cortó a dos agentes (Camila 1b y Brian) y al vigilante del CI: los *worktrees* guardaron
+  todo sin commit y los agentes siguieron donde iban al reanudarlos con un mensaje.
+- La dueña aprobó las capturas de Brian («perfecto») y decidió que la casilla de novedades se active sola al agregar
+  un correo (la vendedora la desactiva si el cliente dice que no). Las dos cosas siguen en preparación, junto con la
+  pantalla de Sofía (ya en la rama, sin desplegar).
+
+### 2026-11-06 (7): la pantalla de Sofía
+
+- Pedido de la dueña: «Sofía puede mejorar mucho, sobre todo la interfaz visual». **Solo la interfaz**
+  (`dcasa_sofia/static/src/`): qué propone, los permisos y lo que hace cada botón no cambiaron. Ver
+  [SOFIA.md](SOFIA.md) › «Cómo se ve y se usa».
+- Lo que costaba (capturas «antes»): lo urgente era una etiqueta igual a las demás; cada tarjeta traía 3 etiquetas,
+  título, porqué, una caja de texto de hasta 12 líneas y un párrafo repetido de «Le pide sus datos»; en el celular la
+  cabecera y 4 filas de filtros llenaban media pantalla; «Descartar» junto al botón principal; el filtro de Gerencia
+  por vendedora era una lista sin números; al aprobar la tarjeta desaparecía de golpe y todo subía; vacío y carga eran
+  un texto gris; desde «Organizar con Sofía» no se veía nada hasta terminar la revisión.
+- Ahora: secciones «Hoy sin falta» (azul) / «Hoy» / «Cuando puedas» con su número y un resumen arriba; filtro por tipo
+  y (Gerencia) por vendedora con conteos cruzados, al lado en la computadora y en una tira pegada arriba en el celular;
+  tarjetas compactas con el mensaje como burbuja y «Editar»; la acción principal grande; «Ver la oportunidad» y
+  «Descartar» (sin confirmación, como siempre) abajo y aparte; al aprobar la tarjeta dice lo que pasó en su lugar y del
+  mismo alto, y se cierra despacio; «Todo al día» y «Listo por aquí» con «Ver todo»; esqueleto al cargar y, desde el
+  CRM, primero lo que ya había y la revisión encima. Baja con la rueda y con el dedo.
+- Pruebas: `test_sofia_pantalla.py` (nuevo, 9; la rueda y el dedo por el protocolo de Chrome) y las de navegador
+  ajustadas a «Editar»: 70 en verde en base limpia (68 de Sofía y `dcasa_interfaz` › `TestInicioScroll`). Capturas
+  `antes_…`/`despues_…` en el scratchpad de la sesión (`capturas_sofia`), con datos de prueba. **Sin push ni
+  despliegue**: falta que la dueña vea las capturas. *(Después: le gustaron y «Descartar» queda sin confirmación.)*
+- Aprendido: el minificador de Odoo (`rjsmin`) aprieta los espacios de una plantilla `` `…` `` anidada dentro de
+  `${…}` («p. m.(la pidió»); hay tres casos viejos en Conversaciones (tarea aparte). Ver CONTEXTO_AGENTICO.
+
+### 2026-11-06 (6): Brian al día
+
+- Pedido de la dueña: «Brian es indispensable, pero está desactualizado». **Auditoría** de lo que entró desde octubre
+  (función → ¿Brian la consulta o la hace? → herramienta):
+
+  | Función | Antes | Ahora |
+  |---|---|---|
+  | Sofía: propuestas, «Revisar ahora», «Guarda sus datos» | falta | `propuestas_de_sofia` (dice qué dato dio, no el dato), `revisar_con_sofia` (construcción), `abrir_pantalla` |
+  | Conversaciones: Resumen (tasa de cierre, ventas atribuidas, primera respuesta) | falta | `resumen_de_conversaciones` |
+  | Reparto y vendedoras activas | falta | `reparto_de_conversaciones` (la vendedora, solo lo suyo) |
+  | Cotizaciones del chatbot y la web que vencen solas | falta | `cotizaciones_que_vencen` |
+  | Origen Chatbot / Web / Vendedora | falta | `buscar_ventas(origen)`, y `ver_venta` y `ver_factura` lo dicen |
+  | CRM de las conversaciones | `oportunidades_abiertas`, `resumen_del_crm` | igual |
+  | Valor del inventario y cobrado por forma de pago | `valor_del_inventario`, `ventas_por_dia` | igual |
+  | Clientes repetidos y fusionar | solo «buscar antes de crear» | `clientes_repetidos` (lee y dice cómo unir; no fusiona) |
+  | Envíos | `cotizar_envio` | igual |
+  | Camila | `estado_campanas` | igual (aprobar y enviar, en su pantalla) |
+  | Correo a clientes | enviar factura y cotización | + `estado_del_correo` (si sale, por qué no, la cola) |
+  | Meta: catálogo, píxel y ventas | falta | `estado_de_meta` (nunca la clave) |
+  | Abonos | `abonos_por_vencer`, `ver_factura` | igual |
+  | Nómina, bodega y existencias | adelantos, comprobantes, mermas, bitácora, entregas, movimientos | igual |
+  | Marketing | `movimiento_de_productos`, `fotos_que_faltan` | igual |
+  | La Guía | `buscar_en_guia` (293 letras: pasaba el tope sin que la prueba lo viera; solo decía la ruta de las pantallas propias) | < 260 letras y botón «Abrir» también a pantallas propias |
+  | Pantallas propias | `abrir` solo abría listas y registros | `abrir_pantalla` (con los permisos del menú) |
+
+  Lo que Brian «sabía» en texto: su prompt no mencionaba a Juan, Sofía ni Camila; `ayuda` tampoco; BRIAN.md tenía la
+  tabla de niveles rota (y «mover stock» como construcción: es sensible), decía «botón en todas las pantallas» (en el
+  celular va arriba) y que nada más salía por Telegram (salen también las claves de descuento, las alertas de bodega
+  y el resumen de Sofía); MODULOS.md decía 70 herramientas (eran 99; ahora 105). Todo corregido.
+- **Nada escribe dinero** (issue #26): todo es de lectura menos `revisar_con_sofia`, que solo deja propuestas. Las de
+  Sofía y Meta viven en `dcasa_brian` (esos módulos no son dependencia: si faltan, lo dicen; `dcasa_sofia` lo trabajaba
+  otro agente); las de Juan, en `dcasa_conversaciones`; la del correo, en `dcasa_correo`. La prueba del contrato de los
+  modelos pequeños ahora revisa todas las categorías. La Guía trae la pregunta lista para Brian en 10 tareas más.
+- **Arreglo visual:** en Conversaciones (computadora) el botón flotante tapaba «Enviar» y «Nota interna». Ahora, mientras
+  el botón se ve, la caja deja libre su esquina, la ficha del cliente termina su scroll por encima del botón y las
+  pantallas propias con scroll terminan con un espacio libre (SCSS de `dcasa_brian`, con `body:has(...)`; no se
+  tocaron los otros módulos). Prueba de navegador por geometría (`test_boton_no_tapa.py`, 1366 y 1024 px). Medido en
+  1024, 1280 y 1440 px en Conversaciones (con y sin ficha), Sofía, Camila y Envíos: nada se cruza. Capturas antes y
+  después en el scratchpad de la sesión (`capturas_brian`).
+- El contrato visual de Conversaciones (`test_panel_visual.py`) ya escondía el botón de Brian; ahora le pone además
+  `o_brian_oculto` (la clase del panel abierto) para que la foto salga sin la reserva: las referencias no cambian.
+- Pruebas en local, base limpia con los 30 módulos de producción: `/dcasa_brian`, `/dcasa_base`, `/dcasa_guia`,
+  `/dcasa_sofia`, `/dcasa_camila`, `/dcasa_envios` y las de Brian, el origen y la interfaz de Conversaciones y del
+  correo: 987 pruebas, 2 fallas ajenas (las referencias de «lista» y «conexiones» a 390 px, que ya fallaban en esta
+  máquina) y 2 de la prueba nueva por un selector («Cliente» también estaba en el nombre de la conversación de
+  prueba), corregido y en verde (3 de 3). `ruff check addons scripts` limpio.
+- La dueña vio las capturas y dijo que sí. **Revisión adversarial** independiente: nada que frene; 6 arreglos, cada
+  uno con su prueba: `revisar_con_sofia` corre en una transacción corta y propia (dentro del turno de Brian tomaba el
+  candado de Sofía hasta 150 s) y llama directo a la revisión, sin armar la pantalla; `propuestas_de_sofia` ya no
+  manda el título de «Guarda sus datos» (traía el nombre, el correo y el cumpleaños; la prueba ahora lo arma Sofía de
+  verdad); las cuentas de la revisión, solo a Gerencia (a la vendedora, las suyas); `abrir_pantalla` nunca abre una
+  acción de servidor ni un enlace; `cotizaciones_que_vencen` y `estado_del_correo` marcadas como texto de clientes;
+  fechas de Meta y del correo en hora de Panamá.
+- **Sin push ni despliegue.** Sigue: CI y staging.
 
 ### 2026-11-06 (5): Camila etapa 2 («a lo grande, todo conectado con todo»), en producción
 

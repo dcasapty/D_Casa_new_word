@@ -7,3 +7,5 @@ from . import herramientas_generales, herramientas_ventas, herramientas_catalogo
     herramientas_bodega_nomina, \
     herramientas_combos, \
     herramientas_decisiones
+# Brian al día (2026-11-06): las pantallas propias, Sofía y Meta (módulos que dcasa_brian no exige).
+from . import herramientas_pantallas, herramientas_asistentes, herramientas_meta

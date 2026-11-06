@@ -52,10 +52,8 @@ class TestHerramientas(TransactionCase):
     def test_contrato_para_modelos_pequenos(self):
         """Verbo_objeto, ≤5 parámetros de tipos simples y descripciones cortas."""
         simples = {'string', 'number', 'integer', 'boolean'}
-        mias = {'ventas', 'catalogo', 'clientes', 'contabilidad', 'usuarios'}
+        # Todas las categorías: también las generales (``buscar_en_guia`` pasó de 260 letras sin que nadie lo viera).
         for nombre, spec in self.env['brian.herramientas']._todas().items():
-            if spec['categoria'] not in mias and nombre not in ('buscar_en_todo', 'abrir'):
-                continue
             if nombre.startswith(('prueba_', 'eliminar_prueba')):
                 continue
             self.assertLessEqual(len(spec['parametros']), 5, nombre)

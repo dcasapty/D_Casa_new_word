@@ -57,7 +57,8 @@ Formatos::
                                  'titulo': 'Buscando productos «888K»',   # paso humano (pasos.py)
                                  'resumen': '3 productos', 'detalle': '{json corto}',
                                  'duracion_ms': int|None,
-                                 'abrir': None|{modelo, res_id|dominio, titulo}|{url, titulo}}],
+                                 'abrir': None|{modelo, res_id|dominio, titulo}|{url, titulo}
+                                          |{accion: id de ir.actions, titulo}}],
                'confirmacion': None | {'accion_id': int, 'herramienta': str, 'resumen': str,
                    'nivel': 'sensible'|'construccion',
                    'detalle': [{'etiqueta': 'Nombre', 'valor': 'Cliente VIP'}, …],  # lo exacto
@@ -155,8 +156,9 @@ def _neutralizar(texto):
 def _abrir(datos):
     """Destino para el botón «Abrir» de la interfaz, si la herramienta lo devolvió.
 
-    Acepta ``{'abrir': {modelo, res_id|dominio, titulo}}``, ``{'abrir': {url, titulo}}`` o
-    ``{'abrir_url': '…'}``. Solo URLs internas (/odoo…) o https.
+    Acepta ``{'abrir': {modelo, res_id|dominio, titulo}}``, ``{'abrir': {url, titulo}}``,
+    ``{'abrir': {accion, titulo}}`` (el id de una acción de Odoo: las pantallas propias, ver
+    ``herramientas_pantallas.py``) o ``{'abrir_url': '…'}``. Solo URLs internas (/odoo…) o https.
     """
     if not isinstance(datos, dict):
         return None
@@ -168,9 +170,12 @@ def _abrir(datos):
     url = destino.get('url')
     if url and not (url.startswith('/') or url.startswith('https://')):
         return None
-    if not url and not destino.get('modelo'):
+    accion = destino.get('accion')
+    if isinstance(accion, bool) or not isinstance(accion, int) or accion < 1:
+        destino = {k: v for k, v in destino.items() if k != 'accion'}
+    if not url and not destino.get('modelo') and not destino.get('accion'):
         return None
-    return {k: destino[k] for k in ('modelo', 'res_id', 'dominio', 'titulo', 'url') if destino.get(k)}
+    return {k: destino[k] for k in ('modelo', 'res_id', 'dominio', 'titulo', 'url', 'accion') if destino.get(k)}
 
 
 def _destino_abrir(datos):
@@ -823,6 +828,17 @@ class BrianConversacion(models.Model):
             "prometas puntos o premios por tu cuenta.",
             "- Respuestas cortas, montos con $ y fechas dd/mm/aaaa, sin IDs sueltos. Cuando ayude, cierra con "
             "el siguiente paso que puede hacer la persona.",
+            "El sistema (para orientarte; las cifras salen siempre de las herramientas):",
+            "- Juan atiende a los clientes por WhatsApp, Telegram, Messenger e Instagram (app Conversaciones): "
+            "contesta, cotiza (origen «Chatbot»), llena el CRM y pasa el cliente a una vendedora con el reparto. Sus "
+            "cotizaciones y las de la web se cancelan solas si nadie las confirma a tiempo.",
+            "- Sofía, la asistente del CRM (CRM › Sofía), revisa cada mañana o con «Revisar ahora» y propone: "
+            "contestar, la cotización que vence, escribirle, pedir o guardar sus datos («Guarda sus datos»), llamar y "
+            "repartir. Una persona aprueba cada propuesta en su pantalla.",
+            "- Camila (Marketing › Camila) arma la campaña de correo de novedades, solo para clientes que dieron "
+            "permiso; se aprueba y se envía en su pantalla.",
+            "- Tú no apruebas propuestas de Sofía ni envías campañas de Camila: consultas, explicas y abres la "
+            "pantalla (abrir_pantalla). Si no sabes dónde está algo, usa buscar_en_guia.",
         ])
 
     def _sistema(self, contexto):

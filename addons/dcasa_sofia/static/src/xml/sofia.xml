@@ -1,156 +1,260 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
 
+    <!-- La pantalla de Sofía (2026-11-06): lo urgente arriba por secciones, filtro por tipo (y por vendedora para
+         Gerencia) con conteos, tarjetas compactas con la acción principal grande y, al aprobar, la tarjeta dice lo
+         que pasó en su lugar antes de cerrarse (la pantalla no salta). -->
     <t t-name="dcasa_sofia.Panel">
         <div class="o_action o_sofia">
             <header class="o_sofia_encabezado">
                 <div class="o_sofia_titulo">
                     <span class="o_sofia_avatar" aria-hidden="true">S</span>
-                    <div>
+                    <div class="o_sofia_titulo_texto">
                         <h1>Sofía</h1>
-                        <p>Revisa el CRM y te propone qué hacer hoy. Nada sale sin que tú lo apruebes.</p>
+                        <p class="o_sofia_lema">Te propone qué hacer hoy. Nada sale sin que tú lo apruebes.</p>
                     </div>
                 </div>
                 <div class="o_sofia_revisar">
-                    <span class="o_sofia_ultima" t-if="d and d.ultima">
-                        Última revisión: <t t-esc="d.ultima.hace"/>
-                        <t t-if="d.ultima.quien"> (la pidió <t t-esc="d.ultima.quien"/>)</t>
-                        <t t-else=""> (<t t-esc="d.ultima.origen.toLowerCase()"/>)</t>
-                    </span>
-                    <button type="button" class="btn btn-primary o_sofia_boton_revisar" t-on-click="analizar"
-                            t-att-disabled="state.revisando">
-                        <i class="fa fa-magic me-1" aria-hidden="true"/>
+                    <button type="button" class="btn o_sofia_boton_revisar" t-on-click="analizar"
+                            t-att-disabled="state.revisando" t-att-aria-busy="state.revisando ? 'true' : 'false'">
+                        <i t-attf-class="fa {{ state.revisando ? 'fa-circle-o-notch fa-spin' : 'fa-magic' }} me-1"
+                           aria-hidden="true"/>
                         <t t-if="state.revisando">Revisando…</t>
                         <t t-else="">Revisar ahora</t>
                     </button>
                 </div>
+                <span class="o_sofia_ultima" t-if="ultimaRevision" t-esc="ultimaRevision"/>
+                <ul class="o_sofia_resumen" t-if="d and resumen.length" aria-label="Lo que queda">
+                    <li t-foreach="resumen" t-as="r" t-key="r.prioridad" t-attf-class="o_sofia_r{{ r.prioridad }}">
+                        <strong t-esc="r.cuantas"/><span t-esc="' ' + r.nombre.toLowerCase()"/>
+                    </li>
+                </ul>
             </header>
 
+            <div class="o_sofia_revisando" t-if="state.revisando and d" role="status">
+                <i class="fa fa-circle-o-notch fa-spin me-2" aria-hidden="true"/>Sofía está revisando el CRM. Puedes
+                seguir con lo de abajo mientras tanto.
+            </div>
+
             <div class="o_sofia_cuerpo">
-                <div t-if="state.error" class="alert alert-danger" role="alert" t-esc="state.error"/>
-
-                <div class="o_sofia_filtros" t-if="d">
-                    <nav class="o_sofia_grupos" aria-label="Qué mirar">
-                        <t t-foreach="gruposVisibles" t-as="g" t-key="g.clave">
-                            <button type="button" t-attf-class="o_sofia_chip {{ state.grupo === g.clave ? 'o_activa' : '' }}"
-                                    t-att-aria-pressed="state.grupo === g.clave ? 'true' : 'false'"
-                                    t-on-click="() => this.elegirGrupo(g.clave)">
-                                <t t-esc="g.nombre"/> <span class="o_sofia_cuenta" t-esc="cuantas(g.clave)"/>
-                            </button>
-                        </t>
-                    </nav>
-                    <label t-if="esGerencia and personas.length" class="o_sofia_para">
-                        <span>Para</span>
-                        <select class="form-select" t-on-change="elegirPersona" t-att-value="state.para">
-                            <option value="todas">Todo el equipo</option>
-                            <t t-foreach="personas" t-as="persona" t-key="persona.id">
-                                <option t-att-value="persona.id" t-esc="persona.nombre"/>
-                            </t>
-                        </select>
-                    </label>
-                </div>
-
-                <p t-if="esGerencia and omitidas" class="o_sofia_omitidas" role="status">
-                    Hay <t t-esc="omitidas"/> más que no caben aquí: se muestran las más urgentes de cada tipo.
-                </p>
-
-                <div t-if="state.cargando and !d" class="o_sofia_vacio">Cargando…</div>
-                <div t-elif="d and !propuestas.length" class="o_sofia_vacio">
-                    <i class="fa fa-check-circle" aria-hidden="true"/>
-                    <p>Nada pendiente por aquí. <t t-if="d.manana">Sofía vuelve a revisar mañana temprano, o cuando
-                        toques «Revisar ahora».</t></p>
-                </div>
-
-                <ol class="o_sofia_lista" t-if="d and propuestas.length">
-                    <li t-foreach="propuestas" t-as="p" t-key="p.id"
-                        t-attf-class="o_sofia_tarjeta o_sofia_p{{ p.prioridad }} {{ state.ocupada === p.id ? 'o_ocupada' : '' }}">
-                        <div class="o_sofia_cabeza">
-                            <span class="o_sofia_prioridad" t-esc="p.prioridad_nombre"/>
-                            <span t-if="p.temperatura" t-attf-class="o_sofia_temp o_sofia_t{{ p.temperatura }}"
-                                  t-esc="p.temperatura_nombre"/>
-                            <span class="o_sofia_tipo" t-esc="p.tipo_nombre"/>
-                            <span t-if="esGerencia and p.grupo !== 'repartir'" class="o_sofia_para_quien">
-                                <t t-if="p.para">Para <t t-esc="p.para"/></t>
-                                <t t-else="">Sin vendedora</t>
-                            </span>
-                        </div>
-                        <h2 class="o_sofia_cliente">
-                            <t t-esc="p.cliente"/>
-                            <small t-if="p.canal" class="text-muted"> · <t t-esc="p.canal"/></small>
-                        </h2>
-                        <p class="o_sofia_que" t-esc="p.titulo"/>
-                        <p class="o_sofia_motivo" t-esc="p.motivo"/>
-                        <div t-if="p.aviso" class="o_sofia_aviso" role="status">
-                            <i t-attf-class="fa {{ p.tipo === 'guardar_datos' ? 'fa-exclamation-triangle' : 'fa-clock-o' }} me-1"
-                               aria-hidden="true"/><t t-esc="p.aviso"/>
-                        </div>
-                        <t t-if="editable(p)">
-                            <label class="o_sofia_etiqueta" t-att-for="'o_sofia_msj_' + p.id">Mensaje que propone
-                                (puedes cambiarlo)</label>
-                            <textarea t-att-id="'o_sofia_msj_' + p.id" class="form-control o_sofia_mensaje" t-att-rows="filas(state.textos[p.id])"
-                                      t-model="state.textos[p.id]"/>
-                        </t>
-                        <div t-if="p.tipo === 'guardar_datos' and state.campos[p.id]" class="o_sofia_ficha">
-                            <p class="o_sofia_etiqueta">Lo que escribió (revísalo; si algo está mal, corrígelo o
-                                bórralo y no se guarda):</p>
-                            <div t-if="'nombre' in p.campos" class="o_sofia_dato">
-                                <label t-att-for="'o_sofia_nombre_' + p.id">Nombre y apellido</label>
-                                <input t-att-id="'o_sofia_nombre_' + p.id" type="text" class="form-control"
-                                       maxlength="120" autocomplete="off" t-model="state.campos[p.id].nombre"/>
-                                <small class="text-muted">Su ficha dice: <t t-esc="p.antes.nombre or '(nada)'"/></small>
-                            </div>
-                            <div t-if="'correo' in p.campos" class="o_sofia_dato">
-                                <label t-att-for="'o_sofia_correo_' + p.id">Correo</label>
-                                <input t-att-id="'o_sofia_correo_' + p.id" type="email" class="form-control"
-                                       maxlength="120" autocomplete="off" inputmode="email"
-                                       t-model="state.campos[p.id].correo"/>
-                                <small class="text-muted">Su ficha dice: <t t-esc="p.antes.correo or '(sin correo)'"/></small>
-                            </div>
-                            <div t-if="'cumple' in p.campos" class="o_sofia_dato">
-                                <span class="o_sofia_dato_nombre" t-att-id="'o_sofia_cumple_' + p.id">Cumpleaños</span>
-                                <div class="o_sofia_cumple" role="group" t-att-aria-labelledby="'o_sofia_cumple_' + p.id">
-                                    <select class="form-select" aria-label="Día" t-model="state.campos[p.id].dia">
-                                        <option value="" t-att-selected="!state.campos[p.id].dia">Día</option>
-                                        <t t-foreach="dias" t-as="dia" t-key="dia">
-                                            <!-- t-model solo no marca la opción al dibujar: va también t-att-selected -->
-                                            <option t-att-value="dia" t-att-selected="state.campos[p.id].dia == dia"
-                                                    t-esc="dia"/>
-                                        </t>
-                                    </select>
-                                    <select class="form-select" aria-label="Mes" t-model="state.campos[p.id].mes">
-                                        <option value="" t-att-selected="!state.campos[p.id].mes">Mes</option>
-                                        <t t-foreach="meses" t-as="mes" t-key="mes_index">
-                                            <option t-att-value="mes_index + 1"
-                                                    t-att-selected="state.campos[p.id].mes == mes_index + 1" t-esc="mes"/>
-                                        </t>
-                                    </select>
-                                </div>
-                                <small class="text-muted">Dijo: <t t-esc="cumpleLegible(p.campos.cumple)"/></small>
-                            </div>
-                        </div>
-                        <p t-if="p.pide_datos" class="o_sofia_nota_datos">
-                            <i class="fa fa-id-card-o me-1" aria-hidden="true"/>
-                            Le pide sus datos para avisarle de promociones, del programa Socios y de su cumpleaños.
-                            Cuando conteste, toca «Revisar ahora» y Sofía te propone guardarlos en su ficha.
-                        </p>
-                        <div class="o_sofia_botones">
-                            <t t-foreach="p.acciones" t-as="accion" t-key="accion">
-                                <t t-set="b" t-value="boton(p, accion)"/>
-                                <button type="button" t-attf-class="btn {{ b.clase }} o_sofia_accion"
-                                        t-att-data-accion="accion" t-att-disabled="state.ocupada === p.id"
-                                        t-on-click="() => this.aplicar(p, accion)">
-                                    <i t-attf-class="fa {{ b.icono }} me-1" aria-hidden="true"/><t t-esc="b.texto"/>
+                <aside class="o_sofia_filtros" t-if="d and d.propuestas.length">
+                    <div class="o_sofia_filtro" role="group" aria-label="Qué mirar">
+                        <span class="o_sofia_filtro_titulo">Qué mirar</span>
+                        <div class="o_sofia_chips">
+                            <t t-foreach="filtrosTipo" t-as="f" t-key="f.clave">
+                                <button type="button" t-att-data-tipo="f.clave"
+                                        t-attf-class="o_sofia_chip {{ state.tipo === f.clave ? 'o_activa' : '' }}"
+                                        t-att-aria-pressed="state.tipo === f.clave ? 'true' : 'false'"
+                                        t-on-click="() => this.elegirTipo(f.clave)">
+                                    <i t-attf-class="fa {{ f.icono }}" aria-hidden="true"/>
+                                    <span class="o_sofia_chip_nombre" t-esc="f.nombre"/>
+                                    <span class="o_sofia_cuenta" t-esc="f.cuantas"/>
                                 </button>
                             </t>
-                            <button type="button" class="btn btn-link o_sofia_descartar"
-                                    t-att-disabled="state.ocupada === p.id" t-on-click="() => this.descartar(p)">
-                                Descartar
-                            </button>
-                            <button t-if="p.lead_id" type="button" class="btn btn-link o_sofia_ver"
-                                    t-on-click="() => this.abrirOportunidad(p)">Ver la oportunidad</button>
                         </div>
-                    </li>
-                </ol>
+                    </div>
+                    <div class="o_sofia_filtro" t-if="esGerencia and filtrosVendedora.length > 1" role="group"
+                         aria-label="Para quién">
+                        <span class="o_sofia_filtro_titulo">Para quién</span>
+                        <div class="o_sofia_chips">
+                            <t t-foreach="filtrosVendedora" t-as="f" t-key="f.clave">
+                                <button type="button" t-att-data-para="f.clave"
+                                        t-attf-class="o_sofia_chip o_sofia_chip_persona {{ state.para === f.clave ? 'o_activa' : '' }}"
+                                        t-att-aria-pressed="state.para === f.clave ? 'true' : 'false'"
+                                        t-on-click="() => this.elegirPersona(f.clave)">
+                                    <i t-attf-class="fa {{ f.clave === 'todas' ? 'fa-users' : 'fa-user-o' }}"
+                                       aria-hidden="true"/>
+                                    <span class="o_sofia_chip_nombre" t-esc="f.nombre"/>
+                                    <span class="o_sofia_cuenta" t-esc="f.cuantas"/>
+                                </button>
+                            </t>
+                        </div>
+                    </div>
+                    <p t-if="esGerencia and omitidas" class="o_sofia_omitidas" role="status">
+                        Hay <t t-esc="omitidas + ' '"/>más que no caben aquí: se muestran las más urgentes de cada tipo.
+                    </p>
+                </aside>
+
+                <div class="o_sofia_lista_zona">
+                    <div t-if="state.error" class="alert alert-danger" role="alert" t-esc="state.error"/>
+
+                    <!-- Mientras carga: la forma de las tarjetas, para que no salte cuando llegan. -->
+                    <div t-if="state.cargando and !d" class="o_sofia_esqueleto" role="status" aria-live="polite">
+                        <span class="visually-hidden">Cargando lo que Sofía te propone…</span>
+                        <div class="o_sofia_esqueleto_tarjeta" t-foreach="[1, 2, 3]" t-as="n" t-key="n">
+                            <span class="o_sofia_esqueleto_linea o_corta"/>
+                            <span class="o_sofia_esqueleto_linea"/>
+                            <span class="o_sofia_esqueleto_linea o_media"/>
+                            <span class="o_sofia_esqueleto_boton"/>
+                        </div>
+                    </div>
+
+                    <!-- Nada pendiente: todo al día. -->
+                    <div t-elif="d and !vivas.length and !propuestas.length" class="o_sofia_vacio o_sofia_al_dia"
+                         role="status">
+                        <span class="o_sofia_al_dia_icono" aria-hidden="true"><i class="fa fa-check"/></span>
+                        <h2>Todo al día</h2>
+                        <p>
+                            <t t-if="esGerencia">El equipo no tiene nada pendiente con Sofía.</t>
+                            <t t-else="">No tienes nada pendiente con Sofía.</t>
+                            <t t-if="d.manana"> Vuelve a revisar mañana temprano, o cuando toques «Revisar ahora».</t>
+                            <t t-else=""> Toca «Revisar ahora» cuando quieras que mire otra vez.</t>
+                        </p>
+                    </div>
+
+                    <!-- Con el filtro no queda nada (lo demás sigue ahí). -->
+                    <div t-elif="d and !propuestas.length" class="o_sofia_vacio o_sofia_filtro_vacio" role="status">
+                        <span class="o_sofia_al_dia_icono" aria-hidden="true"><i class="fa fa-check"/></span>
+                        <h2>Listo por aquí</h2>
+                        <p t-esc="textoFiltroVacio"/>
+                        <button type="button" class="btn btn-primary o_sofia_ver_todo" t-on-click="verTodo">
+                            Ver todo (<t t-esc="vivas.length"/>)
+                        </button>
+                    </div>
+
+                    <section t-foreach="secciones" t-as="s" t-key="s.prioridad"
+                             t-attf-class="o_sofia_seccion o_sofia_s{{ s.prioridad }}"
+                             t-att-aria-labelledby="'o_sofia_seccion_' + s.prioridad">
+                        <h2 class="o_sofia_seccion_titulo" t-att-id="'o_sofia_seccion_' + s.prioridad">
+                            <span t-esc="s.nombre"/>
+                            <span class="o_sofia_seccion_cuenta" t-esc="s.cuantas"/>
+                        </h2>
+                        <ol class="o_sofia_lista">
+                            <t t-foreach="s.propuestas" t-as="p" t-key="p.id">
+                                <t t-set="hecha" t-value="state.hechas[p.id]"/>
+                                <li t-if="hecha" role="status"
+                                    t-attf-class="o_sofia_hecha {{ hecha.clase }} {{ hecha.cerrando ? 'o_cerrando' : '' }}"
+                                    t-att-style="hecha.alto ? '--o-sofia-alto: ' + hecha.alto + 'px' : ''">
+                                    <i t-attf-class="fa {{ hecha.clase === 'o_listo' ? 'fa-check-circle' : hecha.clase === 'o_aviso' ? 'fa-info-circle' : 'fa-times-circle' }}"
+                                       aria-hidden="true"/>
+                                    <div>
+                                        <strong t-esc="p.cliente"/>
+                                        <span t-esc="hecha.texto"/>
+                                    </div>
+                                </li>
+                                <li t-else="" t-att-data-tipo="p.tipo"
+                                    t-attf-class="o_sofia_tarjeta o_sofia_p{{ p.prioridad }} {{ state.ocupada === p.id ? 'o_ocupada' : '' }}">
+                                    <div class="o_sofia_cabeza">
+                                        <h3 class="o_sofia_cliente">
+                                            <span class="o_sofia_cliente_nombre" t-esc="p.cliente"/>
+                                            <span t-if="p.canal" class="o_sofia_canal" t-esc="p.canal"/>
+                                        </h3>
+                                        <span t-if="p.temperatura" t-attf-class="o_sofia_temp o_sofia_t{{ p.temperatura }}"
+                                              t-esc="p.temperatura_nombre"/>
+                                    </div>
+                                    <p class="o_sofia_que">
+                                        <i t-attf-class="fa {{ tipo(p).icono }} fa-fw" aria-hidden="true"
+                                           t-att-title="tipo(p).nombre"/>
+                                        <span t-esc="p.titulo"/>
+                                    </p>
+                                    <p class="o_sofia_motivo" t-esc="p.motivo"/>
+                                    <p t-if="esGerencia and p.grupo !== 'repartir'" class="o_sofia_para_quien">
+                                        <i class="fa fa-user-o me-1" aria-hidden="true"/>
+                                        <t t-if="p.para">Para <t t-esc="p.para"/></t>
+                                        <t t-else="">Sin vendedora</t>
+                                    </p>
+                                    <div t-if="p.aviso" class="o_sofia_aviso" role="status">
+                                        <i t-attf-class="fa {{ p.tipo === 'guardar_datos' ? 'fa-exclamation-triangle' : 'fa-clock-o' }} me-1"
+                                           aria-hidden="true"/><t t-esc="p.aviso"/>
+                                    </div>
+
+                                    <!-- El mensaje se lee como en el chat; «Editar» lo abre en una caja. -->
+                                    <div t-if="editable(p)" class="o_sofia_mensaje_zona">
+                                        <div class="o_sofia_mensaje_cabeza">
+                                            <span t-att-id="'o_sofia_msj_titulo_' + p.id">
+                                                Mensaje que propone<t t-if="cambiado(p)"> (lo cambiaste)</t>
+                                            </span>
+                                            <button t-if="!state.editando[p.id]" type="button"
+                                                    class="btn btn-link o_sofia_editar"
+                                                    t-on-click="() => this.editar(p)">
+                                                <i class="fa fa-pencil me-1" aria-hidden="true"/>Editar
+                                            </button>
+                                            <button t-else="" type="button" class="btn btn-link o_sofia_editar"
+                                                    t-on-click="() => this.dejarDeEditar(p)">
+                                                <i class="fa fa-check me-1" aria-hidden="true"/>Listo
+                                            </button>
+                                        </div>
+                                        <textarea t-if="state.editando[p.id]" t-att-id="'o_sofia_msj_' + p.id"
+                                                  class="form-control o_sofia_mensaje"
+                                                  t-att-aria-labelledby="'o_sofia_msj_titulo_' + p.id"
+                                                  t-att-rows="filas(state.textos[p.id])" t-model="state.textos[p.id]"/>
+                                        <p t-else="" class="o_sofia_burbuja" t-esc="state.textos[p.id]"
+                                           t-on-click="() => this.editar(p)"/>
+                                    </div>
+
+                                    <div t-if="p.tipo === 'guardar_datos' and state.campos[p.id]" class="o_sofia_ficha">
+                                        <p class="o_sofia_etiqueta">Si algo está mal, corrígelo o bórralo: lo que
+                                            quede vacío no se guarda.</p>
+                                        <div t-if="'nombre' in p.campos" class="o_sofia_dato">
+                                            <label t-att-for="'o_sofia_nombre_' + p.id">Nombre y apellido</label>
+                                            <input t-att-id="'o_sofia_nombre_' + p.id" type="text" class="form-control"
+                                                   maxlength="120" autocomplete="off" t-model="state.campos[p.id].nombre"/>
+                                            <small>Su ficha dice: <t t-esc="p.antes.nombre or '(nada)'"/></small>
+                                        </div>
+                                        <div t-if="'correo' in p.campos" class="o_sofia_dato">
+                                            <label t-att-for="'o_sofia_correo_' + p.id">Correo</label>
+                                            <input t-att-id="'o_sofia_correo_' + p.id" type="email" class="form-control"
+                                                   maxlength="120" autocomplete="off" inputmode="email"
+                                                   t-model="state.campos[p.id].correo"/>
+                                            <small>Su ficha dice: <t t-esc="p.antes.correo or '(sin correo)'"/></small>
+                                        </div>
+                                        <div t-if="'cumple' in p.campos" class="o_sofia_dato">
+                                            <span class="o_sofia_dato_nombre" t-att-id="'o_sofia_cumple_' + p.id">Cumpleaños</span>
+                                            <div class="o_sofia_cumple" role="group" t-att-aria-labelledby="'o_sofia_cumple_' + p.id">
+                                                <select class="form-select" aria-label="Día" t-model="state.campos[p.id].dia">
+                                                    <option value="" t-att-selected="!state.campos[p.id].dia">Día</option>
+                                                    <t t-foreach="dias" t-as="dia" t-key="dia">
+                                                        <!-- t-model solo no marca la opción al dibujar: va también t-att-selected -->
+                                                        <option t-att-value="dia" t-att-selected="state.campos[p.id].dia == dia"
+                                                                t-esc="dia"/>
+                                                    </t>
+                                                </select>
+                                                <select class="form-select" aria-label="Mes" t-model="state.campos[p.id].mes">
+                                                    <option value="" t-att-selected="!state.campos[p.id].mes">Mes</option>
+                                                    <t t-foreach="meses" t-as="mes" t-key="mes_index">
+                                                        <option t-att-value="mes_index + 1"
+                                                                t-att-selected="state.campos[p.id].mes == mes_index + 1" t-esc="mes"/>
+                                                    </t>
+                                                </select>
+                                            </div>
+                                            <small>Dijo: <t t-esc="cumpleLegible(p.campos.cumple)"/></small>
+                                        </div>
+                                    </div>
+
+                                    <p t-if="p.pide_datos" class="o_sofia_nota_datos"
+                                       title="Para avisarle de promociones, del programa Socios y de su cumpleaños.">
+                                        <i class="fa fa-id-card-o me-1" aria-hidden="true"/>
+                                        Le pide sus datos. Cuando conteste, «Revisar ahora» te propone guardarlos.
+                                    </p>
+
+                                    <div class="o_sofia_botones" t-if="p.acciones.length">
+                                        <t t-foreach="p.acciones" t-as="accion" t-key="accion">
+                                            <t t-set="b" t-value="boton(p, accion, accion_index)"/>
+                                            <button type="button" t-attf-class="btn {{ b.clase }} o_sofia_accion"
+                                                    t-att-data-accion="accion" t-att-disabled="state.ocupada === p.id"
+                                                    t-on-click="(ev) => this.aplicar(p, accion, ev)">
+                                                <i t-attf-class="fa {{ state.ocupada === p.id and state.enCurso === accion ? 'fa-circle-o-notch fa-spin' : b.icono }} me-1"
+                                                   aria-hidden="true"/><t t-esc="b.texto"/>
+                                            </button>
+                                        </t>
+                                    </div>
+                                    <div class="o_sofia_pie">
+                                        <button t-if="p.lead_id" type="button" class="btn btn-link o_sofia_ver"
+                                                t-on-click="() => this.abrirOportunidad(p)">
+                                            <i class="fa fa-external-link me-1" aria-hidden="true"/>Ver la oportunidad
+                                        </button>
+                                        <button type="button" class="btn btn-link o_sofia_descartar"
+                                                t-att-disabled="state.ocupada === p.id"
+                                                t-on-click="(ev) => this.descartar(p, ev)">
+                                            <i t-attf-class="fa {{ state.ocupada === p.id and state.enCurso === 'descartar' ? 'fa-circle-o-notch fa-spin' : 'fa-times' }} me-1"
+                                               aria-hidden="true"/>Descartar
+                                        </button>
+                                    </div>
+                                </li>
+                            </t>
+                        </ol>
+                    </section>
+                </div>
             </div>
         </div>
     </t>

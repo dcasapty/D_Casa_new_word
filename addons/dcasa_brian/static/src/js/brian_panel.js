@@ -906,7 +906,8 @@ export class BrianPanel extends Component {
 
     /**
      * Botones «abrir» de un mensaje: `mensaje.abrir` (objeto o lista) o `herramientas[].abrir`,
-     * con la forma {modelo, res_id | dominio, titulo} o {url, titulo}.
+     * con la forma {modelo, res_id | dominio, titulo}, {url, titulo} o {accion, titulo} (el id de
+     * una acción de Odoo: las pantallas propias como Sofía o Conversaciones, `abrir_pantalla`).
      */
     enlacesAbrir(mensaje) {
         const lista = [];
@@ -919,10 +920,25 @@ export class BrianPanel extends Component {
                 sumar(h.abrir);
             }
         }
-        return lista.filter((a) => a && (a.modelo || /^(https:\/\/|\/(?!\/))/.test(a.url || "")));
+        return lista.filter(
+            (a) =>
+                a &&
+                (a.modelo ||
+                    (Number.isInteger(a.accion) && a.accion > 0) ||
+                    /^(https:\/\/|\/(?!\/))/.test(a.url || ""))
+        );
     }
 
     abrirRegistro(destino) {
+        if (Number.isInteger(destino.accion) && !destino.modelo) {
+            this.action.doAction(destino.accion).catch(() => {
+                this.notification.add("No pude abrir esa pantalla.", { type: "warning", title: "Brian" });
+            });
+            if (this.ui.isSmall) {
+                this.brian.cerrar();
+            }
+            return;
+        }
         if (!destino.modelo) {
             browser.open(destino.url, "_blank", "noopener");
             return;

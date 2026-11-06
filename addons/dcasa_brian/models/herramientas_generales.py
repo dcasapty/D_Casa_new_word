@@ -67,6 +67,8 @@ class BrianHerramientasGenerales(models.AbstractModel):
             grupo['herramientas'].append(f"{esquema['name']}: {esquema['description'].split(' Ejemplos:')[0]}"
                                          f" ({etiqueta})")
         return {'areas': list(areas.values()),
+                'tambien': 'Te explico y te abro lo de Juan (Conversaciones), Sofía (CRM) y Camila (correo de '
+                           'novedades); sus propuestas y campañas se aprueban en su pantalla, no conmigo.',
                 'nota': 'Nunca borro registros contables ni del libro de puntos, ni toco contraseñas o '
                         'configuración técnica.'}
 

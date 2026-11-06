@@ -379,6 +379,16 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `main` (`741930d`, árbol = `de1fb04`) a staging y Desplegar con ese `app_version`. **Regla:** un cambio del borde
   (rutas, `vars`, `workers_dev`) se despliega con un `app_version` que lo contenga, o sea con una imagen construida
   de ese commit.
+- **Desplegar 55 (fallido) y Desplegar 56** (21:14 y 21:17 UTC del 6 nov, imagen `sha256:5564e4b9…` de CI #282) ·
+  PR #88 («Ver más» en la foto del catálogo y Dependabot; `main` = `513b094`, árbol = `3a1c1d3`). **El 55 falló con
+  `IMAGE_REGISTRY_DOESNT_CONTAIN_IMAGE`** porque se le pasó `app_version` = `513b094` (el *squash*): la misma trampa del
+  2026-10-16 (arriba), ya escrita y repetida igual. Cloudflare activó el Worker nuevo (mismo código probado) y dejó la
+  imagen anterior; producción siguió sana en `3fb5770`. El **56** con `app_version` = `3a1c1d3` (el SHA de la rama que
+  construyó el CI) salió bien: respaldo en 50 s, sano 21:22 y confirmado (versión `3a1c1d3fc144`, base al día, humo
+  ok). **Regla, otra vez:** antes de lanzar Desplegar, copiar `app_version` del registro del CI («El sitio está sano
+  con la versión …» del staging), nunca del resultado del *merge*. **Desplegar Juan 8** desde `main` a la vez: bien
+  (`/salud` con `513b094`; las «7 cosas por revisar» son claves y canales que ya faltaban: `ANTHROPIC_API_KEY`,
+  puente QR, `META_PAGE_TOKEN`). El PR llevaba `[skip ci]`: no hubo CI del PR que cancelar.
 - **Desplegar 54 y Desplegar Juan 7** (18:52 UTC del 6 nov, `3fb5770`, imagen `sha256:29309f79…` de CI #280, respaldo
   previo) · Odoo sano y confirmado 19:07 (versión `3fb5770cdf1a`, base al día, humo ok): Camila etapa 2 con los 11
   arreglos de su revisión adversarial (PR #87, `main` = `3195d7d`, árbol = `3fb5770`; migración `19.0.2.0.0`). Juan
@@ -595,6 +605,24 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   (`test_superficie_rpc.py`), como `create`/`action_draft` en la tanda anterior.
 - **«Conéctate a Cloudflare y mira las cifras»:** las cifras de Odoo (ventas, inventario) viven en el PostgreSQL del
   contenedor; ningún conector de Cloudflare las lee. Se responden con una pantalla o con Brian, no desde aquí.
+- **Varios agentes a la vez, puertos y Chrome (2026-11-06, «Brian al día»):** antes de levantar Odoo o correr
+  `scripts/test.sh`, mirar qué puertos usan los otros (`ps -eo args | grep -o "http-port=[0-9]*"`): el 8194 lo tenía
+  otro agente y la corrida murió con «Address already in use» después de instalar. El enlace `chromium` viejo del
+  scratchpad apuntaba a `chromium-1194`, que ya no existe: usar `/opt/pw-browsers/chromium` (enlace a la versión de
+  hoy). Un agente aislado en su worktree no puede correr comandos compuestos con `cd …&&`, heredocs seguidos de otro
+  comando ni `nohup` con variables: se escribe un script en el scratchpad y se corre con su ruta completa.
+- **Medir si algo «tapa» otra cosa en el navegador:** `getBoundingClientRect` no recorta lo que queda escondido por un
+  contenedor con scroll; hay que intersecarlo con el rectángulo de cada padre con `overflow` distinto de `visible`
+  (si no, un enlace oculto debajo del borde de la ficha «choca» con el botón de Brian). `test_boton_no_tapa.py` lo hace.
+- **Una herramienta de Brian que toma candados va en su propia transacción** (revisión adversarial, 2026-11-06): el
+  turno de Brian es UNA transacción de hasta 150 s con llamadas a la IA; lo que una herramienta bloquee ahí (el
+  `pg_try_advisory_xact_lock` de Sofía, las filas de sus propuestas) queda tomado todo ese tiempo y la pantalla falla.
+  Se usa `with self.env.registry.cursor() as cr:` (+ `SET LOCAL lock_timeout`) y se cuenta lo que hizo DENTRO de ese
+  cursor: Odoo usa REPEATABLE READ y la transacción del turno no ve lo que otra confirmó después. En las pruebas, un
+  savepoint (`modules.module.current_test`). Ver `revisar_con_sofia`.
+- **Reservar espacio solo mientras algo se ve:** `body:has(.o_brian_lanzador:not(.o_brian_oculto)) …` dentro de
+  `media-breakpoint-up(lg)` (libsass lo acepta; `:is()` no se probó y se evitó con un `@each`). Así el hueco para el
+  botón flotante no aparece en el celular (donde Brian va arriba) ni con el panel abierto.
 
 ### Odoo 19
 
@@ -680,6 +708,23 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   rompe la pantalla entera). Un número en `t-att-value` ya sale como texto. Y **`<select t-model>` no marca la opción
   al dibujar** (pone el valor antes de que existan las opciones): cada `<option>` lleva también `t-att-selected`, como
   en Conversaciones. Las dos las atrapó la prueba en el navegador de «Guarda sus datos» (2026-11-05), no las de Python.
+- **Una plantilla de texto `` `…` `` dentro de `${…}` pierde sus espacios en producción** (pantalla de Sofía,
+  2026-11-06): el minificador de Odoo (`rjsmin`, el paquete sin `?debug=assets`) no entiende la plantilla de adentro y
+  la aprieta: `` `${a}${b ? ` (${b})` : ""}` `` sale «p. m.(la pidió…». Con `debug` se ve bien, por eso no se nota al
+  programar. Concatenar con `+` o armar la parte de adentro aparte. Se comprueba con
+  `python -c "from rjsmin import jsmin; print(jsmin(open('archivo.js').read()))"`. Quedan tres casos viejos en
+  Conversaciones (`reparto.js`, `resumen.js`, `catalogo.js`: «1 h30min»); se dejó como tarea aparte.
+- **Probar el scroll de verdad, no con `scrollTop`:** `scrollTop = N` mueve aunque la rueda y el dedo estén bloqueados.
+  La rueda: `Input.dispatchMouseEvent` (`type: 'mouseWheel'`). El dedo: `Input.dispatchTouchEvent` (`touchStart`, unos
+  20 `touchMove` subiendo y `touchEnd`) con `Emulation.setTouchEmulationEnabled`; `Input.synthesizeScrollGesture` NO
+  mueve nada en Chrome sin pantalla (2026-11-06). Con `overflow-y: hidden` los toques no bajan (la prueba distingue el
+  bug). Ver `dcasa_sofia/tests/test_sofia_pantalla.py`.
+- **Capturas de «cargando»:** `page.route` con `sleep` no sirve (ya anotado); demorar el XHR en la página con
+  `context.add_init_script` que envuelve `XMLHttpRequest.prototype.send` (el RPC de Odoo 19 usa XHR, no `fetch`).
+- **Que la pantalla no salte al resolver una tarjeta:** dejarla en su lugar con el mismo alto (medido con
+  `getBoundingClientRect` en el clic y puesto como variable CSS) diciendo lo que pasó, y cerrarla después con una
+  animación de alto (con `margin-bottom` negativo igual al `gap` de la lista, para que el último paso no salte).
+  `overflow-anchor: none` en las tarjetas evita que el navegador reacomode la vista por su cuenta.
 - **Leer datos de lo que escribe la gente (nombres, fechas, correos) da falsos positivos que no se ven en las pruebas
   felices:** «Muy amable» o «Calle Principal» parecen un nombre; «entréguenmelo el 15/11», «cama 3/4» o «el cumpleaños
   de mi mamá» parecen un cumpleaños; «te envié la cotización a tu correo, ¿la recibiste?» parece un pedido de datos.

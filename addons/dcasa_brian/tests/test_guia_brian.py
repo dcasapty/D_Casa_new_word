@@ -54,7 +54,18 @@ class TestBrianGuia(TransactionCase):
         self.assertTrue(respuesta.get('ok'), respuesta)
         con_boton = [r for r in respuesta['datos']['resultados'] if r.get('abrir')]
         self.assertTrue(con_boton, respuesta)
-        self.assertTrue(all(r['abrir']['modelo'] for r in con_boton))
+        self.assertTrue(any(r['abrir'].get('modelo') for r in con_boton))
+        self.assertTrue(all(r['abrir'].get('modelo') or r['abrir'].get('accion') for r in con_boton))
+
+    def test_una_pantalla_propia_trae_boton_abrir_con_su_accion(self):
+        """Las pantallas a la medida (Valor del inventario, Sofía, Conversaciones…) también se abren con un botón
+        (2026-11-06): antes Brian solo decía la ruta del menú."""
+        respuesta = self.ejecutar(self.gerencia, '¿cuánto vale el inventario?')
+        self.assertTrue(respuesta.get('ok'), respuesta)
+        accion = self.env.ref('dcasa_interfaz.menu_dcasa_valor_inventario').action
+        self.assertEqual(accion._name, 'ir.actions.client')
+        botones = [r['abrir'] for r in respuesta['datos']['resultados'] if r.get('abrir')]
+        self.assertIn(accion.id, [b.get('accion') for b in botones], respuesta)
 
     def test_el_panel_de_brian_sabe_recibir_una_pregunta_escrita(self):
         """La Guía deja la pregunta en la caja de Brian (servicio.preguntar) y el panel la recoge sin enviarla."""

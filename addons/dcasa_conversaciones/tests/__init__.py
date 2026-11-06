@@ -42,4 +42,5 @@ from . import (
     test_seguridad,
     test_telegram_consola,
     test_origen_chatbot,
+    test_brian_conversaciones,
 )
