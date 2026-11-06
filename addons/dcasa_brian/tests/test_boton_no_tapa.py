@@ -129,7 +129,8 @@ revisar("Conversaciones");
 const e = enviar.getBoundingClientRect(), f = boton();
 if (e.right > f.left) { throw new Error("Brian: «Enviar» debe quedar a la izquierda del botón"); }
 // La ficha del cliente, a la derecha: arriba y abajo de su scroll.
-[...document.querySelectorAll(".o_dcj button")].find((b) => /Cliente/.test(b.textContent)).click();
+const cliente = await esperar(() => document.querySelector('button[aria-controls="o_dcj_ficha"]'), "el botón Cliente");
+if (cliente.getAttribute("aria-expanded") !== "true") { cliente.click(); }
 await esperar(() => document.querySelector(".o_dcj_ficha_abierta .o_dcj_ficha_cuerpo .o_dcj_tarjeta"), "la ficha");
 await pausa(500);
 revisar("la ficha del cliente");

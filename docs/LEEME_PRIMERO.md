@@ -144,6 +144,13 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
   tocaron los otros módulos). Prueba de navegador por geometría (`test_boton_no_tapa.py`, 1366 y 1024 px). Medido en
   1024, 1280 y 1440 px en Conversaciones (con y sin ficha), Sofía, Camila y Envíos: nada se cruza. Capturas antes y
   después en el scratchpad de la sesión (`capturas_brian`).
+- El contrato visual de Conversaciones (`test_panel_visual.py`) ya escondía el botón de Brian; ahora le pone además
+  `o_brian_oculto` (la clase del panel abierto) para que la foto salga sin la reserva: las referencias no cambian.
+- Pruebas en local, base limpia con los 30 módulos de producción: `/dcasa_brian`, `/dcasa_base`, `/dcasa_guia`,
+  `/dcasa_sofia`, `/dcasa_camila`, `/dcasa_envios` y las de Brian, el origen y la interfaz de Conversaciones y del
+  correo: 987 pruebas, 2 fallas ajenas (las referencias de «lista» y «conexiones» a 390 px, que ya fallaban en esta
+  máquina) y 2 de la prueba nueva por un selector («Cliente» también estaba en el nombre de la conversación de
+  prueba), corregido y en verde (3 de 3). `ruff check addons scripts` limpio.
 - **Sin push ni despliegue.** Sigue: capturas a la dueña y su visto bueno; después, CI y staging.
 
 ### 2026-11-06 (5): Camila etapa 2 («a lo grande, todo conectado con todo»), en producción
