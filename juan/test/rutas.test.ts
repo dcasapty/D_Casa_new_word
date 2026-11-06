@@ -52,8 +52,16 @@ class ConversacionDoble implements ConversacionApi {
   falla: string | null = null;
   seguimientoResultado: any = { ok: true, resultado: "enviado" };
 
+  /** Guarda, pero la respuesta del Durable Object se pierde en la red («Network connection lost»). */
+  perderRespuesta = false;
+
+  private guardado = (id: string) => this.guardados.some((g) => g.id_mensaje === id);
+  private atendido = (id: string) => this.ingestados.some((g) => g.id_mensaje === id);
+
   async ingest(e: Entrante) {
     if (this.falla) throw new Error(this.falla);
+    // Como el Durable Object: lo que entró por la bandeja y ya se atendió es un repetido.
+    if (this.guardado(e.id_mensaje) && this.atendido(e.id_mensaje)) return { ok: true as const, accion: "duplicado" as const };
     this.ingestados.push(e);
     return { ok: true as const, accion: "en_espera" as const };
   }
@@ -61,10 +69,11 @@ class ConversacionDoble implements ConversacionApi {
     if (this.puertaGuardar) await this.puertaGuardar;
     if (this.fallaGuardar) throw new Error(this.fallaGuardar);
     if (this.fallarSoloA === e.id_mensaje) throw new Error("no se pudo guardar este");
-    // Como el Durable Object: el mismo id_mensaje (un reintento de Meta) no es nuevo.
-    const nuevo = !this.guardados.some((g) => g.id_mensaje === e.id_mensaje);
+    // Como el Durable Object: el mismo id_mensaje (un reintento de Meta) no es nuevo; sigue pendiente mientras nadie lo atendió.
+    const nuevo = !this.guardado(e.id_mensaje);
     if (nuevo) this.guardados.push(e);
-    return { nuevo };
+    if (this.perderRespuesta) throw new Error("Network connection lost.");
+    return { nuevo, pendiente: !this.atendido(e.id_mensaje) };
   }
   async enviarVendedora(s: unknown) {
     if (this.falla) throw new Error(this.falla);
@@ -792,6 +801,47 @@ describe("webhooks de Meta (WhatsApp Cloud, Messenger, Instagram): el 200 sale D
     err.mockRestore();
   });
 
+  it("5 · se guardó pero la respuesta del Durable Object se perdió en la red: 500, y el reintento de Meta lo atiende ya (no espera al rescate)", async () => {
+    const m = montarMeta();
+    m.conv.perderRespuesta = true;
+    const err = vi.spyOn(console, "error").mockImplementation(() => {});
+    expect((await m.pedir(await cloud(lote([wa("wamid.L")])), envMeta)).status).toBe(500);
+    await m.despues();
+    expect(m.conv.ingestados).toEqual([]);
+    m.conv.perderRespuesta = false;
+    expect((await m.pedir(await cloud(lote([wa("wamid.L")])), envMeta)).status).toBe(200);
+    await m.despues();
+    expect(m.conv.ingestados.map((e) => e.id_mensaje)).toEqual(["wamid.L"]);
+    // Y otro reintento, ya atendido, no lo repite.
+    expect((await m.pedir(await cloud(lote([wa("wamid.L")])), envMeta)).status).toBe(200);
+    await m.despues();
+    expect(m.conv.ingestados).toHaveLength(1);
+    err.mockRestore();
+  });
+
+  it("5 · si el Durable Object no contesta, el webhook no se queda colgado: 500 a los 3 s (dentro de los 5 s de Meta)", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    const err = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const m = montarMeta();
+      let pedido: number | null = null;
+      m.conv.guardarRecibido = () => {
+        pedido ??= Date.now();
+        return new Promise(() => {}); // el Durable Object nunca contesta
+      };
+      const req = await cloud(lote([wa("wamid.M")]));
+      let res: Response | undefined;
+      void m.pedir(req, envMeta).then((r) => (res = r));
+      for (let i = 0; i < 100 && !res; i++) await vi.advanceTimersByTimeAsync(100);
+      expect(res?.status).toBe(500);
+      expect(pedido).not.toBeNull();
+      expect(Date.now() - pedido!).toBeLessThanOrEqual(3_100);
+    } finally {
+      err.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
   it("si falla el PRIMERO de una misma persona, los que siguen de ella tampoco se guardan: el reintento los trae en orden", async () => {
     const m = montarMeta();
     m.conv.fallarSoloA = "wamid.K1";
@@ -844,19 +894,22 @@ describe("webhooks de Meta (WhatsApp Cloud, Messenger, Instagram): el 200 sale D
     expect(m.conv.ingestados).toEqual([]);
   });
 
-  it("si Odoo tarda con la configuración, no se le espera más de 2 s: el mensaje se guarda y Meta recibe su 200", async () => {
+  it("si Odoo tarda con la configuración, no se le espera más de 1 s: el mensaje se guarda y Meta recibe su 200", async () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
     try {
       const m = montarMeta();
-      m.deps.config = () => new Promise<Config>(() => {}); // Odoo colgado
+      let pedido: number | null = null;
+      m.deps.config = () => {
+        pedido ??= Date.now();
+        return new Promise<Config>(() => {}); // Odoo colgado
+      };
       const req = await cloud(lote([wa("wamid.I")]));
-      const inicio = Date.now();
       let res: Response | undefined;
       const p = m.pedir(req, envMeta).then((r) => (res = r));
-      while (!res) await vi.advanceTimersByTimeAsync(100);
+      for (let i = 0; i < 100 && !res; i++) await vi.advanceTimersByTimeAsync(100);
       await p;
-      expect(res.status).toBe(200);
-      expect(Date.now() - inicio).toBeLessThanOrEqual(2_100);
+      expect(res!.status).toBe(200);
+      expect(Date.now() - pedido!).toBeLessThanOrEqual(1_100);
       expect(m.conv.guardados.map((e) => e.id_mensaje)).toEqual(["wamid.I"]);
     } finally {
       vi.useRealTimers();

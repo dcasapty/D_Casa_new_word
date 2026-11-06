@@ -25,8 +25,11 @@ import { bearerValido } from "./seguridad";
 /** Lo que las rutas necesitan de una conversación (el stub del Durable Object o un doble en las pruebas). */
 export interface ConversacionApi {
   ingest(e: Entrante): Promise<ResultadoIngest>;
-  /** Guarda el mensaje crudo (webhooks de Meta, antes del 200). `nuevo: false` = ya estaba (un reintento): no se atiende otra vez. */
-  guardarRecibido(e: Entrante): Promise<{ nuevo: boolean }>;
+  /**
+   * Guarda el mensaje crudo (webhooks de Meta, antes del 200). `nuevo: false` = ya se había recibido (un reintento de Meta).
+   * `pendiente` = sigue en la bandeja sin que nadie lo atienda: el Worker lo atiende (los repetidos se reconocen adentro).
+   */
+  guardarRecibido(e: Entrante): Promise<{ nuevo: boolean; pendiente: boolean }>;
   enviarVendedora(s: SolicitudEnviar): Promise<{ ok: true; id_mensaje: string }>;
   fijarEstado(s: { estado: "humano" | "bot"; pausada_hasta?: string | number | null; nota_para_el_bot?: string | null }): Promise<{ ok: true }>;
   seguimiento(s: SolicitudSeguimiento): Promise<ResultadoSeguimiento>;
@@ -47,12 +50,16 @@ export interface DepsRutas {
 }
 
 /**
- * Lo más que un webhook de Meta espera a la configuración de Odoo antes de guardar el mensaje. Meta pide contestar en 5 segundos o
- * menos (developers.facebook.com/docs/messenger-platform/webhooks, «Webhook Performance Requirements»; la guía de WhatsApp Cloud no
- * da cifra y reintenta hasta 7 días). Casi siempre está en caché (60 s); si Odoo tarda, el mensaje se guarda igual y la decisión de
- * si el canal está encendido se toma después (el Worker o el rescate del Durable Object).
+ * Webhooks de Meta: Meta pide contestar en 5 segundos o menos (developers.facebook.com/docs/messenger-platform/webhooks, «Webhook
+ * Performance Requirements»; la guía de WhatsApp Cloud no da cifra y reintenta hasta 7 días). Antes del 200 solo se espera:
+ *   · la configuración de Odoo, como mucho `PLAZO_CONFIG_WEBHOOK_MS`: casi siempre está en caché (60 s); si Odoo tarda, el mensaje se
+ *     guarda igual y si el canal está encendido se decide después (el Worker o el rescate del Durable Object);
+ *   · guardar en el Durable Object, como mucho `PLAZO_GUARDAR_MS` para todo el lote: si no confirma a tiempo, 500 y Meta reintenta
+ *     (si sí alcanzó a guardarlo, el reintento lo reconoce y lo atiende sin duplicarlo).
+ * Juntos quedan por debajo de los 5 s.
  */
-const PLAZO_CONFIG_WEBHOOK_MS = 2_000;
+const PLAZO_CONFIG_WEBHOOK_MS = 1_000;
+const PLAZO_GUARDAR_MS = 3_000;
 
 const esCanal = (v: unknown): v is CanalId => typeof v === "string" && (TODOS_LOS_CANALES as readonly string[]).includes(v);
 const esObjeto = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
@@ -168,25 +175,37 @@ async function guardarYContestar(adaptador: AdaptadorCanal, respuesta: Response,
   if (aGuardar.length === 0) return respuesta;
 
   // Conversaciones distintas a la vez (un lote grande no alarga la respuesta); dentro de una misma, en el orden del lote, y si uno
-  // falla los que siguen de esa persona tampoco se guardan (el reintento de Meta los trae en orden).
-  const filas = new Map<string, Promise<unknown>>();
-  const guardados = await Promise.allSettled(
-    aGuardar.map((e) => {
-      const clave = `${e.canal}:${e.id_externo}`;
-      const turno = (filas.get(clave) ?? Promise.resolve()).then(() => d.conversacion(e.canal, e.id_externo).guardarRecibido(crudoDe(e)));
-      filas.set(clave, turno);
-      return turno;
-    }),
-  );
-  const nuevos = aGuardar.filter((_, i) => {
-    const g = guardados[i];
-    return g.status === "fulfilled" && g.value.nuevo;
+  // falla los que siguen de esa persona tampoco se guardan (el reintento de Meta los trae en orden). Un solo plazo para todo el lote.
+  let reloj: ReturnType<typeof setTimeout> | undefined;
+  const plazo = new Promise<never>((_, rechazar) => {
+    reloj = setTimeout(() => rechazar(new Error(`el Durable Object no confirmó el guardado en ${PLAZO_GUARDAR_MS / 1000} s`)), PLAZO_GUARDAR_MS);
   });
-  if (nuevos.length > 0) {
+  plazo.catch(() => {});
+  const filas = new Map<string, Promise<unknown>>();
+  let guardados: PromiseSettledResult<{ nuevo: boolean; pendiente: boolean }>[];
+  try {
+    guardados = await Promise.allSettled(
+      aGuardar.map((e) => {
+        const clave = `${e.canal}:${e.id_externo}`;
+        const turno = (filas.get(clave) ?? Promise.resolve()).then(() => Promise.race([d.conversacion(e.canal, e.id_externo).guardarRecibido(crudoDe(e)), plazo]));
+        filas.set(clave, turno);
+        return turno;
+      }),
+    );
+  } finally {
+    clearTimeout(reloj);
+  }
+  // Se atiende lo nuevo y también lo ya guardado que sigue esperando sin que nadie lo atienda (la respuesta del primer intento se
+  // perdió en la red DESPUÉS de guardarlo): sin esto esperaría al rescate. Los repetidos se reconocen adentro: no se contestan dos veces.
+  const aAtender = aGuardar.filter((_, i) => {
+    const g = guardados[i];
+    return g.status === "fulfilled" && g.value.pendiente;
+  });
+  if (aAtender.length > 0) {
     d.esperarDespues(
       (async () => {
         // Uno que falla no frena a los demás; el que falló sigue en la bandeja y lo atiende el rescate.
-        for (const e of nuevos) {
+        for (const e of aAtender) {
           await entregar(e, d).catch((err) => console.error(`[juan] ${adaptador.ruta}:`, err instanceof Error ? err.message : String(err)));
         }
       })(),

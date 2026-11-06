@@ -46,6 +46,9 @@ const ESQUEMA = [
      proximo INTEGER NOT NULL,
      creado INTEGER NOT NULL
    )`,
+  // Los id de todo lo que entró por la bandeja, unos días: un reintento de Meta que llega tarde (después de un eco, de un canal
+  // apagado o de «Borrar mis datos», que no dejan fila en `mensajes`) se reconoce y no se atiende como nuevo.
+  "CREATE TABLE IF NOT EXISTS recibidos (id_mensaje TEXT PRIMARY KEY, ts INTEGER NOT NULL)",
 ];
 
 export function crearEsquema(sql: Sql): void {
@@ -231,6 +234,10 @@ export class Bandeja {
   vencidas(ahora: number): FilaBandeja[] {
     return this.sql.todos<FilaBandeja>("SELECT * FROM bandeja WHERE proximo <= ? ORDER BY creado, rowid", ahora);
   }
+  /** Todas, en el orden en que llegaron. */
+  todas(): FilaBandeja[] {
+    return this.sql.todos<FilaBandeja>("SELECT * FROM bandeja ORDER BY creado, rowid");
+  }
   proxima(): number | null {
     return this.sql.uno<{ p: number | null }>("SELECT MIN(proximo) AS p FROM bandeja")?.p ?? null;
   }
@@ -246,6 +253,21 @@ export class Bandeja {
   }
   purgar(antesDe: number): void {
     this.sql.correr("DELETE FROM bandeja WHERE creado < ?", antesDe);
+  }
+}
+
+/** Los `id_mensaje` que entraron por la bandeja (solo el id y cuándo): ver el esquema. */
+export class Recibidos {
+  constructor(private readonly sql: Sql) {}
+
+  existe(idMensaje: string): boolean {
+    return !!this.sql.uno("SELECT 1 AS x FROM recibidos WHERE id_mensaje = ?", idMensaje);
+  }
+  anotar(idMensaje: string, ahora: number): void {
+    this.sql.correr("INSERT OR IGNORE INTO recibidos (id_mensaje, ts) VALUES (?, ?)", idMensaje, ahora);
+  }
+  purgar(antesDe: number): void {
+    this.sql.correr("DELETE FROM recibidos WHERE ts < ?", antesDe);
   }
 }
 

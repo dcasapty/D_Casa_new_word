@@ -23,7 +23,7 @@ import { pinesEscritos, taparPines, textoParaElModelo } from "../dcasa/sensibles
 import { TEXTO_FALLO_TECNICO, TEXTO_TOPE_DIARIO, textoPasoAVendedora } from "../dcasa/textos";
 import { aMilisegundosOdoo, OdooError, type AdjuntoOdoo, type CuerpoMensaje, type DefHerramienta, type EstadoOdoo, type OdooApi, type RespuestaMensaje } from "../odoo/cliente";
 import type { Env } from "../env";
-import { Bandeja, Cola, crearEsquema, Fotos, Kv, Medios, Mensajes, type FilaBandeja, type FilaMensaje } from "./almacen";
+import { Bandeja, Cola, crearEsquema, Fotos, Kv, Medios, Mensajes, Recibidos, type FilaBandeja, type FilaMensaje } from "./almacen";
 import { DESCANSO_POR_REPETIDO_MS, DESCANSO_POR_TOPE_MS, esRepetido, superaTopeDiario, TOPE_DIARIO_POR_DEFECTO } from "./antispam";
 import { partirEnBurbujas } from "./burbujas";
 import { cifrasDeTexto, construirHerramientas, RegistroDelTurno, textoDeLaHerramienta } from "./herramientas";
@@ -102,6 +102,10 @@ const ESPERA_COLA_LENTA_MS = 6 * 3600_000;
  * lo atiende la alarma. Holgado frente a lo que tarda el Worker (configuración ≤ ~21 s, descargas ≤ 15 s) para no hacerlo dos veces.
  */
 const RESCATE_MS = 2 * 60_000;
+/** Los id de lo recibido por la bandeja se recuerdan más que los 7 días en que Meta puede seguir reintentando una entrega. */
+const VIDA_RECIBIDOS_MS = 8 * 24 * 3600_000;
+/** El rescate no puede decidir porque Odoo no dio su configuración: no es un fallo del mensaje (no cuenta como intento). */
+class ConfigDesconocida extends Error {}
 /** Un envío desde Odoo recordado por su `id_envio`: el tiempo que Odoo puede seguir reintentándolo. */
 const VIDA_ID_ENVIO_MS = 3 * 24 * 3600_000;
 /** Mientras un envío con ese `id_envio` está saliendo, otro igual espera (si no, el cliente recibiría el mensaje dos veces). */
@@ -174,7 +178,18 @@ export interface DepsMotor {
 
 export interface ResultadoIngest {
   ok: true;
-  accion: "en_espera" | "duplicado" | "silencio" | "descanso" | "propio" | "eco" | "vencido" | "persona" | "tope_diario";
+  /** «olvidado»: «Borrar mis datos» llegó mientras se atendía; lo que había empezado antes se suelta sin guardar. */
+  accion: "en_espera" | "duplicado" | "silencio" | "descanso" | "propio" | "eco" | "vencido" | "persona" | "tope_diario" | "olvidado";
+}
+
+/** Cómo se atiende un mensaje por dentro (no viaja por RPC). */
+interface OpcionesDeIngreso {
+  /** `generacion` del objeto cuando empezó el trabajo: si «Borrar mis datos» la cambió, se suelta. */
+  generacion: number;
+  /** Cuándo llegó a Juan (la bandeja): lo que esperó por culpa nuestra no lo vuelve «vencido». */
+  recibido?: number;
+  /** Atender antes lo que llegó primero y sigue en la bandeja (falso cuando el que llama ya va en orden). */
+  conAnteriores: boolean;
 }
 
 export interface SolicitudEnviar {
@@ -215,9 +230,12 @@ export class MotorConversacion {
   readonly medios: Medios;
   readonly fotos: Fotos;
   readonly bandeja: Bandeja;
+  readonly recibidos: Recibidos;
   private procesando = false;
-  /** `id_mensaje` que `ingest` está atendiendo ahora mismo en este objeto: el rescate de la bandeja no los toca. */
+  /** `id_mensaje` que alguien (el Worker o el rescate) está atendiendo ahora mismo en este objeto: nadie más los toca. */
   private readonly enCurso = new Set<string>();
+  /** Sube con cada «Borrar mis datos»: lo que se estaba atendiendo desde antes no se guarda después. */
+  private generacion = 0;
   private ultimoEscribiendo: number | null = null;
   /** Lo último que se le dijo a Odoo sobre si el asistente está preparando una respuesta (no se repite). */
   private escribiendoEnOdoo = false;
@@ -232,6 +250,7 @@ export class MotorConversacion {
     this.medios = new Medios(deps.sql);
     this.fotos = new Fotos(deps.sql);
     this.bandeja = new Bandeja(deps.sql);
+    this.recibidos = new Recibidos(deps.sql);
   }
 
   private log(nivel: "info" | "warn" | "error", mensaje: string, extra?: unknown) {
@@ -309,72 +328,114 @@ export class MotorConversacion {
    * alarma de rescate. Es lo único que el webhook espera antes de contestar 200, así que tiene que ser rápido. Cloudflare no entrega
    * la respuesta de un Durable Object hasta que lo escrito quedó en disco: con `{nuevo}` el mensaje ya no se pierde.
    *
-   * Idempotente por `id_mensaje` (Meta manda el mismo id cuando reintenta): si ya se atendió o ya está en la bandeja, `nuevo: false`
-   * y quien llama no lo vuelve a atender.
+   * Idempotente por `id_mensaje` (Meta manda el mismo id cuando reintenta): lo ya recibido no es `nuevo`. `pendiente` = sigue en la
+   * bandeja y nadie lo está atendiendo: quien llama lo atiende (p. ej. la respuesta del primer intento se perdió por la red después de
+   * guardarlo); `ingest` reconoce los repetidos, así que atenderlo de más no lo contesta dos veces.
    */
-  async guardarRecibido(e: Entrante): Promise<{ nuevo: boolean }> {
-    if (!e.id_mensaje) throw new Error("un mensaje sin id_mensaje no se puede guardar (no se podría reconocer un reintento)");
-    const nuevo = !this.mensajes.existe(e.id_mensaje) && !this.bandeja.existe(e.id_mensaje);
+  async guardarRecibido(e: Entrante): Promise<{ nuevo: boolean; pendiente: boolean }> {
+    const id = e.id_mensaje;
+    if (!id) throw new Error("un mensaje sin id_mensaje no se puede guardar (no se podría reconocer un reintento)");
+    const nuevo = !this.recibidos.existe(id) && !this.mensajes.existe(id) && !this.bandeja.existe(id);
     if (nuevo) {
       const ahora = this.deps.ahora();
-      this.bandeja.guardar(e.id_mensaje, JSON.stringify(crudoDe(e)), ahora + RESCATE_MS, ahora);
+      this.bandeja.guardar(id, JSON.stringify(crudoDe(e)), ahora + RESCATE_MS, ahora);
+      this.recibidos.anotar(id, ahora);
     }
     // También al repetirse: si la primera vez falló justo al armar la alarma, el reintento la deja armada.
     await this.programar();
-    return { nuevo };
+    return { nuevo, pendiente: this.bandeja.existe(id) && !this.enCurso.has(id) };
   }
 
   async ingest(e: Entrante): Promise<ResultadoIngest> {
     const id = e.id_mensaje;
-    if (id) this.enCurso.add(id);
+    // Otro (el rescate, o el Worker de un intento anterior) ya lo está atendiendo; si falla, sigue en la bandeja y se reintenta.
+    if (id && this.enCurso.has(id) && this.bandeja.existe(id)) return { ok: true, accion: "duplicado" };
+    const generacion = this.generacion;
+    return this.reclamado(id, () => this.ingestar(e, { generacion, conAnteriores: true }));
+  }
+
+  /** Marca el mensaje como «lo estoy atendiendo» mientras dura `trabajo`. */
+  private async reclamado<T>(id: string | undefined, trabajo: () => Promise<T>): Promise<T> {
+    if (!id) return trabajo();
+    this.enCurso.add(id);
     try {
-      const r = await this.atenderEntrante(e);
-      // Atendido (o reconocido como repetido o eco): ya no hace falta rescatarlo. Si `atenderEntrante` lanzó, se queda en la bandeja.
-      if (id) this.bandeja.borrar(id);
-      return r;
+      return await trabajo();
     } finally {
-      if (id) this.enCurso.delete(id);
+      this.enCurso.delete(id);
     }
   }
 
-  private async atenderEntrante(e: Entrante): Promise<ResultadoIngest> {
+  private async ingestar(e: Entrante, op: OpcionesDeIngreso): Promise<ResultadoIngest> {
+    const id = e.id_mensaje;
+    // Entró por la bandeja y ya salió de ella (atendido, eco, canal apagado o «Borrar mis datos»): no se atiende otra vez.
+    if (id && this.recibidos.existe(id) && !this.bandeja.existe(id)) return { ok: true, accion: "duplicado" };
+    if (op.conAnteriores) await this.atenderAnteriores(id);
+    const r = await this.atenderEntrante(e, op);
+    // Atendido (o reconocido como repetido, eco u olvidado): ya no hace falta rescatarlo. Si lanzó, se queda en la bandeja.
+    if (id) this.bandeja.borrar(id);
+    return r;
+  }
+
+  private async atenderEntrante(e: Entrante, op: OpcionesDeIngreso): Promise<ResultadoIngest> {
+    const vigente = () => op.generacion === this.generacion;
+    if (!vigente()) return { ok: true, accion: "olvidado" };
     const ahora = this.deps.ahora();
     this.fijarIdentidad(e);
 
     if (e.id_mensaje && this.mensajes.existe(e.id_mensaje)) return { ok: true, accion: "duplicado" };
 
-    const { lista, transcripciones, lecturas, stickers } = await this.prepararAdjuntos(e, ahora);
+    const { lista, transcripciones, lecturas, stickers } = await this.prepararAdjuntos(e, ahora, vigente);
+    // «Borrar mis datos» llegó mientras se transcribía o se leía una imagen: no se guarda nada de este mensaje.
+    if (!vigente()) return { ok: true, accion: "olvidado" };
     // Mientras se preparaban los adjuntos pudo entrar el mismo mensaje por otra puerta (un reintento del proveedor en paralelo).
     if (e.id_mensaje && this.mensajes.existe(e.id_mensaje)) return { ok: true, accion: "duplicado" };
     const textoOriginal = (e.texto ?? "").trim();
     const texto = [textoOriginal, ...transcripciones.map((t) => `(nota de voz) ${t}`)].filter(Boolean).join("\n");
 
     // Lo escribió una persona del negocio desde su teléfono o bandeja.
-    if (e.propio) return this.ingestarPropio(e, texto, lista, ahora);
+    if (e.propio) return this.ingestarPropio(e, texto, lista, ahora, vigente);
 
     // ── Anti-spam (corre antes de todo lo demás, sin gastar IA) ──
     const previos = this.mensajes.textosDelCliente(5);
     const repetido = !!textoOriginal && esRepetido(textoOriginal, previos);
     const sobreElTope = superaTopeDiario(this.mensajes.delClienteDesde(ahora - 24 * 3600_000), this.deps.topeDiario ?? TOPE_DIARIO_POR_DEFECTO);
     const pide = !!textoOriginal && pideUnaPersona(textoOriginal);
-    const vencido = ahora - e.ts > MENSAJE_VENCIDO_MS;
+    // «Vencido» es lo que el CANAL entregó tarde (más de 2 h entre que el cliente lo escribió y que llegó a Juan). Lo que esperó en la
+    // bandeja por culpa nuestra (Odoo caído, el Worker se reinició) no cuenta: se contesta mientras el canal deje (ventana de 24 h).
+    const vencido = (op.recibido ?? ahora) - e.ts > MENSAJE_VENCIDO_MS || ahora - e.ts > VENTANA_24H_MS;
+    // Solo la pausa PROPIA corta aquí. Lo que Odoo dijo la última vez puede estar viejo (una pausa que ya venció, una
+    // devolución que aún no nos llega): el mensaje se guarda para contestar y la ráfaga decide cuando Odoo ya respondió.
+    const silenciada = this.silencioLocal(ahora);
+    const descanso = this.kv.numero("descanso_hasta");
+    // Qué pasa con el mensaje se decide ANTES de guardarlo, para guardarlo, marcarlo y armar la ráfaga en un mismo paso sin esperas:
+    // si el Durable Object se reinicia a mitad, no puede quedar guardado pero sin marcar (un rescate lo vería «repetido» y nadie lo
+    // contestaría). Orden de siempre: «persona» pasa incluso en descanso (regla 1).
+    const destino: "silencio" | "vencido" | "persona" | "descanso" | "repetido" | "tope" | "espera" = silenciada
+      ? "silencio"
+      : vencido
+        ? "vencido"
+        : pide
+          ? "persona"
+          : descanso !== null && descanso > ahora
+            ? "descanso"
+            : repetido
+              ? "repetido"
+              : sobreElTope
+                ? "tope"
+                : "espera";
 
     const adjuntosLocales: AdjuntoLocal[] = lista.map((a, i) => ({ ...a, ...(lecturas[i] ? { lectura: lecturas[i]! } : {}), ...(stickers[i] ? { sticker: true as const } : {}) }));
-    const idFila = this.mensajes.insertar({ id_mensaje: e.id_mensaje, rol: "cliente", texto: texto || "(archivo)", adjuntos: adjuntosLocales, ts: e.ts, pendiente: false });
+    this.mensajes.insertar({ id_mensaje: e.id_mensaje, rol: "cliente", texto: texto || "(archivo)", adjuntos: adjuntosLocales, ts: e.ts, pendiente: destino === "persona" || destino === "espera" });
     this.kv.poner("ultimo_cliente_ts", Math.max(this.kv.numero("ultimo_cliente_ts") ?? 0, e.ts));
 
     // Odoo es el historial permanente: todo mensaje del cliente se registra, conteste el bot o no.
     this.cola.agregar("mensaje", this.cuerpoDeMensaje(e, taparPines(texto), "cliente", "entrante", lista), ahora);
-    await this.programar();
 
     if (textoOriginal && noQuiereSeguimiento(textoOriginal) && !this.kv.bandera("sin_seguimiento")) {
       this.kv.poner("sin_seguimiento", true);
       this.cola.agregar("herramienta", { nombre: "anotar_conversacion", argumentos: { nota: "El cliente pidió que no lo contacten más o dijo que ya no le interesa. No enviar seguimientos." } }, ahora);
     }
 
-    // Solo la pausa PROPIA corta aquí. Lo que Odoo dijo la última vez puede estar viejo (una pausa que ya venció, una
-    // devolución que aún no nos llega): el mensaje se guarda para contestar y la ráfaga decide cuando Odoo ya respondió.
-    const silenciada = this.silencioLocal(ahora);
     // Todo archivo queda anotado para una vendedora (puede ser un comprobante o un documento de identidad).
     // Una captura de producto que el lector entendió con claridad no necesita a una vendedora: el bot la atiende con el catálogo.
     // Un sticker tampoco: el equipo lo ve en el chat, pero no hay nada que revisar.
@@ -386,43 +447,32 @@ export class MotorConversacion {
     if (lecturas.some((l) => l && (l.tipo === "comprobante" || l.parece_pago)) && !silenciada && !this.silencioDeOdoo(ahora)) {
       this.cola.agregar("herramienta", { nombre: "etiquetar_conversacion", argumentos: { etiqueta: "Comprobante recibido" } }, ahora);
     }
-    if (silenciada) return { ok: true, accion: "silencio" };
-    if (vencido) return { ok: true, accion: "vencido" };
 
-    // «persona», «vendedora», «humano»: pasa siempre, incluso en descanso (regla 1).
-    if (pide) {
-      this.mensajes.marcarPendientes([idFila], true);
+    if (destino === "persona") {
       this.kv.poner("pide_persona", true);
       this.kv.poner("t_rafaga", ahora + 1000);
-      await this.programar();
-      return { ok: true, accion: "persona" };
-    }
-
-    const descanso = this.kv.numero("descanso_hasta");
-    if (descanso !== null && descanso > ahora) return { ok: true, accion: "descanso" };
-
-    if (repetido) {
-      this.kv.poner("descanso_hasta", ahora + DESCANSO_POR_REPETIDO_MS);
+    } else if (destino === "repetido" || destino === "tope") {
+      this.kv.poner("descanso_hasta", ahora + (destino === "repetido" ? DESCANSO_POR_REPETIDO_MS : DESCANSO_POR_TOPE_MS));
       this.mensajes.limpiarPendientes();
       this.kv.poner("t_rafaga", null);
-      await this.programar();
-      this.log("warn", "mensaje repetido: la conversación descansa 1 hora");
-      return { ok: true, accion: "descanso" };
+    } else if (destino === "espera") {
+      this.kv.poner("t_rafaga", this.siguienteSalidaDeRafaga(ahora));
     }
-
-    if (sobreElTope) {
-      this.kv.poner("descanso_hasta", ahora + DESCANSO_POR_TOPE_MS);
-      this.mensajes.limpiarPendientes();
-      this.kv.poner("t_rafaga", null);
-      await this.emitir({ burbujas: [TEXTO_TOPE_DIARIO], medios: [], autor: "bot", registrar: true }).catch((err) => this.log("error", "despedida del tope diario", String(err)));
-      await this.programar();
-      return { ok: true, accion: "tope_diario" };
-    }
-
-    this.mensajes.marcarPendientes([idFila], true);
-    this.kv.poner("t_rafaga", this.siguienteSalidaDeRafaga(ahora));
     await this.programar();
-    return { ok: true, accion: "en_espera" };
+
+    switch (destino) {
+      case "repetido":
+        this.log("warn", "mensaje repetido: la conversación descansa 1 hora");
+        return { ok: true, accion: "descanso" };
+      case "tope":
+        await this.emitir({ burbujas: [TEXTO_TOPE_DIARIO], medios: [], autor: "bot", registrar: true }).catch((err) => this.log("error", "despedida del tope diario", String(err)));
+        await this.programar();
+        return { ok: true, accion: "tope_diario" };
+      case "espera":
+        return { ok: true, accion: "en_espera" };
+      default:
+        return { ok: true, accion: destino };
+    }
   }
 
   /**
@@ -449,15 +499,19 @@ export class MotorConversacion {
   }
 
   /** Mensaje escrito por una persona de D'CASA desde el teléfono o la bandeja del canal. */
-  private async ingestarPropio(e: Entrante, texto: string, lista: AdjuntoOdoo[], ahora: number): Promise<ResultadoIngest> {
-    const recientes = this.mensajes.salientesDesde(ahora - 15 * 60_000);
+  private async ingestarPropio(e: Entrante, texto: string, lista: AdjuntoOdoo[], ahora: number, vigente: () => boolean): Promise<ResultadoIngest> {
     // El eco del propio bot (o de algo que se mandó desde Odoo) no es una persona escribiendo.
-    if ((texto && esEcoDelNegocio(texto, recientes)) || (e.id_mensaje && this.kv.texto(`env:${e.id_mensaje}`) !== null)) {
-      return { ok: true, accion: "eco" };
-    }
+    const esEco = () =>
+      (!!texto && esEcoDelNegocio(texto, this.mensajes.salientesDesde(ahora - 15 * 60_000))) || (!!e.id_mensaje && this.kv.texto(`env:${e.id_mensaje}`) !== null);
+    if (esEco()) return { ok: true, accion: "eco" };
+    // La configuración se pide ANTES de guardar: guardar y callar al bot van en un mismo paso, sin esperas en medio.
+    const cfg = await this.deps.config();
+    if (!vigente()) return { ok: true, accion: "olvidado" };
+    if (e.id_mensaje && this.mensajes.existe(e.id_mensaje)) return { ok: true, accion: "duplicado" };
+    if (esEco()) return { ok: true, accion: "eco" };
     this.mensajes.insertar({ id_mensaje: e.id_mensaje, rol: "vendedora", texto: texto || "(archivo)", adjuntos: lista, ts: e.ts });
     this.cola.agregar("mensaje", this.cuerpoDeMensaje(e, texto, "vendedora", "saliente", lista), ahora);
-    this.humanoIntervino(await this.deps.config(), ahora);
+    this.humanoIntervino(cfg, ahora);
     await this.programar();
     return { ok: true, accion: "propio" };
   }
@@ -477,7 +531,11 @@ export class MotorConversacion {
     };
   }
 
-  private async prepararAdjuntos(e: Entrante, ahora: number): Promise<{ lista: AdjuntoOdoo[]; transcripciones: string[]; lecturas: (LecturaImagen | null)[]; stickers: boolean[] }> {
+  private async prepararAdjuntos(
+    e: Entrante,
+    ahora: number,
+    vigente: () => boolean = () => true,
+  ): Promise<{ lista: AdjuntoOdoo[]; transcripciones: string[]; lecturas: (LecturaImagen | null)[]; stickers: boolean[] }> {
     const lista: AdjuntoOdoo[] = [];
     const transcripciones: string[] = [];
     const lecturas: (LecturaImagen | null)[] = [];
@@ -504,6 +562,8 @@ export class MotorConversacion {
             this.log("warn", "no se pudo transcribir la nota de voz", String(err));
           }
         }
+        // «Borrar mis datos» llegó mientras se leía o transcribía: el archivo no se guarda (quien llama suelta el mensaje).
+        if (!vigente()) break;
         try {
           const id = this.deps.uuid().replace(/-/g, "");
           this.medios.guardar(id, a.bytes, mime, a.nombre, ahora);
@@ -577,6 +637,7 @@ export class MotorConversacion {
     this.cola.purgar(ahora - RETENCION_COLA_HERRAMIENTAS_MS, "herramienta");
     this.medios.purgar(ahora - 2 * 24 * 3600_000);
     this.bandeja.purgar(ahora - RETENCION_COLA_MENSAJES_MS);
+    this.recibidos.purgar(ahora - VIDA_RECIBIDOS_MS);
     this.fotos.purgar(ahora - 30 * 24 * 3600_000);
     this.deps.sql.correr("DELETE FROM enviados WHERE ts < ?", ahora - 24 * 3600_000);
     this.deps.sql.correr("DELETE FROM seguimientos WHERE ts < ?", ahora - 90 * 24 * 3600_000);
@@ -587,33 +648,63 @@ export class MotorConversacion {
   // ── Bandeja: lo que Meta entregó y el Worker no alcanzó a atender ──────────
 
   /**
-   * Atiende aquí lo que lleva más de `RESCATE_MS` en la bandeja (lo normal es que el Worker lo atienda en segundos y lo borre).
-   * Con la configuración de Odoo desconocida no se decide nada (un canal que arranca apagado parecería apagado): se reintenta más
-   * tarde. Canal apagado en Odoo: se suelta sin registrar, como hace el webhook. Si falla, espera más cada vez; nunca se descarta
-   * por fallar (solo por vejez, como la cola).
+   * Atiende aquí lo que lleva más de `RESCATE_MS` en la bandeja (lo normal es que el Worker lo atienda en segundos y lo borre), y
+   * todo lo que llegó ANTES que eso, en orden: el cliente no recibe dos respuestas sueltas ni Odoo los mensajes al revés.
+   * Con la configuración de Odoo desconocida no se decide nada (un canal que arranca apagado parecería apagado): se mira otra vez a
+   * los 2 minutos, sin contar como intento, así que una caída larga de Odoo no lo deja esperando horas. Canal apagado en Odoo: se
+   * suelta sin registrar, como hace el webhook. Si atenderlo falla, espera más cada vez; nunca se descarta por fallar (solo por
+   * vejez, como la cola).
    */
   private async rescatarBandeja(): Promise<void> {
-    for (const fila of this.bandeja.vencidas(this.deps.ahora())) {
-      const ahora = this.deps.ahora();
+    const ahora = this.deps.ahora();
+    const filas = this.bandeja.todas();
+    let hasta = -1;
+    filas.forEach((f, i) => {
+      if (f.proximo <= ahora) hasta = i;
+    });
+    for (const fila of filas.slice(0, hasta + 1)) {
       if (this.enCurso.has(fila.id_mensaje)) {
-        this.bandeja.posponer(fila.id_mensaje, ahora + RESCATE_MS, false);
+        if (fila.proximo <= ahora) this.bandeja.posponer(fila.id_mensaje, ahora + RESCATE_MS, false);
         continue;
       }
-      try {
-        await this.rescatar(fila);
-      } catch (err) {
-        const espera = Math.min(ESPERA_COLA_LENTA_MS, RESCATE_MS * 2 ** fila.intentos);
-        this.bandeja.posponer(fila.id_mensaje, this.deps.ahora() + espera, true);
-        // Un cliente sin respuesta: tras unos intentos sube a «error» para que se vea en el registro del Worker.
-        this.log(fila.intentos + 1 >= 3 ? "error" : "warn", `no se pudo atender un mensaje guardado de Meta (intento ${fila.intentos + 1}); se reintenta`, String(err).slice(0, 300));
+      await this.atenderFila(fila);
+    }
+  }
+
+  /** Antes de atender un mensaje, lo que llegó primero y sigue esperando en la bandeja (en orden, salvo lo que ya se está atendiendo). */
+  private async atenderAnteriores(id: string | undefined): Promise<void> {
+    const filas = this.bandeja.todas();
+    if (filas.length === 0) return;
+    const propia = id ? filas.findIndex((f) => f.id_mensaje === id) : -1;
+    for (const fila of propia >= 0 ? filas.slice(0, propia) : filas.filter((f) => f.id_mensaje !== id)) {
+      if (!this.enCurso.has(fila.id_mensaje)) await this.atenderFila(fila);
+    }
+  }
+
+  private async atenderFila(fila: FilaBandeja): Promise<void> {
+    // La lista se leyó antes: puede que ya lo haya atendido el Worker o que «Borrar mis datos» la vaciara.
+    if (!this.bandeja.existe(fila.id_mensaje)) return;
+    try {
+      await this.reclamado(fila.id_mensaje, () => this.rescatar(fila));
+    } catch (err) {
+      if (err instanceof ConfigDesconocida) {
+        this.bandeja.posponer(fila.id_mensaje, this.deps.ahora() + RESCATE_MS, false);
+        this.log("warn", "un mensaje guardado de Meta espera la configuración de Odoo; se mira otra vez en 2 minutos");
+        return;
       }
+      const espera = Math.min(ESPERA_COLA_LENTA_MS, RESCATE_MS * 2 ** fila.intentos);
+      this.bandeja.posponer(fila.id_mensaje, this.deps.ahora() + espera, true);
+      // Un cliente sin respuesta: tras unos intentos sube a «error» para que se vea en el registro del Worker.
+      this.log(fila.intentos + 1 >= 3 ? "error" : "warn", `no se pudo atender un mensaje guardado de Meta (intento ${fila.intentos + 1}); se reintenta`, String(err).slice(0, 300));
     }
   }
 
   private async rescatar(fila: FilaBandeja): Promise<void> {
+    const generacion = this.generacion;
     const crudo = JSON.parse(fila.cuerpo) as Entrante;
     const cfg = await this.deps.config();
-    if (cfg === CONFIG_POR_DEFECTO) throw new Error("no se pudo leer la configuración de Odoo");
+    if (!this.bandeja.existe(fila.id_mensaje)) return;
+    if (cfg === CONFIG_POR_DEFECTO) throw new ConfigDesconocida("no se pudo leer la configuración de Odoo");
     if (!canalActivo(cfg, crudo.canal)) {
       this.log("info", "mensaje guardado de un canal apagado en Odoo: se suelta sin registrar");
       this.bandeja.borrar(fila.id_mensaje);
@@ -621,8 +712,10 @@ export class MotorConversacion {
     }
     const adaptador = this.deps.canal(crudo.canal);
     const descargar = adaptador?.descargar ? (ref: string) => adaptador.descargar!(ref, this.deps.env) : undefined;
-    this.log("warn", "el Worker no alcanzó a atender un mensaje de Meta: lo atiende la alarma");
-    await this.ingest(await prepararEntrante(entranteDeCrudo(crudo, descargar)));
+    const e = await prepararEntrante(entranteDeCrudo(crudo, descargar));
+    if (!this.bandeja.existe(fila.id_mensaje)) return;
+    this.log("warn", "un mensaje de Meta esperaba en la bandeja: se atiende ahora");
+    await this.ingestar(e, { generacion, recibido: fila.creado, conAnteriores: false });
   }
 
   // ── Cola de escrituras a Odoo (con reintentos: Odoo puede estar dormido) ──
@@ -1472,8 +1565,12 @@ export class MotorConversacion {
   /**
    * «Borrar mis datos» (Ley 81): Odoo ya borró la conversación y aquí se borra la copia de trabajo (mensajes, cola,
    * archivos, memoria de la persona). Sin esto, el bot seguiría «recordando» lo que se borró. Devuelve cuántos mensajes había.
+   * Lo que se estaba atendiendo en ese momento (una nota de voz que se transcribía, un rescate de la bandeja) se suelta sin guardar
+   * (`generacion`). Solo quedan los `id_mensaje` de lo recibido por la bandeja (`recibidos`, sin contenido, unos días): así un
+   * reintento de Meta de un mensaje anterior al borrado no lo vuelve a traer.
    */
   async olvidar(): Promise<{ ok: true; mensajes: number }> {
+    this.generacion++;
     const mensajes = this.deps.sql.uno<{ n: number }>("SELECT COUNT(*) AS n FROM mensajes")?.n ?? 0;
     for (const tabla of ["mensajes", "cola", "medios", "fotos", "enviados", "seguimientos", "kv", "bandeja"]) this.deps.sql.correr(`DELETE FROM ${tabla}`);
     await this.deps.fijarAlarma(null);

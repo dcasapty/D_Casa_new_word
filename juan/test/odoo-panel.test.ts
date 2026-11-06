@@ -33,7 +33,7 @@ function montar() {
   const config = normalizarConfig(CONFIG_POR_DEFECTO);
   const conv = {
     ingest: async () => ({ ok: true as const, accion: "en_espera" as const }),
-    guardarRecibido: async () => ({ nuevo: true }),
+    guardarRecibido: async () => ({ nuevo: true, pendiente: true }),
     enviarVendedora: async (s: unknown) => (enviados.push(s), { ok: true as const, id_mensaje: "m1" }),
     fijarEstado: async (s: unknown) => (estados.push(s), { ok: true as const }),
     seguimiento: async () => ({ ok: true as const, resultado: "enviado" as const }),
