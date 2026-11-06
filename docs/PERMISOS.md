@@ -451,8 +451,9 @@ contabilidad (`account.group_account_readonly` o `account.group_account_manager`
 
 ## Roles y grupos (mapa completo)
 
-Puesto al día el 2026-10-18 contra `security/*.xml` y `security/ir.model.access.csv` de cada módulo. En la ficha del
-usuario, la sección **D'CASA** tiene dos selectores: el rol (Vendedora o Gerencia) y **Nómina** (Administra la nómina).
+Puesto al día el 2026-11-06 contra `security/*.xml` y `security/ir.model.access.csv` de cada módulo. En la ficha del
+usuario, la sección **D'CASA** tiene **tres selectores**: el rol (Vendedora, Caja o Gerencia), **Nómina** (Administra la
+nómina) y **Marketing**. Nómina y Marketing se suman a cualquier rol.
 Los roles se arman con grupos estándar de Odoo; casi no hay permisos nuevos.
 
 | Rol | Grupo (xmlid) | Qué incluye | Qué ve y hace |
@@ -462,9 +463,11 @@ Los roles se arman con grupos estándar de Odoo; casi no hay permisos nuevos.
 | **Gerencia** | `dcasa_base.group_gerencia` | Vendedora + gerente de Ventas + contador (`account.group_account_user`) + gerente de Inventario y de Compras + gestor de productos + **Administra la nómina** | Todo lo de la tienda: descuentos sin tope, existencias a mano, fusión de contactos, costos y ganancia, Estadísticas, Comparar ventas, reglas del programa de vendedores. El usuario `admin` nace en Gerencia. No incluye Ajustes técnicos ni gestión de usuarios ni el diseñador del sitio. |
 | **Contabilidad** | `account.group_account_user` / `account.group_account_manager` / `account.group_account_readonly` | Grupos de Odoo | Todo lo contable (reglas «todo» en `dcasa_reglas_contables.xml`); el lector solo lee. Ven el menú Empleados. |
 | **Administra la nómina** | `dcasa_nomina.group_nomina` | Gerente de RR. HH. + contador | Planillas, sueldos, liquidaciones, reembolsos, bono por meta. Gerencia lo incluye. |
+| **Marketing** | `dcasa_marketing.group_marketing` (decisión de la dueña, 2026-10-22) | Solo usuario interno (`base.group_user`): ningún grupo de Ventas, Contabilidad ni Inventario | La app **Marketing** completa (stock por categoría, más vendidos, movimiento, quietos, fotos que faltan), cambiar las fotos de cualquier producto y las herramientas de marketing de Brian. Sus cifras son unidades, no dinero: sin costos, contabilidad ni ventas de otros. |
 | **Administradores** | `base.group_system` | Ajustes técnicos y usuarios | Lo anterior más: Registro de acciones, Consumo y Ajustes de Brian; Accesos al panel; Cargar datos del sistema anterior; Correo a clientes. Su doble factor es obligatorio con `DCASA_2FA_OBLIGATORIO=1`. |
 | **Bodega** | *no hay grupo propio*: `stock.group_stock_user` (usuario) o `stock.group_stock_manager` (gerente) de Odoo | — | Usuario: entregas, recepciones, el panel **Bodega** (despachar y validar entregas; también lo tienen la Vendedora y Gerencia) y **Escáner** (buscar). Gerente: además *Códigos de barras* e *Historial de etiquetas*. Contar existencias y cambiar precios en el Escáner: solo Gerencia. |
 | **Juan** (usuario técnico) | `dcasa_conversaciones.group_juan` | Ningún otro grupo | Solo ve las herramientas de Juan; sin permisos internos, sin clave de API ni contraseña. |
+| **Sofía** (no es un rol: va con Ventas) | `sales_team.group_sale_salesman` y `sales_team.group_sale_manager` (`addons/dcasa_sofia/security/`) | — | Cada vendedora ve **solo las propuestas que son para ella** (nunca las de repartir) y lee los mensajes; Gerencia de ventas ve todas, el historial de revisiones y **edita los mensajes** (CRM › Configuración › Sofía). Nadie crea, edita ni borra propuestas a mano: aprobar o descartar va por los botones de Sofía ([SOFIA.md](SOFIA.md)). |
 | **Portal** (cliente con cuenta de la tienda) | `base.group_portal` | — | Su `/my` (lleva a `/mi-cuenta`), sus pedidos y facturas en PDF, cambiar contraseña y direcciones. |
 | **Público** (visitante, socio con PIN) | `base.group_public` | — | Sitio, tienda, carrito, `/socios` y `/mi-cuenta` con celular + PIN (una marca en la sesión, no un usuario de Odoo). |
 
@@ -485,11 +488,11 @@ Lo que se enciende o se apaga sin tocar código (o con un cambio de una línea).
 | `DCASA_ROBOTS_IA` | variable | `equilibrada` | robots.txt para rastreadores de IA |
 | Programa de vendedores | `vendedores.programaActivo` en `addons/dcasa_socios/data/puntos.json` | encendido | Comisiones del programa |
 | Canje de vendedores externos / en efectivo | `canje.externosHabilitado` / `efectivoHabilitado` en `puntos.json` | **apagados** | Esperan dictamen del abogado y la contadora; Ajustes los muestra de solo lectura y el servidor los ignora |
-| Correo a clientes | `RESEND_API_KEY` + *Ventas › Configuración › Correo a clientes* (`dcasa_correo.enviar_a_clientes`, `al_pagar`) | **apagado** | Factura, abono y bienvenida por correo |
+| Correo a clientes | `RESEND_API_KEY` + *Ventas › Configuración › Correo a clientes* (`dcasa_correo.enviar_a_clientes`, `al_pagar`) | **apagado** (en producción, encendido desde el 2026-10-27) | Factura, abono y bienvenida por correo |
 | Factura electrónica DGI | `l10n_pa_fe_activo` de la empresa (`dcasa_fe_pa`) | **apagada** y el módulo no se instala | Envío al PAC |
 | Constructor visual del sitio | `dcasa_interfaz.sitio_editable` (Ajustes técnicos) | **apagado** | El sitio se edita por código |
 | Black Weekend | `DCASA_BLACK_WEEKEND` y su ventana | producción `0`, staging `1` | Campaña visible |
-| Juan: canales y bot | *Conversaciones › Configuración › Ajustes de Juan* | WhatsApp QR y Telegram sí; API oficial, Messenger e Instagram no | Qué canales atiende el asistente |
+| Juan: canales y bot | *Conversaciones › Configuración › Ajustes de Juan* | WhatsApp QR y Telegram sí; API oficial, Messenger e Instagram no (en producción, la API oficial encendida desde el 2026-11-02) | Qué canales atiende el asistente ([JUAN_CANALES.md](JUAN_CANALES.md)) |
 | Tope de gasto de IA de Brian | *Brian › Ajustes* | 0 (sin tope) | Corta las llamadas al modelo al llegar |
 | Salidas de emergencia del arranque | `DCASA_PERMITIR_BAJAR`, `DCASA_HUMO=0` (panel del Worker) | sin poner | Solo mientras hagan falta ([OPERACION.md](OPERACION.md)) |
 

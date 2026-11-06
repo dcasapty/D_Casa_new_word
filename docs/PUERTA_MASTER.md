@@ -5,6 +5,11 @@ producción, cómo comprobarlo y cómo encender `DCASA_PUERTA_OBLIGATORIA`. El d
 [SEGURIDAD_ACCESO.md §8](SEGURIDAD_ACCESO.md#8-la-puerta-del-equipo-cloudflare-access--clave--código-de-la-app).
 **Nunca pegues un secreto en el chat**: se ponen en GitHub o en Cloudflare, y Claude solo confirma que el nombre existe.
 
+> **Estado al 2026-11-06:** `/master` funciona en producción desde el 2026-10-18 (la dueña volvió a pegar el AUD) y la
+> aplicación de Access cubre también `dcasapty.com/master*` desde el 2026-10-26. El interruptor
+> `DCASA_PUERTA_OBLIGATORIA` de producción sigue en `"0"`: encenderlo (§4) está **pendiente, sin fecha**; la dueña decide
+> cuándo, cuando el equipo se haya adaptado (issue #27). Lo de §0 es el diagnóstico del 18 de octubre.
+
 ## 0. Lo que se encontró (2026-10-18)
 
 - **El código y las variables son iguales en staging y en producción**, salvo el interruptor (staging en `"1"`,
@@ -27,8 +32,8 @@ producción, cómo comprobarlo y cómo encender `DCASA_PUERTA_OBLIGATORIA`. El d
 2. Busca la aplicación del equipo de producción (se llama «Master (producción)»; si no la encuentras, la de staging se
    llama «Master (staging)»). Ábrela con **Configure**.
 3. En **Public hostname** (o *Destinations*) tiene que estar:
-   - **Dominio:** `dcasa.dcasapty.workers.dev` (la dirección de producción hoy; cuando se traslade el dominio se
-     **agrega** `dcasapty.com`, ver [TRASLADO_DOMINIO.md](historico/TRASLADO_DOMINIO.md));
+   - **Dominio:** `dcasapty.com` (la dirección de producción desde el 2026-10-27; se agregó el 2026-10-26) y
+     `dcasa.dcasapty.workers.dev` (sigue respondiendo);
    - **Path:** `master`.
    Si dice `dcasapty.com` o `dcasa-staging…`, agrega la de producción y guarda. Una aplicación puede tener varias
    direcciones: su AUD no cambia.
@@ -55,7 +60,7 @@ para que llegue al sitio (Actions › **Desplegar**, como siempre; lo hace Claud
 
 ## 3. Comprobar (con el interruptor todavía en «0»)
 
-1. Abre `https://dcasa.dcasapty.workers.dev/master` en una ventana de incógnito.
+1. Abre `https://dcasapty.com/master` en una ventana de incógnito.
 2. **Lo correcto:** Cloudflare pide tu correo → llega el PIN → aparece «Acceso del equipo» → correo y clave → código de
    Google Authenticator → el panel.
 3. **Si algo falla, la página lo dice** (fondo azul, «Acceso del equipo»), con un **Código** abajo:
@@ -69,7 +74,7 @@ para que llegue al sitio (Actions › **Desplegar**, como siempre; lo hace Claud
 | `sin correo` | Access no mandó el correo | Paso 1.5; usar un correo sin tildes ni ñ |
 | `puerta_incompleta` | Falta (o está mal escrito) uno de los cuatro secretos: la página dice cuál | Paso 2 |
 
-4. También se ve en `https://dcasa.dcasapty.workers.dev/__edge/health`: el bloque `"puerta"` dice `"estado": "lista"`
+4. También se ve en `https://dcasapty.com/__edge/health`: el bloque `"puerta"` dice `"estado": "lista"`
    (las cuatro bien escritas), `"incompleta"` (con los nombres que faltan) o `"apagada"`, y el `"modo"`.
 5. Repite hasta entrar al panel por `/master`. Pídele a cada persona del equipo que entre una vez así.
 

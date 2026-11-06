@@ -37,7 +37,10 @@ Armado el 2026-10-16 a partir de `docs/`, los commits y los registros de GitHub 
 
 ## Incidentes de producción
 
-### 1. 2026-10-16 · Etapas 1 y 2: «Error de servidor» en el Inicio y en Conversaciones (el despliegue dijo «sano») · #97
+### 1. 2026-10-16 · Etapas 1 y 2: «Error de servidor» en el Inicio y en Conversaciones (el despliegue dijo «sano»)
+
+> En notas y comentarios viejos este incidente sale como `#97`: era un número de una lista interna, **no** un issue
+> de GitHub.
 
 **Qué vio la dueña** (06:07–06:16 UTC, recién subidas las Etapas 1 y 2): «Error de servidor de Odoo» en el Inicio
 (`dcasa.tablero`), en el panel de cada conversación y en todo lo que lee pedidos de venta. La traza decía
@@ -106,7 +109,7 @@ Armado el 2026-10-16 a partir de `docs/`, los commits y los registros de GitHub 
 - **Cómo se resolvió:** Desplegar run 3 con la imagen de la rama `5a99f129` (mismo código de PR #38): primero 500 unos
   2,5 min, luego un reinicio («arrancando») y recién ahí sano. El segundo arranque sí actualizó la base (sin
   confirmar).
-- **Lección:** «el primer despliegue de una versión deja la base sin actualizar» (#97 en PRIORIDADES) ya había pasado
+- **Lección:** «el primer despliegue de una versión deja la base sin actualizar» (este mismo incidente, en la lista vieja de PRIORIDADES) ya había pasado
   aquí y en staging, un día antes del incidente 1.
 
 ### 3. 2026-10-15 · Botones de Brian en Telegram fallaban en producción
@@ -147,7 +150,7 @@ uno antes:
   cosa). No hay en GitHub ningún workflow que lo explique (Desplegar Juan solo tiene 2 runs del 2026-10-13; el del
   puente, ninguno).
 - **Qué falta:** que alguien con acceso a Cloudflare mire el historial de *rollouts* de `dcasa-odoocontainer`; y, tras
-  cada despliegue, comprobar la etiqueta de la imagen activa además de `/__edge/health`. El arreglo #97 ayuda (la salud
+  cada despliegue, comprobar la etiqueta de la imagen activa además de `/__edge/health`. El arreglo del incidente 1 ayuda (la salud
   dice qué versión responde y la imagen vieja no baja una base nueva), pero no impide la reversión.
 
 ### 6. 2026-10-23 · Sistema lento y «Se perdió la conexión» tras la tanda del 22 oct
@@ -232,7 +235,7 @@ módulos nuevos (o sea, si necesitaba `odoo -u`). Conteos hechos con `git diff` 
 | Desplegar 6 | 2026-10-16 02:29 | `bf40605e` | PR #42 orden de impresión: entrega → factura → copia | **Sí**: campo `incluir_entrega` en el asistente de impresión, 2 vistas, datos | Sano (~2,4 min) | Si el primer arranque no actualizó, abrir «Imprimir documentos» fallaría (sin confirmar). digest `2912bb69…` |
 | Desplegar 7 | 2026-10-16 05:47 | `fbf375b0` | PR #43 Etapas 1 y 2 | **Sí**: ~12 campos (`dcasa_utilidad`, `dcasa_sin_costo`…), 4 vistas, datos, seguridad | «Sano» **en falso** (7 s tras el corte) | Incidente 1 a las 06:07. digest `f61b9adf…` |
 | Desplegar 8 | 2026-10-16 06:16 | `5fa33f4c` | PR #44 (solo docs): SHA del *squash* de `main` | — | **Falló**: `IMAGE_REGISTRY_DOESNT_CONTAIN_IMAGE` | Respaldo previo hecho; el Worker nuevo quedó activo; la app seguía en `bf40605e` |
-| Desplegar 9 | 2026-10-16 07:20 | `3570c3a1` | Arreglo #97 (imagen con commit y huella; chequeo estricto) | **Sí**: la huella de la base no existía, así que actualizó todo (aplicó por fin las Etapas 1 y 2) | **Sano y confirmado** 07:22 → 07:27 (versión `3570c3a12e55`, `base_al_dia` true, 5 min de vigilancia) | El primer minuto respondía la instancia anterior (sin versión) y el chequeo nuevo **no** la dio por sana. La dueña confirmó Inicio y conversaciones. Staging igual en CI #171. digest `4e9b9155…` |
+| Desplegar 9 | 2026-10-16 07:20 | `3570c3a1` | Arreglo del incidente 1 (imagen con commit y huella; chequeo estricto) | **Sí**: la huella de la base no existía, así que actualizó todo (aplicó por fin las Etapas 1 y 2) | **Sano y confirmado** 07:22 → 07:27 (versión `3570c3a12e55`, `base_al_dia` true, 5 min de vigilancia) | El primer minuto respondía la instancia anterior (sin versión) y el chequeo nuevo **no** la dio por sana. La dueña confirmó Inicio y conversaciones. Staging igual en CI #171. digest `4e9b9155…` |
 | Desplegar 10 | 2026-10-16 13:12 | `d37af4fd` | Etapa 3, prueba de humo del arranque, «nunca hacia atrás», Conversaciones #25 punto 1, botón «Volver a una versión estable» (PR #46) | **Sí** (Etapa 3 y Conversaciones; la huella cambió y actualizó) | **Sano y confirmado** 13:25 (versión `d37af4fde5b2`, base al día, humo ok, tras 10 min de vigilancia) | Con el «sí» de la dueña. Staging igual en CI #174. digest `015dbd40…` |
 | Desplegar 11 | 2026-10-16 14:57 | `9be426a4` | Inicio: cotizaciones y entregas arriba con acento, «Ganancia bruta», cuadre exacto con Contabilidad; Contabilidad: aviso de utilidad sin costo de ventas, «Vencido» sin negativos | No (vistas, plantillas y estilos; sin campos nuevos) | **Sano y confirmado** 15:11 (versión `9be426a46e15`, base al día, humo ok, tras 10 min de vigilancia) | Con el «sí» de la dueña («tan pronto puedas subir las correcciones a producción hazlo»). Staging igual en CI #178. digest `876ca5f5…` |
 | Desplegar 12 | 2026-10-16 19:25 | `431cbfe8` | Bono por meta de ventas (1 % si se llega a la meta; a la primera planilla del mes siguiente), aviso de pedidos repetidos, avisos del chat «En Odoo» y contador en rojo | **Sí** (modelos y campos nuevos de Nómina, `comision_meta` en la línea; la huella cambió y actualizó) | **Sano y confirmado** 19:38 (versión `431cbfe80d88`, base al día, humo ok, tras 10 min de vigilancia) | Con el «sí» de la dueña («avísame cuando esté y si tienen mi si») y, tras las correcciones de la revisión, «Sí, termina». Staging igual en CI #182. digest `3894d505…` |
@@ -247,10 +250,10 @@ módulos nuevos (o sea, si necesitaba `odoo -u`). Conteos hechos con `git diff` 
 2. **PR #42, #40, #36 y #30:** necesitaban `-u`; ningún registro de GitHub prueba si el primer arranque lo hizo. El
    chequeo viejo solo fallaba si la columna que falta la usa `/dcasa/salud` (p. ej. `res_users`), así que un «sano» no
    lo garantiza (sin confirmar). Los despliegues siguientes cambiaron `APP_VERSION` y probablemente pusieron la base al
-   día en algún reinicio; el primer despliegue con #97 hará `-u` completo y debería cerrar cualquier hueco.
+   día en algún reinicio; el primer despliegue con el arreglo del incidente 1 hará `-u` completo y debería cerrar cualquier hueco.
 3. **Reversiones (incidente 5):** el código de PR #35 (CI #138→#147), PR #36 (CI #147→#150) y PR #40 (Desplegar 4→5)
    pudo dejar de correr durante horas; quedó cubierto por el despliegue siguiente, que lo incluía.
-4. Desde Desplegar 9 (arreglo #97) `/__edge/health` dice `version` y `base_al_dia`, y ese primer arranque actualizó
+4. Desde Desplegar 9 (arreglo del incidente 1) `/__edge/health` dice `version` y `base_al_dia`, y ese primer arranque actualizó
    **todos** los módulos (no había huella en la base): lo que hubiera quedado sin aplicar de PR #42, #40, #36 y #30
    quedó aplicado ahí. Igual, después de cada despliegue se abren el Inicio, Conversaciones e «Imprimir documentos».
 
@@ -796,8 +799,11 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 - `app_version` tiene que tener imagen en el registro: el SHA de la rama que construyó el CI, nunca el del *squash*.
 - Nunca inventar ni «completar» un SHA: copiarlo del PR o del run.
 - La cuota de artefactos se llena: «Limpiar copias temporales» y esperar 6-12 h a que GitHub recalcule.
-- «Required reviewers» no está disponible en el plan actual para repos privados: producción solo a mano desde `main`.
+- «Required reviewers» no se usa (cuando se decidió, el repositorio era privado y el plan no lo daba; es público desde
+  el 2026-10-13): producción solo a mano desde `main`, con la receta de [DESPLIEGUE.md](DESPLIEGUE.md#la-receta-de-producción).
 - `rerun_failed_jobs` da 403 mientras el run sigue en curso.
 - El runner usa shellcheck 0.9 (SC2317 en funciones de `trap`).
-- No hay `gh` CLI: todo por `mcp__github__*`; un log muy largo se guarda en archivo y se busca con un script.
+- El CLI `gh` existe en la máquina (2026-11-06) y sirve para leer (runs, tiempos de cada job: `gh run view <id> --json
+  jobs`). Lo que escribe en GitHub (PR, unir, lanzar flujos, comentar) va por `mcp__github__*`. Un log muy largo se
+  guarda en archivo y se busca con un script.
 - Los avisos «Node.js 20 is deprecated» y el log del PostgreSQL de servicio son ruido, no la falla.

@@ -4,7 +4,9 @@ Cómo está armado el sistema, pieza por pieza: lo que hay en Cloudflare, las ta
 base de Odoo, qué variables y secretos usa cada entorno y cómo se despliega. Puesto al día el **2026-10-18** contra
 `edge/wrangler.jsonc`, `juan/wrangler.jsonc`, `puente-wa/wrangler.jsonc`, `.github/workflows/`, `docker/` y el código de
 los tres Workers. Los nombres de los recursos de la cuenta se confirmaron ese día con una consulta de **solo lectura** a
-Cloudflare (sin IDs aquí).
+Cloudflare (sin IDs aquí). **Revisado el 2026-11-06** contra el código: dominio propio activo desde el 2026-10-27, WhatsApp
+de Juan por la API oficial de Meta desde el 2026-11-02 (el puente QR nunca se desplegó) y la receta de despliegue en
+[DESPLIEGUE.md](DESPLIEGUE.md#la-receta-de-producción). Lo que vive solo en la cuenta de Cloudflare no se volvió a mirar.
 
 Por qué es así (y no una base gestionada aparte): la opción con PostgreSQL en Neon se descartó por costo; la base vive
 **dentro del contenedor**, protegida por respaldos continuos en R2. Decisión y mediciones:
@@ -52,7 +54,7 @@ flowchart LR
     R2[("R2 dcasa-respaldos<br/>pgbackrest/ · pg_dump/ · adjuntos/")]
     JUAN["Worker dcasa-juan (juan/)<br/>DO Conversacion · DO Global"]
     WAI["Workers AI"]
-    PUENTE["Worker dcasa-puente-wa<br/>DO PuenteWa + Container Baileys"]
+    PUENTE["Worker dcasa-puente-wa<br/>DO PuenteWa + Container Baileys<br/>(nunca desplegado)"]
   end
 
   IA["Proveedores de IA<br/>(Anthropic, OpenAI, Meta…)"]
@@ -68,9 +70,9 @@ flowchart LR
   ODOO -->|"fotos y PDF"| R2
   TGU -->|"/brian/telegram/*"| EDGE
   TGU -->|"/webhooks/telegram"| JUAN
-  MU -->|"/webhooks/meta"| JUAN
-  WAU <--> PUENTE
-  PUENTE -->|"service binding JUAN"| JUAN
+  MU -.->|"/webhooks/meta (sin conectar)"| JUAN
+  WAU -->|"/webhooks/whatsapp-cloud<br/>API oficial de Meta"| JUAN
+  PUENTE -.->|"service binding JUAN"| JUAN
   JUAN -.->|"binding PUENTE (comentado)"| PUENTE
   JUAN -->|"service binding DCASA → JuanEntrada"| EDGE
   ODOO -->|"HTTPS a JUAN_URL: /odoo/*"| JUAN
@@ -80,14 +82,15 @@ flowchart LR
   ODOO --> RES
   GH -->|"wrangler deploy"| EDGE
   GH -->|"wrangler deploy"| JUAN
-  GH -->|"wrangler deploy"| PUENTE
+  GH -.->|"wrangler deploy (no se usa)"| PUENTE
 ```
 
 En palabras: todo el tráfico del sitio entra por el Worker **`dcasa`**, que pone seguridad y caché y reenvía al
 **contenedor**, donde viven Odoo y PostgreSQL juntos. La base se respalda sin parar en **R2**. **Juan** (el asistente de
 los clientes) es otro Worker con su memoria de trabajo en Durable Objects; llega a Odoo solo por el *service binding*
-del borde (`/dcasa/juan/v1/*`). El **puente de WhatsApp** es un tercer Worker con su propio contenedor; en este commit
-**no está desplegado** (§2.1) y el binding de Juan hacia él está comentado. **Brian** (el asistente del panel) vive
+del borde (`/dcasa/juan/v1/*`). WhatsApp le llega a Juan por la **API oficial de Meta** (`/webhooks/whatsapp-cloud`)
+desde el 2026-11-02. El **puente de WhatsApp por QR** es un tercer Worker con su propio contenedor: **nunca se
+desplegó** (§2.1) y el binding de Juan hacia él está comentado ([JUAN_CANALES.md](JUAN_CANALES.md)). **Brian** (el asistente del panel) vive
 dentro de Odoo.
 
 ## 2. Las piezas de Cloudflare
@@ -98,14 +101,15 @@ dentro de Odoo.
 |---|---|---|---|---|
 | `dcasa` · `dcasa-staging` | `edge/` | `src/index.ts` | Punto de entrada público: cabeceras de seguridad, rutas bloqueadas, frena bots y limita intentos (`bots.ts`), puerta del equipo (`puerta.ts`), página «estamos abriendo» (`arranque.ts`), caché de páginas anónimas (`tienda/`), respaldo a mano y crons. La lógica probada está en `src/routing.ts` y `src/handler.ts`, sin dependencias de Cloudflare. | Sí, los dos |
 | `dcasa-juan` · `dcasa-juan-staging` | `juan/` | `src/index.ts` | Juan: junta ráfagas de mensajes, corre el bucle de IA con herramientas de Odoo, contesta y hace seguimiento. `workers_dev: true` (Odoo lo llama por esa dirección). | Sí, los dos |
-| `dcasa-puente-wa` · `dcasa-puente-wa-staging` | `puente-wa/` | `src/worker.ts` | Mantiene la sesión de WhatsApp por QR (Baileys) las 24 horas. Aparte de Juan a propósito: si el puente falla, Juan sigue por los demás canales. | **No** (todavía no se desplegó) |
+| `dcasa-puente-wa` · `dcasa-puente-wa-staging` | `puente-wa/` | `src/worker.ts` | Mantiene la sesión de WhatsApp por QR (Baileys) las 24 horas. Aparte de Juan a propósito: si el puente falla, Juan sigue por los demás canales. | **No** (nunca se desplegó: WhatsApp va por la API oficial) |
 
 `compatibility_date` `2026-09-01` en los tres; `nodejs_compat` en `juan/` y `puente-wa/`; `observability` encendida.
-Wrangler fijado por los `package-lock.json` (4.143.0 en este commit).
+Wrangler fijado por los `package-lock.json` (2026-11-06: 4.143.0 en `edge/` y `puente-wa/`, 4.149.0 en `juan/`).
 
-**Dominio y rutas.** Las `routes` de `edge/wrangler.jsonc` (líneas 109-112 y 173) están **comentadas** hasta que el DNS
-del dominio esté en Cloudflare ([DESPLIEGUE.md §6](DESPLIEGUE.md)). Mientras tanto cada Worker responde en su dirección
-`<worker>.<subdominio>.workers.dev`.
+**Dominio y rutas.** Desde el 2026-10-27, las `routes` de `edge/wrangler.jsonc` (líneas 110-113) ponen `dcasapty.com` y
+`www.dcasapty.com` como *custom domains* del Worker `dcasa`; `workers_dev: true` (línea 116) mantiene también su
+`workers.dev`, donde viven el webhook de Telegram de Brian y lo que Juan ya conoce. Staging lleva `routes: []` (línea
+179) y responde en su `workers.dev`, igual que Juan ([DESPLIEGUE.md §6](DESPLIEGUE.md#6-dominio-dcasaptycom)).
 
 **Crons** (UTC):
 
@@ -149,8 +153,8 @@ Worker a Worker **siempre por service binding**: Cloudflare rechaza la URL públ
   dos conexiones de WhatsApp al mismo número se expulsan entre sí.
 - La política `default` es **inmutable**: cambiarla exige otra app y otra clase ([CONTRATO §4](../edge/CONTRATO_CONTENEDOR.md)).
 - **Producción y staging 24/7:** `ODOO_DORMIR_TRAS` está vacío en los dos entornos de `edge/wrangler.jsonc` (líneas 70 y
-  153). Con una duración (`"1h"`) el contenedor duerme sin visitas y restaura desde R2 al despertar. (Documentos viejos
-  dicen que staging duerme tras 1 h: manda el archivo.)
+  157). Con una duración (`"1h"`) el contenedor duerme sin visitas y restaura desde R2 al despertar. Aun así, el
+  despliegue a staging del CI lo ha encontrado apagado varias veces (CONTEXTO_AGENTICO › Despliegue).
 
 ### 2.3 Durable Objects
 
@@ -398,16 +402,10 @@ Acciones fijadas por SHA. La aprobación de producción es **el clic** de quien 
 
 ### 6.2 La receta
 
-1. Cambio en una rama, con su prueba. En local: `scripts/test.sh <módulos>`, `ruff check addons` y, si tocó un Worker,
-   `npm test && npm run typecheck` en su carpeta.
-2. *Actions › CI/CD › Run workflow* en la rama, `desplegar_en = staging`.
-3. Con staging sano y revisado: PR a `main` y unión.
-4. *Actions › Desplegar › Run workflow* en `main`: `entorno = production`, el `imagen_digest` del resumen de staging,
-   `app_version` = **el SHA que construyó el CI** (el de la rama, nunca el del *squash*) y `respaldo_previo = true`.
-5. Juan y el puente se despliegan aparte, con sus flujos, cuando cambian.
-
-Trampas (imagen revertida, base sin actualizar, 429 de R2): [CONTEXTO_AGENTICO.md](CONTEXTO_AGENTICO.md). Volver atrás:
-[OPERACION.md › Volver atrás un despliegue](OPERACION.md). Más detalle: [DESPLIEGUE.md](DESPLIEGUE.md).
+Está en un solo lugar: [DESPLIEGUE.md › La receta de producción](DESPLIEGUE.md#la-receta-de-producción) (CI/CD a staging
+en la rama → PR con `[skip ci]` y *squash* → *Desplegar* desde `main` con la imagen y el SHA probados → Desplegar Juan solo
+si cambió `juan/`). Trampas (imagen revertida, base sin actualizar, 429 de R2): [CONTEXTO_AGENTICO.md](CONTEXTO_AGENTICO.md).
+Volver atrás: [OPERACION.md › Volver atrás un despliegue](OPERACION.md).
 
 ## 7. Quién guarda qué (una sola verdad)
 
@@ -418,10 +416,6 @@ Trampas (imagen revertida, base sin actualizar, 429 de R2): [CONTEXTO_AGENTICO.m
 
 ## 8. Preguntas abiertas (no se pudieron comprobar desde el código)
 
-- Qué valores tienen `URL_SITIO` y `CANONICAL_HOST` en los environments de GitHub y si el dominio propio ya apunta a
-  Cloudflare (las `routes` siguen comentadas).
 - Qué está pegado hoy en el panel de cada Worker (Cloudflare no deja leer secretos).
 - Por qué la app de contenedores apareció 5 veces con la imagen anterior (incidente 5 de CONTEXTO_AGENTICO).
 - Si ya se midió el tiempo de restaurar con R2 de verdad.
-- La tabla de costos de [OPERACION.md](OPERACION.md) habla de `basic` en producción; `edge/wrangler.jsonc` dice
-  `standard-1`.

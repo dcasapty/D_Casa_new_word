@@ -7,8 +7,9 @@
 
 Una sola plataforma para una tienda de muebles en Panamá: facturación, inventario, ventas, compras, CRM, contabilidad,
 nómina, **sitio web con tienda**, **programa de puntos y referidos (Socios)** y programa de vendedores, más dos
-asistentes de IA: **Brian** (para el equipo, dentro del panel) y **Juan** (para los clientes, por WhatsApp, Telegram,
-Messenger e Instagram). Está hecho sobre el código abierto de **Odoo 19 Community** y corre en **Cloudflare** (Workers,
+asistentes de IA: **Brian** (para el equipo, dentro del panel) y **Juan** (para los clientes: el WhatsApp de la tienda
+por la API oficial de Meta y Telegram; Messenger e Instagram, listos para conectar), y **Sofía**, la asistente del CRM
+(propone y una persona aprueba). En producción en `https://dcasapty.com`. Está hecho sobre el código abierto de **Odoo 19 Community** y corre en **Cloudflare** (Workers,
 Containers, Durable Objects, R2 y KV).
 
 - Odoo viene como submódulo (`vendor/odoo`) y **no se modifica nunca**; todo lo propio está en módulos de `addons/`.
@@ -30,9 +31,9 @@ flowchart LR
   ODOO -->|"fotos y PDF"| R2
   TG["Telegram"] -->|"Brian"| EDGE
   TG -->|"Juan"| JUAN
-  META["Meta<br/>Messenger / Instagram"] --> JUAN
-  WA["WhatsApp"] <--> PUENTE["Worker dcasa-puente-wa<br/>puente-wa/ + Container"]
-  PUENTE -->|service binding| JUAN["Worker dcasa-juan<br/>juan/ · Durable Objects"]
+  WA["WhatsApp<br/>(API oficial de Meta)"] --> JUAN["Worker dcasa-juan<br/>juan/ · Durable Objects"]
+  META["Meta<br/>Messenger / Instagram"] -.->|"sin conectar"| JUAN
+  PUENTE["Worker dcasa-puente-wa<br/>puente-wa/ (nunca desplegado)"] -.->|service binding| JUAN
   JUAN -->|"service binding (JuanEntrada)"| EDGE
   ODOO -->|"HTTPS /odoo/*"| JUAN
   JUAN --> AI["Workers AI y<br/>proveedores de IA"]
@@ -40,7 +41,7 @@ flowchart LR
   ODOO --> RES["Resend<br/>(correo)"]
   GH["GitHub Actions"] -->|"wrangler deploy"| EDGE
   GH --> JUAN
-  GH --> PUENTE
+  GH -.-> PUENTE
 ```
 
 | Pieza | Qué hace |
@@ -48,8 +49,8 @@ flowchart LR
 | **Worker `dcasa`** (`edge/`) | La puerta de entrada: seguridad, bloqueo de rutas peligrosas, caché de páginas anónimas en KV, la puerta del equipo con Cloudflare Access, respaldo a mano y dos crons (despertar a Odoo y respaldo diario). |
 | **Contenedor de Odoo** (`docker/`) | Odoo 19, los módulos de `addons/` y PostgreSQL 16. Restaura la base desde R2 al arrancar y actualiza los módulos si cambió el código. Una sola instancia. |
 | **R2** | Un bucket por entorno: WAL y respaldos cifrados, volcado diario, fotos y PDF. |
-| **Worker `dcasa-juan`** (`juan/`) | Juan, el asistente de los clientes. Un Durable Object por conversación (memoria de trabajo en SQLite); lo permanente se guarda en Odoo. |
-| **Worker `dcasa-puente-wa`** (`puente-wa/`) | Mantiene WhatsApp conectado por QR (Baileys) para Juan. Aún no desplegado. |
+| **Worker `dcasa-juan`** (`juan/`) | Juan, el asistente de los clientes: contesta el WhatsApp de la tienda por la API oficial de Meta (desde el 2026-11-02) y Telegram. Un Durable Object por conversación (memoria de trabajo en SQLite); lo permanente se guarda en Odoo. |
+| **Worker `dcasa-puente-wa`** (`puente-wa/`) | WhatsApp por QR (Baileys) para Juan. Construido y probado, **nunca desplegado**: queda como alternativa ([docs/JUAN_CANALES.md](docs/JUAN_CANALES.md)). |
 | **GitHub Actions** (`.github/`) | Pruebas en cada cambio; despliegue a staging y a producción solo a mano. |
 
 Detalle de cada recurso, tablas, variables y secretos: [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md).
@@ -59,10 +60,10 @@ Detalle de cada recurso, tablas, variables y secretos: [docs/ARQUITECTURA.md](do
 | Carpeta | Qué hay |
 |---|---|
 | `vendor/odoo` | Odoo 19.0 (submódulo git fijado a un commit). **No se modifica nunca.** |
-| `addons/` | Los 24 módulos propios (prefijo `dcasa_` y `website_dcasa`). Uno por uno: [docs/MODULOS.md](docs/MODULOS.md). |
+| `addons/` | Los 29 módulos propios (prefijo `dcasa_` y `website_dcasa`; el contenedor instala 28: todos menos `dcasa_fe_pa`). Uno por uno: [docs/MODULOS.md](docs/MODULOS.md). |
 | `edge/` | Worker de Cloudflare `dcasa` (TypeScript). Lógica probada en `src/routing.ts` y `src/handler.ts`. Contrato con la imagen: [`edge/CONTRATO_CONTENEDOR.md`](edge/CONTRATO_CONTENEDOR.md). |
-| `juan/` | Worker de Juan (TypeScript, Durable Objects). [docs/JUAN_WORKER.md](docs/JUAN.md#parte-2--cómo-funciona-el-worker-por-dentro). |
-| `puente-wa/` | Puente de WhatsApp por QR (Worker + Durable Object + Container). [docs/JUAN_PUENTE.md](docs/JUAN_PUENTE.md). |
+| `juan/` | Worker de Juan (TypeScript, Durable Objects). [docs/JUAN.md](docs/JUAN.md) (Parte 2: el Worker por dentro). |
+| `puente-wa/` | Puente de WhatsApp por QR (Worker + Durable Object + Container), no desplegado. [docs/JUAN_PUENTE.md](docs/JUAN_PUENTE.md). |
 | `docker/` | Imagen de producción (`Dockerfile`), arranque (`entrypoint.sh`) y PostgreSQL con pgBackRest (`pg.sh`). |
 | `scripts/` | `test.sh` (instala en base limpia y corre las pruebas), respaldo, simulacro de restauración, importar el catálogo, procesar `up media/`, integración de Juan. |
 | `.github/` | Flujos de CI y despliegue, sus scripts y las versiones estables. |
@@ -97,13 +98,13 @@ cd edge && npm ci && npm test && npm run typecheck     # igual en juan/ y puente
 
 - **CI/CD** (`ci.yml`) corre en cada PR y cada push a `main`: lint, pruebas de Odoo, de los tres Workers, integración,
   imagen Docker probada y simulacro de restauración. Un push a `main` **nunca** despliega.
-- **Staging:** *Actions › CI/CD › Run workflow*, `desplegar_en = staging`, desde cualquier rama.
-- **Producción:** *Actions › Desplegar* en `main` con el `imagen_digest` y el `app_version` probados en staging.
-- **Juan y el puente:** sus flujos propios (*Desplegar Juan*, *Desplegar puente de WhatsApp*), siempre a mano.
-- **Volver atrás:** *Volver a una versión estable* o *Desplegar* con una versión anterior, restaurando antes la base.
+- **Producción** se despliega a mano con **una sola receta**: CI/CD a staging en la rama de trabajo → PR con `[skip ci]`
+  y *squash* → *Desplegar* desde `main` con la imagen y el SHA probados en staging → *Desplegar Juan* solo si cambió
+  `juan/`. Paso a paso: [docs/DESPLIEGUE.md › La receta de producción](docs/DESPLIEGUE.md#la-receta-de-producción).
+- **Volver atrás:** *Desplegar* con la versión buena anterior, restaurando antes la base
+  ([docs/OPERACION.md](docs/OPERACION.md)); ojo con las versiones estables viejas ([docs/VERSIONES_ESTABLES.md](docs/VERSIONES_ESTABLES.md)).
 
-Receta completa y flujos: [docs/ARQUITECTURA.md §6](docs/ARQUITECTURA.md) · [docs/DESPLIEGUE.md](docs/DESPLIEGUE.md) ·
-[docs/OPERACION.md](docs/OPERACION.md). Antes de desplegar, leer [docs/CONTEXTO_AGENTICO.md](docs/CONTEXTO_AGENTICO.md).
+Antes de desplegar, leer [docs/CONTEXTO_AGENTICO.md](docs/CONTEXTO_AGENTICO.md).
 
 ## Documentos
 
@@ -120,7 +121,7 @@ Receta completa y flujos: [docs/ARQUITECTURA.md §6](docs/ARQUITECTURA.md) · [d
 | Incidentes y trampas ya conocidas | [docs/CONTEXTO_AGENTICO.md](docs/CONTEXTO_AGENTICO.md) |
 | Seguridad de acceso (doble factor, puerta del equipo) | [docs/SEGURIDAD_ACCESO.md](docs/SEGURIDAD_ACCESO.md) |
 | Socios, Mi cuenta y vendedores | [docs/SOCIOS.md](docs/SOCIOS.md) · [docs/VENDEDORES.md](docs/VENDEDORES.md) |
-| Juan y Brian | [docs/JUAN.md](docs/JUAN.md) · [docs/JUAN_WORKER.md](docs/JUAN.md#parte-2--cómo-funciona-el-worker-por-dentro) · [docs/JUAN_ODOO.md](docs/JUAN_ODOO.md) · [docs/JUAN_PUENTE.md](docs/JUAN_PUENTE.md) · [docs/BRIAN.md](docs/BRIAN.md) |
+| Juan, Sofía y Brian | [docs/JUAN.md](docs/JUAN.md) · [docs/JUAN_ODOO.md](docs/JUAN_ODOO.md) · [docs/JUAN_CANALES.md](docs/JUAN_CANALES.md) · [docs/SOFIA.md](docs/SOFIA.md) · [docs/BRIAN.md](docs/BRIAN.md) |
 | Todo lo demás | [docs/README.md](docs/README.md) (índice) |
 
 ## El sitio se cambia desde el código
@@ -140,7 +141,7 @@ botones (*Sitio web › Configuración › Ajustes*).
 |---|---|
 | ![Factura](docs/img/factura.jpg) | ![Socios](docs/img/socios-cuenta-movil.jpg) |
 
-Diseño del sitio: [docs/REDISENO.md](docs/historico/REDISENO.md). Para ver el sitio con datos de demostración sin tocar ningún
+Diseño del sitio (registro histórico): [docs/historico/REDISENO.md](docs/historico/REDISENO.md). Para ver el sitio con datos de demostración sin tocar ningún
 entorno: *Actions › Previsualización › Run workflow* (túnel temporal de hasta 60 minutos).
 
 ## Licencia

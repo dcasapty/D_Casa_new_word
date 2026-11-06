@@ -4,12 +4,28 @@ Pedido de la dueña (2026-10-16): guardar una versión que funciona bien para po
 posterior rompe algo o si no hay tiempo de arreglarlo. Cada vez que una versión queda en producción y la dueña
 confirma que se ve bien, se agrega aquí.
 
+> **Cuidado (2026-11-06): hoy no es seguro volver a la Estable 1 ni a la 2.** Las dos son del 2026-10-16 y quedaron
+> muy atrás:
+>
+> - **No traen el dominio propio.** *Desplegar* usa el `edge/wrangler.jsonc` del commit que despliega (lección de
+>   Desplegar 30 en [CONTEXTO_AGENTICO.md](CONTEXTO_AGENTICO.md) › Despliegue), y el de esas versiones no tiene las
+>   `routes` de `dcasapty.com` (entraron el 2026-10-26): el sitio podría quedar sin su dominio.
+> - **Les faltan 8 módulos** que el contenedor instala hoy (de 20 a 28): `dcasa_abonos`, `dcasa_correo`,
+>   `dcasa_existencias`, `dcasa_marketing`, `dcasa_meta_catalogo`, `dcasa_meta_eventos`, `dcasa_mi_cuenta` y
+>   `dcasa_sofia`.
+> - **La base ya la actualizaron versiones más nuevas:** volver pide `DCASA_PERMITIR_BAJAR` y se pierden los datos de
+>   todo lo que esas versiones no conocen.
+>
+> Se va a guardar una versión estable nueva (se anotará aquí y en la bitácora cuando exista). Mientras tanto, ante un
+> problema: volver al último despliegue bueno ([OPERACION.md](OPERACION.md) › Volver atrás un despliegue) o arreglar
+> hacia adelante.
+
 ## Las versiones guardadas
 
 | Versión | Desde | Qué trae | Código | `app_version` | `imagen_digest` |
 |---|---|---|---|---|---|
 | **Estable 2** | 2026-10-16, 15:11 UTC (Desplegar 11) | Todo lo de la Estable 1 más: Etapa 3 (cliente una sola vez al cotizar), prueba de humo del arranque y «nunca hacia atrás», Conversaciones #25, el botón para volver, y el Inicio con cotizaciones y entregas arriba y cifras que cuadran con Contabilidad. La dueña confirmó que se ve bien. | rama `estable-2026-10-16-2` (y PR #47) | `9be426a46e15ac124f991648289b41643cf2bfee` | `sha256:876ca5f5c7f14a6fea91d4b0fb0e4f88be485aba5b167cc3566289fb1ac4f078` |
-| **Estable 1** | 2026-10-16, 07:27 UTC (Desplegar 9) | Etapas 1 y 2 (Inicio con ganancia, tope de descuento, fusión segura, existencias solo por Gerencia, Estadísticas, íconos de color) y el arreglo del arranque (#97). La dueña confirmó Inicio y conversaciones. | rama `estable-2026-10-16` (y PR #45) | `3570c3a12e5563621be5ef835837a223904b06c5` | `sha256:4e9b915580dd3d346c2d8ec7f3b2b02809c13172e02fd6e9c392b34c239bc2e3` |
+| **Estable 1** | 2026-10-16, 07:27 UTC (Desplegar 9) | Etapas 1 y 2 (Inicio con ganancia, tope de descuento, fusión segura, existencias solo por Gerencia, Estadísticas, íconos de color) y el arreglo del arranque (incidente 1). La dueña confirmó Inicio y conversaciones. | rama `estable-2026-10-16` (y PR #45) | `3570c3a12e5563621be5ef835837a223904b06c5` | `sha256:4e9b915580dd3d346c2d8ec7f3b2b02809c13172e02fd6e9c392b34c239bc2e3` |
 
 Qué se guarda de cada una:
 
@@ -30,8 +46,9 @@ Qué se guarda de cada una:
 - `version`: la de la tabla (la más nueva arriba: `estable-2`);
 - `respaldo_previo`: marcado (desmarcarlo solo si el sitio está caído y el respaldo no puede hacerse).
 
-Tarda unos 3 minutos más el arranque; el último paso espera a que responda esa versión con la base al día. Los datos
-de cada versión viven en `.github/versiones_estables.json` (una prueba de CI revisa que estén bien escritos).
+Llama al mismo flujo *Desplegar*: el último paso espera a que responda esa versión con la base al día y la vigila 600 s
+antes de confirmar (`.github/scripts/esperar_salud.sh`), así que cuenta unos 15 minutos, como un despliegue normal. Los
+datos de cada versión viven en `.github/versiones_estables.json` (una prueba de CI revisa que estén bien escritos).
 
 **A mano** (si el botón todavía no está en `main`): Actions → **Desplegar** → *Run workflow*, en `main`, con el mismo
 `entorno` y `respaldo_previo` y el `app_version` y el `imagen_digest` de la tabla.

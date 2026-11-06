@@ -691,7 +691,7 @@ activas; si no hay ninguna, el asistente debe llamar a `registrar_pregunta_sin_r
 
 ### Adjuntos: URL firmada de vida corta
 
-Cuando una vendedora manda una foto o un PDF desde Odoo, el puente lo baja con una URL
+Cuando una vendedora manda una foto o un PDF desde Odoo, el archivo viaja al canal con una URL
 `/dcasa/adjunto/<id>/<vence>/<firma>/<nombre>`: la firma (HMAC-SHA256 con `database.secret`) amarra el adjunto, la hora de
 vencimiento y el **contenido** (su checksum). Vale **15 minutos** (parámetro `dcasa_conversaciones.url_adjunto_minutos`, tope 24 h)
 y deja de valer si el archivo cambia. Solo sirve adjuntos de mensajes de conversaciones; todo lo demás da 404. No empieza por
@@ -762,7 +762,7 @@ constante, respuestas `Cache-Control: no-store`, errores genéricos sin detalles
 **Tareas programadas** (`data/ir_cron_panel.xml`): «Juan: foto diaria del gasto de IA» (04:50 UTC; si el Worker no responde no pasa nada) y «Juan: limpiar archivos subidos y no
 enviados» (07:10 UTC).
 
-**Para que las fotos lleguen a WhatsApp:** el puente solo baja archivos de `https://dcasapty.com` y `https://dcasapty.workers.dev`
+**Si un día se usara el puente QR:** el puente solo baja archivos de `https://dcasapty.com` y `https://dcasapty.workers.dev`
 (`DOMINIOS_DEL_PUENTE` en `models/panel_calculos.py`). Si `web.base.url` de Odoo es otra dirección, *Conexiones* lo marca en rojo («Dirección de Odoo para las
 fotos y documentos: no sirve»).
 
