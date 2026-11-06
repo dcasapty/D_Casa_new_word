@@ -105,6 +105,52 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 > sigue. Se guardan las diez más recientes; las viejas se resumen en una línea abajo y su texto completo pasa a
 > [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md).
 
+### 2026-11-06 (3): la varita mágica («Sugerir») escribe siempre, o dice por qué y deja reintentar
+
+- Pedido de la dueña: «a veces sí, a veces no» escribe el borrador, en el chat y en «Guardar y responderle» de Sofía.
+  Sin acceso a producción; cada causa se reprodujo con una prueba que fallaba sobre el código de antes:
+  1. **Plazos que no encajaban:** Odoo esperaba 25 s y el Worker no tenía plazo (Meta razona y consulta hasta 6 veces),
+     así que Odoo se rendía («el Worker no responde») mientras la IA seguía y se pagaba. Ahora el Worker contesta
+     siempre antes de 42 s (`PLAZO_TOTAL_MS`; el primer intento usa hasta el 60 % y deja tiempo al modelo rápido) y Odoo
+     espera 55 (`TIMEOUT_SUGERIR`); una prueba del Worker lee la línea de Python y exige el margen.
+  2. **Sin reintento** con el tope de gasto alcanzado (un solo modelo) y **sin salida** cuando el modelo gastaba sus
+     pasos consultando sin escribir. Ahora: un reintento ante falla pasajera (red, 429, 5xx; no ante una clave mala) y
+     «escribe ya con lo que consultaste». La IA de respaldo sin clave no se intenta y el error lo dice.
+  3. **La revisión de la marca** dejaba el borrador vacío por una frase: una cifra que ya había dicho la tienda en la
+     conversación contaba como inventada. Ahora cuenta (como en el bot; la del cliente sigue sin contar) y, si al quitar
+     lo dudoso no queda nada con sentido, el modelo lo corrige una vez con el motivo. Además, una frase copiada del prompt
+     pasaba entera con el aviso «Quité información interna»: ahora se quita.
+  4. **La pantalla:** el error era una notificación que se iba sola (por eso no había «mensaje exacto»); si la vendedora
+     cambiaba de chat mientras Juan escribía, **el borrador caía en la caja de otra clienta**; y lo que tecleaba
+     mientras esperaba se pisaba. Ahora el estado de «Sugerir» es de cada conversación, la caja dice «Juan está
+     escribiendo…» y, si no llega, la causa en corto con **Reintentar**. En Sofía, datos guardados, chat abierto y el
+     mismo aviso.
+- Registro sin datos personales: `[juan] sugerir {conversacion, resultado, ms, modelo, intentos, respaldo}` en el Worker
+  y «Juan: «Sugerir» sin borrador (conversación N, causa X, N ms, HTTP N)» en Odoo.
+- Pruebas: 16 nuevas del Worker (14 fallaban antes), 10 nuevas de Odoo (todas fallaban antes; 4 en el navegador) y 6
+  ajustadas al contrato nuevo. Capturas con el Worker de mentira (fuera del repositorio). **Sin subir ni desplegar.**
+- Sigue: capturas a la dueña, CI, staging, producción y **Desplegar Juan**. Lo de la dueña: `ANTHROPIC_API_KEY` en
+  `dcasa-juan` (sin ella, si Meta falla no hay respaldo).
+
+### 2026-11-06 (2): la calculadora de envíos en el menú Envíos (módulo nuevo `dcasa_envios`)
+
+- Pedido de la dueña: poner el HTML de envíos del 4 nov en el menú «Envíos», con el scroll que funcione, y dejar el
+  código listo para que mañana el cliente cotice su envío en la web:
+  Envíos › **Calculadora** (todos), **Lugares** (todos; edita Gerencia) y **Tarifa** (Gerencia), «En desarrollo» apagado.
+  Ver [ENVIOS.md](ENVIOS.md).
+- **Un solo motor** en Python puro (`addons/dcasa_envios/motor/`, sin Odoo): la fórmula y el buscador portados del
+  HTML. Paridad medida en local con los datos reales: 945 de 946 comparaciones iguales (la diferencia: buscar
+  «constructor» rompía el HTML). En el repositorio solo un fixture sintético con sus esperados sacados del JavaScript.
+- **Los datos no están en el repositorio** (público; la dueña no dio su «sí»): Gerencia sube `envios-dcasa.html` en
+  Envíos › Tarifa. La carga es idempotente (11 299 lugares en ~2 s; volver a cargar, 0 nuevos), respeta lo de Odoo y la
+  tarifa nace y vuelve «en revisión». Brian: `cotizar_envio`. Guía: «Saber cuánto cuesta un envío» y «Cambiar o
+  aprobar la tarifa de envíos». Sin ruta pública todavía (pasos para encenderla en ENVIOS.md); Juan no cotiza.
+- La dueña vio las capturas (con datos reales, fuera del repositorio) y dijo que sí; bajar la lista a Excel «es
+  innecesario» (no se agrega). **En producción** con su «sí» («pásalo a producción cuanto antes»): Desplegar 50, sano
+  07:47 UTC (PR #83, `main` = `e924a9c`, árbol = `3682053`; imagen `sha256:53e76dc6…` de CI #272; CI #271 falló por la
+  descripción de `cotizar_envio`, de más de 260 letras). Sigue: que Gerencia cargue el archivo en Envíos › Tarifa y
+  apruebe la tarifa (redondeo, viático, honorarios, peaje).
+
 ### 2026-11-06 (1): limpieza y mantenimiento; WhatsApp guarda antes de contestar; Camila (diseño)
 
 - Pedido de la dueña: «limpieza y mantenimiento... revisar y auditar, actualizar el repositorio y la documentación»; y
@@ -127,25 +173,6 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 - La dueña también contó: la varita mágica («Sugerir») a veces no escribe el borrador, en el chat y en «Guardar y
   responderle»; Brian está desactualizado; la pantalla de Sofía puede mejorar. Quedaron en PRIORIDADES.
 - La puerta del equipo `/master` sigue sin fecha (la dueña decide cuando el equipo se adapte).
-
-### 2026-11-06 (2): la calculadora de envíos en el menú Envíos (módulo nuevo `dcasa_envios`)
-
-- Pedido de la dueña: poner el HTML de envíos del 4 nov en el menú «Envíos», con el scroll que funcione, y dejar el
-  código listo para que mañana el cliente cotice su envío en la web:
-  Envíos › **Calculadora** (todos), **Lugares** (todos; edita Gerencia) y **Tarifa** (Gerencia), «En desarrollo» apagado.
-  Ver [ENVIOS.md](ENVIOS.md).
-- **Un solo motor** en Python puro (`addons/dcasa_envios/motor/`, sin Odoo): la fórmula y el buscador portados del
-  HTML. Paridad medida en local con los datos reales: 945 de 946 comparaciones iguales (la diferencia: buscar
-  «constructor» rompía el HTML). En el repositorio solo un fixture sintético con sus esperados sacados del JavaScript.
-- **Los datos no están en el repositorio** (público; la dueña no dio su «sí»): Gerencia sube `envios-dcasa.html` en
-  Envíos › Tarifa. La carga es idempotente (11 299 lugares en ~2 s; volver a cargar, 0 nuevos), respeta lo de Odoo y la
-  tarifa nace y vuelve «en revisión». Brian: `cotizar_envio`. Guía: «Saber cuánto cuesta un envío» y «Cambiar o
-  aprobar la tarifa de envíos». Sin ruta pública todavía (pasos para encenderla en ENVIOS.md); Juan no cotiza.
-- La dueña vio las capturas (con datos reales, fuera del repositorio) y dijo que sí; bajar la lista a Excel «es
-  innecesario» (no se agrega). **En producción** con su «sí» («pásalo a producción cuanto antes»): Desplegar 50, sano
-  07:47 UTC (PR #83, `main` = `e924a9c`, árbol = `3682053`; imagen `sha256:53e76dc6…` de CI #272; CI #271 falló por la
-  descripción de `cotizar_envio`, de más de 260 letras). Sigue: que Gerencia cargue el archivo en Envíos › Tarifa y
-  apruebe la tarifa (redondeo, viático, honorarios, peaje).
 
 ### 2026-11-05 (4): «Guardar y responderle»
 
@@ -308,39 +335,12 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
   cobro entrante, igual que la Caja de hoy de siempre; no hay prueba con costo FIFO.
 - Sigue: que la dueña mire la cifra real; cargar el costo de los productos «sin costo» y contar los «en negativo».
 
-### 2026-10-27 (tarde): «Rastrear inventario» bloqueado
-
-- Un jefe reportó (urgente, llega un contenedor): productos nuevos creados en una compra sin «Rastrear inventario» no
-  sumaron al validar la recepción y no se podían contar. Al marcar la casilla salía «Escribe el motivo del ajuste…»:
-  `_reset_inventory` de Odoo hace un ajuste a cero y nuestra regla del motivo obligatorio lo bloqueaba. Arreglo en
-  `dcasa_existencias` (motivo del sistema, queda en la bitácora, sigue siendo de Gerencia), revisión adversarial sin
-  bloqueantes, CI #231 y #232 verdes, PR #65 (`86ab654`, árbol = `53c7b18`) y **Desplegar 32 sano y confirmado a las
-  23:46 UTC** (6:46 pm Panamá, la hora que pidió la dueña). Uso: marcar la casilla y **guardar** (sin escribir «A la
-  mano» en la misma vez), el producto queda en 0 y se cuenta con Escáner › Contar cuando llega la mercancía.
-- Para después (de la revisión): prueba de la Vendedora con `assertRaisesRegex(UserError, 'Solo Gerencia')` y pasar
-  también `inventory_name` para que el movimiento muestre el motivo en el historial.
-
-### 2026-10-26 (noche) y 2026-10-27
-
-- **Traslado del dominio, hecho.** Con el consentimiento firmado de la gerencia (acta de una página, dos firmas
-  «Aprobado por», cargo neutral) y el pedido «lo más pronto posible»: DNS de `dcasapty.com` pasado al Cloudflare de
-  D'CASA (`emerson`/`vita`, Active), destino `dcasapty.com/master*` en Access, permiso *Workers Routes* en el token,
-  `URL_SITIO` = `https://dcasapty.com` (la dueña), A `@` y CNAME `www` viejos borrados y PR #64 (`routes` con
-  `custom_domain`, `workers_dev: true`, `routes: []` en staging) en `main` (`741930d`).
-- **Tres despliegues:** Desplegar 29 se frenó en el respaldo previo (el dominio aún no resolvía); Desplegar 30 (sin
-  respaldo, con el «sí») salió **sin dominio** porque Desplegar hace checkout de `app_version` y usé `ab94128`, que no
-  traía `routes` (la dueña agregó los dos dominios a mano en Workers › dcasa › Domains y el sitio abrió ~23:30 UTC);
-  **Desplegar 31** (CI #230 sobre `main`, imagen `sha256:efb5f5ac…`, respaldo previo) **sano y confirmado 00:42 UTC**,
-  con «dcasapty.com (custom domain)» y «www.dcasapty.com (custom domain)» en el registro. Lecciones en
-  CONTEXTO_AGENTICO › Despliegue.
-- **Correo:** Resend con `dcasapty.com` verificado (DKIM `resend._domainkey`, CNAME `send` y `rsend`; sin `_dmarc`
-  nuevo). La clave quedó como secreto en el panel del Worker `dcasa` (decisión de la dueña; no en GitHub). Nadie
-  usaba el buzón de Zoho: Email Routing de Cloudflare reenvía `info@` y el catch-all al Gmail de la empresa (MX y SPF
-  de Zoho borrados) y ese Gmail manda «como» `info@dcasapty.com` por `smtp.resend.com`. **Encendido en Odoo el 27 oct**: la prueba llegó a la bandeja principal y la respuesta volvió al Gmail.
-- Formas de cobro y acta: ver la entrada del 23 oct; el acta se hizo fuera del repositorio (no se guarda en GitHub).
-
 ### Entradas anteriores (una línea cada una; el texto completo en [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md))
 
+- **2026-10-27 (tarde):** «Rastrear inventario» bloqueado por la regla del motivo del ajuste; motivo del sistema y
+  Desplegar 32 (PR #65).
+- **2026-10-26 (noche) y 2026-10-27:** traslado de `dcasapty.com` al Cloudflare de D'CASA (Desplegar 29 a 31, PR #64) y
+  correo con Resend (`info@` reenviado al Gmail de la empresa).
 - **2026-10-23 (tarde):** lentitud resuelta (el Inicio y el panel de Bodega ya no miran el pago factura por factura),
   reintento del borde ante «Network connection lost», nota de entrega sin repetidos y scroll de Marketing (Desplegar 27,
   PR #62); combos cama + colchón con el descuento en su renglón y los 4 descuentos aprobados (Desplegar 28, PR #63); la

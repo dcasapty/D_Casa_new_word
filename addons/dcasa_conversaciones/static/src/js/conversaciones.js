@@ -117,10 +117,12 @@ export class DcasaConversaciones extends Component {
                 if (deSofia.texto) {
                     this.almacen.proponerTexto(recordada, deSofia.texto);
                 }
-                if (deSofia.sugerir) {
-                    this.almacen.sugerirAlAbrir = recordada;   // la caja pide el borrador a Juan (caja.js)
-                }
                 this.almacen.abrir(recordada);
+                if (deSofia.sugerir) {
+                    // El borrador se pide ya, para ESA conversación: no depende de cuándo se dibuje la caja. Si no llega,
+                    // la caja lo dice y ofrece «Reintentar»; los datos que guardó Sofía ya están guardados.
+                    this.almacen.sugerirSiEstaVacio(recordada);
+                }
             }
         });
         onWillUnmount(() => {

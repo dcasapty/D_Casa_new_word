@@ -5,6 +5,7 @@ import base64
 import io
 import itertools
 import os
+import time
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -105,7 +106,8 @@ class PanelUiCase(HttpCase):
         ruta = url.removeprefix(URL_WORKER)
         self.llamadas.append((metodo, ruta, kw.get('json')))
         if (metodo, ruta) in self.rutas:
-            cuerpo, estado = self.rutas[metodo, ruta]
+            respuesta = self.rutas[metodo, ruta]
+            cuerpo, estado = respuesta() if callable(respuesta) else respuesta   # una función puede tardar o fallar
             return respuesta_http(cuerpo, estado)
         if ruta == '/odoo/enviar':
             return respuesta_http({'ok': True, 'id_mensaje': f'wamid.ui.{next(_contador)}'})
@@ -559,10 +561,85 @@ class TestPanelEnElNavegador(PanelUiCase):
     if (!document.querySelector(".o_dcj_aviso").textContent.includes("Falta conectar el bot")) { throw new Error("aviso: Falta conectar el bot"); }
     await abrirConversacion("Karen");
     aqui(".o_dcj_herramienta", "Sugerir").click();
-    const aviso = await esperar(() => aqui(".o_notification", "Falta conectar el bot"), "el aviso al pedir una sugerencia");
+    const aviso = await esperar(() => aqui(".o_dcj_sugerencia_error", "Falta conectar el bot"), "el aviso en la caja al pedir una sugerencia");
+    if (aviso.querySelector(".o_dcj_reintentar")) { throw new Error("sin el bot conectado, reintentar no sirve: no se ofrece"); }
     console.log("test successful");
 })().catch((e) => console.error(e.message || e));
 """)
+
+    # --- «A veces sí, a veces no» (la dueña, 2026-11-06): lo que fallaba en la pantalla -----------------------------
+
+    def test_sugerir_si_no_llega_el_borrador_lo_dice_en_la_caja_y_deja_reintentar(self):
+        """Antes salía una notificación que se iba sola a los pocos segundos y la caja quedaba vacía: «a veces no»."""
+        self.datos_de_ejemplo()
+        respuestas = iter([({'ok': False, 'causa': 'tardo', 'error': 'x'}, 504),
+                           ({'ok': True, 'texto': 'Claro, Karen, la gris te la muestro ahora.', 'avisos': []}, 200)])
+        self.rutas['POST', '/odoo/sugerir'] = lambda: next(respuestas)
+        self.navegador("""
+(async () => {
+    await abrirConversacion("Karen");
+    aqui(".o_dcj_herramienta", "Sugerir").click();
+    const aviso = await esperar(() => aqui(".o_dcj_sugerencia_error", "La IA tardó demasiado"), "el aviso de que no llegó, en la caja");
+    const caja = document.querySelector("#o_dcj_texto");
+    if (caja.value) { throw new Error("sin borrador la caja sigue vacía: " + caja.value); }
+    if (!aviso.textContent.includes("escríbelo tú")) { throw new Error("dice que puede escribirlo ella: " + aviso.textContent); }
+    // Sigue ahí aunque pase el tiempo de una notificación (antes se iba sola).
+    await pausa(5000);
+    if (!aqui(".o_dcj_sugerencia_error", "La IA tardó demasiado")) { throw new Error("el aviso no se va solo"); }
+    aviso.querySelector(".o_dcj_reintentar").click();
+    await esperar(() => caja.value === "Claro, Karen, la gris te la muestro ahora.", "el borrador al reintentar");
+    if (document.querySelector(".o_dcj_sugerencia_error")) { throw new Error("con el borrador, el aviso de error se va"); }
+    console.log("test successful");
+})().catch((e) => console.error(e.message || e));
+""", timeout=150)
+        self.assertEqual(len(self.al_worker('/odoo/sugerir')), 2)
+        self.assertFalse(self.al_worker('/odoo/enviar'), 'nada se envía')
+
+    def test_sugerir_el_borrador_llega_al_chat_para_el_que_se_pidio(self):
+        """Si la vendedora cambia de chat mientras Juan escribe, el borrador de Karen NO puede caer en la caja de otra
+        clienta (antes caía en la conversación que estuviera a la vista)."""
+        self.datos_de_ejemplo()
+
+        def lento():
+            time.sleep(2)
+            return {'ok': True, 'texto': 'Karen, la cama queen gris te la muestro ahora.', 'avisos': []}, 200
+        self.rutas['POST', '/odoo/sugerir'] = lento
+        self.navegador("""
+(async () => {
+    await abrirConversacion("Karen");
+    aqui(".o_dcj_herramienta", "Sugerir").click();
+    await pausa(300);   // Juan está escribiendo (el Worker de mentira tarda 2 s)
+    aqui(".o_dcj_fila", "Marta").click();
+    await esperar(() => aqui(".o_dcj_burbuja", "apartar un sofá"), "el hilo de Marta");
+    await pausa(3500);
+    const caja = document.querySelector("#o_dcj_texto");
+    if (caja.value) { throw new Error("el borrador de Karen cayó en la caja de Marta: " + caja.value); }
+    if (aqui(".o_dcj_sugerencia_pidiendo")) { throw new Error("Marta no está esperando ningún borrador"); }
+    aqui(".o_dcj_fila", "Karen").click();
+    await esperar(() => document.querySelector("#o_dcj_texto").value === "Karen, la cama queen gris te la muestro ahora.", "el borrador en la caja de Karen");
+    console.log("test successful");
+})().catch((e) => console.error(e.message || e));
+""", timeout=150)
+
+    def test_sugerir_no_pisa_lo_que_ella_escribio_mientras_esperaba(self):
+        self.datos_de_ejemplo()
+
+        def lento():
+            time.sleep(2)
+            return {'ok': True, 'texto': 'La cama queen gris te la muestro ahora.', 'avisos': []}, 200
+        self.rutas['POST', '/odoo/sugerir'] = lento
+        self.navegador("""
+(async () => {
+    await abrirConversacion("Karen");
+    aqui(".o_dcj_herramienta", "Sugerir").click();
+    await pausa(300);   // Juan está escribiendo (el Worker de mentira tarda 2 s)
+    const caja = document.querySelector("#o_dcj_texto");
+    await escribir(caja, "Hola Karen, gracias por esperar.");
+    await esperar(() => caja.value.includes("La cama queen gris"), "el borrador");
+    if (!caja.value.startsWith("Hola Karen, gracias por esperar.")) { throw new Error("pisó lo que ella escribió: " + caja.value); }
+    console.log("test successful");
+})().catch((e) => console.error(e.message || e));
+""", timeout=150)
 
     def test_filtros_y_busqueda(self):
         self.datos_de_ejemplo()

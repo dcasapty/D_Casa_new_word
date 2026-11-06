@@ -53,7 +53,9 @@ puede corregir o borrar cualquier dato, y toca:
   oportunidad de cierre»): guarda, abre su chat y Juan deja en la caja un borrador según su conversación (el mismo
   «Sugerir» del chat: le da las gracias y sigue con lo que le interesa). **No se envía nada**: la vendedora lo lee, lo
   ajusta y lo envía ella. Solo si se le puede escribir (las 24 horas de Meta, no pidió que no lo contacten); si no,
-  la tarjeta ofrece solo guardar. Si no se puede abrir su chat, no se guarda a medias.
+  la tarjeta ofrece solo guardar. Si no se puede abrir su chat, no se guarda a medias. Si Juan no alcanza a escribir
+  el borrador, los datos ya quedaron guardados y el chat abierto: la caja dice por qué, en corto, y ofrece
+  **Reintentar** (2026-11-06; ver JUAN_ODOO.md › Sugerir).
 * **«Solo guardar»**: guarda y sigue con la siguiente tarjeta.
 
 * **Qué lee** (`reglas.datos_en`, del mensaje más nuevo al más viejo). Siempre: «me llamo …», «mi nombre es …»,
