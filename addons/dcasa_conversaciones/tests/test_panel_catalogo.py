@@ -99,6 +99,26 @@ class TestBuscarCatalogo(CatalogoCase):
         self.assertEqual(todo['encontrados'], 3)
         self.assertEqual(self.panel.buscar_catalogo('ZZ-SECRETO')['encontrados'], 0)
 
+    def test_ver_mas_trae_la_siguiente_pagina_sin_repetir(self):
+        """Pedido de la dueña (2026-11-06): con 38 bibliotecas solo salían 8. Ahora va por páginas y «Ver más»
+        pide la siguiente con ``desde``."""
+        primera = self.panel.buscar_catalogo('zz', limite=2)
+        self.assertEqual((len(primera['productos']), primera['encontrados']), (2, 3))
+        segunda = self.panel.buscar_catalogo('zz', limite=2, desde=2)
+        self.assertEqual((len(segunda['productos']), segunda['encontrados']), (1, 3))
+        ids = [p['id'] for p in primera['productos'] + segunda['productos']]
+        self.assertEqual(len(ids), len(set(ids)), 'Ninguno se repite entre páginas')
+        self.assertEqual(self.panel.buscar_catalogo('zz', desde=99)['productos'], [], 'Más allá del final: nada')
+        for raro in (-5, 'abc', None):
+            with self.subTest(desde=raro):
+                self.assertEqual(len(self.panel.buscar_catalogo('zz', desde=raro)['productos']), 3)
+
+    def test_por_defecto_trae_mas_de_ocho_y_el_tope_por_vuelta_se_respeta(self):
+        from odoo.addons.dcasa_conversaciones.models import conversacion_panel_catalogo as C
+        self.assertGreater(C.POR_PAGINA_CATALOGO, 8)
+        self.assertLessEqual(C.POR_PAGINA_CATALOGO, C.TOPE_PAGINA_CATALOGO)
+        self.assertEqual(len(self.panel.buscar_catalogo('zz', limite=10_000)['productos']), 3)
+
     def test_consultas_vacias_o_raras_no_devuelven_todo_el_catalogo(self):
         for consulta in ('', '   ', None, 'a', '!!!'):
             with self.subTest(consulta=consulta):

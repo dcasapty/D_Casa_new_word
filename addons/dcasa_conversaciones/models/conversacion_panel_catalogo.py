@@ -23,6 +23,10 @@ from . import publico as P
 from .conversacion_panel import _entero
 from .mensaje import adjunto_como_dict
 
+# «Foto del catálogo»: cuántos productos trae cada vuelta («Ver más» pide la siguiente) y el máximo por vuelta.
+POR_PAGINA_CATALOGO = 12
+TOPE_PAGINA_CATALOGO = 40
+
 _logger = logging.getLogger(__name__)
 
 ANCHO_DE_LA_FOTO = 1024
@@ -101,8 +105,12 @@ class DcasaConversacionCatalogo(models.Model):
         return ficha
 
     @api.model
-    def buscar_catalogo(self, consulta, limite=P.LIMITE_MAXIMO):
-        """Busca productos publicados por nombre, código, categoría, tamaño o color: ``{productos, encontrados}``."""
+    def buscar_catalogo(self, consulta, limite=POR_PAGINA_CATALOGO, desde=0):
+        """Busca productos publicados por nombre, código, categoría, tamaño o color: ``{productos, encontrados}``.
+
+        Por páginas (pedido de la dueña, 2026-11-06: «hay 38 bibliotecas pero solo me muestra las primeras 8, y muchas
+        veces no se saben los códigos»): ``desde`` es cuántos ya se mostraron; la ventana pide la siguiente con «Ver
+        más». ``limite`` va de 1 a ``TOPE_PAGINA_CATALOGO`` por vuelta."""
         self._exigir_vendedora()
         consulta = str(consulta or '').strip()[:200]
         if not P.palabras(consulta):
@@ -116,8 +124,12 @@ class DcasaConversacionCatalogo(models.Model):
         puntuados.sort(key=lambda t: t[:3])
         base = herramientas._j_base_url()
         website = self.env['website'].sudo().search([], order='sequence, id', limit=1)
-        tope = P.limite_seguro(limite, defecto=P.LIMITE_MAXIMO, maximo=P.LIMITE_MAXIMO)
-        return {'productos': [self._ficha_de_catalogo(t[3], base, website) for t in puntuados[:tope]],
+        tope = P.limite_seguro(limite, defecto=POR_PAGINA_CATALOGO, maximo=TOPE_PAGINA_CATALOGO)
+        try:
+            desde = max(int(desde or 0), 0)
+        except (TypeError, ValueError):
+            desde = 0
+        return {'productos': [self._ficha_de_catalogo(t[3], base, website) for t in puntuados[desde:desde + tope]],
                 'encontrados': len(puntuados)}
 
     @api.model

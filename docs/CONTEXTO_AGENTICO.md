@@ -379,6 +379,10 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `main` (`741930d`, árbol = `de1fb04`) a staging y Desplegar con ese `app_version`. **Regla:** un cambio del borde
   (rutas, `vars`, `workers_dev`) se despliega con un `app_version` que lo contenga, o sea con una imagen construida
   de ese commit.
+- **Desplegar 54 y Desplegar Juan 7** (18:52 UTC del 6 nov, `3fb5770`, imagen `sha256:29309f79…` de CI #280, respaldo
+  previo) · Odoo sano y confirmado 19:07 (versión `3fb5770cdf1a`, base al día, humo ok): Camila etapa 2 con los 11
+  arreglos de su revisión adversarial (PR #87, `main` = `3195d7d`, árbol = `3fb5770`; migración `19.0.2.0.0`). Juan
+  desde `main` a la vez (`campana_correo` en su prompt): `/salud` con la versión `3195d7d`. El CI del PR (#281) se canceló.
 - **Desplegar 53** (16:15 UTC del 6 nov, `61d5c44`, imagen `sha256:14d30d8e…` de CI #278, respaldo previo) · sano y
   confirmado 16:30 (versión `61d5c442dffa`, base al día, humo ok): solo documentación (PR #86, `main` = `dc45e48`),
   desplegada con imagen nueva para que el contenedor arrancara con `RESEND_CAMPANAS_API_KEY`, que la dueña pegó en el
@@ -941,6 +945,11 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 - **Dependabot: dos PR que tocan el mismo `package-lock.json` chocan** (2026-11-06, #7 y #8 de `edge/`): se juntan a mano
   en `package.json`, luego `npm install --package-lock-only` y `npm ci`, y se prueba. Cambiar `.github/dependabot.yml`
   en `main` lanza Dependabot enseguida: al unir el PR #77 abrió los PR #78 a #81 (Juan y el puente).
+- **Dependabot sube `@types/node` a la mayor más nueva (26), no a la del runtime (Node 22 en CI, contenedor y despliegue)**
+  (2026-11-06, PR #79 y #81): con la 26 el typecheck falla (`URL` y `Buffer` chocan con `@cloudflare/workers-types`).
+  Se deja en la última 22.x; el PR de grupo queda abierto solo con eso hasta un `ignore` de `@types/node` (semver-major)
+  en `dependabot.yml`. Para el grupo «ia» de Juan, la prueba que avisa es `juan/test/motor/sdk-anthropic.test.ts`
+  (pasa por el proveedor real de Anthropic con un `fetch` falso; las demás usan un modelo de mentira).
 - **`up-media.yml` corre con todo push a `main` que toque `up media/**`** y puede subir a `main` un commit propio
   («[skip up-media] [skip ci]») que reescribe `RESUMEN.md`. Un *squash* con «[skip ci]» en el título no lo dispara. Si
   aparece ese commit, la rama se pone al día con un `merge` normal, no con `-s ours`.

@@ -10,8 +10,8 @@ LEEME_PRIMERO §2).
 ## Estado al 2026-11-06
 
 - **Producción funciona desde el 2026-10-13** y **`dcasapty.com` (y `www`) apunta al sistema nuevo desde el
-  2026-10-27** (Desplegar 31). El último despliegue es Desplegar 52 (6 nov, PR #85: Camila, el mail marketing); Juan, Desplegar
-  Juan 6 (PR #84: la varita «Sugerir» escribe siempre o dice por qué). El mismo día: envíos (PR #83) y WhatsApp (PR #82).
+  2026-10-27** (Desplegar 31). El último despliegue es Desplegar 54 con Desplegar Juan 7 (6 nov, PR #87: Camila etapa 2). El mismo
+  día: Camila etapa 1 (PR #85), la varita (PR #84), envíos (PR #83) y WhatsApp (PR #82).
   El contenedor instala 30 de los 31 módulos de `addons/` (todos menos `dcasa_fe_pa`, a propósito).
 - **Juan atiende el WhatsApp de la tienda por la API oficial de Meta** desde el 2026-11-02 (modelo «contributor» de
   Meta, llave permanente). Telegram también funciona. Messenger e Instagram tienen el código listo pero no están
@@ -25,14 +25,11 @@ LEEME_PRIMERO §2).
 
 ## Lo que sigue, en orden
 
-1. **Camila, etapa 1: mail marketing** ([CAMILA.md](CAMILA.md)): **en producción** desde el 2026-11-06 (Desplegar 52;
-   módulo `dcasa_camila`). No envía nada todavía. La dueña ya pegó la clave de campañas en Cloudflare (2026-11-06); entra
-   a Odoo con el despliegue siguiente (imagen nueva). Falta de la dueña: mirar la pantalla Marketing › Camila,
-   confirmar el «Sí, quiero» de dos toques y aprobar la primera campaña. Etapa 1b: que Juan pregunte el permiso por
-   WhatsApp. **Etapa 2** (2026-11-06, decisiones de la dueña en CAMILA.md §1b: tope por cliente, varias campañas,
-   chips del CRM, redactor con IA, dos botones con UTM, redes, Juan sabe del correo): **hecha en su rama, con la
-   revisión adversarial arreglada (11 hallazgos) y el «sí» de la dueña a las capturas**; sigue el despliegue (toca
-   `juan/`: también el Worker de Juan; la post-migración anota las campañas de la etapa 1 en el registro del tope).
+1. **Camila (mail marketing)** ([CAMILA.md](CAMILA.md)): etapas 1 y 2 **en producción** desde el 2026-11-06 (Desplegar
+   52 y 54, con Juan 7). La clave de campañas ya está y Odoo la tomó (Desplegar 53). Nada sale sin que alguien de
+   Marketing o Gerencia apruebe la campaña. Falta de la dueña: la primera campaña y confirmar el «Sí, quiero» de dos
+   toques. Sigue: etapa 1b (que Juan pregunte el permiso por WhatsApp), cumpleaños, «tu cotización sigue aquí» y la
+   etapa de la página web.
 2. **Brian al día** con lo nuevo (la dueña: «indispensable, pero desactualizado») y una vuelta a la pantalla de Sofía.
 3. **Que el equipo use lo nuevo** (lo hace la dueña con el equipo; ver «Lo que falta de la dueña»): el Reparto
    «Parejo», el Telegram de cada vendedora, «Revisar ahora» de Sofía y los mensajes de Sofía.
@@ -70,6 +67,10 @@ LEEME_PRIMERO §2).
     - pruebas de humo a mano después de cada despliegue a producción y una revisión de secretos;
     - en Conversaciones (computadora), el botón flotante de Brian tapa en parte el botón «Enviar» de la caja (se vio
       en las capturas de la varita del 2026-11-06);
+    - una pantalla propia abierta desde antes de un despliegue sigue con el JavaScript viejo y puede romperse con los
+      datos nuevos (2026-11-06: Camila en el celular de la dueña, «ctx['d'].proxima.ya», tras Desplegar 54; se arregla
+      recargando). Que las pantallas propias avisen «Hay una versión nueva: toca para recargar» cuando cambie
+      `APP_VERSION`;
     - los PR de Dependabot abiertos (#7 del borde; #78 a #81 de Juan y del puente, abiertos el 2026-11-06): revisarlos
       y probarlos antes de unir (el grupo «ia» de Juan toca los clientes de la IA);
     - `abrir` de Bodega no exige pago a una entrega en borrador (hoy no hay entregas de venta en borrador);

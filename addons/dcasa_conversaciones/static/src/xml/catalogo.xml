@@ -92,9 +92,16 @@
                                 </div>
                             </li>
                         </ul>
-                        <p t-if="local.encontrados > local.productos.length" class="o_dcj_ayuda">
-                            Hay <t t-out="local.encontrados"/> productos; se muestran los <t t-out="local.productos.length"/> que mejor coinciden. Afina la búsqueda.
-                        </p>
+                        <div t-if="local.encontrados > local.productos.length" class="o_dcj_ver_mas">
+                            <p class="o_dcj_ayuda">
+                                Se ven <t t-out="local.productos.length"/> de <t t-out="local.encontrados"/> productos, los que mejor coinciden.
+                            </p>
+                            <button type="button" class="btn btn-secondary o_dcj_boton o_dcj_ver_mas_boton" t-att-disabled="local.cargandoMas or local.ocupado"
+                                    t-on-click="verMas">
+                                <t t-if="local.cargandoMas">Cargando…</t>
+                                <t t-else="">Ver más (<t t-out="local.encontrados - local.productos.length"/>)</t>
+                            </button>
+                        </div>
                     </div>
                     <!-- Lo elegido para mandar junto (de esta búsqueda o de otras) y el cierre: la ventana no se cierra sola. -->
                     <footer class="o_dcj_hoja_pie o_dcj_tanda">

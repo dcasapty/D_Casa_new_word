@@ -1433,3 +1433,10 @@ body.o_dcj_arrastrando_ancho { cursor: col-resize; user-select: none; }
     }
     .o_dcj_visor .o_dcj_visor_cuerpo { padding: 8px 8px 24px; }
 }
+
+// «Ver más» al final de los resultados de «Foto del catálogo» (pedido de la dueña, 2026-11-06).
+.o_dcj_ver_mas {
+    display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 0 4px;
+    .o_dcj_ayuda { margin: 0; text-align: center; }
+    .o_dcj_ver_mas_boton { min-width: 180px; }
+}

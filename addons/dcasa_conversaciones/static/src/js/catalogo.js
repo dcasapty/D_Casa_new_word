@@ -26,6 +26,7 @@ export class BuscadorCatalogo extends Component {
             encontrados: 0,
             buscado: false,
             cargando: false,
+            cargandoMas: false,
             error: null,
             galeria: null, // { producto, fotos, elegidas: [ref] }
             ocupado: null, // "enviar" | "caja" | "galeria" | "tanda" mientras se manda
@@ -50,6 +51,32 @@ export class BuscadorCatalogo extends Component {
         this.local.consulta = ev.target.value;
         clearTimeout(this.temporizador);
         this.temporizador = setTimeout(() => this.buscar(), ESPERA);
+    }
+
+    /** «Ver más»: trae la siguiente vuelta de la misma búsqueda y la suma debajo (sin perder lo elegido). */
+    async verMas() {
+        const consulta = this.local.consulta.trim();
+        if (this.local.cargandoMas || this.local.productos.length >= this.local.encontrados || consulta.length < 2) {
+            return;
+        }
+        const numero = this._numero;
+        this.local.cargandoMas = true;
+        try {
+            const r = await this.almacen.buscarCatalogo(consulta, this.local.productos.length);
+            if (numero === this._numero) {
+                const vistos = new Set(this.local.productos.map((p) => p.id));
+                this.local.productos = [...this.local.productos, ...r.productos.filter((p) => !vistos.has(p.id))];
+                this.local.encontrados = r.encontrados;
+            }
+        } catch (error) {
+            if (numero === this._numero) {
+                this.local.error = mensajeDeError(error);
+            }
+        } finally {
+            if (numero === this._numero) {
+                this.local.cargandoMas = false;
+            }
+        }
     }
 
     async buscar() {
