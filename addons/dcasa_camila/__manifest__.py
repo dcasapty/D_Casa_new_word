@@ -30,6 +30,7 @@ Camila (decisiones de la dueña, 2026-11-06; docs/CAMILA.md):
                 'dcasa_contactos', 'website_dcasa'],
     'data': [
         'security/ir.model.access.csv',
+        'security/pregunta_reglas.xml',
         'data/ir_cron.xml',
         'data/etiqueta.xml',
         'views/correo_templates.xml',

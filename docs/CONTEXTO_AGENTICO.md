@@ -714,6 +714,16 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
       Además: `import_file`, `install_mode`, `registry.ready` y una sola ficha por escritura.
     - Una ficha de usuario nuevo se crea por `_inherits` dentro de `res.users.create`: para que no se active nada ahí,
       `res.users.create` pone una marca en el contexto (`dcasa_promos_sin_auto`).
+    - La revisión adversarial encontró cinco puertas más (la carga del sistema anterior, fusionar, empleados,
+      proveedores, el chatter): algo automático sobre `res.partner` va **por invitación** (una marca que ponen solo los
+      caminos de una persona: `web_save` de la pantalla, Sofía, Juan), no con una lista de excepciones.
+    - `cr.savepoint()` hace `flush()` ANTES del SAVEPOINT: dentro de un `try/except` que traga errores, un conflicto o
+      una restricción de lo pendiente de QUIEN LLAMA (la venta, el pago) se disfraza de aviso propio y deja la
+      transacción abortada (la venta falla callada y Odoo no reintenta). `self.env.flush_all()` antes del `try`.
+    - Un cron que vuelve a anotar un «sí» (Sofía, 30 días hacia atrás) no puede borrar un «no»: el «no» lo borra solo
+      un acto explícito y nunca uno más nuevo que el «sí».
+    - `odoo.tests.Form` guarda con `web_save` y corre los onchange de verdad: sirve para probar lo que pasa «desde la
+      pantalla» sin navegador.
 - **Calculadora de envíos (2026-11-06, `dcasa_envios`), lo aprendido:**
   - Un `<input type="number" step="0.1">` dentro de un `<form>` **bloquea el envío** si el valor no es múltiplo del paso
     (7.04): el navegador no llama al `submit` y no hay error visible. Lo atrapó la prueba en el navegador; ahora

@@ -1070,6 +1070,17 @@ LISTA_BLANCA = {
                    'creada por una persona del equipo, queda con las novedades activadas solas (mismas reglas).',
     ('dcasa_camila', 'res.users', 'create'):
         OVERRIDE + ' Solo agrega al contexto que la ficha del usuario nuevo no active sola las novedades.',
+    ('dcasa_camila', 'res.partner', 'web_save'):
+        OVERRIDE + ' Solo agrega al contexto la marca de «una persona guardó la ficha en la pantalla» (con ella, un '
+                   'correo nuevo activa las novedades; sigue exigiendo un usuario del equipo y una sola ficha).',
+    ('dcasa_camila', 'sale.order', 'web_save'):
+        OVERRIDE + ' Igual que la ficha: la marca de la pantalla para el correo de «Sus datos».',
+    ('dcasa_camila', 'account.move', 'web_save'):
+        OVERRIDE + ' Igual que la ficha: la marca de la pantalla para el correo de «Sus datos».',
+    ('dcasa_camila', 'dcasa.camila.pregunta', 'create'):
+        OVERRIDE + ' IMPIDE crearlo fuera del sistema: el cuadro lo arma solo el servidor al confirmar o pagar.',
+    ('dcasa_camila', 'dcasa.camila.pregunta', 'write'):
+        OVERRIDE + ' IMPIDE escribir otra cosa que la casilla y el correo (lo demás lo arma el servidor).',
     ('dcasa_camila', 'sale.order', 'create'):
         OVERRIDE + ' Quita «Vino del correo» de lo que manda quien crea y, después de crear, lo anota Camila (en un '
                    'savepoint, sin poder frenar la cotización).',

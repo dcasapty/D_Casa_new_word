@@ -126,8 +126,15 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
   «activo» o «sin_correo». El pie de cada campaña: «Te llega porque nos diste tu correo en D'CASA. ¿No quieres más?
   Date de baja aquí».
 - La pantalla de Camila cuenta por camino. Pruebas: `test_etapa1b.py` (primero en rojo sobre el código de antes) y
-  `juan/test/dcasa/permiso-correo.test.ts` (3 de 5 en rojo). **Sin push ni despliegue**: espera la revisión
-  adversarial; al desplegar va también el Worker de Juan.
+  `juan/test/dcasa/permiso-correo.test.ts` (3 de 5 en rojo). **Sin push ni despliegue**; al desplegar va también el
+  Worker de Juan.
+- **Revisión adversarial** (2 que frenaban y varios a arreglar, todos con su prueba): el cron de Sofía ya no vuelve a
+  suscribir ni borra un «no» (solo un acto explícito lo borra); la carga del sistema anterior, fusionar fichas,
+  empleados, proveedores, el chatter y la creación rápida no activan nada (la activación es **por invitación**: solo
+  la pantalla, Sofía y Juan); desmarcar con el correo en el mismo guardado es un «no»; «venía activada» en la venta
+  es un origen aparte (nadie le preguntó); `flush_all()` antes de cada savepoint (un error de la venta no se traga);
+  el cuadro no se cierra con Escape, el plazo cuenta desde que sale, uno viejo no le gana a un «no», cada quien ve
+  solo los suyos y la casilla va en el azul de la marca.
 
 ### 2026-11-06 (8): «Ver más» en la foto del catálogo y Dependabot, en producción
 

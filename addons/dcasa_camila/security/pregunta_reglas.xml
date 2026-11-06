@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- El cuadro de las novedades en la venta (etapa 1b): cada quien ve y contesta solo los suyos (los arma el servidor
+         con el usuario que confirmó la venta o registró el pago). -->
+    <record id="regla_camila_pregunta_propia" model="ir.rule">
+        <field name="name">Camila: cada quien sus cuadros de novedades</field>
+        <field name="model_id" ref="model_dcasa_camila_pregunta"/>
+        <field name="domain_force">[('create_uid', '=', user.id)]</field>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+    </record>
+</odoo>

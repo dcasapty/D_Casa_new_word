@@ -616,3 +616,9 @@
     width: auto !important;
     min-width: 0 !important;
 }
+
+// La casilla del cuadro de la venta, en el azul de la marca (no el verde de Odoo).
+.o_dcasa_camila_pregunta .o_field_boolean_toggle .form-check-input:checked {
+    background-color: #1340B1;
+    border-color: #1340B1;
+}

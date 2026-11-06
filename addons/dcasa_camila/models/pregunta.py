@@ -5,12 +5,17 @@ Cuando una persona del equipo confirma una venta o registra un pago **desde la p
 
 * **Con correo**: la casilla «Quiere recibir novedades por correo» ya viene activada (la regla de la dueña: se activan
   solas con el correo) y dice a qué correo le llegarían. Si el cliente dijo que no, se desactiva: queda el «no» (con
-  cuándo, en qué venta y quién) y ya no se activa sola. Si quedó activada y no tenía permiso, queda «En la venta» con
-  la referencia «venía activada» (lo honesto: nadie le preguntó). Si ya se había activado sola, sigue así.
+  cuándo, en qué venta y quién) y ya no se activa sola. Si quedó activada y no tenía permiso, queda «Quedó activada en
+  la venta (venía activada; nadie le preguntó)» (``venta_venia_activada``: lo honesto; se cuenta aparte y la ficha
+  sigue ofreciendo «El cliente dijo que sí»). Si ya se había activado sola, sigue así. Si la casilla venía apagada (un
+  «no» viejo) y quien atiende la activa, eso sí es un «sí» de una persona (``venta``).
 * **Sin correo**: «Sí / No». Con «Sí», el mismo cuadro pide el correo, lo revisa y lo guarda en la ficha con las reglas
-  de contactos de siempre; queda «En la venta». Con «No», queda el «no».
+  de contactos de siempre; queda «En la venta» (el único «sí» de verdad del cuadro). Con «No», queda el «no».
 
-El cuadro no vuelve a salir para esa ficha en el plazo del ajuste (``dcasa_camila.dias_entre_preguntas``, 180 días).
+El cuadro no vuelve a salir para esa ficha en el plazo del ajuste (``dcasa_camila.dias_entre_preguntas``, 180 días),
+contado desde que sale (aunque lo cierren sin contestar). Lo arma solo el servidor (``create`` exige el sistema) y la
+persona solo puede tocar la casilla y el correo; cada quien ve solo los suyos (regla de registro). Escape no lo cierra
+(``static/src/js/pregunta.js``): así tampoco se pierde lo que seguía («Imprimir documentos»).
 
 **La regla de oro: esto NUNCA traba ni hace fallar una venta o un pago.** El cuadro sale DESPUÉS de confirmar o de
 pagar (la venta o el pago ya quedaron hechos y confirmados en esa petición) y solo cuando el botón de la pantalla trae
@@ -27,6 +32,8 @@ import logging
 from odoo import api, fields, models
 from odoo.addons.dcasa_correo.models.correo import correo_valido
 from odoo.exceptions import AccessError, UserError, ValidationError
+
+from .permiso import VENIA_ACTIVADA
 
 _logger = logging.getLogger(__name__)
 
@@ -51,6 +58,20 @@ class CamilaPregunta(models.TransientModel):
     correo = fields.Char('Su correo')
     siguiente = fields.Text(readonly=True, help='La acción que seguía (p. ej. «Imprimir documentos» tras pagar).')
 
+    # Lo único que escribe la persona: la casilla y el correo (lo demás lo arma el servidor).
+    CAMPOS_DE_LA_PERSONA = frozenset({'quiere', 'correo'})
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        if not self.env.su:
+            raise AccessError(self.env._('Este cuadro lo arma Odoo al confirmar una venta o registrar un pago.'))
+        return super().create(vals_list)
+
+    def write(self, vals):
+        if not self.env.su and set(vals) - self.CAMPOS_DE_LA_PERSONA:
+            raise AccessError(self.env._('En este cuadro solo se cambia la casilla o el correo.'))
+        return super().write(vals)
+
     # ------------------------------------------------------------------
     # Abrir el cuadro (después de confirmar o de pagar)
     # ------------------------------------------------------------------
@@ -68,7 +89,9 @@ class CamilaPregunta(models.TransientModel):
             referencia = self.env._('Venta %s', orden.name)
         else:
             referencia = self.env._('Pago de %s', ', '.join(facturas.mapped('name'))[:90])
-        cuadro = self.create({
+        ficha._dcasa_promos_anotar_pregunta()   # el plazo cuenta desde que sale (Escape o «No dio su correo» incluidos)
+        # sudo: lo arma el sistema (create_uid sigue siendo quien confirmó o pagó: la regla de registro es por él).
+        cuadro = self.sudo().create({
             'partner_id': ficha.id,
             'paso': paso,
             'quiere': bool(casilla),
@@ -79,7 +102,7 @@ class CamilaPregunta(models.TransientModel):
             'correo_actual': correo_valido(ficha.sudo().email) or False,
             'siguiente': json.dumps(siguiente) if isinstance(siguiente, dict) else False,
         })
-        return cuadro._accion()
+        return cuadro.sudo(False)._accion()
 
     def _accion(self):
         return {
@@ -130,20 +153,32 @@ class CamilaPregunta(models.TransientModel):
                 pass
         return {'type': 'ir.actions.act_window_close'}
 
+    def _no_hay_un_no_mas_nuevo(self, ficha):
+        """Un cuadro viejo (o repetido) no le gana a un «no» que se anotó después de abrirlo."""
+        no = ficha.sudo().dcasa_promos_no_fecha
+        if no and no > self.create_date:
+            raise UserError(self.env._('Mientras tanto se anotó que el cliente dijo que no: no se activa. Si de verdad '
+                                       'cambió de idea, márcalo en su ficha.'))
+
     def action_listo(self):
-        """Con correo: la casilla como la dejó la persona. Desactivada, queda el «no»; activada, queda el permiso (si ya
-        lo tenía, sigue igual: si se había activado sola, sigue diciendo eso)."""
+        """Con correo: la casilla como la dejó la persona. Desactivada, queda el «no». Activada y venía activada:
+        ``venta_venia_activada`` (nadie le preguntó; si ya se había activado sola, sigue así). Activada por la persona
+        (venía apagada por un «no» viejo): ``venta``, un «sí» de una persona."""
         ficha = self._revisar()
         if self.paso != 'casilla':
             raise UserError(self.env._('Esta pregunta ya no está en ese paso: ciérrala y vuelve a abrir la venta.'))
         if not self.quiere:
             ficha._dcasa_promos_anotar_no('venta', self.env.user)
             return self._siguiente()
+        self._no_hay_un_no_mas_nuevo(ficha)
         if ficha._dcasa_promos_motivo_para_no_activar() == 'baja':
             raise UserError(self.env._('Ese correo se dio de baja de las novedades: no se le vuelve a escribir.'))
         if ficha.sudo().dcasa_promos_estado != 'si':
-            detalle = self.env._('venía activada') if self.venia_activada else self.env._('la activó quien atendió')
-            ficha._dcasa_promos_registrar('venta', self.env.user, referencia=f'{self.referencia} · {detalle}')
+            if self.venia_activada:
+                ficha._dcasa_promos_registrar(VENIA_ACTIVADA, self.env.user, referencia=self.referencia)
+            else:
+                ficha._dcasa_promos_registrar('venta', self.env.user, explicito=True,
+                                              referencia=f'{self.referencia} · {self.env._("la activó quien atendió")}')
         ficha._dcasa_promos_anotar_pregunta()
         return self._siguiente()
 
@@ -154,7 +189,7 @@ class CamilaPregunta(models.TransientModel):
         correo_ficha = correo_valido(ficha.sudo().email)
         if not correo_ficha:
             if self.paso == 'pregunta':
-                self.write({'paso': 'correo'})   # el mismo cuadro pide el correo
+                self.sudo().write({'paso': 'correo'})   # el mismo cuadro pide el correo
                 return self._accion()
             correo = correo_valido(self.correo)
             if not correo:
@@ -167,7 +202,8 @@ class CamilaPregunta(models.TransientModel):
             correo_ficha = correo_valido(ficha.sudo().email)
         if ficha._dcasa_promos_motivo_para_no_activar() == 'baja':
             raise UserError(self.env._('Ese correo se dio de baja de las novedades: no se le vuelve a escribir.'))
-        if not ficha._dcasa_promos_registrar('venta', self.env.user, referencia=self.referencia):
+        self._no_hay_un_no_mas_nuevo(ficha)
+        if not ficha._dcasa_promos_registrar('venta', self.env.user, explicito=True, referencia=self.referencia):
             _logger.info('DCASA_CAMILA el sí en la venta no cambió nada (ficha %s)', ficha.id)
         return self._siguiente()
 
@@ -192,6 +228,7 @@ class SaleOrder(models.Model):
         resultado = super().action_confirm()
         if not self.env.context.get(MARCA) or len(self) != 1 or not self.env.user._is_internal() or self.env.su:
             return resultado
+        self.env.flush_all()   # lo pendiente de la venta, AFUERA del try: un error suyo no se traga
         try:
             with self.env.cr.savepoint():
                 accion = self.env['dcasa.camila.pregunta']._accion_para(
@@ -213,6 +250,7 @@ class AccountPaymentRegister(models.TransientModel):
         resultado = super().action_create_payments()
         if not self.env.context.get(MARCA) or not self.env.user._is_internal() or self.env.su:
             return resultado
+        self.env.flush_all()   # lo pendiente del pago, AFUERA del try: un error suyo no se traga
         try:
             with self.env.cr.savepoint():
                 facturas = self.line_ids.move_id.filtered(

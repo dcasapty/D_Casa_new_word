@@ -37,6 +37,7 @@ class DcasaConversacionPermiso(models.Model):
 
     def _estado_para_worker(self, ajustes=None):
         estado = super()._estado_para_worker(ajustes)
+        self.env.flush_all()   # lo pendiente del mensaje, AFUERA del try: un error suyo no se traga
         try:
             with self.env.cr.savepoint():
                 permiso = self._dcasa_camila_permiso_para_juan()

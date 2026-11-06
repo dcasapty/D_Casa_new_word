@@ -564,9 +564,12 @@ despachar. Un método público que usa `sudo()` sin exigir grupo sería una puer
   productos (nombre, categoría, atributos, descripción, medidas, material) y la idea que escribe el equipo: ningún dato
   de clientes. Etapa 1b (decisión de la dueña, 2026-11-06): **se activa sola al agregar el correo** a una ficha (origen
   honesto «Se activó sola al agregar su correo», con quién lo agregó; nunca «tienda»), una ficha a la vez y solo si lo
-  agrega alguien del equipo o Juan con el correo que escribió el cliente: nunca importando, en bloque, instalando, por
-  el sistema, desde la web pública o el portal, con baja o «no contactar» de ese correo en cualquier ficha ni después
-  de un «no», y nada hacia atrás. El «no» queda anotado (cuándo, dónde y quién: desmarcar la casilla, en la venta o
+  agrega alguien del equipo desde la pantalla (ficha, venta, factura), Sofía o Juan con el correo que escribió el
+  cliente (por invitación, no por excepciones): nunca importando, con la carga del sistema anterior, al fusionar, en
+  bloque, instalando, por el sistema, desde la web pública o el portal, el chatter, la creación rápida o Brian, a
+  empleados, proveedores o el equipo, con baja o «no contactar» de ese correo en cualquier ficha ni después de un «no»
+  (que solo borra un acto explícito), y nada hacia atrás. «Venía activada» en la venta queda como tal (nadie le
+  preguntó). El «no» queda anotado (cuándo, dónde y quién: desmarcar la casilla, en la venta o
   con Juan) y con él ya no se activa sola. Al confirmar una venta o registrar un pago, la casilla sale ya activada con
   su correo (si dijo que no, se desactiva); Juan honra siempre un «no». Cada campaña dice «Te llega porque nos diste
   tu correo en D'CASA. ¿No quieres más? Date de baja aquí». El público de cada campaña (los chips del CRM) se muestra en cuántos, nunca en nombres ni correos. Detalle: [CAMILA.md](CAMILA.md).

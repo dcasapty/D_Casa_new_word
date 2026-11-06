@@ -57,9 +57,14 @@ ORIGENES = [
     ('venta', 'En la venta (al confirmar o cobrar)'),
     ('juan_whatsapp', 'WhatsApp (Juan)'),
     ('al_agregar_correo', 'Se activó sola al agregar su correo'),
+    ('venta_venia_activada', 'Quedó activada en la venta (venía activada; nadie le preguntó)'),
 ]
 # La activación automática (cambio de la dueña, 2026-11-06): nunca se registra como «tienda».
 AUTOMATICO = 'al_agregar_correo'
+# En el cuadro de la venta la casilla venía activada y quien atendió tocó «Listo»: tampoco es un «sí» de verdad.
+VENIA_ACTIVADA = 'venta_venia_activada'
+# Los que nadie preguntó: la ficha dice «nadie le ha preguntado», se cuentan aparte y una persona los confirma.
+AUTOMATICOS = frozenset({AUTOMATICO, VENIA_ACTIVADA})
 # Dónde quedó el «no» (desmarcar la casilla, en la venta o con Juan): con él, la casilla no se activa sola nunca más.
 ORIGENES_NO = [
     ('ficha', 'Desmarcó la casilla de su ficha'),
@@ -79,7 +84,8 @@ CAMPOS_PERMISO = frozenset({
 SIN_PERMISO = {'dcasa_promos_fecha': False, 'dcasa_promos_origen': False, 'dcasa_promos_usuario_id': False,
                'dcasa_promos_correo': False, 'dcasa_promos_referencia': False}
 # Cómo se llama cada camino en la pantalla de Camila (los conteos de la etapa 1b). «web» solo si hay alguno.
-CAMINOS = [('al_agregar_correo', 'Al agregar su correo'), ('venta', 'En la venta'),
+CAMINOS = [('al_agregar_correo', 'Al agregar su correo'), ('venta_venia_activada', 'En la venta (venía activada)'),
+           ('venta', 'En la venta'),
            ('juan_whatsapp', 'Juan (WhatsApp)'), ('factura', 'Enlace de la factura'),
            ('bienvenida', 'Enlace de bienvenida'), ('sofia_whatsapp', 'Sofía (WhatsApp)'),
            ('tienda', 'Casilla de la ficha'), ('web', 'Sitio web')]
@@ -196,7 +202,29 @@ class ResPartner(models.Model):
         if not correo_valido(ficha.sudo().email):
             raise UserError(self.env._(
                 'Para marcarla, la ficha necesita un correo bien escrito: el permiso es de ese correo.'))
-        ficha._dcasa_promos_registrar('tienda', self.env.user)
+        ficha._dcasa_promos_registrar('tienda', self.env.user, explicito=True)
+
+    @api.onchange('email')
+    def _onchange_dcasa_promos_email(self):
+        """En la ficha, al escribir un correo nuevo la casilla se ve activada: es lo que va a pasar al guardar (la regla
+        de la dueña). Si el cliente dijo que no, quien atiende la desmarca antes de guardar y queda el «no»."""
+        for partner in self:
+            nuevo = correo_valido(partner.email)
+            antes = correo_valido(partner._origin.email) if partner._origin else None
+            if partner.parent_id or partner.is_company or not nuevo or nuevo == antes \
+                    or (partner.supplier_rank and not partner.customer_rank):
+                continue
+            ficha = partner._origin.sudo() if partner._origin else partner.browse()
+            if ficha and (ficha.dcasa_promos_no_fecha or ficha.dcasa_promos_baja_fecha or ficha.dcasa_no_contactar):
+                continue
+            if self._dcasa_promos_bloqueos_por_correo([nuevo]).get(nuevo) or nuevo in self._dcasa_correos_del_equipo():
+                continue
+            partner.dcasa_promos = True
+
+    def web_save(self, vals, specification, next_id=None):
+        """Guardar la ficha desde la pantalla: aquí sí se activa sola al agregar un correo (lo hace una persona)."""
+        return super(ResPartner, self.with_context(dcasa_promos_auto=True)).web_save(vals, specification,
+                                                                                     next_id=next_id)
 
     def write(self, vals):
         """El permiso solo lo escribe el sistema (la casilla, el botón, el enlace o el cron), nunca a mano. Si una
@@ -205,24 +233,52 @@ class ResPartner(models.Model):
         if CAMPOS_PERMISO.intersection(vals) and not self.env.su:
             raise AccessError(self.env._(
                 'El permiso de novedades se marca con su casilla y la baja con su botón; no se escribe a mano.'))
-        vigilar = 'email' in vals and len(self) == 1 and self._dcasa_promos_auto_permitido()
-        antes = correo_valido(self.commercial_partner_id.sudo().email) if vigilar else None
+        cambia_correo = 'email' in vals and len(self) == 1
+        if not cambia_correo:
+            return super().write(vals)
+        # Con el correo cambia también la casilla en el mismo guardado: la decide esto, no el inverso (que vería «otro
+        # correo» y no haría nada). Desmarcada = el cliente dijo que no; marcada (o sin tocar) = la regla de la dueña.
+        casilla = None
+        if 'dcasa_promos' in vals and (not vals['dcasa_promos'] or self._dcasa_promos_auto_permitido()):
+            casilla = bool(vals['dcasa_promos'])   # marcada fuera de la pantalla: la decide el inverso, como siempre
+            vals = {clave: valor for clave, valor in vals.items() if clave != 'dcasa_promos'}
+        antes = correo_valido(self.commercial_partner_id.sudo().email)
         resultado = super().write(vals)
-        if vigilar:
-            self._dcasa_promos_activar_al_agregar_correo(antes)
+        self._dcasa_promos_despues_del_correo(antes, casilla)
         return resultado
 
     @api.model_create_multi
     def create(self, vals_list):
         if not self.env.su and any(CAMPOS_PERMISO.intersection(vals) for vals in vals_list):
             raise AccessError(self.env._('El permiso de novedades no se escribe a mano.'))
+        # Una ficha a la vez (crear muchas de una vez, p. ej. importando, nunca las activa): la casilla que llega con
+        # ella la decide esto, después de crearla, igual que al cambiar el correo.
+        casilla = None
+        if len(vals_list) == 1 and 'dcasa_promos' in vals_list[0] \
+                and (not vals_list[0]['dcasa_promos'] or self._dcasa_promos_auto_permitido()):
+            casilla = bool(vals_list[0]['dcasa_promos'])
+            vals_list = [{clave: valor for clave, valor in vals_list[0].items() if clave != 'dcasa_promos'}]
         partners = super().create(vals_list)
-        # Una ficha a la vez (crear muchas de una vez, p. ej. importando, nunca las activa) y solo la ficha comercial:
-        # el correo de un contacto hijo no cambia el de su ficha.
-        if len(partners) == 1 and partners.email and partners.commercial_partner_id == partners \
-                and self._dcasa_promos_auto_permitido():
-            partners._dcasa_promos_activar_al_agregar_correo(None)
+        if len(partners) == 1 and partners.commercial_partner_id == partners:
+            partners._dcasa_promos_despues_del_correo(None, casilla)
         return partners
+
+    def _dcasa_promos_despues_del_correo(self, antes, casilla):
+        """Después de crear la ficha o de cambiarle el correo, con lo que vino en la casilla (``None`` si no vino o la
+        decide el inverso):
+
+        * desmarcada (``False``) con un correo nuevo: el cliente dijo que no; queda el «no» y no se activa sola;
+        * marcada o sin tocar, por un camino de una persona: se activa sola
+          (``_dcasa_promos_activar_al_agregar_correo``).
+        """
+        ficha = self.commercial_partner_id
+        if casilla is False:
+            nuevo = correo_valido(ficha.sudo().email)
+            if nuevo and nuevo != antes:
+                ficha._dcasa_promos_anotar_no('ficha', self.env.user)
+            return
+        if self._dcasa_promos_auto_permitido():
+            self._dcasa_promos_activar_al_agregar_correo(antes)
 
     # ------------------------------------------------------------------
     # Se activa sola al agregar el correo (cambio de la dueña, 2026-11-06)
@@ -230,23 +286,31 @@ class ResPartner(models.Model):
 
     @api.model
     def _dcasa_promos_auto_permitido(self):
-        """¿Esta escritura puede activar sola las novedades? Solo si la hace una persona del equipo (``uid`` interno,
-        aunque el código use ``sudo``) y no es una importación, la instalación de un módulo (sus datos) ni el sistema
-        (crones, scripts y migraciones corren como ``SUPERUSER_ID``): así nadie da de alta en bloque a los clientes
-        de siempre. La web pública y el portal tampoco (alguien podría escribir el correo de otro en un formulario;
-        el «sí» desde la web es la etapa siguiente). Juan, que no es del equipo, lo llama aparte con el correo que
-        escribió el cliente (``juan_permiso.py``)."""
+        """¿Esta escritura puede activar sola las novedades? **Solo por los caminos de una persona** (revisión
+        adversarial: una lista de excepciones siempre deja alguno afuera): la marca ``dcasa_promos_auto`` la ponen
+        guardar desde la pantalla la ficha, la venta o la factura («Sus datos») y «Guarda sus datos» de Sofía. Además,
+        el ``uid`` tiene que ser del equipo (aunque el código use ``sudo``) y nunca: importando, instalando módulos,
+        con ``dcasa_promos_sin_auto`` (usuarios nuevos, la carga del sistema anterior, fusionar fichas, empleados) ni
+        como ``SUPERUSER_ID`` (crones, scripts y migraciones). La web pública, el portal, Brian, los destinatarios del
+        chatter y la creación rápida no llevan la marca. Juan lo llama aparte con el correo que escribió el cliente
+        (``juan_permiso.py``)."""
         contexto = self.env.context
-        if contexto.get('import_file') or contexto.get('install_mode') or contexto.get('dcasa_promos_sin_auto') \
-                or not self.env.registry.ready or self.env.uid == SUPERUSER_ID:
+        if not contexto.get('dcasa_promos_auto') or contexto.get('import_file') or contexto.get('install_mode') \
+                or contexto.get('dcasa_promos_sin_auto') or not self.env.registry.ready \
+                or not self.env.uid or self.env.uid == SUPERUSER_ID:
             return False
-        return self.env.user._is_internal()
+        try:
+            return self.env.user._is_internal()
+        except Exception:   # noqa: BLE001 — sin usuario válido, no se activa nada
+            return False
 
     def _dcasa_promos_motivo_para_no_activar(self):
         """``None`` si esta ficha puede quedar con las novedades activadas solas; si no, por qué: ``empresa``
-        (archivada o de empresa, sin persona), ``equipo``, ``baja`` (baja o «no contactar» de su correo en CUALQUIER
-        ficha, o de la ficha), ``dijo_que_no`` (alguien anotó un «no», de cuando sea), ``ya_confirmado`` (ya dijo que
-        sí con su correo de hoy, por un camino que no es el automático) o ``ya_activada`` (ya se activó sola)."""
+        (archivada o de empresa, sin persona), ``equipo`` (un usuario del equipo, un empleado, la empresa propia o un
+        correo del equipo), ``proveedor`` (proveedor que no es cliente: la decisión es de clientes), ``baja`` (baja o
+        «no contactar» de su correo en CUALQUIER ficha, o de la ficha), ``dijo_que_no`` (alguien anotó un «no», de
+        cuando sea), ``ya_confirmado`` (ya dijo que sí con su correo de hoy, por un camino que no es automático) o
+        ``ya_activada`` (ya se activó sola o venía activada en la venta)."""
         self.ensure_one()
         ficha = self.commercial_partner_id.sudo()
         if not ficha.active or ficha.is_company:
@@ -254,16 +318,19 @@ class ResPartner(models.Model):
         equipo = self.env['res.users'].sudo().with_context(active_test=False).search(
             [('partner_id', '=', ficha.id)], limit=1)
         correo = correo_valido(ficha.email)
-        if (equipo and not equipo.share) or ficha in self.env['res.company'].sudo().search([]).partner_id \
+        empleado = 'employee_ids' in ficha._fields and ficha.with_context(active_test=False).employee_ids
+        if (equipo and not equipo.share) or empleado or ficha in self.env['res.company'].sudo().search([]).partner_id \
                 or (correo and correo in self._dcasa_correos_del_equipo()):
             return 'equipo'
+        if ficha.supplier_rank and not ficha.customer_rank:
+            return 'proveedor'
         if ficha.dcasa_no_contactar or ficha.dcasa_promos_baja_fecha \
                 or (correo and self._dcasa_promos_bloqueos_por_correo([correo]).get(correo)):
             return 'baja'
         if ficha.dcasa_promos_no_fecha:
             return 'dijo_que_no'
         if correo and ficha.dcasa_promos_fecha and ficha.dcasa_promos_correo == correo:
-            return 'ya_activada' if ficha.dcasa_promos_origen == AUTOMATICO else 'ya_confirmado'
+            return 'ya_activada' if ficha.dcasa_promos_origen in AUTOMATICOS else 'ya_confirmado'
         return None
 
     def _dcasa_promos_activar_al_agregar_correo(self, antes, usuario=None, referencia=None):
@@ -272,6 +339,8 @@ class ResPartner(models.Model):
         ``_dcasa_promos_motivo_para_no_activar``). Nunca hace fallar la escritura del correo. Devuelve las fichas que
         quedaron activadas."""
         vacio = self.browse()
+        # Lo pendiente de quien llama se escribe AFUERA del try: un error suyo (un conflicto de la venta) no se traga.
+        self.env.flush_all()
         try:
             with self.env.cr.savepoint():
                 ficha = self.commercial_partner_id.sudo()
@@ -289,15 +358,19 @@ class ResPartner(models.Model):
     # Anotar el sí, quitarlo y la baja
     # ------------------------------------------------------------------
 
-    def _dcasa_promos_registrar(self, origen, usuario=None, fecha=None, referencia=None):
+    def _dcasa_promos_registrar(self, origen, usuario=None, fecha=None, referencia=None, explicito=False):
         """Anota el «sí» en la ficha comercial (con quién, cuándo y a qué correo). Exige poder escribir la ficha (salvo
         el sistema).
 
         Nunca toca una ficha sin correo bien escrito, una que ya dijo que sí con ese mismo correo, ni una cuyo correo se
         dio de baja en CUALQUIER ficha (la baja es final). Si dijo que sí con otro correo, queda el «sí» del nuevo. Un
-        «sí» de verdad (cualquier origen salvo el automático) reemplaza al que se activó solo con el mismo correo: es la
-        persona que lo confirma. Un «sí» borra el «no» anterior. Devuelve las fichas que quedaron con el permiso
-        nuevo."""
+        «sí» de verdad (cualquier origen que no sea automático) reemplaza al automático con el mismo correo: es la
+        persona que lo confirma.
+
+        **El «no» solo lo borra un acto explícito** (``explicito``: la casilla marcada por una persona, «El cliente dijo
+        que sí», el «Sí» del cuadro de la venta o el cliente que toca «Sí, quiero» en su enlace) y nunca un «no» más
+        nuevo que ``fecha``. Lo demás (Sofía, el cron, lo automático) no toca una ficha con «no». Devuelve las fichas
+        que quedaron con el permiso nuevo."""
         if origen not in dict(ORIGENES):
             raise ValueError(origen)
         if not self.env.su:
@@ -305,14 +378,19 @@ class ResPartner(models.Model):
         fichas = self.commercial_partner_id.sudo()
         correos = {ficha: correo_valido(ficha.email) for ficha in fichas}
         bloqueos = self._dcasa_promos_bloqueos_por_correo(correos.values())
+        cuando = fecha or fields.Datetime.now()
+
+        def respeta_el_no(f):
+            return not f.dcasa_promos_no_fecha or (explicito and f.dcasa_promos_no_fecha <= cuando)
+
         nuevas = fichas.filtered(lambda f: correos[f] and not f.dcasa_promos_baja_fecha
-                                 and bloqueos.get(correos[f]) != 'baja'
+                                 and bloqueos.get(correos[f]) != 'baja' and respeta_el_no(f)
                                  and not (f.dcasa_promos_fecha and f.dcasa_promos_correo == correos[f]
-                                          and (origen == AUTOMATICO or f.dcasa_promos_origen != AUTOMATICO)))
+                                          and (origen in AUTOMATICOS or f.dcasa_promos_origen not in AUTOMATICOS)))
         usuario = usuario if usuario and not usuario._is_public() else self.env['res.users']
         for ficha in nuevas:
             ficha.write({
-                'dcasa_promos_fecha': fecha or fields.Datetime.now(),
+                'dcasa_promos_fecha': cuando,
                 'dcasa_promos_origen': origen,
                 'dcasa_promos_usuario_id': usuario.id or False,
                 'dcasa_promos_correo': correos[ficha],
@@ -350,7 +428,7 @@ class ResPartner(models.Model):
         self.ensure_one()
         ficha = self.commercial_partner_id.sudo()
         motivo = ficha._dcasa_promos_motivo_para_no_activar()
-        if motivo in ('empresa', 'equipo', 'baja', 'ya_confirmado'):
+        if motivo in ('empresa', 'equipo', 'proveedor', 'baja', 'ya_confirmado'):
             return None, None
         corte = fields.Datetime.now() - timedelta(days=self._dcasa_promos_dias_pregunta())
         if (ficha.dcasa_promos_pregunta_fecha and ficha.dcasa_promos_pregunta_fecha > corte) \
@@ -389,7 +467,7 @@ class ResPartner(models.Model):
         if self._dcasa_promos_motivo_para_no_activar() != 'ya_activada':
             raise UserError(self.env._('Las novedades de esta ficha no están activadas solas: no hay nada que '
                                        'confirmar.'))
-        self.commercial_partner_id._dcasa_promos_registrar('tienda', self.env.user)
+        self.commercial_partner_id._dcasa_promos_registrar('tienda', self.env.user, explicito=True)
         return True
 
     def _dcasa_promos_baja(self, origen, usuario=None, fecha=None):
@@ -510,11 +588,12 @@ class ResPartner(models.Model):
         for propuesta in propuestas:
             conv = propuesta.conversacion_id
             ficha = conv.partner_id.commercial_partner_id
-            if not ficha or ficha != propuesta.partner_id.commercial_partner_id or ficha.dcasa_promos_baja_fecha:
+            if not ficha or ficha != propuesta.partner_id.commercial_partner_id or ficha.dcasa_promos_baja_fecha \
+                    or ficha.dcasa_promos_no_fecha:   # un «no» manda: lo de Sofía (de hasta 30 días) no lo borra
                 continue
             correo = correo_valido(ficha.email)
             if not correo or (ficha.dcasa_promos_fecha and ficha.dcasa_promos_correo == correo
-                              and ficha.dcasa_promos_origen != AUTOMATICO):   # la que se activó sola, se confirma
+                              and ficha.dcasa_promos_origen not in AUTOMATICOS):   # la automática se confirma
                 continue
             pedido = self._dcasa_pedido_de_sofia(propuesta)
             if not pedido or pedido.estado_envio != 'enviado' or not R.pide_correo_para_promociones(pedido.texto):
@@ -542,3 +621,21 @@ class ResUsers(models.Model):
         """La ficha de un usuario nuevo (del equipo o del portal) no activa sola las novedades: el equipo no las
         recibe y el «sí» desde la web es la etapa siguiente."""
         return super(ResUsers, self.with_context(dcasa_promos_sin_auto=True)).create(vals_list)
+
+
+class SaleOrderNovedades(models.Model):
+    _inherit = 'sale.order'
+
+    def web_save(self, vals, specification, next_id=None):
+        """Guardar la venta desde la pantalla: el correo que se escribe en «Sus datos» activa las novedades."""
+        return super(SaleOrderNovedades, self.with_context(dcasa_promos_auto=True)).web_save(
+            vals, specification, next_id=next_id)
+
+
+class AccountMoveNovedades(models.Model):
+    _inherit = 'account.move'
+
+    def web_save(self, vals, specification, next_id=None):
+        """Guardar la factura desde la pantalla: igual que en la venta («Sus datos»)."""
+        return super(AccountMoveNovedades, self.with_context(dcasa_promos_auto=True)).web_save(
+            vals, specification, next_id=next_id)

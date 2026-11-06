@@ -36,15 +36,16 @@
                         Dijo que sí con otro correo (<field name="dcasa_promos_correo" class="oe_inline" readonly="1"/>):
                         al correo de ahora no le llega nada hasta que vuelva a decir que sí.
                     </div>
-                    <div class="text-muted small o_dcasa_promos_auto" invisible="dcasa_promos_estado != 'si' or dcasa_promos_origen != 'al_agregar_correo'">
-                        Se activó sola al agregar su correo el <field name="dcasa_promos_fecha" class="oe_inline" readonly="1"/>
-                        <span invisible="not dcasa_promos_usuario_id"> (lo agregó <field name="dcasa_promos_usuario_id"
+                    <div class="text-muted small o_dcasa_promos_auto" invisible="dcasa_promos_estado != 'si' or dcasa_promos_origen not in ('al_agregar_correo', 'venta_venia_activada')">
+                        <field name="dcasa_promos_origen" class="oe_inline" readonly="1"/> el
+                        <field name="dcasa_promos_fecha" class="oe_inline" readonly="1"/>
+                        <span invisible="not dcasa_promos_usuario_id"> (con <field name="dcasa_promos_usuario_id"
                             class="oe_inline" readonly="1" options="{'no_open': True}"/>)</span>. Nadie le ha
                         preguntado todavía: si el cliente dice que no, desmárcala.
                         <button name="action_dcasa_promos_confirmar" type="object" string="El cliente dijo que sí"
                                 class="btn-link px-0 ms-1 o_dcasa_promos_confirmar" icon="fa-check"/>
                     </div>
-                    <div class="text-muted small" invisible="dcasa_promos_estado != 'si' or dcasa_promos_origen == 'al_agregar_correo'">
+                    <div class="text-muted small" invisible="dcasa_promos_estado != 'si' or dcasa_promos_origen in ('al_agregar_correo', 'venta_venia_activada')">
                         Dijo que sí el <field name="dcasa_promos_fecha" class="oe_inline" readonly="1"/>
                         · <field name="dcasa_promos_origen" class="oe_inline" readonly="1"/>
                         <span invisible="not dcasa_promos_usuario_id">

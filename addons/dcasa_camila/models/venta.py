@@ -40,6 +40,7 @@ class SaleOrder(models.Model):
     def create(self, vals_list):
         vals_list = [self._sin_vino_del_correo(vals) for vals in vals_list]
         ordenes = super().create(vals_list)
+        self.env.flush_all()   # lo pendiente de la cotización, AFUERA del try: un error suyo no se traga
         try:
             with self.env.cr.savepoint():
                 ordenes._dcasa_camila_marcar_correo()
