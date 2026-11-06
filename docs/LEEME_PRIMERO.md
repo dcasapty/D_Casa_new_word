@@ -105,6 +105,29 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 > sigue. Se guardan las diez más recientes; las viejas se resumen en una línea abajo y su texto completo pasa a
 > [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md).
 
+### 2026-11-06 (7): la pantalla de Sofía
+
+- Pedido de la dueña: «Sofía puede mejorar mucho, sobre todo la interfaz visual». **Solo la interfaz**
+  (`dcasa_sofia/static/src/`): qué propone, los permisos y lo que hace cada botón no cambiaron. Ver
+  [SOFIA.md](SOFIA.md) › «Cómo se ve y se usa».
+- Lo que costaba (capturas «antes»): lo urgente era una etiqueta igual a las demás; cada tarjeta traía 3 etiquetas,
+  título, porqué, una caja de texto de hasta 12 líneas y un párrafo repetido de «Le pide sus datos»; en el celular la
+  cabecera y 4 filas de filtros llenaban media pantalla; «Descartar» junto al botón principal; el filtro de Gerencia
+  por vendedora era una lista sin números; al aprobar la tarjeta desaparecía de golpe y todo subía; vacío y carga eran
+  un texto gris; desde «Organizar con Sofía» no se veía nada hasta terminar la revisión.
+- Ahora: secciones «Hoy sin falta» (azul) / «Hoy» / «Cuando puedas» con su número y un resumen arriba; filtro por tipo
+  y (Gerencia) por vendedora con conteos cruzados, al lado en la computadora y en una tira pegada arriba en el celular;
+  tarjetas compactas con el mensaje como burbuja y «Editar»; la acción principal grande; «Ver la oportunidad» y
+  «Descartar» (sin confirmación, como siempre) abajo y aparte; al aprobar la tarjeta dice lo que pasó en su lugar y del
+  mismo alto, y se cierra despacio; «Todo al día» y «Listo por aquí» con «Ver todo»; esqueleto al cargar y, desde el
+  CRM, primero lo que ya había y la revisión encima. Baja con la rueda y con el dedo.
+- Pruebas: `test_sofia_pantalla.py` (nuevo, 9; la rueda y el dedo por el protocolo de Chrome) y las de navegador
+  ajustadas a «Editar»: 70 en verde en base limpia (68 de Sofía y `dcasa_interfaz` › `TestInicioScroll`). Capturas
+  `antes_…`/`despues_…` en el scratchpad de la sesión (`capturas_sofia`), con datos de prueba. **Sin push ni
+  despliegue**: falta que la dueña vea las capturas.
+- Aprendido: el minificador de Odoo (`rjsmin`) aprieta los espacios de una plantilla `` `…` `` anidada dentro de
+  `${…}` («p. m.(la pidió»); hay tres casos viejos en Conversaciones (tarea aparte). Ver CONTEXTO_AGENTICO.
+
 ### 2026-11-06 (5): Camila etapa 2 («a lo grande, todo conectado con todo»), en producción
 
 - Decisiones de la dueña del mismo día ([CAMILA.md](CAMILA.md) §1b): **el tope de 15 días es por cliente** (por correo;

@@ -30,7 +30,9 @@ LEEME_PRIMERO §2).
    Marketing o Gerencia apruebe la campaña. Falta de la dueña: la primera campaña y confirmar el «Sí, quiero» de dos
    toques. Sigue: etapa 1b (que Juan pregunte el permiso por WhatsApp), cumpleaños, «tu cotización sigue aquí» y la
    etapa de la página web.
-2. **Brian al día** con lo nuevo (la dueña: «indispensable, pero desactualizado») y una vuelta a la pantalla de Sofía.
+2. **Brian al día** con lo nuevo (la dueña: «indispensable, pero desactualizado»). La vuelta a la **pantalla de Sofía**
+   está hecha en su rama (2026-11-06 (7), solo interfaz): falta que la dueña vea las capturas antes/después y diga que
+   sí, y después CI, staging y producción.
 3. **Que el equipo use lo nuevo** (lo hace la dueña con el equipo; ver «Lo que falta de la dueña»): el Reparto
    «Parejo», el Telegram de cada vendedora, «Revisar ahora» de Sofía y los mensajes de Sofía.
 4. **Respaldo de la IA de Juan:** `ANTHROPIC_API_KEY` en el Worker `dcasa-juan` por si Meta pasa su límite o se cae (hoy

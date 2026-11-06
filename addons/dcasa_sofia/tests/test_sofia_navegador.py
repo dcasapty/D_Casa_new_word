@@ -52,37 +52,33 @@ class TestSofiaEnElNavegador(HttpCase):
             await esperar(() => tarjetas().length === 2, 'las dos propuestas de la vendedora');
             sinErrores();
             // La pantalla baja con scroll (bug del 2026-11-05: Odoo corta las pantallas propias con overflow hidden).
+            // Lo que bloquea la rueda y el dedo es overflow hidden; con la rueda y el dedo de verdad lo prueba
+            // test_sofia_pantalla.py.
             const pantalla = document.querySelector('.o_action.o_sofia');
-            // Por código se puede mover aunque esté cortada: lo que bloquea la rueda y el dedo es overflow hidden.
             const desborde = getComputedStyle(pantalla).overflowY;
             if (!['auto', 'scroll'].includes(desborde)) {
                 throw new Error('Sofía no baja con scroll: la pantalla tiene overflow-y: ' + desborde);
             }
-            if (pantalla.scrollHeight <= pantalla.clientHeight + 50) {
-                throw new Error('La pantalla no es más alta que la ventana: no se puede probar el scroll');
-            }
-            pantalla.scrollTop = 100000;
-            await new Promise((ok) => setTimeout(ok, 150));
-            if (pantalla.scrollTop < 50) {
-                throw new Error('Sofía no baja con scroll (overflow-y: ' + getComputedStyle(pantalla).overflowY + ')');
-            }
-            const ultima = tarjetas().at(-1).getBoundingClientRect();
-            if (ultima.bottom > window.innerHeight + 2) {
-                throw new Error('Abajo del todo, la última tarjeta sigue cortada');
-            }
-            pantalla.scrollTop = 0;
             if (document.body.textContent.includes('Cliente Ajeno')) {
                 throw new Error('La vendedora ve lo de otra');
             }
+            // El mensaje se lee como en el chat (sin caja) y se edita con «Editar».
             const delEmoji = tarjetas().find((t) => t.querySelector('.o_sofia_cliente').textContent.includes('🙏'));
-            const mensaje = delEmoji.querySelector('textarea.o_sofia_mensaje').value;
+            const mensaje = delEmoji.querySelector('.o_sofia_burbuja').textContent;
             if (!mensaje.includes('tu nombre y apellido y tu correo') || !mensaje.includes('Soy Ana de')) {
                 throw new Error('El mensaje no pide los datos: ' + mensaje);
             }
             const deBruno = tarjetas().find((t) => t.textContent.includes('Bruno Castillo'));
             deBruno.querySelector('.o_sofia_descartar').click();
             await esperar(() => tarjetas().length === 1, 'que se vaya la descartada');
-            const area = document.querySelector('textarea.o_sofia_mensaje');
+            // La descartada lo dice en su lugar (la pantalla no salta) y después se cierra.
+            await esperar(() => document.querySelector('.o_sofia_hecha.o_descartada'), 'el aviso en su lugar');
+            await esperar(() => !document.querySelector('.o_sofia_hecha'), 'que se cierre la descartada');
+            tarjetas()[0].querySelector('.o_sofia_editar').click();
+            const area = await esperar(() => document.querySelector('textarea.o_sofia_mensaje'), 'la caja para editar');
+            if (area.value !== mensaje) {
+                throw new Error('La caja no trae el mensaje que propone: ' + area.value);
+            }
             area.value = mensaje + ' ¡Gracias!';
             area.dispatchEvent(new Event('input', { bubbles: true }));
             document.querySelector('.o_sofia_accion[data-accion="chat"]').click();

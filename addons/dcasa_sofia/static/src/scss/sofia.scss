@@ -1,34 +1,53 @@
 // Sofía — marca D'CASA: sistema plano (sin degradados ni sombras dramáticas). Azul #1340B1; el amarillo #FED00F solo
 // aparece SOBRE azul (nunca sobre blanco). Anton en el título, Oswald en lo que destaca, Inter en el cuerpo.
+// La pantalla (2026-11-06): lo urgente arriba por secciones, filtros con conteos (al lado en la computadora, una tira
+// que se queda arriba en el celular), tarjetas compactas con la acción principal grande y «Descartar» aparte.
 
 // Odoo pone a todo `.o_action` en columna con `overflow: hidden` y sin barra (webclient_layout.scss), y esa regla pesa
 // más que `.o_sofia`: la pantalla quedaba cortada y no bajaba con scroll (2026-11-05). La misma regla fuerte que el
-// Inicio, Contabilidad, la Guía y las pantallas de Juan.
+// Inicio, Contabilidad, la Guía y las pantallas de Juan. NO quitar: la prueba de scroll de dcasa_interfaz la exige.
 .o_web_client > .o_action_manager > .o_sofia.o_action {
     overflow-y: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
     scrollbar-width: thin;
     &::-webkit-scrollbar { display: block; width: 8px; }
     &::-webkit-scrollbar-thumb { background: var(--dc-linea, #D7DEEA); border-radius: 4px; }
     > * { flex-shrink: 0; }
 }
 
+$sofia-ancho: 1200px;
+$sofia-azul: var(--dc-azul-600, #1340B1);
+$sofia-azul-oscuro: var(--dc-azul-700, #0E3190);
+$sofia-azul-claro: var(--dc-azul-50, #F2F6FE);
+$sofia-amarillo: var(--dc-amarillo, #FED00F);
+$sofia-tinta: var(--dc-tinta, #0B1B3F);
+$sofia-tinta-3: var(--dc-tinta-3, #4A5878);
+$sofia-linea: var(--dc-linea, #D7DEEA);
+$sofia-niebla: var(--dc-niebla, #F5F7FB);
+
 .o_sofia {
-    background: var(--dc-niebla, #F5F7FB);
-    color: var(--dc-tinta, #0B1B3F);
+    background: $sofia-niebla;
+    color: $sofia-tinta;
     font-family: "Inter", system-ui, sans-serif;
 
+    // --- Encabezado azul: quién es, revisar ahora y cuánto queda ------------------------------------------------
     .o_sofia_encabezado {
-        display: flex;
-        flex-wrap: wrap;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-areas: "titulo revisar" "resumen ultima";
         align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        padding: 16px 24px;
-        background: var(--dc-azul-600, #1340B1);
+        gap: 10px 16px;
+        padding-top: 16px;
+        padding-bottom: 14px;
+        // Alineado con el cuerpo (máximo 1200 px) también en pantallas anchas.
+        padding-inline: #{"max(24px, calc((100% - 1200px) / 2 + 24px))"};
+        background: $sofia-azul;
         color: #FFFFFF;
     }
 
     .o_sofia_titulo {
+        grid-area: titulo;
         display: flex;
         align-items: center;
         gap: 12px;
@@ -38,13 +57,16 @@
             margin: 0;
             font-family: "Anton", "Oswald", sans-serif;
             font-size: 1.75rem;
+            line-height: 1.1;
             letter-spacing: 0.02em;
             text-transform: uppercase;
             color: #FFFFFF;
         }
 
-        p { margin: 0; color: rgba(255, 255, 255, 0.85); }
+        .o_sofia_lema { margin: 2px 0 0; color: rgba(255, 255, 255, 0.85); font-size: 0.9rem; }
     }
+
+    .o_sofia_titulo_texto { min-width: 0; }
 
     .o_sofia_avatar {
         display: inline-flex;
@@ -54,99 +76,202 @@
         width: 44px;
         height: 44px;
         border-radius: 50%;
-        background: var(--dc-amarillo, #FED00F);   // amarillo sobre azul
-        color: var(--dc-azul-700, #0E3190);
+        background: $sofia-amarillo;   // amarillo sobre azul
+        color: $sofia-azul-oscuro;
         font-family: "Anton", sans-serif;
         font-size: 1.4rem;
     }
 
-    .o_sofia_revisar {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 12px;
-
-        .o_sofia_ultima { color: rgba(255, 255, 255, 0.85); font-size: 0.875rem; }
-    }
+    .o_sofia_revisar { grid-area: revisar; justify-self: end; }
 
     .o_sofia_boton_revisar {
-        background: var(--dc-amarillo, #FED00F);   // CTA amarillo, solo sobre el azul del encabezado
-        border-color: var(--dc-amarillo, #FED00F);
-        color: var(--dc-azul-700, #0E3190);
-        font-weight: 600;
+        min-height: 44px;
+        padding: 8px 18px;
+        border: 1px solid $sofia-amarillo;
+        border-radius: 8px;
+        background: $sofia-amarillo;   // CTA amarillo, solo sobre el azul del encabezado
+        color: $sofia-azul-oscuro;
+        font-weight: 700;
 
-        &:hover, &:focus-visible { background: #FFFFFF; border-color: #FFFFFF; color: var(--dc-azul-700, #0E3190); }
+        &:hover, &:focus-visible { background: #FFFFFF; border-color: #FFFFFF; color: $sofia-azul-oscuro; }
+        &:focus-visible { outline: 2px solid #FFFFFF; outline-offset: 2px; }
+        &[disabled] { opacity: 1; background: rgba(255, 255, 255, 0.2); border-color: transparent; color: #FFFFFF; }
     }
 
-    .o_sofia_cuerpo {
-        max-width: 980px;
-        margin: 0 auto;
-        padding: 16px 24px 48px;
+    .o_sofia_ultima {
+        grid-area: ultima;
+        justify-self: end;
+        color: rgba(255, 255, 255, 0.85);
+        font-size: 0.8rem;
+        text-align: right;
     }
 
-    .o_sofia_filtros {
+    .o_sofia_resumen {
+        grid-area: resumen;
         display: flex;
         flex-wrap: wrap;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        margin-bottom: 12px;
-    }
+        gap: 6px 14px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        font-size: 0.9rem;
+        color: rgba(255, 255, 255, 0.9);
 
-    .o_sofia_grupos {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-    }
+        li { display: inline-flex; align-items: center; gap: 2px; }
 
-    .o_sofia_chip {
-        border: 1px solid var(--dc-linea, #D7DEEA);
-        border-radius: 999px;
-        padding: 6px 14px;
-        background: #FFFFFF;
-        color: var(--dc-tinta, #0B1B3F);
-        font-family: "Oswald", "Inter", sans-serif;
-        font-size: 0.95rem;
-
-        .o_sofia_cuenta {
+        strong {
             display: inline-block;
-            min-width: 1.5em;
-            margin-left: 4px;
+            min-width: 1.8em;
+            margin-right: 4px;
             border-radius: 999px;
-            padding: 0 6px;
-            background: var(--dc-azul-50, #F2F6FE);
-            color: var(--dc-azul-600, #1340B1);
+            padding: 1px 8px;
+            background: rgba(255, 255, 255, 0.16);
+            color: #FFFFFF;
+            font-family: "Oswald", "Inter", sans-serif;
             text-align: center;
         }
 
-        &.o_activa {
-            background: var(--dc-azul-600, #1340B1);
-            border-color: var(--dc-azul-600, #1340B1);
-            color: #FFFFFF;
-
-            .o_sofia_cuenta { background: #FFFFFF; }
-        }
-
-        &:focus-visible { outline: 2px solid var(--dc-azul-600, #1340B1); outline-offset: 2px; }
+        // Lo urgente: el número en amarillo (sobre el azul del encabezado).
+        .o_sofia_r3 { color: #FFFFFF; font-weight: 600; }
+        .o_sofia_r3 strong { background: $sofia-amarillo; color: $sofia-azul-oscuro; }
     }
 
-    .o_sofia_para {
+    .o_sofia_revisando {
+        padding: 8px 24px;
+        background: $sofia-azul-claro;
+        border-bottom: 1px solid $sofia-linea;
+        color: $sofia-azul-oscuro;
+        font-size: 0.875rem;
+        text-align: center;
+    }
+
+    // --- Cuerpo: filtros al lado (computadora) y la lista ---------------------------------------------------------
+    .o_sofia_cuerpo {
+        display: grid;
+        grid-template-columns: 236px minmax(0, 1fr);
+        align-items: start;
+        gap: 24px;
+        max-width: $sofia-ancho;
+        margin: 0 auto;
+        padding: 20px 24px 64px;
+        width: 100%;
+    }
+
+    // Sin filtros (todo al día o cargando): la lista ocupa todo el ancho.
+    .o_sofia_lista_zona { min-width: 0; }
+    .o_sofia_lista_zona:first-child { grid-column: 1 / -1; }
+
+    .o_sofia_filtros {
+        position: sticky;
+        top: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+        min-width: 0;
+    }
+
+    .o_sofia_filtro_titulo {
+        display: block;
+        margin: 0 0 6px 10px;
+        font-family: "Oswald", "Inter", sans-serif;
+        font-size: 0.8rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: $sofia-tinta-3;
+    }
+
+    .o_sofia_chips {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .o_sofia_chip {
         display: flex;
         align-items: center;
         gap: 8px;
-        margin: 0;
+        width: 100%;
+        min-height: 38px;
+        border: 0;
+        border-radius: 8px;
+        padding: 6px 10px;
+        background: transparent;
+        color: $sofia-tinta;
+        font-size: 0.95rem;
+        text-align: left;
 
-        .form-select { min-width: 180px; }
+        .fa { width: 1.1em; color: $sofia-azul; text-align: center; }
+        .o_sofia_chip_nombre { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        .o_sofia_cuenta {
+            flex: 0 0 auto;
+            min-width: 1.8em;
+            border-radius: 999px;
+            padding: 0 7px;
+            background: #FFFFFF;
+            border: 1px solid $sofia-linea;
+            color: $sofia-azul;
+            font-family: "Oswald", "Inter", sans-serif;
+            font-size: 0.85rem;
+            text-align: center;
+        }
+
+        &:hover { background: $sofia-azul-claro; }
+        &:focus-visible { outline: 2px solid $sofia-azul; outline-offset: 1px; }
+
+        &.o_activa {
+            background: $sofia-azul;
+            color: #FFFFFF;
+            font-weight: 600;
+
+            .fa { color: #FFFFFF; }
+            .o_sofia_cuenta { background: $sofia-amarillo; border-color: $sofia-amarillo; color: $sofia-azul-oscuro; }   // sobre azul
+        }
     }
 
-    .o_sofia_omitidas { color: var(--dc-tinta-3, #4A5878); font-size: 0.875rem; }
+    .o_sofia_omitidas { margin: 0 10px; color: $sofia-tinta-3; font-size: 0.8rem; }
 
-    .o_sofia_vacio {
-        padding: 48px 16px;
+    // --- Secciones por prioridad --------------------------------------------------------------------------------
+    .o_sofia_seccion { margin-bottom: 22px; }
+
+    .o_sofia_seccion_titulo {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0 0 10px;
+        font-family: "Oswald", "Inter", sans-serif;
+        font-size: 1rem;
+        font-weight: 500;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: $sofia-tinta-3;
+    }
+
+    .o_sofia_seccion_cuenta {
+        min-width: 1.8em;
+        border-radius: 999px;
+        padding: 0 8px;
+        background: #FFFFFF;
+        border: 1px solid $sofia-linea;
+        color: $sofia-tinta-3;
+        font-size: 0.85rem;
         text-align: center;
-        color: var(--dc-tinta-3, #4A5878);
+    }
 
-        .fa { font-size: 2rem; color: var(--dc-azul-600, #1340B1); }
+    // «Hoy sin falta»: una franja azul con el número en amarillo. Imposible de confundir con lo demás.
+    .o_sofia_s3 .o_sofia_seccion_titulo {
+        border-radius: 8px;
+        padding: 7px 12px;
+        background: $sofia-azul;
+        color: #FFFFFF;
+
+        .o_sofia_seccion_cuenta { background: $sofia-amarillo; border-color: $sofia-amarillo; color: $sofia-azul-oscuro; }
+    }
+
+    .o_sofia_s2 .o_sofia_seccion_titulo {
+        color: $sofia-azul;
+
+        .o_sofia_seccion_cuenta { background: $sofia-azul-claro; border-color: #C9D6F5; color: $sofia-azul; }
     }
 
     .o_sofia_lista {
@@ -158,80 +283,137 @@
         list-style: none;
     }
 
+    // --- La tarjeta ------------------------------------------------------------------------------------------------
     .o_sofia_tarjeta {
-        border: 1px solid var(--dc-linea, #D7DEEA);
-        border-left: 4px solid var(--dc-linea, #D7DEEA);
-        border-radius: 8px;
-        padding: 14px 16px;
-        background: #FFFFFF;
         min-width: 0;
+        border: 1px solid $sofia-linea;
+        border-left: 5px solid $sofia-linea;
+        border-radius: 10px;
+        padding: 12px 16px 8px;
+        background: #FFFFFF;
+        overflow-anchor: none;   // al cerrarse una tarjeta, el navegador no reacomoda la vista por su cuenta
 
-        &.o_sofia_p3 { border-left-color: var(--dc-azul-600, #1340B1); }
+        &.o_sofia_p3 { border-left-color: $sofia-azul; }
         &.o_sofia_p2 { border-left-color: #7A93D6; }
-        &.o_ocupada { opacity: 0.6; }
+        &.o_ocupada { opacity: 0.7; }
     }
 
     .o_sofia_cabeza {
         display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 6px;
-        margin-bottom: 6px;
-        font-size: 0.8rem;
-
-        > span {
-            border-radius: 4px;
-            padding: 2px 8px;
-            background: var(--dc-niebla, #F5F7FB);
-            color: var(--dc-tinta-3, #4A5878);
-        }
-
-        .o_sofia_prioridad { font-weight: 600; color: var(--dc-azul-700, #0E3190); background: var(--dc-azul-50, #F2F6FE); }
-        .o_sofia_t3 { background: #FDECEC; color: #A61B1B; }
-        .o_sofia_t2 { background: var(--dc-azul-50, #F2F6FE); color: var(--dc-azul-600, #1340B1); }
-        .o_sofia_para_quien { margin-left: auto; }
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 8px;
     }
 
     .o_sofia_cliente {
-        margin: 0 0 2px;
+        min-width: 0;
+        margin: 0;
         font-family: "Oswald", "Inter", sans-serif;
-        font-size: 1.15rem;
-        color: var(--dc-tinta, #0B1B3F);
+        font-size: 1.2rem;
+        font-weight: 500;
+        line-height: 1.25;
+        color: $sofia-tinta;
+        overflow-wrap: anywhere;
+
+        .o_sofia_canal {
+            margin-left: 8px;
+            font-family: "Inter", system-ui, sans-serif;
+            font-size: 0.8rem;
+            font-weight: 400;
+            color: $sofia-tinta-3;
+            white-space: nowrap;
+        }
+    }
+
+    .o_sofia_temp {
+        flex: 0 0 auto;
+        margin-top: 2px;
+        border-radius: 999px;
+        padding: 1px 10px;
+        background: $sofia-niebla;
+        color: $sofia-tinta-3;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .o_sofia_t3 { background: #FDECEC; color: #A61B1B; }
+    .o_sofia_t2 { background: $sofia-azul-claro; color: $sofia-azul; }
+
+    .o_sofia_que {
+        display: flex;
+        align-items: baseline;
+        gap: 6px;
+        margin: 4px 0 0;
+        font-weight: 600;
+        color: $sofia-azul;
         overflow-wrap: anywhere;
     }
 
-    .o_sofia_que { margin: 0; font-weight: 600; color: var(--dc-azul-600, #1340B1); }
-    .o_sofia_motivo { margin: 2px 0 8px; color: var(--dc-tinta-3, #4A5878); }
+    .o_sofia_motivo { margin: 2px 0 0; color: $sofia-tinta-3; font-size: 0.875rem; line-height: 1.4; }
+    .o_sofia_para_quien { margin: 4px 0 0; color: $sofia-tinta-3; font-size: 0.8rem; }
 
     .o_sofia_aviso {
-        margin-bottom: 8px;
+        margin-top: 8px;
         border-radius: 6px;
-        padding: 8px 10px;
+        padding: 7px 10px;
         background: #FFF6E0;
         color: #6B4A00;
-        font-size: 0.875rem;
+        font-size: 0.85rem;
     }
 
-    .o_sofia_etiqueta { display: block; margin-bottom: 4px; font-size: 0.8rem; color: var(--dc-tinta-3, #4A5878); }
+    // El mensaje: se lee como en el chat; «Editar» lo abre en una caja.
+    .o_sofia_mensaje_zona { margin-top: 10px; }
+
+    .o_sofia_mensaje_cabeza {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 4px;
+        font-size: 0.78rem;
+        color: $sofia-tinta-3;
+    }
+
+    .o_sofia_editar {
+        min-height: 32px;
+        padding: 2px 6px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+    .o_sofia_burbuja {
+        margin: 0;
+        border: 1px solid #DCE5FB;
+        border-radius: 12px 12px 12px 4px;
+        padding: 9px 12px;
+        background: $sofia-azul-claro;
+        color: $sofia-tinta;
+        font-size: 0.92rem;
+        line-height: 1.45;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        cursor: text;
+    }
 
     .o_sofia_mensaje {
         width: 100%;
         resize: vertical;
         font-size: 0.95rem;
 
-        &:focus { border-color: var(--dc-azul-600, #1340B1); box-shadow: none; }
+        &:focus { border-color: $sofia-azul; box-shadow: none; }
     }
 
-    .o_sofia_nota_datos { margin: 6px 0 0; font-size: 0.8rem; color: var(--dc-tinta-3, #4A5878); }
+    .o_sofia_nota_datos { margin: 8px 0 0; font-size: 0.8rem; color: $sofia-tinta-3; }
 
     // «Guarda sus datos»: lo que escribió el cliente, para revisarlo antes de guardarlo en su ficha.
     .o_sofia_ficha {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
         gap: 10px 16px;
-        margin-top: 4px;
+        margin-top: 10px;
 
-        > .o_sofia_etiqueta { grid-column: 1 / -1; margin: 0; }
+        > .o_sofia_etiqueta { grid-column: 1 / -1; margin: 0; font-size: 0.8rem; color: $sofia-tinta-3; }
     }
 
     .o_sofia_dato {
@@ -239,10 +421,10 @@
         flex-direction: column;
         gap: 4px;
 
-        > label, .o_sofia_dato_nombre { font-size: 0.85rem; font-weight: 600; color: var(--dc-tinta, #0B1B3F); }
-        .form-control, .form-select { font-size: 0.95rem; }
-        .form-control:focus, .form-select:focus { border-color: var(--dc-azul-600, #1340B1); box-shadow: none; }
-        small { overflow-wrap: anywhere; }
+        > label, .o_sofia_dato_nombre { margin: 0; font-size: 0.85rem; font-weight: 600; color: $sofia-tinta; }
+        .form-control, .form-select { min-height: 40px; font-size: 0.95rem; }
+        .form-control:focus, .form-select:focus { border-color: $sofia-azul; box-shadow: none; }
+        small { color: $sofia-tinta-3; overflow-wrap: anywhere; }
     }
 
     .o_sofia_cumple {
@@ -253,27 +435,237 @@
         > .form-select:last-child { flex: 1 1 auto; }
     }
 
+    // Las acciones: la principal grande; las demás al lado, más discretas. «Descartar» va aparte, abajo.
     .o_sofia_botones {
         display: flex;
         flex-wrap: wrap;
         align-items: center;
         gap: 8px;
-        margin-top: 10px;
+        margin-top: 12px;
 
-        .o_sofia_ver { margin-left: auto; }
+        .btn {
+            min-height: 42px;
+            border-radius: 8px;
+            padding: 8px 16px;
+            font-weight: 600;
+        }
+
+        .btn-outline-primary { background: #FFFFFF; }
+    }
+
+    .o_sofia_pie {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px 12px;
+        margin-top: 6px;
+
+        .btn-link {
+            min-height: 36px;
+            padding: 4px 2px;
+            color: $sofia-tinta-3;
+            font-size: 0.85rem;
+            text-decoration: none;
+
+            &:hover, &:focus-visible { color: $sofia-tinta; text-decoration: underline; }
+        }
+
+        .o_sofia_descartar { margin-left: auto; }
+    }
+
+    // --- Resuelta: dice lo que pasó EN SU LUGAR (mismo alto) y después se cierra despacio --------------------------
+    .o_sofia_hecha {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        height: var(--o-sofia-alto, auto);
+        min-height: 56px;
+        border: 1px dashed #B7C6EC;
+        border-radius: 10px;
+        padding: 12px 16px;
+        background: $sofia-azul-claro;
+        color: $sofia-azul-oscuro;
+        text-align: center;
+        overflow: hidden;
+        overflow-anchor: none;
+
+        > .fa { flex: 0 0 auto; font-size: 1.4rem; color: $sofia-azul; }
+        strong { display: block; font-family: "Oswald", "Inter", sans-serif; font-weight: 500; }
+        span { font-size: 0.9rem; }
+
+        &.o_aviso { background: #FFF6E0; border-color: #E8D29A; color: #6B4A00; > .fa { color: #6B4A00; } }
+        &.o_descartada { background: $sofia-niebla; border-color: $sofia-linea; color: $sofia-tinta-3; > .fa { color: $sofia-tinta-3; } }
+        &.o_cerrando { animation: o_sofia_cerrar 0.35s ease forwards; }
+    }
+
+    // --- Cargando y vacío ----------------------------------------------------------------------------------------
+    .o_sofia_esqueleto { display: flex; flex-direction: column; gap: 12px; }
+
+    .o_sofia_esqueleto_tarjeta {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        border: 1px solid $sofia-linea;
+        border-left: 5px solid $sofia-linea;
+        border-radius: 10px;
+        padding: 16px;
+        background: #FFFFFF;
+    }
+
+    .o_sofia_esqueleto_linea, .o_sofia_esqueleto_boton {
+        display: block;
+        height: 12px;
+        border-radius: 6px;
+        background: #E6EBF3;
+        animation: o_sofia_latido 1.2s ease-in-out infinite;
+
+        &.o_corta { width: 40%; height: 16px; }
+        &.o_media { width: 70%; }
+    }
+
+    .o_sofia_esqueleto_boton { width: 180px; height: 40px; border-radius: 8px; }
+
+    .o_sofia_vacio {
+        padding: 56px 16px;
+        text-align: center;
+        color: $sofia-tinta-3;
+
+        h2 {
+            margin: 16px 0 6px;
+            font-family: "Anton", "Oswald", sans-serif;
+            font-size: 2rem;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            color: $sofia-azul;
+        }
+
+        p { max-width: 42ch; margin: 0 auto; }
+    }
+
+    .o_sofia_al_dia_icono {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 76px;
+        height: 76px;
+        border-radius: 50%;
+        background: $sofia-azul;
+        color: $sofia-amarillo;   // amarillo sobre azul
+        font-size: 2.2rem;
+    }
+
+    .o_sofia_filtro_vacio {
+        padding: 40px 16px;
+
+        h2 { font-size: 1.5rem; }
+        .o_sofia_al_dia_icono { width: 56px; height: 56px; background: $sofia-azul-claro; color: $sofia-azul; font-size: 1.5rem; }
+        .o_sofia_ver_todo { margin-top: 16px; min-height: 42px; font-weight: 600; }
+    }
+}
+
+@keyframes o_sofia_cerrar {
+    to {
+        height: 0;
+        min-height: 0;
+        margin-bottom: -12px;   // el espacio entre tarjetas se cierra con ella (sin salto al final)
+        padding-top: 0;
+        padding-bottom: 0;
+        border-width: 0;
+        opacity: 0;
+    }
+}
+
+@keyframes o_sofia_latido {
+    50% { opacity: 0.45; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .o_sofia .o_sofia_hecha.o_cerrando { animation: none; display: none; }
+    .o_sofia .o_sofia_esqueleto_linea, .o_sofia .o_sofia_esqueleto_boton { animation: none; }
+}
+
+// --- Celular y tableta: los filtros en una tira que se queda arriba; botones a lo ancho ---------------------------
+@media (max-width: 991.98px) {
+    .o_sofia {
+        .o_sofia_cuerpo {
+            display: block;
+            padding: 0 0 48px;
+        }
+
+        .o_sofia_filtros {
+            position: sticky;
+            top: 0;
+            z-index: 3;
+            gap: 6px;
+            margin-bottom: 12px;
+            border-bottom: 1px solid $sofia-linea;
+            padding: 8px 0;
+            background: $sofia-niebla;
+        }
+
+        .o_sofia_filtro_titulo { display: none; }
+
+        .o_sofia_chips {
+            flex-direction: row;
+            gap: 6px;
+            overflow-x: auto;
+            padding: 0 16px;
+            scrollbar-width: none;
+            &::-webkit-scrollbar { display: none; }
+        }
+
+        .o_sofia_chip {
+            flex: 0 0 auto;
+            width: auto;
+            min-height: 38px;
+            border: 1px solid $sofia-linea;
+            border-radius: 999px;
+            padding: 4px 12px;
+            background: #FFFFFF;
+            font-size: 0.9rem;
+
+            .o_sofia_chip_nombre { overflow: visible; }
+
+            &.o_activa { border-color: $sofia-azul; }
+        }
+
+        .o_sofia_omitidas { margin: 0 16px; }
+        .o_sofia_lista_zona { padding: 0 12px; }
+        .o_sofia_lista_zona:first-child { padding-top: 12px; }
     }
 }
 
 @media (max-width: 767.98px) {
     .o_sofia {
-        .o_sofia_encabezado { padding: 12px 16px; }
-        .o_sofia_cuerpo { padding: 12px 16px 40px; }
-        .o_sofia_titulo h1 { font-size: 1.4rem; }
-        .o_sofia_para { width: 100%; .form-select { flex: 1; min-width: 0; } }
-        .o_sofia_botones {
-            .btn { flex: 1 1 auto; }
-            .o_sofia_ver { margin-left: 0; }
+        .o_sofia_encabezado {
+            grid-template-areas: "titulo revisar" "resumen resumen" "ultima ultima";
+            gap: 8px 12px;
+            padding: 12px 16px;
         }
-        .o_sofia_cabeza .o_sofia_para_quien { margin-left: 0; }
+
+        .o_sofia_titulo {
+            gap: 10px;
+            h1 { font-size: 1.45rem; }
+            .o_sofia_lema { display: none; }
+        }
+
+        .o_sofia_avatar { width: 38px; height: 38px; font-size: 1.2rem; }
+        .o_sofia_boton_revisar { padding: 6px 14px; }
+        .o_sofia_ultima { justify-self: start; text-align: left; font-size: 0.75rem; }
+        .o_sofia_resumen { font-size: 0.85rem; }
+
+        .o_sofia_revisando { padding: 8px 16px; text-align: left; }
+
+        .o_sofia_seccion_titulo { margin-bottom: 8px; }
+        .o_sofia_tarjeta { padding: 12px 12px 6px; }
+        .o_sofia_cliente { font-size: 1.15rem; }
+
+        .o_sofia_botones {
+            .btn { flex: 1 1 0; min-height: 46px; padding: 8px 10px; }
+            .o_sofia_principal { flex-basis: 100%; }
+        }
+
+        .o_sofia_pie .btn-link { min-height: 40px; }
     }
 }

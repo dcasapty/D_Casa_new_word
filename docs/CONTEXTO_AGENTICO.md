@@ -680,6 +680,23 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   rompe la pantalla entera). Un número en `t-att-value` ya sale como texto. Y **`<select t-model>` no marca la opción
   al dibujar** (pone el valor antes de que existan las opciones): cada `<option>` lleva también `t-att-selected`, como
   en Conversaciones. Las dos las atrapó la prueba en el navegador de «Guarda sus datos» (2026-11-05), no las de Python.
+- **Una plantilla de texto `` `…` `` dentro de `${…}` pierde sus espacios en producción** (pantalla de Sofía,
+  2026-11-06): el minificador de Odoo (`rjsmin`, el paquete sin `?debug=assets`) no entiende la plantilla de adentro y
+  la aprieta: `` `${a}${b ? ` (${b})` : ""}` `` sale «p. m.(la pidió…». Con `debug` se ve bien, por eso no se nota al
+  programar. Concatenar con `+` o armar la parte de adentro aparte. Se comprueba con
+  `python -c "from rjsmin import jsmin; print(jsmin(open('archivo.js').read()))"`. Quedan tres casos viejos en
+  Conversaciones (`reparto.js`, `resumen.js`, `catalogo.js`: «1 h30min»); se dejó como tarea aparte.
+- **Probar el scroll de verdad, no con `scrollTop`:** `scrollTop = N` mueve aunque la rueda y el dedo estén bloqueados.
+  La rueda: `Input.dispatchMouseEvent` (`type: 'mouseWheel'`). El dedo: `Input.dispatchTouchEvent` (`touchStart`, unos
+  20 `touchMove` subiendo y `touchEnd`) con `Emulation.setTouchEmulationEnabled`; `Input.synthesizeScrollGesture` NO
+  mueve nada en Chrome sin pantalla (2026-11-06). Con `overflow-y: hidden` los toques no bajan (la prueba distingue el
+  bug). Ver `dcasa_sofia/tests/test_sofia_pantalla.py`.
+- **Capturas de «cargando»:** `page.route` con `sleep` no sirve (ya anotado); demorar el XHR en la página con
+  `context.add_init_script` que envuelve `XMLHttpRequest.prototype.send` (el RPC de Odoo 19 usa XHR, no `fetch`).
+- **Que la pantalla no salte al resolver una tarjeta:** dejarla en su lugar con el mismo alto (medido con
+  `getBoundingClientRect` en el clic y puesto como variable CSS) diciendo lo que pasó, y cerrarla después con una
+  animación de alto (con `margin-bottom` negativo igual al `gap` de la lista, para que el último paso no salte).
+  `overflow-anchor: none` en las tarjetas evita que el navegador reacomode la vista por su cuenta.
 - **Leer datos de lo que escribe la gente (nombres, fechas, correos) da falsos positivos que no se ven en las pruebas
   felices:** «Muy amable» o «Calle Principal» parecen un nombre; «entréguenmelo el 15/11», «cama 3/4» o «el cumpleaños
   de mi mamá» parecen un cumpleaños; «te envié la cotización a tu correo, ¿la recibiste?» parece un pedido de datos.
