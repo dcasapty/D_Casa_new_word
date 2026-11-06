@@ -17,6 +17,7 @@ from datetime import timedelta
 from odoo import api, fields, models
 from odoo.exceptions import AccessError
 
+from .herramientas_comun import ZONA_PANAMA
 from .registro import herramienta
 
 GERENCIA_O_ADMIN = (('sales_team.group_sale_manager', 'base.group_system'),)
@@ -81,7 +82,8 @@ class BrianHerramientasMeta(models.AbstractModel):
                      'Configuración › Meta: píxel y ventas (administradores)',
         }
         if ultimo:
-            datos['ultimo_error'] = {'cuando': ultimo.create_date.strftime('%d/%m/%Y'),
+            cuando = fields.Datetime.context_timestamp(self.with_context(tz=ZONA_PANAMA), ultimo.create_date)
+            datos['ultimo_error'] = {'cuando': cuando.strftime('%d/%m/%Y %H:%M'),
                                      'motivo': (ultimo.ultimo_error or ultimo.motivo or '')[:MAX_ERROR]}
         return datos
 

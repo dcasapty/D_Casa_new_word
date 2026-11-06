@@ -174,7 +174,14 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
   correo: 987 pruebas, 2 fallas ajenas (las referencias de «lista» y «conexiones» a 390 px, que ya fallaban en esta
   máquina) y 2 de la prueba nueva por un selector («Cliente» también estaba en el nombre de la conversación de
   prueba), corregido y en verde (3 de 3). `ruff check addons scripts` limpio.
-- **Sin push ni despliegue.** Sigue: capturas a la dueña y su visto bueno; después, CI y staging.
+- La dueña vio las capturas y dijo que sí. **Revisión adversarial** independiente: nada que frene; 6 arreglos, cada
+  uno con su prueba: `revisar_con_sofia` corre en una transacción corta y propia (dentro del turno de Brian tomaba el
+  candado de Sofía hasta 150 s) y llama directo a la revisión, sin armar la pantalla; `propuestas_de_sofia` ya no
+  manda el título de «Guarda sus datos» (traía el nombre, el correo y el cumpleaños; la prueba ahora lo arma Sofía de
+  verdad); las cuentas de la revisión, solo a Gerencia (a la vendedora, las suyas); `abrir_pantalla` nunca abre una
+  acción de servidor ni un enlace; `cotizaciones_que_vencen` y `estado_del_correo` marcadas como texto de clientes;
+  fechas de Meta y del correo en hora de Panamá.
+- **Sin push ni despliegue.** Sigue: CI y staging.
 
 ### 2026-11-06 (5): Camila etapa 2 («a lo grande, todo conectado con todo»), en producción
 

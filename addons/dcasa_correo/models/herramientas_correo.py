@@ -7,6 +7,7 @@ y la cola de ``dcasa.correo.envio`` de los últimos días (lo mismo que *Ventas 
 from datetime import timedelta
 
 from odoo import fields, models
+from odoo.addons.dcasa_brian.models.herramientas_comun import ZONA_PANAMA
 from odoo.addons.dcasa_brian.models.herramientas_contabilidad import FACTURACION, PARAM_FACTURA
 from odoo.addons.dcasa_brian.models.herramientas_ventas import PARAM_VENTA
 from odoo.addons.dcasa_brian.models.registro import BrianError, herramienta
@@ -60,7 +61,7 @@ class BrianHerramientasCorreo(models.AbstractModel):
         descripcion='Cómo va el correo a los clientes (facturas, abonos, bienvenidas, cotizaciones y recordatorios): '
                     'si está saliendo o por qué no, cuántos salieron, cuántos no y los que fallaron.',
         parametros={'dias': {'type': 'integer', 'description': 'Los últimos N días (1 a 90). Por defecto 7.'}},
-        nivel='lectura', categoria='contabilidad', grupos=GERENCIA_O_ADMIN,
+        nivel='lectura', categoria='contabilidad', grupos=GERENCIA_O_ADMIN, texto_externo=True,   # nombres de clientes
         ejemplos=['¿están saliendo los correos a los clientes?', '¿qué correos fallaron esta semana?'],
     )
     def _h_estado_del_correo(self, dias=7):
@@ -75,6 +76,7 @@ class BrianHerramientasCorreo(models.AbstractModel):
         cuentas = {}
         for tipo, estado, n in Envio._read_group([('create_date', '>=', desde)], ['tipo', 'estado'], ['__count']):
             cuentas.setdefault(tipos.get(tipo, tipo), {})[estados.get(estado, estado)] = n
+        panama = self.with_context(tz=ZONA_PANAMA)   # las fechas, en hora de Panamá (no en UTC)
         problemas = Envio.search([('create_date', '>=', desde), ('estado', 'in', ('fallido', 'omitido'))],
                                  limit=MAX_FALLIDOS)
         return {
@@ -87,7 +89,7 @@ class BrianHerramientasCorreo(models.AbstractModel):
             'ultimos_que_no_salieron': [{
                 'tipo': tipos.get(e.tipo, e.tipo), 'estado': estados.get(e.estado, e.estado),
                 'cliente': e.partner_id.display_name or '', 'motivo': (e.motivo or '')[:200],
-                'fecha': e.create_date.strftime('%d/%m/%Y'),
+                'fecha': fields.Datetime.context_timestamp(panama, e.create_date).strftime('%d/%m/%Y'),
             } for e in problemas],
             'donde': 'Ventas › Configuración › Correos a clientes (enviados); se enciende en Ventas › Configuración › '
                      'Correo a clientes.',

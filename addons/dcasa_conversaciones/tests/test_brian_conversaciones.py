@@ -25,6 +25,8 @@ class TestBrianConversaciones(CotizarCase):
             self.assertEqual(catalogo[nombre]['nivel'], 'lectura')
         interno = {e['name'] for e in self.env['brian.herramientas'].with_user(self.interno).catalogo()}
         self.assertNotIn('resumen_de_conversaciones', interno, 'quien no es de ventas no ve las pantallas de Juan')
+        # Revisión adversarial (2026-11-06): los nombres de los clientes los escribieron ellos.
+        self.assertTrue(self.env['brian.herramientas']._todas()['cotizaciones_que_vencen']['texto_externo'])
 
     def test_el_resumen_es_el_de_la_pantalla(self):
         self.conversacion('Hola, ¿tienen camas queen?', ts=hoy_en_panama_utc())

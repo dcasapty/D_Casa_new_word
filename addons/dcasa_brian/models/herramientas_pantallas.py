@@ -11,6 +11,8 @@ from odoo import api, models
 
 from .registro import BrianError, herramienta
 
+ACCIONES_QUE_SE_ABREN = ('ir.actions.client', 'ir.actions.act_window')
+
 # clave → (xmlid del menú, nombre para la persona)
 PANTALLAS = {
     'inicio': ('dcasa_interfaz.menu_dcasa_inicio', 'Inicio'),
@@ -49,10 +51,11 @@ class BrianHerramientasPantallas(models.AbstractModel):
 
     @api.model
     def _b_destino_de_menu(self, menu, titulo):
-        """El botón «Abrir» de un menú: la acción que abre (cualquier tipo: lista o pantalla propia) y la ruta del menú.
-        ``None`` si el menú no abre nada."""
+        """El botón «Abrir» de un menú: la acción que abre (una lista o una pantalla propia) y la ruta del menú.
+        ``None`` si el menú no abre nada o abre otra cosa: nunca una acción de servidor (correría código) ni un enlace
+        (``ir.actions.act_url``), igual que ``_abrir_de_guia``."""
         accion = menu.sudo().action
-        if not accion:
+        if not accion or accion._name not in ACCIONES_QUE_SE_ABREN:
             return None
         return {'accion': accion.id, 'titulo': titulo, 'ruta': ' › '.join(menu.sudo().complete_name.split('/'))}
 

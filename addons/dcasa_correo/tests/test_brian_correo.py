@@ -1,7 +1,8 @@
 """Brian manda por correo la factura y la cotización, con los mismos frenos que la pantalla."""
+from datetime import timedelta
 from unittest.mock import patch
 
-from odoo import Command
+from odoo import Command, fields
 from odoo.tests import new_test_user, tagged
 
 from .common import CLAVE, PDF, RUTA_PDF, CorreoCase
@@ -103,3 +104,19 @@ class TestBrianCorreo(CorreoCase):
         resultado = self.brian(self.admin, 'estado_del_correo', {'dias': 0})
         self.assertFalse(resultado['ok'])
         self.assertIn('1 a 90', resultado['error'])
+
+    def test_estado_del_correo_fecha_en_hora_de_panama_y_avisa_que_trae_nombres(self):
+        """Revisión adversarial (2026-11-06): un correo de las 03:00 UTC fue el día anterior en Panamá; y la respuesta
+        trae nombres de clientes (los escribieron ellos), así que lo de construcción que siga pide visto bueno."""
+        self.assertTrue(self.env['brian.herramientas']._todas()['estado_del_correo']['texto_externo'])
+        ahora = fields.Datetime.now()
+        envio = self.env['dcasa.correo.envio'].sudo().create({
+            'tipo': 'factura', 'huella': 'brianzeta:fecha', 'estado': 'omitido', 'motivo': 'No tiene correo.',
+            'partner_id': self.sin_correo.id})
+        self.env.flush_all()
+        momento = ahora.replace(hour=3, minute=0, second=0, microsecond=0)
+        self.env.cr.execute('UPDATE dcasa_correo_envio SET create_date = %s WHERE id = %s', [momento, envio.id])
+        envio.invalidate_recordset(['create_date'])
+        datos = self.brian(self.admin, 'estado_del_correo', {'dias': 7})['datos']
+        fila = next(f for f in datos['ultimos_que_no_salieron'] if f['cliente'] == 'Carla Sin Correo')
+        self.assertEqual(fila['fecha'], (momento - timedelta(days=1)).strftime('%d/%m/%Y'))

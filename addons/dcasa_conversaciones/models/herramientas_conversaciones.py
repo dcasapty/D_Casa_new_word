@@ -140,7 +140,7 @@ class BrianHerramientasConversaciones(models.AbstractModel):
             'dias': {'type': 'integer', 'description': 'Las que vencen de hoy a esos días (0 a 30). Por defecto 3.'},
             'limite': c.PARAM_LIMITE,
         },
-        nivel='lectura', categoria='ventas', grupos=VENTAS,
+        nivel='lectura', categoria='ventas', grupos=VENTAS, texto_externo=True,   # el nombre lo dio el cliente
         ejemplos=['¿qué cotizaciones de Juan vencen pronto?', '¿cuántos días queda abierta una cotización de la web?'],
     )
     def _h_cotizaciones_que_vencen(self, dias=3, limite=10):

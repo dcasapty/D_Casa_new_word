@@ -5,15 +5,24 @@ la cotización que vence, escribirle a tibios y calientes, pedir sus datos, «Gu
 
 * ``propuestas_de_sofia`` (lectura): las pendientes, como quien pregunta. La regla de registro de
   ``dcasa.sofia.propuesta`` decide: cada vendedora ve solo las suyas; Gerencia de ventas, todas (las de repartir son
-  solo de Gerencia). De «Guarda sus datos» dice QUÉ dato dio el cliente, no el dato.
-* ``revisar_con_sofia`` (construcción): el mismo «Revisar ahora» de la pantalla (``dcasa.sofia.analizar``). Solo deja
-  propuestas al día: no le escribe a ningún cliente ni toca el CRM.
+  solo de Gerencia). De «Guarda sus datos» dice QUÉ dato dio el cliente, nunca el dato: ni el título de Sofía, que lo
+  lleva escrito («Guarda sus datos: <nombre> · <correo> · cumpleaños…»), llega al modelo ni al registro de acciones.
+* ``revisar_con_sofia`` (construcción): el mismo «Revisar ahora» de la pantalla. Solo deja propuestas al día: no le
+  escribe a ningún cliente ni toca el CRM. Corre en una transacción CORTA y propia (revisión adversarial,
+  2026-11-06): dentro del turno de Brian (hasta 150 s, con llamadas a la IA) el candado de Sofía y las filas de sus
+  propuestas quedaban tomados, y «Revisar ahora», aprobar, descartar y la revisión de la mañana fallaban mientras tanto.
 
 Aprobar o descartar una propuesta NO es una herramienta: se hace en la pantalla de Sofía, donde la persona ve el
 mensaje exacto antes de mandarlo. ``dcasa_sofia`` no es dependencia de ``dcasa_brian``: si no está instalado, la
 herramienta lo dice.
 """
+from contextlib import contextmanager
+from datetime import timedelta
+
+from psycopg2.errors import LockNotAvailable
+
 from odoo import api, fields, models
+from odoo.modules import module as modulo_odoo
 
 from . import herramientas_comun as c
 from .registro import BrianError, herramienta
@@ -29,8 +38,16 @@ GRUPOS_SOFIA = {
 }
 NOMBRE_GRUPO = {'escribir': 'Escribirles', 'mantener': 'Mantener vivas', 'datos': 'Datos de clientes',
                 'repartir': 'Repartir (Gerencia)'}
+# Tipos cuyo título trae lo que escribió el cliente: se manda solo la parte de antes de «:».
+TITULO_CON_DATOS = frozenset({'guardar_datos', 'guardar_correo'})
 MAX_PROPUESTAS = 20
 SEGUNDOS_ENTRE_REVISIONES = 60   # como la pantalla: si alguien acaba de revisar, no se vuelve a revisar
+ESPERA_CANDADOS = '10s'          # en la transacción propia, nunca esperar para siempre una fila tomada
+
+
+def transaccion_propia():
+    """¿La revisión va en una transacción aparte? Siempre, salvo en las pruebas: Odoo no deja confirmar ahí."""
+    return not modulo_odoo.current_test
 
 
 class BrianHerramientasAsistentes(models.AbstractModel):
@@ -68,6 +85,14 @@ class BrianHerramientasAsistentes(models.AbstractModel):
                 cuentas[NOMBRE_GRUPO[clave]] = n
         return cuentas
 
+    @staticmethod
+    def _b_titulo_de_propuesta(propuesta):
+        """El título de la propuesta para el modelo: sin los datos que escribió el cliente («Guarda sus datos: …»)."""
+        titulo = propuesta.titulo or ''
+        if propuesta.tipo in TITULO_CON_DATOS:
+            titulo = titulo.split(':', 1)[0].strip()
+        return titulo
+
     @api.model
     @herramienta(
         nombre='propuestas_de_sofia',
@@ -96,7 +121,7 @@ class BrianHerramientasAsistentes(models.AbstractModel):
         for p in elegidas[:limite]:
             fila = {
                 'que': nombres.get(p.tipo, p.tipo),
-                'propuesta': p.titulo or '',
+                'propuesta': self._b_titulo_de_propuesta(p),
                 'por_que': p.motivo or '',
                 'cliente': p.partner_id.display_name or p.conversacion_id.display_name or '',
                 'prioridad': p._prioridad_nombre().lower(),
@@ -127,6 +152,47 @@ class BrianHerramientasAsistentes(models.AbstractModel):
             datos['abrir'] = abrir
         return datos
 
+    # ------------------------------------------------------------------
+    # «Revisar ahora»
+    # ------------------------------------------------------------------
+
+    @contextmanager
+    def _b_transaccion_aparte(self):
+        """Un ``env`` sobre una transacción corta y propia que se confirma al salir (los candados de Sofía se sueltan
+        enseguida, no al final del turno de Brian). En las pruebas, un savepoint del mismo cursor."""
+        if not transaccion_propia():
+            with self.env.cr.savepoint():
+                yield self.env
+            return
+        with self.env.registry.cursor() as cr:
+            cr.execute(f"SET LOCAL lock_timeout = '{ESPERA_CANDADOS}'")
+            yield self.env(cr=cr)
+
+    @api.model
+    def _b_revisar_con_sofia(self, env):
+        """La revisión y sus cuentas, todo en ``env`` (la transacción propia: lo que Sofía acaba de dejar solo se ve
+        ahí). Lo mismo que el botón de la pantalla, sin armar la pantalla entera."""
+        Sofia = env['dcasa.sofia']
+        Sofia._exigir_vendedora()   # en el servidor, como la pantalla
+        ultima = env['dcasa.sofia.corrida'].sudo().search([], limit=1)
+        reciente = ultima.fin and fields.Datetime.now() - ultima.fin < timedelta(seconds=SEGUNDOS_ENTRE_REVISIONES)
+        corrida = None if reciente else Sofia.sudo()._analizar('boton')   # sudo: Sofía escribe lo suyo; el uid queda
+        Propuesta = env['dcasa.sofia.propuesta']                          # como quien pregunta: la regla filtra
+        pendientes = Propuesta.search([('estado', '=', 'pendiente')])
+        datos = {'pendientes': len(pendientes), 'por_grupo': self._b_por_grupo(pendientes)}
+        if not corrida:
+            datos['mensaje'] = 'Sofía acaba de revisar el CRM (hace menos de un minuto): te muestro lo que dejó.'
+            return datos
+        datos['mensaje'] = 'Listo: Sofía revisó el CRM.'
+        if env.user.has_group(GERENCIA_VENTAS):
+            # Las cuentas de todo el equipo (del historial de revisiones, que solo ve Gerencia).
+            datos['nuevas'] = corrida.nuevas
+            datos['ya_no_hacian_falta'] = corrida.vencidas
+        else:
+            datos['nuevas_para_ti'] = Propuesta.search_count(
+                [('estado', '=', 'pendiente'), ('corrida_id', '=', corrida.id)])
+        return datos
+
     @api.model
     @herramienta(
         nombre='revisar_con_sofia',
@@ -136,22 +202,13 @@ class BrianHerramientasAsistentes(models.AbstractModel):
         ejemplos=['que Sofía revise el CRM', 'organiza mis clientes con Sofía'],
     )
     def _h_revisar_con_sofia(self):
-        Propuesta = self._b_sofia()
-        Corrida = self.env['dcasa.sofia.corrida'].sudo()
-        antes = Corrida.search([], limit=1)
-        reciente = antes.fin and (fields.Datetime.now() - antes.fin).total_seconds() < SEGUNDOS_ENTRE_REVISIONES
-        self.env['dcasa.sofia'].analizar()   # exige ser del equipo de ventas EN EL SERVIDOR y respeta el candado
-        despues = Corrida.search([], limit=1)
-        pendientes = Propuesta.search([('estado', '=', 'pendiente')])
-        datos = {'pendientes': len(pendientes), 'por_grupo': self._b_por_grupo(pendientes)}
-        if despues and despues != antes and despues.usuario_id == self.env.user:
-            datos['mensaje'] = 'Listo: Sofía revisó el CRM.'
-            datos['nuevas'] = despues.nuevas
-            datos['ya_no_hacian_falta'] = despues.vencidas
-        elif reciente:
-            datos['mensaje'] = 'Sofía acaba de revisar el CRM (hace menos de un minuto): te muestro lo que dejó.'
-        else:
-            datos['mensaje'] = 'Sofía revisó el CRM.'
+        self._b_sofia()
+        try:
+            with self._b_transaccion_aparte() as env:
+                datos = self._b_revisar_con_sofia(env)
+        except LockNotAvailable:
+            raise BrianError('Sofía está ocupada en este momento (alguien está aprobando una propuesta). Intenta en un '
+                             'minuto o abre su pantalla.') from None
         abrir = self._b_abrir_sofia()
         if abrir:
             datos['abrir'] = abrir
