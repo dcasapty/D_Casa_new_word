@@ -117,6 +117,9 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
   `estado_campanas`. La pantalla baja con scroll (prueba de navegador).
 - Decisión técnica a confirmar con la dueña: abrir el enlace «Sí, quiero» no anota nada (los filtros de correo abren
   los enlaces solos); el «sí» queda al tocar el botón de la página (dos toques).
+- Corrida completa en local (todos los módulos): 4744 pruebas, 3 fallas ajenas a Camila: el contrato visual de Juan a
+  390 px («conexiones», la diferencia de Chromium ya conocida, y «lista», cuya referencia quedó vieja desde el PR #69)
+  y `test_cabecera_con_la_pagina_abierta_desplazada`, que sola pasa (carrera de `is-ready`, ver contexto agéntico).
 - Sigue: capturas a la dueña, CI y staging; la clave de campañas en Cloudflare; revisar la política de privacidad.
   Etapa 1b: que Juan pregunte el permiso por WhatsApp (no se tocó `juan/`).
 

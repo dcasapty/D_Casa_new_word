@@ -522,7 +522,13 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 - **Referencias del contrato visual (`dcasa_conversaciones/tests/referencia/panel-*.webp`): nunca se regeneran en
   esta máquina** (2026-11-03). Chromium y las fuentes de aquí pintan distinto (la de «conexiones» a 390 px sale 13.7 %
   distinta sin cambiar código); el CI compara con 6 % de tolerancia y en local con 1.5 %. Se regeneraron una vez y hubo
-  que devolver las de siempre; con las viejas el CI pasó.
+  que devolver las de siempre; con las viejas el CI pasó. Desde el PR #69 (`[skip ci]`, «sin leer» pasó a «espera» y
+  «Esperan respuesta») la de «lista» a 390 px quedó vieja de verdad (7.7 % local, 2026-11-06): hay que regenerarla
+  donde pinta como el CI.
+- **`odoo.__WOWL_DEBUG__.root` en el sitio público no está listo cuando `body[is-ready]`** (2026-11-06): en
+  `public_root.js` el `is-ready` puede llegar antes de que `app.mount` termine y se asigne `__WOWL_DEBUG__`. Una
+  prueba de navegador que use el `root` espera las dos cosas; si no, falla a veces en corridas largas («Cannot read
+  properties of undefined (reading 'root')», `test_cabecera_con_la_pagina_abierta_desplazada`).
 - **Juan y las fotos del chat:** el Worker `dcasa-juan` necesita la variable de texto `URL_PUBLICA` (su propia
   dirección `https://dcasa-juan.dcasapty.workers.dev`, sin `/` final) para que Odoo pueda bajar las fotos, notas de voz y
   stickers; sin ella salía «No se pudo traer 1 archivo». `/salud` de Juan la marca como problema desde el PR #68.
