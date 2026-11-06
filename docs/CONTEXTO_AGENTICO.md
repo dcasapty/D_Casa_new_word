@@ -539,6 +539,24 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 
 ### Odoo 19
 
+- **Calculadora de envíos (2026-11-06, `dcasa_envios`), lo aprendido:**
+  - Un `<input type="number" step="0.1">` dentro de un `<form>` **bloquea el envío** si el valor no es múltiplo del paso
+    (7.04): el navegador no llama al `submit` y no hay error visible. Lo atrapó la prueba en el navegador; ahora
+    `step="any"` (el servidor redondea).
+  - Un `fields.Float` guarda `0.0` cuando se le escribe `None` (no `NULL`): «sin medir» no se puede distinguir de «0 km».
+    Va un booleano aparte (`km_medido`); las coordenadas (0, 0) se leen como «sin coordenadas» (es el golfo de Guinea).
+  - Leer por SQL algo que el ORM acaba de escribir (p. ej. un `ir.config_parameter` con `set_param`) necesita
+    `flush_model()` antes: si no, se lee el valor viejo.
+  - `export_data` (el «Exportar» de las listas) exige `base.group_allow_export` (o administrador): ni Gerencia lo
+    trae. Un campo calculado no guardado sí sale en la exportación.
+  - Portar fórmulas de JavaScript: `round()` de Python redondea los medios al par (`Math.round` hacia arriba),
+    `toFixed` mira el valor exacto, `toLocaleString('es-PA')` pone la coma de miles también en 4 cifras, `.length`
+    cuenta en UTF-16 (un emoji vale 2) y `sum()` de Python 3.12 compensa los decimales (el CI usa 3.12): sumar con un
+    bucle. La paridad se prueba corriendo el JavaScript real en node (`scripts/envios/paridad.mjs`).
+  - En JavaScript, `objeto[palabra]` lee el prototipo: el HTML de envíos se caía al buscar «constructor»
+    (`ABREV['constructor']` es una función). En Python, `dict.get` no tiene ese problema.
+  - `TEST_TAGS=/dcasa_interfaz:TestScroll` no corre nada: la clase es `TestInicioScroll` (un filtro que no calza no da
+    error, da cero pruebas). Revisar en el registro que las pruebas pedidas aparecen como «Starting …».
 - **Plantillas OWL: no hay `String()`, `Number()` ni otros globales de JavaScript** (`ctx.String is not a function`
   rompe la pantalla entera). Un número en `t-att-value` ya sale como texto. Y **`<select t-model>` no marca la opción
   al dibujar** (pone el valor antes de que existan las opciones): cada `<option>` lleva también `t-att-selected`, como

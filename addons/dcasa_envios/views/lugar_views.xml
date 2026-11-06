@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Envíos › Lugares: la lista completa con el precio de hoy (se exporta a Excel con «Exportar»). Quien no es
+         Gerencia la ve sin «Nuevo», editar ni borrar (get_view): agrega desde la calculadora. -->
+    <record id="vista_envio_lugar_lista" model="ir.ui.view">
+        <field name="name">dcasa.envio.lugar.list</field>
+        <field name="model">dcasa.envio.lugar</field>
+        <field name="arch" type="xml">
+            <list string="Lugares de envío">
+                <field name="name"/>
+                <field name="tipo"/>
+                <field name="cat" optional="show"/>
+                <field name="corr" optional="show"/>
+                <field name="dist"/>
+                <field name="prov" optional="hide"/>
+                <field name="km_medido" column_invisible="1"/>
+                <field name="km" digits="[10, 1]" invisible="not km_medido"/>
+                <field name="peaje" optional="show"/>
+                <field name="estado" widget="badge" optional="show" decoration-warning="estado == 'revisar'"
+                       decoration-info="estado == 'lancha'"
+                       decoration-danger="estado in ('sin_carretera', 'no_encontrado', 'fuera', 'sin_dato')"/>
+                <field name="precio_envio_txt"/>
+                <field name="precio_envio" optional="hide"/>
+                <field name="tarifa_base" optional="hide"/>
+                <field name="cargos_txt" optional="hide"/>
+                <field name="agregado" optional="hide"/>
+                <field name="agregado_por" optional="hide"/>
+                <field name="agregado_el" optional="hide"/>
+                <field name="editado_el" optional="hide"/>
+                <field name="origen" optional="hide"/>
+                <field name="alias" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="vista_envio_lugar_ficha" model="ir.ui.view">
+        <field name="name">dcasa.envio.lugar.form</field>
+        <field name="model">dcasa.envio.lugar</field>
+        <field name="arch" type="xml">
+            <form string="Lugar de envío">
+                <header>
+                    <button name="action_volver_al_archivo" type="object" string="Que mande el archivo otra vez"
+                            groups="dcasa_base.group_gerencia,base.group_system"
+                            invisible="origen != 'archivo' or not editado_el"
+                            help="La próxima carga del archivo vuelve a poner sus datos en este lugar."/>
+                </header>
+                <sheet>
+                    <widget name="web_ribbon" title="Archivado" bg_color="text-bg-danger" invisible="active"/>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name" placeholder="Barrio, urbanización, PH o lugar conocido"/></h1>
+                    </div>
+                    <group>
+                        <group string="Dónde queda">
+                            <field name="tipo"/>
+                            <field name="cat"/>
+                            <field name="corr"/>
+                            <field name="corr_exacto"/>
+                            <field name="dist"/>
+                            <field name="prov"/>
+                            <field name="alias" placeholder="Como lo dicen los clientes, uno por renglón"/>
+                        </group>
+                        <group string="Distancia y precio">
+                            <field name="km_medido"/>
+                            <field name="km" digits="[10, 2]" invisible="not km_medido"/>
+                            <field name="peaje"/>
+                            <field name="estado"/>
+                            <field name="fuente_km"/>
+                            <field name="precio_envio_txt"/>
+                            <field name="cargos_txt" invisible="not cargos_txt"/>
+                            <field name="nota"/>
+                        </group>
+                    </group>
+                    <group string="De dónde salió">
+                        <group>
+                            <field name="origen"/>
+                            <field name="agregado"/>
+                            <field name="agregado_por" invisible="not agregado_por"/>
+                            <field name="agregado_el" invisible="not agregado_el"/>
+                        </group>
+                        <group>
+                            <field name="editado_por" invisible="not editado_por"/>
+                            <field name="editado_el" invisible="not editado_el"/>
+                            <field name="lat" digits="[10, 6]"/>
+                            <field name="lon" digits="[10, 6]"/>
+                            <field name="active" invisible="1"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="vista_envio_lugar_buscar" model="ir.ui.view">
+        <field name="name">dcasa.envio.lugar.search</field>
+        <field name="model">dcasa.envio.lugar</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name" string="Lugar"
+                       filter_domain="['|', '|', ('name', 'ilike', self), ('alias', 'ilike', self), ('corr', 'ilike', self)]"/>
+                <field name="dist"/>
+                <field name="prov"/>
+                <field name="corr"/>
+                <filter name="corregimientos" string="Corregimientos" domain="[('tipo', '=', 'corregimiento')]"/>
+                <filter name="barrios" string="Barrios y urbanizaciones" domain="[('tipo', '=', 'barrio')]"/>
+                <filter name="edificios" string="Edificios y PH" domain="[('tipo', '=', 'edificio')]"/>
+                <filter name="referencias" string="Lugares conocidos" domain="[('tipo', '=', 'referencia')]"/>
+                <separator/>
+                <filter name="peaje" string="Pasan por peaje" domain="[('peaje', '=', True)]"/>
+                <filter name="revisar" string="Para revisar" domain="[('estado', '=', 'revisar')]"/>
+                <filter name="sin_carretera" string="Sin carretera o sin medir"
+                        domain="['|', ('km_medido', '=', False), ('estado', 'not in', ('ok', 'revisar', 'lancha'))]"/>
+                <separator/>
+                <filter name="a_mano" string="Agregados a mano" domain="[('agregado', '=', True)]"/>
+                <filter name="en_odoo" string="Agregados en Odoo" domain="[('origen', '=', 'mano')]"/>
+                <filter name="editados" string="Cambiados en Odoo" domain="[('editado_el', '!=', False)]"/>
+                <separator/>
+                <filter name="archivados" string="Archivados" domain="[('active', '=', False)]"/>
+                <group>
+                    <filter name="por_tipo" string="Qué es" context="{'group_by': 'tipo'}"/>
+                    <filter name="por_distrito" string="Distrito" context="{'group_by': 'dist'}"/>
+                    <filter name="por_provincia" string="Provincia" context="{'group_by': 'prov'}"/>
+                    <filter name="por_estado" string="Estado" context="{'group_by': 'estado'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="accion_lugares" model="ir.actions.act_window">
+        <field name="name">Lugares de envío</field>
+        <field name="res_model">dcasa.envio.lugar</field>
+        <field name="view_mode">list,form</field>
+        <field name="path">envios-lugares</field>
+        <field name="search_view_id" ref="vista_envio_lugar_buscar"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Todavía no hay lugares cargados</p>
+            <p>Gerencia los carga en <b>Envíos › Tarifa</b> con «Cargar lugares y tarifa desde el archivo».</p>
+        </field>
+    </record>
+</odoo>
