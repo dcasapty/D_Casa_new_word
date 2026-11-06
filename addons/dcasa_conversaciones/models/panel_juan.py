@@ -1,4 +1,4 @@
-"""Las pantallas «Resumen», «Costos de IA» y «Conexiones» de Juan (docs/JUAN_PANEL.md).
+"""Las pantallas «Resumen», «Costos de IA» y «Conexiones» de Juan (docs/JUAN_ODOO.md).
 
 * **Resumen** (ventas): mensajes, clientes únicos, resueltas sin una persona, oportunidades creadas, ventas atribuidas,
   tasa de cierre (en el periodo y comparada en todos los periodos) y tiempo de primera respuesta. Todo sale de lo que

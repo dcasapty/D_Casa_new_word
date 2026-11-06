@@ -1,4 +1,4 @@
-"""La API de la pantalla «Conversaciones» (docs/JUAN_PANEL.md): lista, hilo, no leídos, respuestas y ficha."""
+"""La API de la pantalla «Conversaciones» (docs/JUAN_ODOO.md): lista, hilo, no leídos, respuestas y ficha."""
 import logging
 import os
 import time

@@ -1,17 +1,23 @@
 # Plan — plataforma única de D'CASA
 
+> **Archivado el 2026-11-06.** Es el plan tal como estaba el 2026-10-12. Desde entonces cambió mucho: producción
+> funciona desde el 2026-10-13, `dcasapty.com` apunta al sistema nuevo desde el 2026-10-27, el correo a clientes
+> (Resend) está encendido desde esa fecha y Juan atiende el WhatsApp de la tienda por la API oficial de Meta desde el
+> 2026-11-02. Las decisiones de fondo pasaron a [ARQUITECTURA.md](../ARQUITECTURA.md); lo que sigue, a
+> [PRIORIDADES.md](../PRIORIDADES.md).
+
 Puesto al día el 2026-10-12. Este documento tiene tres partes: de dónde se partió, qué se decidió y
 **en qué va cada fase**. El detalle de lo que falta decidir o hacer la dueña está en
-[PENDIENTES_DUENA.md](PENDIENTES_DUENA.md); la evaluación de cómo está todo, en [ESTADO.md](ESTADO.md).
+[PENDIENTES_DUENA.md](../PRIORIDADES.md#lo-que-falta-de-la-dueña); la evaluación de cómo está todo, en [ESTADO.md](ESTADO.md).
 
 ## Punto de partida
 
 | Fuente | Qué aporta | Estado |
 |---|---|---|
 | Odoo anterior en dcasapty.com | Facturas (INV/2026/…), órdenes (S00…), productos, clientes | Abandonado a medias, sin código fuente |
-| `juanarrietabusiness-pixel/D-Casa` | Sitio Next.js: textos, categorías, FAQ, estructura | Contenido migrado a `website_dcasa` |
-| `juanarrietabusiness-pixel/Agencia_Workspace` (Dcasa/) | ADN de marca: colores, fuentes, voz, logo | Aplicado en sitio, factura y panel |
-| `abrinay1997-stack/DCasa-Referidos` | Programa de puntos y referidos de Abrinay (6 fases, reglas aprobadas) | Reglas llevadas a `dcasa_socios` — ver [SOCIOS.md](SOCIOS.md) |
+| Repositorio del sitio anterior | Sitio Next.js: textos, categorías, FAQ, estructura | Contenido migrado a `website_dcasa` |
+| Repositorio de la agencia (`Agencia_Workspace`, carpeta `Dcasa/`) | ADN de marca: colores, fuentes, voz, logo | Aplicado en sitio, factura y panel |
+| Repositorio `DCasa-Referidos` | Programa de puntos y referidos de Abrinay (6 fases, reglas aprobadas) | Reglas llevadas a `dcasa_socios` — ver [SOCIOS.md](../SOCIOS.md) |
 | Factura INV/2026/00821 | Formato, ITBMS 7 %, combos, monto en letras | Reproducida en tests |
 
 ## Decisiones
@@ -22,11 +28,11 @@ Puesto al día el 2026-10-12. Este documento tiene tres partes: de dónde se par
 2. **El sitio web vive dentro de Odoo** (Website + eCommerce) en lugar de Next.js: el catálogo, el stock,
    los precios y los pedidos salen del mismo sistema que factura. El sitio Next.js queda como referencia
    de contenido. (Hoy el sitio se mantiene desde el código; el editor visual del panel está limitado a
-   propósito: [auditoria/ronda7/constructor-web.md](auditoria/ronda7/constructor-web.md).)
+   propósito: [auditoria/ronda7/constructor-web.md](../auditoria/ronda7/constructor-web.md).)
 3. **Cloudflare**: Worker delante (caché, seguridad, dominio) + **Container con Odoo y PostgreSQL
    adentro**, con respaldo continuo a R2. *Esta decisión cambió:* el plan original preveía una base
-   gestionada (Neon/Supabase); se descartó por costo. Detalle en [ARQUITECTURA.md](ARQUITECTURA.md) y
-   [auditoria/DECISION_Y_PLAN.md](auditoria/DECISION_Y_PLAN.md).
+   gestionada (Neon/Supabase); se descartó por costo. Detalle en [ARQUITECTURA.md](../ARQUITECTURA.md) y
+   [auditoria/DECISION_Y_PLAN.md](../auditoria/DECISION_Y_PLAN.md).
 4. **Tests obligatorios** y despliegue automático solo si todo pasa (CI en GitHub Actions).
 5. **Odoo se queda como sistema de gestión** (contabilidad, facturación, inventario, CRM); no se
    reconstruye fuera de él.
@@ -43,10 +49,10 @@ Leyenda: ✅ hecho · 🟡 hecho en parte · ⬜ pendiente.
 - ✅ `dcasa_invoice`: factura con marca, RUC+DV del cliente, sello PAGADO digital con fecha, monto en
   letras en español, pie que no se corta.
 - ✅ `dcasa_socios`: programa de puntos y referidos dentro de Odoo, con puntos automáticos al pagarse la
-  factura, canjes cobrados en la venta y app del socio en `/socios` ([SOCIOS.md](SOCIOS.md)).
+  factura, canjes cobrados en la venta y app del socio en `/socios` ([SOCIOS.md](../SOCIOS.md)).
 - ✅ Programa de **vendedores** (`dcasa_socios`): código `VEN…`, comisión por venta pagada, colmena de un nivel,
   canje en mercancía y reglas con freno de costo; apagado el canje de externos hasta la revisión del
-  abogado ([VENDEDORES.md](VENDEDORES.md)). Falta: prueba de la dueña en staging y revisión de abogado y contadora.
+  abogado ([VENDEDORES.md](../VENDEDORES.md)). Falta: prueba de la dueña en staging y revisión de abogado y contadora.
 - ✅ `website_dcasa`: paleta y fuentes de la marca, inicio, pie, WhatsApp flotante, categorías de la
   tienda, página «Refiere y gana».
 - ✅ Imagen Docker + Worker/Container de Cloudflare + CI/CD con etapas de pruebas.
@@ -54,15 +60,15 @@ Leyenda: ✅ hecho · 🟡 hecho en parte · ⬜ pendiente.
 ### Fase 2 — Datos 🟡
 
 - ⬜ **Socios de DCasa-Referidos**: migrarlos si ya hay socios reales en su D1 (fichas, saldos como
-  asiento de migración; los PIN se reinician). Ver [SOCIOS.md](SOCIOS.md).
+  asiento de migración; los PIN se reinician). Ver [SOCIOS.md](../SOCIOS.md).
 - 🟡 **Datos del Odoo anterior.**
-  - ✅ Catálogo: `dcasa_catalogo` crea los productos con sus fotos ([CATALOGO.md](CATALOGO.md)).
+  - ✅ Catálogo: `dcasa_catalogo` crea los productos con sus fotos ([CATALOGO.md](../CATALOGO.md)).
   - 🟡 Existencias y costos: salen de capturas del sistema anterior, con lecturas dudosas y decisiones
-    pendientes de la dueña ([inventario-anterior-informe.md](inventario-anterior-informe.md),
-    [PENDIENTES_DUENA.md](PENDIENTES_DUENA.md) puntos 1 a 4). Falta un conteo físico completo (el Escáner de [BARRAS.md](BARRAS.md) ya permite hacerlo).
+    pendientes de la dueña ([inventario-anterior-informe.md](../inventario-anterior-informe.md),
+    [PENDIENTES_DUENA.md](../PRIORIDADES.md#lo-que-falta-de-la-dueña) puntos 1 a 4). Falta un conteo físico completo (el Escáner de [BARRAS.md](../BARRAS.md) ya permite hacerlo).
   - ⬜ Clientes, historial de facturas y numeración (continuar desde la última INV/2026/…).
   - ⬜ Contactos repetidos del sistema anterior: lista de duplicados en Socios › Configuración
-    ([CONTACTOS.md](CONTACTOS.md)).
+    ([CONTACTOS.md](../CONTACTOS.md)).
 - 🟡 **Fotos reales**: hay las del proveedor; falta la sesión de fotos propia (el ADN prohíbe inventarlas).
 
 ### Fase 3 — Puesta en producción 🟡
@@ -72,44 +78,44 @@ Leyenda: ✅ hecho · 🟡 hecho en parte · ⬜ pendiente.
   producción se sale a mano (*Run workflow* → `desplegar_en = produccion`, desde `main`): un merge no despliega.
 - 🟡 **Cargar los datos reales del Odoo anterior**: el importador (Ajustes › Cargar datos del sistema anterior) ya carga
   contactos, productos, existencias, precios de proveedor, ventas y compras pendientes y las facturas y pagos del año
-  ([MIGRACION.md](MIGRACION.md)). Decidido (2026-10-13): el historial entra como **facturas publicadas**, no como saldos.
+  ([MIGRACION.md](../MIGRACION.md)). Decidido (2026-10-13): el historial entra como **facturas publicadas**, no como saldos.
   Falta: el ensayo en staging con los archivos reales, la equivalencia de cuentas con el contador y la carga el día del
   corte.
 - ⬜ Mover el DNS de `dcasapty.com` a Cloudflare y activar el dominio en `edge/wrangler.jsonc`.
 - 🟡 Correo a clientes: **en construcción: `dcasa_correo`** (Resend en vez de SMTP; factura o abono al registrar un pago,
   bienvenida a clientes nuevos, «Enviar» de la factura y de la cotización). Apagado de fábrica; falta la cuenta de
-  Resend, la clave y verificar el dominio ([CORREO.md](CORREO.md)).
+  Resend, la clave y verificar el dominio ([CORREO.md](../CORREO.md)).
 - ⬜ Pasarela de pago para la tienda (Yappy / tarjeta) y métodos de entrega.
 - ✅ Respaldos: WAL continuo y `pg_dump` diario cifrados a R2, con simulacro de restauración en cada
-  ejecución de CI ([OPERACION.md](OPERACION.md)). *(Reemplaza el «PITR de Neon» del plan original.)*
+  ejecución de CI ([OPERACION.md](../OPERACION.md)). *(Reemplaza el «PITR de Neon» del plan original.)*
 - ⬜ Capacitación: vendedoras (ventas, socios y canjes, Escáner), bodega (inventario), dueña (reportes).
 - 🟡 Seguridad de acceso: doble factor obligatorio para administradores (staging y producción). Puerta del equipo
   (Cloudflare Access): staging en «1»; producción volvió a «0» el 2026-10-13 porque con «1» `/master` daba «Not Found»;
   falta ver el motivo en los logs y volver a encender por pasos «0» → «avisar» → «1»
-  ([SEGURIDAD_ACCESO.md](SEGURIDAD_ACCESO.md) §8).
+  ([SEGURIDAD_ACCESO.md](../SEGURIDAD_ACCESO.md) §8).
 
 ### Fase 4 — Mejoras 🟡
 
 - 🟡 **Factura electrónica DGI (Panamá)**: `dcasa_fe_pa` está listo y apagado; falta elegir el PAC y
-  confirmar con el contador la fecha que aplica a D'CASA ([FACTURA_ELECTRONICA.md](FACTURA_ELECTRONICA.md)).
+  confirmar con el contador la fecha que aplica a D'CASA ([FACTURA_ELECTRONICA.md](../FACTURA_ELECTRONICA.md)).
 - ⬜ Punto de venta (POS) en la tienda física, si lo quieren en lugar de órdenes de venta.
 - ⬜ Financiamiento/crédito: plan de pagos por cliente.
 - ✅ WhatsApp y mensajería: **Juan**, el asistente de los clientes, con puente de WhatsApp por QR
-  ([JUAN.md](JUAN.md)); el plan B con la cuenta oficial de Meta está documentado
-  ([JUAN_PLAN_B.md](JUAN_PLAN_B.md)).
+  ([JUAN.md](../JUAN.md)); el plan B con la cuenta oficial de Meta está documentado
+  ([JUAN_PLAN_B.md](../JUAN_CANALES.md#1-whatsapp-por-la-api-oficial-el-canal-principal)).
 
 ## Construido fuera del plan original
 
 | Qué | Dónde |
 |---|---|
-| **Brian**, asistente de IA para el equipo (panel, Telegram, MCP) | [BRIAN.md](BRIAN.md) |
-| **CRM automático** (etapas por hechos, temperatura, «a quién escribirle hoy») | [CRM_AUTOMATICO.md](CRM_AUTOMATICO.md) |
-| Contabilidad a medida, consolidación de empresas y nómina de Panamá | [CONTABILIDAD.md](CONTABILIDAD.md) · [CONSOLIDACION.md](CONSOLIDACION.md) · [NOMINA.md](NOMINA.md) |
-| Contactos sin duplicados | [CONTACTOS.md](CONTACTOS.md) |
-| El equipo en Odoo (Empleados) | [EQUIPO.md](EQUIPO.md) |
-| **Lector de códigos de barras**: Escáner, conteo y etiquetas numeradas | [BARRAS.md](BARRAS.md) |
+| **Brian**, asistente de IA para el equipo (panel, Telegram, MCP) | [BRIAN.md](../BRIAN.md) |
+| **CRM automático** (etapas por hechos, temperatura, «a quién escribirle hoy») | [CRM_AUTOMATICO.md](../JUAN_ODOO.md#el-crm-se-ajusta-solo) |
+| Contabilidad a medida, consolidación de empresas y nómina de Panamá | [CONTABILIDAD.md](../CONTABILIDAD.md) · [CONSOLIDACION.md](../CONSOLIDACION.md) · [NOMINA.md](../NOMINA.md) |
+| Contactos sin duplicados | [CONTACTOS.md](../CONTACTOS.md) |
+| El equipo en Odoo (Empleados) | [EQUIPO.md](../EQUIPO.md) |
+| **Lector de códigos de barras**: Escáner, conteo y etiquetas numeradas | [BARRAS.md](../BARRAS.md) |
 | Interfaz propia del panel (inicio, íconos, favicon) | `addons/dcasa_interfaz` |
-| Caché de páginas en el borde, adjuntos en R2, sesiones en PostgreSQL | [ARQUITECTURA.md](ARQUITECTURA.md) |
+| Caché de páginas en el borde, adjuntos en R2, sesiones en PostgreSQL | [ARQUITECTURA.md](../ARQUITECTURA.md) |
 
 ## Resuelto con D'CASA
 
@@ -117,10 +123,10 @@ Leyenda: ✅ hecho · 🟡 hecho en parte · ⬜ pendiente.
   encima (factura INV/2026/00821: 329.99 + 23.10 = 353.09). La web muestra «$39.99 + ITBMS»; carrito,
   cotización y factura muestran subtotal, ITBMS y total.
 - Etiquetas de códigos de barras (2026-10-11): un rollo numerado del proveedor de etiquetas (`DC0001`…),
-  asignado producto por producto desde el Escáner. Ver [BARRAS.md](BARRAS.md).
+  asignado producto por producto desde el Escáner. Ver [BARRAS.md](../BARRAS.md).
 
 ## Pendiente de confirmar con D'CASA
 
 - Color oficial: el logo mide `#1648C0`/`#FFD000` y el formulario dice `#1340B1`/`#FED00F` (se usó el formulario).
-- Pendientes que Abrinay dejó para Marcial: tope de puntos por compra (hoy 50.000), qué productos entran
+- Pendientes que dejó el diseño de DCasa-Referidos: tope de puntos por compra (hoy 50.000), qué productos entran
   como premio y adónde apuntan los QR impresos (usar `dcasapty.com/socios`).

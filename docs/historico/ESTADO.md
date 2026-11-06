@@ -1,15 +1,18 @@
 # Estado del sistema: evaluación y prioridades
 
+> **Archivado el 2026-11-06** en `docs/historico/`: se conserva tal cual, como registro; lo vigente está en el
+> [índice de la documentación](../README.md).
+
 > **Foto del 2026-10-11, no el estado de hoy.** Varias cosas cambiaron desde entonces: ya hay producción (primer
 > despliegue el 2026-10-13 y varios desde entonces), el programa de vendedores, la Guía, el importador de facturas y la
-> nómina están construidos. Lo vigente es [LEEME_PRIMERO.md](LEEME_PRIMERO.md) (cómo se trabaja y la bitácora de
-> sesiones) y [PRIORIDADES.md](PRIORIDADES.md) (el orden de lo que sigue). Las 20 fallas de abajo sirven de lista de
+> nómina están construidos. Lo vigente es [LEEME_PRIMERO.md](../LEEME_PRIMERO.md) (cómo se trabaja y la bitácora de
+> sesiones) y [PRIORIDADES.md](../PRIORIDADES.md) (el orden de lo que sigue). Las 20 fallas de abajo sirven de lista de
 > riesgos; revisar cuál sigue en pie antes de citarla.
 
 Evaluación hecha el 2026-10-11 (con el Escáner de códigos de barras ya en staging) a partir de lo que hay
 en el repositorio, las auditorías y los resultados de las pruebas. **Es un juicio, no una medición**: no
 corrió una auditoría nueva y lo que dice «no vi» puede estar resuelto sin que conste aquí. Lo que se
-resuelva se tacha en [PENDIENTES_DUENA.md](PENDIENTES_DUENA.md) y en los issues del repositorio.
+resuelva se tacha en [PENDIENTES_DUENA.md](../PRIORIDADES.md#lo-que-falta-de-la-dueña) y en los issues del repositorio.
 
 ## Nota: 68 de 100
 
@@ -60,7 +63,7 @@ Casi nada de lo que baja la nota es un error de programación: son cosas por dec
 **Esta semana** (casi nada requiere código):
 1. Hablar con el contador sobre la fecha de la factura electrónica y elegir el PAC (el trámite más lento).
 2. Iniciar la verificación de negocio en Meta (no se puede acelerar cuando haga falta).
-3. Contar con el lector y asignar las etiquetas ([BARRAS.md](BARRAS.md)).
+3. Contar con el lector y asignar las etiquetas ([BARRAS.md](../BARRAS.md)).
 4. Que las personas del equipo entren por `/master` para poder pasar la puerta a modo «1».
 
 **Siguientes 2 o 3 semanas:** cargar costos reales y proveedores; ensayar una venta de punta a punta con dos

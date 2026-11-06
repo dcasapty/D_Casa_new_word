@@ -1,10 +1,10 @@
-// WhatsApp Cloud API (oficial, Meta). Adaptador COMPLETO pero APAGADO: es el plan B si bloquean el número del QR.
-// Se enciende en Odoo (`canales_activos.whatsapp_cloud = true`) cuando la dueña tenga la cuenta de Meta Business
-// verificada y estos datos cargados: WHATSAPP_PHONE_NUMBER_ID (variable), WHATSAPP_CLOUD_TOKEN, META_APP_SECRET y
-// META_VERIFY_TOKEN (secretos). Mientras tanto el webhook responde 200 y no hace nada.
+// WhatsApp Cloud API (oficial, Meta). Es el WhatsApp de la tienda desde el 2026-11-02 (docs/LEEME_PRIMERO.md); antes era el plan B.
+// Se enciende en Odoo (`canales_activos.whatsapp_cloud = true`) con estos datos cargados: WHATSAPP_PHONE_NUMBER_ID (variable),
+// WHATSAPP_CLOUD_TOKEN, META_APP_SECRET y META_VERIFY_TOKEN (secretos). Apagado, el webhook responde 200 y no hace nada.
 //
 //   · GET  /webhooks/whatsapp-cloud → verificación (hub.verify_token = META_VERIFY_TOKEN)
-//   · POST /webhooks/whatsapp-cloud → firma X-Hub-Signature-256 con META_APP_SECRET
+//   · POST /webhooks/whatsapp-cloud → firma X-Hub-Signature-256 con META_APP_SECRET; el 200 sale cuando el mensaje ya está
+//     guardado (`guardarAntes`, rutas.ts): Meta solo reintenta lo que no recibió 200.
 //   · Texto libre solo dentro de las 24 h del último mensaje del cliente (después hace falta una plantilla aprobada).
 //   · Con «coexistencia» (la app WhatsApp Business sigue en el teléfono) lo que la vendedora escribe llega como eco
 //     (`smb_message_echoes`) y se trata como `propio:true`. NO VERIFICADO contra la documentación de Meta: el proxy de
@@ -70,24 +70,22 @@ export function crearWhatsappCloud(op: OpcionesWhatsappCloud = {}): AdaptadorCan
   const f: typeof fetch = op.fetch ?? ((...a) => fetch(...a));
   const dormir = op.dormir ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
 
-  /** Un archivo entrante: media_id → URL (con Bearer) → bytes (con Bearer). */
+  /** media_id → URL (con Bearer) → bytes (con Bearer). */
+  async function descargar(env: Env, mediaId: string, mime?: string): Promise<{ bytes: Uint8Array; mime?: string } | null> {
+    const token = env.WHATSAPP_CLOUD_TOKEN;
+    if (!token) return null;
+    const meta = await f(urlGraph(env, encodeURIComponent(mediaId)), { headers: { authorization: `Bearer ${token}` } });
+    if (!meta.ok) return null;
+    const info = (await meta.json().catch(() => ({}))) as { url?: string; mime_type?: string };
+    if (!info.url) return null;
+    const r = await f(info.url, { headers: { authorization: `Bearer ${token}` } });
+    if (!r.ok) return null;
+    return { bytes: new Uint8Array(await r.arrayBuffer()), mime: info.mime_type ?? mime };
+  }
+
+  /** Un archivo entrante. `ref` (el media_id) deja que el Durable Object lo vuelva a pedir si el Worker no alcanzó a bajarlo. */
   function descargable(env: Env, mediaId: string, tipo: AdjuntoEntrante["tipo"], mime?: string, nombre?: string): AdjuntoEntrante {
-    return {
-      tipo,
-      mime,
-      nombre,
-      obtener: async () => {
-        const token = env.WHATSAPP_CLOUD_TOKEN;
-        if (!token) return null;
-        const meta = await f(urlGraph(env, encodeURIComponent(mediaId)), { headers: { authorization: `Bearer ${token}` } });
-        if (!meta.ok) return null;
-        const info = (await meta.json().catch(() => ({}))) as { url?: string; mime_type?: string };
-        if (!info.url) return null;
-        const r = await f(info.url, { headers: { authorization: `Bearer ${token}` } });
-        if (!r.ok) return null;
-        return { bytes: new Uint8Array(await r.arrayBuffer()), mime: info.mime_type ?? mime };
-      },
-    };
+    return { tipo, mime, nombre, ref: mediaId, obtener: () => descargar(env, mediaId, mime) };
   }
 
   function aEntrante(env: Env, m: WaMensaje, nombre: string | undefined, propio: boolean, ahora: number): Entrante | null {
@@ -223,7 +221,13 @@ export function crearWhatsappCloud(op: OpcionesWhatsappCloud = {}): AdaptadorCan
           }
         }
       }
-      return { respuesta: json({ ok: true }), entrantes };
+      // `guardarAntes`: el 200 sale cuando cada mensaje ya quedó guardado en su Durable Object (rutas.ts). Meta solo reintenta si no
+      // recibe 200: contestar antes de guardar perdía el mensaje si el Worker o el Durable Object fallaban justo después.
+      return { respuesta: json({ ok: true }), entrantes, guardarAntes: true };
+    },
+
+    descargar(ref: string, env: Env) {
+      return descargar(env, ref);
     },
 
     async enviar(_canal: CanalId, salida: Saliente, env: Env): Promise<ResultadoEnvio> {

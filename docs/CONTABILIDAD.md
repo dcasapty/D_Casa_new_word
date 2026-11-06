@@ -84,7 +84,7 @@ octubre de 2026 la diferencia ($221.38 sin ITBMS) era una sola factura sin pedid
 vencida, no debe nada: no sale como vencido, y lo que pagó de más sale «a favor». El cierre de mes dice también lo que
 queda a favor de clientes.
 
-La auditoría completa (qué se revisó, qué se encontró y qué le preguntamos a la contadora) está en [AUDITORIA_CONTABLE.md](AUDITORIA_CONTABLE.md).
+La auditoría completa (qué se revisó, qué se encontró y qué le preguntamos a la contadora) está en [AUDITORIA_CONTABLE.md](historico/AUDITORIA_CONTABLE.md).
 
 ## Usuarios
 

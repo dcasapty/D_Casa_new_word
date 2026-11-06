@@ -1,4 +1,4 @@
-// Las rutas de «Conexiones» del panel de Odoo (docs/JUAN_PANEL.md): el QR para vincular WhatsApp y reiniciar o desvincular el
+// Las rutas de «Conexiones» del panel de Odoo (docs/JUAN_ODOO.md): el QR para vincular WhatsApp y reiniciar o desvincular el
 // puente. Todas con `Authorization: Bearer <JUAN_WORKER_TOKEN>` (la comprueba rutas.ts antes de llegar aquí).
 //
 //   GET  /odoo/qr          → { ok, estado, qr, edad_s }   el QR como imagen PNG (data URL); nada más

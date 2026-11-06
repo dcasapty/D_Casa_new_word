@@ -2,6 +2,7 @@
 // Odoo guarda el historial permanente; aquí solo vive lo necesario para contestar bien:
 // los últimos mensajes, la ráfaga pendiente, una cola de escrituras a Odoo y archivos temporales.
 
+import { createHash } from "node:crypto";
 import { bytesDeBlob, type Sql } from "./sql";
 
 const ESQUEMA = [
@@ -37,6 +38,21 @@ const ESQUEMA = [
   "CREATE TABLE IF NOT EXISTS fotos (codigo TEXT PRIMARY KEY, url TEXT NOT NULL, nombre TEXT, ts INTEGER NOT NULL)",
   "CREATE TABLE IF NOT EXISTS enviados (id TEXT PRIMARY KEY, ts INTEGER NOT NULL)",
   "CREATE TABLE IF NOT EXISTS seguimientos (clave TEXT PRIMARY KEY, ts INTEGER NOT NULL)",
+  // Mensajes de Meta guardados tal cual llegaron, ANTES de contestarle 200 (`guardarAntes`). Se borran cuando `ingest` los atiende;
+  // si el Worker se cae antes, la alarma los atiende aquí mismo (`proximo`).
+  `CREATE TABLE IF NOT EXISTS bandeja (
+     id_mensaje TEXT PRIMARY KEY,
+     cuerpo TEXT NOT NULL,
+     intentos INTEGER NOT NULL DEFAULT 0,
+     proximo INTEGER NOT NULL,
+     creado INTEGER NOT NULL
+   )`,
+  // De todo lo que entró por la bandeja queda solo una huella (SHA-256) del id, sin contenido ni teléfono, 8 días: un reintento de
+  // Meta que llega tarde (después de un eco, de un canal apagado o de «Borrar mis datos», que no dejan fila en `mensajes`) se
+  // reconoce y no se atiende como nuevo. El id crudo NO se guarda: el `wamid` de WhatsApp lleva el celular del cliente adentro.
+  "CREATE TABLE IF NOT EXISTS recibidos_huella (huella TEXT PRIMARY KEY, ts INTEGER NOT NULL)",
+  // La primera versión (nunca desplegada) guardaba el id crudo en `recibidos`: si un objeto la tiene, se borra.
+  "DROP TABLE IF EXISTS recibidos",
 ];
 
 export function crearEsquema(sql: Sql): void {
@@ -198,6 +214,69 @@ export class Cola {
   /** ¿Queda algo que ya falló tantas veces seguidas que pasó al reintento lento? */
   hayEstancadas(intentos: number): boolean {
     return !!this.sql.uno("SELECT 1 AS x FROM cola WHERE intentos >= ? LIMIT 1", intentos);
+  }
+}
+
+export interface FilaBandeja {
+  id_mensaje: string;
+  cuerpo: string;
+  intentos: number;
+  proximo: number;
+  creado: number;
+}
+
+/** Lo recibido de Meta que todavía no pasó por `ingest` (ver `MotorConversacion.guardarRecibido`). */
+export class Bandeja {
+  constructor(private readonly sql: Sql) {}
+
+  existe(idMensaje: string): boolean {
+    return !!this.sql.uno("SELECT 1 AS x FROM bandeja WHERE id_mensaje = ?", idMensaje);
+  }
+  guardar(idMensaje: string, cuerpo: string, proximo: number, ahora: number): void {
+    this.sql.correr("INSERT OR IGNORE INTO bandeja (id_mensaje, cuerpo, intentos, proximo, creado) VALUES (?, ?, 0, ?, ?)", idMensaje, cuerpo, proximo, ahora);
+  }
+  vencidas(ahora: number): FilaBandeja[] {
+    return this.sql.todos<FilaBandeja>("SELECT * FROM bandeja WHERE proximo <= ? ORDER BY creado, rowid", ahora);
+  }
+  /** Todas, en el orden en que llegaron. */
+  todas(): FilaBandeja[] {
+    return this.sql.todos<FilaBandeja>("SELECT * FROM bandeja ORDER BY creado, rowid");
+  }
+  proxima(): number | null {
+    return this.sql.uno<{ p: number | null }>("SELECT MIN(proximo) AS p FROM bandeja")?.p ?? null;
+  }
+  cuantas(): number {
+    return this.sql.uno<{ n: number }>("SELECT COUNT(*) AS n FROM bandeja")?.n ?? 0;
+  }
+  borrar(idMensaje: string): void {
+    this.sql.correr("DELETE FROM bandeja WHERE id_mensaje = ?", idMensaje);
+  }
+  /** Para más tarde; `fallo` = cuenta como un intento (la espera crece). */
+  posponer(idMensaje: string, proximo: number, fallo: boolean): void {
+    this.sql.correr("UPDATE bandeja SET proximo = ?, intentos = intentos + ? WHERE id_mensaje = ?", proximo, fallo ? 1 : 0, idMensaje);
+  }
+  purgar(antesDe: number): void {
+    this.sql.correr("DELETE FROM bandeja WHERE creado < ?", antesDe);
+  }
+}
+
+/** La huella (SHA-256 en hex) de un `id_mensaje`: reconoce el mismo id sin guardarlo. Síncrona (node:crypto, `nodejs_compat`). */
+export function huellaDeId(idMensaje: string): string {
+  return createHash("sha256").update(idMensaje).digest("hex");
+}
+
+/** Lo que entró por la bandeja: solo la huella del id y cuándo (ver el esquema). */
+export class Recibidos {
+  constructor(private readonly sql: Sql) {}
+
+  existe(idMensaje: string): boolean {
+    return !!this.sql.uno("SELECT 1 AS x FROM recibidos_huella WHERE huella = ?", huellaDeId(idMensaje));
+  }
+  anotar(idMensaje: string, ahora: number): void {
+    this.sql.correr("INSERT OR IGNORE INTO recibidos_huella (huella, ts) VALUES (?, ?)", huellaDeId(idMensaje), ahora);
+  }
+  purgar(antesDe: number): void {
+    this.sql.correr("DELETE FROM recibidos_huella WHERE ts < ?", antesDe);
   }
 }
 

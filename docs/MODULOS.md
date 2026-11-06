@@ -1,8 +1,8 @@
 # Módulos propios (`addons/`)
 
 Qué hace cada módulo, de qué depende, qué guarda y qué pantallas trae. Sacado de cada `__manifest__.py`, de
-`models/`, de `security/` y de las vistas, en el commit de este documento (2026-10-18). Si algo de aquí no coincide con
-el código, manda el código.
+`models/`, de `security/` y de las vistas (2026-10-18; puesto al día el 2026-11-06 con los módulos nuevos). Si algo de
+aquí no coincide con el código, manda el código.
 
 Reglas que valen para todos (de [`CLAUDE.md`](../CLAUDE.md)):
 
@@ -13,10 +13,10 @@ Reglas que valen para todos (de [`CLAUDE.md`](../CLAUDE.md)):
 
 ## Cuáles se instalan
 
-El contenedor instala (y actualiza en cada versión nueva) la lista `ODOO_MODULES` de
-[`docker/entrypoint.sh`](../docker/entrypoint.sh) (línea 176). Son **todos menos `dcasa_fe_pa`**, que no está en la lista y
-por eso **no se instala en producción**. `make init` (el [`Makefile`](../Makefile)) instala una lista más corta: le faltan
-también `dcasa_seguridad`, `dcasa_sesiones` y `dcasa_adjuntos_r2`. `scripts/test.sh` sin argumentos prueba **todos** los
+`addons/` tiene **29 módulos** (2026-11-06). El contenedor instala (y actualiza en cada versión nueva) los **28** de la
+lista `ODOO_MODULES` de [`docker/entrypoint.sh`](../docker/entrypoint.sh) (línea 176): **todos menos `dcasa_fe_pa`**, que
+no está en la lista a propósito y por eso **no se instala en producción**. `make init` (el [`Makefile`](../Makefile))
+instala una lista más corta (25): le faltan también `dcasa_seguridad`, `dcasa_sesiones` y `dcasa_adjuntos_r2`. `scripts/test.sh` sin argumentos prueba **todos** los
 de `addons/`, también `dcasa_fe_pa`.
 
 ## Resumen
@@ -26,12 +26,12 @@ pero sin efecto hasta que alguien lo enciende.
 
 | Módulo | Para qué | Depende de (propios) | Brian | ¿Apagado de fábrica? | Documento |
 |---|---|---|---|---|---|
-| `dcasa_base` | Empresa, Panamá (ITBMS, RUC con DV), roles Vendedora y Gerencia, reglas contables, tope de descuento | — | — | No | [PERMISOS.md](PERMISOS.md) |
+| `dcasa_base` | Empresa, Panamá (ITBMS, RUC con DV), roles Vendedora, Caja y Gerencia, reglas contables, tope de descuento | — | — | No | [PERMISOS.md](PERMISOS.md) |
 | `dcasa_invoice` | Factura, cotización, compra y entrega con la marca; «Imprimir documentos» | base | — | No | [auditoria/ronda7/factura.md](auditoria/ronda7/factura.md) |
 | `dcasa_abonos` | Hoja «Condiciones de abono» (copia cliente y copia empresa) | invoice | — | No | — |
 | `dcasa_socios` | Programa de puntos y referidos, y programa de vendedores | base, invoice | — (las suyas están en `dcasa_brian`) | Socios no; canje de externos y efectivo **sí** | [SOCIOS.md](SOCIOS.md) · [VENDEDORES.md](VENDEDORES.md) |
 | `dcasa_mi_cuenta` | Panel del cliente en `/mi-cuenta` | website_dcasa, socios, invoice | — | No | [SOCIOS.md › Mi cuenta](SOCIOS.md#mi-cuenta) |
-| `website_dcasa` | Sitio y tienda, editados desde el código | base, socios, contactos | — | El constructor visual de Odoo, **sí** (a propósito) | [OPERACION.md](OPERACION.md) · [REDISENO.md](REDISENO.md) |
+| `website_dcasa` | Sitio y tienda, editados desde el código | base, socios, contactos | — | El constructor visual de Odoo, **sí** (a propósito) | [OPERACION.md](OPERACION.md) · [REDISENO.md](historico/REDISENO.md) |
 | `dcasa_catalogo` | Carga el catálogo (Excel + fotos) y el código público del producto | base, website_dcasa | — | No | [CATALOGO.md](CATALOGO.md) |
 | `dcasa_interfaz` | Inicio por rol, Estadísticas, íconos, sin avisos de Enterprise | base, catalogo | — | No | [auditoria/ronda6/panel.md](auditoria/ronda6/panel.md) |
 | `dcasa_contabilidad` | Reportes contables, bancos, conciliación, cierre de mes, presupuestos, cheques | base, invoice, interfaz | — | No | [CONTABILIDAD.md](CONTABILIDAD.md) |
@@ -45,8 +45,11 @@ pero sin efecto hasta que alguien lo enciende.
 | `dcasa_brian` | Brian, el asistente del panel (chat, Telegram, MCP) | interfaz, contabilidad, catalogo, socios, contactos | 70 | Sin `BRIAN_API_KEY` no contesta (el despliegue la exige) | [BRIAN.md](BRIAN.md) |
 | `dcasa_guia` | «¿Qué necesitas hacer hoy?»: atajos en palabras sencillas | interfaz | — | No | [GUIA.md](GUIA.md) |
 | `dcasa_marketing` | Fotos del producto en grande (ver, subir varias, ordenar, recortar) y la app **Marketing** (stock por categoría, más vendidos, movimiento, quietos, fotos que faltan) | catalogo, interfaz, barras, brian | 2 | No | [MARKETING.md](MARKETING.md) |
-| `dcasa_conversaciones` | Bandeja de conversaciones con clientes, CRM automático y la API de Juan | brian, catalogo, interfaz, socios, contactos | 2 (+13 de Juan) | Sin los tokens de Juan, la API responde 503 | [JUAN_ODOO.md](JUAN_ODOO.md) · [CRM_AUTOMATICO.md](CRM_AUTOMATICO.md) |
-| `dcasa_correo` | Correo a clientes por Resend (factura, abono, bienvenida) | base, invoice, socios, website_dcasa, conversaciones | 2 | **Sí**: sin `RESEND_API_KEY` y sin encenderlo en Ajustes no sale nada | [CORREO.md](CORREO.md) |
+| `dcasa_conversaciones` | Bandeja de conversaciones con clientes, reparto, CRM automático y la API de Juan | brian, catalogo, interfaz, socios, contactos | 2 (+13 de Juan) | Sin los tokens de Juan, la API responde 503 | [JUAN_ODOO.md](JUAN_ODOO.md) · [JUAN.md](JUAN.md) · [JUAN_CANALES.md](JUAN_CANALES.md) |
+| `dcasa_sofia` | Sofía, la asistente del CRM: revisa con un botón y cada mañana y propone; una persona aprueba | conversaciones, contactos | — | No (las propuestas siempre las aprueba una persona) | [SOFIA.md](SOFIA.md) |
+| `dcasa_correo` | Correo a clientes por Resend (factura, abono, bienvenida) | base, invoice, socios, website_dcasa, conversaciones | 2 | **Sí**: sin `RESEND_API_KEY` y sin encenderlo en Ajustes no sale nada (en producción, encendido desde el 2026-10-27) | [CORREO.md](CORREO.md) |
+| `dcasa_meta_catalogo` | El catálogo de la tienda por URL para los anuncios de Facebook e Instagram | base, catalogo, website_dcasa | — | **Sí**: la dirección no entrega nada hasta que Gerencia lo enciende | [META_CATALOGO.md](META_CATALOGO.md) |
+| `dcasa_meta_eventos` | Píxel de Meta con consentimiento y las ventas pagadas por la Conversions API | base, contactos, tienda_borde, website_dcasa | — | **Sí**: interruptor, sección de Meta en la política de privacidad, `META_CAPI_TOKEN` y el consentimiento de la persona | [META_EVENTOS.md](META_EVENTOS.md) |
 | `dcasa_fe_pa` | Factura electrónica de la DGI (preparación, PAC simulado) | base, invoice | (1 en `dcasa_brian`) | **Sí**, y además no se instala | [FACTURA_ELECTRONICA.md](FACTURA_ELECTRONICA.md) |
 | `dcasa_seguridad` | Doble factor, bloqueos, accesos, puerta del equipo `/master`, Turnstile, robots.txt | — | — | La obligatoriedad y la puerta dependen de variables | [SEGURIDAD_ACCESO.md](SEGURIDAD_ACCESO.md) |
 | `dcasa_sesiones` | Sesiones de Odoo en PostgreSQL y `/dcasa/salud` | — | — | No | [DESPLIEGUE.md](DESPLIEGUE.md) |
@@ -102,6 +105,15 @@ flowchart TD
   catalogo --> migracion
   invoice --> fe[dcasa_fe_pa]
   web --> borde[dcasa_tienda_borde]
+  conv --> sofia[dcasa_sofia]
+  contactos --> sofia
+  web --> metacat[dcasa_meta_catalogo]
+  catalogo --> metacat
+  base --> metacat
+  web --> metaev[dcasa_meta_eventos]
+  contactos --> metaev
+  borde --> metaev
+  base --> metaev
   seguridad[dcasa_seguridad]
   sesiones[dcasa_sesiones]
   r2[dcasa_adjuntos_r2]
@@ -391,8 +403,51 @@ además como módulo de todo el servidor (`server_wide_modules = base,web,dcasa_
   de IA, limpiar archivos, buscar respuestas de vendedoras, «Disponible» cada mañana, huella de significado del
   conocimiento.
 - **Apagado de fábrica:** sin `JUAN_ODOO_TOKEN`/`JUAN_WORKER_TOKEN` la API responde 503 y Odoo arranca igual. Canales de
-  fábrica: WhatsApp QR y Telegram encendidos, WhatsApp API oficial, Messenger e Instagram apagados (`models/ajustes.py`).
+  fábrica: WhatsApp QR y Telegram encendidos, WhatsApp API oficial, Messenger e Instagram apagados (`models/ajustes.py`;
+  en producción, la API oficial está encendida desde el 2026-11-02: [JUAN_CANALES.md](JUAN_CANALES.md)).
   Las fichas de conocimiento «garantía» y «compra» vienen inactivas.
+
+## `dcasa_sofia` — Sofía, la asistente del CRM
+
+- **Para qué:** revisa el CRM con el botón «Organizar con Sofía» y cada mañana, y deja propuestas que una persona aprueba
+  o descarta: contestar a quien espera, recordar la cotización que vence, escribirle a tibios y calientes que nadie
+  atendió, pedir y guardar el nombre, el correo y el cumpleaños, llamar cuando pasaron las 24 horas de Meta, y repartir
+  las oportunidades (Gerencia). No cambia nada por su cuenta y no toca el proceso de Juan ([SOFIA.md](SOFIA.md)).
+- **Depende de (Odoo):** `sale_crm`.
+- **Modelos:** `dcasa.sofia` (el motor), `dcasa.sofia.propuesta`, `dcasa.sofia.corrida` (historial de revisiones),
+  `dcasa.sofia.plantilla` (los mensajes).
+- **Seguridad:** cada vendedora ve solo sus propuestas; Gerencia de ventas, todas, y edita los mensajes
+  (`security/sofia_security.xml`). Nadie crea ni borra propuestas a mano.
+- **Pantallas y menús:** *CRM › Sofía* (y el botón del tablero y la lista del CRM); *CRM › Configuración › Sofía* (Mensajes
+  de Sofía, Historial de Sofía); su grupo en *Ajustes de Juan*.
+- **Crons:** «Sofía: revisión del CRM de cada mañana» (mira cada 30 minutos si ya toca).
+- **Apagado de fábrica:** no; la revisión de la mañana y el resumen por Telegram se apagan en *Ajustes de Juan*.
+
+## `dcasa_meta_catalogo` — Catálogo para Meta
+
+- **Para qué:** el catálogo de la tienda en línea por una dirección secreta (`/dcasa/meta/catalogo.csv`) que Meta lee
+  para los anuncios de catálogo: una fila por variante publicada, precio de la página sin ITBMS, enlace y fotos; etiquetas
+  para armar conjuntos (categoría, campaña, existencias, franja de precio, código DC). Nunca la referencia del proveedor,
+  el código de barras ni el costo.
+- **Depende de (Odoo):** `website_sale_stock`.
+- **Modelos:** `dcasa.meta.campana` (campañas para anuncios); campos en `product.template` (p. ej. «No anunciar»).
+- **Pantallas y menús:** *Sitio web › Configuración › Anuncios en Meta* (Catálogo para Meta, Campañas para anuncios),
+  para Gerencia de ventas y administradores.
+- **Apagado de fábrica:** **sí**: la dirección no entrega nada hasta que Gerencia lo enciende ([META_CATALOGO.md](META_CATALOGO.md)).
+
+## `dcasa_meta_eventos` — Meta: píxel y ventas (Conversions API)
+
+- **Para qué:** el píxel de Meta, que el navegador carga solo después de que la persona acepta las cookies, y las
+  facturas pagadas hacia la Conversions API por una cola con reintentos (un fallo de Meta nunca hace fallar un cobro).
+  Correo y celular solo viajan cifrados (SHA-256) y con el consentimiento de la persona.
+- **Depende de (Odoo):** `website_sale`, `account`.
+- **Modelos:** `dcasa.meta.evento` (la cola, solo lectura para Gerencia y administradores); campos de consentimiento en
+  `res.partner`.
+- **Pantallas y menús:** *Sitio web › eCommerce › Eventos enviados a Meta* (Gerencia) y *Sitio web › Configuración ›
+  Meta: píxel y ventas* (administradores, con «Enviar evento de prueba»).
+- **Crons:** enviar las ventas pagadas (cada 10 min) y borrar lo que ya no hace falta (diario).
+- **Apagado de fábrica:** **sí**: nada sale hacia Meta sin el interruptor, la sección de Meta en la política de privacidad,
+  `META_CAPI_TOKEN` en el servidor y el consentimiento de la persona ([META_EVENTOS.md](META_EVENTOS.md)).
 
 ## `dcasa_correo` — Correo a clientes (Resend)
 

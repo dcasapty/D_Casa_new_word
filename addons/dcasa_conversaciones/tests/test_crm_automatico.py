@@ -1,4 +1,4 @@
-"""El CRM que se ajusta solo, con Odoo de verdad (``models/crm_lead.py``; diseño en docs/CRM_AUTOMATICO.md).
+"""El CRM que se ajusta solo, con Odoo de verdad (``models/crm_lead.py``; diseño en docs/JUAN_ODOO.md).
 
 Cada regla se prueba con el escenario que la rompería: la vendedora que mueve la etapa a mano, la factura sin pagar, el
 error en una oportunidad, la etapa que la dueña borró, el interruptor apagado.

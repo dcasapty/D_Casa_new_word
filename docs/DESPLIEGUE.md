@@ -8,7 +8,51 @@ también a R2. Si el contenedor se reinicia o cambia de máquina, al arrancar re
 antes de abrir el puerto. Contrato entre el Worker y la imagen: `edge/CONTRATO_CONTENEDOR.md`.
 
 Para el dueño, en lenguaje claro (costos, primer despliegue, simulacros, qué hacer si el sitio cae,
-cómo restaurar): **[docs/OPERACION.md](OPERACION.md)**. Este documento es la referencia técnica.
+cómo restaurar): **[docs/OPERACION.md](OPERACION.md)**. Este documento es la referencia técnica y **el único lugar con
+la receta de producción** (LEEME_PRIMERO, OPERACION y el README remiten aquí).
+
+## La receta de producción
+
+Puesta al día el 2026-11-06. Es el camino que se usó en los despliegues a producción 31 a 47 (del 2026-10-27 al
+2026-11-05). Producción sirve `https://dcasapty.com` desde el 2026-10-27. Antes de empezar, leer
+[CONTEXTO_AGENTICO.md](CONTEXTO_AGENTICO.md) (cada falla ya pagada) y tener el «sí» de la dueña (LEEME_PRIMERO §2).
+
+1. **En la rama de trabajo**, el cambio con su prueba. En local: `scripts/test.sh <módulos>`, `ruff check addons` y, si
+   tocó un Worker, `npm test && npm run typecheck` en su carpeta.
+2. **CI/CD a mano en la rama** (*Actions › CI/CD › Run workflow*, la rama de trabajo, `desplegar_en = staging`). Corre
+   todas las pruebas, construye la imagen una vez, la despliega a staging y después despliega Juan a staging. Tarda unos
+   **45 minutos** (CI #260 del 2026-11-05: ~25 min de pruebas de Odoo, ~20 min del despliegue a staging, ~1 min de Juan).
+   - Si el despliegue a staging se frena en el **respaldo previo** (staging apagado, HTTP 000 o 503, o un 429 de R2), la
+     imagen ya está construida y probada: lanzar *Desplegar* a `staging` con su `imagen_digest` en vez de repetir el CI
+     (así salieron Desplegar 34, 38, 40 y 44).
+3. **Anotar los dos datos de esa ejecución:** el `imagen_digest` (`sha256:…`) que deja el registro o el resumen del job
+   de staging, y el commit probado (el SHA de 40 caracteres de la punta de la rama sobre la que corrió el CI). Nunca
+   inventar ni «completar» un SHA.
+4. **PR a `main`** con ` [skip ci]` al final del título (plantilla `.github/pull_request_template.md`). Unir con
+   *squash* y `expectedHeadSha` = el commit probado (herramienta `mcp__github__merge_pull_request`). Entre el CI y el
+   *squash* **no se sube nada** a la rama: lo nuevo, sin probar, se colaría a `main`.
+5. **Comprobar el árbol:** `git fetch origin` y `git rev-parse origin/main^{tree}` tiene que ser igual a
+   `git rev-parse <commit probado>^{tree}`. Si no, parar.
+6. **Desplegar desde `main`** (*Actions › Desplegar › Run workflow*, rama `main`): `entorno = production`, el
+   `imagen_digest` del paso 3, `app_version` = **el commit probado** (40 caracteres; nunca el SHA del *squash*: esa
+   etiqueta no existe en el registro) y `respaldo_previo = true`. Tarda unos **15 minutos**, contando los 600 s de
+   vigilancia del final (`.github/scripts/esperar_salud.sh`).
+   - Un 429 de R2 en el respaldo previo frena sin tocar producción: volver a lanzarlo. Un 503 «Odoo apagado»: esperar al
+     minuto 7 de la hora siguiente (el cron lo despierta) y volver a lanzarlo. Sin respaldo, solo con el «sí» de la dueña.
+7. **Mirar la salud:** `https://dcasapty.com/dcasa/salud` con `version` = los 12 primeros del `app_version`,
+   `base_al_dia: true` y `humo` en orden; y abrir el Inicio.
+8. **Cancelar el CI que abrió el PR** (corre otra vez las mismas pruebas sobre el mismo árbol).
+9. **Traer `main` a la rama:** `git merge -s ours origin/main` (con el árbol ya comprobado en el paso 5) y subir. Un merge
+   normal choca en archivos falsos porque `main` se une por *squash*.
+10. **Juan:** *Actions › Desplegar Juan*, `entorno = production`, sin `dry_run`, **solo si cambió `juan/`**.
+11. **Anotar:** la bitácora de LEEME_PRIMERO, PRIORIDADES y el historial de despliegues de CONTEXTO_AGENTICO.
+
+**La alternativa** que el flujo todavía permite: *CI/CD › Run workflow* en `main` con `desplegar_en = produccion`. Vuelve
+a correr todas las pruebas sobre `main` (otra imagen, otro SHA) y despliega solo `dcasa` (no Juan); desde otra rama falla
+a propósito. No es la que se usa: tarda más y no despliega la imagen que ya se vio en staging.
+
+**Volver atrás:** §5 y [VERSIONES_ESTABLES.md](VERSIONES_ESTABLES.md) (ojo: las estables 1 y 2 son anteriores al dominio
+propio y a 8 módulos).
 
 ## 1. El camino de un cambio hasta producción
 
@@ -66,7 +110,7 @@ temporal; no toca ningún entorno.
    `Secret Access Key`. Paso a paso en `docs/OPERACION.md` → «Crear los buckets de R2».
 3. **API token** de cuenta para GitHub Actions (*Manage Account → Account API Tokens*): Workers con
    rol de administrador a nivel de producto (crear un Worker nuevo —`dcasa`, `dcasa-staging`— lo exige),
-   *Containers: Edit* y *Account Settings: Read*; cuando se active el dominio, *Zone → Workers Routes →
+   *Containers: Edit* y *Account Settings: Read*; con el dominio propio (desde el 2026-10-26), *Zone → Workers Routes →
    Edit* para `dcasapty.com`. *Por verificar al crearlo*: los nombres exactos de los permisos cambian;
    si `wrangler containers push` o `wrangler deploy` dan error de autorización, el mensaje dice cuál falta.
 4. Anotar el **Account ID**.
@@ -76,9 +120,9 @@ temporal; no toca ningún entorno.
 *Settings → Environments*: crear **`staging`** y **`production`**. En `production`, en *Deployment branches and
 tags*, elegir *Selected branches* y permitir solo `main`.
 
-**No hay «Required reviewers».** GitHub solo lo ofrece en repositorios públicos o en planes que este repositorio
-(privado) no tiene. La aprobación es el **clic de quien lanza el despliegue** (*Run workflow* con
-`desplegar_en = produccion`, desde `main`); por eso un merge nunca despliega solo. Una prueba
+**No se usan «Required reviewers».** Cuando se armó esto, el repositorio era privado y el plan no los ofrecía; desde
+el 2026-10-13 el repositorio es público, pero no se configuraron. La aprobación es el **clic de quien lanza el
+despliegue** (*Desplegar* en `main`, o *CI/CD* con `desplegar_en = produccion`); por eso un merge nunca despliega solo. Una prueba
 (`edge/test/despliegue-produccion.test.ts`) falla si alguien vuelve a enganchar producción a un push.
 
 Cada environment lleva **sus propios** valores (staging nunca comparte bucket, token de respaldo ni
@@ -101,7 +145,7 @@ clave de cifrado con producción):
 | Secret | `TELEGRAM_BOT_TOKEN`, `BRIAN_TELEGRAM_SECRETO` | no | ver «Brian» |
 | Secret | `TIENDA_FEED_TOKEN` | no (sí para la caché de páginas) | `openssl rand -hex 32` (≥ 32 caracteres), **distinto por entorno**. Lo comparten el Worker y Odoo: con él Odoo certifica las páginas anónimas que el borde guarda y protege el aviso de invalidación. Se puede rotar (se sube en cada despliegue). Ver edge/CONTRATO_CONTENEDOR.md §5 |
 | Secret | `DCASA_PUERTA_RUTA`, `DCASA_PUERTA_SECRETO`, `DCASA_ACCESS_EQUIPO`, `DCASA_ACCESS_AUD` | no (las cuatro juntas para la puerta del equipo) | Ver docs/SEGURIDAD_ACCESO.md §8.4: la ruta secreta de la entrada (`/entrada-…`), `openssl rand -hex 32` (≥ 32, **distinto por entorno**), `https://<equipo>.cloudflareaccess.com` y el *AUD Tag* de la aplicación de Cloudflare Access. Si falta alguna, la puerta queda apagada |
-| Variable | `URL_SITIO` | sí | dirección pública del Worker, sin `/` final: `https://dcasa.<subdominio>.workers.dev` hasta activar el dominio, luego `https://dcasapty.com`; staging: `https://dcasa-staging.<subdominio>.workers.dev` (o `https://staging.dcasapty.com`) |
+| Variable | `URL_SITIO` | sí | dirección pública del Worker, sin `/` final: en producción `https://dcasapty.com` (desde el 2026-10-26); staging: `https://dcasa-staging.<subdominio>.workers.dev` (o `https://staging.dcasapty.com` cuando exista) |
 | Variable | `CANONICAL_HOST` | no | pisa el de `edge/wrangler.jsonc` (`dcasapty.com` / `staging.dcasapty.com`). **Vacía = se usa el anfitrión de `URL_SITIO`**: Odoo arma con este dominio las direcciones de las fotos de productos, del PDF de una cotización y de los webhooks, así que tiene que ser donde el sitio de verdad responde (si apuntara a `staging.dcasapty.com` sin que exista, Telegram no podría bajar la foto ni el PDF) |
 | Variable | `R2_ENDPOINT` | no | solo si el bucket está en otra jurisdicción; por defecto `https://<ACCOUNT_ID>.r2.cloudflarestorage.com` |
 | Variable | `BRIAN_PROVEEDOR`, `BRIAN_MODELO`, `BRIAN_BASE_URL` | no | ver «Brian» |
@@ -159,12 +203,10 @@ Recuperarlas tras perder el Worker: `cd edge && npx wrangler secret put DCASA_PI
 Primero **staging** (pasos para el dueño en `docs/OPERACION.md` → «Primer despliegue a staging»):
 *Actions → CI/CD → Run workflow*, rama `main`, `desplegar_en = staging`. El primer arranque, con el
 bucket vacío, crea la base (instala los módulos en español) y empieza a archivar en R2: tarda unos
-minutos. Luego `<URL_SITIO>/web/login` con `admin` / `ODOO_ADMIN_PASSWORD`. Staging se duerme tras 1 h
-sin visitas (`ODOO_DORMIR_TRAS = 1h`) y al despertar restaura desde R2: cada visita es un simulacro.
+minutos. Luego `<URL_SITIO>/web/login` con `admin` / `ODOO_ADMIN_PASSWORD`.
 
-Producción: con el código ya en `main`, *Actions → CI/CD → Run workflow*, rama `main`,
-`desplegar_en = produccion`. Se vuelven a correr todas las pruebas y, si pasan, se despliega. Un merge a `main` no
-despliega por sí solo.
+Producción: con la receta de arriba («La receta de producción»). El primer despliegue a producción fue el 2026-10-13
+(CI #117). Un merge a `main` no despliega por sí solo.
 Después, crear un usuario por persona y no compartir el de administrador.
 
 ## 5. Actualizaciones de módulos en el arranque (I-02) y cómo volver atrás
@@ -235,15 +277,18 @@ imprime. El gestor de bases no hace falta: `list_db = False` y el borde bloquea
 
 ## 6. Dominio `dcasapty.com`
 
+**Hecho.** `dcasapty.com` y `www.dcasapty.com` apuntan al Worker `dcasa` desde el 2026-10-27 (Desplegar 31): `routes`
+con `custom_domain` en `edge/wrangler.jsonc` (Cloudflare crea solo los registros DNS y los certificados; el borde manda
+`www` → `dcasapty.com`), `workers_dev: true` para que `workers.dev` siga respondiendo (ahí viven el webhook de Brian y lo
+que Juan ya conoce) y `routes: []` en staging (si no, heredaría el dominio). `URL_SITIO` de `production` es
+`https://dcasapty.com`. Cómo se hizo, paso a paso: [historico/TRASLADO_DOMINIO.md](historico/TRASLADO_DOMINIO.md);
+lo que salió mal (Desplegar 29 y 30) y por qué: [CONTEXTO_AGENTICO.md](CONTEXTO_AGENTICO.md) › Despliegue.
+
 > Los QR impresos del programa de socios deben apuntar a `https://dcasapty.com/socios`
 > (o `/r/CÓDIGO`), nunca a `*.workers.dev`: un QR impreso es permanente.
 
-1. Agregar el dominio a Cloudflare y cambiar los *nameservers* en el registrador.
-2. En `edge/wrangler.jsonc` descomentar `routes` (dcasapty.com y www; y `staging.dcasapty.com` en
-   `env.staging`) y hacer push. El token de Cloudflare necesita *Zone → Workers Routes → Edit*.
-3. Cambiar la variable `URL_SITIO` del environment `production` a `https://dcasapty.com` (y quitar
-   `CANONICAL_HOST` si se había puesto para `workers.dev`).
-4. En Odoo: Ajustes → Parámetros del sistema → `web.base.url` = `https://dcasapty.com`.
+**Regla que dejó el traslado:** un cambio del borde (`routes`, `vars`, `workers_dev`) se despliega con un `app_version`
+que lo contenga: *Desplegar* hace checkout de ese commit, no de `main`.
 
 ## Rutas bloqueadas en el borde
 
@@ -277,7 +322,8 @@ Regla: `db_maxconn` + conexiones de mantenimiento (respaldos, `psql`, el arranqu
 - PostgreSQL dentro del mismo contenedor (Fase 1): `max_connections = 64` alcanza
   (48 de Odoo + 3 reservadas + margen para pgBackRest/`pg_dump`). Cada conexión activa
   cuesta memoria de PostgreSQL (medido: ~430 MiB de PostgreSQL con ~50 conexiones bajo
-  carga), así que no conviene subir ambos números sin medir en el contenedor basic (1 GiB).
+  carga), así que no conviene subir ambos números sin medir en el contenedor (producción `standard-1`, 4 GiB; staging
+  `basic`, 1 GiB).
 - Si algún día se sube `db_maxconn`, subir `max_connections` en la misma proporción.
 
 ## Sesiones y salud de Odoo (`dcasa_sesiones`)
@@ -295,7 +341,8 @@ Regla: `db_maxconn` + conexiones de mantenimiento (respaldos, `psql`, el arranqu
   (`docs/OPERACION.md` → «Si el sitio se cae»). En la imagen de producción además trae `version` (12
   primeros del commit de la imagen que responde) y `base_al_dia` (la base se actualizó con el código de
   esa imagen). El despliegue (`.github/scripts/esperar_salud.sh`) exige `version` = `app_version` y
-  `base_al_dia` = true, y lo vuelve a mirar a los 5 min; un 200 de otra imagen no cuenta (#97).
+  `base_al_dia` = true, y vigila 600 s antes de confirmar; un 200 de otra imagen no cuenta (incidente 1 de
+  CONTEXTO_AGENTICO).
 - **Cuándo se actualiza la base.** La imagen guarda su commit (`/opt/dcasa/COMMIT`, del CI) y la huella de
   su código (`/opt/dcasa/CODIGO`). El arranque actualiza los módulos si la huella no coincide con
   `dcasa.codigo_desplegado` de la base o si la versión cambió; la versión que manda es la de la imagen,
@@ -315,7 +362,9 @@ Regla: `db_maxconn` + conexiones de mantenimiento (respaldos, `psql`, el arranqu
   confirmado ya está en el WAL de R2.
 
 Producción queda **encendida 24/7** (`ODOO_DORMIR_TRAS` vacío): dormir implica restaurar la base desde
-R2 al despertar. Staging duerme tras 1 h sin visitas (`ODOO_DORMIR_TRAS = "1h"`).
+R2 al despertar. En `edge/wrangler.jsonc` staging también tiene `ODOO_DORMIR_TRAS` vacío (24/7); con `"1h"` se
+dormiría tras una hora sin visitas. Aun así, el despliegue a staging del CI lo ha encontrado apagado varias veces
+(CONTEXTO_AGENTICO › Despliegue).
 
 ## Operación
 

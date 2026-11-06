@@ -1,5 +1,8 @@
 # El CRM que se ajusta solo (diseño, fallas del plan y cómo se cierran)
 
+> **Archivado el 2026-11-06:** las reglas y el porqué se unieron a [JUAN_ODOO.md › El CRM se ajusta
+> solo](../JUAN_ODOO.md#el-crm-se-ajusta-solo). Se conserva tal cual, con la tabla completa de fallas del plan.
+
 Pedido de la dueña (2026-10-10): «me gustaría pensar que el CRM no depende de las vendedoras». Esta página es el
 diseño que se construyó y, antes, **las fallas que se encontraron en el plan original** leyendo el código real
 (no hay nada de esto que sea suposición: cada punto cita el archivo). Módulo: `addons/dcasa_conversaciones`.

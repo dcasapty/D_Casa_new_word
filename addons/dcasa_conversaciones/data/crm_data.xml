@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Motivo de la pérdida automática (docs/CRM_AUTOMATICO.md). noupdate: si la dueña lo renombra, se respeta. -->
+    <!-- Motivo de la pérdida automática (docs/JUAN_ODOO.md). noupdate: si la dueña lo renombra, se respeta. -->
     <data noupdate="1">
         <record id="perdida_sin_respuesta" model="crm.lost.reason">
             <field name="name">Sin respuesta (automático)</field>

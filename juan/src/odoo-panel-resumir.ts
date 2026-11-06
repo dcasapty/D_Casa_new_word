@@ -1,4 +1,4 @@
-// `POST /odoo/resumir`: el botón «Resumir» de la pantalla Conversaciones de Odoo (docs/JUAN_PANEL.md).
+// `POST /odoo/resumir`: el botón «Resumir» de la pantalla Conversaciones de Odoo (docs/JUAN_ODOO.md).
 //
 // Una vendedora que recibe una conversación larga (el asistente ya habló con el cliente) pide un resumen para seguirla sin leerla
 // toda. Odoo manda los mensajes (solo los que viajaron por el canal: las notas internas NO salen de Odoo) y este Worker devuelve

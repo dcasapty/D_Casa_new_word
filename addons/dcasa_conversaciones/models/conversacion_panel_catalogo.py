@@ -1,4 +1,4 @@
-"""«Foto del catálogo» y «Cotización en PDF» de la caja de respuesta (docs/JUAN_PANEL.md).
+"""«Foto del catálogo» y «Cotización en PDF» de la caja de respuesta (docs/JUAN_ODOO.md).
 
 * **Foto del catálogo**: busca productos con LAS MISMAS reglas de vista pública que las herramientas del asistente
   (solo productos publicados, precio «+ ITBMS», existencias solo como etiqueta ``disponible``/``pocas``/``agotado``,

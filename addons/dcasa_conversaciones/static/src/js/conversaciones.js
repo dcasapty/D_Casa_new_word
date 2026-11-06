@@ -1,5 +1,5 @@
 /**
- * «Conversaciones»: la pantalla donde el equipo atiende a los clientes con Juan (docs/JUAN_PANEL.md).
+ * «Conversaciones»: la pantalla donde el equipo atiende a los clientes con Juan (docs/JUAN_ODOO.md).
  * Escritorio: la lista (que puede reducirse a las fotos) y el hilo, que es lo que más espacio tiene; la ficha del cliente
  * va al lado solo en pantallas amplias y, en las demás, se abre encima y se cierra sola (ver preferencias.js).
  * Celular: una columna a la vez. Acción de cliente OWL, igual que la conciliación bancaria de dcasa_contabilidad.

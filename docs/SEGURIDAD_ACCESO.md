@@ -1,7 +1,7 @@
 # Seguridad de acceso al panel de D'CASA
 
 Cómo se entra al panel (Odoo) de forma segura, cómo se activa el doble factor, qué hacer si se
-pierde el teléfono y qué se hará en Cloudflare cuando `dcasapty.com` esté en Cloudflare.
+pierde el teléfono y qué se puede activar en Cloudflare para `dcasapty.com` (en Cloudflare desde el 2026-10-26).
 Módulo: `addons/dcasa_seguridad`. Borde: `edge/src/bots.ts`.
 
 > En corto: **clave + código del teléfono** para los administradores, intentos fallidos que
@@ -83,11 +83,12 @@ Notas:
   (`dcasa_seguridad.2fa_obligatorio`). Cambiarla a mano en Parámetros del sistema dura hasta el
   próximo reinicio.
 - **Por qué no se usa la opción de Odoo «Exigir 2FA» (código por correo):** con esa opción, quien
-  no tiene app recibe el código **por correo**. D'CASA todavía no tiene servidor de correo saliente
-  (docs/PLAN.md), así que nadie recibiría el código y **todos quedarían fuera**. No la actives en
-  Ajustes › Permisos; si alguien la activa sin correo, el arranque lo avisa en el log. Cuando haya
-  correo saliente se puede reconsiderar, pero la opción de D'CASA (enrolar la app al entrar) es
-  más segura que un código por correo.
+  no tiene app recibe el código **por correo**. Desde el 2026-10-27 producción sí manda correo por Resend
+  ([CORREO.md](CORREO.md)), pero **solo los correos de D'CASA** (factura, abono, bienvenida, cotización, acceso…): los
+  automáticos de Odoo, entre ellos ese código, no salen (`addons/dcasa_correo/models/politica.py`). Con esa opción
+  nadie recibiría el código y **todos quedarían fuera**. No la actives en Ajustes › Permisos; si alguien la activa
+  sin correo, el arranque lo avisa en el log. Además, la opción de D'CASA (enrolar la app al entrar) es más segura que
+  un código por correo.
 - Riesgo que hay que conocer: si alguien ya sabe la clave de un administrador que **todavía no**
   enroló, podría enrolar su propio teléfono. Por eso: primero todos los administradores enrolan,
   luego se enciende; y cada enrolamiento queda en «Accesos al panel» y avisa por Telegram.
@@ -197,7 +198,7 @@ nadie ve nada: solo si Cloudflare duda, aparece una casilla. Sin claves no hace 
 Crear el widget (lo hace la dueña, o quien mantiene el sistema con su aprobación; es gratis,
 hasta 20 widgets por cuenta):
 1. Cloudflare › **Turnstile** › **Add widget**. Nombre: «D'CASA sitio». Hostnames:
-   `dcasapty.com` y `staging.dcasapty.com` (y el `*.workers.dev` mientras no haya dominio).
+   `dcasapty.com` y `staging.dcasapty.com` (y los `*.workers.dev` que sigan en uso, como el de staging).
    Modo: **Managed**.
 2. Copia la **Site key** y la **Secret key**.
 3. Site key → `edge/wrangler.jsonc` → `vars` → `"TURNSTILE_SITE_KEY": "…"`. Secret key → secreto
@@ -221,7 +222,7 @@ catálogo sin mandar clientes; los de búsqueda y respuesta («¿dónde compro u
 Chorrera?») sí pueden citar la tienda y traer visitas. Google y Bing normales nunca se bloquean
 (el sitio vive de SEO), ni los previsualizadores de enlaces (WhatsApp, Facebook).
 
-Esto **no cambia** lo que dice la [política de privacidad](/privacidad#inteligencia-artificial)
+Esto **no cambia** lo que dice la política de privacidad (<https://dcasapty.com/privacidad#inteligencia-artificial>)
 sobre Brian: allí se explica que Brian usa a Meta como proveedor de IA y que Meta puede usar lo
 que se le envía para entrenar sus modelos. Eso es lo que D'CASA **le manda** a Meta al usar
 Brian; robots.txt es otra cosa: si los rastreadores pueden **leer solos** el sitio público.
@@ -230,10 +231,10 @@ robots.txt es un pedido de buena fe; quien no lo respete se frena en Cloudflare 
 
 ---
 
-## 7. Cloudflare cuando `dcasapty.com` esté en Cloudflare (solo documentado)
+## 7. Protecciones del panel de Cloudflare para `dcasapty.com` (documentado)
 
-Nada de esto está activado: se hace en el panel de Cloudflare cuando el DNS del dominio esté
-en Cloudflare. Costos verificados en la documentación de Cloudflare (octubre 2026); confirmar
+El DNS de `dcasapty.com` está en Cloudflare desde el 2026-10-26, así que todo esto ya se puede activar en el panel.
+No consta que se haya activado (no se ve desde el código): revisarlo con la dueña antes de darlo por hecho. Costos verificados en la documentación de Cloudflare (octubre 2026); confirmar
 el precio vigente antes de contratar algo de pago.
 
 | Qué | Plan | Recomendación |
@@ -329,9 +330,8 @@ Los valores secretos los pegas tú en GitHub; nunca se escriben en el chat ni en
    Debe aparecer como «ADDED».
 3. Zero Trust › **Access controls › Applications › Add an application › Self-hosted**:
    - **Application name:** «Master (staging)».
-   - **Public hostname:** donde el sitio responde HOY (staging: `dcasa-staging.dcasapty.workers.dev`; producción:
-     `dcasa.dcasapty.workers.dev`; `dcasapty.com` se **agrega** el día del traslado, docs/TRASLADO_DOMINIO.md) y
-     **Path:** `master*`.
+   - **Public hostname:** donde el sitio responde (staging: `dcasa-staging.dcasapty.workers.dev`; producción:
+     `dcasapty.com`, agregado el 2026-10-26, y `dcasa.dcasapty.workers.dev`) y **Path:** `master*`.
    - **Policy:** nombre «Equipo D'CASA», acción **Allow**, regla **Include › Emails** y los correos del equipo.
    - **Login methods:** desmarca «aceptar todos» y deja **solo One-time PIN**.
    - **Session duration:** 24 horas. Guarda.
@@ -366,7 +366,10 @@ El interruptor es `DCASA_PUERTA_OBLIGATORIA` (en `edge/wrangler.jsonc` → `vars
    `DCASA_PUERTA_EXIGIR_CORREO` en `"1"` (primero comprueba que el correo de cada usuario de Odoo es el mismo que
    está en Access).
 4. **Producción:** repite A y B con su propia aplicación de Access (otro hostname, otro *AUD Tag*, otro secreto) y
-   los mismos tres pasos de este apartado. Producción usa el dominio definitivo cuando esté en Cloudflare.
+   los mismos tres pasos de este apartado. **Estado (2026-11-06):** la aplicación de producción ya cubre
+   `dcasapty.com/master*` y `/master` funciona desde el 2026-10-18, pero `DCASA_PUERTA_OBLIGATORIA` sigue en `"0"`.
+   Pasar a «avisar» o a «1» está pendiente, sin fecha: la dueña decide cuándo, cuando el equipo se haya adaptado
+   (issue #27).
 
 Nada de esto toca a clientes ni a socios.
 

@@ -2,7 +2,7 @@
 
 El Worker calcula los vectores (Workers AI); Odoo solo los guarda y los compara. Aquí el Worker es falso: cada texto
 se convierte en un vector según de qué tema habla, así se prueba la lógica sin red ni IA. Lo que NO se puede probar
-aquí (cuánto se parecen de verdad dos frases reales en bge-m3) queda anotado en docs/PENDIENTES_DUENA.md.
+aquí (cuánto se parecen de verdad dos frases reales en bge-m3) queda anotado en docs/PRIORIDADES.md.
 """
 import json
 from unittest.mock import patch

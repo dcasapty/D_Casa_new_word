@@ -1,5 +1,8 @@
 # Plan B de Juan: pasar de WhatsApp por QR a WhatsApp oficial (Meta)
 
+> **Archivado el 2026-11-06: el plan B se hizo.** Juan atiende el WhatsApp de la tienda por la API oficial de Meta
+> desde el 2026-11-02 y el puente QR nunca se desplegó. Lo vigente está en [JUAN_CANALES.md](../JUAN_CANALES.md).
+
 **Para qué sirve este papel.** Hoy Juan atiende WhatsApp por el *puente QR*: es como tener WhatsApp Web abierto en un
 servidor. Funciona, es barato y no necesita permiso de nadie, pero **no es una conexión oficial**: WhatsApp podría bloquear el
 número si lo considera «automatizado no autorizado». Este plan B es lo que se hace **antes** de que eso pase (o el mismo día,
