@@ -24,30 +24,36 @@ LEEME_PRIMERO §2).
 
 ## Lo que sigue, en orden
 
-1. **WhatsApp oficial: guardar el mensaje antes de contestarle a Meta.** Se está arreglando en la sesión del
-   2026-11-06; cuando entre, se anota en la bitácora y sale de esta lista.
-2. **Que el equipo use lo nuevo** (lo hace la dueña con el equipo; ver «Lo que falta de la dueña»): el Reparto
+1. **WhatsApp oficial: guardar el mensaje antes de contestarle a Meta.** Arreglado y probado en la rama el 2026-11-06
+   (falta CI, staging y Desplegar Juan); cuando entre, se anota en la bitácora y sale de esta lista.
+2. **La varita mágica («Sugerir») que a veces no escribe el borrador**, en el chat y en «Guardar y responderle» de Sofía
+   (la dueña, 2026-11-06: «a veces sí, a veces no»). Sospechas: el plazo de 25 s de Odoo al Worker, el cambio de modelo
+   y la revisión de marca que rechaza el borrador entero. Falta el mensaje exacto que sale en pantalla.
+3. **Camila, etapa 1: mail marketing** ([CAMILA.md](CAMILA.md)). Decisiones tomadas el 2026-11-06: campaña cada 15
+   días, con el precio real de Odoo, por el servicio de campañas de Resend. Primero el permiso del cliente.
+4. **Brian al día** con lo nuevo (la dueña: «indispensable, pero desactualizado») y una vuelta a la pantalla de Sofía.
+5. **Que el equipo use lo nuevo** (lo hace la dueña con el equipo; ver «Lo que falta de la dueña»): el Reparto
    «Parejo», el Telegram de cada vendedora, «Revisar ahora» de Sofía y los mensajes de Sofía.
-3. **Respaldo de la IA de Juan:** `ANTHROPIC_API_KEY` en el Worker `dcasa-juan` por si Meta pasa su límite (hoy el
+6. **Respaldo de la IA de Juan:** `ANTHROPIC_API_KEY` en el Worker `dcasa-juan` por si Meta pasa su límite (hoy el
    cliente recibiría «una vendedora te atiende»), una alerta de gasto en Meta y **plantillas de WhatsApp** aprobadas por
    Meta para escribir después de 24 horas (también para los seguimientos de Juan, que hoy no salen fuera de esa ventana).
-4. **Brian: topes de dinero** (issue #26: `ajustar_puntos`, `crear_factura`, `ajustar_existencias` sin tope) y la cifra
+7. **Brian: topes de dinero** (issue #26: `ajustar_puntos`, `crear_factura`, `ajustar_existencias` sin tope) y la cifra
    del tope mensual de gasto de IA (hoy en 0 = sin tope). Esperan las cifras de la dueña.
-5. **Conversaciones: permisos de escritura y seguimiento por persona** (issue #25).
-6. **Contabilidad:** el menú raíz propio «Contabilidad» (reportes, bancos, cierre de mes, en un solo lugar) y las
+8. **Conversaciones: permisos de escritura y seguimiento por persona** (issue #25).
+9. **Contabilidad:** el menú raíz propio «Contabilidad» (reportes, bancos, cierre de mes, en un solo lugar) y las
    **facturas del sistema anterior** (el importador está listo; espera a la contadora: ver abajo).
-7. **Messenger e Instagram:** conectarlos con la guía de [JUAN_CANALES.md](JUAN_CANALES.md).
-8. **Códigos de barras:** etiquetas del proveedor y prueba de los lectores (issues #9, #10 y #12); con eso, verificar el
+10. **Messenger e Instagram:** conectarlos con la guía de [JUAN_CANALES.md](JUAN_CANALES.md).
+11. **Códigos de barras:** etiquetas del proveedor y prueba de los lectores (issues #9, #10 y #12); con eso, verificar el
    despacho con el escáner ([BARRAS.md](BARRAS.md)).
-9. **Tarifas de envío:** en pausa desde el 2026-11-04 hasta que Gerencia apruebe la propuesta (redondeo, viático,
+12. **Tarifas de envío:** en pausa desde el 2026-11-04 hasta que Gerencia apruebe la propuesta (redondeo, viático,
    honorarios y peaje). Después, la sección de envíos del sitio y que Juan calcule.
-10. **Siguiente etapa de Sofía:** mensajes con IA, plantillas de WhatsApp para después de 24 horas y su herramienta de
+13. **Siguiente etapa de Sofía:** mensajes con IA, plantillas de WhatsApp para después de 24 horas y su herramienta de
     Brian.
-11. **Privacidad (issues #22 y #23):** borrar la oportunidad junto con la conversación y lo que «Eliminar conversación»
+14. **Privacidad (issues #22 y #23):** borrar la oportunidad junto con la conversación y lo que «Eliminar conversación»
     todavía no borra.
-12. **Juan: hallazgos menores** que quedaron para después (issue #24).
-13. **CRM, fase 2** (issues #15 a #21): se eligen con la dueña.
-14. **Cabos técnicos menores** (sin urgencia):
+15. **Juan: hallazgos menores** que quedaron para después (issue #24).
+16. **CRM, fase 2** (issues #15 a #21): se eligen con la dueña.
+17. **Cabos técnicos menores** (sin urgencia):
     - que el respaldo previo de staging despierte el sitio antes de pedir el volcado (el despliegue a staging del CI se
       frenó así tres veces; ver CONTEXTO_AGENTICO › Despliegue);
     - por qué Odoo de producción estaba apagado el 2026-10-23 a las 06:38 UTC si debe estar encendido siempre (sin
@@ -62,6 +68,9 @@ LEEME_PRIMERO §2).
     - «Cobrado» suma `amount` y todo cobro entrante (igual que la Caja de hoy); no hay prueba con costo FIFO;
     - Brian sin huecos: descuentos, facturar desde una cotización, fusionar contactos, margen por producto, recibir
       compras.
+
+**Nombres reservados** (2026-11-06, el jefe): **Daniela, Alejandra y Andrés** quedan para futuras herramientas; se
+asignan con la dueña cuando toque (Camila ya es la del mail marketing y la web).
 
 **Sin fecha:** la **puerta del equipo `/master` en producción** (issue #27) queda pendiente, sin fecha: la dueña decide
 cuándo, cuando el equipo se haya adaptado ([PUERTA_MASTER.md](PUERTA_MASTER.md)).

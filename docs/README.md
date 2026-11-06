@@ -27,6 +27,7 @@
 | Anunciar los productos en Facebook e Instagram: el catálogo que lee Meta y las campañas | [META_CATALOGO.md](META_CATALOGO.md) |
 | Medir los anuncios de Meta: el píxel, las ventas que se le reportan y el consentimiento del cliente | [META_EVENTOS.md](META_EVENTOS.md) |
 | Las fotos de los productos en grande y la app Marketing | [MARKETING.md](MARKETING.md) |
+| Camila, la asistente del mail marketing y la página web (diseño; todavía sin código) | [CAMILA.md](CAMILA.md) |
 | Saber qué ve un cliente en «Mi cuenta» (sus compras, cuánto le falta de un abono, sus puntos) | [SOCIOS.md › Mi cuenta](SOCIOS.md#mi-cuenta) |
 | Crear o ubicar al equipo en Odoo (sin invitaciones por error) | [EQUIPO.md](EQUIPO.md) |
 | Saber qué ve y qué no ve cada rol (vendedora, Caja, Gerencia, Marketing, contador), los interruptores y dónde viven las políticas del sitio | [PERMISOS.md](PERMISOS.md) |
