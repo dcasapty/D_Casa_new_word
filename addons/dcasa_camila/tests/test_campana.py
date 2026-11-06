@@ -192,6 +192,18 @@ class TestCron(CamilaComun):
         campana.sudo().write({'enviada_en': fields.Datetime.now() - timedelta(days=16)})
         self.assertTrue(self.Camila._cron_preparar())
 
+    def test_la_sincronizacion_de_cada_hora_solo_en_produccion_y_con_clave(self):
+        self.permiso(self.ana)
+        self.assertFalse(self.Camila._cron_sincronizar(), 'Sin clave no habla con Resend')
+        self.con_clave()
+        with patch.dict('os.environ', {'DCASA_ENTORNO': 'staging'}):
+            self.assertFalse(self.Camila._cron_sincronizar())
+        self.assertFalse(self.resend.llamadas, 'Staging nunca habla con Resend')
+        self.assertTrue(self.Camila._cron_sincronizar())
+        segmento = self.env['ir.config_parameter'].sudo().get_param('dcasa_camila.segmento_id')
+        self.assertEqual(self.resend.en_segmento(segmento), {'ana.zzcm@example.com': False},
+                         'Solo el correo de quien dijo que sí')
+
 
 @tagged('post_install', '-at_install')
 class TestEnviar(CamilaComun):
