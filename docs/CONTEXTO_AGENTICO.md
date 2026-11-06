@@ -379,6 +379,16 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `main` (`741930d`, árbol = `de1fb04`) a staging y Desplegar con ese `app_version`. **Regla:** un cambio del borde
   (rutas, `vars`, `workers_dev`) se despliega con un `app_version` que lo contenga, o sea con una imagen construida
   de ese commit.
+- **Desplegar 55 (fallido) y Desplegar 56** (21:14 y 21:17 UTC del 6 nov, imagen `sha256:5564e4b9…` de CI #282) ·
+  PR #88 («Ver más» en la foto del catálogo y Dependabot; `main` = `513b094`, árbol = `3a1c1d3`). **El 55 falló con
+  `IMAGE_REGISTRY_DOESNT_CONTAIN_IMAGE`** porque se le pasó `app_version` = `513b094` (el *squash*): la misma trampa del
+  2026-10-16 (arriba), ya escrita y repetida igual. Cloudflare activó el Worker nuevo (mismo código probado) y dejó la
+  imagen anterior; producción siguió sana en `3fb5770`. El **56** con `app_version` = `3a1c1d3` (el SHA de la rama que
+  construyó el CI) salió bien: respaldo en 50 s, sano 21:22 y confirmado (versión `3a1c1d3fc144`, base al día, humo
+  ok). **Regla, otra vez:** antes de lanzar Desplegar, copiar `app_version` del registro del CI («El sitio está sano
+  con la versión …» del staging), nunca del resultado del *merge*. **Desplegar Juan 8** desde `main` a la vez: bien
+  (`/salud` con `513b094`; las «7 cosas por revisar» son claves y canales que ya faltaban: `ANTHROPIC_API_KEY`,
+  puente QR, `META_PAGE_TOKEN`). El PR llevaba `[skip ci]`: no hubo CI del PR que cancelar.
 - **Desplegar 54 y Desplegar Juan 7** (18:52 UTC del 6 nov, `3fb5770`, imagen `sha256:29309f79…` de CI #280, respaldo
   previo) · Odoo sano y confirmado 19:07 (versión `3fb5770cdf1a`, base al día, humo ok): Camila etapa 2 con los 11
   arreglos de su revisión adversarial (PR #87, `main` = `3195d7d`, árbol = `3fb5770`; migración `19.0.2.0.0`). Juan

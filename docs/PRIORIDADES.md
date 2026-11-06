@@ -73,8 +73,8 @@ LEEME_PRIMERO §2).
       datos nuevos (2026-11-06: Camila en el celular de la dueña, «ctx['d'].proxima.ya», tras Desplegar 54; se arregla
       recargando). Que las pantallas propias avisen «Hay una versión nueva: toca para recargar» cuando cambie
       `APP_VERSION`;
-    - los PR de Dependabot abiertos (#7 del borde; #78 a #81 de Juan y del puente, abiertos el 2026-11-06): revisarlos
-      y probarlos antes de unir (el grupo «ia» de Juan toca los clientes de la IA);
+    - ~~los PR de Dependabot abiertos (#7, #78 a #81)~~: aplicados y en producción (PR #88, Desplegar 56 y Juan 8,
+      2026-11-06); los PR de Dependabot se cierran solos al ver `main` al día;
     - `abrir` de Bodega no exige pago a una entrega en borrador (hoy no hay entregas de venta en borrador);
     - «Rastrear inventario»: la prueba de la Vendedora con el mensaje exacto y el motivo en el historial del movimiento;
     - «Cobrado» suma `amount` y todo cobro entrante (igual que la Caja de hoy); no hay prueba con costo FIFO;
