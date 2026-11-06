@@ -105,6 +105,30 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 > sigue. Se guardan las diez más recientes; las viejas se resumen en una línea abajo y su texto completo pasa a
 > [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md).
 
+### 2026-11-06 (5): Camila etapa 2 («a lo grande, todo conectado con todo»), en su rama, sin desplegar
+
+- Decisiones de la dueña del mismo día ([CAMILA.md](CAMILA.md) §1b): **el tope de 15 días es por cliente** (por correo;
+  registro `dcasa.camila.destinatario` escrito antes de mandar y borrado si Resend no la mandó) y puede haber **varias
+  campañas** (la migración `19.0.2.0.0` borra el índice de «una abierta»); **Juan sabe que el cliente vino del correo**
+  (`campana_correo` en `/mensaje` y `/estado`, su prompt lo usa; etiqueta «Vino del correo» y la cotización con
+  «Vino del correo: DCN-… · asunto»); **el correo puede llevar los dos botones** (WhatsApp y «Visita nuestra tienda en
+  línea»; «CTA único» es del sitio) con UTM `correo/email/DCN-…` y las redes del sitio al pie (opcional).
+- Pantalla: constructor a todo el ancho, «Previsualizar» en su ventana (celular o computadora), «Cambiar»/«Agregar»
+  en una ventana con buscador, filtros y tarjetas, «Escribir con IA» por producto y desde la idea (con «Reintentar»
+  junto al producto si falla), «Sugerir productos», chips del CRM con su número y los que quedan fuera, «Nueva
+  campaña» por tema y «Crear campaña con estos» en el tablero de Marketing. Resultados: ventas en la web por UTM.
+- Segmento: uno solo de envío, reusado (el plan gratis de Resend Marketing tiene 3 segmentos y 1,000 contactos), una
+  campaña a la vez, se espera si la anterior sigue saliendo; las bajas se leen de todos los contactos.
+- Pruebas: `test_etapa2.py` (nuevo) y las de navegador (7), más `juan/test/dcasa/campana-correo.test.ts`. Capturas en
+  el scratchpad de la sesión (`capturas_camila2`); la dueña las vio y dijo que sí.
+- **Revisión adversarial (mismo día), 11 hallazgos arreglados**, cada uno con su prueba en `test_revision2.py` (todas en
+  rojo sobre `49e5f87`): el turno de envío es un candado de **sesión** que aguanta los COMMIT y se suelta siempre (dos
+  campañas ya no tocan el segmento a la vez) y el segmento se limpia por tandas; las enviadas de la etapa 1 cuentan
+  para el tope (post-migración); el registro no se suelta si se llamó a «send» (`envio_intentado`) ni por `canceled`, y
+  registra a todos los del segmento; «todavía saliendo» mira todas; un 404 de Resend no traba nada; el reintento no
+  manda precios viejos; el tope de IA por persona; «Vino del correo» no se escribe por RPC; la revisión de marca más
+  dura; Marketing no lee quién llegó por el correo. **Sin push ni despliegue** de esta sesión.
+
 ### 2026-11-06 (4): Camila, la asistente del mail marketing (módulo nuevo `dcasa_camila`, etapa 1)
 
 - Con las decisiones de la dueña del 2026-11-06 ([CAMILA.md](CAMILA.md)):

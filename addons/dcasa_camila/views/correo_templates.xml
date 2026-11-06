@@ -2,8 +2,11 @@
 <!-- Los correos de Camila (reglas de marca de CLAUDE.md): tablas de 600 px con estilos en línea, sin <style>, sin JS,
      sin degradados ni sombras. Azul #1340B1; el amarillo #FED00F SOLO dentro de la banda azul (el botón); el texto
      sobre blanco en azul, navy o gris oscuro. Fuentes con respaldo seguro para correo (Anton → Impact/Arial, Oswald →
-     Arial Narrow/Arial, Inter → Arial/Helvetica). Un solo botón: «Escríbenos por WhatsApp», con la marca de la
-     campaña en el mensaje. -->
+     Arial Narrow/Arial, Inter → Arial/Helvetica).
+     Los botones (decisión de la dueña, 2026-11-06: el «CTA único» de CLAUDE.md es para el sitio; el correo puede llevar
+     los dos): «Escríbenos por WhatsApp» (amarillo sobre la banda azul, con la marca de la campaña en el mensaje),
+     «Visita nuestra tienda en línea» (blanco con letra navy, también sobre la banda azul) o los dos. Los enlaces a la
+     web llevan UTM. Las redes del sitio, si se eligen, al pie: navy con letra blanca sobre el fondo claro. -->
 <odoo>
     <template id="correo_campana" name="Camila: correo de la campaña">
 <html lang="es">
@@ -44,11 +47,15 @@
                             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="o_camila_producto" style="width:100%;border-collapse:separate;border:1px solid #E3E6EE;border-radius:10px;">
                                 <tr>
                                     <td align="center" style="padding:0;">
-                                        <img t-att-src="producto['imagen']" width="550" t-att-alt="producto['nombre']" style="display:block;width:100%;max-width:550px;height:auto;border:0;border-radius:10px 10px 0 0;"/>
+                                        <a t-if="producto['url']" t-att-href="producto['url']" target="_blank" class="o_camila_producto_enlace" style="text-decoration:none;"><img t-att-src="producto['imagen']" width="550" t-att-alt="producto['nombre']" style="display:block;width:100%;max-width:550px;height:auto;border:0;border-radius:10px 10px 0 0;"/></a>
+                                        <img t-else="" t-att-src="producto['imagen']" width="550" t-att-alt="producto['nombre']" style="display:block;width:100%;max-width:550px;height:auto;border:0;border-radius:10px 10px 0 0;"/>
                                     </td>
                                 </tr>
                                 <tr>
-                                    <td style="padding:14px 16px 2px 16px;font-family:Oswald, 'Arial Narrow', Arial, sans-serif;font-size:19px;line-height:1.3;font-weight:bold;color:#0E2A6B;" t-out="producto['nombre']"/>
+                                    <td style="padding:14px 16px 2px 16px;font-family:Oswald, 'Arial Narrow', Arial, sans-serif;font-size:19px;line-height:1.3;font-weight:bold;color:#0E2A6B;">
+                                        <a t-if="producto['url']" t-att-href="producto['url']" target="_blank" style="color:#0E2A6B;text-decoration:none;" t-out="producto['nombre']"/>
+                                        <t t-else="" t-out="producto['nombre']"/>
+                                    </td>
                                 </tr>
                                 <tr t-if="producto['texto']">
                                     <td style="padding:2px 16px 4px 16px;font-family:Inter, Arial, Helvetica, sans-serif;font-size:15px;line-height:1.5;color:#1B2233;" t-out="producto['texto']"/>
@@ -67,11 +74,19 @@
                 </tr>
                 <tr>
                     <td align="center" bgcolor="#1340B1" style="background-color:#1340B1;padding:24px 24px 26px 24px;border-radius:0 0 12px 12px;">
-                        <p style="margin:0 0 14px 0;font-family:Inter, Arial, Helvetica, sans-serif;font-size:16px;line-height:1.5;color:#FFFFFF;">¿Te gustó algo? Te ayudamos con medidas, colores y la entrega.</p>
-                        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;margin:0 auto;">
+                        <p t-if="whatsapp" style="margin:0 0 14px 0;font-family:Inter, Arial, Helvetica, sans-serif;font-size:16px;line-height:1.5;color:#FFFFFF;">¿Te gustó algo? Te ayudamos con medidas, colores y la entrega.</p>
+                        <p t-else="" style="margin:0 0 14px 0;font-family:Inter, Arial, Helvetica, sans-serif;font-size:16px;line-height:1.5;color:#FFFFFF;">Mira todo lo que tenemos en la tienda en línea.</p>
+                        <table t-if="whatsapp" role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;margin:0 auto;">
                             <tr>
-                                <td align="center" bgcolor="#FED00F" class="o_camila_boton" style="background-color:#FED00F;border-radius:8px;">
+                                <td align="center" bgcolor="#FED00F" class="o_camila_boton o_camila_boton_whatsapp" style="background-color:#FED00F;border-radius:8px;">
                                     <a t-att-href="whatsapp" target="_blank" style="display:inline-block;padding:14px 30px;font-family:Inter, Arial, Helvetica, sans-serif;font-size:16px;font-weight:bold;line-height:1.2;color:#0E2A6B;text-decoration:none;border-radius:8px;">Escríbenos por WhatsApp</a>
+                                </td>
+                            </tr>
+                        </table>
+                        <table t-if="tienda" role="presentation" cellpadding="0" cellspacing="0" border="0" t-attf-style="border-collapse:separate;margin:{{ '12px' if whatsapp else '0' }} auto 0 auto;">
+                            <tr>
+                                <td align="center" bgcolor="#FFFFFF" class="o_camila_boton o_camila_boton_tienda" style="background-color:#FFFFFF;border-radius:8px;">
+                                    <a t-att-href="tienda" target="_blank" style="display:inline-block;padding:13px 28px;font-family:Inter, Arial, Helvetica, sans-serif;font-size:16px;font-weight:bold;line-height:1.2;color:#0E2A6B;text-decoration:none;border-radius:8px;">Visita nuestra tienda en línea</a>
                                 </td>
                             </tr>
                         </table>
@@ -85,6 +100,19 @@
                         <t t-if="pie['direccion']"><br/><t t-out="pie['direccion']"/></t>
                         <t t-if="pie['whatsapp']"><br/>WhatsApp <t t-out="pie['whatsapp']"/></t>
                         <t t-if="correo_empresa"><br/><t t-out="correo_empresa"/></t>
+                    </td>
+                </tr>
+                <tr t-if="redes">
+                    <td align="center" class="o_camila_redes" style="padding:10px 20px 2px 20px;">
+                        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;margin:0 auto;">
+                            <tr>
+                                <t t-foreach="redes" t-as="red">
+                                    <td style="padding:0 3px 6px 3px;">
+                                        <a t-att-href="red['url']" target="_blank" class="o_camila_red" style="display:inline-block;padding:6px 12px;background-color:#0E2A6B;border-radius:999px;font-family:Inter, Arial, Helvetica, sans-serif;font-size:12px;font-weight:bold;line-height:1.2;color:#FFFFFF;text-decoration:none;" t-out="red['nombre']"/>
+                                    </td>
+                                </t>
+                            </tr>
+                        </table>
                     </td>
                 </tr>
                 <tr>

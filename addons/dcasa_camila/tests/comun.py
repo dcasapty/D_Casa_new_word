@@ -49,6 +49,7 @@ class ResendFalso:
         self.destinatarios = {}
         self.llamadas = []
         self.fallar = []          # [(método, regex de la ruta, estado, mensaje)]
+        self.estado_al_enviar = 'sent'
         self._n = 0
 
     def _id(self, prefijo):
@@ -93,6 +94,10 @@ class ResendFalso:
             filas = [{'id': c['id'], 'email': c['email'], 'unsubscribed': c['unsubscribed']}
                      for c in self.contactos.values() if encontrado.group(1) in c['segmentos']]
             return self._pagina(filas, params)
+        if ruta == '/contacts' and metodo == 'GET':
+            filas = [{'id': c['id'], 'email': c['email'], 'unsubscribed': c['unsubscribed']}
+                     for c in self.contactos.values()]
+            return self._pagina(filas, params)
         if ruta == '/contacts' and metodo == 'POST':
             correo = cuerpo['email']
             if correo in self.contactos:
@@ -124,7 +129,7 @@ class ResendFalso:
         if encontrado and encontrado.group(1) in self.broadcasts:
             broadcast = self.broadcasts[encontrado.group(1)]
             if encontrado.group(2) == '/send' and metodo == 'POST':
-                broadcast['status'] = 'queued'
+                broadcast['status'] = self.estado_al_enviar   # «sent»; una prueba lo deja «queued» para esperar
                 broadcast['enviado_a'] = sorted(c for c, baja in self.en_segmento(broadcast['segment_id']).items()
                                                 if not baja)
                 return respuesta(200, {'id': encontrado.group(1)})

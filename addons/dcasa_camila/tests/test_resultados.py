@@ -99,6 +99,9 @@ class TestBrianCamila(CamilaComun):
         self.assertTrue(respuesta['ok'], respuesta)
         datos = respuesta['datos']
         self.assertEqual(datos['clientes_con_permiso'], 1)
-        self.assertEqual(len(datos['borrador']['productos']), R.PRODUCTOS_POR_CAMPANA)
+        (abierta,) = datos['campanas_abiertas']
+        self.assertEqual(len(abierta['productos']), R.PRODUCTOS_POR_CAMPANA)
+        self.assertEqual((abierta['a_quien_va'], abierta['le_llegaria_a']), (['Todos con permiso'], 1))
+        self.assertIn('15 días', datos['tope'])
         self.assertEqual(datos['clave_de_resend'], 'falta (no se puede enviar)')
         self.assertFalse(self.ejecutar(self.vendedora)['ok'])

@@ -49,8 +49,15 @@ export const CATALOGO = [
   { codigo: "MESA-C-003", nombre: "Mesa de centro Nórdica", precio: 129, mas_itbms: true, disponibilidad: "agotado", medidas: "100 x 60 cm", url: "/shop/mesa-nordica", foto: "/web/image/product.template/3/image_1024" },
 ];
 
-/** Odoo siempre manda `nota_para_el_bot` en /mensaje y /estado (`null` si no hay). */
-export const ESTADO_INICIAL = { estado: "bot", bot_activo: true, pausada_hasta: null as string | number | null, dentro_de_horario: true, nota_para_el_bot: null as string | null };
+/** Odoo siempre manda `nota_para_el_bot` en /mensaje y /estado (`null` si no hay); `campana_correo` solo si el cliente llegó por un correo. */
+export const ESTADO_INICIAL = {
+  estado: "bot",
+  bot_activo: true,
+  pausada_hasta: null as string | number | null,
+  dentro_de_horario: true,
+  nota_para_el_bot: null as string | null,
+  campana_correo: undefined as string | null | undefined,
+};
 
 type Manejador = (args: Record<string, unknown>, odoo: OdooFalso) => unknown;
 

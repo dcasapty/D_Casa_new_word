@@ -1,7 +1,8 @@
 # Camila, la asistente del mail marketing (`dcasa_camila`)
 
-**Estado (2026-11-06): etapa 1 en producción (Desplegar 52).** No envía nada todavía: para que salga la primera
-campaña falta la clave de campañas de Resend (§6, paso a paso) y que alguien de Marketing o Gerencia la apruebe.
+**Estado (2026-11-06): etapa 1 en producción (Desplegar 52); etapa 2 («a lo grande», §1b) hecha en su rama, sin
+desplegar.** No envía nada todavía: para que salga la primera campaña falta que la clave de campañas de Resend entre al
+contenedor (§6) y que alguien de Marketing o Gerencia la apruebe.
 
 Pedido de la dueña (2026-11-06):
 
@@ -16,7 +17,7 @@ Pedido de la dueña (2026-11-06):
 | Nombre | **Camila**. Los otros nombres reservados (Daniela, Alejandra, Andrés) se asignan más adelante a otras herramientas. |
 | Quién es | Trabaja **por dentro** para el equipo de marketing: **propone y una persona aprueba** (rol «Marketing», Gerencia o administradores). Los clientes reciben los correos de **«D'CASA Panamá»**, nunca de «Camila». |
 | Por dónde empieza | **Mail marketing**. La página web va después (etapa 3). |
-| Cada cuánto | **Una campaña cada 15 días como mucho.** El tope lo pone el servidor. |
+| Cada cuánto | **Una campaña cada 15 días como mucho.** El tope lo pone el servidor. *(Etapa 2: el tope es por cliente, §1b.)* |
 | Precios | **El precio real de Odoo**: el mismo que ve el cliente en la tienda en línea, el día que se arma o se aprueba. Nunca un precio escrito por la IA ni a mano. |
 | Por dónde sale | **El servicio de campañas de Resend (Broadcasts)**, aparte de los correos de factura, con su propia clave (`RESEND_CAMPANAS_API_KEY`). |
 | Permiso | Solo a quien dijo que sí, con **cuándo, por dónde y con quién** (y a qué correo). Cuentan también los que dieron su correo cuando **Sofía** se lo pidió «para avisarles de promociones…», solo si el texto que de verdad se le mandó lo decía. **Una baja se respeta siempre** (por correo, en cualquier ficha). |
@@ -25,30 +26,62 @@ Pedido de la dueña (2026-11-06):
 
 Las redes sociales las llevan la dueña y su compañero de marketing: Camila no publica en redes.
 
+## 1b. Decisiones de la dueña para la etapa 2 (2026-11-06)
+
+«La quiero a lo grande, todo conectado con todo.» Lo que cambia respecto de la tabla de arriba:
+
+| Qué | Decisión |
+|---|---|
+| El tope de 15 días | **Es por cliente** (por correo), no global: a una misma persona le llega como mucho un correo de campaña cada 15 días. Puede haber **varias campañas y varios borradores** a la vez, cada una con su público. El servidor lo cumple al enviar (también por RPC) y queda **registrado quién recibió qué y cuándo** (`dcasa.camila.destinatario`). |
+| A quién va | **Chips del CRM** que se combinan, con su número en vivo: todos con permiso, compraron (90 días), compraron hace más de 6 meses, cotizaron o preguntaron y no compraron, tibios y calientes del CRM, recién agregados (30 días) y de hace más de un año. Siempre cruzados con el permiso, la baja y el tope por cliente; la pantalla dice cuántos quedan fuera y por qué. |
+| Juan | **Juan sabe que el cliente viene del correo y lo usa**: el mensaje de WhatsApp ya viene escrito con naturalidad («Hola, vi el correo de novedades de D'CASA y me interesa (DCN-0007)») y, cuando llega, Juan tiene en su contexto la campaña y sus productos (sin precios: los da Odoo). La conversación queda con la etiqueta «Vino del correo» y la cotización con «Vino del correo: DCN-0007 · asunto». |
+| Los botones del correo | **El correo puede llevar los dos botones**: «Escríbenos por WhatsApp» y «Visita nuestra tienda en línea» (a la tienda del sitio, `/shop`), o uno solo; se eligen en cada campaña. **Sin ningún botón no sale.** La regla «CTA único» de `CLAUDE.md` es del **sitio web**; para el correo la dueña decidió hoy, **2026-11-06**, que puede llevar los dos. |
+| Enlaces a la tienda | La foto y el nombre de cada producto pueden llevar a su página en la tienda (se elige). Todo enlace a la web lleva `utm_source=correo`, `utm_medium=email` y `utm_campaign=<código de la campaña>` para que Odoo cuente las visitas y ventas de la web con su seguimiento de siempre (UTM); los resultados lo muestran. |
+| Redes sociales | Al pie, **opcional** (se elige en cada campaña): solo las redes que el sitio tiene con enlace (Ajustes del sitio web › redes sociales), en pastillas planas azul marino con letra blanca sobre el fondo blanco. El amarillo nunca toca el blanco. |
+| La IA | La misma IA de Juan y Brian **escribe con los datos reales del producto** (nombre, categoría, atributos, descripción, medidas, material) y con **la idea de la campaña** que escribe Marketing; puede **sugerir productos** para esa idea. Misma revisión de marca; si la IA falla, la pantalla lo dice y deja reintentar: nunca en silencio. A la IA no le llega ningún dato de clientes. |
+| Desde el tablero | En el tablero de Marketing, «Crear campaña con estos» en Más stock, Más vendidos, Mayor movimiento y Más quietos abre Camila con un borrador nuevo de esos productos (solo los que se pueden ofrecer). En Camila, **«Nueva campaña»**: desde una idea, lo nuevo, lo más vendido, lo más quieto, lo que más hay en stock, lo de mayor movimiento o en blanco. |
+
 ## 2. Para el equipo de marketing (en corto)
 
-**Marketing › Camila.** Arriba ves **a cuántos clientes con permiso** les llegaría, **la última campaña** y **desde
-cuándo puede salir la próxima**. Si algo impide enviar (falta la clave, no pasaron 15 días, nadie dijo que sí todavía,
-estás en staging), la pantalla lo dice en palabras sencillas y el botón de enviar queda apagado.
+**Marketing › Camila.** Arriba ves **a cuántos clientes con permiso** les puede llegar algo, **la última campaña** y
+el tope: **a cada cliente, un correo cada 15 días como mucho**. Si algo impide enviar (falta la clave, nadie dijo que
+sí todavía, nadie de ese público puede recibirla ahora, no eligió ningún botón, estás en staging), la pantalla lo dice
+en palabras sencillas y el botón de enviar queda apagado. Puede haber varias campañas abiertas: cada una es una
+pestaña.
 
-1. **«Armar la campaña»** (o lo arma Camila sola cuando pasaron 15 días): escoge productos que hay en tienda, con foto y
-   publicados en la web —lo nuevo, lo más vendido y lo que no se mueve—, con su precio de hoy, y escribe el asunto, una
-   entrada corta y una línea por producto.
-2. A la izquierda ves el correo **tal como le llega al cliente en el celular** (o en la computadora). A la derecha cambias
-   el **asunto**, la **entrada** y la **línea** de cada producto; **subes, bajas, quitas o cambias** productos; o **«Agregar
-   un producto»** (solo salen los que se pueden ofrecer). **«Guardar cambios»** pone la vista previa al día.
-3. **«Volver a armar»**: Camila escoge otra vez y escribe de nuevo (lo que cambiaste a mano se pierde; pregunta antes).
-4. **«Enviarme una prueba»**: te llega a tu correo (solo al tuyo, por los correos de siempre). Una cada 2 minutos y
+1. **«Nueva campaña»**: desde una idea (escribes lo que quieres contar y la IA escoge productos y escribe), lo nuevo,
+   lo más vendido, lo más quieto, lo que más hay en stock, lo de mayor movimiento o en blanco. Solo entran productos en
+   tienda, con foto, con precio y publicados en la web, con **su precio de hoy**. También desde el **tablero de
+   Marketing**: «Crear campaña con estos» en Más stock, Más vendidos, Mayor movimiento y Más quietos.
+2. **El constructor** ocupa toda la pantalla: **la idea de la campaña** (con «Escribir el asunto», «Escribir la
+   entrada», «Escribir todo» y «Sugerir productos para esta idea»), el **asunto**, la **entrada** y cada producto con su
+   línea y **«Escribir con IA»** (usa los datos reales del producto). **«Cambiar»** o **«Agregar un producto»** abren
+   una ventana con buscador, filtros (categoría, en tienda, con foto, publicado) y tarjetas con foto, precio y
+   existencias; lo que no se puede ofrecer sale con el motivo. Si la IA falla, lo dice y puedes **reintentar**.
+3. **Los botones del correo**: «Escríbenos por WhatsApp», «Visita nuestra tienda en línea» o los dos (sin ninguno no
+   sale); que la foto y el nombre de cada producto lleven a su página; y las redes sociales al pie (opcional).
+4. **¿A quién va?**: toca los chips (se suman): todos con permiso, compraron en los últimos 90 días, compraron hace más
+   de 6 meses, cotizaron o preguntaron y no compraron, tibios, calientes, recién agregados, de hace más de un año. Cada
+   chip dice cuántos hay ahora; abajo, a cuántos les llegaría y **cuántos quedan fuera y por qué** (ya les llegó una
+   campaña hace menos de 15 días, no han dicho que sí, se dieron de baja, sin correo bien escrito).
+5. **«Previsualizar»**: abre el correo grande, tal como le llega al cliente, en **celular o computadora**, con el asunto.
+6. **«Enviarme una prueba»**: te llega a tu correo (solo al tuyo, por los correos de siempre). Una cada 2 minutos y
    hasta 10 en 24 horas por persona: salen por el mismo cupo diario que los correos de las facturas.
-5. **«Enviar a N clientes»**: pregunta antes y sale. Si un precio cambió o un producto se agotó desde que lo viste, **no
-   sale**: te muestra la versión nueva para que la mires otra vez.
-6. Abajo, **Campañas enviadas**: a cuántos se envió, cuántos lo abrieron y tocaron un enlace (lo que dice Resend), cuántos
-   **chats** llegaron con la marca de la campaña y cuántas **ventas** (el monto lo ve Gerencia).
-7. **«Descartar borrador»** lo puede cualquiera del equipo. Una campaña ya **aprobada que quedó trabada** (Resend la
+7. **«Enviar a N clientes»**: pregunta antes y sale. Si un precio cambió o un producto se agotó desde que lo viste, **no
+   sale**: te muestra la versión nueva. Si otra campaña se está enviando o todavía está saliendo en Resend, espera unos
+   minutos y vuelve a tocar.
+8. Abajo, **Campañas enviadas**: a cuántos se envió, cuántos lo abrieron y tocaron un enlace (lo que dice Resend),
+   cuántos **chats** llegaron con la marca de la campaña, cuántas **ventas** por el chat y cuántas **en la web** (las
+   que Odoo contó con el código de la campaña). Los montos los ve Gerencia.
+9. **«Volver a armar»** escoge otra vez y escribe de nuevo (lo que cambiaste a mano se pierde; pregunta antes).
+   **«Descartar borrador»** lo puede cualquiera del equipo. Una campaña ya **aprobada que quedó trabada** (Resend la
    canceló, quedó en borrador allá o el envío se cortó) solo la descartan **Gerencia o un administrador**, y solo si en
-   Resend no salió ni va a salir; así ya se puede armar otra.
-8. Al final, **la línea «Sí, quiero» del pie** de la factura y la bienvenida: encendida de fábrica; Gerencia o un
-   administrador la pueden apagar (apagada, la línea no va y los enlaces que ya salieron no anotan nada).
+   Resend no salió ni va a salir.
+10. Al final, **la línea «Sí, quiero» del pie** de la factura y la bienvenida: encendida de fábrica; Gerencia o un
+    administrador la pueden apagar (apagada, la línea no va y los enlaces que ya salieron no anotan nada).
+
+**Cuando un cliente escribe por el correo**, Juan ya sabe de qué campaña viene y qué productos llevaba; la conversación
+queda con la etiqueta **«Vino del correo»** y la cotización que se le haga en los 30 días siguientes dice de qué campaña.
 
 **En la ficha del cliente**, junto a las etiquetas: **«Quiere recibir novedades y promociones por correo»**. Márcalo
 solo si el cliente dijo que sí y su ficha tiene su correo (queda con la fecha, tu nombre y ese correo; si después cambia
@@ -115,40 +148,63 @@ casilla, el botón, el enlace y los crones.
 
 ### 3.3 La campaña (`models/camila.py`, `models/campana.py`)
 
-- `dcasa.camila.campana` (estados **borrador → aprobada → enviada**, o **cancelada**; una sola abierta a la vez por un
-  índice único), `dcasa.camila.linea` (producto, línea, grupo, el precio y su texto, la foto) y `dcasa.camila.llegada`
-  (chats que llegaron con la marca). Solo lectura por RPC.
+- `dcasa.camila.campana` (estados **borrador → aprobada → enviada**, o **cancelada**; desde la etapa 2 puede haber
+  **varias abiertas**: la migración `19.0.2.0.0` borra el índice único de «una abierta»), con su `tema`, su `idea`, su
+  `publico` (los chips) y los botones (`boton_whatsapp`, `boton_web`, `enlaces_productos`, `redes`);
+  `dcasa.camila.linea` (producto, línea, grupo, el precio y su texto, la foto), `dcasa.camila.llegada` (chats que
+  llegaron con la marca) y `dcasa.camila.destinatario` (quién recibió qué campaña y cuándo, §3.4). Solo lectura por RPC.
 - **Los productos** (`_elegir`): en tienda (`dcasa_stock > 0`), con foto, publicados para el visitante anónimo de la
   tienda (`website._dcasa_dominio_publicado`), con precio > 0. Por turnos: **lo nuevo** (llegó de un proveedor o se creó
   en los últimos 30 días), **lo más vendido** y **lo quieto** (las cuentas de Marketing de los últimos 30 días, entre lo
   que se puede ofrecer); lo de la campaña anterior va al final; si faltan, lo demás «en tienda». Seis por campaña
-  (ocho como mucho al editar).
+  (ocho como mucho al editar). Con un **tema** (`_elegir_tema`) salen solo de ese grupo del tablero de Marketing (lo
+  nuevo, más vendidos, más quietos, más stock, mayor movimiento); con una lista de ids (el tablero o «Sugerir
+  productos», `_elegir_ids`) se filtran a lo que se puede ofrecer, en ese orden.
 - **El precio** (`_precios`): el que ve el visitante anónimo de la tienda en línea, hoy: la tarifa del sitio (si las
   tarifas están encendidas, la misma regla de `website_sale` sin carrito), la posición fiscal del usuario público y
   los impuestos como los muestra la tienda (sin ITBMS, con «+ ITBMS» al lado, `_dcasa_mas_itbms`). Al enviar se vuelve
   a calcular todo.
-- **El texto** (`_textos`): la IA que ya usa Brian (`brian.proveedores`, respeta su tope de gasto y anota el consumo en
-  `brian.uso`) con las reglas de marca (de tú, sin cifras, sin «remate», sin descuentos, sin «el mejor», sin presentarse
-  como IA). A la IA **solo le llegan el nombre, la categoría y si es nuevo** de cada producto: ningún dato de clientes.
+- **El texto** (`_textos`): la IA que ya usa Brian y Juan (`brian.proveedores`, respeta los mismos topes de gasto del
+  mes que Brian, el de todos y el de cada persona, Ajustes › Brian, y anota el consumo en `brian.uso`) con las reglas de marca (de tú, sin cifras, sin «remate», sin descuentos, sin «el mejor», sin
+  presentarse como IA). A la IA **solo le llegan datos del producto y la idea de la campaña**: ningún dato de clientes.
+  Al armar, el nombre, la categoría y el grupo; **el redactor** (etapa 2, `_escribir`, «Escribir con IA») le da además
+  los **datos reales** del producto (`_datos_ia_producto`): atributos, la descripción de venta o de la web (en texto,
+  hasta 600 letras), las medidas (`dcasa_medidas`) y el material. «Escribir el asunto», «la entrada» o «todo» usan la
+  idea; **«Sugerir productos para esta idea»** (`_sugerir`) le pasa la idea y la lista de productos que se pueden
+  ofrecer (id, nombre, categoría) y solo acepta ids de esa lista.
   Cada texto pasa por la **revisión de marca fija** (`reglas.problemas`): sin cifras, `%` ni `$`; sin números en letras
   («dos por uno», «seis personas», «mitad de precio»; «quincena» sí pasa); sin «remate»; sin «¡¡» ni signos repetidos;
   sin palabras en mayúsculas; sin trato de usted; sin descuentos, ofertas ni «gratis»; sin beneficios ni prisas que
   nadie aprobó («sin costo», «te regalamos», «cuotas sin intereses», «garantía», «precio de fábrica», «últimos días»,
   «aprovecha»); sin superlativos; sin letras de otro alfabeto (una «e» cirílica en «remate»); sin llaves ni etiquetas
-  (Resend lee `{{{…}}}` como un dato del contacto). Antes, `reglas.limpiar` pasa el texto por NFKC y **quita** los
-  caracteres invisibles (ancho cero, guion suave): «re·mate» con un invisible queda «remate» y no pasa. Lo que no pasa,
-  o si la IA falla, queda con el **texto fijo** y la pantalla lo dice. Lo que edita una persona pasa por la misma
-  revisión.
+  (Resend lee `{{{…}}}` como un dato del contacto). Desde la revisión del 2026-11-06 (etapa 2), además: sin prisas
+  («quedan pocas», «corre», «no te lo pierdas», «antes de que vuele»), sin formas de pago («en partes», abonos, Tafi,
+  Crediviva), sin «gratis» con otras palabras («sin pagar extra», «regalada»), sin «el más … de Panamá», «lo más top»
+  ni «-ísimo», sin testimonios («nuestros clientes dicen», «les encanta»), sin «para toda la vida», sin «Black Friday»
+  ni «precio de locura», sin usted («le va a encantar», «su familia») y sin direcciones web, correos ni teléfonos
+  escritos. Antes, `reglas.limpiar` pasa el texto por NFKC y **quita** los
+  caracteres invisibles (ancho cero, guion suave): «re·mate» con un invisible queda «remate» y no pasa. Al armar, lo
+  que no pasa o si la IA falla queda con el **texto fijo** y la pantalla lo dice. En el redactor, lo que no pasa **no
+  se guarda** y la pantalla dice por qué, con **«Reintentar»** (`ErrorIA`: «La IA no respondió (…)», «La IA no devolvió
+  un texto que se pudiera leer», o el motivo de la revisión): nunca en silencio. Lo que edita una persona pasa por la
+  misma revisión.
 - **El HTML** (`views/correo_templates.xml`, `correo_campana`): tablas de 600 px con estilos en línea; logo; el asunto en
   una banda azul `#1340B1` con letra blanca (Anton → Impact/Arial); la entrada; cada producto con su **foto pública de la
   tienda** (`https://<sitio>/dcasa/img/product.template/<id>/image_1920/1024.jpg?v=<versión>`, JPEG para que se vea en
   todo correo; esa ruta solo sirve productos publicados), su nombre (Oswald → Arial Narrow), su línea y **el precio**;
-  «Precios de la tienda en línea al dd/mm/aaaa»; un **solo botón «Escríbenos por WhatsApp»**, amarillo **dentro de la
-  banda azul** (el amarillo nunca toca el blanco), con el mensaje «Hola D'CASA, vi el correo de novedades y me interesa.
-  (Ref. DCN-0007)»; al pie, nombre, dirección, WhatsApp y correo de la empresa, y **«Darme de baja»**
-  (`{{{RESEND_UNSUBSCRIBE_URL}}}`). Sin degradados, sombras, `<style>` ni JavaScript.
+  con «enlaces a cada producto», la foto y el nombre llevan a su página de la tienda. «Precios de la tienda en línea al
+  dd/mm/aaaa»; **los botones elegidos** dentro de la banda azul: **«Escríbenos por WhatsApp»** amarillo (el amarillo
+  nunca toca el blanco), con el mensaje ya escrito «Hola, vi el correo de novedades de D'CASA y me interesa
+  (DCN-0007)», y/o **«Visita nuestra tienda en línea»** blanco con letra azul marino, a `<sitio>/shop`. Todo enlace a la
+  web lleva `?utm_source=correo&utm_medium=email&utm_campaign=DCN-0007` (`_con_utm`; la dirección del sitio es la de
+  `website.domain`, nunca escrita a mano). Al pie, si se eligió, **las redes del sitio** que tienen enlace
+  (`website.social_facebook`, `social_instagram`, `social_tiktok`, `social_youtube`, `social_twitter`,
+  `social_linkedin`; solo `http(s)`) en pastillas planas azul marino con letra blanca (texto, sin imágenes: se ven en
+  todo correo); nombre, dirección, WhatsApp y correo de la empresa, y **«Darme de baja»**
+  (`{{{RESEND_UNSUBSCRIBE_URL}}}`). Sin degradados, sombras, `<style>` ni JavaScript. La regla «CTA único» de
+  `CLAUDE.md` es del sitio; los dos botones en el correo los decidió la dueña el 2026-11-06 (§1b).
 - **El cron diario** «Camila: preparar el borrador de la campaña»: si pasaron 15 días desde la última enviada (o nunca
-  salió ninguna) y no hay una abierta, deja un borrador. **Nunca envía.**
+  salió ninguna) y no hay ninguna abierta, deja un borrador. **Nunca envía.**
 
 ### 3.4 El envío (`models/envio.py`)
 
@@ -157,51 +213,84 @@ Al tocar «Enviar a N clientes», **el servidor revisa todo, aunque llegue por R
 1. el grupo (rol Marketing, Gerencia o administradores);
 2. producción (`DCASA_ENTORNO=produccion`; **staging nunca envía**, y un servidor que no lo dice tampoco);
 3. que exista `RESEND_CAMPANAS_API_KEY`;
-4. los **15 días** (días de Panamá: si la última salió el 6, la próxima puede salir desde el 21);
+4. que el correo lleve **al menos un botón** (WhatsApp o la tienda en línea);
 5. los precios, fotos y existencias **de ahora**: si algo cambió desde que la persona lo vio (la huella del HTML), no
    sale y se le muestra la versión nueva; lo agotado o sin publicar sale de la campaña;
-6. al menos un cliente con permiso;
-7. **que las bajas se trajeron recién**: sincroniza el segmento en ese mismo momento (abajo) y, si faltan contactos por
-   subir, no sale.
+6. **el público** (`_publico`, §3.8): los chips de la campaña cruzados con el permiso, la baja y **el tope de 15 días
+   por cliente**; si no queda nadie, no sale;
+7. **que las bajas se trajeron recién**: lee todos los contactos de Resend en ese mismo momento (abajo).
 
-Luego queda **aprobada** (con quién y cuándo) y se confirma la base a mitad de la petición, como Sofía: un doble clic u
-otra persona la encuentran «enviándose» y no la mandan dos veces. Crea el *broadcast* en Resend (una sola vez; queda su
-id); justo antes de mandarlo **vuelve a listar el segmento y, si queda alguien suscrito que no está en la lista de
-Odoo, no sale**; lo manda si sigue en borrador; si Resend dice que ya salió, no lo repite. Si falla antes de crear el
-*broadcast*, vuelve a borrador con el motivo; si falla después, queda aprobada y «Reintentar el envío» usa el mismo.
-**Ningún error la deja a medias**: un error que no es de Resend también la saca de «enviándose» (deshace lo de esa
-vuelta, anota el motivo y, sin *broadcast*, vuelve a borrador).
+Luego toma **el turno de envío** (una campaña a la vez): un candado de **sesión** de la base (`pg_try_advisory_lock`,
+que aguanta los COMMIT a mitad de la petición; el de transacción que había antes se soltaba con el primero y dos
+campañas podían tocar el segmento a la vez) y se suelta en un `finally` al terminar (si el trabajador muere, PostgreSQL
+lo suelta al cerrar la conexión). Además, ninguna otra «aprobada» enviándose en los últimos 10 minutos, mirado otra vez
+**después** de confirmar «aprobada» (con la foto nueva de la base). Queda **aprobada** (con quién y cuándo) y se
+confirma la base a mitad de la petición, como Sofía: un doble clic u otra persona la encuentran «enviándose» y no la
+mandan dos veces. Si el *broadcast* de **cualquier** otra campaña con broadcast en los últimos 3 días **todavía está
+saliendo** en Resend (`scheduled` o `queued`; se miran todas, las más recientes primero), no toca el segmento y pide
+probar en unos minutos. Trae las bajas, vuelve a calcular el público, **deja el segmento de envío exactamente con esos
+destinatarios** (por tandas de 300 salidas y 300 entradas por toque, para no pasar la ventana de «enviándose») y lo
+**vuelve a listar**: si queda alguien suscrito que no va en esta campaña, no sale. Crea el *broadcast* (una sola vez;
+queda su id), **registra a TODOS los que se dejaron en el segmento** (`dcasa.camila.destinatario`: campaña, correo,
+ficha y cuándo; único por campaña y correo; un listado de Resend que tarda no deja a nadie fuera del registro), anota
+`envio_intentado` y confirma la base **antes** de llamar a «send»: si otra campaña sale justo después, ya ve el
+registro. Lo manda si sigue en borrador; si Resend dice que ya salió, no lo repite (y si esa campaña no tenía registro,
+registra lo que hay en el segmento). Si falla antes de crear el *broadcast*, vuelve a borrador con el motivo; si falla
+después, queda aprobada y «Reintentar el envío» usa el mismo. **Ningún error la deja a medias**: un error que no es de
+Resend también la saca de «enviándose» (deshace lo de esa vuelta, anota el motivo y, sin *broadcast*, vuelve a
+borrador). **El registro solo se borra si nunca se llamó a «send»** (`_soltar_destinatarios`): si se llamó, pudo salir
+aunque Resend contestara un error o su estado todavía diga `draft`, y un `canceled` puede llegar con media campaña ya
+enviada (mejor no mandarles otra que mandarles dos).
 
-**Una aprobada que quedó trabada** bloquearía a todas las demás (una abierta a la vez). La descartan **Gerencia o un
-administrador** (`_descartar`): sin *broadcast* y pasados los 10 minutos de «enviándose», o con el *broadcast*
-`canceled` o `draft` en Resend (el borrador se borra allá con `DELETE /broadcasts/{id}` para que nadie lo mande). Si en
-Resend salió o va a salir, no se descarta.
+**«Reintentar el envío»** revisa primero el *broadcast* que quedó: si en Resend **ya no existe** (404: lo borraron en
+su panel) se olvida, la campaña vuelve a borrador y se arma otro (el registro no se suelta); si está en **borrador** y
+los precios, fotos o existencias de hoy cambian el correo (o los precios no son de hoy), se **borra en Resend**, vuelve
+a borrador y pasa otra vez por la huella: nunca sale con el HTML viejo.
 
-**El segmento igual a Odoo** (`_sincronizar`, también cada hora con el cron «Camila: bajas y contactos con Resend»):
+**Una aprobada que quedó trabada** ya no bloquea a las demás (pueden ir varias abiertas), pero no se puede editar. La
+descartan **Gerencia o un administrador** (`_descartar`): sin *broadcast* y pasados los 10 minutos de «enviándose», o
+con el *broadcast* `canceled`, `draft` o que ya no existe en Resend (el borrador se borra allá con
+`DELETE /broadcasts/{id}` para que nadie lo mande). Si en Resend salió o va a salir, no se descarta. Un 404 de Resend
+no traba nada: no está saliendo y se puede descartar.
 
-1. lee todo el segmento «D'CASA: clientes con permiso (Odoo)» (lo crea la primera vez y guarda su id en
-   `dcasa_camila.segmento_id`); cada contacto dado de baja en Resend queda con **baja en todas las fichas con ese
-   correo** (origen «correo»);
-2. saca del segmento, **por el id del contacto**, a todo el que está suscrito y no está en la lista de Odoo (baja,
-   ficha archivada, correo cambiado, pidió que no lo contacten, y también los correos que Odoo no sabe leer, como
-   «o'brien@…», o lo que hubiera en un segmento reusado); si ese correo se dio de baja en cualquier ficha, también lo
-   marca dado de baja en Resend (`unsubscribed: true`), por su id (por el correo, otra grafía en Resend daba 404);
-3. agrega a quien tiene permiso y no está (**solo su correo**: ni nombre ni nada más).
+**El diseño del segmento (etapa 2, y por qué).** Con varias campañas y públicos distintos hacía falta mandar a una
+parte de los clientes. El plan gratis de Resend Marketing admite **3 segmentos** y **1,000 contactos** (contactos, no
+envíos; revisado el 2026-11-06), así que un segmento por campaña o por chip no cabe. Se usa **un solo segmento de
+envío, reusado** («D'CASA: campaña que sale (Odoo)»; el id queda en `dcasa_camila.segmento_id`, el mismo de la etapa
+1, que se reaprovecha): antes de cada envío queda con los destinatarios de esa campaña y nadie más. Resend no documenta
+en qué momento toma la lista de un *broadcast*, por eso: una campaña a la vez, se espera a que el *broadcast* anterior
+termine de salir (`queued`/`scheduled`) y se revisa el segmento otra vez justo antes de mandar. Los contactos que
+salen del segmento **siguen en Resend** (cuentan para los 1,000, con su baja si la tienen): así una baja hecha con el
+enlace de cualquier campaña se lee siempre.
+
+- `_preparar_segmento`: saca **por el id del contacto** a todo el que no va en esta campaña (también correos que Odoo
+  no sabe leer, como «o'brien@…», y los dados de baja) y agrega a los que faltan (**solo su correo**: ni nombre ni nada
+  más), hasta 300 por toque; si faltan más, pide tocar «Enviar» otra vez.
+- `_sincronizar` (también cada hora con el cron «Camila: bajas y contactos con Resend»): lee **todos** los contactos de
+  Resend (`GET /contacts`); cada uno dado de baja queda con **baja en todas las fichas con ese correo** (origen
+  «correo»), y un contacto suscrito cuyo correo se dio de baja en cualquier ficha de Odoo queda dado de baja en Resend
+  (`unsubscribed: true`), por su id (por el correo, otra grafía en Resend daba 404). El cron ya no sube contactos: cada
+  campaña sube los suyos al enviar.
 
 **La prueba** («Enviarme una prueba») sale por los correos de siempre (`dcasa_correo`, `RESEND_API_KEY`) con la clase
 `prueba` de `politica.py`: solo a correos del equipo, aunque los correos a clientes estén apagados. Lleva una franja
 «Prueba» arriba y el enlace de baja vacío. **Con tope** (`dcasa.camila.prueba`): una cada 2 minutos por persona y
-hasta 10 en 24 horas, porque gasta el cupo diario de los correos de las facturas.
+hasta 10 en 24 horas, porque gasta el cupo diario de los correos de las facturas. La prueba no cuenta para el tope por
+cliente.
 
 ### 3.5 Los resultados
 
 - **Chats**: al entrar el mensaje del cliente a Conversaciones (`dcasa.conversacion._despues_de_mensaje`, del lado de
-  Odoo; Juan no cambia), si **el primer mensaje del cliente desde que salió la campaña** trae su marca «DCN-0007» (de
-  una campaña **enviada**), ese chat cuenta **una vez** para esa campaña. La conversación de un cliente es una sola, de
-  siempre: un cliente de antes que vuelve por el correo cuenta; una marca escrita después de otros mensajes, no. Un
-  error aquí nunca frena el mensaje.
-- **Ventas**: facturas **pagadas** de esos clientes con el chat en los 30 días antes de la factura (la misma ventana de
-  las ventas atribuidas de Conversaciones), sin ITBMS. El rol Marketing ve cuántas; el monto, Gerencia y administradores.
+  Odoo), si **el primer mensaje del cliente desde que salió la campaña** trae su marca «DCN-0007» (de una campaña
+  **enviada**), ese chat cuenta **una vez** para esa campaña y la conversación queda con la etiqueta **«Vino del
+  correo»** (`data/etiqueta.xml`). La conversación de un cliente es una sola, de siempre: un cliente de antes que vuelve
+  por el correo cuenta; una marca escrita después de otros mensajes, no. Un error aquí nunca frena el mensaje.
+- **Ventas por el chat**: facturas **pagadas** de esos clientes con el chat en los 30 días antes de la factura (la
+  misma ventana de las ventas atribuidas de Conversaciones), sin ITBMS.
+- **Ventas en la web** (etapa 2, `_ventas_web`): pedidos confirmados de la tienda en línea cuyo `campaign_id` (el UTM
+  que Odoo guarda solo cuando alguien llega con `utm_campaign=DCN-0007`) es el código de la campaña, sin ITBMS. Lo
+  cuenta el seguimiento de siempre de Odoo; el informe de UTM de Odoo también lo ve.
+- El rol Marketing ve **cuántas** ventas; **el monto**, Gerencia y administradores.
 - **Entregados, aperturas, clics y bajas**: Resend **sí** los da por API (`GET /broadcasts/{id}/recipients?type=…`); se
   leen cada 6 horas durante 30 días después del envío, o con «Actualizar». Resend avisa que **las aperturas pueden no
   ser exactas** (los programas de correo abren las imágenes solos o las bloquean). Los que se dieron de baja con el
@@ -209,48 +298,129 @@ hasta 10 en 24 horas, porque gasta el cupo diario de los correos de las facturas
 
 ### 3.6 Brian
 
-`estado_campanas(cuantas?)` (lectura; rol Marketing, Gerencia y administradores): el borrador abierto (asunto,
-productos con su precio), cuántos clientes tienen permiso, si está la clave, cuándo puede salir la próxima, por qué no
-puede salir ahora y los resultados de las últimas campañas (el monto, solo a quien ve la ganancia). Brian no arma ni
-envía campañas: eso se aprueba en la pantalla.
+`estado_campanas(cuantas?)` (lectura; rol Marketing, Gerencia y administradores): **las campañas abiertas** (nombre,
+estado, asunto, a quién va, a cuántos les llegaría, cuántos quedan fuera y por qué, productos con su precio), cuántos
+clientes tienen permiso, si está la clave, el tope de 15 días por cliente, por qué no puede salir ahora y los
+resultados de las últimas campañas (chats, ventas y ventas en la web; el monto, solo a quien ve la ganancia). Brian no
+arma ni envía campañas: eso se aprueba en la pantalla.
 
 ### 3.7 Seguridad y lo que no se rompe
 
-- Por RPC (`dcasa_base/tests/test_superficie_rpc.py`): `dcasa.camila.panel`, `armar`, `guardar`, `buscar_productos`,
-  `enviar_prueba`, `enviar`, `descartar`, `actualizar_resultados` y `ajustar_enlace_pie` exigen el grupo en el servidor
-  antes de cualquier `sudo`, bloquean la campaña (`FOR UPDATE NOWAIT`) y validan cada argumento (`ajustar_enlace_pie`
+- Por RPC (`dcasa_base/tests/test_superficie_rpc.py`): `dcasa.camila.panel`, `nueva`, `armar`, `guardar`,
+  `escribir`, `sugerir_productos`, `buscar_productos`, `enviar_prueba`, `enviar`, `descartar`, `actualizar_resultados`
+  y `ajustar_enlace_pie` exigen el grupo en el servidor antes de cualquier `sudo`, bloquean la campaña (`FOR UPDATE
+  NOWAIT`) y validan cada argumento (ids enteros, chips y botones conocidos, textos con su largo; `ajustar_enlace_pie`
   y descartar una aprobada, además, Gerencia o administrador); `res.partner.action_dcasa_promos_baja` exige una sola
-  ficha y poder escribirla.
+  ficha y poder escribirla; `sale.order.create` y `write` QUITAN «Vino del correo» de lo que se manda (solo lo
+  escribe Camila, con una marca de contexto que es un objeto de Python y no viaja por RPC) y `create` lo anota, en un
+  savepoint, de qué campaña vino el cliente.
+- **Quién llegó por el correo** (`dcasa.camila.llegada`, con la ficha del cliente) lo leen por RPC solo Gerencia y los
+  administradores (revisión del 2026-11-06): el rol Marketing ve cuántos chats, no quiénes (la pantalla y Brian cuentan
+  con `sudo`). El registro del tope (`dcasa.camila.destinatario`), igual.
 - La clave sale solo del entorno (`RESEND_CAMPANAS_API_KEY`): nunca en la base, en un log, en un error ni en `repr`. Los
   errores de Resend se tachan (sin la clave ni correos de personas).
+- **A la IA no le llega ningún dato de clientes**: solo datos de productos y la idea que escribe el equipo. Los logs
+  de Camila no llevan correos ni nombres (solo ids y cuántos).
+- **Marketing no ve montos**: la pantalla, Brian y los resultados dan el monto solo a Gerencia y administradores.
 - **Un error de Camila o de Resend nunca hace fallar una venta, un pago ni el correo de una factura**: nada de Camila
-  corre dentro de esos flujos; el enlace del pie va en un savepoint; la marca del chat también.
+  corre dentro de esos flujos; el enlace del pie va en un savepoint; la marca del chat, el contexto para Juan y la marca
+  de la cotización también.
 - Las pruebas nunca llaman a Resend: `tests/comun.py` trae un Resend falso en memoria.
+
+### 3.8 A quién va: los chips (`models/publico.py`, etapa 2)
+
+Cada campaña guarda sus chips (`publico`, «a,b»; vacío = todos). Se suman (quien cae en cualquiera entra) y **siempre**
+se cruzan con el permiso (`_dcasa_promos_con_permiso`: el correo al que dijo que sí, sin baja ni «no contactar» en
+ninguna ficha con ese correo, sin el equipo) y con el tope por cliente. Se cuenta por correo: una persona, una vez.
+
+| Chip | Quiénes |
+|---|---|
+| Todos con permiso | Todo el que dijo que sí. |
+| Compraron (90 días) | Una factura de cliente publicada o una venta confirmada en los últimos 90 días. |
+| Compraron hace más de 6 meses | Compraron alguna vez y la última compra fue hace más de 180 días. |
+| Cotizaron o preguntaron y no compraron | Una cotización (borrador, enviada o cancelada) o una oportunidad del CRM de los últimos 90 días, y ninguna compra en esos 90 días. |
+| Tibios / Calientes del CRM | Una oportunidad abierta con esa temperatura (`crm.lead.dcasa_temperatura`, la misma que usan Juan y Sofía). |
+| Recién agregados | La ficha se creó en los últimos 30 días. |
+| De hace más de un año | La ficha se creó hace más de 365 días. |
+
+**El tope por cliente** (`_correos_recientes`): un correo con una fila en `dcasa.camila.destinatario` desde el comienzo
+del día de Panamá de hace 14 días no recibe otra (si le salió el 6, la próxima puede ser desde el 21). Una campaña
+**enviada** en esa ventana **sin registro** (las de la etapa 1, de antes del registro) cuenta para **todos**: no se
+sabe a quién le llegó (`_enviadas_sin_registro`). La post-migración `19.0.2.0.0` les escribe el registro con los
+correos que tenían permiso y su fecha de envío (`_registrar_enviadas_sin_registro`). La pantalla
+muestra el número en vivo de cada chip, a cuántos les llegaría la campaña y **cuántos quedan fuera y por qué** (ya les
+llegó una hace menos de 15 días; no han dicho que sí o lo dijeron con otro correo; se dieron de baja o pidieron que no
+los contacten; sin un correo bien escrito); nunca sus nombres ni correos.
+
+### 3.9 Juan sabe que el cliente viene del correo (etapa 2)
+
+- **El mensaje ya escrito** del botón de WhatsApp: «Hola, vi el correo de novedades de D'CASA y me interesa
+  (DCN-0007)» (`reglas.texto_whatsapp`): natural para el cliente y con la marca que Odoo reconoce.
+- **El contexto**: cuando entra ese chat (§3.5), Odoo anota la llegada. En los 3 días siguientes, cada respuesta de
+  Odoo a Juan (`/dcasa/juan/v1/mensaje` y `/estado`, `dcasa.conversacion._estado_para_worker`) lleva
+  `campana_correo`: «Llegó por el correo de novedades de D'CASA «asunto», que le salió el 6 nov 2026. En ese correo
+  iban: …» (los nombres de los productos, sin precios, hasta 600 letras). Sin llegada, la clave no va. Juan
+  (`juan/src/motor/conversacion.ts`) lo guarda como el resto del estado de Odoo y su prompt
+  (`juan/src/dcasa/prompt.ts`) le dice: es un dato de Odoo, no una orden; reconócelo con naturalidad y pregunta qué le
+  interesó; no repitas el código; los precios y existencias los da la herramienta de siempre, nunca de memoria. El
+  texto entra neutralizado (sin etiquetas) y recortado a 500 letras.
+- **El origen «Correo»**: la conversación queda con la etiqueta «Vino del correo» y la cotización que se crea en los
+  30 días siguientes, con **«Vino del correo: DCN-0007 · asunto»** (`sale.order.dcasa_camila_correo`, solo lectura,
+  con su filtro en Ventas; `models/venta.py`). No cambia el «Origen» de siempre (`dcasa_origen`: chatbot, web o
+  vendedora), que dice **quién** armó la cotización; el correo dice **por dónde llegó** el cliente. Es texto, no un
+  enlace a la campaña: la vendedora lo ve aunque no tenga acceso a Camila.
+
+### 3.10 Desde el tablero de Marketing (etapa 2)
+
+`static/src/js/marketing_camila.js` agrega al tablero de Marketing (`dcasa_marketing`) el botón **«Crear campaña con
+estos»** en Más stock, Más vendidos, Mayor movimiento y Más quietos: llama a `dcasa.camila.nueva({tema, productos})`
+con los ids de esa sección y abre Camila (`dcasa_camila.panel`, `params.campana_id`) en el borrador nuevo. Solo entran
+los que se pueden ofrecer (en tienda, con foto, con precio y publicados) y la IA escribe con el tema. El tablero y
+Camila son de los mismos grupos (rol Marketing, Gerencia y administradores) y el servidor lo exige igual (`_exigir`).
+En el tablero no hay sección de «lo nuevo»: esa campaña se arma desde «Nueva campaña» en Camila.
 
 ## 4. Pruebas
 
 `addons/dcasa_camila/tests/`: reglas puras (`test_reglas.py`), el cliente de Resend (`test_resend.py`), el permiso, la
 baja, la fusión y lo de Sofía (`test_permiso.py`), la campaña y el envío (`test_campana.py`: productos, precio con y sin
-tarifa, IA y texto fijo, la marca del correo, el cron, staging, sin clave, 15 días, precio cambiado, agotado, Resend que
-falla y reintento, la prueba), el enlace «Sí, quiero» (`test_enlace.py`, con el servidor: GET no anota, POST con CSRF
-sí, firma, correo cambiado, baja), los resultados y Brian (`test_resultados.py`) y en el navegador
-(`test_navegador.py`): **la pantalla baja con scroll** (`overflow-y: auto` y llega abajo con un borrador largo) en la
-computadora y en el celular sin scroll de lado, editar y quitar, el aviso sin clave y la casilla de la ficha.
+tarifa, IA y texto fijo, la marca del correo, el cron, staging, sin clave, 15 días por cliente, varias abiertas, precio
+cambiado, agotado, Resend que falla y reintento, la prueba), el enlace «Sí, quiero» (`test_enlace.py`, con el
+servidor: GET no anota, POST con CSRF sí, firma, correo cambiado, baja), los resultados y Brian (`test_resultados.py`)
+y en el navegador (`test_navegador.py`): **la pantalla baja con scroll** (`overflow-y: auto` y llega abajo con un
+borrador largo) en la computadora y en el celular sin scroll de lado, «Previsualizar» en su ventana, editar y quitar,
+«Cambiar» un producto en la ventana de productos, «Escribir con IA» (y el aviso con «Reintentar» si la IA falla), los
+chips y los botones, «Crear campaña con estos» desde el tablero de Marketing y la casilla de la ficha.
 `test_revision.py` tiene una prueba por cada hallazgo de la revisión adversarial del 2026-11-06 (la baja por correo y no
 por ficha, el enlace solo a la ficha firmada y el interruptor, la frase exacta de Sofía, el permiso del correo, nadie de
 más en el segmento, la campaña trabada, la casilla una a la vez, la revisión de marca más dura, los tokens raros, el
 tope de pruebas, las bajas de los resultados y la marca en el primer mensaje); todas fallaron sobre el código de antes.
+`test_etapa2.py` (etapa 2): el tope por cliente (el registro, que se suelta si Resend no la mandó, una a la vez,
+esperar si la anterior sigue saliendo, el segmento exacto con un chip), los chips y los que quedan fuera, «Nueva
+campaña» (cada tema, el tablero solo con lo elegible, desde una idea con y sin IA), el redactor (datos reales del
+producto y ningún dato de clientes, la revisión de marca, la IA que falla), los botones del correo (por defecto, la
+tienda, los dos, ninguno no sale, sin enlaces a productos, las redes del sitio, las ventas web por UTM con y sin monto)
+y Juan (con el servidor: `campana_correo` en `/mensaje` y `/estado`, la etiqueta, nada sin campaña ni pasados los 3
+días, la cotización con la marca). En `juan/`: `test/dcasa/campana-correo.test.ts`.
+`test_revision2.py`: una prueba por hallazgo de la revisión adversarial de la etapa 2 (2026-11-06), todas en rojo sobre
+el commit `49e5f87`: el turno de envío que aguanta los COMMIT (con dos conexiones de verdad) y se suelta siempre, el
+segmento por tandas, las enviadas de la etapa 1 sin registro y su migración, el registro que no se suelta con
+`canceled` ni si se llamó a «send», «ya salió» sin registro, «todavía saliendo» con todas las campañas, el 404 de
+Resend, registrar a todos los del segmento, el reintento que no manda precios viejos, el tope de IA por persona,
+«Vino del correo» por RPC, la revisión de marca y quién llegó por el correo.
 
 ## 5. Lo que queda para después
 
 - **Etapa 1b:** que **Juan** pregunte por WhatsApp si quiere recibir novedades (en un buen momento, p. ej. cuando da su
-  correo) y lo anote solo si contesta que sí (`juan/` no se tocó en esta etapa). Volver a darse de alta después de una
-  baja (lo hace el cliente; hoy la baja es final). El «sí» en la web (checkout y Mi cuenta: origen `web`).
-- **Etapa 2:** el saludo de **cumpleaños** con su beneficio de Socios (de `puntos.json`; si allí está `null` o
-  `PENDIENTE`, no se menciona) y **«Tu cotización sigue aquí»**.
+  correo) y lo anote solo si contesta que sí. Volver a darse de alta después de una baja (lo hace el cliente; hoy la
+  baja es final). El «sí» en la web (checkout y Mi cuenta: origen `web`).
+- **Después:** el saludo de **cumpleaños** con su beneficio de Socios (de `puntos.json`; si allí está `null` o
+  `PENDIENTE`, no se menciona) y **«Tu cotización sigue aquí»** (estaban pensados para la etapa 2; la dueña pidió
+  primero la etapa 2 «a lo grande» de §1b).
 - **Etapa 3:** la página web (revisar cada mañana la tienda y proponer arreglos).
 - La **política de privacidad** (`website_dcasa`, `/privacidad`) todavía no nombra las novedades por correo ni a Resend
   como proveedor: antes de la primera campaña, que la revise la dueña (y el abogado).
+- Si los contactos pasan de 1,000 (plan gratis de Resend Marketing), Resend no deja enviar hasta subir de plan: los
+  contactos que dejan de tener permiso podrían borrarse de Resend (hoy se quedan, con su baja).
 
 ## 6. La clave de campañas de Resend (paso a paso para la dueña)
 
@@ -281,8 +451,8 @@ Si la clave se filtra: en Resend › API Keys bórrala, crea otra igual y cámbi
 
 - **Correos de factura y abono (transaccionales):** plan gratis con **3,000 al mes y 100 por día**; el Pro cuesta **$20
   al mes** (50,000 al mes, sin tope diario). No está confirmado qué plan tiene D'CASA hoy: se ve en resend.com.
-- **Campañas (marketing):** plan gratis **hasta 1,000 contactos**, sin tope de correos enviados; el siguiente cuesta
-  **$40 al mes** (hasta 5,000 contactos).
+- **Campañas (marketing):** plan gratis **hasta 1,000 contactos** y **3 segmentos**, sin tope de correos enviados; el
+  siguiente cuesta **$40 al mes** (hasta 5,000 contactos, segmentos sin límite).
 
 ## 8. La API de Resend (revisada en la documentación oficial el 2026-11-06)
 
@@ -291,8 +461,9 @@ Si la clave se filtra: en Resend › API Keys bórrala, crea otra igual y cámbi
 | Para qué | Llamada |
 |---|---|
 | El segmento | `GET /segments`, `POST /segments {name}`, `GET /segments/{id}/contacts?limit=100&after=…` |
+| Todos los contactos | `GET /contacts?limit=100&after=…` (sin `segment_id`: todos; así se leen las bajas de cualquier campaña) |
 | Un contacto | `POST /contacts {email, segments: [{id}]}`; si ya existía, `POST /contacts/{email}/segments/{id}`; sacarlo, `DELETE /contacts/{id o email}/segments/{id}`; la baja, `PATCH /contacts/{id o email} {unsubscribed: true}` («Either id or email must be provided»: Camila usa el id que lista el segmento) |
-| La campaña | `POST /broadcasts {segment_id, from, subject, html, reply_to, name}` (borrador), `POST /broadcasts/{id}/send`, `GET /broadcasts/{id}` (`status`: draft, scheduled, queued, sent, canceled); `DELETE /broadcasts/{id}` solo si no salió (draft o scheduled) |
+| La campaña | `POST /broadcasts {segment_id, from, subject, html, reply_to, name}` (borrador), `POST /broadcasts/{id}/send`, `GET /broadcasts/{id}` (`status`: draft, scheduled, queued, sent, canceled; un 404 = ya no existe, lo borraron en el panel); `DELETE /broadcasts/{id}` solo si no salió (draft o scheduled) |
 | Resultados | `GET /broadcasts/{id}/recipients?type=delivered\|opened\|clicked\|unsubscribed`, filas `{id (cursor), contact_id, email}` |
 | Límite | 10 peticiones por segundo por equipo (429 con `retry-after`): pausa corta entre llamadas y reintentos |
 | La baja | `{{{RESEND_UNSUBSCRIBE_URL}}}` en el HTML: Resend pone un enlace único por persona y campaña |

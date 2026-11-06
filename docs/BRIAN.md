@@ -423,7 +423,7 @@ no arma ni envía campañas: eso se aprueba en la pantalla.
 
 | Herramienta | Qué hace | Nivel | Quién |
 |---|---|---|---|
-| `estado_campanas(cuantas?)` | El borrador abierto (asunto y productos con su precio de la tienda), cuántos clientes tienen permiso, si está la clave de campañas de Resend, desde cuándo puede salir la próxima (una cada 15 días), por qué no puede salir ahora y los resultados de las últimas `cuantas` campañas (enviados, chats que llegaron con la marca, ventas; el monto solo para Gerencia y administradores; aperturas y clics de Resend) | lectura | Gerencia, administradores y el rol Marketing |
+| `estado_campanas(cuantas?)` | Las campañas abiertas (desde la etapa 2 pueden ser varias: nombre, estado, asunto, a quién va, a cuántos les llegaría, cuántos quedan fuera y por qué, productos con su precio de la tienda), cuántos clientes tienen permiso, si está la clave de campañas de Resend, el tope (a cada cliente, un correo de campaña cada 15 días), por qué no puede salir ahora y los resultados de las últimas `cuantas` campañas (enviados, chats que llegaron con la marca, ventas por el chat y en la web; el monto solo para Gerencia y administradores; aperturas y clics de Resend) | lectura | Gerencia, administradores y el rol Marketing |
 
 Ejemplos: «¿cómo va la campaña de correo?» → `estado_campanas`; «¿cuántos clientes reciben las novedades?» →
 `estado_campanas`; «resultados de las últimas 5 campañas» → `estado_campanas(cuantas=5)`.

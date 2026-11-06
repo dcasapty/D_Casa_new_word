@@ -56,9 +56,14 @@ export interface RespuestaMensaje {
   dentro_de_horario?: boolean;
   /** Lo que una vendedora le dejó dicho al bot al devolverle la conversación (`null` = nada). Si el campo no viene, no se toca. */
   nota_para_el_bot?: string | null;
+  /**
+   * La campaña de correo de novedades por la que llegó el cliente (asunto, cuándo salió y sus productos). Odoo (dcasa_camila)
+   * la manda en /mensaje y /estado solo los primeros días desde que llegó; si el campo no viene, no hay campaña.
+   */
+  campana_correo?: string | null;
 }
 
-export type EstadoOdoo = Pick<RespuestaMensaje, "estado" | "bot_activo" | "pausada_hasta" | "dentro_de_horario" | "nota_para_el_bot">;
+export type EstadoOdoo = Pick<RespuestaMensaje, "estado" | "bot_activo" | "pausada_hasta" | "dentro_de_horario" | "nota_para_el_bot" | "campana_correo">;
 
 export interface DefHerramienta {
   nombre: string;

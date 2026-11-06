@@ -460,9 +460,11 @@ además como módulo de todo el servidor (`server_wide_modules = base,web,dcasa_
   ([CAMILA.md](CAMILA.md)).
 - **Depende de (Odoo):** los de sus módulos propios (`website_sale`, `mail`, `crm`…).
 - **Modelos:** `dcasa.camila` (abstracto: la pantalla, el armado, Resend y los crones), `dcasa.camila.campana`,
-  `dcasa.camila.linea`, `dcasa.camila.llegada` (chats que llegaron con la marca); campos `dcasa_promos_*` en
-  `res.partner` (permiso y baja, con historial). Hereda `dcasa.correo` (la línea del pie), `dcasa.conversacion` (la marca
-  en el mensaje del cliente) y la fusión de fichas.
+  `dcasa.camila.linea`, `dcasa.camila.llegada` (chats que llegaron con la marca), `dcasa.camila.destinatario` (quién
+  recibió qué campaña y cuándo: el tope de 15 días por cliente, etapa 2); campos `dcasa_promos_*` en `res.partner`
+  (permiso y baja, con historial) y `dcasa_camila_correo` en `sale.order` («Vino del correo»). Hereda `dcasa.correo`
+  (la línea del pie), `dcasa.conversacion` (la marca en el mensaje del cliente, la etiqueta «Vino del correo» y
+  `campana_correo` para Juan), el tablero de Marketing («Crear campaña con estos») y la fusión de fichas.
 - **Seguridad:** las campañas son de solo lectura por RPC para el rol Marketing, Gerencia y administradores; todo pasa
   por los métodos de `dcasa.camila`, que exigen el grupo en el servidor. El permiso no se escribe a mano.
 - **Pantallas y menús:** *Marketing › Camila* (y *Marketing › Tablero*, lo de siempre); la casilla «Novedades por

@@ -620,6 +620,40 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
     token de URL se valida con una expresión ASCII antes de `int()` o `compare_digest` (si no, 500).
   - La herramienta Edit escribe `​` como el carácter invisible (no como la secuencia): para dejar escapes en una
     prueba, un script de Python en el scratchpad que reemplace `chr(…)`.
+  - **Etapa 2 (mismo día), lo aprendido:**
+    - `crm.lead.dcasa_temperatura` guarda `'1'`, `'2'`, `'3'` (frío, tibio, caliente: `crm_reglas.FRIO/TIBIO/CALIENTE`),
+      no `'tibio'`/`'caliente'`. Usar las constantes: con el texto, el filtro no encuentra a nadie y un `create` con ese
+      valor da «Wrong value».
+    - En Odoo 19 la línea de venta usa `tax_ids` (no `tax_id`). `JUAN_ODOO_TOKEN` en las pruebas necesita 32
+      caracteres o más (si no, `/dcasa/juan/v1/*` contesta 503 «Juan no está configurado»).
+    - **OWL borra el texto que es solo espacio entre dos nodos con salto de línea**: `a <strong t-esc="n"/>⏎<t>clientes</t>`
+      sale «5clientes». Poner el espacio dentro del `t-esc` (`' clientes.'`).
+    - **El diálogo de Odoo en el celular va a pantalla completa y no tiene `.btn-close`** (cierra con
+      `.oi-arrow-left`), y su `aria-label` se traduce («Cerrar»): en las pruebas, `.btn-close, .oi-arrow-left`.
+    - En una prueba de navegador, esperar `.o_camila_guardar.disabled` justo después de tocar «Guardar» se cumple al
+      instante (el botón se apaga mientras guarda): esperar a que el siguiente botón (Previsualizar) se encienda.
+    - Volver a cargar la pantalla para deshacer una casilla que el servidor rechazó **borra el aviso del motivo y lo
+      que la persona escribió sin guardar**: devolver la casilla a su estado en el mismo evento (`ev.target.checked`).
+    - `_dcasa_nombre_cliente` cambia «ZZCM SILLÓN» por «Zzcm Sillón»: comparar sin mayúsculas en el navegador.
+    - Para capturas, `scrollIntoView` mueve también los contenedores con `overflow: hidden` de Odoo (la barra de arriba
+      desaparece y queda una franja gris): bajar solo el contenedor con scroll de la pantalla (`scrollTop`). Para ver
+      «Camila está escribiendo…», un servidor de capturas que arranca con la IA de prueba lenta (`time.sleep`) y su
+      guion fijado antes de `server.start` (mismo proceso); `page.route` con `sleep` del API síncrono no sirve.
+    - El PostgreSQL de esta máquina puede quedar apagado tras un reinicio del contenedor: `service postgresql start`.
+  - **Revisión adversarial de la etapa 2 (mismo día), lo aprendido:**
+    - **`pg_try_advisory_xact_lock` se suelta con el primer COMMIT** (`transaccion.confirmar` a mitad de la petición):
+      no sirve de turno para algo que confirma por el camino. Y una búsqueda hecha en la misma transacción usa la
+      «foto» de REPEATABLE READ del comienzo: no ve a la otra campaña que confirmó después. Turno = candado de
+      **sesión** (`pg_try_advisory_lock`) + volver a mirar después del COMMIT.
+    - **Un candado de sesión que no se suelta queda pegado a la conexión del grupo de Odoo** (Odoo no hace
+      `DISCARD ALL` al devolverla): ninguna campaña podría volver a salir hasta que esa conexión se cierre. Soltarlo
+      SIEMPRE en un `finally` (y, si la transacción quedó con error, ROLLBACK y luego soltar). Una prueba que lo toma
+      con un cursor aparte tiene que hacer `pg_advisory_unlock_all()` antes de cerrarlo.
+    - Con un servicio externo que procesa en segundo plano (Resend), «contestó error» no es «no salió», y «canceled» no
+      es «nadie lo recibió»: el registro de a quién le salió se suelta solo si nunca se llamó a «send». Un 404 al
+      preguntar el estado es «ya no existe» (lo borraron allá), no un error que trabe todo.
+    - Un campo «de solo lectura» en la vista se escribe igual por RPC: si solo lo debe escribir el código, quitarlo en
+      `create`/`write` salvo una marca de contexto que sea un objeto de Python (lo que llega por RPC es JSON).
 - **Calculadora de envíos (2026-11-06, `dcasa_envios`), lo aprendido:**
   - Un `<input type="number" step="0.1">` dentro de un `<form>` **bloquea el envío** si el valor no es múltiplo del paso
     (7.04): el navegador no llama al `submit` y no hay error visible. Lo atrapó la prueba en el navegador; ahora

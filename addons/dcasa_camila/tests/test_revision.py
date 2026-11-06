@@ -45,7 +45,8 @@ class TestBajaPorCorreo(CamilaComun):
         self.con_clave()
         repetida = self.otra_ficha()
         self.permiso(self.ana, self.beto)
-        self.Camila._sincronizar()   # Ana ya está en el segmento de Resend
+        segmento = self.Camila._segmento(self.Camila._cliente())
+        self.resend.contacto('ana.zzcm@example.com', segmentos=[segmento])   # Ana ya está en Resend (otra campaña)
         repetida.with_user(self.vendedora).action_dcasa_promos_baja()
         self.ana.invalidate_recordset()
         self.assertEqual(self.ana.dcasa_promos_estado, 'baja', 'La otra ficha con su correo también la muestra')
@@ -92,6 +93,8 @@ class TestBajaPorCorreo(CamilaComun):
         self.Camila._sincronizar()
         contacto = self.resend.contactos['Beto.Zzcm@Example.com']
         self.assertTrue(contacto['unsubscribed'], 'Por su id: el 404 por el correo ya no se traga la baja')
+        campana = self.armar()['campana']   # al enviar, el segmento queda sin él (también por su id)
+        self.assertTrue(self.Camila.with_user(self.marketing).enviar(campana['id'], campana['huella'])['ok'])
         self.assertNotIn(segmento, contacto['segmentos'])
 
 
@@ -349,7 +352,7 @@ class TestSegmentoSinNadieDeMas(CamilaComun):
         with patch.object(RC.ClienteCampanas, 'sacar_del_segmento', return_value={}):
             resultado = self.enviar(campana)
         self.assertFalse(resultado['ok'])
-        self.assertIn('sin permiso en Odoo', resultado['mensaje'])
+        self.assertIn('no van en esta campaña', resultado['mensaje'])
         self.assertFalse(any(b.get('enviado_a') for b in self.resend.broadcasts.values()), 'No salió a nadie')
 
 

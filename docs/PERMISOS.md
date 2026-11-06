@@ -37,7 +37,9 @@ Más abajo: [roles y grupos](#roles-y-grupos-mapa-completo) · [interruptores](#
 | **Cambiar las fotos** de un producto: subir varias, reemplazar, recortar, girar, ordenar, elegir la principal, quitar (2026-10-22; las «Imágenes extra» de la tienda incluidas) | Sí (decisión de la dueña, 2026-10-22) | Sí | (si edita productos) | Sí | Sí |
 | La app **Marketing** (stock por categoría, más vendidos, movimiento, quietos, fotos que faltan) y su acceso en el Inicio | No | No | No | Sí | Sí |
 | **Marketing › Camila** (2026-11-06): armar, editar, mandarse la prueba y **aprobar el envío** de la campaña de correo (también el rol «Marketing») | No | No | No | Sí | Sí |
-| Ver **cuánto dinero** vendieron los clientes que llegaron por una campaña de correo (cuántos chats y ventas lo ve también el rol Marketing) | No | No | No | Sí | Sí |
+| **Camila, etapa 2** (2026-11-06): varias campañas a la vez, «Escribir con IA», elegir a quién va con los chips del CRM (ve cuántos, nunca nombres ni correos), los botones del correo y «Crear campaña con estos» desde el tablero de Marketing (también el rol «Marketing») | No | No | No | Sí | Sí |
+| Ver **cuánto dinero** vendieron los clientes que llegaron por una campaña de correo, por el chat o en la web (cuántos chats y ventas lo ve también el rol Marketing) | No | No | No | Sí | Sí |
+| Ver en la cotización **«Vino del correo»** (de qué campaña llegó el cliente; solo lectura, nadie lo escribe a mano), 2026-11-06 | Sí (las que ve) | Sí | (según su rol de Ventas) | Sí | Sí |
 | Marcar en la ficha que el cliente **quiere recibir novedades por correo** (cuando lo dice; una ficha a la vez) y **«Darle de baja»** cuando lo pide (la baja es final), 2026-11-06 | Sí | Sí | Sí | Sí | Sí |
 | **Camila:** apagar o encender la línea «Sí, quiero» del pie de la factura y la bienvenida, y descartar una campaña **aprobada** que quedó trabada (si en Resend no salió), 2026-11-06 | No | No | No | Sí | Sí |
 | **Envíos › Calculadora** y **Lugares** (ver precios, cotizar por km) y **agregar un lugar que falta** (queda su nombre), 2026-11-06 | Sí | Sí | Sí | Sí | Sí |
@@ -47,7 +49,7 @@ Más abajo: [roles y grupos](#roles-y-grupos-mapa-completo) · [interruptores](#
 cualquier otro rol): ve la app Marketing **completa, igual que Gerencia y administradores** (todas las secciones y su
 acceso en el Inicio), **cambia las fotos** de cualquier producto (solo las fotos: no el nombre, el precio ni lo demás),
 usa las herramientas de Brian de marketing y **Camila** (2026-11-06: arma, edita, se manda la prueba y aprueba el envío
-de la campaña de correo; ve a cuántos se envió y cuántos chats y ventas trajo, **no** cuánto dinero). **No** ve dinero, costos, facturas, cobros, pedidos de venta, contabilidad,
+de la campaña de correo; ve a cuántos se envió y cuántos chats y ventas trajo, **no** cuánto dinero ni quiénes llegaron por el correo). **No** ve dinero, costos, facturas, cobros, pedidos de venta, contabilidad,
 Estadísticas ni ninguna otra pantalla de Gerencia (no implica ningún grupo de Ventas, Contabilidad ni Inventario).
 | Crear facturas **de clientes**, buscarlas, imprimirlas y enviarlas | Sí | Sí | Sí | Sí | Sí |
 | Hacer una factura de cliente **suelta** (sin cotización ni pedido; Facturación › Facturas › Nuevo o Subir, RPC o Brian), 2026-10-19 | **No**: cotiza y factura desde el pedido (también anticipos). Tampoco le salen «Nuevo» ni «Subir» (2026-10-22) | Sí | Sí | Sí | Sí |
@@ -557,8 +559,9 @@ despachar. Un método público que usa `sudo()` sin exigir grupo sería una puer
   es final y vale para **ese correo en cualquier ficha** (repetidas, archivadas o contactos hijos). La casilla se marca
   de una ficha a la vez; desmarcarla quita el permiso sin baja. El enlace «Sí, quiero» solo va al pie del correo que
   recibe la propia ficha (no a un contacto hijo ni a varios) y Gerencia lo puede apagar. A Resend solo sube el
-  **correo** (sin nombre ni nada más) de quien tiene permiso; a la IA que escribe el texto solo le llegan nombres de
-  productos. Detalle: [CAMILA.md](CAMILA.md).
+  **correo** (sin nombre ni nada más) de quien tiene permiso; a la IA que escribe el texto solo le llegan datos de
+  productos (nombre, categoría, atributos, descripción, medidas, material) y la idea que escribe el equipo: ningún dato
+  de clientes. El público de cada campaña (los chips del CRM) se muestra en cuántos, nunca en nombres ni correos. Detalle: [CAMILA.md](CAMILA.md).
 - **PIN de socios:** PBKDF2-SHA256 con sal por socio y la pimienta `DCASA_PIN_PEPPER`, que vive fuera de la base
   (`dcasa_socios/models/res_partner.py`). Un volcado robado sin la pimienta no se puede atacar por fuerza bruta.
   Intentos fallidos bloquean la cuenta; Gerencia reinicia el PIN (queda nota en el historial).

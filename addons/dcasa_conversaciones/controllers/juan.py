@@ -212,11 +212,10 @@ class JuanAPI(http.Controller):
             'adjuntos': adjuntos,
         }
         conversacion, mensaje, _creado = entorno['dcasa.conversacion']._registrar_mensaje(datos)
-        estado = conversacion._estado_para_worker()
+        # Todo lo de ``_estado_para_worker`` (estado, pausa, horario, nota y lo que agreguen otros módulos, como la
+        # campaña de correo por la que llegó el cliente: ``campana_correo`` de dcasa_camila).
         respuesta = {'ok': True, 'conversacion_id': conversacion.id, 'partner_id': conversacion.partner_id.id,
-                     'estado': estado['estado'], 'bot_activo': estado['bot_activo'],
-                     'pausada_hasta': estado['pausada_hasta'], 'dentro_de_horario': estado['dentro_de_horario'],
-                     'nota_para_el_bot': estado['nota_para_el_bot']}
+                     **conversacion._estado_para_worker()}
         if adjuntos:
             respuesta['adjuntos'] = [
                 {'id': a.id, 'nombre': a.name, 'sensible': bool(a.dcasa_sensible)} for a in mensaje.adjunto_ids.sudo()]
