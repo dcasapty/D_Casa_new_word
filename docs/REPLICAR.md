@@ -202,8 +202,8 @@ cientos de archivos, las pruebas y la superficie RPC, y rompe la posibilidad de 
 
 - [`CLAUDE.md`](../CLAUDE.md): reescribir «Proyecto», «Reglas de marca» y «Datos reales de la empresa» con los del
   negocio nuevo. Las reglas técnicas, las de Socios y las de vendedores se quedan: son invariantes del código.
-- `docs/LEEME_PRIMERO.md` (su bitácora), `docs/PRIORIDADES.md`, `docs/PENDIENTES_DUENA.md`, `docs/ESTADO.md` y
-  `docs/gerencia/` son la historia de D'CASA: en la copia se vacían y se empiezan los del negocio nuevo.
+- `docs/LEEME_PRIMERO.md` (su bitácora), `docs/PRIORIDADES.md`, `docs/historico/` y `docs/gerencia/` son la
+  historia de D'CASA: en la copia se vacían y se empiezan los del negocio nuevo.
   `docs/CONTEXTO_AGENTICO.md` se queda (son lecciones técnicas).
 - `.github/versiones_estables.json` y las opciones de `.github/workflows/volver-a-estable.yml:22-24` apuntan a imágenes
   del registro de **D'CASA**, que no existen en la cuenta nueva. La prueba del lint exige al menos una entrada y que
@@ -238,7 +238,7 @@ cientos de archivos, las pruebas y la superficie RPC, y rompe la posibilidad de 
 
 Los nombres exactos de los permisos cambian: si wrangler da error de autorización, el mensaje dice cuál falta. El
 token puede ser de cuenta (*Manage Account › Account API Tokens*) o de usuario (*My Profile › API Tokens*, el que usa
-D'CASA según [TRASLADO_DOMINIO.md](TRASLADO_DOMINIO.md)). El **Account ID** (página principal de *Workers & Pages*) va
+D'CASA según [TRASLADO_DOMINIO.md](historico/TRASLADO_DOMINIO.md)). El **Account ID** (página principal de *Workers & Pages*) va
 como secreto en GitHub, nunca en el repositorio.
 
 ## 6. Instalación paso a paso
@@ -330,7 +330,7 @@ Haz los cambios del §4 en una rama y corre las pruebas hasta que pasen. Antes d
 5. Comprueba `https://dcasa-juan-staging.<subdominio>.workers.dev/salud` (sin `secretos_faltantes`) y, en Odoo,
    *Conversaciones › Conexiones* («Dirección del Worker de Juan: cargada»,
    `addons/dcasa_conversaciones/static/src/xml/conexiones.xml:95`).
-6. Prueba por Telegram con el bot de Juan ([JUAN_WORKER.md §6](JUAN_WORKER.md), y §6.13).
+6. Prueba por Telegram con el bot de Juan ([JUAN.md, Parte 2 §6](JUAN.md), y §6.13).
 
 ### 6.7 Primer despliegue a producción (la receta de este repositorio)
 
@@ -358,7 +358,7 @@ todas las pruebas antes. Nunca inventes ni «completes» un SHA: cópialo del ru
 
 ### 6.8 Dominio propio
 
-Cuando el negocio tenga su dominio ([TRASLADO_DOMINIO.md](TRASLADO_DOMINIO.md) es el caso real de D'CASA, paso a paso):
+Cuando el negocio tenga su dominio ([TRASLADO_DOMINIO.md](historico/TRASLADO_DOMINIO.md) es el caso real de D'CASA, paso a paso):
 
 1. Agregar el dominio a Cloudflare **copiando antes** los registros DNS que ya existen (sobre todo el correo: MX, SPF,
    DKIM, DMARC) y cambiar los *nameservers* en el registrador. Esperar a que diga **Active**.
@@ -409,7 +409,7 @@ Paso a paso en [SEGURIDAD_ACCESO.md §8.4-§8.6](SEGURIDAD_ACCESO.md) y [PUERTA_
 ### 6.11 WhatsApp con la API oficial de Meta (Juan)
 
 Así atiende D'CASA desde el 2026-11-02 ([LEEME_PRIMERO.md, bitácora de esa fecha](LEEME_PRIMERO.md)); el plan completo
-está en [JUAN_PLAN_B.md](JUAN_PLAN_B.md). Los pasos marcados ⚠ ahí se confirman en la pantalla de Meta.
+está en [JUAN_CANALES.md §1](JUAN_CANALES.md). Los pasos marcados ⚠ ahí se confirman en la pantalla de Meta.
 
 1. Portafolio de **Meta Business** de la empresa nueva y **verificación del negocio** (tarda días: empezar pronto).
 2. App de Meta de tipo empresa con el producto **WhatsApp**.
@@ -424,12 +424,12 @@ está en [JUAN_PLAN_B.md](JUAN_PLAN_B.md). Los pasos marcados ⚠ ahí se confir
    oficial)** (viene apagado: `juan/src/config.ts:111-117`).
 8. Probar texto, foto, PDF y nota de voz.
 9. Límites: fuera de las 24 horas del último mensaje del cliente solo se puede escribir con plantillas aprobadas por
-   Meta, y el envío de plantillas **todavía no está hecho** ([JUAN_PLAN_B.md §7](JUAN_PLAN_B.md)).
+   Meta, y el envío de plantillas **todavía no está hecho** ([JUAN_CANALES.md §1](JUAN_CANALES.md)).
 
 ### 6.12 Messenger e Instagram (preparados)
 
 Código listo (`juan/src/canales/meta.ts`); falta lo que se hace en Meta, Cloudflare y Odoo:
-[JUAN_META.md](JUAN_META.md) (app, `META_PAGE_TOKEN`, webhook `/webhooks/meta`, encender en Ajustes de Juan y pedir la
+[JUAN_CANALES.md §3](JUAN_CANALES.md) (app, `META_PAGE_TOKEN`, webhook `/webhooks/meta`, encender en Ajustes de Juan y pedir la
 revisión de la app para contestar a todos).
 
 ### 6.13 Telegram: el bot de Brian y el de Juan
@@ -439,7 +439,7 @@ revisión de la app para contestar a todos).
   (sin ella cualquiera recibe las instrucciones para vincularse); desplegar o reiniciar; *Brian › Telegram ›
   Registrar webhook*; cada persona se vincula con `/vincular <código>`. `DCASA_ALERTA_TELEGRAM_CHAT` para el aviso de
   caída del contenedor. Sofía manda su resumen de la mañana a quien tenga Telegram vinculado.
-- **Juan** ([JUAN_WORKER.md §6](JUAN_WORKER.md)): **otro** bot (un bot tiene un solo destino);
+- **Juan** ([JUAN.md, Parte 2 §6](JUAN.md)): **otro** bot (un bot tiene un solo destino);
   `TELEGRAM_BOT_TOKEN_JUAN` y `TELEGRAM_WEBHOOK_SECRET_JUAN` en `dcasa-juan`; registrar el webhook con `setWebhook`
   hacia `/webhooks/telegram`; `/miid` da el chat id para las alertas.
 
@@ -601,14 +601,10 @@ Sacadas de [CONTEXTO_AGENTICO.md](CONTEXTO_AGENTICO.md), donde está cada una co
   está documentado en el repositorio.
 - **Qué pasa exactamente si `routes` nombra una zona que no está en la cuenta**: por eso el §6.2 manda dejarla vacía.
 - **Si `/web/signup` (crear cuenta de cliente) está abierto:** ningún ajuste del código lo fija.
-- **El origen de las fotos del sitio** que no son del tema Loftspace ([REDISENO.md › Fotografía](REDISENO.md)).
+- **El origen de las fotos del sitio** que no son del tema Loftspace ([REDISENO.md › Fotografía](historico/REDISENO.md)).
 - **WhatsApp en coexistencia** (la app del teléfono y la API a la vez) y la forma del aviso de «eco»: sin verificar contra
-  Meta ([JUAN_PLAN_B.md §4](JUAN_PLAN_B.md)).
-- **Documentos que no coinciden con el código** (manda el código): [OPERACION.md](OPERACION.md) dice que staging duerme
-  tras 1 h y que producción es `basic`, pero `edge/wrangler.jsonc:70,157` deja los dos entornos 24/7 y `:25` pone
-  `standard-1`; el encabezado de `.github/workflows/desplegar-juan.yml:4` dice que `ci.yml` no lo llama, pero
-  `.github/workflows/ci.yml:539-558` sí lo llama (staging y `solo-juan-staging`); [JUAN_WORKER.md](JUAN_WORKER.md) todavía
-  describe WhatsApp Cloud como apagado.
+  Meta ([JUAN_CANALES.md §1](JUAN_CANALES.md)).
+- **Regla general:** si un documento no coincide con el código, manda el código (y se corrige el documento).
 
 ## 13. Mantener esta guía al día
 

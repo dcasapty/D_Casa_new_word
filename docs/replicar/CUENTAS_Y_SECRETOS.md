@@ -16,13 +16,13 @@ secreto y variable que el sistema lee, por **nombre**, con el lugar donde va y d
 | **R2** en esa cuenta | Respaldos de la base y adjuntos: dos buckets, uno por entorno | Sí | [OPERACION.md › Crear los buckets de R2](../OPERACION.md) | Ubicación ENAM, sin acceso público |
 | **Workers AI** (viene con la cuenta) | Juan: notas de voz, lectura de imágenes y búsqueda por significado | Solo con Juan y `TRANSCRIBIR_AUDIO` / `RECONOCER_IMAGENES` en `"1"` | `juan/wrangler.jsonc:21-24,52-55` | Se factura a la cuenta de Cloudflare |
 | **Cloudflare Zero Trust** (plan Free) | La puerta del equipo (`/master`) con PIN al correo | No, pero recomendado | [SEGURIDAD_ACCESO.md §8.4](../SEGURIDAD_ACCESO.md) | Gratis hasta 50 personas; puede pedir tarjeta |
-| **Dominio** con DNS en Cloudflare | Dirección definitiva; hasta entonces, `workers.dev` | No al principio | [DESPLIEGUE.md §6](../DESPLIEGUE.md), [TRASLADO_DOMINIO.md](../TRASLADO_DOMINIO.md) | Los QR impresos van siempre al dominio, nunca a `workers.dev` |
+| **Dominio** con DNS en Cloudflare | Dirección definitiva; hasta entonces, `workers.dev` | No al principio | [DESPLIEGUE.md §6](../DESPLIEGUE.md), [TRASLADO_DOMINIO.md](../historico/TRASLADO_DOMINIO.md) | Los QR impresos van siempre al dominio, nunca a `workers.dev` |
 | **GitHub** con Actions | Pruebas, imagen y despliegues; environments `staging` y `production` | Sí | §2 | 2FA y códigos de recuperación impresos. Cada imagen guardada como artefacto pesa ~420 MB y dura 1 día ([OPERACION.md](../OPERACION.md)) |
 | **Proveedor de IA para Brian** (Anthropic, OpenAI, xAI, Groq, OpenRouter u Ollama) | Brian, el asistente del panel | **Sí**: el despliegue exige `BRIAN_API_KEY` | [BRIAN.md › Configuración](../BRIAN.md) | En staging, una clave de pruebas con tope de gasto |
-| **Proveedor de IA para Juan** (Anthropic, Meta u OpenAI) | Que Juan conteste | Solo si se usa Juan | [JUAN_WORKER.md §8](../JUAN_WORKER.md) | Se elige en Odoo; solo hace falta la clave del elegido (y la del respaldo) |
-| **Meta Business** (portafolio verificado), **app de Meta** y **WhatsApp Cloud API** | Juan por WhatsApp (API oficial), Messenger e Instagram | Solo si se usa ese canal | [JUAN_PLAN_B.md](../JUAN_PLAN_B.md), [JUAN_META.md](../JUAN_META.md) | La verificación del negocio tarda días: empezarla pronto |
+| **Proveedor de IA para Juan** (Anthropic, Meta u OpenAI) | Que Juan conteste | Solo si se usa Juan | [JUAN.md, Parte 2 §8](../JUAN.md) | Se elige en Odoo; solo hace falta la clave del elegido (y la del respaldo) |
+| **Meta Business** (portafolio verificado), **app de Meta** y **WhatsApp Cloud API** | Juan por WhatsApp (API oficial), Messenger e Instagram | Solo si se usa ese canal | [JUAN_CANALES.md §1](../JUAN_CANALES.md), [JUAN_CANALES.md §3](../JUAN_CANALES.md) | La verificación del negocio tarda días: empezarla pronto |
 | **Meta: píxel y Conversions API** | Medir anuncios | No (todo apagado de fábrica) | [META_EVENTOS.md](../META_EVENTOS.md), [META_CATALOGO.md](../META_CATALOGO.md) | Exige la sección de Meta en la política de privacidad, aprobada por la asesoría legal |
-| **Telegram** (@BotFather): **dos** bots | Uno para Brian (panel, alertas, avisos de Sofía) y otro para Juan (canal de pruebas) | No | [BRIAN.md › Telegram](../BRIAN.md), [JUAN_WORKER.md §6](../JUAN_WORKER.md) | Un bot tiene un solo destino: no se comparten |
+| **Telegram** (@BotFather): **dos** bots | Uno para Brian (panel, alertas, avisos de Sofía) y otro para Juan (canal de pruebas) | No | [BRIAN.md › Telegram](../BRIAN.md), [JUAN.md, Parte 2 §6](../JUAN.md) | Un bot tiene un solo destino: no se comparten |
 | **Resend** | Correo a clientes | No (apagado de fábrica) | [CORREO.md](../CORREO.md) | Una clave «solo envío» por entorno y el dominio verificado |
 | **Cloudflare Turnstile** | Captcha invisible | No (apagado) | [SEGURIDAD_ACCESO.md §6.2](../SEGURIDAD_ACCESO.md) | — |
 | **Gestor de contraseñas** de la gerencia | Guardar las claves que no se rotan nunca (§7) | **Sí** | — | Antes del primer despliegue |
@@ -142,7 +142,7 @@ no se cargan a mano.
 
 Ninguno pasa por GitHub (`juan/wrangler.jsonc:43-46`, `.github/workflows/desplegar-juan.yml:12-16`). El Worker arranca
 sin secretos y `GET https://dcasa-juan.<subdominio>.workers.dev/salud` dice qué **nombres** faltan
-([JUAN_WORKER.md §4](../JUAN_WORKER.md)). Nombres en `juan/src/env.ts:51-64`.
+([JUAN.md, Parte 2 §4](../JUAN.md)). Nombres en `juan/src/env.ts:51-64`.
 
 ### 4.1 Siempre
 
@@ -169,13 +169,13 @@ configurado: `juan/src/canales/whatsappCloud.ts:172-178`.
 ### 4.3 Messenger e Instagram (preparados)
 
 `META_APP_SECRET`, `META_VERIFY_TOKEN` (los mismos de §4.2) y `META_PAGE_TOKEN` (la llave de la página). Webhook
-`/webhooks/meta`. Paso a paso: [JUAN_META.md](../JUAN_META.md).
+`/webhooks/meta`. Paso a paso: [JUAN_CANALES.md §3](../JUAN_CANALES.md).
 
 ### 4.4 Telegram (canal de pruebas de Juan)
 
 `TELEGRAM_BOT_TOKEN_JUAN` (de @BotFather, **otro** bot que el de Brian) y `TELEGRAM_WEBHOOK_SECRET_JUAN` (24 a 64
 caracteres: letras sin tilde, números, guion y guion bajo). Webhook `/webhooks/telegram`
-([JUAN_WORKER.md §6](../JUAN_WORKER.md)).
+([JUAN.md, Parte 2 §6](../JUAN.md)).
 
 ### 4.5 La IA
 
@@ -206,7 +206,7 @@ cambia salvo con la rotación de [JUAN_PUENTE.md §C](../JUAN_PUENTE.md)); opcio
 | `WA_TOKEN` | `dcasa-juan` y `dcasa-puente-wa` |
 
 Son contraseñas que inventa quien instala (32 caracteres al azar, letras y números: `openssl rand -hex 32` sirve).
-Nunca el mismo valor para dos secretos distintos, ni entre entornos ([JUAN_WORKER.md §5](../JUAN_WORKER.md)).
+Nunca el mismo valor para dos secretos distintos, ni entre entornos ([JUAN.md, Parte 2 §5](../JUAN.md)).
 
 ## 7. Lo que no se rota nunca (copia en el gestor de contraseñas **antes** del primer despliegue)
 

@@ -66,7 +66,7 @@ una versión anterior del módulo, nunca en una instalación nueva.
 | Íconos de pantalla de inicio y favicon (panel y sitio) | `addons/dcasa_base/static/img/icono/` (`logo-192.png`, `logo-512.png`, `logo-maskable-*.png`, `apple-touch-icon.png`) y `addons/website_dcasa/static/src/img/favicon.png`; los usan `addons/dcasa_interfaz/views/layout_templates.xml:10,20`, `addons/dcasa_interfaz/controllers/webmanifest.py:13-19` y `addons/website_dcasa/views/layout_templates.xml:64-66` | **No a mano:** cambiar `logo.png` y correr `python scripts/iconos_de_la_marca.py`, que los regenera todos |
 | Logo de la cabecera del sitio | `addons/website_dcasa/static/src/img/logo-200.webp` y `logo-400.webp` (`addons/website_dcasa/views/layout_templates.xml:158-159`) | Versiones de 200 y 400 px del logo nuevo |
 | Íconos de las apps del panel | `addons/dcasa_interfaz/static/src/img/iconos/*.svg` y `addons/*/static/description/icon.svg` | Con sus colores |
-| Fotos de portada, categorías e inspiración | `addons/website_dcasa/static/src/img/` (`hero*`, `cat-*`, `insp-*`, `split-*`, `black_weekend/`); las de categorías salen de `CATEGORIAS_PORTADA` en `addons/website_dcasa/models/website.py:100-107` | Son del tema *Loftspace* de Odoo (LGPL-3) según [REDISENO.md › Fotografía](../REDISENO.md); confirmar el origen de cada una antes de reusarla y poner las del negocio cuando las tenga |
+| Fotos de portada, categorías e inspiración | `addons/website_dcasa/static/src/img/` (`hero*`, `cat-*`, `insp-*`, `split-*`, `black_weekend/`); las de categorías salen de `CATEGORIAS_PORTADA` en `addons/website_dcasa/models/website.py:100-107` | Son del tema *Loftspace* de Odoo (LGPL-3) según [REDISENO.md › Fotografía](../historico/REDISENO.md); confirmar el origen de cada una antes de reusarla y poner las del negocio cuando las tenga |
 | Página «estamos abriendo» del borde (título, colores, enlace `wa.me`) | `edge/src/arranque.ts:25,41-49,56` | Nombre, colores y su número en formato internacional sin `+` |
 | Título de la pantalla de la puerta del equipo | `edge/src/puerta_aviso.ts:168` | Su nombre |
 | Texto de las alertas de caída del contenedor | `edge/src/handler.ts:692,698` | Su nombre (opcional) |
@@ -153,9 +153,9 @@ nada se paga por afiliar…) son **invariantes del código**: se quedan. Están 
 | Bienvenida y nombre público por defecto en Odoo | `addons/dcasa_conversaciones/models/ajustes.py:67,79` | Los suyos (luego se editan en *Conversaciones › Configuración › Ajustes de Juan*) |
 | Textos fijos del sistema (tope diario, fallo técnico, archivo recibido) | `juan/src/dcasa/textos.ts` | Revisar el tono |
 | Lo que Juan sabe del negocio | Odoo, *Conversaciones › Conocimiento del bot*; semilla `addons/dcasa_conversaciones/data/conocimiento_data.xml` (`noupdate`: dirección, horario y Socios se arman solos con los datos vivos; garantía y compra vienen **inactivas**) | Cargar el conocimiento del negocio nuevo en Odoo, sin inventar políticas |
-| Horario, canales, proveedor y modelos de IA, tope mensual, palabras prohibidas | *Conversaciones › Configuración › Ajustes de Juan* ([JUAN_WORKER.md §8](../JUAN_WORKER.md)) | Lo decide la gerencia. Si elige un modelo «contributor» de Meta (entrena con las conversaciones), la política de privacidad lo tiene que decir (§C) |
+| Horario, canales, proveedor y modelos de IA, tope mensual, palabras prohibidas | *Conversaciones › Configuración › Ajustes de Juan* ([JUAN.md, Parte 2 §8](../JUAN.md)) | Lo decide la gerencia. Si elige un modelo «contributor» de Meta (entrena con las conversaciones), la política de privacidad lo tiene que decir (§C) |
 | Sitio público al que Juan completa los enlaces | `juan/wrangler.jsonc:49` (producción) y `:80` (staging) | La dirección donde el sitio responde **hoy** (el `workers.dev` hasta tener dominio) |
-| Catálogo, precios, existencias | Siempre de Odoo por herramientas: el prompt no tiene cifras ([JUAN_WORKER.md §9](../JUAN_WORKER.md)) | Nada que cambiar en el Worker |
+| Catálogo, precios, existencias | Siempre de Odoo por herramientas: el prompt no tiene cifras ([JUAN.md, Parte 2 §9](../JUAN.md)) | Nada que cambiar en el Worker |
 
 ## I. Sofía (la asistente del CRM)
 
@@ -234,7 +234,7 @@ y los flujos del puente nombran sus Workers en `.github/workflows/desplegar-puen
 - **Telegram:** dos bots distintos, el de Brian y el de Juan (un bot solo tiene un destino: [BRIAN.md › Telegram](../BRIAN.md)).
   Nombres y usuarios los elige el negocio en @BotFather.
 - **Meta:** la app (D'CASA la llamó «D'CASA Juan»), la página de Facebook, la cuenta profesional de Instagram, el
-  portafolio de negocios y el número de WhatsApp ([JUAN_META.md](../JUAN_META.md), [JUAN_PLAN_B.md](../JUAN_PLAN_B.md)).
+  portafolio de negocios y el número de WhatsApp ([JUAN_CANALES.md §3](../JUAN_CANALES.md), [JUAN_CANALES.md §1](../JUAN_CANALES.md)).
 - **Cloudflare Zero Trust:** el nombre del equipo (`<equipo>.cloudflareaccess.com`) y la política de correos del equipo
   ([SEGURIDAD_ACCESO.md §8.4](../SEGURIDAD_ACCESO.md)).
 - **Resend:** el dominio verificado y el remitente.
