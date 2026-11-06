@@ -1,7 +1,8 @@
 name: Desplegar Juan
 
 # Despliega el Worker `dcasa-juan` (el bot de atención a clientes; juan/, docs/JUAN_WORKER.md) a staging o producción.
-# SOLO A MANO (Actions → Desplegar Juan → Run workflow). No lo llama ci.yml.
+# A producción, SOLO A MANO (Actions → Desplegar Juan → Run workflow, desde main). A staging también lo llama ci.yml:
+# con desplegar_en=staging (después de Odoo) y con desplegar_en=solo-juan-staging (sin repetir Odoo).
 #
 # Qué hace, en orden:
 #   1. npm ci + pruebas + typecheck de juan/ (si algo falla, no se despliega nada);
