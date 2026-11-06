@@ -2,6 +2,8 @@
 // azul; el amarillo SOLO sobre azul (el botón). Anton en el título, Inter en el cuerpo. En el celular: 16 px de margen.
 .o_camila_novedades {
     background: #F4F1EA;
+    // Un respiro hueso entre la banda y el pie azul del sitio (si no, se leen como un solo bloque).
+    padding-bottom: clamp(2rem, 6vw, 4rem);
 
     .o_camila_novedades_banda {
         background: #1340B1;

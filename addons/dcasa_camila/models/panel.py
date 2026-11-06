@@ -119,6 +119,8 @@ class DcasaCamila(models.AbstractModel):
             raise UserError('\n'.join(errores))
         if valores:
             valores['editada_por'] = self.env.uid
+            if any(campo in cambios for campo in ('asunto', 'entrada', 'lineas')):
+                valores.update(fuente='persona', nota=False)   # ya lo revisó y lo cambió una persona
             campana.write(valores)
             self._guardar_html(campana)
         return self.panel()

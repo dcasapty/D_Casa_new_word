@@ -12,7 +12,7 @@
                         <h1 class="o_camila_novedades_titulo" t-out="titulo"/>
                         <t t-if="estado == 'confirmar'">
                             <p class="o_camila_novedades_texto">Te escribimos cuando llegue algo nuevo a la tienda o
-                                haya una promoción: como mucho un correo cada dos semanas. Te puedes dar de baja cuando
+                                haya una promoción: como mucho un correo cada 15 días. Te puedes dar de baja cuando
                                 quieras con el enlace de cada correo.</p>
                             <form method="post" action="/novedades/si" class="o_camila_novedades_form">
                                 <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
@@ -21,7 +21,7 @@
                             </form>
                         </t>
                         <t t-elif="estado == 'gracias'">
-                            <p class="o_camila_novedades_texto">Quedaste anotado. Te avisaremos de lo nuevo y de las
+                            <p class="o_camila_novedades_texto">Ya estás en la lista. Te avisaremos de lo nuevo y de las
                                 promociones de D'CASA. Si un día no quieres más, cada correo trae el enlace para darte de
                                 baja.</p>
                         </t>

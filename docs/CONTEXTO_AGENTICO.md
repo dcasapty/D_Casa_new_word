@@ -539,6 +539,23 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 
 ### Odoo 19
 
+- **Camila (2026-11-06, `dcasa_camila`), lo aprendido:**
+  - **Una casilla con `readonly="<el mismo campo>"` no se guarda nunca.** Al marcarla, el modificador se cumple al
+    instante y el formulario deja fuera del guardado los campos de solo lectura: el botón de la nube no se enciende, el
+    `web_save` no lleva el campo y la casilla vuelve a quedar sin marcar. El `readonly` tiene que depender de lo
+    guardado (un campo calculado aparte, p. ej. `dcasa_promos_estado != 'sin'`). La casilla de Meta
+    (`dcasa_meta_eventos`) usa ese patrón: revisar.
+  - **Un booleano calculado con inverso no comparte el método de cálculo con otro campo** que el inverso lee: leer el
+    otro dentro del inverso vuelve a calcular los dos y borra lo que la persona marcó. La prueba con el ORM pasaba
+    porque el otro ya estaba en memoria; con `self.env.invalidate_all()` antes del `write` (como el formulario) falla.
+  - En el navegador, `.o_form_button_save` existe siempre (oculto con `visibility: hidden`, así que `offsetParent` no
+    sirve): para saber si hay un cambio sin guardar, mirar que `.o_form_status_indicator_buttons` no tenga `invisible`.
+  - Una `<iframe srcdoc>` con `sandbox="allow-same-origin …"` (sin `allow-scripts`) deja medir su alto desde la
+    pantalla y no corre nada del correo: así la vista previa crece entera y la pantalla baja con su propio scroll.
+  - `lxml.html.cssselect` necesita el paquete `cssselect`, que no está en las dependencias: en las pruebas, `xpath`.
+  - La base de pruebas trae el catálogo con existencias y fotos: una prueba que escoge productos «elegibles» tiene que
+    despublicar los demás en su `setUpClass`.
+  - Otros agentes usan los puertos 8191 y 8192 en esta máquina: mirar `ps` antes de levantar Odoo (`--http-port`).
 - **Calculadora de envíos (2026-11-06, `dcasa_envios`), lo aprendido:**
   - Un `<input type="number" step="0.1">` dentro de un `<form>` **bloquea el envío** si el valor no es múltiplo del paso
     (7.04): el navegador no llama al `submit` y no hay error visible. Lo atrapó la prueba en el navegador; ahora

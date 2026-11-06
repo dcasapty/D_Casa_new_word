@@ -105,6 +105,21 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 > sigue. Se guardan las diez más recientes; las viejas se resumen en una línea abajo y su texto completo pasa a
 > [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md).
 
+### 2026-11-06 (3): Camila, la asistente del mail marketing (módulo nuevo `dcasa_camila`, etapa 1)
+
+- Hecho en la rama (sin subir ni desplegar), con las decisiones de la dueña del 2026-11-06 ([CAMILA.md](CAMILA.md)):
+  el **permiso** del cliente en su ficha (casilla de la vendedora, enlace firmado «Sí, quiero» al pie de la factura y
+  la bienvenida, y el correo que dio a Sofía si el mensaje enviado decía «promociones»; la baja es final) y
+  **Marketing › Camila**: borrador con productos en tienda, con foto y publicados, el precio de la tienda en línea, el
+  texto de la IA de Brian con revisión de marca, vista previa en el celular, prueba solo al equipo y «Enviar a N
+  clientes» por **Resend Broadcasts** con su propia clave (`RESEND_CAMPANAS_API_KEY`, Full access). Una cada 15 días;
+  staging nunca envía. Resultados: chats con la marca de la campaña, sus ventas y aperturas y clics de Resend. Brian:
+  `estado_campanas`. La pantalla baja con scroll (prueba de navegador).
+- Decisión técnica a confirmar con la dueña: abrir el enlace «Sí, quiero» no anota nada (los filtros de correo abren
+  los enlaces solos); el «sí» queda al tocar el botón de la página (dos toques).
+- Sigue: capturas a la dueña, CI y staging; la clave de campañas en Cloudflare; revisar la política de privacidad.
+  Etapa 1b: que Juan pregunte el permiso por WhatsApp (no se tocó `juan/`).
+
 ### 2026-11-06 (2): la calculadora de envíos en el menú Envíos (módulo nuevo `dcasa_envios`)
 
 - Pedido de la dueña: poner el HTML de envíos del 4 nov en el menú «Envíos», con el scroll que funcione, y dejar el

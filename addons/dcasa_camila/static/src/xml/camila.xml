@@ -120,10 +120,10 @@
                                             </span>
                                         </div>
                                         <span t-if="linea.grupo_nombre" class="o_camila_grupo" t-esc="linea.grupo_nombre"/>
-                                        <input type="text" class="form-control form-control-sm o_camila_linea"
-                                               t-att-maxlength="d.limites.linea" t-att-disabled="!editable"
-                                               t-att-aria-label="'Línea de ' + linea.nombre"
-                                               t-model="linea.texto" t-on-input="marcarSucio"/>
+                                        <textarea class="form-control form-control-sm o_camila_linea" rows="2"
+                                                  t-att-maxlength="d.limites.linea" t-att-disabled="!editable"
+                                                  t-att-aria-label="'Línea de ' + linea.nombre"
+                                                  t-model="linea.texto" t-on-input="marcarSucio"/>
                                         <div t-if="editable" class="o_camila_producto_botones">
                                             <button type="button" class="btn btn-link btn-sm o_camila_subir" title="Subir"
                                                     t-att-disabled="linea_first or state.ocupado" t-on-click="() => this.mover(linea_index, -1)">

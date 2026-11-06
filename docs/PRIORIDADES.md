@@ -29,8 +29,10 @@ LEEME_PRIMERO §2).
 2. **La varita mágica («Sugerir») que a veces no escribe el borrador**, en el chat y en «Guardar y responderle» de Sofía
    (la dueña, 2026-11-06: «a veces sí, a veces no»). Sospechas: el plazo de 25 s de Odoo al Worker, el cambio de modelo
    y la revisión de marca que rechaza el borrador entero. Falta el mensaje exacto que sale en pantalla.
-3. **Camila, etapa 1: mail marketing** ([CAMILA.md](CAMILA.md)). Decisiones tomadas el 2026-11-06: campaña cada 15
-   días, con el precio real de Odoo, por el servicio de campañas de Resend. Primero el permiso del cliente.
+3. **Camila, etapa 1: mail marketing** ([CAMILA.md](CAMILA.md)). **Construida y probada en la rama el 2026-11-06**
+   (módulo `dcasa_camila`: el permiso del cliente, la campaña de cada 15 días y el envío por Resend Broadcasts). Falta:
+   capturas a la dueña, CI, staging y producción; la clave de campañas (§6 de CAMILA.md) y revisar la política de
+   privacidad antes de la primera campaña. Etapa 1b: que Juan pregunte el permiso por WhatsApp.
 4. **Brian al día** con lo nuevo (la dueña: «indispensable, pero desactualizado») y una vuelta a la pantalla de Sofía.
 5. **Que el equipo use lo nuevo** (lo hace la dueña con el equipo; ver «Lo que falta de la dueña»): el Reparto
    «Parejo», el Telegram de cada vendedora, «Revisar ahora» de Sofía y los mensajes de Sofía.
@@ -95,6 +97,10 @@ Lo que no es programación. Absorbe lo que seguía vigente de la lista vieja
   proveedor) y, si se quieren, las alertas de bodega con sus umbrales ([EXISTENCIAS.md](EXISTENCIAS.md)).
 - **QR y código público** en la factura y la cotización (vienen apagados: Ajustes › Empresas › Documentos D'CASA;
   aprobar antes las imágenes) y el **QR de la nota de entrega** (lo lee el panel de Bodega; encenderlo si todavía no).
+- **Camila** (cuando entre): crear en Resend la clave de campañas con permiso «Full access» y pegarla como secreto
+  `RESEND_CAMPANAS_API_KEY` en el panel de Cloudflare del Worker `dcasa` (paso a paso en [CAMILA.md](CAMILA.md) §6;
+  nunca en el chat), revisar la política de privacidad (novedades por correo y Resend) y pedirle a las vendedoras que
+  marquen la casilla «Novedades por correo» cuando el cliente diga que sí.
 - **Guía:** confirmar las listas «En tu puesto lo que más se usa» (`addons/dcasa_guia/data/guia_roles.json`).
 
 ### Decisiones
