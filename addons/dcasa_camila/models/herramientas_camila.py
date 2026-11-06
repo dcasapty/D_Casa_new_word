@@ -1,10 +1,10 @@
-"""Brian y Camila: «¿cómo va la campaña de correo?», «¿cuántos clientes tienen permiso?», «¿cuándo puede salir la
-próxima?».
+"""Brian y Camila: «¿cómo van las campañas de correo?», «¿cuántos clientes tienen permiso?», «¿a cuántos les llegaría
+la de los quietos?».
 
 Solo lectura y con las mismas cifras de la pantalla Camila (``dcasa.camila``): nada lo calcula la IA. Es de los mismos
 grupos que la pantalla (rol Marketing, Gerencia y administradores); el dinero de las ventas que trajo una campaña,
 solo para quien ve la ganancia (Gerencia y administradores). Brian no arma ni envía campañas: eso se aprueba en la
-pantalla.
+pantalla. Desde la etapa 2 puede haber varias campañas abiertas y el tope de 15 días es por cliente.
 """
 from odoo import models
 from odoo.addons.dcasa_brian.models.registro import herramienta
@@ -18,14 +18,14 @@ class BrianHerramientasCamila(models.AbstractModel):
 
     @herramienta(
         nombre='estado_campanas',
-        descripcion='Camila (correo de novedades): el borrador abierto, a cuántos clientes con permiso le llegaría, '
-                    'cuándo puede salir la próxima (una cada 15 días) y los resultados de las últimas campañas.',
+        descripcion='Camila (correo de novedades): las campañas abiertas, a cuántos clientes les llegaría cada una '
+                    '(una cada 15 días por cliente), cuántos tienen permiso y los resultados de las enviadas.',
         parametros={
             'cuantas': {'type': 'integer', 'description': f'Cuántas campañas enviadas mostrar (1 a {MAX_CAMPANAS}). '
                                                          'Por defecto 3.'},
         },
         nivel='lectura', categoria='clientes', grupos=(GRUPOS,),
-        ejemplos=['¿cómo va la campaña de correo? → estado_campanas',
+        ejemplos=['¿cómo van las campañas de correo? → estado_campanas',
                   '¿cuántos clientes reciben las novedades? → estado_campanas',
                   'resultados de las últimas 5 campañas → cuantas=5'],
     )
@@ -37,19 +37,26 @@ class BrianHerramientasCamila(models.AbstractModel):
         except (TypeError, ValueError):
             cuantas = 3
         panel = Camila.panel()
-        campana = panel['campana']
-        respuesta = {
+        abiertas = []
+        for campana in Camila._abiertas()[:MAX_CAMPANAS]:
+            datos = Camila.panel(campana.id)['campana']
+            publico = datos['publico']
+            abiertas.append({
+                'nombre': datos['nombre'], 'estado': datos['estado_nombre'], 'asunto': datos['asunto'],
+                'a_quien_va': [chip['nombre'] for chip in publico['chips'] if chip['activo']],
+                'le_llegaria_a': publico['total'],
+                'quedan_fuera': {fuera['texto']: fuera['n'] for fuera in publico['fuera']},
+                'productos': [f"{linea['nombre']} ({linea['precio']}{' + ITBMS' if linea['mas_itbms'] else ''})"
+                              for linea in datos['lineas']],
+                'precios_del': datos['precios_del'],
+            })
+        return {
             'clientes_con_permiso': panel['con_permiso'],
             'clave_de_resend': 'cargada' if panel['hay_clave'] else 'falta (no se puede enviar)',
             'ultima_campana': panel['ultima'] or 'todavía no ha salido ninguna',
-            'proxima_puede_salir': 'ya' if panel['proxima']['ya'] else f"desde el {panel['proxima']['fecha']}",
+            'tope': f"a cada cliente le llega como mucho un correo de campaña cada {panel['dias']} días",
             'por_que_no_puede_salir_ahora': panel['bloqueos'],
-            'borrador': {
-                'nombre': campana['nombre'], 'estado': campana['estado_nombre'], 'asunto': campana['asunto'],
-                'productos': [f"{linea['nombre']} ({linea['precio']}{' + ITBMS' if linea['mas_itbms'] else ''})"
-                              for linea in campana['lineas']],
-                'precios_del': campana['precios_del'],
-            } if campana else 'no hay ninguno abierto',
+            'campanas_abiertas': abiertas or 'no hay ninguna abierta',
             'resultados': [{
                 'campana': fila['nombre'], 'enviada': fila['fecha'], 'enviados': fila['enviados'],
                 'chats_que_llegaron': fila['chats'], 'ventas': fila['ventas'],
@@ -62,4 +69,3 @@ class BrianHerramientasCamila(models.AbstractModel):
                               'aperturas pueden no ser exactas).',
             'donde': 'Marketing › Camila (ahí se revisa, se edita y se aprueba el envío).',
         }
-        return respuesta

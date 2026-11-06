@@ -17,21 +17,64 @@ import re
 import unicodedata
 from datetime import timedelta
 
-# Decisión de la dueña (2026-11-06): una campaña cada 15 días como mucho. El tope lo pone el servidor.
+# Decisión de la dueña (2026-11-06, etapa 2): a un mismo cliente (por correo) le llega como mucho UN correo de campaña
+# cada 15 días. Puede haber varias campañas para grupos distintos; el tope es por cliente y lo pone el servidor.
 DIAS_ENTRE_CAMPANAS = 15
 PRODUCTOS_POR_CAMPANA = 6
 MAX_PRODUCTOS = 8
 MAX_ASUNTO = 70
 MAX_ENTRADA = 300
 MAX_LINEA = 140
+MAX_IDEA = 400
 
 GRUPOS = [
     ('nuevo', 'Lo nuevo'),
     ('vendido', 'De lo más vendido'),
     ('quieto', 'Lo que no se mueve'),
+    ('stock', 'De lo que más hay'),
+    ('movimiento', 'De lo que más se mueve'),
     ('tienda', 'En tienda'),
     ('elegido', 'Lo eligió una persona'),
 ]
+
+# De dónde sale una campaña nueva («Nueva campaña» y el tablero de Marketing).
+TEMAS = [
+    ('mezcla', 'Lo nuevo, lo más vendido y lo quieto'),
+    ('idea', 'Desde una idea'),
+    ('nuevo', 'Lo nuevo'),
+    ('vendidos', 'Los más vendidos'),
+    ('quietos', 'Los más quietos'),
+    ('stock', 'Lo que más hay en stock'),
+    ('movimiento', 'Lo de mayor movimiento'),
+    ('blanco', 'En blanco'),
+]
+GRUPO_DEL_TEMA = {'nuevo': 'nuevo', 'vendidos': 'vendido', 'quietos': 'quieto', 'stock': 'stock',
+                  'movimiento': 'movimiento'}
+# A quién va (etapa 2): se combinan (cualquiera de los elegidos) y siempre se cruzan con el permiso, la baja y el tope
+# por cliente. «todos» son todos los que tienen permiso.
+CHIPS = [
+    ('todos', 'Todos con permiso'),
+    ('compraron', 'Compraron en los últimos 90 días'),
+    ('volver', 'Compraron hace más de 6 meses'),
+    ('cotizaron', 'Cotizaron o preguntaron y no compraron'),
+    ('tibios', 'Tibios del CRM'),
+    ('calientes', 'Calientes del CRM'),
+    ('nuevos', 'Recién agregados (30 días)'),
+    ('antiguos', 'Clientes de hace más de un año'),
+]
+CHIPS_VALIDOS = frozenset(clave for clave, _nombre in CHIPS)
+
+
+def leer_chips(valor):
+    """La lista de chips válidos (en el orden de ``CHIPS``) de un texto «a,b» o una lista; vacío = «todos»."""
+    if isinstance(valor, str):
+        partes = valor.split(',')
+    elif isinstance(valor, (list, tuple)):
+        partes = [p for p in valor if isinstance(p, str)]
+    else:
+        partes = []
+    elegidos = {p.strip() for p in partes if p.strip() in CHIPS_VALIDOS}
+    return [clave for clave, _nombre in CHIPS if clave in elegidos] or ['todos']
 
 PREFIJO_MARCA = 'DCN'
 _MARCA = re.compile(r'\bDCN[\s-]?0*(\d{1,7})\b', re.IGNORECASE)
@@ -189,8 +232,9 @@ def campana_de_la_marca(texto):
 
 
 def texto_whatsapp(campana_id):
-    """El mensaje que llega escrito al WhatsApp de la tienda cuando el cliente toca el botón del correo."""
-    return f"Hola D'CASA, vi el correo de novedades y me interesa. (Ref. {marca(campana_id)})"
+    """El mensaje que llega escrito al WhatsApp de la tienda cuando el cliente toca el botón del correo: que suene a
+    persona (decisión de la dueña, etapa 2), con la marca entre paréntesis para que Odoo sepa de qué campaña vino."""
+    return f"Hola, vi el correo de novedades de D'CASA y me interesa ({marca(campana_id)})"
 
 
 # ----------------------------------------------------------------------

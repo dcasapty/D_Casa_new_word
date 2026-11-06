@@ -73,7 +73,8 @@ class TestMarcaYTope(BaseCase):
     def test_la_marca_de_la_campana_va_y_vuelve(self):
         self.assertEqual(R.marca(7), 'DCN-0007')
         texto = R.texto_whatsapp(7)
-        self.assertIn('(Ref. DCN-0007)', texto)
+        self.assertEqual(texto, "Hola, vi el correo de novedades de D'CASA y me interesa (DCN-0007)",
+                         'Que suene a persona (decisión de la dueña, etapa 2)')
         self.assertEqual(R.campana_de_la_marca(texto), 7)
         self.assertEqual(R.campana_de_la_marca('hola, ref dcn 12 por favor'), 12)
         self.assertIsNone(R.campana_de_la_marca('Hola, quiero la cama de 2 plazas'))

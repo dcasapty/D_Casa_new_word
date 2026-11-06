@@ -6,3 +6,4 @@ from . import test_enlace
 from . import test_resultados
 from . import test_navegador
 from . import test_revision
+from . import test_etapa2

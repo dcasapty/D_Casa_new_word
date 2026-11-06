@@ -8,9 +8,13 @@
                     <span class="o_camila_avatar" aria-hidden="true">C</span>
                     <div>
                         <h1>Camila</h1>
-                        <p>Arma la campaña de correo con lo que hay en la tienda. Nada sale sin que tú lo apruebes.</p>
+                        <p>Arma campañas de correo con lo que hay en la tienda. Nada sale sin que tú lo apruebes.</p>
                     </div>
                 </div>
+                <button t-if="state.d" type="button" class="btn btn-primary o_camila_nueva"
+                        t-att-disabled="state.ocupado" t-on-click="nuevaCampana">
+                    <i class="fa fa-plus me-1" aria-hidden="true"/>Nueva campaña
+                </button>
             </header>
 
             <div class="o_camila_cuerpo">
@@ -22,7 +26,7 @@
                     <section class="o_camila_cifras" aria-label="Cómo va">
                         <div class="o_camila_cifra o_camila_cifra_permiso">
                             <span class="o_camila_cifra_valor" t-esc="d.con_permiso"/>
-                            <span class="o_camila_cifra_nombre">clientes con permiso: a ellos les llegaría</span>
+                            <span class="o_camila_cifra_nombre">clientes dijeron que sí a las novedades</span>
                         </div>
                         <div class="o_camila_cifra o_camila_cifra_ultima">
                             <t t-if="d.ultima">
@@ -34,12 +38,9 @@
                                 <span class="o_camila_cifra_nombre">todavía no ha salido ninguna campaña</span>
                             </t>
                         </div>
-                        <div class="o_camila_cifra o_camila_cifra_proxima">
-                            <span class="o_camila_cifra_valor o_camila_cifra_fecha" t-esc="d.proxima.ya ? 'Ya puede' : d.proxima.fecha"/>
-                            <span class="o_camila_cifra_nombre">
-                                <t t-if="d.proxima.ya">salir la próxima (una cada <t t-esc="d.dias"/> días como mucho)</t>
-                                <t t-else="">desde ese día puede salir la próxima</t>
-                            </span>
+                        <div class="o_camila_cifra o_camila_cifra_tope">
+                            <span class="o_camila_cifra_valor o_camila_cifra_fecha"><t t-esc="d.dias"/> días</span>
+                            <span class="o_camila_cifra_nombre">como mucho un correo de campaña por cliente</span>
                         </div>
                     </section>
 
@@ -50,55 +51,72 @@
                         </ul>
                     </div>
 
+                    <nav t-if="d.abiertas.length" class="o_camila_pestanas" aria-label="Campañas abiertas">
+                        <button t-foreach="d.abiertas" t-as="abierta" t-key="abierta.id" type="button"
+                                class="o_camila_pestana" t-att-class="{ o_activa: campana and campana.id === abierta.id }"
+                                t-att-aria-current="campana and campana.id === abierta.id ? 'true' : 'false'"
+                                t-on-click="() => this.elegirCampana(abierta.id)">
+                            <span class="o_camila_pestana_nombre" t-esc="abierta.nombre"/>
+                            <span class="o_camila_pestana_detalle"><t t-esc="abierta.estado_nombre"/> · <t t-esc="abierta.productos"/> productos</span>
+                        </button>
+                    </nav>
+
                     <section t-if="!campana" class="o_camila_vacio">
-                        <h2>No hay ningún borrador abierto</h2>
-                        <p>Camila escoge productos que hay en tienda, con foto y publicados en la web (lo nuevo, lo más
-                            vendido y lo que no se mueve), con el precio de hoy, y escribe el texto con la voz de D'CASA.
-                            Tú lo revisas, lo cambias si quieres y lo apruebas.</p>
-                        <button type="button" class="btn btn-primary o_camila_armar" t-on-click="() => this.armar()"
+                        <h2>No hay ninguna campaña abierta</h2>
+                        <p>Arma una desde una idea, con lo nuevo, lo más vendido, lo quieto o lo que más hay en tienda.
+                            Camila escoge productos en tienda, con foto y publicados en la web, con el precio de hoy, y
+                            escribe el texto con la voz de D'CASA. Tú la revisas, eliges a quién va y la apruebas.</p>
+                        <button type="button" class="btn btn-primary o_camila_armar" t-on-click="nuevaCampana"
                                 t-att-disabled="state.ocupado">
-                            <i class="fa fa-magic me-1" aria-hidden="true"/>
-                            <t t-if="state.ocupado == 'armar'">Armando…</t>
-                            <t t-else="">Armar la campaña</t>
+                            <i class="fa fa-magic me-1" aria-hidden="true"/>Nueva campaña
                         </button>
                     </section>
 
-                    <section t-if="campana" class="o_camila_trabajo">
-                        <div class="o_camila_previa">
-                            <div class="o_camila_previa_cabecera">
-                                <h2>Así le llega al cliente</h2>
-                                <div class="btn-group btn-group-sm" role="group" aria-label="Ver como">
-                                    <button type="button" class="btn o_camila_ver_celular"
-                                            t-att-class="state.vista == 'celular' ? 'btn-primary' : 'btn-secondary'"
-                                            t-on-click="() => this.verComo('celular')">Celular</button>
-                                    <button type="button" class="btn o_camila_ver_computadora"
-                                            t-att-class="state.vista == 'computadora' ? 'btn-primary' : 'btn-secondary'"
-                                            t-on-click="() => this.verComo('computadora')">Computadora</button>
-                                </div>
-                            </div>
-                            <p class="o_camila_asunto_previa"><span>Asunto:</span> <t t-esc="campana.asunto"/></p>
-                            <div class="o_camila_marco" t-att-class="state.vista == 'celular' ? 'o_camila_marco_celular' : 'o_camila_marco_computadora'">
-                                <iframe t-key="state.vista + campana.huella" class="o_camila_previa_correo"
-                                        title="Vista previa del correo" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-                                        t-att-srcdoc="campana.html" t-att-style="'height:' + state.altoPrevia + 'px'"
-                                        t-on-load="ajustarPrevia"/>
-                            </div>
+                    <section t-if="campana" class="o_camila_constructor">
+                        <div class="o_camila_estado">
+                            <span class="badge o_camila_badge" t-esc="campana.estado_nombre"/>
+                            <span class="o_camila_nombre" t-esc="campana.nombre"/>
+                            <span class="o_camila_detalle">
+                                · <t t-esc="campana.tema_nombre"/> · Precios del <t t-esc="campana.precios_del"/>
+                                · Texto: <t t-esc="campana.fuente"/>
+                                <t t-if="campana.automatica"> · La armó Camila sola</t>
+                            </span>
+                        </div>
+                        <div t-if="campana.nota" class="alert alert-info o_camila_nota" role="status" t-esc="campana.nota"/>
+                        <div t-if="campana.error" class="alert alert-warning o_camila_error_envio" role="status">
+                            <strong>La última vez no salió:</strong> <t t-esc="campana.error"/>
                         </div>
 
-                        <div class="o_camila_editor">
-                            <div class="o_camila_estado">
-                                <span class="badge o_camila_badge" t-esc="campana.estado_nombre"/>
-                                <span class="o_camila_nombre" t-esc="campana.nombre"/>
-                                <span class="o_camila_detalle">
-                                    · Precios del <t t-esc="campana.precios_del"/> · Texto: <t t-esc="campana.fuente"/>
-                                    <t t-if="campana.automatica"> · La armó Camila sola</t>
-                                </span>
+                        <!-- La idea y el redactor con IA -->
+                        <div class="o_camila_bloque o_camila_idea">
+                            <label class="o_camila_etiqueta" for="o_camila_idea">Idea de la campaña</label>
+                            <textarea id="o_camila_idea" class="form-control o_camila_idea_texto" rows="2"
+                                      placeholder="Por ejemplo: renovar la sala para recibir a la familia en diciembre"
+                                      t-att-maxlength="d.limites.idea" t-att-disabled="!editable"
+                                      t-model="state.borrador.idea" t-on-input="marcarSucio"/>
+                            <div t-if="editable" class="o_camila_ia_botones">
+                                <button type="button" class="btn btn-secondary btn-sm o_camila_ia_asunto"
+                                        t-att-disabled="state.ocupado" t-on-click="() => this.escribir('asunto')">
+                                    <i class="fa fa-magic me-1" aria-hidden="true"/>Escribir el asunto
+                                </button>
+                                <button type="button" class="btn btn-secondary btn-sm o_camila_ia_entrada"
+                                        t-att-disabled="state.ocupado" t-on-click="() => this.escribir('entrada')">
+                                    <i class="fa fa-magic me-1" aria-hidden="true"/>Escribir la entrada
+                                </button>
+                                <button type="button" class="btn btn-secondary btn-sm o_camila_ia_todo"
+                                        t-att-disabled="state.ocupado" t-on-click="() => this.escribir('todo')">
+                                    <i class="fa fa-magic me-1" aria-hidden="true"/>Escribir todo
+                                </button>
+                                <button type="button" class="btn btn-link btn-sm o_camila_ia_sugerir"
+                                        t-att-disabled="state.ocupado or !state.borrador.idea.trim()" t-on-click="sugerir">
+                                    <i class="fa fa-lightbulb-o me-1" aria-hidden="true"/>Sugerir productos para esta idea
+                                </button>
                             </div>
-                            <div t-if="campana.nota" class="alert alert-info o_camila_nota" role="status" t-esc="campana.nota"/>
-                            <div t-if="campana.error" class="alert alert-warning o_camila_error_envio" role="status">
-                                <strong>La última vez no salió:</strong> <t t-esc="campana.error"/>
-                            </div>
+                            <t t-if="!state.ia.producto" t-call="dcasa_camila.AvisoIA"/>
+                        </div>
 
+                        <!-- El texto -->
+                        <div class="o_camila_bloque o_camila_texto">
                             <label class="o_camila_etiqueta" for="o_camila_asunto">Asunto</label>
                             <input id="o_camila_asunto" class="form-control o_camila_asunto" type="text"
                                    t-att-maxlength="d.limites.asunto" t-att-disabled="!editable"
@@ -107,11 +125,19 @@
                             <textarea id="o_camila_entrada" class="form-control o_camila_entrada" rows="3"
                                       t-att-maxlength="d.limites.entrada" t-att-disabled="!editable"
                                       t-model="state.borrador.entrada" t-on-input="marcarSucio"/>
+                        </div>
 
+                        <!-- Los productos -->
+                        <div class="o_camila_bloque">
                             <h3 class="o_camila_subtitulo">Productos <small>(el precio lo pone Odoo, el de la tienda en línea)</small></h3>
+                            <p t-if="!state.borrador.lineas.length" class="o_camila_sin_productos">
+                                Todavía no tiene productos: agrega al menos uno.
+                            </p>
                             <ol class="o_camila_productos">
                                 <li t-foreach="state.borrador.lineas" t-as="linea" t-key="linea.producto_id" class="o_camila_producto">
-                                    <img t-if="linea.miniatura" t-att-src="linea.miniatura" alt="" class="o_camila_miniatura"/>
+                                    <div class="o_camila_producto_foto">
+                                        <img t-if="linea.miniatura" t-att-src="linea.miniatura" alt="" class="o_camila_miniatura"/>
+                                    </div>
                                     <div class="o_camila_producto_cuerpo">
                                         <div class="o_camila_producto_cabeza">
                                             <strong class="o_camila_producto_nombre" t-esc="linea.nombre"/>
@@ -119,12 +145,26 @@
                                                 <t t-esc="linea.precio"/><t t-if="linea.mas_itbms"> + ITBMS</t>
                                             </span>
                                         </div>
-                                        <span t-if="linea.grupo_nombre" class="o_camila_grupo" t-esc="linea.grupo_nombre"/>
+                                        <div class="o_camila_producto_datos">
+                                            <span t-if="linea.grupo_nombre" class="o_camila_grupo" t-esc="linea.grupo_nombre"/>
+                                            <span t-if="linea.existencias !== undefined" class="o_camila_existencias">
+                                                <t t-esc="linea.existencias"/> en existencia
+                                            </span>
+                                        </div>
                                         <textarea class="form-control form-control-sm o_camila_linea" rows="2"
                                                   t-att-maxlength="d.limites.linea" t-att-disabled="!editable"
                                                   t-att-aria-label="'Línea de ' + linea.nombre"
                                                   t-model="linea.texto" t-on-input="marcarSucio"/>
+                                        <!-- El aviso de la IA de ESTE producto, junto a él (no arriba, fuera de la vista). -->
+                                        <t t-if="state.ia.producto and state.ia.producto === linea.producto_id"
+                                           t-call="dcasa_camila.AvisoIA"/>
                                         <div t-if="editable" class="o_camila_producto_botones">
+                                            <button type="button" class="btn btn-secondary btn-sm o_camila_ia_linea"
+                                                    t-att-disabled="state.ocupado" t-on-click="() => this.escribir('linea', linea.producto_id)">
+                                                <i class="fa fa-magic me-1" aria-hidden="true"/>Escribir con IA
+                                            </button>
+                                            <button type="button" class="btn btn-link btn-sm o_camila_cambiar"
+                                                    t-att-disabled="state.ocupado" t-on-click="() => this.abrirProductos(linea_index)">Cambiar</button>
                                             <button type="button" class="btn btn-link btn-sm o_camila_subir" title="Subir"
                                                     t-att-disabled="linea_first or state.ocupado" t-on-click="() => this.mover(linea_index, -1)">
                                                 <i class="fa fa-arrow-up" aria-hidden="true"/><span class="visually-hidden">Subir</span>
@@ -133,8 +173,6 @@
                                                     t-att-disabled="linea_last or state.ocupado" t-on-click="() => this.mover(linea_index, 1)">
                                                 <i class="fa fa-arrow-down" aria-hidden="true"/><span class="visually-hidden">Bajar</span>
                                             </button>
-                                            <button type="button" class="btn btn-link btn-sm o_camila_cambiar"
-                                                    t-att-disabled="state.ocupado" t-on-click="() => this.abrirBusqueda(linea_index)">Cambiar</button>
                                             <button type="button" class="btn btn-link btn-sm text-danger o_camila_quitar"
                                                     t-att-disabled="state.ocupado or state.borrador.lineas.length == 1"
                                                     t-on-click="() => this.quitar(linea_index)">Quitar</button>
@@ -142,74 +180,114 @@
                                     </div>
                                 </li>
                             </ol>
-                            <button t-if="editable and state.borrador.lineas.length &lt; d.limites.productos and !state.busqueda.abierta"
-                                    type="button" class="btn btn-secondary btn-sm o_camila_agregar"
-                                    t-att-disabled="state.ocupado" t-on-click="() => this.abrirBusqueda()">
-                                <i class="fa fa-plus me-1" aria-hidden="true"/>Agregar un producto
+                            <button t-if="editable and state.borrador.lineas.length &lt; d.limites.productos"
+                                    type="button" class="btn btn-secondary o_camila_agregar"
+                                    t-att-disabled="state.ocupado" t-on-click="() => this.abrirProductos()">
+                                <i class="fa fa-plus me-1" aria-hidden="true"/>Agregar producto
                             </button>
-                            <div t-if="state.busqueda.abierta" class="o_camila_busqueda">
-                                <div class="o_camila_busqueda_cabeza">
-                                    <strong t-if="state.busqueda.reemplazar !== null">Cambiar por…</strong>
-                                    <strong t-else="">Agregar…</strong>
-                                    <button type="button" class="btn btn-link btn-sm o_camila_busqueda_cerrar" t-on-click="cerrarBusqueda">Cerrar</button>
-                                </div>
-                                <input type="search" class="form-control o_camila_busqueda_texto"
-                                       placeholder="Nombre o código (solo lo que hay en tienda, con foto y publicado)"
-                                       t-att-value="state.busqueda.texto" t-on-input="alEscribirBusqueda"/>
-                                <p t-if="!state.busqueda.buscando and !state.busqueda.resultados.length" class="o_camila_busqueda_vacia">
-                                    No hay más productos que se puedan ofrecer con eso.
-                                </p>
-                                <ul class="o_camila_resultados">
-                                    <li t-foreach="state.busqueda.resultados" t-as="producto" t-key="producto.id">
-                                        <button type="button" class="btn o_camila_resultado" t-on-click="() => this.elegir(producto)"
-                                                t-att-disabled="state.ocupado">
-                                            <img t-att-src="producto.miniatura" alt="" class="o_camila_miniatura"/>
-                                            <span class="o_camila_resultado_nombre" t-esc="producto.nombre"/>
-                                            <span class="o_camila_resultado_precio"><t t-esc="producto.precio"/><t t-if="producto.mas_itbms"> + ITBMS</t></span>
-                                        </button>
-                                    </li>
-                                </ul>
-                            </div>
-
-                            <div class="o_camila_acciones">
-                                <button t-if="editable" type="button" class="btn btn-secondary o_camila_guardar"
-                                        t-att-disabled="!state.sucio or state.ocupado" t-on-click="() => this.guardar()">
-                                    <t t-if="state.ocupado == 'guardar'">Guardando…</t>
-                                    <t t-else="">Guardar cambios</t>
-                                </button>
-                                <button t-if="editable" type="button" class="btn btn-secondary o_camila_rearmar"
-                                        t-att-disabled="state.ocupado" t-on-click="confirmarArmar">
-                                    <i class="fa fa-refresh me-1" aria-hidden="true"/>
-                                    <t t-if="state.ocupado == 'armar'">Armando…</t>
-                                    <t t-else="">Volver a armar</t>
-                                </button>
-                                <button type="button" class="btn btn-secondary o_camila_prueba"
-                                        t-att-disabled="state.ocupado" t-on-click="() => this.prueba()">
-                                    <i class="fa fa-envelope-o me-1" aria-hidden="true"/>
-                                    <t t-if="state.ocupado == 'prueba'">Enviando la prueba…</t>
-                                    <t t-else="">Enviarme una prueba</t>
-                                </button>
-                                <button type="button" class="btn btn-primary o_camila_enviar"
-                                        t-att-disabled="!puedeEnviar" t-on-click="confirmarEnviar">
-                                    <i class="fa fa-paper-plane me-1" aria-hidden="true"/>
-                                    <t t-if="state.ocupado == 'enviar'">Enviando…</t>
-                                    <t t-elif="campana.estado == 'aprobada'">Reintentar el envío</t>
-                                    <t t-else="" t-esc="textoEnviar"/>
-                                </button>
-                                <button t-if="campana.puede_descartar" type="button" class="btn btn-link text-danger o_camila_descartar"
-                                        t-att-disabled="state.ocupado" t-on-click="confirmarDescartar">
-                                    <t t-if="editable">Descartar borrador</t>
-                                    <t t-else="">Descartar (no salió)</t>
-                                </button>
-                            </div>
-                            <p t-if="campana.prueba" class="o_camila_prueba_hecha">
-                                Última prueba a <t t-esc="campana.prueba.a"/> (<t t-esc="campana.prueba.fecha"/>).
-                            </p>
-                            <p class="o_camila_ayuda">
-                                El botón del correo es «Escríbenos por WhatsApp» y su mensaje lleva <strong t-esc="campana.marca"/>:
-                                así se sabe qué chats y ventas vinieron de esta campaña.
-                            </p>
                         </div>
+
+                        <!-- Los botones y enlaces del correo (al menos un botón) -->
+                        <div class="o_camila_bloque o_camila_botones">
+                            <h3 class="o_camila_subtitulo">Botones del correo <small>(al menos uno; los enlaces a la web llevan la marca de la campaña)</small></h3>
+                            <div class="o_camila_interruptores">
+                                <label class="o_camila_interruptor">
+                                    <input type="checkbox" class="form-check-input o_camila_boton_whatsapp"
+                                           t-att-checked="campana.botones.whatsapp" t-att-disabled="!editable or state.ocupado"
+                                           t-on-change="(ev) => this.cambiarBoton('whatsapp', ev)"/>
+                                    <span>«Escríbenos por WhatsApp»</span>
+                                </label>
+                                <label class="o_camila_interruptor">
+                                    <input type="checkbox" class="form-check-input o_camila_boton_web"
+                                           t-att-checked="campana.botones.web" t-att-disabled="!editable or state.ocupado"
+                                           t-on-change="(ev) => this.cambiarBoton('web', ev)"/>
+                                    <span>«Visita nuestra tienda en línea»</span>
+                                </label>
+                                <label class="o_camila_interruptor">
+                                    <input type="checkbox" class="form-check-input o_camila_enlaces_productos"
+                                           t-att-checked="campana.botones.productos" t-att-disabled="!editable or state.ocupado"
+                                           t-on-change="(ev) => this.cambiarBoton('productos', ev)"/>
+                                    <span>La foto y el nombre de cada producto llevan a su página en la web</span>
+                                </label>
+                                <label class="o_camila_interruptor">
+                                    <input type="checkbox" class="form-check-input o_camila_redes"
+                                           t-att-checked="campana.botones.redes" t-att-disabled="!editable or state.ocupado or !campana.redes_del_sitio.length"
+                                           t-on-change="(ev) => this.cambiarBoton('redes', ev)"/>
+                                    <span>
+                                        Redes sociales al pie
+                                        <small t-if="campana.redes_del_sitio.length" class="text-muted">(<t t-esc="campana.redes_del_sitio.join(', ')"/>)</small>
+                                        <small t-else="" class="text-muted">(el sitio web no tiene redes con enlace: se ponen en Sitio web › Ajustes)</small>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- A quién va -->
+                        <div class="o_camila_bloque o_camila_publico">
+                            <h3 class="o_camila_subtitulo">¿A quién va? <small>(se suman; siempre solo a quien dijo que sí)</small></h3>
+                            <div class="o_camila_chips" role="group" aria-label="Público">
+                                <button t-foreach="publico.chips" t-as="chip" t-key="chip.clave" type="button"
+                                        class="o_camila_chip" t-att-class="{ o_activa: chip.activo }"
+                                        t-att-aria-pressed="chip.activo ? 'true' : 'false'" t-att-data-chip="chip.clave"
+                                        t-att-disabled="!editable or state.ocupado" t-on-click="() => this.tocarChip(chip.clave)">
+                                    <span t-esc="chip.nombre"/>
+                                    <span class="o_camila_chip_n" t-esc="chip.n"/>
+                                </button>
+                            </div>
+                            <p class="o_camila_publico_total">
+                                Le llegaría a <strong class="o_camila_publico_n" t-esc="publico.total"/><t
+                                    t-esc="publico.total === 1 ? ' cliente.' : ' clientes.'"/>
+                            </p>
+                            <ul t-if="publico.fuera.length" class="o_camila_fuera">
+                                <li t-foreach="publico.fuera" t-as="fuera" t-key="fuera.motivo">
+                                    <strong t-esc="fuera.n"/> quedan fuera: <t t-esc="fuera.texto"/>
+                                </li>
+                            </ul>
+                        </div>
+
+                        <div class="o_camila_acciones">
+                            <button t-if="editable" type="button" class="btn btn-secondary o_camila_guardar"
+                                    t-att-disabled="!state.sucio or state.ocupado" t-on-click="() => this.guardar()">
+                                <t t-if="state.ocupado == 'guardar'">Guardando…</t>
+                                <t t-else="">Guardar cambios</t>
+                            </button>
+                            <button type="button" class="btn btn-secondary o_camila_previsualizar"
+                                    t-att-disabled="state.ocupado" t-on-click="previsualizar">
+                                <i class="fa fa-eye me-1" aria-hidden="true"/>Previsualizar
+                            </button>
+                            <button t-if="editable" type="button" class="btn btn-secondary o_camila_rearmar"
+                                    t-att-disabled="state.ocupado" t-on-click="confirmarArmar">
+                                <i class="fa fa-refresh me-1" aria-hidden="true"/>
+                                <t t-if="state.ocupado == 'armar'">Armando…</t>
+                                <t t-else="">Volver a armar</t>
+                            </button>
+                            <button type="button" class="btn btn-secondary o_camila_prueba"
+                                    t-att-disabled="state.ocupado" t-on-click="() => this.prueba()">
+                                <i class="fa fa-envelope-o me-1" aria-hidden="true"/>
+                                <t t-if="state.ocupado == 'prueba'">Enviando la prueba…</t>
+                                <t t-else="">Enviarme una prueba</t>
+                            </button>
+                            <button type="button" class="btn btn-primary o_camila_enviar"
+                                    t-att-disabled="!puedeEnviar" t-on-click="confirmarEnviar">
+                                <i class="fa fa-paper-plane me-1" aria-hidden="true"/>
+                                <t t-if="state.ocupado == 'enviar'">Enviando…</t>
+                                <t t-elif="campana.estado == 'aprobada'">Reintentar el envío</t>
+                                <t t-else="" t-esc="textoEnviar"/>
+                            </button>
+                            <button t-if="campana.puede_descartar" type="button" class="btn btn-link text-danger o_camila_descartar"
+                                    t-att-disabled="state.ocupado" t-on-click="confirmarDescartar">
+                                <t t-if="editable">Descartar borrador</t>
+                                <t t-else="">Descartar (no salió)</t>
+                            </button>
+                        </div>
+                        <p t-if="campana.prueba" class="o_camila_prueba_hecha">
+                            Última prueba a <t t-esc="campana.prueba.a"/> (<t t-esc="campana.prueba.fecha"/>).
+                        </p>
+                        <p class="o_camila_ayuda">
+                            El mensaje de WhatsApp y los enlaces a la tienda llevan <strong t-esc="campana.marca"/>: así Juan
+                            sabe que el cliente vino del correo, y se cuentan los chats, las ventas y las ventas en la web de esta
+                            campaña.
+                        </p>
                     </section>
 
                     <section class="o_camila_historial">
@@ -225,6 +303,7 @@
                                         <th class="text-end">Tocaron</th>
                                         <th class="text-end">Chats</th>
                                         <th class="text-end">Ventas</th>
+                                        <th class="text-end">Web</th>
                                         <th/>
                                     </tr>
                                 </thead>
@@ -240,6 +319,10 @@
                                             <t t-if="fila.monto"><br/><small t-esc="fila.monto + ' sin ITBMS'"/></t>
                                         </td>
                                         <td class="text-end">
+                                            <t t-esc="fila.web"/>
+                                            <t t-if="fila.monto_web"><br/><small t-esc="fila.monto_web + ' sin ITBMS'"/></t>
+                                        </td>
+                                        <td class="text-end">
                                             <button type="button" class="btn btn-link btn-sm o_camila_actualizar"
                                                     t-att-disabled="state.ocupado" t-on-click="() => this.actualizarResultados(fila.id)">Actualizar</button>
                                         </td>
@@ -248,7 +331,8 @@
                             </table>
                             <p class="o_camila_tabla_nota">Abrieron y tocaron: lo que dice Resend (las aperturas pueden no
                                 ser exactas). Chats: los que llegaron con la marca de la campaña en su primer mensaje. Ventas:
-                                facturas pagadas de esos clientes con el chat en los 30 días antes de la factura.</p>
+                                facturas pagadas de esos clientes con el chat en los 30 días antes de la factura. Web: pedidos
+                                confirmados de la tienda en línea que llegaron por un enlace del correo (con su marca).</p>
                         </div>
                     </section>
 
@@ -269,6 +353,155 @@
                 </t>
             </div>
         </div>
+    </t>
+
+    <!-- «Previsualizar»: el correo grande, con el asunto y Celular / Computadora. -->
+    <!-- «Camila está escribiendo…» o «la IA falló» con «Reintentar» (nunca en silencio). -->
+    <t t-name="dcasa_camila.AvisoIA">
+        <div t-if="state.ia.escribiendo" class="o_camila_ia_escribiendo" role="status" aria-live="polite">
+            <i class="fa fa-circle-o-notch fa-spin me-2" aria-hidden="true"/>Camila está escribiendo
+            <t t-esc="state.ia.escribiendo"/>…
+        </div>
+        <div t-if="state.ia.error" class="alert alert-warning o_camila_ia_error" role="alert">
+            <span t-esc="state.ia.error"/>
+            <button type="button" class="btn btn-sm btn-secondary ms-2 o_camila_ia_reintentar"
+                    t-att-disabled="state.ocupado" t-on-click="reintentarIA">Reintentar</button>
+        </div>
+    </t>
+
+    <t t-name="dcasa_camila.Previa">
+        <Dialog title="'Así le llega al cliente'" size="'xl'" contentClass="'o_camila_dialogo o_camila_dialogo_previa'"
+                footer="false">
+            <div class="o_camila_previa_cabecera">
+                <p class="o_camila_asunto_previa"><span>Asunto:</span> <t t-esc="props.campana.asunto"/></p>
+                <div class="btn-group btn-group-sm" role="group" aria-label="Ver como">
+                    <button type="button" class="btn o_camila_ver_celular"
+                            t-att-class="state.vista == 'celular' ? 'btn-primary' : 'btn-secondary'"
+                            t-on-click="() => this.verComo('celular')">Celular</button>
+                    <button type="button" class="btn o_camila_ver_computadora"
+                            t-att-class="state.vista == 'computadora' ? 'btn-primary' : 'btn-secondary'"
+                            t-on-click="() => this.verComo('computadora')">Computadora</button>
+                </div>
+            </div>
+            <div class="o_camila_marco" t-att-class="state.vista == 'celular' ? 'o_camila_marco_celular' : 'o_camila_marco_computadora'">
+                <iframe t-key="state.vista + props.campana.huella" class="o_camila_previa_correo"
+                        title="Vista previa del correo" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+                        t-att-srcdoc="props.campana.html" t-att-style="'height:' + state.alto + 'px'"
+                        t-on-load="ajustar"/>
+            </div>
+        </Dialog>
+    </t>
+
+    <!-- «Cambiar» y «Agregar producto»: el mismo estilo de «Armar combo» (buscador, chips y tarjetas). -->
+    <t t-name="dcasa_camila.Productos">
+        <Dialog title="props.titulo" size="'xl'" contentClass="'o_camila_dialogo o_camila_dialogo_productos'" footer="false">
+            <input type="search" class="form-control form-control-lg o_camila_buscar"
+                   placeholder="Busca por nombre o código" t-att-value="state.texto" t-on-input="alEscribir"
+                   aria-label="Buscar producto"/>
+            <div class="o_camila_filtros">
+                <select class="form-select form-select-sm o_camila_filtro_categoria" aria-label="Categoría"
+                        t-on-change="alElegirCategoria">
+                    <option value="">Todas las categorías</option>
+                    <option t-foreach="state.categorias" t-as="categoria" t-key="categoria.id" t-att-value="categoria.id"
+                            t-att-selected="state.filtros.categoria_id === categoria.id">
+                        <t t-esc="categoria.nombre"/> (<t t-esc="categoria.n"/>)
+                    </option>
+                </select>
+                <button type="button" class="o_camila_chip o_camila_filtro_tienda" t-att-class="{ o_activa: state.filtros.en_tienda }"
+                        t-att-aria-pressed="state.filtros.en_tienda ? 'true' : 'false'"
+                        t-on-click="() => this.cambiarFiltro('en_tienda', !state.filtros.en_tienda)">En tienda</button>
+                <button type="button" class="o_camila_chip o_camila_filtro_foto" t-att-class="{ o_activa: state.filtros.con_foto }"
+                        t-att-aria-pressed="state.filtros.con_foto ? 'true' : 'false'"
+                        t-on-click="() => this.cambiarFiltro('con_foto', !state.filtros.con_foto)">Con foto</button>
+                <button type="button" class="o_camila_chip o_camila_filtro_publicado" t-att-class="{ o_activa: state.filtros.publicado }"
+                        t-att-aria-pressed="state.filtros.publicado ? 'true' : 'false'"
+                        t-on-click="() => this.cambiarFiltro('publicado', !state.filtros.publicado)">Publicado</button>
+            </div>
+            <p t-if="state.sugeridos" class="o_camila_nota_sugeridos">Camila los escogió para tu idea. Toca uno para agregarlo,
+                o busca otro.</p>
+            <p t-if="!soloOfrecibles" class="o_camila_nota_sugeridos">Con los filtros quitados ves también lo que no se puede
+                ofrecer (agotado, sin foto o sin publicar): solo se agregan los que están en tienda, con foto y publicados.</p>
+            <div t-if="state.error" class="alert alert-danger" role="alert" t-esc="state.error"/>
+            <p t-if="!state.buscando and !state.productos.length" class="o_camila_busqueda_vacia">
+                No encontramos productos con eso. Prueba con otra palabra o con el código.
+            </p>
+            <div class="o_camila_rejilla">
+                <button t-foreach="state.productos" t-as="producto" t-key="producto.id" type="button"
+                        class="o_camila_tarjeta" t-att-class="{ o_no_se_puede: !producto.elegible, o_ya_esta: yaEsta(producto) }"
+                        t-att-disabled="!producto.elegible or yaEsta(producto)" t-on-click="() => this.elegir(producto)">
+                    <span class="o_camila_tarjeta_foto">
+                        <img t-att-src="producto.miniatura" t-att-alt="producto.nombre" loading="lazy"/>
+                    </span>
+                    <span class="o_camila_tarjeta_nombre" t-esc="producto.nombre"/>
+                    <span class="o_camila_tarjeta_categoria" t-esc="producto.categoria"/>
+                    <span t-if="producto.precio" class="o_camila_tarjeta_precio">
+                        <t t-esc="producto.precio"/><small t-if="producto.mas_itbms"> + ITBMS</small>
+                    </span>
+                    <span class="o_camila_tarjeta_existencias" t-att-class="{ o_agotado: !producto.existencias }">
+                        <t t-esc="producto.existencias"/> en existencia
+                    </span>
+                    <span t-if="!producto.elegible" class="o_camila_tarjeta_motivo" t-esc="producto.motivo"/>
+                    <span t-elif="yaEsta(producto)" class="o_camila_tarjeta_motivo">Ya está en la campaña</span>
+                </button>
+            </div>
+        </Dialog>
+    </t>
+
+    <!-- «Nueva campaña»: de dónde salen los productos y, si es desde una idea, la idea. -->
+    <t t-name="dcasa_camila.Nueva">
+        <Dialog title="'Nueva campaña'" size="'lg'" contentClass="'o_camila_dialogo o_camila_dialogo_nueva'">
+            <p class="o_camila_nueva_ayuda">Camila arma un borrador nuevo (nunca envía): escoge los productos que hay en tienda,
+                con foto y publicados, y escribe el texto. Después lo revisas y eliges a quién va.</p>
+            <div class="o_camila_temas" role="radiogroup" aria-label="De dónde">
+                <button t-foreach="props.temas" t-as="tema" t-key="tema.clave" type="button" role="radio"
+                        class="o_camila_tema" t-att-class="{ o_activa: state.tema === tema.clave }"
+                        t-att-aria-checked="state.tema === tema.clave ? 'true' : 'false'" t-att-data-tema="tema.clave"
+                        t-on-click="() => this.elegirTema(tema.clave)" t-esc="tema.nombre"/>
+            </div>
+            <div t-if="state.tema === 'idea'" class="o_camila_nueva_idea">
+                <label class="o_camila_etiqueta" for="o_camila_nueva_idea">¿Qué quieres contar?</label>
+                <textarea id="o_camila_nueva_idea" class="form-control" rows="3" maxlength="400"
+                          placeholder="Por ejemplo: todo para dormir mejor, camas y colchones para estrenar"
+                          t-model="state.idea"/>
+                <p class="text-muted small">Camila sugiere los productos para tu idea y escribe el texto con ella.</p>
+            </div>
+            <t t-set-slot="footer">
+                <button type="button" class="btn btn-primary o_camila_nueva_crear"
+                        t-att-disabled="state.trabajando or (state.tema === 'idea' and !state.idea.trim())" t-on-click="crear">
+                    <t t-if="state.trabajando"><i class="fa fa-circle-o-notch fa-spin me-1" aria-hidden="true"/>Camila está armando…</t>
+                    <t t-else="">Armar la campaña</t>
+                </button>
+                <button type="button" class="btn btn-secondary" t-on-click="props.close">Cancelar</button>
+            </t>
+        </Dialog>
+    </t>
+
+    <!-- El tablero de Marketing: «Crear campaña con estos» en cada sección (abre Camila con el borrador nuevo). -->
+    <t t-name="dcasa_camila.MarketingCrearCampana" t-inherit="dcasa_marketing.Marketing" t-inherit-mode="extension">
+        <xpath expr="//section[@data-seccion='stock']/h2" position="after">
+            <button t-if="datos.stock.mas.length" type="button" class="btn btn-sm btn-secondary o_camila_desde_marketing"
+                    data-tema="stock" t-on-click="() => this.crearCampanaCamila('stock', datos.stock.mas)">
+                <i class="fa fa-envelope-o me-1" aria-hidden="true"/>Crear campaña con los de más stock
+            </button>
+        </xpath>
+        <xpath expr="//section[@data-seccion='vendidos']/h2" position="after">
+            <button t-if="datos.mas_vendidos.length" type="button" class="btn btn-sm btn-secondary o_camila_desde_marketing"
+                    data-tema="vendidos" t-on-click="() => this.crearCampanaCamila('vendidos', datos.mas_vendidos)">
+                <i class="fa fa-envelope-o me-1" aria-hidden="true"/>Crear campaña con estos
+            </button>
+        </xpath>
+        <xpath expr="//section[@data-seccion='movimiento']/h2" position="after">
+            <button t-if="datos.mas_movimiento.length" type="button" class="btn btn-sm btn-secondary o_camila_desde_marketing"
+                    data-tema="movimiento" t-on-click="() => this.crearCampanaCamila('movimiento', datos.mas_movimiento)">
+                <i class="fa fa-envelope-o me-1" aria-hidden="true"/>Crear campaña con estos
+            </button>
+        </xpath>
+        <xpath expr="//section[@data-seccion='quietos']/h2" position="after">
+            <button t-if="datos.quietos.length" type="button" class="btn btn-sm btn-secondary o_camila_desde_marketing"
+                    data-tema="quietos" t-on-click="() => this.crearCampanaCamila('quietos', datos.quietos)">
+                <i class="fa fa-envelope-o me-1" aria-hidden="true"/>Crear campaña con estos
+            </button>
+        </xpath>
     </t>
 
 </templates>

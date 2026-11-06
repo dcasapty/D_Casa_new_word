@@ -129,12 +129,17 @@ class TestArmar(CamilaComun):
         ruta = campana.linea_ids[0].imagen.removeprefix('https://tienda.example.com')
         self.assertTrue(ruta.startswith('/dcasa/img/'))
 
-    def test_un_solo_borrador_abierto_y_volver_a_armar_lo_reemplaza(self):
+    def test_varias_abiertas_y_volver_a_armar_rearma_la_misma(self):
+        """Etapa 2 (decisión de la dueña): varias campañas abiertas a la vez, para grupos distintos."""
         primero = self.armar()['campana']['id']
         segundo = self.armar()['campana']['id']
-        self.assertEqual(primero, segundo)
-        self.assertEqual(self.env['dcasa.camila.campana'].search_count([('estado', 'in', ('borrador', 'aprobada'))]),
-                         1)
+        self.assertNotEqual(primero, segundo)
+        panel = self.Camila.with_user(self.marketing).panel(primero)
+        self.assertEqual({c['id'] for c in panel['abiertas']}, {primero, segundo})
+        self.assertEqual(panel['campana']['id'], primero)
+        otra_vez = self.Camila.with_user(self.marketing).armar(primero)
+        self.assertEqual(otra_vez['campana']['id'], primero, '«Volver a armar» rearma la misma')
+        self.assertEqual(len(otra_vez['abiertas']), 2)
 
     def test_editar_pasa_por_la_revision_y_los_precios_los_pone_odoo(self):
         datos = self.armar()
@@ -158,9 +163,9 @@ class TestArmar(CamilaComun):
     def test_buscar_productos_solo_trae_lo_que_se_puede_ofrecer(self):
         self.producto('ZZCM MESA AGOTADA', stock=0)
         mesa = self.producto('ZZCM MESA LISTA', precio=80.0)
-        encontrados = self.Camila.with_user(self.marketing).buscar_productos('ZZCM MESA')
+        encontrados = self.Camila.with_user(self.marketing).buscar_productos('ZZCM MESA')['productos']
         self.assertEqual([p['id'] for p in encontrados], [mesa.id])
-        self.assertEqual(encontrados[0]['precio'], '$80.00')
+        self.assertEqual((encontrados[0]['precio'], encontrados[0]['existencias']), ('$80.00', 3))
 
     def test_solo_el_equipo_de_marketing(self):
         for metodo, argumentos in (('panel', []), ('armar', []), ('buscar_productos', ['x']),
@@ -199,10 +204,17 @@ class TestCron(CamilaComun):
         with patch.dict('os.environ', {'DCASA_ENTORNO': 'staging'}):
             self.assertFalse(self.Camila._cron_sincronizar())
         self.assertFalse(self.resend.llamadas, 'Staging nunca habla con Resend')
+        # Las bajas van y vienen: la de Resend (Ana, desde el enlace de una campaña) queda en Odoo; la de Odoo (Beto,
+        # en su ficha) sube a Resend. Los contactos ya no se suben aquí: cada campaña sube los suyos al enviar.
+        self.permiso(self.beto)
+        self.resend.contacto('ana.zzcm@example.com', suscrito=False)
+        self.resend.contacto('beto.zzcm@example.com')
+        self.beto.with_user(self.vendedora).action_dcasa_promos_baja()
         self.assertTrue(self.Camila._cron_sincronizar())
-        segmento = self.env['ir.config_parameter'].sudo().get_param('dcasa_camila.segmento_id')
-        self.assertEqual(self.resend.en_segmento(segmento), {'ana.zzcm@example.com': False},
-                         'Solo el correo de quien dijo que sí')
+        self.assertEqual((self.ana.dcasa_promos_estado, self.ana.dcasa_promos_baja_origen), ('baja', 'correo'))
+        self.assertTrue(self.resend.contactos['beto.zzcm@example.com']['unsubscribed'])
+        self.assertFalse(self.env['ir.config_parameter'].sudo().get_param('dcasa_camila.segmento_id'),
+                         'El segmento de envío solo se usa al enviar')
 
 
 @tagged('post_install', '-at_install')
@@ -245,10 +257,15 @@ class TestEnviar(CamilaComun):
     def test_la_baja_de_odoo_sube_a_resend(self):
         campana = self.preparar()
         self.enviar(campana)
-        segmento = self.env['ir.config_parameter'].sudo().get_param('dcasa_camila.segmento_id')
         self.beto.with_user(self.vendedora).action_dcasa_promos_baja()
         self.Camila._sincronizar()
         self.assertTrue(self.resend.contactos['beto.zzcm@example.com']['unsubscribed'])
+        # La campaña siguiente deja el segmento sin él (y la baja de Resend vale para todas las campañas).
+        self.env['dcasa.camila.destinatario'].sudo().search([]).write(
+            {'enviada_en': fields.Datetime.now() - timedelta(days=20)})
+        otra = self.armar()['campana']
+        self.assertTrue(self.enviar(otra)['ok'])
+        segmento = self.env['ir.config_parameter'].sudo().get_param('dcasa_camila.segmento_id')
         self.assertNotIn('beto.zzcm@example.com', self.resend.en_segmento(segmento))
 
     def test_staging_nunca_envia(self):
@@ -267,15 +284,24 @@ class TestEnviar(CamilaComun):
             self.enviar(campana)
         self.assertFalse(self.resend.llamadas)
 
-    def test_una_cada_15_dias(self):
+    def test_una_cada_15_dias_por_cliente(self):
+        """Etapa 2: el tope es POR CLIENTE (por correo), no global: otra campaña puede salir, pero no a quien ya le
+        llegó una en los últimos 15 días (días de Panamá)."""
         campana = self.preparar()
         self.enviar(campana)
         otra = self.armar()['campana']
-        with self.assertRaisesRegex(UserError, 'la próxima puede salir desde el'):
+        with self.assertRaisesRegex(UserError, 'Nadie de este público puede recibirla ahora'):
             self.enviar(otra)
-        self.env['dcasa.camila.campana'].browse(campana['id']).sudo().write(
+        self.permiso(self.carla)
+        otra = self.Camila.with_user(self.marketing).panel(otra['id'])['campana']
+        self.assertEqual(otra['publico']['total'], 1)
+        self.assertTrue(self.enviar(otra)['ok'])
+        broadcast = self.resend.broadcasts[self.env['dcasa.camila.campana'].browse(otra['id']).resend_broadcast_id]
+        self.assertEqual(broadcast['enviado_a'], ['carla.zzcm@example.com'], 'Solo a quien no recibió otra')
+        self.env['dcasa.camila.destinatario'].sudo().search([]).write(
             {'enviada_en': fields.Datetime.now() - timedelta(days=15)})
-        self.assertTrue(self.enviar(self.Camila.with_user(self.marketing).panel()['campana'])['ok'])
+        tercera = self.armar()['campana']
+        self.assertEqual(tercera['publico']['total'], 3, 'A los 15 días ya puede llegarles otra')
 
     def test_sin_nadie_con_permiso_no_sale(self):
         self.con_clave()

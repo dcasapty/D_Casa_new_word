@@ -6,7 +6,9 @@ Revisado en la documentación oficial el 2026-11-06 (``https://resend.com/docs/l
   access»). Resend solo tiene dos permisos: ``sending_access`` (solo manda correos; en contactos y broadcasts contesta
   401 ``restricted_api_key``) y ``full_access``. Para campañas hace falta **Full access**.
 * **Segmento** («Audiences are now called Segments»): ``GET /segments`` y ``POST /segments {name}``;
-  ``GET /segments/{id}/contacts?limit=100&after=…`` (``{data: [{id, email, unsubscribed}], has_more}``).
+  ``GET /segments/{id}/contacts?limit=100&after=…`` (``{data: [{id, email, unsubscribed}], has_more}``). El plan
+  gratis de marketing tiene **3 segmentos** (el Pro, ilimitados; revisado el 2026-11-06): Camila usa uno solo, reusado.
+* **Todos los contactos**: ``GET /contacts?limit=100&after=…`` («Show all contacts»; ``segment_id`` opcional).
 * **Contactos**: ``POST /contacts {email, first_name, segments: [{id}]}``; ``POST /contacts/{email}/segments/{id}``
   (agregar uno que ya existe); ``DELETE /contacts/{id o email}/segments/{id}`` (sacarlo); ``PATCH /contacts/{id o
   email} {unsubscribed: true}`` (la baja vale para todas las campañas). «Either id or email must be provided»: Camila
@@ -151,6 +153,11 @@ class ClienteCampanas:
     def contactos_del_segmento(self, segmento_id):
         """``[{id, email, unsubscribed}]`` de todo el segmento."""
         return self._paginas(f'/segments/{quote(segmento_id)}/contacts')
+
+    def contactos(self):
+        """``[{id, email, unsubscribed}]`` de TODOS los contactos de la cuenta (``GET /contacts``: «Show all
+        contacts»): de aquí se leen las bajas, estén o no en el segmento de envío."""
+        return self._paginas('/contacts')
 
     # -- Contactos ----------------------------------------------------------
 

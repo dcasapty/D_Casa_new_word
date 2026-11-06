@@ -290,8 +290,8 @@ Entrada: `env.DCASA.fetch("https://dcasa/dcasa/juan/v1/…")` por **service bind
 
 | Ruta | Cuerpo | Respuesta 200 |
 |---|---|---|
-| `POST /mensaje` | `canal, id_externo, id_mensaje, direccion, autor, texto?, adjuntos?[{tipo, url \| base64, nombre, mime, sensible?}], ts?, nombre?, celular?` | `{ok, conversacion_id, partner_id, estado, bot_activo, pausada_hasta, dentro_de_horario, nota_para_el_bot, adjuntos?[{id, nombre, sensible}]}` |
-| `GET /estado?canal=&id_externo=` | | `{ok, estado, bot_activo, pausada_hasta, dentro_de_horario, nota_para_el_bot}` (sin conversación: los valores de los ajustes) |
+| `POST /mensaje` | `canal, id_externo, id_mensaje, direccion, autor, texto?, adjuntos?[{tipo, url \| base64, nombre, mime, sensible?}], ts?, nombre?, celular?` | `{ok, conversacion_id, partner_id, estado, bot_activo, pausada_hasta, dentro_de_horario, nota_para_el_bot, campana_correo?, adjuntos?[{id, nombre, sensible}]}` |
+| `GET /estado?canal=&id_externo=` | | `{ok, estado, bot_activo, pausada_hasta, dentro_de_horario, nota_para_el_bot, campana_correo?}` (sin conversación: los valores de los ajustes) |
 | `GET /config` | | ver abajo |
 | `GET /herramientas` | | `{ok, herramientas:[{nombre, descripcion, parametros, name, description, input_schema}]}`: 13 herramientas, con las claves del contrato **y** las del formato de Anthropic |
 | `POST /herramienta` | `{nombre, argumentos, conversacion_id}` | `{ok:true, resultado:{…}}` |
@@ -303,6 +303,12 @@ Entrada: `env.DCASA.fetch("https://dcasa/dcasa/juan/v1/…")` por **service bind
 - `nota_para_el_bot`: lo que una vendedora le dejó dicho al devolver la conversación (hasta 500 letras), o `null`. **El Worker la lee
   de `/mensaje` y `/estado` (y de `POST /odoo/estado`) y la pone en el contexto del chat** como un dato; Odoo la borra cuando
   alguien toma la conversación y el Worker también.
+- `campana_correo` (2026-11-06, `dcasa_camila`, decisión de la dueña): si el cliente llegó por una campaña de correo de
+  novedades en los últimos 3 días, el texto de Odoo con el asunto, cuándo le salió y los productos que llevaba (sin
+  precios, hasta 600 letras). Si no, la clave no va. **El Worker la guarda con el resto del estado de cada respuesta**
+  (sin ella, la borra) y la pone en el contexto del chat como un dato de Odoo, no una orden: Juan reconoce el correo
+  con naturalidad, pregunta qué le interesó, no repite el código «DCN-…» y los precios los da la herramienta de
+  siempre. Detalle: [CAMILA.md](CAMILA.md) §3.9.
 - `adjuntos[].url`: si es `null` (el Worker no tiene `URL_PUBLICA`), el mensaje **se guarda igual** y el adjunto cuenta como
   «no se pudo traer» (`adjuntos_fallidos`); antes se rechazaba todo el mensaje con 400.
 - `POST /herramienta` con `pasar_a_vendedora` devuelve `{texto_para_el_cliente, dentro_de_horario, urgente}`: **el texto que el bot

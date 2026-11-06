@@ -25,7 +25,10 @@ ordénalas arrastrando (en el celular, deja el dedo un momento sobre la foto y m
 En la pestaña **Ventas** del producto está el mismo acceso: **Fotos del producto**.
 
 **Camila** (desde el 2026-11-06, *Marketing › Camila*): la campaña de correo de novedades que arma Camila y aprueba una
-persona del equipo; la app tiene arriba **Tablero** (lo de siempre) y **Camila**. Ver [CAMILA.md](CAMILA.md).
+persona del equipo; la app tiene arriba **Tablero** (lo de siempre) y **Camila**. Desde la etapa 2 (2026-11-06), en
+Más stock, Más vendidos, Mayor movimiento y Más quietos del tablero hay un botón **«Crear campaña con estos»**: abre
+Camila con un borrador nuevo de esos productos (solo los que están en tienda, con foto, con precio y publicados). Ver
+[CAMILA.md](CAMILA.md).
 
 **Marketing** (app propia y acceso en el Inicio; es de Gerencia, administradores y el rol «Marketing»). Arriba eliges **Semana**, **15 días** o **Mes** y, si
 quieres, una **categoría**; todo se filtra con eso:

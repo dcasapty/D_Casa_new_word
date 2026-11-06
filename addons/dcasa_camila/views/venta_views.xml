@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- El origen «Correo» (etapa 2): la cotización de un cliente que llegó al chat por una campaña de correo dice de
+         cuál. No cambia el «Origen» (chatbot, web o vendedora), que dice quién la armó. -->
+    <record id="sale_order_form_dcasa_camila" model="ir.ui.view">
+        <field name="name">sale.order.form.dcasa.camila</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//group[@name='sale_header']//field[@name='partner_id']" position="after">
+                <field name="dcasa_camila_correo" readonly="1" invisible="not dcasa_camila_correo"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="sale_order_search_dcasa_camila" model="ir.ui.view">
+        <field name="name">sale.order.search.dcasa.camila</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_sales_order_filter"/>
+        <field name="arch" type="xml">
+            <filter name="my_sale_orders_filter" position="after">
+                <filter name="dcasa_camila_vino_del_correo" string="Vino del correo"
+                        domain="[('dcasa_camila_correo', '!=', False)]"/>
+            </filter>
+        </field>
+    </record>
+</odoo>
