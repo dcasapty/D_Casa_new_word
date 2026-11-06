@@ -32,9 +32,9 @@ class BrianHerramientasEnvios(models.AbstractModel):
 
     @herramienta(
         nombre='cotizar_envio',
-        descripcion='Cuánto cuesta un envío desde la tienda (La Chorrera): busca el lugar como lo dice el cliente '
-                    '(barrio, urbanización, PH, corregimiento o un lugar conocido) o recibe los km por carretera. '
-                    'Devuelve el precio con su desglose y dice si la tarifa está aprobada o en revisión.',
+        descripcion='Cuánto cuesta un envío desde la tienda: busca el lugar como lo dice el cliente (barrio, PH, '
+                    'corregimiento o lugar conocido) o recibe los km por carretera. Da el precio con su desglose y '
+                    'si la tarifa está aprobada o en revisión.',
         parametros={
             'lugar': {'type': 'string', 'description': 'A dónde va, como lo escribe el cliente: «Villa Lucre», '
                                                        '«cerca del hospital de Chorrera», «urb. Costa Verde».'},
