@@ -213,8 +213,8 @@ class DcasaCamila(models.AbstractModel):
         """Descarta el borrador (queda en el historial como cancelado). Uno que ya está en Resend no se descarta."""
         self._exigir()
         campana = self._bloquear(campana_id)
-        if campana.estado not in ABIERTAS or campana.resend_broadcast_id:
-            raise UserError(self.env._('Esa campaña ya no se puede descartar.'))
+        if campana.estado not in ABIERTAS or campana.resend_broadcast_id or campana.estado == 'aprobada':
+            raise UserError(self.env._('Esa campaña ya no se puede descartar (ya salió o se está enviando).'))
         campana.write({'estado': 'cancelada', 'cancelada_por': self.env.uid})
         return self.panel()
 

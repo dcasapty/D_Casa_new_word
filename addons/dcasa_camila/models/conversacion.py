@@ -7,6 +7,8 @@ import logging
 
 from odoo import models
 
+from . import reglas as R
+
 _logger = logging.getLogger(__name__)
 
 
@@ -15,7 +17,8 @@ class DcasaConversacion(models.Model):
 
     def _despues_de_mensaje(self, mensaje):
         super()._despues_de_mensaje(mensaje)
-        if mensaje.autor != 'cliente' or mensaje.tipo != 'mensaje' or not mensaje.texto:
+        # Primero la marca en el texto (sin tocar la base): a los demás mensajes no se les suma ni una consulta.
+        if mensaje.autor != 'cliente' or mensaje.tipo != 'mensaje' or not R.campana_de_la_marca(mensaje.texto):
             return
         try:
             with self.env.cr.savepoint():

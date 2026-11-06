@@ -334,6 +334,11 @@ class TestEnviar(CamilaComun):
         self.assertEqual(self.env['dcasa.camila.campana'].browse(campana['id']).estado, 'cancelada')
         with self.assertRaises(UserError):
             self.Camila.with_user(self.marketing).guardar(campana['id'], {'asunto': 'Hola'})
+        otra = self.armar()['campana']
+        self.env['dcasa.camila.campana'].browse(otra['id']).sudo().write(
+            {'estado': 'aprobada', 'enviando_desde': fields.Datetime.now()})
+        with self.assertRaisesRegex(UserError, 'se está enviando'):
+            self.Camila.with_user(self.marketing).descartar(otra['id'])
 
     def test_la_ia_no_ve_datos_de_clientes(self):
         self.permiso(self.ana)

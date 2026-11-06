@@ -18,6 +18,8 @@ class DcasaCorreo(models.AbstractModel):
     def _contexto_layout(self, registro=None, message=None, company=None):
         contexto = super()._contexto_layout(registro, message, company)
         contexto['novedades'] = None
+        if getattr(registro, '_name', None) not in ('account.move', 'res.partner'):
+            return contexto   # solo la factura y la bienvenida llevan la línea
         try:
             with self.env.cr.savepoint():
                 contexto['novedades'] = self.env['dcasa.camila'].sudo()._enlace_si(registro)
