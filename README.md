@@ -140,7 +140,7 @@ botones (*Sitio web › Configuración › Ajustes*).
 |---|---|
 | ![Factura](docs/img/factura.jpg) | ![Socios](docs/img/socios-cuenta-movil.jpg) |
 
-Diseño del sitio: [docs/REDISENO.md](docs/REDISENO.md). Para ver el sitio con datos de demostración sin tocar ningún
+Diseño del sitio: [docs/REDISENO.md](docs/historico/REDISENO.md). Para ver el sitio con datos de demostración sin tocar ningún
 entorno: *Actions › Previsualización › Run workflow* (túnel temporal de hasta 60 minutos).
 
 ## Licencia

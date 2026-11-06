@@ -1,7 +1,10 @@
 # Rediseño del sitio D'CASA (v2)
 
+> **Archivado el 2026-11-06** en `docs/historico/`: se conserva tal cual, como registro; lo vigente está en el
+> [índice de la documentación](../README.md).
+
 > **Registro histórico (septiembre de 2026).** Es el diagnóstico y el diseño con los que se construyó el sitio actual.
-> El sitio vigente se describe en [OPERACION.md](OPERACION.md) y se mantiene desde `addons/website_dcasa`.
+> El sitio vigente se describe en [OPERACION.md](../OPERACION.md) y se mantiene desde `addons/website_dcasa`.
 
 ## Diagnóstico de la v1
 
@@ -282,7 +285,7 @@ Unos 90 hallazgos. Lo corregido:
 - La píldora de /socios en **todas** las páginas; portada **sin velo** (foto con sus colores y
   texto en placa navy); cabeceras como /socios en legales y cuenta; fotos de producto en 3:4.
 - Detalle, regresiones con su commit de origen, métricas y capturas:
-  [`docs/auditoria/ronda6/diseno.md`](auditoria/ronda6/diseno.md).
+  [`docs/auditoria/ronda6/diseno.md`](../auditoria/ronda6/diseno.md).
 
 ## Ronda 7 (pedido de la dueña: celular sin movimientos raros y avisos de «cargando»)
 

@@ -119,7 +119,7 @@ le hablaron de Profit): en Compras › Reponer, por producto, el **ritmo de vent
 meses, p. ej. 5, elegible), **en cuánto se agota** con la existencia y lo pedido, el **tiempo de llegada** del
 proveedor (el campo de días de entrega del precio de proveedor de Odoo, que llenan ellos; nunca uno inventado) y
 **cuánto pedir** para cubrir la llegada más los meses de reserva que ellos elijan; con aviso de lo que hay que pedir
-ya; (7) el traslado del dominio, con la puerta `/master` obligatoria ese día ([TRASLADO_DOMINIO.md](TRASLADO_DOMINIO.md)).
+ya; (7) el traslado del dominio, con la puerta `/master` obligatoria ese día ([TRASLADO_DOMINIO.md](historico/TRASLADO_DOMINIO.md)).
 Lo de abajo (18 oct) queda como historia: K1, cámara, Reponer y vendedoras ya están hechos.
 
 **Estado al 2026-10-18:** la tanda 2 (Inicio de Gerencia sobre facturas + reglas contables de la gerencia y permisos
@@ -142,7 +142,7 @@ captura del video vivo (Escáner › Contar, y la cámara de los campos de códi
 los artículos vendidos para hacer reposiciones con el proveedor de manera más acertada»): una pantalla «Reponer» para
 Gerencia con, por producto y por proveedor, lo vendido en un periodo (con la misma base del Inicio), lo que hay hoy en
 existencia y lo pedido que aún no llega; exportable a Excel y agrupable por proveedor, y que Brian la diga
-(«¿qué tengo que reponerle a X?»). Sin cifras inventadas: la sugerencia sale solo de esos datos; (8) el traslado del dominio, con la puerta `/master` obligatoria ese día ([TRASLADO_DOMINIO.md](TRASLADO_DOMINIO.md)).
+(«¿qué tengo que reponerle a X?»). Sin cifras inventadas: la sugerencia sale solo de esos datos; (8) el traslado del dominio, con la puerta `/master` obligatoria ese día ([TRASLADO_DOMINIO.md](historico/TRASLADO_DOMINIO.md)).
 
 **Estado al 2026-10-17, noche:** en producción la tanda 1 (Desplegar 17: abonos, Mi cuenta, contactos, comparador,
 correos apagados, tienda) y la barra del celular más el menú con esquinas suaves (Desplegar 18, PR #54). Orden de lo
@@ -277,7 +277,7 @@ Cerrados: #11, #13 y #14 (códigos de barras, conteo con lector, pantalla de bod
 
 ## Pendientes viejos que siguen en pie
 
-- **#92** (antes de traspasar el dominio): «Iniciar sesión» de la web ya lleva a Mi cuenta (2026-10-18, rama `master-puerta`). `/master` en producción: espera que la dueña revise la aplicación de Access y `DCASA_ACCESS_AUD` ([PUERTA_MASTER.md](PUERTA_MASTER.md)); `/master` ya dice el motivo. Traslado: [TRASLADO_DOMINIO.md](TRASLADO_DOMINIO.md).
+- **#92** (antes de traspasar el dominio): «Iniciar sesión» de la web ya lleva a Mi cuenta (2026-10-18, rama `master-puerta`). `/master` en producción: espera que la dueña revise la aplicación de Access y `DCASA_ACCESS_AUD` ([PUERTA_MASTER.md](PUERTA_MASTER.md)); `/master` ya dice el motivo. Traslado: [TRASLADO_DOMINIO.md](historico/TRASLADO_DOMINIO.md).
 - ~~**#97**: por qué el primer despliegue de una versión deja la base sin actualizar.~~ Resuelto el 2026-10-16
   (Desplegar 9): la imagen decide por la huella de su código, no por la variable `APP_VERSION`.
 - Estudio de envíos para La Chorrera: entregado; esperan sus respuestas (ver el documento en Claude Docs).

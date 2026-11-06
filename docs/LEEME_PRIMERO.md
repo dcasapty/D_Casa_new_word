@@ -89,7 +89,7 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 | Qué falló antes, por qué y cómo se arregló (incidentes, despliegues, CI, trampas) | [CONTEXTO_AGENTICO.md](CONTEXTO_AGENTICO.md) |
 | A qué versión segura volver si algo se rompe, y cómo | [VERSIONES_ESTABLES.md](VERSIONES_ESTABLES.md) |
 | Qué se pidió y en qué orden se hace | [PRIORIDADES.md](PRIORIDADES.md) |
-| Cómo está todo (nota y fallas) | [ESTADO.md](ESTADO.md) *(fecha en su primera línea; si es vieja, manda este archivo)* |
+| Cómo está todo (nota y fallas) | [ESTADO.md](historico/ESTADO.md) *(fecha en su primera línea; si es vieja, manda este archivo)* |
 | Qué le toca decidir o hacer a la dueña | [PENDIENTES_DUENA.md](PENDIENTES_DUENA.md) |
 | Trabajo de desarrollo abierto | Los issues del repositorio (`mcp__github__list_issues`) |
 | Cómo se despliega y se vuelve atrás | [DESPLIEGUE.md](DESPLIEGUE.md) y [OPERACION.md](OPERACION.md) |
@@ -418,7 +418,7 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 - **En producción** (14:43 Panamá, Desplegar 20, `app_version` `ccf7d187…`, imagen `sha256:2396e9f2…`; CI #200 verde y
   staging sano; PR #56 `c938c2e`): `/master` dice por qué no abre (403 con el motivo, 503 con lo que falta) y
   `/__edge/health` trae `puerta`; «Iniciar sesión» del checkout, carrito y registro lleva a Mi cuenta; guías
-  [PUERTA_MASTER.md](PUERTA_MASTER.md) y [TRASLADO_DOMINIO.md](TRASLADO_DOMINIO.md); documentación para **replicar el
+  [PUERTA_MASTER.md](PUERTA_MASTER.md) y [TRASLADO_DOMINIO.md](historico/TRASLADO_DOMINIO.md); documentación para **replicar el
   sistema** ([REPLICAR.md](REPLICAR.md), [ARQUITECTURA.md](ARQUITECTURA.md), [MODULOS.md](MODULOS.md), README nuevo) y
   **Meta apagada** (catálogo, píxel y Conversions API). La dueña volvió a pegar `DCASA_ACCESS_AUD` de producción;
   `DCASA_PUERTA_OBLIGATORIA` sigue en "0": **ella decide hacerla obligatoria el día del traslado del dominio** (puerta
@@ -443,7 +443,7 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 - **Rama `master-puerta` (sin subir):** diagnóstico de `/master` en producción (código, variables y nombres de secretos
   iguales a staging; la diferencia está en Access o en el AUD de `production`), `/master` dice por qué no abre y
   `/__edge/health` trae `puerta`; «Iniciar sesión» del checkout, el carrito y crear cuenta lleva a Mi cuenta; guías
-  [PUERTA_MASTER.md](PUERTA_MASTER.md) y [TRASLADO_DOMINIO.md](TRASLADO_DOMINIO.md). Sigue: capturas a la dueña →
+  [PUERTA_MASTER.md](PUERTA_MASTER.md) y [TRASLADO_DOMINIO.md](historico/TRASLADO_DOMINIO.md). Sigue: capturas a la dueña →
   staging → producción, y que ella revise Access y `DCASA_ACCESS_AUD`.
 - **Tanda 2 unida en la rama local `tanda2`** (para un solo despliegue): `d08ad28` (Ajustes sin diseñador) + el Inicio
   de Gerencia sobre facturas (`inicio-facturado`, aplicado con *cherry-pick* de `4e3ad43` y `252ebc0`: su base `0f370b8`

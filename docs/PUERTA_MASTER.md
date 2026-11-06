@@ -28,7 +28,7 @@ producción, cómo comprobarlo y cómo encender `DCASA_PUERTA_OBLIGATORIA`. El d
    llama «Master (staging)»). Ábrela con **Configure**.
 3. En **Public hostname** (o *Destinations*) tiene que estar:
    - **Dominio:** `dcasa.dcasapty.workers.dev` (la dirección de producción hoy; cuando se traslade el dominio se
-     **agrega** `dcasapty.com`, ver [TRASLADO_DOMINIO.md](TRASLADO_DOMINIO.md));
+     **agrega** `dcasapty.com`, ver [TRASLADO_DOMINIO.md](historico/TRASLADO_DOMINIO.md));
    - **Path:** `master`.
    Si dice `dcasapty.com` o `dcasa-staging…`, agrega la de producción y guarda. Una aplicación puede tener varias
    direcciones: su AUD no cambia.

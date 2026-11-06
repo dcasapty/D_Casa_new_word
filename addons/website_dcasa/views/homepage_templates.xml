@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <!-- ===================================================================
-         Portada D'CASA v2 (ver docs/REDISENO.md).
+         Portada D'CASA v2 (ver docs/historico/REDISENO.md).
 
          Los bloques .oe_structure con id son editables en Sitio web > Editar
          (textos, fotos, botones). Las categorías, los carruseles de productos y

@@ -11,6 +11,24 @@ Por qué es así (y no una base gestionada aparte): la opción con PostgreSQL en
 [auditoria/DECISION_Y_PLAN.md](auditoria/DECISION_Y_PLAN.md). Contrato entre el Worker y la imagen:
 [`edge/CONTRATO_CONTENEDOR.md`](../edge/CONTRATO_CONTENEDOR.md). Módulos de Odoo: [MODULOS.md](MODULOS.md).
 
+## Decisiones de fondo
+
+Vienen del plan inicial (archivado en [historico/PLAN.md](historico/PLAN.md)) y siguen vigentes:
+
+1. **Odoo 19.0 Community** como base. Va como **submódulo** en `vendor/odoo`: el código fuente es nuestro y no se edita;
+   todo cambio se hace con módulos en `addons/`. Así las actualizaciones de Odoo no pisan nuestro trabajo.
+2. **El sitio web vive dentro de Odoo** (Website + eCommerce) en lugar de Next.js: el catálogo, el stock, los precios y
+   los pedidos salen del mismo sistema que factura. El sitio se mantiene desde el código; el editor visual del panel
+   está limitado a propósito ([auditoria/ronda7/constructor-web.md](auditoria/ronda7/constructor-web.md)).
+3. **Cloudflare**: Worker delante (caché, seguridad, dominio) + **Container con Odoo y PostgreSQL adentro**, con
+   respaldo continuo a R2. El plan original preveía una base gestionada (Neon/Supabase); se descartó por costo
+   ([auditoria/DECISION_Y_PLAN.md](auditoria/DECISION_Y_PLAN.md)).
+4. **Pruebas obligatorias** en GitHub Actions: solo se despliega una imagen que pasó todas las pruebas, y a producción
+   solo a mano ([DESPLIEGUE.md](DESPLIEGUE.md)).
+5. **Odoo se queda como sistema de gestión** (contabilidad, facturación, inventario, CRM); no se reconstruye fuera de él.
+6. **ITBMS** (la dueña, 2026-10-01): los precios del catálogo son **sin ITBMS** y el 7 % se suma encima. La web
+   muestra «$39.99 + ITBMS»; carrito, cotización y factura muestran subtotal, ITBMS y total.
+
 ## 1. El dibujo
 
 ```mermaid

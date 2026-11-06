@@ -569,7 +569,7 @@ Para cortar el acceso: `/desvincular` en el chat, o *Brian → Telegram* → *De
 
 #### Conectar el Telegram de la gerencia (paso a paso, sin correo)
 
-Odoo **no tiene servidor de correo saliente** (`docs/PLAN.md`): ningún paso depende de un correo. **Brian tiene su propio bot**, distinto
+**Ningún paso depende de un correo** (el correo de Odoo por Resend solo manda lo de clientes: [CORREO.md](CORREO.md)). **Brian tiene su propio bot**, distinto
 del bot de Juan (el de los clientes): un bot solo tiene un destino y usar el de Juan le quitaría la conexión.
 
 1. **Crear el bot**: en Telegram, @BotFather › `/newbot` › nombre `Brian D'CASA` y un usuario que termine en `bot`. Copiar el

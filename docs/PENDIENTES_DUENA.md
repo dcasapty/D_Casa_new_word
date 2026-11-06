@@ -1,7 +1,7 @@
 # Pendientes de la dueña
 
 Lo que falta decidir, validar o hacer y no es trabajo de programación. Revisado el 2026-10-12. La evaluación de
-cómo está todo y qué atender primero está en [ESTADO.md](ESTADO.md); lo que es trabajo de desarrollo vive en los
+cómo está todo y qué atender primero está en [ESTADO.md](historico/ESTADO.md); lo que es trabajo de desarrollo vive en los
 [issues del repositorio](https://github.com/dcasapty/D_Casa_new_word/issues).
 
 ## Por prioridad
@@ -69,7 +69,7 @@ cómo está todo y qué atender primero está en [ESTADO.md](ESTADO.md); lo que 
     `production` (ya están los 10 obligatorios; faltan las variables de Brian si usa el mismo proveedor que staging); (c) antes de
     cargar datos reales, la puerta del equipo y el doble factor en producción (secretos propios, no los de staging); (d) lanzar;
     (e) cargar los datos del Odoo anterior el día del corte y hacer un conteo físico con el Escáner. Esta decisión es de la
-    dueña; no se lanza sin su visto bueno. Ver [ESTADO.md](ESTADO.md).
+    dueña; no se lanza sin su visto bueno. Ver [ESTADO.md](historico/ESTADO.md).
 17. **Ramas y propuestas viejas del repositorio (limpieza que necesita tu visto bueno).** Hay nueve ramas `respaldo/…` y la
     rama `claude/bold-volta-fsqq4c`, copias de seguridad de trabajos que ya están en la rama principal de trabajo; y tres
     propuestas automáticas de actualización de librerías (Dependabot: #3, #7 y #8) sin revisar. Borrar las ramas no pierde
@@ -105,7 +105,7 @@ cómo está todo y qué atender primero está en [ESTADO.md](ESTADO.md); lo que 
     Hoy el «Iniciar sesión» de la web lleva al panel administrativo; más adelante, por seguridad, no debe: los clientes entran
     solo por su cuenta en la web y el personal solo por `/master`. **2026-10-18:** los enlaces de la web ya llevan a Mi
     cuenta (rama `master-puerta`); lo que te toca para `/master` está en [PUERTA_MASTER.md](PUERTA_MASTER.md) (Access y
-    `DCASA_ACCESS_AUD` de producción) y el traslado en [TRASLADO_DOMINIO.md](TRASLADO_DOMINIO.md).
+    `DCASA_ACCESS_AUD` de producción) y el traslado en [TRASLADO_DOMINIO.md](historico/TRASLADO_DOMINIO.md).
 23. **«Cada vendedora ve solo sus documentos» (cuando salga a producción):** apenas quede el despliegue, y antes de abrir,
     darle el rol **Caja** al jefe administrativo (*Ajustes › Usuarios* › la persona › en «D'CASA» elegir «Caja»; o Brian:
     «ponle el rol cajero a …»). Sin Caja, quien cobra solo vería lo suyo; Gerencia puede hacerlo todo mientras tanto. Dos

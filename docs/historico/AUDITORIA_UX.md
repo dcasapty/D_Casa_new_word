@@ -1,7 +1,10 @@
 # Auditoría de experiencia de usuario e intuitividad — 100 problemas reales
 
+> **Archivado el 2026-11-06** en `docs/historico/`: se conserva tal cual, como registro; lo vigente está en el
+> [índice de la documentación](../README.md).
+
 > **Registro histórico (2026-09-29).** Muchos de estos hallazgos se atendieron en las rondas siguientes
-> ([auditoria/](auditoria/README.md)); no se revisó uno por uno cuáles quedan. Se conserva como evidencia de cómo estaba el sistema.
+> ([auditoria/](../auditoria/README.md)); no se revisó uno por uno cuáles quedan. Se conserva como evidencia de cómo estaba el sistema.
 
 Fecha: 29/09/2026 · Base local con el catálogo real (199 productos) · Odoo 19.
 

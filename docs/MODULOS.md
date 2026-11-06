@@ -31,7 +31,7 @@ pero sin efecto hasta que alguien lo enciende.
 | `dcasa_abonos` | Hoja «Condiciones de abono» (copia cliente y copia empresa) | invoice | — | No | — |
 | `dcasa_socios` | Programa de puntos y referidos, y programa de vendedores | base, invoice | — (las suyas están en `dcasa_brian`) | Socios no; canje de externos y efectivo **sí** | [SOCIOS.md](SOCIOS.md) · [VENDEDORES.md](VENDEDORES.md) |
 | `dcasa_mi_cuenta` | Panel del cliente en `/mi-cuenta` | website_dcasa, socios, invoice | — | No | [SOCIOS.md › Mi cuenta](SOCIOS.md#mi-cuenta) |
-| `website_dcasa` | Sitio y tienda, editados desde el código | base, socios, contactos | — | El constructor visual de Odoo, **sí** (a propósito) | [OPERACION.md](OPERACION.md) · [REDISENO.md](REDISENO.md) |
+| `website_dcasa` | Sitio y tienda, editados desde el código | base, socios, contactos | — | El constructor visual de Odoo, **sí** (a propósito) | [OPERACION.md](OPERACION.md) · [REDISENO.md](historico/REDISENO.md) |
 | `dcasa_catalogo` | Carga el catálogo (Excel + fotos) y el código público del producto | base, website_dcasa | — | No | [CATALOGO.md](CATALOGO.md) |
 | `dcasa_interfaz` | Inicio por rol, Estadísticas, íconos, sin avisos de Enterprise | base, catalogo | — | No | [auditoria/ronda6/panel.md](auditoria/ronda6/panel.md) |
 | `dcasa_contabilidad` | Reportes contables, bancos, conciliación, cierre de mes, presupuestos, cheques | base, invoice, interfaz | — | No | [CONTABILIDAD.md](CONTABILIDAD.md) |

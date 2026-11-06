@@ -13,7 +13,7 @@
 | A qué versión segura volver si algo se rompe, y cómo | [VERSIONES_ESTABLES.md](VERSIONES_ESTABLES.md) |
 | Saber qué sigue y en qué orden | [PRIORIDADES.md](PRIORIDADES.md) |
 | Saber qué falta decidir o hacer yo | [PENDIENTES_DUENA.md](PENDIENTES_DUENA.md) |
-| Saber cómo estaba todo el 11 de octubre, con nota y fallas (es una foto, no el estado de hoy) | [ESTADO.md](ESTADO.md) |
+| Saber cómo estaba todo el 11 de octubre, con nota y fallas (es una foto, no el estado de hoy) | [ESTADO.md](historico/ESTADO.md) |
 | Operar el sitio: costos, respaldos, qué hacer si se cae, cómo subir fotos | [OPERACION.md](OPERACION.md) |
 | Usar el Escáner de códigos de barras y las etiquetas | [BARRAS.md](BARRAS.md) |
 | Dar de baja mermas, daños, muestras y regalos; ver la bitácora de bodega; encender las alertas de bodega por Telegram | [EXISTENCIAS.md](EXISTENCIAS.md) |
@@ -37,7 +37,7 @@ Resumen de los 24 módulos (para qué, dependencias, modelos, menús, herramient
 
 | Módulo | Documento |
 |---|---|
-| `dcasa_base`, `dcasa_invoice` | [PLAN.md](PLAN.md) (decisiones) · roles y permisos: [PERMISOS.md](PERMISOS.md) · factura de muestra en [auditoria/ronda7/factura.md](auditoria/ronda7/factura.md) |
+| `dcasa_base`, `dcasa_invoice` | [PLAN.md](historico/PLAN.md) (decisiones) · roles y permisos: [PERMISOS.md](PERMISOS.md) · factura de muestra en [auditoria/ronda7/factura.md](auditoria/ronda7/factura.md) |
 | `dcasa_socios` | [SOCIOS.md](SOCIOS.md) · programa de vendedores: [VENDEDORES.md](VENDEDORES.md) |
 | `dcasa_mi_cuenta` | [SOCIOS.md › Mi cuenta](SOCIOS.md#mi-cuenta): el panel del cliente en `/mi-cuenta` (compras, lo que falta de cada abono, entregas, puntos y datos) |
 | `dcasa_contactos` | [CONTACTOS.md](CONTACTOS.md) |
@@ -61,7 +61,7 @@ Resumen de los 24 módulos (para qué, dependencias, modelos, menús, herramient
 | `puente-wa/` | [JUAN_PUENTE.md](JUAN_PUENTE.md) |
 | `dcasa_seguridad`, `dcasa_sesiones` | [SEGURIDAD_ACCESO.md](SEGURIDAD_ACCESO.md) |
 | `dcasa_adjuntos_r2`, `dcasa_tienda_borde`, `edge/`, `docker/` | [ARQUITECTURA.md](ARQUITECTURA.md) · [DESPLIEGUE.md](DESPLIEGUE.md) · [`edge/CONTRATO_CONTENEDOR.md`](../edge/CONTRATO_CONTENEDOR.md) |
-| `website_dcasa`, `dcasa_interfaz` | [REDISENO.md](REDISENO.md) · [auditoria/ronda6/panel.md](auditoria/ronda6/panel.md) |
+| `website_dcasa`, `dcasa_interfaz` | [REDISENO.md](historico/REDISENO.md) · [auditoria/ronda6/panel.md](auditoria/ronda6/panel.md) |
 
 ## Si programas u operas el sistema
 
@@ -72,7 +72,7 @@ Resumen de los 24 módulos (para qué, dependencias, modelos, menús, herramient
 3. [PERMISOS.md](PERMISOS.md): roles, interruptores, superficie RPC, privacidad y políticas del sitio.
 4. [DESPLIEGUE.md](DESPLIEGUE.md): CI/CD, secretos y variables, cómo se despliega y cómo se vuelve atrás.
 5. [REPLICAR.md](REPLICAR.md): instalar el sistema para otro negocio, de punta a punta.
-6. [PLAN.md](PLAN.md): decisiones y en qué va cada fase.
+6. [PLAN.md](historico/PLAN.md): decisiones y en qué va cada fase.
 7. Las reglas del repositorio están en [`CLAUDE.md`](../CLAUDE.md); la portada, en el [README](../README.md).
 
 ## Registros históricos (no se editan: se cierran con fecha)
@@ -83,8 +83,8 @@ cambió, la fuente de verdad es el documento vigente de arriba.
 | Documento | Qué es |
 |---|---|
 | [auditoria/](auditoria/README.md) | Las auditorías por rondas, la bitácora y la decisión de arquitectura. |
-| [AUDITORIA_UX.md](AUDITORIA_UX.md) | 100 problemas de experiencia de usuario encontrados el 2026-09-29 (la mayoría ya corregidos). |
-| [REDISENO.md](REDISENO.md) | Diagnóstico y diseño del sitio v2. |
+| [AUDITORIA_UX.md](historico/AUDITORIA_UX.md) | 100 problemas de experiencia de usuario encontrados el 2026-09-29 (la mayoría ya corregidos). |
+| [REDISENO.md](historico/REDISENO.md) | Diagnóstico y diseño del sitio v2. |
 | [JUAN_PANEL.md](JUAN_PANEL.md) | Especificación de la pantalla de Conversaciones, que ya está construida (ver [JUAN_ODOO.md](JUAN_ODOO.md)). |
 | [inventario-anterior-informe.md](inventario-anterior-informe.md) y su `.xlsx` | Informe de la carga del inventario del sistema anterior (lo genera `scripts/inventario_anterior_informe.py`). |
 | `gerencia/` | Informes en PDF para la dueña (estado del sistema, cómo ver y probar a Juan). La fuente del primero es `fuente-informe.html`. |
