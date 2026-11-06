@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!-- El origen «Correo» a la vista en la bandeja de Conversaciones: la pone Camila cuando el primer mensaje del
+         cliente trae la marca de una campaña (etapa 2). -->
+    <record id="etiqueta_vino_del_correo" model="dcasa.conversacion.etiqueta">
+        <field name="name">Vino del correo</field>
+        <field name="color">4</field>
+        <field name="sequence">50</field>
+    </record>
+</odoo>

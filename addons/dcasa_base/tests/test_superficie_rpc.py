@@ -1033,7 +1033,16 @@ LISTA_BLANCA = {
     ('dcasa_camila', 'dcasa.camila', 'armar'): CAMILA + ' Nunca envía.',
     ('dcasa_camila', 'dcasa.camila', 'guardar'):
         CAMILA + ' Solo un borrador; el texto pasa por la revisión de marca y los productos y precios los pone Odoo.',
-    ('dcasa_camila', 'dcasa.camila', 'buscar_productos'): CAMILA + ' Solo lee productos en tienda y publicados.',
+    ('dcasa_camila', 'dcasa.camila', 'buscar_productos'):
+        CAMILA + ' Solo lee productos de la tienda; marca cuáles se pueden poner (en tienda, publicados y con precio).',
+    ('dcasa_camila', 'dcasa.camila', 'nueva'):
+        CAMILA + ' Crea un borrador (nunca envía) con productos elegibles de Odoo; la idea es texto que va a la IA sin '
+                 'datos de clientes y el texto pasa por la revisión de marca.',
+    ('dcasa_camila', 'dcasa.camila', 'escribir'):
+        CAMILA + ' Solo un borrador editable; a la IA van solo datos del producto y la idea, el texto pasa por la '
+                 'revisión de marca y respeta los topes de gasto de IA del mes de Brian (de todos y por persona).',
+    ('dcasa_camila', 'dcasa.camila', 'sugerir_productos'):
+        CAMILA + ' Solo lee productos elegibles (en tienda y publicados); la IA recibe la idea y nombres de productos.',
     ('dcasa_camila', 'dcasa.camila', 'enviar_prueba'):
         CAMILA + ' La prueba sale solo al correo de quien la pide, por la política de siempre (clase «prueba»).',
     ('dcasa_camila', 'dcasa.camila', 'enviar'):
@@ -1053,6 +1062,12 @@ LISTA_BLANCA = {
         OVERRIDE + ' Solo IMPIDE escribir a mano (sin sudo) los campos del permiso de novedades por correo.',
     ('dcasa_camila', 'res.partner', 'create'):
         OVERRIDE + ' Solo IMPIDE crear una ficha con el permiso de novedades escrito a mano.',
+    ('dcasa_camila', 'sale.order', 'create'):
+        OVERRIDE + ' Quita «Vino del correo» de lo que manda quien crea y, después de crear, lo anota Camila (en un '
+                   'savepoint, sin poder frenar la cotización).',
+    ('dcasa_camila', 'sale.order', 'write'):
+        OVERRIDE + ' Solo QUITA «Vino del correo» de lo que se escribe (solo lo escribe Camila, con una marca que no '
+                   'viaja por RPC).',
 }
 
 # Modelos abstractos sin ACL: por RPC no se puede llamar NINGÚN método suyo (S-09).

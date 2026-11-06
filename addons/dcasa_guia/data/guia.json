@@ -1609,9 +1609,9 @@
     "productos"
    ],
    "grupo": "Correo",
-   "titulo": "Preparar y enviar la campaña de correo de novedades (Camila)",
-   "logras": "Camila arma el correo con productos que hay en tienda, con foto y publicados en la web, con el precio de hoy de la tienda en línea, y escribe el texto. Ves cómo le llega al cliente en el celular, cambias el asunto, el texto o los productos, te mandas una prueba y tocas «Enviar a N clientes». Solo les llega a los clientes que dijeron que sí.",
-   "nota": "Sale una campaña cada 15 días como mucho y solo desde producción. Para enviar hace falta la clave de campañas de Resend (la crea y la pega quien administra el sistema). Es del rol Marketing, de Gerencia y de los administradores.",
+   "titulo": "Preparar y enviar una campaña de correo de novedades (Camila)",
+   "logras": "Tocas «Nueva campaña» (desde una idea, lo nuevo, lo más vendido, lo quieto, lo que más hay o en blanco) y Camila arma el correo con productos que hay en tienda, con foto y publicados en la web, con el precio de hoy de la tienda en línea. La IA escribe con los datos reales de cada producto («Escribir con IA»); «Cambiar» abre una ventana para buscar otro producto. Eliges los botones (WhatsApp, la tienda en línea o los dos), a quién va con los chips (compraron, cotizaron, tibios, calientes…), miras «Previsualizar» en celular o computadora, te mandas una prueba y tocas «Enviar a N clientes». Solo les llega a los clientes que dijeron que sí.",
+   "nota": "A cada cliente le llega un correo de campaña cada 15 días como mucho (la pantalla dice cuántos quedan fuera y por qué) y solo sale desde producción. También se arma desde el tablero de Marketing con «Crear campaña con estos». Para enviar hace falta la clave de campañas de Resend (la crea y la pega quien administra el sistema). Es del rol Marketing, de Gerencia y de los administradores.",
    "destino": {
     "menu": "dcasa_camila.menu_camila"
    },
@@ -1626,7 +1626,10 @@
     "enviar correo a clientes",
     "promociones por correo",
     "resend",
-    "darse de baja"
+    "darse de baja",
+    "vino del correo",
+    "crear campana con estos",
+    "publico de la campana"
    ]
   },
   {

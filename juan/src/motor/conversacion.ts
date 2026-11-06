@@ -288,6 +288,9 @@ export class MotorConversacion {
     if (typeof r.dentro_de_horario === "boolean") this.kv.poner("odoo_dentro_horario", r.dentro_de_horario);
     // Odoo manda la nota de la vendedora en /mensaje y /estado (null = no hay); si el campo no viene, se conserva la que había.
     if ("nota_para_el_bot" in r) this.kv.poner("nota_vendedora", limpiarNota(r.nota_para_el_bot));
+    // La campaña de correo por la que llegó el cliente: Odoo la manda solo mientras importa (los primeros días). Aquí manda lo
+    // que diga cada respuesta: si no viene, no hay campaña (así no se queda pegada para siempre).
+    this.kv.poner("campana_correo", limpiarNota(r.campana_correo));
   }
 
   /** La pausa que pusimos nosotros (una persona acaba de escribir o Odoo acaba de avisar): es exacta, vale por su hora. */
@@ -1074,6 +1077,7 @@ export class MotorConversacion {
         presentacionEnviada: primera,
         dentroDeHorario: this.kv.texto("odoo_dentro_horario") !== null ? this.kv.bandera("odoo_dentro_horario") : undefined,
         notaDeLaVendedora: this.kv.texto("nota_vendedora") ?? undefined,
+        campanaDeCorreo: this.kv.texto("campana_correo") ?? undefined,
       }) + extra;
     const mensajes = this.mensajesParaElModelo(ids);
 

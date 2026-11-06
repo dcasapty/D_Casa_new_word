@@ -6,7 +6,9 @@ Revisado en la documentación oficial el 2026-11-06 (``https://resend.com/docs/l
   access»). Resend solo tiene dos permisos: ``sending_access`` (solo manda correos; en contactos y broadcasts contesta
   401 ``restricted_api_key``) y ``full_access``. Para campañas hace falta **Full access**.
 * **Segmento** («Audiences are now called Segments»): ``GET /segments`` y ``POST /segments {name}``;
-  ``GET /segments/{id}/contacts?limit=100&after=…`` (``{data: [{id, email, unsubscribed}], has_more}``).
+  ``GET /segments/{id}/contacts?limit=100&after=…`` (``{data: [{id, email, unsubscribed}], has_more}``). El plan
+  gratis de marketing tiene **3 segmentos** (el Pro, ilimitados; revisado el 2026-11-06): Camila usa uno solo, reusado.
+* **Todos los contactos**: ``GET /contacts?limit=100&after=…`` («Show all contacts»; ``segment_id`` opcional).
 * **Contactos**: ``POST /contacts {email, first_name, segments: [{id}]}``; ``POST /contacts/{email}/segments/{id}``
   (agregar uno que ya existe); ``DELETE /contacts/{id o email}/segments/{id}`` (sacarlo); ``PATCH /contacts/{id o
   email} {unsubscribed: true}`` (la baja vale para todas las campañas). «Either id or email must be provided»: Camila
@@ -40,6 +42,8 @@ ESPERA_MAXIMA = 5.0
 POR_PAGINA = 100
 MAX_PAGINAS = 200       # 20 000 contactos: más que el plan de D'CASA; corta un bucle si Resend repitiera páginas
 ESTADOS_YA_SALIO = ('scheduled', 'queued', 'sent')
+# Resend contesta 404: el broadcast no existe (p. ej. alguien borró el borrador en el panel de Resend).
+NO_EXISTE = 'no_existe'
 
 
 class ErrorResend(Exception):
@@ -152,6 +156,11 @@ class ClienteCampanas:
         """``[{id, email, unsubscribed}]`` de todo el segmento."""
         return self._paginas(f'/segments/{quote(segmento_id)}/contacts')
 
+    def contactos(self):
+        """``[{id, email, unsubscribed}]`` de TODOS los contactos de la cuenta (``GET /contacts``: «Show all
+        contacts»): de aquí se leen las bajas, estén o no en el segmento de envío."""
+        return self._paginas('/contacts')
+
     # -- Contactos ----------------------------------------------------------
 
     def agregar_contacto(self, correo, nombre, segmento_id):
@@ -200,7 +209,14 @@ class ClienteCampanas:
         return creado['id']
 
     def estado_broadcast(self, broadcast_id):
-        return (self._llamar('GET', f'/broadcasts/{quote(broadcast_id)}').get('status') or '').lower()
+        """El ``status`` del broadcast, o ``NO_EXISTE`` si Resend contesta 404 (lo borraron allá): no está
+        saliendo, se puede descartar y el reintento arma otro."""
+        try:
+            return (self._llamar('GET', f'/broadcasts/{quote(broadcast_id)}').get('status') or '').lower()
+        except ErrorResend as error:
+            if error.estado == 404:
+                return NO_EXISTE
+            raise
 
     def enviar_broadcast(self, broadcast_id):
         return self._llamar('POST', f'/broadcasts/{quote(broadcast_id)}/send', {})

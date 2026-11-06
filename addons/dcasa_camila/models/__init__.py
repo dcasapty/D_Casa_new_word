@@ -4,9 +4,11 @@ from . import permiso
 from . import partner_merge
 from . import campana
 from . import camila
+from . import publico
 from . import envio
 from . import panel
 from . import correo
 from . import conversacion
+from . import venta
 from . import herramientas_camila
 from . import sofia
