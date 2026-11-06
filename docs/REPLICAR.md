@@ -1,445 +1,638 @@
-# Replicar el sistema para otro negocio
+# Cómo instalar este sistema para otra empresa
 
-Paso a paso para instalar este sistema (Odoo 19 + sitio + Socios + Juan + Brian, en Cloudflare) para **otro negocio**,
-de punta a punta. Está escrito para que una sesión de Claude lo siga con solo el link del repositorio, sin adivinar.
-Verificado contra el código el **2026-10-18**. Si algo de aquí no coincide con el código, manda el código: dilo y
-corrige este documento.
+Guía completa para clonar este repositorio e instalar el sistema (Odoo 19 Community + sitio y tienda + Socios +
+Juan, Brian y Sofía, en Cloudflare) para **otra empresa**, de punta a punta. Está escrita para una persona técnica (o
+una sesión de Claude) que la sigue con solo el enlace del repositorio, sin adivinar.
 
-Antes de empezar, lee [ARQUITECTURA.md](ARQUITECTURA.md) (las piezas) y [MODULOS.md](MODULOS.md) (qué hace cada módulo).
+**Verificada contra el código el 2026-11-06** (commit base `700c34a`). Cada dato lleva el archivo (y la línea cuando
+ayuda) de donde sale. Si algo de aquí no coincide con el código, **manda el código**: dilo y corrige esta guía (§13).
+
+| Archivo | Qué tiene |
+|---|---|
+| Este archivo | Resumen, qué incluye, el paso a paso, cómo adaptar y traer mejoras, la lista final y las trampas |
+| [replicar/VALORES_DE_LA_EMPRESA.md](replicar/VALORES_DE_LA_EMPRESA.md) | **Cada** dato de D'CASA en el código y la configuración, con archivo:línea y qué poner |
+| [replicar/CUENTAS_Y_SECRETOS.md](replicar/CUENTAS_Y_SECRETOS.md) | Las cuentas que hay que crear y **cada** secreto y variable por nombre, dónde va y de dónde sale |
+
+Antes de empezar conviene leer [ARQUITECTURA.md](ARQUITECTURA.md) (las piezas), [MODULOS.md](MODULOS.md) (qué hace
+cada módulo) y [CONTEXTO_AGENTICO.md](CONTEXTO_AGENTICO.md) (lo que ya falló y por qué; las trampas que pegan en una
+instalación nueva están resumidas en el §10).
+
+## Resumen para la dueña
+
+- **Qué es.** El mismo sistema que usa D'CASA (ventas, inventario, facturas, contabilidad, nómina, el sitio con su
+  tienda, el programa de puntos y los asistentes Juan, Brian y Sofía) se puede instalar para otra empresa. Se copia el
+  **programa**, no la información.
+- **Qué nunca se copia.** Nada de D'CASA: ni clientes, ni ventas, ni la base de datos, ni los respaldos, ni el catálogo
+  y sus fotos, ni las claves, ni las cifras del programa de puntos. La otra empresa empieza con su sistema vacío.
+- **Qué pone la otra empresa.** Sus cuentas (Cloudflare, GitHub, el proveedor de inteligencia artificial y, si quiere
+  WhatsApp, Meta), sus datos, su logo y sus colores, y sus reglas y cifras. Las cifras las decide quien dirige esa empresa: el
+  sistema no inventa ninguna. Las políticas (privacidad, garantía, términos) las revisa su asesoría legal; los
+  impuestos y la nómina, quien lleve su contabilidad.
+- **Está hecho para Panamá.** Impuesto ITBMS, RUC con dígito verificador, nómina panameña, factura electrónica de la
+  DGI (preparada), celulares de Panamá. Para una empresa de otro país hace falta trabajo que esta guía no cubre.
+- **Quién hace qué.** Quien instala copia el programa, lo adapta, corre las pruebas y lanza las instalaciones. Quien
+  dirige la otra empresa crea las cuentas, paga los planes, guarda y pega las claves (nunca por chat) y da el «sí»
+  antes de abrir al público.
+- **No toca a D'CASA.** Instalarlo para otra empresa no cambia nada del sistema de D'CASA.
 
 ## 0. Reglas para quien instala
 
-- **Nunca pidas un secreto por el chat.** Di *dónde* se pega (GitHub › Environments o el panel de Cloudflare) y confirma
-  que quedó cargado sin ver su valor.
-- **Nunca copies datos de D'CASA al negocio nuevo:** ni clientes, ni la base, ni los respaldos, ni las cifras de
-  `puntos.json`, ni el catálogo (§4 y §9).
-- **No inventes contenido:** precios, cifras, plazos, garantías o testimonios los pone el dueño del negocio nuevo.
-- **No recortes pruebas.** Si cambias un dato que una prueba comprueba, cambias la prueba en el mismo commit
-  (§4.10) y corres `scripts/test.sh` hasta que pase.
-- El sistema está hecho para **Panamá** (plan contable `l10n_pa`, ITBMS, RUC con DV, nómina panameña, DGI, zona horaria
-  `America/Panama`, celulares de 8 dígitos con +507). Para otro país hace falta trabajo que este documento no cubre.
+- **Nunca pidas un secreto por el chat.** Di *dónde* se pega (GitHub › Environments o el panel de Cloudflare) y
+  comprueba que quedó cargado sin ver su valor ([CUENTAS_Y_SECRETOS.md §9](replicar/CUENTAS_Y_SECRETOS.md)).
+- **Nunca copies datos de D'CASA** al negocio nuevo (§11). Los datos de personas viven solo en Odoo: ni en el
+  repositorio, ni en documentos, ni en pruebas. Este repositorio es **público**.
+- **No inventes contenido:** precios, cifras, plazos, garantías o testimonios los pone la gerencia del negocio nuevo. Lo no
+  decidido queda vacío, en `null` o en `PENDIENTE` (regla 1 de Socios en [`CLAUDE.md`](../CLAUDE.md)).
+- **No recortes pruebas.** Si cambias un dato que una prueba comprueba, cambias la prueba en el mismo commit y corres
+  `scripts/test.sh` hasta que pase ([VALORES_DE_LA_EMPRESA.md §P](replicar/VALORES_DE_LA_EMPRESA.md)).
+- **`vendor/odoo` no se modifica nunca**: todo cambio de comportamiento se hereda desde un módulo de `addons/`
+  (`CLAUDE.md`, «Estructura»).
+- **A producción solo con el «sí» de la gerencia del negocio** y con staging revisado.
 
-Quién hace qué: **Claude** clona, cambia el código, corre pruebas y lanza los flujos; **el dueño** crea las cuentas,
-paga los planes, genera y pega los secretos, y aprueba cada paso a producción.
+## 1. Qué incluye el sistema
 
-## 1. Requisitos
+### 1.1 Las piezas
 
-| Qué | Para qué | ¿Obligatorio? |
+| Pieza | Carpeta | Qué es |
 |---|---|---|
-| **Cuenta de Cloudflare con Workers Paid** | Containers solo existe en el plan de pago | Sí |
-| **R2** activado en esa cuenta | Respaldos de la base y adjuntos (dos buckets) | Sí |
-| **Workers KV** | Caché de páginas (lo crea wrangler) | Viene con Workers |
-| **Workers AI** | Juan: notas de voz e imágenes (`TRANSCRIBIR_AUDIO`, `RECONOCER_IMAGENES` en `1`); se cobra a la cuenta | Solo si se despliega Juan con esas variables encendidas |
-| **Cloudflare Zero Trust** (plan Free) | La puerta del equipo (`/master`) | No (recomendado) |
-| **Cuenta de GitHub** con Actions | Pruebas y despliegue; espacio de artefactos (cada imagen ~420 MB, dura 1 día) | Sí |
-| **Clave de un proveedor de IA para Brian** | El despliegue **exige** `BRIAN_API_KEY` | Sí |
-| Clave de IA para Juan (Anthropic, Meta u OpenAI) | Que Juan conteste | Solo si se usa Juan |
-| Resend | Correo a clientes | No |
-| Bot de Telegram (@BotFather) | Brian por Telegram, alertas, pruebas de Juan | No |
-| App de Meta | Messenger e Instagram para Juan ([JUAN_META.md](JUAN_META.md)) | No |
-| Un número de WhatsApp para el puente | Juan por WhatsApp ([JUAN_PUENTE.md](JUAN_PUENTE.md)) | No |
-| Dominio propio con DNS en Cloudflare | Dirección definitiva (mientras tanto, `workers.dev`) | No al principio |
+| Odoo 19 Community | `vendor/odoo` (submódulo, `.gitmodules`) | El ERP, fijado a un commit de la rama 19.0. No se toca |
+| 29 módulos propios | `addons/` | Prefijo `dcasa_` (y `website_dcasa`). El contenedor instala 28: la lista `ODOO_MODULES` de `docker/entrypoint.sh:176`; `dcasa_fe_pa` es opcional y no se instala. `make init` usa una lista más corta (`Makefile:5`) |
+| Imagen de producción | `docker/` | Odoo + PostgreSQL 16 en **un** contenedor; `entrypoint.sh` restaura la base desde R2, instala o actualiza módulos y arranca |
+| Worker `dcasa` | `edge/` | La puerta de entrada pública: seguridad, caché, puerta del equipo, respaldo a mano, crons, y el contenedor de Odoo |
+| Worker `dcasa-juan` | `juan/` | Juan, el asistente de los clientes (Durable Objects; WhatsApp por la API oficial de Meta, Telegram, Messenger e Instagram preparados) |
+| Worker `dcasa-puente-wa` | `puente-wa/` | Puente de WhatsApp por QR. Opcional; **nunca se desplegó en producción** |
+| Flujos de GitHub | `.github/workflows/` | `ci.yml` (pruebas y, a mano, despliegue), `desplegar.yml`, `desplegar-juan.yml`, `desplegar-puente.yml`, `volver-a-estable.yml`, `up-media.yml`, `preview.yml`, `limpiar-artefactos.yml` ([ARQUITECTURA.md §6.1](ARQUITECTURA.md)) |
+| Scripts | `scripts/` | `test.sh`, respaldo, simulacro de restauración, importar el catálogo, íconos de la marca, integración de Juan |
 
-En la máquina de quien instala: `git`, Node 22, Python 3.12, PostgreSQL 16 (para `scripts/test.sh`), `openssl`; Docker
-es opcional.
+Los datos permanentes viven en el PostgreSQL del contenedor, respaldado sin parar en R2 (WAL cada ~60 s y volcado
+diario); los adjuntos (fotos y PDF) van a R2 (`dcasa_adjuntos_r2`); Juan y el puente guardan solo memoria de trabajo
+([ARQUITECTURA.md §3-§4](ARQUITECTURA.md)).
 
-## 2. Copiar el repositorio
+### 1.2 Los módulos, por área
 
-El repositorio original es público (`https://github.com/dcasapty/D_Casa_new_word`) y **no** está marcado como
-plantilla (2026-10-18). Dos caminos:
+Sacado de cada `addons/*/__manifest__.py` (detalle en [MODULOS.md](MODULOS.md)).
 
-**A. Copia propia, privada o pública (recomendado).** El dueño crea un repositorio **vacío** (sin README) en su cuenta
-de GitHub y luego:
+| Área | Módulo | Qué hace, en una línea |
+|---|---|---|
+| Base | `dcasa_base` | Empresa, Panamá (plan contable, ITBMS 7 %, RUC con DV), roles Vendedora, Caja y Gerencia, reglas contables, tope de descuento |
+| Ventas y documentos | `dcasa_invoice` | Factura, cotización, compra y entrega con la marca, en español, con monto en letras; «Imprimir documentos» |
+| | `dcasa_abonos` | Hoja «Condiciones de abono» (copia cliente y empresa) |
+| | `dcasa_catalogo` | Carga el catálogo (Excel + fotos) **al instalar**, código público del producto, combos cama + colchón |
+| | `dcasa_barras` | Lector de códigos de barras, etiquetas y panel de Bodega |
+| | `dcasa_existencias` | Mermas, daños, muestras y regalos; bitácora de bodega; alertas por Telegram (apagadas) |
+| | `dcasa_marketing` | Fotos del producto en grande y la app Marketing (lo que se vende, lo quieto, fotos que faltan) |
+| Sitio y clientes | `website_dcasa` | Sitio y tienda con la marca, mantenidos desde el código (sin constructor visual) |
+| | `dcasa_mi_cuenta` | Panel del cliente en `/mi-cuenta` (compras, abonos, entregas, puntos) |
+| | `dcasa_tienda_borde` | Avisa al Worker qué páginas cambiaron (caché de páginas anónimas) |
+| | `dcasa_correo` | Correo a clientes por Resend (apagado de fábrica) |
+| | `dcasa_meta_catalogo` | El catálogo por URL para los anuncios de Meta |
+| | `dcasa_meta_eventos` | Píxel de Meta con consentimiento y ventas pagadas a la Conversions API (todo apagado) |
+| Programas | `dcasa_socios` | Socios (puntos y referidos) y programa de vendedores, con libros inmutables |
+| Contabilidad y personal | `dcasa_contabilidad` | Reportes con comparativos, bancos y conciliación, cierre de mes, presupuestos, cheques |
+| | `dcasa_consolidacion` | Estados financieros de varias empresas del grupo en uno |
+| | `dcasa_nomina` | Planilla de Panamá, décimo tercer mes, vacaciones, liquidación, reembolsos, bono por meta |
+| | `dcasa_equipo` | Ícono y visibilidad del menú Empleados |
+| | `dcasa_fe_pa` | Factura electrónica de la DGI (preparación con PAC simulado; **no se instala**) |
+| Contactos y CRM | `dcasa_contactos` | Una persona, una ficha: celular, correo y RUC no se repiten |
+| | `dcasa_conversaciones` | Bandeja de conversaciones de Juan, CRM automático y la API para el Worker de Juan |
+| | `dcasa_sofia` | Sofía: revisa el CRM con un botón y cada mañana y propone; una persona aprueba |
+| Asistentes y ayuda | `dcasa_brian` | Brian, el asistente del panel (chat, Telegram y MCP) |
+| | `dcasa_guia` | «¿Qué necesitas hacer hoy?»: atajos en palabras sencillas |
+| | `dcasa_interfaz` | Inicio por rol, Estadísticas, íconos propios, sin avisos de pago |
+| Plataforma | `dcasa_sesiones` | Sesiones en PostgreSQL (el contenedor no tiene disco) y `/dcasa/salud` |
+| | `dcasa_adjuntos_r2` | Guarda fotos y PDF en R2 en lugar de la base |
+| | `dcasa_seguridad` | Doble factor, bloqueos, registro de accesos, puerta del equipo, Turnstile, robots.txt |
+| Migración | `dcasa_migracion` | Carga única desde el sistema anterior |
+
+### 1.3 Lo que es de Panamá y lo que sirve tal cual
+
+| De Panamá | Dónde |
+|---|---|
+| Plan contable `l10n_pa` e ITBMS 7 % que se **suma** al precio | `addons/dcasa_base/__manifest__.py` (`depends`), `addons/dcasa_base/__init__.py:9,38-` |
+| RUC con dígito verificador (campo `l10n_pa_dv`) en la empresa y en los documentos | `addons/dcasa_base/data/res_company_data.xml:12-13`, `dcasa_invoice` |
+| Factura electrónica de la DGI (rFE, CUFE, PAC) | `addons/dcasa_fe_pa` ([FACTURA_ELECTRONICA.md](FACTURA_ELECTRONICA.md)) |
+| Planilla panameña (seguro social, seguro educativo, ISR, décimo tercer mes) | `addons/dcasa_nomina/data/nomina_data.xml` (tasas sin verificar contra la Gaceta Oficial: las valida quien lleve la contabilidad) |
+| Celular de 8 dígitos con +507 como llave del cliente | `addons/dcasa_socios/models/bien_escrito.py`, `addons/dcasa_contactos/models/claves.py` |
+| Zona horaria `America/Panama`, español `es_419` con números al estilo de Panamá | `addons/dcasa_base/__init__.py:7-8,217-`, `docker/entrypoint.sh:177`; crons en UTC pensados para UTC−5 |
+| Formas de cobro (Yappy) y financieras locales | `addons/dcasa_base/__init__.py:12-24` |
+| Privacidad según la Ley 81 de 2019 (ANTAI) | `addons/website_dcasa/views/legal_templates.xml` |
+| Juan pone «+ ITBMS» a todo precio | `juan/src/dcasa/salvaguardas.ts:101-110` |
+
+**Sirve tal cual** (con los datos y la marca del negocio nuevo): la plataforma en Cloudflare (borde, contenedor,
+respaldos, adjuntos en R2, sesiones, seguridad y puerta del equipo), Brian, el motor de Juan y sus canales, Sofía, la
+Guía, Contactos sin duplicados, el motor de Socios y vendedores (con **sus** cifras), CRM, Mi cuenta, Interfaz,
+Barras, Existencias, Marketing, Migración, Contabilidad y Consolidación (sobre el plan contable de Panamá).
+
+## 2. Requisitos
+
+- **Cuentas:** la tabla completa está en [CUENTAS_Y_SECRETOS.md §1](replicar/CUENTAS_Y_SECRETOS.md). Obligatorias:
+  Cloudflare con **Workers Paid** (Containers solo existe en el plan de pago) y R2, GitHub con Actions, un proveedor de
+  IA para Brian (el despliegue exige `BRIAN_API_KEY`) y un gestor de contraseñas.
+- **En la máquina de quien instala:** `git`, Node 22 (el de los flujos, `.github/workflows/desplegar.yml:155`), Python
+  3.12, PostgreSQL 16 (para `scripts/test.sh`; usuario y clave `odoo`/`odoo` por defecto, `scripts/test.sh:10-14`),
+  `openssl` y `rg`. Docker es opcional (`docker-compose.yml`).
+- **Costo:** el plan Workers Paid, el contenedor de producción `standard-1` encendido 24/7 (`edge/wrangler.jsonc:22-25`;
+  staging `basic`, `:132`), R2 por encima de lo gratis, Workers AI si Juan transcribe audio, y lo que gasten los
+  proveedores de IA. La tabla de [OPERACION.md › Cuánto cuesta](OPERACION.md) todavía habla de `basic` en producción:
+  revisar *Billing* el primer mes.
+
+## 3. Copiar el repositorio
+
+El original es público (`https://github.com/dcasapty/D_Casa_new_word`, ver `README.md`).
+
+**A. Copia propia con la historia (recomendado).** La gerencia del negocio crea un repositorio **vacío** (sin README) en su cuenta de
+GitHub, y quien instala:
 
 ```bash
 git clone --recurse-submodules --shallow-submodules https://github.com/dcasapty/D_Casa_new_word.git negocio
 cd negocio
-git remote rename origin upstream                       # el original, para traer mejoras (§10)
-git remote add origin https://github.com/<dueño>/<repo>.git
+git remote rename origin upstream                 # el original, para traer mejoras (§8)
+git remote add origin https://github.com/<cuenta>/<repo>.git
 git push -u origin main
 ```
 
-Se conserva la historia, que hace falta para traer mejoras con `git merge`. Ojo: la historia incluye `fuentes/` (casi 1
-GB de originales de fotos de D'CASA); el clon pesa alrededor de 1,5 GB.
+La historia hace falta para traer mejoras con `git merge`. Pesa: la carpeta de objetos de git medía ~1,1 GB el
+2026-11-06, sobre todo por las fotos originales de `fuentes/` (994 MB en el árbol). Borrar `fuentes/` en la copia
+aligera el árbol, no la historia.
 
-**B. Fork.** Un fork de un repositorio público queda público. En un fork, GitHub **apaga Actions** hasta que alguien lo
-encienda (*Actions › I understand my workflows, go ahead and enable them*).
+**B. Fork.** Un fork de un repositorio público queda público, y GitHub **apaga Actions** en el fork hasta que alguien
+lo encienda (*Actions › I understand my workflows, go ahead and enable them*).
 
-**El submódulo `vendor/odoo`.** Es el código de Odoo 19.0, fijado a un commit, que se baja de
-`https://github.com/odoo/odoo.git` (ver `.gitmodules`). No se copia al repositorio nuevo: el repositorio solo guarda a
-qué commit apunta. **No se modifica nunca**; se actualiza moviendo ese commit (§10). Si el clon se hizo sin
-`--recurse-submodules`: `git submodule update --init --depth 1` (o `make setup`).
+**El submódulo `vendor/odoo`** apunta a un commit de `https://github.com/odoo/odoo.git` rama 19.0 (`.gitmodules`). El
+repositorio guarda solo a qué commit apunta. Si el clon se hizo sin `--recurse-submodules`:
+`git submodule update --init --depth 1` (o `make setup`). Se actualiza moviendo ese commit, nunca editándolo
+([DESPLIEGUE.md › Operación](DESPLIEGUE.md)).
 
-**Repositorio público o privado.** En un repositorio **público** los registros de Actions son públicos (los secretos
-salen tapados con `***`) y GitHub ofrece «Required reviewers» en los environments. En uno **privado** con plan Free, Pro
-o Team no lo ofrece: por eso aquí la aprobación de producción es el clic de quien lanza el despliegue, solo desde `main`.
+**¿Público o privado?** En un repositorio público los registros de Actions son públicos (los secretos salen tapados con
+`***`) y GitHub ofrece *Required reviewers* en los environments. En uno privado de los planes Free, Pro o Team no lo
+ofrece: la aprobación de producción es el clic de quien lanza el despliegue, solo desde `main`
+(`.github/workflows/desplegar.yml:74-76`).
 
-## 3. Primero en local
+## 4. Lo propio de D'CASA que hay que cambiar
 
-```bash
-cd edge && npm ci && npm test && npm run typecheck && cd ..
-cd juan && npm ci && npm test && npm run typecheck && cd ..
-cd puente-wa && npm ci && npm test && npm run typecheck && cd ..
-make setup                                   # .venv con las dependencias de Odoo
-PYTHON=.venv/bin/python scripts/test.sh      # todos los módulos; tarda (~30 min). Necesita PostgreSQL (odoo/odoo)
-ruff check addons
-```
+La lista completa, con archivo:línea, está en [VALORES_DE_LA_EMPRESA.md](replicar/VALORES_DE_LA_EMPRESA.md). En orden:
 
-Así sabes que el clon está sano **antes** de cambiar nada. Después de cada cambio del §4, vuelve a correr lo que toque.
+1. **Datos de la empresa** (nombre, RUC y DV, dirección, teléfono, correo, redes, coordenadas): §A.
+2. **Marca** (colores, tipografías autoalojadas, logo; los íconos se regeneran con `python scripts/iconos_de_la_marca.py`): §B.
+3. **Textos del sitio y políticas** (privacidad con su párrafo de IA, términos, garantía, cambios, abonos), con su asesoría legal: §C.
+4. **WhatsApp del sitio**: §D. **Correo** (remitente y plantillas): §E.
+5. **Cifras de Socios y vendedores** (`addons/dcasa_socios/data/puntos.json`; nunca las de D'CASA; `null`/`PENDIENTE`
+   no se rellena a ojo): §F. **Nómina y formas de cobro**: §G.
+6. **Juan** (quién es, de qué tienda, su conocimiento), **Sofía**, **Brian** y **la Guía**: §H a §K.
+7. **Dominios, subdominio `workers.dev` y nombres de Cloudflare**: §M y §N.
+8. **Las pruebas que fijan esos datos**, en el mismo commit: §P.
 
-## 4. Lo que es propio de D'CASA y hay que cambiar
+### 4.1 El catálogo no se copia
 
-Todo lo de esta sección se busca de verdad con `rg` antes de dar el trabajo por hecho. Búsquedas que cubren casi todo:
+`dcasa_catalogo` carga **al instalarse** (`post_init_hook`, `addons/dcasa_catalogo/__init__.py:6-23`) los productos,
+precios, existencias y fotos de D'CASA (`data/catalogo.json`, `data/fichas.json`, `data/inventario_anterior.csv`,
+`static/img/productos/`) y marca los de Black Weekend (`addons/dcasa_catalogo/catalogo.py:281`). Antes del primer
+despliegue hay que **reemplazarlos** por los del negocio nuevo o vaciarlos, y borrar `fuentes/` y el contenido de
+`up media/`. El importador `scripts/importar_catalogo.py` está hecho a la medida del Excel de D'CASA
+([VALORES_DE_LA_EMPRESA.md §L](replicar/VALORES_DE_LA_EMPRESA.md)). Varias pruebas usan ese catálogo
+(`addons/dcasa_catalogo/tests/`, `juan/test/integracion/historia.ts`): se ajustan en el mismo commit. **No está
+probado** que la instalación funcione con el catálogo vacío (§12): córrelo con `scripts/test.sh` antes de seguir.
 
-```bash
-rg -n "D'CASA|D&apos;CASA|dcasapty|La Chorrera|Panamá Oeste|Libertadores" \
-   --glob '!vendor/**' --glob '!fuentes/**' --glob '!up media/**' --glob '!docs/**'
-rg -n -i "1340B1|FED00F|0E2A6B|Anton|Oswald" addons edge --glob '!**/tests/**'
-```
+### 4.2 El prefijo `dcasa_` se queda
 
-Y una por cada dato de la sección «Datos reales de la empresa» de [`CLAUDE.md`](../CLAUDE.md) (RUC, teléfono, correo):
-`rg -n -F '<dato>'`. En este commit, «D'CASA» aparece en unos 220 archivos fuera de pruebas y documentos; casi todo es
-el nombre en manifiestos, títulos de plantillas y comentarios. Lo que **se ve** o **cambia el comportamiento** está en
-las listas de abajo.
+Es el nombre técnico de módulos, campos, parámetros y variables (`DCASA_*`); el cliente no lo ve. Renombrarlo toca
+cientos de archivos, las pruebas y la superficie RPC, y rompe la posibilidad de traer mejoras del original (§8).
 
-### 4.1 Nombre, RUC, dirección, teléfono y correo
+### 4.3 `CLAUDE.md` y la documentación
 
-| Archivo | Líneas | Qué |
-|---|---|---|
-| `addons/dcasa_base/data/res_company_data.xml` | 7-22 | Nombre, dirección, RUC y DV, teléfono, correo, sitio, logo, colores, lema del encabezado. `noupdate`: en una base ya instalada se cambia en *Ajustes › Empresas* |
-| `addons/website_dcasa/data/website_data.xml` | 5-6, 10-11 | Nombre del sitio, WhatsApp inicial, Instagram y TikTok |
-| `addons/website_dcasa/views/legal_templates.xml` | 39-40, 93, 109-110 | Quiénes somos y correo en privacidad y términos |
-| `addons/website_dcasa/views/layout_templates.xml` | 115, 277-303 | Barra de anuncios y pie: lema, RUC, dirección, correo, redes |
-| `addons/website_dcasa/views/homepage_templates.xml` | 135, 149, 172-186, 226, 324 | Portada y «Visítanos»: dirección, teléfono, correo, Instagram, lema |
-| `addons/website_dcasa/views/paginas_templates.xml` | 50-53 | Dirección y correo |
-| `addons/website_dcasa/models/website.py` | 27-30, 38-96, 403 | Coordenadas de la tienda, mensaje de WhatsApp, SEO de la portada, textos de entregas y pagos, región |
-| `addons/website_dcasa/models/tienda.py` | 32 | «Retiro en tienda (…)» |
-| `addons/dcasa_interfaz/views/login_templates.xml` | 6 | Nombre y lema en la pantalla de entrada |
-| `addons/dcasa_invoice/models/res_company.py` | 18-31 | Textos iniciales de garantía, cambios y términos de la factura |
-| `addons/dcasa_abonos/models/condiciones.py` | 15-26 | Texto inicial de las condiciones de abono |
-| `addons/dcasa_correo/models/correo.py` | 34-37 | Remitente y dirección de respuesta de fábrica |
-| `addons/dcasa_correo/views/res_config_settings_views.xml` | 44, 48 | Ejemplos de correo en Ajustes |
-| `addons/dcasa_base/__init__.py` | 179 | Nombre del almacén |
-| `addons/dcasa_contabilidad/data/analitica_data.xml` | 9 | Cuenta analítica «Tienda física (…)» |
-| `addons/dcasa_conversaciones/models/tienda.py` | 27 | Provincia en la dirección que da Juan |
-| `addons/dcasa_conversaciones/models/ajustes.py` | 67-69, 78-80 | Bienvenida y nombre público de Juan (también en *Ajustes de Juan*) |
-| `addons/dcasa_brian/models/conversacion.py` | 800 | Instrucciones de Brian («asistente de …, tienda de muebles en …») |
-| `addons/dcasa_brian/models/herramientas_usuarios.py` | 33, 108, 113 | Ejemplos de correo del equipo |
-| `addons/dcasa_seguridad/views/templates.xml` | 53 | Ejemplo de correo en `/master` |
-| `addons/dcasa_socios/views/vendedores_views.xml` | 467 | Dirección de los términos de vendedores |
-| Mensajes de validación con el teléfono de ejemplo | `dcasa_socios/models/res_partner.py:208`, `dcasa_socios/controllers/main.py:211`, `website_dcasa/models/website.py:142,157`, `dcasa_conversaciones/models/herramientas_juan.py:301`, `dcasa_conversaciones/controllers/juan.py:104` | Cambiar por un número de ejemplo genérico |
-| `edge/src/arranque.ts` | 56 (y colores en el mismo archivo) | Página «estamos abriendo»: enlace `wa.me` con el número |
-| `juan/src/dcasa/prompt.ts` | 79, 253 | Quién es Juan y de qué tienda |
-| `juan/src/odoo-panel-sugerir.ts` / `juan/src/odoo-panel-resumir.ts` | 107 / 80 | Ídem, para los borradores y resúmenes |
-| `juan/src/dcasa/salvaguardas.ts` | 217 | Dominio de las páginas legales que Juan puede citar |
-| Cada `addons/*/__manifest__.py` | `author`, `website` | Autor y sitio (opcional) |
-
-No hace falta tocar las migraciones viejas (`addons/*/migrations/`): solo corren al actualizar una base de D'CASA, no en
-una instalación nueva.
-
-### 4.2 Colores y tipografías
-
-- Sitio: `addons/website_dcasa/static/src/scss/primary_variables.scss` líneas 11-22 (paleta `o-color-1` a `o-color-5`)
-  y 26-61 (fuentes Anton, Oswald, Inter y formas).
-- Panel de Odoo: `addons/dcasa_base/static/src/scss/primary_variables.scss` líneas 4-23 y
-  `addons/dcasa_interfaz/static/src/scss/tokens.scss` (escala de azules `--dc-azul-*` y `--dc-amarillo`).
-- Empresa: `primary_color` y `secondary_color` en `addons/dcasa_base/data/res_company_data.xml` 18-21.
-- Hay colores sueltos en otros SCSS y en los íconos SVG (`rg -l -i "1340B1|FED00F"`): reportes contables, factura,
-  correo, Brian, Conversaciones, Socios, Mi cuenta, Escáner.
-- Fuentes autoalojadas en `static/src/fonts` de `website_dcasa`, `dcasa_base`, `dcasa_interfaz` y `dcasa_invoice`.
-- Si cambias la tipografía de los documentos, cambia también `.github/workflows/ci.yml` línea 364 (busca `Anton` en el
-  PDF de prueba).
-
-### 4.3 Logo, favicon e imágenes
-
-| Archivo | Dónde se usa |
-|---|---|
-| `addons/dcasa_base/static/img/logo.png` | Empresa, sitio (logo de fábrica, `website.py` línea 18), barra lateral, correos |
-| `addons/dcasa_base/static/img/favicon.svg` | Ícono |
-| `addons/website_dcasa/static/src/img/logo-200.webp`, `logo-400.webp` | Cabecera del sitio (`layout_templates.xml` 145-146) |
-| `addons/website_dcasa/static/src/img/favicon.png` | Pestaña del sitio |
-| `addons/dcasa_interfaz/static/src/img/favicon.png`, `favicon-192.png` | Pestaña del panel y manifiesto web |
-| `addons/dcasa_interfaz/static/src/img/iconos/*.svg`, `addons/*/static/description/icon.*` | Íconos de las apps (con los colores de la marca) |
-| `addons/website_dcasa/static/src/img/` (`hero*`, `cat-*`, `insp-*`, `split-*`, `black_weekend/`) | Portada, categorías y campaña. Confirmar con el dueño de dónde salen y si se pueden reusar |
-
-### 4.4 WhatsApp
-
-El número de todos los botones del sitio se cambia en *Sitio web › Configuración › Ajustes* (campo
-`dcasa_whatsapp_number`). Su valor inicial está en `addons/website_dcasa/data/website_data.xml` línea 6. Fuera de Odoo
-queda fijo en `edge/src/arranque.ts` línea 56. El CTA único del sitio es «Escríbenos por WhatsApp» (regla de marca).
-
-### 4.5 Textos del sitio, políticas y condiciones
-
-Dónde vive cada política y cómo se cambia: [PERMISOS.md › Políticas del sitio](PERMISOS.md#políticas-del-sitio-dónde-viven-y-cómo-se-cambian).
-Además de los archivos del §4.1: preguntas frecuentes y textos de la portada en `homepage_templates.xml`, la tienda en
-`tienda_templates.xml`, la campaña en `black_weekend_templates.xml` y `models/black_weekend.py` (y las variables
-`DCASA_BLACK_WEEKEND*`: déjalas en `0` en los dos entornos si el negocio no tiene campaña), los términos de Socios
-(`dcasa_socios/views/socios_templates.xml` 430) y de vendedores (`vendedores_templates.xml` 159), y los correos
-(`dcasa_correo/data/mail_templates.xml`). El sitio **se edita por código**: no uses el constructor visual.
-
-### 4.6 `puntos.json` y otras cifras del negocio
-
-- `addons/dcasa_socios/data/puntos.json`: **todas** las cifras de Socios y del programa de vendedores. El negocio nuevo
-  pone **las suyas**; nunca se copian las de D'CASA. Lo que no esté decidido queda en `null` o `PENDIENTE` (no se
-  rellena a ojo). Sube `version`. Decide `vendedores.programaActivo`; deja `externosHabilitado` y `efectivoHabilitado`
-  en `false`.
-- `addons/dcasa_socios/data/premios_data.xml`: los premios de fábrica.
-- `addons/dcasa_nomina/data/meta_ventas_data.xml`: la meta de ventas y el % del bono de D'CASA. El negocio pone los suyos
-  o quita el registro. Las tasas legales (`nomina_data.xml`) las valida su contador.
-- Tope de descuento de la Vendedora: en *Ajustes de Ventas* (10 % de fábrica).
-
-### 4.7 El catálogo (no se copia)
-
-`dcasa_catalogo` carga al instalarse los productos de D'CASA: `data/catalogo.json`, `data/fichas.json`,
-`data/inventario_anterior.csv` y las fotos de `static/img/productos/`, más los códigos de Black Weekend
-(`catalogo.py`, `BLACK_WEEKEND`). Para el negocio nuevo hay que **reemplazarlos** por los suyos (con
-`scripts/importar_catalogo.py` desde «up media/») o vaciarlos, y borrar `fuentes/` y el contenido de `up media/`. Varias
-pruebas usan ese catálogo (`dcasa_catalogo/tests`, `dcasa_migracion/tests`, `dcasa_brian/tests`): ajústalas en el mismo
-commit. **Pregunta abierta:** no se probó que la instalación funcione con el catálogo vacío; córrelo con
-`scripts/test.sh` antes de seguir.
-
-### 4.8 El conocimiento de Juan
-
-- Lo que Juan sabe del negocio vive en Odoo: *Conversaciones › Conocimiento del bot* (`dcasa.conocimiento`). La semilla
-  es `addons/dcasa_conversaciones/data/conocimiento_data.xml` (dirección, horario y Socios se arman solos con los datos
-  vivos; garantía y compra vienen inactivas).
-- Horario, canales, nombre público, bienvenida, palabras prohibidas y proveedor de IA: *Conversaciones › Configuración ›
-  Ajustes de Juan*.
-- Las instrucciones fijas (tienda, ciudad, tono) están en `juan/src/dcasa/` (`prompt.ts`, `salvaguardas.ts`,
-  `textos.ts`) y en los dos archivos `juan/src/odoo-panel-*.ts` del §4.1.
-
-### 4.9 Dominios, direcciones y nombres de Cloudflare
-
-Los nombres de los Workers, buckets y KV se pueden **dejar tal cual**: son por cuenta de Cloudflare. Lo que hay que
-cambiar es el dominio y el subdominio `workers.dev` de la cuenta:
-
-| Archivo | Líneas | Qué |
-|---|---|---|
-| `edge/wrangler.jsonc` | 58, 140 | `CANONICAL_HOST` de producción y staging |
-| `edge/wrangler.jsonc` | 108-112, 173 | `routes` del dominio (descomentar cuando el DNS esté en Cloudflare) |
-| `edge/wrangler.jsonc` | 158 | `TIENDA_AVISO_URL` de staging (`workers.dev`) |
-| `edge/wrangler.jsonc` | 65-67, 146-148 | Black Weekend: `0` y fechas propias (o pasadas) |
-| `edge/wrangler.jsonc` | 87, 170 | Puerta del equipo: empieza en `"0"` en los dos entornos (§7) |
-| `juan/wrangler.jsonc` | 49, 80 | `URL_SITIO` de Juan |
-| `puente-wa/wrangler.jsonc` | 62, 65, 110-111 | `PUENTE_BASE_URL` y `MEDIOS_HOSTS_PERMITIDOS` |
-| `.github/workflows/desplegar-puente.yml` | 159 | Subdominio `workers.dev` con el que comprueba el puente |
-| `addons/dcasa_conversaciones/models/panel_calculos.py` | 12 | Dominios del puente |
-| `addons/dcasa_conversaciones/migrations/19.0.1.0.1/post-migrate.py` | 16 | (solo bases viejas) |
-| `scripts/integracion_juan_datos.py` | 22 | `web.base.url` de la prueba de integración |
-| `edge/CONTRATO_CONTENEDOR.md` | 79 | Documentación |
-
-Y en GitHub, la variable `URL_SITIO` de cada environment (§5b.3).
-
-### 4.10 Pruebas que comprueban datos de D'CASA
-
-Cambiar un dato sin cambiar su prueba deja el CI en rojo. Las que hay que revisar (búscalas con las mismas `rg` del
-principio, ahora sobre `tests/` y `test/`):
-
-- `.github/workflows/ci.yml` líneas 303 y 305 (la portada debe decir el lema; `/socios` debe decir «Tus puntos») y 364.
-- `edge/test/anfitrion-canonico.test.ts` 32-33 (`CANONICAL_HOST`), `puente-wa/test/despliegue.test.ts` 70-71 y 108.
-- `addons/dcasa_base/tests/test_dcasa_base.py` (RUC y dirección), `addons/website_dcasa/tests/` (`test_legal.py`,
-  `test_website_dcasa.py`, `test_tienda.py`…), `addons/dcasa_invoice/tests/` (los documentos aprobados en
-  `tests/aprobado/*.html` llevan los datos de la empresa: se regeneran), `addons/dcasa_contactos/tests/`,
-  `addons/dcasa_fe_pa/tests/`, `juan/test/dcasa/` y las capturas de referencia visual
-  (`scripts/actualizar_referencias_visuales*.sh`).
-
-### 4.11 `CLAUDE.md`, documentos y versiones estables
-
-- [`CLAUDE.md`](../CLAUDE.md): reescribe «Proyecto», «Reglas de marca» (colores, tipografías, CTA, voz) y «Datos reales
-  de la empresa» con los del negocio nuevo. Las reglas técnicas, las de Socios y las de Vendedores se quedan (son
-  invariantes del código), salvo que el dueño decida otra cosa.
-- `docs/LEEME_PRIMERO.md` (bitácora), `PRIORIDADES.md`, `PENDIENTES_DUENA.md`, `ESTADO.md` y los informes de `docs/gerencia/`
-  son la historia de D'CASA: en la copia, vacía la bitácora y las prioridades y empieza las del negocio nuevo.
-  `CONTEXTO_AGENTICO.md` se queda: son lecciones técnicas.
-- `.github/versiones_estables.json` y las opciones de `.github/workflows/volver-a-estable.yml` apuntan a imágenes del
-  registro de **D'CASA**, que no existen en la cuenta nueva. La prueba de lint exige al menos una entrada, así que se
-  dejan hasta tener la primera versión estable propia y entonces se **reemplazan** (no uses ese botón antes).
-
-### 4.12 El prefijo `dcasa_`
-
-Se puede dejar tal cual: es el nombre técnico de los módulos, campos y variables (`DCASA_*`), no lo ve el cliente.
-Renombrarlo toca cientos de archivos, las pruebas y la superficie RPC, y rompe la posibilidad de traer mejoras del
-original (§10). No se recomienda.
+- [`CLAUDE.md`](../CLAUDE.md): reescribir «Proyecto», «Reglas de marca» y «Datos reales de la empresa» con los del
+  negocio nuevo. Las reglas técnicas, las de Socios y las de vendedores se quedan: son invariantes del código.
+- `docs/LEEME_PRIMERO.md` (su bitácora), `docs/PRIORIDADES.md`, `docs/PENDIENTES_DUENA.md`, `docs/ESTADO.md` y
+  `docs/gerencia/` son la historia de D'CASA: en la copia se vacían y se empiezan los del negocio nuevo.
+  `docs/CONTEXTO_AGENTICO.md` se queda (son lecciones técnicas).
+- `.github/versiones_estables.json` y las opciones de `.github/workflows/volver-a-estable.yml:22-24` apuntan a imágenes
+  del registro de **D'CASA**, que no existen en la cuenta nueva. La prueba del lint exige al menos una entrada y que
+  coincidan (`.github/scripts/probar_versiones_estables.py:27-37`): se dejan hasta tener la primera versión estable
+  propia y entonces se **reemplazan** ([VERSIONES_ESTABLES.md](VERSIONES_ESTABLES.md)). No uses ese botón antes.
 
 ## 5. Recursos en Cloudflare
 
 | Recurso | Nombre (puede ser el mismo) | ¿Lo crea `wrangler deploy`? | Cómo |
 |---|---|---|---|
-| Plan Workers Paid | — | No | *Workers & Pages › Plans* |
-| Bucket R2 de producción | `dcasa-respaldos` | **No** | *R2 › Create bucket*, ubicación **ENAM**, sin acceso público, sin reglas de ciclo de vida sobre `adjuntos/` ni `fuentes/` ([OPERACION.md › Preparación](OPERACION.md)) |
-| Bucket R2 de staging | `dcasa-respaldos-staging` | **No** | Ídem |
+| Plan Workers Paid | — | No | *Workers & Pages › Plans* ([OPERACION.md › Preparación](OPERACION.md)) |
+| Subdominio `workers.dev` de la cuenta | `<subdominio>` | No | *Workers & Pages*: lo elige la cuenta. Cada Worker responde en `https://<worker>.<subdominio>.workers.dev` |
+| Bucket R2 de producción y de staging | `dcasa-respaldos`, `dcasa-respaldos-staging` (`edge/wrangler.jsonc:68,153`) | **No** | *R2 › Create bucket*, ubicación **ENAM**, sin acceso público, sin reglas de ciclo de vida sobre `adjuntos/`, `pgbackrest/` ni `fuentes/` |
 | Token de R2 por bucket | — | No | *R2 › Manage API tokens › Create Account API token*, **Object Read & Write** solo sobre ese bucket. Da `R2_ACCESS_KEY_ID` y `R2_SECRET_ACCESS_KEY` |
-| Token de API para GitHub | — | No | *Manage Account › Account API Tokens*: Workers (rol de administrador del producto, para crear Workers), **Containers: Edit**, **Account Settings: Read**, **Workers KV Storage: Edit**, **Cloudflare Images: Edit** (lo pide el puente al subir su imagen) y, con dominio, *Zone › Workers Routes: Edit*. Los nombres exactos cambian: si wrangler da error de autorización, el mensaje dice cuál falta |
-| Workers `dcasa`, `dcasa-staging`, `dcasa-juan`, `dcasa-juan-staging`, `dcasa-puente-wa`, `dcasa-puente-wa-staging` | ídem | **Sí** | Con sus flujos (§6) |
+| Token de API para GitHub | — | No | Permisos abajo |
+| Workers `dcasa`, `dcasa-staging`, `dcasa-juan`, `dcasa-juan-staging` (y del puente, si se usa) | ídem | **Sí** | Con sus flujos (§6) |
 | Durable Objects y apps de contenedores | `OdooContainer`, `Conversacion`, `Global`, `PuenteWa` | **Sí** | Migración `v1` de cada `wrangler.jsonc` |
-| KV de la caché | `dcasa-tienda`, `dcasa-staging-tienda` | **Sí** (aprovisionamiento automático) | — |
-| Imagen de Odoo en el registro | `dcasa-odoo:<SHA>` | La sube `desplegar.yml` (`wrangler containers push`) | — |
-| Aplicación de Access (puerta del equipo) | una por entorno | No | [SEGURIDAD_ACCESO.md §8.4](SEGURIDAD_ACCESO.md) |
+| KV de la caché | `dcasa-tienda`, `dcasa-staging-tienda` | **Sí** (sin `id`: aprovisionamiento automático, `edge/wrangler.jsonc:38-42`) | — |
+| Imagen de Odoo en el registro | `dcasa-odoo:<SHA>` | La sube `desplegar.yml` (`wrangler containers push`, `:169-211`) | — |
+| Aplicación de Access (puerta del equipo) | una por entorno | No | §6.9 |
 | Widget de Turnstile | — | No | Opcional |
-| D1 | — | — | No se usa |
+| D1 | — | — | No se usa ([ARQUITECTURA.md §2.6](ARQUITECTURA.md)) |
 
-Anota el **Account ID** (página principal de *Workers & Pages*): va como secreto en GitHub, nunca en el repositorio.
+**Permisos del token de despliegue** (`CLOUDFLARE_API_TOKEN`), de [DESPLIEGUE.md §2](DESPLIEGUE.md) y los flujos:
 
-## 5b. GitHub
+- **Workers** con rol de administrador del producto (crear un Worker nuevo lo exige);
+- **Containers: Edit** y **Account Settings: Read**;
+- **Workers KV Storage: Edit** (la caché se crea en el primer despliegue: `edge/wrangler.jsonc:39-41`);
+- **Cloudflare Images: Edit**, solo para subir la imagen del puente (`.github/workflows/desplegar-puente.yml:18-19`);
+- con dominio propio, **Zone › Workers Routes › Edit** sobre esa zona
+  ([CONTEXTO_AGENTICO.md › Cloudflare](CONTEXTO_AGENTICO.md)).
 
-### 5b.1 Environments
+Los nombres exactos de los permisos cambian: si wrangler da error de autorización, el mensaje dice cuál falta. El
+token puede ser de cuenta (*Manage Account › Account API Tokens*) o de usuario (*My Profile › API Tokens*, el que usa
+D'CASA según [TRASLADO_DOMINIO.md](TRASLADO_DOMINIO.md)). El **Account ID** (página principal de *Workers & Pages*) va
+como secreto en GitHub, nunca en el repositorio.
 
-*Settings › Environments*: crear **`staging`** y **`production`**. En `production`, *Deployment branches and tags* →
-*Selected branches* → solo `main`. Si el repositorio es público, se puede además exigir un revisor (*Required
-reviewers*).
+## 6. Instalación paso a paso
 
-### 5b.2 Secretos de cada environment
+### 6.1 En local, antes de cambiar nada
 
-Cada entorno lleva **sus propios** valores: staging nunca comparte bucket, token ni clave con producción. En **negrita**
-los que **no se rotan nunca**: se generan una vez, se guardan en el gestor de contraseñas del dueño **antes** del primer
-despliegue (Cloudflare no deja volver a leerlos) y no se cambian.
+```bash
+cd edge && npm ci && npm test && npm run typecheck && cd ..
+cd juan && npm ci && npm test && npm run typecheck && cd ..
+cd puente-wa && npm ci && npm test && npm run typecheck && cd ..
+make setup                                 # submódulo + .venv con las dependencias de Odoo (Makefile:12-15)
+PYTHON=.venv/bin/python scripts/test.sh    # todos los módulos en una base limpia (PostgreSQL odoo/odoo)
+ruff check addons
+```
 
-| Nombre | Obligatorio | Para qué | Cómo se genera |
-|---|---|---|---|
-| `CLOUDFLARE_API_TOKEN` | sí | Desplegar | Token del §5 |
-| `CLOUDFLARE_ACCOUNT_ID` | sí | La cuenta | Panel de Cloudflare |
-| `R2_ACCESS_KEY_ID` | sí | Respaldos y adjuntos | Token de R2 del bucket del entorno |
-| `R2_SECRET_ACCESS_KEY` | sí | Ídem | Ídem (se muestra una sola vez) |
-| **`PGBACKREST_CIPHER_PASS`** | sí | Cifra los respaldos. Perderla = respaldos ilegibles | `openssl rand -hex 32` |
-| `RESPALDO_TOKEN` | sí | Autoriza el respaldo previo al despliegue | `openssl rand -hex 32` |
-| `ODOO_ADMIN_PASSWORD` | sí | Clave inicial del usuario `admin` | Gestor de contraseñas (larga y al azar) |
-| `ODOO_MASTER_PASSWORD` | sí | Contraseña maestra, **distinta** de la anterior | Gestor de contraseñas |
-| **`DCASA_PIN_PEPPER`** | sí | Pimienta del PIN de los socios. Cambiarla invalida el PIN de todos | `openssl rand -hex 32` |
-| `BRIAN_API_KEY` | sí | IA de Brian (en staging, una clave de pruebas con tope de gasto) | Panel del proveedor |
-| `RESEND_API_KEY` | no | Correo a clientes | Resend, permiso «solo envío» ([CORREO.md](CORREO.md)) |
-| `TELEGRAM_BOT_TOKEN` | no | Brian por Telegram y alertas | @BotFather |
-| `BRIAN_TELEGRAM_SECRETO` | no | Ruta y encabezado del webhook de Brian | `openssl rand -hex 32` |
-| `TIENDA_FEED_TOKEN` | no (sí para la caché) | Odoo y el Worker se reconocen | `openssl rand -hex 32` |
-| `TURNSTILE_SECRET` | no | Turnstile | Panel de Turnstile |
-| `DCASA_PUERTA_RUTA` | no (las 4 juntas) | Ruta de la puerta | `/master` |
-| `DCASA_PUERTA_SECRETO` | no | Firma la cookie y las cabeceras de la puerta | `openssl rand -hex 32` |
-| `DCASA_ACCESS_EQUIPO` | no | Equipo de Zero Trust | `https://<equipo>.cloudflareaccess.com` |
-| `DCASA_ACCESS_AUD` | no | La aplicación de Access | Su *AUD Tag* |
+Así sabes que el clon está sano **antes** de tocar nada. Las pruebas de Odoo tardan (unos 27 minutos en CI,
+[LEEME_PRIMERO.md §4](LEEME_PRIMERO.md)): para iterar, `scripts/test.sh modulo1,modulo2`. Si `python-ldap` no compila
+en una máquina nueva, la receta está en [CONTEXTO_AGENTICO.md › Esta máquina](CONTEXTO_AGENTICO.md) («Contenedor
+nuevo»). Alternativa con Docker: `docker compose up --build` (`admin`/`admin`, solo en local).
 
-### 5b.3 Variables de cada environment
+### 6.2 Adaptar, en una rama y con pruebas
 
-| Nombre | Obligatoria | Valor |
-|---|---|---|
-| `URL_SITIO` | sí | `https://dcasa.<subdominio>.workers.dev` (staging: `https://dcasa-staging.<subdominio>.workers.dev`) hasta tener dominio; sin `/` final |
-| `CANONICAL_HOST` | no | Vacía = el anfitrión de `URL_SITIO` (lo correcto mientras no haya dominio) |
-| `R2_ENDPOINT` | no | Solo si el bucket está en otra jurisdicción |
-| `BRIAN_PROVEEDOR`, `BRIAN_MODELO`, `BRIAN_BASE_URL` | no | [BRIAN.md › Configuración](BRIAN.md) |
+Haz los cambios del §4 en una rama y corre las pruebas hasta que pasen. Antes del **primer** despliegue, como mínimo:
 
-El despliegue valida todo antes de tocar Cloudflare (`.github/scripts/validar_entorno.sh`): falta, vacío, marcador
-(`CAMBIAR`, `PENDIENTE`, `<...>`), menos de 32 caracteres en las tres claves largas, maestra igual a la de `admin`.
+1. **Sin dominio todavía:** `"routes": []` en la raíz de `edge/wrangler.jsonc` (hoy `:110-113` apuntan a
+   `dcasapty.com`; el dominio propio solo se agrega cuando su DNS está en la cuenta: [DESPLIEGUE.md §6](DESPLIEGUE.md))
+   y cambiar `edge/test/fase1.test.ts:490-499`. Deja `"workers_dev": true`.
+2. **Puerta del equipo apagada en los dos entornos:** `DCASA_PUERTA_OBLIGATORIA` en `"0"` (staging hoy está en `"1"`,
+   `edge/wrangler.jsonc:174`). Se enciende por pasos en el §6.9.
+3. **Black Weekend** en `"0"` en los dos entornos si el negocio no tiene esa campaña (`edge/wrangler.jsonc:65,150`).
+4. **El catálogo** reemplazado o vacío (§4.1) y **`puntos.json`** con las cifras del negocio o en `null`.
+5. **Subdominio `workers.dev`** de la cuenta nueva en `edge/wrangler.jsonc:162`, `juan/wrangler.jsonc:80` y, si se usa
+   el puente, `puente-wa/wrangler.jsonc:62,65,110,111` y `.github/workflows/desplegar-puente.yml:159`.
+6. **Sitio de Juan en producción** (`juan/wrangler.jsonc:49`): la dirección donde el sitio responda de verdad
+   (`https://dcasa.<subdominio>.workers.dev` hasta tener dominio).
+7. Las pruebas que fijan esos valores, en el mismo commit ([VALORES_DE_LA_EMPRESA.md §P](replicar/VALORES_DE_LA_EMPRESA.md)).
 
-### 5b.4 Secretos del repositorio (opcionales)
+### 6.3 Cloudflare y GitHub (una vez)
 
-`PREVIEW_ADMIN_PASSWORD` y `BRIAN_API_KEY_PRUEBAS` para *Previsualización*; `UP_MEDIA_TOKEN` solo si `main` tiene una
-protección que el `GITHUB_TOKEN` no puede saltar (*up media* hace commit a `main`).
+1. Cloudflare: plan, subdominio, buckets, tokens de R2 y token de despliegue (§5).
+2. Generar las claves propias **por entorno** y guardar **antes de nada** en el gestor de contraseñas las que no se
+   rotan nunca: `PGBACKREST_CIPHER_PASS` y `DCASA_PIN_PEPPER`
+   ([CUENTAS_Y_SECRETOS.md §7](replicar/CUENTAS_Y_SECRETOS.md)).
+3. GitHub: environments `staging` y `production` (`production` solo desde `main`) con sus secretos y variables
+   ([CUENTAS_Y_SECRETOS.md §2](replicar/CUENTAS_Y_SECRETOS.md)). `URL_SITIO` = la dirección `workers.dev` de cada
+   entorno; `CANONICAL_HOST` vacía.
 
-### 5b.5 Secretos que van en el panel de Cloudflare (no en GitHub)
+### 6.4 Primer despliegue a staging
 
-Se pegan en *Workers › <Worker> › Settings › Variables and Secrets* **después** de que el Worker exista. Los despliegues
-no los borran.
+1. Sube la rama. *Actions › CI/CD › Run workflow* en esa rama, `desplegar_en = staging` (`.github/workflows/ci.yml:23-26`).
+   Corre todas las pruebas; si pasan, despliega `dcasa-staging` (`ci.yml:526-537`) y después Juan staging
+   (`ci.yml:539-548`).
+2. El primer arranque, con el bucket vacío, crea la base e instala `ODOO_MODULES` en `es_419`
+   (`docker/entrypoint.sh:375-376`). Staging puede tardar hasta ~27 minutos en quedar sano: no canceles antes.
+3. Abre `<URL_SITIO>/__edge/health`: 200 con `version`, `base_al_dia: true` y `humo: ok`
+   ([DESPLIEGUE.md › Sesiones y salud](DESPLIEGUE.md)).
+4. En el resumen del job «Desplegar a staging» quedan el **`imagen_digest`** y el **`app_version`**
+   (`.github/workflows/desplegar.yml:319-330`): son los que se usan para producción.
+5. Si el respaldo previo se frena con un 429 de R2 o un HTTP 000, no repitas todo el CI: lanza *Actions › Desplegar*
+   a staging con ese mismo digest ([CONTEXTO_AGENTICO.md › Despliegue](CONTEXTO_AGENTICO.md)).
 
-| Worker | Secretos | Variables |
-|---|---|---|
-| `dcasa` / `dcasa-staging` | `JUAN_ODOO_TOKEN`, `JUAN_WORKER_TOKEN` (`openssl rand -hex 32`, el **mismo valor** que en Juan) | `JUAN_URL` (dirección del Worker de Juan), `BRIAN_TELEGRAM_CHATS`, `DCASA_ALERTA_TELEGRAM_CHAT` |
-| `dcasa-juan` / `-staging` | `JUAN_ODOO_TOKEN`, `JUAN_WORKER_TOKEN`, la clave de IA elegida en Odoo (`ANTHROPIC_API_KEY`, `META_AI_API_KEY` u `OPENAI_API_KEY`), `WA_TOKEN`, `TELEGRAM_BOT_TOKEN_JUAN`, `TELEGRAM_WEBHOOK_SECRET_JUAN`, `META_*` | `URL_PUBLICA`, `ALERTA_TELEGRAM_CHAT_ID` ([JUAN_WORKER.md §5](JUAN_WORKER.md)) |
-| `dcasa-puente-wa` / `-staging` | `WA_TOKEN` (el mismo que en Juan), **`WA_SESION_CLAVE`** (se genera una vez y no se cambia salvo con la rotación de [JUAN_PUENTE.md §C](JUAN_PUENTE.md)) | opcionales `TELEGRAM_BOT_TOKEN_JUAN`, `ALERTA_TELEGRAM_CHAT` |
+### 6.5 Primer arranque: administrador, doble factor, usuarios y datos
 
-## 6. Primer despliegue
+1. **El administrador.** `<URL_SITIO>/web/login` con el usuario `admin` y la clave `ODOO_ADMIN_PASSWORD`. El arranque
+   la pone en lugar de `admin/admin` antes de abrir el puerto, una sola vez (`docker/entrypoint.sh:652-670`); si alguien
+   ya la cambió, no la toca. El CI comprueba que nunca quede `admin/admin` (`.github/workflows/ci.yml:306-313`).
+2. **Doble factor.** Con `DCASA_2FA_OBLIGATORIO = "1"` y alcance `admins` (`edge/wrangler.jsonc:77-78,168-169`), el
+   administrador enrola la app de códigos al entrar. Escanear el QR también en un segundo aparato (Odoo no da códigos de
+   respaldo) y tener **dos** administradores con 2FA. No activar la opción de Odoo «Exigir 2FA» por correo. Guía y
+   rescate: [SEGURIDAD_ACCESO.md §2-§4](SEGURIDAD_ACCESO.md).
+3. **Usuarios.** Uno por persona (*Ajustes › Usuarios*), con su rol en el grupo «D'CASA»: Vendedora, Caja o Gerencia
+   (`addons/dcasa_base/security/dcasa_roles.xml`), y Nómina si corresponde. Nunca se comparte el de `admin`
+   ([PERMISOS.md](PERMISOS.md), [EQUIPO.md](EQUIPO.md)).
+4. **Datos del negocio en Odoo:** empresa y documentos, WhatsApp del sitio, tope de descuento, tope de gasto de Brian,
+   Ajustes de Juan ([CUENTAS_Y_SECRETOS.md §8](replicar/CUENTAS_Y_SECRETOS.md)).
+5. **Datos de un sistema anterior:** *Ajustes › Cargar datos del sistema anterior* ([MIGRACION.md](MIGRACION.md));
+   nunca por el repositorio.
 
-El orden importa: un Worker no se despliega si su service binding apunta a otro que todavía no existe.
+### 6.6 Conectar Juan con Odoo (staging primero)
 
-**Staging:**
+1. Genera `JUAN_ODOO_TOKEN` y `JUAN_WORKER_TOKEN` y pega **el mismo valor** en `dcasa-staging` y en
+   `dcasa-juan-staging` (tipo *Secret*) ([CUENTAS_Y_SECRETOS.md §6](replicar/CUENTAS_Y_SECRETOS.md)).
+2. En `dcasa-staging`, variable `JUAN_URL` = `https://dcasa-juan-staging.<subdominio>.workers.dev` (o en Odoo, *Ajustes
+   de Juan › Dirección del Worker de Juan*).
+3. En `dcasa-juan-staging`: `URL_PUBLICA` (su propia dirección, sin `/` final), la clave de la IA elegida y, si se
+   quiere, `ALERTA_TELEGRAM_CHAT_ID`.
+4. Las variables del panel llegan a Odoo al reiniciar o en el siguiente despliegue: relanza *Desplegar* a staging con
+   el mismo digest.
+5. Comprueba `https://dcasa-juan-staging.<subdominio>.workers.dev/salud` (sin `secretos_faltantes`) y, en Odoo,
+   *Conversaciones › Conexiones* («Dirección del Worker de Juan: cargada»,
+   `addons/dcasa_conversaciones/static/src/xml/conexiones.xml:95`).
+6. Prueba por Telegram con el bot de Juan ([JUAN_WORKER.md §6](JUAN_WORKER.md), y §6.13).
 
-1. Con el §4 hecho y las pruebas en verde, sube la rama. *Actions › CI/CD › Run workflow*, `desplegar_en = staging`.
-   Corre todas las pruebas, despliega `dcasa-staging` (el primer arranque, con el bucket vacío, crea la base e instala
-   los módulos: unos minutos) y después Juan staging.
-2. Abre `<URL_SITIO>/__edge/health`: debe dar 200 con `version`, `base_al_dia: true` y `humo: ok`.
-3. Pega los secretos del panel (§5b.5) en `dcasa-staging` y `dcasa-juan-staging`. `GET <juan>/salud` dice qué falta.
-   Las variables nuevas del panel de `dcasa-staging` llegan a Odoo al reiniciar o en el siguiente despliegue.
-4. Puente (si se usa WhatsApp): *Actions › Desplegar puente de WhatsApp*, `entorno = staging`, primero `dry-run`, luego
-   `desplegar`. Pega `WA_TOKEN` y `WA_SESION_CLAVE`. Después descomenta el binding `PUENTE` de staging en
-   `juan/wrangler.jsonc` (línea 75) y vuelve a desplegar Juan. Vincula el número con el QR ([JUAN_PUENTE.md](JUAN_PUENTE.md)),
-   con un número de **prueba** en staging.
+### 6.7 Primer despliegue a producción (la receta de este repositorio)
 
-**Producción** (con el «sí» del dueño, staging revisado y el código en `main`):
+Con el «sí» de la gerencia del negocio y staging revisado ([LEEME_PRIMERO.md §3](LEEME_PRIMERO.md)):
 
-1. *Actions › Desplegar › Run workflow* en `main`: `entorno = production`, el `imagen_digest` y el `app_version` (el SHA
-   de la rama que construyó el CI) del resumen del despliegue de staging, `respaldo_previo = true` (en el primer
-   despliegue no hay Worker y se salta solo). O bien *CI/CD* en `main` con `desplegar_en = produccion`.
-2. *Actions › Desplegar Juan*, `entorno = production`, `dry_run` desmarcado.
-3. Secretos del panel de `dcasa` y `dcasa-juan`; puente de producción como en staging (binding `PUENTE` en la línea 33).
-4. Dominio: cuando el DNS esté en Cloudflare, descomenta `routes` en `edge/wrangler.jsonc`, cambia `URL_SITIO` y
-   despliega ([DESPLIEGUE.md §6](DESPLIEGUE.md)). Los QR impresos de Socios deben apuntar al dominio, nunca a
-   `workers.dev`.
+1. **PR a `main`** con la plantilla `.github/pull_request_template.md` (tiene su sección de Brian) y unión por
+   *squash* con el título terminado en ` [skip ci]` (las pruebas ya pasaron en la rama). No subas nada a la rama entre
+   el CI y la unión: se colaría a `main` sin probar.
+2. **Comprueba el árbol:** el contenido de `main` tiene que ser el mismo que se probó:
+   `git fetch origin && git diff --quiet <sha probado> origin/main && echo igual`.
+3. *Actions › Desplegar › Run workflow* en `main` (`.github/workflows/desplegar.yml:46-64`): `entorno = production`,
+   `imagen_digest` = el `sha256:…` del resumen de staging, `app_version` = **el SHA de 40 caracteres del commit que
+   construyó el CI** (el de la rama, nunca el del *squash*: su imagen no existe en el registro), `respaldo_previo =
+   true`. En el primer despliegue el Worker no existe y el respaldo previo se salta solo (`:264-265`); las dos claves
+   que no se rotan se suben esa vez.
+4. **Espera la salud estricta** (`.github/scripts/esperar_salud.sh`: la versión desplegada, la base al día y el humo,
+   con vigilancia posterior) y **abre el Inicio** del panel: «sano» no es solo un 200.
+5. *Actions › Desplegar Juan*, `entorno = production`, `dry_run` desmarcado (`.github/workflows/desplegar-juan.yml:21-32`).
+   Juan necesita que `dcasa` exista antes (su *service binding*).
+6. Secretos y variables del panel en `dcasa` y `dcasa-juan` con los valores **de producción** (§6.6) y un despliegue o
+   reinicio para que Odoo los tome.
 
-## 7. Primer arranque
+Otra vía documentada: *CI/CD* en `main` con `desplegar_en = produccion` (`.github/workflows/ci.yml:560-572`), que repite
+todas las pruebas antes. Nunca inventes ni «completes» un SHA: cópialo del run o del PR.
 
-1. **El administrador.** Entra en `<URL_SITIO>/web/login` con el usuario `admin` y la clave `ODOO_ADMIN_PASSWORD` (el
-   arranque la pone en lugar de `admin/admin`; si el dueño ya la cambió, no la toca). `admin` nace en Gerencia.
-2. **Doble factor.** Con `DCASA_2FA_OBLIGATORIO = "1"` (el valor de `edge/wrangler.jsonc`), el administrador enrola la app
-   de códigos al entrar. Guía y rescate si se pierde el teléfono: [SEGURIDAD_ACCESO.md §2-§4](SEGURIDAD_ACCESO.md).
-3. **Usuarios.** Uno por persona (*Ajustes › Usuarios*), con su rol en la sección D'CASA (Vendedora o Gerencia) y Nómina
-   si corresponde. Nunca se comparte el de `admin` ([PERMISOS.md](PERMISOS.md), [EQUIPO.md](EQUIPO.md)).
-4. **Datos del negocio en Odoo:** *Ajustes › Empresas* (datos y pestaña «Documentos D'CASA»: garantía, cambios,
-   condiciones de abono), *Sitio web › Configuración › Ajustes* (WhatsApp, días del apartado), *Ajustes de Ventas*
-   (tope de descuento), *Brian › Ajustes* (tope de gasto de IA), *Conversaciones › Ajustes de Juan*.
-5. **La puerta del equipo (`/master`)**, cuando todo lo anterior funcione: crear la aplicación de Access y los cuatro
-   secretos ([SEGURIDAD_ACCESO.md §8.4](SEGURIDAD_ACCESO.md)), y encender por pasos `DCASA_PUERTA_OBLIGATORIA`: `"0"`
-   (probar que abre) → `"avisar"` (unos días) → `"1"`. Nunca directo a `"1"`: en D'CASA eso dejó al equipo sin entrada.
-6. Datos de un sistema anterior: *Ajustes › Cargar datos del sistema anterior* ([MIGRACION.md](MIGRACION.md)); nunca por
-   el repositorio.
+### 6.8 Dominio propio
 
-## 8. Lista de comprobación final
+Cuando el negocio tenga su dominio ([TRASLADO_DOMINIO.md](TRASLADO_DOMINIO.md) es el caso real de D'CASA, paso a paso):
 
-- [ ] `GET /__edge/health` en los dos entornos: 200, `version` = el commit desplegado, `base_al_dia: true`, `humo: ok`.
-- [ ] Humo a mano: portada, `/shop`, una ficha, `/socios`, `/mi-cuenta`, `/privacidad`, `/terminos`; en el panel:
-      Inicio, Conversaciones, una cotización, «Imprimir documentos» (factura en PDF con la marca nueva).
-- [ ] Como Vendedora y como Gerencia: la vendedora no ve costos, ganancia, Nómina ni facturas de proveedor.
-- [ ] Juan: `GET /salud` sin secretos faltantes; una prueba por Telegram ([JUAN_WORKER.md §6](JUAN_WORKER.md)).
-- [ ] Respaldos: en el bucket aparecen `pgbackrest/` y `adjuntos/`; al día siguiente, `pg_dump/`. Respaldo a mano:
-      `curl -fsS -X POST -H "Authorization: Bearer $RESPALDO_TOKEN" <URL_SITIO>/__edge/respaldo` (el token desde una
-      variable de la terminal, nunca escrito en el chat).
-- [ ] Simulacro: el job «Simulacro de restauración» del CI en verde, y el simulacro con R2 de verdad en staging
-      ([OPERACION.md › Simulacro mensual de restauración](OPERACION.md)).
-- [ ] Barandas de costo: alertas de presupuesto y reglas de ciclo de vida de R2 ([OPERACION.md](OPERACION.md)).
-- [ ] Copia de `PGBACKREST_CIPHER_PASS`, `DCASA_PIN_PEPPER` y `WA_SESION_CLAVE` de cada entorno en el gestor de
-      contraseñas del dueño.
-- [ ] Primera versión estable propia en `.github/versiones_estables.json` y en `volver-a-estable.yml` (§4.11).
+1. Agregar el dominio a Cloudflare **copiando antes** los registros DNS que ya existen (sobre todo el correo: MX, SPF,
+   DKIM, DMARC) y cambiar los *nameservers* en el registrador. Esperar a que diga **Active**.
+2. Darle al token de despliegue *Zone › Workers Routes › Edit* sobre esa zona.
+3. En `edge/wrangler.jsonc`: `routes` con el dominio y `www` (`custom_domain: true`), `"workers_dev": true` (si no,
+   wrangler apaga `workers.dev`, donde viven webhooks y la entrada de siempre) y `"routes": []` en `env.staging` (si no,
+   staging hereda el dominio). Cambiar `edge/test/fase1.test.ts:490-499` y `edge/test/anfitrion-canonico.test.ts:32-33`.
+4. Borrar los registros A o CNAME de esos nombres **justo antes** del despliegue: el dominio propio no se crea si ya
+   existen.
+5. GitHub › `production` › `URL_SITIO` = `https://<dominio>`; `CANONICAL_HOST` vacía.
+6. CI a staging **de ese commit** y *Desplegar* a producción con **su** `app_version`: Desplegar hace checkout de
+   `app_version` y toma su `wrangler.jsonc` (con un commit viejo sale sin dominio). Ese día el respaldo previo no puede
+   pasar (llama a `URL_SITIO`, que todavía no resuelve): con el «sí» de la gerencia, `respaldo_previo` desmarcado, o
+   respaldar antes con la dirección vieja (Desplegar 29 y 30 en [CONTEXTO_AGENTICO.md](CONTEXTO_AGENTICO.md)).
+7. Después: *Brian › Telegram › Registrar webhook* otra vez; agregar el dominio a la aplicación de Access (el AUD no
+   cambia), a Turnstile y a Resend; verificar el dominio en Meta; `URL_SITIO` de Juan al dominio y *Desplegar Juan*.
+   El borde manda `www` al dominio canónico. Lo impreso (QR de Socios) va siempre al dominio, nunca a `workers.dev`.
 
-## 9. Lo que no se copia nunca
+### 6.9 La puerta del equipo (Cloudflare Access)
 
-- **Datos de clientes y del equipo** de D'CASA (ni de ningún otro negocio).
-- **La base de datos ni los buckets de R2** de otro negocio: cada negocio arranca con su base vacía y sus propios buckets.
-- **Secretos**: ningún token, clave, pimienta ni clave de cifrado se reusa entre negocios ni entre entornos.
-- **Las cifras de `puntos.json`, los premios, la meta del bono, el catálogo, las fotos** (`fuentes/`, `up media/`,
-  `static/img/productos/`) y las versiones estables de D'CASA.
-- **Los informes y la bitácora** de D'CASA en `docs/` (historia, no instrucciones para el negocio nuevo).
+Paso a paso en [SEGURIDAD_ACCESO.md §8.4-§8.6](SEGURIDAD_ACCESO.md) y [PUERTA_MASTER.md](PUERTA_MASTER.md):
 
-## 10. Cómo traer las mejoras del original
+1. Zero Trust: elegir el nombre del equipo (plan Free) y **agregar** *One-time PIN* como proveedor de identidad (en
+   cuentas nuevas no viene activado).
+2. Una aplicación *Self-hosted* por entorno: hostname donde el sitio responde **hoy** y *Path* `master*`; política
+   *Allow* con los correos del equipo; solo *One-time PIN*; sesión de 24 h. Copiar el *AUD Tag*.
+3. Los cuatro secretos en el environment: `DCASA_PUERTA_RUTA`, `DCASA_PUERTA_SECRETO`, `DCASA_ACCESS_EQUIPO`,
+   `DCASA_ACCESS_AUD`. Las cuatro juntas o la puerta queda apagada.
+4. Encender **por pasos**: `DCASA_PUERTA_OBLIGATORIA = "0"` y probar `/master` (PIN → «Acceso del equipo» → clave →
+   código) → `"avisar"` unos días (*Accesos al panel*, filtro «Sin pasar por la puerta») → `"1"`. **Nunca directo a
+   `"1"`**: en D'CASA dejó al equipo sin entrada (incidente 4). `/__edge/health` trae el estado de la puerta.
+5. Rescate: `"0"` y desplegar.
+
+### 6.10 Respaldos y simulacro de restauración
+
+1. En el bucket de cada entorno tienen que aparecer `pgbackrest/` y `adjuntos/`; al día siguiente, `pg_dump/` (cron
+   `17 8 * * *` UTC, `edge/wrangler.jsonc:48`).
+2. Respaldo a mano, con el token en una variable de **tu** terminal (nunca escrito en un chat):
+   `curl -fsS -X POST -H "Authorization: Bearer $RESPALDO_TOKEN" "$URL_SITIO/__edge/respaldo"`.
+3. Cada corrida del CI hace un simulacro con almacenamiento local (job `simulacro-restauracion`,
+   `scripts/simulacro_restauracion.sh`). Una vez al mes, el simulacro **con R2 de verdad** en staging
+   ([OPERACION.md › Simulacro mensual de restauración](OPERACION.md)).
+4. Barandas de costo: alertas de presupuesto y reglas de ciclo de vida de R2, nunca sobre `pgbackrest/` ni `adjuntos/`
+   ([OPERACION.md › Barandas de costo](OPERACION.md)).
+5. Volver atrás y restaurar a un punto en el tiempo: [OPERACION.md](OPERACION.md) («Volver atrás un despliegue»,
+   «Restaurar a un punto en el tiempo»).
+
+### 6.11 WhatsApp con la API oficial de Meta (Juan)
+
+Así atiende D'CASA desde el 2026-11-02 ([LEEME_PRIMERO.md, bitácora de esa fecha](LEEME_PRIMERO.md)); el plan completo
+está en [JUAN_PLAN_B.md](JUAN_PLAN_B.md). Los pasos marcados ⚠ ahí se confirman en la pantalla de Meta.
+
+1. Portafolio de **Meta Business** de la empresa nueva y **verificación del negocio** (tarda días: empezar pronto).
+2. App de Meta de tipo empresa con el producto **WhatsApp**.
+3. Decidir el número: uno nuevo (recomendado para empezar) o el de hoy (modo de coexistencia ⚠).
+4. Un **usuario del sistema** con llave **permanente** y permisos `whatsapp_business_messaging` y
+   `whatsapp_business_management`. La llave del Explorador de la API Graph vence en horas: nunca se deja puesta.
+5. En `dcasa-juan-staging` primero: secretos `WHATSAPP_CLOUD_TOKEN`, `META_APP_SECRET`, `META_VERIFY_TOKEN` y variable
+   `WHATSAPP_PHONE_NUMBER_ID` ([CUENTAS_Y_SECRETOS.md §4.2](replicar/CUENTAS_Y_SECRETOS.md)).
+6. Webhook en Meta: `https://dcasa-juan.<subdominio>.workers.dev/webhooks/whatsapp-cloud` con el mismo token de
+   verificación; suscribirse a los mensajes **solo en la tarjeta del número real** (no en la del número de prueba).
+7. `/salud` de Juan: `whatsapp_cloud` con `configurado: true`. En Odoo, *Ajustes de Juan*: encender **WhatsApp (API
+   oficial)** (viene apagado: `juan/src/config.ts:111-117`).
+8. Probar texto, foto, PDF y nota de voz.
+9. Límites: fuera de las 24 horas del último mensaje del cliente solo se puede escribir con plantillas aprobadas por
+   Meta, y el envío de plantillas **todavía no está hecho** ([JUAN_PLAN_B.md §7](JUAN_PLAN_B.md)).
+
+### 6.12 Messenger e Instagram (preparados)
+
+Código listo (`juan/src/canales/meta.ts`); falta lo que se hace en Meta, Cloudflare y Odoo:
+[JUAN_META.md](JUAN_META.md) (app, `META_PAGE_TOKEN`, webhook `/webhooks/meta`, encender en Ajustes de Juan y pedir la
+revisión de la app para contestar a todos).
+
+### 6.13 Telegram: el bot de Brian y el de Juan
+
+- **Brian** ([BRIAN.md › Telegram](BRIAN.md)): bot nuevo en @BotFather; `TELEGRAM_BOT_TOKEN` y
+  `BRIAN_TELEGRAM_SECRETO` (en GitHub o en el panel de `dcasa`, no en los dos); `BRIAN_TELEGRAM_CHATS` en el panel
+  (sin ella cualquiera recibe las instrucciones para vincularse); desplegar o reiniciar; *Brian › Telegram ›
+  Registrar webhook*; cada persona se vincula con `/vincular <código>`. `DCASA_ALERTA_TELEGRAM_CHAT` para el aviso de
+  caída del contenedor. Sofía manda su resumen de la mañana a quien tenga Telegram vinculado.
+- **Juan** ([JUAN_WORKER.md §6](JUAN_WORKER.md)): **otro** bot (un bot tiene un solo destino);
+  `TELEGRAM_BOT_TOKEN_JUAN` y `TELEGRAM_WEBHOOK_SECRET_JUAN` en `dcasa-juan`; registrar el webhook con `setWebhook`
+  hacia `/webhooks/telegram`; `/miid` da el chat id para las alertas.
+
+### 6.14 Opcionales
+
+- **Correo a clientes (Resend):** cuenta, una clave por entorno, dominio verificado y el interruptor «Enviar correos a
+  clientes» ([CORREO.md](CORREO.md)).
+- **Meta, píxel y catálogo:** todo apagado hasta tener la sección de privacidad aprobada ([META_EVENTOS.md](META_EVENTOS.md),
+  [META_CATALOGO.md](META_CATALOGO.md)).
+- **Turnstile:** `TURNSTILE_SITE_KEY` y `TURNSTILE_SECRET` ([SEGURIDAD_ACCESO.md §6.2](SEGURIDAD_ACCESO.md)).
+- **Caché de páginas:** `TIENDA_FEED_TOKEN` y `TIENDA_ESTATICA` (`off` en producción hasta aprobarla en staging,
+  `edge/wrangler.jsonc:71-73`; [OPERACION.md › Tienda rápida](OPERACION.md)).
+- **Puente de WhatsApp por QR:** *Actions › Desplegar puente de WhatsApp*, primero `dry-run` y luego `desplegar`, después
+  de Juan; `WA_TOKEN` y `WA_SESION_CLAVE` en el panel; descomentar `PUENTE` en `juan/wrangler.jsonc:33` (staging `:75`) y
+  volver a desplegar Juan. Solo con un número **de prueba** en staging ([JUAN_PUENTE.md](JUAN_PUENTE.md)). Con la API
+  oficial no hace falta.
+
+## 7. Adaptar sin bifurcar la lógica
+
+**Se cambia (datos y configuración):** lo de [VALORES_DE_LA_EMPRESA.md](replicar/VALORES_DE_LA_EMPRESA.md), las
+variables de los `wrangler.jsonc`, los secretos, `puntos.json` (subiendo su `version`), las plantillas de Sofía y de
+correo, el conocimiento de Juan y todo lo que se edita en Odoo
+([CUENTAS_Y_SECRETOS.md §8](replicar/CUENTAS_Y_SECRETOS.md)).
+
+**No se toca:**
+
+- `vendor/odoo` (nunca);
+- las invariantes de Socios y vendedores (sin columna de saldo, libros que no se editan, un solo patrocinador, nada se
+  paga por afiliar, la comisión nunca hace fallar una venta, `DCASA_PIN_PEPPER` que no se rota: `CLAUDE.md`);
+- el arranque y el despliegue (`docker/entrypoint.sh`, `docker/pg.sh`, `.github/scripts/`, `edge/src/`), salvo para
+  corregir un error, y leyendo antes [CONTEXTO_AGENTICO.md](CONTEXTO_AGENTICO.md);
+- los nombres técnicos (`dcasa_*`, modelos, campos, parámetros): cambiarlos rompe la vía de mejoras del original.
+
+**Comportamiento nuevo, en un módulo nuevo** que herede (como manda `CLAUDE.md`), con su prueba. Un módulo nuevo se
+agrega a `ODOO_MODULES` (`docker/entrypoint.sh:176`) y a `MODULES` del `Makefile:5`, que es como entró `dcasa_sofia`
+([LEEME_PRIMERO.md](LEEME_PRIMERO.md), bitácora del 2026-11-05). Cuantos menos archivos del núcleo cambie el negocio
+nuevo (idealmente solo los de VALORES), más fácil es traer mejoras.
+
+## 8. Traer mejoras del original y reglas del repositorio
 
 ```bash
 git fetch upstream
 git switch -c traer-mejoras origin/main
-git merge upstream/main          # los conflictos caen casi siempre en los archivos del §4
+git merge upstream/main          # los conflictos caen casi siempre en los archivos de VALORES_DE_LA_EMPRESA.md
 ```
 
-1. Resuelve los conflictos conservando los datos del negocio nuevo y el código nuevo del original. Revisa los commits
-   que traen `puntos.json` o datos de D'CASA: lo de D'CASA no se acepta.
-2. Si el original subió la `version` de un módulo o trae `migrations/`, lee el cambio antes: al desplegar, el arranque
-   corre `odoo -u` sobre la base del negocio.
+1. Resuelve los conflictos conservando los datos del negocio nuevo y el código nuevo del original. Lo que traiga datos
+   de D'CASA (`puntos.json`, catálogo, textos, versiones estables) **no se acepta**.
+2. Si el original subió la `version` de un módulo o trae `migrations/`, léelo antes: al desplegar, el arranque corre
+   `odoo -u` sobre la base del negocio (`docker/entrypoint.sh:398-401`).
 3. Si cambió el commit de `vendor/odoo`: `git submodule update --init --depth 1`.
-4. Corre todas las pruebas en local, despliega a staging, revisa, y recién después a producción con la receta de
-   [ARQUITECTURA.md §6.2](ARQUITECTURA.md).
-5. Nunca bajes una imagen más vieja sobre una base ya actualizada sin restaurar antes la base
-   ([CONTEXTO_AGENTICO.md](CONTEXTO_AGENTICO.md)).
+4. Todas las pruebas en local, staging, revisión y recién después producción con la receta del §6.7.
+5. **Nunca** despliegues una imagen más vieja sobre una base ya actualizada sin restaurar antes la base: con `-u`, el
+   código viejo borra columnas y tablas nuevas con sus datos ([CONTEXTO_AGENTICO.md](CONTEXTO_AGENTICO.md), regla 2).
 
-Cuantos menos archivos del núcleo cambie el negocio nuevo (idealmente solo los del §4), más fácil es traer mejoras.
+**Reglas que el equipo nuevo hereda** (de [`CLAUDE.md`](../CLAUDE.md) y [LEEME_PRIMERO.md](LEEME_PRIMERO.md)):
 
-## 11. Preguntas abiertas
+- Al empezar una sesión, leer `docs/LEEME_PRIMERO.md` y `docs/PRIORIDADES.md`; antes de desplegar o tocar el
+  arranque, el borde o los flujos, `docs/CONTEXTO_AGENTICO.md`. Al terminar, la entrada de la bitácora, las
+  prioridades al día y lo aprendido en el contexto agéntico.
+- Convenciones de Odoo 19 (`<list>`, `invisible="expr"`, `models.Constraint`, `group_ids`, `self.env._`) y pruebas
+  `@tagged('post_install', '-at_install')`: **todo cambio lleva prueba**.
+- Todo método público nuevo, y todo *override* de uno de Odoo, va a la lista blanca de
+  `addons/dcasa_base/tests/test_superficie_rpc.py` con su motivo.
+- Toda prueba con fechas congela el reloj; toda prueba que provoca un `ERROR` lo atrapa con `assertLogs`
+  (`scripts/test.sh` falla con cualquier `ERROR` del registro: `scripts/test.sh:41-45`).
+- Toda pantalla nueva que un administrador deba encontrar va a `addons/dcasa_guia/data/guia.json`.
+- Toda función nueva tiene que poder usarla Brian (la plantilla del PR lo pregunta).
+- Adjuntos en R2; nunca se borran objetos de R2 al desvincular.
+- Secretos nunca en el chat; datos de personas solo en Odoo; el «sí» de la gerencia antes de producción (la tabla de
+  autorizaciones de [LEEME_PRIMERO.md §2](LEEME_PRIMERO.md), adaptada al negocio nuevo).
 
-- No se probó la instalación con el catálogo vacío ni con los datos de otro negocio (§4.7): hay que comprobarlo con
-  `scripts/test.sh` en la primera réplica.
-- El permiso exacto del token de Cloudflare para Workers AI al desplegar Juan (no está documentado en el repositorio).
-- Si las fotos de la portada y las categorías (`website_dcasa/static/src/img/`) se pueden reusar en otro negocio: el
-  README dice que las de ambiente son del tema Loftspace de Odoo (LGPL-3); el origen de las demás no está escrito.
-- Si `/web/signup` (crear cuenta de cliente) está abierto: no hay ajuste en el código que lo fije.
+## 9. Antes de abrir al público
+
+- [ ] `GET /__edge/health` en los dos entornos: 200, `version` = el commit desplegado, `base_al_dia: true`, `humo: ok`.
+- [ ] Ningún dato de D'CASA a la vista: las búsquedas de [VALORES_DE_LA_EMPRESA.md](replicar/VALORES_DE_LA_EMPRESA.md)
+      solo encuentran comentarios, migraciones viejas o ejemplos de formato.
+- [ ] Recorrido a mano en computadora y celular: portada, `/shop`, una ficha, carrito, `/socios`, `/mi-cuenta`,
+      `/privacidad`, `/terminos`, `/visitanos`; en el panel: Inicio, Conversaciones, una cotización e «Imprimir
+      documentos» (PDF con la marca nueva).
+- [ ] Como Vendedora y como Gerencia: la vendedora no ve costos, ganancia, Nómina ni facturas de proveedor
+      ([PERMISOS.md](PERMISOS.md)).
+- [ ] Políticas (privacidad con el párrafo de IA real, términos, garantía, cambios, abonos, Socios, vendedores)
+      aprobadas por la asesoría legal del negocio; cifras de `puntos.json`, premios, bono y tasas de nómina decididas
+      por la gerencia y quien lleve la contabilidad. Nada inventado.
+- [ ] Catálogo propio cargado (o vacío a propósito); ningún producto ni foto de D'CASA.
+- [ ] Juan: `/salud` sin secretos faltantes, `URL_PUBLICA` puesta, una conversación de prueba por cada canal encendido;
+      su proveedor de IA y su tope del mes decididos.
+- [ ] Brian: contesta en el panel; su tope de gasto puesto; Telegram con lista de chats permitidos.
+- [ ] Doble factor enrolado por **dos** administradores; usuarios uno por persona; `admin` no se comparte.
+- [ ] Puerta del equipo probada en `"0"`, luego `"avisar"`; en `"1"` solo cuando nadie aparece «sin pasar por la puerta».
+- [ ] Respaldos: `pgbackrest/`, `adjuntos/` y, al día siguiente, `pg_dump/` en el bucket; simulacro con R2 de verdad
+      hecho en staging.
+- [ ] Barandas de costo: alertas de presupuesto y reglas de ciclo de vida de R2.
+- [ ] Copia de `PGBACKREST_CIPHER_PASS` y `DCASA_PIN_PEPPER` de cada entorno (y `WA_SESION_CLAVE` si hay puente) en el
+      gestor de contraseñas de la gerencia. Cloudflare y GitHub con 2FA y códigos de recuperación impresos.
+- [ ] Dominio propio activo (si lo hay), `URL_SITIO` al dominio, webhook de Brian registrado de nuevo, QR impresos al
+      dominio.
+- [ ] Primera versión estable propia en `.github/versiones_estables.json` y en `volver-a-estable.yml` (§4.3).
+- [ ] `CLAUDE.md` y los documentos de historia reescritos para el negocio nuevo (§4.3).
+
+## 10. Trampas conocidas que pegan en una instalación nueva
+
+Sacadas de [CONTEXTO_AGENTICO.md](CONTEXTO_AGENTICO.md), donde está cada una con su causa y su arreglo.
+
+1. **`routes` con un dominio que no es de la cuenta.** `edge/wrangler.jsonc` trae el dominio de D'CASA: hasta tener el
+   propio en Cloudflare, `"routes": []` (§6.2). Y `routes` **se hereda** en `env.staging`: siempre `"routes": []` ahí.
+2. **`app_version` es el SHA que construyó el CI** (el de la rama), nunca el del *squash* en `main`: con otro, falla con
+   `IMAGE_REGISTRY_DOESNT_CONTAIN_IMAGE` y el Worker nuevo igual queda activo (Cloudflare activa el Worker antes que la
+   imagen). Nunca inventar ni completar un SHA.
+3. **«Sano» no es un 200.** Vale la versión desplegada con la base al día y el humo en verde; después de cada despliegue
+   se abre el Inicio (incidente 1, #97).
+4. **El código y la base van juntos.** Nunca bajar una imagen sin restaurar antes la base (regla 2).
+5. **`CANONICAL_HOST` tiene que ser donde el sitio responde de verdad.** Dejar vacía la de GitHub: se toma el anfitrión
+   de `URL_SITIO` (`.github/workflows/desplegar.yml:286-296`). Si apunta a un dominio sin ruta, las fotos y PDF de
+   Telegram y WhatsApp no llegan.
+6. **Puerta del equipo:** nunca directo a `"1"` (incidente 4). Staging viene en `"1"`: bajarla a `"0"` (§6.2).
+7. **El día del dominio:** el respaldo previo falla porque `URL_SITIO` todavía no resuelve (Desplegar 29), y desplegar
+   con el `app_version` de un commit sin `routes` sale sin dominio (Desplegar 30). El dominio propio no se crea si el
+   nombre ya tiene un registro A o CNAME.
+8. **Las variables del panel se aplican al reiniciar** o en el siguiente despliegue; los despliegues usan `--keep-vars`
+   para no borrarlas.
+9. **`DCASA_PIN_PEPPER` y `PGBACKREST_CIPHER_PASS` no se rotan nunca**; si la consulta de secretos falla, el despliegue
+   aborta sin escribir nada. Guardar la copia **antes** del primer despliegue.
+10. **Worker a Worker, solo por *service binding*** (la URL pública da el error 1042) y en orden: `dcasa` → `dcasa-juan`
+    → `dcasa-puente-wa`. Cloudflare no despliega un binding a un Worker que no existe.
+11. **Juan sin `URL_PUBLICA`** guarda los archivos del cliente pero Odoo no puede bajarlos («No se pudo traer 1 archivo»).
+12. **La espera de la salud tiene que despertar a Odoo:** la portada sale de la copia del borde; por eso
+    `esperar_salud.sh` visita `/web/login`. Staging puede tardar ~27 minutos: no cancelar.
+13. **429 de R2 o HTTP 000 en el respaldo previo:** no toca producción; relanzar *Desplegar* con el mismo digest. Un 503
+    de producción apagada: esperar el minuto 7 de la hora (el cron la despierta) y relanzar.
+14. **Cuota de artefactos de GitHub llena** («Artifact storage quota has been hit»): *Limpiar copias temporales* y
+    esperar 6-12 horas ([OPERACION.md](OPERACION.md)).
+15. **La app de contenedores apareció «revertida» a la imagen anterior** en 5 despliegues (incidente 5, causa sin
+    confirmar): después de desplegar, mirar también la etiqueta de la imagen activa.
+16. **No activar «Exigir 2FA» por correo en Odoo:** sin correo saliente, nadie recibe el código y todos quedan fuera
+    ([SEGURIDAD_ACCESO.md §3](SEGURIDAD_ACCESO.md)).
+17. **Capturas de referencia visual:** si cambia la marca, se regeneran a propósito y en el mismo commit; Chromium y las
+    fuentes de cada máquina pintan distinto (el CI tolera 6 %, en local 1,5 %).
+18. **WhatsApp:** la llave del Explorador de la API Graph vence en horas; suscribirse a los webhooks solo en el número
+    real. Un modelo «contributor» de Meta entrena con las conversaciones: la política de privacidad lo tiene que decir.
+19. **Un módulo que agrega una exigencia** (motivo, grupo, candado) rompe a los demás que escriben ese modelo: buscarlos
+    antes de unir (CI #211).
+
+## 11. Lo que no se copia nunca
+
+- **Datos de clientes y del equipo** de D'CASA (ni de ningún otro negocio).
+- **La base de datos ni los buckets de R2** de otro negocio: cada negocio arranca con su base vacía y sus buckets.
+- **Secretos:** ningún token, clave, pimienta ni clave de cifrado se reusa entre negocios ni entre entornos.
+- **Las cifras de `puntos.json`, los premios, la meta del bono, el catálogo y las fotos** (`fuentes/`, `up media/`,
+  `addons/dcasa_catalogo/static/img/productos/`) y las versiones estables de D'CASA.
+- **Los informes y la bitácora** de D'CASA en `docs/` (historia, no instrucciones para el negocio nuevo).
+
+## 12. Lo que no se pudo verificar (preguntas abiertas)
+
+- **Instalar con el catálogo vacío o con otro catálogo** no se ha probado (`addons/dcasa_catalogo/__init__.py:6-23`):
+  comprobarlo con `scripts/test.sh` en la primera réplica.
+- **El permiso del token de Cloudflare para el binding de Workers AI** al desplegar Juan (`juan/wrangler.jsonc:24`) no
+  está documentado en el repositorio.
+- **Qué pasa exactamente si `routes` nombra una zona que no está en la cuenta**: por eso el §6.2 manda dejarla vacía.
+- **Si `/web/signup` (crear cuenta de cliente) está abierto:** ningún ajuste del código lo fija.
+- **El origen de las fotos del sitio** que no son del tema Loftspace ([REDISENO.md › Fotografía](REDISENO.md)).
+- **WhatsApp en coexistencia** (la app del teléfono y la API a la vez) y la forma del aviso de «eco»: sin verificar contra
+  Meta ([JUAN_PLAN_B.md §4](JUAN_PLAN_B.md)).
+- **Documentos que no coinciden con el código** (manda el código): [OPERACION.md](OPERACION.md) dice que staging duerme
+  tras 1 h y que producción es `basic`, pero `edge/wrangler.jsonc:70,157` deja los dos entornos 24/7 y `:25` pone
+  `standard-1`; el encabezado de `.github/workflows/desplegar-juan.yml:4` dice que `ci.yml` no lo llama, pero
+  `.github/workflows/ci.yml:539-558` sí lo llama (staging y `solo-juan-staging`); [JUAN_WORKER.md](JUAN_WORKER.md) todavía
+  describe WhatsApp Cloud como apagado.
+
+## 13. Mantener esta guía al día
+
+Cuando cambie algo de lo que cita esta guía (un archivo se mueve, un secreto nuevo, un paso nuevo del despliegue), se
+corrige aquí en el mismo cambio. Para comprobar que todas las rutas citadas existen:
+
+```bash
+python3 - <<'PY'
+import pathlib, re
+raiz = pathlib.Path('.')
+faltan = set()
+for doc in ['docs/REPLICAR.md', *map(str, raiz.glob('docs/replicar/*.md'))]:
+    base = pathlib.Path(doc).parent
+    texto = pathlib.Path(doc).read_text(encoding='utf-8')
+    for ruta in re.findall(r'`((?:addons|edge|juan|puente-wa|docker|scripts|\.github|docs|vendor)/[^`:\s<>]+)', texto):
+        ruta = ruta.rstrip('/')
+        if not (list(raiz.glob(ruta)) if '*' in ruta else (raiz / ruta).exists()):
+            faltan.add(ruta)
+    for enlace in re.findall(r'\]\(([^)#]+\.md)', texto):
+        if not (base / enlace).exists():
+            faltan.add(enlace)
+print('\n'.join(sorted(faltan)) or 'Todas las rutas existen.')
+PY
+```
+
+Y para los secretos: comparar la tabla de [CUENTAS_Y_SECRETOS.md §2.2](replicar/CUENTAS_Y_SECRETOS.md) con
+`rg -o "(secrets|vars)\.[A-Z_0-9]+" .github/workflows | sort -u`.
