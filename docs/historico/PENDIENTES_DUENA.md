@@ -1,5 +1,12 @@
 # Pendientes de la dueña
 
+> **Archivado el 2026-11-06.** Lo que seguía vigente pasó a [PRIORIDADES.md › Lo que falta de la
+> dueña](../PRIORIDADES.md#lo-que-falta-de-la-dueña). Varias cosas de aquí ya no valen: producción existe desde el
+> 2026-10-13 y sirve `dcasapty.com` desde el 2026-10-27 (puntos 16 y 22), Juan atiende WhatsApp por la API oficial de
+> Meta desde el 2026-11-02 (punto 8), el correo a clientes está encendido desde el 2026-10-27, las reglas contables y
+> los permisos de vendedoras están en producción desde el 2026-10-18 (puntos 23 y 24) y el reparto ya se describe en
+> [JUAN_ODOO.md](../JUAN_ODOO.md) (punto 20a).
+
 Lo que falta decidir, validar o hacer y no es trabajo de programación. Revisado el 2026-10-12. La evaluación de
 cómo está todo y qué atender primero está en [ESTADO.md](ESTADO.md); lo que es trabajo de desarrollo vive en los
 [issues del repositorio](https://github.com/dcasapty/D_Casa_new_word/issues).
@@ -76,7 +83,7 @@ cómo está todo y qué atender primero está en [ESTADO.md](ESTADO.md); lo que 
     nada (todo está en el historial), pero quedan fuera de este trabajo de orden porque el borrado lo decide la dueña.
 18. **Peso del repositorio (~1 GB).** Casi todo es `fuentes/` (948 MB): las fotos originales con las que se regenera el
     catálogo; **no es basura**. Si pesa demasiado, `scripts/archivar_fuentes.sh` las pasa a R2 sin perder la trazabilidad
-    (necesita las llaves de R2). Ver [OPERACION.md](OPERACION.md) › «Cómo subir fotos».
+    (necesita las llaves de R2). Ver [OPERACION.md](../OPERACION.md) › «Cómo subir fotos».
 19. **El repositorio está público (desde 2026-10-13).** Se hizo para que GitHub no limitara el espacio de los
     despliegues (en repositorios públicos no cuenta). A la vista de todos quedan el código, los catálogos y precios del
     proveedor (`fuentes/`), el inventario del sistema anterior y los informes de gerencia. **Datos de personas no deben
@@ -87,7 +94,7 @@ cómo está todo y qué atender primero está en [ESTADO.md](ESTADO.md); lo que 
 
 20. **Ronda del 15 de octubre (qué te toca a ti).**
     (a) **Reparto de conversaciones:** sigue apagado. Cuando lo pruebes, enciéndelo con el botón de Conversaciones › Reparto
-    (solo reciben las vendedoras; Gerencia y el Administrador intervienen pero no reciben). Ver [JUAN_PANEL.md](JUAN_PANEL.md).
+    (solo reciben las vendedoras; Gerencia y el Administrador intervienen pero no reciben). Ver [JUAN_PANEL.md](../JUAN_ODOO.md).
     (b) **QR y código público en la factura y la cotización:** vienen **apagados** (Ajustes › Empresas › D'CASA Panamá,
     pestaña «Documentos D'CASA»). Antes de encenderlos, aprobar las imágenes del antes y el después. El QR de la nota de
     entrega y del pedido de compra no toca la factura.
@@ -104,7 +111,7 @@ cómo está todo y qué atender primero está en [ESTADO.md](ESTADO.md); lo que 
 22. **La puerta `/master` y el «Iniciar sesión» de la web:** pendiente de hacer **con lupa antes de traspasar el dominio**.
     Hoy el «Iniciar sesión» de la web lleva al panel administrativo; más adelante, por seguridad, no debe: los clientes entran
     solo por su cuenta en la web y el personal solo por `/master`. **2026-10-18:** los enlaces de la web ya llevan a Mi
-    cuenta (rama `master-puerta`); lo que te toca para `/master` está en [PUERTA_MASTER.md](PUERTA_MASTER.md) (Access y
+    cuenta (rama `master-puerta`); lo que te toca para `/master` está en [PUERTA_MASTER.md](../PUERTA_MASTER.md) (Access y
     `DCASA_ACCESS_AUD` de producción) y el traslado en [TRASLADO_DOMINIO.md](TRASLADO_DOMINIO.md).
 23. **«Cada vendedora ve solo sus documentos» (cuando salga a producción):** apenas quede el despliegue, y antes de abrir,
     darle el rol **Caja** al jefe administrativo (*Ajustes › Usuarios* › la persona › en «D'CASA» elegir «Caja»; o Brian:
@@ -112,14 +119,14 @@ cómo está todo y qué atender primero está en [ESTADO.md](ESTADO.md); lo que 
     efectos a saber: al confirmar una cotización de Juan sin vendedora, la vendedora que la confirma se la queda (cuenta
     para su meta; si la confirma Caja, no es de nadie), y una vendedora ya no ve la cotización de otra para el cliente
     que vuelve (Caja o Gerencia le cambian el «Vendedor»). Si trae problemas en la tienda: *Ventas › Configuración ›
-    Permisos de las vendedoras* › apagar (todas vuelven a ver todo, como antes). Detalle en [PERMISOS.md](PERMISOS.md).
+    Permisos de las vendedoras* › apagar (todas vuelven a ver todo, como antes). Detalle en [PERMISOS.md](../PERMISOS.md).
     **Decidido el 17 oct** (ya hecho en la rama, falta desplegar): (a) **los pedidos de la web entran sin vendedora**:
     los ven todas y la que lo confirma se lo queda (si lo confirma Caja, sigue sin vendedora); el «Vendedor» del sitio
     web queda vacío (si algún día se pone uno, los pedidos web vuelven a ir a esa persona); el vendedor del programa
     (link `/v/…`) no cambia. (b) **El cobro solo en Caja**: la vendedora sigue cotizando, confirmando y facturando, pero
-    ya no cobra (decisión de la gerencia, ver [DECISIONES_CONTABLES.md](DECISIONES_CONTABLES.md)). Queda abierta (c):
+    ya no cobra (decisión de la gerencia, ver [DECISIONES_CONTABLES.md](../DECISIONES_CONTABLES.md)). Queda abierta (c):
     lo que se comparte a propósito (la nota de entrega, Conversaciones, los puntos de Socios, el CRM) deja ver números
-    de pedido o factura de otra vendedora: la lista está en [PERMISOS.md](PERMISOS.md).
+    de pedido o factura de otra vendedora: la lista está en [PERMISOS.md](../PERMISOS.md).
 24. **Reglas contables de la gerencia (rama `permisos-vendedoras`):** antes de staging, que veas las capturas (primer
     abono menor a la mitad, papel del abono a 30 días, la vendedora que intenta cobrar, el mensaje al anular sin ser
     Gerencia y «Pagar» con Tafi y Crediviva). Para la **contadora**: revisar la cuenta contable que el sistema les creó a
@@ -129,8 +136,8 @@ cómo está todo y qué atender primero está en [ESTADO.md](ESTADO.md); lo que 
     notas de crédito (hoy no: solo Gerencia y administradores).
 25. **Anuncios en Meta (catálogo, píxel y ventas reportadas), todo apagado hasta que digas:** decidir precio sin ITBMS
     en el anuncio, disponibilidad, marca, condición, qué productos entran, cuándo se reporta la compra web, las ventas
-    de la tienda y staging (cada una con su recomendación en [META_CATALOGO.md](META_CATALOGO.md) y
-    [META_EVENTOS.md](META_EVENTOS.md), «Decisiones de la dueña»); llevar al abogado el borrador de privacidad y sus
+    de la tienda y staging (cada una con su recomendación en [META_CATALOGO.md](../META_CATALOGO.md) y
+    [META_EVENTOS.md](../META_EVENTOS.md), «Decisiones de la dueña»); llevar al abogado el borrador de privacidad y sus
     7 preguntas; en Meta, crear el píxel con la «Coincidencia avanzada automática» **apagada** y guardar el token
     solo como secreto `META_CAPI_TOKEN` en GitHub (nunca por el chat).
 

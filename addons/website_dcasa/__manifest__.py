@@ -7,7 +7,7 @@ Sitio web de D'CASA sobre el constructor de sitios y el eCommerce de Odoo:
 * Paleta y tipografías de la marca (azul #1340B1, amarillo #FED00F, Anton,
   Oswald, Inter) cargadas como paleta del sitio: se pueden ajustar desde el
   editor sin tocar código.
-* Portada v2 (docs/REDISENO.md): hero con placa, compra por espacio, carriles de
+* Portada v2 (docs/historico/REDISENO.md): hero con placa, compra por espacio, carriles de
   productos con precio y «Agregar» en un clic, socios, guía y preguntas frecuentes.
 * Ficha de producto con WhatsApp del mueble, sellos de confianza y botón fijo en el
   celular; tienda a 4 columnas; datos estructurados y SEO local.

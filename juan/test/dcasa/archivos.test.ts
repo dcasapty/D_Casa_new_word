@@ -5,7 +5,7 @@
  * con expresiones regulares; aquí se prueba el comportamiento: se le entrega al motor un archivo de verdad y se
  * inspecciona TODO lo que el modelo recibió en cada paso.
  *
- * Decisión (docs/JUAN_WORKER.md): en la Fase 1 NINGÚN archivo del cliente llega al modelo. No se puede distinguir un comprobante
+ * Decisión (docs/JUAN.md): en la Fase 1 NINGÚN archivo del cliente llega al modelo. No se puede distinguir un comprobante
  * de una foto del cuarto sin mirarlo, y mirarlo es justo lo que la regla prohíbe.
  */
 import { describe, expect, it } from "vitest";

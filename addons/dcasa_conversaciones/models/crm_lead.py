@@ -1,7 +1,7 @@
 """El CRM que se ajusta solo: la oportunidad de una conversación se mueve con hechos que Odoo ya sabe.
 
 Pedido de la dueña (2026-10-10): que el CRM no dependa de las vendedoras. Diseño, fallas del plan y reglas:
-``docs/CRM_AUTOMATICO.md``. Lo esencial, para quien toque este archivo:
+``docs/JUAN_ODOO.md``. Lo esencial, para quien toque este archivo:
 
 * **Solo hechos**: cotización enviada, factura pagada, días sin escribir (``crm_reglas.py``). Nada que la IA «opine».
 * **Solo hacia adelante** y solo en oportunidades que nacieron de una conversación (``dcasa_conversacion_ids``).

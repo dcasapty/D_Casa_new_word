@@ -1,6 +1,7 @@
 # Correo a clientes (Resend)
 
-Módulo `dcasa_correo`. Puesto al día el 2026-10-17.
+Módulo `dcasa_correo`. Puesto al día el 2026-11-06: **encendido en producción desde el 2026-10-27**, con
+`dcasapty.com` verificado en Resend y la clave como secreto en el panel de Cloudflare del Worker `dcasa` (§3 y §5).
 
 ## 1. Qué hace y qué no
 
@@ -55,29 +56,26 @@ bienvenida).
    - Permiso: el que dice **solo envío** (*Sending access*), no el de acceso completo.
    - Copia la clave que muestra (empieza con `re_`). **Solo se ve una vez.** Guárdala en tu gestor de contraseñas.
 3. Haz otra igual con el nombre `Odoo staging` (para probar sin tocar producción).
-4. **Nunca la pegues en el chat, en Odoo ni en un correo.** Solo va en GitHub (paso 3).
+4. **Nunca la pegues en el chat, en Odoo ni en un correo.** Va en un solo lugar (paso 3).
 
 ## 3. Dónde se pega la clave
 
-**En GitHub**, una vez por entorno:
+**Producción (así está desde el 2026-10-26, decisión de la dueña):** como **secreto `RESEND_API_KEY` en el panel de
+Cloudflare** del Worker `dcasa` (*Workers & Pages › `dcasa` › Settings › Variables and Secrets › Add*, tipo *Secret*). No
+está en GitHub. Los despliegues no la borran: el flujo solo sube `RESEND_API_KEY` si existe en GitHub
+(`.github/scripts/secretos_despliegue.sh`; vacía, no se sube).
 
-1. Entra al repositorio en GitHub › **Settings** (arriba a la derecha) › en el menú de la izquierda, **Environments**.
-2. Toca **production** › en **Environment secrets**, **Add environment secret**:
-   - **Name**: `RESEND_API_KEY` (así, con mayúsculas y guiones bajos).
-   - **Value**: la clave `Odoo produccion` del paso 2.
-   - **Add secret**.
-3. Vuelve a **Environments**, toca **staging** y haz lo mismo con la clave `Odoo staging`.
+**Cuidado:** si un día se pone también en GitHub (*Settings › Environments › production › Environment secrets*), **esa
+manda**: cada despliegue la sube y pisa la del panel. Una sola, en un solo lugar.
 
-**En Cloudflare no se pega nada para la clave.** Cada despliegue la sube sola al Worker y de ahí llega a Odoo. Si
-quieres comprobar que llegó (después del despliegue): Cloudflare › **Workers & Pages** › `dcasa` (o `dcasa-staging`) ›
-**Settings** › **Variables and Secrets**: tiene que aparecer `RESEND_API_KEY` (el valor no se ve, y está bien). No la
-pegues también ahí: el siguiente despliegue la reemplaza con la de GitHub.
+**Staging** no tiene clave (y aunque la tuviera, staging nunca manda correo a clientes: `politica.py`).
 
-**Para que entre**, hace falta un despliegue: staging se despliega cuando se pida; producción, con tu «sí», como siempre.
+**Para que entre**, el contenedor tiene que reiniciar o recibir un despliegue (las variables y secretos del panel llegan
+a Odoo al arrancar).
 Después, en Odoo › Ventas › Configuración › **Correo a clientes**, el «Estado» dice **«Clave cargada (…xxxx)»** con las
 cuatro últimas letras de tu clave.
 
-## 4. La prueba (todavía sin dominio)
+## 4. La prueba (antes de verificar el dominio)
 
 Mientras `dcasapty.com` no esté verificado en Resend, Resend solo deja mandar desde `onboarding@resend.dev` y solo al
 correo dueño de la cuenta. Para probar:
@@ -90,7 +88,7 @@ correo dueño de la cuenta. Para probar:
 4. Si sale un error, la pantalla lo dice con las palabras de Resend (por ejemplo, que el dominio no está verificado).
 5. **El interruptor «Enviar correos a clientes» se queda apagado.** Sin dominio, a los clientes no les llegaría.
 
-## 5. Cuando el dominio pase a Cloudflare
+## 5. El dominio en Resend (hecho el 2026-10-26)
 
 1. En Resend › **Domains** › **Add Domain** › escribe `dcasapty.com`.
 2. Resend te muestra una lista de registros DNS (para que los correos no lleguen a spam: SPF, DKIM y el de rebotes).
@@ -158,11 +156,9 @@ La gerencia pidió el recordatorio por correo **y, si se puede, por WhatsApp**. 
   los próximos 5 días y los ya vencidos, del más urgente al menos, con lo que le falta a cada cliente, si ya salió el
   recordatorio por correo y un botón **WhatsApp** que abre WhatsApp (en el teléfono o en WhatsApp Web) **con el mensaje
   listo para ese cliente**: lo manda la persona, desde el teléfono de la tienda. Brian: `abonos_por_vencer`.
-- **WhatsApp automático: apagado a propósito.** Hoy WhatsApp va por el puente con código QR (camino no oficial,
-  `docs/JUAN_PUENTE.md`): escribirle **primero** a un cliente, sin que haya escrito, es justo lo que más riesgo de
-  bloqueo del número da (sección 6 y 8 de esa guía). La forma segura es la API oficial de Meta (el plan B ya preparado),
-  que para escribir primero exige **plantillas aprobadas por Meta** (y cobra unos centavos por mensaje) y la
-  verificación del negocio, que sigue pendiente. Cuando Meta esté aprobado, el recordatorio por WhatsApp se agrega con
+- **WhatsApp automático: apagado a propósito.** WhatsApp va por la API oficial de Meta desde el 2026-11-02
+  ([JUAN_CANALES.md](JUAN_CANALES.md)), y Meta solo deja escribirle **primero** a un cliente con una **plantilla
+  aprobada** (que cobra por mensaje). Cuando haya plantillas aprobadas, el recordatorio por WhatsApp se agrega con
   una plantilla («Hola {nombre}, tu abono de la factura {número} vence el {fecha}: te faltan {saldo}») sobre esta misma
   lista y la misma regla de uno por vencimiento.
 

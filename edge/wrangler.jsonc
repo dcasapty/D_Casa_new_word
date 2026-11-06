@@ -105,7 +105,7 @@
   //   { "name": "LIMITE_CARRITO", "namespace_id": "1103", "simple": { "limit": 120, "period": 60 } }
   // ],
 
-  // Dominio propio (docs/TRASLADO_DOMINIO.md, 2026-10-26): dcasapty.com y www van a este Worker. Cloudflare crea solo
+  // Dominio propio (docs/historico/TRASLADO_DOMINIO.md, 2026-10-26): dcasapty.com y www van a este Worker. Cloudflare crea solo
   // sus registros DNS y certificados (custom_domain); el borde manda www → dcasapty.com.
   "routes": [
     { "pattern": "dcasapty.com", "custom_domain": true },

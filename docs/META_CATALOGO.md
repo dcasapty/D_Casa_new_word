@@ -34,7 +34,7 @@ Solo **Gerencia y los administradores** ven estas pantallas y estos campos. La V
 > **Por qué «Sitio web › Anuncios en Meta» y no «Sitio web › Configuración»:** en Odoo 19 «Configuración» es solo de
 > administradores (`base.group_system`) y Gerencia no lo vería. El diseño pide que lo use Gerencia.
 
-### Cómo se conecta con Meta (cuando se traslade el dominio)
+### Cómo se conecta con Meta (el dominio ya está: desde el 2026-10-27)
 
 1. Odoo necesita su **dirección pública con https** (`web.base.url` congelado con el dominio). Mientras sea una
    dirección local, la pantalla dice «Todavía no hay dirección» y la ruta responde 503: nunca se le dan a Meta enlaces

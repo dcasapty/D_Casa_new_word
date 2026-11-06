@@ -255,7 +255,7 @@ Combos de cama y colchón**, **después** de los productos: primero «Revisar» 
 «Cargar». Solo enlaza camas y colchones que ya están; si falta una, ese combo no se carga y el informe dice cuál. La
 casilla **«Armar los combos desde su nombre»** sirve mientras tanto: lee cada «COMBO … + COLCHÓN …» y arma los que tienen
 una sola cama y un solo colchón posibles; los dudosos solo se listan. El formato del archivo y todas las reglas están en
-[MIGRACION.md › Combos de cama y colchón](MIGRACION.md#combos-de-cama-y-colchón).
+[MIGRACION.md › Combos de cama y colchón](MIGRACION.md#combos-de-cama-y-colchón-dcasa_migracioncombospy-reglas_combospy).
 
 ## Código público de cada producto (el que ve el cliente)
 

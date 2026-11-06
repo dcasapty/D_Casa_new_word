@@ -1,8 +1,11 @@
 # Juan, el Worker del bot de atención (`juan/`)
 
+> **Archivado el 2026-11-06:** se unió a [JUAN.md](../JUAN.md) (Parte 2, con los mismos números de sección).
+> Se conserva tal cual, como registro.
+
 Este documento explica **cómo está hecho Juan por dentro**, cómo se le agrega un canal, qué le falta
 para funcionar y cómo probarlo con Telegram. El contrato con Odoo y el puente de WhatsApp está en
-[`JUAN.md`](JUAN.md); aquí solo está lo que construyó el Worker.
+[`JUAN.md`](../JUAN.md); aquí solo está lo que construyó el Worker.
 
 No hay ningún secreto en este documento: solo **nombres**. Los valores los pega la dueña en el panel
 de Cloudflare.

@@ -1,5 +1,10 @@
 # Traslado del sitio de `*.workers.dev` a `dcasapty.com`
 
+> **Archivado el 2026-11-06: el traslado se hizo.** `dcasapty.com` y `www.dcasapty.com` apuntan al Worker `dcasa`
+> desde el 2026-10-27 (Desplegar 31; ver la bitácora de [LEEME_PRIMERO.md](../LEEME_PRIMERO.md) y
+> [CONTEXTO_AGENTICO.md](../CONTEXTO_AGENTICO.md) › Despliegue). Lo que quedaba de esta lista (Search Console, Meta, lo
+> impreso) está en [PRIORIDADES.md](../PRIORIDADES.md).
+
 Lista completa y en orden de lo que cambia cuando producción pase de `https://dcasa.dcasapty.workers.dev` a
 `https://dcasapty.com`. Sale de buscar en el código (`workers.dev`, `CANONICAL_HOST`, `web.base.url`, `URL_SITIO`,
 `dcasapty.com`) el 2026-10-18. La idea: dejar todo listo antes y que el traslado sea **un despliegue**.
@@ -65,10 +70,10 @@ Lista completa y en orden de lo que cambia cuando producción pase de `https://d
 | # | Quién | Qué | Cómo se comprueba | Cómo se vuelve atrás |
 |---|---|---|---|---|
 | 1 | D | Agregar `dcasapty.com` a Cloudflare (Add a site, plan Free) y cambiar los *nameservers* en el registrador. **Antes**, copiar los registros DNS que ya existen (correo `info@`, MX, TXT) | En Cloudflare el dominio dice **Active**; el correo de `info@` sigue llegando | Volver a los nameservers anteriores en el registrador |
-| 2 | D | Resend › Domains › Add `dcasapty.com` y copiar sus registros DNS en Cloudflare (nube gris) — [CORREO.md §5](CORREO.md) | Resend dice **Verified** | Borrar esos registros (no afecta al sitio) |
+| 2 | D | Resend › Domains › Add `dcasapty.com` y copiar sus registros DNS en Cloudflare (nube gris) — [CORREO.md §5](../CORREO.md) | Resend dice **Verified** | Borrar esos registros (no afecta al sitio) |
 | 3 | D | Zero Trust › Access › la aplicación «Master (producción)» › **agregar** el destino `dcasapty.com` + Path `master` (sin quitar el de workers.dev). El AUD **no cambia**: GitHub no se toca | `https://dcasapty.com/master` pide el PIN (el sitio aún no responde ahí: es normal) | Quitar ese destino |
 | 4 | D | Turnstile (si está en uso) › el widget › Hostnames: agregar `dcasapty.com` y `www.dcasapty.com` | El widget los lista | Quitarlos |
-| 5 | C | Confirmar con `/__edge/health` que `"puerta"` dice `lista` y que `/master` abre en workers.dev ([PUERTA_MASTER.md](PUERTA_MASTER.md)) | El equipo entra por `/master` | — |
+| 5 | C | Confirmar con `/__edge/health` que `"puerta"` dice `lista` y que `/master` abre en workers.dev ([PUERTA_MASTER.md](../PUERTA_MASTER.md)) | El equipo entra por `/master` | — |
 | 6 | C | Juan: `juan/wrangler.jsonc` ya tiene `URL_SITIO = https://dcasapty.com` en producción. **Hallazgo:** hoy eso hace que los enlaces relativos que completa Juan apunten a un dominio que todavía no es el sitio. Revisar con la dueña si pasarlo a workers.dev hasta el día, o dejarlo así | Una respuesta de Juan con enlace a un producto abre bien | Volver el valor y «Desplegar Juan» |
 
 ## El día del traslado (en este orden; ~15 minutos y un despliegue)
@@ -87,7 +92,7 @@ Lista completa y en orden de lo que cambia cuando producción pase de `https://d
 |---|---|---|---|
 | 12 | D | Correo a clientes: remitente `ventas@dcasapty.com` y encender «Enviar correos a clientes» (solo con Resend **Verified**) | Llega un correo de prueba sin ir a spam |
 | 13 | D | Google Search Console: propiedad de dominio `dcasapty.com` (verifica con un TXT en Cloudflare) y enviar `https://dcasapty.com/sitemap.xml` | Search Console lee el sitemap sin errores |
-| 14 | D | Meta: Business Settings › Brand safety › **Domains** › verificar `dcasapty.com`; el catálogo (cuando se una la rama de Meta) usa la dirección que muestra Odoo, que ya saldrá con el dominio ([META_CATALOGO.md](META_CATALOGO.md) en esa rama); el píxel, en el mismo dominio | Meta marca el dominio como verificado; «Subir ahora» del catálogo lee el feed |
+| 14 | D | Meta: Business Settings › Brand safety › **Domains** › verificar `dcasapty.com`; el catálogo (cuando se una la rama de Meta) usa la dirección que muestra Odoo, que ya saldrá con el dominio ([META_CATALOGO.md](../META_CATALOGO.md) en esa rama); el píxel, en el mismo dominio | Meta marca el dominio como verificado; «Subir ahora» del catálogo lee el feed |
 | 15 | D | Lo impreso (QR de socios, tarjetas): siempre `https://dcasapty.com/…`, nunca workers.dev | — |
 | 16 | C | `workers.dev` sigue respondiendo con el mismo sitio (contenido duplicado para Google; el `canonical` ya apunta al dominio). Propuesta, con su «sí»: que el borde redirija workers.dev al dominio, salvo `/__edge/*` | Abrir workers.dev lleva a dcasapty.com |
 | 17 | C | Staging, si se quiere: `staging.dcasapty.com` (descomentar su `routes`, `URL_SITIO` de staging, su aplicación de Access) y `TIENDA_AVISO_URL` de staging | — |

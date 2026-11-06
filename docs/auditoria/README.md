@@ -7,7 +7,7 @@ se escribieron. Siguen aquí porque el código, los scripts y los demás documen
 ([`../README.md`](../README.md)).
 
 **Lo que sigue vivo** de estas auditorías está en los issues del repositorio (hallazgos que quedaron para después)
-y en [`../PENDIENTES_DUENA.md`](../PENDIENTES_DUENA.md).
+y en [`../PRIORIDADES.md`](../PRIORIDADES.md) («Lo que falta de la dueña»).
 
 ## Para empezar
 

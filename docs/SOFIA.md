@@ -46,7 +46,7 @@ El saludo usa el nombre de pila solo si es un nombre: nunca «Hola 🙏».
 ## Guarda sus datos (pedido de la dueña, 2026-11-05)
 
 Cuando el cliente contesta lo que se le pidió, al tocar «Revisar ahora» Sofía muestra **una tarjeta con todo** («Guarda
-sus datos: Ingrid Pérez · ingrid@… · cumpleaños 12/03»). La vendedora ve lo que escribió y lo que hoy dice su ficha,
+sus datos: Marisol Pérez · marisol@… · cumpleaños 12/03»). La vendedora ve lo que escribió y lo que hoy dice su ficha,
 puede corregir o borrar cualquier dato, y toca:
 
 * **«Guardar y responderle»** (pedido de la dueña, 2026-11-05: «se completa la ficha, pero falta las gracias y la

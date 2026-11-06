@@ -3,7 +3,7 @@
 // Se enciende con RECONOCER_IMAGENES=1 Y el binding `ai` de wrangler.jsonc. Sin eso, el bot trata toda imagen como siempre: no la ve,
 // la anota para una vendedora y le pide el código al cliente.
 //
-// Principios (docs/JUAN_WORKER.md §12b):
+// Principios (docs/JUAN.md §12b):
 //  1. Un paso APARTE: este modelo no ve la conversación, no tiene herramientas y no puede contestarle al cliente.
 //  2. Lo que dice es DATO, no orden: aquí se convierte en un registro cerrado (enumeraciones y códigos con un patrón estricto).
 //     Nada de texto libre de la imagen llega al modelo que conversa, así que «ignora tus reglas» escrito en una foto no pasa.

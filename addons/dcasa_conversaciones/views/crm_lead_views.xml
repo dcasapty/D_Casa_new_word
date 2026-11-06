@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <!-- Oportunidades que nacen de una conversación: temperatura, lo que dijo el cliente y quién las maneja
-         (docs/CRM_AUTOMATICO.md). Nada de esto toca los campos de Odoo: todo es dcasa_*. -->
+         (docs/JUAN_ODOO.md). Nada de esto toca los campos de Odoo: todo es dcasa_*. -->
 
     <record id="crm_lead_form_dcasa" model="ir.ui.view">
         <field name="name">crm.lead.form.dcasa</field>

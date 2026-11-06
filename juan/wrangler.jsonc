@@ -20,14 +20,14 @@
 
   // Workers AI: notas de voz (Whisper, TRANSCRIBIR_AUDIO=1), lectura de imágenes (RECONOCER_IMAGENES=1) y, solo si Gerencia lo enciende
   // en Odoo, la búsqueda del conocimiento por significado (bge-m3, POST /odoo/embeber). No se usa para contestar: eso lo hace el
-  // proveedor que se elige en Odoo. Se factura a la cuenta de Cloudflare (por minuto de audio / por texto; docs/JUAN_WORKER.md §12).
+  // proveedor que se elige en Odoo. Se factura a la cuenta de Cloudflare (por minuto de audio / por texto; docs/JUAN.md §12).
   "ai": { "binding": "AI" },
 
   // Worker a Worker SIEMPRE por service binding: Cloudflare rechaza (error 1042) la URL pública entre Workers de la misma cuenta.
   //   DCASA: el Worker `dcasa` (el que está delante de Odoo). En producción todavía no está desplegado: hasta que exista,
   //          Cloudflare rechaza el despliegue de ESTE entorno (el destino de un binding tiene que existir).
   //   PUENTE: el puente de WhatsApp por QR (puente-wa/). Descomentar cuando ESE Worker ya esté publicado; mientras tanto el
-  //          canal de WhatsApp aparece en /salud como «le falta PUENTE» y el resto del bot funciona (docs/JUAN_WORKER.md).
+  //          canal de WhatsApp aparece en /salud como «le falta PUENTE» y el resto del bot funciona (docs/JUAN.md).
   "services": [
     { "binding": "DCASA", "service": "dcasa", "entrypoint": "JuanEntrada" }
     // , { "binding": "PUENTE", "service": "dcasa-puente-wa" }

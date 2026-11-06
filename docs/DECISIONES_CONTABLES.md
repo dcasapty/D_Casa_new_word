@@ -69,7 +69,8 @@ cada una, abajo («Hecho»); qué ve cada rol, en [PERMISOS.md](PERMISOS.md).
   **Hecho (rama `datos-clientes`, 2026-10-22):** el correo de recordatorio 5 días antes, uno por abono y vencimiento,
   apagado mientras no haya clave de Resend (`docs/CORREO.md`, 6b); la lista **Facturación › Clientes › Abonos por
   vencer** con un botón que abre WhatsApp con el mensaje listo (lo manda una persona). El WhatsApp automático queda
-  apagado: por el puente QR es lo que más riesgo de bloqueo da, y por la API oficial hace falta Meta (plantillas).
+  apagado: WhatsApp va por la API oficial de Meta desde el 2026-11-02 y escribirle primero a un cliente exige una
+  plantilla aprobada por Meta ([JUAN_CANALES.md](JUAN_CANALES.md)).
 - D4: no hay facturas dadas por perdidas identificadas.
 
 ## Compras y proveedores (E)

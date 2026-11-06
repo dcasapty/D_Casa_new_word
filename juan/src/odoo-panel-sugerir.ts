@@ -1,4 +1,4 @@
-// `POST /odoo/sugerir`: el botón «Sugerir» de la pantalla Conversaciones de Odoo (docs/JUAN_PANEL.md).
+// `POST /odoo/sugerir`: el botón «Sugerir» de la pantalla Conversaciones de Odoo (docs/JUAN_ODOO.md).
 //
 // Odoo manda los últimos mensajes de la conversación y este Worker REDACTA un borrador con el mismo motor de IA y las mismas
 // reglas de marca (voz, «+ ITBMS», nada de existencias en número, nada de promesas de entrega o descuento). NO ENVÍA NADA: no

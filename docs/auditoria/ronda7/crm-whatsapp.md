@@ -1,7 +1,7 @@
 # Ronda 7 — «Juan»: el CRM de WhatsApp con IA, dentro de D'CASA
 
 Fecha: 2026-10-02. Análisis de solo lectura del repositorio
-`juanarrietabusiness-pixel/crm-baby-caleb` (clonado en esta sesión) contrastado con nuestro
+`crm-baby-caleb` (clonado en esta sesión) contrastado con nuestro
 Odoo (`addons/`, `edge/`, `docs/`). **No se escribió código, no se tocó Cloudflare, no se
 desplegó nada.**
 
@@ -751,7 +751,7 @@ probablemente subir de `basic` a `standard-1` para aguantar bot + tienda + caja:
 ## 7. Fuentes
 
 Código (VERIFICADO-CÓDIGO):
-`/home/user/juanarrietabusiness-pixel/crm-baby-caleb/` — `CLAUDE.md`, `README.md`, `EMPIEZA-AQUI.md`,
+`crm-baby-caleb/` (copia local) — `CLAUDE.md`, `README.md`, `EMPIEZA-AQUI.md`,
 `PRIVACY.md`, `wrangler.toml`, `package.json`, `src/index.ts`, `src/agent.ts`,
 `src/llm/provider.ts`, `src/pricing.ts`, `src/budget.ts`, `src/system-prompt.ts`,
 `src/businessContext.ts`, `src/settings-loader.ts`, `src/tools/*.ts`, `src/db/schema.sql`,

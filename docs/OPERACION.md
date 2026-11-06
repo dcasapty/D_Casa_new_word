@@ -23,13 +23,14 @@ En la práctica: si el sistema se cae en medio de una venta, puede que haya que 
 
 ## Cuánto cuesta
 
-Según `docs/auditoria/ronda3/cf-plataforma.md` (precios oficiales de Cloudflare, 2026-10-01):
+Según `docs/auditoria/ronda3/cf-plataforma.md` (precios oficiales de Cloudflare, 2026-10-01) y la decisión de la dueña del
+2026-10-02 de subir producción a `standard-1` (comentario en `edge/wrangler.jsonc`):
 
 | Concepto | Costo al mes |
 |---|---|
-| Producción: plan Workers Paid ($5) + contenedor `basic` encendido 24/7 | **≈ $12** ($11,93 a $12,78 según cuánto trabaje el procesador) |
+| Producción: plan Workers Paid ($5) + contenedor **`standard-1`** (½ vCPU, 4 GiB) encendido 24/7 | **≈ $31** el contenedor, según ese comentario (la memoria se cobra reservada; la CPU, por uso). Odoo y PostgreSQL en `basic` (1 GiB) iban justos y el panel lento |
 | Respaldos y adjuntos en R2 | $0 mientras todo quepa en los 10 GB gratis (hoy la base pesa unos cientos de MB; las fotos y PDF van aparte, en `adjuntos/`, sin copias repetidas en cada respaldo) |
-| Staging (entorno de prueba) | solo las horas que está despierto; se duerme solo tras 1 h sin visitas y el cron horario **no** lo despierta (antes lo tenía encendido ~50 % del tiempo: ≈ +$4/mes) |
+| Staging (entorno de prueba) | contenedor `basic` (1 GiB). Hoy está configurado **24/7** como producción (`ODOO_DORMIR_TRAS` vacío en `edge/wrangler.jsonc`); con `"1h"` se dormiría tras una hora sin visitas y costaría menos |
 | Brian (inteligencia artificial) | aparte: lo que consuma el proveedor de IA |
 
 Revisar la factura real el primer mes (panel de Cloudflare → *Billing*) y compararla con esta tabla.
@@ -103,8 +104,9 @@ GitHub → repositorio → *Settings* → **Environments**:
 
 1. Crear `staging` y `production`.
 2. En `production`: en *Deployment branches and tags* elegir *Selected branches* y permitir solo `main`.
-   («Required reviewers» no existe en este repositorio privado.) **Nada llega a producción sin que tú lo lances**:
-   un merge a `main` solo corre pruebas, y a producción se sale con *Run workflow* y `desplegar_en = produccion`.
+   («Required reviewers» no está configurado; el repositorio es público desde el 2026-10-13.) **Nada llega a producción
+   sin que alguien lo lance**: un merge a `main` solo corre pruebas, y a producción se sale con la receta de
+   [DESPLIEGUE.md](DESPLIEGUE.md#la-receta-de-producción).
 3. En cada uno, cargar los secretos y variables de la tabla de [DESPLIEGUE.md §3](DESPLIEGUE.md)
    (los de staging con las llaves de staging).
 
@@ -117,7 +119,7 @@ tocar nada y dice qué falta.
 
 1. GitHub → **Actions** → **CI/CD** → **Run workflow**.
 2. Rama `main`, *desplegar_en* = `staging` → **Run workflow**.
-3. Esperar a que todo quede en verde (tests ≈ 15-25 min, despliegue unos minutos más). El paso
+3. Esperar a que todo quede en verde (unos 45 min: ~25 de pruebas de Odoo y ~20 del despliegue, CI #260). El paso
    «Esperar a que el sitio esté sano» confirma que respondió. (Mientras espera visita `/web/login` en cada vuelta: la portada
    sale de la copia guardada en el borde y **no** despierta a Odoo; así falló el despliegue 95, con el contenedor en
    `stopped` durante los 20 minutos.)
@@ -125,22 +127,23 @@ tocar nada y dice qué falta.
    de staging.
 5. Comprobar: portada, `/shop`, `/socios`, entrar al backend.
 
-Staging se duerme tras 1 hora sin visitas; la siguiente visita lo despierta (muestra «estamos
-arrancando» unos segundos) y **restaura la base desde R2**: cada despertar es un pequeño simulacro.
-Mientras duerme **no corre nada**: ni el cron horario del Worker lo despierta ni se hace el respaldo
-diario (no hay cambios que respaldar). Producción, en cambio, sigue encendida 24/7.
+Hoy staging está configurado **24/7**, igual que producción (`ODOO_DORMIR_TRAS` vacío en los dos entornos de
+`edge/wrangler.jsonc`). Si se pone `"1h"`, se duerme tras una hora sin visitas; la siguiente visita lo despierta
+(muestra «estamos arrancando» unos segundos) y **restaura la base desde R2**: cada despertar es un pequeño simulacro, y
+mientras duerme no corre nada. Aun con 24/7, el despliegue a staging del CI lo ha encontrado apagado varias veces
+(CONTEXTO_AGENTICO › Despliegue).
 
 ## Desplegar a producción
 
-**Un cambio unido a `main` NO se despliega solo**: GitHub solo corre las pruebas. A producción se sale cuando
-tú lo lanzas: *Actions → CI/CD → Run workflow*, rama **`main`**, `desplegar_en` = **`produccion`**. Se vuelven a
-correr todas las pruebas y, si pasan, se despliega. Antes de desplegar hace un respaldo de la base; si el respaldo
-falla, no despliega. (Desde otra rama que no sea `main` falla con un aviso: es a propósito.)
+**Un cambio unido a `main` NO se despliega solo**: GitHub solo corre las pruebas. Producción (que sirve
+`https://dcasapty.com` desde el 2026-10-27) se despliega a mano, con **la receta de
+[DESPLIEGUE.md › La receta de producción](DESPLIEGUE.md#la-receta-de-producción)**: la imagen ya probada en staging, desde
+`main`, con respaldo previo. Si el respaldo falla, no despliega.
 
-- Desplegar **fuera del horario de venta**: durante el cambio el sitio muestra «estamos arrancando»
-  uno o dos minutos. Las sesiones se guardan en la base, así que al volver nadie tiene que iniciar
-  sesión de nuevo ni pierde su carrito.
-- Si el cambio toca módulos de Odoo de forma importante, **probar primero en staging**.
+- Desplegar **fuera del horario de venta** si se puede: durante el cambio el sitio muestra «estamos arrancando» uno o
+  dos minutos. Las sesiones se guardan en la base, así que al volver nadie tiene que iniciar sesión de nuevo ni pierde
+  su carrito.
+- Si el cambio toca módulos de Odoo de forma importante, **probar primero en staging** (la receta lo hace siempre).
 
 ### Si GitHub dice «Artifact storage quota has been hit» (espacio lleno)
 
@@ -198,7 +201,7 @@ Es **una sola operación** (restaurar la base y desplegar la versión anterior e
    valores, y desmarcar *respaldo_previo* si el sitio está caído. No se reconstruye nada: se usa la
    misma imagen que ya funcionó. Ese arranque restaura la base y la encuentra como la dejó esa imagen.
 
-**Por qué juntos (#97, 2026-10-16):** si la base se restaura con la imagen nueva todavía puesta, esa imagen la
+**Por qué juntos (incidente 1 del 2026-10-16, en CONTEXTO_AGENTICO):** si la base se restaura con la imagen nueva todavía puesta, esa imagen la
 vuelve a actualizar al arrancar; y una imagen **más vieja** que la que actualizó la base se niega a «bajarla»
 (con el código viejo, `odoo -u` borraría columnas y tablas nuevas con sus datos): el sitio no queda sano y el
 log dice «NO la actualizo hacia atrás». **Nunca** desplegar la versión vieja sin restaurar.
@@ -892,7 +895,7 @@ Inicio de Gerencia** (que cuenta las facturas, como Contabilidad, y dice cuánta
 nota de entrega** (la entrega nace del pedido): «Imprimir documentos» imprime entonces solo la factura. Por eso la vendedora cotiza y la
 factura se hace desde esa cotización en caja; cobrar y facturar es del personal administrativo. El dinero de una factura
 suelta sí está en Contabilidad (facturas, cobros, Resumen contable); lo que no existe es el pedido. Ver
-`docs/AUDITORIA_CONTABLE.md` (factura vs. venta vs. cobro).
+`docs/historico/AUDITORIA_CONTABLE.md` (factura vs. venta vs. cobro).
 
 **Orden de «Imprimir documentos».** El PDF junta, venta por venta y en este orden: **nota de entrega** (la hoja que se
 despacha en bodega) → **factura del cliente** → **copia de la empresa**. Con varias ventas, el mismo orden se repite en
@@ -1151,7 +1154,7 @@ recargar con **Ctrl + F5**: el navegador guardó la versión anterior de los arc
 ## El CRM se ajusta solo (acción planificada)
 
 Cada 15 minutos corre **«Juan: ajustar el CRM»** (`crm.lead._dcasa_cron_crm`, módulo `dcasa_conversaciones`): lee las
-oportunidades que nacieron de una conversación y aplica las reglas fijas de `docs/CRM_AUTOMATICO.md` (cotizada, ganada,
+oportunidades que nacieron de una conversación y aplica las reglas fijas de `docs/JUAN_ODOO.md` › El CRM se ajusta solo (cotizada, ganada,
 temperatura, sin respuesta). Cada oportunidad se procesa aparte: un error se escribe en el registro del servidor
 («CRM automático: falló …») y no frena a las demás. Para apagarlo sin tocar código: *Conversaciones › Configuración ›
 Ajustes de Juan › El CRM se ajusta solo*. Si hay más de 500 oportunidades pendientes, el log avisa que ese turno revisó solo
@@ -1161,7 +1164,7 @@ las 500 más nuevas.
 ## «No disponible» de las vendedoras se reinicia cada mañana (acción planificada)
 
 Cada hora corre **«Juan: volver a poner «Disponible» a las vendedoras cada mañana»** (`dcasa.reparto._cron_reiniciar_disponibilidad`,
-módulo `dcasa_conversaciones`; detalle en `docs/JUAN_PANEL.md`). Pasado el corte de hoy (dos horas antes de la apertura de Ajustes de Juan: 6:00 a. m. de
+módulo `dcasa_conversaciones`; detalle en `docs/JUAN_ODOO.md` › Trabajo en equipo y reparto). Pasado el corte de hoy (dos horas antes de la apertura de Ajustes de Juan: 6:00 a. m. de
 Panamá con el horario de 8:00), deja «Disponible» a quien se marcó «No disponible» antes del corte, sin tocar a quien Gerencia sacó del reparto. Si el
 contenedor estuvo dormido (staging) corre al despertar y no borra pausas marcadas después del corte.
 
@@ -1171,7 +1174,7 @@ contenedor estuvo dormido (staging) corre al despertar y no borra pausas marcada
 Con el reparto encendido, Juan solo le pasa clientes a la vendedora **activa**: usó Odoo o le escribió a un cliente en los últimos 30 minutos
 (Ajustes de Juan, «Recibe solo quien usó el sistema hace poco»). Cada 5 minutos, dentro del horario, **«Juan: pasar a otra vendedora el cliente
 que nadie contesta»** (`dcasa.reparto._cron_reasignar`) pasa a otra vendedora activa el cliente al que no le contestaron en 15 minutos (Ajustes de
-Juan, «Pasar a otra si no contesta») y avisa a Gerencia por Telegram. Detalle en `docs/JUAN_PANEL.md`. Si una vendedora dice que no le llegan
+Juan, «Pasar a otra si no contesta») y avisa a Gerencia por Telegram. Detalle en `docs/JUAN_ODOO.md` › Trabajo en equipo y reparto. Si una vendedora dice que no le llegan
 clientes: en «Reparto» sale «Sin actividad» hasta que use el sistema.
 
 

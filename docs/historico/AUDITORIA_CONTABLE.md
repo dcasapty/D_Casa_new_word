@@ -1,8 +1,13 @@
 # Auditoría de los reportes contables
 
+> **Archivado el 2026-11-06.** Es el registro de las auditorías de los reportes contables (octubre de 2026). Las
+> preguntas que siguen abiertas para la contadora están en [PRIORIDADES.md › Para la contadora (y la
+> gerencia)](../PRIORIDADES.md#para-la-contadora-y-la-gerencia); lo que respondió la gerencia, en
+> [DECISIONES_CONTABLES.md](../DECISIONES_CONTABLES.md).
+
 Revisión de los diez reportes de **Facturación › Reportes contables** (Resumen, Estado de resultados, Balance general,
 Flujo de efectivo, Por cobrar, Por pagar, Balance de comprobación, Libro mayor, Resumen de ITBMS y Analítica), de sus
-filtros de fechas y de lo que dice cada tarjeta. Módulo: `dcasa_contabilidad` (guía de uso: [CONTABILIDAD.md](CONTABILIDAD.md)).
+filtros de fechas y de lo que dice cada tarjeta. Módulo: `dcasa_contabilidad` (guía de uso: [CONTABILIDAD.md](../CONTABILIDAD.md)).
 
 Hecha el 14 de octubre de 2026. Los números de los ejemplos son **datos de prueba**, no de la empresa.
 
@@ -56,7 +61,7 @@ También cuadra entre pantallas: el dinero de la tarjeta es igual al efectivo de
 ## Los atajos de fechas
 
 Todos con la hora de Panamá: **Hoy · Esta semana · Esta quincena · Este mes · Mes pasado · Este trimestre · Este año
-fiscal**. Detalle en [CONTABILIDAD.md](CONTABILIDAD.md#cómo-leer-las-fechas-saldos-y-movimientos). Decisiones tomadas:
+fiscal**. Detalle en [CONTABILIDAD.md](../CONTABILIDAD.md#cómo-leer-las-fechas-saldos-y-movimientos). Decisiones tomadas:
 
 * La **semana** va de lunes a domingo; el atajo muestra de lunes a hoy.
 * La **quincena** es del 1 al 15 o del 16 a fin de mes (febrero de 28 o 29 días incluido); el atajo muestra desde el 1 o

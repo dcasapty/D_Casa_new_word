@@ -2,7 +2,7 @@
 
 Solo LECTURA y como el usuario (sin sudo): la vendedora ve lo que ve en Odoo. Las cifras las calcula Odoo; la
 temperatura y las etapas las pone el CRM automático con reglas fijas (``crm_reglas.py``), no la IA. Brian todavía no
-cierra ni gana oportunidades: eso queda en un issue del repositorio (docs/CRM_AUTOMATICO.md).
+cierra ni gana oportunidades: eso queda en un issue del repositorio (docs/JUAN_ODOO.md).
 """
 from datetime import timedelta
 
