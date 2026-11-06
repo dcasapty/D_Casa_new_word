@@ -9,9 +9,9 @@ Puesto al día el 2026-10-12. Este documento tiene tres partes: de dónde se par
 | Fuente | Qué aporta | Estado |
 |---|---|---|
 | Odoo anterior en dcasapty.com | Facturas (INV/2026/…), órdenes (S00…), productos, clientes | Abandonado a medias, sin código fuente |
-| `juanarrietabusiness-pixel/D-Casa` | Sitio Next.js: textos, categorías, FAQ, estructura | Contenido migrado a `website_dcasa` |
-| `juanarrietabusiness-pixel/Agencia_Workspace` (Dcasa/) | ADN de marca: colores, fuentes, voz, logo | Aplicado en sitio, factura y panel |
-| `abrinay1997-stack/DCasa-Referidos` | Programa de puntos y referidos de Abrinay (6 fases, reglas aprobadas) | Reglas llevadas a `dcasa_socios` — ver [SOCIOS.md](SOCIOS.md) |
+| Repositorio del sitio anterior | Sitio Next.js: textos, categorías, FAQ, estructura | Contenido migrado a `website_dcasa` |
+| Repositorio de la agencia (`Agencia_Workspace`, carpeta `Dcasa/`) | ADN de marca: colores, fuentes, voz, logo | Aplicado en sitio, factura y panel |
+| Repositorio `DCasa-Referidos` | Programa de puntos y referidos de Abrinay (6 fases, reglas aprobadas) | Reglas llevadas a `dcasa_socios` — ver [SOCIOS.md](SOCIOS.md) |
 | Factura INV/2026/00821 | Formato, ITBMS 7 %, combos, monto en letras | Reproducida en tests |
 
 ## Decisiones
@@ -122,5 +122,5 @@ Leyenda: ✅ hecho · 🟡 hecho en parte · ⬜ pendiente.
 ## Pendiente de confirmar con D'CASA
 
 - Color oficial: el logo mide `#1648C0`/`#FFD000` y el formulario dice `#1340B1`/`#FED00F` (se usó el formulario).
-- Pendientes que Abrinay dejó para Marcial: tope de puntos por compra (hoy 50.000), qué productos entran
+- Pendientes que dejó el diseño de DCasa-Referidos: tope de puntos por compra (hoy 50.000), qué productos entran
   como premio y adónde apuntan los QR impresos (usar `dcasapty.com/socios`).

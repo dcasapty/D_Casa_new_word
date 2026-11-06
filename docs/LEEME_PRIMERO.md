@@ -108,7 +108,7 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
   oportunidad de cierre»): la tarjeta «Guarda sus datos» ofrece **«Guardar y responderle»** (guarda, abre su chat y la
   caja pide a Juan un borrador con el mismo «Sugerir» del chat, una sola vez; no se envía nada) y **«Solo guardar»**.
   Sin la ventana de 24 h de Meta o si pidió que no lo contacten, solo guardar; nunca se guarda a medias. También lee
-  el cumpleaños con el año pegado («19 de octubre deln1985», el mismo caso real). 64 pruebas de Sofía.
+  el cumpleaños con el año pegado («7 de marzo deln1990», el mismo caso real). 64 pruebas de Sofía.
 - **En producción** con su visto bueno: Desplegar 47, sano 21:45 UTC (PR #76, `main` = `700c34a`, árbol = `e97958e`;
   imagen `sha256:aa3c4c06…` de CI #260). Juan no cambió.
 
@@ -632,7 +632,7 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
   en la primera planilla del mes siguiente como comisión; cada vendedora ve solo lo suyo en el Inicio. Ver
   [NOMINA.md](NOMINA.md). La dueña revisó con la extensión de Chrome las fichas: las 3 vendedoras ya están en Ventas
   con su usuario; faltan salario, fecha de inicio (campo «Contrato»), cédula y seguro social (los pondrá cuando se
-  pague por planilla; el bono no los necesita). Juan Arrieta está en Marketing (puesto «Ventas»): decide el jefe.
+  pague por planilla; el bono no los necesita). Una persona con el puesto «Ventas» figura en el departamento de Marketing: decide el jefe.
 - **«Ventas duplicadas»:** era un pedido repetido (S00062 y S00063, misma clienta, mismo día y total, 5 minutos de
   diferencia; S00062 quedó sin facturar). No infla el Inicio, Contabilidad ni el bono (cuentan facturas), sí la lista
   de pedidos. Arreglo: aviso «Parece repetido» en el pedido antes de confirmar y en el Inicio de Gerencia; la dueña
