@@ -105,7 +105,7 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 > sigue. Se guardan las diez más recientes; las viejas se resumen en una línea abajo y su texto completo pasa a
 > [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md).
 
-### 2026-11-06 (5): Camila etapa 2 («a lo grande, todo conectado con todo»), en su rama, sin desplegar
+### 2026-11-06 (5): Camila etapa 2 («a lo grande, todo conectado con todo»), en producción
 
 - Decisiones de la dueña del mismo día ([CAMILA.md](CAMILA.md) §1b): **el tope de 15 días es por cliente** (por correo;
   registro `dcasa.camila.destinatario` escrito antes de mandar y borrado si Resend no la mandó) y puede haber **varias
@@ -128,6 +128,9 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
   registra a todos los del segmento; «todavía saliendo» mira todas; un 404 de Resend no traba nada; el reintento no
   manda precios viejos; el tope de IA por persona; «Vino del correo» no se escribe por RPC; la revisión de marca más
   dura; Marketing no lee quién llegó por el correo. **Sin push ni despliegue** de esta sesión.
+- **En producción** con el «sí» de la dueña a las capturas: Desplegar 54 y Desplegar Juan 7, sano 19:07 UTC (PR #87,
+  `main` = `3195d7d`, árbol = `3fb5770`; imagen `sha256:29309f79…` de CI #280). Antes, una revisión adversarial
+  independiente: 1 alta (dos campañas a la vez), 4 medias y 6 bajas, todas corregidas con su prueba.
 
 ### 2026-11-06 (4): Camila, la asistente del mail marketing (módulo nuevo `dcasa_camila`, etapa 1)
 

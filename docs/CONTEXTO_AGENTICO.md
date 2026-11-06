@@ -379,6 +379,10 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `main` (`741930d`, árbol = `de1fb04`) a staging y Desplegar con ese `app_version`. **Regla:** un cambio del borde
   (rutas, `vars`, `workers_dev`) se despliega con un `app_version` que lo contenga, o sea con una imagen construida
   de ese commit.
+- **Desplegar 54 y Desplegar Juan 7** (18:52 UTC del 6 nov, `3fb5770`, imagen `sha256:29309f79…` de CI #280, respaldo
+  previo) · Odoo sano y confirmado 19:07 (versión `3fb5770cdf1a`, base al día, humo ok): Camila etapa 2 con los 11
+  arreglos de su revisión adversarial (PR #87, `main` = `3195d7d`, árbol = `3fb5770`; migración `19.0.2.0.0`). Juan
+  desde `main` a la vez (`campana_correo` en su prompt): `/salud` con la versión `3195d7d`. El CI del PR (#281) se canceló.
 - **Desplegar 53** (16:15 UTC del 6 nov, `61d5c44`, imagen `sha256:14d30d8e…` de CI #278, respaldo previo) · sano y
   confirmado 16:30 (versión `61d5c442dffa`, base al día, humo ok): solo documentación (PR #86, `main` = `dc45e48`),
   desplegada con imagen nueva para que el contenedor arrancara con `RESEND_CAMPANAS_API_KEY`, que la dueña pegó en el
