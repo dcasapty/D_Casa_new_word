@@ -22,6 +22,7 @@
 | Conectar Facebook (Messenger) e Instagram a Juan | [JUAN_META.md](JUAN_META.md) |
 | Activar el doble factor y la puerta del equipo | [SEGURIDAD_ACCESO.md](SEGURIDAD_ACCESO.md) |
 | Usar Brian, el asistente del panel | [BRIAN.md](BRIAN.md) |
+| Saber cuánto cuesta un envío (la calculadora), cargar los lugares y la tarifa, aprobarla, y cómo se encendería en la página web | [ENVIOS.md](ENVIOS.md) |
 | Mandarles a los clientes su factura, su abono y la bienvenida por correo (Resend): crear la clave, dónde pegarla y cómo encenderlo | [CORREO.md](CORREO.md) |
 | Anunciar los productos en Facebook e Instagram: el catálogo que lee Meta, las campañas y qué productos quedan fuera | [META_CATALOGO.md](META_CATALOGO.md) |
 | Medir los anuncios de Meta: el píxel, las ventas que se le reportan, el consentimiento del cliente y el borrador de privacidad | [META_EVENTOS.md](META_EVENTOS.md) |
@@ -58,6 +59,7 @@ Resumen de los 24 módulos (para qué, dependencias, modelos, menús, herramient
 | `dcasa_meta_eventos` (píxel y Conversions API de Meta, apagados de fábrica) | [META_EVENTOS.md](META_EVENTOS.md) |
 | `dcasa_conversaciones` y el Worker `juan/` | [JUAN.md](JUAN.md) (contrato) · [JUAN_ODOO.md](JUAN_ODOO.md) · [JUAN_WORKER.md](JUAN_WORKER.md) · [CRM_AUTOMATICO.md](CRM_AUTOMATICO.md) |
 | `dcasa_sofia` (Sofía, la asistente del CRM) | [SOFIA.md](SOFIA.md) |
+| `dcasa_envios` (calculadora de envíos; los datos los carga Gerencia, no están en el repositorio) | [ENVIOS.md](ENVIOS.md) |
 | `puente-wa/` | [JUAN_PUENTE.md](JUAN_PUENTE.md) |
 | `dcasa_seguridad`, `dcasa_sesiones` | [SEGURIDAD_ACCESO.md](SEGURIDAD_ACCESO.md) |
 | `dcasa_adjuntos_r2`, `dcasa_tienda_borde`, `edge/`, `docker/` | [ARQUITECTURA.md](ARQUITECTURA.md) · [DESPLIEGUE.md](DESPLIEGUE.md) · [`edge/CONTRATO_CONTENEDOR.md`](../edge/CONTRATO_CONTENEDOR.md) |

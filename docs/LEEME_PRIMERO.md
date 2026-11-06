@@ -102,6 +102,22 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 > Más reciente arriba. Cada entrada: fecha, qué quedó en producción (con el commit), qué quedó solo en staging, qué
 > sigue. Se guardan unas diez; las viejas se resumen en una línea.
 
+### 2026-11-06: la calculadora de envíos en el menú Envíos (módulo nuevo `dcasa_envios`)
+
+- Pedido de la dueña: poner el HTML de envíos del 4 nov en el menú «Envíos», con el scroll que funcione, y dejar el
+  código listo para que mañana el cliente cotice su envío en la web. Hecho en la rama (sin subir ni desplegar):
+  Envíos › **Calculadora** (todos), **Lugares** (todos; edita Gerencia) y **Tarifa** (Gerencia), «En desarrollo» apagado.
+  Ver [ENVIOS.md](ENVIOS.md).
+- **Un solo motor** en Python puro (`addons/dcasa_envios/motor/`, sin Odoo): la fórmula y el buscador portados del
+  HTML. Paridad medida en local con los datos reales: 945 de 946 comparaciones iguales (la diferencia: buscar
+  «constructor» rompía el HTML). En el repositorio solo un fixture sintético con sus esperados sacados del JavaScript.
+- **Los datos no están en el repositorio** (público; la dueña no dio su «sí»): Gerencia sube `envios-dcasa.html` en
+  Envíos › Tarifa. La carga es idempotente (11 299 lugares en ~2 s; volver a cargar, 0 nuevos), respeta lo de Odoo y la
+  tarifa nace y vuelve «en revisión». Brian: `cotizar_envio`. Guía: «Saber cuánto cuesta un envío» y «Cambiar o
+  aprobar la tarifa de envíos». Sin ruta pública todavía (pasos para encenderla en ENVIOS.md); Juan no cotiza.
+- Sigue: capturas a la dueña (las hay con datos reales, fuera del repositorio) → su visto bueno → CI y staging; que
+  Gerencia apruebe la tarifa (redondeo, viático, honorarios, peaje) y decida quién exporta la lista a Excel.
+
 ### 2026-11-05 (3): Sofía baja con scroll; «Guarda sus datos»
 
 - **Scroll de Sofía** (pedido de la dueña: «la ventana no hace scroll»): `.o_action` de Odoo cortaba la pantalla; ahora

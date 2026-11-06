@@ -7,6 +7,12 @@ jefe» (<https://claude.ai/code/artifact/8ffcbb80-6521-4e46-a2a7-8ddc59cb20b2>).
 
 Cada etapa sale a staging para que la dueña la vea; a producción solo con su «sí» explícito (por cada etapa).
 
+**Estado al 2026-11-06:** **la calculadora de envíos** (`dcasa_envios`, docs/ENVIOS.md) está hecha en su rama: Envíos ›
+Calculadora, Lugares y Tarifa, con un motor en Python que mañana sirve a la web. Los datos los carga Gerencia (no están
+en el repositorio). Orden: (1) capturas a la dueña y su visto bueno; (2) CI, staging y producción con su «sí»; (3) que
+Gerencia cargue el archivo y **apruebe la tarifa** (redondeo, viático, honorarios, peaje); (4) después, con su «sí»,
+Juan cotiza y la sección de envíos del sitio (pasos en ENVIOS.md); (5) lo de abajo.
+
 **Estado al 2026-11-05, tarde:** **en producción** Sofía baja con scroll (Desplegar 45, PR #74) y **«Guarda sus
 datos»** (Desplegar 46, PR #75): Sofía propone guardar en la ficha el nombre, el correo y el cumpleaños que el cliente
 contestó; la vendedora lo revisa y lo guarda con un toque. Orden: (1) que las vendedoras toquen «Revisar ahora» y
