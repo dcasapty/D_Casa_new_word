@@ -372,6 +372,10 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `main` (`741930d`, árbol = `de1fb04`) a staging y Desplegar con ese `app_version`. **Regla:** un cambio del borde
   (rutas, `vars`, `workers_dev`) se despliega con un `app_version` que lo contenga, o sea con una imagen construida
   de ese commit.
+- **Desplegar 50** (07:33 UTC del 6 nov, `3682053`, imagen `sha256:53e76dc6…` de CI #272, respaldo previo) · sano y
+  confirmado 07:47 (versión `3682053cbbbc`, base al día, humo ok): la calculadora de envíos, módulo nuevo
+  `dcasa_envios` (PR #83, `main` = `e924a9c`, árbol = `3682053`). CI #271 había fallado por la descripción de una
+  herramienta de Brian (ver Tests de Odoo). El CI del PR (#273) se canceló. Juan no cambió.
 - **Desplegar 49 y Desplegar Juan 5** (05:46 UTC del 6 nov, `8701e17`, imagen `sha256:64ae4de1…` de CI #264, respaldo
   previo) · Odoo sano y confirmado 05:59 (versión `8701e17f1afa`, base al día, humo ok): WhatsApp oficial guarda el
   mensaje antes del 200 a Meta y la documentación unida (PR #82, `main` = `24d3207`, árbol = `8701e17`). Juan desde

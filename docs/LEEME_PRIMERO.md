@@ -131,7 +131,7 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 ### 2026-11-06 (2): la calculadora de envíos en el menú Envíos (módulo nuevo `dcasa_envios`)
 
 - Pedido de la dueña: poner el HTML de envíos del 4 nov en el menú «Envíos», con el scroll que funcione, y dejar el
-  código listo para que mañana el cliente cotice su envío en la web. Hecho en la rama (sin subir ni desplegar):
+  código listo para que mañana el cliente cotice su envío en la web:
   Envíos › **Calculadora** (todos), **Lugares** (todos; edita Gerencia) y **Tarifa** (Gerencia), «En desarrollo» apagado.
   Ver [ENVIOS.md](ENVIOS.md).
 - **Un solo motor** en Python puro (`addons/dcasa_envios/motor/`, sin Odoo): la fórmula y el buscador portados del
@@ -142,8 +142,10 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
   tarifa nace y vuelve «en revisión». Brian: `cotizar_envio`. Guía: «Saber cuánto cuesta un envío» y «Cambiar o
   aprobar la tarifa de envíos». Sin ruta pública todavía (pasos para encenderla en ENVIOS.md); Juan no cotiza.
 - La dueña vio las capturas (con datos reales, fuera del repositorio) y dijo que sí; bajar la lista a Excel «es
-  innecesario» (no se agrega). Sigue: CI y staging, producción con su «sí»; que Gerencia cargue el archivo y apruebe
-  la tarifa (redondeo, viático, honorarios, peaje).
+  innecesario» (no se agrega). **En producción** con su «sí» («pásalo a producción cuanto antes»): Desplegar 50, sano
+  07:47 UTC (PR #83, `main` = `e924a9c`, árbol = `3682053`; imagen `sha256:53e76dc6…` de CI #272; CI #271 falló por la
+  descripción de `cotizar_envio`, de más de 260 letras). Sigue: que Gerencia cargue el archivo en Envíos › Tarifa y
+  apruebe la tarifa (redondeo, viático, honorarios, peaje).
 
 ### 2026-11-05 (4): «Guardar y responderle»
 

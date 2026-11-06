@@ -10,8 +10,8 @@ LEEME_PRIMERO §2).
 ## Estado al 2026-11-06
 
 - **Producción funciona desde el 2026-10-13** y **`dcasapty.com` (y `www`) apunta al sistema nuevo desde el
-  2026-10-27** (Desplegar 31). El último despliegue es Desplegar 49 (6 nov, PR #82: WhatsApp guarda antes de contestarle a Meta),
-  con Desplegar Juan 5.
+  2026-10-27** (Desplegar 31). El último despliegue es Desplegar 50 (6 nov, PR #83: la calculadora de envíos); Juan,
+  Desplegar Juan 5 (PR #82: WhatsApp guarda antes de contestarle a Meta).
   El contenedor instala 29 de los 30 módulos de `addons/` (todos menos `dcasa_fe_pa`, a propósito).
 - **Juan atiende el WhatsApp de la tienda por la API oficial de Meta** desde el 2026-11-02 (modelo «contributor» de
   Meta, llave permanente). Telegram también funciona. Messenger e Instagram tienen el código listo pero no están
@@ -44,10 +44,10 @@ LEEME_PRIMERO §2).
 9. **Messenger e Instagram:** conectarlos con la guía de [JUAN_CANALES.md](JUAN_CANALES.md).
 10. **Códigos de barras:** etiquetas del proveedor y prueba de los lectores (issues #9, #10 y #12); con eso, verificar el
    despacho con el escáner ([BARRAS.md](BARRAS.md)).
-11. **Envíos:** la calculadora (`dcasa_envios`, [ENVIOS.md](ENVIOS.md)) está hecha y la dueña vio las capturas
-    (2026-11-06; «es innecesario» bajar la lista a Excel). Sigue: CI, staging y producción con su «sí»; que Gerencia
-    cargue el archivo en Envíos › Tarifa y **apruebe la tarifa** (redondeo, viático, honorarios y peaje); después, con
-    su «sí», que Juan cotice y la sección de envíos del sitio (cuando haya flota propia).
+11. **Envíos:** la calculadora (`dcasa_envios`, [ENVIOS.md](ENVIOS.md)) está **en producción** desde el 2026-11-06
+    (Desplegar 50). Sigue: que Gerencia cargue el archivo en Envíos › Tarifa y **apruebe la tarifa** (redondeo,
+    viático, honorarios y peaje); después, con su «sí», que Juan cotice y la sección de envíos del sitio (cuando haya
+    flota propia).
 12. **Siguiente etapa de Sofía:** mensajes con IA, plantillas de WhatsApp para después de 24 horas y su herramienta de
     Brian.
 13. **Privacidad (issues #22 y #23):** borrar la oportunidad junto con la conversación y lo que «Eliminar conversación»
