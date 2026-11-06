@@ -379,6 +379,10 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `main` (`741930d`, árbol = `de1fb04`) a staging y Desplegar con ese `app_version`. **Regla:** un cambio del borde
   (rutas, `vars`, `workers_dev`) se despliega con un `app_version` que lo contenga, o sea con una imagen construida
   de ese commit.
+- **Desplegar 52** (11:13 UTC del 6 nov, `b84e57d`, imagen `sha256:dfbf424f…` de CI #276, respaldo previo) · sano y
+  confirmado 11:27 (versión `b84e57d2dacb`, base al día, humo ok): Camila etapa 1, módulo nuevo `dcasa_camila`, con
+  los 12 arreglos de su revisión adversarial (PR #85, `main` = `0d69999`, árbol = `b84e57d`). Incluye `edge/` (la
+  variable `RESEND_CAMPANAS_API_KEY` en la lista blanca del contenedor). El CI del PR (#277) se canceló. Juan no cambió.
 - **Desplegar 51 y Desplegar Juan 6** (08:59 UTC del 6 nov, `a307425`, imagen `sha256:f0b0b240…` de CI #274, respaldo
   previo) · Odoo sano y confirmado 09:13 (versión `a30742505947`, base al día, humo ok): la varita («Sugerir») escribe
   siempre o dice por qué (PR #84, `main` = `237d2f3`, árbol = `a307425`). Juan desde `main` a la vez: `/salud` con la
@@ -863,6 +867,11 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 
 ### Cloudflare
 
+- **Un secreto nuevo del panel del Worker `dcasa` no llega a Odoo hasta que el contenedor arranca otra vez**
+  (`edge/src/index.ts`: `envVars` se arma en el constructor y solo se usa al arrancar; producción no se duerme). Guardar
+  el secreto en el panel no basta, y Desplegar con la **misma** imagen tampoco: el contenedor queda «no changes». Hace
+  falta un despliegue con imagen nueva (2026-11-06, `RESEND_CAMPANAS_API_KEY` de Camila). Además, el nombre tiene que
+  estar en la lista blanca de `variablesDelContenedor` (`edge/src/handler.ts`).
 - «Network connection lost.» en `reenvio_fallido` = se cortó el enlace Worker → Durable Object (el evento «stateless»
   no tiene par en `OdooContainer`); no implica que Odoo se cayó. Las lecturas se repiten en `reenviar` (2026-10-23).
 - Cloudflare puede arrancar la imagen nueva con las variables del arranque anterior (`APP_VERSION` atrasada).

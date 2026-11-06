@@ -1,7 +1,7 @@
 # Camila, la asistente del mail marketing (`dcasa_camila`)
 
-**Estado (2026-11-06): etapa 1 construida en la rama, con pruebas; sin desplegar.** Para que salga la primera campaña
-falta la clave de campañas de Resend (§6, paso a paso) y el visto bueno de la dueña a las capturas.
+**Estado (2026-11-06): etapa 1 en producción (Desplegar 52).** No envía nada todavía: para que salga la primera
+campaña falta la clave de campañas de Resend (§6, paso a paso) y que alguien de Marketing o Gerencia la apruebe.
 
 Pedido de la dueña (2026-11-06):
 
@@ -266,8 +266,9 @@ el chat, en Odoo ni en un correo.
    - **Type:** *Secret*.
    - **Variable name:** `RESEND_CAMPANAS_API_KEY` (exacto, en mayúsculas).
    - **Value:** pega la clave. Toca **Deploy** (o *Save*).
-5. La clave entra a Odoo cuando el contenedor **reinicia o recibe un despliegue** (las variables del panel llegan al
-   arrancar). Después, en **Marketing › Camila**, ya no sale «Todavía no está la clave de campañas de Resend».
+5. La clave entra a Odoo cuando el contenedor **arranca de nuevo**: producción no se duerme, así que hace falta un
+   despliegue con **imagen nueva** (Desplegar con la misma imagen no reinicia el contenedor). La dueña la pegó el
+   2026-11-06; entra con el despliegue que le sigue. Después, en **Marketing › Camila**, ya no sale «Todavía no está la clave de campañas de Resend».
 6. **No la pongas en GitHub ni en staging.** Staging nunca envía campañas, con o sin clave.
 7. En Resend, **Settings › Unsubscribe page**, puedes poner el logo y los colores de D'CASA en la página de «Darme de
    baja» (opcional).

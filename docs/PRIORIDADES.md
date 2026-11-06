@@ -10,8 +10,8 @@ LEEME_PRIMERO §2).
 ## Estado al 2026-11-06
 
 - **Producción funciona desde el 2026-10-13** y **`dcasapty.com` (y `www`) apunta al sistema nuevo desde el
-  2026-10-27** (Desplegar 31). El último despliegue es Desplegar 51 con Desplegar Juan 6 (6 nov, PR #84: la varita «Sugerir»
-  escribe siempre o dice por qué; antes, PR #83 la calculadora de envíos y PR #82 WhatsApp).
+  2026-10-27** (Desplegar 31). El último despliegue es Desplegar 52 (6 nov, PR #85: Camila, el mail marketing); Juan, Desplegar
+  Juan 6 (PR #84: la varita «Sugerir» escribe siempre o dice por qué). El mismo día: envíos (PR #83) y WhatsApp (PR #82).
   El contenedor instala 30 de los 31 módulos de `addons/` (todos menos `dcasa_fe_pa`, a propósito).
 - **Juan atiende el WhatsApp de la tienda por la API oficial de Meta** desde el 2026-11-02 (modelo «contributor» de
   Meta, llave permanente). Telegram también funciona. Messenger e Instagram tienen el código listo pero no están
@@ -25,10 +25,11 @@ LEEME_PRIMERO §2).
 
 ## Lo que sigue, en orden
 
-1. **Camila, etapa 1: mail marketing** ([CAMILA.md](CAMILA.md)). **Construida y probada en la rama el 2026-11-06**
-   (módulo `dcasa_camila`: el permiso del cliente, la campaña de cada 15 días y el envío por Resend Broadcasts). Falta:
-   capturas a la dueña, CI, staging y producción; la clave de campañas (§6 de CAMILA.md) y revisar la política de
-   privacidad antes de la primera campaña. Etapa 1b: que Juan pregunte el permiso por WhatsApp.
+1. **Camila, etapa 1: mail marketing** ([CAMILA.md](CAMILA.md)): **en producción** desde el 2026-11-06 (Desplegar 52;
+   módulo `dcasa_camila`). No envía nada todavía. La dueña ya pegó la clave de campañas en Cloudflare (2026-11-06); entra
+   a Odoo con el despliegue siguiente (imagen nueva). Falta de la dueña: mirar la pantalla Marketing › Camila,
+   confirmar el «Sí, quiero» de dos toques y aprobar la primera campaña. Etapa 1b: que Juan pregunte el permiso por
+   WhatsApp.
 2. **Brian al día** con lo nuevo (la dueña: «indispensable, pero desactualizado») y una vuelta a la pantalla de Sofía.
 3. **Que el equipo use lo nuevo** (lo hace la dueña con el equipo; ver «Lo que falta de la dueña»): el Reparto
    «Parejo», el Telegram de cada vendedora, «Revisar ahora» de Sofía y los mensajes de Sofía.
@@ -64,6 +65,8 @@ LEEME_PRIMERO §2).
     - velocidad: `/web/image` lee el archivo de R2 antes de contestar «no cambió», el ZIP de comprobantes ocupa la CPU
       mientras se arma (pedirlo fuera de horario) y el costo de lo vendido hoy se busca producto por producto;
     - pruebas de humo a mano después de cada despliegue a producción y una revisión de secretos;
+    - en Conversaciones (computadora), el botón flotante de Brian tapa en parte el botón «Enviar» de la caja (se vio
+      en las capturas de la varita del 2026-11-06);
     - los PR de Dependabot abiertos (#7 del borde; #78 a #81 de Juan y del puente, abiertos el 2026-11-06): revisarlos
       y probarlos antes de unir (el grupo «ia» de Juan toca los clientes de la IA);
     - `abrir` de Bodega no exige pago a una entrega en borrador (hoy no hay entregas de venta en borrador);
