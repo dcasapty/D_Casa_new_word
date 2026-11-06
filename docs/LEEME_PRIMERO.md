@@ -140,7 +140,7 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 - Pruebas: `test_sofia_pantalla.py` (nuevo, 9; la rueda y el dedo por el protocolo de Chrome) y las de navegador
   ajustadas a «Editar»: 70 en verde en base limpia (68 de Sofía y `dcasa_interfaz` › `TestInicioScroll`). Capturas
   `antes_…`/`despues_…` en el scratchpad de la sesión (`capturas_sofia`), con datos de prueba. **Sin push ni
-  despliegue**: falta que la dueña vea las capturas.
+  despliegue**: falta que la dueña vea las capturas. *(Después: le gustaron y «Descartar» queda sin confirmación.)*
 - Aprendido: el minificador de Odoo (`rjsmin`) aprieta los espacios de una plantilla `` `…` `` anidada dentro de
   `${…}` («p. m.(la pidió»); hay tres casos viejos en Conversaciones (tarea aparte). Ver CONTEXTO_AGENTICO.
 
