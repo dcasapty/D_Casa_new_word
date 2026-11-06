@@ -1,4 +1,4 @@
-// `GET /odoo/costos`: el gasto de IA del mes por modelo, para la pantalla «Costos de IA» de Odoo (docs/JUAN_PANEL.md).
+// `GET /odoo/costos`: el gasto de IA del mes por modelo, para la pantalla «Costos de IA» de Odoo (docs/JUAN_ODOO.md).
 // `GET /odoo/salud` ya trae el total del mes y el tope; esto agrega el desglose por modelo que el Durable Object «Global» guarda.
 // El gasto POR DÍA (`por_dia`) existe desde que el Worker empezó a guardarlo; los días anteriores los arma Odoo con su foto diaria.
 //

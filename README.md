@@ -61,7 +61,7 @@ Detalle de cada recurso, tablas, variables y secretos: [docs/ARQUITECTURA.md](do
 | `vendor/odoo` | Odoo 19.0 (submódulo git fijado a un commit). **No se modifica nunca.** |
 | `addons/` | Los 24 módulos propios (prefijo `dcasa_` y `website_dcasa`). Uno por uno: [docs/MODULOS.md](docs/MODULOS.md). |
 | `edge/` | Worker de Cloudflare `dcasa` (TypeScript). Lógica probada en `src/routing.ts` y `src/handler.ts`. Contrato con la imagen: [`edge/CONTRATO_CONTENEDOR.md`](edge/CONTRATO_CONTENEDOR.md). |
-| `juan/` | Worker de Juan (TypeScript, Durable Objects). [docs/JUAN_WORKER.md](docs/JUAN_WORKER.md). |
+| `juan/` | Worker de Juan (TypeScript, Durable Objects). [docs/JUAN_WORKER.md](docs/JUAN.md#parte-2--cómo-funciona-el-worker-por-dentro). |
 | `puente-wa/` | Puente de WhatsApp por QR (Worker + Durable Object + Container). [docs/JUAN_PUENTE.md](docs/JUAN_PUENTE.md). |
 | `docker/` | Imagen de producción (`Dockerfile`), arranque (`entrypoint.sh`) y PostgreSQL con pgBackRest (`pg.sh`). |
 | `scripts/` | `test.sh` (instala en base limpia y corre las pruebas), respaldo, simulacro de restauración, importar el catálogo, procesar `up media/`, integración de Juan. |
@@ -120,7 +120,7 @@ Receta completa y flujos: [docs/ARQUITECTURA.md §6](docs/ARQUITECTURA.md) · [d
 | Incidentes y trampas ya conocidas | [docs/CONTEXTO_AGENTICO.md](docs/CONTEXTO_AGENTICO.md) |
 | Seguridad de acceso (doble factor, puerta del equipo) | [docs/SEGURIDAD_ACCESO.md](docs/SEGURIDAD_ACCESO.md) |
 | Socios, Mi cuenta y vendedores | [docs/SOCIOS.md](docs/SOCIOS.md) · [docs/VENDEDORES.md](docs/VENDEDORES.md) |
-| Juan y Brian | [docs/JUAN.md](docs/JUAN.md) · [docs/JUAN_WORKER.md](docs/JUAN_WORKER.md) · [docs/JUAN_ODOO.md](docs/JUAN_ODOO.md) · [docs/JUAN_PUENTE.md](docs/JUAN_PUENTE.md) · [docs/BRIAN.md](docs/BRIAN.md) |
+| Juan y Brian | [docs/JUAN.md](docs/JUAN.md) · [docs/JUAN_WORKER.md](docs/JUAN.md#parte-2--cómo-funciona-el-worker-por-dentro) · [docs/JUAN_ODOO.md](docs/JUAN_ODOO.md) · [docs/JUAN_PUENTE.md](docs/JUAN_PUENTE.md) · [docs/BRIAN.md](docs/BRIAN.md) |
 | Todo lo demás | [docs/README.md](docs/README.md) (índice) |
 
 ## El sitio se cambia desde el código

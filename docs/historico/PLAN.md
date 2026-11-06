@@ -102,14 +102,14 @@ Leyenda: ✅ hecho · 🟡 hecho en parte · ⬜ pendiente.
 - ⬜ Financiamiento/crédito: plan de pagos por cliente.
 - ✅ WhatsApp y mensajería: **Juan**, el asistente de los clientes, con puente de WhatsApp por QR
   ([JUAN.md](../JUAN.md)); el plan B con la cuenta oficial de Meta está documentado
-  ([JUAN_PLAN_B.md](../JUAN_PLAN_B.md)).
+  ([JUAN_PLAN_B.md](../JUAN_CANALES.md#1-whatsapp-por-la-api-oficial-el-canal-principal)).
 
 ## Construido fuera del plan original
 
 | Qué | Dónde |
 |---|---|
 | **Brian**, asistente de IA para el equipo (panel, Telegram, MCP) | [BRIAN.md](../BRIAN.md) |
-| **CRM automático** (etapas por hechos, temperatura, «a quién escribirle hoy») | [CRM_AUTOMATICO.md](../CRM_AUTOMATICO.md) |
+| **CRM automático** (etapas por hechos, temperatura, «a quién escribirle hoy») | [CRM_AUTOMATICO.md](../JUAN_ODOO.md#el-crm-se-ajusta-solo) |
 | Contabilidad a medida, consolidación de empresas y nómina de Panamá | [CONTABILIDAD.md](../CONTABILIDAD.md) · [CONSOLIDACION.md](../CONSOLIDACION.md) · [NOMINA.md](../NOMINA.md) |
 | Contactos sin duplicados | [CONTACTOS.md](../CONTACTOS.md) |
 | El equipo en Odoo (Empleados) | [EQUIPO.md](../EQUIPO.md) |

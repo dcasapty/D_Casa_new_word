@@ -1,5 +1,9 @@
 # Conectar Facebook (Messenger) e Instagram a Juan
 
+> **Archivado el 2026-11-06:** la guía se unió a [JUAN_CANALES.md › Messenger e
+> Instagram](../JUAN_CANALES.md#3-messenger-e-instagram-por-conectar), con un cambio importante: se agregan a la misma
+> app de Meta de WhatsApp («D'CASA Juan»), porque Juan usa un solo `META_APP_SECRET` y un solo `META_VERIFY_TOKEN`.
+
 Guía para la dueña (2026-10-16). El código ya está listo y probado (`juan/src/canales/meta.ts`): falta lo que solo se
 hace en las cuentas de Meta, Cloudflare y Odoo. Al terminar, Juan contesta los mensajes de la página de Facebook y del
 Instagram de D'CASA y todo queda en **Odoo › Conversaciones**, igual que WhatsApp.

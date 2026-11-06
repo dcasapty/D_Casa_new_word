@@ -2,7 +2,7 @@
 // y lo que revisa el cron (crons de wrangler.jsonc).
 //
 // El Worker arranca SIN secretos (la dueña los pega en el panel de Cloudflare después del primer despliegue,
-// docs/JUAN_WORKER.md). Mientras falten, no se cae: responde con un mensaje claro. Aquí solo viajan NOMBRES de
+// docs/JUAN.md). Mientras falten, no se cae: responde con un mensaje claro. Aquí solo viajan NOMBRES de
 // secretos y estados; jamás un valor.
 
 import { canalActivo, mesDelNegocio, type Config, type ProveedorIa } from "./config";

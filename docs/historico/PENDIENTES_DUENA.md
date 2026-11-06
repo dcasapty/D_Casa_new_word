@@ -94,7 +94,7 @@ cómo está todo y qué atender primero está en [ESTADO.md](ESTADO.md); lo que 
 
 20. **Ronda del 15 de octubre (qué te toca a ti).**
     (a) **Reparto de conversaciones:** sigue apagado. Cuando lo pruebes, enciéndelo con el botón de Conversaciones › Reparto
-    (solo reciben las vendedoras; Gerencia y el Administrador intervienen pero no reciben). Ver [JUAN_PANEL.md](../JUAN_PANEL.md).
+    (solo reciben las vendedoras; Gerencia y el Administrador intervienen pero no reciben). Ver [JUAN_PANEL.md](../JUAN_ODOO.md).
     (b) **QR y código público en la factura y la cotización:** vienen **apagados** (Ajustes › Empresas › D'CASA Panamá,
     pestaña «Documentos D'CASA»). Antes de encenderlos, aprobar las imágenes del antes y el después. El QR de la nota de
     entrega y del pedido de compra no toca la factura.

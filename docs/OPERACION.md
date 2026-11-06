@@ -1151,7 +1151,7 @@ recargar con **Ctrl + F5**: el navegador guardó la versión anterior de los arc
 ## El CRM se ajusta solo (acción planificada)
 
 Cada 15 minutos corre **«Juan: ajustar el CRM»** (`crm.lead._dcasa_cron_crm`, módulo `dcasa_conversaciones`): lee las
-oportunidades que nacieron de una conversación y aplica las reglas fijas de `docs/CRM_AUTOMATICO.md` (cotizada, ganada,
+oportunidades que nacieron de una conversación y aplica las reglas fijas de `docs/JUAN_ODOO.md` › El CRM se ajusta solo (cotizada, ganada,
 temperatura, sin respuesta). Cada oportunidad se procesa aparte: un error se escribe en el registro del servidor
 («CRM automático: falló …») y no frena a las demás. Para apagarlo sin tocar código: *Conversaciones › Configuración ›
 Ajustes de Juan › El CRM se ajusta solo*. Si hay más de 500 oportunidades pendientes, el log avisa que ese turno revisó solo
@@ -1161,7 +1161,7 @@ las 500 más nuevas.
 ## «No disponible» de las vendedoras se reinicia cada mañana (acción planificada)
 
 Cada hora corre **«Juan: volver a poner «Disponible» a las vendedoras cada mañana»** (`dcasa.reparto._cron_reiniciar_disponibilidad`,
-módulo `dcasa_conversaciones`; detalle en `docs/JUAN_PANEL.md`). Pasado el corte de hoy (dos horas antes de la apertura de Ajustes de Juan: 6:00 a. m. de
+módulo `dcasa_conversaciones`; detalle en `docs/JUAN_ODOO.md` › Trabajo en equipo y reparto). Pasado el corte de hoy (dos horas antes de la apertura de Ajustes de Juan: 6:00 a. m. de
 Panamá con el horario de 8:00), deja «Disponible» a quien se marcó «No disponible» antes del corte, sin tocar a quien Gerencia sacó del reparto. Si el
 contenedor estuvo dormido (staging) corre al despertar y no borra pausas marcadas después del corte.
 
@@ -1171,7 +1171,7 @@ contenedor estuvo dormido (staging) corre al despertar y no borra pausas marcada
 Con el reparto encendido, Juan solo le pasa clientes a la vendedora **activa**: usó Odoo o le escribió a un cliente en los últimos 30 minutos
 (Ajustes de Juan, «Recibe solo quien usó el sistema hace poco»). Cada 5 minutos, dentro del horario, **«Juan: pasar a otra vendedora el cliente
 que nadie contesta»** (`dcasa.reparto._cron_reasignar`) pasa a otra vendedora activa el cliente al que no le contestaron en 15 minutos (Ajustes de
-Juan, «Pasar a otra si no contesta») y avisa a Gerencia por Telegram. Detalle en `docs/JUAN_PANEL.md`. Si una vendedora dice que no le llegan
+Juan, «Pasar a otra si no contesta») y avisa a Gerencia por Telegram. Detalle en `docs/JUAN_ODOO.md` › Trabajo en equipo y reparto. Si una vendedora dice que no le llegan
 clientes: en «Reparto» sale «Sin actividad» hasta que use el sistema.
 
 

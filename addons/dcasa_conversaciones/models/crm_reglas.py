@@ -2,7 +2,7 @@
 
 Todo lo que mueve una oportunidad por su cuenta sale de aquí y de hechos que Odoo ya sabe (una cotización enviada, una
 factura pagada, cuánto hace que el cliente no escribe). Nada depende de lo que la IA «opine»: así el resultado se puede
-probar, explicar y apagar. Ver ``docs/CRM_AUTOMATICO.md``.
+probar, explicar y apagar. Ver ``docs/JUAN_ODOO.md``.
 
 Temperatura (``1`` frío · ``2`` tibio · ``3`` caliente): los valores se ordenan como texto, así «Mayor temperatura
 primero» funciona con un simple orden descendente.

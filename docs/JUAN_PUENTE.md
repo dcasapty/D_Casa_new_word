@@ -3,9 +3,10 @@
 Esta guía es para la dueña. Está escrita sin tecnicismos; lo que es solo para quien opera el sistema va
 al final, en el apéndice.
 
-> **Estado:** el puente está construido y probado con un WhatsApp de mentira (un doble). **No se ha
-> conectado a ningún WhatsApp real ni se ha desplegado.** Nada de esto se enciende hasta que tú lo decidas:
-> el número lo eliges tú, al final.
+> **Estado (2026-11-06):** el puente está construido y probado con un WhatsApp de mentira (un doble), pero **nunca
+> se conectó a un WhatsApp real ni se desplegó**. Desde el 2026-11-02 Juan atiende el WhatsApp de la tienda por la
+> **API oficial de Meta** ([JUAN_CANALES.md](JUAN_CANALES.md)). Esta guía queda para otra instalación o como plan de
+> emergencia; se mantiene aparte porque el código del puente y su flujo de despliegue la citan.
 
 ---
 
@@ -156,8 +157,8 @@ abrir las páginas oficiales de Meta desde aquí: **confírmalas el día que dec
 - Quieres escribirle primero a muchos clientes (campañas, recordatorios): por QR eso es lo que más riesgo da.
 - WhatsApp cambia su protocolo y el puente se rompe más de lo razonable.
 
-El asistente **ya tiene el adaptador de la API oficial preparado y apagado** como plan B (docs/JUAN.md), así
-que el cambio es encenderlo y apagar el puente.
+El asistente **ya tenía el adaptador de la API oficial preparado** como plan B, y así se hizo: desde el 2026-11-02
+WhatsApp va por la API oficial ([JUAN_CANALES.md](JUAN_CANALES.md)) y el puente nunca se encendió.
 
 > Recomendación honesta de la auditoría (docs/auditoria/ronda7/crm-whatsapp.md): para **el número de
 > ventas**, lo más seguro es la API oficial con coexistencia; el QR queda mejor sobre **un segundo número**

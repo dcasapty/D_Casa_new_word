@@ -1,6 +1,6 @@
 // La interfaz que cumple CADA canal. El motor no conoce a WhatsApp, Telegram ni Meta:
 // solo habla con esto. Agregar un canal = escribir un adaptador con esta forma y
-// registrarlo en `canales/index.ts` (docs/JUAN_WORKER.md → «Cómo agregar un canal»).
+// registrarlo en `canales/index.ts` (docs/JUAN.md → «Cómo agregar un canal»).
 
 import type { Env } from "../env";
 

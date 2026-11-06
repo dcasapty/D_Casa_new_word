@@ -18,8 +18,8 @@
 | Usar el Escáner de códigos de barras y las etiquetas | [BARRAS.md](BARRAS.md) |
 | Dar de baja mermas, daños, muestras y regalos; ver la bitácora de bodega; encender las alertas de bodega por Telegram | [EXISTENCIAS.md](EXISTENCIAS.md) |
 | Atender conversaciones con Juan (bandeja, traspaso a una vendedora) | [JUAN_ODOO.md](JUAN_ODOO.md) |
-| Entender o vincular el WhatsApp de Juan (puente QR) y el plan B oficial | [JUAN_PUENTE.md](JUAN_PUENTE.md) · [JUAN_PLAN_B.md](JUAN_PLAN_B.md) |
-| Conectar Facebook (Messenger) e Instagram a Juan | [JUAN_META.md](JUAN_META.md) |
+| Entender o vincular el WhatsApp de Juan (puente QR) y el plan B oficial | [JUAN_PUENTE.md](JUAN_PUENTE.md) · [JUAN_PLAN_B.md](JUAN_CANALES.md#1-whatsapp-por-la-api-oficial-el-canal-principal) |
+| Conectar Facebook (Messenger) e Instagram a Juan | [JUAN_META.md](JUAN_CANALES.md#3-messenger-e-instagram-por-conectar) |
 | Activar el doble factor y la puerta del equipo | [SEGURIDAD_ACCESO.md](SEGURIDAD_ACCESO.md) |
 | Usar Brian, el asistente del panel | [BRIAN.md](BRIAN.md) |
 | Mandarles a los clientes su factura, su abono y la bienvenida por correo (Resend): crear la clave, dónde pegarla y cómo encenderlo | [CORREO.md](CORREO.md) |
@@ -56,7 +56,7 @@ Resumen de los 24 módulos (para qué, dependencias, modelos, menús, herramient
 | `dcasa_correo` (correo a clientes por Resend, apagado de fábrica) | [CORREO.md](CORREO.md) |
 | `dcasa_meta_catalogo` (catálogo para Meta por URL, apagado de fábrica) | [META_CATALOGO.md](META_CATALOGO.md) |
 | `dcasa_meta_eventos` (píxel y Conversions API de Meta, apagados de fábrica) | [META_EVENTOS.md](META_EVENTOS.md) |
-| `dcasa_conversaciones` y el Worker `juan/` | [JUAN.md](JUAN.md) (contrato) · [JUAN_ODOO.md](JUAN_ODOO.md) · [JUAN_WORKER.md](JUAN_WORKER.md) · [CRM_AUTOMATICO.md](CRM_AUTOMATICO.md) |
+| `dcasa_conversaciones` y el Worker `juan/` | [JUAN.md](JUAN.md) (contrato) · [JUAN_ODOO.md](JUAN_ODOO.md) · [JUAN_WORKER.md](JUAN.md#parte-2--cómo-funciona-el-worker-por-dentro) · [CRM_AUTOMATICO.md](JUAN_ODOO.md#el-crm-se-ajusta-solo) |
 | `dcasa_sofia` (Sofía, la asistente del CRM) | [SOFIA.md](SOFIA.md) |
 | `puente-wa/` | [JUAN_PUENTE.md](JUAN_PUENTE.md) |
 | `dcasa_seguridad`, `dcasa_sesiones` | [SEGURIDAD_ACCESO.md](SEGURIDAD_ACCESO.md) |
@@ -85,7 +85,7 @@ cambió, la fuente de verdad es el documento vigente de arriba.
 | [auditoria/](auditoria/README.md) | Las auditorías por rondas, la bitácora y la decisión de arquitectura. |
 | [AUDITORIA_UX.md](historico/AUDITORIA_UX.md) | 100 problemas de experiencia de usuario encontrados el 2026-09-29 (la mayoría ya corregidos). |
 | [REDISENO.md](historico/REDISENO.md) | Diagnóstico y diseño del sitio v2. |
-| [JUAN_PANEL.md](JUAN_PANEL.md) | Especificación de la pantalla de Conversaciones, que ya está construida (ver [JUAN_ODOO.md](JUAN_ODOO.md)). |
+| [JUAN_PANEL.md](JUAN_ODOO.md) | Especificación de la pantalla de Conversaciones, que ya está construida (ver [JUAN_ODOO.md](JUAN_ODOO.md)). |
 | [inventario-anterior-informe.md](inventario-anterior-informe.md) y su `.xlsx` | Informe de la carga del inventario del sistema anterior (lo genera `scripts/inventario_anterior_informe.py`). |
 | `gerencia/` | Informes en PDF para la dueña (estado del sistema, cómo ver y probar a Juan). La fuente del primero es `fuente-informe.html`. |
 | `img/` | Capturas que usa el [README](../README.md) principal. |

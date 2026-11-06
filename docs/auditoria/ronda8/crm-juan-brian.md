@@ -1,6 +1,6 @@
 # Auditoría ronda 8 · CRM, Juan y Brian (2026-10-10)
 
-Pedida por la dueña después de construir «el CRM que se ajusta solo» (`docs/CRM_AUTOMATICO.md`): *«una auditoría profunda del
+Pedida por la dueña después de construir «el CRM que se ajusta solo» (`docs/historico/CRM_AUTOMATICO.md`): *«una auditoría profunda del
 CRM, de Juan y de Brian»*. Tres revisiones independientes, de solo lectura:
 
 | Alcance | Qué se miró |

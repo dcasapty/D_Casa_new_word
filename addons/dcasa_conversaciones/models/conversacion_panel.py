@@ -1,4 +1,4 @@
-"""La API de la pantalla «Conversaciones» (panel OWL, docs/JUAN_PANEL.md): métodos públicos del modelo.
+"""La API de la pantalla «Conversaciones» (panel OWL, docs/JUAN_ODOO.md): métodos públicos del modelo.
 
 Todos exigen ser del equipo de ventas EN EL SERVIDOR (por RPC cualquiera los llamaría) y devuelven diccionarios
 sencillos listos para JSON: nada de registros de Odoo ni de campos que la pantalla no use.

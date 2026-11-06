@@ -623,7 +623,7 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
   pagaban nunca, comprobante sin el bono, montos de una planilla cancelada que cambiaban): todo corregido con pruebas.
 - **Para Juan:** cuestionario «Preguntas para Juan» (página de Claude, 125 preguntas en 14 temas; 12 llenas y 12
   incompletas con el manual de marca de la agencia, los términos del sitio y los datos de la empresa; el resto lo
-  responde el equipo) y guía paso a paso para conectar Messenger e Instagram ([JUAN_META.md](JUAN_META.md)). Las
+  responde el equipo) y guía paso a paso para conectar Messenger e Instagram ([JUAN_META.md](JUAN_CANALES.md#3-messenger-e-instagram-por-conectar)). Las
   respuestas se cargan en la base de conocimiento de Juan solo con la revisión de la dueña; dejar que Juan hable de
   entregas, flete, apartados, crédito o descuentos cambia su regla 3 y necesita su «sí».
 - **Bono por meta de ventas (en producción desde Desplegar 12):** decisión del jefe con las respuestas de la

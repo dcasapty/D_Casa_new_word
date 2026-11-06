@@ -210,7 +210,7 @@ Objects.
 
 Juan: `/health`, `/salud` (público, solo nombres y estados), `/webhooks/telegram`, `/webhooks/meta`,
 `/webhooks/whatsapp-qr`, `/webhooks/whatsapp-cloud`, `/media/...` (firmado) y `/odoo/*` (con `JUAN_WORKER_TOKEN`).
-Puente: `/health`, `/api/*` (con token) y `/puente/*` (su contenedor). Detalle: [JUAN_WORKER.md](JUAN_WORKER.md) y
+Puente: `/health`, `/api/*` (con token) y `/puente/*` (su contenedor). Detalle: [JUAN.md, Parte 2](JUAN.md#parte-2--cómo-funciona-el-worker-por-dentro) y
 [JUAN_PUENTE.md](JUAN_PUENTE.md) (apéndice A).
 
 ## 3. Tablas
@@ -367,7 +367,7 @@ En `juan/wrangler.jsonc`: `ENTORNO`, `URL_SITIO`, `BUFFER_SEGUNDOS`, `TOPE_DIARI
 en Odoo (`ANTHROPIC_API_KEY`, `META_AI_API_KEY` u `OPENAI_API_KEY`), `TELEGRAM_BOT_TOKEN_JUAN`,
 `TELEGRAM_WEBHOOK_SECRET_JUAN`, `META_APP_SECRET`, `META_VERIFY_TOKEN`, `META_PAGE_TOKEN`, `WHATSAPP_CLOUD_TOKEN`; variables
 `URL_PUBLICA`, `ALERTA_TELEGRAM_CHAT_ID`, `WHATSAPP_PHONE_NUMBER_ID`, `GRAPH_API_VERSION`, `META_AI_BASE_URL`,
-`OPENAI_BASE_URL`, `MODELO_VISION`. Ninguno pasa por GitHub. Para qué y cuándo: [JUAN_WORKER.md §5](JUAN_WORKER.md).
+`OPENAI_BASE_URL`, `MODELO_VISION`. Ninguno pasa por GitHub. Para qué y cuándo: [JUAN.md §5](JUAN.md#5-qué-secreto-en-qué-worker-para-qué).
 
 ### 5.5 Puente de WhatsApp
 

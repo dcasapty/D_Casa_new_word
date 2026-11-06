@@ -48,7 +48,7 @@ con el nombre público «el equipo de D'CASA». El contrato completo con el Work
 
 ## La pantalla (panel)
 
-La pantalla de [`docs/JUAN_PANEL.md`](../../docs/JUAN_PANEL.md) es una acción de cliente OWL (`dcasa_conversaciones`), con tres
+La pantalla de Conversaciones ([`docs/JUAN_ODOO.md`](../../docs/JUAN_ODOO.md)) es una acción de cliente OWL (`dcasa_conversaciones`), con tres
 hermanas: `dcasa_juan_resumen`, `dcasa_juan_costos` y `dcasa_juan_conexiones`. Todo el JS vive en `static/src/js` (un almacén reactivo
 compartido, `almacen.js`, y un componente por zona), las plantillas en `static/src/xml` y los estilos en `static/src/scss/panel*.scss`
 (prefijos `o_dcj_` y `o_dcj_p_`; sistema plano con los tokens de `dcasa_interfaz`). El servidor es `models/conversacion_panel*.py` y

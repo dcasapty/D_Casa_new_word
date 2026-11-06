@@ -1,7 +1,10 @@
 # Juan — el panel de conversaciones dentro de Odoo
 
+> **Archivado el 2026-11-06:** lo vivo (trabajo en equipo, reparto, Resumen) se unió a
+> [JUAN_ODOO.md](../JUAN_ODOO.md). Se conserva tal cual, como el diseño del que salió la pantalla.
+
 > **Especificación histórica: la pantalla ya está construida.** Lo que ves y haces en ella está en
-> [JUAN_ODOO.md](JUAN_ODOO.md); este documento queda como el diseño del que salió.
+> [JUAN_ODOO.md](../JUAN_ODOO.md); este documento queda como el diseño del que salió.
 
 Especificación de la interfaz que usa el equipo de D'CASA para atender con Juan. Sale de lo que
 ya funciona y gusta en el CRM de Baby Caleb (su panel `/admin`: 7.167 líneas, `src/admin/views/`),

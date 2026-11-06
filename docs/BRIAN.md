@@ -382,7 +382,7 @@ también el del Inicio de Gerencia («Facturado»). Ejemplos: «¿cómo vamos co
 `comparar_ventas(comparacion=mes, b=septiembre)`; «¿cómo va Ana este mes?» →
 `comparar_ventas(comparacion=mes_a_la_fecha, vendedora=Ana)`.
 
-Brian **solo lee** el CRM: cerrar o ganar oportunidades no está hecho a propósito (docs/CRM_AUTOMATICO.md, «Lo que NO se hace»).
+Brian **solo lee** el CRM: cerrar o ganar oportunidades no está hecho a propósito ([JUAN_ODOO.md › El CRM se ajusta solo](JUAN_ODOO.md#el-crm-se-ajusta-solo)).
 
 **Combos cama + colchón que se arman en la venta (2026-10-22, `herramientas_combos.py`).** Las mismas reglas del panel
 «Armar combo» de la cotización ([OPERACION.md](OPERACION.md), «Combos cama + colchón»): el colchón va a su **precio en

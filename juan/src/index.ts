@@ -1,4 +1,4 @@
-// Worker `dcasa-juan`: el motor del bot de atención a clientes de D'CASA (docs/JUAN.md, docs/JUAN_WORKER.md).
+// Worker `dcasa-juan`: el motor del bot de atención a clientes de D'CASA (docs/JUAN.md).
 // Aquí solo se conecta Cloudflare con las rutas y el cron; la lógica está en rutas.ts, salud.ts y motor/.
 
 import { ADAPTADORES } from "./canales";

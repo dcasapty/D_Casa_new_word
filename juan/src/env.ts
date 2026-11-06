@@ -1,5 +1,5 @@
 // Lo que el Worker `dcasa-juan` recibe de Cloudflare: bindings, variables y secretos.
-// Solo NOMBRES: los valores de los secretos los carga la dueña (docs/JUAN_WORKER.md).
+// Solo NOMBRES: los valores de los secretos los carga la dueña (docs/JUAN.md).
 
 import type { Conversacion } from "./motor/do";
 import type { Global } from "./motor/global";
