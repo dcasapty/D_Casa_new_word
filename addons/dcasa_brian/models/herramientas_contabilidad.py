@@ -58,6 +58,7 @@ class BrianHerramientasContabilidad(models.AbstractModel):
             'total': c.moneda(factura.amount_total),
             'pendiente': c.moneda(factura.amount_residual),
             **self._b_abono(factura),
+            **({'origen': self._b_origen(factura)} if factura.move_type in ('out_invoice', 'out_refund') else {}),
         }
 
     @api.model

@@ -51,10 +51,10 @@ _logger = logging.getLogger(__name__)
 NIVELES = ('lectura', 'construccion', 'sensible')
 
 CATEGORIAS = {
-    'general': 'Pantalla actual, búsqueda en todo, ayuda',
-    'ventas': 'Ventas, cotizaciones, pedidos, reporte del día',
+    'general': 'Pantalla actual, búsqueda en todo, abrir pantallas, la Guía, ayuda',
+    'ventas': 'Ventas, cotizaciones, pedidos, reporte del día, conversaciones de Juan, CRM y Sofía',
     'catalogo': 'Productos, precios, inventario, existencias, reabastecer y compras a proveedores',
-    'clientes': 'Clientes, proveedores, contactos, socios y puntos',
+    'clientes': 'Clientes, proveedores, contactos, socios y puntos, campañas de correo',
     'contabilidad': 'Facturas, pagos, bancos, reportes contables, ITBMS',
     'usuarios': 'Usuarios, roles y permisos',
 }

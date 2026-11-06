@@ -8,7 +8,7 @@ herramientas**:
 
 | Canal | Dónde | Quién |
 |---|---|---|
-| Chat en el panel | Botón flotante en todas las pantallas (Ctrl + J) | Usuarios internos |
+| Chat en el panel | Botón flotante en computadora; en el celular, en la barra de arriba (Ctrl + J) | Usuarios internos |
 | Telegram | Bot propio; se vincula con un código de un solo uso | Administradores vinculados |
 | MCP | `POST /brian/mcp` (Streamable HTTP, JSON-RPC 2.0), clave de API de Odoo | Clientes MCP (Claude Desktop, etc.) |
 
@@ -42,16 +42,20 @@ MCP ────────┘         │                        │  tool cal
 
 | Nivel | Ejemplos | Comportamiento |
 |---|---|---|
-| lectura | reporte del día, buscar productos, balance, clientes que deben | Directo |
-| construcción | crear producto, cliente, cotización, factura en borrador; editar precio; mover stock | Directo, auditado |
+| lectura | reporte del día, buscar productos, balance, clientes que deben, abrir una pantalla | Directo |
+| construcción | crear producto, cliente, cotización, factura en borrador; editar precio; pedirle a Sofía que revise el CRM | Directo, auditado |
+| sensible | confirmar una venta, publicar una factura, registrar un pago, ajustar existencias, cambiar el rol de un usuario, archivar | Brian propone → el humano pulsa **Permitir** (o **Rechazar**) en una tarjeta con el detalle exacto |
+| prohibido | ver abajo | No existe herramienta para eso |
 
 `crear_cliente` pide el celular y el correo, los dos bien escritos (los mismos «¿Quisiste decir…?» de la ficha); si
 el cliente de verdad no tiene correo, se escribe «no tiene» y queda marcada «Cliente no tiene correo electrónico».
 Si no tiene celular, su **teléfono fijo** (7 números) va en «celular» y se guarda como teléfono fijo (2026-10-22);
 `actualizar_cliente` también cambia `telefono_fijo`. `actualizar_cliente` revisa igual el celular, el teléfono fijo y el correo
 (y acepta el correo «no tiene»).
-| sensible | confirmar una venta, publicar una factura, registrar un pago, cambiar el rol de un usuario, archivar | Brian propone → el humano pulsa **Permitir** (o **Rechazar**) en una tarjeta con el detalle exacto |
-| prohibido | ver abajo | No existe herramienta para eso |
+
+**Dinero:** mientras la dueña no decida los topes de dinero de Brian (issue #26), no se agregan herramientas nuevas que
+creen o cambien facturas, pagos, puntos ni existencias. Lo de 2026-11-06 («Brian al día») es todo de lectura, menos
+`revisar_con_sofia`, que solo deja propuestas.
 
 ### Lo que Brian nunca hace
 
@@ -403,6 +407,62 @@ cotización (`ver_venta`, `crear_cotizacion`…) marca las líneas que van en co
 máx. 30). Los modelos pequeños pueden mandar números y sí/no como texto: el registro los convierte
 (`registro.coercer`), y un parámetro mal puesto responde con la lista de los válidos.
 
+## Brian al día (2026-11-06): pantallas propias, Juan, Sofía, clientes repetidos, correo y Meta
+
+La dueña dijo: «Brian es indispensable, pero está desactualizado». Se revisó todo lo que entró desde octubre (la tabla
+de la auditoría está en la bitácora de [LEEME_PRIMERO.md](LEEME_PRIMERO.md), entrada «2026-11-06 (6)») y se cerraron
+los huecos con herramientas **de lectura** (consultar, resumir, decir dónde está algo y abrirlo) y conocimiento al día.
+Nada escribe dinero (issue #26). Cada herramienta cumple el contrato de los modelos pequeños (≤ 5 parámetros,
+descripción de menos de 260 letras; la prueba ahora revisa **todas** las categorías: `buscar_en_guia` tenía 293).
+
+| Herramienta | Qué hace | Nivel | Quién | Dónde vive |
+|---|---|---|---|---|
+| `abrir_pantalla(pantalla)` | Abre con un botón una pantalla propia: Inicio, Conversaciones, Resumen y Reparto de Juan, Sofía, Camila, Marketing, Envíos, Valor del inventario, Ventas por día, Estadísticas, Movimientos, Bodega, Reponer, Posibles duplicados o la Guía; dice dónde queda en el menú. Solo si quien pregunta ve ese menú (los mismos permisos que la Guía) | lectura | Interno | `dcasa_brian` (`herramientas_pantallas.py`) |
+| `propuestas_de_sofia(grupo?, limite?)` | Lo que Sofía propone y espera visto bueno, por grupo (escribir, mantener, datos, repartir), con la última revisión y el botón a su pantalla. De «Guarda sus datos» dice **qué** dato dio el cliente, no el dato. La vendedora ve las suyas; Gerencia, todas (la regla de registro de Sofía) | lectura (texto de clientes) | Ventas | `dcasa_brian` (`herramientas_asistentes.py`; Sofía no es dependencia: si falta, lo dice) |
+| `revisar_con_sofia()` | El «Revisar ahora» de Sofía: deja sus propuestas al día. No le escribe a nadie ni toca el CRM; si alguien revisó hace menos de un minuto, no repite | construcción | Ventas | `dcasa_brian` (`herramientas_asistentes.py`) |
+| `resumen_de_conversaciones(periodo?)` | El Resumen de Juan: mensajes, clientes, lo que Juan resolvió solo, oportunidades, ventas atribuidas en tres (solo Juan, Juan y una persona, solo personas; sin ITBMS), tasa de cierre del periodo y de todos los periodos, primera respuesta y cuántos esperan a una persona | lectura | Ventas | `dcasa_conversaciones` (`herramientas_conversaciones.py`) |
+| `reparto_de_conversaciones(periodo?)` | El Reparto: el modo, las reglas (activa en N minutos, pasar a otra), y por vendedora si recibe o no (disponible, «No disponible», sin actividad, fuera del reparto), cuántas recibió y cuántos clientes le esperan; los que esperan sin dueña. La vendedora ve solo lo suyo | lectura | Ventas | `dcasa_conversaciones` |
+| `cotizaciones_que_vencen(dias?, limite?)` | Las cotizaciones del chatbot y de la web que se cancelarán solas en los próximos días (sin las que el cron no toca: bloqueadas, con factura, pago en curso o apartado), los días de Ajustes de Juan y cómo darles más días | lectura | Ventas | `dcasa_conversaciones` |
+| `clientes_repetidos(tipo?, limite?)` | Las fichas que comparten celular, correo o RUC (Posibles duplicados): cuántas, quiénes y cómo se unen. Brian **no** fusiona | lectura (texto de clientes) | Gerencia de ventas | `dcasa_brian` (`herramientas_clientes.py`) |
+| `estado_del_correo(dias?)` | Si sale correo a los clientes o por qué no, qué se manda (al pagar, bienvenida, recordatorio de abono) y la cola de los últimos días por tipo y estado, con los que no salieron y su motivo. La clave de Resend nunca se lee (ni sus últimas letras) | lectura | Gerencia y administradores | `dcasa_correo` |
+| `estado_de_meta()` | El catálogo para anuncios (encendido, cuántos productos entran y cuántos quedan fuera) y el píxel y las ventas a Meta (interruptores, si la clave está cargada —nunca su valor—, eventos de 30 días y el último error). No enciende ni apaga nada | lectura | Gerencia de ventas y administradores | `dcasa_brian` (`herramientas_meta.py`; los módulos de Meta no son dependencia) |
+
+Además:
+
+* **El origen de una venta** (Chatbot, Web o Vendedora, de `dcasa_interfaz`): `buscar_ventas` acepta `origen` y cada
+  fila lo dice; `ver_venta` y `ver_factura` (de cliente) también. «Cotizaciones que armó Juan» → `buscar_ventas(origen=chatbot)`.
+* **Botón «Abrir» para pantallas propias:** un destino puede ser `{accion: <id de ir.actions>, titulo}` (el panel lo abre
+  con `doAction`; solo ids enteros, `_abrir` en `conversacion.py`). `buscar_en_guia` ya da ese botón cuando la tarea de
+  la Guía lleva a una pantalla propia (antes solo decía la ruta).
+* **El prompt** (`_sistema_fijo`) explica en pocas líneas quiénes son Juan, Sofía y Camila, que Brian no aprueba
+  propuestas ni envía campañas (las abre con `abrir_pantalla`) y que use `buscar_en_guia` si no sabe dónde está algo.
+  `ayuda` lo dice también.
+* **La Guía** trae la pregunta lista para Brian en las tareas de Sofía, duplicados, Conversaciones, Reparto,
+  cotizaciones que vencen, Meta, correos, Camila y envíos.
+
+Lo que sigue sin herramienta, a propósito: aprobar o descartar propuestas de Sofía y enviar campañas de Camila (se
+revisan en su pantalla), fusionar clientes (mueve facturas y puntos), encender Meta o el correo (Ajustes), sacar a
+una vendedora del reparto (Gerencia, en la pantalla) y todo lo que escriba dinero (issue #26).
+
+Ejemplos: «¿qué me propone Sofía hoy?» → `propuestas_de_sofia`; «¿cuál es la tasa de cierre de Juan este mes?» →
+`resumen_de_conversaciones(periodo=30_dias)`; «¿qué vendedoras están recibiendo clientes?» →
+`reparto_de_conversaciones`; «¿qué cotizaciones de la web vencen pronto?» → `cotizaciones_que_vencen`; «¿hay clientes
+repetidos?» → `clientes_repetidos`; «¿qué correos no salieron esta semana?» → `estado_del_correo`; «¿cómo va Meta?» →
+`estado_de_meta`; «ábreme Sofía» → `abrir_pantalla(pantalla=sofia)`.
+
+### El botón flotante no tapa nada (2026-11-06)
+
+En Conversaciones, en computadora, el botón azul de abajo a la derecha tapaba «Enviar» y «Nota interna». Ahora, mientras
+el botón se ve (computadora, panel cerrado; `body:has(.o_brian_lanzador:not(.o_brian_oculto))` en `brian_panel.scss`):
+
+* en Conversaciones la caja de responder deja libre su esquina derecha (Enviar queda a la izquierda del botón) y, con la
+  ficha del cliente abierta, su desplazamiento termina por encima del botón;
+* las pantallas propias que bajan con scroll (Sofía, Camila, Envíos, Inicio, Marketing, las de Juan, Contabilidad, la
+  Guía, Reponer) terminan con un espacio libre del alto del botón: lo último siempre sube por encima de él.
+
+Brian no se esconde. Prueba de navegador por geometría (`tests/test_boton_no_tapa.py`, 1366×768 y 1024×768): el
+rectángulo del botón no se cruza con el de ningún botón, enlace o campo visible.
+
 ## Envíos (2026-11-06, módulo `dcasa_envios`)
 
 Las mismas cifras de la calculadora de envíos ([ENVIOS.md](ENVIOS.md)): el motor del servidor calcula, nunca el modelo
@@ -626,8 +686,10 @@ Telegram (la consola del equipo usa este mismo bot), sus IDs se agregan a la lis
 mensaje de un chat no permitido todavía despierta el contenedor (Odoo lo ignora sin contestar).
 
 Lo que Brian avisa hoy a los administradores vinculados: inicios de sesión del personal, disco/memoria/base al límite, caídas del
-contenedor y las acciones que esperan permiso (con botones Permitir / Rechazar). Un resumen de ventas o de lo vencido por Telegram
-**no existe todavía**.
+contenedor y las acciones que esperan permiso (con botones Permitir / Rechazar). Por el mismo bot y a los chats vinculados salen
+también las claves de descuento a Gerencia (`dcasa_base`), las alertas diarias de bodega si Gerencia las enciende
+(`dcasa_existencias`) y el resumen de Sofía de cada mañana a cada vendedora (`dcasa_sofia`). Un resumen de ventas o de lo
+vencido por Telegram **no existe todavía**.
 
 ## Correo
 

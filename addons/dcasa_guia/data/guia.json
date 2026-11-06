@@ -1615,6 +1615,7 @@
    "destino": {
     "menu": "dcasa_camila.menu_camila"
    },
+   "brian": "¿Cómo va la campaña de correo?",
    "palabras": [
     "camila",
     "campana de correo",
@@ -2226,6 +2227,7 @@
    "destino": {
     "menu": "dcasa_contactos.menu_duplicados"
    },
+   "brian": "¿Hay clientes repetidos?",
    "palabras": [
     "repetidos",
     "fusionar",
@@ -2450,6 +2452,7 @@
    "destino": {
     "menu": "dcasa_conversaciones.menu_dcasa_panel_conversaciones"
    },
+   "brian": "¿Cuántos clientes esperan respuesta ahora?",
    "palabras": [
     "whatsapp",
     "mensajes",
@@ -2485,6 +2488,7 @@
     "menu": "dcasa_conversaciones.menu_dcasa_juan_ajustes"
    },
    "nota": "Viene en 3 días. No se borra: queda cancelada con una nota y se reabre con «Establecer como cotización». Las cotizaciones de las vendedoras no se tocan. 0 = nunca se cancelan.",
+   "brian": "¿Qué cotizaciones de Juan o de la web vencen pronto?",
    "palabras": [
     "cotizacion vencida",
     "cancelar sola",
@@ -2613,6 +2617,7 @@
     "menu": "dcasa_meta_catalogo.menu_meta_catalogo"
    },
    "nota": "Viene apagado: lo enciendes cuando vayas a pegar la dirección en Meta (Commerce Manager › Orígenes de datos). Los precios salen igual que en la página, sin ITBMS, y los productos que marques «No anunciar en Facebook e Instagram» no van.",
+   "brian": "¿Cómo va Meta?",
    "palabras": [
     "facebook",
     "instagram",
@@ -2674,6 +2679,7 @@
    "destino": {
     "menu": "dcasa_meta_eventos.menu_meta_eventos"
    },
+   "brian": "¿Se están reportando las ventas a Meta?",
    "palabras": [
     "meta",
     "facebook",
@@ -2860,6 +2866,7 @@
    "destino": {
     "menu": "dcasa_correo.menu_dcasa_correo_envios"
    },
+   "brian": "¿Qué correos a clientes no salieron esta semana?",
    "palabras": [
     "correos enviados",
     "no le llego el correo",
@@ -2985,6 +2992,7 @@
    "destino": {
     "menu": "dcasa_conversaciones.menu_dcasa_panel_reparto"
    },
+   "brian": "¿Qué vendedoras están recibiendo clientes ahora?",
    "palabras": [
     "reparto",
     "equitativo",
@@ -3092,6 +3100,7 @@
    "destino": {
     "menu": "dcasa_sofia.menu_sofia"
    },
+   "brian": "¿Qué me propone Sofía hoy?",
    "palabras": [
     "sofia",
     "organizar",
@@ -3141,6 +3150,7 @@
    "destino": {
     "menu": "dcasa_envios.menu_envios_calculadora"
    },
+   "brian": "¿Cuánto cuesta el envío a Villa Lucre?",
    "palabras": [
     "envio",
     "envios",
