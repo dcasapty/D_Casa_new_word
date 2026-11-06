@@ -37,6 +37,55 @@ updates:
         dependency-type: development
         exclude-patterns: ["wrangler", "@cloudflare/*"]
 
+  # Juan, el asistente de los clientes (auditoría 2026-11-06: tenía dos avisos de seguridad sin vigilar).
+  - package-ecosystem: npm
+    directory: /juan
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Panama
+    commit-message:
+      prefix: "Juan"
+    labels: [dependencias]
+    open-pull-requests-limit: 5
+    groups:
+      ia:
+        patterns: ["ai", "@ai-sdk/*"]
+      cloudflare:
+        patterns: ["wrangler", "@cloudflare/*"]
+      desarrollo:
+        dependency-type: development
+        exclude-patterns: ["wrangler", "@cloudflare/*"]
+
+  # Puente de WhatsApp por QR (Worker) y su contenedor (Node). Opcional: no está en producción.
+  - package-ecosystem: npm
+    directory: /puente-wa
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Panama
+    commit-message:
+      prefix: "Puente"
+    labels: [dependencias]
+    groups:
+      todo:
+        patterns: ["*"]
+  - package-ecosystem: npm
+    directory: /puente-wa/contenedor
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Panama
+    commit-message:
+      prefix: "Puente"
+    labels: [dependencias]
+    groups:
+      todo:
+        patterns: ["*"]
+
   # Imagen base de docker/Dockerfile (ubuntu). Ojo: subir de PostgreSQL 16 a otra versión
   # mayor NO es una actualización normal (requiere pg_upgrade y un respaldo nuevo):
   # esos PR se cierran, no se aprueban (docs/OPERACION.md).

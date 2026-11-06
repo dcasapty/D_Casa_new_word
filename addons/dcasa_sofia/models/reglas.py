@@ -289,7 +289,7 @@ def nombre_en(texto, despues_de_pedirlo=False):
     """El nombre y apellido que el cliente escribió, ya con formato, o ``None``.
 
     Siempre se lee «me llamo …», «mi nombre es …» o «nombre: …». Solo cuando el mensaje contesta a quien le pidió sus
-    datos se acepta también «soy …» o una línea que es solo un nombre y apellido («Ingrid Pérez»)."""
+    datos se acepta también «soy …» o una línea que es solo un nombre y apellido («Marisol Pérez»)."""
     texto = texto or ''
     for encontrado in _NOMBRE_DICHO.finditer(texto):
         nombre = _nombre_valido(encontrado['nombre'], permitir_uno=True)
@@ -351,7 +351,8 @@ def _fechas_en(linea):
 
 def _solo_la_fecha(resto):
     """¿Lo demás de la línea es relleno («el», «de», «mi cumple»…) o el año en que nació, sin otras palabras ni
-    números? Se perdona el «del» mal escrito y pegado al año («19 de octubre deln1985», caso real del 2026-11-05)."""
+    números? Se perdona el «del» mal escrito y pegado al año («7 de marzo deln1990»: así llegó un caso real,
+    2026-11-05)."""
     resto = _ANO.sub(' ', resto)
     return not any(c.isdigit() for c in resto) and all(
         palabra.casefold() in _RELLENO_DE_LA_FECHA or (len(palabra) <= 4 and palabra.casefold().startswith('de'))

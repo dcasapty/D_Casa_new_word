@@ -32,11 +32,6 @@ class DcasaHumo(models.AbstractModel):
     _description = 'Prueba de humo del arranque'
 
     @api.model
-    def _columnas_faltantes(self):
-        """``modelo.campo`` de cada campo guardado sin columna en la base (vacío si todo coincide)."""
-        return [nombre for nombre, _modulo in self._campos_sin_columna()]
-
-    @api.model
     def _modulos_de(self, faltantes):
         """Los módulos que definen esos campos: el arranque los actualiza aunque no sean de D'CASA (p. ej. tras
         cambiar la versión de Odoo, ``-u dcasa_*`` no crea una columna nueva de ``sale``)."""

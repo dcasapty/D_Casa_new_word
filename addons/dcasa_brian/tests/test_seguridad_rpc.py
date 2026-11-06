@@ -71,14 +71,13 @@ class TestSeguridadRpcBrian(BrianCase):
             self.assertBloqueado(self.vendedora, modelo, metodo, args)
         self.assertEqual(self.env['brian.accion'].browse(accion['accion_id']).estado, 'por_confirmar')
 
-    def test_probar_y_borrar_clave_solo_administrador(self):
+    def test_probar_solo_administrador(self):
         with self.assertRaises(AccessError):
             self.env['brian.proveedores'].with_user(self.usuario).probar()
         proveedores.fijar_guion(['listo'])
         self.assertTrue(self.env['brian.proveedores'].with_user(self.jefe).probar()['ok'])
         self.env['ir.config_parameter'].sudo().set_param('dcasa_brian.api_key', 'sk-no-se-borra')
         # Sin registro (ids=[]) el método igual corría: ahora pide administrador.
-        self.assertBloqueado(self.vendedora, 'res.config.settings', 'action_dcasa_brian_borrar_clave', [[]])
         self.assertBloqueado(self.vendedora, 'res.config.settings', 'action_dcasa_brian_probar', [[]])
         self.assertEqual(self.env['ir.config_parameter'].sudo().get_param('dcasa_brian.api_key'), 'sk-no-se-borra')
 

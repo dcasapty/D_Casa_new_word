@@ -194,6 +194,18 @@ class TestInventarioCompleto(TransactionCase):
         cls.company = cls.env.ref('base.main_company')
         cls.ubicacion = cls.env['stock.warehouse'].search([('company_id', '=', cls.company.id)], limit=1).lot_stock_id
 
+    def test_el_repositorio_publico_no_lleva_costos(self):
+        """El repositorio es público (2026-11-06): el CSV del inventario anterior ya no trae costos, y cargarlo
+        no le borra el costo a lo que ya lo tiene en Odoo."""
+        with file_open('dcasa_catalogo/data/inventario_anterior.csv', 'r') as archivo:
+            self.assertNotIn('costo', archivo.readline().strip().split(','))
+        self.assertTrue(all(fila['costo'] is None for fila in self.filas))
+        fila = next(f for f in self.filas if f['codigo'] == 'N-F10018-F-BK')
+        variante = self.env['product.product'].search([('default_code', '=', 'N-F10018-F-BK-FULL')])
+        variante.standard_price = 123.45
+        cargar_inventario_anterior(self.env, [fila])
+        self.assertAlmostEqual(variante.standard_price, 123.45, places=2)
+
     def test_transcripcion_cuadra_con_el_leeme(self):
         self.assertEqual(len(self.filas), 535)
         for pagina, total in enumerate(TOTALES_LEEME, start=1):
@@ -242,7 +254,6 @@ class TestInventarioCompleto(TransactionCase):
                 variante = self.env.ref(f'dcasa_catalogo.{xmlid_inventario(fila["llave"])}').product_variant_ids[:1]
             self.assertTrue(variante, fila['llave'])
             self.assertAlmostEqual(variante.lst_price, fila['precio'], places=2, msg=fila['llave'])
-            self.assertAlmostEqual(variante.standard_price, fila['costo'], places=2, msg=fila['llave'])
             if fila['a_la_mano'] is not None:
                 self.assertEqual(variante.with_context(location=self.ubicacion.id).qty_available,
                                  max(fila['a_la_mano'], 0), fila['llave'])
@@ -263,7 +274,6 @@ class TestInventarioCompleto(TransactionCase):
         variante = self.env['product.product'].search([('default_code', '=', 'N-F10018-F-BK-FULL')])
         self.assertEqual(len(variante), 1)
         self.assertAlmostEqual(variante.lst_price, fila['precio'], places=2)
-        self.assertAlmostEqual(variante.standard_price, fila['costo'], places=2)
         self.assertEqual(variante.with_context(location=self.ubicacion.id).qty_available, max(fila['a_la_mano'], 0))
         otras = variante.product_tmpl_id.product_variant_ids - variante
         self.assertFalse(any(v.with_context(location=self.ubicacion.id).qty_available for v in otras),

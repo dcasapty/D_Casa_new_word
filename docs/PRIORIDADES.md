@@ -7,9 +7,10 @@ jefe» (<https://claude.ai/code/artifact/8ffcbb80-6521-4e46-a2a7-8ddc59cb20b2>).
 
 Cada etapa sale a staging para que la dueña la vea; a producción solo con su «sí» explícito (por cada etapa).
 
-**Estado al 2026-11-05, tarde:** **en producción** Sofía baja con scroll (Desplegar 45, PR #74) y **«Guarda sus
+**Estado al 2026-11-05, tarde:** **en producción** Sofía baja con scroll (Desplegar 45, PR #74), **«Guarda sus
 datos»** (Desplegar 46, PR #75): Sofía propone guardar en la ficha el nombre, el correo y el cumpleaños que el cliente
-contestó; la vendedora lo revisa y lo guarda con un toque. Orden: (1) que las vendedoras toquen «Revisar ahora» y
+contestó, y **«Guardar y responderle»** (Desplegar 47, PR #76): guarda y deja en el chat el borrador de Juan para darle
+las gracias y seguir con la venta. Orden: (1) que las vendedoras toquen «Revisar ahora» y
 guarden los datos de quienes ya contestaron; (2) mirar con la dueña las primeras tarjetas (¿lee bien los nombres?);
 (3) lo de abajo.
 

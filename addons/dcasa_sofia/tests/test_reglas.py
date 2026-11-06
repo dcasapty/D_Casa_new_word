@@ -106,16 +106,17 @@ class TestReglasDeSofia(BaseCase):
         self.assertEqual(R.falta_el_nombre('Ana\u200b Pérez'), 'su nombre tiene emojis')
 
     def test_lee_el_nombre_solo_cuando_lo_dice_claro(self):
-        self.assertEqual(R.nombre_en('Hola, me llamo ingrid pérez y mi correo es ingrid@example.com'), 'Ingrid Pérez')
+        self.assertEqual(R.nombre_en('Hola, me llamo marisol pérez y mi correo es marisol@example.com'),
+                         'Marisol Pérez')
         self.assertEqual(R.nombre_en('Mi nombre es Carla'), 'Carla', 'dicho a propósito, sirve un nombre solo')
         self.assertEqual(R.nombre_en('me llamo Ana Pérez y me interesa la cama queen'), 'Ana Pérez')
         self.assertEqual(R.nombre_en('Nombre: luis de gracia'), 'Luis de Gracia')
         # Sin que nadie se lo pidiera, una línea suelta o «soy …» no es su nombre.
-        self.assertIsNone(R.nombre_en('Ingrid Pérez'))
-        self.assertIsNone(R.nombre_en('Soy Ingrid Pérez'))
+        self.assertIsNone(R.nombre_en('Marisol Pérez'))
+        self.assertIsNone(R.nombre_en('Soy Marisol Pérez'))
         # Contestando a quien se lo pidió, sí.
-        self.assertEqual(R.nombre_en('Ingrid Pérez\ningrid@example.com', despues_de_pedirlo=True), 'Ingrid Pérez')
-        self.assertEqual(R.nombre_en('Claro, soy Ingrid Pérez', despues_de_pedirlo=True), 'Ingrid Pérez')
+        self.assertEqual(R.nombre_en('Marisol Pérez\nmarisol@example.com', despues_de_pedirlo=True), 'Marisol Pérez')
+        self.assertEqual(R.nombre_en('Claro, soy Marisol Pérez', despues_de_pedirlo=True), 'Marisol Pérez')
         self.assertIsNone(R.nombre_en('no me llamo nadie'))
         self.assertIsNone(R.nombre_en('me llamo mucho la atención ese sofá'))
         for texto in ('Hola buenas', 'Ok gracias', 'Cama queen gris', 'Juego de sala', 'soy de La Chorrera',
@@ -156,9 +157,9 @@ class TestReglasDeSofia(BaseCase):
                 self.assertIsNone(R.cumple_en(texto, despues_de_pedirlo=True))
         self.assertEqual(R.cumple_en('Ana Pérez\nel 12 de marzo', despues_de_pedirlo=True), '03-12')
         # Caso real (2026-11-05): el año pegado al «del» mal escrito.
-        self.assertEqual(R.cumple_en('19 de octubre deln1985', despues_de_pedirlo=True), '10-19')
-        self.assertEqual(R.cumple_en('19 de octubre del 1985', despues_de_pedirlo=True), '10-19')
-        self.assertIsNone(R.cumple_en('El 19 de octubre paso a las 1985', despues_de_pedirlo=True))
+        self.assertEqual(R.cumple_en('7 de marzo deln1990', despues_de_pedirlo=True), '03-07')
+        self.assertEqual(R.cumple_en('7 de marzo del 1990', despues_de_pedirlo=True), '03-07')
+        self.assertIsNone(R.cumple_en('El 7 de marzo paso a las 1990', despues_de_pedirlo=True))
         self.assertEqual(R.cumple_en('15/12', despues_de_pedirlo=True), '12-15')
         self.assertEqual(R.cumple_para_mostrar('03-12'), '12/03')
         self.assertEqual(R.cumple_para_mostrar(''), '')
@@ -178,13 +179,13 @@ class TestReglasDeSofia(BaseCase):
 
     def test_junta_los_datos_de_varios_mensajes(self):
         mensajes = [   # del más nuevo al más viejo
-            ('Mi correo es Ingrid.P@Example.com', True, True),
-            ('Ingrid Pérez\n12/03', True, True),
-            ('Me llamo Ingrid Vieja', False, False),
+            ('Mi correo es Marisol.P@Example.com', True, True),
+            ('Marisol Pérez\n12/03', True, True),
+            ('Me llamo Marisol Vieja', False, False),
         ]
         self.assertEqual(R.datos_en(mensajes),
-                         {'correo': 'ingrid.p@example.com', 'nombre': 'Ingrid Pérez', 'cumple': '03-12'})
-        self.assertEqual(R.datos_en([('Ingrid Pérez\n12/03', True, False)]), {'nombre': 'Ingrid Pérez'},
+                         {'correo': 'marisol.p@example.com', 'nombre': 'Marisol Pérez', 'cumple': '03-12'})
+        self.assertEqual(R.datos_en([('Marisol Pérez\n12/03', True, False)]), {'nombre': 'Marisol Pérez'},
                          'si no le pidieron el cumpleaños, una fecha suelta no lo es')
         self.assertEqual(R.datos_en([('Hola buenas, ¿tienen la cama?', True, True)]), {})
         self.assertEqual(R.datos_en([('mi correo es ana@gmial', False, False)]), {}, 'mal escrito no se propone')

@@ -10,6 +10,8 @@ no deben hacer cuentas ni formatear, solo leer.
 import re
 from datetime import date, datetime, timedelta
 
+import pytz
+
 from odoo import api, fields, models
 
 from .registro import BrianError, normalizar
@@ -67,14 +69,25 @@ def plural(n, singular, plural_=None):
     return f'{n} {singular if n == 1 else (plural_ or singular + "s")}'
 
 
-def leer_fecha(texto, nombre='fecha'):
-    """«30/09/2026», «2026-09-30», «hoy» o «ayer» → date. Si no se entiende, BrianError."""
+ZONA_PANAMA = 'America/Panama'
+
+
+def hoy_en_panama():
+    """La fecha de hoy en Panamá (el servidor está en UTC: desde las 7 p. m. de Panamá UTC ya es mañana)."""
+    return datetime.now(pytz.timezone(ZONA_PANAMA)).date()
+
+
+def leer_fecha(texto, nombre='fecha', hoy=None):
+    """«30/09/2026», «2026-09-30», «hoy» o «ayer» → date. Si no se entiende, BrianError.
+
+    ``hoy`` es la fecha de hoy de quien pregunta (``_b_hoy``); sin ella, la de Panamá. Nunca ``date.today()``: el
+    servidor está en UTC y desde las 7 p. m. «hoy» caía en mañana (auditoría 2026-11-06)."""
     if isinstance(texto, (date, datetime)):
         return texto if isinstance(texto, date) and not isinstance(texto, datetime) else texto.date()
     texto = (texto or '').strip().lower()
     if not texto:
         return None
-    hoy = date.today()
+    hoy = hoy or hoy_en_panama()
     if texto == 'hoy':
         return hoy
     if texto == 'ayer':
@@ -148,15 +161,17 @@ class BrianHerramientasComun(models.AbstractModel):
 
     @api.model
     def _b_hoy(self):
-        return fields.Date.context_today(self)
+        """Hoy en la zona de quien pregunta; si no tiene (Telegram, MCP), en la de Panamá, nunca en UTC."""
+        zona = self.env.context.get('tz') or self.env.user.tz or ZONA_PANAMA
+        return fields.Date.context_today(self.with_context(tz=zona))
 
     @api.model
     def _b_rango(self, periodo=None, desde=None, hasta=None, defecto='este_mes'):
         """(desde, hasta, etiqueta) como fechas. «desde/hasta» mandan sobre «periodo»."""
         hoy = self._b_hoy()
         if desde or hasta:
-            inicio = leer_fecha(desde, 'fecha inicial') or hoy.replace(day=1)
-            fin = leer_fecha(hasta, 'fecha final') or hoy
+            inicio = leer_fecha(desde, 'fecha inicial', hoy) or hoy.replace(day=1)
+            fin = leer_fecha(hasta, 'fecha final', hoy) or hoy
             if inicio > fin:
                 raise BrianError('La fecha inicial es posterior a la final. Revisa «desde» y «hasta».')
             return inicio, fin, f'del {fecha(inicio)} al {fecha(fin)}'

@@ -23,3 +23,4 @@ from . import test_estadisticas_brian
 from . import test_bodega_brian
 from . import test_bodega_nomina_brian
 from . import test_decisiones_brian
+from . import test_fechas_panama

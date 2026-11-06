@@ -505,6 +505,3 @@ def leer_monto(texto, decimal=None):
     valor = float(texto)
     return -valor if negativo else valor
 
-
-def fecha_iso(valor):
-    return fields.Date.to_string(valor)

@@ -131,7 +131,7 @@ class SofiaPanel(models.AbstractModel):
         """Una propuesta para la pantalla (diccionario sencillo; nada de registros)."""
         p = propuesta.sudo()   # quien mira ya pasó la regla de registro de la propuesta
         conv, lead, partner = p.conversacion_id, p.lead_id, p.partner_id
-        acciones = list(ACCIONES[p.tipo])
+        acciones = list(ACCIONES.get(p.tipo, ()))
         aviso = ''
         if p.tipo in CON_MENSAJE or p.tipo == 'contestar':
             if conv and not R.ventana_abierta(conv.canal, conv.ultimo_mensaje_cliente, ahora):
@@ -201,7 +201,7 @@ class SofiaPanel(models.AbstractModel):
             propuesta = self._propuesta(propuesta_id)
         except YaResuelta as error:
             return self._ya_estaba(error)
-        if not isinstance(accion, str) or accion not in ACCIONES[propuesta.tipo]:
+        if not isinstance(accion, str) or accion not in ACCIONES.get(propuesta.tipo, ()):
             raise UserError(self.env._('Esa acción no se puede hacer con esta propuesta.'))
         if texto is not None:
             if not isinstance(texto, str):
@@ -372,8 +372,6 @@ class SofiaPanel(models.AbstractModel):
         Con ``responder`` («Guardar y responderle», pedido de la dueña 2026-11-05: después de que da sus datos falta
         darle las gracias y seguir con la venta) además abre su chat y Juan deja ahí un borrador de respuesta según su
         conversación (el mismo «Sugerir» del chat). No se envía nada: la vendedora lo lee, lo ajusta y lo envía."""
-        if p.tipo == 'guardar_correo':   # las de antes de «Guarda sus datos» (solo el correo)
-            return self._aplicar_guardar_correo(p)
         partner, conv = self._exigir_ficha_para_guardar(p)
         chat = self._chat_para_responder(p) if responder else None   # antes de guardar: si no se puede, nada cambia
         propuestos = (p.datos or {}).get('campos') or {}
@@ -483,24 +481,3 @@ class SofiaPanel(models.AbstractModel):
             raise UserError(self.env._('Ese cumpleaños no es una fecha: elige el día y el mes.'))
         return 'dcasa_cumple', valor, self.env._('Cumpleaños: %s', R.cumple_para_mostrar(valor))
 
-    def _aplicar_guardar_correo(self, p):
-        partner = p.partner_id
-        correo = B.correo_limpio((p.datos or {}).get('correo') or '')
-        if not partner or not correo:
-            raise YaNoHaceFalta(self.env._('Ese correo ya no se puede guardar.'))
-        if partner.email:
-            raise YaNoHaceFalta(self.env._('Su ficha ya tiene correo: %s.', partner.email))
-        if p.conversacion_id and p.conversacion_id.partner_id != partner:
-            raise YaNoHaceFalta(self.env._('Ese chat ahora es de otra ficha de cliente.'))
-        llave = claves.llave_correo(correo)
-        otra = llave and partner._dcasa_otra_ficha('correo', llave)
-        if otra:
-            raise YaNoHaceFalta(self.env._('Ese correo ya es de «%s».', otra.display_name))
-        try:
-            with self.env.cr.savepoint():
-                # con los permisos de quien aprueba
-                self.env['res.partner'].browse(partner.id).write({'email': correo})
-        except (UserError, ValidationError) as error:
-            raise UserError(self.env._('No se pudo guardar el correo: %s', error.args[0] if error.args else error)) \
-                from None
-        return self.env._('Correo guardado en su ficha.'), {}

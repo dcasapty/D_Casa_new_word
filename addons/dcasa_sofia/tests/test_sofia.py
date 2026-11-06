@@ -185,16 +185,16 @@ class TestSofia(JuanCase):
         self.mensaje(conv, "¡Hola! Soy Vendedora de D'CASA. ¿Me regalas tu nombre y apellido y tu correo? Si quieres, "
                            "dime también el día y el mes de tu cumpleaños.", 6, autor='vendedora',
                      usuario=self.vendedora)
-        self.mensaje(conv, 'ingrid DE LA pérez\nIngrid.P@Example.com\n12/03', 5)
+        self.mensaje(conv, 'marisol DE LA pérez\nMarisol.P@Example.com\n12/03', 5)
         fichas_antes = self.Partner.search_count([])
         self.analizar()
         propuesta = self.propuestas(partner_id=partner.id, tipo='guardar_datos')
         self.assertEqual(len(propuesta), 1)
         self.assertEqual(propuesta.datos['campos'],
-                         {'nombre': 'Ingrid de la Pérez', 'correo': 'ingrid.p@example.com', 'cumple': '03-12'})
+                         {'nombre': 'Marisol de la Pérez', 'correo': 'marisol.p@example.com', 'cumple': '03-12'})
         self.assertEqual(propuesta.usuario_id, self.vendedora)
         self.assertEqual(propuesta.prioridad, 2)
-        self.assertIn('Ingrid de la Pérez', propuesta.titulo)
+        self.assertIn('Marisol de la Pérez', propuesta.titulo)
         # La vendedora la ve con lo que escribió y lo que hoy dice su ficha.
         fila = next(f for f in self.Sofia.with_user(self.vendedora).panel()['propuestas'] if f['id'] == propuesta.id)
         self.assertEqual(fila['campos']['cumple'], '03-12')
@@ -203,8 +203,8 @@ class TestSofia(JuanCase):
         # Un clic: todo a su ficha, con nuestro formato, sin crear ninguna ficha nueva.
         resultado = self.Sofia.with_user(self.vendedora).aplicar(propuesta.id, 'guardar')
         self.assertEqual(resultado['resultado'], 'Guardado en su ficha.')
-        self.assertEqual(partner.name, 'Ingrid de la Pérez')
-        self.assertEqual(partner.email, 'ingrid.p@example.com')
+        self.assertEqual(partner.name, 'Marisol de la Pérez')
+        self.assertEqual(partner.email, 'marisol.p@example.com')
         self.assertEqual(partner.dcasa_cumple, '03-12')
         self.assertEqual(propuesta.estado, 'aplicada')
         self.assertEqual(self.Partner.search_count([]), fichas_antes, 'nunca crea fichas')
@@ -395,15 +395,21 @@ class TestSofia(JuanCase):
             self.Sofia.with_user(self.vendedora2).aplicar(propuesta.id, 'guardar')
         self.assertEqual(partner.name, '🎈')
 
-    def test_las_de_guardar_correo_de_antes_siguen_funcionando(self):
+    def test_una_guardar_correo_vieja_no_rompe_nada_y_se_va_sola(self):
+        """«Guardar su correo» ya no se propone (lo reemplazó «Guarda sus datos»). Si quedó alguna pendiente: la
+        pantalla abre igual, no tiene acciones (solo se descarta) y la próxima revisión la deja «ya no hacía falta»."""
         partner, conv, _lead = self.cliente('Ana Correo', '+507 6000-3071', vendedora=self.vendedora)
         propuesta = self.Propuesta.sudo().create({
             'clave': f'guardar_correo:partner:{partner.id}', 'tipo': 'guardar_correo', 'prioridad': 1,
             'usuario_id': self.vendedora.id, 'partner_id': partner.id, 'conversacion_id': conv.id,
             'titulo': 'Guarda su correo', 'datos': {'correo': 'ana.correo@example.com'}})
-        self.Sofia.with_user(self.vendedora).aplicar(propuesta.id, 'guardar')
-        self.assertEqual(partner.email, 'ana.correo@example.com')
-        self.assertEqual(propuesta.estado, 'aplicada')
+        fila = next(f for f in self.Sofia.with_user(self.vendedora).panel()['propuestas'] if f['id'] == propuesta.id)
+        self.assertEqual(fila['acciones'], [])
+        with self.assertRaises(UserError):
+            self.Sofia.with_user(self.vendedora).aplicar(propuesta.id, 'guardar')
+        self.assertFalse(partner.email)
+        self.analizar()
+        self.assertEqual(propuesta.estado, 'vencida')
 
     def test_repartir_y_sincronizar_solo_para_gerencia(self):
         _p1, conv1, sin_duena = self.cliente('Sin Vendedora', '+507 6000-3011')

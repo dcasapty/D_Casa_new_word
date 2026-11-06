@@ -1,4 +1,11 @@
 {
+  "estable-3": {
+    "desde": "2026-11-05 21:45 UTC (Desplegar 47)",
+    "que_trae": "Todo hasta Sofía con «Guarda sus datos» y «Guardar y responderle», el dominio dcasapty.com con sus rutas, Juan por WhatsApp oficial y los módulos de Meta, correo y marketing; sana y confirmada en producción",
+    "codigo": "main 700c34a (PR #76)",
+    "app_version": "e97958e018477297f0aca13a49650c4a885f6248",
+    "imagen_digest": "sha256:aa3c4c06cb2b6247af7ca127893e76ca9200f4193316bce7b341e8f30e7262bd"
+  },
   "estable-1": {
     "desde": "2026-10-16 07:27 UTC (Desplegar 9)",
     "que_trae": "Etapas 1 y 2 y el arreglo del arranque (#97); la dueña confirmó Inicio y conversaciones",

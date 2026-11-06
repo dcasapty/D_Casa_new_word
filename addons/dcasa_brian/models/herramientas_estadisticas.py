@@ -47,7 +47,7 @@ class BrianHerramientasEstadisticas(models.AbstractModel):
                 if atras == 0 and 'pasad' in normal:
                     atras = 7
                 return hoy - timedelta(days=atras)
-        return c.leer_fecha(normal, 'fecha del día')
+        return c.leer_fecha(normal, 'fecha del día', hoy)
 
     @api.model
     def _b_mes_dicho(self, texto, hoy):
@@ -258,8 +258,8 @@ class BrianHerramientasEstadisticas(models.AbstractModel):
     )
     def _h_movimientos_de_producto(self, producto=None, desde=None, hasta=None, tipo=None, limite=10):
         variante = self._b_producto(producto) if producto else None
-        inicio = c.leer_fecha(desde, 'fecha inicial') if desde else None
-        fin = c.leer_fecha(hasta, 'fecha final') if hasta else None
+        inicio = c.leer_fecha(desde, 'fecha inicial', self._b_hoy()) if desde else None
+        fin = c.leer_fecha(hasta, 'fecha final', self._b_hoy()) if hasta else None
         datos = self.env['dcasa.movimientos'].movimientos(
             producto_id=variante.id if variante else False, desde=str(inicio) if inicio else False,
             hasta=str(fin) if fin else False, tipo=tipo or False, por_pagina=c.limite(limite, 10))

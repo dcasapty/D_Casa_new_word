@@ -364,6 +364,9 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `main` (`741930d`, árbol = `de1fb04`) a staging y Desplegar con ese `app_version`. **Regla:** un cambio del borde
   (rutas, `vars`, `workers_dev`) se despliega con un `app_version` que lo contenga, o sea con una imagen construida
   de ese commit.
+- **Desplegar 47** (21:31 UTC del 5 nov, `e97958e`, imagen `sha256:aa3c4c06…` de CI #260, respaldo previo) · sano
+  21:45 (versión `e97958e01847`, base al día, humo ok): «Guardar y responderle» (PR #76, `main` = `700c34a`, árbol =
+  `e97958e`). El CI del PR (#261) se canceló. Juan no cambió.
 - **Desplegar 46** (19:33 UTC del 5 nov, `cbaff7a`, imagen `sha256:14f3fe34…` de CI #258, respaldo previo) · sano
   19:47 (versión `cbaff7ab9c2d`, base al día, humo ok): Sofía «Guarda sus datos» (PR #75, `main` = `42f379c`, árbol =
   `cbaff7a`). El staging del CI pasó el respaldo previo; el CI del PR (#259) se canceló. Juan no cambió.
@@ -548,6 +551,10 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   después algo choca, Odoo repite la petición entera y el cliente puede recibir el mensaje dos veces. Lo que marque
   «ya se hizo» (Sofía: la propuesta aprobada) se escribe ANTES de enviar, con `flush_all()`, para que quede en la misma
   confirmación (revisión adversarial, 2026-11-05). Las pruebas no lo ven: en pruebas no se confirma nada.
+- **Probar en el navegador algo que llama al Worker de Juan:** en `HttpCase` el servidor corre en el mismo proceso,
+  así que basta `patch.object(type(self.env['dcasa.juan.cliente']), 'sugerir', return_value=...)` (y `configurado`)
+  alrededor de `browser_js`. Para capturas en la base de prueba (sin Worker), Playwright `page.route` sobre
+  `/web/dataset/call_kw/dcasa.conversacion/sugerir_respuesta` (y decirle a la dueña que ese texto es de ejemplo).
 - **Pasar un texto de una pantalla a otra (Sofía → chat): nunca en `params` de la acción.** Odoo guarda la acción en la
   pestaña y en la dirección: al recargar volvía a aparecer el mensaje ya enviado, y cualquiera podía armar un enlace con
   un texto. Va por `sessionStorage`, se lee una vez y se borra, con vencimiento y solo para esa conversación.

@@ -12,13 +12,13 @@ help: ## Muestra esta ayuda
 setup: ## Clona Odoo (submódulo) y crea el entorno Python
 	git submodule update --init --depth 1
 	python3 -m venv .venv
-	.venv/bin/pip install -r vendor/odoo/requirements.txt ruff
+	.venv/bin/pip install -r vendor/odoo/requirements.txt -r docker/requirements-dcasa.txt ruff==0.16.9
 
 test: ## Tests de los módulos de D'CASA (necesita PostgreSQL)
 	PYTHON=$(PYTHON) scripts/test.sh
 
 lint: ## Ruff sobre los módulos propios
-	.venv/bin/ruff check addons
+	.venv/bin/ruff check addons scripts
 
 init: ## Crea la base $(DB) con los módulos y español
 	$(ODOO) -d $(DB) -i $(MODULES) --load-language=es_419 --stop-after-init

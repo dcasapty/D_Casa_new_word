@@ -47,7 +47,7 @@ class BrianHerramientasBodegaNomina(models.AbstractModel):
         Scrap = self.env['stock.scrap']
         if not hasattr(Scrap, '_dcasa_resumen_mes'):
             raise BrianError('Las mermas no están instaladas en este sistema (dcasa_existencias).')
-        dia = c.leer_fecha(mes, 'mes') if mes else self._b_hoy()
+        dia = c.leer_fecha(mes, 'mes', self._b_hoy()) if mes else self._b_hoy()
         datos = Scrap._dcasa_resumen_mes(self.env.company, dia)
         config = self.env['dcasa.existencias.config']._de()
         return {

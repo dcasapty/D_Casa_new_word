@@ -74,8 +74,3 @@ class ResConfigSettings(models.TransientModel):
                 'sticky': not resultado['ok'],
             },
         }
-
-    def action_dcasa_brian_borrar_clave(self):
-        self._dcasa_brian_exigir_admin()
-        self.env['ir.config_parameter'].sudo().set_param('dcasa_brian.api_key', False)
-        return True
