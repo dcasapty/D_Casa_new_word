@@ -270,7 +270,7 @@ class BrianHerramientasContabilidad(models.AbstractModel):
     def _h_antiguedad_saldos(self, tipo='por_cobrar', fecha=None, limite=10):
         if tipo not in ('por_cobrar', 'por_pagar'):
             raise BrianError('El tipo es «por_cobrar» o «por_pagar».')
-        corte = c.leer_fecha(fecha, 'fecha de corte') or self._b_hoy()
+        corte = c.leer_fecha(fecha, 'fecha de corte', self._b_hoy()) or self._b_hoy()
         datos = self.env['dcasa.reporte.contable'].obtener(tipo, hasta=str(corte))
         nombres = {t['clave']: t['nombre'] for t in datos['tramos']}
         t = datos['totales']
@@ -578,7 +578,7 @@ class BrianHerramientasContabilidad(models.AbstractModel):
         asistente = self.env['account.payment.register'].with_context(
             active_model='account.move', active_ids=movimiento.ids).create({
                 'amount': monto, 'journal_id': diario.id,
-                'payment_date': c.leer_fecha(fecha, 'fecha del pago') or self._b_hoy(),
+                'payment_date': c.leer_fecha(fecha, 'fecha del pago', self._b_hoy()) or self._b_hoy(),
             })
         asistente._create_payments()
         return {'mensaje': f'Pago de {c.moneda(monto)} por {diario.name} registrado en {movimiento.name}.',

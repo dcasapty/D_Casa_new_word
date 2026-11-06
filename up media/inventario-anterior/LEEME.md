@@ -1,7 +1,11 @@
 # Inventario del sistema anterior (capturas, 2026-10-02)
 
 7 capturas de Inventario → Productos del Odoo anterior de D'CASA: 535 productos en total.
-Columnas: nombre, referencia interna, precio de venta, costo, a la mano, pronosticado.
+Columnas: nombre, referencia interna, precio de venta, a la mano, pronosticado.
+
+**2026-11-06:** las 7 capturas y la columna de **costo** se retiraron del repositorio (es público y los
+costos de proveedor no deben verse). Los costos ya están cargados en Odoo y solo viven ahí. En el historial
+de git siguen existiendo; borrarlos de ahí sería reescribir la historia (no se hizo).
 Suma «A la mano» por página (para verificar la transcripción): 565 · 490 · 627 · 125 · 806 · 832 · 664.
 
 Pendiente (ronda 7): transcribir con doble lectura, cruzar por código con el catálogo actual,

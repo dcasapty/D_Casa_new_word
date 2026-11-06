@@ -21,10 +21,6 @@ class ResPartner(models.Model):
             pais = 'Panamá' if self.country_id.code == 'PA' else self.country_id.name
         return [linea.strip() for linea in (self.street, self.street2, ciudad, pais) if linea and linea.strip()]
 
-    def _dcasa_telefono_fmt(self):
-        self.ensure_one()
-        return formato.telefono_fmt(self.phone)
-
     def _dcasa_telefonos(self):
         """Celular y teléfono fijo (``dcasa_contactos``), con guion y sin repetir."""
         self.ensure_one()

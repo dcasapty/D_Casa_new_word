@@ -134,16 +134,16 @@ productos ya estaban en el catálogo con otro precio; si alguno debe quedarse co
 
 ## Dudas de lectura (columna `dudas` del CSV)
 
-- p1 f12 `YPN272107` BIBLIOTECA 5 REPISAS YPN272107: costo 0.00 en la captura
-- p1 f26 `XD271621` BIBLIOTECA DARK WALNUT 6 REPISAS 80X192X32 XD271621: costo 0.00 en la captura
-- p2 f51 `803KGR` CAMA KING COLOR GREY 803KGR: costo 6.00 llamativo; confirmado con zoom x3
+- p1 f12 `YPN272107` BIBLIOTECA 5 REPISAS YPN272107: costo en 0 en la captura (el costo vive en Odoo)
+- p1 f26 `XD271621` BIBLIOTECA DARK WALNUT 6 REPISAS 80X192X32 XD271621: costo en 0 en la captura (el costo vive en Odoo)
+- p2 f51 `803KGR` CAMA KING COLOR GREY 803KGR: costo llamativo (ver en Odoo); confirmado con zoom x3
 - p3 f70 `IM-2002` COLCHON IMPERIAL FULL 4/6 BUEN SUEÑO / IM-2002: pronosticado 6 distinto de a la mano 7; confirmado con zoom x3
-- p3 f73 `CN10BL00PE03907505P` COLCHONETA TWIN 39X75X5P / CN10BL00PE03907505P: costo (35.06) mayor que precio (34.99); confirmado con zoom x3
+- p3 f73 `CN10BL00PE03907505P` COLCHONETA TWIN 39X75X5P / CN10BL00PE03907505P: costo mayor que el precio (ver en Odoo); confirmado con zoom x3
 - p5 f44 `XXI070507` MUEBLE DE TV BLANCO 220X30X36CM / XXI070507: código XXI070507 repetido en la fila 46 (producto distinto)
 - p5 f46 `XXI070507` MUEBLE DE TV CEDAR WARM WHITE 180cm XXI070507: código XXI070507 repetido en la fila 44 (producto distinto)
-- p6 f8 `XLB221105` MUEBLE ORGANIZADOR DE COCINA CON CESTAS 80X130X30 XLB221105: costo 0.00 en la captura
+- p6 f8 `XLB221105` MUEBLE ORGANIZADOR DE COCINA CON CESTAS 80X130X30 XLB221105: costo en 0 en la captura (el costo vive en Odoo)
 - p6 f44 `(sin código)` MUEBLE ZAPATERA 120X102X34 XU023703: sin código; precio de venta aparece en gris en la captura
-- p6 f46 `MIK020716` MUEBLE ZAPATERA 120X118.5X24 MIK020716: costo 0.00 en la captura
+- p6 f46 `MIK020716` MUEBLE ZAPATERA 120X118.5X24 MIK020716: costo en 0 en la captura (el costo vive en Odoo)
 - p6 f56 `(sin código)` MUEBLE ZAPATERA 80X102X34 XU023701: sin código; precio de venta aparece en gris en la captura
 
 ## Fotos

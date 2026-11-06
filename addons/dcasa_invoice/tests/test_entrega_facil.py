@@ -38,6 +38,7 @@ def texto(elemento, clase):
     return ' '.join(x.text_content().strip() for x in elemento.xpath(f".//*[contains(@class, '{clase}')]"))
 
 
+@tagged('post_install', '-at_install')
 class TestReglasDeLaNotaFacil(DocumentosDePrueba):
     """Lo que no depende de la base de datos."""
 

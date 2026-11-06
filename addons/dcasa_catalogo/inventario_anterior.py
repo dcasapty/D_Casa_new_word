@@ -1,7 +1,10 @@
 """Carga del inventario del sistema anterior (capturas del 2026-10-02, 535 productos).
 
-El CSV es la transcripción de «up media/inventario-anterior/pagina-*.webp» (doble lectura;
-copia en ``data/inventario_anterior.csv``). Reglas de la dueña (LEEME del inventario):
+El CSV es la transcripción de 7 capturas del sistema anterior (doble lectura; copia en
+``data/inventario_anterior.csv``). Las capturas y la columna de **costo** se retiraron del repositorio
+el 2026-11-06 porque es público: los costos viven solo en Odoo (ya cargados en producción). Sin columna
+de costo, la carga no toca el costo de lo que existe y crea lo nuevo en 0. Reglas de la dueña (LEEME
+del inventario):
 
 * La llave es el **código** (``default_code``); sin código, el nombre exacto. Mismo código =
   mismo producto: solo se actualizan existencias, costo y precio si cambiaron; nombre y fotos no

@@ -416,8 +416,6 @@ class SaleOrder(models.Model):
     dcasa_pide_descuento = fields.Boolean(
         compute='_compute_dcasa_pide_descuento',
         help='Quien mira tiene tope de descuento: para pasarlo, pide la clave a Gerencia.')
-    dcasa_descuento_ids = fields.One2many('dcasa.descuento.autorizacion', 'order_id',
-                                          string='Descuentos pedidos a Gerencia')
 
     @api.depends_context('uid')
     def _compute_dcasa_pide_descuento(self):

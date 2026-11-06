@@ -20,7 +20,6 @@ métodos opcionales ``_verificar_<nombre>(argumentos)`` (lanza BrianError) y
 from datetime import timedelta
 
 from odoo import api, fields, models
-from odoo.exceptions import AccessError
 
 from .registro import BrianError, normalizar
 
@@ -256,11 +255,3 @@ class BrianPolitica(models.AbstractModel):
             return '—'
         return str(valor)
 
-    @api.model
-    def _acceso(self, registro, operacion):
-        """Comprueba como el usuario (y traduce el error) — útil antes de proponer una acción."""
-        try:
-            registro.check_access(operacion)
-        except AccessError as error:
-            raise BrianError(self.env._('No tienes permiso para eso: %s', error.args[0])) from error
-        return True

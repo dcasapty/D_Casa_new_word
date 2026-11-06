@@ -735,7 +735,6 @@ LISTA_BLANCA = {
     ('dcasa_brian', 'brian.accion', 'argumentos_dict'): SIN_SUDO,
     ('dcasa_brian', 'res.config.settings', 'set_values'): OVERRIDE + ' res.config.settings es solo de administradores.',
     ('dcasa_brian', 'res.config.settings', 'action_dcasa_brian_probar'): 'Exige base.group_system (gasta la clave).',
-    ('dcasa_brian', 'res.config.settings', 'action_dcasa_brian_borrar_clave'): 'Exige base.group_system.',
     ('dcasa_brian', 'brian.telegram.enlace', 'action_vincular'): 'Genera el código del propio usuario interno.',
     ('dcasa_brian', 'brian.telegram.enlace', 'action_desvincular'):
         'Solo el dueño del chat o un administrador (se comprueba antes del sudo).',
