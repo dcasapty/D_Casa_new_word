@@ -4,7 +4,7 @@ Lo planeado lo escribe quien administra; lo real sale siempre de los apuntes pub
 natural de la cuenta (ingresos y gastos en positivo; una nota de crédito resta). Los borradores y los asientos
 cancelados nunca cuentan.
 
-Reglas de las cuentas (auditadas contra un cálculo aparte en SQL, ver ``docs/AUDITORIA_CONTABLE.md``):
+Reglas de las cuentas (auditadas contra un cálculo aparte en SQL, ver ``docs/historico/AUDITORIA_CONTABLE.md``):
 
 * **Real** = Σ (debe − haber) de los apuntes publicados de la cuenta con fecha entre «Desde» y «Hasta» (al revés en
   ingresos, pasivos y patrimonio). Con cuenta analítica, solo la parte que cada apunte reparte a esa cuenta.

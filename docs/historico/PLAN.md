@@ -8,7 +8,7 @@
 
 Puesto al día el 2026-10-12. Este documento tiene tres partes: de dónde se partió, qué se decidió y
 **en qué va cada fase**. El detalle de lo que falta decidir o hacer la dueña está en
-[PENDIENTES_DUENA.md](../PENDIENTES_DUENA.md); la evaluación de cómo está todo, en [ESTADO.md](ESTADO.md).
+[PENDIENTES_DUENA.md](../PRIORIDADES.md#lo-que-falta-de-la-dueña); la evaluación de cómo está todo, en [ESTADO.md](ESTADO.md).
 
 ## Punto de partida
 
@@ -65,7 +65,7 @@ Leyenda: ✅ hecho · 🟡 hecho en parte · ⬜ pendiente.
   - ✅ Catálogo: `dcasa_catalogo` crea los productos con sus fotos ([CATALOGO.md](../CATALOGO.md)).
   - 🟡 Existencias y costos: salen de capturas del sistema anterior, con lecturas dudosas y decisiones
     pendientes de la dueña ([inventario-anterior-informe.md](../inventario-anterior-informe.md),
-    [PENDIENTES_DUENA.md](../PENDIENTES_DUENA.md) puntos 1 a 4). Falta un conteo físico completo (el Escáner de [BARRAS.md](../BARRAS.md) ya permite hacerlo).
+    [PENDIENTES_DUENA.md](../PRIORIDADES.md#lo-que-falta-de-la-dueña) puntos 1 a 4). Falta un conteo físico completo (el Escáner de [BARRAS.md](../BARRAS.md) ya permite hacerlo).
   - ⬜ Clientes, historial de facturas y numeración (continuar desde la última INV/2026/…).
   - ⬜ Contactos repetidos del sistema anterior: lista de duplicados en Socios › Configuración
     ([CONTACTOS.md](../CONTACTOS.md)).

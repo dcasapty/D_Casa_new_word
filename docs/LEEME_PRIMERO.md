@@ -90,7 +90,7 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 | A qué versión segura volver si algo se rompe, y cómo | [VERSIONES_ESTABLES.md](VERSIONES_ESTABLES.md) |
 | Qué se pidió y en qué orden se hace | [PRIORIDADES.md](PRIORIDADES.md) |
 | Cómo está todo (nota y fallas) | [ESTADO.md](historico/ESTADO.md) *(fecha en su primera línea; si es vieja, manda este archivo)* |
-| Qué le toca decidir o hacer a la dueña | [PENDIENTES_DUENA.md](PENDIENTES_DUENA.md) |
+| Qué le toca decidir o hacer a la dueña | [PENDIENTES_DUENA.md](PRIORIDADES.md#lo-que-falta-de-la-dueña) |
 | Trabajo de desarrollo abierto | Los issues del repositorio (`mcp__github__list_issues`) |
 | Cómo se despliega y se vuelve atrás | [DESPLIEGUE.md](DESPLIEGUE.md) y [OPERACION.md](OPERACION.md) |
 | Qué ve cada rol | [PERMISOS.md](PERMISOS.md) |
@@ -527,7 +527,7 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
   servidor lo sigue negando por RPC (`TestBotonesSoloAQuienPuede`). Detalle en [PERMISOS.md](PERMISOS.md).
 - **Sigue:** que la dueña vea las capturas; CI y staging; producción con su visto bueno. El día del despliegue, antes de
   abrir: darle **Caja** al jefe administrativo (sin Caja nadie salvo Gerencia cobra). Preguntas abiertas en
-  [PENDIENTES_DUENA.md](PENDIENTES_DUENA.md), punto 24.
+  [PENDIENTES_DUENA.md](PRIORIDADES.md#lo-que-falta-de-la-dueña), punto 24.
 - **En producción** (19:10 UTC, Desplegar 17, `app_version` `09302c41…`, imagen `sha256:add0e025…`; CI #194 verde y
   staging sano 600 s; PR #53 `531f717`): **abonos** (papel «ABONO» con saldo y vence + «Condiciones de abono» copia
   cliente/empresa), **«Mi cuenta»** del cliente (`/mi-cuenta`), **celular y correo obligatorios** con la casilla
@@ -596,7 +596,7 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
   dueña en el scratchpad de la sesión (`capturas_permisos/`).
 - **Sigue:** que la dueña vea las capturas y decida el punto 23, CI y staging; con el «sí»
   de la dueña (ya dijo que sube en cuanto pasen pruebas y revisión), producción. **El día del despliegue:** darle Caja
-  al jefe administrativo antes de abrir ([PENDIENTES_DUENA.md](PENDIENTES_DUENA.md), punto 23).
+  al jefe administrativo antes de abrir ([PENDIENTES_DUENA.md](PRIORIDADES.md#lo-que-falta-de-la-dueña), punto 23).
 
 ### 2026-10-16
 

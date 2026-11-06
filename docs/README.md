@@ -12,7 +12,7 @@
 | Qué falló antes, por qué y cómo se arregló (incidentes, despliegues, CI, trampas) | [CONTEXTO_AGENTICO.md](CONTEXTO_AGENTICO.md) |
 | A qué versión segura volver si algo se rompe, y cómo | [VERSIONES_ESTABLES.md](VERSIONES_ESTABLES.md) |
 | Saber qué sigue y en qué orden | [PRIORIDADES.md](PRIORIDADES.md) |
-| Saber qué falta decidir o hacer yo | [PENDIENTES_DUENA.md](PENDIENTES_DUENA.md) |
+| Saber qué falta decidir o hacer yo | [PENDIENTES_DUENA.md](PRIORIDADES.md#lo-que-falta-de-la-dueña) |
 | Saber cómo estaba todo el 11 de octubre, con nota y fallas (es una foto, no el estado de hoy) | [ESTADO.md](historico/ESTADO.md) |
 | Operar el sitio: costos, respaldos, qué hacer si se cae, cómo subir fotos | [OPERACION.md](OPERACION.md) |
 | Usar el Escáner de códigos de barras y las etiquetas | [BARRAS.md](BARRAS.md) |
@@ -44,7 +44,7 @@ Resumen de los 24 módulos (para qué, dependencias, modelos, menús, herramient
 | `dcasa_catalogo` | [CATALOGO.md](CATALOGO.md) · [CATALOGO_REVISAR.md](CATALOGO_REVISAR.md) *(generado)* |
 | `dcasa_barras` | [BARRAS.md](BARRAS.md) |
 | `dcasa_existencias` | [EXISTENCIAS.md](EXISTENCIAS.md) · mermas (F6), bitácora de bodega, alertas por Telegram y el hueco del Inventario físico |
-| `dcasa_contabilidad` | [CONTABILIDAD.md](CONTABILIDAD.md) · auditoría de los reportes (hallazgos y preguntas para la contadora): [AUDITORIA_CONTABLE.md](AUDITORIA_CONTABLE.md) · respuestas de la gerencia: [DECISIONES_CONTABLES.md](DECISIONES_CONTABLES.md) |
+| `dcasa_contabilidad` | [CONTABILIDAD.md](CONTABILIDAD.md) · auditoría de los reportes (hallazgos y preguntas para la contadora): [AUDITORIA_CONTABLE.md](historico/AUDITORIA_CONTABLE.md) · respuestas de la gerencia: [DECISIONES_CONTABLES.md](DECISIONES_CONTABLES.md) |
 | `dcasa_consolidacion` | [CONSOLIDACION.md](CONSOLIDACION.md) |
 | `dcasa_nomina` | [NOMINA.md](NOMINA.md) |
 | `dcasa_guia` | [GUIA.md](GUIA.md) · «¿Qué necesitas hacer hoy?»: atajos en palabras sencillas para quien administra |
@@ -98,5 +98,5 @@ cambió, la fuente de verdad es el documento vigente de arriba.
 - **Los datos de las personas** (nombres, correos y celulares del equipo y de los clientes) viven solo en Odoo, nunca aquí.
 - **Cifras con fecha.** Todo número que cambia (productos, pruebas, costos) lleva su fecha o se dice dónde mirarlo.
 - **Lo que se hizo y ya no se usa se cierra, no se borra:** el historial explica por qué el sistema es como es.
-- Al terminar un trabajo, anotar lo que queda pendiente de la dueña en [PENDIENTES_DUENA.md](PENDIENTES_DUENA.md) y
+- Al terminar un trabajo, anotar lo que queda pendiente de la dueña en [PENDIENTES_DUENA.md](PRIORIDADES.md#lo-que-falta-de-la-dueña) y
   cerrar el issue con un comentario que diga qué se hizo y dónde está documentado.

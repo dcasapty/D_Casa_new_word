@@ -12,7 +12,7 @@
 Evaluación hecha el 2026-10-11 (con el Escáner de códigos de barras ya en staging) a partir de lo que hay
 en el repositorio, las auditorías y los resultados de las pruebas. **Es un juicio, no una medición**: no
 corrió una auditoría nueva y lo que dice «no vi» puede estar resuelto sin que conste aquí. Lo que se
-resuelva se tacha en [PENDIENTES_DUENA.md](../PENDIENTES_DUENA.md) y en los issues del repositorio.
+resuelva se tacha en [PENDIENTES_DUENA.md](../PRIORIDADES.md#lo-que-falta-de-la-dueña) y en los issues del repositorio.
 
 ## Nota: 68 de 100
 

@@ -387,7 +387,7 @@ sistema anterior) no cambian; lo de proveedores tampoco.
   borrador una devolución de un pedido); un `account.payment` saliente a un cliente (y «Pagar» una nota de crédito); en
   el asistente, cobrar de más dejando la diferencia abierta (saldo a favor) o «marcar como pagada» con una diferencia.
   El contador sin Gerencia queda fuera de estas (la decisión dice «solo Gerencia»); está en
-  [PENDIENTES_DUENA.md](PENDIENTES_DUENA.md), punto 24, por si la gerencia quiere otra cosa.
+  [PRIORIDADES.md › Para la contadora (y la gerencia)](PRIORIDADES.md#para-la-contadora-y-la-gerencia), por si la gerencia quiere otra cosa.
 - **Lo que solo daría error no se ofrece** (2026-10-18; `dcasa_base/views/account_move_views.xml`, campos
   `dcasa_es_gerencia` y `dcasa_puede_cobrar`): en una factura, nota o recibo de cliente publicado, a quien no es Gerencia
   (Caja y el contador incluidos) no le salen «Nota de crédito» ni «Restablecer a borrador» (una cancelada sí vuelve a
