@@ -945,6 +945,11 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 - **Dependabot: dos PR que tocan el mismo `package-lock.json` chocan** (2026-11-06, #7 y #8 de `edge/`): se juntan a mano
   en `package.json`, luego `npm install --package-lock-only` y `npm ci`, y se prueba. Cambiar `.github/dependabot.yml`
   en `main` lanza Dependabot enseguida: al unir el PR #77 abrió los PR #78 a #81 (Juan y el puente).
+- **Dependabot sube `@types/node` a la mayor más nueva (26), no a la del runtime (Node 22 en CI, contenedor y despliegue)**
+  (2026-11-06, PR #79 y #81): con la 26 el typecheck falla (`URL` y `Buffer` chocan con `@cloudflare/workers-types`).
+  Se deja en la última 22.x; el PR de grupo queda abierto solo con eso hasta un `ignore` de `@types/node` (semver-major)
+  en `dependabot.yml`. Para el grupo «ia» de Juan, la prueba que avisa es `juan/test/motor/sdk-anthropic.test.ts`
+  (pasa por el proveedor real de Anthropic con un `fetch` falso; las demás usan un modelo de mentira).
 - **`up-media.yml` corre con todo push a `main` que toque `up media/**`** y puede subir a `main` un commit propio
   («[skip up-media] [skip ci]») que reescribe `RESUMEN.md`. Un *squash* con «[skip ci]» en el título no lo dispara. Si
   aparece ese commit, la rama se pone al día con un `merge` normal, no con `-s ours`.
