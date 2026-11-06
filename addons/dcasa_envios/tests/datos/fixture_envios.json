@@ -1,0 +1,57 @@
+{
+ "$comentario": "Datos de PRUEBA, inventados: ningún lugar existe y los precios son de juguete (mínimo $10, $20 a 10 km, $110 a 100 km). Los distritos y provincias son los de Panamá para probar sus sinónimos. Nada de esto es la matriz ni la tarifa de la dueña.",
+ "ajustes": {
+  "version": 1, "fecha": "2026-11-06", "aprobada": false,
+  "nota": "Tarifa de PRUEBA: cifras inventadas para las pruebas automáticas.",
+  "minimo": 10, "anclaA": {"km": 10, "precio": 20}, "anclaB": {"km": 100, "precio": 110, "nombre": "Pueblo Prueba"},
+  "ajustePct": 0, "paso": 5, "modo": "arriba", "maxKm": 300,
+  "extras": [
+   {"id": "viatico", "nombre": "Viático del chofer", "como": "desde_km", "monto": 0, "desde": 0, "ajusta": false, "activo": false},
+   {"id": "honorarios", "nombre": "Honorarios (chofer o ayudante)", "como": "viaje", "monto": 0, "desde": 0, "ajusta": false, "activo": false},
+   {"id": "peaje", "nombre": "Peaje", "como": "peaje", "monto": 0, "desde": 0, "ajusta": false, "activo": false}
+  ]
+ },
+ "agregados": [
+  {"nombre": "Finca Agregada", "alias": ["La finca"], "tipo": "barrio", "cat": "barrio o urbanización", "corr": "Los Ensayos", "corr_exacto": true, "dist": "La Chorrera", "prov": "Panamá Oeste", "km": 15.0, "fuente_km": "a mano (Google Maps)", "peaje": false, "estado": "ok", "nota": "", "lat": null, "lon": null}
+ ],
+ "lugares": [
+  {"nombre": "Barrio Prueba", "tipo": "corregimiento", "cat": "corregimiento", "corr": "Barrio Prueba", "dist": "La Chorrera", "prov": "Panamá Oeste", "km": 0.5, "estado": "ok", "nota": "La tienda de prueba está aquí", "fuente_km": "Google Maps", "lat": 8.9001, "lon": -79.8001},
+  {"nombre": "Los Ensayos", "tipo": "corregimiento", "cat": "corregimiento", "corr": "Los Ensayos", "dist": "La Chorrera", "prov": "Panamá Oeste", "km": 12.3, "estado": "ok", "fuente_km": "Google Maps", "lat": 8.9102, "lon": -79.8102},
+  {"nombre": "Cerro Ficticio", "tipo": "corregimiento", "cat": "corregimiento", "corr": "Cerro Ficticio", "dist": "La Chorrera", "prov": "Panamá Oeste", "km": 33.4, "estado": "ok", "fuente_km": "Google Maps", "peaje": true, "lat": 8.9203, "lon": -79.8203},
+  {"nombre": "Vista Inventada", "tipo": "corregimiento", "cat": "corregimiento", "corr": "Vista Inventada", "dist": "Arraiján", "prov": "Panamá Oeste", "km": 20.0, "estado": "ok", "fuente_km": "Google Maps", "lat": 8.9304, "lon": -79.8304},
+  {"nombre": "Santa Prueba", "tipo": "corregimiento", "cat": "corregimiento", "corr": "Santa Prueba", "dist": "Panamá", "prov": "Panamá", "km": 36.0, "estado": "ok", "fuente_km": "Google Maps", "peaje": true, "lat": 8.9405, "lon": -79.8405},
+  {"nombre": "Juan Ejemplo", "tipo": "corregimiento", "cat": "corregimiento", "corr": "Juan Ejemplo", "dist": "Panamá", "prov": "Panamá", "km": 40.0, "estado": "ok", "fuente_km": "Google Maps", "peaje": true, "lat": 8.9506, "lon": -79.8506},
+  {"nombre": "Amelia Ficticia", "tipo": "corregimiento", "cat": "corregimiento", "corr": "Amelia Ficticia", "dist": "San Miguelito", "prov": "Panamá", "km": 45.0, "estado": "ok", "fuente_km": "Google Maps", "peaje": true, "lat": 8.9607, "lon": -79.8607},
+  {"nombre": "Barrio Simulado", "tipo": "corregimiento", "cat": "corregimiento", "corr": "Barrio Simulado", "dist": "Colón", "prov": "Colón", "km": 90.7, "estado": "ok", "fuente_km": "Google Maps", "peaje": true, "lat": 8.9708, "lon": -79.8708},
+  {"nombre": "Pueblo Lejano", "tipo": "corregimiento", "cat": "corregimiento", "corr": "Pueblo Lejano", "dist": "Distrito Lejano", "prov": "Provincia Lejana", "km": 305.0, "estado": "fuera", "nota": "más de 300 km", "fuente_km": "Google Maps", "lat": 7.5001, "lon": -80.1001},
+  {"nombre": "Isla Inventada", "tipo": "corregimiento", "cat": "corregimiento", "corr": "Isla Inventada", "dist": "Distrito Lejano", "prov": "Provincia Lejana", "km": 60.0, "estado": "lancha", "nota": "Se llega en lancha", "fuente_km": "Google Maps", "lat": 7.6001, "lon": -80.2001},
+  {"nombre": "Monte Sin Camino", "tipo": "corregimiento", "cat": "corregimiento", "corr": "Monte Sin Camino", "dist": "Distrito Lejano", "prov": "Provincia Lejana", "estado": "sin_carretera", "nota": "No hay carretera", "lat": 7.7001, "lon": -80.3001},
+  {"nombre": "Paraje Perdido", "tipo": "corregimiento", "cat": "corregimiento", "corr": "Paraje Perdido", "dist": "Distrito Lejano", "prov": "Provincia Lejana", "estado": "no_encontrado"},
+  {"nombre": "Lugar Sin Dato", "tipo": "corregimiento", "cat": "corregimiento", "corr": "Lugar Sin Dato", "dist": "Distrito Lejano", "prov": "Provincia Lejana", "estado": "sin_dato"},
+  {"nombre": "Loma Dudosa", "tipo": "corregimiento", "cat": "corregimiento", "corr": "Loma Dudosa", "dist": "Distrito Lejano", "prov": "Provincia Lejana", "km": 70.0, "estado": "revisar", "nota": "Google da dos rutas", "fuente_km": "Google Maps", "lat": 7.8001, "lon": -80.4001},
+  {"nombre": "Villa Prueba", "tipo": "barrio", "cat": "barrio o urbanización", "corr": "Barrio Prueba", "corr_exacto": true, "dist": "La Chorrera", "prov": "Panamá Oeste", "km": 1.2, "estado": "ok", "lat": 8.9011, "lon": -79.8011},
+  {"nombre": "Villa Prueba II", "tipo": "barrio", "cat": "barrio o urbanización", "corr": "Barrio Prueba", "corr_exacto": true, "dist": "La Chorrera", "prov": "Panamá Oeste", "km": 1.5, "estado": "ok", "lat": 8.9012, "lon": -79.8012},
+  {"nombre": "Urbanización Los Ensayos", "tipo": "barrio", "cat": "barrio o urbanización", "corr": "Los Ensayos", "corr_exacto": false, "dist": "La Chorrera", "prov": "Panamá Oeste", "km": 12.0, "estado": "ok", "lat": 8.9112, "lon": -79.8112},
+  {"nombre": "Residencial Altos del Ejemplo", "tipo": "barrio", "cat": "barrio o urbanización", "corr": "Cerro Ficticio", "corr_exacto": true, "dist": "La Chorrera", "prov": "Panamá Oeste", "km": 31.0, "estado": "ok", "peaje": true, "lat": 8.9213, "lon": -79.8213},
+  {"nombre": "Barriada Nueva Ficción", "tipo": "barrio", "cat": "barrio o urbanización", "corr": "Vista Inventada", "corr_exacto": false, "dist": "Arraiján", "prov": "Panamá Oeste", "km": 19.0, "estado": "ok", "lat": 8.9314, "lon": -79.8314},
+  {"nombre": "Costa Inventada", "alias": ["Costa Inv"], "tipo": "barrio", "cat": "barrio o urbanización", "corr": "Santa Prueba", "corr_exacto": true, "dist": "Panamá", "prov": "Panamá", "km": 35.0, "estado": "ok", "peaje": true, "lat": 8.9415, "lon": -79.8415},
+  {"nombre": "San Ensayito", "tipo": "barrio", "cat": "barrio o urbanización", "corr": "Amelia Ficticia", "corr_exacto": true, "dist": "San Miguelito", "prov": "Panamá", "km": 44.0, "estado": "ok", "peaje": true, "lat": 8.9616, "lon": -79.8616},
+  {"nombre": "El Duplicado", "tipo": "barrio", "cat": "barrio o urbanización", "corr": "Los Ensayos", "corr_exacto": false, "dist": "La Chorrera", "prov": "Panamá Oeste", "km": 13.0, "estado": "ok", "lat": 8.9121, "lon": -79.8121},
+  {"nombre": "El Duplicado", "tipo": "barrio", "cat": "barrio o urbanización", "corr": "Los Ensayos", "corr_exacto": false, "dist": "La Chorrera", "prov": "Panamá Oeste", "km": 14.0, "estado": "ok", "lat": 8.9131, "lon": -79.8131},
+  {"nombre": "PH Torre Ensayo", "tipo": "edificio", "cat": "edificio o PH", "corr": "Santa Prueba", "corr_exacto": true, "dist": "Panamá", "prov": "Panamá", "km": 36.2, "estado": "ok", "peaje": true, "lat": 8.9416, "lon": -79.8416},
+  {"nombre": "Torre Ficticia Nº 2", "tipo": "edificio", "cat": "edificio o PH", "corr": "Juan Ejemplo", "corr_exacto": true, "dist": "Panamá", "prov": "Panamá", "km": 40.5, "estado": "ok", "peaje": true, "lat": 8.9517, "lon": -79.8517},
+  {"nombre": "Condominio Brisas del Ensayo", "tipo": "edificio", "cat": "edificio o PH", "corr": "Amelia Ficticia", "corr_exacto": true, "dist": "San Miguelito", "prov": "Panamá", "km": 44.5, "estado": "ok", "peaje": true, "lat": 8.9618, "lon": -79.8618},
+  {"nombre": "Hospital del Ejemplo", "tipo": "referencia", "cat": "hospital", "corr": "Barrio Prueba", "corr_exacto": true, "dist": "La Chorrera", "prov": "Panamá Oeste", "km": 0.8, "estado": "ok", "lat": 8.9021, "lon": -79.8021},
+  {"nombre": "Policlínica Inventada", "tipo": "referencia", "cat": "hospital", "corr": "Vista Inventada", "corr_exacto": false, "dist": "Arraiján", "prov": "Panamá Oeste", "km": 21.0, "estado": "ok", "lat": 8.9321, "lon": -79.8321},
+  {"nombre": "Mall Ficticio", "tipo": "referencia", "cat": "centro comercial", "corr": "Santa Prueba", "corr_exacto": true, "dist": "Panamá", "prov": "Panamá", "km": 37.0, "estado": "ok", "peaje": true, "lat": 8.9421, "lon": -79.8421},
+  {"nombre": "Plaza de las Pruebas", "tipo": "referencia", "cat": "centro comercial", "corr": "Los Ensayos", "corr_exacto": false, "dist": "La Chorrera", "prov": "Panamá Oeste", "km": 11.0, "estado": "ok", "lat": 8.9122, "lon": -79.8122},
+  {"nombre": "Súper Ensayo", "tipo": "referencia", "cat": "supermercado", "corr": "Barrio Prueba", "corr_exacto": true, "dist": "La Chorrera", "prov": "Panamá Oeste", "km": 2.0, "estado": "ok", "lat": 8.9022, "lon": -79.8022},
+  {"nombre": "Escuela Primaria Los Ensayos", "tipo": "referencia", "cat": "escuela o colegio", "corr": "Los Ensayos", "corr_exacto": false, "dist": "La Chorrera", "prov": "Panamá Oeste", "km": 12.5, "estado": "ok", "lat": 8.9123, "lon": -79.8123},
+  {"nombre": "Iglesia del Simulacro", "tipo": "referencia", "cat": "iglesia", "corr": "Barrio Simulado", "corr_exacto": true, "dist": "Colón", "prov": "Colón", "km": 91.0, "estado": "ok", "peaje": true, "lat": 8.9709, "lon": -79.8709},
+  {"nombre": "Estación Ficticia", "tipo": "referencia", "cat": "estación de metro o tren", "corr": "Amelia Ficticia", "corr_exacto": true, "dist": "San Miguelito", "prov": "Panamá", "km": 46.0, "estado": "ok", "peaje": true, "lat": 8.9619, "lon": -79.8619},
+  {"nombre": "Gasolinera Prueba", "tipo": "referencia", "cat": "gasolinera", "corr": "Vista Inventada", "corr_exacto": false, "dist": "Arraiján", "prov": "Panamá Oeste", "km": 22.0, "estado": "ok", "lat": 8.9322, "lon": -79.8322},
+  {"nombre": "Café 😀 Prueba", "tipo": "referencia", "cat": "cafetería", "corr": "Santa Prueba", "corr_exacto": true, "dist": "Panamá", "prov": "Panamá", "km": 38.0, "estado": "ok", "peaje": true, "lat": 8.9422, "lon": -79.8422},
+  {"nombre": "Inversiones Ensayo", "alias": ["INVERSIONES ENSAYO, S. A.", "Ensayo Inversiones"], "tipo": "referencia", "cat": "comercio", "corr": "Los Ensayos", "corr_exacto": false, "dist": "La Chorrera", "prov": "Panamá Oeste", "km": 12.8, "estado": "ok", "lat": 8.9124, "lon": -79.8124},
+  {"nombre": "Ferretería Sin Coordenadas", "tipo": "referencia", "cat": "ferretería", "corr": "Barrio Prueba", "corr_exacto": true, "dist": "La Chorrera", "prov": "Panamá Oeste", "km": 3.0, "estado": "ok"}
+ ]
+}

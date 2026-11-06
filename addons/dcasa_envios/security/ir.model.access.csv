@@ -1,0 +1,12 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_envio_lugar_equipo,dcasa.envio.lugar equipo,model_dcasa_envio_lugar,base.group_user,1,0,1,0
+access_envio_lugar_gerencia,dcasa.envio.lugar gerencia,model_dcasa_envio_lugar,dcasa_base.group_gerencia,1,1,1,0
+access_envio_lugar_admin,dcasa.envio.lugar administrador,model_dcasa_envio_lugar,base.group_system,1,1,1,1
+access_envio_tarifa_equipo,dcasa.envio.tarifa equipo,model_dcasa_envio_tarifa,base.group_user,1,0,0,0
+access_envio_tarifa_gerencia,dcasa.envio.tarifa gerencia,model_dcasa_envio_tarifa,dcasa_base.group_gerencia,1,1,1,0
+access_envio_tarifa_admin,dcasa.envio.tarifa administrador,model_dcasa_envio_tarifa,base.group_system,1,1,1,0
+access_envio_cargo_equipo,dcasa.envio.cargo equipo,model_dcasa_envio_cargo,base.group_user,1,0,0,0
+access_envio_cargo_gerencia,dcasa.envio.cargo gerencia,model_dcasa_envio_cargo,dcasa_base.group_gerencia,1,1,1,1
+access_envio_cargo_admin,dcasa.envio.cargo administrador,model_dcasa_envio_cargo,base.group_system,1,1,1,1
+access_envio_importar_gerencia,dcasa.envio.importar gerencia,model_dcasa_envio_importar,dcasa_base.group_gerencia,1,1,1,1
+access_envio_importar_admin,dcasa.envio.importar administrador,model_dcasa_envio_importar,base.group_system,1,1,1,1
