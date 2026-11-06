@@ -32,8 +32,10 @@ LEEME_PRIMERO §2).
    etapa de la página web.
 2. **Brian al día** con lo nuevo (la dueña: «indispensable, pero desactualizado»): hecho en su rama el 2026-11-06
    (9 herramientas nuevas de lectura y una de construcción, prompt y Guía al día, y el botón flotante ya no tapa
-   «Enviar»; ver la bitácora). Falta: capturas a la dueña, su visto bueno, CI y staging. Y una vuelta a la pantalla de
-   Sofía (otro agente).
+   «Enviar»; ver la bitácora). La dueña vio las capturas y dijo que sí; una revisión adversarial no encontró nada que
+   frene (sus 6 arreglos, hechos con pruebas). Falta: CI, staging y producción. La vuelta a la **pantalla de Sofía**
+   está hecha en su rama (2026-11-06 (7), solo interfaz): falta que la dueña vea las capturas antes/después y diga que
+   sí, y después CI, staging y producción.
 3. **Que el equipo use lo nuevo** (lo hace la dueña con el equipo; ver «Lo que falta de la dueña»): el Reparto
    «Parejo», el Telegram de cada vendedora, «Revisar ahora» de Sofía y los mensajes de Sofía.
 4. **Respaldo de la IA de Juan:** `ANTHROPIC_API_KEY` en el Worker `dcasa-juan` por si Meta pasa su límite o se cae (hoy

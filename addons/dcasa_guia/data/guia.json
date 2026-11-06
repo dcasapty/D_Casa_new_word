@@ -3095,8 +3095,8 @@
    "categoria": "vender",
    "grupo": "Hoy",
    "titulo": "Que Sofía te diga qué hacer hoy con tus clientes",
-   "logras": "Sofía revisa el CRM cada mañana (o cuando tocas «Organizar con Sofía» arriba del tablero del CRM) y te propone: a quién contestar, a quién escribirle, qué cotización vence y a qué cliente pedirle su nombre y su correo. El mensaje ya viene escrito: lo cambias si quieres y tocas «Abrir el chat con este mensaje» o «Enviar ya». Cuando el cliente te contesta su nombre, su correo o su cumpleaños, toca «Revisar ahora»: Sofía te muestra «Guarda sus datos», los revisas y tocas «Guardar y responderle» (se guardan y se abre su chat con un borrador para darle las gracias y seguir con la venta) o «Solo guardar». Nada sale ni se guarda sin que tú lo apruebes.",
-   "nota": "Cada vendedora ve solo lo suyo. Gerencia ve todo y además aprueba cómo repartir las oportunidades sin vendedora. Lo que descartas no vuelve en unos días.",
+   "logras": "Sofía revisa el CRM cada mañana (o cuando tocas «Organizar con Sofía» arriba del tablero del CRM) y te propone: a quién contestar, a quién escribirle, qué cotización vence y a qué cliente pedirle su nombre y su correo. Lo urgente sale arriba, en «Hoy sin falta»; con los botones de «Qué mirar» ves un solo tipo (Gerencia también por vendedora). El mensaje ya viene escrito: lo cambias con «Editar» si quieres y tocas «Abrir el chat con este mensaje» o «Enviar ya». Cuando el cliente te contesta su nombre, su correo o su cumpleaños, toca «Revisar ahora»: Sofía te muestra «Guarda sus datos», los revisas y tocas «Guardar y responderle» (se guardan y se abre su chat con un borrador para darle las gracias y seguir con la venta) o «Solo guardar». Nada sale ni se guarda sin que tú lo apruebes.",
+   "nota": "Cada vendedora ve solo lo suyo. Gerencia ve todo y además aprueba cómo repartir las oportunidades sin vendedora. Lo que descartas no vuelve en unos días. Cuando no queda nada, Sofía dice «Todo al día».",
    "destino": {
     "menu": "dcasa_sofia.menu_sofia"
    },
@@ -3116,6 +3116,8 @@
     "emoji",
     "repartir oportunidades",
     "prioridades del dia",
+    "hoy sin falta",
+    "filtrar por vendedora",
     "asistente del crm"
    ]
   },
