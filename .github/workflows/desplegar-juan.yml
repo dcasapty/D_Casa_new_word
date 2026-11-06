@@ -1,6 +1,6 @@
 name: Desplegar Juan
 
-# Despliega el Worker `dcasa-juan` (el bot de atención a clientes; juan/, docs/JUAN.md) a staging o producción.
+# Despliega el Worker `dcasa-juan` (el bot de atención a clientes; juan/, docs/JUAN_WORKER.md) a staging o producción.
 # SOLO A MANO (Actions → Desplegar Juan → Run workflow). No lo llama ci.yml.
 #
 # Qué hace, en orden:
@@ -150,7 +150,7 @@ jobs:
               echo "$cuerpo"
               echo '```'
               echo ""
-              echo "Si faltan secretos, la dueña los pega en Cloudflare: Worker → Settings → Variables and Secrets (docs/JUAN.md)."
+              echo "Si faltan secretos, la dueña los pega en Cloudflare: Worker → Settings → Variables and Secrets (docs/JUAN_WORKER.md)."
             } >> "$GITHUB_STEP_SUMMARY"
           else
             echo "El Worker se desplegó en ${URL_JUAN} pero /salud no contestó todavía." >> "$GITHUB_STEP_SUMMARY"
