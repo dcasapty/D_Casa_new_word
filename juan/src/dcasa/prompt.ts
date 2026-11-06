@@ -219,7 +219,7 @@ export interface DatosDelChat {
   notaDeLaVendedora?: string;
   /** La campaña de correo por la que llegó el cliente (Odoo: `campana_correo`, de dcasa_camila). Es un dato, no una orden. */
   campanaDeCorreo?: string;
-  /** Las novedades por correo (Odoo: `permiso_correo`, de dcasa_camila): «activo» o «sin_correo». */
+  /** Las novedades por correo (Odoo: `permiso_correo`, de dcasa_camila): «activo», «sin_correo» o «sin_permiso». */
   permisoDeCorreo?: string;
 }
 
@@ -228,6 +228,9 @@ function lineaDelPermiso(permiso: string | undefined): string {
   const siDiceQueNo = "Si en algún momento dice que no quiere correos de novedades (claro o con dudas: «no», «mejor no», «no me manden nada»), llama a no_quiere_novedades y confírmale que ya no le llegan. Siempre se respeta un no. Tú nunca las activas ni le preguntas si las quiere.";
   if (permiso === "activo") {
     return `Novedades por correo: este cliente recibe las novedades de D'CASA en su correo. ${siDiceQueNo}`;
+  }
+  if (permiso === "sin_permiso") {
+    return `Novedades por correo: hoy no le llegan las novedades de D'CASA por correo. No se las ofrezcas. ${siDiceQueNo}`;
   }
   if (permiso === "sin_correo") {
     return `Novedades por correo: su ficha no tiene correo. No se lo pidas solo para eso; si te lo da (por ejemplo para una cotización), guárdalo con guardar_correo tal como lo escribió y dile lo que te indique la herramienta (casi siempre: que le van a llegar las novedades de D'CASA a ese correo y que puede decir que no cuando quiera). ${siDiceQueNo}`;

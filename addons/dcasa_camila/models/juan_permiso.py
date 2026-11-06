@@ -13,8 +13,9 @@ Juan nunca las activa por su cuenta ni pregunta si las quiere. Dos herramientas:
    queda el «no» (origen «Se lo dijo a Juan en el chat»); con él ya no se activan solas. Siempre se honra un «no».
 
 En lo que Odoo le contesta al Worker (``/mensaje`` y ``/estado``) va ``permiso_correo``: «activo» (recibe las
-novedades: si dice que no, la herramienta) o «sin_correo» (si da su correo, guardarlo); si no, la clave no va. Un
-error aquí nunca frena un mensaje.
+novedades: si dice que no, la herramienta), «sin_correo» (si da su correo, guardarlo) o «sin_permiso» (tiene correo
+pero no las recibe: igual, un «no» se anota); para el equipo o una empresa, la clave no va. Un error aquí nunca frena
+un mensaje.
 """
 import logging
 from datetime import timedelta
@@ -37,7 +38,7 @@ class DcasaConversacionPermiso(models.Model):
 
     def _estado_para_worker(self, ajustes=None):
         estado = super()._estado_para_worker(ajustes)
-        self.env.flush_all()   # lo pendiente del mensaje, AFUERA del try: un error suyo no se traga
+        self.env.cr.flush()   # lo pendiente del mensaje, AFUERA del try: un error suyo no se traga
         try:
             with self.env.cr.savepoint():
                 permiso = self._dcasa_camila_permiso_para_juan()
@@ -50,7 +51,8 @@ class DcasaConversacionPermiso(models.Model):
 
     def _dcasa_camila_permiso_para_juan(self):
         """«activo» si recibe las novedades con su correo de hoy; «sin_correo» si su ficha no tiene un correo bien
-        escrito (y puede tenerlo: no es del equipo ni una empresa); si no, ``None``."""
+        escrito; «sin_permiso» si tiene correo pero no las recibe (un cliente de antes, un «no», una baja): así Juan
+        siempre sabe que un «no» se honra. ``None`` para el equipo o una empresa."""
         self.ensure_one()
         ficha = self.sudo().partner_id.commercial_partner_id
         if not ficha:
@@ -62,7 +64,7 @@ class DcasaConversacionPermiso(models.Model):
             return 'activo'
         if not correo_valido(ficha.email):
             return 'sin_correo'
-        return None
+        return 'sin_permiso'
 
 
 class BrianHerramientasJuanPermiso(models.AbstractModel):

@@ -434,7 +434,8 @@ class TestJuanYLasNovedades(Etapa1bComun):
         self.assertEqual(self.estado(self.dora)[0], 'sin')
         self.assertEqual((self.dora.dcasa_promos_no_origen, self.dora.dcasa_promos_no_usuario_id),
                          ('juan_whatsapp', self.juan))
-        self.assertNotIn('permiso_correo', self.conv._estado_para_worker(), 'Ya tiene correo y dijo que no: nada')
+        self.assertEqual(self.conv._estado_para_worker().get('permiso_correo'), 'sin_permiso',
+                         'Tiene correo y dijo que no: Juan igual sabe que un «no» se honra')
         self.dora.with_user(self.vendedora).with_context(**PANTALLA).write({'email': 'dora.otro.zzcm@example.com'})
         self.assertEqual(self.estado(self.dora)[0], 'sin', 'Su «no» se respeta aunque cambie de correo')
 
@@ -837,3 +838,147 @@ class TestRevisionAdversarial(Etapa1bComun):
             cuadro.with_user(self.marketing).read(['referencia'])
         cuadro.write({'quiere': False})
         self.assertFalse(cuadro.quiere)
+
+
+# ----------------------------------------------------------------------
+# 6. La segunda revisión (2026-11-06), cada uno con su prueba
+# ----------------------------------------------------------------------
+
+@tagged('post_install', '-at_install')
+class TestSegundaRevision(Etapa1bComun):
+
+    def test_el_enlace_si_quiero_despues_de_un_no_lo_anota(self):
+        """El cliente toca «Sí, quiero» en su correo: es un acto explícito, así que borra un «no» viejo."""
+        Camila = self.env['dcasa.camila'].sudo()
+        self.carla.sudo()._dcasa_promos_anotar_no('ficha', self.vendedora)
+        url = Camila._enlace_si(self.carla, self.carla)
+        token = url.split('t=', 1)[1]
+        self.assertEqual(Camila._enlace_confirmar(token), 'gracias')
+        self.assertEqual(self.estado(self.carla), ('si', 'bienvenida'))
+        self.assertFalse(self.carla.dcasa_promos_no_fecha)
+        self.assertEqual(Camila._enlace_leer(token)[0], 'ya', 'El mismo enlace ya no vuelve a preguntar')
+
+    def _error_que_sale(self, accion):
+        """Corre ``accion`` con un precommit pendiente de QUIEN LLAMA que la base va a rechazar (como el seguimiento de
+        la venta) y devuelve el error que salió (o ``None`` si se lo tragaron). La transacción se deja como estaba."""
+        import psycopg2
+
+        from odoo.tools import mute_logger
+
+        moneda = self.env.company.currency_id.id
+        self.env.flush_all()
+        self.env.cr.precommit.run()
+        self.env.cr.precommit.add(
+            lambda: self.env.cr.execute('UPDATE res_currency SET rounding = 0 WHERE id = %s', [moneda]))
+        afuera = self.env.cr.savepoint(flush=False)
+        try:
+            with mute_logger('odoo.addons.dcasa_camila.models.permiso', 'odoo.addons.dcasa_camila.models.pregunta',
+                             'odoo.sql_db'):
+                try:
+                    accion()
+                    return None
+                except psycopg2.Error as error:
+                    return type(error).__name__
+        finally:
+            afuera.close(rollback=True)
+            self.env.cr.precommit.clear()
+            self.env.invalidate_all()
+
+    def test_un_precommit_de_quien_llama_que_falla_no_se_traga_al_guardar_el_correo(self):
+        dora = self.sin_correo()
+        self.assertEqual(self._error_que_sale(lambda: self.agregar_correo(dora, 'dora.zzcm@example.com')),
+                         'CheckViolation')
+
+    def test_un_precommit_de_quien_llama_que_falla_no_se_traga_al_confirmar(self):
+        orden = self.orden(self.carla)
+        self.assertEqual(self._error_que_sale(lambda: self.confirmar(orden)), 'CheckViolation')
+
+    def test_una_empresa_nueva_o_un_correo_con_baja_no_anotan_un_no_que_nadie_dijo(self):
+        from odoo.tests import Form
+
+        with Form(self.env['res.partner'].with_user(self.vendedora)) as ficha:
+            ficha.company_type = 'company'
+            ficha.name = 'ZZCM Muebles S.A.'
+            ficha.phone = '6000-2001'
+            ficha.email = 'compras.zzcm@example.com'
+            self.assertFalse(ficha.dcasa_promos)
+        empresa = self.env['res.partner'].search([('email', '=', 'compras.zzcm@example.com')])
+        self.assertFalse(empresa.dcasa_promos_no_fecha, 'Nadie dijo que no')
+        self.assertFalse(empresa.dcasa_promos_fecha)
+        self.beto.sudo()._dcasa_promos_baja('correo')
+        with Form(self.env['res.partner'].with_user(self.vendedora).with_context(dcasa_sin_duplicados=True)) as ficha:
+            ficha.name = 'Bea Zzcm'
+            ficha.phone = '6000-2002'
+            ficha.email = 'beto.zzcm@example.com'
+        bea = self.env['res.partner'].search([('name', '=', 'Bea Zzcm')])
+        self.assertFalse(bea.dcasa_promos_no_fecha)
+
+    def test_de_empresa_a_persona_la_casilla_se_activa(self):
+        from odoo.tests import Form
+
+        with Form(self.env['res.partner'].with_user(self.vendedora)) as ficha:
+            ficha.company_type = 'company'
+            ficha.name = 'Ceci Zzcm'
+            ficha.phone = '6000-2004'
+            ficha.email = 'ceci.zzcm@example.com'
+            ficha.company_type = 'person'   # se equivocó: es una persona
+            self.assertTrue(ficha.dcasa_promos)
+        ceci = self.env['res.partner'].search([('email', '=', 'ceci.zzcm@example.com')])
+        self.assertEqual(self.estado(ceci), ('si', 'al_agregar_correo'))
+        self.assertFalse(ceci.dcasa_promos_no_fecha)
+
+    def test_con_un_no_viejo_marcar_con_el_correo_nuevo_en_el_mismo_guardado_es_un_si(self):
+        from odoo.tests import Form
+
+        dora = self.sin_correo()
+        dora.sudo()._dcasa_promos_anotar_no('venta', self.vendedora)
+        dora.sudo().write({'dcasa_promos_no_fecha': fields.Datetime.now() - timedelta(days=30)})
+        with Form(dora.with_user(self.vendedora)) as ficha:
+            ficha.dcasa_sin_correo = False
+            ficha.email = 'dora.zzcm@example.com'
+            self.assertFalse(ficha.dcasa_promos, 'Con su «no», no se ve activada')
+            ficha.dcasa_promos = True   # ahora el cliente dice que sí
+        self.assertEqual(self.estado(dora), ('si', 'tienda'), 'Lo marcó una persona: borra el «no» viejo')
+        self.assertFalse(dora.dcasa_promos_no_fecha)
+
+    def test_desmarcar_con_el_mismo_correo_en_mayusculas_es_un_no(self):
+        from odoo.tests import Form
+
+        self.permiso(self.carla)
+        with Form(self.carla.with_user(self.vendedora)) as ficha:
+            ficha.email = 'Carla.Zzcm@Example.com'
+            ficha.dcasa_promos = False
+        self.assertEqual(self.estado(self.carla)[0], 'sin')
+        self.assertEqual(self.carla.dcasa_promos_no_origen, 'ficha')
+
+    def test_borrar_el_correo_no_es_un_no(self):
+        from odoo.tests import Form
+
+        dora = self.sin_correo()
+        self.agregar_correo(dora, 'dora.zzcm@example.com')
+        with Form(dora.with_user(self.vendedora)) as ficha:
+            ficha.email = False
+            ficha.dcasa_sin_correo = True
+        self.assertFalse(dora.dcasa_promos_no_fecha, 'La pantalla apagó la casilla sola: nadie dijo que no')
+
+    def test_el_correo_de_sus_datos_en_la_factura_activa(self):
+        from odoo.tests import Form
+
+        rita = self.env['res.partner'].create({'name': 'Rita Zzcm', 'phone': '6000-2005'})
+        factura = self.env['account.move'].create({
+            'move_type': 'out_invoice', 'partner_id': rita.id,
+            'invoice_line_ids': [Command.create({'product_id': self.productos[0].product_variant_id.id,
+                                                 'price_unit': 100.0})]})
+        with Form(factura.with_user(self.vendedora)) as pantalla:
+            pantalla.dcasa_cliente_correo = 'rita.zzcm@example.com'
+        self.assertEqual(rita.email, 'rita.zzcm@example.com')
+        self.assertEqual(self.estado(rita), ('si', 'al_agregar_correo'))
+
+    def test_juan_sabe_que_un_no_se_honra_aunque_no_reciba_las_novedades(self):
+        conv, _m, _c = self.env['dcasa.conversacion'].sudo()._registrar_mensaje({
+            'canal': 'whatsapp_qr', 'id_externo': '50760001003', 'nombre': 'Carla Zzcm', 'celular': '50760001003',
+            'id_mensaje': 'zz-sin-permiso', 'direccion': 'entrante', 'autor': 'cliente', 'texto': 'hola',
+            'ts': fields.Datetime.now() - timedelta(minutes=5)})
+        conv.sudo().write({'partner_id': self.carla.id})
+        self.assertEqual(self.estado(self.carla)[0], 'sin', 'Un cliente de antes: correo, sin permiso')
+        self.assertEqual(conv._estado_para_worker().get('permiso_correo'), 'sin_permiso')

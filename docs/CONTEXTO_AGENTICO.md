@@ -719,7 +719,11 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
       caminos de una persona: `web_save` de la pantalla, Sofía, Juan), no con una lista de excepciones.
     - `cr.savepoint()` hace `flush()` ANTES del SAVEPOINT: dentro de un `try/except` que traga errores, un conflicto o
       una restricción de lo pendiente de QUIEN LLAMA (la venta, el pago) se disfraza de aviso propio y deja la
-      transacción abortada (la venta falla callada y Odoo no reintenta). `self.env.flush_all()` antes del `try`.
+      transacción abortada (la venta falla callada y Odoo no reintenta). `self.env.cr.flush()` antes del `try` (no
+      `env.flush_all()`: ese solo escribe los datos del ORM, y el `cr.flush()` del savepoint corre además los precommit
+      de quien llama, como el seguimiento; y un savepoint que falla hace `cr.clear()` y borra los precommit pendientes).
+    - Al CREAR desde la pantalla, el navegador manda todos los campos: un booleano calculado llega en `False` aunque
+      nadie lo tocara. Leerlo como «la persona lo desmarcó» solo cuando la pantalla lo iba a mostrar marcado.
     - Un cron que vuelve a anotar un «sí» (Sofía, 30 días hacia atrás) no puede borrar un «no»: el «no» lo borra solo
       un acto explícito y nunca uno más nuevo que el «sí».
     - `odoo.tests.Form` guarda con `web_save` y corre los onchange de verdad: sirve para probar lo que pasa «desde la

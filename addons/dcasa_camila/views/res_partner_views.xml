@@ -17,7 +17,7 @@
                 <label for="dcasa_promos" string="Novedades por correo" invisible="parent_id"/>
                 <div class="o_dcasa_promos" invisible="parent_id">
                     <div class="d-flex align-items-baseline" invisible="dcasa_promos_estado == 'baja'">
-                        <field name="dcasa_promos" nolabel="1" class="w-auto me-2"/>
+                        <field name="dcasa_promos" nolabel="1" class="w-auto me-2" readonly="is_company"/>
                         <span>Quiere recibir novedades y promociones por correo</span>
                     </div>
                     <div class="text-muted small" invisible="dcasa_promos_estado not in ('sin', 'otro_correo') or dcasa_promos_no_fecha">

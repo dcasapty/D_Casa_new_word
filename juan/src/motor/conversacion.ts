@@ -291,8 +291,8 @@ export class MotorConversacion {
     // La campaña de correo por la que llegó el cliente: Odoo la manda solo mientras importa (los primeros días). Aquí manda lo
     // que diga cada respuesta: si no viene, no hay campaña (así no se queda pegada para siempre).
     this.kv.poner("campana_correo", limpiarNota(r.campana_correo));
-    // Las novedades por correo: igual, manda cada respuesta (solo los dos valores que conoce el prompt).
-    const permiso = r.permiso_correo === "activo" || r.permiso_correo === "sin_correo" ? r.permiso_correo : null;
+    // Las novedades por correo: igual, manda cada respuesta (solo los valores que conoce el prompt).
+    const permiso = r.permiso_correo === "activo" || r.permiso_correo === "sin_correo" || r.permiso_correo === "sin_permiso" ? r.permiso_correo : null;
     this.kv.poner("permiso_correo", permiso);
   }
 

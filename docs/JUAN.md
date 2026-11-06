@@ -310,9 +310,10 @@ Entrada: `env.DCASA.fetch("https://dcasa/dcasa/juan/v1/…")` por **service bind
   con naturalidad, pregunta qué le interesó, no repite el código «DCN-…» y los precios los da la herramienta de
   siempre. Detalle: [CAMILA.md](CAMILA.md) §3.9.
 - `permiso_correo` (2026-11-06, `dcasa_camila`, etapa 1b, decisión de la dueña: las novedades se activan solas al
-  agregar el correo): «activo» (le llegan: si dice que no, claro o con dudas, Juan llama a `no_quiere_novedades`) o
+  agregar el correo): «activo» (le llegan: si dice que no, claro o con dudas, Juan llama a `no_quiere_novedades`),
   «sin_correo» (si da su correo, Juan lo guarda con `guardar_correo` y le dice que le llegarán las novedades y que
-  puede decir que no cuando quiera). Si no viene, nada. Juan nunca las activa por su cuenta ni pregunta si las quiere.
+  puede decir que no cuando quiera) o «sin_permiso» (tiene correo pero no le llegan: no se las ofrece y un «no» igual
+  se anota). Si no viene, nada. Juan nunca las activa por su cuenta ni pregunta si las quiere.
   Las dos herramientas las publica Odoo solo con Camila instalada; `guardar_correo` solo guarda un correo que el
   cliente escribió en el chat, si la ficha no tiene uno. Detalle: [CAMILA.md](CAMILA.md) §3.11.
 - `adjuntos[].url`: si es `null` (el Worker no tiene `URL_PUBLICA`), el mensaje **se guarda igual** y el adjunto cuenta como

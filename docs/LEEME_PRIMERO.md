@@ -134,7 +134,13 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
   la pantalla, Sofía y Juan); desmarcar con el correo en el mismo guardado es un «no»; «venía activada» en la venta
   es un origen aparte (nadie le preguntó); `flush_all()` antes de cada savepoint (un error de la venta no se traga);
   el cuadro no se cierra con Escape, el plazo cuenta desde que sale, uno viejo no le gana a un «no», cada quien ve
-  solo los suyos y la casilla va en el azul de la marca.
+  solo los suyos y la casilla va en el azul de la marca. Ya en producción (`41f31d3`).
+- **Segunda revisión** (nada frenaba; arreglado en la rama, cada uno con su prueba): el enlace «Sí, quiero» después
+  de un «no» sí lo anota (es un acto explícito); `cr.flush()` en vez de `env.flush_all()` antes de cada savepoint
+  (también los precommit de quien llama); una empresa nueva, un correo con baja o un correo borrado ya no anotan un
+  «no» que nadie dijo (en una empresa la casilla es de solo lectura); con un «no» viejo, marcar junto con un correo
+  nuevo es un «sí» de una persona; desmarcar cuando el correo solo cambia de mayúsculas es un «no»; Juan recibe
+  «sin_permiso» (tiene correo pero no le llegan) para que siempre sepa que un «no» se honra.
 
 ### 2026-11-06 (8): «Ver más» en la foto del catálogo y Dependabot, en producción
 

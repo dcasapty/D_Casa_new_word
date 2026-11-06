@@ -228,7 +228,7 @@ class SaleOrder(models.Model):
         resultado = super().action_confirm()
         if not self.env.context.get(MARCA) or len(self) != 1 or not self.env.user._is_internal() or self.env.su:
             return resultado
-        self.env.flush_all()   # lo pendiente de la venta, AFUERA del try: un error suyo no se traga
+        self.env.cr.flush()   # lo pendiente de la venta, AFUERA del try: un error suyo no se traga
         try:
             with self.env.cr.savepoint():
                 accion = self.env['dcasa.camila.pregunta']._accion_para(
@@ -250,7 +250,7 @@ class AccountPaymentRegister(models.TransientModel):
         resultado = super().action_create_payments()
         if not self.env.context.get(MARCA) or not self.env.user._is_internal() or self.env.su:
             return resultado
-        self.env.flush_all()   # lo pendiente del pago, AFUERA del try: un error suyo no se traga
+        self.env.cr.flush()   # lo pendiente del pago, AFUERA del try: un error suyo no se traga
         try:
             with self.env.cr.savepoint():
                 facturas = self.line_ids.move_id.filtered(

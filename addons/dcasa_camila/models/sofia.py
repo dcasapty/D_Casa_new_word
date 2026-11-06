@@ -33,7 +33,7 @@ class DcasaSofia(models.AbstractModel):
         ultimo = Mensaje.search([], order='id desc', limit=1).id or 0
         resultado = super()._aplicar_enviar(p, texto)
         if p.pide_datos and p.conversacion_id:
-            self.env.flush_all()   # lo pendiente del envío, AFUERA del try: un error suyo no se traga
+            self.env.cr.flush()   # lo pendiente del envío, AFUERA del try: un error suyo no se traga
             try:
                 with self.env.cr.savepoint():
                     # El primero de la vendedora en ese chat creado en esta petición: el de «Enviar ya».

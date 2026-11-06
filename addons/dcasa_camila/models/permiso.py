@@ -204,14 +204,19 @@ class ResPartner(models.Model):
                 'Para marcarla, la ficha necesita un correo bien escrito: el permiso es de ese correo.'))
         ficha._dcasa_promos_registrar('tienda', self.env.user, explicito=True)
 
-    @api.onchange('email')
+    @api.onchange('email', 'company_type', 'is_company')
     def _onchange_dcasa_promos_email(self):
         """En la ficha, al escribir un correo nuevo la casilla se ve activada: es lo que va a pasar al guardar (la regla
-        de la dueña). Si el cliente dijo que no, quien atiende la desmarca antes de guardar y queda el «no»."""
+        de la dueña). Si el cliente dijo que no, quien atiende la desmarca antes de guardar y queda el «no». También al
+        pasar de empresa a persona (en una empresa no se activa: la casilla queda apagada y de solo lectura)."""
         for partner in self:
             nuevo = correo_valido(partner.email)
             antes = correo_valido(partner._origin.email) if partner._origin else None
-            if partner.parent_id or partner.is_company or not nuevo or nuevo == antes \
+            empresa = partner.company_type == 'company' if partner.company_type else partner.is_company
+            if empresa and not partner._origin:
+                partner.dcasa_promos = False
+                continue
+            if partner.parent_id or empresa or not nuevo or nuevo == antes \
                     or (partner.supplier_rank and not partner.customer_rank):
                 continue
             ficha = partner._origin.sudo() if partner._origin else partner.browse()
@@ -238,13 +243,18 @@ class ResPartner(models.Model):
             return super().write(vals)
         # Con el correo cambia también la casilla en el mismo guardado: la decide esto, no el inverso (que vería «otro
         # correo» y no haría nada). Desmarcada = el cliente dijo que no; marcada (o sin tocar) = la regla de la dueña.
+        # Marcada fuera de la pantalla, o en una ficha con un «no» (lo automático no lo borra; una persona que la marca
+        # sí), la decide el inverso: es la casilla de siempre, un «sí» de una persona.
+        ficha = self.commercial_partner_id.sudo()
         casilla = None
-        if 'dcasa_promos' in vals and (not vals['dcasa_promos'] or self._dcasa_promos_auto_permitido()):
-            casilla = bool(vals['dcasa_promos'])   # marcada fuera de la pantalla: la decide el inverso, como siempre
+        if 'dcasa_promos' in vals and (not vals['dcasa_promos'] or (
+                self._dcasa_promos_auto_permitido() and not ficha.dcasa_promos_no_fecha)):
+            casilla = bool(vals['dcasa_promos'])
             vals = {clave: valor for clave, valor in vals.items() if clave != 'dcasa_promos'}
-        antes = correo_valido(self.commercial_partner_id.sudo().email)
+        antes = correo_valido(ficha.email)
+        tenia_permiso = ficha.dcasa_promos_estado == 'si'
         resultado = super().write(vals)
-        self._dcasa_promos_despues_del_correo(antes, casilla)
+        self._dcasa_promos_despues_del_correo(antes, casilla, tenia_permiso)
         return resultado
 
     @api.model_create_multi
@@ -260,21 +270,27 @@ class ResPartner(models.Model):
             vals_list = [{clave: valor for clave, valor in vals_list[0].items() if clave != 'dcasa_promos'}]
         partners = super().create(vals_list)
         if len(partners) == 1 and partners.commercial_partner_id == partners:
-            partners._dcasa_promos_despues_del_correo(None, casilla)
+            partners._dcasa_promos_despues_del_correo(None, casilla, False)
         return partners
 
-    def _dcasa_promos_despues_del_correo(self, antes, casilla):
+    def _dcasa_promos_despues_del_correo(self, antes, casilla, tenia_permiso):
         """Después de crear la ficha o de cambiarle el correo, con lo que vino en la casilla (``None`` si no vino o la
         decide el inverso):
 
-        * desmarcada (``False``) con un correo nuevo: el cliente dijo que no; queda el «no» y no se activa sola;
+        * desmarcada (``False``): es un «no» solo si alguien la desmarcó de verdad, es decir, si la casilla iba a
+          verse activada (un correo nuevo y ningún motivo para no activarla: no una empresa, un proveedor, un correo
+          con baja…; al crear, el navegador manda la casilla apagada aunque nadie la tocara) o si la ficha tenía
+          permiso con ese mismo correo (solo cambió de mayúsculas: la casilla seguía marcada y alguien la desmarcó).
+          Si el correo se borró o quedó mal escrito, la pantalla la apaga sola: no es un «no».
         * marcada o sin tocar, por un camino de una persona: se activa sola
           (``_dcasa_promos_activar_al_agregar_correo``).
         """
         ficha = self.commercial_partner_id
         if casilla is False:
             nuevo = correo_valido(ficha.sudo().email)
-            if nuevo and nuevo != antes:
+            iba_activada = bool(nuevo) and nuevo != antes and not ficha._dcasa_promos_motivo_para_no_activar()
+            mismo_correo = bool(nuevo) and nuevo == antes and tenia_permiso
+            if iba_activada or mismo_correo:
                 ficha._dcasa_promos_anotar_no('ficha', self.env.user)
             return
         if self._dcasa_promos_auto_permitido():
@@ -340,7 +356,9 @@ class ResPartner(models.Model):
         quedaron activadas."""
         vacio = self.browse()
         # Lo pendiente de quien llama se escribe AFUERA del try: un error suyo (un conflicto de la venta) no se traga.
-        self.env.flush_all()
+        # cr.flush() y no env.flush_all(): además de los datos del ORM corre los precommit (seguimiento, bus) que el
+        # savepoint correría ADENTRO del try; y un savepoint que falla limpia los precommit pendientes (cr.clear()).
+        self.env.cr.flush()
         try:
             with self.env.cr.savepoint():
                 ficha = self.commercial_partner_id.sudo()

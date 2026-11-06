@@ -33,6 +33,22 @@ describe("permiso_correo", () => {
     expect(c).toMatch(/no_quiere_novedades/);
   });
 
+  it("con «sin_permiso» (tiene correo pero no le llegan), igual honra un no y no se las ofrece", () => {
+    const c = contextoDelChat(CONFIG_POR_DEFECTO, { ...base, permisoDeCorreo: "sin_permiso" });
+    expect(c).toMatch(/no_quiere_novedades/);
+    expect(c).toMatch(/no se las ofrezcas/i);
+    expect(c).toMatch(/siempre se respeta un no/i);
+    expect(c).not.toMatch(/guardar_correo/);
+  });
+
+  it("«sin_permiso» llega de Odoo y queda en el prompt del turno", async () => {
+    const m = crearMundo();
+    m.guion([{ texto: "¡Claro!" }]);
+    m.odoo.estadoActual = { ...m.odoo.estadoActual, permiso_correo: "sin_permiso" };
+    await m.conversar("Hola, ¿tienen camas queen?");
+    expect(prompt(m)).toContain("no_quiere_novedades");
+  });
+
   it("sin el dato de Odoo (o con uno que no conoce), nada de novedades", () => {
     const c = contextoDelChat(CONFIG_POR_DEFECTO, base);
     expect(c).not.toMatch(/no_quiere_novedades|guardar_correo/);
