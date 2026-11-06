@@ -379,6 +379,10 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `main` (`741930d`, árbol = `de1fb04`) a staging y Desplegar con ese `app_version`. **Regla:** un cambio del borde
   (rutas, `vars`, `workers_dev`) se despliega con un `app_version` que lo contenga, o sea con una imagen construida
   de ese commit.
+- **Desplegar 52** (11:13 UTC del 6 nov, `b84e57d`, imagen `sha256:dfbf424f…` de CI #276, respaldo previo) · sano y
+  confirmado 11:27 (versión `b84e57d2dacb`, base al día, humo ok): Camila etapa 1, módulo nuevo `dcasa_camila`, con
+  los 12 arreglos de su revisión adversarial (PR #85, `main` = `0d69999`, árbol = `b84e57d`). Incluye `edge/` (la
+  variable `RESEND_CAMPANAS_API_KEY` en la lista blanca del contenedor). El CI del PR (#277) se canceló. Juan no cambió.
 - **Desplegar 51 y Desplegar Juan 6** (08:59 UTC del 6 nov, `a307425`, imagen `sha256:f0b0b240…` de CI #274, respaldo
   previo) · Odoo sano y confirmado 09:13 (versión `a30742505947`, base al día, humo ok): la varita («Sugerir») escribe
   siempre o dice por qué (PR #84, `main` = `237d2f3`, árbol = `a307425`). Juan desde `main` a la vez: `/salud` con la

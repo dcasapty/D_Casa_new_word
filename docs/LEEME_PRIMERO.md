@@ -107,7 +107,7 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 
 ### 2026-11-06 (4): Camila, la asistente del mail marketing (módulo nuevo `dcasa_camila`, etapa 1)
 
-- Hecho en la rama (sin subir ni desplegar), con las decisiones de la dueña del 2026-11-06 ([CAMILA.md](CAMILA.md)):
+- Con las decisiones de la dueña del 2026-11-06 ([CAMILA.md](CAMILA.md)):
   el **permiso** del cliente en su ficha (casilla de la vendedora, enlace firmado «Sí, quiero» al pie de la factura y
   la bienvenida, y el correo que dio a Sofía si el mensaje enviado decía «promociones»; la baja es final) y
   **Marketing › Camila**: borrador con productos en tienda, con foto y publicados, el precio de la tienda en línea, el
@@ -128,8 +128,11 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 - Corrida completa en local (todos los módulos): 4744 pruebas, 3 fallas ajenas a Camila: el contrato visual de Juan a
   390 px («conexiones», la diferencia de Chromium ya conocida, y «lista», cuya referencia quedó vieja desde el PR #69)
   y `test_cabecera_con_la_pagina_abierta_desplazada`, que sola pasa (carrera de `is-ready`, ver contexto agéntico).
-- Sigue: capturas a la dueña, CI y staging; la clave de campañas en Cloudflare; revisar la política de privacidad.
-  Etapa 1b: que Juan pregunte el permiso por WhatsApp (no se tocó `juan/`).
+- **En producción** con su autorización («tan pronto esté todo pásalo a producción»): Desplegar 52, sano 11:27 UTC
+  (PR #85, `main` = `0d699995`, árbol = `b84e57d`; imagen `sha256:dfbf424f…` de CI #276). No envía nada hasta que
+  exista la clave de campañas y alguien apruebe la primera campaña. Sigue: que la dueña vea la pantalla, cree la
+  clave (§6 de CAMILA.md) y confirme el «Sí, quiero» de dos toques. Etapa 1b: que Juan pregunte el permiso por
+  WhatsApp (no se tocó `juan/`).
 
 ### 2026-11-06 (3): la varita mágica («Sugerir») escribe siempre, o dice por qué y deja reintentar
 

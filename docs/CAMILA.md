@@ -1,7 +1,7 @@
 # Camila, la asistente del mail marketing (`dcasa_camila`)
 
-**Estado (2026-11-06): etapa 1 construida en la rama, con pruebas; sin desplegar.** Para que salga la primera campaña
-falta la clave de campañas de Resend (§6, paso a paso) y el visto bueno de la dueña a las capturas.
+**Estado (2026-11-06): etapa 1 en producción (Desplegar 52).** No envía nada todavía: para que salga la primera
+campaña falta la clave de campañas de Resend (§6, paso a paso) y que alguien de Marketing o Gerencia la apruebe.
 
 Pedido de la dueña (2026-11-06):
 
