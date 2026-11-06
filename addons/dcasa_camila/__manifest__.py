@@ -36,6 +36,7 @@ Camila (decisiones de la dueña, 2026-11-06; docs/CAMILA.md):
         'views/novedades_templates.xml',
         'views/res_partner_views.xml',
         'views/venta_views.xml',
+        'views/pregunta_views.xml',
         'views/camila_views.xml',
     ],
     'assets': {

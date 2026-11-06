@@ -61,9 +61,15 @@ export interface RespuestaMensaje {
    * la manda en /mensaje y /estado solo los primeros días desde que llegó; si el campo no viene, no hay campaña.
    */
   campana_correo?: string | null;
+  /**
+   * El permiso de las novedades por correo (Camila etapa 1b): «puedes_preguntar» (Juan puede preguntarlo, una vez y en un
+   * buen momento) o «esperando_respuesta» (ya preguntó). Si el campo no viene, Juan no pregunta. Lo anota Odoo con la
+   * herramienta `permiso_correo`, que revisa que el cliente haya dicho que sí a ESA pregunta.
+   */
+  permiso_correo?: string | null;
 }
 
-export type EstadoOdoo = Pick<RespuestaMensaje, "estado" | "bot_activo" | "pausada_hasta" | "dentro_de_horario" | "nota_para_el_bot" | "campana_correo">;
+export type EstadoOdoo = Pick<RespuestaMensaje, "estado" | "bot_activo" | "pausada_hasta" | "dentro_de_horario" | "nota_para_el_bot" | "campana_correo" | "permiso_correo">;
 
 export interface DefHerramienta {
   nombre: string;

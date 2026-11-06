@@ -13,7 +13,11 @@ from odoo import models
 
 from .permiso import CAMPOS_PERMISO
 
-PERMISO = ('dcasa_promos_fecha', 'dcasa_promos_origen', 'dcasa_promos_usuario_id', 'dcasa_promos_correo')
+PERMISO = ('dcasa_promos_fecha', 'dcasa_promos_origen', 'dcasa_promos_usuario_id', 'dcasa_promos_correo',
+           'dcasa_promos_referencia')
+# Etapa 1b: el «no» más reciente y la última vez que se le preguntó también pasan (no se le pregunta otra vez).
+NO = ('dcasa_promos_no_fecha',)
+PREGUNTA = ('dcasa_promos_pregunta_fecha',)
 BAJA = ('dcasa_promos_baja_fecha', 'dcasa_promos_baja_origen', 'dcasa_promos_baja_usuario_id')
 
 
@@ -28,7 +32,7 @@ class BasePartnerMergeAutomaticWizard(models.TransientModel):
         destino = dst_partner.sudo()
         fichas = (src_partners | dst_partner).sudo()
         valores = {}
-        for campos in (PERMISO, BAJA):
+        for campos in (PERMISO, BAJA, NO, PREGUNTA):
             fecha = campos[0]
             mas_reciente = fichas.filtered(fecha).sorted(lambda f, c=fecha: (f[c], f.id), reverse=True)[:1]
             if mas_reciente and mas_reciente != destino:

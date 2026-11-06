@@ -646,10 +646,10 @@ JSON `503 {ok:false, error:"Odoo está arrancando.", reintentar_en:15}` con `Ret
 
 | Ruta | Para qué | Notas |
 |---|---|---|
-| `POST /dcasa/juan/v1/mensaje` | registrar un mensaje | idempotente por `id_mensaje`; acepta `adjuntos[].sensible` y `base64` además de `url`. Responde también `nota_para_el_bot` y, si el cliente llegó por una campaña de correo en los últimos 3 días, `campana_correo` (texto de Odoo: asunto, fecha y productos, sin precios; `dcasa_camila`, ver [CAMILA.md](CAMILA.md) §3.9) |
+| `POST /dcasa/juan/v1/mensaje` | registrar un mensaje | idempotente por `id_mensaje`; acepta `adjuntos[].sensible` y `base64` además de `url`. Responde también `nota_para_el_bot` y, si el cliente llegó por una campaña de correo en los últimos 3 días, `campana_correo` (texto de Odoo: asunto, fecha y productos, sin precios; `dcasa_camila`, ver [CAMILA.md](CAMILA.md) §3.9); con Camila, `permiso_correo` («puedes_preguntar» o «esperando_respuesta», §3.11) |
 | `GET /dcasa/juan/v1/estado?canal=&id_externo=` | ¿puede contestar el bot? | sin conversación: valores de los ajustes. Incluye `nota_para_el_bot` (`null` si no hay) y `campana_correo` cuando aplica (si no, la clave no va) |
 | `GET /dcasa/juan/v1/config` | ajustes de la dueña | `dias`: `0 = domingo … 6 = sábado`. Incluye `proveedor_ia`, `proveedor_respaldo_ia`, `modelo_rapido`, `modelo_inteligente`, `modelos_por_defecto`, `precios` por nivel (`null` donde no hay precio), `precios_ia` por modelo (lo que lee el Worker) y `lecciones` |
-| `GET /dcasa/juan/v1/herramientas` | definición de las 13 herramientas | cada una con `nombre/descripcion/parametros` y también `name/description/input_schema` |
+| `GET /dcasa/juan/v1/herramientas` | definición de las 13 herramientas (14 con `dcasa_camila`: `permiso_correo`) | cada una con `nombre/descripcion/parametros` y también `name/description/input_schema` |
 | `POST /dcasa/juan/v1/herramienta` | ejecutar una herramienta | `422` = error de uso (el texto sirve para corregir); `404` = no existe |
 | `POST /dcasa/juan/v1/seguimiento/hecho` | confirmar un seguimiento | `descartado` cierra el ciclo |
 | `POST /dcasa/juan/v1/escribiendo` | «el asistente está escribiendo» | `{canal, id_externo, activo}`; solo avisa a las pantallas por el bus |

@@ -105,6 +105,22 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 > sigue. Se guardan las diez más recientes; las viejas se resumen en una línea abajo y su texto completo pasa a
 > [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md).
 
+### 2026-11-06 (6): Camila etapa 1b: la lista de las novedades crece sola (en la venta y con Juan), sin desplegar
+
+- La dueña vio «0 clientes con permiso» de unos 3,000 y no quiere marcar a nadie de golpe ([CAMILA.md](CAMILA.md) §1c):
+  **al confirmar una venta o registrar un pago desde la pantalla**, Odoo pregunta «¿Quiere recibir novedades por
+  correo? Sí / No» (sin la X; si no tiene correo, lo pide y lo guarda con las reglas de contactos). Sale DESPUÉS de
+  confirmar o pagar y solo con la marca de los botones de la pantalla: nunca traba la venta ni el pago, ni sale en
+  Juan, la web, Brian, crones o RPC. Queda «En la venta» con quién, cuándo y la venta o el pago; un «No», 180 días
+  sin volver a preguntar (ajuste `dcasa_camila.dias_entre_preguntas`).
+- **Juan por WhatsApp**: herramienta `permiso_correo` (preguntar, anotar, no) con candados: el id del mensaje del bot
+  que preguntó, el último mensaje del cliente después y en menos de 6 horas, un sí claro sin negación, el correo
+  escrito por el cliente. `permiso_correo` en `/mensaje` y `/estado`; el prompt de Juan solo pregunta con ese dato.
+  Queda «WhatsApp (Juan)» con el id del mensaje del cliente.
+- La pantalla de Camila cuenta por camino. Pruebas: `test_etapa1b.py` (25 de 27 en rojo sobre el código de antes; las
+  otras dos son resguardo) y `juan/test/dcasa/permiso-correo.test.ts` (3 de 5 en rojo). **Sin push ni despliegue**:
+  espera la revisión adversarial; al desplegar va también el Worker de Juan.
+
 ### 2026-11-06 (5): Camila etapa 2 («a lo grande, todo conectado con todo»), en producción
 
 - Decisiones de la dueña del mismo día ([CAMILA.md](CAMILA.md) §1b): **el tope de 15 días es por cliente** (por correo;

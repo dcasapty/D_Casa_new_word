@@ -291,6 +291,9 @@ export class MotorConversacion {
     // La campaña de correo por la que llegó el cliente: Odoo la manda solo mientras importa (los primeros días). Aquí manda lo
     // que diga cada respuesta: si no viene, no hay campaña (así no se queda pegada para siempre).
     this.kv.poner("campana_correo", limpiarNota(r.campana_correo));
+    // El permiso de las novedades por correo: igual, manda cada respuesta (solo los dos valores que conoce el prompt).
+    const permiso = r.permiso_correo === "puedes_preguntar" || r.permiso_correo === "esperando_respuesta" ? r.permiso_correo : null;
+    this.kv.poner("permiso_correo", permiso);
   }
 
   /** La pausa que pusimos nosotros (una persona acaba de escribir o Odoo acaba de avisar): es exacta, vale por su hora. */
@@ -1078,6 +1081,7 @@ export class MotorConversacion {
         dentroDeHorario: this.kv.texto("odoo_dentro_horario") !== null ? this.kv.bandera("odoo_dentro_horario") : undefined,
         notaDeLaVendedora: this.kv.texto("nota_vendedora") ?? undefined,
         campanaDeCorreo: this.kv.texto("campana_correo") ?? undefined,
+        permisoDeCorreo: this.kv.texto("permiso_correo") ?? undefined,
       }) + extra;
     const mensajes = this.mensajesParaElModelo(ids);
 

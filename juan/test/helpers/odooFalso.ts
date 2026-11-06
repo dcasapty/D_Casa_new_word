@@ -57,6 +57,7 @@ export const ESTADO_INICIAL = {
   dentro_de_horario: true,
   nota_para_el_bot: null as string | null,
   campana_correo: undefined as string | null | undefined,
+  permiso_correo: undefined as string | null | undefined,
 };
 
 type Manejador = (args: Record<string, unknown>, odoo: OdooFalso) => unknown;

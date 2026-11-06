@@ -17,6 +17,8 @@ from .common import JuanCase
 PUBLICAS = {'buscar_productos', 'ver_producto', 'listar_categorias', 'reglas_socios', 'horario_y_tienda',
             'saldo_puntos', 'crear_oportunidad', 'anotar_conversacion', 'pasar_a_vendedora',
             'buscar_conocimiento', 'registrar_pregunta_sin_respuesta', 'etiquetar_conversacion', 'cotizar'}
+# Las que agregan otros módulos cuando están instalados (dcasa_camila: el permiso de las novedades por correo).
+DE_OTROS_MODULOS = {'permiso_correo'}
 PIN = '482913'
 
 
@@ -591,7 +593,7 @@ class TestUsuarioTecnicoYAuditoria(HerramientasCase):
 
     def test_juan_ve_solo_las_herramientas_de_juan(self):
         catalogo = {h['name'] for h in self.env['brian.herramientas'].with_user(self.juan).catalogo()}
-        self.assertEqual(catalogo, {f'juan_{n}' for n in PUBLICAS})
+        self.assertEqual(catalogo - {f'juan_{n}' for n in DE_OTROS_MODULOS}, {f'juan_{n}' for n in PUBLICAS})
 
     def test_ninguna_es_sensible_ni_escribe_dinero(self):
         for h in self.env['brian.herramientas'].with_user(self.juan).catalogo():

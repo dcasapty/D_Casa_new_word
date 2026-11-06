@@ -27,6 +27,14 @@
                         <div class="o_camila_cifra o_camila_cifra_permiso">
                             <span class="o_camila_cifra_valor" t-esc="d.con_permiso"/>
                             <span class="o_camila_cifra_nombre">clientes dijeron que sí a las novedades</span>
+                            <ul t-if="d.por_camino and d.por_camino.length" class="o_camila_caminos"
+                                aria-label="Por dónde dijeron que sí">
+                                <li t-foreach="d.por_camino" t-as="camino" t-key="camino.clave" class="o_camila_camino"
+                                    t-att-data-camino="camino.clave">
+                                    <span class="o_camila_camino_nombre" t-esc="camino.nombre"/>
+                                    <span class="o_camila_camino_n" t-esc="camino.n"/>
+                                </li>
+                            </ul>
                         </div>
                         <div class="o_camila_cifra o_camila_cifra_ultima">
                             <t t-if="d.ultima">

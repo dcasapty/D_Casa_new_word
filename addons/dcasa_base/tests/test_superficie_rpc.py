@@ -1068,6 +1068,23 @@ LISTA_BLANCA = {
     ('dcasa_camila', 'sale.order', 'write'):
         OVERRIDE + ' Solo QUITA «Vino del correo» de lo que se escribe (solo lo escribe Camila, con una marca que no '
                    'viaja por RPC).',
+    # Etapa 1b (2026-11-06): la pregunta de las novedades al confirmar una venta o registrar un pago.
+    ('dcasa_camila', 'sale.order', 'action_confirm'):
+        OVERRIDE + ' Después de confirmar (sin tocar la venta), con la marca del botón de la pantalla y un usuario del '
+                   'equipo, devuelve el cuadro de la pregunta; armarlo va en un savepoint y si falla no cambia nada.',
+    ('dcasa_camila', 'account.payment.register', 'action_create_payments'):
+        OVERRIDE + ' Después de pagar (sin tocar el pago), igual que al confirmar: devuelve el cuadro de la pregunta y '
+                   'lo que seguía sale al contestar.',
+    ('dcasa_camila', 'dcasa.camila.pregunta', 'action_si'):
+        'Solo el equipo; revisa en el servidor que la venta esté confirmada o la factura publicada, que quien contesta '
+        'pueda leerla y que la ficha sea la de ese cliente. El correo pasa por las reglas de contactos y nunca da de '
+        'alta a quien tiene baja.',
+    ('dcasa_camila', 'dcasa.camila.pregunta', 'action_no'):
+        'Las mismas revisiones que «Sí»; solo anota la fecha del «no» (no es la baja ni quita nada).',
+    ('dcasa_camila', 'dcasa.camila.pregunta', 'action_sin_correo'):
+        'Las mismas revisiones que «Sí»; no anota nada (sin correo no hay sí).',
+    ('dcasa_camila', 'dcasa.conversacion', 'write'):
+        OVERRIDE + ' Solo IMPIDE escribir a mano (sin sudo) la marca de la pregunta de Juan por las novedades.',
 }
 
 # Modelos abstractos sin ACL: por RPC no se puede llamar NINGÚN método suyo (S-09).

@@ -163,6 +163,28 @@
     .o_camila_cifra_fecha { font-size: 1.45rem; }
     .o_camila_cifra_nombre { color: var(--cm-tinta-2); font-size: .9rem; }
 
+    // Etapa 1b: por dónde dijeron que sí (solo cuántos).
+    .o_camila_caminos {
+        list-style: none;
+        margin: 10px 0 0;
+        padding: 10px 0 0;
+        border-top: 1px solid var(--cm-linea);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+    .o_camila_camino {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 3px 10px;
+        border-radius: 999px;
+        background: var(--cm-suave);
+        color: var(--cm-navy);
+        font-size: .85rem;
+    }
+    .o_camila_camino_n { font-weight: 700; }
+
     .o_camila_bloqueos {
         margin-bottom: 16px;
         padding: 12px 16px;
@@ -561,3 +583,27 @@
 
 // El tablero de Marketing: «Crear campaña con estos» debajo del título de cada sección.
 .o_dcasa_mk_seccion .o_camila_desde_marketing { margin: 0 0 8px; white-space: normal; }
+
+// Etapa 1b: «¿El cliente quiere recibir novedades por correo?» al confirmar o pagar. Sin la X de cerrar (se contesta
+// «Sí» o «No») y con la regla del scroll: el cuerpo baja con su propio scroll y la ventana no pasa del alto de la
+// pantalla (en el celular, pantalla completa).
+.modal-content:has(.o_dcasa_camila_pregunta) {
+    max-height: calc(100dvh - 2rem);
+    .modal-header .btn-close, .modal-header .oi-arrow-left { display: none; }
+    .modal-body {
+        overflow-y: auto;
+        overflow-x: hidden;
+        min-height: 0;
+    }
+}
+.o_dcasa_camila_pregunta {
+    .o_camila_pregunta_titulo {
+        font-family: "Oswald", "Arial Narrow", sans-serif;
+        font-size: 1.25rem;
+        color: #0E2A6B;
+        margin-bottom: 10px;
+    }
+    .o_camila_pregunta_ayuda { color: #0E2A6B; }
+    .o_camila_pregunta_paso_correo { margin-top: 8px; }
+    .o_camila_pregunta_correo { max-width: 100%; }
+}

@@ -1,7 +1,7 @@
 # Camila, la asistente del mail marketing (`dcasa_camila`)
 
-**Estado (2026-11-06): etapa 1 en producción (Desplegar 52); etapa 2 («a lo grande», §1b) hecha en su rama, sin
-desplegar.** No envía nada todavía: para que salga la primera campaña falta que la clave de campañas de Resend entre al
+**Estado (2026-11-06): etapas 1 y 2 en producción (Desplegar 54 y Juan 7); etapa 1b (la lista crece sola, §1c)
+hecha en su rama, sin desplegar.** No envía nada todavía: para que salga la primera campaña falta que la clave de campañas de Resend entre al
 contenedor (§6) y que alguien de Marketing o Gerencia la apruebe.
 
 Pedido de la dueña (2026-11-06):
@@ -21,7 +21,7 @@ Pedido de la dueña (2026-11-06):
 | Precios | **El precio real de Odoo**: el mismo que ve el cliente en la tienda en línea, el día que se arma o se aprueba. Nunca un precio escrito por la IA ni a mano. |
 | Por dónde sale | **El servicio de campañas de Resend (Broadcasts)**, aparte de los correos de factura, con su propia clave (`RESEND_CAMPANAS_API_KEY`). |
 | Permiso | Solo a quien dijo que sí, con **cuándo, por dónde y con quién** (y a qué correo). Cuentan también los que dieron su correo cuando **Sofía** se lo pidió «para avisarles de promociones…», solo si el texto que de verdad se le mandó lo decía. **Una baja se respeta siempre** (por correo, en cualquier ficha). |
-| Formas de decir que sí (etapa 1) | La **casilla** de la ficha (la vendedora), el enlace **«¿Te avisamos de lo nuevo? Sí, quiero»** al pie del correo de la factura y de la bienvenida, y lo de **Sofía**. Que **Juan** lo pregunte por WhatsApp queda para la etapa 1b. |
+| Formas de decir que sí (etapa 1) | La **casilla** de la ficha (la vendedora), el enlace **«¿Te avisamos de lo nuevo? Sí, quiero»** al pie del correo de la factura y de la bienvenida, y lo de **Sofía**. Etapa 1b (§1c): Odoo lo pregunta **al confirmar una venta o registrar un pago**, y **Juan** por WhatsApp. |
 | Darse de baja | El enlace de Resend en cada campaña. Las bajas vuelven a Odoo cada hora y siempre justo antes de enviar; una baja hecha en Odoo también sube a Resend. |
 
 Las redes sociales las llevan la dueña y su compañero de marketing: Camila no publica en redes.
@@ -41,9 +41,24 @@ Las redes sociales las llevan la dueña y su compañero de marketing: Camila no 
 | La IA | La misma IA de Juan y Brian **escribe con los datos reales del producto** (nombre, categoría, atributos, descripción, medidas, material) y con **la idea de la campaña** que escribe Marketing; puede **sugerir productos** para esa idea. Misma revisión de marca; si la IA falla, la pantalla lo dice y deja reintentar: nunca en silencio. A la IA no le llega ningún dato de clientes. |
 | Desde el tablero | En el tablero de Marketing, «Crear campaña con estos» en Más stock, Más vendidos, Mayor movimiento y Más quietos abre Camila con un borrador nuevo de esos productos (solo los que se pueden ofrecer). En Camila, **«Nueva campaña»**: desde una idea, lo nuevo, lo más vendido, lo más quieto, lo que más hay en stock, lo de mayor movimiento o en blanco. |
 
+## 1c. Decisiones de la dueña para la etapa 1b (2026-11-06): la lista crece sola
+
+La dueña vio «0 clientes con permiso» de unos 3,000. No quiere marcar a nadie de golpe: que la lista crezca sola desde
+ahora, por dos caminos nuevos.
+
+| Qué | Decisión |
+|---|---|
+| **En cada venta** (el principal) | Cuando una persona del equipo **confirma una venta o registra un pago desde la pantalla**, Odoo le pregunta en un cuadro corto: «¿[Cliente] quiere recibir novedades de D'CASA por correo? **Sí / No**». Un toque, sin «Cancelar» ni la X. Si dice que sí y la ficha no tiene un correo bien escrito, el mismo cuadro lo pide, lo revisa y lo guarda en la ficha con las reglas de contactos de siempre (sin correo no hay sí). Queda **«En la venta»** (`venta`), con quién lo preguntó, cuándo y la venta o el pago. |
+| Cuándo NO se pregunta | Si ya tiene permiso con su correo de hoy; si tiene baja o «no contactar» (por correo, en cualquier ficha); si dijo «No» hace menos de **180 días** (un ajuste: `dcasa_camila.dias_entre_preguntas`); si es una ficha del equipo o una empresa (sin persona). |
+| **La regla de oro** | Esto **nunca traba ni hace fallar una venta o un pago**: el cuadro sale DESPUÉS de confirmar o de pagar (ya quedaron hechos), solo en la pantalla (la marca va en el botón «Confirmar» de la cotización y en «Crear pago» del asistente «Pagar») y para el equipo. Nunca en Juan, la web, Brian, los crones ni un RPC sin esa marca. Si armar el cuadro falla, no sale y la venta o el pago siguen igual. |
+| **Juan por WhatsApp** | En un buen momento (cuando el cliente da su correo o después de mandarle una cotización), Juan le pregunta con naturalidad si quiere que le avisen por correo cuando llegue algo nuevo. Si dice que sí, queda **«WhatsApp (Juan)»** (`juan_whatsapp`), con el id del mensaje del cliente como prueba. Juan pregunta como mucho **una vez cada 180 días** (el mismo ajuste) y nunca a quien ya tiene permiso, baja o «no contactar». |
+| Candados contra un «sí» inventado por la IA | Odoo solo anota si **el mensaje del bot que hizo la pregunta** quedó marcado (la herramienta deja la marca y el primer mensaje del bot que llega después guarda su id; nada se adivina por el texto) y **el último mensaje del cliente**, después de esa pregunta y en menos de 6 horas, **dice que sí de forma clara** (solo palabras de un sí: «sí», «dale», «claro», «ok», «por favor», «me interesa»…, sin ninguna negación). Sin correo, Juan se lo pide y el correo tiene que estar escrito por el cliente en el chat. |
+| En la pantalla de Camila | Cuántos llegaron por cada camino: en la venta, Juan, el enlace de la factura y el de la bienvenida, Sofía y la casilla de la ficha (solo cuántos). |
+
 ## 2. Para el equipo de marketing (en corto)
 
-**Marketing › Camila.** Arriba ves **a cuántos clientes con permiso** les puede llegar algo, **la última campaña** y
+**Marketing › Camila.** Arriba ves **a cuántos clientes con permiso** les puede llegar algo (y por dónde dijeron
+que sí: en la venta, Juan, el enlace de la factura o la bienvenida, Sofía o la casilla), **la última campaña** y
 el tope: **a cada cliente, un correo cada 15 días como mucho**. Si algo impide enviar (falta la clave, nadie dijo que
 sí todavía, nadie de ese público puede recibirla ahora, no eligió ningún botón, estás en staging), la pantalla lo dice
 en palabras sencillas y el botón de enviar queda apagado. Puede haber varias campañas abiertas: cada una es una
@@ -379,6 +394,35 @@ los que se pueden ofrecer (en tienda, con foto, con precio y publicados) y la IA
 Camila son de los mismos grupos (rol Marketing, Gerencia y administradores) y el servidor lo exige igual (`_exigir`).
 En el tablero no hay sección de «lo nuevo»: esa campaña se arma desde «Nueva campaña» en Camila.
 
+### 3.11 La lista crece sola (etapa 1b: `models/pregunta.py`, `models/juan_permiso.py`)
+
+- **El permiso** (`permiso.py`): dos orígenes nuevos, `venta` («En la venta») y `juan_whatsapp` («WhatsApp (Juan)»), y
+  tres campos (protegidos como los demás: solo el sistema): `dcasa_promos_referencia` (la venta, el pago o
+  «Chat N · mensaje M»), `dcasa_promos_no_fecha` (dijo que no) y `dcasa_promos_pregunta_fecha` (se le preguntó).
+  `_dcasa_promos_motivo_para_no_preguntar(juan=False)` dice por qué no se pregunta (empresa, equipo, baja o «no
+  contactar» por correo, ya tiene permiso con su correo de hoy, dijo que no en el plazo; con `juan`, también si ya se
+  le preguntó en el plazo). El plazo es `dcasa_camila.dias_entre_preguntas` (180 de fábrica, de 1 a 3650). La fusión
+  de fichas trae el «no» y la última pregunta más recientes.
+- **En la venta** (`pregunta.py`): `sale.order.action_confirm` y `account.payment.register.action_create_payments`,
+  DESPUÉS de `super()`, con la marca `dcasa_camila_preguntar` (solo la ponen los botones de la pantalla,
+  `views/pregunta_views.xml`), una sola venta, un usuario del equipo y sin `sudo`, devuelven el cuadro
+  `dcasa.camila.pregunta` (un asistente: «Sí», «No»; si falta el correo, «Guardar el correo y anotar el sí» o «No dio
+  su correo»). Armarlo va en un savepoint; si falla, devuelven lo de siempre. Lo que seguía (el cuadro «Imprimir
+  documentos» después de pagar) sale al contestar. Antes de anotar, el servidor revisa que la venta esté confirmada o
+  la factura publicada, que quien contesta pueda leerla y que la ficha sea la de ese cliente (el cuadro se podría crear
+  por RPC). El correo se escribe en la ficha como lo haría la persona (las reglas de contactos: errores de dedo,
+  correos del equipo); un correo con baja no se da de alta.
+- **Juan** (`juan_permiso.py`, herramienta `permiso_correo` = `juan_permiso_correo` en Brian, solo para el usuario
+  técnico de Juan): «preguntar» (dice si se puede y deja la marca `dcasa_camila_permiso_pedido_en`), «anotar» y
+  «no». El primer mensaje del bot que se registra después de la marca (con 2 minutos de tolerancia por los relojes) es
+  la pregunta (`dcasa_camila_permiso_msg_id`). «anotar» exige que el último mensaje del cliente sea posterior a esa
+  pregunta, en menos de 6 horas, y un sí claro (`reglas.es_un_si_claro`: solo palabras de un sí y ninguna negación;
+  «si tienen en gris…» o «sí, pero no tan seguido» no cuentan). Sin correo, el «sí» queda pendiente
+  (`dcasa_camila_permiso_si_msg_id`) y el correo que Juan pase tiene que aparecer en lo que escribió el cliente; si la
+  ficha ya tiene otro correo, no lo cambia (lo hace una vendedora). Solo por WhatsApp. La marca no se escribe a mano.
+  En `/mensaje` y `/estado` va `permiso_correo`: «puedes_preguntar» o «esperando_respuesta» (si no, la clave no va);
+  el prompt de Juan solo pregunta con ese dato y le dice cuándo (`juan/src/dcasa/prompt.ts`).
+
 ## 4. Pruebas
 
 `addons/dcasa_camila/tests/`: reglas puras (`test_reglas.py`), el cliente de Resend (`test_resend.py`), el permiso, la
@@ -407,12 +451,19 @@ segmento por tandas, las enviadas de la etapa 1 sin registro y su migración, el
 `canceled` ni si se llamó a «send», «ya salió» sin registro, «todavía saliendo» con todas las campañas, el 404 de
 Resend, registrar a todos los del segmento, el reintento que no manda precios viejos, el tope de IA por persona,
 «Vino del correo» por RPC, la revisión de marca y quién llegó por el correo.
+`test_etapa1b.py` (etapa 1b, primero en rojo sobre el código de antes): la pregunta al confirmar y al pagar (y que
+después sigue «Imprimir documentos»), sin la marca o con `sudo` no pregunta, el «Sí» con quién y dónde, el «No» y su
+plazo (un ajuste), a quién no se pregunta, el correo que pide y guarda, un fallo que no traba la venta, el cuadro
+falso de otro cliente, Juan (la marca de su pregunta, el último mensaje del cliente después, el plazo, el sí claro, el
+correo escrito por el cliente, la ficha con otro correo, una vez cada 180 días, solo WhatsApp, la marca no se escribe
+a mano), la herramienta en `/dcasa/juan/v1/herramientas` y de punta a punta por la API (como el Worker), los conteos por camino y, en el navegador, el cuadro al
+confirmar (sin la X y con la regla del scroll) en la computadora y, pidiendo el correo, en el celular. En `juan/`:
+`test/dcasa/permiso-correo.test.ts`.
 
 ## 5. Lo que queda para después
 
-- **Etapa 1b:** que **Juan** pregunte por WhatsApp si quiere recibir novedades (en un buen momento, p. ej. cuando da su
-  correo) y lo anote solo si contesta que sí. Volver a darse de alta después de una baja (lo hace el cliente; hoy la
-  baja es final). El «sí» en la web (checkout y Mi cuenta: origen `web`).
+- Volver a darse de alta después de una baja (lo hace el cliente; hoy la baja es final). El «sí» en la web (checkout y
+  Mi cuenta: origen `web`). (Que Juan lo pregunte por WhatsApp ya está: etapa 1b, §1c y §3.11.)
 - **Después:** el saludo de **cumpleaños** con su beneficio de Socios (de `puntos.json`; si allí está `null` o
   `PENDIENTE`, no se menciona) y **«Tu cotización sigue aquí»** (estaban pensados para la etapa 2; la dueña pidió
   primero la etapa 2 «a lo grande» de §1b).

@@ -21,6 +21,10 @@ RAIZ = '/dcasa/juan/v1'
 PUBLICAS = {'buscar_productos', 'ver_producto', 'listar_categorias', 'reglas_socios', 'horario_y_tienda',
             'saldo_puntos', 'crear_oportunidad', 'anotar_conversacion', 'pasar_a_vendedora',
             'buscar_conocimiento', 'registrar_pregunta_sin_respuesta', 'etiquetar_conversacion', 'cotizar'}
+# Las que agregan otros módulos cuando están instalados (dcasa_camila: el permiso de las novedades por correo).
+DE_OTROS_MODULOS = {'permiso_correo'}
+# Lo mismo con las claves de la respuesta de /mensaje y /estado (dcasa_camila: si Juan puede preguntar).
+CLAVES_DE_OTROS_MODULOS = {'permiso_correo'}
 RUTAS = (('POST', 'mensaje'), ('GET', 'estado'), ('GET', 'config'), ('GET', 'herramientas'), ('POST', 'herramienta'),
          ('POST', 'seguimiento/hecho'), ('POST', 'escribiendo'), ('POST', 'foto-perfil'))
 
@@ -148,7 +152,8 @@ class TestMensaje(ApiCase):
         self.assertEqual(respuesta.status_code, 200)
         cuerpo = respuesta.json()
         conversacion = self.conversacion()
-        self.assertEqual(cuerpo, {
+        propias = {clave: valor for clave, valor in cuerpo.items() if clave not in CLAVES_DE_OTROS_MODULOS}
+        self.assertEqual(propias, {
             'ok': True, 'conversacion_id': conversacion.id, 'partner_id': conversacion.partner_id.id,
             'estado': 'bot', 'bot_activo': True, 'pausada_hasta': None,
             'dentro_de_horario': cuerpo['dentro_de_horario'], 'nota_para_el_bot': None})
@@ -393,7 +398,7 @@ class TestHerramientasApi(ApiCase):
         cuerpo = self.get('herramientas').json()
         self.assertTrue(cuerpo['ok'])
         herramientas = {h['nombre']: h for h in cuerpo['herramientas']}
-        self.assertEqual(set(herramientas), PUBLICAS)
+        self.assertEqual(set(herramientas) - DE_OTROS_MODULOS, PUBLICAS)
         for nombre, h in herramientas.items():
             with self.subTest(herramienta=nombre):
                 self.assertTrue(h['descripcion'])

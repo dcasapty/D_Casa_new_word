@@ -28,8 +28,9 @@ LEEME_PRIMERO §2).
 1. **Camila (mail marketing)** ([CAMILA.md](CAMILA.md)): etapas 1 y 2 **en producción** desde el 2026-11-06 (Desplegar
    52 y 54, con Juan 7). La clave de campañas ya está y Odoo la tomó (Desplegar 53). Nada sale sin que alguien de
    Marketing o Gerencia apruebe la campaña. Falta de la dueña: la primera campaña y confirmar el «Sí, quiero» de dos
-   toques. Sigue: etapa 1b (que Juan pregunte el permiso por WhatsApp), cumpleaños, «tu cotización sigue aquí» y la
-   etapa de la página web.
+   toques. **Etapa 1b** (la lista crece sola: la pregunta al confirmar o cobrar y Juan por WhatsApp, CAMILA.md §1c):
+   hecha en su rama, sin desplegar; sigue su revisión adversarial y el despliegue (con el Worker de Juan). Después:
+   cumpleaños, «tu cotización sigue aquí» y la etapa de la página web.
 2. **Brian al día** con lo nuevo (la dueña: «indispensable, pero desactualizado») y una vuelta a la pantalla de Sofía.
 3. **Que el equipo use lo nuevo** (lo hace la dueña con el equipo; ver «Lo que falta de la dueña»): el Reparto
    «Parejo», el Telegram de cada vendedora, «Revisar ahora» de Sofía y los mensajes de Sofía.

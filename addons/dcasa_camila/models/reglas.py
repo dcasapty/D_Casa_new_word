@@ -287,3 +287,42 @@ def pide_correo_para_promociones(texto):
     lo decía. «No es para promociones» o una promoción en otro mensaje no cuentan."""
     simple = normal(texto)
     return bool(_FRASE_PROMOCIONES.search(simple) and _PIDE_CORREO.search(simple))
+
+
+# ----------------------------------------------------------------------
+# Etapa 1b: el «sí» del cliente a Juan, de forma clara
+# ----------------------------------------------------------------------
+
+_CORREO_EN_TEXTO = re.compile(r'\S+@\S+')
+_PALABRAS = re.compile(r'[a-zñ]+')
+# Lo que dice un «sí» claro (al menos una) y lo que puede acompañarlo (nada más: «si tienen en gris…» no es un sí).
+SI_CLARO = frozenset({'si', 'sii', 'siii', 'sip', 'claro', 'dale', 'ok', 'okay', 'okey', 'oki', 'vale', 'porfa',
+                      'porfis', 'porfavor', 'interesa', 'quiero', 'perfecto', 'listo', 'seguro', 'obvio', 'genial',
+                      'excelente', 'afirmativo', 'bueno', 'va', 'una'})   # «¡de una!»
+ACOMPANA_UN_SI = SI_CLARO | frozenset({
+    'por', 'favor', 'me', 'de', 'una', 'gracias', 'muchas', 'mil', 'con', 'gusto', 'mi', 'correo', 'es', 'email',
+    'el', 'al', 'a', 'y', 'aqui', 'esta', 'este', 'avisame', 'avisenme', 'avisen', 'mandenme', 'manden', 'envien',
+    'enviame', 'super', 'muy', 'bien', 'senor', 'senora', 'joven', 'amigo', 'amiga', 'eso', 'interesaria',
+    'gustaria', 'encantaria', 'tambien', 'que'})
+NEGACIONES = frozenset({'no', 'nop', 'nope', 'nunca', 'tampoco', 'jamas', 'ni', 'nada', 'ningun', 'ninguno',
+                        'ninguna', 'nel'})
+
+
+def palabras_de(texto):
+    """Las palabras del texto (minúsculas, sin tildes, sin correos ni signos ni emojis)."""
+    return _PALABRAS.findall(_CORREO_EN_TEXTO.sub(' ', normal(texto or '')))
+
+
+def es_un_si_claro(texto):
+    """¿El mensaje del cliente dice que sí de forma clara? Solo palabras de un «sí» (sí, dale, claro, ok, por favor,
+    me interesa…, y su correo si lo escribe), al menos una de ellas, y ninguna negación. «Sí, pero no tan seguido» o
+    «si tienen en gris, me interesa» no son un sí."""
+    palabras = palabras_de(texto)
+    return bool(palabras) and len(palabras) <= 12 and any(p in SI_CLARO for p in palabras) \
+        and all(p in ACOMPANA_UN_SI for p in palabras) and not any(p in NEGACIONES for p in palabras)
+
+
+def es_un_no(texto):
+    """¿El mensaje del cliente dice que no? Una negación y corto (lo largo lo lee una persona)."""
+    palabras = palabras_de(texto)
+    return bool(palabras) and len(palabras) <= 12 and any(p in NEGACIONES for p in palabras)

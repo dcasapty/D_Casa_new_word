@@ -12,3 +12,5 @@ from . import conversacion
 from . import venta
 from . import herramientas_camila
 from . import sofia
+from . import pregunta
+from . import juan_permiso
