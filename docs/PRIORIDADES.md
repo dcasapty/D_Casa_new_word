@@ -26,8 +26,8 @@ LEEME_PRIMERO §2).
 ## Lo que sigue, en orden
 
 1. **Camila, etapa 1: mail marketing** ([CAMILA.md](CAMILA.md)): **en producción** desde el 2026-11-06 (Desplegar 52;
-   módulo `dcasa_camila`). No envía nada todavía. Falta de la dueña: crear la clave de campañas en Resend y pegarla
-   como secreto `RESEND_CAMPANAS_API_KEY` en Cloudflare (§6 de CAMILA.md), mirar la pantalla Marketing › Camila,
+   módulo `dcasa_camila`). No envía nada todavía. La dueña ya pegó la clave de campañas en Cloudflare (2026-11-06); entra
+   a Odoo con el despliegue siguiente (imagen nueva). Falta de la dueña: mirar la pantalla Marketing › Camila,
    confirmar el «Sí, quiero» de dos toques y aprobar la primera campaña. Etapa 1b: que Juan pregunte el permiso por
    WhatsApp.
 2. **Brian al día** con lo nuevo (la dueña: «indispensable, pero desactualizado») y una vuelta a la pantalla de Sofía.

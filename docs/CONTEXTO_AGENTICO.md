@@ -867,6 +867,11 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 
 ### Cloudflare
 
+- **Un secreto nuevo del panel del Worker `dcasa` no llega a Odoo hasta que el contenedor arranca otra vez**
+  (`edge/src/index.ts`: `envVars` se arma en el constructor y solo se usa al arrancar; producción no se duerme). Guardar
+  el secreto en el panel no basta, y Desplegar con la **misma** imagen tampoco: el contenedor queda «no changes». Hace
+  falta un despliegue con imagen nueva (2026-11-06, `RESEND_CAMPANAS_API_KEY` de Camila). Además, el nombre tiene que
+  estar en la lista blanca de `variablesDelContenedor` (`edge/src/handler.ts`).
 - «Network connection lost.» en `reenvio_fallido` = se cortó el enlace Worker → Durable Object (el evento «stateless»
   no tiene par en `OdooContainer`); no implica que Odoo se cayó. Las lecturas se repiten en `reenviar` (2026-10-23).
 - Cloudflare puede arrancar la imagen nueva con las variables del arranque anterior (`APP_VERSION` atrasada).
