@@ -120,7 +120,14 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 - Segmento: uno solo de envío, reusado (el plan gratis de Resend Marketing tiene 3 segmentos y 1,000 contactos), una
   campaña a la vez, se espera si la anterior sigue saliendo; las bajas se leen de todos los contactos.
 - Pruebas: `test_etapa2.py` (nuevo) y las de navegador (7), más `juan/test/dcasa/campana-correo.test.ts`. Capturas en
-  el scratchpad de la sesión (`capturas_camila2`). **Sin push ni despliegue**: espera la revisión adversarial.
+  el scratchpad de la sesión (`capturas_camila2`); la dueña las vio y dijo que sí.
+- **Revisión adversarial (mismo día), 11 hallazgos arreglados**, cada uno con su prueba en `test_revision2.py` (todas en
+  rojo sobre `49e5f87`): el turno de envío es un candado de **sesión** que aguanta los COMMIT y se suelta siempre (dos
+  campañas ya no tocan el segmento a la vez) y el segmento se limpia por tandas; las enviadas de la etapa 1 cuentan
+  para el tope (post-migración); el registro no se suelta si se llamó a «send» (`envio_intentado`) ni por `canceled`, y
+  registra a todos los del segmento; «todavía saliendo» mira todas; un 404 de Resend no traba nada; el reintento no
+  manda precios viejos; el tope de IA por persona; «Vino del correo» no se escribe por RPC; la revisión de marca más
+  dura; Marketing no lee quién llegó por el correo. **Sin push ni despliegue** de esta sesión.
 
 ### 2026-11-06 (4): Camila, la asistente del mail marketing (módulo nuevo `dcasa_camila`, etapa 1)
 

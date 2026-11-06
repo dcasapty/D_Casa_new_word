@@ -127,8 +127,13 @@ _GRITO = re.compile(r"\b[A-ZÁÉÍÓÚÜÑ]{4,}\b")
 _USTED = re.compile(
     r'\b(usted|ustedes|visitenos|escribanos|contactenos|llamenos|aproveche|descubra|conozca|venga|disfrute|'
     r'adquiera|compre|renueve|le esperamos|los esperamos|les esperamos|lo esperamos|la esperamos|su hogar|su casa|'
-    r'sus espacios)\b')
-_OFERTAS = re.compile(r'\b(descuentos?|rebajas?|rebajad[oa]s?|ofertas?|gratis|liquidacion|2x1|precio especial)\b')
+    r'sus espacios|le (va|van) a (encantar|gustar|fascinar)|le encant\w*|le fascin\w*|le (invitamos|ofrecemos|'
+    r'traemos|presentamos|recomendamos)|su (familia|sala|recamara|cuarto|comedor|cocina|espacio|dormitorio|'
+    r'habitacion|terraza|oficina|negocio|hijos|pareja|compra|pedido))\b')
+_OFERTAS = re.compile(
+    r'\b(descuentos?|rebajas?|rebajad[oa]s?|ofertas?|gratis|liquidacion|2x1|precio especial|black (friday|weekend)|'
+    r'cyber (monday|lunes)|viernes negro|hot sale|de locura|precios? (loc[oa]s?|increibles?|imbatibles?|'
+    r'irresistibles?|baj[oa]s?)|imbatibles?|irresistibles?)\b')
 # Números en letras (sin «un», «uno» ni «una», que están en cualquier frase; «quincena» no es «quince»).
 _NUMEROS = re.compile(
     r'\b(cero|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|trece|catorce|quince|dieci\w+|veinte|'
@@ -141,10 +146,24 @@ _BENEFICIOS = re.compile(
     r'sin intereses?|intereses?|financ\w*|creditos?|a plazos|pagos? (comodos?|faciles?|mensuales?)|garantias?|'
     r'de por vida|envios? (gratis|incluidos?)|instalacion (gratis|incluida)|precios? de fabrica|mas barat\w*|'
     r'baratisim\w*|ahorr\w*|liquidacion\w*|promocion\w*|aprovech\w*|ultim[oa]s (dias|unidades|piezas|horas)|'
-    r'por tiempo limitado|solo (hoy|por hoy|esta semana)|hasta agotar\w*|se acab\w*)\b')
+    r'por tiempo limitado|solo (hoy|por hoy|esta semana)|hasta agotar\w*|se acab\w*|'
+    # prisas
+    r'quedan (pocas|pocos|solo)|pocas unidades|pocos disponibles|corre|corran|correle|apurate|apresurate|'
+    r'date prisa|no te (lo|la|los|las) pierdas|no te quedes sin|antes de que (vuele|vuelen|se acabe|se acaben|'
+    r'se agote|se agoten|se vaya|se vayan)|vuela|vuelan|'
+    # formas de pago (ninguna campaña las trae aprobadas)
+    r'en partes|abonos?|abonal\w*|tafi|crediviva|formas? de pago|meses sin|'
+    # «gratis» con otras palabras y promesas de por vida
+    r'sin pagar (extra|mas|nada|de mas)|regalad\w*|de regalo|gratuit\w*|toda la vida|para siempre|'
+    r'indestructibles?)\b')
 _SUPERLATIVOS = re.compile(
     r'\b(el mejor|la mejor|los mejores|las mejores|numero uno|n[o°º]\.? ?1|mas vendid[oa]s? de|unic[oa]s? en panama|'
-    r'garantizad[oa]s?)\b')
+    r'garantizad[oa]s?|mas \w+ de (todo )?panama|mas \w+ del (pais|mercado)|lo mas top|\w+isim[oa]s?|'
+    # testimonios que nadie dio
+    r'(nuestros|todos los|miles de|muchos) clientes|clientes (dicen|opinan|aman|prefieren|recomiendan|felices|'
+    r'satisfechos)|les encanta|les fascina|testimonios?|resenas?)\b')
+# Direcciones web, correos o teléfonos escritos en el texto: los enlaces y el botón los pone el correo.
+_ENLACES = re.compile(r'(\bpunto (com|net|org|pa)\b|\bwww\b|\.(com|net|org|pa)\b|\bhttps?\b|\barroba\b|@)')
 _PROHIBIDO_LITERAL = ('{', '}', '<', '>')
 # Lo que se busca en el texto en minúsculas y sin tildes, con lo que se le dice a la persona.
 _REVISION_SIMPLE = (
@@ -154,7 +173,8 @@ _REVISION_SIMPLE = (
     (_USTED, 'De tú, no de usted.'),
     (_OFERTAS, 'Sin descuentos, ofertas ni «gratis»: esta campaña no trae ninguno aprobado.'),
     (_BENEFICIOS, 'Sin beneficios ni prisas que nadie aprobó (sin costo, regalos, cuotas, garantías, «últimos días»).'),
-    (_SUPERLATIVOS, 'Sin «el mejor» ni promesas que no se pueden comprobar.'),
+    (_SUPERLATIVOS, 'Sin «el mejor», «-ísimo», testimonios ni promesas que no se pueden comprobar.'),
+    (_ENLACES, 'Sin direcciones web, correos ni teléfonos escritos: los botones los pone el correo.'),
 )
 
 

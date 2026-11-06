@@ -164,8 +164,8 @@ casilla, el botón, el enlace y los crones.
   tarifas están encendidas, la misma regla de `website_sale` sin carrito), la posición fiscal del usuario público y
   los impuestos como los muestra la tienda (sin ITBMS, con «+ ITBMS» al lado, `_dcasa_mas_itbms`). Al enviar se vuelve
   a calcular todo.
-- **El texto** (`_textos`): la IA que ya usa Brian y Juan (`brian.proveedores`, respeta su tope de gasto y anota el
-  consumo en `brian.uso`) con las reglas de marca (de tú, sin cifras, sin «remate», sin descuentos, sin «el mejor», sin
+- **El texto** (`_textos`): la IA que ya usa Brian y Juan (`brian.proveedores`, respeta los mismos topes de gasto del
+  mes que Brian, el de todos y el de cada persona, Ajustes › Brian, y anota el consumo en `brian.uso`) con las reglas de marca (de tú, sin cifras, sin «remate», sin descuentos, sin «el mejor», sin
   presentarse como IA). A la IA **solo le llegan datos del producto y la idea de la campaña**: ningún dato de clientes.
   Al armar, el nombre, la categoría y el grupo; **el redactor** (etapa 2, `_escribir`, «Escribir con IA») le da además
   los **datos reales** del producto (`_datos_ia_producto`): atributos, la descripción de venta o de la web (en texto,
@@ -177,7 +177,12 @@ casilla, el botón, el enlace y los crones.
   sin palabras en mayúsculas; sin trato de usted; sin descuentos, ofertas ni «gratis»; sin beneficios ni prisas que
   nadie aprobó («sin costo», «te regalamos», «cuotas sin intereses», «garantía», «precio de fábrica», «últimos días»,
   «aprovecha»); sin superlativos; sin letras de otro alfabeto (una «e» cirílica en «remate»); sin llaves ni etiquetas
-  (Resend lee `{{{…}}}` como un dato del contacto). Antes, `reglas.limpiar` pasa el texto por NFKC y **quita** los
+  (Resend lee `{{{…}}}` como un dato del contacto). Desde la revisión del 2026-11-06 (etapa 2), además: sin prisas
+  («quedan pocas», «corre», «no te lo pierdas», «antes de que vuele»), sin formas de pago («en partes», abonos, Tafi,
+  Crediviva), sin «gratis» con otras palabras («sin pagar extra», «regalada»), sin «el más … de Panamá», «lo más top»
+  ni «-ísimo», sin testimonios («nuestros clientes dicen», «les encanta»), sin «para toda la vida», sin «Black Friday»
+  ni «precio de locura», sin usted («le va a encantar», «su familia») y sin direcciones web, correos ni teléfonos
+  escritos. Antes, `reglas.limpiar` pasa el texto por NFKC y **quita** los
   caracteres invisibles (ancho cero, guion suave): «re·mate» con un invisible queda «remate» y no pasa. Al armar, lo
   que no pasa o si la IA falla queda con el **texto fijo** y la pantalla lo dice. En el redactor, lo que no pasa **no
   se guarda** y la pantalla dice por qué, con **«Reintentar»** (`ErrorIA`: «La IA no respondió (…)», «La IA no devolvió
@@ -215,25 +220,38 @@ Al tocar «Enviar a N clientes», **el servidor revisa todo, aunque llegue por R
    por cliente**; si no queda nadie, no sale;
 7. **que las bajas se trajeron recién**: lee todos los contactos de Resend en ese mismo momento (abajo).
 
-Luego toma **el turno de envío** (una campaña a la vez: un candado de la base, `pg_try_advisory_xact_lock`, y ninguna
-otra «aprobada» enviándose en los últimos 10 minutos), queda **aprobada** (con quién y cuándo) y se confirma la base a
-mitad de la petición, como Sofía: un doble clic u otra persona la encuentran «enviándose» y no la mandan dos veces. Si
-el *broadcast* de otra campaña **todavía está saliendo** en Resend (`scheduled` o `queued`), no toca el segmento y
-pide probar en unos minutos. Trae las bajas, vuelve a calcular el público, **deja el segmento de envío exactamente con
-esos destinatarios** (abajo) y lo **vuelve a listar**: si queda alguien suscrito que no va en esta campaña, no sale.
-Crea el *broadcast* (una sola vez; queda su id), **registra a quién le sale** (`dcasa.camila.destinatario`: campaña,
-correo, ficha y cuándo; único por campaña y correo) y confirma la base **antes** de mandarlo: si otra campaña sale
-justo después, ya ve el registro. Lo manda si sigue en borrador; si Resend dice que ya salió, no lo repite. Si falla
-antes de crear el *broadcast*, vuelve a borrador con el motivo; si falla después, queda aprobada y «Reintentar el
-envío» usa el mismo. **Ningún error la deja a medias**: un error que no es de Resend también la saca de «enviándose»
-(deshace lo de esa vuelta, anota el motivo y, sin *broadcast*, vuelve a borrador). Si Resend **no llegó a mandarla**
-(sin *broadcast*, o en `draft` o `canceled` allá), el registro se borra (`_soltar_destinatarios`) y esos clientes no
-cuentan para el tope; si Resend no contesta, el registro se queda (mejor no mandarles otra que mandarles dos).
+Luego toma **el turno de envío** (una campaña a la vez): un candado de **sesión** de la base (`pg_try_advisory_lock`,
+que aguanta los COMMIT a mitad de la petición; el de transacción que había antes se soltaba con el primero y dos
+campañas podían tocar el segmento a la vez) y se suelta en un `finally` al terminar (si el trabajador muere, PostgreSQL
+lo suelta al cerrar la conexión). Además, ninguna otra «aprobada» enviándose en los últimos 10 minutos, mirado otra vez
+**después** de confirmar «aprobada» (con la foto nueva de la base). Queda **aprobada** (con quién y cuándo) y se
+confirma la base a mitad de la petición, como Sofía: un doble clic u otra persona la encuentran «enviándose» y no la
+mandan dos veces. Si el *broadcast* de **cualquier** otra campaña con broadcast en los últimos 3 días **todavía está
+saliendo** en Resend (`scheduled` o `queued`; se miran todas, las más recientes primero), no toca el segmento y pide
+probar en unos minutos. Trae las bajas, vuelve a calcular el público, **deja el segmento de envío exactamente con esos
+destinatarios** (por tandas de 300 salidas y 300 entradas por toque, para no pasar la ventana de «enviándose») y lo
+**vuelve a listar**: si queda alguien suscrito que no va en esta campaña, no sale. Crea el *broadcast* (una sola vez;
+queda su id), **registra a TODOS los que se dejaron en el segmento** (`dcasa.camila.destinatario`: campaña, correo,
+ficha y cuándo; único por campaña y correo; un listado de Resend que tarda no deja a nadie fuera del registro), anota
+`envio_intentado` y confirma la base **antes** de llamar a «send»: si otra campaña sale justo después, ya ve el
+registro. Lo manda si sigue en borrador; si Resend dice que ya salió, no lo repite (y si esa campaña no tenía registro,
+registra lo que hay en el segmento). Si falla antes de crear el *broadcast*, vuelve a borrador con el motivo; si falla
+después, queda aprobada y «Reintentar el envío» usa el mismo. **Ningún error la deja a medias**: un error que no es de
+Resend también la saca de «enviándose» (deshace lo de esa vuelta, anota el motivo y, sin *broadcast*, vuelve a
+borrador). **El registro solo se borra si nunca se llamó a «send»** (`_soltar_destinatarios`): si se llamó, pudo salir
+aunque Resend contestara un error o su estado todavía diga `draft`, y un `canceled` puede llegar con media campaña ya
+enviada (mejor no mandarles otra que mandarles dos).
+
+**«Reintentar el envío»** revisa primero el *broadcast* que quedó: si en Resend **ya no existe** (404: lo borraron en
+su panel) se olvida, la campaña vuelve a borrador y se arma otro (el registro no se suelta); si está en **borrador** y
+los precios, fotos o existencias de hoy cambian el correo (o los precios no son de hoy), se **borra en Resend**, vuelve
+a borrador y pasa otra vez por la huella: nunca sale con el HTML viejo.
 
 **Una aprobada que quedó trabada** ya no bloquea a las demás (pueden ir varias abiertas), pero no se puede editar. La
 descartan **Gerencia o un administrador** (`_descartar`): sin *broadcast* y pasados los 10 minutos de «enviándose», o
-con el *broadcast* `canceled` o `draft` en Resend (el borrador se borra allá con `DELETE /broadcasts/{id}` para que
-nadie lo mande). Si en Resend salió o va a salir, no se descarta.
+con el *broadcast* `canceled`, `draft` o que ya no existe en Resend (el borrador se borra allá con
+`DELETE /broadcasts/{id}` para que nadie lo mande). Si en Resend salió o va a salir, no se descarta. Un 404 de Resend
+no traba nada: no está saliendo y se puede descartar.
 
 **El diseño del segmento (etapa 2, y por qué).** Con varias campañas y públicos distintos hacía falta mandar a una
 parte de los clientes. El plan gratis de Resend Marketing admite **3 segmentos** y **1,000 contactos** (contactos, no
@@ -293,7 +311,12 @@ arma ni envía campañas: eso se aprueba en la pantalla.
   y `ajustar_enlace_pie` exigen el grupo en el servidor antes de cualquier `sudo`, bloquean la campaña (`FOR UPDATE
   NOWAIT`) y validan cada argumento (ids enteros, chips y botones conocidos, textos con su largo; `ajustar_enlace_pie`
   y descartar una aprobada, además, Gerencia o administrador); `res.partner.action_dcasa_promos_baja` exige una sola
-  ficha y poder escribirla; `sale.order.create` solo anota, en un savepoint, de qué campaña vino el cliente.
+  ficha y poder escribirla; `sale.order.create` y `write` QUITAN «Vino del correo» de lo que se manda (solo lo
+  escribe Camila, con una marca de contexto que es un objeto de Python y no viaja por RPC) y `create` lo anota, en un
+  savepoint, de qué campaña vino el cliente.
+- **Quién llegó por el correo** (`dcasa.camila.llegada`, con la ficha del cliente) lo leen por RPC solo Gerencia y los
+  administradores (revisión del 2026-11-06): el rol Marketing ve cuántos chats, no quiénes (la pantalla y Brian cuentan
+  con `sudo`). El registro del tope (`dcasa.camila.destinatario`), igual.
 - La clave sale solo del entorno (`RESEND_CAMPANAS_API_KEY`): nunca en la base, en un log, en un error ni en `repr`. Los
   errores de Resend se tachan (sin la clave ni correos de personas).
 - **A la IA no le llega ningún dato de clientes**: solo datos de productos y la idea que escribe el equipo. Los logs
@@ -321,7 +344,10 @@ ninguna ficha con ese correo, sin el equipo) y con el tope por cliente. Se cuent
 | De hace más de un año | La ficha se creó hace más de 365 días. |
 
 **El tope por cliente** (`_correos_recientes`): un correo con una fila en `dcasa.camila.destinatario` desde el comienzo
-del día de Panamá de hace 14 días no recibe otra (si le salió el 6, la próxima puede ser desde el 21). La pantalla
+del día de Panamá de hace 14 días no recibe otra (si le salió el 6, la próxima puede ser desde el 21). Una campaña
+**enviada** en esa ventana **sin registro** (las de la etapa 1, de antes del registro) cuenta para **todos**: no se
+sabe a quién le llegó (`_enviadas_sin_registro`). La post-migración `19.0.2.0.0` les escribe el registro con los
+correos que tenían permiso y su fecha de envío (`_registrar_enviadas_sin_registro`). La pantalla
 muestra el número en vivo de cada chip, a cuántos les llegaría la campaña y **cuántos quedan fuera y por qué** (ya les
 llegó una hace menos de 15 días; no han dicho que sí o lo dijeron con otro correo; se dieron de baja o pidieron que no
 los contacten; sin un correo bien escrito); nunca sus nombres ni correos.
@@ -375,6 +401,12 @@ producto y ningún dato de clientes, la revisión de marca, la IA que falla), lo
 tienda, los dos, ninguno no sale, sin enlaces a productos, las redes del sitio, las ventas web por UTM con y sin monto)
 y Juan (con el servidor: `campana_correo` en `/mensaje` y `/estado`, la etiqueta, nada sin campaña ni pasados los 3
 días, la cotización con la marca). En `juan/`: `test/dcasa/campana-correo.test.ts`.
+`test_revision2.py`: una prueba por hallazgo de la revisión adversarial de la etapa 2 (2026-11-06), todas en rojo sobre
+el commit `49e5f87`: el turno de envío que aguanta los COMMIT (con dos conexiones de verdad) y se suelta siempre, el
+segmento por tandas, las enviadas de la etapa 1 sin registro y su migración, el registro que no se suelta con
+`canceled` ni si se llamó a «send», «ya salió» sin registro, «todavía saliendo» con todas las campañas, el 404 de
+Resend, registrar a todos los del segmento, el reintento que no manda precios viejos, el tope de IA por persona,
+«Vino del correo» por RPC, la revisión de marca y quién llegó por el correo.
 
 ## 5. Lo que queda para después
 
@@ -431,7 +463,7 @@ Si la clave se filtra: en Resend › API Keys bórrala, crea otra igual y cámbi
 | El segmento | `GET /segments`, `POST /segments {name}`, `GET /segments/{id}/contacts?limit=100&after=…` |
 | Todos los contactos | `GET /contacts?limit=100&after=…` (sin `segment_id`: todos; así se leen las bajas de cualquier campaña) |
 | Un contacto | `POST /contacts {email, segments: [{id}]}`; si ya existía, `POST /contacts/{email}/segments/{id}`; sacarlo, `DELETE /contacts/{id o email}/segments/{id}`; la baja, `PATCH /contacts/{id o email} {unsubscribed: true}` («Either id or email must be provided»: Camila usa el id que lista el segmento) |
-| La campaña | `POST /broadcasts {segment_id, from, subject, html, reply_to, name}` (borrador), `POST /broadcasts/{id}/send`, `GET /broadcasts/{id}` (`status`: draft, scheduled, queued, sent, canceled); `DELETE /broadcasts/{id}` solo si no salió (draft o scheduled) |
+| La campaña | `POST /broadcasts {segment_id, from, subject, html, reply_to, name}` (borrador), `POST /broadcasts/{id}/send`, `GET /broadcasts/{id}` (`status`: draft, scheduled, queued, sent, canceled; un 404 = ya no existe, lo borraron en el panel); `DELETE /broadcasts/{id}` solo si no salió (draft o scheduled) |
 | Resultados | `GET /broadcasts/{id}/recipients?type=delivered\|opened\|clicked\|unsubscribed`, filas `{id (cursor), contact_id, email}` |
 | Límite | 10 peticiones por segundo por equipo (429 con `retry-after`): pausa corta entre llamadas y reintentos |
 | La baja | `{{{RESEND_UNSUBSCRIBE_URL}}}` en el HTML: Resend pone un enlace único por persona y campaña |

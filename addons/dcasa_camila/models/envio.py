@@ -7,8 +7,9 @@
 * **Un solo segmento de envío, reusado** (el plan gratis de Resend tiene 3 segmentos): antes de mandar una campaña el
   segmento queda EXACTAMENTE con sus destinatarios: sale por el id del contacto todo el que no va (también correos que
   Odoo no sabe leer) y entran los que faltan; justo antes de mandar se vuelve a listar y, si queda alguien suscrito que
-  no va, no sale. Se envía de una campaña a la vez: un candado de la base (``pg_try_advisory_xact_lock``) más «otra
-  aprobada enviándose» y, si el *broadcast* anterior todavía está saliendo en Resend, se espera.
+  no va, no sale. Se envía de una campaña a la vez: un candado de SESIÓN de la base (``pg_try_advisory_lock``, que
+  aguanta los COMMIT a mitad de la petición y se suelta al terminar) más «otra aprobada enviándose» y, si el
+  *broadcast* de cualquier otra campaña todavía está saliendo en Resend, se espera.
 * **Las bajas** (cada hora y antes de cada envío, ``_sincronizar``): se leen TODOS los contactos de Resend; los dados de
   baja quedan con baja en todas las fichas con ese correo, y las bajas de Odoo suben a Resend (por id).
 * **Al enviar, el servidor revisa todo** aunque llegue por RPC: el grupo, producción (``DCASA_ENTORNO=produccion``;
@@ -26,6 +27,7 @@ import re
 import time
 from datetime import timedelta
 
+import psycopg2
 from psycopg2.errors import LockNotAvailable
 
 from odoo import api, fields, models
@@ -45,8 +47,9 @@ _logger = logging.getLogger(__name__)
 P_SEGMENTO = 'dcasa_camila.segmento_id'
 NOMBRE_SEGMENTO = "D'CASA: campaña que sale (Odoo)"
 MAX_SUBIR_AL_ENVIAR = 300      # contactos que entran al segmento en un clic «Enviar» (el resto, al reintentar)
+MAX_SACAR_AL_ENVIAR = 300      # y los que salen: una vuelta corta no pasa la ventana de «enviándose»
 MINUTOS_ENVIANDO = 10          # «ya se está enviando» (otra persona o un doble clic)
-LLAVE_ENVIO = 7_412_043_115    # candado de la base: una campaña a la vez toca el segmento de envío
+LLAVE_ENVIO = 7_412_043_115    # candado de SESIÓN de la base: una campaña a la vez toca el segmento de envío
 DIAS_SALIENDO = 3              # cuánto se mira atrás por si el broadcast anterior todavía está saliendo en Resend
 ESTADOS_SALIENDO = ('scheduled', 'queued')
 HORAS_RESULTADOS = 6
@@ -129,18 +132,23 @@ class DcasaCamila(models.AbstractModel):
     def _preparar_segmento(self, cliente, segmento, destinatarios):
         """Deja el segmento de envío con los destinatarios de ESTA campaña: saca por su id a todo el que no va (también
         correos que Odoo no sabe leer y los dados de baja) y agrega a los que faltan (solo el correo: nada más de la
-        persona), hasta ``MAX_SUBIR_AL_ENVIAR`` por vuelta. Devuelve cuántos quedan por agregar."""
-        presentes = set()
+        persona). Por tandas (``MAX_SACAR_AL_ENVIAR`` salidas y ``MAX_SUBIR_AL_ENVIAR`` entradas por vuelta), para que
+        una vuelta no pase la ventana de «enviándose». Devuelve ``(por_sacar, por_agregar)``."""
+        presentes, sobran = set(), []
         for contacto in cliente.contactos_del_segmento(segmento):
             correo = correo_valido(contacto.get('email'))
             if correo in destinatarios and not contacto.get('unsubscribed') and correo not in presentes:
                 presentes.add(correo)
                 continue
-            cliente.sacar_del_segmento(contacto.get('id') or contacto.get('email'), segmento)
+            sobran.append(contacto.get('id') or contacto.get('email'))
+        for contacto in sobran[:MAX_SACAR_AL_ENVIAR]:
+            cliente.sacar_del_segmento(contacto, segmento)
         faltan = [correo for correo in destinatarios if correo not in presentes]
+        if len(sobran) > MAX_SACAR_AL_ENVIAR:
+            return len(sobran) - MAX_SACAR_AL_ENVIAR, len(faltan)
         for correo in faltan[:MAX_SUBIR_AL_ENVIAR]:
             cliente.agregar_contacto(correo, None, segmento)
-        return max(0, len(faltan) - MAX_SUBIR_AL_ENVIAR)
+        return 0, max(0, len(faltan) - MAX_SUBIR_AL_ENVIAR)
 
     @api.model
     def _revisar_segmento(self, cliente, segmento, destinatarios):
@@ -158,11 +166,14 @@ class DcasaCamila(models.AbstractModel):
 
     @api.model
     def _campana_saliendo(self, campana, cliente):
-        """Otra campaña cuyo *broadcast* todavía está saliendo en Resend (el segmento no se toca hasta que termine)."""
+        """Otra campaña cuyo *broadcast* todavía está saliendo en Resend (el segmento no se toca hasta que termine).
+        Se miran TODAS las que tienen broadcast en la ventana (no solo las de id más alto: una que se aprobó antes pudo
+        salir después), las más recientes primero. Un broadcast que ya no existe en Resend no está saliendo."""
         desde = fields.Datetime.now() - timedelta(days=DIAS_SALIENDO)
         otras = self.env['dcasa.camila.campana'].sudo().search([
             ('id', '!=', campana.id), ('resend_broadcast_id', '!=', False), ('estado', 'in', ('aprobada', 'enviada')),
-            '|', ('enviada_en', '=', False), ('enviada_en', '>=', desde)], order='id desc', limit=3)
+            '|', ('enviada_en', '=', False), ('enviada_en', '>=', desde)],
+            order='enviada_en desc, aprobada_en desc, id desc')
         for otra in otras:
             if cliente.estado_broadcast(otra.resend_broadcast_id) in ESTADOS_SALIENDO:
                 return otra
@@ -170,30 +181,37 @@ class DcasaCamila(models.AbstractModel):
 
     @api.model
     def _registrar_destinatarios(self, campana, destinatarios):
-        """El registro del tope por cliente: a quién le sale esta campaña (se escribe antes de mandar)."""
+        """El registro del tope por cliente: a quién le sale esta campaña (se escribe ANTES de mandar, con TODOS los
+        que se dejaron en el segmento). Si ya se llamó a «send» en otra vuelta, lo de entonces se queda y solo se suma
+        lo nuevo (a alguno ya le pudo llegar)."""
         Destinatario = self.env['dcasa.camila.destinatario'].sudo()
-        Destinatario.search([('campana_id', '=', campana.id)]).unlink()
+        anteriores = Destinatario.search([('campana_id', '=', campana.id)])
+        if campana.envio_intentado:
+            ya_estan = set(anteriores.mapped('correo'))
+            destinatarios = {c: f for c, f in destinatarios.items() if c not in ya_estan}
+        else:
+            anteriores.unlink()
         ahora = fields.Datetime.now()
-        Destinatario.create([{'campana_id': campana.id, 'correo': correo, 'partner_id': ficha.id,
+        Destinatario.create([{'campana_id': campana.id, 'correo': correo, 'partner_id': ficha.id if ficha else False,
                               'enviada_en': ahora} for correo, ficha in destinatarios.items()])
 
     @api.model
-    def _soltar_destinatarios(self, campana, cliente=None):
-        """Si Resend NO llegó a mandarla (sin broadcast, o en borrador o cancelado allá), los clientes no cuentan para
-        el tope. Ante la duda (Resend no contesta), se quedan: mejor no mandarles otra que mandarles dos."""
-        Destinatario = self.env['dcasa.camila.destinatario'].sudo()
-        filas = Destinatario.search([('campana_id', '=', campana.id)])
-        if not filas:
+    def _soltar_destinatarios(self, campana):
+        """El registro se borra SOLO si nunca se llamó a «send» (``envio_intentado``): si se llamó, pudo salir aunque
+        Resend contestara un error o su estado todavía diga «draft», y un «canceled» puede llegar a mitad del envío.
+        Mejor no mandarles otra que mandarles dos."""
+        if campana.envio_intentado:
             return
-        if campana.resend_broadcast_id:
-            try:
-                estado = (cliente or self._cliente()).estado_broadcast(campana.resend_broadcast_id)
-            except Exception:   # Resend no contesta: el registro se queda
-                _logger.warning('DCASA_CAMILA no se pudo revisar el broadcast de la campaña %s', campana.id)
-                return
-            if estado not in ('draft', 'canceled'):
-                return
-        filas.unlink()
+        self.env['dcasa.camila.destinatario'].sudo().search([('campana_id', '=', campana.id)]).unlink()
+
+    @api.model
+    def _registrar_lo_que_hay_en_el_segmento(self, campana, cliente, segmento):
+        """Una campaña que ya salió en Resend y no tiene registro (p. ej. aprobada antes de este arreglo): cuenta para
+        el tope todo el que está suscrito en el segmento de envío (lo conservador)."""
+        permitidos = self.env['res.partner'].sudo()._dcasa_promos_con_permiso()
+        correos = {correo_valido(c.get('email')) for c in cliente.contactos_del_segmento(segmento)
+                   if not c.get('unsubscribed')}
+        self._registrar_destinatarios(campana, {c: permitidos.get(c) for c in correos if c})
 
     # ------------------------------------------------------------------
     # Enviar (al tocar «Enviar a N clientes»)
@@ -218,16 +236,42 @@ class DcasaCamila(models.AbstractModel):
 
     @api.model
     def _tomar_turno_de_envio(self, campana):
-        """Una campaña a la vez toca el segmento de envío: el candado de la base hasta confirmar «aprobada», y ninguna
-        otra «aprobada» enviándose en los últimos minutos."""
-        self.env.cr.execute(SQL('SELECT pg_try_advisory_xact_lock(%s)', LLAVE_ENVIO))
-        libre = self.env.cr.fetchone()[0]
-        otra = self.env['dcasa.camila.campana'].sudo().search([
+        """Una campaña a la vez toca el segmento de envío. El candado es de SESIÓN (``pg_try_advisory_lock``): aguanta
+        los COMMIT a mitad de la petición (el de transacción se soltaba con el primero) y lo suelta
+        ``_soltar_turno_de_envio`` al terminar; si el trabajador muere, PostgreSQL lo suelta al cerrar la conexión.
+        Además, ninguna otra «aprobada» enviándose en los últimos minutos (se vuelve a mirar después de confirmar
+        «aprobada», con la foto nueva de la base: ``_otra_enviandose``)."""
+        self.env.cr.execute(SQL('SELECT pg_try_advisory_lock(%s)', LLAVE_ENVIO))
+        if not self.env.cr.fetchone()[0]:
+            raise UserError(self._mensaje_otra_enviandose())
+        try:
+            if self._otra_enviandose(campana):
+                raise UserError(self._mensaje_otra_enviandose())
+        except Exception:
+            self._soltar_turno_de_envio()
+            raise
+
+    @api.model
+    def _mensaje_otra_enviandose(self):
+        return self.env._('Otra campaña se está enviando en este momento: espera un minuto y vuelve a tocar «Enviar».')
+
+    @api.model
+    def _otra_enviandose(self, campana):
+        return bool(self.env['dcasa.camila.campana'].sudo().search([
             ('id', '!=', campana.id), ('estado', '=', 'aprobada'),
-            ('enviando_desde', '>=', fields.Datetime.now() - timedelta(minutes=MINUTOS_ENVIANDO))], limit=1)
-        if not libre or otra:
-            raise UserError(self.env._('Otra campaña se está enviando en este momento: espera un minuto y vuelve a '
-                                       'tocar «Enviar».'))
+            ('enviando_desde', '>=', fields.Datetime.now() - timedelta(minutes=MINUTOS_ENVIANDO))], limit=1))
+
+    @api.model
+    def _soltar_turno_de_envio(self):
+        """Suelta el candado de sesión (siempre, en un ``finally``: si no, la conexión vuelve al grupo de Odoo con el
+        candado tomado y ninguna campaña podría salir). El candado de sesión no se deshace con un ROLLBACK."""
+        try:
+            with self.env.cr.savepoint(flush=False):
+                self.env.cr.execute(SQL('SELECT pg_advisory_unlock(%s)', LLAVE_ENVIO))
+        except psycopg2.Error:
+            # La transacción quedó con error: se deshace (Odoo la iba a deshacer igual) y se suelta.
+            self.env.cr.rollback()
+            self.env.cr.execute(SQL('SELECT pg_advisory_unlock(%s)', LLAVE_ENVIO))
 
     @api.model
     def _enviar(self, campana_id, huella):
@@ -235,10 +279,17 @@ class DcasaCamila(models.AbstractModel):
         if campana.estado == 'enviada':
             fecha = self._fecha_texto(self._dia_panama(campana.enviada_en))
             return {'ok': True, 'ya_estaba': True, 'mensaje': self.env._('Esa campaña ya salió el %s.', fecha)}
+        self._tomar_turno_de_envio(campana)
+        try:
+            return self._enviar_con_turno(campana, huella)
+        finally:
+            self._soltar_turno_de_envio()
+
+    @api.model
+    def _enviar_con_turno(self, campana, huella):
         cambio = self._revisar_antes_de_enviar(campana, huella)
         if cambio:
             return cambio
-        self._tomar_turno_de_envio(campana)
         ahora = fields.Datetime.now()
         campana.write({'estado': 'aprobada', 'aprobada_por': self.env.uid, 'aprobada_en': ahora,
                        'enviando_desde': ahora, 'error': False})
@@ -264,6 +315,7 @@ class DcasaCamila(models.AbstractModel):
             return {'ok': False, 'mensaje': self.env._('No salió: %s', mensaje)}
         campana.write({'estado': 'enviada', 'enviada_en': fields.Datetime.now(), 'destinatarios': destinatarios,
                        'enviando_desde': False, 'error': False})
+        transaccion.confirmar(self.env)   # «enviada» para todos ANTES de soltar el turno
         _logger.info('DCASA_CAMILA campaña %s enviada a %s contactos', campana.id, destinatarios)
         return {'ok': True, 'mensaje': self.env._('Listo: la campaña salió a %s clientes.', destinatarios)}
 
@@ -279,6 +331,8 @@ class DcasaCamila(models.AbstractModel):
         bloqueos = self._bloqueos(campana)
         if bloqueos:
             raise UserError(bloqueos[0])
+        if campana.resend_broadcast_id and self._revisar_broadcast_anterior(campana) in RC.ESTADOS_YA_SALIO:
+            return None   # ya salió en Resend: solo falta anotarla (``_mandar_a_resend``)
         if not campana.resend_broadcast_id:
             # Lo de ahora: precios, fotos y existencias. Si cambió algo desde que la persona lo vio, no sale.
             quitados = self._poner_al_dia(campana)
@@ -302,6 +356,30 @@ class DcasaCamila(models.AbstractModel):
         return None
 
     @api.model
+    def _revisar_broadcast_anterior(self, campana):
+        """El broadcast que quedó de una vuelta anterior («Reintentar el envío»). Devuelve su estado en Resend.
+
+        * No existe (lo borraron en Resend): se olvida y se arma otro; el registro del tope NO se suelta.
+        * En borrador: si los precios, fotos o existencias de hoy cambian el correo (o los precios no son de hoy), se
+          borra allá y se olvida: la campaña vuelve a pasar por la huella y nunca sale con el HTML viejo.
+        En los dos casos vuelve a borrador (se puede revisar y editar otra vez)."""
+        cliente = self._cliente()
+        try:
+            estado = cliente.estado_broadcast(campana.resend_broadcast_id)
+            if estado == RC.NO_EXISTE:
+                campana.write({'resend_broadcast_id': False, 'estado': 'borrador'})
+            elif estado == 'draft':
+                antes = campana.huella
+                self._poner_al_dia(campana)
+                self._guardar_html(campana)
+                if campana.huella != antes:
+                    cliente.borrar_broadcast(campana.resend_broadcast_id)
+                    campana.write({'resend_broadcast_id': False, 'estado': 'borrador'})
+        except RC.ErrorResend as error:
+            raise UserError(self.env._('No se pudo revisar la campaña en Resend: %s', error.mensaje)) from None
+        return estado
+
+    @api.model
     def _mandar_a_resend(self, campana):
         """Trae las bajas, deja el segmento de envío con los destinatarios de esta campaña (y lo revisa otra vez),
         registra a quién le sale, crea el broadcast (una sola vez) y lo manda si sigue en borrador. Devuelve a cuántos
@@ -309,11 +387,18 @@ class DcasaCamila(models.AbstractModel):
         cliente = self._cliente()
         segmento = self._segmento(cliente)
         estado = cliente.estado_broadcast(campana.resend_broadcast_id) if campana.resend_broadcast_id else None
-        if estado in RC.ESTADOS_YA_SALIO:
-            return len(campana.destinatario_ids) or campana.destinatarios   # ya salió (p. ej. un reintento)
+        if estado == RC.NO_EXISTE:   # lo borraron en Resend: se arma otro (el registro del tope se queda)
+            campana.write({'resend_broadcast_id': False})
+            estado = None
+        if estado in RC.ESTADOS_YA_SALIO:   # ya salió (p. ej. un reintento): que quede en el registro del tope
+            if not campana.destinatario_ids:
+                self._registrar_lo_que_hay_en_el_segmento(campana, cliente, segmento)
+            return len(campana.destinatario_ids) or campana.destinatarios
         if estado not in (None, 'draft'):
             raise RC.ErrorResend(self.env._('En Resend la campaña quedó «%s»: revísala allá antes de reintentar.',
                                             estado))
+        if self._otra_enviandose(campana):   # con la foto nueva de la base (después de confirmar «aprobada»)
+            raise RC.ErrorResend(self._mensaje_otra_enviandose(), temporal=True)
         saliendo = self._campana_saliendo(campana, cliente)
         if saliendo:
             raise RC.ErrorResend(self.env._('La campaña «%s» todavía está saliendo en Resend: prueba otra vez en unos '
@@ -323,10 +408,16 @@ class DcasaCamila(models.AbstractModel):
         if not destinatarios:
             raise RC.ErrorResend(self.env._('Después de traer las bajas, nadie de este público puede recibirla: no '
                                             'salió nada.'))
-        faltan = self._preparar_segmento(cliente, segmento, destinatarios)
+        por_sacar, faltan = self._preparar_segmento(cliente, segmento, destinatarios)
+        if por_sacar:
+            raise RC.ErrorResend(self.env._('Todavía quedan %s contactos por sacar del segmento de Resend: toca '
+                                            '«Enviar» otra vez en un minuto (se siguen sacando).', por_sacar),
+                                 temporal=True)
         if faltan:
             raise RC.ErrorResend(self.env._('Todavía faltan %s clientes por subir a Resend: toca «Enviar» otra vez en '
                                             'un minuto (se siguen subiendo).', faltan), temporal=True)
+        campana.write({'enviando_desde': fields.Datetime.now()})   # la vuelta sigue viva
+        transaccion.confirmar(self.env)
         # La última revisión: si en el segmento queda alguien suscrito que no va en esta campaña, no sale.
         presentes, sobran = self._revisar_segmento(cliente, segmento, destinatarios)
         if sobran:
@@ -343,11 +434,14 @@ class DcasaCamila(models.AbstractModel):
                 nombre=f'{campana.name} ({campana.marca})')
             campana.write({'resend_broadcast_id': broadcast})
             transaccion.confirmar(self.env)
-        # El tope por cliente queda escrito ANTES de mandar: si dos campañas salen seguidas, la segunda ya lo ve.
-        self._registrar_destinatarios(campana, {correo: destinatarios[correo] for correo in presentes})
+        # El tope por cliente queda escrito ANTES de mandar, con TODOS los que se dejaron en el segmento (un listado
+        # de Resend que tarda no deja a nadie sin registro), y «se llamó a send» también: desde ahí el registro ya no
+        # se suelta (pudo salir aunque Resend conteste un error).
+        self._registrar_destinatarios(campana, destinatarios)
+        campana.write({'envio_intentado': fields.Datetime.now()})
         transaccion.confirmar(self.env)
         cliente.enviar_broadcast(campana.resend_broadcast_id)
-        return len(presentes)
+        return len(destinatarios)
 
     # ------------------------------------------------------------------
     # Descartar (también una «aprobada» que quedó trabada)
@@ -380,7 +474,7 @@ class DcasaCamila(models.AbstractModel):
                     cliente.borrar_broadcast(campana.resend_broadcast_id)
             except RC.ErrorResend as error:
                 raise UserError(self.env._('No se pudo revisar la campaña en Resend: %s', error.mensaje)) from None
-            if estado not in ('draft', 'canceled'):
+            if estado not in ('draft', 'canceled', RC.NO_EXISTE):
                 raise UserError(self.env._('En Resend esta campaña está «%s»: ya salió o va a salir, no se descarta.',
                                            estado))
         return self._cancelar(campana)

@@ -636,6 +636,20 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
       «Camila está escribiendo…», un servidor de capturas que arranca con la IA de prueba lenta (`time.sleep`) y su
       guion fijado antes de `server.start` (mismo proceso); `page.route` con `sleep` del API síncrono no sirve.
     - El PostgreSQL de esta máquina puede quedar apagado tras un reinicio del contenedor: `service postgresql start`.
+  - **Revisión adversarial de la etapa 2 (mismo día), lo aprendido:**
+    - **`pg_try_advisory_xact_lock` se suelta con el primer COMMIT** (`transaccion.confirmar` a mitad de la petición):
+      no sirve de turno para algo que confirma por el camino. Y una búsqueda hecha en la misma transacción usa la
+      «foto» de REPEATABLE READ del comienzo: no ve a la otra campaña que confirmó después. Turno = candado de
+      **sesión** (`pg_try_advisory_lock`) + volver a mirar después del COMMIT.
+    - **Un candado de sesión que no se suelta queda pegado a la conexión del grupo de Odoo** (Odoo no hace
+      `DISCARD ALL` al devolverla): ninguna campaña podría volver a salir hasta que esa conexión se cierre. Soltarlo
+      SIEMPRE en un `finally` (y, si la transacción quedó con error, ROLLBACK y luego soltar). Una prueba que lo toma
+      con un cursor aparte tiene que hacer `pg_advisory_unlock_all()` antes de cerrarlo.
+    - Con un servicio externo que procesa en segundo plano (Resend), «contestó error» no es «no salió», y «canceled» no
+      es «nadie lo recibió»: el registro de a quién le salió se suelta solo si nunca se llamó a «send». Un 404 al
+      preguntar el estado es «ya no existe» (lo borraron allá), no un error que trabe todo.
+    - Un campo «de solo lectura» en la vista se escribe igual por RPC: si solo lo debe escribir el código, quitarlo en
+      `create`/`write` salvo una marca de contexto que sea un objeto de Python (lo que llega por RPC es JSON).
 - **Calculadora de envíos (2026-11-06, `dcasa_envios`), lo aprendido:**
   - Un `<input type="number" step="0.1">` dentro de un `<form>` **bloquea el envío** si el valor no es múltiplo del paso
     (7.04): el navegador no llama al `submit` y no hay error visible. Lo atrapó la prueba en el navegador; ahora

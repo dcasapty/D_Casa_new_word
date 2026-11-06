@@ -15,7 +15,9 @@ con el permiso, la baja y el tope de 15 días POR CLIENTE.
   ficha con ese correo; no dijo que sí (o lo dijo con otro correo); o ya le llegó una campaña hace menos de 15 días.
   Se cuenta por correo (una persona, una vez).
 * **El tope por cliente**: un correo que recibió una campaña (``dcasa.camila.destinatario``) desde el comienzo del día
-  de Panamá de hace 14 días no recibe otra (si le salió el 6, la próxima puede ser desde el 21).
+  de Panamá de hace 14 días no recibe otra (si le salió el 6, la próxima puede ser desde el 21). Una campaña
+  «enviada» dentro de esa ventana que NO tiene registro (las de la etapa 1, de antes del registro) cuenta para TODOS:
+  no se sabe a quién le llegó. La migración ``19.0.2.0.0`` les escribe el registro con los que tenían permiso.
 """
 from datetime import datetime, time, timedelta
 from zoneinfo import ZoneInfo
@@ -39,6 +41,13 @@ MOTIVOS_FUERA = [
 ]
 
 
+class _TodosLosCorreos:
+    """«Ya le llegó una hace menos de 15 días» vale para cualquier correo (una enviada sin registro de a quién)."""
+
+    def __contains__(self, _correo):
+        return True
+
+
 class DcasaCamila(models.AbstractModel):
     _inherit = 'dcasa.camila'
 
@@ -53,6 +62,28 @@ class DcasaCamila(models.AbstractModel):
         zona = ZoneInfo('America/Panama')
         dia = self._ahora_panama().date() - timedelta(days=R.DIAS_ENTRE_CAMPANAS - 1)
         return datetime.combine(dia, time.min, tzinfo=zona).astimezone(ZoneInfo('UTC')).replace(tzinfo=None)
+
+    @api.model
+    def _enviadas_sin_registro(self, excepto=None):
+        """Las campañas enviadas dentro del tope que no tienen registro de a quién salieron (las de la etapa 1)."""
+        dominio = [('estado', '=', 'enviada'), ('enviada_en', '>=', self._corte_por_cliente()),
+                   ('destinatario_ids', '=', False)]
+        if excepto:
+            dominio.append(('id', '!=', excepto.id))
+        return self.env['dcasa.camila.campana'].sudo().search(dominio)
+
+    @api.model
+    def _registrar_enviadas_sin_registro(self):
+        """(Migración 19.0.2.0.0.) A las enviadas dentro del tope sin registro se les anotan los correos que HOY tienen
+        permiso, con su fecha de envío: lo conservador (alguno quizá no la recibió). Devuelve cuántas filas escribió."""
+        enviadas = self._enviadas_sin_registro()
+        if not enviadas:
+            return 0
+        permitidos = self.env['res.partner'].sudo()._dcasa_promos_con_permiso()
+        filas = self.env['dcasa.camila.destinatario'].sudo().create([
+            {'campana_id': campana.id, 'correo': correo, 'partner_id': ficha.id, 'enviada_en': campana.enviada_en}
+            for campana in enviadas for correo, ficha in permitidos.items()])
+        return len(filas)
 
     @api.model
     def _correos_recientes(self, excepto=None):
@@ -135,6 +166,8 @@ class DcasaCamila(models.AbstractModel):
         Partner = self.env['res.partner'].sudo()
         permitidos = Partner._dcasa_promos_con_permiso()
         recientes = self._correos_recientes(excepto=campana)
+        if self._enviadas_sin_registro(excepto=campana):
+            recientes = _TodosLosCorreos()   # salió una sin registro hace menos de 15 días: a nadie todavía
         bloqueos = Partner._dcasa_promos_bloqueos_por_correo()
         del_equipo = Partner._dcasa_correos_del_equipo()
         incluidos, fuera, por_chip = {}, {motivo: set() for motivo, _t in MOTIVOS_FUERA}, {}

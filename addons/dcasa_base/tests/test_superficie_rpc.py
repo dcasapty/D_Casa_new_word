@@ -1040,7 +1040,7 @@ LISTA_BLANCA = {
                  'datos de clientes y el texto pasa por la revisión de marca.',
     ('dcasa_camila', 'dcasa.camila', 'escribir'):
         CAMILA + ' Solo un borrador editable; a la IA van solo datos del producto y la idea, el texto pasa por la '
-                 'revisión de marca y la IA tiene su tope diario.',
+                 'revisión de marca y respeta los topes de gasto de IA del mes de Brian (de todos y por persona).',
     ('dcasa_camila', 'dcasa.camila', 'sugerir_productos'):
         CAMILA + ' Solo lee productos elegibles (en tienda y publicados); la IA recibe la idea y nombres de productos.',
     ('dcasa_camila', 'dcasa.camila', 'enviar_prueba'):
@@ -1063,8 +1063,11 @@ LISTA_BLANCA = {
     ('dcasa_camila', 'res.partner', 'create'):
         OVERRIDE + ' Solo IMPIDE crear una ficha con el permiso de novedades escrito a mano.',
     ('dcasa_camila', 'sale.order', 'create'):
-        OVERRIDE + ' Después de crear, anota (en un savepoint, sin poder frenar la cotización) de qué campaña de '
-                   'correo vino el cliente; el campo es de solo lectura.',
+        OVERRIDE + ' Quita «Vino del correo» de lo que manda quien crea y, después de crear, lo anota Camila (en un '
+                   'savepoint, sin poder frenar la cotización).',
+    ('dcasa_camila', 'sale.order', 'write'):
+        OVERRIDE + ' Solo QUITA «Vino del correo» de lo que se escribe (solo lo escribe Camila, con una marca que no '
+                   'viaja por RPC).',
 }
 
 # Modelos abstractos sin ACL: por RPC no se puede llamar NINGÚN método suyo (S-09).

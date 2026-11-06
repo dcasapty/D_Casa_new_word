@@ -35,7 +35,7 @@ class TestRevisionDeMarca(BaseCase):
         self.assertIn('De tú, no de usted.', R.problemas('Le esperamos con lo mejor para su hogar'))
         self.assertIn('Sin descuentos, ofertas ni «gratis»: esta campaña no trae ninguno aprobado.',
                       R.problemas('Envío gratis esta semana'))
-        self.assertIn('Sin «el mejor» ni promesas que no se pueden comprobar.',
+        self.assertIn('Sin «el mejor», «-ísimo», testimonios ni promesas que no se pueden comprobar.',
                       R.problemas('El mejor sofá de Panamá'))
 
     def test_sin_llaves_ni_etiquetas_y_con_su_largo(self):

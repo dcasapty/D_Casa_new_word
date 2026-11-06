@@ -59,7 +59,7 @@ class BrianHerramientasCamila(models.AbstractModel):
             'campanas_abiertas': abiertas or 'no hay ninguna abierta',
             'resultados': [{
                 'campana': fila['nombre'], 'enviada': fila['fecha'], 'enviados': fila['enviados'],
-                'chats_que_llegaron': fila['chats'], 'ventas': fila['ventas'],
+                'chats_que_llegaron': fila['chats'], 'ventas': fila['ventas'], 'ventas_en_la_web': fila['web'],
                 **({'monto_sin_itbms': fila['monto']} if fila['monto'] is not None else {}),
                 **({'resend': fila['resend']} if fila['resend'] else {}),
             } for fila in panel['historial'][:cuantas]],

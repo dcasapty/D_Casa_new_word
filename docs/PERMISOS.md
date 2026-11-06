@@ -49,7 +49,7 @@ Más abajo: [roles y grupos](#roles-y-grupos-mapa-completo) · [interruptores](#
 cualquier otro rol): ve la app Marketing **completa, igual que Gerencia y administradores** (todas las secciones y su
 acceso en el Inicio), **cambia las fotos** de cualquier producto (solo las fotos: no el nombre, el precio ni lo demás),
 usa las herramientas de Brian de marketing y **Camila** (2026-11-06: arma, edita, se manda la prueba y aprueba el envío
-de la campaña de correo; ve a cuántos se envió y cuántos chats y ventas trajo, **no** cuánto dinero). **No** ve dinero, costos, facturas, cobros, pedidos de venta, contabilidad,
+de la campaña de correo; ve a cuántos se envió y cuántos chats y ventas trajo, **no** cuánto dinero ni quiénes llegaron por el correo). **No** ve dinero, costos, facturas, cobros, pedidos de venta, contabilidad,
 Estadísticas ni ninguna otra pantalla de Gerencia (no implica ningún grupo de Ventas, Contabilidad ni Inventario).
 | Crear facturas **de clientes**, buscarlas, imprimirlas y enviarlas | Sí | Sí | Sí | Sí | Sí |
 | Hacer una factura de cliente **suelta** (sin cotización ni pedido; Facturación › Facturas › Nuevo o Subir, RPC o Brian), 2026-10-19 | **No**: cotiza y factura desde el pedido (también anticipos). Tampoco le salen «Nuevo» ni «Subir» (2026-10-22) | Sí | Sí | Sí | Sí |

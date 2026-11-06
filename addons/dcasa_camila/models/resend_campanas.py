@@ -42,6 +42,8 @@ ESPERA_MAXIMA = 5.0
 POR_PAGINA = 100
 MAX_PAGINAS = 200       # 20 000 contactos: más que el plan de D'CASA; corta un bucle si Resend repitiera páginas
 ESTADOS_YA_SALIO = ('scheduled', 'queued', 'sent')
+# Resend contesta 404: el broadcast no existe (p. ej. alguien borró el borrador en el panel de Resend).
+NO_EXISTE = 'no_existe'
 
 
 class ErrorResend(Exception):
@@ -207,7 +209,14 @@ class ClienteCampanas:
         return creado['id']
 
     def estado_broadcast(self, broadcast_id):
-        return (self._llamar('GET', f'/broadcasts/{quote(broadcast_id)}').get('status') or '').lower()
+        """El ``status`` del broadcast, o ``NO_EXISTE`` si Resend contesta 404 (lo borraron allá): no está
+        saliendo, se puede descartar y el reintento arma otro."""
+        try:
+            return (self._llamar('GET', f'/broadcasts/{quote(broadcast_id)}').get('status') or '').lower()
+        except ErrorResend as error:
+            if error.estado == 404:
+                return NO_EXISTE
+            raise
 
     def enviar_broadcast(self, broadcast_id):
         return self._llamar('POST', f'/broadcasts/{quote(broadcast_id)}/send', {})

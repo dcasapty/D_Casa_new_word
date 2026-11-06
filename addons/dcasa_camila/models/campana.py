@@ -53,6 +53,9 @@ class CamilaCampana(models.Model):
     enviada_en = fields.Datetime('Enviada el', readonly=True, index='btree_not_null')
     destinatarios = fields.Integer('Clientes a los que se envió', readonly=True)
     resend_broadcast_id = fields.Char('Campaña en Resend', readonly=True, copy=False)
+    # Se confirma ANTES de llamar a «send»: desde ahí el registro del tope ya no se suelta (pudo salir aunque Resend
+    # conteste un error o su estado tarde en cambiar).
+    envio_intentado = fields.Datetime('Se mandó a Resend el', readonly=True, copy=False)
     error = fields.Char('Último error', readonly=True)
     prueba_a = fields.Char('Última prueba a', readonly=True)
     prueba_en = fields.Datetime('Última prueba el', readonly=True)

@@ -16,6 +16,10 @@ from . import reglas as R
 _logger = logging.getLogger(__name__)
 
 DIAS_VENTANA = 30
+CAMPO = 'dcasa_camila_correo'
+# Solo el código de Camila escribe «Vino del correo»: la marca del contexto es un objeto de Python, que no se puede
+# mandar por RPC (un contexto de RPC es JSON) ni con ``sudo`` desde otro módulo sin importarlo de aquí.
+MARCA_DE_CAMILA = object()
 
 
 class SaleOrder(models.Model):
@@ -25,8 +29,16 @@ class SaleOrder(models.Model):
         'Vino del correo', readonly=True, copy=False, index='btree_not_null',
         help='El cliente llegó al chat por esta campaña de correo de novedades en los 30 días antes de la cotización.')
 
+    @api.model
+    def _sin_vino_del_correo(self, vals):
+        """Quita «Vino del correo» de lo que se escribe, salvo que lo escriba Camila (``MARCA_DE_CAMILA``)."""
+        if CAMPO in vals and self.env.context.get('dcasa_camila_marca') is not MARCA_DE_CAMILA:
+            vals = {clave: valor for clave, valor in vals.items() if clave != CAMPO}
+        return vals
+
     @api.model_create_multi
     def create(self, vals_list):
+        vals_list = [self._sin_vino_del_correo(vals) for vals in vals_list]
         ordenes = super().create(vals_list)
         try:
             with self.env.cr.savepoint():
@@ -34,6 +46,9 @@ class SaleOrder(models.Model):
         except Exception:   # la cotización sale igual, sin la marca
             _logger.warning('Camila: no se pudo marcar la campaña de correo en la cotización', exc_info=True)
         return ordenes
+
+    def write(self, vals):
+        return super().write(self._sin_vino_del_correo(vals))
 
     def _dcasa_camila_marcar_correo(self):
         Llegada = self.env['dcasa.camila.llegada'].sudo()
@@ -43,4 +58,5 @@ class SaleOrder(models.Model):
                                       ('ts', '>=', desde)], order='ts desc, id desc', limit=1)
             if llegada and llegada.campana_id:
                 campana = llegada.campana_id
-                orden.write({'dcasa_camila_correo': f'{R.marca(campana.id)} · {R.limpiar(campana.asunto, 80)}'})
+                orden.with_context(dcasa_camila_marca=MARCA_DE_CAMILA).write(
+                    {CAMPO: f'{R.marca(campana.id)} · {R.limpiar(campana.asunto, 80)}'})

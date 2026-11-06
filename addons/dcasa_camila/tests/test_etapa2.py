@@ -51,15 +51,19 @@ class TestTopePorCliente(Etapa2Comun):
         self.assertEqual(registro.partner_id, self.ana | self.beto)
         self.assertEqual(self.Camila._correos_recientes(), {'ana.zzcm@example.com', 'beto.zzcm@example.com'})
 
-    def test_si_resend_no_la_mando_no_cuenta_para_el_tope(self):
+    def test_si_se_llamo_a_send_el_registro_se_queda(self):
+        """Revisión 2: si se llamó a «send», el registro se queda aunque Resend conteste un error (pudo salir y su
+        estado tardar en cambiar). Solo se suelta si nunca se llamó (``test_revision2``)."""
         self.con_clave()
         self.permiso(self.ana, self.beto)
         campana = self.armar()['campana']
         self.resend.fallar.append(('POST', r'/send$', 503, 'Unavailable'))
         self.assertFalse(self.enviar(campana)['ok'])
-        self.assertFalse(self.campana(campana).destinatario_ids, 'El broadcast quedó en borrador: nadie recibió nada')
+        self.assertEqual(len(self.campana(campana).destinatario_ids), 2)
         otra = self.armar()['campana']
-        self.assertEqual(otra['publico']['total'], 2)
+        self.assertEqual(otra['publico']['total'], 0, 'Mejor no mandarles otra que mandarles dos')
+        self.resend.fallar.clear()
+        self.assertTrue(self.enviar(campana)['ok'], 'El reintento de la misma campaña sí sale')
 
     def test_una_campana_a_la_vez_toca_el_segmento(self):
         self.con_clave()
