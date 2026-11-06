@@ -12,9 +12,10 @@
 // Eso es de Odoo (docs/JUAN.md → «Quién sabe qué»).
 
 import type { ModelMessage } from "ai";
-import { canalActivo, dentroDeHorario, diaDelNegocio, mesDelNegocio, type Config } from "../config";
+import { canalActivo, CONFIG_POR_DEFECTO, dentroDeHorario, diaDelNegocio, mesDelNegocio, type Config } from "../config";
 import type { AdaptadorCanal, CanalId, Entrante, MedioSaliente, Saliente } from "../canales/tipos";
 import { EnvioParcialError, partirPorLargo } from "../canales/tipos";
+import { crudoDe, entranteDeCrudo, prepararEntrante } from "../canales/preparar";
 import { noQuiereSeguimiento, pideUnaPersona } from "../dcasa/intencion";
 import { contextoDelChat, promptEstable, promptParaFugas, promptSeguimiento, presentacionPorDefecto } from "../dcasa/prompt";
 import { analizar, detectarSerHumano, notaDeCorreccion, quitarGraves, TEXTO_FUGA, TEXTO_SIN_DATO, limpiarForma, type ContextoRevision } from "../dcasa/salvaguardas";
@@ -22,7 +23,7 @@ import { pinesEscritos, taparPines, textoParaElModelo } from "../dcasa/sensibles
 import { TEXTO_FALLO_TECNICO, TEXTO_TOPE_DIARIO, textoPasoAVendedora } from "../dcasa/textos";
 import { aMilisegundosOdoo, OdooError, type AdjuntoOdoo, type CuerpoMensaje, type DefHerramienta, type EstadoOdoo, type OdooApi, type RespuestaMensaje } from "../odoo/cliente";
 import type { Env } from "../env";
-import { Cola, crearEsquema, Fotos, Kv, Medios, Mensajes, type FilaMensaje } from "./almacen";
+import { Bandeja, Cola, crearEsquema, Fotos, Kv, Medios, Mensajes, type FilaBandeja, type FilaMensaje } from "./almacen";
 import { DESCANSO_POR_REPETIDO_MS, DESCANSO_POR_TOPE_MS, esRepetido, superaTopeDiario, TOPE_DIARIO_POR_DEFECTO } from "./antispam";
 import { partirEnBurbujas } from "./burbujas";
 import { cifrasDeTexto, construirHerramientas, RegistroDelTurno, textoDeLaHerramienta } from "./herramientas";
@@ -95,6 +96,12 @@ const INTENTOS_COLA_RAPIDOS = 12;
 /** Una escritura suelta que Odoo rechaza con un 4xx se deja tras tantos intentos (reintentar no la arregla). */
 const INTENTOS_COLA_HERRAMIENTA = 6;
 const ESPERA_COLA_LENTA_MS = 6 * 3600_000;
+/**
+ * Un mensaje de Meta guardado crudo antes del 200 (`guardarRecibido`) lo atiende el Worker justo después de contestar. Si pasado
+ * esto sigue en la bandeja, el Worker no alcanzó (se reinició, se le acabó el tiempo después de responder o falló el Durable Object):
+ * lo atiende la alarma. Holgado frente a lo que tarda el Worker (configuración ≤ ~21 s, descargas ≤ 15 s) para no hacerlo dos veces.
+ */
+const RESCATE_MS = 2 * 60_000;
 /** Un envío desde Odoo recordado por su `id_envio`: el tiempo que Odoo puede seguir reintentándolo. */
 const VIDA_ID_ENVIO_MS = 3 * 24 * 3600_000;
 /** Mientras un envío con ese `id_envio` está saliendo, otro igual espera (si no, el cliente recibiría el mensaje dos veces). */
@@ -207,7 +214,10 @@ export class MotorConversacion {
   readonly cola: Cola;
   readonly medios: Medios;
   readonly fotos: Fotos;
+  readonly bandeja: Bandeja;
   private procesando = false;
+  /** `id_mensaje` que `ingest` está atendiendo ahora mismo en este objeto: el rescate de la bandeja no los toca. */
+  private readonly enCurso = new Set<string>();
   private ultimoEscribiendo: number | null = null;
   /** Lo último que se le dijo a Odoo sobre si el asistente está preparando una respuesta (no se repite). */
   private escribiendoEnOdoo = false;
@@ -221,6 +231,7 @@ export class MotorConversacion {
     this.cola = new Cola(deps.sql);
     this.medios = new Medios(deps.sql);
     this.fotos = new Fotos(deps.sql);
+    this.bandeja = new Bandeja(deps.sql);
   }
 
   private log(nivel: "info" | "warn" | "error", mensaje: string, extra?: unknown) {
@@ -293,7 +304,40 @@ export class MotorConversacion {
 
   // ── Entrada ───────────────────────────────────────────────────────────────
 
+  /**
+   * Webhooks de Meta (`guardarAntes`, rutas.ts): guarda el mensaje TAL CUAL llegó, sin bajar nada ni llamar a nadie, y arma la
+   * alarma de rescate. Es lo único que el webhook espera antes de contestar 200, así que tiene que ser rápido. Cloudflare no entrega
+   * la respuesta de un Durable Object hasta que lo escrito quedó en disco: con `{nuevo}` el mensaje ya no se pierde.
+   *
+   * Idempotente por `id_mensaje` (Meta manda el mismo id cuando reintenta): si ya se atendió o ya está en la bandeja, `nuevo: false`
+   * y quien llama no lo vuelve a atender.
+   */
+  async guardarRecibido(e: Entrante): Promise<{ nuevo: boolean }> {
+    if (!e.id_mensaje) throw new Error("un mensaje sin id_mensaje no se puede guardar (no se podría reconocer un reintento)");
+    const nuevo = !this.mensajes.existe(e.id_mensaje) && !this.bandeja.existe(e.id_mensaje);
+    if (nuevo) {
+      const ahora = this.deps.ahora();
+      this.bandeja.guardar(e.id_mensaje, JSON.stringify(crudoDe(e)), ahora + RESCATE_MS, ahora);
+    }
+    // También al repetirse: si la primera vez falló justo al armar la alarma, el reintento la deja armada.
+    await this.programar();
+    return { nuevo };
+  }
+
   async ingest(e: Entrante): Promise<ResultadoIngest> {
+    const id = e.id_mensaje;
+    if (id) this.enCurso.add(id);
+    try {
+      const r = await this.atenderEntrante(e);
+      // Atendido (o reconocido como repetido o eco): ya no hace falta rescatarlo. Si `atenderEntrante` lanzó, se queda en la bandeja.
+      if (id) this.bandeja.borrar(id);
+      return r;
+    } finally {
+      if (id) this.enCurso.delete(id);
+    }
+  }
+
+  private async atenderEntrante(e: Entrante): Promise<ResultadoIngest> {
     const ahora = this.deps.ahora();
     this.fijarIdentidad(e);
 
@@ -493,7 +537,7 @@ export class MotorConversacion {
 
   /** Programa la próxima alarma: la más cercana entre la ráfaga, la cola de Odoo y la limpieza. */
   async programar(): Promise<void> {
-    const candidatas = [this.kv.numero("t_rafaga"), this.cola.proxima(), this.kv.numero("t_purga")].filter((x): x is number => x !== null);
+    const candidatas = [this.kv.numero("t_rafaga"), this.cola.proxima(), this.kv.numero("t_purga"), this.bandeja.proxima()].filter((x): x is number => x !== null);
     await this.deps.fijarAlarma(candidatas.length ? Math.min(...candidatas) : null);
   }
 
@@ -506,6 +550,7 @@ export class MotorConversacion {
       if (this.kv.numero("t_purga") === null) this.kv.poner("t_purga", ahora + 24 * 3600_000);
 
       await this.vaciarCola().catch((e) => this.log("error", "cola de Odoo", String(e)));
+      await this.rescatarBandeja().catch((e) => this.log("error", "bandeja", String(e)));
 
       const t = this.kv.numero("t_rafaga");
       if (t !== null && t <= this.deps.ahora()) {
@@ -531,11 +576,53 @@ export class MotorConversacion {
     this.cola.purgar(ahora - RETENCION_COLA_MENSAJES_MS, "mensaje");
     this.cola.purgar(ahora - RETENCION_COLA_HERRAMIENTAS_MS, "herramienta");
     this.medios.purgar(ahora - 2 * 24 * 3600_000);
+    this.bandeja.purgar(ahora - RETENCION_COLA_MENSAJES_MS);
     this.fotos.purgar(ahora - 30 * 24 * 3600_000);
     this.deps.sql.correr("DELETE FROM enviados WHERE ts < ?", ahora - 24 * 3600_000);
     this.deps.sql.correr("DELETE FROM seguimientos WHERE ts < ?", ahora - 90 * 24 * 3600_000);
     this.deps.sql.correr("DELETE FROM kv WHERE k LIKE 'env:%' AND CAST(v AS INTEGER) < ?", ahora - 24 * 3600_000);
     this.deps.sql.correr(`DELETE FROM kv WHERE k LIKE '${PREFIJO_ID_ENVIO}%' AND CAST(json_extract(v, '$.ts') AS INTEGER) < ?`, ahora - VIDA_ID_ENVIO_MS);
+  }
+
+  // ── Bandeja: lo que Meta entregó y el Worker no alcanzó a atender ──────────
+
+  /**
+   * Atiende aquí lo que lleva más de `RESCATE_MS` en la bandeja (lo normal es que el Worker lo atienda en segundos y lo borre).
+   * Con la configuración de Odoo desconocida no se decide nada (un canal que arranca apagado parecería apagado): se reintenta más
+   * tarde. Canal apagado en Odoo: se suelta sin registrar, como hace el webhook. Si falla, espera más cada vez; nunca se descarta
+   * por fallar (solo por vejez, como la cola).
+   */
+  private async rescatarBandeja(): Promise<void> {
+    for (const fila of this.bandeja.vencidas(this.deps.ahora())) {
+      const ahora = this.deps.ahora();
+      if (this.enCurso.has(fila.id_mensaje)) {
+        this.bandeja.posponer(fila.id_mensaje, ahora + RESCATE_MS, false);
+        continue;
+      }
+      try {
+        await this.rescatar(fila);
+      } catch (err) {
+        const espera = Math.min(ESPERA_COLA_LENTA_MS, RESCATE_MS * 2 ** fila.intentos);
+        this.bandeja.posponer(fila.id_mensaje, this.deps.ahora() + espera, true);
+        // Un cliente sin respuesta: tras unos intentos sube a «error» para que se vea en el registro del Worker.
+        this.log(fila.intentos + 1 >= 3 ? "error" : "warn", `no se pudo atender un mensaje guardado de Meta (intento ${fila.intentos + 1}); se reintenta`, String(err).slice(0, 300));
+      }
+    }
+  }
+
+  private async rescatar(fila: FilaBandeja): Promise<void> {
+    const crudo = JSON.parse(fila.cuerpo) as Entrante;
+    const cfg = await this.deps.config();
+    if (cfg === CONFIG_POR_DEFECTO) throw new Error("no se pudo leer la configuración de Odoo");
+    if (!canalActivo(cfg, crudo.canal)) {
+      this.log("info", "mensaje guardado de un canal apagado en Odoo: se suelta sin registrar");
+      this.bandeja.borrar(fila.id_mensaje);
+      return;
+    }
+    const adaptador = this.deps.canal(crudo.canal);
+    const descargar = adaptador?.descargar ? (ref: string) => adaptador.descargar!(ref, this.deps.env) : undefined;
+    this.log("warn", "el Worker no alcanzó a atender un mensaje de Meta: lo atiende la alarma");
+    await this.ingest(await prepararEntrante(entranteDeCrudo(crudo, descargar)));
   }
 
   // ── Cola de escrituras a Odoo (con reintentos: Odoo puede estar dormido) ──
@@ -1388,7 +1475,7 @@ export class MotorConversacion {
    */
   async olvidar(): Promise<{ ok: true; mensajes: number }> {
     const mensajes = this.deps.sql.uno<{ n: number }>("SELECT COUNT(*) AS n FROM mensajes")?.n ?? 0;
-    for (const tabla of ["mensajes", "cola", "medios", "fotos", "enviados", "seguimientos", "kv"]) this.deps.sql.correr(`DELETE FROM ${tabla}`);
+    for (const tabla of ["mensajes", "cola", "medios", "fotos", "enviados", "seguimientos", "kv", "bandeja"]) this.deps.sql.correr(`DELETE FROM ${tabla}`);
     await this.deps.fijarAlarma(null);
     return { ok: true, mensajes };
   }
@@ -1402,6 +1489,7 @@ export class MotorConversacion {
       silencio: this.silencio(),
       pendientes: this.mensajes.pendientes().length,
       cola: this.deps.sql.uno<{ n: number }>("SELECT COUNT(*) AS n FROM cola")?.n ?? 0,
+      bandeja: this.bandeja.cuantas(),
     };
   }
 }

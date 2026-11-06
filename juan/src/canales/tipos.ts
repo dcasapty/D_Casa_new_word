@@ -21,6 +21,11 @@ export interface AdjuntoEntrante {
   bytes?: Uint8Array;
   /** Para los canales que obligan a pedir el archivo con credenciales (Telegram, Cloud API): se llama una vez. */
   obtener?: () => Promise<{ bytes: Uint8Array; mime?: string } | null>;
+  /**
+   * Con qué se vuelve a pedir el archivo al canal (`AdaptadorCanal.descargar`), p. ej. el `media_id` de la Cloud API. Se guarda junto
+   * al mensaje crudo (`guardarAntes`): si el Worker se cae antes de atenderlo, el Durable Object lo baja él mismo. Nunca lleva un token.
+   */
+  ref?: string;
   /** Un sticker (llega como imagen): se guarda para que el equipo lo vea en Odoo, pero el lector de imágenes no lo mira y no se
    *  anota para una vendedora (no es un comprobante ni un producto). */
   sticker?: boolean;
@@ -95,6 +100,12 @@ export interface ResultadoWebhook {
   entrantes: Entrante[];
   /** true = el proveedor necesita un error HTTP para reintentar (el puente QR); false = se responde 200 y se procesa aparte. */
   esperar?: boolean;
+  /**
+   * true = el proveedor reintenta SOLO ante un error HTTP y pide una respuesta rápida (Meta: WhatsApp Cloud, Messenger, Instagram).
+   * Cada mensaje se guarda tal cual llegó en su Durable Object ANTES de contestar 200; si no se pudo guardar, 500 y Meta reintenta.
+   * Lo lento (archivos, IA, la respuesta) va después. Los archivos tienen que venir como `url` o `ref` (nunca solo en bytes).
+   */
+  guardarAntes?: boolean;
 }
 
 export interface Capacidades {
@@ -141,6 +152,8 @@ export interface AdaptadorCanal {
   configurado(env: Env, canal: CanalId): boolean;
   /** Verifica el origen del webhook y lo traduce a mensajes del motor. */
   recibir(req: Request, env: Env): Promise<ResultadoWebhook>;
+  /** Vuelve a pedir un archivo entrante por su `ref` (el Durable Object, al rescatar un mensaje guardado con `guardarAntes`). */
+  descargar?(ref: string, env: Env): Promise<{ bytes: Uint8Array; mime?: string } | null>;
   enviar(canal: CanalId, salida: Saliente, env: Env): Promise<ResultadoEnvio>;
   /**
    * La foto de perfil de quien escribe, pequeña, si el canal la da y la persona la tiene (y deja verla). `null` = no hay.

@@ -13,6 +13,7 @@
 
 import { canalActivo, CONFIG_POR_DEFECTO, type Config } from "./config";
 import { adaptadorPorRuta } from "./canales";
+import { crudoDe, prepararEntrante } from "./canales/preparar";
 import { TODOS_LOS_CANALES, type AdaptadorCanal, type CanalId, type Entrante, json } from "./canales/tipos";
 import type { Env } from "./env";
 import type { ResultadoIngest, ResultadoSeguimiento, SolicitudEnviar, SolicitudSeguimiento } from "./motor/conversacion";
@@ -24,6 +25,8 @@ import { bearerValido } from "./seguridad";
 /** Lo que las rutas necesitan de una conversación (el stub del Durable Object o un doble en las pruebas). */
 export interface ConversacionApi {
   ingest(e: Entrante): Promise<ResultadoIngest>;
+  /** Guarda el mensaje crudo (webhooks de Meta, antes del 200). `nuevo: false` = ya estaba (un reintento): no se atiende otra vez. */
+  guardarRecibido(e: Entrante): Promise<{ nuevo: boolean }>;
   enviarVendedora(s: SolicitudEnviar): Promise<{ ok: true; id_mensaje: string }>;
   fijarEstado(s: { estado: "humano" | "bot"; pausada_hasta?: string | number | null; nota_para_el_bot?: string | null }): Promise<{ ok: true }>;
   seguimiento(s: SolicitudSeguimiento): Promise<ResultadoSeguimiento>;
@@ -43,40 +46,21 @@ export interface DepsRutas {
   esperarDespues(trabajo: Promise<unknown>): void;
 }
 
-const MAX_ADJUNTO_BYTES = 12 * 1024 * 1024;
-const PLAZO_DESCARGA_MS = 15_000;
+/**
+ * Lo más que un webhook de Meta espera a la configuración de Odoo antes de guardar el mensaje. Meta pide contestar en 5 segundos o
+ * menos (developers.facebook.com/docs/messenger-platform/webhooks, «Webhook Performance Requirements»; la guía de WhatsApp Cloud no
+ * da cifra y reintenta hasta 7 días). Casi siempre está en caché (60 s); si Odoo tarda, el mensaje se guarda igual y la decisión de
+ * si el canal está encendido se toma después (el Worker o el rescate del Durable Object).
+ */
+const PLAZO_CONFIG_WEBHOOK_MS = 2_000;
 
 const esCanal = (v: unknown): v is CanalId => typeof v === "string" && (TODOS_LOS_CANALES as readonly string[]).includes(v);
 const esObjeto = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 const error = (mensaje: string, status: number) => json({ ok: false, error: mensaje }, status);
 
-/** Resuelve las descargas pendientes (Telegram, Cloud API) y deja el mensaje como datos planos. */
-async function prepararEntrante(e: Entrante): Promise<Entrante> {
-  const adjuntos = await Promise.all(
-    e.adjuntos.map(async (a) => {
-      const limpio = { tipo: a.tipo, mime: a.mime, nombre: a.nombre, url: a.url, bytes: a.bytes, ...(a.sticker ? { sticker: true } : {}) };
-      if (!limpio.bytes && a.obtener) {
-        let reloj: ReturnType<typeof setTimeout> | undefined;
-        try {
-          const r = await Promise.race([a.obtener(), new Promise<null>((res) => (reloj = setTimeout(() => res(null), PLAZO_DESCARGA_MS)))]);
-          if (r && r.bytes.byteLength > 0 && r.bytes.byteLength <= MAX_ADJUNTO_BYTES) {
-            limpio.bytes = r.bytes;
-            limpio.mime ??= r.mime;
-          }
-        } catch (err) {
-          console.warn("[juan] no se pudo descargar el archivo del cliente:", String(err).slice(0, 200));
-        } finally {
-          clearTimeout(reloj);
-        }
-      }
-      return limpio;
-    }),
-  );
-  return { ...e, adjuntos };
-}
-
 async function entregar(e: Entrante, d: DepsRutas): Promise<void> {
-  // Un canal apagado en Odoo no atiende ni registra: el webhook responde 200 y listo.
+  // Un canal apagado en Odoo no atiende ni registra: el webhook responde 200 y listo. (Un mensaje de Meta que ya se guardó crudo
+  // y aquí no pasa — canal apagado o configuración desconocida — lo decide el rescate del Durable Object: ver `guardarAntes`.)
   const cfg = await d.config();
   if (!canalActivo(cfg, e.canal)) return;
   const listo = await prepararEntrante(e);
@@ -136,6 +120,7 @@ async function webhook(adaptador: AdaptadorCanal, req: Request, env: Env, d: Dep
   const entrantes = await soloLosPermitidos(r.entrantes, d);
   if (entrantes === null) return new Response("la lista de chats permitidos no está disponible: reintenta", { status: 503 });
   if (entrantes.length === 0) return r.respuesta;
+  if (r.guardarAntes) return guardarYContestar(adaptador, r.respuesta, entrantes, d);
 
   const trabajo = (async () => {
     for (const e of entrantes) await entregar(e, d);
@@ -150,9 +135,70 @@ async function webhook(adaptador: AdaptadorCanal, req: Request, env: Env, d: Dep
     }
     return r.respuesta;
   }
-  // Telegram y Meta reintentan si tardamos: se responde ya y el mensaje se atiende después.
+  // Telegram reintenta si tardamos: se responde ya y el mensaje se atiende después.
   d.esperarDespues(trabajo.catch((e) => console.error(`[juan] ${adaptador.ruta}:`, e instanceof Error ? e.message : String(e))));
   return r.respuesta;
+}
+
+/** La configuración de Odoo si llega a tiempo; null si tarda más que `plazoMs` o falla. */
+async function configAlVuelo(d: DepsRutas, plazoMs: number): Promise<Config | null> {
+  let reloj: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([d.config(), new Promise<null>((res) => (reloj = setTimeout(() => res(null), plazoMs)))]);
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(reloj);
+  }
+}
+
+/**
+ * Webhooks de Meta (WhatsApp Cloud, Messenger, Instagram). Meta reintenta solo lo que no recibió 200, así que el 200 sale cuando
+ * cada mensaje ya quedó guardado en su Durable Object (`guardarRecibido`: rápido, sin descargas ni IA). Si alguno no se pudo
+ * guardar: 500 y Meta reintenta el lote (lo ya guardado se reconoce por su id y no se atiende dos veces). Lo lento — descargar
+ * archivos, transcribir, leer imágenes, la ráfaga, la IA y la respuesta — sigue después de contestar, como siempre; si el Worker no
+ * alcanza a hacerlo, la alarma del Durable Object lo atiende desde la bandeja.
+ */
+async function guardarYContestar(adaptador: AdaptadorCanal, respuesta: Response, entrantes: Entrante[], d: DepsRutas): Promise<Response> {
+  const cfg = await configAlVuelo(d, PLAZO_CONFIG_WEBHOOK_MS);
+  // Solo un «apagado» seguro descarta (no registra, como siempre). Sin configuración (tarda, o Odoo no contestó y no hay copia) se
+  // guarda igual: un canal que arranca apagado parecería apagado y el mensaje se perdería.
+  const conocida = cfg !== null && cfg !== CONFIG_POR_DEFECTO;
+  const aGuardar = entrantes.filter((e) => !conocida || canalActivo(cfg, e.canal));
+  if (aGuardar.length === 0) return respuesta;
+
+  // Conversaciones distintas a la vez (un lote grande no alarga la respuesta); dentro de una misma, en el orden del lote, y si uno
+  // falla los que siguen de esa persona tampoco se guardan (el reintento de Meta los trae en orden).
+  const filas = new Map<string, Promise<unknown>>();
+  const guardados = await Promise.allSettled(
+    aGuardar.map((e) => {
+      const clave = `${e.canal}:${e.id_externo}`;
+      const turno = (filas.get(clave) ?? Promise.resolve()).then(() => d.conversacion(e.canal, e.id_externo).guardarRecibido(crudoDe(e)));
+      filas.set(clave, turno);
+      return turno;
+    }),
+  );
+  const nuevos = aGuardar.filter((_, i) => {
+    const g = guardados[i];
+    return g.status === "fulfilled" && g.value.nuevo;
+  });
+  if (nuevos.length > 0) {
+    d.esperarDespues(
+      (async () => {
+        // Uno que falla no frena a los demás; el que falló sigue en la bandeja y lo atiende el rescate.
+        for (const e of nuevos) {
+          await entregar(e, d).catch((err) => console.error(`[juan] ${adaptador.ruta}:`, err instanceof Error ? err.message : String(err)));
+        }
+      })(),
+    );
+  }
+  const fallos = guardados.filter((g): g is PromiseRejectedResult => g.status === "rejected");
+  if (fallos.length > 0) {
+    const motivo = fallos[0].reason;
+    console.error(`[juan] no se pudo guardar ${fallos.length} mensaje(s) de ${adaptador.ruta}; Meta reintentará:`, motivo instanceof Error ? motivo.message : String(motivo));
+    return new Response("no se pudo guardar el mensaje", { status: 500 });
+  }
+  return respuesta;
 }
 
 async function media(ruta: string, url: URL, req: Request, env: Env, d: DepsRutas): Promise<Response> {

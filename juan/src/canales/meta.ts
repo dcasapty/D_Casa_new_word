@@ -155,7 +155,9 @@ export function crearMeta(op: OpcionesMeta = {}): AdaptadorCanal {
       } catch {
         return nada(ok200());
       }
-      return { respuesta: json({ ok: true }), entrantes: eventosDeMeta(cuerpo, Date.now()) };
+      // Como WhatsApp Cloud: se contesta 200 cuando cada mensaje ya quedó guardado (`guardarAntes`, rutas.ts). Los archivos de
+      // Messenger e Instagram llegan como `url` (no hay nada que bajar con credenciales antes de guardarlos).
+      return { respuesta: json({ ok: true }), entrantes: eventosDeMeta(cuerpo, Date.now()), guardarAntes: true };
     },
 
     async enviar(canal: CanalId, salida: Saliente, env: Env): Promise<ResultadoEnvio> {
