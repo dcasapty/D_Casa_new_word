@@ -332,6 +332,31 @@ class TestRevisarElRemitenteEnResend(ComunRemitente):
 
 
 @tagged('post_install', '-at_install')
+class TestGuiaAbrieronEnCero(BaseCase):
+    """La Guía (``dcasa_guia/data/guia.json``) explica en palabras sencillas por qué «Abrieron» sale en 0 y cómo
+    encender el conteo solo para las campañas (sin fechas ni montos inventados)."""
+
+    def test_la_guia_tiene_los_pasos(self):
+        import json
+
+        from odoo.tools import file_open
+
+        try:
+            with file_open('dcasa_guia/data/guia.json') as archivo:
+                guia = json.load(archivo)
+        except FileNotFoundError:
+            self.skipTest('dcasa_guia no está en el camino de módulos')
+        tarea = next(t for t in guia['tareas'] if t['id'] == 'camila-abrieron-en-cero')
+        self.assertEqual(tarea['titulo'], '¿Por qué Abrieron sale en 0?')
+        self.assertEqual(tarea['destino'], {'menu': 'dcasa_camila.menu_camila'})
+        pasos = ' '.join(p['texto'] for p in tarea['pasos'])
+        for texto in ('Resend › Domains', 'novedades.dcasapty.com', 'Configuration', 'Enable tracking metrics',
+                      '«links»', 'Cloudflare', 'CNAME', 'nube gris', 'DNS only', 'Remitente de las campañas'):
+            self.assertIn(texto, pasos)
+        self.assertIn('facturas', tarea['nota'], 'Dice por qué no se enciende en el dominio de las facturas')
+
+
+@tagged('post_install', '-at_install')
 class TestClasificarDominio(BaseCase):
     """Lo que dice Resend de un dominio, en lo que le importa a Camila (sin base de datos)."""
 
