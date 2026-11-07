@@ -64,6 +64,8 @@ function bytesABase64(bytes: Uint8Array): string {
   return btoa(bin);
 }
 const IMAGENES_POR_DIA = 10;
+/** Notas de voz que se transcriben por persona al día (issue #24): cada una cuesta un poco de IA. Una persona normal manda menos. */
+export const AUDIOS_POR_DIA = 20;
 
 /** Lo que ya salió por el canal en un mismo envío. */
 interface ProgresoDeEnvio {
@@ -409,7 +411,9 @@ export class MotorConversacion {
 
     if (e.id_mensaje && this.mensajes.existe(e.id_mensaje)) return { ok: true, accion: "duplicado" };
 
-    const { lista, transcripciones, lecturas, stickers } = await this.prepararAdjuntos(e, ahora, vigente);
+    // Transcribir y leer imágenes cuesta IA: no se gasta en lo que el anti-spam o el tope diario ya frenan (issue #24).
+    const leerConIa = !!e.propio || this.valeLaPenaLeer((e.texto ?? "").trim(), ahora);
+    const { lista, transcripciones, lecturas, stickers } = await this.prepararAdjuntos(e, ahora, vigente, leerConIa);
     // «Borrar mis datos» llegó mientras se transcribía o se leía una imagen: no se guarda nada de este mensaje.
     if (!vigente()) return { ok: true, accion: "olvidado" };
     // Mientras se preparaban los adjuntos pudo entrar el mismo mensaje por otra puerta (un reintento del proveedor en paralelo).
@@ -424,7 +428,9 @@ export class MotorConversacion {
     const previos = this.mensajes.textosDelCliente(5);
     const repetido = !!textoOriginal && esRepetido(textoOriginal, previos);
     const sobreElTope = superaTopeDiario(this.mensajes.delClienteDesde(ahora - 24 * 3600_000), this.deps.topeDiario ?? TOPE_DIARIO_POR_DEFECTO);
-    const pide = !!textoOriginal && pideUnaPersona(textoOriginal);
+    // Lo que dijo el cliente: lo escrito y cada nota de voz transcrita (una nota de voz que pide una persona vale igual; issue #24).
+    const dicho = [textoOriginal, ...transcripciones].filter(Boolean);
+    const pide = dicho.some(pideUnaPersona);
     // «Vencido» es lo que el CANAL entregó tarde (más de 2 h entre que el cliente lo escribió y que llegó a Juan). Lo que esperó en la
     // bandeja por culpa nuestra (Odoo caído, el Worker se reinició) no cuenta: se contesta mientras el canal deje (ventana de 24 h).
     const vencido = (op.recibido ?? ahora) - e.ts > MENSAJE_VENCIDO_MS || ahora - e.ts > VENTANA_24H_MS;
@@ -456,7 +462,7 @@ export class MotorConversacion {
     // Odoo es el historial permanente: todo mensaje del cliente se registra, conteste el bot o no.
     this.cola.agregar("mensaje", this.cuerpoDeMensaje(e, taparPines(texto), "cliente", "entrante", lista), ahora);
 
-    if (textoOriginal && noQuiereSeguimiento(textoOriginal) && !this.kv.bandera("sin_seguimiento")) {
+    if (dicho.some(noQuiereSeguimiento) && !this.kv.bandera("sin_seguimiento")) {
       this.kv.poner("sin_seguimiento", true);
       this.cola.agregar("herramienta", { nombre: "anotar_conversacion", argumentos: { nota: "El cliente pidió que no lo contacten más o dijo que ya no le interesa. No enviar seguimientos." } }, ahora);
     }
@@ -602,10 +608,22 @@ export class MotorConversacion {
     };
   }
 
+  /**
+   * ¿Se puede gastar IA en leer los archivos de este mensaje (transcribir, mirar imágenes)? No si la conversación descansa por spam, si
+   * el mensaje es un repetido o si ya se llegó al tope diario: esos no se contestan (issue #24). El archivo igual se guarda para Odoo.
+   */
+  private valeLaPenaLeer(textoOriginal: string, ahora: number): boolean {
+    const descanso = this.kv.numero("descanso_hasta");
+    if (descanso !== null && descanso > ahora) return false;
+    if (textoOriginal && esRepetido(textoOriginal, this.mensajes.textosDelCliente(5))) return false;
+    return !superaTopeDiario(this.mensajes.delClienteDesde(ahora - 24 * 3600_000), this.deps.topeDiario ?? TOPE_DIARIO_POR_DEFECTO);
+  }
+
   private async prepararAdjuntos(
     e: Entrante,
     ahora: number,
     vigente: () => boolean = () => true,
+    leerConIa = true,
   ): Promise<{ lista: AdjuntoOdoo[]; transcripciones: string[]; lecturas: (LecturaImagen | null)[]; stickers: boolean[] }> {
     const lista: AdjuntoOdoo[] = [];
     const transcripciones: string[] = [];
@@ -617,7 +635,7 @@ export class MotorConversacion {
       let url = a.url ?? null;
       if (a.bytes && a.bytes.byteLength > 0) {
         const mime = a.mime ?? "application/octet-stream";
-        if (a.tipo === "imagen" && !a.sticker && this.deps.mirarImagen && imagenesLeidas < IMAGENES_POR_MENSAJE && this.cabeOtraLecturaHoy(ahora)) {
+        if (leerConIa && a.tipo === "imagen" && !a.sticker && this.deps.mirarImagen && imagenesLeidas < IMAGENES_POR_MENSAJE && this.cabeOtraLecturaHoy(ahora)) {
           imagenesLeidas++;
           try {
             lectura = await this.deps.mirarImagen(a.bytes, mime);
@@ -625,7 +643,7 @@ export class MotorConversacion {
             this.log("warn", "no se pudo leer la imagen: sigue el camino de siempre (la revisa una vendedora)", String(err));
           }
         }
-        if (a.tipo === "audio" && this.deps.transcribir) {
+        if (leerConIa && a.tipo === "audio" && this.deps.transcribir && this.cabeOtroAudioHoy(ahora)) {
           try {
             const t = await this.deps.transcribir(a.bytes, mime);
             if (t) transcripciones.push(t.trim());
@@ -661,6 +679,16 @@ export class MotorConversacion {
     if (n >= IMAGENES_POR_DIA) return false;
     this.kv.poner("imagenes_dia", dia);
     this.kv.poner("imagenes_n", n + 1);
+    return true;
+  }
+
+  /** Igual que las imágenes, para las notas de voz: false si esta persona ya llegó a su tope de hoy (la nota queda para una vendedora). */
+  private cabeOtroAudioHoy(ahora: number): boolean {
+    const dia = new Date(ahora).toISOString().slice(0, 10);
+    const n = this.kv.texto("audios_dia") === dia ? (this.kv.numero("audios_n") ?? 0) : 0;
+    if (n >= AUDIOS_POR_DIA) return false;
+    this.kv.poner("audios_dia", dia);
+    this.kv.poner("audios_n", n + 1);
     return true;
   }
 
