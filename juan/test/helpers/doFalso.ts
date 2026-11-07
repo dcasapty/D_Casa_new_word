@@ -132,6 +132,8 @@ export function dcasaFalso() {
     mensaje: { ok: true, conversacion_id: 77, estado: "bot", bot_activo: true, pausada_hasta: null, dentro_de_horario: true } as Record<string, unknown>,
     herramienta: (_nombre: string, _args: Record<string, unknown>): unknown => ({ ok: true, resultado: {} }),
     caido: false,
+    /** `POST /eventos` (palomitas y reacciones). null = un Odoo viejo, sin la ruta (404). */
+    eventos: ((cuerpo: { eventos: unknown[] }): Response => Response.json({ ok: true, aplicados: cuerpo.eventos.length, desconocidos: [] })) as ((cuerpo: { eventos: unknown[] }) => Response) | null,
   };
   const fetcher = {
     fetch: async (url: string, init?: RequestInit) => {
@@ -148,6 +150,7 @@ export function dcasaFalso() {
       if (ruta === "/herramienta") return Response.json(estado.herramienta(cuerpo.nombre, cuerpo.argumentos));
       if (ruta === "/seguimiento/hecho") return Response.json({ ok: true });
       if (ruta === "/escribiendo") return Response.json({ ok: true });
+      if (ruta === "/eventos" && estado.eventos) return estado.eventos(cuerpo);
       return new Response("no", { status: 404 });
     },
   };

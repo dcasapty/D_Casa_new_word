@@ -524,6 +524,137 @@ body.o_dcj_arrastrando_ancho { cursor: col-resize; user-select: none; }
     .o_dcj_burbuja_aviso, .o_dcj_burbuja_estado { margin-top: 4px; font-size: .76rem; font-weight: 600; }
     .o_dcj_estado_envio_fallido { text-decoration: underline; text-underline-offset: 2px; }
 }
+// --- Citas, reenviados, reacciones y palomitas (2026-11-07). Sistema plano: bordes y fondos lisos, sin sombras. -------
+.o_dcj .o_dcj_burbuja {
+    position: relative;
+
+    .o_dcj_burbuja_hora { display: inline-flex; align-items: baseline; gap: 5px; white-space: nowrap; }
+    // Las palomitas van en una pastilla blanca: el azul de «leído» se ve igual en la burbuja clara del asistente y en la
+    // azul de la vendedora (que nunca es azul sobre azul).
+    .o_dcj_palomitas {
+        display: inline-flex;
+        align-items: center;
+        padding: 0 5px;
+        border-radius: 999px;
+        background: #FFFFFF;
+        color: #98A2B3;   // gris claro: enviado y entregado; leído va en el azul de la marca (se distinguen de un vistazo)
+        font-size: .7rem;
+        line-height: 1.5;
+        .o_dcj_segunda { margin-left: -.45em; }
+        &.o_dcj_palomitas_leido { color: var(--dc-azul-600, #1340B1); font-weight: 700; }
+        &.o_dcj_palomitas_fallido { gap: 4px; color: $dcj-rojo; font-weight: 700; }
+    }
+    .o_dcj_reenviado {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        margin: 0 0 2px;
+        font-size: .74rem;
+        font-style: italic;
+        color: var(--dc-tinta-3, #6B7690);
+    }
+    .o_dcj_cita {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        width: 100%;
+        margin: 2px 0 4px;
+        padding: 4px 8px;
+        border: 0;
+        border-left: 3px solid var(--dc-azul-600, #1340B1);
+        border-radius: var(--dc-r-sm, 8px);
+        background: var(--dc-azul-50, #F2F6FE);
+        color: inherit;
+        text-align: left;
+        font-size: .8rem;
+        cursor: pointer;
+        .o_dcj_cita_quien { color: var(--dc-azul-700, #0F3591); font-size: .74rem; }
+        .o_dcj_cita_texto {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            color: var(--dc-tinta-2, #44506A);
+        }
+        &.o_dcj_cita_perdida { cursor: default; border-left-color: var(--dc-linea-fuerte, #CBD3E1); .o_dcj_cita_quien { color: var(--dc-tinta-3, #6B7690); font-style: italic; font-weight: 600; } }
+    }
+    &.o_dcj_burbuja_bot .o_dcj_cita { background: rgba(255, 255, 255, .7); }
+    &.o_dcj_burbuja_vendedora {
+        .o_dcj_reenviado { color: var(--dc-azul-200, #C3D2F6); }
+        // En la burbuja azul la barra de la cita va en amarillo (amarillo solo sobre azul, nunca sobre blanco).
+        .o_dcj_cita {
+            border-left-color: $dcj-amarillo;
+            background: rgba(255, 255, 255, .14);
+            .o_dcj_cita_quien { color: #FFFFFF; }
+            .o_dcj_cita_texto { color: var(--dc-azul-100, #E4ECFD); }
+        }
+    }
+    // La reacción del cliente, en la esquina de abajo (una por persona y mensaje, como en WhatsApp).
+    &.o_dcj_con_reaccion { margin-bottom: 12px; }
+    .o_dcj_reaccion {
+        position: absolute;
+        left: 10px;
+        bottom: 0;
+        transform: translateY(60%);
+        min-width: 26px;
+        padding: 0 5px;
+        border: 1px solid var(--dc-linea, #E2E7F0);
+        border-radius: 999px;
+        background: #FFFFFF;
+        color: var(--dc-tinta, #0E1A33);   // en la burbuja azul de la vendedora el texto es blanco: aquí no
+        font-size: .9rem;
+        line-height: 1.45;
+        text-align: center;
+    }
+    // «Responder»: no ocupa lugar ni tapa nada (va al lado de la burbuja del cliente, que está a la izquierda); aparece al
+    // pasar el mouse, con el teclado (Tab) o, en el celular, con el dedo apretado (ahí solo el ícono, redondo y grande).
+    .o_dcj_responder {
+        position: absolute;
+        top: 50%;
+        left: calc(100% + 8px);
+        transform: translateY(-50%);
+        white-space: nowrap;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        min-height: 26px;
+        padding: 0 10px;
+        border: 1px solid var(--dc-azul-600, #1340B1);
+        border-radius: 999px;
+        background: #FFFFFF;
+        color: var(--dc-azul-600, #1340B1);
+        font-size: .76rem;
+        font-weight: 700;
+        opacity: 0;
+        pointer-events: none;
+        &:hover { background: var(--dc-azul-600, #1340B1); color: #FFFFFF; }
+    }
+    &:hover .o_dcj_responder, &:focus-within .o_dcj_responder, &.o_acciones .o_dcj_responder { opacity: 1; pointer-events: auto; }
+    // En el celular no hay mouse: con el dedo apretado aparece DENTRO de la burbuja, abajo (no tapa ni se sale de la pantalla).
+    @media (max-width: 767.98px) {
+        .o_dcj_responder { position: static; display: none; transform: none; min-height: 44px; margin-top: 6px; padding: 0 16px; }
+        &.o_acciones .o_dcj_responder { display: inline-flex; }
+    }
+    &.o_dcj_resaltado { outline: 3px solid var(--dc-azul-600, #1340B1); outline-offset: 2px; }
+}
+.o_dcj .o_dcj_caja .o_dcj_citando {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 4px 4px 10px;
+    border-left: 3px solid var(--dc-azul-600, #1340B1);
+    border-radius: var(--dc-r-sm, 8px);
+    background: var(--dc-azul-50, #F2F6FE);
+    color: var(--dc-azul-700, #0F3591);
+    font-size: .8rem;
+    .o_dcj_citando_texto {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        flex: 1;
+        span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--dc-tinta-2, #44506A); }
+    }
+}
 .o_dcj .o_dcj_fotos {
     display: flex;
     flex-wrap: wrap;

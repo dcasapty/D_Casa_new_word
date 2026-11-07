@@ -8,6 +8,7 @@
 * ``POST /seguimiento/hecho``  — el Worker confirma que envió (o descartó) un seguimiento.
 * ``POST /escribiendo``        — el asistente empezó (o terminó) de preparar una respuesta: la pantalla lo muestra.
 * ``POST /foto-perfil``        — la foto de perfil de quien escribe (base64), para el avatar de la pantalla.
+* ``POST /eventos``            — palomitas (enviado, entregado, leído, no llegó) y reacciones del cliente, en tandas.
 
 Seguridad
 ---------
@@ -37,6 +38,8 @@ from odoo.service.model import PG_CONCURRENCY_EXCEPTIONS_TO_RETRY
 from ..models import adjuntos as A
 from ..models import horario as H
 from ..models.ajustes import CANALES
+from ..models.mensaje import MAX_PARTES, MAX_TEXTO_CITA, RANGO_CANAL
+from ..models.mensaje import TIPOS_DE_PARTE as _TIPOS_DE_PARTE
 
 _logger = logging.getLogger(__name__)
 
@@ -52,6 +55,10 @@ DIRECCIONES = {'entrante': {'cliente'}, 'saliente': {'bot', 'vendedora'}}
 RE_ID_EXTERNO = re.compile(r'^[A-Za-z0-9_.:@+\-]{1,128}$')
 RE_ID_MENSAJE = re.compile(r'^[\x21-\x7e]{1,255}$')
 TOLERANCIA_RELOJ = 600   # segundos hacia el futuro que se aceptan en «ts»
+MAX_EVENTOS = 100        # palomitas y reacciones por petición (una tanda por aviso del canal)
+MAX_EMOJI = 32
+ESTADOS_DE_EVENTO = frozenset(RANGO_CANAL)
+TIPOS_DE_PARTE = dict(_TIPOS_DE_PARTE)
 
 _candado = threading.Lock()
 _fallos = defaultdict(deque)
@@ -109,6 +116,95 @@ def _canal(valor):
     if valor not in CANALES_VALIDOS:
         raise _Error(400, f'«canal» debe ser uno de: {", ".join(sorted(CANALES_VALIDOS))}.')
     return valor
+
+
+def _texto_libre(valor, maximo):
+    """Un texto opcional del canal (lo citado en Telegram, el error de WhatsApp): recortado y sin saltos; si no es
+    texto, nada. Lo que no se entiende se ignora: un dato de más nunca hace perder el mensaje del cliente."""
+    if not isinstance(valor, str):
+        return None
+    return ' '.join(valor.split())[:maximo] or None
+
+
+def _cita(valor):
+    """``cita: {id_canal, texto?}``: el mensaje que el cliente citó. Mal formada, se ignora (el mensaje entra igual)."""
+    if not isinstance(valor, dict):
+        return None
+    id_canal = valor.get('id_canal')
+    if not isinstance(id_canal, str) or not RE_ID_MENSAJE.match(id_canal):
+        return None
+    return {'id_canal': id_canal, 'texto': _texto_libre(valor.get('texto'), MAX_TEXTO_CITA)}
+
+
+def _reenviado(valor):
+    return valor if valor in ('una', 'muchas') else None
+
+
+def _partes(valor):
+    """``partes: [{id_canal, tipo, texto}]``: los ids que el canal dio a cada burbuja o archivo de un mensaje
+    nuestro."""
+    if not isinstance(valor, list):
+        return None
+    partes = []
+    for parte in valor[:MAX_PARTES]:
+        if not isinstance(parte, dict):
+            continue
+        id_canal = parte.get('id_canal')
+        if not isinstance(id_canal, str) or not RE_ID_MENSAJE.match(id_canal):
+            continue
+        tipo = parte.get('tipo') if parte.get('tipo') in TIPOS_DE_PARTE else 'texto'
+        partes.append({'id_canal': id_canal, 'tipo': tipo, 'texto': _texto_libre(parte.get('texto'), MAX_TEXTO_CITA)})
+    return partes or None
+
+
+def _emoji(valor):
+    """Una reacción: un emoji (unas pocas letras sin espacios ni letras ASCII). ``''`` = el cliente la quitó."""
+    if not isinstance(valor, str):
+        return None
+    valor = valor.strip()
+    if valor == '':
+        return ''
+    if len(valor) > MAX_EMOJI or re.search(r'[\sA-Za-z<>&"\'\\\x00-\x1f\x7f]', valor):
+        return None
+    return valor
+
+
+def _evento(crudo):
+    """Un aviso del canal validado: ``{tipo, canal, id_externo, id_mensaje, ts, estado|emoji, error?}`` o ``None``."""
+    if not isinstance(crudo, dict):
+        return None
+    tipo = crudo.get('tipo')
+    if tipo not in ('estado', 'reaccion'):
+        return None
+    try:
+        canal = _canal(crudo.get('canal'))
+        id_externo = _id_externo(crudo.get('id_externo'), canal)
+    except _Error:
+        return None
+    id_mensaje = crudo.get('id_mensaje')
+    if not isinstance(id_mensaje, str) or not RE_ID_MENSAJE.match(id_mensaje):
+        return None
+    ahora = fields.Datetime.now()
+    ts = ahora
+    if crudo.get('ts') is not None:
+        try:
+            ts = H.de_iso(crudo['ts'])
+        except (ValueError, TypeError):
+            return None
+        if (ts - ahora).total_seconds() > TOLERANCIA_RELOJ:
+            ts = ahora
+    evento = {'tipo': tipo, 'canal': canal, 'id_externo': id_externo, 'id_mensaje': id_mensaje, 'ts': ts}
+    if tipo == 'estado':
+        if crudo.get('estado') not in ESTADOS_DE_EVENTO:
+            return None
+        evento['estado'] = crudo['estado']
+        evento['error'] = _texto_libre(crudo.get('error'), 200)
+    else:
+        emoji = _emoji(crudo.get('emoji'))
+        if emoji is None:
+            return None
+        evento['emoji'] = emoji
+    return evento
 
 
 class JuanAPI(http.Controller):
@@ -210,6 +306,10 @@ class JuanAPI(http.Controller):
             'nombre': (_texto_opcional(cuerpo.get('nombre'), 200, 'nombre') or '').strip() or None,
             'celular': (_texto_opcional(cuerpo.get('celular'), 40, 'celular') or '').strip() or None,
             'adjuntos': adjuntos,
+            # 2026-11-07, opcionales (un Juan viejo no los manda): cita, reenviado y los ids de cada burbuja nuestra.
+            'cita': _cita(cuerpo.get('cita')) if direccion == 'entrante' else None,
+            'reenviado': _reenviado(cuerpo.get('reenviado')) if direccion == 'entrante' else None,
+            'partes': _partes(cuerpo.get('partes')) if direccion == 'saliente' else None,
         }
         conversacion, mensaje, _creado = entorno['dcasa.conversacion']._registrar_mensaje(datos)
         # Todo lo de ``_estado_para_worker`` (estado, pausa, horario, nota y lo que agreguen otros módulos, como la
@@ -219,7 +319,46 @@ class JuanAPI(http.Controller):
         if adjuntos:
             respuesta['adjuntos'] = [
                 {'id': a.id, 'nombre': a.name, 'sensible': bool(a.dcasa_sensible)} for a in mensaje.adjunto_ids.sudo()]
+        if datos['cita']:
+            # Lo que decía el mensaje citado, por si Juan no lo tiene en su memoria (es de antes): lo lee como un dato
+            # que mandó el cliente, nunca como una orden.
+            cita = mensaje.sudo()._cita_como_dict()
+            if cita and cita['en_historial']:
+                respuesta['cita'] = {'id_canal': datos['cita']['id_canal'], 'autor': cita['autor'],
+                                     'texto': cita['texto']}
         return _respuesta(respuesta)
+
+    # ------------------------------------------------------------------
+    # POST /eventos (palomitas y reacciones: no son mensajes)
+    # ------------------------------------------------------------------
+
+    @http.route(f'{RAIZ}/eventos', type='http', auth='none', methods=['POST'], csrf=False, save_session=False,
+                readonly=False)
+    def eventos(self, **_kw):
+        return self._servir(self._eventos)
+
+    def _eventos(self, entorno):
+        """Lo que el canal avisa de un mensaje que ya existe: entregado, leído, no llegó, o la reacción del cliente.
+
+        Una tanda por aviso del canal (hasta ``MAX_EVENTOS``): son muchos y tiene que ser barato. Un evento mal formado
+        se ignora (se cuenta en ``invalidos``) sin tumbar a los demás. Nada de esto toca la actividad del cliente.
+        """
+        cuerpo = self._cuerpo()
+        lista = cuerpo.get('eventos')
+        if not isinstance(lista, list) or not lista:
+            raise _Error(400, '«eventos» es obligatorio: una lista de avisos del canal.')
+        if len(lista) > MAX_EVENTOS:
+            raise _Error(413, f'Hasta {MAX_EVENTOS} eventos por petición.')
+        validos, invalidos = [], 0
+        for crudo in lista:
+            evento = _evento(crudo)
+            if evento:
+                validos.append(evento)
+            else:
+                invalidos += 1
+        resultado = entorno['dcasa.mensaje']._aplicar_eventos(validos) if validos else {
+            'aplicados': 0, 'desconocidos': []}
+        return _respuesta({'ok': True, **resultado, 'invalidos': invalidos})
 
     # ------------------------------------------------------------------
     # GET /estado

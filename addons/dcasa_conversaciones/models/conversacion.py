@@ -364,7 +364,9 @@ class DcasaConversacion(models.Model):
         """Registra un mensaje (idempotente por ``id_mensaje``). Devuelve ``(conversacion, mensaje, creado)``.
 
         ``datos``: ``canal, id_externo, id_mensaje, direccion, autor, ts`` y, opcionales, ``nombre,
-        celular, texto, adjuntos`` (ya validados por la API).
+        celular, texto, adjuntos`` y (2026-11-07) ``cita`` (``{id_canal, texto?}``: el mensaje que el cliente citó),
+        ``reenviado`` (``una``/``muchas``) y ``partes`` (``[{id_canal, tipo, texto}]``: los ids que el canal dio a cada
+        burbuja de un mensaje nuestro), ya validados por la API. Un Juan viejo no los manda y todo sigue igual.
         """
         canal, id_externo = datos['canal'], datos['id_externo']
         self._bloquear(canal, id_externo)
@@ -374,12 +376,18 @@ class DcasaConversacion(models.Model):
         Mensaje = self.env['dcasa.mensaje'].sudo()
         propio = conv._adoptar_mensaje_de_odoo(datos)
         if propio:
+            if datos.get('partes'):
+                propio._crear_partes(datos['partes'])
             return conv, propio, False
         mensaje, creado = Mensaje._crear_si_no_existe({
             'conversacion_id': conv.id, 'id_mensaje': datos['id_mensaje'], 'direccion': datos['direccion'],
             'autor': datos['autor'], 'texto': datos.get('texto') or False, 'ts': datos['ts'],
             'estado_envio': 'recibido' if datos['direccion'] == 'entrante' else 'enviado',
+            'reenviado': datos.get('reenviado') or False,
+            **Mensaje._valores_de_cita(conv, datos.get('cita')),
         })
+        if datos.get('partes'):
+            mensaje._crear_partes(datos['partes'])
         if not creado:
             # Repetición: si antes fallaron adjuntos y ahora vienen otra vez, se vuelven a intentar.
             if datos.get('adjuntos') and mensaje.adjuntos_fallidos:
@@ -848,6 +856,27 @@ class DcasaConversacion(models.Model):
             except Exception:   # noqa: BLE001 — avisar a las pantallas es un extra
                 _logger.exception('Juan: no se pudo avisar a las pantallas (conversación %s)', conv.id)
 
+    @api.model
+    def _notificar_recibos(self, cambios):
+        """Palomitas y reacciones nuevas: UN aviso por persona del equipo con todos los cambios de la tanda.
+
+        Son muchos (tres por mensaje), así que el aviso es liviano: solo ids y el estado (ni texto ni emoji). La
+        pantalla que tiene abierta esa conversación pone la palomita al día sin pedir nada al servidor (y, si es una
+        reacción o algo que no llegó, trae el hilo). No es un mensaje nuevo: no suena, no sube «sin leer» ni mueve la
+        lista. Un fallo aquí jamás tumba lo que se estaba haciendo.
+        """
+        if not cambios:
+            return
+        try:
+            with self.env.cr.savepoint():
+                carga = {'evento': 'recibos', 'cambios': cambios[:200]}
+                for usuario in self._usuarios_del_panel():
+                    usuario._bus_send(CANAL_BUS, carga)
+        except (ConcurrencyError, *PG_CONCURRENCY_EXCEPTIONS_TO_RETRY):
+            raise
+        except Exception:   # noqa: BLE001 — avisar a las pantallas es un extra
+            _logger.exception('Juan: no se pudo avisar a las pantallas de %s palomitas o reacciones', len(cambios))
+
     def _nombre_de_pila(self):
         """El primer nombre del cliente, o vacío si solo tenemos el provisional («WhatsApp 6123-4567»)."""
         self.ensure_one()
@@ -879,21 +908,24 @@ class DcasaConversacion(models.Model):
                 'type': 'warning', 'sticky': False}}
         return True
 
-    def _crear_mensaje_de_odoo(self, texto, adjuntos=None, usuario=None, programado_para=None):
+    def _crear_mensaje_de_odoo(self, texto, adjuntos=None, usuario=None, programado_para=None, cita=None):
         """Registra lo que una vendedora escribe en Odoo y toma la conversación.
 
         Sale «por enviar»; con ``programado_para`` (UTC) queda «programado»: no toma la conversación ni cambia nada
-        hasta que llegue la hora (``_despachar_programado``).
+        hasta que llegue la hora (``_despachar_programado``). ``cita``: el mensaje al que responde («Responder»).
         """
         self.ensure_one()
         usuario = usuario or self.env.user
         conv = self.sudo()
         ahora = fields.Datetime.now()
+        cita = (cita or self.env['dcasa.mensaje']).sudo()
         mensaje, _creado = self.env['dcasa.mensaje']._crear_si_no_existe({
             'conversacion_id': conv.id, 'id_mensaje': self.env['dcasa.mensaje']._id_local(), 'direccion': 'saliente',
             'autor': 'vendedora', 'texto': texto or False, 'ts': programado_para or ahora, 'origen': 'odoo',
             'usuario_id': usuario.id, 'estado_envio': 'programado' if programado_para else 'por_enviar',
-            'programado_para': programado_para or False})
+            'programado_para': programado_para or False,
+            'cita_id': cita.id or False, 'cita_id_canal': (cita._id_canal_para_citar() if cita else '') or False,
+            'cita_texto': cita._texto_corto() if cita else False})
         if adjuntos:
             mensaje.with_context(**{CLAVE_SISTEMA: True}).write({'adjunto_ids': [(4, a.id) for a in adjuntos]})
             adjuntos.sudo().write({'res_model': 'dcasa.mensaje', 'res_id': mensaje.id})
@@ -945,7 +977,8 @@ class DcasaConversacion(models.Model):
         """
         self.ensure_one()
         usuario = mensaje.usuario_id or self.env.user
-        nuevo = self._crear_mensaje_de_odoo(mensaje.texto, mensaje.adjunto_ids.sudo(), usuario=usuario)
+        nuevo = self._crear_mensaje_de_odoo(mensaje.texto, mensaje.adjunto_ids.sudo(), usuario=usuario,
+                                            cita=mensaje.cita_id)
         mensaje.with_context(**{CLAVE_SISTEMA: True}).write({'adjunto_ids': [(5, 0, 0)]})
         mensaje.sudo().unlink()
         self._aviso(self.env._('Salió el mensaje que %s dejó programado.', usuario.name))

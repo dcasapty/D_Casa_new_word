@@ -105,6 +105,28 @@ Las computadoras de la tienda son laptops de 1366 × 768, 1280 × 720, 1440 × 9
 * Arriba, en **una sola fila**: el nombre, el canal y el celular, quién la atiende, **Cliente** (muestra u oculta la ficha) y los
   íconos **Cerrar** la conversación y **Eliminar** (solo Gerencia); con la barra ancha, esos dos también dicen su nombre.
 * Si un mensaje tuyo no salió, dice **«Por enviar»** y tiene el botón **Reintentar**.
+* **Citas** (2026-11-07, pedido de la dueña: «si un cliente dice "este"… solamente vemos la palabra "este"»): cuando el
+  cliente responde a un mensaje en su WhatsApp (o en Telegram), arriba de su texto sale un recuadro con **quién dijo lo
+  citado** (**Tú**, **Juan**, la vendedora o **Cliente**) y sus primeras palabras (dos líneas; **Foto**, **Audio**,
+  **Documento**… si no tenía texto). Si Juan respondió en varias burbujas, sale justo la burbuja citada. Un clic en el
+  recuadro lleva al mensaje original (si está cargado; si no, avisa que se traiga con «Ver mensajes anteriores»). Si lo
+  citado es de antes de esta versión o se borró: **«Mensaje que no está en el historial»**. Juan también ve lo citado, así
+  que entiende «este».
+* **Reenviado**: una etiqueta pequeña con su ícono, **«Reenviado»** o **«Reenviado muchas veces»** (WhatsApp lo marca así
+  cuando el mensaje ha pasado por muchos chats).
+* **Reacciones**: el emoji con que el cliente reaccionó sale en la esquina de abajo del mensaje. Una nueva reemplaza a la
+  anterior (una por persona y mensaje) y, si la quita, desaparece. **Una reacción no es un mensaje**: no despierta a Juan,
+  no deja la conversación «esperando respuesta», no cuenta para los seguimientos ni para la ventana de 24 horas, no
+  reparte la conversación ni avisa a nadie.
+* **Palomitas** (solo WhatsApp oficial; Telegram no se las da a los bots): en los mensajes de Juan y de las vendedoras,
+  junto a la hora, en una pastilla blanca: **✓ gris** salió, **✓✓ gris** le llegó, **✓✓ azul** lo leyó (si el cliente
+  apagó la confirmación de lectura, nunca se ponen azules) y **⚠ «No llegó»** en rojo, con el motivo al pasar el mouse
+  (también en el mensaje). Llegan solas, sin recargar. Si Juan respondió en varias burbujas, el mensaje muestra la más
+  atrasada (y «No llegó» si alguna no llegó).
+* **Responder** a un mensaje del cliente: al pasar el mouse por su mensaje (o con Tab) aparece **«Responder»** al lado; en
+  el celular, deja el dedo apretado sobre el mensaje y sale dentro de la burbuja. Arriba de la caja queda **«Respondes a
+  Cliente»** con su mensaje (la **X** la quita) y lo que envíes le llega al cliente con la cita, como en WhatsApp. Si el
+  canal no sabe citar ese mensaje, sale igual, sin la cita. Una nota interna no lleva cita.
 * Mientras el asistente trabaja se ve debajo del último mensaje. Primero, unos segundos de **«El asistente está preparando la
   respuesta…»** (espera a que el cliente termine de escribir; es una estimación) y, cuando el Worker avisa que de verdad empezó,
   **«El asistente está escribiendo…»**, que se apaga cuando termina o cuando llega su respuesta (y sola al minuto si el aviso
@@ -245,6 +267,10 @@ números que sí tiene Odoo.
 ### Lo que todavía no hace
 
 * El gasto de IA **por día** de antes de esta versión solo existe donde Odoo guardó su foto diaria.
+* Las citas, reacciones y palomitas son de **WhatsApp oficial** y **Telegram** (en Telegram, citas y reenviados; las
+  reacciones solo si el webhook las pide, ver [JUAN_CANALES.md](JUAN_CANALES.md) §2; palomitas, no). El puente QR y
+  Messenger/Instagram no las traen. Lo que se escribió antes del 2026-11-07 no tiene palomitas ni se puede citar desde
+  el canal.
 
 ## Atender a un cliente (en la bandeja de siempre)
 
@@ -646,7 +672,7 @@ JSON `503 {ok:false, error:"Odoo está arrancando.", reintentar_en:15}` con `Ret
 
 | Ruta | Para qué | Notas |
 |---|---|---|
-| `POST /dcasa/juan/v1/mensaje` | registrar un mensaje | idempotente por `id_mensaje`; acepta `adjuntos[].sensible` y `base64` además de `url`. Responde también `nota_para_el_bot` y, si el cliente llegó por una campaña de correo en los últimos 3 días, `campana_correo` (texto de Odoo: asunto, fecha y productos, sin precios; `dcasa_camila`, ver [CAMILA.md](CAMILA.md) §3.9); con Camila, `permiso_correo` («activo», «sin_correo» o «sin_permiso», §3.11) |
+| `POST /dcasa/juan/v1/mensaje` | registrar un mensaje | idempotente por `id_mensaje`; acepta `adjuntos[].sensible` y `base64` además de `url`. Desde el 2026-11-07, opcionales: `cita:{id_canal, texto?}` y `reenviado:"una"\|"muchas"` en un mensaje del cliente (la respuesta trae `cita:{id_canal, autor, texto}` si Odoo tiene lo citado), y `partes:[{id_canal, tipo, texto?}]` en uno nuestro (el id que el canal dio a cada burbuja); mal formados se ignoran y el mensaje entra igual. Responde también `nota_para_el_bot` y, si el cliente llegó por una campaña de correo en los últimos 3 días, `campana_correo` (texto de Odoo: asunto, fecha y productos, sin precios; `dcasa_camila`, ver [CAMILA.md](CAMILA.md) §3.9); con Camila, `permiso_correo` («activo», «sin_correo» o «sin_permiso», §3.11) |
 | `GET /dcasa/juan/v1/estado?canal=&id_externo=` | ¿puede contestar el bot? | sin conversación: valores de los ajustes. Incluye `nota_para_el_bot` (`null` si no hay) y `campana_correo` cuando aplica (si no, la clave no va) |
 | `GET /dcasa/juan/v1/config` | ajustes de la dueña | `dias`: `0 = domingo … 6 = sábado`. Incluye `proveedor_ia`, `proveedor_respaldo_ia`, `modelo_rapido`, `modelo_inteligente`, `modelos_por_defecto`, `precios` por nivel (`null` donde no hay precio), `precios_ia` por modelo (lo que lee el Worker) y `lecciones` |
 | `GET /dcasa/juan/v1/herramientas` | definición de las 13 herramientas (15 con `dcasa_camila`: `guardar_correo` y `no_quiere_novedades`) | cada una con `nombre/descripcion/parametros` y también `name/description/input_schema` |
@@ -654,6 +680,7 @@ JSON `503 {ok:false, error:"Odoo está arrancando.", reintentar_en:15}` con `Ret
 | `POST /dcasa/juan/v1/seguimiento/hecho` | confirmar un seguimiento | `descartado` cierra el ciclo |
 | `POST /dcasa/juan/v1/escribiendo` | «el asistente está escribiendo» | `{canal, id_externo, activo}`; solo avisa a las pantallas por el bus |
 | `POST /dcasa/juan/v1/foto-perfil` | la foto de perfil de quien escribe | `{canal, id_externo, mime, base64}` → `{ok, guardada, motivo?}`; `guardada:false` si el ajuste está apagado o no es una foto válida; `404` si no existe la conversación |
+| `POST /dcasa/juan/v1/eventos` | palomitas y reacciones (2026-11-07) | `{eventos:[{tipo:"estado", canal, id_externo, id_mensaje, estado:"enviado"\|"entregado"\|"leido"\|"fallido", ts, error?} \| {tipo:"reaccion", canal, id_externo, id_mensaje, emoji, ts}]}` (hasta 100; `emoji:""` = la quitó) → `{ok, aplicados, desconocidos:[id_mensaje], invalidos}`. Un evento mal formado se ignora (cuenta en `invalidos`) sin tumbar a los demás. Nunca toca la actividad del cliente. `id_mensaje` es el id que el canal dio al mensaje (el `wamid`) |
 
 Las 13 herramientas, por su nombre público (en Brian llevan el prefijo `juan_` para no chocar con las de uso interno):
 `buscar_productos`, `ver_producto`, `listar_categorias`, `reglas_socios`, `saldo_puntos`, `horario_y_tienda`,
@@ -707,7 +734,7 @@ Conversaciones (el código OWL está en `addons/dcasa_conversaciones/static/src`
 |---|---|
 | `lista(filtros, offset, limite)` | La bandeja: `{conversaciones, total, hay_mas, sin_leer_total}`, las más recientes primero, 30 por página (máx. 100). Filtros: `canal`, `estado` (`bot`/`humano`/`cerrada`/`necesita_atencion`), `etiqueta_id`, `asignada_a_mi`, `sin_leer`, `con_oportunidad`, `busqueda` (nombre, celular o texto de cualquier mensaje). Un filtro desconocido es error. |
 | `hilo(conversacion_id, antes_de_id, limite)` | Un tramo de mensajes (50 por defecto) del más viejo al más nuevo; `antes_de_id` pide el tramo anterior; `hay_mas` dice si quedan. Incluye notas y avisos. |
-| `enviar_respuesta(conversacion_id, texto, adjuntos_ids, programar_para=None)` | Contesta (toma la conversación si hace falta). Hasta 5 adjuntos propios, de 10 MB. Si el Worker no responde queda «por enviar». Con `programar_para` (fecha y hora ISO, entre 1 minuto y 30 días) queda «programado» y devuelve `programado: true`; no toca la conversación hasta su hora. |
+| `enviar_respuesta(conversacion_id, texto, adjuntos_ids, programar_para=None, responde_a=None)` | Contesta (toma la conversación si hace falta). `responde_a`: id de un mensaje **del cliente** de esa conversación («Responder»): el Worker recibe su id del canal en `responde_a` y lo manda citado (si no hay id del canal, sale sin cita; un mensaje de otra conversación, una nota o un aviso es error). Hasta 5 adjuntos propios, de 10 MB. Si el Worker no responde queda «por enviar». Con `programar_para` (fecha y hora ISO, entre 1 minuto y 30 días) queda «programado» y devuelve `programado: true`; no toca la conversación hasta su hora. |
 | `cancelar_programado(mensaje_id)` | Borra un mensaje programado (y sus archivos) que aún no salió. Solo quien lo programó o Gerencia. `hilo()` devuelve los programados aparte, en `programados`. |
 | `tomar(conversacion_id, minutos)` · `devolver(conversacion_id, nota)` · `cerrar(conversacion_id)` | Lo mismo que los botones (una sola ruta de código). |
 | `asignar(conversacion_id, usuario_id)` | Asigna a alguien de ventas (`null` = sin asignar). |
@@ -721,7 +748,20 @@ Conversaciones (el código OWL está en `addons/dcasa_conversaciones/static/src`
 **Tiempo real.** Cada mensaje nuevo, cambio de estado, asignación o etiqueta se avisa por el bus de Odoo a todas las personas del
 equipo de ventas con la notificación `dcasa_conversaciones/evento` y la carga `{evento, conversacion_id, estado, asignada_a,
 ultima_actividad, mensaje_id, autor}`. **Nunca viaja el texto del mensaje** (el bus guarda lo que se envía): la pantalla pide el
-detalle con `hilo`. Un fallo del bus nunca tumba el mensaje.
+detalle con `hilo`. Un fallo del bus nunca tumba el mensaje. Las **palomitas y reacciones** van en un aviso aparte, uno por tanda y
+persona: `{evento:"recibos", cambios:[{conversacion_id, mensaje_id, estado_canal, reaccion:bool}]}` (ni texto ni emoji). La pantalla
+que tiene abierta esa conversación pone la palomita al día ahí mismo, sin pedir nada; una reacción o un «no llegó» traen el hilo (una
+vez por tanda). No suena, no mueve la lista ni sube «sin leer».
+
+**Citas, reenviados, reacciones y palomitas en los datos** (2026-11-07). En `dcasa.mensaje`: `cita_id` (el mensaje citado),
+`cita_id_canal` (su id del canal, aunque no esté en el historial), `cita_texto` (lo citado, recortado), `reenviado`
+(`una`/`muchas`), `reaccion` y `reaccion_en`, `estado_canal` (`enviado`/`fallido`/`entregado`/`leido`) con
+`canal_enviado_en`/`canal_entregado_en`/`canal_leido_en` (la primera vez que el mensaje llegó a cada estado) y el motivo de un «no
+llegó» en `error_envio`. En `dcasa.mensaje.parte` (nuevo): una fila por burbuja o archivo de un mensaje NUESTRO con el id que le dio
+el canal (`id_canal`, único por conversación), su texto, su estado y su reacción; el mensaje muestra el estado de la más atrasada
+(«no llegó» si alguna no llegó) y la última reacción. Todo lo escribe el sistema (nadie tiene permiso de escritura). `hilo()` trae por
+mensaje `cita` (`{id, autor, usuario, texto, en_historial}`), `reenviado`, `reaccion`, `estado_canal`, `canal_entregado_en`,
+`canal_leido_en` y `se_puede_citar`.
 
 **Rendimiento.** Índices para la lista (`ultima_actividad DESC NULLS LAST, id DESC`; `estado, ultima_actividad`; asignada a) y para
 el hilo (`conversacion_id, id`). Las consultas no dependen de cuántas filas se piden (probado), y con 5.000 conversaciones la lista

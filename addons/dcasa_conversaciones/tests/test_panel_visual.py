@@ -149,7 +149,8 @@ AUDITAR = """
         const opacidadDe = (el) => { let o = 1; for (let e = el; e; e = e.parentElement) { o *= +getComputedStyle(e).opacity; } return o; };
         const visible = (el) => {
             const cs = getComputedStyle(el), r = el.getBoundingClientRect();
-            return cs.display !== 'none' && cs.visibility !== 'hidden' && r.width > 0 && r.height > 0;
+            // Lo que está del todo transparente (p. ej. «Responder», que aparece al pasar el mouse) no se ve: no se audita.
+            return cs.display !== 'none' && cs.visibility !== 'hidden' && r.width > 0 && r.height > 0 && opacidadDe(el) > 0;
         };
         const nombre = (el) => el.tagName.toLowerCase() + (typeof el.className === 'string' && el.className.trim()
             ? '.' + el.className.trim().split(/\\s+/).slice(0, 2).join('.') : '');

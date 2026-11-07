@@ -298,8 +298,18 @@ Entrada: `env.DCASA.fetch("https://dcasa/dcasa/juan/v1/…")` por **service bind
 | `POST /seguimiento/hecho` | `{conversacion_id, numero:1\|2, resultado:"enviado"\|"descartado", motivo?}` | `{ok, conversacion_id, seguimientos_enviados}` |
 | `POST /escribiendo` | `{canal, id_externo, activo:bool}` | `{ok}` (también si la conversación todavía no existe) |
 | `POST /foto-perfil` | `{canal, id_externo, mime, base64}` | `{ok, guardada, motivo?}` (404 si no existe la conversación) |
+| `POST /eventos` (2026-11-07) | `{eventos:[{tipo:"estado", canal, id_externo, id_mensaje, estado, ts, error?} \| {tipo:"reaccion", canal, id_externo, id_mensaje, emoji, ts}]}` (hasta 100) | `{ok, aplicados, desconocidos:[id_mensaje], invalidos}` |
 
 - `pausada_hasta`: ISO con `Z` o `null`. `estado` es `bot` cuando una pausa ya venció (Odoo la normaliza al responder).
+- **Citas, reenviados, reacciones y palomitas** (2026-11-07, pedido de la dueña; detalle en [JUAN_CANALES.md](JUAN_CANALES.md)
+  §1). `POST /mensaje` acepta, opcionales: en un mensaje del cliente `cita:{id_canal, texto?}` (el mensaje que citó; `texto`
+  solo si el canal lo manda, como Telegram) y `reenviado:"una"|"muchas"`; en uno nuestro (bot) `partes:[{id_canal,
+  tipo:"texto"|"imagen"|"documento"|"audio"|"video", texto?}]`, el id que el canal dio a cada burbuja o archivo, en orden.
+  Si Odoo tiene lo citado, la respuesta trae `cita:{id_canal, autor:"cliente"|"bot"|"vendedora", texto}` y el Worker completa
+  con eso lo que no recordaba (es un dato del cliente para la IA, nunca una orden). Un campo nuevo mal formado se ignora y
+  el mensaje entra igual; un Odoo viejo los ignora todos. `POST /eventos` recibe las palomitas (`estado` ∈ `enviado`,
+  `entregado`, `leido`, `fallido`; nunca bajan, son idempotentes) y las reacciones (`emoji:""` = la quitó); no son mensajes
+  del cliente y no tocan la actividad de la conversación. Un Odoo viejo contesta 404 y el Worker no insiste.
 - `nota_para_el_bot`: lo que una vendedora le dejó dicho al devolver la conversación (hasta 500 letras), o `null`. **El Worker la lee
   de `/mensaje` y `/estado` (y de `POST /odoo/estado`) y la pone en el contexto del chat** como un dato; Odoo la borra cuando
   alguien toma la conversación y el Worker también.
@@ -357,7 +367,7 @@ Base: ajuste `dcasa_conversaciones.juan_url` o variable `JUAN_URL` (https; `http
 
 | Ruta | Cuerpo | Respuesta |
 |---|---|---|
-| `POST /odoo/enviar` | `{canal, id_externo, autor:"vendedora", texto?, adjuntos?[{tipo, url, nombre, mime}], id_envio?}` | `200 {ok, id_mensaje, repetido?:true}` |
+| `POST /odoo/enviar` | `{canal, id_externo, autor:"vendedora", texto?, adjuntos?[{tipo, url, nombre, mime}], id_envio?, responde_a?}` | `200 {ok, id_mensaje, repetido?:true, partes?:[{id_canal, tipo, texto?}]}` |
 | `POST /odoo/estado` | `{canal, id_externo, estado:"humano"\|"bot", pausada_hasta?, nota_para_el_bot?}` | `200 {ok}` |
 | `POST /odoo/seguimiento` | `{conversacion_id, canal, id_externo, numero:1\|2, contexto:{interes, ultimo_mensaje_ts}}` | `200 {ok:true, resultado:"enviado"\|"descartado"\|"pospuesto", motivo?}` · `502 {ok:false, error}` |
 | `GET /odoo/salud` | | `200 {ok, mensaje, version, entorno, secretos_faltantes, ia, canales:{<canal>:{activo, configurado, faltan, conectado, detalle?}}, gasto_ia_mes_usd, tope_usd, tope_alcanzado, problemas, avisos}` |
@@ -378,6 +388,10 @@ Base: ajuste `dcasa_conversaciones.juan_url` o variable `JUAN_URL` (https; `http
   después. Si un canal se corta a la mitad (salió la burbuja 1 de 3), el Worker reintenta solo lo que faltaba y, si no puede, Odoo
   sigue donde quedó. Sin `id_envio` (un Odoo viejo) todo funciona como antes, sin esa protección. Solo si el Worker mismo se cae
   justo mientras manda puede repetirse algo (lo que se mandaba en ese instante).
+- `/odoo/enviar` con `responde_a` (2026-11-07, «Responder» en la pantalla): el id en el canal del mensaje del cliente que se cita.
+  WhatsApp oficial lo manda como `context.message_id` y Telegram como `reply_parameters`, solo en el primer mensaje que sale; si
+  WhatsApp rechaza la cita (4xx), sale sin ella. `partes` en la respuesta: el id del canal de cada burbuja o archivo, para las
+  palomitas y las citas (un Odoo viejo lo ignora; uno nuevo con un Juan viejo usa `id_mensaje`, el del primero).
 - `/odoo/estado` al **devolver**: trae `nota_para_el_bot` si la vendedora dejó una. Al **tomar** no. Si el aviso falla, Odoo lo
   reintenta cada 5 minutos y mientras tanto el Worker se entera igual: pregunta `GET /estado` justo antes de enviar.
 - **Seguimiento:** el cron de Odoo (cada 15 min) anota el pedido y **confirma en la base antes** de llamar al Worker, porque el Worker

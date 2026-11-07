@@ -11,7 +11,8 @@ describe("POST /odoo/enviar con id_envio", () => {
     const a = await m.motor.enviarVendedora({ id_envio: "odoo-abc", texto: "Hola Karen, soy Marisol." });
     const b = await m.motor.enviarVendedora({ id_envio: "odoo-abc", texto: "Hola Karen, soy Marisol." });
     expect(m.canal.textos).toEqual(["Hola Karen, soy Marisol."]);
-    expect(b).toEqual({ ok: true, id_mensaje: a.id_mensaje, repetido: true });
+    // El repetido también devuelve los ids de cada burbuja (2026-11-07: con ellos Odoo reconoce las palomitas y las citas).
+    expect(b).toEqual({ ok: true, id_mensaje: a.id_mensaje, repetido: true, partes: [{ id_canal: a.id_mensaje, tipo: "texto" }] });
   });
 
   it("dos envíos distintos (otro id_envio) salen los dos", async () => {
@@ -39,7 +40,7 @@ describe("POST /odoo/enviar con id_envio", () => {
     const r = await primero;
     expect(m.canal.textos).toEqual(["Te paso el precio"]);
     // Y cuando Odoo vuelve a preguntar, ya está hecho.
-    expect(await m.motor.enviarVendedora({ id_envio: "odoo-lento", texto: "Te paso el precio" })).toEqual({ ok: true, id_mensaje: r.id_mensaje, repetido: true });
+    expect(await m.motor.enviarVendedora({ id_envio: "odoo-lento", texto: "Te paso el precio" })).toEqual({ ok: true, id_mensaje: r.id_mensaje, repetido: true, partes: [{ id_canal: r.id_mensaje, tipo: "texto" }] });
   });
 
   it("si el Worker se reinició a mitad de un envío (quedó «saliendo» hace minutos), el reintento sí lo manda", async () => {

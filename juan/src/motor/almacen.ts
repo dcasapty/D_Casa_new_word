@@ -15,7 +15,8 @@ const ESQUEMA = [
      adjuntos TEXT,
      ts INTEGER NOT NULL,
      pendiente INTEGER NOT NULL DEFAULT 0,
-     modelo TEXT
+     modelo TEXT,
+     contexto TEXT
    )`,
   "CREATE INDEX IF NOT EXISTS mensajes_ts ON mensajes(ts)",
   `CREATE TABLE IF NOT EXISTS cola (
@@ -57,6 +58,23 @@ const ESQUEMA = [
 
 export function crearEsquema(sql: Sql): void {
   for (const s of ESQUEMA) sql.correr(s);
+  // 2026-11-07: lo que el cliente citó o si reenvió el mensaje (`ContextoLocal`, JSON). Las conversaciones que ya existían tienen la
+  // tabla sin la columna.
+  asegurarColumna(sql, "mensajes", "contexto", "TEXT");
+}
+
+/** Agrega una columna a una tabla que ya existía (CREATE TABLE IF NOT EXISTS no la toca). Idempotente. */
+function asegurarColumna(sql: Sql, tabla: string, columna: string, tipo: string): void {
+  try {
+    if (sql.todos<{ name: string }>(`PRAGMA table_info(${tabla})`).some((c) => c.name === columna)) return;
+  } catch {
+    /* sin PRAGMA: se intenta agregar y, si ya estaba, no pasa nada */
+  }
+  try {
+    sql.correr(`ALTER TABLE ${tabla} ADD COLUMN ${columna} ${tipo}`);
+  } catch {
+    /* ya existía */
+  }
 }
 
 export type Rol = "cliente" | "bot" | "vendedora";
@@ -70,6 +88,21 @@ export interface FilaMensaje {
   ts: number;
   pendiente: number;
   modelo: string | null;
+  /** Lo que el cliente citó o si lo reenvió (`ContextoLocal` como JSON), o null. */
+  contexto?: string | null;
+}
+
+/** Lo que el cliente citó, como lo recuerda la conversación: quién lo dijo y qué decía (null = no se sabe). */
+export interface CitaLocal {
+  id: string;
+  autor: "cliente" | "tienda" | null;
+  texto: string | null;
+}
+
+/** Lo que acompaña a un mensaje del cliente y le da sentido («este», un reenviado). */
+export interface ContextoLocal {
+  cita?: CitaLocal;
+  reenviado?: "una" | "muchas";
 }
 
 /** Valores sueltos de la conversación (identidad, estado, pausas, contadores). */
@@ -109,9 +142,9 @@ export class Mensajes {
     return !!this.sql.uno("SELECT 1 AS x FROM mensajes WHERE id_mensaje = ?", idMensaje);
   }
 
-  insertar(m: { id_mensaje: string | null; rol: Rol; texto: string; adjuntos?: unknown[]; ts: number; pendiente?: boolean; modelo?: string }): number {
+  insertar(m: { id_mensaje: string | null; rol: Rol; texto: string; adjuntos?: unknown[]; ts: number; pendiente?: boolean; modelo?: string; contexto?: ContextoLocal | null }): number {
     this.sql.correr(
-      "INSERT INTO mensajes (id_mensaje, rol, texto, adjuntos, ts, pendiente, modelo) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO mensajes (id_mensaje, rol, texto, adjuntos, ts, pendiente, modelo, contexto) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
       m.id_mensaje,
       m.rol,
       m.texto,
@@ -119,8 +152,28 @@ export class Mensajes {
       m.ts,
       m.pendiente ? 1 : 0,
       m.modelo ?? null,
+      m.contexto && (m.contexto.cita || m.contexto.reenviado) ? JSON.stringify(m.contexto) : null,
     );
     return this.sql.uno<{ id: number }>("SELECT last_insert_rowid() AS id")!.id;
+  }
+
+  /** Un mensaje por el id que le dio el canal (para saber qué citó el cliente). */
+  buscar(idMensaje: string): FilaMensaje | null {
+    return this.sql.uno<FilaMensaje>("SELECT * FROM mensajes WHERE id_mensaje = ?", idMensaje) ?? null;
+  }
+
+  /** Completa una cita que no se sabía qué decía (Odoo sí lo sabía). No pisa una que ya tiene texto. */
+  completarCita(idMensaje: string, cita: CitaLocal): void {
+    const fila = this.buscar(idMensaje);
+    if (!fila?.contexto) return;
+    let actual: ContextoLocal;
+    try {
+      actual = JSON.parse(fila.contexto) as ContextoLocal;
+    } catch {
+      return;
+    }
+    if (!actual.cita || actual.cita.texto || actual.cita.id !== cita.id) return;
+    this.sql.correr("UPDATE mensajes SET contexto = ? WHERE id = ?", JSON.stringify({ ...actual, cita }), fila.id);
   }
 
   pendientes(): FilaMensaje[] {

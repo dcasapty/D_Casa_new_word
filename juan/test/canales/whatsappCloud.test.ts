@@ -119,7 +119,7 @@ describe("los mensajes del cliente", () => {
     expect(await r.entrantes[0].adjuntos[0].obtener!()).toBeNull();
   });
 
-  it("documento, video, ubicación y sticker; las reacciones se ignoran", async () => {
+  it("documento, video, ubicación y sticker; una reacción nunca es un mensaje del cliente", async () => {
     const r = await adaptador.recibir(
       await firmado(
         cambio({
@@ -149,10 +149,11 @@ describe("los mensajes del cliente", () => {
     expect(r.entrantes[0].adjuntos).toEqual([]);
   });
 
-  it("los recibos de entrega y lectura (`statuses`) se ignoran", async () => {
+  it("los recibos de entrega y lectura (`statuses`) nunca son mensajes del cliente: salen como eventos (las palomitas)", async () => {
     const r = await adaptador.recibir(await firmado(cambio({ statuses: [{ id: "wamid.X", status: "delivered", recipient_id: "507" }] })), env);
     expect(r.respuesta.status).toBe(200);
     expect(r.entrantes).toEqual([]);
+    expect(r.eventos).toMatchObject([{ tipo: "estado", estado: "entregado", id_mensaje: "wamid.X", id_externo: "507" }]);
   });
 });
 

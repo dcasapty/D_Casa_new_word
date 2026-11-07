@@ -301,7 +301,10 @@ class TestHilo(PanelCase):
         primero = tramo['mensajes'][0]
         self.assertEqual(set(primero), {'id', 'tipo', 'autor', 'direccion', 'texto', 'ts', 'usuario', 'estado_envio',
                                         'error', 'origen', 'adjuntos', 'adjuntos_fallidos', 'menciones',
-                                        'programado_para'})
+                                        'programado_para',
+                                        # 2026-11-07: citas, reenviados, reacciones y palomitas (test_citas.py).
+                                        'cita', 'reenviado', 'reaccion', 'estado_canal', 'canal_entregado_en',
+                                        'canal_leido_en', 'se_puede_citar'})
         self.assertEqual((primero['tipo'], primero['autor'], primero['usuario']), ('mensaje', 'cliente', None))
 
     def test_los_adjuntos_traen_miniatura_si_son_imagen_y_la_marca_de_sensible(self):
