@@ -704,8 +704,8 @@ class DcasaConversacion(models.Model):
         pedido = bool(self.seguimiento_pedido_en) and self.seguimiento_numero_pedido == numero
         if resultado != 'enviado' and not pedido and self._ciclo_reiniciado(ahora, ajustes):
             # Un «descartado» tardío (issue #25): el cliente escribió después de que se pidió y el ciclo ya empezó de
-            # nuevo; cerrarlo dejaría al ciclo nuevo sin seguimientos. Un «no me contacten» se honra igual. (Un «enviado»
-            # sí cuenta siempre: el mensaje le llegó.)
+            # nuevo; cerrarlo dejaría al ciclo nuevo sin seguimientos. Un «no me contacten» se honra igual. (Un
+            # «enviado» sí cuenta siempre: el mensaje le llegó.)
             if any(clave in motivo.lower() for clave in MOTIVOS_DE_BAJA):
                 self._marcar_no_contactar(
                     self.env._('El Worker descartó el seguimiento: la persona pidió no ser contactada.'))
