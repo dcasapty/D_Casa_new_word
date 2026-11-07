@@ -379,6 +379,10 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `main` (`741930d`, árbol = `de1fb04`) a staging y Desplegar con ese `app_version`. **Regla:** un cambio del borde
   (rutas, `vars`, `workers_dev`) se despliega con un `app_version` que lo contenga, o sea con una imagen construida
   de ese commit.
+- **Desplegar 57** (23:03 UTC del 6 nov, `app_version` `b261ec6` = SHA de la rama, imagen `sha256:90e90217…` de CI
+  #287, respaldo previo) · sano y confirmado (versión `b261ec685690`, base al día, humo ok): la pantalla nueva de Sofía
+  y Brian al día con los 6 arreglos de su revisión adversarial (PR #91, `main` = `24a654f`, árbol = `b261ec6`). Juan no
+  cambió. Se canceló el CI #286 (solo Sofía) para relanzarlo con Brian (CI #287): una vuelta en vez de dos.
 - **Desplegar 55 (fallido) y Desplegar 56** (21:14 y 21:17 UTC del 6 nov, imagen `sha256:5564e4b9…` de CI #282) ·
   PR #88 («Ver más» en la foto del catálogo y Dependabot; `main` = `513b094`, árbol = `3a1c1d3`). **El 55 falló con
   `IMAGE_REGISTRY_DOESNT_CONTAIN_IMAGE`** porque se le pasó `app_version` = `513b094` (el *squash*): la misma trampa del
