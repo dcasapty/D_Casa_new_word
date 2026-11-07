@@ -360,6 +360,18 @@ describe("palomitas y reacciones en vivo (2026-11-07)", () => {
     expect(m.llamadas).toEqual([]);
   });
 
+  it("la palomita en vivo trae sus horas: «Entregado 10:00» y «Leído 10:01» al pasar el mouse, sin recargar (revisión 2026-11-07)", async () => {
+    const { m, almacen } = await abierta();
+    recibos(m, [{ conversacion_id: 7, mensaje_id: 40, estado_canal: "leido", canal_entregado_en: "2026-10-10T15:00:00Z", canal_leido_en: "2026-10-10T15:01:00Z" }]);
+    await vi.advanceTimersByTimeAsync(1000);
+    const m40 = almacen.mensajes.find((x: any) => x.id === 40);
+    expect([m40.estado_canal, m40.canal_entregado_en, m40.canal_leido_en]).toEqual(["leido", "2026-10-10T15:00:00Z", "2026-10-10T15:01:00Z"]);
+    // Un aviso sin horas (un Odoo de antes) no borra las que ya había.
+    recibos(m, [{ conversacion_id: 7, mensaje_id: 40, estado_canal: "leido" }]);
+    expect(almacen.mensajes.find((x: any) => x.id === 40).canal_leido_en).toBe("2026-10-10T15:01:00Z");
+    expect(m.llamadas).toEqual([]);
+  });
+
   it("de otra conversación: nada (ni la lista: no es un mensaje nuevo, no suena ni sube «sin leer»)", async () => {
     const { m, almacen } = await abierta();
     const sinVer = almacen.nuevosSinVer;

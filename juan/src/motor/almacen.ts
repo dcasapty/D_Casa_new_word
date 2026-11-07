@@ -92,11 +92,16 @@ export interface FilaMensaje {
   contexto?: string | null;
 }
 
-/** Lo que el cliente citó, como lo recuerda la conversación: quién lo dijo y qué decía (null = no se sabe). */
+/**
+ * Lo que el cliente citó, como lo recuerda la conversación: quién lo dijo y qué decía (null = no se sabe). Si el citado está en esta
+ * misma memoria (`enMemoria`), NO se guarda una copia: se lee de su fila al armar el prompt, así un PIN tapado después o un mensaje que
+ * se purga no sobreviven en la cita (revisión 2026-11-07). `texto` solo guarda lo que vino de afuera (Telegram, o lo que Odoo recordaba).
+ */
 export interface CitaLocal {
   id: string;
   autor: "cliente" | "tienda" | null;
   texto: string | null;
+  enMemoria?: boolean;
 }
 
 /** Lo que acompaña a un mensaje del cliente y le da sentido («este», un reenviado). */
@@ -172,7 +177,7 @@ export class Mensajes {
     } catch {
       return;
     }
-    if (!actual.cita || actual.cita.texto || actual.cita.id !== cita.id) return;
+    if (!actual.cita || actual.cita.texto || actual.cita.enMemoria || actual.cita.id !== cita.id) return;
     this.sql.correr("UPDATE mensajes SET contexto = ? WHERE id = ?", JSON.stringify({ ...actual, cita }), fila.id);
   }
 
@@ -203,6 +208,24 @@ export class Mensajes {
     return this.sql.todos<{ texto: string }>("SELECT texto FROM mensajes WHERE rol = 'cliente' ORDER BY id DESC LIMIT ?", n).map((f) => f.texto);
   }
 
+  /**
+   * Los últimos `n` mensajes del cliente con el id de lo que citaba cada uno (null = no citaba nada), del más nuevo al más viejo. Para
+   * el anti-spam: «este» citando tres burbujas distintas son tres preguntas, no la misma tres veces (revisión 2026-11-07).
+   */
+  recientesDelCliente(n: number): { texto: string; citaId: string | null }[] {
+    return this.sql.todos<{ texto: string; contexto: string | null }>("SELECT texto, contexto FROM mensajes WHERE rol = 'cliente' ORDER BY id DESC LIMIT ?", n).map((f) => {
+      let citaId: string | null = null;
+      if (f.contexto) {
+        try {
+          citaId = (JSON.parse(f.contexto) as ContextoLocal).cita?.id ?? null;
+        } catch {
+          citaId = null;
+        }
+      }
+      return { texto: f.texto, citaId };
+    });
+  }
+
   /** Lo que dijeron el bot o una vendedora hace poco (para reconocer el eco de un mensaje propio). */
   salientesDesde(desde: number): string[] {
     return this.sql
@@ -217,6 +240,20 @@ export class Mensajes {
   redactar(secreto: string, marca: string): void {
     if (secreto.length < 4) return;
     this.sql.correr("UPDATE mensajes SET texto = REPLACE(texto, ?, ?) WHERE rol = 'cliente' AND instr(texto, ?) > 0", secreto, marca, secreto);
+    // Lo citado que vino de afuera (el texto que manda Telegram, o lo que Odoo recordaba) también puede llevarlo (revisión 2026-11-07).
+    // Se reemplaza dentro del texto citado, no en el JSON crudo: un «secreto» con comillas no puede romper la fila.
+    const filas = this.sql.todos<{ id: number; contexto: string }>("SELECT id, contexto FROM mensajes WHERE contexto IS NOT NULL AND instr(contexto, ?) > 0", secreto);
+    for (const f of filas) {
+      let c: ContextoLocal;
+      try {
+        c = JSON.parse(f.contexto) as ContextoLocal;
+      } catch {
+        continue;
+      }
+      if (!c.cita?.texto?.includes(secreto)) continue;
+      c.cita = { ...c.cita, texto: c.cita.texto.split(secreto).join(marca) };
+      this.sql.correr("UPDATE mensajes SET contexto = ? WHERE id = ?", JSON.stringify(c), f.id);
+    }
   }
 
   purgar(antesDe: number, conservar: number): void {

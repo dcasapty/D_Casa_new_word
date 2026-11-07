@@ -99,10 +99,19 @@ class ErrorDeEnvio extends Error {
   constructor(
     mensaje: string,
     readonly estado: number,
+    /** El `error.code` de Meta, si lo dijo. */
+    readonly codigo?: number,
   ) {
     super(mensaje);
   }
 }
+
+/**
+ * Meta rechazó el `context.message_id` (el citado es muy viejo, de otro chat o ya no existe): «Invalid parameter» (100) o «Parameter
+ * value is not valid» (131009), siempre con un 400. Solo entonces se sabe que no salió nada y se puede mandar otra vez sin cita: un 408
+ * (se cortó esperando) o cualquier otro rechazo pudo haber salido, o va a fallar igual sin cita (revisión 2026-11-07).
+ */
+const CODIGOS_DE_CITA_RECHAZADA = new Set([100, 131009]);
 
 interface WaCuerpo {
   object?: string;
@@ -203,7 +212,8 @@ export function crearWhatsappCloud(op: OpcionesWhatsappCloud = {}): AdaptadorCan
   /** Una reacción del cliente a un mensaje (suyo o nuestro). Sin emoji = la quitó. No es un mensaje: es un evento. */
   function aReaccion(m: WaMensaje, ahora: number): EventoCanal | null {
     const objetivo = m.reaction?.message_id;
-    if (!m.from || !objetivo) return null;
+    // Meta manda texto; un aviso mal formado (número, objeto) no rompe el lote entero.
+    if (typeof m.from !== "string" || !m.from || typeof objetivo !== "string" || !objetivo) return null;
     const emoji = typeof m.reaction?.emoji === "string" ? m.reaction.emoji.trim().slice(0, 32) : "";
     return { tipo: "reaccion", canal: "whatsapp_cloud", id_externo: m.from, id_mensaje: objetivo.slice(0, 255), emoji, ts: aMilisegundos(m.timestamp, ahora) };
   }
@@ -211,7 +221,7 @@ export function crearWhatsappCloud(op: OpcionesWhatsappCloud = {}): AdaptadorCan
   /** Un recibo (enviado, entregado, leído, no llegó) de un mensaje nuestro. «deleted», «warning» y otros se ignoran. */
   function aEstado(r: WaRecibo, ahora: number): EventoCanal | null {
     const estado = r.status ? ESTADOS_DE_META[r.status] : undefined;
-    if (!estado || !r.id || !r.recipient_id) return null;
+    if (!estado || typeof r.id !== "string" || !r.id || typeof r.recipient_id !== "string" || !r.recipient_id) return null;
     const error = estado === "fallido" ? motivoDeMeta(r) : undefined;
     return { tipo: "estado", canal: "whatsapp_cloud", id_externo: r.recipient_id, id_mensaje: r.id.slice(0, 255), estado, ts: aMilisegundos(r.timestamp, ahora), ...(error ? { error } : {}) };
   }
@@ -227,20 +237,23 @@ export function crearWhatsappCloud(op: OpcionesWhatsappCloud = {}): AdaptadorCan
     });
     const j = (await r.json().catch(() => ({}))) as { messages?: { id?: string }[]; error?: { message?: string; code?: number } };
     // Fuera de la ventana de 24 h Meta rechaza el texto libre y pide una plantilla: el motivo viene en el error.
-    if (!r.ok || j.error) throw new ErrorDeEnvio(`whatsapp cloud ${r.status}: ${j.error?.message ?? "sin detalle"} (código ${j.error?.code ?? "?"})`, r.ok ? 400 : r.status);
+    if (!r.ok || j.error) {
+      const codigo = typeof j.error?.code === "number" ? j.error.code : undefined;
+      throw new ErrorDeEnvio(`whatsapp cloud ${r.status}: ${j.error?.message ?? "sin detalle"} (código ${codigo ?? "?"})`, r.ok ? 400 : r.status, codigo);
+    }
     return j.messages?.[0]?.id;
   }
 
   /**
-   * El primer mensaje de un «Responder»: con la cita. Si Meta lo rechaza con un 4xx (el citado es muy viejo o ya no existe), se manda
-   * otra vez sin cita: un 4xx de Meta no deja salir nada, así que no se duplica. Un 429 o un 5xx no se maquillan.
+   * El primer mensaje de un «Responder»: con la cita. Si Meta rechaza justo la cita (400 con código 100 o 131009: el citado es muy viejo
+   * o ya no existe), se manda otra vez sin cita: ese rechazo no deja salir nada, así que no se duplica. Todo lo demás no se maquilla.
    */
   async function enviarConCita(env: Env, cuerpo: Record<string, unknown>, citado: string | undefined): Promise<string | undefined> {
     if (!citado) return enviarUno(env, cuerpo);
     try {
       return await enviarUno(env, { ...cuerpo, context: { message_id: citado } });
     } catch (e) {
-      if (!(e instanceof ErrorDeEnvio) || e.estado < 400 || e.estado >= 500 || e.estado === 429) throw e;
+      if (!(e instanceof ErrorDeEnvio) || e.estado !== 400 || e.codigo === undefined || !CODIGOS_DE_CITA_RECHAZADA.has(e.codigo)) throw e;
       console.warn("[juan] whatsapp cloud: no aceptó la cita; sale sin ella:", e.message.slice(0, 200));
       return enviarUno(env, cuerpo);
     }

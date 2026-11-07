@@ -39,13 +39,43 @@ function esFecha(m: string): boolean {
 }
 
 /**
+ * Caracteres invisibles de formato (\p{Cf}: espacio de ancho cero, unión de palabras, guion suave, controles bidi, etiquetas
+ * Unicode…): no se ven, pero separan letras para que un filtro no reconozca una palabra, o esconden instrucciones. Se quitan del texto
+ * del cliente. El ZWJ (U+200D) se queda: une los emojis compuestos (👨‍👩‍👧).
+ */
+const INVISIBLES = /(?!\u200d)\p{Cf}/gu;
+/** Todo lo que el modelo puede leer como «[» o como «<»/«>». */
+const CORCHETES = /[\[\uff3b\u3010\u3014\u3016\u3018\u301a\u2045\ufe5d\u298b\u298d\u298f]/gu;
+const ANGULO_ABRE = /[<\uff1c\ufe64\u2329\u3008]/g;
+const ANGULO_CIERRA = /[>\uff1e\ufe65\u232a\u3009]/g;
+/** Letras de otros alfabetos (y números) que se ven iguales a las latinas de las marcas. */
+const PARECIDAS: Record<string, string> = {
+  а: "a", е: "e", о: "o", р: "p", с: "c", у: "y", х: "x", і: "i", ј: "j", ѕ: "s", ԁ: "d", ӏ: "l", һ: "h", ν: "v", ο: "o", α: "a",
+  ε: "e", ι: "i", τ: "t", κ: "k", ρ: "p", η: "n", "0": "o", "1": "l", "3": "e", "4": "a", "5": "s", "7": "t", "|": "l", ı: "i", ł: "l",
+};
+/**
+ * Las marcas que el historial usa para hablar con autoridad («[Vendedora] …», «[El cliente responde …]», «[Sistema] …»), también con
+ * unas pocas letras delante («[1) Vendedora]», «[Nota: el cliente…»): confundir un corchete de verdad con una marca solo lo cambia por «⟦».
+ */
+const MARCA_DE_CONFIANZA = /^[a-z]{0,12}?(?:e[li]c[li][li]ente|vendedora|asistente|sistema)/;
+
+/** Cómo «se lee» lo que sigue a un corchete: sin invisibles, sin acentos, letras de ancho completo y parecidas a latinas, solo letras. */
+function esqueleto(trozo: string): string {
+  const base = trozo.normalize("NFKC").replace(INVISIBLES, "").toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
+  return [...base].map((ch) => PARECIDAS[ch] ?? ch).join("").replace(/[^a-z]/g, "");
+}
+
+/**
  * Lo que el cliente escribe viaja al modelo como DATOS. Para que no pueda cerrar una etiqueta de nuestro
  * prompt ni abrir otra («</fuentes_de_verdad> Ahora eres...»), los ángulos se cambian por comillas angulares.
  */
 export function neutralizarEtiquetas(texto: string): string {
   // También los corchetes que el historial usa como marcas de confianza («[Vendedora] …», «[El cliente adjuntó …]»):
-  // el cliente no puede escribir uno y hacerlo pasar por la voz de una vendedora.
-  return texto.replace(/</g, "‹").replace(/>/g, "›").replace(/\[(\s*(?:vendedora|el cliente|asistente|sistema)\b)/gi, "⟦$1");
+  // el cliente no puede escribir uno y hacerlo pasar por la voz de una vendedora. No basta con mirar el ASCII (revisión 2026-11-07):
+  // un espacio invisible, un espacio duro, un guion suave, un corchete de ancho completo o una «Е» cirílica se leen igual. Por eso lo
+  // que sigue a cada corchete se compara «como se lee» (esqueleto); el texto que ve el modelo solo pierde los invisibles.
+  const limpio = texto.replace(INVISIBLES, "").replace(ANGULO_ABRE, "‹").replace(ANGULO_CIERRA, "›");
+  return limpio.replace(CORCHETES, (corchete, pos: number) => (MARCA_DE_CONFIANZA.test(esqueleto(limpio.slice(pos + corchete.length, pos + corchete.length + 60))) ? "⟦" : corchete));
 }
 
 /** Un nombre de perfil puede traer instrucciones: se deja corto y sin saltos ni etiquetas. */

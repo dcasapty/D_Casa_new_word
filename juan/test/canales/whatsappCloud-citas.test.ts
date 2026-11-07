@@ -196,6 +196,24 @@ describe("recibos (statuses): las palomitas", () => {
     expect(r.eventos).toHaveLength(1);
   });
 
+  it("un id que no es texto (reacción o recibo mal formado) se ignora sin romper el aviso", async () => {
+    const r = await adaptador.recibir(
+      await firmado(
+        aviso({
+          contacts: contactos,
+          messages: [{ from: CLIENTE, id: "wamid.RX", timestamp: "1790000400", type: "reaction", reaction: { message_id: 12345, emoji: "👍" } }],
+          statuses: [
+            { id: { raro: true }, status: "read", timestamp: "1790000401", recipient_id: CLIENTE },
+            { id: "wamid.BIEN", status: "read", timestamp: "1790000402", recipient_id: CLIENTE },
+          ],
+        }),
+      ),
+      env,
+    );
+    expect(r.respuesta.status).toBe(200);
+    expect(r.eventos?.map((e) => e.id_mensaje)).toEqual(["wamid.BIEN"]);
+  });
+
   it("motivoDeMeta: sin errores no hay motivo", () => {
     expect(motivoDeMeta({ id: "x", status: "failed" })).toBeUndefined();
   });
@@ -222,6 +240,21 @@ describe("«Responder» desde Odoo: la cita sale con el primer mensaje", () => {
     const caida = nubeFalsa(() => new Response("no", { status: 503 }));
     await expect(caida.adaptador.enviar("whatsapp_cloud", { para: CLIENTE, burbujas: ["Claro"], medios: [], responderA: "wamid.VIEJO" }, env)).rejects.toThrow(/503/);
     expect(caida.llamadas).toHaveLength(1);
+  });
+
+  it("solo un 400 con código 100 o 131009 (parámetro inválido) reenvía sin cita: un 408, un 401 u otro 400 no (podría duplicar)", async () => {
+    for (const [estado, codigo] of [
+      [408, 100],
+      [401, 190],
+      [400, 131047],
+    ] as const) {
+      const nube = nubeFalsa(() => Response.json({ error: { message: "rechazo", code: codigo } }, { status: estado }));
+      await expect(nube.adaptador.enviar("whatsapp_cloud", { para: CLIENTE, burbujas: ["Claro"], medios: [], responderA: "wamid.VIEJO" }, env)).rejects.toThrow(new RegExp(String(estado)));
+      expect(nube.llamadas).toHaveLength(1);
+    }
+    const r131009 = nubeFalsa((c, n) => (c.cuerpo.context ? Response.json({ error: { message: "Parameter value is not valid", code: 131009 } }, { status: 400 }) : Response.json({ messages: [{ id: `wamid.OK${n}` }] })));
+    const r = await r131009.adaptador.enviar("whatsapp_cloud", { para: CLIENTE, burbujas: ["Claro"], medios: [], responderA: "wamid.VIEJO" }, env);
+    expect(r.ids).toEqual(["wamid.OK1"]);
   });
 
   it("si se cae a la mitad, dice cuánto salió (y con qué ids): quien reintenta no repite la primera burbuja", async () => {

@@ -43,6 +43,25 @@ describe("entregarEventos", () => {
     expect(n).toBe(1);
   });
 
+  it("un aviso con más de 100 se parte en tandas de 100: no se pierde ninguno (revisión 2026-11-07)", async () => {
+    const tandas: number[] = [];
+    const muchos = Array.from({ length: 250 }, (_x, i) => estado(`wamid.${i}`));
+    const r = await entregarEventos(muchos, { enviar: async (l) => (tandas.push(l.length), { desconocidos: [] }), dormir: async () => {} });
+    expect(tandas).toEqual([100, 100, 50]);
+    expect(r).toEqual({ entregados: 250, perdidos: 0, odooViejo: false });
+  });
+
+  it("si Odoo se cae a mitad de las tandas, lo que falta cuenta como perdido (y no se sigue insistiendo)", async () => {
+    let n = 0;
+    const muchos = Array.from({ length: 250 }, (_x, i) => estado(`wamid.${i}`));
+    const r = await entregarEventos(muchos, {
+      enviar: async () => (n++ === 0 ? { desconocidos: [] } : Promise.reject(new OdooError("dormido", 503, true))),
+      dormir: async () => {},
+    });
+    expect(n).toBe(1 + 1 + ESPERAS_SI_ODOO_FALLA_MS.length);
+    expect(r).toEqual({ entregados: 100, perdidos: 150, odooViejo: false });
+  });
+
   it("lo que Odoo no conoce se vuelve a mandar SOLO eso, a lo más dos veces", async () => {
     const tandas: string[][] = [];
     const esperas: number[] = [];

@@ -20,7 +20,7 @@ import { OdooError, type RespuestaEventos } from "./odoo/cliente";
 export const ESPERAS_SI_ODOO_FALLA_MS = [2_000, 6_000];
 /** Esperas antes de volver a mandar lo que Odoo no reconoció (la respuesta del asistente se registra en paralelo). */
 export const ESPERAS_SI_ES_DESCONOCIDO_MS = [5_000, 10_000];
-/** Una tanda nunca es más grande que esto (lo que acepta Odoo). */
+/** Una tanda nunca es más grande que esto (lo que acepta Odoo): un aviso más grande se parte. */
 export const MAX_POR_TANDA = 100;
 
 export interface DepsEventos {
@@ -56,25 +56,31 @@ async function mandar(lote: EventoCanal[], d: DepsEventos): Promise<RespuestaEve
   }
 }
 
+/**
+ * Entrega todo el aviso en tandas de `MAX_POR_TANDA` (un aviso grande, o varios juntos, no pierde los que pasan de 100; revisión
+ * 2026-11-07). Si Odoo no contesta una tanda, las que faltan no se intentan (cuentan como perdidas): seguiría caído.
+ */
 export async function entregarEventos(eventos: EventoCanal[], d: DepsEventos): Promise<ResultadoEventos> {
   const resultado: ResultadoEventos = { entregados: 0, perdidos: 0, odooViejo: false };
-  let pendientes = eventos.slice(0, MAX_POR_TANDA);
-  resultado.perdidos += eventos.length - pendientes.length;
+  let pendientes = eventos;
   for (let vuelta = 0; pendientes.length > 0; vuelta++) {
-    const r = await mandar(pendientes, d);
-    if (r === "viejo") {
-      d.log?.("info", "Odoo todavía no tiene la ruta de palomitas y reacciones (/eventos): se ignoran hasta que se despliegue");
-      resultado.odooViejo = true;
-      resultado.perdidos += pendientes.length;
-      return resultado;
+    const otraVez: EventoCanal[] = [];
+    for (let i = 0; i < pendientes.length; i += MAX_POR_TANDA) {
+      const tanda = pendientes.slice(i, i + MAX_POR_TANDA);
+      const r = await mandar(tanda, d);
+      if (r === "viejo" || r === null) {
+        if (r === "viejo") {
+          d.log?.("info", "Odoo todavía no tiene la ruta de palomitas y reacciones (/eventos): se ignoran hasta que se despliegue");
+          resultado.odooViejo = true;
+        }
+        resultado.perdidos += pendientes.length - i + otraVez.length;
+        return resultado;
+      }
+      const desconocidos = new Set((Array.isArray(r.desconocidos) ? r.desconocidos : []).filter((x): x is string => typeof x === "string"));
+      const deNuevo = tanda.filter((e) => desconocidos.has(e.id_mensaje));
+      resultado.entregados += tanda.length - deNuevo.length;
+      otraVez.push(...deNuevo);
     }
-    if (r === null) {
-      resultado.perdidos += pendientes.length;
-      return resultado;
-    }
-    const desconocidos = new Set((Array.isArray(r.desconocidos) ? r.desconocidos : []).filter((x): x is string => typeof x === "string"));
-    const otraVez = pendientes.filter((e) => desconocidos.has(e.id_mensaje));
-    resultado.entregados += pendientes.length - otraVez.length;
     if (otraVez.length === 0) return resultado;
     if (vuelta >= ESPERAS_SI_ES_DESCONOCIDO_MS.length) {
       // De un mensaje que Odoo no conoce (de antes de esta versión, o mandado por fuera de Juan): se ignora sin ruido.
