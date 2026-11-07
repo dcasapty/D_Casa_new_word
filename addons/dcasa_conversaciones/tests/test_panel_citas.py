@@ -63,13 +63,14 @@ class TestCitasEnElNavegador(PanelUiCase):
         self.v3 = self.de_la_vendedora(self.conv, 'Con gusto, aquí estoy para lo que necesites.', 'wamid.ui.v3')
         self.v4 = self.de_la_vendedora(self.conv, 'Hola, ¿pudiste ver las fotos?', 'wamid.ui.v4')
         Mensaje = self.env['dcasa.mensaje']
+        # Un «leído» vale también para lo anterior (revisión 2026-11-07): el leído va en el primero, como en la vida real.
         Mensaje._aplicar_eventos([
             self.evento('estado', 'wamid.ui.b1', 48, estado='leido'),
             self.evento('estado', 'wamid.ui.b2', 48, estado='leido'),
-            self.evento('estado', 'wamid.ui.v1', 0, estado='enviado'),
+            self.evento('estado', 'wamid.ui.v1', 0, estado='leido'),
+            self.evento('reaccion', 'wamid.ui.v1', 0, emoji='❤️'),
             self.evento('estado', 'wamid.ui.v2', 0, estado='entregado'),
-            self.evento('estado', 'wamid.ui.v3', 0, estado='leido'),
-            self.evento('reaccion', 'wamid.ui.v3', 0, emoji='❤️'),
+            self.evento('estado', 'wamid.ui.v3', 0, estado='enviado'),
             self.evento('estado', 'wamid.ui.v4', 0, estado='fallido', error=MOTIVO_24H),
         ])
         # Una conversación de Telegram: ahí los bots no reciben «entregado» ni «leído», así que no hay palomitas.
@@ -101,14 +102,14 @@ class TestCitasEnElNavegador(PanelUiCase):
     const reenviado = burbuja("Mira esta promo: cama king con cajones, ¿la tienen?").querySelector(".o_dcj_reenviado");
     if (!reenviado || reenviado.textContent.trim() !== "Reenviado muchas veces" || !reenviado.querySelector(".fa-share")) { throw new Error("falta «Reenviado muchas veces» con su ícono"); }
     // La reacción del cliente, en la esquina de la burbuja.
-    const reaccion = burbuja("Con gusto, aquí estoy para lo que necesites.").querySelector(".o_dcj_reaccion");
+    const reaccion = burbuja("Sí, la tenemos en gris y en beige.").querySelector(".o_dcj_reaccion");
     if (!reaccion || reaccion.textContent.trim() !== "❤️") { throw new Error("falta la reacción ❤️"); }
     if (getComputedStyle(reaccion).position !== "absolute") { throw new Error("la reacción va en la esquina"); }
     // Las palomitas: ✓ enviado, ✓✓ gris entregado, ✓✓ azul leído, ⚠ no llegó (con el motivo).
     const palomita = (texto) => burbuja(texto).querySelector(".o_dcj_palomitas");
-    const enviado = palomita("Sí, la tenemos en gris y en beige.");
+    const leido = palomita("Sí, la tenemos en gris y en beige.");
     const entregado = palomita("Te mando la foto en un momento.");
-    const leido = palomita("Con gusto, aquí estoy para lo que necesites.");
+    const enviado = palomita("Con gusto, aquí estoy para lo que necesites.");
     const fallido = palomita("Hola, ¿pudiste ver las fotos?");
     const checks = (p) => p.querySelectorAll(".fa-check").length;
     if (!enviado.classList.contains("o_dcj_palomitas_enviado") || checks(enviado) !== 1) { throw new Error("enviado: una palomita"); }
@@ -176,16 +177,21 @@ class TestCitasEnElNavegador(PanelUiCase):
     const burbuja = (texto) => [...document.querySelectorAll(".o_dcj_burbuja")].find((b) => b.querySelector(".o_dcj_burbuja_texto")?.textContent.trim() === texto);
     const antes = document.querySelectorAll(".o_dcj_burbuja").length;
     const ts = new Date().toISOString();
-    const r = await fetch("/dcasa/juan/v1/eventos", {
+    const avisar = (eventos) => fetch("/dcasa/juan/v1/eventos", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: "Bearer __TOKEN__" },
-        body: JSON.stringify({ eventos: [
-            { tipo: "estado", canal: "whatsapp_cloud", id_externo: "__CLIENTE__", id_mensaje: "wamid.ui.v1", estado: "leido", ts },
-            { tipo: "reaccion", canal: "whatsapp_cloud", id_externo: "__CLIENTE__", id_mensaje: "wamid.ui.v2", emoji: "👍", ts },
-        ] }),
+        body: JSON.stringify({ eventos }),
     });
+    // Solo el «leído» del tercero (sin reacción, que traería el hilo entero): la palomita y su hora se ponen al día ahí mismo,
+    // y el «entregado» de antes también pasa a leído (WhatsApp a veces solo avisa del último).
+    let r = await avisar([{ tipo: "estado", canal: "whatsapp_cloud", id_externo: "__CLIENTE__", id_mensaje: "wamid.ui.v3", estado: "leido", ts }]);
     if (!r.ok) { throw new Error("la API de Juan respondió " + r.status); }
-    await esperar(() => burbuja("Sí, la tenemos en gris y en beige.").querySelector(".o_dcj_palomitas_leido"), "la palomita azul, sin recargar", 8000);
+    await esperar(() => burbuja("Con gusto, aquí estoy para lo que necesites.").querySelector(".o_dcj_palomitas_leido"), "la palomita azul, sin recargar", 8000);
+    await esperar(() => burbuja("Te mando la foto en un momento.").querySelector(".o_dcj_palomitas_leido"), "el anterior también leído, sin recargar", 8000);
+    const titulo = burbuja("Con gusto, aquí estoy para lo que necesites.").querySelector(".o_dcj_palomitas").title;
+    if (!/^Leído \\d/.test(titulo)) { throw new Error("al pasar el mouse dice «Leído» y la hora, sin recargar: " + titulo); }
+    r = await avisar([{ tipo: "reaccion", canal: "whatsapp_cloud", id_externo: "__CLIENTE__", id_mensaje: "wamid.ui.v2", emoji: "👍", ts }]);
+    if (!r.ok) { throw new Error("la API de Juan respondió " + r.status); }
     await esperar(() => burbuja("Te mando la foto en un momento.").querySelector(".o_dcj_reaccion")?.textContent.includes("👍"), "la reacción, sin recargar", 8000);
     if (document.querySelectorAll(".o_dcj_burbuja").length !== antes) { throw new Error("una palomita o una reacción no es un mensaje nuevo"); }
     if (document.querySelector(".o_dcj_nuevos")) { throw new Error("no es «1 mensaje nuevo»"); }
@@ -307,6 +313,128 @@ class TestCitasEnElNavegador(PanelUiCase):
             })()""")
             self.assertIn('Respondes a Cliente', citando)
             self.assertFalse(self._js(browser, self.MEDIR)['paginaAncha'])
+
+    # ------------------------------------------------------------------ Revisión 2026-11-07
+    LARGO = ('Hola, quería preguntar por la cama king con cajones que vi en la tienda el sábado, la de madera clara, '
+             '¿todavía la tienen y en cuánto me sale con la entrega a la casa?')
+
+    DESBORDE = """(async () => {
+        const h = document.querySelector('.o_dcj_hilo_cuerpo');
+        const largo = [...document.querySelectorAll('.o_dcj_burbuja_cliente')].find((b) => b.textContent.includes('madera clara'));
+        largo.scrollIntoView({block: 'center'});
+        await new Promise((ok) => setTimeout(ok, 300));
+        const r = largo.getBoundingClientRect(), hr = h.getBoundingClientRect();
+        return {hilo: h.scrollWidth - h.clientWidth, pagina: document.documentElement.scrollWidth - innerWidth,
+                burbuja: Math.round(r.width), columna: Math.round(hr.width), x: r.left + r.width / 2, y: r.top + r.height / 2};
+    })()"""
+
+    BOTON_AL_PASAR = """(async () => {
+        await new Promise((ok) => setTimeout(ok, 300));
+        const largo = [...document.querySelectorAll('.o_dcj_burbuja_cliente')].find((b) => b.textContent.includes('madera clara'));
+        const b = largo.querySelector('.o_dcj_responder'), h = document.querySelector('.o_dcj_hilo_cuerpo');
+        const r = b.getBoundingClientRect(), hr = h.getBoundingClientRect();
+        return {opacidad: getComputedStyle(b).opacity, derecha: r.right, borde: hr.right, ancho: r.width, alto: r.height,
+                hilo: h.scrollWidth - h.clientWidth, nombre: b.getAttribute('aria-label') || ''};
+    })()"""
+
+    LISTA_COMPLETA = """(async () => {
+        const boton = document.querySelector('.o_dcj_lista_toggle[aria-expanded="false"]');
+        if (boton) { boton.click(); }
+        await new Promise((ok) => setTimeout(ok, 600));
+        return !!document.querySelector('.o_dcj_lista_toggle[aria-expanded="true"]');
+    })()"""
+
+    ABRIR_FICHA = """(async () => {
+        if (!document.querySelector('.o_dcj_ficha_abierta')) {
+            document.querySelector('[aria-label="Cliente: mostrar u ocultar la ficha"]').click();
+        }
+        await new Promise((ok) => setTimeout(ok, 600));
+        return !!document.querySelector('.o_dcj_ficha_abierta');
+    })()"""
+
+    def test_responder_no_corre_el_hilo_de_lado_en_tableta_ni_en_laptop_con_la_ficha(self):
+        """Revisión S6: «Responder» iba al lado de la burbuja (invisible, pero ocupando lugar) y, con la columna del chat
+        por debajo de ~475 px (tabletas con la lista completa) el hilo se corría de lado: con el botón de antes (~104
+        px), a 768 px (chat de 467 px). Se mide también a 800 px y a 1024 px con la ficha del cliente abierta (por debajo
+        de 1250 px la lista se reduce sola a las fotos y el chat queda en ~560 px)."""
+        self.datos_citas()
+        self.mensaje(self.LARGO, 'wamid.ui.largo', minutos=10)
+        for ancho, alto, lista, ficha in ((768, 1024, True, False), (800, 900, True, False), (800, 900, False, False),
+                                          (1024, 768, False, True)):
+            with self.subTest(ancho=ancho, lista=lista, ficha=ficha), self._chrome(ancho, alto) as browser:
+                self._abrir(browser)
+                if lista:
+                    self.assertTrue(self._js(browser, self.LISTA_COMPLETA), 'la lista quedó completa')
+                if ficha:
+                    self.assertTrue(self._js(browser, self.ABRIR_FICHA), 'la ficha del cliente quedó abierta')
+                medida = self._js(browser, self.DESBORDE)
+                self.assertLessEqual(medida['hilo'], 0, f'el hilo se corre de lado: {medida}')
+                self.assertLessEqual(medida['pagina'], 0, f'la página se corre de lado: {medida}')
+                # Con el mouse encima de la burbuja, «Responder» aparece, cabe dentro del hilo y dice qué hace.
+                browser._websocket_request('Input.dispatchMouseEvent', params={
+                    'type': 'mouseMoved', 'x': medida['x'], 'y': medida['y']})
+                boton = self._js(browser, self.BOTON_AL_PASAR)
+                self.assertEqual(boton['opacidad'], '1', f'«Responder» aparece al pasar el mouse: {boton}')
+                self.assertLessEqual(boton['derecha'], boton['borde'], f'«Responder» se sale del hilo: {boton}')
+                self.assertLessEqual(boton['hilo'], 0, f'con «Responder» a la vista, el hilo se corre de lado: {boton}')
+                self.assertIn('Responder', boton['nombre'])
+
+    def test_las_palomitas_grises_se_leen_sobre_blanco(self):
+        """Revisión, nit 9: «enviado» y «entregado» en gris, pero con contraste de al menos 3:1 (eran 2,6:1)."""
+        self.datos_citas()
+        self.navegador("""
+(async () => {
+    await abrirConversacion("Valeria");
+    const rgb = (c) => c.match(/\\d+(\\.\\d+)?/g).slice(0, 3).map(Number);
+    const lum = (c) => { const [r, g, b] = rgb(c).map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+    const contraste = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+    for (const clase of ["o_dcj_palomitas_enviado", "o_dcj_palomitas_entregado"]) {
+        const p = await esperar(() => document.querySelector("." + clase), clase);
+        const estilo = getComputedStyle(p);
+        const c = contraste(estilo.color, estilo.backgroundColor);
+        if (c < 3) { throw new Error(clase + ": contraste " + c.toFixed(2) + ":1 (mínimo 3:1)"); }
+    }
+    console.log("test successful");
+})().catch((e) => console.error(e.message || e));
+""")
+
+    def test_celular_un_temblor_del_dedo_no_cancela_el_toque_largo(self):
+        """Revisión, nit 8: el dedo nunca está quieto del todo (en el iPhone llega un «touchmove» por cada píxel); el
+        toque largo se cancela solo si se mueve más de ~10 px. Chromium se guarda los movimientos chiquitos, así que los
+        toques se arman a mano (TouchEvent), como los manda Safari."""
+        self.datos_citas()
+        with self._chrome(390, 844, tactil=True, escala=2) as browser:
+            self._abrir(browser)
+            r = self._js(browser, """(async () => {
+                const dormir = (ms) => new Promise((ok) => setTimeout(ok, ms));
+                const b = [...document.querySelectorAll('.o_dcj_burbuja_cliente')].find((x) => x.querySelector('.o_dcj_burbuja_texto')?.textContent.trim() === 'esta');
+                b.scrollIntoView({block: 'center'});
+                await dormir(400);
+                const blanco = b.querySelector('.o_dcj_burbuja_texto');
+                const caja = blanco.getBoundingClientRect();
+                const x = caja.left + 10, y = caja.top + caja.height / 2;
+                const tocar = (tipo, dx, dy) => {
+                    const t = new Touch({identifier: 1, target: blanco, clientX: x + dx, clientY: y + dy});
+                    const puntos = tipo === 'touchend' ? [] : [t];
+                    blanco.dispatchEvent(new TouchEvent(tipo, {touches: puntos, targetTouches: puntos, changedTouches: [t], bubbles: true}));
+                };
+                const hay = () => !!document.querySelector('.o_dcj_burbuja_cliente.o_acciones .o_dcj_responder');
+                // Arrastrar (20 px) no es un toque largo.
+                tocar('touchstart', 0, 0);
+                tocar('touchmove', 20, 0);
+                await dormir(800);
+                tocar('touchend', 20, 0);
+                const trasArrastrar = hay();
+                // Un temblor de 5 px sí sigue siendo un toque largo.
+                tocar('touchstart', 0, 0);
+                tocar('touchmove', 2, 1);
+                tocar('touchmove', 3, 4);
+                await dormir(800);
+                tocar('touchend', 3, 4);
+                return {trasArrastrar, trasTemblor: hay()};
+            })()""")
+            self.assertFalse(r['trasArrastrar'], 'arrastrar el dedo no abre «Responder»')
+            self.assertTrue(r['trasTemblor'], 'un temblor de 5 px no cancela el toque largo')
 
     # ------------------------------------------------------------------ Capturas para la dueña (datos de prueba)
     def test_capturas_para_la_duena(self):

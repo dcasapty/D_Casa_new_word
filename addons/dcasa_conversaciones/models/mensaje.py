@@ -18,7 +18,8 @@ from markupsafe import Markup, escape
 from psycopg2 import IntegrityError
 
 from odoo import api, fields, models
-from odoo.exceptions import AccessError, UserError
+from odoo.exceptions import AccessError, ConcurrencyError, UserError
+from odoo.service.model import PG_CONCURRENCY_EXCEPTIONS_TO_RETRY
 from odoo.tools import sql as tools_sql
 
 from . import adjuntos as A
@@ -51,6 +52,9 @@ TIPOS_DE_PARTE = [('texto', 'Texto'), ('imagen', 'Foto'), ('documento', 'Documen
                   ('video', 'Video')]
 MAX_TEXTO_CITA = 300
 MAX_PARTES = 30
+# Un «leído» (o «entregado») de una burbuja vale también para las anteriores de la conversación: se suben a lo más
+# estas partes por aviso (las que ya subieron no vuelven a contar, así que casi nunca son más de unas pocas).
+MAX_PARTES_QUE_SUBEN = 100
 # Un id propio de Odoo o del Worker (no del canal): con él no se puede citar ni reconocer un aviso del canal.
 PREFIJOS_PROPIOS = ('odoo-', 'bot-', 'vendedora-', 'nota-', 'aviso-')
 MAX_INTENTOS = 12                       # con el cron cada 5 min: ~1 hora de reintentos
@@ -113,9 +117,13 @@ class DcasaMensaje(models.Model):
     cita_id_canal = fields.Char(
         'Id del mensaje citado', readonly=True, index='btree_not_null',
         help='El id que dio el canal del mensaje citado. Se guarda aunque ese mensaje no esté en el historial.')
+    cita_parte_id = fields.Many2one(
+        'dcasa.mensaje.parte', 'Burbuja citada', readonly=True, ondelete='set null',
+        help='Si el citado es un mensaje nuestro que salió en varias burbujas: justo la que el cliente citó.')
     cita_texto = fields.Char(
-        'Lo que decía el mensaje citado', readonly=True,
-        help='Las primeras letras de lo citado (la burbuja exacta, si nuestro mensaje salió en varias).')
+        'Lo que decía el mensaje citado (copia del canal)', readonly=True,
+        help='Solo cuando lo citado NO está en el historial (Telegram manda el texto citado): las primeras letras. '
+             'Si está, lo citado se lee del mensaje original, así borrarlo lo borra también de las respuestas.')
     reenviado = fields.Selection(REENVIADO, readonly=True)
     reaccion = fields.Char('Reacción del cliente', readonly=True, help='El emoji con que el cliente reaccionó.')
     reaccion_en = fields.Datetime('Reaccionó el', readonly=True)
@@ -149,10 +157,18 @@ class DcasaMensaje(models.Model):
     _pendientes_idx = models.Index("(estado_envio) WHERE estado_envio IN ('por_enviar', 'programado', 'fallido')")
 
     def unlink(self):
-        """Borrar un mensaje (derecho de borrado, Ley 81) borra también su copia en la ficha del cliente."""
+        """Borrar un mensaje (derecho de borrado, Ley 81) borra también su copia en la ficha del cliente, y lo que de
+        él se veía en los mensajes que lo citaban (revisión 2026-11-07): la cita queda «un mensaje que no está en el
+        historial», en el hilo y en el chatter."""
         copias = self.sudo().chatter_id
+        citantes = self.sudo().search([('cita_id', 'in', self.ids), ('id', 'not in', self.ids)])
         resultado = super().unlink()
         copias.sudo().unlink()
+        if citantes:
+            citantes.invalidate_recordset(['cita_id', 'cita_parte_id'])
+            citantes.with_context(**{CLAVE_SISTEMA: True}).write({'cita_texto': False})
+            for citante in citantes.filtered('chatter_id'):
+                citante.chatter_id.sudo().write({'body': citante._cuerpo_chatter()})
         return resultado
 
     # ------------------------------------------------------------------
@@ -254,19 +270,32 @@ class DcasaMensaje(models.Model):
         partner = self.partner_id.sudo()
         if not partner or self.tipo == 'aviso':
             return
+        copia = partner.with_context(mail_post_autofollow=False).message_post(
+            body=self._cuerpo_chatter(), message_type='comment', subtype_xmlid='mail.mt_note',
+            author_id=self._autor_en_chatter(), attachment_ids=self.adjunto_ids.ids)
+        self.sudo().chatter_id = copia   # para poder borrarla con el mensaje
+
+    def _autor_en_chatter(self):
+        """Quién firma la copia en el chatter: la vendedora (o quien escribió la nota), el cliente o el asistente."""
+        self.ensure_one()
+        if self.tipo != 'nota' and self.autor == 'cliente':
+            return self.partner_id.sudo().id
+        usuario = self.usuario_id if self.tipo == 'nota' or self.autor != 'bot' else self.env['res.users']
+        return usuario.partner_id.id if usuario else self._partner_del_bot().id
+
+    def _cuerpo_chatter(self):
+        """El HTML de la copia en el chatter (se rehace si se borra el mensaje que citaba)."""
+        self.ensure_one()
         canal = dict(CANALES).get(self.canal, self.canal)
         if self.tipo == 'nota':
-            usuario = self.usuario_id
-            quien = self.env._('Nota interna de %s', usuario.name or self.env._('una vendedora'))
-            autor_id = usuario.partner_id.id if usuario else self._partner_del_bot().id
+            quien = self.env._('Nota interna de %s', self.usuario_id.name or self.env._('una vendedora'))
         elif self.autor == 'cliente':
-            quien, autor_id = 'Cliente', partner.id
+            quien = 'Cliente'
         elif self.autor == 'bot':
-            quien, autor_id = self.env._('Asistente'), self._partner_del_bot().id
+            quien = self.env._('Asistente')
         else:
             usuario = self.usuario_id
             quien = self.env._('Vendedora %s', usuario.name) if usuario else self.env._('Vendedora (desde el teléfono)')
-            autor_id = (usuario.partner_id.id if usuario else self._partner_del_bot().id)
         cuerpo = Markup('<p><strong>%s · %s</strong></p>') % (escape(canal), escape(quien))
         if self.reenviado:
             cuerpo += Markup('<p><em>%s</em></p>') % escape(dict(REENVIADO)[self.reenviado])
@@ -283,10 +312,7 @@ class DcasaMensaje(models.Model):
         if self.adjuntos_fallidos:
             cuerpo += Markup('<p><em>%s</em></p>') % escape(self.env._(
                 'No se pudo traer %s adjunto(s) del mensaje.', self.adjuntos_fallidos))
-        copia = partner.with_context(mail_post_autofollow=False).message_post(
-            body=cuerpo, message_type='comment', subtype_xmlid='mail.mt_note', author_id=autor_id,
-            attachment_ids=self.adjunto_ids.ids)
-        self.sudo().chatter_id = copia   # para poder borrarla con el mensaje
+        return cuerpo
 
     @api.model
     def _partner_del_bot(self):
@@ -377,10 +403,15 @@ class DcasaMensaje(models.Model):
                                   ('id_mensaje', '=', id_externo), ('id', '!=', self.id)], limit=1)
             if eco:
                 # El Worker ya había registrado este mensaje: el eco se queda con todo lo nuestro.
-                eco.write({
+                valores_eco = {
                     'estado_envio': 'enviado', 'usuario_id': self.usuario_id.id, 'origen': 'odoo',
                     'adjunto_ids': [(4, a.id) for a in self.adjunto_ids],
-                    'tiene_sensible': self.tiene_sensible or eco.tiene_sensible})
+                    'tiene_sensible': self.tiene_sensible or eco.tiene_sensible}
+                if (self.cita_id or self.cita_id_canal) and not (eco.cita_id or eco.cita_id_canal):
+                    # El «Responder» de la vendedora: el eco no sabe a qué respondía (revisión 2026-11-07).
+                    valores_eco.update({'cita_id': self.cita_id.id, 'cita_id_canal': self.cita_id_canal,
+                                        'cita_parte_id': self.cita_parte_id.id, 'cita_texto': self.cita_texto})
+                eco.write(valores_eco)
                 self.adjunto_ids.sudo().write({'res_id': eco.id})   # que no se borren con este mensaje
                 self.write({'adjunto_ids': [(5, 0, 0)]})
                 self.sudo().unlink()
@@ -498,11 +529,14 @@ class DcasaMensaje(models.Model):
         original = self.cita_id.sudo()
         if not original:
             return {'id': None, 'autor': None, 'usuario': None, 'texto': self.cita_texto or '', 'en_historial': False}
+        # Se lee del original, no de una copia: si se borra, se borra también aquí (Ley 81; revisión 2026-11-07).
+        parte = self.cita_parte_id.sudo()
+        texto = (_texto_de_parte(parte) if parte and parte.mensaje_id == original else '') or original._texto_corto()
         return {
             'id': original.id, 'autor': original.autor,
             'usuario': ({'id': original.usuario_id.id, 'nombre': original.usuario_id.name}
                         if original.usuario_id else None),
-            'texto': self.cita_texto or original._texto_corto(), 'en_historial': True,
+            'texto': ' '.join((texto or '').split())[:MAX_TEXTO_CITA], 'en_historial': True,
         }
 
     @api.model
@@ -523,9 +557,12 @@ class DcasaMensaje(models.Model):
         if not cita:
             return {}
         original, parte = self._buscar_por_id_canal(conversacion, cita.get('id_canal'))
-        texto = _texto_de_parte(parte) or (original._texto_corto() if original else '') or cita.get('texto')
-        return {'cita_id': original.id or False, 'cita_id_canal': cita.get('id_canal') or False,
-                'cita_texto': ' '.join((texto or '').split())[:MAX_TEXTO_CITA] or False}
+        valores = {'cita_id': original.id or False, 'cita_id_canal': cita.get('id_canal') or False,
+                   'cita_parte_id': parte.id or False, 'cita_texto': False}
+        if not original:
+            # Solo lo que no está en el historial se copia (lo que manda Telegram): no hay otro lado de donde leerlo.
+            valores['cita_texto'] = ' '.join((cita.get('texto') or '').split())[:MAX_TEXTO_CITA] or False
+        return valores
 
     def _crear_partes(self, partes):
         """Anota los ids que el canal dio a cada burbuja o archivo de este mensaje nuestro (idempotente)."""
@@ -556,9 +593,9 @@ class DcasaMensaje(models.Model):
             for cita in citas:
                 parte = Parte.search([('conversacion_id', '=', conversacion.id),
                                       ('id_canal', '=', cita.cita_id_canal)], limit=1)
+                # Ya se sabe cuál es: se lee de ahí y la copia que mandó el canal sobra.
                 cita.with_context(**{CLAVE_SISTEMA: True}).write({
-                    'cita_id': self.id,
-                    'cita_texto': (_texto_de_parte(parte) or self._texto_corto() or '')[:MAX_TEXTO_CITA]})
+                    'cita_id': self.id, 'cita_parte_id': parte.id or False, 'cita_texto': False})
         return nuevos
 
     def _recalcular_estado_canal(self, ts):
@@ -613,7 +650,7 @@ class DcasaMensaje(models.Model):
         """
         Conversacion = self.env['dcasa.conversacion'].sudo()
         conversaciones = {}
-        aplicados, desconocidos, cambios = 0, [], []
+        aplicados, fallidos, desconocidos, cambios = 0, 0, [], []
         for evento in eventos:
             clave = (evento['canal'], evento['id_externo'])
             if clave not in conversaciones:
@@ -626,38 +663,90 @@ class DcasaMensaje(models.Model):
                 desconocidos.append(evento['id_mensaje'])
                 continue
             mensaje = mensaje.sudo()
-            if evento['tipo'] == 'estado':
-                cambio = self._aplicar_estado(mensaje, parte, evento)
-            else:
-                cambio = self._aplicar_reaccion(mensaje, parte, evento)
-            if cambio:
+            try:
+                # Un aviso raro no tumba a los demás de la tanda (revisión 2026-11-07).
+                with self.env.cr.savepoint():
+                    if evento['tipo'] == 'estado':
+                        cambiados = self._aplicar_estado(mensaje, parte, evento)
+                    else:
+                        cambiados = mensaje if self._aplicar_reaccion(mensaje, parte, evento) else self.browse()
+            except (ConcurrencyError, *PG_CONCURRENCY_EXCEPTIONS_TO_RETRY):
+                raise
+            except Exception:   # noqa: BLE001 — una palomita nunca vale más que el resto de la tanda
+                _logger.exception('Juan: no se pudo aplicar un aviso del canal (%s) a %s', evento['tipo'],
+                                  evento['id_mensaje'])
+                fallidos += 1
+                continue
+            if cambiados:
                 aplicados += 1
-                cambios.append({'conversacion_id': conversacion.id, 'mensaje_id': mensaje.id,
-                                'estado_canal': mensaje.estado_canal or None,
-                                'reaccion': evento['tipo'] == 'reaccion'})
+                cambios.extend(m._recibo_para_pantallas(evento['tipo'] == 'reaccion' and m == mensaje)
+                               for m in cambiados)
         if cambios:
             Conversacion._notificar_recibos(cambios)
-        return {'aplicados': aplicados, 'desconocidos': desconocidos}
+        resultado = {'aplicados': aplicados, 'desconocidos': desconocidos}
+        if fallidos:
+            resultado['fallidos'] = fallidos
+        return resultado
+
+    def _recibo_para_pantallas(self, reaccion=False):
+        """Lo liviano que viaja en vivo por cada palomita o reacción (ni texto ni emoji): ids, estado y sus horas."""
+        self.ensure_one()
+        return {'conversacion_id': self.conversacion_id.id, 'mensaje_id': self.id,
+                'estado_canal': self.estado_canal or None,
+                'canal_entregado_en': H.a_iso(self.canal_entregado_en) if self.canal_entregado_en else None,
+                'canal_leido_en': H.a_iso(self.canal_leido_en) if self.canal_leido_en else None,
+                'reaccion': bool(reaccion)}
 
     @api.model
     def _aplicar_estado(self, mensaje, parte, evento):
+        """Una palomita de una parte. Devuelve los mensajes cuyo estado cambió (este y, si subió, los anteriores)."""
         if mensaje.direccion != 'saliente':
-            return False   # las palomitas solo existen para lo que mandamos nosotros
+            return self.browse()   # las palomitas solo existen para lo que mandamos nosotros
         if not parte:
             # Un mensaje nuestro anotado con su id del canal pero sin partes (lo mandó un Juan viejo): se le crea una.
             nuevos = mensaje._crear_partes([{'id_canal': evento['id_mensaje'], 'tipo': mensaje._tipo_de_parte(),
                                              'texto': mensaje._texto_corto()}])
             parte = mensaje.parte_ids.filtered(lambda p: p.id_canal in nuevos)[:1]
             if not parte:
-                return False
+                return self.browse()
         estado = evento['estado']
         if RANGO_CANAL[estado] <= RANGO_CANAL.get(parte.estado_canal, 0):
-            return False   # repetido o viejo: nunca se baja de estado
+            return self.browse()   # repetido o viejo: nunca se baja de estado
         valores = {'estado_canal': estado, 'estado_en': evento['ts']}
         if estado == 'fallido':
             valores['error'] = (evento.get('error') or '')[:200] or False
         parte.sudo().write(valores)
-        return mensaje._recalcular_estado_canal(evento['ts'])
+        cambiados = mensaje if mensaje._recalcular_estado_canal(evento['ts']) else self.browse()
+        if estado in ('entregado', 'leido'):
+            cambiados |= self._subir_anteriores(parte, estado, evento['ts'])
+        return cambiados
+
+    @api.model
+    def _subir_anteriores(self, parte, estado, ts):
+        """«Leído» (o «entregado») de una burbuja vale también para las anteriores de la conversación (revisión
+        2026-11-07): WhatsApp a veces solo avisa del último de varios mensajes, y como el mensaje muestra la burbuja
+        más atrasada, las palomitas azules no aparecían nunca en una respuesta de varias burbujas. Al abrir el chat el
+        cliente ve todo lo de antes. Nunca baja de estado, nunca toca lo que no llegó («fallido») ni algo avisado
+        después."""
+        mensaje = parte.mensaje_id
+        rango = RANGO_CANAL[estado]
+        debajo = [False] + [e for e, r in RANGO_CANAL.items() if r < rango and e != 'fallido']
+        Parte = self.env['dcasa.mensaje.parte'].sudo()
+        anteriores = Parte.search([
+            ('conversacion_id', '=', parte.conversacion_id.id), ('id', '!=', parte.id),
+            ('estado_canal', 'in', debajo),
+            '|', ('estado_en', '=', False), ('estado_en', '<=', ts),
+            '|', ('mensaje_id', '<', mensaje.id), '&', ('mensaje_id', '=', mensaje.id), ('indice', '<', parte.indice),
+        ], order='id desc', limit=MAX_PARTES_QUE_SUBEN)
+        anteriores = anteriores.filtered(lambda p: p.mensaje_id.direccion == 'saliente')
+        if not anteriores:
+            return self.browse()
+        anteriores.write({'estado_canal': estado, 'estado_en': ts})
+        cambiados = self.browse()
+        for otro in anteriores.mapped('mensaje_id'):
+            if otro._recalcular_estado_canal(ts):
+                cambiados |= otro
+        return cambiados
 
     @api.model
     def _aplicar_reaccion(self, mensaje, parte, evento):

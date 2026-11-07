@@ -1039,8 +1039,8 @@ class DcasaConversacion(models.Model):
             'autor': 'vendedora', 'texto': texto or False, 'ts': programado_para or ahora, 'origen': 'odoo',
             'usuario_id': usuario.id, 'estado_envio': 'programado' if programado_para else 'por_enviar',
             'programado_para': programado_para or False,
-            'cita_id': cita.id or False, 'cita_id_canal': (cita._id_canal_para_citar() if cita else '') or False,
-            'cita_texto': cita._texto_corto() if cita else False})
+            # Sin copia de lo citado: se lee del original (si se borra, se borra también de aquí; revisión 2026-11-07).
+            'cita_id': cita.id or False, 'cita_id_canal': (cita._id_canal_para_citar() if cita else '') or False})
         if adjuntos:
             mensaje.with_context(**{CLAVE_SISTEMA: True}).write({'adjunto_ids': [(4, a.id) for a in adjuntos]})
             adjuntos.sudo().write({'res_model': 'dcasa.mensaje', 'res_id': mensaje.id})

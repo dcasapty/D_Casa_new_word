@@ -118,12 +118,17 @@ def _canal(valor):
     return valor
 
 
+# Lo que no se puede guardar o engaña a la vista (revisión 2026-11-07): un sustituto UTF-16 suelto (un emoji cortado a
+# la mitad) hace fallar a PostgreSQL al guardar, y los controles bidi (U+202E…) dan vuelta el texto en la pantalla.
+RE_NO_GUARDABLE = re.compile(r'[\ud800-\udfff\u202a-\u202e\u2066-\u2069\u200e\u200f\u061c]')
+
+
 def _texto_libre(valor, maximo):
     """Un texto opcional del canal (lo citado en Telegram, el error de WhatsApp): recortado y sin saltos; si no es
     texto, nada. Lo que no se entiende se ignora: un dato de más nunca hace perder el mensaje del cliente."""
     if not isinstance(valor, str):
         return None
-    return ' '.join(valor.split())[:maximo] or None
+    return ' '.join(RE_NO_GUARDABLE.sub('', valor).split())[:maximo] or None
 
 
 def _cita(valor):
@@ -164,7 +169,7 @@ def _emoji(valor):
     valor = valor.strip()
     if valor == '':
         return ''
-    if len(valor) > MAX_EMOJI or re.search(r'[\sA-Za-z<>&"\'\\\x00-\x1f\x7f]', valor):
+    if len(valor) > MAX_EMOJI or re.search(r'[\sA-Za-z<>&"\'\\\x00-\x1f\x7f]', valor) or RE_NO_GUARDABLE.search(valor):
         return None
     return valor
 

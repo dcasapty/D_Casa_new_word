@@ -398,6 +398,13 @@ export class Almacen {
             if (c.estado_canal && c.estado_canal !== m.estado_canal) {
                 m.estado_canal = c.estado_canal;
             }
+            // Las horas de «Entregado» y «Leído» (lo que dice al pasar el mouse) también, sin recargar. Un Odoo de antes
+            // no las manda: no se borran las que había.
+            for (const campo of ["canal_entregado_en", "canal_leido_en"]) {
+                if (c[campo] && c[campo] !== m[campo]) {
+                    m[campo] = c[campo];
+                }
+            }
             if (c.reaccion || c.estado_canal === "fallido") {
                 traerHilo = true;
             }

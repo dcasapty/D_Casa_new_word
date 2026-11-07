@@ -537,7 +537,9 @@ body.o_dcj_arrastrando_ancho { cursor: col-resize; user-select: none; }
         padding: 0 5px;
         border-radius: 999px;
         background: #FFFFFF;
-        color: #98A2B3;   // gris claro: enviado y entregado; leído va en el azul de la marca (se distinguen de un vistazo)
+        // Gris: enviado y entregado; leído va en el azul de la marca (se distinguen de un vistazo). Contraste 3,8:1 sobre la
+        // pastilla blanca (el #98A2B3 de antes daba 2,6:1; revisión 2026-11-07).
+        color: #7A8499;
         font-size: .7rem;
         line-height: 1.5;
         .o_dcj_segunda { margin-left: -.45em; }
@@ -607,32 +609,46 @@ body.o_dcj_arrastrando_ancho { cursor: col-resize; user-select: none; }
         text-align: center;
     }
     // «Responder»: no ocupa lugar ni tapa nada (va al lado de la burbuja del cliente, que está a la izquierda); aparece al
-    // pasar el mouse, con el teclado (Tab) o, en el celular, con el dedo apretado (ahí solo el ícono, redondo y grande).
+    // pasar el mouse, con el teclado (Tab) o, en el celular, con el dedo apretado. En la computadora es SOLO el ícono ↩, en
+    // un círculo de 30 px (el nombre lo dicen el aviso al pasar el mouse y el lector de pantalla): con la palabra no cabía al
+    // lado de una burbuja ancha y el hilo se corría de lado en tabletas o con la ficha abierta (revisión 2026-11-07). Así
+    // ocupa 36 px, y una burbuja deja libre al menos el 22 % de la columna.
     .o_dcj_responder {
         position: absolute;
         top: 50%;
-        left: calc(100% + 8px);
+        left: calc(100% + 6px);
         transform: translateY(-50%);
         white-space: nowrap;
         display: inline-flex;
         align-items: center;
-        gap: 5px;
-        min-height: 26px;
-        padding: 0 10px;
+        justify-content: center;
+        gap: 6px;
+        width: 30px;
+        height: 30px;
+        padding: 0;
         border: 1px solid var(--dc-azul-600, #1340B1);
         border-radius: 999px;
         background: #FFFFFF;
         color: var(--dc-azul-600, #1340B1);
-        font-size: .76rem;
+        font-size: .8rem;
         font-weight: 700;
         opacity: 0;
         pointer-events: none;
+        .o_dcj_responder_texto { display: none; }
         &:hover { background: var(--dc-azul-600, #1340B1); color: #FFFFFF; }
     }
+    // El espacio entre la burbuja y el botón sigue siendo «la burbuja» para el mouse: cruzarlo no lo esconde.
+    &.o_dcj_burbuja_cliente::after { content: ""; position: absolute; top: 0; bottom: 0; left: 100%; width: 8px; }
     &:hover .o_dcj_responder, &:focus-within .o_dcj_responder, &.o_acciones .o_dcj_responder { opacity: 1; pointer-events: auto; }
-    // En el celular no hay mouse: con el dedo apretado aparece DENTRO de la burbuja, abajo (no tapa ni se sale de la pantalla).
+    // En el celular no hay mouse: con el dedo apretado aparece DENTRO de la burbuja, abajo, con su nombre (no tapa ni se sale
+    // de la pantalla).
     @media (max-width: 767.98px) {
-        .o_dcj_responder { position: static; display: none; transform: none; min-height: 44px; margin-top: 6px; padding: 0 16px; }
+        .o_dcj_responder {
+            position: static; display: none; transform: none; width: auto; height: auto;
+            min-height: 44px; margin-top: 6px; padding: 0 16px; font-size: .76rem;
+            .o_dcj_responder_texto { display: inline; }
+        }
+        &.o_dcj_burbuja_cliente::after { content: none; }
         &.o_acciones .o_dcj_responder { display: inline-flex; }
     }
     &.o_dcj_resaltado { outline: 3px solid var(--dc-azul-600, #1340B1); outline-offset: 2px; }

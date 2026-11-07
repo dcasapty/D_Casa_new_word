@@ -25,6 +25,8 @@ const VENTANA_ESPERA_MS = 20_000;
 const VENTANA_ESCRIBIENDO_MS = 60_000;
 // En el celular, «Responder» aparece al dejar el dedo apretado sobre el mensaje del cliente este tiempo (sin moverlo).
 const TOQUE_LARGO_MS = 500;
+// El dedo nunca está quieto del todo (el iPhone avisa cada píxel): solo si se mueve más que esto es arrastrar, no apretar.
+const TEMBLOR_DEL_DEDO_PX = 10;
 const QUE_ES = { imagen: "Foto", audio: "Audio", video: "Video", documento: "Documento" };
 
 /** Quién dijo lo citado, en las palabras de la pantalla: «Tú», «Juan», la vendedora o «Cliente». */
@@ -121,11 +123,12 @@ export class Burbuja extends Component {
             const motivo = m.error || "WhatsApp avisó que no lo pudo entregar.";
             return { clase: "fallido", dobles: false, titulo: `No llegó: ${motivo}`, texto: "No llegó" };
         }
+        // Sin plantillas `…` anidadas: el minificador de Odoo (rjsmin) les quita los espacios y salía «Leído11:53».
         if (m.estado_canal === "leido") {
-            return { clase: "leido", dobles: true, titulo: `Leído${m.canal_leido_en ? ` ${hora(m.canal_leido_en)}` : ""}` };
+            return { clase: "leido", dobles: true, titulo: "Leído" + (m.canal_leido_en ? " " + hora(m.canal_leido_en) : "") };
         }
         if (m.estado_canal === "entregado") {
-            return { clase: "entregado", dobles: true, titulo: `Entregado${m.canal_entregado_en ? ` ${hora(m.canal_entregado_en)}` : ""}` };
+            return { clase: "entregado", dobles: true, titulo: "Entregado" + (m.canal_entregado_en ? " " + hora(m.canal_entregado_en) : "") };
         }
         return { clase: "enviado", dobles: false, titulo: "Enviado" };
     }
@@ -234,9 +237,18 @@ export class HiloConversacion extends Component {
                     return;
                 }
                 let reloj = null;
+                let inicio = null;
                 const soltar = () => {
                     clearTimeout(reloj);
                     reloj = null;
+                    inicio = null;
+                };
+                // Un temblor de unos píxeles no cancela el toque largo; arrastrar (más de ~10 px) sí (revisión 2026-11-07).
+                const alMover = (ev) => {
+                    const t = ev.touches?.[0];
+                    if (!reloj || !inicio || !t || Math.hypot(t.clientX - inicio.x, t.clientY - inicio.y) > TEMBLOR_DEL_DEDO_PX) {
+                        soltar();
+                    }
                 };
                 const alTocar = (ev) => {
                     soltar();
@@ -247,19 +259,22 @@ export class HiloConversacion extends Component {
                         }
                         return;
                     }
+                    inicio = { x: ev.touches[0].clientX, y: ev.touches[0].clientY };
                     reloj = setTimeout(() => {
                         this.almacen.accionesDe = Number(burbuja.dataset.mensaje);
                     }, TOQUE_LARGO_MS);
                 };
                 const opciones = { passive: true };
                 cuerpo.addEventListener("touchstart", alTocar, opciones);
-                for (const tipo of ["touchmove", "touchend", "touchcancel", "scroll"]) {
+                cuerpo.addEventListener("touchmove", alMover, opciones);
+                for (const tipo of ["touchend", "touchcancel", "scroll"]) {
                     cuerpo.addEventListener(tipo, soltar, opciones);
                 }
                 return () => {
                     soltar();
                     cuerpo.removeEventListener("touchstart", alTocar, opciones);
-                    for (const tipo of ["touchmove", "touchend", "touchcancel", "scroll"]) {
+                    cuerpo.removeEventListener("touchmove", alMover, opciones);
+                    for (const tipo of ["touchend", "touchcancel", "scroll"]) {
                         cuerpo.removeEventListener(tipo, soltar, opciones);
                     }
                 };

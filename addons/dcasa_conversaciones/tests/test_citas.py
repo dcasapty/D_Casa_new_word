@@ -65,15 +65,15 @@ class TestCitasAlRecibir(CitasCase):
             {'id_canal': 'wamid.B2', 'tipo': 'texto', 'texto': '¿Para qué cuarto la quieres?'}], minutos=1)
         _conv, este, _ = self.entrante('esta', 'wamid.C2', minutos=2, cita={'id_canal': 'wamid.B1', 'texto': None})
         self.assertEqual(este.cita_id, bot)
-        self.assertEqual(este.cita_texto, 'Tenemos la Cama Queen Milán.')
         cita = este._como_dict()['cita']
+        self.assertEqual(cita['texto'], 'Tenemos la Cama Queen Milán.', 'justo esa burbuja, leída del original')
         self.assertEqual((cita['id'], cita['autor'], cita['en_historial']), (bot.id, 'bot', True))
         self.assertEqual(bot.parte_ids.mapped('id_canal'), ['wamid.B1', 'wamid.B2'])
 
     def test_cita_de_un_mensaje_suyo_y_de_una_foto_sin_texto(self):
         _conv, suyo, _ = self.entrante('Me gusta el sofá gris', 'wamid.C1')
         _conv, este, _ = self.entrante('¿y en beige?', 'wamid.C2', minutos=1, cita={'id_canal': 'wamid.C1'})
-        self.assertEqual((este.cita_id, este.cita_texto), (suyo, 'Me gusta el sofá gris'))
+        self.assertEqual((este.cita_id, este._como_dict()['cita']['texto']), (suyo, 'Me gusta el sofá gris'))
         # Una foto nuestra sin pie se cita como «Foto».
         conv = este.conversacion_id
         mensaje = self.Mensaje.sudo().with_context(dcasa_mensaje_sistema=True).create({
@@ -81,7 +81,7 @@ class TestCitasAlRecibir(CitasCase):
             'texto': False, 'ts': T0, 'estado_envio': 'enviado'})
         mensaje._crear_partes([{'id_canal': 'wamid.F1', 'tipo': 'imagen'}])
         _conv, otra, _ = self.entrante('esa', 'wamid.C3', minutos=3, cita={'id_canal': 'wamid.F1'})
-        self.assertEqual((otra.cita_id, otra.cita_texto), (mensaje, 'Foto'))
+        self.assertEqual((otra.cita_id, otra._como_dict()['cita']['texto']), (mensaje, 'Foto'))
 
     def test_cita_de_algo_que_no_esta_en_el_historial(self):
         _conv, este, _ = self.entrante('este', 'wamid.C9', cita={'id_canal': 'wamid.QUE.NO.EXISTE'})
@@ -97,7 +97,7 @@ class TestCitasAlRecibir(CitasCase):
         _conv, bot, _ = self.del_bot('Tenemos la Cama Roble.', [
             {'id_canal': 'wamid.B7', 'tipo': 'texto', 'texto': 'Tenemos la Cama Roble.'}], minutos=-1)
         este.invalidate_recordset()
-        self.assertEqual((este.cita_id, este.cita_texto), (bot, 'Tenemos la Cama Roble.'))
+        self.assertEqual((este.cita_id, este._como_dict()['cita']['texto']), (bot, 'Tenemos la Cama Roble.'))
 
     def test_reenviado_y_reenviado_muchas_veces(self):
         _conv, uno, _ = self.entrante('Mira esta cama', 'wamid.R1', reenviado='una')
@@ -274,8 +274,8 @@ class TestPalomitasYReacciones(CitasCase):
         despues.assert_not_called()
         # Las pantallas sí se enteran, con un aviso liviano (sin texto ni emoji) por tanda.
         self.assertEqual(len(self.avisos), 1)
-        self.assertTrue(all(set(c) == {'conversacion_id', 'mensaje_id', 'estado_canal', 'reaccion'}
-                            for c in self.avisos[0]))
+        self.assertTrue(all(set(c) == {'conversacion_id', 'mensaje_id', 'estado_canal', 'canal_entregado_en',
+                                       'canal_leido_en', 'reaccion'} for c in self.avisos[0]))
 
     def test_un_mensaje_de_la_vendedora_mandado_por_un_juan_viejo_tambien_tiene_palomitas(self):
         """Juan viejo: solo devuelve ``id_mensaje`` (el wamid). Odoo lo anota como la única parte."""
@@ -393,3 +393,186 @@ class TestApiCitasYEventos(ApiCase):
         r = self.post('eventos', {'eventos': [{'tipo': 'estado'}]})
         self.assertEqual(r.headers['Cache-Control'], 'no-store')
         self.assertEqual(json.loads(r.text)['invalidos'], 1)
+
+
+@tagged('post_install', '-at_install')
+class TestRevisionDeCitas(CitasCase):
+    """Lo que encontró la revisión adversarial de las citas y las palomitas (2026-11-07)."""
+
+    def setUp(self):
+        super().setUp()
+        self.avisos = []
+        parche = patch.object(type(self.Conversacion), '_notificar_recibos',
+                              lambda _self, cambios: self.avisos.append(cambios))
+        parche.start()
+        self.addCleanup(parche.stop)
+
+    def de_la_vendedora(self, conv, texto, id_canal, cita=None):
+        mensaje = conv._crear_mensaje_de_odoo(texto, usuario=self.vendedora, cita=cita)
+        return mensaje.sudo()._marcar_enviado(id_canal, partes=[{'id_canal': id_canal, 'tipo': 'texto',
+                                                                 'texto': texto}])
+
+    def leer(self, registro):
+        registro.invalidate_recordset()
+        return registro
+
+    # --- S4: borrar un mensaje (Ley 81) no deja su texto en las respuestas que lo citaban ---
+
+    def test_s4_borrar_el_mensaje_citado_no_deja_su_texto_en_la_respuesta_ni_en_su_chatter(self):
+        _conv, suyo, _ = self.entrante('Vivo en Calle de Prueba 123, casa azul', 'wamid.C1')
+        _conv, este, _ = self.entrante('ahí es', 'wamid.C2', minutos=1, cita={'id_canal': 'wamid.C1'})
+        self.assertIn('Calle de Prueba 123', str(este.chatter_id.body))
+        self.assertEqual(este._como_dict()['cita']['texto'], 'Vivo en Calle de Prueba 123, casa azul')
+        suyo.sudo().unlink()
+        este = self.leer(este)
+        self.assertFalse(este.cita_id)
+        self.assertFalse(este.cita_texto)
+        self.assertEqual(este.cita_id_canal, 'wamid.C1', 'el id del canal no es un dato del cliente: se queda')
+        self.assertEqual(este._como_dict()['cita']['texto'], '')
+        cuerpo = str(self.leer(este.chatter_id).body)
+        self.assertNotIn('Calle de Prueba', cuerpo)
+        self.assertIn('no está en el historial', cuerpo)
+        self.assertIn('ahí es', cuerpo)
+
+    def test_s4_responder_desde_odoo_no_copia_lo_citado_y_al_borrarlo_no_queda(self):
+        conv, cliente, _ = self.entrante('Mi correo es prueba@example.com', 'wamid.C1')
+        respuesta = self.de_la_vendedora(conv, 'Anotado', 'wamid.O1', cita=cliente)
+        self.assertFalse(respuesta.cita_texto, 'lo citado está en Odoo: no se guarda una copia')
+        self.assertEqual(respuesta._como_dict()['cita']['texto'], 'Mi correo es prueba@example.com')
+        cliente.sudo().unlink()
+        respuesta = self.leer(respuesta)
+        self.assertEqual(respuesta._como_dict()['cita']['texto'], '')
+        self.assertTrue(respuesta.chatter_id)
+        self.assertNotIn('prueba@example.com', str(self.leer(respuesta.chatter_id).body))
+
+    def test_s4_solo_se_copia_lo_citado_que_no_esta_en_odoo(self):
+        """Telegram manda el texto citado: si ese mensaje no está en el historial, es lo único que hay."""
+        _conv, fuera, _ = self.entrante('ese', 'wamid.C5', cita={'id_canal': 'tg:1:9', 'texto': 'Una cama de 2 metros'})
+        self.assertEqual(fuera.cita_texto, 'Una cama de 2 metros')
+        self.assertEqual(fuera._como_dict()['cita']['texto'], 'Una cama de 2 metros')
+        _conv, bot, _ = self.del_bot('Tenemos la Cama Roble.', [
+            {'id_canal': 'wamid.B1', 'tipo': 'texto', 'texto': 'Tenemos la Cama Roble.'}], minutos=1)
+        _conv, dentro, _ = self.entrante('esa', 'wamid.C6', minutos=2,
+                                         cita={'id_canal': 'wamid.B1', 'texto': 'Tenemos la Cama Roble.'})
+        self.assertEqual(dentro.cita_id, bot)
+        self.assertFalse(dentro.cita_texto)
+        self.assertEqual(dentro._como_dict()['cita']['texto'], 'Tenemos la Cama Roble.')
+
+    def test_s4_la_cita_que_llega_antes_que_la_burbuja_suelta_su_copia_al_enlazarse(self):
+        _conv, este, _ = self.entrante('esa', 'wamid.C2', cita={'id_canal': 'wamid.B7', 'texto': 'copia del canal'})
+        self.assertEqual(este.cita_texto, 'copia del canal')
+        self.del_bot('Tenemos la Cama Roble.\nY la Milán.', [
+            {'id_canal': 'wamid.B6', 'tipo': 'texto', 'texto': 'Tenemos la Cama Roble.'},
+            {'id_canal': 'wamid.B7', 'tipo': 'texto', 'texto': 'Y la Milán.'}], minutos=-1)
+        este = self.leer(este)
+        self.assertFalse(este.cita_texto)
+        self.assertEqual(este._como_dict()['cita']['texto'], 'Y la Milán.', 'justo la burbuja citada')
+
+    # --- S5: las palomitas azules de una respuesta en varias burbujas ---
+
+    def test_s5_leido_en_la_ultima_burbuja_marca_leidas_las_anteriores_y_los_mensajes_anteriores(self):
+        conv, _c, _ = self.entrante('Hola', 'wamid.C1')
+        antes = self.de_la_vendedora(conv, 'Hola, te escribe Ana', 'wamid.V1')
+        _conv, bot, _ = self.del_bot('Tenemos la Cama Queen Milán.\n¿Para qué cuarto?', [
+            {'id_canal': 'wamid.B1', 'tipo': 'texto', 'texto': 'Tenemos la Cama Queen Milán.'},
+            {'id_canal': 'wamid.B2', 'tipo': 'texto', 'texto': '¿Para qué cuarto?'}], minutos=1)
+        t = T0 + timedelta(minutes=5)
+        # WhatsApp a veces solo avisa «leído» del último (los anteriores se quedan en «enviado»).
+        self.Mensaje._aplicar_eventos([self.evento('estado', 'wamid.B1', t, estado='enviado'),
+                                       self.evento('estado', 'wamid.B2', t, estado='leido')])
+        self.assertEqual(self.leer(bot).estado_canal, 'leido')
+        self.assertEqual(bot.parte_ids.mapped('estado_canal'), ['leido', 'leido'])
+        self.assertEqual(self.leer(antes).estado_canal, 'leido')
+        self.assertEqual(antes.canal_leido_en, t)
+        avisados = {c['mensaje_id'] for c in self.avisos[-1]}
+        self.assertEqual(avisados, {bot.id, antes.id}, 'las pantallas se enteran de los dos')
+
+    def test_s5_entregado_sube_lo_anterior_pero_nunca_baja_ni_toca_un_fallido_ni_lo_posterior(self):
+        conv, _c, _ = self.entrante('Hola', 'wamid.C1')
+        fallido = self.de_la_vendedora(conv, 'Este no llegó', 'wamid.V1')
+        leido = self.de_la_vendedora(conv, 'Este ya lo leyó', 'wamid.V2')
+        medio = self.de_la_vendedora(conv, 'Este iba enviado', 'wamid.V3')
+        _conv, bot, _ = self.del_bot('Ahora este', [{'id_canal': 'wamid.B1', 'tipo': 'texto', 'texto': 'Ahora este'}],
+                                     minutos=1)
+        posterior = self.de_la_vendedora(conv, 'Y uno después', 'wamid.V9')
+        t = T0 + timedelta(minutes=5)
+        self.Mensaje._aplicar_eventos([
+            self.evento('estado', 'wamid.V1', t, estado='fallido', error='No llegó'),
+            self.evento('estado', 'wamid.V2', t, estado='leido'),
+            self.evento('estado', 'wamid.V3', t, estado='enviado'),
+            self.evento('estado', 'wamid.V9', t + timedelta(minutes=1), estado='enviado')])
+        self.Mensaje._aplicar_eventos([self.evento('estado', 'wamid.B1', t + timedelta(seconds=30),
+                                                   estado='entregado')])
+        self.assertEqual(self.leer(bot).estado_canal, 'entregado')
+        self.assertEqual(self.leer(medio).estado_canal, 'entregado')
+        self.assertEqual(self.leer(leido).estado_canal, 'leido', 'nunca baja')
+        self.assertEqual(self.leer(fallido).estado_canal, 'fallido', 'lo que no llegó no llegó')
+        self.assertEqual(self.leer(posterior).estado_canal, 'enviado', 'lo posterior no se toca')
+
+    # --- Nit 9: la palomita en vivo trae sus horas ---
+
+    def test_el_aviso_en_vivo_trae_las_horas_de_entregado_y_leido(self):
+        _conv, bot, _ = self.del_bot('Hola', [{'id_canal': 'wamid.B1', 'tipo': 'texto', 'texto': 'Hola'}])
+        t = T0 + timedelta(minutes=5)
+        self.Mensaje._aplicar_eventos([self.evento('estado', 'wamid.B1', t, estado='leido')])
+        cambio = self.avisos[-1][0]
+        self.assertEqual(cambio['mensaje_id'], bot.id)
+        self.assertEqual((cambio['canal_entregado_en'], cambio['canal_leido_en']),
+                         ('2026-10-09T15:05:00Z', '2026-10-09T15:05:00Z'))
+
+    # --- Nit 7: al fusionar con el eco, la respuesta conserva su cita ---
+
+    def test_al_fusionar_con_el_eco_la_respuesta_conserva_la_cita(self):
+        conv, cliente, _ = self.entrante('¿Tienen esta mesa?', 'wamid.C1')
+        mensaje = conv._crear_mensaje_de_odoo('Sí, la tenemos', usuario=self.vendedora, cita=cliente)
+        # Juan registró el eco (con otro texto: no se adoptó por texto) antes de que Odoo supiera el id.
+        eco = self.Mensaje.sudo().with_context(dcasa_mensaje_sistema=True).create({
+            'conversacion_id': conv.id, 'id_mensaje': 'wamid.O1', 'direccion': 'saliente', 'autor': 'vendedora',
+            'texto': 'Sí, la tenemos ', 'ts': T0, 'estado_envio': 'enviado'})
+        fusionado = mensaje.sudo()._marcar_enviado('wamid.O1')
+        self.assertEqual(fusionado, eco)
+        self.assertEqual((fusionado.cita_id, fusionado.cita_id_canal), (cliente, 'wamid.C1'))
+        self.assertEqual(fusionado._como_dict()['cita']['texto'], '¿Tienen esta mesa?')
+
+    # --- Nit 2: textos del canal sin sustitutos sueltos ni controles bidi; un evento que falla no tumba la tanda ---
+
+    def test_texto_libre_y_emoji_rechazan_sustitutos_sueltos_y_controles_bidi(self):
+        from odoo.addons.dcasa_conversaciones.controllers.juan import _emoji, _texto_libre
+        self.assertEqual(_texto_libre('hola \u202emundo\ud83d \u2066x\u2069', 300), 'hola mundo x')
+        for malo in ('\ud83d', '\u202e👍', '👍\u2067', '\u200f❤️'):
+            with self.subTest(emoji=ascii(malo)):
+                self.assertIsNone(_emoji(malo))
+        self.assertEqual(_emoji('👍🏽'), '👍🏽')
+        self.assertEqual(_emoji('👨‍👩‍👧'), '👨‍👩‍👧', 'el ZWJ une emojis: no es un control')
+
+    def test_un_evento_que_falla_no_tumba_a_los_demas(self):
+        _conv, bot, _ = self.del_bot('Hola', [{'id_canal': 'wamid.B1', 'tipo': 'texto', 'texto': 'Hola'}])
+        t = T0 + timedelta(minutes=5)
+        original = type(self.Mensaje)._aplicar_reaccion
+
+        def falla_una(modelo, mensaje, parte, evento):
+            if evento.get('emoji') == '🔥':
+                raise ValueError('falla de prueba')
+            return original(modelo, mensaje, parte, evento)
+
+        with patch.object(type(self.Mensaje), '_aplicar_reaccion', falla_una), \
+                self.assertLogs('odoo.addons.dcasa_conversaciones.models.mensaje', level='ERROR'):
+            r = self.Mensaje._aplicar_eventos([self.evento('reaccion', 'wamid.B1', t, emoji='🔥'),
+                                               self.evento('estado', 'wamid.B1', t, estado='leido')])
+        self.assertEqual((r['aplicados'], r['fallidos']), (1, 1))
+        self.assertEqual(self.leer(bot).estado_canal, 'leido')
+
+
+@tagged('post_install', '-at_install')
+class TestApiEventosRevision(ApiCase):
+
+    def test_un_emoji_con_un_sustituto_suelto_es_invalido_no_un_500(self):
+        partes = [{'id_canal': 'wamid.api.S1', 'tipo': 'texto', 'texto': 'Hola'}]
+        self.post('mensaje', self.mensaje(canal=CANAL, id_externo=CLIENTE, celular=CLIENTE, id_mensaje='bot-s1',
+                                          direccion='saliente', autor='bot', texto='Hola', partes=partes))
+        de = {'canal': CANAL, 'id_externo': CLIENTE, 'id_mensaje': 'wamid.api.S1', 'ts': self.mensaje()['ts']}
+        # json.dumps escribe el sustituto suelto como «\ud83d»: así lo mandaría un Juan que cortó un emoji a la mitad.
+        r = self.post('eventos', {'eventos': [{'tipo': 'reaccion', **de, 'emoji': '\ud83d'},
+                                              {'tipo': 'estado', **de, 'estado': 'fallido', 'error': 'x\udc00y'}]})
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertEqual((r.json()['aplicados'], r.json()['invalidos']), (1, 1))

@@ -98,7 +98,7 @@
             </p>
             <button t-if="puedeResponder" type="button" class="o_dcj_responder" t-on-click="responder"
                     title="Responder citando este mensaje" aria-label="Responder citando este mensaje">
-                <i class="fa fa-reply" aria-hidden="true"/> Responder
+                <i class="fa fa-reply" aria-hidden="true"/><span class="o_dcj_responder_texto">Responder</span>
             </button>
             <span t-if="m.reaccion" class="o_dcj_reaccion" role="img" t-att-aria-label="'El cliente reaccionó con ' + m.reaccion" t-att-title="'El cliente reaccionó con ' + m.reaccion" t-out="m.reaccion"/>
         </article>
