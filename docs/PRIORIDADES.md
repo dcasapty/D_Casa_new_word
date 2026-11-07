@@ -35,9 +35,9 @@ LEEME_PRIMERO §2).
    toques. **Etapa 1b** (la lista crece sola: se activa al agregar el correo y se quita con un «no», CAMILA.md §1c):
    **en producción** desde el 2026-11-07 (Desplegar 58 y Juan 9, con dos revisiones adversariales). **«Abrieron» y
    «Tocaron» en 0** (2026-11-07, CAMILA.md §1d): el remitente propio de las campañas y el aviso de Resend están
-   **hechos en su rama, sin desplegar** (faltan capturas a la dueña → su visto bueno → CI y staging). Falta de la
-   dueña: el subdominio `novedades.dcasapty.com` en Resend con el conteo encendido y el remitente en Camila
-   (CAMILA.md §6b). Después: cumpleaños, «tu cotización sigue aquí» y la etapa de la página web.
+   **en producción** desde el 2026-11-07 (PR #95, Desplegar 61). La dueña ya agregó y verificó `novedades.dcasapty.com`
+   en Resend (registros puestos solos en Cloudflare) con aperturas y clics encendidos en `links`. Falta de la dueña:
+   poner `hola@novedades.dcasapty.com` en «Remitente de las campañas» y probar «Enviarme una prueba» (CAMILA.md §6b). Después: cumpleaños, «tu cotización sigue aquí» y la etapa de la página web.
 2. **Brian al día** y la **pantalla nueva de Sofía**: **en producción** desde el 2026-11-06 (Desplegar 57; capturas
    aprobadas por la dueña; Brian con revisión adversarial). Sigue para Brian: los topes de dinero (punto 5).
 3. **Que el equipo use lo nuevo** (lo hace la dueña con el equipo; ver «Lo que falta de la dueña»): el Reparto

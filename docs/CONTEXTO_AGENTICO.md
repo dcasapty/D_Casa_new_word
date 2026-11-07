@@ -379,6 +379,12 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `main` (`741930d`, árbol = `de1fb04`) a staging y Desplegar con ese `app_version`. **Regla:** un cambio del borde
   (rutas, `vars`, `workers_dev`) se despliega con un `app_version` que lo contenga, o sea con una imagen construida
   de ese commit.
+- **Desplegar 61 y después Desplegar Juan 11** (18:45 y 19:01 UTC del 7 nov, `app_version` `e53e5d8` = SHA de la rama,
+  imagen `sha256:4ef8d264…` de CI #296, respaldo previo) · Odoo sano y confirmado 19:00 (versión `e53e5d8b4ebf`): el
+  remitente propio de Camila y el aviso de Resend (PR #95, `main` = `848d314`, árbol = `e53e5d8`). Juan: sin tope de notas
+  de voz. **Lección:** Resend trae el conteo de aperturas y clics **apagado de fábrica** por dominio, y se mete en el correo
+  al enviarlo (lo ya enviado nunca cuenta); va en un subdominio de campañas para no tocar las facturas. «Auto configure»
+  de Resend con Cloudflare puso solos los registros del subdominio, sin tocar los del dominio principal.
 - **Desplegar 60 y después Desplegar Juan 10** (06:44 y 06:59 UTC del 7 nov, `app_version` `274f13d` = SHA de la rama,
   imagen `sha256:cd0d8a80…` de CI #294, respaldo previo) · Odoo sano y confirmado 06:58 (versión `274f13dff3ee`, base al
   día, humo ok): citas, reenviados, reacciones y palomitas en el chat, más lo que quedaba de los issues #24 y #25, con
