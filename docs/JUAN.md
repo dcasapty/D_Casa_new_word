@@ -188,7 +188,8 @@ Meta). El par es único.
   activan `pideUnaPersona` / `sin_seguimiento` (se mira lo escrito y cada transcripción).
 - **Transcribir y leer imágenes, después del anti-spam y del tope diario**: no se gasta IA con la conversación en descanso, con
   un mensaje repetido ni pasado el tope diario (el archivo igual se guarda y se anota para una vendedora). Las notas de voz tienen
-  tope por persona: **20 al día** (`AUDIOS_POR_DIA`), como las 10 imágenes; la siguiente queda para una vendedora. Con la
+  tope por persona: **20 al día** (`AUDIOS_POR_DIA`), como las 10 imágenes; la siguiente queda para una vendedora. Lo que
+  manda una vendedora desde su teléfono (notas de voz y fotos `propio`) no gasta los topes del cliente. Con la
   conversación en descanso por spam, una nota de voz que pide una persona no se entiende: hay que escribir *persona* (el texto
   del tope diario ya lo dice).
 - **La segunda pasada del turno conserva la primera.** Si el modelo gastó sus pasos sin escribir, la pasada sin herramientas
@@ -196,9 +197,13 @@ Meta). El par es único.
   recibe su ronda de herramientas (llamadas y resultados, sin el borrador). Dentro de un turno, la misma escritura con los mismos
   argumentos va a Odoo una sola vez (la segunda recibe la misma respuesta), `pasar_a_vendedora` una sola vez sea cual sea el
   motivo, y a lo más 8 escrituras (`MAX_ESCRITURAS_POR_TURNO`). Un fallo pasajero no se recuerda: se puede intentar otra vez.
+  De `pasar_a_vendedora` solo se recuerda **la que salió bien**: si Odoo la rechazó («Faltan datos: motivo»), la corregida
+  llega (también si las dos vienen en el mismo paso). Una escritura rechazada con unos argumentos no frena la misma con otros.
 - **El seguimiento no le gana al cliente.** Se reclama (`seg_curso:<clave>`) antes de redactar: un segundo pedido igual a la vez
   contesta `pospuesto` sin redactar ni enviar; el reclamo se suelta al terminar (vence a los 3 min si el objeto se reinicia). Y
-  «el cliente ya volvió a escribir» / «no me escriban» se vuelven a mirar **justo antes de enviar**.
+  «el cliente ya volvió a escribir» / «no me escriban» se vuelven a mirar **justo antes de enviar**, junto con la tabla
+  `seguimientos` (si la redacción tardó más que el reclamo, otro pedido pudo enviarlo). El reclamo lleva «hora:n»: un pedido
+  viejo que termina tarde solo suelta el suyo, nunca el del pedido que lo reemplazó.
 - Los registros del Worker no repiten claves ni tokens (`limpiarError` en `alFallarLaIA`, `motivoDeEnvio` en el envío fallido) y
   `{{LECCIONES}}` se reemplaza con una función (un `$&` o `$'` en una lección ya no mete pedazos del prompt).
 
