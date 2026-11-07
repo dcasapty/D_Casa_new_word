@@ -328,6 +328,11 @@ export function construirHerramientas(op: OpcionesHerramientas): ToolSet {
     if (HERRAMIENTAS_DE_LECTURA.has(nombre)) return ejecutar(args);
     const clave = nombre === "pasar_a_vendedora" ? nombre : `${nombre}|${argumentosEstables(args)}`;
     const anterior = escrituras.get(clave);
+    if (anterior && nombre === "pasar_a_vendedora") {
+      // Otra del mismo paso, todavía en camino: si sale bien, vale para las dos; si Odoo la rechaza, esta va con sus argumentos.
+      const otraVez = () => unaVezPorTurno(nombre, ejecutar)(args);
+      return anterior.then((v) => (esObjeto(v) && v.ok === true ? v : otraVez()), otraVez);
+    }
     if (anterior) return anterior;
     if (escrituras.size >= MAX_ESCRITURAS_POR_TURNO) {
       return Promise.resolve({ ok: false, error: "Ya hiciste suficientes cambios en esta respuesta.", instruccion: "No llames más herramientas que escriban: responde al cliente con lo que tienes." });

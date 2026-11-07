@@ -55,7 +55,13 @@ MAX_NOTA_PARA_EL_BOT = 500
 CAMPOS_DE_LA_VENDEDORA = frozenset({
     'partner_id', 'asignada_a', 'etiqueta_ids', 'pausada_hasta', 'borrador', 'borrador_adjunto_ids'})
 CANAL_BUS = 'dcasa_conversaciones/evento'
-MOTIVOS_DE_BAJA = ('no_contactar', 'no contactar', 'baja', 'opt_out', 'opt-out', 'pidio_no', 'pidió no')
+# «no lo contacten» es lo que manda el Worker de verdad (juan/src/motor/conversacion.ts: «el cliente pidió que no lo
+# contacten»); los demás, por tolerancia.
+MOTIVOS_DE_BAJA = ('no_contactar', 'no contactar', 'no lo contacten', 'baja', 'opt_out', 'opt-out', 'pidio_no',
+                   'pidió no')
+# Quien espera a una persona deja de «esperar» a la semana (la misma que usa Sofía para «Contéstale»): si alguien lo
+# atendió por otro lado (una llamada, en la tienda) y no lo marcó, el seguimiento no queda frenado para siempre.
+DIAS_ESPERA_A_UNA_PERSONA = 7
 
 
 class DcasaConversacion(models.Model):
@@ -117,6 +123,10 @@ class DcasaConversacion(models.Model):
                                             help='Cuándo se le pidió al Worker; se limpia al confirmar.')
     seguimiento_numero_pedido = fields.Integer(readonly=True)
     seguimiento_reintentos = fields.Integer(readonly=True)
+    seguimiento_programado_en = fields.Datetime(
+        'Seguimiento programado el', readonly=True, copy=False,
+        help='Cuándo se calculó el próximo seguimiento. El atraso se cuenta desde lo más tarde entre esto y la hora '
+             'que tocaba: uno que se programó tarde (una oportunidad creada al día siguiente) no es un atraso.')
     traspaso_sin_atender_desde = fields.Datetime(
         'Espera a una persona desde', readonly=True, copy=False,
         help='Juan la pasó a una persona y nadie del equipo le ha escrito todavía (aunque la pausa haya vencido y la '
@@ -522,7 +532,8 @@ class DcasaConversacion(models.Model):
             return 'la conversación está cerrada'
         if not self._controla_bot(ahora):
             return 'la atiende una persona'
-        if self.traspaso_sin_atender_desde:
+        if self.traspaso_sin_atender_desde and \
+                self.traspaso_sin_atender_desde > ahora - timedelta(days=DIAS_ESPERA_A_UNA_PERSONA):
             return 'espera a una persona: Juan se la pasó y nadie del equipo le escribió'
         if self.partner_id.dcasa_no_contactar:
             return 'pidió que no lo contacten'
@@ -553,16 +564,26 @@ class DcasaConversacion(models.Model):
             return None
         nunca = datetime.min
         mia = (self.ultimo_mensaje_cliente or nunca, self.id)
-        if any((h.ultimo_mensaje_cliente, h.id) > mia for h in hermanas if h.ultimo_mensaje_cliente):
+        # Solo le quitan el turno las que podrían hacer el seguimiento ellas mismas: un «hola» por otro canal sin
+        # oportunidad, un canal apagado o una conversación cerrada no dejan a la persona sin ninguno.
+        podrian = hermanas.filtered(lambda h: h.estado != 'cerrada' and ajustes.canal_activo(h.canal)
+                                    and h._con_intencion_de_compra())
+        if any((h.ultimo_mensaje_cliente, h.id) > mia for h in podrian if h.ultimo_mensaje_cliente):
             return 'el cliente siguió por otro canal'
-        if any(h.seguimiento_pedido_en for h in hermanas):
-            return 'ya tiene un seguimiento en camino por otro canal'
         desde = self.ultimo_mensaje_cliente or nunca
         otros = sum(h.seguimientos_enviados for h in hermanas
                     if h.ultimo_seguimiento_en and h.ultimo_seguimiento_en >= desde)
         if otros and self.seguimientos_enviados + otros >= ajustes.seguimiento_maximo:
             return 'ya recibió todos los seguimientos (contando sus otros canales)'
         return None
+
+    def _seguimiento_en_camino_por_otro_canal(self):
+        """¿Ya hay un seguimiento pedido al Worker por otra conversación de la misma persona? Entonces este espera (se
+        pospone, no se borra)."""
+        self.ensure_one()
+        return bool(self.partner_id) and bool(self.sudo().search_count([
+            ('partner_id', '=', self.partner_id.id), ('id', '!=', self.id), ('seguimiento_pedido_en', '!=', False)],
+            limit=1))
 
     def _programar_seguimiento(self, desde=None):
         """Calcula y guarda ``seguimiento_proximo`` según las reglas de la dueña (ver ``horario.py``)."""
@@ -578,7 +599,15 @@ class DcasaConversacion(models.Model):
                     conv.ultima_actividad or desde)
                 proximo = H.proximo_seguimiento(
                     conv.seguimientos_enviados, base, conv.ultimo_seguimiento_en, regla, horario) or False
-            conv.write({'seguimiento_proximo': proximo})
+            if not proximo:
+                programado = False
+            elif proximo == conv.seguimiento_proximo:
+                # La misma cuenta de antes (p. ej. la oportunidad cambió de etapa al volver de una caída): el atraso se
+                # sigue contando desde que se programó la primera vez, o lo atrasado saldría de golpe.
+                programado = conv.seguimiento_programado_en
+            else:
+                programado = ahora
+            conv.write({'seguimiento_proximo': proximo, 'seguimiento_programado_en': programado})
 
     @api.model
     def _cron_seguimientos(self):
@@ -610,30 +639,42 @@ class DcasaConversacion(models.Model):
             return 0
         limite = ahora - timedelta(hours=ajustes.seguimiento_atraso_maximo_horas)
         saltados = 0
+        # Atrasado = ya tocaba Y ya estaba programado antes del límite: uno calculado tarde (una oportunidad creada al
+        # día siguiente) cuenta desde que se programó, no desde la hora (ya pasada) que dio la cuenta.
         for conv in self.sudo().search([
                 ('seguimiento_proximo', '!=', False), ('seguimiento_proximo', '<', limite),
+                '|', ('seguimiento_programado_en', '=', False), ('seguimiento_programado_en', '<', limite),
                 ('seguimiento_pedido_en', '=', False), ('estado', '!=', 'cerrada')], order='seguimiento_proximo',
                 limit=500):
             try:
                 with self.env.cr.savepoint():
-                    saltados += 1 if conv._saltar_seguimiento_atrasado(ahora, ajustes) else 0
+                    saltados += 1 if conv._saltar_seguimiento_atrasado(ahora, ajustes, limite) else 0
             except Exception:   # noqa: BLE001 — una conversación rara no deja a las demás con su atraso
                 _logger.exception('Juan: no pude saltar el seguimiento atrasado de la conversación %s', conv.id)
         return saltados
 
-    def _saltar_seguimiento_atrasado(self, ahora, ajustes):
+    def _saltar_seguimiento_atrasado(self, ahora, ajustes, limite):
+        """Salta el atrasado y, si el siguiente también venció durante la misma caída, lo salta también (si no, salía en
+        esta misma vuelta del cron). El siguiente hereda el atraso: no cuenta como «programado tarde»."""
         self.ensure_one()
-        if self._motivo_sin_seguimiento(ahora, ajustes):
-            self.write({'seguimiento_proximo': False})   # ya no tocaba: como siempre, sin contar nada
-            return False
-        numero = self.seguimientos_enviados + 1
-        self.write({'seguimientos_enviados': numero, 'seguimiento_proximo': False, 'seguimiento_reintentos': 0})
-        self.message_post(body=escape(self.env._(
-            'Seguimiento n.º %(n)s no se envió: se atrasó más de %(h)s horas (el sistema estuvo detenido o el '
-            'asistente apagado) y no se manda tarde.', n=numero, h=ajustes.seguimiento_atraso_maximo_horas)),
-            subtype_xmlid='mail.mt_note')
-        self._programar_seguimiento()
-        return True
+        saltado = False
+        for __ in range(max(ajustes.seguimiento_maximo, 1)):   # cada vuelta suma uno: no da más vueltas que el máximo
+            if not self.seguimiento_proximo or self.seguimiento_proximo >= limite:
+                break
+            if self._motivo_sin_seguimiento(ahora, ajustes):
+                self.write({'seguimiento_proximo': False})   # ya no tocaba: como siempre, sin contar nada
+                break
+            numero = self.seguimientos_enviados + 1
+            tocaba = H.texto_fecha_hora(self.seguimiento_proximo, ajustes.horario())
+            self.write({'seguimientos_enviados': numero, 'seguimiento_proximo': False, 'seguimiento_reintentos': 0})
+            self.message_post(body=escape(self.env._(
+                'Seguimiento n.º %(n)s no se envió: le tocaba el %(cuando)s y pasaron más de %(h)s horas sin poder '
+                'mandarlo (por ejemplo, el sistema estuvo detenido o el asistente apagado). No se manda tarde.',
+                n=numero, cuando=tocaba, h=ajustes.seguimiento_atraso_maximo_horas)),
+                subtype_xmlid='mail.mt_note')
+            self._programar_seguimiento()
+            saltado = True
+        return saltado
 
     def _intentar_seguimiento(self, ahora, ajustes):
         """Revisa TODO otra vez (el estado pudo cambiar desde que se programó) y, si toca, lo pide."""
@@ -641,6 +682,9 @@ class DcasaConversacion(models.Model):
         motivo = self._motivo_sin_seguimiento(ahora, ajustes)
         if motivo:
             self.write({'seguimiento_proximo': False})
+            return False
+        if self._seguimiento_en_camino_por_otro_canal():
+            self.write({'seguimiento_proximo': ahora + PAUSA_REINTENTO_SEGUIMIENTO})   # espera a que ese termine
             return False
         horario = ajustes.horario()
         if ajustes.seguimiento_solo_horario_laboral and not H.dentro_de_horario(ahora, horario):
@@ -871,6 +915,19 @@ class DcasaConversacion(models.Model):
         self._exigir_vendedora()
         self.check_access('write')
         self._devolver(self.env.user)
+        return True
+
+    def action_traspaso_atendido(self):
+        """«Ya la atendí»: Juan la pasó a una persona y alguien del equipo la atendió por otro lado (una llamada, en la
+        tienda). Deja de «esperar a una persona» y Juan puede volver a hacerle seguimiento."""
+        self._exigir_vendedora()
+        self.check_access('write')
+        ahora = fields.Datetime.now()
+        for conv in self.sudo().filtered('traspaso_sin_atender_desde'):
+            conv.write({'traspaso_sin_atender_desde': False})
+            conv._aviso(self.env._('%s marcó que ya atendió a esta persona.', self.env.user.name))
+            conv._programar_seguimiento(desde=ahora)
+            conv._notificar_panel('estado')
         return True
 
     def action_cerrar(self):

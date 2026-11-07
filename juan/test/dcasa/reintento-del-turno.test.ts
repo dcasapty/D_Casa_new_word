@@ -74,6 +74,33 @@ describe("la segunda pasada del turno conserva lo que hizo la primera (issue #24
     expect(m.motor.silencio()).toBe(true);
   });
 
+  it("dos pasar_a_vendedora en el mismo paso: si Odoo rechaza la primera, la segunda (con sus argumentos) llega igual", async () => {
+    const m = crearMundo();
+    const manejadores = (m.odoo as unknown as { manejadores: Record<string, (a: Record<string, unknown>, o: unknown) => unknown> }).manejadores;
+    const original = manejadores.pasar_a_vendedora;
+    manejadores.pasar_a_vendedora = (a, o) => {
+      if (!String(a.motivo ?? "").trim()) throw new RechazoDeOdoo("Cuéntale a la vendedora por qué se la pasas.");
+      return original(a, o);
+    };
+    m.guion([
+      { llamadas: [{ nombre: "pasar_a_vendedora", args: { motivo: "" } }, { nombre: "pasar_a_vendedora", args: { motivo: "Quiere pagar con tarjeta ya" } }] },
+      { texto: "Listo, ya avisé a una vendedora." },
+    ]);
+    await m.conversar("quiero pagar ya, con tarjeta");
+    expect(m.odoo.de("pasar_a_vendedora").map((l) => l.args.motivo)).toEqual(["", "Quiere pagar con tarjeta ya"]);
+    expect(m.motor.silencio()).toBe(true);
+  });
+
+  it("dos pasar_a_vendedora en el mismo paso que salen bien llegan a Odoo una sola vez", async () => {
+    const m = crearMundo();
+    m.guion([
+      { llamadas: [{ nombre: "pasar_a_vendedora", args: { motivo: "Quiere pagar" } }, { nombre: "pasar_a_vendedora", args: { motivo: "Quiere pagar con tarjeta" } }] },
+      { texto: "Listo, ya avisé a una vendedora." },
+    ]);
+    await m.conversar("quiero pagar ya, con tarjeta");
+    expect(m.odoo.de("pasar_a_vendedora")).toHaveLength(1);
+  });
+
   it("un rechazo con unos argumentos no frena la misma herramienta con otros", async () => {
     const m = crearMundo();
     const manejadores = (m.odoo as unknown as { manejadores: Record<string, (a: Record<string, unknown>, o: unknown) => unknown> }).manejadores;

@@ -32,6 +32,7 @@ from odoo.addons.dcasa_contactos.models import claves
 from odoo.addons.dcasa_conversaciones.models import crm_reglas as CRM
 from odoo.addons.dcasa_conversaciones.models import horario as H
 from odoo.addons.dcasa_conversaciones.models.ajustes import CANALES
+from odoo.addons.dcasa_conversaciones.models.conversacion import DIAS_ESPERA_A_UNA_PERSONA
 from odoo.exceptions import UserError
 from odoo.fields import Domain
 from odoo.tools import SQL
@@ -44,7 +45,7 @@ _logger = logging.getLogger(__name__)
 MAX_OPORTUNIDADES = 3000      # las más recientes; si hay más, se anota cuántas quedaron fuera
 MAX_POR_TIPO = 150            # la pantalla muestra las más urgentes de cada tipo; el resto se cuenta
 HORAS_SIN_CONTESTAR = 1       # «contestar»: el cliente espera a una persona desde hace al menos una hora…
-DIAS_SIN_CONTESTAR = 7        # …y desde hace menos de una semana (más que eso ya no es «esperando»)
+DIAS_SIN_CONTESTAR = DIAS_ESPERA_A_UNA_PERSONA   # …y desde hace menos de una semana (más ya no es «esperando»)
 HORAS_EN_CURSO = 2            # Juan está conversando con el cliente ahora: no se mete nadie
 JUAN_POR_ESCRIBIR = timedelta(hours=2)   # Juan está por mandarle su seguimiento automático: se le deja
 HORAS_APROBADA = 20           # lo que se aprobó hoy no vuelve en la revisión siguiente del mismo día
@@ -324,8 +325,13 @@ class Sofia(models.AbstractModel):
             if not R.ventana_abierta(conv.canal, conv.ultimo_mensaje_cliente, ahora):
                 salida += self._llamar_o_nada(conv, partner, usuario, lead, ctx, motivo)
                 continue
-            # Cada vez que el cliente vuelve a escribir es otra espera: descartar una no esconde las siguientes.
-            clave = f'contestar:conv:{conv.id}:{conv.ultimo_cliente_msg_id or 0}'
+            # Cada vez que el cliente le vuelve a escribir a una persona es otra espera: descartar una no esconde las
+            # siguientes. Pero mientras la conversación sigue marcada «espera a una persona» es UNA espera, hasta el
+            # próximo traspaso: aunque el cliente siga escribiendo (y Juan le conteste), lo descartado no vuelve.
+            if conv in traspasadas:
+                clave = f'contestar:traspaso:{conv.id}:{int(conv.traspaso_sin_atender_desde.timestamp())}'
+            else:
+                clave = f'contestar:conv:{conv.id}:{conv.ultimo_cliente_msg_id or 0}'
             if clave in ctx['suprimidas']:
                 continue
             self._ocupar(ctx, partner, conv)
