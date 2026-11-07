@@ -3,7 +3,7 @@
 // Odoo duerme tras 30 min sin tráfico (≈10 s para despertar; hasta 7 min tras un despliegue):
 // por eso hay plazos largos y reintentos en lo que se puede repetir sin riesgo.
 
-import type { CanalId } from "../canales/tipos";
+import type { CanalId, EventoCanal } from "../canales/tipos";
 
 export class OdooError extends Error {
   constructor(
@@ -43,6 +43,20 @@ export interface CuerpoMensaje {
   adjuntos?: AdjuntoOdoo[];
   /** ISO 8601 UTC. */
   ts: string;
+  /**
+   * 2026-11-07 (un Odoo viejo los ignora): el mensaje que el cliente citó (`id_canal` y, si el canal lo manda, lo que decía), si lo
+   * reenvió, y los ids que el canal dio a cada burbuja de un mensaje NUESTRO (con ellos Odoo reconoce las palomitas y las citas).
+   */
+  cita?: { id_canal: string; texto?: string };
+  reenviado?: "una" | "muchas";
+  partes?: ParteOdoo[];
+}
+
+/** Una burbuja o un archivo de un mensaje nuestro, con el id que le dio el canal. */
+export interface ParteOdoo {
+  id_canal: string;
+  tipo: "texto" | "imagen" | "documento" | "audio" | "video";
+  texto?: string;
 }
 
 export interface RespuestaMensaje {
@@ -68,6 +82,14 @@ export interface RespuestaMensaje {
    * igual se anota). Si el campo no viene, nada. Juan nunca las activa.
    */
   permiso_correo?: string | null;
+  /** Lo que decía el mensaje que el cliente citó, si Odoo lo tiene en el historial (un Odoo viejo no lo manda). Es dato del cliente. */
+  cita?: { id_canal?: string; autor?: string; texto?: string } | null;
+}
+
+/** Lo que contesta `POST /eventos`. `desconocidos`: ids de mensajes que Odoo todavía no conoce. */
+export interface RespuestaEventos {
+  aplicados?: number;
+  desconocidos?: string[];
 }
 
 export type EstadoOdoo = Pick<RespuestaMensaje, "estado" | "bot_activo" | "pausada_hasta" | "dentro_de_horario" | "nota_para_el_bot" | "campana_correo" | "permiso_correo">;
@@ -127,6 +149,8 @@ export interface OdooApi {
   escribiendo?(cuerpo: CuerpoEscribiendo): Promise<void>;
   /** Opcional: la foto de perfil del cliente, para el avatar de la pantalla. Odoo la valida y la reduce. */
   fotoPerfil?(cuerpo: CuerpoFotoPerfil): Promise<{ guardada: boolean }>;
+  /** Opcional: palomitas y reacciones en una tanda (`POST /eventos`). Un Odoo viejo contesta 404. */
+  eventos?(eventos: EventoCanal[]): Promise<RespuestaEventos>;
 }
 
 export interface OpcionesCliente {
@@ -241,6 +265,15 @@ export class OdooCliente implements OdooApi {
   /** Sin reintentos y con plazo corto: un «escribiendo» tardío no sirve, y jamás debe frenar una respuesta. */
   async escribiendo(cuerpo: CuerpoEscribiendo): Promise<void> {
     await this.llamar("POST", "/escribiendo", cuerpo, 0, 5_000);
+  }
+
+  /**
+   * Palomitas y reacciones: una llamada por tanda, SIN reintentos aquí (los decide `entregarEventos`, que sabe cuánto tiempo queda).
+   * Las fechas viajan en ISO como en el resto del contrato.
+   */
+  async eventos(eventos: EventoCanal[]): Promise<RespuestaEventos> {
+    const cuerpo = { eventos: eventos.map((e) => ({ ...e, ts: new Date(e.ts).toISOString() })) };
+    return this.llamar<RespuestaEventos>("POST", "/eventos", cuerpo, 0, 6_000);
   }
 }
 

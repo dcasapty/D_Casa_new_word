@@ -186,11 +186,15 @@ export class OdooFalso implements OdooApi {
   /** Si no es null, `mensaje()` lanza esto (p. ej. un 4xx de Odoo) en lugar de guardar. */
   falloDeMensaje: Error | null = null;
 
+  /** Lo que Odoo sabe de un mensaje citado (su historial); null = no lo tiene (o es un Odoo viejo, que no manda `cita`). */
+  citaDe: ((idCanal: string) => { autor: string; texto: string } | null) | null = null;
+
   async mensaje(cuerpo: CuerpoMensaje): Promise<RespuestaMensaje> {
     this.revisar();
     if (this.falloDeMensaje) throw this.falloDeMensaje;
     if (!this.mensajes.some((m) => m.id_mensaje === cuerpo.id_mensaje)) this.mensajes.push(cuerpo);
-    return { ok: true, conversacion_id: this.conversacionId, partner_id: 55, ...this.estadoActual };
+    const cita = cuerpo.cita && this.citaDe ? this.citaDe(cuerpo.cita.id_canal) : null;
+    return { ok: true, conversacion_id: this.conversacionId, partner_id: 55, ...this.estadoActual, ...(cita ? { cita: { id_canal: cuerpo.cita!.id_canal, ...cita } } : {}) };
   }
 
   async estado(_canal: CanalId, _id: string): Promise<EstadoOdoo> {

@@ -6,7 +6,7 @@ import { mesDelNegocio } from "./config";
 import type { Env } from "./env";
 import { Conversacion } from "./motor/do";
 import { Global } from "./motor/global";
-import { obtenerConfig } from "./odoo/fabrica";
+import { obtenerConfig, odooDe } from "./odoo/fabrica";
 import { manejar, type ConversacionApi, type DepsRutas } from "./rutas";
 import { avisarPorTelegram } from "./canales/telegram";
 import { decidirAvisos, informeDeSalud, type EstadoDeAvisos } from "./salud";
@@ -27,6 +27,9 @@ function depsDeRutas(env: Env, ctx: ExecutionContext): DepsRutas {
     leerSalud: async (clave) => global().leerSalud(clave),
     ahora: () => Date.now(),
     esperarDespues: (trabajo) => ctx.waitUntil(trabajo),
+    // Palomitas y reacciones (2026-11-07): directo a Odoo, sin pasar por el Durable Object (rutas.ts → `despacharEventos`).
+    eventos: (lista) => odooDe(env).eventos(lista),
+    dormir: (ms) => new Promise((r) => setTimeout(r, ms)),
   };
 }
 

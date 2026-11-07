@@ -54,6 +54,9 @@ export function crudoDe(e: Entrante): Entrante {
     }),
     ts: e.ts,
     ...(e.propio !== undefined ? { propio: e.propio } : {}),
+    // La cita y el «reenviado» también se guardan: si el Worker se cae, el rescate los conoce igual.
+    ...(e.cita ? { cita: { id: e.cita.id, ...(e.cita.texto !== undefined ? { texto: e.cita.texto } : {}), ...(e.cita.deLaTienda !== undefined ? { deLaTienda: e.cita.deLaTienda } : {}) } } : {}),
+    ...(e.reenviado ? { reenviado: e.reenviado } : {}),
   };
 }
 

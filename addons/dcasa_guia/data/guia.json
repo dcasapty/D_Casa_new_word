@@ -2467,6 +2467,80 @@
    ]
   },
   {
+   "id": "juan-palomitas",
+   "categoria": "tienda",
+   "grupo": "Conversaciones",
+   "titulo": "¿Qué significan las palomitas de los mensajes?",
+   "logras": "Sabes si el cliente ya recibió y leyó lo que le mandamos por WhatsApp. Una palomita gris: salió. Dos palomitas grises: le llegó a su teléfono. Dos palomitas azules: lo leyó. Un triángulo rojo con «No llegó»: WhatsApp no lo pudo entregar; pasa el mouse encima para ver por qué.",
+   "destino": {
+    "menu": "dcasa_conversaciones.menu_dcasa_panel_conversaciones"
+   },
+   "nota": "Las palomitas salen solas en los mensajes de Juan y de las vendedoras, también en los que ya están abiertos en la pantalla. Si el cliente desactivó la confirmación de lectura en su WhatsApp, nunca se ponen azules. En Telegram no hay palomitas: Telegram no se las da a los bots. Si un mensaje dice «No llegó» porque pasaron más de 24 horas, WhatsApp solo deja escribirle con una plantilla aprobada: llámalo o espera a que escriba.",
+   "palabras": [
+    "palomitas",
+    "visto",
+    "leido",
+    "entregado",
+    "chulito",
+    "check",
+    "no llego",
+    "doble check"
+   ]
+  },
+  {
+   "id": "juan-cita-del-cliente",
+   "categoria": "tienda",
+   "grupo": "Conversaciones",
+   "titulo": "Saber a qué mensaje se refiere el cliente cuando dice «este»",
+   "logras": "Cuando el cliente responde a un mensaje en su WhatsApp, arriba de lo que escribió ves un recuadro con el mensaje al que responde y quién lo dijo (Juan, tú, otra vendedora o el cliente). Un toque en el recuadro te lleva a ese mensaje. Juan también lo ve, así que entiende «este».",
+   "destino": {
+    "menu": "dcasa_conversaciones.menu_dcasa_panel_conversaciones"
+   },
+   "nota": "Si el recuadro dice «Mensaje que no está en el historial», el cliente respondió a algo muy viejo o que ya se borró. «Reenviado» quiere decir que el cliente lo pasó de otro chat (no lo escribió él). La carita pequeña en la esquina de un mensaje es la reacción del cliente; si la quita, desaparece. Una reacción no es un mensaje: no despierta a Juan ni deja la conversación esperando respuesta.",
+   "palabras": [
+    "este",
+    "cita",
+    "citado",
+    "responde a",
+    "reenviado",
+    "reaccion",
+    "emoji",
+    "carita"
+   ]
+  },
+  {
+   "id": "juan-responder-a-un-mensaje",
+   "categoria": "tienda",
+   "grupo": "Conversaciones",
+   "titulo": "Responderle a un mensaje específico del cliente (citarlo)",
+   "logras": "Tu respuesta le llega al cliente con su mensaje citado arriba, como cuando respondes en WhatsApp: así sabe exactamente a qué le contestas.",
+   "destino": {
+    "menu": "dcasa_conversaciones.menu_dcasa_panel_conversaciones"
+   },
+   "pasos": [
+    {
+     "texto": "Abre la conversación del cliente.",
+     "destino": {
+      "menu": "dcasa_conversaciones.menu_dcasa_panel_conversaciones"
+     }
+    },
+    {
+     "texto": "En la computadora, pasa el mouse sobre el mensaje del cliente y toca «Responder», al lado del mensaje. En el celular, deja el dedo apretado sobre el mensaje y toca «Responder»."
+    },
+    {
+     "texto": "Arriba de la caja aparece «Respondes a Cliente» con su mensaje. Escribe tu respuesta y toca Enviar. Si te equivocaste, la X quita la cita."
+    }
+   ],
+   "nota": "Si ese mensaje no se puede citar en el canal, tu respuesta sale igual, sin la cita. Una nota interna no lleva cita: el cliente no la ve.",
+   "palabras": [
+    "responder",
+    "citar",
+    "contestar un mensaje",
+    "responder mensaje",
+    "cita"
+   ]
+  },
+  {
    "id": "juan-ajustes",
    "categoria": "tienda",
    "grupo": "Conversaciones",

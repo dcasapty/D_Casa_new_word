@@ -25,6 +25,7 @@ con el nombre público «el equipo de D'CASA». El contrato completo con el Work
 | Subir adjuntos, sugerir respuesta, catálogo y cotización para la pantalla | `models/conversacion_panel_extra.py`, `models/conversacion_panel_catalogo.py` |
 | Adjuntos con URL firmada de vida corta | `models/firma.py`, `controllers/adjuntos.py` |
 | Datos de la tienda (dirección, horario, WhatsApp) | `models/tienda.py` |
+| Citas, reenviados, reacciones y palomitas (2026-11-07) | `models/mensaje.py` (campos `cita_*`, `reenviado`, `reaccion*`, `estado_canal`, `_aplicar_eventos`), `models/mensaje_parte.py` (el id del canal de cada burbuja nuestra), `POST /dcasa/juan/v1/eventos` en `controllers/juan.py` |
 
 ## Reglas que no se rompen
 
@@ -39,7 +40,13 @@ con el nombre público «el equipo de D'CASA». El contrato completo con el Work
   `JUAN_URL` (no secreta) o el parámetro `dcasa_conversaciones.juan_url` dicen dónde está el Worker `juan`.
   Sin `JUAN_ODOO_TOKEN` (de 32 caracteres o más) la API responde **503**.
 
-* **El bus no lleva texto**: los avisos a las pantallas (`dcasa_conversaciones/evento`) llevan solo ids y estado.
+* **El bus no lleva texto**: los avisos a las pantallas (`dcasa_conversaciones/evento`) llevan solo ids y estado. Las
+  palomitas y reacciones van en un aviso aparte y liviano (`recibos`: ids y estado, ni texto ni emoji).
+* **Palomitas y reacciones no son mensajes del cliente** (`dcasa.mensaje._aplicar_eventos`): no crean mensajes ni tocan la
+  actividad de la conversación (último mensaje del cliente, «sin leer», seguimientos, reparto, Sofía) ni avisan como
+  mensaje nuevo. Las palomitas nunca bajan de estado (leído > entregado > no llegó > enviado), son idempotentes y lo
+  desconocido se ignora (se le devuelve al Worker en `desconocidos`). Solo las escribe el sistema: `dcasa.mensaje` y
+  `dcasa.mensaje.parte` no tienen permiso de escritura para nadie.
 * **Adjuntos**: el puente los baja con una URL firmada (HMAC con `database.secret`) que vale 15 minutos y deja de valer si el
   archivo cambia; solo sirve adjuntos de mensajes de conversaciones.
 * **Las claves de la IA no se guardan en Odoo** (viven en el Worker `juan`); Odoo solo guarda proveedor, modelos y precios

@@ -14,8 +14,10 @@
 import { canalActivo, CONFIG_POR_DEFECTO, type Config } from "./config";
 import { adaptadorPorRuta } from "./canales";
 import { crudoDe, prepararEntrante } from "./canales/preparar";
-import { TODOS_LOS_CANALES, type AdaptadorCanal, type CanalId, type Entrante, json } from "./canales/tipos";
+import { TODOS_LOS_CANALES, type AdaptadorCanal, type CanalId, type Entrante, type EventoCanal, json } from "./canales/tipos";
 import type { Env } from "./env";
+import { entregarEventos } from "./eventos";
+import type { RespuestaEventos } from "./odoo/cliente";
 import type { ResultadoIngest, ResultadoSeguimiento, SolicitudEnviar, SolicitudSeguimiento } from "./motor/conversacion";
 import { nombreDeConversacion, verificarUrlMedio } from "./motor/mediosUrl";
 import { rutasDelPanel } from "./odoo-panel";
@@ -47,6 +49,10 @@ export interface DepsRutas {
   ahora(): number;
   /** Para que un webhook responda de inmediato y el trabajo siga después. */
   esperarDespues(trabajo: Promise<unknown>): void;
+  /** Palomitas y reacciones a Odoo, en una tanda (`POST /eventos`). Sin esto (pruebas viejas) se ignoran. */
+  eventos?(eventos: EventoCanal[]): Promise<RespuestaEventos>;
+  /** Pausa entre reintentos de los eventos (las pruebas la ponen en 0). */
+  dormir?(ms: number): Promise<void>;
 }
 
 /**
@@ -116,6 +122,30 @@ async function soloLosPermitidos(entrantes: Entrante[], d: DepsRutas): Promise<E
   return pasan;
 }
 
+/**
+ * Palomitas y reacciones: a Odoo DESPUÉS de contestar, en una tanda. No pasan por el Durable Object ni por la IA. Solo las de un canal
+ * encendido en Odoo y, en Telegram, las de un chat permitido (si la lista no se puede leer, se sueltan: no son mensajes).
+ */
+async function despacharEventos(eventos: EventoCanal[] | undefined, d: DepsRutas): Promise<void> {
+  if (!eventos?.length || !d.eventos) return;
+  const cfg = await d.config().catch(() => null);
+  const conocida = cfg !== null && cfg !== CONFIG_POR_DEFECTO;
+  const permitidos = conocida && !cfg.telegram_abierto ? new Set<string>(cfg.telegram_chats) : null;
+  const pasan = eventos.filter((e) => {
+    if (conocida && !canalActivo(cfg, e.canal)) return false;
+    if (e.canal !== "telegram") return true;
+    return conocida && (cfg.telegram_abierto || permitidos!.has(String(e.id_externo)));
+  });
+  if (pasan.length === 0) return;
+  const enviar = d.eventos;
+  const dormir = d.dormir ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+  await entregarEventos(pasan, {
+    enviar: (lote) => enviar(lote),
+    dormir,
+    log: (nivel, mensaje) => console[nivel](`[juan] ${mensaje}`),
+  });
+}
+
 async function webhook(adaptador: AdaptadorCanal, req: Request, env: Env, d: DepsRutas): Promise<Response> {
   let r;
   try {
@@ -124,6 +154,8 @@ async function webhook(adaptador: AdaptadorCanal, req: Request, env: Env, d: Dep
     console.error(`[juan] webhook ${adaptador.ruta}:`, e instanceof Error ? e.message : String(e));
     return new Response("error", { status: 500 });
   }
+  // Las palomitas y reacciones nunca frenan ni cambian la respuesta al canal (ni la de los mensajes del mismo aviso).
+  if (r.eventos?.length) d.esperarDespues(despacharEventos(r.eventos, d).catch((e) => console.error(`[juan] eventos ${adaptador.ruta}:`, e instanceof Error ? e.message : String(e))));
   const entrantes = await soloLosPermitidos(r.entrantes, d);
   if (entrantes === null) return new Response("la lista de chats permitidos no está disponible: reintenta", { status: 503 });
   if (entrantes.length === 0) return r.respuesta;
@@ -290,11 +322,14 @@ async function odoo(ruta: string, req: Request, env: Env, d: DepsRutas): Promise
       // La llave que impide mandar dos veces lo mismo cuando Odoo reintenta (opcional: un Odoo viejo no la manda).
       const idEnvio = cuerpo.id_envio;
       if (idEnvio !== undefined && (typeof idEnvio !== "string" || !/^[\w.:-]{1,120}$/.test(idEnvio))) return error("id_envio inválido", 400);
+      // «Responder» desde Odoo (opcional): el id en el canal del mensaje del cliente que se cita. Uno raro se ignora (sale sin cita).
+      const respondeA = typeof cuerpo.responde_a === "string" && /^[\x21-\x7e]{1,255}$/.test(cuerpo.responde_a) ? cuerpo.responde_a : undefined;
       const adaptador = d.adaptadores.find((a) => a.canales.includes(canal));
       if (!adaptador || !adaptador.configurado(env, canal)) return error(`el canal ${canal} no está configurado en el Worker`, 502);
       return json(
         await conv.enviarVendedora({
           id_envio: idEnvio,
+          ...(respondeA ? { responde_a: respondeA } : {}),
           texto,
           adjuntos: adjuntos.map((a) => ({
             tipo: String(a.tipo ?? "documento"),

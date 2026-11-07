@@ -316,12 +316,15 @@ class DcasaConversacionPanel(models.Model):
         return hora.replace(second=0, microsecond=0)
 
     @api.model
-    def enviar_respuesta(self, conversacion_id, texto=None, adjuntos_ids=None, programar_para=None):
+    def enviar_respuesta(self, conversacion_id, texto=None, adjuntos_ids=None, programar_para=None, responde_a=None):
         """Una vendedora contesta desde la pantalla. Si el Worker no responde, queda «por enviar» y se reintenta.
 
         ``programar_para`` (fecha y hora ISO): en vez de enviar ahora, el mensaje sale solo a esa hora.
+        ``responde_a`` (id de un mensaje del cliente de esta conversación): «Responder» citándolo. Si el canal no sabe
+        su id, sale sin la cita (nunca se deja de enviar por eso).
         """
         conv = self._para_panel(conversacion_id, escritura=True)
+        cita = self._mensaje_a_citar(conv, responde_a)
         cuando = self._hora_de_envio(programar_para) if programar_para else None
         texto = (texto or '').strip() if isinstance(texto, str) or texto is None else None
         if texto is None:
@@ -331,7 +334,7 @@ class DcasaConversacionPanel(models.Model):
         adjuntos = conv._adjuntos_de_la_respuesta(adjuntos_ids)
         if not texto and not adjuntos:
             raise UserError(self.env._('Escribe algo o adjunta un archivo antes de enviar.'))
-        mensaje = conv._crear_mensaje_de_odoo(texto, adjuntos, usuario=self.env.user, programado_para=cuando)
+        mensaje = conv._crear_mensaje_de_odoo(texto, adjuntos, usuario=self.env.user, programado_para=cuando, cita=cita)
         if cuando:
             conv.marcar_leida(conv.id)
             return {'mensaje': mensaje._como_dict(), 'enviado': False, 'programado': True,
@@ -345,6 +348,16 @@ class DcasaConversacionPanel(models.Model):
         conv.marcar_leida(conv.id)
         return {'mensaje': mensaje._como_dict(), 'enviado': mensaje.estado_envio == 'enviado',
                 'conversacion': conv._resumen_panel()}
+
+    @api.model
+    def _mensaje_a_citar(self, conv, responde_a):
+        """El mensaje del cliente al que se responde: de ESTA conversación y del cliente; si no, un error claro."""
+        if responde_a in (None, False):
+            return self.env['dcasa.mensaje']
+        mensaje = self.env['dcasa.mensaje'].browse(_entero(responde_a, 'responde_a', minimo=1)).exists()
+        if not mensaje or mensaje.conversacion_id != conv or mensaje.tipo != 'mensaje' or mensaje.autor != 'cliente':
+            raise UserError(self.env._('Solo se puede responder a un mensaje del cliente de esta conversación.'))
+        return mensaje
 
     @api.model
     def cancelar_programado(self, mensaje_id):

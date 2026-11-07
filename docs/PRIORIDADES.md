@@ -25,6 +25,10 @@ LEEME_PRIMERO §2).
 
 ## Lo que sigue, en orden
 
+0. **Citas, reenviados, reacciones y palomitas en el chat** (pedido de la dueña del 2026-11-07, bitácora de
+   LEEME_PRIMERO): hecho en la rama con sus pruebas, **sin desplegar**. Falta: que la dueña vea las capturas; después CI,
+   staging y producción (**Odoo primero, luego Juan**). Para las reacciones de Telegram, volver a registrar el webhook con
+   `allowed_updates` ([JUAN_CANALES.md](JUAN_CANALES.md) §2).
 1. **Camila (mail marketing)** ([CAMILA.md](CAMILA.md)): etapas 1 y 2 **en producción** desde el 2026-11-06 (Desplegar
    52 y 54, con Juan 7). La clave de campañas ya está y Odoo la tomó (Desplegar 53). Nada sale sin que alguien de
    Marketing o Gerencia apruebe la campaña. Falta de la dueña: la primera campaña y confirmar el «Sí, quiero» de dos

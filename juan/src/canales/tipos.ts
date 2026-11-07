@@ -31,6 +31,20 @@ export interface AdjuntoEntrante {
   sticker?: boolean;
 }
 
+/**
+ * El mensaje que el cliente citó al escribir (2026-11-07: «este», seleccionando un mensaje). WhatsApp manda solo el id del citado;
+ * Telegram manda también lo que decía. El motor busca el texto en su memoria (o se lo dice Odoo) y se lo muestra al modelo como un
+ * DATO del cliente, nunca como una orden.
+ */
+export interface CitaEntrante {
+  /** El id que el canal dio al mensaje citado (el `wamid`, o `tg:<chat>:<id>` en Telegram). */
+  id: string;
+  /** Lo que decía, si el canal lo manda (Telegram). Siempre es dato del cliente. */
+  texto?: string;
+  /** El citado lo mandó la tienda (el bot o una vendedora), si el canal lo dice. */
+  deLaTienda?: boolean;
+}
+
 export interface Entrante {
   canal: CanalId;
   /** Celular E.164 sin `+` (WhatsApp), `chat_id` (Telegram) o PSID/IGSID (Meta). */
@@ -48,7 +62,23 @@ export interface Entrante {
    * se registra como `vendedora` y el bot se calla.
    */
   propio?: boolean;
+  /** El cliente respondió citando un mensaje. */
+  cita?: CitaEntrante;
+  /** El cliente lo reenvió de otro chat («muchas» = WhatsApp lo marca como reenviado muchas veces). */
+  reenviado?: "una" | "muchas";
 }
+
+/** Lo que el canal dice de un mensaje NUESTRO (las palomitas). «fallido» = no llegó. */
+export type EstadoDeEntrega = "enviado" | "entregado" | "leido" | "fallido";
+
+/**
+ * Un aviso del canal que NO es un mensaje del cliente: una palomita (enviado, entregado, leído, no llegó) o una reacción. Nunca
+ * entra a la conversación del motor: no despierta al bot, no cuenta como mensaje del cliente (ni para la ventana de 24 h, ni para
+ * los seguimientos) y no se guarda en el Durable Object. Va directo a Odoo, en una tanda por aviso del canal.
+ */
+export type EventoCanal =
+  | { tipo: "estado"; canal: CanalId; id_externo: string; id_mensaje: string; estado: EstadoDeEntrega; ts: number; error?: string }
+  | { tipo: "reaccion"; canal: CanalId; id_externo: string; id_mensaje: string; emoji: string; ts: number };
 
 export interface MedioSaliente {
   tipo: "imagen" | "documento";
@@ -73,10 +103,18 @@ export interface Saliente {
   medios: MedioSaliente[];
   /** Pausa entre burbujas, en ms (el puente de WhatsApp la aplica él mismo). */
   esperaMs?: number;
+  /**
+   * «Responder» desde Odoo: el id en el canal del mensaje del cliente que se cita. Lo lleva el PRIMER mensaje que sale (WhatsApp:
+   * `context.message_id`; Telegram: `reply_parameters`). Un canal que no sabe citar lo ignora.
+   */
+  responderA?: string;
 }
 
 export interface ResultadoEnvio {
-  /** Ids que el canal dio a lo enviado, si los da (sirven para reconocer el eco del propio bot). */
+  /**
+   * Ids que el canal dio a lo enviado, si los da, EN EL ORDEN de `Saliente` (burbujas y después archivos). Sirven para reconocer el
+   * eco del propio bot, las palomitas y las citas del cliente.
+   */
   ids: string[];
 }
 
@@ -100,6 +138,11 @@ export interface ResultadoWebhook {
   entrantes: Entrante[];
   /** true = el proveedor necesita un error HTTP para reintentar (el puente QR); false = se responde 200 y se procesa aparte. */
   esperar?: boolean;
+  /**
+   * Palomitas y reacciones del mismo aviso (2026-11-07). No se guardan antes del 200 ni pasan por el Durable Object: se le mandan a
+   * Odoo en una tanda DESPUÉS de contestar (rutas.ts → `entregarEventos`). Perder una palomita no es perder un mensaje.
+   */
+  eventos?: EventoCanal[];
   /**
    * true = el proveedor reintenta SOLO ante un error HTTP y pide una respuesta rápida (Meta: WhatsApp Cloud, Messenger, Instagram).
    * Cada mensaje se guarda tal cual llegó en su Durable Object ANTES de contestar 200; si no se pudo guardar, 500 y Meta reintenta.

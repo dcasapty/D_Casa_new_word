@@ -653,6 +653,18 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `media-breakpoint-up(lg)` (libsass lo acepta; `:is()` no se probó y se evitó con un `@each`). Así el hueco para el
   botón flotante no aparece en el celular (donde Brian va arriba) ni con el panel abierto.
 
+- **Un agente aislado en su worktree prueba «en rojo» sin tocar su rama** (2026-11-07, citas y palomitas): `git archive
+  HEAD juan | tar -x -C <scratchpad>/rojo` (o `addons`), se copian encima solo las pruebas nuevas y se corren ahí
+  (`node_modules` por enlace; para Odoo, otra base). Así se ve el rojo del código de antes sin `git stash` (compartido
+  entre worktrees) ni commits de ida y vuelta. Los comandos con `cd … &&`, heredocs o `bash -c` largos los rechaza el
+  aislamiento: van en un script del scratchpad.
+- **El contrato visual (`AUDITAR` de `test_panel_visual.py`) no audita lo transparente** (2026-11-07): un botón con
+  `opacity: 0` que aparece al pasar el mouse («Responder») salía con «contraste 1.00:1». Ahora `visible()` exige opacidad
+  mayor que 0. Y un emoji dentro de una pastilla blanca en la burbuja azul hereda `color: #fff`: hay que darle color de
+  texto aunque el emoji se pinte solo.
+- **Las referencias visuales que ya fallan en esta máquina** se repiten iguales: «conexiones» a 390 px 13.73 % y «lista»
+  a 390 px 7.68 % sin tocar esas pantallas (2026-11-07). Si sale otra cifra en otra pantalla, sí es del cambio.
+
 ### Odoo 19
 
 - **Camila (2026-11-06, `dcasa_camila`), lo aprendido:**
@@ -1022,6 +1034,15 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   (`show_payment_difference`). En una prueba que necesite eso, ponerle la cuenta al método del diario.
   `invoice_has_outstanding` se calcula con las reglas de quien mira: con «solo lo suyo» encendido la vendedora no ve el
   cobro de otro y le da `False`.
+
+- **WhatsApp Cloud da un id (`wamid`) por burbuja y por foto**, y Odoo guarda una respuesta de Juan como UN mensaje: para
+  las palomitas y las citas hace falta la tabla `dcasa.mensaje.parte` (un `wamid` por fila, único por conversación). Un
+  cliente puede citar o reaccionar a la burbuja 2 de 3 (2026-11-07).
+- **Las palomitas de Meta pueden llegar antes de que Odoo conozca el mensaje** (la de «enviado» llega en un segundo y la
+  respuesta del bot se registra por la cola del Durable Object): Odoo devuelve `desconocidos` y Juan los reenvía a los 5 y
+  10 s, dentro de `waitUntil`. Sin eso, el ✓ de las respuestas del bot se perdía casi siempre.
+- **WhatsApp Cloud no avisaba un envío a medias** (lanzaba un error común): el motor reintentaba todo y el cliente veía
+  dos veces la primera burbuja. El adaptador ahora lanza `EnvioParcialError` como Telegram (2026-11-07).
 
 ### Cloudflare
 

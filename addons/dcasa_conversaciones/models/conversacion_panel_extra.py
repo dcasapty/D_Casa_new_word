@@ -372,6 +372,11 @@ class DcasaConversacionPanelExtra(models.Model):
                     texto = '[envió un archivo]'
             if not texto:
                 continue
+            if mensaje.autor == 'cliente' and (mensaje.cita_id or mensaje.cita_id_canal) and not mensaje.tiene_sensible:
+                # «este», citando un mensaje: sin lo citado no se entiende (2026-11-07). Es un dato del cliente.
+                cita = mensaje._cita_como_dict()
+                texto = (f'(Responde a: «{cita["texto"]}») {texto}' if cita['texto']
+                         else f'(Responde a un mensaje que no está en el historial) {texto}')
             mensajes.append({'autor': {'cliente': 'cliente', 'bot': 'asistente'}.get(mensaje.autor, 'vendedora'),
                              'texto': texto[:MAX_TEXTO_PARA_SUGERIR], 'ts': H.a_iso(mensaje.ts)})
         return mensajes
