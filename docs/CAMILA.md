@@ -3,6 +3,8 @@
 **Estado (2026-11-06): etapas 1 y 2 en producción (Desplegar 54 y Juan 7); etapa 1b (la lista crece sola, §1c)
 hecha en su rama, sin desplegar.** No envía nada todavía: para que salga la primera campaña falta que la clave de campañas de Resend entre al
 contenedor (§6) y que alguien de Marketing o Gerencia la apruebe.
+**2026-11-07: el remitente propio de las campañas y el aviso cuando Resend no cuenta aperturas ni clics (§1d, §3.12,
+§6b), hechos en su rama, sin desplegar.**
 
 Pedido de la dueña (2026-11-06):
 
@@ -62,6 +64,22 @@ cliente dice que no.
 | **El pie de cada campaña** | Para todos (Resend manda el mismo contenido a todo el segmento): «Te llega porque nos diste tu correo en D'CASA. ¿No quieres más? **Date de baja aquí**». |
 | En la pantalla de Camila | Cuántos llegaron por cada camino: al agregar su correo, en la venta (venía activada), en la venta, Juan, el enlace de la factura y el de la bienvenida, Sofía y la casilla de la ficha (solo cuántos). |
 
+## 1d. Un subdominio para las campañas, con el conteo de Resend (2026-11-07)
+
+La tabla de campañas decía **0 «Abrieron» y 0 «Tocaron»**. La causa: Resend trae el conteo de aperturas y clics
+**apagado por dominio**, y Camila salía del remitente de las facturas (`dcasa_correo.remitente`,
+`ventas@dcasapty.com`). Encenderlo en `dcasapty.com` pondría el píxel y cambiaría los enlaces **también en las
+facturas** (y los buzones tratan el píxel como señal de correo promocional). Resend recomienda contar solo en el
+dominio de las campañas.
+
+| Qué | Decisión |
+|---|---|
+| Por dónde salen las campañas | **Un subdominio de marketing**, `novedades.dcasapty.com`, que la dueña agrega en Resend (DNS en Cloudflare) con el conteo de aperturas y clics encendido y el subdominio de seguimiento `links`. **Las facturas quedan limpias**: siguen saliendo de `ventas@dcasapty.com`, sin píxel ni enlaces cambiados. |
+| «Remitente de las campañas» | Un ajuste de Camila (`dcasa_camila.remitente`), al final de su pantalla; lo cambian **Gerencia y los administradores** (como la línea «Sí, quiero»). **Vacío = el de las facturas**, así que nada cambia hasta que se ponga. Se valida como un solo correo, sin nombre. |
+| Lo que ve el cliente | El nombre sigue siendo **«D'CASA Panamá»** y las respuestas siguen llegando a **`info@dcasapty.com`**: solo cambia la dirección de la que sale. La campaña y «Enviarme una prueba» salen de ahí; el remitente de las facturas no se toca. |
+| El aviso | Con la clave de campañas y en producción, Camila lee los dominios de Resend y avisa en su pantalla: **«El remitente de las campañas todavía no está verificado en Resend: las campañas no saldrán desde ahí»** (y no deja enviar: un *broadcast* desde un dominio sin verificar falla en Resend), o **«Resend no está contando aperturas / clics de este remitente: Abrieron y Tocaron saldrán en 0»** con los tres pasos para encenderlo. Si Resend falla, una nota suave: la pantalla nunca falla por eso. |
+| Lo que ya salió | **Las campañas que salieron con el conteo apagado dirán 0 para siempre**: el píxel y los enlaces se ponen al enviar. La pantalla lo dice debajo de la tabla. |
+
 ## 2. Para el equipo de marketing (en corto)
 
 **Marketing › Camila.** Arriba ves **a cuántos clientes con permiso** les puede llegar algo (y por dónde: al agregar
@@ -101,6 +119,9 @@ pestaña.
    Resend no salió ni va a salir.
 10. Al final, **la línea «Sí, quiero» del pie** de la factura y la bienvenida: encendida de fábrica; Gerencia o un
     administrador la pueden apagar (apagada, la línea no va y los enlaces que ya salieron no anotan nada).
+11. **«Remitente de las campañas»** (§1d): de qué correo salen y a dónde llegan las respuestas; Gerencia o un
+    administrador lo cambian (vacío = el de las facturas). Si Resend no cuenta aperturas o clics, o el remitente no
+    está verificado, un aviso arriba lo dice con los pasos; **«Revisar ahora»** vuelve a preguntarle a Resend.
 
 **Cuando un cliente escribe por el correo**, Juan ya sabe de qué campaña viene y qué productos llevaba; la conversación
 queda con la etiqueta **«Vino del correo»** y la cotización que se le haga en los 30 días siguientes dice de qué campaña.
@@ -296,7 +317,8 @@ enlace de cualquier campaña se lee siempre.
   campaña sube los suyos al enviar.
 
 **La prueba** («Enviarme una prueba») sale por los correos de siempre (`dcasa_correo`, `RESEND_API_KEY`) con la clase
-`prueba` de `politica.py`: solo a correos del equipo, aunque los correos a clientes estén apagados. Lleva una franja
+`prueba` de `politica.py`: solo a correos del equipo, aunque los correos a clientes estén apagados. Desde el
+2026-11-07 sale **del remitente de las campañas** (§3.12), como la de verdad. Lleva una franja
 «Prueba» arriba y el enlace de baja vacío. **Con tope** (`dcasa.camila.prueba`): una cada 2 minutos por persona y
 hasta 10 en 24 horas, porque gasta el cupo diario de los correos de las facturas. La prueba no cuenta para el tope por
 cliente.
@@ -317,7 +339,8 @@ cliente.
 - **Entregados, aperturas, clics y bajas**: Resend **sí** los da por API (`GET /broadcasts/{id}/recipients?type=…`); se
   leen cada 6 horas durante 30 días después del envío, o con «Actualizar». Resend avisa que **las aperturas pueden no
   ser exactas** (los programas de correo abren las imágenes solos o las bloquean). Los que se dieron de baja con el
-  enlace de esa campaña quedan además con la baja en Odoo.
+  enlace de esa campaña quedan además con la baja en Odoo. **Aperturas y clics solo existen si el dominio del remitente
+  tiene el conteo encendido en Resend** cuando la campaña sale (§1d, §3.12); si no, siempre 0.
 
 ### 3.6 Brian
 
@@ -330,10 +353,11 @@ arma ni envía campañas: eso se aprueba en la pantalla.
 ### 3.7 Seguridad y lo que no se rompe
 
 - Por RPC (`dcasa_base/tests/test_superficie_rpc.py`): `dcasa.camila.panel`, `nueva`, `armar`, `guardar`,
-  `escribir`, `sugerir_productos`, `buscar_productos`, `enviar_prueba`, `enviar`, `descartar`, `actualizar_resultados`
-  y `ajustar_enlace_pie` exigen el grupo en el servidor antes de cualquier `sudo`, bloquean la campaña (`FOR UPDATE
-  NOWAIT`) y validan cada argumento (ids enteros, chips y botones conocidos, textos con su largo; `ajustar_enlace_pie`
-  y descartar una aprobada, además, Gerencia o administrador); `res.partner.action_dcasa_promos_baja` exige una sola
+  `escribir`, `sugerir_productos`, `buscar_productos`, `enviar_prueba`, `enviar`, `descartar`, `actualizar_resultados`,
+  `ajustar_enlace_pie`, `ajustar_remitente` y `revisar_remitente` exigen el grupo en el servidor antes de cualquier
+  `sudo`, bloquean la campaña (`FOR UPDATE NOWAIT`) y validan cada argumento (ids enteros, chips y botones conocidos,
+  textos con su largo; `ajustar_enlace_pie`, `ajustar_remitente` y descartar una aprobada, además, Gerencia o
+  administrador); `res.partner.action_dcasa_promos_baja` exige una sola
   ficha y poder escribirla; `sale.order.create` y `write` QUITAN «Vino del correo» de lo que se manda (solo lo
   escribe Camila, con una marca de contexto que es un objeto de Python y no viaja por RPC) y `create` lo anota, en un
   savepoint, de qué campaña vino el cliente.
@@ -451,6 +475,39 @@ En el tablero no hay sección de «lo nuevo»: esa campaña se arma desde «Nuev
 - **El pie de la campaña** (`correo_templates.xml`): «Te llega porque nos diste tu correo en D'CASA. ¿No quieres más?
   Date de baja aquí» (el enlace de Resend).
 
+### 3.12 El remitente de las campañas y el conteo de Resend (`models/remitente.py`, 2026-11-07)
+
+- **El remitente** (`_remitente_campanas`): `dcasa_camila.remitente` si tiene un correo bien escrito; si no, el de las
+  facturas (`dcasa_correo.remitente`). El *broadcast* sale con `remitente_visible(<nombre de dcasa_correo>, <ese
+  correo>)` y `reply_to` = el de `dcasa_correo` (`info@dcasapty.com`). **«Enviarme una prueba»** también: la sesión de
+  Resend de `dcasa_correo` siempre usa el remitente de Ajustes (ignora el `From` de Odoo), así que Camila hereda
+  `dcasa.correo._sesion` y cambia el remitente solo si el contexto trae `RemitentePrueba`, un **objeto de Python** que
+  pone `_enviar_prueba` en ese único `mail.send` (por RPC solo llegan textos y números: nadie la imita para cambiar el
+  remitente de una factura). `ajustar_remitente(correo)` (Gerencia o administradores) acepta un solo correo, sin
+  nombre, hasta 254 letras, o vacío (borra el ajuste); lo guarda en minúsculas y lo revisa en Resend al momento.
+- **La revisión** (`_revisar_remitente`, solo en producción con `RESEND_CAMPANAS_API_KEY`): `GET /domains` (sin
+  `limit`: todos) y, como la lista no trae `tracking_subdomain` ni `records`, `GET /domains/{id}` del dominio del
+  remitente. `clasificar_dominio` (sin base de datos): `verified` y `partially_verified` salen; `not_started`,
+  `pending`, `failed` o el envío apagado (`capabilities.sending = disabled`) **no salen**; otro estado
+  (`temporary_failure`, `partially_failed`, uno nuevo) se avisa sin bloquear. El conteo: `open_tracking`,
+  `click_tracking` y, si hay `tracking_subdomain`, que su registro `Tracking` (el del subdominio de ahora) esté
+  verificado; lo que Resend no dijo no se adivina. Se guarda en `dcasa_camila.remitente_revision` (JSON con el dominio
+  y la hora; sin la clave). Cuándo se pregunta: el cron de cada hora (si pasaron 6 horas; si falló, a la hora), al
+  guardar el remitente, con **«Revisar ahora»** (no más de una vez cada 15 segundos) y al tocar **«Enviar»** si lo
+  guardado no deja enviar, falló o es de otro dominio (lo pudieron verificar recién). Un error de Resend queda como
+  «error» y **no bloquea**. Un error inesperado se registra y no frena el cron, el guardado ni el envío.
+- **La pantalla solo lee lo guardado** (`_remitente_para_pantalla`): nunca llama a Resend, y si armar el aviso falla,
+  no hay aviso (la pantalla sigue). Avisos (`_aviso_remitente`): `no_verificado` (también si el dominio no está en
+  Resend) con «Cómo arreglarlo»; `sin_seguimiento` («Resend no está contando aperturas / clics / aperturas ni clics de
+  este remitente: … saldrán en 0») con «Cómo encenderlo» en tres pasos (si salen del correo de las facturas, los pasos
+  llevan a un subdominio aparte y advierten que encenderlo ahí cambia las facturas); `otro`. Con un «error», solo una
+  nota suave en la sección del remitente. Debajo de la tabla: las campañas que salieron con el conteo apagado siempre
+  dirán 0.
+- **No deja enviar** si se sabe que el dominio no está verificado: `_bloqueos` lo dice (y la pantalla apaga «Enviar»)
+  y el servidor lo revisa otra vez al enviar, también por RPC (devuelve el motivo sin excepción, para que quede
+  guardado lo que dijo Resend). Con un *broadcast* ya creado (un reintento) no se mira: el remitente ya quedó allá.
+- Brian (`estado_campanas`) dice `remitente_de_las_campanas` y, si hay, `aviso_de_resend`.
+
 ## 4. Pruebas
 
 `addons/dcasa_camila/tests/`: reglas puras (`test_reglas.py`), el cliente de Resend (`test_resend.py`), el permiso, la
@@ -499,6 +556,17 @@ creación rápida no, un error de quien llama no se traga, el plazo desde que sa
 a un «no», sin usuario no se activa, cada quien sus cuadros y solo la casilla y el correo). En `dcasa_migracion`:
 `test_la_carga_no_suscribe_a_nadie_a_las_novedades`. `test_campana.py`: el pie nuevo. En `juan/`:
 `test/dcasa/permiso-correo.test.ts`.
+`test_remitente.py` (2026-11-07, primero en rojo sobre el código de antes): sin remitente propio todo sigue igual; el
+*broadcast* y la prueba salen del remitente de las campañas con el nombre y la respuesta de siempre, y cualquier otro
+correo sale del de las facturas (también con un texto con el nombre de la marca en el contexto, como llegaría por
+RPC); solo Gerencia y administradores lo cambian y se valida; el aviso sin conteo (los tres pasos), solo clics o solo
+aperturas, con conteo no avisa, el CNAME sin verificar, el dominio sin verificar o que no está (no deja enviar,
+tampoco por RPC, y sale cuando lo verifican), Resend que falla (nota suave, sin bloquear ni la clave), la pantalla que
+nunca llama a Resend ni se cae por el aviso, el cron cada 6 horas y el reintento a la hora, cambiar de dominio,
+«Revisar ahora» sin martillar, staging, el correo de las facturas como remitente, una falla temporal, Brian,
+`clasificar_dominio` y la Guía. En el navegador: el aviso se ve arriba con sus tres pasos, la nota bajo la tabla, **la
+pantalla baja hasta el final** (computadora y celular, sin scroll de lado) y Gerencia cambia el remitente desde la
+pantalla (el aviso se va). En `test_resend.py`: `GET /domains` y `GET /domains/{id}`.
 
 ## 5. Lo que queda para después
 
@@ -538,6 +606,27 @@ el chat, en Odoo ni en un correo.
 
 Si la clave se filtra: en Resend › API Keys bórrala, crea otra igual y cámbiala en Cloudflare (paso 4).
 
+## 6b. El subdominio de las campañas con el conteo de aperturas y clics (paso a paso para la dueña, §1d)
+
+1. **Resend › Domains › Add domain**: `novedades.dcasapty.com` (la misma región que `dcasapty.com`). Resend muestra sus
+   registros (Records).
+2. **Cloudflare › dcasapty.com › DNS › Add record**: cada registro tal cual (tipo, nombre y valor), **con la nube gris
+   («DNS only»)**. En Resend, **Verify DNS Records** hasta que diga **Verified**.
+3. **Resend › Domains › novedades.dcasapty.com › Configuration › Enable tracking metrics**: subdominio de seguimiento
+   **`links`**, **aperturas y clics encendidos**. Resend da un **CNAME** para `links.novedades`: va en Cloudflare igual,
+   **con la nube gris** (con la nube naranja Resend no lo puede verificar). Esperar a que lo marque verificado.
+4. **No enciendas el conteo en `dcasapty.com`** (el de las facturas): las facturas llevarían el píxel y sus enlaces
+   cambiarían.
+5. **Odoo › Marketing › Camila**, al final: en **«Remitente de las campañas»** escribe un correo de ese subdominio (por
+   ejemplo `novedades@novedades.dcasapty.com`; el nombre «D'CASA Panamá» y la respuesta a `info@dcasapty.com` quedan
+   igual) y toca **Guardar** (Gerencia o un administrador). Camila lo revisa en Resend al momento: si falta algo, el
+   aviso de arriba lo dice; **«Revisar ahora»** vuelve a mirar.
+6. Toca **«Enviarme una prueba»**: debe llegar desde ese correo. Si en vez de llegar dice que Resend no aceptó el
+   remitente, la clave de los correos de siempre (`RESEND_API_KEY`, la de las facturas, por donde sale la prueba)
+   está limitada a un dominio en Resend › API Keys: hay que permitirle también el subdominio (o «All domains»). La
+   campaña de verdad sale por la clave de campañas (Full access), que no tiene ese límite.
+7. Las campañas que ya salieron siguen en 0: el conteo empieza con la próxima.
+
 ## 7. Precios de Resend (resend.com/pricing, revisado el 2026-11-06)
 
 - **Correos de factura y abono (transaccionales):** plan gratis con **3,000 al mes y 100 por día**; el Pro cuesta **$20
@@ -556,6 +645,7 @@ Si la clave se filtra: en Resend › API Keys bórrala, crea otra igual y cámbi
 | Un contacto | `POST /contacts {email, segments: [{id}]}`; si ya existía, `POST /contacts/{email}/segments/{id}`; sacarlo, `DELETE /contacts/{id o email}/segments/{id}`; la baja, `PATCH /contacts/{id o email} {unsubscribed: true}` («Either id or email must be provided»: Camila usa el id que lista el segmento) |
 | La campaña | `POST /broadcasts {segment_id, from, subject, html, reply_to, name}` (borrador), `POST /broadcasts/{id}/send`, `GET /broadcasts/{id}` (`status`: draft, scheduled, queued, sent, canceled; un 404 = ya no existe, lo borraron en el panel); `DELETE /broadcasts/{id}` solo si no salió (draft o scheduled) |
 | Resultados | `GET /broadcasts/{id}/recipients?type=delivered\|opened\|clicked\|unsubscribed`, filas `{id (cursor), contact_id, email}` |
+| El dominio del remitente (2026-11-07) | `GET /domains` (sin `limit`: todos; `{id, name, status, open_tracking, click_tracking, capabilities}`) y `GET /domains/{id}` (además `tracking_subdomain` y `records`, con el registro `Tracking`). `status`: `not_started`, `pending`, `verified`, `partially_verified`, `partially_failed`, `failed`, `temporary_failure`. El conteo viene **apagado por dominio** y solo se aplica con el subdominio de seguimiento configurado y verificado |
 | Límite | 10 peticiones por segundo por equipo (429 con `retry-after`): pausa corta entre llamadas y reintentos |
 | La baja | `{{{RESEND_UNSUBSCRIBE_URL}}}` en el HTML: Resend pone un enlace único por persona y campaña |
 | Permiso de la clave | `sending_access` contesta 401 `restricted_api_key` en contactos y campañas: hace falta `full_access` |

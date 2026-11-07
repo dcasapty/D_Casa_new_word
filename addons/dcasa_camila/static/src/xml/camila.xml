@@ -59,6 +59,23 @@
                         </ul>
                     </div>
 
+                    <!-- Lo que dijo Resend del remitente de las campañas (lo guardado: la pantalla no llama a Resend). -->
+                    <div t-if="d.remitente and d.remitente.aviso" class="o_camila_aviso_remitente" role="status"
+                         t-att-data-tipo="d.remitente.aviso.tipo">
+                        <strong class="o_camila_aviso_titulo" t-esc="d.remitente.aviso.titulo"/>
+                        <p t-if="d.remitente.aviso.detalle" class="o_camila_aviso_detalle" t-esc="d.remitente.aviso.detalle"/>
+                        <t t-if="d.remitente.aviso.pasos.length">
+                            <p class="o_camila_aviso_pasos_titulo" t-esc="d.remitente.aviso.pasos_titulo"/>
+                            <ol class="o_camila_aviso_pasos">
+                                <li t-foreach="d.remitente.aviso.pasos" t-as="paso" t-key="paso_index" t-esc="paso"/>
+                            </ol>
+                        </t>
+                        <button t-if="d.remitente.puede_revisar" type="button" class="btn btn-link btn-sm o_camila_aviso_revisar"
+                                t-att-disabled="state.ocupado" t-on-click="revisarRemitente">
+                            <i class="fa fa-refresh me-1" aria-hidden="true"/>Revisar ahora
+                        </button>
+                    </div>
+
                     <nav t-if="d.abiertas.length" class="o_camila_pestanas" aria-label="Campañas abiertas">
                         <button t-foreach="d.abiertas" t-as="abierta" t-key="abierta.id" type="button"
                                 class="o_camila_pestana" t-att-class="{ o_activa: campana and campana.id === abierta.id }"
@@ -341,7 +358,36 @@
                                 ser exactas). Chats: los que llegaron con la marca de la campaña en su primer mensaje. Ventas:
                                 facturas pagadas de esos clientes con el chat en los 30 días antes de la factura. Web: pedidos
                                 confirmados de la tienda en línea que llegaron por un enlace del correo (con su marca).</p>
+                            <p class="o_camila_tabla_nota o_camila_nota_seguimiento">Las campañas que salieron con el conteo
+                                de Resend apagado siempre dirán 0 en Abrieron y Tocaron: el píxel y los enlaces se ponen al enviar.</p>
                         </div>
+                    </section>
+
+                    <section t-if="d.remitente" class="o_camila_remitente">
+                        <h2>Remitente de las campañas</h2>
+                        <p>
+                            Las campañas salen de <strong class="o_camila_remitente_actual" t-esc="d.remitente.visible"/>
+                            <t t-if="!d.remitente.propio"> (el mismo correo de las facturas)</t>
+                            y las respuestas de los clientes llegan a <strong t-esc="d.remitente.responder_a"/>.
+                        </p>
+                        <form t-if="d.remitente.puede_cambiar" class="o_camila_remitente_form" t-on-submit.prevent="guardarRemitente">
+                            <label class="o_camila_etiqueta" for="o_camila_remitente_correo">Correo del que salen las campañas
+                                (vacío: el de las facturas, <t t-esc="d.remitente.transaccional"/>)</label>
+                            <div class="o_camila_remitente_fila">
+                                <input id="o_camila_remitente_correo" type="email" class="form-control o_camila_remitente_correo"
+                                       maxlength="254" autocomplete="off" placeholder="novedades@novedades.dcasapty.com"
+                                       t-model="state.remitente"/>
+                                <button type="submit" class="btn btn-secondary o_camila_remitente_guardar"
+                                        t-att-disabled="state.ocupado">Guardar</button>
+                            </div>
+                        </form>
+                        <p t-else="" class="text-muted small">Lo cambian Gerencia o un administrador.</p>
+                        <p t-if="d.remitente.nota" class="o_camila_remitente_nota" t-esc="d.remitente.nota"/>
+                        <p t-if="d.remitente.revision" class="o_camila_remitente_revision">
+                            <t t-esc="d.remitente.revision"/>
+                            <button type="button" class="btn btn-link btn-sm o_camila_remitente_revisar"
+                                    t-att-disabled="state.ocupado" t-on-click="revisarRemitente">Revisar ahora</button>
+                        </p>
                     </section>
 
                     <section class="o_camila_pie_ajuste">
@@ -381,7 +427,10 @@
         <Dialog title="'Así le llega al cliente'" size="'xl'" contentClass="'o_camila_dialogo o_camila_dialogo_previa'"
                 footer="false">
             <div class="o_camila_previa_cabecera">
-                <p class="o_camila_asunto_previa"><span>Asunto:</span> <t t-esc="props.campana.asunto"/></p>
+                <div class="o_camila_previa_textos">
+                    <p class="o_camila_asunto_previa"><span>Asunto:</span> <t t-esc="props.campana.asunto"/></p>
+                    <p t-if="props.campana.de" class="o_camila_de_previa"><span>De:</span> <t t-esc="props.campana.de"/></p>
+                </div>
                 <div class="btn-group btn-group-sm" role="group" aria-label="Ver como">
                     <button type="button" class="btn o_camila_ver_celular"
                             t-att-class="state.vista == 'celular' ? 'btn-primary' : 'btn-secondary'"

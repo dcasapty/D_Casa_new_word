@@ -1070,6 +1070,19 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   10 s, dentro de `waitUntil`. Sin eso, el ✓ de las respuestas del bot se perdía casi siempre.
 - **WhatsApp Cloud no avisaba un envío a medias** (lanzaba un error común): el motor reintentaba todo y el cliente veía
   dos veces la primera burbuja. El adaptador ahora lanza `EnvioParcialError` como Telegram (2026-11-07).
+- **Resend trae el conteo de aperturas y clics APAGADO por dominio** (2026-11-07: Camila decía 0 «Abrieron» y 0
+  «Tocaron» en todas las campañas). Se enciende por dominio (Domains › Configuration › Enable tracking metrics) y solo
+  vale con el subdominio de seguimiento (`links`) configurado y verificado (su CNAME en Cloudflare con la nube gris). Se
+  aplica al enviar: lo que ya salió sin conteo dirá 0 para siempre. No encenderlo en el dominio de las facturas: el
+  píxel y los enlaces cambiados irían también en las facturas. Camila tiene su propio remitente (`dcasa_camila.remitente`)
+  y avisa leyendo `GET /domains` (`docs/CAMILA.md` §1d).
+- **La sesión de Resend de `dcasa_correo` ignora el `From` de Odoo** (`mensaje_a_resend` usa siempre el remitente de
+  Ajustes): poner `email_from` en un `mail.mail` no cambia nada. Para que un correo concreto salga de otro remitente (la
+  prueba de Camila) se hereda `dcasa.correo._sesion` y se mira una marca del contexto que es **un objeto de Python**
+  (por RPC solo llegan textos y números: nadie la imita; prueba `test_la_marca_de_la_prueba_no_viaja_por_rpc`).
+- **Las pruebas de `dcasa_base` (como `TestSuperficieRpc`) no corren con `-u dcasa_camila`**: Odoo solo corre las
+  `post_install` de los módulos que actualiza, y actualizar `dcasa_base` arrastra a todos. Para revisar la lista blanca
+  de RPC en local sin eso: `odoo-bin shell` con `T.metodos_de_dcasa(env) - set(T.LISTA_BLANCA)` (debe dar vacío).
 
 ### Cloudflare
 

@@ -83,6 +83,19 @@ class TestClienteCampanas(BaseCase):
         self.assertNotIn('ana@example.com', error.exception.mensaje)
         self.assertNotIn(CLAVE_CAMPANAS, repr(self.cliente))
 
+    def test_los_dominios_con_la_forma_de_la_api(self):
+        """``GET /domains`` (todos, sin paginar) y ``GET /domains/{id}`` (el detalle trae el subdominio de seguimiento
+        y los registros), para saber si el remitente de las campañas está verificado y cuenta aperturas y clics."""
+        self.resend.dominio('novedades.example.com', aperturas=True, clics=False, subdominio='links')
+        (fila,) = self.cliente.dominios()
+        self.assertEqual((fila['name'], fila['status'], fila['open_tracking'], fila['click_tracking']),
+                         ('novedades.example.com', 'verified', True, False))
+        detalle = self.cliente.dominio(fila['id'])
+        self.assertEqual(detalle['tracking_subdomain'], 'links')
+        self.assertEqual([llamada[:2] for llamada in self.resend.llamadas],
+                         [('GET', '/domains'), ('GET', f"/domains/{fila['id']}")])
+        self.assertEqual(self.resend.llamadas[0][3], None, 'Sin «limit»: Resend devuelve todos de una vez')
+
     def test_sin_red_es_temporal(self):
         with patch('requests.request', MagicMock(side_effect=requests.ConnectionError('sin red'))), \
                 self.assertRaises(RC.ErrorResend) as error:

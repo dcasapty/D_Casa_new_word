@@ -50,9 +50,13 @@ class BrianHerramientasCamila(models.AbstractModel):
                               for linea in datos['lineas']],
                 'precios_del': datos['precios_del'],
             })
+        remitente = panel['remitente']
         return {
             'clientes_con_permiso': panel['con_permiso'],
             'clave_de_resend': 'cargada' if panel['hay_clave'] else 'falta (no se puede enviar)',
+            # De qué correo salen y, si Resend no lo deja salir o no cuenta aperturas y clics, el aviso de la pantalla.
+            'remitente_de_las_campanas': remitente['correo'],
+            **({'aviso_de_resend': remitente['aviso']['titulo']} if remitente['aviso'] else {}),
             'ultima_campana': panel['ultima'] or 'todavía no ha salido ninguna',
             'tope': f"a cada cliente le llega como mucho un correo de campaña cada {panel['dias']} días",
             'por_que_no_puede_salir_ahora': panel['bloqueos'],
