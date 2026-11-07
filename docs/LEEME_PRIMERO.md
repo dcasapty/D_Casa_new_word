@@ -106,7 +106,7 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 > sigue. Se guardan las diez más recientes; las viejas se resumen en una línea abajo y su texto completo pasa a
 > [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md).
 
-### 2026-11-06 (9): Camila etapa 1b: la lista de las novedades crece sola (se activa al agregar el correo), sin desplegar
+### 2026-11-06 (9): Camila etapa 1b: la lista de las novedades crece sola (se activa al agregar el correo), en producción
 
 - La dueña vio «0 clientes con permiso» de unos 3,000 y no quiere marcar a nadie de golpe ([CAMILA.md](CAMILA.md) §1c).
   Primero se hizo una pregunta «Sí / No» en cada venta y Juan preguntando por WhatsApp (commit `55a6f4b`); ese mismo
@@ -126,21 +126,24 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
   «activo» o «sin_correo». El pie de cada campaña: «Te llega porque nos diste tu correo en D'CASA. ¿No quieres más?
   Date de baja aquí».
 - La pantalla de Camila cuenta por camino. Pruebas: `test_etapa1b.py` (primero en rojo sobre el código de antes) y
-  `juan/test/dcasa/permiso-correo.test.ts` (3 de 5 en rojo). **Sin push ni despliegue**; al desplegar va también el
-  Worker de Juan.
+  `juan/test/dcasa/permiso-correo.test.ts` (3 de 5 en rojo).
 - **Revisión adversarial** (2 que frenaban y varios a arreglar, todos con su prueba): el cron de Sofía ya no vuelve a
   suscribir ni borra un «no» (solo un acto explícito lo borra); la carga del sistema anterior, fusionar fichas,
   empleados, proveedores, el chatter y la creación rápida no activan nada (la activación es **por invitación**: solo
   la pantalla, Sofía y Juan); desmarcar con el correo en el mismo guardado es un «no»; «venía activada» en la venta
   es un origen aparte (nadie le preguntó); `flush_all()` antes de cada savepoint (un error de la venta no se traga);
   el cuadro no se cierra con Escape, el plazo cuenta desde que sale, uno viejo no le gana a un «no», cada quien ve
-  solo los suyos y la casilla va en el azul de la marca. Ya en producción (`41f31d3`).
+  solo los suyos y la casilla va en el azul de la marca.
 - **Segunda revisión** (nada frenaba; arreglado en la rama, cada uno con su prueba): el enlace «Sí, quiero» después
   de un «no» sí lo anota (es un acto explícito); `cr.flush()` en vez de `env.flush_all()` antes de cada savepoint
   (también los precommit de quien llama); una empresa nueva, un correo con baja o un correo borrado ya no anotan un
   «no» que nadie dijo (en una empresa la casilla es de solo lectura); con un «no» viejo, marcar junto con un correo
   nuevo es un «sí» de una persona; desmarcar cuando el correo solo cambia de mayúsculas es un «no»; Juan recibe
   «sin_permiso» (tiene correo pero no le llegan) para que siempre sepa que un «no» se honra.
+- **En producción:** con las dos revisiones adversariales, PR #92 (`main` = `cb541f8`, árbol = `8f3cdc3`), **Desplegar
+  58** sano y confirmado 01:03 UTC del 7 nov (versión `8f3cdc322808`) y después **Desplegar Juan 9** (`cb541f8`): Juan
+  va después de Odoo porque llama a `guardar_correo` y `no_quiere_novedades`, que un Odoo viejo no tiene. El CI #289
+  (sin los arreglos de la segunda revisión) se canceló para relanzarlo completo (CI #290): una sola subida.
 
 ### 2026-11-06 (8): «Ver más» en la foto del catálogo y Dependabot, en producción
 
@@ -155,7 +158,7 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
   todo sin commit y los agentes siguieron donde iban al reanudarlos con un mensaje.
 - La dueña aprobó las capturas de Brian («perfecto») y decidió que la casilla de novedades se active sola al agregar
   un correo (la vendedora la desactiva si el cliente dice que no). Las dos cosas siguen en preparación, junto con la
-  pantalla de Sofía (ya en la rama, sin desplegar).
+  pantalla de Sofía (después, las tres en producción: Desplegar 57 y 58).
 
 ### 2026-11-06 (7): la pantalla de Sofía
 
@@ -176,7 +179,8 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 - Pruebas: `test_sofia_pantalla.py` (nuevo, 9; la rueda y el dedo por el protocolo de Chrome) y las de navegador
   ajustadas a «Editar»: 70 en verde en base limpia (68 de Sofía y `dcasa_interfaz` › `TestInicioScroll`). Capturas
   `antes_…`/`despues_…` en el scratchpad de la sesión (`capturas_sofia`), con datos de prueba. **Sin push ni
-  despliegue**: falta que la dueña vea las capturas. *(Después: le gustaron y «Descartar» queda sin confirmación.)*
+  despliegue**: falta que la dueña vea las capturas. *(Después: le gustaron, «Descartar» queda sin confirmación y está
+  en producción con Desplegar 57.)*
 - Aprendido: el minificador de Odoo (`rjsmin`) aprieta los espacios de una plantilla `` `…` `` anidada dentro de
   `${…}` («p. m.(la pidió»); hay tres casos viejos en Conversaciones (tarea aparte). Ver CONTEXTO_AGENTICO.
 
@@ -233,7 +237,7 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
   verdad); las cuentas de la revisión, solo a Gerencia (a la vendedora, las suyas); `abrir_pantalla` nunca abre una
   acción de servidor ni un enlace; `cotizaciones_que_vencen` y `estado_del_correo` marcadas como texto de clientes;
   fechas de Meta y del correo en hora de Panamá.
-- **Sin push ni despliegue.** Sigue: CI y staging.
+- **En producción:** PR #91 junto con la pantalla de Sofía, **Desplegar 57** (`b261ec6`, sano y confirmado).
 
 ### 2026-11-06 (5): Camila etapa 2 («a lo grande, todo conectado con todo»), en producción
 
