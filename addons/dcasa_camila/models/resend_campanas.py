@@ -20,6 +20,10 @@ Revisado en la documentación oficial el 2026-11-06 (``https://resend.com/docs/l
 * **Resultados**: ``GET /broadcasts/{id}/recipients?type=delivered|opened|clicked|unsubscribed&limit=100``, filas
   ``{id (cursor), contact_id, email}`` (Resend avisa que las aperturas pueden no ser exactas).
 * **Límite**: 10 peticiones por segundo por equipo (429 ``rate_limit_exceeded`` con ``retry-after``).
+* **Dominios** (revisado el 2026-11-07): ``GET /domains`` (sin ``limit`` trae todos: ``{data: [{id, name, status,
+  open_tracking, click_tracking, capabilities}]}``) y ``GET /domains/{id}`` (además ``tracking_subdomain`` y
+  ``records``, con el registro ``Tracking``). El conteo de aperturas y clics viene APAGADO por dominio y solo se aplica
+  con el subdominio de seguimiento configurado y verificado (``models/remitente.py``).
 
 Reglas que no se rompen: la clave nunca sale (ni en un error ni en un log ni en ``repr``); los correos de las personas
 no van al log; nada de esto toca los correos de factura.
@@ -229,6 +233,17 @@ class ClienteCampanas:
             if error.estado == 404:
                 return {}
             raise
+
+    # -- Dominios (¿el remitente de las campañas está verificado y cuenta aperturas y clics?) ------------------
+
+    def dominios(self):
+        """``[{id, name, status, open_tracking, click_tracking, capabilities, …}]`` de la cuenta. Sin ``limit``,
+        Resend los devuelve todos de una vez."""
+        return self._llamar('GET', '/domains').get('data') or []
+
+    def dominio(self, dominio_id):
+        """El detalle de un dominio: además ``tracking_subdomain`` y ``records`` (el registro «Tracking»)."""
+        return self._llamar('GET', f'/domains/{quote(dominio_id, safe="")}')
 
     def destinatarios(self, broadcast_id, tipo):
         """Las filas ``{id, contact_id, email}`` de quienes tuvieron ese evento (delivered, opened, clicked,

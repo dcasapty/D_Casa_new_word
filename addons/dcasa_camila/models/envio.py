@@ -26,6 +26,7 @@ import logging
 import re
 import time
 from datetime import timedelta
+from email.utils import formataddr
 
 import psycopg2
 from psycopg2.errors import LockNotAvailable
@@ -39,6 +40,7 @@ from odoo.tools import SQL, email_normalize
 from odoo.tools.misc import hmac as hmac_odoo
 
 from . import reglas as R
+from . import remitente as REM
 from . import resend_campanas as RC
 from .campana import ABIERTAS
 
@@ -328,6 +330,14 @@ class DcasaCamila(models.AbstractModel):
         if campana.estado == 'aprobada' and campana.enviando_desde \
                 and fields.Datetime.now() - campana.enviando_desde < timedelta(minutes=MINUTOS_ENVIANDO):
             raise UserError(self.env._('Esta campaña ya se está enviando: espera un momento y vuelve a mirar.'))
+        # El dominio del remitente en Resend (``remitente.py``): si lo guardado no deja enviar o nunca se revisó, se
+        # mira otra vez (lo pudieron verificar recién). Si se SABE que no está verificado, no sale: se devuelve el
+        # motivo (sin excepción, para que quede guardado lo que dijo Resend y la pantalla muestre el aviso). Con un
+        # broadcast ya creado (un reintento), el remitente ya quedó en Resend (``_revisar_broadcast_anterior``).
+        if not campana.resend_broadcast_id:
+            self._revisar_remitente_sin_fallar('enviar')
+            if self._remitente_no_verificado():
+                return {'ok': False, 'mensaje': self._mensaje_remitente_no_verificado()}
         bloqueos = self._bloqueos(campana)
         if bloqueos:
             raise UserError(bloqueos[0])
@@ -427,9 +437,11 @@ class DcasaCamila(models.AbstractModel):
         if not presentes:
             raise RC.ErrorResend(self.env._('Resend no tiene a ninguno de los destinatarios en el segmento: no salió.'))
         if not campana.resend_broadcast_id:
+            # El remitente de las campañas (``remitente.py``; vacío = el de las facturas) con el nombre y la dirección
+            # de respuesta de siempre: las respuestas de los clientes llegan a donde llegaban.
             config = self.env['dcasa.correo'].sudo()._config()
             broadcast = cliente.crear_broadcast(
-                segmento, remitente_visible(config['nombre'], config['remitente']), campana.asunto,
+                segmento, remitente_visible(config['nombre'], self._remitente_campanas()), campana.asunto,
                 self._html(campana, para_resend=True), responder_a=config['responder_a'],
                 nombre=f'{campana.name} ({campana.marca})')
             campana.write({'resend_broadcast_id': broadcast})
@@ -518,18 +530,21 @@ class DcasaCamila(models.AbstractModel):
                                 ('enviada_en', '>=', ahora - timedelta(hours=24))]) >= MAX_PRUEBAS_24H:
             raise UserError(self.env._('Ya te mandé %s pruebas en las últimas 24 horas: es el máximo (salen por el '
                                        'mismo cupo que los correos de las facturas).', MAX_PRUEBAS_24H))
+        # Sale del remitente de las campañas (``remitente.py``), como la de verdad, con el nombre y la dirección de
+        # respuesta de siempre. La marca va en el contexto de ESTE envío (un objeto de Python: no viaja por RPC).
+        remitente = self._remitente_campanas()
         mail = self.env['mail.mail'].sudo().create({
             'subject': self.env._('[Prueba] %s', campana.asunto or ''),
             'body_html': self._html(campana, prueba=True),
             'email_to': destino,
-            'email_from': correo._remitente_formateado(),
+            'email_from': formataddr((correo._config()['nombre'], remitente)),
             'headers': repr({'X-Dcasa-Correo': 'prueba'}),
             'model': 'res.users',
             'res_id': usuario.id,
             'auto_delete': True,
         })
         try:
-            mail.send(raise_exception=True)
+            mail.with_context(**{REM.MARCA_PRUEBA: REM.RemitentePrueba(remitente)}).send(raise_exception=True)
         except MailDeliveryException as error:
             raise UserError(self.env._('No salió la prueba: %s', motivo_legible(error, correo._clave()))) from None
         Prueba.create({'usuario_id': usuario.id, 'campana_id': campana.id, 'enviada_en': ahora})
@@ -786,6 +801,14 @@ class DcasaCamila(models.AbstractModel):
         except RC.ErrorResend as error:
             _logger.warning('DCASA_CAMILA no se pudo sincronizar con Resend: %s', error.mensaje)
             return False
+        # El dominio del remitente de las campañas (verificado y con el conteo de aperturas y clics): cada 6 horas.
+        # Nunca frena el cron ni lo que sigue.
+        self.env.cr.flush()
+        try:
+            with self.env.cr.savepoint():
+                self.sudo()._revisar_remitente('cron')
+        except Exception:   # noqa: BLE001
+            _logger.warning('DCASA_CAMILA no se pudo revisar el remitente de las campañas en Resend', exc_info=True)
         ahora = fields.Datetime.now()
         for campana in self.env['dcasa.camila.campana'].sudo().search([
                 ('estado', '=', 'enviada'), ('enviada_en', '>=', ahora - timedelta(days=DIAS_RESULTADOS)),

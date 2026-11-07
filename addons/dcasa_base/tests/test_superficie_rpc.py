@@ -1056,6 +1056,12 @@ LISTA_BLANCA = {
     ('dcasa_camila', 'dcasa.camila', 'ajustar_enlace_pie'):
         CAMILA + ' Además exige Gerencia o administrador (AccessError) para prender o apagar la línea «Sí, quiero» '
                  'del pie; el valor tiene que ser verdadero o falso.',
+    ('dcasa_camila', 'dcasa.camila', 'ajustar_remitente'):
+        CAMILA + ' Además exige Gerencia o administrador (AccessError) para cambiar el remitente de las campañas; '
+                 'acepta solo un correo bien escrito (sin nombre) o vacío. No toca el remitente de las facturas.',
+    ('dcasa_camila', 'dcasa.camila', 'revisar_remitente'):
+        CAMILA + ' Solo en producción con la clave de campañas: lee los dominios de Resend (sin la clave en la '
+                 'respuesta) y guarda si el remitente está verificado; no más de una vez cada pocos segundos.',
     ('dcasa_camila', 'res.partner', 'action_dcasa_promos_baja'):
         'Botón «Darle de baja» de la ficha: una ficha a la vez y check_access("write") en el servidor ANTES del sudo '
         'que anota la baja (final) del permiso de novedades.',

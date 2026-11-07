@@ -424,6 +424,44 @@
         h2 { font-family: "Oswald", sans-serif; font-size: 1.15rem; color: var(--cm-navy); }
     }
 
+    // Lo que dijo Resend del remitente de las campañas: plano, con el filo azul marino y el texto en azul marino sobre
+    // blanco (sin amarillo: nunca toca el blanco).
+    .o_camila_aviso_remitente {
+        margin-bottom: 16px;
+        padding: 12px 16px;
+        background: #FFFFFF;
+        border: 1px solid var(--cm-linea);
+        border-left: 4px solid var(--cm-navy);
+        border-radius: 8px;
+        color: var(--cm-navy);
+        overflow-wrap: anywhere;
+
+        .o_camila_aviso_titulo { display: block; font-size: 1rem; }
+        .o_camila_aviso_detalle { margin: 6px 0 0; color: var(--cm-tinta-2); }
+        .o_camila_aviso_pasos_titulo { margin: 8px 0 2px; font-weight: 600; }
+        .o_camila_aviso_pasos { margin: 0; padding-left: 22px; color: var(--cm-tinta); li + li { margin-top: 2px; } }
+        .o_camila_aviso_revisar { padding-left: 0; margin-top: 6px; color: var(--cm-azul); }
+    }
+
+    // El remitente de las campañas (lo cambian Gerencia y los administradores).
+    .o_camila_remitente {
+        margin-top: 20px;
+        background: #FFFFFF;
+        border: 1px solid var(--cm-linea);
+        border-radius: 12px;
+        padding: 16px;
+        overflow-wrap: anywhere;
+
+        h2 { font-family: "Oswald", sans-serif; font-size: 1.05rem; color: var(--cm-navy); }
+        p { margin: 6px 0 10px; color: var(--cm-tinta-2); }
+        .o_camila_remitente_actual { color: var(--cm-navy); }
+        .o_camila_remitente_fila { display: flex; flex-wrap: wrap; gap: 8px; }
+        .o_camila_remitente_correo { flex: 1 1 260px; min-width: 0; max-width: 460px; }
+        .o_camila_remitente_nota { color: var(--cm-navy); }
+        .o_camila_remitente_revision { margin-bottom: 0; font-size: .88rem; }
+        .o_camila_remitente_revisar { padding: 0 0 0 4px; vertical-align: baseline; }
+    }
+
     // El interruptor de Gerencia de la línea «Sí, quiero» del pie de la factura y la bienvenida.
     .o_camila_pie_ajuste {
         margin-top: 20px;
@@ -475,11 +513,19 @@
         margin-bottom: 10px;
     }
 
+    .o_camila_previa_textos { min-width: 0; overflow-wrap: anywhere; }
+
     .o_camila_asunto_previa {
         margin: 0;
         color: var(--cm-tinta);
         font-size: 1.05rem;
         span { color: var(--cm-tinta-2); }
+    }
+
+    .o_camila_de_previa {
+        margin: 2px 0 0;
+        color: var(--cm-tinta-2);
+        font-size: .88rem;
     }
 
     .o_camila_marco {

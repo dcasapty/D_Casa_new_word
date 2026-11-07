@@ -4,7 +4,8 @@ Cada método exige en el servidor el grupo de marketing (rol «Marketing», Gere
 nada, valida cada argumento y escribe con ``sudo`` solo después (el ACL de las campañas es de solo lectura). Lo que
 la persona ve del dinero de las ventas que trajo una campaña depende de que vea la ganancia (Gerencia y
 administradores): el rol Marketing ve cuántas, no cuánto. Gerencia y administradores también prenden o apagan la línea
-«Sí, quiero» del pie y descartan una campaña aprobada que quedó trabada.
+«Sí, quiero» del pie, cambian el remitente de las campañas (``remitente.py``) y descartan una campaña aprobada que
+quedó trabada.
 
 Etapa 2 (decisiones de la dueña, 2026-11-06): varias campañas abiertas a la vez («Nueva campaña» desde una idea, desde
 lo nuevo, lo más vendido, lo quieto, lo que más hay o en blanco, y «Crear campaña con estos» desde el tablero de
@@ -78,6 +79,9 @@ class DcasaCamila(models.AbstractModel):
             'dias': R.DIAS_ENTRE_CAMPANAS,
             'temas': [{'clave': clave, 'nombre': nombre} for clave, nombre in R.TEMAS if clave != 'mezcla'],
             'enlace_pie': {'encendido': self._enlace_pie_encendido(), 'puede_cambiar': self._ve_dinero()},
+            # De qué correo salen las campañas y lo último que dijo Resend de su dominio (solo lo guardado:
+            # la pantalla nunca llama a Resend; ``remitente.py``).
+            'remitente': self._remitente_para_pantalla(),
         }
 
     @api.model
@@ -89,6 +93,7 @@ class DcasaCamila(models.AbstractModel):
             'estado': campana.estado,
             'estado_nombre': dict(campana._fields['estado'].selection).get(campana.estado),
             'asunto': campana.asunto or '',
+            'de': self._remitente_texto(),
             'entrada': campana.entrada or '',
             'idea': campana.idea or '',
             'tema': campana.tema or 'mezcla',
@@ -436,6 +441,25 @@ class DcasaCamila(models.AbstractModel):
             raise UserError(self.env._('No entendí si prenderla o apagarla.'))
         self._enlace_ajustar(encendido)
         return self.panel()
+
+    @api.model
+    def ajustar_remitente(self, correo, campana_id=False):
+        """«Remitente de las campañas»: un correo (sin nombre: el nombre es el de siempre) o vacío para que salgan del
+        de las facturas. Gerencia o administradores. Después lo revisa en Resend, si es producción con la clave."""
+        self._exigir()
+        self._ajustar_remitente(correo)
+        return self.panel(campana_id if _id_valido(campana_id) else False)
+
+    @api.model
+    def revisar_remitente(self, campana_id=False):
+        """«Revisar ahora»: pregunta otra vez a Resend si el dominio del remitente está verificado y cuenta aperturas
+        y clics (no más de una vez cada pocos segundos). Si Resend falla, la pantalla lo dice con una nota suave."""
+        self._exigir()
+        if not self._puede_revisar_remitente():
+            raise UserError(self.env._('El remitente se revisa en Resend solo en producción y con la clave de '
+                                       'campañas.'))
+        self._revisar_remitente_sin_fallar('ahora')
+        return self.panel(campana_id if _id_valido(campana_id) else False)
 
     @api.model
     def actualizar_resultados(self, campana_id):

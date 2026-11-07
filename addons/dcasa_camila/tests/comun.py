@@ -50,7 +50,26 @@ class ResendFalso:
         self.llamadas = []
         self.fallar = []          # [(método, regex de la ruta, estado, mensaje)]
         self.estado_al_enviar = 'sent'
+        # Los dominios de Resend (``GET /domains``): ``None`` = esa ruta contesta 404 como antes (nadie revisó el
+        # remitente: no bloquea nada); un dict ``{nombre: {status, open_tracking, ...}}`` = la cuenta tiene esos.
+        self.dominios = None
         self._n = 0
+
+    def dominio(self, nombre, status='verified', aperturas=False, clics=False, subdominio=None,
+                seguimiento='verified', envio='enabled'):
+        """Deja un dominio en la cuenta de Resend como lo devuelve su API (``GET /domains/{id}``)."""
+        if self.dominios is None:
+            self.dominios = {}
+        registros = [{'record': 'DKIM', 'name': 'resend._domainkey', 'type': 'TXT', 'status': status}]
+        if subdominio:
+            registros.append({'record': 'Tracking', 'name': f'{subdominio}.{nombre}', 'type': 'CNAME',
+                              'value': 'links1.resend-dns.com', 'status': seguimiento})
+        self.dominios[nombre] = {
+            'object': 'domain', 'id': self._id('dom'), 'name': nombre, 'status': status,
+            'created_at': '2026-11-07 10:00:00+00', 'region': 'us-east-1', 'open_tracking': aperturas,
+            'click_tracking': clics, 'tracking_subdomain': subdominio,
+            'capabilities': {'sending': envio, 'receiving': 'disabled'}, 'records': registros}
+        return self.dominios[nombre]
 
     def _id(self, prefijo):
         self._n += 1
@@ -83,6 +102,14 @@ class ResendFalso:
         return respuesta(200, {'object': 'list', 'has_more': len(filas) > limite, 'data': filas[:limite]})
 
     def _atender(self, metodo, ruta, cuerpo, params):  # noqa: PLR0911, PLR0912
+        if ruta.startswith('/domains') and metodo == 'GET' and self.dominios is not None:
+            if ruta == '/domains':
+                # La lista trae menos que el detalle (como la API: sin el subdominio de seguimiento ni los registros).
+                return respuesta(200, {'object': 'list', 'has_more': False, 'data': [
+                    {k: v for k, v in d.items() if k not in ('tracking_subdomain', 'records', 'object')}
+                    for d in self.dominios.values()]})
+            uno = next((d for d in self.dominios.values() if ruta == f"/domains/{d['id']}"), None)
+            return respuesta(200, uno) if uno else respuesta(404, {'message': 'Domain not found'})
         if ruta == '/segments' and metodo == 'GET':
             return respuesta(200, {'data': [{'id': i, 'name': n} for i, n in self.segmentos.items()]})
         if ruta == '/segments' and metodo == 'POST':

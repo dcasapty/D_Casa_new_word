@@ -196,6 +196,8 @@ export class CamilaPanel extends Component {
             sucio: false,
             // «producto»: de qué producto es el aviso (se muestra junto a él); sin producto, arriba, en la idea.
             ia: { escribiendo: "", error: "", reintentar: null, producto: false },
+            // El campo «Remitente de las campañas» (Gerencia y administradores).
+            remitente: "",
         });
         this.inicial = this.props.action?.params?.campana_id || false;
         onMounted(() => this.cargar(this.inicial));
@@ -207,6 +209,7 @@ export class CamilaPanel extends Component {
         this.state.borrador = borradorEditable(d.campana);
         this.state.sucio = false;
         this.state.error = "";
+        this.state.remitente = (d.remitente && d.remitente.propio) || "";
     }
 
     async cargar(campanaId = false) {
@@ -510,6 +513,35 @@ export class CamilaPanel extends Component {
             this.ponerPanel(d);
             this.notification.add(encendido ? "La línea «Sí, quiero» quedó encendida." : "La línea «Sí, quiero» quedó apagada.",
                 { type: "success" });
+        }
+    }
+
+    // --- El remitente de las campañas ---------------------------------------------------------------------------
+    /** Lo que la persona escribió en la campaña se guarda antes (al volver, la pantalla se arma de nuevo). */
+    async guardarPendiente() {
+        return !(this.state.sucio && this.campana && !(await this.guardar({ aviso: false })));
+    }
+
+    async guardarRemitente() {
+        if (!(await this.guardarPendiente())) {
+            return;
+        }
+        const correo = (this.state.remitente || "").trim();
+        const d = await this.llamar("remitente", "ajustar_remitente", [correo, this.campana ? this.campana.id : false]);
+        if (d) {
+            this.ponerPanel(d);
+            this.notification.add(`Listo: las campañas saldrán de ${d.remitente.correo}.`, { type: "success" });
+        }
+    }
+
+    /** «Revisar ahora»: pregunta otra vez a Resend por el dominio del remitente (el servidor no martilla a Resend). */
+    async revisarRemitente() {
+        if (!(await this.guardarPendiente())) {
+            return;
+        }
+        const d = await this.llamar("revisar-remitente", "revisar_remitente", [this.campana ? this.campana.id : false]);
+        if (d) {
+            this.ponerPanel(d);
         }
     }
 

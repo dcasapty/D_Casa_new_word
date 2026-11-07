@@ -7,6 +7,7 @@ from . import camila
 from . import publico
 from . import envio
 from . import panel
+from . import remitente
 from . import correo
 from . import conversacion
 from . import venta
