@@ -6,7 +6,6 @@
  *     propio tope por persona al día, como las imágenes.
  */
 import { describe, expect, it } from "vitest";
-import { AUDIOS_POR_DIA } from "../../src/motor/conversacion";
 import type { LecturaImagen } from "../../src/motor/vision";
 import { crearMundo, type Mundo } from "../helpers/mundo";
 
@@ -101,21 +100,15 @@ describe("transcribir y leer imágenes, después del anti-spam y del tope diario
     expect(lecturas).toBe(0);
   });
 
-  it(`cada persona tiene un tope de ${AUDIOS_POR_DIA} notas de voz transcritas al día; la siguiente queda para una vendedora`, async () => {
+  it("las notas de voz no tienen tope propio: 25 seguidas se transcriben y se contestan todas (decisión de la dueña, 2026-11-07)", async () => {
     const { m, veces } = conTranscripcion(() => `quiero saber de la cama número ${veces.n}`);
     const g = m.guion([{ texto: "Claro, te cuento." }]);
-    for (let i = 0; i < AUDIOS_POR_DIA; i++) await m.conversar("", AUDIO);
-    expect(veces.n).toBe(AUDIOS_POR_DIA);
-    await m.conversar("", AUDIO);
-    expect(veces.n).toBe(AUDIOS_POR_DIA);
-    expect(g.prompts().at(-1)).toContain("nota de voz que no puedes escuchar");
-    // Al día siguiente vuelve a transcribir.
-    await m.pasar(24 * 3600_000);
-    await m.conversar("", AUDIO);
-    expect(veces.n).toBe(AUDIOS_POR_DIA + 1);
+    for (let i = 0; i < 25; i++) await m.conversar("", AUDIO);
+    expect(veces.n).toBe(25);
+    expect(g.prompts().at(-1)).not.toContain("nota de voz que no puedes escuchar");
   });
 
-  it("las notas de voz y las fotos que manda una vendedora desde su teléfono no gastan el tope del cliente", async () => {
+  it("las fotos que manda una vendedora desde su teléfono no gastan el tope de imágenes del cliente (y sus notas de voz se siguen transcribiendo)", async () => {
     let lecturas = 0;
     const veces = { n: 0 };
     const m = crearMundo({
@@ -129,11 +122,11 @@ describe("transcribir y leer imágenes, después del anti-spam y del tope diario
       },
     });
     m.guion([{ texto: "Hola." }]);
-    for (let i = 0; i < AUDIOS_POR_DIA; i++) await m.escribir(undefined, { propio: true, ...AUDIO });
+    for (let i = 0; i < 20; i++) await m.escribir(undefined, { propio: true, ...AUDIO });
     for (let i = 0; i < 10; i++) await m.escribir(undefined, { propio: true, ...IMAGEN });
     await m.escribir("", AUDIO);
     await m.escribir("", IMAGEN);
-    expect(veces.n).toBe(AUDIOS_POR_DIA + 1);
+    expect(veces.n).toBe(21);
     expect(lecturas).toBe(11);
   });
 });

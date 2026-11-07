@@ -207,6 +207,10 @@ class DcasaCamila(models.AbstractModel):
             salida.append(self.env._(
                 'Todavía no está la clave de campañas de Resend, así que no se puede enviar. Quien administra el '
                 'sistema la crea en Resend y la pega como secreto en Cloudflare (docs/CAMILA.md, paso a paso).'))
+        # Lo guardado de Resend (``remitente.py``): un broadcast desde un dominio sin verificar falla allá. Va antes del
+        # permiso y del público: quien llama con ``con_permiso=0`` o ``publico`` toma el último mensaje.
+        if self._remitente_no_verificado():
+            salida.append(self._mensaje_remitente_no_verificado())
         if con_permiso is not None and not con_permiso:
             salida.append(self.env._('Todavía ningún cliente dijo que sí a las novedades: no hay a quién enviarla.'))
         elif publico is not None and not publico['total']:

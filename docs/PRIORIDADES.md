@@ -26,16 +26,18 @@ LEEME_PRIMERO §2).
 ## Lo que sigue, en orden
 
 0. **Citas, reenviados, reacciones y palomitas en el chat** (pedido de la dueña del 2026-11-07, bitácora de
-   LEEME_PRIMERO): hecho en la rama con sus pruebas y con lo que encontró la revisión adversarial ya arreglado, **sin
-   desplegar**. Falta: que la dueña vea las capturas; después CI,
-   staging y producción (**Odoo primero, luego Juan**). Para las reacciones de Telegram, volver a registrar el webhook con
-   `allowed_updates` ([JUAN_CANALES.md](JUAN_CANALES.md) §2).
+   LEEME_PRIMERO): **en producción** desde el 2026-11-07 (PR #94, Desplegar 60 y Juan 10), con la revisión adversarial
+   arreglada; la dueña vio las capturas («perfecto, llévalo a producción»). Falta, si se quieren las reacciones de
+   Telegram: volver a registrar el webhook con `allowed_updates` ([JUAN_CANALES.md](JUAN_CANALES.md) §2).
 1. **Camila (mail marketing)** ([CAMILA.md](CAMILA.md)): etapas 1 y 2 **en producción** desde el 2026-11-06 (Desplegar
    52 y 54, con Juan 7). La clave de campañas ya está y Odoo la tomó (Desplegar 53). Nada sale sin que alguien de
    Marketing o Gerencia apruebe la campaña. Falta de la dueña: la primera campaña y confirmar el «Sí, quiero» de dos
    toques. **Etapa 1b** (la lista crece sola: se activa al agregar el correo y se quita con un «no», CAMILA.md §1c):
-   **en producción** desde el 2026-11-07 (Desplegar 58 y Juan 9, con dos revisiones adversariales). Después:
-   cumpleaños, «tu cotización sigue aquí» y la etapa de la página web.
+   **en producción** desde el 2026-11-07 (Desplegar 58 y Juan 9, con dos revisiones adversariales). **«Abrieron» y
+   «Tocaron» en 0** (2026-11-07, CAMILA.md §1d): el remitente propio de las campañas y el aviso de Resend están
+   **hechos en su rama, sin desplegar** (faltan capturas a la dueña → su visto bueno → CI y staging). Falta de la
+   dueña: el subdominio `novedades.dcasapty.com` en Resend con el conteo encendido y el remitente en Camila
+   (CAMILA.md §6b). Después: cumpleaños, «tu cotización sigue aquí» y la etapa de la página web.
 2. **Brian al día** y la **pantalla nueva de Sofía**: **en producción** desde el 2026-11-06 (Desplegar 57; capturas
    aprobadas por la dueña; Brian con revisión adversarial). Sigue para Brian: los topes de dinero (punto 5).
 3. **Que el equipo use lo nuevo** (lo hace la dueña con el equipo; ver «Lo que falta de la dueña»): el Reparto
@@ -44,8 +46,8 @@ LEEME_PRIMERO §2).
    esté disponible es más que suficiente; ya eso está resuelto y está bien». Queda anotado por si cambia.
 5. ~~**Brian: topes de dinero**~~ (issue #26): la dueña (2026-11-07): «ya pusimos los límites».
 6. **Conversaciones: seguimiento por persona** (issue #25): lo que quedaba (aprobado por la dueña el 2026-11-07)
-   está **hecho en una rama, sin subir ni desplegar**, con la revisión adversarial ya arreglada (bitácora del 2026-11-07,
-   «issues #24 y #25»). Sube **Odoo primero y después Juan**. Queda de la dueña: si 6 h de atraso máximo le parecen bien (es un ajuste en Ajustes de Juan).
+   está **en producción** desde el 2026-11-07 (PR #94, Desplegar 60), con la revisión adversarial arreglada; issue #25
+   cerrado. Queda de la dueña: si 6 h de atraso máximo le parecen bien (es un ajuste en Ajustes de Juan).
 7. **Contabilidad:** el menú raíz propio «Contabilidad» (reportes, bancos, cierre de mes, en un solo lugar). Las
    **facturas del sistema anterior** dejaron de ser una preocupación (la dueña, 2026-11-07: los jefes están bien con los
    números actuales); el importador queda listo por si algún día hace falta.
@@ -60,8 +62,9 @@ LEEME_PRIMERO §2).
 12. **Privacidad (issues #22 y #23):** borrar la oportunidad junto con la conversación y lo que «Eliminar conversación»
     todavía no borra.
 13. **Juan: hallazgos** del issue #24: lo aprobado el 2026-11-07 (eco de Messenger e Instagram, nota de voz que pide una
-    persona, transcripción después del anti-spam, reintento del turno, carrera del seguimiento y menores) está **hecho en la
-    misma rama, sin subir**, con la revisión adversarial arreglada. Quedan tres menores que no entraron en esa lista (ver el comentario del issue).
+    persona, transcripción después del anti-spam, reintento del turno, carrera del seguimiento y menores) está **en
+    producción** desde el 2026-11-07 (Desplegar Juan 10), con la revisión adversarial arreglada. Quedan tres menores que
+    no entraron en esa lista (ver el comentario del issue #24, que sigue abierto por ellos).
 14. **CRM, fase 2** (issues #15 a #21): se eligen con la dueña.
 15. **Cabos técnicos menores** (sin urgencia):
     - que el respaldo previo de staging despierte el sitio antes de pedir el volcado (el despliegue a staging del CI se
@@ -113,6 +116,10 @@ Lo que no es programación. Absorbe lo que seguía vigente de la lista vieja
   `RESEND_CAMPANAS_API_KEY` en el panel de Cloudflare del Worker `dcasa` (paso a paso en [CAMILA.md](CAMILA.md) §6;
   nunca en el chat), revisar la política de privacidad (novedades por correo y Resend) y pedirle a las vendedoras que
   marquen la casilla «Novedades por correo» cuando el cliente diga que sí.
+- **Camila, para que «Abrieron» y «Tocaron» cuenten** (cuando entre el remitente propio): en Resend, el subdominio
+  `novedades.dcasapty.com` verificado (DNS en Cloudflare con la nube gris) y con **Enable tracking metrics** (subdominio
+  `links`, aperturas y clics); después, en Marketing › Camila, el «Remitente de las campañas» con un correo de ese
+  subdominio. **No** encenderlo en `dcasapty.com` (las facturas). Paso a paso en [CAMILA.md](CAMILA.md) §6b.
 - **Guía:** confirmar las listas «En tu puesto lo que más se usa» (`addons/dcasa_guia/data/guia_roles.json`).
 
 ### Decisiones
