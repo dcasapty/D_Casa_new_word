@@ -187,9 +187,10 @@ Meta). El par es único.
 - **Una nota de voz que pide una persona vale como escrita**: «quiero hablar con alguien» o «ya no me escriban» dichos en audio
   activan `pideUnaPersona` / `sin_seguimiento` (se mira lo escrito y cada transcripción).
 - **Transcribir y leer imágenes, después del anti-spam y del tope diario**: no se gasta IA con la conversación en descanso, con
-  un mensaje repetido ni pasado el tope diario (el archivo igual se guarda y se anota para una vendedora). Las notas de voz tienen
-  tope por persona: **20 al día** (`AUDIOS_POR_DIA`), como las 10 imágenes; la siguiente queda para una vendedora. Lo que
-  manda una vendedora desde su teléfono (notas de voz y fotos `propio`) no gasta los topes del cliente. Con la
+  un mensaje repetido ni pasado el tope diario (el archivo igual se guarda y se anota para una vendedora). Las notas de voz **no
+  tienen tope propio** (la dueña, 2026-11-07: «le agrada que pueda responder notas de voz»; el tope de 20 al día que entró
+  con el issue #24 se quitó): las frena solo lo mismo que a cualquier mensaje. Las imágenes sí: 10 por persona al día. Las
+  fotos que manda una vendedora desde su teléfono (`propio`) no gastan el tope del cliente. Con la
   conversación en descanso por spam, una nota de voz que pide una persona no se entiende: hay que escribir *persona* (el texto
   del tope diario ya lo dice).
 - **La segunda pasada del turno conserva la primera.** Si el modelo gastó sus pasos sin escribir, la pasada sin herramientas
@@ -815,8 +816,8 @@ Workers AI, dentro de la misma cuenta de Cloudflare, y el texto entra a la conve
   proveedor que contesta).
 * Un audio vacío o de más de 8 MB no se procesa. Si Whisper no entiende nada o falla, Juan pide que lo
   escriban; nunca inventa lo que dijo.
-* **Tope y anti-spam (issue #24):** hasta 20 notas de voz transcritas por persona al día (`AUDIOS_POR_DIA`); no se transcribe
-  con la conversación en descanso por spam ni pasado el tope diario. Lo que dice la nota cuenta como escrito: «quiero hablar con
+* **Anti-spam (issue #24):** sin tope propio de notas de voz (decisión de la dueña, 2026-11-07); no se transcribe con la
+  conversación en descanso por spam ni pasado el tope diario general de mensajes por persona. Lo que dice la nota cuenta como escrito: «quiero hablar con
   una persona» pasa a una vendedora y «no me escriban» apaga los seguimientos.
 * Privacidad: el audio de un cliente es dato personal. Solo viaja del canal a tu Worker y a Workers AI
   de tu cuenta; el texto sigue las mismas reglas que cualquier mensaje (los comprobantes y cédulas

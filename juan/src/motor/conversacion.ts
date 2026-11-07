@@ -108,8 +108,8 @@ function bytesABase64(bytes: Uint8Array): string {
   return btoa(bin);
 }
 const IMAGENES_POR_DIA = 10;
-/** Notas de voz que se transcriben por persona al día (issue #24): cada una cuesta un poco de IA. Una persona normal manda menos. */
-export const AUDIOS_POR_DIA = 20;
+// Las notas de voz NO tienen tope propio (la dueña, 2026-11-07: «le agrada que pueda responder notas de voz»): las frena solo
+// lo mismo que a cualquier mensaje (`valeLaPenaLeer`: descanso por spam, repetido y el tope diario general por persona).
 
 /** Lo que ya salió por el canal en un mismo envío. */
 interface ProgresoDeEnvio {
@@ -728,7 +728,7 @@ export class MotorConversacion {
             this.log("warn", "no se pudo leer la imagen: sigue el camino de siempre (la revisa una vendedora)", String(err));
           }
         }
-        if (leerConIa && a.tipo === "audio" && this.deps.transcribir && (e.propio || this.cabeOtroAudioHoy(ahora))) {
+        if (leerConIa && a.tipo === "audio" && this.deps.transcribir) {
           try {
             const t = await this.deps.transcribir(a.bytes, mime);
             if (t) transcripciones.push(t.trim());
@@ -764,16 +764,6 @@ export class MotorConversacion {
     if (n >= IMAGENES_POR_DIA) return false;
     this.kv.poner("imagenes_dia", dia);
     this.kv.poner("imagenes_n", n + 1);
-    return true;
-  }
-
-  /** Igual que las imágenes, para las notas de voz: false si esta persona ya llegó a su tope de hoy (la nota queda para una vendedora). */
-  private cabeOtroAudioHoy(ahora: number): boolean {
-    const dia = new Date(ahora).toISOString().slice(0, 10);
-    const n = this.kv.texto("audios_dia") === dia ? (this.kv.numero("audios_n") ?? 0) : 0;
-    if (n >= AUDIOS_POR_DIA) return false;
-    this.kv.poner("audios_dia", dia);
-    this.kv.poner("audios_n", n + 1);
     return true;
   }
 

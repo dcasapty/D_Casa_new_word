@@ -115,8 +115,9 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
   1. **Eco de Messenger e Instagram**: lo que sale se anota antes de enviar (`vuelo:*`); el eco ya no calla al bot 120 min
      (`eco-meta.test.ts`, 4 de 7 en rojo).
   2. y 3. **Notas de voz**: «quiero hablar con alguien» o «no me escriban» en audio valen como escritos; no se transcribe
-     ni se lee una imagen en descanso, con un repetido ni pasado el tope diario; tope de 20 notas de voz por persona al día
-     (`nota-de-voz.test.ts`, 7 de 8).
+     ni se lee una imagen en descanso, con un repetido ni pasado el tope diario (`nota-de-voz.test.ts`, 7 de 8). El tope
+     de 20 notas de voz por persona al día que entró aquí **se quitó** el mismo día a pedido de la dueña («le agrada que
+     pueda responder notas de voz»): queda solo el tope diario general.
   4. **Reintento del turno**: la corrección recibe su ronda de herramientas y la pasada sin herramientas lo consultado; la
      misma escritura con los mismos argumentos va a Odoo una vez por turno, `pasar_a_vendedora` una vez, tope de 8
      (`reintento-del-turno.test.ts`, 4 de 6; y una con el SDK real de Claude).
