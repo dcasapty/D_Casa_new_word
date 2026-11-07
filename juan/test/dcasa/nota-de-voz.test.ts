@@ -114,4 +114,26 @@ describe("transcribir y leer imágenes, después del anti-spam y del tope diario
     await m.conversar("", AUDIO);
     expect(veces.n).toBe(AUDIOS_POR_DIA + 1);
   });
+
+  it("las notas de voz y las fotos que manda una vendedora desde su teléfono no gastan el tope del cliente", async () => {
+    let lecturas = 0;
+    const veces = { n: 0 };
+    const m = crearMundo({
+      transcribir: async () => {
+        veces.n++;
+        return `nota número ${veces.n}`;
+      },
+      mirarImagen: async (): Promise<LecturaImagen> => {
+        lecturas++;
+        return { tipo: "otra", codigos: [], categoria: null, medida: null, parece_pago: false, parece_identidad: false };
+      },
+    });
+    m.guion([{ texto: "Hola." }]);
+    for (let i = 0; i < AUDIOS_POR_DIA; i++) await m.escribir(undefined, { propio: true, ...AUDIO });
+    for (let i = 0; i < 10; i++) await m.escribir(undefined, { propio: true, ...IMAGEN });
+    await m.escribir("", AUDIO);
+    await m.escribir("", IMAGEN);
+    expect(veces.n).toBe(AUDIOS_POR_DIA + 1);
+    expect(lecturas).toBe(11);
+  });
 });

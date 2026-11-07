@@ -336,7 +336,10 @@ export function construirHerramientas(op: OpcionesHerramientas): ToolSet {
     escrituras.set(clave, resultado);
     resultado.then(
       (v) => {
-        if (v && typeof v === "object" && FALLOS_PASAJEROS.has(v)) escrituras.delete(clave);
+        // Un fallo pasajero no se recuerda. Y de `pasar_a_vendedora` (una sola por turno, con el motivo que sea) solo se recuerda
+        // la que salió bien: si Odoo la rechazó («Faltan datos: motivo»), la corregida tiene que llegar.
+        const salioBien = esObjeto(v) && v.ok === true;
+        if ((v && typeof v === "object" && FALLOS_PASAJEROS.has(v)) || (nombre === "pasar_a_vendedora" && !salioBien)) escrituras.delete(clave);
       },
       () => escrituras.delete(clave),
     );

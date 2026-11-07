@@ -637,7 +637,8 @@ export class MotorConversacion {
       let url = a.url ?? null;
       if (a.bytes && a.bytes.byteLength > 0) {
         const mime = a.mime ?? "application/octet-stream";
-        if (leerConIa && a.tipo === "imagen" && !a.sticker && this.deps.mirarImagen && imagenesLeidas < IMAGENES_POR_MENSAJE && this.cabeOtraLecturaHoy(ahora)) {
+        // Lo que manda una vendedora desde su teléfono (`propio`) no gasta los topes del cliente.
+        if (leerConIa && a.tipo === "imagen" && !a.sticker && this.deps.mirarImagen && imagenesLeidas < IMAGENES_POR_MENSAJE && (e.propio || this.cabeOtraLecturaHoy(ahora))) {
           imagenesLeidas++;
           try {
             lectura = await this.deps.mirarImagen(a.bytes, mime);
@@ -645,7 +646,7 @@ export class MotorConversacion {
             this.log("warn", "no se pudo leer la imagen: sigue el camino de siempre (la revisa una vendedora)", String(err));
           }
         }
-        if (leerConIa && a.tipo === "audio" && this.deps.transcribir && this.cabeOtroAudioHoy(ahora)) {
+        if (leerConIa && a.tipo === "audio" && this.deps.transcribir && (e.propio || this.cabeOtroAudioHoy(ahora))) {
           try {
             const t = await this.deps.transcribir(a.bytes, mime);
             if (t) transcripciones.push(t.trim());
@@ -1591,13 +1592,16 @@ export class MotorConversacion {
   async seguimiento(s: SolicitudSeguimiento): Promise<ResultadoSeguimiento> {
     if (s.numero !== 1 && s.numero !== 2) return this.seguimientoReclamado(s);
     const reclamo = `${PREFIJO_SEGUIMIENTO_EN_CURSO}${s.numero}:${s.contexto?.ultimo_mensaje_ts ?? ""}`;
-    const desde = this.kv.numero(reclamo);
-    if (desde !== null && this.deps.ahora() - desde < ENVIO_EN_CURSO_MS) return { ok: true, resultado: "pospuesto", motivo: "ese seguimiento ya se está enviando" };
-    this.kv.poner(reclamo, this.deps.ahora());
+    const anterior = this.kv.texto(reclamo);
+    const desde = anterior === null ? null : Number.parseInt(anterior, 10);
+    if (desde !== null && Number.isFinite(desde) && this.deps.ahora() - desde < ENVIO_EN_CURSO_MS) return { ok: true, resultado: "pospuesto", motivo: "ese seguimiento ya se está enviando" };
+    // «hora:n»: la hora dice cuándo vence; el número, de quién es (un pedido viejo que termina tarde no suelta el de otro).
+    const marca = `${this.deps.ahora()}:${++this.vuelos}`;
+    this.kv.poner(reclamo, marca);
     try {
       return await this.seguimientoReclamado(s);
     } finally {
-      this.kv.poner(reclamo, null);
+      if (this.kv.texto(reclamo) === marca) this.kv.poner(reclamo, null);
     }
   }
 
@@ -1680,6 +1684,8 @@ export class MotorConversacion {
     const ultimoAhora = this.kv.numero("ultimo_cliente_ts");
     if (ultimoAhora !== null && ultimoAhora > Math.max(visto ?? 0, ultimoCliente ?? 0) + 1000) return cierra("descartado", "el cliente ya volvió a escribir");
     if (this.kv.bandera("sin_seguimiento")) return cierra("descartado", "el cliente pidió que no lo contacten");
+    // Si la redacción tardó más que el reclamo, otro pedido pudo enviarlo mientras tanto.
+    if (this.deps.sql.uno("SELECT 1 AS x FROM seguimientos WHERE clave = ?", clave)) return { ok: true, resultado: "descartado", motivo: "ya se envió este seguimiento" };
 
     try {
       await this.emitir({ burbujas: partirEnBurbujas(texto, { maxBurbujas: 2 }), medios: [], autor: "bot", registrar: true, modelo });

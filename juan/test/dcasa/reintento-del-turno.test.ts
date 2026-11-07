@@ -8,6 +8,7 @@
 import { describe, expect, it } from "vitest";
 import { MAX_ESCRITURAS_POR_TURNO } from "../../src/motor/herramientas";
 import { crearMundo } from "../helpers/mundo";
+import { RechazoDeOdoo } from "../helpers/odooFalso";
 
 const VER = { nombre: "ver_producto", args: { codigo: "CAMA-Q-001" } };
 const NOTA = { nombre: "anotar_conversacion", args: { nota: "Quiere la queen para el sábado." } };
@@ -53,6 +54,41 @@ describe("la segunda pasada del turno conserva lo que hizo la primera (issue #24
     ]);
     await m.conversar("¿tienen financiamiento?");
     expect(m.odoo.de("pasar_a_vendedora")).toHaveLength(1);
+  });
+
+  it("un rechazo de pasar_a_vendedora no se recuerda: la llamada corregida llega a Odoo y el cliente pasa a una persona", async () => {
+    const m = crearMundo();
+    const manejadores = (m.odoo as unknown as { manejadores: Record<string, (a: Record<string, unknown>, o: unknown) => unknown> }).manejadores;
+    const original = manejadores.pasar_a_vendedora;
+    manejadores.pasar_a_vendedora = (a, o) => {
+      if (!String(a.motivo ?? "").trim()) throw new RechazoDeOdoo("Cuéntale a la vendedora por qué se la pasas.");
+      return original(a, o);
+    };
+    m.guion([
+      { llamadas: [{ nombre: "pasar_a_vendedora", args: { motivo: "" } }] },
+      { llamadas: [{ nombre: "pasar_a_vendedora", args: { motivo: "Quiere pagar con tarjeta ya" } }] },
+      { texto: "Listo, ya avisé a una vendedora." },
+    ]);
+    await m.conversar("quiero pagar ya, con tarjeta");
+    expect(m.odoo.de("pasar_a_vendedora").map((l) => l.args.motivo)).toEqual(["", "Quiere pagar con tarjeta ya"]);
+    expect(m.motor.silencio()).toBe(true);
+  });
+
+  it("un rechazo con unos argumentos no frena la misma herramienta con otros", async () => {
+    const m = crearMundo();
+    const manejadores = (m.odoo as unknown as { manejadores: Record<string, (a: Record<string, unknown>, o: unknown) => unknown> }).manejadores;
+    const original = manejadores.crear_oportunidad;
+    manejadores.crear_oportunidad = (a, o) => {
+      if (!a.interes) throw new RechazoDeOdoo("Faltan datos: interes.");
+      return original(a, o);
+    };
+    m.guion([
+      { llamadas: [{ nombre: "crear_oportunidad", args: { resumen: "Cama queen" } }] },
+      { llamadas: [{ nombre: "crear_oportunidad", args: { resumen: "Cama queen", interes: "cama queen" } }] },
+      { texto: "Anotado." },
+    ]);
+    await m.conversar("quiero una cama queen");
+    expect(m.odoo.de("crear_oportunidad")).toHaveLength(2);
   });
 
   it("la misma escritura con OTROS argumentos sí corre (dos notas distintas son dos notas)", async () => {
