@@ -419,3 +419,45 @@ class TestPantallaDeSofia(HttpCase):
             self.assertGreater(despues['scroll'], antes['scroll'] + 200, f'el dedo no baja la pantalla: {despues}')
             # La tira de filtros se queda pegada arriba.
             self.assertLessEqual(abs(despues['filtrosArriba']), 2, f'la tira de filtros se fue: {despues}')
+
+    # ------------------------------------------------------------------ Los botones con el puntero encima
+
+    def test_los_botones_blancos_se_leen_con_el_puntero_encima(self):
+        """La dueña (2026-11-07): «cuando paso el puntero se pone todo en blanco… así con todos los botones de Sofía,
+        excepto los que tienen fondo azul». El estilo fijaba el fondo blanco y Bootstrap ponía el texto blanco al pasar
+        el puntero. Con un movimiento de ratón de verdad (protocolo de Chrome), cada botón blanco de una tarjeta tiene
+        que seguir leyéndose: azul sobre blanco en reposo, blanco sobre azul con el puntero encima."""
+        with self._chrome(1366, 768, 'ana_pantalla') as browser:
+            self._abrir(browser)
+            botones = self._js(browser, """(() => {
+                const todos = [...document.querySelectorAll('.o_sofia_botones .btn-outline-primary')]
+                    .filter((b) => b.offsetParent);
+                todos.forEach((b, i) => b.setAttribute('data-prueba-hover', String(i)));
+                return todos.length;
+            })()""")
+            self.assertGreater(botones, 0, 'la prueba necesita al menos un botón blanco en una tarjeta')
+            for i in range(min(botones, 6)):
+                caja = self._js(browser, f"""(() => {{
+                    const b = document.querySelector('[data-prueba-hover="{i}"]');
+                    b.scrollIntoView({{block: 'center'}});
+                    const r = b.getBoundingClientRect();
+                    const s = getComputedStyle(b);
+                    return {{x: r.left + r.width / 2, y: r.top + r.height / 2, texto: b.textContent.trim(),
+                             color: s.color, fondo: s.backgroundColor}};
+                }})()""")
+                self.assertEqual((caja['color'], caja['fondo']), (AZUL, 'rgb(255, 255, 255)'),
+                                 f'«{caja["texto"]}» en reposo: azul sobre blanco')
+                browser._websocket_request('Input.dispatchMouseEvent', params={
+                    'type': 'mouseMoved', 'x': caja['x'], 'y': caja['y']})
+                self._js(browser, 'new Promise((ok) => setTimeout(ok, 300))')
+                encima = self._js(browser, f"""(() => {{
+                    const b = document.querySelector('[data-prueba-hover="{i}"]');
+                    const s = getComputedStyle(b);
+                    return {{hover: b.matches(':hover'), color: s.color, fondo: s.backgroundColor}};
+                }})()""")
+                self.assertTrue(encima['hover'], f'el puntero no quedó sobre «{caja["texto"]}»')
+                self.assertNotEqual(encima['color'], encima['fondo'],
+                                    f'«{caja["texto"]}» se borra con el puntero encima: {encima}')
+                self.assertEqual((encima['color'], encima['fondo']), ('rgb(255, 255, 255)', AZUL),
+                                 f'«{caja["texto"]}» con el puntero encima: blanco sobre azul')
+                browser._websocket_request('Input.dispatchMouseEvent', params={'type': 'mouseMoved', 'x': 2, 'y': 2})

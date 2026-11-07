@@ -35,18 +35,15 @@ LEEME_PRIMERO §2).
    aprobadas por la dueña; Brian con revisión adversarial). Sigue para Brian: los topes de dinero (punto 5).
 3. **Que el equipo use lo nuevo** (lo hace la dueña con el equipo; ver «Lo que falta de la dueña»): el Reparto
    «Parejo», el Telegram de cada vendedora, «Revisar ahora» de Sofía y los mensajes de Sofía.
-4. **Respaldo de la IA de Juan:** `ANTHROPIC_API_KEY` en el Worker `dcasa-juan` por si Meta pasa su límite o se cae (hoy
-   el cliente recibiría «una vendedora te atiende» y la varita dice «La IA no está disponible… la IA de respaldo no
-   tiene clave»), una alerta de gasto en Meta y **plantillas de WhatsApp** aprobadas por
-   Meta para escribir después de 24 horas (también para los seguimientos de Juan, que hoy no salen fuera de esa ventana).
-5. **Brian: topes de dinero** (issue #26: `ajustar_puntos`, `crear_factura`, `ajustar_existencias` sin tope) y la cifra
-   del tope mensual de gasto de IA (hoy en 0 = sin tope). Esperan las cifras de la dueña.
+4. ~~**Respaldo de la IA de Juan** y plantillas de WhatsApp~~: la dueña (2026-11-07): «no es una prioridad, con que ya
+   esté disponible es más que suficiente; ya eso está resuelto y está bien». Queda anotado por si cambia.
+5. ~~**Brian: topes de dinero**~~ (issue #26): la dueña (2026-11-07): «ya pusimos los límites».
 6. **Conversaciones: permisos de escritura y seguimiento por persona** (issue #25).
-7. **Contabilidad:** el menú raíz propio «Contabilidad» (reportes, bancos, cierre de mes, en un solo lugar) y las
-   **facturas del sistema anterior** (el importador está listo; espera a la contadora: ver abajo).
+7. **Contabilidad:** el menú raíz propio «Contabilidad» (reportes, bancos, cierre de mes, en un solo lugar). Las
+   **facturas del sistema anterior** dejaron de ser una preocupación (la dueña, 2026-11-07: los jefes están bien con los
+   números actuales); el importador queda listo por si algún día hace falta.
 8. **Messenger e Instagram:** conectarlos con la guía de [JUAN_CANALES.md](JUAN_CANALES.md).
-9. **Códigos de barras:** etiquetas del proveedor y prueba de los lectores (issues #9, #10 y #12); con eso, verificar el
-   despacho con el escáner ([BARRAS.md](BARRAS.md)).
+9. ~~**Códigos de barras**~~: la dueña (2026-11-07): «ya solucionamos» (issues #9, #10 y #12, [BARRAS.md](BARRAS.md)).
 10. **Envíos:** la calculadora (`dcasa_envios`, [ENVIOS.md](ENVIOS.md)) está **en producción** desde el 2026-11-06
     (Desplegar 50). Sigue: que Gerencia cargue el archivo en Envíos › Tarifa y **apruebe la tarifa** (redondeo,
     viático, honorarios y peaje); después, con su «sí», que Juan cotice y la sección de envíos del sitio (cuando haya

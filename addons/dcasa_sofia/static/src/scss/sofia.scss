@@ -450,7 +450,19 @@ $sofia-niebla: var(--dc-niebla, #F5F7FB);
             font-weight: 600;
         }
 
-        .btn-outline-primary { background: #FFFFFF; }
+        // Fondo blanco en reposo; con el puntero encima, azul con texto blanco. Fijar solo el fondo dejaba el texto
+        // blanco de Bootstrap sobre el blanco: el botón se borraba al pasar el puntero (la dueña, 2026-11-07).
+        .btn-outline-primary {
+            background: #FFFFFF;
+            border-color: $sofia-azul;
+            color: $sofia-azul;
+
+            &:hover, &:focus-visible, &:active {
+                background: $sofia-azul;
+                border-color: $sofia-azul;
+                color: #FFFFFF;
+            }
+        }
     }
 
     .o_sofia_pie {
