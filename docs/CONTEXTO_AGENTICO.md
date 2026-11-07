@@ -662,6 +662,11 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `opacity: 0` que aparece al pasar el mouse («Responder») salía con «contraste 1.00:1». Ahora `visible()` exige opacidad
   mayor que 0. Y un emoji dentro de una pastilla blanca en la burbuja azul hereda `color: #fff`: hay que darle color de
   texto aunque el emoji se pinte solo.
+- **Un botón invisible (`opacity: 0`) y con `position: absolute` igual ocupa lugar para el desplazamiento** (revisión de
+  las citas, 2026-11-07): «Responder», puesto al lado de la burbuja del cliente, corría de lado el hilo a 768 px con la
+  lista completa (chat de 467 px), aunque no se viera. La prueba mide `scrollWidth - clientWidth` del hilo a varios anchos
+  (`test_responder_no_corre_el_hilo_de_lado…`). Ojo: por debajo de 1250 px con la ficha abierta la lista se reduce sola,
+  así que «1024 con la ficha» deja el chat en ~560 px, no en ~400. `display: none` no sirve si el botón se alcanza con Tab.
 - **Las referencias visuales que ya fallan en esta máquina** se repiten iguales: «conexiones» a 390 px 13.73 % y «lista»
   a 390 px 7.68 % sin tocar esas pantallas (2026-11-07). Si sale otra cifra en otra pantalla, sí es del cambio.
 

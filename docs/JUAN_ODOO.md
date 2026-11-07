@@ -121,10 +121,14 @@ Las computadoras de la tienda son laptops de 1366 × 768, 1280 × 720, 1440 × 9
 * **Palomitas** (solo WhatsApp oficial; Telegram no se las da a los bots): en los mensajes de Juan y de las vendedoras,
   junto a la hora, en una pastilla blanca: **✓ gris** salió, **✓✓ gris** le llegó, **✓✓ azul** lo leyó (si el cliente
   apagó la confirmación de lectura, nunca se ponen azules) y **⚠ «No llegó»** en rojo, con el motivo al pasar el mouse
-  (también en el mensaje). Llegan solas, sin recargar. Si Juan respondió en varias burbujas, el mensaje muestra la más
-  atrasada (y «No llegó» si alguna no llegó).
-* **Responder** a un mensaje del cliente: al pasar el mouse por su mensaje (o con Tab) aparece **«Responder»** al lado; en
-  el celular, deja el dedo apretado sobre el mensaje y sale dentro de la burbuja. Arriba de la caja queda **«Respondes a
+  (también en el mensaje). Llegan solas, sin recargar, con la hora de «Entregado» y «Leído» al pasar el mouse. Si Juan
+  respondió en varias burbujas, el mensaje muestra la más atrasada (y «No llegó» si alguna no llegó); como WhatsApp a veces
+  avisa «leído» solo del último, **un «leído» (o «entregado») vale también para lo anterior** de la conversación (lo
+  nuestro: nunca baja de estado ni toca un «No llegó»).
+* **Responder** a un mensaje del cliente: al pasar el mouse por su mensaje (o con Tab) aparece al lado el botón redondo
+  **↩** («Responder citando este mensaje» al pasar el mouse; solo el ícono, para que el chat no se corra de lado en una
+  tableta o con la ficha abierta); en el celular, deja el dedo apretado sobre el mensaje (un temblor del dedo no lo
+  cancela; arrastrar sí) y sale **«Responder»** dentro de la burbuja. Arriba de la caja queda **«Respondes a
   Cliente»** con su mensaje (la **X** la quita) y lo que envíes le llega al cliente con la cita, como en WhatsApp. Si el
   canal no sabe citar ese mensaje, sale igual, sin la cita. Una nota interna no lleva cita.
 * Mientras el asistente trabaja se ve debajo del último mensaje. Primero, unos segundos de **«El asistente está preparando la
@@ -668,6 +672,15 @@ que una persona del equipo haya puesto). La ve quien atiende conversaciones; un 
 la imagen vacía de siempre. **Nunca viaja a la IA** y se borra con la conversación. Al apagar el ajuste se deja de pedir; las ya
 guardadas se quedan hasta que se elimine la conversación. **La política de privacidad del sitio debe mencionarla.**
 
+**Borrar un solo mensaje y las citas** (revisión 2026-11-07). Si se borra un mensaje, se van también su copia en el chatter y
+lo que de él se veía en las respuestas que lo citaban: el hilo y el chatter de esas respuestas quedan «Responde a un mensaje que
+no está en el historial». Odoo no copia lo citado cuando el original está en el historial (lo lee de ahí); solo guarda el texto
+que manda el canal (Telegram) si el citado no está en Odoo. **La memoria de Juan (el Durable Object) es aparte**: guarda su
+copia de trabajo de la conversación (los últimos 30 días y, como mínimo, los 200 mensajes más recientes) y una cita guarda
+copia del texto solo si lo citado no estaba en esa memoria (lo que mandó Telegram o lo que contestó Odoo), con los PIN tapados.
+Borrar un solo mensaje en Odoo **no** llega a esa memoria: para un pedido de borrado completo se elimina la conversación, que
+le pide a Juan olvidar la suya (`POST /odoo/olvidar`).
+
 ---
 
 ## Para quien instala (parte técnica)
@@ -777,17 +790,23 @@ Conversaciones (el código OWL está en `addons/dcasa_conversaciones/static/src`
 equipo de ventas con la notificación `dcasa_conversaciones/evento` y la carga `{evento, conversacion_id, estado, asignada_a,
 ultima_actividad, mensaje_id, autor}`. **Nunca viaja el texto del mensaje** (el bus guarda lo que se envía): la pantalla pide el
 detalle con `hilo`. Un fallo del bus nunca tumba el mensaje. Las **palomitas y reacciones** van en un aviso aparte, uno por tanda y
-persona: `{evento:"recibos", cambios:[{conversacion_id, mensaje_id, estado_canal, reaccion:bool}]}` (ni texto ni emoji). La pantalla
+persona: `{evento:"recibos", cambios:[{conversacion_id, mensaje_id, estado_canal, canal_entregado_en, canal_leido_en, reaccion:bool}]}`
+(ni texto ni emoji; un «leído» que sube los mensajes anteriores avisa de todos). La pantalla
 que tiene abierta esa conversación pone la palomita al día ahí mismo, sin pedir nada; una reacción o un «no llegó» traen el hilo (una
 vez por tanda). No suena, no mueve la lista ni sube «sin leer».
 
 **Citas, reenviados, reacciones y palomitas en los datos** (2026-11-07). En `dcasa.mensaje`: `cita_id` (el mensaje citado),
-`cita_id_canal` (su id del canal, aunque no esté en el historial), `cita_texto` (lo citado, recortado), `reenviado`
+`cita_id_canal` (su id del canal, aunque no esté en el historial), `cita_parte_id` (la burbuja exacta, si lo citado es
+nuestro), `cita_texto` (**solo si lo citado NO está en el historial**: lo que mandó el canal, recortado; si está, se lee del
+original, así borrarlo lo borra también de las respuestas; revisión 2026-11-07), `reenviado`
 (`una`/`muchas`), `reaccion` y `reaccion_en`, `estado_canal` (`enviado`/`fallido`/`entregado`/`leido`) con
 `canal_enviado_en`/`canal_entregado_en`/`canal_leido_en` (la primera vez que el mensaje llegó a cada estado) y el motivo de un «no
 llegó» en `error_envio`. En `dcasa.mensaje.parte` (nuevo): una fila por burbuja o archivo de un mensaje NUESTRO con el id que le dio
 el canal (`id_canal`, único por conversación), su texto, su estado y su reacción; el mensaje muestra el estado de la más atrasada
-(«no llegó» si alguna no llegó) y la última reacción. Todo lo escribe el sistema (nadie tiene permiso de escritura). `hilo()` trae por
+(«no llegó» si alguna no llegó) y la última reacción; un «leído» o «entregado» de una parte sube también las partes
+anteriores de lo nuestro en la conversación (`_subir_anteriores`: nunca baja, no toca un «no llegó» ni algo avisado después).
+`/eventos` aplica cada aviso en su propio *savepoint* (uno raro no tumba la tanda; vuelve en `fallidos`) y rechaza textos y
+emojis con sustitutos UTF-16 sueltos o controles bidi. Todo lo escribe el sistema (nadie tiene permiso de escritura). `hilo()` trae por
 mensaje `cita` (`{id, autor, usuario, texto, en_historial}`), `reenviado`, `reaccion`, `estado_canal`, `canal_entregado_en`,
 `canal_leido_en` y `se_puede_citar`.
 

@@ -56,7 +56,7 @@ No hace falta tocar nada en Meta: todo llega por la misma suscripción a los men
 
 | Qué manda Meta | Qué hace Juan | Qué se ve en Odoo |
 |---|---|---|
-| `messages[].context` con `{from, id}` (el cliente respondió a un mensaje) | El mensaje viaja con `cita.id`; Juan busca lo citado en su memoria (o se lo dice Odoo) y se lo muestra a la IA como `[El cliente responde a este mensaje de D'CASA: «…»]`, un **dato del cliente** (sin etiquetas ni marcas de confianza, tarjetas y cédulas tapadas, hasta 300 letras; el cliente no puede escribir esa marca a mano) | El recuadro de la cita sobre el texto |
+| `messages[].context` con `{from, id}` (el cliente respondió a un mensaje) | El mensaje viaja con `cita.id`; Juan busca lo citado en su memoria (o se lo dice Odoo) y se lo muestra a la IA como `[El cliente responde a este mensaje de D'CASA: «…»]`, un **dato del cliente** (sin etiquetas ni marcas de confianza, tarjetas, cédulas y PIN tapados, hasta 300 letras; el cliente no puede escribir esa marca a mano, ni con espacios invisibles, espacios duros, corchetes de ancho completo o letras cirílicas, y lo citado no puede cerrarla antes: sus «» pasan a “”). Si lo citado está en su memoria no guarda copia: lo lee de la fila al armar el prompt. Para el anti-spam, «este» citando mensajes distintos no es un repetido | El recuadro de la cita sobre el texto |
 | `context.forwarded` / `frequently_forwarded` | `reenviado: "una"/"muchas"`; la IA lo sabe | «Reenviado» / «Reenviado muchas veces» |
 | `type: "reaction"` con `reaction: {message_id, emoji}` (sin emoji = la quitó) | **Evento**, no mensaje: no despierta a la IA ni cuenta para la ventana de 24 h | La carita en la esquina del mensaje |
 | `statuses` (`sent`, `delivered`, `read`, `failed` con `errors`) | **Evento**: una tanda por aviso a Odoo (`POST /dcasa/juan/v1/eventos`) | Las palomitas; «No llegó» con el motivo (131047 = pasaron las 24 h; 131026 = no se pudo entregar; los demás, con el texto y el código de Meta) |
@@ -71,12 +71,14 @@ No hace falta tocar nada en Meta: todo llega por la misma suscripción a los men
   Odoo caído).
 - **La palomita de «enviado» llega en un segundo**, a veces antes de que Odoo registre la respuesta de Juan. Odoo devuelve
   esos ids en `desconocidos` y Juan los vuelve a mandar a los 5 y a los 10 s. Si sigue sin conocerlos (un mensaje de antes
-  de esta versión o mandado por fuera de Juan), se ignoran sin ruido.
+  de esta versión o mandado por fuera de Juan), se ignoran sin ruido. Un aviso con más de 100 se manda en tandas de 100 (no
+  se pierde ninguno), y una reacción o un recibo con un id que no es texto se ignora sin romper el resto (revisión 2026-11-07).
 - **Ids de cada burbuja.** WhatsApp da un id (`wamid`) a cada burbuja y a cada foto. Juan los guarda en su memoria (para
   saber qué citó el cliente) y se los manda a Odoo en `partes` con la respuesta del bot y en la respuesta de `/odoo/enviar`.
 - **«Responder» desde Odoo**: `POST /odoo/enviar` acepta `responde_a` (el `wamid` del mensaje del cliente); sale como
-  `context: {message_id}` en el **primer** mensaje. Si Meta rechaza la cita con un 4xx (el citado es muy viejo o ya no
-  existe), sale otra vez **sin** la cita; un 429 o un 5xx no se maquillan.
+  `context: {message_id}` en el **primer** mensaje. Si Meta rechaza justo la cita (un 400 con código 100 o 131009: el
+  citado es muy viejo o ya no existe), sale otra vez **sin** la cita; cualquier otro rechazo (un 408, un 401, otro 400, un
+  429 o un 5xx) no se maquilla, porque pudo haber salido o fallaría igual (revisión 2026-11-07).
 - **Arreglado de paso:** si WhatsApp se caía a la mitad de una respuesta de varias burbujas, el reintento mandaba otra vez
   la primera (el cliente la veía dos veces). Ahora el adaptador dice cuánto salió (`EnvioParcialError`) y solo se manda lo
   que falta, como ya hacía Telegram.
