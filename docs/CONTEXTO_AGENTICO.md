@@ -379,6 +379,12 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `main` (`741930d`, árbol = `de1fb04`) a staging y Desplegar con ese `app_version`. **Regla:** un cambio del borde
   (rutas, `vars`, `workers_dev`) se despliega con un `app_version` que lo contenga, o sea con una imagen construida
   de ese commit.
+- **Desplegar 59** (03:22 UTC del 7 nov, `app_version` `142c3d9` = SHA de la rama, imagen `sha256:5569ef81…` de CI
+  #292, respaldo previo) · sano y confirmado 03:36 (versión `142c3d9e0c49`, base al día, humo ok): los botones blancos de
+  Sofía ya no se borran al pasar el puntero (PR #93, `main` = `46343c1`, árbol = `142c3d9`). Causa: el SCSS fijaba
+  `background` en `.btn-outline-primary` y Bootstrap pone el texto blanco en `:hover`. **Regla:** al cambiarle el
+  fondo a un botón de Bootstrap, fijar también su `:hover`/`:focus-visible`/`:active`; la prueba lo mide con un
+  `Input.dispatchMouseEvent` de verdad (un `:hover` no se puede forzar desde el JavaScript de la página).
 - **Desplegar 58 y después Desplegar Juan 9** (00:48 y 01:04 UTC del 7 nov, `app_version` `8f3cdc3` = SHA de la rama,
   imagen `sha256:4b56a22c…` de CI #290, respaldo previo) · Odoo sano y confirmado 01:03 (versión `8f3cdc322808`, base al
   día, humo ok): Camila etapa 1b, la casilla de novedades que se activa sola al agregar el correo, con las dos
@@ -634,9 +640,46 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   Se usa `with self.env.registry.cursor() as cr:` (+ `SET LOCAL lock_timeout`) y se cuenta lo que hizo DENTRO de ese
   cursor: Odoo usa REPEATABLE READ y la transacción del turno no ve lo que otra confirmó después. En las pruebas, un
   savepoint (`modules.module.current_test`). Ver `revisar_con_sofia`.
+- **`dcasa_conversaciones` entero tarda ~11 min en esta máquina** (1.253 pruebas con las de navegador, 2026-11-07): pasa el
+  límite de 10 min de una llamada y la corrida se fue a segundo plano. Se corre en dos mitades por clase (las etiquetas
+  `/dcasa_conversaciones:Clase,…` de un script que reparte las clases; ~5 min cada una), después de instalar en una base
+  nueva con `-i … --stop-after-init` (~3 min). En un worktree sin `vendor/odoo`, se usa el Odoo de la copia principal
+  (`/home/user/D_Casa_new_word/vendor/odoo/odoo-bin` con `--addons-path=<ese>/addons,<ese>/odoo/addons,<worktree>/addons`).
+  `scripts/integracion_juan.sh` ya lo busca solo (39 de 40 en ~4 min).
+- **Al cambiar el seguimiento en Odoo, mirar `juan/test/integracion/seguimiento.ts`:** la prueba de integración real
+  esperaba el comportamiento viejo («descartado» → `seguimientos_enviados >= 1`), que era justo el hueco del issue #25. Las
+  pruebas de Odoo pasaban y la integración del CI habría fallado.
+- **Con `-u`, Odoo solo corre las pruebas post_install de los módulos actualizados** (`registry.updated_modules`):
+  `TestSuperficieRpc` (de `dcasa_base`) no corre con `-u dcasa_conversaciones`. Se corre aparte, sin `-u`
+  (`-d <base> --test-enable --test-tags=/dcasa_base:TestSuperficieRpc --stop-after-init`), que mira todos los instalados.
+- **Un atraso se mide desde que se decidió la hora, no desde la hora que dio la cuenta** (revisión adversarial de #25): el
+  seguimiento se calcula desde el último mensaje, así que uno programado tarde («Crear oportunidad» al día siguiente) ya nace
+  «vencido» y se saltaba con una nota de caída. Se guarda `seguimiento_programado_en`; recalcular la MISMA hora lo conserva
+  (si no, cualquier recálculo al volver de una caída, como un cambio de etapa, borraba el atraso), y el siguiente que se
+  programa al saltar uno hereda el atraso (si no, salía en la misma vuelta del cron).
+- **Recordar un rechazo como si fuera la respuesta frena la corrección** (revisión adversarial de #24): el «una vez por
+  turno» de las escrituras recordaba también un 422 («Faltan datos: motivo») y la llamada corregida recibía el mismo rechazo.
+  De lo que solo puede pasar una vez (`pasar_a_vendedora`) se recuerda solo lo que salió bien.
 - **Reservar espacio solo mientras algo se ve:** `body:has(.o_brian_lanzador:not(.o_brian_oculto)) …` dentro de
   `media-breakpoint-up(lg)` (libsass lo acepta; `:is()` no se probó y se evitó con un `@each`). Así el hueco para el
   botón flotante no aparece en el celular (donde Brian va arriba) ni con el panel abierto.
+
+- **Un agente aislado en su worktree prueba «en rojo» sin tocar su rama** (2026-11-07, citas y palomitas): `git archive
+  HEAD juan | tar -x -C <scratchpad>/rojo` (o `addons`), se copian encima solo las pruebas nuevas y se corren ahí
+  (`node_modules` por enlace; para Odoo, otra base). Así se ve el rojo del código de antes sin `git stash` (compartido
+  entre worktrees) ni commits de ida y vuelta. Los comandos con `cd … &&`, heredocs o `bash -c` largos los rechaza el
+  aislamiento: van en un script del scratchpad.
+- **El contrato visual (`AUDITAR` de `test_panel_visual.py`) no audita lo transparente** (2026-11-07): un botón con
+  `opacity: 0` que aparece al pasar el mouse («Responder») salía con «contraste 1.00:1». Ahora `visible()` exige opacidad
+  mayor que 0. Y un emoji dentro de una pastilla blanca en la burbuja azul hereda `color: #fff`: hay que darle color de
+  texto aunque el emoji se pinte solo.
+- **Un botón invisible (`opacity: 0`) y con `position: absolute` igual ocupa lugar para el desplazamiento** (revisión de
+  las citas, 2026-11-07): «Responder», puesto al lado de la burbuja del cliente, corría de lado el hilo a 768 px con la
+  lista completa (chat de 467 px), aunque no se viera. La prueba mide `scrollWidth - clientWidth` del hilo a varios anchos
+  (`test_responder_no_corre_el_hilo_de_lado…`). Ojo: por debajo de 1250 px con la ficha abierta la lista se reduce sola,
+  así que «1024 con la ficha» deja el chat en ~560 px, no en ~400. `display: none` no sirve si el botón se alcanza con Tab.
+- **Las referencias visuales que ya fallan en esta máquina** se repiten iguales: «conexiones» a 390 px 13.73 % y «lista»
+  a 390 px 7.68 % sin tocar esas pantallas (2026-11-07). Si sale otra cifra en otra pantalla, sí es del cambio.
 
 ### Odoo 19
 
@@ -1008,6 +1051,15 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `invoice_has_outstanding` se calcula con las reglas de quien mira: con «solo lo suyo» encendido la vendedora no ve el
   cobro de otro y le da `False`.
 
+- **WhatsApp Cloud da un id (`wamid`) por burbuja y por foto**, y Odoo guarda una respuesta de Juan como UN mensaje: para
+  las palomitas y las citas hace falta la tabla `dcasa.mensaje.parte` (un `wamid` por fila, único por conversación). Un
+  cliente puede citar o reaccionar a la burbuja 2 de 3 (2026-11-07).
+- **Las palomitas de Meta pueden llegar antes de que Odoo conozca el mensaje** (la de «enviado» llega en un segundo y la
+  respuesta del bot se registra por la cola del Durable Object): Odoo devuelve `desconocidos` y Juan los reenvía a los 5 y
+  10 s, dentro de `waitUntil`. Sin eso, el ✓ de las respuestas del bot se perdía casi siempre.
+- **WhatsApp Cloud no avisaba un envío a medias** (lanzaba un error común): el motor reintentaba todo y el cliente veía
+  dos veces la primera burbuja. El adaptador ahora lanza `EnvioParcialError` como Telegram (2026-11-07).
+
 ### Cloudflare
 
 - **Un secreto nuevo del panel del Worker `dcasa` no llega a Odoo hasta que el contenedor arranca otra vez**
@@ -1040,6 +1092,18 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `production` (lo más probable: el de staging, o la app puesta en `dcasapty.com` como decía SEGURIDAD_ACCESO §8.4). El
   rechazo del borde era el mismo 404 en «0» y en «1». Desde `a7725a2` `/master` dice el motivo (código `audiencia`,
   `sin token`…) y `/__edge/health` trae `puerta`. Guía: docs/PUERTA_MASTER.md.
+
+- **Durable Objects y el eco de Meta (issue #24, 2026-11-07):** mientras el objeto espera un `fetch` (la Send API de Meta),
+  atiende otras peticiones: el webhook con el **eco** de lo que se está mandando puede entrar antes de que la Send API
+  conteste o entre una burbuja y otra. Lo que el motor necesita para reconocerlo se escribe en SQLite **antes** de enviar
+  (`emitir` → `vuelo:*`), no después; lo de después (ids, mensajes) llega tarde para ese eco. Meta además devuelve el texto
+  sin la negrita de WhatsApp: se compara normalizado.
+- **SDK de IA 7 (`ai`): `result.response.messages` es SOLO el último paso**; los mensajes de todos los pasos (llamadas a
+  herramientas y resultados) están en `result.responseMessages`. Con el primero, la pasada de corrección no veía nada.
+- **Claude rechaza llamadas a herramientas en el historial si la petición no trae las herramientas**: la segunda pasada sin
+  herramientas (`sinTexto`) recibe lo consultado como texto (`consultasComoTexto`); la de corrección, con herramientas, recibe
+  la ronda tal cual (`rondasDeHerramientas`, sin el borrador rechazado). `test/motor/sdk-anthropic.test.ts` vigila cómo
+  queda la petición.
 
 ### GitHub
 

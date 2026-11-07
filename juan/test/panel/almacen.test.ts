@@ -337,3 +337,72 @@ describe("mi disponibilidad", () => {
     expect(m.avisos.length).toBe(1);
   });
 });
+
+describe("palomitas y reacciones en vivo (2026-11-07)", () => {
+  const recibos = (m: ReturnType<typeof mundo>, cambios: object[]) => m.suscritos.get("dcasa_conversaciones/evento")!({ evento: "recibos", cambios });
+  const abierta = async () => {
+    const r = await crear();
+    r.almacen.suscribir();
+    r.almacen.seleccionadaId = 7;
+    r.almacen.mensajes = [
+      { id: 40, tipo: "mensaje", autor: "bot", estado_canal: "enviado", ts: "2026-10-10T14:59:00Z", adjuntos: [] },
+      { id: 41, tipo: "mensaje", autor: "vendedora", estado_canal: null, ts: "2026-10-10T14:59:30Z", adjuntos: [] },
+    ];
+    r.m.llamadas.length = 0;
+    return r;
+  };
+
+  it("en la conversación abierta, la palomita se pone al día ahí mismo, sin pedir NADA al servidor (son tres por mensaje)", async () => {
+    const { m, almacen } = await abierta();
+    recibos(m, [{ conversacion_id: 7, mensaje_id: 40, estado_canal: "entregado" }, { conversacion_id: 7, mensaje_id: 41, estado_canal: "leido" }]);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(almacen.mensajes.map((x: any) => x.estado_canal)).toEqual(["entregado", "leido"]);
+    expect(m.llamadas).toEqual([]);
+  });
+
+  it("la palomita en vivo trae sus horas: «Entregado 10:00» y «Leído 10:01» al pasar el mouse, sin recargar (revisión 2026-11-07)", async () => {
+    const { m, almacen } = await abierta();
+    recibos(m, [{ conversacion_id: 7, mensaje_id: 40, estado_canal: "leido", canal_entregado_en: "2026-10-10T15:00:00Z", canal_leido_en: "2026-10-10T15:01:00Z" }]);
+    await vi.advanceTimersByTimeAsync(1000);
+    const m40 = almacen.mensajes.find((x: any) => x.id === 40);
+    expect([m40.estado_canal, m40.canal_entregado_en, m40.canal_leido_en]).toEqual(["leido", "2026-10-10T15:00:00Z", "2026-10-10T15:01:00Z"]);
+    // Un aviso sin horas (un Odoo de antes) no borra las que ya había.
+    recibos(m, [{ conversacion_id: 7, mensaje_id: 40, estado_canal: "leido" }]);
+    expect(almacen.mensajes.find((x: any) => x.id === 40).canal_leido_en).toBe("2026-10-10T15:01:00Z");
+    expect(m.llamadas).toEqual([]);
+  });
+
+  it("de otra conversación: nada (ni la lista: no es un mensaje nuevo, no suena ni sube «sin leer»)", async () => {
+    const { m, almacen } = await abierta();
+    const sinVer = almacen.nuevosSinVer;
+    recibos(m, [{ conversacion_id: 9, mensaje_id: 90, estado_canal: "leido", reaccion: true }]);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(m.llamadas).toEqual([]);
+    expect(m.avisos).toEqual([]);
+    expect(almacen.nuevosSinVer).toBe(sinVer);
+  });
+
+  it("una reacción o un «no llegó» en la abierta traen el hilo UNA vez por tanda (el emoji y el motivo no viajan por el bus)", async () => {
+    const { m } = await abierta();
+    recibos(m, [{ conversacion_id: 7, mensaje_id: 40, estado_canal: "enviado", reaccion: true }]);
+    recibos(m, [{ conversacion_id: 7, mensaje_id: 41, estado_canal: "fallido" }]);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(m.llamadas.map((l) => l.metodo).filter((x) => x !== "ficha")).toEqual(["hilo"]);
+  });
+
+  it("«Responder»: la cita queda en el borrador de ESA conversación, viaja al enviar y se va al vaciar", async () => {
+    const { m, almacen } = await abierta();
+    almacen.borrador.modo = "nota";
+    almacen.citar({ id: 39, quien: "Cliente", texto: "este" });
+    expect(almacen.borrador.cita).toEqual({ id: 39, quien: "Cliente", texto: "este" });
+    expect(almacen.borrador.modo).toBe("respuesta"); // una nota no sale al cliente: no lleva cita
+    m.respuestas.enviar_respuesta = () => ({ mensaje: { id: 50 }, enviado: true, conversacion: { id: 7 } });
+    await almacen.enviar("Sí, esa misma", [], null, 39);
+    expect(m.llamadas.find((l) => l.metodo === "enviar_respuesta")?.args).toEqual([7, "Sí, esa misma", [], null, 39]);
+    almacen.vaciarBorrador();
+    expect(almacen.borrador.cita).toBeNull();
+    almacen.citar({ id: 39, quien: "Cliente", texto: "este" });
+    almacen.quitarCita();
+    expect(almacen.borrador.cita).toBeNull();
+  });
+});

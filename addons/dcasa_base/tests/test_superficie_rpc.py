@@ -774,6 +774,7 @@ LISTA_BLANCA = {
     ('dcasa_conversaciones', 'dcasa.conversacion', 'action_atender'): VENTAS_BOTON,
     ('dcasa_conversaciones', 'dcasa.conversacion', 'action_devolver_al_bot'): VENTAS_BOTON,
     ('dcasa_conversaciones', 'dcasa.conversacion', 'action_cerrar'): VENTAS_BOTON,
+    ('dcasa_conversaciones', 'dcasa.conversacion', 'action_traspaso_atendido'): VENTAS_BOTON,
     ('dcasa_conversaciones', 'dcasa.conversacion', 'action_enviar'): VENTAS_BOTON,
     ('dcasa_conversaciones', 'dcasa.conversacion', 'action_reintentar_envios'): VENTAS_BOTON,
     ('dcasa_conversaciones', 'dcasa.conversacion', 'action_crear_oportunidad'): VENTAS_BOTON,

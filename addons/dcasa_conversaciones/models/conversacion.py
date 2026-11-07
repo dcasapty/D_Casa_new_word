@@ -16,7 +16,7 @@ ventas; los botones (``action_*``) lo comprueban en el servidor, no solo en la v
 import base64
 import hashlib
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from markupsafe import Markup, escape
 
@@ -55,7 +55,13 @@ MAX_NOTA_PARA_EL_BOT = 500
 CAMPOS_DE_LA_VENDEDORA = frozenset({
     'partner_id', 'asignada_a', 'etiqueta_ids', 'pausada_hasta', 'borrador', 'borrador_adjunto_ids'})
 CANAL_BUS = 'dcasa_conversaciones/evento'
-MOTIVOS_DE_BAJA = ('no_contactar', 'no contactar', 'baja', 'opt_out', 'opt-out', 'pidio_no', 'pidió no')
+# «no lo contacten» es lo que manda el Worker de verdad (juan/src/motor/conversacion.ts: «el cliente pidió que no lo
+# contacten»); los demás, por tolerancia.
+MOTIVOS_DE_BAJA = ('no_contactar', 'no contactar', 'no lo contacten', 'baja', 'opt_out', 'opt-out', 'pidio_no',
+                   'pidió no')
+# Quien espera a una persona deja de «esperar» a la semana (la misma que usa Sofía para «Contéstale»): si alguien lo
+# atendió por otro lado (una llamada, en la tienda) y no lo marcó, el seguimiento no queda frenado para siempre.
+DIAS_ESPERA_A_UNA_PERSONA = 7
 
 
 class DcasaConversacion(models.Model):
@@ -117,6 +123,16 @@ class DcasaConversacion(models.Model):
                                             help='Cuándo se le pidió al Worker; se limpia al confirmar.')
     seguimiento_numero_pedido = fields.Integer(readonly=True)
     seguimiento_reintentos = fields.Integer(readonly=True)
+    seguimiento_programado_en = fields.Datetime(
+        'Seguimiento programado el', readonly=True, copy=False,
+        help='Cuándo se calculó el próximo seguimiento. El atraso se cuenta desde lo más tarde entre esto y la hora '
+             'que tocaba: uno que se programó tarde (una oportunidad creada al día siguiente) no es un atraso.')
+    traspaso_sin_atender_desde = fields.Datetime(
+        'Espera a una persona desde', readonly=True, copy=False,
+        help='Juan la pasó a una persona y nadie del equipo le ha escrito todavía (aunque la pausa haya vencido y la '
+             'conversación haya vuelto al asistente). Mientras tanto no hay seguimiento automático: el cliente espera '
+             'a una persona, no un «¿sigues interesado?» (issue #25). Se borra cuando alguien del equipo le escribe, '
+             'la devuelve al asistente o la cierra.')
     resumen_ia = fields.Text('Resumen con IA', readonly=True, copy=False)
     resumen_ia_en = fields.Datetime('Resumen hecho el', readonly=True, copy=False)
     resumen_ia_hasta_id = fields.Integer(
@@ -260,6 +276,11 @@ class DcasaConversacion(models.Model):
         resultado = super().write(vals)
         for conv, anterior in anteriores.items():
             if anterior and anterior != conv.partner_id:
+                # La ficha provisional que Juan creó para esta conversación es de la misma persona: su «No contactar»
+                # va con ella (issue #25). La de OTRA persona (una conversación mal ligada que se corrige) no pasa su
+                # marca.
+                if anterior.sudo().dcasa_creado_por == 'juan':
+                    conv._dcasa_heredar_no_contactar(anterior)
                 conv._dcasa_soltar_provisional(anterior)
         if 'oportunidad_id' in vals:
             # La intención de compra habilita el seguimiento: al ligar o soltar la oportunidad se recalcula.
@@ -295,6 +316,24 @@ class DcasaConversacion(models.Model):
             _logger.warning('No se pudo soltar la ficha provisional %s de la conversación %s', provisional.id,
                             self.id, exc_info=True)
         return False
+
+    def _dcasa_heredar_no_contactar(self, anterior):
+        """La conversación pasó a otra ficha de la MISMA persona: si en la anterior pidió que no le escriban, la marca
+        va con ella (si no, se quedaba en la ficha vieja, a veces archivada, y la persona volvía a recibir
+        seguimientos)."""
+        self.ensure_one()
+        anterior = anterior.sudo().with_context(active_test=False)
+        nueva = self.partner_id.sudo()
+        if not nueva or nueva == anterior or not anterior.exists() or not anterior.dcasa_no_contactar \
+                or nueva.dcasa_no_contactar:
+            return False
+        nueva.write({'dcasa_no_contactar': True})
+        nueva.message_post(body=escape(self.env._(
+            '«No contactar»: lo pidió por %(canal)s, cuando su conversación estaba en la ficha «%(ficha)s».',
+            canal=dict(CANALES).get(self.canal, self.canal), ficha=anterior.display_name)),
+            subtype_xmlid='mail.mt_note')
+        self.sudo().write({'seguimiento_proximo': False})
+        return True
 
     def unlink(self):
         """Borrar una conversación (derecho de borrado, Ley 81) borra sus mensajes y adjuntos por el ORM."""
@@ -355,6 +394,7 @@ class DcasaConversacion(models.Model):
             otra = Partner._dcasa_conv_buscar(celular)
             if otra and otra != partner:
                 self.write({'partner_id': otra.id})
+                self._dcasa_heredar_no_contactar(partner)   # el canal dice que es la misma persona
                 self._dcasa_soltar_provisional(partner)
             elif not otra:
                 partner.write({'phone': celulares.para_mostrar(tipo, valor)})
@@ -364,7 +404,9 @@ class DcasaConversacion(models.Model):
         """Registra un mensaje (idempotente por ``id_mensaje``). Devuelve ``(conversacion, mensaje, creado)``.
 
         ``datos``: ``canal, id_externo, id_mensaje, direccion, autor, ts`` y, opcionales, ``nombre,
-        celular, texto, adjuntos`` (ya validados por la API).
+        celular, texto, adjuntos`` y (2026-11-07) ``cita`` (``{id_canal, texto?}``: el mensaje que el cliente citó),
+        ``reenviado`` (``una``/``muchas``) y ``partes`` (``[{id_canal, tipo, texto}]``: los ids que el canal dio a cada
+        burbuja de un mensaje nuestro), ya validados por la API. Un Juan viejo no los manda y todo sigue igual.
         """
         canal, id_externo = datos['canal'], datos['id_externo']
         self._bloquear(canal, id_externo)
@@ -374,12 +416,18 @@ class DcasaConversacion(models.Model):
         Mensaje = self.env['dcasa.mensaje'].sudo()
         propio = conv._adoptar_mensaje_de_odoo(datos)
         if propio:
+            if datos.get('partes'):
+                propio._crear_partes(datos['partes'])
             return conv, propio, False
         mensaje, creado = Mensaje._crear_si_no_existe({
             'conversacion_id': conv.id, 'id_mensaje': datos['id_mensaje'], 'direccion': datos['direccion'],
             'autor': datos['autor'], 'texto': datos.get('texto') or False, 'ts': datos['ts'],
             'estado_envio': 'recibido' if datos['direccion'] == 'entrante' else 'enviado',
+            'reenviado': datos.get('reenviado') or False,
+            **Mensaje._valores_de_cita(conv, datos.get('cita')),
         })
+        if datos.get('partes'):
+            mensaje._crear_partes(datos['partes'])
         if not creado:
             # Repetición: si antes fallaron adjuntos y ahora vienen otra vez, se vuelven a intentar.
             if datos.get('adjuntos') and mensaje.adjuntos_fallidos:
@@ -437,6 +485,7 @@ class DcasaConversacion(models.Model):
         elif mensaje.autor == 'vendedora':
             valores['seguimiento_proximo'] = False
             valores['reparto_desde'] = False   # alguien del equipo le contestó (p. ej. desde el teléfono)
+            valores['traspaso_sin_atender_desde'] = False
             valores.update(self._valores_de_pausa(ajustes, ahora, cambia_a_humano=self.estado != 'humano'))
         self.write(valores)
         if mensaje.autor == 'bot':
@@ -491,6 +540,9 @@ class DcasaConversacion(models.Model):
             return 'la conversación está cerrada'
         if not self._controla_bot(ahora):
             return 'la atiende una persona'
+        if self.traspaso_sin_atender_desde and \
+                self.traspaso_sin_atender_desde > ahora - timedelta(days=DIAS_ESPERA_A_UNA_PERSONA):
+            return 'espera a una persona: Juan se la pasó y nadie del equipo le escribió'
         if self.partner_id.dcasa_no_contactar:
             return 'pidió que no lo contacten'
         if not self.ultimo_mensaje_cliente:
@@ -499,11 +551,47 @@ class DcasaConversacion(models.Model):
             return 'el último mensaje no es del asistente'
         if self.seguimientos_enviados >= ajustes.seguimiento_maximo:
             return 'ya recibió todos los seguimientos'
+        por_persona = self._motivo_por_persona(ajustes)
+        if por_persona:
+            return por_persona
         if self._ya_compro():
             return 'ya es cliente: ya compró'
         if not self._con_intencion_de_compra():
             return 'no mostró intención de compra'
         return None
+
+    def _motivo_por_persona(self, ajustes):
+        """El seguimiento es por PERSONA (su ficha), no por conversación (issue #25): quien escribe por WhatsApp y por
+        Telegram recibía hasta dos por canal. Solo lo hace la conversación por donde la persona escribió último, y los
+        seguimientos que le salieron por sus otros canales después de ese mensaje cuentan para el máximo."""
+        self.ensure_one()
+        if not self.partner_id:
+            return None
+        hermanas = self.sudo().search([('partner_id', '=', self.partner_id.id), ('id', '!=', self.id)])
+        if not hermanas:
+            return None
+        nunca = datetime.min
+        mia = (self.ultimo_mensaje_cliente or nunca, self.id)
+        # Solo le quitan el turno las que podrían hacer el seguimiento ellas mismas: un «hola» por otro canal sin
+        # oportunidad, un canal apagado o una conversación cerrada no dejan a la persona sin ninguno.
+        podrian = hermanas.filtered(lambda h: h.estado != 'cerrada' and ajustes.canal_activo(h.canal)
+                                    and h._con_intencion_de_compra())
+        if any((h.ultimo_mensaje_cliente, h.id) > mia for h in podrian if h.ultimo_mensaje_cliente):
+            return 'el cliente siguió por otro canal'
+        desde = self.ultimo_mensaje_cliente or nunca
+        otros = sum(h.seguimientos_enviados for h in hermanas
+                    if h.ultimo_seguimiento_en and h.ultimo_seguimiento_en >= desde)
+        if otros and self.seguimientos_enviados + otros >= ajustes.seguimiento_maximo:
+            return 'ya recibió todos los seguimientos (contando sus otros canales)'
+        return None
+
+    def _seguimiento_en_camino_por_otro_canal(self):
+        """¿Ya hay un seguimiento pedido al Worker por otra conversación de la misma persona? Entonces este espera (se
+        pospone, no se borra)."""
+        self.ensure_one()
+        return bool(self.partner_id) and bool(self.sudo().search_count([
+            ('partner_id', '=', self.partner_id.id), ('id', '!=', self.id), ('seguimiento_pedido_en', '!=', False)],
+            limit=1))
 
     def _programar_seguimiento(self, desde=None):
         """Calcula y guarda ``seguimiento_proximo`` según las reglas de la dueña (ver ``horario.py``)."""
@@ -519,7 +607,15 @@ class DcasaConversacion(models.Model):
                     conv.ultima_actividad or desde)
                 proximo = H.proximo_seguimiento(
                     conv.seguimientos_enviados, base, conv.ultimo_seguimiento_en, regla, horario) or False
-            conv.write({'seguimiento_proximo': proximo})
+            if not proximo:
+                programado = False
+            elif proximo == conv.seguimiento_proximo:
+                # La misma cuenta de antes (p. ej. la oportunidad cambió de etapa al volver de una caída): el atraso se
+                # sigue contando desde que se programó la primera vez, o lo atrasado saldría de golpe.
+                programado = conv.seguimiento_programado_en
+            else:
+                programado = ahora
+            conv.write({'seguimiento_proximo': proximo, 'seguimiento_programado_en': programado})
 
     @api.model
     def _cron_seguimientos(self):
@@ -528,6 +624,7 @@ class DcasaConversacion(models.Model):
         if not self.env['dcasa.juan.cliente'].configurado() or not ajustes.bot_activo_global:
             return 0
         ahora = fields.Datetime.now()
+        self._saltar_seguimientos_atrasados(ahora, ajustes)
         pendientes = self.sudo().search([
             ('seguimiento_proximo', '!=', False), ('seguimiento_proximo', '<=', ahora),
             ('estado', '!=', 'cerrada')], order='seguimiento_proximo', limit=50)
@@ -541,12 +638,61 @@ class DcasaConversacion(models.Model):
                 _logger.exception('Juan: falló el seguimiento de la conversación %s', conv.id)
         return pedidos
 
+    @api.model
+    def _saltar_seguimientos_atrasados(self, ahora, ajustes):
+        """Lo que se atrasó más de ``seguimiento_atraso_maximo_horas`` (el sistema estuvo detenido, un despliegue, el
+        asistente apagado) no sale tarde ni de golpe (issue #25): ese seguimiento se da por pasado SIN enviarse, queda
+        una nota y se programa el siguiente (que también se salta si ya venció). Devuelve cuántos saltó."""
+        if not ajustes.seguimiento_atraso_maximo_horas:
+            return 0
+        limite = ahora - timedelta(hours=ajustes.seguimiento_atraso_maximo_horas)
+        saltados = 0
+        # Atrasado = ya tocaba Y ya estaba programado antes del límite: uno calculado tarde (una oportunidad creada al
+        # día siguiente) cuenta desde que se programó, no desde la hora (ya pasada) que dio la cuenta.
+        for conv in self.sudo().search([
+                ('seguimiento_proximo', '!=', False), ('seguimiento_proximo', '<', limite),
+                '|', ('seguimiento_programado_en', '=', False), ('seguimiento_programado_en', '<', limite),
+                ('seguimiento_pedido_en', '=', False), ('estado', '!=', 'cerrada')], order='seguimiento_proximo',
+                limit=500):
+            try:
+                with self.env.cr.savepoint():
+                    saltados += 1 if conv._saltar_seguimiento_atrasado(ahora, ajustes, limite) else 0
+            except Exception:   # noqa: BLE001 — una conversación rara no deja a las demás con su atraso
+                _logger.exception('Juan: no pude saltar el seguimiento atrasado de la conversación %s', conv.id)
+        return saltados
+
+    def _saltar_seguimiento_atrasado(self, ahora, ajustes, limite):
+        """Salta el atrasado y, si el siguiente también venció durante la misma caída, lo salta también (si no, salía en
+        esta misma vuelta del cron). El siguiente hereda el atraso: no cuenta como «programado tarde»."""
+        self.ensure_one()
+        saltado = False
+        for __ in range(max(ajustes.seguimiento_maximo, 1)):   # cada vuelta suma uno: no da más vueltas que el máximo
+            if not self.seguimiento_proximo or self.seguimiento_proximo >= limite:
+                break
+            if self._motivo_sin_seguimiento(ahora, ajustes):
+                self.write({'seguimiento_proximo': False})   # ya no tocaba: como siempre, sin contar nada
+                break
+            numero = self.seguimientos_enviados + 1
+            tocaba = H.texto_fecha_hora(self.seguimiento_proximo, ajustes.horario())
+            self.write({'seguimientos_enviados': numero, 'seguimiento_proximo': False, 'seguimiento_reintentos': 0})
+            self.message_post(body=escape(self.env._(
+                'Seguimiento n.º %(n)s no se envió: le tocaba el %(cuando)s y pasaron más de %(h)s horas sin poder '
+                'mandarlo (por ejemplo, el sistema estuvo detenido o el asistente apagado). No se manda tarde.',
+                n=numero, cuando=tocaba, h=ajustes.seguimiento_atraso_maximo_horas)),
+                subtype_xmlid='mail.mt_note')
+            self._programar_seguimiento()
+            saltado = True
+        return saltado
+
     def _intentar_seguimiento(self, ahora, ajustes):
         """Revisa TODO otra vez (el estado pudo cambiar desde que se programó) y, si toca, lo pide."""
         self.ensure_one()
         motivo = self._motivo_sin_seguimiento(ahora, ajustes)
         if motivo:
             self.write({'seguimiento_proximo': False})
+            return False
+        if self._seguimiento_en_camino_por_otro_canal():
+            self.write({'seguimiento_proximo': ahora + PAUSA_REINTENTO_SEGUIMIENTO})   # espera a que ese termine
             return False
         horario = ajustes.horario()
         if ajustes.seguimiento_solo_horario_laboral and not H.dentro_de_horario(ahora, horario):
@@ -607,6 +753,17 @@ class DcasaConversacion(models.Model):
         ajustes = self.env['dcasa.juan.ajustes'].obtener()
         ahora = fields.Datetime.now()
         motivo = (motivo or '').strip()[:200]
+        pedido = bool(self.seguimiento_pedido_en) and self.seguimiento_numero_pedido == numero
+        if resultado != 'enviado' and not pedido and self._ciclo_reiniciado(ahora, ajustes):
+            # Un «descartado» tardío (issue #25): el cliente escribió después de que se pidió y el ciclo ya empezó de
+            # nuevo; cerrarlo dejaría al ciclo nuevo sin seguimientos. Un «no me contacten» se honra igual. (Un
+            # «enviado» sí cuenta siempre: el mensaje le llegó.)
+            if any(clave in motivo.lower() for clave in MOTIVOS_DE_BAJA):
+                self._marcar_no_contactar(
+                    self.env._('El Worker descartó el seguimiento: la persona pidió no ser contactada.'))
+            _logger.info('Juan: aviso tardío del seguimiento n.º %s de la conversación %s: el cliente ya reinició el '
+                         'ciclo, no lo cierra.', numero, self.id)
+            return {'repetido': True, 'tardio': True}
         if resultado == 'enviado':
             if numero <= self.seguimientos_enviados:
                 return {'repetido': True}
@@ -631,6 +788,14 @@ class DcasaConversacion(models.Model):
         self._programar_seguimiento()
         return {'repetido': False}
 
+    def _ciclo_reiniciado(self, ahora, ajustes):
+        """Sin un pedido en camino para ese número: ¿el cliente escribió DESPUÉS de que se pidió? Ningún seguimiento se
+        pide antes de ``seguimiento_primero_horas`` desde su último mensaje, así que si escribió hace menos que eso el
+        aviso es de un ciclo anterior. (Si Odoo no oyó la respuesta del Worker, el cliente no escribió: sí cuenta.)"""
+        self.ensure_one()
+        return bool(self.ultimo_mensaje_cliente) and \
+            self.ultimo_mensaje_cliente > ahora - timedelta(hours=ajustes.seguimiento_primero_horas)
+
     @api.model
     def _cron_mantenimiento(self):
         """Cada 5 minutos: reintenta envíos y avisos, devuelve las pausas vencidas y cierra seguimientos sin aviso."""
@@ -645,6 +810,7 @@ class DcasaConversacion(models.Model):
         self._cerrar_seguimientos_sin_aviso()
         self._avisar_clientes_esperando()
         self.env['dcasa.presencia']._limpiar()
+        self.env['dcasa.telegram_borrador']._purgar_vencidos()
 
     @api.model
     def _avisar_clientes_esperando(self):
@@ -759,6 +925,19 @@ class DcasaConversacion(models.Model):
         self._devolver(self.env.user)
         return True
 
+    def action_traspaso_atendido(self):
+        """«Ya la atendí»: Juan la pasó a una persona y alguien del equipo la atendió por otro lado (una llamada, en la
+        tienda). Deja de «esperar a una persona» y Juan puede volver a hacerle seguimiento."""
+        self._exigir_vendedora()
+        self.check_access('write')
+        ahora = fields.Datetime.now()
+        for conv in self.sudo().filtered('traspaso_sin_atender_desde'):
+            conv.write({'traspaso_sin_atender_desde': False})
+            conv._aviso(self.env._('%s marcó que ya atendió a esta persona.', self.env.user.name))
+            conv._programar_seguimiento(desde=ahora)
+            conv._notificar_panel('estado')
+        return True
+
     def action_cerrar(self):
         self._exigir_vendedora()
         self.check_access('write')
@@ -792,7 +971,8 @@ class DcasaConversacion(models.Model):
         nota = ' '.join(str(nota or '').split())[:MAX_NOTA_PARA_EL_BOT] or False
         ahora = fields.Datetime.now()
         for conv in self.sudo():
-            conv.write({'estado': 'bot', 'pausada_hasta': False, 'nota_para_el_bot': nota, 'reparto_desde': False})
+            conv.write({'estado': 'bot', 'pausada_hasta': False, 'nota_para_el_bot': nota, 'reparto_desde': False,
+                        'traspaso_sin_atender_desde': False})
             conv._programar_seguimiento(desde=ahora)
             texto = self.env._('%s devolvió la conversación al asistente.', usuario.name)
             if nota:
@@ -804,7 +984,7 @@ class DcasaConversacion(models.Model):
     def _cerrar(self, usuario):
         for conv in self.sudo():
             conv.write({'estado': 'cerrada', 'pausada_hasta': False, 'seguimiento_proximo': False,
-                        'nota_para_el_bot': False, 'reparto_desde': False})
+                        'nota_para_el_bot': False, 'reparto_desde': False, 'traspaso_sin_atender_desde': False})
             conv._aviso(self.env._('%s cerró la conversación.', usuario.name))
             conv._notificar_panel('estado')
 
@@ -848,6 +1028,27 @@ class DcasaConversacion(models.Model):
             except Exception:   # noqa: BLE001 — avisar a las pantallas es un extra
                 _logger.exception('Juan: no se pudo avisar a las pantallas (conversación %s)', conv.id)
 
+    @api.model
+    def _notificar_recibos(self, cambios):
+        """Palomitas y reacciones nuevas: UN aviso por persona del equipo con todos los cambios de la tanda.
+
+        Son muchos (tres por mensaje), así que el aviso es liviano: solo ids y el estado (ni texto ni emoji). La
+        pantalla que tiene abierta esa conversación pone la palomita al día sin pedir nada al servidor (y, si es una
+        reacción o algo que no llegó, trae el hilo). No es un mensaje nuevo: no suena, no sube «sin leer» ni mueve la
+        lista. Un fallo aquí jamás tumba lo que se estaba haciendo.
+        """
+        if not cambios:
+            return
+        try:
+            with self.env.cr.savepoint():
+                carga = {'evento': 'recibos', 'cambios': cambios[:200]}
+                for usuario in self._usuarios_del_panel():
+                    usuario._bus_send(CANAL_BUS, carga)
+        except (ConcurrencyError, *PG_CONCURRENCY_EXCEPTIONS_TO_RETRY):
+            raise
+        except Exception:   # noqa: BLE001 — avisar a las pantallas es un extra
+            _logger.exception('Juan: no se pudo avisar a las pantallas de %s palomitas o reacciones', len(cambios))
+
     def _nombre_de_pila(self):
         """El primer nombre del cliente, o vacío si solo tenemos el provisional («WhatsApp 6123-4567»)."""
         self.ensure_one()
@@ -879,21 +1080,24 @@ class DcasaConversacion(models.Model):
                 'type': 'warning', 'sticky': False}}
         return True
 
-    def _crear_mensaje_de_odoo(self, texto, adjuntos=None, usuario=None, programado_para=None):
+    def _crear_mensaje_de_odoo(self, texto, adjuntos=None, usuario=None, programado_para=None, cita=None):
         """Registra lo que una vendedora escribe en Odoo y toma la conversación.
 
         Sale «por enviar»; con ``programado_para`` (UTC) queda «programado»: no toma la conversación ni cambia nada
-        hasta que llegue la hora (``_despachar_programado``).
+        hasta que llegue la hora (``_despachar_programado``). ``cita``: el mensaje al que responde («Responder»).
         """
         self.ensure_one()
         usuario = usuario or self.env.user
         conv = self.sudo()
         ahora = fields.Datetime.now()
+        cita = (cita or self.env['dcasa.mensaje']).sudo()
         mensaje, _creado = self.env['dcasa.mensaje']._crear_si_no_existe({
             'conversacion_id': conv.id, 'id_mensaje': self.env['dcasa.mensaje']._id_local(), 'direccion': 'saliente',
             'autor': 'vendedora', 'texto': texto or False, 'ts': programado_para or ahora, 'origen': 'odoo',
             'usuario_id': usuario.id, 'estado_envio': 'programado' if programado_para else 'por_enviar',
-            'programado_para': programado_para or False})
+            'programado_para': programado_para or False,
+            # Sin copia de lo citado: se lee del original (si se borra, se borra también de aquí; revisión 2026-11-07).
+            'cita_id': cita.id or False, 'cita_id_canal': (cita._id_canal_para_citar() if cita else '') or False})
         if adjuntos:
             mensaje.with_context(**{CLAVE_SISTEMA: True}).write({'adjunto_ids': [(4, a.id) for a in adjuntos]})
             adjuntos.sudo().write({'res_model': 'dcasa.mensaje', 'res_id': mensaje.id})
@@ -912,7 +1116,7 @@ class DcasaConversacion(models.Model):
         conv.write({
             'ultima_actividad': ahora, 'ultimo_mensaje_texto': (texto or self.env._('(adjunto)'))[:140],
             'ultimo_mensaje_autor': 'vendedora', 'seguimiento_proximo': False, 'asignada_a': usuario.id,
-            'nota_para_el_bot': False, 'reparto_desde': False,
+            'nota_para_el_bot': False, 'reparto_desde': False, 'traspaso_sin_atender_desde': False,
             **conv._valores_de_pausa(ajustes, ahora, cambia_a_humano=la_tomo)})
         mensaje._publicar_en_chatter()
         if la_tomo:
@@ -945,7 +1149,8 @@ class DcasaConversacion(models.Model):
         """
         self.ensure_one()
         usuario = mensaje.usuario_id or self.env.user
-        nuevo = self._crear_mensaje_de_odoo(mensaje.texto, mensaje.adjunto_ids.sudo(), usuario=usuario)
+        nuevo = self._crear_mensaje_de_odoo(mensaje.texto, mensaje.adjunto_ids.sudo(), usuario=usuario,
+                                            cita=mensaje.cita_id)
         mensaje.with_context(**{CLAVE_SISTEMA: True}).write({'adjunto_ids': [(5, 0, 0)]})
         mensaje.sudo().unlink()
         self._aviso(self.env._('Salió el mensaje que %s dejó programado.', usuario.name))
@@ -1004,7 +1209,7 @@ class DcasaConversacion(models.Model):
                     'dcasa_temperatura': abierta.dcasa_temperatura or R.FRIO,
                     'dcasa_temperatura_motivo': (
                         abierta.dcasa_temperatura_motivo or self.env._('la maneja una persona'))})
-            abierta.message_post(body=nota, subtype_xmlid='mail.mt_note')
+            abierta._dcasa_publicar_nota(nota)   # sin repetir la misma nota (issue #25)
             if presupuesto and not abierta.expected_revenue:
                 abierta.write({'expected_revenue': presupuesto})
             if not self.oportunidad_id:
@@ -1084,6 +1289,9 @@ class DcasaConversacion(models.Model):
         horario = ajustes.horario()
         dentro = H.dentro_de_horario(ahora, horario)
         self._poner_en_humano()
+        # Espera a una persona hasta que alguien del equipo le escriba (aunque la pausa venza): sin «¿sigues
+        # interesado?».
+        self.sudo().write({'traspaso_sin_atender_desde': ahora})
         reparto = self._repartir()
         por_turno = reparto.usuario
         responsable = self.asignada_a or ajustes.responsable_id or self.env.ref('base.user_admin', False)

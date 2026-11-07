@@ -15,7 +15,8 @@ const ESQUEMA = [
      adjuntos TEXT,
      ts INTEGER NOT NULL,
      pendiente INTEGER NOT NULL DEFAULT 0,
-     modelo TEXT
+     modelo TEXT,
+     contexto TEXT
    )`,
   "CREATE INDEX IF NOT EXISTS mensajes_ts ON mensajes(ts)",
   `CREATE TABLE IF NOT EXISTS cola (
@@ -57,6 +58,23 @@ const ESQUEMA = [
 
 export function crearEsquema(sql: Sql): void {
   for (const s of ESQUEMA) sql.correr(s);
+  // 2026-11-07: lo que el cliente citó o si reenvió el mensaje (`ContextoLocal`, JSON). Las conversaciones que ya existían tienen la
+  // tabla sin la columna.
+  asegurarColumna(sql, "mensajes", "contexto", "TEXT");
+}
+
+/** Agrega una columna a una tabla que ya existía (CREATE TABLE IF NOT EXISTS no la toca). Idempotente. */
+function asegurarColumna(sql: Sql, tabla: string, columna: string, tipo: string): void {
+  try {
+    if (sql.todos<{ name: string }>(`PRAGMA table_info(${tabla})`).some((c) => c.name === columna)) return;
+  } catch {
+    /* sin PRAGMA: se intenta agregar y, si ya estaba, no pasa nada */
+  }
+  try {
+    sql.correr(`ALTER TABLE ${tabla} ADD COLUMN ${columna} ${tipo}`);
+  } catch {
+    /* ya existía */
+  }
 }
 
 export type Rol = "cliente" | "bot" | "vendedora";
@@ -70,6 +88,26 @@ export interface FilaMensaje {
   ts: number;
   pendiente: number;
   modelo: string | null;
+  /** Lo que el cliente citó o si lo reenvió (`ContextoLocal` como JSON), o null. */
+  contexto?: string | null;
+}
+
+/**
+ * Lo que el cliente citó, como lo recuerda la conversación: quién lo dijo y qué decía (null = no se sabe). Si el citado está en esta
+ * misma memoria (`enMemoria`), NO se guarda una copia: se lee de su fila al armar el prompt, así un PIN tapado después o un mensaje que
+ * se purga no sobreviven en la cita (revisión 2026-11-07). `texto` solo guarda lo que vino de afuera (Telegram, o lo que Odoo recordaba).
+ */
+export interface CitaLocal {
+  id: string;
+  autor: "cliente" | "tienda" | null;
+  texto: string | null;
+  enMemoria?: boolean;
+}
+
+/** Lo que acompaña a un mensaje del cliente y le da sentido («este», un reenviado). */
+export interface ContextoLocal {
+  cita?: CitaLocal;
+  reenviado?: "una" | "muchas";
 }
 
 /** Valores sueltos de la conversación (identidad, estado, pausas, contadores). */
@@ -109,9 +147,9 @@ export class Mensajes {
     return !!this.sql.uno("SELECT 1 AS x FROM mensajes WHERE id_mensaje = ?", idMensaje);
   }
 
-  insertar(m: { id_mensaje: string | null; rol: Rol; texto: string; adjuntos?: unknown[]; ts: number; pendiente?: boolean; modelo?: string }): number {
+  insertar(m: { id_mensaje: string | null; rol: Rol; texto: string; adjuntos?: unknown[]; ts: number; pendiente?: boolean; modelo?: string; contexto?: ContextoLocal | null }): number {
     this.sql.correr(
-      "INSERT INTO mensajes (id_mensaje, rol, texto, adjuntos, ts, pendiente, modelo) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO mensajes (id_mensaje, rol, texto, adjuntos, ts, pendiente, modelo, contexto) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
       m.id_mensaje,
       m.rol,
       m.texto,
@@ -119,8 +157,28 @@ export class Mensajes {
       m.ts,
       m.pendiente ? 1 : 0,
       m.modelo ?? null,
+      m.contexto && (m.contexto.cita || m.contexto.reenviado) ? JSON.stringify(m.contexto) : null,
     );
     return this.sql.uno<{ id: number }>("SELECT last_insert_rowid() AS id")!.id;
+  }
+
+  /** Un mensaje por el id que le dio el canal (para saber qué citó el cliente). */
+  buscar(idMensaje: string): FilaMensaje | null {
+    return this.sql.uno<FilaMensaje>("SELECT * FROM mensajes WHERE id_mensaje = ?", idMensaje) ?? null;
+  }
+
+  /** Completa una cita que no se sabía qué decía (Odoo sí lo sabía). No pisa una que ya tiene texto. */
+  completarCita(idMensaje: string, cita: CitaLocal): void {
+    const fila = this.buscar(idMensaje);
+    if (!fila?.contexto) return;
+    let actual: ContextoLocal;
+    try {
+      actual = JSON.parse(fila.contexto) as ContextoLocal;
+    } catch {
+      return;
+    }
+    if (!actual.cita || actual.cita.texto || actual.cita.enMemoria || actual.cita.id !== cita.id) return;
+    this.sql.correr("UPDATE mensajes SET contexto = ? WHERE id = ?", JSON.stringify({ ...actual, cita }), fila.id);
   }
 
   pendientes(): FilaMensaje[] {
@@ -150,6 +208,24 @@ export class Mensajes {
     return this.sql.todos<{ texto: string }>("SELECT texto FROM mensajes WHERE rol = 'cliente' ORDER BY id DESC LIMIT ?", n).map((f) => f.texto);
   }
 
+  /**
+   * Los últimos `n` mensajes del cliente con el id de lo que citaba cada uno (null = no citaba nada), del más nuevo al más viejo. Para
+   * el anti-spam: «este» citando tres burbujas distintas son tres preguntas, no la misma tres veces (revisión 2026-11-07).
+   */
+  recientesDelCliente(n: number): { texto: string; citaId: string | null }[] {
+    return this.sql.todos<{ texto: string; contexto: string | null }>("SELECT texto, contexto FROM mensajes WHERE rol = 'cliente' ORDER BY id DESC LIMIT ?", n).map((f) => {
+      let citaId: string | null = null;
+      if (f.contexto) {
+        try {
+          citaId = (JSON.parse(f.contexto) as ContextoLocal).cita?.id ?? null;
+        } catch {
+          citaId = null;
+        }
+      }
+      return { texto: f.texto, citaId };
+    });
+  }
+
   /** Lo que dijeron el bot o una vendedora hace poco (para reconocer el eco de un mensaje propio). */
   salientesDesde(desde: number): string[] {
     return this.sql
@@ -164,6 +240,20 @@ export class Mensajes {
   redactar(secreto: string, marca: string): void {
     if (secreto.length < 4) return;
     this.sql.correr("UPDATE mensajes SET texto = REPLACE(texto, ?, ?) WHERE rol = 'cliente' AND instr(texto, ?) > 0", secreto, marca, secreto);
+    // Lo citado que vino de afuera (el texto que manda Telegram, o lo que Odoo recordaba) también puede llevarlo (revisión 2026-11-07).
+    // Se reemplaza dentro del texto citado, no en el JSON crudo: un «secreto» con comillas no puede romper la fila.
+    const filas = this.sql.todos<{ id: number; contexto: string }>("SELECT id, contexto FROM mensajes WHERE contexto IS NOT NULL AND instr(contexto, ?) > 0", secreto);
+    for (const f of filas) {
+      let c: ContextoLocal;
+      try {
+        c = JSON.parse(f.contexto) as ContextoLocal;
+      } catch {
+        continue;
+      }
+      if (!c.cita?.texto?.includes(secreto)) continue;
+      c.cita = { ...c.cita, texto: c.cita.texto.split(secreto).join(marca) };
+      this.sql.correr("UPDATE mensajes SET contexto = ? WHERE id = ?", JSON.stringify(c), f.id);
+    }
   }
 
   purgar(antesDe: number, conservar: number): void {

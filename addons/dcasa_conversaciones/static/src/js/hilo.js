@@ -23,6 +23,38 @@ const CERCA_DEL_TOPE = 140;
 const VENTANA_ESPERA_MS = 20_000;
 // Cuando el Worker avisa que empezó a escribir, se ve «escribiendo» hasta que avise que terminó (o pase este tiempo).
 const VENTANA_ESCRIBIENDO_MS = 60_000;
+// En el celular, «Responder» aparece al dejar el dedo apretado sobre el mensaje del cliente este tiempo (sin moverlo).
+const TOQUE_LARGO_MS = 500;
+// El dedo nunca está quieto del todo (el iPhone avisa cada píxel): solo si se mueve más que esto es arrastrar, no apretar.
+const TEMBLOR_DEL_DEDO_PX = 10;
+const QUE_ES = { imagen: "Foto", audio: "Audio", video: "Video", documento: "Documento" };
+
+/** Quién dijo lo citado, en las palabras de la pantalla: «Tú», «Juan», la vendedora o «Cliente». */
+export function quienDijo(cita, usuarioId) {
+    if (!cita || !cita.en_historial) {
+        return "";
+    }
+    if (cita.autor === "cliente") {
+        return "Cliente";
+    }
+    if (cita.autor === "bot") {
+        return "Juan";
+    }
+    if (cita.usuario && cita.usuario.id === usuarioId) {
+        return "Tú";
+    }
+    return cita.usuario?.nombre?.split(" ")[0] || "Vendedora";
+}
+
+/** Lo que se muestra de un mensaje al citarlo: su texto, o «Foto», «Audio»… si no tiene. */
+export function textoParaCitar(m) {
+    const texto = (m.texto || "").replace(/\s+/g, " ").trim();
+    if (texto) {
+        return texto.slice(0, 300);
+    }
+    const primero = m.adjuntos?.[0];
+    return primero ? QUE_ES[primero.tipo] || "Documento" : "";
+}
 
 export class Burbuja extends Component {
     static template = "dcasa_conversaciones.Burbuja";
@@ -65,6 +97,65 @@ export class Burbuja extends Component {
 
     get documentos() {
         return this.props.m.adjuntos.filter((a) => a.tipo !== "imagen" && !this.medios.includes(a));
+    }
+
+    /** La cita sobre el texto («este» señalando un mensaje): quién lo dijo y sus primeras letras. */
+    get cita() {
+        const c = this.props.m.cita;
+        if (!c) {
+            return null;
+        }
+        return { id: c.id, quien: quienDijo(c, this.almacen.usuario.id), texto: c.texto, enHistorial: !!c.en_historial };
+    }
+
+    get reenviado() {
+        const r = this.props.m.reenviado;
+        return r === "muchas" ? "Reenviado muchas veces" : r === "una" ? "Reenviado" : "";
+    }
+
+    /** Las palomitas de un mensaje nuestro, solo si el canal las dio (WhatsApp oficial; Telegram no se las da a los bots). */
+    get palomitas() {
+        const m = this.props.m;
+        if (m.tipo !== "mensaje" || m.autor === "cliente" || !m.estado_canal) {
+            return null;
+        }
+        if (m.estado_canal === "fallido") {
+            const motivo = m.error || "WhatsApp avisó que no lo pudo entregar.";
+            return { clase: "fallido", dobles: false, titulo: `No llegó: ${motivo}`, texto: "No llegó" };
+        }
+        // Sin plantillas `…` anidadas: el minificador de Odoo (rjsmin) les quita los espacios y salía «Leído11:53».
+        if (m.estado_canal === "leido") {
+            return { clase: "leido", dobles: true, titulo: "Leído" + (m.canal_leido_en ? " " + hora(m.canal_leido_en) : "") };
+        }
+        if (m.estado_canal === "entregado") {
+            return { clase: "entregado", dobles: true, titulo: "Entregado" + (m.canal_entregado_en ? " " + hora(m.canal_entregado_en) : "") };
+        }
+        return { clase: "enviado", dobles: false, titulo: "Enviado" };
+    }
+
+    /** «Responder» se ofrece en los mensajes del cliente (si el canal no sabe citarlo, sale sin la cita). */
+    get puedeResponder() {
+        const m = this.props.m;
+        return m.tipo === "mensaje" && m.autor === "cliente";
+    }
+
+    responder() {
+        const m = this.props.m;
+        this.almacen.accionesDe = null;
+        this.almacen.citar({ id: m.id, quien: "Cliente", texto: textoParaCitar(m) });
+    }
+
+    /** Un clic en la cita lleva al mensaje original, si está cargado (y lo marca un momento). */
+    irACita() {
+        const id = this.props.m.cita?.id;
+        const destino = id && document.querySelector(`.o_dcj_hilo_cuerpo [data-mensaje="${id}"]`);
+        if (!destino) {
+            this.almacen.avisar("Ese mensaje es más antiguo: toca «Ver mensajes anteriores» para traerlo.");
+            return;
+        }
+        destino.scrollIntoView({ block: "center", behavior: "smooth" });
+        destino.classList.add("o_dcj_resaltado");
+        setTimeout(() => destino.classList.remove("o_dcj_resaltado"), 1600);
     }
 
     get estadoDeEnvio() {
@@ -137,6 +228,59 @@ export class HiloConversacion extends Component {
         onPatched(() => this.acomodarElDesplazamiento());
         onMounted(() => this.acomodarElDesplazamiento());
         onWillUnmount(() => (this._arrastresAnidados = 0));
+
+        // En el celular, dejar el dedo apretado sobre un mensaje del cliente muestra «Responder». Se escucha en modo
+        // pasivo y nunca se cancela el toque: el dedo sigue desplazando el hilo como siempre (la pantalla no se traba).
+        useEffect(
+            (cuerpo) => {
+                if (!cuerpo) {
+                    return;
+                }
+                let reloj = null;
+                let inicio = null;
+                const soltar = () => {
+                    clearTimeout(reloj);
+                    reloj = null;
+                    inicio = null;
+                };
+                // Un temblor de unos píxeles no cancela el toque largo; arrastrar (más de ~10 px) sí (revisión 2026-11-07).
+                const alMover = (ev) => {
+                    const t = ev.touches?.[0];
+                    if (!reloj || !inicio || !t || Math.hypot(t.clientX - inicio.x, t.clientY - inicio.y) > TEMBLOR_DEL_DEDO_PX) {
+                        soltar();
+                    }
+                };
+                const alTocar = (ev) => {
+                    soltar();
+                    const burbuja = ev.target.closest?.(".o_dcj_burbuja_cliente[data-mensaje]");
+                    if (!burbuja || ev.touches?.length !== 1) {
+                        if (!ev.target.closest?.(".o_dcj_responder")) {
+                            this.almacen.accionesDe = null;
+                        }
+                        return;
+                    }
+                    inicio = { x: ev.touches[0].clientX, y: ev.touches[0].clientY };
+                    reloj = setTimeout(() => {
+                        this.almacen.accionesDe = Number(burbuja.dataset.mensaje);
+                    }, TOQUE_LARGO_MS);
+                };
+                const opciones = { passive: true };
+                cuerpo.addEventListener("touchstart", alTocar, opciones);
+                cuerpo.addEventListener("touchmove", alMover, opciones);
+                for (const tipo of ["touchend", "touchcancel", "scroll"]) {
+                    cuerpo.addEventListener(tipo, soltar, opciones);
+                }
+                return () => {
+                    soltar();
+                    cuerpo.removeEventListener("touchstart", alTocar, opciones);
+                    cuerpo.removeEventListener("touchmove", alMover, opciones);
+                    for (const tipo of ["touchend", "touchcancel", "scroll"]) {
+                        cuerpo.removeEventListener(tipo, soltar, opciones);
+                    }
+                };
+            },
+            () => [this.refCuerpo.el]
+        );
     }
 
     /** Al abrir una conversación, al fondo; al traer mensajes viejos, sin saltar; con uno nuevo, al fondo si ya estabas ahí. */

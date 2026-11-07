@@ -45,6 +45,7 @@ export class CajaRespuesta extends Component {
         this.cuando = (iso) => cuando(iso, this.almacen.ahora);
         this.esTactil = window.matchMedia?.("(pointer: coarse)")?.matches;
         this._conversacion = null;
+        this._foco = this.almacen.enfocarCaja; // «Responder» pide el foco: se atiende una vez por pedido
         onMounted(() => {
             this.ajustarAlto();
         });
@@ -56,6 +57,10 @@ export class CajaRespuesta extends Component {
                 this.local.rapidasAbiertas = false;
                 this.local.masAbierto = false;
                 this.local.programando = !!this.borrador.programarPara;
+            }
+            if (this._foco !== this.almacen.enfocarCaja) {
+                this._foco = this.almacen.enfocarCaja;
+                this.refTexto.el?.focus();
             }
             this.enfocarLoPendiente();
         });
@@ -73,8 +78,14 @@ export class CajaRespuesta extends Component {
     }
 
     /** ¿Hay algo para mostrar entre la franja y la línea de escribir? (si no, esa zona ni existe) */
+    /** «Responder»: el mensaje del cliente que se cita arriba de la caja (solo en Respuesta: una nota no sale al cliente). */
+    get cita() {
+        return !this.esNota ? this.borrador.cita || null : null;
+    }
+
     get hayExtras() {
         return !!(
+            this.cita ||
             this.almacen.programados.length ||
             this.local.devolviendo ||
             this.borrador.adjuntos.length ||
@@ -477,7 +488,7 @@ export class CajaRespuesta extends Component {
         try {
             const r = this.esNota
                 ? await this.almacen.agregarNota(texto, this.mencionadas.map((u) => u.id), this.mencionadas.length ? this.borrador.tareaPara : "")
-                : await this.almacen.enviar(texto, this.listos.map((a) => a.id), this.programarIso);
+                : await this.almacen.enviar(texto, this.listos.map((a) => a.id), this.programarIso, this.cita?.id);
             if (r) {
                 const modo = this.borrador.modo;
                 this.almacen.vaciarBorrador();

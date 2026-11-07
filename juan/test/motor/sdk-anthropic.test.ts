@@ -12,7 +12,7 @@
 import { describe, expect, it } from "vitest";
 import { jsonSchema, tool } from "ai";
 import type { Env } from "../../src/env";
-import { correrTurno } from "../../src/motor/modelo";
+import { correrTurno, rondasDeHerramientas } from "../../src/motor/modelo";
 import { fabricaDeProduccion } from "../../src/motor/proveedores";
 
 const CLAVE = "sk-ant-clave-de-prueba";
@@ -110,6 +110,31 @@ describe("Claude por el SDK real (fetch falso)", () => {
     expect(salida.sinTexto).toBe(false);
     expect(salida.consultas).toEqual([{ herramienta: "horario_y_tienda", resultado: { ok: true, resultado: { sabado: "9:00 a 18:00" } } }]);
     expect(salida.uso).toEqual({ entrada: 100, cacheLectura: 900, cacheEscritura: 900, salida: 27 });
+  });
+
+  it("la pasada de corrección le devuelve a Claude su ronda de herramientas bien armada (tool_use → tool_result, sin el borrador)", async () => {
+    const horario = tool({
+      description: "Horario de la tienda",
+      inputSchema: jsonSchema({ type: "object", properties: { dia: { type: "string" } } } as never),
+      execute: async () => ({ ok: true, resultado: { sabado: "9:00 a 18:00" } }),
+    });
+    const servidor = servidorAnthropic([
+      mensaje([{ type: "tool_use", id: "toolu_1", name: "horario_y_tienda", input: { dia: "sabado" } }], "tool_use", { input_tokens: 40, output_tokens: 12 }),
+      mensaje([{ type: "text", text: "Borrador que la guardia rechaza." }], "end_turn", { input_tokens: 60, output_tokens: 15 }),
+      mensaje([{ type: "text", text: "Abrimos el sábado de 9 a 6." }], "end_turn", { input_tokens: 70, output_tokens: 15 }),
+    ]);
+    const base = { modelo: modeloClaude(servidor.fetch), proveedor: "anthropic" as const, nivel: "rapido" as const, sistemaEstable: "estable", herramientas: { horario_y_tienda: horario } };
+    const pregunta = [{ role: "user" as const, content: "¿Abren el sábado?" }];
+    const primera = await correrTurno({ ...base, sistemaDinamico: "dinámico", mensajes: pregunta });
+    const segunda = await correrTurno({ ...base, sistemaDinamico: "dinámico + corrección", mensajes: [...pregunta, ...rondasDeHerramientas(primera.mensajes)] });
+
+    expect(segunda.texto).toBe("Abrimos el sábado de 9 a 6.");
+    const correccion = servidor.peticiones[2].cuerpo;
+    expect(correccion.tools.map((t: { name: string }) => t.name)).toEqual(["horario_y_tienda"]);
+    expect(correccion.messages.map((m: { role: string }) => m.role)).toEqual(["user", "assistant", "user"]);
+    expect(correccion.messages[1].content.map((c: { type: string }) => c.type)).toEqual(["tool_use"]);
+    expect(correccion.messages[2].content.map((c: { type: string }) => c.type)).toEqual(["tool_result"]);
+    expect(JSON.stringify(correccion.messages)).not.toContain("Borrador que la guardia rechaza");
   });
 
   it("con cachear: false no marca nada para la caché", async () => {

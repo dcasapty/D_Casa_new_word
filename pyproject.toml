@@ -24,3 +24,4 @@ section-order = ["future", "standard-library", "third-party", "first-party", "lo
 "__manifest__.py" = ["B018"]
 "addons/dcasa_conversaciones/tests/test_panel_interfaz.py" = ["E501"]  # JavaScript del navegador embebido en texto
 "addons/dcasa_conversaciones/tests/test_panel_visual.py" = ["E501"]  # JavaScript del navegador embebido en texto
+"addons/dcasa_conversaciones/tests/test_panel_citas.py" = ["E501"]  # JavaScript del navegador embebido en texto

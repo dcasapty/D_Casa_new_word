@@ -79,6 +79,9 @@
                     <button name="action_devolver_al_bot" type="object" string="Devolver al asistente"
                             class="btn-secondary" invisible="estado != 'humano' or bot_atiende"
                             confirm="El asistente vuelve a contestar a esta persona. ¿Seguir?"/>
+                    <button name="action_traspaso_atendido" type="object" string="Ya la atendí"
+                            class="btn-secondary" invisible="not traspaso_sin_atender_desde"
+                            confirm="Juan dejará de tratarla como «espera a una persona» y podrá volver a hacerle seguimiento. ¿Seguir?"/>
                     <button name="action_crear_oportunidad" type="object" string="Crear oportunidad"
                             class="btn-secondary" invisible="oportunidad_id"/>
                     <button name="action_reintentar_envios" type="object" string="Reintentar envíos"
@@ -114,6 +117,11 @@
                             <field name="oportunidad_id" invisible="not oportunidad_id"/>
                         </group>
                     </group>
+                    <div class="alert alert-warning" role="alert" invisible="not traspaso_sin_atender_desde">
+                        <strong>Espera a una persona desde</strong> <field name="traspaso_sin_atender_desde" class="d-inline"/>:
+                        Juan se la pasó y nadie del equipo le ha escrito, así que Juan no le hace seguimiento. Si ya la
+                        atendiste por otro lado (una llamada, en la tienda), pulsa «Ya la atendí».
+                    </div>
                     <div class="alert alert-secondary" role="alert" invisible="not nota_para_el_bot">
                         <strong>Nota para el asistente:</strong> <field name="nota_para_el_bot" class="d-inline"/>
                     </div>

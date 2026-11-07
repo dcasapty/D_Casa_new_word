@@ -154,6 +154,68 @@ class TestSofia(JuanCase):
         self.assertEqual(propuesta.usuario_id, self.vendedora)
         self.assertEqual(propuesta.prioridad, 3)
 
+    def test_contestar_a_quien_juan_paso_a_una_persona_y_nadie_atendio(self):
+        """Issue #25: si la pausa vence sin que nadie atienda, la conversación vuelve a Juan, pero el cliente sigue
+        esperando a una persona (y Juan ya no le manda «¿sigues interesado?»). Sofía lo pone en «Contéstale»."""
+        partner, conv, lead = self.cliente('Mario Espera', '+507 6000-3040', vendedora=self.vendedora, estado='bot',
+                                           autor='bot', horas_sin_escribir=3, correo='mario.espera@example.com')
+        conv.traspaso_sin_atender_desde = fields.Datetime.now() - timedelta(hours=3)
+        self.analizar()
+        propuesta = self.propuestas(partner_id=partner.id)
+        self.assertEqual(propuesta.tipo, 'contestar')
+        self.assertEqual(propuesta.titulo, 'Contéstale: espera respuesta')
+        self.assertIn('nadie le ha escrito', propuesta.motivo)
+
+    def test_contestar_tambien_mientras_la_pausa_sigue_y_el_ultimo_mensaje_es_de_juan(self):
+        partner, conv, lead = self.cliente('Mario Pausa', '+507 6000-3041', vendedora=self.vendedora, estado='humano',
+                                           autor='bot', horas_sin_escribir=3, correo='mario.pausa@example.com')
+        conv.traspaso_sin_atender_desde = fields.Datetime.now() - timedelta(hours=3)
+        self.analizar()
+        self.assertEqual(self.propuestas(partner_id=partner.id).tipo, 'contestar')
+
+    def test_un_contestar_por_traspaso_descartado_no_vuelve_con_cada_mensaje(self):
+        """Revisión adversarial: mientras la conversación sigue marcada, lo descartado no vuelve cada vez que el cliente
+        escribe (Juan le contesta); vuelve con un traspaso nuevo."""
+        partner, conv, lead = self.cliente('Mario Descarta', '+507 6000-3043', vendedora=self.vendedora, estado='bot',
+                                           autor='bot', horas_sin_escribir=3, correo='mario.descarta@example.com')
+        conv.traspaso_sin_atender_desde = fields.Datetime.now() - timedelta(hours=3)
+        self.analizar()
+        propuesta = self.propuestas(partner_id=partner.id, tipo='contestar')
+        self.assertEqual(len(propuesta), 1)
+        self.Sofia.with_user(self.vendedora).descartar(propuesta.id)
+        conv.write({'ultimo_cliente_msg_id': conv.ultimo_cliente_msg_id + 7,    # escribió otra vez y Juan le contestó
+                    'ultimo_mensaje_cliente': fields.Datetime.now() - timedelta(hours=2)})
+        self.Sofia.sudo()._analizar('boton')
+        self.assertFalse(self.propuestas(partner_id=partner.id, tipo='contestar'))
+        conv.traspaso_sin_atender_desde = fields.Datetime.now() - timedelta(hours=2)   # Juan se la pasó otra vez
+        self.Sofia.sudo()._analizar('boton')
+        self.assertTrue(self.propuestas(partner_id=partner.id, tipo='contestar'))
+
+    def test_tambien_si_sigue_en_la_pausa_y_el_cliente_escribe_otra_vez(self):
+        """Lo mismo con la pausa todavía corriendo (el último mensaje es del cliente): mientras sigue marcada, el «no»
+        de la vendedora vale para esa espera; cuando alguien le escribe y se desmarca, cada mensaje nuevo vuelve a
+        contar."""
+        partner, conv, lead = self.cliente('Mario Insiste', '+507 6000-3044', vendedora=self.vendedora,
+                                           estado='humano', autor='cliente', horas_sin_escribir=3,
+                                           correo='mario.insiste@example.com')
+        conv.write({'traspaso_sin_atender_desde': fields.Datetime.now() - timedelta(hours=3),
+                    'ultimo_cliente_msg_id': 100})
+        self.analizar()
+        self.Sofia.with_user(self.vendedora).descartar(self.propuestas(partner_id=partner.id, tipo='contestar').id)
+        conv.write({'ultimo_cliente_msg_id': 101, 'ultimo_mensaje_cliente': fields.Datetime.now() - timedelta(hours=2)})
+        self.Sofia.sudo()._analizar('boton')
+        self.assertFalse(self.propuestas(partner_id=partner.id, tipo='contestar'))
+        conv.write({'traspaso_sin_atender_desde': False, 'ultimo_cliente_msg_id': 102})
+        self.Sofia.sudo()._analizar('boton')
+        self.assertTrue(self.propuestas(partner_id=partner.id, tipo='contestar'))
+
+    def test_un_traspaso_de_hace_minutos_todavia_no_es_contestar(self):
+        partner, conv, lead = self.cliente('Mario Recién', '+507 6000-3042', vendedora=self.vendedora, estado='humano',
+                                           autor='bot', horas_sin_escribir=0.2, correo='mario.recien@example.com')
+        conv.traspaso_sin_atender_desde = fields.Datetime.now() - timedelta(minutes=10)
+        self.analizar()
+        self.assertFalse(self.propuestas(partner_id=partner.id, tipo='contestar'))
+
     def test_recordar_la_cotizacion_que_vence(self):
         partner, conv, lead = self.cliente('Marta Cotiza', '+507 6000-3009', temperatura=CRM.FRIO,
                                            vendedora=self.vendedora, correo='marta@example.com')

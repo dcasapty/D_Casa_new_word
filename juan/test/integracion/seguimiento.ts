@@ -137,7 +137,7 @@ export function seccionSeguimiento(e: Escena) {
       await e.ventas.llamar("dcasa.conversacion", "devolver", [c.id]);
     });
 
-    it("el Worker se defiende solo: no envía un seguimiento si el cliente ya volvió a escribir y se lo dice a Odoo (descartado)", async () => {
+    it("el Worker se defiende solo: no envía un seguimiento si el cliente ya volvió a escribir, y ese «descartado» no cierra el ciclo nuevo", async () => {
       const otro = celularNuevo();
       e.w.ia.guionar([{ texto: "Hola, ¿qué buscas?" }]);
       await e.w.cliente(otro, "Hola, quiero una cama");
@@ -152,11 +152,11 @@ export function seccionSeguimiento(e: Escena) {
       expect(r.estado).toBe(200);
       expect(r.json).toMatchObject({ ok: true, resultado: "descartado" });
       expect(e.w.puente.envios.length).toBe(envios);
-      const despues = await esperarHasta("Odoo recibe el descartado", async () => {
-        const x = (await e.conversacionDe(otro))!;
-        return x.seguimientos_enviados >= 1 ? x : false;
-      });
-      expect(despues.seguimiento_proximo).toBeFalsy();
+      // El Worker le avisa a Odoo (seguimiento/hecho) ANTES de contestar. Ese aviso es de un ciclo que el cliente ya
+      // reinició al escribir: Odoo no lo cierra (issue #25; antes quedaba en 2 y el ciclo nuevo se quedaba sin seguimientos).
+      const despues = (await e.conversacionDe(otro))!;
+      expect(despues.seguimientos_enviados).toBe(0);
+      expect(despues.seguimiento_pedido_en).toBeFalsy();
     });
   });
 }

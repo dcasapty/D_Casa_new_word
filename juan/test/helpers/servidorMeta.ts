@@ -25,6 +25,8 @@ export interface RespuestaDeMeta {
   salida?: number;
   /** Fuerza un error HTTP (402, 429, 500...). */
   estado?: number;
+  /** El texto del razonamiento, como lo devuelven los servidores compatibles que razonan (`reasoning_content`). */
+  razonamiento?: string;
 }
 
 export interface OpcionesServidorMeta {
@@ -67,6 +69,12 @@ export function crearServidorMeta(op: OpcionesServidorMeta) {
     if ("max_tokens" in cuerpo) return rechazar(400, "max_tokens is deprecated for this model; use max_completion_tokens");
     if (cuerpo.tool_choice !== undefined && cuerpo.tool_choice !== "auto") return rechazar(400, 'only "auto" is supported for tool_choice');
     if (typeof cuerpo.max_completion_tokens !== "number") return rechazar(400, "max_completion_tokens is required");
+    // Como la API de OpenAI: un mensaje «tool» tiene que contestar una llamada (`tool_calls`) de un mensaje anterior del asistente.
+    const llamadasHechas = new Set<string>();
+    for (const m of (cuerpo.messages ?? []) as { role: string; tool_calls?: { id: string }[]; tool_call_id?: string }[]) {
+      for (const l of m.tool_calls ?? []) llamadasHechas.add(l.id);
+      if (m.role === "tool" && !llamadasHechas.has(m.tool_call_id ?? "")) return rechazar(400, "messages with role 'tool' must be a response to a preceding message with 'tool_calls'");
+    }
 
     const r = op.guion(peticion, n);
     if (r.estado) return rechazar(r.estado, `error simulado ${r.estado}`);
@@ -96,7 +104,7 @@ export function crearServidorMeta(op: OpcionesServidorMeta) {
       });
     }
 
-    const mensaje: Record<string, unknown> = { role: "assistant", content: r.texto ?? null };
+    const mensaje: Record<string, unknown> = { role: "assistant", content: r.texto ?? null, ...(r.razonamiento ? { reasoning_content: r.razonamiento } : {}) };
     if (r.llamadas?.length) {
       mensaje.tool_calls = r.llamadas.map((l, i) => ({ id: `call_${n}_${i}`, type: "function", function: { name: l.nombre, arguments: JSON.stringify(l.args) } }));
     }

@@ -58,7 +58,7 @@ permisos y lo que hace cada botón son los mismos de antes (`static/src/`; el se
 
 | Tipo | Cuándo | Qué se aprueba |
 |---|---|---|
-| Contestarle | Una vendedora tiene el chat y el cliente le escribió hace más de 1 hora (y menos de 7 días) sin respuesta. | Abrir el chat. |
+| Contestarle | Una vendedora tiene el chat y el cliente le escribió hace más de 1 hora (y menos de 7 días) sin respuesta. También: Juan se lo pasó a una persona hace más de 1 hora y nadie del equipo le ha escrito, aunque la pausa ya venció y el chat volvió a Juan (issue #25: Juan ya no le manda su seguimiento). Descartada en ese caso, no vuelve con cada mensaje nuevo del cliente mientras siga esperando por ese traspaso; vuelve con el siguiente traspaso. | Abrir el chat. |
 | Su cotización vence | Cotización sin confirmar (borrador o enviada) que vence hoy o mañana y el cliente tiene chat. | Mensaje de recordatorio (abrir el chat con él, enviarlo ya o crear tarea). |
 | Escribirle | Tibio o caliente al que ninguna vendedora le escribió en 24 horas («A quién escribirle hoy»). | Mensaje de seguimiento según su estado: tiene cotización, dijo para cuándo, o le interesó algo. |
 | Pedir sus datos | Tibio o caliente cuya ficha no tiene nombre y apellido de verdad o no tiene correo. Si además toca escribirle, va al final del mismo mensaje. | El mensaje que pide los datos. |

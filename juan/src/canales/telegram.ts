@@ -4,6 +4,11 @@
 // Un archivo de Telegram NO se puede abrir con su file_id: hay que pedir `getFile` y bajarlo de una URL
 // que lleva el token del bot adentro. Esa URL nunca sale de aquí (ni a Odoo ni al modelo): se descargan
 // los bytes y el motor los guarda con su propia URL temporal y firmada.
+//
+// Citas, reenviados y reacciones (2026-11-07): `reply_to_message` (y `quote`, si el cliente eligió un pedazo) trae el mensaje
+// citado CON su texto; `forward_origin` (o el viejo `forward_date`) dice que es reenviado; `message_reaction` llega solo si el
+// webhook se registró con `allowed_updates` que lo incluya (docs/JUAN_CANALES.md §2) y sale como evento, nunca como mensaje.
+// Telegram no les da a los bots «entregado» ni «leído»: en Telegram no hay palomitas.
 
 import type { Env } from "../env";
 import { tokensIguales } from "../seguridad";
@@ -45,11 +50,45 @@ export interface TgMensaje {
   photo?: (TgArchivo & { width: number; height: number })[];
   document?: TgArchivo;
   video?: TgArchivo;
+  /** El mensaje que el cliente citó (de este mismo chat). */
+  reply_to_message?: Omit<TgMensaje, "reply_to_message">;
+  /** El pedazo que el cliente eligió del mensaje citado, si eligió uno. */
+  quote?: { text?: string };
+  /** Reenviado (Bot API 7); los clientes viejos mandan `forward_date`. */
+  forward_origin?: { type?: string };
+  forward_date?: number;
 }
+
+type TgReaccion = { type: "emoji"; emoji: string } | { type: string; emoji?: string };
 
 export interface TgUpdate {
   update_id: number;
   message?: TgMensaje;
+  message_reaction?: {
+    chat: { id: number; type: string };
+    message_id: number;
+    user?: { id: number; is_bot?: boolean };
+    date: number;
+    old_reaction?: TgReaccion[];
+    new_reaction?: TgReaccion[];
+  };
+}
+
+/** Lo que se ve de un mensaje citado: su texto, o qué era si no tenía texto. */
+function textoDeCitado(m: Omit<TgMensaje, "reply_to_message">, elegido?: string): string | undefined {
+  const texto = (elegido ?? m.text ?? m.caption ?? "").trim();
+  if (texto) return texto.slice(0, 300);
+  if (m.photo?.length) return "Foto";
+  if (m.voice || m.audio) return "Audio";
+  if (m.video) return "Video";
+  if (m.document) return "Documento";
+  return undefined;
+}
+
+/** `tg:<chat>:<id>` → el id del mensaje, si es de ese chat (para citarlo al responder). */
+function idDeMensajeTelegram(id: string | undefined, chat: string): number | undefined {
+  const m = id ? /^tg:(-?\d+):(\d+)$/.exec(id) : null;
+  return m && m[1] === chat ? Number(m[2]) : undefined;
 }
 
 export interface OpcionesTelegram {
@@ -122,6 +161,21 @@ export function crearTelegram(op: OpcionesTelegram = {}): AdaptadorCanal {
       } catch {
         return nada(ok200());
       }
+      // Una reacción del cliente (solo si el webhook pidió `message_reaction`): un evento, no un mensaje.
+      const reaccion = update.message_reaction;
+      if (reaccion) {
+        if (reaccion.chat?.type !== "private" || !reaccion.user || reaccion.user.is_bot) return nada(ok200());
+        // Telegram deja varias por persona (las de pago, emojis propios): vale el último emoji normal; ninguno = la quitó.
+        const nuevas = reaccion.new_reaction ?? [];
+        const emoji = [...nuevas].reverse().find((r) => r.type === "emoji" && typeof r.emoji === "string")?.emoji ?? "";
+        if (nuevas.length > 0 && !emoji) return nada(ok200());
+        const chat = String(reaccion.chat.id);
+        return {
+          respuesta: ok200(),
+          entrantes: [],
+          eventos: [{ tipo: "reaccion", canal: "telegram", id_externo: chat, id_mensaje: `tg:${chat}:${reaccion.message_id}`, emoji: emoji.slice(0, 32), ts: reaccion.date * 1000 }],
+        };
+      }
       const msg = update.message;
       // Botones, ediciones, altas en grupos: nada que contestar. Siempre 200 (un error haría reintentar a Telegram).
       if (!msg || msg.chat.type !== "private" || msg.from?.is_bot) return nada(ok200());
@@ -142,6 +196,7 @@ export function crearTelegram(op: OpcionesTelegram = {}): AdaptadorCanal {
       if (msg.document) adjuntos.push(descargable(token, msg.document, "documento"));
       if (msg.video) adjuntos.push(descargable(token, msg.video, "video"));
 
+      const citado = msg.reply_to_message;
       const entrante: Entrante = {
         canal: "telegram",
         id_externo: String(msg.chat.id),
@@ -151,6 +206,10 @@ export function crearTelegram(op: OpcionesTelegram = {}): AdaptadorCanal {
         texto: comando === "/start" ? "Hola" : texto || undefined,
         adjuntos,
         ts: msg.date * 1000,
+        ...(citado?.message_id !== undefined
+          ? { cita: { id: `tg:${msg.chat.id}:${citado.message_id}`, ...(textoDeCitado(citado, msg.quote?.text) ? { texto: textoDeCitado(citado, msg.quote?.text) } : {}), deLaTienda: !!citado.from?.is_bot } }
+          : {}),
+        ...(msg.forward_origin || msg.forward_date ? { reenviado: "una" as const } : {}),
       };
       if (!entrante.texto && adjuntos.length === 0) return nada(ok200());
       return { respuesta: ok200(), entrantes: [entrante] };
@@ -163,16 +222,24 @@ export function crearTelegram(op: OpcionesTelegram = {}): AdaptadorCanal {
       const ids: string[] = [];
       let burbujas = 0;
       let medios = 0;
+      // «Responder» desde Odoo: el primer mensaje cita al del cliente (si ya no existe, sale igual, sin la cita).
+      const citado = idDeMensajeTelegram(salida.responderA, chat);
+      let cita: Record<string, unknown> = citado !== undefined ? { reply_parameters: { message_id: citado, allow_sending_without_reply: true } } : {};
+      const usarCita = () => {
+        const c = cita;
+        cita = {};
+        return c;
+      };
       try {
         for (let i = 0; i < salida.burbujas.length; i++) {
           if (i > 0) await dormir(salida.esperaMs ?? 1000);
-          const r = await llamar(token, "sendMessage", { chat_id: chat, text: sinNegritas(salida.burbujas[i]) });
+          const r = await llamar(token, "sendMessage", { chat_id: chat, text: sinNegritas(salida.burbujas[i]), ...usarCita() });
           burbujas++;
           if (r.message_id !== undefined) ids.push(`tg:${chat}:${r.message_id}`);
         }
         for (const m of salida.medios) {
           const esFoto = m.tipo === "imagen";
-          const pie = m.pie ? { caption: sinNegritas(m.pie).slice(0, 1000) } : {};
+          const pie = { ...(m.pie ? { caption: sinNegritas(m.pie).slice(0, 1000) } : {}), ...usarCita() };
           let r: { message_id?: number };
           try {
             r = await llamar(token, esFoto ? "sendPhoto" : "sendDocument", { chat_id: chat, [esFoto ? "photo" : "document"]: m.url, ...pie });

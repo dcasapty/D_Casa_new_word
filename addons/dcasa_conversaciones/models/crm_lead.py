@@ -20,6 +20,7 @@ from odoo import api, fields, models, modules
 from odoo.exceptions import ConcurrencyError, UserError
 from odoo.fields import Domain
 from odoo.service.model import PG_CONCURRENCY_EXCEPTIONS_TO_RETRY
+from odoo.tools import html2plaintext
 
 from . import crm_reglas as R
 
@@ -31,6 +32,9 @@ ESTADOS_COTIZADA = ('sent', 'sale')
 LOTE_DEL_CRON = 200   # oportunidades por tanda; entre una tanda y otra se cierra la transacción
 HORAS_SIN_CONTACTO = 24   # «a quién escribirle hoy»: ninguna vendedora le escribió en las últimas 24 horas
 FACTURA_PAGADA = ('paid', 'in_payment')   # como en «Socios» y en el seguimiento: ``_dcasa_conv_ya_compro``
+# Una nota igual a una de las últimas de la oportunidad no se repite (issue #25): cada ``crear_oportunidad`` con el
+# mismo resumen y la temperatura que va y viene dejaban la misma nota una y otra vez.
+NOTAS_SIN_REPETIR = 5
 
 
 class CrmLead(models.Model):
@@ -135,7 +139,21 @@ class CrmLead(models.Model):
         return bool(self.env['dcasa.juan.ajustes'].obtener().crm_automatico)
 
     def _dcasa_nota(self, texto):
-        self.sudo().message_post(body=escape(texto), subtype_xmlid='mail.mt_note')
+        self._dcasa_publicar_nota(escape(texto))
+
+    def _dcasa_publicar_nota(self, cuerpo):
+        """Nota interna en la oportunidad, salvo que sea igual a una de sus ``NOTAS_SIN_REPETIR`` últimas notas.
+        Devuelve ``True`` si la publicó."""
+        self.ensure_one()
+        texto = html2plaintext(cuerpo or '').strip()
+        nota = self.env.ref('mail.mt_note')
+        recientes = self.env['mail.message'].sudo().search([
+            ('model', '=', self._name), ('res_id', '=', self.id), ('subtype_id', '=', nota.id)],
+            order='id desc', limit=NOTAS_SIN_REPETIR)
+        if any(html2plaintext(m.body or '').strip() == texto for m in recientes):
+            return False
+        self.sudo().message_post(body=cuerpo, subtype_xmlid='mail.mt_note')
+        return True
 
     def _dcasa_seguro(self, que, funcion):
         """Corre ``funcion`` y NUNCA deja que su error llegue a quien llamó (una cotización, una herramienta)."""
@@ -259,6 +277,8 @@ class CrmLead(models.Model):
                 ('dcasa_zona_entrega', zona, self.env._('su zona de entrega')),
                 ('dcasa_para_cuando', cuando, self.env._('para cuándo lo quiere'))):
             valor = R.limpiar_dato(dato)
+            if campo == 'dcasa_zona_entrega' and R.parece_direccion_exacta(valor):
+                valor = ''   # la zona es el barrio o el distrito, nunca la dirección exacta (Ley 81; issue #25)
             if not valor:
                 continue
             actual = self[campo]

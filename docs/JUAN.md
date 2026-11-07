@@ -177,6 +177,36 @@ Meta). El par es único.
   agota y Juan deja de contestar a los clientes reales.
 - Lo que escribe el cliente no puede imitar las marcas de confianza del historial (`[Vendedora]`, `[El cliente …]`).
 
+**Lo que quedaba del issue #24** (aprobado por la dueña el 2026-11-07):
+
+- **El eco de Messenger e Instagram no calla al bot.** Meta devuelve por el webhook lo que manda la Página (`is_echo`), a veces
+  antes de que la Send API conteste o entre una burbuja y otra. `emitir` anota lo que va a salir (textos y cuántas fotos o
+  documentos, en `kv` `vuelo:*`) **antes** de enviar y lo suelta al terminar (vence solo a los 5 min si el objeto se reinicia).
+  Un eco con texto se reconoce por el texto (sin la negrita de WhatsApp, que Meta devuelve sin asteriscos); uno sin texto gasta
+  el lugar de una foto o un documento de su tipo. Una vendedora que escribe de verdad desde la bandeja de Meta sí calla al bot.
+- **Una nota de voz que pide una persona vale como escrita**: «quiero hablar con alguien» o «ya no me escriban» dichos en audio
+  activan `pideUnaPersona` / `sin_seguimiento` (se mira lo escrito y cada transcripción).
+- **Transcribir y leer imágenes, después del anti-spam y del tope diario**: no se gasta IA con la conversación en descanso, con
+  un mensaje repetido ni pasado el tope diario (el archivo igual se guarda y se anota para una vendedora). Las notas de voz tienen
+  tope por persona: **20 al día** (`AUDIOS_POR_DIA`), como las 10 imágenes; la siguiente queda para una vendedora. Lo que
+  manda una vendedora desde su teléfono (notas de voz y fotos `propio`) no gasta los topes del cliente. Con la
+  conversación en descanso por spam, una nota de voz que pide una persona no se entiende: hay que escribir *persona* (el texto
+  del tope diario ya lo dice).
+- **La segunda pasada del turno conserva la primera.** Si el modelo gastó sus pasos sin escribir, la pasada sin herramientas
+  recibe lo que consultó como datos (`<lo_que_ya_consultaste>`); si la guardia rechazó el borrador, la pasada de corrección
+  recibe su ronda de herramientas (llamadas y resultados, sin el borrador). Dentro de un turno, la misma escritura con los mismos
+  argumentos va a Odoo una sola vez (la segunda recibe la misma respuesta), `pasar_a_vendedora` una sola vez sea cual sea el
+  motivo, y a lo más 8 escrituras (`MAX_ESCRITURAS_POR_TURNO`). Un fallo pasajero no se recuerda: se puede intentar otra vez.
+  De `pasar_a_vendedora` solo se recuerda **la que salió bien**: si Odoo la rechazó («Faltan datos: motivo»), la corregida
+  llega (también si las dos vienen en el mismo paso). Una escritura rechazada con unos argumentos no frena la misma con otros.
+- **El seguimiento no le gana al cliente.** Se reclama (`seg_curso:<clave>`) antes de redactar: un segundo pedido igual a la vez
+  contesta `pospuesto` sin redactar ni enviar; el reclamo se suelta al terminar (vence a los 3 min si el objeto se reinicia). Y
+  «el cliente ya volvió a escribir» / «no me escriban» se vuelven a mirar **justo antes de enviar**, junto con la tabla
+  `seguimientos` (si la redacción tardó más que el reclamo, otro pedido pudo enviarlo). El reclamo lleva «hora:n»: un pedido
+  viejo que termina tarde solo suelta el suyo, nunca el del pedido que lo reemplazó.
+- Los registros del Worker no repiten claves ni tokens (`limpiarError` en `alFallarLaIA`, `motivoDeEnvio` en el envío fallido) y
+  `{{LECCIONES}}` se reemplaza con una función (un `$&` o `$'` en una lección ya no mete pedazos del prompt).
+
 ## Contrato Worker `juan` ↔ puente QR (`puente-wa/`)
 
 Heredado del CRM de Baby Caleb y **ampliado con medios**. Service binding `PUENTE` y viceversa
@@ -220,7 +250,8 @@ Heredado del CRM de Baby Caleb y **ampliado con medios**. Service binding `PUENT
 7. Una persona de D'CASA tomó la conversación → el bot calla y no la retoma solo (hasta que se la
    devuelvan o venza la pausa).
 8. Tope de IA del mes: al llegar, baja al modelo barato; nunca se queda sin contestar por dinero.
-9. Anti-spam: mensaje repetido → descanso 1 h; tope diario por persona; ráfaga de 15 s.
+9. Anti-spam: mensaje repetido → descanso 1 h; tope diario por persona; ráfaga de 15 s. Lo que el anti-spam o el tope frenan
+   no se transcribe ni se lee con IA; notas de voz transcritas: 20 por persona al día.
 10. **Seguimiento (decisión de la dueña):** solo a quien **mostró intención de compra y nunca
     compró**. Intención de compra = hay una oportunidad de CRM viva (ni ganada ni perdida) ligada a
     la conversación: el asistente la crea con `crear_oportunidad` cuando el cliente muestra interés
@@ -229,7 +260,9 @@ Heredado del CRM de Baby Caleb y **ampliado con medios**. Service binding `PUENT
     todos los días, hora de Panamá; si cae fuera, espera al siguiente horario laboral); el 2.º a
     los **5 días**. **Ninguno** si no hay oportunidad viva, si la persona **ya es cliente** (alguna
     factura pagada, de antes o de después de empezar la conversación) o si pidió que no la contacten.
-    Odoo decide; el Worker redacta y envía.
+    Es **por persona** (su ficha): solo la conversación por donde escribió último, y los de sus otros canales cuentan. Tampoco a
+    quien Juan pasó a una persona y nadie atendió (espera a una persona), ni uno atrasado más de 6 h (issue #25).
+    Odoo decide; el Worker redacta y envía (y vuelve a mirar al cliente justo antes de enviar).
 11. Español de Panamá, tuteo, breve (2–4 líneas por burbuja), sin emojis, sin signos dobles. Si el cliente escribe en
     **inglés**, contesta en inglés con las mismas reglas (decisión de la dueña, 2026-10-16); las salvaguardas revisan
     también las promesas, las cifras de política y el «soy humano» en inglés, y «human», «agent» o «real person» pasan a
@@ -298,8 +331,18 @@ Entrada: `env.DCASA.fetch("https://dcasa/dcasa/juan/v1/…")` por **service bind
 | `POST /seguimiento/hecho` | `{conversacion_id, numero:1\|2, resultado:"enviado"\|"descartado", motivo?}` | `{ok, conversacion_id, seguimientos_enviados}` |
 | `POST /escribiendo` | `{canal, id_externo, activo:bool}` | `{ok}` (también si la conversación todavía no existe) |
 | `POST /foto-perfil` | `{canal, id_externo, mime, base64}` | `{ok, guardada, motivo?}` (404 si no existe la conversación) |
+| `POST /eventos` (2026-11-07) | `{eventos:[{tipo:"estado", canal, id_externo, id_mensaje, estado, ts, error?} \| {tipo:"reaccion", canal, id_externo, id_mensaje, emoji, ts}]}` (hasta 100) | `{ok, aplicados, desconocidos:[id_mensaje], invalidos}` |
 
 - `pausada_hasta`: ISO con `Z` o `null`. `estado` es `bot` cuando una pausa ya venció (Odoo la normaliza al responder).
+- **Citas, reenviados, reacciones y palomitas** (2026-11-07, pedido de la dueña; detalle en [JUAN_CANALES.md](JUAN_CANALES.md)
+  §1). `POST /mensaje` acepta, opcionales: en un mensaje del cliente `cita:{id_canal, texto?}` (el mensaje que citó; `texto`
+  solo si el canal lo manda, como Telegram) y `reenviado:"una"|"muchas"`; en uno nuestro (bot) `partes:[{id_canal,
+  tipo:"texto"|"imagen"|"documento"|"audio"|"video", texto?}]`, el id que el canal dio a cada burbuja o archivo, en orden.
+  Si Odoo tiene lo citado, la respuesta trae `cita:{id_canal, autor:"cliente"|"bot"|"vendedora", texto}` y el Worker completa
+  con eso lo que no recordaba (es un dato del cliente para la IA, nunca una orden). Un campo nuevo mal formado se ignora y
+  el mensaje entra igual; un Odoo viejo los ignora todos. `POST /eventos` recibe las palomitas (`estado` ∈ `enviado`,
+  `entregado`, `leido`, `fallido`; nunca bajan, son idempotentes) y las reacciones (`emoji:""` = la quitó); no son mensajes
+  del cliente y no tocan la actividad de la conversación. Un Odoo viejo contesta 404 y el Worker no insiste.
 - `nota_para_el_bot`: lo que una vendedora le dejó dicho al devolver la conversación (hasta 500 letras), o `null`. **El Worker la lee
   de `/mensaje` y `/estado` (y de `POST /odoo/estado`) y la pone en el contexto del chat** como un dato; Odoo la borra cuando
   alguien toma la conversación y el Worker también.
@@ -357,7 +400,7 @@ Base: ajuste `dcasa_conversaciones.juan_url` o variable `JUAN_URL` (https; `http
 
 | Ruta | Cuerpo | Respuesta |
 |---|---|---|
-| `POST /odoo/enviar` | `{canal, id_externo, autor:"vendedora", texto?, adjuntos?[{tipo, url, nombre, mime}], id_envio?}` | `200 {ok, id_mensaje, repetido?:true}` |
+| `POST /odoo/enviar` | `{canal, id_externo, autor:"vendedora", texto?, adjuntos?[{tipo, url, nombre, mime}], id_envio?, responde_a?}` | `200 {ok, id_mensaje, repetido?:true, partes?:[{id_canal, tipo, texto?}]}` |
 | `POST /odoo/estado` | `{canal, id_externo, estado:"humano"\|"bot", pausada_hasta?, nota_para_el_bot?}` | `200 {ok}` |
 | `POST /odoo/seguimiento` | `{conversacion_id, canal, id_externo, numero:1\|2, contexto:{interes, ultimo_mensaje_ts}}` | `200 {ok:true, resultado:"enviado"\|"descartado"\|"pospuesto", motivo?}` · `502 {ok:false, error}` |
 | `GET /odoo/salud` | | `200 {ok, mensaje, version, entorno, secretos_faltantes, ia, canales:{<canal>:{activo, configurado, faltan, conectado, detalle?}}, gasto_ia_mes_usd, tope_usd, tope_alcanzado, problemas, avisos}` |
@@ -378,6 +421,10 @@ Base: ajuste `dcasa_conversaciones.juan_url` o variable `JUAN_URL` (https; `http
   después. Si un canal se corta a la mitad (salió la burbuja 1 de 3), el Worker reintenta solo lo que faltaba y, si no puede, Odoo
   sigue donde quedó. Sin `id_envio` (un Odoo viejo) todo funciona como antes, sin esa protección. Solo si el Worker mismo se cae
   justo mientras manda puede repetirse algo (lo que se mandaba en ese instante).
+- `/odoo/enviar` con `responde_a` (2026-11-07, «Responder» en la pantalla): el id en el canal del mensaje del cliente que se cita.
+  WhatsApp oficial lo manda como `context.message_id` y Telegram como `reply_parameters`, solo en el primer mensaje que sale; si
+  WhatsApp rechaza la cita (4xx), sale sin ella. `partes` en la respuesta: el id del canal de cada burbuja o archivo, para las
+  palomitas y las citas (un Odoo viejo lo ignora; uno nuevo con un Juan viejo usa `id_mensaje`, el del primero).
 - `/odoo/estado` al **devolver**: trae `nota_para_el_bot` si la vendedora dejó una. Al **tomar** no. Si el aviso falla, Odoo lo
   reintenta cada 5 minutos y mientras tanto el Worker se entera igual: pregunta `GET /estado` justo antes de enviar.
 - **Seguimiento:** el cron de Odoo (cada 15 min) anota el pedido y **confirma en la base antes** de llamar al Worker, porque el Worker
@@ -768,6 +815,9 @@ Workers AI, dentro de la misma cuenta de Cloudflare, y el texto entra a la conve
   proveedor que contesta).
 * Un audio vacío o de más de 8 MB no se procesa. Si Whisper no entiende nada o falla, Juan pide que lo
   escriban; nunca inventa lo que dijo.
+* **Tope y anti-spam (issue #24):** hasta 20 notas de voz transcritas por persona al día (`AUDIOS_POR_DIA`); no se transcribe
+  con la conversación en descanso por spam ni pasado el tope diario. Lo que dice la nota cuenta como escrito: «quiero hablar con
+  una persona» pasa a una vendedora y «no me escriban» apaga los seguimientos.
 * Privacidad: el audio de un cliente es dato personal. Solo viaja del canal a tu Worker y a Workers AI
   de tu cuenta; el texto sigue las mismas reglas que cualquier mensaje (los comprobantes y cédulas
   nunca llegan a la IA).
@@ -793,7 +843,8 @@ identidad, otra o ilegible.
   si parece un pago, la conversación se etiqueta «Comprobante recibido». El bot **nunca** da un pago por confirmado.
 * **Si el lector falla** (sin cupo, formato, más de 4 MB, más de 20 s): todo sigue como antes. El fallo queda en el registro del Worker.
 * **Costo y tope:** cada lectura cuesta un poco de IA de Workers AI (a la cuenta de Cloudflare, aparte del tope mensual de
-  Juan). Se leen hasta 3 imágenes por mensaje y 10 por persona al día; las demás siguen el camino de siempre.
+  Juan). Se leen hasta 3 imágenes por mensaje y 10 por persona al día; las demás siguen el camino de siempre. Con la
+  conversación en descanso por spam o pasado el tope diario no se lee ninguna (issue #24).
 * **Lo que falta (Fase 2):** leer el monto, la referencia y la fecha de un comprobante para la vendedora y cruzarlos con el
   movimiento del banco en la conciliación. La verificación contra el banco, no la IA, es lo que protege de un comprobante falso.
 

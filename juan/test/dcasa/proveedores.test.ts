@@ -209,6 +209,30 @@ describe("el motor contesta con Meta (servidor falso)", () => {
     expect(m.canal.textos.join("\n")).toContain("$499.00 + ITBMS");
   });
 
+  it("la pasada de corrección le devuelve a Meta su ronda de herramientas bien armada, con razonamiento y sin el borrador", async () => {
+    const { m, servidor } = mundoMeta((n) =>
+      n === 0
+        ? { razonamiento: "Busco el producto y lo anoto.", llamadas: [{ nombre: "ver_producto", args: { codigo: "CAMA-Q-001" } }, { nombre: "anotar_conversacion", args: { nota: "Quiere la queen." } }] }
+        : n === 1
+          ? { razonamiento: "Escribo la respuesta.", texto: "La Cama Queen Milán cuesta $1,234.00 + ITBMS." } // precio inventado: corrección
+          : { texto: "La Cama Queen Milán cuesta $499.00 + ITBMS." },
+    );
+    await m.conversar("quiero la cama queen");
+    expect(servidor.rechazos).toEqual([]);
+    expect(servidor.peticiones).toHaveLength(3);
+    const correccion = servidor.peticiones[2].cuerpo as { messages: { role: string; content?: unknown; tool_calls?: { id: string }[]; tool_call_id?: string }[]; tools?: unknown[]; tool_choice?: string };
+    expect(correccion.messages.map((x) => x.role)).toEqual(["system", "user", "assistant", "tool", "tool"]);
+    expect(correccion.messages[2].tool_calls?.map((l) => l.id)).toEqual(correccion.messages.slice(3).map((x) => x.tool_call_id));
+    expect(JSON.stringify(correccion.messages)).toContain("160 x 200 cm");
+    // El borrador rechazado no vuelve como mensaje del asistente (la nota de corrección del sistema sí lo cita).
+    expect(JSON.stringify(correccion.messages.slice(1))).not.toContain("1,234");
+    expect(JSON.stringify(correccion.messages[2])).toContain("Busco el producto y lo anoto.");
+    expect(correccion.tools?.length).toBeGreaterThan(0);
+    expect(correccion.tool_choice).toBe("auto");
+    expect(m.odoo.de("anotar_conversacion")).toHaveLength(1);
+    expect(m.canal.textos.at(-1)).toContain("$499.00 + ITBMS");
+  });
+
   it("la guardia de salida es la misma con Meta: un precio inventado no sale", async () => {
     const { m } = mundoMeta((n) => (n === 0 ? { texto: "Esa cama te sale en $350." } : { texto: "Eso te lo confirma una vendedora." }));
     await m.conversar("¿cuánto cuesta la cama?");

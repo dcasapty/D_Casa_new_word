@@ -49,6 +49,43 @@ Meta, guiada paso a paso:
   como «escrito por una vendedora» (los «ecos» de la coexistencia). El adaptador ya los trata así, pero la forma exacta del
   aviso no se verificó contra la documentación de Meta.
 
+### Citas, reenviados, reacciones y palomitas (2026-11-07)
+
+Pedido de la dueña: «solamente vemos la palabra "este" y no vemos lo que realmente nos envió… no vemos si se entregó».
+No hace falta tocar nada en Meta: todo llega por la misma suscripción a los mensajes (`messages`) del número.
+
+| Qué manda Meta | Qué hace Juan | Qué se ve en Odoo |
+|---|---|---|
+| `messages[].context` con `{from, id}` (el cliente respondió a un mensaje) | El mensaje viaja con `cita.id`; Juan busca lo citado en su memoria (o se lo dice Odoo) y se lo muestra a la IA como `[El cliente responde a este mensaje de D'CASA: «…»]`, un **dato del cliente** (sin etiquetas ni marcas de confianza, tarjetas, cédulas y PIN tapados, hasta 300 letras; el cliente no puede escribir esa marca a mano, ni con espacios invisibles, espacios duros, corchetes de ancho completo o letras cirílicas, y lo citado no puede cerrarla antes: sus «» pasan a “”). Si lo citado está en su memoria no guarda copia: lo lee de la fila al armar el prompt. Para el anti-spam, «este» citando mensajes distintos no es un repetido | El recuadro de la cita sobre el texto |
+| `context.forwarded` / `frequently_forwarded` | `reenviado: "una"/"muchas"`; la IA lo sabe | «Reenviado» / «Reenviado muchas veces» |
+| `type: "reaction"` con `reaction: {message_id, emoji}` (sin emoji = la quitó) | **Evento**, no mensaje: no despierta a la IA ni cuenta para la ventana de 24 h | La carita en la esquina del mensaje |
+| `statuses` (`sent`, `delivered`, `read`, `failed` con `errors`) | **Evento**: una tanda por aviso a Odoo (`POST /dcasa/juan/v1/eventos`) | Las palomitas; «No llegó» con el motivo (131047 = pasaron las 24 h; 131026 = no se pudo entregar; los demás, con el texto y el código de Meta) |
+
+- **Lo que se le contesta a Meta.** Los mensajes se siguen guardando en el Durable Object **antes** del 200 (Desplegar 49).
+  Las palomitas y reacciones **no**: se contesta 200 y se le mandan a Odoo después, dentro del mismo `waitUntil`, con dos
+  reintentos (2 s y 6 s: Odoo dormido despierta en unos 10 s). **Si Odoo está caído para un aviso de solo palomitas, Meta
+  recibe 200 igual** y esa palomita se pierde. Por qué: un 500 haría que Meta reenviara el aviso (y los mensajes del mismo
+  lote) por horas mientras Odoo no vuelva, con el webhook marcado como fallando, por algo que solo pinta una palomita; los
+  mensajes del cliente ya están a salvo antes del 200. Perder una palomita no es perder un mensaje, y la siguiente la
+  corrige (leído le gana a entregado, que le gana a enviado). Una reacción perdida así es el mismo costo (raro: solo con
+  Odoo caído).
+- **La palomita de «enviado» llega en un segundo**, a veces antes de que Odoo registre la respuesta de Juan. Odoo devuelve
+  esos ids en `desconocidos` y Juan los vuelve a mandar a los 5 y a los 10 s. Si sigue sin conocerlos (un mensaje de antes
+  de esta versión o mandado por fuera de Juan), se ignoran sin ruido. Un aviso con más de 100 se manda en tandas de 100 (no
+  se pierde ninguno), y una reacción o un recibo con un id que no es texto se ignora sin romper el resto (revisión 2026-11-07).
+- **Ids de cada burbuja.** WhatsApp da un id (`wamid`) a cada burbuja y a cada foto. Juan los guarda en su memoria (para
+  saber qué citó el cliente) y se los manda a Odoo en `partes` con la respuesta del bot y en la respuesta de `/odoo/enviar`.
+- **«Responder» desde Odoo**: `POST /odoo/enviar` acepta `responde_a` (el `wamid` del mensaje del cliente); sale como
+  `context: {message_id}` en el **primer** mensaje. Si Meta rechaza justo la cita (un 400 con código 100 o 131009: el
+  citado es muy viejo o ya no existe), sale otra vez **sin** la cita; cualquier otro rechazo (un 408, un 401, otro 400, un
+  429 o un 5xx) no se maquilla, porque pudo haber salido o fallaría igual (revisión 2026-11-07).
+- **Arreglado de paso:** si WhatsApp se caía a la mitad de una respuesta de varias burbujas, el reintento mandaba otra vez
+  la primera (el cliente la veía dos veces). Ahora el adaptador dice cuánto salió (`EnvioParcialError`) y solo se manda lo
+  que falta, como ya hacía Telegram.
+- **Orden de despliegue:** primero Odoo (sabe recibir `cita`, `reenviado`, `partes` y `/eventos`), después Juan. Un Juan
+  nuevo con un Odoo viejo funciona: Odoo ignora los campos que no conoce y `/eventos` le da 404, que Juan entiende como
+  «todavía no» (no insiste y el mensaje del cliente nunca dependió de eso). Un Juan viejo con un Odoo nuevo, igual que antes.
+
 ### Si deja de contestar
 
 1. Abre `/salud` de Juan: en `whatsapp_cloud`, `"faltan"` tiene que salir vacío.
@@ -98,6 +135,15 @@ al equipo (con el bot de Brian, ver [BRIAN.md](BRIAN.md)).
 
 Si no contesta: abre `/salud` y mira `secretos_faltantes` y `canales.telegram`; después `/odoo/salud` (con el token) para ver
 el último fallo de la IA.
+
+**Citas, reenviados y reacciones en Telegram (2026-11-07).** Las citas (`reply_to_message`, que trae también lo que decía el
+mensaje citado, o el pedazo elegido en `quote`) y los reenviados (`forward_origin`) llegan solos. «Responder» desde Odoo sale
+con `reply_parameters` (con `allow_sending_without_reply`: si el citado ya no existe, sale igual). **Las reacciones** solo
+llegan si el webhook las pide: hay que registrarlo otra vez con `allowed_updates` (el mismo paso 4, con un dato más):
+```
+https://api.telegram.org/bot<TOKEN_DEL_BOT>/setWebhook?url=https://dcasa-juan.dcasapty.workers.dev/webhooks/telegram&secret_token=<SECRETO_DEL_WEBHOOK>&allowed_updates=%5B%22message%22%2C%22message_reaction%22%5D
+```
+Telegram **no** les da a los bots «entregado» ni «leído»: en Telegram no hay palomitas.
 
 ## 3. Messenger e Instagram (por conectar)
 
@@ -183,3 +229,6 @@ instalación o como plan de emergencia.
   4. `/salud` debe mostrar `whatsapp_qr` con `configurado: true`; en Odoo, *Conexiones* muestra el QR para vincular el
      teléfono.
 - Mientras el puente no exista, `/salud` muestra el canal QR como «le falta PUENTE» y el resto de Juan funciona igual.
+- **Citas, reacciones y palomitas: no** (2026-11-07). El puente no pasa hoy esos datos (su contrato `construirWebhook` no
+  tiene cita, reacción ni recibos) y agregarlos es trabajo en el contenedor de Baileys, que no está en producción. Si un día
+  se usa, se agregan al contrato del puente y Juan los traduce a `cita`, `reenviado` y `eventos` como en WhatsApp oficial.

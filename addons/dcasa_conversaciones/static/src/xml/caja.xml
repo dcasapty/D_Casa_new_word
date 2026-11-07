@@ -26,6 +26,17 @@
 
             <!-- Lo que aparece solo cuando hace falta: con tope de alto (se desplaza por dentro) para no quitarle espacio al hilo -->
             <div t-if="hayExtras" class="o_dcj_extras">
+                <!-- «Responder»: el mensaje del cliente que va citado (WhatsApp y Telegram lo muestran como cita) -->
+                <div t-if="cita" class="o_dcj_citando" role="group" aria-label="Respondes citando un mensaje">
+                    <i class="fa fa-reply" aria-hidden="true"/>
+                    <span class="o_dcj_citando_texto">
+                        <strong>Respondes a <t t-out="cita.quien"/></strong>
+                        <span t-out="cita.texto"/>
+                    </span>
+                    <button type="button" class="o_dcj_icono_boton" title="Quitar la cita" aria-label="Quitar la cita" t-on-click="() => almacen.quitarCita()">
+                        <i class="fa fa-times" aria-hidden="true"/>
+                    </button>
+                </div>
                 <!-- Lo que está escrito para más tarde -->
                 <ul t-if="almacen.programados.length" class="o_dcj_programados" aria-label="Mensajes programados">
                     <li t-foreach="almacen.programados" t-as="m" t-key="m.id" class="o_dcj_programado">

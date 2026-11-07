@@ -6,12 +6,32 @@
             <span t-out="m.texto"/>
             <time class="o_dcj_aviso_hora" t-att-datetime="m.ts" t-out="hora(m.ts)"/>
         </div>
-        <article t-else="" t-attf-class="o_dcj_burbuja o_dcj_burbuja_#{clase}" t-att-data-mensaje="m.id">
+        <article t-else="" t-attf-class="o_dcj_burbuja o_dcj_burbuja_#{clase}" t-att-data-mensaje="m.id"
+                 t-att-class="{ o_dcj_con_reaccion: !!m.reaccion, o_acciones: almacen.accionesDe === m.id }">
             <header class="o_dcj_burbuja_meta">
                 <span class="o_dcj_burbuja_autor" t-out="autor"/>
                 <span t-if="m.tipo === 'nota'" class="o_dcj_burbuja_privada"><i class="fa fa-eye-slash" aria-hidden="true"/> El cliente no la ve</span>
-                <time t-att-datetime="m.ts" t-out="hora(m.ts)"/>
+                <span class="o_dcj_burbuja_hora">
+                    <time t-att-datetime="m.ts" t-out="hora(m.ts)"/>
+                    <!-- Las palomitas (solo WhatsApp oficial): ✓ enviado, ✓✓ gris entregado, ✓✓ azul leído, ⚠ no llegó -->
+                    <span t-if="palomitas" t-attf-class="o_dcj_palomitas o_dcj_palomitas_#{palomitas.clase}" t-att-title="palomitas.titulo" role="img" t-att-aria-label="palomitas.titulo">
+                        <t t-if="palomitas.clase === 'fallido'"><i class="fa fa-exclamation-triangle" aria-hidden="true"/> <t t-out="palomitas.texto"/></t>
+                        <t t-else=""><i class="fa fa-check" aria-hidden="true"/><i t-if="palomitas.dobles" class="fa fa-check o_dcj_segunda" aria-hidden="true"/></t>
+                    </span>
+                </span>
             </header>
+            <p t-if="reenviado" class="o_dcj_reenviado"><i class="fa fa-share" aria-hidden="true"/> <t t-out="reenviado"/></p>
+            <t t-if="cita">
+                <button t-if="cita.enHistorial" type="button" class="o_dcj_cita" t-on-click="irACita"
+                        t-att-title="'Ir al mensaje citado de ' + cita.quien">
+                    <strong class="o_dcj_cita_quien" t-out="cita.quien"/>
+                    <span class="o_dcj_cita_texto" t-out="cita.texto"/>
+                </button>
+                <div t-else="" class="o_dcj_cita o_dcj_cita_perdida">
+                    <strong class="o_dcj_cita_quien">Mensaje que no está en el historial</strong>
+                    <span t-if="cita.texto" class="o_dcj_cita_texto" t-out="cita.texto"/>
+                </div>
+            </t>
             <p t-if="m.texto" class="o_dcj_burbuja_texto" t-out="m.texto"/>
             <p t-if="m.menciones and m.menciones.length" class="o_dcj_burbuja_menciones"><i class="fa fa-at" aria-hidden="true"/> Mencionó a <t t-out="m.menciones.map((u) => u.nombre).join(', ')"/></p>
 
@@ -76,6 +96,11 @@
                 <t t-out="estadoDeEnvio.texto"/>
                 <button t-if="estadoDeEnvio.reintentar" type="button" class="o_dcj_enlace" t-on-click="() => almacen.reintentar()">Reintentar</button>
             </p>
+            <button t-if="puedeResponder" type="button" class="o_dcj_responder" t-on-click="responder"
+                    title="Responder citando este mensaje" aria-label="Responder citando este mensaje">
+                <i class="fa fa-reply" aria-hidden="true"/><span class="o_dcj_responder_texto">Responder</span>
+            </button>
+            <span t-if="m.reaccion" class="o_dcj_reaccion" role="img" t-att-aria-label="'El cliente reaccionó con ' + m.reaccion" t-att-title="'El cliente reaccionó con ' + m.reaccion" t-out="m.reaccion"/>
         </article>
     </t>
 

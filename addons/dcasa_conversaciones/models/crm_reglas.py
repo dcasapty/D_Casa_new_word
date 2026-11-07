@@ -7,6 +7,7 @@ probar, explicar y apagar. Ver ``docs/JUAN_ODOO.md``.
 Temperatura (``1`` frío · ``2`` tibio · ``3`` caliente): los valores se ordenan como texto, así «Mayor temperatura
 primero» funciona con un simple orden descendente.
 """
+import re
 from dataclasses import dataclass
 
 FRIO, TIBIO, CALIENTE = '1', '2', '3'
@@ -87,6 +88,21 @@ def limpiar_dato(texto):
     if not any(c.isalnum() for c in limpio):
         return ''
     return limpio[:MAX_TEXTO_DATO]
+
+
+# Lo que solo trae una dirección exacta: el número de la casa, del apartamento, del piso, del lote o de la manzana, o
+# un «#» con número. «Calle 50» o «Vía España» son zonas; «casa 23», «apto 4B», «piso 14» o «#12» ya dicen dónde vive.
+_DIRECCION_EXACTA = re.compile(
+    r'#\s*\d'
+    r'|\b(?:casa|apto|apt|apartamento|depto|departamento|piso|lote|local|manzana|mz|torre|bloque|oficina)\.?'
+    r'\s*(?:n(?:o|ro|ú?mero|°|º)?\.?\s*)?\d+[a-z]?\b',
+    re.IGNORECASE)
+
+
+def parece_direccion_exacta(texto):
+    """¿Trae una dirección exacta (casa, apartamento, piso, lote, manzana o «#» con número)? La zona de entrega es el
+    barrio, el corregimiento o el distrito: lo exacto no se guarda (minimización de datos, Ley 81)."""
+    return bool(_DIRECCION_EXACTA.search(str(texto or '')))
 
 
 def toca_perder(dias_sin_movimiento, dias_maximos, la_trabaja_una_persona):

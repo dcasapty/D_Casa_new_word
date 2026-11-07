@@ -90,6 +90,8 @@ export class Almacen {
         this.ficha = null;
         this.cargandoFicha = false;
         this.nuevosSinVer = 0;
+        this.accionesDe = null; // en el celular: el mensaje del cliente que muestra «Responder» (dedo apretado)
+        this.enfocarCaja = 0; // «Responder» pide que la caja de texto tome el foco (la caja lo mira al pintarse)
         // Pantalla (en celular se ve una columna a la vez). La ficha del cliente nace abierta solo en pantallas amplias
         // (al lado del hilo); en las demás nace cerrada y un botón «Cliente» la abre. La lista nace reducida a las fotos
         // en pantallas estrechas. Cada persona puede cambiarlo y se le recuerda (ver cargarPreferencias).
@@ -122,7 +124,7 @@ export class Almacen {
     get borrador() {
         const id = this.seleccionadaId;
         if (!id) {
-            return { texto: "", modo: "respuesta", adjuntos: [], menciones: [], tareaPara: "", programarPara: "" };
+            return { texto: "", modo: "respuesta", adjuntos: [], menciones: [], tareaPara: "", programarPara: "", cita: null };
         }
         return this.borradorDe(id);
     }
@@ -130,7 +132,7 @@ export class Almacen {
     /** El borrador de una conversación cualquiera (no solo la abierta). */
     borradorDe(id) {
         if (!this.borradores[id]) {
-            this.borradores[id] = { texto: "", modo: "respuesta", adjuntos: [], menciones: [], tareaPara: "", programarPara: "" };
+            this.borradores[id] = { texto: "", modo: "respuesta", adjuntos: [], menciones: [], tareaPara: "", programarPara: "", cita: null };
         }
         return this.borradores[id];
     }
@@ -325,6 +327,7 @@ export class Almacen {
         this._escuchas = [];
         window.removeEventListener("online", this._alVolverLaRed);
         clearTimeout(this._temporizadorEventos);
+        clearTimeout(this._temporizadorRecibos);
     }
 
     /** Volvió la conexión en vivo: lo que pasó mientras estuvo caída no llegó por avisos, así que se trae de nuevo. */
@@ -364,12 +367,52 @@ export class Almacen {
             this.escribiendoBot[carga.conversacion_id] = carga.activo ? Date.now() : 0;
             return;
         }
+        if (carga.evento === "recibos") {
+            // Palomitas y reacciones: no son mensajes (no suena, no mueve la lista, no cuenta «sin leer»).
+            this._aplicarRecibos(carga.cambios);
+            return;
+        }
         if (carga.evento === "mensaje" && carga.autor && carga.autor !== "cliente") {
             this.escribiendoBot[carga.conversacion_id] = 0; // ya contestó (el asistente o una persona)
         }
         this._eventosPendientes.add(JSON.stringify(carga));
         clearTimeout(this._temporizadorEventos);
         this._temporizadorEventos = setTimeout(() => this._atenderEventos(), ESPERA_DE_EVENTOS);
+    }
+
+    /**
+     * Las palomitas llegan de a muchas (tres por mensaje): en la conversación abierta se pone la palomita al día ahí mismo,
+     * sin pedir nada al servidor. Una reacción o un «no llegó» (que trae el motivo) piden el hilo, una vez por tanda.
+     */
+    _aplicarRecibos(cambios) {
+        const abierta = this.seleccionadaId;
+        let traerHilo = false;
+        for (const c of Array.isArray(cambios) ? cambios : []) {
+            if (!c || c.conversacion_id !== abierta) {
+                continue;
+            }
+            const m = this.mensajes.find((x) => x.id === c.mensaje_id);
+            if (!m) {
+                continue;
+            }
+            if (c.estado_canal && c.estado_canal !== m.estado_canal) {
+                m.estado_canal = c.estado_canal;
+            }
+            // Las horas de «Entregado» y «Leído» (lo que dice al pasar el mouse) también, sin recargar. Un Odoo de antes
+            // no las manda: no se borran las que había.
+            for (const campo of ["canal_entregado_en", "canal_leido_en"]) {
+                if (c[campo] && c[campo] !== m[campo]) {
+                    m[campo] = c[campo];
+                }
+            }
+            if (c.reaccion || c.estado_canal === "fallido") {
+                traerHilo = true;
+            }
+        }
+        if (traerHilo) {
+            clearTimeout(this._temporizadorRecibos);
+            this._temporizadorRecibos = setTimeout(() => this.refrescarAbierta(), ESPERA_DE_EVENTOS);
+        }
     }
 
     // ------------------------------------------------------------------
@@ -892,8 +935,8 @@ export class Almacen {
     }
 
     /** Con `programarPara` (ISO en UTC) el mensaje no sale ahora: queda programado y sale solo a esa hora. */
-    async enviar(texto, adjuntosIds, programarPara = null) {
-        const r = await this._hacer("enviar_respuesta", [this.seleccionadaId, texto, adjuntosIds, programarPara]);
+    async enviar(texto, adjuntosIds, programarPara = null, respondeA = null) {
+        const r = await this._hacer("enviar_respuesta", [this.seleccionadaId, texto, adjuntosIds, programarPara, respondeA || null]);
         if (r) {
             await this.refrescarAbierta();
             if (r.programado) {
@@ -1061,6 +1104,26 @@ export class Almacen {
         borrador.menciones = [];
         borrador.tareaPara = "";
         borrador.programarPara = "";
+        borrador.cita = null;
+    }
+
+    /** «Responder» a un mensaje del cliente: queda citado arriba de la caja (de ESA conversación) hasta enviar o quitarlo. */
+    citar(cita) {
+        const borrador = this.borrador;
+        borrador.cita = cita;
+        if (borrador.modo === "nota") {
+            borrador.modo = "respuesta"; // una nota interna no sale al cliente: no lleva cita
+        }
+        this.enfocarCaja = Date.now();
+    }
+
+    quitarCita() {
+        this.borrador.cita = null;
+    }
+
+    /** Un aviso corto en la esquina (lo que no es un error ni necesita quedarse). */
+    avisar(texto, tipo = "info") {
+        this.notification.add(texto, { type: tipo });
     }
 
     /** El buscador de fotos deja el pie y las fotos en la caja para revisarlos antes de enviar. */

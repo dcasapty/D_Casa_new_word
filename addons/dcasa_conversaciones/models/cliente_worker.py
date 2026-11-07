@@ -81,12 +81,18 @@ class JuanCliente(models.AbstractModel):
 
     @api.private
     @api.model
-    def enviar(self, canal, id_externo, texto=None, adjuntos=None, id_envio=None):
+    def enviar(self, canal, id_externo, texto=None, adjuntos=None, id_envio=None, responde_a=None):
         """``id_envio`` es la llave que impide mandar dos veces lo mismo: si Odoo no oyó la respuesta y reintenta con el
-        mismo ``id_envio``, el Worker no vuelve a escribirle al cliente (devuelve lo que ya había hecho)."""
+        mismo ``id_envio``, el Worker no vuelve a escribirle al cliente (devuelve lo que ya había hecho).
+
+        ``responde_a`` (2026-11-07): el id en el canal del mensaje que se cita («Responder»). El Worker lo pasa
+        como cita (``context`` en WhatsApp, ``reply_parameters`` en Telegram); uno viejo lo ignora y sale sin cita.
+        La respuesta trae ``partes`` (los ids que el canal dio a cada burbuja) si el Worker es nuevo."""
         datos = {'canal': canal, 'id_externo': id_externo, 'autor': 'vendedora'}
         if id_envio:
             datos['id_envio'] = id_envio
+        if responde_a:
+            datos['responde_a'] = responde_a
         if texto:
             datos['texto'] = texto
         if adjuntos:

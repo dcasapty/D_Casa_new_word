@@ -106,6 +106,97 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 > sigue. Se guardan las diez más recientes; las viejas se resumen en una línea abajo y su texto completo pasa a
 > [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md).
 
+### 2026-11-07 (2): issues #24 (Juan) y #25 (Conversaciones), lo que quedaba (en una rama, sin subir)
+
+- La dueña aprobó el 2026-11-07 los pendientes de los dos issues, primero lo que ve el cliente. **Sin push, PR ni
+  despliegue**: cuando toque, **Odoo primero y después Juan** (Juan no depende del Odoo nuevo; la integración sí espera
+  el Odoo nuevo).
+- **Juan** (cada uno con su prueba, primero en rojo; `cd juan && npm test`: 1.223, `typecheck` limpio):
+  1. **Eco de Messenger e Instagram**: lo que sale se anota antes de enviar (`vuelo:*`); el eco ya no calla al bot 120 min
+     (`eco-meta.test.ts`, 4 de 7 en rojo).
+  2. y 3. **Notas de voz**: «quiero hablar con alguien» o «no me escriban» en audio valen como escritos; no se transcribe
+     ni se lee una imagen en descanso, con un repetido ni pasado el tope diario; tope de 20 notas de voz por persona al día
+     (`nota-de-voz.test.ts`, 7 de 8).
+  4. **Reintento del turno**: la corrección recibe su ronda de herramientas y la pasada sin herramientas lo consultado; la
+     misma escritura con los mismos argumentos va a Odoo una vez por turno, `pasar_a_vendedora` una vez, tope de 8
+     (`reintento-del-turno.test.ts`, 4 de 6; y una con el SDK real de Claude).
+  5. **Seguimiento**: se reclama antes de redactar y se vuelve a mirar al cliente justo antes de enviar
+     (`seguimiento-carrera.test.ts`, 4 de 6).
+  6. **Menores**: registros sin claves ni tokens; `{{LECCIONES}}` con función (`menores-ronda8.test.ts`, 3 de 3).
+- **Conversaciones** (`tests/test_ronda8_conversaciones.py`, 20 de 23 en rojo antes; Sofía, 2 nuevas en rojo antes):
+  atraso máximo de un seguimiento (**ajuste nuevo, 6 h**: lo vencido se salta con una nota, no sale de golpe), nada de
+  «¿sigues interesado?» tras un traspaso que nadie atendió (`traspaso_sin_atender_desde`; Sofía lo pone en «Contéstale»,
+  que antes NO cubría ese caso), seguimiento por persona (solo el canal por donde escribió último) y «No contactar» que
+  sigue a la persona al cambiar de ficha, un «descartado» tardío ya no cierra el ciclo nuevo, notas sin repetir en la
+  oportunidad, el mantenimiento purga los borradores de Telegram y la zona con número de casa o apartamento no se guarda.
+  En local, base nueva: `dcasa_conversaciones` 1.253 pruebas en dos mitades (solo las 2 referencias visuales a 390 px
+  que ya fallaban en esta máquina), `dcasa_sofia` 72, integración real de Juan 39 de 40; `ruff` limpio.
+- Cambió una prueba vieja con razón: `test_no_pide_fuera_de_horario_aunque_ya_toque` usa un atraso de 4 h (con 8 h ahora
+  se salta) y la integración `seguimiento.ts` espera que el «descartado» no cierre el ciclo nuevo (esperaba el hueco).
+- Lo que no cubre: las conversaciones que hoy ya esperan a una persona tras un traspaso no quedan marcadas (sin
+  migración: la marca empieza con el próximo traspaso). Quedan del #24 tres menores fuera de lo aprobado.
+- **Revisión adversarial** (10 hallazgos, todos arreglados con prueba; `9c00c16` Juan, `dfeb5ee` Odoo y Sofía): un rechazo de
+  `pasar_a_vendedora` ya no frena la llamada corregida (tampoco en el mismo paso); el reclamo del seguimiento es de quien lo
+  puso y se mira la tabla `seguimientos` justo antes de enviar; las notas de voz y fotos de una vendedora no gastan los topes
+  del cliente; prueba de la corrección con Meta. En Odoo: «espera a una persona» frena el seguimiento una semana como mucho, se
+  ve en la conversación y se quita con **«Ya la atendí»**; por persona solo cuentan las hermanas que podrían hacer el
+  seguimiento (un «hola» por otro canal ya no deja a nadie sin ninguno) y uno en camino por otro canal pospone, no borra;
+  solo se salta lo programado antes del límite (`seguimiento_programado_en`: «Crear oportunidad» al día siguiente sale) y,
+  si el siguiente también venció en la caída, también se salta (antes salía en la misma vuelta); «el cliente pidió que no lo
+  contacten» marca No contactar; la dirección exacta tampoco queda en `brian.accion`; un «Contéstale» descartado no vuelve
+  con cada mensaje mientras siga marcada. Pruebas: Juan 1.230 (`typecheck` limpio); Odoo, clases tocadas 125 + API,
+  superficie RPC y vecinas 128, 0 fallas (las 3 nuevas de atrasos y Sofía, en rojo antes); `ruff` limpio. No se corrió
+  `dcasa_conversaciones` entero ni la integración real de Juan (la integración escribe `seguimiento_proximo` a un minuto:
+  no la toca el atraso).
+
+### 2026-11-07 (1): citas, reenviados, reacciones y palomitas en el chat (rama, sin desplegar)
+
+- Pedido de la dueña: «El chatbot de D'Casa no tiene citas, reenviados, reacciones ni "entregado/leído"… si un cliente
+  dice "este", seleccionando un mensaje… solamente vemos la palabra "este"… no vemos el estado del mensaje.»
+- **En la burbuja** ([JUAN_ODOO.md](JUAN_ODOO.md) › «La conversación»): el recuadro de la **cita** sobre el texto (quién
+  lo dijo: Tú, Juan, la vendedora o Cliente; dos líneas; «Foto», «Audio»… sin texto; un clic lleva al original;
+  «Mensaje que no está en el historial» si es viejo), **«Reenviado» / «Reenviado muchas veces»**, la **reacción** del
+  cliente en la esquina (una nueva reemplaza, quitarla la borra) y las **palomitas** (✓ gris, ✓✓ gris, ✓✓ azul, ⚠ «No
+  llegó» con el motivo) en vivo, por el mismo bus de siempre (un aviso liviano `recibos`, sin texto ni emoji).
+  **«Responder»** en los mensajes del cliente (mouse o Tab; en el celular, dedo apretado): sale citado por WhatsApp
+  (`context`) y Telegram (`reply_parameters`); sin id del canal, sale sin la cita.
+- **Juan entiende «este»**: lo citado le llega a la IA como `[El cliente responde a este mensaje de D'CASA: «…»]`, un dato
+  del cliente (neutralizado, tarjetas tapadas, 300 letras; el cliente no puede escribir la marca) y la regla 6 del prompt
+  lo dice. Lo busca en su memoria (ahora cada burbuja guarda su `wamid`) o se lo completa Odoo en la respuesta de
+  `/mensaje`. Un reenviado también lo sabe.
+- **Datos:** `dcasa.mensaje` con `cita_id`/`cita_id_canal`/`cita_texto`, `reenviado`, `reaccion(_en)`, `estado_canal` y
+  sus horas; modelo nuevo `dcasa.mensaje.parte` (el `wamid` de cada burbuja nuestra, su estado y su reacción). Ruta nueva
+  `POST /dcasa/juan/v1/eventos` (palomitas y reacciones en tandas). Solo escribe el sistema.
+- **Palomitas y reacciones no son mensajes del cliente**: no despiertan a la IA, no pasan por el Durable Object, no
+  tocan último mensaje, «sin leer», seguimientos, ventana de 24 h, reparto ni Sofía, y no avisan a nadie.
+  **A Meta se le contesta 200 aunque Odoo esté caído** para un aviso de solo palomitas (perder una palomita no es perder
+  un mensaje; un 500 haría reenviar el lote por horas): se reintenta lo que cabe en `waitUntil` y lo que Odoo aún no
+  conoce se vuelve a mandar a los 5 y 10 s. Los mensajes se siguen guardando antes del 200 (Desplegar 49).
+- **Arreglado de paso:** WhatsApp oficial reenviaba la primera burbuja si se caía a la mitad de una respuesta (ahora
+  `EnvioParcialError`, como Telegram).
+- **Orden de despliegue: Odoo primero y después Juan.** Juan nuevo con Odoo viejo: Odoo ignora los campos nuevos y
+  `/eventos` da 404 (Juan no insiste). Juan viejo con Odoo nuevo: igual que antes. Telegram: las reacciones necesitan
+  volver a registrar el webhook con `allowed_updates` ([JUAN_CANALES.md](JUAN_CANALES.md) §2). Puente QR y
+  Messenger/Instagram: no (el puente no pasa esos datos).
+- Pruebas: Juan 1242 en verde (51 nuevas, con las del almacén de la pantalla; contra el código de antes, 44 en rojo y 7 guardianes que ya se cumplían);
+  Odoo `test_citas.py` (29) y `test_panel_citas.py` (5 con Chrome: burbuja, «Responder», en vivo, rueda y marca, dedo a
+  390 px; más las capturas): 32 de 34 en rojo con el código de antes, todas en verde ahora; el resto de
+  `dcasa_conversaciones` en verde salvo las dos referencias visuales que ya fallaban en esta máquina (ver
+  CONTEXTO_AGENTICO). Capturas para la dueña en el scratchpad de la sesión (`capturas_citas`), con datos de prueba.
+- **Revisión adversarial, arreglada en la misma rama:** S1 «este» citando burbujas distintas ya no es spam (el anti-spam
+  compara texto + id citado); S2 un PIN ya no sobrevive dentro de la cita (sin copia si lo citado está en la memoria de
+  Juan; `redactar` limpia la copia que vino de afuera); S3 las marcas `[El cliente responde…]` y `[Vendedora]` no se
+  imitan con invisibles, espacio duro, ancho completo, cirílicas ni letras delante, y las «» de lo citado pasan a “”; S4
+  (Ley 81) Odoo ya no copia lo citado que está en el historial y borrar un mensaje lo limpia de las respuestas y de su
+  chatter (la memoria de Juan es aparte: [JUAN_ODOO.md](JUAN_ODOO.md) › Privacidad); S5 un «leído» sube las burbujas y
+  los mensajes anteriores (las palomitas azules ya salen en respuestas de varias burbujas); S6 «Responder» es solo el
+  ícono en la computadora (el hilo ya no se corre de lado a 768 px); más los menores (tipos en el webhook, reenvío sin cita
+  solo con 400 y código 100 o 131009, tandas de 100, *savepoint* por aviso, sin sustitutos sueltos ni bidi, el eco conserva
+  la cita, temblor del dedo, horas en vivo, gris 3,8:1). Pruebas: Juan 1300 y `typecheck` (24 nuevas en rojo antes); Odoo
+  `test_citas.py` 40 y `test_panel_citas.py` 9 (14 nuevas y 2 cambiadas: 15 en rojo antes), y 443 de las clases vecinas
+  en verde salvo las dos referencias visuales a 390 px de siempre.
+- **Sigue:** capturas a la dueña → su visto bueno → CI y staging → producción (Odoo y después Juan).
+
 ### 2026-11-06 (9): Camila etapa 1b: la lista de las novedades crece sola (se activa al agregar el correo), en producción
 
 - La dueña vio «0 clientes con permiso» de unos 3,000 y no quiere marcar a nadie de golpe ([CAMILA.md](CAMILA.md) §1c).
