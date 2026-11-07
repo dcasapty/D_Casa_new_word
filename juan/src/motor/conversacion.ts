@@ -14,7 +14,7 @@
 import type { ModelMessage } from "ai";
 import { canalActivo, CONFIG_POR_DEFECTO, dentroDeHorario, diaDelNegocio, mesDelNegocio, type Config } from "../config";
 import type { AdaptadorCanal, CanalId, Entrante, MedioSaliente, Saliente } from "../canales/tipos";
-import { EnvioParcialError, partirPorLargo } from "../canales/tipos";
+import { EnvioParcialError, partirPorLargo, sinNegritas } from "../canales/tipos";
 import { crudoDe, entranteDeCrudo, prepararEntrante } from "../canales/preparar";
 import { noQuiereSeguimiento, pideUnaPersona } from "../dcasa/intencion";
 import { contextoDelChat, promptEstable, promptParaFugas, promptSeguimiento, presentacionPorDefecto } from "../dcasa/prompt";
@@ -214,14 +214,31 @@ export type ResultadoSeguimiento =
   | { ok: true; resultado: "pospuesto"; motivo: string }
   | { ok: false; error: string };
 
+/** Cómo se compara un eco: Messenger e Instagram no entienden la negrita de WhatsApp y la devuelven sin asteriscos (`sinNegritas`). */
+const normalizarEco = (texto: string) => sinNegritas(texto).replace(/\s+/g, " ").trim();
+
 const esEcoDelNegocio = (texto: string, recientes: readonly string[]) => {
-  const t = texto.trim();
+  const t = normalizarEco(texto);
   if (!t) return false;
   return recientes.some((c) => {
-    const x = c.trim();
+    const x = normalizarEco(c);
     return x === t || (t.length >= 25 && x.includes(t));
   });
 };
+
+/**
+ * Lo que está saliendo por el canal en este momento (issue #24): Meta devuelve el eco de lo que manda la Página por el webhook, a
+ * veces antes de que la Send API conteste o entre una burbuja y otra. Se anota ANTES de enviar y se suelta al terminar; vence solo
+ * por si el objeto se reinicia a mitad del envío. Un archivo vuelve sin texto: cada uno reconoce UN eco sin texto de su tipo.
+ */
+interface EnVuelo {
+  hasta: number;
+  textos: string[];
+  imagen: number;
+  documento: number;
+}
+const PREFIJO_EN_VUELO = "vuelo:";
+const EN_VUELO_MS = 5 * 60_000;
 
 export class MotorConversacion {
   readonly kv: Kv;
@@ -241,6 +258,8 @@ export class MotorConversacion {
   private escribiendoEnOdoo = false;
   /** Odoo no contestó en esta pasada: no se le insiste dentro de la misma alarma (el cliente no espera minutos). */
   private odooCaido = false;
+  /** Cuenta los envíos de este objeto: con la hora, da una clave única a lo «en vuelo». */
+  private vuelos = 0;
 
   constructor(private readonly deps: DepsMotor) {
     crearEsquema(deps.sql);
@@ -508,7 +527,7 @@ export class MotorConversacion {
   private async ingestarPropio(e: Entrante, texto: string, lista: AdjuntoOdoo[], ahora: number, vigente: () => boolean): Promise<ResultadoIngest> {
     // El eco del propio bot (o de algo que se mandó desde Odoo) no es una persona escribiendo.
     const esEco = () =>
-      (!!texto && esEcoDelNegocio(texto, this.mensajes.salientesDesde(ahora - 15 * 60_000))) || (!!e.id_mensaje && this.kv.texto(`env:${e.id_mensaje}`) !== null);
+      (!!texto && esEcoDelNegocio(texto, this.mensajes.salientesDesde(ahora - 15 * 60_000))) || (!!e.id_mensaje && this.kv.texto(`env:${e.id_mensaje}`) !== null) || this.ecoEnVuelo(texto, lista);
     if (esEco()) return { ok: true, accion: "eco" };
     // La configuración se pide ANTES de guardar: guardar y callar al bot van en un mismo paso, sin esperas en medio.
     const cfg = await this.deps.config();
@@ -520,6 +539,52 @@ export class MotorConversacion {
     this.humanoIntervino(cfg, ahora);
     await this.programar();
     return { ok: true, accion: "propio" };
+  }
+
+  /**
+   * ¿Es el eco de algo que está saliendo AHORA por el canal (`anotarEnVuelo`)? Con texto, se compara el texto; sin texto (una foto o
+   * un documento que manda el bot), gasta el lugar de un archivo de su tipo: así una foto que una vendedora mande después no se traga.
+   */
+  private ecoEnVuelo(texto: string, adjuntos: readonly AdjuntoOdoo[]): boolean {
+    const ahora = this.deps.ahora();
+    const vuelos: { k: string; v: EnVuelo }[] = [];
+    for (const f of this.deps.sql.todos<{ k: string; v: string }>("SELECT k, v FROM kv WHERE k LIKE ?", `${PREFIJO_EN_VUELO}%`)) {
+      let v: EnVuelo | null = null;
+      try {
+        v = JSON.parse(f.v) as EnVuelo;
+      } catch {
+        /* una fila rota no reconoce nada: se borra */
+      }
+      if (v && v.hasta > ahora) vuelos.push({ k: f.k, v });
+      else this.kv.poner(f.k, null);
+    }
+    if (vuelos.length === 0) return false;
+    if (texto.trim()) return vuelos.some(({ v }) => esEcoDelNegocio(texto, v.textos));
+    if (adjuntos.length === 0) return false;
+    const cupos = vuelos.map(({ v }) => ({ ...v }));
+    for (const a of adjuntos) {
+      if (a.tipo !== "imagen" && a.tipo !== "documento") return false;
+      const tipo = a.tipo;
+      const con = cupos.find((c) => c[tipo] > 0);
+      if (!con) return false;
+      con[tipo]--;
+    }
+    vuelos.forEach(({ k }, i) => this.kv.poner(k, JSON.stringify(cupos[i])));
+    return true;
+  }
+
+  /** Anota lo que está por salir por el canal (ver `EnVuelo`). Devuelve la clave con la que se suelta. */
+  private anotarEnVuelo(burbujas: readonly string[], medios: readonly MedioSaliente[]): string {
+    const ahora = this.deps.ahora();
+    const clave = `${PREFIJO_EN_VUELO}${ahora}:${++this.vuelos}`;
+    const v: EnVuelo = {
+      hasta: ahora + EN_VUELO_MS,
+      textos: burbujas.map(normalizarEco).filter(Boolean),
+      imagen: medios.filter((m) => m.tipo === "imagen").length,
+      documento: medios.filter((m) => m.tipo === "documento").length,
+    };
+    this.kv.poner(clave, JSON.stringify(v));
+    return clave;
   }
 
   private cuerpoDeMensaje(e: Pick<Entrante, "canal" | "id_externo" | "nombre" | "celular" | "id_mensaje">, texto: string, autor: CuerpoMensaje["autor"], direccion: CuerpoMensaje["direccion"], adjuntos: AdjuntoOdoo[], ts = this.deps.ahora(), idMensaje = e.id_mensaje): CuerpoMensaje {
@@ -648,6 +713,7 @@ export class MotorConversacion {
     this.deps.sql.correr("DELETE FROM enviados WHERE ts < ?", ahora - 24 * 3600_000);
     this.deps.sql.correr("DELETE FROM seguimientos WHERE ts < ?", ahora - 90 * 24 * 3600_000);
     this.deps.sql.correr("DELETE FROM kv WHERE k LIKE 'env:%' AND CAST(v AS INTEGER) < ?", ahora - 24 * 3600_000);
+    this.deps.sql.correr(`DELETE FROM kv WHERE k LIKE '${PREFIJO_EN_VUELO}%' AND CAST(json_extract(v, '$.hasta') AS INTEGER) < ?`, ahora);
     this.deps.sql.correr(`DELETE FROM kv WHERE k LIKE '${PREFIJO_ID_ENVIO}%' AND CAST(json_extract(v, '$.ts') AS INTEGER) < ?`, ahora - VIDA_ID_ENVIO_MS);
   }
 
@@ -1319,6 +1385,7 @@ export class MotorConversacion {
     if (o.autor === "bot") this.mostrarEscribiendo();
 
     let fallo: unknown = null;
+    const vuelo = this.anotarEnVuelo(burbujas.slice(progreso.burbujas), medios.slice(progreso.medios));
     for (let intento = 0; falta(); intento++) {
       const salida: Saliente = {
         para: this.idExterno(),
@@ -1354,6 +1421,8 @@ export class MotorConversacion {
     // El pie de lo que escribió una vendedora se guarda con la foto: así el asistente sabe qué se le dijo al cliente.
     for (const m of salieronMedios) this.mensajes.insertar({ id_mensaje: null, rol: o.autor, texto: `${etiquetaDeMedio(m)}${o.autor === "vendedora" && m.pie ? ` ${m.pie}` : ""}`, ts: ahora, modelo: o.modelo });
     if (o.autor === "bot") this.recordarFotos(salieronMedios.filter((m) => m.tipo === "imagen").map((m) => m.url));
+    // Ya quedó anotado por su texto y sus ids: lo «en vuelo» se suelta.
+    this.kv.poner(vuelo, null);
 
     if (o.registrar && (salieronBurbujas.length > 0 || salieronMedios.length > 0)) {
       this.cola.agregar(
