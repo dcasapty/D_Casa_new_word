@@ -177,6 +177,31 @@ Meta). El par es único.
   agota y Juan deja de contestar a los clientes reales.
 - Lo que escribe el cliente no puede imitar las marcas de confianza del historial (`[Vendedora]`, `[El cliente …]`).
 
+**Lo que quedaba del issue #24** (aprobado por la dueña el 2026-11-07):
+
+- **El eco de Messenger e Instagram no calla al bot.** Meta devuelve por el webhook lo que manda la Página (`is_echo`), a veces
+  antes de que la Send API conteste o entre una burbuja y otra. `emitir` anota lo que va a salir (textos y cuántas fotos o
+  documentos, en `kv` `vuelo:*`) **antes** de enviar y lo suelta al terminar (vence solo a los 5 min si el objeto se reinicia).
+  Un eco con texto se reconoce por el texto (sin la negrita de WhatsApp, que Meta devuelve sin asteriscos); uno sin texto gasta
+  el lugar de una foto o un documento de su tipo. Una vendedora que escribe de verdad desde la bandeja de Meta sí calla al bot.
+- **Una nota de voz que pide una persona vale como escrita**: «quiero hablar con alguien» o «ya no me escriban» dichos en audio
+  activan `pideUnaPersona` / `sin_seguimiento` (se mira lo escrito y cada transcripción).
+- **Transcribir y leer imágenes, después del anti-spam y del tope diario**: no se gasta IA con la conversación en descanso, con
+  un mensaje repetido ni pasado el tope diario (el archivo igual se guarda y se anota para una vendedora). Las notas de voz tienen
+  tope por persona: **20 al día** (`AUDIOS_POR_DIA`), como las 10 imágenes; la siguiente queda para una vendedora. Con la
+  conversación en descanso por spam, una nota de voz que pide una persona no se entiende: hay que escribir *persona* (el texto
+  del tope diario ya lo dice).
+- **La segunda pasada del turno conserva la primera.** Si el modelo gastó sus pasos sin escribir, la pasada sin herramientas
+  recibe lo que consultó como datos (`<lo_que_ya_consultaste>`); si la guardia rechazó el borrador, la pasada de corrección
+  recibe su ronda de herramientas (llamadas y resultados, sin el borrador). Dentro de un turno, la misma escritura con los mismos
+  argumentos va a Odoo una sola vez (la segunda recibe la misma respuesta), `pasar_a_vendedora` una sola vez sea cual sea el
+  motivo, y a lo más 8 escrituras (`MAX_ESCRITURAS_POR_TURNO`). Un fallo pasajero no se recuerda: se puede intentar otra vez.
+- **El seguimiento no le gana al cliente.** Se reclama (`seg_curso:<clave>`) antes de redactar: un segundo pedido igual a la vez
+  contesta `pospuesto` sin redactar ni enviar; el reclamo se suelta al terminar (vence a los 3 min si el objeto se reinicia). Y
+  «el cliente ya volvió a escribir» / «no me escriban» se vuelven a mirar **justo antes de enviar**.
+- Los registros del Worker no repiten claves ni tokens (`limpiarError` en `alFallarLaIA`, `motivoDeEnvio` en el envío fallido) y
+  `{{LECCIONES}}` se reemplaza con una función (un `$&` o `$'` en una lección ya no mete pedazos del prompt).
+
 ## Contrato Worker `juan` ↔ puente QR (`puente-wa/`)
 
 Heredado del CRM de Baby Caleb y **ampliado con medios**. Service binding `PUENTE` y viceversa
@@ -220,7 +245,8 @@ Heredado del CRM de Baby Caleb y **ampliado con medios**. Service binding `PUENT
 7. Una persona de D'CASA tomó la conversación → el bot calla y no la retoma solo (hasta que se la
    devuelvan o venza la pausa).
 8. Tope de IA del mes: al llegar, baja al modelo barato; nunca se queda sin contestar por dinero.
-9. Anti-spam: mensaje repetido → descanso 1 h; tope diario por persona; ráfaga de 15 s.
+9. Anti-spam: mensaje repetido → descanso 1 h; tope diario por persona; ráfaga de 15 s. Lo que el anti-spam o el tope frenan
+   no se transcribe ni se lee con IA; notas de voz transcritas: 20 por persona al día.
 10. **Seguimiento (decisión de la dueña):** solo a quien **mostró intención de compra y nunca
     compró**. Intención de compra = hay una oportunidad de CRM viva (ni ganada ni perdida) ligada a
     la conversación: el asistente la crea con `crear_oportunidad` cuando el cliente muestra interés
@@ -229,7 +255,9 @@ Heredado del CRM de Baby Caleb y **ampliado con medios**. Service binding `PUENT
     todos los días, hora de Panamá; si cae fuera, espera al siguiente horario laboral); el 2.º a
     los **5 días**. **Ninguno** si no hay oportunidad viva, si la persona **ya es cliente** (alguna
     factura pagada, de antes o de después de empezar la conversación) o si pidió que no la contacten.
-    Odoo decide; el Worker redacta y envía.
+    Es **por persona** (su ficha): solo la conversación por donde escribió último, y los de sus otros canales cuentan. Tampoco a
+    quien Juan pasó a una persona y nadie atendió (espera a una persona), ni uno atrasado más de 6 h (issue #25).
+    Odoo decide; el Worker redacta y envía (y vuelve a mirar al cliente justo antes de enviar).
 11. Español de Panamá, tuteo, breve (2–4 líneas por burbuja), sin emojis, sin signos dobles. Si el cliente escribe en
     **inglés**, contesta en inglés con las mismas reglas (decisión de la dueña, 2026-10-16); las salvaguardas revisan
     también las promesas, las cifras de política y el «soy humano» en inglés, y «human», «agent» o «real person» pasan a
@@ -768,6 +796,9 @@ Workers AI, dentro de la misma cuenta de Cloudflare, y el texto entra a la conve
   proveedor que contesta).
 * Un audio vacío o de más de 8 MB no se procesa. Si Whisper no entiende nada o falla, Juan pide que lo
   escriban; nunca inventa lo que dijo.
+* **Tope y anti-spam (issue #24):** hasta 20 notas de voz transcritas por persona al día (`AUDIOS_POR_DIA`); no se transcribe
+  con la conversación en descanso por spam ni pasado el tope diario. Lo que dice la nota cuenta como escrito: «quiero hablar con
+  una persona» pasa a una vendedora y «no me escriban» apaga los seguimientos.
 * Privacidad: el audio de un cliente es dato personal. Solo viaja del canal a tu Worker y a Workers AI
   de tu cuenta; el texto sigue las mismas reglas que cualquier mensaje (los comprobantes y cédulas
   nunca llegan a la IA).
@@ -793,7 +824,8 @@ identidad, otra o ilegible.
   si parece un pago, la conversación se etiqueta «Comprobante recibido». El bot **nunca** da un pago por confirmado.
 * **Si el lector falla** (sin cupo, formato, más de 4 MB, más de 20 s): todo sigue como antes. El fallo queda en el registro del Worker.
 * **Costo y tope:** cada lectura cuesta un poco de IA de Workers AI (a la cuenta de Cloudflare, aparte del tope mensual de
-  Juan). Se leen hasta 3 imágenes por mensaje y 10 por persona al día; las demás siguen el camino de siempre.
+  Juan). Se leen hasta 3 imágenes por mensaje y 10 por persona al día; las demás siguen el camino de siempre. Con la
+  conversación en descanso por spam o pasado el tope diario no se lee ninguna (issue #24).
 * **Lo que falta (Fase 2):** leer el monto, la referencia y la fecha de un comprobante para la vendedora y cruzarlos con el
   movimiento del banco en la conciliación. La verificación contra el banco, no la IA, es lo que protege de un comprobante falso.
 

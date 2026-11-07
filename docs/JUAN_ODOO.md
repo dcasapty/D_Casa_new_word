@@ -380,6 +380,29 @@ A quien tiene esa oportunidad y **no volvió a escribir**, el asistente le escri
 Si el cliente vuelve a escribir, el conteo empieza de nuevo. En cada conversación, la pestaña **Seguimiento** muestra
 cuántos se enviaron y cuándo toca el próximo. **Odoo decide quién y cuándo; el Worker redacta y envía.**
 
+Además (issue #25, aprobado por la dueña el 2026-11-07):
+
+* **Es por persona, no por conversación.** Quien escribe por WhatsApp y por Telegram (la misma ficha) recibe como máximo dos
+  en total: solo hace el seguimiento la conversación por donde escribió **último**, si otro canal ya tiene uno en camino no se
+  pide otro, y los que le salieron por sus otros canales después de su último mensaje cuentan. Si una conversación pasa a otra
+  ficha de la misma persona (Telegram da después su celular, o una vendedora elige la ficha correcta de una provisional de
+  Juan), **«No contactar» va con ella** (antes se quedaba en la ficha vieja).
+* **A quien espera a una persona no se le pregunta «¿sigues interesado?».** Cuando Juan pasa la conversación a una persona,
+  queda marcada «Espera a una persona desde…» hasta que alguien del equipo **le escriba** (desde la pantalla, el teléfono o
+  Telegram), la devuelva al asistente o la cierre. Mientras tanto no hay seguimiento automático, aunque la pausa de 2 horas
+  venza y la conversación vuelva al asistente, y Sofía la pone en **«Contéstale: espera respuesta»** pasada una hora. Que el
+  cliente vuelva a escribir no la borra (sigue esperando).
+* **Lo atrasado no sale de golpe.** Si un seguimiento se atrasa más de *Ajustes de Juan › No enviar seguimientos atrasados más
+  de (horas)* (**6** por defecto; 0 = mandarlo igual; máximo 72), ya no se manda tarde: se da por pasado **sin enviarse**,
+  queda una nota en la conversación y se programa el siguiente (que también se salta si ya venció). Pasa tras una caída, un
+  despliegue largo o si el asistente estuvo apagado. Por qué 6 h: el cron corre cada 15 minutos (lo normal es llegar con
+  minutos de atraso), un despliegue toma de 15 a 45 minutos, y un «¿pudiste ver la cama?» de hace días, mandado de 50 en 50
+  desde el número de la tienda, molesta y puede hacer que WhatsApp marque el número.
+* **Un aviso tardío del Worker no cierra el ciclo nuevo.** Si el Worker descarta un seguimiento («el cliente ya volvió a
+  escribir») y su aviso llega después de que el cliente reinició el ciclo, ya no deja el conteo en 2 (el ciclo nuevo se
+  quedaba sin seguimientos). Un «no contactar» se honra igual. El Worker vuelve a mirar si el cliente escribió **justo antes
+  de enviar** y no manda dos veces el mismo seguimiento aunque se lo pidan dos veces a la vez.
+
 ## Origen y cotizaciones que vencen solas
 
 * **Origen** (2026-11-03): cada cotización y factura dice de dónde vino: **Chatbot** (la armó Juan), **Web** (la tienda en
@@ -405,7 +428,11 @@ CRM, se apoya en esto para proponer a quién escribirle ([SOFIA.md](SOFIA.md)).
 * **Temperatura** (frío, tibio, caliente) con puntos por hechos: cotización enviada, para cuándo lo quiere, zona de entrega,
   si escribió hace poco o seguido, si lo atiende una persona. Se enfría con el tiempo. La causa queda escrita en la ficha.
 * **Datos que dijo el cliente.** Juan anota la **zona de entrega** (distrito o corregimiento) y **para cuándo** lo quiere,
-  solo si el cliente lo dijo, y nunca pisa lo que escribió una persona.
+  solo si el cliente lo dijo, y nunca pisa lo que escribió una persona. Una zona con número de casa, apartamento, piso, lote,
+  manzana o «#» es una dirección exacta y **no se guarda** (ni en la ficha ni en una nota; issue #25). «Calle 50» o «Vía
+  España» sí (son zonas).
+* **Notas sin repetir.** Una nota igual a una de las 5 últimas de la oportunidad no se vuelve a poner (cada «crear
+  oportunidad» con el mismo resumen y la temperatura que va y viene dejaban la misma nota una y otra vez).
 * **Sin respuesta.** Si la conversación no tiene mensajes en *Ajustes de Juan › Días sin respuesta* (30 por defecto; 0 =
   nunca; mínimo 14) y ninguna vendedora tiene algo pendiente, la oportunidad se archiva con el motivo «Sin respuesta
   (automático)». Se restaura desde el CRM.
@@ -521,7 +548,7 @@ Las de ejemplo no llevan cifras ni políticas.
 | Nombre público | el equipo de D'CASA |
 | Asistente encendido (general y por canal) | Encendido. De fábrica: WhatsApp (QR) y Telegram encendidos; WhatsApp oficial, Messenger e Instagram apagados. **En producción, WhatsApp oficial encendido** desde el 2026-11-02 |
 | Horario laboral | 8:00 a. m. a 5:00 p. m., todos los días (hora de Panamá) |
-| Seguimiento | 1.º a las 5 h, 2.º a los 5 días, máximo 2, solo en horario laboral |
+| Seguimiento | 1.º a las 5 h, 2.º a los 5 días, máximo 2, solo en horario laboral; no se mandan atrasados más de 6 h (0 = mandarlo igual) |
 | Proveedor de IA | De fábrica Anthropic (también **Meta** u **OpenAI**), con otro de respaldo opcional. **En producción: Meta** con el modelo «contributor» (decisión de la dueña, 2026-11-02; [JUAN.md §8](JUAN.md#8-cambiar-de-ia-desde-odoo-sin-tocar-código)) |
 | Modelos | rápido: `claude-haiku-4-5` · inteligente: `claude-sonnet-5-5` (Meta: `muse-spark-1.3`; **OpenAI: sin modelo por defecto, lo escribes tú**) |
 | Precios de la IA | **vacíos** a propósito: no se inventa ningún precio. Si los llenas (dólares por millón de tokens, por nivel: entrada, salida y caché), el Worker calcula el gasto con ellos |
@@ -589,7 +616,8 @@ no para el cliente). Para esto hay que tener el Telegram vinculado con Brian (*M
 Reglas (probadas en `tests/test_telegram_consola.py`): solo **texto** (una foto o un archivo se rechazan y se te manda a la pantalla);
 solo en el **chat privado** con el bot y vinculado a tu usuario (no funciona en grupos); todo corre **como tú**: quien no es del equipo
 de ventas, o ya no tiene permiso cuando pulsa *Enviar*, no manda nada; el borrador sirve **una sola vez**, **vence a los 15 minutos**
-y **solo tú** puedes enviarlo o cancelarlo (aunque otra persona vea el botón); un doble toque no manda dos veces; el límite de
+y **solo tú** puedes enviarlo o cancelarlo (aunque otra persona vea el botón; el mantenimiento de cada 5 minutos borra los
+vencidos); un doble toque no manda dos veces; el límite de
 velocidad de Brian (20 mensajes por minuto) aplica igual. No se tocó Brian: la consola solo se engancha a dos puntos de su bot
 (`_conversar` y `_procesar_callback`) y todo lo que no sea de Juan (botones `brian:…`, mensajes normales) sigue en manos de Brian.
 

@@ -634,6 +634,15 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   Se usa `with self.env.registry.cursor() as cr:` (+ `SET LOCAL lock_timeout`) y se cuenta lo que hizo DENTRO de ese
   cursor: Odoo usa REPEATABLE READ y la transacción del turno no ve lo que otra confirmó después. En las pruebas, un
   savepoint (`modules.module.current_test`). Ver `revisar_con_sofia`.
+- **`dcasa_conversaciones` entero tarda ~11 min en esta máquina** (1.253 pruebas con las de navegador, 2026-11-07): pasa el
+  límite de 10 min de una llamada y la corrida se fue a segundo plano. Se corre en dos mitades por clase (las etiquetas
+  `/dcasa_conversaciones:Clase,…` de un script que reparte las clases; ~5 min cada una), después de instalar en una base
+  nueva con `-i … --stop-after-init` (~3 min). En un worktree sin `vendor/odoo`, se usa el Odoo de la copia principal
+  (`/home/user/D_Casa_new_word/vendor/odoo/odoo-bin` con `--addons-path=<ese>/addons,<ese>/odoo/addons,<worktree>/addons`).
+  `scripts/integracion_juan.sh` ya lo busca solo (39 de 40 en ~4 min).
+- **Al cambiar el seguimiento en Odoo, mirar `juan/test/integracion/seguimiento.ts`:** la prueba de integración real
+  esperaba el comportamiento viejo («descartado» → `seguimientos_enviados >= 1`), que era justo el hueco del issue #25. Las
+  pruebas de Odoo pasaban y la integración del CI habría fallado.
 - **Reservar espacio solo mientras algo se ve:** `body:has(.o_brian_lanzador:not(.o_brian_oculto)) …` dentro de
   `media-breakpoint-up(lg)` (libsass lo acepta; `:is()` no se probó y se evitó con un `@each`). Así el hueco para el
   botón flotante no aparece en el celular (donde Brian va arriba) ni con el panel abierto.
@@ -1040,6 +1049,18 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `production` (lo más probable: el de staging, o la app puesta en `dcasapty.com` como decía SEGURIDAD_ACCESO §8.4). El
   rechazo del borde era el mismo 404 en «0» y en «1». Desde `a7725a2` `/master` dice el motivo (código `audiencia`,
   `sin token`…) y `/__edge/health` trae `puerta`. Guía: docs/PUERTA_MASTER.md.
+
+- **Durable Objects y el eco de Meta (issue #24, 2026-11-07):** mientras el objeto espera un `fetch` (la Send API de Meta),
+  atiende otras peticiones: el webhook con el **eco** de lo que se está mandando puede entrar antes de que la Send API
+  conteste o entre una burbuja y otra. Lo que el motor necesita para reconocerlo se escribe en SQLite **antes** de enviar
+  (`emitir` → `vuelo:*`), no después; lo de después (ids, mensajes) llega tarde para ese eco. Meta además devuelve el texto
+  sin la negrita de WhatsApp: se compara normalizado.
+- **SDK de IA 7 (`ai`): `result.response.messages` es SOLO el último paso**; los mensajes de todos los pasos (llamadas a
+  herramientas y resultados) están en `result.responseMessages`. Con el primero, la pasada de corrección no veía nada.
+- **Claude rechaza llamadas a herramientas en el historial si la petición no trae las herramientas**: la segunda pasada sin
+  herramientas (`sinTexto`) recibe lo consultado como texto (`consultasComoTexto`); la de corrección, con herramientas, recibe
+  la ronda tal cual (`rondasDeHerramientas`, sin el borrador rechazado). `test/motor/sdk-anthropic.test.ts` vigila cómo
+  queda la petición.
 
 ### GitHub
 
