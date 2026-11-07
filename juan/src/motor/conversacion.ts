@@ -112,6 +112,8 @@ class ConfigDesconocida extends Error {}
 const VIDA_ID_ENVIO_MS = 3 * 24 * 3600_000;
 /** Mientras un envío con ese `id_envio` está saliendo, otro igual espera (si no, el cliente recibiría el mensaje dos veces). */
 const ENVIO_EN_CURSO_MS = 3 * 60_000;
+/** El seguimiento que se está redactando y enviando ahora (ver `seguimiento`): otro pedido igual se pospone. */
+const PREFIJO_SEGUIMIENTO_EN_CURSO = "seg_curso:";
 /** La ráfaga espera a que el cliente termine de escribir, pero no más de esto desde su primer mensaje (tantas veces `bufferMs`). */
 const TOPE_DE_RAFAGA_VECES = 3;
 const VENTANA_24H_MS = 23 * 3600_000;
@@ -742,6 +744,7 @@ export class MotorConversacion {
     this.deps.sql.correr("DELETE FROM seguimientos WHERE ts < ?", ahora - 90 * 24 * 3600_000);
     this.deps.sql.correr("DELETE FROM kv WHERE k LIKE 'env:%' AND CAST(v AS INTEGER) < ?", ahora - 24 * 3600_000);
     this.deps.sql.correr(`DELETE FROM kv WHERE k LIKE '${PREFIJO_EN_VUELO}%' AND CAST(json_extract(v, '$.hasta') AS INTEGER) < ?`, ahora);
+    this.deps.sql.correr(`DELETE FROM kv WHERE k LIKE '${PREFIJO_SEGUIMIENTO_EN_CURSO}%' AND CAST(v AS INTEGER) < ?`, ahora - 24 * 3600_000);
     this.deps.sql.correr(`DELETE FROM kv WHERE k LIKE '${PREFIJO_ID_ENVIO}%' AND CAST(json_extract(v, '$.ts') AS INTEGER) < ?`, ahora - VIDA_ID_ENVIO_MS);
   }
 
@@ -1580,8 +1583,25 @@ export class MotorConversacion {
     return { ok: true };
   }
 
-  /** `POST /odoo/seguimiento`: redactar y enviar el seguimiento n.º 1 o 2. */
+  /**
+   * `POST /odoo/seguimiento`: redactar y enviar el seguimiento n.º 1 o 2. Se RECLAMA antes de redactar (issue #24): dos pedidos del
+   * mismo seguimiento a la vez (Odoo reintenta tras su plazo de 25 s, el cron y un reintento a mano) no pueden mandar dos. El reclamo
+   * se suelta al terminar, salga o no (lo enviado queda en `seguimientos`); si el objeto se reinicia a mitad, vence solo.
+   */
   async seguimiento(s: SolicitudSeguimiento): Promise<ResultadoSeguimiento> {
+    if (s.numero !== 1 && s.numero !== 2) return this.seguimientoReclamado(s);
+    const reclamo = `${PREFIJO_SEGUIMIENTO_EN_CURSO}${s.numero}:${s.contexto?.ultimo_mensaje_ts ?? ""}`;
+    const desde = this.kv.numero(reclamo);
+    if (desde !== null && this.deps.ahora() - desde < ENVIO_EN_CURSO_MS) return { ok: true, resultado: "pospuesto", motivo: "ese seguimiento ya se está enviando" };
+    this.kv.poner(reclamo, this.deps.ahora());
+    try {
+      return await this.seguimientoReclamado(s);
+    } finally {
+      this.kv.poner(reclamo, null);
+    }
+  }
+
+  private async seguimientoReclamado(s: SolicitudSeguimiento): Promise<ResultadoSeguimiento> {
     const numero = s.numero === 1 || s.numero === 2 ? s.numero : null;
     if (numero === null) return { ok: false, error: "numero debe ser 1 o 2" };
     const cfg = await this.deps.config();
@@ -1656,6 +1676,10 @@ export class MotorConversacion {
     if (!texto) return { ok: false, error: "el borrador del seguimiento no pasó la guardia de salida" };
 
     if (!(await this.puedeEnviar(epoca0, false))) return cierra("descartado", "una vendedora tomó la conversación");
+    // Otra vez, justo antes de enviar (issue #24): mientras la IA redactaba, el cliente pudo escribir o pedir que no le escriban.
+    const ultimoAhora = this.kv.numero("ultimo_cliente_ts");
+    if (ultimoAhora !== null && ultimoAhora > Math.max(visto ?? 0, ultimoCliente ?? 0) + 1000) return cierra("descartado", "el cliente ya volvió a escribir");
+    if (this.kv.bandera("sin_seguimiento")) return cierra("descartado", "el cliente pidió que no lo contacten");
 
     try {
       await this.emitir({ burbujas: partirEnBurbujas(texto, { maxBurbujas: 2 }), medios: [], autor: "bot", registrar: true, modelo });
