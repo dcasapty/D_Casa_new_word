@@ -44,6 +44,7 @@ class DcasaCorreo(models.AbstractModel):
             return contexto   # solo lo que armó _postear para ESTE registro
         if not (self.env.uid == SUPERUSER_ID or self.env.user._is_internal()):
             return contexto
+        self.env.cr.flush()   # lo pendiente de quien manda el correo, AFUERA del try: un error suyo no se traga
         try:
             with self.env.cr.savepoint():
                 destino = self.env['res.partner'].sudo().browse(marca[2]).exists()

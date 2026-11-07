@@ -23,6 +23,7 @@ class DcasaConversacion(models.Model):
         # Primero la marca en el texto (sin tocar la base): a los demás mensajes no se les suma ni una consulta.
         if mensaje.autor != 'cliente' or mensaje.tipo != 'mensaje' or not R.campana_de_la_marca(mensaje.texto):
             return
+        self.env.cr.flush()   # lo pendiente de quien llama, AFUERA del try: un error suyo no se traga
         try:
             with self.env.cr.savepoint():
                 self.env['dcasa.camila'].sudo()._anotar_llegada(self, mensaje)
@@ -31,6 +32,7 @@ class DcasaConversacion(models.Model):
 
     def _estado_para_worker(self, ajustes=None):
         estado = super()._estado_para_worker(ajustes)
+        self.env.cr.flush()
         try:
             with self.env.cr.savepoint():
                 contexto = self.env['dcasa.camila'].sudo()._contexto_para_juan(self)

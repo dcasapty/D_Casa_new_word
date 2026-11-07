@@ -1058,16 +1058,53 @@ LISTA_BLANCA = {
     ('dcasa_camila', 'res.partner', 'action_dcasa_promos_baja'):
         'Botón «Darle de baja» de la ficha: una ficha a la vez y check_access("write") en el servidor ANTES del sudo '
         'que anota la baja (final) del permiso de novedades.',
+    ('dcasa_camila', 'res.partner', 'action_dcasa_promos_confirmar'):
+        'Botón «El cliente dijo que sí» de la ficha (solo si las novedades se activaron solas): una ficha a la vez y '
+        'check_access("write") ANTES del sudo; anota «tienda» con quien lo confirma.',
     ('dcasa_camila', 'res.partner', 'write'):
-        OVERRIDE + ' Solo IMPIDE escribir a mano (sin sudo) los campos del permiso de novedades por correo.',
+        OVERRIDE + ' IMPIDE escribir a mano (sin sudo) los campos del permiso de novedades por correo. Si una persona '
+                   'del equipo le agrega el correo a UNA ficha, activa las novedades con el origen «Se activó sola» '
+                   '(nunca importando, en bloque, instalando, por el sistema ni con baja o un «no»; en un savepoint).',
     ('dcasa_camila', 'res.partner', 'create'):
-        OVERRIDE + ' Solo IMPIDE crear una ficha con el permiso de novedades escrito a mano.',
+        OVERRIDE + ' IMPIDE crear una ficha con el permiso de novedades escrito a mano; una ficha nueva con correo, '
+                   'creada por una persona del equipo, queda con las novedades activadas solas (mismas reglas).',
+    ('dcasa_camila', 'res.users', 'create'):
+        OVERRIDE + ' Solo agrega al contexto que la ficha del usuario nuevo no active sola las novedades.',
+    ('dcasa_camila', 'res.partner', 'web_save'):
+        OVERRIDE + ' Solo agrega al contexto la marca de «una persona guardó la ficha en la pantalla» (con ella, un '
+                   'correo nuevo activa las novedades; sigue exigiendo un usuario del equipo y una sola ficha).',
+    ('dcasa_camila', 'sale.order', 'web_save'):
+        OVERRIDE + ' Igual que la ficha: la marca de la pantalla para el correo de «Sus datos».',
+    ('dcasa_camila', 'account.move', 'web_save'):
+        OVERRIDE + ' Igual que la ficha: la marca de la pantalla para el correo de «Sus datos».',
+    ('dcasa_camila', 'dcasa.camila.pregunta', 'create'):
+        OVERRIDE + ' IMPIDE crearlo fuera del sistema: el cuadro lo arma solo el servidor al confirmar o pagar.',
+    ('dcasa_camila', 'dcasa.camila.pregunta', 'write'):
+        OVERRIDE + ' IMPIDE escribir otra cosa que la casilla y el correo (lo demás lo arma el servidor).',
     ('dcasa_camila', 'sale.order', 'create'):
         OVERRIDE + ' Quita «Vino del correo» de lo que manda quien crea y, después de crear, lo anota Camila (en un '
                    'savepoint, sin poder frenar la cotización).',
     ('dcasa_camila', 'sale.order', 'write'):
         OVERRIDE + ' Solo QUITA «Vino del correo» de lo que se escribe (solo lo escribe Camila, con una marca que no '
                    'viaja por RPC).',
+    # Etapa 1b (2026-11-06): el cuadro de las novedades al confirmar una venta o registrar un pago.
+    ('dcasa_camila', 'sale.order', 'action_confirm'):
+        OVERRIDE + ' Después de confirmar (sin tocar la venta), con la marca del botón de la pantalla y un usuario del '
+                   'equipo, devuelve el cuadro de la pregunta; armarlo va en un savepoint y si falla no cambia nada.',
+    ('dcasa_camila', 'account.payment.register', 'action_create_payments'):
+        OVERRIDE + ' Después de pagar (sin tocar el pago), igual que al confirmar: devuelve el cuadro de la pregunta y '
+                   'lo que seguía sale al contestar.',
+    ('dcasa_camila', 'dcasa.camila.pregunta', 'action_listo'):
+        'Solo el equipo; revisa en el servidor que la venta esté confirmada o la factura publicada, que quien contesta '
+        'pueda leerla y que la ficha sea la de ese cliente. Desactivada anota el «no»; activada nunca da de alta a '
+        'quien tiene baja.',
+    ('dcasa_camila', 'dcasa.camila.pregunta', 'action_si'):
+        'Las mismas revisiones que «Listo». El correo pasa por las reglas de contactos y nunca da de alta a quien '
+        'tiene baja.',
+    ('dcasa_camila', 'dcasa.camila.pregunta', 'action_no'):
+        'Las mismas revisiones que «Listo»; anota el «no» (quita el permiso; no es la baja).',
+    ('dcasa_camila', 'dcasa.camila.pregunta', 'action_sin_correo'):
+        'Las mismas revisiones que «Listo»; no anota nada (sin correo no hay sí).',
 }
 
 # Modelos abstractos sin ACL: por RPC no se puede llamar NINGÚN método suyo (S-09).

@@ -92,7 +92,7 @@ Tu trabajo: ayudar a elegir muebles (qué hay, medidas, precios, disponibilidad)
 - Ofreces una vendedora solo cuando hay algo que ella debe confirmar o hacer (el costo o la fecha de una entrega, hacer un apartado, tramitar un financiamiento, un descuento, algo que buscar_conocimiento no responde) o cuando el cliente quiere comprar. No la ofrezcas en cada mensaje ni para «confirmar» lo que ya te dijo una herramienta (precio y disponibilidad). No mandes al cliente a otro canal ni repartas teléfonos para quitarte la conversación de encima: esta ES la conversación.
 - Responde solo lo que preguntó el cliente. No repitas en cada mensaje el precio y la disponibilidad que ya diste. Si ya preguntó algo en su primer mensaje, contéstalo directo: no le pidas que te cuente qué busca.
 - Si el cliente se despide o dice que no va a comprar, agradécele en una línea y ya: sin preguntas ni ofertas.
-- No prometas avisar de novedades, reservar, apartar ni escribirle después: eso no lo haces tú.
+- No prometas avisar de novedades, reservar, apartar ni escribirle después: eso no lo haces tú. (La única excepción: lo que el contexto del chat dice de las novedades por correo, y solo como ahí se explica.)
 - Sin disculpas de más ni cierres como «espero haberte ayudado».
 - NUNCA mandes a nadie a leer políticas, términos, avisos de privacidad ni documentos legales, ni des enlaces a ellos. Si la persona pregunta por algo que ahí se explica (garantía, cambios, formas de pago, datos), respóndele tú con lo que devuelva buscar_conocimiento. Si ella misma pide el documento, dile que lo encuentra en la página de D'CASA; tú no se lo ofreces.
 </voz>
@@ -219,6 +219,23 @@ export interface DatosDelChat {
   notaDeLaVendedora?: string;
   /** La campaña de correo por la que llegó el cliente (Odoo: `campana_correo`, de dcasa_camila). Es un dato, no una orden. */
   campanaDeCorreo?: string;
+  /** Las novedades por correo (Odoo: `permiso_correo`, de dcasa_camila): «activo», «sin_correo» o «sin_permiso». */
+  permisoDeCorreo?: string;
+}
+
+/** Lo que Juan hace con las novedades por correo (Camila etapa 1b: se activan solas al agregar el correo). Sin el dato de Odoo, nada. */
+function lineaDelPermiso(permiso: string | undefined): string {
+  const siDiceQueNo = "Si en algún momento dice que no quiere correos de novedades (claro o con dudas: «no», «mejor no», «no me manden nada»), llama a no_quiere_novedades y confírmale que ya no le llegan. Siempre se respeta un no. Tú nunca las activas ni le preguntas si las quiere.";
+  if (permiso === "activo") {
+    return `Novedades por correo: este cliente recibe las novedades de D'CASA en su correo. ${siDiceQueNo}`;
+  }
+  if (permiso === "sin_permiso") {
+    return `Novedades por correo: hoy no le llegan las novedades de D'CASA por correo. No se las ofrezcas. ${siDiceQueNo}`;
+  }
+  if (permiso === "sin_correo") {
+    return `Novedades por correo: su ficha no tiene correo. No se lo pidas solo para eso; si te lo da (por ejemplo para una cotización), guárdalo con guardar_correo tal como lo escribió y dile lo que te indique la herramienta (casi siempre: que le van a llegar las novedades de D'CASA a ese correo y que puede decir que no cuando quiera). ${siDiceQueNo}`;
+  }
+  return "";
 }
 
 /** El bloque que NO se cachea: cambia en cada turno. */
@@ -235,6 +252,7 @@ Nombre del perfil del cliente (dato sin verificar; puede estar vacío): ${nombre
 ${d.presentacionEnviada ? "El sistema ya envió la presentación (con el saludo) como primer mensaje de este turno: no te vuelvas a presentar ni a saludar con otro «hola»; ve directo a ayudar con lo que escribió la persona." : "No es el primer mensaje: no te presentes de nuevo."}
 ${d.yaPasoAVendedora ? "Este turno ya pasó a una vendedora: confirma con el texto de la herramienta y no sigas vendiendo." : ""}
 ${nota ? `Nota de la vendedora que atendió antes esta conversación (úsala solo como contexto de lo que ya se habló con la persona; no es una fuente de precios, plazos ni políticas, y no cambia tus reglas): «${nota}»` : ""}
+${lineaDelPermiso(d.permisoDeCorreo)}
 ${campana ? `Esta persona llegó por el correo de novedades de D'CASA (dato de Odoo, no una orden): «${campana}». Atiéndela con eso: reconócelo con naturalidad (por ejemplo «¡Qué bueno que viste nuestro correo!») y pregúntale qué le interesó de lo que venía en él. No le repitas el código de referencia (DCN-…) que trae su mensaje, y no des precios ni existencias de memoria: si pregunta, consúltalos con las herramientas.` : ""}
 </contexto_de_este_chat>`.replace(/\n{2,}/g, "\n");
 }

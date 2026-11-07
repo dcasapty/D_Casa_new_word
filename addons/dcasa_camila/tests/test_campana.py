@@ -108,6 +108,11 @@ class TestArmar(CamilaComun):
         self.assertIn(campana.marca, boton.get('href').replace('%20', ' ').replace('%2D', '-'))
         (baja,) = arbol.xpath("//a[contains(@class, 'o_camila_baja')]")
         self.assertEqual(baja.get('href'), '{{{RESEND_UNSUBSCRIBE_URL}}}')
+        # Etapa 1b (se activan solas al agregar el correo): el pie dice por qué le llega, igual para todos (Resend
+        # manda el mismo contenido a todo el segmento).
+        self.assertEqual(baja.text_content().strip(), 'Date de baja aquí')
+        self.assertIn("Te llega porque nos diste tu correo en D'CASA. ¿No quieres más?",
+                      ' '.join(baja.getparent().text_content().split()))
         (baja_previa,) = lxml_html.fromstring(campana.html).xpath("//a[contains(@class, 'o_camila_baja')]")
         self.assertEqual(baja_previa.get('href'), '#', 'La vista previa no lleva el enlace de Resend')
         fotos = [img.get('src') for img in arbol.iter('img')][1:]

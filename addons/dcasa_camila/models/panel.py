@@ -50,7 +50,8 @@ class DcasaCamila(models.AbstractModel):
         campana = abiertas.filtered(lambda c: c.id == campana_id)[:1] if campana_id else abiertas[:1]
         if not campana:
             campana = abiertas[:1]
-        con_permiso = len(self.env['res.partner'].sudo()._dcasa_promos_con_permiso())
+        permitidos = self.env['res.partner'].sudo()._dcasa_promos_con_permiso()
+        con_permiso = len(permitidos)
         publico = self._publico_para_pantalla(campana) if campana else None
         ultima = self._ultima_enviada()
         enviadas = self.env['dcasa.camila.campana'].sudo().search([('estado', '=', 'enviada')],
@@ -61,6 +62,7 @@ class DcasaCamila(models.AbstractModel):
             'hay_clave': bool(self._clave()),
             'entorno': self._entorno() or '',
             'con_permiso': con_permiso,
+            'por_camino': self._permisos_por_camino(permitidos),
             'bloqueos': self._bloqueos(campana or None, con_permiso=con_permiso, publico=publico),
             'ultima': {'nombre': ultima.name, 'asunto': ultima.asunto, 'fecha': self._fecha_texto(dia_ultima),
                        'hace': self._hace(dia_ultima)} if ultima else None,
@@ -128,6 +130,18 @@ class DcasaCamila(models.AbstractModel):
 
         return bool(campana.resend_broadcast_id or not campana.enviando_desde
                     or fields.Datetime.now() - campana.enviando_desde >= timedelta(minutes=MINUTOS_ENVIANDO))
+
+    @api.model
+    def _permisos_por_camino(self, permitidos):
+        """Cuántos de los que reciben las novedades llegaron por cada camino (etapa 1b): solo cuántos, nunca quiénes.
+        «Sitio web» solo si hay alguno."""
+        from .permiso import CAMINOS
+
+        cuantos = {}
+        for ficha in permitidos.values():
+            cuantos[ficha.dcasa_promos_origen] = cuantos.get(ficha.dcasa_promos_origen, 0) + 1
+        return [{'clave': clave, 'nombre': nombre, 'n': cuantos.get(clave, 0)}
+                for clave, nombre in CAMINOS if clave != 'web' or cuantos.get(clave)]
 
     @api.model
     def _tarjeta(self, dato, moneda):

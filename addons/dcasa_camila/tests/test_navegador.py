@@ -224,7 +224,7 @@ MARKETING = """
 FICHA = """
     await esperar(() => document.querySelector('.o_dcasa_promos'), 'el permiso en la ficha');
     const caja = document.querySelector('.o_dcasa_promos');
-    if (!caja.textContent.includes('Márcalo solo si dice que sí')) { throw new Error('Falta cómo preguntarle'); }
+    if (!caja.textContent.includes('Se activa sola cuando le agregas su correo')) { throw new Error('Falta la ayuda'); }
     const casilla = caja.querySelector('input[type="checkbox"]');
     casilla.click();
     await esperar(() => casilla.checked, 'que la casilla quede marcada');

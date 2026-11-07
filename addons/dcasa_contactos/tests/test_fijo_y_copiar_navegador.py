@@ -175,7 +175,15 @@ class TestFijoYCopiarEnElNavegador(HttpCase):
                 'el botón Confirmar');
             confirmar.click();
             const boton = '.o_form_view .o_statusbar_buttons button[name="action_confirm"]';
-            await esperar(() => !document.querySelector(boton) || document.querySelector('.o_error_dialog'),
-                          'que se confirme');
+            await esperar(() => !document.querySelector(boton) || document.querySelector('.o_error_dialog')
+                          || document.querySelector('.o_dcasa_camila_pregunta'), 'que se confirme');
+            // Con Camila instalada, después de confirmar sale su cuadro de las novedades por correo (la venta ya quedó
+            // hecha; la pantalla se pone al día al contestarlo): se contesta y se sigue.
+            const novedades = document.querySelector('.o_camila_pregunta_no, .o_camila_pregunta_listo');
+            if (novedades) {
+                novedades.click();
+                await esperar(() => !document.querySelector(boton) || document.querySelector('.o_error_dialog'),
+                              'que se confirme');
+            }
         """)
         self.assertEqual(orden.state, 'sale')

@@ -290,8 +290,8 @@ Entrada: `env.DCASA.fetch("https://dcasa/dcasa/juan/v1/…")` por **service bind
 
 | Ruta | Cuerpo | Respuesta 200 |
 |---|---|---|
-| `POST /mensaje` | `canal, id_externo, id_mensaje, direccion, autor, texto?, adjuntos?[{tipo, url \| base64, nombre, mime, sensible?}], ts?, nombre?, celular?` | `{ok, conversacion_id, partner_id, estado, bot_activo, pausada_hasta, dentro_de_horario, nota_para_el_bot, campana_correo?, adjuntos?[{id, nombre, sensible}]}` |
-| `GET /estado?canal=&id_externo=` | | `{ok, estado, bot_activo, pausada_hasta, dentro_de_horario, nota_para_el_bot, campana_correo?}` (sin conversación: los valores de los ajustes) |
+| `POST /mensaje` | `canal, id_externo, id_mensaje, direccion, autor, texto?, adjuntos?[{tipo, url \| base64, nombre, mime, sensible?}], ts?, nombre?, celular?` | `{ok, conversacion_id, partner_id, estado, bot_activo, pausada_hasta, dentro_de_horario, nota_para_el_bot, campana_correo?, permiso_correo?, adjuntos?[{id, nombre, sensible}]}` |
+| `GET /estado?canal=&id_externo=` | | `{ok, estado, bot_activo, pausada_hasta, dentro_de_horario, nota_para_el_bot, campana_correo?, permiso_correo?}` (sin conversación: los valores de los ajustes) |
 | `GET /config` | | ver abajo |
 | `GET /herramientas` | | `{ok, herramientas:[{nombre, descripcion, parametros, name, description, input_schema}]}`: 13 herramientas, con las claves del contrato **y** las del formato de Anthropic |
 | `POST /herramienta` | `{nombre, argumentos, conversacion_id}` | `{ok:true, resultado:{…}}` |
@@ -309,6 +309,13 @@ Entrada: `env.DCASA.fetch("https://dcasa/dcasa/juan/v1/…")` por **service bind
   (sin ella, la borra) y la pone en el contexto del chat como un dato de Odoo, no una orden: Juan reconoce el correo
   con naturalidad, pregunta qué le interesó, no repite el código «DCN-…» y los precios los da la herramienta de
   siempre. Detalle: [CAMILA.md](CAMILA.md) §3.9.
+- `permiso_correo` (2026-11-06, `dcasa_camila`, etapa 1b, decisión de la dueña: las novedades se activan solas al
+  agregar el correo): «activo» (le llegan: si dice que no, claro o con dudas, Juan llama a `no_quiere_novedades`),
+  «sin_correo» (si da su correo, Juan lo guarda con `guardar_correo` y le dice que le llegarán las novedades y que
+  puede decir que no cuando quiera) o «sin_permiso» (tiene correo pero no le llegan: no se las ofrece y un «no» igual
+  se anota). Si no viene, nada. Juan nunca las activa por su cuenta ni pregunta si las quiere.
+  Las dos herramientas las publica Odoo solo con Camila instalada; `guardar_correo` solo guarda un correo que el
+  cliente escribió en el chat, si la ficha no tiene uno. Detalle: [CAMILA.md](CAMILA.md) §3.11.
 - `adjuntos[].url`: si es `null` (el Worker no tiene `URL_PUBLICA`), el mensaje **se guarda igual** y el adjunto cuenta como
   «no se pudo traer» (`adjuntos_fallidos`); antes se rechazaba todo el mensaje con 400.
 - `POST /herramienta` con `pasar_a_vendedora` devuelve `{texto_para_el_cliente, dentro_de_horario, urgente}`: **el texto que el bot

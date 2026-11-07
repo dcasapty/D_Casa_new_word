@@ -1,7 +1,7 @@
 # Camila, la asistente del mail marketing (`dcasa_camila`)
 
-**Estado (2026-11-06): etapa 1 en producción (Desplegar 52); etapa 2 («a lo grande», §1b) hecha en su rama, sin
-desplegar.** No envía nada todavía: para que salga la primera campaña falta que la clave de campañas de Resend entre al
+**Estado (2026-11-06): etapas 1 y 2 en producción (Desplegar 54 y Juan 7); etapa 1b (la lista crece sola, §1c)
+hecha en su rama, sin desplegar.** No envía nada todavía: para que salga la primera campaña falta que la clave de campañas de Resend entre al
 contenedor (§6) y que alguien de Marketing o Gerencia la apruebe.
 
 Pedido de la dueña (2026-11-06):
@@ -21,7 +21,7 @@ Pedido de la dueña (2026-11-06):
 | Precios | **El precio real de Odoo**: el mismo que ve el cliente en la tienda en línea, el día que se arma o se aprueba. Nunca un precio escrito por la IA ni a mano. |
 | Por dónde sale | **El servicio de campañas de Resend (Broadcasts)**, aparte de los correos de factura, con su propia clave (`RESEND_CAMPANAS_API_KEY`). |
 | Permiso | Solo a quien dijo que sí, con **cuándo, por dónde y con quién** (y a qué correo). Cuentan también los que dieron su correo cuando **Sofía** se lo pidió «para avisarles de promociones…», solo si el texto que de verdad se le mandó lo decía. **Una baja se respeta siempre** (por correo, en cualquier ficha). |
-| Formas de decir que sí (etapa 1) | La **casilla** de la ficha (la vendedora), el enlace **«¿Te avisamos de lo nuevo? Sí, quiero»** al pie del correo de la factura y de la bienvenida, y lo de **Sofía**. Que **Juan** lo pregunte por WhatsApp queda para la etapa 1b. |
+| Formas de decir que sí (etapa 1) | La **casilla** de la ficha (la vendedora), el enlace **«¿Te avisamos de lo nuevo? Sí, quiero»** al pie del correo de la factura y de la bienvenida, y lo de **Sofía**. Etapa 1b (§1c): **se activa sola al agregar el correo** (y se quita cuando el cliente dice que no); el cuadro al confirmar una venta o registrar un pago y **Juan** honran el «no». |
 | Darse de baja | El enlace de Resend en cada campaña. Las bajas vuelven a Odoo cada hora y siempre justo antes de enviar; una baja hecha en Odoo también sube a Resend. |
 
 Las redes sociales las llevan la dueña y su compañero de marketing: Camila no publica en redes.
@@ -41,9 +41,31 @@ Las redes sociales las llevan la dueña y su compañero de marketing: Camila no 
 | La IA | La misma IA de Juan y Brian **escribe con los datos reales del producto** (nombre, categoría, atributos, descripción, medidas, material) y con **la idea de la campaña** que escribe Marketing; puede **sugerir productos** para esa idea. Misma revisión de marca; si la IA falla, la pantalla lo dice y deja reintentar: nunca en silencio. A la IA no le llega ningún dato de clientes. |
 | Desde el tablero | En el tablero de Marketing, «Crear campaña con estos» en Más stock, Más vendidos, Mayor movimiento y Más quietos abre Camila con un borrador nuevo de esos productos (solo los que se pueden ofrecer). En Camila, **«Nueva campaña»**: desde una idea, lo nuevo, lo más vendido, lo más quieto, lo que más hay en stock, lo de mayor movimiento o en blanco. |
 
+## 1c. Decisiones de la dueña para la etapa 1b (2026-11-06): la lista crece sola
+
+La dueña vio «0 clientes con permiso» de unos 3,000. No quiere marcar a nadie de golpe: que la lista crezca sola desde
+ahora. Primero se hizo con una pregunta «Sí / No» en cada venta y Juan preguntando por WhatsApp; **ese mismo día
+cambió el diseño**: «en el momento en el que se añade un correo, ya debe activarse automáticamente» (también cuando la
+ficha recibe el correo por Sofía). La casilla queda activada por defecto y quien atiende la desactiva cuando el
+cliente dice que no.
+
+| Qué | Decisión |
+|---|---|
+| **Se activa sola al agregar el correo** | Cuando la ficha (la comercial) pasa de no tener un correo bien escrito a tenerlo, o a otro distinto, queda con permiso. **Solo por los caminos de una persona** (revisión adversarial, 2026-11-06: una lista de excepciones siempre deja alguna puerta abierta): guardar desde la pantalla la ficha, la venta o la factura («Sus datos»), «Guarda sus datos» de Sofía y Juan cuando guarda el correo que escribió el cliente. En la ficha, al escribir el correo la casilla ya se ve activada (lo que va a pasar al guardar); si el cliente dijo que no, se desmarca antes de guardar y queda el «no». |
+| **El origen honesto** | Queda **«Se activó sola al agregar su correo»** (`al_agregar_correo`), con quién agregó el correo (o Juan) y cuándo; **nunca «tienda»** (eso es «lo marcó la vendedora»). En el cuadro de la venta, si la casilla venía activada y quien atendió tocó «Listo», queda **«Quedó activada en la venta (venía activada; nadie le preguntó)»** (`venta_venia_activada`), con la venta o el pago: tampoco es un «sí». Los dos se cuentan aparte y la ficha dice «nadie le ha preguntado todavía» hasta que una persona toca **«El cliente dijo que sí»** (queda «tienda» con su nombre). |
+| **El «no» queda anotado** | Desmarcar la casilla (también en el mismo guardado en que cambia el correo, o al crear la ficha con la casilla desmarcada; solo si de verdad alguien la desmarcó: si la casilla iba a verse activada o si ya tenía permiso con ese mismo correo. Una empresa nueva, un correo con baja o un correo borrado no anotan un «no» que nadie dijo; en una empresa la casilla es de solo lectura), desactivarla en la venta o decírselo a Juan anota el «no» con cuándo, dónde y quién (`dcasa_promos_no_fecha`, `_no_origen`, `_no_usuario_id`). Con un «no», **la casilla nunca se vuelve a activar sola** (ni aunque cambie de correo) y **solo lo borra un acto explícito**: la casilla marcada por una persona, «El cliente dijo que sí», el «Sí» del cuadro de la venta o el cliente que toca «Sí, quiero» en su enlace; nunca lo de Sofía, el cron ni lo automático, y nunca un «no» más nuevo que ese «sí». El «no» no es la baja: la baja es final y sube a Resend. |
+| **Nunca se activa sola** | Con baja o «no contactar» de ese correo en CUALQUIER ficha; después de un «no»; importando (`import_file`), con la carga del sistema anterior (`dcasa_migracion`), instalando o actualizando módulos, en una escritura de muchas fichas a la vez, por el sistema (crones, scripts y migraciones corren como `SUPERUSER_ID`), al fusionar fichas (el correo que pasa a la que queda no activa nada; el «sí», el «no» y la baja pasan aparte, y un «no» le gana siempre a un «sí» automático), desde la web pública o el portal (alguien podría escribir el correo de otro en un formulario; el «sí» desde la web es la etapa siguiente), a los destinatarios que el chatter crea solo, en la creación rápida de un campo, desde Brian, en la ficha de un usuario nuevo, de un empleado, de una empresa, del equipo o de un **proveedor** que no es cliente (la decisión es de clientes). **Nada hacia atrás**: a los clientes que ya tenían correo no se les toca; solo desde ahora. |
+| **En cada venta** | Cuando una persona del equipo **confirma una venta o registra un pago desde la pantalla**, sale un cuadro corto, sin «Cancelar», sin la X y sin cerrarse con Escape (así tampoco se pierde lo que seguía, como «Imprimir documentos»). **Con correo**: la casilla «Quiere recibir novedades por correo» ya viene activada (en el azul de la marca) y dice «Se le enviarán novedades a <correo>. Si el cliente dijo que no, desactívala»; «Listo». Desactivada, queda el «no» (en la venta). Si queda activada y no tenía permiso (un cliente de antes o un pedido de la web), queda «venía activada» (arriba); si ya se había activado sola, sigue así; si venía apagada por un «no» viejo y quien atiende la activa, eso sí es un «sí» de una persona (`venta`). **Sin correo**: «Sí / No» y, con «Sí», el mismo cuadro pide el correo, lo revisa y lo guarda (queda «En la venta»: el único «sí» de verdad del cuadro). Un cuadro viejo no le gana a un «no» que se anotó después de abrirlo. El cuadro lo arma solo el servidor, la persona solo cambia la casilla o el correo y cada quien ve solo los suyos. |
+| Cuándo NO sale el cuadro | Si una persona o el cliente ya lo confirmó con su correo de hoy (cualquier camino que no sea automático); con baja o «no contactar»; a proveedores que no son clientes; si el cuadro ya salió para esa ficha (aunque lo cerraran sin contestar), o dijo que no, hace menos de **180 días** (un ajuste: `dcasa_camila.dias_entre_preguntas`; pasado el plazo de un «no», sale con la casilla desactivada); a fichas del equipo o empresas. |
+| **La regla de oro** | Esto **nunca traba ni hace fallar una venta o un pago**: el cuadro sale DESPUÉS de confirmar o de pagar (ya quedaron hechos), solo en la pantalla (la marca va en el botón «Confirmar» de la cotización y en «Crear pago» del asistente «Pagar») y para el equipo. Nunca en Juan, la web, Brian, los crones ni un RPC sin esa marca. Si armar el cuadro falla, no sale y la venta o el pago siguen igual. Activar las novedades al guardar un correo va en un savepoint: si falla, el correo se guarda igual. Y lo pendiente de la venta o del pago (los datos y sus precommit: seguimiento, bus) se escribe ANTES y fuera de ese savepoint con `cr.flush()`: un error suyo (un conflicto de la base) no se disfraza de aviso de Camila, sale como siempre y Odoo reintenta. |
+| **Juan** | Nunca las activa por su cuenta ni pregunta si las quiere. Si el cliente le da su correo, lo guarda (`guardar_correo`: tiene que estar escrito por el cliente en el chat, y solo si la ficha no tiene uno) y le dice con claridad que le llegarán las novedades a ese correo y que puede decir que no cuando quiera. **Si el cliente dice que no, claro o con dudas, las quita** (`no_quiere_novedades`, origen «Se lo dijo a Juan en el chat»): siempre se honra un no. |
+| **El pie de cada campaña** | Para todos (Resend manda el mismo contenido a todo el segmento): «Te llega porque nos diste tu correo en D'CASA. ¿No quieres más? **Date de baja aquí**». |
+| En la pantalla de Camila | Cuántos llegaron por cada camino: al agregar su correo, en la venta (venía activada), en la venta, Juan, el enlace de la factura y el de la bienvenida, Sofía y la casilla de la ficha (solo cuántos). |
+
 ## 2. Para el equipo de marketing (en corto)
 
-**Marketing › Camila.** Arriba ves **a cuántos clientes con permiso** les puede llegar algo, **la última campaña** y
+**Marketing › Camila.** Arriba ves **a cuántos clientes con permiso** les puede llegar algo (y por dónde: al agregar
+su correo, en la venta, Juan, el enlace de la factura o la bienvenida, Sofía o la casilla), **la última campaña** y
 el tope: **a cada cliente, un correo cada 15 días como mucho**. Si algo impide enviar (falta la clave, nadie dijo que
 sí todavía, nadie de ese público puede recibirla ahora, no eligió ningún botón, estás en staging), la pantalla lo dice
 en palabras sencillas y el botón de enviar queda apagado. Puede haber varias campañas abiertas: cada una es una
@@ -83,10 +105,11 @@ pestaña.
 **Cuando un cliente escribe por el correo**, Juan ya sabe de qué campaña viene y qué productos llevaba; la conversación
 queda con la etiqueta **«Vino del correo»** y la cotización que se le haga en los 30 días siguientes dice de qué campaña.
 
-**En la ficha del cliente**, junto a las etiquetas: **«Quiere recibir novedades y promociones por correo»**. Márcalo
-solo si el cliente dijo que sí y su ficha tiene su correo (queda con la fecha, tu nombre y ese correo; si después cambia
-de correo, al nuevo no le llega nada hasta que vuelva a decir que sí). Desmarcarla quita el permiso, pero no es la baja.
-Si pide que no le escriban más: **«Darle de baja»** (pide confirmación y es final, para ese correo en cualquier ficha).
+**En la ficha del cliente**, junto a las etiquetas: **«Quiere recibir novedades y promociones por correo»**. Se activa
+sola cuando le agregas su correo y la ficha lo dice («Se activó sola al agregar su correo»); si el cliente te dijo que
+sí de verdad, toca **«El cliente dijo que sí»**. Si te dice que no, desmárcala: queda anotado y ya no se activa sola
+(desmarcarla no es la baja). Si pide que no le escriban más: **«Darle de baja»** (pide confirmación y es final, para
+ese correo en cualquier ficha).
 
 ## 3. Qué hace por dentro
 
@@ -200,7 +223,7 @@ casilla, el botón, el enlace y los crones.
   `website.domain`, nunca escrita a mano). Al pie, si se eligió, **las redes del sitio** que tienen enlace
   (`website.social_facebook`, `social_instagram`, `social_tiktok`, `social_youtube`, `social_twitter`,
   `social_linkedin`; solo `http(s)`) en pastillas planas azul marino con letra blanca (texto, sin imágenes: se ven en
-  todo correo); nombre, dirección, WhatsApp y correo de la empresa, y **«Darme de baja»**
+  todo correo); nombre, dirección, WhatsApp y correo de la empresa, y **«¿No quieres más? Date de baja aquí»** (con «Te llega porque nos diste tu correo en D'CASA», etapa 1b)
   (`{{{RESEND_UNSUBSCRIBE_URL}}}`). Sin degradados, sombras, `<style>` ni JavaScript. La regla «CTA único» de
   `CLAUDE.md` es del sitio; los dos botones en el correo los decidió la dueña el 2026-11-06 (§1b).
 - **El cron diario** «Camila: preparar el borrador de la campaña»: si pasaron 15 días desde la última enviada (o nunca
@@ -379,6 +402,55 @@ los que se pueden ofrecer (en tienda, con foto, con precio y publicados) y la IA
 Camila son de los mismos grupos (rol Marketing, Gerencia y administradores) y el servidor lo exige igual (`_exigir`).
 En el tablero no hay sección de «lo nuevo»: esa campaña se arma desde «Nueva campaña» en Camila.
 
+### 3.11 La lista crece sola (etapa 1b: `models/permiso.py`, `models/pregunta.py`, `models/juan_permiso.py`)
+
+- **Se activa sola** (`permiso.py`): `res.partner.create` (una sola ficha, comercial, con correo) y `write` (una sola
+  ficha, con `email` en lo que se escribe) llaman a `_dcasa_promos_activar_al_agregar_correo(antes)`: si el correo
+  bien escrito de la ficha comercial cambió (de nada a algo, o a otro) y `_dcasa_promos_motivo_para_no_activar()` no
+  dice nada (empresa, equipo, baja o «no contactar» por correo en cualquier ficha, un «no» de cuando sea, ya
+  activada o ya confirmada, proveedor), anota `al_agregar_correo` con quién lo agregó. Va en un savepoint (con
+  `flush_all()` ANTES y fuera del try: un error de lo pendiente de quien llama no se traga): si falla, el correo se
+  guarda igual (`cr.flush()` y no `env.flush_all()`: también corre los precommit de quien llama). Con un «no» en la
+  ficha, la casilla marcada junto con un correo nuevo la decide el inverso (es una persona: `tienda`). El enlace «Sí,
+  quiero» registra con `explicito=True`. `_dcasa_promos_auto_permitido()` es **por invitación**: exige la marca `dcasa_promos_auto`, que solo
+  ponen `web_save` de `res.partner`, `sale.order` y `account.move` (guardar desde la pantalla) y
+  `dcasa.sofia._aplicar_guardar`; además un `uid` del equipo (aunque el código use `sudo`) y que no sea
+  `SUPERUSER_ID`, `import_file`, `install_mode`, el registro cargando ni `dcasa_promos_sin_auto` (lo ponen
+  `res.users.create`, la carga de `dcasa_migracion`, `_update_values` de la fusión y `_create_work_contacts` de
+  empleados). Juan no es del equipo: su herramienta la llama aparte, con Juan como quien lo agregó. Si la casilla
+  llega desmarcada en el mismo guardado que un correo nuevo (o al crear), es el «no»; marcada o sin tocar desde la
+  pantalla, la regla de la dueña. `_onchange_dcasa_promos_email` la muestra activada al escribir el correo.
+- **Orígenes y campos**: `venta`, `juan_whatsapp`, `al_agregar_correo` y `venta_venia_activada` (los dos
+  automáticos, `AUTOMATICOS`; nunca `tienda`). Un «sí» que no es automático reemplaza al automático con el mismo
+  correo (es la persona que lo confirma; botón `action_dcasa_promos_confirmar` de la ficha). Solo un «sí» con
+  `explicito=True` (la casilla marcada por una persona, el botón, el «Sí» del cuadro, el enlace «Sí, quiero») borra
+  un «no», y nunca uno más nuevo que su fecha; `_dcasa_promos_de_sofia` salta las fichas con «no». El «no»: `_dcasa_promos_anotar_no(origen, usuario)`
+  (orígenes `ficha`, `venta`, `juan_whatsapp`) quita el permiso y anota `dcasa_promos_no_fecha`, `_no_origen` y
+  `_no_usuario_id`; desmarcar la casilla lo usa. `dcasa_promos_referencia` (la venta, el pago o «Chat N · mensaje M»)
+  y `dcasa_promos_pregunta_fecha` (la última vez que salió el cuadro). Todos protegidos como los demás (solo el
+  sistema). La fusión de fichas trae el «no» y el último cuadro más recientes; si quedan un «sí» y un «no», el «no»
+  gana a un «sí» automático siempre y a uno de verdad si es más nuevo.
+- **En la venta** (`pregunta.py`): `sale.order.action_confirm` y `account.payment.register.action_create_payments`,
+  DESPUÉS de `super()`, con la marca `dcasa_camila_preguntar` (solo la ponen los botones de la pantalla,
+  `views/pregunta_views.xml`), una sola venta, un usuario del equipo y sin `sudo`, devuelven el cuadro
+  `dcasa.camila.pregunta` según `_dcasa_promos_que_preguntar()`: `casilla` (con correo: `quiere` activada salvo un
+  «no» viejo; «Listo» → `action_listo`) o `pregunta` (sin correo: «Sí», «No»; con «Sí», «Guardar el correo y anotar
+  el sí» o «No dio su correo»). Armarlo va en un savepoint; si falla, devuelven lo de siempre. Lo que seguía (el
+  cuadro «Imprimir documentos» después de pagar) sale al contestar. Antes de anotar, el servidor revisa que la venta
+  esté confirmada o la factura publicada, que quien contesta pueda leerla y que la ficha sea la de ese cliente (el
+  cuadro se podría crear por RPC). El correo se escribe en la ficha como lo haría la persona (las reglas de contactos).
+- **Juan** (`juan_permiso.py`, solo para el usuario técnico de Juan): `guardar_correo` (en Brian
+  `juan_guardar_correo`: el correo tiene que aparecer en lo que escribió el cliente en las últimas 24 horas, la ficha
+  no puede tener otro, ni ser un correo del equipo ni el de otra ficha; lo guarda con las reglas de contactos y activa
+  las novedades con la referencia del mensaje; la respuesta le dice a Juan qué contarle) y `no_quiere_novedades`
+  (`juan_no_quiere_novedades`: anota el «no» `juan_whatsapp`, siempre). En `/mensaje` y `/estado` va
+  `permiso_correo`: «activo», «sin_correo» o «sin_permiso» (tiene correo pero no le llegan; así la línea «si dice que
+  no, `no_quiere_novedades`» sale siempre; para el equipo o una empresa, la clave no va); el prompt de Juan dice qué
+  hacer con cada uno
+  (`juan/src/dcasa/prompt.ts`).
+- **El pie de la campaña** (`correo_templates.xml`): «Te llega porque nos diste tu correo en D'CASA. ¿No quieres más?
+  Date de baja aquí» (el enlace de Resend).
+
 ## 4. Pruebas
 
 `addons/dcasa_camila/tests/`: reglas puras (`test_reglas.py`), el cliente de Resend (`test_resend.py`), el permiso, la
@@ -407,12 +479,31 @@ segmento por tandas, las enviadas de la etapa 1 sin registro y su migración, el
 `canceled` ni si se llamó a «send», «ya salió» sin registro, «todavía saliendo» con todas las campañas, el 404 de
 Resend, registrar a todos los del segmento, el reintento que no manda precios viejos, el tope de IA por persona,
 «Vino del correo» por RPC, la revisión de marca y quién llegó por el correo.
+`test_etapa1b.py` (etapa 1b, primero en rojo sobre el código de antes): se activa sola al crear la ficha con correo,
+al agregarlo o cambiarlo y con «Guarda sus datos» de Sofía (con el origen honesto y quién); nada hacia atrás; nunca
+con baja o «no contactar» en otra ficha, después de un «no» (desmarcar lo anota), importando, en bloque, instalando,
+por el sistema, en la ficha de un usuario nuevo, una empresa o un contacto hijo; un fallo al activarla no traba
+guardar el correo; confirmar lo que se activó solo. En la venta: la casilla activada y la venta ya hecha, desactivarla
+anota el «no», la activada sola sigue diciéndolo y no vuelve a salir, pasado el plazo de un «no» sale desactivada (un
+ajuste), sin la marca o con `sudo` no sale, a quién no le sale, sin correo lo pide y lo guarda o anota el «no», un
+fallo al armarlo no traba la venta, el cuadro falso de otro cliente, al pagar sigue «Imprimir documentos». Juan:
+guarda el correo que escribió el cliente y se activa (con Juan y el mensaje), nunca uno inventado ni cambia el que
+tiene ni activa uno viejo, con un «no» o una baja guarda el correo sin activar, honra siempre un «no» (también antes
+del correo), no tiene cómo activarlas, y de punta a punta por la API (como el Worker). Los conteos por camino y, en el
+navegador, el cuadro al confirmar (sin la X y con la regla del scroll) con la casilla activada en la computadora y,
+pidiendo el correo, en el celular (Escape no lo cierra; la casilla en el azul de la marca). `TestRevisionAdversarial`:
+cada hallazgo de la revisión adversarial con su prueba (el cron de Sofía no borra un «no», solo un acto explícito lo
+borra, fusionar no suscribe ni borra el «no», desmarcar con el correo en el mismo guardado y al crear, la casilla
+activada al escribir el correo en la pantalla y en «Sus datos» de la venta, empleados, proveedores, chatter y
+creación rápida no, un error de quien llama no se traga, el plazo desde que sale el cuadro, un cuadro viejo no le gana
+a un «no», sin usuario no se activa, cada quien sus cuadros y solo la casilla y el correo). En `dcasa_migracion`:
+`test_la_carga_no_suscribe_a_nadie_a_las_novedades`. `test_campana.py`: el pie nuevo. En `juan/`:
+`test/dcasa/permiso-correo.test.ts`.
 
 ## 5. Lo que queda para después
 
-- **Etapa 1b:** que **Juan** pregunte por WhatsApp si quiere recibir novedades (en un buen momento, p. ej. cuando da su
-  correo) y lo anote solo si contesta que sí. Volver a darse de alta después de una baja (lo hace el cliente; hoy la
-  baja es final). El «sí» en la web (checkout y Mi cuenta: origen `web`).
+- Volver a darse de alta después de una baja (lo hace el cliente; hoy la baja es final). El «sí» en la web (checkout y
+  Mi cuenta: origen `web`; hoy la web pública y el portal no activan solas las novedades, §1c).
 - **Después:** el saludo de **cumpleaños** con su beneficio de Socios (de `puntos.json`; si allí está `null` o
   `PENDIENTE`, no se menciona) y **«Tu cotización sigue aquí»** (estaban pensados para la etapa 2; la dueña pidió
   primero la etapa 2 «a lo grande» de §1b).

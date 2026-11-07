@@ -61,9 +61,16 @@ export interface RespuestaMensaje {
    * la manda en /mensaje y /estado solo los primeros días desde que llegó; si el campo no viene, no hay campaña.
    */
   campana_correo?: string | null;
+  /**
+   * Las novedades por correo (Camila etapa 1b; la dueña: se activan solas al agregar el correo): «activo» (le llegan; si
+   * dice que no las quiere, Juan llama a `no_quiere_novedades`), «sin_correo» (su ficha no tiene correo: si lo da, Juan
+   * lo guarda con `guardar_correo` y le avisa que le llegarán) o «sin_permiso» (tiene correo pero no le llegan: un «no»
+   * igual se anota). Si el campo no viene, nada. Juan nunca las activa.
+   */
+  permiso_correo?: string | null;
 }
 
-export type EstadoOdoo = Pick<RespuestaMensaje, "estado" | "bot_activo" | "pausada_hasta" | "dentro_de_horario" | "nota_para_el_bot" | "campana_correo">;
+export type EstadoOdoo = Pick<RespuestaMensaje, "estado" | "bot_activo" | "pausada_hasta" | "dentro_de_horario" | "nota_para_el_bot" | "campana_correo" | "permiso_correo">;
 
 export interface DefHerramienta {
   nombre: string;

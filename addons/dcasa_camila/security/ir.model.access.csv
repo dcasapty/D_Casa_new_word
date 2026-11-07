@@ -10,3 +10,4 @@ access_camila_llegada_admin,dcasa.camila.llegada admin,model_dcasa_camila_llegad
 access_camila_prueba_admin,dcasa.camila.prueba admin,model_dcasa_camila_prueba,base.group_system,1,0,0,0
 access_camila_destinatario_gerencia,dcasa.camila.destinatario gerencia,model_dcasa_camila_destinatario,sales_team.group_sale_manager,1,0,0,0
 access_camila_destinatario_admin,dcasa.camila.destinatario admin,model_dcasa_camila_destinatario,base.group_system,1,0,0,0
+access_camila_pregunta_equipo,dcasa.camila.pregunta equipo,model_dcasa_camila_pregunta,base.group_user,1,1,1,0

@@ -747,7 +747,8 @@ class DcasaCamila(models.AbstractModel):
         estado, ficha, origen = self._enlace_leer(token)
         if estado != 'confirmar':
             return estado
-        ficha.sudo()._dcasa_promos_registrar(origen)
+        # El cliente mismo toca «Sí, quiero» dos veces: es un acto explícito y borra un «no» viejo (CAMILA.md §1c).
+        ficha.sudo()._dcasa_promos_registrar(origen, explicito=True)
         return 'gracias'
 
     # ------------------------------------------------------------------

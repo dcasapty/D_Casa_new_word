@@ -686,6 +686,48 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
       preguntar el estado es «ya no existe» (lo borraron allá), no un error que trabe todo.
     - Un campo «de solo lectura» en la vista se escribe igual por RPC: si solo lo debe escribir el código, quitarlo en
       `create`/`write` salvo una marca de contexto que sea un objeto de Python (lo que llega por RPC es JSON).
+  - **Etapa 1b (mismo día), lo aprendido:**
+    - Para preguntar algo «al confirmar» sin poder trabar la venta: devolver el cuadro DESPUÉS de `super()` (la venta
+      ya quedó hecha y se confirma con la petición) y solo con una marca en el `context` del botón de la vista
+      (`position="attributes"` sobre `(//header/button[@name='action_confirm'])[1]` y `[2]`). Lo que seguía (el cuadro
+      «Imprimir documentos» tras pagar) va guardado en el cuadro y se devuelve al contestar.
+    - En una prueba con una vendedora, la venta tiene que ser SUYA (`user_id`): con «cada vendedora ve solo lo suyo»,
+      `action_confirm` falla con «Estos registros están restringidos» (`dcasa_socios` hace `check_access('write')`).
+    - En el celular, los botones de la cabecera de un formulario (salvo el principal) van en el menú «⋮»
+      (`.o_statusbar_buttons .dropdown-toggle`): una prueba de navegador a 390 px tiene que abrirlo.
+    - La X de un cuadro de Odoo se esconde con `.modal-content:has(.mi_clase) .modal-header .btn-close` (y
+      `.oi-arrow-left` en el celular); `:has()` funciona en el Chromium de las pruebas.
+    - Para probar «en rojo» un módulo sin tocar el árbol: `git archive HEAD addons/<módulo> | tar -x -C <scratch>`, se
+      copian ahí solo las pruebas nuevas y esa carpeta va PRIMERO en `--addons-path` (Odoo toma el primer módulo que
+      encuentra).
+    - Una herramienta de Juan que agrega OTRO módulo (aquí `dcasa_camila`) rompe tres pruebas que no son del módulo:
+      el catálogo exacto de Juan en `dcasa_conversaciones` (`test_api` y `test_herramientas`: ahora restan
+      `DE_OTROS_MODULOS`), la respuesta exacta de `/mensaje` (resta `CLAVES_DE_OTROS_MODULOS`) y el contrato de
+      `dcasa_brian` (`test_contrato_para_modelos_pequenos`: la descripción de una herramienta, menos de 260 letras; el
+      detalle va en los parámetros y en el prompt). Solo se ven con los módulos instalados juntos: correr la lista
+      completa, no solo el módulo propio.
+    - Algo que se dispara «cuando una persona agrega un correo» (la activación automática de las novedades) se decide
+      por `self.env.uid` (interno y distinto de `SUPERUSER_ID`), no por `env.su`: el código de la vendedora suele
+      escribir con `sudo()` y el `uid` sigue siendo el de ella. Así quedan fuera solos los crones, los scripts, las
+      migraciones y los datos de los módulos (corren como `SUPERUSER_ID`), y también las pruebas que crean fichas con
+      `self.env` (que es `SUPERUSER_ID`): las pruebas viejas no cambian y las nuevas usan `with_user(vendedora)`.
+      Además: `import_file`, `install_mode`, `registry.ready` y una sola ficha por escritura.
+    - Una ficha de usuario nuevo se crea por `_inherits` dentro de `res.users.create`: para que no se active nada ahí,
+      `res.users.create` pone una marca en el contexto (`dcasa_promos_sin_auto`).
+    - La revisión adversarial encontró cinco puertas más (la carga del sistema anterior, fusionar, empleados,
+      proveedores, el chatter): algo automático sobre `res.partner` va **por invitación** (una marca que ponen solo los
+      caminos de una persona: `web_save` de la pantalla, Sofía, Juan), no con una lista de excepciones.
+    - `cr.savepoint()` hace `flush()` ANTES del SAVEPOINT: dentro de un `try/except` que traga errores, un conflicto o
+      una restricción de lo pendiente de QUIEN LLAMA (la venta, el pago) se disfraza de aviso propio y deja la
+      transacción abortada (la venta falla callada y Odoo no reintenta). `self.env.cr.flush()` antes del `try` (no
+      `env.flush_all()`: ese solo escribe los datos del ORM, y el `cr.flush()` del savepoint corre además los precommit
+      de quien llama, como el seguimiento; y un savepoint que falla hace `cr.clear()` y borra los precommit pendientes).
+    - Al CREAR desde la pantalla, el navegador manda todos los campos: un booleano calculado llega en `False` aunque
+      nadie lo tocara. Leerlo como «la persona lo desmarcó» solo cuando la pantalla lo iba a mostrar marcado.
+    - Un cron que vuelve a anotar un «sí» (Sofía, 30 días hacia atrás) no puede borrar un «no»: el «no» lo borra solo
+      un acto explícito y nunca uno más nuevo que el «sí».
+    - `odoo.tests.Form` guarda con `web_save` y corre los onchange de verdad: sirve para probar lo que pasa «desde la
+      pantalla» sin navegador.
 - **Calculadora de envíos (2026-11-06, `dcasa_envios`), lo aprendido:**
   - Un `<input type="number" step="0.1">` dentro de un `<form>` **bloquea el envío** si el valor no es múltiplo del paso
     (7.04): el navegador no llama al `submit` y no hay error visible. Lo atrapó la prueba en el navegador; ahora

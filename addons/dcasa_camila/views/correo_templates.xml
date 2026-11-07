@@ -25,7 +25,7 @@
             <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" class="o_camila_correo" style="width:100%;max-width:600px;border-collapse:separate;background-color:#FFFFFF;border-radius:12px;">
                 <tr t-if="prueba">
                     <td style="padding:10px 20px;background-color:#ECF0F6;border-radius:12px 12px 0 0;font-family:Inter, Arial, Helvetica, sans-serif;font-size:13px;line-height:1.45;color:#0E2A6B;">
-                        <strong>Prueba:</strong> así le llega al cliente. En la campaña real, «Darme de baja» lo pone Resend.
+                        <strong>Prueba:</strong> así le llega al cliente. En la campaña real, «Date de baja aquí» lo pone Resend.
                     </td>
                 </tr>
                 <tr>
@@ -117,8 +117,8 @@
                 </tr>
                 <tr>
                     <td align="center" style="padding:8px 20px 22px 20px;font-family:Inter, Arial, Helvetica, sans-serif;font-size:12px;line-height:1.6;color:#1B2233;">
-                        Te llega porque nos dijiste que sí a las novedades de D'CASA.
-                        <a t-att-href="baja" class="o_camila_baja" style="color:#1340B1;text-decoration:underline;">Darme de baja</a>
+                        Te llega porque nos diste tu correo en D'CASA. ¿No quieres más?
+                        <a t-att-href="baja" class="o_camila_baja" style="color:#1340B1;text-decoration:underline;">Date de baja aquí</a>
                     </td>
                 </tr>
             </table>

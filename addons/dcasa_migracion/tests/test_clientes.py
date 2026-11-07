@@ -1,7 +1,7 @@
 """La carga de clientes: una ficha por cliente, idempotente, sin saltarse el candado y sin tocar Socios."""
 from odoo.addons.dcasa_migracion import contactos as C
 from odoo.addons.dcasa_migracion import documentos, informe, reglas
-from odoo.tests import TransactionCase, tagged
+from odoo.tests import TransactionCase, new_test_user, tagged
 
 from . import ejemplos
 
@@ -156,3 +156,17 @@ class TestCargaDeClientes(TransactionCase):
         self.assertIn('5 creados', texto)
         for nombre in ('Cliente de Prueba', 'Empresa de Prueba', '0-000-0001', 'ejemplo.com'):
             self.assertNotIn(nombre, texto)
+
+    def test_la_carga_no_suscribe_a_nadie_a_las_novedades(self):
+        """Camila (etapa 1b) activa las novedades cuando una persona agrega un correo; lo del sistema anterior no entra
+        suscrito, aunque lo cargue alguien del equipo desde la pantalla (revisión adversarial, 2026-11-06)."""
+        Partner = self.env['res.partner']
+        if 'dcasa_promos_fecha' not in Partner._fields:
+            self.skipTest('Sin dcasa_camila no hay novedades que activar')
+        quien = new_test_user(self.env, login='zzmig_admin', groups='base.group_user,base.group_system',
+                              email='zzmig.admin@ejemplo.com')
+        pantalla = self.env(user=quien.id, context=dict(self.env.context, dcasa_promos_auto=True))
+        resumen = C.cargar_clientes(pantalla, _filas())
+        con_correo = Partner.browse([self._ficha(i).id for i, _n in resumen['creados']]).filtered('email')
+        self.assertTrue(con_correo)
+        self.assertFalse(con_correo.filtered('dcasa_promos_fecha'))

@@ -40,7 +40,9 @@ class HrEmployee(models.Model):
     _inherit = 'hr.employee'
 
     def _create_work_contacts(self):
-        return super(HrEmployee, self.with_context(**{SIN_DUPLICADOS: True}))._create_work_contacts()
+        # dcasa_promos_sin_auto: la ficha de trabajo de un empleado no recibe novedades por correo (Camila etapa 1b).
+        return super(HrEmployee, self.with_context(**{SIN_DUPLICADOS: True, 'dcasa_promos_sin_auto': True})
+                     )._create_work_contacts()
 
 
 class BasePartnerMergeAutomaticWizard(models.TransientModel):

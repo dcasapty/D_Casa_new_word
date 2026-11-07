@@ -22,11 +22,18 @@ class SofiaPropuesta(models.Model):
 class DcasaSofia(models.AbstractModel):
     _inherit = 'dcasa.sofia'
 
+    def _aplicar_guardar(self, p, campos=None, responder=False):
+        """«Guarda sus datos»: lo aprueba una persona en la pantalla de Sofía, así que el correo que se guarda activa
+        las novedades (etapa 1b, la regla de la dueña; ``_dcasa_promos_auto_permitido``)."""
+        return super(DcasaSofia, self.with_context(dcasa_promos_auto=True))._aplicar_guardar(
+            p, campos=campos, responder=responder)
+
     def _aplicar_enviar(self, p, texto):
         Mensaje = self.env['dcasa.mensaje'].sudo()
         ultimo = Mensaje.search([], order='id desc', limit=1).id or 0
         resultado = super()._aplicar_enviar(p, texto)
         if p.pide_datos and p.conversacion_id:
+            self.env.cr.flush()   # lo pendiente del envío, AFUERA del try: un error suyo no se traga
             try:
                 with self.env.cr.savepoint():
                     # El primero de la vendedora en ese chat creado en esta petición: el de «Enviar ya».
