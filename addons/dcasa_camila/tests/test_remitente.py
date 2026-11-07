@@ -242,6 +242,10 @@ class TestRevisarElRemitenteEnResend(ComunRemitente):
         with patch('odoo.addons.dcasa_camila.models.remitente.DcasaCamila._aviso_remitente',
                    side_effect=RuntimeError('algo raro')):
             self.assertIsNone(self.panel()['remitente']['aviso'], 'Un error del aviso nunca tumba la pantalla')
+        self.ICP.set_param(P_REVISION, f'{{"dominio": "{DOMINIO}", "en": "basura", "resultado": "ok"}}')
+        self.assertIn('Revisado en Resend', self.panel()['remitente']['revision'], 'Un dato raro tampoco')
+        self.ICP.set_param(P_REVISION, 'esto no es json')
+        self.assertIn('Todavía no se ha revisado', self.panel()['remitente']['revision'])
 
     def test_el_cron_revisa_cada_6_horas(self):
         self.resend.dominio(DOMINIO)

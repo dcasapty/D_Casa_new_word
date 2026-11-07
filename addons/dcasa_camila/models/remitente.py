@@ -415,7 +415,7 @@ class DcasaCamila(models.AbstractModel):
             if not revision:
                 texto = self.env._('Todavía no se ha revisado en Resend.')
             else:
-                momento = fields.Datetime.to_datetime(revision['en'])
+                momento = fields.Datetime.now() - self._edad_revision(revision)   # un dato raro no tumba la pantalla
                 texto = self.env._('Revisado en Resend %s.', self._hace_rato(momento))
                 if revision.get('resultado') == 'error':
                     nota = self.env._('No se pudo revisar el remitente en Resend (%s). Se vuelve a intentar sola cada '
