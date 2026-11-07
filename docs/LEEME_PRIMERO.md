@@ -106,7 +106,7 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 > sigue. Se guardan las diez más recientes; las viejas se resumen en una línea abajo y su texto completo pasa a
 > [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md).
 
-### 2026-11-07 (2): issues #24 (Juan) y #25 (Conversaciones), lo que quedaba (en una rama, sin subir)
+### 2026-11-07 (2): issues #24 (Juan) y #25 (Conversaciones), lo que quedaba, en producción
 
 - La dueña aprobó el 2026-11-07 los pendientes de los dos issues, primero lo que ve el cliente. **Sin push, PR ni
   despliegue**: cuando toque, **Odoo primero y después Juan** (Juan no depende del Odoo nuevo; la integración sí espera
@@ -149,7 +149,7 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
   `dcasa_conversaciones` entero ni la integración real de Juan (la integración escribe `seguimiento_proximo` a un minuto:
   no la toca el atraso).
 
-### 2026-11-07 (1): citas, reenviados, reacciones y palomitas en el chat (rama, sin desplegar)
+### 2026-11-07 (1): citas, reenviados, reacciones y palomitas en el chat, en producción
 
 - Pedido de la dueña: «El chatbot de D'Casa no tiene citas, reenviados, reacciones ni "entregado/leído"… si un cliente
   dice "este", seleccionando un mensaje… solamente vemos la palabra "este"… no vemos el estado del mensaje.»
@@ -196,6 +196,10 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
   `test_citas.py` 40 y `test_panel_citas.py` 9 (14 nuevas y 2 cambiadas: 15 en rojo antes), y 443 de las clases vecinas
   en verde salvo las dos referencias visuales a 390 px de siempre.
 - **Sigue:** capturas a la dueña → su visto bueno → CI y staging → producción (Odoo y después Juan).
+- **En producción (las dos entradas de hoy juntas):** PR #94 (`main` = `6d5dc8b`, árbol = `274f13d`), **Desplegar 60**
+  sano y confirmado 06:58 UTC (versión `274f13dff3ee`) y después **Desplegar Juan 10** (`6d5dc8b`). Comentarios en los
+  issues #24 (sigue abierto por tres menores) y #25 (cerrado). El contenedor de la sesión se reinició cuatro veces esa
+  noche: los agentes se reanudaron o se rehicieron desde lo que dejaron en sus *worktrees* sin perder trabajo.
 
 ### 2026-11-06 (9): Camila etapa 1b: la lista de las novedades crece sola (se activa al agregar el correo), en producción
 

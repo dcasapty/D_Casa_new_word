@@ -379,6 +379,17 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `main` (`741930d`, árbol = `de1fb04`) a staging y Desplegar con ese `app_version`. **Regla:** un cambio del borde
   (rutas, `vars`, `workers_dev`) se despliega con un `app_version` que lo contenga, o sea con una imagen construida
   de ese commit.
+- **Desplegar 60 y después Desplegar Juan 10** (06:44 y 06:59 UTC del 7 nov, `app_version` `274f13d` = SHA de la rama,
+  imagen `sha256:cd0d8a80…` de CI #294, respaldo previo) · Odoo sano y confirmado 06:58 (versión `274f13dff3ee`, base al
+  día, humo ok): citas, reenviados, reacciones y palomitas en el chat, más lo que quedaba de los issues #24 y #25, con
+  dos revisiones adversariales (PR #94, `main` = `6d5dc8b`, árbol = `274f13d`). Juan, después de Odoo: `/salud` con
+  `6d5dc8b`. **Lecciones de la noche:**
+  - Dos agentes en paralelo en *worktrees* distintos que tocan `juan/src/motor/conversacion.ts` chocan en las
+    importaciones y en métodos vecinos; los choques se resolvieron «con los dos lados» y Juan pasó entero (1308).
+  - Para que los arreglos de una revisión no vuelvan a chocar, el segundo agente trabajó **encima de la unión**
+    (`prueba-union-r8-citas`), y el otro solo en su rama con cambios localizados.
+  - El contenedor se reinició 4 veces: un agente cortado se reanuda con un mensaje si el sistema lo ofrece; si no, uno
+    nuevo sigue desde el `git status` del *worktree*. Pedirles commits por grupo de arreglos en verde salvó el trabajo.
 - **Desplegar 59** (03:22 UTC del 7 nov, `app_version` `142c3d9` = SHA de la rama, imagen `sha256:5569ef81…` de CI
   #292, respaldo previo) · sano y confirmado 03:36 (versión `142c3d9e0c49`, base al día, humo ok): los botones blancos de
   Sofía ya no se borran al pasar el puntero (PR #93, `main` = `46343c1`, árbol = `142c3d9`). Causa: el SCSS fijaba
