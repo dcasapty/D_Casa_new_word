@@ -1306,7 +1306,7 @@ export class MotorConversacion {
   /** La IA falló del todo: se reintenta con calma; si sigue fallando, no se deja al cliente sin respuesta. */
   private async alFallarLaIA(cfg: Config, ids: number[], e: unknown, definitivo = false): Promise<void> {
     const fallos = this.kv.sumar("fallos_ia");
-    this.log("error", `la IA falló (${fallos})`, e instanceof Error ? e.message : String(e));
+    this.log("error", `la IA falló (${fallos})`, limpiarError(e));
     if (!definitivo && fallos <= REINTENTOS_DE_IA.length) {
       this.mensajes.marcarPendientes(ids, true);
       this.kv.poner("t_rafaga", this.deps.ahora() + REINTENTOS_DE_IA[fallos - 1]);
@@ -1327,7 +1327,7 @@ export class MotorConversacion {
     const ahora = this.deps.ahora();
     const algoSalio = this.mensajes.ultimos(10).some((f) => f.id > ultimoIdAntes && f.rol === "bot");
     const fallos = this.kv.sumar("fallos_envio");
-    this.log("error", `la respuesta estaba lista pero no salió por el canal (${fallos})`, e instanceof Error ? e.message : String(e));
+    this.log("error", `la respuesta estaba lista pero no salió por el canal (${fallos})`, motivoDeEnvio(e));
     if (!algoSalio && fallos <= REINTENTOS_DE_IA.length) {
       this.mensajes.marcarPendientes(ids, true);
       this.kv.poner("t_rafaga", ahora + REINTENTOS_DE_IA[fallos - 1]);
@@ -1478,7 +1478,7 @@ export class MotorConversacion {
       await this.programar();
     }
     if (fallo !== null) {
-      this.log("error", "no se pudo enviar por el canal", fallo instanceof Error ? fallo.message : String(fallo));
+      this.log("error", "no se pudo enviar por el canal", motivoDeEnvio(fallo));
       // Para /salud (y la pantalla de Conexiones de Odoo): el motivo, sin datos de nadie. Así un fallo repetido se ve sin abrir los registros.
       this.kv.poner("envio_fallo_abierto", true);
       await this.anotarEnSalud("envio_fallo", { canal: canalId, motivo: motivoDeEnvio(fallo), con_archivos: medios.length > 0, ts: ahora });
