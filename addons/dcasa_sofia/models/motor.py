@@ -2,7 +2,8 @@
 
 Lo que mira, en este orden (una sola propuesta de mensaje por cliente y por revisión, la más urgente):
 
-1. **Contestar**: clientes que una vendedora tiene y le escribieron hace más de una hora sin respuesta.
+1. **Contestar**: clientes que una vendedora tiene y le escribieron hace más de una hora sin respuesta, y los que Juan
+   pasó a una persona hace más de una hora sin que nadie del equipo les escribiera (aunque la pausa ya venció).
 2. **Su cotización vence** hoy o mañana: un recordatorio amable para el cliente.
 3. **Escribirle**: tibios y calientes a los que ninguna vendedora les escribió en 24 horas («A quién escribirle hoy»)
    y que Juan no está atendiendo en este momento. Si Juan está por mandarles su seguimiento automático (en las próximas
@@ -292,21 +293,34 @@ class Sofia(models.AbstractModel):
     @api.model
     def _contestar(self, ctx):
         ahora = ctx['ahora']
-        conversaciones = self.env['dcasa.conversacion'].sudo().search([
+        Conversacion = self.env['dcasa.conversacion'].sudo()
+        escribio = Conversacion.search([
             ('estado', '=', 'humano'), ('ultimo_mensaje_autor', '=', 'cliente'),
             ('ultimo_mensaje_cliente', '<=', ahora - timedelta(hours=HORAS_SIN_CONTESTAR)),
             ('ultimo_mensaje_cliente', '>=', ahora - timedelta(days=DIAS_SIN_CONTESTAR))])
+        # Juan se la pasó a una persona y nadie le escribió (issue #25): aunque la pausa venza y la conversación vuelva
+        # a Juan, el cliente sigue esperando a una persona (y Juan ya no le manda su seguimiento).
+        traspasadas = Conversacion.search([
+            ('traspaso_sin_atender_desde', '<=', ahora - timedelta(hours=HORAS_SIN_CONTESTAR)),
+            ('traspaso_sin_atender_desde', '>=', ahora - timedelta(days=DIAS_SIN_CONTESTAR)),
+            ('estado', '!=', 'cerrada')])
         salida = []
-        for conv in conversaciones:
+        for conv in escribio | traspasadas:
             partner = conv.partner_id
             if not self._cliente(partner, ctx, conv) or self._ocupado(ctx, partner, conv):
                 continue
             lead = self._abierta(conv.oportunidad_id)   # quien ya compró también espera respuesta
             usuario = self._para_quien(ctx, conv.asignada_a, conv.oportunidad_id.user_id)
-            espera = self.env['dcasa.reparto']._hace_cuanto(conv.ultimo_mensaje_cliente)
-            horas = int((ahora - conv.ultimo_mensaje_cliente).total_seconds() // 3600)
-            motivo = self.env._('Te escribió %(cuando)s (hace %(horas)s h) y espera respuesta.',
-                                cuando=espera, horas=horas)
+            if conv in escribio:
+                espera = self.env['dcasa.reparto']._hace_cuanto(conv.ultimo_mensaje_cliente)
+                horas = int((ahora - conv.ultimo_mensaje_cliente).total_seconds() // 3600)
+                motivo = self.env._('Te escribió %(cuando)s (hace %(horas)s h) y espera respuesta.',
+                                    cuando=espera, horas=horas)
+            else:
+                espera = self.env['dcasa.reparto']._hace_cuanto(conv.traspaso_sin_atender_desde)
+                horas = int((ahora - conv.traspaso_sin_atender_desde).total_seconds() // 3600)
+                motivo = self.env._('Juan se la pasó a una persona %(cuando)s (hace %(horas)s h) y nadie le ha '
+                                    'escrito: espera respuesta.', cuando=espera, horas=horas)
             if not R.ventana_abierta(conv.canal, conv.ultimo_mensaje_cliente, ahora):
                 salida += self._llamar_o_nada(conv, partner, usuario, lead, ctx, motivo)
                 continue

@@ -47,11 +47,20 @@ class DcasaTelegramBorrador(models.Model):
 
     @api.model
     def _crear(self, usuario, conversacion, texto):
-        """Guarda un borrador nuevo (y limpia los vencidos de paso: no hace falta una tarea programada)."""
-        self.sudo().search([('vence', '<', fields.Datetime.now())]).unlink()
+        """Guarda un borrador nuevo (y limpia los vencidos de paso)."""
+        self._purgar_vencidos()
         return self.sudo().create({
             'user_id': usuario.id, 'conversacion_id': conversacion.id, 'texto': texto,
             'vence': fields.Datetime.now() + VIGENCIA_BORRADOR})
+
+
+    @api.model
+    def _purgar_vencidos(self):
+        """Borra los borradores vencidos (traen lo que alguien le iba a escribir a un cliente). Lo llama también el
+        mantenimiento de cada 5 minutos: antes solo se borraban al crear otro borrador (issue #25)."""
+        vencidos = self.sudo().search([('vence', '<', fields.Datetime.now())])
+        vencidos.unlink()
+        return len(vencidos)
 
 
 class BrianTelegramEnlace(models.Model):

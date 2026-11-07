@@ -60,6 +60,7 @@
                             <field name="seguimiento_segundo_dias"/>
                             <field name="seguimiento_maximo"/>
                             <field name="seguimiento_solo_horario_laboral"/>
+                            <field name="seguimiento_atraso_maximo_horas"/>
                             <div class="text-muted" colspan="2">
                                 Solo se le hace seguimiento a quien mostró intención de compra (hay una oportunidad
                                 viva en el CRM) y nunca compró. No se le hace a quien ya es cliente (alguna factura

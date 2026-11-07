@@ -38,6 +38,7 @@ from . import (
     test_reparto_pantalla,
     test_resumen_ia,
     test_reglas_clientes,
+    test_ronda8_conversaciones,
     test_seguimiento,
     test_seguridad,
     test_telegram_consola,
