@@ -649,6 +649,17 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 - **Al cambiar el seguimiento en Odoo, mirar `juan/test/integracion/seguimiento.ts`:** la prueba de integración real
   esperaba el comportamiento viejo («descartado» → `seguimientos_enviados >= 1`), que era justo el hueco del issue #25. Las
   pruebas de Odoo pasaban y la integración del CI habría fallado.
+- **Con `-u`, Odoo solo corre las pruebas post_install de los módulos actualizados** (`registry.updated_modules`):
+  `TestSuperficieRpc` (de `dcasa_base`) no corre con `-u dcasa_conversaciones`. Se corre aparte, sin `-u`
+  (`-d <base> --test-enable --test-tags=/dcasa_base:TestSuperficieRpc --stop-after-init`), que mira todos los instalados.
+- **Un atraso se mide desde que se decidió la hora, no desde la hora que dio la cuenta** (revisión adversarial de #25): el
+  seguimiento se calcula desde el último mensaje, así que uno programado tarde («Crear oportunidad» al día siguiente) ya nace
+  «vencido» y se saltaba con una nota de caída. Se guarda `seguimiento_programado_en`; recalcular la MISMA hora lo conserva
+  (si no, cualquier recálculo al volver de una caída, como un cambio de etapa, borraba el atraso), y el siguiente que se
+  programa al saltar uno hereda el atraso (si no, salía en la misma vuelta del cron).
+- **Recordar un rechazo como si fuera la respuesta frena la corrección** (revisión adversarial de #24): el «una vez por
+  turno» de las escrituras recordaba también un 422 («Faltan datos: motivo») y la llamada corregida recibía el mismo rechazo.
+  De lo que solo puede pasar una vez (`pasar_a_vendedora`) se recuerda solo lo que salió bien.
 - **Reservar espacio solo mientras algo se ve:** `body:has(.o_brian_lanzador:not(.o_brian_oculto)) …` dentro de
   `media-breakpoint-up(lg)` (libsass lo acepta; `:is()` no se probó y se evitó con un `@each`). Así el hueco para el
   botón flotante no aparece en el celular (donde Brian va arriba) ni con el panel abierto.

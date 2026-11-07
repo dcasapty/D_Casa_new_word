@@ -291,7 +291,8 @@ números que sí tiene Odoo.
 Si escribes **desde el teléfono** (la app de WhatsApp), el asistente también se calla solo.
 
 Otros botones: **Crear oportunidad** (deja la venta anotada en CRM, ligada al cliente y a la conversación;
-si ya hay una abierta de los últimos 30 días, no crea otra) y **Reintentar envíos**.
+si ya hay una abierta de los últimos 30 días, no crea otra), **Reintentar envíos** y **Ya la atendí** (solo aparece cuando Juan
+la pasó a una persona y nadie del equipo le ha escrito: ver [Seguimiento](#seguimiento-decisión-de-la-dueña)).
 
 **Notas internas y avisos.** Dentro de la conversación hay dos cosas que el cliente **nunca** ve:
 
@@ -413,24 +414,34 @@ cuántos se enviaron y cuándo toca el próximo. **Odoo decide quién y cuándo;
 Además (issue #25, aprobado por la dueña el 2026-11-07):
 
 * **Es por persona, no por conversación.** Quien escribe por WhatsApp y por Telegram (la misma ficha) recibe como máximo dos
-  en total: solo hace el seguimiento la conversación por donde escribió **último**, si otro canal ya tiene uno en camino no se
-  pide otro, y los que le salieron por sus otros canales después de su último mensaje cuentan. Si una conversación pasa a otra
+  en total: solo hace el seguimiento la conversación por donde escribió **último** (de las que **podrían** hacerlo: abiertas,
+  con su canal encendido y con oportunidad viva; un «hola» por otro canal sin oportunidad no deja a la persona sin ninguno),
+  si otro canal ya tiene uno en camino este **espera** (se pospone 15 minutos, no se borra), y los que le salieron por sus
+  otros canales después de su último mensaje cuentan. Si una conversación pasa a otra
   ficha de la misma persona (Telegram da después su celular, o una vendedora elige la ficha correcta de una provisional de
   Juan), **«No contactar» va con ella** (antes se quedaba en la ficha vieja).
 * **A quien espera a una persona no se le pregunta «¿sigues interesado?».** Cuando Juan pasa la conversación a una persona,
   queda marcada «Espera a una persona desde…» hasta que alguien del equipo **le escriba** (desde la pantalla, el teléfono o
   Telegram), la devuelva al asistente o la cierre. Mientras tanto no hay seguimiento automático, aunque la pausa de 2 horas
   venza y la conversación vuelva al asistente, y Sofía la pone en **«Contéstale: espera respuesta»** pasada una hora. Que el
-  cliente vuelva a escribir no la borra (sigue esperando).
+  cliente vuelva a escribir no la borra (sigue esperando). La marca se ve en la conversación (aviso amarillo «Espera a una
+  persona desde…») y frena el seguimiento **una semana como mucho** (el mismo plazo de «Contéstale»). Si ya la atendiste por
+  otro lado (una llamada, en la tienda), el botón **«Ya la atendí»** la quita y Juan vuelve a programar su seguimiento desde
+  ese momento (antes no había cómo: «Devolver al asistente» desaparece al vencer la pausa). Si descartas ese «Contéstale» en
+  Sofía, no vuelve con cada mensaje nuevo del cliente mientras siga marcada; vuelve con el siguiente traspaso.
 * **Lo atrasado no sale de golpe.** Si un seguimiento se atrasa más de *Ajustes de Juan › No enviar seguimientos atrasados más
   de (horas)* (**6** por defecto; 0 = mandarlo igual; máximo 72), ya no se manda tarde: se da por pasado **sin enviarse**,
-  queda una nota en la conversación y se programa el siguiente (que también se salta si ya venció). Pasa tras una caída, un
-  despliegue largo o si el asistente estuvo apagado. Por qué 6 h: el cron corre cada 15 minutos (lo normal es llegar con
+  queda una nota en la conversación (cuándo le tocaba) y se programa el siguiente (que también se salta, en la misma vuelta,
+  si ya venció). Pasa tras una caída, un despliegue largo o si el asistente estuvo apagado. **Solo es atraso lo que ya estaba
+  programado**: un seguimiento que se calcula tarde (*Crear oportunidad* al día siguiente, una oportunidad perdida que se
+  restaura) sale en ese momento, en horario laboral; Odoo guarda cuándo lo programó (`seguimiento_programado_en`) y volver a
+  calcular la misma hora no borra un atraso de verdad. Por qué 6 h: el cron corre cada 15 minutos (lo normal es llegar con
   minutos de atraso), un despliegue toma de 15 a 45 minutos, y un «¿pudiste ver la cama?» de hace días, mandado de 50 en 50
   desde el número de la tienda, molesta y puede hacer que WhatsApp marque el número.
 * **Un aviso tardío del Worker no cierra el ciclo nuevo.** Si el Worker descarta un seguimiento («el cliente ya volvió a
   escribir») y su aviso llega después de que el cliente reinició el ciclo, ya no deja el conteo en 2 (el ciclo nuevo se
-  quedaba sin seguimientos). Un «no contactar» se honra igual. El Worker vuelve a mirar si el cliente escribió **justo antes
+  quedaba sin seguimientos). Un «no contactar» se honra igual (Odoo reconoce el texto que manda el Worker, «el cliente pidió
+  que no lo contacten», además de `no_contactar`). El Worker vuelve a mirar si el cliente escribió **justo antes
   de enviar** y no manda dos veces el mismo seguimiento aunque se lo pidan dos veces a la vez.
 
 ## Origen y cotizaciones que vencen solas
@@ -459,8 +470,9 @@ CRM, se apoya en esto para proponer a quién escribirle ([SOFIA.md](SOFIA.md)).
   si escribió hace poco o seguido, si lo atiende una persona. Se enfría con el tiempo. La causa queda escrita en la ficha.
 * **Datos que dijo el cliente.** Juan anota la **zona de entrega** (distrito o corregimiento) y **para cuándo** lo quiere,
   solo si el cliente lo dijo, y nunca pisa lo que escribió una persona. Una zona con número de casa, apartamento, piso, lote,
-  manzana o «#» es una dirección exacta y **no se guarda** (ni en la ficha ni en una nota; issue #25). «Calle 50» o «Vía
-  España» sí (son zonas).
+  manzana o «#» es una dirección exacta y **no se anota** en la oportunidad (ni en la ficha ni en una nota) ni queda en la
+  auditoría de las herramientas de Brian (issue #25). Lo que el cliente escribió sí sigue en el chat, como todo lo que
+  escribe. «Calle 50» o «Vía España» sí se anotan (son zonas).
 * **Notas sin repetir.** Una nota igual a una de las 5 últimas de la oportunidad no se vuelve a poner (cada «crear
   oportunidad» con el mismo resumen y la temperatura que va y viene dejaban la misma nota una y otra vez).
 * **Sin respuesta.** Si la conversación no tiene mensajes en *Ajustes de Juan › Días sin respuesta* (30 por defecto; 0 =

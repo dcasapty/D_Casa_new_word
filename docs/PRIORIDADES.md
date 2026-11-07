@@ -44,8 +44,8 @@ LEEME_PRIMERO §2).
    esté disponible es más que suficiente; ya eso está resuelto y está bien». Queda anotado por si cambia.
 5. ~~**Brian: topes de dinero**~~ (issue #26): la dueña (2026-11-07): «ya pusimos los límites».
 6. **Conversaciones: seguimiento por persona** (issue #25): lo que quedaba (aprobado por la dueña el 2026-11-07)
-   está **hecho en una rama, sin subir ni desplegar** (bitácora del 2026-11-07, «issues #24 y #25»). Sube **Odoo primero y después
-   Juan**. Queda de la dueña: si 6 h de atraso máximo le parecen bien (es un ajuste en Ajustes de Juan).
+   está **hecho en una rama, sin subir ni desplegar**, con la revisión adversarial ya arreglada (bitácora del 2026-11-07,
+   «issues #24 y #25»). Sube **Odoo primero y después Juan**. Queda de la dueña: si 6 h de atraso máximo le parecen bien (es un ajuste en Ajustes de Juan).
 7. **Contabilidad:** el menú raíz propio «Contabilidad» (reportes, bancos, cierre de mes, en un solo lugar). Las
    **facturas del sistema anterior** dejaron de ser una preocupación (la dueña, 2026-11-07: los jefes están bien con los
    números actuales); el importador queda listo por si algún día hace falta.
@@ -61,7 +61,7 @@ LEEME_PRIMERO §2).
     todavía no borra.
 13. **Juan: hallazgos** del issue #24: lo aprobado el 2026-11-07 (eco de Messenger e Instagram, nota de voz que pide una
     persona, transcripción después del anti-spam, reintento del turno, carrera del seguimiento y menores) está **hecho en la
-    misma rama, sin subir**. Quedan tres menores que no entraron en esa lista (ver el comentario del issue).
+    misma rama, sin subir**, con la revisión adversarial arreglada. Quedan tres menores que no entraron en esa lista (ver el comentario del issue).
 14. **CRM, fase 2** (issues #15 a #21): se eligen con la dueña.
 15. **Cabos técnicos menores** (sin urgencia):
     - que el respaldo previo de staging despierte el sitio antes de pedir el volcado (el despliegue a staging del CI se

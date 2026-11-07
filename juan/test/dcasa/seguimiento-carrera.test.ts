@@ -95,4 +95,45 @@ describe("dos pedidos del mismo seguimiento a la vez mandan uno solo (issue #24)
     m.guion([{ texto: SEGUIMIENTO }]);
     expect(await pedir(m, ultimo)).toEqual({ ok: true, resultado: "enviado" });
   });
+
+  it("si la redacción tarda más que el reclamo y otro pedido ya lo envió, el primero que vuelve no envía otro", async () => {
+    const m = crearMundo();
+    const ultimo = await interesada(m);
+    await m.pasar(5 * 3600_000);
+    let abrirA!: () => void;
+    const puertaA = new Promise<void>((r) => (abrirA = r));
+    m.guion([{ texto: SEGUIMIENTO, alGenerar: () => puertaA }]);
+    const a = pedir(m, ultimo); // se queda redactando más de 3 minutos
+    for (let i = 0; i < 20; i++) await new Promise((r) => setTimeout(r, 0));
+    await m.pasar(4 * 60_000);
+    m.guion([{ texto: SEGUIMIENTO }]);
+    expect(await pedir(m, ultimo)).toEqual({ ok: true, resultado: "enviado" });
+    abrirA();
+    expect(await a).toMatchObject({ ok: true, resultado: "descartado", motivo: expect.stringMatching(/ya se envió/) });
+    expect(seguimientosEnviados(m)).toBe(1);
+  });
+
+  it("un pedido viejo que termina mal no suelta el reclamo del pedido que lo reemplazó", async () => {
+    const m = crearMundo();
+    const ultimo = await interesada(m);
+    await m.pasar(5 * 3600_000);
+    let fallarA!: () => void;
+    const puertaA = new Promise<void>((_, rechazar) => (fallarA = () => rechazar(new Error("se cayó la IA"))));
+    m.guion([{ texto: SEGUIMIENTO, alGenerar: () => puertaA }]);
+    const a = pedir(m, ultimo);
+    for (let i = 0; i < 20; i++) await new Promise((r) => setTimeout(r, 0));
+    await m.pasar(4 * 60_000); // el reclamo de A venció
+    let abrirB!: () => void;
+    const puertaB = new Promise<void>((r) => (abrirB = r));
+    m.guion([{ texto: SEGUIMIENTO, alGenerar: () => puertaB }, { error: new Error("caído") }]);
+    const b = pedir(m, ultimo); // B reclama y se queda redactando
+    for (let i = 0; i < 20; i++) await new Promise((r) => setTimeout(r, 0));
+    fallarA();
+    expect((await a).ok).toBe(false);
+    // A terminó mal, pero el reclamo ya era de B: un tercer pedido se pospone (no redacta otro a la vez).
+    expect(await pedir(m, ultimo)).toMatchObject({ ok: true, resultado: "pospuesto" });
+    abrirB();
+    expect(await b).toEqual({ ok: true, resultado: "enviado" });
+    expect(seguimientosEnviados(m)).toBe(1);
+  });
 });

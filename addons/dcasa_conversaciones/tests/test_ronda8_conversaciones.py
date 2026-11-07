@@ -8,17 +8,19 @@
 * Un aviso tardío del Worker no cierra el ciclo que el cliente acaba de reiniciar.
 * Notas repetidas en la oportunidad, borradores de Telegram viejos y la zona que no es una dirección exacta.
 """
+import json
 from datetime import timedelta
 from unittest.mock import patch
 
 from freezegun import freeze_time
 
 from odoo import fields
-from odoo.exceptions import ValidationError
+from odoo.exceptions import AccessError, ValidationError
 from odoo.tests import tagged
 
 from ..models import crm_reglas as R
 from .common import respuesta_http
+from .test_api import ApiCase
 from .test_crm_automatico import CrmCase
 from .test_seguimiento import SeguimientoCase, panama
 
@@ -35,6 +37,12 @@ class Ronda8Case(SeguimientoCase):
     def notas(self, registro):
         return [m.body or '' for m in registro.message_ids]
 
+    def a_las_9(self, **kw):
+        """``pregunta_y_bot_contesta`` con el reloj de ese día: el seguimiento queda programado ese mismo día (no con la
+        fecha real de la máquina, que va después)."""
+        with freeze_time(panama(2026, 10, kw.get('dia', 9), 9, 6)):
+            return self.pregunta_y_bot_contesta(hora_panama=9, **kw)
+
 
 # ----------------------------------------------------------------------
 # 7. Lo atrasado no sale de golpe
@@ -50,29 +58,29 @@ class TestSeguimientoAtrasado(Ronda8Case):
                 self.ajustes.seguimiento_atraso_maximo_horas = malo
 
     def test_un_seguimiento_vencido_hace_dias_no_sale_y_se_salta(self):
-        conv = self.pregunta_y_bot_contesta(hora_panama=9)          # tocaba el 9 a las 2:05 p. m.
+        conv = self.a_las_9()                                       # tocaba el 9 a las 2:05 p. m.
         with freeze_time(panama(2026, 10, 12, 10, 0)):              # el sistema estuvo detenido tres días
             self.assertEqual(self.Conversacion._cron_seguimientos(), 0)
         self.assertFalse(self.llamadas_a('/odoo/seguimiento'), 'No se le escribe tres días tarde')
         self.assertEqual(conv.seguimientos_enviados, 1, 'El 1.º se da por pasado (no se envió)')
-        self.assertTrue(any('no se envió' in n and 'atrasó' in n for n in self.notas(conv)))
+        self.assertTrue(any('no se envió' in n and 'No se manda tarde' in n for n in self.notas(conv)))
         self.assertEqual(conv.seguimiento_proximo, panama(2026, 10, 14, 9, 5),
                          'El 2.º sigue a los 5 días del último mensaje')
 
     def test_un_atraso_corto_sale_igual(self):
-        self.pregunta_y_bot_contesta(hora_panama=9)
+        self.a_las_9()
         with freeze_time(panama(2026, 10, 9, 16, 30)):              # dos horas y media tarde: un despliegue
             self.assertEqual(self.Conversacion._cron_seguimientos(), 1)
         self.assertEqual(len(self.llamadas_a('/odoo/seguimiento')), 1)
 
     def test_con_el_ajuste_en_cero_sale_aunque_vaya_atrasado(self):
         self.ajustes.seguimiento_atraso_maximo_horas = 0
-        self.pregunta_y_bot_contesta(hora_panama=9)
+        self.a_las_9()
         with freeze_time(panama(2026, 10, 12, 10, 0)):
             self.assertEqual(self.Conversacion._cron_seguimientos(), 1)
 
     def test_tras_volver_a_encender_al_asistente_no_salen_todos_los_viejos(self):
-        convs = [self.pregunta_y_bot_contesta(hora_panama=9, id_externo=f'5076123{n:04d}') for n in range(3)]
+        convs = [self.a_las_9(id_externo=f'5076123{n:04d}') for n in range(3)]
         self.ajustes.bot_activo_global = False
         with freeze_time(panama(2026, 10, 10, 10, 0)):
             self.assertEqual(self.Conversacion._cron_seguimientos(), 0)
@@ -81,6 +89,44 @@ class TestSeguimientoAtrasado(Ronda8Case):
             self.assertEqual(self.Conversacion._cron_seguimientos(), 0)
         self.assertFalse(self.llamadas_a('/odoo/seguimiento'))
         self.assertTrue(all(c.seguimientos_enviados == 1 for c in convs))
+
+    def test_un_seguimiento_programado_tarde_no_es_un_atraso(self):
+        """«Crear oportunidad» al día siguiente: el 1.º se calcula desde el último mensaje (ya pasado), pero nadie lo
+        tuvo esperando por una caída: sale, no se salta (revisión adversarial)."""
+        conv = self.a_las_9(con_interes=False)
+        self.assertFalse(conv.seguimiento_proximo)
+        with freeze_time(panama(2026, 10, 10, 16, 0)):
+            conv._oportunidad('Busca una cama queen', interes='camas queen')
+        self.assertEqual(conv.seguimiento_proximo, panama(2026, 10, 9, 14, 5))
+        with freeze_time(panama(2026, 10, 10, 16, 15)):
+            self.assertEqual(self.Conversacion._cron_seguimientos(), 1)
+        self.assertEqual(conv.seguimientos_enviados, 0)
+        self.assertEqual(len(self.llamadas_a('/odoo/seguimiento')), 1)
+        self.assertFalse(any('No se manda tarde' in n for n in self.notas(conv)))
+
+    def test_si_el_siguiente_tambien_vencio_en_la_caida_tampoco_sale(self):
+        """Una semana detenido: el 1.º (día 9) y el 2.º (día 14) vencieron los dos. Ninguno sale en la misma vuelta del
+        cron; quedan las dos notas."""
+        conv = self.a_las_9()
+        with freeze_time(panama(2026, 10, 16, 10, 0)):
+            self.assertEqual(self.Conversacion._cron_seguimientos(), 0)
+        self.assertFalse(self.llamadas_a('/odoo/seguimiento'), 'El 2.º, de hace dos días, tampoco sale tarde')
+        self.assertEqual(conv.seguimientos_enviados, 2)
+        self.assertFalse(conv.seguimiento_proximo)
+        self.assertEqual(len([n for n in self.notas(conv) if 'No se manda tarde' in n]), 2)
+
+    def test_recalcular_la_misma_hora_al_volver_de_una_caida_no_borra_el_atraso(self):
+        """Al volver, algo recalcula el seguimiento antes del cron (la oportunidad cambia de etapa: ``crm_lead.write``
+        llama a ``_programar_seguimiento``). Da la misma hora de hace días: sigue siendo un atraso, no «programado
+        tarde»."""
+        conv = self.a_las_9()
+        with freeze_time(panama(2026, 10, 12, 9, 50)):
+            conv._programar_seguimiento()
+        self.assertEqual(conv.seguimiento_proximo, panama(2026, 10, 9, 14, 5))
+        with freeze_time(panama(2026, 10, 12, 10, 0)):
+            self.assertEqual(self.Conversacion._cron_seguimientos(), 0)
+        self.assertFalse(self.llamadas_a('/odoo/seguimiento'))
+        self.assertEqual(conv.seguimientos_enviados, 1)
 
 
 # ----------------------------------------------------------------------
@@ -103,9 +149,9 @@ class TestTraspasoSinAtender(Ronda8Case):
         self.assertTrue(conv.traspaso_sin_atender_desde)
         with freeze_time(panama(2026, 10, 9, 11, 30)):              # vencen las 2 horas: vuelve al asistente
             self.Conversacion._cron_mantenimiento()
+            self.assertIn('espera a una persona', conv._motivo_sin_seguimiento())
         self.assertEqual(conv.estado, 'bot')
         self.assertFalse(conv.seguimiento_proximo)
-        self.assertIn('espera a una persona', conv._motivo_sin_seguimiento())
         with freeze_time(panama(2026, 10, 9, 16, 30)):
             self.assertEqual(self.Conversacion._cron_seguimientos(), 0)
         self.assertFalse(self.llamadas_a('/odoo/seguimiento'), 'Nada de «¿sigues interesado?» a quien espera')
@@ -131,6 +177,25 @@ class TestTraspasoSinAtender(Ronda8Case):
         otra._pasar_a_vendedora('Pidió una persona.')
         otra._cerrar(self.vendedora)
         self.assertFalse(otra.traspaso_sin_atender_desde)
+
+    def test_pasada_una_semana_ya_no_frena_el_seguimiento(self):
+        conv = self.pasada_a_una_persona()
+        with freeze_time(panama(2026, 10, 16, 8, 0)):     # 6 días y 23 horas: todavía espera
+            self.assertIn('espera a una persona', conv._motivo_sin_seguimiento())
+        with freeze_time(panama(2026, 10, 16, 10, 0)):    # más de 7 días: ya no frena
+            self.assertIsNone(conv._motivo_sin_seguimiento())
+
+    def test_ya_la_atendi_la_libera_y_vuelve_el_seguimiento(self):
+        conv = self.pasada_a_una_persona()
+        with freeze_time(panama(2026, 10, 9, 12, 0)):
+            self.Conversacion._cron_mantenimiento()        # vence la pausa: vuelve al asistente, sin seguimiento
+            self.assertFalse(conv.seguimiento_proximo)
+            with self.assertRaises(AccessError):
+                conv.with_user(self.interno).action_traspaso_atendido()
+            conv.with_user(self.vendedora).action_traspaso_atendido()
+        self.assertFalse(conv.traspaso_sin_atender_desde)
+        self.assertTrue(conv.seguimiento_proximo)
+        self.assertTrue(conv.mensaje_ids.filtered(lambda m: m.tipo == 'aviso' and 'ya atendió' in (m.texto or '')))
 
     def test_que_el_cliente_vuelva_a_escribir_no_lo_borra(self):
         conv = self.pasada_a_una_persona()
@@ -172,10 +237,33 @@ class TestSeguimientoPorPersona(Ronda8Case):
         tg.sudo().write({'seguimientos_enviados': 1, 'ultimo_seguimiento_en': panama(2026, 10, 9, 14, 40)})
         self.assertIn('otros canales', tg._motivo_sin_seguimiento())
 
-    def test_si_otro_canal_ya_tiene_uno_en_camino_no_se_pide_otro(self):
+    def test_si_otro_canal_ya_tiene_uno_en_camino_se_pospone_sin_borrarlo(self):
         wa, tg = self.dos_canales()
         wa.sudo().write({'seguimiento_pedido_en': panama(2026, 10, 9, 14, 6), 'seguimiento_numero_pedido': 1})
-        self.assertIn('en camino', tg._motivo_sin_seguimiento())
+        with freeze_time(panama(2026, 10, 9, 14, 40)):
+            self.assertEqual(self.Conversacion._cron_seguimientos(), 0)
+        self.assertFalse(self.llamadas_a('/odoo/seguimiento'))
+        self.assertEqual(tg.seguimiento_proximo, panama(2026, 10, 9, 14, 55), 'Se pospone 15 minutos, no se borra')
+
+    def test_un_hola_por_otro_canal_sin_oportunidad_no_deja_a_nadie_sin_seguimiento(self):
+        """WhatsApp tiene la oportunidad; después escribe «hola» por Telegram, sin oportunidad: WhatsApp sigue con su
+        seguimiento (si no, nadie lo hacía)."""
+        wa = self.pregunta_y_bot_contesta(hora_panama=9)
+        tg = self.conversacion('hola', canal='telegram', id_externo='777010', celular='+50761234567',
+                               ts=panama(2026, 10, 9, 9, 30))
+        self.registrar('¡Hola! ¿En qué te ayudo?', autor='bot', canal='telegram', id_externo='777010',
+                       ts=panama(2026, 10, 9, 9, 31))
+        self.assertEqual(tg.partner_id, wa.partner_id)
+        self.assertFalse(tg.oportunidad_id)
+        self.assertIsNone(wa._motivo_sin_seguimiento())
+
+    def test_un_canal_apagado_o_una_conversacion_cerrada_no_le_quitan_el_turno(self):
+        wa, tg = self.dos_canales()
+        self.ajustes.canal_telegram = False
+        self.assertIsNone(wa._motivo_sin_seguimiento())
+        self.ajustes.canal_telegram = True
+        tg._cerrar(self.vendedora)
+        self.assertIsNone(wa._motivo_sin_seguimiento())
 
     def test_no_contactar_sigue_a_la_persona_cuando_su_conversacion_cambia_de_ficha(self):
         wa = self.pregunta_y_bot_contesta(hora_panama=9)
@@ -235,6 +323,18 @@ class TestHechoTardio(Ronda8Case):
         with freeze_time(panama(2026, 10, 9, 14, 13)):
             conv._seguimiento_hecho(1, 'descartado', 'no_contactar')
         self.assertTrue(conv.partner_id.dcasa_no_contactar)
+
+    def test_el_motivo_real_del_worker_marca_no_contactar(self):
+        """El Worker manda «el cliente pidió que no lo contacten» (juan/src/motor/conversacion.ts), no
+        «no_contactar»."""
+        conv = self.pregunta_y_bot_contesta(hora_panama=9)
+        conv._seguimiento_hecho(1, 'descartado', 'el cliente pidió que no lo contacten')
+        self.assertTrue(conv.partner_id.dcasa_no_contactar)
+        otra = self.pregunta_y_bot_contesta(hora_panama=9, id_externo='50761238888')
+        self.registrar('Perdón, estaba ocupada', id_externo='50761238888', ts=panama(2026, 10, 9, 14, 12))
+        with freeze_time(panama(2026, 10, 9, 14, 13)):   # tardío: no cierra el ciclo, pero el «no» se honra
+            otra._seguimiento_hecho(1, 'descartado', 'el cliente pidió que no lo contacten')
+        self.assertTrue(otra.partner_id.dcasa_no_contactar)
 
     def test_un_enviado_tardio_cuando_odoo_no_oyo_la_respuesta_si_cuenta(self):
         conv = self.pregunta_y_bot_contesta(hora_panama=9)
@@ -315,3 +415,20 @@ class TestZonaSinDireccionExacta(CrmCase):
         self.assertFalse(any('casa 45' in n for n in self.nombres_de_notas(lead)))
         lead = self.lead(zona='Barrio Colón')
         self.assertEqual(lead.dcasa_zona_entrega, 'Barrio Colón')
+
+
+@tagged('post_install', '-at_install')
+class TestZonaFueraDeLaAuditoria(ApiCase):
+
+    def test_la_direccion_exacta_tampoco_queda_en_la_auditoria_de_las_herramientas(self):
+        self.post('mensaje', self.mensaje(texto='Vivo en Barrio Colón, calle 3, casa 45 y quiero una cama queen'))
+        conv = self.conversacion()
+        respuesta = self.post('herramienta', {
+            'nombre': 'crear_oportunidad', 'conversacion_id': conv.id,
+            'argumentos': {'resumen': 'Quiere una cama queen', 'interes': 'cama queen',
+                           'zona': 'Barrio Colón, calle 3, casa 45'}})
+        self.assertEqual(respuesta.status_code, 200)
+        accion = self.env['brian.accion'].sudo().search([('herramienta', '=', 'juan_crear_oportunidad')], limit=1)
+        self.assertEqual(json.loads(accion.argumentos).get('resumen'), 'Quiere una cama queen')
+        self.assertNotIn('casa 45', accion.argumentos)
+        self.assertFalse(conv.oportunidad_id.dcasa_zona_entrega)

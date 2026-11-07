@@ -36,6 +36,7 @@ from odoo.http import request
 from odoo.service.model import PG_CONCURRENCY_EXCEPTIONS_TO_RETRY
 
 from ..models import adjuntos as A
+from ..models import crm_reglas as R
 from ..models import horario as H
 from ..models.ajustes import CANALES
 from ..models.mensaje import MAX_PARTES, MAX_TEXTO_CITA, RANGO_CANAL
@@ -448,6 +449,9 @@ class JuanAPI(http.Controller):
             if not entorno['dcasa.conversacion'].sudo().browse(conversacion_id).exists():
                 raise _Error(404, 'No existe esa conversación.')
             contexto['juan_conversacion_id'] = conversacion_id
+        if nombre == 'crear_oportunidad' and R.parece_direccion_exacta(argumentos.get('zona')):
+            # Una dirección exacta no se guarda (issue #25): tampoco en la auditoría de Brian (``brian.accion``).
+            argumentos = {clave: valor for clave, valor in argumentos.items() if clave != 'zona'}
         resultado = entorno['brian.herramientas'].with_context(**contexto).ejecutar(
             PREFIJO_HERRAMIENTA + nombre, argumentos, canal='juan')
         if resultado.get('ok'):
