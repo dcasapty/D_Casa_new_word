@@ -33,8 +33,11 @@ LEEME_PRIMERO §2).
    52 y 54, con Juan 7). La clave de campañas ya está y Odoo la tomó (Desplegar 53). Nada sale sin que alguien de
    Marketing o Gerencia apruebe la campaña. Falta de la dueña: la primera campaña y confirmar el «Sí, quiero» de dos
    toques. **Etapa 1b** (la lista crece sola: se activa al agregar el correo y se quita con un «no», CAMILA.md §1c):
-   **en producción** desde el 2026-11-07 (Desplegar 58 y Juan 9, con dos revisiones adversariales). Después:
-   cumpleaños, «tu cotización sigue aquí» y la etapa de la página web.
+   **en producción** desde el 2026-11-07 (Desplegar 58 y Juan 9, con dos revisiones adversariales). **«Abrieron» y
+   «Tocaron» en 0** (2026-11-07, CAMILA.md §1d): el remitente propio de las campañas y el aviso de Resend están
+   **hechos en su rama, sin desplegar** (faltan capturas a la dueña → su visto bueno → CI y staging). Falta de la
+   dueña: el subdominio `novedades.dcasapty.com` en Resend con el conteo encendido y el remitente en Camila
+   (CAMILA.md §6b). Después: cumpleaños, «tu cotización sigue aquí» y la etapa de la página web.
 2. **Brian al día** y la **pantalla nueva de Sofía**: **en producción** desde el 2026-11-06 (Desplegar 57; capturas
    aprobadas por la dueña; Brian con revisión adversarial). Sigue para Brian: los topes de dinero (punto 5).
 3. **Que el equipo use lo nuevo** (lo hace la dueña con el equipo; ver «Lo que falta de la dueña»): el Reparto
@@ -113,6 +116,10 @@ Lo que no es programación. Absorbe lo que seguía vigente de la lista vieja
   `RESEND_CAMPANAS_API_KEY` en el panel de Cloudflare del Worker `dcasa` (paso a paso en [CAMILA.md](CAMILA.md) §6;
   nunca en el chat), revisar la política de privacidad (novedades por correo y Resend) y pedirle a las vendedoras que
   marquen la casilla «Novedades por correo» cuando el cliente diga que sí.
+- **Camila, para que «Abrieron» y «Tocaron» cuenten** (cuando entre el remitente propio): en Resend, el subdominio
+  `novedades.dcasapty.com` verificado (DNS en Cloudflare con la nube gris) y con **Enable tracking metrics** (subdominio
+  `links`, aperturas y clics); después, en Marketing › Camila, el «Remitente de las campañas» con un correo de ese
+  subdominio. **No** encenderlo en `dcasapty.com` (las facturas). Paso a paso en [CAMILA.md](CAMILA.md) §6b.
 - **Guía:** confirmar las listas «En tu puesto lo que más se usa» (`addons/dcasa_guia/data/guia_roles.json`).
 
 ### Decisiones
