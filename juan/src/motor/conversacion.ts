@@ -27,7 +27,7 @@ import { Bandeja, Cola, crearEsquema, Fotos, Kv, Medios, Mensajes, Recibidos, ty
 import { DESCANSO_POR_REPETIDO_MS, DESCANSO_POR_TOPE_MS, esRepetido, superaTopeDiario, TOPE_DIARIO_POR_DEFECTO } from "./antispam";
 import { partirEnBurbujas } from "./burbujas";
 import { cifrasDeTexto, construirHerramientas, RegistroDelTurno, textoDeLaHerramienta } from "./herramientas";
-import { correrTurno, elegirNivel, type EntradaDelTurno, type SalidaDelTurno } from "./modelo";
+import { consultasComoTexto, correrTurno, elegirNivel, rondasDeHerramientas, type EntradaDelTurno, type SalidaDelTurno } from "./modelo";
 import { planDeIntentos, type FabricaDeModelos, type ProveedorIa, type SeleccionDeModelo } from "./proveedores";
 import { aplicarTope, costoDe, sumarUso, USO_VACIO, type Nivel, type Uso } from "./precios";
 import { firmarUrlMedio } from "./mediosUrl";
@@ -1184,8 +1184,10 @@ export class MotorConversacion {
 
     const usos = new Map<string, { sel: SeleccionDeModelo; uso: Uso }>();
     let usado: SeleccionDeModelo = plan[0];
-    const correr = async (extra: string, conHerramientas: boolean): Promise<SalidaDelTurno> => {
-      const r = await this.correrConRespaldo(plan, { sistemaEstable: estable, sistemaDinamico: dinamicoBase(extra), mensajes, herramientas: conHerramientas ? herramientas : {} });
+    // `previos`: lo que ya hizo la primera pasada de este turno (issue #24): sin eso, la segunda se queda sin los datos que consultó y
+    // vuelve a llamar las herramientas de escritura.
+    const correr = async (extra: string, conHerramientas: boolean, previos: ModelMessage[] = []): Promise<SalidaDelTurno> => {
+      const r = await this.correrConRespaldo(plan, { sistemaEstable: estable, sistemaDinamico: dinamicoBase(extra), mensajes: [...mensajes, ...previos], herramientas: conHerramientas ? herramientas : {} });
       usado = r.usado;
       const clave = `${r.usado.proveedor}|${r.usado.modelo}`;
       usos.set(clave, { sel: r.usado, uso: sumarUso(usos.get(clave)?.uso ?? USO_VACIO, r.salida.uso) });
@@ -1193,10 +1195,13 @@ export class MotorConversacion {
     };
 
     let salida: SalidaDelTurno;
+    let primeraPasada: SalidaDelTurno;
     try {
-      salida = await correr("", true);
+      salida = primeraPasada = await correr("", true);
       if (salida.sinTexto) {
-        salida = await correr("\n<aviso>Ya consultaste lo que necesitabas. Responde ahora al cliente con lo que tienes, sin llamar más herramientas.</aviso>", false);
+        // Sin herramientas puestas, lo consultado viaja como datos (Claude rechaza llamadas a herramientas sin su definición).
+        const consultado = consultasComoTexto(salida.consultas).trim();
+        salida = await correr("\n<aviso>Ya consultaste lo que necesitabas. Responde ahora al cliente con lo que tienes, sin llamar más herramientas.</aviso>", false, consultado ? [{ role: "user", content: consultado }] : []);
       }
     } catch (e) {
       await this.alFallarLaIA(cfg, ids, e);
@@ -1226,7 +1231,7 @@ export class MotorConversacion {
     if (reparables.length > 0 && analisis.graves.every((g) => g.tipo !== "fuga")) {
       this.log("warn", "borrador rechazado por la guardia de salida; se le pide reescribirlo", analisis.graves);
       try {
-        const segundo = await correr(`\n<correccion>${notaDeCorreccion(analisis.graves)}</correccion>`, true);
+        const segundo = await correr(`\n<correccion>${notaDeCorreccion(analisis.graves)}</correccion>`, true, rondasDeHerramientas(primeraPasada.mensajes));
         analisis = analizar(segundo.texto, contextoDeRevision());
       } catch {
         /* sigue con el primer borrador, que se repara abajo */
