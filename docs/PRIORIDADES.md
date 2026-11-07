@@ -29,14 +29,10 @@ LEEME_PRIMERO §2).
    52 y 54, con Juan 7). La clave de campañas ya está y Odoo la tomó (Desplegar 53). Nada sale sin que alguien de
    Marketing o Gerencia apruebe la campaña. Falta de la dueña: la primera campaña y confirmar el «Sí, quiero» de dos
    toques. **Etapa 1b** (la lista crece sola: se activa al agregar el correo y se quita con un «no», CAMILA.md §1c):
-   hecha en su rama, sin desplegar; sigue su revisión adversarial y el despliegue (con el Worker de Juan). Después:
+   **en producción** desde el 2026-11-07 (Desplegar 58 y Juan 9, con dos revisiones adversariales). Después:
    cumpleaños, «tu cotización sigue aquí» y la etapa de la página web.
-2. **Brian al día** con lo nuevo (la dueña: «indispensable, pero desactualizado»): hecho en su rama el 2026-11-06
-   (9 herramientas nuevas de lectura y una de construcción, prompt y Guía al día, y el botón flotante ya no tapa
-   «Enviar»; ver la bitácora). La dueña vio las capturas y dijo que sí; una revisión adversarial no encontró nada que
-   frene (sus 6 arreglos, hechos con pruebas). Falta: CI, staging y producción. La vuelta a la **pantalla de Sofía**
-   está hecha en su rama (2026-11-06 (7), solo interfaz): falta que la dueña vea las capturas antes/después y diga que
-   sí, y después CI, staging y producción.
+2. **Brian al día** y la **pantalla nueva de Sofía**: **en producción** desde el 2026-11-06 (Desplegar 57; capturas
+   aprobadas por la dueña; Brian con revisión adversarial). Sigue para Brian: los topes de dinero (punto 5).
 3. **Que el equipo use lo nuevo** (lo hace la dueña con el equipo; ver «Lo que falta de la dueña»): el Reparto
    «Parejo», el Telegram de cada vendedora, «Revisar ahora» de Sofía y los mensajes de Sofía.
 4. **Respaldo de la IA de Juan:** `ANTHROPIC_API_KEY` en el Worker `dcasa-juan` por si Meta pasa su límite o se cae (hoy
@@ -56,7 +52,7 @@ LEEME_PRIMERO §2).
     viático, honorarios y peaje); después, con su «sí», que Juan cotice y la sección de envíos del sitio (cuando haya
     flota propia).
 11. **Siguiente etapa de Sofía:** mensajes con IA y plantillas de WhatsApp para después de 24 horas (sus herramientas
-    de Brian, de lectura y «Revisar ahora», ya están en la rama de «Brian al día»).
+    de Brian, de lectura y «Revisar ahora», ya están en producción).
 12. **Privacidad (issues #22 y #23):** borrar la oportunidad junto con la conversación y lo que «Eliminar conversación»
     todavía no borra.
 13. **Juan: hallazgos menores** que quedaron para después (issue #24).
