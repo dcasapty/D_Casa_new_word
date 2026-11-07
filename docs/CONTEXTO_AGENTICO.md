@@ -379,6 +379,12 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `main` (`741930d`, árbol = `de1fb04`) a staging y Desplegar con ese `app_version`. **Regla:** un cambio del borde
   (rutas, `vars`, `workers_dev`) se despliega con un `app_version` que lo contenga, o sea con una imagen construida
   de ese commit.
+- **Desplegar 59** (03:22 UTC del 7 nov, `app_version` `142c3d9` = SHA de la rama, imagen `sha256:5569ef81…` de CI
+  #292, respaldo previo) · sano y confirmado 03:36 (versión `142c3d9e0c49`, base al día, humo ok): los botones blancos de
+  Sofía ya no se borran al pasar el puntero (PR #93, `main` = `46343c1`, árbol = `142c3d9`). Causa: el SCSS fijaba
+  `background` en `.btn-outline-primary` y Bootstrap pone el texto blanco en `:hover`. **Regla:** al cambiarle el
+  fondo a un botón de Bootstrap, fijar también su `:hover`/`:focus-visible`/`:active`; la prueba lo mide con un
+  `Input.dispatchMouseEvent` de verdad (un `:hover` no se puede forzar desde el JavaScript de la página).
 - **Desplegar 58 y después Desplegar Juan 9** (00:48 y 01:04 UTC del 7 nov, `app_version` `8f3cdc3` = SHA de la rama,
   imagen `sha256:4b56a22c…` de CI #290, respaldo previo) · Odoo sano y confirmado 01:03 (versión `8f3cdc322808`, base al
   día, humo ok): Camila etapa 1b, la casilla de novedades que se activa sola al agregar el correo, con las dos
