@@ -228,6 +228,16 @@ export interface OpcionesHerramientas {
   textoDelCliente?: () => string;
 }
 
+/**
+ * Un turno puede correr el modelo dos veces (`sinTexto`, pasada de corrección): dentro de UN turno, la misma escritura con los mismos
+ * argumentos va a Odoo una sola vez (la segunda recibe la misma respuesta), `pasar_a_vendedora` una sola vez sea cual sea el motivo,
+ * y a lo más estas escrituras en total (issue #24). Un fallo pasajero (Odoo no contestó) no se recuerda: se puede intentar otra vez.
+ */
+export const MAX_ESCRITURAS_POR_TURNO = 8;
+
+/** Las respuestas de «no pude consultar el sistema ahora» (Odoo no contestó): no se recuerdan como una escritura hecha. */
+const FALLOS_PASAJEROS = new WeakSet<object>();
+
 const MAX_FOTOS_POR_RESPUESTA = 3;
 /** Cuántas fotos nuevas salen cada vez que el cliente pide «más fotos». */
 const FOTOS_ADICIONALES_POR_PEDIDO = 3;
@@ -312,12 +322,33 @@ export function construirHerramientas(op: OpcionesHerramientas): ToolSet {
     return mia;
   };
 
+  // Las escrituras de este turno por su clave (ver MAX_ESCRITURAS_POR_TURNO), con lo que se le contestó al modelo la primera vez.
+  const escrituras = new Map<string, Promise<unknown>>();
+  const unaVezPorTurno = (nombre: string, ejecutar: (args: unknown) => Promise<unknown>) => (args: unknown): Promise<unknown> => {
+    if (HERRAMIENTAS_DE_LECTURA.has(nombre)) return ejecutar(args);
+    const clave = nombre === "pasar_a_vendedora" ? nombre : `${nombre}|${argumentosEstables(args)}`;
+    const anterior = escrituras.get(clave);
+    if (anterior) return anterior;
+    if (escrituras.size >= MAX_ESCRITURAS_POR_TURNO) {
+      return Promise.resolve({ ok: false, error: "Ya hiciste suficientes cambios en esta respuesta.", instruccion: "No llames más herramientas que escriban: responde al cliente con lo que tienes." });
+    }
+    const resultado = ejecutar(args);
+    escrituras.set(clave, resultado);
+    resultado.then(
+      (v) => {
+        if (v && typeof v === "object" && FALLOS_PASAJEROS.has(v)) escrituras.delete(clave);
+      },
+      () => escrituras.delete(clave),
+    );
+    return resultado;
+  };
+
   for (const def of op.defs) {
     if (def.nombre === "enviar_foto_producto") continue; // la local manda
     tools[def.nombre] = tool({
       description: def.descripcion,
       inputSchema: jsonSchema(def.parametros as never),
-      execute: async (args: unknown) => {
+      execute: unaVezPorTurno(def.nombre, async (args: unknown) => {
         const argumentos = esObjeto(args) ? { ...args } : {};
         // Un cliente (o un mensaje manipulado) no puede pedir el saldo de otro número.
         if (def.nombre === "saldo_puntos" && op.celularDeLaConversacion) argumentos.celular = op.celularDeLaConversacion;
@@ -359,11 +390,13 @@ export function construirHerramientas(op: OpcionesHerramientas): ToolSet {
           return { ok: false, error: r.rechazo, instruccion: "Corrige la llamada con eso. Si no se puede, dile al cliente con honestidad lo que pasó y ofrécele una vendedora. No inventes el dato." };
         }
         if (!r.ok) {
-          return {
+          const fallo = {
             ok: false,
             error: "No pude consultar el sistema ahora.",
             instruccion: "Dile al cliente, con honestidad, que ahorita no pudiste consultarlo y ofrécele una vendedora. No inventes el dato.",
           };
+          FALLOS_PASAJEROS.add(fallo);
+          return fallo;
         }
         if (def.nombre === "pasar_a_vendedora") {
           registro.pasoAVendedora = true;
@@ -373,7 +406,7 @@ export function construirHerramientas(op: OpcionesHerramientas): ToolSet {
         if (clave) op.cache!.guardar(clave, r.resultado);
         const resultado = def.nombre === "cotizar" ? tomarDocumentoDeLaCotizacion(r.resultado, registro) : r.resultado;
         return { ok: true, resultado: acotar(anotarConsulta(def.nombre, resultado, registro, op.sitio)) };
-      },
+      }),
     });
   }
 

@@ -129,6 +129,13 @@ class JuanAjustes(models.Model):
     seguimiento_maximo = fields.Integer(
         'Máximo de seguimientos', default=2, tracking=True,
         help='Como máximo cuántos mensajes de seguimiento recibe una persona.')
+    # Issue #25: tras una caída, un despliegue o con el asistente apagado, lo vencido salía todo de golpe (de 50 en 50)
+    # aunque tuviera días. 6 h aguantan un reinicio, un despliegue (15 a 45 min) o una mañana con el asistente apagado,
+    # y cortan lo que ya no tiene sentido mandar (el cron corre cada 15 min: lo normal es llegar con minutos de atraso).
+    seguimiento_atraso_maximo_horas = fields.Integer(
+        'No enviar seguimientos atrasados más de (horas)', default=6, tracking=True,
+        help='Si un seguimiento se atrasa más que esto (el sistema estuvo detenido o el asistente apagado), ya no se '
+             'manda tarde: se salta y sigue el siguiente. 0 = mandarlo igual, por atrasado que vaya.')
 
     # --- IA ---------------------------------------------------------------------------------------
     proveedor_ia = fields.Selection(
@@ -339,11 +346,15 @@ class JuanAjustes(models.Model):
             if not registro._dias():
                 raise ValidationError(self.env._('Marca al menos un día de atención.'))
 
-    @api.constrains('seguimiento_primero_horas', 'seguimiento_segundo_dias', 'seguimiento_maximo')
+    @api.constrains('seguimiento_primero_horas', 'seguimiento_segundo_dias', 'seguimiento_maximo',
+                    'seguimiento_atraso_maximo_horas')
     def _check_seguimiento(self):
         for registro in self:
             if registro.seguimiento_primero_horas < 0 or registro.seguimiento_segundo_dias < 0:
                 raise ValidationError(self.env._('Los tiempos de seguimiento no pueden ser negativos.'))
+            if not 0 <= registro.seguimiento_atraso_maximo_horas <= 72:
+                raise ValidationError(self.env._(
+                    'El atraso máximo de un seguimiento es de 0 (mandarlo igual) a 72 horas.'))
             if not 0 <= registro.seguimiento_maximo <= 2:
                 raise ValidationError(self.env._(
                     'El seguimiento admite como máximo 2 mensajes (decisión de la dueña): pon 0, 1 o 2.'))

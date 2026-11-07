@@ -245,7 +245,8 @@ class TestCronDeSeguimiento(SeguimientoCase):
 
     def test_no_pide_fuera_de_horario_aunque_ya_toque(self):
         conv = self.pregunta_y_bot_contesta(hora_panama=9)
-        conv.seguimiento_proximo = panama(2026, 10, 9, 12, 0)    # alguien lo adelantó a mano
+        # Alguien lo movió a mano. Atrasado 4 h (menos que el tope de atraso, 6 h): se reprograma, no se salta.
+        conv.seguimiento_proximo = panama(2026, 10, 9, 16, 0)
         with freeze_time(panama(2026, 10, 9, 20, 0)):             # 8 p. m. en Panamá
             self.assertEqual(self.Conversacion._cron_seguimientos(), 0)
         self.assertEqual(conv.seguimiento_proximo, panama(2026, 10, 10, 8, 0))

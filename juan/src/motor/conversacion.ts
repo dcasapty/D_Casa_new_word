@@ -14,7 +14,7 @@
 import type { ModelMessage } from "ai";
 import { canalActivo, CONFIG_POR_DEFECTO, dentroDeHorario, diaDelNegocio, mesDelNegocio, type Config } from "../config";
 import type { AdaptadorCanal, CanalId, Entrante, MedioSaliente, Saliente } from "../canales/tipos";
-import { EnvioParcialError, partirPorLargo } from "../canales/tipos";
+import { EnvioParcialError, partirPorLargo, sinNegritas } from "../canales/tipos";
 import { crudoDe, entranteDeCrudo, prepararEntrante } from "../canales/preparar";
 import { noQuiereSeguimiento, pideUnaPersona } from "../dcasa/intencion";
 import { contextoDelChat, promptEstable, promptParaFugas, promptSeguimiento, presentacionPorDefecto } from "../dcasa/prompt";
@@ -27,7 +27,7 @@ import { Bandeja, Cola, crearEsquema, Fotos, Kv, Medios, Mensajes, Recibidos, ty
 import { DESCANSO_POR_REPETIDO_MS, DESCANSO_POR_TOPE_MS, esRepetido, superaTopeDiario, TOPE_DIARIO_POR_DEFECTO } from "./antispam";
 import { partirEnBurbujas } from "./burbujas";
 import { cifrasDeTexto, construirHerramientas, RegistroDelTurno, textoDeLaHerramienta } from "./herramientas";
-import { correrTurno, elegirNivel, type EntradaDelTurno, type SalidaDelTurno } from "./modelo";
+import { consultasComoTexto, correrTurno, elegirNivel, rondasDeHerramientas, type EntradaDelTurno, type SalidaDelTurno } from "./modelo";
 import { planDeIntentos, type FabricaDeModelos, type ProveedorIa, type SeleccionDeModelo } from "./proveedores";
 import { aplicarTope, costoDe, sumarUso, USO_VACIO, type Nivel, type Uso } from "./precios";
 import { firmarUrlMedio } from "./mediosUrl";
@@ -64,6 +64,8 @@ function bytesABase64(bytes: Uint8Array): string {
   return btoa(bin);
 }
 const IMAGENES_POR_DIA = 10;
+/** Notas de voz que se transcriben por persona al día (issue #24): cada una cuesta un poco de IA. Una persona normal manda menos. */
+export const AUDIOS_POR_DIA = 20;
 
 /** Lo que ya salió por el canal en un mismo envío. */
 interface ProgresoDeEnvio {
@@ -110,6 +112,8 @@ class ConfigDesconocida extends Error {}
 const VIDA_ID_ENVIO_MS = 3 * 24 * 3600_000;
 /** Mientras un envío con ese `id_envio` está saliendo, otro igual espera (si no, el cliente recibiría el mensaje dos veces). */
 const ENVIO_EN_CURSO_MS = 3 * 60_000;
+/** El seguimiento que se está redactando y enviando ahora (ver `seguimiento`): otro pedido igual se pospone. */
+const PREFIJO_SEGUIMIENTO_EN_CURSO = "seg_curso:";
 /** La ráfaga espera a que el cliente termine de escribir, pero no más de esto desde su primer mensaje (tantas veces `bufferMs`). */
 const TOPE_DE_RAFAGA_VECES = 3;
 const VENTANA_24H_MS = 23 * 3600_000;
@@ -214,14 +218,31 @@ export type ResultadoSeguimiento =
   | { ok: true; resultado: "pospuesto"; motivo: string }
   | { ok: false; error: string };
 
+/** Cómo se compara un eco: Messenger e Instagram no entienden la negrita de WhatsApp y la devuelven sin asteriscos (`sinNegritas`). */
+const normalizarEco = (texto: string) => sinNegritas(texto).replace(/\s+/g, " ").trim();
+
 const esEcoDelNegocio = (texto: string, recientes: readonly string[]) => {
-  const t = texto.trim();
+  const t = normalizarEco(texto);
   if (!t) return false;
   return recientes.some((c) => {
-    const x = c.trim();
+    const x = normalizarEco(c);
     return x === t || (t.length >= 25 && x.includes(t));
   });
 };
+
+/**
+ * Lo que está saliendo por el canal en este momento (issue #24): Meta devuelve el eco de lo que manda la Página por el webhook, a
+ * veces antes de que la Send API conteste o entre una burbuja y otra. Se anota ANTES de enviar y se suelta al terminar; vence solo
+ * por si el objeto se reinicia a mitad del envío. Un archivo vuelve sin texto: cada uno reconoce UN eco sin texto de su tipo.
+ */
+interface EnVuelo {
+  hasta: number;
+  textos: string[];
+  imagen: number;
+  documento: number;
+}
+const PREFIJO_EN_VUELO = "vuelo:";
+const EN_VUELO_MS = 5 * 60_000;
 
 export class MotorConversacion {
   readonly kv: Kv;
@@ -241,6 +262,8 @@ export class MotorConversacion {
   private escribiendoEnOdoo = false;
   /** Odoo no contestó en esta pasada: no se le insiste dentro de la misma alarma (el cliente no espera minutos). */
   private odooCaido = false;
+  /** Cuenta los envíos de este objeto: con la hora, da una clave única a lo «en vuelo». */
+  private vuelos = 0;
 
   constructor(private readonly deps: DepsMotor) {
     crearEsquema(deps.sql);
@@ -390,7 +413,9 @@ export class MotorConversacion {
 
     if (e.id_mensaje && this.mensajes.existe(e.id_mensaje)) return { ok: true, accion: "duplicado" };
 
-    const { lista, transcripciones, lecturas, stickers } = await this.prepararAdjuntos(e, ahora, vigente);
+    // Transcribir y leer imágenes cuesta IA: no se gasta en lo que el anti-spam o el tope diario ya frenan (issue #24).
+    const leerConIa = !!e.propio || this.valeLaPenaLeer((e.texto ?? "").trim(), ahora);
+    const { lista, transcripciones, lecturas, stickers } = await this.prepararAdjuntos(e, ahora, vigente, leerConIa);
     // «Borrar mis datos» llegó mientras se transcribía o se leía una imagen: no se guarda nada de este mensaje.
     if (!vigente()) return { ok: true, accion: "olvidado" };
     // Mientras se preparaban los adjuntos pudo entrar el mismo mensaje por otra puerta (un reintento del proveedor en paralelo).
@@ -405,7 +430,9 @@ export class MotorConversacion {
     const previos = this.mensajes.textosDelCliente(5);
     const repetido = !!textoOriginal && esRepetido(textoOriginal, previos);
     const sobreElTope = superaTopeDiario(this.mensajes.delClienteDesde(ahora - 24 * 3600_000), this.deps.topeDiario ?? TOPE_DIARIO_POR_DEFECTO);
-    const pide = !!textoOriginal && pideUnaPersona(textoOriginal);
+    // Lo que dijo el cliente: lo escrito y cada nota de voz transcrita (una nota de voz que pide una persona vale igual; issue #24).
+    const dicho = [textoOriginal, ...transcripciones].filter(Boolean);
+    const pide = dicho.some(pideUnaPersona);
     // «Vencido» es lo que el CANAL entregó tarde (más de 2 h entre que el cliente lo escribió y que llegó a Juan). Lo que esperó en la
     // bandeja por culpa nuestra (Odoo caído, el Worker se reinició) no cuenta: se contesta mientras el canal deje (ventana de 24 h).
     const vencido = (op.recibido ?? ahora) - e.ts > MENSAJE_VENCIDO_MS || ahora - e.ts > VENTANA_24H_MS;
@@ -437,7 +464,7 @@ export class MotorConversacion {
     // Odoo es el historial permanente: todo mensaje del cliente se registra, conteste el bot o no.
     this.cola.agregar("mensaje", this.cuerpoDeMensaje(e, taparPines(texto), "cliente", "entrante", lista), ahora);
 
-    if (textoOriginal && noQuiereSeguimiento(textoOriginal) && !this.kv.bandera("sin_seguimiento")) {
+    if (dicho.some(noQuiereSeguimiento) && !this.kv.bandera("sin_seguimiento")) {
       this.kv.poner("sin_seguimiento", true);
       this.cola.agregar("herramienta", { nombre: "anotar_conversacion", argumentos: { nota: "El cliente pidió que no lo contacten más o dijo que ya no le interesa. No enviar seguimientos." } }, ahora);
     }
@@ -508,7 +535,7 @@ export class MotorConversacion {
   private async ingestarPropio(e: Entrante, texto: string, lista: AdjuntoOdoo[], ahora: number, vigente: () => boolean): Promise<ResultadoIngest> {
     // El eco del propio bot (o de algo que se mandó desde Odoo) no es una persona escribiendo.
     const esEco = () =>
-      (!!texto && esEcoDelNegocio(texto, this.mensajes.salientesDesde(ahora - 15 * 60_000))) || (!!e.id_mensaje && this.kv.texto(`env:${e.id_mensaje}`) !== null);
+      (!!texto && esEcoDelNegocio(texto, this.mensajes.salientesDesde(ahora - 15 * 60_000))) || (!!e.id_mensaje && this.kv.texto(`env:${e.id_mensaje}`) !== null) || this.ecoEnVuelo(texto, lista);
     if (esEco()) return { ok: true, accion: "eco" };
     // La configuración se pide ANTES de guardar: guardar y callar al bot van en un mismo paso, sin esperas en medio.
     const cfg = await this.deps.config();
@@ -520,6 +547,52 @@ export class MotorConversacion {
     this.humanoIntervino(cfg, ahora);
     await this.programar();
     return { ok: true, accion: "propio" };
+  }
+
+  /**
+   * ¿Es el eco de algo que está saliendo AHORA por el canal (`anotarEnVuelo`)? Con texto, se compara el texto; sin texto (una foto o
+   * un documento que manda el bot), gasta el lugar de un archivo de su tipo: así una foto que una vendedora mande después no se traga.
+   */
+  private ecoEnVuelo(texto: string, adjuntos: readonly AdjuntoOdoo[]): boolean {
+    const ahora = this.deps.ahora();
+    const vuelos: { k: string; v: EnVuelo }[] = [];
+    for (const f of this.deps.sql.todos<{ k: string; v: string }>("SELECT k, v FROM kv WHERE k LIKE ?", `${PREFIJO_EN_VUELO}%`)) {
+      let v: EnVuelo | null = null;
+      try {
+        v = JSON.parse(f.v) as EnVuelo;
+      } catch {
+        /* una fila rota no reconoce nada: se borra */
+      }
+      if (v && v.hasta > ahora) vuelos.push({ k: f.k, v });
+      else this.kv.poner(f.k, null);
+    }
+    if (vuelos.length === 0) return false;
+    if (texto.trim()) return vuelos.some(({ v }) => esEcoDelNegocio(texto, v.textos));
+    if (adjuntos.length === 0) return false;
+    const cupos = vuelos.map(({ v }) => ({ ...v }));
+    for (const a of adjuntos) {
+      if (a.tipo !== "imagen" && a.tipo !== "documento") return false;
+      const tipo = a.tipo;
+      const con = cupos.find((c) => c[tipo] > 0);
+      if (!con) return false;
+      con[tipo]--;
+    }
+    vuelos.forEach(({ k }, i) => this.kv.poner(k, JSON.stringify(cupos[i])));
+    return true;
+  }
+
+  /** Anota lo que está por salir por el canal (ver `EnVuelo`). Devuelve la clave con la que se suelta. */
+  private anotarEnVuelo(burbujas: readonly string[], medios: readonly MedioSaliente[]): string {
+    const ahora = this.deps.ahora();
+    const clave = `${PREFIJO_EN_VUELO}${ahora}:${++this.vuelos}`;
+    const v: EnVuelo = {
+      hasta: ahora + EN_VUELO_MS,
+      textos: burbujas.map(normalizarEco).filter(Boolean),
+      imagen: medios.filter((m) => m.tipo === "imagen").length,
+      documento: medios.filter((m) => m.tipo === "documento").length,
+    };
+    this.kv.poner(clave, JSON.stringify(v));
+    return clave;
   }
 
   private cuerpoDeMensaje(e: Pick<Entrante, "canal" | "id_externo" | "nombre" | "celular" | "id_mensaje">, texto: string, autor: CuerpoMensaje["autor"], direccion: CuerpoMensaje["direccion"], adjuntos: AdjuntoOdoo[], ts = this.deps.ahora(), idMensaje = e.id_mensaje): CuerpoMensaje {
@@ -537,10 +610,22 @@ export class MotorConversacion {
     };
   }
 
+  /**
+   * ¿Se puede gastar IA en leer los archivos de este mensaje (transcribir, mirar imágenes)? No si la conversación descansa por spam, si
+   * el mensaje es un repetido o si ya se llegó al tope diario: esos no se contestan (issue #24). El archivo igual se guarda para Odoo.
+   */
+  private valeLaPenaLeer(textoOriginal: string, ahora: number): boolean {
+    const descanso = this.kv.numero("descanso_hasta");
+    if (descanso !== null && descanso > ahora) return false;
+    if (textoOriginal && esRepetido(textoOriginal, this.mensajes.textosDelCliente(5))) return false;
+    return !superaTopeDiario(this.mensajes.delClienteDesde(ahora - 24 * 3600_000), this.deps.topeDiario ?? TOPE_DIARIO_POR_DEFECTO);
+  }
+
   private async prepararAdjuntos(
     e: Entrante,
     ahora: number,
     vigente: () => boolean = () => true,
+    leerConIa = true,
   ): Promise<{ lista: AdjuntoOdoo[]; transcripciones: string[]; lecturas: (LecturaImagen | null)[]; stickers: boolean[] }> {
     const lista: AdjuntoOdoo[] = [];
     const transcripciones: string[] = [];
@@ -552,7 +637,7 @@ export class MotorConversacion {
       let url = a.url ?? null;
       if (a.bytes && a.bytes.byteLength > 0) {
         const mime = a.mime ?? "application/octet-stream";
-        if (a.tipo === "imagen" && !a.sticker && this.deps.mirarImagen && imagenesLeidas < IMAGENES_POR_MENSAJE && this.cabeOtraLecturaHoy(ahora)) {
+        if (leerConIa && a.tipo === "imagen" && !a.sticker && this.deps.mirarImagen && imagenesLeidas < IMAGENES_POR_MENSAJE && this.cabeOtraLecturaHoy(ahora)) {
           imagenesLeidas++;
           try {
             lectura = await this.deps.mirarImagen(a.bytes, mime);
@@ -560,7 +645,7 @@ export class MotorConversacion {
             this.log("warn", "no se pudo leer la imagen: sigue el camino de siempre (la revisa una vendedora)", String(err));
           }
         }
-        if (a.tipo === "audio" && this.deps.transcribir) {
+        if (leerConIa && a.tipo === "audio" && this.deps.transcribir && this.cabeOtroAudioHoy(ahora)) {
           try {
             const t = await this.deps.transcribir(a.bytes, mime);
             if (t) transcripciones.push(t.trim());
@@ -596,6 +681,16 @@ export class MotorConversacion {
     if (n >= IMAGENES_POR_DIA) return false;
     this.kv.poner("imagenes_dia", dia);
     this.kv.poner("imagenes_n", n + 1);
+    return true;
+  }
+
+  /** Igual que las imágenes, para las notas de voz: false si esta persona ya llegó a su tope de hoy (la nota queda para una vendedora). */
+  private cabeOtroAudioHoy(ahora: number): boolean {
+    const dia = new Date(ahora).toISOString().slice(0, 10);
+    const n = this.kv.texto("audios_dia") === dia ? (this.kv.numero("audios_n") ?? 0) : 0;
+    if (n >= AUDIOS_POR_DIA) return false;
+    this.kv.poner("audios_dia", dia);
+    this.kv.poner("audios_n", n + 1);
     return true;
   }
 
@@ -648,6 +743,8 @@ export class MotorConversacion {
     this.deps.sql.correr("DELETE FROM enviados WHERE ts < ?", ahora - 24 * 3600_000);
     this.deps.sql.correr("DELETE FROM seguimientos WHERE ts < ?", ahora - 90 * 24 * 3600_000);
     this.deps.sql.correr("DELETE FROM kv WHERE k LIKE 'env:%' AND CAST(v AS INTEGER) < ?", ahora - 24 * 3600_000);
+    this.deps.sql.correr(`DELETE FROM kv WHERE k LIKE '${PREFIJO_EN_VUELO}%' AND CAST(json_extract(v, '$.hasta') AS INTEGER) < ?`, ahora);
+    this.deps.sql.correr(`DELETE FROM kv WHERE k LIKE '${PREFIJO_SEGUIMIENTO_EN_CURSO}%' AND CAST(v AS INTEGER) < ?`, ahora - 24 * 3600_000);
     this.deps.sql.correr(`DELETE FROM kv WHERE k LIKE '${PREFIJO_ID_ENVIO}%' AND CAST(json_extract(v, '$.ts') AS INTEGER) < ?`, ahora - VIDA_ID_ENVIO_MS);
   }
 
@@ -1090,8 +1187,10 @@ export class MotorConversacion {
 
     const usos = new Map<string, { sel: SeleccionDeModelo; uso: Uso }>();
     let usado: SeleccionDeModelo = plan[0];
-    const correr = async (extra: string, conHerramientas: boolean): Promise<SalidaDelTurno> => {
-      const r = await this.correrConRespaldo(plan, { sistemaEstable: estable, sistemaDinamico: dinamicoBase(extra), mensajes, herramientas: conHerramientas ? herramientas : {} });
+    // `previos`: lo que ya hizo la primera pasada de este turno (issue #24): sin eso, la segunda se queda sin los datos que consultó y
+    // vuelve a llamar las herramientas de escritura.
+    const correr = async (extra: string, conHerramientas: boolean, previos: ModelMessage[] = []): Promise<SalidaDelTurno> => {
+      const r = await this.correrConRespaldo(plan, { sistemaEstable: estable, sistemaDinamico: dinamicoBase(extra), mensajes: [...mensajes, ...previos], herramientas: conHerramientas ? herramientas : {} });
       usado = r.usado;
       const clave = `${r.usado.proveedor}|${r.usado.modelo}`;
       usos.set(clave, { sel: r.usado, uso: sumarUso(usos.get(clave)?.uso ?? USO_VACIO, r.salida.uso) });
@@ -1099,10 +1198,13 @@ export class MotorConversacion {
     };
 
     let salida: SalidaDelTurno;
+    let primeraPasada: SalidaDelTurno;
     try {
-      salida = await correr("", true);
+      salida = primeraPasada = await correr("", true);
       if (salida.sinTexto) {
-        salida = await correr("\n<aviso>Ya consultaste lo que necesitabas. Responde ahora al cliente con lo que tienes, sin llamar más herramientas.</aviso>", false);
+        // Sin herramientas puestas, lo consultado viaja como datos (Claude rechaza llamadas a herramientas sin su definición).
+        const consultado = consultasComoTexto(salida.consultas).trim();
+        salida = await correr("\n<aviso>Ya consultaste lo que necesitabas. Responde ahora al cliente con lo que tienes, sin llamar más herramientas.</aviso>", false, consultado ? [{ role: "user", content: consultado }] : []);
       }
     } catch (e) {
       await this.alFallarLaIA(cfg, ids, e);
@@ -1132,7 +1234,7 @@ export class MotorConversacion {
     if (reparables.length > 0 && analisis.graves.every((g) => g.tipo !== "fuga")) {
       this.log("warn", "borrador rechazado por la guardia de salida; se le pide reescribirlo", analisis.graves);
       try {
-        const segundo = await correr(`\n<correccion>${notaDeCorreccion(analisis.graves)}</correccion>`, true);
+        const segundo = await correr(`\n<correccion>${notaDeCorreccion(analisis.graves)}</correccion>`, true, rondasDeHerramientas(primeraPasada.mensajes));
         analisis = analizar(segundo.texto, contextoDeRevision());
       } catch {
         /* sigue con el primer borrador, que se repara abajo */
@@ -1204,7 +1306,7 @@ export class MotorConversacion {
   /** La IA falló del todo: se reintenta con calma; si sigue fallando, no se deja al cliente sin respuesta. */
   private async alFallarLaIA(cfg: Config, ids: number[], e: unknown, definitivo = false): Promise<void> {
     const fallos = this.kv.sumar("fallos_ia");
-    this.log("error", `la IA falló (${fallos})`, e instanceof Error ? e.message : String(e));
+    this.log("error", `la IA falló (${fallos})`, limpiarError(e));
     if (!definitivo && fallos <= REINTENTOS_DE_IA.length) {
       this.mensajes.marcarPendientes(ids, true);
       this.kv.poner("t_rafaga", this.deps.ahora() + REINTENTOS_DE_IA[fallos - 1]);
@@ -1225,7 +1327,7 @@ export class MotorConversacion {
     const ahora = this.deps.ahora();
     const algoSalio = this.mensajes.ultimos(10).some((f) => f.id > ultimoIdAntes && f.rol === "bot");
     const fallos = this.kv.sumar("fallos_envio");
-    this.log("error", `la respuesta estaba lista pero no salió por el canal (${fallos})`, e instanceof Error ? e.message : String(e));
+    this.log("error", `la respuesta estaba lista pero no salió por el canal (${fallos})`, motivoDeEnvio(e));
     if (!algoSalio && fallos <= REINTENTOS_DE_IA.length) {
       this.mensajes.marcarPendientes(ids, true);
       this.kv.poner("t_rafaga", ahora + REINTENTOS_DE_IA[fallos - 1]);
@@ -1319,6 +1421,7 @@ export class MotorConversacion {
     if (o.autor === "bot") this.mostrarEscribiendo();
 
     let fallo: unknown = null;
+    const vuelo = this.anotarEnVuelo(burbujas.slice(progreso.burbujas), medios.slice(progreso.medios));
     for (let intento = 0; falta(); intento++) {
       const salida: Saliente = {
         para: this.idExterno(),
@@ -1354,6 +1457,8 @@ export class MotorConversacion {
     // El pie de lo que escribió una vendedora se guarda con la foto: así el asistente sabe qué se le dijo al cliente.
     for (const m of salieronMedios) this.mensajes.insertar({ id_mensaje: null, rol: o.autor, texto: `${etiquetaDeMedio(m)}${o.autor === "vendedora" && m.pie ? ` ${m.pie}` : ""}`, ts: ahora, modelo: o.modelo });
     if (o.autor === "bot") this.recordarFotos(salieronMedios.filter((m) => m.tipo === "imagen").map((m) => m.url));
+    // Ya quedó anotado por su texto y sus ids: lo «en vuelo» se suelta.
+    this.kv.poner(vuelo, null);
 
     if (o.registrar && (salieronBurbujas.length > 0 || salieronMedios.length > 0)) {
       this.cola.agregar(
@@ -1373,7 +1478,7 @@ export class MotorConversacion {
       await this.programar();
     }
     if (fallo !== null) {
-      this.log("error", "no se pudo enviar por el canal", fallo instanceof Error ? fallo.message : String(fallo));
+      this.log("error", "no se pudo enviar por el canal", motivoDeEnvio(fallo));
       // Para /salud (y la pantalla de Conexiones de Odoo): el motivo, sin datos de nadie. Así un fallo repetido se ve sin abrir los registros.
       this.kv.poner("envio_fallo_abierto", true);
       await this.anotarEnSalud("envio_fallo", { canal: canalId, motivo: motivoDeEnvio(fallo), con_archivos: medios.length > 0, ts: ahora });
@@ -1478,8 +1583,25 @@ export class MotorConversacion {
     return { ok: true };
   }
 
-  /** `POST /odoo/seguimiento`: redactar y enviar el seguimiento n.º 1 o 2. */
+  /**
+   * `POST /odoo/seguimiento`: redactar y enviar el seguimiento n.º 1 o 2. Se RECLAMA antes de redactar (issue #24): dos pedidos del
+   * mismo seguimiento a la vez (Odoo reintenta tras su plazo de 25 s, el cron y un reintento a mano) no pueden mandar dos. El reclamo
+   * se suelta al terminar, salga o no (lo enviado queda en `seguimientos`); si el objeto se reinicia a mitad, vence solo.
+   */
   async seguimiento(s: SolicitudSeguimiento): Promise<ResultadoSeguimiento> {
+    if (s.numero !== 1 && s.numero !== 2) return this.seguimientoReclamado(s);
+    const reclamo = `${PREFIJO_SEGUIMIENTO_EN_CURSO}${s.numero}:${s.contexto?.ultimo_mensaje_ts ?? ""}`;
+    const desde = this.kv.numero(reclamo);
+    if (desde !== null && this.deps.ahora() - desde < ENVIO_EN_CURSO_MS) return { ok: true, resultado: "pospuesto", motivo: "ese seguimiento ya se está enviando" };
+    this.kv.poner(reclamo, this.deps.ahora());
+    try {
+      return await this.seguimientoReclamado(s);
+    } finally {
+      this.kv.poner(reclamo, null);
+    }
+  }
+
+  private async seguimientoReclamado(s: SolicitudSeguimiento): Promise<ResultadoSeguimiento> {
     const numero = s.numero === 1 || s.numero === 2 ? s.numero : null;
     if (numero === null) return { ok: false, error: "numero debe ser 1 o 2" };
     const cfg = await this.deps.config();
@@ -1554,6 +1676,10 @@ export class MotorConversacion {
     if (!texto) return { ok: false, error: "el borrador del seguimiento no pasó la guardia de salida" };
 
     if (!(await this.puedeEnviar(epoca0, false))) return cierra("descartado", "una vendedora tomó la conversación");
+    // Otra vez, justo antes de enviar (issue #24): mientras la IA redactaba, el cliente pudo escribir o pedir que no le escriban.
+    const ultimoAhora = this.kv.numero("ultimo_cliente_ts");
+    if (ultimoAhora !== null && ultimoAhora > Math.max(visto ?? 0, ultimoCliente ?? 0) + 1000) return cierra("descartado", "el cliente ya volvió a escribir");
+    if (this.kv.bandera("sin_seguimiento")) return cierra("descartado", "el cliente pidió que no lo contacten");
 
     try {
       await this.emitir({ burbujas: partirEnBurbujas(texto, { maxBurbujas: 2 }), medios: [], autor: "bot", registrar: true, modelo });
