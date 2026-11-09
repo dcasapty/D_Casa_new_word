@@ -28,7 +28,11 @@ LEEME_PRIMERO §2).
 00. **WhatsApp «No llegó» (131042, pago de Meta)** (2026-11-09): lo arregla la dueña en Meta (Facturación y pagos ›
     Cuentas de mensajes › la cuenta …764382, que se pagaba con la línea de crédito de Callbell). Cuando traiga el
     reporte de Claude en Chrome, confirmar el paso exacto. Desde ese día Gerencia recibe el aviso por Telegram si vuelve
-    a pasar. **Preguntas sin respuesta para las vendedoras**: hecho el mismo día (ver la bitácora).
+    a pasar (en producción: Desplegar 62 y Juan 12). **Preguntas sin respuesta para las vendedoras**: en producción el
+    mismo día. Reporte de Claude en Chrome: el número está en la cuenta **905988761764382**, pagada SOLO con la línea de
+    Callbell; falta que la dueña asigne la Visa ···· 5887 del portafolio a esa cuenta, ponga la dirección, pruebe y
+    luego pida a Callbell retirar la línea y quite su «Acceso total». Nombre visible «DCasa Pty» rechazado y empresa sin
+    verificar (no causan el 131042).
 0. **Citas, reenviados, reacciones y palomitas en el chat** (pedido de la dueña del 2026-11-07, bitácora de
    LEEME_PRIMERO): **en producción** desde el 2026-11-07 (PR #94, Desplegar 60 y Juan 10), con la revisión adversarial
    arreglada; la dueña vio las capturas («perfecto, llévalo a producción»). Falta, si se quieren las reacciones de

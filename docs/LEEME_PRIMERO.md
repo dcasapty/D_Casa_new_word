@@ -108,6 +108,9 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 
 ### 2026-11-09: «No llegó» por el pago de Meta (131042); preguntas sin respuesta para las vendedoras; videos con voz
 
+**En producción** desde el 2026-11-09: PR #99, CI #301, Desplegar 62 (imagen `sha256:f467a09a…`, versión 5882fa4) y
+Juan 12 (3b86ee3).
+
 - **«No llegó» desde hace dos días** (WhatsApp oficial; «a veces sí, a veces no»). **Causa:** el globito de la
   etiqueta dice **131042, «Business eligibility payment issue»**: Meta no deja salir los mensajes por un problema de
   **pago de la cuenta de WhatsApp Business**, no del sistema ni de la IA. En Facturación y pagos › Cuentas de mensajes
