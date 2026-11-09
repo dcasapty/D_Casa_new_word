@@ -114,6 +114,7 @@ class TestChoferesEnElNavegador(ChoferesComun, HttpCase):
             self.assertTrue(all(p and p.startswith('$') for p in leido['precios']), leido['precios'])
             self.assertTrue(all(m.startswith('https://www.google.com/maps/dir/') for m in leido['mapas']))
             self.assertEqual(leido['estado'], '8 lugares')
+            self.assertNotIn('Tarifa en revisión', leido['texto'], 'aprobada: sin el aviso de revisión')
             antes = self._js(browser, MEDIR)
             self.assertLessEqual(antes['ancho'], antes['anchoVisible'], f'hay scroll de lado: {antes}')
             self.assertGreaterEqual(antes['izquierda'], 15, f'sin 16 px de margen: {antes}')

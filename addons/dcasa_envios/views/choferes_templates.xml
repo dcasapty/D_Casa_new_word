@@ -83,14 +83,14 @@
                 <label for="q">Busca el barrio, edificio o lugar</label>
                 <input id="q" class="q" type="search" name="q" autocomplete="off" spellcheck="false"
                        enterkeyhint="search" t-att-maxlength="max_texto"
-                       placeholder="Villa Lucre, un PH o «cerca del hospital»"/>
+                       placeholder="Ej.: Villa Lucre o un PH"/>
             </form>
             <button type="button" class="ubicacion">Usar mi ubicación</button>
             <p class="privado">Tu ubicación solo se usa para buscar el lugar más cercano; no se guarda.</p>
         </div>
     </header>
     <main class="caja">
-        <p class="aviso" t-if="aviso_tarifa" role="status"><t t-esc="aviso_tarifa"/></p>
+        <p class="aviso" role="status" t-att-hidden="None if aviso_tarifa else 'hidden'"><t t-esc="aviso_tarifa"/></p>
         <p class="estado" role="status" aria-live="polite"></p>
         <ol class="resultados" aria-label="Lugares"></ol>
         <div class="sugerencias" hidden="hidden"></div>
@@ -106,12 +106,20 @@
     var estado = document.querySelector('.estado');
     var lista = document.querySelector('.resultados');
     var sugerencias = document.querySelector('.sugerencias');
+    var aviso = document.querySelector('.aviso');
     var turno = 0;
     var espera = null;
     var MAPAS = /^https:\/\/www\.google\.com\/maps\//;
     var NO_SE_PUDO = 'No pudimos buscar ahora. Intenta otra vez en un momento.';
 
     function decir(texto) { estado.textContent = texto || ''; }
+
+    // El aviso de la tarifa, arriba, como lo diga el servidor en cada respuesta (Gerencia puede aprobarla o cambiarla).
+    function avisoDeTarifa(datos) {
+        if (typeof datos.aviso_tarifa !== 'string') { return; }
+        aviso.textContent = datos.aviso_tarifa;
+        aviso.hidden = !datos.aviso_tarifa;
+    }
 
     function limpiar() {
         lista.replaceChildren();
@@ -194,6 +202,7 @@
         try {
             var datos = await pedir(cuerpo.dataset.buscar, {texto: texto});
             if (mio !== turno) { return; }
+            avisoDeTarifa(datos);
             mostrar(datos.resultados || [], 'No encontramos «' + texto + '».');
             if (!(datos.resultados || []).length) { sugerir(datos.sugerencias || []); }
         } catch (e) {
@@ -236,6 +245,7 @@
                     lat: posicion.coords.latitude, lon: posicion.coords.longitude
                 });
                 if (mio !== turno) { return; }
+                avisoDeTarifa(datos);
                 q.value = '';
                 mostrar(datos.resultados || [], datos.mensaje);
             } catch (e) {

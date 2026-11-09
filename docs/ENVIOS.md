@@ -23,6 +23,9 @@ nuestra propia flota de envíos, el cliente pueda calcular cuánto se le cobrar�
   **subir o bajar todo en %** (±5 % con un toque), **Aprobar la tarifa** (queda quién y cuándo), el historial de cada
   cambio y «**Cargar lugares y tarifa desde el archivo**».
 - La pantalla **baja con la rueda y con el dedo** y en el celular deja 16 px de margen, sin scroll de lado.
+- **Enlace para choferes** (Envíos › Tarifa, abajo; Gerencia y administradores): un solo enlace para todos los
+  choferes, sin usuario ni clave. Buscan el lugar (o tocan «Usar mi ubicación») y ven **solo** el nombre, la zona, el
+  precio y la ruta en Google Maps; nunca los km ni la tabla. Ver [Enlace para choferes](#enlace-para-choferes).
 - **Los datos no están en el repositorio** (es público y la dueña no dio su «sí» para subir la matriz ni los precios):
   Gerencia sube el archivo.
 
@@ -134,8 +137,9 @@ Sin `sudo` los puede llamar quien ve los lugares (todo el equipo); un usuario de
 
 ### Cómo se encendería en el sitio (NO está hecho)
 
-Todavía **no hay ninguna ruta pública** ni nada en el sitio (sería superficie de abuso). El día que D'CASA tenga su flota
-y Gerencia lo pida:
+Todavía **no hay ninguna ruta pública para clientes** ni nada en el sitio (sería superficie de abuso). La única ruta
+pública de envíos es el [enlace para choferes](#enlace-para-choferes), que exige su secreto. El día que D'CASA tenga su
+flota y Gerencia lo pida:
 
 1. **Interruptor apagado de fábrica:** un parámetro (p. ej. `dcasa_envios.web_activa`, en Ajustes del sitio, solo
    Gerencia) que por defecto es «no». Apagado, la ruta responde 404.
@@ -155,7 +159,68 @@ y Gerencia lo pida:
 **Juan** tampoco cotiza todavía: espera a que Gerencia apruebe la tarifa. Cuando se encienda, usaría las mismas dos
 funciones (y diría «en revisión» si no está aprobada, como Brian).
 
-## Permisos
+## Enlace para choferes
+
+Pedido de la dueña (2026-11-09): «generarle un link de calculadora a los choferes … que no vean la tabla de
+kilometraje, solamente busquen el lugar y confirmen si ese es el precio, o vean el precio y la dirección en Google Maps
+… que la persona desde donde está dé clic y se ponga su ubicación y a partir de ahí se calcule». Decidido: **un solo
+enlace secreto para todos** (sin usuario de Odoo) y «Usar mi ubicación» = **el lugar de la tabla más cercano** por sus
+coordenadas (gratis, sin API de mapas).
+
+### Lo que ve el chofer
+
+- Arriba (en azul): «¿Cuánto cuesta el envío?», la caja **«Busca el barrio, edificio o lugar»** (el mismo buscador de
+  la calculadora: sin tildes, abreviaturas, errores de dedo) y el botón amarillo **«Usar mi ubicación»**, con una línea:
+  «Tu ubicación solo se usa para buscar el lugar más cercano; no se guarda».
+- Cada lugar (hasta 8): el **nombre**, la **zona** («corregimiento · distrito»), el **precio** (el mismo `total_txt` de la
+  calculadora, p. ej. «$15»; con lancha, «$70 + lancha») y el botón **«Ver en Google Maps»** (la ruta en carro desde la
+  tienda, como la calculadora). Sin resultados: «No encontramos…» y «¿Quisiste decir…?».
+- **Sin precio** cuando no toca: si la tarifa no está aprobada, ningún lugar trae precio y arriba dice **«Tarifa en
+  revisión: confirma el precio con la tienda»** (el aviso sigue al servidor en cada búsqueda); lo que se cotiza aparte
+  (lejos, sin carretera, sin medir) dice **«Se cotiza aparte: confirma con la tienda»**.
+- **«Usar mi ubicación»**: el navegador pide permiso; con él, los **3 lugares de la tabla más cercanos a no más de
+  3 km**, con su distancia **en metros** («a 300 m de ti»), su precio y la ruta. Si no hay ninguno: «No hay un lugar de
+  la tabla cerca de ti: búscalo por nombre o confirma con la tienda». Sin permiso, sin GPS o si tarda, lo dice en
+  palabras sencillas y sugiere buscar por nombre.
+- **Nunca** ve: los km, la tabla por tramos, el desglose, la fórmula, «Calcular por kilómetros», «Agregar este lugar»,
+  ni ids o coordenadas en las respuestas. En la página no aparece la palabra «km».
+- Una página sola (sin el sitio ni el panel), para el celular, con la marca (azul, amarillo solo sobre azul, Anton /
+  Oswald / Inter, plana). **Baja con scroll** (el documento entero, sin `overflow: hidden`): probado con el dedo y la
+  rueda de verdad.
+
+### Encenderlo, copiarlo y cambiarlo (Gerencia)
+
+Envíos › **Tarifa**, sección **«Enlace para choferes»** (solo Gerencia y administradores la ven):
+
+1. **Encendido** (apagado de fábrica). Encenderlo la primera vez crea el enlace.
+2. **Enlace para choferes**: la dirección completa con su botón de copiar, para mandarla por WhatsApp a los choferes.
+3. **«Crear un enlace nuevo»**: el anterior deja de funcionar al instante (por ejemplo, si se perdió un teléfono o alguien
+   dejó de trabajar con la tienda). Hay que mandarles el nuevo.
+
+Queda en el historial de la tarifa quién lo encendió o apagó, quién creó cada enlace y cuándo (nunca el secreto: el
+historial lo lee todo el equipo). En la Guía: «Darle a los choferes el enlace de la calculadora».
+
+### Seguridad
+
+- **El secreto es la llave:** `secrets.token_urlsafe(24)` (192 bits al azar) en un campo de la tarifa que solo leen
+  Gerencia y los administradores (`groups`), también por RPC; `write` ignora el secreto, quién y cuándo si llegan en los
+  valores. Se compara en tiempo constante (`hmac.compare_digest`).
+- **Rutas** (`controllers/choferes.py`, `auth='public'`, sin sesión: `save_session=False`):
+  `GET /envios/choferes/<enlace>` (la página), `POST …/buscar` `{"texto"}` (hasta 120 letras) y `POST …/cerca`
+  `{"lat", "lon"}` (números dentro de Panamá con margen). **Apagado o con otro secreto, las tres responden el mismo 404**
+  de texto plano. Sin CSRF porque el secreto autentica (no hay cookie que otra página pueda usar).
+- **Solo lo que ve el chofer:** `motor/choferes.py` arma una lista blanca (`nombre`, `zona`, `precio`, `aviso`, `mapa`
+  y, cerca, `distancia`). Los lugares se leen con `sudo()` por los métodos privados `_choferes_buscar` y
+  `_choferes_cerca` (no se llaman por RPC) **después** de comprobar el enlace; el ACL del portal y del público no cambió.
+- **Límite por IP:** 60 peticiones por minuto entre las tres rutas (en la memoria de cada proceso de Odoo, como el de
+  Brian: aproximado con varios procesos); después, 429 con `Retry-After: 60`. Búsqueda: a lo sumo 8 lugares; cerca, 3.
+- **Nada se guarda ni se indexa:** `Cache-Control: no-store`, `X-Robots-Tag: noindex, nofollow`,
+  `Referrer-Policy: no-referrer` (Google Maps no recibe el enlace al tocar «Ver en Google Maps») y CSP con nonce
+  (`default-src 'none'`). El borde (`edge/src/routing.ts`) nunca guarda `/envios/choferes/` en caché y escribe
+  `/envios/choferes/:token` en su registro. El registro de Odoo no guarda las peticiones en producción (`werkzeug` en
+  WARNING, `docker/entrypoint.sh`). La ubicación del chofer no se guarda en ningún lado.
+- **Quien tenga el enlace puede abrirlo** (es como una llave compartida): por eso se puede apagar y cambiar en un toque.
+
 
 | | Equipo (vendedora, Caja…) | Gerencia | Administrador |
 |---|:---:|:---:|:---:|
@@ -165,6 +230,7 @@ funciones (y diría «en revisión» si no está aprobada, como Brian).
 | Borrar un lugar | No | No (se archiva) | Sí |
 | Ver, cambiar y aprobar la tarifa; cargar el archivo | No | Sí | Sí |
 | Exportar la lista a Excel | Con el permiso «Exportar» de Odoo | Con el permiso «Exportar» | Sí |
+| Ver, encender, copiar y cambiar el enlace para choferes | No | Sí | Sí |
 
 El servidor lo exige en cada llamada (no solo el menú): `_exigir_gerencia`, los permisos del modelo y, al agregar un
 lugar, solo los campos que la persona puede escribir (el origen, quién lo agregó y cuándo los pone el servidor). «Quién
@@ -186,6 +252,13 @@ del archivo (idempotente, respeta lo de Odoo, la tarifa vuelve a revisión), los
 scroll**: `overflow-y: auto` y `scrollTop` que de verdad se mueve). `dcasa_interfaz/tests/test_scroll.py` también
 vigila su regla fuerte.
 
+El enlace para choferes: `tests/test_choferes.py` (el motor sin base de datos: la distancia, los más cercanos y el corte
+de 3 km, qué ubicación vale, la lista blanca de claves; las rutas: el mismo 404 apagado u otro secreto, el enlace nuevo
+deja sin efecto el anterior, nunca km ni ids, sin tarifa aprobada no hay precios, coordenadas y textos que no sirven,
+el límite por IP, las cabeceras; quién lo ve y lo cambia, también por RPC; la Guía) y `tests/test_choferes_navegador.py`
+(a 390 px: busca, ve el precio sin «km», 16 px de margen, **baja con el dedo de verdad**; en la computadora con la
+rueda; «Usar mi ubicación» con y sin permiso).
+
 ```
 PGPASSWORD=odoo TEST_TAGS=/dcasa_envios,/dcasa_interfaz:TestInicioScroll scripts/test.sh dcasa_envios,dcasa_interfaz
 ```
@@ -200,4 +273,6 @@ PGPASSWORD=odoo TEST_TAGS=/dcasa_envios,/dcasa_interfaz:TestInicioScroll scripts
 - **Bajar la lista a Excel:** decidido (2026-11-06): «es innecesario». La lista se ve en Envíos › Lugares; el «Exportar»
   de Odoo queda solo para quien ya tiene ese permiso (los administradores) y no se agrega un botón propio.
 - **La web:** encenderla cuando haya flota propia (pasos de arriba), con su «sí».
+- **Enlace para choferes:** hecho (2026-11-09), apagado de fábrica. Falta que Gerencia lo encienda y lo mande a los
+  choferes; los precios salen cuando la tarifa esté aprobada.
 - **Juan:** que cotice cuando la tarifa esté aprobada.

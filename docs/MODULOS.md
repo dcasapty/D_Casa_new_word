@@ -45,7 +45,7 @@ pero sin efecto hasta que alguien lo enciende.
 | `dcasa_brian` | Brian, el asistente del panel (chat, Telegram, MCP) | interfaz, contabilidad, catalogo, socios, contactos | 105 | Sin `BRIAN_API_KEY` no contesta (el despliegue la exige) | [BRIAN.md](BRIAN.md) |
 | `dcasa_guia` | «¿Qué necesitas hacer hoy?»: atajos en palabras sencillas | interfaz | — | No | [GUIA.md](GUIA.md) |
 | `dcasa_marketing` | Fotos del producto en grande (ver, subir varias, ordenar, recortar) y la app **Marketing** (stock por categoría, más vendidos, movimiento, quietos, fotos que faltan) | catalogo, interfaz, barras, brian | 2 | No | [MARKETING.md](MARKETING.md) |
-| `dcasa_envios` | **Envíos**: la calculadora (buscar el lugar como lo dice el cliente, el precio con su desglose), la lista de lugares y la tarifa que aprueba Gerencia; un motor en Python puro que mañana sirve a la web | base, interfaz, contabilidad, brian | 1 | Sin datos hasta que Gerencia carga el archivo; la tarifa nace «en revisión»; sin ruta pública | [ENVIOS.md](ENVIOS.md) |
+| `dcasa_envios` | **Envíos**: la calculadora (buscar el lugar como lo dice el cliente, el precio con su desglose), la lista de lugares y la tarifa que aprueba Gerencia; un motor en Python puro que mañana sirve a la web | base, interfaz, contabilidad, brian | 1 | Sin datos hasta que Gerencia carga el archivo; la tarifa nace «en revisión»; el enlace para choferes nace apagado; la web no cotiza | [ENVIOS.md](ENVIOS.md) |
 | `dcasa_conversaciones` | Bandeja de conversaciones con clientes, reparto, CRM automático y la API de Juan | brian, catalogo, interfaz, socios, contactos | 5 (+13 de Juan) | Sin los tokens de Juan, la API responde 503 | [JUAN_ODOO.md](JUAN_ODOO.md) · [JUAN.md](JUAN.md) · [JUAN_CANALES.md](JUAN_CANALES.md) |
 | `dcasa_sofia` | Sofía, la asistente del CRM: revisa con un botón y cada mañana y propone; una persona aprueba | conversaciones, contactos | (2 en `dcasa_brian`) | No (las propuestas siempre las aprueba una persona) | [SOFIA.md](SOFIA.md) |
 | `dcasa_camila` | Camila, la asistente del mail marketing: arma la campaña de correo cada 15 días con lo que hay en tienda y el precio de la tienda en línea; una persona la aprueba y sale por Resend Broadcasts solo a quien dijo que sí (permiso en la ficha) | correo, marketing, conversaciones, sofia, brian, contactos, website_dcasa | 1 | **Sí**: sin `RESEND_CAMPANAS_API_KEY` no sale ninguna campaña; staging nunca envía; el cron solo arma borradores | [CAMILA.md](CAMILA.md) |
@@ -404,7 +404,9 @@ además como módulo de todo el servidor (`server_wide_modules = base,web,dcasa_
   administradores).
 - **Herramientas de Brian (1):** `cotizar_envio`.
 - **Apagado de fábrica:** sin lugares ni tarifa hasta que Gerencia carga el archivo (no están en el repositorio); la
-  tarifa nace en revisión; no hay ruta pública (ver [ENVIOS.md](ENVIOS.md), «Cómo se encendería en el sitio»).
+  tarifa nace en revisión; la web no cotiza (ver [ENVIOS.md](ENVIOS.md), «Cómo se encendería en el sitio»). La única
+  ruta pública es el **enlace para choferes** (`/envios/choferes/<secreto>`, 2026-11-09), apagado de fábrica: lo
+  enciende y lo cambia Gerencia en Envíos › Tarifa (ver [ENVIOS.md](ENVIOS.md), «Enlace para choferes»).
 
 ## `dcasa_conversaciones` — Conversaciones (la bandeja de Juan)
 

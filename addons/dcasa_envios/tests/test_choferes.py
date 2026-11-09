@@ -215,7 +215,9 @@ class TestRutasDeChoferes(ChoferesComun, HttpCase):
         self.assertIsNone(re.search(r'\bkm\b|kil[oó]metro|\btramos?\b|desglose', html, re.I))   # («encontramos» sí)
         self.assertIn('Tarifa en revisión: confirma el precio con la tienda', html, 'sin aprobar, lo dice arriba')
         self.aprobar()
-        self.assertNotIn('Tarifa en revisión', self.pagina().text)
+        aprobada = self.pagina().text
+        self.assertNotIn('Tarifa en revisión', aprobada)
+        self.assertIn('<p class="aviso" role="status" hidden="hidden"></p>', aprobada)
         for que in ('buscar', 'cerca'):
             otra = self.post(que, {'texto': 'villa', 'lat': VILLA[0], 'lon': VILLA[1]})
             self.assertEqual((otra.headers['Cache-Control'], otra.headers['X-Robots-Tag']),
