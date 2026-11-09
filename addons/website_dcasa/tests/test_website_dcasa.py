@@ -109,6 +109,29 @@ class TestPortadaDinamica(HttpCase):
         self.assertIn(self.colchon, descanso)
         self.assertNotIn(self.sofa, descanso)
 
+    def test_una_categoria_sin_nada_publicado_abre_whatsapp_y_vuelve_sola_al_publicar(self):
+        """Pedido de la dueña (2026-11-09): «Colchones» llevaba a una página de error porque Gerencia no ha publicado
+        los colchones. Sin nada publicado, la tarjeta abre WhatsApp; con algo publicado, su página de la tienda."""
+        self.website.dcasa_whatsapp_number = '+507 6026-1919'
+
+        def tarjeta(nombre):
+            return next(t for t in self.website._dcasa_categorias() if t['nombre'] == nombre)
+
+        con = tarjeta('Colchones')
+        self.assertFalse(con['whatsapp'])
+        self.assertTrue(con['url'].startswith('/shop/category/'), con['url'])
+        self.colchon.is_published = False
+        sin = tarjeta('Colchones')
+        self.assertTrue(sin['whatsapp'])
+        self.assertTrue(sin['url'].startswith('https://wa.me/50760261919?text='), sin['url'])
+        self.assertIn('colchones', sin['url'])
+        self.assertFalse(tarjeta('Salas')['whatsapp'], 'las que tienen productos siguen a su página')
+        portada = self.url_open('/').text
+        self.assertIn('Colchones: pregúntanos por WhatsApp', portada)
+        self.assertIn('· por WhatsApp', portada)
+        self.colchon.is_published = True
+        self.assertFalse(tarjeta('Colchones')['whatsapp'], 'al publicar, vuelve sola a la tienda')
+
     def test_portada_muestra_productos_con_precio_y_agregar(self):
         html = self.url_open('/').text
         self.assertIn('Sofá de Prueba', html)

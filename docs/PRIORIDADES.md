@@ -32,7 +32,9 @@ LEEME_PRIMERO §2).
     mismo día. Reporte de Claude en Chrome: el número está en la cuenta **905988761764382**, pagada SOLO con la línea de
     Callbell; falta que la dueña asigne la Visa ···· 5887 del portafolio a esa cuenta, ponga la dirección, pruebe y
     luego pida a Callbell retirar la línea y quite su «Acceso total». Nombre visible «DCasa Pty» rechazado y empresa sin
-    verificar (no causan el 131042).
+    verificar (no causan el 131042). Decisiones de la dueña (2026-11-09): **6 h** para «no enviar seguimientos
+    atrasados» se queda; la tarjeta **«Colchones»** de la portada abre WhatsApp mientras no haya colchones publicados
+    (vuelve sola a la tienda al publicarlos).
 0. **Citas, reenviados, reacciones y palomitas en el chat** (pedido de la dueña del 2026-11-07, bitácora de
    LEEME_PRIMERO): **en producción** desde el 2026-11-07 (PR #94, Desplegar 60 y Juan 10), con la revisión adversarial
    arreglada; la dueña vio las capturas («perfecto, llévalo a producción»). Falta, si se quieren las reacciones de

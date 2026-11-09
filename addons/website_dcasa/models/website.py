@@ -241,17 +241,35 @@ class Website(models.Model):
         categoria = self._dcasa_categoria(clave)
         return f"/shop/category/{self.env['ir.http']._slug(categoria.sudo())}" if categoria else '/shop'
 
+    def _dcasa_categoria_tiene_productos(self, clave):
+        """¿Hay algo publicado y a la venta en esta categoría (o sus hijas) para este sitio?"""
+        categoria = self._dcasa_categoria(clave)
+        if not categoria:
+            return False
+        dominio = Domain.AND([self._dcasa_dominio_publicado(), [('public_categ_ids', 'child_of', categoria.sudo().id)]])
+        return bool(self.env['product.template'].sudo().search_count(dominio, limit=1))
+
     def _dcasa_categorias(self):
-        """Tarjetas de «Compra por espacio»: la URL sale de la categoría real de la tienda."""
+        """Tarjetas de «Compra por espacio»: la URL sale de la categoría real de la tienda.
+
+        Una categoría sin nada publicado (hoy, «Colchones»: Gerencia no los ha publicado) no lleva a una página vacía o
+        de error: abre WhatsApp con el mensaje listo. Cuando se publique algo, vuelve sola a su página de la tienda
+        (pedido de la dueña, 2026-11-09)."""
         self.ensure_one()
-        return [{
-            'nombre': nombre,
-            'url': self._dcasa_categoria_url(clave),
-            'imagen': f'/website_dcasa/static/src/img/cat-{clave}.webp',
-            # 400 px para el celular (dos columnas de ~180 px): 11-18 KB en vez de 36-68 KB.
-            'imagen_chica': f'/website_dcasa/static/src/img/cat-{clave}-400.webp',
-            'alt': alt,
-        } for clave, nombre, alt in CATEGORIAS_PORTADA]
+        tarjetas = []
+        for clave, nombre, alt in CATEGORIAS_PORTADA:
+            con_productos = self._dcasa_categoria_tiene_productos(clave)
+            tarjetas.append({
+                'nombre': nombre,
+                'url': self._dcasa_categoria_url(clave) if con_productos else self._dcasa_whatsapp_url(
+                    f"Hola D'CASA, quiero información de {nombre.lower()}"),
+                'whatsapp': not con_productos,
+                'imagen': f'/website_dcasa/static/src/img/cat-{clave}.webp',
+                # 400 px para el celular (dos columnas de ~180 px): 11-18 KB en vez de 36-68 KB.
+                'imagen_chica': f'/website_dcasa/static/src/img/cat-{clave}-400.webp',
+                'alt': alt,
+            })
+        return tarjetas
 
     def _dcasa_dominio_publicado(self):
         """Lo que un visitante puede comprar: se vende en este sitio y está publicado.

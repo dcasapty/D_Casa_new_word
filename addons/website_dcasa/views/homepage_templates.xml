@@ -85,11 +85,17 @@
                     <a href="/shop" class="o_dcasa_link">Ver todo el catálogo <span aria-hidden="true">→</span></a>
                 </div>
                 <div class="o_dcasa_cat_grid" data-anim-cascada="">
-                    <a t-foreach="website._dcasa_categorias()" t-as="cat" t-att-href="cat['url']" class="o_dcasa_cat">
+                    <!-- Sin nada publicado, la tarjeta abre WhatsApp (website._dcasa_categorias). -->
+                    <a t-foreach="website._dcasa_categorias()" t-as="cat" t-att-href="cat['url']" class="o_dcasa_cat"
+                       t-att-target="cat['whatsapp'] and '_blank' or None"
+                       t-att-rel="cat['whatsapp'] and 'noopener' or None"
+                       t-att-aria-label="cat['whatsapp'] and ('%s: pregúntanos por WhatsApp' % cat['nombre']) or None">
                         <img t-att-src="cat['imagen']" t-att-alt="cat['alt']" width="800" height="1000"
                              t-att-srcset="'%s 400w, %s 800w' % (cat['imagen_chica'], cat['imagen'])"
                              sizes="(min-width: 768px) 30vw, 46vw" loading="lazy" decoding="async"/>
-                        <span class="o_dcasa_cat_label"><t t-out="cat['nombre']"/> <span aria-hidden="true">→</span></span>
+                        <span class="o_dcasa_cat_label"><t t-out="cat['nombre']"/>
+                            <span t-if="cat['whatsapp']" class="o_dcasa_cat_wa">· por WhatsApp</span>
+                            <span aria-hidden="true">→</span></span>
                     </a>
                 </div>
             </div>
