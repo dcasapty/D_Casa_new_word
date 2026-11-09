@@ -28,7 +28,7 @@ Menú **Conversaciones** (el ícono del globo de chat).
 | **Conexiones** | Gerencia | Cómo está cada canal y qué clave falta (el QR, reiniciar y desvincular son del puente QR, que no se usa). |
 | **Bandeja** | Ventas | La bandeja de siempre, en tres columnas: *Con el asistente*, *Con una vendedora* y *Cerrada*. |
 | **Mensajes por enviar** | Ventas | Lo que escribiste desde Odoo y todavía no salió (ver «Si algo falla»). Normalmente está vacío. |
-| **Preguntas sin respuesta** | Gerencia | Lo que los clientes preguntaron y el asistente no supo contestar (ver «El asistente aprende»). |
+| **Preguntas sin respuesta** | Ventas | Lo que los clientes preguntaron y el asistente no supo contestar; vendedoras y Gerencia las contestan con «Contestar» (ver «El asistente aprende»). |
 | **Conocimiento del bot** | Gerencia | Los textos que el asistente puede usar para contestar (horario, ubicación, Socios, garantía…). |
 | **Configuración › Ajustes de Juan** | Gerencia | Cómo se presenta, cuándo contesta, qué IA usa y cuánto insiste. |
 | **Configuración › Etiquetas** | Gerencia | Las etiquetas de colores para clasificar conversaciones. |
@@ -544,8 +544,20 @@ entregas, flete, financiamiento ni apartados: eso siempre lo confirma una vended
 
 **Preguntas sin respuesta** (*Conversaciones › Preguntas sin respuesta*). Cuando el asistente no sabe, anota la pregunta
 y le dice al cliente que una vendedora se la confirma. Las parecidas se **agrupan** y cuentan cuántas veces se
-repitieron. Con el botón **Convertir en conocimiento** abres la pantalla de conocimiento ya con la pregunta; al guardar,
-la pregunta queda *atendida* y el asistente la sabrá desde ese momento. También puedes **Descartar** una pregunta.
+repitieron. Desde el 2026-11-09 las ven **vendedoras y Gerencia** (pedido de la dueña: ellas saben esos temas). Con
+**Contestar** se escribe el tema y la respuesta como se le diría al cliente:
+
+- Si ni el tema ni la respuesta mencionan **dinero, números** (también en palabras: «quince», «por ciento», «mitad») ni un
+  **tema de política** (garantía, devoluciones, entregas, envío, crédito, cuotas, apartados, descuentos, precio…), la
+  entrada nace **activa** y el asistente la usa desde ese momento; la pregunta queda *atendida*.
+- Si los mencionan y la escribe una vendedora, **no** se activa: queda en la pregunta como «Lo que ya contestó una
+  vendedora» (y en su historial, con el texto) para que Gerencia la revise con **Convertir en conocimiento**, que la
+  abre como **borrador inactivo**. Gerencia contesta directo: es quien confirma las cifras.
+- El tema nace de la pregunta del cliente y se puede corregir (sin correos ni números largos): si la pregunta traía un
+  precio («¿me la dejan en $750?»), también la revisa Gerencia, aunque la respuesta sea un «sí».
+
+**Convertir en conocimiento**, **Descartar** y **Volver a «nueva»** siguen siendo de Gerencia, y solo Gerencia edita,
+activa o apaga las entradas de *Conocimiento del bot*.
 
 *Lo que ya contestó una vendedora.* Cada noche (03:10 de Panamá) Odoo busca, para cada pregunta *nueva*, lo que una vendedora le
 escribió después al cliente en esa conversación (hasta 7 días, el mensaje que comparte más palabras con la pregunta; un saludo suelto

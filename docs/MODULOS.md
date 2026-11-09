@@ -420,7 +420,8 @@ además como módulo de todo el servidor (`server_wide_modules = base,web,dcasa_
 - **Seguridad:** grupo **Juan (asistente de clientes)** (`group_juan`) para el usuario técnico `juan`, sin permisos
   internos.
 - **Pantallas y menús:** app **Conversaciones** (Conversaciones, Resumen, Reparto, Bandeja, Mensajes por enviar,
-  Oportunidades; para gerentes de ventas: Costos de IA, Conexiones, Preguntas sin respuesta, Conocimiento del bot,
+  Oportunidades, Preguntas sin respuesta (desde 2026-11-09 también vendedoras: «Contestar»); para gerentes de ventas:
+  Costos de IA, Conexiones, Conocimiento del bot,
   Configuración › Etiquetas, Respuestas rápidas, Ajustes de Juan).
 - **Rutas web:** `/dcasa/juan/v1/mensaje`, `/estado`, `/config`, `/herramientas`, `/herramienta`,
   `/seguimiento/hecho`, `/escribiendo`, `/foto-perfil`, y enlaces firmados de adjuntos.
