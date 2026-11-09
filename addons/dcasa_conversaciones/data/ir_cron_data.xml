@@ -10,6 +10,18 @@
         <field name="active" eval="True"/>
     </record>
 
+    <!-- WhatsApp no entrega por un problema de la CUENTA (pago, bloqueo, spam): el aviso por Telegram a Gerencia sale
+         de aquí (lo despiertan los recibos al momento; cada hora es solo la red de seguridad). -->
+    <record id="ir_cron_avisos_de_cuenta" model="ir.cron">
+        <field name="name">Juan: avisar a Gerencia si WhatsApp no entrega por la cuenta</field>
+        <field name="model_id" ref="model_dcasa_mensaje"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_avisos_de_cuenta()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">hours</field>
+        <field name="active" eval="True"/>
+    </record>
+
     <record id="ir_cron_mantenimiento" model="ir.cron">
         <field name="name">Juan: reintentar envíos, avisos y pausas vencidas</field>
         <field name="model_id" ref="model_dcasa_conversacion"/>

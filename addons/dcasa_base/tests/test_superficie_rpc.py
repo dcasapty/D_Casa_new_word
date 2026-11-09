@@ -867,6 +867,11 @@ LISTA_BLANCA = {
         'Bloquea: solo Gerencia atiende las preguntas sin respuesta (se comprueba antes de escribir).',
     ('dcasa_conversaciones', 'dcasa.pregunta_pendiente', 'action_convertir_en_conocimiento'):
         'Botón: exige sales_team.group_sale_manager; solo devuelve la acción de ventana.',
+    ('dcasa_conversaciones', 'dcasa.pregunta_pendiente', 'action_contestar'):
+        'Botón: exige sales_team.group_sale_salesman y la pregunta «nueva»; solo devuelve la acción de la ventanita.',
+    ('dcasa_conversaciones', 'dcasa.pregunta.responder', 'action_guardar'):
+        ('Botón: exige sales_team.group_sale_salesman y la pregunta «nueva»; con sudo crea la entrada (activa) o, si '
+         'la vendedora puso cifras, solo la deja como propuesta para Gerencia. No da otros permisos.'),
     ('dcasa_conversaciones', 'dcasa.pregunta_pendiente', 'action_descartar'):
         'Botón: exige sales_team.group_sale_manager.',
     ('dcasa_conversaciones', 'dcasa.pregunta_pendiente', 'action_reabrir'):

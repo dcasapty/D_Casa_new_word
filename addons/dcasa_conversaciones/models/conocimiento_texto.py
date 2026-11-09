@@ -113,6 +113,39 @@ def tiene_cifras(texto):
     return bool(re.search(r'[$]|\d', texto or ''))
 
 
+# Lo que Gerencia revisa antes de que el asistente lo diga (además de los dígitos y el «$»): números en palabras y los
+# temas donde no se inventan políticas (garantía, devoluciones, entregas, crédito, apartados, descuentos). Ya sin
+# acentos, como los deja ``normalizar``. «un», «una» y «uno» no cuentan: son artículos casi siempre.
+PALABRAS_A_REVISAR = frozenset("""
+dos tres cuatro cinco seis siete ocho nueve diez once doce trece catorce quince dieciseis diecisiete dieciocho
+diecinueve veinte veinti veintiuno veintidos veintitres veinticuatro veinticinco treinta cuarenta cincuenta sesenta
+setenta ochenta noventa cien ciento cientos doscientos trescientos cuatrocientos quinientos seiscientos setecientos
+ochocientos novecientos mil millon millones medio media mitad doble triple docena porciento porcentaje
+dolar dolares balboa balboas precio precios cuesta cuestan costo costos vale valen gratis gratuito gratuita
+descuento descuentos rebaja rebajas oferta ofertas promocion promociones cupon contado cuota cuotas inicial abono
+abonos interes intereses financiamiento financiar credito creditos apartado apartar apartados separar reembolso
+reembolsos devolucion devoluciones devolver garantia garantias flete fletes envio envios entrega entregas delivery
+plazo plazos dia dias semana semanas mes meses ano anos hora horas horario horarios manana lunes martes miercoles
+jueves viernes sabado sabados domingo domingos feriado feriados abrimos cerramos abierto abiertos cerrado cerrados
+pago pagos pagar pagas paga pagan pague paguen
+""".split())
+# Raíces: con ellas cuentan también los verbos conjugados («te lo enviamos», «lo financiamos», «te lo garantizamos»;
+# revisión adversarial 2026-11-09). Mandar de más a revisión es lo seguro.
+RAICES_A_REVISAR = ('garanti', 'entreg', 'envi', 'financ', 'devol', 'devuelv', 'reembols', 'cambi', 'cobr', 'credit',
+                    'cuot', 'apart', 'separ', 'descuent', 'rebaj', 'flet', 'domicili', 'llev', 'gratu', 'promoc',
+                    'ofert', 'abon', 'interes', 'plaz', 'preci', 'cost')
+
+
+def necesita_revision(texto):
+    """¿Lo revisa Gerencia antes de que el asistente lo diga? Si menciona dinero o números (también en palabras o con
+    signos anchos: «＄», «quince», «por ciento») o un tema de política (garantía, devoluciones, entregas, crédito…)."""
+    limpio = normalizar(texto)
+    if tiene_cifras(limpio) or 'por ciento' in limpio:
+        return True
+    palabras = set(re.findall(r'[a-z]+', limpio))
+    return bool(palabras & PALABRAS_A_REVISAR) or any(p.startswith(RAICES_A_REVISAR) for p in palabras)
+
+
 def clave(texto):
     """Forma canónica de una pregunta: sus palabras significativas, ordenadas."""
     return ' '.join(sorted(tokens(texto)))

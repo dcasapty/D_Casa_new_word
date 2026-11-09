@@ -379,6 +379,12 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `main` (`741930d`, árbol = `de1fb04`) a staging y Desplegar con ese `app_version`. **Regla:** un cambio del borde
   (rutas, `vars`, `workers_dev`) se despliega con un `app_version` que lo contenga, o sea con una imagen construida
   de ese commit.
+- **Desplegar 61 y después Desplegar Juan 11** (18:45 y 19:01 UTC del 7 nov, `app_version` `e53e5d8` = SHA de la rama,
+  imagen `sha256:4ef8d264…` de CI #296, respaldo previo) · Odoo sano y confirmado 19:00 (versión `e53e5d8b4ebf`): el
+  remitente propio de Camila y el aviso de Resend (PR #95, `main` = `848d314`, árbol = `e53e5d8`). Juan: sin tope de notas
+  de voz. **Lección:** Resend trae el conteo de aperturas y clics **apagado de fábrica** por dominio, y se mete en el correo
+  al enviarlo (lo ya enviado nunca cuenta); va en un subdominio de campañas para no tocar las facturas. «Auto configure»
+  de Resend con Cloudflare puso solos los registros del subdominio, sin tocar los del dominio principal.
 - **Desplegar 60 y después Desplegar Juan 10** (06:44 y 06:59 UTC del 7 nov, `app_version` `274f13d` = SHA de la rama,
   imagen `sha256:cd0d8a80…` de CI #294, respaldo previo) · Odoo sano y confirmado 06:58 (versión `274f13dff3ee`, base al
   día, humo ok): citas, reenviados, reacciones y palomitas en el chat, más lo que quedaba de los issues #24 y #25, con
@@ -1128,6 +1134,21 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   herramientas (`sinTexto`) recibe lo consultado como texto (`consultasComoTexto`); la de corrección, con herramientas, recibe
   la ronda tal cual (`rondasDeHerramientas`, sin el borrador rechazado). `test/motor/sdk-anthropic.test.ts` vigila cómo
   queda la petición.
+
+### WhatsApp oficial (Meta)
+
+- **«No llegó» con el código 131042 («Business eligibility payment issue») = problema de PAGO de la cuenta de WhatsApp
+  Business en Meta, no del sistema ni de la IA** (2026-11-07 a 09: dos días de mensajes sin entregar sin que nadie se
+  enterara). Juan escribe bien y Meta no lo deja salir; algunos clientes sí reciben (probablemente los que entran por un
+  anuncio de «Enviar mensaje», que no pasan por el cobro). Se ve pasando el puntero sobre la etiqueta roja «No llegó» (el
+  globito trae el motivo y el código). En business.facebook.com › Facturación y pagos › **Cuentas de mensajes** (no la
+  cuenta de anuncios: se pagan aparte) D'CASA tenía tres cuentas «DCasa Pty» **sin método de pago** y una con una
+  **línea de crédito prestada por Callbell**: lo más probable es que esa línea se cortara. Se arregla en Meta (tarjeta
+  propia y predeterminada en la cuenta del número, saldo pendiente, información fiscal), no en el código. Lo que ya salió
+  con «No llegó» no se reenvía solo. Desde el 2026-11-09, los de la cuenta (131042 pago, 131031 bloqueo, 131048 spam)
+  avisan a Gerencia por Telegram una vez cada 6 h por código (`dcasa.mensaje._avisar_problema_de_cuenta`).
+- **Para leer datos de producción sin la base**: Brian por MCP (solo lectura) no tiene el detalle de los mensajes; el
+  motivo de un «No llegó» lo ve quien está en la pantalla (globito) o el formulario del mensaje (`error_envio`).
 
 ### GitHub
 

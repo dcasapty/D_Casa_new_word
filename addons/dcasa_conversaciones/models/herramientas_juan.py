@@ -426,7 +426,7 @@ class BrianHerramientasJuan(models.AbstractModel):
     @herramienta(
         nombre=PREFIJO + 'registrar_pregunta_sin_respuesta',
         descripcion='Anota una pregunta del cliente que no pudiste contestar con las herramientas ni con el '
-                    'conocimiento del equipo, para que la dueña la responda y aprendas. Si la misma pregunta se '
+                    'conocimiento del equipo, para que el equipo la responda y aprendas. Si la misma pregunta se '
                     'repite, solo suma una vez más.',
         parametros={
             'pregunta': {'type': 'string', 'description': 'La pregunta del cliente, completa y con sus palabras.'},
