@@ -125,8 +125,15 @@ dolar dolares balboa balboas precio precios cuesta cuestan costo costos vale val
 descuento descuentos rebaja rebajas oferta ofertas promocion promociones cupon contado cuota cuotas inicial abono
 abonos interes intereses financiamiento financiar credito creditos apartado apartar apartados separar reembolso
 reembolsos devolucion devoluciones devolver garantia garantias flete fletes envio envios entrega entregas delivery
-plazo plazos
+plazo plazos dia dias semana semanas mes meses ano anos hora horas horario horarios manana lunes martes miercoles
+jueves viernes sabado sabados domingo domingos feriado feriados abrimos cerramos abierto abiertos cerrado cerrados
+pago pagos pagar pagas paga pagan pague paguen
 """.split())
+# Raíces: con ellas cuentan también los verbos conjugados («te lo enviamos», «lo financiamos», «te lo garantizamos»;
+# revisión adversarial 2026-11-09). Mandar de más a revisión es lo seguro.
+RAICES_A_REVISAR = ('garanti', 'entreg', 'envi', 'financ', 'devol', 'devuelv', 'reembols', 'cambi', 'cobr', 'credit',
+                    'cuot', 'apart', 'separ', 'descuent', 'rebaj', 'flet', 'domicili', 'llev', 'gratu', 'promoc',
+                    'ofert', 'abon', 'interes', 'plaz', 'preci', 'cost')
 
 
 def necesita_revision(texto):
@@ -135,7 +142,8 @@ def necesita_revision(texto):
     limpio = normalizar(texto)
     if tiene_cifras(limpio) or 'por ciento' in limpio:
         return True
-    return bool(set(re.findall(r'[a-z]+', limpio)) & PALABRAS_A_REVISAR)
+    palabras = set(re.findall(r'[a-z]+', limpio))
+    return bool(palabras & PALABRAS_A_REVISAR) or any(p.startswith(RAICES_A_REVISAR) for p in palabras)
 
 
 def clave(texto):

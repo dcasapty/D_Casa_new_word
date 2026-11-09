@@ -434,6 +434,11 @@ class TestAvisoDeProblemaDeLaCuenta(CitasCase):
                 self.assertRaises(ConcurrencyError):
             self.no_llego(self.PAGO, cron=False)
 
+    def test_al_enviar_un_choque_no_se_reintenta_para_no_duplicar_el_mensaje(self):
+        with patch.object(type(self.Mensaje), '_marcar_aviso_de_cuenta', side_effect=ConcurrencyError('choque')), \
+                self.assertLogs('odoo.addons.dcasa_conversaciones.models.mensaje', level='WARNING'):
+            self.Mensaje._avisar_problema_de_cuenta({131042}, reintentar=False)   # no sube
+
     def test_un_envio_rechazado_al_momento_por_la_cuenta_tambien_avisa(self):
         """El bloqueo de la cuenta a veces no llega como recibo sino como rechazo al enviar (`error_envio`)."""
         mensaje = self.Mensaje.sudo().create({

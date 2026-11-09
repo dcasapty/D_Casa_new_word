@@ -387,6 +387,13 @@ class TestPreguntasSinRespuesta(JuanCase):
                 self.assertEqual(pregunta.respuesta_vendedora, texto)
         self.assertFalse(C.necesita_revision('Sí, te lo armamos en la tienda si lo pides al comprar.'))
         self.assertFalse(C.necesita_revision('Una cama queen'), '«una» es artículo, no cifra')
+        # Verbos conjugados, plazos y horarios (segunda revisión adversarial, 2026-11-09).
+        for frase in ('Sí, te lo enviamos a Arraiján y lo pagas al recibirlo.', 'Te lo entregamos en una semana.',
+                      'Te llega mañana mismo.', 'Lo financiamos con la tarjeta de la tienda.',
+                      'Te lo garantizamos de por vida.', 'Sí, hacemos cambios si el mueble llega dañado.',
+                      'Te lo llevamos a tu casa sin cobrarte nada.', 'Abrimos los domingos en la tarde.'):
+            with self.subTest(frase=frase):
+                self.assertTrue(C.necesita_revision(frase))
 
     def test_el_tema_se_puede_editar_y_se_limpia(self):
         pregunta, _ = self.preguntar('¿Instalan los muebles? escríbanme a karen.prueba@example.com')

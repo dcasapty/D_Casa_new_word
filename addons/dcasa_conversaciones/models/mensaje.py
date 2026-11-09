@@ -417,7 +417,7 @@ class DcasaMensaje(models.Model):
             if codigo:
                 codigos_de_cuenta.add(codigo)
         if codigos_de_cuenta:
-            self.env['dcasa.mensaje']._avisar_problema_de_cuenta(codigos_de_cuenta)
+            self.env['dcasa.mensaje']._avisar_problema_de_cuenta(codigos_de_cuenta, reintentar=False)
         return salieron
 
     def _marcar_enviado(self, id_externo, partes=None):
@@ -735,7 +735,7 @@ class DcasaMensaje(models.Model):
         return resultado
 
     @api.model
-    def _avisar_problema_de_cuenta(self, codigos):
+    def _avisar_problema_de_cuenta(self, codigos, reintentar=True):
         """WhatsApp no entrega por un problema de la CUENTA (pago, bloqueo, spam): deja el aviso pendiente y despierta
         al cron que lo manda por Telegram (fuera de esta transacción: Telegram lento no frena los recibos ni los
         envíos). Como mucho una vez cada ``AVISO_CUENTA_CADA`` por código, mientras siga pasando. Un error cualquiera
@@ -745,7 +745,11 @@ class DcasaMensaje(models.Model):
             with self.env.cr.savepoint():
                 self._marcar_aviso_de_cuenta(codigos)
         except (ConcurrencyError, *PG_CONCURRENCY_EXCEPTIONS_TO_RETRY):
-            raise
+            if reintentar:
+                raise
+            # Al enviar ya se confirmó la transacción a mitad de la petición: reintentarla entera duplicaría el mensaje
+            # de la vendedora (revisión 2026-11-09). El próximo rechazo vuelve a marcar el aviso.
+            _logger.warning('Juan: choque al marcar el aviso de la cuenta; se marca con el próximo rechazo.')
         except Exception:   # noqa: BLE001 — un aviso nunca tumba las palomitas ni los envíos
             _logger.exception('Juan: no se pudo dejar el aviso del problema de la cuenta de WhatsApp')
 

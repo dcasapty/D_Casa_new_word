@@ -548,7 +548,8 @@ repitieron. Desde el 2026-11-09 las ven **vendedoras y Gerencia** (pedido de la 
 **Contestar** se escribe el tema y la respuesta como se le diría al cliente:
 
 - Si ni el tema ni la respuesta mencionan **dinero, números** (también en palabras: «quince», «por ciento», «mitad») ni un
-  **tema de política** (garantía, devoluciones, entregas, envío, crédito, cuotas, apartados, descuentos, precio…), la
+  **tema de política** (garantía, devoluciones, cambios, entregas, envío, crédito, cuotas, apartados, descuentos, precio,
+  plazos u horarios; también con el verbo: «te lo enviamos», «lo financiamos»), la
   entrada nace **activa** y el asistente la usa desde ese momento; la pregunta queda *atendida*.
 - Si los mencionan y la escribe una vendedora, **no** se activa: queda en la pregunta como «Lo que ya contestó una
   vendedora» (y en su historial, con el texto) para que Gerencia la revise con **Convertir en conocimiento**, que la
