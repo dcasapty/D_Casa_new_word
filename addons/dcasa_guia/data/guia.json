@@ -2647,7 +2647,7 @@
    "categoria": "tienda",
    "grupo": "Conversaciones",
    "titulo": "Ver las preguntas que Juan no supo contestar",
-   "logras": "Las preguntas sin respuesta, para que las contestes tú y Juan aprenda.",
+   "logras": "Las preguntas que Juan no supo contestar. Vendedoras y Gerencia tocan «Contestar», escriben la respuesta y Juan la aprende al momento; si menciona precios o números, Gerencia la revisa antes.",
    "destino": {
     "menu": "dcasa_conversaciones.menu_dcasa_preguntas_pendientes"
    },

@@ -15,7 +15,7 @@ from datetime import datetime, timedelta
 from unittest.mock import patch
 
 from odoo import fields
-from odoo.exceptions import UserError
+from odoo.exceptions import ConcurrencyError, UserError
 from odoo.tests import tagged
 
 from .common import JuanCase, respuesta_http
@@ -294,13 +294,15 @@ class TestPalomitasYReacciones(CitasCase):
 class TestAvisoDeProblemaDeLaCuenta(CitasCase):
     """2026-11-09: dos días de «No llegó» por el método de pago de Meta (131042) sin que nadie se enterara. Cuando
     WhatsApp no entrega por un problema de la CUENTA (pago, bloqueo, spam), Gerencia recibe un aviso por Telegram: una
-    vez y, si sigue pasando, otra cada 6 horas. Los «No llegó» de un cliente (24 h, número sin WhatsApp) no avisan."""
+    vez y, si sigue pasando, otra cada 6 horas. Lo manda un cron (Telegram fuera de la transacción de los recibos). Los
+    «No llegó» de un cliente (24 h, número sin WhatsApp) y los recibos viejos que llegan tarde no avisan."""
 
     PAGO = ('Meta no deja salir los mensajes por un problema con el método de pago de la cuenta de WhatsApp '
             'Business: hay que arreglarlo en Facturación de Meta. (código 131042)')
     # Lo que manda hoy el Juan que está en producción (sin el texto en palabras de la tienda): también avisa.
     PAGO_JUAN_VIEJO = ('Business eligibility payment issue: Message failed to send because there were one or more '
                        'errors related to your payment method. (código 131042)')
+    PARAMETRO = 'dcasa_conversaciones.aviso_cuenta_whatsapp_131042'
 
     def setUp(self):
         super().setUp()
@@ -312,22 +314,29 @@ class TestAvisoDeProblemaDeLaCuenta(CitasCase):
         parche.start()
         self.addCleanup(parche.stop)
         self.telegram = []
-        parche = patch.object(type(self.Conversacion), '_avisar_por_telegram',
-                              lambda _self, texto, usuarios=None, acciones=False:
-                              self.telegram.append((texto, usuarios)) or 1)
+        self.respuestas_telegram = None   # None: siempre llega (1); una lista: lo que devuelve cada envío, en orden
+        parche = patch.object(type(self.Conversacion), '_avisar_por_telegram', self.telegram_falso)
         parche.start()
         self.addCleanup(parche.stop)
 
-    def aplicar(self, *eventos):
-        return self.Mensaje._aplicar_eventos(list(eventos))
+    def telegram_falso(self, texto, usuarios=None, acciones=False):
+        # Va como atributo de la clase pero es un método ya ligado a la prueba: no recibe la conversación.
+        self.telegram.append((texto, usuarios))
+        return 1 if self.respuestas_telegram is None else self.respuestas_telegram.pop(0)
+
+    def no_llego(self, motivo, id_mensaje='wamid.B2', hace=timedelta(minutes=1), cron=True):
+        resultado = self.Mensaje._aplicar_eventos([self.evento(
+            'estado', id_mensaje, fields.Datetime.now() - hace, estado='fallido', error=motivo)])
+        if cron:
+            self.Mensaje._cron_avisos_de_cuenta()
+        return resultado
 
     def estado(self):
         self.bot.invalidate_recordset()
         return self.bot.estado_canal
 
-    def no_llego(self, motivo, id_mensaje='wamid.B2', minutos=2):
-        return self.aplicar(self.evento('estado', id_mensaje, T0 + timedelta(minutes=minutos), estado='fallido',
-                                        error=motivo))
+    def parametro(self):
+        return self.env['ir.config_parameter'].sudo().get_param(self.PARAMETRO)
 
     def test_un_problema_de_pago_avisa_a_gerencia_una_vez(self):
         self.no_llego(self.PAGO)
@@ -341,6 +350,16 @@ class TestAvisoDeProblemaDeLaCuenta(CitasCase):
         self.assertNotIn(self.vendedora, usuarios, 'el pago lo arregla Gerencia, no las vendedoras')
         self.no_llego(self.PAGO, 'wamid.B1')
         self.assertEqual(len(self.telegram), 1, 'en las 6 horas siguientes no se repite')
+        self.assertEqual(self.Mensaje._cron_avisos_de_cuenta(), 0, 'el cron solo manda lo pendiente')
+
+    def test_los_recibos_no_mandan_telegram_dentro_de_su_transaccion(self):
+        cron = self.env.ref('dcasa_conversaciones.ir_cron_avisos_de_cuenta')
+        antes = self.env['ir.cron.trigger'].sudo().search_count([('cron_id', '=', cron.id)])
+        self.no_llego(self.PAGO, cron=False)
+        self.assertEqual(self.telegram, [], 'lo manda el cron, no la petición de los recibos')
+        self.assertEqual(self.env['ir.cron.trigger'].sudo().search_count([('cron_id', '=', cron.id)]), antes + 1)
+        self.assertEqual(self.Mensaje._cron_avisos_de_cuenta(), 1)
+        self.assertEqual(len(self.telegram), 1)
 
     def test_el_motivo_del_juan_de_hoy_tambien_avisa(self):
         self.no_llego(self.PAGO_JUAN_VIEJO)
@@ -349,44 +368,86 @@ class TestAvisoDeProblemaDeLaCuenta(CitasCase):
     def test_si_sigue_pasando_avisa_otra_vez_a_las_6_horas(self):
         self.no_llego(self.PAGO)
         hace = fields.Datetime.to_string(fields.Datetime.now() - timedelta(hours=6, minutes=1))
-        self.env['ir.config_parameter'].sudo().set_param('dcasa_conversaciones.aviso_cuenta_whatsapp_131042', hace)
+        self.env['ir.config_parameter'].sudo().set_param(self.PARAMETRO, hace)
         self.no_llego(self.PAGO, 'wamid.B1')
         self.assertEqual(len(self.telegram), 2)
 
-    def test_los_no_llego_de_un_cliente_no_avisan(self):
-        self.no_llego('Pasaron más de 24 horas desde el último mensaje del cliente: WhatsApp solo deja escribirle '
-                      'con una plantilla aprobada. (código 131047)')
-        self.no_llego('Something went wrong (código 131000)', 'wamid.B1')
-        self.no_llego('WhatsApp avisó que no lo pudo entregar.', 'wamid.B1', minutos=3)
-        self.assertEqual(self.telegram, [])
-
-    def test_bloqueo_y_spam_tambien_avisan_cada_uno_con_lo_suyo(self):
-        self.no_llego('Meta bloqueó la cuenta de WhatsApp Business. (código 131031)')
-        self.no_llego('Meta está frenando los mensajes de este número. (código 131048)', 'wamid.B1')
+    def test_si_no_le_llego_a_nadie_se_reintenta_a_la_media_hora(self):
+        self.respuestas_telegram = [0, 0]          # ni Gerencia ni los demás tienen Telegram vinculado
+        self.no_llego(self.PAGO)
         self.assertEqual(len(self.telegram), 2)
-        self.assertIn('bloqueó la cuenta', self.telegram[0][0])
-        self.assertIn('spam', self.telegram[1][0])
+        marca = fields.Datetime.to_datetime(self.parametro())
+        self.assertAlmostEqual((fields.Datetime.now() - marca).total_seconds(), (6 * 60 - 30) * 60, delta=120)
+        self.respuestas_telegram = [1]
+        self.no_llego(self.PAGO, 'wamid.B1')
+        self.assertEqual(len(self.telegram), 2, 'antes de la media hora no se reintenta')
+        self.env['ir.config_parameter'].sudo().set_param(
+            self.PARAMETRO, fields.Datetime.to_string(marca - timedelta(minutes=31)))
+        self.no_llego(self.PAGO, 'wamid.B1', hace=timedelta(seconds=30))
+        self.assertEqual(len(self.telegram), 3)
 
     def test_sin_gerencia_con_telegram_avisa_a_quienes_reciben_los_avisos(self):
-        self.telegram_respuestas = iter([0, 1])
-        parche = patch.object(type(self.Conversacion), '_avisar_por_telegram',
-                              lambda _self, texto, usuarios=None, acciones=False:
-                              self.telegram.append((texto, usuarios)) or next(self.telegram_respuestas))
-        parche.start()
-        self.addCleanup(parche.stop)
+        self.respuestas_telegram = [0, 1]
         self.no_llego(self.PAGO)
         self.assertEqual(len(self.telegram), 2)
         self.assertTrue(self.telegram[0][1], 'primero a Gerencia')
         self.assertIsNone(self.telegram[1][1], 'nadie de Gerencia lo recibió: a quienes reciben los avisos de Juan')
 
-    def test_si_el_aviso_falla_las_palomitas_siguen(self):
+    def test_los_no_llego_de_un_cliente_no_avisan(self):
+        self.no_llego('Pasaron más de 24 horas desde el último mensaje del cliente: WhatsApp solo deja escribirle '
+                      'con una plantilla aprobada. (código 131047)')
+        self.no_llego('Something went wrong (código 131000)', 'wamid.B1')
+        self.no_llego('WhatsApp avisó que no lo pudo entregar.', 'wamid.B1', hace=timedelta(seconds=30))
+        self.assertEqual(self.telegram, [])
+
+    def test_un_recibo_viejo_que_llega_tarde_no_avisa(self):
+        """Meta reentrega los avisos que no se le confirmaron hasta por 7 días: los de antes del arreglo no asustan."""
+        self.no_llego(self.PAGO, hace=timedelta(hours=3))
+        self.assertEqual(self.estado(), 'fallido')
+        self.assertEqual(self.telegram, [])
+
+    def test_bloqueo_y_spam_tambien_avisan_cada_uno_con_lo_suyo(self):
+        self.no_llego('Meta bloqueó la cuenta de WhatsApp Business. (código 131031)', cron=False)
+        self.no_llego('Meta está frenando los mensajes de este número. (código 131048)', 'wamid.B1')
+        self.assertEqual(len(self.telegram), 2)
+        self.assertIn('bloqueó la cuenta', self.telegram[0][0])
+        self.assertIn('spam', self.telegram[1][0])
+
+    def test_si_telegram_falla_el_cron_sigue_y_las_palomitas_quedan(self):
         def explota(_self, texto, usuarios=None, acciones=False):
             raise RuntimeError('Telegram caído')
-        with patch.object(type(self.Conversacion), '_avisar_por_telegram', explota):
+        with patch.object(type(self.Conversacion), '_avisar_por_telegram', explota), \
+                self.assertLogs('odoo.addons.dcasa_conversaciones.models.mensaje', level='ERROR'):
             resultado = self.no_llego(self.PAGO)
         self.assertEqual(resultado['aplicados'], 1)
         self.assertEqual(self.estado(), 'fallido')
         self.assertEqual(self.bot.error_envio, self.PAGO[:200])
+
+    def test_si_marcar_el_aviso_falla_las_palomitas_quedan(self):
+        with patch.object(type(self.Mensaje), '_marcar_aviso_de_cuenta', side_effect=RuntimeError('raro')), \
+                self.assertLogs('odoo.addons.dcasa_conversaciones.models.mensaje', level='ERROR'):
+            resultado = self.no_llego(self.PAGO, cron=False)
+        self.assertEqual((resultado['aplicados'], self.estado()), (1, 'fallido'))
+
+    def test_un_choque_de_concurrencia_se_deja_subir_para_que_odoo_reintente(self):
+        with patch.object(type(self.Mensaje), '_marcar_aviso_de_cuenta', side_effect=ConcurrencyError('choque')), \
+                self.assertRaises(ConcurrencyError):
+            self.no_llego(self.PAGO, cron=False)
+
+    def test_un_envio_rechazado_al_momento_por_la_cuenta_tambien_avisa(self):
+        """El bloqueo de la cuenta a veces no llega como recibo sino como rechazo al enviar (`error_envio`)."""
+        mensaje = self.Mensaje.sudo().create({
+            'conversacion_id': self.conv.id, 'direccion': 'saliente', 'autor': 'vendedora', 'texto': 'Hola',
+            'ts': fields.Datetime.now(), 'id_mensaje': 'odoo-prueba-cuenta', 'estado_envio': 'por_enviar'})
+        rechazo = {'ok': False, 'estado_http': 400,
+                   'error': 'whatsapp cloud 400: Account has been locked (código 131031)'}
+        with patch.object(type(self.env['dcasa.juan.cliente']), 'enviar', return_value=rechazo), \
+                patch('odoo.addons.dcasa_conversaciones.models.transaccion.confirmar'):
+            self.assertEqual(mensaje._enviar(), 0)
+        self.assertEqual(mensaje.estado_envio, 'fallido')
+        self.Mensaje._cron_avisos_de_cuenta()
+        self.assertEqual(len(self.telegram), 1)
+        self.assertIn('bloqueó la cuenta', self.telegram[0][0])
 
 
 @tagged('post_install', '-at_install')

@@ -67,17 +67,27 @@ CODIGOS_DE_CUENTA = {
              'Revisa la calidad del número en el WhatsApp Manager de Meta.'),
 }
 AVISO_CUENTA_CADA = timedelta(hours=6)
+AVISO_CUENTA_REINTENTO = timedelta(minutes=30)   # si el aviso no le llegó a nadie, se reintenta a esta distancia
+AVISO_CUENTA_RECIENTE = timedelta(hours=2)       # un recibo viejo que Meta reentrega tarde no dispara el aviso
 AVISO_CUENTA_LLAVE = 7302   # primera mitad de la llave del candado (pg_try_advisory_xact_lock) del aviso por código
 _CODIGO_EN_MOTIVO = re.compile(r'\(código (\d{3,7})\)\s*$')
 
 
-def _codigo_de_cuenta(evento):
-    """El código de Meta de un «No llegó» que es problema de la CUENTA (está en ``CODIGOS_DE_CUENTA``), o None."""
-    if evento.get('tipo') != 'estado' or evento.get('estado') != 'fallido':
-        return None
-    encontrado = _CODIGO_EN_MOTIVO.search(evento.get('error') or '')
+def codigo_de_cuenta(motivo):
+    """El código de Meta de un motivo de «no salió / no llegó» que es problema de la CUENTA (está en
+    ``CODIGOS_DE_CUENTA``; el motivo termina en «(código N)»), o None."""
+    encontrado = _CODIGO_EN_MOTIVO.search(motivo or '')
     codigo = int(encontrado.group(1)) if encontrado else None
     return codigo if codigo in CODIGOS_DE_CUENTA else None
+
+
+def _codigo_de_cuenta(evento, desde):
+    """El de un recibo «no llegó» reciente (``ts`` desde ``desde``), o None."""
+    if evento.get('tipo') != 'estado' or evento.get('estado') != 'fallido':
+        return None
+    if not evento.get('ts') or evento['ts'] < desde:
+        return None
+    return codigo_de_cuenta(evento.get('error'))
 
 
 # Un id propio de Odoo o del Worker (no del canal): con él no se puede citar ni reconocer un aviso del canal.
@@ -373,6 +383,7 @@ class DcasaMensaje(models.Model):
         salieron = 0
         Cliente = self.env['dcasa.juan.cliente']
         ahora = fields.Datetime.now()
+        codigos_de_cuenta = set()
         por_enviar = self.sudo().filtered(lambda m: m.estado_envio == 'por_enviar')
         if por_enviar:
             # El Worker (y el puente, que baja el adjunto por su URL firmada) llaman de vuelta a Odoo mientras Odoo
@@ -401,6 +412,12 @@ class DcasaMensaje(models.Model):
                 'error_envio': (resultado.get('error') or 'Sin respuesta del Worker.')[:200],
                 'estado_envio': 'fallido' if intentos >= MAX_INTENTOS or resultado.get('estado_http') in (400, 422)
                 else 'por_enviar'})
+            # Meta lo rechazó al momento por un problema de la cuenta (pago, bloqueo, spam): el mismo aviso a Gerencia.
+            codigo = codigo_de_cuenta(resultado.get('error'))
+            if codigo:
+                codigos_de_cuenta.add(codigo)
+        if codigos_de_cuenta:
+            self.env['dcasa.mensaje']._avisar_problema_de_cuenta(codigos_de_cuenta)
         return salieron
 
     def _marcar_enviado(self, id_externo, partes=None):
@@ -676,7 +693,8 @@ class DcasaMensaje(models.Model):
         Conversacion = self.env['dcasa.conversacion'].sudo()
         conversaciones = {}
         aplicados, fallidos, desconocidos, cambios = 0, 0, [], []
-        codigos_de_cuenta = {codigo for codigo in map(_codigo_de_cuenta, eventos) if codigo}
+        desde = fields.Datetime.now() - AVISO_CUENTA_RECIENTE
+        codigos_de_cuenta = {codigo for codigo in (_codigo_de_cuenta(e, desde) for e in eventos) if codigo}
         for evento in eventos:
             clave = (evento['canal'], evento['id_externo'])
             if clave not in conversaciones:
@@ -718,27 +736,26 @@ class DcasaMensaje(models.Model):
 
     @api.model
     def _avisar_problema_de_cuenta(self, codigos):
-        """WhatsApp no entrega por un problema de la CUENTA (pago, bloqueo, spam): aviso por Telegram a Gerencia (o, si
-        nadie de Gerencia tiene Telegram vinculado, a quienes reciben los avisos de Juan). Como mucho una vez cada
-        ``AVISO_CUENTA_CADA`` por código, mientras siga pasando. Un error cualquiera no tumba las palomitas (savepoint);
-        uno de concurrencia sí se deja subir: Odoo reintenta la tanda y el reintento ya ve la hora del aviso."""
+        """WhatsApp no entrega por un problema de la CUENTA (pago, bloqueo, spam): deja el aviso pendiente y despierta
+        al cron que lo manda por Telegram (fuera de esta transacción: Telegram lento no frena los recibos ni los
+        envíos). Como mucho una vez cada ``AVISO_CUENTA_CADA`` por código, mientras siga pasando. Un error cualquiera
+        no tumba lo demás (savepoint); uno de concurrencia sí se deja subir: Odoo reintenta y el reintento ya ve la hora
+        del aviso."""
         try:
             with self.env.cr.savepoint():
-                self._avisar_problema_de_cuenta_sin_proteger(codigos)
+                self._marcar_aviso_de_cuenta(codigos)
         except (ConcurrencyError, *PG_CONCURRENCY_EXCEPTIONS_TO_RETRY):
             raise
-        except Exception:   # noqa: BLE001 — un aviso nunca tumba las palomitas
-            _logger.exception('Juan: no se pudo avisar del problema de la cuenta de WhatsApp')
+        except Exception:   # noqa: BLE001 — un aviso nunca tumba las palomitas ni los envíos
+            _logger.exception('Juan: no se pudo dejar el aviso del problema de la cuenta de WhatsApp')
 
     @api.model
-    def _avisar_problema_de_cuenta_sin_proteger(self, codigos):
+    def _marcar_aviso_de_cuenta(self, codigos):
         parametros = self.env['ir.config_parameter'].sudo()
         ahora = fields.Datetime.now()
-        gerencia = self.env['res.users'].sudo().search(
-            [('all_group_ids', 'in', self.env.ref('sales_team.group_sale_manager').ids)])
-        Conversacion = self.env['dcasa.conversacion'].sudo()
+        marcados = False
         for codigo in sorted(codigos):
-            # Varias tandas a la vez (muchos «No llegó» juntos): solo una avisa; las demás siguen sin esperar.
+            # Varias tandas a la vez (muchos «No llegó» juntos): solo una lo marca; las demás siguen sin esperar.
             self.env.cr.execute('SELECT pg_try_advisory_xact_lock(%s, %s)', [AVISO_CUENTA_LLAVE, codigo])
             if not self.env.cr.fetchone()[0]:
                 continue
@@ -746,15 +763,49 @@ class DcasaMensaje(models.Model):
             ultimo = parametros.get_param(clave)
             if ultimo and fields.Datetime.to_datetime(ultimo) > ahora - AVISO_CUENTA_CADA:
                 continue
-            parametros.set_param(clave, fields.Datetime.to_string(ahora))   # antes de avisar: si choca, no se avisó
+            parametros.set_param(clave, fields.Datetime.to_string(ahora))
+            parametros.set_param(f'dcasa_conversaciones.aviso_cuenta_pendiente_{codigo}', '1')
+            _logger.warning('Juan: WhatsApp no entrega por un problema de la cuenta (código %s); se avisa a Gerencia.',
+                            codigo)
+            marcados = True
+        if marcados:
+            self.env.ref('dcasa_conversaciones.ir_cron_avisos_de_cuenta')._trigger()
+
+    @api.model
+    def _cron_avisos_de_cuenta(self):
+        """Manda por Telegram los avisos de cuenta pendientes: a Gerencia o, si a nadie de Gerencia le llegó, a quienes
+        reciben los avisos de Juan. Si no le llegó a nadie (sin Telegram vinculado, Telegram caído), se vuelve a
+        intentar con el próximo «no llegó» pasados ``AVISO_CUENTA_REINTENTO`` (no 6 horas de silencio). Devuelve cuántos
+        avisos llegaron."""
+        parametros = self.env['ir.config_parameter'].sudo()
+        gerencia = self.env['res.users'].sudo().search(
+            [('all_group_ids', 'in', self.env.ref('sales_team.group_sale_manager').ids)])
+        Conversacion = self.env['dcasa.conversacion'].sudo()
+        llegaron = 0
+        for codigo, que in sorted(CODIGOS_DE_CUENTA.items()):
+            pendiente = f'dcasa_conversaciones.aviso_cuenta_pendiente_{codigo}'
+            if not parametros.get_param(pendiente):
+                continue
+            parametros.set_param(pendiente, False)
             texto = self.env._(
                 '⚠️ WhatsApp no está entregando los mensajes de D\'CASA (código %(codigo)s). %(que)s Mientras tanto, '
                 'los mensajes salen con «No llegó»: cuando se arregle, hay que volver a escribirles a esos '
-                'clientes.', codigo=codigo, que=CODIGOS_DE_CUENTA[codigo])
-            _logger.warning('Juan: WhatsApp no entrega por un problema de la cuenta (código %s); se avisa a Gerencia.',
-                            codigo)
-            if not (gerencia and Conversacion._avisar_por_telegram(texto, usuarios=gerencia)):
-                Conversacion._avisar_por_telegram(texto)
+                'clientes.', codigo=codigo, que=que)
+            enviados = 0
+            try:
+                enviados = (gerencia and Conversacion._avisar_por_telegram(texto, usuarios=gerencia)) or \
+                    Conversacion._avisar_por_telegram(texto)
+            except Exception:   # noqa: BLE001 — un código que falla no frena a los demás
+                _logger.exception('Juan: no se pudo mandar el aviso del problema de la cuenta (código %s)', codigo)
+            if enviados:
+                llegaron += 1
+            else:
+                otra_vez = fields.Datetime.now() - AVISO_CUENTA_CADA + AVISO_CUENTA_REINTENTO
+                parametros.set_param(f'dcasa_conversaciones.aviso_cuenta_whatsapp_{codigo}',
+                                     fields.Datetime.to_string(otra_vez))
+                _logger.warning('Juan: el aviso del problema de la cuenta (código %s) no le llegó a nadie por '
+                                'Telegram; se reintenta en %s.', codigo, AVISO_CUENTA_REINTENTO)
+        return llegaron
 
     def _recibo_para_pantallas(self, reaccion=False):
         """Lo liviano que viaja en vivo por cada palomita o reacción (ni texto ni emoji): ids, estado y sus horas."""

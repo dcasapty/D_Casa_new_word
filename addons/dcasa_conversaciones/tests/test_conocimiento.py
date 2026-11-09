@@ -7,7 +7,7 @@ from unittest.mock import patch
 from odoo import fields
 from odoo.addons.dcasa_socios.models import reglas as R
 from odoo.exceptions import AccessError, UserError, ValidationError
-from odoo.tests import BaseCase, tagged
+from odoo.tests import BaseCase, new_test_user, tagged
 
 from ..models import conocimiento_texto as C
 from ..models.reglas_clientes import redactar
@@ -299,7 +299,7 @@ class TestPreguntasSinRespuesta(JuanCase):
                          ('¿Instalan los muebles?', self.vendedora, pregunta))
         self.assertIn('Vendedora Prueba', entrada.nota)
         self.assertEqual((pregunta.respuesta_de_id, pregunta.respuesta_con_cifras), (self.vendedora, False))
-        (hallada, _), *_ = self.env['dcasa.conocimiento']._buscar('¿hacen la instalación de los muebles?', 3)
+        (hallada, _), *_ = self.env['dcasa.conocimiento']._buscar('¿Ustedes instalan los muebles?', 3)
         self.assertEqual(hallada, entrada)
         self.assertIn('Vendedora Prueba', pregunta.message_ids[0].body)
 
@@ -363,6 +363,79 @@ class TestPreguntasSinRespuesta(JuanCase):
         with self.assertRaises(AccessError):
             asistente.with_user(self.interno).action_guardar()
         self.assertEqual(pregunta.estado, 'nueva')
+
+    def test_un_precio_en_la_pregunta_no_pasa_con_un_si(self):
+        """Revisión adversarial 2026-11-09: el título nace de la pregunta del cliente; con un «sí» se confirmaba un
+        precio que el cliente inventó."""
+        pregunta, _ = self.preguntar('¿El juego de sala Roma de $899 lo dejan en $750 pagando de contado?')
+        self.contestar(pregunta, 'Sí, pagando de contado sí se puede.')
+        self.assertEqual(pregunta.estado, 'nueva')
+        self.assertFalse(self.env['dcasa.conocimiento'].search([('pregunta_id', '=', pregunta.id)]))
+        self.assertTrue(pregunta.respuesta_con_cifras)
+
+    def test_politicas_y_numeros_en_palabras_los_revisa_gerencia(self):
+        casos = ('La garantía es de un año por defectos de fábrica.', 'El envío es gratis en La Chorrera.',
+                 'Te damos quince por ciento de descuento.', 'Queda a mitad de precio.', 'Sale en ＄quince.',
+                 'Sí, te lo apartamos con un abono.', 'Sí, aceptamos devoluciones.')
+        for i, texto in enumerate(casos):
+            with self.subTest(texto=texto):
+                pregunta, _ = self.preguntar(f'¿Pregunta de prueba número {chr(65 + i)} sobre la tienda?',
+                                             conv=self.conversacion(id_externo=f'5076123{i:04d}'))
+                pregunta.texto = f'¿Cómo funciona lo de la tienda {chr(65 + i)}?'
+                self.contestar(pregunta, texto)
+                self.assertEqual(pregunta.estado, 'nueva', 'queda para Gerencia')
+                self.assertEqual(pregunta.respuesta_vendedora, texto)
+        self.assertFalse(C.necesita_revision('Sí, te lo armamos en la tienda si lo pides al comprar.'))
+        self.assertFalse(C.necesita_revision('Una cama queen'), '«una» es artículo, no cifra')
+
+    def test_el_tema_se_puede_editar_y_se_limpia(self):
+        pregunta, _ = self.preguntar('¿Instalan los muebles? escríbanme a karen.prueba@example.com')
+        accion = pregunta.with_user(self.vendedora).action_contestar()
+        asistente = self.env['dcasa.pregunta.responder'].with_user(self.vendedora).with_context(
+            **accion['context']).create({'respuesta': 'Sí, te lo armamos.'})
+        self.assertNotIn('@', asistente.titulo, 'el correo del cliente no pasa al tema')
+        asistente.titulo = 'Armado de muebles'
+        asistente.action_guardar()
+        self.assertEqual(pregunta.conocimiento_id.titulo, 'Armado de muebles')
+
+    def test_dos_propuestas_seguidas_no_se_pierden(self):
+        pregunta, _ = self.preguntar('¿Cuánto cuesta el armado?')
+        self.contestar(pregunta, 'El armado cuesta $20.')
+        otra = new_test_user(self.env, login='juan_vendedora_2', name='Otra Vendedora',
+                             groups='base.group_user,sales_team.group_sale_salesman')
+        self.contestar(pregunta, 'El armado cuesta $35.', usuario=otra)
+        self.assertEqual(pregunta.respuesta_vendedora, 'El armado cuesta $35.')
+        historial = ' '.join(pregunta.message_ids.mapped('body'))
+        self.assertIn('$20', historial, 'la primera propuesta queda en el historial')
+        self.assertIn('$35', historial)
+
+    def test_una_descartada_no_se_contesta(self):
+        pregunta, _ = self.preguntar('¿Instalan los muebles?')
+        asistente = self.env['dcasa.pregunta.responder'].with_user(self.vendedora).create(
+            {'pregunta_id': pregunta.id, 'respuesta': 'Sí.'})
+        pregunta.with_user(self.gerente).action_descartar()
+        with self.assertRaisesRegex(UserError, 'ya atendió'):
+            asistente.action_guardar()
+
+    def test_cada_vendedora_ve_solo_su_ventanita(self):
+        pregunta, _ = self.preguntar('¿Instalan los muebles?')
+        mia = self.env['dcasa.pregunta.responder'].with_user(self.vendedora).create(
+            {'pregunta_id': pregunta.id, 'respuesta': 'Sí.'})
+        otra = new_test_user(self.env, login='juan_vendedora_3', name='Tercera Vendedora',
+                             groups='base.group_user,sales_team.group_sale_salesman')
+        self.assertFalse(self.env['dcasa.pregunta.responder'].with_user(otra).search([('id', '=', mia.id)]))
+        with self.assertRaises(AccessError):
+            mia.with_user(otra).action_guardar()
+
+    def test_el_historial_no_se_apaga_desde_afuera(self):
+        pregunta, _ = self.preguntar('¿Instalan los muebles?')
+        accion = pregunta.with_user(self.vendedora).action_contestar()
+        asistente = self.env['dcasa.pregunta.responder'].with_user(self.vendedora).with_context(
+            **accion['context'], tracking_disable=True, mail_create_nolog=True, mail_notrack=True).create(
+            {'respuesta': 'Sí, te lo armamos.'})
+        asistente.action_guardar()
+        self.assertTrue(pregunta.conocimiento_id.message_ids, 'la entrada nace con su historial')
+        self.assertIn('Vendedora Prueba', ' '.join(pregunta.message_ids.mapped('body')))
 
     def test_la_vendedora_ve_contestar_y_no_los_botones_de_gerencia(self):
         for vista in ('form', 'list'):

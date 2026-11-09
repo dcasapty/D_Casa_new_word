@@ -229,6 +229,12 @@ describe("recibos (statuses): las palomitas", () => {
       expect(motivoDeMeta({ id: "x", status: "failed", errors: [{ code: codigo }] })!.length).toBeLessThanOrEqual(200);
     }
   });
+
+  it("motivoDeMeta: un texto largo se recorta, pero el código queda entero al final (Odoo lo lee)", () => {
+    const largo = motivoDeMeta({ id: "x", status: "failed", errors: [{ code: 130429, title: "Rate limit hit", error_data: { details: "x".repeat(400) } }] })!;
+    expect(largo.length).toBe(200);
+    expect(largo).toMatch(/\(código 130429\)$/);
+  });
 });
 
 describe("«Responder» desde Odoo: la cita sale con el primer mensaje", () => {

@@ -205,12 +205,14 @@
                 <group>
                     <field name="pregunta_texto" string="Preguntaron" readonly="1"/>
                     <field name="pregunta_resumen" string="Contexto" readonly="1" invisible="not pregunta_resumen"/>
+                    <field name="titulo" required="1"/>
                     <field name="respuesta" placeholder="Escríbela como se la dirías al cliente, de tú."
                            required="1"/>
                 </group>
                 <div class="text-muted" invisible="es_gerencia">
-                    El asistente la usa con los clientes que pregunten lo mismo. Si mencionas precios, plazos, horarios
-                    u otros números, Gerencia la revisa antes de que el asistente la use.
+                    El asistente la usa con los clientes que pregunten lo mismo. Si el tema o la respuesta mencionan
+                    precios, números o temas como garantía, entregas, crédito o descuentos, Gerencia la revisa antes de
+                    que el asistente la use. En «Tema» quita nombres o datos que sean solo de ese cliente.
                 </div>
                 <div class="text-muted" invisible="not es_gerencia">
                     El asistente la usa al momento con los clientes que pregunten lo mismo.

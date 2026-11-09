@@ -1135,6 +1135,21 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   la ronda tal cual (`rondasDeHerramientas`, sin el borrador rechazado). `test/motor/sdk-anthropic.test.ts` vigila cómo
   queda la petición.
 
+### WhatsApp oficial (Meta)
+
+- **«No llegó» con el código 131042 («Business eligibility payment issue») = problema de PAGO de la cuenta de WhatsApp
+  Business en Meta, no del sistema ni de la IA** (2026-11-07 a 09: dos días de mensajes sin entregar sin que nadie se
+  enterara). Juan escribe bien y Meta no lo deja salir; algunos clientes sí reciben (probablemente los que entran por un
+  anuncio de «Enviar mensaje», que no pasan por el cobro). Se ve pasando el puntero sobre la etiqueta roja «No llegó» (el
+  globito trae el motivo y el código). En business.facebook.com › Facturación y pagos › **Cuentas de mensajes** (no la
+  cuenta de anuncios: se pagan aparte) D'CASA tenía tres cuentas «DCasa Pty» **sin método de pago** y una con una
+  **línea de crédito prestada por Callbell**: lo más probable es que esa línea se cortara. Se arregla en Meta (tarjeta
+  propia y predeterminada en la cuenta del número, saldo pendiente, información fiscal), no en el código. Lo que ya salió
+  con «No llegó» no se reenvía solo. Desde el 2026-11-09, los de la cuenta (131042 pago, 131031 bloqueo, 131048 spam)
+  avisan a Gerencia por Telegram una vez cada 6 h por código (`dcasa.mensaje._avisar_problema_de_cuenta`).
+- **Para leer datos de producción sin la base**: Brian por MCP (solo lectura) no tiene el detalle de los mensajes; el
+  motivo de un «No llegó» lo ve quien está en la pantalla (globito) o el formulario del mensaje (`error_envio`).
+
 ### GitHub
 
 - **Dependabot: dos PR que tocan el mismo `package-lock.json` chocan** (2026-11-06, #7 y #8 de `edge/`): se juntan a mano

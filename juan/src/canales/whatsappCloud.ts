@@ -96,9 +96,11 @@ const ERRORES_CONOCIDOS: Record<number, string> = {
 export function motivoDeMeta(r: WaRecibo): string | undefined {
   const e = r.errors?.[0];
   if (!e) return undefined;
-  if (e.code !== undefined && ERRORES_CONOCIDOS[e.code]) return `${ERRORES_CONOCIDOS[e.code]} (código ${e.code})`.slice(0, 200);
-  const texto = [e.title ?? e.message, e.error_data?.details].filter(Boolean).join(": ");
-  return `${texto || "WhatsApp no lo pudo entregar"}${e.code !== undefined ? ` (código ${e.code})` : ""}`.slice(0, 200);
+  // El código va siempre entero al final (Odoo lo lee para avisar a Gerencia): lo que se recorta es el texto.
+  const sufijo = e.code !== undefined ? ` (código ${e.code})` : "";
+  const conocido = e.code !== undefined ? ERRORES_CONOCIDOS[e.code] : undefined;
+  const texto = conocido ?? ([e.title ?? e.message, e.error_data?.details].filter(Boolean).join(": ") || "WhatsApp no lo pudo entregar");
+  return `${texto.slice(0, 200 - sufijo.length)}${sufijo}`;
 }
 
 /** Un error de la Graph API al enviar, con su código HTTP (para saber si vale la pena reintentar sin la cita). */
