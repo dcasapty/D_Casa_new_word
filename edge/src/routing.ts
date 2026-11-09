@@ -79,10 +79,15 @@ export function isBlockedPath(pathname: string): boolean {
 }
 
 /**
- * Endpoints de Brian (servidor MCP y webhook de Telegram): llevan credenciales
- * (Authorization / secreto) y respuestas por usuario. Nunca se guardan en caché.
+ * Rutas que nunca se guardan en caché:
+ *
+ * - `/brian/`: el servidor MCP y el webhook de Telegram de Brian llevan credenciales
+ *   (Authorization / secreto) y respuestas por usuario.
+ * - `/envios/choferes/`: el enlace secreto de la calculadora para choferes (addons/dcasa_envios,
+ *   controllers/choferes.py). El secreto va en la ruta y Gerencia puede apagarlo o cambiarlo en
+ *   cualquier momento: una copia en el borde seguiría abriéndolo. Odoo además responde `no-store`.
  */
-const NEVER_CACHE_PREFIXES = ["/brian/"];
+const NEVER_CACHE_PREFIXES = ["/brian/", "/envios/choferes/"];
 
 /**
  * Recursos estáticos o versionados que se pueden guardar en la caché del borde. Que la
@@ -405,10 +410,14 @@ export function esCorteDeConexion(error: unknown): boolean {
 /** Un tramo de ruta con pinta de token (`/rate/<token>/5`, `/calendar/join_videocall/<token>`): largo y con números. */
 const TRAMO_TOKEN = /^(?=[^/]*\d)[A-Za-z0-9_-]{16,}$/;
 
+/** El enlace de los choferes (`/envios/choferes/<secreto>[/buscar|/cerca]`): el secreto nunca va al registro. */
+const ENLACE_CHOFERES = /^\/envios\/choferes\/[^/]+/;
+
 /** La ruta para el registro: entera si es una llamada a Odoo (modelo/método), si no solo el principio, sin tokens. */
 export function rutaParaRegistro(pathname: string): string {
   if (pathname.startsWith("/web/dataset/call_kw/")) return pathname;
   return pathname
+    .replace(ENLACE_CHOFERES, "/envios/choferes/:token")
     .split("/")
     .slice(0, 4)
     .map((tramo) => (TRAMO_TOKEN.test(tramo) ? ":token" : tramo))

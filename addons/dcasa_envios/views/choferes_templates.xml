@@ -1,0 +1,256 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- El enlace para choferes (controllers/choferes.py): la calculadora reducida, una página sola, sin el sitio ni el
+         panel de Odoo. Solo el nombre, la zona, el precio y la ruta en Google Maps; nunca km, tabla ni desglose.
+         Marca: azul #1340B1, amarillo #FED00F solo sobre el azul, Anton / Oswald / Inter, plano. Baja con scroll (el
+         documento entero; nada de overflow: hidden). Estilos y script con el nonce de la CSP. -->
+    <template id="choferes_pagina" name="Envíos: enlace para choferes">&lt;!DOCTYPE html&gt;
+<html lang="es">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <meta name="robots" content="noindex, nofollow"/>
+    <meta name="referrer" content="no-referrer"/>
+    <meta name="theme-color" content="#1340B1"/>
+    <title>Envíos D'CASA · choferes</title>
+    <style t-att-nonce="nonce"><![CDATA[
+        @font-face { font-family: 'Anton'; font-weight: 400; font-display: swap;
+                     src: url('/dcasa_interfaz/static/src/fonts/Anton-Regular.ttf') format('truetype'); }
+        @font-face { font-family: 'Oswald'; font-weight: 400; font-display: swap;
+                     src: url('/web/static/fonts/google/Oswald/Oswald-Regular.ttf') format('truetype'); }
+        @font-face { font-family: 'Oswald'; font-weight: 600; font-display: swap;
+                     src: url('/web/static/fonts/google/Oswald/Oswald-SemiBold.ttf') format('truetype'); }
+        @font-face { font-family: 'Inter'; font-weight: 400 700; font-display: swap;
+                     src: url('/website_dcasa/static/src/fonts/inter-latin-var.woff2') format('woff2'); }
+        :root { --azul: #1340B1; --amarillo: #FED00F; --navy: #0B2160; --tinta: #1B2540; --gris: #55607A;
+                --borde: #D6DEF3; --claro: #EEF2FC; }
+        *, *::before, *::after { box-sizing: border-box; }
+        html { -webkit-text-size-adjust: 100%; }
+        body { margin: 0; background: #fff; color: var(--tinta); overflow-wrap: anywhere;
+               font: 16px/1.45 Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif; }
+        .caja { max-width: 640px; margin: 0 auto; padding: 0 16px; }
+        .cab { background: var(--azul); color: #fff; padding: 20px 0; }
+        .marca { margin: 0 0 4px; font-family: Oswald, 'Arial Narrow', sans-serif; font-size: .85rem;
+                 text-transform: uppercase; letter-spacing: .05em; }
+        h1 { margin: 0 0 16px; font-family: Anton, Impact, 'Arial Narrow', sans-serif; font-weight: 400;
+             font-size: 2rem; line-height: 1.1; text-transform: uppercase; letter-spacing: .01em; }
+        label { display: block; margin: 0 0 6px; font-family: Oswald, 'Arial Narrow', sans-serif; font-weight: 600;
+                font-size: 1.1rem; }
+        .q { width: 100%; padding: 14px; border: 0; border-radius: 4px; background: #fff; color: var(--navy);
+             font: inherit; font-size: 1.15rem; }
+        .q:focus { outline: 3px solid var(--amarillo); outline-offset: 2px; }
+        .ubicacion { display: block; width: 100%; min-height: 48px; margin: 12px 0 0; padding: 0 20px; border: 0;
+                     border-radius: 4px; background: var(--amarillo); color: var(--navy); cursor: pointer;
+                     font-family: Oswald, 'Arial Narrow', sans-serif; font-weight: 600; font-size: 1.1rem;
+                     text-transform: uppercase; letter-spacing: .03em; }
+        .ubicacion:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+        .ubicacion:disabled { opacity: .75; cursor: progress; }
+        .privado { margin: 8px 0 0; font-size: .85rem; }
+        main.caja { padding-top: 16px; padding-bottom: 24px; }
+        .aviso { margin: 0 0 12px; padding: 12px 14px; border-left: 4px solid var(--azul); background: var(--claro);
+                 color: var(--navy); font-weight: 600; }
+        .estado { min-height: 1.45em; margin: 0 0 10px; color: var(--gris); }
+        .resultados { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+        .lugar { padding: 14px; border: 1px solid var(--borde); border-radius: 6px; background: #fff; }
+        .nombre { margin: 0; color: var(--navy); font-family: Oswald, 'Arial Narrow', sans-serif; font-weight: 600;
+                  font-size: 1.25rem; line-height: 1.2; }
+        .zona { margin: 2px 0 0; color: var(--gris); font-size: .95rem; }
+        .distancia { margin: 2px 0 0; color: var(--azul); font-weight: 600; font-size: .95rem; }
+        .precio { margin: 8px 0 0; color: var(--azul); font-family: Anton, Impact, 'Arial Narrow', sans-serif;
+                  font-size: 2.1rem; line-height: 1.1; }
+        .sin-precio { margin: 8px 0 0; color: var(--navy); font-weight: 600; }
+        .mapa { display: block; min-height: 48px; margin: 12px 0 0; padding: 12px; border-radius: 4px;
+                background: var(--azul); color: #fff; text-align: center; text-decoration: none; font-weight: 600; }
+        .mapa:hover { background: var(--navy); }
+        .mapa:focus-visible { outline: 3px solid var(--navy); outline-offset: 2px; }
+        .sugerencias { margin: 4px 0 0; }
+        .sugerencias p { margin: 0 0 8px; color: var(--navy); font-weight: 600; }
+        .sugerencia { margin: 0 8px 8px 0; padding: 8px 12px; border: 1px solid var(--azul); border-radius: 4px;
+                      background: #fff; color: var(--azul); font: inherit; cursor: pointer; }
+        .pie { padding-bottom: 24px; color: var(--gris); font-size: .8rem; }
+        @media (min-width: 720px) {
+            h1 { font-size: 2.4rem; }
+            .ubicacion { display: inline-block; width: auto; }
+        }
+    ]]></style>
+</head>
+<body class="choferes" t-att-data-buscar="ruta_buscar" t-att-data-cerca="ruta_cerca">
+    <header class="cab">
+        <div class="caja">
+            <p class="marca">D'CASA Panamá · envíos desde la tienda</p>
+            <h1>¿Cuánto cuesta el envío?</h1>
+            <form class="buscar" role="search" novalidate="novalidate">
+                <label for="q">Busca el barrio, edificio o lugar</label>
+                <input id="q" class="q" type="search" name="q" autocomplete="off" spellcheck="false"
+                       enterkeyhint="search" t-att-maxlength="max_texto"
+                       placeholder="Villa Lucre, un PH o «cerca del hospital»"/>
+            </form>
+            <button type="button" class="ubicacion">Usar mi ubicación</button>
+            <p class="privado">Tu ubicación solo se usa para buscar el lugar más cercano; no se guarda.</p>
+        </div>
+    </header>
+    <main class="caja">
+        <p class="aviso" t-if="aviso_tarifa" role="status"><t t-esc="aviso_tarifa"/></p>
+        <p class="estado" role="status" aria-live="polite"></p>
+        <ol class="resultados" aria-label="Lugares"></ol>
+        <div class="sugerencias" hidden="hidden"></div>
+    </main>
+    <footer class="caja pie"><t t-esc="atribucion"/></footer>
+    <script t-att-nonce="nonce"><![CDATA[
+(function () {
+    'use strict';
+    var cuerpo = document.body;
+    var q = document.querySelector('.q');
+    var formulario = document.querySelector('.buscar');
+    var boton = document.querySelector('.ubicacion');
+    var estado = document.querySelector('.estado');
+    var lista = document.querySelector('.resultados');
+    var sugerencias = document.querySelector('.sugerencias');
+    var turno = 0;
+    var espera = null;
+    var MAPAS = /^https:\/\/www\.google\.com\/maps\//;
+    var NO_SE_PUDO = 'No pudimos buscar ahora. Intenta otra vez en un momento.';
+
+    function decir(texto) { estado.textContent = texto || ''; }
+
+    function limpiar() {
+        lista.replaceChildren();
+        sugerencias.replaceChildren();
+        sugerencias.hidden = true;
+    }
+
+    function parrafo(clase, texto) {
+        var p = document.createElement('p');
+        p.className = clase;
+        p.textContent = texto;
+        return p;
+    }
+
+    function tarjeta(lugar) {
+        var li = document.createElement('li');
+        li.className = 'lugar';
+        var nombre = document.createElement('h2');
+        nombre.className = 'nombre';
+        nombre.textContent = lugar.nombre;
+        li.appendChild(nombre);
+        if (lugar.zona) { li.appendChild(parrafo('zona', lugar.zona)); }
+        if (lugar.distancia) { li.appendChild(parrafo('distancia', lugar.distancia + ' de ti')); }
+        if (lugar.precio) { li.appendChild(parrafo('precio', lugar.precio)); }
+        if (lugar.aviso) { li.appendChild(parrafo('sin-precio', lugar.aviso)); }
+        if (lugar.mapa && MAPAS.test(lugar.mapa)) {
+            var mapa = document.createElement('a');
+            mapa.className = 'mapa';
+            mapa.href = lugar.mapa;
+            mapa.target = '_blank';
+            mapa.rel = 'noopener noreferrer';
+            mapa.textContent = 'Ver en Google Maps';
+            li.appendChild(mapa);
+        }
+        return li;
+    }
+
+    function mostrar(resultados, siNoHay) {
+        limpiar();
+        resultados.forEach(function (lugar) { lista.appendChild(tarjeta(lugar)); });
+        if (!resultados.length) { decir(siNoHay); return; }
+        decir(resultados.length === 1 ? '1 lugar' : resultados.length + ' lugares');
+    }
+
+    function sugerir(nombres) {
+        if (!nombres.length) { return; }
+        sugerencias.appendChild(parrafo('', '¿Quisiste decir…?'));
+        nombres.forEach(function (nombre) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'sugerencia';
+            b.textContent = nombre;
+            b.addEventListener('click', function () { q.value = nombre; buscar(nombre); });
+            sugerencias.appendChild(b);
+        });
+        sugerencias.hidden = false;
+    }
+
+    async function pedir(ruta, datos) {
+        var respuesta;
+        try {
+            respuesta = await fetch(ruta, {
+                method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(datos),
+                credentials: 'same-origin', cache: 'no-store'
+            });
+        } catch (e) {
+            throw new Error('Sin conexión: revisa tu internet e intenta otra vez.');
+        }
+        var json = null;
+        try { json = await respuesta.json(); } catch (e) { json = null; }
+        if (respuesta.status === 404) { throw new Error('Este enlace ya no funciona: pídele el nuevo a la tienda.'); }
+        if (!respuesta.ok || !json) { throw new Error((json && json.error) || NO_SE_PUDO); }
+        return json;
+    }
+
+    async function buscar(texto) {
+        clearTimeout(espera);
+        var mio = ++turno;
+        decir('Buscando…');
+        try {
+            var datos = await pedir(cuerpo.dataset.buscar, {texto: texto});
+            if (mio !== turno) { return; }
+            mostrar(datos.resultados || [], 'No encontramos «' + texto + '».');
+            if (!(datos.resultados || []).length) { sugerir(datos.sugerencias || []); }
+        } catch (e) {
+            if (mio === turno) { limpiar(); decir(e.message); }
+        }
+    }
+
+    q.addEventListener('input', function () {
+        clearTimeout(espera);
+        var texto = q.value.trim();
+        if (texto.length < 2) { turno++; limpiar(); decir(''); return; }
+        espera = setTimeout(function () { buscar(texto); }, 300);
+    });
+
+    formulario.addEventListener('submit', function (ev) {
+        ev.preventDefault();
+        var texto = q.value.trim();
+        if (texto.length >= 2) { q.blur(); buscar(texto); }
+    });
+
+    var PROBLEMAS = {
+        1: 'No diste permiso para ver tu ubicación. Actívalo en el navegador o busca el lugar por nombre.',
+        2: 'No pudimos saber dónde estás. Revisa que la ubicación del teléfono esté encendida o busca el lugar por nombre.',
+        3: 'Tu ubicación tardó demasiado. Intenta otra vez o busca el lugar por nombre.'
+    };
+
+    boton.addEventListener('click', function () {
+        clearTimeout(espera);
+        var mio = ++turno;
+        limpiar();
+        if (!navigator.geolocation) {
+            decir('Este teléfono no deja usar la ubicación aquí: busca el lugar por nombre.');
+            return;
+        }
+        boton.disabled = true;
+        decir('Buscando dónde estás…');
+        navigator.geolocation.getCurrentPosition(async function (posicion) {
+            try {
+                var datos = await pedir(cuerpo.dataset.cerca, {
+                    lat: posicion.coords.latitude, lon: posicion.coords.longitude
+                });
+                if (mio !== turno) { return; }
+                q.value = '';
+                mostrar(datos.resultados || [], datos.mensaje);
+            } catch (e) {
+                if (mio === turno) { limpiar(); decir(e.message); }
+            } finally {
+                boton.disabled = false;
+            }
+        }, function (problema) {
+            boton.disabled = false;
+            if (mio === turno) { decir(PROBLEMAS[problema && problema.code] || PROBLEMAS[2]); }
+        }, {enableHighAccuracy: true, timeout: 15000, maximumAge: 60000});
+    });
+})();
+    ]]></script>
+</body>
+</html>
+    </template>
+</odoo>
