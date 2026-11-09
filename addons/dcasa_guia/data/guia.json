@@ -3314,6 +3314,27 @@
    ]
   },
   {
+   "id": "envio-enlace-choferes",
+   "categoria": "vender",
+   "grupo": "Envíos",
+   "titulo": "Darle a los choferes el enlace de la calculadora",
+   "logras": "En Envíos › Tarifa, abajo, en «Enlace para choferes», lo enciendes y copias el enlace para mandárselo a los choferes. Con él buscan el lugar y ven solo el precio desde D'CASA y la ruta en Google Maps, sin los kilómetros ni la tabla. «Permitir \"Usar mi ubicación\"» viene apagado: enciéndelo solo si quieres que también vean el lugar más cercano a donde están. Si el enlace se pierde, alguien deja de trabajar con la tienda o te llega la nota de que llegó a su límite del día, tocas «Crear un enlace nuevo» y el anterior deja de funcionar.",
+   "nota": "Solo Gerencia. Mientras la tarifa esté en revisión, los choferes no ven precios: les sale «confirma el precio con la tienda».",
+   "destino": {
+    "menu": "dcasa_envios.menu_envios_tarifa"
+   },
+   "palabras": [
+    "enlace para choferes",
+    "link de choferes",
+    "link de la calculadora",
+    "calculadora para choferes",
+    "choferes",
+    "chofer",
+    "repartidor",
+    "conductor"
+   ]
+  },
+  {
    "id": "dinero-en-bancos-y-caja",
    "categoria": "reportes",
    "grupo": "Dinero",

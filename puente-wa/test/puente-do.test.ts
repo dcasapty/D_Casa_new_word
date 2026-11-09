@@ -97,7 +97,7 @@ const asentar = async () => {
  * hasta que termine, cediendo turno a las operaciones reales de cifrado (WebCrypto trabaja fuera del hilo):
  * contar vueltas fijas sería frágil con la máquina cargada.
  */
-async function vigilarAvanzando(d: Do) {
+async function vigilarAvanzando(d: Do, { congelarReloj = false } = {}) {
   let terminada = false;
   const p = d.vigilar().finally(() => {
     terminada = true;
@@ -105,7 +105,11 @@ async function vigilarAvanzando(d: Do) {
   for (let vuelta = 0; !terminada && vuelta < 400; vuelta++) {
     await asentar();
     await new Promise((r) => setImmediate(r)); // setImmediate no está entre los relojes falsos
+    const antes = Date.now();
     await vi.advanceTimersByTimeAsync(600);
+    // Los temporizadores siguen corriendo, pero `Date.now()` no se mueve: cuántas vueltas haga depende de lo rápida
+    // que sea la máquina, y una prueba que mide una espera no puede depender de eso (CI #304).
+    if (congelarReloj) vi.setSystemTime(antes);
   }
   await p;
 }
@@ -589,10 +593,13 @@ describe("entrantes que Juan no pudo recibir", () => {
     const { d } = await montar({ JUAN: juan });
     contenedor(d);
     await d.encolarPendiente('{"id_mensaje":"A"}');
-    await vigilarAvanzando(d);
+    // Con el reloj quieto mientras se vigila: «30 s después» son 30 s exactos, aunque la máquina esté lenta y la
+    // vigilancia dé muchas vueltas (en el CI el reloj se pasaba del minuto de espera y fallaba a veces).
+    await vigilarAvanzando(d, { congelarReloj: true });
     const tras1 = juan.fetch.mock.calls.length;
+    expect(tras1).toBeGreaterThan(0);
     avanzar(30_000);
-    await vigilarAvanzando(d); // aún dentro de la espera
+    await vigilarAvanzando(d, { congelarReloj: true }); // aún dentro de la espera
     expect(juan.fetch.mock.calls.length).toBe(tras1);
     avanzar(5 * MIN);
     await vigilarAvanzando(d);

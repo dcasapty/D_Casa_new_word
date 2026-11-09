@@ -34,13 +34,16 @@ class TestWhatsappLink(TransactionCase):
 class TestWebsitePages(HttpCase):
 
     def test_homepage(self):
+        salas = self.env.ref('website_dcasa.public_category_salas')
+        # Con algo publicado, la tarjeta lleva a su categoría (sin nada, abre WhatsApp: TestPortadaDinamica).
+        self.env['product.template'].create({'name': 'SOFÁ PUBLICADO', 'list_price': 10.0, 'is_published': True,
+                                             'public_categ_ids': [(6, 0, salas.ids)]})
         response = self.url_open('/')
         self.assertEqual(response.status_code, 200)
         html = response.text
         self.assertIn('Tu casa, bien amueblada.', html)
         self.assertIn('https://wa.me/50760261919', html)
         self.assertIn('o_dcasa_wa_float', html)
-        salas = self.env.ref('website_dcasa.public_category_salas')
         self.assertIn(f"/shop/category/{self.env['ir.http']._slug(salas)}", html)
         self.assertIn('info@dcasapty.com', html, 'El pie de página muestra los datos reales')
         self.assertNotIn('555-555-5556', html, 'No debe quedar el teléfono de ejemplo de Odoo')
@@ -108,6 +111,34 @@ class TestPortadaDinamica(HttpCase):
         descanso = [i['producto'] for i in self.website._dcasa_productos(limit=50, categorias=['colchones'])]
         self.assertIn(self.colchon, descanso)
         self.assertNotIn(self.sofa, descanso)
+
+    def test_una_categoria_sin_nada_publicado_abre_whatsapp_y_vuelve_sola_al_publicar(self):
+        """Pedido de la dueña (2026-11-09): «Colchones» llevaba a una página de error porque Gerencia no ha publicado
+        los colchones. Sin nada publicado, la tarjeta abre WhatsApp; con algo publicado, su página de la tienda."""
+        self.website.dcasa_whatsapp_number = '+507 6026-1919'
+
+        def tarjeta(nombre):
+            return next(t for t in self.website._dcasa_categorias() if t['nombre'] == nombre)
+
+        con = tarjeta('Colchones')
+        self.assertFalse(con['whatsapp'])
+        self.assertTrue(con['url'].startswith('/shop/category/'), con['url'])
+        # Todo lo publicado en Colchones, no solo el de esta prueba: con el catálogo instalado (dcasa_catalogo, como en
+        # el CI) ya hay colchones publicados.
+        publicados = self.env['product.template'].sudo().search([
+            ('public_categ_ids', 'child_of', self.colchones.id), ('is_published', '=', True)])
+        self.assertIn(self.colchon, publicados)
+        publicados.is_published = False
+        sin = tarjeta('Colchones')
+        self.assertTrue(sin['whatsapp'])
+        self.assertTrue(sin['url'].startswith('https://wa.me/50760261919?text='), sin['url'])
+        self.assertIn('colchones', sin['url'])
+        self.assertFalse(tarjeta('Salas')['whatsapp'], 'las que tienen productos siguen a su página')
+        portada = self.url_open('/').text
+        self.assertIn('Colchones: pregúntanos por WhatsApp', portada)
+        self.assertIn('· por WhatsApp', portada)
+        self.colchon.is_published = True
+        self.assertFalse(tarjeta('Colchones')['whatsapp'], 'al publicar, vuelve sola a la tienda')
 
     def test_portada_muestra_productos_con_precio_y_agregar(self):
         html = self.url_open('/').text

@@ -1,1 +1,10 @@
-from . import test_motor, test_importar, test_permisos, test_cotizar, test_menu, test_navegador  # noqa: F401
+from . import (  # noqa: F401
+    test_choferes,
+    test_choferes_navegador,
+    test_cotizar,
+    test_importar,
+    test_menu,
+    test_motor,
+    test_navegador,
+    test_permisos,
+)

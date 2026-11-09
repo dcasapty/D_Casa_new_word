@@ -193,4 +193,15 @@ describe("qué se puede repetir", () => {
     expect(rutaParaRegistro("/calendar/join_videocall/0a1b2c3d4e5f6a7b8c9d")).toBe("/calendar/join_videocall/:token");
     expect(rutaParaRegistro("/web/image/product.template/39/image_128")).toBe("/web/image/product.template");
   });
+
+  it("el secreto del enlace de los choferes nunca va al registro (aunque no lleve números)", () => {
+    const secreto = "abcdefghijklmnopqrstuvwxyzABCDEF"; // token_urlsafe(24) puede salir sin un solo dígito
+    expect(rutaParaRegistro(`/envios/choferes/${secreto}`)).toBe("/envios/choferes/:token");
+    expect(rutaParaRegistro(`/envios/choferes/${secreto}/buscar`)).toBe("/envios/choferes/:token");
+    expect(rutaParaRegistro(`/envios/choferes/${secreto}/cerca`)).toBe("/envios/choferes/:token");
+    expect(rutaParaRegistro("/envios/choferes/corto")).toBe("/envios/choferes/:token");
+    expect(rutaParaRegistro(`/es/envios/choferes/${secreto}/buscar`)).toBe("/envios/choferes/:token");
+    expect(rutaParaRegistro(`/envios/%63hoferes/${secreto}`)).toBe("/envios/choferes/:token");
+    expect(rutaParaRegistro(`/es_419/envios/choferes/${secreto}`)).toBe("/envios/choferes/:token");
+  });
 });

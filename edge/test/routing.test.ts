@@ -9,8 +9,10 @@ import {
   notModifiedResponse,
   normalizePath,
   route,
+  rutaEstatica,
   withSecurityHeaders,
 } from "../src/routing";
+import { cubetaDe } from "../src/bots";
 
 const u = (path: string, host = "dcasapty.com") => new URL(`https://${host}${path}`);
 
@@ -109,6 +111,25 @@ describe("route", () => {
     for (const path of ["/brian/mcp", "/brian/telegram/secreto-largo"]) {
       for (const method of ["GET", "POST"]) {
         expect(route(u(path), method)).toEqual({ kind: "origin", cacheable: false });
+      }
+    }
+  });
+
+  it("lleva el enlace de los choferes a Odoo, sin caché ni bloqueo", () => {
+    const secreto = "7ZgTRgBMdl9zjefGCr3boBMzAipMZhnv";
+    for (const path of [`/envios/choferes/${secreto}`, `/envios/choferes/${secreto}/buscar`, `/envios/choferes/${secreto}/cerca`]) {
+      expect(isBlockedPath(path), path).toBe(false);
+      for (const method of ["GET", "HEAD", "POST"]) {
+        expect(route(u(path), method), `${method} ${path}`).toEqual({ kind: "origin", cacheable: false });
+        expect(rutaEstatica(u(path), method), `${method} ${path}`).toBeNull();
+      }
+      // Sin cubeta del borde: el límite por IP lo pone Odoo (60 por minuto), no el de los formularios (10).
+      expect(cubetaDe("POST", path)).toBeNull();
+    }
+    // Con idioma delante o con letras codificadas, Odoo llega a la misma ruta: tampoco se guarda en caché.
+    for (const path of [`/es/envios/choferes/${secreto}/buscar`, `/envios/%63hoferes/${secreto}`, `/Envios//choferes/${secreto}`]) {
+      for (const method of ["GET", "HEAD", "POST"]) {
+        expect(route(u(path), method), `${method} ${path}`).toEqual({ kind: "origin", cacheable: false });
       }
     }
   });

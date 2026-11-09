@@ -8,9 +8,16 @@
 * «Subir o bajar todo en %» (``ajuste_pct`` y los botones de ±5 %) mueve la tarifa base completa (salida, km y
   mínimo) y los cargos marcados «sube con el %».
 * No trae cifras de fábrica: los precios los pone Gerencia o el archivo que carga (el repositorio es público).
+* El **enlace para choferes** (2026-11-09): un solo enlace secreto para todos los choferes, sin usuario de Odoo, que
+  abre la calculadora reducida (``controllers/choferes.py``). Apagado de fábrica; solo Gerencia y los administradores lo
+  ven, lo encienden y crean uno nuevo (el anterior deja de funcionar al instante). El secreto vive en esta ficha, en un
+  campo que solo ellos leen, y nunca va al historial.
 
 Punto de entrada para la web y Juan (mañana): :meth:`cotizar_km` y :meth:`cotizar_lugar`; ver docs/ENVIOS.md.
 """
+import hmac
+import secrets
+
 from markupsafe import Markup, escape
 
 from odoo import api, fields, models
@@ -27,6 +34,11 @@ CAMPOS_DE_LA_APROBACION = ('aprobada', 'aprobada_por', 'aprobada_el')
 PASOS = [('1', '$1'), ('5', '$5'), ('10', '$10'), ('0', 'No redondear')]
 AJUSTE_MIN, AJUSTE_MAX = -90.0, 300.0
 MAX_KM = 2000
+# El enlace para choferes: quién lo ve y lo cambia, y lo que solo escribe el servidor.
+GERENCIA = 'dcasa_base.group_gerencia,base.group_system'
+RUTA_CHOFERES = '/envios/choferes/'
+CAMPOS_DEL_ENLACE = ('choferes_token', 'choferes_creado_por', 'choferes_creado_el')
+LARGO_ENLACE = (20, 64)
 
 
 class EnvioTarifa(models.Model):
@@ -65,6 +77,23 @@ class EnvioTarifa(models.Model):
     formula_txt = fields.Char('Fórmula', compute='_compute_textos')
     efecto_html = fields.Html('Efecto del %', compute='_compute_textos', sanitize=False)
     tramos_html = fields.Html('Tarifa base por tramos', compute='_compute_textos', sanitize=False)
+    # El enlace para choferes (solo Gerencia y administradores: los demás ni lo leen).
+    choferes_activo = fields.Boolean('Enlace para choferes encendido', tracking=True, copy=False, groups=GERENCIA,
+                                     help='Apagado, el enlace responde «no existe» aunque alguien lo tenga.')
+    choferes_ubicacion = fields.Boolean(
+        'Permitir «Usar mi ubicación»', tracking=True, copy=False, groups=GERENCIA,
+        help='Apagado (de fábrica): los choferes solo buscan el lugar y ven el precio desde D\'CASA. Encendido: '
+             'también pueden tocar «Usar mi ubicación» para ver el lugar de la tabla más cercano a donde están.')
+    choferes_token = fields.Char('Secreto del enlace para choferes', readonly=True, copy=False, groups=GERENCIA)
+    choferes_url = fields.Char('Enlace para choferes', compute='_compute_choferes_url', groups=GERENCIA)
+    choferes_creado_por = fields.Many2one('res.users', 'Enlace creado por', readonly=True, copy=False,
+                                          groups=GERENCIA)
+    choferes_creado_el = fields.Datetime('Enlace creado el', readonly=True, copy=False, groups=GERENCIA)
+    choferes_busquedas_hoy = fields.Integer(
+        'Búsquedas de hoy', compute='_compute_choferes_busquedas_hoy', groups=GERENCIA,
+        help='Cuántas búsquedas lleva hoy el enlace (se cuenta desde que el servidor arrancó). Si llega al tope del '
+             'día, el enlace deja de responder hasta mañana y te llega una nota: puede que el enlace se haya filtrado.')
+    choferes_tope_dia = fields.Integer('Tope por día', compute='_compute_choferes_busquedas_hoy', groups=GERENCIA)
 
     _una_sola = models.Constraint('UNIQUE(unica)', 'Hay una sola tarifa de envíos: edita la que ya existe.')
 
@@ -246,15 +275,19 @@ class EnvioTarifa(models.Model):
             self.env['dcasa.envio.lugar']._exigir_gerencia()
         if len(vals_list) > 1 or self.sudo().search_count([]):
             raise UserError(self.env._('Hay una sola tarifa de envíos: edita la que ya existe.'))
-        vals_list = [{k: v for k, v in vals.items() if k not in CAMPOS_DE_LA_APROBACION} for vals in vals_list]
+        vals_list = [{k: v for k, v in vals.items() if k not in CAMPOS_DE_LA_APROBACION + CAMPOS_DEL_ENLACE}
+                     for vals in vals_list]
         tarifas = super().create(vals_list)
         self.env['dcasa.envio.lugar']._subir_version()
         return tarifas
 
     def write(self, vals):
-        vals = {k: v for k, v in vals.items() if k not in ('aprobada_por', 'aprobada_el', 'unica')}
+        # Antes de quitar nada: quien no puede escribir en la tarifa no llega ni a subir la versión de los lugares.
+        self.check_access('write')
+        vals = {k: v for k, v in vals.items() if k not in ('aprobada_por', 'aprobada_el', 'unica') + CAMPOS_DEL_ENLACE}
         aprobar = vals.pop('aprobada', None)
-        if aprobar is not None or set(vals) & set(CAMPOS_FORMULA) or 'cargo_ids' in vals:
+        if (aprobar is not None or set(vals) & set(CAMPOS_FORMULA) or 'cargo_ids' in vals
+                or {'choferes_activo', 'choferes_ubicacion'} & set(vals)):
             self.env['dcasa.envio.lugar']._exigir_gerencia()
         antes = {tarifa.id: tarifa._firma() for tarifa in self}
         resultado = super().write(vals) if vals else True
@@ -265,7 +298,11 @@ class EnvioTarifa(models.Model):
             self._aprobar()
         elif aprobar is not None:
             self._quitar_aprobacion()
-        self.env['dcasa.envio.lugar']._subir_version()
+        if vals.get('choferes_activo'):
+            # Encenderlo la primera vez crea el enlace (sin secreto no hay nada que copiar).
+            self.filtered(lambda tarifa: not tarifa.choferes_token)._choferes_nuevo_enlace()
+        if aprobar is not None or not set(vals) <= {'choferes_activo', 'choferes_ubicacion'}:
+            self.env['dcasa.envio.lugar']._subir_version()      # (el enlace no cambia lugares ni precios)
         return resultado
 
     def unlink(self):
@@ -337,6 +374,73 @@ class EnvioTarifa(models.Model):
 
     def action_abrir_calculadora(self):
         return self.env['ir.actions.actions']._for_xml_id('dcasa_envios.accion_calculadora')
+
+    # --- El enlace para choferes (``/envios/choferes/<enlace>``, controllers/choferes.py) ---------------------------
+    @api.depends('choferes_token')
+    def _compute_choferes_url(self):
+        for tarifa in self:
+            token = tarifa.sudo().choferes_token
+            tarifa.choferes_url = f'{tarifa.get_base_url()}{RUTA_CHOFERES}{token}' if token else False
+
+    def action_choferes_enlace_nuevo(self):
+        """«Crear un enlace nuevo»: el anterior deja de funcionar al instante. Gerencia y administradores."""
+        self.env['dcasa.envio.lugar']._exigir_gerencia()
+        self.check_access('write')
+        self._choferes_nuevo_enlace()
+        return True
+
+    def _choferes_nuevo_enlace(self):
+        """Un secreto nuevo (192 bits al azar), quién y cuándo, y una nota en el historial (sin el secreto: el
+        historial lo lee todo el equipo)."""
+        for tarifa in self:
+            habia = bool(tarifa.sudo().choferes_token)
+            super(EnvioTarifa, tarifa.sudo()).write({
+                'choferes_token': secrets.token_urlsafe(24), 'choferes_creado_por': self.env.uid,
+                'choferes_creado_el': fields.Datetime.now()})
+            tarifa.message_post(body=self.env._(
+                'Enlace para choferes: %s creó un enlace nuevo. El anterior ya no funciona.', self.env.user.name)
+                if habia else self.env._('Enlace para choferes creado por %s.', self.env.user.name))
+
+    def _compute_choferes_busquedas_hoy(self):
+        from ..controllers import choferes as ruta  # (aquí y no arriba: los modelos cargan antes que las rutas)
+        for tarifa in self:
+            token = tarifa.sudo().choferes_token
+            tarifa.choferes_busquedas_hoy = ruta.busquedas_de_hoy(token) if token else 0
+            tarifa.choferes_tope_dia = ruta.MAX_POR_DIA
+
+    @api.model
+    def _choferes_aviso_de_tope(self, maximo):
+        """El enlace llegó al tope del día: una nota en la tarifa, avisándole a quien lo creó (lo llama la ruta pública,
+        una vez por día)."""
+        tarifa = self._vigente()
+        if not tarifa:
+            return
+        tarifa = tarifa.sudo()
+        creador = tarifa.choferes_creado_por
+        tarifa.message_post(
+            body=self.env._('Enlace para choferes: llegó a %s búsquedas hoy y no responde más hasta mañana. Es mucho '
+                            'más de lo que buscan los choferes: si no sabes por qué, puede que el enlace se haya '
+                            'filtrado o que alguien esté copiando la lista. Toca «Crear un enlace nuevo» y mándales el '
+                            'nuevo a los choferes.', maximo),
+            author_id=self.env.ref('base.partner_root').id, message_type='comment', subtype_xmlid='mail.mt_note',
+            partner_ids=creador.partner_id.ids if creador.active else [])
+
+    @api.model
+    def _choferes_con_ubicacion(self):
+        """¿Gerencia encendió «Usar mi ubicación» para los choferes? (Apagado de fábrica: decisión de la dueña,
+        2026-11-09: por defecto solo se calcula desde D'CASA hasta el lugar que buscan.)"""
+        tarifa = self._vigente()
+        return bool(tarifa and tarifa.sudo().choferes_ubicacion)
+
+    def _choferes_enlace_vale(self, token):
+        """¿Ese enlace abre la calculadora de los choferes? Encendido y con el mismo secreto (comparado en tiempo
+        constante). Lo llama la ruta pública: no dice por qué no."""
+        if not isinstance(token, str) or not LARGO_ENLACE[0] <= len(token) <= LARGO_ENLACE[1]:
+            return False
+        tarifa = self._vigente()
+        guardado = (tarifa.choferes_token or '') if tarifa else ''
+        igual = hmac.compare_digest(token.encode('utf-8'), guardado.encode('utf-8'))
+        return bool(igual and guardado and tarifa.choferes_activo)
 
 
 class EnvioCargo(models.Model):

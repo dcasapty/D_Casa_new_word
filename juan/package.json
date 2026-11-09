@@ -10,9 +10,9 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^4.0.96",
-    "@ai-sdk/openai-compatible": "^3.0.84",
-    "ai": "^7.0.162"
+    "@ai-sdk/anthropic": "^4.0.97",
+    "@ai-sdk/openai-compatible": "^3.0.85",
+    "ai": "^7.0.163"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260929.1",

@@ -1028,6 +1028,11 @@ LISTA_BLANCA = {
     ('dcasa_envios', 'dcasa.envio.tarifa', 'action_abrir'):
         'Exige Gerencia o administrador; crea la única tarifa vacía (sin cifras) si falta, como el usuario, y la abre.',
     ('dcasa_envios', 'dcasa.envio.tarifa', 'action_abrir_calculadora'): ACCION_VENTANA,
+    ('dcasa_envios', 'dcasa.envio.tarifa', 'action_choferes_enlace_nuevo'):
+        'Enlace para choferes (2026-11-09): exige Gerencia o administrador y check_access("write") en el servidor '
+        'ANTES de escribir; solo cambia el secreto del enlace (secrets.token_urlsafe), quién y cuándo, y anota en el '
+        'historial sin el secreto. Los campos del enlace solo los leen Gerencia y administradores (groups) y write '
+        'ignora el secreto que llegue en los valores.',
     ('dcasa_envios', 'dcasa.envio.cargo', 'create'): ENVIOS_CARGO,
     ('dcasa_envios', 'dcasa.envio.cargo', 'write'): ENVIOS_CARGO,
     ('dcasa_envios', 'dcasa.envio.cargo', 'unlink'): ENVIOS_CARGO,

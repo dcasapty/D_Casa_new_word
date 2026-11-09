@@ -20,7 +20,7 @@ from lxml import etree
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
 
-from ..motor import buscador
+from ..motor import buscador, choferes
 from ..motor import tarjeta as motor_tarjeta
 from ..motor.tarifa import Tarifa
 from ..motor.texto import dinero, js_round
@@ -360,6 +360,43 @@ class EnvioLugar(models.Model):
             'tienda': motor_tarjeta.TIENDA,
             'atribucion': motor_tarjeta.ATRIBUCION,
         }
+
+
+    # --- El enlace para choferes (``/envios/choferes/<enlace>``, controllers/choferes.py) ---------------------------
+    # Privados (no se llaman por RPC): la ruta pública los llama con ``sudo()`` DESPUÉS de comprobar el enlace. Solo
+    # devuelven lo que ve el chofer (``motor/choferes.py``): nombre, zona, precio o aviso, la ruta y, cerca, los metros.
+    @api.model
+    def _choferes_buscar(self, texto):
+        """Hasta 8 lugares como el chofer los escribe, con el mismo buscador de la calculadora."""
+        self._exigir_lectura()
+        texto = texto[:MAX_TEXTO] if isinstance(texto, str) else ''
+        if len(texto.strip()) < choferes.MIN_TEXTO:
+            aprobada = self.env['dcasa.envio.tarifa']._estado_publico()['aprobada']
+            return {'resultados': [], 'sugerencias': [], 'aviso_tarifa': '' if aprobada else choferes.EN_REVISION}
+        datos = self.buscar_para_cotizar(texto, limite=choferes.MAX_BUSQUEDA)
+        aprobada = datos['tarifa']['aprobada']
+        return {
+            'resultados': [choferes.para_chofer(tarjeta, aprobada) for tarjeta in datos['resultados']],
+            'sugerencias': [s['nombre'] for s in datos['sugerencias']][:choferes.MAX_SUGERENCIAS],
+            'aviso_tarifa': '' if aprobada else choferes.EN_REVISION,
+        }
+
+    @api.model
+    def _choferes_cerca(self, lat, lon):
+        """«Usar mi ubicación»: hasta 3 lugares de la tabla a no más de 3 km de ``lat``, ``lon`` (ya validados), del
+        más cercano al más lejano. La ubicación no se guarda en ningún lado."""
+        self._exigir_lectura()
+        indice, _ids = self._indice()
+        Tarifa_ = self.env['dcasa.envio.tarifa']
+        tarifa = Tarifa_._vigente_motor() or Tarifa({})
+        aprobada = Tarifa_._estado_publico()['aprobada']
+        resultados = []
+        for posicion, metros in choferes.cercanos(indice.lugares, lat, lon):
+            lugar = indice.lugares[posicion]
+            tarjeta = dict(motor_tarjeta.tarjeta(lugar, tarifa), corr=lugar['corr'], dist=lugar['dist'])
+            resultados.append(choferes.para_chofer(tarjeta, aprobada, metros))
+        return {'resultados': resultados, 'mensaje': '' if resultados else choferes.NADA_CERCA,
+                'aviso_tarifa': '' if aprobada else choferes.EN_REVISION}
 
 
 def lugar_para_el_motor(fila):
