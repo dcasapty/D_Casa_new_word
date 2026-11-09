@@ -8,11 +8,12 @@ Cada canal es un adaptador del Worker `dcasa-juan` (`juan/src/canales/`) y se en
 Claude): se pegan directo en Cloudflare (*Workers & Pages › `dcasa-juan` › Settings › Variables and Secrets*). Para saber
 qué clave falta, abre `https://dcasa-juan.dcasapty.workers.dev/salud`: muestra solo **nombres**, nunca valores.
 
-| Canal | Estado (2026-11-06) | Webhook en `dcasa-juan` |
+| Canal | Estado (2026-11-09) | Webhook en `dcasa-juan` |
 |---|---|---|
-| **WhatsApp por la API oficial de Meta** (`whatsapp_cloud`) | **En producción desde el 2026-11-02**, con el número de la tienda (+507 6026-1919) | `/webhooks/whatsapp-cloud` |
+| **WhatsApp por la API oficial de Meta** (`whatsapp_cloud`) | **En producción desde el 2026-11-02**, con el número de la tienda (+507 6026-1919). Desde el 2026-11-09 16:00 **no sale nada** (código 131070 y el número sin «cuenta de mensajes»): lo arregla la dueña en Meta, ver §1 «131070» | `/webhooks/whatsapp-cloud` |
 | **Telegram** (`telegram`) | Funciona: canal de pruebas y avisos al equipo | `/webhooks/telegram` |
-| **Messenger e Instagram** (`messenger`, `instagram`) | Código listo y probado; **sin conectar** | `/webhooks/meta` |
+| **Messenger** (`messenger`) | **Conectado el 2026-11-09** (página DCASA PTY): probado de punta a punta. Hasta la revisión de Meta solo contesta a quien tiene rol en la app | `/webhooks/meta` |
+| **Instagram** (`instagram`) | Código listo; **por conectar** (faltan los permisos de Instagram en la app y el acceso al portafolio DCasa Pty, ver §3) | `/webhooks/meta` |
 | **WhatsApp por QR** (`whatsapp_qr`, el puente `puente-wa/`) | Construido y probado; **nunca se desplegó** en producción | `/webhooks/whatsapp-qr` (lo llama el puente) |
 
 ## 1. WhatsApp por la API oficial (el canal principal)
@@ -93,6 +94,18 @@ No hace falta tocar nada en Meta: todo llega por la misma suscripción a los men
    permanente de `juan-bot` (no una del Explorador) y, si hace falta, genera otra en Meta Business › Usuarios del sistema ›
    `juan-bot` › Generar token ⚠, con los dos permisos de arriba, y pégala en Cloudflare.
 3. En Odoo, *Conversaciones › Conexiones* muestra el estado de cada canal y el último problema de envío.
+4. **El motivo exacto está en la burbuja del mensaje** que no salió («No se pudo enviar: …», con el código de Meta). El
+   aviso «Quedó por enviar: el Worker no respondió y se reintenta solo» sale para CUALQUIER fallo, aunque Juan sí haya
+   respondido (mostrar ahí el motivo real va en el próximo lote).
+5. **Código 131070, «another app is controlling this thread now»** (2026-11-09, desde las 16:00): otra aplicación tiene
+   el control de las conversaciones del número y Meta no deja contestar a Juan. Ese mismo día, en Configuración del
+   negocio › Cuentas de WhatsApp, el número salía **«Conectado», calidad «Alta»**, pero con el aviso **«Add a Messaging
+   account»** («Messaging limits: No disponible»): se había quedado sin la cuenta de mensajes de Callbell (la …764382,
+   pagada con la línea de crédito de Callbell), probablemente porque Callbell la retiró cuando se le pidió. Arreglo (lo
+   hace la dueña en Meta, **desde el portafolio DCasa Pty**, no desde BukoFlow): crear y ligar una cuenta de mensajes de
+   DCasa Pty con su tarjeta. Si sigue el 131070, revisar en el Administrador de WhatsApp si quedó encendido el «Agente
+   de negocios de Meta» (la IA de Meta toma las conversaciones y los mensajes llegan como `standby`) u otra app
+   conectada al número. Las plantillas vivían en la cuenta de mensajes vieja: si se usan, hay que volver a crearlas.
 
 ### Para otra instalación (o para conectar otro número)
 
@@ -145,7 +158,25 @@ https://api.telegram.org/bot<TOKEN_DEL_BOT>/setWebhook?url=https://dcasa-juan.dc
 ```
 Telegram **no** les da a los bots «entregado» ni «leído»: en Telegram no hay palomitas.
 
-## 3. Messenger e Instagram (por conectar)
+## 3. Messenger e Instagram (Messenger conectado el 2026-11-09; Instagram por conectar)
+
+**Cómo quedó Messenger (2026-11-09):** con la cuenta de Facebook que tiene **control total** de la página (la que
+abría Chrome solo tenía Contenido, Actividad de la comunidad y Estadísticas: sin «Mensajes» la página no sale al tocar
+«Conectar»), webhook `…/webhooks/meta` verificado, la página **DCASA PTY** suscrita a `messages`, `message_echoes` y
+`messaging_postbacks`, y `META_PAGE_TOKEN` en Cloudflare. Un «Hola buenas» desde Messenger: Juan contestó en segundos y
+la conversación salió en Odoo («Messenger 2838…», con el número del cliente en vez del nombre: Juan hoy solo trae la
+foto; traer el nombre va en el próximo lote). Trampas de ese día:
+- **En «Generar identificadores de acceso» aparecen OTRAS páginas** de la misma cuenta (Smart TV Panama, Rofer Service):
+  suscripciones y «Generar» SOLO en DCASA PTY, o Juan contestaría los mensajes de otros negocios.
+- **El token de verificación de 2 nov se había perdido**: se puso uno nuevo en `META_VERIFY_TOKEN` (Cloudflare) y el
+  mismo en Meta. No afecta a WhatsApp: solo se usa al verificar un webhook.
+- **Instagram dio «Invalid Scopes: instagram_manage_messages, instagram_basic»** al tocar «Añadir o suprimir páginas»
+  (Messenger › Configuración de Instagram): la app todavía no tiene esos permisos. Se agregan en «Permisos y funciones»
+  (de Messenger o del caso de uso «API de Instagram»; NO «API setup with Unified login» ni «Crear nueva
+  configuración», que es otra llave). Después: «Añadir o suprimir páginas» con DCASA PTY y @dcasapty, «Generar» y
+  **reemplazar** `META_PAGE_TOKEN` por ese (sirve para los dos), suscribir `messages` y, en la app de Instagram,
+  «Permitir el acceso a los mensajes». Quedó pendiente porque hace falta entrar con acceso al portafolio DCasa Pty
+  (la cuenta usada solo ve BukoFlow).
 
 El código está listo y probado (`juan/src/canales/meta.ts`): falta lo que solo se hace en Meta, Cloudflare y Odoo. Al terminar,
 Juan contesta los mensajes de la página de Facebook y del Instagram de D'CASA y todo queda en *Odoo › Conversaciones*, igual que

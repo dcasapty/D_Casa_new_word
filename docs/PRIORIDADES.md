@@ -1,21 +1,21 @@
 # Prioridades vigentes
 
-Puesto al día el **2026-11-06**. Es el orden en que se trabaja: cada sesión lo lee al empezar y lo pone al día al
+Puesto al día el **2026-11-09**. Es el orden en que se trabaja: cada sesión lo lee al empezar y lo pone al día al
 terminar (ver [LEEME_PRIMERO.md](LEEME_PRIMERO.md)). Aquí va **un solo estado**, el de hoy; lo que pasó cada día está en
 la bitácora de LEEME_PRIMERO (y lo más viejo en [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md)).
 
 Cada cosa nueva pasa por capturas a la dueña, su visto bueno, pruebas y staging; a producción, con su «sí» (reglas en
 LEEME_PRIMERO §2).
 
-## Estado al 2026-11-06
+## Estado al 2026-11-09
 
 - **Producción funciona desde el 2026-10-13** y **`dcasapty.com` (y `www`) apunta al sistema nuevo desde el
-  2026-10-27** (Desplegar 31). El último despliegue es Desplegar 54 con Desplegar Juan 7 (6 nov, PR #87: Camila etapa 2). El mismo
-  día: Camila etapa 1 (PR #85), la varita (PR #84), envíos (PR #83) y WhatsApp (PR #82).
+  2026-10-27** (Desplegar 31). El último despliegue es Desplegar 63 con Desplegar Juan 13 (9 nov, PR #100: enlace para
+  choferes, «Colchones» abre WhatsApp y Dependabot); antes, el mismo día, Desplegar 62 y Juan 12 (PR #99).
   El contenedor instala 30 de los 31 módulos de `addons/` (todos menos `dcasa_fe_pa`, a propósito).
 - **Juan atiende el WhatsApp de la tienda por la API oficial de Meta** desde el 2026-11-02 (modelo «contributor» de
-  Meta, llave permanente). Telegram también funciona. Messenger e Instagram tienen el código listo pero no están
-  conectados. El puente de WhatsApp por QR (`puente-wa/`) **nunca se desplegó** a producción. Ver
+  Meta, llave permanente). Telegram también funciona. **Messenger quedó conectado el 2026-11-09** (solo contesta a
+  quien tiene rol en la app hasta la revisión de Meta); Instagram, por conectar. El puente de WhatsApp por QR (`puente-wa/`) **nunca se desplegó** a producción. Ver
   [JUAN_CANALES.md](JUAN_CANALES.md).
 - **Sofía, la asistente del CRM**, está en producción desde el 2026-11-05 ([SOFIA.md](SOFIA.md)).
 - **El correo a clientes (Resend) está encendido** desde el 2026-10-27 ([CORREO.md](CORREO.md)).
@@ -25,7 +25,15 @@ LEEME_PRIMERO §2).
 
 ## Lo que sigue, en orden
 
-00. **WhatsApp «No llegó» (131042, pago de Meta)** (2026-11-09): lo arregla la dueña en Meta (Facturación y pagos ›
+00. **WhatsApp no envía desde el 2026-11-09 16:00 (código 131070, «otra app controla la conversación»)**: en Meta el
+    número +507 6026-1919 quedó **sin cuenta de mensajes** («Add a Messaging account»), probablemente porque Callbell
+    retiró la suya. Lo hacen los dueños en Meta **desde el portafolio DCasa Pty**: crear y ligar una cuenta de mensajes
+    con su tarjeta; luego probar que Juan vuelva a enviar (si sigue el 131070: el «Agente de negocios de Meta» u otra
+    app en el número). Ver [JUAN_CANALES.md](JUAN_CANALES.md) §1 «Si deja de contestar». **Enlace para choferes** y
+    «Colchones» → WhatsApp: en producción (Desplegar 63); falta que la dueña encienda el enlace en Envíos › Tarifa.
+    **Instagram**: faltan los permisos de Instagram en la app y entrar con acceso a DCasa Pty (JUAN_CANALES §3).
+    **Próximo lote:** el motivo real en el aviso «Quedó por enviar» y el nombre del cliente de Messenger.
+    Lo de antes (131042, pago de Meta) (2026-11-09): lo arregla la dueña en Meta (Facturación y pagos ›
     Cuentas de mensajes › la cuenta …764382, que se pagaba con la línea de crédito de Callbell). Cuando traiga el
     reporte de Claude en Chrome, confirmar el paso exacto. Desde ese día Gerencia recibe el aviso por Telegram si vuelve
     a pasar (en producción: Desplegar 62 y Juan 12). **Preguntas sin respuesta para las vendedoras**: en producción el
