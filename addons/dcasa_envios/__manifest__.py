@@ -16,7 +16,13 @@ envío en la página web.
   el archivo»).
 * **Un solo motor** en Python, sin Odoo (``motor/``): la fórmula y el buscador portados con fidelidad del HTML. Lo usan
   la pantalla (por RPC), Brian (``cotizar_envio``) y, mañana, la web y Juan: ``dcasa.envio.lugar.buscar_para_cotizar``
-  y ``dcasa.envio.tarifa.cotizar_lugar`` / ``cotizar_km``. Todavía no hay ruta pública (ver docs/ENVIOS.md).
+  y ``dcasa.envio.tarifa.cotizar_lugar`` / ``cotizar_km``. La web todavía no cotiza (ver docs/ENVIOS.md).
+* **Enlace para choferes** (pedido de la dueña, 2026-11-09; Envíos › Tarifa, Gerencia y administradores): un solo
+  enlace secreto, sin usuario de Odoo (``/envios/choferes/<enlace>``), apagado de fábrica. El chofer busca el lugar o
+  toca «Usar mi ubicación» (el lugar de la tabla más cercano, a no más de 3 km) y ve solo el nombre, la zona, el
+  precio y la ruta en Google Maps; nunca los km, la tabla ni el desglose, y ningún precio mientras la tarifa esté en
+  revisión. «Crear un enlace nuevo» deja sin efecto el anterior; queda quién y cuándo en el historial. Límite por IP,
+  sin caché ni indexado; la ubicación no se guarda.
 * Los datos (los lugares y los precios) **no** van en el repositorio: Gerencia sube el archivo.
 
 Ver docs/ENVIOS.md.
@@ -31,6 +37,7 @@ Ver docs/ENVIOS.md.
         'security/ir.model.access.csv',
         'views/lugar_views.xml',
         'views/tarifa_views.xml',
+        'views/choferes_templates.xml',
         'wizard/importar_views.xml',
         'views/menus.xml',
     ],

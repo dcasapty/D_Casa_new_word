@@ -1,4 +1,4 @@
-from . import models, wizard
+from . import controllers, models, wizard
 
 
 def _dcasa_envios_uninstall(env):

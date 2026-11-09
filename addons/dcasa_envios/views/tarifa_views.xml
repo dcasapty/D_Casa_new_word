@@ -82,6 +82,27 @@
                     </field>
                     <separator string="Tarifa base por tramos de kilómetros"/>
                     <field name="tramos_html" invisible="not configurada"/>
+                    <!-- El enlace para choferes (controllers/choferes.py): solo Gerencia y administradores lo ven. -->
+                    <separator string="Enlace para choferes" groups="dcasa_base.group_gerencia,base.group_system"/>
+                    <div class="o_dcasa_envios_choferes" groups="dcasa_base.group_gerencia,base.group_system">
+                        <p class="text-muted">Un solo enlace para todos los choferes, sin usuario ni clave: buscan el
+                            lugar (o tocan «Usar mi ubicación») y ven solo el precio y la ruta en Google Maps; nunca
+                            los kilómetros, la tabla ni el desglose. Mientras la tarifa esté en revisión no ven
+                            precios. Quien tenga el enlace puede abrirlo: si se pierde o alguien deja de trabajar con
+                            la tienda, crea uno nuevo.</p>
+                        <group>
+                            <group>
+                                <field name="choferes_activo" string="Encendido" widget="boolean_toggle"/>
+                                <field name="choferes_url" widget="CopyClipboardChar" readonly="1"
+                                       invisible="not choferes_url"/>
+                                <field name="choferes_creado_por" invisible="not choferes_creado_por"/>
+                                <field name="choferes_creado_el" invisible="not choferes_creado_el"/>
+                            </group>
+                        </group>
+                        <button name="action_choferes_enlace_nuevo" type="object" string="Crear un enlace nuevo"
+                                icon="fa-refresh" class="btn-secondary"
+                                confirm="¿Crear un enlace nuevo? Si ya había uno, deja de funcionar al instante y tendrás que mandarles el nuevo a los choferes."/>
+                    </div>
                     <group string="Del archivo">
                         <group>
                             <field name="version_archivo" invisible="not version_archivo"/>
