@@ -39,7 +39,10 @@ def coordenada(valor):
     """Un número finito (un texto, un booleano o un ``NaN`` no son coordenadas)."""
     if isinstance(valor, bool) or not isinstance(valor, (int, float)):
         return None
-    valor = float(valor)
+    try:
+        valor = float(valor)
+    except OverflowError:       # un entero de 400 cifras no cabe en un float
+        return None
     return valor if math.isfinite(valor) else None
 
 

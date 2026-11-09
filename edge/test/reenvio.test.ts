@@ -200,5 +200,8 @@ describe("qué se puede repetir", () => {
     expect(rutaParaRegistro(`/envios/choferes/${secreto}/buscar`)).toBe("/envios/choferes/:token");
     expect(rutaParaRegistro(`/envios/choferes/${secreto}/cerca`)).toBe("/envios/choferes/:token");
     expect(rutaParaRegistro("/envios/choferes/corto")).toBe("/envios/choferes/:token");
+    expect(rutaParaRegistro(`/es/envios/choferes/${secreto}/buscar`)).toBe("/envios/choferes/:token");
+    expect(rutaParaRegistro(`/envios/%63hoferes/${secreto}`)).toBe("/envios/choferes/:token");
+    expect(rutaParaRegistro(`/es_419/envios/choferes/${secreto}`)).toBe("/envios/choferes/:token");
   });
 });

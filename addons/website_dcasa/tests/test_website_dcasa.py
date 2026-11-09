@@ -34,13 +34,16 @@ class TestWhatsappLink(TransactionCase):
 class TestWebsitePages(HttpCase):
 
     def test_homepage(self):
+        salas = self.env.ref('website_dcasa.public_category_salas')
+        # Con algo publicado, la tarjeta lleva a su categoría (sin nada, abre WhatsApp: TestPortadaDinamica).
+        self.env['product.template'].create({'name': 'SOFÁ PUBLICADO', 'list_price': 10.0, 'is_published': True,
+                                             'public_categ_ids': [(6, 0, salas.ids)]})
         response = self.url_open('/')
         self.assertEqual(response.status_code, 200)
         html = response.text
         self.assertIn('Tu casa, bien amueblada.', html)
         self.assertIn('https://wa.me/50760261919', html)
         self.assertIn('o_dcasa_wa_float', html)
-        salas = self.env.ref('website_dcasa.public_category_salas')
         self.assertIn(f"/shop/category/{self.env['ir.http']._slug(salas)}", html)
         self.assertIn('info@dcasapty.com', html, 'El pie de página muestra los datos reales')
         self.assertNotIn('555-555-5556', html, 'No debe quedar el teléfono de ejemplo de Odoo')

@@ -9,6 +9,8 @@
 import json
 import math
 import re
+from datetime import date
+from unittest.mock import patch
 
 from odoo.addons.dcasa_guia.models import guia as G
 from odoo.exceptions import AccessError
@@ -61,7 +63,7 @@ class TestMotorDeChoferes(BaseCase):
         self.assertEqual(choferes.ubicacion_valida(9, -80), (9.0, -80.0), 'enteros también')
         for lat, lon in (('8.9', '-79.8'), (True, -79.8), (None, -79.8), (8.9, None), (math.nan, -79.8),
                          (8.9, math.inf), (0, 0), (40.7, -74.0), (8.9, 79.8), (-8.9, -79.8), (12.0, -79.8),
-                         ([8.9], -79.8), ({'lat': 8.9}, -79.8)):
+                         ([8.9], -79.8), ({'lat': 8.9}, -79.8), (10 ** 400, -79.8), (8.9, -(10 ** 400))):
             with self.subTest(lat=lat, lon=lon):
                 self.assertIsNone(choferes.ubicacion_valida(lat, lon))
 
@@ -100,6 +102,31 @@ class TestMotorDeChoferes(BaseCase):
         self.assertFalse(ruta.excede('10.0.0.2', ahora=107.0), 'otra IP cuenta aparte')
         self.assertFalse(ruta.excede('10.0.0.1', ahora=161.0), 'pasado el minuto vuelve a dejar')
 
+    def test_una_ipv6_cuenta_por_su_red(self):
+        """Cambiar de dirección dentro de la misma red /64 (lo que recibe un solo cliente) no da más turnos."""
+        self.assertEqual(ruta.llave_ip('2001:db8:1:2:aaaa::1'), ruta.llave_ip('2001:db8:1:2:ffff:1:2:3'))
+        self.assertEqual(ruta.llave_ip('2001:db8:1:2::9'), '2001:db8:1:2::/64')
+        self.assertNotEqual(ruta.llave_ip('2001:db8:1:2::1'), ruta.llave_ip('2001:db8:1:3::1'), 'otra red, aparte')
+        self.assertEqual(ruta.llave_ip('10.0.0.1'), '10.0.0.1')
+        self.assertNotEqual(ruta.llave_ip('10.0.0.1'), ruta.llave_ip('10.0.0.2'))
+        self.assertEqual(ruta.llave_ip('::ffff:10.0.0.1'), '10.0.0.1', 'una IPv4 escrita como IPv6 es la misma IPv4')
+        self.assertEqual(ruta.llave_ip(None), '-')
+        self.assertEqual(ruta.llave_ip('no es una ip'), 'no es una ip')
+
+    def test_el_tope_del_dia(self):
+        ruta.reiniciar_limite()
+        self.addCleanup(ruta.reiniciar_limite)
+        lunes, martes = date(2026, 11, 9), date(2026, 11, 10)
+        for _vez in range(3):
+            self.assertEqual(ruta.contar_busqueda('enlace-a', fecha=lunes, maximo=3), (True, False))
+        self.assertEqual(ruta.contar_busqueda('enlace-a', fecha=lunes, maximo=3), (False, True), 'avisa al llegar')
+        self.assertEqual(ruta.contar_busqueda('enlace-a', fecha=lunes, maximo=3), (False, False), 'y una sola vez')
+        self.assertEqual(ruta.contar_busqueda('enlace-a', fecha=martes, maximo=3), (True, False), 'otro día, de 0')
+        for _vez in range(2):
+            ruta.contar_busqueda('enlace-a', fecha=martes, maximo=3)
+        self.assertEqual(ruta.contar_busqueda('enlace-b', fecha=martes, maximo=3), (True, False),
+                         'un enlace nuevo empieza de 0')
+
 
 class ChoferesComun:
     """El fixture cargado, la tarifa con su enlace encendido, y cómo pedir las rutas."""
@@ -114,7 +141,7 @@ class ChoferesComun:
                                    groups='base.group_portal')
         importar(env, cls.gerencia)
         cls.tarifa_g = env['dcasa.envio.tarifa'].search([]).with_user(cls.gerencia)
-        cls.tarifa_g.write({'choferes_activo': True})
+        cls.tarifa_g.write({'choferes_activo': True, 'choferes_ubicacion': True})
 
     @property
     def token(self):
@@ -265,13 +292,18 @@ class TestRutasDeChoferes(ChoferesComun, HttpCase):
         self.assertFalse(any(lugar['precio'] for lugar in resultados))
 
     def test_buscar_rechaza_lo_que_no_es_un_texto_corto(self):
-        for cuerpo, crudo in (({'texto': 'x' * 121}, None), ({'texto': 7}, None), ({}, None), (None, 'no es json'),
-                              (None, '["villa"]'), (None, json.dumps({'texto': 'villa', 'relleno': 'x' * 3000}))):
+        largo = ruta.MAX_TEXTO
+        for cuerpo, crudo in (({'texto': 'x' * (largo + 1)}, None), ({'texto': 7}, None), ({}, None),
+                              ({'texto': 'uno dos tres cuatro cinco seis siete'}, None), (None, 'no es json'),
+                              (None, '["villa"]'), (None, '[' * 1500), (None, '{"texto": ' + '[' * 1500)):
             with self.subTest(cuerpo=cuerpo, crudo=(crudo or '')[:20]):
                 respuesta = self.post('buscar', cuerpo, crudo=crudo)
                 self.assertEqual(respuesta.status_code, 400, respuesta.text)
                 self.assertIn('error', respuesta.json())
-        self.assertEqual(self.post('buscar', {'texto': 'x' * 120}).status_code, 200)
+        grande = self.post('buscar', None, crudo=json.dumps({'texto': 'villa', 'relleno': 'x' * 3000}))
+        self.assertEqual(grande.status_code, 413, 'más de 2 KB no se lee')
+        self.assertEqual(self.post('buscar', {'texto': 'x' * largo}).status_code, 200)
+        self.assertEqual(self.post('buscar', {'texto': 'uno dos tres cuatro cinco seis'}).status_code, 200)
 
     # --- Usar mi ubicación -------------------------------------------------------------------------------------
     def test_cerca_da_hasta_3_lugares_a_menos_de_3_km(self):
@@ -289,7 +321,8 @@ class TestRutasDeChoferes(ChoferesComun, HttpCase):
         for crudo in (json.dumps({'lat': '8.9', 'lon': '-79.8'}), json.dumps({'lat': 8.9}), json.dumps({}),
                       json.dumps({'lat': 0, 'lon': 0}), json.dumps({'lat': 40.7, 'lon': -74.0}),
                       json.dumps({'lat': True, 'lon': -79.8}), '{"lat": NaN, "lon": -79.8}',
-                      '{"lat": Infinity, "lon": -79.8}', 'null', '[8.9, -79.8]', 'nada'):
+                      '{"lat": Infinity, "lon": -79.8}', 'null', '[8.9, -79.8]', 'nada',
+                      '{"lat": ' + '9' * 400 + ', "lon": -79.8}', '[' * 1500):
             with self.subTest(crudo=crudo):
                 respuesta = self.post('cerca', None, crudo=crudo)
                 self.assertEqual(respuesta.status_code, 400, respuesta.text)
@@ -323,6 +356,68 @@ class TestRutasDeChoferes(ChoferesComun, HttpCase):
         ruta.reiniciar_limite()
         self.assertEqual(self.pagina().status_code, 200)
 
+    def test_el_limite_entre_todas_las_ip_solo_lo_gasta_quien_tiene_el_enlace(self):
+        for _vez in range(ruta.MAX_TODOS_POR_MINUTO):
+            ruta.excede(ruta.TODOS, maximo=ruta.MAX_TODOS_POR_MINUTO)
+        self.assertNoExiste(self.pagina('otro' * 8))
+        respuesta = self.post('buscar', {'texto': 'villa'})
+        self.assertEqual((respuesta.status_code, respuesta.headers['Retry-After']), (429, '60'))
+
+    def test_a_lo_sumo_dos_busquedas_a_la_vez(self):
+        """La tercera no espera: recibe «ocupado» (así nadie con el enlace frena el resto de Odoo)."""
+        for _vez in range(ruta.MAX_A_LA_VEZ):
+            self.assertTrue(ruta._ocupado.acquire(blocking=False))
+        try:
+            for respuesta in (self.post('buscar', {'texto': 'villa'}),
+                              self.post('cerca', {'lat': VILLA[0], 'lon': VILLA[1]})):
+                with self.subTest(url=respuesta.url):
+                    self.assertEqual(respuesta.status_code, 429)
+                    self.assertEqual(respuesta.headers['Retry-After'], str(ruta.ESPERA_OCUPADO_S))
+                    self.assertIn('ocupada', respuesta.json()['error'])
+            self.assertEqual(self.pagina().status_code, 200, 'la página sí abre')
+        finally:
+            for _vez in range(ruta.MAX_A_LA_VEZ):
+                ruta._ocupado.release()
+        self.assertEqual(self.post('buscar', {'texto': 'villa'}).status_code, 200)
+
+    def test_el_tope_del_dia_corta_el_enlace_y_avisa_a_gerencia(self):
+        tarifa = self.tarifa_g.sudo()
+        notas = tarifa.message_ids
+        with patch.object(ruta, 'MAX_POR_DIA', 3):
+            for _vez in range(2):
+                self.assertEqual(self.post('buscar', {'texto': 'villa'}).status_code, 200)
+            self.assertEqual(self.post('cerca', {'lat': VILLA[0], 'lon': VILLA[1]}).status_code, 200)
+            tarifa.invalidate_recordset(['choferes_busquedas_hoy'])
+            self.assertEqual((self.tarifa_g.choferes_busquedas_hoy, self.tarifa_g.choferes_tope_dia), (3, 3))
+            with self.assertLogs('odoo.addons.dcasa_envios.controllers.choferes', 'WARNING'):
+                respuesta = self.post('buscar', {'texto': 'villa'})
+            self.assertEqual(respuesta.status_code, 429)
+            self.assertIn('límite de hoy', respuesta.json()['error'])
+            self.assertEqual(self.post('cerca', {'lat': VILLA[0], 'lon': VILLA[1]}).status_code, 429)
+            self.assertEqual(self.pagina().status_code, 200, 'la página abre (y dice el límite al buscar)')
+            nuevas = tarifa.message_ids - notas
+            self.assertEqual(len(nuevas), 1, 'una sola nota por día')
+            self.assertIn('llegó a 3 búsquedas hoy', str(nuevas.body))
+            self.assertNotIn(self.token, str(nuevas.body))
+            self.assertEqual(nuevas.partner_ids, self.gerencia.partner_id, 'le avisa a quien creó el enlace')
+            self.tarifa_g.action_choferes_enlace_nuevo()
+            self.assertEqual(self.post('buscar', {'texto': 'villa'}).status_code, 200, 'un enlace nuevo, de 0')
+
+    # --- «Usar mi ubicación» apagado (de fábrica; decisión de la dueña, 2026-11-09) ----------------------------
+    def test_sin_permiso_de_gerencia_solo_se_calcula_desde_dcasa(self):
+        """Por defecto los choferes solo buscan el lugar y ven el precio desde D'CASA: el botón no sale y la ruta de
+        la ubicación no existe. Gerencia lo enciende si quiere."""
+        self.tarifa_g.write({'choferes_ubicacion': False})
+        html = self.pagina().text
+        self.assertNotIn('Usar mi ubicación', html)
+        self.assertNotIn('class="ubicacion"', html)
+        self.assertIn("El precio es desde D'CASA hasta el lugar que busques.", html)
+        self.assertNoExiste(self.post('cerca', {'lat': VILLA[0], 'lon': VILLA[1]}))
+        self.assertEqual(self.post('buscar', {'texto': 'villa prueba'}).status_code, 200, 'buscar sigue igual')
+        self.tarifa_g.write({'choferes_ubicacion': True})
+        self.assertIn('Usar mi ubicación', self.pagina().text)
+        self.assertEqual(self.post('cerca', {'lat': VILLA[0], 'lon': VILLA[1]}).status_code, 200)
+
     # --- Por RPC ---------------------------------------------------------------------------------------------
     def test_por_rpc_solo_gerencia_ve_y_cambia_el_enlace(self):
         tarifa = self.tarifa_g.sudo()
@@ -331,6 +426,7 @@ class TestRutasDeChoferes(ChoferesComun, HttpCase):
             ('read', [[tarifa.id], ['choferes_url']], {}),
             ('web_read', [[tarifa.id]], {'specification': {'choferes_url': {}}}),
             ('write', [[tarifa.id], {'choferes_activo': False}], {}),
+            ('write', [[tarifa.id], {'choferes_ubicacion': False}], {}),
             ('action_choferes_enlace_nuevo', [[tarifa.id]], {}),
             ('_choferes_enlace_vale', [self.token], {}),
         )
@@ -365,6 +461,7 @@ class TestEnlaceDeChoferes(EnviosComun):
         self.historial_al_dia()
         tarifa = self.tarifa.with_user(self.gerencia)
         self.assertFalse(tarifa.choferes_activo)
+        self.assertFalse(tarifa.choferes_ubicacion, '«Usar mi ubicación» apagado de fábrica')
         self.assertFalse(tarifa.choferes_token)
         self.assertFalse(tarifa.choferes_url)
         self.assertFalse(self.env['dcasa.envio.tarifa']._choferes_enlace_vale(''))
@@ -413,10 +510,30 @@ class TestEnlaceDeChoferes(EnviosComun):
             for accion in (lambda t=tarifa: t.read(['choferes_token']), lambda t=tarifa: t.read(['choferes_url']),
                            lambda t=tarifa: t.read(['choferes_activo']),
                            lambda t=tarifa: t.write({'choferes_activo': True}),
+                           lambda t=tarifa: t.write({'choferes_token': 'elegido-por-mi-' * 3}),
                            tarifa.action_choferes_enlace_nuevo):
                 with self.subTest(usuario=usuario.login, accion=accion), self.assertRaises(AccessError):
                     accion()
         self.assertFalse(self.tarifa.sudo().choferes_activo)
+
+    def test_quien_no_puede_escribir_no_rearma_el_buscador(self):
+        """Una vendedora que manda solo campos que se ignoran (el secreto) no llega a subir la versión del buscador."""
+        parametros = self.env['ir.config_parameter'].sudo()
+        version = parametros.get_param('dcasa_envios.version_lugares')
+        for campos in ({'choferes_token': 'x' * 32}, {'aprobada_por': self.vendedora.id}, {}):
+            with self.subTest(campos=campos), self.assertRaises(AccessError):
+                self.tarifa.with_user(self.vendedora).write(campos)
+        self.assertEqual(parametros.get_param('dcasa_envios.version_lugares'), version)
+
+    def test_al_crear_la_tarifa_nadie_elige_el_secreto(self):
+        self.env.cr.execute('DELETE FROM dcasa_envio_tarifa')
+        self.env.invalidate_all()
+        tarifa = self.env['dcasa.envio.tarifa'].with_user(self.gerencia).create({
+            'name': 'Otra', 'choferes_token': 'elegido-por-mi-' * 3, 'choferes_creado_por': self.vendedora.id,
+            'choferes_creado_el': '2020-01-01 00:00:00'})
+        self.assertEqual(tarifa.sudo().read(['choferes_token', 'choferes_creado_por', 'choferes_creado_el'])[0],
+                         {'id': tarifa.id, 'choferes_token': False, 'choferes_creado_por': False,
+                          'choferes_creado_el': False})
 
     def test_la_ficha_lo_muestra_solo_a_gerencia(self):
         def arch(usuario):

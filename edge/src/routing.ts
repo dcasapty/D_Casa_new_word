@@ -71,11 +71,15 @@ export function normalizePath(pathname: string): string {
   return "/" + segments.join("/");
 }
 
+/** La ruta normalizada y la misma sin un primer segmento con forma de idioma: lo que Odoo puede terminar sirviendo. */
+function rutasDeOdoo(pathname: string): string[] {
+  const path = normalizePath(pathname);
+  return [path, path.replace(LANG_SEGMENT, "") || "/"];
+}
+
 /** ¿La ruta (o la ruta sin prefijo de idioma) cae en una ruta bloqueada? */
 export function isBlockedPath(pathname: string): boolean {
-  const path = normalizePath(pathname);
-  const candidates = [path, path.replace(LANG_SEGMENT, "") || "/"];
-  return candidates.some((candidate) => BLOCKED_PREFIXES.some((prefix) => candidate.startsWith(prefix)));
+  return rutasDeOdoo(pathname).some((candidate) => BLOCKED_PREFIXES.some((prefix) => candidate.startsWith(prefix)));
 }
 
 /**
@@ -155,7 +159,9 @@ export function route(url: URL, method: string, canonicalHost?: string): Route {
     const status = method === "GET" || method === "HEAD" ? 301 : 308;
     return { kind: "redirect", location: target.toString(), status };
   }
-  if (NEVER_CACHE_PREFIXES.some((prefix) => url.pathname.startsWith(prefix))) {
+  // Normalizada y sin idioma, como los bloqueos: `/es/envios/choferes/…` o `/envios/%63hoferes/…` llegan a la misma ruta.
+  const rutas = rutasDeOdoo(url.pathname);
+  if (NEVER_CACHE_PREFIXES.some((prefix) => rutas.some((ruta) => ruta.startsWith(prefix)))) {
     return { kind: "origin", cacheable: false };
   }
   const isRead = method === "GET" || method === "HEAD";
@@ -416,8 +422,9 @@ const ENLACE_CHOFERES = /^\/envios\/choferes\/[^/]+/;
 /** La ruta para el registro: entera si es una llamada a Odoo (modelo/método), si no solo el principio, sin tokens. */
 export function rutaParaRegistro(pathname: string): string {
   if (pathname.startsWith("/web/dataset/call_kw/")) return pathname;
+  // (Normalizada y sin idioma: `/es/envios/choferes/…` y `/envios/%63hoferes/…` también son el enlace.)
+  if (rutasDeOdoo(pathname).some((ruta) => ENLACE_CHOFERES.test(ruta))) return "/envios/choferes/:token";
   return pathname
-    .replace(ENLACE_CHOFERES, "/envios/choferes/:token")
     .split("/")
     .slice(0, 4)
     .map((tramo) => (TRAMO_TOKEN.test(tramo) ? ":token" : tramo))

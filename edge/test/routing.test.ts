@@ -126,6 +126,12 @@ describe("route", () => {
       // Sin cubeta del borde: el límite por IP lo pone Odoo (60 por minuto), no el de los formularios (10).
       expect(cubetaDe("POST", path)).toBeNull();
     }
+    // Con idioma delante o con letras codificadas, Odoo llega a la misma ruta: tampoco se guarda en caché.
+    for (const path of [`/es/envios/choferes/${secreto}/buscar`, `/envios/%63hoferes/${secreto}`, `/Envios//choferes/${secreto}`]) {
+      for (const method of ["GET", "HEAD", "POST"]) {
+        expect(route(u(path), method), `${method} ${path}`).toEqual({ kind: "origin", cacheable: false });
+      }
+    }
   });
 
   it("no redirige otros hosts (p. ej. *.workers.dev)", () => {

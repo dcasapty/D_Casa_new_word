@@ -24,8 +24,9 @@ nuestra propia flota de envíos, el cliente pueda calcular cuánto se le cobrar�
   cambio y «**Cargar lugares y tarifa desde el archivo**».
 - La pantalla **baja con la rueda y con el dedo** y en el celular deja 16 px de margen, sin scroll de lado.
 - **Enlace para choferes** (Envíos › Tarifa, abajo; Gerencia y administradores): un solo enlace para todos los
-  choferes, sin usuario ni clave. Buscan el lugar (o tocan «Usar mi ubicación») y ven **solo** el nombre, la zona, el
-  precio y la ruta en Google Maps; nunca los km ni la tabla. Ver [Enlace para choferes](#enlace-para-choferes).
+  choferes, sin usuario ni clave. Buscan el lugar y ven **solo** el nombre, la zona, el precio **desde D'CASA** y la
+  ruta en Google Maps; nunca los km ni la tabla. «Usar mi ubicación» viene **apagado** y solo Gerencia lo enciende.
+  Ver [Enlace para choferes](#enlace-para-choferes).
 - **Los datos no están en el repositorio** (es público y la dueña no dio su «sí» para subir la matriz ni los precios):
   Gerencia sube el archivo.
 
@@ -167,23 +168,30 @@ kilometraje, solamente busquen el lugar y confirmen si ese es el precio, o vean 
 enlace secreto para todos** (sin usuario de Odoo) y «Usar mi ubicación» = **el lugar de la tabla más cercano** por sus
 coordenadas (gratis, sin API de mapas).
 
+Después (2026-11-09): «quiero que la ubicación por defecto sea nuestra ubicación de D'CASA … por defecto inamovible,
+que solamente ellos puedan calcular desde D'CASA hasta el punto … Y si nosotros queremos que ellos desde cualquier
+punto de su ubicación puedan medir, que nosotros lo decidamos». Por eso **«Usar mi ubicación» viene apagado** y solo
+Gerencia lo enciende (Envíos › Tarifa › «Permitir "Usar mi ubicación"»). El precio siempre es desde la tienda.
+
 ### Lo que ve el chofer
 
 - Arriba (en azul): «¿Cuánto cuesta el envío?», la caja **«Busca el barrio, edificio o lugar»** (el mismo buscador de
-  la calculadora: sin tildes, abreviaturas, errores de dedo) y el botón amarillo **«Usar mi ubicación»**, con una línea:
-  «Tu ubicación solo se usa para buscar el lugar más cercano; no se guarda».
+  la calculadora: sin tildes, abreviaturas, errores de dedo) y la línea «El precio es desde D'CASA hasta el lugar que
+  busques». Solo si Gerencia lo permitió: el botón amarillo **«Usar mi ubicación»**, con la línea «Tu ubicación solo se
+  usa para buscar el lugar más cercano; no se guarda» (apagado, el botón no sale y `…/cerca` responde 404).
 - Cada lugar (hasta 8): el **nombre**, la **zona** («corregimiento · distrito»), el **precio** (el mismo `total_txt` de la
   calculadora, p. ej. «$15»; con lancha, «$70 + lancha») y el botón **«Ver en Google Maps»** (la ruta en carro desde la
   tienda, como la calculadora). Sin resultados: «No encontramos…» y «¿Quisiste decir…?».
 - **Sin precio** cuando no toca: si la tarifa no está aprobada, ningún lugar trae precio y arriba dice **«Tarifa en
   revisión: confirma el precio con la tienda»** (el aviso sigue al servidor en cada búsqueda); lo que se cotiza aparte
   (lejos, sin carretera, sin medir) dice **«Se cotiza aparte: confirma con la tienda»**.
-- **«Usar mi ubicación»**: el navegador pide permiso; con él, los **3 lugares de la tabla más cercanos a no más de
+- **«Usar mi ubicación»** (solo encendido por Gerencia): el navegador pide permiso; con él, los **3 lugares de la tabla más cercanos a no más de
   3 km**, con su distancia **en metros** («a 300 m de ti»), su precio y la ruta. Si no hay ninguno: «No hay un lugar de
   la tabla cerca de ti: búscalo por nombre o confirma con la tienda». Sin permiso, sin GPS o si tarda, lo dice en
   palabras sencillas y sugiere buscar por nombre.
-- **Nunca** ve: los km, la tabla por tramos, el desglose, la fórmula, «Calcular por kilómetros», «Agregar este lugar»,
-  ni ids o coordenadas en las respuestas. En la página no aparece la palabra «km».
+- **Nunca** ve en la página: los km, la tabla por tramos, el desglose, la fórmula, «Calcular por kilómetros»,
+  «Agregar este lugar», ni ids. En la página no aparece la palabra «km». (Ojo: la ruta de «Ver en Google Maps» lleva
+  las coordenadas del lugar y Google Maps muestra los km por carretera; ver «Lo que no se puede impedir» abajo.)
 - Una página sola (sin el sitio ni el panel), para el celular, con la marca (azul, amarillo solo sobre azul, Anton /
   Oswald / Inter, plana). **Baja con scroll** (el documento entero, sin `overflow: hidden`): probado con el dedo y la
   rueda de verdad.
@@ -193,9 +201,14 @@ coordenadas (gratis, sin API de mapas).
 Envíos › **Tarifa**, sección **«Enlace para choferes»** (solo Gerencia y administradores la ven):
 
 1. **Encendido** (apagado de fábrica). Encenderlo la primera vez crea el enlace.
-2. **Enlace para choferes**: la dirección completa con su botón de copiar, para mandarla por WhatsApp a los choferes.
-3. **«Crear un enlace nuevo»**: el anterior deja de funcionar al instante (por ejemplo, si se perdió un teléfono o alguien
-   dejó de trabajar con la tienda). Hay que mandarles el nuevo.
+2. **Permitir «Usar mi ubicación»** (apagado de fábrica): apagado, los choferes solo buscan el lugar y ven el precio
+   desde D'CASA; encendido, también pueden ver el lugar de la tabla más cercano a donde están.
+3. **Enlace para choferes**: la dirección completa con su botón de copiar, para mandarla por WhatsApp a los choferes.
+4. **Búsquedas de hoy**: cuántas lleva el enlace hoy, de un tope de 1 500 por día (se cuenta desde que arrancó el
+   servidor). Al llegar al tope, el enlace responde «llegó a su límite de hoy» hasta el día siguiente y a quien lo creó
+   le llega una nota: es mucho más de lo que buscan los choferes, así que puede que el enlace se haya filtrado.
+5. **«Crear un enlace nuevo»**: el anterior deja de funcionar al instante (por ejemplo, si se perdió un teléfono, alguien
+   dejó de trabajar con la tienda o llegó la nota del tope). Hay que mandarles el nuevo; empieza de 0 búsquedas.
 
 Queda en el historial de la tarifa quién lo encendió o apagó, quién creó cada enlace y cuándo (nunca el secreto: el
 historial lo lee todo el equipo). En la Guía: «Darle a los choferes el enlace de la calculadora».
@@ -204,22 +217,41 @@ historial lo lee todo el equipo). En la Guía: «Darle a los choferes el enlace 
 
 - **El secreto es la llave:** `secrets.token_urlsafe(24)` (192 bits al azar) en un campo de la tarifa que solo leen
   Gerencia y los administradores (`groups`), también por RPC; `write` ignora el secreto, quién y cuándo si llegan en los
-  valores. Se compara en tiempo constante (`hmac.compare_digest`).
+  valores, y también `create`; quien no puede escribir en la tarifa recibe «sin permiso» antes de tocar nada (ni la
+  versión del buscador). Se compara en tiempo constante (`hmac.compare_digest`).
 - **Rutas** (`controllers/choferes.py`, `auth='public'`, sin sesión: `save_session=False`):
-  `GET /envios/choferes/<enlace>` (la página), `POST …/buscar` `{"texto"}` (hasta 120 letras) y `POST …/cerca`
-  `{"lat", "lon"}` (números dentro de Panamá con margen). **Apagado o con otro secreto, las tres responden el mismo 404**
-  de texto plano. Sin CSRF porque el secreto autentica (no hay cookie que otra página pueda usar).
+  `GET /envios/choferes/<enlace>` (la página), `POST …/buscar` `{"texto"}` (hasta 60 letras y 6 palabras) y
+  `POST …/cerca` `{"lat", "lon"}` (números dentro de Panamá con margen; 404 si Gerencia no permitió la ubicación).
+  **Apagado o con otro secreto, las tres responden el mismo 404** de texto plano. Sin CSRF porque el secreto autentica
+  (no hay cookie que otra página pueda usar). Cuerpo de a lo sumo 2 KB (`max_content_length`: más grande, 413); un
+  JSON roto, anidado mil veces o con un número gigante es un 400, nunca un error del servidor.
 - **Solo lo que ve el chofer:** `motor/choferes.py` arma una lista blanca (`nombre`, `zona`, `precio`, `aviso`, `mapa`
   y, cerca, `distancia`). Los lugares se leen con `sudo()` por los métodos privados `_choferes_buscar` y
   `_choferes_cerca` (no se llaman por RPC) **después** de comprobar el enlace; el ACL del portal y del público no cambió.
-- **Límite por IP:** 60 peticiones por minuto entre las tres rutas (en la memoria de cada proceso de Odoo, como el de
-  Brian: aproximado con varios procesos); después, 429 con `Retry-After: 60`. Búsqueda: a lo sumo 8 lugares; cerca, 3.
+- **Límites** (en la memoria del proceso de Odoo, como el de Brian; se reinician si el servidor se reinicia):
+  60 peticiones por minuto por IP entre las tres rutas (una IPv6 cuenta por su red /64); 300 por minuto entre todas las
+  IP (cuenta solo a quien tiene el enlace: sin él nadie se lo gasta a los choferes); **a lo sumo 2 búsquedas a la vez**
+  (la tercera recibe «ocupada» al instante, así nadie con el enlace frena el resto de Odoo, que en producción es un
+  solo proceso); y **1 500 búsquedas por día** por enlace (ver arriba). Después, 429 con `Retry-After`. Búsqueda: a lo
+  sumo 8 lugares; cerca, 3.
 - **Nada se guarda ni se indexa:** `Cache-Control: no-store`, `X-Robots-Tag: noindex, nofollow`,
   `Referrer-Policy: no-referrer` (Google Maps no recibe el enlace al tocar «Ver en Google Maps») y CSP con nonce
   (`default-src 'none'`). El borde (`edge/src/routing.ts`) nunca guarda `/envios/choferes/` en caché y escribe
-  `/envios/choferes/:token` en su registro. El registro de Odoo no guarda las peticiones en producción (`werkzeug` en
-  WARNING, `docker/entrypoint.sh`). La ubicación del chofer no se guarda en ningún lado.
+  `/envios/choferes/:token` en su registro (también con idioma delante, `/es/envios/…`, o con letras codificadas). El
+  registro de Odoo no guarda las peticiones en producción (`werkzeug` en WARNING, `docker/entrypoint.sh`). La
+  ubicación del chofer no se guarda en ningún lado. **Los registros propios de Cloudflare** (Workers Logs, encendidos
+  en `edge/wrangler.jsonc`) sí guardan la dirección completa de cada petición, con el secreto, durante su retención:
+  los ve solo quien entra al panel de Cloudflare de D'CASA (la dueña y quien ella autorice).
 - **Quien tenga el enlace puede abrirlo** (es como una llave compartida): por eso se puede apagar y cambiar en un toque.
+
+#### Lo que no se puede impedir (revisión de seguridad, 2026-11-09)
+
+Quien tenga el enlace ve el precio de cada lugar que busque, y «Ver en Google Maps» lleva las coordenadas del lugar y de
+la tienda: Google Maps le muestra los km por carretera. Con mucha paciencia, alguien con el enlace podría ir copiando
+lugares y precios y, de ahí, adivinar la fórmula. Una prueba con el índice real: copiar la mitad de los lugares pide
+unas 3 900 búsquedas. Con el tope de 1 500 por día eso tarda varios días, y el primer día ya le llega la nota a
+Gerencia, que lo corta con «Crear un enlace nuevo». Es lo que se paga por darles el precio sin usuario: el enlace se
+manda solo a choferes de confianza.
 
 
 | | Equipo (vendedora, Caja…) | Gerencia | Administrador |
@@ -255,7 +287,9 @@ vigila su regla fuerte.
 El enlace para choferes: `tests/test_choferes.py` (el motor sin base de datos: la distancia, los más cercanos y el corte
 de 3 km, qué ubicación vale, la lista blanca de claves; las rutas: el mismo 404 apagado u otro secreto, el enlace nuevo
 deja sin efecto el anterior, nunca km ni ids, sin tarifa aprobada no hay precios, coordenadas y textos que no sirven,
-el límite por IP, las cabeceras; quién lo ve y lo cambia, también por RPC; la Guía) y `tests/test_choferes_navegador.py`
+los límites (por IP y por red IPv6, entre todas las IP, 2 a la vez, el tope del día con su nota a Gerencia), cuerpos
+rotos o gigantes sin error del servidor, las cabeceras, «Usar mi ubicación» apagado de fábrica; quién lo ve y lo
+cambia, también por RPC, y que nadie elige el secreto al crear la tarifa; la Guía) y `tests/test_choferes_navegador.py`
 (a 390 px: busca, ve el precio sin «km», 16 px de margen, **baja con el dedo de verdad**; en la computadora con la
 rueda; «Usar mi ubicación» con y sin permiso).
 

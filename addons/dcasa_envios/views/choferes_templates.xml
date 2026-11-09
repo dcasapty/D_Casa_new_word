@@ -85,8 +85,12 @@
                        enterkeyhint="search" t-att-maxlength="max_texto"
                        placeholder="Ej.: Villa Lucre o un PH"/>
             </form>
-            <button type="button" class="ubicacion">Usar mi ubicación</button>
-            <p class="privado">Tu ubicación solo se usa para buscar el lugar más cercano; no se guarda.</p>
+            <!-- Solo si Gerencia lo encendió (Envíos › Tarifa); de fábrica se calcula desde D'CASA al lugar buscado. -->
+            <t t-if="con_ubicacion">
+                <button type="button" class="ubicacion">Usar mi ubicación</button>
+                <p class="privado">Tu ubicación solo se usa para buscar el lugar más cercano; no se guarda.</p>
+            </t>
+            <p t-else="" class="privado">El precio es desde D'CASA hasta el lugar que busques.</p>
         </div>
     </header>
     <main class="caja">
@@ -229,7 +233,7 @@
         3: 'Tu ubicación tardó demasiado. Intenta otra vez o busca el lugar por nombre.'
     };
 
-    boton.addEventListener('click', function () {
+    if (boton) boton.addEventListener('click', function () {
         clearTimeout(espera);
         var mio = ++turno;
         limpiar();
