@@ -123,7 +123,12 @@ class TestPortadaDinamica(HttpCase):
         con = tarjeta('Colchones')
         self.assertFalse(con['whatsapp'])
         self.assertTrue(con['url'].startswith('/shop/category/'), con['url'])
-        self.colchon.is_published = False
+        # Todo lo publicado en Colchones, no solo el de esta prueba: con el catálogo instalado (dcasa_catalogo, como en
+        # el CI) ya hay colchones publicados.
+        publicados = self.env['product.template'].sudo().search([
+            ('public_categ_ids', 'child_of', self.colchones.id), ('is_published', '=', True)])
+        self.assertIn(self.colchon, publicados)
+        publicados.is_published = False
         sin = tarjeta('Colchones')
         self.assertTrue(sin['whatsapp'])
         self.assertTrue(sin['url'].startswith('https://wa.me/50760261919?text='), sin['url'])
