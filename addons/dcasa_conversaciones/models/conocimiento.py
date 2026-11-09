@@ -23,7 +23,7 @@ from datetime import timedelta
 
 from odoo import api, fields, models
 from odoo.addons.dcasa_socios.models import reglas as R
-from odoo.exceptions import AccessError, ValidationError
+from odoo.exceptions import AccessError, UserError, ValidationError
 
 from . import conocimiento_texto as C
 from .reglas_clientes import redactar
@@ -358,6 +358,23 @@ class DcasaPreguntaPendiente(models.Model):
             'view_mode': 'form',
             'target': 'current',
             'context': contexto,
+        }
+
+    def action_contestar(self):
+        """El botón «Contestar» de las vendedoras (y Gerencia): abre la ventanita donde escriben la respuesta. No
+        escribe nada; lo valida y lo guarda ``dcasa.pregunta.responder.action_guardar``."""
+        if not self.env.user.has_group('sales_team.group_sale_salesman'):
+            raise AccessError(self.env._('Solo el equipo de ventas contesta las preguntas sin respuesta.'))
+        self.ensure_one()
+        if self.estado != 'nueva':
+            raise UserError(self.env._('Alguien ya atendió esta pregunta: recarga la lista.'))
+        return {
+            'type': 'ir.actions.act_window',
+            'name': self.env._('Contestar la pregunta'),
+            'res_model': 'dcasa.pregunta.responder',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {'default_pregunta_id': self.id},
         }
 
     def action_descartar(self):

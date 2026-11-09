@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 from odoo import fields
 from odoo.addons.dcasa_socios.models import reglas as R
-from odoo.exceptions import AccessError, ValidationError
+from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.tests import BaseCase, tagged
 
 from ..models import conocimiento_texto as C
@@ -262,14 +262,120 @@ class TestPreguntasSinRespuesta(JuanCase):
         with self.assertRaises(AccessError):
             self.Pregunta.with_user(self.interno).search([])
 
-    def test_el_menu_es_de_gerencia(self):
+    def test_el_menu_de_preguntas_lo_ven_las_vendedoras_y_el_de_conocimiento_solo_gerencia(self):
+        """2026-11-09: las vendedoras también contestan las preguntas sin respuesta (pedido de la dueña)."""
         menu = self.env.ref('dcasa_conversaciones.menu_dcasa_preguntas_pendientes')
         self.assertEqual(menu.name, 'Preguntas sin respuesta')
         self.assertIn(menu.id, self.env['ir.ui.menu'].with_user(self.gerente)._visible_menu_ids())
-        self.assertNotIn(menu.id, self.env['ir.ui.menu'].with_user(self.vendedora)._visible_menu_ids())
+        self.assertIn(menu.id, self.env['ir.ui.menu'].with_user(self.vendedora)._visible_menu_ids())
+        self.assertNotIn(menu.id, self.env['ir.ui.menu'].with_user(self.interno)._visible_menu_ids())
         conocimiento = self.env.ref('dcasa_conversaciones.menu_dcasa_conocimiento')
         self.assertEqual(conocimiento.name, 'Conocimiento del bot')
         self.assertIn(conocimiento.id, self.env['ir.ui.menu'].with_user(self.gerente)._visible_menu_ids())
+        self.assertNotIn(conocimiento.id, self.env['ir.ui.menu'].with_user(self.vendedora)._visible_menu_ids())
+
+    # ------------------------------------------------------------------
+    # «Contestar»: vendedoras y Gerencia (2026-11-09)
+    # ------------------------------------------------------------------
+
+    def contestar(self, pregunta, texto, usuario=None):
+        usuario = usuario or self.vendedora
+        accion = pregunta.with_user(usuario).action_contestar()
+        self.assertEqual((accion['res_model'], accion['target']), ('dcasa.pregunta.responder', 'new'))
+        asistente = self.env['dcasa.pregunta.responder'].with_user(usuario).with_context(
+            **accion['context']).create({'respuesta': texto})
+        return asistente.action_guardar()
+
+    def test_la_vendedora_contesta_y_el_asistente_la_usa_al_momento(self):
+        pregunta, _ = self.preguntar('¿Instalan los muebles?')
+        self.assertFalse(self.env['dcasa.conocimiento']._buscar('instalan los muebles', 3))
+        aviso = self.contestar(pregunta, '  Sí, te lo armamos en la tienda si lo pides al comprar.  ')
+        self.assertEqual(aviso['tag'], 'display_notification')
+        entrada = pregunta.conocimiento_id
+        self.assertEqual(pregunta.estado, 'atendida')
+        self.assertTrue(entrada.activo)
+        self.assertEqual(entrada.contenido, 'Sí, te lo armamos en la tienda si lo pides al comprar.')
+        self.assertEqual((entrada.titulo, entrada.autor_id, entrada.pregunta_id),
+                         ('¿Instalan los muebles?', self.vendedora, pregunta))
+        self.assertIn('Vendedora Prueba', entrada.nota)
+        self.assertEqual((pregunta.respuesta_de_id, pregunta.respuesta_con_cifras), (self.vendedora, False))
+        (hallada, _), *_ = self.env['dcasa.conocimiento']._buscar('¿hacen la instalación de los muebles?', 3)
+        self.assertEqual(hallada, entrada)
+        self.assertIn('Vendedora Prueba', pregunta.message_ids[0].body)
+
+    def test_con_numeros_o_dinero_espera_a_gerencia(self):
+        pregunta, _ = self.preguntar('¿Cuánto cuesta el armado?')
+        aviso = self.contestar(pregunta, 'El armado cuesta $15 dentro de La Chorrera.')
+        self.assertIn('Gerencia', aviso['params']['message'])
+        self.assertEqual(pregunta.estado, 'nueva', 'sigue en la lista para que Gerencia la revise')
+        self.assertFalse(pregunta.conocimiento_id)
+        self.assertFalse(self.env['dcasa.conocimiento'].search([('pregunta_id', '=', pregunta.id)]))
+        self.assertEqual((pregunta.respuesta_vendedora, pregunta.respuesta_de_id, pregunta.respuesta_con_cifras),
+                         ('El armado cuesta $15 dentro de La Chorrera.', self.vendedora, True))
+        # Gerencia la convierte con el botón de siempre: nace como borrador INACTIVO con ese texto.
+        contexto = pregunta.with_user(self.gerente).action_convertir_en_conocimiento()['context']
+        self.assertEqual(contexto['default_contenido'], 'El armado cuesta $15 dentro de La Chorrera.')
+        self.assertFalse(contexto['default_activo'])
+        self.assertIn('confírmalas', contexto['default_nota'])
+
+    def test_gerencia_contesta_directo_aunque_tenga_cifras(self):
+        pregunta, _ = self.preguntar('¿Cuánto cuesta el armado?')
+        self.contestar(pregunta, 'El armado cuesta $15 dentro de La Chorrera.', usuario=self.gerente)
+        self.assertEqual(pregunta.estado, 'atendida')
+        self.assertTrue(pregunta.conocimiento_id.activo)
+        self.assertEqual(pregunta.conocimiento_id.autor_id, self.gerente)
+
+    def test_no_se_contesta_dos_veces_ni_vacia_ni_larguisima(self):
+        pregunta, _ = self.preguntar('¿Instalan los muebles?')
+        Asistente = self.env['dcasa.pregunta.responder'].with_user(self.vendedora)
+        for texto, error in (('   ', 'Escribe'), ('x' * 5001, '5000')):
+            with self.subTest(texto=texto[:5]), self.assertRaisesRegex(UserError, error):
+                Asistente.create({'pregunta_id': pregunta.id, 'respuesta': texto}).action_guardar()
+        abierta = Asistente.create({'pregunta_id': pregunta.id, 'respuesta': 'Sí, lo armamos.'})
+        self.contestar(pregunta, 'Sí, te lo armamos.')
+        with self.assertRaisesRegex(UserError, 'ya atendió'):
+            abierta.action_guardar()
+        with self.assertRaisesRegex(UserError, 'ya atendió'):
+            pregunta.with_user(self.vendedora).action_contestar()
+        self.assertEqual(self.env['dcasa.conocimiento'].search_count([('pregunta_id', '=', pregunta.id)]), 1)
+
+    def test_la_vendedora_no_gana_otros_permisos(self):
+        pregunta, _ = self.preguntar('¿Instalan los muebles?')
+        self.contestar(pregunta, 'Sí, te lo armamos.')
+        entrada = pregunta.conocimiento_id
+        with self.assertRaises(AccessError):
+            entrada.with_user(self.vendedora).write({'contenido': 'Otra cosa'})
+        with self.assertRaises(AccessError):
+            entrada.with_user(self.vendedora).action_desactivar()
+        with self.assertRaises(AccessError):
+            pregunta.with_user(self.vendedora).write({'estado': 'nueva'})
+        with self.assertRaises(AccessError):
+            self.env['dcasa.conocimiento'].with_user(self.vendedora).create({'titulo': 'x', 'contenido': 'y'})
+
+    def test_sin_ventas_no_se_contesta(self):
+        pregunta, _ = self.preguntar('¿Instalan los muebles?')
+        with self.assertRaises(AccessError):
+            pregunta.with_user(self.interno).action_contestar()
+        with self.assertRaises(AccessError):
+            self.env['dcasa.pregunta.responder'].with_user(self.interno).create(
+                {'pregunta_id': pregunta.id, 'respuesta': 'Sí'})
+        asistente = self.env['dcasa.pregunta.responder'].create({'pregunta_id': pregunta.id, 'respuesta': 'Sí'})
+        with self.assertRaises(AccessError):
+            asistente.with_user(self.interno).action_guardar()
+        self.assertEqual(pregunta.estado, 'nueva')
+
+    def test_la_vendedora_ve_contestar_y_no_los_botones_de_gerencia(self):
+        for vista in ('form', 'list'):
+            with self.subTest(vista=vista):
+                arch = self.Pregunta.with_user(self.vendedora).get_view(view_type=vista)['arch']
+                self.assertIn('action_contestar', arch)
+                self.assertNotIn('action_convertir_en_conocimiento', arch)
+                self.assertNotIn('action_descartar', arch)
+                arch_g = self.Pregunta.with_user(self.gerente).get_view(view_type=vista)['arch']
+                self.assertIn('action_contestar', arch_g)
+                self.assertIn('action_convertir_en_conocimiento', arch_g)
+        self.assertTrue(self.env['dcasa.pregunta.responder'].with_user(self.vendedora).get_view(
+            view_type='form')['arch'])
 
     def test_las_vistas_cargan(self):
         for modelo in ('dcasa.conocimiento', 'dcasa.pregunta_pendiente'):

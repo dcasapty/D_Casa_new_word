@@ -105,8 +105,10 @@
                 <field name="respuesta_de_id" string="Ya la contestó" optional="show"/>
                 <field name="estado" widget="badge" decoration-info="estado == 'nueva'"
                        decoration-success="estado == 'atendida'" decoration-muted="estado == 'descartada'"/>
+                <button name="action_contestar" type="object" string="Contestar" class="btn-primary"
+                        invisible="estado != 'nueva'"/>
                 <button name="action_convertir_en_conocimiento" type="object" string="Convertir en conocimiento"
-                        class="btn-primary" invisible="estado != 'nueva'"/>
+                        class="btn-secondary" invisible="estado != 'nueva'" groups="sales_team.group_sale_manager"/>
             </list>
         </field>
     </record>
@@ -117,12 +119,14 @@
         <field name="arch" type="xml">
             <form string="Pregunta sin respuesta" create="false">
                 <header>
-                    <button name="action_convertir_en_conocimiento" type="object" string="Convertir en conocimiento"
-                            class="btn-primary" invisible="estado != 'nueva'"/>
-                    <button name="action_descartar" type="object" string="Descartar" class="btn-secondary"
+                    <button name="action_contestar" type="object" string="Contestar" class="btn-primary"
                             invisible="estado != 'nueva'"/>
+                    <button name="action_convertir_en_conocimiento" type="object" string="Convertir en conocimiento"
+                            class="btn-secondary" invisible="estado != 'nueva'" groups="sales_team.group_sale_manager"/>
+                    <button name="action_descartar" type="object" string="Descartar" class="btn-secondary"
+                            invisible="estado != 'nueva'" groups="sales_team.group_sale_manager"/>
                     <button name="action_reabrir" type="object" string="Volver a «nueva»" class="btn-secondary"
-                            invisible="estado == 'nueva'"/>
+                            invisible="estado == 'nueva'" groups="sales_team.group_sale_manager"/>
                     <field name="estado" widget="statusbar"/>
                 </header>
                 <sheet>
@@ -185,8 +189,37 @@
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">Ninguna pregunta sin contestar</p>
             <p>Cuando un cliente pregunta algo que el asistente no sabe, la pregunta aparece aquí. Si se repite, suma
-                una vez más en lugar de salir otra vez. Con «Convertir en conocimiento» escribes la respuesta y el
-                asistente la aprende.</p>
+                una vez más en lugar de salir otra vez. Con «Contestar» escribes la respuesta y el asistente la aprende
+                al momento. Si menciona precios, plazos u otros números, Gerencia la revisa antes.</p>
+        </field>
+    </record>
+
+    <!-- «Contestar»: vendedoras y Gerencia escriben la respuesta y el asistente la aprende (2026-11-09). -->
+    <record id="view_dcasa_pregunta_responder_form" model="ir.ui.view">
+        <field name="name">dcasa.pregunta.responder.form</field>
+        <field name="model">dcasa.pregunta.responder</field>
+        <field name="arch" type="xml">
+            <form string="Contestar la pregunta">
+                <field name="pregunta_id" invisible="1"/>
+                <field name="es_gerencia" invisible="1"/>
+                <group>
+                    <field name="pregunta_texto" string="Preguntaron" readonly="1"/>
+                    <field name="pregunta_resumen" string="Contexto" readonly="1" invisible="not pregunta_resumen"/>
+                    <field name="respuesta" placeholder="Escríbela como se la dirías al cliente, de tú."
+                           required="1"/>
+                </group>
+                <div class="text-muted" invisible="es_gerencia">
+                    El asistente la usa con los clientes que pregunten lo mismo. Si mencionas precios, plazos, horarios
+                    u otros números, Gerencia la revisa antes de que el asistente la use.
+                </div>
+                <div class="text-muted" invisible="not es_gerencia">
+                    El asistente la usa al momento con los clientes que pregunten lo mismo.
+                </div>
+                <footer>
+                    <button name="action_guardar" type="object" string="Guardar respuesta" class="btn-primary"/>
+                    <button string="Cancelar" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
         </field>
     </record>
 </odoo>

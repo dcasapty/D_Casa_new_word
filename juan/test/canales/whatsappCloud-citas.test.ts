@@ -217,6 +217,18 @@ describe("recibos (statuses): las palomitas", () => {
   it("motivoDeMeta: sin errores no hay motivo", () => {
     expect(motivoDeMeta({ id: "x", status: "failed" })).toBeUndefined();
   });
+
+  it("motivoDeMeta: los de la CUENTA (pago, bloqueo, spam) en palabras de la tienda y con su código, para que Odoo avise a Gerencia", () => {
+    const pago = motivoDeMeta({ id: "x", status: "failed", errors: [{ code: 131042, title: "Business eligibility payment issue", error_data: { details: "Message failed to send because there were one or more errors related to your payment method." } }] });
+    expect(pago).toMatch(/método de pago.*Facturación de Meta/);
+    expect(pago).toMatch(/\(código 131042\)$/);
+    expect(motivoDeMeta({ id: "x", status: "failed", errors: [{ code: 131031 }] })).toMatch(/bloqueó la cuenta.*\(código 131031\)$/);
+    expect(motivoDeMeta({ id: "x", status: "failed", errors: [{ code: 131048 }] })).toMatch(/spam.*\(código 131048\)$/);
+    expect(motivoDeMeta({ id: "x", status: "failed", errors: [{ code: 131047 }] })).toMatch(/24 horas.*\(código 131047\)$/);
+    for (const codigo of [131042, 131031, 131048, 131047, 131026]) {
+      expect(motivoDeMeta({ id: "x", status: "failed", errors: [{ code: codigo }] })!.length).toBeLessThanOrEqual(200);
+    }
+  });
 });
 
 describe("«Responder» desde Odoo: la cita sale con el primer mensaje", () => {

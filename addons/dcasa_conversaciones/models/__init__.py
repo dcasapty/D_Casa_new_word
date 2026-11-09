@@ -4,7 +4,7 @@ from . import transaccion, panel_calculos
 # Modelos.
 from . import ajustes, cliente_worker, etiquetas, conversacion, mensaje, mensaje_parte, res_partner, res_users
 from . import ir_attachment
-from . import conocimiento, presencia, crm_lead
+from . import conocimiento, pregunta_responder, presencia, crm_lead
 from . import reparto, conversacion_reparto
 from . import conversacion_panel, conversacion_panel_extra, conversacion_panel_catalogo
 from . import cliente_worker_panel, panel_juan, panel_reparto, telegram_consola

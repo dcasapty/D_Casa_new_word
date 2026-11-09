@@ -79,17 +79,24 @@ interface WaCambio {
 
 const ESTADOS_DE_META: Record<string, EstadoDeEntrega> = { sent: "enviado", delivered: "entregado", read: "leido", failed: "fallido" };
 
-/** Los errores de entrega que más se ven, en palabras de la tienda; los demás van con el texto de Meta y su código. */
+/**
+ * Los errores de entrega que más se ven, en palabras de la tienda; los demás van con el texto de Meta. Todos terminan en
+ * «(código N)»: Odoo lo lee para avisar a Gerencia cuando el problema es de la CUENTA (pago, bloqueo, spam) y no de un
+ * cliente (2026-11-09: dos días de «No llegó» por un problema de pago sin que nadie se enterara).
+ */
 const ERRORES_CONOCIDOS: Record<number, string> = {
   131047: "Pasaron más de 24 horas desde el último mensaje del cliente: WhatsApp solo deja escribirle con una plantilla aprobada.",
   131026: "WhatsApp no pudo entregarlo: puede que ese número no tenga WhatsApp o no pueda recibir el mensaje.",
+  131042: "Meta no deja salir los mensajes por un problema con el método de pago de la cuenta de WhatsApp Business: hay que arreglarlo en Facturación de Meta.",
+  131031: "Meta bloqueó la cuenta de WhatsApp Business: hay que revisarla en el WhatsApp Manager de Meta.",
+  131048: "Meta está frenando los mensajes de este número porque muchos se marcaron como spam o se bloquearon.",
 };
 
 /** El motivo de un «no llegó», corto y sin datos de nadie (Meta no los pone ahí). */
 export function motivoDeMeta(r: WaRecibo): string | undefined {
   const e = r.errors?.[0];
   if (!e) return undefined;
-  if (e.code !== undefined && ERRORES_CONOCIDOS[e.code]) return ERRORES_CONOCIDOS[e.code];
+  if (e.code !== undefined && ERRORES_CONOCIDOS[e.code]) return `${ERRORES_CONOCIDOS[e.code]} (código ${e.code})`.slice(0, 200);
   const texto = [e.title ?? e.message, e.error_data?.details].filter(Boolean).join(": ");
   return `${texto || "WhatsApp no lo pudo entregar"}${e.code !== undefined ? ` (código ${e.code})` : ""}`.slice(0, 200);
 }
