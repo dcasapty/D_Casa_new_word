@@ -106,6 +106,42 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 > sigue. Se guardan las diez más recientes; las viejas se resumen en una línea abajo y su texto completo pasa a
 > [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md).
 
+### 2026-11-09 (tarde y noche): enlace para choferes; «Colchones» abre WhatsApp; Messenger conectado; WhatsApp bloqueado por Meta (131070)
+
+**En producción** desde el 2026-11-09: PR #100, CI #305, Desplegar 63 (imagen `sha256:acda72c1…`, versión 3e2ccfc) y
+Juan 13 (`main` = 4a01039, árbol = 3e2ccfc).
+
+- **Enlace para choferes** (pedido de la dueña: «un link de calculadora a los choferes … que no vean la tabla de
+  kilometraje»; «un solo enlace para todos»). En Envíos › Tarifa, abajo, Gerencia lo enciende, copia el enlace y lo
+  cambia con «Crear un enlace nuevo». El chofer busca el lugar y ve solo el nombre, la zona, el precio **desde D'CASA**
+  y la ruta en Google Maps; nunca los km ni la tabla; sin tarifa aprobada, «confirma el precio con la tienda».
+  **«Usar mi ubicación» viene apagado** («por defecto inamovible … que nosotros lo decidamos»): solo Gerencia lo
+  enciende. Ver [ENVIOS.md](ENVIOS.md) «Enlace para choferes». El enlace todavía no está encendido: lo hace la dueña.
+- **Revisión de seguridad independiente** del enlace: nada bloqueante; se arreglaron los límites (2 búsquedas a la
+  vez, 1 500 por día con nota a quien creó el enlace y contador en la ficha, IPv6 por /64, 300 por minuto entre todos,
+  texto corto), cuerpos rotos que daban 500, `write` sin permiso que rearmaba el buscador, `create` que aceptaba el
+  secreto y el borde que no reconocía el enlace con idioma delante. Lo no evitable (quien tiene el enlace ve precios
+  y Google Maps los km) quedó escrito en ENVIOS.md.
+- **Portada:** una categoría sin nada publicado (hoy «Colchones») abre WhatsApp con «quiero información de
+  colchones»; al publicar un colchón vuelve sola a la tienda (decisión de la dueña). Confirmado en producción.
+- **Dependabot** #96, #97 y #98 (Juan: `ai` y `@ai-sdk/*`; borde y puente: `workers-types` y `wrangler`).
+- **CI:** la 303 falló en la prueba de «Colchones» (el catálogo del CI ya trae colchones publicados) y la 304 en una
+  prueba del puente que dependía de la velocidad de la máquina; las dos reproducidas en local y arregladas (ver
+  CONTEXTO_AGENTICO).
+- **Messenger conectado** (con Claude en Chrome y la dueña): control total de la página para la cuenta usada, webhook,
+  suscripciones solo en DCASA PTY y `META_PAGE_TOKEN`. Juan contestó un «Hola buenas» y la conversación salió en Odoo.
+  Hasta la revisión de Meta (que pide verificar el negocio: lo ve la administración) solo contesta a quien tiene rol en
+  la app. **Instagram** quedó a medias: «Invalid Scopes» (faltan los permisos de Instagram en la app) y hace falta
+  entrar con acceso al portafolio DCasa Pty. Pasos en [JUAN_CANALES.md](JUAN_CANALES.md) §3.
+- **WhatsApp dejó de enviar desde las 16:00** con el código **131070** («otra app controla la conversación»). No fue el
+  token de la página ni el sistema (Messenger funcionó de punta a punta a la misma hora): en Meta el número quedó
+  **sin cuenta de mensajes** («Add a Messaging account»), probablemente porque Callbell retiró la suya cuando se le pidió
+  retirar su línea de crédito. Lo arreglan los dueños en Meta desde DCasa Pty (crear y ligar una cuenta de mensajes con
+  su tarjeta). Ver JUAN_CANALES §1 «Si deja de contestar».
+- **Sigue:** que los dueños liguen la cuenta de mensajes (y probar que Juan vuelva a enviar; si sigue el 131070, el
+  «Agente de negocios de Meta»); encender el enlace de choferes; Instagram; en el próximo lote, el motivo real en el
+  aviso «Quedó por enviar» y el nombre del cliente de Messenger.
+
 ### 2026-11-09: «No llegó» por el pago de Meta (131042); preguntas sin respuesta para las vendedoras; videos con voz
 
 **En producción** desde el 2026-11-09: PR #99, CI #301, Desplegar 62 (imagen `sha256:f467a09a…`, versión 5882fa4) y

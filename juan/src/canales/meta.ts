@@ -21,6 +21,7 @@ import {
   type Entrante,
   type ResultadoEnvio,
   type ResultadoWebhook,
+  type MedioSaliente,
   type Saliente,
   type SaludCanal,
   EnvioParcialError,
@@ -97,23 +98,68 @@ const CAPACIDADES: Record<"messenger" | "instagram", Capacidades> = {
   instagram: { imagenes: true, documentos: false, ventana24h: true, maxTexto: 950 },
 };
 
+/** Lo más grande que Messenger acepta como adjunto subido. */
+export const MAX_ADJUNTO_MESSENGER_BYTES = 25 * 1024 * 1024;
+
 export function crearMeta(op: OpcionesMeta = {}): AdaptadorCanal {
   const f: typeof fetch = op.fetch ?? ((...a) => fetch(...a));
   const dormir = op.dormir ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
 
-  async function enviarUno(env: Env, cuerpo: Record<string, unknown>): Promise<string | undefined> {
+  async function publicar(env: Env, init: { headers: Record<string, string>; body: BodyInit }): Promise<string | undefined> {
     const token = env.META_PAGE_TOKEN;
     if (!token) throw new Error("Falta META_PAGE_TOKEN");
-    const r = await f(urlGraph(env, "me/messages"), {
-      method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
-      body: JSON.stringify(cuerpo),
-    });
+    const r = await f(urlGraph(env, "me/messages"), { method: "POST", headers: { ...init.headers, authorization: `Bearer ${token}` }, body: init.body });
     const j = (await r.json().catch(() => ({}))) as { message_id?: string; error?: { message?: string; code?: number } };
     // Fuera de la ventana de 24 h, sin permiso o con un destinatario inválido, Meta contesta con un error concreto.
     if (!r.ok || j.error) throw new Error(`meta send ${r.status}: ${j.error?.message ?? "sin detalle"} (código ${j.error?.code ?? "?"})`);
     return j.message_id;
   }
+
+  const enviarUno = (env: Env, cuerpo: Record<string, unknown>) =>
+    publicar(env, { headers: { "content-type": "application/json" }, body: JSON.stringify(cuerpo) });
+
+  /**
+   * Messenger: Juan baja el archivo (la URL firmada de Odoo) y se lo SUBE a Meta en la misma llamada (`filedata`). Con
+   * `payload.url` Meta tenía que bajarlo él mismo desde dcasapty.com y respondía «(#100) Error al subir el producto»
+   * (2026-11-09: el texto salía y la foto no). Si Juan no logra bajarlo, se manda por URL como antes (nunca peor que
+   * antes). Instagram no acepta archivos subidos: sigue por URL.
+   */
+  async function bajarParaSubir(m: MedioSaliente): Promise<{ bytes: ArrayBuffer; mime: string } | null> {
+    let archivo: Response;
+    try {
+      archivo = await f(m.url);
+    } catch (e) {
+      console.warn("[juan] messenger: no se pudo bajar el archivo para subirlo; va por URL:", String(e).slice(0, 200));
+      return null;
+    }
+    if (!archivo.ok) {
+      console.warn(`[juan] messenger: el archivo respondió HTTP ${archivo.status}; va por URL`);
+      return null;
+    }
+    if (Number(archivo.headers.get("content-length") ?? 0) > MAX_ADJUNTO_MESSENGER_BYTES) throw new Error("el archivo pasa de 25 MB (límite de Messenger)");
+    const bytes = await archivo.arrayBuffer();
+    if (bytes.byteLength > MAX_ADJUNTO_MESSENGER_BYTES) throw new Error("el archivo pasa de 25 MB (límite de Messenger)");
+    if (bytes.byteLength === 0) return null;
+    const mime = m.mime || archivo.headers.get("content-type")?.split(";")[0]?.trim() || (m.tipo === "imagen" ? "image/jpeg" : "application/octet-stream");
+    return { bytes, mime };
+  }
+
+  async function enviarSubiendo(env: Env, destino: { id: string }, m: MedioSaliente, archivo: { bytes: ArrayBuffer; mime: string }): Promise<string | undefined> {
+    const imagen = m.tipo === "imagen";
+    const cuerpo = new FormData();
+    cuerpo.append("recipient", JSON.stringify(destino));
+    cuerpo.append("messaging_type", "RESPONSE");
+    cuerpo.append("message", JSON.stringify({ attachment: { type: imagen ? "image" : "file", payload: { is_reusable: false } } }));
+    cuerpo.append("filedata", new Blob([archivo.bytes], { type: archivo.mime }), m.nombre || (imagen ? "foto.jpg" : "archivo"));
+    return publicar(env, { headers: {}, body: cuerpo }); // (sin content-type: lo pone FormData con su «boundary»)
+  }
+
+  const porUrl = (env: Env, destino: { id: string }, m: MedioSaliente) =>
+    enviarUno(env, {
+      recipient: destino,
+      messaging_type: "RESPONSE",
+      message: { attachment: { type: m.tipo === "imagen" ? "image" : "file", payload: { url: m.url, is_reusable: true } } },
+    });
 
   return {
     canales: ["messenger", "instagram"],
@@ -178,11 +224,9 @@ export function crearMeta(op: OpcionesMeta = {}): AdaptadorCanal {
             medios++;
             continue;
           }
-          const id = await enviarUno(env, {
-            recipient: destino,
-            messaging_type: "RESPONSE",
-            message: { attachment: { type: m.tipo === "imagen" ? "image" : "file", payload: { url: m.url, is_reusable: true } } },
-          });
+          if (!env.META_PAGE_TOKEN) throw new Error("Falta META_PAGE_TOKEN");
+          const archivo = canal === "messenger" ? await bajarParaSubir(m) : null;
+          const id = archivo ? await enviarSubiendo(env, destino, m, archivo) : await porUrl(env, destino, m);
           medios++;
           if (id) ids.push(id);
         }

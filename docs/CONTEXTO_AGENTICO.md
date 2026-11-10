@@ -317,6 +317,21 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 - **CI #167** (`6bae4798`, 2026-10-16) · Síntoma: `FAIL: TestEquipo.test_el_menu_empleados_tiene_el_icono_de_la_marca`
   (1 de 3391). Arreglo: `fbf375b0` → `addons/dcasa_equipo/tests/test_equipo.py` («ícono de Empleados»); CI #168 en verde.
 
+- **Una página pública que pide con `fetch` necesita `credentials: 'same-origin'` para sus pruebas de navegador**
+  (enlace para choferes, 2026-11-09): con `'omit'` el navegador no manda la cookie `test_cursor` y el servidor de
+  pruebas IGNORA la petición («has been ignored during test as it does not contain the test_cursor cookie», 400
+  vacío): las pruebas de navegador fallan con «No apareció». En producción da igual si la ruta lee todo con `sudo()`
+  después de validar su llave (la página misma, al abrirse, ya manda las cookies del sitio).
+- **`max_content_length=` en `@http.route` corta antes del controlador**: un cuerpo más grande recibe el 413 HTML de
+  werkzeug (sin las cabeceras propias de la ruta). La prueba espera 413, no el 400 del controlador.
+- **Las pruebas de la Guía (`dcasa_guia`) necesitan todos los módulos instalados**: en una base con solo una parte
+  (p. ej. la de envíos) fallan `planilla`, `seguro-social` y «la barra lateral no tiene Conversaciones», porque esas
+  tareas se esconden cuando su pantalla no existe. No es el cambio: confirmar en el CI, que instala todo.
+- **Una prueba de la portada que necesita una categoría VACÍA tiene que vaciarla toda** (CI #303, 2026-11-09): el CI
+  instala `dcasa_catalogo`, que trae colchones publicados; apagar solo el producto de la prueba dejaba «Colchones» con
+  productos y fallaba solo en el CI. Se apagan todos los publicados de la categoría (`child_of`). Se reproduce en una
+  base con el catálogo (`dcasa_test_amplio`).
+
 ### Integración Juan (Odoo real + Worker real)
 
 - **CI #215** (`9541408`, 2026-10-23) · 7 de 40 fallaron: la primera («bienvenida y pregunta por camas queen») con
@@ -379,6 +394,13 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `main` (`741930d`, árbol = `de1fb04`) a staging y Desplegar con ese `app_version`. **Regla:** un cambio del borde
   (rutas, `vars`, `workers_dev`) se despliega con un `app_version` que lo contenga, o sea con una imagen construida
   de ese commit.
+- **Desplegar 63 y después Desplegar Juan 13** (23:26 y 23:43 UTC del 9 nov, `app_version` `3e2ccfc` = SHA de la rama,
+  imagen `sha256:acda72c1…` de CI #305, respaldo previo) · Odoo sano y confirmado 23:43 (versión `3e2ccfc3e9d1`, base al
+  día, humo ok): enlace para choferes, «Colchones» abre WhatsApp y Dependabot (PR #100, `main` = `4a01039`, árbol =
+  `3e2ccfc`). Juan: `/salud` con `4a01039` y las llaves intactas (Messenger recién conectado sigue «configurado»). Se
+  frenó el despliegue mientras WhatsApp no enviaba (para no mezclar cambios con un problema abierto) y se soltó al
+  confirmar que era de Meta: Messenger funcionaba de punta a punta. Antes, la CI #303 y la #304 fallaron por pruebas
+  (ver «Tests de Odoo» y «Flakes»).
 - **Desplegar 61 y después Desplegar Juan 11** (18:45 y 19:01 UTC del 7 nov, `app_version` `e53e5d8` = SHA de la rama,
   imagen `sha256:4ef8d264…` de CI #296, respaldo previo) · Odoo sano y confirmado 19:00 (versión `e53e5d8b4ebf`): el
   remitente propio de Camila y el aviso de Resend (PR #95, `main` = `848d314`, árbol = `e53e5d8`). Juan: sin tope de notas
@@ -554,6 +576,12 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 
 ---
 
+- **CI #304 (2026-11-09), puente: «espera cada vez más entre intentos» con 4 llamadas en vez de 2.** No era un flake:
+  el ayudante `vigilarAvanzando` adelanta el reloj falso 600 ms por vuelta mientras espera trabajo real, y en una
+  máquina lenta da más vueltas, así que «30 s después» ya pasaba el minuto de espera. Se reproduce adelantando 15 000 ms
+  por vuelta; la prueba ahora vigila con `{ congelarReloj: true }` (los temporizadores corren, `Date.now()` no se
+  mueve). Regla: una prueba que mide una espera no puede depender de cuántas vueltas dé un ayudante.
+
 ## Trampas de Odoo 19 / Cloudflare / GitHub ya conocidas
 
 ### Esta máquina (sesiones de Claude)
@@ -700,6 +728,10 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 
 ### Odoo 19
 
+- **Un límite «entre todas las IP» de una ruta pública con llave se cuenta DESPUÉS de validar la llave** (revisión de
+  seguridad del enlace para choferes, 2026-11-09): contado antes, cualquiera sin el enlace se lo gasta con 404 y deja
+  sin servicio a quien sí lo tiene. Y con `workers = 0` (un solo proceso) una búsqueda cara se protege con un
+  `BoundedSemaphore` sin espera: el que sobra recibe 429 al instante, en vez de frenar todo Odoo.
 - **Camila (2026-11-06, `dcasa_camila`), lo aprendido:**
   - **Una casilla con `readonly="<el mismo campo>"` no se guarda nunca.** Al marcarla, el modificador se cumple al
     instante y el formulario deja fuera del guardado los campos de solo lectura: el botón de la nube no se enciende, el
@@ -1149,6 +1181,28 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   avisan a Gerencia por Telegram una vez cada 6 h por código (`dcasa.mensaje._avisar_problema_de_cuenta`).
 - **Para leer datos de producción sin la base**: Brian por MCP (solo lectura) no tiene el detalle de los mensajes; el
   motivo de un «No llegó» lo ve quien está en la pantalla (globito) o el formulario del mensaje (`error_envio`).
+
+- **131070, «Message failed to send because another app is controlling this thread now»** (2026-11-09 desde las
+  16:00, nada salía): no es del sistema. Ese día el número estaba «Conectado» y con calidad «Alta» pero **sin cuenta de
+  mensajes** («Add a Messaging account»; «Messaging limits: No disponible»), probablemente porque Callbell retiró la
+  suya al pedirle que quitara su línea de crédito. Meta no tiene el 131070 en su lista oficial de errores. Si sigue
+  después de ligar una cuenta de mensajes propia: el «Agente de negocios de Meta» (cuando está encendido, él controla las
+  conversaciones y los mensajes del cliente llegan en el campo `standby`, no en `messages`) u otra app en el número.
+  Probar otro canal (Messenger) al mismo tiempo separó «Meta» de «nuestro sistema» en minutos.
+- **El aviso «Quedó por enviar: el Worker no respondió» sale para cualquier fallo** (también cuando Juan respondió con
+  un error de Meta): el motivo real está en la burbuja del mensaje («No se pudo enviar: …») o en
+  *Conversaciones › Conexiones* › «Por revisar» (el aviso de «Probar conexión» solo muestra el primero de la lista).
+- **Cambiar `META_VERIFY_TOKEN` no rompe WhatsApp**: el token de verificación solo se usa cuando Meta verifica un
+  webhook (el GET); los avisos se firman con `META_APP_SECRET`. Si se pierde, uno nuevo en Cloudflare y el mismo en Meta.
+- **Messenger: «(#100) Error al subir el producto» = Meta no pudo bajar el adjunto de la URL** (2026-11-09: el texto
+  salía y la foto no; la misma URL firmada de dcasapty.com sí la baja WhatsApp). Juan ahora baja el archivo y lo sube
+  en la misma llamada a `me/messages` (multipart con `filedata`); si no logra bajarlo, va por URL como antes.
+- **Messenger/Instagram en la app de Meta** (2026-11-09): la cuenta de Facebook necesita **control total** de la página
+  (con acceso parcial sin «Mensajes» la página no aparece al conectar); en «Generar identificadores de acceso» salen
+  también otras páginas de esa cuenta (no suscribirlas); Instagram da «Invalid Scopes: instagram_manage_messages,
+  instagram_basic» hasta agregar esos permisos en «Permisos y funciones»; y el caso de uso «API de Instagram › API setup
+  with Unified login» es otra cosa (otra llave, para publicar): Juan contesta Instagram por Messenger con la llave de
+  la página.
 
 ### GitHub
 
