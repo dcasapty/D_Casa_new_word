@@ -112,8 +112,14 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 Meta el botón **«redireccionar conversación»** (el Enrutamiento de conversaciones), mandó las conversaciones a «D'CASA
 Juan» y **eliminó a Callbell**. WhatsApp volvió a enviar y recibir sin esperar los 7 días que decía soporte.
 
-**En producción** desde el 2026-11-10: PR #104, CI #315, **Desplegar Juan 17** (`main` = d40607f, árbol = cf52548) y
-PR #105, CI #317, **Desplegar Juan 18** (`main` = ac75436, árbol = 4c16cd2). Odoo sin cambios.
+**En producción** desde el 2026-11-10: PR #104, CI #315, **Desplegar Juan 17** (`main` = d40607f, árbol = cf52548);
+PR #105, CI #317, **Desplegar Juan 18** (`main` = ac75436, árbol = 4c16cd2); y PR #106, CI #319, **Desplegar Juan 19**
+(`main` = f8a6c24, árbol = b955b2f). Odoo sin cambios.
+
+- **Instagram conectado** (10 nov, tarde) por la página DCASA PTY, con la misma app y la misma llave que Messenger
+  (`META_PAGE_TOKEN` reemplazada; Messenger siguió funcionando). Juan contestó un DM de prueba y salió en Odoo con el
+  nombre. La foto no salía (igual que Messenger el 9 nov): **Juan 19** la sube a Meta y la manda con su `attachment_id`.
+  Se descartó la guía de un conocido («inicio de sesión con Instagram»): otra llave que vence y cambios en Juan.
 
 - **La causa más probable del 131070**: el **«Enrutamiento de conversaciones»** de Meta (Conversation Routing, desde
   septiembre de 2026) decide qué app es la principal de los chats del número; solo esa contesta y las demás reciben

@@ -394,6 +394,9 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `main` (`741930d`, árbol = `de1fb04`) a staging y Desplegar con ese `app_version`. **Regla:** un cambio del borde
   (rutas, `vars`, `workers_dev`) se despliega con un `app_version` que lo contenga, o sea con una imagen construida
   de ese commit.
+- **Desplegar Juan 19** (21:06 UTC del 10 nov, solo Juan) · `/salud` con `f8a6c24` (PR #106, árbol = `b955b2f`, CI #319
+  verde con staging): Instagram sube la foto (`me/message_attachments`, `platform=instagram`) y la manda con su
+  `attachment_id`; si Meta no la acepta, va por URL como antes.
 - **Desplegar Juan 18** (19:09 UTC del 10 nov, solo Juan) · `/salud` con `ac75436` (PR #105, árbol = `4c16cd2`, CI #317 verde con
   staging): un aviso de WhatsApp sin mensaje ni palomita se anota con su forma («aviso sin mensajes ni palomitas»).
 - **Desplegar Juan 17** (17:55 UTC del 10 nov, solo Juan) · `/salud` con `d40607f` (PR #104, árbol = `cf52548`, CI #315
