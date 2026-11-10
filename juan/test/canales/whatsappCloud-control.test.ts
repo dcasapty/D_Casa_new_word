@@ -11,7 +11,7 @@ import {
   crearWhatsappCloud,
   ESPERA_CONTROL_POR_CLIENTE_MS,
   ESPERA_CONTROL_TRAS_RECHAZO_MS,
-  resumenDeControl,
+  resumenDeMeta,
   resumenDeTraspaso,
   URL_CONTROL_DEL_CHAT,
 } from "../../src/canales/whatsappCloud";
@@ -150,6 +150,14 @@ describe("131070: Juan pide el control del chat y, si Meta se lo da, manda otra 
     expect(avisos.some((a) => a.includes("no se pudo pedir el control"))).toBe(true);
   });
 
+  it("todo envío rechazado deja en el registro su código y su fbtrace_id (para soporte de Meta), sin el número del cliente", async () => {
+    const avisos = registro();
+    const { adaptador } = nubeFalsa(() => RECHAZO_131070());
+    await expect(adaptador.enviar("whatsapp_cloud", texto(CLIENTE), env)).rejects.toThrow(/131070/);
+    expect(avisos.some((a) => a.includes("Meta rechazó un envío") && a.includes("código 131070") && a.includes("fbtrace_id TRAZA1"))).toBe(true);
+    expect(avisos.join("\n")).not.toContain(CLIENTE);
+  });
+
   it("otros rechazos (24 h, pago, otro 400) no piden el control", async () => {
     registro();
     for (const code of [131047, 131042, 100]) {
@@ -285,13 +293,13 @@ describe("avisos del reparto de chats: solo al registro, nunca se contesta", () 
 });
 
 describe("resúmenes para el registro", () => {
-  it("resumenDeControl: forma de la Graph API y forma StandardError; tapa números largos", () => {
-    expect(resumenDeControl(400, { error: { message: "No para 50760001111", code: 2494191, error_subcode: 7, fbtrace_id: "T" } })).toBe(
+  it("resumenDeMeta: forma de la Graph API y forma StandardError; tapa números largos", () => {
+    expect(resumenDeMeta(400, { error: { message: "No para 50760001111", code: 2494191, error_subcode: 7, fbtrace_id: "T" } })).toBe(
       "HTTP 400 · código 2494191 · subcódigo 7 · No para … · fbtrace_id T",
     );
-    expect(resumenDeControl(401, { type: "about:blank", title: "Unauthorized", detail: "Token sin permiso", status: 401 })).toBe("HTTP 401 · Token sin permiso");
-    expect(resumenDeControl(200, { messaging_product: "whatsapp", request_id: "R" })).toBe("HTTP 200 · request_id R");
-    expect(resumenDeControl(502, "no es json")).toBe("HTTP 502");
+    expect(resumenDeMeta(401, { type: "about:blank", title: "Unauthorized", detail: "Token sin permiso", status: 401 })).toBe("HTTP 401 · Token sin permiso");
+    expect(resumenDeMeta(200, { messaging_product: "whatsapp", request_id: "R" })).toBe("HTTP 200 · request_id R");
+    expect(resumenDeMeta(502, "no es json")).toBe("HTTP 502");
   });
 
   it("resumenDeTraspaso: sin nada conocido dice «sin detalle»", () => {

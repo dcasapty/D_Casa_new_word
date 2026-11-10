@@ -140,8 +140,9 @@ export const ESPERA_CONTROL_TRAS_RECHAZO_MS = 10 * 60_000;
 const MAX_CLIENTES_RECORDADOS = 500;
 const PLAZO_CONTROL_MS = 10_000;
 
-/** Lo que Meta contestó a un pedido de control, sin datos de nadie: estado HTTP, código, texto corto y la traza para soporte. */
-export function resumenDeControl(estado: number, j: unknown): string {
+/** Lo que Meta contestó (un envío rechazado o un pedido de control), sin datos de nadie: estado HTTP, código, texto corto y la traza
+ * (`fbtrace_id`) que pide soporte de Meta. */
+export function resumenDeMeta(estado: number, j: unknown): string {
   const o = (j && typeof j === "object" ? j : {}) as Record<string, unknown>;
   const e = (o.error && typeof o.error === "object" ? o.error : o) as Record<string, unknown>;
   const num = (v: unknown) => (typeof v === "number" || (typeof v === "string" && /^\d{1,9}$/.test(v)) ? String(v) : undefined);
@@ -303,6 +304,8 @@ export function crearWhatsappCloud(op: OpcionesWhatsappCloud = {}): AdaptadorCan
     // Fuera de la ventana de 24 h Meta rechaza el texto libre y pide una plantilla: el motivo viene en el error.
     if (!r.ok || j.error) {
       const codigo = typeof j.error?.code === "number" ? j.error.code : undefined;
+      // Al registro con su `fbtrace_id` (lo primero que pide soporte de Meta), sin el número del cliente.
+      console.warn("[juan] whatsapp cloud: Meta rechazó un envío:", resumenDeMeta(r.status, j));
       throw new ErrorDeEnvio(`whatsapp cloud ${r.status}: ${j.error?.message ?? "sin detalle"} (código ${codigo ?? "?"})`, r.ok ? 400 : r.status, codigo);
     }
     return j.messages?.[0]?.id;
@@ -331,11 +334,11 @@ export function crearWhatsappCloud(op: OpcionesWhatsappCloud = {}): AdaptadorCan
       });
       const j = (await r.json().catch(() => ({}))) as { error?: unknown };
       if (r.ok && !j.error) {
-        console.warn("[juan] whatsapp cloud: 131070; Juan pidió el control del chat y Meta se lo dio:", resumenDeControl(r.status, j));
+        console.warn("[juan] whatsapp cloud: 131070; Juan pidió el control del chat y Meta se lo dio:", resumenDeMeta(r.status, j));
         return true;
       }
       pedidosPausadosHasta = t + ESPERA_CONTROL_TRAS_RECHAZO_MS;
-      console.warn("[juan] whatsapp cloud: 131070; Juan pidió el control del chat y Meta dijo que no:", resumenDeControl(r.status, j));
+      console.warn("[juan] whatsapp cloud: 131070; Juan pidió el control del chat y Meta dijo que no:", resumenDeMeta(r.status, j));
       return false;
     } catch (e) {
       pedidosPausadosHasta = t + ESPERA_CONTROL_TRAS_RECHAZO_MS;
