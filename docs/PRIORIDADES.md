@@ -33,7 +33,10 @@ LEEME_PRIMERO §2).
     **Causa más probable (10 nov): el «Enrutamiento de conversaciones» de Meta** sigue con otra app de principal (al
     quitar Callbell, Meta no nombra otra): los dueños eligen «D'CASA Juan» en cada punto de entrada en Meta Business
     Suite, o lo hace soporte de Meta (el caso ya está abierto; el contexto completo se le dio a la dueña). Juan 17 pide
-    el control solo al recibir 131070 y deja la respuesta de Meta (con `fbtrace_id`) en los registros. Además,
+    el control solo al recibir 131070 y deja la respuesta de Meta (con `fbtrace_id`) en los registros. **Al cierre del
+    10 nov: enviar ya funciona; recibir no** (Meta llama al webhook desde que se volvió a suscribir la app, pero nada
+    llega a Odoo: Juan 18 anota la forma de esos avisos). Soporte dice que el número tarda **hasta 7 días** (hasta el
+    16 nov) en desvincularse de Callbell. No borrar ni volver a registrar el número. Además,
     el nombre visible «DCasa Pty» está DECLINED: pedir uno nuevo (p. ej. «D'Casa Panamá"). Ver [JUAN_CANALES.md](JUAN_CANALES.md) §1 «Si deja de contestar». **Enlace para choferes** y
     «Colchones» → WhatsApp: en producción (Desplegar 63); falta que la dueña encienda el enlace en Envíos › Tarifa.
     **Instagram**: faltan los permisos de Instagram en la app y entrar con acceso a DCasa Pty (JUAN_CANALES §3).

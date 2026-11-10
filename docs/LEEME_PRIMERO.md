@@ -106,6 +106,30 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 > sigue. Se guardan las diez más recientes; las viejas se resumen en una línea abajo y su texto completo pasa a
 > [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md).
 
+### 2026-11-10: WhatsApp 131070: ya sale; la entrada espera a Meta (hasta 7 días); Juan pide el control y anota todo
+
+**En producción** desde el 2026-11-10: PR #104, CI #315, **Desplegar Juan 17** (`main` = d40607f, árbol = cf52548) y
+PR #105, CI #317, **Desplegar Juan 18** (`main` = ac75436, árbol = 4c16cd2). Odoo sin cambios.
+
+- **La causa más probable del 131070**: el **«Enrutamiento de conversaciones»** de Meta (Conversation Routing, desde
+  septiembre de 2026) decide qué app es la principal de los chats del número; solo esa contesta y las demás reciben
+  131070. Al quitar Callbell, Meta **no nombra otra principal** por su cuenta. Ver [JUAN_CANALES.md](JUAN_CANALES.md) §1.
+- **Juan 17:** si un envío da 131070, Juan pide el control de ese chat (Thread Control, «take») y, si Meta se lo da,
+  manda otra vez lo rechazado. Todo envío rechazado deja su código y su `fbtrace_id` en el registro de `dcasa-juan`.
+  **Juan 18:** un aviso de WhatsApp que no da mensaje ni palomita se anota con su forma (campo, claves, tipos), sin datos.
+- **Pruebas con soporte de Meta (chat):** a las 12:13 un envío desde el Explorador de la API Graph (app «D'CASA Juan»,
+  número de la tienda) **llegó** al celular: **ya se puede enviar**. Los mensajes al número llegan (doble palomita) pero
+  no a Odoo. Se volvió a suscribir la app a la WABA (`POST 1313438470854835/subscribed_apps` → `success: true`) y a las
+  12:22 Meta sí llamó al webhook (200), pero el mensaje no apareció en Odoo (Juan 18 dirá qué forma tiene ese aviso).
+- **Soporte de Meta:** tras un cambio de proveedor, el número tarda **hasta 7 días** en desvincularse de la app y del
+  activo anterior (desde el 9 nov: hasta el **16 nov**). **Callbell** propuso eliminar el número y volver a
+  registrarlo: **no se hace** (se pierde límite, calidad y plantillas; hace falta la SIM y quizá el PIN de dos pasos).
+  Se le pidió a Callbell quitar sus enlaces y decir si puso PIN. Los jefes ya entraron como administradores del
+  portafolio: queda una revisión con Claude en Chrome del enrutamiento, socios y apps conectadas (cambios solo con «sí»).
+- **Sigue:** probar una vez al día (escribirle «prueba» a la tienda y ver si llega a Odoo y si Juan contesta); si el
+  16 nov sigue igual, escalar con Meta; Messenger funciona mientras tanto. Lo de antes sigue: Instagram, encender el
+  enlace de choferes y el motivo real en «Quedó por enviar».
+
 ### 2026-11-09 (tarde y noche): enlace para choferes; «Colchones» abre WhatsApp; Messenger conectado; WhatsApp bloqueado por Meta (131070)
 
 **En producción** desde el 2026-11-09: PR #100, CI #305, Desplegar 63 (imagen `sha256:acda72c1…`, versión 3e2ccfc) y

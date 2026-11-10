@@ -128,6 +128,13 @@ No hace falta tocar nada en Meta: todo llega por la misma suscripción a los men
      espera» en el enrutamiento (viene apagada).
    - **Para soporte de Meta:** WABA 1313438470854835 («DCasa Pty (Odoo)»), número 1254707667716067, app «D'CASA Juan»
      1694271085547708. Pedir que digan qué app tiene el control y que pongan a «D'CASA Juan» de principal.
+   - **Lo que pasó el 10 nov:** enviar volvió antes que recibir (prueba desde el Explorador de la API Graph, llegó).
+     Si los mensajes de los clientes no llegan a Odoo: (1) mirar en Cloudflare › `dcasa-juan` › Registros si hay POST a
+     `/webhooks/whatsapp-cloud` a la hora en que se escribió; (2) si no hay, volver a suscribir la app a la WABA
+     (`POST 1313438470854835/subscribed_apps` en el Explorador, sin parámetros); (3) si hay POST pero nada en Odoo,
+     buscar en el registro «aviso sin mensajes ni palomitas» (Juan 18 dice qué traía). Soporte de Meta: tras cambiar de
+     proveedor, hasta **7 días** para que el número se desvincule del anterior. **No eliminar ni volver a registrar el
+     número** sin hablarlo con los dueños (lo propuso Callbell).
 
 ### Para otra instalación (o para conectar otro número)
 
