@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Env } from "../../src/env";
 import {
   crearWhatsappCloud,
+  formaDelAviso,
   ESPERA_CONTROL_POR_CLIENTE_MS,
   ESPERA_CONTROL_TRAS_RECHAZO_MS,
   resumenDeMeta,
@@ -305,5 +306,44 @@ describe("resúmenes para el registro", () => {
   it("resumenDeTraspaso: sin nada conocido dice «sin detalle»", () => {
     expect(resumenDeTraspaso(undefined)).toBe("sin detalle");
     expect(resumenDeTraspaso({ a: { b: { type: "control_passed", target_role: "ai_agent" } } })).toBe("type=control_passed · target_role=ai_agent");
+  });
+});
+
+describe("un aviso que no dio nada se anota con su forma (2026-11-10: Meta llamaba con 200 y nada llegaba a Odoo)", () => {
+  const avisoCon = (value: object, field = "messages") => ({
+    object: "whatsapp_business_account",
+    entry: [{ id: "WABA", changes: [{ field, value: { messaging_product: "whatsapp", metadata: metadatos, ...value } }] }],
+  });
+
+  it("un mensaje sin remitente (solo el id de usuario de Meta) no se pierde en silencio: el registro dice qué traía, sin datos", async () => {
+    const avisos = registro();
+    const { adaptador } = nubeFalsa(() => OK(0));
+    const r = await adaptador.recibir(
+      await firmado(avisoCon({ contacts: [{ profile: { name: "Cliente de Prueba" }, user_id: "PA.987" }], messages: [{ from_user_id: "PA.987", id: "wamid.X", timestamp: "1790000000", type: "text", text: { body: "buenas, prueba" } }] })),
+      env,
+    );
+    expect(r.entrantes).toEqual([]);
+    const forma = avisos.find((a) => a.includes("aviso sin mensajes ni palomitas"));
+    expect(forma).toContain("field=messages");
+    expect(forma).toContain("nuestro número=sí");
+    expect(forma).toContain("mensajes=1(text) con remitente=0");
+    const todo = avisos.join("\n");
+    for (const dato of ["PA.987", "Cliente de Prueba", "buenas, prueba", CLIENTE, TIENDA]) expect(todo).not.toContain(dato);
+  });
+
+  it("un tipo que Juan no conoce y un aviso de otro número también se anotan", () => {
+    expect(formaDelAviso(avisoCon({ messages: [{ from: CLIENTE, id: "w", type: "unsupported" }] }), NUMERO)).toContain("mensajes=1(unsupported) con remitente=1");
+    expect(formaDelAviso(avisoCon({ statuses: [] }), "OTRO")).toContain("nuestro número=no");
+    expect(formaDelAviso(avisoCon({ phone_number: "x" }, "account_update"), NUMERO)).toContain("field=account_update claves=messaging_product,metadata,phone_number");
+    expect(formaDelAviso("basura", NUMERO)).toBe("object=? | sin entry");
+    expect(formaDelAviso({ object: "whatsapp_business_account", entry: [{}] }, NUMERO)).toBe("object=whatsapp_business_account | entry sin changes");
+  });
+
+  it("un mensaje normal o una palomita no dejan esa anotación", async () => {
+    const avisos = registro();
+    const { adaptador } = nubeFalsa(() => OK(0));
+    await adaptador.recibir(await firmado(avisoCon({ contacts: [{ profile: { name: "C" }, wa_id: CLIENTE }], messages: [{ from: CLIENTE, id: "wamid.N", timestamp: "1790000000", type: "text", text: { body: "Hola" } }] })), env);
+    await adaptador.recibir(await firmado(avisoCon({ statuses: [{ id: "wamid.OUT1", status: "delivered", timestamp: "1790000001", recipient_id: CLIENTE }] })), env);
+    expect(avisos.some((a) => a.includes("aviso sin mensajes ni palomitas"))).toBe(false);
   });
 });
