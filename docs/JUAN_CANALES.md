@@ -107,6 +107,28 @@ No hace falta tocar nada en Meta: todo llega por la misma suscripción a los men
    de negocios de Meta» (la IA de Meta toma las conversaciones y los mensajes llegan como `standby`) u otra app
    conectada al número. Las plantillas vivían en la cuenta de mensajes vieja: si se usan, hay que volver a crearlas.
 
+   **La causa más probable (2026-11-10): el «Enrutamiento de conversaciones»** (Conversation Routing, de Meta desde
+   septiembre de 2026). En la cuenta de WhatsApp, Meta Business Suite guarda qué app es la **principal** de cada punto de
+   entrada (mensajes de servicio, Click-to-WhatsApp, respuestas a marketing y a utilidad). Solo la principal (la dueña
+   del chat) puede contestar: cualquier otra recibe **131070**, aunque nadie más esté contestando. **Al quitar una app
+   (Callbell), Meta no nombra otra principal**: hay que elegir a mano «D'CASA Juan» en cada punto de entrada. Sin API
+   pública: se hace en Meta Business Suite › Configuración › la cuenta de WhatsApp › Enrutamiento de conversaciones (el
+   nombre exacto del menú puede variar), con un administrador del portafolio dueño de la cuenta. Ahí mismo se ve si
+   está el agente de IA de Meta.
+   - **Juan pide el control solo** (Juan 17): si un envío da 131070, Juan le pide a Meta el control de ESE chat
+     (`thread_control`, «take», en `api.facebook.com`) una vez cada media hora por cliente, y si Meta se lo da manda
+     otra vez lo rechazado. Meta solo se lo da a la app nombrada «socio de escalamiento»; a las demás responde que no
+     (2494191, según las guías de proveedores). Lo que Meta contesta queda en los registros de `dcasa-juan` en
+     Cloudflare: «Juan pidió el control del chat y Meta dijo que no: HTTP … · código … · fbtrace_id …» (el
+     `fbtrace_id` es lo que pide soporte de Meta). Tras un «no», nadie lo vuelve a pedir en 10 minutos.
+   - **Campos del webhook `standby` y `messaging_handovers`** (WhatsApp › Configuración de la app): si se suscriben,
+     Juan anota en el registro, sin datos de nadie, cuántos mensajes llegan por `standby` (es decir, otra app lleva
+     esos chats) y quién tomó el control (`messaging_handovers`, con los ids de las apps). **Nunca contesta un
+     `standby`**: Meta pide no hacerlo. El `standby` además necesita que el negocio le dé a la app «visibilidad en
+     espera» en el enrutamiento (viene apagada).
+   - **Para soporte de Meta:** WABA 1313438470854835 («DCasa Pty (Odoo)»), número 1254707667716067, app «D'CASA Juan»
+     1694271085547708. Pedir que digan qué app tiene el control y que pongan a «D'CASA Juan» de principal.
+
 ### Para otra instalación (o para conectar otro número)
 
 1. Cuenta de **Meta Business** a nombre de la empresa, con sus datos reales. Meta puede pedir **verificar el negocio** con

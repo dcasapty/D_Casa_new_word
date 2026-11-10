@@ -394,6 +394,9 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `main` (`741930d`, árbol = `de1fb04`) a staging y Desplegar con ese `app_version`. **Regla:** un cambio del borde
   (rutas, `vars`, `workers_dev`) se despliega con un `app_version` que lo contenga, o sea con una imagen construida
   de ese commit.
+- **Desplegar Juan 16** (16:09 UTC del 10 nov, solo Juan) · `/salud` con `ac5beb2` (PR #103, árbol = `a962482`, CI #312
+  verde con staging): si el perfil de Messenger/Instagram no responde (falta «Business Asset User Profile Access»), el
+  nombre sale de la conversación de la página (`me/conversations … fields=participants`).
 - **Desplegar Juan 15** (03:37 UTC del 10 nov, solo Juan) · `/salud` con `7707b53` (PR #102, árbol = `5d19c7c`, CI #310
   verde con staging): el nombre del cliente de Messenger e Instagram se le pide a Meta (`nombreDePerfil`).
 - **Desplegar Juan 14** (02:28 UTC del 10 nov, solo Juan: Odoo sin cambios) · `/salud` con `4cc4b97` (PR #101, árbol =
@@ -1201,6 +1204,23 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 - **Messenger: «(#100) Error al subir el producto» = Meta no pudo bajar el adjunto de la URL** (2026-11-09: el texto
   salía y la foto no; la misma URL firmada de dcasapty.com sí la baja WhatsApp). Juan ahora baja el archivo y lo sube
   en la misma llamada a `me/messages` (multipart con `filedata`); si no logra bajarlo, va por URL como antes.
+- **El 131070 NO es una app suscrita** (auditoría del 10 nov con el Explorador de la Graph API, solo GET): `subscribed_apps`
+  de la WABA 1313438470854835 trae solo «D'CASA Juan»; el número sale CONNECTED, CLOUD_API, GREEN (`name_status`
+  DECLINED, `code_verification_status` EXPIRED). Los registros de Cloudflare de `dcasa-juan`: avisos POST 200 que siguen
+  llegando, 404 al enviar el 9 nov 14:17–17:02 (el número «no estaba» un rato) y 131070 desde las 16:02. El 131070 es
+  del «thread control» de Meta (el que trajo Meta Business Agent): el control de la conversación lo tiene un rol que no
+  se ve en ninguna pantalla (el agente de Meta o un «escalation partner», p. ej. el proveedor anterior); `take` solo lo
+  puede hacer el escalation partner. Se resuelve con soporte de Meta (o el proveedor anterior), no en el código.
+- **131070 = la app no es la principal en el «Enrutamiento de conversaciones»** (Conversation Routing de WhatsApp,
+  documentado por Meta el 2026-09-23; guías de Cliengo y respond.io, 2026-11-10): solo el dueño del hilo envía; los demás
+  reciben 131070 «incluso con el hilo libre». **Quitar un proveedor (Callbell) no actualiza el enrutamiento y Meta no
+  elige otro principal**: se elige a mano en Meta Business Suite; no hay API pública. Thread Control (`POST
+  https://api.facebook.com/business/whatsapp/phone_numbers/<PHONE_NUMBER_ID>/thread_control`, `X-API-Version: 1.0.0`,
+  `{messaging_product, action: take|release|pass, to}`): `take` solo para el «socio de escalamiento» (si no, 2494191).
+  El webhook `standby` NO trae `value.messages`: trae `value.standby.{messages|message_echoes|statuses}` (y los
+  contactos dentro de `standby`); viene apagado hasta que el negocio da «visibilidad en espera», y Meta pide no
+  contestarlo. `messaging_handovers` (`control_taken`/`control_passed`) va solo a la app que PERDIÓ el control. Juan 17
+  pide el control al recibir 131070 y anota todo esto en el registro sin datos de nadie.
 - **Messenger/Instagram en la app de Meta** (2026-11-09): la cuenta de Facebook necesita **control total** de la página
   (con acceso parcial sin «Mensajes» la página no aparece al conectar); en «Generar identificadores de acceso» salen
   también otras páginas de esa cuenta (no suscribirlas); Instagram da «Invalid Scopes: instagram_manage_messages,

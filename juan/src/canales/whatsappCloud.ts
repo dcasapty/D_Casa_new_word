@@ -16,6 +16,13 @@
 //     200) y nunca despiertan al bot. Las reacciones que la tienda deja desde el teléfono (ecos) se ignoran.
 //   · «Responder» desde Odoo: el primer mensaje que sale lleva `context: {message_id}`; si Meta lo rechaza (un 4xx: el
 //     citado es muy viejo o no existe), sale otra vez sin la cita: nunca se deja de enviar por la cita.
+//   · Quién contesta cada chat lo decide el «Enrutamiento de conversaciones» de Meta (Conversation Routing, desde 2026-09, en
+//     Meta Business Suite): si la app principal es otra (un proveedor anterior o el agente de IA de Meta), Meta rechaza el envío
+//     con 131070. Entonces Juan pide el control de ESE chat una vez (`thread_control`, action «take»; ver `tomarControl`) y, si
+//     Meta se lo da, manda otra vez lo que se rechazó. Meta solo deja «take» a la app que el negocio nombró «socio de
+//     escalamiento» (si no, 2494191): el arreglo de fondo es que el negocio ponga a Juan de principal (docs/JUAN_CANALES.md).
+//   · `standby` (copias de los chats que lleva otra app) y `messaging_handovers` (cambió quién controla un chat) solo se anotan
+//     en el registro, sin datos de nadie: Meta pide no contestar al cliente por un `standby` (otra app lo está atendiendo).
 
 import type { Env } from "../env";
 import { firmaMetaValida, tokensIguales } from "../seguridad";
@@ -122,6 +129,50 @@ class ErrorDeEnvio extends Error {
  */
 const CODIGOS_DE_CITA_RECHAZADA = new Set([100, 131009]);
 
+/** Otra app es la principal del chat («Conversation Routing» de Meta): el envío no salió. */
+export const CODIGO_OTRA_APP_CONTROLA = 131070;
+/** El «take» de la Cloud API (documentación de Meta Business Agent, «Thread Control»): no vive en graph.facebook.com. */
+export const URL_CONTROL_DEL_CHAT = "https://api.facebook.com/business/whatsapp/phone_numbers";
+/** Un mismo cliente: a lo más un pedido de control cada media hora (Odoo reintenta lo que «quedó por enviar» cada 5 min). */
+export const ESPERA_CONTROL_POR_CLIENTE_MS = 30 * 60_000;
+/** Si Meta dijo que no (o no respondió), nadie vuelve a pedirlo en 10 minutos: sería el mismo «no» para todos. */
+export const ESPERA_CONTROL_TRAS_RECHAZO_MS = 10 * 60_000;
+const MAX_CLIENTES_RECORDADOS = 500;
+const PLAZO_CONTROL_MS = 10_000;
+
+/** Lo que Meta contestó (un envío rechazado o un pedido de control), sin datos de nadie: estado HTTP, código, texto corto y la traza
+ * (`fbtrace_id`) que pide soporte de Meta. */
+export function resumenDeMeta(estado: number, j: unknown): string {
+  const o = (j && typeof j === "object" ? j : {}) as Record<string, unknown>;
+  const e = (o.error && typeof o.error === "object" ? o.error : o) as Record<string, unknown>;
+  const num = (v: unknown) => (typeof v === "number" || (typeof v === "string" && /^\d{1,9}$/.test(v)) ? String(v) : undefined);
+  const txt = (v: unknown) => (typeof v === "string" ? v.replace(/\d{7,}/g, "…").slice(0, 160) : undefined);
+  const partes = [
+    `HTTP ${estado}`,
+    num(e.code) ? `código ${num(e.code)}` : undefined,
+    num(e.error_subcode) ? `subcódigo ${num(e.error_subcode)}` : undefined,
+    txt(e.message) ?? txt(e.detail) ?? txt(e.title),
+    typeof e.fbtrace_id === "string" ? `fbtrace_id ${e.fbtrace_id.slice(0, 40)}` : undefined,
+    typeof o.request_id === "string" ? `request_id ${o.request_id.slice(0, 60)}` : undefined,
+  ];
+  return partes.filter(Boolean).join(" · ");
+}
+
+/** De un aviso `messaging_handovers` solo salen el tipo y los ids de las apps y del negocio (nunca el cliente). */
+export function resumenDeTraspaso(valor: unknown): string {
+  const vistos: string[] = [];
+  const CLAVES = new Set(["type", "previous_owner_app_id", "new_owner_app_id", "new_owner_business_id", "target_role"]);
+  const recorrer = (v: unknown, hondo: number) => {
+    if (hondo > 6 || vistos.length >= 12 || !v || typeof v !== "object") return;
+    for (const [k, x] of Object.entries(v as Record<string, unknown>)) {
+      if (CLAVES.has(k) && (typeof x === "string" || typeof x === "number")) vistos.push(`${k}=${String(x).slice(0, 40)}`);
+      else recorrer(x, hondo + 1);
+    }
+  };
+  recorrer(valor, 0);
+  return vistos.join(" · ") || "sin detalle";
+}
+
 interface WaCuerpo {
   object?: string;
   entry?: { id?: string; changes?: WaCambio[] }[];
@@ -130,6 +181,7 @@ interface WaCuerpo {
 export interface OpcionesWhatsappCloud {
   fetch?: typeof fetch;
   dormir?: (ms: number) => Promise<void>;
+  ahora?: () => number;
 }
 
 const CAPACIDADES: Capacidades = { imagenes: true, documentos: true, ventana24h: true, maxTexto: 3500, pie: true };
@@ -137,6 +189,10 @@ const CAPACIDADES: Capacidades = { imagenes: true, documentos: true, ventana24h:
 export function crearWhatsappCloud(op: OpcionesWhatsappCloud = {}): AdaptadorCanal {
   const f: typeof fetch = op.fetch ?? ((...a) => fetch(...a));
   const dormir = op.dormir ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+  const ahora = op.ahora ?? (() => Date.now());
+  // Quién pidió el control y cuándo (por isolate: si se reinicia, a lo sumo se pide una vez más).
+  const ultimoPedido = new Map<string, number>();
+  let pedidosPausadosHasta = 0;
 
   /** media_id → URL (con Bearer) → bytes (con Bearer). */
   async function descargar(env: Env, mediaId: string, mime?: string): Promise<{ bytes: Uint8Array; mime?: string } | null> {
@@ -248,9 +304,61 @@ export function crearWhatsappCloud(op: OpcionesWhatsappCloud = {}): AdaptadorCan
     // Fuera de la ventana de 24 h Meta rechaza el texto libre y pide una plantilla: el motivo viene en el error.
     if (!r.ok || j.error) {
       const codigo = typeof j.error?.code === "number" ? j.error.code : undefined;
+      // Al registro con su `fbtrace_id` (lo primero que pide soporte de Meta), sin el número del cliente.
+      console.warn("[juan] whatsapp cloud: Meta rechazó un envío:", resumenDeMeta(r.status, j));
       throw new ErrorDeEnvio(`whatsapp cloud ${r.status}: ${j.error?.message ?? "sin detalle"} (código ${codigo ?? "?"})`, r.ok ? 400 : r.status, codigo);
     }
     return j.messages?.[0]?.id;
+  }
+
+  /**
+   * Pide a Meta el control del chat con `para` (thread_control, «take»). Devuelve si Meta lo dio; nunca lanza. Lo que Meta contesta
+   * queda en el registro sin el número del cliente: si dice que no, es la prueba para soporte (código y fbtrace_id).
+   */
+  async function tomarControl(env: Env, para: string): Promise<boolean> {
+    const token = env.WHATSAPP_CLOUD_TOKEN;
+    const numero = env.WHATSAPP_PHONE_NUMBER_ID;
+    const t = ahora();
+    if (!token || !numero || t < pedidosPausadosHasta) return false;
+    const ultimo = ultimoPedido.get(para);
+    if (ultimo !== undefined && t - ultimo < ESPERA_CONTROL_POR_CLIENTE_MS) return false;
+    ultimoPedido.delete(para);
+    ultimoPedido.set(para, t);
+    if (ultimoPedido.size > MAX_CLIENTES_RECORDADOS) ultimoPedido.delete(ultimoPedido.keys().next().value as string);
+    try {
+      const r = await f(`${URL_CONTROL_DEL_CHAT}/${encodeURIComponent(numero)}/thread_control`, {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${token}`, "x-api-version": "1.0.0" },
+        body: JSON.stringify({ messaging_product: "whatsapp", action: "take", to: para, metadata: "D'CASA Juan: el envío dio 131070" }),
+        signal: AbortSignal.timeout(PLAZO_CONTROL_MS),
+      });
+      const j = (await r.json().catch(() => ({}))) as { error?: unknown };
+      if (r.ok && !j.error) {
+        console.warn("[juan] whatsapp cloud: 131070; Juan pidió el control del chat y Meta se lo dio:", resumenDeMeta(r.status, j));
+        return true;
+      }
+      pedidosPausadosHasta = t + ESPERA_CONTROL_TRAS_RECHAZO_MS;
+      console.warn("[juan] whatsapp cloud: 131070; Juan pidió el control del chat y Meta dijo que no:", resumenDeMeta(r.status, j));
+      return false;
+    } catch (e) {
+      pedidosPausadosHasta = t + ESPERA_CONTROL_TRAS_RECHAZO_MS;
+      console.warn("[juan] whatsapp cloud: 131070; no se pudo pedir el control del chat:", (e instanceof Error ? e.name : String(e)).slice(0, 80));
+      return false;
+    }
+  }
+
+  /**
+   * Un envío. Si Meta lo rechaza porque otra app controla el chat (131070, no salió nada), Juan pide el control y, si Meta se lo
+   * da, lo manda otra vez (una sola vez: no se duplica). Si no, el error de siempre: Odoo lo deja «por enviar» y lo reintenta.
+   */
+  async function enviarConControl(env: Env, cuerpo: Record<string, unknown>): Promise<string | undefined> {
+    try {
+      return await enviarUno(env, cuerpo);
+    } catch (e) {
+      if (!(e instanceof ErrorDeEnvio) || e.codigo !== CODIGO_OTRA_APP_CONTROLA || typeof cuerpo.to !== "string" || !cuerpo.to) throw e;
+      if (!(await tomarControl(env, cuerpo.to))) throw e;
+      return enviarUno(env, cuerpo);
+    }
   }
 
   /**
@@ -258,13 +366,13 @@ export function crearWhatsappCloud(op: OpcionesWhatsappCloud = {}): AdaptadorCan
    * o ya no existe), se manda otra vez sin cita: ese rechazo no deja salir nada, así que no se duplica. Todo lo demás no se maquilla.
    */
   async function enviarConCita(env: Env, cuerpo: Record<string, unknown>, citado: string | undefined): Promise<string | undefined> {
-    if (!citado) return enviarUno(env, cuerpo);
+    if (!citado) return enviarConControl(env, cuerpo);
     try {
-      return await enviarUno(env, { ...cuerpo, context: { message_id: citado } });
+      return await enviarConControl(env, { ...cuerpo, context: { message_id: citado } });
     } catch (e) {
       if (!(e instanceof ErrorDeEnvio) || e.estado !== 400 || e.codigo === undefined || !CODIGOS_DE_CITA_RECHAZADA.has(e.codigo)) throw e;
       console.warn("[juan] whatsapp cloud: no aceptó la cita; sale sin ella:", e.message.slice(0, 200));
-      return enviarUno(env, cuerpo);
+      return enviarConControl(env, cuerpo);
     }
   }
 
@@ -316,6 +424,17 @@ export function crearWhatsappCloud(op: OpcionesWhatsappCloud = {}): AdaptadorCan
       const eventos: EventoCanal[] = [];
       for (const entrada of cuerpo.entry ?? []) {
         for (const cambio of entrada.changes ?? []) {
+          // Avisos del reparto de chats de Meta: solo al registro (ver la cabecera). Nunca se contesta un `standby`.
+          if (cambio.field === "messaging_handovers") {
+            console.warn("[juan] whatsapp cloud: Meta avisa que cambió quién controla un chat:", resumenDeTraspaso(cambio.value));
+            continue;
+          }
+          if (cambio.field === "standby") {
+            const s = (cambio.value as { standby?: { messages?: unknown[]; message_echoes?: unknown[] } } | undefined)?.standby;
+            const n = (x: unknown) => (Array.isArray(x) ? x.length : 0);
+            console.warn(`[juan] whatsapp cloud: aviso «standby» (otra app es la principal de ese chat): ${n(s?.messages)} mensaje(s) del cliente y ${n(s?.message_echoes)} respuesta(s) de la otra app; Juan no contesta`);
+            continue;
+          }
           const v = cambio.value;
           if (!v) continue;
           const nombres = new Map<string, string>();
