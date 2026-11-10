@@ -1211,6 +1211,16 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   del «thread control» de Meta (el que trajo Meta Business Agent): el control de la conversación lo tiene un rol que no
   se ve en ninguna pantalla (el agente de Meta o un «escalation partner», p. ej. el proveedor anterior); `take` solo lo
   puede hacer el escalation partner. Se resuelve con soporte de Meta (o el proveedor anterior), no en el código.
+- **131070 = la app no es la principal en el «Enrutamiento de conversaciones»** (Conversation Routing de WhatsApp,
+  documentado por Meta el 2026-09-23; guías de Cliengo y respond.io, 2026-11-10): solo el dueño del hilo envía; los demás
+  reciben 131070 «incluso con el hilo libre». **Quitar un proveedor (Callbell) no actualiza el enrutamiento y Meta no
+  elige otro principal**: se elige a mano en Meta Business Suite; no hay API pública. Thread Control (`POST
+  https://api.facebook.com/business/whatsapp/phone_numbers/<PHONE_NUMBER_ID>/thread_control`, `X-API-Version: 1.0.0`,
+  `{messaging_product, action: take|release|pass, to}`): `take` solo para el «socio de escalamiento» (si no, 2494191).
+  El webhook `standby` NO trae `value.messages`: trae `value.standby.{messages|message_echoes|statuses}` (y los
+  contactos dentro de `standby`); viene apagado hasta que el negocio da «visibilidad en espera», y Meta pide no
+  contestarlo. `messaging_handovers` (`control_taken`/`control_passed`) va solo a la app que PERDIÓ el control. Juan 17
+  pide el control al recibir 131070 y anota todo esto en el registro sin datos de nadie.
 - **Messenger/Instagram en la app de Meta** (2026-11-09): la cuenta de Facebook necesita **control total** de la página
   (con acceso parcial sin «Mensajes» la página no aparece al conectar); en «Generar identificadores de acceso» salen
   también otras páginas de esa cuenta (no suscribirlas); Instagram da «Invalid Scopes: instagram_manage_messages,
