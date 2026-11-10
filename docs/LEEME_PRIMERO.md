@@ -142,9 +142,11 @@ Juan 13 (`main` = 4a01039, árbol = 3e2ccfc).
   lograba bajarla de nuestra URL). Juan ahora sube el archivo a Meta (multipart `filedata`), con respaldo por URL. En
   producción: PR #101, CI #308, **Desplegar Juan 14** (`main` = 4cc4b97, árbol = 3af9123; Odoo sin cambios).
   **Confirmado** por la dueña: la foto de la cama llegó por Messenger con su texto.
+- **El nombre del cliente de Messenger e Instagram** (en Odoo salía «Messenger 2838…»): Juan se lo pide a Meta una vez
+  por conversación antes de guardar el mensaje; Odoo cambia el nombre provisional por el real.
 - **Sigue:** que los dueños liguen la cuenta de mensajes (y probar que Juan vuelva a enviar; si sigue el 131070, el
   «Agente de negocios de Meta»); encender el enlace de choferes; Instagram;
-  en el próximo lote, el motivo real en el aviso «Quedó por enviar» y el nombre del cliente de Messenger.
+  en el próximo lote, el motivo real en el aviso «Quedó por enviar».
 
 ### 2026-11-09: «No llegó» por el pago de Meta (131042); preguntas sin respuesta para las vendedoras; videos con voz
 

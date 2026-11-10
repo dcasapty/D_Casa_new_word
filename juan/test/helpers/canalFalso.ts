@@ -19,6 +19,9 @@ export class CanalFalso implements AdaptadorCanal {
   /** Cuántas veces el motor pidió la foto de perfil, y qué contesta el canal (lanza si es un Error, `null` = sin foto). */
   fotosPedidas = 0;
   foto: { bytes: Uint8Array; mime: string } | Error | null = null;
+  /** Cuántas veces el motor pidió el nombre, y qué contesta el canal (lanza si es un Error, `null` = no se pudo). */
+  nombresPedidos = 0;
+  nombre: string | Error | null = null;
   private n = 0;
 
   constructor(canal: CanalId = "whatsapp_qr") {
@@ -61,6 +64,12 @@ export class CanalFalso implements AdaptadorCanal {
     this.fotosPedidas++;
     if (this.foto instanceof Error) throw this.foto;
     return this.foto;
+  }
+
+  async nombreDePerfil(): Promise<string | null> {
+    this.nombresPedidos++;
+    if (this.nombre instanceof Error) throw this.nombre;
+    return this.nombre;
   }
 
   /** Un canal sin foto de perfil (WhatsApp Cloud): se le quita el método. */

@@ -350,6 +350,29 @@ describe("foto de perfil", () => {
   const responder = (c: { url: string }) =>
     c.url.includes("graph.facebook.com") ? Response.json({ profile_pic: FOTO_URL, id: "123456" }) : new Response(new Uint8Array([5, 6, 7]), { headers: { "content-type": "image/jpeg" } });
 
+  it("el nombre: Messenger da nombre y apellido; Instagram el nombre o, si no hay, @usuario", async () => {
+    const msg = graphFalso(() => Response.json({ first_name: " Ana ", last_name: "Pérez", id: "1" }));
+    expect(await msg.adaptador.nombreDePerfil!("messenger", "1234567890", env)).toBe("Ana Pérez");
+    expect(msg.llamadas[0].url).toContain("/1234567890?fields=first_name,last_name");
+    expect(msg.llamadas[0].url).not.toContain(TOKEN_PAGINA);
+    expect(msg.llamadas[0].cabeceras.authorization).toBe(`Bearer ${TOKEN_PAGINA}`);
+    const ig = graphFalso(() => Response.json({ name: "Tienda Ana", username: "ana.pty" }));
+    expect(await ig.adaptador.nombreDePerfil!("instagram", "1234567890", env)).toBe("Tienda Ana");
+    expect(ig.llamadas[0].url).toContain("fields=name,username");
+    const soloUsuario = graphFalso(() => Response.json({ username: "ana.pty" }));
+    expect(await soloUsuario.adaptador.nombreDePerfil!("instagram", "1234567890", env)).toBe("@ana.pty");
+  });
+
+  it("el nombre: sin token, con un id raro, un error de Graph o nada que leer, null (y sin caracteres de control)", async () => {
+    expect(await graphFalso().adaptador.nombreDePerfil!("messenger", "1234567890", {} as Env)).toBeNull();
+    const raro = graphFalso();
+    expect(await raro.adaptador.nombreDePerfil!("messenger", "../me", env)).toBeNull();
+    expect(raro.llamadas).toHaveLength(0);
+    expect(await graphFalso(() => Response.json({ error: { message: "x" } }, { status: 400 })).adaptador.nombreDePerfil!("messenger", "1234567890", env)).toBeNull();
+    expect(await graphFalso(() => Response.json({ id: "1" })).adaptador.nombreDePerfil!("messenger", "1234567890", env)).toBeNull();
+    expect(await graphFalso(() => Response.json({ first_name: "Ana\u0000\n", last_name: "" })).adaptador.nombreDePerfil!("messenger", "1234567890", env)).toBe("Ana");
+  });
+
   it("pide profile_pic a Graph (con el token de la Página) y baja la imagen de los servidores de Meta", async () => {
     const { llamadas, adaptador } = graphFalso(responder);
     const foto = await adaptador.fotoDePerfil!("messenger", "1234567890", env);
