@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from "vitest";
 import type { Env } from "../../src/env";
-import { crearMeta, eventosDeMeta } from "../../src/canales/meta";
+import { crearMeta, eventosDeMeta, MAX_ADJUNTO_MESSENGER_BYTES } from "../../src/canales/meta";
 import { adaptadorDe, adaptadorPorRuta, crearAdaptadores } from "../../src/canales/index";
 import { hmacHex } from "../../src/seguridad";
 import { EnvioParcialError } from "../../src/canales/tipos";
@@ -21,18 +21,46 @@ interface Llamada {
   cuerpo: any;
 }
 
-function graphFalso(respuesta: (c: Llamada, n: number) => Response = (_c, n) => Response.json({ recipient_id: "1", message_id: `m.${n}` })) {
+/** Lo que sirve «nuestro sitio» (https://sitio/…): el archivo que Juan baja para subírselo a Messenger. */
+const archivoDelSitio = (url: string) =>
+  new Response(new Uint8Array([1, 2, 3, 4]), { headers: { "content-type": url.endsWith(".pdf") ? "application/pdf" : "image/jpeg" } });
+
+/** Un cuerpo `FormData` como objeto: los campos JSON interpretados y el archivo como {nombre, tipo, bytes}. */
+function deFormData(form: FormData): Record<string, any> {
+  const o: Record<string, any> = {};
+  for (const [k, v] of form.entries()) {
+    if (typeof v !== "string") o[k] = { nombre: v.name, tipo: v.type, bytes: v.size };
+    else {
+      try {
+        o[k] = JSON.parse(v);
+      } catch {
+        o[k] = v;
+      }
+    }
+  }
+  return o;
+}
+
+function graphFalso(
+  respuesta: (c: Llamada, n: number) => Response = (_c, n) => Response.json({ recipient_id: "1", message_id: `m.${n}` }),
+  sitio: (url: string) => Response = archivoDelSitio,
+) {
   const llamadas: Llamada[] = [];
+  const descargas: string[] = [];
   const f: typeof fetch = async (recurso, init) => {
+    if (String(recurso).startsWith("https://sitio/")) {
+      descargas.push(String(recurso));
+      return sitio(String(recurso));
+    }
     const c = {
       url: String(recurso),
       cabeceras: Object.fromEntries(Object.entries((init?.headers ?? {}) as Record<string, string>).map(([k, v]) => [k.toLowerCase(), v])),
-      cuerpo: init?.body ? JSON.parse(String(init.body)) : null,
+      cuerpo: init?.body instanceof FormData ? deFormData(init.body) : init?.body ? JSON.parse(String(init.body)) : null,
     };
     llamadas.push(c);
     return respuesta(c, llamadas.length - 1);
   };
-  return { llamadas, adaptador: crearMeta({ fetch: f, dormir: async () => {} }) };
+  return { llamadas, descargas, adaptador: crearMeta({ fetch: f, dormir: async () => {} }) };
 }
 
 async function firmado(cuerpo: object, secreto = SECRETO) {
@@ -213,22 +241,62 @@ describe("el envío por la Send API", () => {
     expect(llamadas[1].url).not.toContain("/malo/");
   });
 
-  it("Messenger manda imágenes y documentos como adjuntos por URL, después del texto", async () => {
-    const { llamadas, adaptador } = graphFalso();
-    await adaptador.enviar(
+  it("Messenger SUBE las imágenes y documentos (filedata), después del texto: Meta ya no los baja de nuestro sitio", async () => {
+    // 2026-11-09: con `payload.url` Meta respondía «(#100) Error al subir el producto»: el texto salía y la foto no.
+    const { llamadas, descargas, adaptador } = graphFalso();
+    const r = await adaptador.enviar(
       "messenger",
       { para: "PSID1", burbujas: ["Mira"], medios: [{ tipo: "imagen", url: "https://sitio/foto.jpg" }, { tipo: "documento", url: "https://sitio/ficha.pdf", nombre: "ficha.pdf" }] },
       env,
     );
     expect(llamadas.map((l) => l.cuerpo.message.text ?? l.cuerpo.message.attachment.type)).toEqual(["Mira", "image", "file"]);
-    expect(llamadas[1].cuerpo.message.attachment.payload.url).toBe("https://sitio/foto.jpg");
+    expect(descargas).toEqual(["https://sitio/foto.jpg", "https://sitio/ficha.pdf"]);
+    const foto = llamadas[1];
+    expect(foto.url).toMatch(/\/me\/messages$/);
+    expect(foto.cabeceras.authorization).toBe(`Bearer ${TOKEN_PAGINA}`);
+    expect(foto.cabeceras["content-type"]).toBeUndefined();   // lo pone FormData, con su «boundary»
+    expect(foto.cuerpo.recipient).toEqual({ id: "PSID1" });
+    expect(foto.cuerpo.messaging_type).toBe("RESPONSE");
+    expect(foto.cuerpo.message.attachment.payload).toEqual({ is_reusable: false });   // sin url
+    expect(foto.cuerpo.filedata).toEqual({ nombre: "foto.jpg", tipo: "image/jpeg", bytes: 4 });
+    expect(llamadas[2].cuerpo.filedata).toEqual({ nombre: "ficha.pdf", tipo: "application/pdf", bytes: 4 });
+    expect(JSON.stringify(llamadas)).not.toContain("https://sitio/");   // nuestra URL firmada no le llega a Meta
+    expect(r.ids).toEqual(["m.0", "m.1", "m.2"]);
   });
 
-  it("Instagram NO admite documentos: la imagen sale, el documento se omite", async () => {
-    const { llamadas, adaptador } = graphFalso();
+  it("Messenger: si Juan no logra bajar el archivo (error, 404 o vacío), lo manda por URL como antes: nunca peor", async () => {
+    const respuestas: Array<() => Response> = [
+      () => new Response("No existe.", { status: 404 }),
+      () => new Response(new Uint8Array(0), { headers: { "content-type": "image/jpeg" } }),
+      () => {
+        throw new TypeError("network");
+      },
+    ];
+    for (const sitio of respuestas) {
+      const { llamadas, adaptador } = graphFalso(undefined, sitio);
+      const r = await adaptador.enviar("messenger", { para: "PSID1", burbujas: ["Mira"], medios: [{ tipo: "imagen", url: "https://sitio/foto.jpg" }] }, env);
+      expect(llamadas).toHaveLength(2);
+      expect(llamadas[1].cuerpo.message.attachment.payload).toEqual({ url: "https://sitio/foto.jpg", is_reusable: true });
+      expect(r.ids).toEqual(["m.0", "m.1"]);
+    }
+  });
+
+  it("Messenger: un archivo de más de 25 MB no se sube ni se manda (y avisa qué SÍ salió)", async () => {
+    const grande = graphFalso(undefined, () => new Response(new Uint8Array(MAX_ADJUNTO_MESSENGER_BYTES + 1), { headers: { "content-type": "image/jpeg" } }));
+    const e = await grande.adaptador.enviar("messenger", { para: "PSID1", burbujas: ["Mira"], medios: [{ tipo: "imagen", url: "https://sitio/foto.jpg" }] }, env).catch((x) => x);
+    expect(e).toBeInstanceOf(EnvioParcialError);
+    expect(e.message).toMatch(/25 MB/);
+    expect(e.enviado).toEqual({ burbujas: 1, medios: 0, ids: ["m.0"] });
+    expect(grande.llamadas).toHaveLength(1);
+  });
+
+  it("Instagram NO admite documentos: la imagen sale (por URL: Instagram no acepta archivos subidos), el documento se omite", async () => {
+    const { llamadas, descargas, adaptador } = graphFalso();
     await adaptador.enviar("instagram", { para: "IGSID", burbujas: [], medios: [{ tipo: "imagen", url: "https://sitio/foto.jpg" }, { tipo: "documento", url: "https://sitio/ficha.pdf" }] }, env);
     expect(llamadas).toHaveLength(1);
     expect(llamadas[0].cuerpo.message.attachment.type).toBe("image");
+    expect(llamadas[0].cuerpo.message.attachment.payload.url).toBe("https://sitio/foto.jpg");
+    expect(descargas).toEqual([]);
     expect(adaptador.capacidades("instagram").documentos).toBe(false);
     expect(adaptador.capacidades("messenger").documentos).toBe(true);
   });

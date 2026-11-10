@@ -1194,6 +1194,9 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   *Conversaciones › Conexiones* › «Por revisar» (el aviso de «Probar conexión» solo muestra el primero de la lista).
 - **Cambiar `META_VERIFY_TOKEN` no rompe WhatsApp**: el token de verificación solo se usa cuando Meta verifica un
   webhook (el GET); los avisos se firman con `META_APP_SECRET`. Si se pierde, uno nuevo en Cloudflare y el mismo en Meta.
+- **Messenger: «(#100) Error al subir el producto» = Meta no pudo bajar el adjunto de la URL** (2026-11-09: el texto
+  salía y la foto no; la misma URL firmada de dcasapty.com sí la baja WhatsApp). Juan ahora baja el archivo y lo sube
+  en la misma llamada a `me/messages` (multipart con `filedata`); si no logra bajarlo, va por URL como antes.
 - **Messenger/Instagram en la app de Meta** (2026-11-09): la cuenta de Facebook necesita **control total** de la página
   (con acceso parcial sin «Mensajes» la página no aparece al conectar); en «Generar identificadores de acceso» salen
   también otras páginas de esa cuenta (no suscribirlas); Instagram da «Invalid Scopes: instagram_manage_messages,

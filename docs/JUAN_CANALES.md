@@ -168,6 +168,11 @@ la conversación salió en Odoo («Messenger 2838…», con el número del clien
 foto; traer el nombre va en el próximo lote). Trampas de ese día:
 - **En «Generar identificadores de acceso» aparecen OTRAS páginas** de la misma cuenta (Smart TV Panama, Rofer Service):
   suscripciones y «Generar» SOLO en DCASA PTY, o Juan contestaría los mensajes de otros negocios.
+- **Las fotos no salían por Messenger** («meta send 400: (#100) Error al subir el producto»; el texto sí): con
+  `payload.url` Meta tiene que bajar la foto él mismo desde la URL firmada de dcasapty.com y no lo lograba (WhatsApp
+  sí lo logra con la misma URL). Desde el 2026-11-10 Juan baja el archivo y **se lo sube a Meta** en la misma llamada
+  (`filedata`, multipart, hasta 25 MB); si Juan no logra bajarlo, va por URL como antes. Instagram no acepta archivos
+  subidos: sigue por URL (si falla igual, ver ahí).
 - **El token de verificación de 2 nov se había perdido**: se puso uno nuevo en `META_VERIFY_TOKEN` (Cloudflare) y el
   mismo en Meta. No afecta a WhatsApp: solo se usa al verificar un webhook.
 - **Instagram dio «Invalid Scopes: instagram_manage_messages, instagram_basic»** al tocar «Añadir o suprimir páginas»
