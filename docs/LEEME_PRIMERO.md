@@ -143,7 +143,8 @@ Juan 13 (`main` = 4a01039, árbol = 3e2ccfc).
   producción: PR #101, CI #308, **Desplegar Juan 14** (`main` = 4cc4b97, árbol = 3af9123; Odoo sin cambios).
   **Confirmado** por la dueña: la foto de la cama llegó por Messenger con su texto.
 - **El nombre del cliente de Messenger e Instagram** (en Odoo salía «Messenger 2838…»): Juan se lo pide a Meta una vez
-  por conversación antes de guardar el mensaje; Odoo cambia el nombre provisional por el real.
+  por conversación antes de guardar el mensaje; Odoo cambia el nombre provisional por el real. En producción: PR #102,
+  CI #310, **Desplegar Juan 15** (`main` = 7707b53, árbol = 5d19c7c).
 - **Sigue:** que los dueños liguen la cuenta de mensajes (y probar que Juan vuelva a enviar; si sigue el 131070, el
   «Agente de negocios de Meta»); encender el enlace de choferes; Instagram;
   en el próximo lote, el motivo real en el aviso «Quedó por enviar».
