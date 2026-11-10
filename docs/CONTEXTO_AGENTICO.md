@@ -394,6 +394,11 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `main` (`741930d`, árbol = `de1fb04`) a staging y Desplegar con ese `app_version`. **Regla:** un cambio del borde
   (rutas, `vars`, `workers_dev`) se despliega con un `app_version` que lo contenga, o sea con una imagen construida
   de ese commit.
+- **Desplegar Juan 18** (19:09 UTC del 10 nov, solo Juan) · `/salud` con `ac75436` (PR #105, árbol = `4c16cd2`, CI #317 verde con
+  staging): un aviso de WhatsApp sin mensaje ni palomita se anota con su forma («aviso sin mensajes ni palomitas»).
+- **Desplegar Juan 17** (17:55 UTC del 10 nov, solo Juan) · `/salud` con `d40607f` (PR #104, árbol = `cf52548`, CI #315
+  verde con staging; la #314 se canceló para sumar el `fbtrace_id`): 131070 → `take` de Thread Control y un reintento;
+  todo envío rechazado deja código y `fbtrace_id` en el registro; `standby` y `messaging_handovers` solo se anotan.
 - **Desplegar Juan 16** (16:09 UTC del 10 nov, solo Juan) · `/salud` con `ac5beb2` (PR #103, árbol = `a962482`, CI #312
   verde con staging): si el perfil de Messenger/Instagram no responde (falta «Business Asset User Profile Access»), el
   nombre sale de la conversación de la página (`me/conversations … fields=participants`).
@@ -1221,6 +1226,19 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   contactos dentro de `standby`); viene apagado hasta que el negocio da «visibilidad en espera», y Meta pide no
   contestarlo. `messaging_handovers` (`control_taken`/`control_passed`) va solo a la app que PERDIÓ el control. Juan 17
   pide el control al recibir 131070 y anota todo esto en el registro sin datos de nadie.
+- **Después del 131070, «salir» volvió antes que «entrar»** (10 nov): un envío desde el Explorador de la API Graph con la
+  app «D'CASA Juan» llegó al celular, pero los mensajes al número (doble palomita) no llegaban al webhook. Volver a
+  suscribir la app a la WABA (`POST /<WABA>/subscribed_apps`, sin parámetros; no borra nada) hizo que Meta volviera a
+  llamar al webhook. Soporte de Meta (chat): tras cambiar de proveedor, el número tarda **hasta 7 días** en
+  desvincularse de la app y del activo anterior. El proveedor anterior (Callbell) propuso eliminar el número y volver a
+  registrarlo: último recurso (SIM, PIN de dos pasos, se pierden límite, calidad y plantillas).
+- **El arreglo del 131070 fue «redireccionar conversación»** (10 nov, tarde): con una cuenta ADMINISTRADORA del
+  portafolio (la de BukoFlow no lo veía), en Meta apareció el botón «redireccionar conversación» (el Enrutamiento de
+  conversaciones); se mandó a «D'CASA Juan» y se eliminó a Callbell. Volvió todo al momento. Lección: cuando una app
+  recibe 131070, buscar primero quién es la principal en el enrutamiento, con un administrador del portafolio.
+- **Para ver si Meta llama al webhook**: Cloudflare › Workers › `dcasa-juan` › Registros, filtrar la ruta
+  `/webhooks/whatsapp-cloud` (método, hora y código; nunca copiar números ni textos). Las palomitas de un envío llegan
+  como 2–3 POST seguidos; un mensaje del cliente, como uno.
 - **Messenger/Instagram en la app de Meta** (2026-11-09): la cuenta de Facebook necesita **control total** de la página
   (con acceso parcial sin «Mensajes» la página no aparece al conectar); en «Generar identificadores de acceso» salen
   también otras páginas de esa cuenta (no suscribirlas); Instagram da «Invalid Scopes: instagram_manage_messages,

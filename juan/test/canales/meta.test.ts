@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from "vitest";
 import type { Env } from "../../src/env";
-import { crearMeta, eventosDeMeta, MAX_ADJUNTO_MESSENGER_BYTES } from "../../src/canales/meta";
+import { crearMeta, eventosDeMeta, MAX_ADJUNTO_MESSENGER_BYTES, MAX_FOTO_INSTAGRAM_BYTES } from "../../src/canales/meta";
 import { adaptadorDe, adaptadorPorRuta, crearAdaptadores } from "../../src/canales/index";
 import { hmacHex } from "../../src/seguridad";
 import { EnvioParcialError } from "../../src/canales/tipos";
@@ -290,15 +290,71 @@ describe("el envío por la Send API", () => {
     expect(grande.llamadas).toHaveLength(1);
   });
 
-  it("Instagram NO admite documentos: la imagen sale (por URL: Instagram no acepta archivos subidos), el documento se omite", async () => {
-    const { llamadas, descargas, adaptador } = graphFalso();
-    await adaptador.enviar("instagram", { para: "IGSID", burbujas: [], medios: [{ tipo: "imagen", url: "https://sitio/foto.jpg" }, { tipo: "documento", url: "https://sitio/ficha.pdf" }] }, env);
-    expect(llamadas).toHaveLength(1);
-    expect(llamadas[0].cuerpo.message.attachment.type).toBe("image");
-    expect(llamadas[0].cuerpo.message.attachment.payload.url).toBe("https://sitio/foto.jpg");
-    expect(descargas).toEqual([]);
+  /** Graph que acepta la subida de Instagram (`me/message_attachments`) y devuelve un attachment_id. */
+  const conSubida = (c: Llamada, n: number) =>
+    c.url.endsWith("/me/message_attachments") ? Response.json({ attachment_id: "att.IG1" }) : Response.json({ recipient_id: "1", message_id: `m.${n}` });
+
+  it("Instagram SUBE la foto (message_attachments, platform=instagram) y la manda con su attachment_id; el documento se omite", async () => {
+    // 2026-11-10: con `payload.url` el texto salía y la foto no (igual que Messenger el 9 nov).
+    const { llamadas, descargas, adaptador } = graphFalso(conSubida);
+    const r = await adaptador.enviar(
+      "instagram",
+      { para: "IGSID", burbujas: ["Mira"], medios: [{ tipo: "imagen", url: "https://sitio/foto.jpg" }, { tipo: "documento", url: "https://sitio/ficha.pdf" }] },
+      env,
+    );
+    expect(descargas).toEqual(["https://sitio/foto.jpg"]); // el documento ni se baja
+    expect(llamadas).toHaveLength(3);
+    const [texto, subida, foto] = llamadas;
+    expect(texto.cuerpo.message.text).toBe("Mira");
+    expect(subida.url).toMatch(/^https:\/\/graph\.facebook\.com\/v\d+\.\d+\/me\/message_attachments$/);
+    expect(subida.cabeceras.authorization).toBe(`Bearer ${TOKEN_PAGINA}`);
+    expect(subida.cabeceras["content-type"]).toBeUndefined(); // lo pone FormData
+    expect(subida.cuerpo.platform).toBe("instagram");
+    expect(subida.cuerpo.message).toEqual({ attachment: { type: "image", payload: { is_reusable: true } } });
+    expect(subida.cuerpo.filedata).toEqual({ nombre: "foto.jpg", tipo: "image/jpeg", bytes: 4 });
+    expect(foto.url).toMatch(/\/me\/messages$/);
+    expect(foto.cuerpo).toEqual({ recipient: { id: "IGSID" }, messaging_type: "RESPONSE", message: { attachment: { type: "image", payload: { attachment_id: "att.IG1" } } } });
+    expect(JSON.stringify(llamadas)).not.toContain("https://sitio/"); // nuestra URL firmada no le llega a Meta
+    expect(r.ids).toEqual(["m.0", "m.2"]);
     expect(adaptador.capacidades("instagram").documentos).toBe(false);
     expect(adaptador.capacidades("messenger").documentos).toBe(true);
+  });
+
+  it("Instagram: si Meta no acepta la subida o Juan no logra bajar la foto, va por URL como antes (sin is_reusable): nunca peor", async () => {
+    const casos: Array<{ respuesta?: (c: Llamada, n: number) => Response; sitio?: (url: string) => Response; llamadas: number }> = [
+      { respuesta: (c, n) => (c.url.endsWith("/me/message_attachments") ? Response.json({ error: { message: "Invalid parameter", code: 100 } }, { status: 400 }) : Response.json({ message_id: `m.${n}` })), llamadas: 2 },
+      { respuesta: (c, n) => (c.url.endsWith("/me/message_attachments") ? Response.json({}) : Response.json({ message_id: `m.${n}` })), llamadas: 2 },
+      { sitio: () => new Response("No existe.", { status: 404 }), llamadas: 1 },
+      {
+        sitio: () => {
+          throw new TypeError("network");
+        },
+        llamadas: 1,
+      },
+    ];
+    for (const caso of casos) {
+      const { llamadas, adaptador } = graphFalso(caso.respuesta, caso.sitio);
+      await adaptador.enviar("instagram", { para: "IGSID", burbujas: [], medios: [{ tipo: "imagen", url: "https://sitio/foto.jpg" }] }, env);
+      expect(llamadas).toHaveLength(caso.llamadas);
+      expect(llamadas.at(-1)!.cuerpo.message.attachment).toEqual({ type: "image", payload: { url: "https://sitio/foto.jpg" } });
+    }
+  });
+
+  it("Instagram: una foto de más de 8 MB no se sube ni se manda (y avisa qué SÍ salió)", async () => {
+    const grande = graphFalso(conSubida, () => new Response(new Uint8Array(MAX_FOTO_INSTAGRAM_BYTES + 1), { headers: { "content-type": "image/jpeg" } }));
+    const e = await grande.adaptador.enviar("instagram", { para: "IGSID", burbujas: ["Mira"], medios: [{ tipo: "imagen", url: "https://sitio/foto.jpg" }] }, env).catch((x) => x);
+    expect(e).toBeInstanceOf(EnvioParcialError);
+    expect(e.message).toMatch(/8 MB/);
+    expect(e.enviado).toEqual({ burbujas: 1, medios: 0, ids: ["m.0"] });
+    expect(grande.llamadas).toHaveLength(1);
+  });
+
+  it("Messenger sigue igual: sube en la misma llamada (filedata) y nunca usa message_attachments", async () => {
+    const { llamadas, adaptador } = graphFalso(conSubida);
+    await adaptador.enviar("messenger", { para: "PSID1", burbujas: [], medios: [{ tipo: "imagen", url: "https://sitio/foto.jpg" }] }, env);
+    expect(llamadas).toHaveLength(1);
+    expect(llamadas[0].url).toMatch(/\/me\/messages$/);
+    expect(llamadas[0].cuerpo.filedata).toEqual({ nombre: "foto.jpg", tipo: "image/jpeg", bytes: 4 });
   });
 
   it("ambos canales avisan que solo se escribe dentro de las 24 h; Instagram corta el texto más corto", () => {
