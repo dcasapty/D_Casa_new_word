@@ -13,7 +13,7 @@ qué clave falta, abre `https://dcasa-juan.dcasapty.workers.dev/salud`: muestra 
 | **WhatsApp por la API oficial de Meta** (`whatsapp_cloud`) | **En producción desde el 2026-11-02**, con el número de la tienda (+507 6026-1919). Del 9 nov 16:00 al 10 nov no salió ni entró nada (131070): se arregló en Meta con «redireccionar conversación» a «D'CASA Juan», ver §1 «131070» | `/webhooks/whatsapp-cloud` |
 | **Telegram** (`telegram`) | Funciona: canal de pruebas y avisos al equipo | `/webhooks/telegram` |
 | **Messenger** (`messenger`) | **Conectado el 2026-11-09** (página DCASA PTY): probado de punta a punta. Hasta la revisión de Meta solo contesta a quien tiene rol en la app | `/webhooks/meta` |
-| **Instagram** (`instagram`) | Código listo; **por conectar** (faltan los permisos de Instagram en la app y el acceso al portafolio DCasa Pty, ver §3) | `/webhooks/meta` |
+| **Instagram** (`instagram`) | **Conectado el 2026-11-10** (por la página DCASA PTY, misma app y misma llave que Messenger; ver §3) | `/webhooks/meta` |
 | **WhatsApp por QR** (`whatsapp_qr`, el puente `puente-wa/`) | Construido y probado; **nunca se desplegó** en producción | `/webhooks/whatsapp-qr` (lo llama el puente) |
 
 ## 1. WhatsApp por la API oficial (el canal principal)
@@ -192,7 +192,19 @@ https://api.telegram.org/bot<TOKEN_DEL_BOT>/setWebhook?url=https://dcasa-juan.dc
 ```
 Telegram **no** les da a los bots «entregado» ni «leído»: en Telegram no hay palomitas.
 
-## 3. Messenger e Instagram (Messenger conectado el 2026-11-09; Instagram por conectar)
+## 3. Messenger e Instagram (Messenger conectado el 2026-11-09; Instagram el 2026-11-10)
+
+**Cómo quedó Instagram (2026-11-10):** con la cuenta de los jefes (administradores de DCasa Pty) y Claude en Chrome:
+`instagram_basic` e `instagram_manage_messages` agregados a la app «D'CASA Juan» (Meta los pone también en el caso de uso
+de Messenger), «Añadir o suprimir páginas» con **solo** DCASA PTY y @dcasapty (la ventana de Meta se abre aparte: la
+maneja la persona, Claude en Chrome no la alcanza), llave nueva de DCASA PTY pegada **encima** de `META_PAGE_TOKEN` (la
+misma etiqueta: sirve para Messenger e Instagram; Messenger siguió funcionando), webhook de Instagram ya con la URL de
+Juan y `messages` suscrito. Un «Hola buenas» desde otra cuenta: Juan contestó y salió en Odoo con el nombre. **Se
+descartó** la guía de un conocido («inicio de sesión con Instagram»): pide otra llave (`IG…`, vence a los 60 días) y
+otra clave secreta, y Juan habría tenido que cambiar; por la página no hizo falta tocar nada.
+- **La foto no salía por Instagram** (el texto sí), igual que Messenger el 9 nov. Desde Juan 19 la foto se **sube** a
+  Meta (`me/message_attachments`, `platform=instagram`, multipart con `filedata`, hasta 8 MB, png o jpeg) y se manda con
+  su `attachment_id`; si Meta no acepta la subida, va por URL como antes y el registro dice qué contestó Meta.
 
 **Cómo quedó Messenger (2026-11-09):** con la cuenta de Facebook que tiene **control total** de la página (la que
 abría Chrome solo tenía Contenido, Actividad de la comunidad y Estadísticas: sin «Mensajes» la página no sale al tocar
@@ -212,8 +224,8 @@ Al pedir la revisión de la app, agregar «Business Asset User Profile Access» 
 - **Las fotos no salían por Messenger** («meta send 400: (#100) Error al subir el producto»; el texto sí): con
   `payload.url` Meta tiene que bajar la foto él mismo desde la URL firmada de dcasapty.com y no lo lograba (WhatsApp
   sí lo logra con la misma URL). Desde el 2026-11-10 Juan baja el archivo y **se lo sube a Meta** en la misma llamada
-  (`filedata`, multipart, hasta 25 MB); si Juan no logra bajarlo, va por URL como antes. Instagram no acepta archivos
-  subidos: sigue por URL (si falla igual, ver ahí).
+  (`filedata`, multipart, hasta 25 MB); si Juan no logra bajarlo, va por URL como antes. Instagram: ver arriba (se
+  sube aparte y se manda con `attachment_id`).
 - **El token de verificación de 2 nov se había perdido**: se puso uno nuevo en `META_VERIFY_TOKEN` (Cloudflare) y el
   mismo en Meta. No afecta a WhatsApp: solo se usa al verificar un webhook.
 - **Instagram dio «Invalid Scopes: instagram_manage_messages, instagram_basic»** al tocar «Añadir o suprimir páginas»
