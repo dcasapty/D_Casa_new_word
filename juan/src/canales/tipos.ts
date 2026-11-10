@@ -203,6 +203,11 @@ export interface AdaptadorCanal {
    * Mejor esfuerzo: puede lanzar; el motor lo registra y sigue. Los bytes solo van a Odoo, nunca a la IA.
    */
   fotoDePerfil?(canal: CanalId, para: string, env: Env): Promise<{ bytes: Uint8Array; mime: string } | null>;
+  /**
+   * El nombre de quien escribe, para canales cuyo aviso no lo trae (Messenger e Instagram mandan solo un número). `null` = no se
+   * pudo. Mejor esfuerzo: puede lanzar; el motor lo pide una vez por conversación y sigue igual si falla.
+   */
+  nombreDePerfil?(canal: CanalId, para: string, env: Env): Promise<string | null>;
   /** "Escribiendo…", si el canal lo tiene. Mejor esfuerzo. */
   escribiendo?(canal: CanalId, para: string, env: Env): Promise<void>;
   /** Salud de la conexión, si hay una que vigilar. */

@@ -238,6 +238,19 @@ export function crearMeta(op: OpcionesMeta = {}): AdaptadorCanal {
       return { ids };
     },
 
+    async nombreDePerfil(canal: CanalId, para: string, env: Env): Promise<string | null> {
+      const token = env.META_PAGE_TOKEN;
+      if (!token || !/^\d{5,30}$/.test(para)) return null;
+      // Messenger: nombre y apellido; Instagram: el nombre del perfil o, si no tiene, su usuario (@…).
+      const campos = canal === "instagram" ? "name,username" : "first_name,last_name";
+      const r = await f(urlGraph(env, `${para}?fields=${campos}`), { headers: { authorization: `Bearer ${token}` } });
+      if (!r.ok) return null;
+      const j = (await r.json().catch(() => null)) as { first_name?: string; last_name?: string; name?: string; username?: string } | null;
+      const nombre = canal === "instagram" ? j?.name?.trim() || (j?.username ? `@${j.username.trim()}` : "") : [j?.first_name, j?.last_name].map((x) => x?.trim()).filter(Boolean).join(" ");
+      const limpio = (nombre ?? "").replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, 100);
+      return limpio || null;
+    },
+
     async fotoDePerfil(_canal: CanalId, para: string, env: Env): Promise<{ bytes: Uint8Array; mime: string } | null> {
       const token = env.META_PAGE_TOKEN;
       if (!token || !/^\d{5,30}$/.test(para)) return null;

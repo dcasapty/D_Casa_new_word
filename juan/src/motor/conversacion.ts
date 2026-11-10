@@ -101,6 +101,9 @@ const MAX_PIE_DE_FOTO = 1000;
 const CADA_CUANTO_FOTO_DE_PERFIL_MS = 7 * 24 * 3600_000;
 const REINTENTO_FOTO_DE_PERFIL_MS = 3600_000;
 const PLAZO_FOTO_DE_PERFIL_MS = 8000;
+/** El nombre (Messenger e Instagram no lo mandan): se pide antes de guardar el mensaje, con un plazo corto. */
+const PLAZO_NOMBRE_MS = 3000;
+const REINTENTO_NOMBRE_MS = 3600_000;
 
 function bytesABase64(bytes: Uint8Array): string {
   let bin = "";
@@ -456,6 +459,7 @@ export class MotorConversacion {
     if (!vigente()) return { ok: true, accion: "olvidado" };
     const ahora = this.deps.ahora();
     this.fijarIdentidad(e);
+    if (!e.propio) await this.completarNombre(ahora);
 
     if (e.id_mensaje && this.mensajes.existe(e.id_mensaje)) {
       // Lo que salió por el canal se anota con su id (2026-11-07): el eco de lo nuestro se reconoce como eco, no como repetido.
@@ -984,6 +988,31 @@ export class MotorConversacion {
       await odoo.escribiendo({ canal: this.canalId(), id_externo: this.idExterno(), activo });
     } catch {
       /* es un extra de las pantallas: si no llega, Odoo lo olvida solo al minuto */
+    }
+  }
+
+  /**
+   * El nombre de quien escribe cuando el canal no lo trae (Messenger e Instagram: en Odoo salía «Messenger 2838…»). Se pide al canal
+   * una sola vez por conversación (a la hora si falló), con un plazo corto, ANTES de guardar el mensaje: así el primer mensaje ya
+   * llega a Odoo con el nombre y Odoo cambia el provisional por el real. Nunca frena ni rompe la respuesta.
+   */
+  private async completarNombre(ahora: number): Promise<void> {
+    if (this.kv.texto("nombre")) return;
+    const canal = this.canalId();
+    const adaptador = this.deps.canal(canal);
+    if (!adaptador?.nombreDePerfil || ahora < (this.kv.numero("nombre_proximo") ?? 0)) return;
+    this.kv.poner("nombre_proximo", ahora + REINTENTO_NOMBRE_MS);
+    let reloj: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const plazo = new Promise<never>((_, rechazar) => {
+        reloj = setTimeout(() => rechazar(new Error("plazo vencido")), PLAZO_NOMBRE_MS);
+      });
+      const nombre = await Promise.race([adaptador.nombreDePerfil(canal, this.idExterno(), this.deps.env), plazo]);
+      if (nombre) this.kv.poner("nombre", nombre);
+    } catch (e) {
+      this.log("warn", "no se pudo traer el nombre del cliente", String(e));
+    } finally {
+      clearTimeout(reloj);
     }
   }
 

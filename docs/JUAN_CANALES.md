@@ -164,8 +164,10 @@ Telegram **no** les da a los bots «entregado» ni «leído»: en Telegram no ha
 abría Chrome solo tenía Contenido, Actividad de la comunidad y Estadísticas: sin «Mensajes» la página no sale al tocar
 «Conectar»), webhook `…/webhooks/meta` verificado, la página **DCASA PTY** suscrita a `messages`, `message_echoes` y
 `messaging_postbacks`, y `META_PAGE_TOKEN` en Cloudflare. Un «Hola buenas» desde Messenger: Juan contestó en segundos y
-la conversación salió en Odoo («Messenger 2838…», con el número del cliente en vez del nombre: Juan hoy solo trae la
-foto; traer el nombre va en el próximo lote). Trampas de ese día:
+la conversación salió en Odoo («Messenger 2838…», con el número del cliente en vez del nombre). Desde el 2026-11-10 Juan
+le pide el nombre a Meta una vez por conversación, antes de guardar el mensaje (Messenger: nombre y apellido; Instagram:
+nombre o @usuario; `nombreDePerfil`, plazo de 3 s, a la hora si falla) y Odoo cambia el provisional por el real con el
+siguiente mensaje del cliente. Trampas de ese día:
 - **En «Generar identificadores de acceso» aparecen OTRAS páginas** de la misma cuenta (Smart TV Panama, Rofer Service):
   suscripciones y «Generar» SOLO en DCASA PTY, o Juan contestaría los mensajes de otros negocios.
 - **Las fotos no salían por Messenger** («meta send 400: (#100) Error al subir el producto»; el texto sí): con
