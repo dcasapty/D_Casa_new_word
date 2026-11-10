@@ -14,8 +14,8 @@ LEEME_PRIMERO §2).
   choferes, «Colchones» abre WhatsApp y Dependabot); antes, el mismo día, Desplegar 62 y Juan 12 (PR #99).
   El contenedor instala 30 de los 31 módulos de `addons/` (todos menos `dcasa_fe_pa`, a propósito).
 - **Juan atiende el WhatsApp de la tienda por la API oficial de Meta** desde el 2026-11-02 (modelo «contributor» de
-  Meta, llave permanente). Telegram también funciona. **Messenger quedó conectado el 2026-11-09** (solo contesta a
-  quien tiene rol en la app hasta la revisión de Meta); Instagram, por conectar. El puente de WhatsApp por QR (`puente-wa/`) **nunca se desplegó** a producción. Ver
+  Meta, llave permanente). Telegram también funciona. **Messenger quedó conectado el 2026-11-09** e **Instagram el
+  2026-11-10** (por la página, misma app y llave; ya contesta a clientes reales). El puente de WhatsApp por QR (`puente-wa/`) **nunca se desplegó** a producción. Ver
   [JUAN_CANALES.md](JUAN_CANALES.md).
 - **Sofía, la asistente del CRM**, está en producción desde el 2026-11-05 ([SOFIA.md](SOFIA.md)).
 - **El correo a clientes (Resend) está encendido** desde el 2026-10-27 ([CORREO.md](CORREO.md)).
@@ -69,7 +69,7 @@ LEEME_PRIMERO §2).
 7. **Contabilidad:** el menú raíz propio «Contabilidad» (reportes, bancos, cierre de mes, en un solo lugar). Las
    **facturas del sistema anterior** dejaron de ser una preocupación (la dueña, 2026-11-07: los jefes están bien con los
    números actuales); el importador queda listo por si algún día hace falta.
-8. **Messenger e Instagram:** conectarlos con la guía de [JUAN_CANALES.md](JUAN_CANALES.md).
+8. ~~**Messenger e Instagram**~~: conectados (9 y 10 nov, [JUAN_CANALES.md](JUAN_CANALES.md) §3).
 9. ~~**Códigos de barras**~~: la dueña (2026-11-07): «ya solucionamos» (issues #9, #10 y #12, [BARRAS.md](BARRAS.md)).
 10. **Envíos:** la calculadora (`dcasa_envios`, [ENVIOS.md](ENVIOS.md)) está **en producción** desde el 2026-11-06
     (Desplegar 50). Sigue: que Gerencia cargue el archivo en Envíos › Tarifa y **apruebe la tarifa** (redondeo,
