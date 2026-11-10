@@ -1232,6 +1232,10 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   llamar al webhook. Soporte de Meta (chat): tras cambiar de proveedor, el número tarda **hasta 7 días** en
   desvincularse de la app y del activo anterior. El proveedor anterior (Callbell) propuso eliminar el número y volver a
   registrarlo: último recurso (SIM, PIN de dos pasos, se pierden límite, calidad y plantillas).
+- **El arreglo del 131070 fue «redireccionar conversación»** (10 nov, tarde): con una cuenta ADMINISTRADORA del
+  portafolio (la de BukoFlow no lo veía), en Meta apareció el botón «redireccionar conversación» (el Enrutamiento de
+  conversaciones); se mandó a «D'CASA Juan» y se eliminó a Callbell. Volvió todo al momento. Lección: cuando una app
+  recibe 131070, buscar primero quién es la principal en el enrutamiento, con un administrador del portafolio.
 - **Para ver si Meta llama al webhook**: Cloudflare › Workers › `dcasa-juan` › Registros, filtrar la ruta
   `/webhooks/whatsapp-cloud` (método, hora y código; nunca copiar números ni textos). Las palomitas de un envío llegan
   como 2–3 POST seguidos; un mensaje del cliente, como uno.

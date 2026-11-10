@@ -10,7 +10,7 @@ qué clave falta, abre `https://dcasa-juan.dcasapty.workers.dev/salud`: muestra 
 
 | Canal | Estado (2026-11-09) | Webhook en `dcasa-juan` |
 |---|---|---|
-| **WhatsApp por la API oficial de Meta** (`whatsapp_cloud`) | **En producción desde el 2026-11-02**, con el número de la tienda (+507 6026-1919). Desde el 2026-11-09 16:00 **no sale nada** (código 131070 y el número sin «cuenta de mensajes»): lo arregla la dueña en Meta, ver §1 «131070» | `/webhooks/whatsapp-cloud` |
+| **WhatsApp por la API oficial de Meta** (`whatsapp_cloud`) | **En producción desde el 2026-11-02**, con el número de la tienda (+507 6026-1919). Del 9 nov 16:00 al 10 nov no salió ni entró nada (131070): se arregló en Meta con «redireccionar conversación» a «D'CASA Juan», ver §1 «131070» | `/webhooks/whatsapp-cloud` |
 | **Telegram** (`telegram`) | Funciona: canal de pruebas y avisos al equipo | `/webhooks/telegram` |
 | **Messenger** (`messenger`) | **Conectado el 2026-11-09** (página DCASA PTY): probado de punta a punta. Hasta la revisión de Meta solo contesta a quien tiene rol en la app | `/webhooks/meta` |
 | **Instagram** (`instagram`) | Código listo; **por conectar** (faltan los permisos de Instagram en la app y el acceso al portafolio DCasa Pty, ver §3) | `/webhooks/meta` |
@@ -107,7 +107,12 @@ No hace falta tocar nada en Meta: todo llega por la misma suscripción a los men
    de negocios de Meta» (la IA de Meta toma las conversaciones y los mensajes llegan como `standby`) u otra app
    conectada al número. Las plantillas vivían en la cuenta de mensajes vieja: si se usan, hay que volver a crearlas.
 
-   **La causa más probable (2026-11-10): el «Enrutamiento de conversaciones»** (Conversation Routing, de Meta desde
+   **Cómo se resolvió (2026-11-10):** en Meta, con una cuenta administradora del portafolio DCasa Pty, el botón
+   **«redireccionar conversación»** (el Enrutamiento de conversaciones) se puso hacia «D'CASA Juan» y se eliminó a
+   Callbell. Con eso volvieron a salir y entrar los mensajes (no hubo que esperar los «7 días» de soporte ni borrar el
+   número, como proponía Callbell).
+
+   **La causa (2026-11-10): el «Enrutamiento de conversaciones»** (Conversation Routing, de Meta desde
    septiembre de 2026). En la cuenta de WhatsApp, Meta Business Suite guarda qué app es la **principal** de cada punto de
    entrada (mensajes de servicio, Click-to-WhatsApp, respuestas a marketing y a utilidad). Solo la principal (la dueña
    del chat) puede contestar: cualquier otra recibe **131070**, aunque nadie más esté contestando. **Al quitar una app
