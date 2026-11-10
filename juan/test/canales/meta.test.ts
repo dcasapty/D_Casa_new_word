@@ -363,13 +363,36 @@ describe("foto de perfil", () => {
     expect(await soloUsuario.adaptador.nombreDePerfil!("instagram", "1234567890", env)).toBe("@ana.pty");
   });
 
-  it("el nombre: sin token, con un id raro, un error de Graph o nada que leer, null (y sin caracteres de control)", async () => {
+  it("el nombre: sin el permiso del perfil (lo normal antes de la revisión de Meta), sale de la conversación de la página", async () => {
+    // El perfil responde «(#100) … Business Asset User Profile Access»; la conversación sí trae a los participantes.
+    const sinPermiso = (c: Llamada) =>
+      c.url.includes("/me/conversations")
+        ? Response.json({ data: [{ id: "t_1", participants: { data: [{ name: "DCASA PTY", id: "999" }, { name: "Ana Pérez", email: "x@facebook.com", id: "1234567890" }] } }] })
+        : Response.json({ error: { message: "Requires Business Asset User Profile Access", code: 100 } }, { status: 400 });
+    const msg = graphFalso(sinPermiso);
+    expect(await msg.adaptador.nombreDePerfil!("messenger", "1234567890", env)).toBe("Ana Pérez");
+    expect(msg.llamadas[1].url).toContain("/me/conversations?platform=messenger&user_id=1234567890&fields=participants");
+    expect(msg.llamadas[1].url).not.toContain(TOKEN_PAGINA);
+    const ig = graphFalso((c) =>
+      c.url.includes("/me/conversations")
+        ? Response.json({ data: [{ participants: { data: [{ username: "dcasapty", id: "999" }, { username: "ana.pty", id: "1234567890" }] } }] })
+        : Response.json({ error: { code: 100 } }, { status: 400 }),
+    );
+    expect(await ig.adaptador.nombreDePerfil!("instagram", "1234567890", env)).toBe("@ana.pty");
+    expect(ig.llamadas[1].url).toContain("platform=instagram");
+  });
+
+  it("el nombre: sin token, con un id raro, errores de Graph o nada que leer, null (y sin caracteres de control)", async () => {
     expect(await graphFalso().adaptador.nombreDePerfil!("messenger", "1234567890", {} as Env)).toBeNull();
     const raro = graphFalso();
     expect(await raro.adaptador.nombreDePerfil!("messenger", "../me", env)).toBeNull();
     expect(raro.llamadas).toHaveLength(0);
-    expect(await graphFalso(() => Response.json({ error: { message: "x" } }, { status: 400 })).adaptador.nombreDePerfil!("messenger", "1234567890", env)).toBeNull();
-    expect(await graphFalso(() => Response.json({ id: "1" })).adaptador.nombreDePerfil!("messenger", "1234567890", env)).toBeNull();
+    const errores = graphFalso(() => Response.json({ error: { message: "x" } }, { status: 400 }));
+    expect(await errores.adaptador.nombreDePerfil!("messenger", "1234567890", env)).toBeNull();
+    expect(errores.llamadas).toHaveLength(2);   // el perfil y la conversación
+    expect(await graphFalso(() => Response.json({ id: "1", data: [] })).adaptador.nombreDePerfil!("messenger", "1234567890", env)).toBeNull();
+    const deOtro = graphFalso((c) => (c.url.includes("conversations") ? Response.json({ data: [{ participants: { data: [{ name: "Otra persona", id: "555" }] } }] }) : Response.json({})));
+    expect(await deOtro.adaptador.nombreDePerfil!("messenger", "1234567890", env)).toBeNull();
     expect(await graphFalso(() => Response.json({ first_name: "Ana\u0000\n", last_name: "" })).adaptador.nombreDePerfil!("messenger", "1234567890", env)).toBe("Ana");
   });
 
