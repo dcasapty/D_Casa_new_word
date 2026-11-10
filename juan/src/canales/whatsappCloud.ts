@@ -173,6 +173,44 @@ export function resumenDeTraspaso(valor: unknown): string {
   return vistos.join(" · ") || "sin detalle";
 }
 
+/**
+ * La FORMA de un aviso de WhatsApp que no dio ni un mensaje ni una palomita (sin datos de nadie: ni números, ni nombres, ni textos):
+ * de qué campo vino, qué claves trae, cuántos mensajes y de qué tipo, si traen remitente y si es nuestro número. El 2026-11-10 Meta
+ * llamaba al webhook con 200 y nada llegaba a Odoo, y no había cómo saber qué traía el aviso.
+ */
+export function formaDelAviso(cuerpo: unknown, numeroPropio: string | undefined): string {
+  const o = (cuerpo && typeof cuerpo === "object" ? cuerpo : {}) as { object?: unknown; entry?: unknown };
+  const partes: string[] = [`object=${typeof o.object === "string" ? o.object.slice(0, 40) : "?"}`];
+  const entradas = Array.isArray(o.entry) ? o.entry.slice(0, 5) : [];
+  if (entradas.length === 0) partes.push("sin entry");
+  for (const entrada of entradas) {
+    const cambios = Array.isArray((entrada as { changes?: unknown })?.changes) ? ((entrada as { changes: unknown[] }).changes.slice(0, 5)) : [];
+    if (cambios.length === 0) partes.push("entry sin changes");
+    for (const c of cambios) {
+      const cambio = (c && typeof c === "object" ? c : {}) as { field?: unknown; value?: unknown };
+      const v = (cambio.value && typeof cambio.value === "object" ? cambio.value : {}) as Record<string, unknown>;
+      const meta = (v.metadata && typeof v.metadata === "object" ? v.metadata : {}) as { phone_number_id?: unknown };
+      const nuestro = typeof meta.phone_number_id === "string" ? (meta.phone_number_id === numeroPropio ? "sí" : "no") : "?";
+      const mensajes = Array.isArray(v.messages) ? (v.messages as Record<string, unknown>[]) : [];
+      const tipos = mensajes.map((m) => (typeof m?.type === "string" ? m.type.slice(0, 20) : "?")).join("/");
+      const conFrom = mensajes.filter((m) => typeof m?.from === "string" && m.from).length;
+      const cuenta = (x: unknown) => (Array.isArray(x) ? x.length : 0);
+      partes.push(
+        [
+          `field=${typeof cambio.field === "string" ? cambio.field.slice(0, 40) : "?"}`,
+          `claves=${Object.keys(v).slice(0, 12).join(",") || "ninguna"}`,
+          `nuestro número=${nuestro}`,
+          `mensajes=${mensajes.length}${tipos ? `(${tipos})` : ""}`,
+          ...(mensajes.length ? [`con remitente=${conFrom}`] : []),
+          `ecos=${cuenta(v.message_echoes)}`,
+          `recibos=${cuenta(v.statuses)}`,
+        ].join(" "),
+      );
+    }
+  }
+  return partes.join(" | ").slice(0, 900);
+}
+
 interface WaCuerpo {
   object?: string;
   entry?: { id?: string; changes?: WaCambio[] }[];
@@ -463,6 +501,10 @@ export function crearWhatsappCloud(op: OpcionesWhatsappCloud = {}): AdaptadorCan
       // `guardarAntes`: el 200 sale cuando cada mensaje ya quedó guardado en su Durable Object (rutas.ts). Meta solo reintenta si no
       // recibe 200: contestar antes de guardar perdía el mensaje si el Worker o el Durable Object fallaban justo después. Los
       // eventos no esperan: van a Odoo después del 200 (perder una palomita no es perder un mensaje).
+      // Un aviso que no dio nada (ni mensaje ni palomita) se anota con su forma: así se ve qué manda Meta cuando nada llega a Odoo.
+      if (entrantes.length === 0 && eventos.length === 0) {
+        console.warn("[juan] whatsapp cloud: aviso sin mensajes ni palomitas:", formaDelAviso(cuerpo, env.WHATSAPP_PHONE_NUMBER_ID));
+      }
       return { respuesta: json({ ok: true }), entrantes, guardarAntes: true, ...(eventos.length ? { eventos } : {}) };
     },
 
