@@ -167,7 +167,12 @@ abría Chrome solo tenía Contenido, Actividad de la comunidad y Estadísticas: 
 la conversación salió en Odoo («Messenger 2838…», con el número del cliente en vez del nombre). Desde el 2026-11-10 Juan
 le pide el nombre a Meta una vez por conversación, antes de guardar el mensaje (Messenger: nombre y apellido; Instagram:
 nombre o @usuario; `nombreDePerfil`, plazo de 3 s, a la hora si falla) y Odoo cambia el provisional por el real con el
-siguiente mensaje del cliente. Trampas de ese día:
+siguiente mensaje del cliente. **El perfil (User Profile API) solo lo da Meta con el permiso «Business Asset User Profile
+Access»** (revisión de la app; sin él, solo a quien tiene rol): el primer cliente real del 10 nov siguió saliendo como
+«Messenger 2912…». Por eso, si el perfil no responde, Juan lo saca de la conversación de la página
+(`me/conversations?platform=…&user_id=…&fields=participants`: Messenger da `name`, Instagram `username`), que pide los
+permisos de mensajes de la página. Si ninguno da el nombre, el registro de Juan dice qué consulta y qué código dio Meta.
+Al pedir la revisión de la app, agregar «Business Asset User Profile Access» (también da la foto de perfil). Trampas de ese día:
 - **En «Generar identificadores de acceso» aparecen OTRAS páginas** de la misma cuenta (Smart TV Panama, Rofer Service):
   suscripciones y «Generar» SOLO en DCASA PTY, o Juan contestaría los mensajes de otros negocios.
 - **Las fotos no salían por Messenger** («meta send 400: (#100) Error al subir el producto»; el texto sí): con

@@ -394,6 +394,8 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `main` (`741930d`, árbol = `de1fb04`) a staging y Desplegar con ese `app_version`. **Regla:** un cambio del borde
   (rutas, `vars`, `workers_dev`) se despliega con un `app_version` que lo contenga, o sea con una imagen construida
   de ese commit.
+- **Desplegar Juan 15** (03:37 UTC del 10 nov, solo Juan) · `/salud` con `7707b53` (PR #102, árbol = `5d19c7c`, CI #310
+  verde con staging): el nombre del cliente de Messenger e Instagram se le pide a Meta (`nombreDePerfil`).
 - **Desplegar Juan 14** (02:28 UTC del 10 nov, solo Juan: Odoo sin cambios) · `/salud` con `4cc4b97` (PR #101, árbol =
   `3af9123`, CI #308 verde con staging): las fotos y archivos de Messenger se suben a Meta en vez de ir por URL.
 - **Desplegar 63 y después Desplegar Juan 13** (23:26 y 23:43 UTC del 9 nov, `app_version` `3e2ccfc` = SHA de la rama,

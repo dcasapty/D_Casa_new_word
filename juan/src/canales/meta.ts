@@ -98,6 +98,10 @@ const CAPACIDADES: Record<"messenger" | "instagram", Capacidades> = {
   instagram: { imagenes: true, documentos: false, ventana24h: true, maxTexto: 950 },
 };
 
+const texto = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
+/** Un nombre que se puede mostrar: sin caracteres de control y de 100 letras como mucho. */
+const limpiarNombre = (n: string): string => n.replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, 100);
+
 /** Lo más grande que Messenger acepta como adjunto subido. */
 export const MAX_ADJUNTO_MESSENGER_BYTES = 25 * 1024 * 1024;
 
@@ -241,14 +245,32 @@ export function crearMeta(op: OpcionesMeta = {}): AdaptadorCanal {
     async nombreDePerfil(canal: CanalId, para: string, env: Env): Promise<string | null> {
       const token = env.META_PAGE_TOKEN;
       if (!token || !/^\d{5,30}$/.test(para)) return null;
-      // Messenger: nombre y apellido; Instagram: el nombre del perfil o, si no tiene, su usuario (@…).
-      const campos = canal === "instagram" ? "name,username" : "first_name,last_name";
-      const r = await f(urlGraph(env, `${para}?fields=${campos}`), { headers: { authorization: `Bearer ${token}` } });
-      if (!r.ok) return null;
-      const j = (await r.json().catch(() => null)) as { first_name?: string; last_name?: string; name?: string; username?: string } | null;
-      const nombre = canal === "instagram" ? j?.name?.trim() || (j?.username ? `@${j.username.trim()}` : "") : [j?.first_name, j?.last_name].map((x) => x?.trim()).filter(Boolean).join(" ");
-      const limpio = (nombre ?? "").replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, 100);
-      return limpio || null;
+      const cabeceras = { headers: { authorization: `Bearer ${token}` } };
+      const ig = canal === "instagram";
+      const deGraph = async (ruta: string): Promise<Record<string, unknown> | null> => {
+        const r = await f(urlGraph(env, ruta), cabeceras);
+        const j = (await r.json().catch(() => null)) as (Record<string, unknown> & { error?: { code?: number } }) | null;
+        if (!r.ok || !j || j.error) {
+          // Sin datos de nadie: solo qué consulta y qué código dio Meta (para saber qué permiso falta).
+          console.warn(`[juan] ${canal}: el nombre no salió de ${ruta.split("?")[0].replace(/\d{5,}/, ":id")} (HTTP ${r.status}, código ${j?.error?.code ?? "?"})`);
+          return null;
+        }
+        return j;
+      };
+      // 1) El perfil (Messenger: nombre y apellido; Instagram: nombre o @usuario). Meta lo da solo con el permiso «Business Asset User
+      //    Profile Access» (revisión de la app) o a quien tiene rol en la app.
+      const perfil = await deGraph(`${para}?fields=${ig ? "name,username" : "first_name,last_name"}`);
+      const delPerfil = ig
+        ? texto(perfil?.name) || (texto(perfil?.username) ? `@${texto(perfil?.username)}` : "")
+        : [texto(perfil?.first_name), texto(perfil?.last_name)].filter(Boolean).join(" ");
+      if (limpiarNombre(delPerfil)) return limpiarNombre(delPerfil);
+      // 2) Sin ese permiso: la conversación de la página con esa persona trae sus participantes (Messenger: `name`; Instagram:
+      //    `username`), con los permisos de mensajes que ya tiene la llave de la página.
+      const conv = await deGraph(`me/conversations?platform=${ig ? "instagram" : "messenger"}&user_id=${para}&fields=participants`);
+      const datos = (conv?.data as { participants?: { data?: { id?: string; name?: string; username?: string }[] } }[] | undefined) ?? [];
+      const quien = datos.flatMap((c) => c.participants?.data ?? []).find((p) => p.id === para);
+      const deLaConversacion = ig ? (texto(quien?.username) ? `@${texto(quien?.username)}` : texto(quien?.name)) : texto(quien?.name);
+      return limpiarNombre(deLaConversacion) || null;
     },
 
     async fotoDePerfil(_canal: CanalId, para: string, env: Env): Promise<{ bytes: Uint8Array; mime: string } | null> {
