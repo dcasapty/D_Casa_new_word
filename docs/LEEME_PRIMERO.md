@@ -575,23 +575,9 @@ Juan 12 (3b86ee3).
   va después de Odoo porque llama a `guardar_correo` y `no_quiere_novedades`, que un Odoo viejo no tiene. El CI #289
   (sin los arreglos de la segunda revisión) se canceló para relanzarlo completo (CI #290): una sola subida.
 
-### 2026-11-06 (8): «Ver más» en la foto del catálogo y Dependabot, en producción
-
-- Pedido de la dueña: en «Foto del catálogo» había 38 bibliotecas y solo salían 8. Ahora 12 por vuelta y «Ver más»
-  trae las siguientes sin repetir (`buscar_catalogo(…, desde=)`, tope 40 por vuelta). Con las actualizaciones de
-  Dependabot #7 y #78 a #81 (Juan con el SDK de IA 7 y una prueba que vigila cómo arma la llamada) y la regla de no
-  proponer `@types/node` de otra versión mayor.
-- **En producción:** PR #88 (`main` = `513b094`, árbol = `3a1c1d3`), **Desplegar 56** sano y confirmado 21:22 UTC
-  (versión `3a1c1d3fc144`) y **Desplegar Juan 8** (`513b094`). El **Desplegar 55 falló** por pasar el SHA del *squash*
-  como `app_version` (trampa ya escrita; ver CONTEXTO_AGENTICO). Producción nunca dejó de estar sana.
-- Un reinicio del contenedor cortó a dos agentes (Camila 1b y Brian) y al vigilante del CI: los *worktrees* guardaron
-  todo sin commit y los agentes siguieron donde iban al reanudarlos con un mensaje.
-- La dueña aprobó las capturas de Brian («perfecto») y decidió que la casilla de novedades se active sola al agregar
-  un correo (la vendedora la desactiva si el cliente dice que no). Las dos cosas siguen en preparación, junto con la
-  pantalla de Sofía (después, las tres en producción: Desplegar 57 y 58).
-
 ### Entradas anteriores (una línea cada una; el texto completo en [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md))
 
+- **2026-11-06 (8):** «Ver más» en la foto del catálogo y Dependabot, en producción.
 - **2026-11-06 (7):** la pantalla de Sofía.
 - **2026-11-06 (6):** Brian al día.
 - **2026-11-06 (5):** Camila etapa 2 («a lo grande, todo conectado con todo»), en producción.
