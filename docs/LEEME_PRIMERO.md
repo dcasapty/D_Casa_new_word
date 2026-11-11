@@ -109,14 +109,18 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 > sigue. Se guardan las diez más recientes; las viejas se resumen en una línea abajo y su texto completo pasa a
 > [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md).
 
-### 2026-11-11 (3): Inicio nuevo, el celular al entrar (blanco, menú, «atrás») y la caja del chat, en producción (Desplegar 65)
+### 2026-11-11 (3): Inicio nuevo, el celular al entrar, la caja del chat, entregas = Bodega y «Más datos», en producción (Desplegar 65 y 66)
 
 **En producción desde el 2026-11-11, 21:20 UTC (confirmado sano y estable a las 21:34):** **Desplegar 65** (Odoo y el
 borde; run 43101954871) con la imagen `sha256:66e84351…` y `app_version` `b62903127c5483c8e6bd1cd4700e97a766accfb2`
 (PR #110, squash `b8d6a51`; CI 334 con staging, run 43093423535), con respaldo previo. Lleva el Inicio nuevo, los tres
 arreglos del celular, la caja de responder del chat en el celular y la lista entera en tableta. Juan no cambió.
-**Todavía en la rama, para el despliegue siguiente:** «Entregas pendientes» igual que Bodega y «Más datos» en la
-cotización (terminados y probados). **Modo oscuro:** en construcción; va aparte, cuando la dueña vea las capturas.
+
+**Y desde las 22:36 UTC (confirmado sano y estable a las 22:49):** **Desplegar 66** (run 43112609143) con la imagen
+`sha256:a3bbe22a…` y `app_version` `8859a44eb6316281e327103a0566259fc6e558f1` (PR #111, squash `b66302a`; CI 336 con
+staging, run 43104407376), con respaldo previo: «Entregas pendientes» igual que Bodega y «Más datos» en la cotización.
+**Es lo último en producción y es más nuevo que la versión estable 4.** **Modo oscuro:** en construcción; va aparte,
+cuando la dueña vea las capturas.
 
 - **Aprobaciones de la dueña (tal cual):**
   - «Si me gustaron los cambios para móvil lo que me gustaría es que así como se ve en detalles compacto y grandes así
@@ -179,8 +183,7 @@ cotización (terminados y probados). **Modo oscuro:** en construcción; va apart
   mientras no hay uno abierto. `test_panel_caja_celular.py`, `TestDisposicionDeTableta`. Se apartó del boceto en
   nombres («Adjuntar», «Foto del catálogo») y en que «Atender» es un enlace; la hora de vuelta del asistente no se ve
   en el celular (antes salía cortada). La dueña lo aprobó así.
-- **«Entregas pendientes» = Bodega y «Más datos» en la cotización (en la rama, `b5c5440`; van en el despliegue
-  siguiente):** el panel y la cifra del Inicio muestran las mismas entregas que Bodega (pedidos con pago o abono) y un
+- **«Entregas pendientes» = Bodega y «Más datos» en la cotización (en producción con Desplegar 66, `b5c5440`):** el panel y la cifra del Inicio muestran las mismas entregas que Bodega (pedidos con pago o abono) y un
   renglón gris dice cuántas más esperan («2 más esperan pago o abono») y abre esa lista; quien ve el panel sin permiso
   de Inventario sigue viendo todas. En la cotización, un botón «Más datos» pliega teléfono fijo, direcciones,
   vencimiento, lista de precios y términos de pago **sin mover ningún campo** (se esconden con `:has()`); nace cerrado,
@@ -194,7 +197,7 @@ cotización (terminados y probados). **Modo oscuro:** en construcción; va apart
 - **Los ayudantes y el límite de uso:** cada frente en su copia de trabajo (ver CONTEXTO_AGENTICO, «Varios agentes a
   la vez»). El límite de la cuenta (cinco horas) los cortó tres veces; se reanudaron con su avance intacto las dos
   primeras y el modo oscuro quedó pausado la tercera (se levanta a las 00:50 UTC del 12).
-- **Sigue:** CI con staging sobre la rama → PR `[skip ci]` → Desplegar con entregas y «Más datos»; que la dueña pruebe
+- **Sigue:** que la dueña pruebe
   en su iPhone lo desplegado (no se pudo probar en un teléfono real ni con su usuario); el modo oscuro con sus
   capturas. Siguen sin respuesta: borrar la rama remota `claude/bold-volta-fsqq4c` y el motivo real en «Quedó por
   enviar». Pendientes menores anotados por los ayudantes: en tableta parada (768–991 px) el botón de Brian tapa
