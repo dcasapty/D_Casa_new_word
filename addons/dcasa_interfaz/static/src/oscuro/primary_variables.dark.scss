@@ -32,7 +32,7 @@ $o-gray-100: #24272B;
 $o-gray-200: $dc-o-sup-2;
 $o-gray-300: $dc-o-linea;
 $o-gray-400: $dc-o-linea-2;
-$o-gray-500: #717986;
+$o-gray-500: #7D8591;
 $o-gray-600: $dc-o-tinta-3;
 $o-gray-700: $dc-o-tinta-2;
 $o-gray-800: #D3D7DC;
@@ -51,15 +51,16 @@ $o-form-lightsecondary: $dc-o-linea-2;
 // enlaces y lo activo, un celeste. El amarillo de la marca queda solo para insignias chicas.
 $o-community-color: $dc-o-boton;
 $o-enterprise-color: $dc-o-boton;
+$o-enterprise-action-color: $dc-o-acento;   // Odoo lo usa de tinta (avisos de mensajes, contornos): celeste
 $o-brand-odoo: $dc-o-boton;
 $o-brand-primary: $dc-o-boton;
-$o-brand-secondary: #7A828E;
+$o-brand-secondary: $dc-o-tinta-3;
 $o-action: $dc-o-acento;
 $o-main-link-color: $dc-o-acento;
 $o-main-code-color: #F29BC0;
 $o-main-favorite-color: #F3CC00;
 
-$o-success: #2FA36B;
+$o-success: #2A9A62;
 $o-info: #3D9DB8;
 $o-warning: #E0A526;
 $o-danger: #E05A52;
@@ -96,6 +97,10 @@ $box-shadow-inset: inset 0 1px 2px rgba(#000000, .25);
 $modal-backdrop-bg: #000000;
 $modal-backdrop-opacity: .6;
 $progress-bar-color: #FFFFFF;
+
+// Las pistas que salen al pasar el puntero: claras con letra oscura (lo contrario del fondo), sin llegar al blanco puro.
+$tooltip-bg: #E8EAED;
+$tooltip-color: #1F2226;
 
 // --- Botones ----------------------------------------------------------------------------------------------------------
 $o-btns-bs-override: (
