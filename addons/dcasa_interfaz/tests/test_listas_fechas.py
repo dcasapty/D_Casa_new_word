@@ -63,3 +63,58 @@ class TestFechasEnLasListas(VentasMixin, HttpCase):
         self.browser_size = '1366x768'
         self.browser_js('/odoo/action-sale.action_quotations_with_onboarding', codigo, login='gerencia_rol',
                         timeout=120)
+
+
+@tagged('post_install', '-at_install')
+class TestListasEnElCelular(HttpCase):
+    """En el celular las columnas de texto no se aprietan hasta «Client…»: tienen un ancho que se lee y la lista se
+    desliza de lado. En la computadora la misma lista cabe entera, sin deslizar."""
+
+    def _lista(self):
+        vista = self.env['ir.ui.view'].create({
+            'name': 'dcasa.prueba.lista.celular', 'model': 'res.partner',
+            'arch': '<list><field name="name"/><field name="email"/><field name="phone"/><field name="city"/>'
+                    '<field name="street"/><field name="function"/></list>'})
+        self.env['res.partner'].create([{
+            'name': f'Cliente Lista Celular {i:02d}', 'email': f'lista.celular.{i}@example.com',
+            'phone': f'6000-77{i:02d}', 'city': 'La Chorrera', 'street': 'Calle de la prueba, casa 4',
+            'function': 'Compras'} for i in range(6)])
+        return self.env['ir.actions.act_window'].create({
+            'name': 'Prueba lista en celular', 'res_model': 'res.partner', 'view_mode': 'list', 'view_id': vista.id,
+            'domain': "[('name', 'like', 'Cliente Lista Celular')]"})
+
+    def _probar(self, accion, tamano, cuerpo):
+        codigo = '(async () => {' + ESPERAR_JS + r"""
+            await esperar(() => document.querySelector('.o_list_view .o_data_row'), 'las filas');
+            const tabla = document.querySelector('.o_list_table');
+            await esperar(() => tabla.style.tableLayout === 'fixed', 'los anchos');
+            const caja = tabla.parentNode;
+            const anchos = Object.fromEntries([...tabla.querySelectorAll('thead th[data-name]')]
+                .map((th) => [th.dataset.name, Math.round(th.getBoundingClientRect().width)]));
+            if (document.documentElement.scrollWidth > window.innerWidth + 1) {
+                throw new Error('la página entera no debe deslizarse de lado');
+            }
+        """ + cuerpo + "console.log('test successful'); })();"
+        self.browser_size = tamano
+        self.browser_js(f'/odoo/action-{accion.id}', codigo, login='admin', timeout=120)
+
+    def test_en_el_celular_el_texto_se_lee_y_la_lista_se_desliza(self):
+        self._probar(self._lista(), '390x844', r"""
+            for (const [nombre, ancho] of Object.entries(anchos)) {
+                if (ancho < 170) {
+                    throw new Error(`la columna ${nombre} quedó en ${ancho}px: ${JSON.stringify(anchos)}`);
+                }
+            }
+            if (caja.scrollWidth <= caja.clientWidth + 1) { throw new Error('la lista debía deslizarse de lado'); }
+            const nombre = document.querySelector('.o_data_row td[name="name"]');
+            if (nombre.scrollWidth > nombre.clientWidth + 1) {
+                throw new Error('el nombre sigue cortado: ' + nombre.textContent.trim());
+            }
+        """)
+
+    def test_en_la_computadora_la_lista_cabe_sin_deslizar(self):
+        self._probar(self._lista(), '1366x768', r"""
+            if (caja.scrollWidth > caja.clientWidth + 1) {
+                throw new Error('en la computadora la lista no debe deslizarse de lado: ' + JSON.stringify(anchos));
+            }
+        """)

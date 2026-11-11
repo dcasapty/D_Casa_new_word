@@ -1,5 +1,7 @@
 /**
- * Listas: el ancho de las columnas de fecha.
+ * Listas: el ancho de las columnas.
+ *
+ * 1. Las fechas (computadora y celular).
  *
  * Odoo reserva para cada fecha el ancho del peor caso: con el año y con segundos («25 sept 2017, 10:00:00 p. m.»).
  * Casi todas las filas son de este año y sin segundos («11 nov, 12:14 a. m.»), así que en una pantalla de 1366 px esa
@@ -9,12 +11,21 @@
  *
  * No se tocan los campos de Odoo: se registran copias de los campos de fecha de las listas con otro `listViewWidth`
  * (el rango de fechas, que calcula con los originales, sigue igual).
+ *
+ * 2. El texto, en el celular.
+ *
+ * Odoo deja encoger cada columna de texto hasta 80 px. En una pantalla de 390 px, una lista de seis columnas quedaba en
+ * «CAM…», «Client…», «+507…»: no se podía leer nada (48 de las 105 listas del panel, auditoría del 2026-11-11). En el
+ * celular las columnas de texto no bajan de un ancho que se lee y la lista se desliza de lado, como ya hacía. Solo la
+ * lista de la pantalla: las líneas de un formulario (productos de la cotización) siguen como estaban.
  */
 import { registry } from "@web/core/registry";
+import { patch } from "@web/core/utils/patch";
 import { toLocaleDateString, toLocaleDateTimeString } from "@web/core/l10n/dates";
 import { exprToBoolean } from "@web/core/utils/strings";
 import { dateField, dateTimeField } from "@web/views/fields/datetime/datetime_field";
 import { listDateField, listDateTimeField } from "@web/views/fields/datetime/list_datetime_field";
+import { ListRenderer } from "@web/views/list/list_renderer";
 
 const { DateTime } = luxon;
 let _deEsteAno = null;
@@ -78,3 +89,40 @@ registry
     .category("fields")
     .add("list.date", { ...listDateField, listViewWidth: anchoDeFecha }, { force: true })
     .add("list.datetime", { ...listDateTimeField, listViewWidth: anchoDeFechaConHora }, { force: true });
+
+// --- El texto, en el celular ---------------------------------------------------------------------------------------
+
+/** En el celular, una columna de este tipo no baja de este ancho (px, sin contar el relleno de la celda). */
+export const MINIMO_EN_CELULAR = Object.freeze({
+    char: 170,
+    many2one: 170,
+    reference: 170,
+    many2one_reference: 170,
+    many2many: 170,
+    one2many: 170,
+    selection: 104,
+    text: 200,
+    html: 200,
+});
+
+// La misma copia en cada dibujado: si cambiara, Odoo volvería a pintar todas las celdas.
+const copias = new WeakMap();
+
+/** La columna con su mínimo de celular; la misma si no es de texto o si ya trae un ancho propio (fechas, montos…). */
+export function columnaParaCelular(columna) {
+    const minimo = MINIMO_EN_CELULAR[columna.fieldType];
+    if (columna.type !== "field" || !minimo || !columna.field || columna.field.listViewWidth || columna.attrs?.width) {
+        return columna;
+    }
+    if (!copias.has(columna)) {
+        copias.set(columna, { ...columna, field: { ...columna.field, listViewWidth: [minimo] } });
+    }
+    return copias.get(columna);
+}
+
+patch(ListRenderer.prototype, {
+    getActiveColumns() {
+        const columnas = super.getActiveColumns(...arguments);
+        return this.env.isSmall && !this.isX2Many ? columnas.map(columnaParaCelular) : columnas;
+    },
+});
