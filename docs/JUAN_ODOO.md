@@ -215,6 +215,15 @@ miden 362 px (antes, 113 px): es el peor caso y sigue siendo más de la mitad de
 estos tamaños, que la barra del hilo y los avisos no se partan, que el hilo se desplace con la rueda del ratón con la ficha, la caja
 y el menú abiertos, y que en celular nada baje de 44 px.
 
+**Celular, desde el 2026-11-11 (la caja de dos renglones, aprobada por la dueña):** la caja vacía pasó de 215 a **111 px** en
+360 × 740 y 390 × 844 (los mensajes ganan 104 px: 480 y 584 px con una conversación corta). Renglón 1: quién atiende, «Devolver» o
+«Atender» y Respuesta / Nota. Renglón 2: «+», «Sugerir», el texto y Enviar. Dentro del «+»: Adjuntar, Foto del catálogo,
+Cotización, Rápidas y Programar; se cierra al elegir, con Esc, tocando fuera y con el «atrás» del teléfono. Todo sigue en 44 px y en
+tableta y computadora la caja queda igual (93 px). Pruebas: `tests/test_panel_caja_celular.py`. En tableta (hasta 1100 px) la lista
+de chats se ve entera mientras no hay ninguno abierto y se reduce a las fotos al abrir uno (`TestDisposicionDeTableta`). Y el
+«atrás» del teléfono cierra lo de más arriba (foto → ventana → ficha → chat → lista) en vez de sacar de la pantalla
+(`static/src/js/atras.js`, `tests/test_panel_atras.py`).
+
 ### Teclado: resumen
 
 | Tecla | Dónde | Qué hace |

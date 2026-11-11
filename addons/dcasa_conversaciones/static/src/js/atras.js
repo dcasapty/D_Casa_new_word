@@ -14,7 +14,7 @@
  * entera. `router.skipLoad` es su manera prevista de decirle «este retroceso lo atiende la pantalla»: se enciende
  * mientras haya pasos nuestros y Odoo lo apaga solo cada vez que atiende uno.
  */
-import { onWillUnmount, useEffect } from "@odoo/owl";
+import { onMounted, onWillUnmount, useEffect } from "@odoo/owl";
 import { browser } from "@web/core/browser/browser";
 import { router } from "@web/core/browser/router";
 
@@ -82,7 +82,9 @@ export function usarAtrasDelTelefono(nivel, cerrarLaDeArriba) {
         browser.setTimeout(sostener, 0);
     };
 
-    browser.addEventListener("popstate", alRetroceder);
+    // Se escucha solo mientras la pantalla está a la vista: si Odoo la descarta antes de mostrarla (se eligió otra
+    // pantalla mientras esta cargaba), no queda nada escuchando ni tocando `skipLoad`.
+    onMounted(() => browser.addEventListener("popstate", alRetroceder));
     useEffect(sincronizar, () => [nivel()]);
     onWillUnmount(() => {
         browser.removeEventListener("popstate", alRetroceder);
