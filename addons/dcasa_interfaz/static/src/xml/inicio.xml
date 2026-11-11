@@ -1,7 +1,36 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
     <t t-name="dcasa_interfaz.Inicio">
-        <div class="o_action o_dcasa_inicio">
+        <!-- «o_dcasa_inicio» es el armazón que comparten otras pantallas (Estadísticas, Por día, Movimientos…);
+             «o_dcasa_tablero» es solo de este Inicio: de él cuelga su presentación (tablero.scss). -->
+        <!-- El armazón: lo que se ve mientras llegan las cifras (o si no llegaron). Lleva el saludo de verdad y bloques en
+             gris donde irá lo demás, para que al entrar la pantalla nunca quede en blanco. No lleva «o_dcasa_inicio»:
+             esa clase sigue queriendo decir «el Inicio con sus cifras ya está». -->
+        <div t-if="!state.datos" class="o_action o_dcasa_arranque" t-att-aria-busy="state.errorDeCarga ? 'false' : 'true'">
+            <header class="o_dcasa_inicio_hero">
+                <div class="o_dcasa_inicio_hero_texto">
+                    <div class="o_dcasa_inicio_fecha" t-out="fechaDeHoy"/>
+                    <h1>Hola, <t t-out="nombreDePila"/></h1>
+                    <p t-if="state.errorDeCarga" class="o_dcasa_arranque_estado">No llegó el resumen del día.</p>
+                    <p t-elif="state.cargaLenta" class="o_dcasa_arranque_estado" role="status">Está tardando más de lo normal. Ya casi…</p>
+                    <p t-else="" class="o_dcasa_arranque_estado" role="status">Preparando tu resumen…</p>
+                </div>
+            </header>
+            <div class="o_dcasa_inicio_cuerpo">
+                <div t-if="state.errorDeCarga" class="o_dcasa_arranque_error" role="alert">
+                    <p>No pudimos traer las cifras. Revisa la conexión y vuelve a intentar; el menú de arriba sigue funcionando.</p>
+                    <button type="button" class="btn btn-primary o_dcasa_arranque_reintentar" t-on-click="() => this.cargar()">
+                        <i class="fa fa-refresh me-2" aria-hidden="true"/>Reintentar
+                    </button>
+                </div>
+                <div t-else="" class="o_dcasa_arranque_bloques" aria-hidden="true">
+                    <span t-foreach="[1, 2, 3, 4, 5, 6]" t-as="n" t-key="n" class="o_dcasa_arranque_bloque"/>
+                    <span class="o_dcasa_arranque_bloque o_dcasa_arranque_ancho"/>
+                    <span class="o_dcasa_arranque_bloque o_dcasa_arranque_ancho o_dcasa_arranque_alto"/>
+                </div>
+            </div>
+        </div>
+        <div t-else="" class="o_action o_dcasa_inicio o_dcasa_tablero" t-ref="raiz">
             <t t-set="d" t-value="state.datos"/>
             <h2 class="visually-hidden">Resumen del día</h2>
 
@@ -43,8 +72,23 @@
             </header>
 
             <div class="o_dcasa_inicio_cuerpo">
+                <!-- En el celular, el tamaño de los accesos directos lo elige cada quien (aprobado por la dueña,
+                     2026-11-11): «Compactos» (tres por fila, como los íconos del teléfono), «Detalle» (dos por fila) o
+                     «Grandes» (uno por fila, como siempre). Se recuerda en ese aparato. En la computadora y la tableta
+                     ancha no se muestra: ahí los accesos van como siempre. -->
+                <div t-if="d.atajos.length" class="o_dcasa_atajos_tamano">
+                    <span class="o_dcasa_atajos_tamano_titulo" aria-hidden="true">Accesos directos</span>
+                    <div class="o_dcasa_atajos_tamano_opciones" role="group" aria-label="Tamaño de los accesos directos">
+                        <button t-foreach="tamanosDeAtajos" t-as="tam" t-key="tam.clave" type="button"
+                                t-attf-class="o_dcasa_atajos_tamano_opcion o_dcasa_atajos_tamano_{{tam.clave}}"
+                                t-att-class="{'o_activo': state.atajos === tam.clave}"
+                                t-att-aria-pressed="state.atajos === tam.clave ? 'true' : 'false'"
+                                t-on-click="() => this.cambiarTamanoDeAtajos(tam.clave)" t-out="tam.nombre"/>
+                    </div>
+                </div>
                 <!-- Accesos directos: lo que más se abre, a un clic (sin buscar en el menú de la izquierda). -->
-                <section t-if="d.atajos.length" class="o_dcasa_atajos" aria-label="Accesos directos">
+                <section t-if="d.atajos.length" class="o_dcasa_atajos" aria-label="Accesos directos"
+                         t-att-data-modo="state.atajos">
                     <button t-foreach="d.atajos" t-as="a" t-key="a.clave" type="button"
                             t-attf-class="o_dcasa_atajo o_dcasa_atajo_{{a.clave}}" t-on-click="() => this.abrirAtajo(a)">
                         <span class="o_dcasa_atajo_icono"><i t-attf-class="fa {{a.icono}}"/></span>
@@ -92,6 +136,30 @@
                      chatbot y la web van en paneles aparte para no revolverlas (2026-11-03). Cabecera azul con el
                      número en amarillo: el amarillo solo toca el azul. -->
                 <div t-if="d.permisos.completo and (d.cotizaciones or d.entregas)" class="o_dcasa_listas">
+                    <!-- Tres contadores que llevan a cada panel (2026-11-11): solo se ven cuando los paneles quedan
+                         uno debajo del otro (celular y tableta parada); al tocarlos la pantalla baja hasta ese panel.
+                         Sale uno por cada panel que la persona ve. Los números van en azul: el fondo es blanco. -->
+                    <nav class="o_dcasa_saltos" aria-label="Ir a cada panel">
+                        <button t-if="d.cotizaciones" type="button" class="o_dcasa_salto o_dcasa_salto_cotizaciones"
+                                t-att-aria-label="'Cotizaciones abiertas en tienda: ' + d.cotizaciones.cantidad + '. Bajar a ese panel'"
+                                t-on-click="() => this.irAlPanel('cotizaciones')">
+                            <strong t-out="d.cotizaciones.cantidad"/>
+                            <span>En tienda</span>
+                        </button>
+                        <button t-if="d.cotizaciones_en_linea" type="button"
+                                class="o_dcasa_salto o_dcasa_salto_cotizaciones_en_linea"
+                                t-att-aria-label="'Cotizaciones del chatbot y la web: ' + d.cotizaciones_en_linea.cantidad + '. Bajar a ese panel'"
+                                t-on-click="() => this.irAlPanel('cotizaciones_en_linea')">
+                            <strong t-out="d.cotizaciones_en_linea.cantidad"/>
+                            <span>Chatbot y web</span>
+                        </button>
+                        <button t-if="d.entregas" type="button" class="o_dcasa_salto o_dcasa_salto_entregas"
+                                t-att-aria-label="'Entregas pendientes: ' + d.entregas.cantidad + '. Bajar a ese panel'"
+                                t-on-click="() => this.irAlPanel('entregas')">
+                            <strong t-out="d.entregas.cantidad"/>
+                            <span>Entregas</span>
+                        </button>
+                    </nav>
                     <t t-if="d.cotizaciones" t-call="dcasa_interfaz.InicioCotizaciones">
                         <t t-set="lista" t-value="d.cotizaciones"/>
                         <t t-set="clave" t-value="'cotizaciones'"/>
@@ -123,17 +191,26 @@
                                         <strong t-out="fila.cliente or fila.nombre"/>
                                         <small><t t-out="fila.nombre"/><t t-if="fila.origen"> · <t t-out="fila.origen"/></t></small>
                                     </span>
+                                    <!-- El estado, con su color (verde y ámbar oscuros: se leen sobre blanco y
+                                         no son el amarillo de la marca); también lo dice la palabra. -->
                                     <span class="o_dcasa_lista_dato">
-                                        <strong t-out="fila.listo ? 'Lista' : 'Falta mercancía'"/>
+                                        <strong t-attf-class="o_dcasa_estado {{fila.listo ? 'o_dcasa_estado_lista' : 'o_dcasa_estado_falta'}}"
+                                                t-out="fila.listo ? 'Lista' : 'Falta mercancía'"/>
                                         <small t-out="espera(fila.dias)"/>
                                     </span>
                                 </button>
                             </li>
                         </ul>
                         <p t-else="" class="o_dcasa_vacio">No hay entregas pendientes.</p>
-                        <p t-if="d.entregas.cantidad > d.entregas.filas.length" class="o_dcasa_lista_pie">
-                            Las más antiguas primero. <button type="button" class="btn btn-link p-0"
-                                t-on-click="() => this.abrirLista(d.entregas.accion)">Ver las <t t-out="d.entregas.cantidad"/></button>
+                        <!-- El pie abre la misma lista que el número de la cabecera; sale siempre que haya entregas
+                             (antes, solo cuando no cabían todas): en el celular se ve mejor que el número. -->
+                        <p t-if="d.entregas.cantidad" class="o_dcasa_lista_pie">
+                            <t t-if="d.entregas.cantidad > d.entregas.filas.length">Las más antiguas primero. </t>
+                            <button type="button" class="btn btn-link p-0 o_dcasa_lista_ver"
+                                    t-on-click="() => this.abrirLista(d.entregas.accion)">
+                                <t t-if="d.entregas.cantidad === 1">Ver la entrega</t>
+                                <t t-else="">Ver las <t t-out="d.entregas.cantidad"/> entregas</t>
+                            </button>
                         </p>
                     </section>
                 </div>
@@ -231,7 +308,11 @@
                             <span class="o_dcasa_ventas_etiqueta" t-out="d.ventas.etiqueta"/>
                             <button type="button" class="o_dcasa_ventas_valor o_dcasa_cifra_ventas_hoy"
                                     t-on-click="() => this.abrirLista(d.ventas.accion)">
-                                <span t-out="dinero(d.ventas.actual.sin_itbms)"/>
+                                <!-- «o_dcasa_sube»: la cifra sube hasta su valor (inicio.js). El texto de la etiqueta
+                                     es siempre el valor final; el número que sube se pinta encima por CSS. -->
+                                <span class="o_dcasa_sube" data-formato="moneda"
+                                      t-att-data-valor="d.ventas.actual.sin_itbms"
+                                      t-out="dinero(d.ventas.actual.sin_itbms)"/>
                             </button>
                             <span class="o_dcasa_ventas_nota">Ventas sin ITBMS ·
                                 <t t-out="d.ventas.actual.cuantas"/>
@@ -261,7 +342,8 @@
                                     <i class="fa fa-info-circle" aria-hidden="true"/>
                                 </button>
                             </span>
-                            <span class="o_dcasa_ventas_valor o_dcasa_ganancia_valor"
+                            <span class="o_dcasa_ventas_valor o_dcasa_ganancia_valor o_dcasa_sube" data-formato="moneda"
+                                  t-att-data-valor="d.ventas.actual.ganancia.valor"
                                   t-out="dinero(d.ventas.actual.ganancia.valor)"/>
                             <span class="o_dcasa_ventas_nota">
                                 <t t-if="d.ventas.actual.ganancia.porcentaje !== null"><t t-out="d.ventas.actual.ganancia.porcentaje"/> % de la venta de mercancía · </t>sin ITBMS
@@ -418,7 +500,8 @@
                                 t-on-click="() => this.abrirCifra(c)">
                             <span class="o_dcasa_cifra_icono"><i t-attf-class="fa {{icono(c)}}"/></span>
                             <span class="o_dcasa_cifra_titulo" t-out="c.titulo"/>
-                            <span class="o_dcasa_cifra_valor" t-out="cifra(c)"/>
+                            <span class="o_dcasa_cifra_valor o_dcasa_sube" t-att-data-valor="c.valor"
+                                  t-att-data-formato="c.formato === 'moneda' ? 'moneda' : 'entero'" t-out="cifra(c)"/>
                             <span class="o_dcasa_cifra_detalle">
                                 <t t-if="c.nota"><t t-out="c.nota"/> · </t>
                                 <t t-if="c.detalle_moneda !== undefined">Por <t t-out="dinero(c.detalle_moneda)"/> con ITBMS</t>
@@ -443,6 +526,9 @@
                         <li t-foreach="d.cobros" t-as="cobro" t-key="cobro.clave">
                             <span t-out="cobro.forma"/>
                             <strong t-out="dinero(cobro.monto)"/>
+                            <span class="o_dcasa_proporcion" aria-hidden="true">
+                                <span t-attf-style="width: {{ proporcion(cobro.monto, maxCobro) }}%; --i: {{ Math.min(cobro_index, 5) }}"/>
+                            </span>
                         </li>
                     </ul>
                     <p t-else="" class="o_dcasa_vacio">Todavía no hay cobros registrados hoy.</p>
@@ -453,19 +539,31 @@
                     <!-- La semana y lo más vendido siguen el interruptor y la vendedora (2026-10-17): la etiqueta dice cuáles. -->
                     <section t-if="d.semana.length" t-attf-class="o_dcasa_panel o_dcasa_semana {{state.cargandoGrafica ? 'o_cargando' : ''}}">
                         <h2>Ventas de la semana <small class="o_dcasa_sin_itbms"><t t-if="nombreBase"><t t-out="nombreBase"/> · </t>sin ITBMS<t t-if="nombreVendedora"> · <t t-out="nombreVendedora"/></t></small></h2>
-                        <div class="o_dcasa_grafico">
-                            <div t-foreach="d.semana" t-as="dia" t-key="dia_index" role="img" tabindex="0"
-                                 t-attf-class="o_dcasa_grafico_barra {{dia.hoy ? 'o_dcasa_grafico_hoy' : ''}}"
-                                 t-att-aria-label="dia.dia + ': ' + dinero(dia.monto) + ' sin ITBMS'"
-                                 t-attf-style="--alto: {{ Math.max(3, dia.monto / maxSemana * 82) }}%">
-                                <span class="o_dcasa_grafico_monto" aria-hidden="true" t-out="dinero(dia.monto)"/>
-                                <span class="o_dcasa_grafico_relleno"
-                                      t-attf-style="height: {{ Math.max(3, dia.monto / maxSemana * 82) }}%"/>
+                        <!-- La escala de la izquierda y las líneas de fondo salen de los mismos montos de las barras
+                             (ejeSemana, en inicio.js): no es un dato nuevo. «i» es el turno de cada barra al crecer. -->
+                        <t t-set="eje" t-value="ejeSemana"/>
+                        <div class="o_dcasa_grafico_caja">
+                            <div t-if="eje.marcas.length" class="o_dcasa_grafico_eje" aria-hidden="true">
+                                <span t-foreach="eje.marcas" t-as="marca" t-key="marca_index" t-out="marca.texto"/>
                             </div>
-                        </div>
-                        <div class="o_dcasa_grafico_dias" aria-hidden="true">
-                            <span t-foreach="d.semana" t-as="dia" t-key="dia_index" t-att-class="{'o_hoy': dia.hoy}"
-                                  t-out="dia.hoy ? 'Hoy' : dia.dia"/>
+                            <div class="o_dcasa_grafico">
+                                <t t-foreach="eje.marcas" t-as="marca" t-key="marca_index">
+                                    <span t-if="marca.alto" class="o_dcasa_grafico_linea" aria-hidden="true"
+                                          t-attf-style="bottom: {{ marca.alto }}%"/>
+                                </t>
+                                <div t-foreach="d.semana" t-as="dia" t-key="dia_index" role="img" tabindex="0"
+                                     t-attf-class="o_dcasa_grafico_barra {{dia.hoy ? 'o_dcasa_grafico_hoy' : ''}}"
+                                     t-att-aria-label="dia.dia + ': ' + dinero(dia.monto) + ' sin ITBMS'"
+                                     t-attf-style="--alto: {{ eje.alto(dia.monto) }}%; --i: {{ dia_index }}">
+                                    <span class="o_dcasa_grafico_monto" aria-hidden="true" t-out="dinero(dia.monto)"/>
+                                    <span class="o_dcasa_grafico_relleno"
+                                          t-attf-style="height: {{ eje.alto(dia.monto) }}%"/>
+                                </div>
+                            </div>
+                            <div class="o_dcasa_grafico_dias" aria-hidden="true">
+                                <span t-foreach="d.semana" t-as="dia" t-key="dia_index" t-att-class="{'o_hoy': dia.hoy}"
+                                      t-out="dia.hoy ? 'Hoy' : dia.dia"/>
+                            </div>
                         </div>
                     </section>
 
@@ -476,9 +574,13 @@
                             Cobrado hoy <strong t-out="dinero(d.total_cobrado)"/>
                         </p>
                         <ul t-if="d.cobros.length" class="list-unstyled mb-0">
+                            <!-- Debajo de cada forma de pago, una barra fina: cuánto pesa frente a la que más cobró. -->
                             <li t-foreach="d.cobros" t-as="cobro" t-key="cobro.clave">
                                 <span t-out="cobro.forma"/>
                                 <strong t-out="dinero(cobro.monto)"/>
+                                <span class="o_dcasa_proporcion" aria-hidden="true">
+                                    <span t-attf-style="width: {{ proporcion(cobro.monto, maxCobro) }}%; --i: {{ Math.min(cobro_index, 5) }}"/>
+                                </span>
                             </li>
                         </ul>
                         <p t-else="" class="o_dcasa_vacio">Todavía no hay cobros registrados hoy.</p>
@@ -492,6 +594,10 @@
                                 <img t-att-src="p.imagen" alt="" loading="lazy"/>
                                 <span class="o_dcasa_top_nombre" t-out="p.nombre"/>
                                 <span class="o_dcasa_top_cantidad"><t t-out="p.cantidad"/> u.</span>
+                                <!-- La barra fina: cuánto se vendió frente al más vendido. -->
+                                <span class="o_dcasa_proporcion" aria-hidden="true">
+                                    <span t-attf-style="width: {{ proporcion(p.cantidad, maxTop) }}%; --i: {{ Math.min(p_index, 5) }}"/>
+                                </span>
                             </li>
                         </ol>
                         <p t-else="" class="o_dcasa_vacio">Aún no hay ventas este mes.</p>
@@ -535,17 +641,23 @@
                             <small><t t-out="fila.nombre"/><t t-if="fila.vendedora"> · <t t-out="fila.vendedora"/></t>
                                 <span t-if="fila.origen" t-attf-class="o_dcasa_origen o_dcasa_origen_{{fila.origen.toLowerCase()}}" t-out="fila.origen"/></small>
                         </span>
+                        <!-- El monto primero; lo demás, en gris y en un solo renglón. -->
                         <span class="o_dcasa_lista_dato">
-                            <strong t-out="dinero(fila.total)"/> <small>con ITBMS</small>
-                            <small t-out="espera(fila.dias)"/>
+                            <strong t-out="dinero(fila.total)"/>
+                            <small>con ITBMS · <t t-out="espera(fila.dias)"/></small>
                         </span>
                     </button>
                 </li>
             </ul>
             <p t-else="" class="o_dcasa_vacio" t-out="vacio"/>
-            <p t-if="lista.cantidad > lista.filas.length" class="o_dcasa_lista_pie">
-                Las más antiguas primero. <button type="button" class="btn btn-link p-0"
-                    t-on-click="() => this.abrirLista(lista.accion)">Ver las <t t-out="lista.cantidad"/></button>
+            <!-- El pie abre la misma lista que el número de la cabecera (sale siempre que haya cotizaciones). -->
+            <p t-if="lista.cantidad" class="o_dcasa_lista_pie">
+                <t t-if="lista.cantidad > lista.filas.length">Las más antiguas primero. </t>
+                <button type="button" class="btn btn-link p-0 o_dcasa_lista_ver"
+                        t-on-click="() => this.abrirLista(lista.accion)">
+                    <t t-if="lista.cantidad === 1">Ver la cotización</t>
+                    <t t-else="">Ver las <t t-out="lista.cantidad"/> cotizaciones</t>
+                </button>
             </p>
         </section>
     </t>

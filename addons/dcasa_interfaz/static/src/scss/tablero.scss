@@ -1,0 +1,571 @@
+// El «Inicio» en su versión mejorada (propuesta 2, aprobada por la dueña el 2026-11-11): mismo orden y mismo contenido,
+// más fácil de leer y, en el celular, mejor organizado.
+//
+// Aquí va SOLO lo que es del Inicio. Todo cuelga de `.o_dcasa_tablero` (la raíz de inicio.xml), porque varias clases de
+// interfaz.scss (`.o_dcasa_panel`, `.o_dcasa_atajo`, `.o_dcasa_lista_fila`, `.o_dcasa_periodo`…) las usan también
+// Estadísticas, Por día, Movimientos y Valor del inventario, y esas pantallas no cambian.
+//
+// Reglas de la casa: sistema plano (sin degradados ni sombras), colores solo con las variables `--dc-*` de tokens.scss,
+// y el amarillo nunca toca el blanco (los números sobre blanco van en azul). El modo oscuro no se toca aquí.
+
+// --- Lo plano: sin sombras, el borde es el que responde -------------------------------------------------------------
+.o_dcasa_tablero {
+    .o_dcasa_panel,
+    .o_dcasa_cifra,
+    .o_dcasa_app { box-shadow: none; }
+
+    .o_dcasa_cifra:hover,
+    .o_dcasa_app:hover { box-shadow: none; border-color: var(--dc-azul-300); }
+
+    .o_dcasa_cifra:focus-visible,
+    .o_dcasa_app:focus-visible { box-shadow: var(--dc-foco); }
+
+    // El punto de la fecha va en azul: el fondo del saludo es blanco y el amarillo no lo toca.
+    .o_dcasa_inicio_fecha::before { background: var(--dc-azul-600); box-shadow: none; }
+}
+
+// --- Accesos directos -----------------------------------------------------------------------------------------------
+// Tableta y computadora: como siempre (ícono, nombre y detalle en fila), con las medidas justas para que el número
+// amarillo no se monte sobre el nombre («Conversaciones» lo pisaba cuando iban cinco por fila).
+.o_dcasa_tablero {
+    .o_dcasa_atajo_texto strong { overflow-wrap: anywhere; }
+
+    @media (min-width: 768px) {
+        .o_dcasa_atajos { gap: 10px; }
+        .o_dcasa_atajo { gap: 10px; min-height: 64px; padding: 10px 12px; }
+        .o_dcasa_atajo_icono { width: 36px; height: 36px; border-radius: 10px; font-size: 1rem; }
+        .o_dcasa_atajo_texto {
+            flex: 1 1 auto;
+
+            strong { font-size: .875rem; line-height: 1.2; }
+            span { margin-top: 2px; font-size: .75rem; line-height: 1.3; }
+        }
+        .o_dcasa_atajo_cuenta { min-width: 24px; height: 24px; padding: 0 7px; border-radius: 12px; font-size: .75rem; }
+    }
+}
+
+// El selector de tamaño: chico, justo encima de los accesos, solo en el celular.
+.o_dcasa_atajos_tamano { display: none; }
+
+@media (max-width: 767.98px) {
+    .o_dcasa_atajos_tamano {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 8px;
+    }
+}
+
+.o_dcasa_atajos_tamano_titulo {
+    min-width: 0;
+    font-size: .75rem;
+    font-weight: 600;
+    color: var(--dc-tinta-3);
+
+    // En los teléfonos más angostos no cabe junto a las tres opciones: queda solo el selector.
+    @media (max-width: 379.98px) { display: none; }
+}
+
+.o_dcasa_atajos_tamano_opciones {
+    display: inline-flex;
+    gap: 2px;
+    margin-left: auto;
+    padding: 3px;
+    border: 1px solid var(--dc-linea);
+    border-radius: 10px;
+    background: var(--dc-blanco);
+}
+
+.o_dcasa_atajos_tamano_opcion {
+    min-height: 32px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--dc-tinta-2);
+    font-size: .75rem;
+    font-weight: 600;
+    white-space: nowrap;
+    transition: background-color var(--dc-transicion), color var(--dc-transicion);
+
+    &:focus-visible { outline: none; box-shadow: var(--dc-foco); }
+    &.o_activo { background: var(--dc-azul-600); color: var(--dc-blanco); }
+}
+
+// Los tres tamaños (menos de 768 px). «Grandes» no lleva reglas: es el acceso de siempre, uno por fila.
+@media (max-width: 767.98px) {
+    .o_dcasa_tablero .o_dcasa_atajos {
+        // Compactos: tres por fila, como los íconos del teléfono. Ícono arriba, nombre abajo y el número en la esquina
+        // (amarillo sobre el azul del acceso). El renglón de detalle no se ve, pero el lector de pantalla lo sigue leyendo.
+        &[data-modo="compacto"] {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+
+            .o_dcasa_atajo {
+                flex-direction: column;
+                justify-content: center;
+                gap: 6px;
+                min-height: 84px;
+                padding: 10px 4px;
+                text-align: center;
+            }
+            .o_dcasa_atajo_icono { width: 36px; height: 36px; border-radius: 10px; font-size: 1rem; }
+            .o_dcasa_atajo_texto {
+                align-items: center;
+                max-width: 100%;
+
+                // 12 px: «Conversaciones», el nombre más largo, cabe entero en un tercio de la pantalla.
+                strong { font-size: .75rem; line-height: 1.2; }
+                span {
+                    position: absolute;
+                    width: 1px;
+                    height: 1px;
+                    overflow: hidden;
+                    clip-path: inset(50%);
+                    white-space: nowrap;
+                }
+            }
+            .o_dcasa_atajo_cuenta {
+                position: absolute;
+                top: 6px;
+                right: 6px;
+                min-width: 22px;
+                height: 22px;
+                margin: 0;
+                padding: 0 6px;
+                border-radius: 11px;
+                font-size: .75rem;
+            }
+        }
+
+        // Detalle: dos por fila, con su renglón de explicación. El número va en la esquina del ícono.
+        &[data-modo="detalle"] {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+
+            .o_dcasa_atajo { gap: 10px; min-height: 66px; padding: 10px; }
+            .o_dcasa_atajo_icono { width: 36px; height: 36px; border-radius: 10px; font-size: 1rem; }
+            .o_dcasa_atajo_texto {
+                flex: 1 1 auto;
+
+                strong { font-size: .78rem; line-height: 1.2; }
+                span { margin-top: 2px; font-size: .75rem; line-height: 1.3; }
+            }
+            .o_dcasa_atajo_cuenta {
+                position: absolute;
+                top: 4px;
+                left: 32px;
+                min-width: 22px;
+                height: 22px;
+                margin: 0;
+                padding: 0 6px;
+                border-radius: 11px;
+                font-size: .75rem;
+            }
+        }
+    }
+}
+
+// Teléfonos angostos (360 px): un poco menos de aire para que «Conversaciones» quepa entera.
+@media (max-width: 379.98px) {
+    .o_dcasa_tablero .o_dcasa_atajos {
+        &[data-modo="compacto"] {
+            gap: 6px;
+
+            .o_dcasa_atajo { padding: 10px 3px; }
+            .o_dcasa_atajo_texto strong { letter-spacing: -.02em; }
+        }
+        &[data-modo="detalle"] {
+            .o_dcasa_atajo { gap: 8px; padding: 10px 8px; }
+            .o_dcasa_atajo_icono { width: 32px; height: 32px; }
+            .o_dcasa_atajo_texto strong { font-size: .75rem; }
+            .o_dcasa_atajo_cuenta { left: 28px; }
+        }
+    }
+}
+
+// --- Contadores que llevan a cada panel -----------------------------------------------------------------------------
+// Solo cuando los paneles quedan uno debajo del otro (el mismo corte de `.o_dcasa_listas`: menos de 992 px). Blanco con
+// el número en azul; nada de amarillo, que aquí tocaría el blanco.
+.o_dcasa_saltos { display: none; }
+
+@media (max-width: 991.98px) {
+    .o_dcasa_saltos {
+        display: flex;
+        overflow: hidden;
+        border: 1px solid var(--dc-linea);
+        border-radius: var(--dc-r-md);
+        background: var(--dc-blanco);
+    }
+}
+
+.o_dcasa_salto {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 58px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    padding: 8px 6px;
+    border: 0;
+    border-left: 1px solid var(--dc-linea);
+    background: none;
+    text-align: center;
+
+    &:first-child { border-left: 0; }
+    &:hover,
+    &:active { background: var(--dc-azul-50); }
+    &:focus-visible { outline: none; box-shadow: inset var(--dc-foco); }
+
+    strong {
+        font-size: 1.25rem;
+        font-weight: 700;
+        line-height: 1.1;
+        color: var(--dc-azul-600);
+    }
+    span {
+        font-size: .75rem;
+        font-weight: 500;
+        line-height: 1.2;
+        color: var(--dc-tinta-2);
+    }
+}
+
+// --- Los tres paneles: cliente y monto primero, lo demás en gris ----------------------------------------------------
+.o_dcasa_tablero {
+    .o_dcasa_listas { align-items: start; }       // cada panel mide lo que su contenido (no se estira al más largo)
+    .o_dcasa_lista { scroll-margin-top: 12px; }   // al bajar desde un contador queda un poco de aire arriba
+
+    .o_dcasa_lista .o_dcasa_lista_cabeza h2 { font-size: 1rem; }
+
+    // Cada fila, en dos renglones: arriba el cliente y el monto (o el estado de la entrega); abajo, en gris, la
+    // referencia y hace cuánto. Las dos cajas de la fila (texto y dato) dejan de contar (`display: contents`) y sus
+    // cuatro piezas se acomodan solas; el `::before` es el corte entre el primer renglón y el segundo.
+    .o_dcasa_lista_fila {
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 1px 12px;
+        padding: 11px 6px;
+
+        &::before { content: ""; order: 3; flex: 0 0 100%; height: 0; }
+    }
+    .o_dcasa_lista_texto,
+    .o_dcasa_lista_dato { display: contents; }
+
+    // El nombre del cliente se lee entero (hasta dos renglones) en vez de cortarse con puntos.
+    .o_dcasa_lista_texto > strong {
+        order: 1;
+        flex: 1 1 0;
+        min-width: 0;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        line-height: 1.3;
+    }
+    .o_dcasa_lista_dato > strong { order: 2; flex: none; overflow: visible; font-weight: 700; line-height: 1.3; }
+    .o_dcasa_lista_texto > small {
+        order: 4;
+        flex: 1 1 0;
+        min-width: 0;
+        font-size: .78rem;
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+    .o_dcasa_lista_dato > small { order: 5; flex: none; font-size: .78rem; }
+
+    // El estado de la entrega: verde y ámbar oscuros, que se leen sobre blanco (no es el amarillo de la marca).
+    .o_dcasa_estado_lista { color: var(--dc-bien); }
+    .o_dcasa_estado_falta { color: var(--dc-falta); }
+
+    .o_dcasa_origen { font-size: .72rem; }
+
+    .o_dcasa_lista > .o_dcasa_lista_pie {
+        margin: 0;
+        padding: 4px 20px 6px;
+        border-top: 1px solid var(--dc-perla);
+        font-size: .82rem;
+    }
+    // (Con la lista y el pie delante: en pantallas táctiles Odoo les pone su letra a todos los `.btn`.)
+    .o_dcasa_lista .o_dcasa_lista_pie .o_dcasa_lista_ver {
+        min-height: 32px;
+        font-size: .82rem;
+        font-weight: 600;
+        color: var(--dc-azul-600);
+        vertical-align: baseline;
+    }
+}
+
+// --- Avisos ---------------------------------------------------------------------------------------------------------
+.o_dcasa_tablero .o_dcasa_aviso {
+    min-height: 38px;
+    padding: 6px 12px;
+    border-color: var(--dc-linea);
+    border-radius: 10px;
+    color: var(--dc-tinta-2);
+    font-size: .82rem;
+
+    &:hover { background: var(--dc-blanco); border-color: var(--dc-azul-600); }
+}
+
+// --- Ventas ---------------------------------------------------------------------------------------------------------
+.o_dcasa_tablero {
+    .o_dcasa_ventas { border-radius: var(--dc-r-md); }
+    .o_dcasa_ventas_valor { font-size: clamp(1.5rem, 3vw, 1.9rem); }
+    .o_dcasa_periodo { transition: background-color var(--dc-transicion), color var(--dc-transicion); }
+
+    // En el celular los cuatro periodos caben en una fila.
+    @media (max-width: 575.98px) {
+        .o_dcasa_periodos { display: flex; flex-wrap: nowrap; width: 100%; gap: 2px; }
+        .o_dcasa_periodo { flex: 1 1 auto; padding: 0 6px; font-size: .8125rem; white-space: nowrap; }
+    }
+}
+
+// --- Las tarjetas de cifras -----------------------------------------------------------------------------------------
+// El ícono, chico y junto al título; debajo la cifra y su detalle. En el celular, una por fila.
+.o_dcasa_tablero {
+    .o_dcasa_cifra {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        align-items: center;
+        align-content: start;
+        gap: 2px 10px;
+        padding: 14px 16px;
+    }
+    .o_dcasa_cifra_icono { width: 28px; height: 28px; margin: 0; border-radius: 8px; font-size: .8rem; }
+    .o_dcasa_cifra_titulo { font-size: .8125rem; line-height: 1.3; color: var(--dc-tinta-2); }
+    .o_dcasa_cifra_valor { grid-column: 1 / -1; justify-self: start; margin-top: 8px; font-size: 1.5rem; }
+    .o_dcasa_cifra_detalle { grid-column: 1 / -1; }
+
+    @media (max-width: 575.98px) {
+        .o_dcasa_cifras { grid-template-columns: minmax(0, 1fr); }
+    }
+}
+
+// --- Gráficas: ventas de la semana, caja de hoy y lo más vendido ----------------------------------------------------
+.o_dcasa_tablero {
+    .o_dcasa_inicio_fila { align-items: start; }   // cada tarjeta mide lo que su contenido
+
+    // El título y su nota («FACTURADO · SIN ITBMS»): si la nota no cabe al lado, baja entera al renglón siguiente,
+    // alineada con el título, en vez de partirse.
+    .o_dcasa_panel > h2 {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 2px 8px;
+
+        > .o_dcasa_sin_itbms { margin-left: 0; }
+    }
+
+    // La escala a la izquierda, las barras y, debajo de las barras, los días.
+    .o_dcasa_grafico_caja {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        grid-template-rows: 180px auto;
+    }
+    .o_dcasa_grafico { grid-column: 2; grid-row: 1; height: 100%; gap: 6px; }
+    .o_dcasa_grafico_dias { grid-column: 2; grid-row: 2; gap: 6px; }
+
+    // Tres marcas (cero, la mitad y el tope), cada una a la altura de su línea. El tope llega al 88 % del alto, igual
+    // que la barra más alta (ALTO_DEL_TOPE en inicio.js): lo de arriba es para el monto que va sobre la barra.
+    .o_dcasa_grafico_eje {
+        grid-column: 1;
+        grid-row: 1;
+        align-self: end;
+        display: flex;
+        flex-direction: column-reverse;
+        justify-content: space-between;
+        height: calc(88% + 14px);
+        margin: 0 8px -7px 0;
+        text-align: right;
+
+        span {
+            font-size: .72rem;
+            font-weight: 500;
+            line-height: 14px;
+            color: var(--dc-tinta-3);
+            white-space: nowrap;
+        }
+    }
+    .o_dcasa_grafico_linea {
+        position: absolute;
+        left: 0;
+        right: 0;
+        border-top: 1px solid var(--dc-linea);
+        pointer-events: none;
+    }
+
+    // Barras redondeadas; la de hoy, resaltada con el azul de la marca.
+    // Al cambiar de base o de vendedora, las barras pasan de un alto al otro en vez de saltar.
+    .o_dcasa_grafico_relleno {
+        border-radius: 5px 5px 0 0;
+        background: var(--dc-azul-300);
+        transform-origin: 50% 100%;
+        transition: background var(--dc-transicion), height 320ms var(--dc-curva);
+    }
+    .o_dcasa_grafico_barra:hover .o_dcasa_grafico_relleno { background: var(--dc-azul-400); }
+    .o_dcasa_grafico_hoy .o_dcasa_grafico_relleno,
+    .o_dcasa_grafico_hoy:hover .o_dcasa_grafico_relleno { background: var(--dc-azul-600); }
+    // El monto sobre la barra, con fondo blanco para leerse aunque caiga encima de una línea o de la barra vecina. El
+    // de la última barra (hoy) se alinea a su derecha: centrado se salía de la gráfica en el celular.
+    .o_dcasa_grafico_monto {
+        z-index: 1;
+        padding: 0 3px;
+        border-radius: 4px;
+        background: var(--dc-blanco);
+        font-size: .75rem;
+        transition: opacity var(--dc-transicion), bottom 320ms var(--dc-curva);
+    }
+    .o_dcasa_grafico_hoy .o_dcasa_grafico_monto { font-weight: 700; color: var(--dc-tinta); }
+    .o_dcasa_grafico_barra:last-child .o_dcasa_grafico_monto { left: auto; right: 0; transform: none; }
+
+    // Caja de hoy: la forma de pago y su monto, y debajo la barra fina de proporción.
+    .o_dcasa_caja li {
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 5px 10px;
+        padding: 7px 0;
+        border-bottom: 0;
+
+        > span:first-child { min-width: 0; font-weight: 500; color: var(--dc-tinta); overflow-wrap: anywhere; }
+        > strong { font-weight: 700; }
+    }
+
+    // Lo más vendido: la foto, el nombre y las unidades, y debajo la barra fina de proporción.
+    .o_dcasa_top li {
+        display: grid;
+        grid-template-columns: 40px minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 5px 12px;
+
+        img { grid-row: 1 / span 2; }
+        .o_dcasa_proporcion { grid-column: 2 / -1; }
+    }
+    .o_dcasa_top_nombre { font-weight: 500; overflow-wrap: anywhere; }
+    .o_dcasa_top_cantidad {
+        padding: 0;
+        background: none;
+        font-size: .86rem;
+        font-weight: 700;
+        color: var(--dc-tinta);
+        white-space: nowrap;
+    }
+}
+
+// La barra fina de proporción (caja de hoy y lo más vendido): una pista clara y, encima, lo que pesa cada renglón
+// frente al mayor de su lista.
+.o_dcasa_proporcion {
+    flex: 0 0 100%;
+    display: block;
+    height: 6px;
+    overflow: hidden;
+    border-radius: 3px;
+    background: var(--dc-azul-100);
+
+    > span {
+        display: block;
+        height: 100%;
+        border-radius: 3px;
+        background: var(--dc-azul-600);
+        transform-origin: 0 50%;
+        transition: width 320ms var(--dc-curva);
+    }
+}
+
+// --- La cifra que sube ----------------------------------------------------------------------------------------------
+// El texto de la etiqueta es siempre el valor final. Mientras sube (inicio.js › subirCifras), el número del momento
+// viene en `data-sube` y se pinta encima con ::after; el texto real sigue ahí, sin relleno, ocupando su lugar. La barra
+// con comillas vacías del segundo `content` le dice al lector de pantalla que no lea el número a medias.
+.o_dcasa_sube {
+    position: relative;
+    display: inline-block;
+
+    &[data-sube] {
+        -webkit-text-fill-color: transparent;
+
+        &::after {
+            content: attr(data-sube);
+            content: attr(data-sube) / "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            white-space: nowrap;
+            -webkit-text-fill-color: currentcolor;
+        }
+    }
+}
+
+// --- Movimiento discreto --------------------------------------------------------------------------------------------
+// Una sola vez al abrir y corto (todo termina antes de 0,8 s): los bloques entran, las barras crecen. Quien pidió menos
+// movimiento en su aparato no ve nada de esto (ni las cifras subiendo, ni el desplazamiento suave: eso lo mira inicio.js).
+@keyframes o_dcasa_tablero_entra {
+    from { opacity: 0; transform: translateY(8px); }
+}
+
+@keyframes o_dcasa_tablero_crece_alto {
+    from { transform: scaleY(0); }
+}
+
+@keyframes o_dcasa_tablero_crece_ancho {
+    from { transform: scaleX(0); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .o_dcasa_tablero {
+        .o_dcasa_atajo,
+        .o_dcasa_meta,
+        .o_dcasa_saltos,
+        .o_dcasa_lista,
+        .o_dcasa_atencion,
+        .o_dcasa_ventas,
+        .o_dcasa_cifra,
+        .o_dcasa_caja_rol,
+        .o_dcasa_inicio_fila > .o_dcasa_panel,
+        .o_dcasa_apps {
+            animation: o_dcasa_tablero_entra 300ms var(--dc-curva) backwards;
+            animation-delay: calc(var(--dc-turno, 0) * 16ms);
+        }
+
+        // Cada bloque entra un instante después del anterior, de arriba abajo.
+        @for $i from 1 through 9 {
+            .o_dcasa_atajo:nth-child(#{$i}) { --dc-turno: #{$i - 1}; }
+        }
+        .o_dcasa_atajo:nth-child(n + 10) { --dc-turno: 9; }
+        .o_dcasa_meta,
+        .o_dcasa_saltos { --dc-turno: 9; }
+        .o_dcasa_lista { --dc-turno: 10; }
+        .o_dcasa_lista ~ .o_dcasa_lista { --dc-turno: 11; }
+        .o_dcasa_lista ~ .o_dcasa_lista ~ .o_dcasa_lista { --dc-turno: 12; }
+        .o_dcasa_atencion { --dc-turno: 12; }
+        .o_dcasa_ventas { --dc-turno: 13; }
+        .o_dcasa_cifra { --dc-turno: 14; }
+        .o_dcasa_cifra ~ .o_dcasa_cifra { --dc-turno: 15; }
+        .o_dcasa_cifra ~ .o_dcasa_cifra ~ .o_dcasa_cifra { --dc-turno: 16; }
+        .o_dcasa_caja_rol,
+        .o_dcasa_inicio_fila > .o_dcasa_panel,
+        .o_dcasa_apps { --dc-turno: 16; }
+
+        .o_dcasa_grafico_relleno {
+            animation: o_dcasa_tablero_crece_alto 380ms var(--dc-curva) backwards;
+            animation-delay: calc(240ms + var(--i, 0) * 25ms);
+        }
+        .o_dcasa_proporcion > span {
+            animation: o_dcasa_tablero_crece_ancho 360ms var(--dc-curva) backwards;
+            animation-delay: calc(260ms + var(--i, 0) * 30ms);
+        }
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .o_dcasa_tablero {
+        .o_dcasa_atajos_tamano_opcion,
+        .o_dcasa_periodo,
+        .o_dcasa_grafico_relleno,
+        .o_dcasa_grafico_monto,
+        .o_dcasa_proporcion > span { transition: none; }
+    }
+}

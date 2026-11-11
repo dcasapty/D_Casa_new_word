@@ -11,7 +11,8 @@
  *  - pantalla amplia: 1500 px de ancho y 800 de alto o más (la ficha nace abierta);
  *  - ancho para todo: desde 1250 px caben lista y ficha a la vez; con menos, la lista se reduce a las fotos mientras
  *    la ficha está abierta;
- *  - pantalla estrecha: hasta 1100 px (la lista nace reducida a las fotos).
+ *  - pantalla estrecha: hasta 1100 px (al abrir una conversación la lista se reduce a las fotos; mientras no hay
+ *    ninguna abierta se ve entera, porque no hay chat al que quitarle sitio).
  *
  * Las preferencias se guardan en este navegador (localStorage), una por persona. Si el almacenamiento falta o falla
  * (ventana privada, datos bloqueados), la pantalla funciona igual con sus valores de siempre.
@@ -42,7 +43,7 @@ export const esPantallaEstrecha = () => coincide(CONSULTA_ESTRECHA);
 /** Avisa cuando la ventana cruza alguno de los límites de arriba (p. ej. al cambiar el zoom del navegador). */
 export function escucharCambioDeTamano(alCambiar) {
     const escuchas = [];
-    for (const texto of [CONSULTA_CELULAR, CONSULTA_AL_LADO, CONSULTA_AMPLIA, CONSULTA_ANCHO_PARA_TODO]) {
+    for (const texto of [CONSULTA_CELULAR, CONSULTA_AL_LADO, CONSULTA_AMPLIA, CONSULTA_ANCHO_PARA_TODO, CONSULTA_ESTRECHA]) {
         try {
             const consulta = window.matchMedia?.(texto);
             if (consulta?.addEventListener) {

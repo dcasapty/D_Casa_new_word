@@ -11,7 +11,7 @@
             <div class="o_dcj_p_extra"><t t-slot="default"/></div>
             <nav class="o_dcj_p_nav" t-ref="nav" aria-label="Pantallas de Juan">
                 <button t-foreach="visibles" t-as="s" t-key="s.id" type="button" class="o_dcj_p_nav_boton"
-                        t-att-class="{ o_activa: s.id === props.actual }" t-att-aria-current="s.id === props.actual ? 'page' : null"
+                        t-att-class="{ o_activa: s.id === props.actual }" t-att-aria-current="s.id === props.actual ? 'page' : undefined"
                         t-on-click="() => this.ir(s)">
                     <i t-attf-class="fa #{s.icono}" aria-hidden="true"/> <t t-out="s.nombre"/>
                 </button>

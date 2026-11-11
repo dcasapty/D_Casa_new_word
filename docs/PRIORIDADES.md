@@ -10,8 +10,8 @@ LEEME_PRIMERO §2).
 ## Estado al 2026-11-11
 
 - **Producción funciona desde el 2026-10-13** y **`dcasapty.com` (y `www`) apunta al sistema nuevo desde el
-  2026-10-27** (Desplegar 31). Odoo y el borde: **Desplegar 63** (9 nov, PR #100: enlace para choferes, «Colchones» abre
-  WhatsApp y Dependabot). Juan: **Desplegar Juan 20** (11 nov, PR #107). Esa combinación es la **versión estable 4**
+  2026-10-27** (Desplegar 31). Odoo y el borde: **Desplegar 64** (11 nov, PR #109: los 21 arreglos de la auditoría visual). Juan: **Desplegar
+  Juan 20** (11 nov, PR #107). La **versión estable 4** es la anterior (Desplegar 63 + Juan 20)
   ([VERSIONES_ESTABLES.md](VERSIONES_ESTABLES.md)). El contenedor instala 30 de los 31 módulos de `addons/` (todos
   menos `dcasa_fe_pa`, a propósito).
 - **Juan atiende WhatsApp (API oficial de Meta), Messenger e Instagram**, con fotos en los tres, y Telegram. WhatsApp
@@ -27,49 +27,27 @@ LEEME_PRIMERO §2).
 
 ## Lo que sigue, en orden
 
-000. **Auditoría visual del panel (2026-11-11), a medio camino.** Informe y capturas:
-     <https://claude.ai/artifact/QN3GPdAtm7nKxQtu9X64MP>; detalle en la bitácora de LEEME_PRIMERO.
-     - **En la rama, sin desplegar** (desde `5dfe55c`): fechas completas en las listas, Brian ya no tapa el Total,
-       aviso de lista vacía correcto, listas legibles en el celular, cabecera de formularios en un renglón, Compras y
-       contacto en el celular, botones de 44 px en la barra de arriba del celular, pestañas de Contabilidad que bajan
-       de renglón en la computadora. **Falta:** el visto bueno de la dueña sobre las capturas → CI con staging →
-       PR → Desplegar (cambia Odoo: con `respaldo_previo`).
-     - **Tres respuestas de la dueña:** (1) el Inicio nuevo con movimiento
-       (<https://claude.ai/artifact/VUKX4zkP16JQ5HVcDwjm6G>): ¿le gusta?, ¿«Claro» o «Azul noche»?; (2) cotización:
-       ¿guardar los datos de pocas veces en «Más datos» para que los productos queden arriba?; (3) Sitio web › Páginas
-       da «Acceso denegado» a Gerencia: ¿quitarlo de su menú? (toca permisos: con revisión).
-     - **Lote 3, por hacer** (ninguno cambia funciones): Conversaciones en tableta nace con la lista reducida a
-       iniciales (es a propósito hasta 1100 px, `preferencias.js`: proponer que abra entera mientras no haya un chat
-       elegido); en el celular las pestañas de Contabilidad se cortan sin aviso de que hay más; pantallas propias sin
-       título en la barra de arriba del celular; «Ingreso esperado $ 0.00 en» queda colgando en la oportunidad en el
-       celular; letra de 10,9 px en la franja de Envíos y en «Ctrl K».
-     - **Boceto de la caja de responder del chat en el celular** (hoy ocupa un tercio de la pantalla, 211 px; la
-       propuesta, 111 px: quién atiende + «Devolver» + Respuesta / Nota en un renglón; «+» con las herramientas,
-       «Sugerir» a la vista, el campo y Enviar en otro): <https://claude.ai/artifact/A6P3KWL2F5KJx5MfX4sBsH>. Espera
-       la decisión de la dueña; los botones siguen en 44 px y no se quita ninguna herramienta.
-     - **Más adelante:** gráficas de Odoo en el azul de D'CASA; tablas dinámicas en el celular; listas estiradas y
-       pantallas propias pegadas a la izquierda en 1920 px; el tablero de Compras en el celular (cinco cifras
-       apretadas).
-00. **La semana que viene, propuesta en este orden** (se confirma con la dueña):
-    1. **El aviso «Quedó por enviar» con el motivo real** (hoy dice «el Worker no respondió» para cualquier fallo) y un
-       **aviso a Gerencia por Telegram cuando un canal de Meta deja de enviar o recibir**: el 131070 no está entre los
-       códigos que avisan (`CODIGOS_DE_CUENTA` en `dcasa_conversaciones/models/mensaje.py`) y el 9 nov nadie se enteró
-       a tiempo.
-    2. **Dependabot #98** (Juan: `ai` 7.0.164 y `@ai-sdk/*`, parches): con pruebas y Desplegar Juan, un día con alguien
-       mirando.
-    3. **Privacidad (issues #22 y #23)**, por la Ley 81.
-    4. **CRM fase 2:** #21 (cotizaciones hechas fuera del chat ligadas a la oportunidad) y #20 (perdida cuando el
-       cliente compró en otro lado) primero.
-    5. **Meta (lo hace la dueña):** pedir un nombre visible nuevo de WhatsApp («DCasa Pty» DECLINED; p. ej. «D'Casa
-       Panamá»), la verificación del negocio y la revisión de la app (Business Asset User Profile Access y acceso
-       avanzado de Messenger e Instagram).
-    6. Si la dueña lo pide: respuestas automáticas a comentarios de Instagram (`instagram_manage_comments`).
-    La IA de respaldo de Juan (`ANTHROPIC_API_KEY`, `/salud` la da como faltante) y las plantillas de WhatsApp siguen
-    como decidió la dueña el 2026-11-07 (punto 4): no son prioridad.
-0. **Citas, reenviados, reacciones y palomitas en el chat** (pedido de la dueña del 2026-11-07, bitácora de
-   LEEME_PRIMERO): **en producción** desde el 2026-11-07 (PR #94, Desplegar 60 y Juan 10), con la revisión adversarial
-   arreglada; la dueña vio las capturas («perfecto, llévalo a producción»). Falta, si se quieren las reacciones de
-   Telegram: volver a registrar el webhook con `allowed_updates` ([JUAN_CANALES.md](JUAN_CANALES.md) §2).
+000. **Panel renovado (2026-11-11): los arreglos de la auditoría están en producción; el Inicio nuevo, el celular y lo
+     demás aprobado están en la rama, por desplegar.** Detalle y citas de la dueña en la bitácora de LEEME_PRIMERO
+     (entradas del 2026-11-11 (2) y (3)). Informe de la auditoría: <https://claude.ai/artifact/QN3GPdAtm7nKxQtu9X64MP>.
+     - **En producción (Desplegar 64, PR #109):** 21 arreglos que no cambian el diseño.
+     - **Aprobado por la dueña y terminado en la rama (falta CI con staging → PR → Desplegar):** el Inicio nuevo
+       (propuesta 2, accesos del celular en tres tamaños); y los tres arreglos del celular que ella reportó: el Inicio
+       ya no queda en blanco al entrar, el menú del celular es una sola lista (sin la «subcarpeta») y «atrás» dentro
+       del chat vuelve a la lista.
+     - **Aprobado y en construcción (van en ese mismo despliegue si llegan a tiempo; si no, en el siguiente):** la caja
+       de responder del chat en el celular; Conversaciones en tableta con la lista entera mientras no haya chat
+       abierto; «Entregas pendientes» del Inicio igual que «Bodega»; «Más datos» plegable en la cotización.
+     - **Modo oscuro gris («estilo Cubase»), opcional por persona:** en construcción en `local/agente-d`. Va en su
+       propio despliegue, **después de que la dueña vea las capturas** (celular incluido). El claro no cambia.
+     - **Que la dueña opine cuando lo vea en su teléfono:** el menú nuevo del celular (se le mandaron capturas) y los
+       tres detalles en que el Inicio se apartó del boceto (bitácora).
+     - **Más adelante (van con el diseño nuevo o son de Odoo):** gráficas de Odoo en el azul de D'CASA; tablas
+       dinámicas en el celular; listas estiradas en 1920 px; títulos de las pantallas propias en la barra del celular;
+       la tarjeta «Instale Odoo» y OdooBot; «Manual Payment» (dato: se cambia en Ajustes); en tableta parada
+       (768–991 px) el menú sigue siendo el de Odoo (íconos arriba), que funciona pero no es el propio.
+     - **Versión estable:** Desplegar 64 es más nuevo que la estable 4. Cuando el despliegue del Inicio nuevo lleve
+       unos días sin dar guerra, nombrar la estable 5 (pedirle el «sí» a la dueña, como la vez pasada).
 1. **Camila (mail marketing)** ([CAMILA.md](CAMILA.md)): etapas 1 y 2 **en producción** desde el 2026-11-06 (Desplegar
    52 y 54, con Juan 7). La clave de campañas ya está y Odoo la tomó (Desplegar 53). Nada sale sin que alguien de
    Marketing o Gerencia apruebe la campaña. Falta de la dueña: la primera campaña y confirmar el «Sí, quiero» de dos
