@@ -1,4 +1,6 @@
 from . import test_interfaz
+from . import test_lista_vacia
+from . import test_listas_fechas
 from . import test_panel
 from . import test_inicio_por_rol
 from . import test_sitio

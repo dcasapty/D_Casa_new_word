@@ -7,13 +7,15 @@ botón, enlace o campo de la pantalla (lo que se VE de cada uno: recortado por s
 * Conversaciones: con la conversación abierta, y también con la ficha del cliente abierta (arriba y abajo de su scroll).
 * Sofía, Camila y Envíos: bajan con scroll; abajo del todo, nada queda debajo del botón (lo último siempre sube por
   encima de él).
+* Formularios, listas y tarjetas de Odoo (2026-11-11): tapaba el Total de la cotización y la última columna de la
+  última fila. Abajo del todo, ni los totales, ni la última fila, ni la última tarjeta quedan debajo del botón.
 * Y Brian no se esconde: el botón sigue visible, redondo y dentro de la ventana.
 
 Las pantallas de módulos que ``dcasa_brian`` no exige se saltan si no están instaladas (en el CI se instala todo).
 """
 from datetime import timedelta
 
-from odoo import fields
+from odoo import Command, fields
 from odoo.tests import HttpCase, tagged
 
 TAMANOS = ('1366x768', '1024x768')
@@ -73,6 +75,19 @@ const revisar = (donde) => {
         const caja = JSON.stringify([f.left, f.top, f.right, f.bottom].map(Math.round));
         throw new Error("Brian: en " + donde + " el botón " + caja + " tapa: " + tocados.join(" | "));
     }
+};
+// Lo que no es botón pero hay que poder leer (cifras, celdas, tarjetas): tampoco queda debajo del botón.
+const revisarLectura = (selector, donde) => {
+    const f = boton();
+    const tocados = [];
+    for (const el of document.querySelectorAll(selector)) {
+        const r = visible(el);
+        if (r.right - r.left > 0 && r.bottom - r.top > 0
+            && r.left < f.right && r.right > f.left && r.top < f.bottom && r.bottom > f.top) {
+            tocados.push((el.textContent || el.className).trim().replace(/\\s+/g, " ").slice(0, 40));
+        }
+    }
+    if (tocados.length) { throw new Error("Brian: en " + donde + " el botón tapa: " + tocados.join(" | ")); }
 };
 const alFondo = async () => {
     for (const el of document.querySelectorAll(".o_action_manager, .o_action_manager *")) {
@@ -165,6 +180,36 @@ await esperar(() => document.querySelector({espera!r}), "la pantalla de {nombre}
 await pausa(800);
 await alFondo();
 revisar("{nombre}, abajo");
+"""
+            for tamano in TAMANOS:
+                with self.subTest(pantalla=nombre, tamano=tamano):
+                    self._correr(url, codigo, tamano)
+
+    def test_formularios_listas_y_tarjetas_de_odoo_terminan_libres(self):
+        cliente = self.env['res.partner'].create({'name': 'Cliente Geometría Total'})
+        producto = self.env['product.product'].create({'name': 'MESA GEOMETRÍA BRIAN', 'list_price': 25})
+        orden = self.env['sale.order'].create({'partner_id': cliente.id, 'order_line': [
+            Command.create({'product_id': producto.id, 'product_uom_qty': i + 1}) for i in range(14)]})
+        self.env['res.partner'].create([{'name': f'Cliente Geometría Tarjeta {i:02d}'} for i in range(60)])
+        pantallas = (
+            ('la cotización', f'/odoo/action-sale.action_quotations_with_onboarding/{orden.id}',
+             '.o_form_view [name="tax_totals"]', '.o_form_view [name="tax_totals"] :is(span, td, label)'),
+            ('la lista de países', '/odoo/action-base.action_country', '.o_list_view .o_data_row',
+             '.o_list_view .o_data_row:last-child td, .o_list_view tfoot td'),
+            ('las tarjetas de contactos', '/odoo/action-contacts.action_contacts?view_type=kanban',
+             '.o_kanban_view .o_kanban_record',
+             '.o_kanban_view .o_kanban_record:not(.o_kanban_ghost)'),
+        )
+        for nombre, url, espera, lectura in pantallas:
+            codigo = f"""
+await esperar(() => document.querySelector({espera!r}), "{nombre}");
+await pausa(800);
+// Dos veces: las fotos de las tarjetas llegan tarde y alargan la pantalla después del primer intento.
+await alFondo();
+await pausa(700);
+await alFondo();
+revisar("{nombre}, abajo");
+revisarLectura({lectura!r}, "{nombre}, abajo");
 """
             for tamano in TAMANOS:
                 with self.subTest(pantalla=nombre, tamano=tamano):

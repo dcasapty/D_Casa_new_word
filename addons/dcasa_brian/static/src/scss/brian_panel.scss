@@ -105,6 +105,7 @@ $brian-ancho: 400px;
 //   ficha del cliente abierta (queda a la derecha), su desplazamiento termina por encima del botón.
 // * Las pantallas propias que bajan con scroll (Sofía, Camila, Envíos, Inicio, Marketing, Juan, Contabilidad…) terminan
 //   con un espacio libre del alto del botón: lo último siempre sube por encima de él.
+// * Los formularios, las listas y las tarjetas de Odoo (2026-11-11) terminan con el mismo espacio libre.
 // Brian no se esconde. Prueba de geometría: dcasa_brian/tests/test_boton_no_tapa.py.
 $brian-hueco-ancho: 84px;   // 20 de margen + 52 del botón + 12 de aire
 $brian-hueco-alto: 88px;    // 20 de margen + 52 del botón + 16 de aire
@@ -121,6 +122,19 @@ $brian-pantallas-con-scroll: o_sofia, o_camila, o_dcasa_envios, o_dcasa_guia, o_
                 flex: none;
                 height: $brian-hueco-alto;
             }
+        }
+        // Formularios, listas y tarjetas de Odoo (auditoría visual del 2026-11-11): el botón tapaba el Total de la
+        // cotización y la última columna de la última fila. El hueco va al final de lo que baja con scroll en cada
+        // vista: el formulario (con la Actividad debajo, si está abierta), la tabla de la lista y el tablero de
+        // tarjetas. Con la Actividad al lado (pantallas muy anchas) el formulario no llega a la esquina del botón y el
+        // hueco no ocupa nada (la fila no lo estira).
+        .o_action_manager > .o_form_view .o_content > .o_form_renderer::after,
+        .o_action_manager > .o_list_view > .o_content > .o_list_renderer::after,
+        .o_action_manager > .o_kanban_view > .o_content::after {
+            content: "";
+            display: block;
+            flex: none;
+            height: $brian-hueco-alto;
         }
     }
 }
