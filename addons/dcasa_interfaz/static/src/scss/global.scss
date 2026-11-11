@@ -283,3 +283,14 @@ $dcasa-alerta: #D92D20;
     }
     .o_form_view .o_form_sheet h1 .o_field_field_partner_autocomplete .o_input { font-size: 1.25rem; }
 }
+
+// --- Barra de arriba en el celular: nada de menos de 44 px de ancho para el dedo (auditoría del 2026-11-11) ----------
+// El reloj de actividades medía 29 px, las tres rayitas 36 y Brian 38. Hay sitio de sobra a la izquierda.
+@include media-breakpoint-down(md) {
+    .o_main_navbar > .o_menu_toggle,
+    .o_main_navbar .o_menu_systray > button.dropdown-toggle,
+    .o_main_navbar .o_menu_systray .o_brian_systray_btn {
+        min-width: 44px;
+    }
+    .o_main_navbar > .o_menu_toggle { display: inline-flex; align-items: center; justify-content: center; }
+}

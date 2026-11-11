@@ -87,6 +87,13 @@ class TestActividadOculta(HttpCase):
         throw new Error(`las flechas bajaron a otro renglón: ${Math.round(flechas.top)} y ${Math.round(nuevo.top)}`);
     }
     if (celular && cabecera.height > 80) { throw new Error('la cabecera mide ' + Math.round(cabecera.height) + 'px'); }
+    // La barra de arriba en el celular: cada botón, con 44 px de ancho para el dedo.
+    for (const boton of document.querySelectorAll('.o_main_navbar > .o_menu_toggle, '
+            + '.o_main_navbar .o_menu_systray > button.dropdown-toggle')) {
+        const ancho = boton.getBoundingClientRect().width;
+        if (celular && ancho > 0 && ancho < 44) { throw new Error('un botón de la barra mide ' + ancho + 'px'); }
+    }
+    if (document.documentElement.scrollWidth > window.innerWidth + 1) { throw new Error('la página se sale de lado'); }
     // La ficha del contacto en el celular: la foto chica y el nombre con espacio para leerse.
     const foto = document.querySelector('.o_field_contact_image img');
     const nombre = document.querySelector('.o_form_sheet h1 .o_input');
