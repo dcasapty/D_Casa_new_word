@@ -1,4 +1,11 @@
 {
+  "estable-4": {
+    "desde": "2026-11-09 23:26 UTC (Desplegar 63); Juan hasta Desplegar Juan 20 (2026-11-11 02:21 UTC)",
+    "que_trae": "Todo hasta el enlace para choferes, «Colchones» → WhatsApp y Dependabot (#100); Juan con WhatsApp oficial (131070 resuelto, pide el control y anota el fbtrace_id), Messenger e Instagram con fotos; sana y confirmada en producción por la dueña el 2026-11-11",
+    "codigo": "main c378382 (PR #107); Odoo y el borde = 3e2ccfc (PR #100), sin cambios hasta c378382",
+    "app_version": "3e2ccfc3e9d14161d12003d52267466edfd8b028",
+    "imagen_digest": "sha256:acda72c1f49c6cafc83c79ec2cba0a2e0c1930f123d733a8f3c8e147d7f157ab"
+  },
   "estable-3": {
     "desde": "2026-11-05 21:45 UTC (Desplegar 47)",
     "que_trae": "Todo hasta Sofía con «Guarda sus datos» y «Guardar y responderle», el dominio dcasapty.com con sus rutas, Juan por WhatsApp oficial y los módulos de Meta, correo y marketing; sana y confirmada en producción",
