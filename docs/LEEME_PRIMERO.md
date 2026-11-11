@@ -153,7 +153,10 @@ capturas del informe.
 - **Pruebas:** las clases nuevas y las tocadas pasan en local (sobre la base de capturas). CI 325 (`0f0dcec`, sin
   desplegar: `desplegar_en = ninguno`) con todo verde salvo «Tests de Odoo», que seguía corriendo al cerrar la
   entrada. Los commits siguientes (el celular, la barra, las pestañas) esperan su propia corrida de CI.
-- **Falta de la dueña (tres respuestas):** (1) ¿le gusta el Inicio nuevo?, ¿Claro o Azul noche?; (2) en la cotización,
+- **Boceto de la caja de responder del chat en el celular** (de 211 a 111 px, sin quitar herramientas):
+  <https://claude.ai/artifact/A6P3KWL2F5KJx5MfX4sBsH>. No se tocó el chat: es la pantalla que más se usa y sus botones
+  de 44 px están a propósito.
+- **Falta de la dueña (tres respuestas, y su opinión del boceto del chat):** (1) ¿le gusta el Inicio nuevo?, ¿Claro o Azul noche?; (2) en la cotización,
   ¿se guardan los datos de pocas veces en «Más datos» para que los productos queden arriba (hoy, en el celular, hay
   que bajar dos pantallas)?; (3) Sitio web › Páginas le da «Acceso denegado» a Gerencia: ¿se quita de su menú?
 - **Sigue:** su visto bueno → CI con staging → PR → Desplegar. Y el lote 3 (lista en PRIORIDADES).

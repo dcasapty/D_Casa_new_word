@@ -43,8 +43,10 @@ LEEME_PRIMERO §2).
        elegido); en el celular las pestañas de Contabilidad se cortan sin aviso de que hay más; pantallas propias sin
        título en la barra de arriba del celular; «Ingreso esperado $ 0.00 en» queda colgando en la oportunidad en el
        celular; letra de 10,9 px en la franja de Envíos y en «Ctrl K».
-     - **Boceto pendiente:** la caja de responder del chat en el celular ocupa un tercio de la pantalla (214 de
-       664 px); los botones de 44 px están a propósito para el dedo, así que primero un boceto para la dueña.
+     - **Boceto de la caja de responder del chat en el celular** (hoy ocupa un tercio de la pantalla, 211 px; la
+       propuesta, 111 px: quién atiende + «Devolver» + Respuesta / Nota en un renglón; «+» con las herramientas,
+       «Sugerir» a la vista, el campo y Enviar en otro): <https://claude.ai/artifact/A6P3KWL2F5KJx5MfX4sBsH>. Espera
+       la decisión de la dueña; los botones siguen en 44 px y no se quita ninguna herramienta.
      - **Más adelante:** gráficas de Odoo en el azul de D'CASA; tablas dinámicas en el celular; listas estiradas y
        pantallas propias pegadas a la izquierda en 1920 px; el tablero de Compras en el celular (cinco cifras
        apretadas).
