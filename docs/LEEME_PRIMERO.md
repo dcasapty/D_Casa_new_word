@@ -139,9 +139,9 @@ Odoo sin cambios.
   registrarlo: **no se hace** (se pierde límite, calidad y plantillas; hace falta la SIM y quizá el PIN de dos pasos).
   Se le pidió a Callbell quitar sus enlaces y decir si puso PIN. Los jefes ya entraron como administradores del
   portafolio: queda una revisión con Claude en Chrome del enrutamiento, socios y apps conectadas (cambios solo con «sí»).
-- **Sigue:** probar una vez al día (escribirle «prueba» a la tienda y ver si llega a Odoo y si Juan contesta); si el
-  16 nov sigue igual, escalar con Meta; Messenger funciona mientras tanto. Lo de antes sigue: el motivo real en
-  «Quedó por enviar» y el nombre visible de WhatsApp (DECLINED). El enlace de choferes ya está encendido (11 nov).
+- **Sigue:** WhatsApp, Messenger e Instagram funcionan con fotos (el 131070 se resolvió el mismo 10 nov). El enlace
+  de choferes ya está encendido (11 nov). Pendiente: el motivo real en «Quedó por enviar», pedir un nombre visible
+  nuevo de WhatsApp («DCasa Pty» DECLINED) y, si la dueña lo pide, respuestas a comentarios de Instagram.
 
 ### 2026-11-09 (tarde y noche): enlace para choferes; «Colchones» abre WhatsApp; Messenger conectado; WhatsApp bloqueado por Meta (131070)
 
