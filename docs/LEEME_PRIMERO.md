@@ -140,8 +140,8 @@ Odoo sin cambios.
   Se le pidió a Callbell quitar sus enlaces y decir si puso PIN. Los jefes ya entraron como administradores del
   portafolio: queda una revisión con Claude en Chrome del enrutamiento, socios y apps conectadas (cambios solo con «sí»).
 - **Sigue:** probar una vez al día (escribirle «prueba» a la tienda y ver si llega a Odoo y si Juan contesta); si el
-  16 nov sigue igual, escalar con Meta; Messenger funciona mientras tanto. Lo de antes sigue: Instagram, encender el
-  enlace de choferes y el motivo real en «Quedó por enviar».
+  16 nov sigue igual, escalar con Meta; Messenger funciona mientras tanto. Lo de antes sigue: el motivo real en
+  «Quedó por enviar» y el nombre visible de WhatsApp (DECLINED). El enlace de choferes ya está encendido (11 nov).
 
 ### 2026-11-09 (tarde y noche): enlace para choferes; «Colchones» abre WhatsApp; Messenger conectado; WhatsApp bloqueado por Meta (131070)
 
@@ -153,7 +153,7 @@ Juan 13 (`main` = 4a01039, árbol = 3e2ccfc).
   cambia con «Crear un enlace nuevo». El chofer busca el lugar y ve solo el nombre, la zona, el precio **desde D'CASA**
   y la ruta en Google Maps; nunca los km ni la tabla; sin tarifa aprobada, «confirma el precio con la tienda».
   **«Usar mi ubicación» viene apagado** («por defecto inamovible … que nosotros lo decidamos»): solo Gerencia lo
-  enciende. Ver [ENVIOS.md](ENVIOS.md) «Enlace para choferes». El enlace todavía no está encendido: lo hace la dueña.
+  enciende. Ver [ENVIOS.md](ENVIOS.md) «Enlace para choferes». La dueña **lo encendió el 11 nov**.
 - **Revisión de seguridad independiente** del enlace: nada bloqueante; se arreglaron los límites (2 búsquedas a la
   vez, 1 500 por día con nota a quien creó el enlace y contador en la ficha, IPv6 por /64, 300 por minuto entre todos,
   texto corto), cuerpos rotos que daban 500, `write` sin permiso que rearmaba el buscador, `create` que aceptaba el
