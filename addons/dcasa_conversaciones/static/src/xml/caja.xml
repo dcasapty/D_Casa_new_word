@@ -5,6 +5,12 @@
         aparece cuando hace falta (archivos por enviar, programar, devolver…) con tope de alto, y abajo la línea de
         escribir: herramientas como íconos (el nombre sale al pasar el mouse y lo leen los lectores de pantalla), la
         caja de texto que crece hasta un máximo y Enviar. Lo menos usado va en «Más».
+
+        En el celular (menos de 768 px; `celular` en caja.js) son DOS renglones, aprobados por la dueña el 2026-11-11 para
+        que la caja no ocupe un tercio de la pantalla: (1) quién atiende, corto, + «Devolver» + Respuesta / Nota; (2) «+»,
+        que abre el cajón con las herramientas de siempre (adjuntar, foto del catálogo, cotización, rápidas, programar),
+        «Sugerir» a la vista, el texto y Enviar. No se quita nada: lo de la computadora sigue igual y lo del celular queda,
+        como mucho, a un toque más. Los nombres completos siguen para los lectores de pantalla.
     -->
     <t t-name="dcasa_conversaciones.Caja">
         <footer class="o_dcj_caja" t-ref="caja" t-att-class="{ o_nota: esNota }" aria-label="Responder">
@@ -13,14 +19,19 @@
                 <div t-if="barra" t-attf-class="o_dcj_barra o_dcj_barra_#{barra.clase}">
                     <p class="o_dcj_barra_texto" t-att-title="barra.texto">
                         <i t-if="barra.punto" class="o_dcj_punto_verde" aria-hidden="true"/>
-                        <t t-out="barra.texto"/>
+                        <i t-elif="celular" class="o_dcj_barra_punto" aria-hidden="true"/>
+                        <t t-if="!celular" t-out="barra.texto"/>
+                        <t t-else=""><span class="o_dcj_solo_lector" t-out="barra.texto"/><span class="o_dcj_barra_corto" aria-hidden="true" t-out="barra.corto"/></t>
                     </p>
-                    <button type="button" t-att-class="barra.devolver ? 'btn btn-secondary o_dcj_boton' : 'btn btn-primary o_dcj_boton'"
+                    <button t-if="!celular" type="button" t-att-class="barra.devolver ? 'btn btn-secondary o_dcj_boton' : 'btn btn-primary o_dcj_boton'"
                             t-on-click="alBotonDeLaBarra" t-out="barra.boton"/>
+                    <!-- En el celular dice «Devolver» (o «Atender»); el resto de la frase lo leen los lectores de pantalla -->
+                    <button t-else="" type="button" t-att-class="barra.devolver ? 'btn btn-secondary o_dcj_boton' : 'btn btn-primary o_dcj_boton'"
+                            t-on-click="alBotonDeLaBarra"><t t-out="barra.botonCorto"/><span t-if="barra.boton.length > barra.botonCorto.length" class="o_dcj_solo_lector" t-out="barra.boton.slice(barra.botonCorto.length)"/></button>
                 </div>
                 <div class="o_dcj_modo" role="group" aria-label="Qué vas a escribir">
                     <button type="button" t-att-class="{ o_activa: !esNota }" t-att-aria-pressed="!esNota ? 'true' : 'false'" t-on-click="() => this.cambiarModo('respuesta')">Respuesta</button>
-                    <button type="button" t-att-class="{ o_activa: esNota }" t-att-aria-pressed="esNota ? 'true' : 'false'" t-on-click="() => this.cambiarModo('nota')">Nota interna</button>
+                    <button type="button" t-att-class="{ o_activa: esNota }" t-att-aria-pressed="esNota ? 'true' : 'false'" t-on-click="() => this.cambiarModo('nota')">Nota<span t-att-class="{ o_dcj_solo_lector: celular }"> interna</span></button>
                 </div>
             </div>
 
@@ -155,23 +166,44 @@
                 <div class="o_dcj_herramientas" role="toolbar" aria-label="Herramientas de la respuesta">
                     <input type="file" t-ref="archivo" class="o_dcj_oculto" multiple="multiple" tabindex="-1" aria-hidden="true"
                            accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv" t-on-change="alElegirArchivos"/>
-                    <button type="button" class="o_dcj_herramienta" title="Adjuntar fotos o documentos (también puedes arrastrarlos)" aria-label="Adjuntar fotos o documentos" t-on-click="elegirArchivos">
-                        <i class="fa fa-paperclip" aria-hidden="true"/><span class="o_dcj_solo_lector">Adjuntar</span>
+                    <!-- Solo en el celular: «+» abre el cajón de herramientas (encima de la línea de escribir) -->
+                    <button t-if="celular" type="button" class="o_dcj_herramienta o_dcj_cajon_boton" t-ref="cajonBoton" t-att-class="{ o_activa: local.cajonAbierto }"
+                            title="Herramientas: adjuntar, foto del catálogo, cotización, respuestas rápidas y programar" aria-label="Herramientas"
+                            aria-controls="o_dcj_cajon" t-att-aria-expanded="local.cajonAbierto ? 'true' : 'false'" t-on-click="alternarCajon">
+                        <i t-attf-class="fa #{local.cajonAbierto ? 'fa-times' : 'fa-plus'}" aria-hidden="true"/><span class="o_dcj_solo_lector">Herramientas</span>
                     </button>
-                    <button type="button" class="o_dcj_herramienta" title="Foto del catálogo: busca un producto y manda su foto" aria-label="Foto del catálogo" t-att-disabled="esNota" t-on-click="abrirCatalogo">
-                        <i class="fa fa-picture-o" aria-hidden="true"/><span class="o_dcj_solo_lector">Foto del catálogo</span>
-                    </button>
-                    <button type="button" class="o_dcj_herramienta" title="Cotización: manda la cotización del cliente en PDF" aria-label="Cotización en PDF" t-att-disabled="esNota" t-on-click="abrirCotizacion">
-                        <i class="fa fa-file-pdf-o" aria-hidden="true"/><span class="o_dcj_solo_lector">Cotización</span>
-                    </button>
-                    <button type="button" class="o_dcj_herramienta" title="Respuestas rápidas (también escribiendo / en la caja)" aria-label="Respuestas rápidas" t-att-disabled="esNota" t-on-click="abrirRapidas">
-                        <i class="fa fa-bolt" aria-hidden="true"/><span class="o_dcj_solo_lector">Rápidas</span>
-                    </button>
+                    <!-- El cajón: en computadora y tableta no existe como caja (sus botones van en la línea, como siempre);
+                         en el celular solo se ve abierto, con el nombre de cada herramienta debajo de su ícono. -->
+                    <div id="o_dcj_cajon" class="o_dcj_cajon" t-ref="cajon" t-att-class="{ o_abierto: local.cajonAbierto }" t-on-click="alElegirDelCajon" t-on-keydown="alTeclearCajon">
+                        <button type="button" class="o_dcj_herramienta" title="Adjuntar fotos o documentos (también puedes arrastrarlos)" aria-label="Adjuntar fotos o documentos" t-on-click="elegirArchivos">
+                            <i class="fa fa-paperclip" aria-hidden="true"/><span class="o_dcj_solo_lector">Adjuntar</span>
+                        </button>
+                        <button type="button" class="o_dcj_herramienta" title="Foto del catálogo: busca un producto y manda su foto" aria-label="Foto del catálogo" t-att-disabled="esNota" t-on-click="abrirCatalogo">
+                            <i class="fa fa-picture-o" aria-hidden="true"/><span class="o_dcj_solo_lector">Foto del catálogo</span>
+                        </button>
+                        <button type="button" class="o_dcj_herramienta" title="Cotización: manda la cotización del cliente en PDF" aria-label="Cotización en PDF" t-att-disabled="esNota" t-on-click="abrirCotizacion">
+                            <i class="fa fa-file-pdf-o" aria-hidden="true"/><span class="o_dcj_solo_lector">Cotización</span>
+                        </button>
+                        <button type="button" class="o_dcj_herramienta" title="Respuestas rápidas (también escribiendo / en la caja)" aria-label="Respuestas rápidas" t-att-disabled="esNota" t-on-click="abrirRapidas">
+                            <i class="fa fa-bolt" aria-hidden="true"/><span class="o_dcj_solo_lector">Rápidas</span>
+                        </button>
+                        <!-- En el celular «Programar» va aquí, a la vista (en la computadora vive en «Más») -->
+                        <button t-if="celular" type="button" class="o_dcj_herramienta o_dcj_herramienta_programar" t-att-class="{ o_activa: programando }"
+                                title="Programar: deja el mensaje escrito para que salga solo a la hora que elijas"
+                                t-att-aria-label="programando ? 'Quitar la programación' : 'Programar el envío'" t-att-aria-pressed="programando ? 'true' : 'false'"
+                                t-att-disabled="esNota" t-on-click="programarDesdeElMenu">
+                            <i class="fa fa-clock-o" aria-hidden="true"/><span class="o_dcj_solo_lector">Programar</span>
+                        </button>
+                        <p t-if="celular" class="o_dcj_cajon_ayuda">
+                            <t t-if="esTactil">Pulsa Enviar para mandar.</t>
+                            <t t-else="">Enter envía · Mayús + Enter salta de línea · / abre las respuestas rápidas</t>
+                        </p>
+                    </div>
                     <button type="button" class="o_dcj_herramienta" title="Sugerir: pide un borrador de respuesta; tú lo editas y lo envías" aria-label="Sugerir una respuesta" t-att-disabled="sugiriendo or esNota" t-on-click="sugerir">
                         <i t-if="sugiriendo" class="fa fa-circle-o-notch fa-spin" aria-hidden="true"/>
                         <i t-else="" class="fa fa-magic" aria-hidden="true"/><span class="o_dcj_solo_lector">Sugerir</span>
                     </button>
-                    <div class="o_dcj_mas_caja" t-ref="mas" t-on-keydown="alTeclearMas">
+                    <div t-if="!celular" class="o_dcj_mas_caja" t-ref="mas" t-on-keydown="alTeclearMas">
                         <button type="button" class="o_dcj_herramienta o_dcj_mas_boton" t-att-class="{ o_activa: local.masAbierto || programando }"
                                 title="Más acciones" aria-label="Más acciones" aria-haspopup="menu" aria-controls="o_dcj_mas"
                                 t-att-aria-expanded="local.masAbierto ? 'true' : 'false'" t-on-click="alternarMas">
@@ -194,7 +226,7 @@
                 <div class="o_dcj_texto_caja">
                     <label for="o_dcj_texto" class="o_dcj_solo_lector" t-out="esNota ? 'Nota interna' : 'Tu respuesta'"/>
                     <textarea id="o_dcj_texto" t-ref="texto" class="o_dcj_texto" rows="1" t-model="borrador.texto"
-                              t-att-placeholder="esNota ? 'Nota interna: el cliente no la ve (@ avisa)' : 'Escribe tu respuesta… (/ para rápidas)'"
+                              t-att-placeholder="pista"
                               t-att-maxlength="limite" t-on-input="alEscribir" t-on-keydown="alTeclear" t-on-keyup="alMoverElCursor" t-on-click="alMoverElCursor" t-on-paste="alPegar"
                               t-att-aria-describedby="'o_dcj_atajos'"/>
                     <span t-if="borrador.texto.length > limite * 0.85" class="o_dcj_cuenta" aria-live="polite"><t t-out="borrador.texto.length"/>/<t t-out="limite"/></span>
