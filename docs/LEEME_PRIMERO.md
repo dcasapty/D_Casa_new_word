@@ -114,7 +114,7 @@ Juan 20 (`c378382`). Este día solo se registró la versión estable, se ordenó
 - **Versión estable 4** (pedido de la dueña: «actualizar esta versión como la última versión estable»): Desplegar 63
   (imagen `sha256:acda72c1…`, `app_version` `3e2ccfc`) con Juan hasta Desplegar Juan 20. En `.github/versiones_estables.json`,
   en el botón «Volver a una versión estable» y en [VERSIONES_ESTABLES.md](VERSIONES_ESTABLES.md), con la nota de que
-  Juan se vuelve aparte. Ensayada en staging con el botón (resultado en VERSIONES_ESTABLES.md).
+  Juan se vuelve aparte. **Ensayada en staging** con el botón: run 42951600639, bien en unos 24 minutos.
 - **Instagram con fotos, confirmado por la dueña** (Juan 20: la foto se sube en el mismo envío, como Messenger).
   **Enlace para choferes encendido** por la dueña.
 - **Issues cerrados** (resueltos según la dueña el 7 nov): #9, #10 y #12 (códigos de barras) y #26 (topes de Brian).
