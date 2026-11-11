@@ -10,7 +10,9 @@ LEEME_PRIMERO §2).
 ## Estado al 2026-11-11
 
 - **Producción funciona desde el 2026-10-13** y **`dcasapty.com` (y `www`) apunta al sistema nuevo desde el
-  2026-10-27** (Desplegar 31). Odoo y el borde: **Desplegar 64** (11 nov, PR #109: los 21 arreglos de la auditoría visual). Juan: **Desplegar
+  2026-10-27** (Desplegar 31). Odoo y el borde: **Desplegar 66** (11 nov, PR #111: entregas igual que Bodega y «Más datos»;
+  antes, el mismo día, Desplegar 65 con el Inicio nuevo, el celular al entrar y la caja del chat, y Desplegar 64 con
+  los 21 arreglos de la auditoría visual). Juan: **Desplegar
   Juan 20** (11 nov, PR #107). La **versión estable 4** es la anterior (Desplegar 63 + Juan 20)
   ([VERSIONES_ESTABLES.md](VERSIONES_ESTABLES.md)). El contenedor instala 30 de los 31 módulos de `addons/` (todos
   menos `dcasa_fe_pa`, a propósito).
@@ -27,27 +29,24 @@ LEEME_PRIMERO §2).
 
 ## Lo que sigue, en orden
 
-000. **Panel renovado (2026-11-11): los arreglos de la auditoría están en producción; el Inicio nuevo, el celular y lo
-     demás aprobado están en la rama, por desplegar.** Detalle y citas de la dueña en la bitácora de LEEME_PRIMERO
+000. **Panel renovado (2026-11-11): todo lo aprobado está en producción (Desplegar 64, 65 y 66); falta solo el modo
+     oscuro.** Detalle y citas de la dueña en la bitácora de LEEME_PRIMERO
      (entradas del 2026-11-11 (2) y (3)). Informe de la auditoría: <https://claude.ai/artifact/QN3GPdAtm7nKxQtu9X64MP>.
-     - **En producción (Desplegar 64, PR #109):** 21 arreglos que no cambian el diseño.
-     - **Aprobado por la dueña y terminado en la rama (falta CI con staging → PR → Desplegar):** el Inicio nuevo
-       (propuesta 2, accesos del celular en tres tamaños); y los tres arreglos del celular que ella reportó: el Inicio
-       ya no queda en blanco al entrar, el menú del celular es una sola lista (sin la «subcarpeta») y «atrás» dentro
-       del chat vuelve a la lista.
-     - **Aprobado y en construcción (van en ese mismo despliegue si llegan a tiempo; si no, en el siguiente):** la caja
-       de responder del chat en el celular; Conversaciones en tableta con la lista entera mientras no haya chat
-       abierto; «Entregas pendientes» del Inicio igual que «Bodega»; «Más datos» plegable en la cotización.
+     - **En producción:** Desplegar 64 (PR #109: 21 arreglos de la auditoría) y **Desplegar 65** (PR #110: el Inicio
+       nuevo con accesos del celular en tres tamaños; el Inicio ya no queda en blanco al entrar; el menú del celular
+       es una sola lista; «atrás» dentro del chat vuelve a la lista; la caja de responder del celular de 215 a 111 px;
+       la lista de chats entera en tableta). **Falta que la dueña lo pruebe en su iPhone** y diga si el blanco
+       desapareció del todo.
+     - **También en producción, Desplegar 66 (PR #111):** «Entregas pendientes» del Inicio igual que «Bodega» (con el
+       renglón de las que esperan pago) y «Más datos» plegable en la cotización.
      - **Modo oscuro gris («estilo Cubase»), opcional por persona:** en construcción en `local/agente-d`. Va en su
        propio despliegue, **después de que la dueña vea las capturas** (celular incluido). El claro no cambia.
-     - **Que la dueña opine cuando lo vea en su teléfono:** el menú nuevo del celular (se le mandaron capturas) y los
-       tres detalles en que el Inicio se apartó del boceto (bitácora).
      - **Más adelante (van con el diseño nuevo o son de Odoo):** gráficas de Odoo en el azul de D'CASA; tablas
        dinámicas en el celular; listas estiradas en 1920 px; títulos de las pantallas propias en la barra del celular;
        la tarjeta «Instale Odoo» y OdooBot; «Manual Payment» (dato: se cambia en Ajustes); en tableta parada
-       (768–991 px) el menú sigue siendo el de Odoo (íconos arriba), que funciona pero no es el propio.
-     - **Versión estable:** Desplegar 64 es más nuevo que la estable 4. Cuando el despliegue del Inicio nuevo lleve
-       unos días sin dar guerra, nombrar la estable 5 (pedirle el «sí» a la dueña, como la vez pasada).
+       (768–991 px) el menú sigue siendo el de Odoo (íconos arriba) y el botón de Brian tapa «Enviar» del chat.
+     - **Versión estable:** Desplegar 66 es más nuevo que la estable 4. Cuando lleve unos días sin dar guerra, nombrar
+       la estable 5 (pedirle el «sí» a la dueña, como la vez pasada).
 1. **Camila (mail marketing)** ([CAMILA.md](CAMILA.md)): etapas 1 y 2 **en producción** desde el 2026-11-06 (Desplegar
    52 y 54, con Juan 7). La clave de campañas ya está y Odoo la tomó (Desplegar 53). Nada sale sin que alguien de
    Marketing o Gerencia apruebe la campaña. Falta de la dueña: la primera campaña y confirmar el «Sí, quiero» de dos
