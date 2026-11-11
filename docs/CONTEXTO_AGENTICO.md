@@ -403,6 +403,15 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   se une con `expectedHeadSha`). **Regla:** mientras corre el CI que se va a unir, o no se toca el repositorio, o se
   acepta desde el principio que lo nuevo se sube y el CI se relanza sobre la punta (un solo despliegue con todo). No
   intentar «guardar para después» en el árbol de trabajo: el gancho no deja cerrar el turno.
+- **Desplegar 65** (11 nov, 21:20 UTC; confirmado sano a las 21:34; run 43101954871) · PR #110, squash `b8d6a51`,
+  `app_version` `b62903127c5483c8e6bd1cd4700e97a766accfb2`, imagen `sha256:66e84351…`, CI 334 con staging (run
+  43093423535). El Inicio nuevo, el arranque sin pantalla en blanco, el menú del celular, «atrás» dentro del chat, la
+  caja de responder del celular y la lista en tableta; con respaldo previo. Bien al primer intento, **un solo CI**.
+  **Lo que funcionó esta vez:** mientras corría el CI no se tocó el árbol principal; lo que iba terminando (entregas y
+  «Más datos») se unió y se probó en otra copia de trabajo (`local/integracion`), y entró a la rama recién después del
+  despliegue, junto con el `merge -s ours` y los docs. Así el commit probado siguió siendo la punta de la rama y el
+  `expectedHeadSha` valió. Lo listo se desplegó sin esperar a lo que faltaba: dos despliegues chicos en vez de uno
+  grande que retrasara el arreglo que la dueña estaba esperando.
 - **Versión estable 4 ensayada en staging** (11 nov, 03:16–03:40 UTC, run 42951600639 de «Volver a una versión
   estable», lanzado desde la rama de trabajo: el botón solo exige `main` para producción). Estable 4 = imagen de
   Desplegar 63 (`acda72c1…`, `app_version` `3e2ccfc`) + Juan hasta Desplegar Juan 20. Bien al primer intento.
