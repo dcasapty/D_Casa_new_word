@@ -84,6 +84,9 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 - El CLI `gh` existe en esta máquina y sirve para **leer** (runs, tiempos de cada job, issues). Lo que **escribe** en
   GitHub (PR, unir, lanzar flujos, comentar) va por las herramientas `mcp__github__*`.
 - Cada función nueva de la plataforma debe poder usarla Brian (`docs/BRIAN.md`); el PR lo pregunta.
+- **El `<body>` del panel es una rejilla (barra lateral + contenido).** Lo que Odoo o una librería cuelgan del
+  `<body>` para medir cae en la columna de la barra (68 px) y mide mal: así se cortaban las fechas de todas las listas
+  (2026-11-11). `barra_lateral.scss` hace que lo que no es de la rejilla ocupe el ancho entero; no quitar esa regla.
 
 ## 5. Dónde está cada cosa
 
@@ -105,6 +108,54 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 > Más reciente arriba. Cada entrada: fecha, qué quedó en producción (con el commit), qué quedó solo en staging, qué
 > sigue. Se guardan las diez más recientes; las viejas se resumen en una línea abajo y su texto completo pasa a
 > [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md).
+
+### 2026-11-11 (2): auditoría visual del panel; siete arreglos en la rama (sin desplegar); prototipo del Inicio nuevo
+
+**En producción no cambió nada** (Desplegar 63 y Juan 20, versión estable 4). Todo lo de esta entrada está **solo en la
+rama** `claude/merge-rama-to-main-ty3koz` (de `5dfe55c` a `48ed839`) y espera el visto bueno de la dueña sobre las
+capturas del informe.
+
+- **Pedido de la dueña:** «una auditoría completa del aspecto visual del panel… en dispositivos móviles… y en distintas
+  computadoras… encontrar ciertos problemas y solucionarlos… modernizar sin dañar lo que ya funciona». Y, con un video
+  de un tablero que le encantó: «sí busco un modernismo así… sin olvidar el branding que ya tenemos… ahora mismo es
+  estático».
+- **Cómo se hizo:** 660 pantallas capturadas y medidas con Playwright en una copia local con datos de prueba: las 242
+  del menú de Gerencia en celular (390 px) y portátil (1366 px); las 18 apps en celular de 360 px, tableta parada y
+  acostada, 1280 px y 1920 px; las 43 de la vendedora; y 15 pantallas por dentro (chat, cotización, contacto,
+  producto, oportunidad, factura, entrega). Resultado: ninguna pantalla se sale de costado, la vendedora sin errores,
+  **19 molestias**. Informe con capturas de antes y después (página privada de la dueña):
+  <https://claude.ai/artifact/QN3GPdAtm7nKxQtu9X64MP>.
+- **Arreglado en la rama, con prueba de navegador cada uno:**
+  1. *Fecha con hora cortada en todas las listas de la computadora* («11 nov,…»). Causa: Odoo mide el ancho de una
+     fecha en un bloque invisible colgado del `<body>`, y el `<body>` de D'CASA es una rejilla; el bloque caía en la
+     columna de la barra lateral angosta (68 px). `barra_lateral.scss` + `listas.js` (la columna puede encogerse hasta
+     lo que mide una fecha de este año). En Cotizaciones, Origen y Estado llevan ancho fijo para que las etiquetas no
+     se corten. `test_listas_fechas.py`.
+  2. *El botón de Brian tapaba el ITBMS y el Total de la cotización* y la última columna de las listas: formularios,
+     listas y tarjetas de Odoo terminan con el mismo hueco que ya tenían las pantallas propias (`brian_panel.scss`,
+     `test_boton_no_tapa.py`).
+  3. *Aviso de lista vacía*: ya no dice «Toca «Nuevo»» donde no hay ese botón, y sale también en las listas sin texto
+     de ayuda, que quedaban con cuatro renglones en blanco (`sin_odoo.js`, `test_lista_vacia.py`). Cierra UI-01 de
+     [auditoria/ui-backend.md](auditoria/ui-backend.md).
+  4. *Listas en el celular*: las columnas de texto no bajan de 170 px (48 de 105 listas salían en «CAM…», «Client…») y
+     la lista se desliza de lado como antes. El botón de copiar se queda.
+  5. *Cabecera de los formularios en el celular en un renglón* (de 128 a 62 px): «Actividad» va solo con su ícono.
+  6. *Compras en el celular*: el aviso de «no hay nada» va debajo del tablero de cifras, no encima.
+  7. *Ficha del contacto en el celular*: la foto mide 72 px para que el nombre y el correo se lean.
+- **Prototipo del Inicio con movimiento** (números que suben, gráficas que se dibujan, pastilla amarilla que se
+  desliza; aspectos «Claro» y «Azul noche»; plano, sin degradados): <https://claude.ai/artifact/VUKX4zkP16JQ5HVcDwjm6G>.
+  No se tocó el Inicio real: falta que la dueña lo apruebe y elija aspecto.
+- **Pruebas:** las clases nuevas y las tocadas pasan en local (sobre la base de capturas). CI 325 (`0f0dcec`, sin
+  desplegar: `desplegar_en = ninguno`) con todo verde salvo «Tests de Odoo», que seguía corriendo al cerrar la
+  entrada. Los commits del celular (`17ebe18`, `1baa3d9`, `48ed839`) todavía no tienen CI.
+- **Falta de la dueña (tres respuestas):** (1) ¿le gusta el Inicio nuevo?, ¿Claro o Azul noche?; (2) en la cotización,
+  ¿se guardan los datos de pocas veces en «Más datos» para que los productos queden arriba (hoy, en el celular, hay
+  que bajar dos pantallas)?; (3) Sitio web › Páginas le da «Acceso denegado» a Gerencia: ¿se quita de su menú?
+- **Sigue:** su visto bueno → CI con staging → PR → Desplegar. Y el lote 3 (lista en PRIORIDADES).
+- **Sin resolver en esta máquina:** el disco está al 98 % (quedan ~1 GB). Hay 13 worktrees viejos de agentes en
+  `.claude/worktrees` (18 GB, limpios y ya contenidos en la rama) y bases locales de pruebas viejas; borrarlos necesita
+  el «sí» de la dueña (el clasificador lo negó sin él). Por eso las pruebas se corrieron sobre la base de capturas y no
+  en una base limpia.
 
 ### 2026-11-11: versión estable 4; Instagram con fotos confirmado; enlace de choferes encendido; cierre de semana
 
@@ -416,32 +467,9 @@ Juan 12 (3b86ee3).
   un correo (la vendedora la desactiva si el cliente dice que no). Las dos cosas siguen en preparación, junto con la
   pantalla de Sofía (después, las tres en producción: Desplegar 57 y 58).
 
-### 2026-11-06 (7): la pantalla de Sofía
-
-- Pedido de la dueña: «Sofía puede mejorar mucho, sobre todo la interfaz visual». **Solo la interfaz**
-  (`dcasa_sofia/static/src/`): qué propone, los permisos y lo que hace cada botón no cambiaron. Ver
-  [SOFIA.md](SOFIA.md) › «Cómo se ve y se usa».
-- Lo que costaba (capturas «antes»): lo urgente era una etiqueta igual a las demás; cada tarjeta traía 3 etiquetas,
-  título, porqué, una caja de texto de hasta 12 líneas y un párrafo repetido de «Le pide sus datos»; en el celular la
-  cabecera y 4 filas de filtros llenaban media pantalla; «Descartar» junto al botón principal; el filtro de Gerencia
-  por vendedora era una lista sin números; al aprobar la tarjeta desaparecía de golpe y todo subía; vacío y carga eran
-  un texto gris; desde «Organizar con Sofía» no se veía nada hasta terminar la revisión.
-- Ahora: secciones «Hoy sin falta» (azul) / «Hoy» / «Cuando puedas» con su número y un resumen arriba; filtro por tipo
-  y (Gerencia) por vendedora con conteos cruzados, al lado en la computadora y en una tira pegada arriba en el celular;
-  tarjetas compactas con el mensaje como burbuja y «Editar»; la acción principal grande; «Ver la oportunidad» y
-  «Descartar» (sin confirmación, como siempre) abajo y aparte; al aprobar la tarjeta dice lo que pasó en su lugar y del
-  mismo alto, y se cierra despacio; «Todo al día» y «Listo por aquí» con «Ver todo»; esqueleto al cargar y, desde el
-  CRM, primero lo que ya había y la revisión encima. Baja con la rueda y con el dedo.
-- Pruebas: `test_sofia_pantalla.py` (nuevo, 9; la rueda y el dedo por el protocolo de Chrome) y las de navegador
-  ajustadas a «Editar»: 70 en verde en base limpia (68 de Sofía y `dcasa_interfaz` › `TestInicioScroll`). Capturas
-  `antes_…`/`despues_…` en el scratchpad de la sesión (`capturas_sofia`), con datos de prueba. **Sin push ni
-  despliegue**: falta que la dueña vea las capturas. *(Después: le gustaron, «Descartar» queda sin confirmación y está
-  en producción con Desplegar 57.)*
-- Aprendido: el minificador de Odoo (`rjsmin`) aprieta los espacios de una plantilla `` `…` `` anidada dentro de
-  `${…}` («p. m.(la pidió»); hay tres casos viejos en Conversaciones (tarea aparte). Ver CONTEXTO_AGENTICO.
-
 ### Entradas anteriores (una línea cada una; el texto completo en [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md))
 
+- **2026-11-06 (7):** la pantalla de Sofía.
 - **2026-11-06 (6):** Brian al día.
 - **2026-11-06 (5):** Camila etapa 2 («a lo grande, todo conectado con todo»), en producción.
 - **2026-11-06 (4):** Camila, la asistente del mail marketing (módulo nuevo `dcasa_camila`, etapa 1).

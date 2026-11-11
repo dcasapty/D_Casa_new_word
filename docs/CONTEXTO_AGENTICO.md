@@ -610,6 +610,21 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 
 ### Esta máquina (sesiones de Claude)
 
+- **Auditoría con Playwright (2026-11-11), para repetirla:** se entra por `/web/session/authenticate`, se abre cada
+  acción del menú con `/odoo/action-<id>` y se mide en la página (ancho del documento, zonas con scroll de costado,
+  textos cortados, botones de menos de 32 px, letra de menos de 11 px). Tres engaños de la medida: (1) el puntero de
+  Playwright nace en 0,0 y abre la barra lateral automática: moverlo antes de capturar; (2) los textos «solo para
+  lectores de pantalla» (`o_dcj_solo_lector`, `visually-hidden`) salen como cortados y de letra chica: no lo son;
+  (3) los asistentes que abren una ventana (`target = new`) no tienen `.o_action` y la espera vence: no es un error.
+  Con varios recorridos a la vez y el mismo usuario, el servidor anota `could not serialize access` (la presencia de
+  Conversaciones): es de la prueba, no del sistema.
+- **Un cambio de JS o SCSS no se ve en un `odoo-bin` ya arrancado** (sin `--dev`): la lista de archivos del paquete
+  queda en caché. Reiniciarlo. Un cambio de XML de datos (una vista) necesita `-u <módulo>`.
+- **Sin espacio para una base limpia:** las pruebas de navegador se pueden correr sobre una base ya instalada con
+  `-d <base> -u <módulo> --test-enable --test-tags=/<módulo>:<Clase> --stop-after-init` (se deshacen al terminar),
+  con el servidor de capturas apagado mientras tanto. No reemplaza al CI: una base usada trae datos que una limpia no.
+- **Borrar worktrees viejos o bases locales lo niega el clasificador** («destrucción local irreversible») si la dueña
+  no lo pidió: se le pregunta. Liberan sin preguntar `npm cache clean --force` y `pip cache purge`.
 - **El worktree de un agente (`isolation: worktree`) nace de `main` (la rama por defecto de origin), no de la rama de
   la sesión** (2026-11-06: los dos agentes salieron de `700c34a` aunque la rama tenía 10 commits más sin unir). Al unir
   su rama hay conflictos en lo que la sesión cambió mientras tanto (docs) y sus pruebas no vieron el resto de la rama.
@@ -751,6 +766,40 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   a 390 px 7.68 % sin tocar esas pantallas (2026-11-07). Si sale otra cifra en otra pantalla, sí es del cambio.
 
 ### Odoo 19
+
+- **Auditoría visual del panel (2026-11-11), lo aprendido de la interfaz:**
+  - **El `<body>` de D'CASA es una rejilla y eso rompía una medida de Odoo.** `computeOptimalDateWidths`
+    (`web/views/list/column_width_hook.js`) cuelga del `<body>` un bloque invisible con fechas de muestra y mide sus
+    `span`. En la rejilla (barra lateral + contenido) el bloque caía en la columna de la barra angosta (68 px), el
+    texto se partía en renglones y medía ~58 px: todas las columnas de fecha con hora quedaban en 75 px («11 nov,…»),
+    en cualquier ancho de pantalla, con la barra en modo automático. Regla: lo que no es hijo conocido de la rejilla
+    ocupa `grid-column: 1 / -1`. Si algo más se mide colgándolo del `<body>`, ya queda cubierto.
+  - **Las listas usan sus propios campos de fecha: `list.date` y `list.datetime`** (`list_datetime_field.js`), no
+    `date`/`datetime`. `getFieldFromRegistry` busca primero `<vista>.<widget o tipo>`. Registrar una copia de
+    `datetime` con otro `listViewWidth` no cambia nada en las listas.
+  - **`listViewWidth` puede devolver `[mínimo, máximo]`.** Odoo fija las fechas en el peor caso (año y segundos: 202 px
+    de contenido). Con `[lo que mide una fecha de este año, el de Odoo]` la columna se encoge cuando la tabla va justa
+    y crece cuando sobra. Ojo con el reparto de Odoo: cuando falta ancho quita **los mismos píxeles a cada columna
+    encogible** (no en proporción), así que una etiqueta corta («Vendedora») se corta igual que un nombre largo. A una
+    columna de etiqueta se le fija el ancho con `width="92px"` en la vista (mínimo = máximo).
+  - **Ancho mínimo por columna solo en el celular:** se hereda `ListRenderer.getActiveColumns` y, con
+    `this.env.isSmall && !this.isX2Many`, se devuelve una **copia** de cada columna de texto con
+    `field: {...field, listViewWidth: [170]}`. La copia se guarda en un `WeakMap` (si cambiara en cada dibujado, Odoo
+    volvería a pintar todas las celdas).
+  - **No forzar `table-layout: auto !important` en las listas:** pelea con el `ResizeObserver` del mismo gancho y la
+    página se queda colgada (la captura no terminó en 30 s).
+  - **El aviso de lista vacía (`ActionHelper`) no sabe si la vista tiene «Nuevo».** Se lo dice el renderizador con
+    `useSubEnv({ dcasaPuedeCrear })` (`props.activeActions.create` en la lista, `props.archInfo.activeActions.create`
+    en las tarjetas). Y la lista solo lo muestra si la acción trae `help`: se hereda `showNoContentHelper` para la
+    lista principal (`!this.isX2Many`).
+  - **`.o_view_nocontent` es absoluto y cubre todo `.o_content`.** Si la vista trae algo arriba dentro del contenido
+    (el tablero de Compras), el aviso se le monta encima en el celular: ahí se vuelve un renglón (`position: static`).
+  - **Dónde baja el scroll en Odoo 19** (para dejar un hueco al final): formulario, `main.o_content` (y dentro,
+    `.o_form_renderer` en columna; con la Actividad al lado pasa a fila); lista, `.o_list_renderer` (solo la cabecera
+    es fija, el pie no); tarjetas, `main.o_content`.
+  - **Una prueba de «al fondo» en las tarjetas debe bajar dos veces:** las fotos llegan tarde y alargan la pantalla.
+  - **En el celular los botones de 44 px de Conversaciones son a propósito** y el botón de copiar de las listas
+    también: no «arreglarlos» sin preguntar.
 
 - **Un límite «entre todas las IP» de una ruta pública con llave se cuenta DESPUÉS de validar la llave** (revisión de
   seguridad del enlace para choferes, 2026-11-09): contado antes, cualquiera sin el enlace se lo gasta con 404 y deja
