@@ -3,7 +3,34 @@
     <t t-name="dcasa_interfaz.Inicio">
         <!-- «o_dcasa_inicio» es el armazón que comparten otras pantallas (Estadísticas, Por día, Movimientos…);
              «o_dcasa_tablero» es solo de este Inicio: de él cuelga su presentación (tablero.scss). -->
-        <div class="o_action o_dcasa_inicio o_dcasa_tablero" t-ref="raiz">
+        <!-- El armazón: lo que se ve mientras llegan las cifras (o si no llegaron). Lleva el saludo de verdad y bloques en
+             gris donde irá lo demás, para que al entrar la pantalla nunca quede en blanco. No lleva «o_dcasa_inicio»:
+             esa clase sigue queriendo decir «el Inicio con sus cifras ya está». -->
+        <div t-if="!state.datos" class="o_action o_dcasa_arranque" t-att-aria-busy="state.errorDeCarga ? 'false' : 'true'">
+            <header class="o_dcasa_inicio_hero">
+                <div class="o_dcasa_inicio_hero_texto">
+                    <div class="o_dcasa_inicio_fecha" t-out="fechaDeHoy"/>
+                    <h1>Hola, <t t-out="nombreDePila"/></h1>
+                    <p t-if="state.errorDeCarga" class="o_dcasa_arranque_estado">No llegó el resumen del día.</p>
+                    <p t-elif="state.cargaLenta" class="o_dcasa_arranque_estado" role="status">Está tardando más de lo normal. Ya casi…</p>
+                    <p t-else="" class="o_dcasa_arranque_estado" role="status">Preparando tu resumen…</p>
+                </div>
+            </header>
+            <div class="o_dcasa_inicio_cuerpo">
+                <div t-if="state.errorDeCarga" class="o_dcasa_arranque_error" role="alert">
+                    <p>No pudimos traer las cifras. Revisa la conexión y vuelve a intentar; el menú de arriba sigue funcionando.</p>
+                    <button type="button" class="btn btn-primary o_dcasa_arranque_reintentar" t-on-click="() => this.cargar()">
+                        <i class="fa fa-refresh me-2" aria-hidden="true"/>Reintentar
+                    </button>
+                </div>
+                <div t-else="" class="o_dcasa_arranque_bloques" aria-hidden="true">
+                    <span t-foreach="[1, 2, 3, 4, 5, 6]" t-as="n" t-key="n" class="o_dcasa_arranque_bloque"/>
+                    <span class="o_dcasa_arranque_bloque o_dcasa_arranque_ancho"/>
+                    <span class="o_dcasa_arranque_bloque o_dcasa_arranque_ancho o_dcasa_arranque_alto"/>
+                </div>
+            </div>
+        </div>
+        <div t-else="" class="o_action o_dcasa_inicio o_dcasa_tablero" t-ref="raiz">
             <t t-set="d" t-value="state.datos"/>
             <h2 class="visually-hidden">Resumen del día</h2>
 
