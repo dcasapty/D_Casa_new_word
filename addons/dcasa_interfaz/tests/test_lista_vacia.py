@@ -64,3 +64,22 @@ class TestListaVacia(HttpCase):
         sin = self._accion('tarjetas sin nuevo', 'kanban', f'<kanban create="false">{tarjeta}</kanban>',
                            ayuda='<p>Crea una etiqueta</p>')
         self._probar(sin, False, SIN_NUEVO, '«Nuevo»')
+
+    def test_en_compras_el_aviso_va_debajo_del_tablero_en_el_celular(self):
+        """En el celular el tablero de Compras ocupa media pantalla y el aviso se le montaba encima (2026-11-11)."""
+        accion = self.env['ir.actions.act_window'].create({
+            'name': 'Prueba compras vacías', 'res_model': 'purchase.order', 'view_mode': 'kanban',
+            'view_id': self.env.ref('purchase.view_purchase_order_kanban').id, 'domain': "[('id', '=', 0)]"})
+        codigo = '(async () => {' + ESPERAR_JS + """
+            const tablero = await esperar(() => document.querySelector('.o_purchase_dashboard'), 'el tablero');
+            const ayuda = await esperar(() => document.querySelector('.o_view_nocontent .o_nocontent_help'),
+                                        'el aviso');
+            const t = tablero.getBoundingClientRect(), a = ayuda.getBoundingClientRect();
+            if (a.height < 20) { throw new Error('el aviso debe verse'); }
+            if (a.top < t.bottom - 1) {
+                throw new Error(`el aviso (${Math.round(a.top)}) se monta sobre el tablero (${Math.round(t.bottom)})`);
+            }
+            console.log('test successful');
+        })();"""
+        self.browser_size = '390x844'
+        self.browser_js(f'/odoo/action-{accion.id}', codigo, login='admin')

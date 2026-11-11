@@ -87,6 +87,15 @@ class TestActividadOculta(HttpCase):
         throw new Error(`las flechas bajaron a otro renglón: ${Math.round(flechas.top)} y ${Math.round(nuevo.top)}`);
     }
     if (celular && cabecera.height > 80) { throw new Error('la cabecera mide ' + Math.round(cabecera.height) + 'px'); }
+    // La ficha del contacto en el celular: la foto chica y el nombre con espacio para leerse.
+    const foto = document.querySelector('.o_field_contact_image img');
+    const nombre = document.querySelector('.o_form_sheet h1 .o_input');
+    if (celular && foto && foto.getBoundingClientRect().width > 80) {
+        throw new Error('la foto mide ' + Math.round(foto.getBoundingClientRect().width) + 'px en el celular');
+    }
+    if (celular && nombre && nombre.clientWidth < 220) {
+        throw new Error('el nombre solo tiene ' + nombre.clientWidth + 'px');
+    }
     console.log('test successful');
 })();
 """

@@ -262,3 +262,24 @@ $dcasa-alerta: #D92D20;
         > .o_control_panel_navigation { flex: 0 0 auto; }
     }
 }
+
+// --- Compras en el celular: el aviso de «no hay nada» debajo de las cifras, no encima (auditoría del 2026-11-11) ------
+// Odoo centra el aviso sobre todo el contenido, y en Compras el contenido empieza con el tablero de cifras (Nuevo,
+// Enviadas, Atrasadas…): en el celular el tablero ocupa media pantalla y el aviso se le montaba encima. Aquí el aviso
+// pasa a ser un renglón más, debajo del tablero.
+.o_purchase_dashboard_kanban_view .o_kanban_renderer > .o_view_nocontent {
+    position: static;
+    flex: 1 0 100%;
+    padding: 16px 0 32px;
+}
+
+// --- Ficha del contacto en el celular: la foto no le quita el ancho al nombre (auditoría del 2026-11-11) -------------
+// La foto de 130 px dejaba 180 px para el nombre y el correo: «María Fernanda R», «maria.prueba@exa». Con la foto en
+// 72 px y el nombre un poco más chico, se leen.
+@include media-breakpoint-down(md) {
+    .o_form_view .o_field_contact_image {
+        flex: 0 0 auto;
+        img { width: 72px !important; height: 72px !important; object-fit: cover; }
+    }
+    .o_form_view .o_form_sheet h1 .o_field_field_partner_autocomplete .o_input { font-size: 1.25rem; }
+}
