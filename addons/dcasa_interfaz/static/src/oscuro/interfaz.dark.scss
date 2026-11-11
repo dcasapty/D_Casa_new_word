@@ -140,3 +140,16 @@
 }
 .o_dcasa_coincidencias .o_dcasa_coincidencia { background: rgba(255, 255, 255, .05); }
 .o_form_view .o_dcasa_dato_cliente .o_input { border-bottom-color: var(--dc-linea-fuerte); }
+
+// === Cifras y títulos grandes ======================================================================================================
+// En el prototipo aprobado las cifras grandes van casi en blanco y el celeste queda para lo que se toca (enlaces, lo
+// elegido). Lo mismo los títulos de pantalla en letra de cartel (Anton): en celeste se veían de juguete.
+.o_dcasa_ventas_valor,
+.o_dcasa_salto strong,
+.o_dcasa_pd_valor,
+.o_camila .o_camila_cifra_valor,
+.o_dcasa_reponer_cabeza h1,
+.o_dcasa_vp_barra h1,
+.o_dcasa_bodega .o_dcasa_bodega_cabecera h1,
+.o_dcasa_escaner .o_dcasa_escaner_cabecera h1,
+.o_dcasa_mk .o_dcasa_mk_cabeza h1 { color: var(--dc-azul-950); }
