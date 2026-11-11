@@ -207,6 +207,7 @@ otra clave secreta, y Juan habría tenido que cambiar; por la página no hizo fa
   enviar en la **misma** llamada, como Messenger (`me/messages` con `filedata`; la documentación de Meta lo da para
   Instagram), (2) subir aparte y mandar con `attachment_id`, (3) por URL. Si ninguno sale, «Por qué no salió» en Odoo
   dice qué contestó Meta a cada intento («Instagram no aceptó la foto · envío: … · aparte: … · URL: …»).
+  **Confirmado por la dueña (11 nov):** con Juan 20 la foto llegó por Instagram (salió por el primer camino).
 
 **Cómo quedó Messenger (2026-11-09):** con la cuenta de Facebook que tiene **control total** de la página (la que
 abría Chrome solo tenía Contenido, Actividad de la comunidad y Estadísticas: sin «Mensajes» la página no sale al tocar

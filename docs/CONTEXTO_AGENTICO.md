@@ -394,6 +394,15 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `main` (`741930d`, árbol = `de1fb04`) a staging y Desplegar con ese `app_version`. **Regla:** un cambio del borde
   (rutas, `vars`, `workers_dev`) se despliega con un `app_version` que lo contenga, o sea con una imagen construida
   de ese commit.
+- **Versión estable 4 ensayada en staging** (11 nov, 03:16–03:40 UTC, run 42951600639 de «Volver a una versión
+  estable», lanzado desde la rama de trabajo: el botón solo exige `main` para producción). Estable 4 = imagen de
+  Desplegar 63 (`acda72c1…`, `app_version` `3e2ccfc`) + Juan hasta Desplegar Juan 20. Bien al primer intento.
+- **Desplegar Juan 20** (02:21 UTC del 11 nov, solo Juan) · `/salud` con `c378382` (PR #107, árbol = `f1cba72`, CI #321
+  verde con staging): Instagram prueba subir y enviar en la misma llamada (como Messenger), luego `attachment_id`, luego
+  URL; si nada sale, «Por qué no salió» en Odoo dice qué contestó Meta a cada intento. Juan 19 (solo la subida aparte)
+  siguió dando «(#100) Error al subir el producto». **Confirmado:** la foto llegó por Instagram. Lección: para Messenger
+  e Instagram, subir el archivo en el mismo `me/messages` (multipart `filedata`) es lo que funciona; Meta no logra bajar
+  nuestras URL firmadas (WhatsApp sí).
 - **Desplegar Juan 19** (21:06 UTC del 10 nov, solo Juan) · `/salud` con `f8a6c24` (PR #106, árbol = `b955b2f`, CI #319
   verde con staging): Instagram sube la foto (`me/message_attachments`, `platform=instagram`) y la manda con su
   `attachment_id`; si Meta no la acepta, va por URL como antes.

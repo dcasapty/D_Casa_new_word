@@ -4,8 +4,9 @@ Pedido de la dueña (2026-10-16): guardar una versión que funciona bien para po
 posterior rompe algo o si no hay tiempo de arreglarlo. Cada vez que una versión queda en producción y la dueña
 confirma que se ve bien, se agrega aquí.
 
-> **Usar la Estable 3 (2026-11-06).** La 1 y la 2 son del 2026-10-16 y quedaron muy atrás; no es seguro volver a
-> ellas:
+> **Usar la Estable 4 (2026-11-11).** La 3 (2026-11-05) ya quedó atrás: no trae `dcasa_envios` (la calculadora de
+> envíos y el enlace para choferes) ni `dcasa_camila` (el mail marketing), que entraron después, y la base ya la
+> actualizaron versiones más nuevas. La 1 y la 2 son del 2026-10-16 y quedaron muy atrás; no es seguro volver a ellas:
 >
 > - **No traen el dominio propio.** *Desplegar* usa el `edge/wrangler.jsonc` del commit que despliega (lección de
 >   Desplegar 30 en [CONTEXTO_AGENTICO.md](CONTEXTO_AGENTICO.md) › Despliegue), y el de esas versiones no tiene las
@@ -22,6 +23,7 @@ confirma que se ve bien, se agrega aquí.
 
 | Versión | Desde | Qué trae | Código | `app_version` | `imagen_digest` |
 |---|---|---|---|---|---|
+| **Estable 4** | 2026-11-09, 23:26 UTC (Desplegar 63); Juan hasta Desplegar Juan 20 (2026-11-11, 02:21 UTC) | Todo hasta el enlace para choferes, «Colchones» → WhatsApp y Dependabot (PR #100). Juan: WhatsApp oficial con el 131070 resuelto (pide el control del chat y anota el `fbtrace_id`), Messenger e Instagram con fotos. Sana y confirmada en producción: la dueña la probó el 2026-11-11 (WhatsApp, Messenger, Instagram con foto y el enlace de choferes encendido). **Ensayada:** el 2026-11-11 el botón la desplegó en staging (run 42951600639, desde la rama de trabajo; terminó bien en unos 24 minutos, con la espera de salud de 600 s). | `main` en `c378382` (PR #107); Odoo y el borde no cambian desde `3e2ccfc` (PR #100) | `3e2ccfc3e9d14161d12003d52267466edfd8b028` | `sha256:acda72c1f49c6cafc83c79ec2cba0a2e0c1930f123d733a8f3c8e147d7f157ab` |
 | **Estable 3** | 2026-11-05, 21:45 UTC (Desplegar 47) | Todo hasta Sofía con «Guarda sus datos» y «Guardar y responderle»: el dominio `dcasapty.com` con sus rutas, Juan por WhatsApp oficial y los módulos de Meta, correo y marketing. Sana y confirmada en producción. **Ensayada:** el 2026-11-06 el botón la desplegó en staging (run 42149850218, terminó bien en unos 12 minutos), el primer ensayo de volver que se hace. | `main` en `700c34a` (PR #76) | `e97958e018477297f0aca13a49650c4a885f6248` | `sha256:aa3c4c06cb2b6247af7ca127893e76ca9200f4193316bce7b341e8f30e7262bd` |
 | **Estable 2** | 2026-10-16, 15:11 UTC (Desplegar 11) | Todo lo de la Estable 1 más: Etapa 3 (cliente una sola vez al cotizar), prueba de humo del arranque y «nunca hacia atrás», Conversaciones #25, el botón para volver, y el Inicio con cotizaciones y entregas arriba y cifras que cuadran con Contabilidad. La dueña confirmó que se ve bien. | rama `estable-2026-10-16-2` (y PR #47) | `9be426a46e15ac124f991648289b41643cf2bfee` | `sha256:876ca5f5c7f14a6fea91d4b0fb0e4f88be485aba5b167cc3566289fb1ac4f078` |
 | **Estable 1** | 2026-10-16, 07:27 UTC (Desplegar 9) | Etapas 1 y 2 (Inicio con ganancia, tope de descuento, fusión segura, existencias solo por Gerencia, Estadísticas, íconos de color) y el arreglo del arranque (incidente 1). La dueña confirmó Inicio y conversaciones. | rama `estable-2026-10-16` (y PR #45) | `3570c3a12e5563621be5ef835837a223904b06c5` | `sha256:4e9b915580dd3d346c2d8ec7f3b2b02809c13172e02fd6e9c392b34c239bc2e3` |
@@ -29,8 +31,8 @@ confirma que se ve bien, se agrega aquí.
 Qué se guarda de cada una:
 
 - **El código:** una rama con su nombre (`estable-AAAA-MM-DD`) que no se toca, hecha desde `main` con el PR ya unido
-  (mismo código; desde las sesiones de Claude no se pueden crear etiquetas de git). La Estable 3 no tiene rama propia:
-  su código es el commit `700c34a` de `main`, que ya no cambia (`main` solo avanza). El commit exacto con que se
+  (mismo código; desde las sesiones de Claude no se pueden crear etiquetas de git). La Estable 3 y la 4 no tienen rama
+  propia: su código es un commit de `main` (`700c34a` y `c378382`), que ya no cambia (`main` solo avanza). El commit exacto con que se
   construyó la imagen es el `app_version` y queda guardado en su PR.
 - **La imagen ya construida y probada:** en el registro de Cloudflare, con la etiqueta `dcasa-odoo:<app_version>`.
   No se reconstruye nada para volver. Ningún flujo de este repositorio la borra; cuánto la guarda Cloudflare por su
@@ -43,7 +45,7 @@ Qué se guarda de cada una:
 **Con el botón** (sin copiar nada): Actions → **Volver a una versión estable** → *Run workflow*, en `main`:
 
 - `entorno`: `production` (o `staging` para ensayar primero);
-- `version`: la de la tabla (la más nueva arriba: `estable-3`);
+- `version`: la de la tabla (la más nueva arriba: `estable-4`);
 - `respaldo_previo`: marcado (desmarcarlo solo si el sitio está caído y el respaldo no puede hacerse).
 
 Llama al mismo flujo *Desplegar*: el último paso espera a que responda esa versión con la base al día y la vigila 600 s
@@ -71,7 +73,12 @@ digest de su resumen, como siempre.
 
 **Antes de necesitarlo:** ensayarlo en staging (desplegar ahí la versión estable y abrir Inicio, Conversaciones y una
 cotización). Mientras no se haya ensayado, volver puede dar sorpresas (p. ej. un módulo que la versión nueva instaló y
-la vieja no conoce). La Estable 3 ya se ensayó (2026-11-06, ver la tabla); la 1 y la 2, nunca.
+la vieja no conoce). La Estable 3 y la 4 ya se ensayaron (ver la tabla); la 1 y la 2, nunca.
+
+**Juan va aparte.** El botón vuelve Odoo y el borde (`dcasa`); el Worker de Juan (`dcasa-juan`) se despliega con
+*Desplegar Juan* desde la rama o el commit que se quiera. La versión de Juan de cada estable está en su fila («Juan
+hasta Desplegar Juan N»); para volver Juan, lanzar *Desplegar Juan* (`production`, `dry_run` sin marcar) sobre ese
+commit de `main`.
 
 ## Cómo se agrega una versión estable
 
