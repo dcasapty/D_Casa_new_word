@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <!-- El botón «Más datos» de la cotización (js/mas_datos.js): un botón de verdad, con `aria-expanded` y
+         `aria-controls`, para teclado y lector de pantalla. La hoja de estilos esconde los renglones marcados mientras
+         dice `aria-expanded="false"`. -->
+    <t t-name="dcasa_interfaz.MasDatos">
+        <div class="o_dcasa_mas_datos" t-att-class="{ o_dcasa_mas_datos_vacio: !campos.length }" t-ref="raiz">
+            <button type="button" class="o_dcasa_mas_datos_boton"
+                    t-att-aria-expanded="abierto ? 'true' : 'false'"
+                    t-att-aria-controls="estado.controla or undefined"
+                    t-att-aria-disabled="obligado ? 'true' : undefined"
+                    t-on-click="alternar">
+                <span class="o_dcasa_mas_datos_texto">
+                    <strong>Más datos</strong><t t-if="detalle">: <t t-out="detalle"/></t><t t-if="aviso">. </t>
+                    <span t-if="aviso" class="o_dcasa_mas_datos_aviso"
+                          t-att-class="{ o_dcasa_mas_datos_falta: obligado }" t-out="aviso"/>
+                </span>
+                <i class="fa fa-chevron-down" aria-hidden="true"/>
+            </button>
+        </div>
+    </t>
+
+</templates>

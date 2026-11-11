@@ -109,10 +109,14 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 > sigue. Se guardan las diez más recientes; las viejas se resumen en una línea abajo y su texto completo pasa a
 > [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md).
 
-### 2026-11-11 (3): Inicio nuevo aprobado y construido; el celular al entrar (blanco, menú, «atrás»); frentes en paralelo
+### 2026-11-11 (3): Inicio nuevo, el celular al entrar (blanco, menú, «atrás») y la caja del chat, en producción (Desplegar 65)
 
-**Nada de esta entrada está en producción todavía** (sigue Desplegar 64). Está en la rama
-`claude/merge-rama-to-main-ty3koz`, sin CI con staging ni PR. Al desplegar, completar aquí el número y la hora.
+**En producción desde el 2026-11-11, 21:20 UTC (confirmado sano y estable a las 21:34):** **Desplegar 65** (Odoo y el
+borde; run 43101954871) con la imagen `sha256:66e84351…` y `app_version` `b62903127c5483c8e6bd1cd4700e97a766accfb2`
+(PR #110, squash `b8d6a51`; CI 334 con staging, run 43093423535), con respaldo previo. Lleva el Inicio nuevo, los tres
+arreglos del celular, la caja de responder del chat en el celular y la lista entera en tableta. Juan no cambió.
+**Todavía en la rama, para el despliegue siguiente:** «Entregas pendientes» igual que Bodega y «Más datos» en la
+cotización (terminados y probados). **Modo oscuro:** en construcción; va aparte, cuando la dueña vea las capturas.
 
 - **Aprobaciones de la dueña (tal cual):**
   - «Si me gustaron los cambios para móvil lo que me gustaría es que así como se ve en detalles compacto y grandes así
@@ -130,6 +134,9 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
     datos» que se pliega (teléfono fijo, direcciones, vencimiento, lista de precios, términos de pago), cerrado salvo
     que algo pida atención, sin mover ningún campo de la vista.
   - «Si gustas trabaja con multiagentes en paralelo».
+  - Con las capturas del menú nuevo del celular y de la caja del chat a la vista (y avisada de los detalles en que la
+    caja se apartó del boceto): «si apruebo todo». Y: «avísame cuando esté en producción» (se le avisó a las 21:29 UTC,
+    con qué probar en su iPhone).
 - **Inicio nuevo (propuesta 2), terminado en la rama** (`b67ea7e`): mismo orden y contenido, accesos del celular en
   tres tamaños (`dcasa.inicio.atajos` en el aparato, «Compactos» la primera vez), tres contadores que llevan a cada
   panel, cifras que suben al abrir, barras delgadas; todo cuelga de `.o_dcasa_tablero` (`tablero.scss`).
@@ -165,15 +172,34 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
   falla, `test_sin_reparto_por_turnos_no_hay_interruptor`, es por los ajustes de la base de capturas, no por el cambio).
   **El menú nuevo es interfaz nueva**: se le mostraron las capturas a la dueña; ella había pedido «lo que sea mejor para
   el uso adecuado y accesible del navbar en móviles».
-- **En construcción, cada frente en su copia de trabajo (ver CONTEXTO_AGENTICO, «Varios agentes a la vez»):** la caja
-  de responder del chat en el celular y la lista entera en tableta (árbol principal); «Entregas pendientes» = Bodega y
-  «Más datos» en la cotización (`local/agente-c`); modo oscuro gris de todo el panel, opcional por persona, hojas
-  aparte para que el claro no cambie (`local/agente-d`). Los tres se cortaron una vez por el límite de uso de la cuenta
-  (cinco horas) y se reanudaron con su avance intacto.
-- **Sigue:** unir la caja del chat y entregas/«Más datos», repasar capturas, CI con staging sobre la rama → PR
-  `[skip ci]` → Desplegar a producción con respaldo previo. El modo oscuro va después, en su propio despliegue, cuando
-  la dueña vea sus capturas. Siguen sin respuesta: borrar la rama remota `claude/bold-volta-fsqq4c` y el motivo real en
-  «Quedó por enviar».
+- **Caja de responder del chat en el celular y lista en tableta (en producción con Desplegar 65, `565e8a0`):** la
+  caja vacía bajó de 215 a 111 px en 360 y 390 px de ancho, sin quitar herramientas. Renglón 1: quién atiende,
+  «Devolver»/«Atender» y Respuesta / Nota; renglón 2: «+», «Sugerir», el texto y Enviar; dentro del «+»: Adjuntar,
+  Foto del catálogo, Cotización, Rápidas y Programar. En tableta (hasta 1100 px) la lista de chats se ve entera
+  mientras no hay uno abierto. `test_panel_caja_celular.py`, `TestDisposicionDeTableta`. Se apartó del boceto en
+  nombres («Adjuntar», «Foto del catálogo») y en que «Atender» es un enlace; la hora de vuelta del asistente no se ve
+  en el celular (antes salía cortada). La dueña lo aprobó así.
+- **«Entregas pendientes» = Bodega y «Más datos» en la cotización (en la rama, `b5c5440`; van en el despliegue
+  siguiente):** el panel y la cifra del Inicio muestran las mismas entregas que Bodega (pedidos con pago o abono) y un
+  renglón gris dice cuántas más esperan («2 más esperan pago o abono») y abre esa lista; quien ve el panel sin permiso
+  de Inventario sigue viendo todas. En la cotización, un botón «Más datos» pliega teléfono fijo, direcciones,
+  vencimiento, lista de precios y términos de pago **sin mover ningún campo** (se esconden con `:has()`); nace cerrado,
+  se abre solo si la entrega va a otra dirección o falta un dato obligatorio, y se recuerda en el aparato. En el
+  celular los productos suben 353 px. `test_entregas_inicio.py`, `test_mas_datos.py`. Dudas menores que la dueña puede
+  opinar al verlo: que el botón nombre también «teléfono fijo», y que al abrir los datos aparecen en su sitio de
+  siempre (encima del botón).
+- **Modo oscuro (en construcción, `local/agente-d`):** hojas aparte (`static/src/oscuro/`, solo en
+  `web.assets_web_dark`), la galleta `color_scheme` decide, interruptor por persona. No se despliega sin que la dueña
+  vea las capturas.
+- **Los ayudantes y el límite de uso:** cada frente en su copia de trabajo (ver CONTEXTO_AGENTICO, «Varios agentes a
+  la vez»). El límite de la cuenta (cinco horas) los cortó tres veces; se reanudaron con su avance intacto las dos
+  primeras y el modo oscuro quedó pausado la tercera (se levanta a las 00:50 UTC del 12).
+- **Sigue:** CI con staging sobre la rama → PR `[skip ci]` → Desplegar con entregas y «Más datos»; que la dueña pruebe
+  en su iPhone lo desplegado (no se pudo probar en un teléfono real ni con su usuario); el modo oscuro con sus
+  capturas. Siguen sin respuesta: borrar la rama remota `claude/bold-volta-fsqq4c` y el motivo real en «Quedó por
+  enviar». Pendientes menores anotados por los ayudantes: en tableta parada (768–991 px) el botón de Brian tapa
+  «Enviar» del chat (ya pasaba); las referencias de píxeles de 390 px de la lista y de Conexiones no coinciden en esta
+  máquina.
 - **Esta máquina:** con el «sí» de la dueña («Sí, borra las dos») se borraron los 13 worktrees viejos de
   `.claude/worktrees` y 15 bases locales de pruebas: el disco pasó de 1 GB a ~20 GB libres.
 
