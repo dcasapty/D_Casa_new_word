@@ -109,10 +109,10 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 > sigue. Se guardan las diez más recientes; las viejas se resumen en una línea abajo y su texto completo pasa a
 > [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md).
 
-### 2026-11-11 (2): auditoría visual del panel; siete arreglos en la rama (sin desplegar); prototipo del Inicio nuevo
+### 2026-11-11 (2): auditoría visual del panel; diez arreglos en la rama (sin desplegar); prototipo del Inicio nuevo
 
 **En producción no cambió nada** (Desplegar 63 y Juan 20, versión estable 4). Todo lo de esta entrada está **solo en la
-rama** `claude/merge-rama-to-main-ty3koz` (de `5dfe55c` a `48ed839`) y espera el visto bueno de la dueña sobre las
+rama** `claude/merge-rama-to-main-ty3koz` (desde `5dfe55c`) y espera el visto bueno de la dueña sobre las
 capturas del informe.
 
 - **Pedido de la dueña:** «una auditoría completa del aspecto visual del panel… en dispositivos móviles… y en distintas
@@ -142,12 +142,17 @@ capturas del informe.
   5. *Cabecera de los formularios en el celular en un renglón* (de 128 a 62 px): «Actividad» va solo con su ícono.
   6. *Compras en el celular*: el aviso de «no hay nada» va debajo del tablero de cifras, no encima.
   7. *Ficha del contacto en el celular*: la foto mide 72 px para que el nombre y el correo se lean.
+  8. *Barra de arriba en el celular*: el reloj de actividades medía 29 px de ancho (las rayitas 36, Brian 38): ahora 44.
+  9. *El ejemplo de «Sitio web» del contacto* ya no nombra a odoo.com.
+  10. *Pestañas de Contabilidad en la computadora*: su barra de desplazamiento va escondida y con el mouse no se
+      alcanzaban las últimas («ITBMS», «Analítica») en 1366 px; ahora bajan a otro renglón (`contabilidad.scss`,
+      `test_pantallas.py`). En el celular se siguen deslizando con el dedo.
 - **Prototipo del Inicio con movimiento** (números que suben, gráficas que se dibujan, pastilla amarilla que se
   desliza; aspectos «Claro» y «Azul noche»; plano, sin degradados): <https://claude.ai/artifact/VUKX4zkP16JQ5HVcDwjm6G>.
   No se tocó el Inicio real: falta que la dueña lo apruebe y elija aspecto.
 - **Pruebas:** las clases nuevas y las tocadas pasan en local (sobre la base de capturas). CI 325 (`0f0dcec`, sin
   desplegar: `desplegar_en = ninguno`) con todo verde salvo «Tests de Odoo», que seguía corriendo al cerrar la
-  entrada. Los commits del celular (`17ebe18`, `1baa3d9`, `48ed839`) todavía no tienen CI.
+  entrada. Los commits siguientes (el celular, la barra, las pestañas) esperan su propia corrida de CI.
 - **Falta de la dueña (tres respuestas):** (1) ¿le gusta el Inicio nuevo?, ¿Claro o Azul noche?; (2) en la cotización,
   ¿se guardan los datos de pocas veces en «Más datos» para que los productos queden arriba (hoy, en el celular, hay
   que bajar dos pantallas)?; (3) Sitio web › Páginas le da «Acceso denegado» a Gerencia: ¿se quita de su menú?

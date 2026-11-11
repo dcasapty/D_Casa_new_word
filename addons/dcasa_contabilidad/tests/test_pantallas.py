@@ -6,7 +6,7 @@ cortada y, con muchas filas, el cuadro tapa el menú). Se comprobó en el navega
 import re
 from pathlib import Path
 
-from odoo.tests import TransactionCase, tagged
+from odoo.tests import HttpCase, TransactionCase, tagged
 
 RAIZ = Path(__file__).resolve().parents[1] / 'static' / 'src'
 
@@ -54,3 +54,38 @@ class TestPantallasPropias(TransactionCase):
         bloques = dict(re.findall(patron, xml))
         for tarjetas in ('resumen', 'flujo', 'antiguedad', 'resultados', 'balance', 'itbms'):
             self.assertIn('o_dc_kpi_cuando', bloques[tarjetas], f'las tarjetas de «{tarjetas}» dicen su fecha')
+
+
+
+@tagged('post_install', '-at_install')
+class TestPestanasEnElNavegador(HttpCase):
+
+    def test_en_la_computadora_todas_las_pestanas_se_alcanzan(self):
+        """La barra de desplazamiento de las pestañas va escondida: con mouse, lo que quedaba fuera de la pantalla no
+        se alcanzaba (en 1366 px, las últimas). Ahora bajan a otro renglón y todas quedan a la vista."""
+        admin = self.env.ref('base.user_admin')
+        admin.group_ids = [(4, self.env.ref('account.group_account_manager').id)]
+        codigo = """(async () => {
+            const esperar = async (fn, que) => {
+                for (let i = 0; i < 150; i++) {
+                    const r = fn();
+                    if (r) { return r; }
+                    await new Promise((ok) => setTimeout(ok, 100));
+                }
+                throw new Error('No apareció: ' + que);
+            };
+            await esperar(() => document.querySelectorAll('.o_dc_conta_pestana').length > 5, 'las pestañas');
+            const fuera = [...document.querySelectorAll('.o_dc_conta_pestana')]
+                .filter((p) => p.getBoundingClientRect().right > window.innerWidth + 1
+                    || p.getBoundingClientRect().left < -1)
+                .map((p) => p.textContent.trim());
+            if (fuera.length) { throw new Error('pestañas fuera de la pantalla: ' + fuera.join(', ')); }
+            if (document.documentElement.scrollWidth > window.innerWidth + 1) {
+                throw new Error('la página no debe deslizarse de lado');
+            }
+            console.log('test successful');
+        })();"""
+        for tamano in ('1366x768', '1024x768'):
+            with self.subTest(tamano=tamano):
+                self.browser_size = tamano
+                self.browser_js('/odoo/action-dcasa_contabilidad.accion_reportes', codigo, login='admin', timeout=120)

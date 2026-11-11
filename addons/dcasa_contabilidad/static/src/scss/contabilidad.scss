@@ -64,6 +64,16 @@
     scrollbar-width: none;
 }
 
+// En la computadora las pestañas que no caben bajan a otro renglón. La barra de desplazamiento va escondida y con el
+// mouse no hay cómo deslizar de lado: en una pantalla de 1366 px las últimas («ITBMS», «Analítica») no se alcanzaban
+// (auditoría visual del 2026-11-11). En el celular se siguen deslizando con el dedo.
+@include media-breakpoint-up(md) {
+    .o_dc_conta_pestanas {
+        flex-wrap: wrap;
+        overflow-x: visible;
+    }
+}
+
 .o_dc_conta_pestana {
     display: inline-flex;
     align-items: center;

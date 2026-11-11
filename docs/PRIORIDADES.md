@@ -29,19 +29,20 @@ LEEME_PRIMERO §2).
 
 000. **Auditoría visual del panel (2026-11-11), a medio camino.** Informe y capturas:
      <https://claude.ai/artifact/QN3GPdAtm7nKxQtu9X64MP>; detalle en la bitácora de LEEME_PRIMERO.
-     - **En la rama, sin desplegar** (commits `5dfe55c` a `48ed839`): fechas completas en las listas, Brian ya no tapa
-       el Total, aviso de lista vacía correcto, listas legibles en el celular, cabecera de formularios en un renglón,
-       Compras y contacto en el celular. **Falta:** el visto bueno de la dueña sobre las capturas → CI con staging →
+     - **En la rama, sin desplegar** (desde `5dfe55c`): fechas completas en las listas, Brian ya no tapa el Total,
+       aviso de lista vacía correcto, listas legibles en el celular, cabecera de formularios en un renglón, Compras y
+       contacto en el celular, botones de 44 px en la barra de arriba del celular, pestañas de Contabilidad que bajan
+       de renglón en la computadora. **Falta:** el visto bueno de la dueña sobre las capturas → CI con staging →
        PR → Desplegar (cambia Odoo: con `respaldo_previo`).
      - **Tres respuestas de la dueña:** (1) el Inicio nuevo con movimiento
        (<https://claude.ai/artifact/VUKX4zkP16JQ5HVcDwjm6G>): ¿le gusta?, ¿«Claro» o «Azul noche»?; (2) cotización:
        ¿guardar los datos de pocas veces en «Más datos» para que los productos queden arriba?; (3) Sitio web › Páginas
        da «Acceso denegado» a Gerencia: ¿quitarlo de su menú? (toca permisos: con revisión).
-     - **Lote 3, por hacer** (ninguno cambia funciones): pestañas de Contabilidad cortadas sin aviso (celular y
-       1366 px); Conversaciones en tableta nace con la lista reducida a iniciales; un ícono de la barra de arriba de
-       29 px de ancho en el celular; pantallas propias sin título en la barra de arriba del celular; textos sueltos
-       (el ejemplo de «Sitio web» del contacto dice odoo.com; «Ingreso esperado $ 0.00 en» queda colgando en el
-       celular); letra de 10,9 px en la franja de Envíos y en «Ctrl K».
+     - **Lote 3, por hacer** (ninguno cambia funciones): Conversaciones en tableta nace con la lista reducida a
+       iniciales (es a propósito hasta 1100 px, `preferencias.js`: proponer que abra entera mientras no haya un chat
+       elegido); en el celular las pestañas de Contabilidad se cortan sin aviso de que hay más; pantallas propias sin
+       título en la barra de arriba del celular; «Ingreso esperado $ 0.00 en» queda colgando en la oportunidad en el
+       celular; letra de 10,9 px en la franja de Envíos y en «Ctrl K».
      - **Boceto pendiente:** la caja de responder del chat en el celular ocupa un tercio de la pantalla (214 de
        664 px); los botones de 44 px están a propósito para el dedo, así que primero un boceto para la dueña.
      - **Más adelante:** gráficas de Odoo en el azul de D'CASA; tablas dinámicas en el celular; listas estiradas y
