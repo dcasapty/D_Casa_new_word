@@ -501,11 +501,15 @@ export class DcasaInicio extends Component {
         }
     }
 
-    /** Un contador del celular: baja (suave, si la persona no pidió menos movimiento) hasta su panel. */
+    /**
+     * Un contador del celular: baja (suave, si la persona no pidió menos movimiento) hasta su panel. El foco pasa al
+     * número de la cabecera de ese panel, para que quien usa teclado o lector de pantalla siga desde ahí.
+     */
     irAlPanel(clave) {
         const panel = this.raiz.el?.querySelector(`.o_dcasa_lista_${clave}`);
         if (panel) {
             panel.scrollIntoView({ behavior: sinMovimiento() ? "auto" : "smooth", block: "start" });
+            panel.querySelector(".o_dcasa_lista_cuenta")?.focus({ preventScroll: true });
         }
     }
 

@@ -107,7 +107,7 @@
                 justify-content: center;
                 gap: 6px;
                 min-height: 84px;
-                padding: 10px 6px;
+                padding: 10px 4px;
                 text-align: center;
             }
             .o_dcasa_atajo_icono { width: 36px; height: 36px; border-radius: 10px; font-size: 1rem; }
@@ -115,7 +115,8 @@
                 align-items: center;
                 max-width: 100%;
 
-                strong { font-size: .78rem; line-height: 1.2; }
+                // 12 px: «Conversaciones», el nombre más largo, cabe entero en un tercio de la pantalla.
+                strong { font-size: .75rem; line-height: 1.2; }
                 span {
                     position: absolute;
                     width: 1px;
@@ -148,7 +149,7 @@
             .o_dcasa_atajo_texto {
                 flex: 1 1 auto;
 
-                strong { font-size: .8125rem; line-height: 1.2; }
+                strong { font-size: .78rem; line-height: 1.2; }
                 span { margin-top: 2px; font-size: .75rem; line-height: 1.3; }
             }
             .o_dcasa_atajo_cuenta {
@@ -173,12 +174,12 @@
             gap: 6px;
 
             .o_dcasa_atajo { padding: 10px 3px; }
-            .o_dcasa_atajo_texto strong { font-size: .75rem; }
+            .o_dcasa_atajo_texto strong { letter-spacing: -.02em; }
         }
         &[data-modo="detalle"] {
             .o_dcasa_atajo { gap: 8px; padding: 10px 8px; }
             .o_dcasa_atajo_icono { width: 32px; height: 32px; }
-            .o_dcasa_atajo_texto strong { font-size: .78rem; }
+            .o_dcasa_atajo_texto strong { font-size: .75rem; }
             .o_dcasa_atajo_cuenta { left: 28px; }
         }
     }
