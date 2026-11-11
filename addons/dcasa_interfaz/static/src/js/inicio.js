@@ -4,7 +4,8 @@
  * Las cifras vienen de dcasa.tablero.obtener_datos (respetan los permisos de quien mira)
  * y cada una abre la lista que la explica. Debajo, los accesos del día a día y las apps.
  */
-import { Component, onWillStart, useExternalListener, useState } from "@odoo/owl";
+import { Component, onWillStart, onWillUnmount, useEffect, useExternalListener, useRef, useState } from "@odoo/owl";
+import { browser } from "@web/core/browser/browser";
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
 
@@ -26,6 +27,36 @@ const PERIODOS = [
     { clave: "rango", nombre: "Un rango" },
 ];
 
+// El tamaño de los accesos directos en el celular (aprobado por la dueña, 2026-11-11). Lo elige cada quien y se
+// recuerda en ese aparato; la primera vez van compactos. «Grandes» es como estuvieron siempre (uno por fila).
+export const CLAVE_ATAJOS = "dcasa.inicio.atajos";
+const TAMANOS_DE_ATAJOS = [
+    { clave: "compacto", nombre: "Compactos" },
+    { clave: "detalle", nombre: "Detalle" },
+    { clave: "grande", nombre: "Grandes" },
+];
+
+function leerTamanoDeAtajos() {
+    try {
+        const guardado = browser.localStorage.getItem(CLAVE_ATAJOS);
+        return TAMANOS_DE_ATAJOS.some((t) => t.clave === guardado) ? guardado : "compacto";
+    } catch {
+        return "compacto"; // sin almacenamiento (ventana privada, bloqueado): compactos
+    }
+}
+
+/** ¿La persona pidió menos movimiento en su aparato? Entonces nada sube ni se desliza. */
+function sinMovimiento() {
+    return browser.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+// Cuánto tarda una cifra en subir hasta su valor, y hasta dónde llega la barra más alta de la semana (el resto del alto
+// queda para el monto que va encima de la barra).
+const DURACION_SUBIDA = 700;
+const ALTO_DEL_TOPE = 88;
+// Topes «redondos» para la escala de la semana: el primero que alcance al día más alto (1,2 mil; 1,5 mil; 2 mil…).
+const PASOS_DEL_TOPE = [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10];
+
 export class DcasaInicio extends Component {
     static template = "dcasa_interfaz.Inicio";
     static props = ["*"];
@@ -35,8 +66,12 @@ export class DcasaInicio extends Component {
         this.action = useService("action");
         this.menu = useService("menu");
         this.periodos = PERIODOS;
+        this.tamanosDeAtajos = TAMANOS_DE_ATAJOS;
+        this.raiz = useRef("raiz");
         this.state = useState({
             datos: null,
+            // Cómo van los accesos directos en el celular: "compacto", "detalle" o "grande".
+            atajos: leerTamanoDeAtajos(),
             periodo: "hoy",
             desde: "",
             hasta: "",
@@ -66,6 +101,16 @@ export class DcasaInicio extends Component {
             },
         });
         onWillStart(() => this.cargar());
+        // Las cifras principales suben hasta su valor al abrir y cada vez que cambian (otro periodo, otra vendedora).
+        this.cifrasPintadas = new WeakMap();
+        this.subidas = new Map();
+        useEffect(() => this.subirCifras());
+        onWillUnmount(() => {
+            for (const cuadro of this.subidas.values()) {
+                browser.cancelAnimationFrame(cuadro);
+            }
+            this.subidas.clear();
+        });
         // Tocar fuera de la ayuda abierta (o de su ícono) la cierra: en el celular no hay «pasar el mouse».
         useExternalListener(window, "click", (ev) => {
             if (this.state.ayuda && !ev.target.closest(".o_dcasa_ayuda_boton, .o_dcasa_ayuda_texto")) {
@@ -442,8 +487,126 @@ export class DcasaInicio extends Component {
         return dias === 1 ? "hace 1 día" : `hace ${dias} días`;
     }
 
-    get maxSemana() {
-        return Math.max(1, ...this.state.datos.semana.map((d) => d.monto));
+    // ------------------------------------------------------------------
+    // Presentación: accesos directos en el celular, contadores, gráficas y cifras que suben
+    // ------------------------------------------------------------------
+
+    /** «Compactos», «Detalle» o «Grandes»: se recuerda en este aparato; si no se puede guardar, vale para esta vez. */
+    cambiarTamanoDeAtajos(clave) {
+        this.state.atajos = clave;
+        try {
+            browser.localStorage.setItem(CLAVE_ATAJOS, clave);
+        } catch {
+            // no se pudo recordar: la pantalla sigue igual
+        }
+    }
+
+    /** Un contador del celular: baja (suave, si la persona no pidió menos movimiento) hasta su panel. */
+    irAlPanel(clave) {
+        const panel = this.raiz.el?.querySelector(`.o_dcasa_lista_${clave}`);
+        if (panel) {
+            panel.scrollIntoView({ behavior: sinMovimiento() ? "auto" : "smooth", block: "start" });
+        }
+    }
+
+    /**
+     * La escala de «Ventas de la semana»: un tope redondo por encima del día más alto y tres marcas (cero, la mitad y
+     * el tope). Sale de los mismos montos de las barras; con la semana en cero no hay marcas.
+     */
+    get ejeSemana() {
+        const mayor = Math.max(0, ...this.state.datos.semana.map((d) => d.monto));
+        let tope = 1;
+        const marcas = [];
+        if (mayor > 0) {
+            const potencia = 10 ** Math.floor(Math.log10(mayor));
+            tope = PASOS_DEL_TOPE.map((paso) => paso * potencia).find((valor) => valor >= mayor) || mayor;
+            for (const valor of [0, tope / 2, tope]) {
+                marcas.push({ texto: this.dineroCorto(valor), alto: (valor / tope) * ALTO_DEL_TOPE });
+            }
+        }
+        // Un día en cero (o en negativo, por notas de crédito) deja una rayita de 3 %, como siempre.
+        return { marcas, alto: (monto) => Math.max(3, (monto / tope) * ALTO_DEL_TOPE) };
+    }
+
+    /** «$1.5 mil», «$600», «$2 M»: los montos de la escala, cortos. */
+    dineroCorto(valor) {
+        const { simbolo, antes } = this.state.datos.moneda;
+        const decimales = (maximo) => new Intl.NumberFormat("en-US", { maximumFractionDigits: maximo });
+        let numero;
+        if (valor >= 1e6) {
+            numero = `${decimales(1).format(valor / 1e6)} M`;
+        } else if (valor >= 1000) {
+            numero = `${decimales(1).format(valor / 1000)} mil`;
+        } else {
+            numero = decimales(valor >= 10 || !valor ? 0 : 2).format(valor);
+        }
+        return antes ? `${simbolo}${numero}` : `${numero} ${simbolo}`;
+    }
+
+    /** Qué parte de la barra fina se llena (0 a 100): un valor frente al mayor de su lista. */
+    proporcion(valor, mayor) {
+        if (!(mayor > 0)) {
+            return 0;
+        }
+        return Math.min(100, Math.max(0, (valor / mayor) * 100));
+    }
+
+    get maxCobro() {
+        return Math.max(0, ...this.state.datos.cobros.map((c) => c.monto));
+    }
+
+    get maxTop() {
+        return Math.max(0, ...this.state.datos.top.map((p) => p.cantidad));
+    }
+
+    /**
+     * Las cifras marcadas con «o_dcasa_sube» suben hasta su valor (data-valor). El texto de la etiqueta es SIEMPRE el
+     * valor final (lo pone la plantilla): mientras sube, el número que se ve va en «data-sube» y lo pinta el CSS con
+     * ::after encima del texto real, que queda transparente. Así ni las pruebas ni los lectores de pantalla ven un
+     * número a medias. Si la persona pidió menos movimiento, no sube nada.
+     */
+    subirCifras() {
+        const raiz = this.raiz.el;
+        if (!raiz) {
+            return;
+        }
+        const quieto = sinMovimiento();
+        for (const el of raiz.querySelectorAll(".o_dcasa_sube")) {
+            const hasta = Number(el.dataset.valor);
+            const desde = this.cifrasPintadas.get(el) || 0;
+            if (!Number.isFinite(hasta) || hasta === desde) {
+                continue;
+            }
+            this.cifrasPintadas.set(el, hasta);
+            this.dejarDeSubir(el);
+            if (quieto) {
+                continue;
+            }
+            const pintar =
+                el.dataset.formato === "moneda"
+                    ? (valor) => this.dinero(valor)
+                    : (valor) => new Intl.NumberFormat("en-US").format(Math.round(valor));
+            const empieza = browser.performance.now();
+            const paso = (ahora) => {
+                const avance = Math.min(1, Math.max(0, (ahora - empieza) / DURACION_SUBIDA));
+                if (avance >= 1 || !el.isConnected) {
+                    this.dejarDeSubir(el);
+                    return;
+                }
+                el.dataset.sube = pintar(desde + (hasta - desde) * (1 - (1 - avance) ** 3));
+                this.subidas.set(el, browser.requestAnimationFrame(paso));
+            };
+            el.dataset.sube = pintar(desde);
+            this.subidas.set(el, browser.requestAnimationFrame(paso));
+        }
+    }
+
+    dejarDeSubir(el) {
+        if (this.subidas.has(el)) {
+            browser.cancelAnimationFrame(this.subidas.get(el));
+            this.subidas.delete(el);
+        }
+        delete el.dataset.sube;
     }
 
     icono(cifra) {

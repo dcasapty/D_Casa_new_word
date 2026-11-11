@@ -3,6 +3,7 @@ from . import test_lista_vacia
 from . import test_listas_fechas
 from . import test_panel
 from . import test_inicio_por_rol
+from . import test_inicio_tablero
 from . import test_sitio
 from . import test_favicon
 from . import test_scroll

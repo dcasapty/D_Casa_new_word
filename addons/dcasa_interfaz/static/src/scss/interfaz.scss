@@ -1,5 +1,9 @@
 // «Inicio» de D'CASA con el sistema de diseño (tokens.scss): superficies blancas sobre
 // blanco frío, variantes del azul de la marca y el amarillo como detalle mínimo.
+//
+// Varias clases de aquí las comparten otras pantallas (Estadísticas, Por día, Movimientos, Valor del inventario).
+// Lo que es SOLO del Inicio (los tamaños de los accesos en el celular, los contadores, las barras de proporción, el
+// movimiento) vive en tablero.scss, colgado de `.o_dcasa_tablero`.
 
 @font-face {
     font-family: "Anton";
@@ -97,14 +101,29 @@
         align-items: center;
         font-weight: 500;
     }
+}
 
-    @media (max-width: 575.98px) {
-        flex-wrap: nowrap;
-        overflow-x: auto;
-        scrollbar-width: none;
-        margin: 0 calc(-1 * clamp(1rem, 3vw, 40px));
-        padding: 0 clamp(1rem, 3vw, 40px) 2px;
-        .btn { white-space: nowrap; flex: none; }
+// En el celular (2026-11-11): los botones del saludo van enteros, dos por fila y de 44 px de alto. Antes iban en una
+// tira que se deslizaba de lado y «Nueva cotización» quedaba cortada en el borde. «Ver la tienda», que es solo un ícono,
+// va al final de su fila. Cada botón mide lo mismo que su vecino salvo que su texto pida más: nunca se corta.
+// Odoo, en las pantallas táctiles, les pone a todos los `.btn` su relleno y su letra con una regla de tres clases
+// (.o_web_client.o_touch_device .btn): por eso esta lleva la raíz delante.
+@media (max-width: 575.98px) {
+    .o_dcasa_inicio_accesos { width: 100%; }
+
+    .o_web_client .o_dcasa_inicio .o_dcasa_inicio_accesos .btn {
+        flex: 1 1 34%;              // tres ya no caben en una fila: quedan de a dos
+        min-width: min-content;
+        min-height: 44px;
+        padding: 0 6px;
+        justify-content: center;
+        font-size: .8125rem;
+        white-space: nowrap;
+
+        .fa.me-2 { margin-right: 6px !important; }
+        // El que queda solo en la última fila (p. ej. «Nuevo cliente» de la vendedora) mide media fila, no entera.
+        &:last-child:nth-child(odd):not(.o_dcasa_ver_tienda) { flex: 0 0 calc(50% - 4px); }
+        &.o_dcasa_ver_tienda { flex: 0 0 44px; min-width: 44px; padding: 0; }
     }
 }
 

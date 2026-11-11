@@ -34,6 +34,11 @@
     // Acento
     --dc-amarillo: #FED00F;
 
+    // Estados escritos sobre blanco (p. ej. «Lista» y «Falta mercancía» en las entregas del Inicio): verde y ámbar
+    // oscuros, que se leen sobre blanco. No son el amarillo de la marca (ese nunca toca el blanco).
+    --dc-bien: #0F6B3C;
+    --dc-falta: #8A4B00;
+
     // Forma
     --dc-r-sm: 8px;
     --dc-r-md: 12px;
@@ -46,4 +51,5 @@
     --dc-barra-w: 256px;
     --dc-barra-w-colapsada: 68px;
     --dc-transicion: 200ms cubic-bezier(.2, .8, .2, 1);
+    --dc-curva: cubic-bezier(.2, .8, .2, 1);   // la misma curva, para las animaciones cortas del Inicio
 }
