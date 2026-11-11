@@ -226,6 +226,8 @@ class TestPanelEnElNavegador(PanelUiCase):
         momento = pytz.utc.localize(vieja.ultima_actividad).astimezone(pytz.timezone('America/Panama'))
         self.navegador("""
 (async () => {
+    // Se busca por nombre: la lista trae primero lo más reciente y una conversación vieja puede quedar en otra tanda.
+    await escribir(await esperar(() => document.querySelector("input[type=search]"), "el buscador"), "Zoila Antigua");
     const fila = await esperar(() => aqui(".o_dcj_fila", "Zoila Antigua"), "la conversación vieja");
     const fecha = fila.querySelector(".o_dcj_hora").textContent.trim();
     if (fecha !== "__ESPERADA__") { throw new Error("la fecha debe ser día/mes/año (__ESPERADA__) y dice " + fecha); }
