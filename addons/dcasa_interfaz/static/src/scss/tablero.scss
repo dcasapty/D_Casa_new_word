@@ -350,6 +350,17 @@
 .o_dcasa_tablero {
     .o_dcasa_inicio_fila { align-items: start; }   // cada tarjeta mide lo que su contenido
 
+    // El título y su nota («FACTURADO · SIN ITBMS»): si la nota no cabe al lado, baja entera al renglón siguiente,
+    // alineada con el título, en vez de partirse.
+    .o_dcasa_panel > h2 {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 2px 8px;
+
+        > .o_dcasa_sin_itbms { margin-left: 0; }
+    }
+
     // La escala a la izquierda, las barras y, debajo de las barras, los días.
     .o_dcasa_grafico_caja {
         display: grid;
