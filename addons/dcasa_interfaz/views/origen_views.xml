@@ -9,9 +9,16 @@
         <field name="inherit_id" ref="sale.sale_order_tree"/>
         <field name="arch" type="xml">
             <field name="user_id" position="after">
-                <field name="dcasa_origen" widget="badge" optional="show"
+                <!-- Ancho fijo: la etiqueta más larga («Vendedora») cabe siempre. Sin él, cuando la tabla va justa la
+                     columna se encoge y la etiqueta sale «Vended…» (auditoría visual del 2026-11-11). -->
+                <field name="dcasa_origen" widget="badge" optional="show" width="92px"
                        decoration-info="dcasa_origen == 'chatbot'" decoration-success="dcasa_origen == 'web'"
                        decoration-muted="dcasa_origen == 'vendedora'"/>
+            </field>
+            <!-- Igual el estado: «Cotización enviada» entera. En una portátil lo que cede es el nombre largo del
+                 cliente, no las etiquetas. -->
+            <field name="state" position="attributes">
+                <attribute name="width">140px</attribute>
             </field>
         </field>
     </record>
@@ -51,7 +58,7 @@
         <field name="inherit_id" ref="account.view_invoice_tree"/>
         <field name="arch" type="xml">
             <field name="invoice_user_id" position="after">
-                <field name="dcasa_origen" widget="badge" optional="show" string="Origen"
+                <field name="dcasa_origen" widget="badge" optional="show" string="Origen" width="92px"
                        column_invisible="context.get('default_move_type') not in ('out_invoice', 'out_refund', 'out_receipt')"
                        decoration-info="dcasa_origen == 'chatbot'" decoration-success="dcasa_origen == 'web'"
                        decoration-muted="dcasa_origen == 'vendedora'"/>

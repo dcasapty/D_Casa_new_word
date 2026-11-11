@@ -44,6 +44,15 @@ class TestFechasEnLasListas(VentasMixin, HttpCase):
                 }
                 if (!/\d{1,2}:\d{2}/.test(texto)) { throw new Error('la fecha debía traer la hora: ' + texto); }
             }
+            // Arreglar la fecha no puede cortar otra cosa: las etiquetas de la fila (origen, estado) se leen enteras.
+            for (const etiqueta of document.querySelectorAll('.o_list_view .o_data_row .badge')) {
+                if (etiqueta.scrollWidth > etiqueta.clientWidth + 1) {
+                    throw new Error('etiqueta cortada: «' + etiqueta.textContent.trim() + '»');
+                }
+            }
+            if (!document.querySelector('.o_list_view .o_data_row td[name="dcasa_origen"] .badge')) {
+                throw new Error('la fila debía traer la etiqueta de origen');
+            }
             // Y no se queda con el hueco del peor caso de Odoo (año y segundos) habiendo columnas que lo necesitan.
             const columna = document.querySelector('.o_list_table thead th[data-name="create_date"]');
             const texto = celdas[0].firstElementChild || celdas[0];
