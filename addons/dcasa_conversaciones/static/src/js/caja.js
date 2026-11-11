@@ -320,7 +320,13 @@ export class CajaRespuesta extends Component {
             return null;
         }
         if (c.estado === "cerrada") {
-            return { clase: "cerrada", texto: "Conversación cerrada. Si escribes, se reabre y la atiendes tú.", corto: "Cerrada", boton: "Atender", botonCorto: "Atender" };
+            return {
+                clase: "cerrada",
+                texto: "Conversación cerrada. Si escribes, se reabre y la atiendes tú.",
+                corto: "Cerrada",
+                boton: "Atender",
+                botonCorto: "Atender",
+            };
         }
         if (c.estado === "humano" && !c.bot_atiende) {
             const vence = c.pausada_hasta
