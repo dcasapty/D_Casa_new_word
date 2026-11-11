@@ -17,3 +17,11 @@
 .o_field_property_label .o_field_property_open_popover:hover,
 .o_field_property_label .oi-draggable:hover { color: var(--dc-azul-600); }
 .o_field_property_tag .o_field_property_dropdown_add * { color: var(--dc-azul-600) !important; }
+
+// Las etiquetas sin color (ITBMS 7 %, categorías…) eran una pastilla rosada clara: de noche, gris. Las de colores
+// (las que alguien eligió) conservan su color.
+.o_tag_color_0,
+.o_tag.o_tag_color_0::after {
+    --background-color: #{"var(--dc-cabeza)"};
+    --color: #{"var(--dc-tinta)"};
+}

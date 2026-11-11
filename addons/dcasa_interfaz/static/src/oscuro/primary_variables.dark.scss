@@ -60,10 +60,12 @@ $o-main-link-color: $dc-o-acento;
 $o-main-code-color: #F29BC0;
 $o-main-favorite-color: #F3CC00;
 
-$o-success: #2A9A62;
-$o-info: #3D9DB8;
+// Como relleno llevan letra blanca (insignias «Cotización», «Pagado»…): un punto más oscuros que en claro para que la
+// letra chica se lea; como ícono sobre gris siguen pasando de 3:1.
+$o-success: #268C5A;
+$o-info: #2A869E;
 $o-warning: #E0A526;
-$o-danger: #E05A52;
+$o-danger: #D64F47;
 
 // Los mismos estados, escritos (texto sobre la superficie): más claros para que se lean.
 $o-theme-text-colors: (
