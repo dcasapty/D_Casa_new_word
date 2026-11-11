@@ -27,30 +27,27 @@ LEEME_PRIMERO §2).
 
 ## Lo que sigue, en orden
 
-000. **Auditoría visual del panel (2026-11-11): los arreglos están en producción; falta el Inicio nuevo.** Informe y
-     capturas: <https://claude.ai/artifact/QN3GPdAtm7nKxQtu9X64MP>; detalle en la bitácora de LEEME_PRIMERO.
-     - **En producción (Desplegar 64, PR #109):** 21 arreglos que no cambian el diseño (fechas completas en las listas,
-       Brian ya no tapa el Total, aviso de lista vacía, listas y formularios en el celular, Compras, contacto,
-       oportunidad, barra de estado y botones de la cotización, fechas día/mes en el chat y en Brian, aviso de la
-       cámara, «Buscar» encuentra pantallas, periodos del Inicio sin marco, pestañas de Contabilidad, «Páginas» fuera
-       del menú). La dueña lo autorizó así: arreglos sí; «lo que hace parte de una nueva interfaz o nuevo tema, eso
-       tengo que analizarlo y verlo muy bien, incluso en dispositivos móviles».
-     - **Inicio nuevo: propuesta 2 lista para que la dueña la vea** (boceto, no está en el panel):
-       <https://claude.ai/artifact/6s9iQpc8ZFh1DNse8vA2RG>. Mismo orden de hoy, menos recargado, modo oscuro gris
-       («estilo Cubase 16»), y en el celular los nueve accesos en la primera pantalla más tres contadores que llevan a
-       cada panel. **Con su visto bueno:** construirlo en la rama y mostrárselo en capturas (celular incluido) antes de
-       staging. Nada de esto va a staging ni a producción sin que ella lo apruebe.
-     - **Cinco respuestas de la dueña:** (1) la propuesta 2 y «Compactos» o «Detalle» en el celular; (2) el boceto de la
-       caja del chat en el celular (<https://claude.ai/artifact/A6P3KWL2F5KJx5MfX4sBsH>: de 211 a 111 px, sin quitar
-       herramientas); (3) cotización: ¿guardar los datos de pocas veces en «Más datos»?; (4) Conversaciones en tableta:
-       ¿abrir con la lista entera mientras no haya un chat elegido? (hoy nace reducida a iniciales, a propósito,
-       `preferencias.js`); (5) «Entregas pendientes» del Inicio cuenta todas las entregas y el acceso «Bodega» solo las
-       pagadas o con abono: ¿se dejan iguales?
+000. **Panel renovado (2026-11-11): los arreglos de la auditoría están en producción; el Inicio nuevo, el celular y lo
+     demás aprobado están en la rama, por desplegar.** Detalle y citas de la dueña en la bitácora de LEEME_PRIMERO
+     (entradas del 2026-11-11 (2) y (3)). Informe de la auditoría: <https://claude.ai/artifact/QN3GPdAtm7nKxQtu9X64MP>.
+     - **En producción (Desplegar 64, PR #109):** 21 arreglos que no cambian el diseño.
+     - **Aprobado por la dueña y terminado en la rama (falta CI con staging → PR → Desplegar):** el Inicio nuevo
+       (propuesta 2, accesos del celular en tres tamaños); y los tres arreglos del celular que ella reportó: el Inicio
+       ya no queda en blanco al entrar, el menú del celular es una sola lista (sin la «subcarpeta») y «atrás» dentro
+       del chat vuelve a la lista.
+     - **Aprobado y en construcción (van en ese mismo despliegue si llegan a tiempo; si no, en el siguiente):** la caja
+       de responder del chat en el celular; Conversaciones en tableta con la lista entera mientras no haya chat
+       abierto; «Entregas pendientes» del Inicio igual que «Bodega»; «Más datos» plegable en la cotización.
+     - **Modo oscuro gris («estilo Cubase»), opcional por persona:** en construcción en `local/agente-d`. Va en su
+       propio despliegue, **después de que la dueña vea las capturas** (celular incluido). El claro no cambia.
+     - **Que la dueña opine cuando lo vea en su teléfono:** el menú nuevo del celular (se le mandaron capturas) y los
+       tres detalles en que el Inicio se apartó del boceto (bitácora).
      - **Más adelante (van con el diseño nuevo o son de Odoo):** gráficas de Odoo en el azul de D'CASA; tablas
        dinámicas en el celular; listas estiradas en 1920 px; títulos de las pantallas propias en la barra del celular;
-       la tarjeta «Instale Odoo» y OdooBot; «Manual Payment» (dato: se cambia en Ajustes).
-     - **Versión estable:** Desplegar 64 es más nuevo que la estable 4. Si en unos días no da guerra, nombrar la
-       estable 5 (pedirle el «sí» a la dueña, como la vez pasada).
+       la tarjeta «Instale Odoo» y OdooBot; «Manual Payment» (dato: se cambia en Ajustes); en tableta parada
+       (768–991 px) el menú sigue siendo el de Odoo (íconos arriba), que funciona pero no es el propio.
+     - **Versión estable:** Desplegar 64 es más nuevo que la estable 4. Cuando el despliegue del Inicio nuevo lleve
+       unos días sin dar guerra, nombrar la estable 5 (pedirle el «sí» a la dueña, como la vez pasada).
 1. **Camila (mail marketing)** ([CAMILA.md](CAMILA.md)): etapas 1 y 2 **en producción** desde el 2026-11-06 (Desplegar
    52 y 54, con Juan 7). La clave de campañas ya está y Odoo la tomó (Desplegar 53). Nada sale sin que alguien de
    Marketing o Gerencia apruebe la campaña. Falta de la dueña: la primera campaña y confirmar el «Sí, quiero» de dos
