@@ -174,7 +174,8 @@
                                 </button>
                             </li>
                         </ul>
-                        <p t-else="" class="o_dcasa_vacio">No hay entregas pendientes.</p>
+                        <p t-else="" class="o_dcasa_vacio"
+                           t-out="d.entregas.esperan ? 'Nada por despachar todavía.' : 'No hay entregas pendientes.'"/>
                         <!-- El pie abre la misma lista que el número de la cabecera; sale siempre que haya entregas
                              (antes, solo cuando no cabían todas): en el celular se ve mejor que el número. -->
                         <p t-if="d.entregas.cantidad" class="o_dcasa_lista_pie">
@@ -183,6 +184,15 @@
                                     t-on-click="() => this.abrirLista(d.entregas.accion)">
                                 <t t-if="d.entregas.cantidad === 1">Ver la entrega</t>
                                 <t t-else="">Ver las <t t-out="d.entregas.cantidad"/> entregas</t>
+                            </button>
+                        </p>
+                        <!-- Con Bodega (dcasa_barras), el panel cuenta lo mismo que Bodega: las entregas de pedidos
+                             con pago o abono. Las demás no se pierden de vista: este renglón dice cuántas esperan y
+                             abre su lista (2026-11-11). Sin ese módulo el dato no viene y el renglón no sale. -->
+                        <p t-if="d.entregas.esperan" class="o_dcasa_lista_pie o_dcasa_lista_esperan">
+                            <button type="button" class="btn btn-link p-0 o_dcasa_lista_ver"
+                                    t-on-click="() => this.abrirLista(d.entregas.esperan.accion)">
+                                <i class="fa fa-clock-o" aria-hidden="true"/><t t-out="d.entregas.esperan.texto"/>
                             </button>
                         </p>
                     </section>

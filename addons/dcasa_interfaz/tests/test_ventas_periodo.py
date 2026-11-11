@@ -6,7 +6,7 @@ posiciones. Las comparaciones viven en el bloque «Comparar» (``test_comparar.p
 ``test_facturado.py``."""
 from datetime import date, timedelta
 
-from odoo import Command
+from odoo import Command, fields
 from odoo.exceptions import UserError
 from odoo.tests import tagged
 
@@ -222,10 +222,24 @@ class TestVentasPorPeriodo(VentasCommon):
             datos['cotizaciones']['total'] - datos['cotizaciones']['sin_itbms'],
             sum(self.env['sale.order'].search(datos['cotizaciones']['accion']['domain']).mapped('amount_tax')),
             places=2)
-        if despachar.picking_ids:
-            self.assertIn(despachar.picking_ids[0].name, [f['nombre'] for f in datos['entregas']['filas']])
         self.assertLessEqual(len(datos['cotizaciones']['filas']), 5)
         self.assertLessEqual(len(datos['entregas']['filas']), 5)
+        if not despachar.picking_ids:
+            return
+        entrega = despachar.picking_ids[0]
+        entrega.scheduled_date = fields.Datetime.now() - timedelta(days=3650)     # la más antigua: va entre las cinco
+        Picking = self.env['stock.picking']
+        if 'dcasa.bodega' in self.env:
+            # Con Bodega instalado (dcasa_barras), el panel cuenta lo mismo que Bodega (2026-11-11): un pedido sin pago
+            # ni abono no sale arriba; queda en el renglón «N más esperan pago o abono» hasta que se cobra.
+            datos = self.tablero.with_user(self.gerencia).obtener_datos()
+            self.assertNotIn(entrega.name, [f['nombre'] for f in datos['entregas']['filas']])
+            self.assertNotIn(entrega, Picking.search(datos['entregas']['accion']['domain']))
+            self.assertIn(entrega, Picking.search(datos['entregas']['esperan']['accion']['domain']))
+            self._pagar(self.facturar(despachar))
+        datos = self.tablero.with_user(self.gerencia).obtener_datos()
+        self.assertIn(entrega.name, [f['nombre'] for f in datos['entregas']['filas']])
+        self.assertIn(entrega, Picking.search(datos['entregas']['accion']['domain']))
 
     def test_las_cotizaciones_de_la_tienda_y_las_de_la_web_van_en_paneles_aparte(self):
         """Pedido de la dueña (2026-11-03): «para no revolver todas las cotizaciones en un solo panel». Un carrito vacío

@@ -9,3 +9,4 @@ from . import test_atajo_inicio
 from . import test_precio
 from . import test_bodega
 from . import test_bodega_ui
+from . import test_entregas_inicio
