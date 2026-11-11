@@ -1,6 +1,6 @@
 # Prioridades vigentes
 
-Puesto al día el **2026-11-11** (cierre de semana). Es el orden en que se trabaja: cada sesión lo lee al empezar y lo pone al día al
+Puesto al día el **2026-11-11** (cierre de semana y auditoría visual del panel). Es el orden en que se trabaja: cada sesión lo lee al empezar y lo pone al día al
 terminar (ver [LEEME_PRIMERO.md](LEEME_PRIMERO.md)). Aquí va **un solo estado**, el de hoy; lo que pasó cada día está en
 la bitácora de LEEME_PRIMERO (y lo más viejo en [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md)).
 
@@ -27,6 +27,29 @@ LEEME_PRIMERO §2).
 
 ## Lo que sigue, en orden
 
+000. **Auditoría visual del panel (2026-11-11), a medio camino.** Informe y capturas:
+     <https://claude.ai/artifact/QN3GPdAtm7nKxQtu9X64MP>; detalle en la bitácora de LEEME_PRIMERO.
+     - **En la rama, sin desplegar** (desde `5dfe55c`): fechas completas en las listas, Brian ya no tapa el Total,
+       aviso de lista vacía correcto, listas legibles en el celular, cabecera de formularios en un renglón, Compras y
+       contacto en el celular, botones de 44 px en la barra de arriba del celular, pestañas de Contabilidad que bajan
+       de renglón en la computadora. **Falta:** el visto bueno de la dueña sobre las capturas → CI con staging →
+       PR → Desplegar (cambia Odoo: con `respaldo_previo`).
+     - **Tres respuestas de la dueña:** (1) el Inicio nuevo con movimiento
+       (<https://claude.ai/artifact/VUKX4zkP16JQ5HVcDwjm6G>): ¿le gusta?, ¿«Claro» o «Azul noche»?; (2) cotización:
+       ¿guardar los datos de pocas veces en «Más datos» para que los productos queden arriba?; (3) Sitio web › Páginas
+       da «Acceso denegado» a Gerencia: ¿quitarlo de su menú? (toca permisos: con revisión).
+     - **Lote 3, por hacer** (ninguno cambia funciones): Conversaciones en tableta nace con la lista reducida a
+       iniciales (es a propósito hasta 1100 px, `preferencias.js`: proponer que abra entera mientras no haya un chat
+       elegido); en el celular las pestañas de Contabilidad se cortan sin aviso de que hay más; pantallas propias sin
+       título en la barra de arriba del celular; «Ingreso esperado $ 0.00 en» queda colgando en la oportunidad en el
+       celular; letra de 10,9 px en la franja de Envíos y en «Ctrl K».
+     - **Boceto de la caja de responder del chat en el celular** (hoy ocupa un tercio de la pantalla, 211 px; la
+       propuesta, 111 px: quién atiende + «Devolver» + Respuesta / Nota en un renglón; «+» con las herramientas,
+       «Sugerir» a la vista, el campo y Enviar en otro): <https://claude.ai/artifact/A6P3KWL2F5KJx5MfX4sBsH>. Espera
+       la decisión de la dueña; los botones siguen en 44 px y no se quita ninguna herramienta.
+     - **Más adelante:** gráficas de Odoo en el azul de D'CASA; tablas dinámicas en el celular; listas estiradas y
+       pantallas propias pegadas a la izquierda en 1920 px; el tablero de Compras en el celular (cinco cifras
+       apretadas).
 00. **La semana que viene, propuesta en este orden** (se confirma con la dueña):
     1. **El aviso «Quedó por enviar» con el motivo real** (hoy dice «el Worker no respondió» para cualquier fallo) y un
        **aviso a Gerencia por Telegram cuando un canal de Meta deja de enviar o recibir**: el 131070 no está entre los

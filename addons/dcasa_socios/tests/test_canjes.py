@@ -63,6 +63,12 @@ class TestCanjes(SociosCommon):
         with self.assertRaises(UserError):
             self.env['dcasa.canje']._pedir(self.padrino, self.diez)
 
+    def test_el_asistente_de_cobrar_premio_no_trae_rotulos_en_ingles(self):
+        """La venta salía rotulada «Order» (auditoría visual del 2026-11-11)."""
+        rotulos = self.env['dcasa.cobrar.premio.wizard'].fields_get(['order_id', 'codigo'], ['string'])
+        self.assertEqual(rotulos['order_id']['string'], 'Venta')
+        self.assertEqual(rotulos['codigo']['string'], 'Código del premio')
+
     def test_cobrar_premio_en_la_venta(self):
         canje = self.env['dcasa.canje']._pedir(self.padrino, self.diez)
         orden = self.env['sale.order'].create({

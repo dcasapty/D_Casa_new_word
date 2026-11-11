@@ -128,7 +128,9 @@ function fechaCorta(iso) {
     if (d.toDateString() === hoy.toDateString()) {
         return d.toLocaleTimeString("es-PA", { hour: "numeric", minute: "2-digit" });
     }
-    return d.toLocaleDateString("es-PA", { day: "2-digit", month: "2-digit", year: "numeric" });
+    // Día/mes/año a mano: el formato numérico de «es-PA» es mes/día/año («11/04/2026» para el 4 de noviembre).
+    const dos = (n) => String(n).padStart(2, "0");
+    return `${dos(d.getDate())}/${dos(d.getMonth() + 1)}/${d.getFullYear()}`;
 }
 
 /** La conversación (o el registro) ya no existe: se borró en otra parte. */

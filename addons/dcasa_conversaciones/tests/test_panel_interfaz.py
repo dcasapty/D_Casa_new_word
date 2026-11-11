@@ -5,16 +5,20 @@ import base64
 import io
 import itertools
 import os
+import pathlib
+import re
 import time
 from datetime import timedelta
 from unittest.mock import patch
 
+import pytz
 from freezegun import freeze_time
 from PIL import Image
 
 from odoo import Command, fields
 from odoo.exceptions import AccessError
 from odoo.tests import HttpCase, new_test_user, tagged
+from odoo.tools import file_path
 
 from ..models.conversacion import CANAL_BUS
 from .common import COSTOS, SALUD, TOKEN_ODOO, TOKEN_WORKER, URL_WORKER, respuesta_http
@@ -213,6 +217,33 @@ class TestPanelEnElNavegador(PanelUiCase):
     console.log("test successful");
 })().catch((e) => console.error(e.message || e));
 """)
+
+    def test_una_conversacion_vieja_muestra_la_fecha_como_dia_mes_ano(self):
+        """Auditoría visual del 2026-11-11: el 4 de noviembre salía «11/04/26» (el formato numérico de «es-PA» es
+        mes/día/año) y se leía como 11 de abril. El resto del panel escribe día/mes."""
+        vieja = self.registrar('Hola, quería preguntar por un comedor', '50761000077', minutos=60 * 24 * 40,
+                               nombre='Zoila Antigua')
+        momento = pytz.utc.localize(vieja.ultima_actividad).astimezone(pytz.timezone('America/Panama'))
+        self.navegador("""
+(async () => {
+    // Se busca por nombre: la lista trae primero lo más reciente y una conversación vieja puede quedar en otra tanda.
+    await escribir(await esperar(() => document.querySelector("input[type=search]"), "el buscador"), "Zoila Antigua");
+    const fila = await esperar(() => aqui(".o_dcj_fila", "Zoila Antigua"), "la conversación vieja");
+    const fecha = fila.querySelector(".o_dcj_hora").textContent.trim();
+    if (fecha !== "__ESPERADA__") { throw new Error("la fecha debe ser día/mes/año (__ESPERADA__) y dice " + fecha); }
+    console.log("test successful");
+})().catch((e) => console.error(e.message || e));
+""".replace('__ESPERADA__', momento.strftime('%d/%m/%y')))
+
+    def test_las_fechas_cortas_de_las_pantallas_propias_no_usan_el_formato_numerico_de_es_pa(self):
+        """Sin navegador: ninguna pantalla propia arma una fecha de solo números con «es-PA» (sale mes/día/año)."""
+        raiz = pathlib.Path(file_path('dcasa_conversaciones')).parent
+        malas = []
+        for archivo in raiz.glob('*/static/src/**/*.js'):
+            for n, linea in enumerate(archivo.read_text(encoding='utf-8').splitlines(), 1):
+                if 'es-PA' in linea and re.search(r'month:\s*"(2-digit|numeric)"', linea):
+                    malas.append(f'{archivo.relative_to(raiz)}:{n}')
+        self.assertFalse(malas, f'Fechas numéricas con es-PA (mes/día/año): {malas}')
 
     def test_abrir_un_hilo_burbujas_fotos_y_visor(self):
         self.datos_de_ejemplo()

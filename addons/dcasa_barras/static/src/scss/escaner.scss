@@ -27,6 +27,7 @@
     .o_dcasa_escaner_fila { display: flex; gap: 8px; }
     .o_dcasa_escaner_texto {
         flex: 1; min-width: 0; min-height: 56px; padding: 0 16px; font-size: 1.25rem;
+        text-overflow: ellipsis;    // el ejemplo («Código, referencia o nombre») no cabe en el celular: que termine en «…»
         border: 2px solid var(--dc-azul-600, #1340B1); border-radius: 12px; background: var(--dc-blanco, #fff);
         &:focus { outline: none; box-shadow: 0 0 0 3px var(--dc-azul-300, #9DB5F0); }
     }
@@ -97,7 +98,7 @@
     .o_dcasa_contar { border-top: 2px solid var(--dc-azul-600, #1340B1); padding-top: 14px; }
     .o_dcasa_contar_campos { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;
         label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; flex: 1; min-width: 160px; } }
-    .o_dcasa_select, .o_dcasa_cantidad {
+    .o_dcasa_select, .o_dcasa_cantidad, .o_dcasa_precio_nuevo {
         min-height: 56px; padding: 0 12px; border: 2px solid var(--dc-azul-600, #1340B1); border-radius: 12px;
         font-size: 1.15rem; background: var(--dc-blanco, #fff);
     }

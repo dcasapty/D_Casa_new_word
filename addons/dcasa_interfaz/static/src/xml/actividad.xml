@@ -1,15 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
 
-    <!-- El botón «Actividad» de arriba (junto al engranaje): muestra u oculta el panel de mensajes y notas. -->
+    <!-- El botón «Actividad» de arriba (junto al engranaje): muestra u oculta el panel de mensajes y notas.
+         En el celular va solo el ícono (el nombre queda para los lectores de pantalla): con la palabra, la cabecera
+         del formulario no cabía en un renglón y las flechas bajaban a otro (auditoría visual del 2026-11-11). -->
     <t t-inherit="web.FormView" t-inherit-mode="extension">
         <xpath expr="//t[@t-set-slot='control-panel-additional-actions']" position="inside">
             <button t-if="dcasaHayActividad" type="button"
                     t-attf-class="btn btn-secondary o_dcasa_actividad_boton {{ dcasaActividad.visible ? 'active' : '' }}"
                     t-att-aria-pressed="dcasaActividad.visible ? 'true' : 'false'"
                     title="Mostrar u ocultar los mensajes y las notas de este documento"
+                    aria-label="Actividad"
                     t-on-click="dcasaAlternarActividad">
-                <i class="fa fa-comments-o me-1"/>Actividad
+                <i class="fa fa-comments-o" aria-hidden="true"/><span class="o_dcasa_actividad_texto ms-1">Actividad</span>
             </button>
         </xpath>
     </t>

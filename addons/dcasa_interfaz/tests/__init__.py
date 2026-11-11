@@ -1,4 +1,6 @@
 from . import test_interfaz
+from . import test_lista_vacia
+from . import test_listas_fechas
 from . import test_panel
 from . import test_inicio_por_rol
 from . import test_sitio
@@ -20,3 +22,5 @@ from . import test_pantallas_navegador
 from . import test_valor_inventario
 from . import test_cobros_por_forma
 from . import test_origen
+from . import test_oportunidad_celular
+from . import test_cotizacion_celular

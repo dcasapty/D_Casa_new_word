@@ -15,6 +15,12 @@
         > .o_navbar { grid-column: 2; grid-row: 1; }
         > .o_action_manager { grid-column: 2; grid-row: 2; min-width: 0; }
         > .o-main-components-container { position: absolute; inset: 0 auto auto 0; width: 0; height: 0; }
+        // Lo que Odoo cuelga un instante del <body> para medir (el ancho de las columnas de fecha de las listas, entre
+        // otros) no es una columna de esta rejilla: caía en la de la barra (68 px), medía el texto partido en renglones
+        // y todas las fechas con hora salían cortadas («11 nov,…»). Que ocupe el ancho entero.
+        > :not(.o_dcasa_barra):not(.o_navbar):not(.o_action_manager):not(.o-main-components-container) {
+            grid-column: 1 / -1;
+        }
 
         // La barra superior ya no repite lo que está en la lateral.
         .o_navbar .o_menu_toggle,
@@ -102,7 +108,7 @@
     .fa { width: 20px; text-align: center; }
     span { flex: 1; }
     kbd {
-        font: 500 .68rem/1 "Inter", sans-serif;
+        font: 500 .75rem/1 "Inter", sans-serif;
         color: var(--dc-tinta-3);
         background: var(--dc-blanco);
         border: 1px solid var(--dc-linea);

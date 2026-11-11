@@ -160,6 +160,9 @@ class TestCalculadoraEnElNavegador(HttpCase):
                 throw new Error('La tarjeta no deja 16 px de margen');
             }
             if (getComputedStyle(pantalla).overflowY !== 'auto') { throw new Error('En el celular tampoco baja'); }
+            // La franja «D'CASA Panamá · desde la tienda…» medía 10.9 px (auditoría visual del 2026-11-11).
+            const letra = parseFloat(getComputedStyle(document.querySelector('.o_de_marca')).fontSize);
+            if (letra < 11.5) { throw new Error('La franja de marca se lee muy chica: ' + letra + ' px'); }
         """)
 
     def test_sin_datos_dice_como_cargarlos(self):

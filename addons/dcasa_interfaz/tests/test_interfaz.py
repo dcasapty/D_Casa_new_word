@@ -209,6 +209,14 @@ class TestInterfazWeb(HttpCase):
             const muertos = [...document.querySelectorAll('a.o_dcasa_barra_seccion')]
                 .filter((a) => a.getAttribute('href') === '/odoo').map((a) => a.textContent.trim());
             if (muertos.length) { throw new Error('Secciones sin destino: ' + muertos.join(', ')); }
+            // «Buscar» abre ya en la búsqueda de pantallas: antes, escribir el nombre de una pantalla contestaba
+            // «No se encontraron comandos» (auditoría visual del 2026-11-11).
+            document.querySelector('.o_dcasa_barra_buscar').click();
+            const caja = await esperar(() => document.querySelector('.o_command_palette_search'), 'el buscador');
+            const modo = (caja.querySelector('.o_namespace')?.textContent || '') + caja.querySelector('input').value;
+            if (!modo.trim().startsWith('/')) { throw new Error('el buscador debe abrir buscando pantallas: ' + modo); }
+            await esperar(() => document.querySelector('.o_command_palette_listbox .o_command'),
+                          'las pantallas en el buscador');
             console.log('test successful');
         })();""".replace('__APP__', json.dumps(self.env.ref('account.menu_finance').with_context(lang=admin.lang).name))
         self.browser_js('/odoo', codigo, login='admin')

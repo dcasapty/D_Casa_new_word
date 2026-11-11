@@ -245,3 +245,107 @@ $dcasa-alerta: #D92D20;
     scrollbar-width: thin;
     scrollbar-color: var(--dc-linea-fuerte) transparent;
 }
+
+// --- Celular: la cabecera de los formularios, en un renglón (auditoría visual del 2026-11-11) -------------------------
+// «Nuevo», el engranaje, el rayo, «Actividad» y las flechas no cabían juntos por unos pocos píxeles: las flechas bajaban
+// solas a otro renglón y, con el botón «Actividad» en dos líneas, la cabecera se comía 128 px de una pantalla de 664.
+// En el celular «Actividad» va solo con su ícono (actividad.xml) y nada se parte en dos líneas.
+.o_dcasa_actividad_boton { white-space: nowrap; }
+@include media-breakpoint-down(md) {
+    .o_dcasa_actividad_boton .o_dcasa_actividad_texto { display: none; }
+    .o_form_view .o_control_panel .o_control_panel_main {
+        flex-wrap: nowrap;
+        align-items: center;
+        gap: 4px;
+
+        > .o_control_panel_breadcrumbs { flex: 1 1 auto; min-width: 0; }
+        > .o_control_panel_navigation { flex: 0 0 auto; }
+    }
+}
+
+// --- Compras en el celular: el aviso de «no hay nada» debajo de las cifras, no encima (auditoría del 2026-11-11) ------
+// Odoo centra el aviso sobre todo el contenido, y en Compras el contenido empieza con el tablero de cifras (Nuevo,
+// Enviadas, Atrasadas…): en el celular el tablero ocupa media pantalla y el aviso se le montaba encima. Aquí el aviso
+// pasa a ser un renglón más, debajo del tablero.
+.o_purchase_dashboard_kanban_view .o_kanban_renderer > .o_view_nocontent {
+    position: static;
+    flex: 1 0 100%;
+    padding: 16px 0 32px;
+}
+
+// --- Tablero de Compras en el celular: las cinco cifras van de tres en tres (auditoría del 2026-11-11, lote 3) -------
+// Odoo las pone en una sola fila (unos 66 px cada una) y los nombres salían cortados: «Solicit… de cotiza… enviada»,
+// «Recep… atrasa…». De tres en tres cada nombre cabe entero. El hueco que separa cotizaciones de pedidos se quita.
+@include media-breakpoint-down(md) {
+    .o_purchase_dashboard .grid > .grid[style*="--columns"] {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-rows: none;
+
+        > [class*="g-col-"] { grid-column: auto; }
+        > .g-col-1 { display: none; }
+    }
+}
+
+// --- Oportunidad en el celular: sin el «en» suelto (auditoría del 2026-11-11, lote 3) --------------------------------
+// En la computadora se lee de corrido «$ 0.00 en 0.00 %». En el celular la probabilidad baja a su propio renglón, con
+// su rótulo, y el «en» quedaba colgando al lado del monto. (Con ingresos recurrentes Odoo ya lo esconde él mismo.)
+@include media-breakpoint-down(sm) {
+    .o_lead_opportunity_form .o_form_sheet h2 > div:first-child
+        > .d-flex:not(:has(.o_field_widget[name="recurring_revenue"])) > span.opacity-50 {
+        display: none;
+    }
+}
+
+// --- Ficha del contacto en el celular: la foto no le quita el ancho al nombre (auditoría del 2026-11-11) -------------
+// La foto de 130 px dejaba 180 px para el nombre y el correo: «María Fernanda R», «maria.prueba@exa». Con la foto en
+// 72 px y el nombre un poco más chico, se leen.
+@include media-breakpoint-down(md) {
+    .o_form_view .o_field_contact_image {
+        flex: 0 0 auto;
+        img { width: 72px !important; height: 72px !important; object-fit: cover; }
+    }
+    .o_form_view .o_form_sheet h1 .o_field_field_partner_autocomplete .o_input { font-size: 1.25rem; }
+}
+
+// --- Barra de arriba en el celular: nada de menos de 44 px de ancho para el dedo (auditoría del 2026-11-11) ----------
+// El reloj de actividades medía 29 px, las tres rayitas 36 y Brian 38. Hay sitio de sobra a la izquierda.
+@include media-breakpoint-down(md) {
+    .o_main_navbar > .o_menu_toggle,
+    .o_main_navbar .o_menu_systray > button.dropdown-toggle,
+    .o_main_navbar .o_menu_systray .o_brian_systray_btn {
+        min-width: 44px;
+    }
+    .o_main_navbar > .o_menu_toggle { display: inline-flex; align-items: center; justify-content: center; }
+}
+
+// --- Barra de estado de los formularios en el celular (auditoría del 2026-11-11, tercera tanda) -----------------------
+// En la cotización, «Enviar por WhatsApp», los tres puntos y el estado («Cotización enviada») no caben en un renglón
+// de 360 a 390 px: el botón se partía en dos líneas, los tres puntos caían debajo y la flecha del estado se montaba
+// sobre el botón. Ahora el botón y sus tres puntos van siempre juntos y enteros; el estado se queda a la derecha si
+// cabe y, si no, baja limpio a su propio renglón.
+@include media-breakpoint-down(md) {
+    .o_form_view .o_form_statusbar {
+        flex-wrap: wrap;
+        gap: 6px 8px;
+
+        > .o_statusbar_buttons {
+            flex: 0 1 auto;
+            flex-wrap: nowrap;
+            min-width: 0;
+
+            > .btn:not(.dropdown-toggle) { padding-left: 12px; padding-right: 12px; }
+        }
+        > .o_field_statusbar { flex: 0 0 auto; margin-left: auto; }
+    }
+}
+
+// --- Botones bajo las líneas de la cotización (auditoría del 2026-11-11, tercera tanda) -------------------------------
+// A la vendedora le salen tres («Descuento», «Agregar envío», «Pedir descuento a Gerencia») y en el celular Odoo los
+// aprieta en una fila: quedaban como cajas de tres renglones. Cada botón conserva su texto en una línea y el que no
+// cabe baja a la fila siguiente.
+.o_form_view div[name="so_button_below_order_lines"] {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+
+    > .btn { white-space: nowrap; }
+}

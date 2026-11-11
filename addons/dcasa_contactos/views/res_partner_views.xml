@@ -51,6 +51,10 @@
                            options="{'enable_sms': false}" placeholder="Teléfono fijo, p. ej. 234-5678 (si tiene)"/>
                 </div>
             </xpath>
+            <!-- El ejemplo de «Sitio web» nombraba a odoo.com (auditoría visual del 2026-11-11): un ejemplo neutro. -->
+            <xpath expr="//field[@name='website'][not(ancestor::field)]" position="attributes">
+                <attribute name="placeholder">p. ej. https://www.ejemplo.com</attribute>
+            </xpath>
         </field>
     </record>
 </odoo>

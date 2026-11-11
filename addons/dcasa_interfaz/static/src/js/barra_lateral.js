@@ -195,7 +195,9 @@ export class DcasaBarraLateral extends Component {
     }
 
     buscar() {
-        this.command.openMainPalette({});
+        // Abre ya en la búsqueda de pantallas (la «/» de Odoo): sin ella, escribir «facturas» contestaba «No se
+        // encontraron comandos» y parecía que la pantalla no existía (auditoría visual del 2026-11-11).
+        this.command.openMainPalette({ searchValue: "/" });
     }
 
     alternarBarra() {

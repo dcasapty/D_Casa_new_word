@@ -487,3 +487,12 @@ class TestTelefonoFijo(ContactoCommon):
         self.assertFalse(origen.exists())
         self.assertEqual((destino.phone, destino.dcasa_telefono_fijo), ('6000-0032', '+507 234-5692'))
 
+
+@tagged('post_install', '-at_install')
+class TestFichaSinOdoo(TransactionCase):
+
+    def test_el_ejemplo_del_sitio_web_no_nombra_a_odoo(self):
+        """El panel no menciona a Odoo: el ejemplo de «Sitio web» de la ficha decía https://www.odoo.com."""
+        arch = self.env['res.partner'].get_view(self.env.ref('base.view_partner_form').id, 'form')['arch']
+        self.assertNotIn('odoo.com', arch)
+        self.assertIn('https://www.ejemplo.com', arch)
