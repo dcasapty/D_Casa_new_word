@@ -24,6 +24,7 @@ from . import (
     test_herramientas,
     test_horario,
     test_panel,
+    test_panel_caja_celular,
     test_panel_catalogo,
     test_panel_citas,
     test_panel_disposicion,

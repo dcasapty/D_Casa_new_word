@@ -93,8 +93,9 @@ export class Almacen {
         this.accionesDe = null; // en el celular: el mensaje del cliente que muestra «Responder» (dedo apretado)
         this.enfocarCaja = 0; // «Responder» pide que la caja de texto tome el foco (la caja lo mira al pintarse)
         // Pantalla (en celular se ve una columna a la vez). La ficha del cliente nace abierta solo en pantallas amplias
-        // (al lado del hilo); en las demás nace cerrada y un botón «Cliente» la abre. La lista nace reducida a las fotos
-        // en pantallas estrechas. Cada persona puede cambiarlo y se le recuerda (ver cargarPreferencias).
+        // (al lado del hilo); en las demás nace cerrada y un botón «Cliente» la abre. En pantallas estrechas la lista se
+        // reduce a las fotos al abrir una conversación (sin ninguna abierta se ve entera: ver listaEnteraSinChat). Cada
+        // persona puede cambiarlo y se le recuerda (ver cargarPreferencias).
         this.columna = "lista";
         this.fichaAbierta = esPantallaAmplia();
         this.listaCompacta = esPantallaEstrecha() && !esCelular();
@@ -240,7 +241,24 @@ export class Almacen {
 
     get listaReducida() {
         void this.tamanoVersion;
-        return !esCelular() && (this.listaCompacta || this.listaForzada);
+        return !esCelular() && !this.listaEnteraSinChat && (this.listaCompacta || this.listaForzada);
+    }
+
+    /**
+     * En pantalla estrecha (tableta, hasta 1100 px), mientras no hay NINGUNA conversación abierta, la lista se ve entera
+     * (nombres, último mensaje, hora, etiquetas): no hay chat al que quitarle sitio y una columna de iniciales no dice a
+     * quién elegir (decisión del 2026-11-11). Al abrir una vuelve a mandar lo de siempre: reducida a las fotos, salvo
+     * que la persona la haya dejado ancha (su preferencia guardada). En computadora ancha y en celular no cambia nada.
+     */
+    get listaEnteraSinChat() {
+        void this.tamanoVersion;
+        return !this.seleccionadaId && esPantallaEstrecha() && !esCelular();
+    }
+
+    /** El botón de reducir o ampliar la lista solo se ofrece cuando la decisión es de la persona: no cuando la ficha la
+     * fuerza a las fotos ni cuando se ve entera porque no hay conversación abierta. */
+    get listaConBoton() {
+        return !this.listaForzada && !this.listaEnteraSinChat;
     }
 
     /** «Cliente»: abre o cierra la ficha. En celular es otra pantalla; en escritorio, al lado; en tablet, encima. */

@@ -619,6 +619,27 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 
 ### Esta máquina (sesiones de Claude)
 
+- **Lo que una auditoría por direcciones no ve (2026-11-11):** el recorrido de Playwright abre cada pantalla por su
+  `/odoo/action-<id>` y la mide ya cargada. Así no vio tres fallas que la dueña sufría a diario en el iPhone: la
+  pantalla en blanco mientras carga el Inicio, el menú del celular sin salida y el gesto de «atrás» dentro del chat.
+  Una auditoría de uso tiene que **entrar por `/web/login` como una persona**, mirar lo que hay en pantalla **antes**
+  de que lleguen los datos (retrasar un pedido con `page.route` y capturar), usar el menú con el dedo y probar
+  `page.goBack()` dentro de las pantallas que cambian de vista sin cambiar de dirección. Guiones de ejemplo en el
+  borrador de la sesión (`entrada/entrar.cjs`, `lento.cjs`, `menu.cjs`, `atras.cjs`); el formulario de entrada hay que
+  buscarlo como `form.oe_login_form …` (la página trae también los buscadores del sitio).
+- **Varios agentes a la vez, cada uno en su copia (2026-11-11):** un `git worktree add -b local/agente-x <carpeta>
+  <commit>` por agente (sin `vendor/odoo`: se usa el del árbol principal con rutas absolutas en `--addons-path`), una
+  base propia copiada con `createdb` + `pg_dump | psql` (los adjuntos van en la base: no hay carpeta de archivos que
+  copiar) y dos puertos propios (servidor y pruebas). Sin push desde las copias: el árbol principal une sus ramas
+  locales. Dos avisos: (1) el *stop hook* confirma y sube lo que haya sin confirmar en el árbol principal cada vez que
+  termina un turno, también lo que un agente dejó a medias allí («avance guardado»); (2) si el límite de uso de la
+  cuenta (cinco horas) los corta, su trabajo queda guardado y se reanudan con `SendMessage` al mismo agente cuando se
+  levanta; si de paso se reinició el contenedor, PostgreSQL queda apagado (`service postgresql start`) y hay que volver
+  a levantar cada servidor.
+- **La base de capturas no es una base limpia:** tiene conversaciones y ajustes de ejemplo, así que las pruebas del
+  chat que cuentan «exactamente tres conversaciones» o suponen el reparto apagado fallan allí y pasan en el CI. Para
+  correr esas clases en local, vaciar `dcasa_mensaje` y `dcasa_conversacion` **en la copia propia** (nunca en la de
+  capturas que usan las demás) o escribir las pruebas nuevas con `>= 3`.
 - **Auditoría con Playwright (2026-11-11), para repetirla:** se entra por `/web/session/authenticate`, se abre cada
   acción del menú con `/odoo/action-<id>` y se mide en la página (ancho del documento, zonas con scroll de costado,
   textos cortados, botones de menos de 32 px, letra de menos de 11 px). Tres engaños de la medida: (1) el puntero de
@@ -776,6 +797,31 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 
 ### Odoo 19
 
+- **El celular al entrar y al navegar (2026-11-11), cómo funciona por dentro:**
+  - **Una acción de cliente que espera datos en `onWillStart` deja la pantalla en blanco mientras tanto.** Odoo no
+    monta nada hasta que esa promesa se cumple: se ve la barra de arriba y el área de trabajo vacía. En una pantalla de
+    entrada (el Inicio) eso parece «no abrió». Pintar primero un armazón y pedir los datos sin esperar
+    (`this.cargar()` en `setup`, plantilla con `t-if="!state.datos"`). El armazón del Inicio usa otra clase raíz
+    (`.o_dcasa_arranque`): `.o_dcasa_inicio` sigue queriendo decir «ya están las cifras» y de eso dependen las pruebas.
+  - **`.o_action_manager:empty::before`** sirve para avisar «Cargando…» mientras Odoo trae la primera pantalla: el nodo
+    de texto vacío que deja OWL no cuenta para `:empty`.
+  - **El menú del celular de Odoo** (`web.NavBar.AppsMenu.Sidebar`, solo por debajo de 768 px) tiene dos caras
+    (`state.isAllAppsMenuOpened`): las secciones de la app abierta y, con el botón «All Apps», la lista de apps. Con
+    una app sin secciones la primera cara sale vacía. D'CASA reemplaza lo de adentro del cajón por
+    `DcasaMenuCelular` (hereda de `DcasaBarraLateral`; se registra con `NavBar.components = {...}`) y conserva el
+    armazón de Odoo (deslizar, fondo que cierra, la «X»). Entre 768 y 991 px sigue el menú de Odoo de íconos arriba; la
+    barra lateral propia empieza en 992 px.
+  - **«Atrás» dentro de una pantalla que cambia de vista sin cambiar de dirección:** poner un paso con
+    `history.pushState({...history.state, dcasaPaso: n}, "")` por cada cosa abierta y escuchar `popstate`. Odoo
+    (`web/core/browser/router.js`) también lo escucha y recarga la acción entera salvo que `router.skipLoad` esté
+    encendido; lo apaga solo después de cada `popstate`, así que hay que reponerlo mientras queden pasos propios (y
+    apagarlo al desmontar). Si lo de arriba se cierra con su botón en pantalla, quitar su paso con `history.go(-n)`
+    (ese `popstate` es propio: no cierra nada más). Ver `dcasa_conversaciones/static/src/js/atras.js`.
+  - **En las pruebas de navegador, un rechazo de promesa sin atrapar hace fallar la prueba aunque Odoo lo «maneje»**
+    (el aviso de «se perdió la conexión» llega tarde para Chrome). Por eso el Inicio atrapa él mismo
+    `ConnectionLostError` y solo deja seguir las fallas del servidor.
+  - **Para simular en una prueba que el servidor tarda o no contesta:** envolver `XMLHttpRequest.prototype.open/send`
+    en la página y retener (o despachar `error` en) el pedido que interesa; `rpc` de Odoo usa `XMLHttpRequest`.
 - **Auditoría visual del panel (2026-11-11), lo aprendido de la interfaz:**
   - **Fechas de solo números: nunca con el formato de «es-PA».** `Intl.DateTimeFormat("es-PA", {day: "2-digit",
     month: "2-digit", …})` y `toLocaleDateString("es-PA", …)` dan **mes/día/año** («11/04/26» para el 4 de noviembre),

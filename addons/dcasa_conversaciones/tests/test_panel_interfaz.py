@@ -1223,6 +1223,9 @@ class TestPanelEnElCelular(PanelUiCase):
 (async () => {
     await abrirConversacion("Karen");
     const herramienta = (texto) => [...document.querySelectorAll(".o_dcj_herramienta")].find((e) => (e.getAttribute("aria-label") || "").includes(texto) || e.textContent.includes(texto));
+    // En el celular las herramientas van en el cajón del «+» (2026-11-11): se abre y se toca «Foto del catálogo».
+    herramienta("Herramientas").click();
+    await esperar(() => herramienta("Foto").getBoundingClientRect().width >= 44, "«Foto del catálogo» en el cajón de herramientas");
     herramienta("Foto").click();
     const hoja = await esperar(() => document.querySelector(".o_dcj_hoja"), "la hoja del catálogo");
     const r = hoja.getBoundingClientRect();

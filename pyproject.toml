@@ -25,3 +25,4 @@ section-order = ["future", "standard-library", "third-party", "first-party", "lo
 "addons/dcasa_conversaciones/tests/test_panel_interfaz.py" = ["E501"]  # JavaScript del navegador embebido en texto
 "addons/dcasa_conversaciones/tests/test_panel_visual.py" = ["E501"]  # JavaScript del navegador embebido en texto
 "addons/dcasa_conversaciones/tests/test_panel_citas.py" = ["E501"]  # JavaScript del navegador embebido en texto
+"addons/dcasa_conversaciones/tests/test_panel_caja_celular.py" = ["E501"]  # JavaScript del navegador embebido en texto

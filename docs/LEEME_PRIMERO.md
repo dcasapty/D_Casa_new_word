@@ -109,6 +109,74 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 > sigue. Se guardan las diez más recientes; las viejas se resumen en una línea abajo y su texto completo pasa a
 > [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md).
 
+### 2026-11-11 (3): Inicio nuevo aprobado y construido; el celular al entrar (blanco, menú, «atrás»); frentes en paralelo
+
+**Nada de esta entrada está en producción todavía** (sigue Desplegar 64). Está en la rama
+`claude/merge-rama-to-main-ty3koz`, sin CI con staging ni PR. Al desplegar, completar aquí el número y la hora.
+
+- **Aprobaciones de la dueña (tal cual):**
+  - «Si me gustaron los cambios para móvil lo que me gustaría es que así como se ve en detalles compacto y grandes así
+    como actualmente está los iconos de los accesos rápidos de resto apruebo todo para producción así que empieza con
+    todas las mejoras y el tema con el diseño nuevo en las dos versiones claro y oscuro». Se leyó así: en el celular
+    los accesos directos se pueden ver de tres tamaños (Compactos, Detalle y Grandes como estaban), lo elige cada
+    quien y se recuerda en ese aparato; el Inicio nuevo y el tema claro y oscuro quedan aprobados para producción.
+  - «Y si apruebo la mejora de la caja de Juan» (la caja de responder del chat en el celular, boceto
+    <https://claude.ai/artifact/A6P3KWL2F5KJx5MfX4sBsH>).
+  - Sobre las tres decisiones abiertas («Más datos» en la cotización, Conversaciones en tableta y que «Entregas
+    pendientes» cuente igual que «Bodega»): «Lo que consideres mejor y más lógico y coherente y funcional». Se decidió:
+    (a) «Entregas pendientes» del Inicio muestra las mismas entregas que Bodega (pedidos con pago o abono) y una línea
+    discreta con las que esperan pago; (b) en tableta la lista de chats se ve entera mientras no haya un chat abierto y
+    se reduce a las fotos al abrir uno (se respeta la preferencia guardada); (c) en la cotización, un bloque «Más
+    datos» que se pliega (teléfono fijo, direcciones, vencimiento, lista de precios, términos de pago), cerrado salvo
+    que algo pida atención, sin mover ningún campo de la vista.
+  - «Si gustas trabaja con multiagentes en paralelo».
+- **Inicio nuevo (propuesta 2), terminado en la rama** (`b67ea7e`): mismo orden y contenido, accesos del celular en
+  tres tamaños (`dcasa.inicio.atajos` en el aparato, «Compactos» la primera vez), tres contadores que llevan a cada
+  panel, cifras que suben al abrir, barras delgadas; todo cuelga de `.o_dcasa_tablero` (`tablero.scss`).
+  `test_inicio_tablero.py` (8 pruebas). Capturas mostradas a la dueña. Tres detalles en que se apartó del boceto y que
+  ella puede objetar: los accesos de la computadora un poco más bajos (64 px), el pie de cada panel dice siempre «Ver
+  las N…», y las dos cifras de la vendedora van una sobre otra en el celular.
+- **Reporte de la dueña sobre el celular (con tres capturas de su iPhone):** «tan pronto inicio sesión, aparece en
+  blanco, tengo que tocar el menú del navbar, tocar inicio, me lleva a una subcarpeta y luego después sí puedo ir al
+  inicio… en iPhone, cuando estoy en un chat y si deslizo el dedo desde la zona extrema izquierda hacia la derecha…
+  no vuelve atrás, sino que vuelve al inicio de todo y no a las conversaciones». **La auditoría visual no lo vio**: el
+  recorrido abría cada pantalla por su dirección y medía la pantalla ya cargada; nunca probó «entrar y esperar» ni los
+  gestos del teléfono. Tres causas, tres arreglos, en la rama (`0428ef2`, `e9f0e74`, unidos en `516a20e`):
+  1. *Pantalla en blanco al entrar.* El Inicio esperaba las cifras del servidor antes de pintar nada
+     (`onWillStart`); mientras tanto solo se veía la barra de arriba. Se reprodujo retrasando `obtener_datos`: sale
+     idéntico a su captura. Ahora el Inicio se pinta de inmediato (`.o_dcasa_arranque`: el saludo de verdad y bloques
+     en gris) y las cifras llegan después; si no llegan, lo dice y ofrece «Reintentar». Además, el área de trabajo
+     vacía dice «Cargando…» para cualquier pantalla que tarde (`arranque.scss`). En esta máquina el servidor entrega
+     las cifras en 0,1–0,2 s y producción contesta en 0,2–0,3 s por pedido: lo lento es la suma de pedidos del primer
+     arranque en el teléfono, no una consulta en particular.
+  2. *La «subcarpeta».* Era el menú de Odoo para el celular, de dos caras: primero «las secciones de la app abierta» y,
+     con un botón, «Todas las aplicaciones». En el Inicio no hay secciones: salía una hoja con solo la palabra
+     «Inicio», sin nada que tocar. Ahora el cajón es propio (`menu_celular.js`, hereda de la barra lateral de la
+     computadora): «Inicio» y «Buscar» fijos arriba; debajo todas las aplicaciones; la que está abierta viene con sus
+     secciones a la vista; la flecha de cada aplicación despliega las suyas sin salir de donde se está; tocar una
+     pantalla la abre y cierra el menú. Todo lo que se toca mide 44 px o más.
+  3. *«Atrás» en el chat.* En el celular Conversaciones muestra una cosa a la vez, pero para el navegador era una sola
+     página: el gesto de «atrás» salía a la pantalla anterior. Ahora cada cosa abierta (chat, ficha, ventana, foto)
+     pone un paso en el historial y «atrás» cierra la de más arriba (`atras.js`, con `router.skipLoad` de Odoo para que
+     no recargue la pantalla). De vuelta en la lista ya no se recuerda un chat «abierto» que no se ve. En la
+     computadora no cambia nada.
+  Pruebas: `test_celular_arranque_y_menu.py` (dcasa_interfaz) y `test_panel_atras.py` (dcasa_conversaciones). En la
+  copia local: `/dcasa_interfaz` completo, 0 fallas; las clases del chat en celular y computadora, 45 de 46 (la que
+  falla, `test_sin_reparto_por_turnos_no_hay_interruptor`, es por los ajustes de la base de capturas, no por el cambio).
+  **El menú nuevo es interfaz nueva**: se le mostraron las capturas a la dueña; ella había pedido «lo que sea mejor para
+  el uso adecuado y accesible del navbar en móviles».
+- **En construcción, cada frente en su copia de trabajo (ver CONTEXTO_AGENTICO, «Varios agentes a la vez»):** la caja
+  de responder del chat en el celular y la lista entera en tableta (árbol principal); «Entregas pendientes» = Bodega y
+  «Más datos» en la cotización (`local/agente-c`); modo oscuro gris de todo el panel, opcional por persona, hojas
+  aparte para que el claro no cambie (`local/agente-d`). Los tres se cortaron una vez por el límite de uso de la cuenta
+  (cinco horas) y se reanudaron con su avance intacto.
+- **Sigue:** unir la caja del chat y entregas/«Más datos», repasar capturas, CI con staging sobre la rama → PR
+  `[skip ci]` → Desplegar a producción con respaldo previo. El modo oscuro va después, en su propio despliegue, cuando
+  la dueña vea sus capturas. Siguen sin respuesta: borrar la rama remota `claude/bold-volta-fsqq4c` y el motivo real en
+  «Quedó por enviar».
+- **Esta máquina:** con el «sí» de la dueña («Sí, borra las dos») se borraron los 13 worktrees viejos de
+  `.claude/worktrees` y 15 bases locales de pruebas: el disco pasó de 1 GB a ~20 GB libres.
+
 ### 2026-11-11 (2): auditoría visual del panel; 21 arreglos en producción (Desplegar 64); propuesta 2 del Inicio
 
 **En producción desde el 2026-11-11, 09:15 UTC:** **Desplegar 64** (Odoo y el borde; run 42992509876) con la imagen
@@ -209,10 +277,9 @@ estable 4**: si la dueña lo da por bueno unos días, toca nombrar la estable 5.
   dejan iguales? Y siguen sin respuesta: borrar los 18 GB de worktrees viejos y la rama remota `claude/bold-volta-fsqq4c`.
 - **Sigue:** que la dueña mire el panel en producción y la propuesta 2; con su respuesta, construir el Inicio nuevo en la
   rama y mostrárselo en capturas (celular incluido) **antes** de staging.
-- **Sin resolver en esta máquina:** el disco está al 98 % (quedan ~1 GB). Hay 13 worktrees viejos de agentes en
-  `.claude/worktrees` (18 GB, limpios y ya contenidos en la rama) y bases locales de pruebas viejas; borrarlos necesita
-  el «sí» de la dueña (el clasificador lo negó sin él). Por eso las pruebas locales se corrieron sobre la base de
-  capturas y no en una base limpia.
+- **En esta máquina (resuelto el mismo día, ver la entrada de arriba):** el disco estaba al 98 % por 13 worktrees viejos
+  de agentes y bases locales de pruebas; se borraron con el «sí» de la dueña. Las pruebas locales de esta tanda se
+  corrieron sobre la base de capturas, no en una base limpia.
 ### 2026-11-11: versión estable 4; Instagram con fotos confirmado; enlace de choferes encendido; cierre de semana
 
 **En producción** (sin despliegues nuevos de Odoo): Odoo y el borde en Desplegar 63 (`3e2ccfc`) y Juan en Desplegar
@@ -508,23 +575,9 @@ Juan 12 (3b86ee3).
   va después de Odoo porque llama a `guardar_correo` y `no_quiere_novedades`, que un Odoo viejo no tiene. El CI #289
   (sin los arreglos de la segunda revisión) se canceló para relanzarlo completo (CI #290): una sola subida.
 
-### 2026-11-06 (8): «Ver más» en la foto del catálogo y Dependabot, en producción
-
-- Pedido de la dueña: en «Foto del catálogo» había 38 bibliotecas y solo salían 8. Ahora 12 por vuelta y «Ver más»
-  trae las siguientes sin repetir (`buscar_catalogo(…, desde=)`, tope 40 por vuelta). Con las actualizaciones de
-  Dependabot #7 y #78 a #81 (Juan con el SDK de IA 7 y una prueba que vigila cómo arma la llamada) y la regla de no
-  proponer `@types/node` de otra versión mayor.
-- **En producción:** PR #88 (`main` = `513b094`, árbol = `3a1c1d3`), **Desplegar 56** sano y confirmado 21:22 UTC
-  (versión `3a1c1d3fc144`) y **Desplegar Juan 8** (`513b094`). El **Desplegar 55 falló** por pasar el SHA del *squash*
-  como `app_version` (trampa ya escrita; ver CONTEXTO_AGENTICO). Producción nunca dejó de estar sana.
-- Un reinicio del contenedor cortó a dos agentes (Camila 1b y Brian) y al vigilante del CI: los *worktrees* guardaron
-  todo sin commit y los agentes siguieron donde iban al reanudarlos con un mensaje.
-- La dueña aprobó las capturas de Brian («perfecto») y decidió que la casilla de novedades se active sola al agregar
-  un correo (la vendedora la desactiva si el cliente dice que no). Las dos cosas siguen en preparación, junto con la
-  pantalla de Sofía (después, las tres en producción: Desplegar 57 y 58).
-
 ### Entradas anteriores (una línea cada una; el texto completo en [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md))
 
+- **2026-11-06 (8):** «Ver más» en la foto del catálogo y Dependabot, en producción.
 - **2026-11-06 (7):** la pantalla de Sofía.
 - **2026-11-06 (6):** Brian al día.
 - **2026-11-06 (5):** Camila etapa 2 («a lo grande, todo conectado con todo»), en producción.
