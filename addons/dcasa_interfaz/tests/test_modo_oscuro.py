@@ -51,7 +51,8 @@ COLORES_JS = ESPERAR_JS + r"""
         const el = document.querySelector(selector);
         if (!el) { throw new Error('No está: ' + que); }
         const fondo = luz(fondoDe(el)), tinta = luz(getComputedStyle(el).color);
-        const bien = oscuro ? (fondo < 0.08 && tinta > 0.5) : (fondo > 0.7 && tinta < 0.2);
+        // (la letra de apoyo —títulos de columna, rótulos— es gris: lo que manda es el contraste)
+        const bien = oscuro ? (fondo < 0.08 && tinta > 0.3) : (fondo > 0.7 && tinta < 0.25);
         if (!bien || contraste(el) < 4.5) {
             throw new Error(`${que}: se esperaba ${oscuro ? 'oscuro' : 'claro'} y salió fondo ${fondoDe(el)} `
                 + `con letra ${getComputedStyle(el).color} (contraste ${contraste(el).toFixed(2)})`);
@@ -156,7 +157,9 @@ class TestModoOscuroPaquetes(TransactionCase):
         """El modo claro no puede cambiar ni un píxel: nada de ``oscuro/`` ni ``*.dark.scss`` en sus hojas."""
         for paquete in (HOJA_CLARA, 'web.assets_backend', HOJA_PEREZOSA_CLARA, 'web.assets_web_print',
                         'web.assets_frontend', 'web.report_assets_common'):
-            oscuros = [r for r in rutas(self.env, paquete) if '/oscuro/' in r or r.endswith('.dark.scss')]
+            # (Odoo mete un `.dark.scss` suyo —del editor del sitio— en la hoja clara; aquí se cuida lo de D'CASA)
+            oscuros = [r for r in rutas(self.env, paquete)
+                       if '/oscuro/' in r or (r.endswith('.dark.scss') and '/dcasa_' in r)]
             self.assertFalse(oscuros, f'{paquete} no debe llevar archivos del modo oscuro: {oscuros}')
 
     def test_todo_lo_de_la_carpeta_oscura_entra_en_la_hoja_oscura_y_solo_estilos(self):
@@ -225,7 +228,7 @@ class TestModoOscuroServidor(HttpCase):
         self.assertFalse(any('web.assets_web.min.css' in e for e in enlaces), 'no se cargan las dos hojas a la vez')
 
     def test_con_un_valor_raro_la_hoja_clara(self):
-        for valor in ('light', 'oscuro', 'DARK', 'dark; x', '1', ''):
+        for valor in ('light', 'oscuro', 'DARK', 'dark2', 'darker', '1', 'true', ''):
             enlaces = self.hojas({'color_scheme': valor})
             self.assertTrue(any('web.assets_web.min.css' in e for e in enlaces), (valor, enlaces))
             self.assertFalse(any('assets_web_dark' in e for e in enlaces), (valor, enlaces))
