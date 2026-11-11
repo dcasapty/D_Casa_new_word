@@ -273,6 +273,29 @@ $dcasa-alerta: #D92D20;
     padding: 16px 0 32px;
 }
 
+// --- Tablero de Compras en el celular: las cinco cifras van de tres en tres (auditoría del 2026-11-11, lote 3) -------
+// Odoo las pone en una sola fila (unos 66 px cada una) y los nombres salían cortados: «Solicit… de cotiza… enviada»,
+// «Recep… atrasa…». De tres en tres cada nombre cabe entero. El hueco que separa cotizaciones de pedidos se quita.
+@include media-breakpoint-down(md) {
+    .o_purchase_dashboard .grid > .grid[style*="--columns"] {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-rows: none;
+
+        > [class*="g-col-"] { grid-column: auto; }
+        > .g-col-1 { display: none; }
+    }
+}
+
+// --- Oportunidad en el celular: sin el «en» suelto (auditoría del 2026-11-11, lote 3) --------------------------------
+// En la computadora se lee de corrido «$ 0.00 en 0.00 %». En el celular la probabilidad baja a su propio renglón, con
+// su rótulo, y el «en» quedaba colgando al lado del monto. (Con ingresos recurrentes Odoo ya lo esconde él mismo.)
+@include media-breakpoint-down(sm) {
+    .o_lead_opportunity_form .o_form_sheet h2 > div:first-child
+        > .d-flex:not(:has(.o_field_widget[name="recurring_revenue"])) > span.opacity-50 {
+        display: none;
+    }
+}
+
 // --- Ficha del contacto en el celular: la foto no le quita el ancho al nombre (auditoría del 2026-11-11) -------------
 // La foto de 130 px dejaba 180 px para el nombre y el correo: «María Fernanda R», «maria.prueba@exa». Con la foto en
 // 72 px y el nombre un poco más chico, se leen.

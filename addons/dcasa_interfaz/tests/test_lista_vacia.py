@@ -66,7 +66,10 @@ class TestListaVacia(HttpCase):
         self._probar(sin, False, SIN_NUEVO, '«Nuevo»')
 
     def test_en_compras_el_aviso_va_debajo_del_tablero_en_el_celular(self):
-        """En el celular el tablero de Compras ocupa media pantalla y el aviso se le montaba encima (2026-11-11)."""
+        """En el celular el tablero de Compras ocupa media pantalla y el aviso se le montaba encima (2026-11-11).
+
+        Y sus cinco cifras iban en una sola fila de 66 px por tarjeta, con los nombres cortados («Solicit… de cotiza…
+        enviada»): ahora van de tres en tres y cada nombre se lee entero."""
         accion = self.env['ir.actions.act_window'].create({
             'name': 'Prueba compras vacías', 'res_model': 'purchase.order', 'view_mode': 'kanban',
             'view_id': self.env.ref('purchase.view_purchase_order_kanban').id, 'domain': "[('id', '=', 0)]"})
@@ -78,6 +81,17 @@ class TestListaVacia(HttpCase):
             if (a.height < 20) { throw new Error('el aviso debe verse'); }
             if (a.top < t.bottom - 1) {
                 throw new Error(`el aviso (${Math.round(a.top)}) se monta sobre el tablero (${Math.round(t.bottom)})`);
+            }
+            const cifras = [...tablero.querySelectorAll('.purchase-dashboard-card')].slice(0, 5);
+            if (cifras.length !== 5) { throw new Error('se esperaban las cinco cifras y hay ' + cifras.length); }
+            const cortadas = cifras.filter((c) => c.scrollWidth > c.clientWidth + 1)
+                .map((c) => c.textContent.trim().replace(/\\s+/g, ' '));
+            if (cortadas.length) { throw new Error('cifras con el nombre cortado: ' + cortadas.join(' | ')); }
+            if (new Set(cifras.map((c) => Math.round(c.getBoundingClientRect().top))).size < 2) {
+                throw new Error('en el celular las cinco cifras no caben en una fila: van de tres en tres');
+            }
+            if (document.documentElement.scrollWidth > window.innerWidth + 1) {
+                throw new Error('la página se sale de lado');
             }
             console.log('test successful');
         })();"""

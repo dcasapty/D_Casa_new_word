@@ -342,7 +342,7 @@
 
     @media (max-width: 560px) {       // en el celular la cabecera ocupa menos: los resultados se ven antes
         .o_de_cabecera_dentro { gap: 8px; padding-top: 14px; padding-bottom: 16px; }
-        .o_de_marca { font-size: .68rem; letter-spacing: .1em; }
+        .o_de_marca { font-size: .75rem; letter-spacing: .05em; }
         h1 { font-size: 1.9rem; }
         .o_de_regla { gap: 4px 6px; }
         .o_de_ficha { font-size: .78rem; padding: 2px 8px; }
