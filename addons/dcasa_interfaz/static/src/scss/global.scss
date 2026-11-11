@@ -245,3 +245,20 @@ $dcasa-alerta: #D92D20;
     scrollbar-width: thin;
     scrollbar-color: var(--dc-linea-fuerte) transparent;
 }
+
+// --- Celular: la cabecera de los formularios, en un renglón (auditoría visual del 2026-11-11) -------------------------
+// «Nuevo», el engranaje, el rayo, «Actividad» y las flechas no cabían juntos por unos pocos píxeles: las flechas bajaban
+// solas a otro renglón y, con el botón «Actividad» en dos líneas, la cabecera se comía 128 px de una pantalla de 664.
+// En el celular «Actividad» va solo con su ícono (actividad.xml) y nada se parte en dos líneas.
+.o_dcasa_actividad_boton { white-space: nowrap; }
+@include media-breakpoint-down(md) {
+    .o_dcasa_actividad_boton .o_dcasa_actividad_texto { display: none; }
+    .o_form_view .o_control_panel .o_control_panel_main {
+        flex-wrap: nowrap;
+        align-items: center;
+        gap: 4px;
+
+        > .o_control_panel_breadcrumbs { flex: 1 1 auto; min-width: 0; }
+        > .o_control_panel_navigation { flex: 0 0 auto; }
+    }
+}
