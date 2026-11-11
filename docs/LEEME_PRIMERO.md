@@ -121,6 +121,7 @@ Odoo sin cambios.
   (`META_PAGE_TOKEN` reemplazada; Messenger siguió funcionando). Juan contestó un DM de prueba y salió en Odoo con el
   nombre. La foto no salía (igual que Messenger el 9 nov). **Juan 19** la subía aparte (`attachment_id`) y siguió
   fallando; **Juan 20** la sube en el mismo envío como Messenger y, si falla, Odoo muestra lo que dijo Meta a cada intento.
+  **Confirmado por la dueña: la foto llegó por Instagram.**
   Se descartó la guía de un conocido («inicio de sesión con Instagram»): otra llave que vence y cambios en Juan.
 
 - **La causa más probable del 131070**: el **«Enrutamiento de conversaciones»** de Meta (Conversation Routing, desde

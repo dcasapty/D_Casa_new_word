@@ -30,7 +30,7 @@ LEEME_PRIMERO §2).
     dejan en el registro el `fbtrace_id` de cada rechazo y la forma de los avisos raros. Ver JUAN_CANALES §1. Además,
     el nombre visible «DCasa Pty» está DECLINED: pedir uno nuevo (p. ej. «D'Casa Panamá»). **Enlace para choferes** y
     «Colchones» → WhatsApp: en producción (Desplegar 63); falta que la dueña encienda el enlace en Envíos › Tarifa.
-    **Instagram**: conectado el 10 nov (Juan 19 manda las fotos subiéndolas a Meta; falta que la dueña lo confirme).
+    **Instagram**: conectado el 10 nov; las fotos salen desde Juan 20 (confirmado por la dueña el 11 nov).
     Siguiente, si la dueña lo pide: respuesta automática a comentarios de Instagram (`instagram_manage_comments`).
     **Próximo lote:** el motivo real en el aviso «Quedó por enviar» y el nombre del cliente de Messenger.
     Lo de antes (131042, pago de Meta) (2026-11-09): lo arregla la dueña en Meta (Facturación y pagos ›
