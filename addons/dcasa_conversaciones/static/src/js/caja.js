@@ -3,8 +3,13 @@
  * vista previa, respuestas rápidas con «/», «Sugerir», foto del catálogo, cotización y notas internas.
  * Es compacta a propósito (docs/JUAN_ODOO.md, «Tamaños probados»): una franja, una línea de escribir con las
  * herramientas como íconos, y el menú «Más» para lo menos usado. Lo demás aparece solo cuando hace falta.
+ *
+ * En el celular (`celular`, menos de 768 px) son dos renglones: quién atiende + Devolver + Respuesta/Nota, y abajo
+ * «+» (el cajón con las herramientas de siempre y «Programar»), «Sugerir», el texto y Enviar. Mismas funciones, la mitad
+ * del alto (aprobado por la dueña el 2026-11-11). El acomodo es de panel.scss; aquí solo se decide qué se pinta.
  */
 import { Component, onMounted, onPatched, useExternalListener, useRef, useState } from "@odoo/owl";
+import { esCelular } from "./preferencias";
 import { atajoEnCurso, coincideConNombre, cuando, enCuanto, hora, iconoDeArchivo, mencionEnCurso, mensajeDeError, tamano } from "./utilidades";
 
 // Hasta dónde crece la caja de texto (unas 4 líneas); el SCSS la limita además a una parte del alto de la ventana.
@@ -28,16 +33,26 @@ export class CajaRespuesta extends Component {
             programando: false,
             cursor: 0,
             masAbierto: false,
+            cajonAbierto: false, // el cajón de herramientas del celular (el «+»)
         });
         this.refCaja = useRef("caja");
         this.refTexto = useRef("texto");
         this.refArchivo = useRef("archivo");
         this.refMas = useRef("mas");
-        this._enfocar = null; // qué enfocar cuando termine de pintarse (el menú «Más», la fecha de programar)
+        this.refCajon = useRef("cajon");
+        this.refCajonBoton = useRef("cajonBoton");
+        this._enfocar = null; // qué enfocar cuando termine de pintarse (el menú «Más», el cajón, la fecha de programar)
         // Un clic fuera del menú «Más» lo cierra.
         useExternalListener(window, "mousedown", (ev) => {
             if (this.local.masAbierto && !this.refMas.el?.contains(ev.target)) {
                 this.local.masAbierto = false;
+            }
+        });
+        // Un toque fuera del cajón del celular lo cierra (con «pointerdown»: el iPhone no manda «mousedown» al tocar
+        // algo que no es un botón, como los mensajes).
+        useExternalListener(window, "pointerdown", (ev) => {
+            if (this.local.cajonAbierto && !this.refCajon.el?.contains(ev.target) && !this.refCajonBoton.el?.contains(ev.target)) {
+                this.local.cajonAbierto = false;
             }
         });
         this.iconoDeArchivo = iconoDeArchivo;
@@ -56,6 +71,7 @@ export class CajaRespuesta extends Component {
                 this.local.devolviendo = false;
                 this.local.rapidasAbiertas = false;
                 this.local.masAbierto = false;
+                this.local.cajonAbierto = false;
                 this.local.programando = !!this.borrador.programarPara;
             }
             if (this._foco !== this.almacen.enfocarCaja) {
@@ -66,12 +82,14 @@ export class CajaRespuesta extends Component {
         });
     }
 
-    /** Cuando algo se acaba de abrir (el menú «Más», la fecha de programar), el foco va a su primer control. */
+    /** Cuando algo se acaba de abrir (el menú «Más», el cajón, la fecha de programar), el foco va a su primer control. */
     enfocarLoPendiente() {
         const destino = this._enfocar;
         this._enfocar = null;
         if (destino === "menu") {
             this.refMas.el?.querySelector("[role=menuitem]:not([disabled])")?.focus();
+        } else if (destino === "cajon") {
+            this.refCajon.el?.querySelector("button:not([disabled])")?.focus();
         } else if (destino === "fecha") {
             this.refCaja.el?.querySelector(".o_dcj_programar input")?.focus();
         }
@@ -95,6 +113,48 @@ export class CajaRespuesta extends Component {
             !!this.sugerencia?.error ||
             !!this.sugerencia?.avisos.length
         );
+    }
+
+    // --- En el celular: dos renglones y el cajón de herramientas (el «+») ---------------------------------
+
+    /** ¿La ventana es de celular (menos de 768 px)? Se vuelve a mirar cuando cruza un límite de tamaño. */
+    get celular() {
+        void this.almacen.tamanoVersion;
+        return esCelular();
+    }
+
+    /** La pista de la caja de texto; en el celular, corta: el campo es angosto y no hay teclado para «/» a la mano. */
+    get pista() {
+        if (this.celular) {
+            return this.esNota ? "Nota para el equipo…" : "Escribe tu respuesta…";
+        }
+        return this.esNota ? "Nota interna: el cliente no la ve (@ avisa)" : "Escribe tu respuesta… (/ para rápidas)";
+    }
+
+    alternarCajon() {
+        this.local.cajonAbierto = !this.local.cajonAbierto;
+        if (this.local.cajonAbierto) {
+            this.local.rapidasAbiertas = false;
+            // El foco pasa a la primera herramienta: el teclado del celular se guarda y el cajón cabe entero.
+            this._enfocar = "cajon";
+        }
+    }
+
+    /** Elegir una herramienta cierra el cajón (cada una abre lo suyo: el selector de archivos, el catálogo, la fecha…). */
+    alElegirDelCajon(ev) {
+        if (this.local.cajonAbierto && ev.target.closest?.("button")) {
+            this.local.cajonAbierto = false;
+        }
+    }
+
+    /** Esc cierra el cajón y devuelve el foco al «+». */
+    alTeclearCajon(ev) {
+        if (this.local.cajonAbierto && ev.key === "Escape") {
+            ev.preventDefault();
+            ev.stopPropagation();
+            this.local.cajonAbierto = false;
+            this.refCajonBoton.el?.focus();
+        }
     }
 
     // --- El menú «Más» -------------------------------------------------------------------------------
@@ -252,23 +312,39 @@ export class CajaRespuesta extends Component {
 
     // --- Quién atiende ----------------------------------------------------------------------------
 
-    /** Lo que dice la barra de arriba de la caja: quién contesta y hasta cuándo. */
+    /** Lo que dice la barra de arriba de la caja: quién contesta y hasta cuándo. ``corto`` y ``botonCorto`` son lo que se
+     * ve en el celular (la frase completa la siguen leyendo los lectores de pantalla y sale al dejar el dedo encima). */
     get barra() {
         const c = this.c;
         if (!c) {
             return null;
         }
         if (c.estado === "cerrada") {
-            return { clase: "cerrada", texto: "Conversación cerrada. Si escribes, se reabre y la atiendes tú.", boton: "Atender" };
+            return { clase: "cerrada", texto: "Conversación cerrada. Si escribes, se reabre y la atiendes tú.", corto: "Cerrada", boton: "Atender", botonCorto: "Atender" };
         }
         if (c.estado === "humano" && !c.bot_atiende) {
             const vence = c.pausada_hasta
                 ? `El asistente vuelve a las ${hora(c.pausada_hasta)} (${enCuanto(c.pausada_hasta, this.almacen.ahora)})`
                 : "El asistente no contesta hasta que se la devuelvas";
-            const quien = c.asignada_a && c.asignada_a.id !== this.almacen.usuario.id ? `La atiende ${c.asignada_a.nombre}. ` : "Atiendes tú. ";
-            return { clase: "humano", texto: `${quien}${vence}.`, boton: "Devolver al asistente", devolver: true };
+            const otra = c.asignada_a && c.asignada_a.id !== this.almacen.usuario.id ? c.asignada_a.nombre : "";
+            const quien = otra ? `La atiende ${otra}. ` : "Atiendes tú. ";
+            return {
+                clase: "humano",
+                texto: `${quien}${vence}.`,
+                corto: otra || "Atiendes tú",
+                boton: "Devolver al asistente",
+                botonCorto: "Devolver",
+                devolver: true,
+            };
         }
-        return { clase: "bot", texto: "Atiende el asistente. Si escribes, la atiendes tú y él se calla.", boton: "Atender", punto: true };
+        return {
+            clase: "bot",
+            texto: "Atiende el asistente. Si escribes, la atiendes tú y él se calla.",
+            corto: "Asistente",
+            boton: "Atender",
+            botonCorto: "Atender",
+            punto: true,
+        };
     }
 
     async alBotonDeLaBarra() {
