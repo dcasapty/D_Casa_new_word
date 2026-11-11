@@ -142,7 +142,7 @@ export class CajaRespuesta extends Component {
 
     /** Elegir una herramienta cierra el cajón (cada una abre lo suyo: el selector de archivos, el catálogo, la fecha…). */
     alElegirDelCajon(ev) {
-        if (this.local.cajonAbierto && ev.target.closest?.("button")) {
+        if (this.local.cajonAbierto && ev.target.closest?.("button:not([disabled])")) {
             this.local.cajonAbierto = false;
         }
     }
@@ -313,7 +313,7 @@ export class CajaRespuesta extends Component {
     // --- Quién atiende ----------------------------------------------------------------------------
 
     /** Lo que dice la barra de arriba de la caja: quién contesta y hasta cuándo. ``corto`` y ``botonCorto`` son lo que se
-     * ve en el celular (la frase completa la siguen leyendo los lectores de pantalla y sale al dejar el dedo encima). */
+     * ve en el celular, donde la frase no cabe (la completa la siguen leyendo los lectores de pantalla). */
     get barra() {
         const c = this.c;
         if (!c) {

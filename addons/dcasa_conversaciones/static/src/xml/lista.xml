@@ -21,7 +21,7 @@
                         <i class="fa fa-circle" aria-hidden="true"/>
                         <span class="o_dcj_solo_lector" t-out="almacen.enVivo ? 'En vivo' : 'Sin conexión en vivo'"/>
                     </span>
-                    <button t-if="!almacen.listaForzada" type="button" class="o_dcj_icono_boton o_dcj_lista_toggle" aria-controls="o_dcj_lista_cuerpo"
+                    <button t-if="almacen.listaConBoton" type="button" class="o_dcj_icono_boton o_dcj_lista_toggle" aria-controls="o_dcj_lista_cuerpo"
                             t-att-aria-expanded="almacen.listaCompacta ? 'false' : 'true'"
                             t-att-aria-label="almacen.listaCompacta ? 'Ampliar la lista de conversaciones' : 'Reducir la lista a las fotos'"
                             t-att-title="almacen.listaCompacta ? 'Ampliar la lista de conversaciones' : 'Reducir la lista a las fotos'"
@@ -128,11 +128,14 @@
 
                 <ul t-else="" class="o_dcj_filas">
                     <li t-foreach="almacen.lista" t-as="c" t-key="c.id">
+                        <!-- Reducida a las fotos, cada fila dice su nombre (aria-label y tooltip). Con la lista entera esos
+                             atributos NO van (``undefined``; con ``null`` Owl escribía la palabra «null» y eso era lo que
+                             salía al dejar el mouse encima y lo que leían los lectores de pantalla). -->
                         <button type="button" class="o_dcj_fila"
                                 t-att-class="{ o_activa: c.id === almacen.seleccionadaId, o_sin_leer: c.sin_leer }"
                                 t-att-aria-current="c.id === almacen.seleccionadaId ? 'true' : 'false'"
-                                t-att-aria-label="almacen.listaReducida ? c.nombre + (c.sin_leer ? ', ' + c.sin_leer + (c.sin_leer === 1 ? ' mensaje sin responder' : ' mensajes sin responder') : '') : null"
-                                t-att-title="almacen.listaReducida ? c.nombre : null"
+                                t-att-aria-label="almacen.listaReducida ? c.nombre + (c.sin_leer ? ', ' + c.sin_leer + (c.sin_leer === 1 ? ' mensaje sin responder' : ' mensajes sin responder') : '') : undefined"
+                                t-att-title="almacen.listaReducida ? c.nombre : undefined"
                                 t-on-click="() => almacen.abrir(c.id)">
                             <span class="o_dcj_avatar" aria-hidden="true">
                                 <span class="o_dcj_iniciales" t-out="c.iniciales"/>

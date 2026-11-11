@@ -163,17 +163,66 @@
             return { dentro };
         },
 
+        /**
+         * En el celular las herramientas van en el cajón del «+» (y «Programar» con ellas, sin menú «Más»): lo abre, dice
+         * si cupo en la pantalla y qué herramientas trae, y deja abierta la fila de Programar.
+         */
+        async cajonYProgramar() {
+            const boton = document.querySelector(".o_dcj_cajon_boton");
+            boton.click();
+            const cajon = await esperar(() => (boton.getAttribute("aria-expanded") === "true" ? document.querySelector(".o_dcj_cajon") : null), "el cajón de herramientas");
+            await pausa(250);
+            const c = cajon.getBoundingClientRect();
+            const dentro = c.height > 0 && c.left >= 0 && c.right <= innerWidth && c.top >= 0 && c.bottom <= innerHeight;
+            const nombres = [...cajon.querySelectorAll(".o_dcj_herramienta")].filter((b) => b.getBoundingClientRect().width > 0).map((b) => b.textContent.trim());
+            const caja = document.querySelector(".o_dcj_caja").getBoundingClientRect().height;
+            aqui(".o_dcj_cajon .o_dcj_herramienta", "Programar").click();
+            await esperar(() => document.querySelector(".o_dcj_programar"), "programar");
+            await pausa(200);
+            return { dentro, nombres, caja, cerrado: boton.getAttribute("aria-expanded") === "false", hayMas: !!document.querySelector(".o_dcj_mas_boton") };
+        },
+
+        /** La lista: cuánto mide, qué nombres se leen (a la vista, no solo en el tooltip) y si ofrece su botón. */
+        lista() {
+            const columna = document.querySelector(".o_dcj_lista");
+            const boton = document.querySelector(".o_dcj_lista_toggle");
+            const nombres = [...document.querySelectorAll(".o_dcj_fila .o_dcj_nombre")]
+                .filter((n) => n.getBoundingClientRect().width > 0 && n.getBoundingClientRect().height > 0)
+                .map((n) => n.textContent.trim());
+            return {
+                ancho: columna.getBoundingClientRect().width,
+                reducida: columna.classList.contains("o_compacta"),
+                filas: document.querySelectorAll(".o_dcj_fila").length,
+                nombres,
+                ultimos: [...document.querySelectorAll(".o_dcj_fila .o_dcj_ultimo")].filter((n) => n.getBoundingClientRect().width > 0).length,
+                boton: boton ? boton.getAttribute("aria-expanded") : null,
+                tirador: !!document.querySelector(".o_dcj_tirador"),
+                abierta: !!document.querySelector(".o_dcj_caja"),
+            };
+        },
+
+        /** Como entrar otro día en otra pestaña: ninguna conversación recordada como «la que estaba abierta». */
+        olvidarLaAbierta() {
+            sessionStorage.removeItem("dcasa.conversaciones.abierta");
+            return true;
+        },
+
         /** Cada fila de la lista (reducida a las fotos): nombre accesible, tooltip y si esconde su texto. */
         filasDeLista() {
             return [...document.querySelectorAll(".o_dcj_fila")].map((f) => ({
                 nombre: f.getAttribute("aria-label") || "",
+                conNombre: f.hasAttribute("aria-label"),
+                conTitulo: f.hasAttribute("title"),
                 titulo: f.title,
                 cuerpo: getComputedStyle(f.querySelector(".o_dcj_fila_cuerpo")).display,
             }));
         },
 
         async abrirLaDe(texto) {
-            const fila = [...document.querySelectorAll(".o_dcj_fila")].find((f) => (f.getAttribute("aria-label") || f.textContent).includes(texto));
+            const fila = await esperar(
+                () => [...document.querySelectorAll(".o_dcj_fila")].find((f) => (f.getAttribute("aria-label") || f.textContent).includes(texto)),
+                "la conversación de " + texto
+            );
             fila.click();
             await esperar(() => document.querySelector(".o_dcj_hilo_cabecera h2")?.textContent.includes(texto), "el hilo de " + texto);
             return true;

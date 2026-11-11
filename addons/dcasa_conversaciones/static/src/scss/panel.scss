@@ -739,6 +739,8 @@ body.o_dcj_arrastrando_ancho { cursor: col-resize; user-select: none; }
     .o_dcj_puntos { display: inline-flex; gap: 3px; i { width: 6px; height: 6px; border-radius: 50%; background: var(--dc-azul-600, #1340B1); animation: o_dcj_latido 1.2s infinite ease-in-out; &:nth-child(2) { animation-delay: .2s; } &:nth-child(3) { animation-delay: .4s; } } }
 }
 @keyframes o_dcj_latido { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
+// El cajón de herramientas del celular sube un poco al abrirse (con «menos movimiento» no se anima: ver arriba).
+@keyframes o_dcj_cajon_sube { from { opacity: 0; transform: translateY(6px); } }
 
 // No ocupa lugar (el margen negativo lo monta sobre el final de los mensajes): sirve igual con una caja baja o alta.
 .o_dcj .o_dcj_nuevos {
@@ -948,6 +950,8 @@ body.o_dcj_arrastrando_ancho { cursor: col-resize; user-select: none; }
     // encima, sin mover el hilo.
     .o_dcj_escribir { position: relative; display: flex; align-items: flex-end; gap: 6px; }
     .o_dcj_herramientas { flex: none; display: flex; align-items: center; gap: 2px; padding-bottom: 2px; }
+    // El cajón de herramientas es del celular (ver el @media de abajo): aquí no hace caja y sus botones van en la línea.
+    .o_dcj_cajon { display: contents; }
     .o_dcj_herramienta {
         display: inline-flex;
         align-items: center;
@@ -1555,21 +1559,112 @@ body.o_dcj_arrastrando_ancho { cursor: col-resize; user-select: none; }
         .o_dcj_resumir .btn, .o_dcj_resumen .o_dcj_resumen_titulo, .o_dcj_antes .btn, .o_dcj_mas .btn { min-height: 44px; }
         .o_dcj_resumen header .o_dcj_icono_boton { min-width: 44px; min-height: 44px; }
 
+        // La caja de responder en DOS renglones (aprobado por la dueña el 2026-11-11: de ~211 px a ~110, sin quitar nada):
+        //   1. quién atiende (corto) + «Devolver» o «Atender» + Respuesta / Nota;
+        //   2. «+» (abre el cajón con las herramientas de siempre) · «Sugerir» · el texto · Enviar.
+        // Todo sigue en 44 px para el dedo. En tableta y computadora la caja no cambia (caja.js, `celular`).
         .o_dcj_caja {
             padding: 6px 10px calc(8px + env(safe-area-inset-bottom, 0px));
-            .o_dcj_franja { flex-wrap: wrap; }
-            .o_dcj_barra { flex: 1 1 100%; padding-top: 0; padding-bottom: 0; .o_dcj_boton { min-height: 44px; min-width: 44px; } }
-            .o_dcj_modo { margin-left: auto; button { min-height: 44px; min-width: 44px; } }
+            // En modo Nota se tiñe la caja entera (además del borde punteado del texto): que nadie le mande al cliente
+            // algo que era para el equipo.
+            &.o_nota { background: var(--dc-azul-50, #F2F6FE); }
+
+            // 1. La franja: un punto y el nombre de quien atiende, el botón como enlace y el interruptor.
+            .o_dcj_franja { gap: 6px; }
+            .o_dcj_franja .o_dcj_barra {
+                gap: 2px;
+                min-height: 44px;
+                padding: 0;
+                border: 0;
+                background: transparent;
+                .o_dcj_barra_texto { display: flex; align-items: center; gap: 6px; font-size: .8125rem; .o_dcj_punto_verde { margin-right: 0; } }
+                .o_dcj_barra_punto { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--dc-azul-600, #1340B1); }
+                .o_dcj_barra_corto { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+                &.o_dcj_barra_cerrada .o_dcj_barra_punto { background: var(--dc-tinta-3, #6B7690); }
+                // (Odoo, en pantallas táctiles, les pone su relleno y su letra a los .btn con tres clases: esta lleva más.)
+                .o_dcj_boton {
+                    min-height: 44px;
+                    min-width: 44px;
+                    padding: 0 6px;
+                    border: 0;
+                    background: transparent;
+                    box-shadow: none;
+                    color: var(--dc-azul-600, #1340B1);
+                    font-size: .8125rem;
+                    font-weight: 600;
+                    text-decoration: underline;
+                    text-underline-offset: 2px;
+                    &:active { background: var(--dc-azul-100, #E4ECFD); }
+                }
+            }
+            .o_dcj_modo { margin-left: auto; button { min-height: 44px; min-width: 44px; padding: 0 10px; font-size: .8125rem; } }
+
             .o_dcj_devolver .o_dcj_input { min-height: 44px; }
             .o_dcj_devolver .o_dcj_devolver_botones .o_dcj_boton { min-height: 44px; }
             .o_dcj_previas .o_dcj_previa .o_dcj_icono_boton, .o_dcj_programar .o_dcj_programar_quitar { min-width: 44px; min-height: 44px; }
             .o_dcj_tarea input[type=date], .o_dcj_programar input[type=datetime-local] { min-height: 44px; }
-            .o_dcj_herramientas { gap: 2px; > * { flex: none; } }
-            .o_dcj_herramienta { min-width: 44px; min-height: 44px; }
-            .o_dcj_menu_item { min-height: 44px; }
-            .o_dcj_menu { width: #{"min(290px, calc(100vw - 20px))"}; }
-            .o_dcj_texto { min-height: 44px; }
-            .o_dcj_enviar { min-height: 44px; min-width: 56px; .o_dcj_enviar_texto { @include dcj-solo-lector; } }
+
+            // 2. La línea de escribir. Las herramientas dejan de ser una caja: «+» y «Sugerir» quedan en la línea y el
+            // cajón, cuando se abre, ocupa su propio renglón ENCIMA (order: -1), con el nombre de cada herramienta.
+            .o_dcj_escribir { flex-wrap: wrap; }
+            .o_dcj_herramientas { display: contents; }
+            .o_dcj_herramienta { flex: none; min-width: 44px; min-height: 44px; }
+            .o_dcj_cajon_boton { background: var(--dc-azul-100, #E4ECFD); border-color: var(--dc-azul-100, #E4ECFD); }
+            .o_dcj_cajon { display: none; }
+            .o_dcj_cajon.o_abierto {
+                order: -1;
+                flex: 1 0 100%;
+                display: flex;
+                flex-wrap: wrap;
+                gap: 6px;
+                max-height: #{"min(46vh, 230px)"};
+                overflow-y: auto;
+                overscroll-behavior: contain;
+                animation: o_dcj_cajon_sube 160ms ease-out;
+            }
+            .o_dcj_cajon .o_dcj_herramienta {
+                flex: 1 1 30%;       // tres por renglón; las del último se reparten el ancho
+                flex-direction: column;
+                gap: 4px;
+                min-height: 60px;
+                padding: 8px 4px;
+                border-color: var(--dc-linea, #E2E7F0);
+                background: var(--dc-blanco, #FFFFFF);
+                color: var(--dc-azul-600, #1340B1);
+                // El nombre, que en la computadora solo oyen los lectores de pantalla, aquí se lee debajo del ícono.
+                .o_dcj_solo_lector {
+                    position: static;
+                    width: auto;
+                    height: auto;
+                    overflow: visible;
+                    clip: auto;
+                    white-space: normal;
+                    color: var(--dc-tinta-2, #44506A);
+                    font-size: .75rem;
+                    font-weight: 600;
+                    line-height: 1.2;
+                    text-align: center;
+                }
+                &.o_activa { background: var(--dc-azul-50, #F2F6FE); border-color: var(--dc-azul-200, #C3D2F6); }
+            }
+            .o_dcj_cajon_ayuda { flex: 1 0 100%; color: var(--dc-tinta-3, #6B7690); font-size: .75rem; text-align: center; }
+            // Con poco alto (el celular acostado): el cajón va en UN renglón de 44 px que se desliza de lado, con el nombre
+            // al lado del ícono y sin la pista, para que la línea de escribir y Enviar no se salgan de la pantalla.
+            @media (max-height: 520px) {
+                .o_dcj_cajon.o_abierto { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; }
+                .o_dcj_cajon .o_dcj_herramienta {
+                    flex: 1 0 auto;
+                    flex-direction: row;
+                    gap: 6px;
+                    min-height: 44px;
+                    padding: 0 12px;
+                    .o_dcj_solo_lector { white-space: nowrap; }
+                }
+                .o_dcj_cajon_ayuda { display: none; }
+            }
+            // El campo es angosto (unos 150 px en un celular de 360): la pista va un punto más chica para que quepa entera.
+            .o_dcj_texto { min-height: 44px; padding-left: 10px; padding-right: 10px; &::placeholder { font-size: .875rem; } }
+            .o_dcj_escribir .o_dcj_enviar { min-height: 44px; min-width: 52px; padding: 0 12px; .o_dcj_enviar_texto { @include dcj-solo-lector; } }
         }
     }
     .o_dcj_capa { align-items: flex-end; padding: 0;

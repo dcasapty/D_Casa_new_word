@@ -347,25 +347,153 @@ class TestDisposicionDeEscritorio(DisposicionCase):
 
 @tagged('post_install', '-at_install')
 class TestDisposicionDeCelular(DisposicionCase):
-    """390 × 844: una pantalla a la vez, la caja compacta, el menú «Más» dentro de la pantalla y todo a 44 px."""
+    """390 × 844: una pantalla a la vez, la caja en dos renglones, el cajón del «+» dentro de la pantalla y todo a
+    44 px."""
 
-    def test_la_caja_compacta_y_el_menu_mas_caben_en_el_celular(self):
+    def test_la_caja_de_dos_renglones_y_el_cajon_de_herramientas_caben_en_el_celular(self):
+        """Desde el 2026-11-11 la caja del celular son dos renglones (antes ~211 px) y las herramientas van en el cajón
+        del «+», con «Programar» entre ellas (antes en el menú «Más»). Más detalle en ``test_panel_caja_celular.py``."""
         self.conversacion_larga()
         with self._chrome(390, 844, VENDEDORA, reloj_fijo=False) as browser:
             self.abrir(browser)
             m = self.medir(browser)
             self.assertIsNone(m['ficha'], 'en celular la ficha es otra pantalla')
-            self.assertLessEqual(m['caja']['h'], 0.35 * m['viewport'][1], f'la caja mide {m["caja"]["h"]:.0f} px')
-            self.assertGreaterEqual(m['mensajes']['h'], 0.45 * m['raiz']['h'],
+            self.assertLessEqual(m['caja']['h'], 130, f'la caja vacía mide {m["caja"]["h"]:.0f} px (dos renglones)')
+            self.assertGreaterEqual(m['mensajes']['h'], 0.55 * m['raiz']['h'],
                                     f'los mensajes miden {m["mensajes"]["h"]:.0f} px')
             self.assertFalse(m['paginaDesplaza'] or m['desborde'])
             self.assertEqual(self.js(browser, '__disp.chicos()'), [], 'botones de menos de 44 px en el hilo')
-            # Menú «Más» y la fila de programar abiertos: nada se sale de la pantalla ni baja de 44 px.
-            r = self.js(browser, '__disp.menuYProgramar()')
-            self.assertTrue(r['dentro'], 'el menú «Más» se sale de la pantalla')
+            # El cajón del «+» y la fila de programar abiertos: nada se sale de la pantalla ni baja de 44 px.
+            r = self.js(browser, '__disp.cajonYProgramar()')
+            self.assertTrue(r['dentro'], f'el cajón de herramientas se sale de la pantalla: {r}')
+            self.assertEqual(r['nombres'], ['Adjuntar', 'Foto del catálogo', 'Cotización', 'Rápidas', 'Programar'])
+            self.assertLessEqual(r['caja'], 0.5 * m['viewport'][1],
+                                 'con el cajón abierto la caja no pasa de media pantalla')
+            self.assertTrue(r['cerrado'], 'al elegir una herramienta el cajón se cierra')
+            self.assertFalse(r['hayMas'], 'en el celular «Programar» va en el cajón: no hay menú «Más»')
             self.assertEqual(self.js(browser, '__disp.chicos()'), [], 'menos de 44 px con programar abierto')
             self.assertFalse(self.medir(browser)['paginaDesplaza'])
             self.sin_errores(browser, 'celular')
+
+
+@tagged('post_install', '-at_install')
+class TestDisposicionDeTableta(DisposicionCase):
+    """Tableta y pantallas estrechas (hasta 1100 px). Decisión del 2026-11-11: mientras no hay ninguna conversación
+    abierta la lista se ve ENTERA (antes nacía reducida a las fotos y, con el resto de la pantalla vacío, la persona
+    veía una columna de iniciales sin saber a quién elegir). Al abrir una vuelve a reducirse a las fotos para dejarle
+    sitio al chat, salvo que la persona la haya dejado ancha a propósito. En computadora ancha y en celular no cambia
+    nada."""
+    TABLETAS = ((820, 1100), (1024, 768), (768, 1024))
+
+    def lista(self, browser):
+        return self.js(browser, '__disp.lista()')
+
+    def entrar_sin_conversacion(self, browser):
+        """Como entrar otro día: se carga la pantalla sin ninguna conversación recordada como abierta."""
+        self.js(browser, '__disp.olvidarLaAbierta()')
+        self.abrir(browser, abrir_conversacion=False)
+        self.js(browser, '__disp.pausa(600)')
+
+    def test_sin_conversacion_abierta_se_leen_los_nombres_y_al_abrir_una_la_lista_se_reduce(self):
+        self.conversacion_larga()
+        for ancho, alto in self.TABLETAS:
+            with self.subTest(pantalla=f'{ancho}x{alto}'), \
+                    self._chrome(ancho, alto, VENDEDORA, reloj_fijo=False) as browser:
+                self.abrir(browser, abrir_conversacion=False)
+                sola = self.lista(browser)
+                self.assertFalse(sola['abierta'], 'no hay ninguna conversación abierta')
+                self.assertFalse(sola['reducida'], f'{ancho} px sin conversación abierta: la lista se ve entera')
+                self.assertGreaterEqual(sola['ancho'], 280, f'la lista entera mide {sola["ancho"]}')
+                self.assertEqual(len(sola['nombres']), sola['filas'], 'cada fila deja leer su nombre')
+                for nombre in ('Zzlarga Prueba', 'Zzotra Persona', 'Zzmas Gente'):
+                    self.assertIn(nombre, sola['nombres'])
+                self.assertEqual(sola['ultimos'], sola['filas'], 'y su último mensaje')
+                enteras = self.js(browser, '__disp.filasDeLista()')
+                self.assertFalse([f for f in enteras if f['conNombre'] or f['conTitulo']],
+                                 'con la lista entera las filas no llevan aria-label ni tooltip (salía «null»)')
+                self.assertIsNone(sola['boton'], 'sin conversación abierta no se ofrece reducir la lista')
+                # (La ficha del cliente, cerrada, espera fuera de la pantalla, a la derecha: se miran la página y las
+                # columnas, no el desborde de la raíz.)
+                antes = self.medir(browser)
+                self.assertFalse(antes['paginaDesplaza'], 'la página no se desplaza')
+                self.assertLessEqual(antes['hilo']['x'] + antes['hilo']['w'], ancho + 1, 'lista y chat caben')
+                # Al abrir una, la lista se reduce a las fotos (cada una con su nombre) y el chat gana el ancho.
+                self.js(browser, '__disp.abrirLaDe("Zzlarga")')
+                self.js(browser, '__disp.pausa(400)')
+                con = self.lista(browser)
+                self.assertTrue(con['abierta'] and con['reducida'], f'{ancho} px con una abierta: {con}')
+                self.assertLessEqual(con['ancho'], 80)
+                self.assertEqual(con['nombres'], [], 'reducida, la lista son solo las fotos')
+                self.assertEqual(con['boton'], 'false', 'y ofrece el botón de ampliarla')
+                filas = self.js(browser, '__disp.filasDeLista()')
+                self.assertTrue(filas and all(f['nombre'] and f['titulo'] and f['cuerpo'] == 'none' for f in filas),
+                                f'cada foto lleva su nombre (aria-label y tooltip): {filas}')
+                despues = self.medir(browser)
+                self.assertGreater(despues['hilo']['w'], antes['hilo']['w'] + 200, 'el chat gana lo que deja la lista')
+                self.assertFalse(despues['paginaDesplaza'])
+                self.assertLessEqual(despues['hilo']['x'] + despues['hilo']['w'], ancho + 1)
+                self.sin_errores(browser, f'tableta {ancho}')
+
+    def test_quien_dejo_la_lista_ancha_la_conserva_con_la_conversacion_abierta(self):
+        self.conversacion_larga()
+        for ancho, alto in ((820, 1100), (1024, 768)):
+            with self.subTest(pantalla=f'{ancho}x{alto}'), \
+                    self._chrome(ancho, alto, VENDEDORA, reloj_fijo=False) as browser:
+                self.abrir(browser)                               # con la conversación abierta: reducida
+                self.assertLessEqual(self.lista(browser)['ancho'], 80)
+                self.js(browser, '__disp.alternarLista()')        # la persona la amplía: queda guardado
+                ancha = self.lista(browser)
+                self.assertGreaterEqual(ancha['ancho'], 240, 'ampliada a propósito')
+                self.assertEqual(ancha['boton'], 'true')
+                self.abrir(browser, abrir_conversacion=False)     # volver a cargar: la conversación sigue abierta
+                self.js(browser, '__dcj.esperar(() => document.querySelector(".o_dcj_caja"), "la conversación")')
+                otra_vez = self.lista(browser)
+                self.assertTrue(otra_vez['abierta'])
+                self.assertGreaterEqual(otra_vez['ancho'], 240, 'su preferencia «ancha» se respeta con el chat abierto')
+                self.assertEqual(otra_vez['boton'], 'true')
+                self.entrar_sin_conversacion(browser)             # y sin conversación abierta, entera como todas
+                sola = self.lista(browser)
+                self.assertFalse(sola['abierta'] or sola['reducida'])
+                self.assertGreaterEqual(sola['ancho'], 240)
+                self.js(browser, '__disp.abrirLaDe("Zzotra")')
+                self.assertGreaterEqual(self.lista(browser)['ancho'], 240, 'al abrir otra sigue ancha')
+                self.sin_errores(browser, f'lista ancha a {ancho}')
+
+    def test_quien_la_dejo_reducida_igual_la_ve_entera_mientras_no_abre_ninguna(self):
+        self.conversacion_larga()
+        with self._chrome(820, 1100, VENDEDORA, reloj_fijo=False) as browser:
+            self.abrir(browser)
+            self.js(browser, '__disp.alternarLista()')            # ampliar…
+            self.js(browser, '__disp.alternarLista()')            # …y reducir: queda guardada «reducida»
+            self.assertLessEqual(self.lista(browser)['ancho'], 80)
+            self.entrar_sin_conversacion(browser)
+            sola = self.lista(browser)
+            self.assertFalse(sola['reducida'], 'sin conversación abierta no hay chat al que dejarle sitio')
+            self.assertGreaterEqual(sola['ancho'], 280)
+            self.assertIn('Zzlarga Prueba', sola['nombres'])
+            self.js(browser, '__disp.abrirLaDe("Zzlarga")')
+            self.js(browser, '__disp.pausa(400)')
+            self.assertLessEqual(self.lista(browser)['ancho'], 80, 'al abrir una, reducida como la dejó')
+            self.sin_errores(browser, 'lista reducida guardada')
+
+    def test_en_computadora_ancha_no_cambia_nada(self):
+        """Más de 1100 px: la lista nace entera con o sin conversación abierta, y quien la redujo la encuentra reducida
+        también al entrar sin ninguna abierta (como siempre)."""
+        self.conversacion_larga()
+        with self._chrome(1366, 768, VENDEDORA, reloj_fijo=False) as browser:
+            self.abrir(browser, abrir_conversacion=False)
+            sola = self.lista(browser)
+            self.assertFalse(sola['reducida'])
+            self.assertEqual(sola['boton'], 'true', 'en computadora el botón de reducir está siempre')
+            self.js(browser, '__disp.abrirLaDe("Zzlarga")')
+            self.assertGreaterEqual(self.lista(browser)['ancho'], 280, 'abrir una conversación no reduce la lista')
+            self.js(browser, '__disp.alternarLista()')
+            self.entrar_sin_conversacion(browser)
+            reducida = self.lista(browser)
+            self.assertFalse(reducida['abierta'])
+            self.assertTrue(reducida['reducida'] and reducida['ancho'] <= 80, f'sigue reducida: {reducida}')
+            self.assertEqual(reducida['boton'], 'false')
+            self.sin_errores(browser, 'computadora ancha')
 
 
 @tagged('post_install', '-at_install')
@@ -413,6 +541,41 @@ class TestContratoDeLosArchivos(TransactionCase):
             self.assertIn('aria-label=', boton, f'sin aria-label: {boton}')
         self.assertRegex(scss, r'max-height: #\{"min\(100px, 14vh\)"\}')     # la caja de texto crece hasta un máximo
         self.assertIn('@container caja', scss)
+
+    def test_la_caja_del_celular_tiene_su_cajon_y_la_computadora_sigue_con_su_linea(self):
+        caja, scss, js = self.leer('xml/caja.xml'), self.leer('scss/panel.scss'), self.leer('js/caja.js')
+        # El «+» y el cajón existen solo para el celular; «Más» solo fuera de él.
+        boton = re.search(r'<button[^>]*o_dcj_cajon_boton[^>]*>', caja).group(0)
+        for atributo in ('t-if="celular"', 'aria-controls="o_dcj_cajon"', 'aria-expanded', 'aria-label="Herramientas"',
+                         'title='):
+            self.assertIn(atributo, boton)
+        self.assertIn('id="o_dcj_cajon"', caja)
+        self.assertRegex(caja, r'<button t-if="celular"[^>]*o_dcj_herramienta_programar')
+        self.assertRegex(caja, r'<div t-if="!celular" class="o_dcj_mas_caja"')
+        self.assertRegex(js, r'get celular\(\) \{\s+void this\.almacen\.tamanoVersion;\s+return esCelular\(\);')
+        # En computadora y tableta el cajón no hace caja (sus botones van en la línea); en el celular nace cerrado.
+        self.assertIn('.o_dcj_cajon { display: contents; }', scss)
+        celular = scss[scss.index('// --- Celular: una sola columna a la vez'):]
+        self.assertIn('@media (max-width: 767.98px)', celular)
+        self.assertIn('.o_dcj_cajon { display: none; }', celular)
+        self.assertIn('.o_dcj_herramientas { display: contents; }', celular)
+
+    def test_en_pantalla_estrecha_la_lista_se_ve_entera_sin_conversacion_abierta(self):
+        almacen, lista, js = self.leer('js/almacen.js'), self.leer('xml/lista.xml'), self.leer('js/preferencias.js')
+        cuerpo = re.search(r'get listaEnteraSinChat\(\) \{(.*?)\n    \}', almacen, re.S).group(1)
+        for parte in ('!this.seleccionadaId', 'esPantallaEstrecha()', '!esCelular()'):
+            self.assertIn(parte, cuerpo)
+        self.assertRegex(almacen, r'get listaReducida\(\) \{[^}]*!this\.listaEnteraSinChat')
+        self.assertIn('t-if="almacen.listaConBoton"', lista)
+        # Si la ventana cruza los 1100 px, la pantalla se vuelve a acomodar.
+        self.assertRegex(js, r'for \(const texto of \[[^\]]*CONSULTA_ESTRECHA[^\]]*\]\)')
+
+    def test_ningun_atributo_dinamico_escribe_la_palabra_null(self):
+        """Owl quita un atributo dinámico con ``false`` o ``undefined``; con ``null`` escribe «null»: así salía en el
+        tooltip y en el aria-label de cada conversación de la lista entera, y en ``aria-current`` de las pestañas."""
+        for plantilla in sorted((FUENTES / 'xml').glob('*.xml')):
+            malos = re.findall(r't-att-[\w-]+="[^"]*(?::|\|\|)\s*null\s*"', plantilla.read_text(encoding='utf-8'))
+            self.assertFalse(malos, f'{plantilla.name}: va ``undefined`` en vez de ``null``: {malos}')
 
     def test_los_avisos_son_de_una_linea_y_el_resumen_nace_plegado(self):
         scss, hilo = self.leer('scss/panel.scss'), self.leer('xml/hilo.xml')
