@@ -15,6 +15,16 @@
 .modal .o-barcode-modal {
     .modal-body {
         background-color: #000;
+
+        // Sin cámara o sin permiso, Odoo escribe su aviso en gris oscuro, pensado para fondo blanco: sobre este fondo
+        // negro no se leía, y el segundo renglón iba pegado al borde (auditoría visual del 2026-11-11).
+        > .flex-column.justify-content-center {
+            padding: 0 24px;
+            color: #fff;
+            text-align: center;
+
+            .text-muted { color: rgba(255, 255, 255, .8) !important; }
+        }
     }
 
     .o_crop_container {

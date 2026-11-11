@@ -629,6 +629,12 @@ class TestInicioEnElNavegador(VentasMixin, HttpCase):
             }
             // Los periodos de las ventas: Hoy ya está activo; Esta semana cambia la etiqueta.
             if (!document.querySelector('.o_dcasa_periodo_hoy.o_activo')) { throw new Error('Hoy debe estar activo'); }
+            // Son <button> sin .btn: salían con el marco gris del navegador (auditoría visual del 2026-11-11).
+            for (const periodo of document.querySelectorAll('.o_dcasa_periodo')) {
+                if (getComputedStyle(periodo).borderTopWidth !== '0px') {
+                    throw new Error('«' + periodo.textContent.trim() + '» sale con el marco del navegador');
+                }
+            }
             // Las frases de comparación se reemplazaron por el bloque «Comparar» (jefe, 2026-10-17) y el interruptor
             // «Facturado» · «Con abonos» · «Completadas» abre en «Facturado» (las facturas, como Contabilidad).
             if (document.querySelector('.o_dcasa_comparacion')) { throw new Error('ya no hay frases de comparación'); }

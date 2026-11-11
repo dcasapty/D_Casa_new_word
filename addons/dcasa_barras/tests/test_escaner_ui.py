@@ -59,6 +59,10 @@ CODIGO = """
 
     // Precio (pedido de la dueña, 2026-10-16): en «Contar», Gerencia de Ventas lo cambia ahí mismo y confirma.
     const precioNuevo = await esperar(() => document.querySelector(".o_dcasa_precio_nuevo"), "el campo del precio");
+    // Salía como un campo crudo del navegador (27 px de alto, marco hundido) entre campos grandes y redondeados.
+    if (precioNuevo.getBoundingClientRect().height < 50 || getComputedStyle(precioNuevo).borderTopStyle !== "solid") {
+        falla("el campo del precio nuevo debe verse como los demás campos del Escáner");
+    }
     escribir(precioNuevo, "399.5");
     boton("Revisar precio").click();
     const verPrecio = await esperar(() => document.querySelector(".o_dcasa_precio .o_dcasa_confirmar"),
@@ -449,8 +453,44 @@ CODIGO_CAMARA = """
 """
 
 
+# Sin cámara o sin permiso (auditoría visual del 2026-11-11): Odoo escribe su aviso en gris oscuro y el fondo de la
+# cámara es negro: no se leía. Se niega el permiso y se mira que el aviso salga claro y con margen.
+CODIGO_CAMARA_SIN_PERMISO = """
+(async () => {
+    const esperar = async (fn, que, ms = 20000) => {
+        const inicio = Date.now();
+        while (Date.now() - inicio < ms) {
+            const r = fn();
+            if (r) { return r; }
+            await new Promise((ok) => setTimeout(ok, 100));
+        }
+        throw new Error("Cámara: no apareció " + que);
+    };
+    const falla = (texto) => { throw new Error("Cámara: " + texto); };
+    navigator.mediaDevices.getUserMedia = async () => { throw new DOMException("sin permiso", "NotAllowedError"); };
+    (await esperar(() => document.querySelector(".o_dcasa_escaner .o_dcasa_camara"), "el botón de la cámara")).click();
+    const titulo = await esperar(() => document.querySelector(".o-barcode-modal .modal-body strong"), "el aviso");
+    const detalle = titulo.parentElement.querySelector("span");
+    const claro = (el) => {
+        const [r, g, b, a = 1] = getComputedStyle(el).color.match(/[\\d.]+/g).map(Number);
+        return Math.min(r, g, b) >= 200 && a >= 0.7;
+    };
+    if (!claro(titulo)) { falla("el título del aviso no se lee sobre negro: " + getComputedStyle(titulo).color); }
+    if (!claro(detalle)) { falla("el detalle del aviso no se lee sobre negro: " + getComputedStyle(detalle).color); }
+    const caja = detalle.getBoundingClientRect();
+    if (caja.left < 16 || caja.right > window.innerWidth - 16) { falla("el aviso va pegado al borde: " + caja.left); }
+    console.log("test successful");
+})().catch((e) => console.error(e.message || e));
+"""
+
+
 @tagged('post_install', '-at_install')
 class TestEscanerEnElNavegador(HttpCase, BarrasCommon):
+
+    def test_sin_permiso_de_camara_el_aviso_se_lee(self):
+        self.browser_size = '390x844'
+        self.browser_js('/odoo/action-dcasa_barras.accion_escaner', CODIGO_CAMARA_SIN_PERMISO, ready='odoo.isReady',
+                        login='admin', timeout=120)
 
     def _factura_con_qr(self):
         """Una factura de cliente publicada y la dirección de su QR (Inventario no lee facturas)."""

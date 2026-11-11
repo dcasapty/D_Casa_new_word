@@ -14,7 +14,7 @@ class DcasaCobrarPremioWizard(models.TransientModel):
     _name = 'dcasa.cobrar.premio.wizard'
     _description = 'Cobrar premio en una venta'
 
-    order_id = fields.Many2one('sale.order', required=True, readonly=True)
+    order_id = fields.Many2one('sale.order', string='Venta', required=True, readonly=True)
     codigo = fields.Char(string='Código del premio', required=True)
     canje_id = fields.Many2one('dcasa.canje', compute='_compute_canje_id')
 

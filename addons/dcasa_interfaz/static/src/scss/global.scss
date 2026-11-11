@@ -317,3 +317,35 @@ $dcasa-alerta: #D92D20;
     }
     .o_main_navbar > .o_menu_toggle { display: inline-flex; align-items: center; justify-content: center; }
 }
+
+// --- Barra de estado de los formularios en el celular (auditoría del 2026-11-11, tercera tanda) -----------------------
+// En la cotización, «Enviar por WhatsApp», los tres puntos y el estado («Cotización enviada») no caben en un renglón
+// de 360 a 390 px: el botón se partía en dos líneas, los tres puntos caían debajo y la flecha del estado se montaba
+// sobre el botón. Ahora el botón y sus tres puntos van siempre juntos y enteros; el estado se queda a la derecha si
+// cabe y, si no, baja limpio a su propio renglón.
+@include media-breakpoint-down(md) {
+    .o_form_view .o_form_statusbar {
+        flex-wrap: wrap;
+        gap: 6px 8px;
+
+        > .o_statusbar_buttons {
+            flex: 0 1 auto;
+            flex-wrap: nowrap;
+            min-width: 0;
+
+            > .btn:not(.dropdown-toggle) { padding-left: 12px; padding-right: 12px; }
+        }
+        > .o_field_statusbar { flex: 0 0 auto; margin-left: auto; }
+    }
+}
+
+// --- Botones bajo las líneas de la cotización (auditoría del 2026-11-11, tercera tanda) -------------------------------
+// A la vendedora le salen tres («Descuento», «Agregar envío», «Pedir descuento a Gerencia») y en el celular Odoo los
+// aprieta en una fila: quedaban como cajas de tres renglones. Cada botón conserva su texto en una línea y el que no
+// cabe baja a la fila siguiente.
+.o_form_view div[name="so_button_below_order_lines"] {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+
+    > .btn { white-space: nowrap; }
+}

@@ -9,7 +9,6 @@ const FORMATO_HORA = new Intl.DateTimeFormat("es-PA", { timeZone: ZONA, hour: "n
 const FORMATO_DIA = new Intl.DateTimeFormat("en-CA", { timeZone: ZONA, year: "numeric", month: "2-digit", day: "2-digit" });
 const FORMATO_DIA_LARGO = new Intl.DateTimeFormat("es-PA", { timeZone: ZONA, weekday: "long", day: "numeric", month: "long" });
 const FORMATO_DIA_CORTO = new Intl.DateTimeFormat("es-PA", { timeZone: ZONA, weekday: "short" });
-const FORMATO_FECHA = new Intl.DateTimeFormat("es-PA", { timeZone: ZONA, day: "2-digit", month: "2-digit", year: "2-digit" });
 const UN_DIA = 24 * 3600 * 1000;
 
 const aFecha = (iso) => (iso instanceof Date ? iso : new Date(iso));
@@ -37,6 +36,15 @@ export function etiquetaDia(iso, ahora = Date.now()) {
     return texto.charAt(0).toUpperCase() + texto.slice(1);
 }
 
+/**
+ * «04/11/26»: día/mes/año, como el resto del panel. Se arma a mano: el formato numérico de «es-PA» es mes/día/año, y
+ * el 4 de noviembre salía «11/04/26», que se lee como 11 de abril (auditoría visual del 2026-11-11).
+ */
+export function fechaCorta(iso) {
+    const [ano, mes, dia] = claveDia(iso).split("-");
+    return `${dia}/${mes}/${ano.slice(-2)}`;
+}
+
 /** Para la lista: la hora si es de hoy, «Ayer», el día de la semana si es de esta semana, y si no, la fecha. */
 export function horaDeLista(iso, ahora = Date.now()) {
     if (!iso) {
@@ -53,7 +61,7 @@ export function horaDeLista(iso, ahora = Date.now()) {
         const corto = FORMATO_DIA_CORTO.format(aFecha(iso)).replace(".", "");
         return corto.charAt(0).toUpperCase() + corto.slice(1);
     }
-    return FORMATO_FECHA.format(aFecha(iso));
+    return fechaCorta(iso);
 }
 
 /** «en 1 h 20 min», «en 35 min», «en menos de 1 min» o «ya venció». */
