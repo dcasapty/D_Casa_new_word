@@ -202,9 +202,11 @@ misma etiqueta: sirve para Messenger e Instagram; Messenger siguió funcionando)
 Juan y `messages` suscrito. Un «Hola buenas» desde otra cuenta: Juan contestó y salió en Odoo con el nombre. **Se
 descartó** la guía de un conocido («inicio de sesión con Instagram»): pide otra llave (`IG…`, vence a los 60 días) y
 otra clave secreta, y Juan habría tenido que cambiar; por la página no hizo falta tocar nada.
-- **La foto no salía por Instagram** (el texto sí), igual que Messenger el 9 nov. Desde Juan 19 la foto se **sube** a
-  Meta (`me/message_attachments`, `platform=instagram`, multipart con `filedata`, hasta 8 MB, png o jpeg) y se manda con
-  su `attachment_id`; si Meta no acepta la subida, va por URL como antes y el registro dice qué contestó Meta.
+- **La foto no salía por Instagram** (el texto sí, «(#100) Error al subir el producto»), igual que Messenger el 9 nov.
+  Juan 19 la subía aparte (`me/message_attachments`) y siguió fallando. Desde Juan 20 se prueba, en orden: (1) subir y
+  enviar en la **misma** llamada, como Messenger (`me/messages` con `filedata`; la documentación de Meta lo da para
+  Instagram), (2) subir aparte y mandar con `attachment_id`, (3) por URL. Si ninguno sale, «Por qué no salió» en Odoo
+  dice qué contestó Meta a cada intento («Instagram no aceptó la foto · envío: … · aparte: … · URL: …»).
 
 **Cómo quedó Messenger (2026-11-09):** con la cuenta de Facebook que tiene **control total** de la página (la que
 abría Chrome solo tenía Contenido, Actividad de la comunidad y Estadísticas: sin «Mensajes» la página no sale al tocar

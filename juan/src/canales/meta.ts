@@ -127,7 +127,7 @@ export function crearMeta(op: OpcionesMeta = {}): AdaptadorCanal {
   /**
    * Juan baja el archivo (la URL firmada de Odoo) para SUBÍRSELO a Meta: con `payload.url` Meta tenía que bajarlo él mismo desde
    * dcasapty.com y respondía «(#100) Error al subir el producto» (2026-11-09 en Messenger y 2026-11-10 en Instagram: el texto
-   * salía y la foto no). Messenger lo sube en la misma llamada (`filedata`); Instagram, antes, por la Attachment Upload API
+   * salía y la foto no). Messenger lo sube en la misma llamada (`filedata`); Instagram prueba eso y dos caminos más
    * (`enviarFotoInstagram`). Si Juan no logra bajarlo, se manda por URL como antes (nunca peor que antes).
    */
   async function bajarParaSubir(m: MedioSaliente, canal: "messenger" | "instagram"): Promise<{ bytes: ArrayBuffer; mime: string } | null> {
@@ -170,12 +170,12 @@ export function crearMeta(op: OpcionesMeta = {}): AdaptadorCanal {
       message: { attachment: { type: m.tipo === "imagen" ? "image" : "file", payload: canal === "instagram" ? { url: m.url } : { url: m.url, is_reusable: true } } },
     });
 
-  /**
-   * Instagram: la foto se sube primero a Meta (`me/message_attachments` con `platform=instagram`, multipart con `filedata`) y se
-   * manda con el `attachment_id` que devuelve (la Send API de Instagram acepta `payload.attachment_id`). Devuelve null si Meta no
-   * aceptó la subida: entonces va por URL como antes. Lo que dijo Meta queda en el registro, sin datos de nadie.
-   */
-  async function subirFotoInstagram(env: Env, m: MedioSaliente, archivo: { bytes: ArrayBuffer; mime: string }): Promise<string | null> {
+  const motivo = (e: unknown) => (e instanceof Error ? e.message : String(e)).slice(0, 160);
+  /** Un motivo de Meta en corto para Odoo (que guarda 200 letras): sin «meta send 400:» y con el código entre corchetes. */
+  const corto = (m: string) => m.replace(/^meta send \d+: /, "").replace(/^HTTP \d+ /, "").replace(/ \(código ([^)]*)\)$/, " [$1]").slice(0, 46);
+
+  /** Sube la foto aparte (`me/message_attachments`, `platform=instagram`) y devuelve su `attachment_id`, o null (con el motivo en `fallos`). */
+  async function subirFotoInstagram(env: Env, m: MedioSaliente, archivo: { bytes: ArrayBuffer; mime: string }, fallos: string[]): Promise<string | null> {
     const token = env.META_PAGE_TOKEN;
     if (!token) return null;
     try {
@@ -186,19 +186,55 @@ export function crearMeta(op: OpcionesMeta = {}): AdaptadorCanal {
       const r = await f(urlGraph(env, "me/message_attachments"), { method: "POST", headers: { authorization: `Bearer ${token}` }, body: cuerpo });
       const j = (await r.json().catch(() => ({}))) as { attachment_id?: unknown; error?: { message?: string; code?: number } };
       if (r.ok && typeof j.attachment_id === "string" && j.attachment_id) return j.attachment_id;
-      console.warn(`[juan] instagram: Meta no aceptó la foto subida (HTTP ${r.status}, código ${j.error?.code ?? "?"}): ${(j.error?.message ?? "sin detalle").slice(0, 160)}; va por URL`);
+      fallos.push(`aparte: HTTP ${r.status} ${(j.error?.message ?? "sin attachment_id").slice(0, 120)} (código ${j.error?.code ?? "?"})`);
       return null;
     } catch (e) {
-      console.warn("[juan] instagram: no se pudo subir la foto; va por URL:", (e instanceof Error ? e.message : String(e)).slice(0, 160));
+      fallos.push(`aparte: ${motivo(e)}`);
       return null;
     }
   }
 
+  /**
+   * Instagram (2026-11-10: el texto salía y la foto no, «(#100) Error al subir el producto»). Se prueba, en orden, hasta que uno
+   * sale: (1) subir y enviar en la MISMA llamada, como Messenger (la documentación de Meta lo da para Instagram: `me/messages` con
+   * `filedata`); (2) subir aparte y mandar con `attachment_id`; (3) por URL, como antes. Un rechazo de Meta no deja salir nada, así
+   * que probar el siguiente no duplica. Si ninguno sale, el error dice qué contestó Meta a cada intento: se ve en Odoo («Por qué
+   * no salió») sin tener que abrir los registros.
+   */
   async function enviarFotoInstagram(env: Env, destino: { id: string }, m: MedioSaliente): Promise<string | undefined> {
+    const fallos: string[] = [];
     const archivo = await bajarParaSubir(m, "instagram");
-    const adjunto = archivo ? await subirFotoInstagram(env, m, archivo) : null;
-    if (!adjunto) return porUrl(env, destino, m, "instagram");
-    return enviarUno(env, { recipient: destino, messaging_type: "RESPONSE", message: { attachment: { type: "image", payload: { attachment_id: adjunto } } } });
+    if (archivo) {
+      try {
+        return await enviarSubiendo(env, destino, m, archivo);
+      } catch (e) {
+        fallos.push(`envío: ${motivo(e)}`);
+      }
+      const adjunto = await subirFotoInstagram(env, m, archivo, fallos);
+      if (adjunto) {
+        try {
+          return await enviarUno(env, { recipient: destino, messaging_type: "RESPONSE", message: { attachment: { type: "image", payload: { attachment_id: adjunto } } } });
+        } catch (e) {
+          fallos.push(`attachment_id: ${motivo(e)}`);
+        }
+      }
+    } else {
+      fallos.push("bajar: Juan no pudo bajar la foto de Odoo");
+    }
+    try {
+      const id = await porUrl(env, destino, m, "instagram");
+      if (fallos.length) console.warn("[juan] instagram: la foto salió por URL después de:", fallos.join(" · "));
+      return id;
+    } catch (e) {
+      fallos.push(`URL: ${motivo(e)}`);
+      console.warn("[juan] instagram: Meta no aceptó la foto:", fallos.join(" · "));
+      // En corto para Odoo («Por qué no salió» guarda 200 letras): cada intento con lo que dijo Meta.
+      const resumen = fallos.map((x) => {
+        const i = x.indexOf(": ");
+        return `${x.slice(0, i)}: ${corto(x.slice(i + 2))}`;
+      });
+      throw new Error(`Instagram no aceptó la foto · ${resumen.join(" · ")}`.slice(0, 200));
+    }
   }
 
   return {
