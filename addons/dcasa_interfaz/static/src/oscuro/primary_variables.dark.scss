@@ -1,0 +1,171 @@
+// MODO OSCURO — la paleta de Odoo.
+//
+// Aprobado por la dueña sobre el prototipo del Inicio (2026-11-11): grises fríos y serios, «estilo consola de estudio»,
+// no azul de fondo. El modo claro no cambia: este archivo solo entra en la hoja oscura (`web.assets_web_dark` y la de
+// carga perezosa), después de `dcasa_base/…/primary_variables.scss` (para pisar su barra blanca) y antes de las
+// variables de Odoo, que son `!default` y respetan lo que ya esté definido.
+//
+// La idea es la misma que usa Odoo en su versión de pago: se invierte la escala. «Blanco» pasa a ser la superficie
+// (gris oscuro), «negro» pasa a ser blanco, y los grises 100…900 van de casi-fondo a casi-texto. Así todo el SCSS de
+// Odoo, que está escrito contra esas variables, sale oscuro sin tocarlo.
+
+$o-webclient-color-scheme: dark;
+
+// --- Superficies y texto ----------------------------------------------------------------------------------------------
+$dc-o-fondo: #1F2226;          // detrás de todo
+$dc-o-sup: #2A2E33;            // tarjetas, hojas, listas, ventanas
+$dc-o-sup-2: #32373D;          // lo que se levanta un poco (encima de una superficie, al pasar el puntero)
+$dc-o-linea: #3D434B;
+$dc-o-linea-2: #505762;
+$dc-o-tinta: #E8EAED;
+$dc-o-tinta-2: #B7BDC6;
+$dc-o-tinta-3: #8E95A0;
+$dc-o-acento: #9DB8F5;         // enlaces, lo activo, barras
+$dc-o-boton: #3A63CF;          // botón principal (texto blanco)
+$dc-o-boton-2: #4A72DC;        // el mismo, al pasar el puntero
+$dc-o-suave: #343C4B;          // fondo de lo elegido (azulado apenas)
+
+$o-white: $dc-o-sup;
+$o-black: #FFFFFF;
+
+$o-gray-100: #24272B;
+$o-gray-200: $dc-o-sup-2;
+$o-gray-300: $dc-o-linea;
+$o-gray-400: $dc-o-linea-2;
+$o-gray-500: #717986;
+$o-gray-600: $dc-o-tinta-3;
+$o-gray-700: $dc-o-tinta-2;
+$o-gray-800: #D3D7DC;
+$o-gray-900: $dc-o-tinta;
+
+$o-view-background-color: $dc-o-sup;
+$o-webclient-background-color: $dc-o-fondo;
+$o-main-text-color: $dc-o-tinta;
+$o-main-headings-color: #F2F4F6;
+$o-main-color-muted: rgba($dc-o-tinta-2, .8);
+$o-shadow-color: #000000;
+$o-form-lightsecondary: $dc-o-linea-2;
+
+// --- Marca, enlaces y estados -----------------------------------------------------------------------------------------
+// El azul de la marca (#1340B1) no se lee sobre gris oscuro: los botones usan un azul más claro (con texto blanco) y los
+// enlaces y lo activo, un celeste. El amarillo de la marca queda solo para insignias chicas.
+$o-community-color: $dc-o-boton;
+$o-enterprise-color: $dc-o-boton;
+$o-brand-odoo: $dc-o-boton;
+$o-brand-primary: $dc-o-boton;
+$o-brand-secondary: #7A828E;
+$o-action: $dc-o-acento;
+$o-main-link-color: $dc-o-acento;
+$o-main-code-color: #F29BC0;
+$o-main-favorite-color: #F3CC00;
+
+$o-success: #2FA36B;
+$o-info: #3D9DB8;
+$o-warning: #E0A526;
+$o-danger: #E05A52;
+
+// Los mismos estados, escritos (texto sobre la superficie): más claros para que se lean.
+$o-theme-text-colors: (
+    "primary": $dc-o-acento,
+    "success": #7AD3A6,
+    "info": #7CC7DB,
+    "warning": #E6B866,
+    "danger": #FF8F87,
+);
+
+$o-component-active-color: #FFFFFF;
+$o-component-active-bg: $dc-o-suave;
+$o-component-active-border: $dc-o-acento;
+$o-list-group-active-color: #FFFFFF;
+$o-list-group-active-bg: $dc-o-suave;
+$o-input-border-required: $dc-o-acento;
+
+// --- Texto sobre fondos de color ----------------------------------------------------------------------------------------
+// Bootstrap elige texto claro u oscuro según el fondo. Como aquí «blanco» y «negro» están invertidos, se le dicen los
+// dos tonos de verdad: blanco puro sobre lo oscuro, casi negro sobre lo claro (el amarillo, por ejemplo).
+$color-contrast-light: #FFFFFF;
+$color-contrast-dark: #16181B;
+
+// --- Botones ----------------------------------------------------------------------------------------------------------
+$o-btns-bs-override: (
+    "primary": (
+        background: $dc-o-boton,
+        border: $dc-o-boton,
+        color: #FFFFFF,
+
+        hover-background: $dc-o-boton-2,
+        hover-border: $dc-o-boton-2,
+        hover-color: #FFFFFF,
+
+        active-background: #2F54B5,
+        active-border: #2F54B5,
+        active-color: #FFFFFF,
+    ),
+    "secondary": (
+        background: $dc-o-sup-2,
+        border: $dc-o-linea-2,
+        color: $dc-o-tinta,
+
+        hover-background: #3A4048,
+        hover-border: #5F6773,
+        hover-color: #FFFFFF,
+
+        active-background: $dc-o-suave,
+        active-border: $dc-o-acento,
+        active-color: #FFFFFF,
+    ),
+    "light": (
+        background: $dc-o-sup,
+        border: $dc-o-sup,
+        color: $dc-o-tinta,
+
+        hover-background: $dc-o-sup-2,
+        hover-border: $dc-o-sup-2,
+        hover-color: #FFFFFF,
+
+        active-background: $dc-o-suave,
+        active-border: $dc-o-acento,
+        active-color: #FFFFFF,
+    ),
+);
+
+$o-btns-bs-outline-override: (
+    "primary": (
+        background: transparent,
+        border: $dc-o-acento,
+        color: $dc-o-acento,
+
+        hover-background: $dc-o-boton,
+        hover-border: $dc-o-boton,
+        hover-color: #FFFFFF,
+
+        active-background: $dc-o-boton,
+        active-border: $dc-o-boton,
+        active-color: #FFFFFF,
+    ),
+    "secondary": (
+        background: transparent,
+        border: $dc-o-linea-2,
+        color: $dc-o-tinta,
+
+        hover-background: $dc-o-sup-2,
+        hover-border: $dc-o-linea-2,
+        hover-color: #FFFFFF,
+
+        active-background: $dc-o-suave,
+        active-border: $dc-o-acento,
+        active-color: #FFFFFF,
+    ),
+);
+
+// --- Barra de arriba ----------------------------------------------------------------------------------------------------
+$o-navbar-background: $dc-o-sup;
+$o-navbar-border-bottom: 1px solid $dc-o-linea;
+$o-navbar-entry-color: $dc-o-tinta-2;
+$o-navbar-entry-color--hover: $dc-o-tinta;
+$o-navbar-entry-bg--hover: rgba(255, 255, 255, .06);
+$o-navbar-entry-color--active: $dc-o-acento;
+$o-navbar-entry-bg--active: rgba(157, 184, 245, .12);
+$o-navbar-brand-color: $dc-o-tinta;
+$o-navbar-badge-bg: $dc-o-boton;
+$o-navbar-badge-text-shadow: none;

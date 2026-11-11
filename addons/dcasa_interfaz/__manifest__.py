@@ -61,6 +61,23 @@ La interfaz de trabajo de D'CASA, hecha a medida:
             'dcasa_interfaz/static/src/js/*.js',
             'dcasa_interfaz/static/src/xml/*.xml',
         ],
+        # Modo oscuro (lo enciende cada persona; `ir.http.color_scheme` lee la cookie). Todo lo oscuro vive en
+        # `static/src/oscuro/`, carpeta que los comodines de arriba no alcanzan: la hoja clara no cambia ni un byte.
+        # La paleta va después de la de dcasa_base (para pisarla) y antes de la de Odoo (que es `!default`).
+        'web.assets_web_dark': [
+            ('after', 'web/static/lib/bootstrap/scss/_functions.scss',
+             'dcasa_interfaz/static/src/oscuro/bs_functions.dark.scss'),
+            ('after', 'dcasa_base/static/src/scss/primary_variables.scss',
+             'dcasa_interfaz/static/src/oscuro/primary_variables.dark.scss'),
+            'dcasa_interfaz/static/src/oscuro/tokens.dark.scss',
+        ],
+        # Las gráficas y las tablas dinámicas cargan su hoja aparte, al abrirlas: necesitan la misma paleta.
+        'web.assets_backend_lazy_dark': [
+            ('after', 'web/static/lib/bootstrap/scss/_functions.scss',
+             'dcasa_interfaz/static/src/oscuro/bs_functions.dark.scss'),
+            ('after', 'dcasa_base/static/src/scss/primary_variables.scss',
+             'dcasa_interfaz/static/src/oscuro/primary_variables.dark.scss'),
+        ],
     },
     'post_init_hook': '_dcasa_interfaz_post_init',
     'installable': True,
