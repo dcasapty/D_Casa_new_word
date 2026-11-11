@@ -71,7 +71,7 @@ class TestSitioPorCodigo(TransactionCase):
     def test_sitio_web_para_gerencia_sin_constructor(self):
         de_gerencia = self._menus(self.gerencia)
         for xmlid in ('website.menu_website_configuration', 'dcasa_interfaz.menu_dcasa_vista_previa',
-                      'website.menu_website_pages_list', 'website_sale.menu_product_pages',
+                      'website_sale.menu_product_pages',
                       'website_sale.menu_catalog_products', 'website_sale.menu_orders_orders',
                       'website_sale.menu_report_sales'):
             self.assertIn(xmlid, de_gerencia, xmlid)
@@ -79,7 +79,9 @@ class TestSitioPorCodigo(TransactionCase):
                       'website.menu_page_properties', 'website.menu_optimize_seo', 'website.menu_ace_editor',
                       'website.custom_menu_edit_menu', 'website.menu_website_technical_pages',
                       'website.menu_website_analytics', 'website.website_visitor_menu',
-                      'website.menu_visitor_view_menu'):
+                      'website.menu_visitor_view_menu',
+                      # «Páginas» no abre sin el grupo de editor («Acceso denegado», 2026-11-11): no se muestra.
+                      'website.menu_website_pages_list'):
             self.assertNotIn(xmlid, de_gerencia, xmlid)
         self.assertNotIn('website.menu_website_configuration', self._menus(self.vendedora))
 

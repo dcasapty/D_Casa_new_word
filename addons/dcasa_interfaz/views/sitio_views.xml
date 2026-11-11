@@ -50,6 +50,14 @@
     <record id="website.menu_website_technical_pages" model="ir.ui.menu">
         <field name="group_ids" eval="[Command.set([ref('website.group_website_designer')])]"/>
     </record>
+    <!-- «Páginas»: la lista de Odoo 19 no abre sin el grupo de editor (pide los ids con
+         `website.get_website_page_ids` y lee campos de la plantilla, `ir.ui.view`): a Gerencia le decía «Acceso
+         denegado» (auditoría visual del 2026-11-11). Hacerla abrir exigiría dejarle leer las plantillas del sitio;
+         mientras la dueña no lo decida, el menú no se muestra. Publicar o despublicar una página sigue siendo posible
+         para Gerencia por permiso (`ir.model.access.csv`); las páginas se mantienen desde el código. -->
+    <record id="website.menu_website_pages_list" model="ir.ui.menu">
+        <field name="group_ids" eval="[Command.set([ref('website.group_website_designer')])]"/>
+    </record>
     <!-- Reportes de visitantes y «Analytics»: la tienda se sirve desde la caché del borde de Cloudflare
          a los visitantes anónimos, así que Odoo no ve esas visitas y el reporte saldría incompleto.
          Las visitas se miran en Cloudflare. «Ventas en línea» (Gerencia) sí se queda. -->
