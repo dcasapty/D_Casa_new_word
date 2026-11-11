@@ -25,3 +25,4 @@ from . import test_cobros_por_forma
 from . import test_origen
 from . import test_oportunidad_celular
 from . import test_cotizacion_celular
+from . import test_mas_datos
