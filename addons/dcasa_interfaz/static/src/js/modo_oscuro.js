@@ -23,21 +23,24 @@ export const modoOscuro = {
         cookie.set(COOKIE, oscuro ? "dark" : "light");
         this.recargar();
     },
-    alternar() {
-        this.poner(!this.encendido());
-    },
     recargar() {
         browser.location.reload();
     },
 };
 
+/**
+ * El renglón del menú: un interruptor «Modo oscuro» que se ve encendido o apagado según el modo en que se está.
+ * Al tocarlo pone lo contrario de lo que MOSTRABA (no de lo que diga la cookie en ese instante): si el toque llega dos
+ * veces (el renglón y su casilla), las dos piden lo mismo.
+ */
 function interruptorModoOscuro() {
+    const encendido = modoOscuro.encendido();
     return {
         type: "switch",
         id: "dcasa_modo_oscuro",
         description: "Modo oscuro",
-        isChecked: modoOscuro.encendido(),
-        callback: () => modoOscuro.alternar(),
+        isChecked: encendido,
+        callback: () => modoOscuro.poner(!encendido),
         sequence: 55,
     };
 }

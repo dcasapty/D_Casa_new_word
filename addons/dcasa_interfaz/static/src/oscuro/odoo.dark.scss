@@ -1,0 +1,7 @@
+// MODO OSCURO — retoques a las pantallas de Odoo (listas, formularios, barra de arriba, ventanas).
+//
+// La paleta (`primary_variables.dark.scss`) hace casi todo el trabajo. Aquí va solo lo que no sale de las variables.
+
+// El globo de «mensajes sin leer» de la barra de arriba: el rojo de alerta, un punto más claro para que el ícono se lea
+// sobre gris (el contador sigue rojo con el número blanco).
+.o_main_navbar button:has(.o-mail-MessagingMenu-counter) .fa-comments { color: #FF7A6E; }
