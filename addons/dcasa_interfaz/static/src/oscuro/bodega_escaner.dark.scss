@@ -1,0 +1,81 @@
+// MODO OSCURO — Bodega y Escáner (dcasa_barras).
+//
+// Rellenos azules, la barra de abajo de la entrega, y los verdes, ámbar y rojos pastel puestos a mano.
+
+.o_dcasa_bodega {
+    // Botones y pestañas elegidas.
+    .o_dcasa_bodega_boton_primario,
+    .o_dcasa_bodega_pestana.o_dcasa_bodega_activa,
+    .o_dcasa_bodega_como_retiro,
+    .o_dcasa_bodega_abrir {
+        background: var(--dc-relleno);
+        border-color: var(--dc-relleno);
+        color: var(--dc-en-relleno);
+    }
+    .o_dcasa_bodega_pestana { border-color: var(--dc-linea-fuerte); }
+    .o_dcasa_bodega_filtro.o_dcasa_bodega_activo {
+        background: var(--dc-cabeza);
+        border-color: var(--dc-azul-600);
+        color: var(--dc-en-cabeza);
+    }
+    // La cuenta dentro de la pestaña o el filtro elegidos (en claro: blanco con número marino).
+    .o_dcasa_bodega_activa .o_dcasa_bodega_cuenta,
+    .o_dcasa_bodega_activo .o_dcasa_bodega_cuenta { background: rgba(255, 255, 255, .18); color: #FFFFFF; }
+
+    // La barra fija de abajo («Imprimir» y «Validar»): gris. «Validar» era un botón amarillo grande; de noche el
+    // amarillo queda solo para insignias chicas, así que pasa a ser el botón principal (azul con texto blanco).
+    .o_dcasa_bodega_barra_abajo { background: var(--dc-cabeza); }
+    .o_dcasa_bodega_imprimir { color: var(--dc-en-cabeza); border-color: var(--dc-en-cabeza-2); }
+    .o_dcasa_bodega_validar { background: var(--dc-relleno); color: var(--dc-en-relleno); }
+    .o_dcasa_bodega_validar:focus-visible { outline-color: #FFFFFF; }
+
+    // Verde: lista, hecha, salió.
+    .o_dcasa_bodega_msg_ok,
+    .o_dcasa_bodega_exito,
+    .o_dcasa_bodega_estado_lista,
+    .o_dcasa_bodega_estado_hecha {
+        background: var(--dc-bien-fondo);
+        border-color: var(--dc-bien-linea);
+        color: var(--dc-bien);
+    }
+    .o_dcasa_bodega_exito_icono,
+    .o_dcasa_bodega_cerrar,
+    .o_dcasa_bodega_salio { color: var(--dc-bien); }
+    .o_dcasa_bodega_exito_botones .o_dcasa_bodega_boton { border-color: var(--dc-bien-linea); color: var(--dc-bien); }
+    .o_dcasa_bodega_linea.o_dcasa_bodega_linea_lista { background: var(--dc-bien-fondo); border-color: var(--dc-bien-linea); }
+    .o_dcasa_bodega_check.o_dcasa_bodega_check_si { background: #2E7D32; border-color: #2E7D32; color: #FFFFFF; }
+    .o_dcasa_bodega_barra span { background: #3FA863; }
+    .o_dcasa_bodega_tarjeta_lista { border-left-color: #3FA863; }
+    .o_dcasa_bodega_tarjeta_parcial { border-left-color: #D9A441; }
+
+    // Ámbar: parcial, por cobrar, faltan.
+    .o_dcasa_bodega_estado_parcial,
+    .o_dcasa_bodega_pago,
+    .o_dcasa_bodega_alerta,
+    .o_dcasa_bodega_faltan {
+        background: var(--dc-falta-fondo);
+        border-color: var(--dc-falta-linea);
+        color: var(--dc-falta);
+    }
+    .o_dcasa_bodega_linea_aviso { color: var(--dc-falta); }
+
+    // Rojo: error y atrasada.
+    .o_dcasa_bodega_msg_error { background: var(--dc-mal-fondo); border-color: var(--dc-mal-linea); color: var(--dc-mal); }
+    .o_dcasa_bodega_atrasada { color: var(--dc-mal); }
+
+    .o_dcasa_bodega_fondo { background: rgba(0, 0, 0, .6); }
+}
+
+.o_dcasa_escaner {
+    .o_dcasa_modo.o_dcasa_modo_activo,
+    .o_dcasa_boton_primario,
+    .o_dcasa_estado_disponible,
+    .o_dcasa_estado_etiqueta_asignada {
+        background: var(--dc-relleno);
+        border-color: var(--dc-relleno);
+        color: var(--dc-en-relleno);
+    }
+    .o_dcasa_msg_ok { border-color: var(--dc-bien-linea); color: var(--dc-bien); }
+    .o_dcasa_msg_error { border-color: var(--dc-mal-linea); color: var(--dc-mal); }
+    .o_dcasa_estado_agotado { background: #C4483F; border-color: #C4483F; color: #FFFFFF; }
+}

@@ -1,0 +1,58 @@
+// MODO OSCURO — Marketing (tablero y fotos de los productos, dcasa_marketing).
+//
+// Esta pantalla pone muchos blancos a mano (`#fff`): aquí pasan a la superficie. Las FOTOS de producto conservan su
+// fondo blanco a propósito: casi todas vienen recortadas sobre blanco y sobre gris se verían con un recuadro sucio.
+
+.o_dcasa_mk {
+    .o_dcasa_mk_boton,
+    .o_dcasa_mk_periodo[aria-pressed="true"],
+    .o_dcasa_mk_chip[aria-pressed="true"],
+    .o_dcasa_mk_subir {
+        background: var(--dc-relleno);
+        border-color: var(--dc-relleno);
+        color: var(--dc-en-relleno);
+    }
+    .o_dcasa_mk_chip[aria-pressed="true"] small { color: var(--dc-en-relleno-2); }
+
+    .o_dcasa_mk_filtros,
+    .o_dcasa_mk_periodo,
+    .o_dcasa_mk_chip,
+    .o_dcasa_mk_ir,
+    .o_dcasa_mk_seccion,
+    .o_dcasa_mk_buscar { background: var(--dc-blanco); }
+
+    .o_dcasa_mk_error,
+    .o_dcasa_mk_cuantas.o_dcasa_mk_cuantas_cero { background: var(--dc-mal-fondo); color: var(--dc-mal); }
+}
+
+.o_dcasa_foto_lupa,
+.o_dcasa_fotos_modo[aria-pressed="true"],
+.o_dcasa_fotos_insignia,
+.o_dcasa_fotos_accion.o_dcasa_fotos_accion_principal,
+.o_dcasa_fotos_chip[aria-pressed="true"] {
+    background: var(--dc-relleno);
+    border-color: var(--dc-relleno);
+    color: var(--dc-en-relleno);
+}
+
+.o_dcasa_fotos_cabeza,
+.o_dcasa_fotos_modo,
+.o_dcasa_fotos_cerrar,
+.o_dcasa_fotos_acciones,
+.o_dcasa_fotos_accion,
+.o_dcasa_fotos_chip,
+.o_dcasa_fotos_tarjeta,
+.o_dcasa_fotos_tarjeta .o_dcasa_fotos_tarjeta_botones button { background: var(--dc-blanco); }
+
+.o_dcasa_fotos_mensaje.o_dcasa_fotos_mensaje_error { background: var(--dc-mal-fondo); color: var(--dc-mal); }
+.o_dcasa_fotos_accion.o_dcasa_fotos_accion_quitar { color: var(--dc-mal); }
+
+// El escenario de la foto y la tira de miniaturas eran marino: casi negro, para que la foto mande.
+.o_dcasa_fotos_escenario,
+.o_dcasa_fotos_recorte .o_dcasa_fotos_lienzo { background: #121416; }
+.o_dcasa_fotos_tira { background: #1A1C1F; }
+.o_dcasa_fotos_tarjeta .o_dcasa_fotos_numero { background: #16181B; color: #FFFFFF; }
+// Las flechas y el zoom flotan sobre la foto: se quedan claras con su ícono oscuro.
+.o_dcasa_fotos_flecha,
+.o_dcasa_fotos_zoom { color: #16181B; }
+.o_dcasa_fotos_tarjeta.o_dragged { box-shadow: 0 8px 24px rgba(0, 0, 0, .45); }

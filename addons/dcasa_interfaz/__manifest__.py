@@ -70,6 +70,7 @@ La interfaz de trabajo de D'CASA, hecha a medida:
             ('after', 'dcasa_base/static/src/scss/primary_variables.scss',
              'dcasa_interfaz/static/src/oscuro/primary_variables.dark.scss'),
             'dcasa_interfaz/static/src/oscuro/tokens.dark.scss',
+            'dcasa_interfaz/static/src/oscuro/*.dark.scss',
         ],
         # Las gráficas y las tablas dinámicas cargan su hoja aparte, al abrirlas: necesitan la misma paleta.
         'web.assets_backend_lazy_dark': [

@@ -15,7 +15,7 @@
     // Tinta
     --dc-tinta: #E8EAED;
     --dc-tinta-2: #B7BDC6;
-    --dc-tinta-3: #8E95A0;
+    --dc-tinta-3: #99A0AB;
 
     // Azules: la escala se da vuelta. Los «oscuros» (700–950) eran tinta sobre blanco y ahora son tinta clara sobre
     // gris; los «claros» (50–300) eran fondos suaves y bordes y ahora son fondos y bordes apenas azulados.
@@ -39,11 +39,34 @@
     --dc-sombra-2: 0 8px 24px rgba(0, 0, 0, .35);
     --dc-foco: 0 0 0 3px rgba(157, 184, 245, .45);
 
-    // Solo en oscuro: los rellenos de color (botón principal, cabezas de panel) y el texto que va encima.
+    // Nombres que algunas pantallas usan con un valor de reserva (no existen en claro): aquí sí se definen.
+    --dc-fondo: #1F2226;
+    --dc-gris: #A2A9B4;
+
+    // --- Solo en oscuro -----------------------------------------------------------------------------------------------
+    // En claro, el azul de la marca hace dos trabajos con un mismo nombre: es TINTA (enlaces, números, íconos sobre
+    // blanco) y es RELLENO (botones, pastillas elegidas, burbujas) con texto blanco encima. De noche esos dos trabajos
+    // piden dos azules: celeste para la tinta (los `--dc-azul-*` de arriba) y un azul medio para los rellenos, con
+    // texto blanco. Los archivos de esta carpeta pasan cada relleno a estos nombres.
     --dc-relleno: #3A63CF;
-    --dc-relleno-2: #4A72DC;
+    --dc-relleno-2: #4A72DC;        // el mismo, al pasar el puntero
     --dc-en-relleno: #FFFFFF;
+    --dc-en-relleno-2: #D5E0FA;     // texto de apoyo sobre el relleno
+    // Las cabezas marino de los paneles pasan a gris.
     --dc-cabeza: #3A4048;
     --dc-en-cabeza: #F2F4F6;
     --dc-en-cabeza-2: #B7BDC6;
+    // Lo que va escrito sobre el amarillo de la marca (insignias chicas).
+    --dc-en-amarillo: #1B2338;
+    // Estados: texto y fondo suave.
+    --dc-mal: #FF8F87;
+    --dc-mal-fondo: #442B2B;
+    --dc-mal-linea: #70403F;
+    --dc-bien-fondo: #243D2F;
+    --dc-bien-linea: #36604A;
+    --dc-falta-fondo: #43371F;
+    --dc-falta-linea: #6B5730;
+    --dc-info-fondo: #2A3950;
+    --dc-info-linea: #46536D;
+    --dc-info: #A9C4F5;
 }

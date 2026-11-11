@@ -1,0 +1,125 @@
+// MODO OSCURO — Conversaciones (dcasa_conversaciones): la bandeja, el chat, la ficha, Resumen, Reparto, Conexiones, Costos.
+//
+// El panel usa los `--dc-*` (con un valor de reserva): casi todo sale con `tokens.dark.scss`. Aquí van los rellenos
+// azules, los avisos de colores pastel y los blancos puestos a mano.
+
+// El panel oscurece su gris de apoyo para el modo claro; de noche lo aclara.
+.o_dcj,
+.o_dcj_p { --dc-tinta-3: #A2A9B4; }
+
+// --- Rellenos azules con texto blanco -------------------------------------------------------------------------------------
+.o_dcj .o_dcj_estado.o_dcj_estado_humano,
+.o_dcj .o_dcj_lista_cabecera .o_dcj_contador,
+.o_dcj .o_dcj_chip.o_activa,
+.o_dcj .o_dcj_fila .o_dcj_no_leidos,
+.o_dcj .o_dcj_fila .o_dcj_viendo.o_escribe,
+.o_dcj .o_dcj_nuevos,
+.o_dcj .o_dcj_caja .o_dcj_modo button.o_activa,
+.o_dcj_capa .o_dcj_hoja .o_dcj_galeria_foto .o_dcj_marca_foto,
+.o_dcj .o_dcj_punto_sin_leer,
+.o_dcj .o_dcj_presencia.o_escribe,
+.o_dcj .o_dcj_burbuja .o_dcj_responder:hover,
+.o_dcj_p_segmento button.o_activa {
+    background: var(--dc-relleno);
+    border-color: var(--dc-relleno);
+    color: var(--dc-en-relleno);
+}
+
+// --- Burbujas -----------------------------------------------------------------------------------------------------------------
+.o_dcj .o_dcj_burbuja.o_dcj_burbuja_vendedora,
+.o_dcasa_burbuja.o_dcasa_burbuja_vendedora {
+    background: var(--dc-relleno);
+    border-color: var(--dc-relleno);
+    color: var(--dc-en-relleno);
+}
+.o_dcj .o_dcj_burbuja.o_dcj_burbuja_vendedora .o_dcj_burbuja_meta,
+.o_dcj .o_dcj_burbuja.o_dcj_burbuja_vendedora .o_dcj_reenviado,
+.o_dcj .o_dcj_burbuja_vendedora .o_dcj_documentos a .o_dcj_documento_peso,
+.o_dcasa_burbuja.o_dcasa_burbuja_vendedora .o_dcasa_burbuja_meta,
+.o_dcasa_por_enviar { color: var(--dc-en-relleno-2); }
+.o_dcj .o_dcj_burbuja.o_dcj_burbuja_vendedora .o_dcj_cita .o_dcj_cita_texto { color: var(--dc-en-relleno-2); }
+.o_dcasa_burbuja_bot .o_dcasa_por_enviar,
+.o_dcasa_burbuja_cliente .o_dcasa_por_enviar { color: var(--dc-azul-700); }
+
+.o_dcj .o_dcj_burbuja {
+    .o_dcj_palomitas { background: var(--dc-perla); color: var(--dc-tinta-3); }
+    .o_dcj_palomitas.o_dcj_palomitas_leido { color: var(--dc-azul-600); }
+    .o_dcj_palomitas.o_dcj_palomitas_fallido { color: var(--dc-mal); }
+    .o_dcj_reaccion { background: var(--dc-perla); }
+    .o_dcj_responder { background: var(--dc-perla); }
+    &.o_dcj_burbuja_bot .o_dcj_cita { background: rgba(255, 255, 255, .07); }
+}
+.o_dcj .o_dcj_documentos a { background: rgba(255, 255, 255, .06); }
+.o_dcj .o_dcj_burbuja_vendedora .o_dcj_documentos a { background: rgba(255, 255, 255, .12); }
+
+// --- Avisos, insignias y estados -------------------------------------------------------------------------------------------
+.o_dcj .o_dcj_error,
+.o_dcj_p .o_dcj_error,
+.o_dcj_capa .o_dcj_hoja .o_dcj_error,
+.o_dcj .o_dcj_marca_alerta,
+.o_dcj .o_dcj_caja .o_dcj_previas .o_dcj_previa.o_dcj_previa_error .o_dcj_previa_peso,
+.o_dcj .o_dcj_caja .o_dcj_sugerencia.o_dcj_sugerencia_error > .fa,
+.o_dcj_p_estado.o_dcj_p_estado_alcanzado,
+.o_dcj_p_chequeo .o_mal { color: var(--dc-mal); }
+.o_dcj .o_dcj_caja .o_dcj_previas .o_dcj_previa.o_dcj_previa_error { border-color: var(--dc-mal); }
+
+.o_dcj .o_dcj_lista_cabecera .o_dcj_envivo.o_activo,
+.o_dcj_p_estado.o_dcj_p_estado_bien,
+.o_dcj_p_chequeo .o_ok { color: var(--dc-bien); }
+.o_dcj_p_estado.o_dcj_p_estado_riesgo { color: var(--dc-falta); }
+
+.o_dcj .o_dcj_insignia_alerta,
+.o_dcj_p .o_dcj_insignia_alerta,
+.o_dcj_p_chip.o_dcj_p_chip_alerta,
+.o_dcj_capa .o_dcj_hoja .o_dcj_existencia.o_dcj_existencia_agotado { background: var(--dc-mal-fondo); color: var(--dc-mal); }
+
+.o_dcj .o_dcj_insignia_ok,
+.o_dcj_p_chip.o_dcj_p_chip_ok,
+.o_dcj_capa .o_dcj_hoja .o_dcj_enviada,
+.o_dcj_capa .o_dcj_hoja .o_dcj_existencia.o_dcj_existencia_disponible { background: var(--dc-bien-fondo); color: var(--dc-bien); }
+
+.o_dcj_capa .o_dcj_hoja .o_dcj_existencia.o_dcj_existencia_pocas { background: var(--dc-falta-fondo); color: var(--dc-falta); }
+
+.o_dcj .o_dcj_aviso.o_dcj_aviso_alerta,
+.o_dcj_p_aviso.o_dcj_p_aviso_alerta {
+    background: var(--dc-mal-fondo);
+    border-color: var(--dc-mal-linea);
+    color: #FFC9C4;
+
+    .o_dcj_enlace { color: #FFC9C4; }
+}
+.o_dcj_p_aviso.o_dcj_p_aviso_ok { background: var(--dc-bien-fondo); border-color: var(--dc-bien-linea); color: #B8E8CF; }
+.o_dcj_p_aviso.o_dcj_p_aviso_atencion { background: var(--dc-cabeza); border-color: var(--dc-linea-fuerte); }
+.o_dcj .o_dcj_caja .o_dcj_sugerencia.o_dcj_sugerencia_error { background: var(--dc-mal-fondo); color: var(--dc-tinta); }
+
+.o_dcj_p_peligro {
+    color: var(--dc-mal);
+    border-color: var(--dc-mal-linea);
+
+    &:hover:not([disabled]) { background: var(--dc-mal-fondo); }
+}
+
+// Marino con amarillo (necesita atención, espera urgente) y marino con blanco (socio, dato sensible): gris con borde.
+.o_dcj .o_dcj_estado.o_dcj_estado_atencion,
+.o_dcj .o_dcj_fila .o_dcj_espera.o_urgente,
+.o_dcj .o_dcj_insignia_socio,
+.o_dcj .o_dcj_sensible,
+.o_dcasa_sensible { background: #1A2440; box-shadow: inset 0 0 0 1px #33426B; }
+
+// Títulos puestos en marino a mano.
+.o_dcj_p .o_dcj_p_tasas h2,
+.o_dcj_p .o_dcj_p_tasas .o_dcj_p_tabla tbody th,
+.o_dcj_p .o_dcj_p_personas h2,
+.o_dcj_p .o_dcj_p_personas .o_dcj_p_tabla tbody th,
+.o_dcj_reparto .o_dcj_reparto_mias h2,
+.o_dcj_reparto .o_dcj_reparto_mias .o_dcj_p_tabla tbody th { color: var(--dc-tinta); }
+
+.o_dcj_p_medidor .o_dcj_p_relleno_riesgo { background: #D9892B; }
+.o_dcj_p_medidor .o_dcj_p_relleno_alcanzado { background: #E05A52; }
+.o_dcj_p_columnas .o_dcj_p_columna .o_dcj_p_etiqueta_columna { background: #111315; }
+
+// Soltar archivos encima del chat y el velo de las hojas.
+.o_dcj .o_dcj_soltar { background: rgba(31, 34, 38, .94); }
+.o_dcj_capa { background: rgba(0, 0, 0, .6); }
+.o_dcj_capa .o_dcj_hoja .o_dcj_producto .o_dcj_producto_foto { color: var(--dc-tinta-3); }
+// El código QR de WhatsApp tiene que ser blanco para que el teléfono lo lea: se queda blanco (a propósito).

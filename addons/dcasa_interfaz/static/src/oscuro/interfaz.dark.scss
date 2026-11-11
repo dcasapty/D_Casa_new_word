@@ -1,0 +1,142 @@
+// MODO OSCURO — las pantallas de dcasa_interfaz (y los estilos sueltos de dcasa_base).
+//
+// Casi todo sale solo con `tokens.dark.scss`. Aquí va lo que no: los RELLENOS azules (que de noche llevan otro azul y
+// texto blanco), las cabezas marino (que pasan a gris), lo escrito sobre amarillo y los colores puestos a mano.
+// Mismo orden que los archivos claros: global, interfaz (Inicio), pantallas, reponer, tablero, barra lateral, vista previa.
+
+// === global.scss ===========================================================================================================
+.o_web_client .btn-primary {
+    background-color: var(--dc-relleno);
+    border-color: var(--dc-relleno);
+    color: var(--dc-en-relleno);
+
+    &:hover, &:active { background-color: var(--dc-relleno-2); border-color: var(--dc-relleno-2); color: var(--dc-en-relleno); }
+}
+
+.o_web_client .btn-secondary {
+    background-color: var(--dc-perla);
+
+    &:hover, &:active { background-color: var(--dc-cabeza); border-color: #5F6773; }
+}
+
+// La barra de arriba es una superficie más (sin el vidrio esmerilado, que sobre gris se ve sucio).
+.o_main_navbar { backdrop-filter: none; }
+
+::selection { background: rgba(157, 184, 245, .35); }
+
+// === interfaz.scss: el Inicio y sus piezas ====================================================================================
+// Accesos directos: tarjetas grises con el ícono en un cuadro azul (como el prototipo aprobado), no bloques azules.
+.o_dcasa_atajo {
+    background: var(--dc-perla);
+    border-color: #444B55;
+    color: var(--dc-tinta);
+
+    &:hover { background: var(--dc-cabeza); border-color: var(--dc-linea-fuerte); }
+}
+.o_dcasa_atajo_icono { background: var(--dc-relleno); color: var(--dc-en-relleno); }
+.o_dcasa_atajo_texto span { color: #A2A9B4; }
+
+// Insignias amarillas: el número va en oscuro (en claro iba en azul marino).
+.o_dcasa_atajo_cuenta,
+.o_dcasa_lista_numero { color: var(--dc-en-amarillo); }
+
+.o_dcasa_inicio_fecha::before { box-shadow: none; }
+
+.o_dcasa_cifra_ventas_hoy .o_dcasa_cifra_icono,
+.o_dcasa_app_letra { background: var(--dc-relleno); color: var(--dc-en-relleno); }
+.o_dcasa_cifra_socios .o_dcasa_cifra_icono { background: var(--dc-cabeza); }
+.o_dcasa_cifra_entregas .o_dcasa_cifra_icono { color: var(--dc-azul-600); }
+
+// Pastillas y opciones elegidas.
+.o_dcasa_periodo.o_activo,
+.o_dcasa_chip.o_activo,
+.o_dcasa_interruptor_opcion.o_activo,
+.o_dcasa_atajos_tamano_opcion.o_activo {
+    background: var(--dc-relleno);
+    border-color: var(--dc-relleno);
+    color: var(--dc-en-relleno);
+}
+.o_dcasa_interruptor_opcion { border-color: var(--dc-linea-fuerte); }
+.o_dcasa_comparar_rango .o_dcasa_libre .form-check-input:checked {
+    background-color: var(--dc-relleno);
+    border-color: var(--dc-relleno);
+}
+
+// Barras de la semana: grises, y la de hoy en celeste.
+.o_dcasa_grafico_relleno { background: #5A6370; }
+.o_dcasa_grafico_barra:hover .o_dcasa_grafico_relleno { background: #6F7987; }
+
+.o_dcasa_rango .o_dcasa_error,
+.o_dcasa_comparar_error,
+.o_dcasa_comparar_tabla .o_mal,
+.o_dcasa_pv_cambio.o_mal { color: var(--dc-mal); }
+
+// Cabezas de los tres paneles (cotizaciones, chatbot y web, entregas): gris, no marino.
+.o_dcasa_lista_cabeza { background: var(--dc-cabeza); }
+.o_dcasa_inicio .o_dcasa_lista_cabeza h2,
+.o_dcasa_inicio .o_dcasa_lista_cabeza .h2 { color: var(--dc-en-cabeza); }
+.o_dcasa_lista_cuenta {
+    color: var(--dc-en-cabeza-2);
+
+    &:hover { background: rgba(255, 255, 255, .08); color: var(--dc-en-cabeza); }
+}
+.o_dcasa_lista { border-color: var(--dc-linea); }
+.o_dcasa_meta { border-color: var(--dc-linea); }
+.o_dcasa_meta_barra { background: var(--dc-cabeza); }
+.o_dcasa_origen.o_dcasa_origen_web { background: var(--dc-perla); color: var(--dc-tinta-2); }
+
+// === pantallas.scss: Por día, Estadísticas, Movimientos, Cobros por forma de pago =============================================
+.o_dcasa_por_dia .o_dcasa_error,
+.o_dcasa_estadisticas .o_dcasa_error,
+.o_dcasa_movimientos .o_dcasa_error,
+.o_dcasa_pd_cambio.o_mal,
+.o_dcasa_pd_documento.o_nota strong,
+.o_dcasa_mv_cantidad.o_sale { color: var(--dc-mal); }
+.o_dcasa_mv_cantidad.o_entra { color: var(--dc-bien); }
+.o_dcasa_pd_estado.o_nota { background: var(--dc-mal-fondo); color: var(--dc-mal); }
+.o_dcasa_mv_icono.o_compra { background: var(--dc-bien-fondo); color: var(--dc-bien); }
+.o_dcasa_mv_icono.o_devolucion { background: var(--dc-falta-fondo); color: var(--dc-falta); }
+
+.o_dcasa_pd_celda.o_activo,
+.o_dcasa_pd_celda.o_activo:hover {
+    background: var(--dc-relleno);
+    border-color: var(--dc-relleno);
+    color: var(--dc-en-relleno);
+
+    .o_dcasa_pd_monto, .o_dcasa_pd_cuantas, .o_dcasa_pd_numero small { color: var(--dc-en-relleno); }
+}
+.o_dcasa_pd_barra { background: var(--dc-cabeza); }
+.o_dcasa_es_barra_relleno { background: #5A6370; }
+.o_dcasa_es_barra.o_hoy .o_dcasa_es_barra_relleno { background: var(--dc-azul-600); }
+
+.o_dcasa_cf_ficha.o_dcasa_cf_total {
+    background: var(--dc-relleno);
+    border-color: var(--dc-relleno);
+    color: var(--dc-en-relleno);
+
+    .o_dcasa_cf_forma, .o_dcasa_cf_monto, small { color: var(--dc-en-relleno); }
+    &:hover { background: var(--dc-relleno-2); border-color: var(--dc-relleno-2); }
+}
+
+// === reponer.scss ==============================================================================================================
+.o_dcasa_reponer_numero { background: var(--dc-relleno); color: var(--dc-en-relleno); }
+.o_dcasa_reponer_cuenta.o_cuenta_ya,
+.o_dcasa_reponer_aviso.o_aviso_ya { background: var(--dc-cabeza); }
+
+// === vista_previa.scss ============================================================================================================
+.o_dcasa_vp_dispositivo.o_activo {
+    background: var(--dc-relleno);
+    border-color: var(--dc-relleno);
+    color: var(--dc-en-relleno);
+
+    small { color: var(--dc-en-relleno-2); }
+}
+
+// === dcasa_base: el botón de copiar y dcasa_contactos: coincidencias ============================================================
+.o_dcasa_copiar_boton.btn {
+    color: var(--dc-tinta-3);
+
+    &:hover, &:focus-visible, &:active { color: var(--dc-azul-600); }
+}
+.o_dcasa_coincidencias .o_dcasa_coincidencia { background: rgba(255, 255, 255, .05); }
+.o_form_view .o_dcasa_dato_cliente .o_input { border-bottom-color: var(--dc-linea-fuerte); }
