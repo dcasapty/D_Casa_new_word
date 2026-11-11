@@ -109,12 +109,18 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 > sigue. Se guardan las diez más recientes; las viejas se resumen en una línea abajo y su texto completo pasa a
 > [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md).
 
-### 2026-11-11 (2): auditoría visual del panel; diez arreglos en la rama (sin desplegar); prototipo del Inicio nuevo
+### 2026-11-11 (2): auditoría visual del panel; 21 arreglos en producción (Desplegar 64); propuesta 2 del Inicio
 
-**En producción no cambió nada** (Desplegar 63 y Juan 20, versión estable 4). Todo lo de esta entrada está **solo en la
-rama** `claude/merge-rama-to-main-ty3koz` (desde `5dfe55c`) y espera el visto bueno de la dueña sobre las
-capturas del informe.
+**En producción desde el 2026-11-11, 09:15 UTC:** **Desplegar 64** (Odoo y el borde; run 42992509876) con la imagen
+`sha256:e84667ef…` y `app_version` `cf64f97d898b1da616fc6c82bdd6f6559906e19d` (PR #109, squash `b8c6044`; CI 332 con
+staging, run 42984980093), con respaldo previo. Juan no cambió (Desplegar Juan 20). **Es más nuevo que la versión
+estable 4**: si la dueña lo da por bueno unos días, toca nombrar la estable 5.
 
+- **Autorización de la dueña (antes de dormir, tal cual):** «todos los arreglos de la auditoría que no son parte de un
+  nuevo diseño, puedes ya irlos subiendo y publicando y mandarlos a producción. Pero lo que hace parte de una nueva
+  interfaz o nuevo tema, eso tengo que analizarlo y verlo muy bien, incluso en dispositivos móviles». Y: «espero que
+  todos los errores… ya estén solucionados y en producción cuando yo despierte». Por eso esta tanda fue a producción
+  sin esperar su visto bueno sobre capturas; **nada de diseño nuevo se subió**.
 - **Pedido de la dueña:** «una auditoría completa del aspecto visual del panel… en dispositivos móviles… y en distintas
   computadoras… encontrar ciertos problemas y solucionarlos… modernizar sin dañar lo que ya funciona». Y, con un video
   de un tablero que le encantó: «sí busco un modernismo así… sin olvidar el branding que ya tenemos… ahora mismo es
@@ -125,7 +131,7 @@ capturas del informe.
   producto, oportunidad, factura, entrega). Resultado: ninguna pantalla se sale de costado, la vendedora sin errores,
   **19 molestias**. Informe con capturas de antes y después (página privada de la dueña):
   <https://claude.ai/artifact/QN3GPdAtm7nKxQtu9X64MP>.
-- **Arreglado en la rama, con prueba de navegador cada uno:**
+- **Arreglado y en producción, con prueba de navegador cada uno:**
   1. *Fecha con hora cortada en todas las listas de la computadora* («11 nov,…»). Causa: Odoo mide el ancho de una
      fecha en un bloque invisible colgado del `<body>`, y el `<body>` de D'CASA es una rejilla; el bloque caía en la
      columna de la barra lateral angosta (68 px). `barra_lateral.scss` + `listas.js` (la columna puede encogerse hasta
@@ -147,24 +153,66 @@ capturas del informe.
   10. *Pestañas de Contabilidad en la computadora*: su barra de desplazamiento va escondida y con el mouse no se
       alcanzaban las últimas («ITBMS», «Analítica») en 1366 px; ahora bajan a otro renglón (`contabilidad.scss`,
       `test_pantallas.py`). En el celular se siguen deslizando con el dedo.
-- **Prototipo del Inicio con movimiento** (números que suben, gráficas que se dibujan, pastilla amarilla que se
-  desliza; aspectos «Claro» y «Azul noche»; plano, sin degradados): <https://claude.ai/artifact/VUKX4zkP16JQ5HVcDwjm6G>.
-  No se tocó el Inicio real: falta que la dueña lo apruebe y elija aspecto.
-- **Pruebas:** las clases nuevas y las tocadas pasan en local (sobre la base de capturas). CI 325 (`0f0dcec`, sin
-  desplegar: `desplegar_en = ninguno`) con todo verde salvo «Tests de Odoo», que seguía corriendo al cerrar la
-  entrada. Los commits siguientes (el celular, la barra, las pestañas) esperan su propia corrida de CI.
+  11. *Sitio web › Páginas* daba «Acceso denegado» a Gerencia (la lista de Odoo 19 pide el grupo de editor del sitio y
+      lee las plantillas): el menú ya no se muestra. No se cambió ningún permiso (`sitio_views.xml`, `test_sitio.py`).
+  12. *Compras en el celular*: las cinco cifras del tablero van de tres en tres con el nombre entero (salían
+      «Solicit… de cotiza…»).
+  13. *Oportunidad en el celular*: ya no queda el «en» de «$ 0.00 en 0.00 %» colgando junto al monto.
+  14. *Letra de 10,9 px* en «Ctrl K» y en la franja de Envíos del celular: 12 px.
+- **Segundo recorrido (lo que solo se ve al usar el panel):** un agente recorrió ventanas, desplegables y formularios en
+  celular y portátil con las dos cuentas de prueba; 15 hallazgos, cada uno mirado en su captura antes de tocar nada.
+  Arreglados y en producción:
+  15. *Conversaciones: fecha al revés.* Una conversación vieja decía «11/04/26» para el 4 de noviembre: el formato
+      numérico de «es-PA» es mes/día/año. Ahora día/mes/año (`utilidades.js`), igual en las conversaciones anteriores
+      de Brian. `test_panel_interfaz.py` vigila además que ninguna pantalla propia arme fechas de solo números con
+      «es-PA».
+  16. *Escáner sin cámara o sin permiso*: el aviso de Odoo salía gris oscuro sobre el fondo negro; ahora se lee
+      (`camara.scss`). El campo «Precio nuevo» salía como campo crudo del navegador.
+  17. *Cotización en el celular*: «Enviar por WhatsApp» se partía en dos líneas, los tres puntos caían debajo y el
+      estado se montaba sobre el botón. Ahora el botón y sus tres puntos van juntos y el estado baja limpio a su
+      renglón si no cabe (`global.scss`, `test_cotizacion_celular.py`).
+  18. *Vendedora: tres botones bajo las líneas* («Descuento», «Agregar envío», «Pedir descuento a Gerencia») quedaban
+      como cajas de tres renglones; ahora cada uno en una línea y el que no cabe baja.
+  19. *Inicio y Estadísticas*: «Hoy / Esta semana / Este mes / Un rango» salían con el marco gris del navegador (son
+      `<button>` sin `.btn` y les faltaba `border: 0`).
+  20. *«Buscar» de la barra lateral* contestaba «No se encontraron comandos» al escribir «facturas»: abría el modo
+      «comandos» de Odoo. Ahora abre en la búsqueda de pantallas (`openMainPalette({ searchValue: "/" })`).
+  21. *«Cobrar premio»*: la venta salía rotulada «Order»; ahora «Venta» (solo el rótulo del campo).
+- **Anotado y sin tocar** (es de Odoo estándar, es un dato o es diseño): la tarjeta «Instale Odoo», OdooBot y el aviso de
+  notificaciones push; «Manual Payment» como nombre del método de pago (dato: se cambia en Ajustes); pie de los
+  diálogos con tres botones desiguales en el celular; la barra de la Actividad se desliza de lado en el celular; filtros
+  de 27 px de alto en el celular; gráficas de Odoo en celeste; tablas dinámicas en el celular; pantallas de 1920 px.
+  Detalle con capturas en el informe: <https://claude.ai/artifact/QN3GPdAtm7nKxQtu9X64MP>.
+- **Inicio nuevo, propuesta 2** (boceto; **no** está en el panel, ni en staging): <https://claude.ai/artifact/6s9iQpc8ZFh1DNse8vA2RG>.
+  La dueña vio la propuesta 1 (<https://claude.ai/artifact/VUKX4zkP16JQ5HVcDwjm6G>) y dijo: «todo está un poco
+  maximalista»; «el orden actual está muy bien. Y alterarles esto va a hacer que tengan cierta resistencia al cambio. La
+  idea es proponerles lo que ya está en una versión mejorada»; «en el modo claro, me gusta que mantengas ese blanco y
+  esos azules. Pero en el modo oscuro, me gustaría algo más grisáceo y serio… más estilo Cubase 16»; en el celular «es
+  muy importante preservar los accesos directos de utilidad, que son mensajería, escáner, órdenes de las cotizaciones
+  que crean las vendedoras, y el chatbot con página web, que es la segunda, y los pedidos a entregar… y el mismo
+  dashboard que ya existe, pero todo organizado de una mejor forma»; y «estos temas y estos gráficos prefiero yo primero
+  antes aprobarlos y poderlos ver muy bien en todas sus formas, antes de tirarlos a staging o a producción». La
+  propuesta 2 conserva el orden de hoy (botones, nueve accesos, tres paneles, avisos, ventas, cifras, gráficas), pone los
+  nueve accesos en la primera pantalla del celular (interruptor «Compactos / Detalle» para comparar), suma tres
+  contadores que llevan a cada panel, y trae el modo oscuro en gris. Movimiento discreto.
+- **Pruebas:** CI 330 (`3ce4c4a`, los diez primeros, con staging) verde; CI 331 cancelado (quedó viejo al subir más
+  arreglos); **CI 332** (`cf64f97`, todo junto, con staging) verde: staging sano con esa versión. En local, sobre la
+  base de capturas, las clases tocadas pasan.
 - **Boceto de la caja de responder del chat en el celular** (de 211 a 111 px, sin quitar herramientas):
   <https://claude.ai/artifact/A6P3KWL2F5KJx5MfX4sBsH>. No se tocó el chat: es la pantalla que más se usa y sus botones
-  de 44 px están a propósito.
-- **Falta de la dueña (tres respuestas, y su opinión del boceto del chat):** (1) ¿le gusta el Inicio nuevo?, ¿Claro o Azul noche?; (2) en la cotización,
-  ¿se guardan los datos de pocas veces en «Más datos» para que los productos queden arriba (hoy, en el celular, hay
-  que bajar dos pantallas)?; (3) Sitio web › Páginas le da «Acceso denegado» a Gerencia: ¿se quita de su menú?
-- **Sigue:** su visto bueno → CI con staging → PR → Desplegar. Y el lote 3 (lista en PRIORIDADES).
+  de 44 px están a propósito. Espera su decisión.
+- **Falta de la dueña:** (1) la propuesta 2 del Inicio: ¿le gusta?, ¿accesos compactos o con detalle en el celular?;
+  (2) el boceto de la caja del chat; (3) en la cotización, ¿se guardan los datos de pocas veces en «Más datos» para que
+  los productos queden arriba?; (4) Conversaciones en tableta nace con la lista reducida a iniciales (a propósito hasta
+  1100 px): ¿que abra entera mientras no haya un chat elegido?; (5) en el Inicio, «Entregas pendientes» cuenta todas las
+  entregas por despachar y el acceso «Bodega» solo las que tienen pago o abono (pueden decir números distintos): ¿se
+  dejan iguales? Y siguen sin respuesta: borrar los 18 GB de worktrees viejos y la rama remota `claude/bold-volta-fsqq4c`.
+- **Sigue:** que la dueña mire el panel en producción y la propuesta 2; con su respuesta, construir el Inicio nuevo en la
+  rama y mostrárselo en capturas (celular incluido) **antes** de staging.
 - **Sin resolver en esta máquina:** el disco está al 98 % (quedan ~1 GB). Hay 13 worktrees viejos de agentes en
   `.claude/worktrees` (18 GB, limpios y ya contenidos en la rama) y bases locales de pruebas viejas; borrarlos necesita
-  el «sí» de la dueña (el clasificador lo negó sin él). Por eso las pruebas se corrieron sobre la base de capturas y no
-  en una base limpia.
-
+  el «sí» de la dueña (el clasificador lo negó sin él). Por eso las pruebas locales se corrieron sobre la base de
+  capturas y no en una base limpia.
 ### 2026-11-11: versión estable 4; Instagram con fotos confirmado; enlace de choferes encendido; cierre de semana
 
 **En producción** (sin despliegues nuevos de Odoo): Odoo y el borde en Desplegar 63 (`3e2ccfc`) y Juan en Desplegar

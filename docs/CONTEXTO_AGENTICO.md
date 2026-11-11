@@ -394,6 +394,15 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `main` (`741930d`, árbol = `de1fb04`) a staging y Desplegar con ese `app_version`. **Regla:** un cambio del borde
   (rutas, `vars`, `workers_dev`) se despliega con un `app_version` que lo contenga, o sea con una imagen construida
   de ese commit.
+- **Desplegar 64** (11 nov, 09:07 UTC; sano a las 09:15; run 42992509876) · PR #109, squash `b8c6044`, `app_version`
+  `cf64f97d898b1da616fc6c82bdd6f6559906e19d`, imagen `sha256:e84667ef…`, CI 332 con staging (run 42984980093). Los 21
+  arreglos de la auditoría visual: solo estilos, JS de pantallas, dos vistas y el rótulo de un campo; con respaldo
+  previo. Bien al primer intento. **Lo que enseñó el camino:** se lanzaron tres CI con staging (330, 331, 332) porque
+  el trabajo siguió mientras corría el anterior y el gancho de cierre de la sesión obliga a subir todo commit y todo
+  cambio sin guardar: la punta de la rama dejó de ser el commit probado y el CI en curso ya no servía para el PR (que
+  se une con `expectedHeadSha`). **Regla:** mientras corre el CI que se va a unir, o no se toca el repositorio, o se
+  acepta desde el principio que lo nuevo se sube y el CI se relanza sobre la punta (un solo despliegue con todo). No
+  intentar «guardar para después» en el árbol de trabajo: el gancho no deja cerrar el turno.
 - **Versión estable 4 ensayada en staging** (11 nov, 03:16–03:40 UTC, run 42951600639 de «Volver a una versión
   estable», lanzado desde la rama de trabajo: el botón solo exige `main` para producción). Estable 4 = imagen de
   Desplegar 63 (`acda72c1…`, `app_version` `3e2ccfc`) + Juan hasta Desplegar Juan 20. Bien al primer intento.
@@ -768,6 +777,25 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 ### Odoo 19
 
 - **Auditoría visual del panel (2026-11-11), lo aprendido de la interfaz:**
+  - **Fechas de solo números: nunca con el formato de «es-PA».** `Intl.DateTimeFormat("es-PA", {day: "2-digit",
+    month: "2-digit", …})` y `toLocaleDateString("es-PA", …)` dan **mes/día/año** («11/04/26» para el 4 de noviembre),
+    mientras Odoo y el resto del panel escriben día/mes. Estaba en la lista de Conversaciones y en las conversaciones
+    anteriores de Brian (auditoría del 2026-11-11). Las fechas cortas se arman a mano (día/mes/año) o con mes en
+    letras («4 nov», que sí sale bien). `test_panel_interfaz.py` recorre el JS de todos los módulos y falla si alguno
+    vuelve a combinar «es-PA» con `month: "2-digit"` o `"numeric"`. Los `<input type="date">` nativos siguen el idioma
+    del navegador y no se pueden forzar.
+  - **La lista de páginas del sitio (Sitio web › Páginas) no abre sin el grupo de editor.** En Odoo 19 pide los ids con
+    `website.get_website_page_ids` (exige `website.group_website_restricted_editor`) y lee campos de `ir.ui.view`. Darle
+    a Gerencia el ACL de `website.page` no alcanza: sale «Acceso denegado». Mientras la dueña no decida darle lectura
+    de plantillas, el menú va con los del constructor (oculto).
+  - **El buscador de Odoo (Ctrl K) abre en «comandos», no en pantallas.** Para que escribir «facturas» encuentre la
+    pantalla hay que abrirlo con `command.openMainPalette({ searchValue: "/" })`. El atajo de teclado Ctrl+K sigue
+    siendo el de Odoo (modo comandos).
+  - **Botones propios sin `.btn`: poner `border: 0`.** Bootstrap no le quita el marco a un `<button>` pelado: los
+    periodos del Inicio salían con el marco gris del navegador.
+  - **Barra de estado de los formularios en el celular:** Odoo deja un botón y un desplegable de tres puntos
+    (`.o_statusbar_buttons`, con `flex-wrap`) y el estado a la derecha (`.o_field_statusbar`), que se encoge aunque su
+    botón no: se montaba sobre el botón de al lado. Arreglo en `global.scss`: la barra envuelve, los botones no.
   - **El `<body>` de D'CASA es una rejilla y eso rompía una medida de Odoo.** `computeOptimalDateWidths`
     (`web/views/list/column_width_hook.js`) cuelga del `<body>` un bloque invisible con fechas de muestra y mide sus
     `span`. En la rejilla (barra lateral + contenido) el bloque caía en la columna de la barra angosta (68 px), el
