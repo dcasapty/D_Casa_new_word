@@ -205,10 +205,10 @@ revisiones de octubre. Lo que la gerencia ya respondió está en [DECISIONES_CON
 
 | Issues | Qué son | Dónde va en la lista |
 |---|---|---|
-| #9, #10, #12 | Lectores y etiquetas de códigos de barras | 8 |
+| ~~#9, #10, #12~~ | Lectores y etiquetas de códigos de barras: **cerrados el 2026-11-11** (resueltos, según la dueña) | 8 |
 | #15 a #21 | CRM, fase 2: seguimiento de cotizaciones sin respuesta (#16), invitar a la tienda (#17), posventa (#18), Brian y oportunidades (#19), perder oportunidades (#20), cotizaciones fuera de la conversación (#21) | 13 |
 | #22, #23 | Privacidad (Ley 81): zona de entrega y borrar la oportunidad con la conversación; lo que «Eliminar conversación» todavía no borra | 11 |
 | #24 | Juan: hallazgos que quedaron para después | 12 |
 | #25 | Conversaciones: permisos de escritura y seguimiento por persona | 5 |
-| #26 | Brian: topes de gasto, de archivos y de dinero | 4 |
+| ~~#26~~ | Brian: topes de gasto, de archivos y de dinero: **cerrado el 2026-11-11** (límites puestos) | 4 |
 | #27 | Puerta del equipo `/master` | Sin fecha |
