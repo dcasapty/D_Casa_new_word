@@ -43,6 +43,8 @@ MAXIMO_DIAS_DE_RANGO = 366
 PARAM_STOCK_BAJO = 'dcasa.stock_bajo_umbral'
 STOCK_BAJO_DEFECTO = 5
 FILAS_DE_LISTA = 5
+# Lo que se lee de cada entrega para su fila del panel «Entregas pendientes» (``_fila_de_entrega``).
+CAMPOS_DE_ENTREGA = ['name', 'partner_id', 'origin', 'scheduled_date', 'state']
 # La etiqueta de origen en las listas del Inicio (las de la tienda no llevan: son todas de una vendedora).
 ORIGEN_EN_LA_LISTA = {'chatbot': 'Chatbot', 'web': 'Web'}
 # «Lo más vendido»: los últimos 30 días corridos (más hoy).
@@ -606,7 +608,11 @@ class DcasaTablero(models.AbstractModel):
         })
 
     def _entregas(self, datos, hoy):
-        """Entregas por despachar o retirar: la cifra y la lista de las más antiguas, para entregarlas en orden."""
+        """Entregas por despachar o retirar: la cifra y la lista de las más antiguas, para entregarlas en orden.
+
+        Con el panel de Bodega instalado (``dcasa_barras``), quien despacha ve aquí las mismas entregas que en Bodega
+        (las de pedidos con pago o abono) y, aparte, cuántas más esperan pago: lo hace ese módulo después de este
+        método (``dcasa_barras/models/tablero.py``)."""
         Picking = self.env['stock.picking']
         dominio = [('picking_type_code', '=', 'outgoing'), ('state', 'in', ('confirmed', 'waiting', 'assigned'))]
         cantidad = Picking.search_count(dominio)
@@ -615,17 +621,21 @@ class DcasaTablero(models.AbstractModel):
             'formato': 'numero', 'detalle': 'Por despachar o retirar',
             'accion': _accion('Entregas pendientes', 'stock.picking', dominio),
         })
-        filas = Picking.search_read(dominio, ['name', 'partner_id', 'origin', 'scheduled_date', 'state'],
-                                    order='scheduled_date asc, id asc', limit=FILAS_DE_LISTA)
+        filas = Picking.search_read(dominio, CAMPOS_DE_ENTREGA, order='scheduled_date asc, id asc',
+                                    limit=FILAS_DE_LISTA)
         datos['entregas'] = {
             'cantidad': cantidad,
             'accion': _accion('Entregas pendientes', 'stock.picking', dominio),
-            'filas': [{
-                'id': p['id'], 'nombre': p['name'], 'cliente': p['partner_id'] and p['partner_id'][1] or '',
-                'origen': p['origin'] or '', 'listo': p['state'] == 'assigned',
-                'dias': max((hoy - fields.Datetime.context_timestamp(self, p['scheduled_date']).date()).days, 0)
-                if p['scheduled_date'] else 0,
-            } for p in filas],
+            'filas': [self._fila_de_entrega(p, hoy) for p in filas],
+        }
+
+    def _fila_de_entrega(self, p, hoy):
+        """Una fila del panel «Entregas pendientes», de lo leído de la entrega (``CAMPOS_DE_ENTREGA``)."""
+        return {
+            'id': p['id'], 'nombre': p['name'], 'cliente': p['partner_id'] and p['partner_id'][1] or '',
+            'origen': p['origin'] or '', 'listo': p['state'] == 'assigned',
+            'dias': max((hoy - fields.Datetime.context_timestamp(self, p['scheduled_date']).date()).days, 0)
+            if p['scheduled_date'] else 0,
         }
 
     def _umbral_de_stock_bajo(self):

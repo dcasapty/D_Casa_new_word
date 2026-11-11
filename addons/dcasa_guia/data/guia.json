@@ -92,13 +92,18 @@
    "destino": {
     "nuevo": "sale.order"
    },
+   "nota": "Arriba van el cliente y sus datos y, enseguida, los productos. Las direcciones de factura y de entrega, el vencimiento, la lista de precios, los términos de pago y el teléfono fijo están en «Más datos», el botón que va justo antes de los productos: tócalo para verlos o cambiarlos y vuelve a tocarlo para esconderlos (ese celular o computadora recuerda cómo lo dejaste). Se abre solo, y el botón te avisa, cuando la entrega o la factura van a una dirección distinta a la del cliente o cuando falta llenar un dato de ahí.",
    "palabras": [
     "cotizar",
     "presupuesto",
     "pedido",
     "proforma",
     "venta nueva",
-    "cotizacion"
+    "cotizacion",
+    "mas datos",
+    "direccion de entrega",
+    "lista de precios",
+    "vencimiento"
    ]
   },
   {
@@ -1884,7 +1889,7 @@
      "destino": null
     }
    ],
-   "nota": "Solo salen los pedidos que ya tienen pago o abono: si escaneas el QR de uno sin pago, el panel te dice que no se entrega. Lo usa quien trabaja con Inventario (bodega, vendedoras y Gerencia), en tablet, celular o computadora. Si una entrega dice «Sin definir», el pedido no dice si se envía o se retira: la vendedora lo indica con el método de entrega del pedido.",
+   "nota": "Solo salen los pedidos que ya tienen pago o abono: si escaneas el QR de uno sin pago, el panel te dice que no se entrega. Lo usa quien trabaja con Inventario (bodega, vendedoras y Gerencia), en tablet, celular o computadora. Si una entrega dice «Sin definir», el pedido no dice si se envía o se retira: la vendedora lo indica con el método de entrega del pedido. En el Inicio, el panel «Entregas pendientes» muestra estas mismas entregas y el mismo número que Bodega; las que todavía esperan pago o abono salen en un renglón aparte, debajo, y al tocarlo ves cuáles son.",
    "palabras": [
     "bodega",
     "despachar",
@@ -1896,7 +1901,8 @@
     "qr de la nota",
     "validar entrega",
     "tablet",
-    "envio"
+    "envio",
+    "entregas pendientes"
    ]
   },
   {

@@ -25,4 +25,37 @@
             </xpath>
         </field>
     </record>
+
+    <!-- «Más datos» (2026-11-11): en el celular había que bajar dos pantallas para llegar a los productos. Los datos que
+         casi nunca se tocan al cotizar (direcciones, vencimiento, lista de precios, términos de pago y, desde
+         dcasa_contactos, el teléfono fijo) llevan la marca «o_dcasa_mas_dato» y quedan plegados detrás del botón que
+         va justo antes de las pestañas. Ningún campo cambia de sitio: solo llevan la marca, y la hoja de estilos
+         esconde su renglón mientras el bloque está cerrado (static/src/js/mas_datos.js, scss/mas_datos.scss). Para
+         plegar otro dato de la cabecera, basta ponerle la misma clase. -->
+    <record id="sale_order_form_mas_datos" model="ir.ui.view">
+        <field name="name">sale.order.form.dcasa.mas.datos</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//group[@name='partner_details']/field[@name='partner_invoice_id']" position="attributes">
+                <attribute name="class" add="o_dcasa_mas_dato" separator=" "/>
+            </xpath>
+            <xpath expr="//group[@name='partner_details']/field[@name='partner_shipping_id']" position="attributes">
+                <attribute name="class" add="o_dcasa_mas_dato" separator=" "/>
+            </xpath>
+            <xpath expr="//group[@name='order_details']/field[@name='validity_date']" position="attributes">
+                <attribute name="class" add="o_dcasa_mas_dato" separator=" "/>
+            </xpath>
+            <xpath expr="//group[@name='order_details']/div[hasclass('o_row')]/field[@name='pricelist_id']"
+                   position="attributes">
+                <attribute name="class" add="o_dcasa_mas_dato" separator=" "/>
+            </xpath>
+            <xpath expr="//group[@name='order_details']/field[@name='payment_term_id']" position="attributes">
+                <attribute name="class" add="o_dcasa_mas_dato" separator=" "/>
+            </xpath>
+            <xpath expr="//sheet/notebook" position="before">
+                <widget name="dcasa_mas_datos"/>
+            </xpath>
+        </field>
+    </record>
 </odoo>
