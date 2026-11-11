@@ -26,3 +26,4 @@ from . import test_origen
 from . import test_oportunidad_celular
 from . import test_cotizacion_celular
 from . import test_celular_arranque_y_menu
+from . import test_mas_datos

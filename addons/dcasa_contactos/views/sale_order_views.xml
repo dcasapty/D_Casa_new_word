@@ -39,8 +39,10 @@
                 <field name="dcasa_cliente_celular" class="o_dcasa_dato_cliente" string="Celular" widget="phone"
                        invisible="not partner_id" readonly="state == 'cancel' or not dcasa_cliente_corregible"
                        placeholder="Celular, p. ej. 6123-4567 (de otro país, con +)"/>
-                <field name="dcasa_cliente_fijo" class="o_dcasa_dato_cliente" string="Teléfono fijo" widget="phone"
-                       options="{'enable_sms': false}" invisible="not partner_id"
+                <!-- «o_dcasa_mas_dato»: casi nunca se toca al cotizar; queda plegado en «Más datos»
+                     (dcasa_interfaz, 2026-11-11). Sin ese módulo la clase no hace nada. -->
+                <field name="dcasa_cliente_fijo" class="o_dcasa_dato_cliente o_dcasa_mas_dato" string="Teléfono fijo"
+                       widget="phone" options="{'enable_sms': false}" invisible="not partner_id"
                        readonly="state == 'cancel' or not dcasa_cliente_corregible"
                        placeholder="Teléfono fijo, p. ej. 234-5678 (si tiene)"/>
                 <field name="dcasa_cliente_correo" class="o_dcasa_dato_cliente" string="Correo" widget="email"

@@ -184,8 +184,10 @@ class TestInicioTableroEnElNavegador(VentasMixin, HttpCase):
         super().setUp()
         if os.environ.get('DCASA_SIN_NAVEGADOR'):
             self.skipTest('sin navegador')
-        # Una venta facturada hoy (para que las cifras no estén en cero), una cotización abierta y una entrega.
-        self.facturar(self.pedido(vendedor=self.vendedora))
+        # Una venta facturada y cobrada hoy (para que las cifras no estén en cero), una cotización abierta y una
+        # entrega. Cobrada: con Bodega instalado (dcasa_barras), el panel «Entregas pendientes» muestra solo las de
+        # pedidos con pago o abono (2026-11-11); la del otro pedido, sin pago, queda en el renglón de las que esperan.
+        self.cobrar(self.facturar(self.pedido(vendedor=self.vendedora)))
         self.pedido(vendedor=self.vendedora, confirmar=False)
         self.pedido(vendedor=self.otra)
 

@@ -52,6 +52,12 @@ class VentasMixin:
             factura.action_post()
         return factura
 
+    def cobrar(self, factura):
+        """Registra el cobro completo de la factura, con el asistente «Pagar» de siempre."""
+        self.env['account.payment.register'].with_context(
+            active_model='account.move', active_ids=factura.ids).create({})._create_payments()
+        return factura
+
     def cifras(self, usuario=None):
         tablero = self.env['dcasa.tablero'].with_user(usuario) if usuario else self.env['dcasa.tablero']
         return {c['clave']: c for c in tablero.obtener_datos()['cifras']}

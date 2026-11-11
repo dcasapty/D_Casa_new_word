@@ -1,0 +1,76 @@
+// «Más datos» de la cotización (js/mas_datos.js, 2026-11-11): los datos de la cabecera que casi nunca se tocan al
+// cotizar quedan plegados detrás de un botón, justo antes de las pestañas, para que los productos queden arriba.
+//
+// Los campos no cambian de sitio: llevan la clase «o_dcasa_mas_dato» en la vista y aquí se esconde su renglón entero
+// (la casilla del rótulo y la del campo) mientras el botón dice `aria-expanded="false"`. Todo cuelga de la hoja del
+// formulario que tiene el botón: las facturas y los demás formularios no cambian.
+
+// Sin `:has()` (navegadores viejos) no hay manera de esconder los renglones: el botón solo sale donde `:has()` existe
+// (esta regla lo usa; un navegador que no lo entiende la descarta) y, si no, todo queda a la vista como antes.
+.o_widget_dcasa_mas_datos { display: none; }
+.o_form_sheet:has(> .o_widget_dcasa_mas_datos) > .o_widget_dcasa_mas_datos { display: block; }
+
+.o_form_sheet:has(> .o_widget_dcasa_mas_datos .o_dcasa_mas_datos_boton[aria-expanded="false"]) {
+    // La casilla del campo (también la de «Lista de precios», que lleva el campo dentro de un renglón propio), la del
+    // rótulo que va justo antes y, si el dato es una casilla de marcar, su renglón.
+    .o_cell:has(.o_dcasa_mas_dato):not(:has(.o_inner_group)),
+    .o_cell.o_wrap_label:has(+ .o_cell .o_dcasa_mas_dato):not(:has(+ .o_cell .o_inner_group)),
+    .o_wrap_field_boolean:has(.o_dcasa_mas_dato) { display: none; }
+}
+
+// Si esa persona no ve ninguno de esos datos, tampoco el botón.
+.o_dcasa_mas_datos_vacio { display: none; }
+
+.o_dcasa_mas_datos { margin: 0 0 12px; scroll-margin: 8px; }
+
+.o_dcasa_mas_datos_boton {
+    width: 100%;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 14px;
+    border: 1px solid var(--dc-linea);
+    border-radius: var(--dc-r-sm);
+    background: var(--dc-nieve);
+    color: var(--dc-tinta-2);
+    font-size: .875rem;
+    line-height: 1.4;
+    text-align: left;
+
+    strong { font-weight: 600; color: var(--dc-azul-700); }
+    .fa { flex: none; font-size: .8rem; color: var(--dc-azul-600); }
+    &[aria-expanded="true"] .fa { transform: rotate(180deg); }
+
+    &:hover { background: var(--dc-azul-50); border-color: var(--dc-azul-200); }
+    &:focus-visible { outline: none; border-color: var(--dc-azul-400); box-shadow: var(--dc-foco); }
+    // Falta un dato obligatorio de aquí dentro: se queda abierto y el botón no cierra.
+    &[aria-disabled="true"] { cursor: default; }
+    &[aria-disabled="true"]:hover { background: var(--dc-nieve); border-color: var(--dc-linea); }
+}
+
+.o_dcasa_mas_datos_texto { min-width: 0; overflow-wrap: anywhere; }
+
+// Por qué se abrió solo: en su propio renglón, en tinta; si falta un dato obligatorio, en el ámbar oscuro de los
+// estados (se lee sobre blanco; no es el amarillo de la marca).
+.o_dcasa_mas_datos_aviso {
+    display: block;
+    font-weight: 600;
+    color: var(--dc-tinta);
+
+    &.o_dcasa_mas_datos_falta { color: var(--dc-falta); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .o_dcasa_mas_datos_boton {
+        transition: background-color var(--dc-transicion), border-color var(--dc-transicion);
+
+        .fa { transition: transform var(--dc-transicion); }
+    }
+}
+
+// En la computadora el botón no cruza toda la hoja: mide lo que su texto.
+@media (min-width: 768px) {
+    .o_dcasa_mas_datos_boton { width: auto; max-width: 100%; min-height: 36px; padding: 6px 12px; }
+}

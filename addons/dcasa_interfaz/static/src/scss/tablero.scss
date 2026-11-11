@@ -569,3 +569,18 @@
         .o_dcasa_proporcion > span { transition: none; }
     }
 }
+
+// --- Entregas que esperan pago o abono --------------------------------------------------------------------------------
+// El renglón de abajo del panel «Entregas pendientes» (solo con Bodega, dcasa_barras): el panel cuenta lo mismo que
+// Bodega y este renglón dice cuántas más esperan y abre su lista. Discreto: gris, con su relojito; sin amarillo.
+// (Con la lista y el pie delante, como «Ver las N entregas»: en pantallas táctiles Odoo les pone su letra a los `.btn`.)
+.o_dcasa_tablero .o_dcasa_lista .o_dcasa_lista_esperan .o_dcasa_lista_ver {
+    font-weight: 500;
+    color: var(--dc-tinta-2);
+    text-align: left;
+    white-space: normal;
+
+    .fa { margin-right: 6px; color: var(--dc-tinta-3); }
+    &:hover,
+    &:focus-visible { color: var(--dc-azul-600); }
+}
