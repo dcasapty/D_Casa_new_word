@@ -8,11 +8,14 @@
  *
  * Aquí el cajón muestra siempre lo mismo que la barra lateral de la computadora (barra_lateral.js), con sus mismas
  * reglas: todas las aplicaciones, y debajo de la que está abierta, sus secciones. Tocar una aplicación la abre y cierra
- * el menú; la flecha de la derecha despliega sus secciones sin salir de donde se está. Nada más que aprender.
+ * el menú; la flecha de la derecha despliega sus secciones sin salir de donde se está. Arriba, siempre a la vista
+ * aunque la lista se deslice, quedan «Inicio» y «Buscar». Nada más que aprender.
  */
-import { useState } from "@odoo/owl";
+import { onMounted, useRef, useState } from "@odoo/owl";
 import { NavBar } from "@web/webclient/navbar/navbar";
 import { DcasaBarraLateral } from "./barra_lateral";
+
+const MENU_DEL_INICIO = "dcasa_interfaz.menu_dcasa_inicio";
 
 export class DcasaMenuCelular extends DcasaBarraLateral {
     static template = "dcasa_interfaz.MenuCelular";
@@ -22,6 +25,30 @@ export class DcasaMenuCelular extends DcasaBarraLateral {
         super.setup();
         // Qué aplicación está desplegada. Sin elegir (undefined): la que está abierta. null: ninguna.
         this.cajon = useState({ desplegada: undefined });
+        this.raiz = useRef("raiz");
+        // Si la aplicación abierta queda abajo en la lista (y sus secciones, fuera de la vista), el menú abre ya en ella.
+        onMounted(() => {
+            const activa = this.raiz.el?.querySelector(".o_dcasa_cajon_item.o_activa");
+            const caja = this.raiz.el?.closest(".o_burger_menu_content");
+            if (!activa || !caja) {
+                return;
+            }
+            const deLaCaja = caja.getBoundingClientRect();
+            const deLaActiva = activa.getBoundingClientRect();
+            if (deLaActiva.bottom > deLaCaja.bottom) {
+                const fijo = this.raiz.el.querySelector(".o_dcasa_cajon_fijo");
+                caja.scrollTop += deLaActiva.top - deLaCaja.top - (fijo ? fijo.offsetHeight : 0) - 8;
+            }
+        });
+    }
+
+    /** El Inicio va aparte, fijo arriba: es a donde más se vuelve y no debe quedar escondido al deslizar la lista. */
+    get inicio() {
+        return this.apps.find((app) => app.xmlid === MENU_DEL_INICIO) || null;
+    }
+
+    get otrasApps() {
+        return this.apps.filter((app) => app.xmlid !== MENU_DEL_INICIO);
     }
 
     estaDesplegada(app) {

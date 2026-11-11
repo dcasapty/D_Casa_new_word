@@ -48,7 +48,7 @@ SERVIDOR_LENTO_JS = """
                              'el menú del celular');
     };
     const appDelMenu = (xmlid) => document.querySelector(
-        `.o_app_menu_sidebar .o_dcasa_cajon_app[data-menu-xmlid="${xmlid}"]`);
+        `.o_app_menu_sidebar .o_app[data-menu-xmlid="${xmlid}"]`);
     const menuCerrado = () => !document.querySelector('.o_app_menu_sidebar')
         && !document.querySelector('.modal-backdrop');
 """
@@ -140,8 +140,21 @@ class TestElPanelEnElCelularAlEntrar(HttpCase):
             }
             const apps = [...cajon.querySelectorAll('.o_dcasa_cajon_app')];
             if (apps.length < 3) { throw new Error('el menú debe listar las aplicaciones y trae ' + apps.length); }
+            // El Inicio va aparte, fijo arriba junto a «Buscar» (no se repite en la lista).
+            const aLaVista = (el) => {
+                const r = el.getBoundingClientRect();
+                const encima = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+                return r.height > 0 && r.top >= 0 && r.bottom <= window.innerHeight && el.contains(encima);
+            };
             const inicio = appDelMenu('dcasa_interfaz.menu_dcasa_inicio');
-            if (apps[0] !== inicio) { throw new Error('el Inicio va primero'); }
+            if (!inicio || !inicio.closest('.o_dcasa_cajon_fijo')) { throw new Error('el Inicio va fijo arriba'); }
+            await esperar(() => aLaVista(inicio), 'el Inicio a la vista (cuando el menú termina de deslizarse)');
+            if (!cajon.querySelector('.o_dcasa_cajon_fijo .o_dcasa_cajon_buscar')) {
+                throw new Error('falta «Buscar»');
+            }
+            if (cajon.querySelectorAll('[data-menu-xmlid="dcasa_interfaz.menu_dcasa_inicio"]').length !== 1) {
+                throw new Error('el Inicio sale una sola vez');
+            }
             if (inicio.getAttribute('aria-current') !== 'true') { throw new Error('el Inicio es donde se está'); }
             const chicos = [...cajon.querySelectorAll('a, button')]
                 .map((e) => [e, e.getBoundingClientRect()])
@@ -178,6 +191,11 @@ class TestElPanelEnElCelularAlEntrar(HttpCase):
             await abrirElMenu();
             const ahora = appDelMenu('sale.sale_menu_root');
             igual(ahora.getAttribute('aria-current'), 'true', 'Ventas es la app abierta');
+            if (ahora.getBoundingClientRect().top > window.innerHeight * 0.6) {
+                throw new Error('el menú abre donde se está: Ventas y sus secciones deben quedar a la vista');
+            }
+            await esperar(() => aLaVista(appDelMenu('dcasa_interfaz.menu_dcasa_inicio')),
+                          'el Inicio a la vista aunque la lista se haya deslizado');
             if (!ahora.closest('.o_dcasa_cajon_item').querySelector('.o_dcasa_cajon_secciones a.o_dcasa_cajon_seccion, '
                     + '.o_dcasa_cajon_secciones .o_dcasa_cajon_grupo_btn')) {
                 throw new Error('las secciones de la app abierta vienen desplegadas');

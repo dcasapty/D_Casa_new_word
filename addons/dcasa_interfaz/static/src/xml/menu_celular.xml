@@ -18,13 +18,23 @@
     </t>
 
     <t t-name="dcasa_interfaz.MenuCelular">
-        <div class="o_dcasa_cajon_cuerpo">
-            <button type="button" class="o_dcasa_cajon_buscar" t-on-click="buscar">
-                <i class="fa fa-search" aria-hidden="true"/>
-                <span>Buscar una pantalla</span>
-            </button>
+        <div class="o_dcasa_cajon_cuerpo" t-ref="raiz">
+            <!-- Fijo arriba aunque la lista se deslice: volver al Inicio y buscar una pantalla. -->
+            <div class="o_dcasa_cajon_fijo">
+                <a t-if="inicio" class="o_dcasa_cajon_inicio o_app" t-att-href="enlace(inicio)"
+                   t-att-data-menu-xmlid="inicio.xmlid" t-att-class="{'o_activa': esAppActual(inicio)}"
+                   t-att-aria-current="esAppActual(inicio) ? 'true' : undefined"
+                   t-on-click="(ev) => this.elegirApp(inicio, ev)">
+                    <i class="fa fa-home" aria-hidden="true"/>
+                    <span t-out="inicio.name"/>
+                </a>
+                <button type="button" class="o_dcasa_cajon_buscar" t-on-click="buscar">
+                    <i class="fa fa-search" aria-hidden="true"/>
+                    <span>Buscar</span>
+                </button>
+            </div>
             <ul class="o_dcasa_cajon_lista">
-                <li t-foreach="apps" t-as="app" t-key="app.id" class="o_dcasa_cajon_item"
+                <li t-foreach="otrasApps" t-as="app" t-key="app.id" class="o_dcasa_cajon_item"
                     t-att-class="{'o_activa': esAppActual(app)}">
                     <div class="o_dcasa_cajon_fila">
                         <a class="o_dcasa_cajon_app o_app" t-att-href="enlace(app)" t-att-data-menu-xmlid="app.xmlid"
