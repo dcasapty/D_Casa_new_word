@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <!-- El cajón del menú en el celular (lo abre el botón de las tres rayas). Se conserva el armazón de Odoo (se desliza,
+         el fondo oscuro lo cierra, la «X») y se cambia lo de adentro: en vez de las dos caras de Odoo («secciones de la
+         app abierta» / «Todas las aplicaciones»), una sola lista con todo. Ver js/menu_celular.js. -->
+    <t t-inherit="web.NavBar.AppsMenu.Sidebar" t-inherit-mode="extension">
+        <xpath expr="//div[hasclass('o_sidebar_topbar')]/small" position="replace">
+            <span class="o_dcasa_cajon_titulo">
+                <img src="/dcasa_base/static/img/logo.png" alt="D'CASA Panamá"/>
+            </span>
+        </xpath>
+        <xpath expr="//nav[hasclass('o_burger_menu_content')]" position="replace">
+            <nav class="o_burger_menu_content o_burger_menu_app o_dcasa_cajon flex-grow-1 flex-shrink-1 overflow-auto"
+                 aria-label="Menú principal">
+                <DcasaMenuCelular alCerrar.bind="_closeAppMenuSidebar"/>
+            </nav>
+        </xpath>
+    </t>
+
+    <t t-name="dcasa_interfaz.MenuCelular">
+        <div class="o_dcasa_cajon_cuerpo">
+            <button type="button" class="o_dcasa_cajon_buscar" t-on-click="buscar">
+                <i class="fa fa-search" aria-hidden="true"/>
+                <span>Buscar una pantalla</span>
+            </button>
+            <ul class="o_dcasa_cajon_lista">
+                <li t-foreach="apps" t-as="app" t-key="app.id" class="o_dcasa_cajon_item"
+                    t-att-class="{'o_activa': esAppActual(app)}">
+                    <div class="o_dcasa_cajon_fila">
+                        <a class="o_dcasa_cajon_app o_app" t-att-href="enlace(app)" t-att-data-menu-xmlid="app.xmlid"
+                           t-att-aria-current="esAppActual(app) ? 'true' : undefined"
+                           t-on-click="(ev) => this.elegirApp(app, ev)">
+                            <img t-if="icono(app)" class="o_dcasa_cajon_icono" t-att-src="icono(app)" alt=""/>
+                            <span t-out="app.name"/>
+                        </a>
+                        <button t-if="secciones(app).length" type="button" class="o_dcasa_cajon_flecha"
+                                t-att-aria-expanded="estaDesplegada(app) ? 'true' : 'false'"
+                                t-att-aria-label="(estaDesplegada(app) ? 'Ocultar las secciones de ' : 'Ver las secciones de ') + app.name"
+                                t-on-click="() => this.desplegar(app)">
+                            <i class="fa fa-angle-down" aria-hidden="true"/>
+                        </button>
+                    </div>
+                    <ul t-if="estaDesplegada(app) and secciones(app).length" class="o_dcasa_cajon_secciones"
+                        t-att-aria-label="'Secciones de ' + app.name">
+                        <t t-call="dcasa_interfaz.MenuCelular.nodos">
+                            <t t-set="nodos" t-value="secciones(app)"/>
+                        </t>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+    </t>
+
+    <!-- Secciones a cualquier profundidad: lo que tiene hijos se despliega en su lugar (igual que en la computadora). -->
+    <t t-name="dcasa_interfaz.MenuCelular.nodos">
+        <t t-foreach="nodos" t-as="seccion" t-key="seccion.id">
+            <li t-if="!(seccion.childrenTree and seccion.childrenTree.length)">
+                <a class="o_dcasa_cajon_seccion" t-att-href="enlace(seccion)" t-att-data-menu-xmlid="seccion.xmlid"
+                   t-att-class="{'o_activa': esActiva(seccion)}"
+                   t-att-aria-current="esActiva(seccion) ? 'page' : undefined"
+                   t-on-click="(ev) => this.abrir(seccion, ev)" t-out="seccion.name"/>
+            </li>
+            <li t-else="" class="o_dcasa_cajon_grupo">
+                <button type="button" class="o_dcasa_cajon_seccion o_dcasa_cajon_grupo_btn"
+                        t-att-aria-expanded="abierto(seccion) ? 'true' : 'false'"
+                        t-on-click="() => this.alternar(seccion, nodos)">
+                    <span t-out="seccion.name"/>
+                    <i class="fa fa-angle-down" aria-hidden="true"/>
+                </button>
+                <ul t-if="abierto(seccion)" class="o_dcasa_cajon_hijos">
+                    <t t-call="dcasa_interfaz.MenuCelular.nodos">
+                        <t t-set="nodos" t-value="seccion.childrenTree"/>
+                    </t>
+                </ul>
+            </li>
+        </t>
+    </t>
+</templates>

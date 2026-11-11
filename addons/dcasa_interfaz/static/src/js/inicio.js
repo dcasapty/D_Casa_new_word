@@ -4,9 +4,11 @@
  * Las cifras vienen de dcasa.tablero.obtener_datos (respetan los permisos de quien mira)
  * y cada una abre la lista que la explica. Debajo, los accesos del día a día y las apps.
  */
-import { Component, onWillStart, onWillUnmount, useEffect, useExternalListener, useRef, useState } from "@odoo/owl";
+import { Component, onWillUnmount, useEffect, useExternalListener, useRef, useState } from "@odoo/owl";
 import { browser } from "@web/core/browser/browser";
+import { ConnectionLostError } from "@web/core/network/rpc";
 import { registry } from "@web/core/registry";
+import { user } from "@web/core/user";
 import { useService } from "@web/core/utils/hooks";
 
 const ICONOS = {
@@ -45,6 +47,16 @@ function leerTamanoDeAtajos() {
     }
 }
 
+// La fecha del armazón (lo que se ve mientras llegan las cifras) se arma a mano, igual que la escribe el servidor
+// («miércoles 11 de noviembre»): así el saludo no salta cuando llegan los datos.
+const DIAS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+const MESES = [
+    "enero", "febrero", "marzo", "abril", "mayo", "junio",
+    "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+];
+// Si las cifras tardan más que esto, el armazón lo dice («Está tardando más de lo normal…»).
+const ESPERA_LARGA = 6000;
+
 /** ¿La persona pidió menos movimiento en su aparato? Entonces nada sube ni se desliza. */
 function sinMovimiento() {
     return browser.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -70,6 +82,9 @@ export class DcasaInicio extends Component {
         this.raiz = useRef("raiz");
         this.state = useState({
             datos: null,
+            // Mientras llegan las cifras se ve el armazón (saludo y bloques en gris), nunca la pantalla en blanco.
+            errorDeCarga: false,
+            cargaLenta: false,
             // Cómo van los accesos directos en el celular: "compacto", "detalle" o "grande".
             atajos: leerTamanoDeAtajos(),
             periodo: "hoy",
@@ -100,7 +115,9 @@ export class DcasaInicio extends Component {
                 porVendedora: false,
             },
         });
-        onWillStart(() => this.cargar());
+        // La pantalla se pinta YA (el armazón) y las cifras llegan después. Antes se esperaba al servidor con la pantalla
+        // en blanco: en el celular, tras entrar, parecía que el panel no había abierto (reporte de la dueña, 2026-11-11).
+        this.cargar();
         // Las cifras principales suben hasta su valor al abrir y cada vez que cambian (otro periodo, otra vendedora).
         this.cifrasPintadas = new WeakMap();
         this.subidas = new Map();
@@ -110,6 +127,7 @@ export class DcasaInicio extends Component {
                 browser.cancelAnimationFrame(cuadro);
             }
             this.subidas.clear();
+            browser.clearTimeout(this.avisoDeEspera);
         });
         // Tocar fuera de la ayuda abierta (o de su ícono) la cierra: en el celular no hay «pasar el mouse».
         useExternalListener(window, "click", (ev) => {
@@ -120,8 +138,36 @@ export class DcasaInicio extends Component {
     }
 
     async cargar() {
-        this.state.datos = await this.orm.call("dcasa.tablero", "obtener_datos", []);
-        this.state.base = this.state.datos.base || null;
+        this.state.errorDeCarga = false;
+        this.state.cargaLenta = false;
+        browser.clearTimeout(this.avisoDeEspera);
+        this.avisoDeEspera = browser.setTimeout(() => (this.state.cargaLenta = true), ESPERA_LARGA);
+        try {
+            const datos = await this.orm.call("dcasa.tablero", "obtener_datos", []);
+            this.state.base = datos.base || null;
+            this.state.datos = datos;
+        } catch (error) {
+            // Sin conexión o el servidor falló: se dice en la pantalla y se ofrece reintentar (nunca en blanco). Una
+            // falla del servidor sigue su camino, para que Odoo muestre su detalle como siempre; la falta de conexión ya
+            // queda dicha aquí.
+            this.state.errorDeCarga = true;
+            if (!(error instanceof ConnectionLostError)) {
+                throw error;
+            }
+        } finally {
+            browser.clearTimeout(this.avisoDeEspera);
+        }
+    }
+
+    /** El nombre de pila de quien entró, como lo pone el servidor en el saludo. */
+    get nombreDePila() {
+        return (user.name || "").split(" ")[0];
+    }
+
+    /** «miércoles 11 de noviembre», con la fecha del aparato (mientras llega la del servidor). */
+    get fechaDeHoy() {
+        const hoy = new Date();
+        return `${DIAS[hoy.getDay()]} ${hoy.getDate()} de ${MESES[hoy.getMonth()]}`;
     }
 
     get apps() {

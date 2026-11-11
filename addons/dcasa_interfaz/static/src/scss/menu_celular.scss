@@ -1,0 +1,165 @@
+// El cajón del menú en el celular (js/menu_celular.js): una sola lista con todas las aplicaciones y, debajo de la que
+// está abierta, sus secciones. Mismas reglas que la barra lateral de la computadora; todo lo que se toca mide 44 px o más.
+// Sistema plano: sin sombras ni degradados; lo activo se marca con el azul de marca sobre su tinte claro.
+
+.o_app_menu_sidebar {
+    .o_sidebar_topbar {
+        background: var(--dc-blanco);
+        box-shadow: inset 0 -1px 0 var(--dc-linea);
+
+        .o_sidebar_close { min-width: 48px; justify-content: center; color: var(--dc-tinta-2) !important; }
+    }
+
+    .o_dcasa_cajon_titulo {
+        display: inline-flex;
+        align-items: center;
+        padding-left: 16px;
+
+        img { height: 26px; width: auto; display: block; }
+    }
+
+    // Odoo sangra y colorea cada <li> del cajón (burger_menu.scss): aquí la lista es propia.
+    .o_burger_menu_content.o_dcasa_cajon {
+        background: var(--dc-blanco);
+
+        ul, li { margin: 0; padding: 0; list-style: none; text-indent: 0; }
+        li, button { color: var(--dc-tinta); }
+        ul li:last-child { margin-bottom: 0; }
+    }
+}
+
+.o_dcasa_cajon_cuerpo {
+    padding: 12px 10px 24px;
+    // El iPhone deja abajo la franja del gesto de inicio: que el último renglón no quede debajo.
+    padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+}
+
+.o_dcasa_cajon_buscar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 44px;
+    margin-bottom: 10px;
+    padding: 0 14px;
+    border: 1px solid var(--dc-linea-fuerte);
+    border-radius: var(--dc-r-sm);
+    background: var(--dc-nieve);
+    color: var(--dc-tinta-2) !important;
+    font-size: .95rem;
+    text-align: left;
+
+    .fa { color: var(--dc-tinta-3); }
+    &:focus-visible { outline: none; box-shadow: var(--dc-foco); }
+}
+
+.o_dcasa_cajon_fila {
+    display: flex;
+    align-items: stretch;
+    border-radius: var(--dc-r-sm);
+
+    .o_dcasa_cajon_item.o_activa > & { background: var(--dc-azul-50); }
+}
+
+.o_dcasa_cajon_app {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 10px;
+    border-radius: var(--dc-r-sm);
+    color: var(--dc-tinta) !important;
+    font-size: 1rem;
+    font-weight: 600;
+    text-decoration: none !important;
+
+    > span { min-width: 0; overflow-wrap: anywhere; }
+    .o_dcasa_cajon_item.o_activa > .o_dcasa_cajon_fila > & { color: var(--dc-azul-700) !important; }
+    &:focus-visible { outline: none; box-shadow: var(--dc-foco); }
+}
+
+.o_dcasa_cajon_icono {
+    flex: 0 0 auto;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--dc-r-sm);
+    object-fit: contain;
+}
+
+.o_dcasa_cajon_flecha {
+    flex: 0 0 48px;
+    min-height: 48px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    border: 0;
+    border-radius: 0 var(--dc-r-sm) var(--dc-r-sm) 0;
+    background: transparent;
+    color: var(--dc-tinta-2) !important;
+    font-size: 1.25rem;
+
+    // Una rayita corta la separa del nombre: son dos cosas distintas que tocar (abrir la app / ver sus secciones).
+    &::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 14px;
+        bottom: 14px;
+        width: 1px;
+        background: var(--dc-linea-fuerte);
+    }
+
+    .fa { transition: transform var(--dc-transicion); }
+    &[aria-expanded="true"] .fa { transform: rotate(180deg); }
+    &:focus-visible { outline: none; box-shadow: var(--dc-foco); }
+}
+
+// Las secciones de la aplicación desplegada: un renglón por pantalla, con una línea a la izquierda que las agrupa.
+.o_dcasa_cajon_secciones {
+    margin: 2px 0 8px 25px !important;
+    padding-left: 10px !important;
+    border-left: 2px solid var(--dc-azul-100);
+}
+
+.o_dcasa_cajon_hijos {
+    margin-left: 10px !important;
+    padding-left: 8px !important;
+    border-left: 2px solid var(--dc-linea);
+}
+
+.o_dcasa_cajon_seccion {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    min-height: 44px;
+    padding: 6px 10px;
+    border: 0;
+    border-radius: var(--dc-r-sm);
+    background: transparent;
+    color: var(--dc-tinta-2) !important;
+    font-size: .95rem;
+    font-weight: 500;
+    text-align: left;
+    text-decoration: none !important;
+
+    &.o_activa { background: var(--dc-azul-100); color: var(--dc-azul-700) !important; font-weight: 600; }
+    &:focus-visible { outline: none; box-shadow: var(--dc-foco); }
+}
+
+.o_dcasa_cajon_grupo_btn {
+    color: var(--dc-tinta) !important;
+    font-weight: 600;
+
+    .fa { color: var(--dc-tinta-3); transition: transform var(--dc-transicion); }
+    &[aria-expanded="true"] .fa { transform: rotate(180deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .o_dcasa_cajon_flecha .fa,
+    .o_dcasa_cajon_grupo_btn .fa { transition: none; }
+}

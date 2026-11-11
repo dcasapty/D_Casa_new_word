@@ -30,6 +30,7 @@ from . import (
     test_panel_extra,
     test_panel_interfaz,
     test_panel_juan,
+    test_panel_atras,
     test_panel_scroll,
     test_panel_visual,
     test_presencia,

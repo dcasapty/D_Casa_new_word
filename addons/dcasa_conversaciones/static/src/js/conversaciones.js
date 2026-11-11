@@ -8,13 +8,14 @@ import { Component, onMounted, onWillUnmount, useEffect, useState } from "@odoo/
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
 import { Almacen } from "./almacen";
+import { usarAtrasDelTelefono } from "./atras";
 import { BuscadorCatalogo } from "./catalogo";
 import { DialogoAdjuntar } from "./adjuntar";
 import { DialogoCotizacion } from "./cotizacion";
 import { FichaCliente } from "./ficha";
 import { HiloConversacion } from "./hilo";
 import { ListaConversaciones } from "./lista";
-import { escucharCambioDeTamano } from "./preferencias";
+import { esCelular, escucharCambioDeTamano } from "./preferencias";
 import { VisorImagenes } from "./visor";
 
 const CLAVE_ABIERTA = "dcasa.conversaciones.abierta";
@@ -133,10 +134,53 @@ export class DcasaConversaciones extends Component {
             this.almacen.salir();
             this.almacen.desuscribir();
         });
+        // Se recuerda la conversación que está A LA VISTA. En el celular, de vuelta en la lista ya no hay ninguna: al
+        // recargar la página (o volver con «atrás» desde otra pantalla) se ve la lista, no un chat que se había dejado.
         useEffect(
-            () => guardarAbierta(this.almacen.seleccionadaId),
-            () => [this.almacen.seleccionadaId]
+            (id) => guardarAbierta(id),
+            () => [esCelular() && this.almacen.columna === "lista" ? null : this.almacen.seleccionadaId]
         );
+        // El «atrás» del teléfono cierra lo de más arriba (fotos → ventana → ficha → chat) antes de salir de la pantalla.
+        usarAtrasDelTelefono(
+            () => (this.almacen.iniciado ? this.capasAbiertas.length : null),
+            () => this.cerrarLaDeArriba()
+        );
+    }
+
+    /** Lo que hay abierto encima de la lista en el celular, de abajo hacia arriba (ver atras.js). */
+    get capasAbiertas() {
+        const almacen = this.almacen;
+        void almacen.tamanoVersion; // si la ventana cruza el límite del celular, se vuelve a contar
+        if (!esCelular()) {
+            return [];
+        }
+        const capas = [];
+        if (almacen.columna !== "lista") {
+            capas.push("hilo");
+        }
+        if (almacen.columna === "ficha") {
+            capas.push("ficha");
+        }
+        if (almacen.panel) {
+            capas.push("panel");
+        }
+        if (almacen.visor) {
+            capas.push("visor");
+        }
+        return capas;
+    }
+
+    cerrarLaDeArriba() {
+        const capa = this.capasAbiertas.at(-1);
+        if (capa === "visor") {
+            this.almacen.cerrarVisor();
+        } else if (capa === "panel") {
+            this.almacen.cerrarPanel();
+        } else if (capa === "ficha") {
+            this.almacen.cerrarFicha();
+        } else if (capa === "hilo") {
+            this.almacen.volverALaLista();
+        }
     }
 
     get aviso() {

@@ -1,0 +1,84 @@
+// Lo que se ve mientras algo carga, para que el panel nunca quede en blanco (reporte de la dueña, 2026-11-11: al
+// entrar desde el celular la pantalla quedaba vacía, solo con la barra de arriba, y parecía que no había abierto).
+//
+//  1. El armazón del Inicio (`.o_dcasa_arranque`, inicio.xml): el saludo de verdad y bloques en gris donde irán los
+//     accesos y las cifras. Se cambia por el Inicio en cuanto llegan los datos.
+//  2. El aviso del área de trabajo: mientras Odoo trae la primera pantalla (cualquiera), dice «Cargando…».
+//
+// Sistema plano: los bloques son gris liso y solo cambian de opacidad (sin degradados ni brillos que se deslizan).
+
+.o_dcasa_arranque {
+    height: 100%;
+    background: var(--dc-niebla);
+    color: var(--dc-tinta);
+
+    // El punto de la fecha va en azul, como en el Inicio: el fondo del saludo es blanco y el amarillo no lo toca.
+    .o_dcasa_inicio_fecha::before { background: var(--dc-azul-600); box-shadow: none; }
+}
+
+// Misma razón que en el Inicio (interfaz.scss): Odoo deja a todo `.o_action` sin barra de desplazamiento.
+.o_web_client > .o_action_manager > .o_dcasa_arranque.o_action {
+    overflow-y: auto;
+    > * { flex-shrink: 0; }
+}
+
+.o_dcasa_arranque_bloques {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 12px;
+
+    @media (max-width: 767.98px) {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+    }
+}
+
+.o_dcasa_arranque_bloque {
+    display: block;
+    height: 84px;
+    border-radius: var(--dc-r-md);
+    background: var(--dc-linea);
+    animation: dcasa-arranque-pulso 1.1s var(--dc-curva) infinite alternate;
+
+    &.o_dcasa_arranque_ancho { grid-column: 1 / -1; height: 56px; }
+    &.o_dcasa_arranque_alto { height: 180px; }
+}
+
+@keyframes dcasa-arranque-pulso {
+    from { opacity: .45; }
+    to { opacity: .95; }
+}
+
+.o_dcasa_arranque_error {
+    max-width: 520px;
+    padding: 20px;
+    background: var(--dc-blanco);
+    border: 1px solid var(--dc-linea);
+    border-radius: var(--dc-r-md);
+
+    p { margin: 0 0 14px; color: var(--dc-tinta-2); }
+    .btn { min-height: 44px; display: inline-flex; align-items: center; }
+}
+
+// --- El área de trabajo vacía -----------------------------------------------------------------------------------------
+// Entre que Odoo pinta la barra de arriba y trae la primera pantalla, el área de trabajo no tiene nada. Aparece tras un
+// instante (si la pantalla llega enseguida, no alcanza a verse).
+.o_web_client > .o_action_manager:empty::before {
+    content: "Cargando…";
+    display: block;
+    padding: 28px clamp(1rem, 3vw, 40px);
+    color: var(--dc-tinta-3);
+    font-size: .95rem;
+    font-weight: 500;
+    animation: dcasa-arranque-aparece .2s ease-out .35s both;
+}
+
+@keyframes dcasa-arranque-aparece {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .o_dcasa_arranque_bloque { animation: none; opacity: .7; }
+    .o_web_client > .o_action_manager:empty::before { animation: none; }
+}
