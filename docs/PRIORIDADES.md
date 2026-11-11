@@ -1,22 +1,24 @@
 # Prioridades vigentes
 
-Puesto al día el **2026-11-09**. Es el orden en que se trabaja: cada sesión lo lee al empezar y lo pone al día al
+Puesto al día el **2026-11-11** (cierre de semana). Es el orden en que se trabaja: cada sesión lo lee al empezar y lo pone al día al
 terminar (ver [LEEME_PRIMERO.md](LEEME_PRIMERO.md)). Aquí va **un solo estado**, el de hoy; lo que pasó cada día está en
 la bitácora de LEEME_PRIMERO (y lo más viejo en [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md)).
 
 Cada cosa nueva pasa por capturas a la dueña, su visto bueno, pruebas y staging; a producción, con su «sí» (reglas en
 LEEME_PRIMERO §2).
 
-## Estado al 2026-11-09
+## Estado al 2026-11-11
 
 - **Producción funciona desde el 2026-10-13** y **`dcasapty.com` (y `www`) apunta al sistema nuevo desde el
-  2026-10-27** (Desplegar 31). El último despliegue es Desplegar 63 con Desplegar Juan 13 (9 nov, PR #100: enlace para
-  choferes, «Colchones» abre WhatsApp y Dependabot); antes, el mismo día, Desplegar 62 y Juan 12 (PR #99).
-  El contenedor instala 30 de los 31 módulos de `addons/` (todos menos `dcasa_fe_pa`, a propósito).
-- **Juan atiende el WhatsApp de la tienda por la API oficial de Meta** desde el 2026-11-02 (modelo «contributor» de
-  Meta, llave permanente). Telegram también funciona. **Messenger quedó conectado el 2026-11-09** e **Instagram el
-  2026-11-10** (por la página, misma app y llave; ya contesta a clientes reales). El puente de WhatsApp por QR (`puente-wa/`) **nunca se desplegó** a producción. Ver
-  [JUAN_CANALES.md](JUAN_CANALES.md).
+  2026-10-27** (Desplegar 31). Odoo y el borde: **Desplegar 63** (9 nov, PR #100: enlace para choferes, «Colchones» abre
+  WhatsApp y Dependabot). Juan: **Desplegar Juan 20** (11 nov, PR #107). Esa combinación es la **versión estable 4**
+  ([VERSIONES_ESTABLES.md](VERSIONES_ESTABLES.md)). El contenedor instala 30 de los 31 módulos de `addons/` (todos
+  menos `dcasa_fe_pa`, a propósito).
+- **Juan atiende WhatsApp (API oficial de Meta), Messenger e Instagram**, con fotos en los tres, y Telegram. WhatsApp
+  desde el 2026-11-02 (el 131070 del 9 y 10 nov se resolvió con «redireccionar conversación» a «D'CASA Juan»);
+  Messenger desde el 2026-11-09; Instagram desde el 2026-11-10 (por la página, misma app y llave). El puente de
+  WhatsApp por QR (`puente-wa/`) **nunca se desplegó** a producción. Ver [JUAN_CANALES.md](JUAN_CANALES.md).
+- **Enlace para choferes:** encendido por la dueña el 2026-11-11 ([ENVIOS.md](ENVIOS.md)).
 - **Sofía, la asistente del CRM**, está en producción desde el 2026-11-05 ([SOFIA.md](SOFIA.md)).
 - **El correo a clientes (Resend) está encendido** desde el 2026-10-27 ([CORREO.md](CORREO.md)).
 - Lo último que entró (noviembre): Valor del inventario y cobrado por forma de pago; medios, Origen y cotizaciones que
@@ -25,24 +27,22 @@ LEEME_PRIMERO §2).
 
 ## Lo que sigue, en orden
 
-00. **WhatsApp: resuelto el 2026-11-10** (131070 desde el 9 nov 16:02): en Meta, con la cuenta de los jefes,
-    «redireccionar conversación» (Enrutamiento de conversaciones) a «D'CASA Juan» y Callbell eliminado. Juan 17 y 18
-    dejan en el registro el `fbtrace_id` de cada rechazo y la forma de los avisos raros. Ver JUAN_CANALES §1. Además,
-    el nombre visible «DCasa Pty» está DECLINED: pedir uno nuevo (p. ej. «D'Casa Panamá»). **Enlace para choferes** y
-    «Colchones» → WhatsApp: en producción (Desplegar 63); la dueña **encendió el enlace el 11 nov**.
-    **Instagram**: conectado el 10 nov; las fotos salen desde Juan 20 (confirmado por la dueña el 11 nov).
-    Siguiente, si la dueña lo pide: respuesta automática a comentarios de Instagram (`instagram_manage_comments`).
-    **Próximo lote:** el motivo real en el aviso «Quedó por enviar» y el nombre del cliente de Messenger.
-    Lo de antes (131042, pago de Meta) (2026-11-09): lo arregla la dueña en Meta (Facturación y pagos ›
-    Cuentas de mensajes › la cuenta …764382, que se pagaba con la línea de crédito de Callbell). Cuando traiga el
-    reporte de Claude en Chrome, confirmar el paso exacto. Desde ese día Gerencia recibe el aviso por Telegram si vuelve
-    a pasar (en producción: Desplegar 62 y Juan 12). **Preguntas sin respuesta para las vendedoras**: en producción el
-    mismo día. Reporte de Claude en Chrome: el número está en la cuenta **905988761764382**, pagada SOLO con la línea de
-    Callbell; falta que la dueña asigne la Visa ···· 5887 del portafolio a esa cuenta, ponga la dirección, pruebe y
-    luego pida a Callbell retirar la línea y quite su «Acceso total». Nombre visible «DCasa Pty» rechazado y empresa sin
-    verificar (no causan el 131042). Decisiones de la dueña (2026-11-09): **6 h** para «no enviar seguimientos
-    atrasados» se queda; la tarjeta **«Colchones»** de la portada abre WhatsApp mientras no haya colchones publicados
-    (vuelve sola a la tienda al publicarlos).
+00. **La semana que viene, propuesta en este orden** (se confirma con la dueña):
+    1. **El aviso «Quedó por enviar» con el motivo real** (hoy dice «el Worker no respondió» para cualquier fallo) y un
+       **aviso a Gerencia por Telegram cuando un canal de Meta deja de enviar o recibir**: el 131070 no está entre los
+       códigos que avisan (`CODIGOS_DE_CUENTA` en `dcasa_conversaciones/models/mensaje.py`) y el 9 nov nadie se enteró
+       a tiempo.
+    2. **Dependabot #98** (Juan: `ai` 7.0.164 y `@ai-sdk/*`, parches): con pruebas y Desplegar Juan, un día con alguien
+       mirando.
+    3. **Privacidad (issues #22 y #23)**, por la Ley 81.
+    4. **CRM fase 2:** #21 (cotizaciones hechas fuera del chat ligadas a la oportunidad) y #20 (perdida cuando el
+       cliente compró en otro lado) primero.
+    5. **Meta (lo hace la dueña):** pedir un nombre visible nuevo de WhatsApp («DCasa Pty» DECLINED; p. ej. «D'Casa
+       Panamá»), la verificación del negocio y la revisión de la app (Business Asset User Profile Access y acceso
+       avanzado de Messenger e Instagram).
+    6. Si la dueña lo pide: respuestas automáticas a comentarios de Instagram (`instagram_manage_comments`).
+    La IA de respaldo de Juan (`ANTHROPIC_API_KEY`, `/salud` la da como faltante) y las plantillas de WhatsApp siguen
+    como decidió la dueña el 2026-11-07 (punto 4): no son prioridad.
 0. **Citas, reenviados, reacciones y palomitas en el chat** (pedido de la dueña del 2026-11-07, bitácora de
    LEEME_PRIMERO): **en producción** desde el 2026-11-07 (PR #94, Desplegar 60 y Juan 10), con la revisión adversarial
    arreglada; la dueña vio las capturas («perfecto, llévalo a producción»). Falta, si se quieren las reacciones de
