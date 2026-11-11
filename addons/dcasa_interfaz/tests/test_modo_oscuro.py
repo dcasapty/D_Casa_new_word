@@ -66,6 +66,85 @@ def rutas(env, paquete):
     return [ruta for ruta, *_resto in env['ir.asset']._get_asset_paths(paquete, {})]
 
 
+# --- Lectura de una hoja ya compilada: pares fondo/letra de una misma regla -------------------------------------------
+PROPIO = re.compile(r'\.o_(dcasa|dcj|dc_|brian|sofia|camila|de_|guia)')
+COLORES = {'white': '#ffffff', 'black': '#000000'}
+
+
+def color(valor, variables, hondo=0):
+    """``#hex``, ``rgb()``, ``rgba()`` o ``var(--x, reserva)`` → (r, g, b, alfa); ``None`` si no es un color liso."""
+    valor = valor.replace('!important', '').strip()
+    if hondo > 8:
+        return None
+    var = re.match(r'var\(\s*(--[\w-]+)\s*(?:,\s*(.*))?\)$', valor)
+    if var:
+        nombre, reserva = var.groups()
+        if nombre in variables:
+            return color(variables[nombre], variables, hondo + 1)
+        return color(reserva, variables, hondo + 1) if reserva else None
+    valor = COLORES.get(valor.lower(), valor)
+    hexa = re.match(r'#([0-9a-fA-F]{3,8})$', valor)
+    if hexa:
+        h = hexa.group(1)
+        if len(h) in (3, 4):
+            h = ''.join(c * 2 for c in h)
+        return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16), int(h[6:8], 16) / 255 if len(h) == 8 else 1)
+    rgb = re.match(r'rgba?\(([^)]+)\)$', valor)
+    if rgb:
+        partes = [float(x) for x in re.split(r'[,\s/]+', rgb.group(1).strip()) if x]
+        return (partes[0], partes[1], partes[2], partes[3] if len(partes) > 3 else 1)
+    return None
+
+
+def luz(c):
+    def canal(v):
+        v /= 255
+        return v / 12.92 if v <= 0.03928 else ((v + 0.055) / 1.055) ** 2.4
+    return 0.2126 * canal(c[0]) + 0.7152 * canal(c[1]) + 0.0722 * canal(c[2])
+
+
+def encima(arriba, abajo):
+    return tuple(arriba[i] * arriba[3] + abajo[i] * (1 - arriba[3]) for i in range(3)) + (1,)
+
+
+def pares_que_no_se_leen(css, minimo=3):
+    """Reglas propias que ponen fondo Y letra en la misma regla y no llegan a ``minimo``:1 con los colores de la hoja.
+
+    Une las reglas del mismo selector (la última gana, como en la cascada) y resuelve las variables con su última
+    definición. No mira herencias: es una red para lo más común (botones, pastillas, insignias)."""
+    variables, unidas = {}, {}
+    css = re.sub(r'/\*.*?\*/', '', css, flags=re.S)   # la hoja trae un comentario con el nombre de cada archivo
+    for selectores, cuerpo in re.findall(r'([^{}]+)\{([^{}]*)\}', css):
+        declaraciones = [tuple(parte.strip() for parte in d.split(':', 1))
+                         for d in re.split(r';(?![^(]*\))', cuerpo) if ':' in d]
+        for propiedad, valor in declaraciones:
+            if propiedad.startswith('--'):
+                variables[propiedad] = valor
+        for selector in (trozo.strip() for trozo in selectores.split(',')):
+            if not PROPIO.search(selector):
+                continue
+            regla = unidas.setdefault(selector, {})
+            for propiedad, valor in declaraciones:
+                if propiedad in ('background', 'background-color'):
+                    regla['fondo'] = valor
+                elif propiedad == 'color':
+                    regla['letra'] = valor
+    superficie = color(variables.get('--dc-blanco', '#ffffff'), variables)
+    malos = []
+    for selector, regla in unidas.items():
+        fondo = color(regla.get('fondo', ''), variables)
+        letra = color(regla.get('letra', ''), variables)
+        if not fondo or not letra:
+            continue
+        fondo = encima(fondo, superficie) if fondo[3] < 1 else fondo
+        letra = encima(letra, fondo) if letra[3] < 1 else letra
+        a, b = luz(fondo), luz(letra)
+        razon = (max(a, b) + 0.05) / (min(a, b) + 0.05)
+        if razon < minimo:
+            malos.append(f"{selector}: fondo {regla['fondo']} con letra {regla['letra']} ({razon:.2f}:1)")
+    return malos
+
+
 @tagged('post_install', '-at_install')
 class TestModoOscuroPaquetes(TransactionCase):
     """Sin navegador: qué archivo entra en qué hoja, y en qué orden."""
@@ -167,6 +246,29 @@ class TestModoOscuroServidor(HttpCase):
         self.assertRegex(oscura, r'\.o_form_view \.o_form_sheet\{[^}]*background-color: #2A2E33',
                          'la hoja del formulario')
         self.assertNotRegex(clara, r'#2A2E33')
+
+    def test_los_rellenos_propios_se_leen_de_noche(self):
+        """En claro, el azul de la marca es a la vez tinta y relleno; de noche son dos azules, y cada relleno propio
+        necesita su regla en ``static/src/oscuro/``. Si alguien agrega un botón o una pastilla azul (o un blanco puesto
+        a mano) y no le pone su versión de noche, queda letra clara sobre celeste: esto lo avisa."""
+        de_noche = self.hojas({'color_scheme': 'dark'})
+        oscura = self.url_open(next(e for e in de_noche if 'assets_web_dark' in e)).text
+        self.assertGreater(len(re.findall(r'--dc-relleno\b', oscura)), 20, 'la hoja oscura trae sus rellenos')
+        malos = pares_que_no_se_leen(oscura)
+        self.assertFalse(malos, 'En modo oscuro estas reglas no se leen (menos de 3:1). Dales su versión de noche en '
+                         'dcasa_interfaz/static/src/oscuro/ (relleno: var(--dc-relleno) con var(--dc-en-relleno)):\n'
+                         + '\n'.join(malos[:40]))
+
+    def test_la_red_de_los_pares_atrapa_un_relleno_sin_version_de_noche(self):
+        """La red de arriba, probada con dos reglas de mentira sobre los colores de noche de verdad."""
+        with open(file_path(f'{CARPETA_OSCURA}/tokens.dark.scss'), encoding='utf-8') as archivo:
+            noche = re.sub(r'//[^\n]*', '', archivo.read())
+        mal = '.o_dcasa_prueba_boton{background: var(--dc-azul-600); color: #FFFFFF;}'
+        bien = '.o_dcasa_prueba_bien{background: var(--dc-relleno); color: var(--dc-en-relleno);}'
+        ajena = '.o_list_view .o_cosa_de_odoo{background: #FFFFFF; color: #FFFFFF;}'   # lo de Odoo no se revisa aquí
+        malos = pares_que_no_se_leen(noche + mal + bien + ajena)
+        self.assertEqual(len(malos), 1, malos)
+        self.assertIn('.o_dcasa_prueba_boton', malos[0])
 
 
 @tagged('post_install', '-at_install')
