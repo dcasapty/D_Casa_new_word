@@ -249,6 +249,13 @@ class TestCajaDeDosRenglonesEnElCelular(CajaCelularCase):
     tocar(document.querySelector(".o_dcj_hilo_cuerpo"));
     await esperar(cajonCerrado, "tocar los mensajes cierra el cajón");
 
+    // Y con el «atrás» del teléfono (vuelve a la lista): al regresar a este chat el cajón ya no está abierto.
+    await abrirCajon();
+    history.back();
+    await esperar(() => seVe(document.querySelector(".o_dcj_lista")), "«atrás» vuelve a la lista");
+    await abrirLaDe("Karen");
+    if (!cajonCerrado()) { throw new Error("después de «atrás», el cajón queda cerrado"); }
+
     // 3. Programar: a un toque dentro del «+».
     await abrirCajon();
     tocar(herramienta("Programar"));

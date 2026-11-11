@@ -55,6 +55,11 @@ export class CajaRespuesta extends Component {
                 this.local.cajonAbierto = false;
             }
         });
+        // Y el «atrás» del teléfono (que vuelve del chat a la lista, ver atras.js): al regresar a este chat, el cajón no
+        // sigue abierto.
+        useExternalListener(window, "popstate", () => {
+            this.local.cajonAbierto = false;
+        });
         this.iconoDeArchivo = iconoDeArchivo;
         this.tamano = tamano;
         this.cuando = (iso) => cuando(iso, this.almacen.ahora);
