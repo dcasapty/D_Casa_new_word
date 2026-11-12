@@ -31,6 +31,7 @@ Más abajo: [roles y grupos](#roles-y-grupos-mapa-completo) · [interruptores](#
 | Encender o apagar «Cada vendedora ve solo sus documentos» | No | No | No | Sí | Sí |
 | Ver el chatbot y las conversaciones, atender clientes | Sí | Sí | Sí | Sí | Sí |
 | En una conversación, cambiar a mano el cliente, quién atiende, las etiquetas, la pausa y su respuesta. El estado, la nota para el asistente y los seguimientos solo cambian con los botones (Atender, Devolver, Cerrar); a mano, solo el administrador del sistema | Sí | Sí | Sí | Sí | Sí |
+| **Conversaciones › Costos de IA**: ver lo que cuesta Juan y tocar «Pagar» (el saldo con Meta vuelve a $0) o «Deshacer» el último pago (2026-11-12; el administrador que no es de Gerencia no ve el menú, pero el servidor lo deja y Brian se lo dice) | No | No | No | Sí | Sí |
 | Crear y editar clientes | Sí | Sí | Sí | Sí | Sí |
 | Ver productos (editar nombre y descripción) | Sí | Sí | Sí | Sí | Sí |
 | Ver las fotos de un producto en grande (tocar la foto: ficha, lista, tarjetas, Escáner) y descargarlas | Sí | Sí | Sí | Sí | Sí |

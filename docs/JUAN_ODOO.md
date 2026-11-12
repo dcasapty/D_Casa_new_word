@@ -261,6 +261,15 @@ Tres pantallas hermanas, con la misma barra de arriba para pasar de una a otra.
   estimación alta y la pantalla lo dice. El **gasto por día** lo lleva el propio Worker, día a día (hora de Panamá), desde que se
   desplegó esta versión: no depende de que alguien abra la pantalla. Los días anteriores se arman con la foto del gasto que Odoo
   guarda cada noche; un día sin foto ni dato del Worker sale como «sin dato» y no se adivina.
+  * **Por pagar a Meta y el botón «Pagar»** (pedido de la dueña, 2026-11-12: «un botón diga pagar y que el saldo que ya
+    había ¡fuap! ya salga como pago y que la cuenta empiece de nuevo»). Arriba, **«Por pagar a Meta: $X»**: lo consumido
+    desde el último pago (sin pagos, lo del mes). «Pagar» pregunta una sola vez («¿Ya le pagaste $X a Meta? El saldo vuelve a
+    $0 y empieza a contar de nuevo.») y, con el sí, guarda el pago **en ese momento** con el corte exacto que da el Worker
+    (si el Worker no responde, no guarda nada y lo dice). No pide tarjeta, fecha ni monto: el monto es el saldo que se
+    mostró. Debajo, «Último pago: $X, fecha · **Deshacer**» (solo el último). Lo consumido no se borra: el pago es un corte
+    en el libro `dcasa.juan.pago.ia`, que no se edita ni se borra (deshacer lo anula con motivo). Si a un mes le faltan
+    fotos, junto a la cifra sale «aprox.». Solo Gerencia y administradores pagan o deshacen; Brian lo consulta
+    (`costos_de_juan`) pero no paga.
 * **Conexiones** (**solo Gerencia**). El estado **en vivo** de cada canal (Conectado, Desconectado, Faltan claves, Apagado), con
   ícono y palabra. Lo de abajo es del **WhatsApp por QR** (el puente), que **no se usa en producción**: WhatsApp va por la API
   oficial desde el 2026-11-02 ([JUAN_CANALES.md](JUAN_CANALES.md)). En **WhatsApp (QR)**:
