@@ -38,6 +38,7 @@ MAX_LUGAR = 120
 MAX_OPCIONES = 5
 MAX_PARECIDOS = 3
 A_VENDEDORA = 'Llama a pasar_a_vendedora y dile al cliente exactamente el texto que devuelva.'
+A_VENDEDORA_SEGUIDO = 'llama a pasar_a_vendedora y dile al cliente exactamente el texto que devuelva.'
 FECHA_DE_ENTREGA = 'Si pregunta qué día le llega, la fecha de entrega se la confirma una vendedora.'
 
 
@@ -148,7 +149,13 @@ class BrianHerramientasJuanEnvios(models.AbstractModel):
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _j_envio_grupos(resultados):
+    def _j_envio_como_lo_ve(tarjeta):
+        """«Inversiones Ensayo (Los Ensayos, La Chorrera)»: el lugar como se lo nombra al cliente (el corregimiento y el
+        distrito, como en «Copiar el precio»), sin «Zona:» ni «(aprox.)»."""
+        return motor_tarjeta.lugar_con_zona(tarjeta)
+
+    @classmethod
+    def _j_envio_grupos(cls, resultados):
         """Los encontrados juntados por lo que ve el cliente (nombre y zona): ``[(tarjeta, mismo_precio)]``.
 
         Dos lugares que el cliente no puede distinguir (el archivo real trae casos con el mismo nombre en la misma zona)
@@ -156,7 +163,7 @@ class BrianHerramientasJuanEnvios(models.AbstractModel):
         cuál: se pide un punto de referencia."""
         grupos = {}
         for tarjeta in resultados:
-            grupos.setdefault((tarjeta['nombre'], tarjeta['zona']), []).append(tarjeta)
+            grupos.setdefault(cls._j_envio_como_lo_ve(tarjeta), []).append(tarjeta)
         return [(grupo[0], len({(t['con_precio'], t.get('total')) for t in grupo}) == 1) for grupo in grupos.values()]
 
     @api.model
@@ -208,7 +215,7 @@ class BrianHerramientasJuanEnvios(models.AbstractModel):
                     'instruccion': 'No está en la tabla. Si alguno de «parecidos» parece ser lo que quiso decir, '
                                    'pregúntale si es ese. Si no, pídele un punto de referencia cercano (nunca la '
                                    'dirección exacta) y vuelve a llamar. Si ya lo intentaste o no lo sabe, '
-                                   + A_VENDEDORA,
+                                   + A_VENDEDORA_SEGUIDO,
                 }
             grupos = self._j_envio_grupos(datos['resultados'])
             tarjeta, mismo_precio = self._j_envio_claro(texto, grupos)
@@ -220,11 +227,11 @@ class BrianHerramientasJuanEnvios(models.AbstractModel):
                                              'un PH?',
                     'instruccion': 'Hay dos lugares con el mismo nombre y la misma zona y no cuestan lo mismo: no des '
                                    'ningún precio. Pídele un punto de referencia cercano (nunca la dirección exacta) y '
-                                   'vuelve a llamar. Si no lo sabe, ' + A_VENDEDORA,
+                                   'vuelve a llamar. Si no lo sabe, ' + A_VENDEDORA_SEGUIDO,
                 }
             if tarjeta is None:
                 opciones = [{'lugar_id': g[0]['id'], 'nombre': g[0]['nombre'], 'zona': g[0]['zona']} for g in grupos]
-                nombres = '; '.join(f'{o["nombre"]} ({o["zona"]})' for o in opciones)
+                nombres = '; '.join(self._j_envio_como_lo_ve(g[0]) for g in grupos)
                 return {
                     'estado': 'varios', 'opciones': opciones,
                     'frase_para_el_cliente': f'Encontré varios lugares parecidos: {nombres}. ¿Cuál es el tuyo?',

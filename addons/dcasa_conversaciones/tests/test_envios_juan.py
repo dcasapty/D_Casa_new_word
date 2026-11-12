@@ -90,6 +90,9 @@ class TestCotizarEnvio(EnviosJuanCase):
         self.assertTrue(all(set(o) == {'lugar_id', 'nombre', 'zona'} for o in datos['opciones']), 'sin precios')
         self.assertNotIn('$', json.dumps(datos))
         self.assertIn('¿Cuál es el tuyo?', datos['frase_para_el_cliente'])
+        # El lugar como en «Copiar el precio»: nombre (corregimiento, distrito).
+        self.assertIn('PH Torre Ensayo (Santa Prueba, Panamá)', datos['frase_para_el_cliente'])
+        self.assertNotIn('Zona:', datos['frase_para_el_cliente'])
         elegido = self.envio(lugar_id=datos['opciones'][1]['lugar_id'])
         self.assertEqual((elegido['estado'], elegido['lugar']['lugar_id']),
                          ('precio', datos['opciones'][1]['lugar_id']))
