@@ -382,15 +382,18 @@ class DcasaJuanPanel(models.AbstractModel):
 
     @api.model
     def costos(self):
-        """El gasto de IA del mes, el tope, la proyección y el desglose. Solo Gerencia."""
+        """El gasto de IA del mes, el tope, la proyección y el desglose. Solo Gerencia.
+
+        ``pagos`` (en todas las respuestas, también sin Worker): los pagos anotados y, si el Worker contestó, lo
+        consumido desde el último (``pagos_ia.py``)."""
         self._exigir_gerencia()
         Cliente = self.env['dcasa.juan.cliente']
         if not Cliente.configurado():
-            return self._sin_conectar({'ok': False})
+            return self._sin_conectar({'ok': False, 'pagos': self._pagos_ia()})
         salud = Cliente.informe_de_salud()
         if not salud['conectado'] or salud['error']:
             return {'configurado': True, 'ok': False, 'mensaje': 'No pude hablar con el Worker',
-                    'detalle': self._detalle_del_fallo(salud)}
+                    'detalle': self._detalle_del_fallo(salud), 'pagos': self._pagos_ia()}
         informe = salud['cuerpo']
         ahora_local = self._ahora_local()
         gasto = float(informe.get('gasto_ia_mes_usd') or 0)
@@ -426,6 +429,7 @@ class DcasaJuanPanel(models.AbstractModel):
                    'modelo_rapido': ia.get('modelo_rapido'), 'modelo_inteligente': ia.get('modelo_inteligente'),
                    'claves_faltantes': [str(c) for c in (ia.get('claves_faltantes') or [])]},
             'avisos': [str(a)[:300] for a in (informe.get('avisos') or [])][:8],
+            'pagos': self._pagos_ia((mes, gasto)),
         }
 
     # ------------------------------------------------------------------

@@ -4,6 +4,7 @@ Aquí no se inventa nada: todo se calcula con lo que dice el Worker o lo que ya 
 resultado es ``None`` y la pantalla lo dice («todavía es pronto para proyectar»).
 """
 import calendar
+import itertools
 import re
 from datetime import date, datetime, timedelta
 from urllib.parse import urlsplit
@@ -132,7 +133,7 @@ def unir_gasto_por_dia(de_fotos, del_worker, mes):
 
 
 def meses_entre(desde, hasta):
-    """«2026-09», «2026-11» → ``['2026-09', '2026-10', '2026-11']`` (los dos incluidos); ``[]`` si ``hasta`` es antes."""
+    """«2026-09», «2026-11» → ``['2026-09', '2026-10', '2026-11']`` (ambos); ``[]`` si ``hasta`` va antes."""
     anio, mes = (int(x) for x in desde.split('-'))
     fin = tuple(int(x) for x in hasta.split('-'))
     meses = []
@@ -223,7 +224,7 @@ def periodos_de_pagos(pagos, cierres, ahora=None):
     """
     vigentes = sorted((p for p in pagos if not p['anulado']), key=lambda p: (p['fecha'], p['id']))
     por_pago = {p['id']: {'calculado': None, 'aproximado': False, 'diferencia': None} for p in pagos}
-    for anterior, pago in zip(vigentes, vigentes[1:]):
+    for anterior, pago in itertools.pairwise(vigentes):
         calculado = consumo_entre(anterior['corte'], pago['corte'], cierres)
         diferencia = None
         if pago['monto'] is not None and calculado['completo']:
