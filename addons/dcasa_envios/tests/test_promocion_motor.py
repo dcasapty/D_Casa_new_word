@@ -187,14 +187,25 @@ class TestPromocionDeEnvio(BaseCase):
         self.assertNotIn('-', resultado['frase'])
         self.assertIsNone(P.respaldo(resultado)['compra'])
 
+    def test_ib_hasta_cuando_vale_lo_prometido(self):
+        """Tercera vuelta (I-B): el «Vence el» al sumarse, nunca más de 30 días después; sin «Vence el», 30 días."""
+        sumada = date(2026, 11, 12)
+        self.assertEqual(P.vale_hasta(sumada), date(2026, 12, 12))
+        self.assertEqual(P.vale_hasta(sumada, date(2026, 11, 20)), date(2026, 11, 20))
+        self.assertEqual(P.vale_hasta(sumada, date(2027, 3, 31)), date(2026, 12, 12))
+        self.assertEqual(P.vale_hasta(sumada, date(2026, 11, 1)), sumada, 'nunca antes del día en que se sumó')
+        self.assertEqual(P.prometido_hasta({'sumada_el': '2026-11-12', 'vale_hasta': '2026-11-20'}),
+                         date(2026, 11, 20))
+        self.assertEqual(P.prometido_hasta({'sumada_el': '2026-11-12'}), date(2026, 12, 12))
+
     def test_lo_prometido_con_los_terminos_guardados(self):
         """Segunda vuelta (I-1, I-2): lo sumado se revisa con sus términos guardados, no con la promoción de hoy."""
         sumado = self.aplicar(precio=90.0, prov='Colón', dist='Colón', datos=compra(300.0))
-        terminos = P.terminos(NOVIEMBRE, sumado, date(2026, 11, 28), promocion_id=7)
+        terminos = P.terminos(NOVIEMBRE, sumado, date(2026, 11, 28), promocion_id=7, vence=date(2026, 12, 10))
         self.assertEqual(terminos, {
             'promocion_id': 7, 'nombre': 'Envío Gratis Todo Noviembre', 'desde': '2026-11-01', 'hasta': '2026-11-30',
             'minimo': 200.0, 'mide': 'sin_itbms', 'zona': 'abono', 'abono': 20.0, 'excluye_colchon': True,
-            'sumada_el': '2026-11-28'})
+            'sumada_el': '2026-11-28', 'vale_hasta': '2026-12-10'})
         # Sin mirar la fecha (eso lo decide quien llama: la cotización no venció) y con la compra de ahora.
         ahora = P.con_lo_prometido(terminos, 90.0, compra(250.0))
         self.assertEqual((ahora['aplica'], ahora['ahorro'], ahora['precio_final']), (True, 20.0, 70.0))

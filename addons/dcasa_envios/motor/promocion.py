@@ -21,7 +21,7 @@ promoción, lo que se ahorra, por qué aplica o no y la frase lista para el clie
 
 El dinero se cuenta en centavos (``Decimal``), nunca con la suma de punto flotante.
 """
-from datetime import date
+from datetime import date, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 
 from .buscador import sin_tildes
@@ -160,17 +160,39 @@ def _evaluar(promocion, zona, precio, compra):
 # TÉRMINOS se sumó (``terminos``) y el día; mientras la cotización no venza, se respeta lo prometido aunque Gerencia
 # cambie o archive la promoción después: solo se vuelve a mirar si la COMPRA sigue cumpliendo esos términos (el
 # mínimo, el colchón) y si el envío sigue ahí con su precio.
+#
+# Hasta cuándo (tercera vuelta, I-B): lo prometido vale hasta el «Vence el» que tenía la cotización al sumarse la
+# promoción y nunca más de DIAS_DE_LO_PROMETIDO días después de sumada (si no tenía «Vence el», esos días). Queda
+# guardado en los términos (``vale_hasta``): cambiar «Vence el» después no lo alarga ni lo revive.
+DIAS_DE_LO_PROMETIDO = 30
 
-def terminos(promocion, resultado, sumada_el, promocion_id=None):
+
+def vale_hasta(sumada_el, vence=None):
+    """El último día en que vale lo prometido: el «Vence el» de la cotización al sumarse (``vence``), sin pasar de
+    ``sumada_el`` + DIAS_DE_LO_PROMETIDO días; sin «Vence el», esos días. Nunca antes del día en que se sumó."""
+    tope = sumada_el + timedelta(days=DIAS_DE_LO_PROMETIDO)
+    return max(sumada_el, min(vence, tope)) if vence else tope
+
+
+def prometido_hasta(terminos_guardados):
+    """El último día en que valen los términos guardados (``vale_hasta``; si no lo traen, los días de la regla desde que
+    se sumó)."""
+    if terminos_guardados.get('vale_hasta'):
+        return date.fromisoformat(terminos_guardados['vale_hasta'])
+    return vale_hasta(date.fromisoformat(terminos_guardados['sumada_el']))
+
+
+def terminos(promocion, resultado, sumada_el, promocion_id=None, vence=None):
     """Los términos con que se sumó la promoción a una cotización (para guardarlos en su línea): la promoción, sus
-    fechas, el mínimo y cómo se mide, si en ese lugar es gratis o un abono (y de cuánto), la regla del colchón y el
-    día en que se sumó."""
+    fechas, el mínimo y cómo se mide, si en ese lugar es gratis o un abono (y de cuánto), la regla del colchón, el
+    día en que se sumó y hasta cuándo vale lo prometido (``vence``: el «Vence el» de la cotización en ese momento)."""
     return {
         'promocion_id': promocion_id, 'nombre': (promocion.get('nombre') or '').strip(),
         'desde': promocion['desde'].isoformat(), 'hasta': promocion['hasta'].isoformat(),
         'minimo': float(centavos(promocion.get('minimo'))), 'mide': resultado.get('mide') or 'sin_itbms',
         'zona': resultado['zona'], 'abono': float(centavos(promocion.get('abono'))),
         'excluye_colchon': bool(promocion.get('excluye_colchon')), 'sumada_el': sumada_el.isoformat(),
+        'vale_hasta': vale_hasta(sumada_el, vence).isoformat(),
     }
 
 
@@ -182,8 +204,8 @@ def _como_promocion(terminos_guardados):
 
 def con_lo_prometido(terminos_guardados, precio_envio, compra):
     """La promoción ya sumada a una cotización, con los términos con que se sumó (no con la promoción de hoy) y la
-    compra de ahora. Mismo resultado que ``aplicar`` (sin mirar la fecha: lo prometido vale mientras la cotización no
-    venza; eso lo decide quien llama)."""
+    compra de ahora. Mismo resultado que ``aplicar`` (sin mirar la fecha: lo prometido vale hasta ``prometido_hasta``;
+    eso lo decide quien llama)."""
     promocion = _como_promocion(terminos_guardados)
     return _evaluar(promocion, terminos_guardados['zona'], _precio(precio_envio), compra)
 

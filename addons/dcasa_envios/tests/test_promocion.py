@@ -390,7 +390,8 @@ class TestLaPromocionSeVuelveARevisar(PromocionComun):
         self.assertEqual(promocion.dcasa_promocion_terminos, {
             'promocion_id': self.noviembre.id, 'nombre': 'Envío Gratis Todo Noviembre', 'desde': '2026-11-01',
             'hasta': '2026-11-30', 'minimo': 200.0, 'mide': 'sin_itbms', 'zona': 'abono', 'abono': 20.0,
-            'excluye_colchon': True, 'sumada_el': '2026-11-12'})
+            'excluye_colchon': True, 'sumada_el': '2026-11-12',
+            'vale_hasta': min(orden.validity_date or date(2026, 12, 12), date(2026, 12, 12)).isoformat()})
         envio = orden.order_line.filtered('dcasa_envio_lugar_id')
         impuesto = self.env.company.account_sale_tax_id
         envio.sudo().write({'tax_ids': [Command.set(impuesto.ids)]})        # el sistema (su) no le quita la marca
@@ -517,7 +518,7 @@ class TestLaPromocionSeVuelveARevisar(PromocionComun):
         self.hoy = date(2026, 12, 2)
         vencida.with_user(self.vendedora).action_confirm()
         self.assertFalse(self.promocion_de(vencida))
-        self.assertIn('porque la cotización venció el 30/11/2026 y hoy (02/12/2026) no hay una promoción de envío '
+        self.assertIn('porque lo prometido valía hasta el 30/11/2026 y hoy (02/12/2026) no hay una promoción de envío '
                       'vigente', self.notas(vencida))
         # Una cotización de octubre a la que se le suma el envío en noviembre sí la recibe (R8)…
         de_octubre = self.de_la_vendedora((self.sofa, 2))
@@ -544,6 +545,76 @@ class TestLaPromocionSeVuelveARevisar(PromocionComun):
         puesto, resultado = self.poner(orden, 'Barrio Simulado')
         self.assertFalse(puesto['ya_estaba'])
         self.assertEqual(resultado['motivo'], 'sin_promocion')
+
+    def test_ib_lo_prometido_tiene_fin_y_cambiar_vence_el_no_lo_alarga_ni_lo_revive(self):
+        """Tercera vuelta (I-B): vale hasta el «Vence el» que tenía la cotización al sumarse, nunca más de 30 días
+        después de sumada (sin «Vence el», 30 días). Cambiarlo después no lo alarga ni lo revive."""
+        def sumada(vence, fecha=date(2026, 11, 12)):
+            orden = self.de_la_vendedora((self.sofa, 2))                 # $300: gratis a Costa Inventada
+            orden.validity_date = vence
+            self.poner(orden, 'Costa Inventada', fecha=fecha)
+            self.assertTrue(self.promocion_de(orden))
+            return orden
+
+        def confirmar_el(orden, dia):
+            self.hoy = dia
+            orden.with_user(self.vendedora).action_confirm()
+            return self.promocion_de(orden)
+
+        # Sin «Vence el» al sumarse: 30 días (hasta el 12/12). El 12/12 vale; el 13/12, no (y queda el porqué).
+        sin_fecha = sumada(False)
+        self.assertEqual(self.promocion_de(sin_fecha).dcasa_promocion_terminos['vale_hasta'], '2026-12-12')
+        self.assertTrue(confirmar_el(sin_fecha, date(2026, 12, 12)))
+        tarde = sumada(False)
+        self.assertFalse(confirmar_el(tarde, date(2026, 12, 13)))
+        self.assertIn('porque lo prometido valía hasta el 12/12/2026 y hoy (13/12/2026) no hay una promoción de envío '
+                      'vigente', self.notas(tarde))
+        # Un «Vence el» más allá de los 30 días no los alarga.
+        lejos = sumada(date(2027, 3, 31))
+        self.assertEqual(self.promocion_de(lejos).dcasa_promocion_terminos['vale_hasta'], '2026-12-12')
+        self.assertFalse(confirmar_el(lejos, date(2027, 3, 1)))
+        # Vaciarlo o alargarlo después de sumada no cambia nada.
+        vaciada = sumada(date(2026, 12, 5))
+        vaciada.with_user(self.vendedora).write({'validity_date': False})
+        alargada = sumada(date(2026, 12, 5))
+        alargada.with_user(self.vendedora).write({'validity_date': date(2027, 12, 31)})
+        self.assertFalse(confirmar_el(vaciada, date(2026, 12, 6)))
+        self.assertFalse(confirmar_el(alargada, date(2026, 12, 6)))
+        # Vencida y «revivida» por la vendedora: no vuelve.
+        revivida = sumada(date(2026, 12, 5))
+        self.hoy = date(2026, 12, 20)
+        revivida.with_user(self.vendedora).write({'validity_date': date(2027, 1, 31)})
+        self.assertFalse(confirmar_el(revivida, date(2026, 12, 20)))
+        # Vencida con la promoción todavía vigente: se vuelve a revisar con la de hoy y la nota dice hasta cuándo valía.
+        noviembre = sumada(date(2026, 11, 5), fecha=date(2026, 11, 2))
+        self.assertEqual(self.promocion_de(noviembre).dcasa_promocion_terminos['vale_hasta'], '2026-11-05')
+        self.assertTrue(confirmar_el(noviembre, date(2026, 11, 20)))
+        self.assertEqual(self.promocion_de(noviembre).dcasa_promocion_terminos['sumada_el'], '2026-11-20')
+        self.assertIn('Lo prometido valía hasta el 05/11/2026: la promoción de envío se volvió a revisar con la de '
+                      'hoy: −$45 (antes −$45).', self.notas(noviembre))
+
+    def test_ma_copiar_con_las_lineas_de_quien_copia_no_trae_marcas_del_servidor(self):
+        """Tercera vuelta (M-a): ``copy(default={'order_line': …})`` por RPC: esas líneas son de quien copia."""
+        orden = self.de_la_vendedora((self.mesa, 1))                          # $60
+        lugar = self.lugar('Barrio Simulado')
+        producto = self.transportista.product_id
+        terminos = {'promocion_id': self.noviembre.id, 'nombre': 'X', 'desde': '2026-11-01', 'hasta': '2026-11-30',
+                    'minimo': 0.0, 'mide': 'sin_itbms', 'zona': 'gratis', 'abono': 0.0, 'excluye_colchon': False,
+                    'sumada_el': '2026-11-12', 'vale_hasta': '2026-12-12'}
+        envio = {'product_id': producto.id, 'price_unit': 500.0, 'is_delivery': True, 'name': 'Envío'}
+        with self.assertRaises(AccessError):
+            orden.with_user(self.vendedora).copy({'order_line': [
+                Command.create({'product_id': self.mesa.id, 'product_uom_qty': 1}),
+                Command.create(dict(envio, dcasa_envio_lugar_id=lugar.id)),
+                Command.create({'product_id': producto.id, 'price_unit': -500.0, 'is_delivery': True, 'name': 'Promo',
+                                'dcasa_promocion_envio_id': self.noviembre.id,
+                                'dcasa_promocion_terminos': terminos})]})
+        copia = orden.with_user(self.vendedora).copy({'order_line': [
+            Command.create({'product_id': self.mesa.id, 'product_uom_qty': 1}),
+            Command.create(dict(envio, dcasa_envio_lugar_id=lugar.id))]})
+        self.assertFalse(copia.order_line.filtered('dcasa_envio_lugar_id'), 'el lugar solo lo marca el servidor')
+        self.assertFalse(self.promocion_de(copia))
+        # Sin ``default``, la copia sí trae el envío del sistema (test_h17).
 
     def test_h17_duplicar_vuelve_a_calcular_la_promocion(self):
         orden = self.de_la_vendedora((self.mesa, 4))                        # $240
