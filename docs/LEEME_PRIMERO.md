@@ -109,7 +109,7 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 > sigue. Se guardan las diez más recientes; las viejas se resumen en una línea abajo y su texto completo pasa a
 > [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md).
 
-### 2026-11-11 (3): Inicio nuevo, el celular al entrar, la caja del chat, entregas = Bodega y «Más datos», en producción (Desplegar 65 y 66)
+### 2026-11-11 (3): Inicio nuevo, el celular al entrar, la caja del chat, entregas = Bodega, «Más datos» y modo oscuro, en producción (Desplegar 65, 66 y 67)
 
 **En producción desde el 2026-11-11, 21:20 UTC (confirmado sano y estable a las 21:34):** **Desplegar 65** (Odoo y el
 borde; run 43101954871) con la imagen `sha256:66e84351…` y `app_version` `b62903127c5483c8e6bd1cd4700e97a766accfb2`
@@ -119,8 +119,10 @@ arreglos del celular, la caja de responder del chat en el celular y la lista ent
 **Y desde las 22:36 UTC (confirmado sano y estable a las 22:49):** **Desplegar 66** (run 43112609143) con la imagen
 `sha256:a3bbe22a…` y `app_version` `8859a44eb6316281e327103a0566259fc6e558f1` (PR #111, squash `b66302a`; CI 336 con
 staging, run 43104407376), con respaldo previo: «Entregas pendientes» igual que Bodega y «Más datos» en la cotización.
-**Es lo último en producción y es más nuevo que la versión estable 4.** **Modo oscuro:** en construcción; va aparte,
-cuando la dueña vea las capturas.
+**Y desde el 2026-11-12, 02:06 UTC (confirmado sano y estable a las 02:19):** **Desplegar 67** (run 43138676351) con la
+imagen `sha256:4a8a7ac0…` y `app_version` `f28c2ccd39abb3aeee1ed853bb1013004d80913f` (PR #112, squash `50b343b`; CI
+338 con staging, run 43131640599), con respaldo previo: el **modo oscuro**. **Es lo último en producción y es más nuevo
+que la versión estable 4.**
 
 - **Aprobaciones de la dueña (tal cual):**
   - «Si me gustaron los cambios para móvil lo que me gustaría es que así como se ve en detalles compacto y grandes así
@@ -191,7 +193,7 @@ cuando la dueña vea las capturas.
   celular los productos suben 353 px. `test_entregas_inicio.py`, `test_mas_datos.py`. Dudas menores que la dueña puede
   opinar al verlo: que el botón nombre también «teléfono fijo», y que al abrir los datos aparecen en su sitio de
   siempre (encima del botón).
-- **Modo oscuro (terminado, `6228a4a`; aprobado por la dueña; EN LA RAMA, sale en el despliegue siguiente al 66):**
+- **Modo oscuro (en producción con Desplegar 67, `6228a4a`; aprobado por la dueña):**
   la dueña vio trece capturas (celular y computadora) y dijo: «Si me gusta, apruebo el modo oscuro para producción».
   Gris «de consola» (fondo #1F2226, superficies #2A2E33), botones en azul #3A63CF, amarillo solo en insignias. Lo
   enciende cada persona en el menú de su usuario («Modo oscuro»); se guarda en ese navegador (galleta `color_scheme`,

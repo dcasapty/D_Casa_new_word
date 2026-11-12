@@ -10,8 +10,8 @@ LEEME_PRIMERO §2).
 ## Estado al 2026-11-11
 
 - **Producción funciona desde el 2026-10-13** y **`dcasapty.com` (y `www`) apunta al sistema nuevo desde el
-  2026-10-27** (Desplegar 31). Odoo y el borde: **Desplegar 66** (11 nov, PR #111: entregas igual que Bodega y «Más datos»;
-  antes, el mismo día, Desplegar 65 con el Inicio nuevo, el celular al entrar y la caja del chat, y Desplegar 64 con
+  2026-10-27** (Desplegar 31). Odoo y el borde: **Desplegar 67** (12 nov, PR #112: el modo oscuro; el 11 nov, Desplegar 66 con
+  entregas igual que Bodega y «Más datos», y antes, Desplegar 65 con el Inicio nuevo, el celular al entrar y la caja del chat, y Desplegar 64 con
   los 21 arreglos de la auditoría visual). Juan: **Desplegar
   Juan 20** (11 nov, PR #107). La **versión estable 4** es la anterior (Desplegar 63 + Juan 20)
   ([VERSIONES_ESTABLES.md](VERSIONES_ESTABLES.md)). El contenedor instala 30 de los 31 módulos de `addons/` (todos
@@ -29,8 +29,8 @@ LEEME_PRIMERO §2).
 
 ## Lo que sigue, en orden
 
-000. **Panel renovado (2026-11-11): todo lo aprobado está en producción (Desplegar 64, 65 y 66); falta solo el modo
-     oscuro.** Detalle y citas de la dueña en la bitácora de LEEME_PRIMERO
+000. **Panel renovado (2026-11-11): todo lo aprobado está en producción (Desplegar 64, 65, 66 y 67, este último el
+     modo oscuro).** Detalle y citas de la dueña en la bitácora de LEEME_PRIMERO
      (entradas del 2026-11-11 (2) y (3)). Informe de la auditoría: <https://claude.ai/artifact/QN3GPdAtm7nKxQtu9X64MP>.
      - **En producción:** Desplegar 64 (PR #109: 21 arreglos de la auditoría) y **Desplegar 65** (PR #110: el Inicio
        nuevo con accesos del celular en tres tamaños; el Inicio ya no queda en blanco al entrar; el menú del celular
@@ -39,15 +39,14 @@ LEEME_PRIMERO §2).
        desapareció del todo.
      - **También en producción, Desplegar 66 (PR #111):** «Entregas pendientes» del Inicio igual que «Bodega» (con el
        renglón de las que esperan pago) y «Más datos» plegable en la cotización.
-     - **Modo oscuro gris («estilo Cubase»), opcional por persona:** terminado y **aprobado por la dueña** («Si me
-       gusta, apruebo el modo oscuro para producción»); en la rama, sale en el despliegue siguiente al 66. El claro
-       no cambia. Preguntas abiertas para ella en la bitácora (interruptor en el menú del celular, por usuario o por
+     - **Modo oscuro gris («estilo Cubase»), opcional por persona:** **en producción, Desplegar 67 (PR #112)**,
+       aprobado por la dueña («Si me gusta, apruebo el modo oscuro para producción»). El claro no cambia. Preguntas abiertas para ella en la bitácora (interruptor en el menú del celular, por usuario o por
        navegador, seguir el modo del teléfono).
      - **Más adelante (van con el diseño nuevo o son de Odoo):** gráficas de Odoo en el azul de D'CASA; tablas
        dinámicas en el celular; listas estiradas en 1920 px; títulos de las pantallas propias en la barra del celular;
        la tarjeta «Instale Odoo» y OdooBot; «Manual Payment» (dato: se cambia en Ajustes); en tableta parada
        (768–991 px) el menú sigue siendo el de Odoo (íconos arriba) y el botón de Brian tapa «Enviar» del chat.
-     - **Versión estable:** Desplegar 66 es más nuevo que la estable 4. Cuando lleve unos días sin dar guerra, nombrar
+     - **Versión estable:** Desplegar 67 es más nuevo que la estable 4. Cuando lleve unos días sin dar guerra, nombrar
        la estable 5 (pedirle el «sí» a la dueña, como la vez pasada).
 1. **Camila (mail marketing)** ([CAMILA.md](CAMILA.md)): etapas 1 y 2 **en producción** desde el 2026-11-06 (Desplegar
    52 y 54, con Juan 7). La clave de campañas ya está y Odoo la tomó (Desplegar 53). Nada sale sin que alguien de
