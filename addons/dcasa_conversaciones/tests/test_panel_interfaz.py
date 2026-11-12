@@ -1481,19 +1481,21 @@ class TestPantallasDeJuan(PanelUiCase):
 
 
 class PagosDeLaIaCase(PanelUiCase):
-    """«Costos de IA › Pagar» con el Worker de mentira, que lleva 12,34 del mes. La primera vez que se confirma el pago,
-    el Worker no contesta (no se registra nada y se dice); a la segunda, sí."""
+    """«Costos de IA › Pagar» con el Worker de mentira. Al abrir lleva 12,34 del mes. La primera vez que se confirma el
+    pago, el Worker no contesta (no se registra nada y se dice); a la segunda ya lleva 13,10: la pantalla estaba vieja
+    («El saldo cambió», no se registra y la pantalla trae la cifra de ahora); a la tercera, sí."""
 
     def setUp(self):
         super().setUp()
         self.env.cr.execute('DELETE FROM dcasa_juan_pago_ia')    # empieza sin pagos (se deshace al terminar)
         self.env.invalidate_all()
-        respuestas = iter(['bien', 'caido'])     # abrir la pantalla; el primer «Sí, ya pagué»; después, siempre bien
+        respuestas = iter([12.34, 'caido'])     # abrir la pantalla; el primer «Sí, ya pagué»; después, 13,10
 
         def salud():
-            if next(respuestas, 'bien') == 'caido':
+            gasto = next(respuestas, 13.10)
+            if gasto == 'caido':
                 raise requests.ConnectionError('el Worker no contesta')
-            return {**SALUD, 'gasto_ia_mes_usd': 12.34}, 200
+            return {**SALUD, 'gasto_ia_mes_usd': gasto}, 200
 
         self.rutas = {('GET', '/odoo/salud'): salud, ('GET', '/odoo/costos'): (COSTOS, 200)}
 
@@ -1539,21 +1541,41 @@ class PagosDeLaIaCase(PanelUiCase):
     dialogo = await esperar(() => document.querySelector(".o_dcj_p_dialogo"), "la confirmación otra vez");
     dialogo.querySelector(".o_dcj_p_si_pague").click();
     await esperar(() => aqui(".o_dcj_p_dialogo .alert-danger", "No pude hablar con Juan: inténtalo en un momento"), "el aviso de que Juan no contestó");
+    // A la segunda, el Worker ya lleva 13,10: lo visto ($12.34) quedó viejo. No se registra y la pantalla trae la cifra.
+    dialogo.querySelector(".o_dcj_p_si_pague").click();
+    await esperar(() => !document.querySelector(".o_dcj_p_dialogo"), "que se cierre la confirmación (el saldo cambió)");
+    await esperar(() => aqui(".o_notification", "El saldo cambió"), "el aviso de que el saldo cambió");
+    await esperar(() => texto(".o_dcj_p_cifra_saldo") === "$13.10", "la cifra de ahora: " + texto(".o_dcj_p_cifra_saldo"));
+    if (document.querySelector(".o_dcj_p_ultimo_pago")) { throw new Error("con el saldo cambiado no se registró nada"); }
+    pagar().click();
+    dialogo = await esperar(() => document.querySelector(".o_dcj_p_dialogo"), "la confirmación con la cifra de ahora");
+    if (!dialogo.textContent.includes("¿Ya le pagaste $13.10 a Meta?")) { throw new Error("la pregunta nueva: " + dialogo.textContent.replace(/\\s+/g, " ")); }
     dialogo.querySelector(".o_dcj_p_si_pague").click();
     await esperar(() => !document.querySelector(".o_dcj_p_dialogo"), "que se cierre la confirmación");
 
     // El saldo vuelve a $0 y abajo sale «Último pago»; lo del mes sigue completo.
     await esperar(() => texto(".o_dcj_p_cifra_saldo") === "$0.00", "el saldo en $0: " + texto(".o_dcj_p_cifra_saldo"));
     const ultimo = await esperar(() => document.querySelector(".o_dcj_p_ultimo_pago"), "«Último pago»");
-    if (!/^Último pago: \\$12\\.34, \\d{1,2} [a-z]+, \\d{1,2}:\\d\\d [ap]\\. m\\. · Deshacer$/.test(texto(".o_dcj_p_ultimo_pago"))) { throw new Error("la línea del último pago: " + texto(".o_dcj_p_ultimo_pago")); }
+    if (!/^Último pago: \\$13\\.10, \\d{1,2} [a-z]+, \\d{1,2}:\\d\\d [ap]\\. m\\. · Deshacer$/.test(texto(".o_dcj_p_ultimo_pago"))) { throw new Error("la línea del último pago: " + texto(".o_dcj_p_ultimo_pago")); }
     if (!pagar().disabled) { throw new Error("con el saldo en $0 no hay nada que pagar"); }
-    if (texto(".o_dcj_p_gigante") !== "$12.34") { throw new Error("lo del mes sigue completo: " + texto(".o_dcj_p_gigante")); }
+    if (texto(".o_dcj_p_gigante") !== "$13.10") { throw new Error("lo del mes sigue completo: " + texto(".o_dcj_p_gigante")); }
     sinDesborde("después de pagar");
     botonesChicos(document.querySelector(".o_dcj_p"), "después de pagar");
 
-    // «Deshacer» (por si lo tocó sin querer): el saldo vuelve a como estaba.
+    // «Deshacer» (por si lo tocó sin querer) también pregunta una vez; «Cancelar» no deshace nada.
     ultimo.querySelector(".o_dcj_p_deshacer").click();
-    await esperar(() => texto(".o_dcj_p_cifra_saldo") === "$12.34", "el saldo como estaba: " + texto(".o_dcj_p_cifra_saldo"));
+    let deshacer = await esperar(() => aqui(".o_dcj_p_dialogo", "¿Deshacer el pago"), "la confirmación de deshacer");
+    if (!/^¿Deshacer el pago de \\$13\\.10 del \\d{1,2} [a-z]+\\? El saldo vuelve a \\$13\\.10\\.$/.test(texto(".o_dcj_p_dialogo .o_dcj_p_dialogo_pregunta"))) { throw new Error("la pregunta de deshacer: " + texto(".o_dcj_p_dialogo .o_dcj_p_dialogo_pregunta")); }
+    sinDesborde("con la confirmación de deshacer");
+    botonesChicos(deshacer, "en la confirmación de deshacer");
+    aqui(".o_dcj_p_dialogo button", "Cancelar").click();
+    await esperar(() => !document.querySelector(".o_dcj_p_dialogo"), "cancelar deshacer");
+    await pausa(300);
+    if (texto(".o_dcj_p_cifra_saldo") !== "$0.00" || !document.querySelector(".o_dcj_p_ultimo_pago")) { throw new Error("cancelar no deshace"); }
+    document.querySelector(".o_dcj_p_deshacer").click();
+    deshacer = await esperar(() => aqui(".o_dcj_p_dialogo", "¿Deshacer el pago"), "la confirmación de deshacer otra vez");
+    deshacer.querySelector(".o_dcj_p_si_deshacer").click();
+    await esperar(() => texto(".o_dcj_p_cifra_saldo") === "$13.10", "el saldo como estaba: " + texto(".o_dcj_p_cifra_saldo"));
     await esperar(() => !document.querySelector(".o_dcj_p_ultimo_pago"), "que se vaya «Último pago»");
     console.log("test successful");
     """
@@ -1562,9 +1584,10 @@ class PagosDeLaIaCase(PanelUiCase):
         self.navegador('(async () => {' + self.PASOS + '})().catch((e) => console.error(e.message || e));',
                        url=ACCION_COSTOS, login=GERENTE)
         pago = self.env['dcasa.juan.pago.ia'].sudo().search([])
-        self.assertEqual(len(pago), 1, 'cancelar y el Worker caído no registraron nada; queda el pago deshecho')
+        self.assertEqual(len(pago), 1, 'cancelar, el Worker caído y el saldo cambiado no registraron nada; queda el '
+                                       'pago deshecho')
         self.assertEqual((pago.corte_origen, pago.corte_acumulado_usd, pago.monto_meta_usd, pago.registrado_por),
-                         ('worker', 12.34, 12.34, self.gerente))
+                         ('worker', 13.10, 13.10, self.gerente))
         self.assertEqual((pago.anulado, pago.motivo_anulacion, pago.anulado_por),
                          (True, 'Deshecho desde la pantalla', self.gerente))
 
