@@ -1344,6 +1344,7 @@ export class MotorConversacion {
       nombresHerramientas: nombresDeHerramientas,
       textoDelPrompt: promptDeFugas,
       secretos: registro.pines,
+      envio: { montos: registro.montosEnvio, gratis: registro.envioGratis },
     });
     let analisis = analizar(salida.texto, contextoDeRevision());
     const reparables = analisis.graves.filter((g) => g.tipo !== "fuga");
