@@ -48,7 +48,13 @@ export interface InformeDeSalud {
   secretos_faltantes: string[];
   ia: EstadoDeIa;
   canales: Record<CanalId, EstadoDeCanal>;
-  gasto_ia_mes_usd: number;
+  /**
+   * Lo gastado en IA en el mes (`mes`). `null` si el contador no se pudo leer: SIN DATO, no un cero (con un 0, Odoo
+   * mostraba «$0 por pagar» y guardaba una foto en 0; revisión de «Costos de IA», 2026-11-12).
+   */
+  gasto_ia_mes_usd: number | null;
+  /** El mes de ese gasto, «AAAA-MM» en la zona del negocio: Odoo usa ESTE mes para su corte (a las 00:00 del día 1 los relojes pueden diferir). */
+  mes: string;
   tope_usd: number;
   tope_alcanzado: boolean;
   /** Lo que falta o está mal, en palabras; vacío si todo bien. */
@@ -123,13 +129,14 @@ export async function informeDeSalud(d: DepsSalud): Promise<InformeDeSalud> {
   const consultar = d.consultarConexiones !== false;
   const cfg = await d.config();
   const mes = mesDelNegocio(cfg.horario.zona, d.ahora());
-  const gasto = await d.gastoMes(mes).catch(() => 0);
+  const gasto: number | null = await d.gastoMes(mes).catch(() => null);
   const sinPrecio = (await d.modelosSinPrecio?.(mes).catch(() => [] as string[])) ?? [];
   const faltantes = secretosFaltantes(d.env, cfg);
   const problemas: string[] = [];
   const avisos: string[] = [];
 
   for (const s of SECRETOS_GENERALES) if (!d.env[s.nombre]) problemas.push(`falta ${s.nombre} (${s.paraQue})`);
+  if (gasto === null) avisos.push("no pude leer el gasto de IA del mes (el contador no respondió): Odoo no muestra cifras de costos hasta que se pueda");
   // Sin su propia dirección, el Worker guarda las fotos y notas de voz del cliente pero Odoo no las puede traer: en el chat
   // sale «No se pudo traer 1 archivo» (lo vio la dueña el 2026-11-03).
   if (!/^https:\/\/[^/\s]+/.test(d.env.URL_PUBLICA ?? "")) {
@@ -219,9 +226,10 @@ export async function informeDeSalud(d: DepsSalud): Promise<InformeDeSalud> {
     secretos_faltantes: faltantes,
     ia,
     canales,
-    gasto_ia_mes_usd: redondear(gasto),
+    gasto_ia_mes_usd: gasto === null ? null : redondear(gasto),
+    mes,
     tope_usd: tope,
-    tope_alcanzado: tope > 0 && gasto >= tope,
+    tope_alcanzado: gasto !== null && tope > 0 && gasto >= tope,
     problemas,
     avisos,
   };

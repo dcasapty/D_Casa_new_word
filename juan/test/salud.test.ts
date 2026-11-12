@@ -111,9 +111,28 @@ describe("informeDeSalud", () => {
     expect(justo.gasto_ia_mes_usd).toBe(30);
   });
 
-  it("si el contador global falla, el informe sale igual (gasto 0)", async () => {
-    const i = await informeDeSalud(deps(todo, {}, { gastoMes: async () => Promise.reject(new Error("global caído")) }));
-    expect(i.gasto_ia_mes_usd).toBe(0);
+  it("si el contador global falla, el informe sale igual pero el gasto es null (sin dato), nunca un 0, y lo avisa", async () => {
+    // Revisión de «Costos de IA» (2026-11-12): con un 0, Odoo mostraba «$0 por pagar» y guardaba una foto en 0.
+    const i = await informeDeSalud(deps(todo, { presupuesto_ia_mensual_usd: 30 }, { gastoMes: async () => Promise.reject(new Error("global caído")) }));
+    expect(i.gasto_ia_mes_usd).toBeNull();
+    expect(i.tope_alcanzado).toBe(false);
+    expect(i.avisos.some((a) => a.includes("no pude leer el gasto de IA"))).toBe(true);
+    expect(i.mes).toBe("2026-10");
+  });
+
+  it("dice de qué mes es el gasto, en la hora de Panamá (Odoo corta con ESE mes)", async () => {
+    // 1 de noviembre a las 00:00:30 UTC = 31 de octubre, 7:00 p. m. en Panamá: el gasto todavía es de octubre.
+    const i = await informeDeSalud(deps(todo, {}, { gastoMes: async () => 12.5, ahora: () => Date.UTC(2026, 10, 1, 0, 0, 30) }));
+    expect([i.mes, i.gasto_ia_mes_usd]).toEqual(["2026-10", 12.5]);
+    const despues = await informeDeSalud(deps(todo, {}, { gastoMes: async () => 0.01, ahora: () => Date.UTC(2026, 10, 1, 5, 0, 1) }));
+    expect(despues.mes).toBe("2026-11");
+    expect(despues.avisos.some((a) => a.includes("no pude leer el gasto"))).toBe(false);
+  });
+
+  it("el informe público no lleva ni el gasto ni el mes", async () => {
+    const publico = JSON.stringify(await informePublico(deps(todo, {}, { gastoMes: async () => 12.5 })));
+    expect(publico).not.toContain("gasto");
+    expect(publico).not.toContain("12.5");
   });
 
   it("jamás incluye el valor de un secreto, ni en el informe completo ni en el público", async () => {
