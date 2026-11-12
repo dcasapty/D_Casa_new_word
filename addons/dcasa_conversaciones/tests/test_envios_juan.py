@@ -44,8 +44,12 @@ class EnviosJuanCase(CotizarCase):
     def envio(self, conv=None, **argumentos):
         return self.salida('cotizar_envio', argumentos, conv=conv)
 
-    def agregar(self, lugar, conv=None):
-        return self.salida('agregar_envio', {'lugar_id': lugar.id}, conv=conv)
+    def agregar(self, lugar, conv=None, sin_cotizar=False, **argumentos):
+        """Como Juan: primero le da el precio al cliente (cotizar_envio) y después lo suma; ``sin_cotizar`` se salta lo
+        primero (agregar_envio solo suma un lugar cuyo precio ya dio cotizar_envio en esta conversación)."""
+        if not sin_cotizar:
+            self.envio(conv=conv, lugar_id=lugar.id)
+        return self.salida('agregar_envio', dict(argumentos, lugar_id=lugar.id), conv=conv)
 
 
 @tagged('post_install', '-at_install')
@@ -116,6 +120,44 @@ class TestCotizarEnvio(EnviosJuanCase):
         datos = self.envio(lugar='el duplicado')
         self.assertEqual((datos['estado'], datos['motivo']), ('no_encontrado', 'mismo_nombre'))
         self.assertIn('punto de referencia', datos['frase_para_el_cliente'])
+        self.assertNotIn('$', json.dumps(datos))
+
+    def test_h7_dos_iguales_con_otro_precio_nunca_dan_un_precio_aunque_vengan_de_varios(self):
+        """Revisión adversarial (I4): «El Duplicado» ×2 en la misma zona con precios distintos y, además, otro lugar
+        parecido (estado «varios»): al elegir la opción de los gemelos se pide un punto de referencia."""
+        Lugar = self.env['dcasa.envio.lugar']
+        duplicados = Lugar.search([('name', '=', 'El Duplicado')], order='km')
+        duplicados[1].with_user(self.gerencia).write({'km': 60})
+        Lugar.with_user(self.gerencia).create({
+            'name': 'Duplicado Norte', 'tipo': 'barrio', 'corr': 'Vista Inventada', 'dist': 'Arraiján',
+            'prov': 'Panamá Oeste', 'km': 20.0, 'estado': 'ok'})
+        datos = self.envio(lugar='duplicados')
+        self.assertEqual(datos['estado'], 'varios', datos)
+        gemelo = [o for o in datos['opciones'] if o['nombre'] == 'El Duplicado']
+        self.assertEqual(len(gemelo), 1, 'el cliente los ve iguales: una sola opción')
+        for lugar_id in (gemelo[0]['lugar_id'], (duplicados - Lugar.browse(gemelo[0]['lugar_id'])).id):
+            elegido = self.envio(lugar_id=lugar_id)
+            self.assertEqual((elegido['estado'], elegido['motivo']), ('no_encontrado', 'mismo_nombre'))
+            self.assertNotIn('$', json.dumps(elegido))
+        self.cotizar({'codigo': 'ZZ-SOFA'})
+        self.assertEqual(self.agregar(duplicados[0], sin_cotizar=True)['motivo'], 'mismo_nombre')
+
+    def test_h19_el_lugar_claro_se_decide_con_todas_las_coincidencias(self):
+        """Revisión adversarial (M3): cinco «Calle Repetida» iguales cerca (las que se muestran) y una sexta en Colón:
+        no es un lugar claro, se pregunta cuál."""
+        from odoo.addons.dcasa_envios.tests.common import fixture
+        datos_archivo = fixture()
+        base = {'nombre': 'Calle Repetida', 'tipo': 'barrio', 'cat': 'barrio o urbanización', 'corr_exacto': True,
+                'estado': 'ok'}
+        for km in (12.1, 12.2, 12.3, 12.4, 12.5):
+            datos_archivo['lugares'].append(dict(base, corr='Los Ensayos', dist='La Chorrera', prov='Panamá Oeste',
+                                                 km=km))
+        datos_archivo['lugares'].append(dict(base, corr='Barrio Simulado', dist='Colón', prov='Colón', km=91.0))
+        importar(self.env, self.gerencia, datos=datos_archivo, tarifa=False)
+        self.assertEqual(self.env['dcasa.envio.lugar'].search_count([('name', '=', 'Calle Repetida')]), 6)
+        datos = self.envio(lugar='Calle Repetida')
+        self.assertEqual(datos['estado'], 'varios', datos)
+        self.assertIn('Calle Repetida (Barrio Simulado, Colón)', datos['frase_para_el_cliente'])
         self.assertNotIn('$', json.dumps(datos))
 
     def test_no_encontrado_pide_un_punto_de_referencia(self):
@@ -300,6 +342,50 @@ class TestAgregarEnvio(EnviosJuanCase):
         self.assertFalse(datos['pdf_adjunto'])
         self.assertNotIn('documento', datos)
         self.assertTrue(self.conv.mensaje_ids.filtered(lambda m: 'no pudo generar el PDF' in (m.texto or '')))
+
+    def test_h8_solo_suma_un_lugar_cuyo_precio_dio_cotizar_envio_en_esta_conversacion(self):
+        """Revisión adversarial (M5): un lugar_id cualquiera de la tabla (más barato) no se suma."""
+        self.cotizar({'codigo': 'ZZ-SOFA'})
+        (orden,) = self.ordenes()
+        barato = self.env['dcasa.envio.lugar'].search([('name', '=', 'Villa Prueba')])
+        no = self.agregar(barato, sin_cotizar=True)
+        self.assertEqual((no['sumado'], no['motivo']), (False, 'sin_cotizar_envio'))
+        self.assertIn('cotizar_envio', no['instruccion'])
+        # El precio que se dio en OTRA conversación no cuenta.
+        otra = self.conversacion(nombre='Otra', id_externo='50769990003')
+        self.envio(conv=otra, lugar_id=barato.id)
+        self.assertEqual(self.agregar(barato, sin_cotizar=True)['motivo'], 'sin_cotizar_envio')
+        # Uno que se cotizó pero no tuvo precio (se cotiza aparte) tampoco.
+        lejano = self.env['dcasa.envio.lugar'].search([('name', '=', 'Pueblo Lejano')])
+        self.assertEqual(self.agregar(lejano)['motivo'], 'aparte')
+        self.assertFalse(orden.order_line.filtered('is_delivery'))
+        self.assertTrue(self.agregar(barato)['sumado'], 'después de darle el precio, sí')
+        self.assertEqual(orden.order_line.filtered('dcasa_envio_lugar_id').dcasa_envio_lugar_id, barato)
+
+    def test_h18_con_dos_cotizaciones_abiertas_pregunta_a_cual(self):
+        """Revisión adversarial (I6): sofá $800 y, aparte, una mesa $90. Ni la promoción se mide con la más reciente ni
+        el envío se suma a una sin que el cliente diga cuál."""
+        self.cotizar({'codigo': 'ZZ-SOFA'})
+        self.cotizar({'codigo': 'ZZ-MESA'})
+        sofa, mesa = self.ordenes()
+        datos = self.envio(lugar='Costa Inventada')
+        self.assertIsNone(datos['cotizacion'])
+        self.assertEqual([c['numero'] for c in datos['cotizaciones']], [mesa.name, sofa.name])
+        self.assertTrue(all(c['total_texto'].startswith('$') for c in datos['cotizaciones']))
+        self.assertTrue(datos['promocion']['condicional'], 'con sus condiciones, sin medirla con ninguna')
+        self.assertIn('en compras de más de $200 sin ITBMS', datos['frase_para_el_cliente'])
+        self.assertNotIn('tu compra', datos['frase_para_el_cliente'])
+        self.assertIn('cotizacion=', datos['instruccion'])
+        no = self.agregar(self.costa)
+        self.assertEqual((no['sumado'], no['motivo']), (False, 'cual_cotizacion'))
+        self.assertEqual({c['numero'] for c in no['cotizaciones']}, {sofa.name, mesa.name})
+        self.assertEqual(self.agregar(self.costa, cotizacion='S99999')['motivo'], 'cotizacion_no_encontrada')
+        self.assertFalse((sofa | mesa).order_line.filtered('is_delivery'))
+        si = self.agregar(self.costa, cotizacion=sofa.name.lower())
+        self.assertTrue(si['sumado'])
+        self.assertEqual(si['cotizacion']['numero'], sofa.name)
+        self.assertEqual(sorted(sofa.order_line.filtered('is_delivery').mapped('price_unit')), [-45.0, 45.0])
+        self.assertFalse(mesa.order_line.filtered('is_delivery'))
 
     def test_un_lugar_que_no_existe_es_un_error_para_corregir(self):
         self.cotizar({'codigo': 'ZZ-SOFA'})
