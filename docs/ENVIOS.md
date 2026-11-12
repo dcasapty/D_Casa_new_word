@@ -317,9 +317,14 @@ cotización?»). Lo de Juan está en [JUAN.md](JUAN.md) › Reglas (3); aquí, l
   interior; no con colchón). En la cotización sale como una línea aparte («Promoción de envío: abono de $20»), exenta del
   tope de descuento de la vendedora **solo mientras siga valiendo**: al cambiar las líneas y antes de confirmar se vuelve a
   revisar (`_dcasa_promocion_sincronizar`); si la compra bajó del mínimo, lleva colchón, se quitó el envío o quedó en $0,
-  la línea se quita con una nota en la cotización. Decide la **fecha de creación** de la cotización (la dueña,
-  2026-11-12: una cotización de noviembre que se confirma en diciembre respeta lo prometido; `FECHA_QUE_DECIDE`). Al
-  duplicar, la promoción se calcula otra vez con la copia.
+  la línea se quita con una nota en la cotización. **Lo prometido se respeta** (la dueña, 2026-11-12: una cotización de
+  noviembre que se confirma en diciembre conserva su envío gratis): la línea guarda el día en que se sumó y los términos
+  con que se sumó (`dcasa_promocion_terminos`: promoción, mínimo, zona, gratis o abono y su monto, regla del colchón), y
+  la revisión mide la compra contra esos términos, no contra la promoción de hoy, mientras la cotización no haya vencido
+  (`validity_date`, hora de Panamá); vencida, se vuelve a mirar con la promoción de hoy. Sumar el envío después de que
+  terminó la promoción no la da. Si Gerencia cambia o archiva la promoción, vale solo para las cotizaciones nuevas (la
+  ficha dice cuántas abiertas la tienen) y una venta confirmada nunca cambia. La marca del lugar de la línea del envío
+  solo la escribe el servidor. Al duplicar, la promoción se calcula otra vez con la copia.
 * **La frase** (la dueña, 2026-11-12: que no se preste a pensar que no hay descuento) dice el precio normal, lo que D'CASA
   regala o abona, las condiciones y hasta cuándo: «El envío a [lugar] cuesta normalmente $105. Con la promoción de
   noviembre, en compras de más de $200 sin ITBMS, D'CASA te abona $20 del envío: te queda en $85. La promoción es hasta el
