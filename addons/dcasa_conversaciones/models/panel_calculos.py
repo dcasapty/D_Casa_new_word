@@ -123,13 +123,24 @@ def unir_gasto_por_dia(de_fotos, del_worker, mes):
 #   si no es del último día (esa noche el cron no corrió) el mes queda «incompleto», y si no tiene ninguna foto
 #   (antes de que existiera el cron, u Odoo apagado todo el mes) queda «sin datos» y suma cero. En los dos casos la
 #   cifra es un mínimo («al menos») y se nombran los meses; nunca se adivina;
-# * un corte posterior al siguiente (p. ej. un pago anotado con el Worker caído toma una foto anterior a otro pago ya
-#   anotado) o un acumulado que bajó (el Worker perdió su cuenta) dan cero, nunca un negativo.
+# * cortes al revés (el mes de llegada antes que el del corte) dan cero, nunca un negativo;
+# * un acumulado MENOR que el corte (el contador del Worker volvió a empezar a mitad de mes) no da $0 en silencio: lo
+#   que se sabe es lo que lleva desde que volvió a empezar (el acumulado de llegada, o el cierre de ese mes), y queda
+#   marcado ``bajo`` (incompleto: es un mínimo y la pantalla dice «aprox.» con su explicación corta, 2026-11-12).
 #
 # Con varios pagos (``periodos_de_pagos``): «desde el último pago» mira solo el más reciente por la FECHA del pago (no
 # por cuándo se anotó); cada pago de la lista muestra lo consumido entre el pago anterior y él (el primero no tiene
 # con qué compararse) y la diferencia con lo que cobró Meta, solo si las dos cifras son completas. Los pagos anulados
 # no cuentan para nada (siguen en la lista, con su motivo).
+
+
+# Medio centavo: menos que eso es redondeo, no un contador que volvió a empezar.
+TOLERANCIA_DEL_CONTADOR = 0.005
+
+
+def mes_valido(mes):
+    """¿«AAAA-MM» de verdad (el mes que manda el Worker)?"""
+    return isinstance(mes, str) and bool(re.fullmatch(r'\d{4}-(0[1-9]|1[0-2])', mes))
 
 
 def meses_entre(desde, hasta):
@@ -143,11 +154,13 @@ def meses_entre(desde, hasta):
     return meses
 
 
-def corte_del_pago(momento_local, fotos, es_ahora=False, acumulado_worker=None):
+def corte_del_pago(momento_local, fotos, es_ahora=False, acumulado_worker=None, mes_worker=None):
     """El corte de un pago hecho en ``momento_local`` (``datetime`` en la hora de Panamá).
 
     ``es_ahora``: el pago es de este momento; ``acumulado_worker``: lo que acaba de decir el Worker (``None`` si no
-    respondió). ``fotos``: ``{date: acumulado}``. Devuelve ``{'mes', 'acumulado', 'origen', 'foto'}`` con ``origen``:
+    respondió) y ``mes_worker``, el mes de ESE acumulado según el Worker («AAAA-MM»; a las 00:00 del día 1 el reloj de
+    Odoo y el del Worker pueden estar en meses distintos por unos segundos: manda el del Worker; sin él, el de Odoo).
+    ``fotos``: ``{date: acumulado}``. Devuelve ``{'mes', 'acumulado', 'origen', 'foto'}`` con ``origen``:
 
     * ``worker``: el acumulado del Worker en el momento de anotarlo (exacto; solo si ``es_ahora``);
     * ``foto``: la última foto del mismo mes tomada antes del pago. «Ahora» vale la de hoy (se tomó antes); para un
@@ -156,6 +169,7 @@ def corte_del_pago(momento_local, fotos, es_ahora=False, acumulado_worker=None):
     """
     mes = momento_local.strftime('%Y-%m')
     if es_ahora and acumulado_worker is not None:
+        mes = mes_worker if mes_valido(mes_worker) else mes
         return {'mes': mes, 'acumulado': round(max(float(acumulado_worker), 0.0), 6), 'origen': 'worker', 'foto': None}
     dia = momento_local.date()
     antes = [d for d in fotos if d.strftime('%Y-%m') == mes and (d <= dia if es_ahora else d < dia)]
@@ -180,16 +194,20 @@ def cierres_de_mes(fotos):
 def consumo_entre(desde, hasta, cierres):
     """Lo consumido entre dos cortes ``(mes «AAAA-MM», acumulado de ese mes)`` (ver el comentario de arriba).
 
-    ``cierres``: lo de ``cierres_de_mes``. Devuelve ``{'usd', 'completo', 'meses_sin_datos', 'meses_incompletos'}``;
-    si ``completo`` es falso, ``usd`` es un mínimo (a algún mes de en medio le falta su cierre).
+    ``cierres``: lo de ``cierres_de_mes``. Devuelve ``{'usd', 'completo', 'meses_sin_datos', 'meses_incompletos',
+    'bajo'}``; si ``completo`` es falso, ``usd`` es un mínimo: a algún mes de en medio le falta su cierre, o el
+    contador bajó después del corte (``bajo``) y solo se sabe lo que lleva desde que volvió a empezar.
     """
     (mes_a, a), (mes_b, b) = desde, hasta
-    a, b = float(a or 0.0), float(b or 0.0)
-    resultado = {'usd': 0.0, 'completo': True, 'meses_sin_datos': [], 'meses_incompletos': []}
+    a, b = max(float(a or 0.0), 0.0), max(float(b or 0.0), 0.0)
+    resultado = {'usd': 0.0, 'completo': True, 'meses_sin_datos': [], 'meses_incompletos': [], 'bajo': False}
     if mes_b < mes_a:
         return resultado
     if mes_a == mes_b:
-        resultado['usd'] = round(max(b - a, 0.0), 2)
+        if b < a - TOLERANCIA_DEL_CONTADOR:
+            resultado.update(usd=round(b, 2), completo=False, bajo=True)
+        else:
+            resultado['usd'] = round(max(b - a, 0.0), 2)
         return resultado
     total = 0.0
     for mes in meses_entre(mes_a, mes_b)[:-1]:
@@ -200,10 +218,14 @@ def consumo_entre(desde, hasta, cierres):
         usd, completo = cierre
         if not completo:
             resultado['meses_incompletos'].append(mes)
-        total += max(usd - (a if mes == mes_a else 0.0), 0.0)
-    total += max(b, 0.0)
+        if mes == mes_a and usd < a - TOLERANCIA_DEL_CONTADOR:
+            resultado['bajo'] = True      # el mes del corte cerró por debajo del corte: volvió a empezar
+            total += max(usd, 0.0)
+        else:
+            total += max(usd - (a if mes == mes_a else 0.0), 0.0)
+    total += b
     resultado['usd'] = round(total, 2)
-    resultado['completo'] = not (resultado['meses_sin_datos'] or resultado['meses_incompletos'])
+    resultado['completo'] = not (resultado['meses_sin_datos'] or resultado['meses_incompletos'] or resultado['bajo'])
     return resultado
 
 

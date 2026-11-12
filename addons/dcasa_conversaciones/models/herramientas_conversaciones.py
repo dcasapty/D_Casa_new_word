@@ -220,7 +220,7 @@ class BrianHerramientasConversaciones(models.AbstractModel):
         pagos = d['pagos']
         por_pagar = c.moneda(pagos['saldo'])
         if pagos['aprox']:
-            por_pagar += ' (aprox.: faltan fotos del gasto de algún mes, puede ser un poco más)'
+            por_pagar += f" (aprox.: {pagos['aprox_texto'] or 'puede ser un poco más'})"
         return self._con_boton_de_costos({
             'por_pagar_a_meta': por_pagar,
             'ultimo_pago': self._texto_ultimo_pago_ia(pagos['ultimo']),

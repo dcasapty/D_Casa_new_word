@@ -13,6 +13,8 @@ Solo Gerencia y administradores; se escribe solo por los métodos del panel, que
 """
 import math
 
+import psycopg2.errors
+
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError
 
@@ -26,6 +28,12 @@ MESES_CORTOS = ('ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sept', 
 # Lo único que se escribe de un pago después de crearlo: su anulación (por ``_anular``).
 CAMPOS_DE_ANULAR = frozenset({'anulado', 'anulado_el', 'anulado_por', 'motivo_anulacion'})
 _ANULANDO = 'dcasa_pago_ia_anulando'
+# Lo visto y lo de ahora pueden diferir en lo que se consumió mientras se confirmaba: hasta 5 centavos o el 1 %, lo que
+# sea mayor. Más que eso, la pantalla estaba vieja y se pagaría menos de lo consumido (revisión, 2026-11-12).
+TOLERANCIA_MINIMA = 0.05
+TOLERANCIA_RELATIVA = 0.01
+CLAVE_DEL_CERROJO = 'dcasa_conversaciones.pago_ia_cerrojo'
+CAMBIO = 'El saldo cambió: vuelve a abrir la pantalla.'
 
 
 class DcasaJuanPagoIa(models.Model):
@@ -87,6 +95,28 @@ def _numero(valor):
     return isinstance(valor, (int, float)) and not isinstance(valor, bool) and math.isfinite(valor)
 
 
+def tomar_el_cerrojo(cr, cuando):
+    """Que dos «Pagar» a la vez (dos pestañas o dos personas) no dejen dos pagos con el mismo corte.
+
+    Escribe una fila fija (``ir_config_parameter``, clave ``CLAVE_DEL_CERROJO``, con la hora) con ``INSERT … ON
+    CONFLICT DO UPDATE``: su candado dura hasta el final de la transacción, llamada al Worker incluida, así que el
+    segundo espera.
+    Odoo trabaja en REPEATABLE READ: cuando el primero termina, el segundo recibe un error de serialización (la fila
+    cambió después de que empezó su transacción, que no vería el pago nuevo). Pasa lo mismo si el otro pago terminó
+    justo antes pero esta transacción empezó antes que eso. Devuelve ``False`` en esos casos: no se registra nada.
+    """
+    try:
+        with cr.savepoint(flush=False):
+            cr.execute("""
+                INSERT INTO ir_config_parameter (key, value, create_date, write_date)
+                     VALUES (%(k)s, %(v)s, %(t)s, %(t)s)
+                ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, write_date = EXCLUDED.write_date""",
+                       {'k': CLAVE_DEL_CERROJO, 'v': fields.Datetime.to_string(cuando), 't': cuando})
+    except psycopg2.errors.SerializationFailure:
+        return False
+    return True
+
+
 class DcasaJuanPanelPagos(models.AbstractModel):
     _inherit = 'dcasa.juan.panel'
 
@@ -102,23 +132,29 @@ class DcasaJuanPanelPagos(models.AbstractModel):
     @api.model
     def pagar_ia(self, saldo):
         """«Pagar»: lo que había por pagar a Meta (``saldo``, el que vio la persona en la pantalla) queda como pagado
-        AHORA y la cuenta empieza de nuevo. El corte se le pide al Worker; si no responde, no se registra nada.
-        Solo Gerencia y administradores. Devuelve ``{ok, id, monto}``."""
+        AHORA y la cuenta empieza de nuevo. El corte se le pide al Worker; si no responde (o no pudo leer su contador),
+        no se registra nada. Si lo visto ya no es lo de ahora (más que la tolerancia: pantalla vieja) u otro «Pagar» se
+        registró a la vez, tampoco: «El saldo cambió». Solo Gerencia y administradores. Devuelve ``{ok, id, monto}``."""
         self._exigir_pagos()
         if not _numero(saldo) or saldo < 0 or saldo > MAX_MONTO:
             raise UserError(self.env._('El saldo no se entiende: vuelve a abrir la pantalla.'))
         saldo = round(float(saldo), 2)
         if saldo <= 0:
             raise UserError(self.env._('No hay nada por pagar.'))
-        gasto = (self._tomar_foto_de_costos() or {}).get('gasto_ia_mes_usd')   # y de paso queda la foto de hoy
+        if not tomar_el_cerrojo(self.env.cr, fields.Datetime.now()):
+            raise UserError(self.env._(CAMBIO))
+        informe = self._tomar_foto_de_costos() or {}     # le pregunta al Worker y de paso deja la foto de hoy
+        gasto = informe.get('gasto_ia_mes_usd')
         if not _numero(gasto) or gasto < 0:
             raise UserError(self.env._('No pude hablar con Juan: inténtalo en un momento.'))
         ahora = self._ahora_local()
-        actual = self._saldo_ia((ahora.strftime('%Y-%m'), float(gasto)))
-        # Lo que se vio no puede ser más que lo que hay ahora (el gasto solo crece): si no, la pantalla estaba vieja.
-        if actual['saldo'] is not None and saldo > actual['saldo'] + 0.01:
-            raise UserError(self.env._('El saldo cambió: vuelve a abrir la pantalla.'))
-        corte = C.corte_del_pago(ahora, {}, es_ahora=True, acumulado_worker=float(gasto))
+        mes = informe['mes'] if C.mes_valido(informe.get('mes')) else ahora.strftime('%Y-%m')
+        actual = self._saldo_ia((mes, float(gasto)))['saldo']
+        # Se vuelve a mirar el saldo DESPUÉS de hablar con el Worker y con el cerrojo tomado: si lo visto quedó atrás
+        # (se consumió más desde que se abrió la pantalla), pagar lo visto borraría consumo sin pagar.
+        if actual is None or abs(actual - saldo) > max(TOLERANCIA_MINIMA, TOLERANCIA_RELATIVA * actual):
+            raise UserError(self.env._(CAMBIO))
+        corte = C.corte_del_pago(ahora, {}, es_ahora=True, acumulado_worker=float(gasto), mes_worker=mes)
         pago = self.env['dcasa.juan.pago.ia'].sudo().create({
             'fecha': fields.Datetime.now(), 'monto_meta_usd': saldo, 'registrado_por': self.env.user.id,
             'al_momento': True, 'corte_mes': corte['mes'], 'corte_acumulado_usd': corte['acumulado'],
@@ -154,34 +190,53 @@ class DcasaJuanPanelPagos(models.AbstractModel):
         """«Por pagar a Meta» con ``ahora`` = ``(mes, acumulado)`` que acaba de decir el Worker (sin él, ``None``).
 
         Con pagos, lo consumido desde el último (``periodos_de_pagos``); sin pagos, lo del mes, como siempre mostró la
-        pantalla. ``aprox``: a algún mes de en medio le faltan fotos (la cifra es un mínimo). Devuelve
-        ``{saldo, aprox, ultimo}``; ``ultimo`` = ``{id, monto, texto}`` o ``None``."""
-        datos = {'saldo': None, 'aprox': False, 'ultimo': None}
+        pantalla. ``aprox``: la cifra es un mínimo (a algún mes le faltan fotos, o el contador del Worker volvió a
+        empezar después del pago), con ``aprox_texto``, la explicación corta. Devuelve ``{saldo, aprox, aprox_texto,
+        saldo_si_se_deshace, ultimo}``; ``ultimo`` = ``{id, monto, texto, dia}`` o ``None``."""
+        datos = {'saldo': None, 'aprox': False, 'aprox_texto': '', 'saldo_si_se_deshace': None, 'ultimo': None}
         if not self.env.su and not any(self.env.user.has_group(grupo) for grupo in GRUPOS_DE_PAGOS):
             return datos
         vigentes = self.env['dcasa.juan.pago.ia'].sudo().search([('anulado', '=', False)])
         if vigentes:
             ultimo = vigentes[0]
             datos['ultimo'] = {'id': ultimo.id, 'monto': ultimo.monto_meta_usd or 0.0,
-                               'texto': self._fecha_corta(ultimo.fecha)}
+                               'texto': self._fecha_corta(ultimo.fecha), 'dia': self._fecha_corta(ultimo.fecha, False)}
         if ahora is None:
             return datos
-        if not vigentes:
-            datos['saldo'] = round(max(float(ahora[1]), 0.0), 2)
-            return datos
-        fotos = {f.fecha: f.acumulado_usd for f in self.env['dcasa.juan.costo.dia'].sudo().search(
-            [('mes', '>=', min(vigentes.mapped('corte_mes')))])}
-        _cuentas, desde = C.periodos_de_pagos([{
-            'id': p.id, 'fecha': p.fecha, 'corte': (p.corte_mes, p.corte_acumulado_usd),
-            'exacto': p.corte_origen == 'worker', 'monto': p.monto_meta_usd or None, 'anulado': False,
-        } for p in vigentes], C.cierres_de_mes(fotos), ahora)
-        datos.update(saldo=desde['usd'], aprox=not desde['completo'] or desde['aproximado'])
+        fotos = {}
+        if vigentes:
+            fotos = {f.fecha: f.acumulado_usd for f in self.env['dcasa.juan.costo.dia'].sudo().search(
+                [('mes', '>=', min(vigentes.mapped('corte_mes')))])}
+        cierres = C.cierres_de_mes(fotos)
+        saldo, aprox, texto = self._saldo_desde(vigentes, cierres, ahora)
+        datos.update(saldo=saldo, aprox=aprox, aprox_texto=texto)
+        if vigentes:
+            datos['saldo_si_se_deshace'] = self._saldo_desde(vigentes[1:], cierres, ahora)[0]
         return datos
 
     @api.model
-    def _fecha_corta(self, utc):
-        """«11 nov, 9:30 p. m.» (y el año si no es el de ahora), en la hora de Panamá."""
+    def _saldo_desde(self, vigentes, cierres, ahora):
+        """``(saldo, aprox, explicación)`` con esos pagos vigentes (sin pagos: lo del mes)."""
+        if not vigentes:
+            return round(max(float(ahora[1]), 0.0), 2), False, ''
+        _cuentas, desde = C.periodos_de_pagos([{
+            'id': p.id, 'fecha': p.fecha, 'corte': (p.corte_mes, p.corte_acumulado_usd),
+            'exacto': p.corte_origen == 'worker', 'monto': p.monto_meta_usd or None, 'anulado': False,
+        } for p in vigentes], cierres, ahora)
+        if desde['bajo']:
+            texto = self.env._('El contador de Juan volvió a empezar después del último pago: es lo que lleva desde '
+                               'entonces.')
+        elif not desde['completo'] or desde['aproximado']:
+            texto = self.env._('Faltan fotos del gasto de algún mes: puede ser un poco más.')
+        else:
+            texto = ''
+        return desde['usd'], bool(texto), texto
+
+    @api.model
+    def _fecha_corta(self, utc, con_hora=True):
+        """«11 nov, 9:30 p. m.» (y el año si no es el de ahora), en la hora de Panamá; sin hora, «11 nov»."""
         horario = self._horario()
         local = H.a_local(utc, horario)
         anio = '' if local.year == self._ahora_local().year else f' {local.year}'
-        return f'{local.day} {MESES_CORTOS[local.month - 1]}{anio}, {H.texto_hora_amable(local.time())}'
+        dia = f'{local.day} {MESES_CORTOS[local.month - 1]}{anio}'
+        return f'{dia}, {H.texto_hora_amable(local.time())}' if con_hora else dia
