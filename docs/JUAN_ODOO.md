@@ -266,7 +266,13 @@ Tres pantallas hermanas, con la misma barra de arriba para pasar de una a otra.
     desde el último pago (sin pagos, lo del mes). «Pagar» pregunta una sola vez («¿Ya le pagaste $X a Meta? El saldo vuelve a
     $0 y empieza a contar de nuevo.») y, con el sí, guarda el pago **en ese momento** con el corte exacto que da el Worker
     (si el Worker no responde, no guarda nada y lo dice). No pide tarjeta, fecha ni monto: el monto es el saldo que se
-    mostró. Debajo, «Último pago: $X, fecha · **Deshacer**» (solo el último). Lo consumido no se borra: el pago es un corte
+    mostró; si el saldo cambió desde que se abrió la pantalla (más de $0.05 o del 1 %), no guarda nada, dice «El saldo
+    cambió: vuelve a abrir la pantalla» y trae la cifra de ahora. Dos «Pagar» a la vez (dos pestañas o dos personas) dejan
+    un solo pago (cerrojo en la base). Debajo, «Último pago: $X, fecha · **Deshacer**» (solo el último; pregunta antes:
+    «¿Deshacer el pago de $X del 12 nov? El saldo vuelve a $Y.»). El corte usa el **mes que dice el Worker** (`mes` de
+    `/odoo/salud`), no el reloj de Odoo. Si el Worker no pudo leer su contador (`gasto_ia_mes_usd: null`), no se guarda la
+    foto ni se paga, y la pantalla dice «No pude leer el gasto de IA» en vez de $0; si el contador volvió a empezar después
+    del último pago, la cifra sale con «aprox.» y lo explica. Lo consumido no se borra: el pago es un corte
     en el libro `dcasa.juan.pago.ia`, que no se edita ni se borra (deshacer lo anula con motivo). Si a un mes le faltan
     fotos, junto a la cifra sale «aprox.». Solo Gerencia y administradores pagan o deshacen; Brian lo consulta
     (`costos_de_juan`) pero no paga.

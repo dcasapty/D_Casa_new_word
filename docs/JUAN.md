@@ -413,7 +413,7 @@ Base: ajuste `dcasa_conversaciones.juan_url` o variable `JUAN_URL` (https; `http
 | `POST /odoo/enviar` | `{canal, id_externo, autor:"vendedora", texto?, adjuntos?[{tipo, url, nombre, mime}], id_envio?, responde_a?}` | `200 {ok, id_mensaje, repetido?:true, partes?:[{id_canal, tipo, texto?}]}` |
 | `POST /odoo/estado` | `{canal, id_externo, estado:"humano"\|"bot", pausada_hasta?, nota_para_el_bot?}` | `200 {ok}` |
 | `POST /odoo/seguimiento` | `{conversacion_id, canal, id_externo, numero:1\|2, contexto:{interes, ultimo_mensaje_ts}}` | `200 {ok:true, resultado:"enviado"\|"descartado"\|"pospuesto", motivo?}` · `502 {ok:false, error}` |
-| `GET /odoo/salud` | | `200 {ok, mensaje, version, entorno, secretos_faltantes, ia, canales:{<canal>:{activo, configurado, faltan, conectado, detalle?}}, gasto_ia_mes_usd, tope_usd, tope_alcanzado, problemas, avisos}` |
+| `GET /odoo/salud` | | `200 {ok, mensaje, version, entorno, secretos_faltantes, ia, canales:{<canal>:{activo, configurado, faltan, conectado, detalle?}}, gasto_ia_mes_usd, mes, tope_usd, tope_alcanzado, problemas, avisos}`. `mes` = «AAAA-MM» (hora de Panamá) del acumulado; `gasto_ia_mes_usd` es `null` (con un aviso) si el Worker no pudo leer su contador, nunca un 0 inventado (2026-11-12) |
 
 - `/odoo/salud` responde **200 aunque `ok` sea `false`** (le falta un secreto, un canal sin conectar): Odoo lo lee y lo muestra en
   «Probar conexión» («whatsapp_qr: conectado, telegram: sin configurar (…)»).
