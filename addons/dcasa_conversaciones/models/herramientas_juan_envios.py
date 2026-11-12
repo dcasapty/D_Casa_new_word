@@ -16,6 +16,8 @@ bien si Juan pregunta si quiere que le sume a la cotización el envío … tiene
 * Ninguna cuenta la hace el modelo de IA: el precio sale del motor de la tarifa y la promoción del motor de promociones.
 * Sin la tarifa aprobada por Gerencia (o con «Juan cotiza envíos» apagado en Ajustes de Juan) no hay precios: pasa a
   una vendedora.
+* Un lugar «Por revisar» (lo agregó alguien del equipo y Gerencia todavía no lo revisó; revisión adversarial I7) no
+  tiene precio para el cliente: «el costo te lo confirma una vendedora» (estado ``aparte``) y no se suma.
 * La dirección exacta del cliente no se guarda (issue #25): la API la quita antes de ejecutar (y de la auditoría) y
   aquí se vuelve a quitar. Juan busca con el barrio, el PH o el punto de referencia.
 
@@ -109,6 +111,17 @@ class BrianHerramientasJuanEnvios(models.AbstractModel):
             'estado': 'aparte', 'lugar': {'nombre': tarjeta['nombre'], 'zona': tarjeta['zona']}, 'por_que': por_que,
             'frase_para_el_cliente': f'El envío a {tarjeta["nombre"]} se cotiza aparte: te lo confirma una vendedora.',
             'instruccion': f'Este envío no tiene precio en la tabla ({por_que}): no des ninguna cifra. {A_VENDEDORA}',
+        }
+
+    @api.model
+    def _j_envio_sin_revisar(self, tarjeta):
+        """Un lugar que agregó alguien del equipo y Gerencia todavía no revisó: sin precio para el cliente."""
+        return {
+            'estado': 'aparte', 'lugar': {'nombre': tarjeta['nombre'], 'zona': tarjeta['zona']},
+            'por_que': 'lugar agregado hace poco, todavía sin revisar por Gerencia',
+            'frase_para_el_cliente': f'El costo del envío a {tarjeta["nombre"]} te lo confirma una vendedora.',
+            'instruccion': 'Ese lugar lo agregó hace poco alguien del equipo y Gerencia todavía no lo revisó: no des '
+                           'ninguna cifra. ' + A_VENDEDORA,
         }
 
     @api.model
@@ -259,6 +272,8 @@ class BrianHerramientasJuanEnvios(models.AbstractModel):
                 }
         if not tarjeta['con_precio']:
             return self._j_envio_aparte(tarjeta)
+        if not self.env['dcasa.envio.lugar'].sudo().browse(tarjeta['id']).revisado:
+            return self._j_envio_sin_revisar(tarjeta)
         datos, orden, resultado = self._j_envio_con_promocion(conv, tarjeta)
         if orden:
             ya = orden.order_line.filtered(lambda linea: linea.dcasa_envio_lugar_id.id == tarjeta['id'])
@@ -308,6 +323,8 @@ class BrianHerramientasJuanEnvios(models.AbstractModel):
         tarjeta = self._j_envio_tarjeta(lugar)
         if not tarjeta['con_precio']:
             return dict(self._j_envio_aparte(tarjeta), sumado=False, motivo='aparte')
+        if not lugar.revisado:
+            return dict(self._j_envio_sin_revisar(tarjeta), sumado=False, motivo='sin_revisar')
         puesto = orden._dcasa_envio_poner(lugar, tarjeta['total'])
         if not puesto['puesto']:
             if puesto['motivo'] == 'ajeno':

@@ -1014,6 +1014,9 @@ LISTA_BLANCA = {
     ('dcasa_envios', 'dcasa.envio.lugar', 'action_volver_al_archivo'):
         'Exige Gerencia o administrador y check_access("write") en el servidor; solo borra la marca «cambiado en '
         'Odoo».',
+    ('dcasa_envios', 'dcasa.envio.lugar', 'action_marcar_revisado'):
+        'Exige Gerencia o administrador y check_access("write") en el servidor; solo enciende «Revisado por '
+        'Gerencia» con quién y cuándo (I7: hasta entonces Juan no da el precio de un lugar que agregó el equipo).',
     ('dcasa_envios', 'dcasa.envio.tarifa', 'create'):
         'Exige Gerencia o administrador en el servidor (y el ACL); una sola tarifa; la aprobación nunca viene en los '
         'valores; sin sudo().',

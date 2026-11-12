@@ -10,7 +10,9 @@ envío en la página web.
 * **Calculadora** (Envíos › Calculadora, todo el equipo): el buscador grande (sin tildes, abreviaturas, frases, errores
   de dedo, lugares conocidos), filtros por tipo y distrito, el precio con su desglose, «Copiar el precio», la ruta en
   Google Maps desde la tienda, «¿Quisiste decir…?», «Agregar este lugar» (queda el nombre de quien lo agregó) y
-  «Calcular por kilómetros» con la tabla por tramos. Mientras la tarifa no esté aprobada: «Tarifa en revisión».
+  «Calcular por kilómetros» con la tabla por tramos. Mientras la tarifa no esté aprobada: «Tarifa en revisión». Un
+  lugar que agrega alguien que no es Gerencia queda «Por revisar»: Juan no da su precio hasta que Gerencia toca
+  «Marcar revisado» en la ficha.
 * **Lugares** (lista, se exporta a Excel con el precio) y **Tarifa** (Gerencia y administradores: la fórmula, los
   cargos aparte, subir o bajar todo en %, aprobarla con quién y cuándo, el historial y «Cargar lugares y tarifa desde
   el archivo»).
@@ -32,7 +34,7 @@ envío en la página web.
 
 Ver docs/ENVIOS.md.
 """,
-    'version': '19.0.1.1.0',
+    'version': '19.0.1.2.0',
     'category': 'Inventory/Delivery',
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',

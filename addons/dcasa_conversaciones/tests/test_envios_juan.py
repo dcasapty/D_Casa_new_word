@@ -154,6 +154,29 @@ class TestCotizarEnvio(EnviosJuanCase):
         self.cotizar({'codigo': 'ZZ-SOFA'})
         self.assertEqual(self.agregar(self.costa)['motivo'], 'apagado')
 
+    def test_h20_un_lugar_que_agrego_una_vendedora_no_tiene_precio_para_el_cliente(self):
+        """Revisión adversarial (I7): hasta que Gerencia lo revise, el costo se lo confirma una vendedora."""
+        vendedora = new_test_user(self.env, login='vend_h20', name='Vendedora H20',
+                                  groups='base.group_user,dcasa_base.group_vendedora')
+        nuevo = self.env['dcasa.envio.lugar'].with_user(vendedora).create({
+            'name': 'Residencial Inventado H20', 'tipo': 'barrio', 'dist': 'Colón', 'corr': 'Barrio Simulado',
+            'km': 1.0})
+        self.assertTrue(self.env['dcasa.envio.tarifa']._estado_publico()['aprobada'], 'la tarifa sigue aprobada')
+        for argumentos in ({'lugar': 'Residencial Inventado H20'}, {'lugar_id': nuevo.id}):
+            with self.subTest(argumentos=argumentos):
+                datos = self.envio(**argumentos)
+                self.assertEqual(datos['estado'], 'aparte')
+                self.assertEqual(datos['frase_para_el_cliente'],
+                                 'El costo del envío a Residencial Inventado H20 te lo confirma una vendedora.')
+                self.assertIn('pasar_a_vendedora', datos['instruccion'])
+                self.assertNotIn('$', json.dumps(datos))
+        self.cotizar({'codigo': 'ZZ-SOFA'})
+        no = self.agregar(nuevo)
+        self.assertEqual((no['sumado'], no['motivo']), (False, 'sin_revisar'))
+        self.assertFalse(self.ordenes().order_line.filtered('is_delivery'))
+        nuevo.with_user(self.gerencia).action_marcar_revisado()
+        self.assertEqual(self.envio(lugar='Residencial Inventado H20')['estado'], 'precio')
+
     def test_la_direccion_exacta_no_se_usa_para_buscar(self):
         self.assertEqual(R.quitar_direccion_exacta('Costa Inventada, calle 3, casa 45'), 'Costa Inventada, calle 3')
         self.assertEqual(R.quitar_direccion_exacta('PH Torre Ensayo, apto 4B, piso 12'), 'PH Torre Ensayo')
