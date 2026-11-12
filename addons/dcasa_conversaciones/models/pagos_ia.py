@@ -1,17 +1,17 @@
-"""Pagos de la IA en «Costos de IA» (pedido de la dueña, 2026-11-12): anotar que Meta ya cobró, para ir a la par.
+"""«Pagar» en «Costos de IA» (pedido de la dueña, 2026-11-12): el saldo con Meta vuelve a cero y empieza a contar.
 
-«Me está diciendo lo que cuesta, lo que se consume… pero ya se me cobró hace mucho el consumo en Meta y volví a empezar
-en Meta. Quisiera poder ponerle que ya se pagó, y así ir a la par.»
+«Me gustaría que un botón diga pagar y que el saldo que ya había ¡fuap! ya salga como pago y que la cuenta empiece de
+nuevo.» Arriba de la pantalla, «Por pagar a Meta» (lo consumido desde el último pago; sin pagos, lo del mes, como antes)
+y el botón «Pagar» con una sola confirmación. Debajo, «Último pago» con «Deshacer» por si se tocó sin querer.
 
-Un pago NO borra ni reinicia lo consumido: marca un corte (las cuentas y sus bordes, en ``panel_calculos.py``,
-«Consumido desde el último pago»). Es un libro, como los demás del sistema: un pago registrado no se edita ni se borra;
-si está mal, se ANULA con su motivo (queda en la historia, con quién y cuándo) y se anota el bueno. Solo Gerencia y
-administradores; se escribe solo por los métodos del panel, que comprueban el grupo ANTES del ``sudo()`` (el ACL solo da
-lectura, así que nadie lo crea ni lo cambia por RPC con un acumulado inventado).
+Por dentro NADA se borra ni se reinicia: cada pago es un CORTE en la línea del gasto (las cuentas y sus bordes,
+en ``panel_calculos.py``, «Consumido desde el último pago»). Es un libro, como los demás del sistema: un pago no se
+edita ni se borra; «Deshacer» lo ANULA con su motivo (queda en la historia, con quién y cuándo). El corte es siempre
+exacto: se le pide al Worker al pagar y, si no responde, no se registra nada (un corte adivinado dejaría el saldo mal).
+Solo Gerencia y administradores; se escribe solo por los métodos del panel, que comprueban el grupo ANTES del
+``sudo()`` (el ACL solo da lectura: nadie lo crea ni lo cambia por RPC con un acumulado inventado).
 """
 import math
-import re
-from datetime import datetime, timedelta
 
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError
@@ -20,14 +20,9 @@ from . import horario as H
 from . import panel_calculos as C
 
 GRUPOS_DE_PAGOS = ('sales_team.group_sale_manager', 'base.group_system')
-# Un pago con fecha a menos de estos minutos de este momento es «ahora»: el corte lo da el Worker.
-MINUTOS_AHORA = 10
-DIAS_ATRAS_MAX = 400
 MAX_MONTO = 100_000
-MAX_TEXTO = 300
-MAX_EN_LISTA = 12
-MESES_CORTOS = ('ene.', 'feb.', 'mar.', 'abr.', 'may.', 'jun.', 'jul.', 'ago.', 'sept.', 'oct.', 'nov.', 'dic.')
-FECHA_LOCAL = re.compile(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?')
+MOTIVO_DESHACER = 'Deshecho desde la pantalla'
+MESES_CORTOS = ('ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sept', 'oct', 'nov', 'dic')
 # Lo único que se escribe de un pago después de crearlo: su anulación (por ``_anular``).
 CAMPOS_DE_ANULAR = frozenset({'anulado', 'anulado_el', 'anulado_por', 'motivo_anulacion'})
 _ANULANDO = 'dcasa_pago_ia_anulando'
@@ -98,195 +93,95 @@ class DcasaJuanPanelPagos(models.AbstractModel):
     @api.model
     def _exigir_pagos(self):
         if not self.env.su and not any(self.env.user.has_group(grupo) for grupo in GRUPOS_DE_PAGOS):
-            raise AccessError(self.env._('Solo Gerencia o un administrador ve y anota los pagos de la IA.'))
+            raise AccessError(self.env._('Solo Gerencia o un administrador ve y marca los pagos de la IA.'))
 
     # ------------------------------------------------------------------
-    # Anotar y anular
+    # Pagar y deshacer
     # ------------------------------------------------------------------
 
     @api.model
-    def registrar_pago_ia(self, fecha=None, monto=None, nota=None):
-        """Anota un pago de la IA. ``fecha``: «AAAA-MM-DDTHH:MM» en la hora de Panamá (``None`` = ahora); ``monto``: lo
-        que cobró Meta en dólares (``None`` si no lo sabe); ``nota``: texto libre corto. Solo Gerencia y
-        administradores. Devuelve ``{ok, id, exacto, corte}`` (``corte``: de dónde salió, dicho para una persona)."""
+    def pagar_ia(self, saldo):
+        """«Pagar»: lo que había por pagar a Meta (``saldo``, el que vio la persona en la pantalla) queda como pagado
+        AHORA y la cuenta empieza de nuevo. El corte se le pide al Worker; si no responde, no se registra nada.
+        Solo Gerencia y administradores. Devuelve ``{ok, id, monto}``."""
         self._exigir_pagos()
-        horario = self._horario()
-        ahora = fields.Datetime.now()
-        momento = self._fecha_del_pago(fecha, ahora, horario)
-        monto = self._monto_del_pago(monto)
-        nota = self._texto_corto(nota)
-        es_ahora = abs(momento - ahora) <= timedelta(minutes=MINUTOS_AHORA)
-        acumulado = None
-        if es_ahora:
-            # Se le pregunta al Worker cuánto va el mes (y de paso queda la foto de hoy).
-            gasto = (self._tomar_foto_de_costos() or {}).get('gasto_ia_mes_usd')
-            acumulado = float(gasto) if _numero(gasto) and gasto >= 0 else None
-        local = H.a_local(momento, horario)
-        fotos = {f.fecha: f.acumulado_usd for f in self.env['dcasa.juan.costo.dia'].sudo().search(
-            [('mes', '=', local.strftime('%Y-%m'))])}
-        corte = C.corte_del_pago(local, fotos, es_ahora=es_ahora, acumulado_worker=acumulado)
-        valores = {
-            'fecha': momento, 'nota': nota or False, 'registrado_por': self.env.user.id, 'al_momento': es_ahora,
-            'corte_mes': corte['mes'], 'corte_acumulado_usd': corte['acumulado'], 'corte_origen': corte['origen'],
-            'corte_foto': corte['foto'] or False,
-        }
-        if monto is not None:
-            valores['monto_meta_usd'] = monto
-        pago = self.env['dcasa.juan.pago.ia'].sudo().create(valores)
-        return {'ok': True, 'id': pago.id, 'exacto': pago.corte_origen == 'worker',
-                'corte': self._texto_del_corte(pago, horario)}
+        if not _numero(saldo) or saldo < 0 or saldo > MAX_MONTO:
+            raise UserError(self.env._('El saldo no se entiende: vuelve a abrir la pantalla.'))
+        saldo = round(float(saldo), 2)
+        if saldo <= 0:
+            raise UserError(self.env._('No hay nada por pagar.'))
+        gasto = (self._tomar_foto_de_costos() or {}).get('gasto_ia_mes_usd')   # y de paso queda la foto de hoy
+        if not _numero(gasto) or gasto < 0:
+            raise UserError(self.env._('No pude hablar con Juan: inténtalo en un momento.'))
+        ahora = self._ahora_local()
+        actual = self._saldo_ia((ahora.strftime('%Y-%m'), float(gasto)))
+        # Lo que se vio no puede ser más que lo que hay ahora (el gasto solo crece): si no, la pantalla estaba vieja.
+        if actual['saldo'] is not None and saldo > actual['saldo'] + 0.01:
+            raise UserError(self.env._('El saldo cambió: vuelve a abrir la pantalla.'))
+        corte = C.corte_del_pago(ahora, {}, es_ahora=True, acumulado_worker=float(gasto))
+        pago = self.env['dcasa.juan.pago.ia'].sudo().create({
+            'fecha': fields.Datetime.now(), 'monto_meta_usd': saldo, 'registrado_por': self.env.user.id,
+            'al_momento': True, 'corte_mes': corte['mes'], 'corte_acumulado_usd': corte['acumulado'],
+            'corte_origen': corte['origen'],
+        })
+        return {'ok': True, 'id': pago.id, 'monto': saldo}
 
     @api.model
-    def anular_pago_ia(self, pago_id, motivo):
-        """Anula un pago con su motivo (queda en la historia; ya no cuenta para nada). Solo Gerencia y
+    def deshacer_pago_ia(self, pago_id):
+        """«Deshacer» el último pago (por si se tocó sin querer): se anula con el motivo «Deshecho desde la pantalla»
+        (queda en la historia) y el saldo vuelve a como estaba. Solo el último que cuenta; solo Gerencia y
         administradores."""
         self._exigir_pagos()
         if not isinstance(pago_id, int) or isinstance(pago_id, bool):
             raise UserError(self.env._('Pago desconocido.'))
-        motivo = self._texto_corto(motivo)
-        if not motivo:
-            raise UserError(self.env._('Escribe por qué lo anulas: queda en la historia.'))
-        pago = self.env['dcasa.juan.pago.ia'].sudo().browse(pago_id).exists()
-        if not pago:
-            raise UserError(self.env._('Ese pago no existe.'))
-        if pago.anulado:
-            raise UserError(self.env._('Ese pago ya estaba anulado.'))
-        pago._anular(motivo)
+        ultimo = self._ultimo_pago_ia()
+        if not ultimo or ultimo.id != pago_id:
+            raise UserError(self.env._('Solo se puede deshacer el último pago: vuelve a abrir la pantalla.'))
+        ultimo._anular(MOTIVO_DESHACER)
         return {'ok': True}
 
-    @api.model
-    def _fecha_del_pago(self, fecha, ahora, horario):
-        """«AAAA-MM-DDTHH:MM» en la hora de Panamá → UTC ingenuo. ``None`` o vacío = ``ahora``."""
-        if fecha in (None, False, ''):
-            return ahora
-        if not isinstance(fecha, str) or not FECHA_LOCAL.fullmatch(fecha.strip()):
-            raise UserError(self.env._('La fecha del pago no se entiende: elige el día y la hora.'))
-        try:
-            local = datetime.fromisoformat(fecha.strip())
-        except ValueError:
-            raise UserError(self.env._('La fecha del pago no se entiende: elige el día y la hora.')) from None
-        momento = H.a_utc(local.replace(tzinfo=H.cargar_zona(horario.zona)))
-        if momento > ahora + timedelta(minutes=MINUTOS_AHORA):
-            raise UserError(self.env._('La fecha del pago no puede ser en el futuro.'))
-        if momento < ahora - timedelta(days=DIAS_ATRAS_MAX):
-            raise UserError(self.env._('Esa fecha es de hace más de un año: revisa el año.'))
-        return min(momento, ahora)   # unos minutos «adelante» (el reloj del teléfono) son ahora
-
-    @api.model
-    def _monto_del_pago(self, monto):
-        if monto in (None, False, ''):
-            return None
-        if isinstance(monto, str):
-            try:
-                monto = float(monto.strip().replace(',', '.'))
-            except ValueError:
-                raise UserError(self.env._('Lo que cobró Meta tiene que ser un número (o déjalo vacío).')) from None
-        if not _numero(monto) or monto < 0 or monto > MAX_MONTO:
-            raise UserError(self.env._('Lo que cobró Meta tiene que ser un número (o déjalo vacío).'))
-        return round(float(monto), 2) or None
-
-    @api.model
-    def _texto_corto(self, texto):
-        if texto in (None, False):
-            return ''
-        if not isinstance(texto, str):
-            raise UserError(self.env._('Texto inválido.'))
-        return ' '.join(texto.split())[:MAX_TEXTO]
-
     # ------------------------------------------------------------------
-    # Lo que ve la pantalla
+    # El saldo
     # ------------------------------------------------------------------
 
     @api.model
-    def _pagos_ia(self, ahora=None):
-        """Los pagos para «Costos de IA»: la cifra «desde el último pago» (solo con ``ahora`` = ``(mes, acumulado)``
-        que acaba de decir el Worker) y la lista corta (los más recientes, anulados incluidos)."""
-        horario = self._horario()
-        datos = {'hay': False, 'total': 0, 'zona': horario.zona,
-                 'ahora_local': self._ahora_local().strftime('%Y-%m-%dT%H:%M'),
-                 'desde_el_ultimo': None, 'ultimo': None, 'lista': []}
+    def _ultimo_pago_ia(self):
+        """El último pago que cuenta (el más reciente sin anular), o un registro vacío."""
+        return self.env['dcasa.juan.pago.ia'].sudo().search([('anulado', '=', False)], limit=1)
+
+    @api.model
+    def _saldo_ia(self, ahora=None):
+        """«Por pagar a Meta» con ``ahora`` = ``(mes, acumulado)`` que acaba de decir el Worker (sin él, ``None``).
+
+        Con pagos, lo consumido desde el último (``periodos_de_pagos``); sin pagos, lo del mes, como siempre mostró la
+        pantalla. ``aprox``: a algún mes de en medio le faltan fotos (la cifra es un mínimo). Devuelve
+        ``{saldo, aprox, ultimo}``; ``ultimo`` = ``{id, monto, texto}`` o ``None``."""
+        datos = {'saldo': None, 'aprox': False, 'ultimo': None}
         if not self.env.su and not any(self.env.user.has_group(grupo) for grupo in GRUPOS_DE_PAGOS):
             return datos
-        registros = self.env['dcasa.juan.pago.ia'].sudo().search([])   # pocos: uno por cobro de Meta
-        if not registros:
-            return datos
-        vigentes = registros.filtered(lambda p: not p.anulado)
-        fotos = {}
+        vigentes = self.env['dcasa.juan.pago.ia'].sudo().search([('anulado', '=', False)])
         if vigentes:
-            fotos = {f.fecha: f.acumulado_usd for f in self.env['dcasa.juan.costo.dia'].sudo().search(
-                [('mes', '>=', min(vigentes.mapped('corte_mes')))])}
-        cuentas, desde = C.periodos_de_pagos([{
+            ultimo = vigentes[0]
+            datos['ultimo'] = {'id': ultimo.id, 'monto': ultimo.monto_meta_usd or 0.0,
+                               'texto': self._fecha_corta(ultimo.fecha)}
+        if ahora is None:
+            return datos
+        if not vigentes:
+            datos['saldo'] = round(max(float(ahora[1]), 0.0), 2)
+            return datos
+        fotos = {f.fecha: f.acumulado_usd for f in self.env['dcasa.juan.costo.dia'].sudo().search(
+            [('mes', '>=', min(vigentes.mapped('corte_mes')))])}
+        _cuentas, desde = C.periodos_de_pagos([{
             'id': p.id, 'fecha': p.fecha, 'corte': (p.corte_mes, p.corte_acumulado_usd),
-            'exacto': p.corte_origen == 'worker', 'monto': p.monto_meta_usd or None, 'anulado': p.anulado,
-        } for p in registros], C.cierres_de_mes(fotos), ahora)
-        primero = min(vigentes, key=lambda p: (p.fecha, p.id)) if vigentes else None
-        lista = []
-        for pago in registros[:MAX_EN_LISTA]:
-            cuenta = cuentas[pago.id]
-            calculado = cuenta['calculado']
-            lista.append({
-                'id': pago.id, 'fecha': H.a_iso(pago.fecha), 'fecha_texto': self._fecha_corta(pago.fecha, horario),
-                'monto': pago.monto_meta_usd or None, 'nota': pago.nota or '',
-                'registrado_por': pago.registrado_por.name or '',
-                'calculado': calculado['usd'] if calculado else None,
-                'calculado_completo': bool(calculado and calculado['completo']),
-                'aproximado': cuenta['aproximado'], 'diferencia': cuenta['diferencia'],
-                'primero': pago == primero, 'exacto': pago.corte_origen == 'worker',
-                'corte': self._texto_del_corte(pago, horario),
-                'anulado': pago.anulado,
-                'anulado_texto': (self.env._('Anulado por %(quien)s el %(cuando)s: %(motivo)s',
-                                             quien=pago.anulado_por.name or '',
-                                             cuando=self._fecha_corta(pago.anulado_el, horario),
-                                             motivo=pago.motivo_anulacion or '') if pago.anulado else ''),
-            })
-        ultimo = max(vigentes, key=lambda p: (p.fecha, p.id)) if vigentes else None
-        if ultimo:
-            datos['ultimo'] = {'id': ultimo.id, 'fecha_texto': H.texto_fecha_hora(ultimo.fecha, horario),
-                               'monto': ultimo.monto_meta_usd or None}
-        if desde:
-            faltan = desde['meses_sin_datos'] + desde['meses_incompletos']
-            datos['desde_el_ultimo'] = {
-                'usd': desde['usd'], 'completo': desde['completo'], 'aproximado': desde['aproximado'],
-                'meses_sin_datos': [self._nombre_del_mes(m) for m in desde['meses_sin_datos']],
-                'meses_incompletos': [self._nombre_del_mes(m) for m in desde['meses_incompletos']],
-                'faltan_texto': ', '.join(self._nombre_del_mes(m) for m in sorted(faltan)),
-                'corte': self._texto_del_corte(ultimo, horario),
-            }
-        datos.update(hay=True, total=len(registros), lista=lista)
+            'exacto': p.corte_origen == 'worker', 'monto': p.monto_meta_usd or None, 'anulado': False,
+        } for p in vigentes], C.cierres_de_mes(fotos), ahora)
+        datos.update(saldo=desde['usd'], aprox=not desde['completo'] or desde['aproximado'])
         return datos
 
     @api.model
-    def _nombre_del_mes(self, mes):
-        anio, numero = (int(x) for x in mes.split('-'))
-        return f'{H.MESES[numero - 1]} de {anio}'
-
-    @api.model
-    def _fecha_corta(self, utc, horario):
-        """«12 nov. 2026, 10:42 a. m.» en la hora de Panamá."""
-        if not utc:
-            return ''
+    def _fecha_corta(self, utc):
+        """«11 nov, 9:30 p. m.» (y el año si no es el de ahora), en la hora de Panamá."""
+        horario = self._horario()
         local = H.a_local(utc, horario)
-        return f'{local.day} {MESES_CORTOS[local.month - 1]} {local.year}, {H.texto_hora_amable(local.time())}'
-
-    @api.model
-    def _texto_del_corte(self, pago, horario):
-        """De dónde salió el corte de ese pago, dicho para una persona (y por qué es exacto o aproximado)."""
-        if pago.corte_origen == 'worker':
-            return self.env._('Corte exacto: el gasto del mes que dijo el Worker al anotar el pago.')
-        despues = self.env._('Lo que se consumió entre ese punto y el pago se cuenta después del pago.')
-        if pago.corte_origen == 'foto':
-            foto = pago.corte_foto
-            dia = f'{foto.day} de {H.MESES[foto.month - 1]}' if foto else ''
-            if pago.al_momento:
-                return self.env._('Corte aproximado: el Worker no respondió al anotarlo y se usó la foto del gasto '
-                                  'del %(dia)s. %(despues)s', dia=dia, despues=despues)
-            return self.env._('Corte aproximado: el pago es de otro momento y se usó la foto del gasto del %(dia)s, '
-                              'la última antes del pago. %(despues)s', dia=dia, despues=despues)
-        anio, numero = (int(x) for x in pago.corte_mes.split('-'))
-        dia = f'1 de {H.MESES[numero - 1]}'
-        if pago.al_momento:
-            return self.env._('Corte aproximado: el Worker no respondió al anotarlo y todavía no había fotos del mes; '
-                              'se cuenta desde el %(dia)s, cuando el gasto empezó en cero. %(despues)s',
-                              dia=dia, despues=despues)
-        return self.env._('Corte aproximado: no hay fotos de ese mes antes del pago; se cuenta desde el %(dia)s, '
-                          'cuando el gasto empezó en cero. %(despues)s', dia=dia, despues=despues)
+        anio = '' if local.year == self._ahora_local().year else f' {local.year}'
+        return f'{local.day} {MESES_CORTOS[local.month - 1]}{anio}, {H.texto_hora_amable(local.time())}'

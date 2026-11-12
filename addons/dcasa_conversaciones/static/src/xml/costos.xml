@@ -4,9 +4,6 @@
     <t t-name="dcasa_conversaciones.Costos">
         <div class="o_dcj_p o_action">
             <EncabezadoJuan titulo="'Costos de IA'" subtitulo="'Cuánto cuesta que el asistente conteste. Lo mide el Worker de Juan; aquí solo se ve.'" actual="'costos'" esGerencia="true">
-                <button type="button" class="btn btn-primary o_dcj_p_boton o_dcj_p_registrar_pago" t-on-click="registrarPago">
-                    <i class="fa fa-check-square-o" aria-hidden="true"/> Registrar pago
-                </button>
                 <button type="button" class="btn btn-secondary o_dcj_p_boton" t-att-disabled="state.cargando" t-on-click="() => this.cargar()">
                     <i t-attf-class="fa fa-refresh #{state.cargando ? 'fa-spin' : ''}" aria-hidden="true"/> Actualizar
                 </button>
@@ -32,18 +29,18 @@
                 </section>
 
                 <t t-elif="d">
-                    <section t-if="pagos and pagos.desde_el_ultimo" class="o_dcj_p_desde_pago" aria-labelledby="o_dcj_desde_pago_titulo">
-                        <t t-set="desde" t-value="pagos.desde_el_ultimo"/>
-                        <div>
-                            <h2 id="o_dcj_desde_pago_titulo">Consumido desde el último pago</h2>
-                            <p class="o_dcj_p_cifra_pago"><span t-if="!desde.completo" class="o_dcj_p_al_menos">al menos </span><t t-out="usd(desde.usd)"/></p>
-                            <p class="o_dcj_p_detalle">Desde el pago del <strong t-out="pagos.ultimo.fecha_texto"/><t t-if="pagos.ultimo.monto"> (Meta cobró <t t-out="usd(pagos.ultimo.monto)"/>).</t></p>
+                    <section t-if="pagos and pagos.saldo !== null" class="o_dcj_p_saldo" aria-labelledby="o_dcj_saldo_titulo">
+                        <div class="o_dcj_p_saldo_cifra">
+                            <h2 id="o_dcj_saldo_titulo">Por pagar a Meta</h2>
+                            <p class="o_dcj_p_cifra_saldo"><t t-out="usd(pagos.saldo)"/><span t-if="pagos.aprox" class="o_dcj_p_aprox" title="Faltan fotos del gasto de algún mes: puede ser un poco más."> aprox.</span></p>
+                            <p t-if="pagos.ultimo" class="o_dcj_p_ultimo_pago">
+                                Último pago: <strong t-out="usd(pagos.ultimo.monto)"/>, <t t-out="pagos.ultimo.texto"/> ·
+                                <button type="button" class="o_dcj_enlace o_dcj_p_deshacer" t-att-disabled="state.deshaciendo" t-on-click="deshacer">Deshacer</button>
+                            </p>
                         </div>
-                        <div class="o_dcj_p_desde_pago_notas">
-                            <p>Lo de <t t-out="d.mes_nombre"/> sigue completo aquí abajo: un pago no borra nada, solo marca desde dónde contar.</p>
-                            <p t-if="desde.aproximado"><i class="fa fa-info-circle" aria-hidden="true"/> <t t-out="desde.corte"/></p>
-                            <p t-if="!desde.completo" class="o_dcj_p_falta"><i class="fa fa-exclamation-triangle" aria-hidden="true"/> Faltan fotos del gasto de <t t-out="desde.faltan_texto"/> (Odoo no las tomó): la cifra es un mínimo, no se adivina.</p>
-                        </div>
+                        <button type="button" class="btn btn-primary o_dcj_p_boton o_dcj_p_pagar" t-att-disabled="pagos.saldo &lt;= 0" t-on-click="pagar">
+                            <i class="fa fa-check" aria-hidden="true"/> Pagar
+                        </button>
                     </section>
 
                     <section class="o_dcj_p_hero" aria-labelledby="o_dcj_gasto_titulo">
@@ -69,7 +66,6 @@
                         <p><strong>Sin precio cargado:</strong> <t t-out="d.modelos_sin_precio.join(', ')"/>. El gasto de ese modelo es una estimación con una tarifa alta de reserva, para que el tope proteja. Carga el precio en Ajustes de Juan (precios de la IA).</p>
                     </div>
 
-                    <t t-if="pagos and pagos.hay" t-call="dcasa_conversaciones.CostosPagos"/>
 
                     <section class="o_dcj_p_tarjeta">
                         <header class="o_dcj_p_tarjeta_cabecera">
@@ -123,96 +119,18 @@
                         <p t-if="d.ia.claves_faltantes.length" class="o_dcj_error">Falta cargar en el Worker: <code t-foreach="d.ia.claves_faltantes" t-as="n" t-key="n" t-out="n"/></p>
                     </section>
                 </t>
-                <!-- Sin el Worker (o sin conectar) igual se ven y se anotan los pagos. -->
-                <t t-if="!state.error and d and !d.ok and pagos and pagos.hay" t-call="dcasa_conversaciones.CostosPagos"/>
             </div>
         </div>
     </t>
 
-    <!-- La lista corta de los pagos anotados (también sin Worker) -->
-    <t t-name="dcasa_conversaciones.CostosPagos">
-        <section class="o_dcj_p_tarjeta o_dcj_p_pagos" aria-labelledby="o_dcj_pagos_titulo">
-            <header class="o_dcj_p_tarjeta_cabecera">
-                <h2 id="o_dcj_pagos_titulo">Pagos registrados</h2>
-                <span t-if="pagos.total > pagos.lista.length" class="o_dcj_secundario">Los <t t-out="pagos.lista.length"/> más recientes de <t t-out="pagos.total"/></span>
-            </header>
-            <p t-if="pagos.ultimo and !pagos.desde_el_ultimo" class="o_dcj_p_detalle">Lo consumido desde el último pago (<t t-out="pagos.ultimo.fecha_texto"/>) se ve cuando el Worker responde.</p>
-            <table class="o_dcj_p_tabla o_dcj_p_tabla_pagos">
-                <caption class="o_dcj_solo_lector">Pagos de la IA: lo que calculó el sistema para cada periodo y lo que cobró Meta</caption>
-                <thead>
-                    <tr>
-                        <th scope="col">Fecha del pago</th>
-                        <th scope="col" class="o_dcj_num">Calculó el sistema</th>
-                        <th scope="col" class="o_dcj_num">Cobró Meta</th>
-                        <th scope="col" class="o_dcj_num">Diferencia</th>
-                        <th scope="col"><span class="o_dcj_solo_lector">Anular</span></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr t-foreach="pagos.lista" t-as="p" t-key="p.id" class="o_dcj_p_pago" t-att-class="{ o_anulado: p.anulado }">
-                        <th scope="row">
-                            <span class="o_dcj_p_pago_fecha"><t t-out="p.fecha_texto"/><span t-if="p.anulado" class="o_dcj_insignia">Anulado</span></span>
-                            <span class="o_dcj_p_pago_quien">Lo anotó <t t-out="p.registrado_por"/><t t-if="p.nota"> · <t t-out="p.nota"/></t></span>
-                            <span t-if="p.anulado" class="o_dcj_p_pago_quien" t-out="p.anulado_texto"/>
-                        </th>
-                        <td class="o_dcj_num o_dcj_p_pago_calculado" data-etiqueta="Calculó el sistema">
-                            <t t-if="p.anulado">—</t>
-                            <span t-elif="p.primero" class="o_dcj_secundario" title="Es el primer pago anotado: no hay un pago anterior desde donde contar.">primer pago</span>
-                            <t t-else=""><t t-if="!p.calculado_completo">al menos </t><t t-out="usd(p.calculado)"/><span t-if="p.aproximado" class="o_dcj_secundario" t-att-title="p.corte"> (aprox.)</span></t>
-                        </td>
-                        <td class="o_dcj_num o_dcj_p_pago_meta" data-etiqueta="Cobró Meta"><t t-if="p.monto" t-out="usd(p.monto)"/><span t-else="" class="o_dcj_secundario">sin anotar</span></td>
-                        <td class="o_dcj_num o_dcj_p_pago_diferencia" data-etiqueta="Diferencia" t-out="p.anulado ? '—' : textoDiferencia(p)"/>
-                        <td class="o_dcj_p_pago_acciones">
-                            <button t-if="!p.anulado" type="button" class="btn btn-secondary o_dcj_p_boton o_dcj_p_anular" t-on-click="() => this.anularPago(p)"
-                                    t-att-aria-label="'Anular el pago del ' + p.fecha_texto">Anular</button>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-            <p class="o_dcj_ayuda">«Calculó el sistema» es lo que se consumió entre el pago anterior y ese pago; «Diferencia», cuánto cobró Meta de más o de menos. El primer pago no tiene con qué compararse. Un pago mal anotado se anula con su motivo: queda aquí, pero ya no cuenta.</p>
-        </section>
-    </t>
-
-    <!-- Registrar un pago -->
-    <t t-name="dcasa_conversaciones.DialogoPagoIa">
-        <Dialog title="'Registrar un pago de la IA'" size="'md'" contentClass="'o_dcj_p_dialogo'">
-            <form class="o_dcj_p_formulario" t-on-submit="guardar">
-                <p class="o_dcj_p_dialogo_nota">Anótalo cuando Meta te cobre. Lo consumido no se borra: el pago solo marca desde dónde contar «Consumido desde el último pago».</p>
-                <label for="o_dcj_pago_fecha">¿Cuándo te cobró Meta?</label>
-                <input id="o_dcj_pago_fecha" type="datetime-local" class="form-control o_dcj_pago_fecha" t-att-value="state.fecha"
-                       t-att-max="maximo" t-on-input="cambiarFecha" required="required"/>
-                <p class="o_dcj_p_dialogo_ayuda">Si fue ahora, déjalo así: el sistema le pregunta al Worker cuánto va el mes y el corte queda exacto.</p>
-                <label for="o_dcj_pago_monto">¿Cuánto cobró Meta? <span class="o_dcj_p_dialogo_ayuda">(si no lo sabes, déjalo vacío)</span></label>
-                <div class="input-group">
-                    <span class="input-group-text" aria-hidden="true">$</span>
-                    <input id="o_dcj_pago_monto" type="number" inputmode="decimal" min="0" step="0.01" class="form-control o_dcj_pago_monto" t-model="state.monto"/>
-                </div>
-                <label for="o_dcj_pago_nota">Nota <span class="o_dcj_p_dialogo_ayuda">(opcional)</span></label>
-                <input id="o_dcj_pago_nota" type="text" maxlength="300" class="form-control o_dcj_pago_nota" t-model="state.nota" placeholder="Por ejemplo: cobro a la tarjeta"/>
-                <p t-if="state.error" class="alert alert-danger mb-0" role="alert" t-out="state.error"/>
-                <button type="submit" class="d-none" tabindex="-1" aria-hidden="true"/>
-            </form>
+    <!-- «Pagar»: una sola confirmación, sin campos -->
+    <t t-name="dcasa_conversaciones.DialogoPagar">
+        <Dialog title="'Pagar'" size="'md'" contentClass="'o_dcj_p_dialogo'">
+            <p class="o_dcj_p_dialogo_pregunta">¿Ya le pagaste <strong t-out="props.texto"/> a Meta? El saldo vuelve a $0 y empieza a contar de nuevo.</p>
+            <p t-if="state.error" class="alert alert-danger mb-0 mt-3" role="alert" t-out="state.error"/>
             <t t-set-slot="footer">
-                <button type="button" class="btn btn-primary o_dcj_p_guardar_pago" t-att-disabled="state.guardando" t-on-click="guardar">Registrar pago</button>
+                <button type="button" class="btn btn-primary o_dcj_p_si_pague" t-att-disabled="state.pagando" t-on-click="pagar">Sí, ya pagué</button>
                 <button type="button" class="btn btn-secondary" t-on-click="() => this.props.close()">Cancelar</button>
-            </t>
-        </Dialog>
-    </t>
-
-    <!-- Anular un pago -->
-    <t t-name="dcasa_conversaciones.DialogoAnularPago">
-        <Dialog title="'Anular el pago'" size="'md'" contentClass="'o_dcj_p_dialogo'">
-            <form class="o_dcj_p_formulario" t-on-submit="anular">
-                <p class="o_dcj_p_dialogo_nota">El pago del <strong t-out="props.pago.fecha_texto"/> no se borra: queda en la lista como anulado, con tu motivo, y deja de contar.</p>
-                <label for="o_dcj_pago_motivo">¿Por qué lo anulas?</label>
-                <input id="o_dcj_pago_motivo" type="text" maxlength="300" class="form-control o_dcj_pago_motivo" t-model="state.motivo"
-                       placeholder="Por ejemplo: me equivoqué de fecha" required="required"/>
-                <p t-if="state.error" class="alert alert-danger mb-0" role="alert" t-out="state.error"/>
-                <button type="submit" class="d-none" tabindex="-1" aria-hidden="true"/>
-            </form>
-            <t t-set-slot="footer">
-                <button type="button" class="btn btn-danger o_dcj_p_confirmar_anular" t-att-disabled="state.guardando" t-on-click="anular">Sí, anular</button>
-                <button type="button" class="btn btn-secondary" t-on-click="() => this.props.close()">No, dejarlo</button>
             </t>
         </Dialog>
     </t>
