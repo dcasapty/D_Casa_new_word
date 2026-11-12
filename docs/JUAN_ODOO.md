@@ -396,23 +396,30 @@ responsable por defecto y el aviso sale a todo el equipo («Nadie estaba disponi
   devuelve, la conversación es de esa persona y no se mueve más.
 * **Nadie acapara los chats de la noche** (decisión de la dueña, 2026-11-12). *Máximo de clientes esperándole a la vez*
   (3 por defecto; 0 = sin límite; máximo 50): «esperándole» = clientes que el reparto le dio en los últimos 7 días y que nadie
-  ha contestado. «Pasar a otra» y los que esperan sin dueña no le dan a nadie por encima del tope: a las 8:00 la primera que
-  llega recibe 3, y las que van llegando, los demás, siempre a la que lleva menos ese día. Cuando una contesta o toma un
-  cliente del reparto y hay chats sin dueña esperando, la siguiente vuelta se adelanta (no espera los 5 minutos). De día, el
-  «Parejo» salta a quien ya llegó al tope si hay otra activa con lugar; si todas lo alcanzaron, se asigna igual (de día nadie
-  queda sin dueña por el tope) y «su vendedora de siempre» lo recibe aunque esté llena. «Por turnos» no mira el tope.
+  ha contestado. Los que esperan **desde antes de abrir** no se le dan a quien ya tiene N esperándole: se reparten de a pocos
+  entre las que van llegando, siempre a la que lleva menos ese día. «Pasar a otra» tampoco le pasa un cliente a quien está
+  llena (se queda con quien lo tenía). Un cliente que quedó sin dueña **dentro del horario** se da aunque todas estén llenas,
+  a la que lleva menos. Vale con «Parejo» y «Por turnos». Al repartir un cliente nuevo, «Parejo» salta a quien está llena si
+  hay otra activa con lugar (si todas lo están, se asigna igual; «su vendedora de siempre» lo recibe aunque esté llena); «Por
+  turnos» no lo mira. Cuando una contesta o toma un cliente del reparto y hay chats sin dueña esperando, la siguiente vuelta
+  se adelanta. «Ya la atendí» saca la conversación del reparto (deja de contar para el tope y no pasa a otra).
 * **El cliente de otra vendedora** (decisión de la dueña, 2026-11-12: «solamente es para las vendedoras»). Todas ven todos
-  los chats, pero si una **vendedora** le escribe (texto, adjunto, programado, foto del catálogo, cotización) o toca
-  «Atender» en un chat que atiende **otra vendedora activa** (la misma definición de «activa» del reparto, aunque el reparto
-  esté apagado), antes le sale «Este cliente lo atiende Ana. ¿Lo tomas tú?»: **Sí, lo tomo** (se envía y el cliente queda con
-  ella), **Dejarle una nota a Ana** (la caja pasa a nota interna con «@Ana»; al cliente no le sale nada) o **Cancelar** (el
-  foco empieza ahí, para que un Enter de más no le quite el cliente a nadie). El servidor lo exige igual (`tomar_de_otra`).
-  Si lo toma, queda «Beto tomó el cliente que atendía Ana.» en el hilo, una línea `tomada` en el libro y a Ana le llega un
-  Telegram. Si Ana **no** estaba activa (faltó, almuerzo, de noche), no se pregunta ni se avisa por Telegram: queda el aviso
-  en el hilo y el libro (cubrir a una compañera es ayudar). Por Telegram no se puede confirmar: si el cliente es de otra
-  activa, no se toma y se le dice que lo confirme en la pantalla. **Gerencia, administradoras y administrativos** entran,
-  responden, delegan y cambian chats como siempre: sin pregunta, sin ese aviso y sin línea `tomada`. Un chat devuelto al
-  asistente o cerrado ya no es de nadie: se toma como siempre.
+  los chats. La regla vale **solo entre vendedoras de piso** (vendedoras sin Caja ni Contabilidad, que cuentan como
+  administrativas, igual que Gerencia y las administradoras: entran, responden, delegan y cambian chats como siempre). Si
+  una vendedora de piso le escribe (texto, adjunto, programado, foto del catálogo, cotización), toca «Atender» o se elige a
+  sí misma en «Atiende» en un chat que atiende **otra vendedora de piso activa** (la misma definición de «activa» del
+  reparto, aunque el reparto esté apagado), antes le sale «Este cliente lo atiende Ana. ¿Lo tomas tú?»: **Sí, lo tomo**
+  (el cliente queda con ella), **Dejarle una nota a Ana** (la caja pasa a nota interna con «@Ana»; al cliente no le sale
+  nada) o **Cancelar** (el foco empieza ahí). El servidor lo exige igual: `tomar_de` = el id de la dueña por la que se
+  preguntó; si mientras tanto la tomó otra, se vuelve a preguntar con el nombre nuevo. Si lo toma, queda «Beto tomó el
+  cliente que atendía Ana.» en el hilo, una línea `tomada` en el libro y a Ana le llega un Telegram. Con el cliente de otra
+  vendedora activa, una vendedora **no** puede pasárselo a una tercera, dejarlo sin dueña, devolverlo al asistente ni
+  cerrarlo («pídeselo a Ana o a Gerencia»); la barra le ofrece «Atender» en vez de «Devolver». Si Ana **no** estaba activa
+  (faltó, almuerzo, de noche), no se pregunta: queda el aviso en el hilo y el libro (cubrir a una compañera es ayudar). Un
+  **mensaje programado** no sale si al llegar su hora el cliente lo atiende otra vendedora distinta de quien lo programó
+  (salvo que al programarlo se confirmó quitárselo a esa misma): queda «No salió el mensaje que Beto dejó programado…» en
+  el hilo y a Beto le llega el aviso. Por Telegram no se puede confirmar: con el cliente de otra activa, no se toma y se le
+  dice que lo confirme en la pantalla. Un chat devuelto al asistente o cerrado ya no es de nadie: se toma como siempre.
 * **Pantalla «Reparto».** Cada vendedora ve **solo lo suyo** («Mis conversaciones de hoy»). Gerencia ve además «Clientes que
   cambiaron de mano» del periodo (los 20 más recientes: cliente, cuándo, de quién, a quién y cómo: «Lo tomó al escribirle»,
   «Lo tomó con «Atender»», «Se lo asignaron», «Pasó porque no contestó») y a todo el equipo:
@@ -845,7 +852,7 @@ Conversaciones (el código OWL está en `addons/dcasa_conversaciones/static/src`
 |---|---|
 | `lista(filtros, offset, limite)` | La bandeja: `{conversaciones, total, hay_mas, sin_leer_total}`, las más recientes primero, 30 por página (máx. 100). Filtros: `canal`, `estado` (`bot`/`humano`/`cerrada`/`necesita_atencion`), `etiqueta_id`, `asignada_a_mi`, `sin_leer`, `con_oportunidad`, `busqueda` (nombre, celular o texto de cualquier mensaje). Un filtro desconocido es error. |
 | `hilo(conversacion_id, antes_de_id, limite)` | Un tramo de mensajes (50 por defecto) del más viejo al más nuevo; `antes_de_id` pide el tramo anterior; `hay_mas` dice si quedan. Incluye notas y avisos. |
-| `enviar_respuesta(conversacion_id, texto, adjuntos_ids, programar_para=None, responde_a=None)` | Contesta (toma la conversación si hace falta). `responde_a`: id de un mensaje **del cliente** de esa conversación («Responder»): el Worker recibe su id del canal en `responde_a` y lo manda citado (si no hay id del canal, sale sin cita; un mensaje de otra conversación, una nota o un aviso es error). Hasta 5 adjuntos propios, de 10 MB. Si el Worker no responde queda «por enviar». Con `programar_para` (fecha y hora ISO, entre 1 minuto y 30 días) queda «programado» y devuelve `programado: true`; no toca la conversación hasta su hora. `tomar_de_otra` (también en `tomar`, `enviar_foto_catalogo` y `enviar_cotizacion`): si quien llama es vendedora y el cliente lo atiende otra vendedora activa, sin `tomar_de_otra=True` contesta `ClienteDeOtraVendedora` (un `UserError` con el nombre y el id de la otra en `context`), que la pantalla convierte en la pregunta. |
+| `enviar_respuesta(conversacion_id, texto, adjuntos_ids, programar_para=None, responde_a=None)` | Contesta (toma la conversación si hace falta). `responde_a`: id de un mensaje **del cliente** de esa conversación («Responder»): el Worker recibe su id del canal en `responde_a` y lo manda citado (si no hay id del canal, sale sin cita; un mensaje de otra conversación, una nota o un aviso es error). Hasta 5 adjuntos propios, de 10 MB. Si el Worker no responde queda «por enviar». Con `programar_para` (fecha y hora ISO, entre 1 minuto y 30 días) queda «programado» y devuelve `programado: true`; no toca la conversación hasta su hora. `tomar_de` (también en `tomar`, `asignar`, `enviar_foto_catalogo` y `enviar_cotizacion`): si quien llama es vendedora de piso y el cliente lo atiende otra vendedora de piso activa, sin `tomar_de=<id de esa vendedora>` contesta `ClienteDeOtraVendedora` (un `UserError` con el nombre y el id de la otra en `context`), que la pantalla convierte en la pregunta. |
 | `cancelar_programado(mensaje_id)` | Borra un mensaje programado (y sus archivos) que aún no salió. Solo quien lo programó o Gerencia. `hilo()` devuelve los programados aparte, en `programados`. |
 | `tomar(conversacion_id, minutos)` · `devolver(conversacion_id, nota)` · `cerrar(conversacion_id)` | Lo mismo que los botones (una sola ruta de código). |
 | `asignar(conversacion_id, usuario_id)` | Asigna a alguien de ventas (`null` = sin asignar). |
