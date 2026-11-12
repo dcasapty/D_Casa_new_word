@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- La promoción que escribió la dueña en el Conocimiento del bot (2026-11): «Promoción solo de este mes, del
+         01/11/2026 al 30/11/2026: Envío Gratis Todo Noviembre en compras superiores a $200. Ciudad de Panamá y Panamá
+         Oeste: envío GRATIS. Colón y el Interior: te abonamos $20 de tu flete. No aplica para envíos con colchón.»
+         Sus decisiones (2026-11-12): los $200 se miden SIN ITBMS («Sin ITBMS») y «Ciudad de Panamá» es toda la
+         provincia de Panamá («Toda la provincia de Panamá»). noupdate: desde aquí la cambia Gerencia en Envíos ›
+         Promoción de envío y una actualización del módulo no la pisa. -->
+    <data noupdate="1">
+        <record id="promocion_noviembre_2026" model="dcasa.envio.promocion">
+            <field name="name">Envío Gratis Todo Noviembre</field>
+            <field name="desde">2026-11-01</field>
+            <field name="hasta">2026-11-30</field>
+            <field name="minimo">200</field>
+            <field name="mide">sin_itbms</field>
+            <field name="provincias_gratis">Panamá
+Panamá Oeste</field>
+            <field name="abono">20</field>
+            <field name="excluye_colchon" eval="True"/>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

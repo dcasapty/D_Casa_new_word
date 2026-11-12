@@ -79,7 +79,7 @@ export function seccionContrato(e: Escena) {
       const defs = await cliente().herramientas();
       expect(defs.map((d) => d.nombre).sort()).toEqual(
         [
-          "anotar_conversacion", "buscar_conocimiento", "buscar_productos", "cotizar", "crear_oportunidad", "etiquetar_conversacion", "horario_y_tienda",
+          "agregar_envio", "anotar_conversacion", "buscar_conocimiento", "buscar_productos", "cotizar", "cotizar_envio", "crear_oportunidad", "etiquetar_conversacion", "horario_y_tienda",
           "listar_categorias", "pasar_a_vendedora", "registrar_pregunta_sin_respuesta", "reglas_socios", "saldo_puntos", "ver_producto",
         ].sort(),
       );

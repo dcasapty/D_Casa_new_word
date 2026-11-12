@@ -21,6 +21,9 @@ Messenger e Instagram con el nombre público «el equipo de D'CASA». El motor d
   precios «+ ITBMS», reglas de Socios solo desde ``puntos.json``, saldo con PIN), registradas en el
   registro de Brian bajo el usuario técnico ``juan`` (sin permisos internos) y auditadas en
   ``brian.accion``. Ninguna escribe puntos, precios, stock, facturas ni pagos.
+* **Envíos** (2026-11-12, con el «sí» de la dueña): ``cotizar_envio`` da el precio de la calculadora de Envíos y la
+  promoción de envío vigente (la cuenta la hace el motor de ``dcasa_envios``) y ``agregar_envio`` lo suma a la
+  cotización de la conversación si el cliente quiere. Se apaga en Ajustes de Juan («Juan cotiza envíos»).
 * **Seguimiento**: Odoo decide quién y cuándo, solo para quien mostró intención de compra (oportunidad
   viva) y nunca compró (5 h solo en horario laboral, luego 5 días, máximo 2; ninguno si ya es cliente
   o pidió que no lo contacten) y pide al Worker que redacte y envíe.
@@ -32,8 +35,8 @@ Contrato completo: docs/JUAN.md. Guía para la dueña: docs/JUAN_ODOO.md.
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',
     'license': 'LGPL-3',
-    'depends': ['dcasa_brian', 'dcasa_catalogo', 'dcasa_interfaz', 'dcasa_socios', 'dcasa_contactos', 'crm', 'sale_crm',
-                'mail', 'bus'],
+    'depends': ['dcasa_brian', 'dcasa_catalogo', 'dcasa_interfaz', 'dcasa_socios', 'dcasa_contactos', 'dcasa_envios',
+                'crm', 'sale_crm', 'mail', 'bus'],
     'data': [
         'security/conversaciones_security.xml',
         'security/ir.model.access.csv',

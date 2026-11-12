@@ -6,12 +6,15 @@
 //   · se quita cualquier número de existencias (el modelo solo conoce la etiqueta);
 //   · se agrega `precio_texto` («$499.00 + ITBMS») para que copie el precio ya correcto;
 //   · se anotan los precios y cifras conocidas (la guardia de salida las usa para rechazar inventos);
-//   · se recuerdan las fotos que devolvió `ver_producto`, que son las únicas que `enviar_foto_producto` puede enviar.
+//   · se recuerdan las fotos que devolvió `ver_producto`, que son las únicas que `enviar_foto_producto` puede enviar;
+//   · de `cotizar_envio` / `agregar_envio` se toma su `respaldo_envio` (cada lugar con sus cifras y su papel, y el total de la
+//     cotización si se sumó el envío): solo eso deja decir el costo del envío en este turno. El modelo no lo ve.
 
 import { jsonSchema, tool, type ToolSet } from "ai";
 import type { DefHerramienta, OdooApi, ResultadoHerramienta } from "../odoo/cliente";
 import type { MedioSaliente } from "../canales/tipos";
-import { extraerMontos, parseMonto } from "../dcasa/salvaguardas";
+import { extraerMontos, parseMonto, type LugarDeEnvio } from "../dcasa/salvaguardas";
+import { sinAcentos } from "../dcasa/texto";
 
 /** Lo que se aprende durante UN turno del modelo. */
 export class RegistroDelTurno {
@@ -37,7 +40,12 @@ export class RegistroDelTurno {
   preguntaRegistrada = false;
   /** Ya hay una cotización en PDF en la respuesta de este turno (solo va una por respuesta). */
   cotizacionPreparada = false;
+  /** Lo que la herramienta de envíos respaldó en este turno: cada lugar con sus cifras y su papel, y el total si sumó el envío. */
+  readonly envio: { lugares: LugarDeEnvio[]; total: number | null } = { lugares: [], total: null };
 }
+
+/** Las herramientas de envíos de Odoo: lo que devuelven respalda el costo del envío en la guardia de salida. */
+export const HERRAMIENTAS_DE_ENVIO: ReadonlySet<string> = new Set(["cotizar_envio", "agregar_envio"]);
 
 /** Herramientas de LECTURA: dan lo mismo para los mismos argumentos durante un rato, así que se guardan 60 s. Nunca saldo_puntos ni las de escritura. */
 export const HERRAMIENTAS_DE_LECTURA: ReadonlySet<string> = new Set([
@@ -254,6 +262,50 @@ export function textoDeLaHerramienta(resultado: unknown): string | null {
   return null;
 }
 
+const cifraOnula = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : null);
+
+/** Un lugar de `respaldo_envio` como lo usa la guardia, o null si no trae nombres ni cifras que sirvan. */
+function lugarDeEnvio(v: unknown): LugarDeEnvio | null {
+  if (!esObjeto(v)) return null;
+  const nombres = Array.isArray(v.nombres) ? v.nombres.filter((n): n is string => typeof n === "string").map((n) => sinAcentos(n).replace(/\s+/g, " ").trim()).filter(Boolean) : [];
+  const cargos = Array.isArray(v.cargos)
+    ? v.cargos.flatMap((c) => (esObjeto(c) && typeof c.nombre === "string" && cifraOnula(c.monto) !== null ? [{ nombre: sinAcentos(c.nombre).trim(), monto: c.monto as number }] : []))
+    : [];
+  return {
+    nombres,
+    normal: cifraOnula(v.normal),
+    final: cifraOnula(v.final),
+    ahorro: cifraOnula(v.ahorro),
+    gratis: v.gratis === true,
+    condicional: v.condicional === true,
+    minimo: cifraOnula(v.minimo),
+    compra: cifraOnula(v.compra),
+    cargos,
+    llevaItbms: v.lleva_itbms === true,
+  };
+}
+
+/**
+ * `respaldo_envio` (de `cotizar_envio` y `agregar_envio`): `{lugares: [{nombres, normal, final, ahorro, gratis, condicional, minimo, compra,
+ * cargos, lleva_itbms}], total}`, armado por Odoo con el motor de la tarifa y de la promoción. Se anota en el registro del turno y se quita
+ * de lo que ve el modelo (es para la guardia, no para él).
+ */
+export function tomarRespaldoDeEnvio(resultado: unknown, reg: RegistroDelTurno): unknown {
+  if (!esObjeto(resultado) || !("respaldo_envio" in resultado)) return resultado;
+  const { respaldo_envio: respaldo, ...resto } = resultado;
+  if (esObjeto(respaldo)) {
+    if (Array.isArray(respaldo.lugares)) {
+      for (const l of respaldo.lugares) {
+        const lugar = lugarDeEnvio(l);
+        if (lugar) reg.envio.lugares.push(lugar);
+      }
+    }
+    const total = cifraOnula(respaldo.total);
+    if (total !== null) reg.envio.total = total;
+  }
+  return resto;
+}
+
 /** Procesa el resultado para el modelo y anota si la consulta sirvió o salió floja. */
 function anotarConsulta(nombre: string, resultado: unknown, reg: RegistroDelTurno, sitio: string | undefined): unknown {
   if (nombre === "buscar_conocimiento" && busquedaFlojaDe(resultado)) {
@@ -268,6 +320,8 @@ function anotarConsulta(nombre: string, resultado: unknown, reg: RegistroDelTurn
     };
   }
   if (HERRAMIENTAS_DE_LECTURA.has(nombre) && !(nombre === "buscar_productos" && busquedaFlojaDe(resultado))) reg.consultasUtiles++;
+  // El costo de un envío que sí se encontró es una respuesta útil (no hace falta anotar la pregunta como «sin respuesta»).
+  if (nombre === "cotizar_envio" && esObjeto(resultado) && (resultado.estado === "precio" || resultado.estado === "varios")) reg.consultasUtiles++;
   return procesarResultado(resultado, reg, sitio);
 }
 
@@ -276,7 +330,7 @@ function anotarConsulta(nombre: string, resultado: unknown, reg: RegistroDelTurn
  * pegar en el chat—: pasa a los medios de la respuesta y sale como archivo junto con ella. Solo se acepta una dirección https
  * de un PDF; cualquier otra cosa se ignora y el modelo lo sabe (no dirá que va adjunto algo que no va).
  */
-function tomarDocumentoDeLaCotizacion(resultado: unknown, reg: RegistroDelTurno): unknown {
+function tomarDocumentoDeLaCotizacion(resultado: unknown, reg: RegistroDelTurno, reemplaza = false): unknown {
   if (!esObjeto(resultado)) return resultado;
   const { documento, ...resto } = resultado;
   if (!esObjeto(documento)) return resultado;
@@ -284,6 +338,8 @@ function tomarDocumentoDeLaCotizacion(resultado: unknown, reg: RegistroDelTurno)
   if (!/^https:\/\//i.test(url) || reg.medios.some((m) => m.url === url)) {
     return { ...resto, pdf_adjunto: false, nota: "No pude preparar el PDF: dile al cliente el total y que una vendedora le manda el documento." };
   }
+  // `agregar_envio` vuelve a armar la MISMA cotización con el envío: si en esta respuesta ya iba su PDF sin el envío, sale solo el nuevo.
+  if (reemplaza) for (let i = reg.medios.length - 1; i >= 0; i--) if (reg.medios[i].tipo === "documento") reg.medios.splice(i, 1);
   reg.medios.push({ tipo: "documento", url, nombre: aTexto(documento.nombre) || "Cotizacion.pdf", mime: aTexto(documento.mime) || "application/pdf", sinCopia: true });
   reg.cotizacionPreparada = true;
   return { ...resto, pdf_adjunto: true };
@@ -412,7 +468,9 @@ export function construirHerramientas(op: OpcionesHerramientas): ToolSet {
         }
         if (def.nombre === "registrar_pregunta_sin_respuesta") registro.preguntaRegistrada = true;
         if (clave) op.cache!.guardar(clave, r.resultado);
-        const resultado = def.nombre === "cotizar" ? tomarDocumentoDeLaCotizacion(r.resultado, registro) : r.resultado;
+        let resultado = def.nombre === "cotizar" ? tomarDocumentoDeLaCotizacion(r.resultado, registro) : r.resultado;
+        if (HERRAMIENTAS_DE_ENVIO.has(def.nombre)) resultado = tomarRespaldoDeEnvio(resultado, registro);
+        if (def.nombre === "agregar_envio") resultado = tomarDocumentoDeLaCotizacion(resultado, registro, true);
         return { ok: true, resultado: acotar(anotarConsulta(def.nombre, resultado, registro, op.sitio)) };
       }),
     });

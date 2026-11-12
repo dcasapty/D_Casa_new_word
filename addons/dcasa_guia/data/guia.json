@@ -2599,12 +2599,13 @@
    "categoria": "tienda",
    "grupo": "Conversaciones",
    "titulo": "Cambiar cómo contesta Juan",
-   "logras": "Prendes o apagas a Juan y ajustas lo que puede hacer.",
+   "logras": "Prendes o apagas a Juan y ajustas lo que puede hacer: por ejemplo, si manda las cotizaciones solo o si cotiza los envíos («Juan cotiza envíos»).",
    "destino": {
     "menu": "dcasa_conversaciones.menu_dcasa_juan_ajustes"
    },
    "palabras": [
     "apagar juan",
+    "juan cotiza envios",
     "asistente",
     "automatico",
     "bot",
@@ -3386,6 +3387,49 @@
     "peaje",
     "cargar archivo de envios",
     "precio por kilometro"
+   ]
+  },
+  {
+   "id": "envio-promocion",
+   "categoria": "vender",
+   "tambien": [
+    "tienda"
+   ],
+   "grupo": "Envíos",
+   "titulo": "Poner o cambiar la promoción de envío del mes",
+   "logras": "En Envíos › Promoción de envío pones sus fechas, de cuánto tiene que ser la compra (con o sin ITBMS), en qué provincias o distritos el envío es gratis, cuánto se abona del envío en el resto y si no aplica cuando la compra lleva colchón. Los precios de envío no cambian: Juan dice el precio normal y cómo le queda al cliente con la promoción, y si el cliente quiere se lo suma a la cotización. Abajo ves cómo lo dice Juan, y cada cambio queda en el historial.",
+   "nota": "Solo Gerencia. Solo puede haber una promoción activa a la vez: si las fechas se cruzan con otra, no se guarda. Fuera de sus fechas, Juan da el precio normal.",
+   "destino": {
+    "menu": "dcasa_envios.menu_envios_promocion"
+   },
+   "palabras": [
+    "promocion de envio",
+    "envio gratis",
+    "promocion del mes",
+    "abono del flete",
+    "flete gratis",
+    "delivery gratis"
+   ]
+  },
+  {
+   "id": "envio-lugares-por-revisar",
+   "categoria": "vender",
+   "grupo": "Envíos",
+   "titulo": "Revisar los lugares de envío que agregó el equipo",
+   "logras": "En Envíos › Lugares, con el filtro «Por revisar (Gerencia)», ves los lugares que agregó alguien del equipo desde la calculadora. Abres cada uno, revisas el nombre, los kilómetros y la provincia (los corriges si hace falta) y tocas «Marcar revisado». Hasta entonces la calculadora los usa, pero Juan no le da ese precio a un cliente: le dice que el costo se lo confirma una vendedora.",
+   "nota": "Solo Gerencia. Los lugares del archivo y los que agrega Gerencia ya nacen revisados.",
+   "destino": {
+    "menu": "dcasa_envios.menu_envios_lugares",
+    "contexto": {
+     "search_default_por_revisar": 1
+    }
+   },
+   "palabras": [
+    "lugares por revisar",
+    "revisar lugar",
+    "lugar nuevo de envio",
+    "marcar revisado",
+    "lugar agregado por vendedora"
    ]
   },
   {

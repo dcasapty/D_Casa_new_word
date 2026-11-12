@@ -34,7 +34,45 @@ export const HERRAMIENTAS_DE_PRUEBA: DefHerramienta[] = [
     parametros: objeto({ lineas: { type: "array", items: objeto({ codigo: texto("Código"), cantidad: { type: "integer" }, opcion: texto("Tamaño o color") }, ["codigo"]) } }, ["lineas"]),
   },
   { nombre: "registrar_pregunta_sin_respuesta", descripcion: "Deja anotada una pregunta que la base de conocimiento no supo contestar.", parametros: objeto({ pregunta: texto("Lo que preguntó el cliente"), resumen: texto("Resumen") }, ["pregunta"]) },
+  { nombre: "cotizar_envio", descripcion: "Cuánto cuesta el envío a un lugar, con la promoción vigente.", parametros: objeto({ lugar: texto("Barrio, PH o punto de referencia"), lugar_id: { type: "integer" } }) },
+  { nombre: "agregar_envio", descripcion: "Suma el envío a la cotización de esta conversación.", parametros: objeto({ lugar_id: { type: "integer" }, cotizacion: { type: "string" } }, ["lugar_id"]) },
 ];
+
+/** Los lugares de envío de prueba, con la forma de lo que devuelve Odoo (`_juan_cotizar_envio`): la frase y el respaldo los arma el motor. */
+export const ENVIOS = {
+  villaLucre: {
+    estado: "precio",
+    lugar: { lugar_id: 77, nombre: "Villa Lucre", zona: "Zona: José Domingo Espinar · San Miguelito · Panamá" },
+    envio_normal: 15,
+    envio_normal_texto: "$15",
+    envio_lleva_itbms: false,
+    promocion: { nombre: "Envío Gratis Todo Noviembre", aplica: false, motivo: "sin_compra", condicional: true },
+    frase_para_el_cliente:
+      "El envío a Villa Lucre (José Domingo Espinar, San Miguelito) cuesta normalmente $15. Con la promoción de noviembre, en compras de más de $200 sin ITBMS, D'CASA te regala el envío: te sale gratis (te ahorras $15). La promoción es hasta el 30 de noviembre; después, el envío vuelve a su precio normal. No aplica si la compra lleva colchón.",
+    cotizacion: null,
+    instruccion: "Dile al cliente la frase tal cual.",
+    respaldo_envio: {
+      lugares: [{ nombres: ["Villa Lucre", "José Domingo Espinar", "San Miguelito"], normal: 15, final: 0, ahorro: 15, gratis: true, condicional: true, minimo: 200, compra: null, cargos: [], lleva_itbms: false }],
+      total: null,
+    },
+  },
+  colon: {
+    estado: "precio",
+    lugar: { lugar_id: 78, nombre: "Barrio Norte", zona: "Zona: Barrio Norte · Colón · Colón" },
+    envio_normal: 90,
+    envio_normal_texto: "$90",
+    envio_lleva_itbms: false,
+    promocion: { nombre: "Envío Gratis Todo Noviembre", aplica: false, motivo: "sin_compra", condicional: true },
+    frase_para_el_cliente:
+      "El envío a Barrio Norte (Colón) cuesta normalmente $90. Con la promoción de noviembre, en compras de más de $200 sin ITBMS, D'CASA te abona $20 del envío: te queda en $70. La promoción es hasta el 30 de noviembre; después, el envío vuelve a su precio normal. No aplica si la compra lleva colchón.",
+    cotizacion: null,
+    instruccion: "Dile al cliente la frase tal cual.",
+    respaldo_envio: {
+      lugares: [{ nombres: ["Barrio Norte", "Colón"], normal: 90, final: 70, ahorro: 20, gratis: false, condicional: true, minimo: 200, compra: null, cargos: [], lleva_itbms: false }],
+      total: null,
+    },
+  },
+};
 
 /** La base de conocimiento de prueba: cada entrada responde a ciertas palabras. */
 export const CONOCIMIENTO = [
@@ -133,6 +171,30 @@ const MANEJADORES: Record<string, Manejador> = {
       nota: "Es una cotización: no es una venta ni reserva nada.",
     };
   },
+  cotizar_envio: (a) => {
+    const lugar = String(a.lugar ?? "").toLowerCase();
+    if (a.lugar_id === 77 || lugar.includes("villa lucre")) return ENVIOS.villaLucre;
+    if (a.lugar_id === 78 || lugar.includes("colon") || lugar.includes("colón")) return ENVIOS.colon;
+    return { estado: "no_encontrado", parecidos: [], frase_para_el_cliente: "No encontré ese lugar. ¿Me dices un punto de referencia cercano?", instruccion: "Pide un punto de referencia." };
+  },
+  agregar_envio: (a, odoo) => {
+    // Como Odoo (`_juan_agregar_envio`): suma el envío a la cotización de la conversación y vuelve a armar su PDF.
+    if (!odoo.cotizacionesArmadas) return { sumado: false, motivo: "sin_cotizacion", instruccion: "No hay una cotización abierta en esta conversación." };
+    const numero = `S${String(7 + odoo.cotizacionesArmadas).padStart(5, "0")}`;
+    odoo.enviosSumados.push(a);
+    return {
+      sumado: true,
+      cotizacion: { numero, total: 855.47, total_texto: "$855.47", envio: { lineas: [{ descripcion: "Envío a domicilio: Villa Lucre", monto_texto: "$15" }, { descripcion: "Promoción Envío Gratis Todo Noviembre: envío gratis", monto_texto: "−$15" }], total_envio_texto: "$0" } },
+      frase_para_el_cliente: `Listo, te sumé el envío a la cotización ${numero}. ${ENVIOS.villaLucre.frase_para_el_cliente} El total de la cotización queda en $855.47.`,
+      // Ya con la compra de la cotización: la promoción aplica (sin condición) y el total de la cotización queda respaldado.
+      respaldo_envio: {
+        lugares: [{ ...ENVIOS.villaLucre.respaldo_envio.lugares[0], condicional: false }],
+        total: 855.47,
+      },
+      documento: { tipo: "documento", url: `https://dcasa.example/dcasa/adjunto/90/1790000000/${"b".repeat(64)}/Cotizacion-${numero}.pdf`, nombre: `Cotizacion-${numero}.pdf`, mime: "application/pdf" },
+      instruccion: "Dile al cliente la frase tal cual y que el PDF va adjunto.",
+    };
+  },
   registrar_pregunta_sin_respuesta: (a, odoo) => {
     odoo.preguntasSinRespuesta.push(a);
     return { ok: true, id: odoo.preguntasSinRespuesta.length };
@@ -167,6 +229,8 @@ export class OdooFalso implements OdooApi {
   /** El interruptor de Ajustes de Juan: false = `cotizar` contesta que las cotizaciones las prepara una vendedora. */
   cotizacionAutomatica = true;
   cotizacionesArmadas = 0;
+  /** Lo que `agregar_envio` sumó a una cotización. */
+  enviosSumados: Record<string, unknown>[] = [];
   rawConfig: unknown = { nombre_publico: "el equipo de D'CASA" };
   defs: DefHerramienta[] = HERRAMIENTAS_DE_PRUEBA;
   manejadores: Record<string, Manejador> = { ...MANEJADORES };

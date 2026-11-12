@@ -4,6 +4,12 @@
   cargar los actualiza sin duplicar (``llave``) y respeta lo que Gerencia cambió en Odoo (``editado_el``).
 * Cualquier persona del equipo agrega el que falta desde la calculadora (``origen = mano``): queda su nombre y la
   fecha. Solo Gerencia y los administradores editan o archivan.
+* **Por revisar** (revisión adversarial del 2026-11-12, I7; decisión de la dueña): un lugar que agrega alguien que no es
+  Gerencia ni administrador nace sin revisar (``revisado`` apagado). La calculadora lo usa igual, pero Juan no le da
+  ese precio a un cliente: «el costo te lo confirma una vendedora», hasta que Gerencia toca «Marcar revisado» en la
+  ficha (filtro «Por revisar (Gerencia)» en la lista). Los del archivo y los que agrega Gerencia nacen revisados. Los
+  kilómetros y la provincia solo los cambian Gerencia y los administradores (ACL), así que un cambio de otra persona
+  no llega a escribirse.
 * El buscador es el del motor (``motor/buscador.py``). Su índice se arma una vez por base de datos y por proceso, y se
   vuelve a armar cuando cambia ``dcasa_envios.version_lugares`` (sube en cada alta, cambio o baja de un lugar o de la
   tarifa). Es un valor al azar, no un contador: si una transacción que lo subió se deshace, nadie vuelve a usar ese
@@ -45,7 +51,7 @@ CAMPOS_DE_GERENCIA = CAMPOS_DEL_EQUIPO + ('cat', 'prov', 'corr_exacto', 'estado'
                                           'km_medido', 'active')
 # Los pone el sistema: nadie los escribe a mano (ni Gerencia).
 CAMPOS_DEL_SISTEMA = ('origen', 'llave', 'secuencia', 'agregado', 'agregado_por', 'agregado_el', 'editado_por',
-                      'editado_el')
+                      'editado_el', 'revisado', 'revisado_por', 'revisado_el')
 MAX_TEXTO = 120
 MAX_LIMITE = 200
 MAX_KM = 2000
@@ -92,6 +98,12 @@ class EnvioLugar(models.Model):
     editado_el = fields.Datetime('Cambiado en Odoo el', readonly=True,
                                  help='Un lugar del archivo que Gerencia cambió en Odoo: al volver a cargar el '
                                       'archivo se respeta lo de Odoo.')
+    revisado = fields.Boolean(
+        'Revisado por Gerencia', default=True, readonly=True, index=True,
+        help='Apagado: lo agregó alguien del equipo que no es Gerencia. La calculadora lo usa, pero Juan no le da este '
+             'precio a un cliente (se lo confirma una vendedora) hasta que Gerencia lo marque revisado.')
+    revisado_por = fields.Many2one('res.users', 'Lo revisó', readonly=True)
+    revisado_el = fields.Datetime('Revisado el', readonly=True)
     llave = fields.Char(readonly=True, copy=False, index=True)
     secuencia = fields.Integer(readonly=True, default=0, help='Orden en el archivo (desempata la búsqueda).')
     precio_envio = fields.Float('Precio del envío', compute='_compute_precio', digits=(10, 2),
@@ -211,6 +223,9 @@ class EnvioLugar(models.Model):
         salida['fuente_km'] = salida.get('fuente_km') or FUENTE_A_MANO
         salida.update(origen='mano', agregado=True, agregado_por=self.env.uid, agregado_el=fields.Datetime.now(),
                       llave=False, secuencia=0)
+        # Lo que agrega Gerencia nace revisado; lo del resto del equipo, «Por revisar» (Juan no da ese precio).
+        salida.update(revisado=gerencia, revisado_por=self.env.uid if gerencia else False,
+                      revisado_el=salida['agregado_el'] if gerencia else False)
         return salida
 
     @api.model
@@ -248,6 +263,14 @@ class EnvioLugar(models.Model):
         resultado = super().unlink()
         self._subir_version()
         return resultado
+
+    def action_marcar_revisado(self):
+        """Gerencia revisó el lugar (el nombre, los kilómetros y la provincia): Juan ya puede dar su precio."""
+        self._exigir_gerencia()
+        self.check_access('write')
+        super(EnvioLugar, self.filtered(lambda lugar: not lugar.revisado)).write(
+            {'revisado': True, 'revisado_por': self.env.uid, 'revisado_el': fields.Datetime.now()})
+        return True
 
     def action_volver_al_archivo(self):
         """Quita la marca «cambiado en Odoo»: la próxima carga del archivo vuelve a mandar en este lugar."""
