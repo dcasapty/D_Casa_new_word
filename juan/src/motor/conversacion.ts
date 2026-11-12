@@ -1519,7 +1519,7 @@ export class MotorConversacion {
     const canalId = this.canalId();
     const adaptador = this.deps.canal(canalId);
     if (!adaptador) throw new Error(`no hay adaptador para el canal ${canalId}`);
-    const cap = adaptador.capacidades(canalId);
+    const cap = adaptador.capacidades(canalId, this.deps.env);
 
     // Lo que el canal no puede llevar como archivo, sale como enlace en el texto.
     const enlaces: string[] = [];
@@ -1668,7 +1668,7 @@ export class MotorConversacion {
       // Una foto o un documento con su texto: el texto viaja como pie de la primera (una sola burbuja para el cliente), si el canal
       // lo permite y cabe. Si no, sale como siempre: el texto y luego los archivos.
       const canalId = this.canalId();
-      if (texto && medios.length > 0 && extra.length === 0 && texto.length <= MAX_PIE_DE_FOTO && this.deps.canal(canalId)?.capacidades(canalId).pie) {
+      if (texto && medios.length > 0 && extra.length === 0 && texto.length <= MAX_PIE_DE_FOTO && this.deps.canal(canalId)?.capacidades(canalId, this.deps.env).pie) {
         medios[0] = { ...medios[0], pie: texto };
         burbujas = [];
       }
@@ -1776,7 +1776,7 @@ export class MotorConversacion {
     if (visto !== null && ultimoCliente !== null && ultimoCliente > visto + 1000) return cierra("descartado", "el cliente ya volvió a escribir");
 
     const adaptador = this.deps.canal(canalId);
-    if (adaptador?.capacidades(canalId).ventana24h && ultimoCliente !== null && ahora - ultimoCliente > VENTANA_24H_MS) {
+    if (adaptador?.capacidades(canalId, this.deps.env).ventana24h && ultimoCliente !== null && ahora - ultimoCliente > VENTANA_24H_MS) {
       return cierra("descartado", "fuera de la ventana de 24 h del canal");
     }
 

@@ -179,13 +179,45 @@ export interface SaludCanal {
   detalle?: string;
 }
 
+/** Una llave que vence y el canal renueva solo (Instagram por inicio de sesión de Instagram). Fechas, nunca el valor. */
+export interface EstadoDeLlave {
+  /** «AAAA-MM-DD» (hora de Panamá). */
+  vence: string;
+  /** false = todavía no se renovó: es el tope (la llave pegada vence a más tardar ese día). */
+  vence_seguro: boolean;
+  dias_restantes: number;
+  /** «AAAA-MM-DD» de la última renovación que salió bien, o null. */
+  renovada: string | null;
+  /** «ok» la última salió bien · «fallo» la última falló (se reintenta al día siguiente) · «pendiente» aún no se renovó. */
+  renovacion: "ok" | "fallo" | "pendiente";
+}
+
+/**
+ * Lo que el canal sabe de sí mismo SIN preguntarle a nadie afuera (lo pide también el /salud público): por qué puerta va, cuándo
+ * vence su llave y lo que hay que revisar (frases para personas, sin valores).
+ */
+export interface SaludLocal {
+  /** Un canal con dos puertas dice por cuál va (Instagram: «pagina_facebook» o «inicio_sesion_instagram»). */
+  puerta?: string;
+  llave?: EstadoDeLlave;
+  /** La cuenta del negocio en ese canal, si se sabe (p. ej. «@dcasapty»). */
+  cuenta?: string;
+  problemas?: string[];
+  avisos?: string[];
+}
+
 export interface AdaptadorCanal {
   /** Los canales de Odoo que atiende este adaptador (Meta atiende dos). */
   readonly canales: readonly CanalId[];
   /** Ruta pública del webhook, por ejemplo "/webhooks/telegram". */
   readonly ruta: string;
-  /** Lo que puede llevar cada canal (Instagram no manda documentos; Telegram sí). */
-  capacidades(canal: CanalId): Capacidades;
+  /** Otros webhooks del mismo adaptador (Meta: «/webhooks/instagram», la puerta del inicio de sesión de Instagram). */
+  readonly otrasRutas?: readonly string[];
+  /**
+   * Lo que puede llevar cada canal (Instagram por la página no manda documentos; Telegram sí). Con `env`, el de la puerta por la que
+   * va el canal (Instagram por inicio de sesión de Instagram sí manda PDF); sin `env`, el de siempre.
+   */
+  capacidades(canal: CanalId, env?: Env): Capacidades;
   /**
    * NOMBRES de lo que le falta a este canal para funcionar: secretos sin cargar o service bindings sin declarar.
    * Vacío = listo. (Que el canal esté ENCENDIDO lo decide Odoo, no esto.) Nunca devuelve valores.
@@ -212,6 +244,10 @@ export interface AdaptadorCanal {
   escribiendo?(canal: CanalId, para: string, env: Env): Promise<void>;
   /** Salud de la conexión, si hay una que vigilar. */
   salud?(canal: CanalId, env: Env): Promise<SaludCanal>;
+  /** Lo que el canal sabe de sí mismo sin salir a la red (puerta, vencimiento de su llave): /salud lo muestra. */
+  saludLocal?(canal: CanalId, env: Env): Promise<SaludLocal>;
+  /** Lo que el canal hace solo, cada hora, desde el cron (p. ej. renovar su llave antes de que venza). Nunca lanza por un canal sin configurar. */
+  mantener?(env: Env): Promise<void>;
 }
 
 /** Respuestas HTTP que se repiten en los webhooks. */

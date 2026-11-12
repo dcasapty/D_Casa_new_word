@@ -28,6 +28,9 @@ export class AlmacenGlobal {
     // El gasto de cada día (en la hora del negocio), sumado de todos los modelos: para la gráfica de Costos de IA.
     sql.correr("CREATE TABLE IF NOT EXISTS gasto_dia (dia TEXT PRIMARY KEY, usd REAL NOT NULL DEFAULT 0, turnos INTEGER NOT NULL DEFAULT 0)");
     sql.correr("CREATE TABLE IF NOT EXISTS salud (clave TEXT PRIMARY KEY, valor TEXT NOT NULL, ts INTEGER NOT NULL)");
+    // Las llaves que Juan renueva solo (hoy, la de Instagram por inicio de sesión de Instagram: canales/instagramLlave.ts). Aparte de
+    // `salud` a propósito: ninguna ruta ni informe las lee de aquí.
+    sql.correr("CREATE TABLE IF NOT EXISTS llaves (clave TEXT PRIMARY KEY, valor TEXT NOT NULL, ts INTEGER NOT NULL)");
   }
 
   registrarGasto(mes: string, modelo: string, uso: Uso, usd: number, estimado = false, dia?: string): void {
@@ -81,6 +84,19 @@ export class AlmacenGlobal {
     );
   }
 
+  guardarLlave(clave: string, valor: string, ahora: number): void {
+    this.sql.correr(
+      "INSERT INTO llaves (clave, valor, ts) VALUES (?, ?, ?) ON CONFLICT(clave) DO UPDATE SET valor = excluded.valor, ts = excluded.ts",
+      clave,
+      valor,
+      ahora,
+    );
+  }
+
+  leerLlave(clave: string): string | null {
+    return this.sql.uno<{ valor: string }>("SELECT valor FROM llaves WHERE clave = ?", clave)?.valor ?? null;
+  }
+
   leerSalud<T = unknown>(clave: string): { valor: T; ts: number } | null {
     const f = this.sql.uno<{ valor: string; ts: number }>("SELECT valor, ts FROM salud WHERE clave = ?", clave);
     if (!f) return null;
@@ -120,5 +136,14 @@ export class Global extends DurableObject<Env> {
   leerSalud(clave: string): { json: string; ts: number } | null {
     const f = this.almacen.leerSalud(clave);
     return f ? { json: JSON.stringify(f.valor), ts: f.ts } : null;
+  }
+
+  /** Una llave que Juan renueva solo (texto JSON). Solo la usan los adaptadores; jamás sale por una ruta. */
+  guardarLlave(clave: string, valor: string): void {
+    this.almacen.guardarLlave(clave, valor, Date.now());
+  }
+
+  leerLlave(clave: string): string | null {
+    return this.almacen.leerLlave(clave);
   }
 }

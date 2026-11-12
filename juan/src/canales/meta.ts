@@ -5,247 +5,68 @@
 //   · POST /webhooks/meta  → firma `X-Hub-Signature-256` (HMAC-SHA256 del cuerpo con META_APP_SECRET), siempre
 //   · Solo se puede escribir dentro de las 24 h del último mensaje del cliente (messaging_type RESPONSE).
 //   · `is_echo` = lo escribió la Página (una persona desde la bandeja de Meta, o este mismo bot): `propio:true`.
+//
+// Instagram tiene una SEGUNDA PUERTA (2026-11-12): «inicio de sesión de Instagram» (`graph.instagram.com`, instagramLogin.ts), con
+// su propio webhook (`/webhooks/instagram`), su llave (INSTAGRAM_TOKEN, que Juan renueva) y su clave secreta (INSTAGRAM_APP_SECRET).
+// Si está alguno de esos dos secretos, Instagram va por ahí (envío, nombre, foto, salud) y lo de Instagram que llegue por la página
+// se ignora (no se atiende dos veces lo mismo). Sin ellos, todo queda como antes. Messenger no cambia.
 
 import type { Env } from "../env";
-import { firmaMetaValida, tokensIguales } from "../seguridad";
+import { firmaMetaValida } from "../seguridad";
 import { urlGraph } from "./graph";
+import { crearPuertaInstagram, CAPACIDADES_INSTAGRAM_LOGIN, RUTA_INSTAGRAM_LOGIN } from "./instagramLogin";
+import { PUERTA_PAGINA, puertaInstagramElegida } from "./instagramLlave";
+import { eventosDeMeta, maquinaMeta, respuestaDeVerificacion, type MetaCuerpo, type OpcionesMeta, type PuertaMeta } from "./metaComun";
 import {
-  aMilisegundos,
   faltantesDe,
   json,
   ok200,
   type AdaptadorCanal,
-  type AdjuntoEntrante,
   type Capacidades,
   type CanalId,
-  type Entrante,
   type ResultadoEnvio,
   type ResultadoWebhook,
-  type MedioSaliente,
   type Saliente,
   type SaludCanal,
-  EnvioParcialError,
-  MAX_FOTO_DE_PERFIL_BYTES,
-  sinNegritas,
+  type SaludLocal,
 } from "./tipos";
 
-interface MetaEvento {
-  sender?: { id?: string };
-  recipient?: { id?: string };
-  timestamp?: number;
-  message?: {
-    mid?: string;
-    text?: string;
-    is_echo?: boolean;
-    attachments?: { type?: string; payload?: { url?: string } }[];
-  };
-}
-
-interface MetaCuerpo {
-  object?: string;
-  entry?: { id?: string; messaging?: MetaEvento[] }[];
-}
-
-export interface OpcionesMeta {
-  fetch?: typeof fetch;
-  dormir?: (ms: number) => Promise<void>;
-}
-
-/** De dónde sirve Meta las fotos de perfil: solo ahí se baja (la dirección viene de Meta, pero no se confía a ciegas). */
-const SERVIDORES_DE_FOTO = /(^|\.)(fbsbx\.com|fbcdn\.net|cdninstagram\.com)$/i;
-
-const TIPOS_ADJUNTO: Record<string, AdjuntoEntrante["tipo"]> = { image: "imagen", audio: "audio", video: "video", file: "documento" };
-
-/** Convierte un POST de Meta en 0..N mensajes (un POST puede traer varios). */
-export function eventosDeMeta(cuerpo: MetaCuerpo, ahora: number): Entrante[] {
-  const canal: CanalId = cuerpo.object === "instagram" ? "instagram" : "messenger";
-  const salida: Entrante[] = [];
-  for (const entrada of cuerpo.entry ?? []) {
-    for (const ev of entrada.messaging ?? []) {
-      const m = ev.message;
-      // Recibos de entrega/lectura, postbacks y reacciones no traen `message`.
-      if (!m) continue;
-      const eco = m.is_echo === true;
-      // En un eco, el cliente es el DESTINATARIO.
-      const cliente = eco ? ev.recipient?.id : ev.sender?.id;
-      if (!cliente) continue;
-      const adjuntos: AdjuntoEntrante[] = [];
-      let texto = m.text?.trim() || undefined;
-      for (const a of m.attachments ?? []) {
-        const tipo = TIPOS_ADJUNTO[a.type ?? ""];
-        if (tipo && a.payload?.url) adjuntos.push({ tipo, url: a.payload.url });
-        else if (a.type === "location") texto ??= "(el cliente mandó una ubicación)";
-        else if (a.type === "fallback" && !texto) texto = "(el cliente compartió un enlace)";
-      }
-      if (!texto && adjuntos.length === 0) continue;
-      salida.push({
-        canal,
-        id_externo: String(cliente),
-        id_mensaje: m.mid ?? `meta:${cliente}:${ev.timestamp ?? ahora}`,
-        texto,
-        adjuntos,
-        ts: aMilisegundos(ev.timestamp, ahora),
-        propio: eco,
-      });
-    }
-  }
-  return salida;
-}
+export { eventosDeMeta, MAX_ADJUNTO_MESSENGER_BYTES, MAX_FOTO_INSTAGRAM_BYTES, type OpcionesMeta } from "./metaComun";
 
 const CAPACIDADES: Record<"messenger" | "instagram", Capacidades> = {
   messenger: { imagenes: true, documentos: true, ventana24h: true, maxTexto: 1900 },
-  // Instagram no admite documentos y su texto es más corto.
+  // Instagram (por la página) no admite documentos y su texto es más corto.
   instagram: { imagenes: true, documentos: false, ventana24h: true, maxTexto: 950 },
 };
 
-const texto = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
-/** Un nombre que se puede mostrar: sin caracteres de control y de 100 letras como mucho. */
-const limpiarNombre = (n: string): string => n.replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, 100);
-
-/** Lo más grande que Messenger acepta como adjunto subido. */
-export const MAX_ADJUNTO_MESSENGER_BYTES = 25 * 1024 * 1024;
-/** Lo más grande que Instagram acepta como foto (documentación de Meta: png o jpeg, hasta 8 MB). */
-export const MAX_FOTO_INSTAGRAM_BYTES = 8 * 1024 * 1024;
+/** La página de Facebook: `graph.facebook.com` con META_PAGE_TOKEN. */
+const PUERTA_DE_LA_PAGINA: PuertaMeta = {
+  url: urlGraph,
+  llave: async (env) => env.META_PAGE_TOKEN || undefined,
+  secreto: "META_PAGE_TOKEN",
+  messagingType: true,
+  pdfEnInstagram: false,
+};
 
 export function crearMeta(op: OpcionesMeta = {}): AdaptadorCanal {
-  const f: typeof fetch = op.fetch ?? ((...a) => fetch(...a));
-  const dormir = op.dormir ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
-
-  async function publicar(env: Env, init: { headers: Record<string, string>; body: BodyInit }): Promise<string | undefined> {
-    const token = env.META_PAGE_TOKEN;
-    if (!token) throw new Error("Falta META_PAGE_TOKEN");
-    const r = await f(urlGraph(env, "me/messages"), { method: "POST", headers: { ...init.headers, authorization: `Bearer ${token}` }, body: init.body });
-    const j = (await r.json().catch(() => ({}))) as { message_id?: string; error?: { message?: string; code?: number } };
-    // Fuera de la ventana de 24 h, sin permiso o con un destinatario inválido, Meta contesta con un error concreto.
-    if (!r.ok || j.error) throw new Error(`meta send ${r.status}: ${j.error?.message ?? "sin detalle"} (código ${j.error?.code ?? "?"})`);
-    return j.message_id;
-  }
-
-  const enviarUno = (env: Env, cuerpo: Record<string, unknown>) =>
-    publicar(env, { headers: { "content-type": "application/json" }, body: JSON.stringify(cuerpo) });
-
-  /**
-   * Juan baja el archivo (la URL firmada de Odoo) para SUBÍRSELO a Meta: con `payload.url` Meta tenía que bajarlo él mismo desde
-   * dcasapty.com y respondía «(#100) Error al subir el producto» (2026-11-09 en Messenger y 2026-11-10 en Instagram: el texto
-   * salía y la foto no). Messenger lo sube en la misma llamada (`filedata`); Instagram prueba eso y dos caminos más
-   * (`enviarFotoInstagram`). Si Juan no logra bajarlo, se manda por URL como antes (nunca peor que antes).
-   */
-  async function bajarParaSubir(m: MedioSaliente, canal: "messenger" | "instagram"): Promise<{ bytes: ArrayBuffer; mime: string } | null> {
-    const maximo = canal === "instagram" ? MAX_FOTO_INSTAGRAM_BYTES : MAX_ADJUNTO_MESSENGER_BYTES;
-    const demasiado = canal === "instagram" ? "la foto pasa de 8 MB (límite de Instagram)" : "el archivo pasa de 25 MB (límite de Messenger)";
-    let archivo: Response;
-    try {
-      archivo = await f(m.url);
-    } catch (e) {
-      console.warn(`[juan] ${canal}: no se pudo bajar el archivo para subirlo; va por URL:`, String(e).slice(0, 200));
-      return null;
-    }
-    if (!archivo.ok) {
-      console.warn(`[juan] ${canal}: el archivo respondió HTTP ${archivo.status}; va por URL`);
-      return null;
-    }
-    if (Number(archivo.headers.get("content-length") ?? 0) > maximo) throw new Error(demasiado);
-    const bytes = await archivo.arrayBuffer();
-    if (bytes.byteLength > maximo) throw new Error(demasiado);
-    if (bytes.byteLength === 0) return null;
-    const mime = m.mime || archivo.headers.get("content-type")?.split(";")[0]?.trim() || (m.tipo === "imagen" ? "image/jpeg" : "application/octet-stream");
-    return { bytes, mime };
-  }
-
-  async function enviarSubiendo(env: Env, destino: { id: string }, m: MedioSaliente, archivo: { bytes: ArrayBuffer; mime: string }): Promise<string | undefined> {
-    const imagen = m.tipo === "imagen";
-    const cuerpo = new FormData();
-    cuerpo.append("recipient", JSON.stringify(destino));
-    cuerpo.append("messaging_type", "RESPONSE");
-    cuerpo.append("message", JSON.stringify({ attachment: { type: imagen ? "image" : "file", payload: { is_reusable: false } } }));
-    cuerpo.append("filedata", new Blob([archivo.bytes], { type: archivo.mime }), m.nombre || (imagen ? "foto.jpg" : "archivo"));
-    return publicar(env, { headers: {}, body: cuerpo }); // (sin content-type: lo pone FormData con su «boundary»)
-  }
-
-  // Instagram no documenta `is_reusable` en el envío: solo `url` (Messenger sí lo acepta).
-  const porUrl = (env: Env, destino: { id: string }, m: MedioSaliente, canal: "messenger" | "instagram") =>
-    enviarUno(env, {
-      recipient: destino,
-      messaging_type: "RESPONSE",
-      message: { attachment: { type: m.tipo === "imagen" ? "image" : "file", payload: canal === "instagram" ? { url: m.url } : { url: m.url, is_reusable: true } } },
-    });
-
-  const motivo = (e: unknown) => (e instanceof Error ? e.message : String(e)).slice(0, 160);
-  /** Un motivo de Meta en corto para Odoo (que guarda 200 letras): sin «meta send 400:» y con el código entre corchetes. */
-  const corto = (m: string) => m.replace(/^meta send \d+: /, "").replace(/^HTTP \d+ /, "").replace(/ \(código ([^)]*)\)$/, " [$1]").slice(0, 46);
-
-  /** Sube la foto aparte (`me/message_attachments`, `platform=instagram`) y devuelve su `attachment_id`, o null (con el motivo en `fallos`). */
-  async function subirFotoInstagram(env: Env, m: MedioSaliente, archivo: { bytes: ArrayBuffer; mime: string }, fallos: string[]): Promise<string | null> {
-    const token = env.META_PAGE_TOKEN;
-    if (!token) return null;
-    try {
-      const cuerpo = new FormData();
-      cuerpo.append("platform", "instagram");
-      cuerpo.append("message", JSON.stringify({ attachment: { type: "image", payload: { is_reusable: true } } }));
-      cuerpo.append("filedata", new Blob([archivo.bytes], { type: archivo.mime }), m.nombre || (archivo.mime === "image/png" ? "foto.png" : "foto.jpg"));
-      const r = await f(urlGraph(env, "me/message_attachments"), { method: "POST", headers: { authorization: `Bearer ${token}` }, body: cuerpo });
-      const j = (await r.json().catch(() => ({}))) as { attachment_id?: unknown; error?: { message?: string; code?: number } };
-      if (r.ok && typeof j.attachment_id === "string" && j.attachment_id) return j.attachment_id;
-      fallos.push(`aparte: HTTP ${r.status} ${(j.error?.message ?? "sin attachment_id").slice(0, 120)} (código ${j.error?.code ?? "?"})`);
-      return null;
-    } catch (e) {
-      fallos.push(`aparte: ${motivo(e)}`);
-      return null;
-    }
-  }
-
-  /**
-   * Instagram (2026-11-10: el texto salía y la foto no, «(#100) Error al subir el producto»). Se prueba, en orden, hasta que uno
-   * sale: (1) subir y enviar en la MISMA llamada, como Messenger (la documentación de Meta lo da para Instagram: `me/messages` con
-   * `filedata`); (2) subir aparte y mandar con `attachment_id`; (3) por URL, como antes. Un rechazo de Meta no deja salir nada, así
-   * que probar el siguiente no duplica. Si ninguno sale, el error dice qué contestó Meta a cada intento: se ve en Odoo («Por qué
-   * no salió») sin tener que abrir los registros.
-   */
-  async function enviarFotoInstagram(env: Env, destino: { id: string }, m: MedioSaliente): Promise<string | undefined> {
-    const fallos: string[] = [];
-    const archivo = await bajarParaSubir(m, "instagram");
-    if (archivo) {
-      try {
-        return await enviarSubiendo(env, destino, m, archivo);
-      } catch (e) {
-        fallos.push(`envío: ${motivo(e)}`);
-      }
-      const adjunto = await subirFotoInstagram(env, m, archivo, fallos);
-      if (adjunto) {
-        try {
-          return await enviarUno(env, { recipient: destino, messaging_type: "RESPONSE", message: { attachment: { type: "image", payload: { attachment_id: adjunto } } } });
-        } catch (e) {
-          fallos.push(`attachment_id: ${motivo(e)}`);
-        }
-      }
-    } else {
-      fallos.push("bajar: Juan no pudo bajar la foto de Odoo");
-    }
-    try {
-      const id = await porUrl(env, destino, m, "instagram");
-      if (fallos.length) console.warn("[juan] instagram: la foto salió por URL después de:", fallos.join(" · "));
-      return id;
-    } catch (e) {
-      fallos.push(`URL: ${motivo(e)}`);
-      console.warn("[juan] instagram: Meta no aceptó la foto:", fallos.join(" · "));
-      // En corto para Odoo («Por qué no salió» guarda 200 letras): cada intento con lo que dijo Meta.
-      const resumen = fallos.map((x) => {
-        const i = x.indexOf(": ");
-        return `${x.slice(0, i)}: ${corto(x.slice(i + 2))}`;
-      });
-      throw new Error(`Instagram no aceptó la foto · ${resumen.join(" · ")}`.slice(0, 200));
-    }
-  }
+  const pagina = maquinaMeta(op, PUERTA_DE_LA_PAGINA);
+  const ig = crearPuertaInstagram(op);
+  /** Este canal va por la segunda puerta (Instagram con alguno de sus secretos). */
+  const porInstagram = (canal: CanalId, env: Env | undefined) => canal === "instagram" && !!env && puertaInstagramElegida(env);
+  const deCanal = (canal: CanalId): "messenger" | "instagram" => (canal === "instagram" ? "instagram" : "messenger");
 
   return {
     canales: ["messenger", "instagram"],
     ruta: "/webhooks/meta",
+    otrasRutas: [RUTA_INSTAGRAM_LOGIN],
 
-    capacidades(canal: CanalId): Capacidades {
+    capacidades(canal: CanalId, env?: Env): Capacidades {
+      if (porInstagram(canal, env)) return CAPACIDADES_INSTAGRAM_LOGIN;
       return canal === "instagram" ? CAPACIDADES.instagram : CAPACIDADES.messenger;
     },
 
-    faltantes(env: Env): string[] {
+    faltantes(env: Env, canal: CanalId): string[] {
+      if (porInstagram(canal, env)) return ig.faltantes(env);
       return faltantesDe({ META_PAGE_TOKEN: !!env.META_PAGE_TOKEN, META_APP_SECRET: !!env.META_APP_SECRET, META_VERIFY_TOKEN: !!env.META_VERIFY_TOKEN });
     },
 
@@ -254,16 +75,12 @@ export function crearMeta(op: OpcionesMeta = {}): AdaptadorCanal {
     },
 
     async recibir(req: Request, env: Env): Promise<ResultadoWebhook> {
+      // La segunda puerta de Instagram tiene su propio webhook (y su propia clave secreta).
+      if (new URL(req.url).pathname.replace(/\/+$/, "") === RUTA_INSTAGRAM_LOGIN) return ig.recibir(req, env);
+
       const nada = (respuesta: Response): ResultadoWebhook => ({ respuesta, entrantes: [] });
 
-      if (req.method === "GET") {
-        const q = new URL(req.url).searchParams;
-        const esperado = env.META_VERIFY_TOKEN;
-        if (q.get("hub.mode") === "subscribe" && esperado && tokensIguales(q.get("hub.verify_token") ?? "", esperado)) {
-          return nada(new Response(q.get("hub.challenge") ?? "", { status: 200 }));
-        }
-        return nada(new Response("no autorizado", { status: 403 }));
-      }
+      if (req.method === "GET") return nada(respuestaDeVerificacion(req, env.META_VERIFY_TOKEN));
       if (req.method !== "POST") return nada(new Response("método no permitido", { status: 405 }));
 
       // La firma se calcula sobre el cuerpo CRUDO: se lee como texto antes de interpretarlo.
@@ -277,106 +94,47 @@ export function crearMeta(op: OpcionesMeta = {}): AdaptadorCanal {
       } catch {
         return nada(ok200());
       }
+      if (cuerpo.object === "instagram" && puertaInstagramElegida(env)) {
+        // Instagram va por la segunda puerta: lo que llegue por la página (cuentas con papel en la app) llegaría dos veces.
+        if ((cuerpo.entry ?? []).some((e) => e.messaging?.length)) console.warn("[juan] /webhooks/meta: Instagram va por /webhooks/instagram; el aviso que llegó por la página se ignora");
+        return nada(json({ ok: true }));
+      }
       // Como WhatsApp Cloud: se contesta 200 cuando cada mensaje ya quedó guardado (`guardarAntes`, rutas.ts). Los archivos de
       // Messenger e Instagram llegan como `url` (no hay nada que bajar con credenciales antes de guardarlos).
       return { respuesta: json({ ok: true }), entrantes: eventosDeMeta(cuerpo, Date.now()), guardarAntes: true };
     },
 
     async enviar(canal: CanalId, salida: Saliente, env: Env): Promise<ResultadoEnvio> {
-      const ids: string[] = [];
-      const destino = { id: salida.para };
-      const cap = canal === "instagram" ? CAPACIDADES.instagram : CAPACIDADES.messenger;
-      let burbujas = 0;
-      let medios = 0;
-      try {
-        for (let i = 0; i < salida.burbujas.length; i++) {
-          if (i > 0) await dormir(salida.esperaMs ?? 1000);
-          const id = await enviarUno(env, { recipient: destino, messaging_type: "RESPONSE", message: { text: sinNegritas(salida.burbujas[i]) } });
-          burbujas++;
-          if (id) ids.push(id);
-        }
-        for (const m of salida.medios) {
-          if (m.tipo === "documento" && !cap.documentos) {
-            medios++;
-            continue;
-          }
-          if (!env.META_PAGE_TOKEN) throw new Error("Falta META_PAGE_TOKEN");
-          let id: string | undefined;
-          if (canal === "instagram") {
-            id = await enviarFotoInstagram(env, destino, m); // aquí solo llegan imágenes: Instagram no admite documentos
-          } else {
-            const archivo = await bajarParaSubir(m, "messenger");
-            id = archivo ? await enviarSubiendo(env, destino, m, archivo) : await porUrl(env, destino, m, "messenger");
-          }
-          medios++;
-          if (id) ids.push(id);
-        }
-      } catch (e) {
-        // Lo que ya salió no se repite: quien reintente manda solo lo que falta.
-        if (burbujas + medios > 0) throw new EnvioParcialError(e instanceof Error ? e.message : String(e), { burbujas, medios, ids });
-        throw e;
-      }
-      return { ids };
+      if (porInstagram(canal, env)) return ig.enviar(salida, env);
+      return pagina.enviar(deCanal(canal), salida, env);
     },
 
     async nombreDePerfil(canal: CanalId, para: string, env: Env): Promise<string | null> {
-      const token = env.META_PAGE_TOKEN;
-      if (!token || !/^\d{5,30}$/.test(para)) return null;
-      const cabeceras = { headers: { authorization: `Bearer ${token}` } };
-      const ig = canal === "instagram";
-      const deGraph = async (ruta: string): Promise<Record<string, unknown> | null> => {
-        const r = await f(urlGraph(env, ruta), cabeceras);
-        const j = (await r.json().catch(() => null)) as (Record<string, unknown> & { error?: { code?: number } }) | null;
-        if (!r.ok || !j || j.error) {
-          // Sin datos de nadie: solo qué consulta y qué código dio Meta (para saber qué permiso falta).
-          console.warn(`[juan] ${canal}: el nombre no salió de ${ruta.split("?")[0].replace(/\d{5,}/, ":id")} (HTTP ${r.status}, código ${j?.error?.code ?? "?"})`);
-          return null;
-        }
-        return j;
-      };
-      // 1) El perfil (Messenger: nombre y apellido; Instagram: nombre o @usuario). Meta lo da solo con el permiso «Business Asset User
-      //    Profile Access» (revisión de la app) o a quien tiene rol en la app.
-      const perfil = await deGraph(`${para}?fields=${ig ? "name,username" : "first_name,last_name"}`);
-      const delPerfil = ig
-        ? texto(perfil?.name) || (texto(perfil?.username) ? `@${texto(perfil?.username)}` : "")
-        : [texto(perfil?.first_name), texto(perfil?.last_name)].filter(Boolean).join(" ");
-      if (limpiarNombre(delPerfil)) return limpiarNombre(delPerfil);
-      // 2) Sin ese permiso: la conversación de la página con esa persona trae sus participantes (Messenger: `name`; Instagram:
-      //    `username`), con los permisos de mensajes que ya tiene la llave de la página.
-      const conv = await deGraph(`me/conversations?platform=${ig ? "instagram" : "messenger"}&user_id=${para}&fields=participants`);
-      const datos = (conv?.data as { participants?: { data?: { id?: string; name?: string; username?: string }[] } }[] | undefined) ?? [];
-      const quien = datos.flatMap((c) => c.participants?.data ?? []).find((p) => p.id === para);
-      const deLaConversacion = ig ? (texto(quien?.username) ? `@${texto(quien?.username)}` : texto(quien?.name)) : texto(quien?.name);
-      return limpiarNombre(deLaConversacion) || null;
+      if (porInstagram(canal, env)) return ig.nombreDePerfil(para, env);
+      return pagina.nombreDePerfil(deCanal(canal), para, env);
     },
 
-    async fotoDePerfil(_canal: CanalId, para: string, env: Env): Promise<{ bytes: Uint8Array; mime: string } | null> {
-      const token = env.META_PAGE_TOKEN;
-      if (!token || !/^\d{5,30}$/.test(para)) return null;
-      const r = await f(urlGraph(env, `${para}?fields=profile_pic`), { headers: { authorization: `Bearer ${token}` } });
-      if (!r.ok) return null;
-      const j = (await r.json().catch(() => null)) as { profile_pic?: string } | null;
-      let url: URL;
-      try {
-        url = new URL(j?.profile_pic ?? "");
-      } catch {
-        return null;
-      }
-      if (url.protocol !== "https:" || !SERVIDORES_DE_FOTO.test(url.hostname)) return null;
-      const foto = await f(url.toString(), { redirect: "error" });
-      if (!foto.ok) return null;
-      const bytes = new Uint8Array(await foto.arrayBuffer());
-      if (bytes.length === 0 || bytes.length > MAX_FOTO_DE_PERFIL_BYTES) return null;
-      const mime = (foto.headers.get("content-type") ?? "image/jpeg").split(";")[0].trim().toLowerCase();
-      return { bytes, mime: mime.startsWith("image/") ? mime : "image/jpeg" };
+    async fotoDePerfil(canal: CanalId, para: string, env: Env): Promise<{ bytes: Uint8Array; mime: string } | null> {
+      if (porInstagram(canal, env)) return ig.fotoDePerfil(para, env);
+      return pagina.fotoDePerfil(para, env);
     },
 
-    async escribiendo(_canal: CanalId, para: string, env: Env): Promise<void> {
-      await enviarUno(env, { recipient: { id: para }, sender_action: "typing_on" }).catch(() => {});
+    async escribiendo(canal: CanalId, para: string, env: Env): Promise<void> {
+      if (porInstagram(canal, env)) return ig.escribiendo(para, env);
+      return pagina.escribiendo(para, env);
     },
 
     async salud(canal: CanalId, env: Env): Promise<SaludCanal> {
       return { configurado: this.configurado(env, canal), faltan: this.faltantes(env, canal), conectado: null };
+    },
+
+    async saludLocal(canal: CanalId, env: Env): Promise<SaludLocal> {
+      if (canal !== "instagram") return {};
+      return porInstagram(canal, env) ? ig.saludLocal(env) : { puerta: PUERTA_PAGINA };
+    },
+
+    async mantener(env: Env): Promise<void> {
+      await ig.mantener(env);
     },
   };
 }
