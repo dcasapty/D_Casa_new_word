@@ -237,6 +237,15 @@ Heredado del CRM de Baby Caleb y **ampliado con medios**. Service binding `PUENT
    apartados, no aprueba créditos, no da descuentos ni fija entregas (se crea la oportunidad). Las salvaguardas siguen
    quitando toda promesa («te lo apartamos», «llega mañana», «envío gratis») y toda cifra que no traiga una herramienta.
    Mientras una entrada de conocimiento esté inactiva (hoy, «Apartados», hasta que lo revise el abogado), el bot no la ve.
+   **Costo del envío (la dueña, 2026-11-12: «tienes mi sí»):** con la tarifa de envíos **aprobada** por Gerencia y el
+   interruptor «Cotizar envíos» encendido (Ajustes de Juan), Juan da el precio con `cotizar_envio` (la misma calculadora de
+   `dcasa_envios`) y pregunta «¿Quieres que te lo sume a la cotización?»; con el sí, `agregar_envio` lo suma a la cotización
+   de esa conversación y manda el PDF nuevo. Si hay promoción de envío vigente, la frase dice el precio normal, lo que D'CASA
+   regala o abona (siempre como ahorro), las condiciones y hasta cuándo vale («…después, el envío vuelve a su precio
+   normal»). Un lugar «Por revisar», uno cotizado aparte o la tarifa sin aprobar → «te lo confirma una vendedora». La
+   guardia del Worker solo deja pasar una cifra o un «gratis» del envío que respalde `cotizar_envio`/`agregar_envio` **en
+   ese turno**, con su papel (normal, final, ahorro, mínimo, compra, total) y su lugar, cláusula por cláusula
+   ([ENVIOS.md](ENVIOS.md) › Juan cotiza el envío).
 4. Socios: explica con `reglas_socios`; saldo solo con PIN; **nunca** «acredita» ni promete puntos
    de una compra no facturada.
 5. Fotos de comprobantes de pago o de documentos de identidad **no se le envían al modelo**: se
@@ -756,7 +765,8 @@ Precios, existencias, medidas, combos, horario, dirección, cifras de Socios, po
 las herramientas de Odoo. El prompt no tiene ni un precio ni una cifra. Las herramientas son las 9
 del contrato más la base de conocimiento, las etiquetas y las cotizaciones: `buscar_productos`, `ver_producto`, `listar_categorias`,
 `reglas_socios`, `horario_y_tienda`, `saldo_puntos`, `crear_oportunidad`, `anotar_conversacion`, `pasar_a_vendedora`,
-`buscar_conocimiento`, `registrar_pregunta_sin_respuesta`, `etiquetar_conversacion` y `cotizar`; más una local, `enviar_foto_producto`
+`buscar_conocimiento`, `registrar_pregunta_sin_respuesta`, `etiquetar_conversacion`, `cotizar`, `cotizar_envio` y
+`agregar_envio`; más una local, `enviar_foto_producto`
 (`adicionales=true` = más fotos de la galería, sin repetir).
 
 `cotizar` es la única herramienta cuyo resultado trae un archivo: el PDF llega como `documento` (URL firmada de Odoo, de vida corta).
