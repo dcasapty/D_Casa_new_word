@@ -311,7 +311,7 @@ $dcj-marino: #0B1F52;
         th[scope=row], .o_dcj_p_pago_acciones { grid-column: 1 / -1; }
         .o_dcj_num { text-align: left; }
         td[data-etiqueta]::before { content: attr(data-etiqueta); display: block; font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--dc-tinta-3, #6B7690); }
-        .o_dcj_p_pago_acciones { width: auto; text-align: left; .btn { width: 100%; } }
+        .o_dcj_p_pago_acciones { width: auto; text-align: right; }
     }
     .o_dcj_p_modelos li { grid-template-columns: 1fr auto; .o_dcj_p_modelo_barra { grid-column: 1 / -1; order: 3; } }
     .o_dcj_p_boton, .o_dcj_p_segmento button { min-height: 44px; }
