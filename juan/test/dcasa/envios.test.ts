@@ -9,7 +9,8 @@
  * armado y la instalación siguen siempre bloqueados. Lo mismo en inglés.
  *
  * Revisión adversarial del 2026-11-12: cada escenario del revisor (F1…F8, B1…B4, C1…C5) está aquí con la expectativa al revés. Segunda
- * vuelta (I-4, I-5, I-6, M-4, M-5): N1…N8, P1…P4, C2', C6 y W1, también al revés, y el sondeo de frases legítimas.
+ * vuelta (I-4, I-5, I-6, M-4, M-5): N1…N8, P1…P4, C2', C6 y W1, también al revés, y el sondeo de frases legítimas. Tercera vuelta (B-1,
+ * I-A, I-C, M-e): las frases de sondeo3 y regresion3 y las conversaciones C3-1 y C3-2.
  */
 import { describe, expect, it } from "vitest";
 import { analizar, asegurarItbms, detectarPromesas, quitarGraves, type ContextoRevision, type LugarDeEnvio, type RespaldoDeEnvio } from "../../src/dcasa/salvaguardas";
@@ -712,5 +713,196 @@ describe("segunda vuelta: en la conversación (C2', C6, W1)", () => {
     await m.conversar("cotízame la cama y súmale el envío a Villa Lucre");
     expect(m.odoo.llamadas.filter((l) => l.nombre === "agregar_envio")).toHaveLength(1);
     expect(m.odoo.enviosSumados).toEqual([{ lugar_id: 77 }]);
+  });
+});
+
+describe("tercera vuelta: las palabras del costo no sacan la cifra del envío (B-1, I-C)", () => {
+  const COLON_SI = respaldo([COLON_APLICA]);
+  const DAVID = lugar({ nombres: ["san pablo", "david"], normal: 150, final: 130, ahorro: 20, minimo: 200 });
+  const COLON_Y_DAVID = respaldo([COLON_APLICA, DAVID]);
+
+  it("B-1 sin herramienta de envíos, «tiene un costo de», «la tarifa es», «el monto es», «the fee is»… no pasan", () => {
+    for (const frase of [
+      "El envío a Colón tiene un costo de $499.",
+      "El envío a Colón tiene un costo de $90.",
+      "El envío tiene un costo de $90.",
+      "Para el envío a Colón, la tarifa es $499.",
+      "El envío a Colón: la tarifa es de $499.",
+      "El envío a Colón con tu compra queda en $499.",
+      "El envío a Colón: el monto es $90.",
+      "El envío a Colón tiene un valor de $90.",
+      "Delivery to Colón has a cost of $90.",
+      "Delivery to Colón: the fee is $90.",
+    ]) {
+      expect(graves(frase, undefined, [499]), frase).toContain("costo de entrega");
+    }
+  });
+
+  it("B-1 con la herramienta, la cifra de otro lugar (o un precio de producto) dicha con esas palabras no pasa; la de ese lugar, sí", () => {
+    for (const frase of [
+      "El envío a Colón tiene un costo de $150.",
+      "El envío a Colón tiene un valor de $130.",
+      "Para el envío a Colón, la tarifa es $150.",
+      "El envío a Colón: el monto es $130.",
+      "El envío a Colón te sale en $130.",
+    ]) {
+      expect(graves(frase, COLON_Y_DAVID), frase).toContain("costo de entrega");
+    }
+    expect(graves("El envío a Colón tiene un costo de $499.", COLON_SI, [499])).toContain("costo de entrega");
+    expect(graves("El envío a Colón tiene un costo de $15.", respaldo([VILLA_LUCRE_APLICA]))).toContain("costo de entrega");
+    for (const frase of ["El envío a Colón tiene un costo de $90.", "El envío a Colón tiene un costo de $70.", "Para el envío a Colón, la tarifa es $90."]) {
+      expect(graves(frase, COLON_Y_DAVID), frase).toEqual([]);
+    }
+  });
+
+  it("B-1 una oración cuyo sujeto es el costo sigue hablando del envío; la del producto, no", () => {
+    expect(graves("El envío a Colón cuesta $90. El costo final es $20.", COLON_SI)).toContain("costo de entrega");
+    expect(graves("El envío a Colón cuesta $90. El precio de la cama es $499 + ITBMS.", COLON_SI, [499])).toEqual([]);
+  });
+
+  it("I-C «por tu compra», «con tu compra», «queda en el precio de» siguen siendo del envío", () => {
+    expect(graves("El envío a Colón, por tu compra, te queda en $130.", COLON_Y_DAVID)).toContain("costo de entrega");
+    expect(graves("El envío a Colón queda en el precio de $130.", COLON_Y_DAVID)).toContain("costo de entrega");
+    expect(graves("El envío a Colón, por tu compra, te queda en $70.", COLON_Y_DAVID)).toEqual([]);
+    // La cotización dicha como tal, sí es de la cotización.
+    expect(graves("Tu cotización con el envío incluido queda en $855.47.", respaldo([VILLA_LUCRE_APLICA], 855.47))).toEqual([]);
+  });
+});
+
+describe("tercera vuelta: un lugar no cotizado, dígase como se diga (I-A)", () => {
+  const VILLA_SI = respaldo([VILLA_LUCRE_APLICA]);
+
+  it("no toma el «gratis» ni el precio de Villa Lucre", () => {
+    for (const frase of [
+      "El envío a David te sale gratis.",
+      "El envío a david te sale gratis.",
+      "A David el envío te sale gratis.",
+      "A David el envío te sale gratis si tu compra pasa de $200 sin ITBMS.",
+      "Para David también: el envío te sale gratis.",
+      "Te lo mandamos a David gratis.",
+      "Llevarlo a Bugaba cuesta $15.",
+      "El envío a san pablo cuesta $15.",
+    ]) {
+      expect(graves(frase, VILLA_SI), frase).not.toEqual([]);
+    }
+  });
+
+  it("lo que no es un lugar no cuenta: a tu casa, a domicilio, en compras, hasta el 30, a su precio normal…", () => {
+    for (const frase of [
+      "El envío a Villa Lucre te sale gratis y te lo llevamos a tu casa.",
+      "El envío a domicilio a Villa Lucre te sale gratis.",
+      "El envío a Villa Lucre te sale gratis hasta el 30 de noviembre.",
+      "El envío a San Miguelito te sale gratis, en compras de más de $200 sin ITBMS.",
+      "Listo, te sumé el envío gratis a Villa Lucre en tu cotización.",
+      "El envío te sale gratis a ti.",
+      "El envío a Villa Lucre cuesta $15 hasta tu casa.",
+    ]) {
+      expect(graves(frase, VILLA_SI), frase).toEqual([]);
+    }
+    expect(graves("El envío a Colón cuesta $90; con la promoción va a su precio normal.", respaldo([COLON]))).toEqual([]);
+  });
+});
+
+describe("tercera vuelta: la condición es MÁS de $200 (M-e)", () => {
+  it("«$200 o más», «desde $200», «a partir de $200», «al menos $200» no son la condición", () => {
+    for (const frase of [
+      "El envío a Villa Lucre es gratis si compras $200 o más.",
+      "El envío a Villa Lucre es gratis en compras desde $200 sin ITBMS.",
+      "El envío a Villa Lucre es gratis a partir de $200 sin ITBMS.",
+      "El envío a Villa Lucre es gratis si tu compra es de al menos $200.",
+      "El envío a Villa Lucre es gratis en compras de $200 sin ITBMS en adelante.",
+    ]) {
+      expect(graves(frase, respaldo([VILLA_LUCRE])), frase).toContain("entrega o flete gratis");
+    }
+    expect(graves("El envío a Villa Lucre es gratis si tu compra pasa de $200 sin ITBMS.", respaldo([VILLA_LUCRE]))).toEqual([]);
+    expect(graves("El envío a Villa Lucre es gratis en compras de más de $200 sin ITBMS.", respaldo([VILLA_LUCRE]))).toEqual([]);
+  });
+});
+
+describe("tercera vuelta: el sondeo (sondeo3)", () => {
+  const c = (envio?: RespaldoDeEnvio): ContextoRevision => ({
+    preciosProducto: new Set([499, 799.5, 129]),
+    cifrasConocidas: new Set([0, 15, 20, 70, 90, 130, 150, 200, 499, 799.5, 129, 855.47, 1298.5]),
+    envio,
+  });
+  const CA = COLON_APLICA;
+  const VA = VILLA_LUCRE_APLICA;
+
+  it("las frases legítimas pasan enteras", () => {
+    const casos: [RespaldoDeEnvio | undefined, string][] = [
+      [undefined, "Sí, la llevamos a domicilio: la cama cuesta $499 + ITBMS."],
+      [undefined, "La cama está en $499 + ITBMS más el envío, que depende del barrio."],
+      [undefined, "Precio: $499 + ITBMS, entrega a domicilio disponible."],
+      [undefined, "Con envío a domicilio, la cama Queen Milán queda en $499 + ITBMS."],
+      [undefined, "Hacemos envíos; el sofá Roma está en $799.50 + ITBMS."],
+      [undefined, "El sofá Roma ($799.50 + ITBMS) te lo podemos enviar a domicilio."],
+      [undefined, "Tu cotización suma $1,298.50 + ITBMS sin el envío."],
+      [undefined, "Puedes retirarlo en la tienda sin costo o pedir entrega a domicilio."],
+      [undefined, "Delivery is available; the bed is $499 + ITBMS."],
+      [undefined, "We deliver to your home: the bed costs $499 + ITBMS."],
+      [undefined, "El combo cama + colchón está en $799.50 + ITBMS y la entrega te la confirma una vendedora."],
+      [undefined, "Hasta Navidad, el sofá Roma está en $799.50 + ITBMS."],
+      [undefined, "Hasta La Chorrera llegan nuestras entregas; la mesa cuesta $129 + ITBMS."],
+      [undefined, "Tenemos la cama en $499 + ITBMS hasta agotar existencias, con entrega a domicilio."],
+      [respaldo([VA], 855.47), "Tu cotización con el envío incluido queda en $855.47."],
+      [respaldo([VA], 855.47), "Listo: envío gratis a Villa Lucre y tu cotización queda en $855.47."],
+      [respaldo([VA]), "El envío a Villa Lucre te sale gratis (te ahorras $15). Te sale en $499 + ITBMS la cama."],
+      [
+        respaldo([COLON]),
+        "El envío a Barrio Norte cuesta normalmente $90. Con la promoción de noviembre, en compras de más de $200 sin ITBMS, D'CASA te abona $20 del envío: te queda en $70. La promoción es hasta el 30 de noviembre; después, el envío vuelve a su precio normal. No aplica si la compra lleva colchón.",
+      ],
+      [
+        respaldo([{ ...CA, minimo: null }]),
+        "El envío a Barrio Norte (Colón) cuesta normalmente $90. Tu cotización ya tiene la promoción de noviembre, así que D'CASA te abona $20 del envío: te queda en $70.",
+      ],
+      [
+        respaldo([{ ...VA, minimo: null }], 855.47),
+        "Ese envío ya estaba en tu cotización S00012. El envío a Villa Lucre (José Domingo Espinar, San Miguelito) cuesta normalmente $15. Tu cotización ya tiene la promoción de noviembre, así que D'CASA te regala el envío: te sale gratis (te ahorras $15). El total de la cotización queda en $855.47.",
+      ],
+      [respaldo([CA]), "El envío a Colón tiene un costo de $70."],
+      [respaldo([CA]), "El envío a Colón tiene un costo de $90."],
+    ];
+    for (const [envio, frase] of casos) {
+      expect(analizar(frase, c(envio)).graves.map((g) => g.detalle), frase).toEqual([]);
+    }
+  });
+
+  it("las que dicen mal el envío no pasan", () => {
+    const casos: [RespaldoDeEnvio, string][] = [
+      [respaldo([VILLA_LUCRE]), "El envío a Villa Lucre te sale gratis con la compra."],
+      [respaldo([VILLA_LUCRE]), "Con la promoción, el envío a Villa Lucre no tiene costo."],
+      [respaldo([COLON]), "El envío a Colón te queda en $70 con tu compra."],
+      [respaldo([COLON]), "El envío a Colón cuesta $90 y con la promo, $70."],
+      [respaldo([COLON]), "El envío a Colón: $90, o $70 con la promo."],
+      [respaldo([CA]), "Ya con el abono de $20, el envío a Colón queda en $20."],
+      [respaldo([CA]), "El envío a Colón sale en $90 menos el abono, o sea $20."],
+      [respaldo([CA]), "El abono del envío a Colón es de $90."],
+    ];
+    for (const [envio, frase] of casos) {
+      expect(analizar(frase, c(envio)).graves, frase).not.toEqual([]);
+    }
+  });
+});
+
+describe("tercera vuelta: en la conversación (C3-1, C3-2)", () => {
+  it("C3-1 el turno siguiente, sin cotizar_envio: «El envío a Colón tiene un costo de $30» (el 30 del «30 de noviembre») no sale", async () => {
+    const m = crearMundo();
+    m.guion([{ llamadas: [{ nombre: "cotizar_envio", args: { lugar: "Villa Lucre" } }] }, { texto: ENVIOS.villaLucre.frase_para_el_cliente }]);
+    await m.conversar("¿cuánto el envío a Villa Lucre?");
+    m.guion([{ texto: "El envío a Colón tiene un costo de $30." }, { texto: "El envío a Colón tiene un costo de $30." }]);
+    await m.conversar("¿y a Colón?");
+    expect(m.canal.textos.join(" | ")).not.toContain("tiene un costo de $30");
+  });
+
+  it("C3-2 con cotizar_envio de Villa Lucre, «A David el envío te sale gratis…» no sale; lo de Villa Lucre, sí", async () => {
+    const m = crearMundo();
+    m.guion([
+      { llamadas: [{ nombre: "cotizar_envio", args: { lugar: "Villa Lucre" } }] },
+      { texto: "A Villa Lucre el envío cuesta normalmente $15. A David el envío te sale gratis si tu compra pasa de $200 sin ITBMS." },
+    ]);
+    await m.conversar("¿cuánto el envío a Villa Lucre y a David?");
+    const texto = m.canal.textos.join(" | ");
+    expect(texto).not.toContain("A David el envío te sale gratis");
+    expect(texto).toContain("A Villa Lucre el envío cuesta normalmente $15.");
   });
 });
