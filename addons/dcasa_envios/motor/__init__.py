@@ -13,7 +13,8 @@ Panamá). Ver docs/ENVIOS.md.
 * :mod:`.buscador` — el índice de lugares y la búsqueda (sinónimos, abreviaturas, errores de dedo, frases).
 * :mod:`.tarjeta` — lo que se muestra de un lugar: chips, zona, precio, desglose y el texto para el cliente.
 * :mod:`.archivo` — leer el archivo de Gerencia (el HTML o su JSON) y la llave estable de cada lugar.
+* :mod:`.promocion` — la promoción de envío (gratis o abono): el precio con la promoción y la frase para el cliente.
 * :mod:`.choferes` — lo único que ve un chofer con su enlace (nombre, zona, precio y ruta) y el lugar más cercano a su
   ubicación.
 """
-from . import archivo, buscador, choferes, tarifa, tarjeta, texto  # noqa: F401
+from . import archivo, buscador, choferes, promocion, tarifa, tarjeta, texto  # noqa: F401

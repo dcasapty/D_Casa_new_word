@@ -1,0 +1,163 @@
+"""La cuenta de la promoción de envío, sin base de datos (``motor/promocion.py``).
+
+La promoción de noviembre con las decisiones de la dueña: más de $200 SIN ITBMS (estrictamente mayor), gratis en toda
+la provincia de Panamá y en Panamá Oeste, $20 de abono en Colón y el resto, no aplica con colchón, del 1 al 30 de
+noviembre de 2026 (ambos incluidos)."""
+from datetime import date
+
+from odoo.tests import BaseCase, tagged
+
+from ..motor import promocion as P
+
+NOVIEMBRE = {
+    'nombre': 'Envío Gratis Todo Noviembre', 'desde': date(2026, 11, 1), 'hasta': date(2026, 11, 30),
+    'minimo': 200.0, 'mide': 'sin_itbms', 'provincias_gratis': ['Panamá', 'Panamá Oeste'], 'distritos_gratis': [],
+    'abono': 20.0, 'excluye_colchon': True,
+}
+HOY = date(2026, 11, 12)
+
+
+def compra(sin_itbms, con_itbms=None, colchon=False):
+    return {'subtotal_sin_itbms': sin_itbms,
+            'subtotal_con_itbms': round(sin_itbms * 1.07, 2) if con_itbms is None else con_itbms, 'colchon': colchon}
+
+
+@tagged('post_install', '-at_install')
+class TestPromocionDeEnvio(BaseCase):
+
+    def aplicar(self, precio=15.0, prov='Panamá', dist='San Miguelito', fecha=HOY, datos='sin', promocion=None):
+        return P.aplicar(promocion or NOVIEMBRE, precio, prov, dist, fecha, None if datos == 'sin' else datos)
+
+    # --- Fechas ---------------------------------------------------------------------------------------------------
+    def test_dentro_y_fuera_de_las_fechas_ambos_dias_incluidos(self):
+        for fecha, vale in ((date(2026, 10, 31), False), (date(2026, 11, 1), True), (date(2026, 11, 30), True),
+                            (date(2026, 12, 1), False)):
+            with self.subTest(fecha=fecha):
+                resultado = self.aplicar(fecha=fecha, datos=compra(300))
+                self.assertEqual(resultado['hay_promocion'], vale)
+                self.assertEqual(resultado['aplica'], vale)
+                self.assertEqual(resultado['precio_final'], 0.0 if vale else 15.0)
+                if not vale:
+                    self.assertEqual(resultado['motivo'], P.SIN_PROMOCION)
+                    self.assertEqual(resultado['frase'], '', 'sin promoción vigente no se dice nada de promoción')
+
+    def test_sin_promocion_queda_el_precio_normal(self):
+        resultado = P.aplicar(None, 15.0, 'Panamá', 'San Miguelito', HOY, compra(500))
+        self.assertEqual((resultado['hay_promocion'], resultado['aplica'], resultado['precio_final'],
+                          resultado['ahorro'], resultado['frase']), (False, False, 15.0, 0.0, ''))
+        self.assertEqual(P.respaldo(resultado), {'montos': [15.0], 'gratis': False})
+
+    # --- El mínimo: estrictamente mayor, con o sin ITBMS -----------------------------------------------------------
+    def test_en_el_limite_de_200_no_aplica_y_un_centavo_mas_si(self):
+        en_el_limite = self.aplicar(datos=compra(200.0))
+        self.assertFalse(en_el_limite['aplica'])
+        self.assertEqual(en_el_limite['motivo'], P.MONTO)
+        self.assertEqual(en_el_limite['precio_final'], 15.0)
+        self.assertIn('es para compras de más de $200 sin ITBMS', en_el_limite['frase'])
+        self.assertIn('tu cotización suma $200 sin ITBMS', en_el_limite['frase'])
+        self.assertNotIn('gratis', en_el_limite['frase'].lower())
+        un_centavo_mas = self.aplicar(datos=compra(200.01))
+        self.assertTrue(un_centavo_mas['aplica'])
+        self.assertEqual(un_centavo_mas['motivo'], P.GRATIS)
+
+    def test_se_mide_sin_itbms_aunque_con_itbms_pase_del_minimo(self):
+        # $190 + 7 % = $203.30: con ITBMS pasaría, pero la dueña dijo «sin ITBMS».
+        resultado = self.aplicar(datos=compra(190.0, 203.30))
+        self.assertFalse(resultado['aplica'])
+        self.assertEqual(resultado['compra_medida'], 190.0)
+        self.assertEqual(resultado['mide'], 'sin_itbms')
+
+    def test_si_gerencia_elige_con_itbms_se_mide_con_itbms(self):
+        con_itbms = dict(NOVIEMBRE, mide='con_itbms')
+        resultado = self.aplicar(datos=compra(190.0, 203.30), promocion=con_itbms)
+        self.assertTrue(resultado['aplica'])
+        self.assertEqual(resultado['compra_medida'], 203.30)
+        self.assertIn('pasa de $200 con ITBMS', resultado['frase'])
+
+    def test_el_dinero_se_cuenta_en_centavos(self):
+        # 0.1 + 0.2 en punto flotante es 0.30000000000000004: en centavos es 0.30, y 200.004 es 200.00 (no pasa).
+        self.assertFalse(self.aplicar(datos=compra(200.004))['aplica'])
+        self.assertTrue(self.aplicar(datos=compra(200.005))['aplica'])
+        resultado = self.aplicar(precio=0.1 + 0.2, prov='Colón', dist='Colón', datos=compra(300))
+        self.assertEqual(resultado['precio_normal'], 0.3)
+        self.assertEqual(resultado['precio_final'], 0.0)
+
+    # --- Colchón ---------------------------------------------------------------------------------------------------
+    def test_con_colchon_no_aplica(self):
+        resultado = self.aplicar(datos=compra(900.0, colchon=True))
+        self.assertFalse(resultado['aplica'])
+        self.assertEqual(resultado['motivo'], P.COLCHON)
+        self.assertEqual(resultado['precio_final'], 15.0)
+        self.assertIn('no aplica cuando la compra lleva colchón', resultado['frase'])
+        self.assertFalse(resultado['menciona_gratis'])
+
+    def test_si_la_promocion_no_excluye_el_colchon_aplica_igual(self):
+        resultado = self.aplicar(datos=compra(900.0, colchon=True), promocion=dict(NOVIEMBRE, excluye_colchon=False))
+        self.assertTrue(resultado['aplica'])
+
+    # --- Zonas: gratis o abono -------------------------------------------------------------------------------------
+    def test_gratis_en_toda_la_provincia_de_panama_y_en_panama_oeste(self):
+        for prov, dist in (('Panamá', 'Panamá'), ('Panamá', 'Chepo'), ('Panamá', 'San Miguelito'),
+                           ('Panamá Oeste', 'La Chorrera'), ('PANAMA OESTE', 'Arraiján'), ('panama', 'Taboga')):
+            with self.subTest(prov=prov, dist=dist):
+                resultado = self.aplicar(precio=35.0, prov=prov, dist=dist, datos=compra(250.0))
+                self.assertEqual((resultado['motivo'], resultado['precio_final'], resultado['ahorro']),
+                                 (P.GRATIS, 0.0, 35.0))
+                self.assertIn('este envío te sale gratis (te ahorras $35)', resultado['frase'])
+                self.assertIn('«Envío Gratis Todo Noviembre» (del 1 al 30 de noviembre)', resultado['frase'])
+                self.assertEqual(P.respaldo(resultado), {'montos': [0.0, 35.0], 'gratis': True})
+
+    def test_abono_de_20_en_colon_y_el_resto(self):
+        for prov in ('Colón', 'Coclé', 'Provincia Lejana'):
+            with self.subTest(prov=prov):
+                resultado = self.aplicar(precio=90.0, prov=prov, dist='Algún distrito', datos=compra(450.0))
+                self.assertEqual((resultado['motivo'], resultado['precio_final'], resultado['ahorro']),
+                                 (P.ABONO, 70.0, 20.0))
+                self.assertEqual(resultado['frase'], 'Con la promoción de envío del 1 al 30 de noviembre, como tu '
+                                                     'compra pasa de $200 sin ITBMS, te abonamos $20 de este envío: '
+                                                     'te queda en $70.')
+                self.assertFalse(resultado['menciona_gratis'], 'en una zona con abono no se dice «gratis»')
+                self.assertEqual(P.respaldo(resultado), {'montos': [20.0, 70.0, 90.0], 'gratis': False})
+
+    def test_el_abono_nunca_deja_el_envio_en_negativo(self):
+        resultado = self.aplicar(precio=12.5, prov='Colón', dist='Colón', datos=compra(450.0))
+        self.assertEqual((resultado['motivo'], resultado['precio_final'], resultado['ahorro']), (P.GRATIS, 0.0, 12.5))
+        self.assertIn('te sale gratis (te ahorras $12.50)', resultado['frase'])
+        self.assertTrue(resultado['menciona_gratis'])
+
+    def test_distritos_gratis_ademas_de_las_provincias(self):
+        promocion = dict(NOVIEMBRE, provincias_gratis=['Panamá'], distritos_gratis=['Arraiján'])
+        self.assertEqual(self.aplicar(precio=35.0, prov='Panamá Oeste', dist='Arraiján', datos=compra(300),
+                                      promocion=promocion)['motivo'], P.GRATIS)
+        self.assertEqual(self.aplicar(precio=35.0, prov='Panamá Oeste', dist='La Chorrera', datos=compra(300),
+                                      promocion=promocion)['motivo'], P.ABONO)
+
+    def test_sin_abono_fuera_de_las_zonas_gratis_no_hay_beneficio(self):
+        resultado = self.aplicar(prov='Colón', dist='Colón', datos=compra(300), promocion=dict(NOVIEMBRE, abono=0))
+        self.assertEqual((resultado['motivo'], resultado['aplica'], resultado['precio_final'], resultado['frase']),
+                         (P.ZONA_SIN_BENEFICIO, False, 15.0, ''))
+
+    def test_un_envio_que_se_cotiza_aparte_no_tiene_promocion_que_calcular(self):
+        resultado = self.aplicar(precio=None, datos=compra(300))
+        self.assertEqual((resultado['motivo'], resultado['aplica'], resultado['precio_final']),
+                         (P.SIN_PRECIO, False, None))
+        self.assertEqual(P.respaldo(resultado)['montos'], [])
+
+    # --- Sin cotización todavía: las condiciones ------------------------------------------------------------------
+    def test_sin_compra_dice_las_condiciones_y_no_dice_que_aplica(self):
+        gratis = self.aplicar(precio=15.0)
+        self.assertEqual((gratis['motivo'], gratis['aplica'], gratis['condicional'], gratis['precio_final'],
+                          gratis['precio_si_aplica']), (P.SIN_COMPRA, False, True, None, 0.0))
+        self.assertEqual(gratis['frase'], 'Con la promoción «Envío Gratis Todo Noviembre» (del 1 al 30 de noviembre), '
+                                          'en compras de más de $200 sin ITBMS, este envío te sale gratis. No aplica '
+                                          'si la compra lleva colchón.')
+        abono = self.aplicar(precio=90.0, prov='Colón', dist='Colón')
+        self.assertEqual(abono['frase'], 'Con la promoción de envío del 1 al 30 de noviembre, en compras de más de '
+                                         '$200 sin ITBMS, te abonamos $20 de este envío: te queda en $70. No aplica si '
+                                         'la compra lleva colchón.')
+        self.assertEqual(P.respaldo(abono), {'montos': [70.0, 90.0], 'gratis': False})
+
+    def test_fechas_de_varios_meses_y_varios_anos(self):
+        self.assertEqual(P.fecha_texto(date(2026, 11, 25), date(2026, 12, 2)), 'del 25 de noviembre al 2 de diciembre')
+        self.assertEqual(P.fecha_texto(date(2026, 12, 26), date(2027, 1, 5)),
+                         'del 26 de diciembre de 2026 al 5 de enero de 2027')
