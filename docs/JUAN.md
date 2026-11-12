@@ -663,6 +663,8 @@ llegan a Odoo con un texto genérico (sin detalles internos).
 | `META_APP_SECRET` | `dcasa-juan` | Comprobar la firma de WhatsApp oficial, Messenger e Instagram (uno solo para los tres: la misma app de Meta). | Puesto desde el 2026-11-02 (WhatsApp oficial). |
 | `META_VERIFY_TOKEN` | `dcasa-juan` | Que Meta pueda verificar el webhook (el mismo para los tres canales). | Ídem. |
 | `META_PAGE_TOKEN` | `dcasa-juan` | Enviar por Messenger e Instagram. | Cuando se conecten Messenger o Instagram. |
+| `INSTAGRAM_TOKEN` | `dcasa-juan` | La llave de Instagram de la «segunda puerta» (inicio de sesión de Instagram): 60 días; Juan la renueva sola y guarda la vigente en su Durable Object `Global`. Con ella (o con `INSTAGRAM_APP_SECRET`) Instagram deja de ir por la página. | Cuando el jefe conecte @dcasapty por esa puerta ([JUAN_CANALES.md](JUAN_CANALES.md) §3b). |
+| `INSTAGRAM_APP_SECRET` | `dcasa-juan` | Firma de los avisos de `/webhooks/instagram` (la clave secreta de la **app de Instagram**, no la de Facebook). | Igual que la anterior. |
 | `WHATSAPP_CLOUD_TOKEN` | `dcasa-juan` | Enviar por WhatsApp (API oficial). | Puesto desde el 2026-11-02: la llave permanente del usuario del sistema de Meta ([JUAN_CANALES.md](JUAN_CANALES.md)). Además hace falta la variable `WHATSAPP_PHONE_NUMBER_ID`. |
 
 **Solo hace falta la clave de la IA que elijas en Odoo** (y la del respaldo, si pones uno). `/salud`

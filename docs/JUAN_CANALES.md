@@ -314,6 +314,184 @@ Texto para Meta:
 - Detalle técnico: `GET/POST /webhooks/meta` (verificación con `META_VERIFY_TOKEN`, firma `X-Hub-Signature-256` con
   `META_APP_SECRET`), envío por la Send API con `META_PAGE_TOKEN`; un canal apagado en Odoo contesta 200 y no atiende.
 
+## 3b. Instagram por «inicio de sesión de Instagram» (la segunda puerta, 2026-11-12)
+
+La dueña aprobó probar esta puerta («me parece bien esa segunda puerta y que él inicie como una persona normal desde su
+cuenta personal y que todo lo haga el jefe»). Juan ya la trae (Desplegar Juan 22, ruta `/webhooks/instagram`,
+`juan/src/canales/instagramLogin.ts` e `instagramLlave.ts`), **apagada** hasta que se pongan `INSTAGRAM_TOKEN` e
+`INSTAGRAM_APP_SECRET`; mientras tanto, Instagram sigue por la página como antes. La documentación de Meta se contradice
+sobre si basta el acceso estándar para la cuenta propia: lo dice la prueba del último paso. Si no alcanza, el camino es la
+revisión de la app (como Messenger).
+
+Para que Juan conteste el Instagram de D'CASA (@dcasapty) a **todos** los clientes, no solo a quien tiene un papel en la
+app. Se hace **desde la cuenta propia del jefe** (la de Facebook que es administradora del portafolio DCasa Pty), **no
+desde la cuenta de la agencia**.
+
+Lo que va marcado con ⚠ es el nombre de un menú o un botón de Meta que no se pudo ver en pantalla: Meta lo cambia seguido.
+Si no aparece igual, busca uno parecido.
+
+**Las llaves y claves nunca se pegan en un chat** (ni a Claude, ni por WhatsApp, ni por correo): solo en Cloudflare, en
+el lugar que dice el paso 5.
+
+---
+
+#### Antes de empezar
+
+1. Que el equipo técnico ya haya **desplegado la versión de Juan que trae `/webhooks/instagram`**. Para saberlo, abre
+   `https://dcasa-juan.dcasapty.workers.dev/salud`: en `canales › instagram` debe aparecer `"puerta": "pagina_facebook"`.
+   Si no aparece `puerta`, todavía no está: espera.
+2. El Instagram de D'CASA es **cuenta profesional** y **pública**.
+3. En la app de Instagram, entrando como @dcasapty: Configuración › Mensajes y respuestas a historias › Herramientas
+   conectadas › **Permitir el acceso a los mensajes** encendido ⚠ (ya se hizo el 10 nov; solo confirma).
+4. Abre `https://dcasapty.com/privacidad` y confirma que carga.
+5. Ten a mano el valor de `META_VERIFY_TOKEN` (está en el gestor de contraseñas): va otra vez en el webhook.
+
+#### Paso 1. ¿De quién es la app «D'CASA Juan»?
+
+1. Entra a [developers.facebook.com](https://developers.facebook.com) › **Mis apps** › **D'CASA Juan**.
+2. **Configuración de la app › Básica** ⚠ y mira **Portafolio comercial** (o «Business portfolio») ⚠.
+   - Si dice **DCasa Pty**: bien, puedes seguir con esa app (paso 2, opción A).
+   - Si dice **Juancito Ads** (el de la agencia) o no puedes verlo: **no la toques**: ahí corre el WhatsApp de la tienda
+     y cualquier cambio puede cortarlo. Para Instagram usa una **app nueva** del portafolio de D'CASA (paso 2, opción B).
+     Pasar «D'CASA Juan» al portafolio de D'CASA es otro trámite (la agencia tiene que soltarla y D'CASA reclamarla, en
+     Configuración del negocio › Cuentas › Apps ⚠); hacerlo con calma y aparte, sin prisa por Instagram.
+
+> **Por qué una app nueva sirve igual:** esta puerta de Instagram tiene **su propia clave secreta** y **su propio
+> webhook**. Juan no necesita que sea la misma app que WhatsApp y Messenger. Meta además avisa que una app puede usar
+> «inicio de sesión de Facebook» o «inicio de sesión de Instagram», **no los dos** ⚠: si «D'CASA Juan» no te ofrece la
+> opción del paso 2 (o te advierte algo así), usa la opción B.
+
+#### Paso 2. Agregar «API de Instagram con inicio de sesión de Instagram»
+
+**Opción A — en «D'CASA Juan»** (solo si es de DCasa Pty): en el panel de la app › **Casos de uso** (o «Agregar
+productos») › **Instagram** › **API setup with Instagram login** / «Configuración de la API con inicio de sesión de
+Instagram» ⚠. **No** «API setup with Unified login» ni «API setup with Facebook login»: esas son otras puertas.
+
+**Opción B — una app nueva** (recomendada si la otra es de la agencia):
+1. **Mis apps › Crear app** ⚠.
+2. Caso de uso: **Otro** ⚠ › tipo de app: **Negocio** («Business») ⚠.
+3. Nombre: `D'CASA Instagram`; correo: `info@dcasapty.com`; portafolio: **DCasa Pty**.
+4. En el panel de la app nueva, producto **Instagram** › **Configurar** ⚠. Meta agrega solo «API setup with Instagram
+   login».
+
+#### Paso 3. Agregar @dcasapty y generar la llave
+
+1. **Instagram › API setup with Instagram login › 1. Generate access tokens** ⚠ › **Add account** / «Agregar cuenta» ⚠.
+2. Se abre Instagram: entra **como @dcasapty** y acepta los permisos (mensajes y lo básico).
+3. Si Meta pide que la cuenta sea **evaluadora de Instagram** ⚠: **Roles de la app › Roles › Agregar personas ›
+   Evaluador de Instagram** («Instagram Tester») ⚠ › escribe `dcasapty`. Después, en el navegador, entra a Instagram como
+   @dcasapty y abre `https://www.instagram.com/accounts/manage_access/` › **Invitaciones de evaluador** («Tester
+   Invites») ⚠ › **Aceptar** (el botón puede verse gris y aun así funciona). Vuelve al punto 1.
+4. Al lado de @dcasapty: **Generate token** / «Generar identificador» ⚠ › entra otra vez como @dcasapty si lo pide ›
+   **copia la llave** (empieza casi siempre con `IG`). Esa llave dura **60 días**; Juan la renueva sola, no hay que volver
+   a sacarla mientras Juan siga encendido.
+5. En esa misma fila, enciende **Webhook subscription** / «Suscripción a webhooks» ⚠ para @dcasapty. Sin esto Meta no le
+   avisa a Juan de los mensajes de esa cuenta.
+
+#### Paso 4. La clave secreta de la app de Instagram
+
+**Instagram › API setup with Instagram login › 3. Set up Instagram business login › Business login settings** ⚠ ›
+**Instagram app secret** / «Clave secreta de la app de Instagram» ⚠ › **Mostrar** › cópiala.
+
+> **Ojo:** NO es la «Clave secreta de la app» de *Configuración de la app › Básica* (esa es la de Facebook, la que ya
+> tiene Juan como `META_APP_SECRET`). Son dos claves distintas; si se confunden, Juan rechaza los mensajes (sale «firma
+> inválida» en los registros).
+
+Si para ver la clave Meta te pide llenar «Business login settings» ⚠: como **OAuth redirect URI** pon
+`https://dcasapty.com/`; como **Deauthorize callback URL** y **Data deletion request URL**,
+`https://dcasapty.com/privacidad` ⚠. Guardar. (Juan no usa ese inicio de sesión: la llave del paso 3 basta.)
+
+#### Paso 5. Pegar en Cloudflare (nunca en el chat)
+
+**Cloudflare › Workers & Pages › `dcasa-juan` › Settings › Variables and Secrets › Add** ⚠ › tipo **Secret**:
+
+| Nombre exacto | Valor |
+|---|---|
+| `INSTAGRAM_TOKEN` | La llave del paso 3 |
+| `INSTAGRAM_APP_SECRET` | La clave secreta de la app de Instagram del paso 4 |
+
+- **No borres** `META_PAGE_TOKEN`, `META_APP_SECRET` ni `META_VERIFY_TOKEN`: los usan Messenger y WhatsApp.
+- `INSTAGRAM_ACCOUNT_ID` **no hace falta**: Juan averigua la cuenta solo. Solo si `/salud` dice «todavía no sé cuál es la
+  cuenta de Instagram de D'CASA» se agrega (tipo *Text*, **solo números**) con el número de la cuenta de @dcasapty que
+  muestra Meta al lado de la cuenta en el paso 3 ⚠. Si se pone mal, Juan lo ignora o lo avisa en `/salud`; no tira
+  mensajes.
+- Al guardar el primero de los dos, **Instagram pasa a esta puerta** (Messenger no cambia). Para volver como estaba,
+  basta borrar `INSTAGRAM_TOKEN` e `INSTAGRAM_APP_SECRET`.
+- **Va antes del webhook (paso 6):** sin `INSTAGRAM_APP_SECRET` puesta, Juan no deja verificar la dirección nueva (así
+  Meta no la da por buena antes de que Juan pueda comprobar sus avisos).
+
+#### Paso 6. El webhook (la dirección nueva)
+
+1. **Instagram › API setup with Instagram login › 2. Configure webhooks** ⚠ › **Configure** / «Configurar» ⚠.
+2. **Callback URL:** `https://dcasa-juan.dcasapty.workers.dev/webhooks/instagram` (ojo: termina en **/instagram**, no en
+   /meta).
+3. **Verify token:** el **mismo valor** de `META_VERIFY_TOKEN`.
+4. **Verify and save** / «Verificar y guardar» ⚠. Si sale error: revisa que el valor sea idéntico (sin espacios) y que
+   `INSTAGRAM_APP_SECRET` ya esté en Cloudflare (paso 5).
+5. En la lista de campos («Webhook fields») ⚠, que estén suscritos **`messages`** y, si aparece aparte,
+   **`message_echoes`** (con este se guarda en Odoo lo que una vendedora conteste desde la app de Instagram). Los demás
+   (`comments`, `messaging_seen`, reacciones…) pueden quedar: Juan los ignora.
+
+#### Paso 7. Poner la app «En vivo»
+
+Meta solo manda los avisos de clientes reales con la app **publicada / En vivo** ⚠.
+1. **Configuración de la app › Básica** ⚠: **URL de la política de privacidad** `https://dcasapty.com/privacidad`;
+   **URL de eliminación de datos** (o «instrucciones») `https://dcasapty.com/privacidad` ⚠; **ícono** (el logo de
+   D'CASA, 1024 × 1024); **categoría** (p. ej. «Negocios y páginas» o «Compras») ⚠; correo de contacto
+   `info@dcasapty.com`. Guardar.
+2. Arriba, el interruptor **Modo de la app: Desarrollo → En vivo** ⚠ (o «Publicar»). Si Meta pide algo más (verificación
+   del negocio o revisión de la app) **anótalo tal cual** y avisa: eso decide si esta puerta alcanza o hay que ir a la
+   revisión.
+3. No pidas «acceso avanzado» ni la revisión todavía: primero se prueba si con el acceso estándar llegan los mensajes
+   (para una app que solo atiende la cuenta propia, Meta dice que basta el estándar).
+
+#### Paso 8. Revisar `/salud`
+
+Abre `https://dcasa-juan.dcasapty.workers.dev/salud` y mira `canales › instagram`:
+
+- `"puerta": "inicio_sesion_instagram"` y `"faltan": []`.
+- `"cuenta": "@dcasapty"` (aparece al primer mensaje o en el siguiente cron, a los 23 minutos de cada hora).
+- `"llave"`: `vence` (una fecha unos 60 días adelante), `renovacion: "pendiente"` el primer día y `"ok"` desde el día
+  siguiente (Juan la renueva en cuanto Meta lo permite). **Nunca** sale la llave.
+- `"suscripcion": "ok"` si Meta deja consultarla (si no aparece, Meta no la dejó ver: no es un error). Si dice `"no"`,
+  vuelve al paso 3.5.
+- Lo que haya que arreglar sale en `mensaje` (y por Telegram, si está configurado), con palabras:
+  - «**Meta rechaza la llave de Instagram** … desde el …»: la llave pegada no sirve (vencida, revocada o mal copiada):
+    genera otra (paso 3.4) y pégala encima de `INSTAGRAM_TOKEN`. Mientras tanto los mensajes llegan a Odoo, pero Juan no
+    puede contestar.
+  - «no se pudo renovar la llave…»: Juan lo reintenta cada día; con 7 días o menos para que venza pasa a ser un problema.
+  - «todavía no sé cuál es la cuenta de Instagram de D'CASA»: Meta no contestó a Juan con esa llave; mientras tanto Juan
+    atiende lo que Meta le firma. Revisa la llave o agrega `INSTAGRAM_ACCOUNT_ID` (paso 5).
+  - «se ignoran avisos de Instagram de otra cuenta (…1234)»: llegan mensajes de una cuenta que Juan no reconoce como la
+    de D'CASA (`ignorados` dice cuántos y cuándo). Si esa sí es la de D'CASA, borra o corrige `INSTAGRAM_ACCOUNT_ID`.
+
+#### Paso 9. Probar con una cuenta que NO tenga ningún papel
+
+La prueba de verdad es con alguien que **no** sea administrador, desarrollador ni evaluador de la app, **ni** esté en el
+portafolio DCasa Pty **ni** en el de Juancito Ads (por ejemplo, el Instagram personal de un familiar o una cuenta nueva).
+Las pruebas del 9 y 10 nov engañaron justamente por usar cuentas con papel.
+
+1. Desde esa cuenta, escríbele a @dcasapty: «Hola, ¿tienen sofás?».
+2. Debe pasar, en segundos: Juan contesta en Instagram, y en **Odoo › Conversaciones** aparece la conversación de
+   **Instagram** con el nombre (o el @usuario) de esa persona y los dos mensajes.
+3. Desde la app de Instagram (como @dcasapty) contesta algo a mano: en Odoo debe salir como de la **vendedora** y Juan se
+   calla en esa conversación.
+4. Si no pasa nada, en **Cloudflare › `dcasa-juan` › Logs** ⚠ busca `POST /webhooks/instagram`:
+   - **No aparece ninguno:** Meta no está mandando los mensajes de clientes reales → con el acceso estándar no alcanza
+     (o falta el paso 3.5 o el paso 7). Anotarlo: el siguiente camino es la revisión de la app.
+   - **Aparece con 401:** la clave del paso 4 no es la correcta (¿se pegó la de Facebook?).
+   - **Aparece con 200 pero no hay nada en Odoo:** mira `/salud` (paso 8: ¿«otra cuenta»?) y que Instagram esté encendido
+     en Odoo (*Ajustes de Juan › «Dónde contesta»*).
+
+#### Bueno saber
+
+- Juan solo puede escribir dentro de las **24 horas** del último mensaje del cliente (regla de Meta).
+- Por esta puerta Juan sí puede mandar la **cotización en PDF**; si Instagram no la acepta, manda el enlace, como antes.
+- Un cliente que ya había escrito por la puerta vieja debería seguir en la **misma conversación** de Odoo (Meta dice que
+  el número que identifica al cliente es el mismo en todas las apps). Si no fuera así, ese cliente aparecería **una vez**
+  como conversación nueva; como a los clientes reales nunca les llegó nada por la página, solo pasaría con las cuentas de
+  prueba.
+
 ## 4. El puente de WhatsApp por QR (no se usa en producción)
 
 `puente-wa/` es un Worker con su contenedor (Baileys) que mantiene una sesión de WhatsApp por QR, como un WhatsApp Web
