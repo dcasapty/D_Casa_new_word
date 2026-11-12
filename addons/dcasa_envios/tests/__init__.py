@@ -7,5 +7,6 @@ from . import (  # noqa: F401
     test_motor,
     test_navegador,
     test_permisos,
+    test_promocion,
     test_promocion_motor,
 )
