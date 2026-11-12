@@ -1,6 +1,6 @@
 # Prioridades vigentes
 
-Puesto al día el **2026-11-11** (cierre de semana y auditoría visual del panel). Es el orden en que se trabaja: cada sesión lo lee al empezar y lo pone al día al
+Puesto al día el **2026-11-12** (envíos de Juan, reparto justo, Costos de IA; Messenger e Instagram sin llegar a los clientes). Es el orden en que se trabaja: cada sesión lo lee al empezar y lo pone al día al
 terminar (ver [LEEME_PRIMERO.md](LEEME_PRIMERO.md)). Aquí va **un solo estado**, el de hoy; lo que pasó cada día está en
 la bitácora de LEEME_PRIMERO (y lo más viejo en [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md)).
 
@@ -16,7 +16,9 @@ LEEME_PRIMERO §2).
   Juan 20** (11 nov, PR #107). La **versión estable 4** es la anterior (Desplegar 63 + Juan 20)
   ([VERSIONES_ESTABLES.md](VERSIONES_ESTABLES.md)). El contenedor instala 30 de los 31 módulos de `addons/` (todos
   menos `dcasa_fe_pa`, a propósito).
-- **Juan atiende WhatsApp (API oficial de Meta), Messenger e Instagram**, con fotos en los tres, y Telegram. WhatsApp
+- **⚠ Messenger e Instagram NO les llegan a los clientes (descubierto el 2026-11-12):** solo a cuentas con papel en la
+  app (la app «D'CASA Juan» no tiene la aprobación de Meta). Ver «Lo que sigue» (punto 00) y JUAN_CANALES §3.
+- **Juan atiende WhatsApp (API oficial de Meta), Messenger e Instagram** (estos dos, solo a cuentas con papel en la app: ver arriba), con fotos en los tres, y Telegram. WhatsApp
   desde el 2026-11-02 (el 131070 del 9 y 10 nov se resolvió con «redireccionar conversación» a «D'CASA Juan»);
   Messenger desde el 2026-11-09; Instagram desde el 2026-11-10 (por la página, misma app y llave). El puente de
   WhatsApp por QR (`puente-wa/`) **nunca se desplegó** a producción. Ver [JUAN_CANALES.md](JUAN_CANALES.md).
@@ -28,6 +30,23 @@ LEEME_PRIMERO §2).
   («Es esta persona»); tasa de cierre en el Resumen de Juan; Sofía. Detalle en la bitácora.
 
 ## Lo que sigue, en orden
+
+00. **Messenger e Instagram para todos los clientes** (la dueña, 2026-11-12, con el diagnóstico de un amigo y de otro
+    Claude: los mensajes de clientes reales nunca llegan; solo los de cuentas con papel en la app). Plan:
+    - **Messenger:** el único camino es la revisión de la app de Meta (acceso avanzado de `pages_messaging`,
+      `pages_manage_metadata`, «Business Asset User Profile Access») con el **negocio verificado**, y la app «En vivo».
+      Antes: revisar a qué portafolio pertenece la app (si es el de la agencia Juancito Ads, pasarla al de D'CASA).
+    - **Instagram:** probar primero «Instagram API con inicio de sesión de Instagram» con la cuenta propia de D'CASA
+      (según Meta, si la app solo sirve la cuenta propia basta el acceso estándar, sin revisión; hay fuentes que dicen
+      lo contrario y el amigo de la dueña lo logró así con otro cliente). Pide en Juan una segunda llave (`IG…`, se
+      renueva cada 60 días) y la clave secreta de la app de Instagram. Si no alcanza, va en la misma revisión de la app.
+    - **Comentarios** (la dueña preguntó si se pueden responder): sí, con respuesta pública y una respuesta privada por
+      comentario (7 días); hay que construirlo y pedir sus permisos (`pages_manage_engagement`,
+      `instagram_manage_comments` / `instagram_business_manage_comments`) en la misma revisión.
+0. **Envíos de Juan, reparto justo de chats y Costos de IA con «Pagar»** (2026-11-12): ver la bitácora. Falta de la
+   dueña: revisar en Envíos › Lugares (filtro «Por revisar (Gerencia)») los lugares agregados a mano, para que Juan
+   dé su precio; archivar la nota de la promoción de noviembre en el Conocimiento el 1 de diciembre; preguntar a la
+   contadora si el envío lleva ITBMS.
 
 000. **Panel renovado (2026-11-11): todo lo aprobado está en producción (Desplegar 64, 65, 66 y 67, este último el
      modo oscuro).** Detalle y citas de la dueña en la bitácora de LEEME_PRIMERO

@@ -194,6 +194,18 @@ Telegram **no** les da a los bots «entregado» ni «leído»: en Telegram no ha
 
 ## 3. Messenger e Instagram (Messenger conectado el 2026-11-09; Instagram el 2026-11-10)
 
+> **Corrección (2026-11-12): hoy a los clientes no les llega nada.** Las pruebas del 9 y 10 nov se hicieron con cuentas
+> que tienen papel en la app o en el portafolio (los jefes, la agencia), y a esas sí les contesta. La dueña comprobó con
+> otro Claude que los mensajes de clientes de verdad **nunca llegan** al webhook (cero POST a `/webhooks/meta` en los
+> registros de Cloudflare). Es la regla de Meta: mientras la app no tenga la aprobación (acceso avanzado tras la
+> revisión de la app y la verificación del negocio), Meta solo manda los avisos de quien tiene papel en la app
+> ([Meta: webhooks de mensajes de Instagram](https://developers.facebook.com/docs/instagram-messaging/webhooks);
+> [Messenger Platform e Instagram](https://developers.facebook.com/docs/messenger-platform/instagram)). El código no
+> tiene error. Caminos: el paso 9 de abajo (revisión de la app; para Messenger es el único) y, para Instagram, probar
+> «Instagram API con inicio de sesión de Instagram» con la cuenta propia de D'CASA en una app de su propio portafolio
+> (Meta: si la app solo sirve la cuenta propia o una que se administra, basta el acceso estándar; hay fuentes que dicen
+> lo contrario, así que se prueba). Ver PRIORIDADES.
+
 **Cómo quedó Instagram (2026-11-10):** con la cuenta de los jefes (administradores de DCasa Pty) y Claude en Chrome:
 `instagram_basic` e `instagram_manage_messages` agregados a la app «D'CASA Juan» (Meta los pone también en el caso de uso
 de Messenger), «Añadir o suprimir páginas» con **solo** DCASA PTY y @dcasapty (la ventana de Meta se abre aparte: la

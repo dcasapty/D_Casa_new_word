@@ -320,8 +320,9 @@ cotización?»). Lo de Juan está en [JUAN.md](JUAN.md) › Reglas (3); aquí, l
   la línea se quita con una nota en la cotización. **Lo prometido se respeta** (la dueña, 2026-11-12: una cotización de
   noviembre que se confirma en diciembre conserva su envío gratis): la línea guarda el día en que se sumó y los términos
   con que se sumó (`dcasa_promocion_terminos`: promoción, mínimo, zona, gratis o abono y su monto, regla del colchón), y
-  la revisión mide la compra contra esos términos, no contra la promoción de hoy, mientras la cotización no haya vencido
-  (`validity_date`, hora de Panamá); vencida, se vuelve a mirar con la promoción de hoy. Sumar el envío después de que
+  la revisión mide la compra contra esos términos, no contra la promoción de hoy, hasta el «Vence el» que tenía la
+  cotización cuando se sumó, **nunca más de 30 días** después (si no tenía, 30 días; `vale_hasta`, hora de Panamá).
+  Cambiar «Vence el» después no lo alarga ni lo revive; pasado ese día, se vuelve a mirar con la promoción de hoy. Sumar el envío después de que
   terminó la promoción no la da. Si Gerencia cambia o archiva la promoción, vale solo para las cotizaciones nuevas (la
   ficha dice cuántas abiertas la tienen) y una venta confirmada nunca cambia. La marca del lugar de la línea del envío
   solo la escribe el servidor. Al duplicar, la promoción se calcula otra vez con la copia.
