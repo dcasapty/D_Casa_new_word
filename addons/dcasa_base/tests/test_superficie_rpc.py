@@ -1036,6 +1036,16 @@ LISTA_BLANCA = {
     ('dcasa_envios', 'dcasa.envio.cargo', 'create'): ENVIOS_CARGO,
     ('dcasa_envios', 'dcasa.envio.cargo', 'write'): ENVIOS_CARGO,
     ('dcasa_envios', 'dcasa.envio.cargo', 'unlink'): ENVIOS_CARGO,
+    # La promoción de envío en la cotización (2026-11-12): la línea de la promoción no cuenta contra el tope de la
+    # vendedora, así que su marca solo la pone el servidor (o Gerencia).
+    ('dcasa_envios', 'sale.order.line', 'create'):
+        OVERRIDE + ' Rechaza (AccessError) que quien no sea Gerencia ni el sistema escriba la marca de la promoción de '
+                   'envío (la que exime del tope de descuento); sin sudo().',
+    ('dcasa_envios', 'sale.order.line', 'write'):
+        OVERRIDE + ' La misma regla de la marca de la promoción de envío; y si una persona cambia el precio, la '
+                   'cantidad o el producto de una línea de envío puesta por el sistema, le quita las marcas (con '
+                   'super().write sobre esas líneas, ya autorizado por el ACL) y la rebaja vuelve a contar contra su '
+                   'tope; sin sudo().',
     ('dcasa_envios', 'dcasa.envio.importar', 'action_cargar'):
         ASISTENTE + ' Además exige Gerencia o administrador en el servidor; escribe los lugares y la tarifa como el '
                     'usuario (sin sudo), valida cada dato del archivo y no toca lo agregado en Odoo.',
