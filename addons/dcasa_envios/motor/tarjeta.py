@@ -34,12 +34,18 @@ def desglose(cotizacion):
     return filas
 
 
+def lugar_con_zona(lugar):
+    """«<lugar> (<corregimiento>, <distrito>)», como lo dice el texto de «Copiar el precio» (sin el corregimiento si
+    se llama igual que el lugar)."""
+    corr = lugar.get('corr') or ''
+    zona = ', '.join(p for p in (corr if corr and corr != lugar.get('nombre') else '', lugar.get('dist') or '') if p)
+    return f"{lugar.get('nombre') or ''}{' (' + zona + ')' if zona else ''}"
+
+
 def texto_cliente(lugar, cotizacion):
     """El texto de «Copiar el precio»: «Envío a <lugar> (<corregimiento>, <distrito>): $X.», y el desglose si hay
     cargos aparte («Tarifa $Y + peaje $Z.»)."""
-    corr = lugar.get('corr') or ''
-    zona = ', '.join(p for p in (corr if corr and corr != lugar.get('nombre') else '', lugar.get('dist') or '') if p)
-    partes = [f"Envío a {lugar.get('nombre') or ''}{' (' + zona + ')' if zona else ''}: {dinero(cotizacion['total'])}"]
+    partes = [f"Envío a {lugar_con_zona(lugar)}: {dinero(cotizacion['total'])}"]
     if cotizacion['extras']:
         partes.append(f"Tarifa {dinero(cotizacion['base'])} + "
                       + ' + '.join(f"{cargo['nombre'].lower()} {dinero(cargo['v'])}" for cargo in cotizacion['extras']))

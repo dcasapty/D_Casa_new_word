@@ -23,11 +23,16 @@ envío en la página web.
   precio y la ruta en Google Maps; nunca los km, la tabla ni el desglose, y ningún precio mientras la tarifa esté en
   revisión. «Crear un enlace nuevo» deja sin efecto el anterior; queda quién y cuándo en el historial. Límite por IP,
   sin caché ni indexado; la ubicación no se guarda.
+* **Promoción de envío** (pedido de la dueña, 2026-11-12; Envíos › Promoción de envío, Gerencia y administradores):
+  fechas, mínimo de la compra (con o sin ITBMS), provincias o distritos con envío gratis, abono en el resto y si no
+  aplica con colchón; una sola vigente a la vez y con historial. Los precios de envío no cambian: la cuenta la hace el
+  motor (``motor/promocion.py``). Juan suma el envío (y la promoción) a la cotización por el mismo camino que «Agregar
+  envío» (``sale.order._dcasa_envio_poner``). Viene cargada la de noviembre de 2026.
 * Los datos (los lugares y los precios) **no** van en el repositorio: Gerencia sube el archivo.
 
 Ver docs/ENVIOS.md.
 """,
-    'version': '19.0.1.0.0',
+    'version': '19.0.1.1.0',
     'category': 'Inventory/Delivery',
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',
@@ -37,9 +42,11 @@ Ver docs/ENVIOS.md.
         'security/ir.model.access.csv',
         'views/lugar_views.xml',
         'views/tarifa_views.xml',
+        'views/promocion_views.xml',
         'views/choferes_templates.xml',
         'wizard/importar_views.xml',
         'views/menus.xml',
+        'data/promocion_data.xml',
     ],
     'assets': {
         'web.assets_backend': [

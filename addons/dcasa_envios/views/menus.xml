@@ -19,4 +19,6 @@
               action="accion_lugares" sequence="2" groups="base.group_user"/>
     <menuitem id="menu_envios_tarifa" name="Tarifa" parent="dcasa_contabilidad.menu_envios_root"
               action="accion_tarifa" sequence="3" groups="dcasa_base.group_gerencia,base.group_system"/>
+    <menuitem id="menu_envios_promocion" name="Promoción de envío" parent="dcasa_contabilidad.menu_envios_root"
+              action="accion_promocion" sequence="4" groups="dcasa_base.group_gerencia,base.group_system"/>
 </odoo>

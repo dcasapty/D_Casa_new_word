@@ -199,6 +199,15 @@ class JuanAjustes(models.Model):
              'Juan le dice al cliente que una vendedora se la prepara y le pasa la conversación; ellas la mandan a '
              'mano con el botón «Cotización» de la pantalla de Conversaciones, que funciona igual con esto '
              'encendido o apagado.')
+    cotizar_envios = fields.Boolean(
+        'Juan cotiza envíos', default=True, tracking=True,
+        help='Cuando el cliente pregunta cuánto cuesta el envío, Juan busca el lugar en la tabla de Envíos (la de '
+             'la calculadora), le dice el precio y la promoción de envío vigente (Envíos › Promoción de envío) y, si '
+             'el cliente quiere, se lo suma a su cotización. Si hay varios lugares parecidos pregunta cuál; si no lo '
+             'encuentra o se cotiza aparte, pasa la conversación a una vendedora. La fecha de entrega la confirma '
+             'siempre una vendedora. Mientras Gerencia no apruebe la tarifa de envíos, Juan no da precios y pasa a '
+             'una vendedora. Si lo apagas, Juan pasa a una vendedora cada vez que le pregunten por el costo del envío. '
+             '(La dueña dio su «sí», 2026-11-12.)')
     cotizacion_dias_abierta = fields.Integer(
         'Días que queda abierta una cotización del chatbot o de la web', default=3, tracking=True,
         help='Las cotizaciones que arma Juan y las de la página web que nadie confirmó se cancelan solas pasados '

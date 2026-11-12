@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Envíos › Promoción de envío (Gerencia y administradores): la promoción del mes (gratis o abono). Los precios
+         de envío no cambian: Juan dice el precio normal y cómo le queda al cliente con la promoción. -->
+    <record id="vista_envio_promocion_lista" model="ir.ui.view">
+        <field name="name">dcasa.envio.promocion.list</field>
+        <field name="model">dcasa.envio.promocion</field>
+        <field name="arch" type="xml">
+            <list string="Promociones de envío" decoration-muted="not active">
+                <field name="name"/>
+                <field name="desde"/>
+                <field name="hasta"/>
+                <field name="minimo"/>
+                <field name="mide"/>
+                <field name="abono"/>
+                <field name="excluye_colchon" optional="show"/>
+                <field name="vigente_hoy" widget="boolean"/>
+                <field name="active" column_invisible="True"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="vista_envio_promocion_ficha" model="ir.ui.view">
+        <field name="name">dcasa.envio.promocion.form</field>
+        <field name="model">dcasa.envio.promocion</field>
+        <field name="arch" type="xml">
+            <form string="Promoción de envío">
+                <sheet>
+                    <div class="alert alert-success" role="status" invisible="not vigente_hoy">
+                        <b>Vigente hoy.</b> Juan la aplica cuando cotiza un envío.
+                    </div>
+                    <div class="alert alert-info" role="status" invisible="vigente_hoy">
+                        <b>Hoy no está vigente</b> (fuera de sus fechas o archivada): Juan da el precio normal.
+                    </div>
+                    <div class="oe_title">
+                        <h1><field name="name" placeholder="Envío Gratis Todo Noviembre"/></h1>
+                    </div>
+                    <p class="text-muted">Los precios de envío no cambian: la calculadora y Brian siguen dando el precio
+                        normal. Juan dice ese precio y, si la compra cumple, cómo le queda al cliente con la promoción.
+                        Solo puede haber una promoción activa a la vez.</p>
+                    <group>
+                        <group string="Cuándo">
+                            <field name="desde"/>
+                            <field name="hasta"/>
+                            <field name="active" widget="boolean_toggle"/>
+                        </group>
+                        <group string="Para qué compras">
+                            <field name="minimo"/>
+                            <field name="mide" widget="radio"/>
+                            <field name="excluye_colchon"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group string="Dónde es gratis">
+                            <field name="provincias_gratis" placeholder="Panamá&#10;Panamá Oeste"/>
+                            <field name="distritos_gratis"/>
+                        </group>
+                        <group string="En el resto del país">
+                            <field name="abono"/>
+                        </group>
+                    </group>
+                    <separator string="Así lo dice Juan"/>
+                    <field name="resumen" nolabel="1" readonly="1"/>
+                    <field name="vigente_hoy" invisible="1"/>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="accion_promocion" model="ir.actions.act_window">
+        <field name="name">Promoción de envío</field>
+        <field name="res_model">dcasa.envio.promocion</field>
+        <field name="view_mode">list,form</field>
+        <field name="path">envios-promocion</field>
+        <field name="context">{'active_test': False}</field>
+        <field name="group_ids" eval="[(4, ref('dcasa_base.group_gerencia')), (4, ref('base.group_system'))]"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No hay promociones de envío</p>
+            <p>Crea una con sus fechas, el mínimo de la compra, dónde es gratis y el abono en el resto.</p>
+        </field>
+    </record>
+</odoo>

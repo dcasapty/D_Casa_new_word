@@ -1,1 +1,1 @@
-from . import lugar, tarifa, herramientas_envios  # noqa: F401
+from . import lugar, tarifa, promocion, venta, herramientas_envios  # noqa: F401
