@@ -295,7 +295,13 @@ $dcj-marino: #0B1F52;
 
 @media (max-width: 767.98px) {
     .o_dcj_p_hero { grid-template-columns: 1fr; gap: 14px; }
-    .o_dcj_p_saldo { flex-direction: column; align-items: stretch; .o_dcj_p_pagar { width: 100%; } }
+    .o_dcj_p_saldo {
+        flex-direction: column;
+        align-items: stretch;
+        .o_dcj_p_pagar { width: 100%; }
+        // «Deshacer» es un enlace dentro de la frase: se toca con el dedo en un área de 44 px sin mover la línea.
+        .o_dcj_p_deshacer { padding: 12px 6px; margin: -12px -6px; }
+    }
     .o_dcj_p_modelos li { grid-template-columns: 1fr auto; .o_dcj_p_modelo_barra { grid-column: 1 / -1; order: 3; } }
     .o_dcj_p_boton, .o_dcj_p_segmento button { min-height: 44px; }
     .o_dcj_p_columnas .o_dcj_p_columna .o_dcj_p_dia { display: none; }
