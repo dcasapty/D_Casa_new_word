@@ -160,8 +160,9 @@ class SaleOrder(models.Model):
         return {'puesto': True, 'linea_envio': envio, 'linea_promocion': promocion_linea}
 
     def _dcasa_envio_nombre_promocion(self, resultado, promocion):
-        """«Promoción Envío Gratis Todo Noviembre: envío gratis» o «Promoción de envío (del 1 al 30 de noviembre):
-        abono de $20» (en una zona con abono no se nombra una promoción que diga «gratis»)."""
+        """«Promoción Envío Gratis Todo Noviembre: envío gratis» o «Promoción de envío: abono de $20» (en una zona con
+        abono no se nombra una promoción que diga «gratis»; si el abono cubre todo el envío: «Promoción de envío: envío
+        gratis»)."""
         if resultado['motivo'] == GRATIS:
             nombre = promocion.name if resultado['zona'] == GRATIS else self.env._('de envío')
             return self.env._('Promoción %s: envío gratis', nombre)
