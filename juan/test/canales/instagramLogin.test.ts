@@ -230,7 +230,7 @@ describe("el webhook de Instagram por inicio de sesión de Instagram (/webhooks/
     expect(alMe).toHaveLength(1);
     expect(alMe[0].url).toMatch(/^https:\/\/graph\.instagram\.com\/v\d+\.\d+\/me\?fields=user_id,username$/);
     expect(alMe[0].cabeceras.authorization).toBe(`Bearer ${TOKEN_IG}`);
-    expect(JSON.parse(llavero.datos.get(CLAVE_CUENTA)!)).toMatchObject({ ids: [CUENTA, "26000000000000001"], usuario: "dcasapty", semilla: await huella(TOKEN_IG) });
+    expect(JSON.parse(llavero.datos.get(CLAVE_CUENTA)!)).toMatchObject({ ids: [CUENTA, "26000000000000001"], usuario: "dcasapty", semilla: huella(TOKEN_IG) });
     // Otro proceso (otro Worker) la lee de lo guardado, sin preguntar.
     const otro = igFalso({ llavero });
     expect((await otro.adaptador.recibir(await firmado(mensaje()), envIg)).entrantes).toHaveLength(1);
@@ -280,7 +280,7 @@ describe("envío por graph.instagram.com con la llave de Instagram", () => {
   });
 
   it("usa la llave RENOVADA por Juan si viene de la pegada; si la dueña pegó otra, manda la pegada", async () => {
-    const estado: EstadoLlave = { semilla: await huella(TOKEN_IG), vistaEn: AHORA - 30 * 86_400_000, llave: TOKEN_IG_RENOVADO, vence: AHORA + 59 * 86_400_000, renovadaEn: AHORA - 86_400_000 };
+    const estado: EstadoLlave = { semilla: huella(TOKEN_IG), vistaEn: AHORA - 30 * 86_400_000, llave: TOKEN_IG_RENOVADO, vence: AHORA + 59 * 86_400_000, renovadaEn: AHORA - 86_400_000 };
     const llavero = llaveroEnMemoria({ [CLAVE_LLAVE]: JSON.stringify(estado) });
     const g = igFalso({ llavero });
     await g.adaptador.enviar("instagram", { para: CLIENTE, burbujas: ["Hola"], medios: [] }, envIg);

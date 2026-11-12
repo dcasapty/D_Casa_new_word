@@ -94,7 +94,7 @@ describe("la renovación (el cron)", () => {
     const m = metaFalso();
     expect(await renovarLlave(env, m.deps)).toBe("no_toca");
     expect(m.renovaciones()).toEqual([]);
-    expect(m.estado()).toEqual({ semilla: await huella(TOKEN_IG), vistaEn: T0 });
+    expect(m.estado()).toEqual({ semilla: huella(TOKEN_IG), vistaEn: T0 });
     m.pasar(2 * 3600_000);
     expect(await renovarLlave(env, m.deps)).toBe("no_toca"); // cada hora el cron vuelve: todavía no tiene 24 h
     m.pasar(DIA);
@@ -174,7 +174,7 @@ describe("la renovación (el cron)", () => {
     expect(m.estado()!.llave).toBeDefined();
     const otra = { ...env, INSTAGRAM_TOKEN: "IGAAuna-llave-nueva-pegada-0000000000" } as Env;
     expect(await renovarLlave(otra, m.deps)).toBe("no_toca");
-    expect(m.estado()).toEqual({ semilla: await huella("IGAAuna-llave-nueva-pegada-0000000000"), vistaEn: m.ahora() });
+    expect(m.estado()).toEqual({ semilla: huella("IGAAuna-llave-nueva-pegada-0000000000"), vistaEn: m.ahora() });
   });
 
   it("el motivo de Meta en corto, con o sin el formato viejo de Instagram, y nunca con la llave", () => {

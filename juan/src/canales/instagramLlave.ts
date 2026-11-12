@@ -8,6 +8,7 @@
 // nueva. Siempre se usa la más nueva. La renueva el cron horario (cuando le quedan menos de 20 días o todavía no se sabe cuándo
 // vence; nunca más de un intento al día). La llave NUNCA sale por /salud, por un registro ni en una URL que se registre.
 
+import { createHash } from "node:crypto";
 import type { Env } from "../env";
 import { urlInstagram } from "./graph";
 
@@ -37,7 +38,7 @@ export const CLAVE_CUENTA = "instagram_cuenta";
 export const URL_RENOVAR = "https://graph.instagram.com/refresh_access_token";
 
 export interface EstadoLlave {
-  /** Huella (SHA-256, 16 hex) del INSTAGRAM_TOKEN pegado del que viene esta cadena de llaves. Nunca la llave. */
+  /** Huella (16 hex) del INSTAGRAM_TOKEN pegado del que viene esta cadena de llaves. Nunca la llave. */
   semilla: string;
   /** Cuándo vio Juan por primera vez la llave pegada (ms). Esa vence a más tardar a los 60 días de eso. */
   vistaEn: number;
@@ -79,11 +80,12 @@ export const llaveroDelGlobal: Llavero = {
   },
 };
 
-const codificador = new TextEncoder();
-
-export async function huella(llave: string): Promise<string> {
-  const h = await crypto.subtle.digest("SHA-256", codificador.encode(llave));
-  return [...new Uint8Array(h)].slice(0, 8).map((b) => b.toString(16).padStart(2, "0")).join("");
+/**
+ * Para saber si la llave pegada cambió: SHA-256 en 16 hex. Síncrona a propósito (`node:crypto`, como motor/almacen.ts): va en el
+ * camino del webhook y no debe esperar a nadie. La huella solo vive en el Durable Object `Global`.
+ */
+export function huella(llave: string): string {
+  return createHash("sha256").update(llave).digest("hex").slice(0, 16);
 }
 
 function leerJson<T>(texto: string | null): T | null {
@@ -119,7 +121,7 @@ export function tocaRenovar(estado: EstadoLlave, ahora: number): boolean {
 export async function leerEstado(env: Env, llavero: Llavero, ahora: number): Promise<EstadoLlave | null> {
   const pegada = env.INSTAGRAM_TOKEN?.trim();
   if (!pegada) return null;
-  return alDia(leerJson<EstadoLlave>(await llavero.leer(env, CLAVE_LLAVE)), await huella(pegada), ahora).estado;
+  return alDia(leerJson<EstadoLlave>(await llavero.leer(env, CLAVE_LLAVE)), huella(pegada), ahora).estado;
 }
 
 /** Lo que dijo Meta, en corto y sin la llave (Instagram contesta `{error:{message,code}}` o `{error_message,code}`). */
@@ -148,7 +150,7 @@ export async function renovarLlave(env: Env, d: DepsLlave): Promise<ResultadoRen
   const pegada = env.INSTAGRAM_TOKEN?.trim();
   if (!pegada) return "sin_llave";
   const ahora = d.ahora();
-  const { estado, nuevo } = alDia(leerJson<EstadoLlave>(await d.llavero.leer(env, CLAVE_LLAVE)), await huella(pegada), ahora);
+  const { estado, nuevo } = alDia(leerJson<EstadoLlave>(await d.llavero.leer(env, CLAVE_LLAVE)), huella(pegada), ahora);
   const guardar = () => d.llavero.guardar(env, CLAVE_LLAVE, JSON.stringify(estado));
   if (!tocaRenovar(estado, ahora)) {
     if (nuevo) await guardar(); // desde cuándo se conoce la llave pegada: de ahí sale «vence a más tardar»
@@ -190,7 +192,7 @@ export async function cuentaDeInstagram(env: Env, d: DepsLlave & { llave(env: En
   if (fija) return { ids: [fija] };
   const pegada = env.INSTAGRAM_TOKEN?.trim();
   if (!pegada) return null;
-  const semilla = await huella(pegada);
+  const semilla = huella(pegada);
   const guardada = leerJson<CuentaInstagram>(await d.llavero.leer(env, CLAVE_CUENTA));
   const valida = guardada && Array.isArray(guardada.ids) && guardada.ids.length > 0 ? guardada : null;
   if (valida && valida.semilla === semilla) return valida;
