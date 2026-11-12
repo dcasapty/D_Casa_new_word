@@ -103,8 +103,10 @@ class TestPromocionDeEnvio(BaseCase):
                 resultado = self.aplicar(precio=35.0, prov=prov, dist=dist, datos=compra(250.0))
                 self.assertEqual((resultado['motivo'], resultado['precio_final'], resultado['ahorro']),
                                  (P.GRATIS, 0.0, 35.0))
-                self.assertIn('este envío te sale gratis (te ahorras $35)', resultado['frase'])
-                self.assertIn('«Envío Gratis Todo Noviembre» (del 1 al 30 de noviembre)', resultado['frase'])
+                self.assertEqual(resultado['frase'], "Con la promoción de noviembre, como tu compra pasa de $200 sin "
+                                                     "ITBMS, D'CASA te regala el envío: te sale gratis (te ahorras "
+                                                     "$35). La promoción es hasta el 30 de noviembre; después, el "
+                                                     "envío vuelve a su precio normal.")
                 self.assertEqual(P.respaldo(resultado), {'montos': [0.0, 35.0], 'gratis': True})
 
     def test_abono_de_20_en_colon_y_el_resto(self):
@@ -113,9 +115,10 @@ class TestPromocionDeEnvio(BaseCase):
                 resultado = self.aplicar(precio=90.0, prov=prov, dist='Algún distrito', datos=compra(450.0))
                 self.assertEqual((resultado['motivo'], resultado['precio_final'], resultado['ahorro']),
                                  (P.ABONO, 70.0, 20.0))
-                self.assertEqual(resultado['frase'], 'Con la promoción de envío del 1 al 30 de noviembre, como tu '
-                                                     'compra pasa de $200 sin ITBMS, te abonamos $20 de este envío: '
-                                                     'te queda en $70.')
+                self.assertEqual(resultado['frase'], "Con la promoción de noviembre, como tu compra pasa de $200 sin "
+                                                     "ITBMS, D'CASA te abona $20 del envío: te queda en $70. La "
+                                                     "promoción es hasta el 30 de noviembre; después, el envío vuelve "
+                                                     "a su precio normal.")
                 self.assertFalse(resultado['menciona_gratis'], 'en una zona con abono no se dice «gratis»')
                 self.assertEqual(P.respaldo(resultado), {'montos': [20.0, 70.0, 90.0], 'gratis': False})
 
@@ -148,14 +151,35 @@ class TestPromocionDeEnvio(BaseCase):
         gratis = self.aplicar(precio=15.0)
         self.assertEqual((gratis['motivo'], gratis['aplica'], gratis['condicional'], gratis['precio_final'],
                           gratis['precio_si_aplica']), (P.SIN_COMPRA, False, True, None, 0.0))
-        self.assertEqual(gratis['frase'], 'Con la promoción «Envío Gratis Todo Noviembre» (del 1 al 30 de noviembre), '
-                                          'en compras de más de $200 sin ITBMS, este envío te sale gratis. No aplica '
-                                          'si la compra lleva colchón.')
+        self.assertEqual(gratis['frase'], "Con la promoción de noviembre, en compras de más de $200 sin ITBMS, D'CASA "
+                                          "te regala el envío: te sale gratis (te ahorras $15). La promoción es hasta "
+                                          "el 30 de noviembre; después, el envío vuelve a su precio normal. No aplica "
+                                          "si la compra lleva colchón.")
+        self.assertEqual(P.respaldo(gratis), {'montos': [0.0, 15.0], 'gratis': True})
         abono = self.aplicar(precio=90.0, prov='Colón', dist='Colón')
-        self.assertEqual(abono['frase'], 'Con la promoción de envío del 1 al 30 de noviembre, en compras de más de '
-                                         '$200 sin ITBMS, te abonamos $20 de este envío: te queda en $70. No aplica si '
-                                         'la compra lleva colchón.')
-        self.assertEqual(P.respaldo(abono), {'montos': [70.0, 90.0], 'gratis': False})
+        self.assertEqual(abono['frase'], "Con la promoción de noviembre, en compras de más de $200 sin ITBMS, D'CASA "
+                                         "te abona $20 del envío: te queda en $70. La promoción es hasta el 30 de "
+                                         "noviembre; después, el envío vuelve a su precio normal. No aplica si la "
+                                         "compra lleva colchón.")
+        self.assertEqual(P.respaldo(abono), {'montos': [20.0, 70.0, 90.0], 'gratis': False}, 'también el abono')
+
+    def test_la_frase_completa_dice_el_precio_normal_lo_que_resta_dcasa_y_hasta_cuando(self):
+        """Pedido de la dueña (2026-11-12): que no se lea como si no se le restara nada al envío."""
+        abono = self.aplicar(precio=105.0, prov='Colón', dist='Colón', datos=compra(450.0))
+        self.assertEqual(P.con_el_precio_normal(abono, 'Sabanitas (Colón)'),
+                         "El envío a Sabanitas (Colón) cuesta normalmente $105. Con la promoción de noviembre, como "
+                         "tu compra pasa de $200 sin ITBMS, D'CASA te abona $20 del envío: te queda en $85. La "
+                         "promoción es hasta el 30 de noviembre; después, el envío vuelve a su precio normal.")
+        con_cargos = P.con_el_precio_normal(abono, 'Sabanitas (Colón)', 'Tarifa $100 + peaje $5.')
+        self.assertTrue(con_cargos.startswith('El envío a Sabanitas (Colón) cuesta normalmente $105. Tarifa $100 + '
+                                              'peaje $5. Con la promoción de noviembre'))
+        for sin_beneficio in (self.aplicar(datos=compra(90.0)), self.aplicar(datos=compra(900.0, colchon=True)),
+                              self.aplicar(fecha=date(2026, 12, 1))):
+            with self.subTest(motivo=sin_beneficio['motivo']):
+                self.assertEqual(P.con_el_precio_normal(sin_beneficio, 'Villa Lucre'), '', 'sin beneficio, nada')
+        dos_meses = dict(NOVIEMBRE, hasta=date(2026, 12, 5))
+        self.assertIn('Con la promoción de envío, ', self.aplicar(promocion=dos_meses)['frase'])
+        self.assertIn('La promoción es hasta el 5 de diciembre;', self.aplicar(promocion=dos_meses)['frase'])
 
     def test_fechas_de_varios_meses_y_varios_anos(self):
         self.assertEqual(P.fecha_texto(date(2026, 11, 25), date(2026, 12, 2)), 'del 25 de noviembre al 2 de diciembre')

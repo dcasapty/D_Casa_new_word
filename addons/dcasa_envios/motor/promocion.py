@@ -137,46 +137,80 @@ def aplicar(promocion, precio_envio, prov, dist, fecha, compra=None):
     return salida
 
 
+def nombre_corto(promocion):
+    """«la promoción de noviembre» si dura dentro de un mismo mes; si no, «la promoción de envío»."""
+    desde, hasta = promocion['desde'], promocion['hasta']
+    if (desde.year, desde.month) == (hasta.year, hasta.month):
+        return f'la promoción de {MESES[hasta.month - 1]}'
+    return 'la promoción de envío'
+
+
+def hasta_cuando(promocion):
+    """«La promoción es hasta el 30 de noviembre; después, el envío vuelve a su precio normal.» (Pedido de la dueña,
+    2026-11-12: que quede claro que es por tiempo limitado.)"""
+    hasta = promocion['hasta']
+    return (f'La promoción es hasta el {hasta.day} de {MESES[hasta.month - 1]}; después, el envío vuelve a su precio '
+            'normal.')
+
+
 def frase(promocion, resultado, abono):
     """La frase de la promoción para el cliente (tuteo, corta, sin cifras que no salgan de aquí).
 
-    La palabra «gratis» (también la del nombre de la promoción, «Envío Gratis Todo Noviembre») sale SOLO cuando este
-    envío queda gratis o quedaría gratis con la condición dicha: en una zona con abono, o cuando la promoción no aplica,
-    se habla de «la promoción de envío del … al …». Así «gratis» nunca respalda un envío que no lo es."""
-    fechas = fecha_texto(promocion['desde'], promocion['hasta'])
+    Pedido de la dueña (2026-11-12): que se entienda que el envío cuesta normalmente tanto, que D'CASA le resta algo con
+    la promoción (lo regala o abona una parte) y que es por tiempo limitado. Por eso, cuando hay beneficio: (2) lo que
+    pone D'CASA, como un regalo o un abono que se le resta, y (3) hasta cuándo vale; el precio normal (1) lo antepone
+    ``con_el_precio_normal``. Cuando no aplica (colchón, monto) solo se explica por qué el envío va a su precio normal,
+    sin prometer nada.
+
+    «gratis» sale SOLO cuando este envío queda o quedaría gratis: así «gratis» nunca respalda un envío que no lo es."""
     motivo = resultado['motivo']
-    si_aplica = Decimal(str(resultado['precio_si_aplica'] or 0))
-    sale_gratis = motivo in (SIN_COMPRA, GRATIS, ABONO) and (resultado['zona'] == GRATIS or si_aplica == 0)
-    nombre = resultado['nombre']
-    cual = f'la promoción «{nombre}» ({fechas})' if nombre and sale_gratis else f'la promoción de envío {fechas}'
+    cual = nombre_corto(promocion)
+    Cual = cual[0].upper() + cual[1:]
     mide = MIDE[resultado['mide']]
     minimo = dinero(resultado['minimo'])
-    if sale_gratis:
-        beneficio = 'este envío te sale gratis'
-    else:
-        beneficio = f'te abonamos {dinero(abono)} de este envío: te queda en {dinero(si_aplica)}'
-    if motivo == SIN_COMPRA:
-        sin_colchon = ' No aplica si la compra lleva colchón.' if promocion.get('excluye_colchon') else ''
-        return f'Con {cual}, en compras de más de {minimo} {mide}, {beneficio}.{sin_colchon}'
-    if motivo in (GRATIS, ABONO):
-        ahorro = f' (te ahorras {dinero(resultado["ahorro"])})' if sale_gratis else ''
-        return f'Con {cual}, como tu compra pasa de {minimo} {mide}, {beneficio}{ahorro}.'
+    if motivo in (SIN_COMPRA, GRATIS, ABONO):
+        precio = Decimal(str(resultado['precio_normal']))
+        si_aplica = Decimal(str(resultado['precio_si_aplica'] or 0))
+        if resultado['zona'] == GRATIS or si_aplica == 0:
+            beneficio = f"D'CASA te regala el envío: te sale gratis (te ahorras {dinero(precio - si_aplica)})"
+        else:
+            beneficio = f"D'CASA te abona {dinero(abono)} del envío: te queda en {dinero(si_aplica)}"
+        condicion = f'en compras de más de {minimo} {mide}' if motivo == SIN_COMPRA else \
+            f'como tu compra pasa de {minimo} {mide}'
+        sin_colchon = ' No aplica si la compra lleva colchón.' \
+            if motivo == SIN_COMPRA and promocion.get('excluye_colchon') else ''
+        return f'Con {cual}, {condicion}, {beneficio}. {hasta_cuando(promocion)}{sin_colchon}'
     if motivo == COLCHON:
-        return f'La promoción de envío {fechas} no aplica cuando la compra lleva colchón, así que el envío va a su ' \
-               'precio normal.'
+        return f'{Cual} no aplica cuando la compra lleva colchón, así que el envío va a su precio normal.'
     if motivo == MONTO:
-        return (f'La promoción de envío {fechas} es para compras de más de {minimo} {mide}; tu cotización suma '
+        return (f'{Cual} es para compras de más de {minimo} {mide}; tu cotización suma '
                 f'{dinero(resultado["compra_medida"])} {mide}, así que el envío va a su precio normal.')
     return ''
+
+
+def tiene_beneficio(resultado):
+    """¿La frase ofrece algo (aplica, o aplicaría con la condición dicha)?"""
+    return resultado.get('motivo') in (SIN_COMPRA, GRATIS, ABONO)
+
+
+def con_el_precio_normal(resultado, lugar, desglose=''):
+    """La frase completa cuando hay beneficio: «El envío a <lugar> cuesta normalmente $X.» (con ``desglose`` si hay
+    cargos aparte) y después la de la promoción. Sin beneficio, ``''`` (quien llama dice el precio como siempre)."""
+    if not tiene_beneficio(resultado):
+        return ''
+    normal = f'El envío a {lugar} cuesta normalmente {dinero(resultado["precio_normal"])}.'
+    return ' '.join(p for p in (normal, desglose, resultado['frase']) if p)
 
 
 def respaldo(resultado):
     """Lo que la guardia de salida del Worker deja decir sobre el costo del envío en ese turno: las cifras de este
     envío que la frase le da al cliente (el precio normal; con la promoción aplicada, el precio final y lo que se
-    ahorra; sin compra todavía, lo que quedaría) y si la frase dice «gratis»."""
+    ahorra o se abona; sin compra todavía, lo que quedaría y lo que se abonaría) y si la frase dice «gratis»."""
     montos = {resultado.get('precio_normal')}
     if resultado.get('aplica'):
         montos |= {resultado.get('precio_final'), resultado.get('ahorro')}
-    elif resultado.get('condicional'):
-        montos.add(resultado.get('precio_si_aplica'))
+    elif resultado.get('condicional') and resultado.get('precio_si_aplica') is not None:
+        # Sin compra todavía: lo que quedaría y lo que D'CASA abona o regala (la frase dice las dos cifras).
+        montos.add(resultado['precio_si_aplica'])
+        montos.add(float(centavos(resultado['precio_normal']) - centavos(resultado['precio_si_aplica'])))
     return {'montos': sorted(m for m in montos if m is not None), 'gratis': bool(resultado.get('menciona_gratis'))}

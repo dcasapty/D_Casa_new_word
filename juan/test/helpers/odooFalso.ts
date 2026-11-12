@@ -48,7 +48,7 @@ export const ENVIOS = {
     envio_lleva_itbms: false,
     promocion: { nombre: "Envío Gratis Todo Noviembre", aplica: false, motivo: "sin_compra", condicional: true },
     frase_para_el_cliente:
-      "Envío a Villa Lucre (José Domingo Espinar, San Miguelito): $15. Con la promoción «Envío Gratis Todo Noviembre» (del 1 al 30 de noviembre), en compras de más de $200 sin ITBMS, este envío te sale gratis. No aplica si la compra lleva colchón.",
+      "El envío a Villa Lucre (José Domingo Espinar, San Miguelito) cuesta normalmente $15. Con la promoción de noviembre, en compras de más de $200 sin ITBMS, D'CASA te regala el envío: te sale gratis (te ahorras $15). La promoción es hasta el 30 de noviembre; después, el envío vuelve a su precio normal. No aplica si la compra lleva colchón.",
     cotizacion: null,
     instruccion: "Dile al cliente la frase tal cual.",
     respaldo_envio: { montos: [0, 15], gratis: true },
@@ -61,10 +61,10 @@ export const ENVIOS = {
     envio_lleva_itbms: false,
     promocion: { nombre: "Envío Gratis Todo Noviembre", aplica: false, motivo: "sin_compra", condicional: true },
     frase_para_el_cliente:
-      "Envío a Barrio Norte (Colón): $90. Con la promoción de envío del 1 al 30 de noviembre, en compras de más de $200 sin ITBMS, te abonamos $20 de este envío: te queda en $70. No aplica si la compra lleva colchón.",
+      "El envío a Barrio Norte (Colón) cuesta normalmente $90. Con la promoción de noviembre, en compras de más de $200 sin ITBMS, D'CASA te abona $20 del envío: te queda en $70. La promoción es hasta el 30 de noviembre; después, el envío vuelve a su precio normal. No aplica si la compra lleva colchón.",
     cotizacion: null,
     instruccion: "Dile al cliente la frase tal cual.",
-    respaldo_envio: { montos: [70, 90], gratis: false },
+    respaldo_envio: { montos: [20, 70, 90], gratis: false },
   },
 };
 

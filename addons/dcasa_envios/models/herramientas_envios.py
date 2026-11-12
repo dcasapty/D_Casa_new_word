@@ -8,6 +8,9 @@ todavía no se usan con clientes»). El precio es siempre el normal; si hay una 
 from odoo import models
 from odoo.addons.dcasa_brian.models.registro import BrianError, herramienta
 
+from ..motor import tarjeta as motor_tarjeta
+from ..motor.promocion import con_el_precio_normal, tiene_beneficio
+
 INTERNO = ('base.group_user',)
 MAX_LUGARES = 5
 
@@ -89,8 +92,8 @@ class BrianHerramientasEnvios(models.AbstractModel):
                 fila.update(self._envio_precio(tarjeta))
                 # Aparte, sin tocar el precio: lo que dice la promoción de envío vigente (la misma cuenta que usa Juan).
                 promocion, _registro = Promocion._aplicar(tarjeta['total'], tarjeta['prov'], tarjeta['dist'])
-                if promocion['frase']:
-                    fila['con_la_promocion'] = promocion['frase']
+                if tiene_beneficio(promocion):
+                    fila['con_la_promocion'] = con_el_precio_normal(promocion, motor_tarjeta.lugar_con_zona(tarjeta))
             else:
                 fila['precio'] = 'se cotiza aparte (' + ', '.join(c['texto'] for c in tarjeta['chips']
                                                                   if c['clase'] == 'aparte') + ')'

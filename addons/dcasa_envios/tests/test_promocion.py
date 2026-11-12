@@ -60,8 +60,12 @@ class TestPromocionDeEnvio(PromocionComun):
         self.assertEqual(promocion._como_motor()['provincias_gratis'], ['Panamá', 'Panamá Oeste'])
         self.assertEqual(self.env['dcasa.envio.promocion']._vigente(date(2026, 11, 30)), promocion)
         self.assertFalse(self.env['dcasa.envio.promocion']._vigente(date(2026, 12, 1)))
-        self.assertIn('este envío te sale gratis', promocion.resumen)
-        self.assertIn('te abonamos $20 de este envío', promocion.resumen)
+        self.assertIn("El envío a ese lugar cuesta normalmente $100. Con la promoción de noviembre, en compras de más "
+                      "de $200 sin ITBMS, D'CASA te regala el envío: te sale gratis (te ahorras $100).",
+                      promocion.resumen)
+        self.assertIn("D'CASA te abona $20 del envío: te queda en $80.", promocion.resumen)
+        self.assertIn('La promoción es hasta el 30 de noviembre; después, el envío vuelve a su precio normal.',
+                      promocion.resumen)
 
     def test_solo_gerencia_la_cambia_y_queda_quien_cambio_que(self):
         with self.assertRaises(AccessError):
@@ -110,8 +114,11 @@ class TestPromocionDeEnvio(PromocionComun):
         costa = brian['datos']['lugares'][0]
         self.assertEqual(costa['total'], '$45', 'el precio de Brian no cambia')
         self.assertEqual(costa['texto_para_el_cliente'], 'Envío a Costa Inventada (Santa Prueba, Panamá): $45.')
-        self.assertIn('en compras de más de $200 sin ITBMS, este envío te sale gratis', costa['con_la_promocion'],
-                      'la promoción va aparte')
+        self.assertEqual(costa['con_la_promocion'],
+                         "El envío a Costa Inventada (Santa Prueba, Panamá) cuesta normalmente $45. Con la promoción "
+                         "de noviembre, en compras de más de $200 sin ITBMS, D'CASA te regala el envío: te sale gratis "
+                         "(te ahorras $45). La promoción es hasta el 30 de noviembre; después, el envío vuelve a su "
+                         "precio normal. No aplica si la compra lleva colchón.", 'la promoción va aparte')
         with patch('odoo.addons.dcasa_envios.models.promocion.EnvioPromocion._hoy', return_value=date(2026, 12, 1)):
             diciembre = self.env['brian.herramientas'].with_user(self.vendedora).ejecutar(
                 'cotizar_envio', {'lugar': 'Costa Inventada'})

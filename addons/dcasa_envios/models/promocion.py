@@ -154,13 +154,14 @@ class EnvioPromocion(models.Model):
             datos = promocion._como_motor()
             ejemplos = []
             if datos['provincias_gratis'] or datos['distritos_gratis']:
-                ejemplos.append(('Envío a una zona gratis', (datos['provincias_gratis'] or [''])[0],
-                                 (datos['distritos_gratis'] or [''])[0]))
+                ejemplos.append(('Ejemplo de un envío de $100 a una zona gratis',
+                                 (datos['provincias_gratis'] or [''])[0], (datos['distritos_gratis'] or [''])[0]))
             if promocion.abono > 0:
                 ejemplos.append(('Ejemplo de un envío de $100 al resto del país', '', ''))
             renglones = []
             for titulo, prov, dist in ejemplos:
                 resultado = motor_promocion.aplicar(datos, 100.0, prov, dist, promocion.desde)
-                if resultado['frase']:
-                    renglones.append(f'{titulo}: {resultado["frase"]}')
+                completa = motor_promocion.con_el_precio_normal(resultado, 'ese lugar')
+                if completa:
+                    renglones.append(f'{titulo}: {completa}')
             promocion.resumen = '\n'.join(renglones) or False

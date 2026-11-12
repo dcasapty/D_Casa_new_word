@@ -27,7 +27,7 @@ from odoo import api, models
 from odoo.addons.dcasa_brian.models.registro import BrianError, herramienta
 from odoo.addons.dcasa_envios.motor import buscador
 from odoo.addons.dcasa_envios.motor import tarjeta as motor_tarjeta
-from odoo.addons.dcasa_envios.motor.promocion import respaldo
+from odoo.addons.dcasa_envios.motor.promocion import con_el_precio_normal, respaldo, tiene_beneficio
 from odoo.addons.dcasa_envios.motor.tarifa import Tarifa
 from odoo.addons.dcasa_envios.motor.texto import dinero
 
@@ -99,7 +99,8 @@ class BrianHerramientasJuanEnvios(models.AbstractModel):
         """Lo que la calculadora muestra de ese lugar (precio, zona, chips, texto de «Copiar el precio»)."""
         tarifa = self.env['dcasa.envio.tarifa'].sudo()._vigente_motor() or Tarifa({})
         datos = lugar._como_motor()
-        return dict(motor_tarjeta.tarjeta(datos, tarifa), id=lugar.id, prov=datos['prov'], dist=datos['dist'])
+        return dict(motor_tarjeta.tarjeta(datos, tarifa), id=lugar.id, prov=datos['prov'], dist=datos['dist'],
+                    corr=datos['corr'])
 
     @api.model
     def _j_envio_aparte(self, tarjeta):
@@ -118,9 +119,13 @@ class BrianHerramientasJuanEnvios(models.AbstractModel):
         resultado, promocion = self.env['dcasa.envio.promocion'].sudo()._aplicar(
             tarjeta['total'], tarjeta['prov'], tarjeta['dist'], compra)
         lleva_itbms = self.env['sale.order']._dcasa_envio_lleva_itbms()
-        frase = tarjeta['texto_cliente'] + (' Al envío se le suma el ITBMS.' if lleva_itbms else '')
-        if resultado['frase']:
-            frase += ' ' + resultado['frase']
+        itbms = ' Al envío se le suma el ITBMS.' if lleva_itbms else ''
+        if tiene_beneficio(resultado):
+            # (1) el precio normal dicho como normal, (2) lo que D'CASA resta con la promoción, (3) hasta cuándo.
+            frase = con_el_precio_normal(resultado, self._j_envio_como_lo_ve(tarjeta),
+                                         self._j_envio_desglose(tarjeta) + itbms.strip())
+        else:
+            frase = ' '.join(p for p in (tarjeta['texto_cliente'] + itbms, resultado['frase']) if p)
         datos = {
             'estado': 'precio',
             'lugar': {'lugar_id': tarjeta['id'], 'nombre': tarjeta['nombre'], 'zona': tarjeta['zona']},
@@ -131,6 +136,14 @@ class BrianHerramientasJuanEnvios(models.AbstractModel):
             'respaldo_envio': respaldo(resultado),
         }
         return datos, orden, resultado, promocion
+
+    @staticmethod
+    def _j_envio_desglose(tarjeta):
+        """«Tarifa $45 + peaje $5.» si el envío tiene cargos aparte (lo mismo que dice «Copiar el precio»), o «»."""
+        if not tarjeta.get('extras'):
+            return ''
+        cargos = ' + '.join(f"{c['nombre'].lower()} {dinero(c['monto'])}" for c in tarjeta['extras'])
+        return f"Tarifa {dinero(tarjeta['base'])} + {cargos}. "
 
     @staticmethod
     def _j_promocion_como_dict(resultado):

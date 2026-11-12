@@ -108,12 +108,27 @@ describe("Juan cotiza el envío con la herramienta y lo dice tal cual", () => {
     const g = m.guion([{ llamadas: [{ nombre: "cotizar_envio", args: { lugar: "Villa Lucre" } }] }, { texto: frase }]);
     await m.conversar("¿cuánto cuesta el envío a Villa Lucre?");
     const texto = m.canal.textos.join("\n");
-    expect(texto).toContain("Envío a Villa Lucre (José Domingo Espinar, San Miguelito): $15.");
-    expect(texto).toContain("Envío Gratis Todo Noviembre");
-    expect(texto).toContain("este envío te sale gratis");
+    expect(texto).toContain("El envío a Villa Lucre (José Domingo Espinar, San Miguelito) cuesta normalmente $15.");
+    expect(texto).toContain("D'CASA te regala el envío: te sale gratis (te ahorras $15)");
+    expect(texto).toContain("La promoción es hasta el 30 de noviembre; después, el envío vuelve a su precio normal.");
     expect(texto).not.toContain("+ ITBMS");
     expect(g.prompts()[1]).not.toContain("respaldo_envio");
     expect(g.prompts()[1]).toContain("frase_para_el_cliente");
+  });
+
+  it("en zona con abono, la frase entera de la herramienta sale tal cual: precio normal, abono de D'CASA y hasta cuándo", async () => {
+    const m = crearMundo();
+    m.guion([{ llamadas: [{ nombre: "cotizar_envio", args: { lugar: "Colón" } }] }, { texto: ENVIOS.colon.frase_para_el_cliente }]);
+    await m.conversar("¿y a Colón?");
+    expect(m.canal.textos.join("\n")).toContain(ENVIOS.colon.frase_para_el_cliente);
+  });
+
+  it("el abono de $20 también está respaldado (el modelo puede decirlo con otras palabras)", async () => {
+    const m = crearMundo();
+    m.guion([{ llamadas: [{ nombre: "cotizar_envio", args: { lugar: "Colón" } }] }, { texto: "El envío a Colón cuesta $90 y con la promoción el envío te sale $20 más barato." }]);
+    await m.conversar("¿y a Colón?");
+    expect(m.canal.textos.join("\n")).toContain("el envío te sale $20 más barato");
+    expect(detectarPromesas("El envío te sale $20 más barato.", new Set(), respaldo([70, 90]))).toContain("costo de entrega");
   });
 
   it("el modelo reformula con las cifras de la herramienta y pasa", async () => {

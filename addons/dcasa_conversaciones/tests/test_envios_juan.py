@@ -62,9 +62,10 @@ class TestCotizarEnvio(EnviosJuanCase):
         self.assertEqual((datos['envio_normal'], datos['envio_normal_texto']), (45.0, '$45'))
         self.assertIsNone(datos['cotizacion'])
         self.assertEqual(datos['frase_para_el_cliente'],
-                         'Envío a Costa Inventada (Santa Prueba, Panamá): $45. Con la promoción «Envío Gratis Todo '
-                         'Noviembre» (del 1 al 30 de noviembre), en compras de más de $200 sin ITBMS, este envío te '
-                         'sale gratis. No aplica si la compra lleva colchón.')
+                         "El envío a Costa Inventada (Santa Prueba, Panamá) cuesta normalmente $45. Con la promoción "
+                         "de noviembre, en compras de más de $200 sin ITBMS, D'CASA te regala el envío: te sale gratis "
+                         "(te ahorras $45). La promoción es hasta el 30 de noviembre; después, el envío vuelve a su "
+                         "precio normal. No aplica si la compra lleva colchón.")
         self.assertFalse(datos['promocion']['aplica'])
         self.assertTrue(datos['promocion']['condicional'])
         self.assertEqual(datos['respaldo_envio'], {'montos': [0.0, 45.0], 'gratis': True})
@@ -74,9 +75,13 @@ class TestCotizarEnvio(EnviosJuanCase):
 
     def test_en_colon_el_abono_y_sin_promocion_el_precio_normal(self):
         colon = self.envio(lugar='Barrio Simulado')
-        self.assertIn('te abonamos $20 de este envío: te queda en $85', colon['frase_para_el_cliente'])
+        self.assertEqual(colon['frase_para_el_cliente'],
+                         "El envío a Barrio Simulado (Colón) cuesta normalmente $105. Con la promoción de noviembre, "
+                         "en compras de más de $200 sin ITBMS, D'CASA te abona $20 del envío: te queda en $85. La "
+                         "promoción es hasta el 30 de noviembre; después, el envío vuelve a su precio normal. No "
+                         "aplica si la compra lleva colchón.")
         self.assertNotIn('gratis', colon['frase_para_el_cliente'].lower())
-        self.assertEqual(colon['respaldo_envio'], {'montos': [85.0, 105.0], 'gratis': False})
+        self.assertEqual(colon['respaldo_envio'], {'montos': [20.0, 85.0, 105.0], 'gratis': False})
         with patch(HOY, return_value=date(2026, 12, 1)):
             diciembre = self.envio(lugar='Costa Inventada')
         self.assertEqual(diciembre['frase_para_el_cliente'], 'Envío a Costa Inventada (Santa Prueba, Panamá): $45.')
@@ -159,8 +164,11 @@ class TestCotizarEnvio(EnviosJuanCase):
         self.assertEqual(datos['cotizacion'], {'numero': orden.name, 'envio_ya_sumado': False})
         self.assertTrue(datos['promocion']['aplica'])
         self.assertEqual((datos['promocion']['envio_con_promocion'], datos['promocion']['ahorro']), (0.0, 45.0))
-        self.assertIn('como tu compra pasa de $200 sin ITBMS, este envío te sale gratis (te ahorras $45)',
-                      datos['frase_para_el_cliente'])
+        self.assertEqual(datos['frase_para_el_cliente'],
+                         "El envío a Costa Inventada (Santa Prueba, Panamá) cuesta normalmente $45. Con la promoción "
+                         "de noviembre, como tu compra pasa de $200 sin ITBMS, D'CASA te regala el envío: te sale "
+                         "gratis (te ahorras $45). La promoción es hasta el 30 de noviembre; después, el envío vuelve "
+                         "a su precio normal.")
         self.assertIn('¿Quieres que te lo sume a la cotización?', datos['instruccion'])
         self.assertIn(f'agregar_envio con lugar_id={self.costa.id}', datos['instruccion'])
 
@@ -168,7 +176,10 @@ class TestCotizarEnvio(EnviosJuanCase):
         self.cotizar({'codigo': 'ZZ-MESA'})                      # $90
         chica = self.envio(lugar='Costa Inventada')
         self.assertEqual(chica['promocion']['motivo'], 'monto')
-        self.assertIn('tu cotización suma $90 sin ITBMS', chica['frase_para_el_cliente'])
+        self.assertEqual(chica['frase_para_el_cliente'],
+                         'Envío a Costa Inventada (Santa Prueba, Panamá): $45. La promoción de noviembre es para '
+                         'compras de más de $200 sin ITBMS; tu cotización suma $90 sin ITBMS, así que el envío va a '
+                         'su precio normal.')
         self.assertEqual(chica['respaldo_envio'], {'montos': [45.0], 'gratis': False})
         otra = self.conversacion(nombre='Otra', id_externo='50769990001')
         self.colchon.dcasa_tipo_combo = 'colchon'            # (el nombre de prueba «ZZCOLCHÓN» no lo sugiere solo)
@@ -198,7 +209,8 @@ class TestAgregarEnvio(EnviosJuanCase):
         self.assertEqual(cotizacion['envio']['total_envio_texto'], '$0')
         self.assertEqual(datos['respaldo_envio'], {'montos': [0.0, 45.0], 'gratis': True})
         frase = datos['frase_para_el_cliente']
-        self.assertTrue(frase.startswith(f'Listo, te sumé el envío a la cotización {orden.name}.'))
+        self.assertTrue(frase.startswith(f'Listo, te sumé el envío a la cotización {orden.name}. El envío a Costa '
+                                         'Inventada (Santa Prueba, Panamá) cuesta normalmente $45.'), frase)
         self.assertIn(f'El total de la cotización queda en {cotizacion["total_texto"]}.', frase)
         avisos = self.avisos_con_pdf()
         self.assertEqual(len(avisos), 2, 'el PDF se vuelve a armar con el envío')
@@ -212,7 +224,9 @@ class TestAgregarEnvio(EnviosJuanCase):
         self.agregar(self.costa)
         datos = self.agregar(self.colon)
         self.assertEqual(sorted(orden.order_line.filtered('is_delivery').mapped('price_unit')), [-20.0, 105.0])
-        self.assertIn('te abonamos $20 de este envío: te queda en $85', datos['frase_para_el_cliente'])
+        self.assertIn("cuesta normalmente $105. Con la promoción de noviembre, como tu compra pasa de $200 sin ITBMS, "
+                      "D'CASA te abona $20 del envío: te queda en $85. La promoción es hasta el 30 de noviembre;",
+                      datos['frase_para_el_cliente'])
         self.assertAlmostEqual(orden.amount_untaxed, 885.0)
 
     def test_volver_a_cotizar_lo_mismo_reutiliza_la_cotizacion_con_su_envio(self):
