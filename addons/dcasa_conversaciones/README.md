@@ -22,7 +22,7 @@ con el nombre público «el equipo de D'CASA». El contrato completo con el Work
 | API de la pantalla «Conversaciones» (lista, hilo, ficha, enviar…) | `models/conversacion_panel.py` |
 | Pantalla OWL «Conversaciones» (lista, chat, ficha, caja, catálogo, cotización) | `static/src/js`, `static/src/xml`, `static/src/scss/panel.scss` |
 | Resumen, Costos de IA y Conexiones (acciones de cliente) | `models/panel_juan.py`, `models/panel_calculos.py`, `models/cliente_worker_panel.py`, `static/src/js/{resumen,costos,conexiones}.js` |
-| Pagos de la IA en Costos (2026-11-12): «Registrar pago» marca un corte y arriba sale «Consumido desde el último pago»; no se edita ni se borra, se anula con motivo (Gerencia y administradores) | `models/pagos_ia.py` (modelo `dcasa.juan.pago.ia`), las cuentas y sus bordes en `models/panel_calculos.py` («Consumido desde el último pago»), `tests/test_pagos_ia.py` |
+| «Pagar» en Costos de IA (2026-11-12): «Por pagar a Meta» vuelve a $0 y empieza a contar; «Deshacer» el último pago. Por dentro, un libro de cortes que no se edita ni se borra (se anula con motivo); sin Worker no se registra (Gerencia y administradores) | `models/pagos_ia.py` (modelo `dcasa.juan.pago.ia`), las cuentas y sus bordes en `models/panel_calculos.py` («Consumido desde el último pago»), `tests/test_pagos_ia.py` |
 | Subir adjuntos, sugerir respuesta, catálogo y cotización para la pantalla | `models/conversacion_panel_extra.py`, `models/conversacion_panel_catalogo.py` |
 | Adjuntos con URL firmada de vida corta | `models/firma.py`, `controllers/adjuntos.py` |
 | Datos de la tienda (dirección, horario, WhatsApp) | `models/tienda.py` |
