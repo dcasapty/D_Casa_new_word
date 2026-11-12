@@ -65,7 +65,7 @@ beforeEach(() => {
         renovadas.push(nueva);
         return Response.json({ access_token: nueva, token_type: "bearer", expires_in: 5_184_000 });
       }
-      if (url.pathname.endsWith("/me")) return Response.json({ user_id: CUENTA, username: "dcasapty", id: "26000000000000001" });
+      if (url.pathname.endsWith("/me") && llave) return Response.json({ user_id: CUENTA, username: "dcasapty", id: "26000000000000001" });
       if (url.pathname.endsWith("/me/messages")) return Response.json({ recipient_id: CLIENTE, message_id: `aWdf_OUT_${salidas.length}` });
       if (url.pathname.endsWith(`/${CLIENTE}`) && url.searchParams.get("fields") === "name,username") return Response.json({ name: "Ana Pérez", username: "ana.pty" });
       return Response.json({ error: { message: "no", code: 100 } }, { status: 400 });

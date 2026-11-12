@@ -158,7 +158,7 @@ export async function renovarLlave(env: Env, d: DepsLlave): Promise<ResultadoRen
   estado.intentoEn = ahora;
   await guardar();
   try {
-    // Como dice Meta: la llave va en la consulta. Esta URL nunca se registra.
+    // Como lo documenta Meta para esta ruta, la llave va en la consulta: esta URL no se registra nunca (ni en los errores).
     const r = await d.fetch(`${URL_RENOVAR}?grant_type=ig_refresh_token&access_token=${encodeURIComponent(vigente)}`);
     const j = (await r.json().catch(() => null)) as { access_token?: unknown; expires_in?: unknown } | null;
     const nueva = typeof j?.access_token === "string" ? j.access_token.trim() : "";
@@ -197,7 +197,8 @@ export async function cuentaDeInstagram(env: Env, d: DepsLlave & { llave(env: En
   const llave = await d.llave(env);
   if (!llave) return valida;
   try {
-    const r = await d.fetch(`${urlInstagram(env, "me")}?fields=user_id,username&access_token=${encodeURIComponent(llave)}`);
+    // La llave en la cabecera, como en el envío (graph.instagram.com la acepta así): nunca en una URL.
+    const r = await d.fetch(`${urlInstagram(env, "me")}?fields=user_id,username`, { headers: { authorization: `Bearer ${llave}` } });
     const j = (await r.json().catch(() => null)) as Record<string, unknown> | null;
     // La documentación muestra `{data:[{user_id, username}]}`; la API suele contestar el objeto suelto: se aceptan los dos.
     const datos = (Array.isArray(j?.data) ? (j!.data as Record<string, unknown>[])[0] : j) ?? {};

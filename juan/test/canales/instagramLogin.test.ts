@@ -228,7 +228,8 @@ describe("el webhook de Instagram por inicio de sesión de Instagram (/webhooks/
     await adaptador.recibir(await firmado(mensaje()), envIg);
     const alMe = llamadas.filter((l) => new URL(l.url).pathname.endsWith("/me"));
     expect(alMe).toHaveLength(1);
-    expect(alMe[0].url).toMatch(/^https:\/\/graph\.instagram\.com\/v\d+\.\d+\/me\?fields=user_id,username&access_token=/);
+    expect(alMe[0].url).toMatch(/^https:\/\/graph\.instagram\.com\/v\d+\.\d+\/me\?fields=user_id,username$/);
+    expect(alMe[0].cabeceras.authorization).toBe(`Bearer ${TOKEN_IG}`);
     expect(JSON.parse(llavero.datos.get(CLAVE_CUENTA)!)).toMatchObject({ ids: [CUENTA, "26000000000000001"], usuario: "dcasapty", semilla: await huella(TOKEN_IG) });
     // Otro proceso (otro Worker) la lee de lo guardado, sin preguntar.
     const otro = igFalso({ llavero });
