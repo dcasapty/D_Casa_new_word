@@ -7,6 +7,8 @@
   (vacaciones, ausencia) sin quitarle ningún permiso, o para encender el reparto parejo. Gerencia y las
   administradoras no reciben conversaciones (intervienen en cualquiera): no son filas de la tabla; sus nombres salen
   aparte, en «No reciben», para que se note si una vendedora quedó fuera por tener también el rol de Gerencia.
+  Y «Clientes que cambiaron de mano» del periodo (pedido de la dueña, 2026-11-12): quién tomó el cliente de quién, se
+  lo asignaron o pasó porque no contestó. Solo viaja para Gerencia.
 
 Las cuentas salen del libro ``dcasa.reparto`` (ver ``reparto.py``); no se inventa ninguna cifra.
 """
@@ -22,13 +24,15 @@ from . import panel_calculos as C
 from .ajustes import CANALES
 from .conversacion_panel import _entero
 from .panel_juan import GRUPO_GERENCIA
-from .reparto import MAX_FILAS_PROPIAS, REGLAS_DE_JUAN
+from .reparto import MAX_FILAS_PROPIAS, REGLAS, REGLAS_DE_CAMBIO_DE_MANO, REGLAS_DE_JUAN
 
 NOMBRES_DEL_MODO = {
     'manual': 'Apagado: la toma quien quiera',
     'parejo': 'Parejo: a quien lleva menos hoy',
     'turnos': 'Por turnos',
 }
+# «Clientes que cambiaron de mano»: los más recientes que se ven (de los demás solo se dice cuántos son).
+MAX_CAMBIOS_DE_MANO = 20
 
 
 class DcasaJuanPanelReparto(models.AbstractModel):
@@ -69,10 +73,11 @@ class DcasaJuanPanelReparto(models.AbstractModel):
             'modo': ajustes.reparto_modo, 'modo_nombre': NOMBRES_DEL_MODO.get(ajustes.reparto_modo, ''),
             'dias_misma_vendedora': ajustes.reparto_dias_misma_vendedora,
             'minutos_activa': minutos_activa, 'minutos_reasignar': ajustes.reparto_reasignar_minutos,
+            'max_esperando': ajustes.reparto_max_esperando,
             'yo': self._fila_de(yo, cuentas[yo.id], hoy, horario, recibe=yo in equipo, actividad=actividad,
                                 minutos_activa=minutos_activa),
             'mis_conversaciones': self._mis_conversaciones(yo, desde, hoy),
-            'equipo': [], 'no_reciben': [], 'sin_dueno': None, 'diferencia': None,
+            'equipo': [], 'no_reciben': [], 'sin_dueno': None, 'diferencia': None, 'cambios_de_mano': None,
         }
         if es_gerencia:
             filas = [self._fila_de(u, cuentas[u.id], hoy, horario, actividad=actividad, minutos_activa=minutos_activa)
@@ -86,7 +91,35 @@ class DcasaJuanPanelReparto(models.AbstractModel):
             recibiendo = [f['recibidas'] for f in filas if f['estado'] != 'fuera']
             datos['diferencia'] = (max(recibiendo) - min(recibiendo)) if recibiendo else None
             datos['sin_dueno'] = self._sin_dueno()
+            datos['cambios_de_mano'] = self._cambios_de_mano(desde, hoy)
         return datos
+
+    @api.model
+    def _cambios_de_mano(self, desde, hasta):
+        """Los clientes que pasaron de una persona a otra entre los días ``desde`` y ``hasta`` (de Panamá), del libro
+        ``dcasa.reparto``: lo más reciente arriba, hasta ``MAX_CAMBIOS_DE_MANO``, y cuántos más hay. Solo Gerencia."""
+        dominio = [('regla', 'in', REGLAS_DE_CAMBIO_DE_MANO), ('anterior_id', '!=', False),
+                   ('dia', '>=', desde), ('dia', '<=', hasta)]
+        libro = self.env['dcasa.reparto'].sudo()
+        total = libro.search_count(dominio)
+        horario = self.env['dcasa.juan.ajustes'].obtener().horario()
+        como_fue = {
+            ('tomada', 'escribir'): self.env._('Lo tomó al escribirle'),
+            ('tomada', 'atender'): self.env._('Lo tomó con «Atender»'),
+            ('manual', False): self.env._('Se lo asignaron'),
+            ('reasignada', False): self.env._('Pasó porque no contestó'),
+        }
+        filas = []
+        for linea in libro.search(dominio, order='momento desc, id desc', limit=MAX_CAMBIOS_DE_MANO):
+            conv = linea.conversacion_id
+            como = como_fue.get((linea.regla, linea.forma)) or dict(REGLAS).get(linea.regla, '')
+            filas.append({
+                'id': linea.id, 'conversacion_id': conv.id, 'momento': H.a_iso(linea.momento),
+                'momento_texto': H.texto_fecha_hora(linea.momento, horario),
+                'cliente': conv.partner_id.name or conv.id_externo, 'de': linea.anterior_id.name or '',
+                'a': linea.usuario_id.name or '', 'regla': linea.regla, 'como': como,
+            })
+        return {'filas': filas, 'mas': max(0, total - len(filas))}
 
     @api.model
     def _fila_de(self, usuario, cuenta, hoy, horario, recibe=True, actividad=None, minutos_activa=0):

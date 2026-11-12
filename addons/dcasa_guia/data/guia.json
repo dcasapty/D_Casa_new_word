@@ -3122,7 +3122,7 @@
    "categoria": "tienda",
    "grupo": "Conversaciones",
    "titulo": "Ver cómo reparte Juan las conversaciones entre las vendedoras",
-   "logras": "Ves cuántas conversaciones le pasó Juan a cada vendedora hoy y a quién le esperan clientes, para comprobar que el reparto es parejo. Solo reciben las vendedoras: Gerencia y los administradores pueden intervenir en cualquier conversación, pero Juan no se las pasa. Cada vendedora ve solo las suyas.",
+   "logras": "Ves cuántas conversaciones le pasó Juan a cada vendedora hoy y a quién le esperan clientes, para comprobar que el reparto es parejo, y qué clientes cambiaron de mano (quién tomó el cliente de quién). Solo reciben las vendedoras: Gerencia y los administradores pueden intervenir en cualquier conversación, pero Juan no se las pasa. Cada vendedora ve solo las suyas.",
    "destino": {
     "menu": "dcasa_conversaciones.menu_dcasa_panel_reparto"
    },
@@ -3232,6 +3232,46 @@
     "disponible",
     "almuerzo",
     "pausa"
+   ]
+  },
+  {
+   "id": "juan-chat-de-una-companera",
+   "categoria": "tienda",
+   "grupo": "Conversaciones",
+   "titulo": "Qué pasa si escribes en el chat de una compañera",
+   "logras": "Si el cliente lo atiende otra vendedora que está trabajando, antes de enviar te pregunta «¿Lo tomas tú?». Si dices que sí, el cliente queda contigo, queda escrito en la conversación y a ella le llega un aviso. Si prefieres no quitárselo, toca «Dejarle una nota»: lo que escribiste pasa a una nota para ella y el cliente no la ve. Si ella no está trabajando (faltó, está almorzando, es de noche), lo tomas sin pregunta: cubrirla también es ayudar. Gerencia ve en Reparto quién tomó el cliente de quién.",
+   "nota": "Solo entre vendedoras: Gerencia y los administradores entran a cualquier chat sin pregunta. Pasa lo mismo con el botón «Atender». Desde Telegram no se puede tomar el cliente de una compañera que está trabajando: hazlo desde Conversaciones.",
+   "destino": {
+    "menu": "dcasa_conversaciones.menu_dcasa_panel_conversaciones"
+   },
+   "palabras": [
+    "companera",
+    "quitar cliente",
+    "tomar cliente",
+    "cliente de otra",
+    "chat de otra",
+    "nota",
+    "reparto"
+   ]
+  },
+  {
+   "id": "juan-reparto-maximo",
+   "categoria": "tienda",
+   "grupo": "Conversaciones",
+   "titulo": "Que los chats de la noche se repartan parejo en la mañana",
+   "logras": "Juan no le pasa a ninguna vendedora más clientes sin contestar a la vez que los que pongas. Así, los que escribieron de noche no se los lleva todos la primera que entra: los recibe de a pocos y, en cuanto contesta uno, le llega otro; las que van llegando reciben los demás.",
+   "nota": "En Ajustes de Juan, «Máximo de clientes esperándole a la vez». Viene en 3. 0 = sin límite. Solo sirve con el reparto encendido. De día, si el cliente ya habló con una vendedora, vuelve con ella aunque tenga clientes esperando.",
+   "destino": {
+    "menu": "dcasa_conversaciones.menu_dcasa_juan_ajustes"
+   },
+   "palabras": [
+    "noche",
+    "manana",
+    "acaparar",
+    "maximo",
+    "parejo",
+    "reparto",
+    "chats pendientes"
    ]
   },
   {

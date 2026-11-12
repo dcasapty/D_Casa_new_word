@@ -912,9 +912,11 @@ class DcasaConversacion(models.Model):
         return accion
 
     def action_atender(self):
-        """«Atender»: el asistente calla, la conversación pasa a la vendedora y el Worker se entera."""
+        """«Atender»: el asistente calla, la conversación pasa a la vendedora y el Worker se entera. El cliente que
+        atiende otra vendedora activa no se toma desde aquí (no hay cómo preguntar): se toma desde Conversaciones."""
         self._exigir_vendedora()
         self.check_access('write')
+        self._exigir_confirmacion_para_tomar(self.env.user)
         self._tomar(self.env.user)
         return True
 
@@ -949,22 +951,32 @@ class DcasaConversacion(models.Model):
     # ------------------------------------------------------------------
 
     def _tomar(self, usuario, minutos=None):
-        """Una persona toma la conversación: el asistente calla (por ``minutos`` o lo que digan los ajustes)."""
+        """Una persona toma la conversación: el asistente calla (por ``minutos`` o lo que digan los ajustes). Si era el
+        cliente que atendía otra vendedora, queda dicho (ver ``_cambio_de_mano``); quien llama ya pidió la
+        confirmación cuando hacía falta (``_exigir_confirmacion_para_tomar``)."""
         horario = self.env['dcasa.juan.ajustes'].obtener().horario()
+        anteriores = {conv.id: conv._vendedora_que_lo_atiende(usuario) for conv in self}
+        del_reparto = self.sudo().filtered('reparto_desde')
         self._poner_en_humano(usuario=usuario, minutos=minutos)
         for conv in self.sudo():
             # Queda en el libro del reparto: quien la tomó la está atendiendo y «pasar a otra si no contesta» no la
             # toca.
-            conv._registrar_asignacion_a_mano(usuario)
-            if conv.pausada_hasta:
-                texto = self.env._('%(quien)s tomó la conversación. El asistente calla hasta %(hasta)s.',
-                                   quien=usuario.name, hasta=H.texto_fecha_hora(conv.pausada_hasta, horario))
+            anterior = anteriores[conv.id]
+            if anterior:
+                frase = conv._cambio_de_mano(anterior, usuario, 'atender')
             else:
-                texto = self.env._('%s tomó la conversación. El asistente calla hasta que se la devuelvan.',
-                                   usuario.name)
+                conv._registrar_asignacion_a_mano(usuario)
+                frase = self.env._('%s tomó la conversación.', usuario.name)
+            if conv.pausada_hasta:
+                texto = self.env._('%(frase)s El asistente calla hasta %(hasta)s.',
+                                   frase=frase, hasta=H.texto_fecha_hora(conv.pausada_hasta, horario))
+            else:
+                texto = self.env._('%s El asistente calla hasta que se la devuelvan.', frase)
             conv._aviso(texto)
             conv._notificar_panel('estado')
         self._avisar_estado_al_worker()
+        if del_reparto:
+            del_reparto._adelantar_reparto()
 
     def _devolver(self, usuario, nota=None):
         """Vuelve a contestar el asistente; la nota (opcional) se la lee en cada respuesta."""
@@ -1062,10 +1074,12 @@ class DcasaConversacion(models.Model):
         return nombre.split()[0]
 
     def action_enviar(self):
-        """Escribir desde Odoo: el mensaje sale por el Worker; si no responde, queda «por enviar» y se reintenta."""
+        """Escribir desde Odoo: el mensaje sale por el Worker; si no responde, queda «por enviar» y se reintenta. Al
+        cliente que atiende otra vendedora activa no se le escribe desde aquí (no hay cómo preguntar)."""
         self._exigir_vendedora()
         self.check_access('write')
         self.ensure_one()
+        self._exigir_confirmacion_para_tomar(self.env.user)
         texto = (self.borrador or '').strip()
         adjuntos = self.borrador_adjunto_ids
         if not texto and not adjuntos:
@@ -1113,15 +1127,22 @@ class DcasaConversacion(models.Model):
         conv = self.sudo()
         ajustes = self.env['dcasa.juan.ajustes'].obtener()
         la_tomo = conv.estado != 'humano'
+        anterior = conv._vendedora_que_lo_atiende(usuario)
+        del_reparto = bool(conv.reparto_desde)
         conv.write({
             'ultima_actividad': ahora, 'ultimo_mensaje_texto': (texto or self.env._('(adjunto)'))[:140],
             'ultimo_mensaje_autor': 'vendedora', 'seguimiento_proximo': False, 'asignada_a': usuario.id,
             'nota_para_el_bot': False, 'reparto_desde': False, 'traspaso_sin_atender_desde': False,
             **conv._valores_de_pausa(ajustes, ahora, cambia_a_humano=la_tomo)})
         mensaje._publicar_en_chatter()
-        if la_tomo:
+        if anterior:
+            # Era el cliente de otra vendedora (quien llama ya pidió la confirmación si estaba activa).
+            conv._aviso(conv._cambio_de_mano(anterior, usuario, 'escribir'))
+        elif la_tomo:
             conv._aviso(self.env._('%s tomó la conversación al escribir. El asistente calla.', usuario.name))
         conv._notificar_panel('mensaje', mensaje)
+        if del_reparto:
+            conv._adelantar_reparto()
 
     def _guardar_foto_de_perfil(self, contenido):
         """Valida y guarda la foto de perfil (bytes). Devuelve ``True`` si quedó guardada.

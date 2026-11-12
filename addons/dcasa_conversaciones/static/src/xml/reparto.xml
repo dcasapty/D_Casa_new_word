@@ -81,12 +81,35 @@
                                 </table>
                             </div>
                             <p t-if="d.no_reciben.length" class="o_dcj_p_nota o_dcj_reparto_no_reciben">No reciben conversaciones de Juan (intervienen en cualquiera cuando quieran): <strong t-out="d.no_reciben.join(', ')"/>. Solo reciben las vendedoras; si alguien de ventas aparece aquí y debería recibir, es porque también tiene el rol de Gerencia o de administradora.</p>
-                            <p class="o_dcj_p_nota">«Recibidas» son las que Juan le pasó a cada quien <t t-out="nombreDelPeriodo"/>. «Esperan respuesta» son los clientes que le esperan ahora. «No disponible» (almuerzo, fin del día) se reinicia solo cada mañana, antes de abrir la tienda; «No recibe» no se reinicia solo.<t t-if="d.minutos_activa"> «Sin actividad»: no usó el sistema ni le escribió a un cliente en los últimos <t t-out="d.minutos_activa"/> minutos (por ejemplo, no vino), así que no recibe hasta que vuelva.</t><t t-if="d.minutos_reasignar"> Si a quien le tocó no le contesta al cliente en <t t-out="d.minutos_reasignar"/> minutos, el cliente pasa solo a otra.</t> «Dejar de asignarle» sirve para vacaciones o ausencias: no le quita ningún permiso ni las conversaciones que ya tiene (esas las puedes pasar a otra persona desde la conversación).</p>
+                            <p class="o_dcj_p_nota">«Recibidas» son las que Juan le pasó a cada quien <t t-out="nombreDelPeriodo"/>. «Esperan respuesta» son los clientes que le esperan ahora. «No disponible» (almuerzo, fin del día) se reinicia solo cada mañana, antes de abrir la tienda; «No recibe» no se reinicia solo.<t t-if="d.minutos_activa"> «Sin actividad»: no usó el sistema ni le escribió a un cliente en los últimos <t t-out="d.minutos_activa"/> minutos (por ejemplo, no vino), así que no recibe hasta que vuelva.</t><t t-if="d.minutos_reasignar"> Si a quien le tocó no le contesta al cliente en <t t-out="d.minutos_reasignar"/> minutos, el cliente pasa solo a otra.</t><t t-if="d.max_esperando"> A nadie le pasa más de <t t-out="d.max_esperando"/> <t t-out="d.max_esperando === 1 ? 'cliente' : 'clientes'"/> sin contestar a la vez: los de la noche se reparten entre las que van llegando.</t> «Dejar de asignarle» sirve para vacaciones o ausencias: no le quita ningún permiso ni las conversaciones que ya tiene (esas las puedes pasar a otra persona desde la conversación).</p>
                             <p class="o_dcj_p_nota">
                                 <button type="button" class="o_dcj_enlace" t-on-click="abrirAjustes">Ajustes de Juan</button> · Reparto:
                                 <t t-out="d.modo_nombre"/>.
                                 <button t-if="d.modo !== 'manual'" type="button" class="o_dcj_enlace o_dcj_apagar" t-att-disabled="state.ocupado" t-on-click="apagar">Apagar el reparto</button>
                             </p>
+                        </section>
+
+                        <!-- Gerencia: quién tomó clientes de quién (del libro del reparto) -->
+                        <section class="o_dcj_p_personas o_dcj_reparto_cambios" aria-label="Clientes que cambiaron de mano">
+                            <h2>Clientes que cambiaron de mano <span class="o_dcj_p_solo_gerencia">solo Gerencia</span></h2>
+                            <p t-if="!d.cambios_de_mano.filas.length" class="o_dcj_p_detalle o_dcj_reparto_cambios_vacio">Ningún cliente cambió de mano <t t-out="nombreDelPeriodo"/>.</p>
+                            <div t-else="" class="o_dcj_p_tabla_caja">
+                                <table class="o_dcj_p_tabla o_dcj_reparto_cambios_tabla">
+                                    <thead><tr><th>Cliente</th><th>Cuándo</th><th>De</th><th>A</th><th>Cómo</th></tr></thead>
+                                    <tbody>
+                                        <tr t-foreach="d.cambios_de_mano.filas" t-as="f" t-key="f.id">
+                                            <th scope="row"><button type="button" class="o_dcj_enlace" t-on-click="() => this.abrirConversacion(f)"
+                                                                    t-att-aria-label="'Abrir la conversación de ' + f.cliente" t-out="f.cliente"/></th>
+                                            <td data-label="Cuándo"><time t-att-datetime="f.momento" t-att-title="f.momento_texto" t-out="momentoCorto(f.momento)"/></td>
+                                            <td data-label="De" t-out="f.de"/>
+                                            <td data-label="A" t-out="f.a"/>
+                                            <td data-label="Cómo" t-out="f.como"/>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <p t-if="d.cambios_de_mano.mas" class="o_dcj_p_nota o_dcj_reparto_cambios_mas">Y <t t-out="d.cambios_de_mano.mas"/> más <t t-out="nombreDelPeriodo"/> (aquí salen los 20 más recientes).</p>
+                            <p class="o_dcj_p_nota">«Lo tomó»: una vendedora le escribió (o pulsó «Atender») al cliente que atendía otra. Si la otra estaba trabajando, primero se le preguntó y a ella le llegó un aviso. «Se lo asignaron»: alguien eligió a quién atiende. «Pasó porque no contestó»: el reparto se lo pasó a otra.</p>
                         </section>
                     </t>
 

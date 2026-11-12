@@ -12,7 +12,7 @@ import {
     guardarPreferencia,
     leerPreferencia,
 } from "./preferencias";
-import { cuando, fusionarMensajes, hayHueco, mensajeDeError } from "./utilidades";
+import { cuando, duenaDelError, fusionarMensajes, hayHueco, mensajeDeError } from "./utilidades";
 
 const MODELO = "dcasa.conversacion";
 /** La lista se puede ensanchar o angostar arrastrando su borde (pedido de la dueña, 2026-11-03), entre estos anchos. */
@@ -107,6 +107,8 @@ export class Almacen {
         this.panel = null; // "catalogo" | "cotizacion" | "adjuntar" | null
         this.adjuntoAAsociar = null; // el archivo del cliente que se va a adjuntar a una factura o pedido
         this.visor = null; // { imagenes: [{url, nombre}], indice }
+        // «Este cliente lo atiende Ana. ¿Lo tomas tú?»: { duena: {id, nombre}, responder(eleccion) } mientras se pregunta.
+        this.tomaPendiente = null;
         // Lo que se está escribiendo en cada conversación (se conserva al cambiar de una a otra)
         this.borradores = {};
         // Contadores internos
@@ -868,10 +870,16 @@ export class Almacen {
     // Lo que hacen los botones
     // ------------------------------------------------------------------
 
-    /** Llama a un método y, si trae el resumen de la conversación, pone al día la lista. Los errores salen en pantalla. */
-    async _hacer(metodo, args, { exito = null, tipo = "success" } = {}) {
+    /** Llama a un método y, si trae el resumen de la conversación, pone al día la lista. Los errores salen en pantalla.
+     * ``toma``: el método puede quitarle el cliente a otra vendedora (enviar, «Atender»): ver ``_confirmandoLaToma``;
+     * si se cancela o se elige dejarle una nota, devuelve null sin aviso. */
+    async _hacer(metodo, args, { exito = null, tipo = "success", toma = false } = {}) {
         try {
-            const r = await this.orm.call(MODELO, metodo, args);
+            const llamar = (kwargs = {}) => this.orm.call(MODELO, metodo, args, kwargs);
+            const r = toma ? await this._confirmandoLaToma(llamar, this.seleccionadaId) : await llamar();
+            if (toma && !r) {
+                return null;
+            }
             this.actualizarFila(r?.conversacion || (r?.id ? r : null));
             if (exito) {
                 this.notification.add(exito, { type: tipo });
@@ -883,8 +891,70 @@ export class Almacen {
         }
     }
 
+    // --- El cliente de otra vendedora («¿Lo tomas tú?») ------------------------------------------------------------
+
+    /** Si el cliente lo atiende otra vendedora que está trabajando, el servidor no deja quitárselo sin confirmar
+     * (``ClienteDeOtraVendedora``, decisión de la dueña del 2026-11-12): aquí se le pregunta a quien escribe. «Sí, lo
+     * tomo» repite la llamada con ``tomar_de_otra``; «Dejarle una nota» no manda nada al cliente y deja lo escrito
+     * como nota interna para la otra (``notaPara``); «Cancelar», nada. Devuelve lo del servidor, o null. */
+    async _confirmandoLaToma(llamar, conversacionId) {
+        try {
+            return await llamar();
+        } catch (error) {
+            const duena = duenaDelError(error);
+            if (!duena) {
+                throw error;
+            }
+            const eleccion = await this.preguntarToma(duena);
+            if (eleccion === "tomar") {
+                return await llamar({ tomar_de_otra: true });
+            }
+            if (eleccion === "nota") {
+                this.notaPara(duena, conversacionId);
+            }
+            return null;
+        }
+    }
+
+    /** Abre la pregunta y espera la respuesta: "tomar", "nota" o null (cancelar). */
+    preguntarToma(duena) {
+        this.tomaPendiente?.responder(null); // una pregunta a la vez
+        return new Promise((resolver) => {
+            this.tomaPendiente = {
+                duena,
+                responder: (eleccion) => {
+                    this.tomaPendiente = null;
+                    resolver(eleccion);
+                },
+            };
+        });
+    }
+
+    /** «Dejarle una nota a Ana»: la caja pasa a «Nota» con lo que estaba escrito y «@Ana» delante (al guardarla le llega
+     * el aviso de siempre de las menciones). Nada sale al cliente. */
+    notaPara(duena, conversacionId = this.seleccionadaId) {
+        if (!conversacionId) {
+            return;
+        }
+        const borrador = this.borradorDe(conversacionId);
+        const persona = this.equipo.find((u) => u.id === duena.id);
+        const nombre = persona?.nombre || duena.nombre;
+        borrador.modo = "nota";
+        borrador.cita = null;
+        borrador.programarPara = "";
+        const texto = borrador.texto.trim();
+        if (!texto.includes(`@${nombre}`)) {
+            borrador.texto = texto ? `@${nombre} ${texto}` : `@${nombre} `;
+        }
+        if (persona && !borrador.menciones.includes(persona.id)) {
+            borrador.menciones.push(persona.id);
+        }
+        this.cerrarPanel();
+        this.enfocarCaja = Date.now();
+    }
+
     async tomar(minutos = null) {
-        const r = await this._hacer("tomar", [this.seleccionadaId, minutos]);
+        const r = await this._hacer("tomar", [this.seleccionadaId, minutos], { toma: true });
         if (r) {
             this.refrescarAbierta();
         }
@@ -954,7 +1024,9 @@ export class Almacen {
 
     /** Con `programarPara` (ISO en UTC) el mensaje no sale ahora: queda programado y sale solo a esa hora. */
     async enviar(texto, adjuntosIds, programarPara = null, respondeA = null) {
-        const r = await this._hacer("enviar_respuesta", [this.seleccionadaId, texto, adjuntosIds, programarPara, respondeA || null]);
+        const r = await this._hacer("enviar_respuesta", [this.seleccionadaId, texto, adjuntosIds, programarPara, respondeA || null], {
+            toma: true,
+        });
         if (r) {
             await this.refrescarAbierta();
             if (r.programado) {
@@ -1188,7 +1260,13 @@ export class Almacen {
      * para que, si alguien cambia de conversación a mitad, lo que falta no le llegue a otro cliente. */
     async enviarFotoDelCatalogo(productoId, fotos, texto = null, conversacionId = null) {
         const destino = conversacionId || this.seleccionadaId;
-        const r = await this.orm.call(MODELO, "enviar_foto_catalogo", [destino, productoId, fotos, texto]);
+        const r = await this._confirmandoLaToma(
+            (kwargs = {}) => this.orm.call(MODELO, "enviar_foto_catalogo", [destino, productoId, fotos, texto], kwargs),
+            destino
+        );
+        if (!r) {
+            return null;
+        }
         this.actualizarFila(r.conversacion);
         await this.refrescarAbierta();
         if (!r.enviado) {
@@ -1228,7 +1306,14 @@ export class Almacen {
     }
 
     async enviarCotizacion(ordenId, texto) {
-        const r = await this.orm.call(MODELO, "enviar_cotizacion", [this.seleccionadaId, ordenId || null, texto || null]);
+        const destino = this.seleccionadaId;
+        const r = await this._confirmandoLaToma(
+            (kwargs = {}) => this.orm.call(MODELO, "enviar_cotizacion", [destino, ordenId || null, texto || null], kwargs),
+            destino
+        );
+        if (!r) {
+            return null;
+        }
         this.actualizarFila(r.conversacion);
         await this.refrescarAbierta();
         if (!r.enviado) {
