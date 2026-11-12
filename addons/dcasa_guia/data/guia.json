@@ -3191,6 +3191,32 @@
    ]
   },
   {
+   "id": "juan-costos-pago",
+   "categoria": "tienda",
+   "grupo": "Conversaciones",
+   "tambien": [
+    "administrar"
+   ],
+   "titulo": "Anotar que ya pagaste la IA a Meta y ver lo consumido desde ese pago",
+   "logras": "En Costos de IA, «Registrar pago» anota el día y la hora en que Meta te cobró (y cuánto, si lo sabes). Arriba sale «Consumido desde el último pago»: lo que se ha gastado desde ese cobro, para ir a la par con lo que te cobra Meta. No se borra nada: lo del mes sigue completo. Solo Gerencia.",
+   "destino": {
+    "menu": "dcasa_conversaciones.menu_dcasa_panel_costos"
+   },
+   "nota": "Anótalo en el momento en que Meta te cobra: así el sistema le pregunta al asistente cuánto va el mes y la cuenta queda exacta. Si te equivocaste, toca «Anular» en ese pago y escribe por qué: queda en la lista, pero ya no cuenta.",
+   "palabras": [
+    "pagar la ia",
+    "pago de la ia",
+    "costos de ia",
+    "meta",
+    "saldar",
+    "reiniciar",
+    "ya pague",
+    "cobro de meta",
+    "gasto de ia",
+    "consumo"
+   ]
+  },
+  {
    "id": "juan-disponible",
    "categoria": "tienda",
    "grupo": "Conversaciones",

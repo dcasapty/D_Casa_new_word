@@ -158,6 +158,9 @@ class TestPagosDeLaIa(JuanCase):
         parche = patch('requests.request', side_effect=self.worker)
         parche.start()
         self.addCleanup(parche.stop)
+        # Cada prueba arranca sin pagos ni fotos, aunque la base traiga otros (se deshace al terminar la prueba).
+        self.env.cr.execute('DELETE FROM dcasa_juan_pago_ia; DELETE FROM dcasa_juan_costo_dia')
+        self.env.invalidate_all()
         self.Pago = self.env['dcasa.juan.pago.ia'].sudo()
         self.Foto = self.env['dcasa.juan.costo.dia'].sudo()
 
@@ -251,8 +254,8 @@ class TestPagosDeLaIa(JuanCase):
         with self.assertRaises(UserError):
             call_kw(Rpc, 'write', [[p.id], {'monto_meta_usd': 1.0}], {})
         with self.assertRaises(AccessError):
-            call_kw(Rpc.with_context(dcasa_pago_ia_anulando=True), 'write',
-                    [[p.id], {'anulado': True, 'motivo_anulacion': 'x'}], {})
+            call_kw(Rpc, 'write', [[p.id], {'anulado': True, 'motivo_anulacion': 'x'}],
+                    {'context': {'dcasa_pago_ia_anulando': True}})
         with self.assertRaises(AccessError):
             call_kw(Rpc, 'create', [{'fecha': '2026-11-12 15:00:00', 'corte_mes': '2026-11',
                                      'corte_acumulado_usd': 0.0, 'corte_origen': 'worker'}], {})
