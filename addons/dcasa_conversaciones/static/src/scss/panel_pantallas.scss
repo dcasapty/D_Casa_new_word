@@ -157,6 +157,32 @@ $dcj-marino: #0B1F52;
     .o_dcj_p_medidor_caja { display: flex; flex-direction: column; gap: 8px; }
     .o_dcj_p_frase { color: var(--dc-tinta-2, #44506A); }
 }
+// «Consumido desde el último pago» (2026-11-12): lo que la dueña quiere ver primero. Plano: borde de color, sin relleno.
+.o_dcj_p_desde_pago {
+    display: grid;
+    grid-template-columns: minmax(220px, 320px) minmax(0, 1fr);
+    gap: 24px;
+    align-items: center;
+    padding: 20px;
+    border: 1px solid var(--dc-linea, #E2E7F0);
+    border-left: 4px solid var(--dc-azul-600, #1340B1);
+    border-radius: var(--dc-r-md, 12px);
+    background: var(--dc-blanco, #FFFFFF);
+    h2 { font-size: .8rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--dc-tinta-3, #6B7690); }
+    .o_dcj_p_cifra_pago { font-size: clamp(2.6rem, 6vw, 3.6rem); font-weight: 700; line-height: 1.05; letter-spacing: -.03em; }
+    .o_dcj_p_al_menos { font-size: 1rem; font-weight: 600; letter-spacing: 0; color: var(--dc-tinta-3, #6B7690); }
+    .o_dcj_p_desde_pago_notas { display: flex; flex-direction: column; gap: 6px; color: var(--dc-tinta-2, #44506A); .fa { color: var(--dc-azul-600, #1340B1); } }
+    .o_dcj_p_falta .fa { color: $dcj-naranja; }
+}
+// La lista corta de los pagos: una tabla en el computador; en el celular, cada pago en su bloque (abajo).
+.o_dcj_p_tabla_pagos {
+    th, td { vertical-align: top; }
+    tbody th { font-weight: 400; }
+    .o_dcj_p_pago_fecha { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-weight: 600; }
+    .o_dcj_p_pago_quien { display: block; margin-top: 2px; color: var(--dc-tinta-3, #6B7690); font-size: .8rem; overflow-wrap: anywhere; }
+    .o_dcj_p_pago_acciones { width: 1%; white-space: nowrap; text-align: right; }
+    .o_anulado td, .o_anulado .o_dcj_p_pago_fecha { color: var(--dc-tinta-3, #6B7690); }
+}
 .o_dcj_p_medidor {
     height: 14px;
     border-radius: 7px;
@@ -276,7 +302,17 @@ $dcj-marino: #0B1F52;
 .o_dcj_p_chequeo { .fa { margin-right: 6px; } .o_ok { color: $dcj-verde; } .o_mal { color: $dcj-rojo; } }
 
 @media (max-width: 767.98px) {
-    .o_dcj_p_hero { grid-template-columns: 1fr; gap: 14px; }
+    .o_dcj_p_hero, .o_dcj_p_desde_pago { grid-template-columns: 1fr; gap: 14px; }
+    .o_dcj_p_tabla_pagos {
+        thead { display: none; }
+        tbody, tr, th, td { display: block; }
+        tr.o_dcj_p_pago { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 10px; padding: 10px 0; border-bottom: 1px solid var(--dc-linea, #E2E7F0); }
+        th, td { padding: 0; border: 0; }
+        th[scope=row], .o_dcj_p_pago_acciones { grid-column: 1 / -1; }
+        .o_dcj_num { text-align: left; }
+        td[data-etiqueta]::before { content: attr(data-etiqueta); display: block; font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--dc-tinta-3, #6B7690); }
+        .o_dcj_p_pago_acciones { width: auto; text-align: left; .btn { width: 100%; } }
+    }
     .o_dcj_p_modelos li { grid-template-columns: 1fr auto; .o_dcj_p_modelo_barra { grid-column: 1 / -1; order: 3; } }
     .o_dcj_p_boton, .o_dcj_p_segmento button { min-height: 44px; }
     .o_dcj_p_columnas .o_dcj_p_columna .o_dcj_p_dia { display: none; }
@@ -331,5 +367,19 @@ $dcj-marino: #0B1F52;
             th, td { padding: 3px 0 !important; border: 0 !important; white-space: normal !important; }
             td[data-label]::before { content: attr(data-label) ": "; color: var(--dc-tinta-3, #6B7690); font-size: .78rem; }
         }
+    }
+}
+
+// Los diálogos «Registrar pago» y «Anular el pago» (viven fuera de la pantalla, en la capa de Odoo).
+.o_dcj_p_dialogo {
+    .o_dcj_p_formulario { display: flex; flex-direction: column; gap: 6px; label { margin-top: 8px; font-weight: 600; } }
+    .o_dcj_p_dialogo_nota { margin: 0 0 4px; color: var(--dc-tinta-2, #44506A); }
+    .o_dcj_p_dialogo_ayuda { margin: 0; color: var(--dc-tinta-3, #566178); font-size: .82rem; font-weight: 400; }
+    .form-control, .input-group-text { min-height: 40px; }
+}
+@media (max-width: 767.98px) {
+    .o_dcj_p_dialogo {
+        .form-control, .input-group-text { min-height: 44px; font-size: 16px; }   // 16 px: el iPhone no acerca la pantalla
+        .modal-footer .btn, .modal-header .btn { min-height: 44px; min-width: 44px; }
     }
 }

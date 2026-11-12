@@ -1,16 +1,117 @@
 /**
  * «Costos de IA»: cuánto se gastó este mes, el tope, la proyección («terminarás el mes en…») y el desglose por día y por
  * modelo. El gasto lo lee Odoo del Worker (GET /odoo/salud y /odoo/costos); aquí solo se muestra.
+ *
+ * Pagos (pedido de la dueña, 2026-11-12): «Registrar pago» anota que Meta ya cobró. No borra nada: marca un corte, y
+ * arriba sale «Consumido desde el último pago». Las cuentas las hace el servidor (panel_calculos.py, pagos_ia.py).
  */
 import { Component, onMounted, useState } from "@odoo/owl";
+import { Dialog } from "@web/core/dialog/dialog";
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
 import { EncabezadoJuan } from "./resumen";
-import { mensajeDeError, numero } from "./utilidades";
+import { mensajeDeError, numero, ZONA } from "./utilidades";
 
 const FORMATO_USD = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const FORMATO_USD_FINO = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 4 });
 const FORMATO_DIA = new Intl.DateTimeFormat("es-PA", { day: "numeric", month: "short", timeZone: "UTC" });
+
+/** «AAAA-MM-DDTHH:MM» de este momento en la zona del negocio (lo que pide un <input type="datetime-local">). */
+export function ahoraEnLaZona(zona = ZONA, fecha = new Date()) {
+    try {
+        const partes = Object.fromEntries(
+            new Intl.DateTimeFormat("en-CA", { timeZone: zona, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
+                .formatToParts(fecha)
+                .map((p) => [p.type, p.value])
+        );
+        return `${partes.year}-${partes.month}-${partes.day}T${partes.hour}:${partes.minute}`;
+    } catch {
+        return "";
+    }
+}
+
+/** El diálogo «Registrar pago»: cuándo cobró Meta (por defecto ahora), cuánto (opcional) y una nota. */
+export class DialogoPagoIa extends Component {
+    static template = "dcasa_conversaciones.DialogoPagoIa";
+    static components = { Dialog };
+    static props = { zona: { type: String, optional: true }, ahoraLocal: { type: String, optional: true }, alGuardar: Function, close: Function };
+
+    setup() {
+        this.orm = useService("orm");
+        this.maximo = ahoraEnLaZona(this.props.zona || ZONA) || this.props.ahoraLocal || "";
+        // Si no la toca, se manda «ahora» (null) y el servidor le pide el corte al Worker en ese momento.
+        this.state = useState({ fecha: this.maximo, tocada: false, monto: "", nota: "", error: "", guardando: false });
+    }
+
+    cambiarFecha(ev) {
+        this.state.fecha = ev.target.value;
+        this.state.tocada = true;
+    }
+
+    async guardar(ev) {
+        ev?.preventDefault();
+        if (this.state.guardando) {
+            return;
+        }
+        const texto = String(this.state.monto ?? "").trim().replace(",", ".");
+        const monto = texto ? Number(texto) : null;
+        if (texto && (!Number.isFinite(monto) || monto <= 0)) {
+            this.state.error = "Lo que cobró Meta tiene que ser un número mayor que 0 (o déjalo vacío).";
+            return;
+        }
+        if (this.state.tocada && !this.state.fecha) {
+            this.state.error = "Elige el día y la hora en que cobró Meta.";
+            return;
+        }
+        this.state.guardando = true;
+        this.state.error = "";
+        try {
+            const resultado = await this.orm.call("dcasa.juan.panel", "registrar_pago_ia", [], {
+                fecha: this.state.tocada ? this.state.fecha : null,
+                monto,
+                nota: this.state.nota.trim() || null,
+            });
+            this.props.close();
+            await this.props.alGuardar(resultado);
+        } catch (error) {
+            this.state.error = mensajeDeError(error);
+            this.state.guardando = false;
+        }
+    }
+}
+
+/** Anular un pago mal anotado: pide el motivo (queda en la historia). */
+export class DialogoAnularPago extends Component {
+    static template = "dcasa_conversaciones.DialogoAnularPago";
+    static components = { Dialog };
+    static props = { pago: Object, alGuardar: Function, close: Function };
+
+    setup() {
+        this.orm = useService("orm");
+        this.state = useState({ motivo: "", error: "", guardando: false });
+    }
+
+    async anular(ev) {
+        ev?.preventDefault();
+        if (this.state.guardando) {
+            return;
+        }
+        if (!this.state.motivo.trim()) {
+            this.state.error = "Escribe por qué lo anulas: queda en la historia.";
+            return;
+        }
+        this.state.guardando = true;
+        this.state.error = "";
+        try {
+            await this.orm.call("dcasa.juan.panel", "anular_pago_ia", [this.props.pago.id, this.state.motivo.trim()]);
+            this.props.close();
+            await this.props.alGuardar();
+        } catch (error) {
+            this.state.error = mensajeDeError(error);
+            this.state.guardando = false;
+        }
+    }
+}
 
 const ESTADOS_DEL_TOPE = {
     bien: { clase: "bien", icono: "fa-check-circle", texto: "Vas bien" },
@@ -27,6 +128,8 @@ export class CostosJuan extends Component {
     setup() {
         this.orm = useService("orm");
         this.action = useService("action");
+        this.dialog = useService("dialog");
+        this.notification = useService("notification");
         this.usd = (v) => (v === null || v === undefined ? "—" : FORMATO_USD.format(v));
         this.usdFino = (v) => FORMATO_USD_FINO.format(v);
         this.numero = numero;
@@ -48,6 +151,45 @@ export class CostosJuan extends Component {
 
     get d() {
         return this.state.datos;
+    }
+
+    /** Los pagos anotados (vienen en todas las respuestas de costos(), también sin Worker). */
+    get pagos() {
+        return this.d?.pagos || null;
+    }
+
+    registrarPago() {
+        this.dialog.add(DialogoPagoIa, {
+            zona: this.pagos?.zona || ZONA,
+            ahoraLocal: this.pagos?.ahora_local || "",
+            alGuardar: async (r) => {
+                this.notification.add(r.exacto ? "Pago registrado. Desde ahora se cuenta lo consumido desde este pago." : `Pago registrado. ${r.corte}`, {
+                    type: r.exacto ? "success" : "warning",
+                });
+                await this.cargar();
+            },
+        });
+    }
+
+    anularPago(pago) {
+        this.dialog.add(DialogoAnularPago, {
+            pago,
+            alGuardar: async () => {
+                this.notification.add("Pago anulado: queda en la lista con su motivo y ya no cuenta.", { type: "success" });
+                await this.cargar();
+            },
+        });
+    }
+
+    /** Cuánto cobró Meta de más o de menos que lo calculado (en palabras, sin signos). */
+    textoDiferencia(pago) {
+        if (pago.diferencia === null || pago.diferencia === undefined) {
+            return "—";
+        }
+        if (Math.abs(pago.diferencia) < 0.005) {
+            return "Igual";
+        }
+        return pago.diferencia > 0 ? `${this.usd(pago.diferencia)} de más` : `${this.usd(-pago.diferencia)} de menos`;
     }
 
     get estado() {
