@@ -112,6 +112,11 @@ class EnvioPromocion(models.Model):
     def _hoy(self):
         return fields.Date.context_today(self.with_context(tz=ZONA_HORARIA))
 
+    @api.model
+    def _fecha_de_panama(self, momento):
+        """La fecha de Panamá de un momento guardado en UTC (p. ej. la creación de una cotización)."""
+        return fields.Date.context_today(self.with_context(tz=ZONA_HORARIA), momento)
+
     def _como_motor(self):
         self.ensure_one()
         return {

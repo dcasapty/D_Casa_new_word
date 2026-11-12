@@ -146,6 +146,18 @@ class TestPromocionDeEnvio(BaseCase):
                          (P.SIN_PRECIO, False, None))
         self.assertEqual(P.respaldo(resultado)['montos'], [])
 
+    def test_un_envio_en_cero_o_negativo_nunca_da_te_ahorras_0_ni_montos_negativos(self):
+        """Revisión adversarial (M7): con $0 o menos no hay nada que rebajar ni que decir."""
+        for precio in (0.0, -50.0, 0.004):
+            for datos in (compra(300), None):
+                with self.subTest(precio=precio, compra=datos):
+                    resultado = self.aplicar(precio=precio, datos=datos)
+                    self.assertEqual((resultado['motivo'], resultado['aplica'], resultado['ahorro'],
+                                      resultado['precio_normal'], resultado['frase']),
+                                     (P.SIN_PRECIO, False, 0.0, None, ''))
+                    self.assertEqual(P.respaldo(resultado)['montos'], [])
+                    self.assertEqual(P.con_el_precio_normal(resultado, 'Villa Prueba'), '')
+
     # --- Sin cotización todavía: las condiciones ------------------------------------------------------------------
     def test_sin_compra_dice_las_condiciones_y_no_dice_que_aplica(self):
         gratis = self.aplicar(precio=15.0)

@@ -17,6 +17,7 @@ promoción, lo que se ahorra, por qué aplica o no y la frase lista para el clie
   ``abono`` del flete. El abono nunca deja el envío en negativo: si el envío cuesta menos que el abono, queda gratis.
 * Si la compra lleva colchón y la promoción lo excluye, no aplica.
 * Sin compra conocida (todavía no hay cotización) no se dice que aplica: se dicen las condiciones y cuánto quedaría.
+* Un envío sin precio, en $0 o negativo no tiene nada que rebajar: nunca sale «te ahorras $0» ni un monto negativo.
 
 El dinero se cuenta en centavos (``Decimal``), nunca con la suma de punto flotante.
 """
@@ -32,7 +33,7 @@ CENTAVO = Decimal('0.01')
 
 # Por qué aplica o no (``motivo``).
 SIN_PROMOCION = 'sin_promocion'      # no hay una promoción vigente en esa fecha
-SIN_PRECIO = 'sin_precio'            # el envío no tiene precio (se cotiza aparte): no hay nada que rebajar
+SIN_PRECIO = 'sin_precio'            # el envío no tiene precio (se cotiza aparte) o es $0: no hay nada que rebajar
 ZONA_SIN_BENEFICIO = 'zona'          # el lugar no está en las zonas gratis y la promoción no abona nada en el resto
 SIN_COMPRA = 'sin_compra'            # todavía no hay cotización: se dicen las condiciones
 COLCHON = 'colchon'                  # la compra lleva colchón y la promoción no aplica con colchón
@@ -89,7 +90,8 @@ def aplicar(promocion, precio_envio, prov, dist, fecha, compra=None):
 
     * ``promocion``: ``{nombre, desde, hasta (date), minimo, mide ('sin_itbms' | 'con_itbms'), provincias_gratis,
       distritos_gratis, abono, excluye_colchon}`` o ``None``.
-    * ``precio_envio``: el precio NORMAL del envío (el de la tarifa), o ``None`` si se cotiza aparte.
+    * ``precio_envio``: el precio NORMAL del envío (el de la tarifa), o ``None`` si se cotiza aparte. Con $0 o menos no
+      hay nada que rebajar (``SIN_PRECIO``).
     * ``prov``, ``dist``: la provincia y el distrito del lugar. ``fecha``: la fecha de Panamá.
     * ``compra``: ``{subtotal_sin_itbms, subtotal_con_itbms, colchon}`` de la cotización (sin contar el envío), o
       ``None`` si todavía no hay cotización.
@@ -99,6 +101,8 @@ def aplicar(promocion, precio_envio, prov, dist, fecha, compra=None):
     ``precio_final`` es el que paga el cliente por el envío (el normal si no aplica; ``None`` si todavía no se sabe
     porque no hay compra)."""
     precio = centavos(precio_envio) if precio_envio is not None else None
+    if precio is not None and precio <= 0:
+        precio = None                    # $0 o negativo: como sin precio (nada que rebajar ni que decir)
     salida = {
         'hay_promocion': False, 'nombre': '', 'motivo': SIN_PROMOCION, 'aplica': False, 'condicional': False,
         'zona': '', 'precio_normal': float(precio) if precio is not None else None,

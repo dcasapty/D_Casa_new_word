@@ -17,6 +17,7 @@ from .test_api import ApiCase
 from .test_cotizacion_automatica import CotizarCase
 
 HOY = 'odoo.addons.dcasa_envios.models.promocion.EnvioPromocion._hoy'
+FECHA_COTIZACION = 'odoo.addons.dcasa_envios.models.venta.SaleOrder._dcasa_promocion_fecha'
 
 
 class EnviosJuanCase(CotizarCase):
@@ -35,9 +36,10 @@ class EnviosJuanCase(CotizarCase):
 
     def setUp(self):
         super().setUp()
-        hoy = patch(HOY, return_value=date(2026, 11, 12))
-        hoy.start()
-        self.addCleanup(hoy.stop)
+        self.startPatcher(patch(HOY, return_value=date(2026, 11, 12)))
+        # Las cotizaciones se tienen por creadas «hoy» (la fecha de creación es la que decide la promoción).
+        self.startPatcher(patch(FECHA_COTIZACION, autospec=True,
+                                side_effect=lambda orden: orden.env['dcasa.envio.promocion']._hoy()))
 
     def envio(self, conv=None, **argumentos):
         return self.salida('cotizar_envio', argumentos, conv=conv)

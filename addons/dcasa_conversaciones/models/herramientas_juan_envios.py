@@ -112,12 +112,17 @@ class BrianHerramientasJuanEnvios(models.AbstractModel):
         }
 
     @api.model
-    def _j_envio_con_promocion(self, conv, tarjeta):
-        """El precio normal, la promoción (aplicada a la cotización de esta conversación si hay una) y la frase."""
-        orden = self._j_cotizacion_de_la_conversacion(conv)
-        compra = orden._dcasa_envio_compra() if orden else None
-        resultado, promocion = self.env['dcasa.envio.promocion'].sudo()._aplicar(
-            tarjeta['total'], tarjeta['prov'], tarjeta['dist'], compra)
+    def _j_envio_con_promocion(self, conv, tarjeta, orden=None, resultado=None):
+        """El precio normal, la promoción y la frase. La promoción se aplica a la cotización de esta conversación si hay
+        una (con su compra y la fecha de la cotización, como al sumar el envío); si no, con la fecha de hoy y sin compra
+        (las condiciones). ``resultado``: el que ya usó ``_dcasa_envio_poner`` al sumar el envío."""
+        if orden is None:
+            orden = self._j_cotizacion_de_la_conversacion(conv)
+        if resultado is None:
+            compra = orden._dcasa_envio_compra() if orden else None
+            fecha = orden._dcasa_promocion_fecha() if orden else None
+            resultado, _promocion = self.env['dcasa.envio.promocion'].sudo()._aplicar(
+                tarjeta['total'], tarjeta['prov'], tarjeta['dist'], compra, fecha=fecha)
         lleva_itbms = self.env['sale.order']._dcasa_envio_lleva_itbms()
         itbms = ' Al envío se le suma el ITBMS.' if lleva_itbms else ''
         if tiene_beneficio(resultado):
@@ -135,7 +140,7 @@ class BrianHerramientasJuanEnvios(models.AbstractModel):
             'frase_para_el_cliente': frase,
             'respaldo_envio': respaldo(resultado),
         }
-        return datos, orden, resultado, promocion
+        return datos, orden, resultado
 
     @staticmethod
     def _j_envio_desglose(tarjeta):
@@ -254,7 +259,7 @@ class BrianHerramientasJuanEnvios(models.AbstractModel):
                 }
         if not tarjeta['con_precio']:
             return self._j_envio_aparte(tarjeta)
-        datos, orden, resultado, _promocion = self._j_envio_con_promocion(conv, tarjeta)
+        datos, orden, resultado = self._j_envio_con_promocion(conv, tarjeta)
         if orden:
             ya = orden.order_line.filtered(lambda linea: linea.dcasa_envio_lugar_id.id == tarjeta['id'])
             datos['cotizacion'] = {'numero': orden.name, 'envio_ya_sumado': bool(ya)}
@@ -303,8 +308,7 @@ class BrianHerramientasJuanEnvios(models.AbstractModel):
         tarjeta = self._j_envio_tarjeta(lugar)
         if not tarjeta['con_precio']:
             return dict(self._j_envio_aparte(tarjeta), sumado=False, motivo='aparte')
-        datos, _orden, resultado, promocion = self._j_envio_con_promocion(conv, tarjeta)
-        puesto = orden._dcasa_envio_poner(lugar, tarjeta['total'], resultado, promocion)
+        puesto = orden._dcasa_envio_poner(lugar, tarjeta['total'])
         if not puesto['puesto']:
             if puesto['motivo'] == 'ajeno':
                 return _no_sumado('ya_tiene_envio', 'Esa cotización ya tiene un envío que puso una vendedora: no lo '
@@ -312,6 +316,9 @@ class BrianHerramientasJuanEnvios(models.AbstractModel):
             if puesto['motivo'] == 'confirmada':
                 return _no_sumado('confirmada', 'Esa compra ya no es una cotización abierta. ' + A_VENDEDORA)
             return _no_sumado(puesto['motivo'], 'No pude sumar el envío. ' + A_VENDEDORA)
+        # La frase con lo que de verdad quedó en la cotización (el mismo resultado del motor que puso las líneas).
+        datos, _orden, _resultado = self._j_envio_con_promocion(conv, tarjeta, orden=orden,
+                                                                resultado=puesto['resultado'])
         cotizacion = self._j_cotizacion_como_dict(orden)
         respuesta = {
             'sumado': True, 'cotizacion': cotizacion, 'respaldo_envio': datos['respaldo_envio'],
