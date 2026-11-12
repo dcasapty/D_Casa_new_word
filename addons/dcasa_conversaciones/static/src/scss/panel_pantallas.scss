@@ -183,6 +183,8 @@ $dcj-marino: #0B1F52;
     .o_dcj_p_pago_acciones { width: 1%; white-space: nowrap; text-align: right; }
     .o_anulado td, .o_anulado .o_dcj_p_pago_fecha { color: var(--dc-tinta-3, #6B7690); }
 }
+// En el computador las cifras no se parten en dos renglones (lo largo es la fecha con su nota).
+@media (min-width: 768px) { .o_dcj_p_tabla_pagos .o_dcj_num { white-space: nowrap; } }
 .o_dcj_p_medidor {
     height: 14px;
     border-radius: 7px;
