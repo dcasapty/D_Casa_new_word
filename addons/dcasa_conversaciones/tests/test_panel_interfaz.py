@@ -1476,3 +1476,110 @@ class TestPantallasDeJuan(PanelUiCase):
         for metodo in ('costos', 'conexiones', 'qr', 'reiniciar_puente', 'desvincular_puente'):
             with self.subTest(metodo=metodo), self.assertRaises(AccessError):
                 getattr(panel, metodo)()
+
+
+class PagosDeLaIaCase(PanelUiCase):
+    """«Costos de IA › Registrar pago» con el Worker de mentira: lleva 12,34 del mes al abrir y al anotar el pago, y
+    13,10 después (se consumieron 0,76 desde el pago)."""
+
+    def setUp(self):
+        super().setUp()
+        self.env.cr.execute('DELETE FROM dcasa_juan_pago_ia')    # empieza sin pagos (se deshace al terminar)
+        self.env.invalidate_all()
+        gastos = iter([12.34, 12.34])     # abrir la pantalla y anotar el pago; después, 13,10
+        self.rutas = {
+            ('GET', '/odoo/salud'): lambda: ({**SALUD, 'gasto_ia_mes_usd': next(gastos, 13.10)}, 200),
+            ('GET', '/odoo/costos'): (COSTOS, 200),
+        }
+
+    PASOS = """
+    const texto = (sel) => (document.querySelector(sel) || { textContent: "" }).textContent.replace(/\\s+/g, " ").trim();
+    const sinDesborde = (donde) => {
+        if (document.documentElement.scrollWidth > window.innerWidth + 1) {
+            throw new Error("desborde horizontal " + donde + ": " + document.documentElement.scrollWidth + " > " + window.innerWidth);
+        }
+    };
+    const botonesChicos = (raiz, donde) => {
+        if (window.innerWidth > 600) { return; }
+        const chicos = [...raiz.querySelectorAll("button, input")].filter((b) => !b.classList.contains("o_dcj_enlace"))
+            .filter((b) => { const r = b.getBoundingClientRect(); return r.width > 0 && (r.height < 43.5 || r.width < 43.5); })
+            .map((b) => (b.textContent.trim() || b.className) + " " + Math.round(b.getBoundingClientRect().width) + "x" + Math.round(b.getBoundingClientRect().height));
+        if (chicos.length) { throw new Error("menos de 44 px " + donde + ": " + chicos.join(" | ")); }
+    };
+    await esperar(() => document.querySelector(".o_dcj_p_gigante"), "el gasto del mes");
+    // Sin pagos, la pantalla queda como siempre (más el botón).
+    if (document.querySelector(".o_dcj_p_desde_pago") || document.querySelector(".o_dcj_p_pagos")) { throw new Error("sin pagos no hay cifra ni lista"); }
+    if (texto(".o_dcj_p_gigante") !== "$12.34") { throw new Error("gasto: " + texto(".o_dcj_p_gigante")); }
+    sinDesborde("al abrir");
+    botonesChicos(document.querySelector(".o_dcj_p"), "en la pantalla");
+
+    // Registrar un pago: la fecha nace en «ahora» y lo que cobró Meta es opcional.
+    document.querySelector(".o_dcj_p_registrar_pago").click();
+    const dialogo = await esperar(() => document.querySelector(".o_dcj_p_dialogo"), "el diálogo de registrar pago");
+    if (!/^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d$/.test(dialogo.querySelector(".o_dcj_pago_fecha").value)) { throw new Error("la fecha debe nacer en ahora: " + dialogo.querySelector(".o_dcj_pago_fecha").value); }
+    if (!dialogo.textContent.includes("no se borra")) { throw new Error("el diálogo explica que no se borra nada"); }
+    sinDesborde("con el diálogo");
+    botonesChicos(dialogo, "en el diálogo");
+    await escribir(dialogo.querySelector(".o_dcj_pago_monto"), "-3");
+    dialogo.querySelector(".o_dcj_p_guardar_pago").click();
+    await esperar(() => aqui(".o_dcj_p_dialogo .alert-danger", "mayor que 0"), "el aviso del monto que no sirve");
+    await escribir(dialogo.querySelector(".o_dcj_pago_monto"), "11.20");
+    await escribir(dialogo.querySelector(".o_dcj_pago_nota"), "cobro a la tarjeta");
+    dialogo.querySelector(".o_dcj_p_guardar_pago").click();
+    await esperar(() => !document.querySelector(".o_dcj_p_dialogo"), "que se cierre el diálogo");
+
+    // Arriba, la cifra nueva; abajo, el pago en la lista.
+    const desde = await esperar(() => document.querySelector(".o_dcj_p_desde_pago"), "«Consumido desde el último pago»");
+    await esperar(() => texto(".o_dcj_p_cifra_pago") === "$0.76", "la cifra desde el pago ($0.76): " + texto(".o_dcj_p_cifra_pago"));
+    if (!desde.textContent.includes("Meta cobró $11.20")) { throw new Error("lo que cobró Meta: " + desde.textContent); }
+    if (texto(".o_dcj_p_gigante") !== "$13.10") { throw new Error("lo del mes sigue completo: " + texto(".o_dcj_p_gigante")); }
+    const filas = document.querySelectorAll(".o_dcj_p_pagos .o_dcj_p_pago");
+    if (filas.length !== 1) { throw new Error("un pago en la lista y hay " + filas.length); }
+    if (!filas[0].textContent.includes("primer pago") || !filas[0].textContent.includes("$11.20") || !filas[0].textContent.includes("cobro a la tarjeta")) {
+        throw new Error("la fila del pago: " + filas[0].textContent.replace(/\\s+/g, " "));
+    }
+    sinDesborde("con un pago");
+    botonesChicos(document.querySelector(".o_dcj_p"), "con un pago");
+
+    // Anular pide el motivo; el pago queda en la lista como anulado y la cifra de arriba se va.
+    filas[0].querySelector(".o_dcj_p_anular").click();
+    const anular = await esperar(() => aqui(".o_dcj_p_dialogo", "Anular") && document.querySelector(".o_dcj_pago_motivo") && document.querySelector(".o_dcj_p_dialogo"), "el diálogo de anular");
+    botonesChicos(anular, "en el diálogo de anular");
+    anular.querySelector(".o_dcj_p_confirmar_anular").click();
+    await esperar(() => aqui(".o_dcj_p_dialogo .alert-danger", "por qué"), "que pida el motivo");
+    await escribir(anular.querySelector(".o_dcj_pago_motivo"), "Me equivoqué de fecha");
+    anular.querySelector(".o_dcj_p_confirmar_anular").click();
+    await esperar(() => document.querySelector(".o_dcj_p_pago.o_anulado"), "el pago anulado en la lista");
+    await esperar(() => !document.querySelector(".o_dcj_p_desde_pago"), "que se vaya la cifra (no queda ningún pago vigente)");
+    if (!texto(".o_dcj_p_pago.o_anulado").includes("Me equivoqué de fecha")) { throw new Error("el motivo en la fila: " + texto(".o_dcj_p_pago.o_anulado")); }
+    if (document.querySelector(".o_dcj_p_pago.o_anulado .o_dcj_p_anular")) { throw new Error("un anulado no se vuelve a anular"); }
+    sinDesborde("con el pago anulado");
+    console.log("test successful");
+    """
+
+    def probar_registrar_y_anular(self):
+        self.navegador('(async () => {' + self.PASOS + '})().catch((e) => console.error(e.message || e));',
+                       url=ACCION_COSTOS, login=GERENTE)
+        pago = self.env['dcasa.juan.pago.ia'].sudo().search([])
+        self.assertEqual(len(pago), 1)
+        self.assertEqual((pago.corte_origen, pago.corte_acumulado_usd, pago.monto_meta_usd, pago.nota),
+                         ('worker', 12.34, 11.2, 'cobro a la tarjeta'))
+        self.assertEqual((pago.anulado, pago.motivo_anulacion, pago.registrado_por, pago.anulado_por),
+                         (True, 'Me equivoqué de fecha', self.gerente, self.gerente))
+
+
+@tagged('post_install', '-at_install')
+class TestPagosDeLaIaEnLaComputadora(PagosDeLaIaCase):
+    browser_size = '1366x768'
+
+    def test_registrar_un_pago_ver_la_cifra_y_anularlo(self):
+        self.probar_registrar_y_anular()
+
+
+@tagged('post_install', '-at_install')
+class TestPagosDeLaIaEnElCelular(PagosDeLaIaCase):
+    browser_size = '390x844'
+    touch_enabled = True
+
+    def test_registrar_un_pago_ver_la_cifra_y_anularlo(self):
+        self.probar_registrar_y_anular()
