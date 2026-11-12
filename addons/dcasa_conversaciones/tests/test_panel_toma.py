@@ -160,6 +160,55 @@ class TestTomarElClienteDeOtraEnElNavegador(TomaUiCase):
 })().catch((e) => console.error(e.message || e));
 """, login=GERENTE)
 
+    def test_atiende_de_la_ficha_pregunta_y_pasarselo_a_otra_no_se_puede(self):
+        """Revisión adversarial (2026-11-12): el selector «Atiende» de la ficha también pregunta; pasárselo a otra
+        persona no se puede mientras Ana trabaja (el selector vuelve a decir Ana). Y la barra no ofrece «Devolver»:
+        ofrece «Atender»; «Cerrar» explica por qué no."""
+        self.navegador(PREGUNTA + """
+(async () => {
+    await abrirConversacion("Karen Pérez");
+    const barra = await esperar(() => document.querySelector(".o_dcj_barra"), "la barra de quién atiende");
+    if (!barra.textContent.includes("La atiende Ana Vendedora")) { throw new Error("la barra: " + barra.textContent); }
+    const botonDeLaBarra = barra.querySelector("button");
+    if (botonDeLaBarra.textContent.trim() !== "Atender") {
+        throw new Error("al cliente de otra se le ofrece «Atender», no «Devolver»: " + botonDeLaBarra.textContent);
+    }
+    document.querySelector('[aria-label="Cerrar la conversación"]').click();
+    await esperar(() => aqui(".o_notification", "no puedes cerrar la conversación"), "por qué no se puede cerrar");
+    document.querySelector(".o_dcj_boton_ficha").click();
+    const selector = await esperar(() => document.querySelector("#o_dcj_asignar"), "«Atiende» en la ficha");
+    const opcion = (nombre) => [...selector.options].find((o) => o.textContent.includes(nombre)).value;
+    const ana = opcion("Ana Vendedora");
+    if (selector.value !== ana) { throw new Error("la ficha dice que la atiende Ana"); }
+    // A otra persona: no se puede, y el selector vuelve a Ana.
+    selector.value = opcion("Gema Gerente");
+    selector.dispatchEvent(new Event("change", { bubbles: true }));
+    await esperar(() => aqui(".o_notification", "Pídeselo a Ana Vendedora o a Gerencia"), "por qué no se puede");
+    await esperar(() => selector.value === ana, "que el selector vuelva a Ana");
+    // A sí mismo: la misma pregunta. «Cancelar» lo deja como estaba.
+    selector.value = opcion("Beto Vendedor");
+    selector.dispatchEvent(new Event("change", { bubbles: true }));
+    let d = await esperarPregunta();
+    d.querySelector(".o_dcj_toma_cancelar").click();
+    await cerrada();
+    await esperar(() => selector.value === ana, "que el selector vuelva a Ana al cancelar");
+    // «Sí, lo tomo».
+    selector.value = opcion("Beto Vendedor");
+    selector.dispatchEvent(new Event("change", { bubbles: true }));
+    d = await esperarPregunta();
+    d.querySelector(".o_dcj_toma_si").click();
+    await cerrada();
+    await esperar(() => aqui(".o_dcj_aviso_sistema", TOMO), "el aviso en el hilo");
+    await esperar(() => document.querySelector("#o_dcj_asignar").value === opcion("Beto Vendedor"), "Atiende: Beto");
+    console.log("test successful");
+})().catch((e) => console.error(e.message || e));
+""", login=BETO)
+        self.env.invalidate_all()
+        self.assertEqual((self.karen.asignada_a, self.karen.estado), (self.beto, 'humano'))
+        tomada = self.env['dcasa.reparto'].search([('conversacion_id', '=', self.karen.id), ('regla', '=', 'tomada')])
+        self.assertEqual((tomada.anterior_id, tomada.forma), (self.vendedora, 'asignar'))
+        self.assertFalse(self.al_worker('/odoo/enviar'), 'Asignarse el cliente no le escribe nada')
+
 
 @tagged('post_install', '-at_install')
 class TestTomarElClienteDeOtraEnElCelular(TomaUiCase):
@@ -190,6 +239,33 @@ class TestTomarElClienteDeOtraEnElCelular(TomaUiCase):
     await cerrada();
     await esperar(() => aqui(".o_dcj_aviso_sistema", TOMO), "el aviso en el hilo");
     sinDesborde("después de tomarlo");
+    console.log("test successful");
+})().catch((e) => console.error(e.message || e));
+""", login=BETO)
+        self.env.invalidate_all()
+        self.assertEqual(self.karen.asignada_a, self.beto)
+
+    def test_en_el_celular_la_barra_ofrece_atender_y_atiende_pregunta(self):
+        self.navegador(MEDIR + PREGUNTA + """
+(async () => {
+    await abrirLaDe("Karen");
+    const boton = document.querySelector(".o_dcj_barra button");
+    if (!boton.textContent.trim().startsWith("Atender")) { throw new Error("la barra ofrece: " + boton.textContent); }
+    if (corto() !== "Ana Vendedora") { throw new Error("quién atiende, en corto: " + corto()); }
+    sinChicos("con la barra del cliente de otra");
+    tocar(document.querySelector(".o_dcj_boton_ficha"));
+    const selector = await esperar(() => document.querySelector("#o_dcj_asignar"), "«Atiende» en la ficha");
+    selector.value = [...selector.options].find((o) => o.textContent.includes("Beto Vendedor")).value;
+    selector.dispatchEvent(new Event("change", { bubbles: true }));
+    const d = await esperarPregunta();
+    for (const b of d.querySelectorAll("button")) {
+        if (rect(b).height < 43.5) { throw new Error("«" + b.textContent.trim() + "» mide " + rect(b).height + " px"); }
+    }
+    if (document.documentElement.scrollWidth > window.innerWidth + 1) { throw new Error("se sale de costado"); }
+    tocar(d.querySelector(".o_dcj_toma_si"));
+    await cerrada();
+    const elegida = () => [...selector.options].find((o) => o.selected)?.textContent || "";
+    await esperar(() => selector.isConnected && elegida().includes("Beto"), "Atiende: Beto");
     console.log("test successful");
 })().catch((e) => console.error(e.message || e));
 """, login=BETO)

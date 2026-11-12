@@ -344,7 +344,7 @@ export class CajaRespuesta extends Component {
             if (otra && this.almacen.usuario.de_piso && this.almacen.equipo.find((u) => u.id === c.asignada_a.id)?.de_piso) {
                 return {
                     clase: "humano",
-                    texto: `${quien}${vence}. Si lo vas a atender tú, toca «Atender».`,
+                    texto: `${quien}${vence}.`,
                     corto: otra,
                     boton: "Atender",
                     botonCorto: "Atender",
