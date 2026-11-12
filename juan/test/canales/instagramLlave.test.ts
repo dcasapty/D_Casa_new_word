@@ -14,8 +14,8 @@ import {
   renovarLlave,
   tocaRenovar,
   type EstadoLlave,
-  type Llavero,
 } from "../../src/canales/instagramLlave";
+import { llaveroEnMemoria } from "../helpers/llaveroEnMemoria";
 
 const DIA = 86_400_000;
 const T0 = Date.UTC(2026, 10, 13, 15, 23); // 13 nov 2026, 10:23 en Panamá
@@ -23,10 +23,6 @@ const TOKEN_IG = "IGAAtoken-de-instagram-pegado-0123456789";
 const SECRETO_IG = "secreto-de-la-app-de-instagram-abcdef0123";
 const env = { INSTAGRAM_TOKEN: TOKEN_IG, INSTAGRAM_APP_SECRET: SECRETO_IG, META_VERIFY_TOKEN: "verificacion-0123456789" } as unknown as Env;
 
-function llaveroEnMemoria(inicial: Record<string, string> = {}): Llavero & { datos: Map<string, string> } {
-  const datos = new Map(Object.entries(inicial));
-  return { datos, leer: async (_e, c) => datos.get(c) ?? null, guardar: async (_e, c, v) => void datos.set(c, v) };
-}
 
 /** Meta de mentira: la renovación devuelve una llave nueva numerada (o lo que diga `respuesta`). */
 function metaFalso(respuesta?: (url: URL, n: number) => Response | undefined) {
@@ -208,10 +204,10 @@ describe("/salud (lo local de Instagram): puerta, vencimiento y avisos, sin la l
     expect(s.avisos).toBeUndefined();
   });
 
-  it("si la renovación falla con tiempo de sobra: un AVISO (con la fecha) y sigue contestando; a 7 días o menos, un PROBLEMA", async () => {
+  it("si la renovación falla (sin que Meta rechace la llave) con tiempo de sobra: un AVISO con la fecha; a 7 días o menos, un PROBLEMA", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
     let fallar = false;
-    const m = metaFalso((url) => (url.pathname === "/refresh_access_token" && fallar ? Response.json({ error: { message: "Session has expired", code: 190 } }, { status: 400 }) : undefined));
+    const m = metaFalso((url) => (url.pathname === "/refresh_access_token" && fallar ? Response.json({ error: { message: "Service temporarily unavailable", code: 2 } }, { status: 503 }) : undefined));
     await m.adaptador.mantener!(env);
     m.pasar(DIA);
     await m.adaptador.mantener!(env); // renovada: vence el 2027-01-13
@@ -221,7 +217,7 @@ describe("/salud (lo local de Instagram): puerta, vencimiento y avisos, sin la l
     let s = await m.adaptador.saludLocal!("instagram", env);
     expect(s.llave).toMatchObject({ vence: "2027-01-13", dias_restantes: 19, renovacion: "fallo" });
     expect(s.problemas).toBeUndefined();
-    expect(s.avisos).toEqual(["no se pudo renovar la llave de Instagram (HTTP 400: Session has expired [190]); vence el 2027-01-13; Juan lo vuelve a intentar cada día y mientras tanto sigue contestando"]);
+    expect(s.avisos).toEqual(["no se pudo renovar la llave de Instagram (HTTP 503: Service temporarily unavailable [2]); vence el 2027-01-13; Juan lo vuelve a intentar cada día"]);
     // Sigue usándola mientras no venza.
     await m.adaptador.enviar("instagram", { para: "1234567890123456", burbujas: ["hola"], medios: [] }, env);
     m.pasar(13 * DIA);
@@ -236,9 +232,9 @@ describe("/salud (lo local de Instagram): puerta, vencimiento y avisos, sin la l
     expect(JSON.stringify(s)).not.toContain("IGAArenovada");
   });
 
-  it("si nunca supo cuál es la cuenta: lo dice (los mensajes esperan)", async () => {
+  it("si nunca supo cuál es la cuenta: lo dice (y que mientras tanto atiende lo que Meta firma)", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
-    const m = metaFalso((url) => (url.pathname.endsWith("/me") ? Response.json({ error: { message: "x", code: 190 } }, { status: 400 }) : undefined));
+    const m = metaFalso((url) => (url.pathname.endsWith("/me") ? Response.json({ error: { message: "x", code: 2 } }, { status: 500 }) : undefined));
     await m.adaptador.mantener!(env);
     const s = await m.adaptador.saludLocal!("instagram", env);
     expect(s.problemas?.join(" ")).toMatch(/todavía no sé cuál es la cuenta de Instagram de D'CASA.*INSTAGRAM_ACCOUNT_ID/);

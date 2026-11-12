@@ -47,6 +47,8 @@
   //   Instagram por «inicio de sesión de Instagram» (opcional; con ellos Instagram va por /webhooks/instagram): INSTAGRAM_TOKEN
   //   (la llave larga; Juan la renueva sola y guarda la vigente en el Durable Object Global) e INSTAGRAM_APP_SECRET (la clave
   //   secreta de la app de Instagram). INSTAGRAM_ACCOUNT_ID es opcional (sin él, Juan pregunta la cuenta con /me).
+  //   ⚠ NO activar `observability.traces` (ni nada que guarde las URL de las llamadas salientes): la renovación de esa llave
+  //   (graph.instagram.com/refresh_access_token) la lleva en la URL, como lo documenta Meta. Juan nunca registra esa URL.
   // El Worker arranca sin ellos y GET /salud dice cuáles faltan. No se usa `secrets.required`: el primer despliegue es sin secretos.
   "vars": {
     "ENTORNO": "produccion",

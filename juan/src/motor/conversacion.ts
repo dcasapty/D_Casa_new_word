@@ -14,7 +14,7 @@
 import type { ModelMessage } from "ai";
 import { canalActivo, CONFIG_POR_DEFECTO, dentroDeHorario, diaDelNegocio, mesDelNegocio, type Config } from "../config";
 import type { AdaptadorCanal, CanalId, CitaEntrante, Entrante, MedioSaliente, Saliente } from "../canales/tipos";
-import { EnvioParcialError, partirPorLargo, sinNegritas } from "../canales/tipos";
+import { EnvioParcialError, enlaceDeMedio, partirPorLargo, sinNegritas } from "../canales/tipos";
 import { crudoDe, entranteDeCrudo, prepararEntrante } from "../canales/preparar";
 import { noQuiereSeguimiento, pideUnaPersona } from "../dcasa/intencion";
 import { contextoDelChat, promptEstable, promptParaFugas, promptSeguimiento, presentacionPorDefecto } from "../dcasa/prompt";
@@ -649,7 +649,9 @@ export class MotorConversacion {
     const clave = `${PREFIJO_EN_VUELO}${ahora}:${++this.vuelos}`;
     const v: EnVuelo = {
       hasta: ahora + EN_VUELO_MS,
-      textos: burbujas.map(normalizarEco).filter(Boolean),
+      // Un documento que el canal no logra mandar como archivo sale como su enlace en un texto aparte (Instagram por inicio de sesión
+      // de Instagram): su eco también es nuestro, no de una vendedora.
+      textos: [...burbujas, ...medios.filter((m) => m.tipo === "documento").map(enlaceDeMedio)].map(normalizarEco).filter(Boolean),
       imagen: medios.filter((m) => m.tipo === "imagen").length,
       documento: medios.filter((m) => m.tipo === "documento").length,
     };
@@ -1525,10 +1527,10 @@ export class MotorConversacion {
     const enlaces: string[] = [];
     const medios = o.medios.filter((m) => {
       const soporta = m.tipo === "imagen" ? cap.imagenes : cap.documentos;
-      if (!soporta) enlaces.push(m.nombre ? `${m.nombre}: ${m.url}` : m.url);
+      if (!soporta) enlaces.push(enlaceDeMedio(m));
       return soporta;
     });
-    const burbujas = [...o.burbujas, ...enlaces].flatMap((b) => partirPorLargo(b, cap.maxTexto)).filter((b) => b.trim());
+    const burbujas = [...o.burbujas, ...enlaces].flatMap((b) => partirPorLargo(b, cap.maxTexto, cap.maxBytesTexto)).filter((b) => b.trim());
     if (burbujas.length === 0 && medios.length === 0) return [];
 
     const progreso = o.progreso ?? { burbujas: 0, medios: 0, ids: [] };

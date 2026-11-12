@@ -59,8 +59,16 @@ export async function mantenerCanales(env: Env, adaptadores: readonly AdaptadorC
 }
 
 export async function revisarSalud(env: Env): Promise<void> {
-  // Primero lo de los canales (la llave renovada ya sale en el informe de esta misma hora).
-  await mantenerCanales(env);
+  // Lo de los canales corre a la par (Meta puede tardar hasta su plazo): no atrasa el informe ni los avisos de esta hora.
+  const mantenimiento = mantenerCanales(env);
+  try {
+    await informarSalud(env);
+  } finally {
+    await mantenimiento;
+  }
+}
+
+async function informarSalud(env: Env): Promise<void> {
   const global = env.GLOBAL.get(env.GLOBAL.idFromName("juan"));
   const cfg = await obtenerConfig(env);
   const informe = await informeDeSalud({

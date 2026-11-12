@@ -84,13 +84,16 @@ export class AlmacenGlobal {
     );
   }
 
-  guardarLlave(clave: string, valor: string, ahora: number): void {
+  /** Cambia la llave solo si sigue valiendo `antes` (null = no existía). Sin esperas en medio: dentro del Durable Object es atómico. */
+  cambiarLlaveSi(clave: string, antes: string | null, despues: string, ahora: number): boolean {
+    if (this.leerLlave(clave) !== antes) return false;
     this.sql.correr(
       "INSERT INTO llaves (clave, valor, ts) VALUES (?, ?, ?) ON CONFLICT(clave) DO UPDATE SET valor = excluded.valor, ts = excluded.ts",
       clave,
-      valor,
+      despues,
       ahora,
     );
+    return true;
   }
 
   leerLlave(clave: string): string | null {
@@ -138,9 +141,12 @@ export class Global extends DurableObject<Env> {
     return f ? { json: JSON.stringify(f.valor), ts: f.ts } : null;
   }
 
-  /** Una llave que Juan renueva solo (texto JSON). Solo la usan los adaptadores; jamás sale por una ruta. */
-  guardarLlave(clave: string, valor: string): void {
-    this.almacen.guardarLlave(clave, valor, Date.now());
+  /**
+   * Una llave que Juan renueva solo (texto JSON), cambiada solo si nadie la cambió desde que se leyó (dos renovaciones a la vez no se
+   * pisan). Solo la usan los adaptadores; jamás sale por una ruta.
+   */
+  cambiarLlaveSi(clave: string, antes: string | null, despues: string): boolean {
+    return this.almacen.cambiarLlaveSi(clave, antes, despues, Date.now());
   }
 
   leerLlave(clave: string): string | null {

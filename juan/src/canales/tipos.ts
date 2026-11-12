@@ -158,6 +158,8 @@ export interface Capacidades {
   ventana24h: boolean;
   /** Largo máximo de un mensaje de texto. */
   maxTexto: number;
+  /** Además, máximo en bytes UTF-8 (Instagram por inicio de sesión de Instagram: «UTF-8 y 1000 bytes o menos»). */
+  maxBytesTexto?: number;
   /** El canal deja mandar un texto junto a la foto o el documento, en el mismo mensaje (pie de foto). */
   pie?: boolean;
 }
@@ -202,6 +204,10 @@ export interface SaludLocal {
   llave?: EstadoDeLlave;
   /** La cuenta del negocio en ese canal, si se sabe (p. ej. «@dcasapty»). */
   cuenta?: string;
+  /** Avisos del canal que se ignoraron por ser de OTRA cuenta (cuántos, el último y los 4 últimos dígitos de esa cuenta). */
+  ignorados?: { cantidad: number; ultimo: string; cuenta: string };
+  /** Lo que dice Meta de la suscripción de la app a los mensajes de la cuenta, si se pudo consultar. */
+  suscripcion?: "ok" | "no";
   problemas?: string[];
   avisos?: string[];
 }
@@ -274,15 +280,38 @@ export function sinNegritas(texto: string): string {
   return texto.replace(/\*([^*\n]+)\*/g, "$1");
 }
 
-/** Parte un texto largo respetando el máximo del canal (último recurso: las burbujas ya son cortas). */
-export function partirPorLargo(texto: string, max: number): string[] {
-  if (texto.length <= max) return [texto];
+/** Lo que sale en el texto cuando un archivo no puede ir como archivo: «nombre: url» (o solo la url). */
+export function enlaceDeMedio(m: { nombre?: string; url: string }): string {
+  return m.nombre ? `${m.nombre}: ${m.url}` : m.url;
+}
+
+const bytesUtf8 = (texto: string) => new TextEncoder().encode(texto).length;
+
+/** Cuántas unidades del principio de `texto` caben en `max` letras y `maxBytes` bytes UTF-8, sin partir un emoji. */
+function cuantoCabe(texto: string, max: number, maxBytes?: number): number {
+  if (maxBytes === undefined) return max;
+  let unidades = 0;
+  let bytes = 0;
+  for (const c of texto) {
+    const b = bytesUtf8(c);
+    if (unidades + c.length > max || bytes + b > maxBytes) break;
+    unidades += c.length;
+    bytes += b;
+  }
+  return Math.max(1, unidades);
+}
+
+/** Parte un texto largo respetando el máximo del canal (último recurso: las burbujas ya son cortas); con `maxBytes`, también en bytes. */
+export function partirPorLargo(texto: string, max: number, maxBytes?: number): string[] {
+  const cabe = (t: string) => t.length <= max && (maxBytes === undefined || bytesUtf8(t) <= maxBytes);
+  if (cabe(texto)) return [texto];
   const trozos: string[] = [];
   let resto = texto;
-  while (resto.length > max) {
-    let corte = resto.lastIndexOf("\n", max);
-    if (corte < max * 0.5) corte = resto.lastIndexOf(" ", max);
-    if (corte < max * 0.5) corte = max;
+  while (!cabe(resto)) {
+    const tope = cuantoCabe(resto, max, maxBytes);
+    let corte = resto.lastIndexOf("\n", tope);
+    if (corte < tope * 0.5) corte = resto.lastIndexOf(" ", tope);
+    if (corte < tope * 0.5) corte = tope;
     trozos.push(resto.slice(0, corte).trim());
     resto = resto.slice(corte).trim();
   }

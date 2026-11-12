@@ -28,6 +28,8 @@ interface Salida {
 }
 let salidas: Salida[];
 let renovadas: string[];
+/** Mientras exista, la renovación espera (Meta tardando). */
+let frenoRenovacion: Promise<void> | null;
 
 const ctxFalso = () => {
   const pendientes: Promise<unknown>[] = [];
@@ -54,6 +56,7 @@ beforeEach(() => {
   olvidarCaches();
   salidas = [];
   renovadas = [];
+  frenoRenovacion = null;
   vi.stubGlobal("fetch", async (recurso: unknown, init?: RequestInit) => {
     const url = new URL(String(recurso));
     const cuerpo = init?.body && typeof init.body === "string" ? JSON.parse(init.body) : undefined;
@@ -61,6 +64,7 @@ beforeEach(() => {
     if (url.host === "graph.instagram.com") {
       salidas.push({ api: "instagram", url, metodo: init?.method ?? "GET", llave, cuerpo });
       if (url.pathname === "/refresh_access_token") {
+        if (frenoRenovacion) await frenoRenovacion;
         const nueva = `IGAArenovada-${renovadas.length + 1}-${"x".repeat(20)}`;
         renovadas.push(nueva);
         return Response.json({ access_token: nueva, token_type: "bearer", expires_in: 5_184_000 });
@@ -188,6 +192,24 @@ describe("Instagram por inicio de sesión de Instagram, de punta a punta", () =>
     await e.despues();
     await e.pasar(16_000);
     expect(e.respuestasDeLaIA().map((s) => s.llave)).toEqual([renovadas[0]]);
+  });
+
+  it("el cron no atrasa el informe de salud (ni los avisos) mientras Meta tarda en renovar la llave", async () => {
+    const e = escenario();
+    await e.cron();
+    await vi.advanceTimersByTimeAsync(25 * 3600_000);
+    let soltar!: () => void;
+    frenoRenovacion = new Promise<void>((r) => (soltar = r));
+    const c = ctxFalso();
+    await worker.scheduled!({ cron: "23 * * * *", scheduledTime: Date.now(), noRetry() {} } as ScheduledController, e.cluster.env, c);
+    const informeDeAhora = () =>
+      e.cluster.global!.ctx.storage.sql.exec("SELECT ts FROM salud WHERE clave = 'ultimo_informe'").toArray().some((f) => Number(f.ts) > INICIO + 24 * 3600_000);
+    for (let i = 0; i < 200 && !informeDeAhora(); i++) await vi.advanceTimersByTimeAsync(10);
+    expect(informeDeAhora()).toBe(true);
+    expect(renovadas).toEqual([]); // la renovación sigue esperando a Meta
+    soltar();
+    await conReloj(c.esperar());
+    expect(renovadas).toHaveLength(1);
   });
 
   it("/salud (público): Instagram dice su puerta, que no le falta nada y cuándo vence la llave, sin mostrar ninguna llave", async () => {

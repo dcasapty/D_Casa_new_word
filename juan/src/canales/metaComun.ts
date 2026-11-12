@@ -18,6 +18,7 @@ import {
   type MedioSaliente,
   type Saliente,
   EnvioParcialError,
+  enlaceDeMedio,
   MAX_FOTO_DE_PERFIL_BYTES,
   sinNegritas,
 } from "./tipos";
@@ -122,7 +123,14 @@ export interface PuertaMeta {
   messagingType: boolean;
   /** Instagram por inicio de sesión de Instagram admite PDF (`file`); por la página, no (el enlace va en el texto). */
   pdfEnInstagram: boolean;
+  /** Meta rechazó la llave al enviar (código 190): la puerta lo anota para /salud. Nunca lanza. */
+  rechazoDeLlave?(env: Env, motivo: string): Promise<void>;
+  /** Un envío salió bien con la llave vigente (para borrar un «rechazada» anterior). Nunca lanza. */
+  llaveFunciono?(env: Env): Promise<void>;
 }
+
+/** Meta rechazó la LLAVE (vencida, revocada, inválida): código 190 o 102. */
+const rechazoDeLlave = (codigo: unknown) => Number(codigo) === 190 || Number(codigo) === 102;
 
 export interface MaquinaMeta {
   enviar(canal: "messenger" | "instagram", salida: Saliente, env: Env): Promise<ResultadoEnvio>;
@@ -144,7 +152,12 @@ export function maquinaMeta(op: OpcionesMeta, puerta: PuertaMeta): MaquinaMeta {
     const r = await f(puerta.url(env, "me/messages"), { method: "POST", headers: { ...init.headers, authorization: `Bearer ${token}` }, body: init.body });
     const j = (await r.json().catch(() => ({}))) as { message_id?: string; error?: { message?: string; code?: number } };
     // Fuera de la ventana de 24 h, sin permiso o con un destinatario inválido, Meta contesta con un error concreto.
-    if (!r.ok || j.error) throw new Error(`meta send ${r.status}: ${j.error?.message ?? "sin detalle"} (código ${j.error?.code ?? "?"})`);
+    if (!r.ok || j.error) {
+      const error = `meta send ${r.status}: ${j.error?.message ?? "sin detalle"} (código ${j.error?.code ?? "?"})`;
+      if (rechazoDeLlave(j.error?.code)) await puerta.rechazoDeLlave?.(env, error.replace(/^meta send /, "HTTP ").slice(0, 160)).catch(() => {});
+      throw new Error(error);
+    }
+    await puerta.llaveFunciono?.(env).catch(() => {});
     return j.message_id;
   }
 
@@ -302,7 +315,7 @@ export function maquinaMeta(op: OpcionesMeta, puerta: PuertaMeta): MaquinaMeta {
     // Como hoy por la página: el enlace en el texto (el cliente lo abre igual).
     console.warn("[juan] instagram: el documento va como enlace:", fallos.join(" · "));
     try {
-      return await enviarUno(env, respuesta({ recipient: destino, message: { text: m.nombre ? `${m.nombre}: ${m.url}` : m.url } }));
+      return await enviarUno(env, respuesta({ recipient: destino, message: { text: enlaceDeMedio(m) } }));
     } catch (e) {
       fallos.push(`enlace: ${motivo(e)}`);
       throw new Error(`Instagram no aceptó el documento · ${resumir(fallos).join(" · ")}`.slice(0, 200));

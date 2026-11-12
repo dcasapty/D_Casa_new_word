@@ -9,6 +9,7 @@ import type { Env } from "../../src/env";
 import { crearMeta } from "../../src/canales/meta";
 import { adaptadorPorRuta, crearAdaptadores } from "../../src/canales/index";
 import { CLAVE_CUENTA, CLAVE_LLAVE, huella, type EstadoLlave, type Llavero } from "../../src/canales/instagramLlave";
+import { llaveroEnMemoria } from "../helpers/llaveroEnMemoria";
 import { soloDeLaCuenta } from "../../src/canales/instagramLogin";
 import { hmacHex } from "../../src/seguridad";
 import { EnvioParcialError } from "../../src/canales/tipos";
@@ -49,14 +50,6 @@ function deFormData(form: FormData): Record<string, any> {
   return o;
 }
 
-export function llaveroEnMemoria(inicial: Record<string, string> = {}): Llavero & { datos: Map<string, string> } {
-  const datos = new Map(Object.entries(inicial));
-  return {
-    datos,
-    leer: async (_env, clave) => datos.get(clave) ?? null,
-    guardar: async (_env, clave, valor) => void datos.set(clave, valor),
-  };
-}
 
 /** Graph de Instagram de mentira: /me dice la cuenta, me/messages acepta, el perfil da un nombre. Anota todo. */
 function igFalso(
@@ -248,22 +241,21 @@ describe("el webhook de Instagram por inicio de sesión de Instagram (/webhooks/
     expect(otro.llamadas).toEqual([]);
   });
 
-  it("con INSTAGRAM_ACCOUNT_ID no se pregunta nada y manda esa", async () => {
-    const { adaptador, llamadas } = igFalso();
+  it("con INSTAGRAM_ACCOUNT_ID se aceptan esa cuenta Y las que dice /me (una variable equivocada no tira los mensajes)", async () => {
+    const { adaptador } = igFalso();
     const env = { ...envIg, INSTAGRAM_ACCOUNT_ID: AJENA } as Env;
     expect((await adaptador.recibir(await firmado(mensaje({}, AJENA)), env)).entrantes).toHaveLength(1);
-    vi.spyOn(console, "warn").mockImplementation(() => {});
-    expect((await adaptador.recibir(await firmado(mensaje()), env)).entrantes).toEqual([]);
-    vi.restoreAllMocks();
-    expect(llamadas).toEqual([]);
+    expect((await adaptador.recibir(await firmado(mensaje()), env)).entrantes).toHaveLength(1);
   });
 
-  it("si no se sabe cuál es la cuenta (Meta no contesta /me): 503 para que Meta reintente, y nada entra", async () => {
+  it("si no se sabe cuál es la cuenta (Meta no contesta /me): 200 y entra lo coherente (entry.id = la tienda), sin la llave en los registros", async () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     const aviso = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const { adaptador } = igFalso({ respuesta: (c) => (new URL(c.url).pathname.endsWith("/me") ? Response.json({ error: { message: "Invalid OAuth access token", code: 190 } }, { status: 400 }) : undefined) });
+    const { adaptador } = igFalso({ respuesta: (c) => (new URL(c.url).pathname.endsWith("/me") ? Response.json({ error: { message: "Service unavailable", code: 2 } }, { status: 500 }) : undefined) });
     const r = await adaptador.recibir(await firmado(mensaje()), envIg);
-    expect([r.respuesta.status, r.entrantes]).toEqual([503, []]);
+    expect([r.respuesta.status, r.entrantes.map((e) => e.id_externo)]).toEqual([200, [CLIENTE]]);
+    // Incoherente (dirigido a otra cuenta que la del aviso): no.
+    expect((await adaptador.recibir(await firmado(mensaje({ recipient: { id: AJENA } })), envIg)).entrantes).toEqual([]);
     noLoDice([...error.mock.calls, ...aviso.mock.calls].flat().join(" "));
     vi.restoreAllMocks();
   });
@@ -430,9 +422,9 @@ describe("qué puerta, qué falta y que sin los secretos nuevos todo queda como 
     expect(adaptador.faltantes({ INSTAGRAM_TOKEN: TOKEN_IG, INSTAGRAM_APP_SECRET: SECRETO_IG } as Env, "messenger")).toEqual(["META_PAGE_TOKEN", "META_APP_SECRET", "META_VERIFY_TOKEN"]);
   });
 
-  it("capacidades: por esta puerta, PDF sí y texto de 800; sin env o sin los secretos, las de siempre", () => {
+  it("capacidades: por esta puerta, PDF sí y texto de 1000 bytes; sin env o sin los secretos, las de siempre", () => {
     const { adaptador } = igFalso();
-    expect(adaptador.capacidades("instagram", envIg)).toEqual({ imagenes: true, documentos: true, ventana24h: true, maxTexto: 800 });
+    expect(adaptador.capacidades("instagram", envIg)).toEqual({ imagenes: true, documentos: true, ventana24h: true, maxTexto: 1000, maxBytesTexto: 1000 });
     expect(adaptador.capacidades("instagram", envPagina)).toEqual({ imagenes: true, documentos: false, ventana24h: true, maxTexto: 950 });
     expect(adaptador.capacidades("instagram")).toEqual(adaptador.capacidades("instagram", envPagina));
     expect(adaptador.capacidades("messenger", envIg)).toEqual(adaptador.capacidades("messenger"));

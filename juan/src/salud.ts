@@ -26,6 +26,10 @@ export interface EstadoDeCanal extends SaludCanal {
   llave?: EstadoDeLlave;
   /** La cuenta del negocio en ese canal, si se sabe («@dcasapty»). */
   cuenta?: string;
+  /** Avisos ignorados por ser de otra cuenta (cuántos, el último, «…1234»). */
+  ignorados?: SaludLocal["ignorados"];
+  /** Lo que dice Meta de la suscripción de la app a los mensajes, si se pudo consultar. */
+  suscripcion?: SaludLocal["suscripcion"];
 }
 
 export interface EstadoDeIa {
@@ -226,6 +230,8 @@ export async function informeDeSalud(d: DepsSalud): Promise<InformeDeSalud> {
       ...(local.puerta ? { puerta: local.puerta } : {}),
       ...(local.llave ? { llave: local.llave } : {}),
       ...(local.cuenta ? { cuenta: local.cuenta } : {}),
+      ...(local.ignorados ? { ignorados: local.ignorados } : {}),
+      ...(local.suscripcion ? { suscripcion: local.suscripcion } : {}),
     };
     if (activo && !s.configurado) problemas.push(`el canal ${id} está encendido pero faltan: ${(s.faltan ?? []).join(", ") || "credenciales"}`);
     if (activo && s.configurado && s.conectado === false) problemas.push(`el canal ${id} no está conectado${s.detalle ? ` (${s.detalle})` : ""}`);
@@ -265,8 +271,11 @@ export interface InformePublico {
   entorno: string;
   secretos_faltantes: string[];
   ia: { proveedor: ProveedorIa; respaldo: ProveedorIa | null; lista: boolean };
-  /** `puerta`, `llave` y `cuenta` solo en los canales que las tienen (Instagram). */
-  canales: Record<CanalId, { activo: boolean; configurado: boolean; faltan: string[]; puerta?: string; llave?: EstadoDeLlave; cuenta?: string }>;
+  /** `puerta`, `llave`, `cuenta`, `ignorados` y `suscripcion` solo en los canales que las tienen (Instagram). */
+  canales: Record<
+    CanalId,
+    { activo: boolean; configurado: boolean; faltan: string[]; puerta?: string; llave?: EstadoDeLlave; cuenta?: string; ignorados?: SaludLocal["ignorados"]; suscripcion?: SaludLocal["suscripcion"] }
+  >;
 }
 
 export async function informePublico(d: DepsSalud): Promise<InformePublico> {
@@ -281,7 +290,8 @@ export async function informePublico(d: DepsSalud): Promise<InformePublico> {
     canales: Object.fromEntries(
       TODOS_LOS_CANALES.map((c) => {
         const k = i.canales[c];
-        return [c, { activo: k.activo, configurado: k.configurado, faltan: k.faltan ?? [], ...(k.puerta ? { puerta: k.puerta } : {}), ...(k.llave ? { llave: k.llave } : {}), ...(k.cuenta ? { cuenta: k.cuenta } : {}) }];
+        const extra = { puerta: k.puerta, llave: k.llave, cuenta: k.cuenta, ignorados: k.ignorados, suscripcion: k.suscripcion };
+        return [c, { activo: k.activo, configurado: k.configurado, faltan: k.faltan ?? [], ...Object.fromEntries(Object.entries(extra).filter(([, v]) => v !== undefined)) }];
       }),
     ) as InformePublico["canales"],
   };
