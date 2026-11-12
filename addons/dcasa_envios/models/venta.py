@@ -21,10 +21,11 @@ con el precio de la calculadora:
 **Con qué fecha y con qué términos** (revisión adversarial, segunda vuelta, I-1 e I-2; lo que decidió la dueña es
 respetar lo YA PROMETIDO, no dar promesas nuevas después): la promoción se suma con la promoción vigente HOY (hora de
 Panamá). Al sumarla se guardan en su línea los términos con que se sumó y el día (``dcasa_promocion_terminos``: la
-promoción, el mínimo y cómo se mide, si es gratis o un abono y de cuánto, la regla del colchón). Mientras la cotización
-no venza («Vence el» de hoy en adelante), se respeta eso aunque Gerencia cambie o archive la promoción: solo se mira si
-la COMPRA sigue cumpliendo esos términos y si el envío sigue ahí con su precio. Vencida (o reabierta después de
-vencer), se vuelve a mirar con la promoción de hoy. Una venta confirmada no vence.
+promoción, el mínimo y cómo se mide, si es gratis o un abono y de cuánto, la regla del colchón) y hasta cuándo vale lo
+prometido: el «Vence el» que tenía la cotización en ese momento, nunca más de 30 días después de sumada (sin «Vence el»,
+30 días); cambiar «Vence el» después no lo alarga ni lo revive (tercera vuelta, I-B). Hasta ese día se respeta eso
+aunque Gerencia cambie o archive la promoción: solo se mira si la COMPRA sigue cumpliendo esos términos y si el envío
+sigue ahí con su precio. Pasado ese día, se vuelve a mirar con la promoción de hoy. Una venta confirmada no vence.
 
 **La promoción se vuelve a revisar** (revisión adversarial, B1): ``_dcasa_promocion_sincronizar`` corre cada vez que
 se crean, cambian o quitan líneas (con la medición del tope de descuento, justo antes de medir; si se guarda la venta
@@ -266,11 +267,13 @@ class SaleOrder(models.Model):
         # Un impuesto de 0 % (exento) no le suma nada al envío.
         return bool(impuestos.flatten_taxes_hierarchy().filtered('amount'))
 
-    def _dcasa_promocion_vencida(self):
-        """¿La cotización ya venció? Su «Vence el» es anterior a hoy (hora de Panamá). Una venta confirmada no vence."""
+    def _dcasa_promocion_vencida(self, terminos):
+        """¿Ya pasó el día hasta el que vale lo prometido con esos ``terminos`` (guardados al sumarse; hora de Panamá)?
+        No mira el «Vence el» de hoy: cambiarlo después no alarga ni revive lo prometido. Una venta confirmada no
+        vence."""
         self.ensure_one()
-        return bool(self.state in ESTADOS_EDITABLES and self.validity_date
-                    and self.validity_date < self.env['dcasa.envio.promocion']._hoy())
+        return bool(self.state in ESTADOS_EDITABLES
+                    and self.env['dcasa.envio.promocion']._hoy() > motor_promocion.prometido_hasta(terminos))
 
     def _dcasa_promocion_calcular(self, envio, compra=None):
         """La promoción vigente HOY aplicada a la línea del envío ``envio`` (su precio y el lugar que marcó el sistema)
@@ -283,7 +286,8 @@ class SaleOrder(models.Model):
             envio.price_unit, lugar.prov, lugar.dist, compra or self._dcasa_envio_compra(), fecha=hoy)
         if not (resultado['aplica'] and resultado['ahorro'] > 0):
             return resultado, None
-        return resultado, motor_promocion.terminos(promocion._como_motor(), resultado, hoy, promocion.id)
+        return resultado, motor_promocion.terminos(promocion._como_motor(), resultado, hoy, promocion.id,
+                                                   vence=self.validity_date)
 
     def _dcasa_promocion_revisar(self):
         """¿La promoción del envío vale para esta cotización tal como está ahora? ``(envio, resultado, terminos,
@@ -298,7 +302,7 @@ class SaleOrder(models.Model):
                 'la cotización ya no tiene el envío a domicilio que sumó el sistema (o se cambió a mano)')
         compra = self._dcasa_envio_compra()
         guardados = self.order_line.filtered('dcasa_promocion_terminos')[:1].dcasa_promocion_terminos
-        if guardados and not self._dcasa_promocion_vencida():
+        if guardados and not self._dcasa_promocion_vencida(guardados):
             # Lo prometido: los términos con que se sumó, con la compra y el envío de ahora.
             resultado = motor_promocion.con_lo_prometido(guardados, envio.price_unit, compra)
             if resultado['aplica'] and resultado['ahorro'] > 0:
@@ -310,8 +314,8 @@ class SaleOrder(models.Model):
             return envio, resultado, terminos, None
         porque = self._dcasa_promocion_porque_no(resultado)
         if guardados:
-            porque = self.env._('la cotización venció el %(dia)s y %(porque)s',
-                                dia=self.validity_date.strftime('%d/%m/%Y'), porque=porque)
+            porque = self.env._('lo prometido valía hasta el %(dia)s y %(porque)s',
+                                dia=motor_promocion.prometido_hasta(guardados).strftime('%d/%m/%Y'), porque=porque)
         return envio, resultado, None, porque
 
     def _dcasa_promocion_porque_no(self, resultado):
@@ -382,12 +386,17 @@ class SaleOrder(models.Model):
             if cambios:
                 antes = -linea.price_subtotal
                 otra_vez = 'dcasa_promocion_terminos' in cambios
+                vencidos = linea.dcasa_promocion_terminos       # los de antes: hasta cuándo valían
                 cambios['name'] = orden._dcasa_envio_nombre_promocion(resultado, terminos)
                 linea.sudo().with_context(**{SINCRONIZANDO: True}).write(cambios)
-                if otra_vez:
-                    texto = self.env._('La cotización venció: la promoción de envío se volvió a revisar con la de hoy: '
-                                       '−%(ahora)s (antes −%(antes)s).', ahora=dinero(resultado['ahorro']),
-                                       antes=dinero(antes))
+                if otra_vez and vencidos:
+                    texto = self.env._('Lo prometido valía hasta el %(dia)s: la promoción de envío se volvió a revisar '
+                                       'con la de hoy: −%(ahora)s (antes −%(antes)s).',
+                                       dia=motor_promocion.prometido_hasta(vencidos).strftime('%d/%m/%Y'),
+                                       ahora=dinero(resultado['ahorro']), antes=dinero(antes))
+                elif otra_vez:
+                    texto = self.env._('La promoción de envío se volvió a revisar con la de hoy: −%(ahora)s (antes '
+                                       '−%(antes)s).', ahora=dinero(resultado['ahorro']), antes=dinero(antes))
                 else:
                     texto = self.env._('La promoción de envío se puso al día con el envío: −%(ahora)s (antes '
                                        '−%(antes)s).', ahora=dinero(resultado['ahorro']), antes=dinero(antes))
@@ -424,6 +433,10 @@ class SaleOrder(models.Model):
 
     def copy(self, default=None):
         # La copia trae el envío del sistema con su marca (la escribe el servidor) y la promoción se vuelve a calcular.
+        # Si quien copia manda las líneas (``default`` por RPC), son suyas: sin la marca del servidor, así que las
+        # marcas «solo del servidor» no pasan (tercera vuelta, M-a).
+        if default and 'order_line' in default:
+            return super().copy(default)
         copias = super(SaleOrder, self.with_context(**{MARCA_DEL_SERVIDOR: SERVIDOR})).copy(default)
         copias = copias.with_env(self.env)
         for original, copia in zip(self, copias, strict=True):
