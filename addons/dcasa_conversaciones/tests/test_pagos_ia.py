@@ -12,13 +12,14 @@ from unittest.mock import patch
 import requests
 from freezegun import freeze_time
 
-from odoo import sql_db
+from odoo import SUPERUSER_ID, sql_db
 from odoo.exceptions import AccessError, UserError
 from odoo.service.model import call_kw
 from odoo.tests import BaseCase, new_test_user, tagged
 
 from ..models import pagos_ia as P
 from ..models import panel_calculos as C
+from ..models.panel_juan import guardar_foto
 from .common import COSTOS, SALUD, JuanCase
 from .test_panel_juan import WorkerFalso, panama
 
@@ -331,6 +332,60 @@ class TestPagosDeLaIa(PagosCase):
         with freeze_time(panama(2026, 12, 1, 15, 0)):
             pago = self.Pago.browse(self.panel.pagar_ia(0.9)['id'])
         self.assertEqual((pago.corte_mes, pago.corte_acumulado_usd), ('2026-12', 0.9))
+
+    def test_deshacer_toma_el_cerrojo_y_si_otro_pago_entro_no_deshace(self):
+        """Revisión, segunda vuelta (2026-11-12): un «Deshacer» mientras otro «Pagar» habla con el Worker. Con el
+        cerrojo ocupado (o tomado y soltado por el otro después de que empezó esta transacción), no se anula nada."""
+        primero = self.pagar(panama(2026, 11, 10, 9, 0), 7.5)
+        with patch.object(P, 'tomar_el_cerrojo', return_value=False), \
+                self.assertRaisesRegex(UserError, 'Algo cambió mientras tanto'):
+            self.panel.deshacer_pago_ia(primero.id)
+        self.assertFalse(primero.anulado)
+        # Con el cerrojo libre, lo toma ANTES de anular y vuelve a revisar que siga siendo el último.
+        orden = []
+        tomar = P.tomar_el_cerrojo
+        anular = type(primero)._anular
+
+        def cerrojo(cr, cuando):
+            orden.append('cerrojo')
+            return tomar(cr, cuando)
+
+        def anulado(registro, motivo):
+            orden.append('anular')
+            return anular(registro, motivo)
+
+        with patch.object(P, 'tomar_el_cerrojo', side_effect=cerrojo), \
+                patch.object(type(primero), '_anular', anulado):
+            self.panel.deshacer_pago_ia(primero.id)
+        self.assertEqual(orden, ['cerrojo', 'anular'])
+        self.assertTrue(primero.anulado)
+
+    def test_una_foto_que_otra_pestana_sube_a_la_vez_no_es_un_error(self):
+        """Revisión, segunda vuelta (2026-11-12): si otra pestaña (o el cron) sube la foto de hoy mientras «Pagar»
+        habla con el Worker, el choque de serialización ya no sale en ERROR ni hace reintentar todo: se sigue sin la
+        foto (la del otro queda). Con dos conexiones de verdad a la base."""
+        base = sql_db.db_connect(self.env.cr.dbname)
+        dia, cuando = date(2001, 1, 1), datetime(2026, 11, 12, 15, 0)
+        try:
+            with base.cursor() as preparar:
+                preparar.execute('DELETE FROM dcasa_juan_costo_dia WHERE fecha = %s', [dia])
+                self.assertTrue(guardar_foto(preparar, dia, 5.0, SUPERUSER_ID, cuando))
+            with base.cursor() as otra, base.cursor() as pagar, self.assertNoLogs('odoo.sql_db', level='ERROR'):
+                pagar.execute('SELECT 1')           # «Pagar» ya empezó: su transacción ve la foto de antes
+                self.assertTrue(guardar_foto(otra, dia, 6.0, SUPERUSER_ID, cuando))
+                otra.commit()
+                self.assertFalse(guardar_foto(pagar, dia, 7.5, SUPERUSER_ID, cuando), 'choca: sigue sin la foto')
+                pagar.execute('SELECT 1')           # y su transacción sigue viva (el pago se puede registrar)
+                # Solo sube: una foto menor no baja la del día.
+                pagar.rollback()
+                self.assertTrue(guardar_foto(pagar, dia, 3.0, SUPERUSER_ID, cuando))
+                pagar.commit()
+            with base.cursor() as ver:
+                ver.execute('SELECT acumulado_usd FROM dcasa_juan_costo_dia WHERE fecha = %s', [dia])
+                self.assertEqual(ver.fetchone()[0], 6.0)
+        finally:
+            with base.cursor() as limpiar:
+                limpiar.execute('DELETE FROM dcasa_juan_costo_dia WHERE fecha = %s', [dia])
 
     def test_dos_pagar_a_la_vez_el_segundo_sale_con_el_saldo_cambio(self):
         """Revisión (2026-11-12): dos «Sí, ya pagué» a la vez (dos pestañas o dos personas), con dos conexiones de

@@ -171,6 +171,11 @@ class DcasaJuanPanelPagos(models.AbstractModel):
         self._exigir_pagos()
         if not isinstance(pago_id, int) or isinstance(pago_id, bool):
             raise UserError(self.env._('Pago desconocido.'))
+        # El mismo cerrojo que «Pagar» (revisión, 2026-11-12): un «Deshacer» del pago 1 mientras otro «Pagar» habla con
+        # el Worker dejaba el pago 1 anulado y el 2 con el corte nuevo (se esfumaba lo del pago 1). Con el cerrojo
+        # tomado, la base que se ve es la de ahora y se vuelve a revisar que siga siendo el último que cuenta.
+        if not tomar_el_cerrojo(self.env.cr, fields.Datetime.now()):
+            raise UserError(self.env._('Algo cambió mientras tanto: vuelve a abrir la pantalla.'))
         ultimo = self._ultimo_pago_ia()
         if not ultimo or ultimo.id != pago_id:
             raise UserError(self.env._('Solo se puede deshacer el último pago: vuelve a abrir la pantalla.'))
