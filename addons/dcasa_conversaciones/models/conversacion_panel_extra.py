@@ -153,6 +153,7 @@ class DcasaConversacionPanelExtra(models.Model):
         self._exigir_vendedora()
         ajustes = self.env['dcasa.juan.ajustes'].obtener()
         recibe = self.env.user.sudo() in self.env['dcasa.reparto']._vendedoras()
+        de_piso = self.env['dcasa.reparto']._vendedoras_de_piso()
         return {
             'usuario': {'id': self.env.uid, 'nombre': self.env.user.name,
                         'es_gerencia': self.env.user.has_group('sales_team.group_sale_manager'),
@@ -161,7 +162,10 @@ class DcasaConversacionPanelExtra(models.Model):
                         'recibe_reparto': recibe,
                         # Gerencia la sacó del reparto (vacaciones, ausencia…): no le asignan nuevas, esté como esté.
                         'fuera_del_reparto': recibe and not self.env.user.sudo()._dcasa_en_el_reparto(
-                            self.env['dcasa.reparto']._hoy())},
+                            self.env['dcasa.reparto']._hoy()),
+                        # Vendedora de piso: entre ellas, el cliente de otra no se toma sin confirmar (ver
+                        # ``_vendedora_que_lo_atiende``); la pantalla no le ofrece devolverlo ni cerrarlo.
+                        'de_piso': self.env.user.sudo() in de_piso},
             'reparto': ajustes.reparto_modo,
             'resumen_ia': bool(ajustes.resumen_ia_activo),
             'bot': {'conectado': bool(self.env['dcasa.juan.cliente'].configurado()),
@@ -173,7 +177,7 @@ class DcasaConversacionPanelExtra(models.Model):
             'canales': [{'id': clave, 'nombre': nombre} for clave, nombre in CANALES],
             'etiquetas': self.env['dcasa.conversacion.etiqueta'].lista(),
             'rapidas': self.env['dcasa.respuesta.rapida'].lista(),
-            'equipo': self.equipo(),
+            'equipo': self._equipo_del_panel(de_piso),
         }
 
     # ------------------------------------------------------------------
@@ -255,10 +259,16 @@ class DcasaConversacionPanelExtra(models.Model):
 
     @api.model
     def equipo(self):
-        """Las personas a quienes se puede asignar una conversación: ``[{id, nombre}]``."""
+        """Las personas a quienes se puede asignar una conversación: ``[{id, nombre, de_piso}]``."""
         self._exigir_vendedora()
+        return self._equipo_del_panel()
+
+    @api.model
+    def _equipo_del_panel(self, de_piso=None):
+        """``de_piso``: es vendedora de piso (entre ellas rige «el cliente de otra vendedora»)."""
+        de_piso = self.env['dcasa.reparto']._vendedoras_de_piso() if de_piso is None else de_piso
         usuarios = self._usuarios_del_panel().sorted(lambda u: (u.name or '').lower())
-        return [{'id': u.id, 'nombre': u.name} for u in usuarios]
+        return [{'id': u.id, 'nombre': u.name, 'de_piso': u in de_piso} for u in usuarios]
 
     @api.model
     def fijar_disponible(self, disponible):

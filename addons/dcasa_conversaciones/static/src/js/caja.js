@@ -339,6 +339,17 @@ export class CajaRespuesta extends Component {
                 : "El asistente no contesta hasta que se la devuelvas";
             const otra = c.asignada_a && c.asignada_a.id !== this.almacen.usuario.id ? c.asignada_a.nombre : "";
             const quien = otra ? `La atiende ${otra}. ` : "Atiendes tú. ";
+            // Entre vendedoras de piso, el cliente de otra no se devuelve ni se cierra (el servidor tampoco lo deja si
+            // ella está trabajando): se ofrece «Atender», que pregunta antes de quitárselo.
+            if (otra && this.almacen.usuario.de_piso && this.almacen.equipo.find((u) => u.id === c.asignada_a.id)?.de_piso) {
+                return {
+                    clase: "humano",
+                    texto: `${quien}${vence}.`,
+                    corto: otra,
+                    boton: "Atender",
+                    botonCorto: "Atender",
+                };
+            }
             return {
                 clase: "humano",
                 texto: `${quien}${vence}.`,

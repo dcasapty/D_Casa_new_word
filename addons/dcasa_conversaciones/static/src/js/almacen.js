@@ -895,25 +895,31 @@ export class Almacen {
 
     /** Si el cliente lo atiende otra vendedora que está trabajando, el servidor no deja quitárselo sin confirmar
      * (``ClienteDeOtraVendedora``, decisión de la dueña del 2026-11-12): aquí se le pregunta a quien escribe. «Sí, lo
-     * tomo» repite la llamada con ``tomar_de_otra``; «Dejarle una nota» no manda nada al cliente y deja lo escrito
-     * como nota interna para la otra (``notaPara``); «Cancelar», nada. Devuelve lo del servidor, o null. */
+     * tomo» repite la llamada con ``tomar_de`` = el id de ESA vendedora: si mientras tanto lo tomó otra, el servidor
+     * vuelve a decir que no y se pregunta otra vez, con el nombre nuevo. «Dejarle una nota» no manda nada al cliente y
+     * deja lo escrito como nota interna para la otra (``notaPara``); «Cancelar», nada. Devuelve lo del servidor, o
+     * null. */
     async _confirmandoLaToma(llamar, conversacionId) {
-        try {
-            return await llamar();
-        } catch (error) {
-            const duena = duenaDelError(error);
-            if (!duena) {
-                throw error;
+        let kwargs = {};
+        for (let vuelta = 0; vuelta < 5; vuelta++) {
+            try {
+                return await llamar(kwargs);
+            } catch (error) {
+                const duena = duenaDelError(error);
+                if (!duena) {
+                    throw error;
+                }
+                const eleccion = await this.preguntarToma(duena);
+                if (eleccion !== "tomar") {
+                    if (eleccion === "nota") {
+                        this.notaPara(duena, conversacionId);
+                    }
+                    return null;
+                }
+                kwargs = { tomar_de: duena.id };
             }
-            const eleccion = await this.preguntarToma(duena);
-            if (eleccion === "tomar") {
-                return await llamar({ tomar_de_otra: true });
-            }
-            if (eleccion === "nota") {
-                this.notaPara(duena, conversacionId);
-            }
-            return null;
         }
+        return null;
     }
 
     /** Abre la pregunta y espera la respuesta: "tomar", "nota" o null (cancelar). */
@@ -994,8 +1000,9 @@ export class Almacen {
         return r;
     }
 
+    /** «Atiende» de la ficha. Asignarse el cliente que atiende otra vendedora activa es tomarlo: pregunta igual. */
     async asignar(usuarioId) {
-        const r = await this._hacer("asignar", [this.seleccionadaId, usuarioId || null]);
+        const r = await this._hacer("asignar", [this.seleccionadaId, usuarioId || null], { toma: true });
         if (r) {
             this.refrescarAbierta();
         }

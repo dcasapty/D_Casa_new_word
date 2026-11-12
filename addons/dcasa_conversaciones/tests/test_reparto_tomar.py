@@ -1,8 +1,9 @@
 """Reparto justo (aprobado por la dueña el 2026-11-12): quién se queda con el cliente.
 
 1. Una vendedora no le quita a otra vendedora que está trabajando el cliente que atiende sin confirmarlo (el servidor lo
-   exige: ``tomar_de_otra``), y cuando un cliente cambia de mano entre vendedoras queda dicho en el hilo, en el libro
-   (regla ``tomada``) y, si la otra estaba activa, le llega un aviso por Telegram. Si no estaba, se toma sin preguntar.
+   exige: ``tomar_de`` = el id de esa vendedora), y cuando un cliente cambia de mano entre vendedoras queda dicho en el
+   hilo, en el libro (regla ``tomada``) y, si la otra estaba activa, le llega un aviso por Telegram. Si no estaba, se
+   toma sin preguntar.
    «Solamente es para las vendedoras» (aclaración de la dueña): Gerencia y administradoras, como siempre.
 2. Gerencia ve en «Reparto» los clientes que cambiaron de mano; la vendedora no.
 3. Los chats de la noche se reparten parejo en la mañana: el cron no le da a nadie más de N clientes sin contestar.
@@ -111,7 +112,7 @@ class TestClienteDeOtraVendedora(TomarCase):
     def test_confirmado_se_lo_queda_y_queda_dicho_en_el_hilo_el_libro_y_telegram(self):
         self.activa(self.vendedora)
         conv = self.de(self.vendedora)
-        r = self.panel(self.beto).enviar_respuesta(conv.id, 'Hola, te atiendo yo', tomar_de_otra=True)
+        r = self.panel(self.beto).enviar_respuesta(conv.id, 'Hola, te atiendo yo', tomar_de=self.vendedora.id)
         self.assertTrue(r['enviado'])
         self.assertEqual(conv.asignada_a, self.beto)
         self.assertEqual(self.mensajes_de(conv, self.beto), 1)
@@ -129,23 +130,24 @@ class TestClienteDeOtraVendedora(TomarCase):
     def test_atender_confirmado_tambien(self):
         self.activa(self.vendedora)
         conv = self.de(self.vendedora)
-        self.panel(self.beto).tomar(conv.id, None, tomar_de_otra=True)
+        self.panel(self.beto).tomar(conv.id, None, tomar_de=self.vendedora.id)
         self.assertEqual(conv.asignada_a, self.beto)
         self.assertIn(f'{TOMO} El asistente calla hasta', self.avisos(conv))
         self.assertEqual(self.tomadas(conv).forma, 'atender')
         self.assertEqual(len(self.telegram_a(self.vendedora)), 1)
 
-    def test_el_permiso_es_si_o_no(self):
+    def test_el_permiso_es_el_numero_de_la_vendedora(self):
         conv = self.de(self.vendedora)
-        for malo in ('si', 1, None):
+        for malo in ('si', True, 0, -3, 1.5, [self.vendedora.id]):
             with self.subTest(malo=malo), self.assertRaises(UserError):
-                self.panel(self.beto).enviar_respuesta(conv.id, 'Hola', tomar_de_otra=malo)
+                self.panel(self.beto).enviar_respuesta(conv.id, 'Hola', tomar_de=malo)
 
     def test_programado_con_permiso_cambia_de_mano_cuando_sale(self):
         self.activa(self.vendedora)
         conv = self.de(self.vendedora)
         cuando = (fields.Datetime.now() + timedelta(hours=3)).isoformat() + 'Z'
-        r = self.panel(self.beto).enviar_respuesta(conv.id, 'Te escribo luego', None, cuando, tomar_de_otra=True)
+        r = self.panel(self.beto).enviar_respuesta(conv.id, 'Te escribo luego', None, cuando,
+                                                   tomar_de=self.vendedora.id)
         self.assertTrue(r['programado'])
         self.assertEqual(conv.asignada_a, self.vendedora, 'Hasta que salga, sigue con Ana')
         self.Mensaje.search([('conversacion_id', '=', conv.id), ('estado_envio', '=', 'programado')]).with_context(
@@ -316,7 +318,7 @@ class TestCambiosDeManoEnLaPantalla(TomarCase):
         with freeze_time(self.AHORA + timedelta(minutes=1)):
             # Beto acaba de escribirle a un cliente: cuenta como activa, así que Carla tiene que confirmarlo.
             atendida = self.de(self.beto)
-            self.panel(self.carla).tomar(atendida.id, None, tomar_de_otra=True)
+            self.panel(self.carla).tomar(atendida.id, None, tomar_de=self.beto.id)
         with freeze_time(self.AHORA + timedelta(minutes=2)):
             asignada = self.de(self.carla)
             self.panel(self.gerente).asignar(asignada.id, self.vendedora.id)

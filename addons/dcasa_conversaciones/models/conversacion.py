@@ -269,11 +269,16 @@ class DcasaConversacion(models.Model):
                 raise AccessError(self.env._(
                     'Eso de la conversación no se cambia a mano (%s): usa los botones de la pantalla.',
                     ', '.join(sorted(ajenos))))
+        # El cliente de otra vendedora no se quita a mano (formulario o RPC) sin la regla de la pantalla.
+        tomas = self._revisar_asignacion_a_mano(vals['asignada_a']) \
+            if 'asignada_a' in vals and not self.env.su else {}
         if vals.get('nota_para_el_bot'):
             # El asistente la lee en cada respuesta: nunca más larga que lo que permite la pantalla.
             vals = dict(vals, nota_para_el_bot=str(vals['nota_para_el_bot'])[:MAX_NOTA_PARA_EL_BOT])
         anteriores = {conv: conv.partner_id for conv in self} if vals.get('partner_id') else {}
         resultado = super().write(vals)
+        if tomas:
+            self._dejar_dicho_el_cambio(tomas)
         for conv, anterior in anteriores.items():
             if anterior and anterior != conv.partner_id:
                 # La ficha provisional que Juan creó para esta conversación es de la misma persona: su «No contactar»
@@ -924,6 +929,7 @@ class DcasaConversacion(models.Model):
         """«Devolver al asistente»: vuelve a contestar el bot; su seguimiento cuenta desde ahora."""
         self._exigir_vendedora()
         self.check_access('write')
+        self._exigir_que_no_se_lo_quite(self.env.user, self.env._('devolverlo al asistente'))
         self._devolver(self.env.user)
         return True
 
@@ -934,7 +940,8 @@ class DcasaConversacion(models.Model):
         self.check_access('write')
         ahora = fields.Datetime.now()
         for conv in self.sudo().filtered('traspaso_sin_atender_desde'):
-            conv.write({'traspaso_sin_atender_desde': False})
+            # Ya la atendió una persona: deja de esperar al reparto (no cuenta para el tope ni pasa a otra).
+            conv.write({'traspaso_sin_atender_desde': False, 'reparto_desde': False})
             conv._aviso(self.env._('%s marcó que ya atendió a esta persona.', self.env.user.name))
             conv._programar_seguimiento(desde=ahora)
             conv._notificar_panel('estado')
@@ -943,6 +950,7 @@ class DcasaConversacion(models.Model):
     def action_cerrar(self):
         self._exigir_vendedora()
         self.check_access('write')
+        self._exigir_que_no_se_lo_quite(self.env.user, self.env._('cerrar la conversación'))
         self._cerrar(self.env.user)
         return True
 
@@ -1169,6 +1177,8 @@ class DcasaConversacion(models.Model):
         Devuelve el mensaje nuevo, «por enviar». El programado desaparece: sus archivos pasan al nuevo.
         """
         self.ensure_one()
+        if self._programado_no_sale(mensaje):
+            return self.env['dcasa.mensaje']   # el cliente ahora lo atiende otra vendedora: no sale (ya quedó dicho)
         usuario = mensaje.usuario_id or self.env.user
         nuevo = self._crear_mensaje_de_odoo(mensaje.texto, mensaje.adjunto_ids.sudo(), usuario=usuario,
                                             cita=mensaje.cita_id)
