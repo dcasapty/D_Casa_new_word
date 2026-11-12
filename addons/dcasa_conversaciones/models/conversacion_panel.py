@@ -340,10 +340,13 @@ class DcasaConversacionPanel(models.Model):
         adjuntos = conv._adjuntos_de_la_respuesta(adjuntos_ids)
         if not texto and not adjuntos:
             raise UserError(self.env._('Escribe algo o adjunta un archivo antes de enviar.'))
-        duena = conv._vendedora_que_lo_atiende(self.env.user) if cuando and tomar_de else None
+        # Programado sobre el cliente de otra vendedora: se anota quién lo atendía al programarlo (la que se confirmó o
+        # la que no estaba trabajando, a la que escribirle ahora ya la habría tomado sin pregunta). Si al salir lo
+        # atiende otra, no sale.
+        duena = conv._vendedora_que_lo_atiende(self.env.user) if cuando else None
         mensaje = conv._crear_mensaje_de_odoo(texto, adjuntos, usuario=self.env.user, programado_para=cuando, cita=cita)
         if cuando:
-            if duena and duena.id == tomar_de:
+            if duena:
                 mensaje.with_context(**{CLAVE_SISTEMA: True}).sudo().write({'toma_confirmada_de': duena.id})
             conv.marcar_leida(conv.id)
             return {'mensaje': mensaje._como_dict(), 'enviado': False, 'programado': True,

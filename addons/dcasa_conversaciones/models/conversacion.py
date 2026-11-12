@@ -269,7 +269,10 @@ class DcasaConversacion(models.Model):
                 raise AccessError(self.env._(
                     'Eso de la conversación no se cambia a mano (%s): usa los botones de la pantalla.',
                     ', '.join(sorted(ajenos))))
-        # El cliente de otra vendedora no se quita a mano (formulario o RPC) sin la regla de la pantalla.
+        # El cliente de otra vendedora no se quita a mano (formulario o RPC) sin la regla de la pantalla: ni cambiándole
+        # quién lo atiende ni venciéndole la pausa (es devolverlo al asistente por otra vía).
+        if not self.env.su and {'pausada_hasta', 'estado'} & set(vals):
+            self._revisar_pausa_a_mano()
         tomas = self._revisar_asignacion_a_mano(vals['asignada_a']) \
             if 'asignada_a' in vals and not self.env.su else {}
         if vals.get('nota_para_el_bot'):

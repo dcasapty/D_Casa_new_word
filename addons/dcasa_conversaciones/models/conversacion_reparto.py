@@ -16,17 +16,27 @@ comportan como siempre) y lo decide UNA función, ``_vendedora_que_lo_atiende``,
 * Pasárselo a una tercera, dejarlo sin asignar, devolverlo al asistente o cerrarlo, si la otra está activa: no
   (``_exigir_que_no_se_lo_quite``). Pídeselo a ella o a Gerencia. Lo mismo por ``write`` (formulario o RPC).
 * Un mensaje programado que al salir encuentra al cliente con otra vendedora no sale (``_programado_no_sale``), salvo
-  que al programarlo se haya confirmado contra esa misma vendedora.
+  que sea la misma que lo atendía al programarlo; tampoco sale si quien lo programó ya no está. Queda como nota.
+* Cambiar a mano la pausa del asistente (``pausada_hasta``) es devolverlo por otra vía: tampoco.
 """
+import logging
+import uuid
+
 from markupsafe import Markup, escape
 
 from odoo import fields, models
 from odoo.exceptions import UserError
 
 from .ajustes import CANALES
+from .mensaje import CLAVE_SISTEMA
 from .reparto import ClienteDeOtraVendedora, Decision
 
+_logger = logging.getLogger(__name__)
+
 CRON_DEL_REPARTO = 'dcasa_conversaciones.ir_cron_reasignar_sin_respuesta'
+# El aviso por Telegram de un programado que no salió lleva hasta esto del texto (el completo queda en el chat y en el
+# aviso de Odoo; Telegram corta los mensajes de más de 4096).
+MAX_TEXTO_EN_TELEGRAM = 3000
 
 
 class DcasaConversacionReparto(models.Model):
@@ -173,6 +183,12 @@ class DcasaConversacionReparto(models.Model):
                     'Este cliente lo atiende %(duena)s, que está trabajando ahora: no puedes %(que)s. Pídeselo a '
                     '%(duena)s o a Gerencia. Si lo vas a atender tú, toca «Atender».', duena=duena.name, que=que))
 
+    def _revisar_pausa_a_mano(self):
+        """``write`` de ``pausada_hasta`` (o ``estado``) por una vendedora de piso (formulario o RPC): vencer la pausa a
+        mano es devolverlo al asistente por otra vía (el mantenimiento lo devuelve y luego «Atender» ya no pregunta).
+        Con el cliente de otra vendedora activa, no."""
+        self._exigir_que_no_se_lo_quite(self.env.user, self.env._('cambiar cuándo vuelve el asistente'))
+
     def _revisar_asignacion_a_mano(self, nuevo_id):
         """``write({'asignada_a': …})`` de una vendedora de piso (formulario o RPC): la misma regla que la pantalla.
         Asignárselo a sí misma pide la confirmación (en el contexto, ``dcasa_tomar_de``: el formulario no pregunta, así
@@ -196,34 +212,67 @@ class DcasaConversacionReparto(models.Model):
         return tomas
 
     def _programado_no_sale(self, mensaje):
-        """Llegó la hora de un mensaje programado y el cliente ahora lo atiende otra vendedora (de piso) distinta de
-        quien lo programó: no sale (revisión adversarial, 2026-11-12). Salvo que al programarlo se haya confirmado
-        quitárselo a esa misma vendedora (``toma_confirmada_de``). Queda dicho en el hilo y se le avisa a quien lo
-        programó (Odoo y Telegram). Devuelve True si no salió."""
+        """Llegó la hora de un mensaje programado. No sale (revisión adversarial, 2026-11-12) si:
+
+        * quien lo programó ya no está (usuario archivado): no se le deja el cliente a alguien que no puede atenderlo;
+          se le avisa a quien atiende ahora, si hay alguien;
+        * el cliente lo atiende otra vendedora (de piso) distinta de quien lo programó y distinta de la que lo atendía
+          al programarlo (``toma_confirmada_de``: la que se confirmó o la que no estaba trabajando, a la que escribirle
+          en ese momento ya la habría tomado sin pregunta); se le avisa a quien lo programó.
+
+        Lo que no salió no se borra: queda en el hilo como nota interna con su texto completo y sus archivos, para que
+        quien quiera lo reenvíe (``_cancelar_programado``). Devuelve True si no salió."""
         self.ensure_one()
         quien = mensaje.usuario_id
-        duena = self._vendedora_que_lo_atiende(quien)
-        if not duena or duena == mensaje.toma_confirmada_de:
+        if not quien:
             return False
-        texto = (mensaje.texto or self.env._('(adjunto)'))[:120]
-        aviso = self.env._('No salió el mensaje que %(quien)s dejó programado («%(texto)s»): el cliente ahora lo '
-                           'atiende %(duena)s.', quien=quien.name, texto=texto, duena=duena.name)
-        mensaje.adjunto_ids.sudo().unlink()
-        mensaje.sudo().unlink()
-        self._aviso(aviso)
+        atiende = self.sudo().asignada_a
+        if not quien.active:
+            motivo = self.env._('%s ya no está en el equipo', quien.name)
+            avisar_a = atiende.filtered('active') - quien
+        else:
+            duena = self._vendedora_que_lo_atiende(quien)
+            if not duena or duena == mensaje.toma_confirmada_de:
+                return False
+            motivo = self.env._('el cliente ahora lo atiende %s', duena.name)
+            avisar_a = quien
+        self._cancelar_programado(mensaje, motivo, avisar_a)
+        return True
+
+    def _cancelar_programado(self, mensaje, motivo, avisar_a):
+        """El programado que no salió queda en el hilo como nota interna (el cliente no la ve): «No salió… porque
+        ``motivo``» y debajo su texto completo, con sus archivos. A ``avisar_a`` le llega por Odoo (con el texto
+        completo) y por Telegram."""
+        self.ensure_one()
+        quien = mensaje.usuario_id
+        texto = mensaje.texto or ''
+        nota = self.env._('No salió este mensaje que %(quien)s dejó programado: %(motivo)s. El cliente no lo recibió; '
+                          'si hace falta, cópialo y envíalo.', quien=quien.name, motivo=motivo)
+        if texto:
+            nota = f'{nota}\n\n{texto}'
+        mensaje.with_context(**{CLAVE_SISTEMA: True}).sudo().write({
+            'tipo': 'nota', 'direccion': 'interna', 'estado_envio': 'enviado', 'programado_para': False,
+            'ts': fields.Datetime.now(), 'texto': nota, 'cita_id': False, 'cita_id_canal': False,
+            'id_mensaje': f'nota-{uuid.uuid4().hex}'})
+        mensaje._publicar_en_chatter()
+        self._notificar_panel('mensaje', mensaje)
+        if not avisar_a:
+            return
         cliente = self.sudo().partner_id.display_name or self.id_externo
-        para_ti = self.env._('No salió el mensaje que dejaste programado para %(cliente)s («%(texto)s»): ahora lo '
-                             'atiende %(duena)s. Si hace falta, déjale una nota en el chat.', cliente=cliente,
-                             texto=texto, duena=duena.name)
+        para = self.env._('No salió el mensaje que %(quien)s dejó programado para %(cliente)s: %(motivo)s. Quedó en su '
+                          'chat como nota interna (el cliente no la ve).', quien=quien.name, cliente=cliente,
+                          motivo=motivo)
+        cuerpo = Markup('<p>%s</p>') % escape(para)
+        if texto:
+            cuerpo += Markup('<p>%s</p><blockquote>%s</blockquote>') % (escape(self.env._('Decía:')), escape(texto))
         try:
             with self.env.cr.savepoint():
-                self.sudo().message_post(body=Markup('<p>%s</p>') % escape(para_ti), partner_ids=quien.partner_id.ids,
+                self.sudo().message_post(body=cuerpo, partner_ids=avisar_a.partner_id.ids,
                                          subtype_xmlid='mail.mt_note', message_type='comment')
         except Exception:   # noqa: BLE001 — el aviso en Odoo es un extra
-            pass
-        self._avisar_por_telegram(para_ti, usuarios=quien)
-        self._notificar_panel('estado')
-        return True
+            _logger.exception('Juan: no se pudo avisar en Odoo del programado que no salió (%s)', self.id)
+        recorte = texto if len(texto) <= MAX_TEXTO_EN_TELEGRAM else f'{texto[:MAX_TEXTO_EN_TELEGRAM]}…'
+        self._avisar_por_telegram(f'{para}\n\n{recorte}' if recorte else para, usuarios=avisar_a)
 
     def _cambio_de_mano(self, anterior, usuario, forma):
         """``usuario`` (vendedora) se quedó con el cliente que atendía ``anterior`` (otra vendedora): la línea

@@ -152,6 +152,28 @@ class TestCaminosParaQuitarElCliente(RevisionCase):
         self.panel(self.gerente).cerrar(otra.id)
         self.assertEqual(otra.estado, 'cerrada')
 
+    def test_vencer_la_pausa_a_mano_no_se_salta_la_pregunta(self):
+        """Revisor, v2: poner ``pausada_hasta`` en el pasado (formulario o RPC) es devolverlo al asistente por otra
+        vía."""
+        conv = self.de(self.vendedora)
+        vencida = fields.Datetime.to_string(fields.Datetime.now() - timedelta(minutes=1))
+        with self.assertRaisesRegex(UserError, f'{NO_PUEDES} cambiar cuándo vuelve el asistente'):
+            call_kw(self.env(user=self.beto)['dcasa.conversacion'], 'write', [[conv.id], {'pausada_hasta': vencida}],
+                    {})
+        conv._normalizar_pausa()          # el mantenimiento de cada 5 minutos
+        with self.assertRaises(ClienteDeOtraVendedora):
+            self.panel(self.beto).tomar(conv.id)
+        self.assertEqual((conv.asignada_a, conv.estado), (self.vendedora, 'humano'), self.rastro(conv))
+
+    def test_la_pausa_la_cambian_la_duena_gerencia_o_si_la_otra_no_esta(self):
+        conv = self.de(self.vendedora)
+        mas_tarde = fields.Datetime.now() + timedelta(hours=5)
+        conv.with_user(self.vendedora).write({'pausada_hasta': mas_tarde})
+        conv.with_user(self.gerente).write({'pausada_hasta': mas_tarde + timedelta(hours=1)})
+        self.activa(self.vendedora, 120)
+        conv.with_user(self.beto).write({'pausada_hasta': mas_tarde})
+        self.assertEqual(conv.pausada_hasta, mas_tarde)
+
     # --- El programado ----------------------------------------------------------------------------------------------
 
     def programar(self, conv, usuario, **kw):
@@ -166,6 +188,11 @@ class TestCaminosParaQuitarElCliente(RevisionCase):
             fields.Datetime.now() - timedelta(minutes=1)
         return self.Mensaje._cron_enviar_programados()
 
+    def nota_de(self, conv):
+        """La nota interna en que quedó lo programado que no salió."""
+        return self.Mensaje.search([('conversacion_id', '=', conv.id), ('tipo', '=', 'nota'),
+                                    ('texto', 'ilike', 'No salió este mensaje')])
+
     def test_programado_no_se_lo_quita_a_quien_lo_tomo_despues(self):
         conv = self.de(self.beto)                         # el cliente es de Beto
         self.programar(conv, self.beto)
@@ -175,15 +202,79 @@ class TestCaminosParaQuitarElCliente(RevisionCase):
         self.assertEqual(self.que_salga(conv), 0)
         self.assertEqual(conv.asignada_a, self.vendedora, f'{self.rastro(conv)}; {self.avisos(conv)[-200:]}')
         self.assertFalse(self.Mensaje.search([('conversacion_id', '=', conv.id), ('estado_envio', '=', 'programado')]),
-                         'Queda cancelado')
-        self.assertFalse(self.mensajes_de(conv, self.beto), 'Al cliente no le salió nada')
-        self.assertIn('No salió el mensaje que Beto Vendedor dejó programado («Te escribo luego»): el cliente ahora lo '
-                      'atiende Vendedora Prueba.', self.avisos(conv))
+                         'Ya no está programado')
+        self.assertFalse(self.Mensaje.search_count([('conversacion_id', '=', conv.id), ('tipo', '=', 'mensaje'),
+                                                    ('usuario_id', '=', self.beto.id)]), 'Al cliente no le salió nada')
+        self.assertFalse([c for c in self.worker.call_args_list if c.args[1].endswith('/odoo/enviar')],
+                         'Nada fue al Worker')
+        nota = self.nota_de(conv)
+        self.assertEqual(nota.texto, 'No salió este mensaje que Beto Vendedor dejó programado: el cliente ahora lo '
+                                     'atiende Vendedora Prueba. El cliente no lo recibió; si hace falta, cópialo y '
+                                     'envíalo.\n\nTe escribo luego')
+        self.assertEqual((nota.usuario_id, nota.direccion), (self.beto, 'interna'))
+        self.assertIn(nota.id, [m['id'] for m in self.panel(self.vendedora).hilo(conv.id)['mensajes']],
+                      'Se ve en el hilo')
         aviso_a_beto = self.telegram_a(self.beto)
         self.assertEqual(len(aviso_a_beto), 1)
-        self.assertIn('No salió el mensaje que dejaste programado', aviso_a_beto[0])
+        self.assertIn('No salió el mensaje que Beto Vendedor dejó programado', aviso_a_beto[0])
+        self.assertIn('Te escribo luego', aviso_a_beto[0])
         bandeja = conv.message_ids.filtered(lambda m: self.beto.partner_id in m.partner_ids)
-        self.assertTrue(bandeja, 'También le llega en Odoo')
+        self.assertIn('Te escribo luego', str(bandeja.body), 'En Odoo le llega con el texto completo')
+
+    def test_programado_que_no_sale_conserva_el_texto_completo_y_los_archivos(self):
+        """Revisor, v2: no se borra; queda en el hilo con su texto completo (más de 120 letras) y sus archivos."""
+        conv = self.de(self.beto)
+        largo = 'Hola, ' + 'x' * 200 + ' FIN-DEL-MENSAJE'
+        adjunto = self.env['ir.attachment'].with_user(self.beto).create({
+            'name': 'cotizacion.pdf', 'raw': b'%PDF-1.4 prueba', 'mimetype': 'application/pdf'})
+        cuando = (fields.Datetime.now() + timedelta(hours=3)).isoformat() + 'Z'
+        self.panel(self.beto).enviar_respuesta(conv.id, largo, [adjunto.id], cuando)
+        self.panel(self.vendedora).tomar(conv.id, None, tomar_de=self.beto.id)
+        self.que_salga(conv)
+        nota = self.nota_de(conv)
+        self.assertIn(largo, nota.texto)
+        self.assertEqual(nota.adjunto_ids, adjunto, 'Sus archivos siguen con él')
+        self.assertTrue(adjunto.exists())
+        bandeja = conv.message_ids.filtered(lambda m: self.beto.partner_id in m.partner_ids)
+        self.assertIn('FIN-DEL-MENSAJE', str(bandeja.body))
+
+    def test_programado_al_cliente_de_una_companera_ausente_sale(self):
+        """Revisor, v2: Ana no está; Beto le programa un mensaje a su cliente (no se le pregunta: escribirle ahora ya
+        lo tomaría). A la hora, el cliente sigue con Ana: sale, como habría salido escribiéndole."""
+        self.activa(self.vendedora, 300)
+        conv = self.de(self.vendedora)
+        self.programar(conv, self.beto)
+        programado = self.Mensaje.search([('conversacion_id', '=', conv.id), ('estado_envio', '=', 'programado')])
+        self.assertEqual(programado.toma_confirmada_de, self.vendedora)
+        self.activa(self.vendedora)       # volvió antes de la hora: igual sale (era de ella al programar)
+        self.assertEqual(self.que_salga(conv), 1)
+        self.assertEqual(conv.asignada_a, self.beto)
+        self.assertIn(TOMO, self.avisos(conv))
+
+    def test_programado_de_alguien_que_ya_no_esta_no_sale_y_se_le_avisa_a_quien_atiende(self):
+        """Revisor, v2: Beto programa, Ana toma el cliente y a Beto lo archivan: no sale, no se le deja el cliente a
+        un usuario archivado y a Ana le llega el aviso (no dice «ahora»: la que lo atiende no cambió para ella)."""
+        conv = self.de(self.beto)
+        self.programar(conv, self.beto)
+        self.panel(self.vendedora).tomar(conv.id, None, tomar_de=self.beto.id)
+        self.beto.sudo().active = False
+        self.enviar.reset_mock()
+        self.assertEqual(self.que_salga(conv), 0)
+        self.assertEqual(conv.asignada_a, self.vendedora)
+        self.assertIn('No salió este mensaje que Beto Vendedor dejó programado: Beto Vendedor ya no está en el equipo.',
+                      self.nota_de(conv).texto)
+        para_ana = self.telegram_a(self.vendedora)
+        self.assertEqual(len(para_ana), 1)
+        self.assertNotIn('ahora', para_ana[0].split('\n')[0])
+        self.assertFalse(self.telegram_a(self.beto))
+
+    def test_programado_de_alguien_que_ya_no_esta_tampoco_sale_si_nadie_lo_atiende(self):
+        conv = self.cliente()
+        self.programar(conv, self.beto)
+        self.beto.sudo().active = False
+        self.assertEqual(self.que_salga(conv), 0)
+        self.assertFalse(conv.asignada_a)
+        self.assertTrue(self.nota_de(conv))
 
     def test_programado_sale_si_sigue_siendo_suyo_o_de_nadie(self):
         suya = self.de(self.beto)
@@ -203,7 +294,7 @@ class TestCaminosParaQuitarElCliente(RevisionCase):
         self.assertEqual(conv.asignada_a, self.beto, 'Confirmó contra Ana y sigue con Ana: sale y se la queda')
         self.assertIn(TOMO, self.avisos(conv))
         self.assertEqual(otra.asignada_a, self.carla, 'Ahora la atiende Carla: no sale')
-        self.assertIn('el cliente ahora lo atiende Carla Vendedora', self.avisos(otra))
+        self.assertIn('el cliente ahora lo atiende Carla Vendedora', self.nota_de(otra).texto)
 
 
 @tagged('post_install', '-at_install')
