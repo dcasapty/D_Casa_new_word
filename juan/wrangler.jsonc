@@ -33,7 +33,8 @@
     // , { "binding": "PUENTE", "service": "dcasa-puente-wa" }
   ],
 
-  // UTC. Cada hora (minuto 23): ¿sigue conectado el puente? ¿se alcanzó el tope de IA? Avisa por Telegram si hay chat configurado.
+  // UTC. Cada hora (minuto 23): renueva la llave de Instagram si toca, ¿sigue conectado el puente? ¿se alcanzó el tope de IA?
+  // Avisa por Telegram si hay chat configurado.
   "triggers": { "crons": ["23 * * * *"] },
 
   // Solo valores NO secretos y que la dueña no cambia a mano. Los que ella sí toca desde el panel de Cloudflare
@@ -43,6 +44,11 @@
   // SECRETOS: ninguno en este archivo ni en GitHub. La dueña los pega en Cloudflare → Worker → Settings → Variables and Secrets:
   //   JUAN_ODOO_TOKEN, JUAN_WORKER_TOKEN, WA_TOKEN, ANTHROPIC_API_KEY, TELEGRAM_BOT_TOKEN_JUAN, TELEGRAM_WEBHOOK_SECRET_JUAN,
   //   META_APP_SECRET, META_VERIFY_TOKEN, META_PAGE_TOKEN (y WHATSAPP_CLOUD_TOKEN si algún día se enciende la Cloud API).
+  //   Instagram por «inicio de sesión de Instagram» (opcional; con ellos Instagram va por /webhooks/instagram): INSTAGRAM_TOKEN
+  //   (la llave larga; Juan la renueva sola y guarda la vigente en el Durable Object Global) e INSTAGRAM_APP_SECRET (la clave
+  //   secreta de la app de Instagram). INSTAGRAM_ACCOUNT_ID es opcional (sin él, Juan pregunta la cuenta con /me).
+  //   ⚠ NO activar `observability.traces` (ni nada que guarde las URL de las llamadas salientes): la renovación de esa llave
+  //   (graph.instagram.com/refresh_access_token) la lleva en la URL, como lo documenta Meta. Juan nunca registra esa URL.
   // El Worker arranca sin ellos y GET /salud dice cuáles faltan. No se usa `secrets.required`: el primer despliegue es sin secretos.
   "vars": {
     "ENTORNO": "produccion",

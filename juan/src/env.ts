@@ -42,6 +42,11 @@ export interface Env {
   WHATSAPP_PHONE_NUMBER_ID?: string;
   /** Versión de la Graph API de Meta (vNN.N). Vacío = la del código. */
   GRAPH_API_VERSION?: string;
+  /**
+   * Instagram por inicio de sesión de Instagram (opcional): el id de la cuenta de D'CASA (el `id` de los webhooks). Vacío = Juan lo
+   * averigua con `GET /me` y lo recuerda. Solo se atienden los mensajes a esa cuenta.
+   */
+  INSTAGRAM_ACCOUNT_ID?: string;
   /** Dirección de la API de IA de Meta (Chat Completions compatible con OpenAI). Vacío = https://api.meta.ai/v1. */
   META_AI_BASE_URL?: string;
   /** Dirección de la API de OpenAI (o una compatible). Vacío = https://api.openai.com/v1. */
@@ -60,6 +65,14 @@ export interface Env {
   META_APP_SECRET?: string;
   META_VERIFY_TOKEN?: string;
   META_PAGE_TOKEN?: string;
+  /**
+   * Instagram por «inicio de sesión de Instagram» (la segunda puerta, graph.instagram.com). Con alguno de los dos, Instagram va por
+   * ahí; sin ninguno, por la página (META_PAGE_TOKEN), como siempre. La llave larga (60 días) se pega UNA vez: Juan la renueva sola
+   * y guarda la vigente en el Durable Object `Global` (canales/instagramLlave.ts).
+   */
+  INSTAGRAM_TOKEN?: string;
+  /** La clave secreta de la app de Instagram (no la de Facebook): firma los avisos de /webhooks/instagram. */
+  INSTAGRAM_APP_SECRET?: string;
   /** Solo si se activa la Cloud API de WhatsApp (no está en el contrato original de secretos). */
   WHATSAPP_CLOUD_TOKEN?: string;
 }

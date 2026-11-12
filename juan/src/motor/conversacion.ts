@@ -14,7 +14,7 @@
 import type { ModelMessage } from "ai";
 import { canalActivo, CONFIG_POR_DEFECTO, dentroDeHorario, diaDelNegocio, mesDelNegocio, type Config } from "../config";
 import type { AdaptadorCanal, CanalId, CitaEntrante, Entrante, MedioSaliente, Saliente } from "../canales/tipos";
-import { EnvioParcialError, partirPorLargo, sinNegritas } from "../canales/tipos";
+import { EnvioParcialError, enlaceDeMedio, partirPorLargo, sinNegritas } from "../canales/tipos";
 import { crudoDe, entranteDeCrudo, prepararEntrante } from "../canales/preparar";
 import { noQuiereSeguimiento, pideUnaPersona } from "../dcasa/intencion";
 import { contextoDelChat, promptEstable, promptParaFugas, promptSeguimiento, presentacionPorDefecto } from "../dcasa/prompt";
@@ -649,7 +649,9 @@ export class MotorConversacion {
     const clave = `${PREFIJO_EN_VUELO}${ahora}:${++this.vuelos}`;
     const v: EnVuelo = {
       hasta: ahora + EN_VUELO_MS,
-      textos: burbujas.map(normalizarEco).filter(Boolean),
+      // Un documento que el canal no logra mandar como archivo sale como su enlace en un texto aparte (Instagram por inicio de sesión
+      // de Instagram): su eco también es nuestro, no de una vendedora.
+      textos: [...burbujas, ...medios.filter((m) => m.tipo === "documento").map(enlaceDeMedio)].map(normalizarEco).filter(Boolean),
       imagen: medios.filter((m) => m.tipo === "imagen").length,
       documento: medios.filter((m) => m.tipo === "documento").length,
     };
@@ -1519,16 +1521,16 @@ export class MotorConversacion {
     const canalId = this.canalId();
     const adaptador = this.deps.canal(canalId);
     if (!adaptador) throw new Error(`no hay adaptador para el canal ${canalId}`);
-    const cap = adaptador.capacidades(canalId);
+    const cap = adaptador.capacidades(canalId, this.deps.env);
 
     // Lo que el canal no puede llevar como archivo, sale como enlace en el texto.
     const enlaces: string[] = [];
     const medios = o.medios.filter((m) => {
       const soporta = m.tipo === "imagen" ? cap.imagenes : cap.documentos;
-      if (!soporta) enlaces.push(m.nombre ? `${m.nombre}: ${m.url}` : m.url);
+      if (!soporta) enlaces.push(enlaceDeMedio(m));
       return soporta;
     });
-    const burbujas = [...o.burbujas, ...enlaces].flatMap((b) => partirPorLargo(b, cap.maxTexto)).filter((b) => b.trim());
+    const burbujas = [...o.burbujas, ...enlaces].flatMap((b) => partirPorLargo(b, cap.maxTexto, cap.maxBytesTexto)).filter((b) => b.trim());
     if (burbujas.length === 0 && medios.length === 0) return [];
 
     const progreso = o.progreso ?? { burbujas: 0, medios: 0, ids: [] };
@@ -1668,7 +1670,7 @@ export class MotorConversacion {
       // Una foto o un documento con su texto: el texto viaja como pie de la primera (una sola burbuja para el cliente), si el canal
       // lo permite y cabe. Si no, sale como siempre: el texto y luego los archivos.
       const canalId = this.canalId();
-      if (texto && medios.length > 0 && extra.length === 0 && texto.length <= MAX_PIE_DE_FOTO && this.deps.canal(canalId)?.capacidades(canalId).pie) {
+      if (texto && medios.length > 0 && extra.length === 0 && texto.length <= MAX_PIE_DE_FOTO && this.deps.canal(canalId)?.capacidades(canalId, this.deps.env).pie) {
         medios[0] = { ...medios[0], pie: texto };
         burbujas = [];
       }
@@ -1776,7 +1778,7 @@ export class MotorConversacion {
     if (visto !== null && ultimoCliente !== null && ultimoCliente > visto + 1000) return cierra("descartado", "el cliente ya volvió a escribir");
 
     const adaptador = this.deps.canal(canalId);
-    if (adaptador?.capacidades(canalId).ventana24h && ultimoCliente !== null && ahora - ultimoCliente > VENTANA_24H_MS) {
+    if (adaptador?.capacidades(canalId, this.deps.env).ventana24h && ultimoCliente !== null && ahora - ultimoCliente > VENTANA_24H_MS) {
       return cierra("descartado", "fuera de la ventana de 24 h del canal");
     }
 

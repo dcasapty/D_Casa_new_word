@@ -2,6 +2,7 @@
 // Aquí solo se conecta Cloudflare con las rutas y el cron; la lógica está en rutas.ts, salud.ts y motor/.
 
 import { ADAPTADORES } from "./canales";
+import type { AdaptadorCanal } from "./canales/tipos";
 import { mesDelNegocio } from "./config";
 import type { Env } from "./env";
 import { Conversacion } from "./motor/do";
@@ -43,13 +44,31 @@ export default {
     }
   },
 
-  /** Cron de salud: ¿sigue conectado el puente? ¿se alcanzó el tope de IA? Avisa a la dueña una vez por problema. */
+  /** Cron de salud: renueva lo que vence (la llave de Instagram), ¿sigue conectado el puente? ¿se alcanzó el tope de IA? Avisa a la dueña una vez por problema. */
   async scheduled(_evento: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     ctx.waitUntil(revisarSalud(env));
   },
 } satisfies ExportedHandler<Env>;
 
+/** Lo que cada canal hace solo cada hora (hoy: renovar la llave de Instagram por inicio de sesión de Instagram antes de que venza). */
+export async function mantenerCanales(env: Env, adaptadores: readonly AdaptadorCanal[] = ADAPTADORES): Promise<void> {
+  for (const a of adaptadores) {
+    if (!a.mantener) continue;
+    await a.mantener(env).catch((e) => console.error(`[juan] mantenimiento de ${a.ruta}:`, e instanceof Error ? e.message.slice(0, 200) : "error"));
+  }
+}
+
 export async function revisarSalud(env: Env): Promise<void> {
+  // Lo de los canales corre a la par (Meta puede tardar hasta su plazo): no atrasa el informe ni los avisos de esta hora.
+  const mantenimiento = mantenerCanales(env);
+  try {
+    await informarSalud(env);
+  } finally {
+    await mantenimiento;
+  }
+}
+
+async function informarSalud(env: Env): Promise<void> {
   const global = env.GLOBAL.get(env.GLOBAL.idFromName("juan"));
   const cfg = await obtenerConfig(env);
   const informe = await informeDeSalud({
