@@ -148,8 +148,8 @@ class TestCuentasDeLosPagos(BaseCase):
 # El registro de pagos y la pantalla
 # ----------------------------------------------------------------------------------------------------------------
 
-@tagged('post_install', '-at_install')
-class TestPagosDeLaIa(JuanCase):
+class PagosCase(JuanCase):
+    """Gerencia con el Worker de mentira y sin pagos ni fotos de antes."""
 
     def setUp(self):
         super().setUp()
@@ -181,6 +181,11 @@ class TestPagosDeLaIa(JuanCase):
         self.gasto(gasto)
         with freeze_time(cuando):
             return self.Pago.browse(self.panel.pagar_ia(saldo)['id'])
+
+
+
+@tagged('post_install', '-at_install')
+class TestPagosDeLaIa(PagosCase):
 
     def test_sin_pagos_el_saldo_es_lo_del_mes(self):
         datos = self.saldo(panama(2026, 11, 12, 10, 0), 7.5)
@@ -312,3 +317,74 @@ class TestPagosDeLaIa(JuanCase):
     def test_el_ano_sale_solo_si_no_es_el_de_ahora(self):
         self.pagar(panama(2026, 12, 30, 18, 0), 4.0)
         self.assertEqual(self.saldo(panama(2027, 1, 2, 9, 0), 0.5)['ultimo']['texto'], '30 dic 2026, 6:00 p. m.')
+
+
+@tagged('post_install', '-at_install')
+class TestBrianCostosDeJuan(PagosCase):
+    """Brian contesta «¿cuánto le debo a Meta de la IA?» con las cifras de la pantalla. Solo lee: pagar es de la
+    pantalla (lo declara la dueña después de pagarle a Meta)."""
+
+    def brian(self, usuario, gasto=None, cuando=None):
+        if gasto is not None:
+            self.gasto(gasto)
+        with freeze_time(cuando or panama(2026, 11, 12, 11, 0)):
+            return self.env['brian.herramientas'].with_user(usuario).ejecutar('costos_de_juan', {})
+
+    def test_es_de_lectura_y_solo_de_gerencia_y_administradores(self):
+        Brian = self.env['brian.herramientas']
+        catalogo = {e['name']: e for e in Brian.with_user(self.gerente).catalogo()}
+        self.assertEqual(catalogo['costos_de_juan']['nivel'], 'lectura')
+        admin = new_test_user(self.env, login='juan_admin_brian', groups='base.group_user,base.group_system')
+        self.assertIn('costos_de_juan', {e['name'] for e in Brian.with_user(admin).catalogo()})
+        self.assertTrue(self.brian(admin, 7.5)['ok'])
+        for usuario in (self.vendedora, self.interno):
+            with self.subTest(usuario=usuario.login):
+                self.assertNotIn('costos_de_juan', {e['name'] for e in Brian.with_user(usuario).catalogo()})
+                respuesta = self.brian(usuario, 7.5)
+                self.assertFalse(respuesta['ok'])
+                self.assertIn('no tienes permiso', respuesta['error'])
+        # Pagar y deshacer el pago de la IA no son de Brian: no hay herramienta que los haga.
+        self.assertFalse([n for n in Brian._todas() if 'pagar' in n or ('deshacer' in n and 'pago' in n)])
+
+    def test_gerencia_recibe_las_cifras_de_la_pantalla(self):
+        respuesta = self.brian(self.gerente, 7.5)
+        self.assertTrue(respuesta['ok'], respuesta)
+        datos = respuesta['datos']
+        self.assertEqual((datos['por_pagar_a_meta'], datos['ultimo_pago']), ('$7.50', 'ninguno todavía'))
+        self.assertEqual(datos['gasto_del_mes']['gasto'], '$7.50')
+        self.assertEqual((datos['gasto_del_mes']['tope'], datos['gasto_del_mes']['porcentaje_del_tope']),
+                         ('$30.00', '25 %'))
+        self.assertEqual(datos['gasto_del_mes']['mes'], 'noviembre de 2026')
+        self.assertIn('«Pagar»', datos['para_marcar_un_pago'])
+        self.assertEqual(datos['abrir']['titulo'], 'Costos de IA')
+        # Después de pagar en la pantalla: el saldo en $0 y el último pago; luego vuelve a contar.
+        self.pagar(panama(2026, 11, 12, 10, 0), 7.5)
+        datos = self.brian(self.gerente, 7.5)['datos']
+        self.assertEqual((datos['por_pagar_a_meta'], datos['ultimo_pago']),
+                         ('$0.00', {'monto': '$7.50', 'fecha': '12 nov, 10:00 a. m.'}))
+        datos = self.brian(self.gerente, 8.25)['datos']
+        self.assertEqual(datos['por_pagar_a_meta'], '$0.75')
+        self.assertEqual(datos['gasto_del_mes']['gasto'], '$8.25', 'el gasto del mes sigue completo')
+        with freeze_time(panama(2026, 11, 12, 11, 0)):
+            self.assertEqual(self.panel.costos()['pagos']['saldo'], 0.75, 'la misma cifra que la pantalla')
+        self.assertEqual(self.Pago.search_count([]), 1, 'Brian solo lee: no registró nada')
+
+    def test_si_faltan_fotos_lo_dice(self):
+        self.pagar(panama(2026, 10, 20, 10, 0), 8.0)
+        self.Foto.search([]).unlink()
+        self.Foto._guardar(date(2026, 10, 25), 10.0)
+        datos = self.brian(self.gerente, 1.5, panama(2026, 12, 3, 10, 0))['datos']
+        self.assertTrue(datos['por_pagar_a_meta'].startswith('$3.50 (aprox.'), datos['por_pagar_a_meta'])
+
+    def test_con_el_worker_caido_no_inventa_cifras(self):
+        self.pagar(panama(2026, 11, 12, 10, 0), 7.5)
+        self.worker.rutas['GET', '/odoo/salud'] = requests.ConnectionError('sin red')
+        datos = self.brian(self.gerente)['datos']
+        self.assertIn('No pude hablar con Juan', datos['sin_cifras'])
+        self.assertIn('no se inventan', datos['sin_cifras'])
+        self.assertNotIn('por_pagar_a_meta', datos)
+        self.assertNotIn('gasto_del_mes', datos)
+        self.assertEqual(datos['ultimo_pago'], {'monto': '$7.50', 'fecha': '12 nov, 10:00 a. m.'})
+        with patch.dict(os.environ, {'JUAN_URL': '', 'JUAN_WORKER_TOKEN': ''}):
+            datos = self.brian(self.gerente)['datos']
+        self.assertIn('Falta conectar el bot', datos['sin_cifras'])
