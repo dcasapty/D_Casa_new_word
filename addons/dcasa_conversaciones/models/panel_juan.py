@@ -370,14 +370,21 @@ class DcasaJuanPanel(models.AbstractModel):
 
     @api.model
     def _tomar_foto_de_costos(self, informe=None):
-        """Guarda el acumulado de hoy (hora de Panamá). Devuelve el informe de salud que usó, o ``None``."""
+        """Guarda el acumulado de hoy (hora de Panamá). Devuelve el informe de salud que usó, o ``None``.
+
+        Sin foto si el Worker no pudo leer el gasto (``gasto_ia_mes_usd: null``: sin dato, no un cero) o si el
+        acumulado es de otro mes que hoy (a las 00:00 del día 1 los relojes pueden diferir unos segundos: el total del
+        mes viejo no puede quedar como foto del mes nuevo)."""
         Cliente = self.env['dcasa.juan.cliente']
         if informe is None:
             respuesta = Cliente.informe_de_salud() if Cliente.configurado() else None
             informe = respuesta['cuerpo'] if respuesta and respuesta['conectado'] and not respuesta['error'] else None
         gasto = (informe or {}).get('gasto_ia_mes_usd')
-        if isinstance(gasto, (int, float)) and not isinstance(gasto, bool) and gasto >= 0:
-            self.env['dcasa.juan.costo.dia']._guardar(self._ahora_local().date(), float(gasto))
+        hoy = self._ahora_local().date()
+        mes = (informe or {}).get('mes')
+        de_otro_mes = C.mes_valido(mes) and mes != hoy.strftime('%Y-%m')
+        if isinstance(gasto, (int, float)) and not isinstance(gasto, bool) and gasto >= 0 and not de_otro_mes:
+            self.env['dcasa.juan.costo.dia']._guardar(hoy, float(gasto))
         return informe
 
     @api.model
@@ -401,7 +408,13 @@ class DcasaJuanPanel(models.AbstractModel):
                     'detalle': self._detalle_del_fallo(salud)}
         informe = salud['cuerpo']
         ahora_local = self._ahora_local()
-        gasto = float(informe.get('gasto_ia_mes_usd') or 0)
+        gasto = informe.get('gasto_ia_mes_usd')
+        if not isinstance(gasto, (int, float)) or isinstance(gasto, bool) or gasto < 0:
+            # El Worker contestó pero no pudo leer su contador (``null``): sin dato, no un $0 inventado.
+            return {'configurado': True, 'ok': False, 'mensaje': 'No pude leer el gasto de IA',
+                    'detalle': 'Juan (el Worker) contestó, pero no pudo leer cuánto va el mes. Inténtalo en un '
+                               'momento; si sigue así, revisa Conexiones.'}
+        gasto = float(gasto)
         tope = float(informe.get('tope_usd') or 0)
         self._tomar_foto_de_costos(informe)
         detalle = Cliente.costos()
@@ -434,7 +447,8 @@ class DcasaJuanPanel(models.AbstractModel):
                    'modelo_rapido': ia.get('modelo_rapido'), 'modelo_inteligente': ia.get('modelo_inteligente'),
                    'claves_faltantes': [str(c) for c in (ia.get('claves_faltantes') or [])]},
             'avisos': [str(a)[:300] for a in (informe.get('avisos') or [])][:8],
-            'pagos': self._saldo_ia((mes, gasto)),
+            # El mes del acumulado lo dice el Worker (el de Odoo solo si es un Worker viejo que no lo manda).
+            'pagos': self._saldo_ia((informe['mes'] if C.mes_valido(informe.get('mes')) else mes, gasto)),
         }
 
     # ------------------------------------------------------------------

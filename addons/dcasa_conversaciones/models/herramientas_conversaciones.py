@@ -220,17 +220,17 @@ class BrianHerramientasConversaciones(models.AbstractModel):
         if not d.get('ok'):
             # Sin el Worker no hay cifras de hoy: se dice, no se inventan. El último pago sí se sabe (está en Odoo).
             ultimo = panel._saldo_ia()['ultimo']
+            causa = ('Falta conectar el bot (Worker de Juan)' if not d.get('configurado')
+                     else d.get('mensaje') or 'No pude hablar con el Worker')
             return self._con_boton_de_costos({
-                'sin_cifras': ('Falta conectar el bot (Worker de Juan): ' if not d.get('configurado')
-                               else 'No pude hablar con Juan (el Worker): ') + (d.get('detalle') or '')
-                              + ' Sin él no hay cifras de hoy; no se inventan.',
+                'sin_cifras': f"{causa}: {d.get('detalle') or ''} Sin eso no hay cifras de hoy; no se inventan.",
                 'ultimo_pago': self._texto_ultimo_pago_ia(ultimo),
                 'para_marcar_un_pago': DONDE_SE_PAGA,
             })
         pagos = d['pagos']
         por_pagar = c.moneda(pagos['saldo'])
         if pagos['aprox']:
-            por_pagar += ' (aprox.: faltan fotos del gasto de algún mes, puede ser un poco más)'
+            por_pagar += f" (aprox.: {pagos['aprox_texto'] or 'puede ser un poco más'})"
         return self._con_boton_de_costos({
             'por_pagar_a_meta': por_pagar,
             'ultimo_pago': self._texto_ultimo_pago_ia(pagos['ultimo']),
