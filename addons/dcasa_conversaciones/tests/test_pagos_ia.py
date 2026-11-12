@@ -1,7 +1,8 @@
-"""«Costos de IA»: anotar que Meta ya cobró y ver lo consumido desde el último pago (pedido de la dueña, 2026-11-12).
+"""«Costos de IA › Pagar» (pedido de la dueña, 2026-11-12): «Por pagar a Meta» vuelve a $0 y empieza a contar de nuevo.
 
-Un pago no borra ni reinicia nada: marca un corte. Las cuentas puras (con sus bordes: otro mes, Worker caído, meses sin
-fotos, varios pagos), el libro que no se edita ni se borra (se anula con motivo) y quién puede verlo y anotarlo.
+Por dentro un pago no borra ni reinicia nada: marca un corte. Las cuentas puras (con sus bordes: otro mes, Worker caído,
+meses sin fotos, varios pagos), el libro que no se edita ni se borra («Deshacer» lo anula con motivo), que sin Worker no
+se registra nada y quién puede pagar.
 """
 import os
 from datetime import date, datetime
@@ -167,89 +168,100 @@ class TestPagosDeLaIa(JuanCase):
     def gasto(self, usd):
         self.worker.rutas['GET', '/odoo/salud'] = {**SALUD, 'gasto_ia_mes_usd': usd}
 
-    def anotar(self, cuando, gasto=None, fecha=None, monto=None, nota=None):
-        """Anota un pago a esa hora (de Panamá) con el Worker diciendo ``gasto``."""
-        if gasto is not None:
-            self.gasto(gasto)
-        with freeze_time(cuando):
-            return self.Pago.browse(self.panel.registrar_pago_ia(fecha, monto, nota)['id'])
-
-    def pagos(self, cuando, gasto):
+    def saldo(self, cuando, gasto):
+        """Lo que dice la pantalla a esa hora (de Panamá) con el Worker llevando ``gasto`` del mes."""
         self.gasto(gasto)
         with freeze_time(cuando):
             return self.panel.costos()['pagos']
 
-    def test_anotado_ahora_el_corte_lo_da_el_worker(self):
-        self.gasto(7.5)
-        with freeze_time(panama(2026, 11, 12, 10, 0)):
-            r = self.panel.registrar_pago_ia(None, 7.4, '  cobro   a la tarjeta ')
-        p = self.Pago.browse(r['id'])
-        self.assertTrue(r['exacto'])
-        self.assertIn('exacto', r['corte'])
-        self.assertEqual((p.corte_mes, p.corte_acumulado_usd, p.corte_origen, p.al_momento),
-                         ('2026-11', 7.5, 'worker', True))
-        self.assertEqual((p.monto_meta_usd, p.nota, p.registrado_por, p.fecha),
-                         (7.4, 'cobro a la tarjeta', self.gerente, panama(2026, 11, 12, 10, 0)))
+    def pagar(self, cuando, gasto, saldo=None):
+        """Toca «Pagar» y confirma, con el saldo que la pantalla mostraba (si no se da, el de ese momento)."""
+        if saldo is None:
+            saldo = self.saldo(cuando, gasto)['saldo']
+        self.gasto(gasto)
+        with freeze_time(cuando):
+            return self.Pago.browse(self.panel.pagar_ia(saldo)['id'])
+
+    def test_sin_pagos_el_saldo_es_lo_del_mes(self):
+        datos = self.saldo(panama(2026, 11, 12, 10, 0), 7.5)
+        self.assertEqual(datos, {'saldo': 7.5, 'aprox': False, 'ultimo': None})
+
+    def test_pagar_deja_el_saldo_en_cero_y_empieza_a_contar(self):
+        pago = self.pagar(panama(2026, 11, 12, 10, 0), 7.5)
+        self.assertEqual((pago.monto_meta_usd, pago.corte_mes, pago.corte_acumulado_usd, pago.corte_origen),
+                         (7.5, '2026-11', 7.5, 'worker'))
+        self.assertEqual((pago.fecha, pago.registrado_por, pago.al_momento, pago.anulado),
+                         (panama(2026, 11, 12, 10, 0), self.gerente, True, False))
         self.assertEqual(self.Foto.search([('fecha', '=', date(2026, 11, 12))]).acumulado_usd, 7.5,
                          'al preguntarle al Worker queda también la foto de hoy')
+        despues = self.saldo(panama(2026, 11, 12, 10, 5), 7.5)
+        self.assertEqual((despues['saldo'], despues['ultimo']['monto'], despues['ultimo']['id']), (0.0, 7.5, pago.id))
+        self.assertEqual(despues['ultimo']['texto'], '12 nov, 10:00 a. m.')
+        # Y vuelve a contar: lo del mes sigue completo, el saldo es solo lo de después del pago.
+        self.assertEqual(self.saldo(panama(2026, 11, 12, 15, 0), 8.25)['saldo'], 0.75)
+        with freeze_time(panama(2026, 11, 12, 15, 0)):
+            self.assertEqual(self.panel.costos()['gasto_usd'], 8.25)
 
-    def test_la_fecha_de_hace_un_momento_tambien_es_ahora(self):
-        p = self.anotar(panama(2026, 11, 12, 10, 4), 7.5, fecha='2026-11-12T10:00')
-        self.assertEqual((p.corte_origen, p.fecha), ('worker', panama(2026, 11, 12, 10, 0)))
-        # Unos minutos «adelante» (el reloj del teléfono) son ahora, con la hora del servidor.
-        p = self.anotar(panama(2026, 11, 12, 10, 4), 7.5, fecha='2026-11-12T10:09')
-        self.assertEqual((p.corte_origen, p.fecha), ('worker', panama(2026, 11, 12, 10, 4)))
-
-    def test_sin_worker_usa_la_ultima_foto_y_lo_dice(self):
-        self.Foto._guardar(date(2026, 11, 10), 4.0)
-        self.Foto._guardar(date(2026, 11, 11), 5.5)
+    def test_con_el_worker_caido_no_se_registra_nada(self):
         self.worker.rutas['GET', '/odoo/salud'] = requests.ConnectionError('sin red')
-        with freeze_time(panama(2026, 11, 12, 10, 0)):
-            r = self.panel.registrar_pago_ia()
-        p = self.Pago.browse(r['id'])
-        self.assertEqual((p.corte_origen, p.corte_foto, p.corte_acumulado_usd), ('foto', date(2026, 11, 11), 5.5))
-        self.assertFalse(r['exacto'])
-        self.assertIn('no respondió', r['corte'])
-        self.assertIn('11 de noviembre', r['corte'])
-
-    def test_un_pago_de_otro_dia_usa_la_foto_del_dia_anterior_sin_preguntar_al_worker(self):
-        for dia, usd in ((3, 2.0), (4, 2.6), (5, 3.1)):
-            self.Foto._guardar(date(2026, 11, dia), usd)
-        p = self.anotar(panama(2026, 11, 12, 10, 0), fecha='2026-11-05T09:30')
-        self.assertEqual((p.corte_origen, p.corte_foto, p.corte_acumulado_usd, p.al_momento),
-                         ('foto', date(2026, 11, 4), 2.6, False))
-        self.assertEqual((p.fecha, p.monto_meta_usd), (panama(2026, 11, 5, 9, 30), 0.0))
-        self.assertEqual(self.worker.llamadas, [])
-
-    def test_sin_fotos_de_ese_mes_cuenta_desde_el_inicio_del_mes(self):
-        self.Foto._guardar(date(2026, 10, 31), 9.0)
-        p = self.anotar(panama(2026, 11, 12, 10, 0), fecha='2026-11-03T08:00')
-        self.assertEqual((p.corte_origen, p.corte_mes, p.corte_acumulado_usd), ('inicio_de_mes', '2026-11', 0.0))
-        self.assertIn('1 de noviembre', self.panel._texto_del_corte(p, self.panel._horario()))
-
-    def test_fechas_y_montos_que_no_sirven(self):
-        with freeze_time(panama(2026, 11, 12, 10, 0)):
-            for fecha in ('2026-11-12T11:00', '2025-01-01T10:00', 'ayer', '12/11/2026 10:00', '2026-02-30T10:00', 5):
-                with self.subTest(fecha=fecha), self.assertRaises(UserError):
-                    self.panel.registrar_pago_ia(fecha)
-            for monto in (-1, 'mucho', True, float('nan'), 1e9, [3]):
-                with self.subTest(monto=monto), self.assertRaises(UserError):
-                    self.panel.registrar_pago_ia(None, monto)
-            with self.assertRaises(UserError):
-                self.panel.registrar_pago_ia(None, None, {'texto': 'x'})
+        with freeze_time(panama(2026, 11, 12, 10, 0)), self.assertRaisesRegex(UserError, 'No pude hablar con Juan'):
+            self.panel.pagar_ia(7.5)
+        self.worker.rutas['GET', '/odoo/salud'] = ({'ok': False, 'error': 'no autorizado'}, 401)
+        with self.assertRaisesRegex(UserError, 'No pude hablar con Juan'):
+            self.panel.pagar_ia(7.5)
+        with patch.dict(os.environ, {'JUAN_URL': '', 'JUAN_WORKER_TOKEN': ''}), \
+                self.assertRaisesRegex(UserError, 'No pude hablar con Juan'):
+            self.panel.pagar_ia(7.5)
         self.assertFalse(self.Pago.search([]))
-        self.assertEqual(self.anotar(panama(2026, 11, 12, 10, 0), monto='11,20').monto_meta_usd, 11.2)
-        self.assertEqual(self.anotar(panama(2026, 11, 12, 10, 0), monto='').monto_meta_usd, 0.0, 'vacío = sin anotar')
-        self.assertEqual(len(self.anotar(panama(2026, 11, 12, 10, 0), nota='x' * 900).nota), 300)
+        # Con el Worker caído la pantalla no muestra un saldo inventado.
+        self.worker.rutas['GET', '/odoo/salud'] = requests.ConnectionError('sin red')
+        self.assertNotIn('pagos', self.panel.costos())
+
+    def test_un_saldo_que_no_sirve(self):
+        with freeze_time(panama(2026, 11, 12, 10, 0)):
+            self.gasto(7.5)
+            for saldo in (-1, 'mucho', True, None, float('nan'), 1e9, [3]):
+                with self.subTest(saldo=saldo), self.assertRaises(UserError):
+                    self.panel.pagar_ia(saldo)
+            with self.assertRaisesRegex(UserError, 'nada por pagar'):
+                self.panel.pagar_ia(0)
+            with self.assertRaisesRegex(UserError, 'cambió'):
+                self.panel.pagar_ia(9.0)      # más de lo que hay: la pantalla estaba vieja
+            # Menos sí (se siguió consumiendo mientras confirmaba): queda lo que se vio y el corte de ahora.
+            pago = self.Pago.browse(self.panel.pagar_ia(7.2)['id'])
+        self.assertEqual((pago.monto_meta_usd, pago.corte_acumulado_usd), (7.2, 7.5))
+        self.assertEqual(self.Pago.search_count([]), 1)
+
+    def test_deshacer_el_ultimo_pago_deja_el_saldo_como_estaba(self):
+        primero = self.pagar(panama(2026, 11, 10, 9, 0), 3.0)
+        segundo = self.pagar(panama(2026, 11, 12, 9, 0), 6.0)
+        self.assertEqual(self.saldo(panama(2026, 11, 12, 12, 0), 6.5)['saldo'], 0.5)
+        with self.assertRaisesRegex(UserError, 'último'):
+            self.panel.deshacer_pago_ia(primero.id)
+        for raro in (999999, 'x', True):
+            with self.subTest(pago=raro), self.assertRaises(UserError):
+                self.panel.deshacer_pago_ia(raro)
+        with freeze_time(panama(2026, 11, 12, 12, 1)):
+            self.panel.deshacer_pago_ia(segundo.id)
+        self.assertEqual((segundo.anulado, segundo.motivo_anulacion, segundo.anulado_por, segundo.anulado_el),
+                         (True, 'Deshecho desde la pantalla', self.gerente, panama(2026, 11, 12, 12, 1)))
+        datos = self.saldo(panama(2026, 11, 12, 12, 2), 6.5)
+        self.assertEqual((datos['saldo'], datos['ultimo']['id']), (3.5, primero.id), 'cuenta desde el pago anterior')
+        with self.assertRaises(UserError):
+            self.panel.deshacer_pago_ia(segundo.id)    # ya deshecho
+        # El de antes ahora es el último: también se puede deshacer, y sin pagos vuelve a ser lo del mes.
+        self.panel.deshacer_pago_ia(primero.id)
+        self.assertEqual(self.saldo(panama(2026, 11, 12, 12, 3), 6.5), {'saldo': 6.5, 'aprox': False, 'ultimo': None})
+        self.assertEqual(self.Pago.search_count([]), 2, 'nada se borra: quedan en la historia, anulados')
 
     def test_un_pago_no_se_edita_ni_se_borra(self):
-        p = self.anotar(panama(2026, 11, 12, 10, 0), 7.5, monto=7.4)
+        p = self.pagar(panama(2026, 11, 12, 10, 0), 7.5)
         for cambio in ({'monto_meta_usd': 1.0}, {'corte_acumulado_usd': 0.0}, {'anulado': True}):
             with self.subTest(cambio=cambio), self.assertRaises(UserError):
                 p.write(cambio)
         with self.assertRaises(UserError):
             p.unlink()
-        # Ni Gerencia por RPC: el ACL solo da lectura (los pagos se crean y se anulan por el panel).
+        # Ni Gerencia por RPC: el ACL solo da lectura (los pagos se crean y se deshacen por el panel).
         Rpc = self.env(user=self.gerente)['dcasa.juan.pago.ia']
         with self.assertRaises(UserError):
             call_kw(Rpc, 'write', [[p.id], {'monto_meta_usd': 1.0}], {})
@@ -261,104 +273,42 @@ class TestPagosDeLaIa(JuanCase):
                                      'corte_acumulado_usd': 0.0, 'corte_origen': 'worker'}], {})
         with self.assertRaises(UserError):
             call_kw(Rpc, 'unlink', [[p.id]], {})
-        self.assertEqual((p.monto_meta_usd, p.corte_acumulado_usd, p.anulado), (7.4, 7.5, False))
+        self.assertEqual((p.monto_meta_usd, p.corte_acumulado_usd, p.anulado), (7.5, 7.5, False))
         self.assertEqual(len(call_kw(Rpc, 'search_read', [[]], {'fields': ['monto_meta_usd']})), 1, 'Gerencia lo lee')
 
-    def test_anular_deja_la_historia_y_deja_de_contar(self):
-        primero = self.anotar(panama(2026, 11, 10, 9, 0), 3.0, monto=3.0)
-        segundo = self.anotar(panama(2026, 11, 12, 9, 0), 6.0, monto=3.1)
-        antes = self.pagos(panama(2026, 11, 12, 12, 0), 6.5)
-        self.assertEqual((antes['desde_el_ultimo']['usd'], antes['total']), (0.5, 2))
-        with self.assertRaises(UserError):
-            self.panel.anular_pago_ia(segundo.id, '   ')
-        with freeze_time(panama(2026, 11, 12, 11, 0)):
-            self.panel.anular_pago_ia(segundo.id, 'Me equivoqué de fecha')
-        self.assertEqual((segundo.anulado, segundo.motivo_anulacion, segundo.anulado_por, segundo.anulado_el),
-                         (True, 'Me equivoqué de fecha', self.gerente, panama(2026, 11, 12, 11, 0)))
-        for repetido in (segundo.id, 999999, 'x'):
-            with self.subTest(pago=repetido), self.assertRaises(UserError):
-                self.panel.anular_pago_ia(repetido, 'otra vez')
-        despues = self.pagos(panama(2026, 11, 12, 12, 0), 6.5)
-        self.assertEqual(despues['desde_el_ultimo']['usd'], 3.5, 'desde el primer pago: el anulado no cuenta')
-        self.assertEqual(despues['ultimo']['id'], primero.id)
-        fila = next(f for f in despues['lista'] if f['id'] == segundo.id)
-        self.assertTrue(fila['anulado'])
-        self.assertIn('Me equivoqué de fecha', fila['anulado_texto'])
-        self.assertIn(self.gerente.name, fila['anulado_texto'])
-        self.assertEqual((fila['calculado'], fila['diferencia'], despues['total']), (None, None, 2))
-
-    def test_una_vendedora_no_ve_ni_anota_ni_anula(self):
-        p = self.anotar(panama(2026, 11, 12, 10, 0), 7.5)
+    def test_una_vendedora_no_puede_pagar_ni_deshacer(self):
+        p = self.pagar(panama(2026, 11, 12, 10, 0), 7.5)
         for usuario in (self.vendedora, self.interno, self.portal):
-            for metodo, args in (('registrar_pago_ia', []), ('anular_pago_ia', [p.id, 'no me gusta'])):
+            for metodo, args in (('pagar_ia', [1.0]), ('deshacer_pago_ia', [p.id]), ('costos', [])):
                 with self.subTest(usuario=usuario.login, metodo=metodo), self.assertRaises(AccessError):
                     call_kw(self.env(user=usuario)['dcasa.juan.panel'], metodo, args, {})
             with self.subTest(usuario=usuario.login, metodo='search_read'), self.assertRaises(AccessError):
                 call_kw(self.env(user=usuario)['dcasa.juan.pago.ia'], 'search_read', [[]], {})
-            with self.subTest(usuario=usuario.login, metodo='costos'), self.assertRaises(AccessError):
-                call_kw(self.env(user=usuario)['dcasa.juan.panel'], 'costos', [], {})
         self.assertEqual((self.Pago.search_count([]), p.anulado), (1, False))
-        self.assertFalse(self.env['dcasa.juan.panel'].with_user(self.vendedora)._pagos_ia()['hay'])
+        panel = self.env['dcasa.juan.panel'].with_user(self.vendedora)
+        self.assertEqual(panel._saldo_ia(('2026-11', 9.0)), {'saldo': None, 'aprox': False, 'ultimo': None})
 
-    def test_un_administrador_tambien_anota_pagos(self):
+    def test_un_administrador_tambien_puede_pagar(self):
         admin = new_test_user(self.env, login='juan_admin_pagos', groups='base.group_user,base.group_system')
         self.gasto(2.0)
         with freeze_time(panama(2026, 11, 12, 10, 0)):
-            r = call_kw(self.env(user=admin)['dcasa.juan.panel'], 'registrar_pago_ia', [], {'monto': 2.5})
+            r = call_kw(self.env(user=admin)['dcasa.juan.panel'], 'pagar_ia', [2.0], {})
         self.assertEqual(self.Pago.browse(r['id']).registrado_por, admin)
 
-    def test_sin_pagos_la_pantalla_queda_como_hoy(self):
-        with freeze_time(panama(2026, 11, 12, 10, 0)):
-            r = self.panel.costos()
-        self.assertTrue(r['ok'])
-        self.assertEqual(r['gasto_usd'], 12.34)
-        self.assertEqual((r['pagos']['hay'], r['pagos']['desde_el_ultimo'], r['pagos']['lista']), (False, None, []))
-        self.assertEqual((r['pagos']['ahora_local'], r['pagos']['zona']), ('2026-11-12T10:00', 'America/Panama'))
+    def test_pago_en_un_mes_y_saldo_en_otro(self):
+        self.pagar(panama(2026, 10, 20, 10, 0), 8.0)
+        self.Foto._guardar(date(2026, 10, 31), 12.5)          # octubre cerró en 12,50
+        datos = self.saldo(panama(2026, 11, 12, 10, 0), 3.25)   # noviembre lleva 3,25
+        self.assertEqual((datos['saldo'], datos['aprox']), (7.75, False))
+        self.assertEqual(datos['ultimo']['texto'], '20 oct, 10:00 a. m.')
 
-    def test_el_mes_del_pago_y_el_de_la_consulta_son_distintos(self):
-        self.anotar(panama(2026, 10, 20, 10, 0), 8.0, monto=20.0)
-        self.Foto._guardar(date(2026, 10, 31), 12.5)
-        desde = self.pagos(panama(2026, 11, 12, 10, 0), 3.25)['desde_el_ultimo']
-        self.assertEqual((desde['usd'], desde['completo'], desde['aproximado']), (7.75, True, False))
+    def test_sin_las_fotos_de_un_mes_el_saldo_sale_aproximado(self):
+        self.pagar(panama(2026, 10, 20, 10, 0), 8.0)
+        self.Foto.search([]).unlink()                        # la foto que dejó el pago
+        self.Foto._guardar(date(2026, 10, 25), 10.0)         # el cron dejó de correr el 25
+        datos = self.saldo(panama(2026, 12, 3, 10, 0), 1.5)
+        self.assertEqual((datos['saldo'], datos['aprox']), (3.5, True))   # (10 − 8) + 0 (noviembre) + 1,5: un mínimo
 
-    def test_sin_el_cierre_del_mes_la_cifra_es_un_minimo_y_lo_dice(self):
-        self.anotar(panama(2026, 10, 20, 10, 0), 8.0)
-        self.Foto.search([]).unlink()      # la foto que dejó el pago
-        self.Foto._guardar(date(2026, 10, 25), 10.0)   # el cron dejó de correr el 25
-        desde = self.pagos(panama(2026, 12, 3, 10, 0), 1.5)['desde_el_ultimo']
-        self.assertEqual((desde['usd'], desde['completo']), (3.5, False))   # (10 − 8) + 0 (noviembre) + 1,5
-        self.assertEqual(desde['meses_incompletos'], ['octubre de 2026'])
-        self.assertEqual(desde['meses_sin_datos'], ['noviembre de 2026'])
-        self.assertEqual(desde['faltan_texto'], 'octubre de 2026, noviembre de 2026')
-
-    def test_varios_pagos_cada_uno_con_su_periodo_y_su_diferencia(self):
-        p1 = self.anotar(panama(2026, 11, 2, 9, 0), 1.0, monto=9.0)
-        p2 = self.anotar(panama(2026, 11, 6, 9, 0), 4.0, monto=3.05)
-        p3 = self.anotar(panama(2026, 11, 10, 9, 0), 7.0)
-        datos = self.pagos(panama(2026, 11, 12, 10, 0), 8.2)
-        filas = {f['id']: f for f in datos['lista']}
-        self.assertEqual([f['id'] for f in datos['lista']], [p3.id, p2.id, p1.id], 'el más reciente arriba')
-        self.assertEqual((filas[p1.id]['primero'], filas[p1.id]['calculado']), (True, None))
-        self.assertEqual((filas[p2.id]['calculado'], filas[p2.id]['monto'], filas[p2.id]['diferencia']),
-                         (3.0, 3.05, 0.05))
-        self.assertEqual((filas[p3.id]['calculado'], filas[p3.id]['monto'], filas[p3.id]['diferencia']),
-                         (3.0, None, None))
-        self.assertEqual(datos['desde_el_ultimo']['usd'], 1.2)
-        self.assertIn('10 nov. 2026', filas[p3.id]['fecha_texto'])
-        self.assertIn('10 de noviembre de 2026', datos['ultimo']['fecha_texto'])
-
-    def test_con_el_worker_caido_o_sin_conectar_se_ven_los_pagos_sin_la_cifra(self):
-        self.anotar(panama(2026, 11, 12, 9, 0), 7.5, monto=7.4)
-        self.worker.rutas['GET', '/odoo/salud'] = requests.ConnectionError('sin red')
-        with freeze_time(panama(2026, 11, 12, 10, 0)):
-            r = self.panel.costos()
-        self.assertFalse(r['ok'])
-        self.assertEqual((r['pagos']['hay'], r['pagos']['desde_el_ultimo'], len(r['pagos']['lista'])), (True, None, 1))
-        self.assertTrue(r['pagos']['ultimo'])
-        with patch.dict(os.environ, {'JUAN_URL': '', 'JUAN_WORKER_TOKEN': ''}), \
-                freeze_time(panama(2026, 11, 12, 10, 0)):
-            r = self.panel.costos()
-            self.assertFalse(r['configurado'])
-            self.assertTrue(r['pagos']['hay'])
-            # Sin Worker también se puede anotar (el corte sale de las fotos).
-            self.assertFalse(self.panel.registrar_pago_ia()['exacto'])
+    def test_el_ano_sale_solo_si_no_es_el_de_ahora(self):
+        self.pagar(panama(2026, 12, 30, 18, 0), 4.0)
+        self.assertEqual(self.saldo(panama(2027, 1, 2, 9, 0), 0.5)['ultimo']['texto'], '30 dic 2026, 6:00 p. m.')

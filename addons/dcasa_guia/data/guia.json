@@ -3197,12 +3197,12 @@
    "tambien": [
     "administrar"
    ],
-   "titulo": "Anotar que ya pagaste la IA a Meta y ver lo consumido desde ese pago",
-   "logras": "En Costos de IA, «Registrar pago» anota el día y la hora en que Meta te cobró (y cuánto, si lo sabes). Arriba sale «Consumido desde el último pago»: lo que se ha gastado desde ese cobro, para ir a la par con lo que te cobra Meta. No se borra nada: lo del mes sigue completo. Solo Gerencia.",
+   "titulo": "Marcar como pagado lo que debes de la IA",
+   "logras": "En Costos de IA, arriba dice «Por pagar a Meta»: lo que se ha gastado desde tu último pago. Cuando le pagas a Meta, tocas «Pagar» y dices que sí: el saldo vuelve a cero y empieza a contar de nuevo. Lo del mes sigue completo más abajo. Solo Gerencia.",
    "destino": {
     "menu": "dcasa_conversaciones.menu_dcasa_panel_costos"
    },
-   "nota": "Anótalo en el momento en que Meta te cobra: así el sistema le pregunta al asistente cuánto va el mes y la cuenta queda exacta. Si te equivocaste, toca «Anular» en ese pago y escribe por qué: queda en la lista, pero ya no cuenta.",
+   "nota": "Si lo tocaste sin querer, «Deshacer», junto a «Último pago», lo deja como estaba.",
    "palabras": [
     "pagar la ia",
     "pago de la ia",
@@ -3211,9 +3211,12 @@
     "saldar",
     "reiniciar",
     "ya pague",
+    "saldo",
+    "por pagar",
     "cobro de meta",
     "gasto de ia",
-    "consumo"
+    "cuanto debo de la ia",
+    "marcar como pagado"
    ]
   },
   {
