@@ -1014,6 +1014,12 @@ LISTA_BLANCA = {
     ('dcasa_envios', 'dcasa.envio.lugar', 'action_volver_al_archivo'):
         'Exige Gerencia o administrador y check_access("write") en el servidor; solo borra la marca «cambiado en '
         'Odoo».',
+    ('dcasa_envios', 'sale.order', 'action_confirm'):
+        OVERRIDE + ' Comprueba check_access("write") y, antes de super(), revisa la promoción de envío (la quita con '
+                   'sudo y una nota si ya no vale; revisión adversarial B1).',
+    ('dcasa_envios', 'sale.order', 'copy'):
+        OVERRIDE + ' Duplicar de Odoo; la copia (creada como el usuario) no trae la línea de la promoción de envío: se '
+                   'vuelve a calcular con sudo con la fecha y la compra de la copia, o queda una nota (M4).',
     ('dcasa_envios', 'dcasa.envio.lugar', 'action_marcar_revisado'):
         'Exige Gerencia o administrador y check_access("write") en el servidor; solo enciende «Revisado por '
         'Gerencia» con quién y cuándo (I7: hasta entonces Juan no da el precio de un lugar que agregó el equipo).',

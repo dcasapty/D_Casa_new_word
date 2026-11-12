@@ -334,6 +334,8 @@ class SaleOrder(models.Model):
         return super()._dcasa_validar_tope_del_pedido(antes)
 
     def action_confirm(self):
+        # La revisión quita líneas con sudo: antes, que quien confirma pueda escribir en la venta.
+        self.check_access('write')
         self._dcasa_promocion_sincronizar()
         return super().action_confirm()
 
