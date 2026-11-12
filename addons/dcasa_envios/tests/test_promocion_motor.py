@@ -178,6 +178,34 @@ class TestPromocionDeEnvio(BaseCase):
         colchon = self.aplicar(precio=45.0, datos=compra(900.0, colchon=True))
         self.assertEqual(papeles(P.respaldo(colchon)), (45.0, None, None, False, False, None, None))
 
+    def test_m7_nunca_una_cifra_negativa_de_la_compra(self):
+        """Segunda vuelta (M-7): una compra en negativo (más rebaja que productos) no dice «tu cotización suma $-50»."""
+        resultado = self.aplicar(datos=compra(-50.0))
+        self.assertEqual((resultado['motivo'], resultado['compra_medida']), (P.MONTO, 0.0))
+        self.assertEqual(resultado['frase'], 'La promoción de noviembre es para compras de más de $200 sin ITBMS, así '
+                                             'que el envío va a su precio normal.')
+        self.assertNotIn('-', resultado['frase'])
+        self.assertIsNone(P.respaldo(resultado)['compra'])
+
+    def test_lo_prometido_con_los_terminos_guardados(self):
+        """Segunda vuelta (I-1, I-2): lo sumado se revisa con sus términos guardados, no con la promoción de hoy."""
+        sumado = self.aplicar(precio=90.0, prov='Colón', dist='Colón', datos=compra(300.0))
+        terminos = P.terminos(NOVIEMBRE, sumado, date(2026, 11, 28), promocion_id=7)
+        self.assertEqual(terminos, {
+            'promocion_id': 7, 'nombre': 'Envío Gratis Todo Noviembre', 'desde': '2026-11-01', 'hasta': '2026-11-30',
+            'minimo': 200.0, 'mide': 'sin_itbms', 'zona': 'abono', 'abono': 20.0, 'excluye_colchon': True,
+            'sumada_el': '2026-11-28'})
+        # Sin mirar la fecha (eso lo decide quien llama: la cotización no venció) y con la compra de ahora.
+        ahora = P.con_lo_prometido(terminos, 90.0, compra(250.0))
+        self.assertEqual((ahora['aplica'], ahora['ahorro'], ahora['precio_final']), (True, 20.0, 70.0))
+        self.assertEqual(P.con_lo_prometido(terminos, 90.0, compra(150.0))['motivo'], P.MONTO)
+        self.assertEqual(P.con_lo_prometido(terminos, 90.0, compra(300.0, colchon=True))['motivo'], P.COLCHON)
+        self.assertEqual(P.con_lo_prometido(terminos, 0.0, compra(300.0))['motivo'], P.SIN_PRECIO)
+        self.assertEqual(P.recordar(terminos, ahora),
+                         "Tu cotización ya tiene la promoción de noviembre, así que D'CASA te abona $20 del envío: te "
+                         'queda en $70.')
+        self.assertEqual(P.recordar(terminos, P.con_lo_prometido(terminos, 90.0, compra(150.0))), '')
+
     # --- Sin cotización todavía: las condiciones ------------------------------------------------------------------
     def test_sin_compra_dice_las_condiciones_y_no_dice_que_aplica(self):
         gratis = self.aplicar(precio=15.0)

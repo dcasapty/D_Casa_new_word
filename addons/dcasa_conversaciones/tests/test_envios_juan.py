@@ -17,7 +17,6 @@ from .test_api import ApiCase
 from .test_cotizacion_automatica import CotizarCase
 
 HOY = 'odoo.addons.dcasa_envios.models.promocion.EnvioPromocion._hoy'
-FECHA_COTIZACION = 'odoo.addons.dcasa_envios.models.venta.SaleOrder._dcasa_promocion_fecha'
 COSTA = ('Costa Inventada', 'Santa Prueba', 'Panamá')         # cómo se nombra el lugar (respaldo de la guardia)
 
 
@@ -37,10 +36,8 @@ class EnviosJuanCase(CotizarCase):
 
     def setUp(self):
         super().setUp()
-        self.startPatcher(patch(HOY, return_value=date(2026, 11, 12)))
-        # Las cotizaciones se tienen por creadas «hoy» (la fecha de creación es la que decide la promoción).
-        self.startPatcher(patch(FECHA_COTIZACION, autospec=True,
-                                side_effect=lambda orden: orden.env['dcasa.envio.promocion']._hoy()))
+        self.hoy = date(2026, 11, 12)
+        self.startPatcher(patch(HOY, side_effect=lambda: self.hoy))
 
     @staticmethod
     def papeles(datos):
@@ -174,6 +171,50 @@ class TestCotizarEnvio(EnviosJuanCase):
         self.assertIn('Calle Repetida (Barrio Simulado, Colón)', datos['frase_para_el_cliente'])
         self.assertNotIn('$', json.dumps(datos))
 
+    def test_r9_un_gemelo_por_revisar_no_le_quita_el_precio_al_lugar_real(self):
+        """Segunda vuelta (M-3/R9): un lugar que agregó el equipo con el mismo nombre y zona (y otro precio) no cuenta
+        para la ambigüedad mientras esté «Por revisar»."""
+        vendedora = new_test_user(self.env, login='vend_r9', name='Vendedora R9',
+                                  groups='base.group_user,dcasa_base.group_vendedora')
+        gemelo = self.env['dcasa.envio.lugar'].with_user(vendedora).create({
+            'name': 'Costa Inventada', 'tipo': 'edificio', 'dist': 'Panamá', 'corr': 'Santa Prueba', 'km': 2.0})
+        for argumentos in ({'lugar': 'Costa Inventada'}, {'lugar_id': self.costa.id}):
+            with self.subTest(argumentos=argumentos):
+                datos = self.envio(**argumentos)
+                self.assertEqual((datos['estado'], datos['envio_normal']), ('precio', 45.0))
+        self.assertEqual(self.envio(lugar_id=gemelo.id)['motivo'], 'sin_revisar')
+        # Revisado por Gerencia, ya son dos lugares iguales con otro precio: se pide un punto de referencia.
+        gemelo.with_user(self.gerencia).action_marcar_revisado()
+        self.assertEqual(self.envio(lugar='Costa Inventada')['motivo'], 'mismo_nombre')
+
+    def test_i1_juan_nunca_ofrece_una_promocion_que_ya_termino(self):
+        """Segunda vuelta (I-1/R10): en enero, una cotización de noviembre sin el envío no recibe la promoción."""
+        self.cotizar({'codigo': 'ZZ-SOFA'})                      # $800
+        self.hoy = date(2027, 1, 10)
+        datos = self.envio(lugar='Costa Inventada')
+        self.assertIsNone(datos['promocion'])
+        self.assertEqual(datos['frase_para_el_cliente'], 'Envío a Costa Inventada (Santa Prueba, Panamá): $45.')
+        self.assertEqual(self.papeles(datos), ((COSTA, 45.0, None, None, False, False, None, None), None))
+
+    def test_i1_lo_ya_sumado_se_recuerda_sin_hasta_cuando(self):
+        """Segunda vuelta (I-1): en diciembre, con la cotización vigente que ya tiene el envío gratis de noviembre."""
+        self.cotizar({'codigo': 'ZZ-SOFA'})
+        (orden,) = self.ordenes()
+        orden.validity_date = date(2026, 12, 20)
+        self.sumar(self.costa)
+        self.hoy = date(2026, 12, 2)
+        datos = self.envio(lugar='Costa Inventada')
+        self.assertEqual(datos['frase_para_el_cliente'],
+                         "El envío a Costa Inventada (Santa Prueba, Panamá) cuesta normalmente $45. Tu cotización ya "
+                         "tiene la promoción de noviembre, así que D'CASA te regala el envío: te sale gratis (te "
+                         "ahorras $45).")
+        self.assertNotIn('hasta el', datos['frase_para_el_cliente'])
+        self.assertTrue(datos['promocion']['ya_sumada'])
+        self.assertEqual(self.papeles(datos), ((COSTA, 45.0, 0.0, 45.0, True, False, None, None), None))
+        self.assertTrue(datos['cotizacion']['envio_ya_sumado'])
+        # Otro lugar, en diciembre: precio normal (la promoción terminó).
+        self.assertIsNone(self.envio(lugar='Barrio Simulado')['promocion'])
+
     def test_no_encontrado_pide_un_punto_de_referencia(self):
         datos = self.envio(lugar='pruebaxx zzz')
         self.assertEqual(datos['estado'], 'no_encontrado')
@@ -299,6 +340,20 @@ class TestAgregarEnvio(EnviosJuanCase):
         self.assertIn('sumó el envío a Costa Inventada', avisos.sorted('id')[-1].texto)
         self.assertIn(f'/dcasa/adjunto/{avisos.sorted("id")[-1].adjunto_ids.id}/', datos['documento']['url'])
         self.assertEqual(self.envio(lugar='Costa Inventada')['cotizacion']['envio_ya_sumado'], True)
+
+    def test_i1_volver_a_sumar_el_mismo_envio_en_diciembre_respeta_lo_prometido(self):
+        self.cotizar({'codigo': 'ZZ-SOFA'})
+        (orden,) = self.ordenes()
+        orden.validity_date = date(2026, 12, 20)
+        self.sumar(self.costa)
+        self.hoy = date(2026, 12, 2)
+        datos = self.sumar(self.costa)
+        self.assertTrue(datos['sumado'] and datos['ya_estaba'])
+        self.assertTrue(datos['frase_para_el_cliente'].startswith(
+            f'Ese envío ya estaba en tu cotización {orden.name}. El envío a Costa Inventada (Santa Prueba, Panamá) '
+            "cuesta normalmente $45. Tu cotización ya tiene la promoción de noviembre, así que D'CASA te regala el "
+            'envío'), datos['frase_para_el_cliente'])
+        self.assertEqual(sorted(orden.order_line.filtered('is_delivery').mapped('price_unit')), [-45.0, 45.0])
 
     def test_otro_lugar_reemplaza_el_envio(self):
         self.cotizar({'codigo': 'ZZ-SOFA'})

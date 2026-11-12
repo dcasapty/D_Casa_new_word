@@ -34,7 +34,7 @@ envío en la página web.
 
 Ver docs/ENVIOS.md.
 """,
-    'version': '19.0.1.2.0',
+    'version': '19.0.1.3.0',
     'category': 'Inventory/Delivery',
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',

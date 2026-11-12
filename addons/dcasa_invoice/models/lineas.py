@@ -87,17 +87,27 @@ def codigo_a_imprimir(empresa, producto, codigo_del_proveedor):
 
 def es_flete(producto):
     """True si el producto es flete o envío (ver el criterio arriba)."""
-    if not producto:
-        return False
-    if (producto.default_code or '').strip().upper() in CODIGOS_FLETE:
-        return True
-    categoria = producto.env.ref(XMLID_CATEGORIA_FLETE, raise_if_not_found=False)
-    if categoria and producto.categ_id and str(categoria.id) in producto.categ_id.parent_path.split('/'):
-        return True
-    if 'delivery.carrier' in producto.env:
-        return bool(producto.env['delivery.carrier'].sudo().with_context(active_test=False).search_count(
-            [('product_id', '=', producto.id)], limit=1))
-    return False
+    return bool(producto) and bool(productos_de_flete(producto))
+
+
+def productos_de_flete(productos):
+    """Los productos de ``productos`` que son flete o envío (el criterio de ``es_flete``), con dos consultas en total
+    aunque sean muchos (una cotización de 150 líneas no hace dos consultas por línea)."""
+    if not productos:
+        return productos
+    env = productos.env
+    categoria = env.ref(XMLID_CATEGORIA_FLETE, raise_if_not_found=False)
+    de_transportista = set()
+    if 'delivery.carrier' in env:
+        de_transportista = set(env['delivery.carrier'].sudo().with_context(active_test=False).search(
+            [('product_id', 'in', productos.ids)]).product_id.ids)
+
+    def es(producto):
+        if (producto.default_code or '').strip().upper() in CODIGOS_FLETE or producto.id in de_transportista:
+            return True
+        return bool(categoria and producto.categ_id
+                    and str(categoria.id) in (producto.categ_id.parent_path or '').split('/'))
+    return productos.filtered(es)
 
 
 def es_servicio(producto):

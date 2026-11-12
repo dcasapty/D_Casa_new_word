@@ -1017,6 +1017,9 @@ LISTA_BLANCA = {
     ('dcasa_envios', 'sale.order', 'action_confirm'):
         OVERRIDE + ' Comprueba check_access("write") y, antes de super(), revisa la promoción de envío (la quita con '
                    'sudo y una nota si ya no vale; revisión adversarial B1).',
+    ('dcasa_envios', 'sale.order', 'write'):
+        OVERRIDE + ' Guardar la venta; con líneas, la promoción de envío se revisa una vez al final del guardado (con '
+                   'sudo solo para quitarla o ponerla al día; revisión adversarial M-1).',
     ('dcasa_envios', 'sale.order', 'copy'):
         OVERRIDE + ' Duplicar de Odoo; la copia (creada como el usuario) no trae la línea de la promoción de envío: se '
                    'vuelve a calcular con sudo con la fecha y la compra de la copia, o queda una nota (M4).',

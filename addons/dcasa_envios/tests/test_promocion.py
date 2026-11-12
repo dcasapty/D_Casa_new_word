@@ -10,12 +10,12 @@ from odoo.tests import tagged
 from ..models import venta
 from .common import EnviosComun
 
-FECHA_COTIZACION = 'odoo.addons.dcasa_envios.models.venta.SaleOrder._dcasa_promocion_fecha'
+HOY = 'odoo.addons.dcasa_envios.models.promocion.EnvioPromocion._hoy'
 
 
 class PromocionComun(EnviosComun):
-    """Las cotizaciones de estas pruebas se tienen por creadas el 12 de noviembre de 2026 (``fechas`` cambia la de una
-    cotización y ``fecha_cotizacion`` la de las que no están ahí). La fecha real de creación se prueba aparte."""
+    """«Hoy» (la fecha de Panamá con que se ofrece y se suma la promoción, y con la que se mira si una cotización
+    venció) es el 12 de noviembre de 2026 (``self.hoy`` lo cambia). Con ``FIJAR_FECHA = False``, el reloj de verdad."""
 
     FIJAR_FECHA = True
 
@@ -37,11 +37,9 @@ class PromocionComun(EnviosComun):
 
     def setUp(self):
         super().setUp()
-        self.fecha_cotizacion = date(2026, 11, 12)
-        self.fechas = {}
+        self.hoy = date(2026, 11, 12)
         if self.FIJAR_FECHA:
-            self.startPatcher(patch(FECHA_COTIZACION, autospec=True,
-                                    side_effect=lambda orden: self.fechas.get(orden.id, self.fecha_cotizacion)))
+            self.startPatcher(patch(HOY, side_effect=lambda: self.hoy))
 
     def orden(self, *pares, estado=None):
         orden = self.env['sale.order'].create({
@@ -58,9 +56,9 @@ class PromocionComun(EnviosComun):
         return precio, resultado, promocion
 
     def poner(self, orden, nombre, fecha=None):
-        """Suma el envío como Juan (``fecha``: la cotización se tiene por creada ese día)."""
+        """Suma el envío como Juan (``fecha``: desde ahí, «hoy» es ese día)."""
         if fecha:
-            self.fechas[orden.id] = fecha
+            self.hoy = fecha
         lugar = self.lugar(nombre)
         precio = self.env['dcasa.envio.tarifa'].cotizar_lugar(lugar)['total']
         puesto = orden.sudo()._dcasa_envio_poner(lugar, precio)
@@ -252,13 +250,33 @@ class TestEnvioEnLaCotizacion(PromocionComun):
     def test_la_marca_de_la_promocion_solo_la_pone_el_sistema(self):
         orden = self.orden((self.sofa, 2))
         orden.user_id = self.vendedora
-        linea = orden.order_line.with_user(self.vendedora)
-        with self.assertRaises(AccessError):
-            linea.write({'dcasa_promocion_envio_id': self.noviembre.id})
-        with self.assertRaises(AccessError):
-            self.env['sale.order.line'].with_user(self.vendedora).create({
-                'order_id': orden.id, 'product_id': self.mesa.id, 'price_unit': -50,
-                'dcasa_promocion_envio_id': self.noviembre.id})
+        terminos = {'promocion_id': self.noviembre.id, 'zona': 'gratis', 'minimo': 0}
+        for usuario in (self.vendedora, self.gerencia):
+            linea = orden.order_line.with_user(usuario)
+            for valores in ({'dcasa_promocion_envio_id': self.noviembre.id}, {'dcasa_promocion_terminos': terminos}):
+                with self.subTest(usuario=usuario.login, valores=valores), self.assertRaises(AccessError):
+                    linea.write(valores)
+            with self.subTest(usuario=usuario.login), self.assertRaises(AccessError):
+                self.env['sale.order.line'].with_user(usuario).create({
+                    'order_id': orden.id, 'product_id': self.mesa.id, 'price_unit': -50,
+                    'dcasa_promocion_envio_id': self.noviembre.id})
+
+    def test_i3_el_lugar_del_envio_lo_marca_solo_el_servidor(self):
+        """Segunda vuelta (I-3/R11): por RPC, cambiarle el lugar a la línea del envío a Colón ($105, abono $20) no la
+        vuelve gratis: deja de ser del sistema, se quita la promoción y lo rebajado contaría contra el tope."""
+        orden = self.de_la_vendedora((self.sofa, 2))                        # $300
+        self.poner(orden, 'Barrio Simulado')
+        envio = orden.order_line.filtered('dcasa_envio_lugar_id')
+        envio.with_user(self.vendedora).write({'dcasa_envio_lugar_id': self.lugar('Costa Inventada').id})
+        self.assertFalse(envio.dcasa_envio_lugar_id, 'ya no es del sistema')
+        self.assertFalse(self.promocion_de(orden))
+        self.assertAlmostEqual(orden.amount_untaxed, 405.0)
+        self.assertIn('ya no tiene el envío a domicilio que sumó el sistema', self.notas(orden))
+        # Ni creando una línea con la marca: la línea es de quien la crea.
+        nueva = self.env['sale.order.line'].with_user(self.vendedora).create({
+            'order_id': orden.id, 'product_id': self.transportista.product_id.id, 'price_unit': 10.0,
+            'dcasa_envio_lugar_id': self.lugar('Costa Inventada').id})
+        self.assertFalse(nueva.dcasa_envio_lugar_id)
 
     def test_la_promocion_no_cuenta_contra_el_tope_de_la_vendedora_hasta_que_la_cambia(self):
         orden = self.orden((self.mesa, 4))          # $240: pasa de $200
@@ -365,24 +383,97 @@ class TestLaPromocionSeVuelveARevisar(PromocionComun):
         tercera.set_delivery_line(self.transportista, 0.0)
         self.assertEqual(tercera.order_line.filtered('is_delivery').mapped('price_unit'), [0.0])
 
-    def test_la_promocion_sigue_al_envio_monto_impuestos_y_repetidas(self):
+    def test_la_promocion_sigue_al_envio_impuestos_y_repetidas_con_los_terminos_guardados(self):
         orden = self.de_la_vendedora((self.sofa, 2))
         self.poner(orden, 'Barrio Simulado')                                # $105 − $20 de abono
-        self.noviembre.with_user(self.gerencia).write({'abono': 25})
-        self.env['sale.order.line'].with_user(self.vendedora).create(
-            {'order_id': orden.id, 'product_id': self.mesa.id, 'product_uom_qty': 1})
         promocion = self.promocion_de(orden)
-        self.assertEqual((promocion.price_unit, promocion.name), (-25.0, 'Promoción de envío: abono de $25'))
-        self.assertIn('se puso al día con el envío y la compra: −$25 (antes −$20)', self.notas(orden))
+        self.assertEqual(promocion.dcasa_promocion_terminos, {
+            'promocion_id': self.noviembre.id, 'nombre': 'Envío Gratis Todo Noviembre', 'desde': '2026-11-01',
+            'hasta': '2026-11-30', 'minimo': 200.0, 'mide': 'sin_itbms', 'zona': 'abono', 'abono': 20.0,
+            'excluye_colchon': True, 'sumada_el': '2026-11-12'})
         envio = orden.order_line.filtered('dcasa_envio_lugar_id')
         impuesto = self.env.company.account_sale_tax_id
         envio.sudo().write({'tax_ids': [Command.set(impuesto.ids)]})        # el sistema (su) no le quita la marca
         self.assertEqual(promocion.tax_ids, impuesto, 'los mismos impuestos que el envío')
         self.env['sale.order.line'].sudo().create({
-            'order_id': orden.id, 'product_id': envio.product_id.id, 'price_unit': -25.0, 'is_delivery': True,
+            'order_id': orden.id, 'product_id': envio.product_id.id, 'price_unit': -20.0, 'is_delivery': True,
             'tax_ids': [Command.set(impuesto.ids)], 'dcasa_promocion_envio_id': self.noviembre.id})
-        self.assertEqual(len(self.promocion_de(orden)), 1, 'una sola promoción')
-        self.assertTrue(self.promocion_de(orden)._dcasa_promocion_coherente())
+        self.assertEqual(self.promocion_de(orden), promocion, 'una sola promoción: la que tiene sus términos')
+        self.assertTrue(promocion._dcasa_promocion_coherente())
+
+    def test_i2_si_gerencia_cambia_o_archiva_la_promocion_lo_ya_sumado_se_respeta(self):
+        """Segunda vuelta (I-2/R2/R3): lo sumado guarda sus términos; la sincronización mira la COMPRA contra ellos."""
+        colon = self.de_la_vendedora((self.sofa, 2))                        # $300 a Colón: abono de $20
+        self.poner(colon, 'Barrio Simulado')
+        costa = self.de_la_vendedora((self.sofa, 2))                        # $300 a Costa: gratis
+        self.poner(costa, 'Costa Inventada')
+        mesas = self.de_la_vendedora((self.mesa, 5))                        # $300, −$45
+        self.poner(mesas, 'Costa Inventada')
+        self.assertEqual(self.noviembre.cotizaciones_abiertas, 3)
+        self.noviembre.with_user(self.gerencia).write({'abono': 25, 'minimo': 300})
+        for orden in (colon, costa):
+            orden.with_user(self.vendedora).action_confirm()
+        self.assertEqual(self.promocion_de(colon).price_unit, -20.0, 'lo que decía el PDF')
+        self.assertEqual(self.promocion_de(costa).price_unit, -45.0, 'el mínimo de cuando se sumó: $200')
+        # Confirmada, archivar la promoción no la vuelve incoherente (R3): devolver una de las mesas sigue pasando.
+        mesas.with_user(self.vendedora).action_confirm()
+        self.noviembre.with_user(self.gerencia).write({'active': False})
+        self.assertTrue(self.promocion_de(mesas)._dcasa_promocion_coherente())
+        mesas.order_line.filtered(lambda ln: ln.product_id == self.mesa).with_user(self.vendedora).write(
+            {'product_uom_qty': 4})                                         # $240: sigue pasando de $200
+        self.assertTrue(self.promocion_de(mesas))
+
+    def test_i2_la_ficha_avisa_cuantas_cotizaciones_abiertas_la_tienen(self):
+        arch = self.env['dcasa.envio.promocion'].with_user(self.gerencia).get_view(view_type='form')['arch']
+        self.assertIn('o_dcasa_promocion_abiertas', arch)
+        self.assertIn('los cambios valen solo para las nuevas', arch)
+        self.assertEqual(self.noviembre.cotizaciones_abiertas, 0)
+        orden = self.de_la_vendedora((self.sofa, 2))
+        self.poner(orden, 'Costa Inventada')
+        self.noviembre.invalidate_recordset(['cotizaciones_abiertas'])
+        self.assertEqual(self.noviembre.cotizaciones_abiertas, 1)
+        orden.with_user(self.vendedora).action_confirm()
+        self.noviembre.invalidate_recordset(['cotizaciones_abiertas'])
+        self.assertEqual(self.noviembre.cotizaciones_abiertas, 0, 'las confirmadas ya no son cotizaciones abiertas')
+
+    def test_m1_guardar_la_venta_con_varias_lineas_a_la_vez(self):
+        """Segunda vuelta (M-1/R4): la ficha manda los comandos juntos; la promoción se revisa una vez al final."""
+        for segundo in ({'sequence': 99}, {'name': 'Promoción (nota de la vendedora)'}):
+            with self.subTest(segundo=segundo):
+                orden = self.de_la_vendedora((self.sofa, 2))
+                self.poner(orden, 'Costa Inventada')
+                sofa = orden.order_line.filtered(lambda linea: linea.product_id == self.sofa)
+                orden.with_user(self.vendedora).write({'order_line': [
+                    Command.update(sofa.id, {'product_uom_qty': 1}),
+                    Command.update(self.promocion_de(orden).id, segundo)]})
+                self.assertFalse(self.promocion_de(orden), 'con $150 ya no aplica: se quita al final del guardado')
+                self.assertIn('ya no pasa de $200 sin ITBMS (ahora suma $150)', self.notas(orden))
+        # Y si el guardado deja la compra igual, la promoción sigue (exenta del tope durante el guardado).
+        orden = self.de_la_vendedora((self.mesa, 4))                        # $240, −$45 (más del 10 %)
+        self.poner(orden, 'Costa Inventada')
+        mesa = orden.order_line.filtered(lambda linea: linea.product_id == self.mesa)
+        orden.with_user(self.vendedora).write({'order_line': [
+            Command.update(mesa.id, {'product_uom_qty': 5}), Command.update(self.promocion_de(orden).id,
+                                                                           {'sequence': 99})]})
+        self.assertEqual(self.promocion_de(orden).price_unit, -45.0)
+
+    def test_m2_una_cotizacion_grande_no_dispara_las_consultas(self):
+        """Segunda vuelta (M-2/R5): 150 líneas; cambiar una cantidad con la promoción cuesta casi lo mismo que sin."""
+        productos = [self.sofa, self.mesa] * 75
+        con = self.de_la_vendedora(*[(p, 1) for p in productos])
+        sin = self.de_la_vendedora(*[(p, 1) for p in productos])
+        self.poner(con, 'Costa Inventada')
+        self.assertTrue(self.promocion_de(con))
+        consultas = {}
+        for nombre, orden in (('sin', sin), ('con', con)):
+            linea = orden.order_line.filtered(lambda ln: ln.product_id == self.mesa)[:1].with_user(self.vendedora)
+            self.env.flush_all()
+            self.env.invalidate_all()
+            antes = self.env.cr.sql_log_count
+            linea.write({'product_uom_qty': 2})
+            self.env.flush_all()
+            consultas[nombre] = self.env.cr.sql_log_count - antes
+        self.assertLess(consultas['con'], consultas['sin'] + 60, consultas)
 
     def test_retiro_en_tienda_no_es_un_envio_que_puso_una_persona(self):
         retiro = self.env['delivery.carrier'].search([('dcasa_por_cotizar', '=', False),
@@ -405,13 +496,54 @@ class TestLaPromocionSeVuelveARevisar(PromocionComun):
             sofa.with_user(self.vendedora).write({'product_uom_qty': 1})
         self.assertTrue(self.promocion_de(orden), 'lo confirmado no se toca solo')
 
-    def test_la_fecha_que_decide_es_la_de_la_cotizacion(self):
+    def test_i1_decide_el_dia_en_que_se_suma_y_lo_prometido_vale_hasta_que_vence(self):
+        """Segunda vuelta (I-1/R6/R7/R8): se respeta lo YA prometido, no se dan promesas nuevas después."""
+        # Sumada el 28 de noviembre, vence el 10 de diciembre: el 2 de diciembre (con la promoción ya archivada)
+        # se confirma con lo prometido.
         orden = self.de_la_vendedora((self.sofa, 2))
-        self.poner(orden, 'Costa Inventada', fecha=date(2026, 11, 30))     # hecha el último día
-        with patch('odoo.addons.dcasa_envios.models.promocion.EnvioPromocion._hoy', return_value=date(2026, 12, 2)):
-            orden.with_user(self.vendedora).action_confirm()
+        orden.validity_date = date(2026, 12, 10)
+        self.poner(orden, 'Costa Inventada', fecha=date(2026, 11, 28))
+        self.assertEqual(self.promocion_de(orden).dcasa_promocion_terminos['sumada_el'], '2026-11-28')
+        self.hoy = date(2026, 12, 2)
+        self.noviembre.with_user(self.gerencia).write({'active': False})
+        orden.with_user(self.vendedora).action_confirm()
         self.assertTrue(self.promocion_de(orden), 'se respeta lo prometido en el PDF')
         self.assertAlmostEqual(orden.amount_untaxed, 300.0)
+        self.noviembre.with_user(self.gerencia).write({'active': True})
+        # Vencida (venció el 30 de noviembre): el 2 de diciembre se vuelve a mirar con la promoción de hoy (ninguna).
+        vencida = self.de_la_vendedora((self.sofa, 2))
+        vencida.validity_date = date(2026, 11, 30)
+        self.poner(vencida, 'Costa Inventada', fecha=date(2026, 11, 28))
+        self.hoy = date(2026, 12, 2)
+        vencida.with_user(self.vendedora).action_confirm()
+        self.assertFalse(self.promocion_de(vencida))
+        self.assertIn('porque la cotización venció el 30/11/2026 y hoy (02/12/2026) no hay una promoción de envío '
+                      'vigente', self.notas(vencida))
+        # Una cotización de octubre a la que se le suma el envío en noviembre sí la recibe (R8)…
+        de_octubre = self.de_la_vendedora((self.sofa, 2))
+        de_octubre.validity_date = date(2026, 12, 31)
+        _puesto, resultado = self.poner(de_octubre, 'Costa Inventada', fecha=date(2026, 11, 12))
+        self.assertTrue(resultado['aplica'])
+        # …y una de noviembre a la que se le suma (o se le vuelve a calcular) en enero, no (R6).
+        enero = self.de_la_vendedora((self.sofa, 2))
+        enero.validity_date = date(2027, 2, 1)
+        _puesto, resultado = self.poner(enero, 'Costa Inventada', fecha=date(2027, 1, 15))
+        self.assertEqual(resultado['motivo'], 'sin_promocion')
+        self.assertFalse(self.promocion_de(enero))
+
+    def test_i1_volver_a_sumar_el_mismo_envio_no_pierde_lo_prometido(self):
+        orden = self.de_la_vendedora((self.sofa, 2))
+        orden.validity_date = date(2026, 12, 10)
+        self.poner(orden, 'Costa Inventada', fecha=date(2026, 11, 28))
+        lineas = orden.order_line.filtered('is_delivery')
+        puesto, resultado = self.poner(orden, 'Costa Inventada', fecha=date(2026, 12, 2))
+        self.assertTrue(puesto['ya_estaba'])
+        self.assertTrue(resultado['aplica'])
+        self.assertEqual(orden.order_line.filtered('is_delivery'), lineas, 'no se tocó')
+        # Otro lugar sí se calcula con la promoción de hoy (ninguna en diciembre).
+        puesto, resultado = self.poner(orden, 'Barrio Simulado')
+        self.assertFalse(puesto['ya_estaba'])
+        self.assertEqual(resultado['motivo'], 'sin_promocion')
 
     def test_h17_duplicar_vuelve_a_calcular_la_promocion(self):
         orden = self.de_la_vendedora((self.mesa, 4))                        # $240
@@ -425,12 +557,12 @@ class TestLaPromocionSeVuelveARevisar(PromocionComun):
         self.assertAlmostEqual(copia.amount_untaxed, 240.0)
         self.assertIn('se volvió a calcular para esta cotización: −$45', self.notas(copia))
         # Duplicada en diciembre: la promoción no se copia y queda el porqué.
-        self.fecha_cotizacion = date(2026, 12, 1)
+        self.hoy = date(2026, 12, 1)
         diciembre = orden.with_user(self.vendedora).copy()
         self.assertFalse(self.promocion_de(diciembre))
         self.assertAlmostEqual(diciembre.amount_untaxed, 285.0)
-        self.assertIn('no se copió porque no hay una promoción de envío vigente en la fecha de la cotización '
-                      '(01/12/2026)', self.notas(diciembre))
+        self.assertIn('no se copió porque hoy (01/12/2026) no hay una promoción de envío vigente',
+                      self.notas(diciembre))
 
     def test_m6_la_compra_se_mide_despues_de_descuentos_y_premios(self):
         """Decisión de la dueña (2026-11-12): los $200 se cuentan DESPUÉS de descuentos y premios de Socios."""
@@ -439,21 +571,3 @@ class TestLaPromocionSeVuelveARevisar(PromocionComun):
         self.assertEqual(orden._dcasa_envio_compra()['subtotal_sin_itbms'], 130.0)
         _puesto, resultado = self.poner(orden, 'Costa Inventada')
         self.assertEqual(resultado['motivo'], 'monto')
-
-
-@tagged('post_install', '-at_install')
-class TestFechaDeLaCotizacion(PromocionComun):
-    """La fecha que decide (sin fijarla): la de creación de la cotización en hora de Panamá, o hoy si se cambia."""
-
-    FIJAR_FECHA = False
-
-    def test_creacion_en_hora_de_panama(self):
-        orden = self.orden((self.sofa, 1))
-        for momento, esperada in (('2026-12-01 04:59:00', date(2026, 11, 30)),     # 30 nov 23:59 en Panamá
-                                  ('2026-12-01 05:00:00', date(2026, 12, 1))):     # 1 dic 00:00 en Panamá
-            self.env.cr.execute('UPDATE sale_order SET create_date = %s WHERE id = %s', (momento, orden.id))
-            orden.invalidate_recordset(['create_date'])
-            self.assertEqual(orden._dcasa_promocion_fecha(), esperada)
-        with patch.object(venta, 'FECHA_QUE_DECIDE', 'hoy'), \
-                patch('odoo.addons.dcasa_envios.models.promocion.EnvioPromocion._hoy', return_value=date(2027, 1, 5)):
-            self.assertEqual(orden._dcasa_promocion_fecha(), date(2027, 1, 5))

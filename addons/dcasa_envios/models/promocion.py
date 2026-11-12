@@ -10,6 +10,8 @@ promoción es una capa aparte, con fechas:
   resto (en dólares) y si no aplica cuando la compra lleva colchón.
 * Una sola promoción vigente a la vez: dos activas con fechas que se cruzan no se pueden guardar.
 * El historial (quién cambió qué) queda en la ficha.
+* Lo ya sumado a una cotización guarda los términos con que se sumó: un cambio aquí vale solo para las cotizaciones
+  nuevas (la ficha avisa cuántas abiertas la tienen; revisión adversarial, segunda vuelta, I-2).
 * La cuenta la hace el motor (``motor/promocion.py``), nunca el modelo de IA.
 """
 from odoo import api, fields, models
@@ -61,6 +63,10 @@ class EnvioPromocion(models.Model):
     excluye_colchon = fields.Boolean('No aplica si la compra lleva colchón', default=True, tracking=True)
     active = fields.Boolean('Activa', default=True, tracking=True)
     vigente_hoy = fields.Boolean('Vigente hoy', compute='_compute_vigente_hoy')
+    cotizaciones_abiertas = fields.Integer(
+        'Cotizaciones abiertas con esta promoción', compute='_compute_cotizaciones_abiertas',
+        help='Cotizaciones (borrador o enviadas) que ya la tienen sumada: respetan los términos con que se sumó; un '
+             'cambio aquí vale solo para las nuevas.')
     resumen = fields.Text('Así lo dice Juan', compute='_compute_resumen',
                           help='Las condiciones como se las dice Juan a un cliente que todavía no tiene cotización '
                                '(un envío a una zona gratis y otro al resto).')
@@ -112,10 +118,6 @@ class EnvioPromocion(models.Model):
     def _hoy(self):
         return fields.Date.context_today(self.with_context(tz=ZONA_HORARIA))
 
-    @api.model
-    def _fecha_de_panama(self, momento):
-        """La fecha de Panamá de un momento guardado en UTC (p. ej. la creación de una cotización)."""
-        return fields.Date.context_today(self.with_context(tz=ZONA_HORARIA), momento)
 
     def _como_motor(self):
         self.ensure_one()
@@ -148,6 +150,13 @@ class EnvioPromocion(models.Model):
         for promocion in self:
             promocion.vigente_hoy = bool(promocion.active and promocion.desde and promocion.hasta
                                          and promocion.desde <= hoy <= promocion.hasta)
+
+    def _compute_cotizaciones_abiertas(self):
+        Linea = self.env['sale.order.line'].sudo()
+        for promocion in self:
+            lineas = Linea.search([('dcasa_promocion_envio_id', '=', promocion.id),
+                                   ('order_id.state', 'in', ('draft', 'sent'))]) if promocion.id else Linea
+            promocion.cotizaciones_abiertas = len(lineas.order_id)
 
     @api.depends('name', 'desde', 'hasta', 'minimo', 'mide', 'provincias_gratis', 'distritos_gratis', 'abono',
                  'excluye_colchon')

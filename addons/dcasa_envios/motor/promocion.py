@@ -21,6 +21,7 @@ promoción, lo que se ahorra, por qué aplica o no y la frase lista para el clie
 
 El dinero se cuenta en centavos (``Decimal``), nunca con la suma de punto flotante.
 """
+from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 
 from .buscador import sin_tildes
@@ -85,6 +86,21 @@ def _con_promocion(precio, zona, abono):
     return max(Decimal('0.00'), precio - abono)
 
 
+def _vacio(precio):
+    return {
+        'hay_promocion': False, 'nombre': '', 'motivo': SIN_PROMOCION, 'aplica': False, 'condicional': False,
+        'zona': '', 'precio_normal': float(precio) if precio is not None else None,
+        'precio_final': float(precio) if precio is not None else None, 'ahorro': 0.0, 'precio_si_aplica': None,
+        'compra_medida': None, 'minimo': None, 'mide': '', 'frase': '', 'menciona_gratis': False,
+    }
+
+
+def _precio(precio_envio):
+    """El precio del envío en centavos, o ``None`` si no tiene (se cotiza aparte, $0 o negativo: nada que rebajar)."""
+    precio = centavos(precio_envio) if precio_envio is not None else None
+    return precio if precio is not None and precio > 0 else None
+
+
 def aplicar(promocion, precio_envio, prov, dist, fecha, compra=None):
     """La promoción aplicada a un envío.
 
@@ -92,7 +108,8 @@ def aplicar(promocion, precio_envio, prov, dist, fecha, compra=None):
       distritos_gratis, abono, excluye_colchon}`` o ``None``.
     * ``precio_envio``: el precio NORMAL del envío (el de la tarifa), o ``None`` si se cotiza aparte. Con $0 o menos no
       hay nada que rebajar (``SIN_PRECIO``).
-    * ``prov``, ``dist``: la provincia y el distrito del lugar. ``fecha``: la fecha de Panamá.
+    * ``prov``, ``dist``: la provincia y el distrito del lugar. ``fecha``: la fecha de Panamá (la de hoy: la promoción
+      se ofrece y se suma con la fecha del día en que se suma; ver ``con_lo_prometido`` para lo ya sumado).
     * ``compra``: ``{subtotal_sin_itbms, subtotal_con_itbms, colchon}`` de la cotización (sin contar el envío), o
       ``None`` si todavía no hay cotización.
 
@@ -100,20 +117,17 @@ def aplicar(promocion, precio_envio, prov, dist, fecha, compra=None):
     precio_si_aplica, compra_medida, minimo, mide, frase, menciona_gratis}``. Los montos son números con dos decimales;
     ``precio_final`` es el que paga el cliente por el envío (el normal si no aplica; ``None`` si todavía no se sabe
     porque no hay compra)."""
-    precio = centavos(precio_envio) if precio_envio is not None else None
-    if precio is not None and precio <= 0:
-        precio = None                    # $0 o negativo: como sin precio (nada que rebajar ni que decir)
-    salida = {
-        'hay_promocion': False, 'nombre': '', 'motivo': SIN_PROMOCION, 'aplica': False, 'condicional': False,
-        'zona': '', 'precio_normal': float(precio) if precio is not None else None,
-        'precio_final': float(precio) if precio is not None else None, 'ahorro': 0.0, 'precio_si_aplica': None,
-        'compra_medida': None, 'minimo': None, 'mide': '', 'frase': '', 'menciona_gratis': False,
-    }
+    precio = _precio(precio_envio)
     if not vigente(promocion, fecha):
-        return salida
+        return _vacio(precio)
+    return _evaluar(promocion, zona_de(promocion, prov, dist), precio, compra)
+
+
+def _evaluar(promocion, zona, precio, compra):
+    """La cuenta, con la zona ya decidida (``gratis``, ``abono`` o ``ninguna``) y sin mirar la fecha."""
+    salida = _vacio(precio)
     minimo = centavos(promocion.get('minimo'))
     mide = promocion.get('mide') if promocion.get('mide') in MIDE else 'sin_itbms'
-    zona = zona_de(promocion, prov, dist)
     salida.update(hay_promocion=True, nombre=(promocion.get('nombre') or '').strip(), zona=zona,
                   minimo=float(minimo), mide=mide)
     if precio is None:
@@ -127,7 +141,7 @@ def aplicar(promocion, precio_envio, prov, dist, fecha, compra=None):
         salida.update(motivo=SIN_COMPRA, condicional=True, precio_final=None)
     else:
         medida = centavos(compra.get('subtotal_con_itbms' if mide == 'con_itbms' else 'subtotal_sin_itbms'))
-        salida['compra_medida'] = float(medida)
+        salida['compra_medida'] = float(medida) if medida > 0 else 0.0      # nunca una cifra negativa (M-7)
         if promocion.get('excluye_colchon') and compra.get('colchon'):
             salida['motivo'] = COLCHON
         elif not medida > minimo:
@@ -139,6 +153,57 @@ def aplicar(promocion, precio_envio, prov, dist, fecha, compra=None):
     salida['frase'] = frase(promocion, salida, abono)
     salida['menciona_gratis'] = 'gratis' in sin_tildes(salida['frase'])
     return salida
+
+
+# --- Lo ya prometido (revisión adversarial, segunda vuelta: I-1 e I-2) ---------------------------------------------
+# La promoción se ofrece y se suma con la fecha de HOY. Una vez sumada a una cotización, queda guardado CON QUÉ
+# TÉRMINOS se sumó (``terminos``) y el día; mientras la cotización no venza, se respeta lo prometido aunque Gerencia
+# cambie o archive la promoción después: solo se vuelve a mirar si la COMPRA sigue cumpliendo esos términos (el
+# mínimo, el colchón) y si el envío sigue ahí con su precio.
+
+def terminos(promocion, resultado, sumada_el, promocion_id=None):
+    """Los términos con que se sumó la promoción a una cotización (para guardarlos en su línea): la promoción, sus
+    fechas, el mínimo y cómo se mide, si en ese lugar es gratis o un abono (y de cuánto), la regla del colchón y el
+    día en que se sumó."""
+    return {
+        'promocion_id': promocion_id, 'nombre': (promocion.get('nombre') or '').strip(),
+        'desde': promocion['desde'].isoformat(), 'hasta': promocion['hasta'].isoformat(),
+        'minimo': float(centavos(promocion.get('minimo'))), 'mide': resultado.get('mide') or 'sin_itbms',
+        'zona': resultado['zona'], 'abono': float(centavos(promocion.get('abono'))),
+        'excluye_colchon': bool(promocion.get('excluye_colchon')), 'sumada_el': sumada_el.isoformat(),
+    }
+
+
+def _como_promocion(terminos_guardados):
+    """Los términos guardados con la forma de una promoción (para la cuenta y la frase)."""
+    return dict(terminos_guardados, desde=date.fromisoformat(terminos_guardados['desde']),
+                hasta=date.fromisoformat(terminos_guardados['hasta']))
+
+
+def con_lo_prometido(terminos_guardados, precio_envio, compra):
+    """La promoción ya sumada a una cotización, con los términos con que se sumó (no con la promoción de hoy) y la
+    compra de ahora. Mismo resultado que ``aplicar`` (sin mirar la fecha: lo prometido vale mientras la cotización no
+    venza; eso lo decide quien llama)."""
+    promocion = _como_promocion(terminos_guardados)
+    return _evaluar(promocion, terminos_guardados['zona'], _precio(precio_envio), compra)
+
+
+def recordar(terminos_guardados, resultado):
+    """Lo que ya tiene la cotización, dicho sin «hasta cuándo» (la promoción puede haber terminado; lo prometido se
+    respeta): «Tu cotización ya tiene la promoción de noviembre, así que D'CASA te regala el envío: te sale gratis (te
+    ahorras $45).» Sin beneficio, ``''``."""
+    if not resultado.get('aplica'):
+        return ''
+    promocion = _como_promocion(terminos_guardados)
+    return f'Tu cotización ya tiene {nombre_corto(promocion)}, así que {_beneficio(resultado, promocion["abono"])}.'
+
+
+def _beneficio(resultado, abono):
+    precio = Decimal(str(resultado['precio_normal']))
+    si_aplica = Decimal(str(resultado['precio_si_aplica'] or 0))
+    if resultado['zona'] == GRATIS or si_aplica == 0:
+        return f"D'CASA te regala el envío: te sale gratis (te ahorras {dinero(precio - si_aplica)})"
+    return f"D'CASA te abona {dinero(abono)} del envío: te queda en {dinero(si_aplica)}"
 
 
 def nombre_corto(promocion):
@@ -173,12 +238,7 @@ def frase(promocion, resultado, abono):
     mide = MIDE[resultado['mide']]
     minimo = dinero(resultado['minimo'])
     if motivo in (SIN_COMPRA, GRATIS, ABONO):
-        precio = Decimal(str(resultado['precio_normal']))
-        si_aplica = Decimal(str(resultado['precio_si_aplica'] or 0))
-        if resultado['zona'] == GRATIS or si_aplica == 0:
-            beneficio = f"D'CASA te regala el envío: te sale gratis (te ahorras {dinero(precio - si_aplica)})"
-        else:
-            beneficio = f"D'CASA te abona {dinero(abono)} del envío: te queda en {dinero(si_aplica)}"
+        beneficio = _beneficio(resultado, abono)
         condicion = f'en compras de más de {minimo} {mide}' if motivo == SIN_COMPRA else \
             f'como tu compra pasa de {minimo} {mide}'
         sin_colchon = ' No aplica si la compra lleva colchón.' \
@@ -187,6 +247,8 @@ def frase(promocion, resultado, abono):
     if motivo == COLCHON:
         return f'{Cual} no aplica cuando la compra lleva colchón, así que el envío va a su precio normal.'
     if motivo == MONTO:
+        if not resultado['compra_medida']:          # nunca «tu cotización suma $0» ni una cifra negativa
+            return f'{Cual} es para compras de más de {minimo} {mide}, así que el envío va a su precio normal.'
         return (f'{Cual} es para compras de más de {minimo} {mide}; tu cotización suma '
                 f'{dinero(resultado["compra_medida"])} {mide}, así que el envío va a su precio normal.')
     return ''
@@ -234,7 +296,7 @@ def respaldo(resultado, nombres=(), cargos=(), lleva_itbms=False):
         'normal': normal, 'final': final, 'ahorro': ahorro,
         'gratis': bool(resultado.get('menciona_gratis')), 'condicional': bool(resultado.get('condicional')),
         'minimo': resultado.get('minimo') if motivo in (SIN_COMPRA, GRATIS, ABONO, MONTO) else None,
-        'compra': resultado.get('compra_medida') if motivo == MONTO else None,
+        'compra': resultado.get('compra_medida') if motivo == MONTO and resultado.get('compra_medida') else None,
         'cargos': [{'nombre': str(c['nombre']), 'monto': float(c['monto'])} for c in cargos],
         'lleva_itbms': bool(lleva_itbms),
     }
