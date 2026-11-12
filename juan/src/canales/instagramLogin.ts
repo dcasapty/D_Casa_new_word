@@ -132,10 +132,15 @@ export function crearPuertaInstagram(op: OpcionesMeta = {}): PuertaInstagram {
       if (req.method === "GET") return nada(respuestaDeVerificacion(req, env.META_VERIFY_TOKEN));
       if (req.method !== "POST") return nada(new Response("método no permitido", { status: 405 }));
 
-      // La firma se calcula sobre el cuerpo CRUDO, con la clave secreta de la app de INSTAGRAM (no META_APP_SECRET).
+      // La firma se calcula sobre el cuerpo CRUDO, con la clave secreta de la app de INSTAGRAM. Meta escribe solo «la clave secreta
+      // de tu app» (developers.facebook.com/documentation/instagram-platform/webhooks/setup): si no cuadra y la de Facebook de
+      // D'CASA (META_APP_SECRET) sí, se acepta y queda anotado. Sin INSTAGRAM_APP_SECRET, la puerta no está lista: falla cerrado.
       const crudo = await req.text();
-      if (!(await firmaMetaValida(crudo, req.headers.get("x-hub-signature-256"), env.INSTAGRAM_APP_SECRET?.trim()))) {
-        return nada(new Response("firma inválida", { status: 401 }));
+      const firma = req.headers.get("x-hub-signature-256");
+      const secretoIg = env.INSTAGRAM_APP_SECRET?.trim();
+      if (!(await firmaMetaValida(crudo, firma, secretoIg))) {
+        if (!secretoIg || !(await firmaMetaValida(crudo, firma, env.META_APP_SECRET))) return nada(new Response("firma inválida", { status: 401 }));
+        console.warn("[juan] /webhooks/instagram: el aviso venía firmado con META_APP_SECRET (la clave de Facebook), no con INSTAGRAM_APP_SECRET");
       }
       let cuerpo: MetaCuerpo;
       try {

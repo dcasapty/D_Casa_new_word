@@ -130,7 +130,7 @@ describe("el webhook de Instagram por inicio de sesión de Instagram (/webhooks/
     expect(r.entrantes).toEqual([{ canal: "instagram", id_externo: CLIENTE, id_mensaje: "aWdfZAG1_1", texto: "Hola, ¿tienen sofás?", adjuntos: [], ts: 1_790_000_000_000, propio: false }]);
   });
 
-  it("firma mala, ausente, con la clave de FACEBOOK o sin INSTAGRAM_APP_SECRET: 401 y no entra nada", async () => {
+  it("firma mala, ausente, con una clave ajena o sin INSTAGRAM_APP_SECRET: 401 y no entra nada", async () => {
     const { adaptador } = igFalso();
     const cuerpo = JSON.stringify(mensaje());
     for (const firma of [null, "", "sha256=", `sha256=${"0".repeat(64)}`, `sha256=${await hmacHex("otro", cuerpo)}`]) {
@@ -139,9 +139,20 @@ describe("el webhook de Instagram por inicio de sesión de Instagram (/webhooks/
       expect(r.respuesta.status, String(firma)).toBe(401);
       expect(r.entrantes).toEqual([]);
     }
-    expect((await adaptador.recibir(await firmado(mensaje(), SECRETO_FB), envIg)).respuesta.status).toBe(401);
+    expect((await adaptador.recibir(await firmado(mensaje(), SECRETO_FB), { ...envIg, META_APP_SECRET: undefined } as Env)).respuesta.status).toBe(401);
     expect((await adaptador.recibir(await firmado(mensaje()), { ...envIg, INSTAGRAM_APP_SECRET: undefined } as Env)).respuesta.status).toBe(401);
+    expect((await adaptador.recibir(await firmado(mensaje(), SECRETO_FB), { ...envIg, INSTAGRAM_APP_SECRET: undefined } as Env)).respuesta.status).toBe(401);
     expect((await adaptador.recibir(await firmado(mensaje()), envPagina)).respuesta.status).toBe(401); // sin los secretos nuevos
+  });
+
+  it("Meta solo dice «la clave secreta de tu app»: si viene firmado con la de Facebook de D'CASA (META_APP_SECRET) se acepta y queda anotado", async () => {
+    const aviso = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { adaptador } = igFalso();
+    const r = await adaptador.recibir(await firmado(mensaje(), SECRETO_FB), envIg);
+    expect([r.respuesta.status, r.entrantes.length]).toEqual([200, 1]);
+    expect(aviso.mock.calls.flat().join(" ")).toMatch(/firmado con META_APP_SECRET/);
+    noLoDice(aviso.mock.calls.flat().join(" "));
+    aviso.mockRestore();
   });
 
   it("la firma vale para el cuerpo EXACTO; un cuerpo que no es JSON se acepta sin romper; otros métodos 405", async () => {
