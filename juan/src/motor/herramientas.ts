@@ -398,9 +398,12 @@ export function construirHerramientas(op: OpcionesHerramientas): ToolSet {
     resultado.then(
       (v) => {
         // Un fallo pasajero no se recuerda. Y de `pasar_a_vendedora` (una sola por turno, con el motivo que sea) solo se recuerda
-        // la que salió bien: si Odoo la rechazó («Faltan datos: motivo»), la corregida tiene que llegar.
+        // la que salió bien: si Odoo la rechazó («Faltan datos: motivo»), la corregida tiene que llegar. Tampoco una respuesta que
+        // NO hizo el cambio (`sumado: false`, `ok: false`): después de arreglar lo que faltaba (p. ej. `agregar_envio` sin
+        // `cotizar_envio` antes), la misma llamada tiene que llegar a Odoo (revisión adversarial, segunda vuelta, M-4).
         const salioBien = esObjeto(v) && v.ok === true;
-        if ((v && typeof v === "object" && FALLOS_PASAJEROS.has(v)) || (nombre === "pasar_a_vendedora" && !salioBien)) escrituras.delete(clave);
+        const noLoHizo = esObjeto(v) && (!salioBien || (esObjeto(v.resultado) && (v.resultado.sumado === false || v.resultado.ok === false)));
+        if ((v && typeof v === "object" && FALLOS_PASAJEROS.has(v)) || (nombre === "pasar_a_vendedora" && !salioBien) || noLoHizo) escrituras.delete(clave);
       },
       () => escrituras.delete(clave),
     );
