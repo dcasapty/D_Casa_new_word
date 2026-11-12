@@ -454,11 +454,15 @@ class TestNadieAcaparaLosChatsDeLaNoche(TomarCase):
 
     def test_pasar_a_otra_si_no_contesta_tambien_respeta_el_tope(self):
         convs = self.chats_de_la_noche(6)
-        self.vuelta((8, 0), self.vendedora, self.beto)
+        self.assertEqual(self.vuelta((8, 1), self.vendedora, self.beto), 6)
         self.assertEqual(sorted(self.de_quien(convs).count(u) for u in (self.vendedora, self.beto)), [3, 3])
-        # A las 8:16 nadie contestó: pasaría a la otra, pero las dos están llenas; llega Carla y recibe hasta tres.
-        self.assertEqual(self.vuelta((8, 16), self.vendedora, self.beto, self.carla), 3)
-        self.assertEqual(self.de_quien(convs).count(self.carla), 3)
+        # A las 8:16 nadie contestó: cada cliente pasa a otra con lugar. Llega Carla: recibe tres y no más; ninguna
+        # queda con más de tres sin contestar.
+        self.vuelta((8, 16), self.vendedora, self.beto, self.carla)
+        cuantas = {u.name: self.de_quien(convs).count(u) for u in self.equipo}
+        self.assertEqual(cuantas['Carla Vendedora'], 3, cuantas)
+        self.assertLessEqual(max(cuantas.values()), 3, cuantas)
+        self.assertEqual(sum(cuantas.values()), 6, 'Ninguno se quedó sin dueña')
 
     def test_de_dia_el_parejo_salta_a_quien_ya_tiene_el_maximo_si_hay_otra_con_lugar(self):
         self.ajustes.reparto_activa_minutos = 0
