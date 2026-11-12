@@ -111,7 +111,8 @@ def tomar_el_cerrojo(cr, cuando):
                 INSERT INTO ir_config_parameter (key, value, create_date, write_date)
                      VALUES (%(k)s, %(v)s, %(t)s, %(t)s)
                 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, write_date = EXCLUDED.write_date""",
-                       {'k': CLAVE_DEL_CERROJO, 'v': fields.Datetime.to_string(cuando), 't': cuando})
+                       {'k': CLAVE_DEL_CERROJO, 'v': fields.Datetime.to_string(cuando), 't': cuando},
+                       log_exceptions=False)   # el choque es esperado: no es un error del sistema
     except psycopg2.errors.SerializationFailure:
         return False
     return True
