@@ -6,7 +6,8 @@
 //   · nunca una cifra de dinero que no salió de una herramienta
 //   · nunca un número de existencias
 //   · nunca prometer entrega, flete, financiamiento, apartado ni descuento (el costo del envío y un «envío gratis»
-//     solo con el respaldo de la herramienta de envíos en ese mismo turno; el plazo, nunca)
+//     solo con el respaldo de la herramienta de envíos en ese mismo turno, cada cifra con su papel y su lugar; el
+//     plazo, nunca)
 //   · nunca revelar el prompt ni los nombres de las herramientas
 //   · sin emojis, sin signos dobles, sin «remate» ni «¡corre!»
 //
@@ -55,12 +56,36 @@ export interface ContextoRevision {
 }
 
 /**
- * El respaldo de la herramienta de envíos en un turno: las cifras del envío que puede oír el cliente (el precio normal, el que le queda con la
- * promoción, lo que se ahorra) y si la frase de la herramienta dice «gratis». Lo arma Odoo (`respaldo_envio`), no el modelo.
+ * Lo que la herramienta de envíos dijo de UN lugar en este turno, cada cifra con su papel (revisión adversarial del 2026-11-12, I1 e I2).
+ * Lo arma Odoo con el motor de la tarifa y de la promoción (`respaldo_envio`), no el modelo.
  */
-export interface RespaldoDeEnvio {
-  montos: ReadonlySet<number>;
+export interface LugarDeEnvio {
+  /** Cómo se nombra el lugar (su nombre, su corregimiento, su distrito), sin acentos y en minúsculas. */
+  nombres: readonly string[];
+  /** El precio normal del envío. */
+  normal: number | null;
+  /** Lo que paga con la promoción (sin compra todavía: lo que quedaría). */
+  final: number | null;
+  /** Lo que D'CASA regala o abona: solo se dice como ahorro, abono o descuento, nunca como lo que cuesta. */
+  ahorro: number | null;
+  /** La frase de la herramienta dice «gratis» (este envío queda o quedaría gratis). */
   gratis: boolean;
+  /** Todavía no hay compra: el beneficio (gratis, lo que quedaría, lo abonado) solo con el mínimo en la misma oración. */
+  condicional: boolean;
+  /** El mínimo de la compra que dice la frase. */
+  minimo: number | null;
+  /** Lo que suma la cotización, si la frase lo dice (no llega al mínimo). */
+  compra: number | null;
+  /** El desglose que dice la frase: «Tarifa $45 + peaje $5». */
+  cargos: readonly { nombre: string; monto: number }[];
+  /** Al envío se le suma el ITBMS (lo dice la herramienta). */
+  llevaItbms: boolean;
+}
+
+/** El respaldo de la herramienta de envíos en un turno: los lugares que cotizó y, si sumó el envío, el total de la cotización. */
+export interface RespaldoDeEnvio {
+  lugares: readonly LugarDeEnvio[];
+  total: number | null;
 }
 
 // ── Textos de reemplazo ─────────────────────────────────────────────────────
@@ -111,27 +136,36 @@ const cercano = (conjunto: ReadonlySet<number>, v: number) => {
 };
 
 const ITBMS_DESPUES = /^\s*(?:\(\s*)?(?:\+|más|mas|y)\s*(?:el\s+)?ITBMS/i;
-
-const PALABRA_DE_ENVIO = /\b(?:envio|envios|flete|entrega|delivery|despacho|transporte|shipping)\b/;
-
-/** ¿La oración en la que está el monto (lo de antes, hasta el último punto final) habla del envío? */
-function hablaDelEnvio(texto: string, inicio: number): boolean {
-  const antes = texto.slice(Math.max(0, inicio - 120), inicio).split(/[!?\n]|\.(?=\s|$)/).at(-1) ?? "";
-  return PALABRA_DE_ENVIO.test(sinAcentos(antes));
-}
+/** El «+ ITBMS» que se le quita a una cifra del envío que no lo lleva (solo la forma de sumarlo, no «y el ITBMS» de una frase). */
+const ITBMS_SUMADO = /^\s*(?:\(\s*)?(?:\+|más|mas)\s*(?:el\s+)?ITBMS(?:\s*\))?/i;
 
 /**
- * Todo precio de producto lleva «+ ITBMS» (decisión del dueño). Se agrega donde falte. Si la cifra es también la del envío que dio la
- * herramienta en este turno y la oración habla del envío, no se toca: el envío lleva ITBMS solo si la herramienta lo dice.
+ * Todo precio de producto lleva «+ ITBMS» (decisión del dueño). Se agrega donde falte. Una cifra del envío (en una cláusula que habla del
+ * envío, y que es el precio de un lugar que cotizó la herramienta en este turno) lleva «+ ITBMS» solo si la herramienta dice que al
+ * envío se le suma: si no lo lleva y el modelo se lo puso, se quita; si lo lleva y el modelo no lo puso, se pone (revisión M2). Las
+ * otras cifras de una cláusula del envío (lo abonado, el mínimo, el total) no se tocan.
  */
-export function asegurarItbms(texto: string, preciosProducto: ReadonlySet<number>, montosEnvio?: ReadonlySet<number>): string {
-  const montos = extraerMontos(texto).filter((m) => cercano(preciosProducto, m.valor));
+export function asegurarItbms(textoOriginal: string, preciosProducto: ReadonlySet<number>, envio?: RespaldoDeEnvio): string {
+  const texto = textoOriginal.normalize("NFC");
+  const conLugares = Array.isArray(envio?.lugares) && envio.lugares.length > 0;
+  const partes = conLugares ? partirEnClausulas(texto) : null;
   let salida = texto;
   // De atrás hacia adelante para no mover las posiciones que faltan.
-  for (const m of montos.reverse()) {
-    if (ITBMS_DESPUES.test(salida.slice(m.fin, m.fin + 24))) continue;
-    if (montosEnvio && cercano(montosEnvio, m.valor) && hablaDelEnvio(salida, m.inicio)) continue;
-    salida = `${salida.slice(0, m.fin)} + ITBMS${salida.slice(m.fin)}`;
+  for (const m of extraerMontos(texto).reverse()) {
+    const lleva = ITBMS_DESPUES.exec(salida.slice(m.fin, m.fin + 24));
+    const clausula = partes?.clausulas.find((c) => c.inicio <= m.inicio && m.fin <= c.fin);
+    if (partes && clausula?.deEnvio) {
+      const lugares = lugaresDe(partes, clausula, envio!).filter((l) => [l.normal, l.final, ...l.cargos.map((c) => c.monto)].some((x) => x !== null && Math.abs(x - m.valor) < 0.005));
+      if (lugares.length === 0) continue;
+      if (lugares.every((l) => !l.llevaItbms)) {
+        const sumado = ITBMS_SUMADO.exec(salida.slice(m.fin, m.fin + 24));
+        if (sumado) salida = `${salida.slice(0, m.fin)}${salida.slice(m.fin + sumado[0].length)}`;
+      } else if (lugares.every((l) => l.llevaItbms) && !lleva) {
+        salida = `${salida.slice(0, m.fin)} + ITBMS${salida.slice(m.fin)}`;
+      }
+      continue;
+    }
+    if (cercano(preciosProducto, m.valor) && !lleva) salida = `${salida.slice(0, m.fin)} + ITBMS${salida.slice(m.fin)}`;
   }
   return salida;
 }
@@ -180,18 +214,13 @@ export function detectarExistencias(texto: string): string[] {
 
 const DIA = "(?:lunes|martes|miercoles|jueves|viernes|sabado|domingo)";
 const DIA_EN = "(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)";
-// `envio`: lo que la herramienta de envíos puede respaldar en un turno. «gratis» pasa si la herramienta dijo «gratis»; «costo» pasa si la cifra
-// que sigue al verbo (`verbo`) es una de las del envío que devolvió. Sin respaldo, se rechazan igual que siempre. El plazo nunca se respalda.
-const VERBO_COSTO = /\b(?:cuesta|cuestan|sale|salen|vale|valen|cobramos|es de|son de|tiene un costo|tiene un cargo|tiene un recargo)\b/g;
-const VERBO_COSTO_EN = /\b(?:costs?|is|will be)\b/g;
-const PROMESAS: { r: RegExp; que: string; envio?: "gratis" | "costo"; verbo?: RegExp }[] = [
-  { r: /\b(?:entrega|envio|flete|delivery|despacho|transporte)\s+(?:es\s+|va a ser\s+|seria\s+|sera\s+)?(?:gratis|gratuit[oa]|sin costo|sin cargo|incluid[oa])\b/, que: "entrega o flete gratis", envio: "gratis" },
+// El costo del envío y su «gratis» no están aquí: los revisa `revisarEnvio` (abajo), cláusula por cláusula. El plazo nunca se respalda.
+const PROMESAS: { r: RegExp; que: string }[] = [
   { r: /\b(?:instalacion|armado)\s+(?:es\s+|va a ser\s+|seria\s+|sera\s+)?(?:gratis|gratuit[oa]|sin costo|sin cargo|incluid[oa])\b/, que: "entrega o flete gratis" },
   { r: new RegExp(`\\b(?:te|se|le)\\s+(?:lo|la|los|las)?\\s*(?:entregamos|enviamos|mandamos|despachamos|llevamos|instalamos)\\s+(?:hoy|ma[nñ]ana|pasado ma[nñ]ana|en\\s+\\d+|el\\s+${DIA}|esta\\s+semana|ya)\\b`), que: "plazo de entrega" },
   { r: new RegExp(`\\b(?:llega|llegaria|llegara|lo recibes|la recibes|los recibes)\\s+(?:hoy|ma[nñ]ana|en\\s+\\d+|el\\s+${DIA}|esta\\s+semana)\\b`), que: "plazo de entrega" },
   { r: /\b(?:entregamos|enviamos|hacemos entregas?|llevamos)\s+(?:a|en)\s+(?:todo|toda|todas|todos|cualquier)\b/, que: "cobertura de entrega" },
-  // El costo y el plazo del envío los confirma una vendedora (regla 3), aunque alguna nota de la tienda los traiga.
-  { r: /\b(?:envio|flete|entrega|delivery|despacho|transporte)\b[^.!?\n]{0,40}\b(?:cuesta|cuestan|sale|salen|vale|valen|cobramos|es de|son de|tiene un costo|tiene un cargo|tiene un recargo)\b[^.!?\n]{0,15}(?:\$|\d)/, que: "costo de entrega", envio: "costo", verbo: VERBO_COSTO },
+  // El plazo del envío lo confirma una vendedora (regla 3), aunque alguna nota de la tienda lo traiga.
   { r: /\b(?:entrega|envio|despacho|delivery)\b[^.!?\n]{0,30}\b(?:tarda|toma|demora|llega|es)\s+(?:en\s+|de\s+)?(?:entre\s+)?\d+/, que: "plazo de entrega" },
   { r: /\b(?:te|se|le)\s+(?:lo|la|los|las)?\s*(?:apartamos|reservamos|guardamos|separamos)\b/, que: "apartado" },
   { r: /\b(?:queda|quedan|quedo|deje|dejo|dejamos)\s+(?:apartad[oa]s?|reservad[oa]s?|separad[oa]s?)\b/, que: "apartado" },
@@ -208,11 +237,9 @@ const PROMESAS: { r: RegExp; que: string; envio?: "gratis" | "costo"; verbo?: Re
   { r: /\bcon\s+(?:esta|esa|tu|su)\s+compra\s+(?:ganas|ganaras|acumulas|acumularas|sumas|sumaras|recibes|recibiras|te llevas)\b/, que: "puntos prometidos" },
   { r: /\b(?:ganaras|acumularas|sumaras|recibiras|ganaria|acumularia)\s+\d+\s+puntos\b/, que: "puntos prometidos" },
   // Lo mismo en inglés: Juan contesta en inglés a quien le escribe en inglés (decisión de la dueña, 2026-10-16).
-  { r: /\b(?:delivery|shipping)\s+(?:is\s+|will be\s+|would be\s+)?(?:free|included|at no (?:extra )?cost)\b|\bfree\s+(?:delivery|shipping)\b/, que: "entrega o flete gratis", envio: "gratis" },
   { r: /\b(?:assembly|installation)\s+(?:is\s+|will be\s+|would be\s+)?(?:free|included|at no (?:extra )?cost)\b/, que: "entrega o flete gratis" },
   { r: new RegExp(`\\bwe(?:['’]ll| will| can)?\\s+(?:deliver|ship|send|bring)\\s+(?:it|them|your \\w+)?\\s*(?:today|tomorrow|on\\s+${DIA_EN}|in\\s+\\d+|this\\s+week|right away)\\b`), que: "plazo de entrega" },
   { r: new RegExp(`\\b(?:it(?:['’]ll| will)?\\s+(?:arrive|get there)|you(?:['’]ll| will)\\s+(?:get|receive)\\s+(?:it|them))\\s+(?:today|tomorrow|on\\s+${DIA_EN}|in\\s+\\d+|this\\s+week)\\b`), que: "plazo de entrega" },
-  { r: /\b(?:delivery|shipping)\b[^.!?\n]{0,40}\b(?:costs?|is|will be)\s+(?:\$|\d)/, que: "costo de entrega", envio: "costo", verbo: VERBO_COSTO_EN },
   { r: /\bwe(?:['’]ll| will| can)?\s+(?:hold|reserve|put aside|set aside|save)\s+(?:it|them|this|that|the \w+)\s+for\s+you\b|\b(?:it|this|that)(?:['’]s| is)\s+(?:reserved|on hold|set aside)\s+for\s+you\b/, que: "apartado" },
   { r: /\b(?:i|we)(?:['’]ll| will| can)?\s+(?:give|offer|apply|get)\s+you\s+(?:a\s+|an\s+)?(?:\d+\s*%\s*)?(?:discount|special price|deal)\b/, que: "descuento" },
   { r: /\bwe\s+(?:finance|offer financing)\b|\b(?:interest[- ]free|no[- ]interest|zero[- ]interest)\s+(?:installments|payments|months|financing)\b/, que: "financiamiento" },
@@ -223,35 +250,203 @@ const PROMESAS: { r: RegExp; que: string; envio?: "gratis" | "costo"; verbo?: Re
 /** «20% de descuento» solo es una promesa si el 20 NO salió de una herramienta (p. ej. el catálogo). */
 const PORCENTAJE = /\b(\d+(?:[.,]\d+)?)\s*%\s*(?:de\s+)?(?:descuento|menos|off|rebaja)\b|\bdescuento\s+(?:de|del)\s+(\d+(?:[.,]\d+)?)\s*%/g;
 
-/** La cifra que sigue al verbo de costo («cuesta $15», «sale en 20 dólares», «costs $25»), o null. */
-const CIFRA_TRAS_EL_VERBO = /^[^.!?\n]{0,15}?(?:US\$|U\$S|B\/\.?|\$)?\s?(\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d+(?:[.,]\d{1,2})?)/;
-
-/** ¿Cada vez que el texto dice cuánto cuesta el envío, la cifra es una de las que dio la herramienta de envíos en este turno? */
-function costoRespaldado(t: string, r: RegExp, verbo: RegExp, envio: RespaldoDeEnvio | undefined): boolean {
-  if (!envio || envio.montos.size === 0) return false;
-  for (const m of t.matchAll(new RegExp(r.source, "g"))) {
-    const verbos = [...m[0].matchAll(new RegExp(verbo.source, "g"))];
-    const ultimo = verbos.at(-1);
-    if (!ultimo) return false;
-    const cifra = CIFRA_TRAS_EL_VERBO.exec(t.slice(m.index! + ultimo.index! + ultimo[0].length));
-    if (!cifra || !cercano(envio.montos, parseMonto(cifra[1]))) return false;
-  }
-  return true;
-}
-
-export function detectarPromesas(texto: string, conocidas: ReadonlySet<number> = new Set(), envio?: RespaldoDeEnvio): string[] {
+/** Las promesas de siempre (entregas, apartados, financiamiento, descuentos…), sin el costo del envío. */
+function promesasSinEnvio(texto: string, conocidas: ReadonlySet<number>): string[] {
   const t = sinAcentos(texto);
-  const que = PROMESAS.filter((p) => {
-    if (!p.r.test(t)) return false;
-    if (p.envio === "gratis") return !envio?.gratis;
-    if (p.envio === "costo") return !costoRespaldado(t, p.r, p.verbo!, envio);
-    return true;
-  }).map((p) => p.que);
+  const que = PROMESAS.filter((p) => p.r.test(t)).map((p) => p.que);
   for (const m of t.matchAll(PORCENTAJE)) {
     const n = Number((m[1] ?? m[2]).replace(",", "."));
     if (!cercano(conocidas, n)) que.push("descuento");
   }
   return que;
+}
+
+export function detectarPromesas(texto: string, conocidas: ReadonlySet<number> = new Set(), envio?: RespaldoDeEnvio): string[] {
+  return [...promesasSinEnvio(texto, conocidas), ...revisarEnvio(texto, envio)];
+}
+
+// ── El envío: cada cifra con su papel y su lugar (revisión adversarial del 2026-11-12: I1, I2, I3, I5, M1) ──────────
+// Cada oración se parte en cláusulas («;», « y », « pero », « o », y una coma seguida de otro sujeto: «, la cama…»; nunca dentro de un
+// paréntesis ni en los dos puntos). Toda cláusula que habla del envío (envío, flete, entrega, domicilio, delivery, shipping…; o de la
+// promoción, el abono o «gratis» en una oración que habla del envío; o que sigue a una del envío sin sujeto propio) y lleva una cifra de
+// dinero o un «gratis» (dicho de cualquier forma: «no pagas», «sin costo», «on us», «$0»…) solo pasa si la herramienta de envíos de ESTE
+// turno la respalda, con el papel correcto (el precio normal, lo que queda, lo abonado o ahorrado SOLO como ahorro, el mínimo, lo que
+// suma la cotización, el total, el desglose) y para el lugar que nombra (o, si no nombra ninguno, para alguno de los cotizados). Con la
+// promoción condicional (todavía sin compra), lo que queda, lo abonado y el «gratis» solo con el mínimo en la misma oración. Las
+// cláusulas que no hablan del envío siguen las reglas de los productos.
+
+const PALABRA_ENVIO = /\b(?:envio|envios|flete|fletes|entrega|entregas|domicilio|delivery|deliveries|shipping|despacho|transporte|llevamos|llevarlo|llevarla|llevartelo|llevartela|entregamos|despachamos)\b/;
+const PALABRA_PROMOCION = /\b(?:promocion|promo|abono|abona|abonamos|regala|regalamos|ahorras|ahorro|descuento|rebaja|gratis|gratuit[oa]|te queda|te quedaria|te sale|te saldria|free|on us|save)\b/;
+// Con sus acentos: «tu cama» tiene sujeto propio; «tú pagas» no (sigue hablando del envío).
+const SUJETO_PROPIO = /^(?:la|el|los|las|tu|tus|su|sus|mi|mis|este|esta|estos|estas|ese|esa|esos|esas|the|your|my|this|that|these|those)\s+(\S+)/;
+const SUJETO_DEL_ENVIO = /^(?:promocion|promo|abono|descuento|rebaja|ahorro|envio|flete|entrega|delivery|shipping)/;
+const CORTES = /\s*;\s*|\s+(?:y|e|pero|o|u|aunque|mientras que|mientras|and|but|or|while)\s+|,\s+(?=(?:la|el|los|las|tu|tus|su|sus|mi|mis|este|esta|estos|estas|ese|esa|the|your|my|this|that)\s)/g;
+const GRATIS_DICHO =
+  /\b(?:gratis|gratuit[oa]s?|sin costo|sin cargo|no pagas|no te cuesta|no cuesta nada|no tiene costo|por nuestra cuenta|corre por nuestra cuenta|te lo regalamos|te regala(?:mos)? el envio|free|on us|no charge|at no (?:extra )?cost|won'?t pay|will not pay|don'?t pay|complimentary)\b/;
+/** «Flete incluido», «el envío va incluido»: es decir que es gratis (salvo que hable del total: «el total, con el envío incluido»). */
+const ENVIO_INCLUIDO = /\b(?:envio|flete|entrega|delivery|shipping|despacho|transporte)\b[^.;]{0,30}?\b(?:incluid[oa]|included)\b/;
+const HABLA_DEL_TOTAL = /\b(?:total|cotizacion|precio)\b/;
+/** Antes de la cifra: es lo abonado o lo ahorrado («te abona $20», «te ahorras $45», «el abono es de $20», «save $20»). */
+const AHORRO_ANTES = /\b(?:abona|abonamos|abonan|abono|ahorras|ahorrarias|ahorro|ahorrar|descuento|descontamos|rebaja|rebajamos|resta|restamos|pone|ponemos|cubre|cubrimos|asume|asumimos|save|saving|savings|discount|credit|off|covers?)\b/;
+/** Después de la cifra: «$20 menos», «$20 más barato», «$20 de descuento», «$20 off». */
+const AHORRO_DESPUES = /^\s*(?:\+\s*itbms\s*)?(?:menos|mas barato|de descuento|de ahorro|de rebaja|de abono|off|less|cheaper)\b/;
+/** Antes de la cifra: el mínimo de la compra («en compras de más de $200», «el mínimo es de $200», «over $200»). */
+const MINIMO_ANTES = /\b(?:mas de|pasa de|pasan de|pase de|supera|superior(?:es)? a|minim[oa]|al menos|por lo menos|a partir de|over|more than|minimum|at least|above)\b/;
+const TOTAL_ANTES = /\btotal\b/;
+const COMPRA_ANTES = /\b(?:suma|sumas|compra|compras|cotizacion|purchase|order)\b/;
+
+interface Tramo {
+  inicio: number;
+  fin: number;
+}
+interface Clausula extends Tramo {
+  oracion: number;
+  deEnvio: boolean;
+}
+interface Particion {
+  texto: string;
+  /** El texto sin acentos y en minúsculas, con el MISMO largo (cada letra en su lugar). */
+  bajo: string;
+  oraciones: Tramo[];
+  clausulas: Clausula[];
+}
+
+/** Sin acentos y en minúsculas, letra por letra: las posiciones son las mismas que las del texto. */
+function bajar(t: string): string {
+  let salida = "";
+  for (let i = 0; i < t.length; i++) {
+    const s = sinAcentos(t[i]);
+    salida += s.length === 1 ? s : t[i].toLowerCase().slice(0, 1) || t[i];
+  }
+  return salida;
+}
+
+/** Las oraciones con su posición: las mismas (y en el mismo orden) que `oraciones()`. */
+function oracionesConPosicion(t: string): Tramo[] {
+  const salida: Tramo[] = [];
+  const agregar = (desde: number, hasta: number) => {
+    const trozo = t.slice(desde, hasta);
+    const inicio = desde + (trozo.length - trozo.trimStart().length);
+    const fin = hasta - (trozo.length - trozo.trimEnd().length);
+    if (fin > inicio) salida.push({ inicio, fin });
+  };
+  let desde = 0;
+  for (const m of t.matchAll(/(?<=[.!?…])\s+|\n+/g)) {
+    agregar(desde, m.index!);
+    desde = m.index! + m[0].length;
+  }
+  agregar(desde, t.length);
+  return salida;
+}
+
+function partirEnClausulas(texto: string): Particion {
+  const bajo = bajar(texto);
+  const oraciones = oracionesConPosicion(texto);
+  const clausulas: Clausula[] = [];
+  let anteriorDelEnvio = false;
+  const minusculas = texto.toLowerCase();
+  // El sujeto propio se mira con los acentos («tu cama» / «tú pagas»); su palabra, sin acentos.
+  const sujetoDe = (desde: number, hasta: number) => {
+    const s = SUJETO_PROPIO.exec(minusculas.slice(desde, hasta).trimStart());
+    return s ? sinAcentos(s[1]) : null;
+  };
+  oraciones.forEach((o, i) => {
+    const ob = bajo.slice(o.inicio, o.fin);
+    const sujeto = sujetoDe(o.inicio, o.fin);
+    // Una oración habla del envío si lo nombra, o si sigue a una que habla del envío y trae la promoción, el abono o «gratis» sin otro sujeto.
+    const delEnvio = PALABRA_ENVIO.test(ob) || (anteriorDelEnvio && (PALABRA_PROMOCION.test(ob) || GRATIS_DICHO.test(ob)) && (!sujeto || SUJETO_DEL_ENVIO.test(sujeto)));
+    anteriorDelEnvio = delEnvio;
+    if (!delEnvio) {
+      clausulas.push({ inicio: o.inicio, fin: o.fin, oracion: i, deEnvio: false });
+      return;
+    }
+    const mascara = ob.replace(/\([^)]*\)/g, (m) => `(${"x".repeat(m.length - 2)})`);
+    let previa = false;
+    const agregar = (desde: number, hasta: number) => {
+      const cb = ob.slice(desde, hasta).trim();
+      if (!cb) return;
+      const s = sujetoDe(o.inicio + desde, o.inicio + hasta);
+      const deEnvio = PALABRA_ENVIO.test(cb) || (s ? SUJETO_DEL_ENVIO.test(s) : PALABRA_PROMOCION.test(cb) || GRATIS_DICHO.test(cb) || previa);
+      previa = deEnvio;
+      clausulas.push({ inicio: o.inicio + desde, fin: o.inicio + hasta, oracion: i, deEnvio });
+    };
+    let desde = 0;
+    for (const m of mascara.matchAll(CORTES)) {
+      agregar(desde, m.index!);
+      desde = m.index! + m[0].length;
+    }
+    agregar(desde, ob.length);
+  });
+  return { texto, bajo, oraciones, clausulas };
+}
+
+const casi = (a: number | null | undefined, b: number) => a !== null && a !== undefined && Math.abs(a - b) < 0.005;
+
+/** Los lugares del respaldo que nombra un texto (su nombre, corregimiento o distrito como palabras enteras). */
+function nombrados(textoBajo: string, envio: RespaldoDeEnvio): LugarDeEnvio[] {
+  return envio.lugares.filter((l) => l.nombres.some((n) => n.length >= 3 && new RegExp(`(?<![\\p{L}\\p{N}])${escaparRegex(n)}(?![\\p{L}\\p{N}])`, "u").test(textoBajo)));
+}
+
+/** Los lugares de los que habla la cláusula: los que nombra; si no nombra ninguno, los que nombra su oración; si tampoco, todos. */
+function lugaresDe(p: Particion, c: Clausula, envio: RespaldoDeEnvio): readonly LugarDeEnvio[] {
+  const enLaClausula = nombrados(p.bajo.slice(c.inicio, c.fin), envio);
+  if (enLaClausula.length) return enLaClausula;
+  const o = p.oraciones[c.oracion];
+  const enLaOracion = nombrados(p.bajo.slice(o.inicio, o.fin), envio);
+  return enLaOracion.length ? enLaOracion : envio.lugares;
+}
+
+/** ¿La oración dice el mínimo de la compra de ese lugar? (Con la promoción condicional, el beneficio solo va con su condición.) */
+function condicionDicha(l: LugarDeEnvio, oracion: string): boolean {
+  return !l.condicional || (l.minimo !== null && extraerMontos(oracion).some((m) => casi(l.minimo, m.valor)));
+}
+
+/** ¿Esa cifra, dicha así (lo que va antes y después), es una cifra de ese lugar con el papel correcto? */
+function cifraDelLugar(l: LugarDeEnvio, valor: number, antes: string, despues: string, oracion: string, envio: RespaldoDeEnvio): boolean {
+  if (MINIMO_ANTES.test(antes)) return casi(l.minimo, valor);
+  if (AHORRO_ANTES.test(antes) || AHORRO_DESPUES.test(despues)) return casi(l.ahorro, valor) && condicionDicha(l, oracion);
+  if (TOTAL_ANTES.test(antes)) return casi(envio.total, valor);
+  if (COMPRA_ANTES.test(antes)) return casi(l.compra, valor);
+  const cargo = l.cargos.find((c) => c.nombre && antes.includes(sinAcentos(c.nombre)));
+  if (cargo) return casi(cargo.monto, valor);
+  return casi(l.normal, valor) || (casi(l.final, valor) && condicionDicha(l, oracion));
+}
+
+/** Lo que tiene de malo, sobre el envío, cada oración del texto (en el orden de `oraciones()`). */
+export function revisarEnvioPorOracion(textoOriginal: string, envio?: RespaldoDeEnvio): string[][] {
+  const p = partirEnClausulas(textoOriginal.normalize("NFC"));
+  const salida: string[][] = p.oraciones.map(() => []);
+  const conLugares = Array.isArray(envio?.lugares) && envio.lugares.length > 0;
+  for (const c of p.clausulas) {
+    if (!c.deEnvio) continue;
+    const cb = p.bajo.slice(c.inicio, c.fin);
+    const montos = extraerMontos(p.texto.slice(c.inicio, c.fin));
+    const gratis = GRATIS_DICHO.test(cb) || (ENVIO_INCLUIDO.test(cb) && !HABLA_DEL_TOTAL.test(cb)) || montos.some((m) => m.valor === 0);
+    if (montos.length === 0 && !gratis) continue;
+    const problemas = salida[c.oracion];
+    if (!conLugares) {
+      problemas.push(montos.some((m) => m.valor !== 0) ? "costo de entrega" : "entrega o flete gratis");
+      continue;
+    }
+    const o = p.oraciones[c.oracion];
+    const oracion = p.texto.slice(o.inicio, o.fin);
+    const lugares = lugaresDe(p, c, envio!);
+    let finAnterior = 0;
+    for (const m of montos) {
+      const antes = cb.slice(Math.max(finAnterior, m.inicio - 40), m.inicio);
+      const despues = cb.slice(m.fin, m.fin + 24);
+      finAnterior = m.fin;
+      if (m.valor === 0) continue; // «$0» es un «gratis»
+      if (!lugares.some((l) => cifraDelLugar(l, m.valor, antes, despues, oracion, envio!))) problemas.push("costo de entrega");
+    }
+    if (gratis && !lugares.some((l) => l.gratis && condicionDicha(l, oracion))) problemas.push("entrega o flete gratis");
+  }
+  return salida.map((ps) => [...new Set(ps)]);
+}
+
+/** Lo que tiene de malo el texto sobre el envío (cifras o «gratis» que la herramienta de envíos de este turno no respalda). */
+export function revisarEnvio(texto: string, envio?: RespaldoDeEnvio): string[] {
+  return [...new Set(revisarEnvioPorOracion(texto, envio).flat())];
 }
 
 // ── Mandar a leer políticas ─────────────────────────────────────────────────
@@ -411,7 +606,7 @@ export function analizar(borrador: string, ctx: ContextoRevision): Analisis {
     return { limpio, graves };
   }
 
-  limpio = asegurarItbms(limpio, ctx.preciosProducto, ctx.envio?.montos);
+  limpio = asegurarItbms(limpio, ctx.preciosProducto, ctx.envio);
 
   const secreto = secretoRepetido(limpio, ctx);
   if (secreto) graves.push({ tipo: "secreto", detalle: "un dato que el cliente dio en confianza" });
@@ -434,9 +629,11 @@ export function analizar(borrador: string, ctx: ContextoRevision): Analisis {
 
 /** Quita las oraciones que contienen algo grave. Devuelve "" si no queda nada que decir. */
 export function quitarGraves(limpio: string, ctx: ContextoRevision): string {
-  const buenas = oraciones(limpio).filter((o) => {
+  // El envío se revisa con el texto entero (una oración sigue el tema de la anterior) y se reparte por oración.
+  const delEnvio = revisarEnvioPorOracion(limpio, ctx.envio);
+  const buenas = oraciones(limpio).filter((o, i) => {
     const { graves } = analizarOracion(o, ctx);
-    return graves.length === 0;
+    return graves.length === 0 && (delEnvio[i] ?? []).length === 0;
   });
   return buenas.join(" ").trim();
 }
@@ -452,7 +649,7 @@ function analizarOracion(o: string, ctx: ContextoRevision): { graves: Problema[]
   for (const m of extraerMontos(o)) if (!cercano(ctx.cifrasConocidas, m.valor)) graves.push({ tipo: "precio_inventado", detalle: m.texto });
   for (const c of cifrasDePolitica(o)) if (!respaldada(ctx, c.valor)) graves.push({ tipo: "cifra_inventada", detalle: c.texto });
   for (const h of detectarExistencias(o)) graves.push({ tipo: "existencias", detalle: h });
-  for (const p of detectarPromesas(o, ctx.cifrasConocidas, ctx.envio)) graves.push({ tipo: "promesa", detalle: p });
+  for (const p of promesasSinEnvio(o, ctx.cifrasConocidas)) graves.push({ tipo: "promesa", detalle: p });
   for (const p of detectarMandaALeer(o).slice(0, 1)) graves.push({ tipo: "manda_a_leer", detalle: p });
   for (const p of ctx.escribePersona ? [] : detectarSerHumano(o).slice(0, 1)) graves.push({ tipo: "se_hace_pasar_por_persona", detalle: p });
   const prohibida = palabraProhibida(o, [...PALABRAS_PROHIBIDAS_DE_MARCA, ...(ctx.palabrasProhibidas ?? [])]);
@@ -477,7 +674,8 @@ export function notaDeCorreccion(graves: readonly Problema[]): string {
   return (
     `Tu borrador anterior NO se envió porque tenía ${lista}. Reescribe la respuesta sin eso: ` +
     "usa solo cifras que devolvieron las herramientas (con «+ ITBMS»), nunca digas cuántas unidades hay, " +
-    "el costo del envío solo tal cual lo dio cotizar_envio (o agregar_envio) en esta respuesta, " +
+    "el costo del envío solo tal cual lo dio cotizar_envio (o agregar_envio) en esta respuesta (lo que D'CASA abona o regala, solo como ahorro; " +
+    "si la promoción depende de la compra, con su condición en la misma oración), " +
     "y lo demás de entregas (la fecha), flete, financiamiento, apartados y descuentos queda en «te lo confirma una vendedora». " +
     "Mantén el tuteo, sin emojis, en 2 a 4 líneas."
   );

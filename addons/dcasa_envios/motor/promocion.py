@@ -206,15 +206,35 @@ def con_el_precio_normal(resultado, lugar, desglose=''):
     return ' '.join(p for p in (normal, desglose, resultado['frase']) if p)
 
 
-def respaldo(resultado):
-    """Lo que la guardia de salida del Worker deja decir sobre el costo del envío en ese turno: las cifras de este
-    envío que la frase le da al cliente (el precio normal; con la promoción aplicada, el precio final y lo que se
-    ahorra o se abona; sin compra todavía, lo que quedaría y lo que se abonaría) y si la frase dice «gratis»."""
-    montos = {resultado.get('precio_normal')}
+def respaldo(resultado, nombres=(), cargos=(), lleva_itbms=False):
+    """Lo que la guardia de salida del Worker deja decir del envío a UN lugar (revisión adversarial del 2026-11-12, I1,
+    I2 y I5): cada cifra con su papel, para que una cifra no respalde otra cosa (lo abonado nunca es lo que cuesta).
+
+    ``{nombres, normal, final, ahorro, gratis, condicional, minimo, compra, cargos, lleva_itbms}``:
+
+    * ``nombres``: cómo se le nombra al cliente (el nombre del lugar, su corregimiento, su distrito).
+    * ``normal``: el precio normal. ``final``: lo que paga con la promoción (sin compra todavía: lo que quedaría).
+    * ``ahorro``: lo que D'CASA regala o abona (solo se dice como ahorro, abono o descuento, nunca como costo).
+    * ``gratis``: la frase dice «gratis» (solo cuando este envío queda o quedaría gratis).
+    * ``condicional``: todavía no hay compra; el beneficio solo se dice con el mínimo en la misma oración.
+    * ``minimo``: el mínimo de la compra, si la frase lo dice. ``compra``: lo que suma la cotización (si la frase lo
+      dice: la compra no llega al mínimo).
+    * ``cargos``: el desglose que dice la frase (``[{nombre, monto}]``: la tarifa y los cargos aparte).
+    * ``lleva_itbms``: si al envío se le suma el ITBMS (lo dice la herramienta, no el modelo)."""
+    motivo = resultado.get('motivo')
+    normal = resultado.get('precio_normal')
+    final = ahorro = None
     if resultado.get('aplica'):
-        montos |= {resultado.get('precio_final'), resultado.get('ahorro')}
+        final, ahorro = resultado.get('precio_final'), resultado.get('ahorro')
     elif resultado.get('condicional') and resultado.get('precio_si_aplica') is not None:
-        # Sin compra todavía: lo que quedaría y lo que D'CASA abona o regala (la frase dice las dos cifras).
-        montos.add(resultado['precio_si_aplica'])
-        montos.add(float(centavos(resultado['precio_normal']) - centavos(resultado['precio_si_aplica'])))
-    return {'montos': sorted(m for m in montos if m is not None), 'gratis': bool(resultado.get('menciona_gratis'))}
+        final = resultado['precio_si_aplica']
+        ahorro = float(centavos(normal) - centavos(final))
+    return {
+        'nombres': [n for n in dict.fromkeys(' '.join(str(n or '').split()) for n in nombres) if n],
+        'normal': normal, 'final': final, 'ahorro': ahorro,
+        'gratis': bool(resultado.get('menciona_gratis')), 'condicional': bool(resultado.get('condicional')),
+        'minimo': resultado.get('minimo') if motivo in (SIN_COMPRA, GRATIS, ABONO, MONTO) else None,
+        'compra': resultado.get('compra_medida') if motivo == MONTO else None,
+        'cargos': [{'nombre': str(c['nombre']), 'monto': float(c['monto'])} for c in cargos],
+        'lleva_itbms': bool(lleva_itbms),
+    }

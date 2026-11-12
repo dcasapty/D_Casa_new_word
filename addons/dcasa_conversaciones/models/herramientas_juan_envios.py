@@ -27,8 +27,9 @@ bien si Juan pregunta si quiere que le sume a la cotización el envío … tiene
   aquí se vuelve a quitar. Juan busca con el barrio, el PH o el punto de referencia.
 
 Los nombres de las cifras no dicen «precio» a propósito: el Worker le pone «+ ITBMS» a todo número que venga en un
-campo «precio» (los de los productos). El del envío lleva ITBMS solo si el producto del transportista lo tiene, y la
-frase ya lo dice.
+campo «precio» (los de los productos). El del envío lleva ITBMS solo si el producto del transportista lo tiene (con la
+posición fiscal de la venta), y la frase ya lo dice. ``respaldo_envio`` (que el modelo no ve) le dice a la guardia del
+Worker cada cifra del envío con su papel y su lugar (revisión adversarial I1, I2, I5, M1, M2).
 """
 import json
 
@@ -177,7 +178,8 @@ class BrianHerramientasJuanEnvios(models.AbstractModel):
             fecha = orden._dcasa_promocion_fecha() if orden else None
             resultado, _promocion = self.env['dcasa.envio.promocion'].sudo()._aplicar(
                 tarjeta['total'], tarjeta['prov'], tarjeta['dist'], compra, fecha=fecha)
-        lleva_itbms = self.env['sale.order']._dcasa_envio_lleva_itbms()
+        # El ITBMS del envío: el del producto del transportista con la posición fiscal de la venta (M2).
+        lleva_itbms = (orden or self.env['sale.order'])._dcasa_envio_lleva_itbms()
         itbms = ' Al envío se le suma el ITBMS.' if lleva_itbms else ''
         if tiene_beneficio(resultado):
             # (1) el precio normal dicho como normal, (2) lo que D'CASA resta con la promoción, (3) hasta cuándo.
@@ -192,9 +194,21 @@ class BrianHerramientasJuanEnvios(models.AbstractModel):
             'envio_lleva_itbms': lleva_itbms,
             'promocion': self._j_promocion_como_dict(resultado) if resultado['hay_promocion'] else None,
             'frase_para_el_cliente': frase,
-            'respaldo_envio': respaldo(resultado),
+            'respaldo_envio': self._j_envio_respaldo(tarjeta, resultado, lleva_itbms),
         }
         return datos, orden, resultado
+
+    @staticmethod
+    def _j_envio_respaldo(tarjeta, resultado, lleva_itbms, total=None):
+        """Lo que la guardia del Worker deja decir del envío (el modelo no lo ve): las cifras de ESTE lugar, cada una
+        con su papel (ver ``motor/promocion.respaldo``), y el total de la cotización si se acaba de sumar el envío."""
+        cargos = []
+        if tarjeta.get('extras'):        # el desglose que dice la frase: «Tarifa $45 + peaje $5.»
+            cargos = [{'nombre': 'tarifa', 'monto': tarjeta['base']}] + [
+                {'nombre': c['nombre'].lower(), 'monto': c['monto']} for c in tarjeta['extras']]
+        lugar = respaldo(resultado, nombres=(tarjeta['nombre'], tarjeta.get('corr'), tarjeta.get('dist')),
+                         cargos=cargos, lleva_itbms=lleva_itbms)
+        return {'lugares': [lugar], 'total': total}
 
     @staticmethod
     def _j_envio_desglose(tarjeta):
@@ -441,8 +455,9 @@ class BrianHerramientasJuanEnvios(models.AbstractModel):
         datos, _orden, _resultado = self._j_envio_con_promocion(conv, tarjeta, orden=orden,
                                                                 resultado=puesto['resultado'])
         cotizacion = self._j_cotizacion_como_dict(orden)
+        respaldo_envio = dict(datos['respaldo_envio'], total=cotizacion['total'])     # «el total queda en $X» (M1)
         respuesta = {
-            'sumado': True, 'cotizacion': cotizacion, 'respaldo_envio': datos['respaldo_envio'],
+            'sumado': True, 'cotizacion': cotizacion, 'respaldo_envio': respaldo_envio,
             'envio_normal_texto': datos['envio_normal_texto'], 'promocion': datos['promocion'],
             'frase_para_el_cliente': (f'Listo, te sumé el envío a la cotización {orden.name}. '
                                       f'{datos["frase_para_el_cliente"]} El total de la cotización queda en '

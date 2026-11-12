@@ -233,6 +233,22 @@ class TestEnvioEnLaCotizacion(PromocionComun):
         con_flete = self.orden((self.sofa, 2), (flete, 1))
         self.assertEqual(self.poner(con_flete, 'Costa Inventada')[0], {'puesto': False, 'motivo': 'ajeno'})
 
+    def test_el_itbms_del_envio_es_el_del_transportista_con_la_posicion_fiscal_de_la_venta(self):
+        """Revisión adversarial (M2): Juan dice «al envío se le suma el ITBMS» solo si de verdad se le suma."""
+        Orden = self.env['sale.order']
+        self.assertFalse(Orden._dcasa_envio_lleva_itbms(), 'el de la tienda no lleva impuestos')
+        itbms = self.env.company.account_sale_tax_id
+        self.transportista.product_id.taxes_id = [Command.set(itbms.ids)]
+        orden = self.orden((self.sofa, 1))
+        self.assertTrue(Orden._dcasa_envio_lleva_itbms())
+        self.assertTrue(orden._dcasa_envio_lleva_itbms())
+        exenta = self.env['account.fiscal.position'].create({'name': 'Exenta de prueba'})
+        self.env['account.tax'].create({
+            'name': 'Exento de prueba', 'amount': 0.0, 'type_tax_use': 'sale',
+            'fiscal_position_ids': [Command.set(exenta.ids)], 'original_tax_ids': [Command.set(itbms.ids)]})
+        orden.fiscal_position_id = exenta
+        self.assertFalse(orden._dcasa_envio_lleva_itbms(), 'con la posición fiscal de la venta, el envío va exento')
+
     def test_la_marca_de_la_promocion_solo_la_pone_el_sistema(self):
         orden = self.orden((self.sofa, 2))
         orden.user_id = self.vendedora

@@ -18,6 +18,7 @@ from .test_cotizacion_automatica import CotizarCase
 
 HOY = 'odoo.addons.dcasa_envios.models.promocion.EnvioPromocion._hoy'
 FECHA_COTIZACION = 'odoo.addons.dcasa_envios.models.venta.SaleOrder._dcasa_promocion_fecha'
+COSTA = ('Costa Inventada', 'Santa Prueba', 'Panamá')         # cómo se nombra el lugar (respaldo de la guardia)
 
 
 class EnviosJuanCase(CotizarCase):
@@ -40,6 +41,14 @@ class EnviosJuanCase(CotizarCase):
         # Las cotizaciones se tienen por creadas «hoy» (la fecha de creación es la que decide la promoción).
         self.startPatcher(patch(FECHA_COTIZACION, autospec=True,
                                 side_effect=lambda orden: orden.env['dcasa.envio.promocion']._hoy()))
+
+    @staticmethod
+    def papeles(datos):
+        """El respaldo de la guardia del Worker (un lugar): ``(nombres, normal, final, ahorro, gratis, condicional,
+        minimo, compra)`` y el total de la cotización."""
+        (lugar,) = datos['respaldo_envio']['lugares']
+        return (tuple(lugar['nombres']),) + tuple(lugar[k] for k in (
+            'normal', 'final', 'ahorro', 'gratis', 'condicional', 'minimo', 'compra')), datos['respaldo_envio']['total']
 
     def envio(self, conv=None, **argumentos):
         return self.salida('cotizar_envio', argumentos, conv=conv)
@@ -74,7 +83,9 @@ class TestCotizarEnvio(EnviosJuanCase):
                          "precio normal. No aplica si la compra lleva colchón.")
         self.assertFalse(datos['promocion']['aplica'])
         self.assertTrue(datos['promocion']['condicional'])
-        self.assertEqual(datos['respaldo_envio'], {'montos': [0.0, 45.0], 'gratis': True})
+        # Cada cifra con su papel (revisión adversarial I1, I2, I5): sin compra, el beneficio va con la condición.
+        self.assertEqual(self.papeles(datos), ((COSTA, 45.0, 0.0, 45.0, True, True, 200.0, None), None))
+        self.assertEqual(datos['respaldo_envio']['lugares'][0]['lleva_itbms'], False)
         self.assertIn('cotizar', datos['instruccion'])
         self.assertIn('vendedora', datos['instruccion'], 'la fecha de entrega la confirma una vendedora')
         self.assertNotIn('precio', json.dumps(list(datos)), 'ninguna clave dice «precio» (el Worker pondría + ITBMS)')
@@ -87,12 +98,13 @@ class TestCotizarEnvio(EnviosJuanCase):
                          "promoción es hasta el 30 de noviembre; después, el envío vuelve a su precio normal. No "
                          "aplica si la compra lleva colchón.")
         self.assertNotIn('gratis', colon['frase_para_el_cliente'].lower())
-        self.assertEqual(colon['respaldo_envio'], {'montos': [20.0, 85.0, 105.0], 'gratis': False})
+        self.assertEqual(self.papeles(colon), ((('Barrio Simulado', 'Colón'), 105.0, 85.0, 20.0, False, True, 200.0,
+                                                 None), None), 'lo abonado es un ahorro, no un costo')
         with patch(HOY, return_value=date(2026, 12, 1)):
             diciembre = self.envio(lugar='Costa Inventada')
         self.assertEqual(diciembre['frase_para_el_cliente'], 'Envío a Costa Inventada (Santa Prueba, Panamá): $45.')
         self.assertIsNone(diciembre['promocion'])
-        self.assertEqual(diciembre['respaldo_envio'], {'montos': [45.0], 'gratis': False})
+        self.assertEqual(self.papeles(diciembre), ((COSTA, 45.0, None, None, False, False, None, None), None))
 
     def test_varios_parecidos_pregunta_cual_y_con_el_que_elige_da_el_precio(self):
         datos = self.envio(lugar='ensayo')
@@ -247,7 +259,7 @@ class TestCotizarEnvio(EnviosJuanCase):
                          'Envío a Costa Inventada (Santa Prueba, Panamá): $45. La promoción de noviembre es para '
                          'compras de más de $200 sin ITBMS; tu cotización suma $90 sin ITBMS, así que el envío va a '
                          'su precio normal.')
-        self.assertEqual(chica['respaldo_envio'], {'montos': [45.0], 'gratis': False})
+        self.assertEqual(self.papeles(chica), ((COSTA, 45.0, None, None, False, False, 200.0, 90.0), None))
         otra = self.conversacion(nombre='Otra', id_externo='50769990001')
         self.colchon.dcasa_tipo_combo = 'colchon'            # (el nombre de prueba «ZZCOLCHÓN» no lo sugiere solo)
         self.cotizar({'codigo': self.colchon.dcasa_codigo_publico, 'opcion': 'Zzqueen'}, conv=otra)
@@ -274,7 +286,8 @@ class TestAgregarEnvio(EnviosJuanCase):
                          'el envío no va entre los productos')
         self.assertEqual([linea['monto_texto'] for linea in cotizacion['envio']['lineas']], ['$45', '−$45'])
         self.assertEqual(cotizacion['envio']['total_envio_texto'], '$0')
-        self.assertEqual(datos['respaldo_envio'], {'montos': [0.0, 45.0], 'gratis': True})
+        self.assertEqual(self.papeles(datos), ((COSTA, 45.0, 0.0, 45.0, True, False, 200.0, None),
+                                               cotizacion['total']), 'y el total de la cotización (M1)')
         frase = datos['frase_para_el_cliente']
         self.assertTrue(frase.startswith(f'Listo, te sumé el envío a la cotización {orden.name}. El envío a Costa '
                                          'Inventada (Santa Prueba, Panamá) cuesta normalmente $45.'), frase)

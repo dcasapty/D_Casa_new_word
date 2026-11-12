@@ -7,13 +7,14 @@
 //   · se agrega `precio_texto` («$499.00 + ITBMS») para que copie el precio ya correcto;
 //   · se anotan los precios y cifras conocidas (la guardia de salida las usa para rechazar inventos);
 //   · se recuerdan las fotos que devolvió `ver_producto`, que son las únicas que `enviar_foto_producto` puede enviar;
-//   · de `cotizar_envio` / `agregar_envio` se toma su `respaldo_envio` (las cifras del envío y si dijo «gratis»): solo eso deja decir
-//     el costo del envío en este turno. El modelo no lo ve.
+//   · de `cotizar_envio` / `agregar_envio` se toma su `respaldo_envio` (cada lugar con sus cifras y su papel, y el total de la
+//     cotización si se sumó el envío): solo eso deja decir el costo del envío en este turno. El modelo no lo ve.
 
 import { jsonSchema, tool, type ToolSet } from "ai";
 import type { DefHerramienta, OdooApi, ResultadoHerramienta } from "../odoo/cliente";
 import type { MedioSaliente } from "../canales/tipos";
-import { extraerMontos, parseMonto } from "../dcasa/salvaguardas";
+import { extraerMontos, parseMonto, type LugarDeEnvio } from "../dcasa/salvaguardas";
+import { sinAcentos } from "../dcasa/texto";
 
 /** Lo que se aprende durante UN turno del modelo. */
 export class RegistroDelTurno {
@@ -39,10 +40,8 @@ export class RegistroDelTurno {
   preguntaRegistrada = false;
   /** Ya hay una cotización en PDF en la respuesta de este turno (solo va una por respuesta). */
   cotizacionPreparada = false;
-  /** Las cifras del envío que devolvió la herramienta de envíos en este turno (precio normal, con la promoción, lo que se ahorra). */
-  readonly montosEnvio = new Set<number>();
-  /** La herramienta de envíos dijo «gratis» en este turno. */
-  envioGratis = false;
+  /** Lo que la herramienta de envíos respaldó en este turno: cada lugar con sus cifras y su papel, y el total si sumó el envío. */
+  readonly envio: { lugares: LugarDeEnvio[]; total: number | null } = { lugares: [], total: null };
 }
 
 /** Las herramientas de envíos de Odoo: lo que devuelven respalda el costo del envío en la guardia de salida. */
@@ -263,16 +262,46 @@ export function textoDeLaHerramienta(resultado: unknown): string | null {
   return null;
 }
 
+const cifraOnula = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : null);
+
+/** Un lugar de `respaldo_envio` como lo usa la guardia, o null si no trae nombres ni cifras que sirvan. */
+function lugarDeEnvio(v: unknown): LugarDeEnvio | null {
+  if (!esObjeto(v)) return null;
+  const nombres = Array.isArray(v.nombres) ? v.nombres.filter((n): n is string => typeof n === "string").map((n) => sinAcentos(n).replace(/\s+/g, " ").trim()).filter(Boolean) : [];
+  const cargos = Array.isArray(v.cargos)
+    ? v.cargos.flatMap((c) => (esObjeto(c) && typeof c.nombre === "string" && cifraOnula(c.monto) !== null ? [{ nombre: sinAcentos(c.nombre).trim(), monto: c.monto as number }] : []))
+    : [];
+  return {
+    nombres,
+    normal: cifraOnula(v.normal),
+    final: cifraOnula(v.final),
+    ahorro: cifraOnula(v.ahorro),
+    gratis: v.gratis === true,
+    condicional: v.condicional === true,
+    minimo: cifraOnula(v.minimo),
+    compra: cifraOnula(v.compra),
+    cargos,
+    llevaItbms: v.lleva_itbms === true,
+  };
+}
+
 /**
- * `respaldo_envio` (de `cotizar_envio` y `agregar_envio`): `{montos: [números], gratis: bool}`, armado por Odoo con el motor de la tarifa y
- * de la promoción. Se anota en el registro del turno y se quita de lo que ve el modelo (es para la guardia, no para él).
+ * `respaldo_envio` (de `cotizar_envio` y `agregar_envio`): `{lugares: [{nombres, normal, final, ahorro, gratis, condicional, minimo, compra,
+ * cargos, lleva_itbms}], total}`, armado por Odoo con el motor de la tarifa y de la promoción. Se anota en el registro del turno y se quita
+ * de lo que ve el modelo (es para la guardia, no para él).
  */
 export function tomarRespaldoDeEnvio(resultado: unknown, reg: RegistroDelTurno): unknown {
   if (!esObjeto(resultado) || !("respaldo_envio" in resultado)) return resultado;
   const { respaldo_envio: respaldo, ...resto } = resultado;
   if (esObjeto(respaldo)) {
-    if (Array.isArray(respaldo.montos)) for (const n of respaldo.montos) if (typeof n === "number" && Number.isFinite(n) && n >= 0) reg.montosEnvio.add(n);
-    if (respaldo.gratis === true) reg.envioGratis = true;
+    if (Array.isArray(respaldo.lugares)) {
+      for (const l of respaldo.lugares) {
+        const lugar = lugarDeEnvio(l);
+        if (lugar) reg.envio.lugares.push(lugar);
+      }
+    }
+    const total = cifraOnula(respaldo.total);
+    if (total !== null) reg.envio.total = total;
   }
   return resto;
 }

@@ -17,6 +17,11 @@ NOVIEMBRE = {
 HOY = date(2026, 11, 12)
 
 
+def papeles(respaldo):
+    """``(normal, final, ahorro, gratis, condicional, minimo, compra)`` del respaldo de un lugar."""
+    return tuple(respaldo[k] for k in ('normal', 'final', 'ahorro', 'gratis', 'condicional', 'minimo', 'compra'))
+
+
 def compra(sin_itbms, con_itbms=None, colchon=False):
     return {'subtotal_sin_itbms': sin_itbms,
             'subtotal_con_itbms': round(sin_itbms * 1.07, 2) if con_itbms is None else con_itbms, 'colchon': colchon}
@@ -45,7 +50,7 @@ class TestPromocionDeEnvio(BaseCase):
         resultado = P.aplicar(None, 15.0, 'Panamá', 'San Miguelito', HOY, compra(500))
         self.assertEqual((resultado['hay_promocion'], resultado['aplica'], resultado['precio_final'],
                           resultado['ahorro'], resultado['frase']), (False, False, 15.0, 0.0, ''))
-        self.assertEqual(P.respaldo(resultado), {'montos': [15.0], 'gratis': False})
+        self.assertEqual(papeles(P.respaldo(resultado)), (15.0, None, None, False, False, None, None))
 
     # --- El mínimo: estrictamente mayor, con o sin ITBMS -----------------------------------------------------------
     def test_en_el_limite_de_200_no_aplica_y_un_centavo_mas_si(self):
@@ -107,7 +112,7 @@ class TestPromocionDeEnvio(BaseCase):
                                                      "ITBMS, D'CASA te regala el envío: te sale gratis (te ahorras "
                                                      "$35). La promoción es hasta el 30 de noviembre; después, el "
                                                      "envío vuelve a su precio normal.")
-                self.assertEqual(P.respaldo(resultado), {'montos': [0.0, 35.0], 'gratis': True})
+                self.assertEqual(papeles(P.respaldo(resultado)), (35.0, 0.0, 35.0, True, False, 200.0, None))
 
     def test_abono_de_20_en_colon_y_el_resto(self):
         for prov in ('Colón', 'Coclé', 'Provincia Lejana'):
@@ -120,7 +125,8 @@ class TestPromocionDeEnvio(BaseCase):
                                                      "promoción es hasta el 30 de noviembre; después, el envío vuelve "
                                                      "a su precio normal.")
                 self.assertFalse(resultado['menciona_gratis'], 'en una zona con abono no se dice «gratis»')
-                self.assertEqual(P.respaldo(resultado), {'montos': [20.0, 70.0, 90.0], 'gratis': False})
+                # Lo abonado ($20) es un ahorro, nunca el costo (revisión adversarial I1).
+                self.assertEqual(papeles(P.respaldo(resultado)), (90.0, 70.0, 20.0, False, False, 200.0, None))
 
     def test_el_abono_nunca_deja_el_envio_en_negativo(self):
         resultado = self.aplicar(precio=12.5, prov='Colón', dist='Colón', datos=compra(450.0))
@@ -144,7 +150,7 @@ class TestPromocionDeEnvio(BaseCase):
         resultado = self.aplicar(precio=None, datos=compra(300))
         self.assertEqual((resultado['motivo'], resultado['aplica'], resultado['precio_final']),
                          (P.SIN_PRECIO, False, None))
-        self.assertEqual(P.respaldo(resultado)['montos'], [])
+        self.assertEqual(papeles(P.respaldo(resultado)), (None, None, None, False, False, None, None))
 
     def test_un_envio_en_cero_o_negativo_nunca_da_te_ahorras_0_ni_montos_negativos(self):
         """Revisión adversarial (M7): con $0 o menos no hay nada que rebajar ni que decir."""
@@ -155,8 +161,22 @@ class TestPromocionDeEnvio(BaseCase):
                     self.assertEqual((resultado['motivo'], resultado['aplica'], resultado['ahorro'],
                                       resultado['precio_normal'], resultado['frase']),
                                      (P.SIN_PRECIO, False, 0.0, None, ''))
-                    self.assertEqual(P.respaldo(resultado)['montos'], [])
+                    self.assertEqual(papeles(P.respaldo(resultado))[:4], (None, None, None, False))
                     self.assertEqual(P.con_el_precio_normal(resultado, 'Villa Prueba'), '')
+
+    def test_el_respaldo_de_cada_lugar_lleva_sus_nombres_su_desglose_y_el_minimo_o_la_compra(self):
+        """Revisión adversarial (I1, I2, M1): cada cifra con su papel y su lugar, para la guardia del Worker."""
+        chica = self.aplicar(precio=45.0, datos=compra(90.0))
+        lugar = P.respaldo(chica, nombres=('Costa Inventada', '', 'Costa Inventada', 'Panamá'),
+                           cargos=[{'nombre': 'tarifa', 'monto': 40}, {'nombre': 'peaje', 'monto': 5}],
+                           lleva_itbms=True)
+        self.assertEqual(lugar['nombres'], ['Costa Inventada', 'Panamá'], 'sin vacíos ni repetidos')
+        self.assertEqual(papeles(lugar), (45.0, None, None, False, False, 200.0, 90.0),
+                         'la frase dice el mínimo y lo que suma la cotización')
+        self.assertEqual(lugar['cargos'], [{'nombre': 'tarifa', 'monto': 40.0}, {'nombre': 'peaje', 'monto': 5.0}])
+        self.assertTrue(lugar['lleva_itbms'])
+        colchon = self.aplicar(precio=45.0, datos=compra(900.0, colchon=True))
+        self.assertEqual(papeles(P.respaldo(colchon)), (45.0, None, None, False, False, None, None))
 
     # --- Sin cotización todavía: las condiciones ------------------------------------------------------------------
     def test_sin_compra_dice_las_condiciones_y_no_dice_que_aplica(self):
@@ -167,13 +187,14 @@ class TestPromocionDeEnvio(BaseCase):
                                           "te regala el envío: te sale gratis (te ahorras $15). La promoción es hasta "
                                           "el 30 de noviembre; después, el envío vuelve a su precio normal. No aplica "
                                           "si la compra lleva colchón.")
-        self.assertEqual(P.respaldo(gratis), {'montos': [0.0, 15.0], 'gratis': True})
+        self.assertEqual(papeles(P.respaldo(gratis)), (15.0, 0.0, 15.0, True, True, 200.0, None))
         abono = self.aplicar(precio=90.0, prov='Colón', dist='Colón')
         self.assertEqual(abono['frase'], "Con la promoción de noviembre, en compras de más de $200 sin ITBMS, D'CASA "
                                          "te abona $20 del envío: te queda en $70. La promoción es hasta el 30 de "
                                          "noviembre; después, el envío vuelve a su precio normal. No aplica si la "
                                          "compra lleva colchón.")
-        self.assertEqual(P.respaldo(abono), {'montos': [20.0, 70.0, 90.0], 'gratis': False}, 'también el abono')
+        self.assertEqual(papeles(P.respaldo(abono)), (90.0, 70.0, 20.0, False, True, 200.0, None),
+                         'sin compra: lo que quedaría y lo que se abonaría, con la condición')
 
     def test_la_frase_completa_dice_el_precio_normal_lo_que_resta_dcasa_y_hasta_cuando(self):
         """Pedido de la dueña (2026-11-12): que no se lea como si no se le restara nada al envío."""

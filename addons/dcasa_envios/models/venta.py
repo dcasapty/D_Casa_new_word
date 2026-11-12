@@ -222,9 +222,17 @@ class SaleOrder(models.Model):
             [('dcasa_por_cotizar', '=', True), ('product_id', '!=', False)], order='sequence, id', limit=1)
 
     def _dcasa_envio_lleva_itbms(self):
+        """¿Al envío a domicilio se le suma ITBMS? Los impuestos del producto del transportista, pasados por la
+        posición fiscal de esta venta si es una (revisión adversarial M2), como los pone Odoo en la línea."""
         transportista = self._dcasa_envio_transportista()
-        return bool(transportista and transportista.product_id.taxes_id._filter_taxes_by_company(
-            self.company_id or self.env.company))
+        if not transportista:
+            return False
+        orden = self[:1]
+        impuestos = transportista.product_id.taxes_id._filter_taxes_by_company(orden.company_id or self.env.company)
+        if orden.fiscal_position_id:
+            impuestos = orden.fiscal_position_id.map_tax(impuestos)
+        # Un impuesto de 0 % (exento) no le suma nada al envío.
+        return bool(impuestos.flatten_taxes_hierarchy().filtered('amount'))
 
     def _dcasa_promocion_fecha(self):
         """La fecha (de Panamá) con la que se decide si la promoción de envío aplica a esta cotización: la de su
