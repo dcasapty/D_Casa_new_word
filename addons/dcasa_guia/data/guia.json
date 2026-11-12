@@ -3824,6 +3824,25 @@
     "estadisticas",
     "inventario parado"
    ]
+  },
+  {
+   "id": "modo-oscuro",
+   "categoria": "administrar",
+   "grupo": "Tu pantalla",
+   "titulo": "Poner el sistema en modo oscuro (o volver al claro)",
+   "logras": "La pantalla pasa a un fondo gris oscuro con letras claras, que cansa menos la vista de noche. Lo elige cada persona y vale solo para ese teléfono o esa computadora.",
+   "destino": null,
+   "nota": "Toca tu foto o tu inicial, arriba a la derecha, y enciende «Modo oscuro»: la pantalla se recarga sola. Para volver al claro, apágalo en el mismo lugar.",
+   "palabras": [
+    "modo oscuro",
+    "oscuro",
+    "tema oscuro",
+    "noche",
+    "fondo negro",
+    "modo claro",
+    "brillo",
+    "colores de la pantalla"
+   ]
   }
  ],
  "$empezar": "Las tareas de «Empieza por aquí», en este orden (solo salen las que la persona puede abrir)."

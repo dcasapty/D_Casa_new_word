@@ -1,0 +1,13 @@
+// MODO OSCURO — funciones de Bootstrap.
+//
+// Bootstrap «aclara» mezclando con blanco (tint) y «oscurece» mezclando con negro (shade). Con eso arma los fondos
+// suaves de los avisos, los textos de énfasis y el realce de los botones. En oscuro va al revés: lo suave se mezcla con
+// la superficie (gris oscuro) y el énfasis con blanco. Este archivo solo entra en la hoja oscura, justo después de
+// `bootstrap/scss/_functions.scss` (ver el manifest).
+@function tint-color($color, $weight) {
+    @return mix($o-white, $color, $weight);
+}
+
+@function shade-color($color, $weight) {
+    @return mix($o-black, $color, $weight);
+}

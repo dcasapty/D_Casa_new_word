@@ -1,0 +1,32 @@
+// MODO OSCURO — el panel de Brian (dcasa_brian).
+
+.o_brian_monograma,
+.o_brian_lanzador,
+.o_brian_burbuja_usuario,
+.o_brian_btn_primario,
+.o_brian_enviar {
+    background: var(--dc-relleno);
+    border-color: var(--dc-relleno);
+    color: var(--dc-en-relleno);
+}
+.o_brian_lanzador:hover,
+.o_brian_btn_primario:hover,
+.o_brian_enviar:hover:not(:disabled) { background: var(--dc-relleno-2); }
+.o_brian_enviar:disabled { background: var(--dc-perla); color: var(--dc-tinta-2); }
+.o_brian_icono_ia .o_brian_chispa { fill: #FFFFFF; }
+
+.o_brian_panel { box-shadow: -8px 0 24px rgba(0, 0, 0, .3); }
+.o_brian_burbuja_error { background: var(--dc-mal-fondo); border-color: var(--dc-mal-linea); color: var(--dc-mal); }
+.o_brian_herramientas .fa-check,
+.o_brian_pastilla.o_brian_pastilla_ok .fa,
+.o_brian_paso.o_brian_paso_ok > .fa,
+.o_brian_tarjeta_hecha .o_brian_tarjeta_estado,
+.o_brian_pastilla.o_brian_pastilla_ok { color: var(--dc-bien); }
+.o_brian_tarjeta.o_brian_tarjeta_hecha,
+.o_brian_pastilla.o_brian_pastilla_ok { border-color: var(--dc-bien-linea); }
+.o_brian_tarjeta.o_brian_tarjeta_error,
+.o_brian_tarjeta.o_brian_tarjeta_bloqueada { border-color: var(--dc-mal-linea); }
+.o_brian_tarjeta_error .o_brian_tarjeta_estado,
+.o_brian_tarjeta_bloqueada .o_brian_tarjeta_estado,
+.o_brian_paso.o_brian_paso_error > .fa { color: var(--dc-mal); }
+.o_brian_soltar { background: rgba(31, 34, 38, .94); }

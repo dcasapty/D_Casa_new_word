@@ -1,0 +1,67 @@
+// MODO OSCURO — Sofía (dcasa_sofia).
+//
+// El encabezado azul pasa a gris (como las cabezas de los paneles); los blancos puestos a mano, a la superficie.
+
+.o_sofia {
+    .o_sofia_encabezado { background: var(--dc-cabeza); color: var(--dc-en-cabeza); }
+    .o_sofia_avatar { color: var(--dc-en-amarillo); }
+
+    // «Revisar ahora» era el botón amarillo sobre el azul: de noche es el botón principal.
+    .o_sofia_boton_revisar {
+        background: var(--dc-relleno);
+        border-color: var(--dc-relleno);
+        color: var(--dc-en-relleno);
+
+        &:hover, &:focus-visible { background: var(--dc-relleno-2); border-color: var(--dc-relleno-2); color: var(--dc-en-relleno); }
+        &[disabled] { background: rgba(255, 255, 255, .12); border-color: transparent; color: var(--dc-en-cabeza-2); }
+    }
+    .o_sofia_resumen strong { background: rgba(255, 255, 255, .12); }
+    .o_sofia_resumen .o_sofia_r3 strong { background: var(--dc-amarillo); color: var(--dc-en-amarillo); }
+
+    .o_sofia_chip { background: var(--dc-blanco); }
+    .o_sofia_chip .o_sofia_cuenta { background: var(--dc-perla); }
+    .o_sofia_chip.o_activa {
+        background: var(--dc-relleno);
+        border-color: var(--dc-relleno);
+        color: var(--dc-en-relleno);
+
+        .o_sofia_cuenta { background: var(--dc-amarillo); border-color: var(--dc-amarillo); color: var(--dc-en-amarillo); }
+    }
+    .o_sofia_seccion_cuenta { background: var(--dc-perla); }
+    .o_sofia_s3 .o_sofia_seccion_titulo {
+        background: var(--dc-cabeza);
+        color: var(--dc-en-cabeza);
+
+        .o_sofia_seccion_cuenta { background: var(--dc-amarillo); border-color: var(--dc-amarillo); color: var(--dc-en-amarillo); }
+    }
+    .o_sofia_s2 .o_sofia_seccion_titulo .o_sofia_seccion_cuenta { border-color: var(--dc-azul-200); }
+
+    .o_sofia_tarjeta { background: var(--dc-blanco); }
+    .o_sofia_tarjeta.o_sofia_p2 { border-left-color: var(--dc-azul-400); }
+    .o_sofia_t3 { background: var(--dc-mal-fondo); color: var(--dc-mal); }
+    .o_sofia_aviso { background: var(--dc-falta-fondo); color: var(--dc-falta); }
+    .o_sofia_burbuja { border-color: var(--dc-azul-200); }
+
+    .o_sofia_botones .btn-outline-primary {
+        background: transparent;
+
+        &:hover, &:focus-visible, &:active {
+            background: var(--dc-relleno);
+            border-color: var(--dc-relleno);
+            color: var(--dc-en-relleno);
+        }
+    }
+    .o_sofia_al_dia_icono { background: var(--dc-cabeza); }
+
+    .o_sofia_hecha { border-color: var(--dc-azul-300); }
+    .o_sofia_hecha.o_aviso {
+        background: var(--dc-falta-fondo);
+        border-color: var(--dc-falta-linea);
+        color: var(--dc-falta);
+
+        > .fa { color: var(--dc-falta); }
+    }
+    .o_sofia_esqueleto_tarjeta { background: var(--dc-blanco); }
+    .o_sofia_esqueleto_linea,
+    .o_sofia_esqueleto_boton { background: var(--dc-cabeza); }
+}

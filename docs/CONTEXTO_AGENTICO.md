@@ -412,6 +412,11 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   despliegue, junto con el `merge -s ours` y los docs. Así el commit probado siguió siendo la punta de la rama y el
   `expectedHeadSha` valió. Lo listo se desplegó sin esperar a lo que faltaba: dos despliegues chicos en vez de uno
   grande que retrasara el arreglo que la dueña estaba esperando.
+- **Desplegar 66** (11 nov, 22:36 UTC; confirmado sano a las 22:49; run 43112609143) · PR #111, squash `b66302a`,
+  `app_version` `8859a44eb6316281e327103a0566259fc6e558f1`, imagen `sha256:a3bbe22a…`, CI 336 con staging (run
+  43104407376). «Entregas pendientes» del Inicio igual que Bodega y «Más datos» plegable en la cotización; con respaldo
+  previo. Bien al primer intento. Entre el fin del CI y el `merge -s ours` no se tocó la rama; los avisos de GitHub de
+  «PR abierto» y «PR unido» que llegan a la sesión son el eco de lo que la propia sesión hizo (no piden nada).
 - **Versión estable 4 ensayada en staging** (11 nov, 03:16–03:40 UTC, run 42951600639 de «Volver a una versión
   estable», lanzado desde la rama de trabajo: el botón solo exige `main` para producción). Estable 4 = imagen de
   Desplegar 63 (`acda72c1…`, `app_version` `3e2ccfc`) + Juan hasta Desplegar Juan 20. Bien al primer intento.
@@ -806,6 +811,30 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 
 ### Odoo 19
 
+- **Modo oscuro del panel (2026-11-12), cómo está hecho y la regla para lo nuevo:**
+  - **Odoo Community trae el andamio y no la paleta.** El paquete `web.assets_web_dark` (= el claro + los
+    `*.dark.scss`) y la plantilla que lo elige existen; `ir.http.color_scheme()` contesta siempre «light» y la paleta
+    oscura es de Enterprise. D'CASA hereda `color_scheme()` en `dcasa_interfaz/models/ir_http.py`: «dark» solo con la
+    galleta exacta `color_scheme=dark`. Lleva `@api.private` (si no, `TestSuperficieRpc` lo cuenta como método público
+    nuevo). El interruptor (`js/modo_oscuro.js`, en `user_menuitems`) pone la galleta y recarga: el servidor entrega
+    otra hoja, no se cambia en caliente. Las gráficas de Odoo leen la misma galleta.
+  - **Todo lo oscuro vive en `dcasa_interfaz/static/src/oscuro/`** (también lo de Conversaciones, Brian, Sofía…), fuera
+    del alcance de los comodines `static/src/scss/*.scss` de los manifiestos: así la hoja clara no cambia ni un byte
+    (comprobado comparando el CSS compilado). Se nombra solo en `web.assets_web_dark` y en
+    `web.assets_backend_lazy_dark` (sin esta, las gráficas y las tablas dinámicas salen claras).
+  - **Orden de la paleta:** `primary_variables.dark.scss` va DESPUÉS de la de `dcasa_base` (para pisarla) y ANTES de
+    la de Odoo (que es `!default`). `bs_functions.dark.scss` invierte `tint-color`/`shade-color` de Bootstrap (sin
+    eso los avisos salen pastel). El velo y las sombras de las ventanas llevan negro de verdad (con la paleta
+    invertida quedaban lechosos).
+  - **La trampa de `--dc-blanco` y del azul:** en claro `--dc-blanco` es fondo Y letra sobre azul, y los `--dc-azul-*`
+    son tinta Y relleno. En oscuro los azules quedan como tinta (celeste) y cada relleno propio pasa, por selector, a
+    `--dc-relleno` (#3A63CF) con `--dc-en-relleno` (blanco); las cabezas marino, a `--dc-cabeza`. **Regla: una pieza
+    nueva con relleno azul (o amarillo grande) lleva su renglón en `oscuro/`.** `test_los_rellenos_propios_se_leen_de_noche`
+    falla si falta y dice dónde ponerlo. Lo que solo usa los `--dc-*` de superficie, línea y tinta sale bien solo (el
+    armazón del Inicio, el menú del celular, la caja del chat y «Más datos» no necesitaron nada).
+  - **Control de contraste para repetirlo:** `oscuro_d/contraste.cjs` del borrador de la sesión (copia mejorada del
+    de la auditoría): recorre las pantallas en claro y en oscuro y resta. Engaño conocido: a un botón deshabilitado le
+    aplica la opacidad solo a la letra y da menos contraste del real.
 - **El celular al entrar y al navegar (2026-11-11), cómo funciona por dentro:**
   - **Una acción de cliente que espera datos en `onWillStart` deja la pantalla en blanco mientras tanto.** Odoo no
     monta nada hasta que esa promesa se cumple: se ve la barra de arriba y el área de trabajo vacía. En una pantalla de
