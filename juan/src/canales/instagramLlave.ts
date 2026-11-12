@@ -128,7 +128,7 @@ export function motivoDeMeta(status: number, j: unknown, llave: string): string 
   const err = typeof o.error === "object" && o.error ? o.error : undefined;
   const texto = String(err?.message ?? o.error_message ?? (typeof o.error === "string" ? o.error : "") ?? "").trim() || "sin detalle";
   const codigo = err?.code ?? o.code;
-  const limpio = (llave ? texto.split(llave).join("…") : texto).replace(/[\u0000-\u001f]/g, " ").slice(0, 120);
+  const limpio = (llave.length >= 8 ? texto.split(llave).join("…") : texto).replace(/[\u0000-\u001f]/g, " ").slice(0, 120);
   return `HTTP ${status}: ${limpio}${codigo !== undefined ? ` [${String(codigo).slice(0, 10)}]` : ""}`;
 }
 
@@ -231,6 +231,7 @@ export function fechaPanama(ts: number): string {
   return FORMATO_PANAMA.format(new Date(ts));
 }
 
+/** Días que le quedan, hacia arriba (recién renovada: 60; vencida: 0). */
 export function diasQueQuedan(vence: number, ahora: number): number {
-  return Math.max(0, Math.floor((vence - ahora) / DIA_MS));
+  return Math.max(0, Math.ceil((vence - ahora) / DIA_MS));
 }
