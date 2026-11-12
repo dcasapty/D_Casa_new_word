@@ -414,11 +414,14 @@ responsable por defecto y el aviso sale a todo el equipo («Nadie estaba disponi
   preguntó; si mientras tanto la tomó otra, se vuelve a preguntar con el nombre nuevo. Si lo toma, queda «Beto tomó el
   cliente que atendía Ana.» en el hilo, una línea `tomada` en el libro y a Ana le llega un Telegram. Con el cliente de otra
   vendedora activa, una vendedora **no** puede pasárselo a una tercera, dejarlo sin dueña, devolverlo al asistente ni
-  cerrarlo («pídeselo a Ana o a Gerencia»); la barra le ofrece «Atender» en vez de «Devolver». Si Ana **no** estaba activa
+  cerrarlo ni cambiar cuándo vuelve el asistente (la pausa) («pídeselo a Ana o a Gerencia»); la barra le ofrece «Atender» en
+  vez de «Devolver». Si Ana **no** estaba activa
   (faltó, almuerzo, de noche), no se pregunta: queda el aviso en el hilo y el libro (cubrir a una compañera es ayudar). Un
-  **mensaje programado** no sale si al llegar su hora el cliente lo atiende otra vendedora distinta de quien lo programó
-  (salvo que al programarlo se confirmó quitárselo a esa misma): queda «No salió el mensaje que Beto dejó programado…» en
-  el hilo y a Beto le llega el aviso. Por Telegram no se puede confirmar: con el cliente de otra activa, no se toma y se le
+  **mensaje programado** al cliente de otra vendedora guarda quién lo tenía al programarlo (con su confirmación si estaba
+  activa); si a la hora el cliente sigue con ella, sale y lo toma; si lo atiende otra distinta, o si quien lo programó ya
+  no está en el equipo (usuario archivado), **no sale**: queda en el hilo como nota interna con su texto completo y sus
+  archivos («No salió este mensaje que Beto dejó programado: … si hace falta, cópialo y envíalo.») y se avisa a quien lo
+  programó (o a quien atiende, si la autora ya no está). Por Telegram no se puede confirmar: con el cliente de otra activa, no se toma y se le
   dice que lo confirme en la pantalla. Un chat devuelto al asistente o cerrado ya no es de nadie: se toma como siempre.
 * **Pantalla «Reparto».** Cada vendedora ve **solo lo suyo** («Mis conversaciones de hoy»). Gerencia ve además «Clientes que
   cambiaron de mano» del periodo (los 20 más recientes: cliente, cuándo, de quién, a quién y cómo: «Lo tomó al escribirle»,
