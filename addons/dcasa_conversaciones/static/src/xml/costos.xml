@@ -37,7 +37,7 @@
                         <div>
                             <h2 id="o_dcj_desde_pago_titulo">Consumido desde el último pago</h2>
                             <p class="o_dcj_p_cifra_pago"><span t-if="!desde.completo" class="o_dcj_p_al_menos">al menos </span><t t-out="usd(desde.usd)"/></p>
-                            <p class="o_dcj_p_detalle">Desde el pago del <strong t-out="pagos.ultimo.fecha_texto"/><t t-if="pagos.ultimo.monto"> (Meta cobró <t t-out="usd(pagos.ultimo.monto)"/>)</t>.</p>
+                            <p class="o_dcj_p_detalle">Desde el pago del <strong t-out="pagos.ultimo.fecha_texto"/><t t-if="pagos.ultimo.monto"> (Meta cobró <t t-out="usd(pagos.ultimo.monto)"/>).</t></p>
                         </div>
                         <div class="o_dcj_p_desde_pago_notas">
                             <p>Lo de <t t-out="d.mes_nombre"/> sigue completo aquí abajo: un pago no borra nada, solo marca desde dónde contar.</p>
@@ -203,7 +203,7 @@
     <t t-name="dcasa_conversaciones.DialogoAnularPago">
         <Dialog title="'Anular el pago'" size="'md'" contentClass="'o_dcj_p_dialogo'">
             <form class="o_dcj_p_formulario" t-on-submit="anular">
-                <p class="o_dcj_p_dialogo_nota">Pago del <strong t-out="props.pago.fecha_texto"/>. No se borra: queda en la lista como anulado, con tu motivo, y deja de contar.</p>
+                <p class="o_dcj_p_dialogo_nota">El pago del <strong t-out="props.pago.fecha_texto"/> no se borra: queda en la lista como anulado, con tu motivo, y deja de contar.</p>
                 <label for="o_dcj_pago_motivo">¿Por qué lo anulas?</label>
                 <input id="o_dcj_pago_motivo" type="text" maxlength="300" class="form-control o_dcj_pago_motivo" t-model="state.motivo"
                        placeholder="Por ejemplo: me equivoqué de fecha" required="required"/>
