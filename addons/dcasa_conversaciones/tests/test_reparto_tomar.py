@@ -314,15 +314,20 @@ class TestCambiosDeManoEnLaPantalla(TomarCase):
         escrita = self.de(self.vendedora)
         self.panel(self.beto).enviar_respuesta(escrita.id, 'Hola')
         with freeze_time(self.AHORA + timedelta(minutes=1)):
+            # Beto acaba de escribirle a un cliente: cuenta como activa, así que Carla tiene que confirmarlo.
             atendida = self.de(self.beto)
-            self.panel(self.carla).tomar(atendida.id)
+            self.panel(self.carla).tomar(atendida.id, None, tomar_de_otra=True)
         with freeze_time(self.AHORA + timedelta(minutes=2)):
             asignada = self.de(self.carla)
             self.panel(self.gerente).asignar(asignada.id, self.vendedora.id)
         with freeze_time(self.AHORA + timedelta(minutes=3)):
+            # Solo Ana recibe (Beto, que acaba de escribir, también estaría activa): Juan se la pasa a ella.
             self.activa(self.vendedora)
+            (self.beto | self.carla).write({'dcasa_disponible': False})
             sin_contestar = self.pasar()
         with freeze_time(self.AHORA + timedelta(minutes=20)):
+            # Ana no le contestó: pasa a Carla, que volvió.
+            self.carla.dcasa_disponible = True
             self.activa(self.carla)
             self.Reparto._cron_reasignar()
         return escrita, atendida, asignada, sin_contestar
