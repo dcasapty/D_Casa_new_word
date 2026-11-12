@@ -388,7 +388,28 @@ responsable por defecto y el aviso sale a todo el equipo («Nadie estaba disponi
   en el hilo («Ana no le contestó al cliente en 15 minutos: pasó a Beto»), avisa a la nueva por Telegram y le cuenta a Gerencia.
   Si no queda nadie, se queda con quien la tiene. En cuanto alguien del equipo le escribe al cliente, la toma, la asigna o la
   devuelve, la conversación es de esa persona y no se mueve más.
-* **Pantalla «Reparto».** Cada vendedora ve **solo lo suyo** («Mis conversaciones de hoy»). Gerencia ve además a todo el equipo:
+* **Nadie acapara los chats de la noche** (decisión de la dueña, 2026-11-12). *Máximo de clientes esperándole a la vez*
+  (3 por defecto; 0 = sin límite; máximo 50): «esperándole» = clientes que el reparto le dio en los últimos 7 días y que nadie
+  ha contestado. «Pasar a otra» y los que esperan sin dueña no le dan a nadie por encima del tope: a las 8:00 la primera que
+  llega recibe 3, y las que van llegando, los demás, siempre a la que lleva menos ese día. Cuando una contesta o toma un
+  cliente del reparto y hay chats sin dueña esperando, la siguiente vuelta se adelanta (no espera los 5 minutos). De día, el
+  «Parejo» salta a quien ya llegó al tope si hay otra activa con lugar; si todas lo alcanzaron, se asigna igual (de día nadie
+  queda sin dueña por el tope) y «su vendedora de siempre» lo recibe aunque esté llena. «Por turnos» no mira el tope.
+* **El cliente de otra vendedora** (decisión de la dueña, 2026-11-12: «solamente es para las vendedoras»). Todas ven todos
+  los chats, pero si una **vendedora** le escribe (texto, adjunto, programado, foto del catálogo, cotización) o toca
+  «Atender» en un chat que atiende **otra vendedora activa** (la misma definición de «activa» del reparto, aunque el reparto
+  esté apagado), antes le sale «Este cliente lo atiende Ana. ¿Lo tomas tú?»: **Sí, lo tomo** (se envía y el cliente queda con
+  ella), **Dejarle una nota a Ana** (la caja pasa a nota interna con «@Ana»; al cliente no le sale nada) o **Cancelar** (el
+  foco empieza ahí, para que un Enter de más no le quite el cliente a nadie). El servidor lo exige igual (`tomar_de_otra`).
+  Si lo toma, queda «Beto tomó el cliente que atendía Ana.» en el hilo, una línea `tomada` en el libro y a Ana le llega un
+  Telegram. Si Ana **no** estaba activa (faltó, almuerzo, de noche), no se pregunta ni se avisa por Telegram: queda el aviso
+  en el hilo y el libro (cubrir a una compañera es ayudar). Por Telegram no se puede confirmar: si el cliente es de otra
+  activa, no se toma y se le dice que lo confirme en la pantalla. **Gerencia, administradoras y administrativos** entran,
+  responden, delegan y cambian chats como siempre: sin pregunta, sin ese aviso y sin línea `tomada`. Un chat devuelto al
+  asistente o cerrado ya no es de nadie: se toma como siempre.
+* **Pantalla «Reparto».** Cada vendedora ve **solo lo suyo** («Mis conversaciones de hoy»). Gerencia ve además «Clientes que
+  cambiaron de mano» del periodo (los 20 más recientes: cliente, cuándo, de quién, a quién y cómo: «Lo tomó al escribirle»,
+  «Lo tomó con «Atender»», «Se lo asignaron», «Pasó porque no contestó») y a todo el equipo:
   estado, recibidas en el periodo, clientes esperando, la última que le tocó y cuántas esperan sin dueña; desde ahí saca o vuelve
   a meter a alguien y enciende o apaga el reparto.
 
@@ -633,7 +654,7 @@ Las de ejemplo no llevan cifras ni políticas.
 | Responsable por defecto / avisos por Telegram | Administrador / todas las vendedoras con Telegram vinculado |
 | Guardar la foto de perfil del cliente | **Encendido** (decisión de la dueña, 2026-10-09). Se apaga en *Privacidad de los clientes* |
 | Días que queda abierta una cotización del chatbot o de la web | 3 (0 = nunca; máximo 60). Ver «Origen y cotizaciones que vencen solas» |
-| Reparto de conversaciones | Nadie (apagado). Días que un cliente sigue con su vendedora: 14 · Recibe solo quien usó el sistema hace poco: 30 min · Pasar a otra si no contesta: 15 min. Ver «Trabajo en equipo y reparto» |
+| Reparto de conversaciones | Nadie (apagado). Días que un cliente sigue con su vendedora: 14 · Recibe solo quien usó el sistema hace poco: 30 min · Pasar a otra si no contesta: 15 min · Máximo de clientes esperándole a la vez: 3. Ver «Trabajo en equipo y reparto» |
 | Avisar si un cliente espera | 10 minutos |
 | El CRM se ajusta solo | Encendido · Días sin respuesta para archivarla: 30 |
 | Sofía | Revisar cada mañana y resumen por Telegram encendidos ([SOFIA.md](SOFIA.md)) |
@@ -818,7 +839,7 @@ Conversaciones (el código OWL está en `addons/dcasa_conversaciones/static/src`
 |---|---|
 | `lista(filtros, offset, limite)` | La bandeja: `{conversaciones, total, hay_mas, sin_leer_total}`, las más recientes primero, 30 por página (máx. 100). Filtros: `canal`, `estado` (`bot`/`humano`/`cerrada`/`necesita_atencion`), `etiqueta_id`, `asignada_a_mi`, `sin_leer`, `con_oportunidad`, `busqueda` (nombre, celular o texto de cualquier mensaje). Un filtro desconocido es error. |
 | `hilo(conversacion_id, antes_de_id, limite)` | Un tramo de mensajes (50 por defecto) del más viejo al más nuevo; `antes_de_id` pide el tramo anterior; `hay_mas` dice si quedan. Incluye notas y avisos. |
-| `enviar_respuesta(conversacion_id, texto, adjuntos_ids, programar_para=None, responde_a=None)` | Contesta (toma la conversación si hace falta). `responde_a`: id de un mensaje **del cliente** de esa conversación («Responder»): el Worker recibe su id del canal en `responde_a` y lo manda citado (si no hay id del canal, sale sin cita; un mensaje de otra conversación, una nota o un aviso es error). Hasta 5 adjuntos propios, de 10 MB. Si el Worker no responde queda «por enviar». Con `programar_para` (fecha y hora ISO, entre 1 minuto y 30 días) queda «programado» y devuelve `programado: true`; no toca la conversación hasta su hora. |
+| `enviar_respuesta(conversacion_id, texto, adjuntos_ids, programar_para=None, responde_a=None)` | Contesta (toma la conversación si hace falta). `responde_a`: id de un mensaje **del cliente** de esa conversación («Responder»): el Worker recibe su id del canal en `responde_a` y lo manda citado (si no hay id del canal, sale sin cita; un mensaje de otra conversación, una nota o un aviso es error). Hasta 5 adjuntos propios, de 10 MB. Si el Worker no responde queda «por enviar». Con `programar_para` (fecha y hora ISO, entre 1 minuto y 30 días) queda «programado» y devuelve `programado: true`; no toca la conversación hasta su hora. `tomar_de_otra` (también en `tomar`, `enviar_foto_catalogo` y `enviar_cotizacion`): si quien llama es vendedora y el cliente lo atiende otra vendedora activa, sin `tomar_de_otra=True` contesta `ClienteDeOtraVendedora` (un `UserError` con el nombre y el id de la otra en `context`), que la pantalla convierte en la pregunta. |
 | `cancelar_programado(mensaje_id)` | Borra un mensaje programado (y sus archivos) que aún no salió. Solo quien lo programó o Gerencia. `hilo()` devuelve los programados aparte, en `programados`. |
 | `tomar(conversacion_id, minutos)` · `devolver(conversacion_id, nota)` · `cerrar(conversacion_id)` | Lo mismo que los botones (una sola ruta de código). |
 | `asignar(conversacion_id, usuario_id)` | Asigna a alguien de ventas (`null` = sin asignar). |
@@ -873,7 +894,7 @@ tarda bien por debajo de 1 s (probado en las pruebas del módulo).
 | `preparar_foto_catalogo(...)` · `enviar_foto_catalogo(conversacion_id, producto_id, fotos, texto)` | Arma el pie (nombre, precio + ITBMS, medidas, enlace) y manda las fotos como JPEG de 1024 px con URL firmada de 15 minutos. |
 | `cotizaciones_abiertas(conversacion_id)` · `crear_cotizacion(conversacion_id, lineas)` · `enviar_cotizacion(conversacion_id, orden_id, texto)` | La cotización abierta más reciente (con los permisos de Ventas de quien llama); un **borrador** nuevo con líneas del catálogo, sin confirmar; el PDF de `sale.action_report_saleorder` enviado como adjunto (la orden queda «enviada»). |
 | `dcasa.juan.panel.por_persona(periodo)` | **Solo Gerencia.** Por cada persona: mensajes escritos en Odoo, conversaciones en que habló, mediana de cuánto tardó en contestar (desde que el cliente quedó sin respuesta, de quien fuera, hasta su primer mensaje) y cuántas le esperan ahora; más las que esperan y nadie tiene. Lo escrito desde el teléfono no dice quién lo escribió y no cuenta. |
-| `dcasa.juan.panel.reparto(periodo)` | La pantalla «Reparto» (`hoy`, `7_dias`, `30_dias`, hora de Panamá). Cada vendedora recibe **solo lo suyo** (`yo`, `mis_conversaciones`); `equipo`, `sin_dueno` y `diferencia` solo viajan si quien llama es de Gerencia. Las cuentas salen del libro `dcasa.reparto`. |
+| `dcasa.juan.panel.reparto(periodo)` | La pantalla «Reparto» (`hoy`, `7_dias`, `30_dias`, hora de Panamá). Cada vendedora recibe **solo lo suyo** (`yo`, `mis_conversaciones`); `equipo`, `sin_dueno`, `diferencia` y `cambios_de_mano` solo viajan si quien llama es de Gerencia. Las cuentas salen del libro `dcasa.reparto`. |
 | `dcasa.juan.panel.fijar_fuera_del_reparto(usuario_id, fuera, vuelve=None)` · `fijar_modo_reparto(modo)` | **Solo Gerencia** (se exige en el servidor). Saca a una persona del reparto (o la vuelve a meter; `vuelve`: «AAAA-MM-DD», opcional, después de hoy) sin tocar sus permisos, y enciende o apaga el reparto (`manual`, `parejo`, `turnos`). El primero deja nota en el historial de los ajustes; el segundo, el seguimiento del campo. |
 | `dcasa.juan.panel.resumen(periodo)` | Los seis números del Resumen (`hoy`, `7_dias`, `30_dias`, en la hora de Panamá). |
 | `dcasa.juan.panel.costos()` · `conexiones()` · `qr()` · `reiniciar_puente()` · `desvincular_puente()` | **Solo Gerencia** (se exige en el servidor). Hablan con el Worker por `GET /odoo/salud`, `GET /odoo/costos`, `GET /odoo/qr`, `POST /odoo/reiniciar` y `POST /odoo/desvincular`. Sin `JUAN_URL`/`JUAN_WORKER_TOKEN` contestan `configurado: false` («Falta conectar el bot») sin salir a ninguna parte. `qr()` solo deja pasar un PNG en base64 de hasta 200 KB, y **ni el QR ni las claves se escriben en ningún registro**. Reiniciar y desvincular dejan una nota en el historial de los ajustes. |
