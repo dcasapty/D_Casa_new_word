@@ -159,11 +159,9 @@ class BrianHerramientasJuanEnvios(models.AbstractModel):
 
     @herramienta(
         nombre=PREFIJO + 'cotizar_envio',
-        descripcion='Cuánto cuesta el envío desde la tienda a donde dice el cliente (barrio, PH, urbanización o un '
-                    'punto de referencia; nunca la dirección exacta), con la promoción de envío vigente aplicada a la '
-                    'cotización de ESTA conversación si hay una. Devuelve un estado (precio, varios, no_encontrado, '
-                    'aparte, en_revision o apagado), la frase lista para el cliente y lo que debes hacer. Las cifras '
-                    'del envío y de la promoción SOLO salen de aquí: nunca las calcules.',
+        descripcion='Cuánto cuesta el envío a donde dice el cliente (barrio, PH o punto de referencia; nunca la '
+                    'dirección exacta), con la promoción vigente. Devuelve el estado, la frase para el cliente y qué '
+                    'hacer. Esas cifras solo salen de aquí.',
         parametros={
             'lugar': {'type': 'string', 'description': 'A dónde va, como lo escribe el cliente: «Villa Lucre», «PH '
                                                        'Ocean Park», «cerca del hospital de Chorrera». Sin número de '
@@ -239,10 +237,9 @@ class BrianHerramientasJuanEnvios(models.AbstractModel):
 
     @herramienta(
         nombre=PREFIJO + 'agregar_envio',
-        descripcion='Suma el envío (y la promoción de envío, si aplica) a la cotización de ESTA conversación y vuelve '
-                    'a preparar el PDF, que sale junto con tu respuesta. Úsala SOLO si el cliente dijo que sí quiere '
-                    'que se lo sumes, con el lugar_id que devolvió cotizar_envio. Si ya había un envío que puso el '
-                    'sistema, lo reemplaza. No confirma ninguna venta.',
+        descripcion='Suma el envío (y su promoción) a la cotización de ESTA conversación y rearma el PDF, que sale con '
+                    'tu respuesta. Solo si el cliente dijo que sí, con el lugar_id de cotizar_envio. No confirma '
+                    'ninguna venta.',
         parametros={'lugar_id': {'type': 'integer', 'description': 'El lugar_id que devolvió cotizar_envio.'}},
         requeridos=['lugar_id'], nivel='construccion', categoria='ventas', grupos=GRUPOS,
         ejemplos=['«sí, súmalo» (después de cotizar_envio) → agregar_envio(lugar_id=…)'],
