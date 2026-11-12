@@ -16,7 +16,8 @@ import { firmaMetaValida } from "../seguridad";
 import { urlGraph } from "./graph";
 import { crearPuertaInstagram, CAPACIDADES_INSTAGRAM_LOGIN, RUTA_INSTAGRAM_LOGIN } from "./instagramLogin";
 import { PUERTA_PAGINA, puertaInstagramElegida } from "./instagramLlave";
-import { eventosDeMeta, maquinaMeta, respuestaDeVerificacion, type MetaCuerpo, type OpcionesMeta, type PuertaMeta } from "./metaComun";
+import { anotarIgnorados, comentariosDeMeta } from "./metaComentarios";
+import { eventosDeMeta, maquinaMeta, respuestaDeVerificacion, type MaquinaMeta, type MetaCuerpo, type OpcionesMeta, type PuertaMeta } from "./metaComun";
 import {
   faltantesDe,
   json,
@@ -54,6 +55,9 @@ export function crearMeta(op: OpcionesMeta = {}): AdaptadorCanal {
   /** Este canal va por la segunda puerta (Instagram con alguno de sus secretos). */
   const porInstagram = (canal: CanalId, env: Env | undefined) => canal === "instagram" && !!env && puertaInstagramElegida(env);
   const deCanal = (canal: CanalId): "messenger" | "instagram" => (canal === "instagram" ? "instagram" : "messenger");
+  /** Por qué API se contesta un comentario: la de la puerta por la que llegó. */
+  const maquinaDe = (puerta: "pagina" | "instagram_login"): Pick<MaquinaMeta, "responderEnPrivado" | "responderEnPublico" | "publicacion"> =>
+    puerta === "instagram_login" ? ig.comentarios : pagina;
 
   return {
     canales: ["messenger", "instagram"],
@@ -95,13 +99,18 @@ export function crearMeta(op: OpcionesMeta = {}): AdaptadorCanal {
         return nada(ok200());
       }
       if (cuerpo.object === "instagram" && puertaInstagramElegida(env)) {
-        // Instagram va por la segunda puerta: lo que llegue por la página (cuentas con papel en la app) llegaría dos veces.
-        if ((cuerpo.entry ?? []).some((e) => e.messaging?.length)) console.warn("[juan] /webhooks/meta: Instagram va por /webhooks/instagram; el aviso que llegó por la página se ignora");
+        // Instagram va por la segunda puerta: lo que llegue por la página (cuentas con papel en la app) llegaría dos veces. Igual los
+        // comentarios de Instagram: van por /webhooks/instagram.
+        if ((cuerpo.entry ?? []).some((e) => e.messaging?.length || e.changes?.length)) console.warn("[juan] /webhooks/meta: Instagram va por /webhooks/instagram; el aviso que llegó por la página se ignora");
         return nada(json({ ok: true }));
       }
+      // Los comentarios de las publicaciones (Facebook `feed`, Instagram `comments`): se guardan igual que un mensaje y el motor decide
+      // (motor/conversacion.ts → `recibirComentario`). Los de la propia página o cuenta (sus respuestas) se ignoran aquí.
+      const { entrantes: comentarios, ignorados } = comentariosDeMeta(cuerpo, Date.now(), { puerta: "pagina" });
+      anotarIgnorados("/webhooks/meta", ignorados);
       // Como WhatsApp Cloud: se contesta 200 cuando cada mensaje ya quedó guardado (`guardarAntes`, rutas.ts). Los archivos de
       // Messenger e Instagram llegan como `url` (no hay nada que bajar con credenciales antes de guardarlos).
-      return { respuesta: json({ ok: true }), entrantes: eventosDeMeta(cuerpo, Date.now()), guardarAntes: true };
+      return { respuesta: json({ ok: true }), entrantes: [...eventosDeMeta(cuerpo, Date.now()), ...comentarios], guardarAntes: true };
     },
 
     async enviar(canal: CanalId, salida: Saliente, env: Env): Promise<ResultadoEnvio> {
@@ -136,5 +145,14 @@ export function crearMeta(op: OpcionesMeta = {}): AdaptadorCanal {
     async mantener(env: Env): Promise<void> {
       await ig.mantener(env);
     },
+
+    // Los comentarios se contestan por la API de la puerta por la que llegaron (la página o Instagram por inicio de sesión).
+    comentarios: {
+      privada: (_canal, c, texto, env) => maquinaDe(c.puerta).responderEnPrivado(c.id, texto, env),
+      // La respuesta pública va al comentario de arriba si es una respuesta (Instagram solo contesta los de primer nivel).
+      publica: (_canal, c, texto, env) => maquinaDe(c.puerta).responderEnPublico(c.red, c.padre ?? c.id, texto, env),
+      publicacion: async (_canal, c, env) => (c.publicacion ? maquinaDe(c.puerta).publicacion(c.red, c.publicacion, env).catch(() => null) : null),
+    },
   };
 }
+

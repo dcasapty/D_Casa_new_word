@@ -31,6 +31,20 @@ export class AlmacenGlobal {
     // Las llaves que Juan renueva solo (hoy, la de Instagram por inicio de sesión de Instagram: canales/instagramLlave.ts). Aparte de
     // `salud` a propósito: ninguna ruta ni informe las lee de aquí.
     sql.correr("CREATE TABLE IF NOT EXISTS llaves (clave TEXT PRIMARY KEY, valor TEXT NOT NULL, ts INTEGER NOT NULL)");
+    // Las respuestas PÚBLICAS a comentarios de la última hora (solo la hora: ni quién ni qué), para el tope por hora de Ajustes.
+    sql.correr("CREATE TABLE IF NOT EXISTS respuestas_publicas (id INTEGER PRIMARY KEY AUTOINCREMENT, ts INTEGER NOT NULL)");
+  }
+
+  /**
+   * Aparta un lugar para UNA respuesta pública a un comentario si en la última hora van menos de `tope` (entre todas las
+   * conversaciones). Sin esperas en medio: dentro del Durable Object es atómico, dos comentarios a la vez no se pasan del tope.
+   */
+  reservarRespuestaPublica(tope: number, ahora: number): boolean {
+    this.sql.correr("DELETE FROM respuestas_publicas WHERE ts <= ?", ahora - 3600_000);
+    const n = this.sql.uno<{ n: number }>("SELECT COUNT(*) AS n FROM respuestas_publicas")?.n ?? 0;
+    if (n >= tope) return false;
+    this.sql.correr("INSERT INTO respuestas_publicas (ts) VALUES (?)", ahora);
+    return true;
   }
 
   registrarGasto(mes: string, modelo: string, uso: Uso, usd: number, estimado = false, dia?: string): void {
@@ -151,5 +165,10 @@ export class Global extends DurableObject<Env> {
 
   leerLlave(clave: string): string | null {
     return this.almacen.leerLlave(clave);
+  }
+
+  /** El tope por hora de las respuestas públicas a comentarios (Ajustes de Juan › Comentarios). */
+  reservarRespuestaPublica(tope: number): boolean {
+    return this.almacen.reservarRespuestaPublica(tope, Date.now());
   }
 }

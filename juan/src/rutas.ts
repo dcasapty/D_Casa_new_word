@@ -11,7 +11,7 @@
 //   GET  /odoo/salud                  → estado del Worker
 //   (las cuatro de /odoo/* con Authorization: Bearer <JUAN_WORKER_TOKEN>, en tiempo constante)
 
-import { canalActivo, CONFIG_POR_DEFECTO, type Config } from "./config";
+import { atiendeEntrante, canalActivo, CONFIG_POR_DEFECTO, type Config } from "./config";
 import { adaptadorPorRuta } from "./canales";
 import { crudoDe, prepararEntrante } from "./canales/preparar";
 import { TODOS_LOS_CANALES, type AdaptadorCanal, type CanalId, type Entrante, type EventoCanal, json } from "./canales/tipos";
@@ -74,8 +74,9 @@ const error = (mensaje: string, status: number) => json({ ok: false, error: mens
 async function entregar(e: Entrante, d: DepsRutas): Promise<void> {
   // Un canal apagado en Odoo no atiende ni registra: el webhook responde 200 y listo. (Un mensaje de Meta que ya se guardó crudo
   // y aquí no pasa — canal apagado o configuración desconocida — lo decide el rescate del Durable Object: ver `guardarAntes`.)
+  // Un comentario de una publicación: con los interruptores de «Comentarios» (apagados de fábrica).
   const cfg = await d.config();
-  if (!canalActivo(cfg, e.canal)) return;
+  if (!atiendeEntrante(cfg, e)) return;
   const listo = await prepararEntrante(e);
   await d.conversacion(listo.canal, listo.id_externo).ingest(listo);
 }
@@ -203,7 +204,7 @@ async function guardarYContestar(adaptador: AdaptadorCanal, respuesta: Response,
   // Solo un «apagado» seguro descarta (no registra, como siempre). Sin configuración (tarda, o Odoo no contestó y no hay copia) se
   // guarda igual: un canal que arranca apagado parecería apagado y el mensaje se perdería.
   const conocida = cfg !== null && cfg !== CONFIG_POR_DEFECTO;
-  const aGuardar = entrantes.filter((e) => !conocida || canalActivo(cfg, e.canal));
+  const aGuardar = entrantes.filter((e) => !conocida || atiendeEntrante(cfg, e));
   if (aGuardar.length === 0) return respuesta;
 
   // Conversaciones distintas a la vez (un lote grande no alarga la respuesta); dentro de una misma, en el orden del lote, y si uno

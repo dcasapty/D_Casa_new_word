@@ -191,6 +191,8 @@ export function motivoDeEnvio(e: unknown): string {
 
 export interface GlobalApi {
   gastoMes(mes: string): Promise<number>;
+  /** Aparta UNA respuesta pública a un comentario si en la última hora van menos de `tope` (Ajustes de Juan › Comentarios). */
+  reservarRespuestaPublica?(tope: number): Promise<boolean>;
   /** `estimado`: el modelo no tenía precio cargado y se usó la tarifa de reserva (se avisa en /salud). */
   registrarGasto(mes: string, modelo: string, uso: Uso, usd: number, estimado: boolean, dia?: string): Promise<void>;
   /** Deja un dato para /salud (último fallo de la IA, uso del respaldo...). Valores como texto JSON, nunca secretos. */
@@ -266,6 +268,21 @@ export type ResultadoSeguimiento =
   | { ok: true; resultado: "descartado"; motivo: string }
   | { ok: true; resultado: "pospuesto"; motivo: string }
   | { ok: false; error: string };
+
+/** Cómo se redacta un turno (ver `redactar`). */
+interface OpcionesDeRedaccion {
+  /** Lo que se le agrega al bloque del prompt que cambia en cada turno (p. ej. la nota de un comentario). */
+  extraDinamico?: string;
+  /** La respuesta solo puede ser texto: sin las herramientas que mandan fotos o PDF. */
+  sinArchivos?: boolean;
+}
+
+/** Un turno ya redactado y revisado por la guardia de salida (todavía sin enviar). */
+interface Redaccion {
+  texto: string;
+  registro: RegistroDelTurno;
+  modelo: string;
+}
 
 /** Cómo se compara un eco: Messenger e Instagram no entienden la negrita de WhatsApp y la devuelven sin asteriscos (`sinNegritas`). */
 const normalizarEco = (texto: string) => sinNegritas(texto).replace(/\s+/g, " ").trim();
@@ -1244,7 +1261,12 @@ export class MotorConversacion {
     }
   }
 
-  private async turnoDeIA(cfg: Config, pend: FilaMensaje[], ids: number[], epoca0: number): Promise<void> {
+  /**
+   * Prepara la respuesta de un turno: el modelo con las herramientas de Odoo y la guardia de salida (lo que el cliente nunca debe recibir
+   * se reescribe o se quita). NO envía nada. La usan el turno normal (`turnoDeIA`) y la respuesta privada a un comentario
+   * (`respuestaPrivada`), con las MISMAS herramientas y salvaguardas. `ok: false` = la IA falló o Odoo no dio las herramientas.
+   */
+  private async redactar(cfg: Config, pend: FilaMensaje[], ids: number[], op: OpcionesDeRedaccion = {}): Promise<{ ok: true; r: Redaccion } | { ok: false; error: unknown }> {
     const ahora = this.deps.ahora();
     const textoReciente = pend.map((p) => p.texto.slice(0, MAX_LETRAS_DE_UN_MENSAJE_PARA_EL_MODELO)).join("\n");
     const nivelPedido = elegirNivel({
@@ -1257,10 +1279,7 @@ export class MotorConversacion {
     const [gasto, defs] = await Promise.all([this.gastoSeguro(mes), this.deps.herramientas()]);
     // Sin la lista de herramientas (Odoo no contestó y no hay una anterior) el modelo contestaría de memoria, sin catálogo, precios ni
     // existencias: se prefiere no contestar. Se reintenta con calma y, si Odoo no vuelve, pasa a una vendedora (igual que si fallara la IA).
-    if (defs.length === 0) {
-      await this.alFallarLaIA(cfg, ids, new Error("Odoo no entregó las herramientas del asistente"));
-      return;
-    }
+    if (defs.length === 0) return { ok: false, error: new Error("Odoo no entregó las herramientas del asistente") };
     const { nivel, bajo } = aplicarTope(nivelPedido, gasto, cfg.presupuesto_ia_mensual_usd);
     if (bajo) this.log("warn", "tope mensual de IA alcanzado: se usa el modelo económico");
     const plan = planDeIntentos(cfg, nivel, this.deps.proveedoresDisponibles());
@@ -1283,6 +1302,7 @@ export class MotorConversacion {
       },
       fotosYaEnviadas: () => this.fotosEnviadas(),
       textoDelCliente: () => this.mensajes.textosDelCliente(8).join("\n"),
+      sinArchivos: op.sinArchivos,
     });
 
     const primera = !this.kv.numero("bienvenida");
@@ -1297,7 +1317,7 @@ export class MotorConversacion {
         notaDeLaVendedora: this.kv.texto("nota_vendedora") ?? undefined,
         campanaDeCorreo: this.kv.texto("campana_correo") ?? undefined,
         permisoDeCorreo: this.kv.texto("permiso_correo") ?? undefined,
-      }) + extra;
+      }) + (op.extraDinamico ?? "") + extra;
     const mensajes = this.mensajesParaElModelo(ids);
 
     // Mientras el modelo piensa y las herramientas consultan a Odoo, el cliente ve «escribiendo…».
@@ -1325,8 +1345,7 @@ export class MotorConversacion {
         salida = await correr("\n<aviso>Ya consultaste lo que necesitabas. Responde ahora al cliente con lo que tienes, sin llamar más herramientas.</aviso>", false, consultado ? [{ role: "user", content: consultado }] : []);
       }
     } catch (e) {
-      await this.alFallarLaIA(cfg, ids, e);
-      return;
+      return { ok: false, error: e };
     }
     this.kv.poner("fallos_ia", 0);
 
@@ -1386,6 +1405,17 @@ export class MotorConversacion {
       );
     }
     this.kv.poner("busqueda_floja", registro.busquedasFlojas > 0 || registro.preguntaRegistrada);
+    return { ok: true, r: { texto, registro, modelo: usado.modelo } };
+  }
+
+  private async turnoDeIA(cfg: Config, pend: FilaMensaje[], ids: number[], epoca0: number): Promise<void> {
+    const red = await this.redactar(cfg, pend, ids);
+    if (!red.ok) {
+      await this.alFallarLaIA(cfg, ids, red.error);
+      return;
+    }
+    const { texto, registro, modelo } = red.r;
+    const ahora = this.deps.ahora();
 
     // ── Última puerta: ¿alguien tomó la conversación mientras el bot pensaba? ──
     if (!(await this.puedeEnviar(epoca0, registro.pasoAVendedora))) {
@@ -1396,14 +1426,18 @@ export class MotorConversacion {
     for (const [codigo, f] of registro.fotos) this.fotos.guardar(codigo, f.url, f.nombre, ahora);
     const ultimoIdAntes = this.mensajes.ultimos(1)[0]?.id ?? 0;
     try {
-      await this.responder(cfg, texto, registro.medios, usado.modelo);
+      await this.responder(cfg, texto, registro.medios, modelo);
     } catch (e) {
       // La respuesta ya estaba lista (y pagada) pero no salió: no se pierde en silencio.
       await this.alFallarElEnvio(cfg, ids, e, ultimoIdAntes);
       return;
     }
     this.kv.poner("fallos_envio", 0);
+    this.despuesDelTurno(cfg, registro, pend);
+  }
 
+  /** Lo que queda de un turno que SÍ salió: cuántas herramientas usó, los PIN tapados y la pausa si pasó a una vendedora. */
+  private despuesDelTurno(cfg: Config, registro: RegistroDelTurno, pend: FilaMensaje[]): void {
     this.kv.poner("llamadas_t2", this.kv.numero("llamadas_t1") ?? 0);
     this.kv.poner("llamadas_t1", registro.llamadas.length);
     for (const pin of new Set(registro.pines)) this.mensajes.redactar(pin, MARCA_PIN);

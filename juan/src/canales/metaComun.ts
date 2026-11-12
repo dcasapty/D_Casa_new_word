@@ -37,9 +37,15 @@ export interface MetaEvento {
   };
 }
 
+/** Un cambio de la página o de la cuenta (`entry[].changes[]`): aquí llegan los COMENTARIOS (Facebook `feed`, Instagram `comments`). */
+export interface MetaCambio {
+  field?: string;
+  value?: Record<string, unknown>;
+}
+
 export interface MetaCuerpo {
   object?: string;
-  entry?: { id?: string; messaging?: MetaEvento[] }[];
+  entry?: { id?: string; time?: number; messaging?: MetaEvento[]; changes?: MetaCambio[] }[];
 }
 
 export interface OpcionesMeta {
@@ -137,6 +143,12 @@ export interface MaquinaMeta {
   nombreDePerfil(canal: "messenger" | "instagram", para: string, env: Env): Promise<string | null>;
   fotoDePerfil(para: string, env: Env): Promise<{ bytes: Uint8Array; mime: string } | null>;
   escribiendo(para: string, env: Env): Promise<void>;
+  /** La respuesta privada a un comentario (`me/messages` con `recipient: {comment_id}`): UNA por comentario, dentro de 7 días. */
+  responderEnPrivado(idComentario: string, texto: string, env: Env): Promise<{ id?: string; destinatario?: string }>;
+  /** La respuesta pública debajo de un comentario: Facebook `/{comment-id}/comments`, Instagram `/{ig-comment-id}/replies`. */
+  responderEnPublico(red: "facebook" | "instagram", idComentario: string, texto: string, env: Env): Promise<{ id?: string }>;
+  /** El texto y el enlace de una publicación (Facebook `message,permalink_url`; Instagram `caption,permalink`). null = no se pudo. */
+  publicacion(red: "facebook" | "instagram", idPublicacion: string, env: Env): Promise<{ texto?: string; enlace?: string } | null>;
 }
 
 export function maquinaMeta(op: OpcionesMeta, puerta: PuertaMeta): MaquinaMeta {
@@ -322,6 +334,21 @@ export function maquinaMeta(op: OpcionesMeta, puerta: PuertaMeta): MaquinaMeta {
     }
   }
 
+  /** Un POST a la Graph API con la llave de la puerta. Si Meta contesta con error, lanza con su mensaje y su código (y anota un rechazo de llave). */
+  async function graphPost(env: Env, ruta: string, init: { headers: Record<string, string>; body: BodyInit }): Promise<Record<string, unknown>> {
+    const token = await puerta.llave(env);
+    if (!token) throw falta();
+    const r = await f(puerta.url(env, ruta), { method: "POST", headers: { ...init.headers, authorization: `Bearer ${token}` }, body: init.body });
+    const j = (await r.json().catch(() => ({}))) as Record<string, unknown> & { error?: { message?: string; code?: number } };
+    if (!r.ok || j.error) {
+      const error = `meta ${r.status}: ${j.error?.message ?? "sin detalle"} (código ${j.error?.code ?? "?"})`;
+      if (rechazoDeLlave(j.error?.code)) await puerta.rechazoDeLlave?.(env, error.replace(/^meta /, "HTTP ").slice(0, 160)).catch(() => {});
+      throw new Error(error);
+    }
+    await puerta.llaveFunciono?.(env).catch(() => {});
+    return j;
+  }
+
   return {
     async enviar(canal, salida, env) {
       const ids: string[] = [];
@@ -417,7 +444,67 @@ export function maquinaMeta(op: OpcionesMeta, puerta: PuertaMeta): MaquinaMeta {
     async escribiendo(para, env) {
       await enviarUno(env, { recipient: { id: para }, sender_action: "typing_on" }).catch(() => {});
     },
+
+    // ── Comentarios de publicaciones (2026-11-12) ──
+    // Meta: developers.facebook.com/documentation/business-messaging/messenger-platform/discovery/private-replies (Facebook),
+    // …/instagram-messaging/features/private-replies (Instagram por la página) y …/instagram-platform/private-replies (Instagram por
+    // inicio de sesión de Instagram). La respuesta privada es la Send API con `recipient: {comment_id}` y devuelve
+    // `{recipient_id, message_id}`; se manda sin `messaging_type` (así la documenta Meta).
+
+    async responderEnPrivado(idComentario, texto, env) {
+      if (!ID_DE_COMENTARIO.test(idComentario)) throw new Error("id de comentario inválido");
+      const j = await graphPost(env, "me/messages", {
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ recipient: { comment_id: idComentario }, message: { text: sinNegritas(texto) } }),
+      });
+      return { id: textoDe(j.message_id) || undefined, destinatario: textoDe(j.recipient_id) || undefined };
+    },
+
+    async responderEnPublico(red, idComentario, texto, env) {
+      if (!ID_DE_COMENTARIO.test(idComentario)) throw new Error("id de comentario inválido");
+      // Formulario (como `?message=` de la documentación): la Graph API lo acepta en las dos puertas.
+      const j = await graphPost(env, `${idComentario}/${red === "facebook" ? "comments" : "replies"}`, {
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ message: sinNegritas(texto) }).toString(),
+      });
+      return { id: textoDe(j.id) || undefined };
+    },
+
+    async publicacion(red, idPublicacion, env) {
+      if (!ID_DE_COMENTARIO.test(idPublicacion)) return null;
+      const token = await puerta.llave(env).catch(() => undefined);
+      if (!token) return null;
+      try {
+        const r = await f(puerta.url(env, `${idPublicacion}?fields=${red === "facebook" ? "message,permalink_url" : "caption,permalink"}`), { headers: { authorization: `Bearer ${token}` } });
+        const j = (await r.json().catch(() => null)) as Record<string, unknown> | null;
+        if (!r.ok || !j || j.error) {
+          console.warn(`[juan] ${red}: no se pudo leer la publicación comentada (HTTP ${r.status})`);
+          return null;
+        }
+        const dicho = textoDe(red === "facebook" ? j.message : j.caption).replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, "").slice(0, 600);
+        const enlace = enlaceDeMeta(red === "facebook" ? j.permalink_url : j.permalink);
+        return { ...(dicho ? { texto: dicho } : {}), ...(enlace ? { enlace } : {}) };
+      } catch (e) {
+        console.warn(`[juan] ${red}: no se pudo leer la publicación comentada:`, String(e).slice(0, 120));
+        return null;
+      }
+    },
   };
+}
+
+/** Los ids de Meta de comentarios y publicaciones: cifras, letras, `_` y `:` (Facebook los escribe «página_publicación»). */
+const ID_DE_COMENTARIO = /^[A-Za-z0-9_.:-]{1,128}$/;
+const textoDe = (v: unknown): string => (typeof v === "string" ? v.trim() : typeof v === "number" ? String(v) : "");
+
+/** Un enlace que da Meta a una publicación: solo https de Facebook o Instagram (nunca otra dirección), hasta 500 letras. */
+export function enlaceDeMeta(v: unknown): string | undefined {
+  if (typeof v !== "string" || v.length > 500) return undefined;
+  try {
+    const u = new URL(v);
+    return u.protocol === "https:" && /(^|\.)(facebook\.com|instagram\.com|fb\.com|fb\.me)$/i.test(u.hostname) ? u.toString() : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function urlSinConsulta(url: string): string {

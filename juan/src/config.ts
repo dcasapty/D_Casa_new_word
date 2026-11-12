@@ -2,7 +2,7 @@
 // Si Odoo no contesta se usa la última buena; si nunca hubo una, los valores por defecto
 // de abajo (los mismos del contrato, docs/JUAN.md). El bot nunca se queda mudo por esto.
 
-import type { CanalId } from "./canales/tipos";
+import type { CanalId, Entrante } from "./canales/tipos";
 
 /** Quién pone la IA. Se elige en Odoo (`proveedor_ia`); cambiar de uno a otro no toca código. */
 export type ProveedorIa = "anthropic" | "meta" | "openai";
@@ -81,7 +81,26 @@ export interface Config {
   telegram_chats: string[];
   /** Interruptor de la dueña: Telegram abierto a cualquiera (apagado de fábrica). Encendido, la lista de arriba no se mira. */
   telegram_abierto: boolean;
+  /** Los comentarios de Instagram y Facebook (2026-11-12): apagados de fábrica («Apagado hasta que lo pruebes»). */
+  comentarios: ConfigComentarios;
 }
+
+/** Ajustes de Juan › «Comentarios de Instagram y Facebook». Solo Gerencia y los administradores los cambian. */
+export interface ConfigComentarios {
+  /** El interruptor de la dueña. Apagado: Juan no hace nada con los comentarios (ni los registra). */
+  activo: boolean;
+  facebook: boolean;
+  instagram: boolean;
+  /** La respuesta pública, corta; `{nombre}` se cambia por el nombre de quien comentó (si no hay, se quita). */
+  texto_publico: string;
+  /** Lo más de respuestas públicas en una hora, entre todas las publicaciones (para no parecer spam). 0 = ninguna en público. */
+  tope_por_hora: number;
+}
+
+/** La respuesta pública de fábrica (la dueña: «Corto y lo demás por privado»). */
+export const TEXTO_PUBLICO_POR_DEFECTO = "¡Hola, {nombre}! Te escribimos por mensaje directo con los detalles.";
+export const TOPE_POR_HORA_POR_DEFECTO = 30;
+const MAX_TEXTO_PUBLICO = 300;
 
 export const CONFIG_POR_DEFECTO: Config = {
   nombre_publico: "el equipo de D'CASA",
@@ -105,6 +124,7 @@ export const CONFIG_POR_DEFECTO: Config = {
   guardar_foto_perfil: true,
   telegram_chats: [],
   telegram_abierto: false,
+  comentarios: { activo: false, facebook: true, instagram: true, texto_publico: TEXTO_PUBLICO_POR_DEFECTO, tope_por_hora: TOPE_POR_HORA_POR_DEFECTO },
 };
 
 /** Canales que arrancan encendidos si Odoo no dice nada. La Cloud API y Meta empiezan APAGADOS. */
@@ -119,6 +139,27 @@ const ENCENDIDOS_POR_DEFECTO: Record<CanalId, boolean> = {
 export function canalActivo(cfg: Config, canal: CanalId): boolean {
   const v = cfg.canales_activos[canal];
   return typeof v === "boolean" ? v : ENCENDIDOS_POR_DEFECTO[canal];
+}
+
+/**
+ * ¿Juan contesta los comentarios de esa red? El interruptor de la dueña, el de la red, el asistente encendido y el canal por el que
+ * va la respuesta privada (Facebook → Messenger, Instagram → Instagram): si ese canal está apagado, cuando la persona contestara el
+ * mensaje privado nadie la atendería.
+ */
+export function comentariosActivos(cfg: Config, red: "facebook" | "instagram"): boolean {
+  const c = cfg.comentarios;
+  return cfg.bot_activo_global && c.activo && c[red] && canalActivo(cfg, red === "facebook" ? "messenger" : "instagram");
+}
+
+/** ¿Se atiende lo que llegó? Un comentario, con sus interruptores; un mensaje, si su canal está encendido. */
+export function atiendeEntrante(cfg: Config, e: Pick<Entrante, "canal" | "comentario">): boolean {
+  return e.comentario ? comentariosActivos(cfg, e.comentario.red) : canalActivo(cfg, e.canal);
+}
+
+/** La respuesta pública de Ajustes, sin controles ni saltos y de 300 letras como mucho (vacía = la de fábrica). */
+export function normalizarTextoPublico(v: unknown): string {
+  const t = typeof v === "string" ? v.replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim().slice(0, MAX_TEXTO_PUBLICO) : "";
+  return t || TEXTO_PUBLICO_POR_DEFECTO;
 }
 
 const esObjeto = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
@@ -232,6 +273,20 @@ export function normalizarConfig(crudo: unknown): Config {
     guardar_foto_perfil: typeof c.guardar_foto_perfil === "boolean" ? c.guardar_foto_perfil : d.guardar_foto_perfil,
     telegram_chats: normalizarChats(c.telegram_chats),
     telegram_abierto: c.telegram_abierto === true,
+    comentarios: normalizarComentarios(c.comentarios),
+  };
+}
+
+/** Los ajustes de comentarios. Lo que no viene o no se entiende queda como de fábrica: APAGADO. */
+export function normalizarComentarios(v: unknown): ConfigComentarios {
+  const d = CONFIG_POR_DEFECTO.comentarios;
+  const c = esObjeto(v) ? v : {};
+  return {
+    activo: c.activo === true,
+    facebook: typeof c.facebook === "boolean" ? c.facebook : d.facebook,
+    instagram: typeof c.instagram === "boolean" ? c.instagram : d.instagram,
+    texto_publico: normalizarTextoPublico(c.texto_publico),
+    tope_por_hora: Math.round(numero(c.tope_por_hora, d.tope_por_hora, 0, 500)),
   };
 }
 

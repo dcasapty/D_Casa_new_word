@@ -54,6 +54,17 @@ const ESQUEMA = [
   "CREATE TABLE IF NOT EXISTS recibidos_huella (huella TEXT PRIMARY KEY, ts INTEGER NOT NULL)",
   // La primera versión (nunca desplegada) guardaba el id crudo en `recibidos`: si un objeto la tiene, se borra.
   "DROP TABLE IF EXISTS recibidos",
+  // Los comentarios de Instagram y Facebook de esta persona (2026-11-12): el comentario tal cual llegó y en qué va (clasificado,
+  // respuesta privada, pública, aviso en Odoo). `proximo` = cuándo seguir (null = terminado). Se guarda 8 días (más que los 7 en que
+  // Meta deja contestar): así un aviso repetido de Meta nunca se contesta dos veces.
+  `CREATE TABLE IF NOT EXISTS comentarios (
+     id TEXT PRIMARY KEY,
+     cuerpo TEXT NOT NULL,
+     estado TEXT NOT NULL,
+     intentos INTEGER NOT NULL DEFAULT 0,
+     proximo INTEGER,
+     creado INTEGER NOT NULL
+   )`,
 ];
 
 export function crearEsquema(sql: Sql): void {
@@ -104,10 +115,12 @@ export interface CitaLocal {
   enMemoria?: boolean;
 }
 
-/** Lo que acompaña a un mensaje del cliente y le da sentido («este», un reenviado). */
+/** Lo que acompaña a un mensaje del cliente y le da sentido («este», un reenviado, un comentario en una publicación). */
 export interface ContextoLocal {
   cita?: CitaLocal;
   reenviado?: "una" | "muchas";
+  /** No lo escribió por mensaje: es un comentario en una publicación (y lo que dice la publicación, si se pudo leer). */
+  comentario?: { red: "facebook" | "instagram"; publicacion?: string | null };
 }
 
 /** Valores sueltos de la conversación (identidad, estado, pausas, contadores). */
@@ -267,7 +280,8 @@ export class Mensajes {
 
 export interface FilaCola {
   id: number;
-  tipo: "mensaje" | "herramienta";
+  /** «comentario»: el aviso de un comentario de Instagram o Facebook (`POST /comentario`, idempotente). */
+  tipo: "mensaje" | "herramienta" | "comentario";
   cuerpo: string;
   intentos: number;
   proximo: number;
@@ -367,6 +381,44 @@ export class Recibidos {
   }
   purgar(antesDe: number): void {
     this.sql.correr("DELETE FROM recibidos_huella WHERE ts < ?", antesDe);
+  }
+}
+
+export interface FilaComentario {
+  id: string;
+  cuerpo: string;
+  estado: string;
+  intentos: number;
+  proximo: number | null;
+  creado: number;
+}
+
+/** Los comentarios de Instagram y Facebook de esta persona y en qué va cada uno (ver `MotorConversacion.recibirComentario`). */
+export class Comentarios {
+  constructor(private readonly sql: Sql) {}
+
+  existe(id: string): boolean {
+    return !!this.sql.uno("SELECT 1 AS x FROM comentarios WHERE id = ?", id);
+  }
+  guardar(id: string, cuerpo: string, estado: string, proximo: number | null, ahora: number): void {
+    this.sql.correr("INSERT OR IGNORE INTO comentarios (id, cuerpo, estado, intentos, proximo, creado) VALUES (?, ?, ?, 0, ?, ?)", id, cuerpo, estado, proximo, ahora);
+  }
+  leer(id: string): FilaComentario | null {
+    return this.sql.uno<FilaComentario>("SELECT * FROM comentarios WHERE id = ?", id) ?? null;
+  }
+  /** Guarda en qué va (y cuándo seguir; null = terminado). `fallo` suma un intento. */
+  ponerEstado(id: string, estado: string, proximo: number | null, fallo = false): void {
+    this.sql.correr(`UPDATE comentarios SET estado = ?, proximo = ?${fallo ? ", intentos = intentos + 1" : ""} WHERE id = ?`, estado, proximo, id);
+  }
+  /** Los que toca seguir ahora, en el orden en que llegaron. */
+  vencidos(ahora: number): FilaComentario[] {
+    return this.sql.todos<FilaComentario>("SELECT * FROM comentarios WHERE proximo IS NOT NULL AND proximo <= ? ORDER BY creado, rowid", ahora);
+  }
+  proxima(): number | null {
+    return this.sql.uno<{ p: number | null }>("SELECT MIN(proximo) AS p FROM comentarios WHERE proximo IS NOT NULL")?.p ?? null;
+  }
+  purgar(antesDe: number): void {
+    this.sql.correr("DELETE FROM comentarios WHERE creado < ?", antesDe);
   }
 }
 

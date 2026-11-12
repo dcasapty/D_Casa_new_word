@@ -50,7 +50,8 @@ import {
   type DepsLlave,
   type Suscripcion,
 } from "./instagramLlave";
-import { eventosDeMeta, maquinaMeta, respuestaDeVerificacion, type MetaCuerpo, type OpcionesMeta } from "./metaComun";
+import { anotarIgnorados, comentariosDeMeta, traeComentarios } from "./metaComentarios";
+import { eventosDeMeta, maquinaMeta, respuestaDeVerificacion, type MaquinaMeta, type MetaCuerpo, type OpcionesMeta } from "./metaComun";
 import { faltantesDe, json, ok200, type Capacidades, type ResultadoEnvio, type ResultadoWebhook, type Saliente, type SaludLocal } from "./tipos";
 
 export const RUTA_INSTAGRAM_LOGIN = "/webhooks/instagram";
@@ -79,6 +80,8 @@ export interface PuertaInstagram {
   saludLocal(env: Env): Promise<SaludLocal>;
   /** El cron: renovar la llave si toca, averiguar la cuenta si no se sabe y mirar la suscripción. */
   mantener(env: Env): Promise<void>;
+  /** Contestar comentarios por `graph.instagram.com` (respuesta privada, pública y la publicación comentada). */
+  comentarios: Pick<MaquinaMeta, "responderEnPrivado" | "responderEnPublico" | "publicacion">;
 }
 
 /**
@@ -92,7 +95,7 @@ export function soloDeLaCuenta(cuerpo: MetaCuerpo, ids: ReadonlySet<string> | nu
   const entry = (cuerpo.entry ?? []).flatMap((en) => {
     const id = String(en.id ?? "");
     const permitidos = ids ?? new Set(id ? [id] : []);
-    const n = en.messaging?.filter((ev) => ev.message).length ?? 0;
+    const n = (en.messaging?.filter((ev) => ev.message).length ?? 0) + (en.changes?.filter((c) => c.field === "comments").length ?? 0);
     if (!permitidos.has(id)) {
       ignorados += n;
       if (n > 0) ajena = id;
@@ -223,8 +226,9 @@ export function crearPuertaInstagram(op: OpcionesMeta = {}): PuertaInstagram {
         return nada(ok200());
       }
       if (cuerpo.object !== "instagram") return nada(ok200());
-      // Lecturas, reacciones, postbacks…: lo que hoy se ignora, se ignora igual (y no hace falta saber la cuenta).
-      if (eventosDeMeta(cuerpo, Date.now()).length === 0) return nada(json({ ok: true }));
+      // Lecturas, reacciones, postbacks…: lo que hoy se ignora, se ignora igual (y no hace falta saber la cuenta). Los comentarios sí
+      // se miran (campo `comments`).
+      if (eventosDeMeta(cuerpo, Date.now()).length === 0 && !traeComentarios(cuerpo)) return nada(json({ ok: true }));
 
       const ids = await conPlazo(idsDeLaTienda(env, PLAZO_ME_WEBHOOK_MS), PLAZO_CUENTA_MS, [] as string[]);
       if (ids.length === 0) console.warn("[juan] instagram: todavía no sé cuál es la cuenta de D'CASA; atiendo lo que Meta firma para la cuenta que manda el aviso");
@@ -233,11 +237,15 @@ export function crearPuertaInstagram(op: OpcionesMeta = {}): PuertaInstagram {
         console.warn(`[juan] instagram: ${ignorados} aviso(s) que no son de la cuenta de D'CASA se ignoran${ajena ? ` (cuenta …${ajena.slice(-4)})` : ""}`);
         await conPlazo(anotarAjenos(env, deps, ignorados, ajena ?? ""), PLAZO_AJENOS_MS, undefined);
       }
+      // Los comentarios de las publicaciones de la cuenta: los de la propia cuenta (sus respuestas) se ignoran.
+      const { entrantes: comentarios, ignorados: deComentarios } = comentariosDeMeta(deLaCuenta, Date.now(), { puerta: "instagram_login", ...(ids.length ? { propios: new Set(ids) } : {}) });
+      anotarIgnorados(RUTA_INSTAGRAM_LOGIN, deComentarios);
       // Como por la página: 200 cuando cada mensaje ya quedó guardado (`guardarAntes`, rutas.ts). Los archivos llegan como `url`.
-      return { respuesta: json({ ok: true }), entrantes: eventosDeMeta(deLaCuenta, Date.now()), guardarAntes: true };
+      return { respuesta: json({ ok: true }), entrantes: [...eventosDeMeta(deLaCuenta, Date.now()), ...comentarios], guardarAntes: true };
     },
 
     enviar: (salida, env) => maquina.enviar("instagram", salida, env),
+    comentarios: maquina,
     nombreDePerfil: (para, env) => maquina.nombreDePerfil("instagram", para, env),
     fotoDePerfil: (para, env) => maquina.fotoDePerfil(para, env),
     escribiendo: (para, env) => maquina.escribiendo(para, env),
