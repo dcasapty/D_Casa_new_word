@@ -16,6 +16,7 @@ from . import (
     test_crm_automatico,
     test_crm_reglas,
     test_ejemplos,
+    test_envios_juan,
     test_espera,
     test_etiquetas,
     test_fichas_unicas,
