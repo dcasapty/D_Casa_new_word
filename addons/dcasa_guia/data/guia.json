@@ -3191,6 +3191,35 @@
    ]
   },
   {
+   "id": "juan-costos-pago",
+   "categoria": "tienda",
+   "grupo": "Conversaciones",
+   "tambien": [
+    "administrar"
+   ],
+   "titulo": "Marcar como pagado lo que debes de la IA",
+   "logras": "En Costos de IA, arriba dice «Por pagar a Meta»: lo que se ha gastado desde tu último pago. Cuando le pagas a Meta, tocas «Pagar» y dices que sí: el saldo vuelve a cero y empieza a contar de nuevo. Lo del mes sigue completo más abajo. Solo Gerencia.",
+   "destino": {
+    "menu": "dcasa_conversaciones.menu_dcasa_panel_costos"
+   },
+   "nota": "Si lo tocaste sin querer, «Deshacer», junto a «Último pago», lo deja como estaba.",
+   "palabras": [
+    "pagar la ia",
+    "pago de la ia",
+    "costos de ia",
+    "meta",
+    "saldar",
+    "reiniciar",
+    "ya pague",
+    "saldo",
+    "por pagar",
+    "cobro de meta",
+    "gasto de ia",
+    "cuanto debo de la ia",
+    "marcar como pagado"
+   ]
+  },
+  {
    "id": "juan-disponible",
    "categoria": "tienda",
    "grupo": "Conversaciones",

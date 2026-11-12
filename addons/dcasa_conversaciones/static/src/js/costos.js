@@ -1,8 +1,13 @@
 /**
  * «Costos de IA»: cuánto se gastó este mes, el tope, la proyección («terminarás el mes en…») y el desglose por día y por
  * modelo. El gasto lo lee Odoo del Worker (GET /odoo/salud y /odoo/costos); aquí solo se muestra.
+ *
+ * «Pagar» (pedido de la dueña, 2026-11-12): arriba, «Por pagar a Meta» y un botón «Pagar» con una sola confirmación;
+ * el saldo vuelve a $0 y empieza a contar de nuevo. Debajo, «Último pago» con «Deshacer». Las cuentas y el libro de
+ * pagos los lleva el servidor (panel_calculos.py, pagos_ia.py); aquí solo se muestra y se confirma.
  */
 import { Component, onMounted, useState } from "@odoo/owl";
+import { Dialog } from "@web/core/dialog/dialog";
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
 import { EncabezadoJuan } from "./resumen";
@@ -11,6 +16,34 @@ import { mensajeDeError, numero } from "./utilidades";
 const FORMATO_USD = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const FORMATO_USD_FINO = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 4 });
 const FORMATO_DIA = new Intl.DateTimeFormat("es-PA", { day: "numeric", month: "short", timeZone: "UTC" });
+
+/** La única confirmación de «Pagar»: sin campos. Si Juan (el Worker) no responde, no se registra nada y lo dice. */
+export class DialogoPagar extends Component {
+    static template = "dcasa_conversaciones.DialogoPagar";
+    static components = { Dialog };
+    static props = { saldo: Number, texto: String, alPagar: Function, close: Function };
+
+    setup() {
+        this.orm = useService("orm");
+        this.state = useState({ error: "", pagando: false });
+    }
+
+    async pagar() {
+        if (this.state.pagando) {
+            return;
+        }
+        this.state.pagando = true;
+        this.state.error = "";
+        try {
+            await this.orm.call("dcasa.juan.panel", "pagar_ia", [this.props.saldo]);
+            this.props.close();
+            await this.props.alPagar();
+        } catch (error) {
+            this.state.error = mensajeDeError(error);
+            this.state.pagando = false;
+        }
+    }
+}
 
 const ESTADOS_DEL_TOPE = {
     bien: { clase: "bien", icono: "fa-check-circle", texto: "Vas bien" },
@@ -27,10 +60,12 @@ export class CostosJuan extends Component {
     setup() {
         this.orm = useService("orm");
         this.action = useService("action");
+        this.dialog = useService("dialog");
+        this.notification = useService("notification");
         this.usd = (v) => (v === null || v === undefined ? "—" : FORMATO_USD.format(v));
         this.usdFino = (v) => FORMATO_USD_FINO.format(v);
         this.numero = numero;
-        this.state = useState({ datos: null, cargando: true, error: null, tabla: false, marcado: null });
+        this.state = useState({ datos: null, cargando: true, error: null, tabla: false, marcado: null, deshaciendo: false });
         onMounted(() => this.cargar());
     }
 
@@ -48,6 +83,43 @@ export class CostosJuan extends Component {
 
     get d() {
         return this.state.datos;
+    }
+
+    /** «Por pagar a Meta» y el último pago (vienen con costos(), cuando el Worker contestó). */
+    get pagos() {
+        return this.d?.pagos || null;
+    }
+
+    pagar() {
+        const saldo = this.pagos?.saldo;
+        if (!saldo || saldo <= 0) {
+            return;
+        }
+        this.dialog.add(DialogoPagar, {
+            saldo,
+            texto: this.usd(saldo),
+            alPagar: async () => {
+                this.notification.add("Listo: el saldo volvió a $0 y empieza a contar de nuevo.", { type: "success" });
+                await this.cargar();
+            },
+        });
+    }
+
+    async deshacer() {
+        const ultimo = this.pagos?.ultimo;
+        if (!ultimo || this.state.deshaciendo) {
+            return;
+        }
+        this.state.deshaciendo = true;
+        try {
+            await this.orm.call("dcasa.juan.panel", "deshacer_pago_ia", [ultimo.id]);
+            this.notification.add("Pago deshecho: el saldo volvió a como estaba.", { type: "success" });
+            await this.cargar();
+        } catch (error) {
+            this.notification.add(mensajeDeError(error), { type: "danger" });
+        } finally {
+            this.state.deshaciendo = false;
+        }
     }
 
     get estado() {

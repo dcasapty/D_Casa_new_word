@@ -382,8 +382,16 @@ class DcasaJuanPanel(models.AbstractModel):
 
     @api.model
     def costos(self):
-        """El gasto de IA del mes, el tope, la proyección y el desglose. Solo Gerencia."""
+        """El gasto de IA del mes, el tope, la proyección y el desglose. Solo Gerencia.
+
+        ``pagos``: «Por pagar a Meta» (lo consumido desde el último pago) y el último pago (``pagos_ia.py``)."""
         self._exigir_gerencia()
+        return self._datos_de_costos()
+
+    @api.model
+    def _datos_de_costos(self):
+        """Lo de ``costos()`` sin comprobar el grupo: lo usa la pantalla (Gerencia) y Brian (``costos_de_juan``, que
+        comprueba Gerencia o administrador antes). Las mismas cifras en los dos, sin cuentas duplicadas."""
         Cliente = self.env['dcasa.juan.cliente']
         if not Cliente.configurado():
             return self._sin_conectar({'ok': False})
@@ -426,6 +434,7 @@ class DcasaJuanPanel(models.AbstractModel):
                    'modelo_rapido': ia.get('modelo_rapido'), 'modelo_inteligente': ia.get('modelo_inteligente'),
                    'claves_faltantes': [str(c) for c in (ia.get('claves_faltantes') or [])]},
             'avisos': [str(a)[:300] for a in (informe.get('avisos') or [])][:8],
+            'pagos': self._saldo_ia((mes, gasto)),
         }
 
     # ------------------------------------------------------------------

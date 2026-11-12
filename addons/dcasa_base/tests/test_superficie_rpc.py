@@ -834,6 +834,17 @@ LISTA_BLANCA = {
     ('dcasa_conversaciones', 'dcasa.juan.panel', 'qr'): PANEL_GERENCIA,
     ('dcasa_conversaciones', 'dcasa.juan.panel', 'reiniciar_puente'): PANEL_GERENCIA,
     ('dcasa_conversaciones', 'dcasa.juan.panel', 'desvincular_puente'): PANEL_GERENCIA,
+    ('dcasa_conversaciones', 'dcasa.juan.panel', 'pagar_ia'):
+        'Costos de IA › Pagar: exige Gerencia o administrador en el servidor (_exigir_pagos) ANTES de preguntarle al '
+        'Worker y de crear con sudo; el corte lo da el Worker en ese momento (nunca el cliente; sin Worker no se '
+        'registra) y el saldo que llega se valida (número, mayor que 0, no más que el saldo de ahora).',
+    ('dcasa_conversaciones', 'dcasa.juan.panel', 'deshacer_pago_ia'):
+        'Costos de IA › Deshacer: exige Gerencia o administrador en el servidor (_exigir_pagos) ANTES del sudo; solo '
+        'el último pago vigente, que se anula con motivo (no se borra).',
+    ('dcasa_conversaciones', 'dcasa.juan.pago.ia', 'write'):
+        'Bloquea: un pago de la IA no se edita (solo su anulación, por el panel con sudo); el ACL no da escritura.',
+    ('dcasa_conversaciones', 'dcasa.juan.pago.ia', 'unlink'):
+        'Bloquea: un pago de la IA no se borra, se anula con motivo.',
     ('dcasa_conversaciones', 'dcasa.mensaje', 'write'): 'Bloquea: el historial de la conversación no se edita.',
     ('dcasa_conversaciones', 'dcasa.mensaje', 'unlink'):
         OVERRIDE + ' Tras el unlink estándar (ACL y reglas de registro) borra con sudo la copia del mensaje en la '

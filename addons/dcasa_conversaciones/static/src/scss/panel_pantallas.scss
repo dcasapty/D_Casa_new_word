@@ -157,6 +157,24 @@ $dcj-marino: #0B1F52;
     .o_dcj_p_medidor_caja { display: flex; flex-direction: column; gap: 8px; }
     .o_dcj_p_frase { color: var(--dc-tinta-2, #44506A); }
 }
+// «Por pagar a Meta» y el botón «Pagar» (2026-11-12): lo primero que se ve. Plano: borde de color, sin relleno propio.
+.o_dcj_p_saldo {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px 24px;
+    padding: 20px;
+    border: 1px solid var(--dc-linea, #E2E7F0);
+    border-left: 4px solid var(--dc-azul-600, #1340B1);
+    border-radius: var(--dc-r-md, 12px);
+    background: var(--dc-blanco, #FFFFFF);
+    h2 { font-size: .8rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--dc-tinta-3, #6B7690); }
+    .o_dcj_p_cifra_saldo { font-size: clamp(2.6rem, 6vw, 3.6rem); font-weight: 700; line-height: 1.05; letter-spacing: -.03em; }
+    .o_dcj_p_aprox { font-size: .9rem; font-weight: 500; letter-spacing: 0; color: var(--dc-tinta-3, #6B7690); }
+    .o_dcj_p_ultimo_pago { margin-top: 6px; color: var(--dc-tinta-2, #44506A); font-size: .88rem; }
+    .o_dcj_p_pagar { min-width: 160px; min-height: 44px; font-size: 1rem; }
+}
 .o_dcj_p_medidor {
     height: 14px;
     border-radius: 7px;
@@ -277,6 +295,13 @@ $dcj-marino: #0B1F52;
 
 @media (max-width: 767.98px) {
     .o_dcj_p_hero { grid-template-columns: 1fr; gap: 14px; }
+    .o_dcj_p_saldo {
+        flex-direction: column;
+        align-items: stretch;
+        .o_dcj_p_pagar { width: 100%; }
+        // «Deshacer» es un enlace dentro de la frase: se toca con el dedo en un área de 44 px sin mover la línea.
+        .o_dcj_p_deshacer { padding: 12px 6px; margin: -12px -6px; }
+    }
     .o_dcj_p_modelos li { grid-template-columns: 1fr auto; .o_dcj_p_modelo_barra { grid-column: 1 / -1; order: 3; } }
     .o_dcj_p_boton, .o_dcj_p_segmento button { min-height: 44px; }
     .o_dcj_p_columnas .o_dcj_p_columna .o_dcj_p_dia { display: none; }
@@ -332,4 +357,10 @@ $dcj-marino: #0B1F52;
             td[data-label]::before { content: attr(data-label) ": "; color: var(--dc-tinta-3, #6B7690); font-size: .78rem; }
         }
     }
+}
+
+// La confirmación de «Pagar» (vive fuera de la pantalla, en la capa de Odoo).
+.o_dcj_p_dialogo .o_dcj_p_dialogo_pregunta { margin: 0; font-size: 1rem; }
+@media (max-width: 767.98px) {
+    .o_dcj_p_dialogo .modal-footer .btn, .o_dcj_p_dialogo .modal-header .btn { min-height: 44px; min-width: 44px; }
 }

@@ -305,6 +305,15 @@ class TestServidor(TransactionCase):
             with self.subTest(consulta):
                 self.assertIn(esperada, self.buscar(consulta)[:3], self.buscar(consulta))
 
+    def test_anotar_el_pago_de_la_ia_es_de_gerencia(self):
+        """«Costos de IA › Pagar» (2026-11-12): Gerencia lo encuentra con sus palabras; la vendedora no."""
+        self.assertIn('juan-costos-pago', self.ids_de(self.gerencia))
+        self.assertNotIn('juan-costos-pago', self.ids_de(self.vendedora))
+        for consulta in ('ya pagué la IA', 'saldar el pago de la IA', 'cobro de Meta', 'reiniciar los costos de IA',
+                         'marcar como pagado', 'cuánto debo de la IA'):
+            with self.subTest(consulta):
+                self.assertIn('juan-costos-pago', self.buscar(consulta)[:3], self.buscar(consulta))
+
     def test_buscar_abono_lleva_a_registrar_un_abono(self):
         for consulta in ('abono', 'registrar un abono', 'el cliente pagó una parte'):
             with self.subTest(consulta):
