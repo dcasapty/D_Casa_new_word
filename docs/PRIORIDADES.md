@@ -39,8 +39,10 @@ LEEME_PRIMERO §2).
        desapareció del todo.
      - **También en producción, Desplegar 66 (PR #111):** «Entregas pendientes» del Inicio igual que «Bodega» (con el
        renglón de las que esperan pago) y «Más datos» plegable en la cotización.
-     - **Modo oscuro gris («estilo Cubase»), opcional por persona:** en construcción en `local/agente-d`. Va en su
-       propio despliegue, **después de que la dueña vea las capturas** (celular incluido). El claro no cambia.
+     - **Modo oscuro gris («estilo Cubase»), opcional por persona:** terminado y **aprobado por la dueña** («Si me
+       gusta, apruebo el modo oscuro para producción»); en la rama, sale en el despliegue siguiente al 66. El claro
+       no cambia. Preguntas abiertas para ella en la bitácora (interruptor en el menú del celular, por usuario o por
+       navegador, seguir el modo del teléfono).
      - **Más adelante (van con el diseño nuevo o son de Odoo):** gráficas de Odoo en el azul de D'CASA; tablas
        dinámicas en el celular; listas estiradas en 1920 px; títulos de las pantallas propias en la barra del celular;
        la tarjeta «Instale Odoo» y OdooBot; «Manual Payment» (dato: se cambia en Ajustes); en tableta parada

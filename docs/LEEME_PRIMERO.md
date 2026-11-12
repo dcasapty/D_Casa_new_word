@@ -191,12 +191,22 @@ cuando la dueña vea las capturas.
   celular los productos suben 353 px. `test_entregas_inicio.py`, `test_mas_datos.py`. Dudas menores que la dueña puede
   opinar al verlo: que el botón nombre también «teléfono fijo», y que al abrir los datos aparecen en su sitio de
   siempre (encima del botón).
-- **Modo oscuro (en construcción, `local/agente-d`):** hojas aparte (`static/src/oscuro/`, solo en
-  `web.assets_web_dark`), la galleta `color_scheme` decide, interruptor por persona. No se despliega sin que la dueña
-  vea las capturas.
+- **Modo oscuro (terminado, `6228a4a`; aprobado por la dueña; EN LA RAMA, sale en el despliegue siguiente al 66):**
+  la dueña vio trece capturas (celular y computadora) y dijo: «Si me gusta, apruebo el modo oscuro para producción».
+  Gris «de consola» (fondo #1F2226, superficies #2A2E33), botones en azul #3A63CF, amarillo solo en insignias. Lo
+  enciende cada persona en el menú de su usuario («Modo oscuro»); se guarda en ese navegador (galleta `color_scheme`,
+  un año) y el panel se recarga. Por defecto, claro. **El claro no cambió**: su hoja compilada es idéntica byte a byte.
+  Cómo está hecho y la regla para lo nuevo, en CONTEXTO_AGENTICO («Modo oscuro»). Control de contraste: 634 pantallas
+  y 17.340 textos medidos; lo único bajo 3:1 que es nuevo en oscuro son botones deshabilitados (≈3,0:1; en claro
+  ≈2,6:1). `test_modo_oscuro.py` (20 pruebas). En la Guía: «Poner el sistema en modo oscuro». Decisiones del ayudante
+  que la dueña vio en las capturas y puede objetar: en oscuro los botones amarillos grandes («Validar» de Bodega,
+  «Revisar ahora» de Sofía, «Nueva campaña») van en azul; las cifras grandes en blanco. Preguntas abiertas, sin prisa:
+  ¿el interruptor también en el menú de las tres rayas del celular?; ¿por usuario en vez de por navegador?; ¿que siga
+  solo el modo del teléfono?; las fotos de producto, el QR y la vista previa del correo quedan sobre blanco. Sin ver
+  con datos: Envíos con tarifa, Bodega dentro de una entrega, Escáner con un producto leído, Camila con una campaña.
 - **Los ayudantes y el límite de uso:** cada frente en su copia de trabajo (ver CONTEXTO_AGENTICO, «Varios agentes a
   la vez»). El límite de la cuenta (cinco horas) los cortó tres veces; se reanudaron con su avance intacto las dos
-  primeras y el modo oscuro quedó pausado la tercera (se levanta a las 00:50 UTC del 12).
+  primeras; la tercera, el modo oscuro se reanudó a las 23:40 UTC (el límite ya dejaba) y terminó a las 00:57.
 - **Sigue:** que la dueña pruebe
   en su iPhone lo desplegado (no se pudo probar en un teléfono real ni con su usuario); el modo oscuro con sus
   capturas. Siguen sin respuesta: borrar la rama remota `claude/bold-volta-fsqq4c` y el motivo real en «Quedó por
