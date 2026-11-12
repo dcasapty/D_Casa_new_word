@@ -297,6 +297,50 @@ rueda; «Usar mi ubicación» con y sin permiso).
 PGPASSWORD=odoo TEST_TAGS=/dcasa_envios,/dcasa_interfaz:TestInicioScroll scripts/test.sh dcasa_envios,dcasa_interfaz
 ```
 
+## Juan cotiza el envío y la promoción del mes
+
+Con el «sí» de la dueña (2026-11-12: «tienes mi sí»; Juan pregunta, como un vendedor, «¿quieres que te lo sume a la
+cotización?»). Lo de Juan está en [JUAN.md](JUAN.md) › Reglas (3); aquí, lo de Envíos.
+
+* **Cuándo da precio:** tarifa **aprobada**, el interruptor «Cotizar envíos» de Ajustes de Juan encendido (de fábrica) y un
+  lugar claro y **revisado**. Si el lugar es dudoso (varios con el mismo nombre y distinto precio, o más coincidencias de
+  las que se muestran), pide un punto de referencia; si es «Cotizar aparte», está «Por revisar» o la tarifa no está
+  aprobada, «te lo confirma una vendedora». La dirección exacta del cliente se quita antes de buscar y de la auditoría.
+* **`agregar_envio`** pone la línea del envío (transportista «Entrega a domicilio», producto `DCASA-ENTREGA`, con los
+  impuestos que diga la posición fiscal de la venta) en la cotización abierta de **esa** conversación y manda el PDF nuevo.
+  Solo suma un lugar que `cotizar_envio` cotizó en esa misma conversación; con más de una cotización abierta, pregunta a
+  cuál. Nunca toca una venta confirmada ni la de otro cliente.
+* **Promoción de envío** (Envíos › Promoción de envío, Gerencia; modelo `dcasa.envio.promocion`, cuentas en
+  `motor/promocion.py`): fechas (inclusive, hora de Panamá), compra mínima **sin ITBMS y después de descuentos y premios
+  de Socios** (más de, no igual), provincias con envío gratis, abono fijo para las demás y «no aplica con colchón». La de
+  noviembre de 2026 viene cargada (del 1 al 30; más de $200; Panamá y Panamá Oeste gratis; $20 de abono en Colón y el
+  interior; no con colchón). En la cotización sale como una línea aparte («Promoción de envío: abono de $20»), exenta del
+  tope de descuento de la vendedora **solo mientras siga valiendo**: al cambiar las líneas y antes de confirmar se vuelve a
+  revisar (`_dcasa_promocion_sincronizar`); si la compra bajó del mínimo, lleva colchón, se quitó el envío o quedó en $0,
+  la línea se quita con una nota en la cotización. **Lo prometido se respeta** (la dueña, 2026-11-12: una cotización de
+  noviembre que se confirma en diciembre conserva su envío gratis): la línea guarda el día en que se sumó y los términos
+  con que se sumó (`dcasa_promocion_terminos`: promoción, mínimo, zona, gratis o abono y su monto, regla del colchón), y
+  la revisión mide la compra contra esos términos, no contra la promoción de hoy, hasta el «Vence el» que tenía la
+  cotización cuando se sumó, **nunca más de 30 días** después (si no tenía, 30 días; `vale_hasta`, hora de Panamá).
+  Cambiar «Vence el» después no lo alarga ni lo revive; pasado ese día, se vuelve a mirar con la promoción de hoy. Sumar el envío después de que
+  terminó la promoción no la da. Si Gerencia cambia o archiva la promoción, vale solo para las cotizaciones nuevas (la
+  ficha dice cuántas abiertas la tienen) y una venta confirmada nunca cambia. La marca del lugar de la línea del envío
+  solo la escribe el servidor. Al duplicar, la promoción se calcula otra vez con la copia.
+* **La frase** (la dueña, 2026-11-12: que no se preste a pensar que no hay descuento) dice el precio normal, lo que D'CASA
+  regala o abona, las condiciones y hasta cuándo: «El envío a [lugar] cuesta normalmente $105. Con la promoción de
+  noviembre, en compras de más de $200 sin ITBMS, D'CASA te abona $20 del envío: te queda en $85. La promoción es hasta el
+  30 de noviembre; después, el envío vuelve a su precio normal. No aplica si la compra lleva colchón.» (cifras de ejemplo).
+* **La entrada del Conocimiento** de la promoción no tiene fecha de fin: se borra o archiva al terminar (el precio que da
+  Juan sí se apaga solo).
+
+### Lugares «Por revisar»
+
+Un lugar que agrega alguien que no es Gerencia ni administrador nace **«Por revisar»** (la dueña, 2026-11-12). La
+calculadora lo usa como siempre, pero Juan no le da ese precio a un cliente («te lo confirma una vendedora») hasta que
+Gerencia toque **«Marcar revisado»** en su ficha (queda quién y cuándo; filtro «Por revisar (Gerencia)» en la lista). Los
+kilómetros y la provincia de un lugar solo los cambian Gerencia y los administradores. La migración `19.0.1.2.0` dejó
+«Por revisar» los lugares que ya había agregado el equipo; los de la tabla cargada nacen revisados.
+
 ## Decisiones pendientes de la dueña / Gerencia
 
 - **Aprobar la tarifa** (y decidir el redondeo, el viático, los honorarios y el peaje): hasta entonces, «en revisión».
@@ -309,4 +353,5 @@ PGPASSWORD=odoo TEST_TAGS=/dcasa_envios,/dcasa_interfaz:TestInicioScroll scripts
 - **La web:** encenderla cuando haya flota propia (pasos de arriba), con su «sí».
 - **Enlace para choferes:** hecho (2026-11-09), apagado de fábrica. Falta que Gerencia lo encienda y lo mande a los
   choferes; los precios salen cuando la tarifa esté aprobada.
-- **Juan:** que cotice cuando la tarifa esté aprobada.
+- ~~**Juan:** que cotice cuando la tarifa esté aprobada~~: hecho (2026-11-12, arriba). Falta saber de la contadora si el
+  envío lleva ITBMS (hoy `DCASA-ENTREGA` no lo lleva).

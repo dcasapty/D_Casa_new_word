@@ -452,6 +452,11 @@ class JuanAPI(http.Controller):
         if nombre == 'crear_oportunidad' and R.parece_direccion_exacta(argumentos.get('zona')):
             # Una dirección exacta no se guarda (issue #25): tampoco en la auditoría de Brian (``brian.accion``).
             argumentos = {clave: valor for clave, valor in argumentos.items() if clave != 'zona'}
+        if nombre == 'cotizar_envio' and isinstance(argumentos.get('lugar'), str) \
+                and R.parece_direccion_exacta(argumentos['lugar']):
+            # Para el envío basta el barrio, el PH o el punto de referencia: el número de casa, apartamento o piso se
+            # quita antes de buscar y de la auditoría (issue #25).
+            argumentos = dict(argumentos, lugar=R.quitar_direccion_exacta(argumentos['lugar']))
         resultado = entorno['brian.herramientas'].with_context(**contexto).ejecutar(
             PREFIJO_HERRAMIENTA + nombre, argumentos, canal='juan')
         if resultado.get('ok'):

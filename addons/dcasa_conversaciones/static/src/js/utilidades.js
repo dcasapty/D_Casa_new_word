@@ -189,6 +189,17 @@ export function colorDeEtiqueta(numero) {
 }
 
 /** El texto del error de un llamado al servidor (el mensaje en español que dejó el servidor, si lo hay). */
+/** Si el servidor no dejó quitarle el cliente a otra vendedora que está trabajando (``ClienteDeOtraVendedora``), quién
+ * lo atiende: ``{ id, nombre }``. Si es cualquier otro error, null. */
+export function duenaDelError(error) {
+    const datos = error?.data;
+    if (!datos || !String(datos.name || "").endsWith(".ClienteDeOtraVendedora")) {
+        return null;
+    }
+    const contexto = datos.context || {};
+    return { id: contexto.dcasa_duena_id || null, nombre: contexto.dcasa_duena || "otra vendedora" };
+}
+
 export function mensajeDeError(error) {
     return (
         error?.data?.message ||

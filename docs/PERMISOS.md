@@ -31,6 +31,7 @@ Más abajo: [roles y grupos](#roles-y-grupos-mapa-completo) · [interruptores](#
 | Encender o apagar «Cada vendedora ve solo sus documentos» | No | No | No | Sí | Sí |
 | Ver el chatbot y las conversaciones, atender clientes | Sí | Sí | Sí | Sí | Sí |
 | En una conversación, cambiar a mano el cliente, quién atiende, las etiquetas, la pausa y su respuesta. El estado, la nota para el asistente y los seguimientos solo cambian con los botones (Atender, Devolver, Cerrar); a mano, solo el administrador del sistema | Sí | Sí | Sí | Sí | Sí |
+| **Conversaciones › Costos de IA**: ver lo que cuesta Juan y tocar «Pagar» (el saldo con Meta vuelve a $0) o «Deshacer» el último pago (2026-11-12; el administrador que no es de Gerencia no ve el menú, pero el servidor lo deja y Brian se lo dice) | No | No | No | Sí | Sí |
 | Crear y editar clientes | Sí | Sí | Sí | Sí | Sí |
 | Ver productos (editar nombre y descripción) | Sí | Sí | Sí | Sí | Sí |
 | Ver las fotos de un producto en grande (tocar la foto: ficha, lista, tarjetas, Escáner) y descargarlas | Sí | Sí | Sí | Sí | Sí |
@@ -43,8 +44,8 @@ Más abajo: [roles y grupos](#roles-y-grupos-mapa-completo) · [interruptores](#
 | Marcar en la ficha que el cliente **quiere recibir novedades por correo** (cuando lo dice; una ficha a la vez) y **«Darle de baja»** cuando lo pide (la baja es final), 2026-11-06 | Sí | Sí | Sí | Sí | Sí |
 | Contestar **«¿El cliente quiere recibir novedades por correo?»** al confirmar una venta o registrar un pago desde la pantalla (Sí / No; si no tiene correo, se escribe ahí y se guarda en su ficha), etapa 1b, 2026-11-06. Solo quien confirma o cobra, de su venta o su pago; nunca traba la venta ni el pago | Sí | Sí | (si confirma o cobra) | Sí | Sí |
 | **Camila:** apagar o encender la línea «Sí, quiero» del pie de la factura y la bienvenida, y descartar una campaña **aprobada** que quedó trabada (si en Resend no salió), 2026-11-06 | No | No | No | Sí | Sí |
-| **Envíos › Calculadora** y **Lugares** (ver precios, cotizar por km) y **agregar un lugar que falta** (queda su nombre), 2026-11-06 | Sí | Sí | Sí | Sí | Sí |
-| **Envíos:** editar o archivar lugares, cambiar y **aprobar la tarifa**, cargar el archivo de envíos | No | No | No | Sí | Sí |
+| **Envíos › Calculadora** y **Lugares** (ver precios, cotizar por km) y **agregar un lugar que falta** (queda su nombre y, desde 2026-11-12, «Por revisar»: Juan no da su precio hasta que Gerencia lo revise), 2026-11-06 | Sí | Sí | Sí | Sí | Sí |
+| **Envíos:** editar o archivar lugares (los km y la provincia, solo aquí), **«Marcar revisado»** un lugar, cambiar y **aprobar la tarifa**, cargar el archivo de envíos, y **Envíos › Promoción de envío** (2026-11-12) | No | No | No | Sí | Sí |
 | **Envíos › Tarifa › Enlace para choferes** (2026-11-09): ver, encender, copiar y cambiar el enlace secreto de la calculadora de los choferes (que no tienen usuario) | No | No | No | Sí | Sí |
 
 **Rol «Marketing»** (2026-10-22, selector propio «Marketing» en la sección D'CASA de la ficha del usuario; se suma a

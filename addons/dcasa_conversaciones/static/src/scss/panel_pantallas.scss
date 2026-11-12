@@ -157,6 +157,25 @@ $dcj-marino: #0B1F52;
     .o_dcj_p_medidor_caja { display: flex; flex-direction: column; gap: 8px; }
     .o_dcj_p_frase { color: var(--dc-tinta-2, #44506A); }
 }
+// «Por pagar a Meta» y el botón «Pagar» (2026-11-12): lo primero que se ve. Plano: borde de color, sin relleno propio.
+.o_dcj_p_saldo {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px 24px;
+    padding: 20px;
+    border: 1px solid var(--dc-linea, #E2E7F0);
+    border-left: 4px solid var(--dc-azul-600, #1340B1);
+    border-radius: var(--dc-r-md, 12px);
+    background: var(--dc-blanco, #FFFFFF);
+    h2 { font-size: .8rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--dc-tinta-3, #6B7690); }
+    .o_dcj_p_cifra_saldo { font-size: clamp(2.6rem, 6vw, 3.6rem); font-weight: 700; line-height: 1.05; letter-spacing: -.03em; }
+    .o_dcj_p_aprox { font-size: .9rem; font-weight: 500; letter-spacing: 0; color: var(--dc-tinta-3, #6B7690); }
+    .o_dcj_p_aprox_texto { margin-top: 2px; color: var(--dc-tinta-3, #6B7690); font-size: .8rem; }
+    .o_dcj_p_ultimo_pago { margin-top: 6px; color: var(--dc-tinta-2, #44506A); font-size: .88rem; }
+    .o_dcj_p_pagar { min-width: 160px; min-height: 44px; font-size: 1rem; }
+}
 .o_dcj_p_medidor {
     height: 14px;
     border-radius: 7px;
@@ -277,6 +296,13 @@ $dcj-marino: #0B1F52;
 
 @media (max-width: 767.98px) {
     .o_dcj_p_hero { grid-template-columns: 1fr; gap: 14px; }
+    .o_dcj_p_saldo {
+        flex-direction: column;
+        align-items: stretch;
+        .o_dcj_p_pagar { width: 100%; }
+        // «Deshacer» es un enlace dentro de la frase: se toca con el dedo en un área de 44 px sin mover la línea.
+        .o_dcj_p_deshacer { padding: 12px 6px; margin: -12px -6px; }
+    }
     .o_dcj_p_modelos li { grid-template-columns: 1fr auto; .o_dcj_p_modelo_barra { grid-column: 1 / -1; order: 3; } }
     .o_dcj_p_boton, .o_dcj_p_segmento button { min-height: 44px; }
     .o_dcj_p_columnas .o_dcj_p_columna .o_dcj_p_dia { display: none; }
@@ -310,6 +336,7 @@ $dcj-marino: #0B1F52;
     .o_dcj_reparto_acciones { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px 8px; min-width: 150px; max-width: 250px; margin-left: auto; }
     .o_dcj_reparto_regreso { display: inline-flex; align-items: center; gap: 6px; margin: 0; white-space: nowrap; .o_input { min-height: 40px; padding: 0 8px; } }
     .o_dcj_p_nota .o_dcj_enlace[disabled] { opacity: .5; cursor: default; }
+    .o_dcj_reparto_cambios h2 .o_dcj_p_solo_gerencia { display: inline-block; white-space: nowrap; }
 }
 @media (max-width: 767.98px) {
     .o_dcj_reparto {
@@ -331,5 +358,28 @@ $dcj-marino: #0B1F52;
             th, td { padding: 3px 0 !important; border: 0 !important; white-space: normal !important; }
             td[data-label]::before { content: attr(data-label) ": "; color: var(--dc-tinta-3, #6B7690); font-size: .78rem; }
         }
+        // «Clientes que cambiaron de mano»: una tarjeta corta por cambio. El cliente (se toca para abrir su chat), «Ana →
+        // Beto» y «Cómo · cuándo»: tres renglones, nada de desplazarse de lado.
+        .o_dcj_reparto_cambios_tabla {
+            thead { display: none; }
+            tbody { display: block; }
+            tr { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 6px; row-gap: 2px; margin: 0 0 8px;
+                 padding: 0 12px 10px; border: 1px solid var(--dc-linea, #E2E7F0); border-radius: var(--dc-r-md, 12px);
+                 background: var(--dc-blanco, #FFFFFF);
+                 &::after { content: ""; order: 3; flex-basis: 100%; height: 0; }
+            }
+            th, td { display: block; padding: 0 !important; border: 0 !important; white-space: normal !important; }
+            th { flex: 0 0 100%; order: 0; .o_dcj_enlace { display: inline-flex; align-items: center; min-height: 44px; } }
+            td[data-label="De"] { order: 1; }
+            td[data-label="A"] { order: 2; &::before { content: "→ "; color: var(--dc-tinta-3, #6B7690); } }
+            td[data-label="Cómo"] { order: 4; }
+            td[data-label="Cuándo"] { order: 5; color: var(--dc-tinta-3, #6B7690); &::before { content: "· "; } }
+        }
     }
+}
+
+// La confirmación de «Pagar» (vive fuera de la pantalla, en la capa de Odoo).
+.o_dcj_p_dialogo .o_dcj_p_dialogo_pregunta { margin: 0; font-size: 1rem; }
+@media (max-width: 767.98px) {
+    .o_dcj_p_dialogo .modal-footer .btn, .o_dcj_p_dialogo .modal-header .btn { min-height: 44px; min-width: 44px; }
 }

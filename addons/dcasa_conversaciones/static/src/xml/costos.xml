@@ -29,6 +29,21 @@
                 </section>
 
                 <t t-elif="d">
+                    <section t-if="pagos and pagos.saldo !== null" class="o_dcj_p_saldo" aria-labelledby="o_dcj_saldo_titulo">
+                        <div class="o_dcj_p_saldo_cifra">
+                            <h2 id="o_dcj_saldo_titulo">Por pagar a Meta</h2>
+                            <p class="o_dcj_p_cifra_saldo"><t t-out="usd(pagos.saldo)"/><span t-if="pagos.aprox" class="o_dcj_p_aprox" t-att-title="pagos.aprox_texto"> aprox.</span></p>
+                            <p t-if="pagos.aprox and pagos.aprox_texto" class="o_dcj_p_aprox_texto" t-out="pagos.aprox_texto"/>
+                            <p t-if="pagos.ultimo" class="o_dcj_p_ultimo_pago">
+                                Último pago: <strong t-out="usd(pagos.ultimo.monto)"/>, <t t-out="pagos.ultimo.texto"/> ·
+                                <button type="button" class="o_dcj_enlace o_dcj_p_deshacer" t-on-click="deshacer">Deshacer</button>
+                            </p>
+                        </div>
+                        <button type="button" class="btn btn-primary o_dcj_p_boton o_dcj_p_pagar" t-att-disabled="pagos.saldo &lt;= 0" t-on-click="pagar">
+                            <i class="fa fa-check" aria-hidden="true"/> Pagar
+                        </button>
+                    </section>
+
                     <section class="o_dcj_p_hero" aria-labelledby="o_dcj_gasto_titulo">
                         <div>
                             <h2 id="o_dcj_gasto_titulo">Gasto de <t t-out="d.mes_nombre"/></h2>
@@ -51,6 +66,7 @@
                         <i class="fa fa-exclamation-triangle" aria-hidden="true"/>
                         <p><strong>Sin precio cargado:</strong> <t t-out="d.modelos_sin_precio.join(', ')"/>. El gasto de ese modelo es una estimación con una tarifa alta de reserva, para que el tope proteja. Carga el precio en Ajustes de Juan (precios de la IA).</p>
                     </div>
+
 
                     <section class="o_dcj_p_tarjeta">
                         <header class="o_dcj_p_tarjeta_cabecera">
@@ -106,5 +122,29 @@
                 </t>
             </div>
         </div>
+    </t>
+
+    <!-- «Pagar»: una sola confirmación, sin campos -->
+    <t t-name="dcasa_conversaciones.DialogoPagar">
+        <Dialog title="'Pagar'" size="'md'" contentClass="'o_dcj_p_dialogo'">
+            <p class="o_dcj_p_dialogo_pregunta">¿Ya le pagaste <strong t-out="props.texto"/> a Meta? El saldo vuelve a $0 y empieza a contar de nuevo.</p>
+            <p t-if="state.error" class="alert alert-danger mb-0 mt-3" role="alert" t-out="state.error"/>
+            <t t-set-slot="footer">
+                <button type="button" class="btn btn-primary o_dcj_p_si_pague" t-att-disabled="state.pagando" t-on-click="pagar">Sí, ya pagué</button>
+                <button type="button" class="btn btn-secondary" t-on-click="() => this.props.close()">Cancelar</button>
+            </t>
+        </Dialog>
+    </t>
+
+    <!-- «Deshacer» el último pago: una sola confirmación -->
+    <t t-name="dcasa_conversaciones.DialogoDeshacer">
+        <Dialog title="'Deshacer el pago'" size="'md'" contentClass="'o_dcj_p_dialogo'">
+            <p class="o_dcj_p_dialogo_pregunta" t-out="props.pregunta"/>
+            <p t-if="state.error" class="alert alert-danger mb-0 mt-3" role="alert" t-out="state.error"/>
+            <t t-set-slot="footer">
+                <button type="button" class="btn btn-primary o_dcj_p_si_deshacer" t-att-disabled="state.deshaciendo" t-on-click="deshacer">Sí, deshacer</button>
+                <button type="button" class="btn btn-secondary" t-on-click="() => this.props.close()">Cancelar</button>
+            </t>
+        </Dialog>
     </t>
 </templates>

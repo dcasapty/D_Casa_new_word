@@ -417,6 +417,10 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   43104407376). «Entregas pendientes» del Inicio igual que Bodega y «Más datos» plegable en la cotización; con respaldo
   previo. Bien al primer intento. Entre el fin del CI y el `merge -s ours` no se tocó la rama; los avisos de GitHub de
   «PR abierto» y «PR unido» que llegan a la sesión son el eco de lo que la propia sesión hizo (no piden nada).
+- **Desplegar 67** (12 nov, 02:06 UTC; confirmado sano a las 02:19; run 43138676351) · PR #112, squash `50b343b`,
+  `app_version` `f28c2ccd39abb3aeee1ed853bb1013004d80913f`, imagen `sha256:4a8a7ac0…`, CI 338 con staging (run
+  43131640599). El modo oscuro; con respaldo previo. Bien al primer intento. Mientras corría el CI, los ayudantes
+  nuevos (Juan cotiza envíos; pagos de Costos de IA) trabajaron en sus propias copias, sin tocar la rama.
 - **Versión estable 4 ensayada en staging** (11 nov, 03:16–03:40 UTC, run 42951600639 de «Volver a una versión
   estable», lanzado desde la rama de trabajo: el botón solo exige `main` para producción). Estable 4 = imagen de
   Desplegar 63 (`acda72c1…`, `app_version` `3e2ccfc`) + Juan hasta Desplegar Juan 20. Bien al primer intento.

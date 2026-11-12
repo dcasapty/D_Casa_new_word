@@ -13,6 +13,7 @@ Si el Worker no está configurado, cada pantalla lo dice con claridad («Falta c
 """
 import logging
 
+import psycopg2.errors
 from markupsafe import escape
 
 from odoo import api, fields, models
@@ -30,6 +31,32 @@ MAX_QR = 200_000
 NOMBRES_DE_CLAVES_DEL_ENTORNO = ('JUAN_URL', 'JUAN_WORKER_TOKEN')
 
 
+def guardar_foto(cr, fecha, acumulado, uid, cuando):
+    """Deja (o sube) la foto de ``fecha`` en una sola instrucción: dentro de un mismo día el acumulado solo crece.
+
+    Si otra pestaña (o el cron) subió la misma foto mientras esta transacción hablaba con el Worker, en REPEATABLE READ
+    eso es un choque de serialización (revisión, 2026-11-12: salía «bad query» en ERROR y Odoo reintentaba la llamada
+    entera, «Pagar» incluido). La foto ya la dejó el otro y la próxima visita o el cron la vuelven a subir, así que se
+    sigue sin ella: devuelve ``False``, sin error en el registro y sin tocar el resto de la transacción."""
+    try:
+        with cr.savepoint(flush=False):
+            cr.execute("""
+                INSERT INTO dcasa_juan_costo_dia (fecha, mes, acumulado_usd, create_uid, create_date, write_uid,
+                                                  write_date)
+                     VALUES (%(f)s, %(m)s, %(a)s, %(u)s, %(t)s, %(u)s, %(t)s)
+                ON CONFLICT (fecha) DO UPDATE
+                       SET acumulado_usd = EXCLUDED.acumulado_usd, write_uid = EXCLUDED.write_uid,
+                           write_date = EXCLUDED.write_date
+                     WHERE dcasa_juan_costo_dia.acumulado_usd IS NULL
+                        OR dcasa_juan_costo_dia.acumulado_usd < EXCLUDED.acumulado_usd""",
+                       {'f': fecha, 'm': fecha.strftime('%Y-%m'), 'a': acumulado, 'u': uid, 't': cuando},
+                       log_exceptions=False)   # el choque es esperado: no es un error del sistema
+    except psycopg2.errors.SerializationFailure:
+        _logger.info('Foto del gasto de IA del %s: otra transacción la subió a la vez; se sigue sin ella.', fecha)
+        return False
+    return True
+
+
 class DcasaJuanCostoDia(models.Model):
     """Una foto diaria del gasto de IA acumulado del mes (el Worker no guarda el gasto por día)."""
     _name = 'dcasa.juan.costo.dia'
@@ -45,13 +72,12 @@ class DcasaJuanCostoDia(models.Model):
 
     @api.model
     def _guardar(self, fecha, acumulado):
-        """Deja (o sube) la foto del ``fecha``: dentro de un mismo día el acumulado solo crece."""
-        existente = self.sudo().search([('fecha', '=', fecha)], limit=1)
-        if existente:
-            if acumulado > existente.acumulado_usd:
-                existente.write({'acumulado_usd': acumulado})
-            return existente
-        return self.sudo().create({'fecha': fecha, 'mes': fecha.strftime('%Y-%m'), 'acumulado_usd': acumulado})
+        """Deja (o sube) la foto del ``fecha``: dentro de un mismo día el acumulado solo crece (``guardar_foto``)."""
+        Foto = self.sudo()
+        Foto.flush_model()
+        guardar_foto(self.env.cr, fecha, float(acumulado), self.env.uid, fields.Datetime.now())
+        Foto.invalidate_model()
+        return Foto.search([('fecha', '=', fecha)], limit=1)
 
     @api.model
     def _cron_foto_diaria(self):
@@ -370,20 +396,35 @@ class DcasaJuanPanel(models.AbstractModel):
 
     @api.model
     def _tomar_foto_de_costos(self, informe=None):
-        """Guarda el acumulado de hoy (hora de Panamá). Devuelve el informe de salud que usó, o ``None``."""
+        """Guarda el acumulado de hoy (hora de Panamá). Devuelve el informe de salud que usó, o ``None``.
+
+        Sin foto si el Worker no pudo leer el gasto (``gasto_ia_mes_usd: null``: sin dato, no un cero) o si el
+        acumulado es de otro mes que hoy (a las 00:00 del día 1 los relojes pueden diferir unos segundos: el total del
+        mes viejo no puede quedar como foto del mes nuevo)."""
         Cliente = self.env['dcasa.juan.cliente']
         if informe is None:
             respuesta = Cliente.informe_de_salud() if Cliente.configurado() else None
             informe = respuesta['cuerpo'] if respuesta and respuesta['conectado'] and not respuesta['error'] else None
         gasto = (informe or {}).get('gasto_ia_mes_usd')
-        if isinstance(gasto, (int, float)) and not isinstance(gasto, bool) and gasto >= 0:
-            self.env['dcasa.juan.costo.dia']._guardar(self._ahora_local().date(), float(gasto))
+        hoy = self._ahora_local().date()
+        mes = (informe or {}).get('mes')
+        de_otro_mes = C.mes_valido(mes) and mes != hoy.strftime('%Y-%m')
+        if isinstance(gasto, (int, float)) and not isinstance(gasto, bool) and gasto >= 0 and not de_otro_mes:
+            self.env['dcasa.juan.costo.dia']._guardar(hoy, float(gasto))
         return informe
 
     @api.model
     def costos(self):
-        """El gasto de IA del mes, el tope, la proyección y el desglose. Solo Gerencia."""
+        """El gasto de IA del mes, el tope, la proyección y el desglose. Solo Gerencia.
+
+        ``pagos``: «Por pagar a Meta» (lo consumido desde el último pago) y el último pago (``pagos_ia.py``)."""
         self._exigir_gerencia()
+        return self._datos_de_costos()
+
+    @api.model
+    def _datos_de_costos(self):
+        """Lo de ``costos()`` sin comprobar el grupo: lo usa la pantalla (Gerencia) y Brian (``costos_de_juan``, que
+        comprueba Gerencia o administrador antes). Las mismas cifras en los dos, sin cuentas duplicadas."""
         Cliente = self.env['dcasa.juan.cliente']
         if not Cliente.configurado():
             return self._sin_conectar({'ok': False})
@@ -393,7 +434,13 @@ class DcasaJuanPanel(models.AbstractModel):
                     'detalle': self._detalle_del_fallo(salud)}
         informe = salud['cuerpo']
         ahora_local = self._ahora_local()
-        gasto = float(informe.get('gasto_ia_mes_usd') or 0)
+        gasto = informe.get('gasto_ia_mes_usd')
+        if not isinstance(gasto, (int, float)) or isinstance(gasto, bool) or gasto < 0:
+            # El Worker contestó pero no pudo leer su contador (``null``): sin dato, no un $0 inventado.
+            return {'configurado': True, 'ok': False, 'mensaje': 'No pude leer el gasto de IA',
+                    'detalle': 'Juan (el Worker) contestó, pero no pudo leer cuánto va el mes. Inténtalo en un '
+                               'momento; si sigue así, revisa Conexiones.'}
+        gasto = float(gasto)
         tope = float(informe.get('tope_usd') or 0)
         self._tomar_foto_de_costos(informe)
         detalle = Cliente.costos()
@@ -426,6 +473,8 @@ class DcasaJuanPanel(models.AbstractModel):
                    'modelo_rapido': ia.get('modelo_rapido'), 'modelo_inteligente': ia.get('modelo_inteligente'),
                    'claves_faltantes': [str(c) for c in (ia.get('claves_faltantes') or [])]},
             'avisos': [str(a)[:300] for a in (informe.get('avisos') or [])][:8],
+            # El mes del acumulado lo dice el Worker (el de Odoo solo si es un Worker viejo que no lo manda).
+            'pagos': self._saldo_ia((informe['mes'] if C.mes_valido(informe.get('mes')) else mes, gasto)),
         }
 
     # ------------------------------------------------------------------

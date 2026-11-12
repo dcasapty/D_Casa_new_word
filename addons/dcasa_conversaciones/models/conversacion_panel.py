@@ -23,6 +23,7 @@ from . import adjuntos as A
 from . import horario as H
 from .ajustes import CANALES
 from .conversacion import ESTADOS, GRUPO_VENDEDORA, MAX_NOTA
+from .mensaje import CLAVE_SISTEMA
 
 _logger = logging.getLogger(__name__)
 
@@ -316,14 +317,19 @@ class DcasaConversacionPanel(models.Model):
         return hora.replace(second=0, microsecond=0)
 
     @api.model
-    def enviar_respuesta(self, conversacion_id, texto=None, adjuntos_ids=None, programar_para=None, responde_a=None):
+    def enviar_respuesta(self, conversacion_id, texto=None, adjuntos_ids=None, programar_para=None, responde_a=None,
+                         tomar_de=None):
         """Una vendedora contesta desde la pantalla. Si el Worker no responde, queda «por enviar» y se reintenta.
 
         ``programar_para`` (fecha y hora ISO): en vez de enviar ahora, el mensaje sale solo a esa hora.
         ``responde_a`` (id de un mensaje del cliente de esta conversación): «Responder» citándolo. Si el canal no sabe
         su id, sale sin la cita (nunca se deja de enviar por eso).
+        ``tomar_de``: el id de la vendedora activa que atiende al cliente y a quien quien escribe confirmó quitárselo
+        (la pantalla lo pregunta). Sin eso, o si ahora lo atiende otra, ``ClienteDeOtraVendedora`` y no se manda (ni se
+        programa) nada. Un programado guarda contra quién se confirmó: si al salir lo atiende otra, no sale.
         """
         conv = self._para_panel(conversacion_id, escritura=True)
+        conv._exigir_confirmacion_para_tomar(self.env.user, tomar_de)
         cita = self._mensaje_a_citar(conv, responde_a)
         cuando = self._hora_de_envio(programar_para) if programar_para else None
         texto = (texto or '').strip() if isinstance(texto, str) or texto is None else None
@@ -334,8 +340,14 @@ class DcasaConversacionPanel(models.Model):
         adjuntos = conv._adjuntos_de_la_respuesta(adjuntos_ids)
         if not texto and not adjuntos:
             raise UserError(self.env._('Escribe algo o adjunta un archivo antes de enviar.'))
+        # Programado sobre el cliente de otra vendedora: se anota quién lo atendía al programarlo (la que se confirmó o
+        # la que no estaba trabajando, a la que escribirle ahora ya la habría tomado sin pregunta). Si al salir lo
+        # atiende otra, no sale.
+        duena = conv._vendedora_que_lo_atiende(self.env.user) if cuando else None
         mensaje = conv._crear_mensaje_de_odoo(texto, adjuntos, usuario=self.env.user, programado_para=cuando, cita=cita)
         if cuando:
+            if duena:
+                mensaje.with_context(**{CLAVE_SISTEMA: True}).sudo().write({'toma_confirmada_de': duena.id})
             conv.marcar_leida(conv.id)
             return {'mensaje': mensaje._como_dict(), 'enviado': False, 'programado': True,
                     'conversacion': conv._resumen_panel()}
@@ -401,10 +413,12 @@ class DcasaConversacionPanel(models.Model):
         return adjuntos
 
     @api.model
-    def tomar(self, conversacion_id, minutos=None):
-        """«Atender»: el asistente calla ``minutos`` (0 = hasta que se la devuelvan; sin valor = el de los ajustes)."""
+    def tomar(self, conversacion_id, minutos=None, tomar_de=None):
+        """«Atender»: el asistente calla ``minutos`` (0 = hasta que se la devuelvan; sin valor = el de los ajustes).
+        ``tomar_de``: como en ``enviar_respuesta``."""
         conv = self._para_panel(conversacion_id, escritura=True)
         minutos = _entero(minutos, 'minutos', minimo=0, maximo=MAX_PAUSA_MINUTOS, permitir_nulo=True)
+        conv._exigir_confirmacion_para_tomar(self.env.user, tomar_de)
         conv._tomar(self.env.user, minutos)
         return conv._resumen_panel()
 
@@ -414,12 +428,14 @@ class DcasaConversacionPanel(models.Model):
         conv = self._para_panel(conversacion_id, escritura=True)
         if nota is not None and not isinstance(nota, str):
             raise UserError(self.env._('La nota para el asistente tiene que ser texto.'))
+        conv._exigir_que_no_se_lo_quite(self.env.user, self.env._('devolverlo al asistente'))
         conv._devolver(self.env.user, nota)
         return conv._resumen_panel()
 
     @api.model
     def cerrar(self, conversacion_id):
         conv = self._para_panel(conversacion_id, escritura=True)
+        conv._exigir_que_no_se_lo_quite(self.env.user, self.env._('cerrar la conversación'))
         conv._cerrar(self.env.user)
         return conv._resumen_panel()
 
@@ -445,19 +461,38 @@ class DcasaConversacionPanel(models.Model):
         return {'eliminada': True, 'conversacion_id': conversacion_id}
 
     @api.model
-    def asignar(self, conversacion_id, usuario_id=None):
-        """Asigna la conversación a una persona del equipo de ventas (``None`` la deja sin asignar)."""
+    def asignar(self, conversacion_id, usuario_id=None, tomar_de=None):
+        """Asigna la conversación a una persona del equipo de ventas (``None`` la deja sin asignar).
+
+        Si el cliente lo atiende otra vendedora activa (y quien asigna es vendedora de piso; ver
+        ``_vendedora_que_lo_atiende``): asignárselo a sí misma es tomarlo y pide la misma confirmación (``tomar_de``,
+        como en ``enviar_respuesta``); pasárselo a otra persona o dejarlo sin dueña, no. Gerencia, como siempre.
+        """
         conv = self._para_panel(conversacion_id, escritura=True)
         usuario_id = _entero(usuario_id, 'usuario_id', minimo=1, permitir_nulo=True)
         if usuario_id:
             usuario = self.env['res.users'].sudo().browse(usuario_id).exists()
             if not usuario or usuario.share or not usuario.has_group(GRUPO_VENDEDORA):
                 raise UserError(self.env._('Solo se puede asignar a alguien del equipo de ventas.'))
+            tomada_de = self.env['res.users']
+            if usuario == self.env.user:
+                conv._exigir_confirmacion_para_tomar(self.env.user, tomar_de)
+                tomada_de = conv._vendedora_que_lo_atiende(self.env.user)
+            else:
+                conv._exigir_que_no_se_lo_quite(self.env.user, self.env._('pasárselo a otra persona'))
+            anterior = conv.sudo().asignada_a
             conv.sudo().write({'asignada_a': usuario.id, 'reparto_desde': False})
-            conv._registrar_asignacion_a_mano(usuario)
-            conv._aviso(self.env._('%(quien)s asignó la conversación a %(a)s.', quien=self.env.user.name,
-                                   a=usuario.name))
+            if tomada_de:
+                # Se lo asignó a sí misma: es tomar el cliente de otra (aviso, línea «tomada» y Telegram si estaba).
+                conv._aviso(conv._cambio_de_mano(tomada_de, usuario, 'asignar'))
+            else:
+                # En el libro con quién lo tenía: Gerencia lo ve en «Clientes que cambiaron de mano» («se lo
+                # asignaron»).
+                conv._registrar_asignacion_a_mano(usuario, anterior=anterior)
+                conv._aviso(self.env._('%(quien)s asignó la conversación a %(a)s.', quien=self.env.user.name,
+                                       a=usuario.name))
         else:
+            conv._exigir_que_no_se_lo_quite(self.env.user, self.env._('dejarlo sin asignar'))
             conv.sudo().write({'asignada_a': False, 'reparto_desde': False})
             conv._aviso(self.env._('%s dejó la conversación sin asignar.', self.env.user.name))
         conv._notificar_panel('asignacion')

@@ -2,10 +2,14 @@
 
 Las mismas cifras de la calculadora (el motor de ``dcasa_envios``): nada lo calcula el modelo de IA. Solo lectura y
 para todo el equipo. Mientras Gerencia no apruebe la tarifa, la respuesta lo dice («tarifa en revisión: estos precios
-todavía no se usan con clientes»).
+todavía no se usan con clientes»). El precio es siempre el normal; si hay una promoción de envío vigente, va aparte
+(``con_la_promocion``: sus condiciones para ese lugar, dichas por el motor de promociones).
 """
 from odoo import models
 from odoo.addons.dcasa_brian.models.registro import BrianError, herramienta
+
+from ..motor import tarjeta as motor_tarjeta
+from ..motor.promocion import con_el_precio_normal, tiene_beneficio
 
 INTERNO = ('base.group_user',)
 MAX_LUGARES = 5
@@ -81,10 +85,15 @@ class BrianHerramientasEnvios(models.AbstractModel):
                 respuesta['quisiste_decir'] = [s['nombre'] for s in datos['sugerencias']]
             return respuesta
         lugares = []
+        Promocion = self.env['dcasa.envio.promocion']
         for tarjeta in datos['resultados']:
             fila = {'lugar': tarjeta['nombre'], 'zona': tarjeta['zona']}
             if tarjeta['con_precio']:
                 fila.update(self._envio_precio(tarjeta))
+                # Aparte, sin tocar el precio: lo que dice la promoción de envío vigente (la misma cuenta que usa Juan).
+                promocion, _registro = Promocion._aplicar(tarjeta['total'], tarjeta['prov'], tarjeta['dist'])
+                if tiene_beneficio(promocion):
+                    fila['con_la_promocion'] = con_el_precio_normal(promocion, motor_tarjeta.lugar_con_zona(tarjeta))
             else:
                 fila['precio'] = 'se cotiza aparte (' + ', '.join(c['texto'] for c in tarjeta['chips']
                                                                   if c['clase'] == 'aparte') + ')'

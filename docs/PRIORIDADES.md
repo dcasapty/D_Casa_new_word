@@ -1,6 +1,6 @@
 # Prioridades vigentes
 
-Puesto al día el **2026-11-11** (cierre de semana y auditoría visual del panel). Es el orden en que se trabaja: cada sesión lo lee al empezar y lo pone al día al
+Puesto al día el **2026-11-12** (envíos de Juan, reparto justo, Costos de IA; Messenger e Instagram sin llegar a los clientes). Es el orden en que se trabaja: cada sesión lo lee al empezar y lo pone al día al
 terminar (ver [LEEME_PRIMERO.md](LEEME_PRIMERO.md)). Aquí va **un solo estado**, el de hoy; lo que pasó cada día está en
 la bitácora de LEEME_PRIMERO (y lo más viejo en [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md)).
 
@@ -10,13 +10,15 @@ LEEME_PRIMERO §2).
 ## Estado al 2026-11-11
 
 - **Producción funciona desde el 2026-10-13** y **`dcasapty.com` (y `www`) apunta al sistema nuevo desde el
-  2026-10-27** (Desplegar 31). Odoo y el borde: **Desplegar 66** (11 nov, PR #111: entregas igual que Bodega y «Más datos»;
-  antes, el mismo día, Desplegar 65 con el Inicio nuevo, el celular al entrar y la caja del chat, y Desplegar 64 con
+  2026-10-27** (Desplegar 31). Odoo y el borde: **Desplegar 67** (12 nov, PR #112: el modo oscuro; el 11 nov, Desplegar 66 con
+  entregas igual que Bodega y «Más datos», y antes, Desplegar 65 con el Inicio nuevo, el celular al entrar y la caja del chat, y Desplegar 64 con
   los 21 arreglos de la auditoría visual). Juan: **Desplegar
   Juan 20** (11 nov, PR #107). La **versión estable 4** es la anterior (Desplegar 63 + Juan 20)
   ([VERSIONES_ESTABLES.md](VERSIONES_ESTABLES.md)). El contenedor instala 30 de los 31 módulos de `addons/` (todos
   menos `dcasa_fe_pa`, a propósito).
-- **Juan atiende WhatsApp (API oficial de Meta), Messenger e Instagram**, con fotos en los tres, y Telegram. WhatsApp
+- **⚠ Messenger e Instagram NO les llegan a los clientes (descubierto el 2026-11-12):** solo a cuentas con papel en la
+  app (la app «D'CASA Juan» no tiene la aprobación de Meta). Ver «Lo que sigue» (punto 00) y JUAN_CANALES §3.
+- **Juan atiende WhatsApp (API oficial de Meta), Messenger e Instagram** (estos dos, solo a cuentas con papel en la app: ver arriba), con fotos en los tres, y Telegram. WhatsApp
   desde el 2026-11-02 (el 131070 del 9 y 10 nov se resolvió con «redireccionar conversación» a «D'CASA Juan»);
   Messenger desde el 2026-11-09; Instagram desde el 2026-11-10 (por la página, misma app y llave). El puente de
   WhatsApp por QR (`puente-wa/`) **nunca se desplegó** a producción. Ver [JUAN_CANALES.md](JUAN_CANALES.md).
@@ -29,8 +31,25 @@ LEEME_PRIMERO §2).
 
 ## Lo que sigue, en orden
 
-000. **Panel renovado (2026-11-11): todo lo aprobado está en producción (Desplegar 64, 65 y 66); falta solo el modo
-     oscuro.** Detalle y citas de la dueña en la bitácora de LEEME_PRIMERO
+00. **Messenger e Instagram para todos los clientes** (la dueña, 2026-11-12, con el diagnóstico de un amigo y de otro
+    Claude: los mensajes de clientes reales nunca llegan; solo los de cuentas con papel en la app). Plan:
+    - **Messenger:** el único camino es la revisión de la app de Meta (acceso avanzado de `pages_messaging`,
+      `pages_manage_metadata`, «Business Asset User Profile Access») con el **negocio verificado**, y la app «En vivo».
+      Antes: revisar a qué portafolio pertenece la app (si es el de la agencia Juancito Ads, pasarla al de D'CASA).
+    - **Instagram:** probar primero «Instagram API con inicio de sesión de Instagram» con la cuenta propia de D'CASA
+      (según Meta, si la app solo sirve la cuenta propia basta el acceso estándar, sin revisión; hay fuentes que dicen
+      lo contrario y el amigo de la dueña lo logró así con otro cliente). Pide en Juan una segunda llave (`IG…`, se
+      renueva cada 60 días) y la clave secreta de la app de Instagram. Si no alcanza, va en la misma revisión de la app.
+    - **Comentarios** (la dueña preguntó si se pueden responder): sí, con respuesta pública y una respuesta privada por
+      comentario (7 días); hay que construirlo y pedir sus permisos (`pages_manage_engagement`,
+      `instagram_manage_comments` / `instagram_business_manage_comments`) en la misma revisión.
+0. **Envíos de Juan, reparto justo de chats y Costos de IA con «Pagar»** (2026-11-12): ver la bitácora. Falta de la
+   dueña: revisar en Envíos › Lugares (filtro «Por revisar (Gerencia)») los lugares agregados a mano, para que Juan
+   dé su precio; archivar la nota de la promoción de noviembre en el Conocimiento el 1 de diciembre; preguntar a la
+   contadora si el envío lleva ITBMS.
+
+000. **Panel renovado (2026-11-11): todo lo aprobado está en producción (Desplegar 64, 65, 66 y 67, este último el
+     modo oscuro).** Detalle y citas de la dueña en la bitácora de LEEME_PRIMERO
      (entradas del 2026-11-11 (2) y (3)). Informe de la auditoría: <https://claude.ai/artifact/QN3GPdAtm7nKxQtu9X64MP>.
      - **En producción:** Desplegar 64 (PR #109: 21 arreglos de la auditoría) y **Desplegar 65** (PR #110: el Inicio
        nuevo con accesos del celular en tres tamaños; el Inicio ya no queda en blanco al entrar; el menú del celular
@@ -39,15 +58,14 @@ LEEME_PRIMERO §2).
        desapareció del todo.
      - **También en producción, Desplegar 66 (PR #111):** «Entregas pendientes» del Inicio igual que «Bodega» (con el
        renglón de las que esperan pago) y «Más datos» plegable en la cotización.
-     - **Modo oscuro gris («estilo Cubase»), opcional por persona:** terminado y **aprobado por la dueña** («Si me
-       gusta, apruebo el modo oscuro para producción»); en la rama, sale en el despliegue siguiente al 66. El claro
-       no cambia. Preguntas abiertas para ella en la bitácora (interruptor en el menú del celular, por usuario o por
+     - **Modo oscuro gris («estilo Cubase»), opcional por persona:** **en producción, Desplegar 67 (PR #112)**,
+       aprobado por la dueña («Si me gusta, apruebo el modo oscuro para producción»). El claro no cambia. Preguntas abiertas para ella en la bitácora (interruptor en el menú del celular, por usuario o por
        navegador, seguir el modo del teléfono).
      - **Más adelante (van con el diseño nuevo o son de Odoo):** gráficas de Odoo en el azul de D'CASA; tablas
        dinámicas en el celular; listas estiradas en 1920 px; títulos de las pantallas propias en la barra del celular;
        la tarjeta «Instale Odoo» y OdooBot; «Manual Payment» (dato: se cambia en Ajustes); en tableta parada
        (768–991 px) el menú sigue siendo el de Odoo (íconos arriba) y el botón de Brian tapa «Enviar» del chat.
-     - **Versión estable:** Desplegar 66 es más nuevo que la estable 4. Cuando lleve unos días sin dar guerra, nombrar
+     - **Versión estable:** Desplegar 67 es más nuevo que la estable 4. Cuando lleve unos días sin dar guerra, nombrar
        la estable 5 (pedirle el «sí» a la dueña, como la vez pasada).
 1. **Camila (mail marketing)** ([CAMILA.md](CAMILA.md)): etapas 1 y 2 **en producción** desde el 2026-11-06 (Desplegar
    52 y 54, con Juan 7). La clave de campañas ya está y Odoo la tomó (Desplegar 53). Nada sale sin que alguien de

@@ -834,6 +834,17 @@ LISTA_BLANCA = {
     ('dcasa_conversaciones', 'dcasa.juan.panel', 'qr'): PANEL_GERENCIA,
     ('dcasa_conversaciones', 'dcasa.juan.panel', 'reiniciar_puente'): PANEL_GERENCIA,
     ('dcasa_conversaciones', 'dcasa.juan.panel', 'desvincular_puente'): PANEL_GERENCIA,
+    ('dcasa_conversaciones', 'dcasa.juan.panel', 'pagar_ia'):
+        'Costos de IA › Pagar: exige Gerencia o administrador en el servidor (_exigir_pagos) ANTES de preguntarle al '
+        'Worker y de crear con sudo; el corte lo da el Worker en ese momento (nunca el cliente; sin Worker no se '
+        'registra) y el saldo que llega se valida (número, mayor que 0, no más que el saldo de ahora).',
+    ('dcasa_conversaciones', 'dcasa.juan.panel', 'deshacer_pago_ia'):
+        'Costos de IA › Deshacer: exige Gerencia o administrador en el servidor (_exigir_pagos) ANTES del sudo; solo '
+        'el último pago vigente, que se anula con motivo (no se borra).',
+    ('dcasa_conversaciones', 'dcasa.juan.pago.ia', 'write'):
+        'Bloquea: un pago de la IA no se edita (solo su anulación, por el panel con sudo); el ACL no da escritura.',
+    ('dcasa_conversaciones', 'dcasa.juan.pago.ia', 'unlink'):
+        'Bloquea: un pago de la IA no se borra, se anula con motivo.',
     ('dcasa_conversaciones', 'dcasa.mensaje', 'write'): 'Bloquea: el historial de la conversación no se edita.',
     ('dcasa_conversaciones', 'dcasa.mensaje', 'unlink'):
         OVERRIDE + ' Tras el unlink estándar (ACL y reglas de registro) borra con sudo la copia del mensaje en la '
@@ -1014,6 +1025,18 @@ LISTA_BLANCA = {
     ('dcasa_envios', 'dcasa.envio.lugar', 'action_volver_al_archivo'):
         'Exige Gerencia o administrador y check_access("write") en el servidor; solo borra la marca «cambiado en '
         'Odoo».',
+    ('dcasa_envios', 'sale.order', 'action_confirm'):
+        OVERRIDE + ' Comprueba check_access("write") y, antes de super(), revisa la promoción de envío (la quita con '
+                   'sudo y una nota si ya no vale; revisión adversarial B1).',
+    ('dcasa_envios', 'sale.order', 'write'):
+        OVERRIDE + ' Guardar la venta; con líneas, la promoción de envío se revisa una vez al final del guardado (con '
+                   'sudo solo para quitarla o ponerla al día; revisión adversarial M-1).',
+    ('dcasa_envios', 'sale.order', 'copy'):
+        OVERRIDE + ' Duplicar de Odoo; la copia (creada como el usuario) no trae la línea de la promoción de envío: se '
+                   'vuelve a calcular con sudo con la fecha y la compra de la copia, o queda una nota (M4).',
+    ('dcasa_envios', 'dcasa.envio.lugar', 'action_marcar_revisado'):
+        'Exige Gerencia o administrador y check_access("write") en el servidor; solo enciende «Revisado por '
+        'Gerencia» con quién y cuándo (I7: hasta entonces Juan no da el precio de un lugar que agregó el equipo).',
     ('dcasa_envios', 'dcasa.envio.tarifa', 'create'):
         'Exige Gerencia o administrador en el servidor (y el ACL); una sola tarifa; la aprobación nunca viene en los '
         'valores; sin sudo().',
@@ -1036,6 +1059,16 @@ LISTA_BLANCA = {
     ('dcasa_envios', 'dcasa.envio.cargo', 'create'): ENVIOS_CARGO,
     ('dcasa_envios', 'dcasa.envio.cargo', 'write'): ENVIOS_CARGO,
     ('dcasa_envios', 'dcasa.envio.cargo', 'unlink'): ENVIOS_CARGO,
+    # La promoción de envío en la cotización (2026-11-12): la línea de la promoción no cuenta contra el tope de la
+    # vendedora, así que su marca solo la pone el servidor (o Gerencia).
+    ('dcasa_envios', 'sale.order.line', 'create'):
+        OVERRIDE + ' Rechaza (AccessError) que quien no sea Gerencia ni el sistema escriba la marca de la promoción de '
+                   'envío (la que exime del tope de descuento); sin sudo().',
+    ('dcasa_envios', 'sale.order.line', 'write'):
+        OVERRIDE + ' La misma regla de la marca de la promoción de envío; y si una persona cambia el precio, la '
+                   'cantidad o el producto de una línea de envío puesta por el sistema, le quita las marcas (con '
+                   'super().write sobre esas líneas, ya autorizado por el ACL) y la rebaja vuelve a contar contra su '
+                   'tope; sin sudo().',
     ('dcasa_envios', 'dcasa.envio.importar', 'action_cargar'):
         ASISTENTE + ' Además exige Gerencia o administrador en el servidor; escribe los lugares y la tarifa como el '
                     'usuario (sin sudo), valida cada dato del archivo y no toca lo agregado en Odoo.',

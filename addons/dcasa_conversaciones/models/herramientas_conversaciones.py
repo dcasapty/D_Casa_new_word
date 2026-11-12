@@ -1,4 +1,5 @@
 """Brian lee las pantallas de Juan (2026-11-06, «Brian al día»): Resumen, Reparto y las cotizaciones que vencen solas.
+Y, desde el 2026-11-12, «Costos de IA» (``costos_de_juan``: cuánto se le debe a Meta), solo Gerencia y administradores.
 
 Las mismas cifras de las pantallas (``dcasa.juan.panel.resumen``/``tasas_de_cierre``/``reparto`` y el dominio del cron
 de ``sale_origen``), leídas como quien pregunta: la vendedora ve lo que ve en su pantalla (en el Reparto, solo lo suyo;
@@ -11,11 +12,21 @@ from datetime import timedelta
 from odoo import models
 from odoo.addons.dcasa_brian.models import herramientas_comun as c
 from odoo.addons.dcasa_brian.models.registro import BrianError, herramienta
+from odoo.exceptions import AccessError
 
 from . import panel_calculos as C
 from .sale_origen import ORIGENES_QUE_VENCEN, PAGOS_EN_CURSO, hoy_en_panama
 
 VENTAS = ('sales_team.group_sale_salesman',)
+GERENCIA_O_ADMIN = (('sales_team.group_sale_manager', 'base.group_system'),)
+ESTADOS_DEL_TOPE = {
+    'bien': 'vas bien',
+    'en_riesgo': 'a este ritmo vas a pasar el tope',
+    'alcanzado': 'tope alcanzado: Juan sigue contestando, con el modelo económico',
+    'sin_tope': 'no hay un tope puesto en Ajustes de Juan',
+}
+DONDE_SE_PAGA = ('Brian no marca pagos: después de pagarle a Meta, en Conversaciones › Costos de IA se toca «Pagar» y '
+                 'el saldo vuelve a $0 (con «Deshacer» si fue sin querer).')
 PARAM_PERIODO_JUAN = {'type': 'string', 'enum': list(C.PERIODOS),
                       'description': 'hoy, 7_dias, 30_dias, 90_dias o 12_meses (hora de Panamá). Por defecto, hoy.'}
 ESTADOS_DEL_REPARTO = {
@@ -91,11 +102,13 @@ class BrianHerramientasConversaciones(models.AbstractModel):
     @herramienta(
         nombre='reparto_de_conversaciones',
         descripcion='Cómo reparte Juan los clientes entre las vendedoras: el modo, quién está activa y recibe, cuántas '
-                    'recibió cada una, a quién le esperan clientes y cuántos esperan sin dueña.',
+                    'recibió cada una, a quién le esperan clientes, cuántos esperan sin dueña y (Gerencia) qué '
+                    'clientes cambiaron de mano: quién tomó el cliente de quién.',
         parametros={'periodo': PARAM_PERIODO_JUAN},
         nivel='lectura', categoria='ventas', grupos=VENTAS,
         ejemplos=['¿a quién le está pasando clientes Juan?', '¿qué vendedoras están activas?',
-                  '¿cuántos clientes me pasó Juan hoy?'],
+                  '¿cuántos clientes me pasó Juan hoy?',
+                  '¿alguna vendedora le tomó clientes a otra esta semana? → 7_dias'],
     )
     def _h_reparto_de_conversaciones(self, periodo='hoy'):
         if periodo not in C.PERIODOS:
@@ -115,6 +128,7 @@ class BrianHerramientasConversaciones(models.AbstractModel):
                 'recibe_solo_quien_uso_el_sistema_en_minutos': d['minutos_activa'] or 'apagado',
                 'pasa_a_otra_si_no_contesta_en_minutos': d['minutos_reasignar'] or 'nunca',
                 'dias_que_un_cliente_sigue_con_su_vendedora': d['dias_misma_vendedora'],
+                'maximo_de_clientes_sin_contestar_a_la_vez': d['max_esperando'] or 'sin límite',
             },
             'tu': fila(d['yo']),
         }
@@ -125,6 +139,13 @@ class BrianHerramientasConversaciones(models.AbstractModel):
             datos['esperan_sin_duena'] = sin_dueno.get('conversaciones', 0)
             if sin_dueno.get('espera_mas_min') is not None:
                 datos['la_que_mas_espera_sin_duena_min'] = sin_dueno['espera_mas_min']
+            # Sin los nombres de los clientes (los escribieron ellos): quién, de quién, cuándo y cómo.
+            cambios = d['cambios_de_mano'] or {'filas': [], 'mas': 0}
+            datos['clientes_que_cambiaron_de_mano'] = {
+                'total': len(cambios['filas']) + cambios['mas'],
+                'mas_recientes': [{'cuando': f['momento_texto'], 'de': f['de'], 'a': f['a'], 'como': f['como']}
+                                  for f in cambios['filas'][:10]],
+            }
         else:
             datos['alcance'] = 'solo lo tuyo: los números de las demás los ve Gerencia'
         if d['modo'] == 'manual':
@@ -180,3 +201,61 @@ class BrianHerramientasConversaciones(models.AbstractModel):
         if alcance:
             datos['alcance'] = alcance
         return datos
+
+    @herramienta(
+        nombre='costos_de_juan',
+        descripcion='Cuánto se le debe a Meta por la IA de Juan (Conversaciones › Costos de IA): lo que hay por pagar '
+                    '(lo consumido desde el último pago), el último pago, el gasto del mes y el tope. No marca pagos.',
+        nivel='lectura', categoria='ventas', grupos=GERENCIA_O_ADMIN,
+        ejemplos=['¿cuánto le debo a Meta de la IA?', '¿cuánto llevamos gastado en IA este mes?',
+                  '¿cuándo fue el último pago de la IA?', 'marca como pagada la IA → dile dónde está «Pagar»'],
+    )
+    def _h_costos_de_juan(self):
+        panel = self.env['dcasa.juan.panel']
+        try:
+            panel._exigir_pagos()   # Gerencia o administrador, como quien pregunta (sin sudo)
+        except AccessError as error:
+            raise BrianError(str(error)) from None
+        d = panel._datos_de_costos()
+        if not d.get('ok'):
+            # Sin el Worker no hay cifras de hoy: se dice, no se inventan. El último pago sí se sabe (está en Odoo).
+            ultimo = panel._saldo_ia()['ultimo']
+            causa = ('Falta conectar el bot (Worker de Juan)' if not d.get('configurado')
+                     else d.get('mensaje') or 'No pude hablar con el Worker')
+            return self._con_boton_de_costos({
+                'sin_cifras': f"{causa}: {d.get('detalle') or ''} Sin eso no hay cifras de hoy; no se inventan.",
+                'ultimo_pago': self._texto_ultimo_pago_ia(ultimo),
+                'para_marcar_un_pago': DONDE_SE_PAGA,
+            })
+        pagos = d['pagos']
+        por_pagar = c.moneda(pagos['saldo'])
+        if pagos['aprox']:
+            por_pagar += f" (aprox.: {pagos['aprox_texto'] or 'puede ser un poco más'})"
+        return self._con_boton_de_costos({
+            'por_pagar_a_meta': por_pagar,
+            'ultimo_pago': self._texto_ultimo_pago_ia(pagos['ultimo']),
+            'gasto_del_mes': {
+                'mes': d['mes_nombre'], 'gasto': c.moneda(d['gasto_usd']),
+                'tope': c.moneda(d['tope_usd']) if d['tope_usd'] else 'sin tope',
+                'porcentaje_del_tope': _porcentaje(d['porcentaje_del_tope']),
+                'si_sigue_este_ritmo_termina_en': ('todavía es pronto para proyectar' if d['proyeccion_usd'] is None
+                                                   else c.moneda(d['proyeccion_usd'])),
+                'estado': ESTADOS_DEL_TOPE.get(d['estado_del_tope'], d['estado_del_tope']),
+            },
+            'como_se_cuenta': 'Por pagar = lo que la IA de Juan consumió desde el último pago marcado (sin pagos, lo '
+                              'del mes). Lo cobra Meta; lo mide el Worker de Juan. El gasto del mes sigue completo.',
+            'para_marcar_un_pago': DONDE_SE_PAGA,
+        })
+
+    def _con_boton_de_costos(self, datos):
+        """Agrega el botón a «Costos de IA» (donde está «Pagar»), solo si quien pregunta ve ese menú."""
+        menu = self.env.ref('dcasa_conversaciones.menu_dcasa_panel_costos', raise_if_not_found=False)
+        destino = self._b_destino_de_menu(menu, 'Costos de IA') if menu and self._b_menu_visible(menu) else None
+        if destino:
+            datos['abrir'] = destino
+        return datos
+
+    def _texto_ultimo_pago_ia(self, ultimo):
+        if not ultimo:
+            return 'ninguno todavía'
+        return {'monto': c.moneda(ultimo['monto']), 'fecha': ultimo['texto']}

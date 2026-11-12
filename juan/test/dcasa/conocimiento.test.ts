@@ -85,7 +85,9 @@ describe("para políticas, garantía, pagos y cómo comprar, PRIMERO la base de 
     expect(p).toMatch(/NO la inventes/);
     expect(p).toContain("registrar_pregunta_sin_respuesta");
     expect(p).toContain("crear_oportunidad");
-    expect(p).toMatch(/tarifas de envío, fletes y plazos de entrega, solo si buscar_conocimiento los trae escritos/);
+    // El costo del envío a un lugar ya no es de la base de conocimiento: sale de cotizar_envio (2026-11-12). El plazo, de una vendedora.
+    expect(p).toMatch(/el costo del envío a un lugar sale SOLO de cotizar_envio/);
+    expect(p).toMatch(/el plazo y la fecha de la entrega los confirma una vendedora/);
   });
 
   it("con respuesta: el bot contesta con lo que trajo la herramienta, tal cual", async () => {

@@ -59,6 +59,8 @@ NIVELES_IA = ('rapido', 'inteligente')
 TIPOS_PRECIO = ('entrada', 'salida', 'cache')
 MAX_LECCIONES = 20
 MAX_LARGO_LECCION = 300
+# «Máximo de clientes esperándole a la vez» (reparto): de 0 (sin límite) a esto.
+MAX_ESPERANDO_A_LA_VEZ = 50
 
 # Decisión de la dueña (2026-10-09, noche): Juan se presenta como una persona de la tienda, sin anunciarse como
 # asistente.
@@ -199,6 +201,15 @@ class JuanAjustes(models.Model):
              'Juan le dice al cliente que una vendedora se la prepara y le pasa la conversación; ellas la mandan a '
              'mano con el botón «Cotización» de la pantalla de Conversaciones, que funciona igual con esto '
              'encendido o apagado.')
+    cotizar_envios = fields.Boolean(
+        'Juan cotiza envíos', default=True, tracking=True,
+        help='Cuando el cliente pregunta cuánto cuesta el envío, Juan busca el lugar en la tabla de Envíos (la de '
+             'la calculadora), le dice el precio y la promoción de envío vigente (Envíos › Promoción de envío) y, si '
+             'el cliente quiere, se lo suma a su cotización. Si hay varios lugares parecidos pregunta cuál; si no lo '
+             'encuentra o se cotiza aparte, pasa la conversación a una vendedora. La fecha de entrega la confirma '
+             'siempre una vendedora. Mientras Gerencia no apruebe la tarifa de envíos, Juan no da precios y pasa a '
+             'una vendedora. Si lo apagas, Juan pasa a una vendedora cada vez que le pregunten por el costo del envío. '
+             '(La dueña dio su «sí», 2026-11-12.)')
     cotizacion_dias_abierta = fields.Integer(
         'Días que queda abierta una cotización del chatbot o de la web', default=3, tracking=True,
         help='Las cotizaciones que arma Juan y las de la página web que nadie confirmó se cancelan solas pasados '
@@ -259,6 +270,16 @@ class JuanAjustes(models.Model):
              'no le contesta en estos minutos, el cliente pasa solo a otra vendedora activa, queda escrito en la '
              'conversación y se avisa a Gerencia. No toca las conversaciones que una persona tomó o asignó a mano. '
              '0 = nunca. De 5 a 240.')
+    reparto_max_esperando = fields.Integer(
+        'Máximo de clientes esperándole a la vez', default=3, tracking=True,
+        help='Con el reparto encendido. «Esperándole» = clientes que el reparto le dio y que nadie ha contestado. '
+             'Los clientes que escribieron antes de abrir (de noche) se reparten de a pocos: a quien ya tiene estos '
+             'esperándole no se le da otro hasta que conteste uno, y las que van llegando reciben los demás. Pasar a '
+             'otra un cliente que no contestaron tampoco se lo da a quien ya tiene estos (si no hay otra, se queda con '
+             'quien lo tenía). Un cliente que llega dentro del horario se le da a una vendedora activa aunque todas '
+             'tengan estos esperándole (a la que lleva menos). Con «Parejo», un cliente nuevo va primero a quien '
+             'tiene lugar, pero si ya habló con una vendedora vuelve con ella aunque tenga clientes esperándole. «Por '
+             'turnos» no lo mira al dar un cliente nuevo. 0 = sin límite. Máximo 50.')
     aviso_espera_minutos = fields.Integer(
         'Avisar si un cliente espera (minutos)', default=10, tracking=True,
         help='Si una persona tiene la conversación y el cliente lleva tantos minutos sin respuesta, se avisa por '
@@ -407,7 +428,8 @@ class JuanAjustes(models.Model):
                 raise ValidationError(self.env._(
                     'Cada lección admite hasta %s caracteres. Acórtala.', MAX_LARGO_LECCION))
 
-    @api.constrains('reparto_dias_misma_vendedora', 'reparto_activa_minutos', 'reparto_reasignar_minutos')
+    @api.constrains('reparto_dias_misma_vendedora', 'reparto_activa_minutos', 'reparto_reasignar_minutos',
+                    'reparto_max_esperando')
     def _check_reparto(self):
         for registro in self:
             if not 0 <= registro.reparto_dias_misma_vendedora <= 365:
@@ -420,6 +442,10 @@ class JuanAjustes(models.Model):
             if minutos and not 5 <= minutos <= 240:
                 raise ValidationError(self.env._(
                     'Los minutos para pasar el cliente a otra vendedora van de 5 a 240 (0 = nunca).'))
+            if not 0 <= registro.reparto_max_esperando <= MAX_ESPERANDO_A_LA_VEZ:
+                raise ValidationError(self.env._(
+                    'El máximo de clientes esperándole a una vendedora va de 0 (sin límite) a %s.',
+                    MAX_ESPERANDO_A_LA_VEZ))
 
     @api.constrains('presupuesto_ia_mensual_usd', 'pausa_por_defecto_minutos', 'aviso_espera_minutos')
     def _check_numeros(self):

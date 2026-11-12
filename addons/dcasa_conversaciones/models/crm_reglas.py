@@ -105,6 +105,18 @@ def parece_direccion_exacta(texto):
     return bool(_DIRECCION_EXACTA.search(str(texto or '')))
 
 
+# Lo exacto y lo que le sigue pegado («#12-30», «casa 23B», «apto 4-B»): se quita entero.
+_DIRECCION_EXACTA_ENTERA = re.compile(r'(?:' + _DIRECCION_EXACTA.pattern + r')[\w\-/]*', re.IGNORECASE)
+
+
+def quitar_direccion_exacta(texto):
+    """El texto sin la dirección exacta: «Villa Lucre, calle 3, casa 45» → «Villa Lucre, calle 3». Para buscar el lugar
+    de un envío sin guardar dónde vive el cliente (issue #25): queda el barrio, el PH o el punto de referencia."""
+    limpio = _DIRECCION_EXACTA_ENTERA.sub(' ', str(texto or ''))
+    limpio = re.sub(r'\s*,(\s*,)+', ',', limpio)
+    return ' '.join(limpio.split()).strip(' ,;-')
+
+
 def toca_perder(dias_sin_movimiento, dias_maximos, la_trabaja_una_persona):
     """¿Se archiva por «sin respuesta»? Solo con hechos, nunca por lo que la IA interprete.
 

@@ -237,6 +237,15 @@ Heredado del CRM de Baby Caleb y **ampliado con medios**. Service binding `PUENT
    apartados, no aprueba créditos, no da descuentos ni fija entregas (se crea la oportunidad). Las salvaguardas siguen
    quitando toda promesa («te lo apartamos», «llega mañana», «envío gratis») y toda cifra que no traiga una herramienta.
    Mientras una entrada de conocimiento esté inactiva (hoy, «Apartados», hasta que lo revise el abogado), el bot no la ve.
+   **Costo del envío (la dueña, 2026-11-12: «tienes mi sí»):** con la tarifa de envíos **aprobada** por Gerencia y el
+   interruptor «Cotizar envíos» encendido (Ajustes de Juan), Juan da el precio con `cotizar_envio` (la misma calculadora de
+   `dcasa_envios`) y pregunta «¿Quieres que te lo sume a la cotización?»; con el sí, `agregar_envio` lo suma a la cotización
+   de esa conversación y manda el PDF nuevo. Si hay promoción de envío vigente, la frase dice el precio normal, lo que D'CASA
+   regala o abona (siempre como ahorro), las condiciones y hasta cuándo vale («…después, el envío vuelve a su precio
+   normal»). Un lugar «Por revisar», uno cotizado aparte o la tarifa sin aprobar → «te lo confirma una vendedora». La
+   guardia del Worker solo deja pasar una cifra o un «gratis» del envío que respalde `cotizar_envio`/`agregar_envio` **en
+   ese turno**, con su papel (normal, final, ahorro, mínimo, compra, total) y su lugar, cláusula por cláusula
+   ([ENVIOS.md](ENVIOS.md) › Juan cotiza el envío).
 4. Socios: explica con `reglas_socios`; saldo solo con PIN; **nunca** «acredita» ni promete puntos
    de una compra no facturada.
 5. Fotos de comprobantes de pago o de documentos de identidad **no se le envían al modelo**: se
@@ -404,7 +413,7 @@ Base: ajuste `dcasa_conversaciones.juan_url` o variable `JUAN_URL` (https; `http
 | `POST /odoo/enviar` | `{canal, id_externo, autor:"vendedora", texto?, adjuntos?[{tipo, url, nombre, mime}], id_envio?, responde_a?}` | `200 {ok, id_mensaje, repetido?:true, partes?:[{id_canal, tipo, texto?}]}` |
 | `POST /odoo/estado` | `{canal, id_externo, estado:"humano"\|"bot", pausada_hasta?, nota_para_el_bot?}` | `200 {ok}` |
 | `POST /odoo/seguimiento` | `{conversacion_id, canal, id_externo, numero:1\|2, contexto:{interes, ultimo_mensaje_ts}}` | `200 {ok:true, resultado:"enviado"\|"descartado"\|"pospuesto", motivo?}` · `502 {ok:false, error}` |
-| `GET /odoo/salud` | | `200 {ok, mensaje, version, entorno, secretos_faltantes, ia, canales:{<canal>:{activo, configurado, faltan, conectado, detalle?}}, gasto_ia_mes_usd, tope_usd, tope_alcanzado, problemas, avisos}` |
+| `GET /odoo/salud` | | `200 {ok, mensaje, version, entorno, secretos_faltantes, ia, canales:{<canal>:{activo, configurado, faltan, conectado, detalle?}}, gasto_ia_mes_usd, mes, tope_usd, tope_alcanzado, problemas, avisos}`. `mes` = «AAAA-MM» (hora de Panamá) del acumulado; `gasto_ia_mes_usd` es `null` (con un aviso) si el Worker no pudo leer su contador, nunca un 0 inventado (2026-11-12) |
 
 - `/odoo/salud` responde **200 aunque `ok` sea `false`** (le falta un secreto, un canal sin conectar): Odoo lo lee y lo muestra en
   «Probar conexión» («whatsapp_qr: conectado, telegram: sin configurar (…)»).
@@ -756,7 +765,8 @@ Precios, existencias, medidas, combos, horario, dirección, cifras de Socios, po
 las herramientas de Odoo. El prompt no tiene ni un precio ni una cifra. Las herramientas son las 9
 del contrato más la base de conocimiento, las etiquetas y las cotizaciones: `buscar_productos`, `ver_producto`, `listar_categorias`,
 `reglas_socios`, `horario_y_tienda`, `saldo_puntos`, `crear_oportunidad`, `anotar_conversacion`, `pasar_a_vendedora`,
-`buscar_conocimiento`, `registrar_pregunta_sin_respuesta`, `etiquetar_conversacion` y `cotizar`; más una local, `enviar_foto_producto`
+`buscar_conocimiento`, `registrar_pregunta_sin_respuesta`, `etiquetar_conversacion`, `cotizar`, `cotizar_envio` y
+`agregar_envio`; más una local, `enviar_foto_producto`
 (`adicionales=true` = más fotos de la galería, sin repetir).
 
 `cotizar` es la única herramienta cuyo resultado trae un archivo: el PDF llega como `documento` (URL firmada de Odoo, de vida corta).

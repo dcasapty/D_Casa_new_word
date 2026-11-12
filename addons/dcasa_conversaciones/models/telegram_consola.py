@@ -101,6 +101,9 @@ class BrianTelegramEnlace(models.Model):
         try:
             with self.env.cr.savepoint():
                 conv = yo.env['dcasa.conversacion']._para_panel(conversacion_id, escritura=True)
+                # El cliente de otra vendedora activa no se toma desde aquí: no hay cómo preguntar (se dice de una vez,
+                # antes del borrador; enviar_respuesta lo vuelve a mirar al pulsar «Enviar»).
+                conv._exigir_confirmacion_para_tomar(yo.env.user)
         except (UserError, AccessError) as error:
             return self._enviar(self.chat_id, str(error))
         borrador = self.env['dcasa.telegram_borrador']._crear(self.user_id, conv, texto)

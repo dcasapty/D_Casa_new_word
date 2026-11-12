@@ -151,3 +151,77 @@ class TestPermisos(EnviosComun):
             with self.subTest(tipo=tipo):
                 self.assertEqual([vendedora.get(a) for a in ('create', 'edit', 'delete')], ['0', '0', '0'])
                 self.assertIsNone(gerencia.get('create'))
+
+    def test_lo_que_agrega_el_equipo_queda_por_revisar_hasta_que_gerencia_lo_revisa(self):
+        """Revisión adversarial del 2026-11-12 (I7): Juan no le da a un cliente el precio de un lugar que agregó alguien
+        del equipo (km medidos por ella) hasta que Gerencia lo revise."""
+        Lugar = self.env['dcasa.envio.lugar']
+        propio = Lugar.with_user(self.vendedora).create(
+            {'name': 'Residencial Por Revisar', 'tipo': 'barrio', 'dist': 'Colón', 'corr': 'Barrio Simulado', 'km': 1})
+        self.assertEqual((propio.revisado, propio.revisado_por, propio.revisado_el), (False, self.env['res.users'],
+                                                                                       False))
+        self.assertIn(propio, Lugar.search([('revisado', '=', False)]), 'sale en el filtro «Por revisar»')
+        self.assertTrue(propio.with_user(self.vendedora).precio_envio_txt, 'la calculadora lo sigue usando')
+        de_gerencia = Lugar.with_user(self.gerencia).create(
+            {'name': 'Residencial De Gerencia', 'tipo': 'barrio', 'dist': 'Colón', 'km': 2})
+        self.assertEqual((de_gerencia.revisado, de_gerencia.revisado_por), (True, self.gerencia))
+        self.assertTrue(self.lugar('Villa Prueba').revisado, 'los del archivo nacen revisados')
+        # La vendedora no lo marca revisado ni le cambia los km o la provincia; nadie escribe la marca a mano.
+        for accion in (propio.with_user(self.vendedora).action_marcar_revisado,
+                       lambda: propio.with_user(self.vendedora).write({'km': 30}),
+                       lambda: propio.with_user(self.vendedora).write({'prov': 'Panamá'})):
+            with self.subTest(accion=accion), self.assertRaises(AccessError):
+                accion()
+        for campo, valor in (('revisado', True), ('revisado_por', self.gerencia.id), ('revisado_el', False)):
+            with self.subTest(campo=campo), self.assertRaises(UserError):
+                propio.with_user(self.gerencia).write({campo: valor})
+        propio.with_user(self.gerencia).action_marcar_revisado()
+        self.assertEqual((propio.revisado, propio.revisado_por), (True, self.gerencia))
+        self.assertTrue(propio.revisado_el)
+
+    def test_la_ficha_tiene_el_boton_y_la_lista_el_filtro(self):
+        ficha = etree.fromstring(self.env['dcasa.envio.lugar'].with_user(self.gerencia).get_view(
+            view_type='form')['arch'])
+        boton = ficha.xpath("//button[@name='action_marcar_revisado']")
+        self.assertTrue(boton)
+        self.assertEqual(boton[0].get('invisible'), 'revisado')
+        buscar = etree.fromstring(self.env['dcasa.envio.lugar'].get_view(view_type='search')['arch'])
+        self.assertEqual(buscar.xpath("//filter[@name='por_revisar']")[0].get('domain'), "[('revisado', '=', False)]")
+        # La vendedora no ve el botón (grupos de Gerencia y administradores).
+        de_la_vendedora = etree.fromstring(self.env['dcasa.envio.lugar'].with_user(self.vendedora).get_view(
+            view_type='form')['arch'])
+        self.assertFalse(de_la_vendedora.xpath("//button[@name='action_marcar_revisado']"))
+
+    def _migracion(self, version):
+        import importlib.util
+
+        from odoo.tools.misc import file_path
+        spec = importlib.util.spec_from_file_location(
+            f'mig_revisado_{version}', file_path(f'dcasa_envios/migrations/{version}/post-migrate.py'))
+        migracion = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(migracion)
+        return migracion
+
+    def test_al_actualizar_todo_lo_agregado_a_mano_queda_por_revisar(self):
+        """Segunda vuelta (M-6): el rol de HOY no dice quién lo agregó ni si se revisó; Gerencia los revisa una vez."""
+        Lugar = self.env['dcasa.envio.lugar']
+        propio = Lugar.with_user(self.vendedora).create({'name': 'Viejo Del Equipo', 'tipo': 'barrio',
+                                                        'dist': 'La Chorrera', 'km': 3})
+        de_gerencia = Lugar.with_user(self.gerencia).create({'name': 'Viejo De Gerencia', 'tipo': 'barrio',
+                                                            'dist': 'La Chorrera', 'km': 4})
+        self.env.flush_all()
+        self.env.cr.execute('UPDATE dcasa_envio_lugar SET revisado = TRUE, revisado_por = NULL')  # la columna nueva
+        Lugar.invalidate_model()
+        self._migracion('19.0.1.2.0').migrate(self.env.cr, '19.0.1.1.0')
+        Lugar.invalidate_model()
+        self.assertEqual((propio.revisado, de_gerencia.revisado), (False, False))
+        self.assertTrue(self.lugar('Villa Prueba').revisado, 'los de la tabla cargada, revisados')
+        # Donde ya corrió la de antes: lo que Gerencia revisó con el botón se queda revisado; lo demás, por revisar.
+        de_gerencia.with_user(self.gerencia).action_marcar_revisado()
+        self.env.flush_all()
+        self.env.cr.execute('UPDATE dcasa_envio_lugar SET revisado = TRUE WHERE id = %s', [propio.id])
+        Lugar.invalidate_model()
+        self._migracion('19.0.1.3.0').migrate(self.env.cr, '19.0.1.2.0')
+        Lugar.invalidate_model()
+        self.assertEqual((propio.revisado, de_gerencia.revisado), (False, True))
+        self.assertTrue(self.lugar('Villa Prueba').revisado)

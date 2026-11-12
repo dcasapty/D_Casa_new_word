@@ -36,9 +36,10 @@ MAX_LINEAS_AUTOMATICAS = 10
 TOPE_NUEVAS_POR_DIA = 5
 VIGENCIA_PARA_REUTILIZAR = timedelta(hours=2)
 NOTA_DE_COTIZACION = ('Es una cotización: no es una venta ni reserva nada. Los precios son sin ITBMS y el 7 % se suma '
-                      'en el total. La entrega, el flete, el financiamiento, el apartado o un descuento de esta compra '
-                      'los confirma una vendedora. El PDF sale junto con tu respuesta: no lo anuncies como enviado, di '
-                      'que va adjunto.')
+                      'en el total. El costo del envío lo dices solo con lo que devuelva cotizar_envio (y, si el '
+                      'cliente quiere, lo sumas con agregar_envio); la fecha de entrega, el financiamiento, el '
+                      'apartado o un descuento de esta compra los confirma una vendedora. El PDF sale junto con tu '
+                      'respuesta: no lo anuncies como enviado, di que va adjunto.')
 A_VENDEDORA = 'Una vendedora se la prepara: llama a pasar_a_vendedora y dile al cliente lo que esa herramienta indique.'
 
 
@@ -159,8 +160,9 @@ class BrianHerramientasJuanCotizacion(models.AbstractModel):
         for orden in Orden.search([
                 ('partner_id', '=', conv.partner_id.id), ('state', 'in', ('draft', 'sent')),
                 ('create_uid', '=', self.env.uid), ('create_date', '>=', desde)], order='id desc', limit=5):
+            # El envío (y su promoción) no cuenta: la misma compra con el envío ya sumado es la misma cotización.
             hay = sorted((linea.product_id.id, float(linea.product_uom_qty))
-                         for linea in orden.order_line if not linea.display_type)
+                         for linea in orden.order_line if not linea.display_type and not linea._dcasa_es_envio())
             if hay == quiero:
                 return orden
         return Orden
@@ -192,7 +194,8 @@ class BrianHerramientasJuanCotizacion(models.AbstractModel):
     @api.model
     def _j_cotizacion_como_dict(self, orden):
         lineas = []
-        for linea in orden.order_line.filtered(lambda linea: not linea.display_type):
+        # El envío va aparte (``envio``): sus cifras no son precios de producto y no llevan «+ ITBMS» por sí solas.
+        for linea in orden.order_line.filtered(lambda linea: not linea.display_type and not linea._dcasa_es_envio()):
             plantilla = linea.product_id.product_tmpl_id
             mas_itbms = self._j_mas_itbms(plantilla)
             fila = {
@@ -216,7 +219,7 @@ class BrianHerramientasJuanCotizacion(models.AbstractModel):
                 fila['combo'] = 'Combo cama + colchón'
             lineas.append(fila)
         return {
-            'numero': orden.name, 'lineas': lineas,
+            'numero': orden.name, 'lineas': lineas, 'envio': self._j_envio_como_dict(orden),
             'subtotal': round(orden.amount_untaxed, 2), 'subtotal_texto': _dinero(orden.amount_untaxed),
             'itbms': round(orden.amount_tax, 2), 'itbms_texto': _dinero(orden.amount_tax),
             'total': round(orden.amount_total, 2), 'total_texto': _dinero(orden.amount_total),
@@ -234,9 +237,9 @@ class BrianHerramientasJuanCotizacion(models.AbstractModel):
         return pdf if tipo == 'pdf' and pdf and pdf.startswith(b'%PDF') else None
 
     @api.model
-    def _j_dejar_pdf_en_el_hilo(self, conv, orden, pdf, total_texto):
+    def _j_dejar_pdf_en_el_hilo(self, conv, orden, pdf, total_texto, aviso=None):
         """El PDF queda en un aviso del hilo y se devuelve como lo espera el Worker: ``{tipo, url, nombre, mime}``."""
-        aviso = conv._aviso(self.env._(
+        aviso = conv._aviso(aviso or self.env._(
             'Juan armó la cotización %(n)s (total %(total)s) y se la manda al cliente en PDF. Está en Ventas como '
             'borrador, sin confirmar.', n=orden.name, total=total_texto))
         adjunto = self.env['ir.attachment'].sudo().create({

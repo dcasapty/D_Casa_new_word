@@ -10,7 +10,9 @@ envío en la página web.
 * **Calculadora** (Envíos › Calculadora, todo el equipo): el buscador grande (sin tildes, abreviaturas, frases, errores
   de dedo, lugares conocidos), filtros por tipo y distrito, el precio con su desglose, «Copiar el precio», la ruta en
   Google Maps desde la tienda, «¿Quisiste decir…?», «Agregar este lugar» (queda el nombre de quien lo agregó) y
-  «Calcular por kilómetros» con la tabla por tramos. Mientras la tarifa no esté aprobada: «Tarifa en revisión».
+  «Calcular por kilómetros» con la tabla por tramos. Mientras la tarifa no esté aprobada: «Tarifa en revisión». Un
+  lugar que agrega alguien que no es Gerencia queda «Por revisar»: Juan no da su precio hasta que Gerencia toca
+  «Marcar revisado» en la ficha.
 * **Lugares** (lista, se exporta a Excel con el precio) y **Tarifa** (Gerencia y administradores: la fórmula, los
   cargos aparte, subir o bajar todo en %, aprobarla con quién y cuándo, el historial y «Cargar lugares y tarifa desde
   el archivo»).
@@ -23,23 +25,32 @@ envío en la página web.
   precio y la ruta en Google Maps; nunca los km, la tabla ni el desglose, y ningún precio mientras la tarifa esté en
   revisión. «Crear un enlace nuevo» deja sin efecto el anterior; queda quién y cuándo en el historial. Límite por IP,
   sin caché ni indexado; la ubicación no se guarda.
+* **Promoción de envío** (pedido de la dueña, 2026-11-12; Envíos › Promoción de envío, Gerencia y administradores):
+  fechas, mínimo de la compra (con o sin ITBMS), provincias o distritos con envío gratis, abono en el resto y si no
+  aplica con colchón; una sola vigente a la vez y con historial. Los precios de envío no cambian: la cuenta la hace el
+  motor (``motor/promocion.py``). Juan suma el envío (y la promoción) a la cotización por el mismo camino que «Agregar
+  envío» (``sale.order._dcasa_envio_poner``). Viene cargada la de noviembre de 2026.
 * Los datos (los lugares y los precios) **no** van en el repositorio: Gerencia sube el archivo.
 
 Ver docs/ENVIOS.md.
 """,
-    'version': '19.0.1.0.0',
+    'version': '19.0.1.3.0',
     'category': 'Inventory/Delivery',
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',
     'license': 'LGPL-3',
-    'depends': ['dcasa_base', 'dcasa_interfaz', 'dcasa_contabilidad', 'dcasa_brian', 'mail'],
+    # dcasa_catalogo (colchones y combos, y por él website_dcasa y dcasa_invoice) y delivery: el envío en la cotización.
+    'depends': ['dcasa_base', 'dcasa_interfaz', 'dcasa_contabilidad', 'dcasa_brian', 'dcasa_catalogo', 'delivery',
+                'mail'],
     'data': [
         'security/ir.model.access.csv',
         'views/lugar_views.xml',
         'views/tarifa_views.xml',
+        'views/promocion_views.xml',
         'views/choferes_templates.xml',
         'wizard/importar_views.xml',
         'views/menus.xml',
+        'data/promocion_data.xml',
     ],
     'assets': {
         'web.assets_backend': [

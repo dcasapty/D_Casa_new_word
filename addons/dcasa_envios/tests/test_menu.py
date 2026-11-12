@@ -24,7 +24,7 @@ class TestMenuEnvios(TransactionCase):
         raiz = self.env.ref('dcasa_contabilidad.menu_envios_root')
         self.assertFalse(self.env.ref('dcasa_contabilidad.menu_envios_en_desarrollo').active)
         hijos = raiz.child_id.sorted('sequence')
-        self.assertEqual(hijos.mapped('name'), ['Calculadora', 'Lugares', 'Tarifa'])
+        self.assertEqual(hijos.mapped('name'), ['Calculadora', 'Lugares', 'Tarifa', 'Promoción de envío'])
         calculadora = self.env.ref('dcasa_envios.menu_envios_calculadora')
         self.assertEqual(calculadora.action, self.env.ref('dcasa_envios.accion_calculadora'))
         self.assertEqual(calculadora.action.tag, 'dcasa_envios.calculadora')
@@ -37,10 +37,12 @@ class TestMenuEnvios(TransactionCase):
                 self.assertIn('dcasa_envios.menu_envios_calculadora', menus)
                 self.assertIn('dcasa_envios.menu_envios_lugares', menus)
                 self.assertNotIn('dcasa_envios.menu_envios_tarifa', menus)
+                self.assertNotIn('dcasa_envios.menu_envios_promocion', menus)
                 raiz = menus['dcasa_contabilidad.menu_envios_root']
                 primero = menus['dcasa_envios.menu_envios_calculadora']
                 self.assertEqual(raiz['children'][0], primero['id'], 'Envíos abre la calculadora')
         self.assertIn('dcasa_envios.menu_envios_tarifa', self.menus_de(self.gerencia))
+        self.assertIn('dcasa_envios.menu_envios_promocion', self.menus_de(self.gerencia))
 
     def test_la_pantalla_esta_registrada_y_baja_con_scroll(self):
         raiz = Path(__file__).resolve().parents[1] / 'static' / 'src'
@@ -63,3 +65,6 @@ class TestMenuEnvios(TransactionCase):
         self.assertIn('envio-cuanto-cuesta', de_vendedora)
         self.assertNotIn('envio-tarifa', {t['id'] for t in Guia.with_user(self.vendedora).buscar('tarifa de envio')})
         self.assertIn('envio-tarifa', {t['id'] for t in Guia.with_user(self.gerencia).buscar('tarifa de envio')})
+        self.assertEqual(tareas['envio-promocion']['destino'], {'menu': 'dcasa_envios.menu_envios_promocion'})
+        self.assertIn('envio-promocion', {t['id'] for t in Guia.with_user(self.gerencia).buscar('envio gratis')})
+        self.assertNotIn('envio-promocion', {t['id'] for t in Guia.with_user(self.vendedora).buscar('envio gratis')})

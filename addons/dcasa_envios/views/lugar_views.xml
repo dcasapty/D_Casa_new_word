@@ -20,6 +20,7 @@
                        decoration-info="estado == 'lancha'"
                        decoration-danger="estado in ('sin_carretera', 'no_encontrado', 'fuera', 'sin_dato')"/>
                 <field name="precio_envio_txt"/>
+                <field name="revisado" string="Revisado" optional="show"/>
                 <field name="precio_envio" optional="hide"/>
                 <field name="tarifa_base" optional="hide"/>
                 <field name="cargos_txt" optional="hide"/>
@@ -39,6 +40,9 @@
         <field name="arch" type="xml">
             <form string="Lugar de envío">
                 <header>
+                    <button name="action_marcar_revisado" type="object" string="Marcar revisado" class="btn-primary"
+                            groups="dcasa_base.group_gerencia,base.group_system" invisible="revisado"
+                            help="Revisaste el nombre, los kilómetros y la provincia: Juan ya puede dar este precio."/>
                     <button name="action_volver_al_archivo" type="object" string="Que mande el archivo otra vez"
                             groups="dcasa_base.group_gerencia,base.group_system"
                             invisible="origen != 'archivo' or not editado_el"
@@ -46,6 +50,10 @@
                 </header>
                 <sheet>
                     <widget name="web_ribbon" title="Archivado" bg_color="text-bg-danger" invisible="active"/>
+                    <div class="alert alert-warning" role="status" invisible="revisado">
+                        Lo agregó alguien del equipo. La calculadora lo usa, pero Juan no le da este precio a un cliente
+                        (se lo confirma una vendedora) hasta que Gerencia lo marque revisado.
+                    </div>
                     <div class="oe_title">
                         <label for="name"/>
                         <h1><field name="name" placeholder="Barrio, urbanización, PH o lugar conocido"/></h1>
@@ -79,6 +87,9 @@
                             <field name="agregado_el" invisible="not agregado_el"/>
                         </group>
                         <group>
+                            <field name="revisado"/>
+                            <field name="revisado_por" invisible="not revisado_por"/>
+                            <field name="revisado_el" invisible="not revisado_el"/>
                             <field name="editado_por" invisible="not editado_por"/>
                             <field name="editado_el" invisible="not editado_el"/>
                             <field name="lat" digits="[10, 6]"/>
@@ -111,6 +122,7 @@
                 <filter name="sin_carretera" string="Sin carretera o sin medir"
                         domain="['|', ('km_medido', '=', False), ('estado', 'not in', ('ok', 'revisar', 'lancha'))]"/>
                 <separator/>
+                <filter name="por_revisar" string="Por revisar (Gerencia)" domain="[('revisado', '=', False)]"/>
                 <filter name="a_mano" string="Agregados a mano" domain="[('agregado', '=', True)]"/>
                 <filter name="en_odoo" string="Agregados en Odoo" domain="[('origen', '=', 'mano')]"/>
                 <filter name="editados" string="Cambiados en Odoo" domain="[('editado_el', '!=', False)]"/>

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <!-- «Este cliente lo atiende Ana. ¿Lo tomas tú?»: ver toma.js -->
+    <t t-name="dcasa_conversaciones.ConfirmarToma">
+        <div class="o_dcj_capa o_dcj_capa_toma" t-on-click.self="() => this.elegir(null)">
+            <div class="o_dcj_hoja o_dcj_toma" t-ref="panel" role="alertdialog" aria-modal="true"
+                 aria-labelledby="o_dcj_toma_titulo" aria-describedby="o_dcj_toma_detalle">
+                <div class="o_dcj_hoja_cuerpo">
+                    <h2 id="o_dcj_toma_titulo" class="o_dcj_toma_titulo">Este cliente lo atiende <t t-out="nombre"/>. ¿Lo tomas tú?</h2>
+                    <p id="o_dcj_toma_detalle" class="o_dcj_ayuda">Si lo tomas, el cliente queda contigo y <t t-out="pila"/> se entera. Si no, déjale una nota: el cliente no la ve.</p>
+                    <div class="o_dcj_toma_botones">
+                        <button type="button" class="btn btn-primary o_dcj_toma_si" t-on-click="() => this.elegir('tomar')">Sí, lo tomo</button>
+                        <button type="button" class="btn btn-secondary o_dcj_toma_nota" t-on-click="() => this.elegir('nota')">Dejarle una nota a <t t-out="pila"/></button>
+                        <button type="button" class="btn btn-link o_dcj_toma_cancelar" t-on-click="() => this.elegir(null)">Cancelar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </t>
+</templates>

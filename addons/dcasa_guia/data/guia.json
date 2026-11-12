@@ -2599,12 +2599,13 @@
    "categoria": "tienda",
    "grupo": "Conversaciones",
    "titulo": "Cambiar cómo contesta Juan",
-   "logras": "Prendes o apagas a Juan y ajustas lo que puede hacer.",
+   "logras": "Prendes o apagas a Juan y ajustas lo que puede hacer: por ejemplo, si manda las cotizaciones solo o si cotiza los envíos («Juan cotiza envíos»).",
    "destino": {
     "menu": "dcasa_conversaciones.menu_dcasa_juan_ajustes"
    },
    "palabras": [
     "apagar juan",
+    "juan cotiza envios",
     "asistente",
     "automatico",
     "bot",
@@ -3122,7 +3123,7 @@
    "categoria": "tienda",
    "grupo": "Conversaciones",
    "titulo": "Ver cómo reparte Juan las conversaciones entre las vendedoras",
-   "logras": "Ves cuántas conversaciones le pasó Juan a cada vendedora hoy y a quién le esperan clientes, para comprobar que el reparto es parejo. Solo reciben las vendedoras: Gerencia y los administradores pueden intervenir en cualquier conversación, pero Juan no se las pasa. Cada vendedora ve solo las suyas.",
+   "logras": "Ves cuántas conversaciones le pasó Juan a cada vendedora hoy y a quién le esperan clientes, para comprobar que el reparto es parejo, y qué clientes cambiaron de mano (quién tomó el cliente de quién). Solo reciben las vendedoras: Gerencia y los administradores pueden intervenir en cualquier conversación, pero Juan no se las pasa. Cada vendedora ve solo las suyas.",
    "destino": {
     "menu": "dcasa_conversaciones.menu_dcasa_panel_reparto"
    },
@@ -3191,6 +3192,35 @@
    ]
   },
   {
+   "id": "juan-costos-pago",
+   "categoria": "tienda",
+   "grupo": "Conversaciones",
+   "tambien": [
+    "administrar"
+   ],
+   "titulo": "Marcar como pagado lo que debes de la IA",
+   "logras": "En Costos de IA, arriba dice «Por pagar a Meta»: lo que se ha gastado desde tu último pago. Cuando le pagas a Meta, tocas «Pagar» y dices que sí: el saldo vuelve a cero y empieza a contar de nuevo. Lo del mes sigue completo más abajo. Solo Gerencia.",
+   "destino": {
+    "menu": "dcasa_conversaciones.menu_dcasa_panel_costos"
+   },
+   "nota": "Si lo tocaste sin querer, «Deshacer», junto a «Último pago», lo deja como estaba.",
+   "palabras": [
+    "pagar la ia",
+    "pago de la ia",
+    "costos de ia",
+    "meta",
+    "saldar",
+    "reiniciar",
+    "ya pague",
+    "saldo",
+    "por pagar",
+    "cobro de meta",
+    "gasto de ia",
+    "cuanto debo de la ia",
+    "marcar como pagado"
+   ]
+  },
+  {
    "id": "juan-disponible",
    "categoria": "tienda",
    "grupo": "Conversaciones",
@@ -3203,6 +3233,46 @@
     "disponible",
     "almuerzo",
     "pausa"
+   ]
+  },
+  {
+   "id": "juan-chat-de-una-companera",
+   "categoria": "tienda",
+   "grupo": "Conversaciones",
+   "titulo": "Qué pasa si escribes en el chat de una compañera",
+   "logras": "Si el cliente lo atiende otra vendedora que está trabajando, antes de enviar te pregunta «¿Lo tomas tú?». Si dices que sí, el cliente queda contigo, queda escrito en la conversación y a ella le llega un aviso. Si prefieres no quitárselo, toca «Dejarle una nota»: lo que escribiste pasa a una nota para ella y el cliente no la ve. Si ella no está trabajando (faltó, está almorzando, es de noche), lo tomas sin pregunta: cubrirla también es ayudar. Mientras ella está trabajando, su cliente no se pasa a otra persona, no se deja sin asignar, no se devuelve al asistente ni se cierra: pídeselo a ella o a Gerencia. Gerencia ve en Reparto quién tomó el cliente de quién.",
+   "nota": "Solo entre vendedoras: Gerencia, los administradores, Caja y Contabilidad entran a cualquier chat sin pregunta. Pasa lo mismo con el botón «Atender» y con «Atiende» en la ficha del cliente. Desde Telegram no se puede tomar el cliente de una compañera que está trabajando: hazlo desde Conversaciones. Un mensaje que dejaste programado no sale si al llegar la hora el cliente lo atiende otra vendedora: te avisamos.",
+   "destino": {
+    "menu": "dcasa_conversaciones.menu_dcasa_panel_conversaciones"
+   },
+   "palabras": [
+    "companera",
+    "quitar cliente",
+    "tomar cliente",
+    "cliente de otra",
+    "chat de otra",
+    "nota",
+    "reparto"
+   ]
+  },
+  {
+   "id": "juan-reparto-maximo",
+   "categoria": "tienda",
+   "grupo": "Conversaciones",
+   "titulo": "Que los chats de la noche se repartan parejo en la mañana",
+   "logras": "Los clientes que escribieron de noche no se los lleva todos la primera que entra: a cada vendedora se le dan de a pocos, hasta el número que pongas sin contestar; en cuanto contesta uno, le llega otro, y las que van llegando reciben los demás. Un cliente que escribe dentro del horario siempre se le da a una vendedora que esté trabajando, aunque todas tengan ese número esperándoles.",
+   "nota": "En Ajustes de Juan, «Máximo de clientes esperándole a la vez». Viene en 3. 0 = sin límite. Solo sirve con el reparto encendido. Si el cliente ya habló con una vendedora, vuelve con ella aunque tenga clientes esperando.",
+   "destino": {
+    "menu": "dcasa_conversaciones.menu_dcasa_juan_ajustes"
+   },
+   "palabras": [
+    "noche",
+    "manana",
+    "acaparar",
+    "maximo",
+    "parejo",
+    "reparto",
+    "chats pendientes"
    ]
   },
   {
@@ -3317,6 +3387,49 @@
     "peaje",
     "cargar archivo de envios",
     "precio por kilometro"
+   ]
+  },
+  {
+   "id": "envio-promocion",
+   "categoria": "vender",
+   "tambien": [
+    "tienda"
+   ],
+   "grupo": "Envíos",
+   "titulo": "Poner o cambiar la promoción de envío del mes",
+   "logras": "En Envíos › Promoción de envío pones sus fechas, de cuánto tiene que ser la compra (con o sin ITBMS), en qué provincias o distritos el envío es gratis, cuánto se abona del envío en el resto y si no aplica cuando la compra lleva colchón. Los precios de envío no cambian: Juan dice el precio normal y cómo le queda al cliente con la promoción, y si el cliente quiere se lo suma a la cotización. Abajo ves cómo lo dice Juan, y cada cambio queda en el historial.",
+   "nota": "Solo Gerencia. Solo puede haber una promoción activa a la vez: si las fechas se cruzan con otra, no se guarda. Fuera de sus fechas, Juan da el precio normal. Un cambio vale solo para las cotizaciones nuevas: las que ya la tienen sumada respetan lo que se le prometió al cliente hasta el «Vence el» que tenían cuando se sumó, nunca más de 30 días (cambiar «Vence el» después no lo alarga); la ficha te dice cuántas son.",
+   "destino": {
+    "menu": "dcasa_envios.menu_envios_promocion"
+   },
+   "palabras": [
+    "promocion de envio",
+    "envio gratis",
+    "promocion del mes",
+    "abono del flete",
+    "flete gratis",
+    "delivery gratis"
+   ]
+  },
+  {
+   "id": "envio-lugares-por-revisar",
+   "categoria": "vender",
+   "grupo": "Envíos",
+   "titulo": "Revisar los lugares de envío que agregó el equipo",
+   "logras": "En Envíos › Lugares, con el filtro «Por revisar (Gerencia)», ves los lugares que agregó alguien del equipo desde la calculadora. Abres cada uno, revisas el nombre, los kilómetros y la provincia (los corriges si hace falta) y tocas «Marcar revisado». Hasta entonces la calculadora los usa, pero Juan no le da ese precio a un cliente: le dice que el costo se lo confirma una vendedora.",
+   "nota": "Solo Gerencia. Los lugares del archivo y los que agrega Gerencia ya nacen revisados.",
+   "destino": {
+    "menu": "dcasa_envios.menu_envios_lugares",
+    "contexto": {
+     "search_default_por_revisar": 1
+    }
+   },
+   "palabras": [
+    "lugares por revisar",
+    "revisar lugar",
+    "lugar nuevo de envio",
+    "marcar revisado",
+    "lugar agregado por vendedora"
    ]
   },
   {

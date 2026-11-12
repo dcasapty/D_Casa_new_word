@@ -10,3 +10,6 @@ access_envio_cargo_gerencia,dcasa.envio.cargo gerencia,model_dcasa_envio_cargo,d
 access_envio_cargo_admin,dcasa.envio.cargo administrador,model_dcasa_envio_cargo,base.group_system,1,1,1,1
 access_envio_importar_gerencia,dcasa.envio.importar gerencia,model_dcasa_envio_importar,dcasa_base.group_gerencia,1,1,1,1
 access_envio_importar_admin,dcasa.envio.importar administrador,model_dcasa_envio_importar,base.group_system,1,1,1,1
+access_envio_promocion_equipo,dcasa.envio.promocion equipo,model_dcasa_envio_promocion,base.group_user,1,0,0,0
+access_envio_promocion_gerencia,dcasa.envio.promocion gerencia,model_dcasa_envio_promocion,dcasa_base.group_gerencia,1,1,1,0
+access_envio_promocion_admin,dcasa.envio.promocion administrador,model_dcasa_envio_promocion,base.group_system,1,1,1,1
