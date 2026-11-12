@@ -13,6 +13,7 @@ Si el Worker no está configurado, cada pantalla lo dice con claridad («Falta c
 """
 import logging
 
+import psycopg2.errors
 from markupsafe import escape
 
 from odoo import api, fields, models
@@ -30,6 +31,32 @@ MAX_QR = 200_000
 NOMBRES_DE_CLAVES_DEL_ENTORNO = ('JUAN_URL', 'JUAN_WORKER_TOKEN')
 
 
+def guardar_foto(cr, fecha, acumulado, uid, cuando):
+    """Deja (o sube) la foto de ``fecha`` en una sola instrucción: dentro de un mismo día el acumulado solo crece.
+
+    Si otra pestaña (o el cron) subió la misma foto mientras esta transacción hablaba con el Worker, en REPEATABLE READ
+    eso es un choque de serialización (revisión, 2026-11-12: salía «bad query» en ERROR y Odoo reintentaba la llamada
+    entera, «Pagar» incluido). La foto ya la dejó el otro y la próxima visita o el cron la vuelven a subir, así que se
+    sigue sin ella: devuelve ``False``, sin error en el registro y sin tocar el resto de la transacción."""
+    try:
+        with cr.savepoint(flush=False):
+            cr.execute("""
+                INSERT INTO dcasa_juan_costo_dia (fecha, mes, acumulado_usd, create_uid, create_date, write_uid,
+                                                  write_date)
+                     VALUES (%(f)s, %(m)s, %(a)s, %(u)s, %(t)s, %(u)s, %(t)s)
+                ON CONFLICT (fecha) DO UPDATE
+                       SET acumulado_usd = EXCLUDED.acumulado_usd, write_uid = EXCLUDED.write_uid,
+                           write_date = EXCLUDED.write_date
+                     WHERE dcasa_juan_costo_dia.acumulado_usd IS NULL
+                        OR dcasa_juan_costo_dia.acumulado_usd < EXCLUDED.acumulado_usd""",
+                       {'f': fecha, 'm': fecha.strftime('%Y-%m'), 'a': acumulado, 'u': uid, 't': cuando},
+                       log_exceptions=False)   # el choque es esperado: no es un error del sistema
+    except psycopg2.errors.SerializationFailure:
+        _logger.info('Foto del gasto de IA del %s: otra transacción la subió a la vez; se sigue sin ella.', fecha)
+        return False
+    return True
+
+
 class DcasaJuanCostoDia(models.Model):
     """Una foto diaria del gasto de IA acumulado del mes (el Worker no guarda el gasto por día)."""
     _name = 'dcasa.juan.costo.dia'
@@ -45,13 +72,12 @@ class DcasaJuanCostoDia(models.Model):
 
     @api.model
     def _guardar(self, fecha, acumulado):
-        """Deja (o sube) la foto del ``fecha``: dentro de un mismo día el acumulado solo crece."""
-        existente = self.sudo().search([('fecha', '=', fecha)], limit=1)
-        if existente:
-            if acumulado > existente.acumulado_usd:
-                existente.write({'acumulado_usd': acumulado})
-            return existente
-        return self.sudo().create({'fecha': fecha, 'mes': fecha.strftime('%Y-%m'), 'acumulado_usd': acumulado})
+        """Deja (o sube) la foto del ``fecha``: dentro de un mismo día el acumulado solo crece (``guardar_foto``)."""
+        Foto = self.sudo()
+        Foto.flush_model()
+        guardar_foto(self.env.cr, fecha, float(acumulado), self.env.uid, fields.Datetime.now())
+        Foto.invalidate_model()
+        return Foto.search([('fecha', '=', fecha)], limit=1)
 
     @api.model
     def _cron_foto_diaria(self):
