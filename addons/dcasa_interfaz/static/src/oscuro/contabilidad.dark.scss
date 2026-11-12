@@ -1,0 +1,35 @@
+// MODO OSCURO — Contabilidad (resumen, reportes y conciliación, dcasa_contabilidad).
+
+.o_dc_contador,
+.o_dc_chip.o_activa,
+.o_dc_desarrollo_icono {
+    background: var(--dc-relleno);
+    border-color: var(--dc-relleno);
+    color: var(--dc-en-relleno);
+}
+
+// La cifra destacada (azul con letras blancas).
+.o_dc_kpi_fuerte {
+    background: var(--dc-relleno);
+    border-color: var(--dc-relleno);
+
+    span, small { color: var(--dc-en-relleno-2); }
+    strong { color: var(--dc-en-relleno); }
+}
+
+.o_dc_a_favor,
+.o_dc_kpi .o_dc_kpi_acumulado.o_dc_a_favor strong,
+.o_dc_kpi_ok.o_dc_a_favor strong,
+.o_dc_fila td.o_dc_a_favor,
+.o_dc_kpi_ok strong,
+.o_dc_entra { color: var(--dc-bien); }
+
+.o_dc_kpi_alerta strong,
+.o_dc_kpi .o_dc_kpi_aviso,
+.o_dc_tabla .o_dc_negativo { color: var(--dc-mal); }
+.o_dc_kpi_fuerte .o_dc_kpi_aviso { color: var(--dc-amarillo); }
+.o_dc_dif strong { color: var(--dc-falta); }
+
+.o_dc_aviso { background: var(--dc-mal-fondo); border-color: var(--dc-mal-linea); color: #FFC9C4; }
+.o_dc_aviso_info { background: var(--dc-info-fondo); border-color: var(--dc-info-linea); color: var(--dc-info); }
+.o_dc_conc_vacio .fa { color: var(--dc-tinta-3); }

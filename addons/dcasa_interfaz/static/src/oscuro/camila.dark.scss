@@ -1,0 +1,51 @@
+// MODO OSCURO — Camila (dcasa_camila): el panel de correos y sus ventanas.
+//
+// El encabezado azul pasa a gris; los blancos puestos a mano, a la superficie. La VISTA PREVIA DEL CORREO se queda
+// clara a propósito: muestra el correo tal como le llega al cliente (va en su propio marco).
+
+.o_camila,
+.o_camila_dialogo {
+    .o_camila_chip { background: var(--dc-blanco); }
+    .o_camila_chip.o_activa {
+        background: var(--dc-relleno);
+        border-color: var(--dc-relleno);
+        color: var(--dc-en-relleno);
+    }
+    .o_camila_chip.o_activa .o_camila_chip_n { background: rgba(255, 255, 255, .18); color: #FFFFFF; }
+}
+
+.o_camila {
+    .o_camila_encabezado { background: var(--dc-cabeza); color: var(--dc-en-cabeza); }
+    // «Nueva campaña» era el botón amarillo sobre el azul: de noche es el botón principal.
+    .o_camila_nueva { background: var(--dc-relleno); border-color: var(--dc-relleno); color: var(--dc-en-relleno); }
+    .o_camila_avatar { color: var(--dc-en-amarillo); }
+
+    .o_camila_cifra,
+    .o_camila_bloqueos,
+    .o_camila_pestana,
+    .o_camila_vacio,
+    .o_camila_constructor,
+    .o_camila_historial,
+    .o_camila_producto,
+    .o_camila_aviso_remitente,
+    .o_camila_remitente,
+    .o_camila_pie_ajuste { background: var(--dc-blanco); }
+}
+
+.o_camila_dialogo {
+    .o_camila_tarjeta,
+    .o_camila_tema { background: var(--dc-blanco); }
+    .o_camila_tema.o_activa {
+        background: var(--dc-relleno);
+        border-color: var(--dc-relleno);
+        color: var(--dc-en-relleno);
+    }
+    .o_camila_tarjeta_existencias.o_agotado,
+    .o_camila_tarjeta_motivo { color: var(--dc-mal); }
+}
+
+.o_dcasa_camila_pregunta {
+    .o_camila_pregunta_titulo,
+    .o_camila_pregunta_ayuda { color: var(--dc-tinta); }
+    .o_field_boolean_toggle .form-check-input:checked { background-color: var(--dc-relleno); border-color: var(--dc-relleno); }
+}

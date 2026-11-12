@@ -1,0 +1,35 @@
+// MODO OSCURO — retoques a las pantallas de Odoo (listas, formularios, barra de arriba, ventanas).
+//
+// La paleta (`primary_variables.dark.scss`) hace casi todo el trabajo. Aquí va solo lo que no sale de las variables.
+
+// El globo de «mensajes sin leer» de la barra de arriba: el rojo de alerta, un punto más claro para que el ícono se lea
+// sobre gris (el contador sigue rojo con el número blanco).
+.o_main_navbar button:has(.o-mail-MessagingMenu-counter) .fa-comments { color: #FF7A6E; }
+
+// Odoo usa el azul de los botones también como TINTA en unos pocos sitios (los números y los íconos de los botones
+// inteligentes de arriba de los formularios, el botón de copiar, las propiedades): sobre gris no se lee, van en celeste.
+:root {
+    --o-stat-text-color: #{"var(--dc-azul-600)"};
+    --o-stat-button-color: #{"var(--dc-azul-600)"};
+    --o-mail-ActionList-primaryNoBgColor: #{"var(--dc-azul-600)"};
+}
+.o_field_widget.o_field_copy,
+.o_field_property_label .o_field_property_open_popover:hover,
+.o_field_property_label .oi-draggable:hover { color: var(--dc-azul-600); }
+.o_field_property_tag .o_field_property_dropdown_add * { color: var(--dc-azul-600) !important; }
+
+// Las etiquetas (ITBMS 7 %, categorías, las de colores que alguien eligió): Odoo las pinta como pastillas pastel con
+// letra oscura, que sobre gris saltan como parches claros. De noche, cada color va apagado (mezclado con la superficie)
+// y su letra clara; la «sin color» queda gris. Mismos doce colores y mismo orden que `tags_list.scss`.
+.o_tag {
+    @for $-i from 1 through length($o-colors) {
+        &.o_tag_color_#{$-i - 1} {
+            $-tono: nth($o-colors, $-i);
+
+            &, &::after {
+                @include o-print-color(mix($-tono, $o-view-background-color, 30%), background-color, bg-opacity);
+                @include o-print-color(mix(#FFFFFF, $-tono, 68%), color, text-opacity);
+            }
+        }
+    }
+}

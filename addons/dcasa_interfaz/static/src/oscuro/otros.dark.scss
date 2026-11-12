@@ -1,0 +1,34 @@
+// MODO OSCURO — piezas sueltas de otros módulos: armar combos (dcasa_catalogo), Ajustes del programa de vendedores
+// (dcasa_socios) y el panel de facturas (dcasa_invoice).
+
+// --- Armar un combo (ventana de la cotización) --------------------------------------------------------------------------
+.o_dcasa_armar_combo {
+    .o_dcasa_combo_card,
+    .o_dcasa_combo_chip,
+    .o_dcasa_combo_tarjeta { background: var(--dc-blanco); }
+    .o_dcasa_combo_chip.o_activa {
+        background: var(--dc-relleno);
+        border-color: var(--dc-relleno);
+        color: var(--dc-en-relleno);
+    }
+    .o_dcasa_combo_ahorro { background: var(--dc-cabeza); }
+    .o_dcasa_combo_falta,
+    .o_dcasa_combo_existencia.o_agotado { color: var(--dc-mal); }
+    // La foto del producto se queda sobre blanco (a propósito).
+}
+
+// --- Ajustes › Programa de vendedores: sus colores estaban todos puestos a mano -----------------------------------------
+.o_dcasa_vend_resumen {
+    background: var(--dc-perla);
+    border-color: var(--dc-linea);
+    border-left-color: var(--dc-azul-600);
+    color: var(--dc-tinta);
+}
+.o_dcasa_vend_problemas { background: var(--dc-mal-fondo); border-color: var(--dc-mal-linea); color: #FFC9C4; }
+.o_dcasa_vend_escalera th,
+.o_dcasa_vend_historial th,
+.o_dcasa_vend_candado .o_dcasa_vend_candado_texto,
+.o_dcasa_vend_escalera td::before { color: var(--dc-tinta-2); }
+.o_dcasa_vend_escalera tbody th { color: var(--dc-tinta); }
+.o_dcasa_vend_escalera thead th,
+.o_dcasa_vend_escalera tr { border-bottom-color: var(--dc-linea); }

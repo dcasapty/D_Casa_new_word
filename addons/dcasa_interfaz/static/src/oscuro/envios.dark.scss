@@ -1,0 +1,47 @@
+// MODO OSCURO — Envíos (la calculadora y la tarifa en Ajustes, dcasa_envios).
+//
+// La cabecera azul pasa a gris; los blancos puestos a mano, a la superficie; las fichas pastel, a su tono de noche.
+
+.o_dcasa_envios {
+    .o_de_cabecera { background: var(--dc-cabeza); color: var(--dc-en-cabeza); }
+    .o_de_marca,
+    .o_de_mas { color: var(--dc-en-cabeza-2); }
+    .o_de_ayuda { color: var(--dc-en-cabeza-2); }
+    .o_de_ficha,
+    .o_de_aviso_chip { color: var(--dc-en-amarillo); }
+
+    // El buscador grande de la cabecera.
+    .o_de_q {
+        background: var(--dc-niebla);
+        border-color: var(--dc-linea-fuerte);
+        color: var(--dc-tinta);
+
+        &:focus-visible { outline-color: var(--dc-azul-600); }
+    }
+
+    .o_de_aviso { background: var(--dc-cabeza); color: var(--dc-en-cabeza); }
+    .o_de_aviso_enlace { color: var(--dc-azul-600); }
+
+    .o_de_filtro { background: transparent; border-color: var(--dc-linea-fuerte); }
+    .o_de_filtro[aria-pressed="true"] {
+        background: var(--dc-relleno);
+        border-color: var(--dc-relleno);
+        color: var(--dc-en-relleno);
+    }
+    .o_de_copiar { background: transparent; }
+
+    .o_de_tarjeta,
+    .o_de_vacio,
+    .o_de_sin_datos,
+    .o_de_panel { background: var(--dc-blanco); }
+
+    .o_de_chip_revisar { background: var(--dc-falta-fondo); color: var(--dc-falta); }
+    .o_de_chip_aparte { background: var(--dc-mal-fondo); color: var(--dc-mal); }
+    .o_de_chip_mano { background: var(--dc-bien-fondo); color: var(--dc-bien); }
+}
+
+.o_dcasa_envios_tarifa {
+    .o_dcasa_envios_ficha { background: var(--dc-relleno); color: var(--dc-en-relleno); }
+    .o_dcasa_envios_aviso { background: var(--dc-cabeza); color: var(--dc-en-cabeza); }
+    .o_dcasa_envios_aviso_chip { color: var(--dc-en-amarillo); }
+}
