@@ -37,7 +37,9 @@ Ver docs/ENVIOS.md.
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',
     'license': 'LGPL-3',
-    'depends': ['dcasa_base', 'dcasa_interfaz', 'dcasa_contabilidad', 'dcasa_brian', 'mail'],
+    # dcasa_catalogo (colchones y combos, y por él website_dcasa y dcasa_invoice) y delivery: el envío en la cotización.
+    'depends': ['dcasa_base', 'dcasa_interfaz', 'dcasa_contabilidad', 'dcasa_brian', 'dcasa_catalogo', 'delivery',
+                'mail'],
     'data': [
         'security/ir.model.access.csv',
         'views/lugar_views.xml',

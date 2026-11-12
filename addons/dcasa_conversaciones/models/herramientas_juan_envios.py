@@ -147,15 +147,28 @@ class BrianHerramientasJuanEnvios(models.AbstractModel):
     # cotizar_envio
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def _j_envio_grupos(resultados):
+        """Los encontrados juntados por lo que ve el cliente (nombre y zona): ``[(tarjeta, mismo_precio)]``.
+
+        Dos lugares que el cliente no puede distinguir (el archivo real trae casos con el mismo nombre en la misma zona)
+        son uno solo si cuestan lo mismo; si no cuestan lo mismo, ``mismo_precio`` es falso y no se puede preguntar
+        cuál: se pide un punto de referencia."""
+        grupos = {}
+        for tarjeta in resultados:
+            grupos.setdefault((tarjeta['nombre'], tarjeta['zona']), []).append(tarjeta)
+        return [(grupo[0], len({(t['con_precio'], t.get('total')) for t in grupo}) == 1) for grupo in grupos.values()]
+
     @api.model
-    def _j_envio_claro(self, texto, resultados):
-        """El lugar claro entre los encontrados: si hay uno solo, o si uno (y solo uno) se llama exactamente como lo
-        escribió el cliente (sin tildes, abreviaturas ni palabras de relleno). Si no, ``None``: se pregunta cuál."""
-        if len(resultados) == 1:
-            return resultados[0]
+    def _j_envio_claro(self, texto, grupos):
+        """El lugar claro: si hay uno solo, o si uno (y solo uno) se llama exactamente como lo escribió el cliente (sin
+        tildes, abreviaturas ni palabras de relleno). ``(tarjeta, mismo_precio)``, o ``(None, None)`` si hay que
+        preguntar cuál."""
+        if len(grupos) == 1:
+            return grupos[0]
         buscado = list(dict.fromkeys(buscador.tokens(texto)))
-        iguales = [r for r in resultados if buscado and list(dict.fromkeys(buscador.tokens(r['nombre']))) == buscado]
-        return iguales[0] if len(iguales) == 1 else None
+        iguales = [g for g in grupos if buscado and list(dict.fromkeys(buscador.tokens(g[0]['nombre']))) == buscado]
+        return iguales[0] if len(iguales) == 1 else (None, None)
 
     @herramienta(
         nombre=PREFIJO + 'cotizar_envio',
@@ -197,10 +210,20 @@ class BrianHerramientasJuanEnvios(models.AbstractModel):
                                    'dirección exacta) y vuelve a llamar. Si ya lo intentaste o no lo sabe, '
                                    + A_VENDEDORA,
                 }
-            tarjeta = self._j_envio_claro(texto, datos['resultados'])
+            grupos = self._j_envio_grupos(datos['resultados'])
+            tarjeta, mismo_precio = self._j_envio_claro(texto, grupos)
+            if tarjeta is not None and not mismo_precio:
+                return {
+                    'estado': 'no_encontrado', 'motivo': 'mismo_nombre', 'parecidos': [],
+                    'frase_para_el_cliente': f'Hay más de un lugar llamado «{tarjeta["nombre"]}» en esa zona. '
+                                             '¿Me dices un punto de referencia cercano, como un súper, una iglesia o '
+                                             'un PH?',
+                    'instruccion': 'Hay dos lugares con el mismo nombre y la misma zona y no cuestan lo mismo: no des '
+                                   'ningún precio. Pídele un punto de referencia cercano (nunca la dirección exacta) y '
+                                   'vuelve a llamar. Si no lo sabe, ' + A_VENDEDORA,
+                }
             if tarjeta is None:
-                opciones = [{'lugar_id': r['id'], 'nombre': r['nombre'], 'zona': r['zona']}
-                            for r in datos['resultados']]
+                opciones = [{'lugar_id': g[0]['id'], 'nombre': g[0]['nombre'], 'zona': g[0]['zona']} for g in grupos]
                 nombres = '; '.join(f'{o["nombre"]} ({o["zona"]})' for o in opciones)
                 return {
                     'estado': 'varios', 'opciones': opciones,

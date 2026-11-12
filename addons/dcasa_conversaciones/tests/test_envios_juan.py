@@ -84,18 +84,29 @@ class TestCotizarEnvio(EnviosJuanCase):
         self.assertEqual(diciembre['respaldo_envio'], {'montos': [45.0], 'gratis': False})
 
     def test_varios_parecidos_pregunta_cual_y_con_el_que_elige_da_el_precio(self):
-        datos = self.envio(lugar='el duplicado')
+        datos = self.envio(lugar='ensayo')
         self.assertEqual(datos['estado'], 'varios')
-        self.assertEqual(len(datos['opciones']), 2)
-        self.assertEqual({o['nombre'] for o in datos['opciones']}, {'El Duplicado'})
+        self.assertGreater(len(datos['opciones']), 1)
         self.assertTrue(all(set(o) == {'lugar_id', 'nombre', 'zona'} for o in datos['opciones']), 'sin precios')
         self.assertNotIn('$', json.dumps(datos))
+        self.assertIn('¿Cuál es el tuyo?', datos['frase_para_el_cliente'])
         elegido = self.envio(lugar_id=datos['opciones'][1]['lugar_id'])
         self.assertEqual((elegido['estado'], elegido['lugar']['lugar_id']),
                          ('precio', datos['opciones'][1]['lugar_id']))
-        self.assertEqual(self.envio(lugar='ensayo')['estado'], 'varios')
         self.assertEqual(self.envio(lugar='villa prueba')['lugar']['nombre'], 'Villa Prueba',
                          'se llama exactamente así: no hace falta preguntar (Villa Prueba II es otro)')
+
+    def test_dos_lugares_iguales_para_el_cliente(self):
+        # El fixture trae dos «El Duplicado» en la misma zona (como el archivo real): si cuestan lo mismo, es uno.
+        datos = self.envio(lugar='el duplicado')
+        self.assertEqual((datos['estado'], datos['envio_normal_texto']), ('precio', '$25'))
+        # Si no cuestan lo mismo, el cliente no puede decir cuál: se pide un punto de referencia, sin precios.
+        uno = self.env['dcasa.envio.lugar'].search([('name', '=', 'El Duplicado')], limit=1)
+        uno.with_user(self.gerencia).write({'km': 30})
+        datos = self.envio(lugar='el duplicado')
+        self.assertEqual((datos['estado'], datos['motivo']), ('no_encontrado', 'mismo_nombre'))
+        self.assertIn('punto de referencia', datos['frase_para_el_cliente'])
+        self.assertNotIn('$', json.dumps(datos))
 
     def test_no_encontrado_pide_un_punto_de_referencia(self):
         datos = self.envio(lugar='pruebaxx zzz')

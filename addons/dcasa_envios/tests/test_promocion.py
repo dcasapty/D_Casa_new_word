@@ -1,6 +1,7 @@
 """La promoción de envío en Odoo (quién la cambia, una sola vigente, la de noviembre precargada) y el envío dentro de
 una cotización (el mismo camino que «Agregar envío», la línea de la promoción, reemplazar, lo que no se toca)."""
 from datetime import date
+from unittest.mock import patch
 
 from odoo import Command
 from odoo.exceptions import AccessError, ValidationError
@@ -106,8 +107,15 @@ class TestPromocionDeEnvio(PromocionComun):
         brian = self.env['brian.herramientas'].with_user(self.vendedora).ejecutar(
             'cotizar_envio', {'lugar': 'Costa Inventada'})
         self.assertTrue(brian['ok'], brian)
-        self.assertEqual(brian['datos']['lugares'][0]['total'], '$45')
-        self.assertNotIn('gratis', str(brian['datos']).lower())
+        costa = brian['datos']['lugares'][0]
+        self.assertEqual(costa['total'], '$45', 'el precio de Brian no cambia')
+        self.assertEqual(costa['texto_para_el_cliente'], 'Envío a Costa Inventada (Santa Prueba, Panamá): $45.')
+        self.assertIn('en compras de más de $200 sin ITBMS, este envío te sale gratis', costa['con_la_promocion'],
+                      'la promoción va aparte')
+        with patch('odoo.addons.dcasa_envios.models.promocion.EnvioPromocion._hoy', return_value=date(2026, 12, 1)):
+            diciembre = self.env['brian.herramientas'].with_user(self.vendedora).ejecutar(
+                'cotizar_envio', {'lugar': 'Costa Inventada'})
+        self.assertNotIn('con_la_promocion', diciembre['datos']['lugares'][0])
 
 
 @tagged('post_install', '-at_install')
