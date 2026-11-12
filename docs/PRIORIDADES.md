@@ -10,10 +10,10 @@ LEEME_PRIMERO §2).
 ## Estado al 2026-11-11
 
 - **Producción funciona desde el 2026-10-13** y **`dcasapty.com` (y `www`) apunta al sistema nuevo desde el
-  2026-10-27** (Desplegar 31). Odoo y el borde: **Desplegar 67** (12 nov, PR #112: el modo oscuro; el 11 nov, Desplegar 66 con
+  2026-10-27** (Desplegar 31). Odoo y el borde: **Desplegar 68** (12 nov, PR #113: Juan cotiza envíos con la promoción, reparto justo y Costos de IA con «Pagar»; antes, Desplegar 67, PR #112: el modo oscuro; el 11 nov, Desplegar 66 con
   entregas igual que Bodega y «Más datos», y antes, Desplegar 65 con el Inicio nuevo, el celular al entrar y la caja del chat, y Desplegar 64 con
   los 21 arreglos de la auditoría visual). Juan: **Desplegar
-  Juan 20** (11 nov, PR #107). La **versión estable 4** es la anterior (Desplegar 63 + Juan 20)
+  Juan 21** (12 nov, PR #113). La **versión estable 4** es la anterior (Desplegar 63 + Juan 20)
   ([VERSIONES_ESTABLES.md](VERSIONES_ESTABLES.md)). El contenedor instala 30 de los 31 módulos de `addons/` (todos
   menos `dcasa_fe_pa`, a propósito).
 - **⚠ Messenger e Instagram NO les llegan a los clientes (descubierto el 2026-11-12):** solo a cuentas con papel en la
