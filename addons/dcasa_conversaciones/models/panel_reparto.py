@@ -106,6 +106,7 @@ class DcasaJuanPanelReparto(models.AbstractModel):
         como_fue = {
             ('tomada', 'escribir'): self.env._('Lo tomó al escribirle'),
             ('tomada', 'atender'): self.env._('Lo tomó con «Atender»'),
+            ('tomada', 'asignar'): self.env._('Lo tomó desde «Atiende»'),
             ('manual', False): self.env._('Se lo asignaron'),
             ('reasignada', False): self.env._('Pasó porque no contestó'),
         }

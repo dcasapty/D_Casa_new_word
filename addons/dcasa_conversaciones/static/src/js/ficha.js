@@ -48,8 +48,14 @@ export class FichaCliente extends Component {
         this.almacen.ponerEtiquetas([...ids]);
     }
 
-    alAsignar(ev) {
-        this.almacen.asignar(Number(ev.target.value) || null);
+    /** Si no se pudo (el cliente lo atiende otra vendedora que está trabajando, se canceló la pregunta…), el selector
+     * vuelve a decir quién lo atiende de verdad. */
+    async alAsignar(ev) {
+        const selector = ev.target;
+        const r = await this.almacen.asignar(Number(selector.value) || null);
+        if (!r) {
+            selector.value = String(this.almacen.conversacion?.asignada_a?.id || "");
+        }
     }
 
     get seguimiento() {

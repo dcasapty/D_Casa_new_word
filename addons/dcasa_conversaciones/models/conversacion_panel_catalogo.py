@@ -195,13 +195,13 @@ class DcasaConversacionCatalogo(models.Model):
         return {'texto': texto, 'adjuntos': [adjunto_como_dict(a) for a in adjuntos]}
 
     @api.model
-    def enviar_foto_catalogo(self, conversacion_id, producto_id, fotos=None, texto=None, tomar_de_otra=False):
+    def enviar_foto_catalogo(self, conversacion_id, producto_id, fotos=None, texto=None, tomar_de=None):
         """Manda la foto del producto con su pie por el canal (como cualquier respuesta de una vendedora).
-        ``tomar_de_otra``: como en ``enviar_respuesta`` (se mira antes de preparar las fotos)."""
-        self._para_panel(conversacion_id, escritura=True)._exigir_confirmacion_para_tomar(self.env.user, tomar_de_otra)
+        ``tomar_de``: como en ``enviar_respuesta`` (se mira antes de preparar las fotos)."""
+        self._para_panel(conversacion_id, escritura=True)._exigir_confirmacion_para_tomar(self.env.user, tomar_de)
         preparado = self.preparar_foto_catalogo(conversacion_id, producto_id, fotos, texto)
         return self.enviar_respuesta(conversacion_id, preparado['texto'], [a['id'] for a in preparado['adjuntos']],
-                                     tomar_de_otra=tomar_de_otra)
+                                     tomar_de=tomar_de)
 
     # ------------------------------------------------------------------
     # Cotización en PDF
@@ -282,11 +282,11 @@ class DcasaConversacionCatalogo(models.Model):
         return {'cotizacion': self._orden_como_dict(orden)}
 
     @api.model
-    def enviar_cotizacion(self, conversacion_id, orden_id=None, texto=None, tomar_de_otra=False):
+    def enviar_cotizacion(self, conversacion_id, orden_id=None, texto=None, tomar_de=None):
         """Manda la cotización en PDF por el canal. Sin ``orden_id``, la abierta más reciente del cliente.
-        ``tomar_de_otra``: como en ``enviar_respuesta`` (se mira antes de armar el PDF)."""
+        ``tomar_de``: como en ``enviar_respuesta`` (se mira antes de armar el PDF)."""
         conv = self._para_panel(conversacion_id, escritura=True)
-        conv._exigir_confirmacion_para_tomar(self.env.user, tomar_de_otra)
+        conv._exigir_confirmacion_para_tomar(self.env.user, tomar_de)
         abiertas = self._cotizaciones_abiertas(conv)
         if orden_id is None:
             orden = abiertas[:1]
@@ -307,7 +307,7 @@ class DcasaConversacionCatalogo(models.Model):
             'res_model': self._name, 'res_id': conv.id, 'public': False})
         if texto is None:
             texto = self.env._('Aquí tienes tu cotización %s. Los precios son más ITBMS.', orden.name)
-        resultado = self.enviar_respuesta(conv.id, texto, [adjunto.id], tomar_de_otra=tomar_de_otra)
+        resultado = self.enviar_respuesta(conv.id, texto, [adjunto.id], tomar_de=tomar_de)
         if orden.state == 'draft':
             orden.action_quotation_sent()
         orden.message_post(body=self.env._('Enviada en PDF por %(quien)s por %(canal)s.', quien=self.env.user.name,

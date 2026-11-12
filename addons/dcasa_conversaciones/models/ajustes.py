@@ -263,12 +263,14 @@ class JuanAjustes(models.Model):
              '0 = nunca. De 5 a 240.')
     reparto_max_esperando = fields.Integer(
         'Máximo de clientes esperándole a la vez', default=3, tracking=True,
-        help='Con el reparto encendido: ninguna vendedora recibe del reparto un cliente nuevo mientras ya tiene estos '
-             'clientes que el reparto le dio y que nadie ha contestado. En cuanto contesta uno, puede recibir otro. '
-             'Así los chats de la noche se reparten parejo en la mañana entre las que van llegando, en vez de '
-             'llevárselos todos la primera que entra. De día, si todas lo tienen lleno, el cliente igual se asigna '
-             '(nunca se queda sin dueña por esto) y su vendedora de siempre lo recibe aunque tenga clientes esperando. '
-             '0 = sin límite. Máximo 50.')
+        help='Con el reparto encendido. «Esperándole» = clientes que el reparto le dio y que nadie ha contestado. '
+             'Los clientes que escribieron antes de abrir (de noche) se reparten de a pocos: a quien ya tiene estos '
+             'esperándole no se le da otro hasta que conteste uno, y las que van llegando reciben los demás. Pasar a '
+             'otra un cliente que no contestaron tampoco se lo da a quien ya tiene estos (si no hay otra, se queda con '
+             'quien lo tenía). Un cliente que llega dentro del horario se le da a una vendedora activa aunque todas '
+             'tengan estos esperándole (a la que lleva menos). Con «Parejo», un cliente nuevo va primero a quien '
+             'tiene lugar, pero si ya habló con una vendedora vuelve con ella aunque tenga clientes esperándole. «Por '
+             'turnos» no lo mira al dar un cliente nuevo. 0 = sin límite. Máximo 50.')
     aviso_espera_minutos = fields.Integer(
         'Avisar si un cliente espera (minutos)', default=10, tracking=True,
         help='Si una persona tiene la conversación y el cliente lleva tantos minutos sin respuesta, se avisa por '

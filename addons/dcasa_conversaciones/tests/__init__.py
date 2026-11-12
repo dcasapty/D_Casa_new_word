@@ -41,6 +41,7 @@ from . import (
     test_reparto_activas,
     test_reparto_justo,
     test_reparto_pantalla,
+    test_reparto_revision,
     test_reparto_tomar,
     test_resumen_ia,
     test_reglas_clientes,

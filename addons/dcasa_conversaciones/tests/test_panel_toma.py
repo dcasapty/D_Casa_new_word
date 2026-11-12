@@ -205,7 +205,7 @@ class TestCambiosDeManoEnElNavegador(TomaUiCase):
         super().setUp()
         self.ajustes.reparto_modo = 'parejo'
         self.env['dcasa.conversacion'].with_user(self.beto).enviar_respuesta(
-            self.karen.id, 'Hola, te atiendo yo', tomar_de_otra=True)
+            self.karen.id, 'Hola, te atiendo yo', tomar_de=self.vendedora.id)
 
     def test_gerencia_ve_el_bloque_en_la_computadora_y_en_el_celular(self):
         codigo = """

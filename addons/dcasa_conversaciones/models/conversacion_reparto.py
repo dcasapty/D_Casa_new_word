@@ -4,13 +4,22 @@ La regla de verdad vive en ``reparto.py``; aquí está lo que hace cada conversa
 ``_pasar_a_vendedora`` y es lo único que cambia quién atiende: nunca falla una conversación por culpa del reparto
 (si no hay nadie, queda como siempre: el responsable por defecto y el aviso a todo el equipo).
 
-**El cliente de otra vendedora** (pedido de la dueña, 2026-11-12; «solamente es para las vendedoras»): si una vendedora
-le escribe o toma al cliente que atiende otra vendedora (conversación con una persona, a nombre de la otra), queda dicho
-en el hilo («Beto tomó el cliente que atendía Ana.») y en el libro (regla ``tomada``). Si la otra está activa (la misma
-definición del reparto), el servidor no lo hace sin ``tomar_de_otra`` (la pantalla lo pregunta) y a la otra le llega
-un aviso por Telegram; si no está (faltó, almuerzo, de noche), se toma sin preguntar: cubrir a una compañera ausente es
-ayudar. Gerencia y administradoras se comportan como siempre: no se les pregunta ni dejan esas notas.
+**El cliente de otra vendedora** (pedido de la dueña, 2026-11-12; «solamente es para las vendedoras»). Rige solo entre
+vendedoras de piso (``dcasa.reparto._vendedoras_de_piso``: sin Caja, Contabilidad, Gerencia ni administradoras, que se
+comportan como siempre) y lo decide UNA función, ``_vendedora_que_lo_atiende``, que miran todos los caminos:
+
+* Escribirle (también programado, foto del catálogo, cotización), «Atender» o asignárselo a sí misma en «Atiende»: si
+  la otra está activa (la definición del reparto), el servidor no lo hace sin ``tomar_de`` = el id de ELLA (la pantalla
+  lo pregunta; si mientras tanto lo tomó otra, se vuelve a preguntar con el nombre nuevo). Queda dicho en el hilo
+  («Beto tomó el cliente que atendía Ana.»), en el libro (regla ``tomada``) y, si estaba activa, le llega un Telegram.
+  Si no está (faltó, almuerzo, de noche), se toma sin preguntar: cubrir a una compañera ausente es ayudar.
+* Pasárselo a una tercera, dejarlo sin asignar, devolverlo al asistente o cerrarlo, si la otra está activa: no
+  (``_exigir_que_no_se_lo_quite``). Pídeselo a ella o a Gerencia. Lo mismo por ``write`` (formulario o RPC).
+* Un mensaje programado que al salir encuentra al cliente con otra vendedora no sale (``_programado_no_sale``), salvo
+  que al programarlo se haya confirmado contra esa misma vendedora.
 """
+from markupsafe import Markup, escape
+
 from odoo import fields, models
 from odoo.exceptions import UserError
 
@@ -113,36 +122,108 @@ class DcasaConversacionReparto(models.Model):
     # ------------------------------------------------------------------
 
     def _vendedora_que_lo_atiende(self, usuario):
-        """La vendedora que atiende a este cliente y a quien ``usuario`` se lo quitaría al escribirle o tomarlo; vacío
-        si no aplica. Solo entre vendedoras (las que reciben del reparto): si ``usuario`` es Gerencia o administradora,
-        o lo atiende alguien que no es vendedora, todo sigue como siempre. «Lo atiende» = la conversación está con una
-        persona (``humano``) a su nombre; si volvió al asistente o se cerró, ya no lo atiende nadie."""
+        """¿Le aplica a ``usuario`` la regla de «el cliente de otra vendedora» en esta conversación? Devuelve la
+        vendedora que lo atiende y a quien ``usuario`` se lo quitaría; vacío si no aplica. LA función de esa regla: la
+        miran escribir, «Atender», «Atiende», ``write``, devolver, cerrar y el programado.
+
+        Solo entre vendedoras de piso (``dcasa.reparto._vendedoras_de_piso``): si ``usuario`` es Gerencia,
+        administradora, Caja o Contabilidad, o lo atiende alguien así, todo sigue como siempre. «Lo atiende» = la
+        conversación está con una persona (``humano``) a su nombre; si volvió al asistente o se cerró, ya no lo atiende
+        nadie."""
         self.ensure_one()
         conv = self.sudo()
         anterior = conv.asignada_a
         vacio = self.env['res.users']
         if conv.estado != 'humano' or not anterior or not usuario or anterior == usuario:
             return vacio
-        vendedoras = self.env['dcasa.reparto']._vendedoras()
-        if usuario not in vendedoras or anterior not in vendedoras:
+        de_piso = self.env['dcasa.reparto']._vendedoras_de_piso()
+        if usuario not in de_piso or anterior not in de_piso:
             return vacio
         return anterior
 
-    def _exigir_confirmacion_para_tomar(self, usuario, tomar_de_otra=False):
-        """El servidor no le quita a una vendedora activa su cliente sin que quien escribe lo haya confirmado: sin
-        ``tomar_de_otra``, ``ClienteDeOtraVendedora`` (la pantalla lo convierte en la pregunta). Si la otra no está
-        activa, no hace falta confirmar."""
-        if not isinstance(tomar_de_otra, bool):
-            raise UserError(self.env._('«tomar_de_otra» es sí o no.'))
-        if tomar_de_otra:
-            return
+    def _vendedora_activa_que_lo_atiende(self, usuario):
+        """La vendedora de ``_vendedora_que_lo_atiende``, solo si está activa (la definición del reparto)."""
+        duena = self._vendedora_que_lo_atiende(usuario)
+        return duena if duena and self.env['dcasa.reparto']._esta_activa(duena) else self.env['res.users']
+
+    def _exigir_confirmacion_para_tomar(self, usuario, tomar_de=None):
+        """El servidor no le quita a una vendedora activa su cliente sin que quien escribe lo haya confirmado CONTRA
+        ELLA: ``tomar_de`` es el id de la vendedora por la que se preguntó. Sin él, o si ahora lo atiende otra (lo tomó
+        alguien mientras se decidía), ``ClienteDeOtraVendedora`` con el nombre de quien lo atiende ahora (la pantalla
+        lo convierte en la pregunta). Si la otra no está activa, no hace falta confirmar."""
+        sin_confirmar = tomar_de is None or tomar_de is False
+        if not sin_confirmar and (isinstance(tomar_de, bool) or not isinstance(tomar_de, int) or tomar_de < 1):
+            raise UserError(self.env._('«tomar_de» es el número de la persona a quien le tomas el cliente.'))
         for conv in self:
-            duena = conv._vendedora_que_lo_atiende(usuario)
-            if duena and self.env['dcasa.reparto']._esta_activa(duena):
+            duena = conv._vendedora_activa_que_lo_atiende(usuario)
+            if duena and duena.id != tomar_de:
                 raise ClienteDeOtraVendedora(self.env._(
                     'Este cliente lo atiende %s, que está trabajando ahora. Para quedarte con él, confírmalo en la '
                     'pantalla de Conversaciones (allí te lo pregunta); si no, déjale una nota en el chat.', duena.name),
                     duena)
+
+    def _exigir_que_no_se_lo_quite(self, usuario, que):
+        """Pasarle a una tercera, dejar sin asignar, devolver al asistente o cerrar el cliente que atiende otra
+        vendedora activa: no (revisión adversarial, 2026-11-12). ``que``: lo que se quiso hacer, para el mensaje. Si la
+        otra no está activa, se puede (cubrir a una compañera ausente)."""
+        for conv in self:
+            duena = conv._vendedora_activa_que_lo_atiende(usuario)
+            if duena:
+                raise UserError(self.env._(
+                    'Este cliente lo atiende %(duena)s, que está trabajando ahora: no puedes %(que)s. Pídeselo a '
+                    '%(duena)s o a Gerencia. Si lo vas a atender tú, toca «Atender».', duena=duena.name, que=que))
+
+    def _revisar_asignacion_a_mano(self, nuevo_id):
+        """``write({'asignada_a': …})`` de una vendedora de piso (formulario o RPC): la misma regla que la pantalla.
+        Asignárselo a sí misma pide la confirmación (en el contexto, ``dcasa_tomar_de``: el formulario no pregunta, así
+        que ahí no se puede); pasárselo a otra o dejarlo sin dueña, no. Devuelve ``{conversación: anterior}`` de lo que
+        cambia de mano, para dejarlo dicho después de escribir."""
+        usuario = self.env.user
+        nuevo = nuevo_id if isinstance(nuevo_id, models.BaseModel) else self.env['res.users'].browse(nuevo_id or [])
+        tomas = {}
+        for conv in self:
+            if conv.sudo().asignada_a == nuevo:
+                continue
+            if nuevo == usuario:
+                tomar_de = self.env.context.get('dcasa_tomar_de')
+                conv._exigir_confirmacion_para_tomar(usuario, tomar_de if isinstance(tomar_de, int) else None)
+                anterior = conv._vendedora_que_lo_atiende(usuario)
+                if anterior:
+                    tomas[conv] = anterior
+            else:
+                conv._exigir_que_no_se_lo_quite(usuario, self.env._('pasárselo a otra persona') if nuevo
+                                                else self.env._('dejarlo sin asignar'))
+        return tomas
+
+    def _programado_no_sale(self, mensaje):
+        """Llegó la hora de un mensaje programado y el cliente ahora lo atiende otra vendedora (de piso) distinta de
+        quien lo programó: no sale (revisión adversarial, 2026-11-12). Salvo que al programarlo se haya confirmado
+        quitárselo a esa misma vendedora (``toma_confirmada_de``). Queda dicho en el hilo y se le avisa a quien lo
+        programó (Odoo y Telegram). Devuelve True si no salió."""
+        self.ensure_one()
+        quien = mensaje.usuario_id
+        duena = self._vendedora_que_lo_atiende(quien)
+        if not duena or duena == mensaje.toma_confirmada_de:
+            return False
+        texto = (mensaje.texto or self.env._('(adjunto)'))[:120]
+        aviso = self.env._('No salió el mensaje que %(quien)s dejó programado («%(texto)s»): el cliente ahora lo '
+                           'atiende %(duena)s.', quien=quien.name, texto=texto, duena=duena.name)
+        mensaje.adjunto_ids.sudo().unlink()
+        mensaje.sudo().unlink()
+        self._aviso(aviso)
+        cliente = self.sudo().partner_id.display_name or self.id_externo
+        para_ti = self.env._('No salió el mensaje que dejaste programado para %(cliente)s («%(texto)s»): ahora lo '
+                             'atiende %(duena)s. Si hace falta, déjale una nota en el chat.', cliente=cliente,
+                             texto=texto, duena=duena.name)
+        try:
+            with self.env.cr.savepoint():
+                self.sudo().message_post(body=Markup('<p>%s</p>') % escape(para_ti), partner_ids=quien.partner_id.ids,
+                                         subtype_xmlid='mail.mt_note', message_type='comment')
+        except Exception:   # noqa: BLE001 — el aviso en Odoo es un extra
+            pass
+        self._avisar_por_telegram(para_ti, usuarios=quien)
+        self._notificar_panel('estado')
+        return True
 
     def _cambio_de_mano(self, anterior, usuario, forma):
         """``usuario`` (vendedora) se quedó con el cliente que atendía ``anterior`` (otra vendedora): la línea
@@ -161,6 +242,12 @@ class DcasaConversacionReparto(models.Model):
                            cliente=cliente, canal=canal), usuarios=anterior)
         return frase
 
+    def _dejar_dicho_el_cambio(self, tomas):
+        """Después de un ``write`` permitido: lo que cambió de mano queda dicho como al tomarlo desde la pantalla."""
+        for conv, anterior in tomas.items():
+            conv._aviso(conv._cambio_de_mano(anterior, self.env.user, 'asignar'))
+            conv._notificar_panel('asignacion')
+
     def _adelantar_reparto(self):
         """Una vendedora acaba de contestarle (o de tomar) a un cliente que el reparto le había dado: queda lugar para
         otro. Si hay clientes que el reparto dejó sin dueña esperando y el tope está puesto, la próxima vuelta de
@@ -174,3 +261,12 @@ class DcasaConversacionReparto(models.Model):
         cron = self.env.ref(CRON_DEL_REPARTO, raise_if_not_found=False)
         if cron:
             cron.sudo()._trigger()
+
+
+class DcasaMensajeReparto(models.Model):
+    _inherit = 'dcasa.mensaje'
+
+    toma_confirmada_de = fields.Many2one(
+        'res.users', 'Confirmó quitárselo a', readonly=True, ondelete='set null',
+        help='En un mensaje programado: la vendedora a quien quien lo programó confirmó quitarle el cliente. Si al '
+             'salir el cliente lo atiende otra, no sale.')
