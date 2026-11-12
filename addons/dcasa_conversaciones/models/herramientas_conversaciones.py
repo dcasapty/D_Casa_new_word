@@ -91,11 +91,13 @@ class BrianHerramientasConversaciones(models.AbstractModel):
     @herramienta(
         nombre='reparto_de_conversaciones',
         descripcion='Cómo reparte Juan los clientes entre las vendedoras: el modo, quién está activa y recibe, cuántas '
-                    'recibió cada una, a quién le esperan clientes y cuántos esperan sin dueña.',
+                    'recibió cada una, a quién le esperan clientes, cuántos esperan sin dueña y (Gerencia) qué '
+                    'clientes cambiaron de mano: quién tomó el cliente de quién.',
         parametros={'periodo': PARAM_PERIODO_JUAN},
         nivel='lectura', categoria='ventas', grupos=VENTAS,
         ejemplos=['¿a quién le está pasando clientes Juan?', '¿qué vendedoras están activas?',
-                  '¿cuántos clientes me pasó Juan hoy?'],
+                  '¿cuántos clientes me pasó Juan hoy?',
+                  '¿alguna vendedora le tomó clientes a otra esta semana? → 7_dias'],
     )
     def _h_reparto_de_conversaciones(self, periodo='hoy'):
         if periodo not in C.PERIODOS:
@@ -115,6 +117,7 @@ class BrianHerramientasConversaciones(models.AbstractModel):
                 'recibe_solo_quien_uso_el_sistema_en_minutos': d['minutos_activa'] or 'apagado',
                 'pasa_a_otra_si_no_contesta_en_minutos': d['minutos_reasignar'] or 'nunca',
                 'dias_que_un_cliente_sigue_con_su_vendedora': d['dias_misma_vendedora'],
+                'maximo_de_clientes_sin_contestar_a_la_vez': d['max_esperando'] or 'sin límite',
             },
             'tu': fila(d['yo']),
         }
@@ -125,6 +128,13 @@ class BrianHerramientasConversaciones(models.AbstractModel):
             datos['esperan_sin_duena'] = sin_dueno.get('conversaciones', 0)
             if sin_dueno.get('espera_mas_min') is not None:
                 datos['la_que_mas_espera_sin_duena_min'] = sin_dueno['espera_mas_min']
+            # Sin los nombres de los clientes (los escribieron ellos): quién, de quién, cuándo y cómo.
+            cambios = d['cambios_de_mano'] or {'filas': [], 'mas': 0}
+            datos['clientes_que_cambiaron_de_mano'] = {
+                'total': len(cambios['filas']) + cambios['mas'],
+                'mas_recientes': [{'cuando': f['momento_texto'], 'de': f['de'], 'a': f['a'], 'como': f['como']}
+                                  for f in cambios['filas'][:10]],
+            }
         else:
             datos['alcance'] = 'solo lo tuyo: los números de las demás los ve Gerencia'
         if d['modo'] == 'manual':

@@ -1676,6 +1676,33 @@ body.o_dcj_arrastrando_ancho { cursor: col-resize; user-select: none; }
     .o_dcj_visor .o_dcj_visor_cuerpo { padding: 8px 8px 24px; }
 }
 
+// «Este cliente lo atiende Ana. ¿Lo tomas tú?» (toma.js): una hoja chica, plana, encima de todo lo demás (también de
+// la foto del catálogo y la cotización, que también pueden preguntarlo). En el celular sube desde abajo y cada botón
+// ocupa el ancho (44 px de alto: se tocan con el pulgar sin errar).
+.o_dcj_capa.o_dcj_capa_toma { z-index: 1055; }
+.o_dcj_capa .o_dcj_hoja.o_dcj_toma {
+    max-width: 460px;
+    .o_dcj_hoja_cuerpo { gap: 8px; padding: 18px 18px 16px; }
+    .o_dcj_toma_titulo { font-size: 1.05rem; font-weight: 700; overflow-wrap: anywhere; }
+    .o_dcj_ayuda { font-size: .86rem; }
+    .o_dcj_toma_botones { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 8px;
+        .btn { min-height: 40px; white-space: normal; }
+        .o_dcj_toma_cancelar { margin-right: auto; padding-left: 0; padding-right: 0; }
+    }
+}
+@media (max-width: 767.98px) {
+    .o_dcj_capa .o_dcj_hoja.o_dcj_toma {
+        max-width: none;
+        .o_dcj_hoja_cuerpo { padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px)); }
+        .o_dcj_toma_botones { flex-direction: column; align-items: stretch;
+            .btn { min-height: 44px; width: 100%; }
+            .o_dcj_toma_si { order: 1; }
+            .o_dcj_toma_nota { order: 2; }
+            .o_dcj_toma_cancelar { order: 3; margin-right: 0; }
+        }
+    }
+}
+
 // «Ver más» al final de los resultados de «Foto del catálogo» (pedido de la dueña, 2026-11-06).
 .o_dcj_ver_mas {
     display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 0 4px;

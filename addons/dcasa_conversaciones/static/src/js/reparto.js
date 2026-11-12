@@ -8,7 +8,7 @@ import { Component, onMounted, onWillUnmount, useState } from "@odoo/owl";
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
 import { EncabezadoJuan, PERIODOS } from "./resumen";
-import { hora, mensajeDeError, numero } from "./utilidades";
+import { hora, horaDeLista, mensajeDeError, numero } from "./utilidades";
 
 const MODELO = "dcasa.juan.panel";
 /** La misma clave con la que Conversaciones recuerda cuál tenía abierta: así «Abrir» deja el hilo a la vista. */
@@ -138,6 +138,13 @@ export class RepartoJuan extends Component {
 
     horaDe(iso) {
         return hora(iso);
+    }
+
+    /** «10:15 a. m.» si fue hoy; si no, «Ayer 4:10 p. m.», «Lun 9:30 a. m.» o la fecha y la hora (hora de Panamá). */
+    momentoCorto(iso) {
+        const dia = horaDeLista(iso);
+        const h = hora(iso);
+        return dia === h ? h : `${dia} ${h}`;
     }
 
     minutosEnTexto(m) {

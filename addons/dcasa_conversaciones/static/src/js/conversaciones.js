@@ -16,6 +16,7 @@ import { FichaCliente } from "./ficha";
 import { HiloConversacion } from "./hilo";
 import { ListaConversaciones } from "./lista";
 import { esCelular, escucharCambioDeTamano } from "./preferencias";
+import { ConfirmarToma } from "./toma";
 import { VisorImagenes } from "./visor";
 
 const CLAVE_ABIERTA = "dcasa.conversaciones.abierta";
@@ -69,7 +70,7 @@ function guardarAbierta(id) {
 
 export class DcasaConversaciones extends Component {
     static template = "dcasa_conversaciones.Conversaciones";
-    static components = { ListaConversaciones, HiloConversacion, FichaCliente, BuscadorCatalogo, DialogoCotizacion, DialogoAdjuntar, VisorImagenes };
+    static components = { ListaConversaciones, HiloConversacion, FichaCliente, BuscadorCatalogo, DialogoCotizacion, DialogoAdjuntar, VisorImagenes, ConfirmarToma };
     static props = ["*"];
 
     setup() {

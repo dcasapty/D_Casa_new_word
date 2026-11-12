@@ -324,12 +324,13 @@ $dcj-marino: #0B1F52;
             .o_dcj_reparto_celda_acciones { width: auto; }
             .o_dcj_reparto_acciones { max-width: none; justify-content: flex-start; margin-left: 0; }
         }
-        .o_dcj_reparto_mias_tabla {
+        .o_dcj_reparto_mias_tabla, .o_dcj_reparto_cambios_tabla {
             thead { display: none; }
             tbody, tr, th, td { display: block; }
             tr { margin: 0 0 10px; padding: 10px 12px; border: 1px solid var(--dc-linea, #E2E7F0); border-radius: var(--dc-r-md, 12px); background: var(--dc-blanco, #FFFFFF); }
             th, td { padding: 3px 0 !important; border: 0 !important; white-space: normal !important; }
             td[data-label]::before { content: attr(data-label) ": "; color: var(--dc-tinta-3, #6B7690); font-size: .78rem; }
         }
+        .o_dcj_reparto_cambios_tabla th .o_dcj_enlace { display: inline-flex; align-items: center; min-height: 44px; }
     }
 }

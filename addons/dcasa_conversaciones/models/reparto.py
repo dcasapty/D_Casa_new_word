@@ -19,6 +19,14 @@ Cuando el asistente pasa una conversación a una persona (``dcasa.conversacion._
    la dio no le contesta al cliente en ``reparto_reasignar_minutos`` (15 de fábrica), pasa a otra activa que no la
    haya tenido en las últimas horas, queda escrito en el hilo y se avisa a Gerencia. Una sin dueña se le da a la
    primera activa. Lo que una persona tomó o asignó a mano no se toca.
+6. **Nadie acapara** (``reparto_max_esperando``, 3 de fábrica; 0 = sin límite; pedido de la dueña, 2026-11-12): el
+   cron no le da a ninguna vendedora más de N clientes que el reparto le dio y nadie ha contestado. Así los chats de la
+   noche se reparten parejo en la mañana entre las que van llegando, y no se los lleva todos la primera que se activa.
+   El reparto «parejo» de día también lo mira (si hay otra activa con lugar), salvo «su vendedora de siempre».
+
+**Cuando el cliente cambia de mano** entre vendedoras (una le escribe o toma el cliente que atiende otra), queda una
+línea ``tomada`` con quién lo tenía (``anterior_id``); si la otra está activa, el servidor pide confirmarlo antes
+(``ClienteDeOtraVendedora``; ver ``conversacion_reparto.py``). Gerencia y administradoras no entran en esa regla.
 
 Cada decisión queda en ``dcasa.reparto`` (un libro que no se edita): de ahí salen las cuentas de la pantalla «Reparto».
 Aquí no hay ningún método público: la pantalla entra por ``dcasa.juan.panel`` (``panel_reparto.py``).
@@ -31,6 +39,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 
 from odoo import api, fields, models
+from odoo.exceptions import UserError
 
 from . import horario as H
 from .transaccion import confirmar
@@ -43,10 +52,15 @@ REGLAS = [
     ('misma', 'Siguió con su vendedora'),
     ('reasignada', 'Pasó a otra: nadie le contestó'),
     ('manual', 'Asignada a mano'),
+    ('tomada', 'Otra vendedora tomó el cliente'),
 ]
+# Cómo tomó una vendedora el cliente que atendía otra (regla «tomada»).
+FORMAS_DE_TOMAR = [('escribir', 'Al escribirle'), ('atender', 'Con «Atender»')]
 # Las que cuentan como «Juan se la pasó»: son las que se reparten. La asignación a mano (alguien eligió a quién) queda
 # en el libro porque dice quién atendió al cliente, pero no cuenta como una conversación recibida.
 REGLAS_DE_JUAN = ('parejo', 'turno', 'misma', 'reasignada')
+# Las líneas que pueden decir que un cliente cambió de mano (si traen quién lo tenía antes): lo que ve Gerencia.
+REGLAS_DE_CAMBIO_DE_MANO = ('tomada', 'manual', 'reasignada')
 # Cuántas conversaciones cambia como mucho el cron de «pasar a otra» en cada vuelta (corre cada 5 minutos).
 LOTE_DE_REASIGNAR = 30
 # Lo que el reparto dejó hace más de esto ya no es «un cliente esperando»: no se mueve.
@@ -59,6 +73,17 @@ GRUPO_VENDEDORA = 'sales_team.group_sale_salesman'
 GRUPOS_QUE_NO_RECIBEN = ('sales_team.group_sale_manager', 'base.group_system')
 # «No disponible» se reinicia solo: a esta hora ANTES de que abra la tienda (6:00 a. m. con el horario de 8:00).
 MARGEN_ANTES_DE_ABRIR = timedelta(hours=2)
+
+
+class ClienteDeOtraVendedora(UserError):
+    """Una vendedora quiso escribirle o tomar al cliente que atiende otra vendedora que está trabajando ahora: el
+    servidor no lo hace sin ``tomar_de_otra=True`` (pedido de la dueña, 2026-11-12). La pantalla convierte este error en
+    la pregunta «Este cliente lo atiende Ana. ¿Lo tomas tú?»; quién lo atiende viaja en ``context`` (el nombre y el id),
+    porque el texto del error es para donde no hay pregunta posible (Telegram, el formulario)."""
+
+    def __init__(self, message, duena):
+        super().__init__(message)
+        self.context = {'dcasa_duena_id': duena.id, 'dcasa_duena': duena.name or ''}
 
 
 @dataclass
@@ -83,6 +108,12 @@ class DcasaReparto(models.Model):
     regla = fields.Selection(REGLAS, 'Cómo se decidió', required=True, readonly=True)
     razon = fields.Char('Por qué', readonly=True)
     momento = fields.Datetime('Cuándo', required=True, readonly=True, default=fields.Datetime.now)
+    anterior_id = fields.Many2one(
+        'res.users', 'Antes lo tenía', readonly=True, ondelete='set null',
+        help='Quién atendía al cliente antes de este cambio (vacío si nadie lo tenía). Con esto Gerencia ve en '
+             '«Reparto» los clientes que cambiaron de mano.')
+    forma = fields.Selection(FORMAS_DE_TOMAR, 'Cómo lo tomó', readonly=True,
+                             help='Solo en «Otra vendedora tomó el cliente»: al escribirle o con el botón «Atender».')
 
     _dia_usuario_idx = models.Index('(dia, usuario_id)')
 
@@ -120,13 +151,28 @@ class DcasaReparto(models.Model):
     @api.model
     def _disponibles(self, hoy=None):
         """Las vendedoras que pueden recibir, no se marcaron «No disponible» y están activas: entre ellas se reparte."""
-        disponibles = self._equipo(hoy).filtered('dcasa_disponible')
+        return self._activas_entre(self._equipo(hoy).filtered('dcasa_disponible'))
+
+    @api.model
+    def _activas_entre(self, usuarios):
+        """De ``usuarios``, las que usaron Odoo o le escribieron a un cliente en los últimos ``reparto_activa_minutos``
+        (todas, si ese ajuste es 0)."""
         minutos = self.env['dcasa.juan.ajustes'].obtener().reparto_activa_minutos
-        if minutos <= 0 or not disponibles:
-            return disponibles
-        activas = self._ultima_actividad(disponibles)
+        if minutos <= 0 or not usuarios:
+            return usuarios
+        activas = self._ultima_actividad(usuarios)
         limite = fields.Datetime.now() - timedelta(minutes=minutos)
-        return disponibles.filtered(lambda u: activas.get(u.id) and activas[u.id] >= limite)
+        return usuarios.filtered(lambda u: activas.get(u.id) and activas[u.id] >= limite)
+
+    @api.model
+    def _esta_activa(self, usuario, hoy=None):
+        """¿``usuario`` está trabajando ahora, con la MISMA definición con que el reparto decide a quién darle un
+        cliente? Vendedora, dentro del reparto, «Disponible» y activa (ver ``_disponibles``). Sirve para saber si hay
+        que pedir confirmación antes de quitarle un cliente y si avisarle por Telegram."""
+        hoy = hoy or self._hoy()
+        candidata = (usuario.sudo() & self._vendedoras()).filtered(
+            lambda u: u._dcasa_en_el_reparto(hoy) and u.dcasa_disponible)
+        return bool(self._activas_entre(candidata))
 
     @api.model
     def _ultima_actividad(self, usuarios):
@@ -182,6 +228,33 @@ class DcasaReparto(models.Model):
             cuentas[usuario.id]['abiertas'] = n
         return cuentas
 
+    @api.model
+    def _esperando_del_reparto(self, usuarios, excepto=None):
+        """``{usuario_id: n}``: los clientes que el reparto le dio a cada una y que nadie ha contestado todavía
+        (``reparto_desde`` puesto: se borra en cuanto alguien del equipo le escribe, la toma, la asigna o la devuelve).
+        Lo de más de ``DIAS_MAXIMOS_DE_ESPERA`` no cuenta (el cron tampoco lo mueve). ``excepto``: la que se está
+        repartiendo ahora mismo."""
+        cuentas = dict.fromkeys(usuarios.ids, 0)
+        if not cuentas:
+            return cuentas
+        dominio = [('asignada_a', 'in', usuarios.ids), ('estado', '=', 'humano'), ('reparto_desde', '!=', False),
+                   ('reparto_desde', '>=', fields.Datetime.now() - timedelta(days=DIAS_MAXIMOS_DE_ESPERA))]
+        if excepto:
+            dominio.append(('id', 'not in', excepto.ids))
+        for usuario, n in self.env['dcasa.conversacion'].sudo()._read_group(dominio, ['asignada_a'], ['__count']):
+            cuentas[usuario.id] = n
+        return cuentas
+
+    @api.model
+    def _con_lugar(self, candidatas, excepto=None):
+        """De ``candidatas``, las que todavía pueden recibir otro cliente sin contestar: les esperan menos de
+        «Máximo de clientes esperándole a la vez» (Ajustes de Juan; 0 = sin límite: todas)."""
+        maximo = self.env['dcasa.juan.ajustes'].obtener().reparto_max_esperando
+        if maximo <= 0 or not candidatas:
+            return candidatas
+        esperando = self._esperando_del_reparto(candidatas, excepto)
+        return candidatas.filtered(lambda u: esperando[u.id] < maximo)
+
     # ------------------------------------------------------------------
     # La decisión
     # ------------------------------------------------------------------
@@ -206,16 +279,19 @@ class DcasaReparto(models.Model):
         return self.env._('Iban parejos y era quien llevaba más tiempo sin recibir una.')
 
     @api.model
-    def _anotar(self, conversacion, usuario, regla, razon='', hoy=None):
-        """Deja la línea en el libro. Una conversación a la misma persona el mismo día cuenta una sola vez."""
+    def _anotar(self, conversacion, usuario, regla, razon='', hoy=None, anterior=None, forma=False):
+        """Deja la línea en el libro. Una conversación a la misma persona el mismo día cuenta una sola vez.
+        ``anterior``: quién atendía al cliente antes (solo si es otra persona); ``forma``: cómo lo tomó («tomada»)."""
         hoy = hoy or self._hoy()
         libro = self.sudo()
         if regla in REGLAS_DE_JUAN and libro.search_count([
                 ('conversacion_id', '=', conversacion.id), ('usuario_id', '=', usuario.id), ('dia', '=', hoy),
                 ('regla', 'in', REGLAS_DE_JUAN)]):
             return libro.browse()
+        anterior = anterior if anterior and anterior != usuario else None
         return libro.create({'conversacion_id': conversacion.id, 'usuario_id': usuario.id, 'dia': hoy,
-                             'regla': regla, 'razon': (razon or '')[:300]})
+                             'regla': regla, 'razon': (razon or '')[:300],
+                             'anterior_id': anterior.id if anterior else False, 'forma': forma or False})
 
     @api.model
     def _hace_cuanto(self, momento):
@@ -270,7 +346,11 @@ class DcasaReparto(models.Model):
 
         Solo mira conversaciones con ``reparto_desde``: se borra en cuanto alguien del equipo le escribe al cliente, la
         toma, la asigna a mano o vuelve al asistente, así que lo que atiende una persona no se toca. Cada cambio se
-        confirma solo (un fallo o un choque no deshace los avisos de Telegram ya mandados). Devuelve cuántas cambió."""
+        confirma solo (un fallo o un choque no deshace los avisos de Telegram ya mandados). Devuelve cuántas cambió.
+
+        Nadie recibe de aquí más de «Máximo de clientes esperándole a la vez» (``_con_lugar``): los chats de la noche
+        se reparten entre las que van llegando y, si solo hay una, recibe el siguiente en cuanto contesta uno (al
+        contestar se adelanta la próxima vuelta: ver ``dcasa.conversacion._adelantar_reparto``)."""
         ajustes = self.env['dcasa.juan.ajustes'].obtener()
         minutos = ajustes.reparto_reasignar_minutos
         horario = ajustes.horario()
@@ -309,14 +389,15 @@ class DcasaReparto(models.Model):
     @api.model
     def _reasignar_si_nadie_contesta(self, conv):
         """Le da ``conv`` a otra vendedora activa que no la haya tenido en las últimas horas (o a la primera activa, si
-        nadie la tenía). Devuelve a quién se la dio, o vacío si no hay nadie nueva (se queda como está)."""
+        nadie la tenía) y que no tenga ya el máximo de clientes esperándole. Devuelve a quién se la dio, o vacío si no
+        hay nadie nueva con lugar (se queda como está)."""
         vacio = self.env['res.users']
         antes = conv.asignada_a
         hoy = self._hoy()
         ya_la_tuvieron = self.sudo().search([
             ('conversacion_id', '=', conv.id),
             ('momento', '>=', fields.Datetime.now() - timedelta(hours=HORAS_SIN_REPETIR))]).usuario_id
-        candidatas = self._disponibles(hoy) - antes - ya_la_tuvieron
+        candidatas = self._con_lugar(self._disponibles(hoy) - antes - ya_la_tuvieron, excepto=conv)
         if not candidatas:
             return vacio
         cuentas = self._cuentas(candidatas, hoy, hoy, excepto=conv)
@@ -330,7 +411,7 @@ class DcasaReparto(models.Model):
         conv.write({'asignada_a': elegida.id, 'reparto_desde': fields.Datetime.now()})
         # Siempre una línea nueva (sin la regla de «una vez al día»): el libro dice quién la tuvo y cuándo.
         self.sudo().create({'conversacion_id': conv.id, 'usuario_id': elegida.id, 'dia': hoy, 'regla': 'reasignada',
-                            'razon': razon[:300]})
+                            'razon': razon[:300], 'anterior_id': antes.id or False})
         elegida.dcasa_turno = max(self._equipo(hoy).mapped('dcasa_turno') or [0]) + 1
         conv._aviso(razon)
         cliente = conv.partner_id.display_name or conv.id_externo

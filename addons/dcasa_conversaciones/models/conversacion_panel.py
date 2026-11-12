@@ -316,14 +316,18 @@ class DcasaConversacionPanel(models.Model):
         return hora.replace(second=0, microsecond=0)
 
     @api.model
-    def enviar_respuesta(self, conversacion_id, texto=None, adjuntos_ids=None, programar_para=None, responde_a=None):
+    def enviar_respuesta(self, conversacion_id, texto=None, adjuntos_ids=None, programar_para=None, responde_a=None,
+                         tomar_de_otra=False):
         """Una vendedora contesta desde la pantalla. Si el Worker no responde, queda «por enviar» y se reintenta.
 
         ``programar_para`` (fecha y hora ISO): en vez de enviar ahora, el mensaje sale solo a esa hora.
         ``responde_a`` (id de un mensaje del cliente de esta conversación): «Responder» citándolo. Si el canal no sabe
         su id, sale sin la cita (nunca se deja de enviar por eso).
+        ``tomar_de_otra``: la vendedora confirmó que se queda con el cliente que atiende otra vendedora activa; sin
+        eso, ``ClienteDeOtraVendedora`` y no se manda (ni se programa) nada.
         """
         conv = self._para_panel(conversacion_id, escritura=True)
+        conv._exigir_confirmacion_para_tomar(self.env.user, tomar_de_otra)
         cita = self._mensaje_a_citar(conv, responde_a)
         cuando = self._hora_de_envio(programar_para) if programar_para else None
         texto = (texto or '').strip() if isinstance(texto, str) or texto is None else None
@@ -401,10 +405,12 @@ class DcasaConversacionPanel(models.Model):
         return adjuntos
 
     @api.model
-    def tomar(self, conversacion_id, minutos=None):
-        """«Atender»: el asistente calla ``minutos`` (0 = hasta que se la devuelvan; sin valor = el de los ajustes)."""
+    def tomar(self, conversacion_id, minutos=None, tomar_de_otra=False):
+        """«Atender»: el asistente calla ``minutos`` (0 = hasta que se la devuelvan; sin valor = el de los ajustes).
+        ``tomar_de_otra``: como en ``enviar_respuesta``."""
         conv = self._para_panel(conversacion_id, escritura=True)
         minutos = _entero(minutos, 'minutos', minimo=0, maximo=MAX_PAUSA_MINUTOS, permitir_nulo=True)
+        conv._exigir_confirmacion_para_tomar(self.env.user, tomar_de_otra)
         conv._tomar(self.env.user, minutos)
         return conv._resumen_panel()
 
@@ -453,8 +459,10 @@ class DcasaConversacionPanel(models.Model):
             usuario = self.env['res.users'].sudo().browse(usuario_id).exists()
             if not usuario or usuario.share or not usuario.has_group(GRUPO_VENDEDORA):
                 raise UserError(self.env._('Solo se puede asignar a alguien del equipo de ventas.'))
+            anterior = conv.sudo().asignada_a
             conv.sudo().write({'asignada_a': usuario.id, 'reparto_desde': False})
-            conv._registrar_asignacion_a_mano(usuario)
+            # En el libro con quién lo tenía: Gerencia lo ve en «Clientes que cambiaron de mano» («se lo asignaron»).
+            conv._registrar_asignacion_a_mano(usuario, anterior=anterior)
             conv._aviso(self.env._('%(quien)s asignó la conversación a %(a)s.', quien=self.env.user.name,
                                    a=usuario.name))
         else:
