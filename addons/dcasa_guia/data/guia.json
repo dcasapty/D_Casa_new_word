@@ -3398,7 +3398,7 @@
    "grupo": "Envíos",
    "titulo": "Poner o cambiar la promoción de envío del mes",
    "logras": "En Envíos › Promoción de envío pones sus fechas, de cuánto tiene que ser la compra (con o sin ITBMS), en qué provincias o distritos el envío es gratis, cuánto se abona del envío en el resto y si no aplica cuando la compra lleva colchón. Los precios de envío no cambian: Juan dice el precio normal y cómo le queda al cliente con la promoción, y si el cliente quiere se lo suma a la cotización. Abajo ves cómo lo dice Juan, y cada cambio queda en el historial.",
-   "nota": "Solo Gerencia. Solo puede haber una promoción activa a la vez: si las fechas se cruzan con otra, no se guarda. Fuera de sus fechas, Juan da el precio normal.",
+   "nota": "Solo Gerencia. Solo puede haber una promoción activa a la vez: si las fechas se cruzan con otra, no se guarda. Fuera de sus fechas, Juan da el precio normal. Un cambio vale solo para las cotizaciones nuevas: las que ya la tienen sumada respetan lo que se le prometió al cliente mientras no venzan (la ficha te dice cuántas son).",
    "destino": {
     "menu": "dcasa_envios.menu_envios_promocion"
    },

@@ -37,7 +37,7 @@ from odoo import api, models
 from odoo.addons.dcasa_brian.models.registro import BrianError, herramienta
 from odoo.addons.dcasa_envios.motor import buscador
 from odoo.addons.dcasa_envios.motor import tarjeta as motor_tarjeta
-from odoo.addons.dcasa_envios.motor.promocion import con_el_precio_normal, respaldo, tiene_beneficio
+from odoo.addons.dcasa_envios.motor.promocion import con_el_precio_normal, recordar, respaldo, tiene_beneficio
 from odoo.addons.dcasa_envios.motor.tarifa import Tarifa
 from odoo.addons.dcasa_envios.motor.texto import dinero
 
@@ -167,24 +167,46 @@ class BrianHerramientasJuanEnvios(models.AbstractModel):
         }
 
     @api.model
-    def _j_envio_con_promocion(self, conv, tarjeta, orden=None, resultado=None):
-        """El precio normal, la promoción y la frase. La promoción se aplica a la cotización de esta conversación si hay
-        una (con su compra y la fecha de la cotización, como al sumar el envío); si no, con la fecha de hoy y sin compra
-        (las condiciones). ``resultado``: el que ya usó ``_dcasa_envio_poner`` al sumar el envío."""
+    def _j_envio_lo_prometido(self, orden, tarjeta):
+        """Si la cotización ya tiene ESE envío con su promoción sumada y vigente (no venció): ``(resultado, terminos)``
+        con los términos con que se sumó; si no, ``(None, None)``."""
+        if len(orden) != 1:
+            return None, None
+        envio = orden.order_line.filtered(lambda linea: linea.dcasa_envio_lugar_id.id == tarjeta['id'])
+        promocion = orden.order_line.filtered('dcasa_promocion_envio_id')
+        if not envio or len(promocion) != 1 or not promocion._dcasa_promocion_coherente():
+            return None, None
+        _envio, resultado, terminos, _porque = orden._dcasa_promocion_revisar()
+        return resultado, terminos
+
+    @api.model
+    def _j_envio_con_promocion(self, conv, tarjeta, orden=None, resultado=None, prometido=None):
+        """El precio normal, la promoción y la frase.
+
+        * Si la cotización de esta conversación ya tiene ese envío con su promoción sumada (y no venció), se recuerda
+          lo prometido con los términos con que se sumó, sin «hasta cuándo» (la promoción puede haber terminado).
+        * Si no, la promoción vigente HOY: con la compra de la cotización si hay una, o con sus condiciones si no.
+          Juan nunca ofrece una promoción que ya terminó (revisión adversarial, segunda vuelta, I-1).
+
+        ``resultado`` / ``prometido``: los que ya usó ``_dcasa_envio_poner`` al sumar el envío."""
         if orden is None:
             orden = self._j_cotizacion_de_la_conversacion(conv)
         if resultado is None:
-            compra = orden._dcasa_envio_compra() if orden else None
-            fecha = orden._dcasa_promocion_fecha() if orden else None
+            resultado, prometido = self._j_envio_lo_prometido(orden, tarjeta)
+        if resultado is None:
+            compra = orden._dcasa_envio_compra() if len(orden) == 1 else None
             resultado, _promocion = self.env['dcasa.envio.promocion'].sudo()._aplicar(
-                tarjeta['total'], tarjeta['prov'], tarjeta['dist'], compra, fecha=fecha)
+                tarjeta['total'], tarjeta['prov'], tarjeta['dist'], compra)
         # El ITBMS del envío: el del producto del transportista con la posición fiscal de la venta (M2).
         lleva_itbms = (orden or self.env['sale.order'])._dcasa_envio_lleva_itbms()
         itbms = ' Al envío se le suma el ITBMS.' if lleva_itbms else ''
-        if tiene_beneficio(resultado):
+        desglose = (self._j_envio_desglose(tarjeta) + itbms.strip()).strip()
+        if prometido and resultado['aplica']:
+            normal = f'El envío a {self._j_envio_como_lo_ve(tarjeta)} cuesta normalmente {tarjeta["total_txt"]}.'
+            frase = ' '.join(p for p in (normal, desglose, recordar(prometido, resultado)) if p)
+        elif tiene_beneficio(resultado):
             # (1) el precio normal dicho como normal, (2) lo que D'CASA resta con la promoción, (3) hasta cuándo.
-            frase = con_el_precio_normal(resultado, self._j_envio_como_lo_ve(tarjeta),
-                                         self._j_envio_desglose(tarjeta) + itbms.strip())
+            frase = con_el_precio_normal(resultado, self._j_envio_como_lo_ve(tarjeta), desglose)
         else:
             frase = ' '.join(p for p in (tarjeta['texto_cliente'] + itbms, resultado['frase']) if p)
         datos = {
@@ -196,6 +218,10 @@ class BrianHerramientasJuanEnvios(models.AbstractModel):
             'frase_para_el_cliente': frase,
             'respaldo_envio': self._j_envio_respaldo(tarjeta, resultado, lleva_itbms),
         }
+        if prometido and resultado['aplica']:
+            datos['promocion']['ya_sumada'] = True
+            # La frase de recordar no dice el mínimo: la guardia no lo deja decir como condición nueva.
+            datos['respaldo_envio']['lugares'][0]['minimo'] = None
         return datos, orden, resultado
 
     @staticmethod
@@ -241,25 +267,34 @@ class BrianHerramientasJuanEnvios(models.AbstractModel):
         return motor_tarjeta.lugar_con_zona(tarjeta)
 
     @classmethod
-    def _j_envio_grupos(cls, resultados):
+    def _j_envio_grupos(cls, resultados, revisados=None):
         """Los encontrados juntados por lo que ve el cliente (nombre y zona): ``[(tarjeta, mismo_precio)]``.
 
         Dos lugares que el cliente no puede distinguir (el archivo real trae casos con el mismo nombre en la misma zona)
         son uno solo si cuestan lo mismo; si no cuestan lo mismo, ``mismo_precio`` es falso y no se puede preguntar
-        cuál: se pide un punto de referencia."""
+        cuál: se pide un punto de referencia. Un lugar «Por revisar» (``revisados``: los ids revisados) no cuenta para
+        eso si en el grupo hay uno revisado, y el revisado es el que representa al grupo (M-3)."""
         grupos = {}
         for tarjeta in resultados:
             grupos.setdefault(cls._j_envio_como_lo_ve(tarjeta), []).append(tarjeta)
-        return [(grupo[0], len({(t['con_precio'], t.get('total')) for t in grupo}) == 1) for grupo in grupos.values()]
+        salida = []
+        for grupo in grupos.values():
+            cuentan = grupo
+            if revisados is not None and any(t['id'] in revisados for t in grupo):
+                cuentan = [t for t in grupo if t['id'] in revisados]
+            salida.append((cuentan[0], len({(t['con_precio'], t.get('total')) for t in cuentan}) == 1))
+        return salida
 
     @api.model
     def _j_envio_gemelo_con_otro_precio(self, tarjeta):
-        """¿Hay otro lugar que el cliente ve igual (mismo nombre, corregimiento y distrito) y que no cuesta lo mismo?
-        Entonces el cliente no puede decir cuál es y no se da ningún precio (I4)."""
+        """¿Hay otro lugar que el cliente ve igual (mismo nombre, corregimiento y distrito), revisado por Gerencia, y
+        que no cuesta lo mismo? Entonces el cliente no puede decir cuál es y no se da ningún precio (I4). Un gemelo «Por
+        revisar» no le quita el precio al lugar de verdad (M-3)."""
         lugar = self.env['dcasa.envio.lugar'].sudo().browse(tarjeta['id'])
         patron = (lugar.name or '').replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
         otros = self.env['dcasa.envio.lugar'].sudo().search(
-            [('name', '=ilike', patron), ('dist', '=', lugar.dist), ('id', '!=', lugar.id)], limit=MAX_OPCIONES)
+            [('name', '=ilike', patron), ('dist', '=', lugar.dist), ('id', '!=', lugar.id), ('revisado', '=', True)],
+            limit=MAX_OPCIONES)
         como_lo_ve = self._j_envio_como_lo_ve(tarjeta)
         for otro in otros:
             gemela = self._j_envio_tarjeta(otro)
@@ -350,7 +385,9 @@ class BrianHerramientasJuanEnvios(models.AbstractModel):
                                'pregúntale si es ese. Si no, pídele un punto de referencia cercano (nunca la dirección '
                                'exacta) y vuelve a llamar. Si ya lo intentaste o no lo sabe, ' + A_VENDEDORA_SEGUIDO,
             }
-        grupos = self._j_envio_grupos(datos['resultados'])
+        ids = [t['id'] for t in datos['resultados']]
+        revisados = set(self.env['dcasa.envio.lugar'].sudo().search([('id', 'in', ids), ('revisado', '=', True)]).ids)
+        grupos = self._j_envio_grupos(datos['resultados'], revisados)
         completos = len(datos['resultados']) >= datos['total']
         tarjeta, mismo_precio = self._j_envio_claro(texto, grupos) if completos else (None, None)
         if tarjeta is not None:
@@ -369,14 +406,14 @@ class BrianHerramientasJuanEnvios(models.AbstractModel):
 
     @api.model
     def _j_envio_sin_precio_para_el_cliente(self, tarjeta):
-        """``None`` si se le puede dar al cliente el precio de este lugar; si no, la respuesta: dos lugares que ve
-        iguales y no cuestan lo mismo (I4), se cotiza aparte, o lo agregó el equipo y Gerencia no lo revisó (I7)."""
+        """``None`` si se le puede dar al cliente el precio de este lugar; si no, la respuesta: lo agregó el equipo y
+        Gerencia no lo revisó (I7), dos lugares que ve iguales y no cuestan lo mismo (I4), o se cotiza aparte."""
+        if not self.env['dcasa.envio.lugar'].sudo().browse(tarjeta['id']).revisado:
+            return self._j_envio_sin_revisar(tarjeta)
         if self._j_envio_gemelo_con_otro_precio(tarjeta):
             return self._j_envio_mismo_nombre(tarjeta)
         if not tarjeta['con_precio']:
             return self._j_envio_aparte(tarjeta)
-        if not self.env['dcasa.envio.lugar'].sudo().browse(tarjeta['id']).revisado:
-            return self._j_envio_sin_revisar(tarjeta)
         return None
 
     @api.model
@@ -451,16 +488,20 @@ class BrianHerramientasJuanEnvios(models.AbstractModel):
             if puesto['motivo'] == 'confirmada':
                 return _no_sumado('confirmada', 'Esa compra ya no es una cotización abierta. ' + A_VENDEDORA)
             return _no_sumado(puesto['motivo'], 'No pude sumar el envío. ' + A_VENDEDORA)
-        # La frase con lo que de verdad quedó en la cotización (el mismo resultado del motor que puso las líneas).
-        datos, _orden, _resultado = self._j_envio_con_promocion(conv, tarjeta, orden=orden,
-                                                                resultado=puesto['resultado'])
+        # La frase con lo que de verdad quedó en la cotización (el mismo resultado del motor que puso las líneas; si ya
+        # estaba ese envío con su promoción, lo prometido).
+        ya_estaba = puesto.get('ya_estaba')
+        datos, _orden, _resultado = self._j_envio_con_promocion(
+            conv, tarjeta, orden=orden, resultado=puesto['resultado'],
+            prometido=puesto.get('terminos') if ya_estaba else None)
         cotizacion = self._j_cotizacion_como_dict(orden)
         respaldo_envio = dict(datos['respaldo_envio'], total=cotizacion['total'])     # «el total queda en $X» (M1)
+        listo = (f'Ese envío ya estaba en tu cotización {orden.name}.' if ya_estaba else
+                 f'Listo, te sumé el envío a la cotización {orden.name}.')
         respuesta = {
-            'sumado': True, 'cotizacion': cotizacion, 'respaldo_envio': respaldo_envio,
+            'sumado': True, 'ya_estaba': bool(ya_estaba), 'cotizacion': cotizacion, 'respaldo_envio': respaldo_envio,
             'envio_normal_texto': datos['envio_normal_texto'], 'promocion': datos['promocion'],
-            'frase_para_el_cliente': (f'Listo, te sumé el envío a la cotización {orden.name}. '
-                                      f'{datos["frase_para_el_cliente"]} El total de la cotización queda en '
+            'frase_para_el_cliente': (f'{listo} {datos["frase_para_el_cliente"]} El total de la cotización queda en '
                                       f'{cotizacion["total_texto"]}.'),
         }
         pdf = self._j_pdf_de_cotizacion(orden)

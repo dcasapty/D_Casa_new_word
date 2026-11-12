@@ -192,23 +192,36 @@ class TestPermisos(EnviosComun):
             view_type='form')['arch'])
         self.assertFalse(de_la_vendedora.xpath("//button[@name='action_marcar_revisado']"))
 
-    def test_al_actualizar_los_que_agrego_el_equipo_quedan_por_revisar(self):
+    def _migracion(self, version):
         import importlib.util
 
         from odoo.tools.misc import file_path
         spec = importlib.util.spec_from_file_location(
-            'mig_revisado', file_path('dcasa_envios/migrations/19.0.1.2.0/post-migrate.py'))
+            f'mig_revisado_{version}', file_path(f'dcasa_envios/migrations/{version}/post-migrate.py'))
         migracion = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(migracion)
+        return migracion
+
+    def test_al_actualizar_todo_lo_agregado_a_mano_queda_por_revisar(self):
+        """Segunda vuelta (M-6): el rol de HOY no dice quién lo agregó ni si se revisó; Gerencia los revisa una vez."""
         Lugar = self.env['dcasa.envio.lugar']
         propio = Lugar.with_user(self.vendedora).create({'name': 'Viejo Del Equipo', 'tipo': 'barrio',
                                                         'dist': 'La Chorrera', 'km': 3})
         de_gerencia = Lugar.with_user(self.gerencia).create({'name': 'Viejo De Gerencia', 'tipo': 'barrio',
                                                             'dist': 'La Chorrera', 'km': 4})
         self.env.flush_all()
-        self.env.cr.execute('UPDATE dcasa_envio_lugar SET revisado = TRUE')      # la columna nueva nace encendida
+        self.env.cr.execute('UPDATE dcasa_envio_lugar SET revisado = TRUE, revisado_por = NULL')  # la columna nueva
         Lugar.invalidate_model()
-        migracion.migrate(self.env.cr, '19.0.1.1.0')
-        self.assertFalse(propio.revisado)
-        self.assertTrue(de_gerencia.revisado)
+        self._migracion('19.0.1.2.0').migrate(self.env.cr, '19.0.1.1.0')
+        Lugar.invalidate_model()
+        self.assertEqual((propio.revisado, de_gerencia.revisado), (False, False))
+        self.assertTrue(self.lugar('Villa Prueba').revisado, 'los de la tabla cargada, revisados')
+        # Donde ya corrió la de antes: lo que Gerencia revisó con el botón se queda revisado; lo demás, por revisar.
+        de_gerencia.with_user(self.gerencia).action_marcar_revisado()
+        self.env.flush_all()
+        self.env.cr.execute('UPDATE dcasa_envio_lugar SET revisado = TRUE WHERE id = %s', [propio.id])
+        Lugar.invalidate_model()
+        self._migracion('19.0.1.3.0').migrate(self.env.cr, '19.0.1.2.0')
+        Lugar.invalidate_model()
+        self.assertEqual((propio.revisado, de_gerencia.revisado), (False, True))
         self.assertTrue(self.lugar('Villa Prueba').revisado)

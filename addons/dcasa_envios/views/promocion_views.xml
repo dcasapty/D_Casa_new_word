@@ -32,6 +32,11 @@
                     <div class="alert alert-info" role="status" invisible="vigente_hoy">
                         <b>Hoy no está vigente</b> (fuera de sus fechas o archivada): Juan da el precio normal.
                     </div>
+                    <div class="alert alert-warning o_dcasa_promocion_abiertas" role="status"
+                         invisible="not cotizaciones_abiertas">
+                        Hay <field name="cotizaciones_abiertas" class="d-inline fw-bold"/> cotizaciones abiertas con
+                        esta promoción; los cambios valen solo para las nuevas.
+                    </div>
                     <div class="oe_title">
                         <h1><field name="name" placeholder="Envío Gratis Todo Noviembre"/></h1>
                     </div>
