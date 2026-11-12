@@ -81,7 +81,8 @@ describe("la guardia: el costo del envío solo con el respaldo de la herramienta
     expect(asegurarItbms("La lámpara cuesta $15. El envío a Villa Lucre cuesta $15.", productos, new Set([15]))).toBe(
       "La lámpara cuesta $15 + ITBMS. El envío a Villa Lucre cuesta $15.",
     );
-    expect(asegurarItbms("El envío a Villa Lucre cuesta $15.", productos)).toBe("El envío a Villa Lucre cuesta $15 + ITBMS.", "sin respaldo, como siempre");
+    // Sin el respaldo de envíos, como siempre: la cifra de un producto lleva «+ ITBMS».
+    expect(asegurarItbms("El envío a Villa Lucre cuesta $15.", productos)).toBe("El envío a Villa Lucre cuesta $15 + ITBMS.");
   });
 });
 
