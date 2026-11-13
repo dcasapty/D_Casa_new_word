@@ -81,9 +81,11 @@ GESTOS = """
         tocar('touchend', [dedo(1, 240, 450)]);
         await esperar(150);
         const movida = visor.querySelector('.o_wsale_image_viewer_void').getAttribute('style') || '';
-        const cerrar = visor.querySelector('.o_wsale_image_viewer_header .fa-times').getBoundingClientRect();
+        const x = visor.querySelector('.o_wsale_image_viewer_header .fa-times');
+        const cerrar = x.getBoundingClientRect();
+        const encima = document.elementFromPoint(cerrar.left + cerrar.width / 2, cerrar.top + cerrar.height / 2);
         return { boton: [r.width, r.height], visor: true, antes, pellizco, movida,
-                 cerrar: [cerrar.width, cerrar.height],
+                 cerrar: [cerrar.width, cerrar.height], cerrarArriba: encima === x,
                  tactil: getComputedStyle(visor.querySelector('.o_wsale_image_viewer_image')).touchAction };
     })()
 """
@@ -140,4 +142,5 @@ class TestBuscarYFotoEnElCelular(ChromeMovilCase):
         self.assertAlmostEqual(m['pellizco'], 2, delta=.05, msg='dos dedos acercan')
         self.assertIn('translate(40px, 50px)', m['movida'], 'un dedo mueve la foto acercada')
         self.assertGreaterEqual(min(m['cerrar']), 44, 'la X se toca con el dedo')
+        self.assertTrue(m['cerrarArriba'], 'la X queda encima de la foto acercada')
         self.assertEqual(m['tactil'], 'none', 'el navegador no se roba el gesto')

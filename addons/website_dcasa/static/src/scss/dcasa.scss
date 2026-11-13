@@ -2491,9 +2491,11 @@ html.o_dcasa_navegando::before {
     touch-action: none;
 }
 
-.o_wsale_image_viewer_header {
+// Por encima de la foto acercada (Odoo deja la cabecera del visor en z-index 1, igual que la foto, y de 40 px).
+.o_wsale_image_viewer .o_wsale_image_viewer_header {
     position: relative;
-    z-index: 2;
+    z-index: 3;
+    height: auto;
     padding: .5rem;
     pointer-events: none;
 
