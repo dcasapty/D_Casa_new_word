@@ -187,6 +187,129 @@ class TestBuscarProductos(HerramientasCase):
         self.assertTrue(cama['foto'].endswith(f'/web/image/product.template/{self.cama.id}/image_1024'))
 
 
+def _claves(valor):
+    """Todas las llaves de un resultado, a cualquier profundidad."""
+    if isinstance(valor, dict):
+        return set(valor) | {c for v in valor.values() for c in _claves(v)}
+    if isinstance(valor, list):
+        return {c for v in valor for c in _claves(v)}
+    return set()
+
+
+@tagged('post_install', '-at_install')
+class TestLoQueSeVendeSinPublicar(HerramientasCase):
+    """Incidente del 2026-11-13: un cliente pidió un colchón y Juan dijo «solo manejamos la cama, no el colchón
+    solo»; los colchones sí se venden (están en Odoo con su precio) pero no están publicados en la tienda en línea, y el
+    cliente se fue. Lo no publicado no se muestra (nombre, precio y existencias no están revisados para el público),
+    pero tampoco se niega: Juan dice que sí lo trabajamos y lo pasa a una vendedora. «No lo manejamos», solo si no hay
+    NADA."""
+
+    DATOS_DE_PRODUCTO = {'nombre', 'codigo', 'precio', 'precio_texto', 'disponibilidad', 'medidas', 'combo', 'url',
+                         'foto', 'galeria', 'variantes', 'descripcion'}
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        Template = cls.env['product.template']
+        # Una categoría de la tienda sin nada publicado, como «Colchones» en producción.
+        cls.sin_nada_publicado = cls.env['product.public.category'].create({'name': 'Zzcolchonería'})
+        cls.trono = Template.create({
+            'name': 'ZZTRONO NUBE ORTOPÉDICO', 'default_code': 'ZZ-TRONO', 'type': 'consu', 'is_storable': True,
+            'sale_ok': True, 'is_published': False, 'list_price': 4321.09, 'dcasa_medidas': '987 × 654 cm',
+            'public_categ_ids': [Command.set(cls.sin_nada_publicado.ids)]})
+        almacen = cls.env['stock.warehouse'].search([], limit=1)
+        cls.env['stock.quant']._update_available_quantity(cls.trono.product_variant_id, almacen.lot_stock_id, 8765)
+        base = {'type': 'consu', 'sale_ok': True, 'is_published': False}
+        # Lo que NO cuenta como «lo trabajamos»: un servicio, algo archivado y algo que no se vende.
+        Template.create({**base, 'name': 'ZZFLETE ESPECIAL', 'type': 'service'})
+        Template.create({**base, 'name': 'ZZVIEJO DESCONTINUADO', 'active': False})
+        Template.create({**base, 'name': 'ZZINTERNO REPUESTO', 'sale_ok': False})
+
+    def test_sin_nada_publicado_pero_si_en_el_sistema_dice_que_si_lo_trabajamos(self):
+        datos = self.salida('buscar_productos', {'consulta': 'zztrono ortopédico'})
+        self.assertEqual((datos['encontrados'], datos['productos'], datos['estado']), (0, [], 'hay_sin_publicar'))
+        self.assertEqual(datos['sin_publicar'], {'cuantos': 1, 'categorias': ['Zzcolchonería']})
+        self.assertIn('SÍ lo trabajamos', datos['nota'])
+        self.assertIn('No digas que no lo manejamos', datos['nota'])
+        self.assertIn('pasar_a_vendedora', datos['nota'])
+        self.assertIn('una vendedora le confirma los modelos y los precios', datos['nota'])
+        # La vendedora que la recibe sabe qué busca el cliente.
+        self.assertIn('«zztrono ortopédico»', datos['motivo_para_la_vendedora'])
+        self.assertIn('Zzcolchonería', datos['motivo_para_la_vendedora'])
+
+    def test_de_lo_no_publicado_no_sale_ni_nombre_ni_precio_ni_existencias(self):
+        prohibidos = {'Nube', 'NUBE', '4321', '4,321', '8765', '987', 'ZZ-TRONO', self.trono.dcasa_codigo_publico}
+        for consulta in ('zztrono', 'ZZ-TRONO', self.trono.dcasa_codigo_publico):
+            with self.subTest(consulta=consulta):
+                datos = self.salida('buscar_productos', {'consulta': consulta})
+                self.assertEqual(datos['estado'], 'hay_sin_publicar')
+                self.assertFalse(self.DATOS_DE_PRODUCTO & _claves(datos), _claves(datos))
+                texto = json.dumps(datos, ensure_ascii=False)
+                for dato in prohibidos - {consulta}:   # lo que escribió el cliente sí vuelve (en el motivo)
+                    self.assertNotIn(dato, texto)
+                ficha = self.salida('ver_producto', {'codigo': consulta}) if consulta != 'zztrono' else None
+                if ficha:
+                    self.assertEqual(ficha['estado'], 'hay_sin_publicar')
+                    self.assertFalse(self.DATOS_DE_PRODUCTO & _claves(ficha), _claves(ficha))
+                    for dato in prohibidos - {consulta}:
+                        self.assertNotIn(dato, json.dumps(ficha, ensure_ascii=False))
+
+    def test_sin_nada_en_el_sistema_ahi_si_no_lo_manejamos(self):
+        for consulta in ('zzhelicoptero', 'zzflete', 'zzviejo', 'zzinterno'):
+            with self.subTest(consulta=consulta):
+                datos = self.salida('buscar_productos', {'consulta': consulta})
+                self.assertEqual((datos['encontrados'], datos['productos'], datos['estado']),
+                                 (0, [], 'no_lo_manejamos'))
+                self.assertIn('puedes decirle que eso no lo manejamos', datos['nota'])
+                self.assertNotIn('sin_publicar', datos)
+
+    def test_varias_palabras_que_no_van_juntas_piden_buscar_de_nuevo_y_no_niegan(self):
+        """«Colchón matrimonial»: ningún producto tiene las dos palabras, pero colchones sí hay."""
+        for consulta in ('zztrono zzhelicoptero', 'zzcama zzhelicoptero'):
+            with self.subTest(consulta=consulta):
+                datos = self.salida('buscar_productos', {'consulta': consulta})
+                self.assertEqual((datos['encontrados'], datos['estado']), (0, 'busca_de_nuevo'))
+                self.assertIn(f'«{consulta.split()[0]}»', datos['nota'])
+                self.assertIn('no le digas al cliente que no lo manejamos', datos['nota'])
+                self.assertNotIn('puedes decirle que eso no lo manejamos', datos['nota'])
+
+    def test_un_codigo_que_no_aparece_no_es_no_lo_manejamos(self):
+        """Puede venir mal copiado de una foto: se pide el nombre o una foto, no se niega."""
+        for consulta in ('DC-BCDFGH', 'ZZ-NOEXISTE-99', 'zq0934xx'):
+            with self.subTest(consulta=consulta):
+                datos = self.salida('buscar_productos', {'consulta': consulta})
+                self.assertEqual((datos['encontrados'], datos['estado']), (0, 'busca_de_nuevo'))
+                self.assertIn('mal escrito', datos['nota'])
+                self.assertIn('no le digas al cliente que no lo manejamos', datos['nota'])
+
+    def test_con_la_categoria_equivocada_pide_buscar_sin_categoria(self):
+        datos = self.salida('buscar_productos', {'consulta': 'zzcama', 'categoria': 'Zzcocina'})
+        self.assertEqual((datos['encontrados'], datos['estado']), (0, 'busca_de_nuevo'))
+        self.assertIn('sin categoría', datos['nota'])
+        # En la categoría sin nada publicado (como «Colchones»), lo no publicado se encuentra igual.
+        datos = self.salida('buscar_productos', {'consulta': 'zztrono', 'categoria': 'Zzcolchonería'})
+        self.assertEqual(datos['estado'], 'hay_sin_publicar')
+
+    def test_con_publicados_responde_como_siempre(self):
+        datos = self.salida('buscar_productos', {'consulta': 'ZZ-CAMA'})
+        self.assertEqual(set(datos), {'encontrados', 'mostrados', 'productos', 'nota'})
+        self.assertEqual([p['nombre'] for p in datos['productos']], ['Zzcama Roble Queen'])
+        self.assertEqual(datos['productos'][0]['precio_texto'], '$349.99 + ITBMS')
+
+    def test_con_publicados_y_otros_sin_publicar_avisa_sin_mostrarlos(self):
+        datos = self.salida('buscar_productos', {'consulta': 'zz'})
+        nombres = [p['nombre'] for p in datos['productos']]
+        self.assertEqual(datos['encontrados'], 4)
+        self.assertFalse({'Zzsecreto Borrador', 'Zztrono Nube Ortopédico'} & set(nombres))
+        self.assertNotIn('estado', datos)
+        self.assertEqual(datos['sin_publicar']['cuantos'], 2)
+        self.assertEqual(datos['sin_publicar']['categorias'], ['Zzcolchonería', 'Zzdormitorio'])
+        self.assertIn('no digas que no lo manejamos', datos['nota_sin_publicar'])
+        texto = json.dumps(datos, ensure_ascii=False)
+        for dato in ('Secreto', 'Nube', '4321', '8765'):
+            self.assertNotIn(dato, texto)
+
+
 @tagged('post_install', '-at_install')
 class TestCodigoPublicoEnJuan(HerramientasCase):
     """El cliente conoce el código público (DC-K7M4PX); la referencia del proveedor no sale en lo que Juan dice."""
@@ -222,14 +345,18 @@ class TestCodigoPublicoEnJuan(HerramientasCase):
             self.assertEqual(self.env['brian.herramientas']._b_producto(escrito), self.cama.product_variant_id, escrito)
         self.assertEqual(self.env['brian.herramientas']._b_plantilla(codigo), self.cama)
 
-    def test_un_codigo_publico_de_algo_sin_publicar_responde_como_si_no_existiera(self):
-        sin_publicar = self.error('ver_producto', {'codigo': self.secreto.dcasa_codigo_publico})
+    def test_un_codigo_publico_de_algo_sin_publicar_no_se_muestra_pero_tampoco_se_niega(self):
+        """Incidente del 2026-11-13: lo que se vende sin estar publicado no es «no lo manejamos»."""
+        codigo = self.secreto.dcasa_codigo_publico
+        ficha = self.salida('ver_producto', {'codigo': codigo})
+        self.assertEqual(ficha['estado'], 'hay_sin_publicar')
+        self.assertNotIn('Borrador', json.dumps(ficha, ensure_ascii=False))
+        self.assertFalse({'nombre', 'precio', 'precio_texto', 'disponibilidad', 'galeria'} & set(ficha))
         inexistente = self.error('ver_producto', {'codigo': 'DC-BCDFGH'})
-        self.assertIn('no lo manejamos', sin_publicar)
-        self.assertEqual(sin_publicar.replace(self.secreto.dcasa_codigo_publico, 'X'),
-                         inexistente.replace('DC-BCDFGH', 'X'))
-        self.assertEqual(self.salida('buscar_productos', {'consulta': self.secreto.dcasa_codigo_publico})[
-            'encontrados'], 0)
+        self.assertIn('No encuentro el código «DC-BCDFGH»', inexistente)
+        self.assertIn('una vendedora se lo confirma', inexistente)
+        busqueda = self.salida('buscar_productos', {'consulta': codigo})
+        self.assertEqual((busqueda['encontrados'], busqueda['estado']), (0, 'hay_sin_publicar'))
 
 
 @tagged('post_install', '-at_install')
@@ -257,11 +384,24 @@ class TestVerProductoYCategorias(HerramientasCase):
         self.assertEqual(len(ficha['galeria']), 1)
         self.assertIn('/web/image/product.image/', ficha['galeria'][0])
 
-    def test_un_producto_sin_publicar_responde_igual_que_uno_que_no_existe(self):
-        sin_publicar = self.error('ver_producto', {'codigo': 'ZZ-SECRETO'})
+    def test_un_producto_sin_publicar_no_da_sus_datos_ni_se_niega(self):
+        ficha = self.salida('ver_producto', {'codigo': 'ZZ-SECRETO'})
+        texto = json.dumps(ficha, ensure_ascii=False)
+        self.assertEqual(ficha['estado'], 'hay_sin_publicar')
+        self.assertEqual(ficha['sin_publicar'], {'cuantos': 1, 'categorias': ['Zzdormitorio']})
+        self.assertIn('pasar_a_vendedora', ficha['nota'])
+        self.assertIn('No digas que no lo manejamos', ficha['nota'])
+        self.assertIn('ZZ-SECRETO', ficha['motivo_para_la_vendedora'], 'la vendedora sabe qué pidió el cliente')
+        for dato in ('Zzsecreto', 'Borrador', '10.0', '$10', self.secreto.dcasa_codigo_publico):
+            self.assertNotIn(dato, texto)
         inexistente = self.error('ver_producto', {'codigo': 'ZZ-NO-EXISTE'})
-        self.assertIn('no lo manejamos', sin_publicar)
-        self.assertEqual(sin_publicar.replace('ZZ-SECRETO', 'X'), inexistente.replace('ZZ-NO-EXISTE', 'X'))
+        self.assertNotIn('si no aparece, no lo manejamos', inexistente)
+        self.assertIn('una vendedora se lo confirma', inexistente)
+
+    def test_un_comodin_no_es_un_codigo_ni_publicado_ni_sin_publicar(self):
+        for codigo in ('ZZ-%', 'ZZ-_ECRETO', '%'):
+            with self.subTest(codigo=codigo):
+                self.assertIn('No encuentro el código', self.error('ver_producto', {'codigo': codigo}))
 
     def test_listar_categorias_cuenta_solo_publicados(self):
         categorias = {c['nombre']: c for c in self.salida('listar_categorias')['categorias']}

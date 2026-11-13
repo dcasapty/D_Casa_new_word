@@ -40,6 +40,8 @@ export class RegistroDelTurno {
   preguntaRegistrada = false;
   /** Ya hay una cotización en PDF en la respuesta de este turno (solo va una por respuesta). */
   cotizacionPreparada = false;
+  /** Odoo dijo en este turno que hay productos así que se venden sin estar publicados en la tienda en línea: negarlos es falso. */
+  haySinPublicar = false;
   /** Lo que la herramienta de envíos respaldó en este turno: cada lugar con sus cifras y su papel, y el total si sumó el envío. */
   readonly envio: { lugares: LugarDeEnvio[]; total: number | null } = { lugares: [], total: null };
 }
@@ -306,8 +308,21 @@ export function tomarRespaldoDeEnvio(resultado: unknown, reg: RegistroDelTurno):
   return resto;
 }
 
+/**
+ * ¿Odoo dijo que lo que pide el cliente SÍ se trabaja aunque no esté publicado en la tienda en línea? (`hay_sin_publicar` o el aviso
+ * `sin_publicar` de buscar_productos y ver_producto; el «no» `sin_publicar` de cotizar). Incidente del 2026-11-13: Juan negó los
+ * colchones, que se venden pero no están publicados, y el cliente se fue. Con esto la guardia de salida no deja pasar un «no lo manejamos».
+ */
+export function haySinPublicarEn(nombre: string, resultado: unknown): boolean {
+  if (!esObjeto(resultado)) return false;
+  if (nombre === "cotizar") return resultado.motivo === "sin_publicar";
+  if (nombre === "buscar_productos" || nombre === "ver_producto") return resultado.estado === "hay_sin_publicar" || esObjeto(resultado.sin_publicar);
+  return false;
+}
+
 /** Procesa el resultado para el modelo y anota si la consulta sirvió o salió floja. */
 function anotarConsulta(nombre: string, resultado: unknown, reg: RegistroDelTurno, sitio: string | undefined): unknown {
+  if (haySinPublicarEn(nombre, resultado)) reg.haySinPublicar = true;
   if (nombre === "buscar_conocimiento" && busquedaFlojaDe(resultado)) {
     reg.busquedasFlojas++;
     // Sin respuesta en la base de conocimiento: el modelo recibe la orden de NO improvisar, junto con lo poco que haya salido.

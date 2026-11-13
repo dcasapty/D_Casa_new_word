@@ -144,7 +144,7 @@ const MANEJADORES: Record<string, Manejador> = {
     const lineas = (Array.isArray(a.lineas) ? a.lineas : []) as { codigo?: string; cantidad?: number }[];
     const armadas = lineas.map((l) => {
       const p = CATALOGO.find((x) => x.codigo.toLowerCase() === String(l.codigo ?? "").toLowerCase());
-      if (!p) throw new RechazoDeOdoo(`No encuentro el código «${String(l.codigo)}» entre los productos de la tienda. Búscalo por nombre con buscar_productos; si no aparece, no lo manejamos: no lo cotices.`);
+      if (!p) throw new RechazoDeOdoo(`No encuentro el código «${String(l.codigo)}» en el sistema de D'CASA: no lo cotices. Búscalo con buscar_productos y cotiza con el código que devuelva. Por esta búsqueda no le digas al cliente que no lo manejamos: si no das con lo que pide, dile que una vendedora se lo confirma.`);
       return { p, cantidad: l.cantidad ?? 1 };
     });
     const subtotal = Math.round(armadas.reduce((t, x) => t + x.p.precio * x.cantidad, 0) * 100) / 100;

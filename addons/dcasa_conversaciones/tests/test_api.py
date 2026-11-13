@@ -453,7 +453,7 @@ class TestHerramientasApi(ApiCase):
         self.assertEqual(respuesta.status_code, 422)
         cuerpo = respuesta.json()
         self.assertFalse(cuerpo['ok'])
-        self.assertIn('no lo manejamos', cuerpo['error'])
+        self.assertIn('No encuentro el código «NO-EXISTE-123»', cuerpo['error'])
         faltan = self.ejecutar('buscar_productos', {})
         self.assertEqual(faltan.status_code, 422)
         self.assertIn('Faltan datos', faltan.json()['error'])
