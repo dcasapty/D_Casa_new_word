@@ -1,2 +1,4 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_dcasa_imagen_variante_admin,dcasa.imagen.variante admin,model_dcasa_imagen_variante,base.group_system,1,0,0,1
+access_dcasa_resena_gerencia,dcasa.resena gerencia,model_dcasa_resena,dcasa_base.group_gerencia,1,0,0,0
+access_dcasa_resena_admin,dcasa.resena admin,model_dcasa_resena,base.group_system,1,0,0,1

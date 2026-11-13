@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Opiniones en la ficha (lote 2 de la web): SOLO las publicadas por Gerencia, de clientes que compraron y
+         pagaron ese producto (models/resena.py). Sin ninguna publicada no sale nada: ni estrellas ni sección. -->
+
+    <!-- Debajo del código público: las estrellas y cuántas opiniones, con enlace a la sección. -->
+    <template id="ficha_estrellas" inherit_id="website_dcasa.ficha_codigo_publico" name="D'CASA: estrellas en la ficha">
+        <xpath expr="//p[hasclass('o_dcasa_codigo_publico')]" position="after">
+            <t t-set="dcasa_opiniones" t-value="product._dcasa_opiniones() if product else {'total': 0}"/>
+            <a t-if="dcasa_opiniones['total']" href="#dcasa-opiniones" class="o_dcasa_ficha_valoracion">
+                <!-- Las estrellas van redondeadas: para el lector de pantalla cuenta el promedio escrito. -->
+                <span aria-hidden="true">
+                    <t t-call="website_dcasa.estrellas">
+                        <t t-set="cuantas" t-value="dcasa_opiniones['redondeo']"/>
+                    </t>
+                </span>
+                <span><t t-out="dcasa_opiniones['promedio_texto']"/><span class="visually-hidden"> de 5 estrellas</span> ·
+                    <t t-out="dcasa_opiniones['total']"/> <t t-out="'opinión' if dcasa_opiniones['total'] == 1 else 'opiniones'"/></span>
+            </a>
+        </xpath>
+    </template>
+
+    <template id="ficha_opiniones" inherit_id="website_sale.product" name="D'CASA: opiniones en la ficha">
+        <xpath expr="//div[@t-field='product.website_description']" position="after">
+            <t t-set="dcasa_opiniones" t-value="product._dcasa_opiniones()"/>
+            <section t-if="dcasa_opiniones['total']" id="dcasa-opiniones" class="o_dcasa_ficha_opiniones"
+                     aria-labelledby="dcasa-opiniones-titulo">
+                <div class="container">
+                    <div class="o_dcasa_ficha_opiniones_cabeza">
+                        <h2 id="dcasa-opiniones-titulo" class="o_dcasa_kicker">Opiniones de quienes lo compraron</h2>
+                        <p class="o_dcasa_ficha_opiniones_nota">
+                            <span class="o_dcasa_ficha_opiniones_promedio"><t t-out="dcasa_opiniones['promedio_texto']"/><span class="visually-hidden"> de 5 estrellas</span></span>
+                            <span aria-hidden="true">
+                                <t t-call="website_dcasa.estrellas">
+                                    <t t-set="cuantas" t-value="dcasa_opiniones['redondeo']"/>
+                                </t>
+                            </span>
+                            <span><t t-out="dcasa_opiniones['total']"/>
+                                <t t-out="'opinión' if dcasa_opiniones['total'] == 1 else 'opiniones'"/></span>
+                        </p>
+                    </div>
+                    <ul class="o_dcasa_ficha_opiniones_lista" role="list">
+                        <li t-foreach="dcasa_opiniones['opiniones']" t-as="opinion" class="o_dcasa_ficha_opinion">
+                            <div class="o_dcasa_ficha_opinion_cabeza">
+                                <strong t-out="opinion['autor']"/>
+                                <t t-call="website_dcasa.estrellas">
+                                    <t t-set="cuantas" t-value="opinion['estrellas']"/>
+                                </t>
+                                <span class="o_dcasa_ficha_opinion_cuando" t-out="opinion['cuando']"/>
+                            </div>
+                            <p t-if="opinion['texto']" class="o_dcasa_ficha_opinion_texto" t-out="opinion['texto']"/>
+                        </li>
+                    </ul>
+                    <p class="o_dcasa_ficha_opiniones_aviso">Solo opinan clientes que compraron y pagaron este
+                        producto. Las leemos antes de publicarlas.</p>
+                </div>
+            </section>
+        </xpath>
+    </template>
+</odoo>

@@ -19,12 +19,14 @@ from urllib.parse import urlsplit
 from odoo import http
 from odoo.addons.dcasa_socios.controllers.main import SESSION_AVISO, SociosDcasa, socio_por_pin
 from odoo.addons.portal.controllers.portal import CustomerPortal
+from odoo.exceptions import UserError
 from odoo.http import request
 
 INICIO = '/mi-cuenta'
 COMPRAS = '/mi-cuenta/compras'
 PUNTOS = '/mi-cuenta/puntos'
 DATOS = '/mi-cuenta/datos'
+OPINIONES = '/mi-cuenta/opiniones'
 # Lo que pasaba antes al terminar en /socios: la cuenta del socio vivía en /socios/cuenta.
 CUENTA_VIEJA = '/socios/cuenta'
 TEXTO_OLVIDE = "Hola D'CASA, olvidé mi PIN de Mi cuenta. ¿Me ayudan a cambiarlo?"
@@ -157,6 +159,29 @@ class MiCuenta(http.Controller):
         compra = Mc._mc_resumen_factura(factura, request.website, tienda)
         return self._mc_render('dcasa_mi_cuenta.detalle',
                                self._mc_valores(ficha, persona, tienda, 'compras', compra=compra))
+
+    @http.route(OPINIONES, type='http', auth='public', website=True, sitemap=False, methods=['GET', 'POST'])
+    def opiniones(self, **kwargs):
+        """Opinar de lo que compró y pagó (una vez por producto) y ver en qué quedaron. El anónimo va a «Entra a tu
+        cuenta»; todo lo comprueba ``dcasa.resena._dcasa_crear_del_cliente`` (la compra, el pago, una por producto)."""
+        ficha, persona, tienda, salir = self._mc_con_sesion()
+        if salir:
+            return salir
+        if request.httprequest.method == 'POST':
+            try:
+                request.env['dcasa.resena']._dcasa_crear_del_cliente(
+                    ficha, kwargs.get('producto_id'), kwargs.get('estrellas'), kwargs.get('texto') or '',
+                    website=request.website)
+            except UserError as error:
+                request.session[SESSION_AVISO] = {'texto': error.args[0], 'tipo': 'warning'}
+            else:
+                request.session[SESSION_AVISO] = {
+                    'texto': '¡Gracias por contarnos! La leemos y la publicamos en la ficha del producto.',
+                    'tipo': 'success'}
+            return request.redirect(OPINIONES)
+        datos = self._mc()._mc_opiniones(ficha, request.website)
+        return self._mc_render('dcasa_mi_cuenta.opiniones',
+                               self._mc_valores(ficha, persona, tienda, 'compras', **datos))
 
     @http.route(PUNTOS, type='http', auth='public', website=True, sitemap=False)
     def puntos(self, **kwargs):

@@ -14,6 +14,8 @@ Un solo lugar para el cliente, sencillo y pensado para el celular (se usa de pie
   retirar», «Ya las tienes», «Canceladas»), con foto del mueble y el detalle de cada abono.
 * **Puntos**: lo que antes era /socios/cuenta, ordenado para el mostrador.
 * **Mis datos**: solo lectura, cambiar el PIN o la contraseña y salir.
+* **Tus opiniones** (/mi-cuenta/opiniones): opinar de lo que compró y pagó por completo, una vez por producto, y
+  ver en qué quedó (Gerencia la lee antes de publicarla; website_dcasa/models/resena.py).
 
 Las cifras de pago salen SOLO de ``account.move._dcasa_estado_abono()`` (dcasa_invoice): esta pantalla lee y no
 escribe nada; los abonos se siguen registrando con «Pagar» en la factura, como siempre.
@@ -22,7 +24,7 @@ Se entra con la sesión de socio (celular + PIN, ``dcasa_socios``) o con la cuen
 lee filtrando por la ficha comercial del cliente: un pedido o una factura de otra persona responde 404. A quien entra
 con PIN no se le enseñan cédula, dirección, teléfonos ni PDF.
 """,
-    'version': '19.0.1.0.0',
+    'version': '19.0.1.1.0',
     'category': 'Website/Website',
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',

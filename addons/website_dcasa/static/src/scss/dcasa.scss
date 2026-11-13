@@ -2667,3 +2667,105 @@ html.o_dcasa_navegando::before {
         background: rgba($dcasa-navy, .85);
     }
 }
+
+// ---------------------------------------------------------------------------
+// Opiniones en la ficha (lote 2 de la web): solo las publicadas por Gerencia (views/opiniones_templates.xml).
+// Las estrellas en el ámbar de las de Google (.o_dcasa_estrella), nunca el amarillo de marca sobre blanco.
+// ---------------------------------------------------------------------------
+.o_dcasa_ficha_valoracion {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    margin: -.4rem 0 .6rem;
+    font-size: .875rem;
+    color: $dcasa-navy;
+    text-decoration: none;
+
+    &:hover span,
+    &:focus-visible span {
+        text-decoration: underline;
+    }
+}
+
+.o_dcasa_ficha_opiniones {
+    padding: 2.5rem 0;
+    border-top: 1px solid rgba($dcasa-navy, .1);
+}
+
+.o_dcasa_ficha_opiniones_cabeza {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem 1.5rem;
+    margin-bottom: 1.25rem;
+
+    .o_dcasa_kicker {
+        margin: 0;
+    }
+}
+
+.o_dcasa_ficha_opiniones_nota {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    margin: 0;
+    color: $dcasa-gris;
+}
+
+.o_dcasa_ficha_opiniones_promedio {
+    font-family: 'Anton', sans-serif;
+    font-size: 2rem;
+    line-height: 1;
+    color: $dcasa-navy;
+}
+
+.o_dcasa_ficha_opiniones_lista {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: 1fr;
+
+    @media (min-width: 768px) {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    @media (min-width: 1200px) {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+.o_dcasa_ficha_opinion {
+    background: $dcasa-hueso;
+    border-radius: $dcasa-radius;
+    padding: 1rem 1.25rem;
+}
+
+.o_dcasa_ficha_opinion_cabeza {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .25rem .75rem;
+    margin-bottom: .5rem;
+    color: $dcasa-navy;
+}
+
+.o_dcasa_ficha_opinion_cuando {
+    font-size: .8125rem;
+    color: $dcasa-gris;
+}
+
+.o_dcasa_ficha_opinion_texto {
+    margin: 0;
+    color: $dcasa-tinta;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+}
+
+.o_dcasa_ficha_opiniones_aviso {
+    margin: 1rem 0 0;
+    font-size: .8125rem;
+    color: $dcasa-gris;
+}

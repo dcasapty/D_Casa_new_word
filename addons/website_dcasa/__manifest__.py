@@ -27,13 +27,18 @@ Sitio web de D'CASA sobre el constructor de sitios y el eCommerce de Odoo:
   da «no coincidió…»; sin resultados ofrece las categorías y WhatsApp. /catalogo y /tienda llevan al catálogo
   (301). Las páginas para entrar y los resultados de búsqueda no salen en Google (noindex). Carrito vacío en
   tuteo y la foto de la ficha en grande con el dedo (models/buscador.py, views/buscador_templates.xml).
+* Visítanos y opiniones (lote 2 de la web, 2026-11-13): el horario de la tienda en una tabla y en el pie, sacado
+  de un solo lugar (el gancho ``website._dcasa_horario_tienda``, que llena dcasa_conversaciones con los Ajustes de
+  Juan); el mapa de Google solo con las cookies aceptadas o al tocar «Ver el mapa»; opiniones de productos de
+  quien los compró y pagó, publicadas solo si Gerencia las aprueba (models/resena.py), con estrellas en la ficha y
+  ``aggregateRating`` solo con las publicadas.
 * Black Weekend: banda en la portada, página /black-weekend y etiqueta en las tarjetas de los
   productos marcados, solo dentro de la ventana de la campaña (models/black_weekend.py).
 
 Todo el contenido de las páginas es editable con el constructor de Odoo
 (Sitio web > Editar), sin programador.
 """,
-    'version': '19.0.1.16.0',
+    'version': '19.0.1.17.0',
     'category': 'Website/Website',
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',
@@ -46,6 +51,7 @@ Todo el contenido de las páginas es editable con el constructor de Odoo
         'data/product_public_category_data.xml',
         'views/res_config_settings_views.xml',
         'views/apartados_views.xml',
+        'views/resenas_views.xml',
         'views/layout_templates.xml',
         'views/resenas_templates.xml',
         'views/black_weekend_templates.xml',
@@ -55,6 +61,7 @@ Todo el contenido de las páginas es editable con el constructor de Odoo
         'data/website_menu_data.xml',
         'data/tienda_data.xml',
         'views/tienda_templates.xml',
+        'views/opiniones_templates.xml',
         'views/buscador_templates.xml',
         'views/nombres_cliente_templates.xml',
         'data/seo_data.xml',

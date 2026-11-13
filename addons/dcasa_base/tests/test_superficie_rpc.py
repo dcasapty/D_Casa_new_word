@@ -172,6 +172,18 @@ LISTA_BLANCA = {
                     'vigente y la huella de la clave de Gerencia ANTES de aplicar con sudo; los intentos se cuentan.',
     ('dcasa_base', 'sale.order', 'action_dcasa_pedir_descuento'): ACCION_VENTANA,
     ('website_dcasa', 'sale.order', 'action_dcasa_apartar'): SIN_SUDO,
+    ('website_dcasa', 'dcasa.resena', 'create'):
+        'Bloquea: sin sudo lanza AccessError (las opiniones las crea solo Mi cuenta, ya comprobada la compra pagada).',
+    ('website_dcasa', 'dcasa.resena', 'write'):
+        'Bloquea: sin sudo lanza UserError (lo que dijo el cliente no se cambia; el estado, solo con sus botones).',
+    ('website_dcasa', 'dcasa.resena', 'unlink'):
+        OVERRIDE + ' Solo avisa al borde si estaba publicada; borrar lo frena el ACL (solo administrador); sin sudo().',
+    ('website_dcasa', 'dcasa.resena', 'action_aprobar'):
+        'Botón «Publicar»: exige Gerencia o administrador en el servidor y check_access ANTES del sudo que cambia el '
+        'estado (quién y cuándo lo pone el servidor).',
+    ('website_dcasa', 'dcasa.resena', 'action_rechazar'):
+        'Botón «No publicar»: exige Gerencia o administrador en el servidor y check_access ANTES del sudo que cambia '
+        'el estado (quién y cuándo lo pone el servidor).',
     ('website_dcasa', 'ir.qweb.field.image', 'record_to_html'):
         OVERRIDE + ' Solo agrega srcset/sizes/width/height/loading a la <img>; sin sudo().',
     ('website_dcasa', 'ir.qweb.field.image_url', 'record_to_html'):

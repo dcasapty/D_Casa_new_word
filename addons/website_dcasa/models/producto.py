@@ -32,6 +32,7 @@ class ProductProduct(models.Model):
     def _to_markup_data(self, website):
         """Datos estructurados para Google: el ``sku`` es el código público, no la referencia del proveedor."""
         datos = super()._to_markup_data(website)
+        datos.pop('aggregateRating', None)   # las de Odoo no: solo las opiniones publicadas (ProductTemplate)
         datos.pop('sku', None)
         if self.dcasa_codigo_publico:
             datos['sku'] = self.dcasa_codigo_publico
@@ -58,6 +59,17 @@ class ProductTemplate(models.Model):
 
         detalle['search_extra'] = por_codigo_publico
         return detalle
+
+    def _to_markup_data(self, website):
+        """Datos para Google: las estrellas (``aggregateRating``) solo con las opiniones PUBLICADAS de quienes compraron
+        (models/resena.py). Sin ninguna, no van: nunca las calificaciones de Odoo ni un número inventado."""
+        datos = super()._to_markup_data(website)
+        datos.pop('aggregateRating', None)
+        for variante in datos.get('hasVariant') or ():
+            variante.pop('aggregateRating', None)
+        if valoracion := self.env['dcasa.resena']._dcasa_valoracion_google(self):
+            datos['aggregateRating'] = valoracion
+        return datos
 
     def _default_website_meta(self):
         """El título al compartir la ficha (WhatsApp, Facebook): «Cama Queen Tapizada», no en MAYÚSCULAS (F5)."""
