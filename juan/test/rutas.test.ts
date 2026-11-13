@@ -943,6 +943,25 @@ describe("webhooks de Meta (WhatsApp Cloud, Messenger, Instagram): el 200 sale D
     err.mockRestore();
   });
 
+  it("los comentarios de Facebook e Instagram: con «Comentarios» apagado ni se guardan; encendido, se guardan antes del 200 y se atienden", async () => {
+    const ahora = Math.floor(Date.now() / 1000);
+    const feed = (id: string) => ({ object: "page", entry: [{ id: "PAGINA", time: ahora, changes: [{ field: "feed", value: { from: { id: "2838000000000001", name: "Ana" }, comment_id: id, post_id: "PAGINA_1", parent_id: "PAGINA_1", item: "comment", verb: "add", message: "¿Precio?", created_time: ahora } }] }] });
+    const apagado = montarMeta();
+    expect((await apagado.pedir(await firmado("/webhooks/meta", feed("1_1")), envMeta)).status).toBe(200);
+    await apagado.despues();
+    expect(apagado.pedidas).toEqual([]);
+    const encendido = montarMeta({ ...encendidos, comentarios: { activo: true } });
+    expect((await encendido.pedir(await firmado("/webhooks/meta", feed("1_2")), envMeta)).status).toBe(200);
+    expect(encendido.conv.guardados.map((e) => [e.canal, e.id_externo, e.id_mensaje, e.comentario?.red])).toEqual([["messenger", "2838000000000001", "comentario:facebook:1_2", "facebook"]]);
+    await encendido.despues();
+    expect(encendido.conv.ingestados.map((e) => e.comentario?.id)).toEqual(["1_2"]);
+    // Sin Messenger encendido (la respuesta privada va por Messenger) tampoco.
+    const sinMessenger = montarMeta({ canales_activos: { messenger: false }, comentarios: { activo: true } });
+    await sinMessenger.pedir(await firmado("/webhooks/meta", feed("1_3")), envMeta);
+    await sinMessenger.despues();
+    expect(sinMessenger.pedidas).toEqual([]);
+  });
+
   it("Telegram y el puente QR siguen igual: no pasan por la bandeja", async () => {
     const m = montarMeta();
     const qr = await m.pedir(post("/webhooks/whatsapp-qr", { id_mensaje: "3EB0X", de: "50760261919@s.whatsapp.net", tipo: "texto", texto: "Hola", ts: 1_790_000_000 }, { "x-wa-token": WA_TOKEN }), envMeta);

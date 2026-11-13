@@ -43,10 +43,11 @@ export function letrasDe(texto: string): string {
  * si lo tiene que decidir la IA. Nunca devuelve «pregunta» ni «queja»: eso lo decide la IA.
  */
 export function clasePorReglas(texto: string): "otro" | null {
+  // Un «?» suelto (o «💲?») es la forma corta de preguntar el precio: lo decide la IA.
+  if (/[?¿]/.test(texto.replace(/@[\w.]+/g, ""))) return null;
   const letras = letrasDe(texto);
   if (!/[\p{L}\p{N}]/u.test(letras)) return "otro"; // solo emojis, signos o menciones
   const plano = sinTildes(letras);
-  if (/[?¿]/.test(texto)) return null;
   if (INTERES.test(plano) || QUEJA.test(plano)) return null;
   if (plano.replace(/[?¿]/g, "").trim().length <= CORTO) return "otro";
   return null;
@@ -126,8 +127,12 @@ export function nombreParaElPublico(red: "facebook" | "instagram", nombre: strin
 
 /** La respuesta pública de Ajustes con el nombre; sin nombre, «{nombre}» se quita con su coma o espacio («¡Hola, {nombre}!» → «¡Hola!»). */
 export function textoPublico(plantilla: string, nombre: string): string {
-  const t = nombre ? plantilla.replace(/\{nombre\}/g, nombre) : plantilla.replace(/[,\s]*\{nombre\}/g, "");
-  return sinNegritas(t.replace(/\s+([!?.,])/g, "$1").replace(/\s+/g, " ").trim()).slice(0, 300);
+  const t = nombre
+    ? plantilla.replace(/\{nombre\}/g, nombre)
+    : plantilla.replace(/,\s*\{nombre\}/g, "").replace(/\{nombre\}\s*,\s*/g, "").replace(/\s*\{nombre\}/g, "");
+  const limpio = sinNegritas(t.replace(/\s+([!?.,])/g, "$1").replace(/\s+/g, " ").trim()).slice(0, 300);
+  // Si la frase empezaba con el nombre, la primera letra queda en mayúscula.
+  return limpio.charAt(0).toLocaleUpperCase("es") + limpio.slice(1);
 }
 
 /**
