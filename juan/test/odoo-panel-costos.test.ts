@@ -53,12 +53,29 @@ describe("GET /odoo/costos", () => {
         { modelo: "claude-sonnet-5-5", usd: 10, turnos: 21, estimado: false },
       ],
       modelos_sin_precio: [],
+      cloudflare: [],
       por_dia: [
         { fecha: "2026-10-08", usd: 1.23 },
         { fecha: "2026-10-09", usd: 0.5 },
       ],
     });
     expect(m.pedidos).toEqual(["2026-10"]);
+  });
+
+  it("lo de Cloudflare (la foto de la tienda) llega en su propia lista, fuera del total, los turnos y por_modelo", async () => {
+    const m = montar({
+      gasto: {
+        mes: "2026-10",
+        usd: 9,
+        turnos: 100,
+        porModelo: [{ modelo: "muse-spark-1.3", usd: 9, turnos: 100, estimado: false }],
+        modelosSinPrecio: [],
+        cloudflare: [{ concepto: "cloudflare:lector-de-fotos", usd: 1.234567, lecturas: 20, estimado: true }],
+      },
+    });
+    const j = await (await m.pedir()).json<any>();
+    expect([j.gasto_usd, j.turnos, j.por_modelo.length]).toEqual([9, 100, 1]);
+    expect(j.cloudflare).toEqual([{ concepto: "cloudflare:lector-de-fotos", usd: 1.2346, lecturas: 20, estimado: true }]);
   });
 
   it("a las 11 p. m. del 31 en Panamá sigue siendo el mes que termina (no el UTC)", async () => {

@@ -6,17 +6,20 @@
 // aquí, y Odoo decide con eso qué productos publicados se parecen.
 //
 //   · La foto NO se guarda: ni en un Durable Object, ni en R2, ni en un registro (log). Se lee y se olvida. Lo único que se anota
-//     es el gasto (modelo y tokens, números) en el Durable Object `Global`, como cualquier otro uso de IA.
-//   · Cuenta para el tope de IA del mes (`presupuesto_ia_mensual_usd`): con el tope alcanzado no se lee (causa «tope») y la
-//     tienda dice «Ahora no podemos buscar por foto». Juan sigue contestando con el modelo económico, como siempre.
+//     es el gasto (tokens y dólares) en el Durable Object `Global`, como `cloudflare:lector-de-fotos`: lo cobra Cloudflare, así
+//     que va APARTE del gasto de Juan (no suma en su tope, en el saldo con Meta ni en los turnos; Costos de IA lo muestra en su
+//     propio renglón, «Cloudflare: lector de fotos»). El lector de imágenes de los chats no anota gasto (desde antes).
+//   · Techo propio: lo de la foto en el mes no pasa de `tope_mes_usd` (lo manda Odoo, de Sitio web › Busca con una foto; 5 USD
+//     de fábrica; causa «tope_foto»). Y no se lee ninguna foto con el gasto de Juan por encima del 80 % de su tope
+//     (`presupuesto_ia_mensual_usd`; causa «reserva»): nunca le quita IA a las conversaciones. Odoo dice «Ahora no podemos».
 //   · Contesta siempre antes de PLAZO_BUSCAR_FOTO_MS; Odoo espera más que eso (TIMEOUT_BUSCAR_FOTO en
 //     addons/dcasa_buscar_foto/models/buscar_foto.py; una prueba lo exige).
 //
-// Entrada:  { mime: "image/jpeg" | "image/png" | "image/webp", base64 }    (la foto ya achicada por el navegador)
+// Entrada:  { mime: "image/jpeg" | "image/png" | "image/webp", base64, tope_mes_usd? }    (la foto ya achicada, hasta 1,5 MB)
 // Salida:   { ok: true, lectura: { tipo, codigos, categoria, medida, parece_pago, parece_identidad } | null }
-//           { ok: false, causa: "tope" | "no_disponible" | "tardo", error }       (null = el lector no pudo leerla)
+//           { ok: false, causa: "tope_foto" | "reserva" | "no_disponible" | "tardo", error }   (null = no pudo leerla)
 
-import { diaDelNegocio, mesDelNegocio, type Config } from "./config";
+import { mesDelNegocio, type Config } from "./config";
 import type { Env } from "./env";
 import { costoDe, type Uso } from "./motor/precios";
 import { lectorDeImagenes, MODELO_VISION_POR_DEFECTO, type LecturaImagen } from "./motor/vision";
@@ -24,12 +27,19 @@ import { fallo, leerObjeto, respuesta } from "./odoo-panel-comun";
 import type { GastoApi } from "./odoo-panel-sugerir";
 import type { DepsRutas } from "./rutas";
 
-/** El mismo tope que el lector de imágenes (motor/vision.ts): una foto achicada por el navegador pesa cientos de KB. */
-export const MAX_BYTES_FOTO = 4 * 1024 * 1024;
+/** Una foto achicada por el navegador (1024 px, JPEG) pesa cientos de KB: 1,5 MB, como Odoo (MAX_BYTES_FOTO). */
+export const MAX_BYTES_FOTO = 1536 * 1024;
 /** El cuerpo entero (la foto en base64 pesa 4/3 más), para no leer de más ni un byte. */
 export const MAX_CUERPO = Math.ceil((MAX_BYTES_FOTO * 4) / 3) + 4096;
-/** Odoo espera TIMEOUT_BUSCAR_FOTO (30 s): el Worker contesta antes, con la lectura o con «tardo». */
-export const PLAZO_BUSCAR_FOTO_MS = 25_000;
+/** Odoo espera TIMEOUT_BUSCAR_FOTO (15 s): el Worker contesta antes, con la lectura o con «tardo». */
+export const PLAZO_BUSCAR_FOTO_MS = 12_000;
+/** Cómo se anota el gasto en `Global` (aparte del de Juan: motor/global.ts, `esDeCloudflare`). */
+export const CONCEPTO_DEL_GASTO = "cloudflare:lector-de-fotos";
+/** Techo de la foto en el mes si Odoo no manda el suyo (USD), y lo más que se acepta. */
+export const TOPE_MES_FOTO_USD = 5;
+export const MAX_TOPE_MES_FOTO_USD = 1000;
+/** Con el gasto de Juan por encima de esta parte de su tope, no se leen fotos (lo que queda es para las conversaciones). */
+export const RESERVA_PARA_JUAN = 0.8;
 /**
  * Si Workers AI no dice cuántos tokens usó, se anota una estimación ALTA (una foto de 1024 px son unos cientos o pocos miles de
  * tokens): mejor pasarse que quedarse corto con el tope del mes. Es una salvaguarda, no un precio.
@@ -38,11 +48,13 @@ export const USO_ESTIMADO: Uso = { entrada: 3000, cacheLectura: 0, cacheEscritur
 
 export const TIPOS_DE_FOTO = { "image/jpeg": "jpeg", "image/png": "png", "image/webp": "webp" } as const;
 export type MimeDeFoto = keyof typeof TIPOS_DE_FOTO;
-export type CausaBuscarFoto = "tope" | "no_disponible" | "tardo";
+export type CausaBuscarFoto = "tope_foto" | "reserva" | "no_disponible" | "tardo";
 
 export interface PeticionBuscarFoto {
   mime: MimeDeFoto;
   bytes: Uint8Array;
+  /** Lo más que la foto puede gastar en el mes (USD). */
+  topeMesUsd: number;
 }
 
 /** Los bytes dicen lo mismo que el tipo: JPEG (FF D8 FF), PNG (firma de 8 bytes) o WebP (RIFF….WEBP). */
@@ -71,7 +83,14 @@ export function validarPeticion(c: Record<string, unknown>): PeticionBuscarFoto 
   const bytes = new Uint8Array(binario.length);
   for (let i = 0; i < binario.length; i++) bytes[i] = binario.charCodeAt(i);
   if (!firmaCoincide(bytes, mime as MimeDeFoto)) return [400, "el archivo no es la imagen que dice ser"];
-  return { mime: mime as MimeDeFoto, bytes };
+  let topeMesUsd = TOPE_MES_FOTO_USD;
+  if (c.tope_mes_usd !== undefined && c.tope_mes_usd !== null) {
+    if (typeof c.tope_mes_usd !== "number" || !Number.isFinite(c.tope_mes_usd) || c.tope_mes_usd < 0 || c.tope_mes_usd > MAX_TOPE_MES_FOTO_USD) {
+      return [400, `tope_mes_usd va de 0 a ${MAX_TOPE_MES_FOTO_USD}`];
+    }
+    topeMesUsd = c.tope_mes_usd;
+  }
+  return { mime: mime as MimeDeFoto, bytes, topeMesUsd };
 }
 
 /** SOLO los seis campos del registro cerrado, copiados uno por uno (aunque el lector algún día devolviera más). */
@@ -106,7 +125,8 @@ function errorSinFoto(e: unknown): string {
 export interface DepsBuscarFoto {
   config(): Promise<Config>;
   ahora(): number;
-  gasto: GastoApi;
+  /** `gastoMes`: lo de Juan (sin Cloudflare); `gastoFotoMes`: lo de la foto en el mes (sin él, se cuenta como 0). */
+  gasto: GastoApi & { gastoFotoMes?(mes: string): Promise<number> };
   /** Para las pruebas: un plazo corto. */
   plazoMs?: number;
 }
@@ -118,9 +138,12 @@ export async function buscarFoto(p: PeticionBuscarFoto, env: Env, d: DepsBuscarF
   const cfg = await d.config();
   const ahora = d.ahora();
   const mes = mesDelNegocio(cfg.horario.zona, ahora);
+  if (p.topeMesUsd <= 0 || (await (d.gasto.gastoFotoMes?.(mes) ?? Promise.resolve(0))) >= p.topeMesUsd) {
+    return noPuede(429, "tope_foto", "La búsqueda por foto llegó a su tope del mes (Sitio web › Busca con una foto).");
+  }
   const tope = cfg.presupuesto_ia_mensual_usd;
-  if (tope > 0 && (await d.gasto.gastoMes(mes)) >= tope) {
-    return noPuede(429, "tope", "Se llegó al tope de IA del mes: la búsqueda por foto vuelve el mes que viene o al subir el tope.");
+  if (tope > 0 && (await d.gasto.gastoMes(mes)) >= tope * RESERVA_PARA_JUAN) {
+    return noPuede(429, "reserva", "El gasto de IA del mes de Juan pasó del 80 % de su tope: lo que queda es para las conversaciones.");
   }
 
   // El lector de Juan, con el binding envuelto solo para contar los tokens (la foto no se toca ni se guarda aquí).
@@ -156,9 +179,10 @@ export async function buscarFoto(p: PeticionBuscarFoto, env: Env, d: DepsBuscarF
       uso.entrada += USO_ESTIMADO.entrada;
       uso.salida += USO_ESTIMADO.salida;
     }
+    // El precio es el del modelo de visión; se anota con su concepto (aparte de Juan) y sin día (la gráfica es la de Meta).
     const costo = costoDe(modelo, uso, cfg.precios_ia);
     await d.gasto
-      .registrarGasto(mes, modelo, uso, costo.usd, costo.estimado, diaDelNegocio(cfg.horario.zona, ahora))
+      .registrarGasto(mes, CONCEPTO_DEL_GASTO, uso, costo.usd, costo.estimado)
       .catch((e) => console.warn("[juan] buscar-foto: no se pudo anotar el gasto:", errorSinFoto(e)));
   };
 
@@ -205,6 +229,7 @@ export async function manejarBuscarFoto(req: Request, env: Env, d: Pick<DepsRuta
         ahora: d.ahora,
         gasto: {
           gastoMes: d.gastoMes,
+          gastoFotoMes: async (mes) => (await global().gastoMes(mes)).cloudflare?.find((c) => c.concepto === CONCEPTO_DEL_GASTO)?.usd ?? 0,
           registrarGasto: async (mes, modelo, uso, usd, estimado, dia) => global().registrarGasto(mes, modelo, uso, usd, estimado, dia),
         },
       },
