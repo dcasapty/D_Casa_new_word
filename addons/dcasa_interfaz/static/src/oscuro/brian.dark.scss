@@ -1,7 +1,5 @@
 // MODO OSCURO — el panel de Brian (dcasa_brian).
 
-.o_brian_monograma,
-.o_brian_lanzador,
 .o_brian_burbuja_usuario,
 .o_brian_btn_primario,
 .o_brian_enviar {
@@ -9,11 +7,13 @@
     border-color: var(--dc-relleno);
     color: var(--dc-en-relleno);
 }
-.o_brian_lanzador:hover,
 .o_brian_btn_primario:hover,
 .o_brian_enviar:hover:not(:disabled) { background: var(--dc-relleno-2); }
 .o_brian_enviar:disabled { background: var(--dc-perla); color: var(--dc-tinta-2); }
-.o_brian_icono_ia .o_brian_chispa { fill: #FFFFFF; }
+// El robot de Brian va sobre una ficha clara también de noche: es una ilustración (blanca y azul) y en oscuro se pierde.
+.o_brian_monograma,
+.o_brian_lanzador { background: #E9EEFA; border-color: #9DB3EE; }
+.o_brian_lanzador:hover { background: #FFFFFF; }
 
 .o_brian_panel { box-shadow: -8px 0 24px rgba(0, 0, 0, .3); }
 .o_brian_burbuja_error { background: var(--dc-mal-fondo); border-color: var(--dc-mal-linea); color: var(--dc-mal); }

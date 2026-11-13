@@ -4,37 +4,37 @@
 
 $brian-ancho: 400px;
 
-// Dibujo de IA: chispa grande blanca y chispa chica amarilla (el amarillo solo sobre azul: nunca toca el blanco).
+// Brian es el robot con audífonos que eligió la dueña (2026-11-13): una imagen que se ve completa, sin recortes.
 .o_brian_icono_ia {
     display: block;
     width: 100%;
     height: 100%;
-    .o_brian_chispa { fill: var(--dc-blanco, #fff); }
-    .o_brian_chispa_chica { fill: var(--dc-amarillo, #FED00F); }
+    object-fit: contain;
+    pointer-events: none;
+    user-select: none;
 }
 
 .o_brian_monograma {
     flex: none;
     display: inline-grid;
     place-items: center;
-    width: 34px;
-    height: 34px;
-    padding: 6px;
-    border-radius: 10px;
-    background: var(--dc-azul-600, #1340B1);
+    width: 36px;
+    height: 36px;
+    padding: 2px;
+    border: 1px solid var(--dc-azul-100, #D6DFF5);
+    border-radius: 50%;
+    background: var(--dc-azul-50, #EEF2FB);
     user-select: none;
 }
 .o_brian_monograma_mini {
-    width: 26px;
-    height: 26px;
-    padding: 4px;
-    border-radius: 8px;
+    width: 28px;
+    height: 28px;
+    padding: 1px;
 }
 .o_brian_monograma_grande {
-    width: 56px;
-    height: 56px;
-    padding: 10px;
-    border-radius: 16px;
+    width: 72px;
+    height: 72px;
+    padding: 4px;
 }
 
 // --- Botón flotante: redondo, solo el dibujo (el nombre va en el aria-label y en el tooltip) -----------
@@ -45,16 +45,16 @@ $brian-ancho: 400px;
     z-index: 1040;
     display: inline-grid;
     place-items: center;
-    width: 52px;
+    width: 52px;   // el mismo tamaño de siempre: el hueco de abajo ($brian-hueco-*) cuenta con 52
     height: 52px;
-    padding: 12px;
-    border: 1px solid var(--dc-azul-700);
+    padding: 2px;
+    border: 2px solid var(--dc-azul-600);
     border-radius: 50%;
-    background: var(--dc-azul-600);
+    background: var(--dc-azul-50, #EEF2FB);
     box-shadow: var(--dc-sombra-2);
     transition: transform var(--dc-transicion), background-color var(--dc-transicion), opacity var(--dc-transicion);
 
-    &:hover { background: var(--dc-azul-700); transform: translateY(-1px); }
+    &:hover { background: var(--dc-azul-100, #D6DFF5); transform: translateY(-1px) scale(1.04); }
     &:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--dc-azul-300); }
 
     &.o_brian_oculto {
