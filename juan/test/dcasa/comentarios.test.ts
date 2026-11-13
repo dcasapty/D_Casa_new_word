@@ -264,6 +264,22 @@ describe("nunca dos veces el mismo comentario", () => {
   });
 });
 
+describe("guardado antes del 200 (bandeja de Meta)", () => {
+  it("si el Worker se cae después de guardarlo, el rescate del Durable Object lo atiende igual (una sola vez)", async () => {
+    const m = mundoComentarios();
+    m.guion([PREGUNTA, { texto: "¿Cuál te interesa?" }]);
+    const e = comentario(m, "¿Precio?");
+    expect(await m.motor.guardarRecibido(e)).toEqual({ nuevo: true, pendiente: true });
+    expect(await m.motor.guardarRecibido({ ...e })).toEqual({ nuevo: false, pendiente: true });
+    await m.pasar(3 * 60_000);
+    expect(m.canal.privadas).toHaveLength(1);
+    expect(m.canal.publicas).toHaveLength(1);
+    expect((await m.motor.guardarRecibido({ ...e })).nuevo).toBe(false);
+    expect((await comentar(m, { ...e })).accion).toBe("duplicado");
+    expect(m.canal.privadas).toHaveLength(1);
+  });
+});
+
 describe("cuando no se puede responder", () => {
   it("si Meta rechaza la privada, lo dice en Odoo con su motivo y no responde en público (no diría la verdad)", async () => {
     const m = mundoComentarios();
