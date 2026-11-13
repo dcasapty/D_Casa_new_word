@@ -25,7 +25,7 @@ Módulo: `addons/dcasa_seguridad`. Borde: `edge/src/bots.ts`.
 | API de Odoo por XML-RPC/JSON-RPC (`/jsonrpc`, `/xmlrpc`, `/json/2`) | Borde | Cerrada desde internet |
 | Cabeceras HTTPS (HSTS, nosniff, anti-iframe ajeno) | Borde | Activas en todas las respuestas |
 | Rutas de sondeo (`/wp-admin`, `/.env`, `*.php`…) y escáneres (`sqlmap`, `nikto`…) | Borde | 404 / 403 sin despertar a Odoo |
-| Límite de intentos por IP en login, clave, registro, formularios, /socios y carrito | Borde | Activo (contador en memoria; mejor con el binding de Cloudflare, §7) |
+| Límite de intentos por IP en login, clave, registro, formularios, /socios, carrito y «Busca con una foto» | Borde | Activo (contador en memoria; mejor con el binding de Cloudflare, §7) |
 | Cloudflare Turnstile (captcha invisible) | Odoo `website_cf_turnstile` | **Listo y apagado** hasta tener las claves (§6) |
 | **La puerta del equipo** (PIN al correo con Cloudflare Access antes de la clave) | Borde + `dcasa_seguridad` | **Staging en modo «1»**; producción en «0» hasta aclarar por qué `/master` daba «Not Found» (§8) |
 | robots.txt para rastreadores de IA | `dcasa_seguridad` | Política «equilibrada» (§6.3) |
@@ -178,7 +178,10 @@ desplegar (§8.6).
    agentes de IA que buscan para una persona ni las librerías genéricas (Brian, Telegram e
    integraciones las usan).
 3. **Límite por IP** (por minuto): 10 en login/2FA/clave/registro/`/socios`, 10 en formularios del
-   sitio, 120 en carrito y pago → 429 «Demasiados intentos seguidos» con `Retry-After: 60`.
+   sitio, 120 en carrito y pago → 429 «Demasiados intentos seguidos» con `Retry-After: 60`; 6 en
+   «Busca con una foto» (`POST /shop/foto`, cada una ocupa a Odoo y a la IA) → 303 de vuelta a
+   `/shop/foto?espera=1`, donde la tienda dice «Ahora no podemos buscar por foto» (los topes por
+   visitante, por conexión y por día los pone Odoo: [CATALOGO.md](CATALOGO.md#busca-con-una-foto)).
    Son generosos a propósito: en Panamá mucha gente comparte la IP del operador móvil.
    `/brian/*` no entra (MCP tiene su propio límite por usuario).
 

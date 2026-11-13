@@ -432,3 +432,75 @@ escondidas:
   la miga de pan, las tarjetas, el carrito y lo demás ya se leen en formato título.
 * **Brian:** `productos_repetidos`, `nombres_por_pasar_a_mayusculas`, `pasar_nombres_a_mayusculas` (pide permiso) y
   `unir_productos` (pide permiso). Pruebas: `dcasa_catalogo/tests/test_productos_limpios.py`.
+
+## Busca con una foto
+
+Pedido de la dueña (2026-11-13), al verlo en la web de un competidor: «lo de buscar por foto también». Módulo
+`dcasa_buscar_foto`; **nace encendido**. Se apaga y se ajusta en *Sitio web › Busca con una foto* (Gerencia y
+administradores; también en la Guía).
+
+**Para el cliente.** Un botón de cámara en la búsqueda del sitio (el modal de Odoo, «¿Viste un mueble que te gustó?»)
+y al lado de la caja de búsqueda de `/shop`. Abre el selector del teléfono (tomar la foto o elegir una de la galería;
+sirve una captura de Instagram). El navegador achica la foto (lado mayor de 1024 px, JPEG) y muestra «Buscando muebles
+parecidos…». La respuesta es la página `/shop/foto`, como el catálogo: «Esto se parece a tu foto», las tarjetas de la
+portada (foto grande, precio «+ ITBMS», «Agregar» o «Elegir» y el WhatsApp del mueble) y, abajo, la banda azul «¿No es
+lo que buscas?» con «Escríbenos por WhatsApp» (el mensaje ya escrito le pide mandar la foto: allí la lee Juan).
+«Recargar» no reenvía la foto (la dirección queda en `/shop/foto`, la página para empezar).
+
+**Por dentro** (`models/buscar_foto.py`):
+
+1. `POST /shop/foto` con CSRF (el token se pide fresco a `/dcasa/borde/csrf`: la página puede venir de la caché del
+   borde). La foto viaja en base64 en un campo de **texto** del formulario (Werkzeug lo tiene en memoria; un archivo
+   de más de 500 KB lo escribiría en un temporal). Se valida por sus **bytes**: JPEG, PNG o WebP, de 1 byte a 4 MB; la
+   petición entera, como mucho ~5,4 MB (`max_content_length` de la ruta: más grande, 413 sin leerla).
+2. **Topes**, antes de gastar IA (cambiables en la pantalla; 0 = cerrado): **10 por visitante en una hora**, **30 por
+   conexión en una hora** (más alto porque en Panamá muchos teléfonos salen por la misma dirección del operador) y
+   **200 en total por día** (hora de Panamá). Se cuentan en `dcasa.buscar.foto.uso`: la hora, el resultado y dos
+   huellas HMAC (de la sesión y de la conexión) que no se pueden revertir; las huellas se borran al día siguiente y la
+   fila a los 90 días. El borde, además, frena ráfagas: 6 por minuto por IP (cubeta `foto` de `edge/src/bots.ts`); al
+   pasarse vuelve a `/shop/foto?espera=1` con el aviso de la tienda, no con un texto suelto.
+3. **Lectura** en el Worker de Juan, `POST /odoo/buscar-foto` con `JUAN_URL` y `JUAN_WORKER_TOKEN` (como las pantallas
+   de Juan; Odoo espera 30 s y el Worker contesta antes de 25). El Worker usa **el mismo lector** de las conversaciones
+   (`juan/src/motor/vision.ts`, solo importado) y devuelve **solo el registro cerrado**: tipo, hasta 3 códigos con
+   patrón estricto, categoría y medida de una lista, ¿parece pago?, ¿parece identidad? Odoo lo vuelve a pasar por las
+   listas cerradas. Ningún texto libre de la imagen llega a la página: solo «Lo que vimos: Cama · Queen» (etiquetas
+   fijas) o «Lo encontramos por el código que se ve en tu foto».
+4. **Comprobantes y cédulas no se buscan**: tipo comprobante o identidad, o cualquier señal de pago o de identidad
+   (también si el modelo no la dice: lo prudente) → «Esa foto parece un documento; para buscar, sube la foto de un
+   mueble». No se muestra nada parecido ni lo que se vio.
+5. **Búsqueda, solo entre lo publicado** (`website._dcasa_dominio_publicado`): primero por el código leído (el código
+   público `DC-…` o la referencia exacta, con la misma regla que `buscar_productos` de Juan; la referencia del
+   proveedor nunca se muestra); si no hay código, por categoría y medida con las mismas palabras y la misma puntuación
+   que la búsqueda de Juan («cama queen»; si con la medida no hay nada, «cama»; sofá también busca «sala»; clóset,
+   «ropero» y «armario»). Hasta 12 productos. Sin nada: «No encontramos algo parecido en la tienda en línea».
+6. Si no se puede leer (sin Worker, lectura de imágenes apagada, tope de IA del mes, caído o lento) o se pasó un tope:
+   «Ahora no podemos buscar por foto; búscalo por nombre o escríbenos por WhatsApp», con la caja de búsqueda por
+   nombre a mano. Nunca un error de servidor.
+
+**La foto nunca se guarda**: ni en Odoo (ningún modelo, adjunto, sesión ni mensaje), ni en R2, ni en los registros
+(logs) de Odoo o del Worker, ni en el Worker (que solo anota el gasto: modelo y tokens). Las pruebas lo verifican
+buscando la foto (y una marca que trae adentro) en todas las columnas de la base, en la sesión y en el registro
+(`dcasa_buscar_foto/tests/test_buscar_foto.py`, `juan/test/odoo-panel-buscar-foto.test.ts`).
+
+**Costo.** Cada lectura cuenta en el **tope de IA del mes** de Juan y se ve en *Conversaciones › Costos de IA* como
+`@cf/meta/llama-4-scout-17b-16e-instruct`, con el precio publicado por Cloudflare (US$0,27 por millón de tokens de
+entrada y US$0,85 de salida, leído el 2026-11-13; integrado en `juan/src/motor/precios.ts` porque `precios_ia` de Odoo
+solo trae los dos modelos de la conversación). Si Workers AI no dice los tokens, se anota una estimación alta.
+
+**Privacidad.** `/privacidad` gana el párrafo «Busca con una foto» (sección de inteligencia artificial, ancla
+`#busca-con-una-foto`) y su fecha de actualización: texto propuesto, lo aprueba la dueña (y el abogado) antes de
+producción.
+
+**Lo que no hace (todavía).** No afina por color ni estilo: el lector no los devuelve. Se puede sumar como dos
+enumeraciones cerradas más en `vision.ts` (por ejemplo `color` ∈ blanco, negro, gris, beige, café, madera… y `estilo`)
+que `normalizarLectura` deja pasar o pone en `null`; Juan no cambia porque `conversacion.ts` solo lee códigos, categoría
+y medida, y aquí se sumaría la palabra del color a la búsqueda («cama queen gris»). Se dejó para después del cambio de
+`vision.ts` que está en curso (qué cuenta como comprobante), para no pisarlo. Tampoco manda `Search` al píxel de Meta
+(ver `docs/META_EVENTOS.md`).
+
+**Brian:** no lleva herramienta: es una función de la tienda para el cliente, su único ajuste es un interruptor con
+tres topes que Gerencia cambia en una pantalla, y cuántas búsquedas hubo (y su costo) ya se ve ahí y en Costos de IA.
+
+**Pruebas:** `dcasa_buscar_foto/tests/` (la ruta con el Worker simulado, los topes, el interruptor, la limpieza y las
+funciones puras), `juan/test/odoo-panel-buscar-foto.test.ts` (el punto de entrada) y `edge/test/buscar-foto.test.ts`
+(el freno de ráfagas y que nada de esto se guarde en la caché del borde).

@@ -13,10 +13,10 @@ Reglas que valen para todos (de [`CLAUDE.md`](../CLAUDE.md)):
 
 ## Cuáles se instalan
 
-`addons/` tiene **31 módulos** (2026-11-06). El contenedor instala (y actualiza en cada versión nueva) los **30** de la
+`addons/` tiene **32 módulos** (2026-11-13). El contenedor instala (y actualiza en cada versión nueva) los **31** de la
 lista `ODOO_MODULES` de [`docker/entrypoint.sh`](../docker/entrypoint.sh) (línea 176): **todos menos `dcasa_fe_pa`**, que
 no está en la lista a propósito y por eso **no se instala en producción**. `make init` (el [`Makefile`](../Makefile))
-instala una lista más corta (27): le faltan también `dcasa_seguridad`, `dcasa_sesiones` y `dcasa_adjuntos_r2`. `scripts/test.sh` sin argumentos prueba **todos** los
+instala una lista más corta (28): le faltan también `dcasa_seguridad`, `dcasa_sesiones` y `dcasa_adjuntos_r2`. `scripts/test.sh` sin argumentos prueba **todos** los
 de `addons/`, también `dcasa_fe_pa`.
 
 ## Resumen
@@ -50,6 +50,7 @@ pero sin efecto hasta que alguien lo enciende.
 | `dcasa_sofia` | Sofía, la asistente del CRM: revisa con un botón y cada mañana y propone; una persona aprueba | conversaciones, contactos | (2 en `dcasa_brian`) | No (las propuestas siempre las aprueba una persona) | [SOFIA.md](SOFIA.md) |
 | `dcasa_camila` | Camila, la asistente del mail marketing: arma la campaña de correo cada 15 días con lo que hay en tienda y el precio de la tienda en línea; una persona la aprueba y sale por Resend Broadcasts solo a quien dijo que sí (permiso en la ficha) | correo, marketing, conversaciones, sofia, brian, contactos, website_dcasa | 1 | **Sí**: sin `RESEND_CAMPANAS_API_KEY` no sale ninguna campaña; staging nunca envía; el cron solo arma borradores | [CAMILA.md](CAMILA.md) |
 | `dcasa_correo` | Correo a clientes por Resend (factura, abono, bienvenida) | base, invoice, socios, website_dcasa, conversaciones | 3 | **Sí**: sin `RESEND_API_KEY` y sin encenderlo en Ajustes no sale nada (en producción, encendido desde el 2026-10-27) | [CORREO.md](CORREO.md) |
+| `dcasa_buscar_foto` | **Busca con una foto** en la tienda web: la cámara en la búsqueda, el Worker de Juan lee la foto (solo un registro cerrado) y salen los productos publicados que se le parecen; la foto nunca se guarda | website_dcasa, conversaciones | — | No: nace **encendido** (la dueña dijo que sí); topes por visitante, por conexión y por día | [CATALOGO.md › Busca con una foto](CATALOGO.md#busca-con-una-foto) |
 | `dcasa_meta_catalogo` | El catálogo de la tienda por URL para los anuncios de Facebook e Instagram | base, catalogo, website_dcasa | (`estado_de_meta` en `dcasa_brian`) | **Sí**: la dirección no entrega nada hasta que Gerencia lo enciende | [META_CATALOGO.md](META_CATALOGO.md) |
 | `dcasa_meta_eventos` | Píxel de Meta con consentimiento y las ventas pagadas por la Conversions API | base, contactos, tienda_borde, website_dcasa | (`estado_de_meta` en `dcasa_brian`) | **Sí**: interruptor, sección de Meta en la política de privacidad, `META_CAPI_TOKEN` y el consentimiento de la persona | [META_EVENTOS.md](META_EVENTOS.md) |
 | `dcasa_fe_pa` | Factura electrónica de la DGI (preparación, PAC simulado) | base, invoice | (1 en `dcasa_brian`) | **Sí**, y además no se instala | [FACTURA_ELECTRONICA.md](FACTURA_ELECTRONICA.md) |
@@ -119,6 +120,8 @@ flowchart TD
   contactos --> metaev
   borde --> metaev
   base --> metaev
+  web --> foto[dcasa_buscar_foto]
+  conv --> foto
   correo --> camila[dcasa_camila]
   marketing --> camila
   sofia --> camila
@@ -482,6 +485,26 @@ además como módulo de todo el servidor (`server_wide_modules = base,web,dcasa_
   (cada hora).
 - **Apagado de fábrica:** **sí** para enviar: sin `RESEND_CAMPANAS_API_KEY` (secreto del panel de Cloudflare, Full
   access) no sale ninguna campaña, y fuera de producción tampoco. El permiso y los borradores funcionan desde el día uno.
+
+## `dcasa_buscar_foto` — Busca con una foto (2026-11-13)
+
+- **Para qué:** en la tienda web, un botón de cámara en la búsqueda del sitio (el modal de Odoo) y en la barra de
+  `/shop`. El navegador achica la foto (lado mayor de 1024 px, JPEG) y la manda a `POST /shop/foto` (con CSRF); Odoo la
+  valida por sus bytes (JPEG, PNG o WebP, hasta 4 MB), aplica los topes y le pide la lectura al Worker de Juan
+  (`POST /odoo/buscar-foto`), que devuelve solo el registro cerrado del lector de imágenes. Con eso busca **solo entre lo
+  publicado**: por código leído (el `DC-…` o la referencia exacta) o por categoría y medida. Un comprobante o una cédula
+  no se buscan. La foto nunca se guarda (ni en la base, ni en R2, ni en registros, ni en el Worker).
+- **Depende de (Odoo):** `website_sale` (por `website_dcasa`).
+- **Modelos:** `dcasa.buscar.foto` (la lógica, abstracto), `dcasa.buscar.foto.uso` (una fila por búsqueda: hora,
+  resultado y dos huellas HMAC que se borran al día siguiente; la fila, a los 90 días) y `dcasa.buscar.foto.ajustes`
+  (la pantalla). El interruptor y los topes viven en `ir.config_parameter` (`dcasa_buscar_foto.*`).
+- **Pantallas y menús:** *Sitio web › Busca con una foto* (Gerencia y administradores): encender o apagar, los topes y
+  cuántas búsquedas hubo. Al cambiar el interruptor avisa al borde para rehacer las páginas guardadas.
+- **Rutas:** `/shop/foto` (GET: la página para empezar; `?espera=1`: el aviso cuando el borde frenó una ráfaga; POST:
+  los resultados). La política de privacidad (`/privacidad`) gana el párrafo «Busca con una foto».
+- **Crons:** borrar las huellas de más de un día y las búsquedas de más de 90 (diario).
+- **Apagado de fábrica:** **no**: nace encendido. Sin `JUAN_URL`/`JUAN_WORKER_TOKEN`, o con la lectura de imágenes
+  apagada en el Worker, la tienda dice «Ahora no podemos buscar por foto» ([CATALOGO.md](CATALOGO.md#busca-con-una-foto)).
 
 ## `dcasa_meta_catalogo` — Catálogo para Meta
 
