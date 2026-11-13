@@ -495,6 +495,10 @@ local con datos de prueba, 1366 y 390 px) para su visto bueno antes de producci�
   hereda con `position="inside"` y tiene a mano `search_type` («products» en la cabecera y en `/shop`), `action` y
   `search`.
 
+**Contrato visual:** la lupa cambia la cabecera del celular a propósito; las cinco referencias de 390 px
+(`website_dcasa/tests/referencia/cabecera-*-390.webp`) se regeneraron con `scripts/actualizar_referencias_visuales.sh`.
+Las de 1440 px y las del hero no cambiaron de diseño y quedan las de antes. El contrato de estilos no cambió.
+
 Pruebas: `website_dcasa/tests/test_buscador.py` (reglas, Google, mapa del sitio, logo, /catalogo, búsqueda, tilde, sin
 resultados, carrito, foto, sitio para botones), `test_buscador_movil.py` (en Chrome como teléfono a 360, 390 y 430 px:
 la lupa junto al carrito sin romper la cabecera y los gestos del visor), `dcasa_catalogo/tests/test_disponibilidad_ficha.py`
