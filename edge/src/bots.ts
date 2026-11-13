@@ -8,7 +8,8 @@
  *    de SEO y de compartir enlaces. Tampoco las librerías HTTP genéricas (python, curl, node):
  *    las usan Brian por MCP, Telegram y las integraciones.
  * 3. Límite de intentos por IP en los POST sensibles (login, clave, registro, formularios,
- *    carrito): 429 con Retry-After. Usa el binding de Rate Limiting de Workers si existe
+ *    carrito, «Busca con una foto»): 429 con Retry-After (la foto: de vuelta a /shop/foto con el
+ *    aviso de la tienda, sin errores feos). Usa el binding de Rate Limiting de Workers si existe
  *    (wrangler.jsonc, hoy comentado) y si no, un contador en memoria del isolate (aproximado:
  *    cada ubicación de Cloudflare y cada isolate cuentan por su lado; frena ráfagas, no es exacto).
  */
@@ -84,7 +85,7 @@ export function esEscaner(userAgent: string | null): boolean {
 
 // ------------------------------------------------------------------ límite de intentos
 
-export type Cubeta = "acceso" | "formulario" | "carrito";
+export type Cubeta = "acceso" | "formulario" | "carrito" | "foto";
 
 /**
  * Intentos por minuto y por IP. Generosos: en Panamá mucha gente sale a internet por la
@@ -94,6 +95,9 @@ export const LIMITES: Record<Cubeta, number> = {
   acceso: 10, // login, 2FA, cambio de clave, registro, entrar a /socios
   formulario: 10, // contacto y formularios del sitio
   carrito: 120, // agregar, cambiar cantidades, dirección y pago
+  // «Busca con una foto» (addons/dcasa_buscar_foto): cada una ocupa a Odoo y a la IA hasta 30 s. Freno de ráfagas;
+  // los topes de verdad (por visitante y por hora, y por día) los pone Odoo.
+  foto: 6,
 };
 
 const RUTAS_ACCESO = [
@@ -108,6 +112,10 @@ const RUTAS_ACCESO = [
 ];
 const RUTAS_FORMULARIO = ["/website/form/", "/website/mass_mailing/"];
 const RUTAS_CARRITO = ["/shop/cart/", "/shop/address", "/shop/checkout", "/shop/payment", "/shop/confirm_order"];
+/** Adonde llega la foto (POST). Al pasarse, de vuelta a la página con el aviso «Ahora no podemos buscar por foto». */
+export const RUTA_FOTO = "/shop/foto";
+const RUTAS_FOTO = [RUTA_FOTO];
+export const FOTO_ESPERA = `${RUTA_FOTO}?espera=1`;
 
 /** ¿Qué límite aplica? Solo a métodos que escriben (POST, PUT…); las lecturas nunca. */
 export function cubetaDe(method: string, pathname: string): Cubeta | null {
@@ -118,6 +126,7 @@ export function cubetaDe(method: string, pathname: string): Cubeta | null {
   if (empieza(RUTAS_ACCESO)) return "acceso";
   if (empieza(RUTAS_FORMULARIO)) return "formulario";
   if (empieza(RUTAS_CARRITO)) return "carrito";
+  if (empieza(RUTAS_FOTO)) return "foto";
   return null;
 }
 
@@ -157,11 +166,19 @@ const enMemoria: Record<Cubeta, LimitadorMemoria> = {
   acceso: new LimitadorMemoria(LIMITES.acceso),
   formulario: new LimitadorMemoria(LIMITES.formulario),
   carrito: new LimitadorMemoria(LIMITES.carrito),
+  foto: new LimitadorMemoria(LIMITES.foto),
 };
 
 export const REINTENTO_429_S = 60;
 
-function demasiados(): Response {
+function demasiados(cubeta: Cubeta): Response {
+  if (cubeta === "foto") {
+    // Una página de la tienda, no un texto suelto: Odoo dibuja el aviso (y la búsqueda por nombre) en /shop/foto.
+    return new Response(null, {
+      status: 303,
+      headers: { Location: FOTO_ESPERA, "Cache-Control": "no-store", "Retry-After": String(REINTENTO_429_S) },
+    });
+  }
   return new Response("Demasiados intentos seguidos. Espera un minuto y vuelve a intentar.\n", {
     status: 429,
     headers: {
@@ -200,5 +217,5 @@ export async function filtrarAutomatizados(
     return null;
   }
   console.warn(JSON.stringify({ evento: "limite_intentos", cubeta, ruta: url.pathname }));
-  return demasiados();
+  return demasiados(cubeta);
 }
