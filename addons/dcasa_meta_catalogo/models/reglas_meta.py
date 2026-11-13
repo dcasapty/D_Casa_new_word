@@ -10,6 +10,14 @@ from decimal import ROUND_HALF_UP, Decimal
 
 from lxml import etree, html
 
+# «Pocas» = 5 unidades o menos: la regla de Juan, de la tienda y del Escáner vive en dcasa_base (aquí se reexporta).
+from odoo.addons.dcasa_base.disponibilidad import (  # noqa: F401
+    AGOTADO,
+    DISPONIBLE,
+    POCAS,
+    UMBRAL_POCAS,
+    etiqueta_existencias,
+)
 from odoo.addons.dcasa_base.nombres import nombre_para_cliente
 
 LARGO_ETIQUETA = 100      # Meta: custom_label_0..4 hasta 100 caracteres
@@ -20,11 +28,6 @@ LARGO_DESCRIPCION = 5000  # diseño: description hasta 5,000 caracteres
 # Productos (dcasa_catalogo/views/backend_views.xml, sobre el precio sin ITBMS): una prueba compara los dos.
 CORTES_PRECIO = ((100, 'hasta_100'), (300, '100_a_300'), (600, '300_a_600'))
 MAS_DE_600 = 'mas_de_600'
-
-# «Pocas» = 5 unidades o menos: el mismo umbral de Juan y del Escáner (dcasa_barras/models/barras.py,
-# decisión 4 de PRIORIDADES del 2026-10-16).
-UMBRAL_POCAS = 5.0
-DISPONIBLE, POCAS, AGOTADO = 'disponible', 'pocas', 'agotado'
 
 MODOS_DISPONIBILIDAD = ('web', 'existencias')
 EN_EXISTENCIA, SIN_EXISTENCIA = 'in stock', 'out of stock'  # Meta: con espacio (Google usa in_stock)
@@ -57,18 +60,12 @@ def banda_precio(monto):
 
 
 def nivel_existencias(cantidad):
-    """``disponible`` (más de 5), ``pocas`` (1 a 5) o ``agotado`` (0 o menos).
+    """``disponible`` (más de 5), ``pocas`` (1 a 5) o ``agotado`` (0 o menos): la regla de dcasa_base.
 
     ``cantidad`` None = el producto no controla inventario (un combo, un servicio): no se puede agotar, y como en
     el Escáner y en Juan se dice ``disponible``.
     """
-    if cantidad is None:
-        return DISPONIBLE
-    if cantidad <= 0:
-        return AGOTADO
-    if cantidad <= UMBRAL_POCAS:
-        return POCAS
-    return DISPONIBLE
+    return etiqueta_existencias(cantidad, controla_inventario=cantidad is not None)
 
 
 def disponibilidad(modo, cantidad):

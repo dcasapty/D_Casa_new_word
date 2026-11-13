@@ -19,6 +19,9 @@ las ventas y la tienda web.
 * Pedidos nuevos del proveedor (LTSC-07) por el mismo camino: precios terminados en .99,
   combo con el nombre del colchón, colores de un mismo código como variantes y código que
   ya existía como producto aparte (-LTSC07). Ver docs/CATALOGO.md.
+* Disponibilidad en la ficha de la tienda («Disponible», «Quedan pocas» o «Agotado», nunca el número): la regla de
+  dcasa_base/disponibilidad.py con las unidades libres de la medida elegida, la misma que dice Juan
+  (``product.template._dcasa_disponibilidad``). Comprar o no comprar no cambia.
 * Black Weekend: marca los 12 productos elegidos por la dueña (catalogo.BLACK_WEEKEND, por código;
   908K con su variante negra destacada). La ventana de la campaña vive en website_dcasa.
 * Existencias de prueba solo en staging (dcasa_catalogo.stock_prueba; producción siempre 0).
@@ -59,6 +62,8 @@ las ventas y la tienda web.
     'assets': {
         'web.assets_frontend': [
             'dcasa_catalogo/static/src/scss/catalogo.scss',
+            'dcasa_catalogo/static/src/js/disponibilidad.js',
+            'dcasa_catalogo/static/src/xml/disponibilidad.xml',
         ],
         'web.assets_backend': [
             'dcasa_catalogo/static/src/combo/armar_combo.js',

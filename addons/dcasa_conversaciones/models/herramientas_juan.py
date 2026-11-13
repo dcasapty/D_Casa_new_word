@@ -200,13 +200,8 @@ class BrianHerramientasJuan(models.AbstractModel):
 
     @api.model
     def _j_existencias(self, plantilla, variante=None):
-        """Etiqueta de existencias (nunca el número)."""
-        plantilla = plantilla.sudo()
-        if not plantilla.is_storable:
-            return P.etiqueta_existencias(0, controla_inventario=False)
-        variantes = variante.sudo() if variante else plantilla.product_variant_ids
-        libres = sum(max(v.free_qty, 0.0) for v in variantes)
-        return P.etiqueta_existencias(libres, plantilla.available_threshold)
+        """Etiqueta de existencias (nunca el número): la misma que la ficha de la tienda (dcasa_catalogo)."""
+        return plantilla._dcasa_disponibilidad(variante)
 
     @api.model
     def _j_mas_itbms(self, plantilla):

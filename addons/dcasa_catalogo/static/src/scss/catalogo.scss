@@ -18,3 +18,45 @@
     }
     dd { margin: 0; }
 }
+
+// Ficha: «Disponible», «Quedan pocas» o «Agotado» (models/product.py). Plano, con los colores de la marca: el
+// amarillo solo va sobre navy (regla del ADN: el amarillo nunca toca el blanco).
+.o_dcasa_disponibilidad {
+    display: flex;
+    width: fit-content;
+    align-items: center;
+    gap: .5rem;
+    margin: .75rem 0 0;
+    padding: .3rem .85rem;
+    border-radius: 999px;
+    font-family: 'Oswald', sans-serif;
+    font-weight: 500;
+    font-size: .85rem;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    line-height: 1.4;
+    color: #1340B1;
+    background: rgba(19, 64, 177, .08);
+
+    .o_dcasa_disponibilidad_punto {
+        flex: none;
+        width: .55rem;
+        height: .55rem;
+        border-radius: 50%;
+        background: currentColor;
+    }
+
+    &[data-estado="pocas"] {
+        color: #FFFFFF;
+        background: #0E2A6B;
+
+        .o_dcasa_disponibilidad_punto {
+            background: #FED00F;
+        }
+    }
+
+    &[data-estado="agotado"] {
+        color: #4A5163;
+        background: #EAE5DA;
+    }
+}
