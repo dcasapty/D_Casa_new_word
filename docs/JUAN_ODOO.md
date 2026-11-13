@@ -634,6 +634,28 @@ se recalcula. Nada de esto manda datos de clientes: viaja la pregunta del client
 **Lecciones aprendidas** (*Ajustes de Juan*, campo «Lecciones aprendidas»). Una frase por línea (hasta 20, de 300 letras): normas cortas
 como «si preguntan por Yappy, di que una vendedora lo confirma». El asistente las recibe junto con su configuración.
 
+## Comentarios de Instagram y Facebook
+
+Juan puede contestar los comentarios de las publicaciones (decisiones de la dueña, 2026-11-12: «Solo los que preguntan»,
+«Corto y lo demás por privado», «Apagado hasta que lo pruebes»). Viene **apagado**; se enciende en *Ajustes de Juan ›
+Comentarios de Instagram y Facebook › Responder comentarios* (Gerencia y administradores).
+
+* **A quién contesta:** solo a quien pregunta algo (precio, medidas, colores, si hay, envío, ganas de comprar). No a
+  etiquetas de amigos, emojis, saludos ni elogios.
+* **Cómo:** primero le escribe **por privado** la respuesta completa (como un mensaje normal: mismas herramientas, mismas
+  reglas); solo si eso salió, pone debajo del comentario la frase pública de Ajustes, **igual para todos y sin el nombre
+  de nadie**.
+* **Quejas:** no las contesta. Quedan en la conversación de esa persona y avisan a Gerencia por Telegram (una vez al día
+  por persona).
+* **Si ya lo atiende una persona del equipo**, Juan no se mete: el comentario queda anotado en la conversación con
+  «contéstale tú».
+* **Dónde se ve:** cada comentario atendido queda en la conversación de esa persona, con «Ver la publicación». Brian
+  (`resumen_de_conversaciones`) dice cuántos respondió y cuántas quejas hubo.
+* **Topes** (en Ajustes): respuestas públicas por hora (30) y, por persona en 24 h, 1 pública y 3 privadas. Lo de más
+  queda anotado sin responder.
+* **Ojo:** igual que Messenger, Meta solo manda los comentarios de cuentas con papel en la app hasta que la app tenga la
+  aprobación (acceso avanzado). Ver [JUAN_CANALES.md](JUAN_CANALES.md) §3c.
+
 ## Etiquetas y respuestas rápidas
 
 **Etiquetas** (*Configuración › Etiquetas*). Las creas tú con el color que quieras («Pidió precio», «Comprobante
@@ -671,6 +693,7 @@ Las de ejemplo no llevan cifras ni políticas.
 | Guardar la foto de perfil del cliente | **Encendido** (decisión de la dueña, 2026-10-09). Se apaga en *Privacidad de los clientes* |
 | Días que queda abierta una cotización del chatbot o de la web | 3 (0 = nunca; máximo 60). Ver «Origen y cotizaciones que vencen solas» |
 | Reparto de conversaciones | Nadie (apagado). Días que un cliente sigue con su vendedora: 14 · Recibe solo quien usó el sistema hace poco: 30 min · Pasar a otra si no contesta: 15 min · Máximo de clientes esperándole a la vez: 3. Ver «Trabajo en equipo y reparto» |
+| Comentarios de Instagram y Facebook | **Apagado** (decisión de la dueña, 2026-11-12: «Apagado hasta que lo pruebes»). Al encenderlo: Facebook e Instagram marcados · frase pública «¡Hola! Te escribimos por mensaje directo con los detalles.» · 30 públicas por hora · por persona en 24 h: 1 pública y 3 privadas. Ver «Comentarios de Instagram y Facebook» |
 | Avisar si un cliente espera | 10 minutos |
 | El CRM se ajusta solo | Encendido · Días sin respuesta para archivarla: 30 |
 | Sofía | Revisar cada mañana y resumen por Telegram encendidos ([SOFIA.md](SOFIA.md)) |
