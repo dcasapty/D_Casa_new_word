@@ -498,7 +498,7 @@ además como módulo de todo el servidor (`server_wide_modules = base,web,dcasa_
   no se buscan. La foto nunca se guarda (ni en la base, ni en R2, ni en registros, ni en el Worker).
 - **Depende de (Odoo):** `website_sale` (por `website_dcasa`).
 - **Modelos:** `dcasa.buscar.foto` (la lógica, abstracto), `dcasa.buscar.foto.uso` (una fila por búsqueda: hora,
-  resultado y dos huellas, de la sesión y de la red de la conexión, /24 o /64, que se borran al día siguiente; la fila, a
+  resultado y dos huellas, de la sesión y de la conexión (la IPv4 entera o la /64 de la IPv6), que se borran al día siguiente; la fila, a
   los 90 días), `dcasa.buscar.foto.sal` (la sal al azar de cada día para esas huellas; vive dos días) y
   `dcasa.buscar.foto.ajustes` (la pantalla). El interruptor, los topes y el techo del gasto de IA de la foto en el mes
   (5 USD de fábrica) viven en `ir.config_parameter` (`dcasa_buscar_foto.*`).

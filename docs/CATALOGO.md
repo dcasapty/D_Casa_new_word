@@ -467,11 +467,13 @@ queda en `/shop/foto`, la página para empezar).
    dejan pasar uno solo, y lo que reviente después (en el Worker o al buscar) igual queda contado
    (`scripts/revision_rvf_carrera_foto.py` lo comprueba con transacciones de verdad: `odoo-bin shell -d <base> <
    scripts/revision_rvf_carrera_foto.py`, nunca en producción). La fila (`dcasa.buscar.foto.uso`) guarda la hora, el
-   resultado y, solo hasta el día siguiente, dos **huellas**: de la sesión y de la **red** de la conexión (/24 en IPv4,
-   /64 en IPv6: lo que recibe un cliente), hechas con una **sal al azar del día** (`dcasa.buscar.foto.sal`). Es una
-   huella que no dice quién eres y se borra al día siguiente; la sal también (el cron diario borra las de antes de
-   ayer); la fila entera, a los 90 días. Ojo: por la /24, el tope por conexión lo comparten hasta 256 direcciones
-   públicas (en Panamá muchos teléfonos salen por la misma red del operador: por eso es más alto que el del visitante).
+   resultado y, solo hasta el día siguiente, dos **huellas**: de la sesión y de la **conexión** (la IPv4 entera, o la
+   red /64 de una IPv6, que es lo que recibe un cliente: lo mismo que cuenta el borde), hechas con una **sal al azar del
+   día** (`dcasa.buscar.foto.sal`). Es una huella que no dice quién eres y se borra al día siguiente; la sal también (el
+   cron diario borra las de antes de ayer) y sin ella ya no se puede volver a calcular; la fila entera, a los 90 días.
+   No se cuenta por la /24: en Panamá muchos clientes de un mismo operador móvil la comparten (y el CGNAT), y chocarían
+   entre ellos. Aun así, varios teléfonos pueden salir por la misma IPv4 del operador: por eso el tope por conexión es
+   más alto que el del visitante.
    El borde, además, frena ráfagas: 6 por minuto por conexión (la IPv4, o la /64 de la IPv6; cubeta `foto` de
    `edge/src/bots.ts`); al pasarse vuelve a `/shop/foto?espera=1` con el aviso de la tienda, no con un texto suelto.
 4. **Lectura** en el Worker de Juan, `POST /odoo/buscar-foto` con `JUAN_URL` y `JUAN_WORKER_TOKEN` (como las pantallas

@@ -59,12 +59,12 @@ class TestLectura(BaseCase):
 
     def test_la_huella_lleva_la_sal_del_dia(self):
         self.assertFalse(B.huella('sal', 'c', None))
-        self.assertFalse(B.huella(None, 'c', '10.0.0.0/24'))
-        una = B.huella('sal-1', 'c', '10.0.0.0/24')
+        self.assertFalse(B.huella(None, 'c', '10.0.0.1'))
+        una = B.huella('sal-1', 'c', '10.0.0.1')
         self.assertEqual(len(una), 32)
-        self.assertEqual(una, B.huella('sal-1', 'c', '10.0.0.0/24'))
-        self.assertNotEqual(una, B.huella('sal-2', 'c', '10.0.0.0/24'), 'Otro día, otra huella')
-        self.assertNotEqual(una, B.huella('sal-1', 'v', '10.0.0.0/24'))
+        self.assertEqual(una, B.huella('sal-1', 'c', '10.0.0.1'))
+        self.assertNotEqual(una, B.huella('sal-2', 'c', '10.0.0.1'), 'Otro día, otra huella')
+        self.assertNotEqual(una, B.huella('sal-1', 'v', '10.0.0.1'))
 
     def test_que_cuenta_como_documento(self):
         base = B.normalizar_lectura({'tipo': 'producto', 'categoria': 'cama', 'parece_pago': False,

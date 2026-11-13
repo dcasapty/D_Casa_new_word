@@ -1,9 +1,9 @@
 """Cada búsqueda por foto que pasó los topes: para los topes y para saber cuántas hubo. Nunca la foto.
 
-Una fila = la hora, el resultado (de una lista cerrada) y dos huellas (de la sesión y de la red de la conexión, /24 en
-IPv4 y /64 en IPv6) hechas con la sal al azar del día (``dcasa.buscar.foto.sal``). Sirven para contar «cuántas en la
-última hora»; son huellas que no dicen quién eres y se borran al día siguiente, igual que la sal. La fila entera se
-borra a los 90 días (``_cron_limpiar``). Solo el servidor escribe aquí.
+Una fila = la hora, el resultado (de una lista cerrada) y dos huellas (de la sesión y de la conexión: la IPv4 entera o
+la red /64 de la IPv6, como el borde) hechas con la sal al azar del día (``dcasa.buscar.foto.sal``). Sirven para
+contar «cuántas en la última hora»; son huellas que no dicen quién eres y se borran al día siguiente, igual que la
+sal. La fila entera se borra a los 90 días (``_cron_limpiar``). Solo el servidor escribe aquí.
 """
 from datetime import timedelta
 
@@ -29,7 +29,7 @@ class DcasaBuscarFotoUso(models.Model):
     fecha = fields.Datetime('Cuándo', required=True, default=fields.Datetime.now, index=True, readonly=True)
     resultado = fields.Selection(RESULTADOS, 'Resultado', required=True, readonly=True)
     huella_visitante = fields.Char('Huella de la sesión', index=True, readonly=True)
-    huella_conexion = fields.Char('Huella de la red de la conexión', index=True, readonly=True)
+    huella_conexion = fields.Char('Huella de la conexión', index=True, readonly=True)
 
     @api.model
     def _cron_limpiar(self):

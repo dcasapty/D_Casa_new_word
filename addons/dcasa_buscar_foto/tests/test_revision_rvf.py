@@ -52,6 +52,17 @@ class TestRevisionRvf(TransactionCase):
         self.assertEqual(estados, ['otra', 'otra', 'no_ahora', 'otra'],
                          'Una IPv6 cuenta por su red /64 (como dcasa_envios/controllers/choferes.py, llave_ip)')
 
+    def test_una_ipv4_cuenta_entera_no_por_su_24(self):
+        """En Panamá muchos clientes de un mismo operador móvil comparten una /24 (y el CGNAT): contar por la /24 los
+        haría chocar entre ellos. Cada IPv4 es su propia conexión; la misma IPv4 sí se corta."""
+        with patch.object(type(self.Foto), '_dcasa_leer', lambda self_, datos, mime: None):
+            vecinos = [self.Foto._dcasa_buscar(FOTO, self.website, sesion=f'vecino-{n}', conexion=f'200.46.7.{n}')[
+                'estado'] for n in range(1, 6)]
+            misma = [self.Foto._dcasa_buscar(FOTO, self.website, sesion=f'misma-{n}', conexion='200.46.8.8')[
+                'estado'] for n in range(3)]
+        self.assertEqual(vecinos, ['otra'] * 5)
+        self.assertEqual(misma, ['otra', 'otra', 'no_ahora'])
+
     # ------------------------------------------------------------------
     # 2. «Nunca se confía en lo que llega»: una lectura con tipos raros reventaba (y el fallo NO contaba para el tope)
     # ------------------------------------------------------------------
@@ -108,28 +119,25 @@ class TestRevisionRvf(TransactionCase):
     # ------------------------------------------------------------------
 
     def test_la_huella_de_la_conexion_no_se_revierte_con_el_secreto_de_la_base(self):
-        """Antes: HMAC con database.secret (en la misma base y en cada respaldo) de la IP entera; probando direcciones
-        salía la IP. Ahora: la red (/24 en IPv4) con una sal al azar del día que el cron borra a los dos días. Con el
-        secreto de la base no sale nada; con la sal del día, a lo sumo la /24 (256 direcciones, la red del operador),
-        nunca la IP; y sin la sal (al día siguiente) ya no se puede volver a calcular."""
+        """Antes: HMAC con database.secret (en la misma base y en cada respaldo, para siempre); probando direcciones
+        salía la IP. Ahora: la IPv4 entera (la /24 juntaba a los clientes de un mismo operador) con una sal al azar del
+        día. Con el secreto de la base no sale nada. Lo que cuida la privacidad es la sal: mientras vive (hoy y ayer,
+        para los topes por hora) se podría volver a calcular; el cron la borra y desde ahí ya no se puede."""
         with patch.object(type(self.Foto), '_dcasa_leer', lambda self_, datos, mime: None):
             self.Foto._dcasa_buscar(FOTO, self.website, sesion='s', conexion='10.20.30.40')
         huella = self.env['dcasa.buscar.foto.uso'].sudo().search([], limit=1).huella_conexion
         self.assertTrue(huella)
         secreto = self.env['ir.config_parameter'].sudo().get_param('database.secret').encode()
         sal_hoy, _ayer = self.Foto._dcasa_sales()
-        con_el_secreto = con_la_sal = None
+        con_el_secreto = None
         for a in range(256):
             for b in range(256):
                 ip = f'10.20.{a}.{b}'
                 if hmac.new(secreto, f'c:{ip}'.encode(), hashlib.sha256).hexdigest()[:32] == huella:
                     con_el_secreto = ip
-                if B.huella(sal_hoy, 'c', ip) == huella:
-                    con_la_sal = ip
         self.assertIsNone(con_el_secreto, f'La huella se revirtió con database.secret: era {con_el_secreto}')
-        self.assertIsNone(con_la_sal, 'Con la sal del día tampoco sale la IP')
-        self.assertEqual(B.huella(sal_hoy, 'c', '10.20.30.0/24'), huella, 'Lo más que dice es la red /24')
-        # Pasado mañana la sal ya no está.
+        self.assertEqual(B.huella(sal_hoy, 'c', '10.20.30.40'), huella, 'La IPv4 entera, con la sal del día')
+        # Pasado mañana la sal ya no está: la huella ya no se puede volver a calcular.
         pasado = fields.Datetime.now() + timedelta(days=2)
         with patch.object(fields.Datetime, 'now', lambda *a, **k: pasado):
             self.env['dcasa.buscar.foto.uso']._cron_limpiar()

@@ -11,9 +11,9 @@ El recorrido de una búsqueda (``dcasa.buscar.foto._dcasa_buscar``):
    hora, y en total en el día, hora de Panamá) y, si hay cupo, se anota la fila. Cinco pedidos a la vez con tope 1
    dejan pasar uno solo, y lo que reviente después (en el Worker o al buscar) igual quedó contado
    (``scripts/revision_rvf_carrera_foto.py`` lo comprueba con transacciones de verdad). La fila no guarda la foto ni a
-   la persona: la hora, el resultado y, solo hasta el día siguiente, dos huellas (de la sesión y de la red de la
-   conexión: /24 en IPv4, /64 en IPv6) con una sal al azar del día que el cron borra. Son huellas que no dicen quién
-   eres y se borran al día siguiente.
+   la persona: la hora, el resultado y, solo hasta el día siguiente, dos huellas (de la sesión y de la conexión: la
+   IPv4 entera o la red /64 de la IPv6, como el borde) con una sal al azar del día que el cron borra. Son huellas que no
+   dicen quién eres y se borran al día siguiente.
 4. **Lectura** en el Worker de Juan (``POST /odoo/buscar-foto``, con ``JUAN_URL`` y ``JUAN_WORKER_TOKEN`` como el resto
    de las pantallas de Juan; plazo de 15 s). El Worker usa el mismo lector de imágenes de las conversaciones, aplica el
    tope mensual de la foto (``tope_mes_usd``, de Sitio web › Busca con una foto) y no lee nada con el gasto de Juan por
@@ -42,7 +42,7 @@ from datetime import datetime, timedelta
 import pytz
 
 from odoo import SUPERUSER_ID, api, fields, models
-from odoo.addons.dcasa_base.red import red_truncada
+from odoo.addons.dcasa_base.red import llave_ip
 from odoo.sql_db import Cursor
 
 _logger = logging.getLogger(__name__)
@@ -263,7 +263,7 @@ class DcasaBuscarFoto(models.AbstractModel):
             ahora = fields.Datetime.now()
             hace_una_hora = ahora - timedelta(hours=1)
             sal_hoy, sal_ayer = Foto._dcasa_sales(ahora)
-            red = red_truncada(conexion) if conexion else None
+            red = llave_ip(conexion) if conexion else None
             visitante = [h for h in (huella(sal_hoy, 'v', sesion), huella(sal_ayer, 'v', sesion)) if h]
             de_la_red = [h for h in (huella(sal_hoy, 'c', red), huella(sal_ayer, 'c', red)) if h]
             if Uso.search_count([('fecha', '>=', Foto._dcasa_inicio_del_dia(ahora))]) >= topes['dia']:
