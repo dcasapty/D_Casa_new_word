@@ -294,6 +294,8 @@ interface EstadoComentario {
   motivo?: string;
   enlace?: string;
   publicacionLeida?: true;
+  /** Lo que dice la publicación comentada (para el modelo), si se pudo leer. */
+  publicacion?: string;
   /** Ya se registró en Odoo el aviso «le está respondiendo». */
   avisoInicial?: true;
   /** El mensaje privado (el que salió o el que estaba saliendo) y con qué modelo. */
@@ -1138,17 +1140,22 @@ export class MotorConversacion {
     return r.clase;
   }
 
-  /** El texto y el enlace de la publicación comentada, una sola vez y con un plazo corto (si no se puede, se sigue sin ellos). */
-  private async leerPublicacion(e: Entrante, st: EstadoComentario, guardar: (c: Partial<EstadoComentario>) => void): Promise<{ texto?: string; enlace?: string } | null> {
+  /**
+   * El texto y el enlace de la publicación comentada: una sola vez (queda en el estado del comentario) y con un plazo corto (si no se
+   * puede, se sigue sin ellos).
+   */
+  private async leerPublicacion(e: Entrante, st: EstadoComentario, guardar: (c: Partial<EstadoComentario>) => void): Promise<{ texto?: string; enlace?: string }> {
     const c = e.comentario!;
-    if (st.publicacionLeida || !c.publicacion) return null;
+    const yaSabido = { ...(st.publicacion ? { texto: st.publicacion } : {}), ...((c.enlace ?? st.enlace) ? { enlace: c.enlace ?? st.enlace } : {}) };
+    if (st.publicacionLeida || !c.publicacion) return yaSabido;
     const lector = this.deps.canal(e.canal)?.comentarios?.publicacion;
-    if (!lector) return null;
+    if (!lector) return yaSabido;
     let reloj: ReturnType<typeof setTimeout> | undefined;
     try {
       const pub = await Promise.race([lector(e.canal, c, this.deps.env).catch(() => null), new Promise<null>((r) => (reloj = setTimeout(() => r(null), PLAZO_PUBLICACION_MS)))]);
-      guardar({ publicacionLeida: true, ...(pub?.enlace && !c.enlace ? { enlace: pub.enlace } : {}) });
-      return pub;
+      const enlace = c.enlace ?? pub?.enlace;
+      guardar({ publicacionLeida: true, ...(enlace ? { enlace } : {}), ...(pub?.texto ? { publicacion: pub.texto } : {}) });
+      return { ...(pub?.texto ? { texto: pub.texto } : {}), ...(enlace ? { enlace } : {}) };
     } finally {
       clearTimeout(reloj);
     }
@@ -1167,7 +1174,7 @@ export class MotorConversacion {
 
     if (!st.avisoInicial && this.deps.odoo.comentario) {
       // Si Odoo no contesta, lanza: se reintenta en un rato (sin Odoo tampoco hay catálogo ni precios para contestar bien).
-      const r = await this.deps.odoo.comentario(this.cuerpoDeComentario(e, { ...st, privada: "pendiente", publica: "pendiente" }));
+      const r = await this.deps.odoo.comentario(this.cuerpoDeComentario(e, { ...st, ...(pub.enlace ? { enlace: pub.enlace } : {}), privada: "pendiente", publica: "pendiente" }));
       if (typeof r.conversacion_id === "number") this.kv.poner("conversacion_id", r.conversacion_id);
       guardar({ avisoInicial: true });
     }
@@ -1182,7 +1189,7 @@ export class MotorConversacion {
 
     // El comentario queda en la memoria como lo que dijo el cliente (con la publicación, si se pudo leer): el modelo lo ve con su marca.
     if (!this.mensajes.existe(e.id_mensaje)) {
-      this.mensajes.insertar({ id_mensaje: e.id_mensaje, rol: "cliente", texto: e.texto || "(comentario)", ts: e.ts, contexto: { comentario: { red: c.red, publicacion: pub?.texto ?? null } } });
+      this.mensajes.insertar({ id_mensaje: e.id_mensaje, rol: "cliente", texto: e.texto || "(comentario)", ts: e.ts, contexto: { comentario: { red: c.red, publicacion: pub.texto ?? null } } });
     }
     const fila = this.mensajes.buscar(e.id_mensaje);
     if (!fila) return { privada: "fallo", motivo: "no se pudo preparar la respuesta" };

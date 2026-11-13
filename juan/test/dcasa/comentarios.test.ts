@@ -64,6 +64,7 @@ describe("una pregunta en un comentario: corto en público y lo demás por priva
 
     // En Odoo: el aviso antes de la respuesta (así queda en el hilo) y el resultado en el mismo aviso; el comentario NO es un mensaje del cliente.
     expect(m.odoo.orden).toEqual(["comentario:pendiente", "mensaje:bot", "comentario:respondida"]);
+    expect(m.odoo.comentarios[0]).toMatchObject({ privada: "pendiente", publica: "pendiente", enlace: "https://www.instagram.com/p/C0d1g0/" });
     expect(m.odoo.comentarios.at(-1)).toMatchObject({ canal: "instagram", id_externo: QUIEN, red: "instagram", clase: "pregunta", privada: "respondida", publica: "respondida", texto: "¿Cuánto cuesta el sofá?", enlace: "https://www.instagram.com/p/C0d1g0/" });
     expect(m.odoo.mensajes.filter((x) => x.autor === "cliente")).toHaveLength(0);
     expect(m.odoo.mensajes.find((x) => x.autor === "bot")?.texto).toContain("$799.50 + ITBMS");
@@ -257,6 +258,9 @@ describe("nunca dos veces el mismo comentario", () => {
     expect(m.canal.privadas).toHaveLength(1);
     expect(m.canal.publicas).toHaveLength(1);
     expect(m.modelo.doGenerateCalls.filter((c) => c.responseFormat?.type === "json")).toHaveLength(1);
+    // La publicación se leyó una vez y el modelo la ve igual en el segundo intento.
+    expect(m.canal.publicacionesLeidas).toBe(1);
+    expect(m.modelo.prompts().at(-1)).toContain("Sofá Roma de 3 puestos");
   });
 });
 
