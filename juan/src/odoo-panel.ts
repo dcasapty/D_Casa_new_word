@@ -4,12 +4,14 @@
 //   POST /odoo/sugerir     → un borrador de respuesta para la vendedora (odoo-panel-sugerir.ts)
 //   POST /odoo/resumir     → el resumen de una conversación larga para la vendedora (odoo-panel-resumir.ts)
 //   POST /odoo/embeber     → la huella de significado de unos textos, para la búsqueda en el conocimiento (odoo-panel-embeber.ts)
+//   POST /odoo/buscar-foto → «Busca con una foto» de la tienda: solo el registro cerrado de la foto (odoo-panel-buscar-foto.ts)
 //   GET  /odoo/costos      → gasto de IA del mes por modelo (odoo-panel-costos.ts)
 //   GET  /odoo/qr          → el QR para vincular WhatsApp (odoo-panel-conexiones.ts)
 //   POST /odoo/reiniciar   → reiniciar el puente de WhatsApp
 //   POST /odoo/desvincular → desvincular el número de WhatsApp
 
 import type { Env } from "./env";
+import { manejarBuscarFoto } from "./odoo-panel-buscar-foto";
 import { manejarConexiones } from "./odoo-panel-conexiones";
 import { manejarCostos } from "./odoo-panel-costos";
 import { manejarEmbeber } from "./odoo-panel-embeber";
@@ -26,6 +28,8 @@ export async function rutasDelPanel(ruta: string, req: Request, env: Env, d: Dep
       return manejarResumir(req, env, d);
     case "/odoo/embeber":
       return manejarEmbeber(req, env, d);
+    case "/odoo/buscar-foto":
+      return manejarBuscarFoto(req, env, d);
     case "/odoo/costos":
       return manejarCostos(req, env, d);
     case "/odoo/qr":

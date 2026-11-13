@@ -24,11 +24,17 @@ const tarifa = (entrada: number, salida: number, cacheLectura = entrada * 0.1, c
   cacheEscritura,
 });
 
-/** Claude, por familia. Nada más: lo demás lo carga la dueña. */
+/**
+ * Claude, por familia, y el lector de imágenes de Workers AI («Busca con una foto», odoo-panel-buscar-foto.ts: su nombre
+ * `@cf/…` no se puede cargar en `precios_ia` de Odoo, que solo trae los dos modelos de la conversación). El de Workers AI es el
+ * de la tabla de precios de Cloudflare (developers.cloudflare.com/workers-ai/platform/pricing, leída el 2026-11-13: $0.270 por
+ * millón de tokens de entrada y $0.850 de salida), sin descontar los neurons gratis del día: mejor pasarse. Lo demás, la dueña.
+ */
 export const TARIFAS_INTEGRADAS: { patron: RegExp; tarifa: Tarifa }[] = [
   { patron: /^claude-.*haiku/i, tarifa: tarifa(1, 5) },
   { patron: /^claude-.*sonnet/i, tarifa: tarifa(2, 10) },
   { patron: /^claude-.*opus/i, tarifa: tarifa(4, 20) },
+  { patron: /^@cf\/meta\/llama-4-scout-17b-16e-instruct$/, tarifa: tarifa(0.27, 0.85) },
 ];
 
 /** Para un modelo sin precio cargado: la de Sonnet. Mejor pasarse que quedarse corto con el tope. */
