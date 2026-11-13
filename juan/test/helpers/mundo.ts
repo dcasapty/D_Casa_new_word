@@ -123,6 +123,7 @@ export function crearMundo(op: OpcionesMundo = {}) {
       guardarSalud: async (clave: string, json: string) => {
         sqlGlobal.guardarSalud(clave, JSON.parse(json), t);
       },
+      reservarRespuestaPublica: async (tope: number) => sqlGlobal.reservarRespuestaPublica(tope, t),
     },
     dormir: async () => {},
     uuid: (() => {

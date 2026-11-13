@@ -170,7 +170,7 @@ export class Mensajes {
       m.ts,
       m.pendiente ? 1 : 0,
       m.modelo ?? null,
-      m.contexto && (m.contexto.cita || m.contexto.reenviado) ? JSON.stringify(m.contexto) : null,
+      m.contexto && (m.contexto.cita || m.contexto.reenviado || m.contexto.comentario) ? JSON.stringify(m.contexto) : null,
     );
     return this.sql.uno<{ id: number }>("SELECT last_insert_rowid() AS id")!.id;
   }
