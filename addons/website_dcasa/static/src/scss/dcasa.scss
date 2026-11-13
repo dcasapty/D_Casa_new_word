@@ -2373,6 +2373,30 @@ html.o_dcasa_navegando::before {
     }
 }
 
+// Celular: en /shop la caja de búsqueda va sola en su fila, a lo ancho; «Ordenar por» y «Filtros» en la de abajo.
+// Las tres en una fila dejaban la caja en ~125 px (no se leía ni el texto de ayuda) y un botón extra dentro de la
+// caja (la cámara de «Busca con una foto», website_dcasa.buscador_botones_extra) no cabía.
+@media (max-width: 575.98px) {
+    #o_wsale_products_header .products_header {
+        flex-wrap: wrap !important;
+        row-gap: .5rem;
+
+        > .o_wsale_products_header_search_form_container {
+            display: block !important;
+            order: -1;
+            flex: 1 0 100%;
+            width: 100%;
+            max-width: 100%;
+            margin-right: 0 !important;
+        }
+
+        // La lupa que abre la búsqueda en una ventana (Odoo la usa cuando no cabe la caja): la caja ya está a la vista.
+        > a[data-bs-target="#o_wsale_search_modal"] {
+            display: none !important;
+        }
+    }
+}
+
 // Búsqueda sin resultados en el catálogo: algo útil (categorías y WhatsApp), no solo «sin resultados».
 .o_dcasa_sin_resultados {
     max-width: 40rem;

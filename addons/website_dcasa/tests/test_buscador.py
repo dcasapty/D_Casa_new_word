@@ -247,3 +247,11 @@ class TestBuscarComoElCatalogo(HttpCase):
         tienda = self.url_open('/shop').text
         barra = re.search(r'<form[^>]*o_wsale_products_searchbar_form.*?</form>', tienda, re.S).group(0)
         self.assertIn('o_prueba_extra', barra, 'y en la barra de /shop')
+
+    def test_la_barra_de_la_tienda_dice_lo_mismo(self):
+        tienda = self.url_open('/shop').text
+        barra = re.search(r'<form[^>]*o_wsale_products_searchbar_form.*?</form>', tienda, re.S).group(0)
+        self.assertIn('placeholder="Escribe lo que buscas"', barra)
+        categoria = self.url_open(self.website._dcasa_categoria_url('recamaras')).text
+        barra = re.search(r'<form[^>]*o_wsale_products_searchbar_form.*?</form>', categoria, re.S).group(0)
+        self.assertNotIn('placeholder="Escribe lo que buscas"', barra, 'en una categoría, el «Buscar en …» de Odoo')

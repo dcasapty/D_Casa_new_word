@@ -47,6 +47,28 @@ CABECERA = """
     })()
 """
 
+BARRA_TIENDA = """
+    (async () => {
+        const esperar = (ms) => new Promise((ok) => setTimeout(ok, ms));
+        for (let i = 0; i < 200 && document.body.getAttribute('is-ready') !== 'true'; i++) { await esperar(50); }
+        await esperar(300);
+        const caja = (el) => { if (!el) { return null; } const r = el.getBoundingClientRect();
+                               return { x: r.left, y: r.top, ancho: r.width, alto: r.height, derecha: r.right }; };
+        const barra = document.querySelector('#o_wsale_products_header .products_header');
+        const campo = barra.querySelector('.o_wsale_products_searchbar_form input[name="search"]');
+        return {
+            pantalla: innerWidth,
+            pagina: document.documentElement.scrollWidth,
+            barra: caja(barra),
+            formulario: caja(barra.querySelector('.o_wsale_products_searchbar_form')),
+            campo: caja(campo),
+            ayuda: campo.getAttribute('placeholder'),
+            orden: caja(barra.querySelector('.o_sortby_dropdown')),
+            filtros: caja(barra.querySelector('button[data-bs-target="#o_wsale_offcanvas"]')),
+        };
+    })()
+"""
+
 GESTOS = """
     (async () => {
         const esperar = (ms) => new Promise((ok) => setTimeout(ok, ms));
@@ -129,6 +151,24 @@ class TestBuscarYFotoEnElCelular(ChromeMovilCase):
                     self.assertGreater(m['campo']['ancho'], ancho * .6, 'el campo se ve entero')
                     self.assertTrue(m['foco'], 'listo para escribir')
                     self.assertEqual(m['destino'], '/shop')
+
+    def test_barra_de_busqueda_de_la_tienda_a_lo_ancho(self):
+        """En /shop la caja va sola en su fila (cabe un botón extra, como la cámara) y «Ordenar por» y «Filtros»
+        quedan debajo, a la vista."""
+        for ancho in ANCHOS:
+            with self.subTest(ancho=ancho), self._chrome_movil(ancho) as browser:
+                browser.navigate_to(self.base_url() + '/shop?search=mesa', wait_stop=True)
+                self.assertTrue(browser._wait_ready())
+                m = self._evaluar(browser, BARRA_TIENDA)
+                self.assertLessEqual(m['pagina'], m['pantalla'])
+                self.assertGreaterEqual(m['formulario']['ancho'], m['barra']['ancho'] - 2, 'la caja, a lo ancho')
+                self.assertGreater(m['campo']['ancho'], ancho * .6, 'el campo se lee entero')
+                self.assertEqual(m['ayuda'], 'Escribe lo que buscas')
+                for nombre in ('orden', 'filtros'):
+                    self.assertTrue(m[nombre] and m[nombre]['ancho'] > 0, f'{nombre} visible')
+                    self.assertGreaterEqual(m[nombre]['y'], m['formulario']['y'] + m['formulario']['alto'] - 1,
+                                            f'{nombre} debajo de la caja')
+                    self.assertLessEqual(m[nombre]['derecha'], m['pantalla'])
 
     def test_foto_en_grande_con_el_dedo(self):
         with self._chrome_movil(390) as browser:

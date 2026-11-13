@@ -444,6 +444,10 @@ local con datos de prueba, 1366 y 390 px) para su visto bueno antes de producci�
   estaba escondida dentro del menú), con 44 px de área táctil, y abre la misma caja. La búsqueda vieja de Odoo
   (`/website/search`, una lista con fotos chiquitas) lleva al catálogo con lo que se buscó.
   `website_dcasa/views/buscador_templates.xml`, `controllers/main.py` (`BuscadorDcasa`).
+* **La barra de búsqueda de `/shop` en el celular** va sola en su fila, a lo ancho, con el mismo texto de ayuda
+  («Escribe lo que buscas»; en una categoría, el «Buscar en …» de Odoo); «Ordenar por» y «Filtros» quedan en la fila
+  de abajo. Antes las tres iban en una fila y la caja quedaba de ~125 px: no se leía el texto de ayuda ni cabía un
+  botón más dentro (la cámara de «Busca con una foto»). En la computadora no cambia.
 * **Una tilde no es otra búsqueda.** Odoo, cuando no hallaba la palabra exacta, buscaba la más parecida y avisaba «Su
   búsqueda "sofa" no coincidió con nada. Se muestran los resultados para "sofá"». Si la diferencia es solo de tildes o
   mayúsculas, ahora salen los resultados sin ese aviso (en el catálogo, en la lista mientras se escribe y en la búsqueda

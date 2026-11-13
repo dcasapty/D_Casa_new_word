@@ -25,6 +25,13 @@
         </xpath>
     </template>
 
+    <!-- La barra de /shop dice lo mismo que la caja de la cabecera (en una categoría, Odoo dice «Buscar en Salas»). -->
+    <template id="tienda_buscador_texto" inherit_id="website_sale.search" name="D'CASA: texto de ayuda de la barra de la tienda">
+        <xpath expr="//t[@t-call='website.website_search_box_input']" position="inside">
+            <t t-set="placeholder" t-value="placeholder or 'Escribe lo que buscas'"/>
+        </xpath>
+    </template>
+
     <!-- SITIO PARA BOTONES EXTRA DEL BUSCADOR (p. ej. la cámara de «Busca con una foto»): dentro de la caja de
          búsqueda, justo antes de la lupa de enviar. Lo llaman TODAS las cajas de búsqueda del sitio: la de la cabecera
          (el modal de la lupa y el menú del celular) y la barra de /shop. Para agregar un botón, un módulo hereda esta
