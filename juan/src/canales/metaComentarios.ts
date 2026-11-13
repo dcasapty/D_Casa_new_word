@@ -30,6 +30,8 @@ const MAX_TEXTO = 2000;
 /** Por qué se dejó de lado un comentario del aviso (para el registro del Worker; nunca con datos de la persona). */
 export interface IgnoradosDeComentarios {
   propios: number;
+  /** En publicaciones de OTRA página o cuenta suscrita a la app (no de D'CASA). */
+  ajenos: number;
   viejos: number;
   /** Editados, borrados, ocultos, sin texto, en vivo o con ids raros. */
   otros: number;
@@ -40,6 +42,11 @@ export interface OpcionesDeComentarios {
   puerta: ComentarioEntrante["puerta"];
   /** Los ids de la propia página o cuenta (además del `entry.id` de cada entrada). */
   propios?: ReadonlySet<string>;
+  /**
+   * Las cuentas de D'CASA (la página y su Instagram): solo se atienden los avisos cuyo `entry.id` sea una de ellas (otra página suscrita
+   * a la misma app no entra). Sin esto se atiende cualquiera (la segunda puerta ya filtra antes con `soloDeLaCuenta`).
+   */
+  cuentas?: ReadonlySet<string>;
   /** El usuario de Instagram de D'CASA (sin @), si se sabe: sus comentarios no se contestan. */
   usuarioPropio?: string;
 }
@@ -50,12 +57,16 @@ const limpio = (t: string) => t.replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, "
 
 /** Los comentarios de un aviso de Meta, ya traducidos a `Entrante` con su `comentario`. Nunca lanza. */
 export function comentariosDeMeta(cuerpo: MetaCuerpo, ahora: number, op: OpcionesDeComentarios): { entrantes: Entrante[]; ignorados: IgnoradosDeComentarios } {
-  const ignorados: IgnoradosDeComentarios = { propios: 0, viejos: 0, otros: 0 };
+  const ignorados: IgnoradosDeComentarios = { propios: 0, ajenos: 0, viejos: 0, otros: 0 };
   const entrantes: Entrante[] = [];
   const red = cuerpo.object === "page" ? "facebook" : cuerpo.object === "instagram" ? "instagram" : null;
   if (!red) return { entrantes, ignorados };
   for (const entrada of cuerpo.entry ?? []) {
     const cuenta = texto(entrada.id);
+    if (op.cuentas && !op.cuentas.has(cuenta)) {
+      ignorados.ajenos += (entrada.changes ?? []).filter((c) => c.field === "feed" || c.field === "comments").length;
+      continue;
+    }
     for (const cambio of entrada.changes ?? []) {
       const v = objeto(cambio.value);
       const c = red === "facebook" ? deFacebook(cambio.field, v, ahora) : deInstagram(cambio.field, v);
@@ -161,6 +172,8 @@ export function traeComentarios(cuerpo: MetaCuerpo): boolean {
 
 /** Cuántos comentarios de un aviso se dejaron de lado y por qué (sin datos de nadie). */
 export function anotarIgnorados(ruta: string, i: IgnoradosDeComentarios): void {
-  if (i.propios + i.viejos + i.otros === 0) return;
-  console.info(`[juan] ${ruta}: comentarios que no se contestan: ${i.propios} propio(s), ${i.viejos} de hace más de 7 días, ${i.otros} editado(s), oculto(s) o sin texto`);
+  if (i.propios + i.ajenos + i.viejos + i.otros === 0) return;
+  console.info(
+    `[juan] ${ruta}: comentarios que no se contestan: ${i.propios} propio(s), ${i.ajenos} de otra página o cuenta, ${i.viejos} de hace más de 7 días, ${i.otros} editado(s), oculto(s) o sin texto`,
+  );
 }

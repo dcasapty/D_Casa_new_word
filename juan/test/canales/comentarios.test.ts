@@ -63,7 +63,7 @@ const deInstagram = (valor: Record<string, unknown> = {}, entrada = CUENTA_IG, c
 describe("qué se lee de cada aviso", () => {
   it("Facebook (`feed`): un comentario nuevo con quién (PSID, para su conversación de Messenger), qué dijo y la publicación", () => {
     const { entrantes, ignorados } = comentariosDeMeta(deFacebook(), AHORA, { puerta: "pagina" });
-    expect(ignorados).toEqual({ propios: 0, viejos: 0, otros: 0 });
+    expect(ignorados).toEqual({ propios: 0, ajenos: 0, viejos: 0, otros: 0 });
     expect(entrantes).toEqual([
       {
         canal: "messenger",
@@ -173,6 +173,8 @@ function graphFalso(respuesta: (c: Llamada) => Response | undefined = () => unde
     if (propia) return propia;
     const u = new URL(c.url);
     if (u.pathname.endsWith("/me") && u.searchParams.get("fields") === "user_id,username") return Response.json({ user_id: CUENTA_IG, username: "dcasapty", id: "26000000000000001" });
+    // La página (META_PAGE_TOKEN): su id y su Instagram (para atender solo los comentarios de D'CASA en /webhooks/meta).
+    if (u.pathname.endsWith("/me") && u.searchParams.get("fields") === "id,instagram_business_account{id,username}") return Response.json({ id: PAGINA, instagram_business_account: { id: CUENTA_IG, username: "dcasapty" } });
     if (u.pathname.endsWith("/me/messages")) return Response.json({ recipient_id: IGSID, message_id: "m.privada.1" });
     if (u.pathname.endsWith("/comments") || u.pathname.endsWith("/replies")) return Response.json({ id: "respuesta.publica.1" });
     if (u.searchParams.get("fields")?.startsWith("caption")) return Response.json({ caption: "Sofá Roma en tela gris", permalink: "https://www.instagram.com/p/C0d1g0/", id: "18000000000000001" });
@@ -307,5 +309,50 @@ describe("la publicación comentada (una consulta barata, sin IA)", () => {
     const { adaptador } = graphFalso(() => Response.json({ error: { message: "sin permiso", code: 10 } }, { status: 403 }));
     expect(await adaptador.comentarios!.publicacion!("instagram", comentarioIg, envPagina)).toBeNull();
     expect(await adaptador.comentarios!.publicacion!("instagram", { ...comentarioIg, publicacion: undefined }, envPagina)).toBeNull();
+  });
+});
+
+// ── Revisión adversarial del 2026-11-13 ──────────────────────────────────
+
+describe("solo los comentarios de D'CASA (revisión del 2026-11-13)", () => {
+  it("el enlace se mira como lo mira el navegador: «\\», usuario antes del anfitrión, puerto o espacios no pasan", () => {
+    for (const malo of ["https://evil.example\\@www.facebook.com/x", "https://evil.example\\.facebook.com/x", "https://evil.example@www.facebook.com/x", "https://www.facebook.com:8443/x", "https://www.face book.com/x", "https://www.facebook.com/x\n"]) {
+      expect(enlaceDeMeta(malo), malo).toBeUndefined();
+    }
+  });
+
+  it("/webhooks/meta: un comentario en OTRA página suscrita a la app no entra; los de la página y su Instagram, sí", async () => {
+    const { adaptador } = graphFalso();
+    const ahora = Math.floor(Date.now() / 1000);
+    const deOtra = await adaptador.recibir(await firmado(deFacebook({ created_time: ahora, post_id: "999_1", parent_id: "999_1" }, "999888777666555"), SECRETO_FB, "/webhooks/meta"), envPagina);
+    expect(deOtra.respuesta.status).toBe(200);
+    expect(deOtra.entrantes).toEqual([]);
+    const deLaPagina = await adaptador.recibir(await firmado(deFacebook({ created_time: ahora }), SECRETO_FB, "/webhooks/meta"), envPagina);
+    expect(deLaPagina.entrantes).toHaveLength(1);
+    const igDeOtra = { ...deInstagram({}, "17841499999999999"), entry: deInstagram({}, "17841499999999999").entry!.map((e) => ({ ...e, time: ahora })) };
+    expect((await adaptador.recibir(await firmado(igDeOtra, SECRETO_FB, "/webhooks/meta"), envPagina)).entrantes).toEqual([]);
+  });
+
+  it("/webhooks/meta: lo que comenta la cuenta de Instagram de D'CASA (por su id o su usuario) no se contesta, aunque from.id ≠ entry.id", async () => {
+    const { adaptador } = graphFalso();
+    const ahora = Math.floor(Date.now() / 1000);
+    const conHora = (c: MetaCuerpo) => ({ ...c, entry: c.entry!.map((e) => ({ ...e, time: ahora })) });
+    const porUsuario = await adaptador.recibir(await firmado(conHora(deInstagram({ from: { id: "9990001112223", username: "dcasapty" } })), SECRETO_FB, "/webhooks/meta"), envPagina);
+    expect(porUsuario.entrantes).toEqual([]);
+    const deLaPaginaEnIg = await adaptador.recibir(await firmado(conHora(deInstagram({ from: { id: PAGINA, username: "otra" } })), SECRETO_FB, "/webhooks/meta"), envPagina);
+    expect(deLaPaginaEnIg.entrantes).toEqual([]);
+  });
+
+  it("/webhooks/meta: quién es la página se pregunta una vez y se recuerda; si Meta no contesta, los comentarios de ese aviso se dejan de lado (los mensajes no)", async () => {
+    const ahora = Math.floor(Date.now() / 1000);
+    const bien = graphFalso();
+    await bien.adaptador.recibir(await firmado(deFacebook({ created_time: ahora }), SECRETO_FB, "/webhooks/meta"), envPagina);
+    await bien.adaptador.recibir(await firmado(deFacebook({ created_time: ahora, comment_id: "777_999" }), SECRETO_FB, "/webhooks/meta"), envPagina);
+    expect(bien.llamadas.filter((l) => l.url.includes("instagram_business_account"))).toHaveLength(1);
+    const caido = graphFalso((c) => (c.url.includes("instagram_business_account") ? Response.json({ error: { message: "caído", code: 2 } }, { status: 500 }) : undefined));
+    const conMensaje: MetaCuerpo = { ...deFacebook({ created_time: ahora }), entry: [{ ...deFacebook({ created_time: ahora }).entry![0], messaging: [{ sender: { id: PSID }, recipient: { id: PAGINA }, timestamp: Date.now(), message: { mid: "m.1", text: "hola" } }] }] };
+    const r = await caido.adaptador.recibir(await firmado(conMensaje, SECRETO_FB, "/webhooks/meta"), envPagina);
+    expect(r.respuesta.status).toBe(200);
+    expect(r.entrantes.map((e) => (e.comentario ? "comentario" : e.id_mensaje))).toEqual(["m.1"]);
   });
 });

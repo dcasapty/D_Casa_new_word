@@ -724,7 +724,8 @@ describe("webhooks de Meta (WhatsApp Cloud, Messenger, Instagram): el 200 sale D
   const TOKEN_CLOUD = "token-cloud-de-prueba-0123456789";
   const envMeta = { ...envCompleto, META_APP_SECRET: SECRETO_META, META_VERIFY_TOKEN: "verificacion-0123456789", WHATSAPP_CLOUD_TOKEN: TOKEN_CLOUD, WHATSAPP_PHONE_NUMBER_ID: "109876543210", META_PAGE_TOKEN: "pagina-0123456789" } as unknown as Env;
   const encendidos = { canales_activos: { whatsapp_cloud: true, messenger: true, instagram: true } };
-  const red = vi.fn(async () => new Response("{}"));
+  // La red de Meta de mentira: solo sabe decir quién es la página (para los comentarios de /webhooks/meta).
+  const red = vi.fn(async (url: unknown) => (String(url).includes("fields=id,instagram_business_account") ? Response.json({ id: "100200300400500" }) : new Response("{}")));
   const adaptadoresMeta = () => [
     crearWhatsappCloud({ fetch: red as unknown as typeof fetch, dormir: async () => {} }),
     crearMeta({ fetch: red as unknown as typeof fetch, dormir: async () => {} }),
@@ -945,7 +946,7 @@ describe("webhooks de Meta (WhatsApp Cloud, Messenger, Instagram): el 200 sale D
 
   it("los comentarios de Facebook e Instagram: con «Comentarios» apagado ni se guardan; encendido, se guardan antes del 200 y se atienden", async () => {
     const ahora = Math.floor(Date.now() / 1000);
-    const feed = (id: string) => ({ object: "page", entry: [{ id: "PAGINA", time: ahora, changes: [{ field: "feed", value: { from: { id: "2838000000000001", name: "Ana" }, comment_id: id, post_id: "PAGINA_1", parent_id: "PAGINA_1", item: "comment", verb: "add", message: "¿Precio?", created_time: ahora } }] }] });
+    const feed = (id: string, pagina = "100200300400500") => ({ object: "page", entry: [{ id: pagina, time: ahora, changes: [{ field: "feed", value: { from: { id: "2838000000000001", name: "Ana" }, comment_id: id, post_id: `${pagina}_1`, parent_id: `${pagina}_1`, item: "comment", verb: "add", message: "¿Precio?", created_time: ahora } }] }] });
     const apagado = montarMeta();
     expect((await apagado.pedir(await firmado("/webhooks/meta", feed("1_1")), envMeta)).status).toBe(200);
     await apagado.despues();
@@ -955,6 +956,10 @@ describe("webhooks de Meta (WhatsApp Cloud, Messenger, Instagram): el 200 sale D
     expect(encendido.conv.guardados.map((e) => [e.canal, e.id_externo, e.id_mensaje, e.comentario?.red])).toEqual([["messenger", "2838000000000001", "comentario:facebook:1_2", "facebook"]]);
     await encendido.despues();
     expect(encendido.conv.ingestados.map((e) => e.comentario?.id)).toEqual(["1_2"]);
+    // Un comentario en OTRA página suscrita a la misma app no entra (revisión del 2026-11-13).
+    await encendido.pedir(await firmado("/webhooks/meta", feed("9_9", "999888777666555")), envMeta);
+    await encendido.despues();
+    expect(encendido.conv.guardados.map((e) => e.comentario?.id)).toEqual(["1_2"]);
     // Sin Messenger encendido (la respuesta privada va por Messenger) tampoco.
     const sinMessenger = montarMeta({ canales_activos: { messenger: false }, comentarios: { activo: true } });
     await sinMessenger.pedir(await firmado("/webhooks/meta", feed("1_3")), envMeta);

@@ -496,12 +496,17 @@ export function maquinaMeta(op: OpcionesMeta, puerta: PuertaMeta): MaquinaMeta {
 const ID_DE_COMENTARIO = /^[A-Za-z0-9_.:-]{1,128}$/;
 const textoDe = (v: unknown): string => (typeof v === "string" ? v.trim() : typeof v === "number" ? String(v) : "");
 
-/** Un enlace que da Meta a una publicación: solo https de Facebook o Instagram (nunca otra dirección), hasta 500 letras. */
+/**
+ * Un enlace que da Meta a una publicación: solo https de Facebook o Instagram (nunca otra dirección), hasta 500 letras. Se mira como lo
+ * mira un navegador (WHATWG `URL`) y además se rechaza lo que solo sirve para engañar: «\» (el navegador la toma como «/»), espacios o
+ * controles, usuario o clave antes del anfitrión, y puerto. Lo que sale es la forma normalizada.
+ */
 export function enlaceDeMeta(v: unknown): string | undefined {
-  if (typeof v !== "string" || v.length > 500) return undefined;
+  if (typeof v !== "string" || v.length > 500 || /[\\\s\u0000-\u001f\u007f]/.test(v)) return undefined;
   try {
     const u = new URL(v);
-    return u.protocol === "https:" && /(^|\.)(facebook\.com|instagram\.com|fb\.com|fb\.me)$/i.test(u.hostname) ? u.toString() : undefined;
+    if (u.protocol !== "https:" || u.username || u.password || u.port) return undefined;
+    return /(^|\.)(facebook\.com|instagram\.com|fb\.com|fb\.me)$/i.test(u.hostname) ? u.toString() : undefined;
   } catch {
     return undefined;
   }
