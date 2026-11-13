@@ -39,9 +39,13 @@
          `search`. Vacía no pinta nada. -->
     <template id="buscador_botones_extra" name="D'CASA: botones extra del buscador"/>
 
+    <!-- Va dentro de un <span> que no dibuja caja (display: contents): los botones quedan como hijos de la caja para el
+         diseño. Sin el <span>, con el editor del sitio abierto (Gerencia con permiso de editar el sitio) Odoo le
+         pegaba sus marcas de edición al t-call y la página daba error 500: esta parte de la plantilla de Odoo no las
+         reparte (prueba: test_buscador, «con el editor del sitio»). -->
     <template id="buscador_con_sitio_extra" inherit_id="website.website_search_box_input" name="D'CASA: sitio para botones del buscador">
         <xpath expr="//button[@type='submit']" position="before">
-            <t t-call="website_dcasa.buscador_botones_extra"/>
+            <span class="o_dcasa_buscador_extra"><t t-call="website_dcasa.buscador_botones_extra"/></span>
         </xpath>
     </template>
 

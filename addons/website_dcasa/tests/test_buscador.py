@@ -248,6 +248,19 @@ class TestBuscarComoElCatalogo(HttpCase):
         barra = re.search(r'<form[^>]*o_wsale_products_searchbar_form.*?</form>', tienda, re.S).group(0)
         self.assertIn('o_prueba_extra', barra, 'y en la barra de /shop')
 
+    def test_con_el_editor_del_sitio_las_paginas_abren(self):
+        """Quien puede editar el sitio (admin, Gerencia con ese permiso) recibe las plantillas con las marcas del
+        editor. El sitio de botones extra estaba en una parte que Odoo no reparte y el t-call se quedaba con ellas:
+        error 500 en todas las páginas con la cabecera (atrapado por dcasa_tienda_borde, test_logueado…)."""
+        self.authenticate('admin', 'admin')
+        self.sofa.image_1920 = _foto()
+        for ruta in ('/', '/shop', '/shop?search=ZZSOFÁ', '/shop?search=zzqqxx', self.sofa.website_url, '/shop/cart',
+                     self.website._dcasa_categoria_url('recamaras')):
+            with self.subTest(ruta=ruta):
+                respuesta = self.url_open(ruta)
+                self.assertEqual(respuesta.status_code, 200)
+                self.assertIn('o_dcasa_buscador_extra', respuesta.text)
+
     def test_la_barra_de_la_tienda_dice_lo_mismo(self):
         tienda = self.url_open('/shop').text
         barra = re.search(r'<form[^>]*o_wsale_products_searchbar_form.*?</form>', tienda, re.S).group(0)

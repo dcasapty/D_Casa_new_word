@@ -2373,6 +2373,12 @@ html.o_dcasa_navegando::before {
     }
 }
 
+// El sitio para botones extra del buscador (views/buscador_templates.xml) no dibuja caja: sus botones se acomodan como
+// si fueran hijos directos de la caja de búsqueda.
+.o_dcasa_buscador_extra {
+    display: contents;
+}
+
 // Celular: en /shop la caja de búsqueda va sola en su fila, a lo ancho; «Ordenar por» y «Filtros» en la de abajo.
 // Las tres en una fila dejaban la caja en ~125 px (no se leía ni el texto de ayuda) y un botón extra dentro de la
 // caja (la cámara de «Busca con una foto», website_dcasa.buscador_botones_extra) no cabía.
