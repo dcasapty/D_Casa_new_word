@@ -2622,7 +2622,7 @@
    "destino": {
     "menu": "dcasa_conversaciones.menu_dcasa_juan_ajustes"
    },
-   "nota": "Se enciende en Ajustes de Juan, en «Comentarios de Instagram y Facebook» › «Responder comentarios»: viene apagado hasta que lo pruebes. Ahí también eliges las redes, cambias la frase pública (sin enlaces; {nombre} pone el nombre de pila de quien comentó en Facebook, si es un nombre limpio; en Instagram va sin nombre), cuántas respuestas públicas da por hora y cuántas le da a una misma persona en 24 horas. Si lo apagas, Juan para enseguida. No contesta etiquetas de amigos, emojis, saludos ni elogios. Las quejas no las contesta: le avisa a Gerencia por Telegram y lo deja anotado en la conversación. Necesita Messenger (para Facebook) o Instagram encendidos en «Dónde contesta». Solo Gerencia y los administradores lo cambian.",
+   "nota": "Se enciende en Ajustes de Juan, en «Comentarios de Instagram y Facebook» › «Responder comentarios»: viene apagado hasta que lo pruebes. Ahí también eliges las redes, cambias la frase pública (corta, sin enlaces y sin el nombre de nadie: es igual para todos), cuántas respuestas públicas da por hora y cuántas le da a una misma persona en 24 horas. Si lo apagas, Juan para enseguida. No contesta etiquetas de amigos, emojis, saludos ni elogios. Las quejas no las contesta: le avisa a Gerencia por Telegram (una vez al día por persona) y lo deja anotado en la conversación. Necesita Messenger (para Facebook) o Instagram encendidos en «Dónde contesta». Solo Gerencia y los administradores lo cambian.",
    "brian": "¿Cuántos comentarios de Instagram respondió Juan esta semana?",
    "palabras": [
     "comentarios",
