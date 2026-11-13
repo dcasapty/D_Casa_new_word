@@ -9,6 +9,7 @@ from . import (
     test_celulares,
     test_citas,
     test_combos,
+    test_comentarios,
     test_conocimiento,
     test_conocimiento_significado,
     test_conversaciones,

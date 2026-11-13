@@ -475,6 +475,8 @@ body.o_dcj_arrastrando_ancho { cursor: col-resize; user-select: none; }
     color: var(--dc-tinta-3, #6B7690);
     overflow-wrap: anywhere;
     .o_dcj_aviso_hora { margin-left: 6px; font-weight: 500; }
+    // El aviso de un comentario: la publicación, en azul (texto sobre blanco en azul, regla de marca).
+    .o_dcj_aviso_enlace { margin-left: 6px; color: var(--dc-azul-700, #0F3591); text-decoration: underline; }
 }
 .o_dcj .o_dcj_burbuja {
     max-width: #{"min(78%, 680px)"};

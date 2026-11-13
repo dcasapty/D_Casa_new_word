@@ -42,7 +42,7 @@ class TestAjustesPorDefecto(JuanCase):
             'presupuesto_ia_mensual_usd', 'proveedor_ia', 'proveedor_respaldo_ia', 'modelo_rapido',
             'modelo_inteligente', 'modelos_por_defecto', 'precios', 'precios_ia', 'lecciones', 'mensaje_bienvenida',
             'texto_privacidad_corto', 'palabras_prohibidas', 'pausa_por_defecto_minutos', 'guardar_foto_perfil',
-            'telegram_chats', 'telegram_abierto'})
+            'telegram_chats', 'telegram_abierto', 'comentarios'})
         self.assertEqual(datos['horario'], {'inicio': '08:00', 'fin': '17:00', 'dias': [0, 1, 2, 3, 4, 5, 6],
                                             'zona': 'America/Panama'})
         self.assertEqual(datos['seguimiento'], {'primero_horas': 5, 'segundo_dias': 5,

@@ -1,5 +1,5 @@
 // Un canal de mentira: guarda lo que el bot le manda al cliente.
-import { EnvioParcialError, type AdaptadorCanal, type Capacidades, type CanalId, type ResultadoEnvio, type ResultadoWebhook, type Saliente } from "../../src/canales/tipos";
+import { EnvioParcialError, type AdaptadorCanal, type Capacidades, type CanalId, type ComentarioEntrante, type RespuestasAComentarios, type ResultadoEnvio, type ResultadoWebhook, type Saliente } from "../../src/canales/tipos";
 
 export class CanalFalso implements AdaptadorCanal {
   canales: readonly CanalId[];
@@ -23,6 +23,35 @@ export class CanalFalso implements AdaptadorCanal {
   nombresPedidos = 0;
   nombre: string | Error | null = null;
   private n = 0;
+  /** Las respuestas a comentarios que salieron (privadas y públicas), y lo que contesta Meta si falla (un Error) o la publicación. */
+  privadas: { comentario: ComentarioEntrante; texto: string }[] = [];
+  publicas: { comentario: ComentarioEntrante; texto: string }[] = [];
+  falloPrivada: Error | null = null;
+  falloPublica: Error | null = null;
+  /** Mientras exista, la respuesta privada espera a que se resuelva (para simular que el objeto se cae a mitad del envío). */
+  puertaPrivada: Promise<void> | null = null;
+  /** A quién dice Meta que le llegó la privada (por defecto, a quien comentó). */
+  destinatarioPrivada: string | null = null;
+  publicacion: { texto?: string; enlace?: string } | null = { texto: "Sofá Roma de 3 puestos, tela gris. Pregunta por el tuyo.", enlace: "https://www.instagram.com/p/C0d1g0/" };
+  publicacionesLeidas = 0;
+
+  readonly comentarios: RespuestasAComentarios = {
+    privada: async (_canal, comentario, texto) => {
+      if (this.puertaPrivada) await this.puertaPrivada;
+      if (this.falloPrivada) throw this.falloPrivada;
+      this.privadas.push({ comentario, texto });
+      return { id: `priv${++this.n}`, destinatario: this.destinatarioPrivada ?? undefined };
+    },
+    publica: async (_canal, comentario, texto) => {
+      if (this.falloPublica) throw this.falloPublica;
+      this.publicas.push({ comentario, texto });
+      return { id: `pub${++this.n}` };
+    },
+    publicacion: async () => {
+      this.publicacionesLeidas++;
+      return this.publicacion;
+    },
+  };
 
   constructor(canal: CanalId = "whatsapp_qr") {
     this.canales = [canal];

@@ -8,6 +8,8 @@ from . import conocimiento, pregunta_responder, presencia, crm_lead
 from . import reparto, conversacion_reparto
 from . import conversacion_panel, conversacion_panel_extra, conversacion_panel_catalogo
 from . import cliente_worker_panel, panel_juan, panel_reparto, telegram_consola
+# Comentarios de Instagram y Facebook que atendió Juan (2026-11-12).
+from . import comentario
 # «Costos de IA»: anotar que Meta ya cobró y ver lo consumido desde el último pago (2026-11-12).
 from . import pagos_ia
 # Herramientas de Juan en el registro de Brian.

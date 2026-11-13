@@ -47,6 +47,11 @@ export interface Env {
    * averigua con `GET /me` y lo recuerda. Solo se atienden los mensajes a esa cuenta.
    */
   INSTAGRAM_ACCOUNT_ID?: string;
+  /**
+   * Opcional: el id de la página de Facebook de D'CASA. Respaldo si Meta no contesta quién es la página (`GET /me` con META_PAGE_TOKEN):
+   * con él, los comentarios de /webhooks/meta se atienden igual. Vacío = Juan lo averigua.
+   */
+  META_PAGE_ID?: string;
   /** Dirección de la API de IA de Meta (Chat Completions compatible con OpenAI). Vacío = https://api.meta.ai/v1. */
   META_AI_BASE_URL?: string;
   /** Dirección de la API de OpenAI (o una compatible). Vacío = https://api.openai.com/v1. */

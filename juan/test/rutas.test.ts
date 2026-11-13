@@ -724,7 +724,8 @@ describe("webhooks de Meta (WhatsApp Cloud, Messenger, Instagram): el 200 sale D
   const TOKEN_CLOUD = "token-cloud-de-prueba-0123456789";
   const envMeta = { ...envCompleto, META_APP_SECRET: SECRETO_META, META_VERIFY_TOKEN: "verificacion-0123456789", WHATSAPP_CLOUD_TOKEN: TOKEN_CLOUD, WHATSAPP_PHONE_NUMBER_ID: "109876543210", META_PAGE_TOKEN: "pagina-0123456789" } as unknown as Env;
   const encendidos = { canales_activos: { whatsapp_cloud: true, messenger: true, instagram: true } };
-  const red = vi.fn(async () => new Response("{}"));
+  // La red de Meta de mentira: solo sabe decir quién es la página (para los comentarios de /webhooks/meta).
+  const red = vi.fn(async (url: unknown) => (String(url).includes("fields=id,instagram_business_account") ? Response.json({ id: "100200300400500" }) : new Response("{}")));
   const adaptadoresMeta = () => [
     crearWhatsappCloud({ fetch: red as unknown as typeof fetch, dormir: async () => {} }),
     crearMeta({ fetch: red as unknown as typeof fetch, dormir: async () => {} }),
@@ -941,6 +942,55 @@ describe("webhooks de Meta (WhatsApp Cloud, Messenger, Instagram): el 200 sale D
     const err = vi.spyOn(console, "error").mockImplementation(() => {});
     expect((await m.pedir(await firmado("/webhooks/meta", evento("m_2")), envMeta)).status).toBe(500);
     err.mockRestore();
+  });
+
+  it("los comentarios de Facebook e Instagram: con «Comentarios» apagado ni se guardan; encendido, se guardan antes del 200 y se atienden", async () => {
+    const ahora = Math.floor(Date.now() / 1000);
+    const feed = (id: string, pagina = "100200300400500") => ({ object: "page", entry: [{ id: pagina, time: ahora, changes: [{ field: "feed", value: { from: { id: "2838000000000001", name: "Ana" }, comment_id: id, post_id: `${pagina}_1`, parent_id: `${pagina}_1`, item: "comment", verb: "add", message: "¿Precio?", created_time: ahora } }] }] });
+    const apagado = montarMeta();
+    expect((await apagado.pedir(await firmado("/webhooks/meta", feed("1_1")), envMeta)).status).toBe(200);
+    await apagado.despues();
+    expect(apagado.pedidas).toEqual([]);
+    const encendido = montarMeta({ ...encendidos, comentarios: { activo: true } });
+    expect((await encendido.pedir(await firmado("/webhooks/meta", feed("1_2")), envMeta)).status).toBe(200);
+    expect(encendido.conv.guardados.map((e) => [e.canal, e.id_externo, e.id_mensaje, e.comentario?.red])).toEqual([["messenger", "2838000000000001", "comentario:facebook:1_2", "facebook"]]);
+    await encendido.despues();
+    expect(encendido.conv.ingestados.map((e) => e.comentario?.id)).toEqual(["1_2"]);
+    // Un comentario en OTRA página suscrita a la misma app no entra (revisión del 2026-11-13).
+    await encendido.pedir(await firmado("/webhooks/meta", feed("9_9", "999888777666555")), envMeta);
+    await encendido.despues();
+    expect(encendido.conv.guardados.map((e) => e.comentario?.id)).toEqual(["1_2"]);
+    // Sin Messenger encendido (la respuesta privada va por Messenger) tampoco.
+    const sinMessenger = montarMeta({ canales_activos: { messenger: false }, comentarios: { activo: true } });
+    await sinMessenger.pedir(await firmado("/webhooks/meta", feed("1_3")), envMeta);
+    await sinMessenger.despues();
+    expect(sinMessenger.pedidas).toEqual([]);
+  });
+
+  it("si no se sabe cuál es la página (Meta no contesta GET /me), el mensaje del aviso se guarda y se contesta 500; el reintento trae el comentario", async () => {
+    const ahora = Math.floor(Date.now() / 1000);
+    const aviso = {
+      object: "page",
+      entry: [
+        {
+          id: "100200300400500",
+          time: ahora,
+          messaging: [{ sender: { id: "2838000000000009" }, recipient: { id: "100200300400500" }, timestamp: Date.now(), message: { mid: "m.reintento", text: "Hola" } }],
+          changes: [{ field: "feed", value: { from: { id: "2838000000000001", name: "Ana" }, comment_id: "1_9", post_id: "100200300400500_1", parent_id: "100200300400500_1", item: "comment", verb: "add", message: "¿Precio?", created_time: ahora } }],
+        },
+      ],
+    };
+    let caido = true;
+    const redRara = vi.fn(async (url: unknown) => (String(url).includes("/me?") ? (caido ? Response.json({ error: { message: "caído", code: 2 } }, { status: 500 }) : Response.json({ id: "100200300400500" })) : new Response("{}")));
+    const m = montar({ config: { ...encendidos, comentarios: { activo: true } }, adaptadores: [crearMeta({ fetch: redRara as unknown as typeof fetch, dormir: async () => {} })] });
+    const primero = await m.pedir(await firmado("/webhooks/meta", aviso), envMeta);
+    expect(primero.status).toBe(500);
+    expect(m.conv.guardados.map((e) => e.id_mensaje)).toEqual(["m.reintento"]);
+    caido = false;
+    const reintento = await m.pedir(await firmado("/webhooks/meta", aviso), envMeta);
+    expect(reintento.status).toBe(200);
+    // El mensaje ya guardado se reconoce (no se guarda dos veces); el comentario entra.
+    expect(m.conv.guardados.map((e) => e.id_mensaje)).toEqual(["m.reintento", "comentario:facebook:1_9"]);
   });
 
   it("Telegram y el puente QR siguen igual: no pasan por la bandeja", async () => {

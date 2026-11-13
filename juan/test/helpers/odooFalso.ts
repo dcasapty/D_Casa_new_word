@@ -2,7 +2,9 @@
 import type { CanalId } from "../../src/canales/tipos";
 import {
   OdooError,
+  type CuerpoComentario,
   type CuerpoMensaje,
+  type RespuestaComentario,
   type CuerpoSeguimientoHecho,
   type DefHerramienta,
   type EstadoOdoo,
@@ -256,7 +258,10 @@ export class OdooFalso implements OdooApi {
   async mensaje(cuerpo: CuerpoMensaje): Promise<RespuestaMensaje> {
     this.revisar();
     if (this.falloDeMensaje) throw this.falloDeMensaje;
-    if (!this.mensajes.some((m) => m.id_mensaje === cuerpo.id_mensaje)) this.mensajes.push(cuerpo);
+    if (!this.mensajes.some((m) => m.id_mensaje === cuerpo.id_mensaje)) {
+      this.mensajes.push(cuerpo);
+      this.orden.push(`mensaje:${cuerpo.autor}`);
+    }
     const cita = cuerpo.cita && this.citaDe ? this.citaDe(cuerpo.cita.id_canal) : null;
     return { ok: true, conversacion_id: this.conversacionId, partner_id: 55, ...this.estadoActual, ...(cita ? { cita: { id_canal: cuerpo.cita!.id_canal, ...cita } } : {}) };
   }
@@ -312,6 +317,20 @@ export class OdooFalso implements OdooApi {
   async escribiendo(cuerpo: { activo: boolean }): Promise<void> {
     this.revisar();
     this.escribiendos.push(cuerpo.activo);
+  }
+
+  /** Los avisos de comentarios que el motor le mandó (`POST /comentario`), en orden; y si Odoo debe fallar. */
+  comentarios: CuerpoComentario[] = [];
+  falloDeComentario: Error | null = null;
+  /** Lo que llegó a Odoo en orden (mensajes y comentarios), para comprobar que el aviso queda antes de la respuesta. */
+  orden: string[] = [];
+
+  async comentario(cuerpo: CuerpoComentario): Promise<RespuestaComentario> {
+    this.revisar();
+    if (this.falloDeComentario) throw this.falloDeComentario;
+    this.comentarios.push(cuerpo);
+    this.orden.push(`comentario:${cuerpo.privada}`);
+    return { ok: true, conversacion_id: this.conversacionId };
   }
 
   /** Llamadas a una herramienta, para afirmar en las pruebas. */

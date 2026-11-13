@@ -236,7 +236,15 @@ export interface OpcionesHerramientas {
   alEmpezar?: () => void;
   /** Lo último que escribió el cliente (texto plano): `crear_oportunidad` solo anota la zona y el «para cuándo» que están ahí. */
   textoDelCliente?: () => string;
+  /**
+   * La respuesta no puede llevar archivos (la respuesta privada a un comentario: Meta deja UN mensaje de texto): no se ofrecen las
+   * herramientas que mandan una foto o un PDF (`enviar_foto_producto`, `cotizar`, `agregar_envio`).
+   */
+  sinArchivos?: boolean;
 }
+
+/** Las herramientas cuya respuesta sale con un archivo (foto o PDF): no se ofrecen cuando la respuesta solo puede ser texto. */
+export const HERRAMIENTAS_CON_ARCHIVO: ReadonlySet<string> = new Set(["enviar_foto_producto", "cotizar", "agregar_envio"]);
 
 /**
  * Un turno puede correr el modelo dos veces (`sinTexto`, pasada de corrección): dentro de UN turno, la misma escritura con los mismos
@@ -427,6 +435,7 @@ export function construirHerramientas(op: OpcionesHerramientas): ToolSet {
 
   for (const def of op.defs) {
     if (def.nombre === "enviar_foto_producto") continue; // la local manda
+    if (op.sinArchivos && HERRAMIENTAS_CON_ARCHIVO.has(def.nombre)) continue;
     tools[def.nombre] = tool({
       description: def.descripcion,
       inputSchema: jsonSchema(def.parametros as never),
@@ -493,6 +502,8 @@ export function construirHerramientas(op: OpcionesHerramientas): ToolSet {
       }),
     });
   }
+
+  if (op.sinArchivos) return tools;
 
   tools.enviar_foto_producto = tool({
     description:
