@@ -467,7 +467,13 @@ local con datos de prueba, 1366 y 390 px) para su visto bueno antes de producci�
   el de Odoo acercaba poco, pensado para el ratón) y otro la deja como estaba, **dos dedos acercan** (hasta 4 veces) y,
   ya acercada, **un dedo la mueve**. La X para cerrar es un círculo navy de 44 px que se ve también sobre una foto
   blanca. `website_dcasa/static/src/js/foto_grande.js`.
-* **Disponibilidad en la ficha:** «Disponible», «Quedan pocas» o «Agotado», **nunca el número**, junto al precio.
+* **Disponibilidad en la ficha:** «Disponible», «Quedan pocas» o «Agotado», **nunca el número**, en la misma línea del
+  precio, a la derecha de «+ ITBMS» (si no cabe, baja justo debajo). En el celular se ve al abrir la ficha, sin bajar y
+  sin que la tape la barra fija de «Agregar al carrito»: para eso la ficha tiene menos aire arriba de la foto y entre
+  la foto, el nombre y el precio, y a 360 px la barra fija va en una sola fila (sin el ícono del carrito). Medido con
+  un nombre de tres líneas y foto cuadrada en 360×800, 390×844 y 430×932
+  (`dcasa_catalogo/tests/test_disponibilidad_celular.py`); en una pantalla más baja (360×740) un nombre de tres
+  líneas deja la etiqueta unos 20 px debajo de la barra.
   * Es **la misma regla que usa Juan**, y vive en un solo lugar: `dcasa_base/disponibilidad.py`
     (`etiqueta_existencias`: agotado con 0 o menos; «pocas» de 1 al umbral del producto, 5 si no se cambió;
     disponible si hay más o si el producto no controla inventario). Juan, el catálogo de Meta (`nivel_existencias`) y
