@@ -100,6 +100,25 @@ class TestDeNocheNadieRecibe(NocheCase):
                       campo.help)
         self.assertTrue(campo.tracking)
 
+    def _migracion_horario(self):
+        spec = importlib.util.spec_from_file_location(
+            'mig_horario', file_path('dcasa_conversaciones/migrations/19.0.1.5.0/post-horario.py'))
+        mig = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mig)
+        return mig
+
+    def test_la_migracion_pone_el_horario_de_la_tienda_si_seguia_el_de_fabrica(self):
+        """Lunes a sábado 9-18, domingo 9-17 (la dueña, 2026-11-13); solo si seguía el de fábrica."""
+        self.ajustes.write({'horario_inicio': 8.0, 'horario_fin': 17.0, 'horario_fin_domingo': 0.0})
+        self._migracion_horario().migrate(self.env.cr, '19.0.1.4.0')
+        self.assertEqual((self.ajustes.horario_inicio, self.ajustes.horario_fin, self.ajustes.horario_fin_domingo),
+                         (9.0, 18.0, 17.0))
+
+    def test_la_migracion_no_pisa_un_horario_que_gerencia_ya_cambio(self):
+        self.ajustes.write({'horario_inicio': 7.5, 'horario_fin': 16.0, 'horario_fin_domingo': 0.0})
+        self._migracion_horario().migrate(self.env.cr, '19.0.1.4.0')
+        self.assertEqual((self.ajustes.horario_inicio, self.ajustes.horario_fin), (7.5, 16.0))
+
     def test_la_migracion_lo_enciende_y_apaga_el_aviso_de_fotos(self):
         spec = importlib.util.spec_from_file_location(
             'mig_noche', file_path('dcasa_conversaciones/migrations/19.0.1.5.0/post-migrate.py'))
