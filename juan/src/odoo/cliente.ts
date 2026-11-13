@@ -167,7 +167,7 @@ export interface CuerpoComentario {
 export interface RespuestaComentario {
   ok?: boolean;
   conversacion_id?: number | null;
-  /** Ya estaba registrado con un resultado final: no se cambió nada. */
+  /** Ya estaba registrado y no se cambió nada (un repetido, o un resultado final que no se pisa). */
   repetido?: boolean;
 }
 

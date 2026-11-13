@@ -40,6 +40,22 @@
                         </group>
                     </group>
                     <group>
+                        <group string="Comentarios de Instagram y Facebook" name="comentarios">
+                            <field name="comentarios_activo"/>
+                            <field name="comentarios_instagram" invisible="not comentarios_activo"/>
+                            <field name="comentarios_facebook" invisible="not comentarios_activo"/>
+                            <field name="comentarios_texto_publico" invisible="not comentarios_activo"/>
+                            <field name="comentarios_tope_hora" invisible="not comentarios_activo"/>
+                            <div class="text-muted" colspan="2">
+                                Juan solo contesta los comentarios que preguntan (precio, medidas, colores, si hay, envío
+                                o ganas de comprar): en público, corto, y la respuesta completa por mensaje privado. No
+                                contesta etiquetas de amigos, emojis, saludos ni elogios. Las quejas no las contesta:
+                                avisa a Gerencia por Telegram. Cada comentario atendido queda en la conversación de esa
+                                persona.
+                            </div>
+                        </group>
+                    </group>
+                    <group>
                         <group string="Horario laboral (hora de Panamá)">
                             <label for="horario_inicio" string="De"/>
                             <div class="o_row">

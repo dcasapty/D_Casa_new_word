@@ -2614,6 +2614,28 @@
    ]
   },
   {
+   "id": "juan-comentarios",
+   "categoria": "tienda",
+   "grupo": "Conversaciones",
+   "titulo": "Que Juan responda los comentarios de Instagram y Facebook",
+   "logras": "Juan contesta los comentarios de tus publicaciones que preguntan algo (precio, medidas, colores, si hay, envío o ganas de comprar): debajo del comentario con una frase corta y, por mensaje privado, con la respuesta completa. Cada comentario que atiende queda en la conversación de esa persona.",
+   "destino": {
+    "menu": "dcasa_conversaciones.menu_dcasa_juan_ajustes"
+   },
+   "nota": "Se enciende en Ajustes de Juan, en «Comentarios de Instagram y Facebook» › «Responder comentarios»: viene apagado hasta que lo pruebes. Ahí también eliges las redes, cambias la frase pública ({nombre} pone el nombre de quien comentó) y cuántas respuestas públicas da por hora. No contesta etiquetas de amigos, emojis, saludos ni elogios. Las quejas no las contesta: le avisa a Gerencia por Telegram y lo deja anotado en la conversación. Necesita Messenger (para Facebook) o Instagram encendidos en «Dónde contesta». Solo Gerencia y los administradores lo cambian.",
+   "brian": "¿Cuántos comentarios de Instagram respondió Juan esta semana?",
+   "palabras": [
+    "comentarios",
+    "comentario",
+    "instagram",
+    "facebook",
+    "publicaciones",
+    "responder comentarios",
+    "quejas",
+    "mensaje privado"
+   ]
+  },
+  {
    "id": "juan-cotizaciones-vencen",
    "categoria": "tienda",
    "grupo": "Conversaciones",

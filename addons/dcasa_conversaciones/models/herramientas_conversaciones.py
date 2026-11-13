@@ -14,6 +14,7 @@ from odoo.addons.dcasa_brian.models import herramientas_comun as c
 from odoo.addons.dcasa_brian.models.registro import BrianError, herramienta
 from odoo.exceptions import AccessError
 
+from . import horario as H
 from . import panel_calculos as C
 from .sale_origen import ORIGENES_QUE_VENCEN, PAGOS_EN_CURSO, hoy_en_panama
 
@@ -53,11 +54,13 @@ class BrianHerramientasConversaciones(models.AbstractModel):
     @herramienta(
         nombre='resumen_de_conversaciones',
         descripcion='El Resumen de Juan (Conversaciones › Resumen): mensajes, clientes, lo que Juan resolvió solo, '
-                    'oportunidades, ventas atribuidas, tasa de cierre y cuánto se tarda en contestar.',
+                    'oportunidades, ventas atribuidas, tasa de cierre, cuánto se tarda en contestar y los comentarios '
+                    'de Instagram y Facebook que atendió (preguntas respondidas y quejas).',
         parametros={'periodo': PARAM_PERIODO_JUAN},
         nivel='lectura', categoria='ventas', grupos=VENTAS,
         ejemplos=['¿cuál es la tasa de cierre de Juan?', '¿cuántas conversaciones hubo esta semana? → 7_dias',
-                  '¿cuánto vendió Juan este mes? → 30_dias'],
+                  '¿cuánto vendió Juan este mes? → 30_dias',
+                  '¿cuántos comentarios de Instagram respondió Juan esta semana? → 7_dias'],
     )
     def _h_resumen_de_conversaciones(self, periodo='hoy'):
         if periodo not in C.PERIODOS:
@@ -94,10 +97,32 @@ class BrianHerramientasConversaciones(models.AbstractModel):
                               'atribución por conversación, no causalidad. «Solo personas» es de referencia: no se '
                               'le atribuye a Juan.',
         }
+        datos['comentarios'] = self._comentarios_del_periodo(periodo)
         alcance = c.alcance(self.env)
         if alcance:
             datos['alcance'] = alcance
         return datos
+
+    def _comentarios_del_periodo(self, periodo):
+        """Los comentarios de Instagram y Facebook que atendió Juan en el periodo (por la hora del comentario): cuántas
+        preguntas respondió por privado, cuántas no pudo y cuántas quejas pasaron a Gerencia. Solo cifras, sin nombres
+        ni lo que escribió nadie."""
+        inicio_local, fin_local = C.limites_del_periodo(periodo, self.env['dcasa.juan.panel']._ahora_local())
+        self.env.cr.execute("""
+            SELECT clase, privada, COUNT(*) FROM dcasa_comentario
+             WHERE ts >= %s AND ts < %s GROUP BY clase, privada""", [H.a_utc(inicio_local), H.a_utc(fin_local)])
+        cuentas = {(clase, privada): n for clase, privada, n in self.env.cr.fetchall()}
+        preguntas = {privada: n for (clase, privada), n in cuentas.items() if clase == 'pregunta'}
+        return {
+            'preguntas_respondidas': preguntas.get('respondida', 0),
+            'preguntas_sin_respuesta_de_juan': sum(n for privada, n in preguntas.items() if privada != 'respondida'),
+            'quejas_avisadas_a_gerencia': sum(n for (clase, _p), n in cuentas.items() if clase == 'queja'),
+            'sin_clasificar': sum(n for (clase, _p), n in cuentas.items() if clase == 'sin_clasificar'),
+            'como_se_cuenta': 'Solo los comentarios que Juan atendió con «Responder comentarios» encendido (Ajustes de '
+                              'Juan). Los que no preguntan nada (etiquetas, emojis, saludos, elogios) no se cuentan. '
+                              '«Sin respuesta de Juan» son las preguntas que Meta no dejó responder o que atendía una '
+                              'persona.',
+        }
 
     @herramienta(
         nombre='reparto_de_conversaciones',

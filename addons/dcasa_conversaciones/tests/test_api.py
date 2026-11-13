@@ -27,7 +27,7 @@ DE_OTROS_MODULOS = {'guardar_correo', 'no_quiere_novedades'}
 # Lo mismo con las claves de la respuesta de /mensaje y /estado (dcasa_camila: las novedades por correo).
 CLAVES_DE_OTROS_MODULOS = {'permiso_correo'}
 RUTAS = (('POST', 'mensaje'), ('GET', 'estado'), ('GET', 'config'), ('GET', 'herramientas'), ('POST', 'herramienta'),
-         ('POST', 'seguimiento/hecho'), ('POST', 'escribiendo'), ('POST', 'foto-perfil'))
+         ('POST', 'seguimiento/hecho'), ('POST', 'escribiendo'), ('POST', 'foto-perfil'), ('POST', 'comentario'))
 
 
 class ApiCase(HttpCase):

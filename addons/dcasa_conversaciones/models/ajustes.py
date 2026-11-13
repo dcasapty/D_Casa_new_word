@@ -67,6 +67,11 @@ MAX_ESPERANDO_A_LA_VEZ = 50
 # El primer mensaje es corto; el aviso largo de privacidad no se manda por el chat (vive en la política del sitio).
 # Lo que no cambia: Juan nunca afirma ser humano y, si alguien pregunta de verdad, dice que es el asistente virtual.
 BIENVENIDA = "Hola, soy Juan de D'CASA."
+# Comentarios de Instagram y Facebook (2026-11-12, la dueña: «Corto y lo demás por privado»). {nombre} = el de quien
+# comentó (el de pila en Facebook, el @usuario en Instagram); si no hay, se quita.
+TEXTO_PUBLICO_COMENTARIOS = '¡Hola, {nombre}! Te escribimos por mensaje directo con los detalles.'
+MAX_TEXTO_PUBLICO_COMENTARIOS = 300
+MAX_TOPE_COMENTARIOS_HORA = 200
 PRIVACIDAD = ""
 PALABRAS_PROHIBIDAS = "remate\ncorre\n¡¡\n!!"
 
@@ -101,6 +106,32 @@ class JuanAjustes(models.Model):
              'comando /miid del bot de Juan). Cualquier otro chat se ignora sin gastar IA.')
     canal_messenger = fields.Boolean('Messenger', default=False, tracking=True)
     canal_instagram = fields.Boolean('Instagram', default=False, tracking=True)
+
+    # --- Comentarios de Instagram y Facebook (2026-11-12) -----------------------------------------
+    # Decisiones de la dueña: «Solo los que preguntan», «Corto y lo demás por privado», «Apagado hasta que lo pruebes».
+    comentarios_activo = fields.Boolean(
+        'Responder comentarios', default=False, tracking=True,
+        help='Juan contesta los comentarios de las publicaciones que preguntan algo (precio, medidas, colores, si hay, '
+             'envío o ganas de comprar): en público, con la frase corta de abajo, y por mensaje privado con la '
+             'respuesta completa. No contesta etiquetas de amigos, emojis sueltos, saludos ni elogios. Las quejas no '
+             'las contesta: avisa a Gerencia por Telegram y lo deja en la conversación. Viene apagado: enciéndelo '
+             'cuando lo pruebes. Necesita Messenger (para Facebook) o Instagram encendidos en «Dónde contesta».')
+    comentarios_facebook = fields.Boolean(
+        'Comentarios de Facebook', default=True, tracking=True,
+        help='Los comentarios de las publicaciones de la página de Facebook (la respuesta privada llega por '
+             'Messenger).')
+    comentarios_instagram = fields.Boolean(
+        'Comentarios de Instagram', default=True, tracking=True,
+        help='Los comentarios de las publicaciones de Instagram (la respuesta privada llega a sus mensajes).')
+    comentarios_texto_publico = fields.Char(
+        'Texto de la respuesta pública', default=TEXTO_PUBLICO_COMENTARIOS, tracking=True,
+        help='Lo que Juan escribe debajo del comentario. Corto: lo demás va por mensaje privado. {nombre} se cambia '
+             'por el nombre de quien comentó (el de pila en Facebook, el @usuario en Instagram); si no hay nombre, se '
+             'quita.')
+    comentarios_tope_hora = fields.Integer(
+        'Respuestas públicas por hora (máximo)', default=30, tracking=True,
+        help='Para que no parezca spam: pasado este número en una hora, Juan sigue respondiendo por privado pero ya no '
+             f'en público. 0 = nunca en público. Máximo {MAX_TOPE_COMENTARIOS_HORA}.')
 
     # --- Horario laboral (hora de Panamá) -------------------------------------------------------
     horario_inicio = fields.Float('Desde', default=8.0, tracking=True, help='Hora a la que empieza el horario laboral.')
@@ -447,6 +478,26 @@ class JuanAjustes(models.Model):
                     'El máximo de clientes esperándole a una vendedora va de 0 (sin límite) a %s.',
                     MAX_ESPERANDO_A_LA_VEZ))
 
+    @api.constrains('comentarios_texto_publico', 'comentarios_tope_hora')
+    def _check_comentarios(self):
+        for registro in self:
+            texto = (registro.comentarios_texto_publico or '').strip()
+            if not texto:
+                raise ValidationError(self.env._('Escribe el texto de la respuesta pública a los comentarios.'))
+            if len(texto) > MAX_TEXTO_PUBLICO_COMENTARIOS:
+                raise ValidationError(self.env._(
+                    'El texto de la respuesta pública es de hasta %s caracteres: lo demás va por privado.',
+                    MAX_TEXTO_PUBLICO_COMENTARIOS))
+            if re.search(r'\{(?!nombre\})[^}]*\}', texto):
+                raise ValidationError(self.env._(
+                    'En el texto de la respuesta pública solo se puede usar {nombre} entre llaves.'))
+            if re.search(r'https?://|www\.', texto, re.IGNORECASE):
+                raise ValidationError(self.env._(
+                    'La respuesta pública no lleva enlaces (Meta la puede marcar como spam): lo demás va por privado.'))
+            if not 0 <= registro.comentarios_tope_hora <= MAX_TOPE_COMENTARIOS_HORA:
+                raise ValidationError(self.env._(
+                    'Las respuestas públicas por hora van de 0 (nunca en público) a %s.', MAX_TOPE_COMENTARIOS_HORA))
+
     @api.constrains('presupuesto_ia_mensual_usd', 'pausa_por_defecto_minutos', 'aviso_espera_minutos')
     def _check_numeros(self):
         for registro in self:
@@ -587,6 +638,13 @@ class JuanAjustes(models.Model):
             'guardar_foto_perfil': bool(self.guardar_foto_perfil),
             'telegram_chats': self.telegram_chats(),
             'telegram_abierto': bool(self.telegram_abierto),
+            'comentarios': {
+                'activo': bool(self.comentarios_activo),
+                'facebook': bool(self.comentarios_facebook),
+                'instagram': bool(self.comentarios_instagram),
+                'texto_publico': (self.comentarios_texto_publico or TEXTO_PUBLICO_COMENTARIOS).strip(),
+                'tope_por_hora': self.comentarios_tope_hora,
+            },
         }
 
     # ------------------------------------------------------------------

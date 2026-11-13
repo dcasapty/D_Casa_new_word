@@ -169,6 +169,11 @@ class DcasaMensaje(models.Model):
     canal_entregado_en = fields.Datetime('Entregado', readonly=True)
     canal_leido_en = fields.Datetime('Leído', readonly=True)
     parte_ids = fields.One2many('dcasa.mensaje.parte', 'mensaje_id', 'Partes en el canal', readonly=True)
+    # El aviso de un comentario de Instagram o Facebook (2026-11-12): la publicación comentada, para abrirla desde el
+    # hilo.
+    enlace = fields.Char('Enlace', readonly=True,
+                         help='Solo en el aviso de un comentario: la publicación de Instagram o Facebook que '
+                              'comentó la persona.')
 
     _id_mensaje_unico = models.Constraint(
         'UNIQUE(conversacion_id, id_mensaje)', 'Ese mensaje ya está registrado en la conversación.')
@@ -277,7 +282,7 @@ class DcasaMensaje(models.Model):
         return creados
 
     @api.model
-    def _crear_interno(self, conversacion, tipo, texto, usuario=None, menciones=None):
+    def _crear_interno(self, conversacion, tipo, texto, usuario=None, menciones=None, enlace=None):
         """Una nota interna (de una vendedora) o un aviso del sistema dentro del hilo. Nunca sale por el canal.
 
         ``menciones``: las compañeras mencionadas con @ (``res.users``); solo tiene sentido en una nota.
@@ -292,6 +297,8 @@ class DcasaMensaje(models.Model):
         }
         if menciones and tipo == 'nota':
             valores['mencion_ids'] = [(6, 0, menciones.ids)]
+        if enlace and tipo == 'aviso':
+            valores['enlace'] = enlace
         mensaje, _creado = self._crear_si_no_existe(valores)
         return mensaje
 
@@ -525,6 +532,8 @@ class DcasaMensaje(models.Model):
             'canal_leido_en': H.a_iso(self.canal_leido_en) if self.canal_leido_en else None,
             # «Responder» solo se ofrece si el canal sabrá mostrar la cita (hay un id del canal).
             'se_puede_citar': self.tipo == 'mensaje' and bool(self._id_canal_para_citar()),
+            # El aviso de un comentario: la publicación comentada (solo https de Facebook o Instagram).
+            'enlace': self.enlace or None,
         }
 
     # ------------------------------------------------------------------

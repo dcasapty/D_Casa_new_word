@@ -9,6 +9,8 @@
 * ``POST /escribiendo``        — el asistente empezó (o terminó) de preparar una respuesta: la pantalla lo muestra.
 * ``POST /foto-perfil``        — la foto de perfil de quien escribe (base64), para el avatar de la pantalla.
 * ``POST /eventos``            — palomitas (enviado, entregado, leído, no llegó) y reacciones del cliente, en tandas.
+* ``POST /comentario``         — un comentario de Instagram o Facebook que Juan atendió: el aviso en el hilo y, si es
+  una queja, Telegram a Gerencia (idempotente por red e id del comentario; ver ``models/comentario.py``).
 
 Seguridad
 ---------
@@ -29,6 +31,7 @@ import re
 import threading
 import time
 from collections import defaultdict, deque
+from urllib.parse import urlsplit
 
 from odoo import SUPERUSER_ID, fields, http
 from odoo.exceptions import ConcurrencyError
@@ -39,6 +42,8 @@ from ..models import adjuntos as A
 from ..models import crm_reglas as R
 from ..models import horario as H
 from ..models.ajustes import CANALES
+from ..models.comentario import CLASES as _CLASES_DE_COMENTARIO
+from ..models.comentario import RESPUESTA_PRIVADA, RESPUESTA_PUBLICA
 from ..models.mensaje import MAX_PARTES, MAX_TEXTO_CITA, RANGO_CANAL
 from ..models.mensaje import TIPOS_DE_PARTE as _TIPOS_DE_PARTE
 
@@ -60,6 +65,11 @@ MAX_EVENTOS = 100        # palomitas y reacciones por petición (una tanda por a
 MAX_EMOJI = 32
 ESTADOS_DE_EVENTO = frozenset(RANGO_CANAL)
 TIPOS_DE_PARTE = dict(_TIPOS_DE_PARTE)
+# Comentarios: la red y el canal por el que va la respuesta privada (Facebook → Messenger).
+CANAL_DE_LA_RED = {'facebook': 'messenger', 'instagram': 'instagram'}
+RE_ID_COMENTARIO = re.compile(r'^[A-Za-z0-9_.:-]{1,128}$')
+RE_HOST_DE_META = re.compile(r'(^|\.)(facebook\.com|instagram\.com|fb\.com|fb\.me)$', re.IGNORECASE)
+MAX_TEXTO_COMENTARIO = 2000
 
 _candado = threading.Lock()
 _fallos = defaultdict(deque)
@@ -211,6 +221,19 @@ def _evento(crudo):
             return None
         evento['emoji'] = emoji
     return evento
+
+
+def _enlace_de_meta(valor):
+    """El enlace a la publicación comentada: solo https de Facebook o Instagram (nunca otra dirección); si no, nada."""
+    if not isinstance(valor, str) or len(valor) > 500 or RE_NO_GUARDABLE.search(valor):
+        return None
+    if any(c.isspace() for c in valor):
+        return None
+    try:
+        partes = urlsplit(valor)
+    except ValueError:
+        return None
+    return valor if partes.scheme == 'https' and partes.hostname and RE_HOST_DE_META.search(partes.hostname) else None
 
 
 class JuanAPI(http.Controller):
@@ -365,6 +388,58 @@ class JuanAPI(http.Controller):
         resultado = entorno['dcasa.mensaje']._aplicar_eventos(validos) if validos else {
             'aplicados': 0, 'desconocidos': []}
         return _respuesta({'ok': True, **resultado, 'invalidos': invalidos})
+
+    # ------------------------------------------------------------------
+    # POST /comentario (Instagram y Facebook: no es un mensaje del cliente)
+    # ------------------------------------------------------------------
+
+    @http.route(f'{RAIZ}/comentario', type='http', auth='none', methods=['POST'], csrf=False, save_session=False,
+                readonly=False)
+    def comentario(self, **_kw):
+        return self._servir(self._comentario)
+
+    def _comentario(self, entorno):
+        """Un comentario de una publicación que Juan atendió (una pregunta, una queja o uno que la IA no pudo
+        clasificar). Deja el aviso en el hilo de la conversación de esa persona y, si es una queja, avisa a Gerencia."""
+        cuerpo = self._cuerpo()
+        red = cuerpo.get('red')
+        if red not in CANAL_DE_LA_RED:
+            raise _Error(400, '«red» debe ser «facebook» o «instagram».')
+        canal = _canal(cuerpo.get('canal'))
+        if canal != CANAL_DE_LA_RED[red]:
+            raise _Error(400, 'Un comentario de Facebook va con el canal «messenger»; uno de Instagram, con '
+                              '«instagram».')
+        id_comentario = cuerpo.get('id_comentario')
+        if not isinstance(id_comentario, str) or not RE_ID_COMENTARIO.match(id_comentario):
+            raise _Error(400, '«id_comentario» es obligatorio (el id del comentario en Meta).')
+        texto = _texto_opcional(cuerpo.get('texto'), MAX_TEXTO_COMENTARIO, 'texto')
+        texto = RE_NO_GUARDABLE.sub('', texto or '').strip()
+        if not texto:
+            raise _Error(400, '«texto» es obligatorio (lo que comentó la persona).')
+        clase, privada, publica = cuerpo.get('clase'), cuerpo.get('privada'), cuerpo.get('publica')
+        if clase not in dict(_CLASES_DE_COMENTARIO):
+            raise _Error(400, '«clase» debe ser «pregunta», «queja» o «sin_clasificar».')
+        if privada not in dict(RESPUESTA_PRIVADA) or publica not in dict(RESPUESTA_PUBLICA):
+            raise _Error(400, '«privada» y «publica» dicen qué pasó con cada respuesta (p. ej. «respondida» o «no»).')
+        ahora = fields.Datetime.now()
+        ts = ahora
+        if cuerpo.get('ts') is not None:
+            try:
+                ts = H.de_iso(cuerpo['ts'])
+            except (ValueError, TypeError):
+                raise _Error(400, '«ts» debe ser una fecha ISO 8601, p. ej. 2026-11-12T14:03:00Z.') from None
+            if (ts - ahora).total_seconds() > TOLERANCIA_RELOJ:
+                ts = ahora
+        datos = {
+            'canal': canal, 'id_externo': _id_externo(cuerpo.get('id_externo'), canal), 'red': red,
+            'id_comentario': id_comentario, 'texto': texto, 'enlace': _enlace_de_meta(cuerpo.get('enlace')),
+            'ts': ts, 'clase': clase, 'privada': privada, 'publica': publica,
+            'nombre': _texto_libre(_texto_opcional(cuerpo.get('nombre'), 200, 'nombre'), 200),
+            'motivo': _texto_libre(cuerpo.get('motivo'), 200),
+        }
+        comentario, que = entorno['dcasa.comentario']._registrar(datos)
+        return _respuesta({'ok': True, 'conversacion_id': comentario.conversacion_id.id, 'comentario_id': comentario.id,
+                           'repetido': que == 'repetido'})
 
     # ------------------------------------------------------------------
     # GET /estado
