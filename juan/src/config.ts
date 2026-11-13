@@ -95,11 +95,19 @@ export interface ConfigComentarios {
   texto_publico: string;
   /** Lo más de respuestas públicas en una hora, entre todas las publicaciones (para no parecer spam). 0 = ninguna en público. */
   tope_por_hora: number;
+  /** Por persona (quien comenta), en 24 horas y en comentarios distintos: lo de más se anota y no se contesta. 0 = ninguna en público. */
+  publicas_por_persona: number;
+  /** Lo mismo con las respuestas privadas (al menos 1: sin privada no hay respuesta). */
+  privadas_por_persona: number;
 }
 
 /** La respuesta pública de fábrica (la dueña: «Corto y lo demás por privado»). */
 export const TEXTO_PUBLICO_POR_DEFECTO = "¡Hola, {nombre}! Te escribimos por mensaje directo con los detalles.";
 export const TOPE_POR_HORA_POR_DEFECTO = 30;
+/** Por persona y por 24 horas (el coordinador, 2026-11-13): 1 respuesta pública y 3 privadas, en comentarios distintos. */
+export const PUBLICAS_POR_PERSONA_POR_DEFECTO = 1;
+export const PRIVADAS_POR_PERSONA_POR_DEFECTO = 3;
+export const MAX_POR_PERSONA = 10;
 const MAX_TEXTO_PUBLICO = 300;
 
 export const CONFIG_POR_DEFECTO: Config = {
@@ -124,7 +132,15 @@ export const CONFIG_POR_DEFECTO: Config = {
   guardar_foto_perfil: true,
   telegram_chats: [],
   telegram_abierto: false,
-  comentarios: { activo: false, facebook: true, instagram: true, texto_publico: TEXTO_PUBLICO_POR_DEFECTO, tope_por_hora: TOPE_POR_HORA_POR_DEFECTO },
+  comentarios: {
+    activo: false,
+    facebook: true,
+    instagram: true,
+    texto_publico: TEXTO_PUBLICO_POR_DEFECTO,
+    tope_por_hora: TOPE_POR_HORA_POR_DEFECTO,
+    publicas_por_persona: PUBLICAS_POR_PERSONA_POR_DEFECTO,
+    privadas_por_persona: PRIVADAS_POR_PERSONA_POR_DEFECTO,
+  },
 };
 
 /** Canales que arrancan encendidos si Odoo no dice nada. La Cloud API y Meta empiezan APAGADOS. */
@@ -147,8 +163,16 @@ export function canalActivo(cfg: Config, canal: CanalId): boolean {
  * mensaje privado nadie la atendería.
  */
 export function comentariosActivos(cfg: Config, red: "facebook" | "instagram"): boolean {
-  const c = cfg.comentarios;
-  return cfg.bot_activo_global && c.activo && c[red] && canalActivo(cfg, red === "facebook" ? "messenger" : "instagram");
+  return porQueNoContesta(cfg, red) === null;
+}
+
+/** Por qué Juan no contesta los comentarios de esa red, en palabras para el aviso de Odoo; null = sí los contesta. */
+export function porQueNoContesta(cfg: Config, red: "facebook" | "instagram"): string | null {
+  if (!cfg.bot_activo_global) return "se apagó el asistente";
+  if (!cfg.comentarios.activo) return "se apagó «Responder comentarios»";
+  if (!cfg.comentarios[red]) return `se apagaron los comentarios de ${red === "facebook" ? "Facebook" : "Instagram"}`;
+  if (!canalActivo(cfg, red === "facebook" ? "messenger" : "instagram")) return `se apagó el canal ${red === "facebook" ? "Messenger" : "Instagram"}`;
+  return null;
 }
 
 /** ¿Se atiende lo que llegó? Un comentario, con sus interruptores; un mensaje, si su canal está encendido. */
@@ -156,10 +180,24 @@ export function atiendeEntrante(cfg: Config, e: Pick<Entrante, "canal" | "coment
   return e.comentario ? comentariosActivos(cfg, e.comentario.red) : canalActivo(cfg, e.canal);
 }
 
-/** La respuesta pública de Ajustes, sin controles ni saltos y de 300 letras como mucho (vacía = la de fábrica). */
+/**
+ * Una dirección web dentro de un texto, con esquema o sin él («https://…», «www.…», «bit.ly/x», «dcasapty.com/ofertas», un correo):
+ * algo con forma de dominio (palabra, punto y 2 a 24 letras) que no esté pegado a otra letra. Igual que Odoo (ajustes.py).
+ */
+const DIRECCION_WEB = /https?:\/\/|www\.|(?<![\p{L}\p{N}_.-])[\p{L}\p{N}_-]+(?:\.[\p{L}\p{N}_-]+)*\.[A-Za-z]{2,24}(?![\p{L}\p{N}_-])/iu;
+
+/**
+ * ¿Sirve como respuesta pública? Sin direcciones web (Meta la marcaría como spam y nadie la revisaría en cada comentario) y sin llaves
+ * sueltas: la única marca es «{nombre}». Odoo ya lo valida al guardar (ajustes.py); aquí se vuelve a mirar por si acaso.
+ */
+export function textoPublicoValido(t: string): boolean {
+  return !DIRECCION_WEB.test(t) && !/[{}]/.test(t.replace(/\{nombre\}/g, ""));
+}
+
+/** La respuesta pública de Ajustes, sin controles ni saltos y de 300 letras como mucho (vacía o inválida = la de fábrica). */
 export function normalizarTextoPublico(v: unknown): string {
   const t = typeof v === "string" ? v.replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim().slice(0, MAX_TEXTO_PUBLICO) : "";
-  return t || TEXTO_PUBLICO_POR_DEFECTO;
+  return t && textoPublicoValido(t) ? t : TEXTO_PUBLICO_POR_DEFECTO;
 }
 
 const esObjeto = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
@@ -287,6 +325,8 @@ export function normalizarComentarios(v: unknown): ConfigComentarios {
     instagram: typeof c.instagram === "boolean" ? c.instagram : d.instagram,
     texto_publico: normalizarTextoPublico(c.texto_publico),
     tope_por_hora: Math.round(numero(c.tope_por_hora, d.tope_por_hora, 0, 500)),
+    publicas_por_persona: Math.round(numero(c.publicas_por_persona, d.publicas_por_persona, 0, MAX_POR_PERSONA)),
+    privadas_por_persona: Math.round(numero(c.privadas_por_persona, d.privadas_por_persona, 1, MAX_POR_PERSONA)),
   };
 }
 

@@ -59,8 +59,8 @@ describe("una pregunta en un comentario: corto en público y lo demás por priva
     expect(m.canal.privadas).toHaveLength(1);
     expect(m.canal.privadas[0].texto).toBe(`Hola, soy Juan de D'CASA.\n\n${RESPUESTA_SOFA}`);
     expect(m.canal.salidas).toHaveLength(0);
-    // La pública, con el @usuario.
-    expect(m.canal.publicas.map((p) => p.texto)).toEqual(["¡Hola, @ana.muebles! Te escribimos por mensaje directo con los detalles."]);
+    // La pública, sin nombre: en Instagram nunca va el @usuario (Meta ya la pone debajo del comentario).
+    expect(m.canal.publicas.map((p) => p.texto)).toEqual(["¡Hola! Te escribimos por mensaje directo con los detalles."]);
 
     // En Odoo: el aviso antes de la respuesta (así queda en el hilo) y el resultado en el mismo aviso; el comentario NO es un mensaje del cliente.
     expect(m.odoo.orden).toEqual(["comentario:pendiente", "mensaje:bot", "comentario:respondida"]);
@@ -81,12 +81,14 @@ describe("una pregunta en un comentario: corto en público y lo demás por priva
     for (const nombre of ["enviar_foto_producto", "cotizar", "agregar_envio"]) expect(herramientasDe(m, 1)).not.toContain(nombre);
   });
 
-  it("Facebook: el de pila del perfil en la respuesta pública; sin nombre, «{nombre}» se quita", async () => {
-    const m = mundoComentarios({ canal: "messenger" });
-    m.guion([PREGUNTA, { texto: "Te escribo por tu comentario. ¿Cuál mueble te interesa?" }, PREGUNTA, { texto: "¿Cuál mueble te interesa?" }]);
+  it("Facebook: el de pila del perfil en la respuesta pública; si no es un nombre limpio (un enlace, una queja, la marca), sin nombre", async () => {
+    const m = mundoComentarios({ canal: "messenger", comentarios: { publicas_por_persona: 5, privadas_por_persona: 5 } });
+    const pasos = [];
+    for (let i = 0; i < 4; i++) pasos.push(PREGUNTA, { texto: "Te escribo por tu comentario. ¿Cuál mueble te interesa?" });
+    m.guion(pasos);
     await comentar(m, comentario(m, "Info del comedor por favor"));
-    await comentar(m, comentario(m, "Info del comedor por favor", {}, { nombre: "https://spam.example" }));
-    expect(m.canal.publicas.map((p) => p.texto)).toEqual(["¡Hola, Ana! Te escribimos por mensaje directo con los detalles.", "¡Hola! Te escribimos por mensaje directo con los detalles."]);
+    for (const nombre of ["https://spam.example", "Estafadores Unidos", "Dcasa Oficial"]) await comentar(m, comentario(m, "Info del comedor por favor", {}, { nombre }));
+    expect(m.canal.publicas.map((p) => p.texto)).toEqual(["¡Hola, Ana! Te escribimos por mensaje directo con los detalles.", ...Array(3).fill("¡Hola! Te escribimos por mensaje directo con los detalles.")]);
     expect(m.odoo.comentarios.at(-1)).toMatchObject({ canal: "messenger", red: "facebook" });
   });
 
@@ -118,10 +120,20 @@ describe("una pregunta en un comentario: corto en público y lo demás por priva
 });
 
 describe("a cuáles NO responde", () => {
-  it("emojis solos, solo menciones, saludos y elogios cortos: «otro» sin gastar IA y sin tocar Odoo", async () => {
+  it("emojis solos o solo menciones: «otro» sin gastar IA y sin tocar Odoo", async () => {
     const m = mundoComentarios();
-    for (const texto of ["😍😍😍", "@maria.p @juanito", "@maria mira 👀", "Qué lindo", "Hola", "Bello!!", "Me encanta este estilo"]) await comentar(m, comentario(m, texto));
+    for (const texto of ["😍😍😍", "@maria.p @juanito", "@maria 👀", "🔥🔥 10/10"]) await comentar(m, comentario(m, texto));
     expect(m.modelo.doGenerateCalls).toHaveLength(0);
+    expect(m.odoo.comentarios).toHaveLength(0);
+    expect(m.canal.privadas.length + m.canal.publicas.length).toBe(0);
+  });
+
+  it("saludos, elogios y etiquetas con texto, aunque sean cortos, los ve la IA: si dice «otro», ni respuesta ni Odoo", async () => {
+    const m = mundoComentarios();
+    m.guion([{ texto: '{"result":"otro"}' }]);
+    const textos = ["@maria mira 👀", "Qué lindo", "Hola", "Bello!!", "Me encanta este estilo"];
+    for (const texto of textos) await comentar(m, comentario(m, texto));
+    expect(m.modelo.doGenerateCalls).toHaveLength(textos.length);
     expect(m.odoo.comentarios).toHaveLength(0);
     expect(m.canal.privadas.length + m.canal.publicas.length).toBe(0);
   });
@@ -144,20 +156,33 @@ describe("a cuáles NO responde", () => {
     expect(m.odoo.mensajes).toHaveLength(0);
   });
 
-  it("una queja corta («estafa») no se pierde por las reglas baratas: la ve la IA", async () => {
+  it("una queja corta («estafa») no se pierde por las reglas baratas: es queja sin preguntarle a la IA", async () => {
     const m = mundoComentarios();
-    m.guion([{ texto: '{"result":"queja"}' }]);
+    m.guion([PREGUNTA]);
     await comentar(m, comentario(m, "Estafa"));
-    expect(m.modelo.doGenerateCalls).toHaveLength(1);
-    expect(m.odoo.comentarios[0]).toMatchObject({ clase: "queja" });
+    expect(m.modelo.doGenerateCalls).toHaveLength(0);
+    expect(m.odoo.comentarios[0]).toMatchObject({ clase: "queja", privada: "no", publica: "no" });
   });
 
-  it("si la IA falla al clasificar, no responde y lo deja anotado (Odoo y /salud)", async () => {
+  it("si la IA falla al clasificar, lo reintenta 3 veces en 24 horas; si vuelve, contesta", async () => {
+    const m = mundoComentarios();
+    m.guion([{ error: new Error("el proveedor no contesta") }, { error: new Error("el proveedor no contesta") }, PREGUNTA, { texto: "¿Hasta dónde lo necesitas?" }]);
+    await comentar(m, comentario(m, "¿Hacen envíos a Chitré?"));
+    expect(m.odoo.comentarios).toHaveLength(0);
+    expect(m.gastoGlobal.leerSalud("comentario_sin_clasificar")).not.toBeNull();
+    await m.pasar(4 * 3600_000);
+    expect(m.canal.privadas).toHaveLength(1);
+    expect(m.odoo.comentarios.at(-1)).toMatchObject({ clase: "pregunta", privada: "respondida" });
+  });
+
+  it("si la IA sigue sin poder clasificar tras los reintentos, no responde y lo deja anotado con la causa (Odoo y /salud)", async () => {
     const m = mundoComentarios();
     m.guion([{ error: new Error("el proveedor no contesta") }]);
     await comentar(m, comentario(m, "¿Hacen envíos a Chitré?"));
+    await m.pasar(24 * 3600_000);
+    expect(m.modelo.doGenerateCalls).toHaveLength(4);
     expect(m.canal.privadas.length + m.canal.publicas.length).toBe(0);
-    expect(m.odoo.comentarios).toEqual([expect.objectContaining({ clase: "sin_clasificar", privada: "no", publica: "no" })]);
+    expect(m.odoo.comentarios).toEqual([expect.objectContaining({ clase: "sin_clasificar", privada: "no", publica: "no", motivo: expect.stringContaining("el proveedor no contesta") })]);
     expect(m.gastoGlobal.leerSalud("comentario_sin_clasificar")).not.toBeNull();
   });
 
@@ -165,6 +190,7 @@ describe("a cuáles NO responde", () => {
     const m = mundoComentarios();
     m.guion([{ texto: "Creo que es una pregunta sobre envíos." }]);
     await comentar(m, comentario(m, "¿Hacen envíos a Chitré?"));
+    await m.pasar(24 * 3600_000);
     expect(m.canal.privadas).toHaveLength(0);
     expect(m.odoo.comentarios[0]).toMatchObject({ clase: "sin_clasificar" });
   });
@@ -200,7 +226,7 @@ describe("«Apagado hasta que lo pruebes»", () => {
 
 describe("tope por hora de respuestas públicas", () => {
   it("pasado el tope ya no responde en público (para no parecer spam), pero sí por privado; a la hora siguiente vuelve", async () => {
-    const m = mundoComentarios({ comentarios: { tope_por_hora: 1 } });
+    const m = mundoComentarios({ comentarios: { tope_por_hora: 1, publicas_por_persona: 5 } });
     m.guion([PREGUNTA, { texto: "¿Cuál te interesa?" }, PREGUNTA, { texto: "¿En qué color?" }, PREGUNTA, { texto: "¿Para cuántas personas?" }]);
     await comentar(m, comentario(m, "¿Precio del sofá?"));
     await comentar(m, comentario(m, "¿Precio de la mesa?"));
@@ -327,6 +353,8 @@ describe("el mensaje privado es UNO solo", () => {
     await comentar(m, comentario(m, "¿Qué tienen?"));
     expect(m.canal.privadas).toHaveLength(1);
     expect(new TextEncoder().encode(m.canal.privadas[0].texto).length).toBeLessThanOrEqual(1000);
-    expect(m.canal.privadas[0].texto.startsWith("Hola, soy Juan de D'CASA.")).toBe(true);
+    // Manda la respuesta: la presentación no cabía y se quitó (sale en el próximo mensaje).
+    expect(m.canal.privadas[0].texto.startsWith("Párrafo 1:")).toBe(true);
+    expect(m.canal.privadas[0].texto).not.toContain("soy Juan");
   });
 });

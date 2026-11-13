@@ -3,20 +3,48 @@
  * Ajustes, el mensaje privado en UNO, los ajustes que manda Odoo y el tope por hora del Durable Object Global.
  */
 import { describe, expect, it } from "vitest";
-import { atiendeEntrante, CONFIG_POR_DEFECTO, comentariosActivos, normalizarComentarios, normalizarConfig, TEXTO_PUBLICO_POR_DEFECTO } from "../../src/config";
+import { atiendeEntrante, CONFIG_POR_DEFECTO, comentariosActivos, normalizarComentarios, normalizarConfig, porQueNoContesta, TEXTO_PUBLICO_POR_DEFECTO } from "../../src/config";
 import { AlmacenGlobal } from "../../src/motor/global";
 import { clasePorReglas, clasificarConIa, interpretarClase, nombreParaElPublico, textoPublico, unSoloMensaje } from "../../src/motor/comentarios";
 import { modeloGuionado } from "../helpers/modeloGuionado";
 import { crearSqlNode } from "../helpers/sqlNode";
 
 describe("reglas baratas (antes de gastar IA)", () => {
-  it("emojis solos, solo menciones, saludos, elogios y etiquetas cortas: «otro»", () => {
-    for (const t of ["😍", "🔥🔥🔥", "@maria.p", "@ana @luis 😂", "@maria mira esto", "Hola", "Buenas tardes", "Qué lindo!!", "Hermoso 😍", "Lo máximo", "jajaja", "Me encanta este estilo"]) expect(clasePorReglas(t), t).toBe("otro");
+  it("solo lo que no dice nada es «otro» sin IA: emojis, signos, cifras o menciones solas", () => {
+    for (const t of ["😍", "🔥🔥🔥", "@maria.p", "@ana @luis 😂", "!!!", "👏 10/10", "@ana 👀"]) expect(clasePorReglas(t), t).toBe("otro");
   });
 
-  it("con «?», una palabra de interés o de queja, o algo largo: lo decide la IA", () => {
-    for (const t of ["?", "💲?", "@ana ?", "¿precio?", "Precio", "precio porfa", "Info", "Me interesa", "Lo quiero", "¿Hacen envíos?", "Dónde están ubicados", "Estafa", "Pésimo servicio", "Nunca me llegó", "@maria este lo quiero", "Me gusta muchísimo este modelo, combina con todo lo que tengo en la sala"]) {
+  it("todo lo que tenga letras (aunque sea corto: un saludo, un elogio, una etiqueta con texto) lo decide la IA", () => {
+    for (const t of ["?", "💲?", "@ana ?", "¿precio?", "Precio", "precio porfa", "Info", "Me interesa", "Lo quiero", "¿Hacen envíos?", "Dónde están ubicados", "@maria mira esto", "Hola", "Buenas tardes", "Qué lindo!!", "Hermoso 😍", "jajaja", "Me encanta este estilo", "¿Todavía hay?", "¿Tiene garantía?", "¿Lo tienen en plata?", "¿Puedo cancelar con Yappy?", "¿Tienen tumbonas?", "¿Venden cestos de basura?", "Me gusta muchísimo este modelo, combina con todo lo que tengo en la sala"]) {
       expect(clasePorReglas(t), t).toBeNull();
+    }
+  });
+
+  it("una palabra de queja la vuelve «queja» sin IA (respaldo fijo), aunque también pregunte", () => {
+    for (const t of [
+      "Estafa",
+      "Pésimo servicio",
+      "Nunca me llegó",
+      "Mentirosos",
+      "Fraudes",
+      "Tumbe",
+      "Mala calidad",
+      "No sirven",
+      "Se me rompió el sofá",
+      "Basura de muebles",
+      "No contestan",
+      "No responden los mensajes",
+      "Llevo 3 semanas esperando",
+      "Yo pagué y nada",
+      "Nadie responde el wasap",
+      "Me cancelaron",
+      "¿Cuándo me devuelven mi plata? Estafadores, nunca llegó",
+      "¿Y mi dinero?",
+      "Quiero que me devuelvan",
+      "Pongo un reclamo",
+      "@dcasa ladrones 😡",
+    ]) {
+      expect(clasePorReglas(t), t).toBe("queja");
     }
   });
 });
@@ -58,39 +86,67 @@ describe("la respuesta pública de Ajustes", () => {
     expect(textoPublico(TEXTO_PUBLICO_POR_DEFECTO, "Ana")).toBe("¡Hola, Ana! Te escribimos por mensaje directo con los detalles.");
     expect(textoPublico(TEXTO_PUBLICO_POR_DEFECTO, "")).toBe("¡Hola! Te escribimos por mensaje directo con los detalles.");
     expect(textoPublico("{nombre}, te escribimos al privado.", "")).toBe("Te escribimos al privado.");
-    expect(textoPublico("Gracias {nombre}, te escribimos por *privado*.", "@ana")).toBe("Gracias @ana, te escribimos por privado.");
+    expect(textoPublico("Gracias {nombre}, te escribimos por *privado*.", "Ana")).toBe("Gracias Ana, te escribimos por privado.");
+    // Un patrón de reemplazo en el nombre no se interpreta.
+    expect(textoPublico("Hola {nombre}.", "$&$'")).toBe("Hola $&$'.");
   });
 
-  it("el nombre: de pila en Facebook, @usuario en Instagram; nada raro sale en público", () => {
-    expect(nombreParaElPublico("facebook", "Ana María López", undefined)).toBe("Ana");
-    expect(nombreParaElPublico("facebook", "José-Luis", undefined)).toBe("José-Luis");
-    expect(nombreParaElPublico("instagram", "@ana", "ana.muebles")).toBe("@ana.muebles");
-    for (const raro of ["https://spam.example", "Ana123", "<b>Ana</b>", "", undefined]) expect(nombreParaElPublico("facebook", raro, undefined), String(raro)).toBe("");
-    expect(nombreParaElPublico("instagram", undefined, "no vale!")).toBe("");
+  it("una plantilla con direcciones web (con o sin esquema) o llaves sueltas no sale: va la de fábrica", () => {
+    for (const p of ["Mira dcasapty.com/ofertas o bit.ly/xyz, {nombre}", "Escríbenos: wa.me/50760261919", "https://x.co {nombre}", "Visita www.dcasa {nombre}", "info@dcasapty.com", "{nombre", "Hola {nombre}} te escribimos", "Hola {cliente}"]) {
+      expect(textoPublico(p, "Ana"), p).toBe("¡Hola, Ana! Te escribimos por mensaje directo con los detalles.");
+    }
+    // Lo que sí vale: puntos de fin de frase, cifras, signos.
+    expect(textoPublico("¡Gracias, {nombre}! Te escribimos al privado. Abrimos 8:00-17:00.", "Ana")).toBe("¡Gracias, Ana! Te escribimos al privado. Abrimos 8:00-17:00.");
+  });
+
+  it("el nombre: en Instagram nunca (ni el @); en Facebook el de pila solo si son letras limpias", () => {
+    expect(nombreParaElPublico("facebook", "Ana María López")).toBe("Ana");
+    expect(nombreParaElPublico("facebook", "José Luis")).toBe("José");
+    for (const u of ["@ana.muebles", "@dcasa.estafa", "Ana"]) expect(nombreParaElPublico("instagram", u), u).toBe("");
+    for (const raro of ["https://spam.example", "Ana123", "<b>Ana</b>", "José-Luis", "A", "Anaaaaaaaaaaaaaaaaaaaa", "Ana$&", "*Ana*", "{nombre}", "Ana\u202eabc", "dcasa.com", "", undefined]) {
+      expect(nombreParaElPublico("facebook", raro), String(raro)).toBe("");
+    }
+    // Quejas, insultos y la marca no salen como «nombre».
+    for (const malo of ["Estafadores Total", "Ladrones", "Dcasa Panamá", "DCASA", "Mentirosos", "Rateros", "Idiotas", "Fraude"]) expect(nombreParaElPublico("facebook", malo), malo).toBe("");
   });
 });
 
 describe("el mensaje privado en UNO", () => {
-  it("todo junto si cabe; si no, sin las últimas burbujas enteras; si ni la primera cabe, cortado con «…»", () => {
-    expect(unSoloMensaje(["Hola, soy Juan.", "Tenemos el sofá.", ""], 100)).toBe("Hola, soy Juan.\n\nTenemos el sofá.");
-    expect(unSoloMensaje(["Hola, soy Juan.", "x".repeat(50)], 40)).toBe("Hola, soy Juan.");
-    const cortado = unSoloMensaje(["palabra ".repeat(40)], 50);
-    expect(cortado.length).toBeLessThanOrEqual(50);
-    expect(cortado.endsWith("…")).toBe(true);
+  it("con la presentación si cabe todo; si no, sin la presentación; después sin las últimas burbujas; si ni la primera cabe, cortado con «…»", () => {
+    expect(unSoloMensaje(["Hola, soy Juan."], ["Tenemos el sofá.", ""], 100)).toEqual({ texto: "Hola, soy Juan.\n\nTenemos el sofá.", conPresentacion: true });
+    // Nunca SOLO la presentación: si no cabe con la respuesta, se quita la presentación.
+    expect(unSoloMensaje(["Hola, soy Juan."], ["x".repeat(30)], 40)).toEqual({ texto: "x".repeat(30), conPresentacion: false });
+    expect(unSoloMensaje([], ["Primero.", "y".repeat(50)], 40)).toEqual({ texto: "Primero.", conPresentacion: false });
+    const cortado = unSoloMensaje(["Hola, soy Juan."], ["palabra ".repeat(40)], 50);
+    expect(cortado.texto.length).toBeLessThanOrEqual(50);
+    expect(cortado.texto.endsWith("…")).toBe(true);
+    expect(cortado.texto).not.toContain("Juan");
     // En bytes (Instagram: 1000 bytes UTF-8).
-    expect(new TextEncoder().encode(unSoloMensaje(["ñ".repeat(800)], 1000, 1000)).length).toBeLessThanOrEqual(1000);
+    expect(new TextEncoder().encode(unSoloMensaje([], ["ñ".repeat(800)], 1000, 1000).texto).length).toBeLessThanOrEqual(1000);
+    // Sin respuesta no hay mensaje (ni la presentación sola).
+    expect(unSoloMensaje(["Hola, soy Juan."], ["  "], 100)).toEqual({ texto: "", conPresentacion: false });
   });
 });
 
 describe("los ajustes de comentarios que manda Odoo", () => {
   it("de fábrica: apagados, las dos redes marcadas, el texto de la dueña y 30 por hora", () => {
-    expect(CONFIG_POR_DEFECTO.comentarios).toEqual({ activo: false, facebook: true, instagram: true, texto_publico: "¡Hola, {nombre}! Te escribimos por mensaje directo con los detalles.", tope_por_hora: 30 });
+    expect(CONFIG_POR_DEFECTO.comentarios).toEqual({ activo: false, facebook: true, instagram: true, texto_publico: "¡Hola, {nombre}! Te escribimos por mensaje directo con los detalles.", tope_por_hora: 30, publicas_por_persona: 1, privadas_por_persona: 3 });
     expect(normalizarConfig({}).comentarios).toEqual(CONFIG_POR_DEFECTO.comentarios);
   });
 
   it("lo que manda Odoo, limpio: solo `true` enciende, el texto sin saltos y el tope entre 0 y 500", () => {
-    expect(normalizarComentarios({ activo: "true", facebook: false, texto_publico: " Hola {nombre}\n te escribimos ", tope_por_hora: 9999 })).toEqual({ activo: false, facebook: false, instagram: true, texto_publico: "Hola {nombre} te escribimos", tope_por_hora: 500 });
-    expect(normalizarComentarios({ activo: true, texto_publico: "   ", tope_por_hora: -3 })).toMatchObject({ activo: true, texto_publico: TEXTO_PUBLICO_POR_DEFECTO, tope_por_hora: 0 });
+    expect(normalizarComentarios({ activo: "true", facebook: false, texto_publico: " Hola {nombre}\n te escribimos ", tope_por_hora: 9999, publicas_por_persona: 99, privadas_por_persona: 0 })).toEqual({
+      activo: false,
+      facebook: false,
+      instagram: true,
+      texto_publico: "Hola {nombre} te escribimos",
+      tope_por_hora: 500,
+      publicas_por_persona: 10,
+      privadas_por_persona: 1,
+    });
+    expect(normalizarComentarios({ activo: true, texto_publico: "   ", tope_por_hora: -3, publicas_por_persona: -1 })).toMatchObject({ activo: true, texto_publico: TEXTO_PUBLICO_POR_DEFECTO, tope_por_hora: 0, publicas_por_persona: 0, privadas_por_persona: 3 });
+    // Un texto con direcciones web o llaves sueltas no se usa: va el de fábrica.
+    for (const t of ["Mira bit.ly/x {nombre}", "{nombre"]) expect(normalizarComentarios({ texto_publico: t }).texto_publico, t).toBe(TEXTO_PUBLICO_POR_DEFECTO);
   });
 
   it("se atienden solo con el interruptor, la red, el asistente y el canal de la respuesta privada encendidos", () => {
@@ -100,6 +156,12 @@ describe("los ajustes de comentarios que manda Odoo", () => {
     expect(comentariosActivos(cfg({ comentarios: { activo: true, facebook: false } }), "instagram")).toBe(true);
     expect(comentariosActivos(cfg({ canales_activos: { messenger: false, instagram: true } }), "facebook")).toBe(false);
     expect(comentariosActivos(cfg({ bot_activo_global: false }), "instagram")).toBe(false);
+    // Y el aviso de Odoo dice cuál se apagó.
+    expect(porQueNoContesta(cfg({}), "facebook")).toBeNull();
+    expect(porQueNoContesta(cfg({ bot_activo_global: false }), "facebook")).toBe("se apagó el asistente");
+    expect(porQueNoContesta(cfg({ comentarios: { activo: false } }), "facebook")).toBe("se apagó «Responder comentarios»");
+    expect(porQueNoContesta(cfg({ comentarios: { activo: true, instagram: false } }), "instagram")).toBe("se apagaron los comentarios de Instagram");
+    expect(porQueNoContesta(cfg({ canales_activos: { messenger: false } }), "facebook")).toBe("se apagó el canal Messenger");
     expect(atiendeEntrante(cfg({ comentarios: { activo: false } }), { canal: "messenger", comentario: { red: "facebook", puerta: "pagina", id: "1" } })).toBe(false);
     expect(atiendeEntrante(cfg({ comentarios: { activo: false } }), { canal: "messenger" })).toBe(true); // un mensaje, como siempre
   });

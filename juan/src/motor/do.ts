@@ -7,7 +7,7 @@ import { adaptadorDe } from "../canales";
 import type { Entrante } from "../canales/tipos";
 import type { Env } from "../env";
 import { obtenerConfig, obtenerHerramientas, odooDe } from "../odoo/fabrica";
-import { MotorConversacion, type DepsMotor, type GlobalApi, type SolicitudEnviar, type SolicitudSeguimiento } from "./conversacion";
+import { MotorConversacion, type DepsMotor, type GlobalApi, type NotaDeRespuestaAComentario, type SolicitudEnviar, type SolicitudSeguimiento } from "./conversacion";
 import { fabricaDeProduccion, proveedoresConClave } from "./proveedores";
 import { sqlDeDurableObject } from "./sql";
 import { transcriptorDe } from "./transcribir";
@@ -54,6 +54,8 @@ export function depsDeProduccion(ctx: DurableObjectState, env: Env): DepsMotor {
     secretoDeMedios: env.JUAN_WORKER_TOKEN,
     transcribir: transcriptorDe(env),
     mirarImagen: lectorDeImagenes(env),
+    // La conversación de otro id (la respuesta privada a un comentario que Meta entregó a otro id: motor → `avisarAlOtroDestinatario`).
+    conversacion: (canal, id) => env.CONVERSACION.get(env.CONVERSACION.idFromName(`${canal}:${id}`)) as unknown as { anotarRespuestaDeComentario(n: NotaDeRespuestaAComentario): Promise<unknown> },
   };
 }
 
@@ -97,6 +99,11 @@ export class Conversacion extends DurableObject<Env> {
 
   olvidar() {
     return this.motor.olvidar();
+  }
+
+  /** Otra conversación avisa que Meta le entregó a ESTE id la respuesta privada a un comentario (motor → `anotarRespuestaDeComentario`). */
+  anotarRespuestaDeComentario(n: NotaDeRespuestaAComentario) {
+    return this.motor.anotarRespuestaDeComentario(n);
   }
 
   resumen() {

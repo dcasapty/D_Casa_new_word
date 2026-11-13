@@ -33,6 +33,8 @@ export interface OpcionesMundo {
   odoo?: OdooFalso;
   /** Para pruebas con un servidor falso: arma el modelo real del proveedor. Si no, se usa el guion. */
   fabrica?: (sel: SeleccionDeModelo) => LanguageModel;
+  /** Las conversaciones (objetos) que se pueden hablar entre sí, por `canal:id` (cada mundo se anota aquí al crearse). */
+  vecinos?: Map<string, MotorConversacion>;
 }
 
 export function crearMundo(op: OpcionesMundo = {}) {
@@ -140,10 +142,20 @@ export function crearMundo(op: OpcionesMundo = {}) {
     log: (nivel, mensaje) => {
       mundo.registros.push({ nivel, mensaje });
     },
+    ...(op.vecinos
+      ? {
+          conversacion: (canal: CanalId, id: string) => {
+            const otra = op.vecinos!.get(`${canal}:${id}`);
+            if (!otra) throw new Error(`no hay conversación ${canal}:${id} en esta prueba`);
+            return otra;
+          },
+        }
+      : {}),
   };
   mundo.config = () => cargadorConfig.obtener();
   mundo.deps = deps;
   mundo.motor = new MotorConversacion(deps);
+  op.vecinos?.set(`${canalId}:${idExterno}`, mundo.motor);
 
   /** Adelanta el reloj, disparando las alarmas que vayan venciendo (como haría Cloudflare). */
   async function pasar(ms: number) {

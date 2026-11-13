@@ -5,12 +5,14 @@
 // etiquetas de amigos, emojis sueltos, saludos ni elogios; las quejas no se contestan: avisan a Gerencia), «Corto y lo demás por
 // privado» y «Apagado hasta que lo pruebes».
 //
-// Clasificar cuesta IA: primero reglas baratas (emojis solos, solo menciones, muy corto sin pregunta ni palabra de interés ni de queja
-// → «otro», sin gastar nada); lo demás lo decide el modelo ECONÓMICO con salida cerrada (una de tres palabras). Si la IA falla, no se
-// contesta (y Odoo lo anota).
+// Clasificar: las reglas baratas solo dejan de lado lo que no dice nada (emojis, signos o menciones solas) y marcan como QUEJA lo que
+// trae una palabra de queja (respaldo fijo: una queja nunca recibe la frase pública, aunque la IA dijera «pregunta»). Todo lo demás
+// que tenga letras lo decide el modelo ECONÓMICO con salida cerrada (una de tres palabras). Si la IA falla, se reintenta y, si sigue
+// sin poder, no se contesta (y Odoo lo anota). Revisión adversarial del 2026-11-13: las quejas cortas («Mentirosos», «Me cancelaron»)
+// ya no se pierden como «otro».
 
 import { generateText, Output, type LanguageModel } from "ai";
-import type { ProveedorIa } from "../config";
+import { TEXTO_PUBLICO_POR_DEFECTO, textoPublicoValido, type ProveedorIa } from "../config";
 import { textoParaElModelo } from "../dcasa/sensibles";
 import { partirPorLargo, sinNegritas } from "../canales/tipos";
 import { usoDelSdk, type Uso } from "./precios";
@@ -18,14 +20,62 @@ import { usoDelSdk, type Uso } from "./precios";
 export const CLASES_DE_COMENTARIO = ["pregunta", "queja", "otro"] as const;
 export type ClaseDeComentario = (typeof CLASES_DE_COMENTARIO)[number];
 
-/** Hasta este largo (sin menciones ni emojis), un comentario sin «?» ni palabra de interés o de queja es un elogio, un saludo o una etiqueta. */
-const CORTO = 30;
+/**
+ * Palabras de una QUEJA (sin tildes, en minúsculas, con sus plurales). Que esté una la vuelve queja sin preguntarle a la IA: aviso a
+ * Gerencia, sin respuesta pública ni privada automática. Solo palabras que en una mueblería casi nunca son una pregunta de compra: no
+ * van «todavía» («¿todavía hay?»), «garantía» («¿tiene garantía?»), «plata» sola (el color) ni «cancelar» (en Panamá es pagar).
+ */
+const QUEJA = new RegExp(
+  "\\b(?:" +
+    [
+      "estaf\\w*",
+      "fraude\\w*",
+      "mentiros\\w*",
+      "mentira\\w*",
+      "robo",
+      "robos",
+      "robaron",
+      "roban",
+      "ladron\\w*",
+      "rateros?",
+      "tumb(?!on)\\w*", // «tumbe» (estafa); no «tumbona»
+      "engan(?:o|os|an|aron|ado|ados|ada|adas|ando)",
+      "pesim\\w*",
+      "malisim\\w*",
+      "horribles?",
+      "terribles?",
+      "decepcion\\w*",
+      "queja\\w*",
+      "quejo",
+      "reclam\\w*",
+      "denunci\\w*",
+      "reembols\\w*",
+      "devuelv\\w*",
+      "rot[oa]s?",
+      "romp\\w*",
+      "danad[oa]s?",
+      "defectuos[oa]s?",
+      "mala calidad",
+      "no sirve\\w*",
+      "(?<!de )basura\\w*", // no «cesto de basura»
+      "(?:no|nunca) (?:me )?(?:ha |han )?lleg\\w*",
+      "(?:no|nadie) (?:me |nos )?(?:contesta|responde)\\w*",
+      "sin respuesta",
+      "cancel(?:aron|e|ado|ada|ados|adas)", // «me cancelaron», «ya cancelé»; no «¿puedo cancelar con Yappy?»
+      "esperando",
+      "pague", // «pagué» (y «pague»)
+      "(?:mi|mis|su|sus|tu|nuestr[oa]s?) (?:plata|dinero)",
+      "mal servicio",
+      "mala atencion",
+      "abus\\w*",
+      "cobraron",
+      "sinverguenz\\w*",
+    ].join("|") +
+    ")\\b",
+);
 
-/** Palabras de quien pregunta o quiere comprar (sin tildes, en minúsculas). Que esté una NO lo vuelve pregunta: solo lo pasa a la IA. */
-const INTERES = /\b(precio|precios|cuanto|cuanta|cuestan?|costo|vale|valor|medidas?|mide|miden|tamano|tamanos|colou?r|colores|disponibles?|disponibilidad|hay|tienen|tiene|queda|quedan|existencia|envio|envios|envian|entrega|entregan|delivery|domicilio|info|informacion|interesa|interesad[oa]s?|quiero|quisiera|necesito|comprar|compro|ordenar|pedir|apartar|abono|credito|cuotas|pago|pagos|donde|ubicacion|direccion|horario|abren|inbox|dm|md|privado|interno|pp)\b/;
-
-/** Palabras de una queja: lo corto con una de estas también va a la IA (una queja nunca se pierde por corta). */
-const QUEJA = /\b(estafa\w*|robo|robaron|ladron\w*|fraude|mentira\w*|engan\w*|pesim\w*|malisim\w*|horrible|terrible|decepcion\w*|queja|reclamo|denunci\w*|devolucion|devuelvan|reembolso|garantia|roto|rota|danad[oa]|defectuos[oa]|nunca|todavia|aun no|no llega|no llego|no ha llegado|no me|mal servicio|mala atencion|abuso|cobraron|cobro)\b/;
+/** Insultos y palabras que nunca van en público como si fueran un nombre («¡Hola, Estafadores!»). */
+const INSULTO = /\b(?:idiota\w*|imbecil\w*|estupid\w*|pendej\w*|maldit\w*|cabron\w*|mierda\w*|puta\w*|puto\w*|verga\w*|hdp|chimb\w*|corrupt\w*|bandid\w*|delincuent\w*|ratas?|cerdo\w*|basura\w*|payas\w*|falsos?|falsas?|spam\w*)\b/;
 
 const sinTildes = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
@@ -38,18 +88,20 @@ export function letrasDe(texto: string): string {
     .trim();
 }
 
+/** ¿Trae una palabra de queja? (El respaldo fijo: no depende de la IA.) */
+export function pareceQueja(texto: string): boolean {
+  return QUEJA.test(sinTildes(letrasDe(texto)));
+}
+
 /**
- * Las reglas baratas: «otro» sin gastar IA (emojis solos, solo menciones, muy corto sin «?» ni palabra de interés ni de queja), o null
- * si lo tiene que decidir la IA. Nunca devuelve «pregunta» ni «queja»: eso lo decide la IA.
+ * Las reglas baratas, sin gastar IA: «queja» si trae una palabra de queja (siempre gana: aunque también pregunte), «otro» si no dice
+ * nada (solo emojis, signos, cifras o menciones, sin «?»), o null: lo decide la IA. Nunca devuelve «pregunta».
  */
-export function clasePorReglas(texto: string): "otro" | null {
+export function clasePorReglas(texto: string): "otro" | "queja" | null {
+  if (pareceQueja(texto)) return "queja";
   // Un «?» suelto (o «💲?») es la forma corta de preguntar el precio: lo decide la IA.
   if (/[?¿]/.test(texto.replace(/@[\w.]+/g, ""))) return null;
-  const letras = letrasDe(texto);
-  if (!/[\p{L}\p{N}]/u.test(letras)) return "otro"; // solo emojis, signos o menciones
-  const plano = sinTildes(letras);
-  if (INTERES.test(plano) || QUEJA.test(plano)) return null;
-  if (plano.replace(/[?¿]/g, "").trim().length <= CORTO) return "otro";
+  if (!/\p{L}/u.test(letrasDe(texto))) return "otro";
   return null;
 }
 
@@ -117,37 +169,58 @@ export async function clasificarConIa(texto: string, intentos: IntentoDeClasific
   throw ultimo;
 }
 
-/** El nombre para la respuesta pública: el de pila en Facebook («Ana María López» → «Ana»), el @usuario en Instagram. */
-export function nombreParaElPublico(red: "facebook" | "instagram", nombre: string | undefined, usuario: string | undefined): string {
-  if (red === "instagram") return usuario && /^[A-Za-z0-9._]{1,30}$/.test(usuario) ? `@${usuario}` : "";
+/**
+ * El nombre para la respuesta pública. Lo escribe quien comenta, así que se cuida (revisión adversarial del 2026-11-13):
+ *   · Instagram: NUNCA (ni el @usuario: Meta ya pone la respuesta debajo del comentario, y un @ como «dcasa.estafa» saldría firmado
+ *     por D'CASA).
+ *   · Facebook: el de pila («Ana María López» → «Ana») solo si son letras (2 a 20), no dice «dcasa» y no es una queja ni un insulto.
+ * Si no pasa, va sin nombre («¡Hola! Te escribimos…»).
+ */
+export function nombreParaElPublico(red: "facebook" | "instagram", nombre: string | undefined): string {
+  if (red === "instagram") return "";
   const pila = (nombre ?? "").trim().split(/\s+/)[0] ?? "";
-  // Solo letras (con tildes) y guiones: un «nombre» con enlaces, cifras o signos no se repite en público.
-  return /^[\p{L}][\p{L}'-]{0,29}$/u.test(pila) ? pila : "";
+  if (!/^\p{L}{2,20}$/u.test(pila)) return "";
+  const plano = sinTildes(pila);
+  if (plano.includes("dcasa") || QUEJA.test(plano) || INSULTO.test(plano)) return "";
+  return pila;
 }
 
-/** La respuesta pública de Ajustes con el nombre; sin nombre, «{nombre}» se quita con su coma o espacio («¡Hola, {nombre}!» → «¡Hola!»). */
+/**
+ * La respuesta pública de Ajustes con el nombre; sin nombre, «{nombre}» se quita con su coma o espacio («¡Hola, {nombre}!» → «¡Hola!»).
+ * Una plantilla con direcciones web o llaves sueltas no sale: va la de fábrica (Odoo ya no la deja guardar).
+ */
 export function textoPublico(plantilla: string, nombre: string): string {
+  const base = textoPublicoValido(plantilla) ? plantilla : TEXTO_PUBLICO_POR_DEFECTO;
   const t = nombre
-    ? plantilla.replace(/\{nombre\}/g, nombre)
-    : plantilla.replace(/,\s*\{nombre\}/g, "").replace(/\{nombre\}\s*,\s*/g, "").replace(/\s*\{nombre\}/g, "");
+    ? base.replace(/\{nombre\}/g, () => nombre)
+    : base.replace(/,\s*\{nombre\}/g, "").replace(/\{nombre\}\s*,\s*/g, "").replace(/\s*\{nombre\}/g, "");
   const limpio = sinNegritas(t.replace(/\s+([!?.,])/g, "$1").replace(/\s+/g, " ").trim()).slice(0, 300);
   // Si la frase empezaba con el nombre, la primera letra queda en mayúscula.
   return limpio.charAt(0).toLocaleUpperCase("es") + limpio.slice(1);
 }
 
 /**
- * La respuesta privada es UN mensaje (Meta deja uno por comentario): la presentación (si es la primera vez) y la respuesta juntas, en el
- * largo del canal. Si no cabe, se quitan las últimas burbujas enteras; si ni la primera cabe, se corta en un espacio y se cierra con «…».
+ * La respuesta privada es UN mensaje (Meta deja uno por comentario), en el largo del canal. Manda la RESPUESTA: la presentación (si es
+ * la primera vez) va delante solo si cabe todo; si no, se quita la presentación (sale en el próximo mensaje) y, si ni así cabe, las
+ * últimas burbujas enteras; si ni la primera cabe, se corta en un espacio y se cierra con «…». Nunca sale SOLO la presentación.
+ * `texto` vacío = no hay respuesta que mandar.
  */
-export function unSoloMensaje(partes: string[], max: number, maxBytes?: number): string {
+export function unSoloMensaje(presentacion: string[], respuesta: string[], max: number, maxBytes?: number): { texto: string; conPresentacion: boolean } {
   const cabe = (t: string) => t.length <= max && (maxBytes === undefined || new TextEncoder().encode(t).length <= maxBytes);
-  const limpias = partes.map((p) => p.trim()).filter(Boolean);
-  for (let n = limpias.length; n > 0; n--) {
-    const t = limpias.slice(0, n).join("\n\n");
-    if (cabe(t)) return t;
+  const limpias = (l: string[]) => l.map((p) => p.trim()).filter(Boolean);
+  const pres = limpias(presentacion);
+  const resp = limpias(respuesta);
+  if (resp.length === 0) return { texto: "", conPresentacion: false };
+  if (pres.length > 0) {
+    const todo = [...pres, ...resp].join("\n\n");
+    if (cabe(todo)) return { texto: todo, conPresentacion: true };
   }
-  const primero = partirPorLargo(limpias.join("\n\n"), Math.max(1, max - 2), maxBytes !== undefined ? Math.max(1, maxBytes - 4) : undefined)[0] ?? "";
-  return `${primero.trim()}…`;
+  for (let n = resp.length; n > 0; n--) {
+    const t = resp.slice(0, n).join("\n\n");
+    if (cabe(t)) return { texto: t, conPresentacion: false };
+  }
+  const primero = partirPorLargo(resp.join("\n\n"), Math.max(1, max - 2), maxBytes !== undefined ? Math.max(1, maxBytes - 4) : undefined)[0] ?? "";
+  return { texto: `${primero.trim()}…`, conPresentacion: false };
 }
 
 /** Lo que se le dice al modelo en el turno de una respuesta privada (va en el bloque que cambia en cada turno). */

@@ -420,6 +420,10 @@ export class Comentarios {
   purgar(antesDe: number): void {
     this.sql.correr("DELETE FROM comentarios WHERE creado < ?", antesDe);
   }
+  /** Los estados de todos los guardados (los de 8 días de UNA persona: pocos), para el tope por persona. */
+  estados(): { id: string; estado: string }[] {
+    return this.sql.todos<{ id: string; estado: string }>("SELECT id, estado FROM comentarios");
+  }
 }
 
 /** Archivos que llegaron en bytes (base64 del puente, fotos de Telegram): viven unos días y se sirven con URL firmada. */

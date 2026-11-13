@@ -197,6 +197,21 @@ export async function informeDeSalud(d: DepsSalud): Promise<InformeDeSalud> {
   if (envio && !envio.resuelto && envio.ts > hace24h) {
     problemas.push(`no se pudo enviar ${envio.con_archivos ? "un mensaje con foto o archivo" : "un mensaje"} por ${envio.canal ?? "un canal"}: ${envio.motivo ?? "sin detalle"}`);
   }
+  // Comentarios de Instagram y Facebook (revisión del 2026-11-13): lo que hay que mirar en la prueba real (sin datos de nadie).
+  const sinClasificar = await leerJson<{ ts: number; red?: string; motivo?: string }>(d, "comentario_sin_clasificar");
+  if (sinClasificar && sinClasificar.ts > hace24h) {
+    avisos.push(`la IA no pudo clasificar un comentario de ${sinClasificar.red ?? "una red"} (se reintenta 3 veces en 24 horas): ${sinClasificar.motivo ?? "sin detalle"}`);
+  }
+  const otroId = await leerJson<{ ts: number; red?: string }>(d, "comentario_otro_destinatario");
+  if (otroId && otroId.ts > d.ahora() - 7 * 24 * 3600_000) {
+    avisos.push(
+      `Meta entregó una respuesta privada a un comentario de ${otroId.red ?? "una red"} a un id distinto del que comentó: Juan le avisó a esa conversación para que su eco no se tome como una vendedora; si la persona contesta, su mensaje sale en otra conversación de Odoo. Revísalo en la prueba real`,
+    );
+  }
+  const ecoAdelantado = await leerJson<{ ts: number; red?: string }>(d, "comentario_eco_adelantado");
+  if (ecoAdelantado && ecoAdelantado.ts > d.ahora() - 7 * 24 * 3600_000) {
+    avisos.push(`el eco de una respuesta privada a un comentario de ${ecoAdelantado.red ?? "una red"} llegó antes que su aviso y se tomó un momento como una vendedora (Juan deshizo la pausa; en Odoo puede verse como mensaje de una vendedora)`);
+  }
   const principal = modelosDelPapel(cfg, "principal");
   const ia: EstadoDeIa = {
     proveedor: cfg.proveedor_ia,

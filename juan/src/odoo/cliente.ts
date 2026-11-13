@@ -155,12 +155,14 @@ export interface CuerpoComentario {
   /** Cuándo se comentó (ISO 8601 UTC). */
   ts: string;
   clase: "pregunta" | "queja" | "sin_clasificar";
-  /** La respuesta privada: «pendiente» (se está preparando), «respondida», «fallo» (Meta no la dejó), «incierta» (se cortó a la mitad:
-   *  no se sabe si llegó), «vendedora» (una persona atiende esta conversación: Juan no contesta) o «no» (no se contesta). */
-  privada: "pendiente" | "respondida" | "fallo" | "incierta" | "vendedora" | "no";
-  /** La respuesta pública: lo mismo, más «tope» (se llegó al tope por hora de Ajustes). */
+  /** La respuesta privada: «pendiente» (se está preparando), «reintento» (la IA o Odoo fallaron: se vuelve a intentar en un rato),
+   *  «respondida», «fallo» (Meta no la dejó), «no_preparada» (Juan no pudo prepararla: la IA o Odoo no respondieron, ni en los
+   *  reintentos), «incierta» (se cortó a la mitad: no se sabe si llegó), «vendedora» (una persona atiende esta conversación: Juan no
+   *  contesta) o «no» (no se contesta; el motivo dice por qué: se apagó, el tope por persona…). */
+  privada: "pendiente" | "reintento" | "respondida" | "fallo" | "no_preparada" | "incierta" | "vendedora" | "no";
+  /** La respuesta pública: lo mismo (sin «reintento» ni «no_preparada»), más «tope» (se llegó al tope por hora de Ajustes). */
   publica: "pendiente" | "respondida" | "fallo" | "incierta" | "tope" | "no";
-  /** Por qué falló (lo que dijo Meta), en corto y sin datos de nadie. */
+  /** Por qué no salió (lo que dijo Meta, la IA u Odoo, o el interruptor), en corto y sin datos de nadie. */
   motivo?: string;
 }
 
