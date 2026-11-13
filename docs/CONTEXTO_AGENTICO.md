@@ -421,6 +421,12 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `app_version` `f28c2ccd39abb3aeee1ed853bb1013004d80913f`, imagen `sha256:4a8a7ac0…`, CI 338 con staging (run
   43131640599). El modo oscuro; con respaldo previo. Bien al primer intento. Mientras corría el CI, los ayudantes
   nuevos (Juan cotiza envíos; pagos de Costos de IA) trabajaron en sus propias copias, sin tocar la rama.
+- **Desplegar 68** (12 nov, 23:1x UTC; salud sana; run 43325822963) · PR #113, squash `b78d472`, `app_version`
+  `98f8002aab2b11af216c60fa847bc0d161aaf153`, imagen `sha256:f2efed11…`, CI 340 con staging (run 43280069880). Juan cotiza
+  envíos con la promoción, reparto justo y Costos de IA con «Pagar»; con respaldo previo. El CI frenó la primera vez en el
+  respaldo previo de staging (staging dormido: «curl: (56) Recv failure», cuarta vez); se despertó staging con tres
+  `curl …/web/login` y se repitió solo el trabajo fallado («rerun_failed_jobs»): bien. Luego **Desplegar Juan 21** (run
+  43328387534) para el Worker (la guardia del envío y `/odoo/salud` con `mes`).
 - **Versión estable 4 ensayada en staging** (11 nov, 03:16–03:40 UTC, run 42951600639 de «Volver a una versión
   estable», lanzado desde la rama de trabajo: el botón solo exige `main` para producción). Estable 4 = imagen de
   Desplegar 63 (`acda72c1…`, `app_version` `3e2ccfc`) + Juan hasta Desplegar Juan 20. Bien al primer intento.
@@ -606,6 +612,10 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 
 ### Flakes (fallas que no eran del código)
 
+- **Respaldo previo de staging con staging dormido** (otra vez el 2026-11-12, CI 340): antes de «rerun_failed_jobs»,
+  despertar staging (`curl https://dcasa-staging.dcasapty.workers.dev/web/login` hasta que conteste 200). El digest de
+  la imagen no cambia al repetir: sale igual en el paso «Resumen».
+
 - **CI #162** (`b3e75807`) · La prueba «vinculado» del puente de WhatsApp leía el estado antes de que WebCrypto guardara
   la sesión; pasó al repetir. Arreglo: `ac76ef40` → `puente-wa/test/integracion.test.ts` (espera con sondeo).
 - Pruebas que dependen del reloj: `c2fd4a9` (pasar_a_vendedora, fallaba solo un día después de las 17:00 UTC),
@@ -636,6 +646,14 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 ## Trampas de Odoo 19 / Cloudflare / GitHub ya conocidas
 
 ### Esta máquina (sesiones de Claude)
+
+- **No unir ramas en el árbol que está leyendo una corrida de pruebas larga** (2026-11-12): una corrida de
+  `scripts/test.sh` sobre el árbol principal tomó el JavaScript nuevo a mitad de camino y dos pruebas de navegador
+  fallaron sin culpa del código. Para la prueba final de un lote, `git worktree add --detach <copia> HEAD` y correr ahí
+  (con `ODOO_DIR=/home/user/D_Casa_new_word/vendor/odoo`, porque la copia no trae el submódulo).
+- **El límite de uso de 5 horas corta a todos los ayudantes a la vez** y el contenedor puede reiniciarse (PostgreSQL
+  queda apagado): al volver, `service postgresql start` y retomar cada ayudante con un mensaje (su trabajo queda en su
+  rama); no lanzar uno nuevo.
 
 - **Lo que una auditoría por direcciones no ve (2026-11-11):** el recorrido de Playwright abre cada pantalla por su
   `/odoo/action-<id>` y la mide ya cargada. Así no vio tres fallas que la dueña sufría a diario en el iPhone: la
@@ -1357,6 +1375,12 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   queda la petición.
 
 ### WhatsApp oficial (Meta)
+
+- **Una prueba con una cuenta que tiene papel en la app o en el portafolio NO prueba nada para los clientes**
+  (2026-11-12). Mientras la app no tenga acceso avanzado (revisión de la app + verificación del negocio), Meta solo manda
+  los avisos de Messenger e Instagram de quien tiene papel; el 9 y 10 nov se dio por «conectado» con cuentas de los
+  jefes y de la agencia, y a los clientes nunca les llegó nada (cero POST a `/webhooks/meta`). Probar SIEMPRE con una
+  cuenta sin ningún papel (ni en la app, ni en el portafolio de D'CASA, ni en el de la agencia).
 
 - **«No llegó» con el código 131042 («Business eligibility payment issue») = problema de PAGO de la cuenta de WhatsApp
   Business en Meta, no del sistema ni de la IA** (2026-11-07 a 09: dos días de mensajes sin entregar sin que nadie se

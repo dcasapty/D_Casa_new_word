@@ -158,6 +158,8 @@ export interface Capacidades {
   ventana24h: boolean;
   /** Largo máximo de un mensaje de texto. */
   maxTexto: number;
+  /** Además, máximo en bytes UTF-8 (Instagram por inicio de sesión de Instagram: «UTF-8 y 1000 bytes o menos»). */
+  maxBytesTexto?: number;
   /** El canal deja mandar un texto junto a la foto o el documento, en el mismo mensaje (pie de foto). */
   pie?: boolean;
 }
@@ -179,13 +181,49 @@ export interface SaludCanal {
   detalle?: string;
 }
 
+/** Una llave que vence y el canal renueva solo (Instagram por inicio de sesión de Instagram). Fechas, nunca el valor. */
+export interface EstadoDeLlave {
+  /** «AAAA-MM-DD» (hora de Panamá). */
+  vence: string;
+  /** false = todavía no se renovó: es el tope (la llave pegada vence a más tardar ese día). */
+  vence_seguro: boolean;
+  dias_restantes: number;
+  /** «AAAA-MM-DD» de la última renovación que salió bien, o null. */
+  renovada: string | null;
+  /** «ok» la última salió bien · «fallo» la última falló (se reintenta al día siguiente) · «pendiente» aún no se renovó. */
+  renovacion: "ok" | "fallo" | "pendiente";
+}
+
+/**
+ * Lo que el canal sabe de sí mismo SIN preguntarle a nadie afuera (lo pide también el /salud público): por qué puerta va, cuándo
+ * vence su llave y lo que hay que revisar (frases para personas, sin valores).
+ */
+export interface SaludLocal {
+  /** Un canal con dos puertas dice por cuál va (Instagram: «pagina_facebook» o «inicio_sesion_instagram»). */
+  puerta?: string;
+  llave?: EstadoDeLlave;
+  /** La cuenta del negocio en ese canal, si se sabe (p. ej. «@dcasapty»). */
+  cuenta?: string;
+  /** Avisos del canal que se ignoraron por ser de OTRA cuenta (cuántos, el último y los 4 últimos dígitos de esa cuenta). */
+  ignorados?: { cantidad: number; ultimo: string; cuenta: string };
+  /** Lo que dice Meta de la suscripción de la app a los mensajes de la cuenta, si se pudo consultar. */
+  suscripcion?: "ok" | "no";
+  problemas?: string[];
+  avisos?: string[];
+}
+
 export interface AdaptadorCanal {
   /** Los canales de Odoo que atiende este adaptador (Meta atiende dos). */
   readonly canales: readonly CanalId[];
   /** Ruta pública del webhook, por ejemplo "/webhooks/telegram". */
   readonly ruta: string;
-  /** Lo que puede llevar cada canal (Instagram no manda documentos; Telegram sí). */
-  capacidades(canal: CanalId): Capacidades;
+  /** Otros webhooks del mismo adaptador (Meta: «/webhooks/instagram», la puerta del inicio de sesión de Instagram). */
+  readonly otrasRutas?: readonly string[];
+  /**
+   * Lo que puede llevar cada canal (Instagram por la página no manda documentos; Telegram sí). Con `env`, el de la puerta por la que
+   * va el canal (Instagram por inicio de sesión de Instagram sí manda PDF); sin `env`, el de siempre.
+   */
+  capacidades(canal: CanalId, env?: Env): Capacidades;
   /**
    * NOMBRES de lo que le falta a este canal para funcionar: secretos sin cargar o service bindings sin declarar.
    * Vacío = listo. (Que el canal esté ENCENDIDO lo decide Odoo, no esto.) Nunca devuelve valores.
@@ -212,6 +250,10 @@ export interface AdaptadorCanal {
   escribiendo?(canal: CanalId, para: string, env: Env): Promise<void>;
   /** Salud de la conexión, si hay una que vigilar. */
   salud?(canal: CanalId, env: Env): Promise<SaludCanal>;
+  /** Lo que el canal sabe de sí mismo sin salir a la red (puerta, vencimiento de su llave): /salud lo muestra. */
+  saludLocal?(canal: CanalId, env: Env): Promise<SaludLocal>;
+  /** Lo que el canal hace solo, cada hora, desde el cron (p. ej. renovar su llave antes de que venza). Nunca lanza por un canal sin configurar. */
+  mantener?(env: Env): Promise<void>;
 }
 
 /** Respuestas HTTP que se repiten en los webhooks. */
@@ -238,15 +280,38 @@ export function sinNegritas(texto: string): string {
   return texto.replace(/\*([^*\n]+)\*/g, "$1");
 }
 
-/** Parte un texto largo respetando el máximo del canal (último recurso: las burbujas ya son cortas). */
-export function partirPorLargo(texto: string, max: number): string[] {
-  if (texto.length <= max) return [texto];
+/** Lo que sale en el texto cuando un archivo no puede ir como archivo: «nombre: url» (o solo la url). */
+export function enlaceDeMedio(m: { nombre?: string; url: string }): string {
+  return m.nombre ? `${m.nombre}: ${m.url}` : m.url;
+}
+
+const bytesUtf8 = (texto: string) => new TextEncoder().encode(texto).length;
+
+/** Cuántas unidades del principio de `texto` caben en `max` letras y `maxBytes` bytes UTF-8, sin partir un emoji. */
+function cuantoCabe(texto: string, max: number, maxBytes?: number): number {
+  if (maxBytes === undefined) return max;
+  let unidades = 0;
+  let bytes = 0;
+  for (const c of texto) {
+    const b = bytesUtf8(c);
+    if (unidades + c.length > max || bytes + b > maxBytes) break;
+    unidades += c.length;
+    bytes += b;
+  }
+  return Math.max(1, unidades);
+}
+
+/** Parte un texto largo respetando el máximo del canal (último recurso: las burbujas ya son cortas); con `maxBytes`, también en bytes. */
+export function partirPorLargo(texto: string, max: number, maxBytes?: number): string[] {
+  const cabe = (t: string) => t.length <= max && (maxBytes === undefined || bytesUtf8(t) <= maxBytes);
+  if (cabe(texto)) return [texto];
   const trozos: string[] = [];
   let resto = texto;
-  while (resto.length > max) {
-    let corte = resto.lastIndexOf("\n", max);
-    if (corte < max * 0.5) corte = resto.lastIndexOf(" ", max);
-    if (corte < max * 0.5) corte = max;
+  while (!cabe(resto)) {
+    const tope = cuantoCabe(resto, max, maxBytes);
+    let corte = resto.lastIndexOf("\n", tope);
+    if (corte < tope * 0.5) corte = resto.lastIndexOf(" ", tope);
+    if (corte < tope * 0.5) corte = tope;
     trozos.push(resto.slice(0, corte).trim());
     resto = resto.slice(corte).trim();
   }
