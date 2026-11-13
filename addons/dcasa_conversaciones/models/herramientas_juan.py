@@ -290,10 +290,9 @@ class BrianHerramientasJuan(models.AbstractModel):
 
     @herramienta(
         nombre=PREFIJO + 'buscar_productos',
-        descripcion='Busca productos publicados en la tienda por nombre, código, categoría, tamaño o color. '
-                    'Devuelve precio (+ ITBMS), disponibilidad en etiqueta, medidas, combo, enlace y foto. Si no hay '
-                    'nada publicado, «estado» dice qué hacer: hay_sin_publicar (sí lo trabajamos: una vendedora '
-                    'confirma modelos y precios), busca_de_nuevo o no_lo_manejamos (solo entonces se dice que no).',
+        descripcion='Busca productos de la tienda por nombre, código, categoría, tamaño o color: precio (+ ITBMS), '
+                    'disponibilidad, medidas, combo, enlace y foto. Sin resultados, sigue el «estado» '
+                    '(hay_sin_publicar, busca_de_nuevo o no_lo_manejamos).',
         parametros={
             'consulta': PARAM_CONSULTA,
             'categoria': {'type': 'string', 'description': 'Opcional: una categoría de la tienda, p. ej. «Colchones».'},
@@ -356,8 +355,8 @@ class BrianHerramientasJuan(models.AbstractModel):
     @herramienta(
         nombre=PREFIJO + 'ver_producto',
         descripcion='Ficha completa de un producto publicado por su código: descripción, medidas, variantes '
-                    '(tamaños o colores) con su disponibilidad y la galería de fotos. Si el código es de algo que se '
-                    'vende pero no está publicado, devuelve estado hay_sin_publicar (sin datos del producto).',
+                    '(tamaños o colores) con su disponibilidad y fotos. Si no está publicado, devuelve estado '
+                    'hay_sin_publicar (sin datos del producto).',
         parametros={'codigo': {'type': 'string', 'description': 'Código del producto, el que devolvió '
                                                                 'buscar_productos o el que dice el cliente: '
                                                                 'p. ej. «DC-K7M4PX».'}},
