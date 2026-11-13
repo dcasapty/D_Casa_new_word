@@ -13,28 +13,30 @@ const imagen = (nombre = "captura.jpg") => ({ adjuntos: [{ tipo: "imagen" as con
 const PUBLICACION: LecturaImagen = { tipo: "publicacion", codigos: ["822F"], categoria: "cama", medida: "full", parece_pago: false, parece_identidad: false };
 const adjuntoEnOdoo = (m: ReturnType<typeof crearMundo>) => m.odoo.mensajes.filter((x) => x.autor === "cliente").at(-1)!.adjuntos![0];
 
-describe("REVISIÓN (evidencia, pasa): imágenes que Juan NO lee llegan a Odoo sin clase (Odoo avisa «una imagen que Juan no pudo leer»)", () => {
-  it("la 11.ª imagen del día (tope de lecturas) llega sin clase", async () => {
+describe("REVISIÓN: imágenes que Juan NO lee llegan a Odoo como «sin_leer» con su porqué (Odoo decide si avisa)", () => {
+  it("la 11.ª imagen del día (tope de lecturas) llega «sin_leer» por «tope»", async () => {
     const m = crearMundo({ mirarImagen: async () => PUBLICACION });
     m.guion([{ texto: "Veo." }]);
     for (let i = 0; i < 10; i++) await m.conversar(`foto ${i} distinta ${"x".repeat(i)}`, imagen(`f${i}.jpg`));
     await m.conversar("listo, ya te hice el Yappy", imagen("yappy.jpg"));
-    expect(adjuntoEnOdoo(m).clase).toBeUndefined();
+    expect(adjuntoEnOdoo(m)).toMatchObject({ clase: "sin_leer", sin_leer: "tope" });
     expect(m.odoo.de("etiquetar_conversacion")).toHaveLength(0);
   });
 
-  it("si el lector falla (sin cupo, tardó demasiado) la imagen llega sin clase", async () => {
-    const m = crearMundo({ mirarImagen: async () => { throw new Error("sin cupo de Workers AI"); } });
-    m.guion([{ texto: "Recibí tu imagen." }]);
-    await m.conversar("te mando el pago", imagen("yappy.jpg"));
-    expect(adjuntoEnOdoo(m).clase).toBeUndefined();
+  it("si el lector falla (sin cupo, tardó demasiado) o no entiende nada, la imagen llega «sin_leer» por «fallo»", async () => {
+    for (const lector of [async () => { throw new Error("sin cupo de Workers AI"); }, async () => null]) {
+      const m = crearMundo({ mirarImagen: lector });
+      m.guion([{ texto: "Recibí tu imagen." }]);
+      await m.conversar("te mando el pago", imagen("yappy.jpg"));
+      expect(adjuntoEnOdoo(m)).toMatchObject({ clase: "sin_leer", sin_leer: "fallo" });
+    }
   });
 
-  it("una imagen ilegible (sin señal de pago ni de identidad) también llega sin clase: puede ser un recibo borroso", async () => {
+  it("una imagen ilegible (sin señal de pago ni de identidad) llega «sin_leer» por «ilegible»: puede ser un recibo borroso", async () => {
     const m = crearMundo({ mirarImagen: async () => ({ tipo: "ilegible", codigos: [], categoria: null, medida: null, parece_pago: false, parece_identidad: false }) });
     m.guion([{ texto: "Recibí tu imagen." }]);
     await m.conversar("ahí va", imagen("borrosa.jpg"));
-    expect(adjuntoEnOdoo(m).clase).toBeUndefined();
+    expect(adjuntoEnOdoo(m)).toMatchObject({ clase: "sin_leer", sin_leer: "ilegible" });
     expect(adjuntoEnOdoo(m).sensible).toBeUndefined();
   });
 

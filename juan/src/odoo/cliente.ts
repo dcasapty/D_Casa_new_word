@@ -25,11 +25,21 @@ export interface AdjuntoOdoo {
   url?: string | null;
   nombre?: string;
   mime?: string;
-  /** Qué entendió el lector de imágenes (solo con RECONOCER_IMAGENES=1): para que Odoo avise a la dueña en paralelo. */
-  clase?: "producto" | "publicacion" | "comprobante" | "identidad" | "otra";
+  /**
+   * Qué entendió el lector de imágenes: para que Odoo avise a la dueña en paralelo. «sin_leer»: una imagen que Juan no leyó (el
+   * porqué va en `sin_leer`). Un Odoo viejo no conoce «sin_leer» y la toma como sin clase (igual que antes).
+   */
+  clase?: "producto" | "publicacion" | "comprobante" | "identidad" | "otra" | "sin_leer";
+  /**
+   * Por qué una imagen no se leyó (con `clase: "sin_leer"`): «apagado» (no hay lector), «tope» (ya iban 3 en el mensaje o 10 hoy, el
+   * cupo de IA o el descanso del anti-spam), «fallo» (el lector falló, tardó o no entendió; o la imagen no se pudo traer) o «ilegible».
+   */
+  sin_leer?: MotivoSinLeer;
   /** Comprobante o documento de identidad: Odoo no se lo muestra a la IA. */
   sensible?: boolean;
 }
+
+export type MotivoSinLeer = "apagado" | "tope" | "fallo" | "ilegible";
 
 export interface CuerpoMensaje {
   canal: CanalId;

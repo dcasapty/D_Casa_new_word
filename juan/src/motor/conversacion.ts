@@ -22,7 +22,7 @@ import { contextoDelChat, promptEstable, promptParaFugas, promptSeguimiento, pre
 import { analizar, detectarSerHumano, notaDeCorreccion, quitarGraves, TEXTO_FUGA, TEXTO_SIN_DATO, limpiarForma, type ContextoRevision } from "../dcasa/salvaguardas";
 import { pinesEscritos, taparPines, textoParaElModelo } from "../dcasa/sensibles";
 import { TEXTO_FALLO_TECNICO, TEXTO_TOPE_DIARIO, textoPasoAVendedora } from "../dcasa/textos";
-import { aMilisegundosOdoo, OdooError, type AdjuntoOdoo, type CuerpoComentario, type CuerpoMensaje, type DefHerramienta, type EstadoOdoo, type OdooApi, type ParteOdoo, type RespuestaMensaje } from "../odoo/cliente";
+import { aMilisegundosOdoo, OdooError, type AdjuntoOdoo, type CuerpoComentario, type CuerpoMensaje, type DefHerramienta, type EstadoOdoo, type MotivoSinLeer, type OdooApi, type ParteOdoo, type RespuestaMensaje } from "../odoo/cliente";
 import type { Env } from "../env";
 import { Bandeja, Cola, Comentarios, crearEsquema, Fotos, Kv, Medios, Mensajes, Recibidos, type CitaLocal, type ContextoLocal, type FilaBandeja, type FilaComentario, type FilaMensaje } from "./almacen";
 import { DESCANSO_POR_REPETIDO_MS, DESCANSO_POR_TOPE_MS, esRepetido, MIRAR_ATRAS, superaTopeDiario, TOPE_DIARIO_POR_DEFECTO } from "./antispam";
@@ -865,16 +865,24 @@ export class MotorConversacion {
     let imagenesLeidas = 0;
     for (const a of e.adjuntos ?? []) {
       let lectura: LecturaImagen | null = null;
+      // Por qué una imagen (no un sticker) no se leyó: Odoo decide con esto si avisa «puede ser un comprobante» (revisión, 2026-11-13).
+      let sinLeer: MotivoSinLeer | undefined = a.tipo === "imagen" && !a.sticker ? "fallo" : undefined;
       let url = a.url ?? null;
       if (a.bytes && a.bytes.byteLength > 0) {
         const mime = a.mime ?? "application/octet-stream";
-        // Lo que manda una vendedora desde su teléfono (`propio`) no gasta los topes del cliente.
-        if (leerConIa && a.tipo === "imagen" && !a.sticker && this.deps.mirarImagen && imagenesLeidas < IMAGENES_POR_MENSAJE && (e.propio || this.cabeOtraLecturaHoy(ahora))) {
-          imagenesLeidas++;
-          try {
-            lectura = await this.deps.mirarImagen(a.bytes, mime);
-          } catch (err) {
-            this.log("warn", "no se pudo leer la imagen: sigue el camino de siempre (la revisa una vendedora)", String(err));
+        if (a.tipo === "imagen" && !a.sticker) {
+          if (!this.deps.mirarImagen) sinLeer = "apagado";
+          // El anti-spam, el tope diario o el cupo de IA ya frenan este mensaje: no se gasta en leer (issue #24).
+          else if (!leerConIa) sinLeer = "tope";
+          // Lo que manda una vendedora desde su teléfono (`propio`) no gasta los topes del cliente.
+          else if (imagenesLeidas >= IMAGENES_POR_MENSAJE || !(e.propio || this.cabeOtraLecturaHoy(ahora))) sinLeer = "tope";
+          else {
+            imagenesLeidas++;
+            try {
+              lectura = await this.deps.mirarImagen(a.bytes, mime);
+            } catch (err) {
+              this.log("warn", "no se pudo leer la imagen: sigue el camino de siempre (la revisa una vendedora)", String(err));
+            }
           }
         }
         if (leerConIa && a.tipo === "audio" && this.deps.transcribir) {
@@ -899,7 +907,13 @@ export class MotorConversacion {
         }
       }
       // Un sticker no se lee, pero tampoco es «una imagen que Juan no pudo leer» (en Odoo, esa avisa): va como «otra».
-      const marca = lectura ? marcaDeLectura(lectura) : a.sticker ? { clase: "otra" as const } : {};
+      const marca: Pick<AdjuntoOdoo, "clase" | "sin_leer" | "sensible"> = lectura
+        ? marcaDeLectura(lectura)
+        : a.sticker
+          ? { clase: "otra" }
+          : sinLeer
+            ? { clase: "sin_leer", sin_leer: sinLeer }
+            : {};
       lista.push({ tipo: a.tipo, url, nombre: a.nombre, mime: a.mime, ...marca });
       lecturas.push(lectura);
       stickers.push(!!a.sticker);
@@ -2608,14 +2622,13 @@ export class MotorConversacion {
  * «sensible»: en Odoo, sensible quiere decir «comprobante o documento» (lo dice la etiqueta del chat) y esconde el texto del cliente de
  * «Sugerir» y del resumen; un anuncio con su precio no trae datos personales que esconder. El bot igual no lo trata como producto.
  *
- * Una imagen ilegible (sin señal de pago ni de identidad) llega SIN clase, como la que el lector no leyó (falló, tardó, era la 4.ª del
- * mensaje o ya iban 10 hoy): en Odoo, una imagen sin clase es «una imagen que Juan no pudo leer» y avisa, porque puede ser un recibo
- * borroso (revisión adversarial, 2026-11-13).
+ * Una imagen ilegible (sin señal de pago ni de identidad) llega como «sin_leer» por «ilegible»: en Odoo avisa «una imagen que Juan no
+ * pudo leer», porque puede ser un recibo borroso (revisión adversarial, 2026-11-13).
  */
-function marcaDeLectura(l: LecturaImagen): Pick<AdjuntoOdoo, "clase" | "sensible"> {
+function marcaDeLectura(l: LecturaImagen): Pick<AdjuntoOdoo, "clase" | "sin_leer" | "sensible"> {
   if (esComprobante(l)) return { clase: "comprobante", sensible: true };
   if (l.tipo === "identidad" || l.parece_identidad) return { clase: "identidad", sensible: true };
-  if (l.tipo === "ilegible") return {};
+  if (l.tipo === "ilegible") return { clase: "sin_leer", sin_leer: "ilegible" };
   return { clase: l.tipo };
 }
 

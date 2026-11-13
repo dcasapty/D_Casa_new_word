@@ -144,11 +144,11 @@ describe("lo que Odoo recibe del archivo (para avisar a la dueña en paralelo)",
     expect(adjuntoEnOdoo(m)).toMatchObject({ clase: "comprobante", sensible: true });
   });
 
-  it("sin lector, el adjunto llega como siempre: sin clase ni marca", async () => {
+  it("sin lector, el adjunto llega como «sin_leer» por «apagado» y sin marca de sensible", async () => {
     const m = crearMundo();
     m.guion([{ texto: "Recibí tu archivo." }]);
     await m.conversar("mira", imagen());
-    expect(adjuntoEnOdoo(m).clase).toBeUndefined();
+    expect(adjuntoEnOdoo(m)).toMatchObject({ clase: "sin_leer", sin_leer: "apagado" });
     expect(adjuntoEnOdoo(m).sensible).toBeUndefined();
   });
 });
