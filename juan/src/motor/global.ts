@@ -33,6 +33,8 @@ export class AlmacenGlobal {
     sql.correr("CREATE TABLE IF NOT EXISTS llaves (clave TEXT PRIMARY KEY, valor TEXT NOT NULL, ts INTEGER NOT NULL)");
     // Las respuestas PÚBLICAS a comentarios de la última hora (solo la hora: ni quién ni qué), para el tope por hora de Ajustes.
     sql.correr("CREATE TABLE IF NOT EXISTS respuestas_publicas (id INTEGER PRIMARY KEY AUTOINCREMENT, ts INTEGER NOT NULL)");
+    // Lo mismo con las PRIVADAS (cada una es un turno completo de IA): el tope global por hora, entre todas las cuentas.
+    sql.correr("CREATE TABLE IF NOT EXISTS respuestas_privadas (id INTEGER PRIMARY KEY AUTOINCREMENT, ts INTEGER NOT NULL)");
   }
 
   /**
@@ -40,10 +42,19 @@ export class AlmacenGlobal {
    * conversaciones). Sin esperas en medio: dentro del Durable Object es atómico, dos comentarios a la vez no se pasan del tope.
    */
   reservarRespuestaPublica(tope: number, ahora: number): boolean {
-    this.sql.correr("DELETE FROM respuestas_publicas WHERE ts <= ?", ahora - 3600_000);
-    const n = this.sql.uno<{ n: number }>("SELECT COUNT(*) AS n FROM respuestas_publicas")?.n ?? 0;
+    return this.reservar("respuestas_publicas", tope, ahora);
+  }
+
+  /** Lo mismo con las respuestas PRIVADAS a comentarios (el tope global por hora). */
+  reservarRespuestaPrivada(tope: number, ahora: number): boolean {
+    return this.reservar("respuestas_privadas", tope, ahora);
+  }
+
+  private reservar(tabla: "respuestas_publicas" | "respuestas_privadas", tope: number, ahora: number): boolean {
+    this.sql.correr(`DELETE FROM ${tabla} WHERE ts <= ?`, ahora - 3600_000);
+    const n = this.sql.uno<{ n: number }>(`SELECT COUNT(*) AS n FROM ${tabla}`)?.n ?? 0;
     if (n >= tope) return false;
-    this.sql.correr("INSERT INTO respuestas_publicas (ts) VALUES (?)", ahora);
+    this.sql.correr(`INSERT INTO ${tabla} (ts) VALUES (?)`, ahora);
     return true;
   }
 
@@ -170,5 +181,10 @@ export class Global extends DurableObject<Env> {
   /** El tope por hora de las respuestas públicas a comentarios (Ajustes de Juan › Comentarios). */
   reservarRespuestaPublica(tope: number): boolean {
     return this.almacen.reservarRespuestaPublica(tope, Date.now());
+  }
+
+  /** El tope global por hora de las respuestas privadas a comentarios. */
+  reservarRespuestaPrivada(tope: number): boolean {
+    return this.almacen.reservarRespuestaPrivada(tope, Date.now());
   }
 }

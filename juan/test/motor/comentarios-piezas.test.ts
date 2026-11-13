@@ -5,7 +5,7 @@
 import { describe, expect, it } from "vitest";
 import { atiendeEntrante, CONFIG_POR_DEFECTO, comentariosActivos, normalizarComentarios, normalizarConfig, porQueNoContesta, TEXTO_PUBLICO_POR_DEFECTO } from "../../src/config";
 import { AlmacenGlobal } from "../../src/motor/global";
-import { clasePorReglas, clasificarConIa, interpretarClase, nombreParaElPublico, textoPublico, unSoloMensaje } from "../../src/motor/comentarios";
+import { clasePorReglas, clasificarConIa, interpretarClase, pareceQueja, textoPublico, unSoloMensaje } from "../../src/motor/comentarios";
 import { modeloGuionado } from "../helpers/modeloGuionado";
 import { crearSqlNode } from "../helpers/sqlNode";
 
@@ -20,7 +20,13 @@ describe("reglas baratas (antes de gastar IA)", () => {
     }
   });
 
-  it("una palabra de queja la vuelve «queja» sin IA (respaldo fijo), aunque también pregunte", () => {
+  it("las quejas también las decide la IA: las reglas baratas nunca dicen «queja»", () => {
+    for (const t of ["Estafa", "Mentirosos", "Me cancelaron", "¿Cuándo me devuelven mi plata? Estafadores, nunca llegó"]) expect(clasePorReglas(t), t).toBeNull();
+  });
+});
+
+describe("palabras de queja (el respaldo fijo: sin respuesta pública; si la IA falla, a Gerencia)", () => {
+  it("las quejas evidentes las tienen, aunque pregunten", () => {
     for (const t of [
       "Estafa",
       "Pésimo servicio",
@@ -35,6 +41,7 @@ describe("reglas baratas (antes de gastar IA)", () => {
       "No contestan",
       "No responden los mensajes",
       "Llevo 3 semanas esperando",
+      "Sigo esperando mi pedido",
       "Yo pagué y nada",
       "Nadie responde el wasap",
       "Me cancelaron",
@@ -43,8 +50,36 @@ describe("reglas baratas (antes de gastar IA)", () => {
       "Quiero que me devuelvan",
       "Pongo un reclamo",
       "@dcasa ladrones 😡",
+      "¿Por qué no me ha llegado?",
     ]) {
-      expect(clasePorReglas(t), t).toBe("queja");
+      expect(pareceQueja(t), t).toBe(true);
+    }
+  });
+
+  it("las preguntas de compra no (revisión, 2.ª vuelta): las palabras dudosas cuentan solo si el comentario no pregunta nada", () => {
+    for (const t of [
+      "¿Si no me gusta lo devuelvo?",
+      "¿Hacen reembolso si no me queda?",
+      "¿No llegan a Chiriquí?",
+      "¿Esa mesa no sirve para exterior?",
+      "¿Es resistente o se rompe fácil?",
+      "¿La tela se rompe con las uñas del perro?",
+      "¿Es de mala calidad o buena?",
+      "Estoy esperando la quincena para comprarlo 😍",
+      "Esperando el catálogo 🙏",
+      "¿Puedo apartarlo y que cancele el resto en la entrega?",
+      "¿El sillón se tumba? ¿es reclinable?",
+      "¡Mentira! ¿a ese precio? Lo quiero",
+      "¿Tienen papelera para la basura del baño?",
+      "¿Tienen tumbonas?",
+      "¿Venden cesto de basura?",
+      "¿Lo tienen en plata?",
+      "¿Puedo cancelar con Yappy?",
+      "¿Todavía hay?",
+      "¿Tiene garantía?",
+      "¿Precio?",
+    ]) {
+      expect(pareceQueja(t), t).toBe(false);
     }
   });
 });
@@ -81,33 +116,24 @@ describe("la clase con salida cerrada", () => {
   });
 });
 
-describe("la respuesta pública de Ajustes", () => {
-  it("con el nombre, y sin él se quita «{nombre}» con su coma", () => {
-    expect(textoPublico(TEXTO_PUBLICO_POR_DEFECTO, "Ana")).toBe("¡Hola, Ana! Te escribimos por mensaje directo con los detalles.");
-    expect(textoPublico(TEXTO_PUBLICO_POR_DEFECTO, "")).toBe("¡Hola! Te escribimos por mensaje directo con los detalles.");
-    expect(textoPublico("{nombre}, te escribimos al privado.", "")).toBe("Te escribimos al privado.");
-    expect(textoPublico("Gracias {nombre}, te escribimos por *privado*.", "Ana")).toBe("Gracias Ana, te escribimos por privado.");
-    // Un patrón de reemplazo en el nombre no se interpreta.
-    expect(textoPublico("Hola {nombre}.", "$&$'")).toBe("Hola $&$'.");
+describe("la respuesta pública de Ajustes (nunca con el nombre de nadie)", () => {
+  it("la de fábrica, tal cual; un «{nombre}» de antes se quita limpio, sin dejar la frase rota", () => {
+    expect(TEXTO_PUBLICO_POR_DEFECTO).toBe("¡Hola! Te escribimos por mensaje directo con los detalles.");
+    expect(textoPublico(TEXTO_PUBLICO_POR_DEFECTO)).toBe("¡Hola! Te escribimos por mensaje directo con los detalles.");
+    expect(textoPublico("¡Hola, {nombre}! Te escribimos por mensaje directo con los detalles.")).toBe("¡Hola! Te escribimos por mensaje directo con los detalles.");
+    expect(textoPublico("{nombre}, te escribimos al privado.")).toBe("Te escribimos al privado.");
+    expect(textoPublico("{nombre}: te escribimos por mensaje directo.")).toBe("Te escribimos por mensaje directo.");
+    expect(textoPublico("¡{nombre}! Te escribimos por mensaje directo.")).toBe("Te escribimos por mensaje directo.");
+    expect(textoPublico("¡{nombre}, gracias! Te escribimos por privado.")).toBe("¡Gracias! Te escribimos por privado.");
+    expect(textoPublico("Gracias {nombre}, te escribimos por *privado*.")).toBe("Gracias, te escribimos por privado.");
   });
 
-  it("una plantilla con direcciones web (con o sin esquema) o llaves sueltas no sale: va la de fábrica", () => {
-    for (const p of ["Mira dcasapty.com/ofertas o bit.ly/xyz, {nombre}", "Escríbenos: wa.me/50760261919", "https://x.co {nombre}", "Visita www.dcasa {nombre}", "info@dcasapty.com", "{nombre", "Hola {nombre}} te escribimos", "Hola {cliente}"]) {
-      expect(textoPublico(p, "Ana"), p).toBe("¡Hola, Ana! Te escribimos por mensaje directo con los detalles.");
+  it("una plantilla con direcciones web (con o sin esquema), llaves o que no queda bien no sale: va la de fábrica", () => {
+    for (const p of ["Mira dcasapty.com/ofertas o bit.ly/xyz", "Escríbenos: wa.me/50760261919", "https://x.co", "Visita www.dcasa", "info@dcasapty.com", "{nombre", "Hola {nombre}} te escribimos", "Hola {cliente}", ": te escribimos", "¡! Te escribimos", "!!", "{nombre}"]) {
+      expect(textoPublico(p), p).toBe(TEXTO_PUBLICO_POR_DEFECTO);
     }
     // Lo que sí vale: puntos de fin de frase, cifras, signos.
-    expect(textoPublico("¡Gracias, {nombre}! Te escribimos al privado. Abrimos 8:00-17:00.", "Ana")).toBe("¡Gracias, Ana! Te escribimos al privado. Abrimos 8:00-17:00.");
-  });
-
-  it("el nombre: en Instagram nunca (ni el @); en Facebook el de pila solo si son letras limpias", () => {
-    expect(nombreParaElPublico("facebook", "Ana María López")).toBe("Ana");
-    expect(nombreParaElPublico("facebook", "José Luis")).toBe("José");
-    for (const u of ["@ana.muebles", "@dcasa.estafa", "Ana"]) expect(nombreParaElPublico("instagram", u), u).toBe("");
-    for (const raro of ["https://spam.example", "Ana123", "<b>Ana</b>", "José-Luis", "A", "Anaaaaaaaaaaaaaaaaaaaa", "Ana$&", "*Ana*", "{nombre}", "Ana\u202eabc", "dcasa.com", "", undefined]) {
-      expect(nombreParaElPublico("facebook", raro), String(raro)).toBe("");
-    }
-    // Quejas, insultos y la marca no salen como «nombre».
-    for (const malo of ["Estafadores Total", "Ladrones", "Dcasa Panamá", "DCASA", "Mentirosos", "Rateros", "Idiotas", "Fraude"]) expect(nombreParaElPublico("facebook", malo), malo).toBe("");
+    expect(textoPublico("¡Gracias! Te escribimos al privado. Abrimos 8:00-17:00.")).toBe("¡Gracias! Te escribimos al privado. Abrimos 8:00-17:00.");
   });
 });
 
@@ -130,23 +156,26 @@ describe("el mensaje privado en UNO", () => {
 
 describe("los ajustes de comentarios que manda Odoo", () => {
   it("de fábrica: apagados, las dos redes marcadas, el texto de la dueña y 30 por hora", () => {
-    expect(CONFIG_POR_DEFECTO.comentarios).toEqual({ activo: false, facebook: true, instagram: true, texto_publico: "¡Hola, {nombre}! Te escribimos por mensaje directo con los detalles.", tope_por_hora: 30, publicas_por_persona: 1, privadas_por_persona: 3 });
+    expect(CONFIG_POR_DEFECTO.comentarios).toEqual({ activo: false, facebook: true, instagram: true, texto_publico: "¡Hola! Te escribimos por mensaje directo con los detalles.", tope_por_hora: 30, publicas_por_persona: 1, privadas_por_persona: 3, privadas_por_hora: 60 });
     expect(normalizarConfig({}).comentarios).toEqual(CONFIG_POR_DEFECTO.comentarios);
   });
 
   it("lo que manda Odoo, limpio: solo `true` enciende, el texto sin saltos y el tope entre 0 y 500", () => {
-    expect(normalizarComentarios({ activo: "true", facebook: false, texto_publico: " Hola {nombre}\n te escribimos ", tope_por_hora: 9999, publicas_por_persona: 99, privadas_por_persona: 0 })).toEqual({
+    expect(normalizarComentarios({ activo: "true", facebook: false, texto_publico: " Hola {nombre}\n te escribimos ", tope_por_hora: 9999, publicas_por_persona: 99, privadas_por_persona: 0, privadas_por_hora: 0 })).toEqual({
       activo: false,
       facebook: false,
       instagram: true,
-      texto_publico: "Hola {nombre} te escribimos",
+      texto_publico: "Hola te escribimos",
       tope_por_hora: 500,
       publicas_por_persona: 10,
       privadas_por_persona: 1,
+      privadas_por_hora: 1,
     });
     expect(normalizarComentarios({ activo: true, texto_publico: "   ", tope_por_hora: -3, publicas_por_persona: -1 })).toMatchObject({ activo: true, texto_publico: TEXTO_PUBLICO_POR_DEFECTO, tope_por_hora: 0, publicas_por_persona: 0, privadas_por_persona: 3 });
     // Un texto con direcciones web o llaves sueltas no se usa: va el de fábrica.
-    for (const t of ["Mira bit.ly/x {nombre}", "{nombre"]) expect(normalizarComentarios({ texto_publico: t }).texto_publico, t).toBe(TEXTO_PUBLICO_POR_DEFECTO);
+    for (const t of ["Mira bit.ly/x {nombre}", "{nombre", "¡{nombre}!", ":)"]) expect(normalizarComentarios({ texto_publico: t }).texto_publico, t).toBe(TEXTO_PUBLICO_POR_DEFECTO);
+    // El tope global de privadas por hora: 60 si Odoo no dice nada.
+    expect(normalizarComentarios({}).privadas_por_hora).toBe(60);
   });
 
   it("se atienden solo con el interruptor, la red, el asistente y el canal de la respuesta privada encendidos", () => {

@@ -291,8 +291,26 @@ export interface FilaCola {
 export class Cola {
   constructor(private readonly sql: Sql) {}
 
-  agregar(tipo: FilaCola["tipo"], cuerpo: unknown, ahora: number): void {
-    this.sql.correr("INSERT INTO cola (tipo, cuerpo, intentos, proximo, creado) VALUES (?, ?, 0, ?, ?)", tipo, JSON.stringify(cuerpo), ahora, ahora);
+  /** `proximo`: cuándo entregarla (por defecto, ya). */
+  agregar(tipo: FilaCola["tipo"], cuerpo: unknown, ahora: number, proximo = ahora): void {
+    this.sql.correr("INSERT INTO cola (tipo, cuerpo, intentos, proximo, creado) VALUES (?, ?, 0, ?, ?)", tipo, JSON.stringify(cuerpo), proximo, ahora);
+  }
+  /** Quita de la cola (si todavía no llegó a Odoo) el mensaje de una vendedora con ese id del canal. Devuelve cuántos quitó. */
+  quitarMensajeDeVendedora(idMensaje: string): number {
+    let quitados = 0;
+    for (const f of this.sql.todos<{ id: number; cuerpo: string }>("SELECT id, cuerpo FROM cola WHERE tipo = 'mensaje'")) {
+      let c: { id_mensaje?: unknown; autor?: unknown } = {};
+      try {
+        c = JSON.parse(f.cuerpo) as typeof c;
+      } catch {
+        continue;
+      }
+      if (c.id_mensaje === idMensaje && c.autor === "vendedora") {
+        this.sql.correr("DELETE FROM cola WHERE id = ?", f.id);
+        quitados++;
+      }
+    }
+    return quitados;
   }
   vencidas(ahora: number): FilaCola[] {
     return this.sql.todos<FilaCola>("SELECT * FROM cola WHERE proximo <= ? ORDER BY id", ahora);

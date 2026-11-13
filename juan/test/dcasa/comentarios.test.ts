@@ -81,15 +81,21 @@ describe("una pregunta en un comentario: corto en público y lo demás por priva
     for (const nombre of ["enviar_foto_producto", "cotizar", "agregar_envio"]) expect(herramientasDe(m, 1)).not.toContain(nombre);
   });
 
-  it("Facebook: el de pila del perfil en la respuesta pública; si no es un nombre limpio (un enlace, una queja, la marca), sin nombre", async () => {
+  it("Facebook: la respuesta pública tampoco lleva el nombre (lo que ve todo el mundo no lleva nada que escriba quien comenta)", async () => {
     const m = mundoComentarios({ canal: "messenger", comentarios: { publicas_por_persona: 5, privadas_por_persona: 5 } });
     const pasos = [];
-    for (let i = 0; i < 4; i++) pasos.push(PREGUNTA, { texto: "Te escribo por tu comentario. ¿Cuál mueble te interesa?" });
+    for (let i = 0; i < 3; i++) pasos.push(PREGUNTA, { texto: "Te escribo por tu comentario. ¿Cuál mueble te interesa?" });
     m.guion(pasos);
-    await comentar(m, comentario(m, "Info del comedor por favor"));
-    for (const nombre of ["https://spam.example", "Estafadores Unidos", "Dcasa Oficial"]) await comentar(m, comentario(m, "Info del comedor por favor", {}, { nombre }));
-    expect(m.canal.publicas.map((p) => p.texto)).toEqual(["¡Hola, Ana! Te escribimos por mensaje directo con los detalles.", ...Array(3).fill("¡Hola! Te escribimos por mensaje directo con los detalles.")]);
+    for (const nombre of ["Ana María López", "https://spam.example", "Estafadores Unidos"]) await comentar(m, comentario(m, "Info del comedor por favor", {}, { nombre }));
+    expect(m.canal.publicas.map((p) => p.texto)).toEqual(Array(3).fill("¡Hola! Te escribimos por mensaje directo con los detalles."));
     expect(m.odoo.comentarios.at(-1)).toMatchObject({ canal: "messenger", red: "facebook" });
+  });
+
+  it("un texto de Ajustes de antes con «{nombre}» se publica sin el nombre y sin quedar roto", async () => {
+    const m = mundoComentarios({ canal: "messenger", comentarios: { texto_publico: "¡{nombre}, gracias! Te escribimos por privado." } });
+    m.guion([PREGUNTA, { texto: "¿Cuál mueble te interesa?" }]);
+    await comentar(m, comentario(m, "Info del comedor por favor"));
+    expect(m.canal.publicas.map((p) => p.texto)).toEqual(["¡Gracias! Te escribimos por privado."]);
   });
 
   it("la respuesta privada pasa por la guardia de salida: un precio inventado no sale", async () => {
@@ -156,11 +162,11 @@ describe("a cuáles NO responde", () => {
     expect(m.odoo.mensajes).toHaveLength(0);
   });
 
-  it("una queja corta («estafa») no se pierde por las reglas baratas: es queja sin preguntarle a la IA", async () => {
+  it("una queja corta («estafa») no se pierde por las reglas baratas: la ve la IA", async () => {
     const m = mundoComentarios();
-    m.guion([PREGUNTA]);
+    m.guion([{ texto: '{"result":"queja"}' }]);
     await comentar(m, comentario(m, "Estafa"));
-    expect(m.modelo.doGenerateCalls).toHaveLength(0);
+    expect(m.modelo.doGenerateCalls).toHaveLength(1);
     expect(m.odoo.comentarios[0]).toMatchObject({ clase: "queja", privada: "no", publica: "no" });
   });
 

@@ -35,6 +35,8 @@ export interface OpcionesMundo {
   fabrica?: (sel: SeleccionDeModelo) => LanguageModel;
   /** Las conversaciones (objetos) que se pueden hablar entre sí, por `canal:id` (cada mundo se anota aquí al crearse). */
   vecinos?: Map<string, MotorConversacion>;
+  /** Un objeto Global compartido con otras conversaciones (topes por hora entre todas las cuentas). */
+  global?: AlmacenGlobal;
 }
 
 export function crearMundo(op: OpcionesMundo = {}) {
@@ -45,7 +47,7 @@ export function crearMundo(op: OpcionesMundo = {}) {
   const odoo = op.odoo ?? new OdooFalso();
   if (op.config) odoo.rawConfig = { ...(odoo.rawConfig as object), ...op.config };
   const canal = new CanalFalso(canalId);
-  const sqlGlobal = new AlmacenGlobal(crearSqlNode());
+  const sqlGlobal = op.global ?? new AlmacenGlobal(crearSqlNode());
   const idsDeModelo: string[] = [];
   const selecciones: SeleccionDeModelo[] = [];
   const cargadorConfig = new CargadorConfig(() => odoo.config(), () => t);
@@ -126,6 +128,7 @@ export function crearMundo(op: OpcionesMundo = {}) {
         sqlGlobal.guardarSalud(clave, JSON.parse(json), t);
       },
       reservarRespuestaPublica: async (tope: number) => sqlGlobal.reservarRespuestaPublica(tope, t),
+      reservarRespuestaPrivada: async (tope: number) => sqlGlobal.reservarRespuestaPrivada(tope, t),
     },
     dormir: async () => {},
     uuid: (() => {

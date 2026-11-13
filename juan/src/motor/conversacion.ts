@@ -27,7 +27,7 @@ import type { Env } from "../env";
 import { Bandeja, Cola, Comentarios, crearEsquema, Fotos, Kv, Medios, Mensajes, Recibidos, type CitaLocal, type ContextoLocal, type FilaBandeja, type FilaComentario, type FilaMensaje } from "./almacen";
 import { DESCANSO_POR_REPETIDO_MS, DESCANSO_POR_TOPE_MS, esRepetido, MIRAR_ATRAS, superaTopeDiario, TOPE_DIARIO_POR_DEFECTO } from "./antispam";
 import { partirEnBurbujas } from "./burbujas";
-import { clasePorReglas, clasificarConIa, nombreParaElPublico, notaDelTurnoDeComentario, textoPublico, unSoloMensaje, type ClaseDeComentario } from "./comentarios";
+import { clasePorReglas, clasificarConIa, notaDelTurnoDeComentario, pareceQueja, textoPublico, unSoloMensaje, type ClaseDeComentario } from "./comentarios";
 import { cifrasDeTexto, construirHerramientas, RegistroDelTurno, textoDeLaHerramienta } from "./herramientas";
 import { consultasComoTexto, correrTurno, elegirNivel, rondasDeHerramientas, type EntradaDelTurno, type SalidaDelTurno } from "./modelo";
 import { planDeIntentos, type FabricaDeModelos, type ProveedorIa, type SeleccionDeModelo } from "./proveedores";
@@ -217,6 +217,8 @@ export interface GlobalApi {
   gastoMes(mes: string): Promise<number>;
   /** Aparta UNA respuesta pública a un comentario si en la última hora van menos de `tope` (Ajustes de Juan › Comentarios). */
   reservarRespuestaPublica?(tope: number): Promise<boolean>;
+  /** Lo mismo con las respuestas PRIVADAS (el tope global por hora, entre todas las cuentas). */
+  reservarRespuestaPrivada?(tope: number): Promise<boolean>;
   /** `estimado`: el modelo no tenía precio cargado y se usó la tarifa de reserva (se avisa en /salud). */
   registrarGasto(mes: string, modelo: string, uso: Uso, usd: number, estimado: boolean, dia?: string): Promise<void>;
   /** Deja un dato para /salud (último fallo de la IA, uso del respaldo...). Valores como texto JSON, nunca secretos. */
@@ -323,8 +325,14 @@ interface EstadoComentario {
   regla?: true;
   /** La IA falló al clasificarlo: no se contestó y se anota en Odoo. */
   sinClasificar?: true;
-  /** Por qué se dejó de lado sin hacer nada (apagado, viejo). */
-  ignorado?: "apagado" | "viejo";
+  /** Por qué se dejó de lado sin hacer nada (apagado, viejo, o pasado el tope por persona y ya avisado hoy). */
+  ignorado?: "apagado" | "viejo" | "tope";
+  /** Trae una palabra de queja (`pareceQueja`): nunca respuesta pública, y si la IA falla se trata como queja. */
+  conQueja?: true;
+  /** Ya apartó su lugar en el tope global de respuestas privadas por hora (una vez por comentario, aunque se reintente). */
+  reservaPrivada?: true;
+  /** Fue EL aviso de «tope por persona» de estas 24 horas (uno solo por persona: los demás comentarios, solo en el registro). */
+  avisoTope?: number;
   privada?: CuerpoComentario["privada"] | "curso";
   publica?: CuerpoComentario["publica"] | "curso";
   motivo?: string;
@@ -368,6 +376,12 @@ const REINTENTOS_SIN_IA_MS = [30 * 60_000, 3 * 3600_000, 12 * 3600_000];
 const VENTANA_POR_PERSONA_MS = 24 * 3600_000;
 /** «Borrar mis datos» llegó mientras se atendía un comentario: se suelta sin escribir nada más. */
 class ComentarioOlvidado extends Error {}
+/**
+ * El eco de algo que «mandó una vendedora» a quien nunca escribió por Messenger o Instagram suele ser la respuesta privada de Juan a un
+ * comentario entregada a otro id (la otra conversación avisa enseguida: `anotarRespuestaDeComentario`). Ese mensaje espera un minuto en
+ * la cola antes de llegar a Odoo: si el aviso llega, se quita y Odoo nunca pone la conversación en manos de una vendedora.
+ */
+const ESPERA_ECO_SIN_HISTORIA_MS = 60_000;
 /** Lo más que se espera a leer la publicación comentada (una consulta barata a Meta). */
 const PLAZO_PUBLICACION_MS = 3000;
 
@@ -729,8 +743,11 @@ export class MotorConversacion {
     if (!vigente()) return { ok: true, accion: "olvidado" };
     if (e.id_mensaje && this.mensajes.existe(e.id_mensaje)) return { ok: true, accion: "duplicado" };
     if (esEco()) return { ok: true, accion: "eco" };
+    // A quien nunca escribió (Messenger, Instagram), el «eco de una vendedora» espera un minuto antes de llegar a Odoo: suele ser la
+    // privada de Juan a un comentario, y el aviso de la otra conversación lo quita de la cola (`anotarRespuestaDeComentario`).
+    const sinHistoria = this.kv.numero("ultimo_cliente_ts") === null && this.mensajes.ultimos(1).length === 0 && !!this.deps.canal(e.canal)?.capacidades(e.canal, this.deps.env).ventana24h;
     this.mensajes.insertar({ id_mensaje: e.id_mensaje, rol: "vendedora", texto: texto || "(archivo)", adjuntos: lista, ts: e.ts });
-    this.cola.agregar("mensaje", this.cuerpoDeMensaje(e, texto, "vendedora", "saliente", lista), ahora);
+    this.cola.agregar("mensaje", this.cuerpoDeMensaje(e, texto, "vendedora", "saliente", lista), ahora, sinHistoria ? ahora + ESPERA_ECO_SIN_HISTORIA_MS : ahora);
     this.humanoIntervino(cfg, ahora);
     await this.programar();
     return { ok: true, accion: "propio" };
@@ -1136,16 +1153,24 @@ export class MotorConversacion {
         return;
       }
       const barata = clasePorReglas(e.texto ?? "");
+      if (pareceQueja(e.texto ?? "") && !st.conQueja) guardar({ conQueja: true });
       if (barata) {
         guardar({ fase: "clasificado", clase: barata, regla: true });
       } else {
+        // Pasado el tope por persona no se gasta IA: un solo aviso por persona cada 24 horas (los demás, solo en el registro).
+        const tope = this.topeDePrivadas(cfg, c.id);
+        if (tope) {
+          await this.pasadoElTope(e, st, guardar, seguir, tope);
+          return;
+        }
         try {
           const r = await this.clasificarComentario(cfg, e.texto ?? "");
           guardar({ fase: "clasificado", clase: r });
         } catch (err) {
           if (err instanceof ComentarioOlvidado) throw err;
           seguir();
-          // La IA falló: Juan no adivina. Se reintenta con calma y, si sigue sin poder, se deja anotado en Odoo para que una persona lo mire.
+          // La IA falló: Juan no adivina. Se reintenta con calma; si sigue sin poder, una palabra de queja lo vuelve queja (a Gerencia, sin
+          // respuesta) y si no, se deja anotado en Odoo para que una persona lo mire.
           const n = st.fallosClase ?? 0;
           await this.anotarEnSalud("comentario_sin_clasificar", { red: c.red, motivo: limpiarError(err), ts: this.deps.ahora() });
           if (n < REINTENTOS_SIN_IA_MS.length && !vencido()) {
@@ -1154,7 +1179,8 @@ export class MotorConversacion {
             return;
           }
           this.log("error", "la IA no pudo clasificar un comentario ni en los reintentos: no se contesta y queda anotado", limpiarError(err));
-          guardar({ fase: "clasificado", clase: "otro", sinClasificar: true, motivo: causaDeFallo(err) });
+          if (st.conQueja) guardar({ fase: "clasificado", clase: "queja", regla: true, motivo: `la IA no respondió (${causaDeFallo(err)}): trae palabras de queja` });
+          else guardar({ fase: "clasificado", clase: "otro", sinClasificar: true, motivo: causaDeFallo(err) });
         }
       }
     }
@@ -1175,13 +1201,10 @@ export class MotorConversacion {
         this.cerrarComentario(e, { ...st, privada: "no", publica: "no" });
         return;
       }
-      // El tope por persona, antes de gastar IA (se vuelve a mirar justo antes de enviar).
+      // El tope por persona, antes de gastar el turno (se vuelve a mirar justo antes de enviar).
       const tope = this.topeDePrivadas(cfg, c.id);
       if (tope) {
-        this.log("info", "comentario de alguien que ya llegó a su tope de respuestas privadas en 24 horas: se anota y no se contesta");
-        await this.leerPublicacion(e, st, guardar);
-        seguir();
-        this.cerrarComentario(e, { ...st, privada: "no", publica: "no", motivo: tope });
+        await this.pasadoElTope(e, st, guardar, seguir, tope);
         return;
       }
       guardar({ fase: "privada" });
@@ -1225,17 +1248,37 @@ export class MotorConversacion {
    * Las respuestas que ya recibió esta persona en las últimas 24 horas (cada objeto es UNA persona: `canal:id` de quien comenta), sin
    * contar el comentario `excepto`. Cuenta lo que salió o pudo salir («curso», «incierta»); lo que Meta rechazó no.
    */
-  private respuestasDeLasUltimas24h(excepto: string): { privadas: number; publicas: number } {
+  private respuestasDeLasUltimas24h(excepto: string): { privadas: number; publicas: number; avisosDeTope: number } {
     const desde = this.deps.ahora() - VENTANA_POR_PERSONA_MS;
     let privadas = 0;
     let publicas = 0;
+    let avisosDeTope = 0;
     for (const f of this.comentarios.estados()) {
       if (f.id === excepto) continue;
       const st = estadoDeComentario(f.estado);
       if ((st.privadaTs ?? 0) > desde) privadas++;
       if ((st.publicaTs ?? 0) > desde) publicas++;
+      if ((st.avisoTope ?? 0) > desde) avisosDeTope++;
     }
-    return { privadas, publicas };
+    return { privadas, publicas, avisosDeTope };
+  }
+
+  /**
+   * Alguien que ya llegó a su tope de respuestas privadas en 24 horas: no se contesta ni se gasta IA. El PRIMER comentario así deja UN
+   * aviso en Odoo (como queja si trae palabras de queja); los demás de esas 24 horas, solo en el registro (un troll no llena el hilo).
+   */
+  private async pasadoElTope(e: Entrante, st: EstadoComentario, guardar: (c: Partial<EstadoComentario>) => void, seguir: () => void, motivo: string): Promise<void> {
+    const c = e.comentario!;
+    if (this.respuestasDeLasUltimas24h(c.id).avisosDeTope > 0) {
+      this.log("info", "otro comentario de alguien que ya llegó a su tope por persona (y ya se avisó hoy): solo queda en el registro");
+      guardar({ fase: "terminado", ignorado: "tope" });
+      return;
+    }
+    this.log("info", "comentario de alguien que ya llegó a su tope de respuestas privadas en 24 horas: un aviso y no se contesta");
+    await this.leerPublicacion(e, st, guardar);
+    seguir();
+    const clase: ClaseDeComentario = st.clase === "queja" || st.conQueja ? "queja" : "pregunta";
+    this.cerrarComentario(e, { ...st, clase, sinClasificar: undefined, privada: "no", publica: "no", motivo: `${motivo}; sus demás comentarios de hoy no se anotan`, avisoTope: this.deps.ahora() });
   }
 
   /** null = puede recibir otra respuesta privada; si no, el motivo para el aviso de Odoo. */
@@ -1330,6 +1373,25 @@ export class MotorConversacion {
     }
     const fila = this.mensajes.buscar(e.id_mensaje);
     if (!fila) return { privada: "no_preparada", motivo: "no se pudo preparar la respuesta" };
+
+    // El tope global de respuestas privadas por hora (cada una es un turno completo de IA): una vez por comentario, aunque se reintente.
+    if (!st.reservaPrivada) {
+      const tope = cfg.comentarios.privadas_por_hora;
+      let hayLugar = true;
+      try {
+        hayLugar = (await this.deps.global.reservarRespuestaPrivada?.(tope)) ?? true;
+      } catch (err) {
+        // Sin saberlo, se responde igual: el tope por persona sigue valiendo y una pregunta real no se pierde por esto.
+        this.log("warn", "no se pudo revisar el tope global de respuestas privadas: se responde igual", String(err));
+      }
+      seguir();
+      if (!hayLugar) {
+        this.log("warn", `tope global de respuestas privadas a comentarios: ${tope} en la última hora`);
+        await this.anotarEnSalud("comentario_tope_privadas", { ts: this.deps.ahora(), tope });
+        return { privada: "no", motivo: `tope de la hora: ya van ${tope} respuestas privadas a comentarios en la última hora (entre todas las personas)` };
+      }
+      guardar({ reservaPrivada: true });
+    }
 
     const epoca0 = this.epoca();
     // Sin «escribiendo…»: quien solo comentó nunca le escribió a la página (Meta lo rechaza y es ruido).
@@ -1450,11 +1512,13 @@ export class MotorConversacion {
     }
     const previo = n.id_envio ? this.mensajes.buscar(n.id_envio) : null;
     if (previo && previo.rol === "vendedora") {
-      // El eco ganó la carrera: no fue una vendedora, fue Juan. Se devuelve la palabra a Juan (lo que ya llegó a Odoo queda como está).
+      // El eco ganó la carrera: no fue una vendedora, fue Juan. Se devuelve la palabra a Juan y su mensaje de «vendedora» sale de la cola
+      // antes de llegar a Odoo (esperaba un minuto justo para esto: ver `ESPERA_ECO_SIN_HISTORIA_MS`), así Odoo no la pone en «humano».
       this.deps.sql.correr("UPDATE mensajes SET rol = 'bot' WHERE id = ?", previo.id);
       this.kv.poner("pausa_hasta", null);
-      this.log("warn", "el eco de una respuesta a un comentario llegó antes que su aviso y se tomó como una vendedora: se deshizo la pausa");
-      await this.anotarEnSalud("comentario_eco_adelantado", { red: n.red, ts: ahora });
+      const quitados = n.id_envio ? this.cola.quitarMensajeDeVendedora(n.id_envio) : 0;
+      this.log("warn", `el eco de una respuesta a un comentario llegó antes que su aviso y se tomó como una vendedora: se deshizo la pausa${quitados ? " y no llegó a Odoo" : " (ya había llegado a Odoo)"}`);
+      await this.anotarEnSalud("comentario_eco_adelantado", { red: n.red, ts: ahora, en_odoo: quitados === 0 });
     } else if (!previo) {
       this.mensajes.insertar({ id_mensaje: n.id_envio ?? null, rol: "bot", texto: n.texto, ts: n.ts });
     }
@@ -1467,6 +1531,8 @@ export class MotorConversacion {
     const c = e.comentario!;
     const adaptador = this.deps.canal(e.canal);
     if (!adaptador?.comentarios) return { publica: "fallo", motivo: "este canal no sabe contestar comentarios" };
+    // Una palabra de queja: aunque la IA lo tomara por pregunta (y saliera la privada), en público nunca.
+    if (pareceQueja(e.texto ?? "")) return { publica: "no", motivo: "el comentario trae palabras de queja: en público no se responde" };
     const porPersona = cfg.comentarios.publicas_por_persona;
     if (porPersona <= 0) return { publica: "no", motivo: "en Ajustes, las respuestas públicas por persona están en 0" };
     if (this.respuestasDeLasUltimas24h(c.id).publicas >= porPersona) {
@@ -1489,7 +1555,8 @@ export class MotorConversacion {
     const apagado = porQueNoContesta(await this.configDeComentarios(), c.red);
     seguir();
     if (apagado) return { publica: "no", motivo: apagado };
-    const texto = textoPublico(cfg.comentarios.texto_publico, nombreParaElPublico(c.red, e.nombre));
+    // Sin nombre ni nada que escriba quien comenta (decisión del coordinador, 2026-11-13).
+    const texto = textoPublico(cfg.comentarios.texto_publico);
     guardar({ publica: "curso", publicaTs: this.deps.ahora() });
     try {
       await adaptador.comentarios.publica(e.canal, c, texto, this.deps.env);

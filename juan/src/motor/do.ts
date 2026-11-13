@@ -25,6 +25,7 @@ export function globalDe(env: Env): GlobalApi {
       await stub().guardarSalud(clave, json);
     },
     reservarRespuestaPublica: async (tope) => stub().reservarRespuestaPublica(tope),
+    reservarRespuestaPrivada: async (tope) => stub().reservarRespuestaPrivada(tope),
   };
 }
 

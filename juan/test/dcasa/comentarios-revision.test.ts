@@ -9,7 +9,7 @@
 import { describe, expect, it } from "vitest";
 import type { ComentarioEntrante, Entrante } from "../../src/canales/tipos";
 import { OdooError } from "../../src/odoo/cliente";
-import { clasePorReglas, nombreParaElPublico, textoPublico } from "../../src/motor/comentarios";
+import { clasePorReglas, pareceQueja, textoPublico } from "../../src/motor/comentarios";
 import { comentariosDeMeta } from "../../src/canales/metaComentarios";
 import type { MotorConversacion } from "../../src/motor/conversacion";
 import { crearMundo, type Mundo } from "../helpers/mundo";
@@ -112,16 +112,16 @@ describe("A (bloqueante). el interruptor apagado frena un comentario que ya iba 
 describe("B. las quejas cortas ya no se tiran como «otro»", () => {
   const quejas = ["Mentirosos", "Fraudes", "Tumbe", "Mala calidad", "No sirven", "Se me rompió el sofá", "Basura de muebles", "No contestan", "Llevo 3 semanas esperando", "Yo pagué y nada", "Nadie responde el wasap", "Me cancelaron"];
 
-  it("ninguna es «otro» por las reglas baratas (son «queja» por el respaldo fijo)", () => {
+  it("ninguna es «otro» por las reglas baratas (van a la IA) y todas tienen palabras de queja (el respaldo fijo)", () => {
     expect(quejas.filter((q) => clasePorReglas(q) === "otro")).toEqual([]);
-    expect(quejas.filter((q) => clasePorReglas(q) !== "queja")).toEqual([]);
+    expect(quejas.filter((q) => !pareceQueja(q))).toEqual([]);
   });
 
-  it("en el motor, cada una deja su aviso de queja en Odoo (Gerencia se entera), sin respuestas y sin gastar IA", async () => {
+  it("en el motor, cada una (la IA dice «queja») deja su aviso de queja en Odoo, sin respuestas", async () => {
     const m = mundoComentarios();
-    m.guion([PREGUNTA]);
+    m.guion([{ texto: '{"result":"queja"}' }]);
     for (const q of quejas) await comentar(m, comentario(m, q));
-    expect(m.modelo.doGenerateCalls).toHaveLength(0);
+    expect(m.modelo.doGenerateCalls).toHaveLength(quejas.length);
     expect(m.odoo.comentarios).toHaveLength(quejas.length);
     expect(m.odoo.comentarios.every((c) => c.clase === "queja" && c.privada === "no" && c.publica === "no")).toBe(true);
     expect(m.canal.privadas.length + m.canal.publicas.length).toBe(0);
@@ -137,7 +137,7 @@ describe("B. las quejas cortas ya no se tiran como «otro»", () => {
 });
 
 describe("C. tope por persona: 1 respuesta pública y 3 privadas en 24 horas (en comentarios distintos)", () => {
-  it("12 comentarios «¿precio?» del mismo autor = 3 privadas, 1 pública y 3 turnos completos; lo demás se anota sin contestar", async () => {
+  it("12 comentarios «¿precio?» del mismo autor = 3 privadas, 1 pública y 3 turnos; pasado el tope, ni IA ni un aviso por comentario (uno solo)", async () => {
     const m = mundoComentarios({ topeDiario: 3 });
     const pasos = [];
     for (let i = 0; i < 3; i++) pasos.push(PREGUNTA, { texto: `¿Cuál te interesa? ${i}` });
@@ -146,22 +146,23 @@ describe("C. tope por persona: 1 respuesta pública y 3 privadas en 24 horas (en
     for (let i = 0; i < 12; i++) await comentar(m, comentario(m, `¿precio? ${i}`));
     expect(m.canal.privadas).toHaveLength(3);
     expect(m.canal.publicas).toHaveLength(1);
-    // 12 clasificaciones (baratas) y solo 3 turnos completos.
-    expect(m.modelo.doGenerateCalls).toHaveLength(12 + 3);
+    // Solo las 3 primeras gastan IA (clasificación y turno).
+    expect(m.modelo.doGenerateCalls).toHaveLength(3 + 3);
     const finales = m.odoo.comentarios.filter((c) => c.privada !== "pendiente");
-    expect(finales).toHaveLength(12);
+    expect(finales).toHaveLength(4);
     expect(finales.filter((c) => c.privada === "respondida")).toHaveLength(3);
-    expect(finales.filter((c) => c.privada === "no" && /tope por persona/.test(c.motivo ?? ""))).toHaveLength(9);
+    expect(finales.filter((c) => c.privada === "no" && /tope por persona/.test(c.motivo ?? ""))).toHaveLength(1);
     expect(finales.filter((c) => c.privada === "respondida" && c.publica === "no" && /tope por persona: ya se le respondió en público/.test(c.motivo ?? ""))).toHaveLength(2);
   });
 
   it("pasadas 24 horas vuelve a tener lugar; los topes se cambian en Ajustes", async () => {
     const m = mundoComentarios({ comentarios: { publicas_por_persona: 2, privadas_por_persona: 1 } });
-    m.guion([PREGUNTA, { texto: "¿Cuál te interesa?" }, PREGUNTA, PREGUNTA, { texto: "¿En qué medida?" }]);
+    // El segundo comentario ya no gasta IA (pasado el tope): el guion sigue con el tercero.
+    m.guion([PREGUNTA, { texto: "¿Cuál te interesa?" }, PREGUNTA, { texto: "¿En qué medida?" }]);
     await comentar(m, comentario(m, "¿Precio?"));
     await comentar(m, comentario(m, "¿Y el envío?"));
     expect(m.canal.privadas).toHaveLength(1);
-    expect(m.odoo.comentarios.at(-1)).toMatchObject({ privada: "no", motivo: "tope por persona: ya se le respondió 1 comentario por privado en 24 horas" });
+    expect(m.odoo.comentarios.at(-1)).toMatchObject({ privada: "no", motivo: expect.stringMatching(/^tope por persona: ya se le respondió 1 comentario por privado en 24 horas/) });
     await m.pasar(24 * 3600_000);
     await comentar(m, comentario(m, "¿Y en gris?"));
     expect(m.canal.privadas).toHaveLength(2);
@@ -191,49 +192,49 @@ describe("C. tope por persona: 1 respuesta pública y 3 privadas en 24 horas (en
   });
 });
 
-describe("D. lo público: el nombre lo escribe quien comenta, así que se cuida", () => {
-  it("en Instagram nunca sale el @usuario: «¡Hola! Te escribimos por mensaje directo con los detalles.»", () => {
-    for (const u of ["dcasa.estafa", "no.compren.en.dcasa", "gana.dinero.ya", "dcasa.oficial", "ana.muebles"]) {
-      expect(nombreParaElPublico("instagram", `@${u}`)).toBe("");
-      expect(textoPublico("¡Hola, {nombre}! Te escribimos por mensaje directo con los detalles.", nombreParaElPublico("instagram", `@${u}`))).toBe("¡Hola! Te escribimos por mensaje directo con los detalles.");
-    }
-  });
-
-  it("en Facebook, un «nombre de pila» que es un insulto, una queja o la marca no sale", () => {
-    for (const nombre of ["Estafadores", "Ladrones", "Dcasa", "Mentirosos", "Basura"]) {
-      expect(textoPublico("¡Hola, {nombre}! Te escribimos por mensaje directo con los detalles.", nombreParaElPublico("facebook", `${nombre} Total`))).toBe("¡Hola! Te escribimos por mensaje directo con los detalles.");
-    }
-    expect(nombreParaElPublico("facebook", "Ana María López")).toBe("Ana");
-  });
-
-  it("enlaces, cifras, signos y patrones de reemplazo ($&) en el nombre siguen sin pasar", () => {
-    for (const malo of ["https://x.co", "Ana$&", "$'", "Ana<b>", "Ana‮abc", "Ana123", "*Ana*", "{nombre}"]) {
-      expect(nombreParaElPublico("facebook", malo)).toBe("");
-    }
-    expect(textoPublico("¡Hola, {nombre}! *Oferta*", "")).toBe("¡Hola! Oferta");
+describe("D. lo público: nunca lleva nada que escriba quien comenta (ni su nombre, tampoco en Facebook)", () => {
+  it("la frase de fábrica no tiene nombre; una de antes con «{nombre}» se publica sin él", () => {
+    expect(textoPublico("¡Hola, {nombre}! Te escribimos por mensaje directo con los detalles.")).toBe("¡Hola! Te escribimos por mensaje directo con los detalles.");
+    expect(textoPublico("¡Hola, {nombre}! *Oferta*")).toBe("¡Hola! Oferta");
   });
 
   it("el Worker tampoco usa un texto de Ajustes con direcciones web sin esquema: va el de fábrica", () => {
-    expect(textoPublico("Mira dcasapty.com/ofertas o bit.ly/xyz, {nombre}", "Ana")).toBe("¡Hola, Ana! Te escribimos por mensaje directo con los detalles.");
+    expect(textoPublico("Mira dcasapty.com/ofertas o bit.ly/xyz, {nombre}")).toBe("¡Hola! Te escribimos por mensaje directo con los detalles.");
   });
 
-  it("en el motor: la respuesta pública de Instagram va sin nombre", async () => {
+  it("en el motor: la respuesta pública va sin nombre en Instagram y en Facebook, se llame como se llame", async () => {
     const m = mundoComentarios();
     m.guion([PREGUNTA, { texto: "¿Cuál te interesa?" }]);
     await comentar(m, comentario(m, "¿Precio?", { usuario: "dcasa.estafa" }, { nombre: "@dcasa.estafa" }));
     expect(m.canal.publicas.map((p) => p.texto)).toEqual(["¡Hola! Te escribimos por mensaje directo con los detalles."]);
+    const fb = mundoComentarios({ canal: "messenger" });
+    fb.guion([PREGUNTA, { texto: "¿Cuál te interesa?" }]);
+    await comentar(fb, comentario(fb, "¿Precio?", {}, { nombre: "Timadores Vendehumo" }));
+    expect(fb.canal.publicas.map((p) => p.texto)).toEqual(["¡Hola! Te escribimos por mensaje directo con los detalles."]);
   });
 });
 
 describe("E. una queja con pregunta no depende solo del modelo económico", () => {
-  it("con una palabra de queja nunca sale la frase pública (aunque la IA diría «pregunta»): es queja, aviso a Gerencia y sin privada", async () => {
+  it("con una palabra de queja nunca sale la frase pública: si la IA dice «pregunta», sale la privada y en público nada", async () => {
     const m = mundoComentarios();
     m.guion([PREGUNTA, { texto: "Te escribo por tu comentario: ¿me das tu número de pedido?" }]);
     await comentar(m, comentario(m, "¿Cuándo me devuelven mi plata? Estafadores, nunca llegó"));
     expect(m.canal.publicas).toHaveLength(0);
-    expect(m.canal.privadas).toHaveLength(0);
-    expect(m.modelo.doGenerateCalls).toHaveLength(0);
+    expect(m.canal.privadas).toHaveLength(1);
+    expect(m.odoo.comentarios.at(-1)).toMatchObject({ clase: "pregunta", privada: "respondida", publica: "no", motivo: "el comentario trae palabras de queja: en público no se responde" });
+  });
+
+  it("si la IA dice «queja», a Gerencia y sin respuestas; si la IA falla (también en los reintentos), se trata como queja", async () => {
+    const m = mundoComentarios();
+    m.guion([{ texto: '{"result":"queja"}' }]);
+    await comentar(m, comentario(m, "Estafadores, nunca llegó"));
     expect(m.odoo.comentarios.at(-1)).toMatchObject({ clase: "queja", privada: "no", publica: "no" });
+    const caida = mundoComentarios();
+    caida.guion([{ error: new Error("caído") }]);
+    await comentar(caida, comentario(caida, "Estafadores, nunca llegó"));
+    await caida.pasar(24 * 3600_000);
+    expect(caida.canal.privadas.length + caida.canal.publicas.length).toBe(0);
+    expect(caida.odoo.comentarios.at(-1)).toMatchObject({ clase: "queja", privada: "no", publica: "no", motivo: expect.stringMatching(/trae palabras de queja/) });
   });
 });
 

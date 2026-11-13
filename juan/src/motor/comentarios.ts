@@ -5,14 +5,13 @@
 // etiquetas de amigos, emojis sueltos, saludos ni elogios; las quejas no se contestan: avisan a Gerencia), «Corto y lo demás por
 // privado» y «Apagado hasta que lo pruebes».
 //
-// Clasificar: las reglas baratas solo dejan de lado lo que no dice nada (emojis, signos o menciones solas) y marcan como QUEJA lo que
-// trae una palabra de queja (respaldo fijo: una queja nunca recibe la frase pública, aunque la IA dijera «pregunta»). Todo lo demás
-// que tenga letras lo decide el modelo ECONÓMICO con salida cerrada (una de tres palabras). Si la IA falla, se reintenta y, si sigue
-// sin poder, no se contesta (y Odoo lo anota). Revisión adversarial del 2026-11-13: las quejas cortas («Mentirosos», «Me cancelaron»)
-// ya no se pierden como «otro».
+// Clasificar: las reglas baratas solo dejan de lado lo que no dice nada (emojis, signos o menciones solas); todo lo que tenga letras lo
+// decide el modelo ECONÓMICO con salida cerrada (una de tres palabras). Una palabra de queja (`pareceQueja`, respaldo fijo) no decide la
+// clase (revisión, 2.ª vuelta: convertía preguntas de compra en quejas), pero sí que nunca haya respuesta PÚBLICA y que, si la IA falla,
+// se trate como queja (a Gerencia, sin respuesta). Si la IA falla sin palabra de queja, se reintenta y al final se anota en Odoo.
 
 import { generateText, Output, type LanguageModel } from "ai";
-import { TEXTO_PUBLICO_POR_DEFECTO, textoPublicoValido, type ProveedorIa } from "../config";
+import { quitarNombre, TEXTO_PUBLICO_POR_DEFECTO, textoPublicoValido, type ProveedorIa } from "../config";
 import { textoParaElModelo } from "../dcasa/sensibles";
 import { partirPorLargo, sinNegritas } from "../canales/tipos";
 import { usoDelSdk, type Uso } from "./precios";
@@ -21,61 +20,73 @@ export const CLASES_DE_COMENTARIO = ["pregunta", "queja", "otro"] as const;
 export type ClaseDeComentario = (typeof CLASES_DE_COMENTARIO)[number];
 
 /**
- * Palabras de una QUEJA (sin tildes, en minúsculas, con sus plurales). Que esté una la vuelve queja sin preguntarle a la IA: aviso a
- * Gerencia, sin respuesta pública ni privada automática. Solo palabras que en una mueblería casi nunca son una pregunta de compra: no
- * van «todavía» («¿todavía hay?»), «garantía» («¿tiene garantía?»), «plata» sola (el color) ni «cancelar» (en Panamá es pagar).
+ * Palabras de QUEJA que casi nunca son una pregunta de compra (sin tildes, en minúsculas, con sus plurales): cuentan siempre. No van
+ * «todavía» («¿todavía hay?»), «garantía», «plata» sola (el color), «cancelar» (en Panamá es pagar), «tumba» («¿se tumba?»: reclinable)
+ * ni «esperando» suelto («esperando la quincena para comprarlo»).
  */
-const QUEJA = new RegExp(
+const QUEJA_FUERTE = new RegExp(
   "\\b(?:" +
     [
       "estaf\\w*",
       "fraude\\w*",
       "mentiros\\w*",
-      "mentira\\w*",
       "robo",
       "robos",
       "robaron",
-      "roban",
       "ladron\\w*",
       "rateros?",
-      "tumb(?!on)\\w*", // «tumbe» (estafa); no «tumbona»
+      "tumb(?:e|es|aron|ador\\w*)", // «tumbe» (estafa); no «tumbona» ni «se tumba»
       "engan(?:o|os|an|aron|ado|ados|ada|adas|ando)",
       "pesim\\w*",
       "malisim\\w*",
-      "horribles?",
-      "terribles?",
       "decepcion\\w*",
       "queja\\w*",
       "quejo",
       "reclam\\w*",
       "denunci\\w*",
-      "reembols\\w*",
+      "sinverguenz\\w*",
+      "abus\\w*",
+      "cancelaron",
+      "cobraron",
+      "mal servicio",
+      "mala atencion",
+      "(?:mi|mis|su|sus|tu|nuestr[oa]s?) (?:plata|dinero)",
+      "(?:no|nunca) (?:me |nos )?(?:ha |han )?llegado",
+      "nunca (?:me |nos )?lleg\\w*",
+      "nadie (?:me |nos )?(?:contesta|responde)\\w*",
+      "sin respuesta",
+      "(?:sigo|seguimos) esperando",
+      "(?:llevo|llevamos)\\b[\\w ]{0,30}\\besperando",
+      "esperando (?:mi|nuestro|nuestra|el|la) (?:pedido|entrega|devolucion|reembolso|respuesta)",
+    ].join("|") +
+    ")\\b",
+);
+
+/**
+ * Palabras de queja que también salen en preguntas de compra («¿si no me gusta lo devuelvo?», «¿no llegan a Chiriquí?», «¿se rompe
+ * fácil?», «¿la papelera para la basura?», «¡mentira! ¿a ese precio?»): cuentan solo si el comentario no pregunta nada (sin «?»).
+ */
+const QUEJA_SIN_PREGUNTA = new RegExp(
+  "\\b(?:" +
+    [
+      "mentira\\w*",
       "devuelv\\w*",
+      "reembols\\w*",
       "rot[oa]s?",
       "romp\\w*",
       "danad[oa]s?",
       "defectuos[oa]s?",
       "mala calidad",
       "no sirve\\w*",
-      "(?<!de )basura\\w*", // no «cesto de basura»
-      "(?:no|nunca) (?:me )?(?:ha |han )?lleg\\w*",
-      "(?:no|nadie) (?:me |nos )?(?:contesta|responde)\\w*",
-      "sin respuesta",
-      "cancel(?:aron|e|ado|ada|ados|adas)", // «me cancelaron», «ya cancelé»; no «¿puedo cancelar con Yappy?»
-      "esperando",
+      "(?<!de )(?<!para la )basura\\w*",
+      "horribles?",
+      "terribles?",
+      "no (?:me |nos )?(?:contesta|responde)\\w*",
       "pague", // «pagué» (y «pague»)
-      "(?:mi|mis|su|sus|tu|nuestr[oa]s?) (?:plata|dinero)",
-      "mal servicio",
-      "mala atencion",
-      "abus\\w*",
-      "cobraron",
-      "sinverguenz\\w*",
+      "(?:no|todavia no|aun no) (?:me |nos )?lleg\\w*",
     ].join("|") +
     ")\\b",
 );
-
-/** Insultos y palabras que nunca van en público como si fueran un nombre («¡Hola, Estafadores!»). */
-const INSULTO = /\b(?:idiota\w*|imbecil\w*|estupid\w*|pendej\w*|maldit\w*|cabron\w*|mierda\w*|puta\w*|puto\w*|verga\w*|hdp|chimb\w*|corrupt\w*|bandid\w*|delincuent\w*|ratas?|cerdo\w*|basura\w*|payas\w*|falsos?|falsas?|spam\w*)\b/;
 
 const sinTildes = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
@@ -88,17 +99,17 @@ export function letrasDe(texto: string): string {
     .trim();
 }
 
-/** ¿Trae una palabra de queja? (El respaldo fijo: no depende de la IA.) */
+/** ¿Trae una palabra de queja? (El respaldo fijo: no depende de la IA. No decide la clase: ver arriba.) */
 export function pareceQueja(texto: string): boolean {
-  return QUEJA.test(sinTildes(letrasDe(texto)));
+  const plano = sinTildes(letrasDe(texto));
+  return QUEJA_FUERTE.test(plano) || (!/[?¿]/.test(texto) && QUEJA_SIN_PREGUNTA.test(plano));
 }
 
 /**
- * Las reglas baratas, sin gastar IA: «queja» si trae una palabra de queja (siempre gana: aunque también pregunte), «otro» si no dice
- * nada (solo emojis, signos, cifras o menciones, sin «?»), o null: lo decide la IA. Nunca devuelve «pregunta».
+ * Las reglas baratas, sin gastar IA: «otro» si no dice nada (solo emojis, signos, cifras o menciones, sin «?»), o null: lo decide la IA.
+ * Nunca devuelve «pregunta» ni «queja».
  */
-export function clasePorReglas(texto: string): "otro" | "queja" | null {
-  if (pareceQueja(texto)) return "queja";
+export function clasePorReglas(texto: string): "otro" | null {
   // Un «?» suelto (o «💲?») es la forma corta de preguntar el precio: lo decide la IA.
   if (/[?¿]/.test(texto.replace(/@[\w.]+/g, ""))) return null;
   if (!/\p{L}/u.test(letrasDe(texto))) return "otro";
@@ -170,33 +181,13 @@ export async function clasificarConIa(texto: string, intentos: IntentoDeClasific
 }
 
 /**
- * El nombre para la respuesta pública. Lo escribe quien comenta, así que se cuida (revisión adversarial del 2026-11-13):
- *   · Instagram: NUNCA (ni el @usuario: Meta ya pone la respuesta debajo del comentario, y un @ como «dcasa.estafa» saldría firmado
- *     por D'CASA).
- *   · Facebook: el de pila («Ana María López» → «Ana») solo si son letras (2 a 20), no dice «dcasa» y no es una queja ni un insulto.
- * Si no pasa, va sin nombre («¡Hola! Te escribimos…»).
+ * La respuesta pública de Ajustes, tal cual: en lo que ve todo el mundo nunca va nada que escriba quien comenta, ni su nombre (decisión
+ * del coordinador, 2026-11-13). Un `{nombre}` de antes se quita limpio; una frase con direcciones web, llaves o que no quede bien no sale:
+ * va la de fábrica («¡Hola! Te escribimos por mensaje directo con los detalles.»).
  */
-export function nombreParaElPublico(red: "facebook" | "instagram", nombre: string | undefined): string {
-  if (red === "instagram") return "";
-  const pila = (nombre ?? "").trim().split(/\s+/)[0] ?? "";
-  if (!/^\p{L}{2,20}$/u.test(pila)) return "";
-  const plano = sinTildes(pila);
-  if (plano.includes("dcasa") || QUEJA.test(plano) || INSULTO.test(plano)) return "";
-  return pila;
-}
-
-/**
- * La respuesta pública de Ajustes con el nombre; sin nombre, «{nombre}» se quita con su coma o espacio («¡Hola, {nombre}!» → «¡Hola!»).
- * Una plantilla con direcciones web o llaves sueltas no sale: va la de fábrica (Odoo ya no la deja guardar).
- */
-export function textoPublico(plantilla: string, nombre: string): string {
-  const base = textoPublicoValido(plantilla) ? plantilla : TEXTO_PUBLICO_POR_DEFECTO;
-  const t = nombre
-    ? base.replace(/\{nombre\}/g, () => nombre)
-    : base.replace(/,\s*\{nombre\}/g, "").replace(/\{nombre\}\s*,\s*/g, "").replace(/\s*\{nombre\}/g, "");
-  const limpio = sinNegritas(t.replace(/\s+([!?.,])/g, "$1").replace(/\s+/g, " ").trim()).slice(0, 300);
-  // Si la frase empezaba con el nombre, la primera letra queda en mayúscula.
-  return limpio.charAt(0).toLocaleUpperCase("es") + limpio.slice(1);
+export function textoPublico(plantilla: string): string {
+  const t = sinNegritas(quitarNombre(plantilla).replace(/\s+/g, " ").trim()).slice(0, 300);
+  return textoPublicoValido(t) ? t : TEXTO_PUBLICO_POR_DEFECTO;
 }
 
 /**

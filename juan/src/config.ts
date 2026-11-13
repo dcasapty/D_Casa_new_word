@@ -91,7 +91,10 @@ export interface ConfigComentarios {
   activo: boolean;
   facebook: boolean;
   instagram: boolean;
-  /** La respuesta pública, corta; `{nombre}` se cambia por el nombre de quien comentó (si no hay, se quita). */
+  /**
+   * La respuesta pública, corta y SIN nada que escriba quien comenta (ni su nombre: decisión del coordinador, 2026-11-13). Un
+   * `{nombre}` de antes se quita limpio.
+   */
   texto_publico: string;
   /** Lo más de respuestas públicas en una hora, entre todas las publicaciones (para no parecer spam). 0 = ninguna en público. */
   tope_por_hora: number;
@@ -99,15 +102,21 @@ export interface ConfigComentarios {
   publicas_por_persona: number;
   /** Lo mismo con las respuestas privadas (al menos 1: sin privada no hay respuesta). */
   privadas_por_persona: number;
+  /**
+   * Lo más de respuestas privadas en una hora entre TODAS las cuentas (cada una es un turno completo de IA): que muchas cuentas a la vez
+   * no disparen el gasto. Una constante (60); Odoo no lo manda hoy, pero el contrato lo acepta.
+   */
+  privadas_por_hora: number;
 }
 
 /** La respuesta pública de fábrica (la dueña: «Corto y lo demás por privado»). */
-export const TEXTO_PUBLICO_POR_DEFECTO = "¡Hola, {nombre}! Te escribimos por mensaje directo con los detalles.";
+export const TEXTO_PUBLICO_POR_DEFECTO = "¡Hola! Te escribimos por mensaje directo con los detalles.";
 export const TOPE_POR_HORA_POR_DEFECTO = 30;
 /** Por persona y por 24 horas (el coordinador, 2026-11-13): 1 respuesta pública y 3 privadas, en comentarios distintos. */
 export const PUBLICAS_POR_PERSONA_POR_DEFECTO = 1;
 export const PRIVADAS_POR_PERSONA_POR_DEFECTO = 3;
 export const MAX_POR_PERSONA = 10;
+export const PRIVADAS_POR_HORA_POR_DEFECTO = 60;
 const MAX_TEXTO_PUBLICO = 300;
 
 export const CONFIG_POR_DEFECTO: Config = {
@@ -140,6 +149,7 @@ export const CONFIG_POR_DEFECTO: Config = {
     tope_por_hora: TOPE_POR_HORA_POR_DEFECTO,
     publicas_por_persona: PUBLICAS_POR_PERSONA_POR_DEFECTO,
     privadas_por_persona: PRIVADAS_POR_PERSONA_POR_DEFECTO,
+    privadas_por_hora: PRIVADAS_POR_HORA_POR_DEFECTO,
   },
 };
 
@@ -187,16 +197,43 @@ export function atiendeEntrante(cfg: Config, e: Pick<Entrante, "canal" | "coment
 const DIRECCION_WEB = /https?:\/\/|www\.|(?<![\p{L}\p{N}_.-])[\p{L}\p{N}_-]+(?:\.[\p{L}\p{N}_-]+)*\.[A-Za-z]{2,24}(?![\p{L}\p{N}_-])/iu;
 
 /**
- * ¿Sirve como respuesta pública? Sin direcciones web (Meta la marcaría como spam y nadie la revisaría en cada comentario) y sin llaves
- * sueltas: la única marca es «{nombre}». Odoo ya lo valida al guardar (ajustes.py); aquí se vuelve a mirar por si acaso.
+ * ¿Sirve como respuesta pública? Sin direcciones web (Meta la marcaría como spam y nadie la revisaría en cada comentario), sin llaves
+ * (ya no hay marcas: lo público no lleva nada que escriba quien comenta) y que «quede bien»: empieza con una letra o una cifra (o con
+ * «¡», «¿», «"», «(» delante), sin pares vacíos como «¡!» y con al menos dos letras. Odoo valida lo mismo al guardar (ajustes.py).
  */
 export function textoPublicoValido(t: string): boolean {
-  return !DIRECCION_WEB.test(t) && !/[{}]/.test(t.replace(/\{nombre\}/g, ""));
+  return (
+    !DIRECCION_WEB.test(t) &&
+    !/[{}]/.test(t) &&
+    /^[¡¿«"(]?[\p{L}\p{N}]/u.test(t) &&
+    !/¡\s*!|¿\s*\?|\(\s*\)|«\s*»/.test(t) &&
+    (t.match(/\p{L}/gu) ?? []).length >= 2
+  );
 }
 
-/** La respuesta pública de Ajustes, sin controles ni saltos y de 300 letras como mucho (vacía o inválida = la de fábrica). */
+/**
+ * Quita un `{nombre}` de antes (cuando la frase podía llevar el nombre) sin dejarla rota: con su coma o su espacio, los pares que
+ * quedan vacíos («¡{nombre}!») y los signos sueltos al principio («{nombre}: te escribimos» → «Te escribimos»).
+ */
+export function quitarNombre(t: string): string {
+  if (!t.includes("{nombre}")) return t;
+  const s = t
+    .replace(/(\p{L})\s+\{nombre\}\s*,/gu, "$1,")
+    .replace(/,\s*\{nombre\}/g, "")
+    .replace(/\{nombre\}\s*,\s*/g, "")
+    .replace(/\s*\{nombre\}/g, "")
+    .replace(/¡\s*!|¿\s*\?|\(\s*\)|«\s*»/g, " ")
+    .replace(/\s+([!?.,:;])/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/^[\s:;,.!?\-–—]+/, "")
+    .replace(/^([¡¿«"(]?)\s+/, "$1");
+  return s.replace(/\p{L}/u, (c) => c.toLocaleUpperCase("es"));
+}
+
+/** La respuesta pública de Ajustes, sin controles ni saltos, sin `{nombre}` y de 300 letras como mucho (vacía o inválida = la de fábrica). */
 export function normalizarTextoPublico(v: unknown): string {
-  const t = typeof v === "string" ? v.replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim().slice(0, MAX_TEXTO_PUBLICO) : "";
+  const t = typeof v === "string" ? quitarNombre(v.replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim()).slice(0, MAX_TEXTO_PUBLICO) : "";
   return t && textoPublicoValido(t) ? t : TEXTO_PUBLICO_POR_DEFECTO;
 }
 
@@ -327,6 +364,7 @@ export function normalizarComentarios(v: unknown): ConfigComentarios {
     tope_por_hora: Math.round(numero(c.tope_por_hora, d.tope_por_hora, 0, 500)),
     publicas_por_persona: Math.round(numero(c.publicas_por_persona, d.publicas_por_persona, 0, MAX_POR_PERSONA)),
     privadas_por_persona: Math.round(numero(c.privadas_por_persona, d.privadas_por_persona, 1, MAX_POR_PERSONA)),
+    privadas_por_hora: Math.round(numero(c.privadas_por_hora, d.privadas_por_hora, 1, 1000)),
   };
 }
 
