@@ -67,10 +67,10 @@ MAX_ESPERANDO_A_LA_VEZ = 50
 # El primer mensaje es corto; el aviso largo de privacidad no se manda por el chat (vive en la política del sitio).
 # Lo que no cambia: Juan nunca afirma ser humano y, si alguien pregunta de verdad, dice que es el asistente virtual.
 BIENVENIDA = "Hola, soy Juan de D'CASA."
-# Comentarios de Instagram y Facebook (2026-11-12, la dueña: «Corto y lo demás por privado»). {nombre} = el de pila
-# de quien comentó en Facebook, si es un nombre limpio; en Instagram nunca (revisión del 2026-11-13). Si no hay, se
-# quita («¡Hola! Te escribimos…»).
-TEXTO_PUBLICO_COMENTARIOS = '¡Hola, {nombre}! Te escribimos por mensaje directo con los detalles.'
+# Comentarios de Instagram y Facebook (2026-11-12, la dueña: «Corto y lo demás por privado»). Lo público nunca lleva
+# nada que escriba quien comenta, ni su nombre (decisión del coordinador, 2.ª vuelta de la revisión, 2026-11-13): sin
+# {nombre}.
+TEXTO_PUBLICO_COMENTARIOS = '¡Hola! Te escribimos por mensaje directo con los detalles.'
 MAX_TEXTO_PUBLICO_COMENTARIOS = 300
 MAX_TOPE_COMENTARIOS_HORA = 200
 # Por persona y por 24 horas (revisión del 2026-11-13): 1 respuesta pública y 3 privadas, en comentarios distintos.
@@ -79,6 +79,31 @@ MAX_COMENTARIOS_POR_PERSONA = 10
 # con forma de dominio que no esté pegado a otra letra. Igual que el Worker (juan/src/config.ts → DIRECCION_WEB).
 RE_DIRECCION_WEB = re.compile(
     r'https?://|www\.|(?<![\w.-])[\w-]+(?:\.[\w-]+)*\.[A-Za-z]{2,24}(?![\w-])', re.IGNORECASE)
+# Que la frase «quede bien»: empieza con una letra o una cifra (o con ¡ ¿ « " ( delante) y sin pares vacíos como «¡!».
+RE_BUEN_INICIO = re.compile(r'^[¡¿«"(]?[^\W_]')
+RE_PAR_VACIO = re.compile(r'¡\s*!|¿\s*\?|\(\s*\)|«\s*»')
+
+
+def quitar_nombre(texto):
+    """Quita un ``{nombre}`` de antes sin dejar la frase rota (igual que el Worker: ``quitarNombre`` en config.ts).
+
+    «¡Hola, {nombre}! Te escribimos…» → «¡Hola! Te escribimos…»; «{nombre}: te escribimos» → «Te escribimos»;
+    «¡{nombre}, gracias!» → «¡Gracias!»."""
+    if '{nombre}' not in (texto or ''):
+        return texto
+    t = re.sub(r'([^\W\d_])\s+\{nombre\}\s*,', r'\1,', texto)
+    t = re.sub(r',\s*\{nombre\}', '', t)
+    t = re.sub(r'\{nombre\}\s*,\s*', '', t)
+    t = re.sub(r'\s*\{nombre\}', '', t)
+    t = RE_PAR_VACIO.sub(' ', t)
+    t = re.sub(r'\s+([!?.,:;])', r'\1', t)
+    t = re.sub(r'\s+', ' ', t).strip()
+    t = re.sub(r'^[\s:;,.!?\-–—]+', '', t)
+    t = re.sub(r'^([¡¿«"(]?)\s+', r'\1', t)
+    letra = re.search(r'[^\W\d_]', t)
+    return t[:letra.start()] + t[letra.start()].upper() + t[letra.start() + 1:] if letra else t
+
+
 PRIVACIDAD = ""
 PALABRAS_PROHIBIDAS = "remate\ncorre\n¡¡\n!!"
 
@@ -133,10 +158,9 @@ class JuanAjustes(models.Model):
         help='Los comentarios de las publicaciones de Instagram (la respuesta privada llega a sus mensajes).')
     comentarios_texto_publico = fields.Char(
         'Texto de la respuesta pública', default=TEXTO_PUBLICO_COMENTARIOS, tracking=True,
-        help='Lo que Juan escribe debajo del comentario. Corto y sin enlaces: lo demás va por mensaje privado. '
-             '{nombre} se cambia por el nombre de pila de quien comentó en Facebook, solo si es un nombre limpio; en '
-             'Instagram va sin nombre (la respuesta ya sale debajo de su comentario). Sin nombre, se quita: «¡Hola! '
-             'Te escribimos…».')
+        help='Lo que Juan escribe debajo del comentario, igual para todos: corto, sin enlaces y sin el nombre de '
+             'nadie (lo que ve todo el mundo no lleva nada que escriba quien comenta). Lo demás va por mensaje '
+             'privado.')
     comentarios_tope_hora = fields.Integer(
         'Respuestas públicas por hora (máximo)', default=30, tracking=True,
         help='Para que no parezca spam: pasado este número en una hora, Juan sigue respondiendo por privado pero ya no '
@@ -497,9 +521,8 @@ class JuanAjustes(models.Model):
                     'El máximo de clientes esperándole a una vendedora va de 0 (sin límite) a %s.',
                     MAX_ESPERANDO_A_LA_VEZ))
 
-    @api.constrains('comentarios_texto_publico', 'comentarios_tope_hora', 'comentarios_publicas_persona',
-                    'comentarios_privadas_persona')
-    def _check_comentarios(self):
+    @api.constrains('comentarios_texto_publico')
+    def _check_texto_publico(self):
         for registro in self:
             texto = (registro.comentarios_texto_publico or '').strip()
             if not texto:
@@ -508,13 +531,23 @@ class JuanAjustes(models.Model):
                 raise ValidationError(self.env._(
                     'El texto de la respuesta pública es de hasta %s caracteres: lo demás va por privado.',
                     MAX_TEXTO_PUBLICO_COMENTARIOS))
-            if re.search(r'[{}]', texto.replace('{nombre}', '')):
+            if re.search(r'[{}]', texto):
                 raise ValidationError(self.env._(
-                    'En el texto de la respuesta pública solo se puede usar {nombre} entre llaves (sin otras llaves).'))
+                    'La respuesta pública ya no lleva {nombre} ni nada entre llaves: es igual para todos, sin el '
+                    'nombre de nadie. Por ejemplo: «%s»', TEXTO_PUBLICO_COMENTARIOS))
             if RE_DIRECCION_WEB.search(texto):
                 raise ValidationError(self.env._(
                     'La respuesta pública no lleva enlaces ni direcciones web (Meta la puede marcar como spam): lo '
                     'demás va por privado. Si es un punto entre dos palabras, deja un espacio después del punto.'))
+            if (not RE_BUEN_INICIO.match(texto) or RE_PAR_VACIO.search(texto)
+                    or len(re.findall(r'[^\W\d_]', texto)) < 2):
+                raise ValidationError(self.env._(
+                    'La respuesta pública tiene que quedar bien escrita: que empiece con una palabra (puede llevar ¡ o '
+                    '¿ delante) y sin signos vacíos como «¡!». Por ejemplo: «%s»', TEXTO_PUBLICO_COMENTARIOS))
+
+    @api.constrains('comentarios_tope_hora', 'comentarios_publicas_persona', 'comentarios_privadas_persona')
+    def _check_comentarios(self):
+        for registro in self:
             if not 0 <= registro.comentarios_tope_hora <= MAX_TOPE_COMENTARIOS_HORA:
                 raise ValidationError(self.env._(
                     'Las respuestas públicas por hora van de 0 (nunca en público) a %s.', MAX_TOPE_COMENTARIOS_HORA))
@@ -670,7 +703,7 @@ class JuanAjustes(models.Model):
                 'activo': bool(self.comentarios_activo),
                 'facebook': bool(self.comentarios_facebook),
                 'instagram': bool(self.comentarios_instagram),
-                'texto_publico': (self.comentarios_texto_publico or TEXTO_PUBLICO_COMENTARIOS).strip(),
+                'texto_publico': quitar_nombre((self.comentarios_texto_publico or TEXTO_PUBLICO_COMENTARIOS).strip()),
                 'tope_por_hora': self.comentarios_tope_hora,
                 'publicas_por_persona': self.comentarios_publicas_persona,
                 'privadas_por_persona': self.comentarios_privadas_persona,

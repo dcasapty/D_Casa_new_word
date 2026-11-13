@@ -7,9 +7,12 @@ Lo que hace Odoo: los ajustes (solo Gerencia y administradores), el aviso en el 
 
 Revisión adversarial del 2026-11-13: el enlace se valida como lo ve un navegador, el texto público no acepta
 direcciones web sin esquema ni llaves sueltas, tope por persona en Ajustes, «reintento» y «no_preparada» (la causa
-real, nunca «Meta no dejó») y pruebas que no dependen de lo que ya haya en la base.
+real, nunca «Meta no dejó») y pruebas que no dependen de lo que ya haya en la base. 2.ª vuelta: la frase pública no
+lleva el nombre de nadie (ni {nombre}) y queda bien escrita; un Telegram de queja por persona cada 24 horas.
 """
+import importlib.util
 from datetime import datetime, timedelta
+from pathlib import Path
 from unittest.mock import patch
 
 from odoo import fields
@@ -20,7 +23,7 @@ from odoo.tests import new_test_user, tagged
 from .common import JuanCase
 from .test_api import ApiCase
 
-TEXTO = '¡Hola, {nombre}! Te escribimos por mensaje directo con los detalles.'
+TEXTO = '¡Hola! Te escribimos por mensaje directo con los detalles.'
 
 
 def datos(**extra):
@@ -56,10 +59,10 @@ class TestAjustesDeComentarios(JuanCase):
         self.ajustes.with_user(self.gerente).write({
             'comentarios_activo': True, 'comentarios_facebook': False, 'comentarios_instagram': True,
             'comentarios_tope_hora': 10, 'comentarios_publicas_persona': 0, 'comentarios_privadas_persona': 5,
-            'comentarios_texto_publico': 'Gracias, {nombre}: te escribimos por privado.'})
+            'comentarios_texto_publico': 'Gracias: te escribimos por privado.'})
         self.assertEqual(self.ajustes.como_json()['comentarios'], {
             'activo': True, 'facebook': False, 'instagram': True,
-            'texto_publico': 'Gracias, {nombre}: te escribimos por privado.', 'tope_por_hora': 10,
+            'texto_publico': 'Gracias: te escribimos por privado.', 'tope_por_hora': 10,
             'publicas_por_persona': 0, 'privadas_por_persona': 5})
 
     def test_solo_gerencia_y_administradores_los_cambian(self):
@@ -83,7 +86,7 @@ class TestAjustesDeComentarios(JuanCase):
                         {'comentarios_privadas_persona': 0}, {'comentarios_privadas_persona': 11}):
             with self.subTest(valores), self.assertRaises(ValidationError):
                 self.ajustes.write(valores)
-        self.ajustes.write({'comentarios_texto_publico': 'Hola {nombre}', 'comentarios_tope_hora': 0,
+        self.ajustes.write({'comentarios_texto_publico': 'Hola, te escribimos', 'comentarios_tope_hora': 0,
                             'comentarios_publicas_persona': 0, 'comentarios_privadas_persona': 10})
 
     def test_el_texto_publico_no_acepta_direcciones_sin_esquema_ni_llaves_sueltas(self):
@@ -95,11 +98,42 @@ class TestAjustesDeComentarios(JuanCase):
             with self.subTest(texto), self.assertRaises(ValidationError):
                 self.ajustes.with_user(self.gerente).write({'comentarios_texto_publico': texto})
         # Lo que sí vale: puntos de fin de frase, cifras y signos.
-        for texto in (TEXTO, '¡Gracias, {nombre}! Te escribimos al privado. Abrimos 8:00-17:00.',
-                      'Te escribimos. ¡Gracias!'):
+        for texto in (TEXTO, '¡Gracias! Te escribimos al privado. Abrimos 8:00-17:00.',
+                      'Te escribimos. ¡Gracias!', '¿Te interesa? Te escribimos por privado.'):
             with self.subTest(texto):
                 self.ajustes.with_user(self.gerente).write({'comentarios_texto_publico': texto})
                 self.assertEqual(self.ajustes.comentarios_texto_publico, texto)
+
+    def test_la_frase_publica_no_lleva_el_nombre_de_nadie_y_queda_bien_escrita(self):
+        # 2.ª vuelta de la revisión (pasaban): con {nombre} quitado, estas quedaban «: te escribimos…» o «¡! …».
+        for texto in ('¡Hola, {nombre}! Te escribimos por mensaje directo con los detalles.',
+                      '{nombre}: te escribimos por mensaje directo.', '¡{nombre}! Te escribimos por mensaje directo.',
+                      ': te escribimos por privado', '¡! Te escribimos', '¡Hola! ¿?', '!!', '...', '¡A!'):
+            with self.subTest(texto), self.assertRaises(ValidationError):
+                self.ajustes.with_user(self.gerente).write({'comentarios_texto_publico': texto})
+
+    def test_un_texto_de_antes_con_nombre_le_llega_al_worker_sin_el(self):
+        # Guardado antes de la regla (sin pasar por la validación): el Worker lo recibe limpio.
+        self.env.cr.execute("UPDATE dcasa_juan_ajustes SET comentarios_texto_publico = %s WHERE id = %s",
+                            ['¡{nombre}, gracias! Te escribimos por privado.', self.ajustes.id])
+        self.ajustes.invalidate_recordset(['comentarios_texto_publico'])
+        self.assertEqual(self.ajustes.como_json()['comentarios']['texto_publico'],
+                         '¡Gracias! Te escribimos por privado.')
+
+    def test_la_migracion_quita_el_nombre_de_la_frase_guardada(self):
+        ruta = Path(__file__).resolve().parent.parent / 'migrations' / '19.0.1.4.0' / 'post-migrate.py'
+        spec = importlib.util.spec_from_file_location('dcasa_migracion_1_4_0', ruta)
+        migracion = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(migracion)
+        for antes, despues in (('¡Hola, {nombre}! Te escribimos por mensaje directo con los detalles.', TEXTO),
+                               ('{nombre}: te escribimos por mensaje directo.', 'Te escribimos por mensaje directo.'),
+                               ('{nombre}', TEXTO), ('Hola, te escribimos', 'Hola, te escribimos')):
+            with self.subTest(antes):
+                self.env.cr.execute("UPDATE dcasa_juan_ajustes SET comentarios_texto_publico = %s WHERE id = %s",
+                                    [antes, self.ajustes.id])
+                migracion.migrate(self.env.cr, '19.0.1.3.0')
+                self.ajustes.invalidate_recordset(['comentarios_texto_publico'])
+                self.assertEqual(self.ajustes.comentarios_texto_publico, despues)
 
     def test_los_cambios_quedan_en_el_historial(self):
         self.ajustes.comentarios_activo = True
@@ -237,6 +271,27 @@ class TestAvisosDeComentarios(JuanCase):
         self.Comentario._registrar(datos(red='facebook', canal='messenger', id_externo='2838000000000001',
                                          id_comentario='777_888', texto='x', clase='queja', privada='no', publica='no'))
         self.assertEqual(len(self.telegram), 1)
+
+    def test_un_solo_telegram_de_queja_por_persona_cada_24_horas(self):
+        # 2.ª vuelta de la revisión (pasaba): 15 quejas de la misma persona = 15 Telegram a Gerencia.
+        for i in range(15):
+            comentario, _que = self.Comentario._registrar(datos(
+                id_externo='17841400000000999', nombre='@troll', id_comentario=f'q{i}', texto=f'Estafadores {i}',
+                clase='queja', privada='no', publica='no'))
+            self.assertIn('Se avisó a Gerencia' if i == 0 else 'Gerencia ya recibió hoy un aviso',
+                          comentario.aviso_id.texto)
+        self.assertEqual(len(self.telegram), 1)
+        self.assertEqual(self.Comentario.sudo().search_count([('conversacion_id', '=', comentario.conversacion_id.id),
+                                                              ('clase', '=', 'queja')]), 15, 'todas en el hilo')
+        # Otra persona sí avisa; y pasadas 24 horas, la misma también.
+        self.Comentario._registrar(datos(id_externo='17841400000000888', id_comentario='otra', clase='queja',
+                                         privada='no', publica='no'))
+        self.assertEqual(len(self.telegram), 2)
+        self.env.cr.execute("UPDATE dcasa_comentario SET create_date = create_date - interval '25 hours' "
+                            "WHERE conversacion_id = %s", [comentario.conversacion_id.id])
+        self.Comentario._registrar(datos(id_externo='17841400000000999', id_comentario='q-manana', clase='queja',
+                                         privada='no', publica='no'))
+        self.assertEqual(len(self.telegram), 3)
 
     def test_si_a_nadie_de_gerencia_le_llega_va_a_los_avisos_de_siempre(self):
         self.telegram_llamadas = []

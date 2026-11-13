@@ -13,13 +13,16 @@ El Worker decide y contesta (``juan/src/motor/conversacion.ts``); aquí queda el
   resultado al final, que pone al día el mismo aviso. Si la IA u Odoo fallan, en medio puede llegar ``reintento``
   (Juan lo vuelve a intentar en un rato). Idempotente por ``red`` + ``id_comentario``; un resultado final no se pisa.
 * Una **queja**: el aviso («Queja en un comentario: … · no se respondió») y Telegram a Gerencia (el mismo mecanismo de
-  siempre; si a nadie de Gerencia le llega, a quienes reciben los avisos de Juan).
+  siempre; si a nadie de Gerencia le llega, a quienes reciben los avisos de Juan). Como mucho UN Telegram por persona
+  cada 24 horas (revisión, 2.ª vuelta: un troll no inunda el Telegram de Gerencia); las demás quejas de esa persona,
+  solo en el hilo.
 * El comentario no es un mensaje del cliente: no abre la ventana de 24 h, no cuenta como «el cliente escribió» ni
   dispara seguimientos. La respuesta privada de Juan sí es un mensaje (llega por ``/mensaje``, como cualquier otro).
 
 Es un dato personal (lo que escribió la persona): se borra con la conversación (Ley 81).
 """
 import logging
+from datetime import timedelta
 
 from odoo import api, fields, models
 
@@ -41,6 +44,8 @@ RESPUESTA_PUBLICA = [
     ('incierta', 'No se sabe si salió'), ('tope', 'No: tope por hora'), ('no', 'No se responde'),
 ]
 MAX_TEXTO_EN_EL_AVISO = 300
+# Un Telegram de queja por persona (conversación) en este lapso.
+LAPSO_TELEGRAM_DE_QUEJA = timedelta(hours=24)
 
 
 class DcasaComentario(models.Model):
@@ -61,6 +66,7 @@ class DcasaComentario(models.Model):
     publica = fields.Selection(RESPUESTA_PUBLICA, 'Respuesta pública', required=True, readonly=True)
     motivo = fields.Char('Por qué no salió', readonly=True)
     aviso_id = fields.Many2one('dcasa.mensaje', 'Aviso en el hilo', readonly=True, ondelete='set null')
+    telegram_gerencia = fields.Boolean('Se avisó a Gerencia por Telegram', readonly=True)
 
     # Nadie lo edita a mano: el equipo de ventas solo lo lee (ir.model.access.csv) y lo escribe el sistema (con sudo).
     _comentario_unico = models.Constraint('UNIQUE(red, id_comentario)', 'Ese comentario ya está registrado.')
@@ -90,11 +96,15 @@ class DcasaComentario(models.Model):
             return existente, 'repetido'
         conv, _creada = Conversacion._obtener_o_crear(datos['canal'], datos['id_externo'], datos.get('nombre'), None,
                                                       datos['ts'])
+        # Un solo Telegram de queja por persona cada 24 horas: si ya hubo uno, esta queja queda solo en el hilo.
+        telegram = datos['clase'] == 'queja' and not Comentario.search_count([
+            ('conversacion_id', '=', conv.id), ('telegram_gerencia', '=', True),
+            ('create_date', '>=', fields.Datetime.now() - LAPSO_TELEGRAM_DE_QUEJA)], limit=1)
         comentario = Comentario.create({
             'conversacion_id': conv.id, 'red': datos['red'], 'id_comentario': datos['id_comentario'],
             'texto': datos.get('texto') or False, 'enlace': datos.get('enlace') or False, 'ts': datos['ts'],
             'clase': datos['clase'], 'privada': datos['privada'], 'publica': datos['publica'],
-            'motivo': datos.get('motivo') or False,
+            'motivo': datos.get('motivo') or False, 'telegram_gerencia': telegram,
         })
         aviso = self.env['dcasa.mensaje']._crear_interno(conv, 'aviso', comentario._texto_del_aviso(),
                                                          enlace=comentario.enlace or None)
@@ -104,7 +114,7 @@ class DcasaComentario(models.Model):
         if not conv.ultimo_mensaje_texto:
             valores['ultimo_mensaje_texto'] = (aviso.texto or '')[:140]
         conv.write(valores)
-        if comentario.clase == 'queja':
+        if comentario.telegram_gerencia:
             comentario._avisar_queja_a_gerencia()
         conv._notificar_panel('mensaje', aviso)
         return comentario, 'creado'
@@ -136,8 +146,11 @@ class DcasaComentario(models.Model):
         self.ensure_one()
         red, dicho = dict(REDES)[self.red], self._lo_que_dijo()
         if self.clase == 'queja':
-            return self.env._('Queja en un comentario de %(red)s: "%(dicho)s" · no se respondió. Se avisó a Gerencia.',
-                              red=red, dicho=dicho)
+            if self.telegram_gerencia:
+                return self.env._('Queja en un comentario de %(red)s: "%(dicho)s" · no se respondió. Se avisó a '
+                                  'Gerencia.', red=red, dicho=dicho)
+            return self.env._('Queja en un comentario de %(red)s: "%(dicho)s" · no se respondió. Gerencia ya recibió '
+                              'hoy un aviso por Telegram de esta persona: esta queda solo aquí.', red=red, dicho=dicho)
         inicio = self.env._('Comentó en una publicación de %(red)s: "%(dicho)s"', red=red, dicho=dicho)
         return f'{inicio} · {self._que_hizo_juan()}'
 
