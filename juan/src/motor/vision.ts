@@ -46,6 +46,11 @@ const CODIGO = /^[A-Za-z0-9][A-Za-z0-9-]{1,23}$/;
  * «comprobante», o si marcó `parece_pago` en algo que no es un producto ni una publicación. Una publicación, un anuncio o una foto de
  * un mueble con su precio NO es un pago (pedido de la dueña, 2026-11-13: las capturas de Instagram salían como comprobantes y el aviso
  * iba a todas). Ojo: eso no la vuelve un producto seguro; `esProductoSeguro` sigue en falso y el bot no la trata como producto.
+ *
+ * A PROPÓSITO (revisión adversarial, 2026-11-13): un «producto» o «publicación» con `parece_pago` tampoco cuenta, aunque el prompt
+ * diga que parece_pago es un pago hecho (p. ej. la foto del recibo encima del colchón). Es lo que eligió la dueña («se corrige a Juan
+ * para que un precio en una publicación no cuente como pago») y queda como riesgo aceptado: esa imagen llega a Odoo sin aviso, y la
+ * vendedora la ve en el chat y en la nota de archivos.
  */
 export function esComprobante(l: LecturaImagen | null | undefined): boolean {
   if (!l) return false;

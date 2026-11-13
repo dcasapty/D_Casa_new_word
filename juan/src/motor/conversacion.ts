@@ -898,7 +898,8 @@ export class MotorConversacion {
           this.log("warn", "no se pudo guardar el archivo", String(err));
         }
       }
-      const marca = lectura ? marcaDeLectura(lectura) : {};
+      // Un sticker no se lee, pero tampoco es «una imagen que Juan no pudo leer» (en Odoo, esa avisa): va como «otra».
+      const marca = lectura ? marcaDeLectura(lectura) : a.sticker ? { clase: "otra" as const } : {};
       lista.push({ tipo: a.tipo, url, nombre: a.nombre, mime: a.mime, ...marca });
       lecturas.push(lectura);
       stickers.push(!!a.sticker);
@@ -2606,16 +2607,16 @@ export class MotorConversacion {
  * ante cualquier señal de identidad, manda lo prudente. Una publicación o un producto con `parece_pago` llega con su propia clase y SIN
  * «sensible»: en Odoo, sensible quiere decir «comprobante o documento» (lo dice la etiqueta del chat) y esconde el texto del cliente de
  * «Sugerir» y del resumen; un anuncio con su precio no trae datos personales que esconder. El bot igual no lo trata como producto.
+ *
+ * Una imagen ilegible (sin señal de pago ni de identidad) llega SIN clase, como la que el lector no leyó (falló, tardó, era la 4.ª del
+ * mensaje o ya iban 10 hoy): en Odoo, una imagen sin clase es «una imagen que Juan no pudo leer» y avisa, porque puede ser un recibo
+ * borroso (revisión adversarial, 2026-11-13).
  */
 function marcaDeLectura(l: LecturaImagen): Pick<AdjuntoOdoo, "clase" | "sensible"> {
-  const clase: NonNullable<AdjuntoOdoo["clase"]> = esComprobante(l)
-    ? "comprobante"
-    : l.tipo === "identidad" || l.parece_identidad
-      ? "identidad"
-      : l.tipo === "ilegible"
-        ? "otra"
-        : l.tipo;
-  return { clase, ...(clase === "comprobante" || clase === "identidad" ? { sensible: true } : {}) };
+  if (esComprobante(l)) return { clase: "comprobante", sensible: true };
+  if (l.tipo === "identidad" || l.parece_identidad) return { clase: "identidad", sensible: true };
+  if (l.tipo === "ilegible") return {};
+  return { clase: l.tipo };
 }
 
 const NOMBRE_DE_CATEGORIA: Record<string, string> = { cama: "cama", colchon: "colchón", sofa: "sofá", comedor: "comedor", escritorio: "escritorio", silla: "silla", closet: "clóset", mesa: "mesa", otro: "mueble" };
