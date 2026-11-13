@@ -1,8 +1,99 @@
 # Bitácora anterior (entradas viejas de LEEME_PRIMERO)
 
-> **Archivado el 2026-11-06 y el 2026-11-11.** Texto completo de las entradas de la bitácora de
-> [LEEME_PRIMERO.md](../LEEME_PRIMERO.md) del 2026-10-16 al 2026-11-06 (8), la más nueva arriba. Allí quedan resumidas en una línea
+> **Archivado el 2026-11-06, el 2026-11-11 y el 2026-11-13.** Texto completo de las entradas de la bitácora de
+> [LEEME_PRIMERO.md](../LEEME_PRIMERO.md) del 2026-10-16 al 2026-11-07 (1), la más nueva arriba. Allí quedan resumidas en una línea
 > cada una. Se conservan tal cual (con los nombres de personas quitados), como registro.
+
+### 2026-11-07 (1): citas, reenviados, reacciones y palomitas en el chat, en producción
+
+- Pedido de la dueña: «El chatbot de D'Casa no tiene citas, reenviados, reacciones ni "entregado/leído"… si un cliente
+  dice "este", seleccionando un mensaje… solamente vemos la palabra "este"… no vemos el estado del mensaje.»
+- **En la burbuja** ([JUAN_ODOO.md](JUAN_ODOO.md) › «La conversación»): el recuadro de la **cita** sobre el texto (quién
+  lo dijo: Tú, Juan, la vendedora o Cliente; dos líneas; «Foto», «Audio»… sin texto; un clic lleva al original;
+  «Mensaje que no está en el historial» si es viejo), **«Reenviado» / «Reenviado muchas veces»**, la **reacción** del
+  cliente en la esquina (una nueva reemplaza, quitarla la borra) y las **palomitas** (✓ gris, ✓✓ gris, ✓✓ azul, ⚠ «No
+  llegó» con el motivo) en vivo, por el mismo bus de siempre (un aviso liviano `recibos`, sin texto ni emoji).
+  **«Responder»** en los mensajes del cliente (mouse o Tab; en el celular, dedo apretado): sale citado por WhatsApp
+  (`context`) y Telegram (`reply_parameters`); sin id del canal, sale sin la cita.
+- **Juan entiende «este»**: lo citado le llega a la IA como `[El cliente responde a este mensaje de D'CASA: «…»]`, un dato
+  del cliente (neutralizado, tarjetas tapadas, 300 letras; el cliente no puede escribir la marca) y la regla 6 del prompt
+  lo dice. Lo busca en su memoria (ahora cada burbuja guarda su `wamid`) o se lo completa Odoo en la respuesta de
+  `/mensaje`. Un reenviado también lo sabe.
+- **Datos:** `dcasa.mensaje` con `cita_id`/`cita_id_canal`/`cita_texto`, `reenviado`, `reaccion(_en)`, `estado_canal` y
+  sus horas; modelo nuevo `dcasa.mensaje.parte` (el `wamid` de cada burbuja nuestra, su estado y su reacción). Ruta nueva
+  `POST /dcasa/juan/v1/eventos` (palomitas y reacciones en tandas). Solo escribe el sistema.
+- **Palomitas y reacciones no son mensajes del cliente**: no despiertan a la IA, no pasan por el Durable Object, no
+  tocan último mensaje, «sin leer», seguimientos, ventana de 24 h, reparto ni Sofía, y no avisan a nadie.
+  **A Meta se le contesta 200 aunque Odoo esté caído** para un aviso de solo palomitas (perder una palomita no es perder
+  un mensaje; un 500 haría reenviar el lote por horas): se reintenta lo que cabe en `waitUntil` y lo que Odoo aún no
+  conoce se vuelve a mandar a los 5 y 10 s. Los mensajes se siguen guardando antes del 200 (Desplegar 49).
+- **Arreglado de paso:** WhatsApp oficial reenviaba la primera burbuja si se caía a la mitad de una respuesta (ahora
+  `EnvioParcialError`, como Telegram).
+- **Orden de despliegue: Odoo primero y después Juan.** Juan nuevo con Odoo viejo: Odoo ignora los campos nuevos y
+  `/eventos` da 404 (Juan no insiste). Juan viejo con Odoo nuevo: igual que antes. Telegram: las reacciones necesitan
+  volver a registrar el webhook con `allowed_updates` ([JUAN_CANALES.md](JUAN_CANALES.md) §2). Puente QR y
+  Messenger/Instagram: no (el puente no pasa esos datos).
+- Pruebas: Juan 1242 en verde (51 nuevas, con las del almacén de la pantalla; contra el código de antes, 44 en rojo y 7 guardianes que ya se cumplían);
+  Odoo `test_citas.py` (29) y `test_panel_citas.py` (5 con Chrome: burbuja, «Responder», en vivo, rueda y marca, dedo a
+  390 px; más las capturas): 32 de 34 en rojo con el código de antes, todas en verde ahora; el resto de
+  `dcasa_conversaciones` en verde salvo las dos referencias visuales que ya fallaban en esta máquina (ver
+  CONTEXTO_AGENTICO). Capturas para la dueña en el scratchpad de la sesión (`capturas_citas`), con datos de prueba.
+- **Revisión adversarial, arreglada en la misma rama:** S1 «este» citando burbujas distintas ya no es spam (el anti-spam
+  compara texto + id citado); S2 un PIN ya no sobrevive dentro de la cita (sin copia si lo citado está en la memoria de
+  Juan; `redactar` limpia la copia que vino de afuera); S3 las marcas `[El cliente responde…]` y `[Vendedora]` no se
+  imitan con invisibles, espacio duro, ancho completo, cirílicas ni letras delante, y las «» de lo citado pasan a “”; S4
+  (Ley 81) Odoo ya no copia lo citado que está en el historial y borrar un mensaje lo limpia de las respuestas y de su
+  chatter (la memoria de Juan es aparte: [JUAN_ODOO.md](JUAN_ODOO.md) › Privacidad); S5 un «leído» sube las burbujas y
+  los mensajes anteriores (las palomitas azules ya salen en respuestas de varias burbujas); S6 «Responder» es solo el
+  ícono en la computadora (el hilo ya no se corre de lado a 768 px); más los menores (tipos en el webhook, reenvío sin cita
+  solo con 400 y código 100 o 131009, tandas de 100, *savepoint* por aviso, sin sustitutos sueltos ni bidi, el eco conserva
+  la cita, temblor del dedo, horas en vivo, gris 3,8:1). Pruebas: Juan 1300 y `typecheck` (24 nuevas en rojo antes); Odoo
+  `test_citas.py` 40 y `test_panel_citas.py` 9 (14 nuevas y 2 cambiadas: 15 en rojo antes), y 443 de las clases vecinas
+  en verde salvo las dos referencias visuales a 390 px de siempre.
+- **Sigue:** capturas a la dueña → su visto bueno → CI y staging → producción (Odoo y después Juan).
+- **En producción (las dos entradas de hoy juntas):** PR #94 (`main` = `6d5dc8b`, árbol = `274f13d`), **Desplegar 60**
+  sano y confirmado 06:58 UTC (versión `274f13dff3ee`) y después **Desplegar Juan 10** (`6d5dc8b`). Comentarios en los
+  issues #24 (sigue abierto por tres menores) y #25 (cerrado). El contenedor de la sesión se reinició cuatro veces esa
+  noche: los agentes se reanudaron o se rehicieron desde lo que dejaron en sus *worktrees* sin perder trabajo.
+
+### 2026-11-06 (9): Camila etapa 1b: la lista de las novedades crece sola (se activa al agregar el correo), en producción
+
+- La dueña vio «0 clientes con permiso» de unos 3,000 y no quiere marcar a nadie de golpe ([CAMILA.md](CAMILA.md) §1c).
+  Primero se hizo una pregunta «Sí / No» en cada venta y Juan preguntando por WhatsApp (commit `55a6f4b`); ese mismo
+  día la dueña cambió el diseño: «en el momento en el que se añade un correo, ya debe activarse automáticamente».
+- **Se activa sola** al crear la ficha con correo, al agregárselo o cambiarlo, con «Guarda sus datos» de Sofía y
+  cuando Juan guarda el correo que escribió el cliente: origen honesto «Se activó sola al agregar su correo» (nunca
+  «tienda»), con quién; la ficha lo dice hasta que una persona toca «El cliente dijo que sí». Nunca con baja o «no
+  contactar» del correo en cualquier ficha, después de un «no», importando, en bloque, instalando, por el sistema
+  (`SUPERUSER_ID`), desde la web pública o el portal, y nada hacia atrás. El «no» queda anotado (cuándo, dónde, quién)
+  y con él ya no se activa sola.
+- **Al confirmar una venta o registrar un pago desde la pantalla**, la casilla sale ya activada con su correo (si el
+  cliente dijo que no, se desactiva: queda el «no»); sin correo, «Sí / No» y lo pide. Sale DESPUÉS de confirmar o
+  pagar y solo con la marca de los botones: nunca traba la venta ni el pago. No vuelve a salir en 180 días (ajuste
+  `dcasa_camila.dias_entre_preguntas`).
+- **Juan** nunca las activa: `guardar_correo` (el correo que escribió el cliente; le avisa que le llegarán y que
+  puede decir que no) y `no_quiere_novedades` (siempre honra un no). `permiso_correo` en `/mensaje` y `/estado`:
+  «activo» o «sin_correo». El pie de cada campaña: «Te llega porque nos diste tu correo en D'CASA. ¿No quieres más?
+  Date de baja aquí».
+- La pantalla de Camila cuenta por camino. Pruebas: `test_etapa1b.py` (primero en rojo sobre el código de antes) y
+  `juan/test/dcasa/permiso-correo.test.ts` (3 de 5 en rojo).
+- **Revisión adversarial** (2 que frenaban y varios a arreglar, todos con su prueba): el cron de Sofía ya no vuelve a
+  suscribir ni borra un «no» (solo un acto explícito lo borra); la carga del sistema anterior, fusionar fichas,
+  empleados, proveedores, el chatter y la creación rápida no activan nada (la activación es **por invitación**: solo
+  la pantalla, Sofía y Juan); desmarcar con el correo en el mismo guardado es un «no»; «venía activada» en la venta
+  es un origen aparte (nadie le preguntó); `flush_all()` antes de cada savepoint (un error de la venta no se traga);
+  el cuadro no se cierra con Escape, el plazo cuenta desde que sale, uno viejo no le gana a un «no», cada quien ve
+  solo los suyos y la casilla va en el azul de la marca.
+- **Segunda revisión** (nada frenaba; arreglado en la rama, cada uno con su prueba): el enlace «Sí, quiero» después
+  de un «no» sí lo anota (es un acto explícito); `cr.flush()` en vez de `env.flush_all()` antes de cada savepoint
+  (también los precommit de quien llama); una empresa nueva, un correo con baja o un correo borrado ya no anotan un
+  «no» que nadie dijo (en una empresa la casilla es de solo lectura); con un «no» viejo, marcar junto con un correo
+  nuevo es un «sí» de una persona; desmarcar cuando el correo solo cambia de mayúsculas es un «no»; Juan recibe
+  «sin_permiso» (tiene correo pero no le llegan) para que siempre sepa que un «no» se honra.
+- **En producción:** con las dos revisiones adversariales, PR #92 (`main` = `cb541f8`, árbol = `8f3cdc3`), **Desplegar
+  58** sano y confirmado 01:03 UTC del 7 nov (versión `8f3cdc322808`) y después **Desplegar Juan 9** (`cb541f8`): Juan
+  va después de Odoo porque llama a `guardar_correo` y `no_quiere_novedades`, que un Odoo viejo no tiene. El CI #289
+  (sin los arreglos de la segunda revisión) se canceló para relanzarlo completo (CI #290): una sola subida.
 
 ### 2026-11-06 (8): «Ver más» en la foto del catálogo y Dependabot, en producción
 

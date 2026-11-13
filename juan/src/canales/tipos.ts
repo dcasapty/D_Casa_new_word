@@ -45,6 +45,28 @@ export interface CitaEntrante {
   deLaTienda?: boolean;
 }
 
+/**
+ * Un COMENTARIO público en una publicación de Facebook o de Instagram (2026-11-12, decisión de la dueña: «Solo los que preguntan»,
+ * «Corto y lo demás por privado», «Apagado hasta que lo pruebes»). Viaja dentro de un `Entrante` (`comentario`) para aprovechar la
+ * bandeja de los webhooks de Meta (guardar antes del 200, rescate, huella de 8 días); el motor NO lo trata como un mensaje: no arma
+ * ráfaga, no cuenta para la ventana de 24 h ni se registra en Odoo como mensaje del cliente (ver `MotorConversacion.recibirComentario`).
+ */
+export interface ComentarioEntrante {
+  red: "facebook" | "instagram";
+  /** Por dónde llegó y por dónde se contesta: la página de Facebook (Messenger Platform) o Instagram por inicio de sesión de Instagram. */
+  puerta: "pagina" | "instagram_login";
+  /** El id del comentario en Meta. */
+  id: string;
+  /** Si es una respuesta a otro comentario, el de arriba: la respuesta pública va ahí (Instagram solo contesta comentarios de primer nivel). */
+  padre?: string;
+  /** El id de la publicación comentada (Facebook: `post_id`; Instagram: `media.id`). */
+  publicacion?: string;
+  /** Enlace a la publicación, si el aviso lo trae (Facebook: `post.permalink_url`). Solo https de Facebook o Instagram. */
+  enlace?: string;
+  /** El usuario de Instagram de quien comentó (sin @), si viene. */
+  usuario?: string;
+}
+
 export interface Entrante {
   canal: CanalId;
   /** Celular E.164 sin `+` (WhatsApp), `chat_id` (Telegram) o PSID/IGSID (Meta). */
@@ -66,6 +88,21 @@ export interface Entrante {
   cita?: CitaEntrante;
   /** El cliente lo reenvió de otro chat («muchas» = WhatsApp lo marca como reenviado muchas veces). */
   reenviado?: "una" | "muchas";
+  /** No es un mensaje: es un comentario público en una publicación (ver `ComentarioEntrante`). `texto` es lo que comentó. */
+  comentario?: ComentarioEntrante;
+}
+
+/** Las respuestas a un comentario, por la API de la puerta por la que llegó. */
+export interface RespuestasAComentarios {
+  /**
+   * La respuesta PRIVADA (`recipient: {comment_id}`): Meta deja UNA por comentario, dentro de los 7 días, y hasta que la persona
+   * conteste no se le puede mandar nada más. Un solo mensaje de texto. Devuelve el id del mensaje y a quién le llegó (el PSID/IGSID).
+   */
+  privada(canal: CanalId, c: ComentarioEntrante, texto: string, env: Env): Promise<{ id?: string; destinatario?: string }>;
+  /** La respuesta PÚBLICA, corta, debajo del comentario (o del de arriba, si es una respuesta). */
+  publica(canal: CanalId, c: ComentarioEntrante, texto: string, env: Env): Promise<{ id?: string }>;
+  /** El texto y el enlace de la publicación comentada: una consulta barata, sin IA. null = no se pudo. Nunca lanza. */
+  publicacion?(canal: CanalId, c: ComentarioEntrante, env: Env): Promise<{ texto?: string; enlace?: string } | null>;
 }
 
 /** Lo que el canal dice de un mensaje NUESTRO (las palomitas). «fallido» = no llegó. */
@@ -179,6 +216,8 @@ export interface SaludCanal {
   /** null = este canal no puede saberlo (no hay una conexión que mirar). */
   conectado: boolean | null;
   detalle?: string;
+  /** Lo que hay que saber de los comentarios de ese canal (se muestra en /salud si «Responder comentarios» está encendido). */
+  avisosComentarios?: string[];
 }
 
 /** Una llave que vence y el canal renueva solo (Instagram por inicio de sesión de Instagram). Fechas, nunca el valor. */
@@ -254,6 +293,8 @@ export interface AdaptadorCanal {
   saludLocal?(canal: CanalId, env: Env): Promise<SaludLocal>;
   /** Lo que el canal hace solo, cada hora, desde el cron (p. ej. renovar su llave antes de que venza). Nunca lanza por un canal sin configurar. */
   mantener?(env: Env): Promise<void>;
+  /** Contestar comentarios de publicaciones (Messenger = Facebook, Instagram), si el canal los recibe. */
+  comentarios?: RespuestasAComentarios;
 }
 
 /** Respuestas HTTP que se repiten en los webhooks. */

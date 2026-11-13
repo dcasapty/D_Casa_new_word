@@ -304,7 +304,9 @@ class TestHilo(PanelCase):
                                         'programado_para',
                                         # 2026-11-07: citas, reenviados, reacciones y palomitas (test_citas.py).
                                         'cita', 'reenviado', 'reaccion', 'estado_canal', 'canal_entregado_en',
-                                        'canal_leido_en', 'se_puede_citar'})
+                                        'canal_leido_en', 'se_puede_citar',
+                                        # 2026-11-12: el aviso de un comentario lleva el enlace a la publicación.
+                                        'enlace'})
         self.assertEqual((primero['tipo'], primero['autor'], primero['usuario']), ('mensaje', 'cliente', None))
 
     def test_los_adjuntos_traen_miniatura_si_son_imagen_y_la_marca_de_sensible(self):

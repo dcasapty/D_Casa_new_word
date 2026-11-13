@@ -430,6 +430,13 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 - **Desplegar Juan 22** (13 nov, 00:4x UTC; run 43339636718) · PR #114, squash `d5c9ef9`, CI 342 con staging (run
   43328896843). La segunda puerta de Instagram, apagada sin sus dos secretos. Solo Worker: el diff no tocaba `addons/`,
   así que no hubo Desplegar de Odoo. Bien al primer intento.
+- **Desplegar 69** (13 nov, 03:04–03:20 UTC; salud sana; run 43356475622) · PR #115, squash `7d965cd`, `app_version`
+  `2ced21ccb09f555da0159f1493867318617100e1`, imagen `sha256:1ad42b80…`, CI 345 con staging (run 43347631246). Juan ya
+  no dice «no lo manejamos» de lo que existe sin publicar. El CI 344 había fallado en el contrato de Brian
+  (`test_contrato_para_modelos_pequenos`): las descripciones de `juan_buscar_productos` (367) y `juan_ver_producto`
+  (271) pasaban de 260 letras. **Lección:** toda herramienta `juan_*` y de Brian cuenta para ese tope; al alargar una
+  descripción, correr ese test antes del CI. Luego **Desplegar Juan 23** (run 43358329275, 03:22 UTC) para el Worker
+  (regla 2 del prompt y la guardia `niega_producto`). Bien al primer intento.
 - **Versión estable 4 ensayada en staging** (11 nov, 03:16–03:40 UTC, run 42951600639 de «Volver a una versión
   estable», lanzado desde la rama de trabajo: el botón solo exige `main` para producción). Estable 4 = imagen de
   Desplegar 63 (`acda72c1…`, `app_version` `3e2ccfc`) + Juan hasta Desplegar Juan 20. Bien al primer intento.

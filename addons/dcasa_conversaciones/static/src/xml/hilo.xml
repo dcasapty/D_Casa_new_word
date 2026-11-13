@@ -4,6 +4,8 @@
         <t t-set="m" t-value="props.m"/>
         <div t-if="m.tipo === 'aviso'" class="o_dcj_aviso_sistema" role="note">
             <span t-out="m.texto"/>
+            <!-- El aviso de un comentario de Instagram o Facebook: la publicación comentada (se abre aparte). -->
+            <a t-if="m.enlace" class="o_dcj_aviso_enlace" t-att-href="m.enlace" target="_blank" rel="noopener noreferrer">Ver la publicación</a>
             <time class="o_dcj_aviso_hora" t-att-datetime="m.ts" t-out="hora(m.ts)"/>
         </div>
         <article t-else="" t-attf-class="o_dcj_burbuja o_dcj_burbuja_#{clase}" t-att-data-mensaje="m.id"

@@ -14,9 +14,10 @@
 import type { Env } from "../env";
 import { firmaMetaValida } from "../seguridad";
 import { urlGraph } from "./graph";
-import { crearPuertaInstagram, CAPACIDADES_INSTAGRAM_LOGIN, RUTA_INSTAGRAM_LOGIN } from "./instagramLogin";
+import { conPlazo, crearPuertaInstagram, CAPACIDADES_INSTAGRAM_LOGIN, RUTA_INSTAGRAM_LOGIN } from "./instagramLogin";
 import { PUERTA_PAGINA, puertaInstagramElegida } from "./instagramLlave";
-import { eventosDeMeta, maquinaMeta, respuestaDeVerificacion, type MetaCuerpo, type OpcionesMeta, type PuertaMeta } from "./metaComun";
+import { anotarIgnorados, comentariosDeMeta, traeComentarios } from "./metaComentarios";
+import { eventosDeMeta, maquinaMeta, respuestaDeVerificacion, type MaquinaMeta, type MetaCuerpo, type OpcionesMeta, type PuertaMeta } from "./metaComun";
 import {
   faltantesDe,
   json,
@@ -24,6 +25,7 @@ import {
   type AdaptadorCanal,
   type Capacidades,
   type CanalId,
+  type Entrante,
   type ResultadoEnvio,
   type ResultadoWebhook,
   type Saliente,
@@ -48,12 +50,83 @@ const PUERTA_DE_LA_PAGINA: PuertaMeta = {
   pdfEnInstagram: false,
 };
 
+/** La página de D'CASA y su cuenta de Instagram (lo que dice `GET /me` con META_PAGE_TOKEN). */
+interface CuentasDeLaPagina {
+  pagina: string;
+  instagram?: { id: string; usuario?: string };
+}
+/** Cuánto se recuerda quién es la página (una consulta barata); con el respaldo de META_PAGE_ID se vuelve a preguntar al minuto. */
+const VIDA_DE_LAS_CUENTAS_MS = 6 * 3600_000;
+const VIDA_DEL_RESPALDO_MS = 60_000;
+/** Lo más que espera el webhook a que Meta diga quién es la página (también los mensajes del mismo aviso esperan). */
+const PLAZO_CUENTAS_MS = 2500;
+const ID_DE_CUENTA = /^\d{3,30}$/;
+
 export function crearMeta(op: OpcionesMeta = {}): AdaptadorCanal {
   const pagina = maquinaMeta(op, PUERTA_DE_LA_PAGINA);
+  const f: typeof fetch = op.fetch ?? ((...a) => fetch(...a));
+  const ahora = op.ahora ?? (() => Date.now());
+  let cuentas: { valor: CuentasDeLaPagina; hasta: number; llave: string; sinPermisoInstagram: boolean } | null = null;
+  /** Lo último que se supo (para /salud): null = todavía no se preguntó o no se pudo saber. */
+  let ultimo: { sabido: boolean; sinPermisoInstagram: boolean } | null = null;
+
+  /** `GET /me` con la llave de la página: su id y su Instagram (si la llave deja verlo). Nunca lanza; null = no se pudo. */
+  async function preguntarAMeta(env: Env, llave: string): Promise<{ valor: CuentasDeLaPagina; sinPermisoInstagram: boolean } | null> {
+    const preguntar = async (campos: string) => {
+      const r = await f(urlGraph(env, `me?fields=${campos}`), { headers: { authorization: `Bearer ${llave}` } });
+      const j = (await r.json().catch(() => null)) as { id?: unknown; instagram_business_account?: { id?: unknown; username?: unknown } } | null;
+      return { r, j, id: r.ok && typeof j?.id === "string" && ID_DE_CUENTA.test(j.id) ? j.id : "" };
+    };
+    try {
+      let { r, j, id } = await preguntar("id,instagram_business_account{id,username}");
+      // Sin permiso para ver su Instagram, Meta rechaza la consulta entera: al menos la página (sus comentarios de Facebook).
+      const sinPermisoInstagram = !id;
+      if (!id) ({ r, j, id } = await preguntar("id"));
+      if (!id) {
+        console.warn(`[juan] /webhooks/meta: Meta no dijo cuál es la página de D'CASA (HTTP ${r.status})`);
+        return null;
+      }
+      const ig = j?.instagram_business_account;
+      const igId = typeof ig?.id === "string" && ID_DE_CUENTA.test(ig.id) ? ig.id : "";
+      const usuario = typeof ig?.username === "string" && /^[A-Za-z0-9._]{1,30}$/.test(ig.username) ? ig.username : undefined;
+      return { valor: { pagina: id, ...(igId ? { instagram: { id: igId, ...(usuario ? { usuario } : {}) } } : {}) }, sinPermisoInstagram };
+    } catch (e) {
+      console.warn("[juan] /webhooks/meta: no se pudo preguntar cuál es la página de D'CASA:", String(e).slice(0, 120));
+      return null;
+    }
+  }
+
+  /**
+   * Quién es D'CASA en /webhooks/meta (revisión del 2026-11-13): la página del META_PAGE_TOKEN y su Instagram. Solo se atienden los
+   * comentarios de esas cuentas (otra página suscrita a la misma app no entra) y los suyos no se contestan. Con plazo (si Meta se
+   * cuelga, el webhook no se queda esperando); si no se puede saber, el respaldo META_PAGE_ID (y INSTAGRAM_ACCOUNT_ID) o null.
+   */
+  async function cuentasDeLaPagina(env: Env): Promise<CuentasDeLaPagina | null> {
+    const llave = env.META_PAGE_TOKEN;
+    if (!llave) return null;
+    if (cuentas && cuentas.llave === llave && cuentas.hasta > ahora()) return cuentas.valor;
+    const r = await conPlazo(preguntarAMeta(env, llave), PLAZO_CUENTAS_MS, null);
+    if (r) {
+      cuentas = { valor: r.valor, hasta: ahora() + VIDA_DE_LAS_CUENTAS_MS, llave, sinPermisoInstagram: r.sinPermisoInstagram };
+      ultimo = { sabido: true, sinPermisoInstagram: r.sinPermisoInstagram && !r.valor.instagram };
+      return r.valor;
+    }
+    ultimo = { sabido: false, sinPermisoInstagram: false };
+    const respaldo = env.META_PAGE_ID && ID_DE_CUENTA.test(env.META_PAGE_ID) ? env.META_PAGE_ID : "";
+    if (!respaldo) return null;
+    const igRespaldo = env.INSTAGRAM_ACCOUNT_ID && ID_DE_CUENTA.test(env.INSTAGRAM_ACCOUNT_ID) ? env.INSTAGRAM_ACCOUNT_ID : "";
+    const valor: CuentasDeLaPagina = { pagina: respaldo, ...(igRespaldo ? { instagram: { id: igRespaldo } } : {}) };
+    console.warn("[juan] /webhooks/meta: se usa META_PAGE_ID para saber cuál es la página de D'CASA");
+    cuentas = { valor, hasta: ahora() + VIDA_DEL_RESPALDO_MS, llave, sinPermisoInstagram: false };
+    return valor;
+  }
   const ig = crearPuertaInstagram(op);
   /** Este canal va por la segunda puerta (Instagram con alguno de sus secretos). */
   const porInstagram = (canal: CanalId, env: Env | undefined) => canal === "instagram" && !!env && puertaInstagramElegida(env);
   const deCanal = (canal: CanalId): "messenger" | "instagram" => (canal === "instagram" ? "instagram" : "messenger");
+  /** Por qué API se contesta un comentario: la de la puerta por la que llegó. */
+  const maquinaDe = (puerta: "pagina" | "instagram_login"): Pick<MaquinaMeta, "responderEnPrivado" | "responderEnPublico" | "publicacion"> =>
+    puerta === "instagram_login" ? ig.comentarios : pagina;
 
   return {
     canales: ["messenger", "instagram"],
@@ -95,13 +168,31 @@ export function crearMeta(op: OpcionesMeta = {}): AdaptadorCanal {
         return nada(ok200());
       }
       if (cuerpo.object === "instagram" && puertaInstagramElegida(env)) {
-        // Instagram va por la segunda puerta: lo que llegue por la página (cuentas con papel en la app) llegaría dos veces.
-        if ((cuerpo.entry ?? []).some((e) => e.messaging?.length)) console.warn("[juan] /webhooks/meta: Instagram va por /webhooks/instagram; el aviso que llegó por la página se ignora");
+        // Instagram va por la segunda puerta: lo que llegue por la página (cuentas con papel en la app) llegaría dos veces. Igual los
+        // comentarios de Instagram: van por /webhooks/instagram.
+        if ((cuerpo.entry ?? []).some((e) => e.messaging?.length || e.changes?.length)) console.warn("[juan] /webhooks/meta: Instagram va por /webhooks/instagram; el aviso que llegó por la página se ignora");
         return nada(json({ ok: true }));
+      }
+      // Los comentarios de las publicaciones (Facebook `feed`, Instagram `comments`): se guardan igual que un mensaje y el motor decide
+      // (motor/conversacion.ts → `recibirComentario`). Los de la propia página o cuenta (sus respuestas) se ignoran aquí.
+      const mensajes = eventosDeMeta(cuerpo, Date.now());
+      let comentarios: Entrante[] = [];
+      if (traeComentarios(cuerpo)) {
+        const yo = await cuentasDeLaPagina(env);
+        if (!yo) {
+          // Sin saber cuál es la página no se puede filtrar: los mensajes del aviso se guardan igual y se contesta 500 para que Meta
+          // reintente el lote (lo ya guardado no se repite: se reconoce por su id). Ningún comentario legítimo se pierde.
+          console.warn("[juan] /webhooks/meta: no se sabe cuál es la página de D'CASA: los comentarios de este aviso esperan el reintento de Meta");
+          return { respuesta: new Response("no se pudo saber cuál es la página: reintenta", { status: 500 }), entrantes: mensajes, guardarAntes: true };
+        }
+        const propias = new Set([yo.pagina, ...(yo.instagram ? [yo.instagram.id] : [])]);
+        const r = comentariosDeMeta(cuerpo, Date.now(), { puerta: "pagina", cuentas: propias, propios: propias, ...(yo.instagram?.usuario ? { usuarioPropio: yo.instagram.usuario } : {}) });
+        comentarios = r.entrantes;
+        anotarIgnorados("/webhooks/meta", r.ignorados);
       }
       // Como WhatsApp Cloud: se contesta 200 cuando cada mensaje ya quedó guardado (`guardarAntes`, rutas.ts). Los archivos de
       // Messenger e Instagram llegan como `url` (no hay nada que bajar con credenciales antes de guardarlos).
-      return { respuesta: json({ ok: true }), entrantes: eventosDeMeta(cuerpo, Date.now()), guardarAntes: true };
+      return { respuesta: json({ ok: true }), entrantes: [...mensajes, ...comentarios], guardarAntes: true };
     },
 
     async enviar(canal: CanalId, salida: Saliente, env: Env): Promise<ResultadoEnvio> {
@@ -125,7 +216,21 @@ export function crearMeta(op: OpcionesMeta = {}): AdaptadorCanal {
     },
 
     async salud(canal: CanalId, env: Env): Promise<SaludCanal> {
-      return { configurado: this.configurado(env, canal), faltan: this.faltantes(env, canal), conectado: null };
+      const base: SaludCanal = { configurado: this.configurado(env, canal), faltan: this.faltantes(env, canal), conectado: null };
+      if (!base.configurado || porInstagram(canal, env)) return base;
+      // Los comentarios por la página: ¿se sabe cuál es la página y su Instagram? (Se pregunta como en el webhook, con plazo.)
+      const yo = await cuentasDeLaPagina(env);
+      const avisos: string[] = [];
+      if (!yo) {
+        avisos.push("no sé cuál es tu página de Facebook: Meta no contestó quién es con la llave de la página (META_PAGE_TOKEN); los avisos con comentarios se contestan 500 para que Meta los reintente. Si sigue, pon META_PAGE_ID");
+      } else if (canal === "instagram" && !yo.instagram) {
+        avisos.push(
+          ultimo?.sinPermisoInstagram || cuentas?.sinPermisoInstagram
+            ? "no sé cuál es tu Instagram: la llave de la página no deja leer su cuenta de Instagram (falta el permiso instagram_basic); los comentarios de Instagram por la página se dejan de lado"
+            : "no sé cuál es tu Instagram: la página no tiene una cuenta de Instagram vinculada (o no se pudo leer); los comentarios de Instagram por la página se dejan de lado",
+        );
+      }
+      return { ...base, ...(avisos.length ? { avisosComentarios: avisos } : {}) };
     },
 
     async saludLocal(canal: CanalId, env: Env): Promise<SaludLocal> {
@@ -136,5 +241,14 @@ export function crearMeta(op: OpcionesMeta = {}): AdaptadorCanal {
     async mantener(env: Env): Promise<void> {
       await ig.mantener(env);
     },
+
+    // Los comentarios se contestan por la API de la puerta por la que llegaron (la página o Instagram por inicio de sesión).
+    comentarios: {
+      privada: (_canal, c, texto, env) => maquinaDe(c.puerta).responderEnPrivado(c.id, texto, env),
+      // La respuesta pública va al comentario de arriba si es una respuesta (Instagram solo contesta los de primer nivel).
+      publica: (_canal, c, texto, env) => maquinaDe(c.puerta).responderEnPublico(c.red, c.padre ?? c.id, texto, env),
+      publicacion: async (_canal, c, env) => (c.publicacion ? maquinaDe(c.puerta).publicacion(c.red, c.publicacion, env).catch(() => null) : null),
+    },
   };
 }
+

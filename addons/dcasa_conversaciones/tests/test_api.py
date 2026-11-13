@@ -27,7 +27,7 @@ DE_OTROS_MODULOS = {'guardar_correo', 'no_quiere_novedades'}
 # Lo mismo con las claves de la respuesta de /mensaje y /estado (dcasa_camila: las novedades por correo).
 CLAVES_DE_OTROS_MODULOS = {'permiso_correo'}
 RUTAS = (('POST', 'mensaje'), ('GET', 'estado'), ('GET', 'config'), ('GET', 'herramientas'), ('POST', 'herramienta'),
-         ('POST', 'seguimiento/hecho'), ('POST', 'escribiendo'), ('POST', 'foto-perfil'))
+         ('POST', 'seguimiento/hecho'), ('POST', 'escribiendo'), ('POST', 'foto-perfil'), ('POST', 'comentario'))
 
 
 class ApiCase(HttpCase):
@@ -375,7 +375,13 @@ class TestEstadoYConfig(ApiCase):
             'presupuesto_ia_mensual_usd', 'proveedor_ia', 'proveedor_respaldo_ia', 'modelo_rapido',
             'modelo_inteligente', 'modelos_por_defecto', 'precios', 'precios_ia', 'lecciones', 'mensaje_bienvenida',
             'texto_privacidad_corto', 'palabras_prohibidas', 'pausa_por_defecto_minutos', 'guardar_foto_perfil',
-            'telegram_chats', 'telegram_abierto'})
+            'telegram_chats', 'telegram_abierto', 'comentarios'})
+        # Lo que dice la base (que puede tenerlo encendido); que venga apagado de fábrica lo prueba test_comentarios.
+        ajustes = self.env['dcasa.juan.ajustes'].obtener()
+        self.assertEqual(cuerpo['comentarios']['activo'], bool(ajustes.comentarios_activo))
+        self.assertEqual(set(cuerpo['comentarios']), {
+            'activo', 'facebook', 'instagram', 'texto_publico', 'tope_por_hora', 'publicas_por_persona',
+            'privadas_por_persona'})
         self.assertEqual(cuerpo['nombre_publico'], "el equipo de D'CASA")
         self.assertEqual(cuerpo['horario'], {'inicio': '08:00', 'fin': '17:00', 'dias': [0, 1, 2, 3, 4, 5, 6],
                                              'zona': 'America/Panama'})

@@ -2,7 +2,7 @@
 // Si Odoo no contesta se usa la última buena; si nunca hubo una, los valores por defecto
 // de abajo (los mismos del contrato, docs/JUAN.md). El bot nunca se queda mudo por esto.
 
-import type { CanalId } from "./canales/tipos";
+import type { CanalId, Entrante } from "./canales/tipos";
 
 /** Quién pone la IA. Se elige en Odoo (`proveedor_ia`); cambiar de uno a otro no toca código. */
 export type ProveedorIa = "anthropic" | "meta" | "openai";
@@ -81,7 +81,43 @@ export interface Config {
   telegram_chats: string[];
   /** Interruptor de la dueña: Telegram abierto a cualquiera (apagado de fábrica). Encendido, la lista de arriba no se mira. */
   telegram_abierto: boolean;
+  /** Los comentarios de Instagram y Facebook (2026-11-12): apagados de fábrica («Apagado hasta que lo pruebes»). */
+  comentarios: ConfigComentarios;
 }
+
+/** Ajustes de Juan › «Comentarios de Instagram y Facebook». Solo Gerencia y los administradores los cambian. */
+export interface ConfigComentarios {
+  /** El interruptor de la dueña. Apagado: Juan no hace nada con los comentarios (ni los registra). */
+  activo: boolean;
+  facebook: boolean;
+  instagram: boolean;
+  /**
+   * La respuesta pública, corta y SIN nada que escriba quien comenta (ni su nombre: decisión del coordinador, 2026-11-13). Un
+   * `{nombre}` de antes se quita limpio.
+   */
+  texto_publico: string;
+  /** Lo más de respuestas públicas en una hora, entre todas las publicaciones (para no parecer spam). 0 = ninguna en público. */
+  tope_por_hora: number;
+  /** Por persona (quien comenta), en 24 horas y en comentarios distintos: lo de más se anota y no se contesta. 0 = ninguna en público. */
+  publicas_por_persona: number;
+  /** Lo mismo con las respuestas privadas (al menos 1: sin privada no hay respuesta). */
+  privadas_por_persona: number;
+  /**
+   * Lo más de respuestas privadas en una hora entre TODAS las cuentas (cada una es un turno completo de IA): que muchas cuentas a la vez
+   * no disparen el gasto. Una constante (60); Odoo no lo manda hoy, pero el contrato lo acepta.
+   */
+  privadas_por_hora: number;
+}
+
+/** La respuesta pública de fábrica (la dueña: «Corto y lo demás por privado»). */
+export const TEXTO_PUBLICO_POR_DEFECTO = "¡Hola! Te escribimos por mensaje directo con los detalles.";
+export const TOPE_POR_HORA_POR_DEFECTO = 30;
+/** Por persona y por 24 horas (el coordinador, 2026-11-13): 1 respuesta pública y 3 privadas, en comentarios distintos. */
+export const PUBLICAS_POR_PERSONA_POR_DEFECTO = 1;
+export const PRIVADAS_POR_PERSONA_POR_DEFECTO = 3;
+export const MAX_POR_PERSONA = 10;
+export const PRIVADAS_POR_HORA_POR_DEFECTO = 60;
+const MAX_TEXTO_PUBLICO = 300;
 
 export const CONFIG_POR_DEFECTO: Config = {
   nombre_publico: "el equipo de D'CASA",
@@ -105,6 +141,16 @@ export const CONFIG_POR_DEFECTO: Config = {
   guardar_foto_perfil: true,
   telegram_chats: [],
   telegram_abierto: false,
+  comentarios: {
+    activo: false,
+    facebook: true,
+    instagram: true,
+    texto_publico: TEXTO_PUBLICO_POR_DEFECTO,
+    tope_por_hora: TOPE_POR_HORA_POR_DEFECTO,
+    publicas_por_persona: PUBLICAS_POR_PERSONA_POR_DEFECTO,
+    privadas_por_persona: PRIVADAS_POR_PERSONA_POR_DEFECTO,
+    privadas_por_hora: PRIVADAS_POR_HORA_POR_DEFECTO,
+  },
 };
 
 /** Canales que arrancan encendidos si Odoo no dice nada. La Cloud API y Meta empiezan APAGADOS. */
@@ -119,6 +165,76 @@ const ENCENDIDOS_POR_DEFECTO: Record<CanalId, boolean> = {
 export function canalActivo(cfg: Config, canal: CanalId): boolean {
   const v = cfg.canales_activos[canal];
   return typeof v === "boolean" ? v : ENCENDIDOS_POR_DEFECTO[canal];
+}
+
+/**
+ * ¿Juan contesta los comentarios de esa red? El interruptor de la dueña, el de la red, el asistente encendido y el canal por el que
+ * va la respuesta privada (Facebook → Messenger, Instagram → Instagram): si ese canal está apagado, cuando la persona contestara el
+ * mensaje privado nadie la atendería.
+ */
+export function comentariosActivos(cfg: Config, red: "facebook" | "instagram"): boolean {
+  return porQueNoContesta(cfg, red) === null;
+}
+
+/** Por qué Juan no contesta los comentarios de esa red, en palabras para el aviso de Odoo; null = sí los contesta. */
+export function porQueNoContesta(cfg: Config, red: "facebook" | "instagram"): string | null {
+  if (!cfg.bot_activo_global) return "se apagó el asistente";
+  if (!cfg.comentarios.activo) return "se apagó «Responder comentarios»";
+  if (!cfg.comentarios[red]) return `se apagaron los comentarios de ${red === "facebook" ? "Facebook" : "Instagram"}`;
+  if (!canalActivo(cfg, red === "facebook" ? "messenger" : "instagram")) return `se apagó el canal ${red === "facebook" ? "Messenger" : "Instagram"}`;
+  return null;
+}
+
+/** ¿Se atiende lo que llegó? Un comentario, con sus interruptores; un mensaje, si su canal está encendido. */
+export function atiendeEntrante(cfg: Config, e: Pick<Entrante, "canal" | "comentario">): boolean {
+  return e.comentario ? comentariosActivos(cfg, e.comentario.red) : canalActivo(cfg, e.canal);
+}
+
+/**
+ * Una dirección web dentro de un texto, con esquema o sin él («https://…», «www.…», «bit.ly/x», «dcasapty.com/ofertas», un correo):
+ * algo con forma de dominio (palabra, punto y 2 a 24 letras) que no esté pegado a otra letra. Igual que Odoo (ajustes.py).
+ */
+const DIRECCION_WEB = /https?:\/\/|www\.|(?<![\p{L}\p{N}_.-])[\p{L}\p{N}_-]+(?:\.[\p{L}\p{N}_-]+)*\.[A-Za-z]{2,24}(?![\p{L}\p{N}_-])/iu;
+
+/**
+ * ¿Sirve como respuesta pública? Sin direcciones web (Meta la marcaría como spam y nadie la revisaría en cada comentario), sin llaves
+ * (ya no hay marcas: lo público no lleva nada que escriba quien comenta) y que «quede bien»: empieza con una letra o una cifra (o con
+ * «¡», «¿», «"», «(» delante), sin pares vacíos como «¡!» y con al menos dos letras. Odoo valida lo mismo al guardar (ajustes.py).
+ */
+export function textoPublicoValido(t: string): boolean {
+  return (
+    !DIRECCION_WEB.test(t) &&
+    !/[{}]/.test(t) &&
+    /^[¡¿«"(]?[\p{L}\p{N}]/u.test(t) &&
+    !/¡\s*!|¿\s*\?|\(\s*\)|«\s*»/.test(t) &&
+    (t.match(/\p{L}/gu) ?? []).length >= 2
+  );
+}
+
+/**
+ * Quita un `{nombre}` de antes (cuando la frase podía llevar el nombre) sin dejarla rota: con su coma o su espacio, los pares que
+ * quedan vacíos («¡{nombre}!») y los signos sueltos al principio («{nombre}: te escribimos» → «Te escribimos»).
+ */
+export function quitarNombre(t: string): string {
+  if (!t.includes("{nombre}")) return t;
+  const s = t
+    .replace(/(\p{L})\s+\{nombre\}\s*,/gu, "$1,")
+    .replace(/,\s*\{nombre\}/g, "")
+    .replace(/\{nombre\}\s*,\s*/g, "")
+    .replace(/\s*\{nombre\}/g, "")
+    .replace(/¡\s*!|¿\s*\?|\(\s*\)|«\s*»/g, " ")
+    .replace(/\s+([!?.,:;])/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/^[\s:;,.!?\-–—]+/, "")
+    .replace(/^([¡¿«"(]?)\s+/, "$1");
+  return s.replace(/\p{L}/u, (c) => c.toLocaleUpperCase("es"));
+}
+
+/** La respuesta pública de Ajustes, sin controles ni saltos, sin `{nombre}` y de 300 letras como mucho (vacía o inválida = la de fábrica). */
+export function normalizarTextoPublico(v: unknown): string {
+  const t = typeof v === "string" ? quitarNombre(v.replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim()).slice(0, MAX_TEXTO_PUBLICO) : "";
+  return t && textoPublicoValido(t) ? t : TEXTO_PUBLICO_POR_DEFECTO;
 }
 
 const esObjeto = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
@@ -232,6 +348,23 @@ export function normalizarConfig(crudo: unknown): Config {
     guardar_foto_perfil: typeof c.guardar_foto_perfil === "boolean" ? c.guardar_foto_perfil : d.guardar_foto_perfil,
     telegram_chats: normalizarChats(c.telegram_chats),
     telegram_abierto: c.telegram_abierto === true,
+    comentarios: normalizarComentarios(c.comentarios),
+  };
+}
+
+/** Los ajustes de comentarios. Lo que no viene o no se entiende queda como de fábrica: APAGADO. */
+export function normalizarComentarios(v: unknown): ConfigComentarios {
+  const d = CONFIG_POR_DEFECTO.comentarios;
+  const c = esObjeto(v) ? v : {};
+  return {
+    activo: c.activo === true,
+    facebook: typeof c.facebook === "boolean" ? c.facebook : d.facebook,
+    instagram: typeof c.instagram === "boolean" ? c.instagram : d.instagram,
+    texto_publico: normalizarTextoPublico(c.texto_publico),
+    tope_por_hora: Math.round(numero(c.tope_por_hora, d.tope_por_hora, 0, 500)),
+    publicas_por_persona: Math.round(numero(c.publicas_por_persona, d.publicas_por_persona, 0, MAX_POR_PERSONA)),
+    privadas_por_persona: Math.round(numero(c.privadas_por_persona, d.privadas_por_persona, 1, MAX_POR_PERSONA)),
+    privadas_por_hora: Math.round(numero(c.privadas_por_hora, d.privadas_por_hora, 1, 1000)),
   };
 }
 

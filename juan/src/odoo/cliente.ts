@@ -137,6 +137,42 @@ export interface CuerpoFotoPerfil {
   base64: string;
 }
 
+/**
+ * Un comentario de Instagram o Facebook que Juan atendió (2026-11-12): `POST /comentario`, idempotente por `red` + `id_comentario`.
+ * Odoo deja un aviso en el hilo de la conversación de esa persona (la crea si no existe) y, si es una queja, avisa a Gerencia por
+ * Telegram. Una pregunta se manda dos veces: con `privada: "pendiente"` antes de contestar (así el aviso queda antes de la respuesta y
+ * la conversación existe para las herramientas) y con el resultado al final (Odoo pone al día el mismo aviso).
+ */
+export interface CuerpoComentario {
+  canal: CanalId;
+  id_externo: string;
+  nombre?: string;
+  red: "facebook" | "instagram";
+  id_comentario: string;
+  texto: string;
+  /** Enlace a la publicación (solo https de Facebook o Instagram). */
+  enlace?: string;
+  /** Cuándo se comentó (ISO 8601 UTC). */
+  ts: string;
+  clase: "pregunta" | "queja" | "sin_clasificar";
+  /** La respuesta privada: «pendiente» (se está preparando), «reintento» (la IA o Odoo fallaron: se vuelve a intentar en un rato),
+   *  «respondida», «fallo» (Meta no la dejó), «no_preparada» (Juan no pudo prepararla: la IA o Odoo no respondieron, ni en los
+   *  reintentos), «incierta» (se cortó a la mitad: no se sabe si llegó), «vendedora» (una persona atiende esta conversación: Juan no
+   *  contesta) o «no» (no se contesta; el motivo dice por qué: se apagó, el tope por persona…). */
+  privada: "pendiente" | "reintento" | "respondida" | "fallo" | "no_preparada" | "incierta" | "vendedora" | "no";
+  /** La respuesta pública: lo mismo (sin «reintento» ni «no_preparada»), más «tope» (se llegó al tope por hora de Ajustes). */
+  publica: "pendiente" | "respondida" | "fallo" | "incierta" | "tope" | "no";
+  /** Por qué no salió (lo que dijo Meta, la IA u Odoo, o el interruptor), en corto y sin datos de nadie. */
+  motivo?: string;
+}
+
+export interface RespuestaComentario {
+  ok?: boolean;
+  conversacion_id?: number | null;
+  /** Ya estaba registrado y no se cambió nada (un repetido, o un resultado final que no se pisa). */
+  repetido?: boolean;
+}
+
 /** Lo que el motor necesita de Odoo. En las pruebas se sustituye por un doble. */
 export interface OdooApi {
   mensaje(cuerpo: CuerpoMensaje): Promise<RespuestaMensaje>;
@@ -151,6 +187,8 @@ export interface OdooApi {
   fotoPerfil?(cuerpo: CuerpoFotoPerfil): Promise<{ guardada: boolean }>;
   /** Opcional: palomitas y reacciones en una tanda (`POST /eventos`). Un Odoo viejo contesta 404. */
   eventos?(eventos: EventoCanal[]): Promise<RespuestaEventos>;
+  /** Opcional: un comentario de Instagram o Facebook que Juan atendió (`POST /comentario`). Un Odoo viejo contesta 404. */
+  comentario?(cuerpo: CuerpoComentario): Promise<RespuestaComentario>;
 }
 
 export interface OpcionesCliente {
@@ -265,6 +303,11 @@ export class OdooCliente implements OdooApi {
   /** Sin reintentos y con plazo corto: un «escribiendo» tardío no sirve, y jamás debe frenar una respuesta. */
   async escribiendo(cuerpo: CuerpoEscribiendo): Promise<void> {
     await this.llamar("POST", "/escribiendo", cuerpo, 0, 5_000);
+  }
+
+  /** Idempotente por `red` + `id_comentario` (y el resultado final no se pisa): se puede repetir. */
+  comentario(cuerpo: CuerpoComentario): Promise<RespuestaComentario> {
+    return this.llamar<RespuestaComentario>("POST", "/comentario", cuerpo, 1, 25_000);
   }
 
   /**

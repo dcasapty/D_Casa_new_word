@@ -7,13 +7,13 @@ la bitácora de LEEME_PRIMERO (y lo más viejo en [historico/BITACORA_ANTERIOR.m
 Cada cosa nueva pasa por capturas a la dueña, su visto bueno, pruebas y staging; a producción, con su «sí» (reglas en
 LEEME_PRIMERO §2).
 
-## Estado al 2026-11-11
+## Estado al 2026-11-13
 
 - **Producción funciona desde el 2026-10-13** y **`dcasapty.com` (y `www`) apunta al sistema nuevo desde el
-  2026-10-27** (Desplegar 31). Odoo y el borde: **Desplegar 68** (12 nov, PR #113: Juan cotiza envíos con la promoción, reparto justo y Costos de IA con «Pagar»; antes, Desplegar 67, PR #112: el modo oscuro; el 11 nov, Desplegar 66 con
+  2026-10-27** (Desplegar 31). Odoo y el borde: **Desplegar 69** (13 nov, PR #115: Juan ya no dice «no lo manejamos» de lo que no está publicado; antes, Desplegar 68, PR #113: Juan cotiza envíos con la promoción, reparto justo y Costos de IA con «Pagar»; antes, Desplegar 67, PR #112: el modo oscuro; el 11 nov, Desplegar 66 con
   entregas igual que Bodega y «Más datos», y antes, Desplegar 65 con el Inicio nuevo, el celular al entrar y la caja del chat, y Desplegar 64 con
   los 21 arreglos de la auditoría visual). Juan: **Desplegar
-  Juan 21** (12 nov, PR #113). La **versión estable 4** es la anterior (Desplegar 63 + Juan 20)
+  Juan 23** (13 nov, PR #115; Juan 22 trajo la segunda puerta de Instagram, apagada). La **versión estable 4** es la anterior (Desplegar 63 + Juan 20)
   ([VERSIONES_ESTABLES.md](VERSIONES_ESTABLES.md)). El contenedor instala 30 de los 31 módulos de `addons/` (todos
   menos `dcasa_fe_pa`, a propósito).
 - **⚠ Messenger e Instagram NO les llegan a los clientes (descubierto el 2026-11-12):** solo a cuentas con papel en la
