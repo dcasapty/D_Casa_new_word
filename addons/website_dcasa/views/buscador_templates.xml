@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Lote 1 de la web (aprobado por la dueña el 2026-11-13): buscar, el carrito vacío, la foto de la ficha y lo
+         que Google no debe mostrar. La lógica vive en models/buscador.py y controllers/main.py. -->
+
+    <!-- Google: las páginas para entrar no se muestran (noindex) y los resultados de búsqueda tampoco, aunque sus
+         enlaces a las fichas sí se siguen (noindex, follow). Lo demás, como lo decide Odoo. La misma regla pone la
+         cabecera X-Robots-Tag (models/buscador.py). -->
+    <template id="robots_dcasa" inherit_id="website.layout" name="D'CASA: lo que Google no muestra">
+        <xpath expr="//meta[@name='robots'][@t-if='no_index']" position="replace">
+            <t t-set="dcasa_robots" t-value="website and website._dcasa_robots()"/>
+            <meta t-if="dcasa_robots" name="robots" t-att-content="dcasa_robots"/>
+            <meta t-elif="no_index" name="robots" content="noindex"/>
+        </xpath>
+    </template>
+
+    <!-- La búsqueda de la cabecera (la caja que abre la lupa, en la computadora y en el celular) busca en el catálogo
+         (/shop?search=…): los resultados se ven como la tienda, con fotos grandes, precio con «+ ITBMS» y el botón de
+         agregar. La lista que sale mientras se escribe se queda, ahora solo con productos. -->
+    <template id="buscador_cabecera" inherit_id="website.header_search_box_input" name="D'CASA: la búsqueda va al catálogo">
+        <xpath expr="//t[@t-call='website.website_search_box_input']" position="attributes">
+            <attribute name="search_type.f">products</attribute>
+            <attribute name="action.f">/shop</attribute>
+            <attribute name="placeholder.f">Escribe lo que buscas</attribute>
+        </xpath>
+    </template>
+
+    <!-- SITIO PARA BOTONES EXTRA DEL BUSCADOR (p. ej. la cámara de «Busca con una foto»): dentro de la caja de
+         búsqueda, justo antes de la lupa de enviar. Lo llaman TODAS las cajas de búsqueda del sitio: la de la cabecera
+         (el modal de la lupa y el menú del celular) y la barra de /shop. Para agregar un botón, un módulo hereda esta
+         plantilla con position="inside"; tiene a mano `search_type` («products» en la cabecera y en /shop), `action` y
+         `search`. Vacía no pinta nada. -->
+    <template id="buscador_botones_extra" name="D'CASA: botones extra del buscador"/>
+
+    <template id="buscador_con_sitio_extra" inherit_id="website.website_search_box_input" name="D'CASA: sitio para botones del buscador">
+        <xpath expr="//button[@type='submit']" position="before">
+            <t t-call="website_dcasa.buscador_botones_extra"/>
+        </xpath>
+    </template>
+
+    <!-- Celular: la lupa a la vista, junto al carrito (antes la búsqueda estaba escondida dentro del menú). Abre la
+         misma caja que la lupa de la computadora (#o_search_modal; Odoo la saca de la cabecera al cargar la página).
+         Sin JavaScript, lleva al catálogo, que tiene su propia barra de búsqueda. -->
+    <template id="lupa_movil" inherit_id="website_sale.template_header_mobile" name="D'CASA: lupa en el celular">
+        <xpath expr="//t[@t-call='website_sale.header_cart_link']" position="before">
+            <li t-if="is_view_active('website.header_search_box')" class="o_dcasa_lupa_movil_item">
+                <a href="/shop" role="button" class="o_dcasa_lupa_movil o_navlink_background_hover btn rounded-circle border-0 text-reset"
+                   data-bs-toggle="modal" data-bs-target="#o_search_modal"
+                   aria-label="Buscar en el catálogo" title="Buscar en el catálogo">
+                    <i class="oi oi-search" aria-hidden="true"/>
+                </a>
+            </li>
+        </xpath>
+    </template>
+
+    <!-- Resultados en el catálogo: el aviso de «se muestran los de…» en tuteo (por una tilde ya no sale:
+         models/buscador.py) y, sin resultados, algo útil: las categorías con productos y «Escríbenos por WhatsApp». -->
+    <template id="tienda_busqueda_tuteo" inherit_id="website_sale.products" name="D'CASA: búsqueda en el catálogo">
+        <xpath expr="//div[@t-if='original_search and products']" position="replace">
+            <div t-if="original_search and products" class="alert alert-warning mt8 o_dcasa_parecido" role="status">
+                No encontramos «<span t-out="original_search"/>». Te mostramos lo que hay de «<span t-out="search"/>».
+            </div>
+        </xpath>
+        <xpath expr="//div[hasclass('mb256')]/t[@t-else='']" position="replace">
+            <t t-else="">
+                <t t-call="website_dcasa.busqueda_sin_resultados"/>
+            </t>
+        </xpath>
+    </template>
+
+    <!-- Sin resultados, el filtro de precio de Odoo decía «$ 0.00 – $ 0.00»: no se muestra. -->
+    <template id="tienda_sin_resultados_sin_precio" inherit_id="website_sale.filter_products_price" name="D'CASA: sin rango de precio vacío">
+        <xpath expr="//div[@id='o_wsale_price_range_option']" position="attributes">
+            <attribute name="t-if">products or not search</attribute>
+        </xpath>
+    </template>
+
+    <template id="busqueda_sin_resultados" name="D'CASA: búsqueda sin resultados">
+        <div class="o_dcasa_sin_resultados" role="status">
+            <div class="mb-3"><t t-call="website.empty_search_svg"/></div>
+            <h2 class="o_dcasa_sin_resultados_titulo">No encontramos “<t t-out="search"/>”</h2>
+            <p class="o_dcasa_lead">Prueba con otra palabra o mira por espacio. Si no lo ves, escríbenos: te ayudamos a buscarlo.</p>
+            <t t-set="dcasa_categorias" t-value="website._dcasa_categorias_para_buscar()"/>
+            <ul t-if="dcasa_categorias" class="o_dcasa_sin_resultados_categorias list-unstyled" aria-label="Categorías del catálogo">
+                <li t-foreach="dcasa_categorias" t-as="dcasa_categoria">
+                    <a t-att-href="dcasa_categoria['url']" class="btn o_dcasa_btn_contorno" t-out="dcasa_categoria['nombre']"/>
+                </li>
+            </ul>
+            <a class="btn btn-primary btn-lg o_dcasa_sin_resultados_wa" target="_blank" rel="noopener"
+               t-att-href="website._dcasa_whatsapp_buscar(search)">
+                <i class="fa fa-whatsapp me-2" aria-hidden="true"/>Escríbenos por WhatsApp
+            </a>
+            <p t-if="category" class="mt-4 mb-0">
+                <a t-att-href="keep(shop_path, search=search)" class="o_dcasa_link">Buscar «<t t-out="search"/>» en todo el catálogo</a>
+            </p>
+        </div>
+    </template>
+
+    <!-- Carrito vacío en la voz de la marca: «Tu carrito está vacío», «Ver el catálogo» y WhatsApp (el botón flotante
+         no sale en el carrito). -->
+    <template id="carrito_vacio_tuteo" inherit_id="website_sale.cart_lines" name="D'CASA: carrito vacío">
+        <xpath expr="//div[@t-if='not website_sale_order or not website_sale_order.website_order_line']/p[a[@href='/shop']]" position="replace">
+            <p class="o_dcasa_carrito_vacio_acciones">
+                <a href="/shop" class="btn btn-primary btn-lg">Ver el catálogo</a>
+                <a t-att-href="request.website._dcasa_whatsapp_url()" target="_blank" rel="noopener" class="btn btn-lg o_dcasa_btn_contorno">
+                    <i class="fa fa-whatsapp me-2" aria-hidden="true"/>Escríbenos por WhatsApp
+                </a>
+            </p>
+        </xpath>
+        <xpath expr="//div[@t-if='not website_sale_order or not website_sale_order.website_order_line']/h5" position="replace">
+            <h2 class="o_dcasa_carrito_vacio_titulo">Tu carrito está vacío</h2>
+            <p class="o_dcasa_carrito_vacio_texto">Mira el catálogo y agrega lo que te guste.</p>
+        </xpath>
+    </template>
+
+    <!-- «Reordenado rápido» (traducción de Odoo) no le sirve a quien no tiene cuenta: no se ve. Con cuenta, en tuteo:
+         «Volver a pedir». El botón se queda en la página aunque no se vea: el JavaScript del carrito lo usa. -->
+    <template id="carrito_volver_a_pedir" inherit_id="website_sale.cart" name="D'CASA: volver a pedir solo con cuenta">
+        <xpath expr="//t[@t-call='website_sale.quick_reorder_button']/.." position="attributes">
+            <attribute name="class"/>
+            <attribute name="t-attf-class">ms-3 border-start ps-2 #{'d-none' if request.website.is_public_user() else ''}</attribute>
+        </xpath>
+    </template>
+
+    <template id="volver_a_pedir" inherit_id="website_sale.quick_reorder_button" name="D'CASA: volver a pedir">
+        <xpath expr="//button[@id='quick_reorder_button']" position="replace">
+            <button id="quick_reorder_button" type="button" class="btn btn-sm btn-link"
+                    data-bs-toggle="offcanvas" data-bs-target="#quick_reorder_sidebar" aria-controls="quick_reorder_sidebar"
+                    t-att-disabled="not order_history">
+                <i class="fa fa-rotate-left me-2" aria-hidden="true"/>Volver a pedir
+            </button>
+        </xpath>
+    </template>
+
+    <template id="volver_a_pedir_panel" inherit_id="website_sale.quick_reorder_sidebar" name="D'CASA: volver a pedir (panel)">
+        <xpath expr="//h5[hasclass('offcanvas-title')]" position="replace">
+            <h5 class="offcanvas-title">Volver a pedir</h5>
+        </xpath>
+    </template>
+
+    <!-- Ficha: la foto se ve en grande al tocarla (el visor de Odoo, «Zoom al hacer clic»). Un botón sobre la foto lo
+         dice; en el visor se acerca con dos dedos y se mueve con uno (static/src/js/foto_grande.js). -->
+    <template id="ficha_ver_en_grande" inherit_id="website_sale.shop_product_carousel" name="D'CASA: ver la foto en grande">
+        <xpath expr="//div[hasclass('carousel-inner')]" position="after">
+            <button type="button" class="o_dcasa_ver_grande" aria-label="Ver la foto en grande" title="Ver la foto en grande">
+                <i class="fa fa-search-plus" aria-hidden="true"/>
+            </button>
+        </xpath>
+    </template>
+</odoo>

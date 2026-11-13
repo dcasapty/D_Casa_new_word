@@ -1,8 +1,10 @@
 import json
+from urllib.parse import urlencode
 
 from odoo import http
 from odoo.addons.account.controllers.terms import TermsController
 from odoo.addons.dcasa_base.models.codigo_publico import normalizar_codigo_publico
+from odoo.addons.website.controllers.main import Website
 from odoo.addons.website_dcasa.models.black_weekend import RUTA as RUTA_BLACK_WEEKEND
 from odoo.addons.website_dcasa.models.website import LATITUD, LONGITUD
 from odoo.addons.website_sale.controllers.main import WebsiteSale
@@ -160,6 +162,14 @@ class DcasaTienda(http.Controller):
         carrito._cart_add(product_id=variante.id, quantity=1)
         return request.redirect('/shop/cart')
 
+    @http.route(['/catalogo', '/tienda'], type='http', auth='public', website=True, sitemap=False)
+    def catalogo(self, **kwargs):
+        """Direcciones que la gente escribe o comparte («dcasapty.com/catalogo»): llevan al catálogo para siempre (301).
+        Lo que traiga después del «?» (una búsqueda, una campaña) se conserva. Solo a /shop: no es una redirección
+        abierta."""
+        consulta = request.httprequest.query_string.decode('utf-8', 'replace')
+        return request.redirect(f'/shop?{consulta}' if consulta else '/shop', code=301, local=True)
+
     @http.route('/codigo/<string:codigo>', type='http', auth='public', website=True, sitemap=False)
     def producto_por_codigo(self, codigo, **kwargs):
         """Lo que abre el QR de un producto: ``/codigo/DC-K7M4PX`` lleva a su ficha en la tienda.
@@ -212,6 +222,20 @@ class DcasaTienda(http.Controller):
         """
         url = request.website._dcasa_whatsapp_url((texto or '')[:300])
         return request.redirect(url, code=302, local=url.startswith('/'))
+
+
+class BuscadorDcasa(Website):
+    """La búsqueda general de Odoo (``/website/search``: una lista con fotos chiquitas y «Especifique un término de
+    búsqueda») lleva al catálogo, que se ve como la tienda: fotos grandes, precio con «+ ITBMS» y el mismo botón de
+    agregar. La cabecera ya busca ahí (views/buscador_templates.xml); esto cubre los enlaces viejos. Lo que busca otra
+    cosa que productos (``/website/search/<tipo>``) sigue como en Odoo."""
+
+    @http.route()
+    def hybrid_list(self, page=1, search='', search_type='all', **kw):
+        if search_type in ('all', 'products'):
+            termino = (search or '').strip()[:100]
+            return request.redirect('/shop?' + urlencode({'search': termino}) if termino else '/shop', code=302)
+        return super().hybrid_list(page=page, search=search, search_type=search_type, **kw)
 
 
 class TerminosDcasa(TermsController):
