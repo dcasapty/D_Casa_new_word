@@ -19,14 +19,23 @@
     dd { margin: 0; }
 }
 
-// Ficha: «Disponible», «Quedan pocas» o «Agotado» (models/product.py). Plano, con los colores de la marca: el
-// amarillo solo va sobre navy (regla del ADN: el amarillo nunca toca el blanco).
+// Ficha: «Disponible», «Quedan pocas» o «Agotado» (models/product.py), en la misma línea del precio, a la derecha de
+// «+ ITBMS»; si no cabe, baja justo debajo. Así se ve al abrir la ficha en el celular, sin bajar. Plano, con los
+// colores de la marca: el amarillo solo va sobre navy (regla del ADN: el amarillo nunca toca el blanco).
+.o_wsale_product_details_content_section_price:has(.o_dcasa_disponibilidad) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: .75rem;
+    row-gap: .5rem;
+}
+
 .o_dcasa_disponibilidad {
     display: flex;
     width: fit-content;
     align-items: center;
     gap: .5rem;
-    margin: .75rem 0 0;
+    margin: 0;
     padding: .3rem .85rem;
     border-radius: 999px;
     font-family: 'Oswald', sans-serif;

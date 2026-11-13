@@ -1467,10 +1467,60 @@ $dcasa-foto-fondo: #EEEDEA;
         padding-bottom: 5.5rem;
     }
 
+    // Al abrir la ficha, el precio y la disponibilidad se ven sin bajar y sin que los tape la barra fija (lote 1 de la
+    // web): menos aire arriba de la foto (las migas) y entre la foto, el nombre, el código y el precio.
+    #product_detail .o_wsale_content_contained:has(.o_wsale_breadcrumb) {
+        padding-top: .25rem !important;
+        padding-bottom: .25rem !important;
+    }
+
+    #product_detail #o-carousel-product {
+        margin-bottom: .5rem !important;
+    }
+
+    #product_detail #product_details {
+        padding-top: .5rem !important;
+    }
+
+    #product_detail .o_wsale_product_details_content_section_title {
+        margin-bottom: .625rem !important;
+
+        h1 {
+            margin-bottom: .375rem !important;
+        }
+    }
+
+    #product_detail .o_dcasa_codigo_publico {
+        margin-bottom: .5rem;
+    }
+
     // En la ficha ya hay «Pregunta por este mueble por WhatsApp»: dos botones de WhatsApp
     // chocarían con la barra fija.
     body:has(#product_detail) .o_dcasa_wa_float {
         display: none;
+    }
+}
+
+// Celular angosto (360 px): la barra fija en una sola fila (cantidad y «Agregar al carrito», sin el ícono del carrito).
+// En dos filas medía 127 px y tapaba el precio y la disponibilidad al abrir la ficha.
+@media (max-width: 389.98px) {
+    #product_detail #o_wsale_cta_wrapper > div:first-child {
+        flex-wrap: nowrap !important;
+    }
+
+    #product_detail #o_wsale_cta_wrapper .css_quantity {
+        flex: none;
+    }
+
+    #product_detail #o_wsale_cta_wrapper #add_to_cart {
+        flex: 1 1 auto;
+        min-width: 0;
+        padding-inline: .5rem;
+        white-space: nowrap;
+
+        .fa {
+            display: none;
+        }
     }
 }
 
