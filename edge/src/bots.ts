@@ -7,7 +7,7 @@
  *    Googlebot, Bingbot ni los previsualizadores de WhatsApp/Facebook/Telegram: el sitio vive
  *    de SEO y de compartir enlaces. Tampoco las librerías HTTP genéricas (python, curl, node):
  *    las usan Brian por MCP, Telegram y las integraciones.
- * 3. Límite de intentos por IP en los POST sensibles (login, clave, registro, formularios,
+ * 3. Límite de intentos por conexión (la IPv4, o la red /64 de una IPv6) en los POST sensibles (login, clave, registro, formularios,
  *    carrito, «Busca con una foto»): 429 con Retry-After (la foto: de vuelta a /shop/foto con el
  *    aviso de la tienda, sin errores feos). Usa el binding de Rate Limiting de Workers si existe
  *    (wrangler.jsonc, hoy comentado) y si no, un contador en memoria del isolate (aproximado:
@@ -162,6 +162,52 @@ export class LimitadorMemoria implements Limitador {
   }
 }
 
+/**
+ * La llave de una conexión para el freno: la IPv4 entera, o la red /64 de una IPv6 (a una conexión IPv6 le dan una /64
+ * entera: cambiar de dirección dentro de ella no da intentos nuevos). Una IPv4 mapeada (`::ffff:a.b.c.d`) es su IPv4.
+ * Lo mismo hace Odoo (`llave_ip`, addons/dcasa_base/red.py). Lo que no se entiende se usa tal cual.
+ */
+export function llaveDeIp(ip: string): string {
+  const limpia = ip.trim().toLowerCase().replace(/%.*$/, "");
+  if (!limpia.includes(":")) return limpia;
+  const h = hextetos(limpia);
+  if (!h) return limpia;
+  if (h.slice(0, 5).every((x) => x === 0) && h[5] === 0xffff) {
+    return [h[6] >> 8, h[6] & 0xff, h[7] >> 8, h[7] & 0xff].join(".");
+  }
+  return `${h.slice(0, 4).map((x) => x.toString(16)).join(":")}::/64`;
+}
+
+/** Los 8 grupos de 16 bits de una IPv6 escrita (con `::` y con IPv4 al final), o null si no es una IPv6. */
+function hextetos(ip: string): number[] | null {
+  const mitades = ip.split("::");
+  if (mitades.length > 2) return null;
+  const leer = (texto: string, admiteIpv4: boolean): number[] | null => {
+    if (texto === "") return [];
+    const trozos = texto.split(":");
+    const grupos: number[] = [];
+    for (const [i, trozo] of trozos.entries()) {
+      if (admiteIpv4 && i === trozos.length - 1 && trozo.includes(".")) {
+        const octetos = trozo.split(".");
+        if (octetos.length !== 4 || !octetos.every((o) => /^\d{1,3}$/.test(o) && Number(o) <= 255)) return null;
+        const [a, b, c, d] = octetos.map(Number);
+        grupos.push((a << 8) | b, (c << 8) | d);
+      } else if (/^[0-9a-f]{1,4}$/.test(trozo)) {
+        grupos.push(parseInt(trozo, 16));
+      } else {
+        return null;
+      }
+    }
+    return grupos;
+  };
+  const izquierda = leer(mitades[0], mitades.length === 1);
+  const derecha = mitades.length === 2 ? leer(mitades[1], true) : [];
+  if (!izquierda || !derecha) return null;
+  if (mitades.length === 1) return izquierda.length === 8 ? izquierda : null;
+  const ceros = 8 - izquierda.length - derecha.length;
+  return ceros >= 1 ? [...izquierda, ...new Array<number>(ceros).fill(0), ...derecha] : null;
+}
+
 const enMemoria: Record<Cubeta, LimitadorMemoria> = {
   acceso: new LimitadorMemoria(LIMITES.acceso),
   formulario: new LimitadorMemoria(LIMITES.formulario),
@@ -209,7 +255,7 @@ export async function filtrarAutomatizados(
   if (!cubeta || !ip) return null;
   const limitador = limitadores[cubeta] ?? enMemoria[cubeta];
   try {
-    const { success } = await limitador.limit({ key: `${cubeta}:${ip}` });
+    const { success } = await limitador.limit({ key: `${cubeta}:${llaveDeIp(ip)}` });
     if (success) return null;
   } catch (error) {
     // Si el limitador falla, se deja pasar: Odoo tiene su propio bloqueo por intentos.
