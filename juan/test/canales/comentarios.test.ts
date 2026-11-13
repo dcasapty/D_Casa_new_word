@@ -355,4 +355,17 @@ describe("solo los comentarios de D'CASA (revisión del 2026-11-13)", () => {
     expect(r.respuesta.status).toBe(200);
     expect(r.entrantes.map((e) => (e.comentario ? "comentario" : e.id_mensaje))).toEqual(["m.1"]);
   });
+
+  it("/webhooks/meta: sin permiso para ver su Instagram, al menos la página: sus comentarios de Facebook entran", async () => {
+    const ahora = Math.floor(Date.now() / 1000);
+    const { adaptador, llamadas } = graphFalso((c) => {
+      const u = new URL(c.url);
+      if (u.searchParams.get("fields") === "id,instagram_business_account{id,username}") return Response.json({ error: { message: "sin permiso", code: 10 } }, { status: 403 });
+      if (u.pathname.endsWith("/me") && u.searchParams.get("fields") === "id") return Response.json({ id: PAGINA });
+      return undefined;
+    });
+    const r = await adaptador.recibir(await firmado(deFacebook({ created_time: ahora }), SECRETO_FB, "/webhooks/meta"), envPagina);
+    expect(r.entrantes.map((e) => e.comentario?.red)).toEqual(["facebook"]);
+    expect(llamadas.filter((l) => new URL(l.url).pathname.endsWith("/me"))).toHaveLength(2);
+  });
 });

@@ -75,11 +75,16 @@ export function crearMeta(op: OpcionesMeta = {}): AdaptadorCanal {
     if (!llave) return null;
     if (cuentas && cuentas.llave === llave && cuentas.hasta > ahora()) return cuentas.valor;
     let valor: CuentasDeLaPagina | null = null;
-    try {
-      const r = await f(urlGraph(env, "me?fields=id,instagram_business_account{id,username}"), { headers: { authorization: `Bearer ${llave}` } });
+    const preguntar = async (campos: string) => {
+      const r = await f(urlGraph(env, `me?fields=${campos}`), { headers: { authorization: `Bearer ${llave}` } });
       const j = (await r.json().catch(() => null)) as { id?: unknown; instagram_business_account?: { id?: unknown; username?: unknown } } | null;
-      const id = typeof j?.id === "string" ? j.id : "";
-      if (r.ok && ID_DE_CUENTA.test(id)) {
+      return { r, j, id: r.ok && typeof j?.id === "string" && ID_DE_CUENTA.test(j.id) ? j.id : "" };
+    };
+    try {
+      let { r, j, id } = await preguntar("id,instagram_business_account{id,username}");
+      // Sin permiso para ver su Instagram, Meta rechaza la consulta entera: al menos la página (sus comentarios de Facebook).
+      if (!id) ({ r, j, id } = await preguntar("id"));
+      if (id) {
         const ig = j?.instagram_business_account;
         const igId = typeof ig?.id === "string" && ID_DE_CUENTA.test(ig.id) ? ig.id : "";
         const usuario = typeof ig?.username === "string" && /^[A-Za-z0-9._]{1,30}$/.test(ig.username) ? ig.username : undefined;
