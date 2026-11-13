@@ -7,6 +7,7 @@ from unittest.mock import patch
 from freezegun import freeze_time
 
 from odoo.tests import tagged
+from odoo.tools import mute_logger
 
 from ..models import conversacion_noche
 from .test_avisos_noche import APERTURA, COMPROBANTE, NOCHE, NocheCase
@@ -214,7 +215,8 @@ class TestRevision2Rescate(NocheCase):
         conv.sudo().asignada_a = self.beto
         conv._pasar_a_vendedora('Es cliente de Beto')
         self.vence_la_pausa()
-        with patch.object(type(self.Conversacion), '_avisar_lo_de_la_noche', side_effect=RuntimeError('falla')):
+        with patch.object(type(self.Conversacion), '_avisar_lo_de_la_noche', side_effect=RuntimeError('falla')), \
+                mute_logger('odoo.addons.dcasa_conversaciones.models.reparto'):   # el fallo va al log, a propósito
             for minutos in (0, 30, 60, 120):
                 self.abrir(self.vendedora, self.beto, minutos=minutos)
         self.assertNotEqual(conv.asignada_a, self.beto, 'Dos horas sin aviso a nadie y nadie lo rescató')
