@@ -10,10 +10,10 @@ LEEME_PRIMERO §2).
 ## Estado al 2026-11-13
 
 - **Producción funciona desde el 2026-10-13** y **`dcasapty.com` (y `www`) apunta al sistema nuevo desde el
-  2026-10-27** (Desplegar 31). Odoo y el borde: **Desplegar 69** (13 nov, PR #115: Juan ya no dice «no lo manejamos» de lo que no está publicado; antes, Desplegar 68, PR #113: Juan cotiza envíos con la promoción, reparto justo y Costos de IA con «Pagar»; antes, Desplegar 67, PR #112: el modo oscuro; el 11 nov, Desplegar 66 con
+  2026-10-27** (Desplegar 31). Odoo y el borde: **Desplegar 70** (13 nov, PR #116: comentarios de Instagram y Facebook, apagados; antes, Desplegar 69, PR #115: Juan ya no dice «no lo manejamos» de lo que no está publicado; antes, Desplegar 68, PR #113: Juan cotiza envíos con la promoción, reparto justo y Costos de IA con «Pagar»; antes, Desplegar 67, PR #112: el modo oscuro; el 11 nov, Desplegar 66 con
   entregas igual que Bodega y «Más datos», y antes, Desplegar 65 con el Inicio nuevo, el celular al entrar y la caja del chat, y Desplegar 64 con
   los 21 arreglos de la auditoría visual). Juan: **Desplegar
-  Juan 23** (13 nov, PR #115; Juan 22 trajo la segunda puerta de Instagram, apagada). La **versión estable 4** es la anterior (Desplegar 63 + Juan 20)
+  Juan 24** (13 nov, PR #116; Juan 23 trajo «no lo manejamos» y Juan 22 la segunda puerta de Instagram, apagada). La **versión estable 4** es la anterior (Desplegar 63 + Juan 20)
   ([VERSIONES_ESTABLES.md](VERSIONES_ESTABLES.md)). El contenedor instala 30 de los 31 módulos de `addons/` (todos
   menos `dcasa_fe_pa`, a propósito).
 - **⚠ Messenger e Instagram NO les llegan a los clientes (descubierto el 2026-11-12):** solo a cuentas con papel en la
@@ -40,11 +40,17 @@ LEEME_PRIMERO §2).
       (según Meta, si la app solo sirve la cuenta propia basta el acceso estándar, sin revisión; hay fuentes que dicen
       lo contrario y el amigo de la dueña lo logró así con otro cliente). Pide en Juan una segunda llave (`IG…`, se
       renueva cada 60 días) y la clave secreta de la app de Instagram. Si no alcanza, va en la misma revisión de la app.
-    - **Comentarios** (la dueña preguntó si se pueden responder): sí, con respuesta pública y una respuesta privada por
-      comentario (7 días); hay que construirlo y pedir sus permisos (`pages_manage_engagement`,
-      `instagram_manage_comments` / `instagram_business_manage_comments`) en la misma revisión.
-0. **Envíos de Juan, reparto justo de chats y Costos de IA con «Pagar»** (2026-11-12): ver la bitácora. Falta de la
-   dueña: revisar en Envíos › Lugares (filtro «Por revisar (Gerencia)») los lugares agregados a mano, para que Juan
+      **En producción desde Juan 22, apagada:** falta que el jefe siga JUAN_CANALES §3b y pruebe con una cuenta SIN papel.
+    - **Comentarios: en producción desde Desplegar 70 y Juan 24, apagados** (JUAN_CANALES §3c). Los avisos de
+      comentarios piden acceso avanzado por las dos puertas (también por inicio de sesión de Instagram): hasta la
+      revisión de la app solo llegan los de cuentas con papel. Falta: que el jefe marque `feed` (página) y `comments`
+      (Instagram) en la app; que la dueña los encienda y pruebe con su cuenta; pedir `pages_manage_engagement`,
+      `pages_read_engagement`, `pages_read_user_content` e `instagram_manage_comments` /
+      `instagram_business_manage_comments` en la misma revisión que Messenger.
+    - **Paquete para la revisión de Meta** (textos de cada permiso y guion del video): ofrecido a la dueña el
+      2026-11-13; base en el borrador de permisos de la sesión y JUAN_CANALES paso 9.
+0. **Envíos de Juan, reparto justo de chats y Costos de IA con «Pagar»** (2026-11-12): ver la bitácora. (Los colchones
+   ya están publicados, 2026-11-13.) Falta de la dueña: revisar en Envíos › Lugares (filtro «Por revisar (Gerencia)») los lugares agregados a mano, para que Juan
    dé su precio; archivar la nota de la promoción de noviembre en el Conocimiento el 1 de diciembre; preguntar a la
    contadora si el envío lleva ITBMS.
 

@@ -437,6 +437,13 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   (271) pasaban de 260 letras. **Lección:** toda herramienta `juan_*` y de Brian cuenta para ese tope; al alargar una
   descripción, correr ese test antes del CI. Luego **Desplegar Juan 23** (run 43358329275, 03:22 UTC) para el Worker
   (regla 2 del prompt y la guardia `niega_producto`). Bien al primer intento.
+- **Desplegar 70** (13 nov, 04:29–04:45 UTC; salud sana; run 43365883978) · PR #116, squash `24493be`, `app_version`
+  `70ac6f349a9e8be6f2939f063360de1031272fc9`, imagen `sha256:7c1a9d4c…`, CI 347 con staging (run 43358982543). Los
+  comentarios de Instagram y Facebook, apagados; con respaldo previo. Luego **Desplegar Juan 24** (run 43367600509, 04:47
+  UTC). Bien al primer intento (staging despierto antes del CI con tres `curl …/web/login`). **Lección:** antes de dar por
+  hecho que algo de Meta «no anda» o «sí anda», leer la documentación del campo: los avisos de comentarios piden acceso
+  avanzado por las dos puertas (página e inicio de sesión de Instagram). Y al contar resultados en HTML, no fiarse de un
+  atributo (`itemprop="name"`) cuyo orden cambia: contar la tarjeta (`oe_product_cart`).
 - **Versión estable 4 ensayada en staging** (11 nov, 03:16–03:40 UTC, run 42951600639 de «Volver a una versión
   estable», lanzado desde la rama de trabajo: el botón solo exige `main` para producción). Estable 4 = imagen de
   Desplegar 63 (`acda72c1…`, `app_version` `3e2ccfc`) + Juan hasta Desplegar Juan 20. Bien al primer intento.
