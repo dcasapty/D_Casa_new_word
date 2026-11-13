@@ -203,11 +203,24 @@ class TestCotizarApagada(CotizarCase):
 class TestCotizarProductos(CotizarCase):
 
     def test_un_producto_sin_publicar_o_que_no_existe_no_se_cotiza(self):
-        for codigo in ('ZZ-SECRETO', 'NO-EXISTE'):
+        for codigo, motivo in (('ZZ-SECRETO', 'sin_publicar'), ('NO-EXISTE', 'producto_no_encontrado')):
             with self.subTest(codigo=codigo):
                 datos = self.cotizar({'codigo': codigo})
-                self.assertEqual((datos['creada'], datos['motivo']), (False, 'producto_no_encontrado'))
+                self.assertEqual((datos['creada'], datos['motivo']), (False, motivo))
                 self.assertIn(codigo, datos['mensaje'])
+                self.assertNotIn('si no aparece, no lo manejamos', datos['mensaje'])
+        self.assertFalse(self.ordenes())
+
+    def test_lo_que_se_vende_sin_estar_publicado_se_pasa_a_una_vendedora_sin_precio(self):
+        """Incidente del 2026-11-13: no se cotiza (su precio no está revisado para clientes), pero tampoco se niega."""
+        datos = self.cotizar({'codigo': self.secreto.dcasa_codigo_publico})
+        self.assertEqual((datos['creada'], datos['motivo']), (False, 'sin_publicar'))
+        self.assertIn('SÍ trabajamos', datos['mensaje'])
+        self.assertIn('pasar_a_vendedora', datos['mensaje'])
+        self.assertIn(self.secreto.dcasa_codigo_publico, datos['motivo_para_la_vendedora'])
+        texto = json.dumps(datos, ensure_ascii=False)
+        for dato in ('Zzsecreto', 'Borrador', '10.0', '$10', 'cotizacion'):
+            self.assertNotIn(dato, texto)
         self.assertFalse(self.ordenes())
 
     def test_si_una_linea_no_vale_no_se_arma_ninguna(self):

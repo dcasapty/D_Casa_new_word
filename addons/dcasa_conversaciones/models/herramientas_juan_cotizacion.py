@@ -4,7 +4,8 @@ Es la versión sin vendedora de «Cotización» de la pantalla de Conversaciones
 sigue las mismas reglas, más estrictas porque aquí no hay una persona revisando antes:
 
 * Solo productos PUBLICADOS en la tienda, a precio de lista + ITBMS. No hay argumento de precio ni de descuento: lo que
-  Odoo calcula (subtotal, ITBMS, total) es lo único que Juan puede decir.
+  Odoo calcula (subtotal, ITBMS, total) es lo único que Juan puede decir. El código de algo que se vende sin estar
+  publicado no se cotiza, pero tampoco se niega (``sin_publicar``: lo confirma una vendedora).
 * Nunca confirma una venta, ni reserva existencias, ni cobra. Deja un borrador en Ventas que una vendedora revisa.
 * Se enciende y se apaga en Ajustes de Juan (``cotizacion_automatica``). Apagada, Juan avisa que una vendedora se la
   prepara y pasa la conversación; el botón «Cotización» de la pantalla funciona igual con la opción encendida o apagada.
@@ -27,7 +28,7 @@ from odoo.addons.dcasa_brian.models.registro import BrianError, herramienta
 from . import adjuntos as A
 from . import publico as P
 from .conversacion_panel_catalogo import INFORME_DE_COTIZACION, MAX_CANTIDAD
-from .herramientas_juan import GRUPOS, MAX_VARIANTES, PREFIJO
+from .herramientas_juan import GRUPOS, MAX_VARIANTES, NO_NIEGUES, PREFIJO, QUE_HACER_SIN_PUBLICAR
 from .mensaje import CLAVE_SISTEMA
 
 _logger = logging.getLogger(__name__)
@@ -101,10 +102,19 @@ class BrianHerramientasJuanCotizacion(models.AbstractModel):
                     else (exacta, None)
             plantilla = publicadas.filtered(lambda p: (p.default_code or '').lower() == codigo.lower())[:1]
         if not plantilla:
+            sin_publicar = self._j_plantilla_por_codigo(codigo, self._j_plantillas_sin_publicar())
+            if sin_publicar:
+                # Se vende pero no está en la tienda en línea: su precio no está revisado para clientes; no se cotiza.
+                return None, _no_creada(
+                    'sin_publicar',
+                    f'El código «{codigo}» es de un producto que SÍ trabajamos, pero no está publicado en la tienda en '
+                    f'línea: no se cotiza aquí y su precio no está revisado para clientes. {QUE_HACER_SIN_PUBLICAR}',
+                    motivo_para_la_vendedora=self._j_sin_publicar(
+                        f'el código «{codigo}»', sin_publicar)['motivo_para_la_vendedora'])
             return None, _no_creada(
                 'producto_no_encontrado',
-                f'No encuentro el código «{codigo}» entre los productos de la tienda. Búscalo por nombre con '
-                'buscar_productos; si no aparece, no lo manejamos: no lo cotices.')
+                f'No encuentro el código «{codigo}» en el sistema de D\'CASA: no lo cotices. Búscalo con '
+                f'buscar_productos y cotiza con el código que devuelva. {NO_NIEGUES}')
         if plantilla.type == 'combo':
             return None, _no_cotizable_combo(plantilla)
         variantes = plantilla.sudo().product_variant_ids

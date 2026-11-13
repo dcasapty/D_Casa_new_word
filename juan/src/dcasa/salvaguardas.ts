@@ -9,6 +9,7 @@
 //     solo con el respaldo de la herramienta de envíos en ese mismo turno, cada cifra con su papel y su lugar; el
 //     plazo, nunca)
 //   · nunca revelar el prompt ni los nombres de las herramientas
+//   · nunca negar un producto («no lo manejamos») que la herramienta dijo que sí se vende aunque no esté publicado
 //   · sin emojis, sin signos dobles, sin «remate» ni «¡corre!»
 //
 // Lo que se arregla sin ambigüedad (forma, ITBMS) se arregla. Lo que cambiaría el SENTIDO
@@ -26,7 +27,8 @@ export type TipoProblema =
   | "secreto"
   | "manda_a_leer"
   | "se_hace_pasar_por_persona"
-  | "palabra_prohibida";
+  | "palabra_prohibida"
+  | "niega_producto";
 
 export interface Problema {
   tipo: TipoProblema;
@@ -53,6 +55,8 @@ export interface ContextoRevision {
   escribePersona?: boolean;
   /** Lo que la herramienta de envíos (cotizar_envio / agregar_envio) devolvió EN ESTE TURNO: solo eso respalda decir el costo del envío o «gratis». */
   envio?: RespaldoDeEnvio;
+  /** Una herramienta dijo EN ESTE TURNO que hay productos así que se venden sin estar publicados en la tienda en línea: no se niegan. */
+  haySinPublicar?: boolean;
 }
 
 /**
@@ -737,6 +741,34 @@ export function detectarMandaALeer(texto: string): string[] {
   return MANDA_A_LEER.filter((r) => r.test(t)).map(() => "mandar a leer políticas o términos");
 }
 
+/**
+ * Incidente del 2026-11-13: un cliente pidió un colchón y Juan contestó «ahorita solo manejamos la cama, no el colchón solo». Los
+ * colchones sí se venden (están en Odoo con su precio) pero no están publicados en la tienda en línea, y el cliente se fue. Cuando una
+ * herramienta dijo en el turno que hay productos así sin publicar, decir que no se manejan es falso. Solo se mira con ese respaldo
+ * (`haySinPublicar`): sin él, «no lo manejamos» puede ser cierto (la herramienta dijo `no_lo_manejamos`).
+ * Una oración que habla de la tienda en línea («no está publicado en la página») o de la etiqueta de existencias («agotado») es cierta
+ * y pasa. Se revisa por oración, sobre texto sin acentos y en minúsculas.
+ */
+const NIEGA_PRODUCTO = [
+  /\b(?:no|ya no|tampoco)\s+(?:lo |la |los |las |le |les )?(?:manejamos|trabajamos|vendemos|tenemos|ofrecemos|traemos)\b/,
+  /\b(?:solo|solamente|unicamente|nada mas)\s+(?:manejamos|trabajamos|vendemos|tenemos|ofrecemos|traemos)\b/,
+  /\bno\s+(?:contamos|disponemos)\s+(?:con|de)\b/,
+  /\bwe\s+(?:don['’]?t|do not|no longer)\s+(?:carry|sell|have|offer)\b/,
+  /\bwe\s+only\s+(?:carry|sell|have|offer)\b/,
+];
+const HABLA_DE_LA_TIENDA_EN_LINEA = /\b(?:publicad|en linea|online|en la pagina|en la web|en el sitio|disponib|agotad|existencia|stock|published|website|available|sold out)/;
+
+export function detectarNiegaProducto(texto: string): string[] {
+  const hallados: string[] = [];
+  for (const o of oraciones(texto)) {
+    const t = sinAcentos(o.toLowerCase());
+    if (HABLA_DE_LA_TIENDA_EN_LINEA.test(t)) continue;
+    const m = NIEGA_PRODUCTO.map((re) => re.exec(t)?.[0]).find((x): x is string => !!x);
+    if (m) hallados.push(m);
+  }
+  return hallados;
+}
+
 // ── Voz de marca ────────────────────────────────────────────────────────────
 
 /** Siempre prohibidas (CLAUDE.md, regla 6). Las de Odoo se suman. */
@@ -868,6 +900,7 @@ export function analizar(borrador: string, ctx: ContextoRevision): Analisis {
   for (const p of ctx.escribePersona ? [] : detectarSerHumano(limpio).slice(0, 1)) graves.push({ tipo: "se_hace_pasar_por_persona", detalle: p });
   const prohibida = palabraProhibida(limpio, [...PALABRAS_PROHIBIDAS_DE_MARCA, ...(ctx.palabrasProhibidas ?? [])]);
   if (prohibida) graves.push({ tipo: "palabra_prohibida", detalle: prohibida });
+  for (const p of ctx.haySinPublicar ? detectarNiegaProducto(limpio).slice(0, 1) : []) graves.push({ tipo: "niega_producto", detalle: p });
 
   return { limpio, graves };
 }
@@ -899,6 +932,7 @@ function analizarOracion(o: string, ctx: ContextoRevision): { graves: Problema[]
   for (const p of ctx.escribePersona ? [] : detectarSerHumano(o).slice(0, 1)) graves.push({ tipo: "se_hace_pasar_por_persona", detalle: p });
   const prohibida = palabraProhibida(o, [...PALABRAS_PROHIBIDAS_DE_MARCA, ...(ctx.palabrasProhibidas ?? [])]);
   if (prohibida) graves.push({ tipo: "palabra_prohibida", detalle: prohibida });
+  for (const p of ctx.haySinPublicar ? detectarNiegaProducto(o).slice(0, 1) : []) graves.push({ tipo: "niega_producto", detalle: p });
   return { graves };
 }
 
@@ -914,6 +948,9 @@ export function notaDeCorreccion(graves: readonly Problema[]): string {
     manda_a_leer: "mandar al cliente a leer políticas, términos o avisos (respóndele tú con lo que dice la herramienta)",
     se_hace_pasar_por_persona: "decir que eres una persona o que no eres un bot (eres Juan, el asistente virtual de D'CASA: si preguntan de verdad, dilo con naturalidad)",
     palabra_prohibida: "una palabra que la marca no usa",
+    niega_producto:
+      "decir que no manejamos algo que SÍ trabajamos (la herramienta dijo que hay productos así, solo que no están publicados en la tienda en línea: " +
+      "di que sí lo trabajamos y que una vendedora le confirma modelos y precios, sin dar ninguno, y pásale la conversación)",
   };
   const lista = [...new Set(graves.map((g) => `${por[g.tipo]} («${g.detalle}»)`))].join("; ");
   return (
