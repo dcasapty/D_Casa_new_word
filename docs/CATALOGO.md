@@ -516,3 +516,50 @@ Pruebas: `website_dcasa/tests/test_buscador.py` (reglas, Google, mapa del sitio,
 resultados, carrito, foto, sitio para botones), `test_buscador_movil.py` (en Chrome como teléfono a 360, 390 y 430 px:
 la lupa junto al carrito sin romper la cabecera y los gestos del visor), `dcasa_catalogo/tests/test_disponibilidad_ficha.py`
 y `dcasa_base/tests/test_disponibilidad.py`; en el borde, `edge/test/paginas.test.ts`.
+
+## Visítanos: horario y mapa, y opiniones de los productos
+
+Lote 2 de la web, aprobado por la dueña el 2026-11-13. Capturas (Odoo local con datos de prueba, 390 y 1366 px) para su
+visto bueno antes de producción.
+
+* **Horario en Visítanos.** Una tabla de días y horas («Lunes a sábado · 9:00 a. m. a 6:00 p. m.», «Domingo · 9:00 a. m.
+  a 5:00 p. m.») y una línea corta en el pie de todas las páginas. Sale de **un solo lugar**: el horario de los
+  **Ajustes de Juan** (`horario_inicio`, `horario_fin`, `horario_fin_domingo` y los días; el mismo que usa Juan).
+  `website_dcasa` no depende de `dcasa_conversaciones`: deja el gancho `website._dcasa_horario_tienda()`
+  (`website_dcasa/models/horario_tienda.py`, vacío = no se muestra nada, no se inventa) y `dcasa_conversaciones` lo
+  llena (`models/horario_sitio.py`). Un día apagado sale «Cerrado»; un domingo sin hora propia se junta con la semana.
+  **No hay feriados**: no se inventan. La migración `dcasa_conversaciones` 19.0.1.5.0 pone el horario que dio la dueña
+  solo si los ajustes seguían con los de fábrica (8 a 17 todos los días); si alguien ya puso otro, no se toca. Ojo: es
+  también el horario laboral de Juan (seguimientos, avisos y reparto se mueven con él). Al cambiarlo, el borde renueva
+  las páginas ([OPERACION.md](OPERACION.md#tienda-rápida-caché-de-páginas-en-el-borde)).
+* **El mapa de Google solo con permiso.** Visítanos ya no carga el `<iframe>` de Google al abrir (Google guarda cookies).
+  Trae un recuadro «El mapa es de Google y puede guardar cookies en tu navegador» con **«Ver el mapa»**. El mapa se carga
+  solo si quien visita ya aceptó las cookies opcionales en el aviso del sitio (la cookie `website_cookies_bar` con
+  `optional: true`, lo mismo que mira el píxel de Meta en `dcasa_meta_eventos`), si las acepta después en el aviso o si
+  toca el botón. La decisión la toma el navegador (`website_dcasa/static/src/js/mapa.js`) porque la página la guarda el
+  borde y es la misma para todos. «Abrir la ruta en Google Maps» (con `LATITUD` y `LONGITUD`) sigue igual.
+* **Opiniones de los productos: reales y aprobadas.** Modelo propio pequeño, `dcasa.resena`
+  (`website_dcasa/models/resena.py`); las calificaciones de Odoo («Discusión y valoración») siguen apagadas.
+  * **Quién opina:** el cliente con sesión en **Mi cuenta › Tus opiniones** (`/mi-cuenta/opiniones`), solo de un producto
+    que está en una factura suya publicada y **pagada por completo** (`payment_state` «paid» o «in_payment»; un abono a
+    medias no), que se ve en la tienda y que no sea un servicio (el flete). Una opinión por cliente y producto. Estrellas
+    de 1 a 5 y texto opcional de hasta 1,000 letras. El anónimo no opina; quien no compró, tampoco.
+  * **Invitación:** en el correo de la factura **pagada por completo** (`dcasa_correo`, plantilla `plantilla_factura`,
+    rama «pagada»): «¿Qué tal tu compra? Cuéntanos en Mi cuenta › Tus opiniones», solo si de esa factura le queda algo
+    por opinar. Nunca en el correo de un abono. Además, Mi cuenta lo ofrece en el Inicio («¿Qué tal tu compra?») y en
+    Compras.
+  * **Aprobar:** **Ventas › Hoy › Opiniones por aprobar** (Gerencia y administradores; en la Guía, «Publicar las
+    opiniones que dejaron los clientes»): «Publicar» o «No publicar». Nadie las crea ni cambia lo que dijo el cliente.
+  * **En la ficha:** debajo del código público, las estrellas con el promedio y cuántas («4.5 · 2 opiniones»), que
+    llevan a la sección «Opiniones de quienes lo compraron» (primer nombre e inicial del apellido, estrellas, mes y
+    texto; hasta 20, de la más reciente). Solo las publicadas: **cero publicadas = no sale nada**.
+  * **Google:** `aggregateRating` (promedio, cuántas, de 1 a 5) en los datos de la ficha solo con las publicadas; sin
+    ninguna, no va. Se quita siempre el de Odoo.
+  * **El borde:** publicar, esconder o borrar una publicada renueva esa ficha.
+
+Pruebas: `website_dcasa/tests/test_visitanos.py` (horario, pie, el mapa en Chrome sin permiso, con «Solo las
+necesarias», al tocar, con cookies aceptadas y al aceptar el aviso: sin permiso el navegador no le pide nada a Google),
+`dcasa_conversaciones/tests/test_horario_sitio.py`, `website_dcasa/tests/test_resenas.py` (quién opina, permisos: un
+portal que no compró no opina, un portal o una vendedora no aprueban, lo no aprobado no se ve; ficha y
+`aggregateRating`), `dcasa_mi_cuenta/tests/test_opiniones.py` (el formulario como el navegador, con cuenta y con PIN) y
+`dcasa_correo/tests/test_opinar.py` (la invitación).

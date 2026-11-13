@@ -48,6 +48,16 @@ Más abajo: [roles y grupos](#roles-y-grupos-mapa-completo) · [interruptores](#
 | **Envíos › Calculadora** y **Lugares** (ver precios, cotizar por km) y **agregar un lugar que falta** (queda su nombre y, desde 2026-11-12, «Por revisar»: Juan no da su precio hasta que Gerencia lo revise), 2026-11-06 | Sí | Sí | Sí | Sí | Sí |
 | **Envíos:** editar o archivar lugares (los km y la provincia, solo aquí), **«Marcar revisado»** un lugar, cambiar y **aprobar la tarifa**, cargar el archivo de envíos, y **Envíos › Promoción de envío** (2026-11-12) | No | No | No | Sí | Sí |
 | **Envíos › Tarifa › Enlace para choferes** (2026-11-09): ver, encender, copiar y cambiar el enlace secreto de la calculadora de los choferes (que no tienen usuario) | No | No | No | Sí | Sí |
+| **Ventas › Hoy › Opiniones por aprobar** (lote 2 de la web, 2026-11-13): leer las opiniones que dejaron los clientes y **«Publicar»** o **«No publicar»** cada una. Nadie las crea ni cambia lo que dijo el cliente (estrellas, texto); borrar una, solo el administrador | No | No | No | Sí | Sí |
+
+**Opiniones de los productos (cliente, lote 2 de la web).** El cliente opina desde **Mi cuenta › Tus opiniones**
+(`/mi-cuenta/opiniones`, con la cuenta de la tienda o con celular + PIN), **solo** de un producto que está en una factura
+suya publicada y **pagada por completo**, una vez por producto; el anónimo no opina. Ningún usuario portal ni el público
+tiene permiso sobre el modelo `dcasa.resena` (solo lectura para Gerencia y administradores; borrar, solo
+administradores): el sitio lee y guarda con `sudo` después de comprobar la sesión, la compra y el pago
+(`website_dcasa/models/resena.py`). `create` sin `sudo` lanza `AccessError` y `write` sin `sudo` lanza `UserError`
+(ni Gerencia cambia lo que dijo el cliente); «Publicar» y «No publicar» exigen Gerencia o administrador en el servidor.
+Lo que no está publicado no sale en la ficha ni en los datos para Google.
 
 **Rol «Marketing»** (2026-10-22, selector propio «Marketing» en la sección D'CASA de la ficha del usuario; se suma a
 cualquier otro rol): ve la app Marketing **completa, igual que Gerencia y administradores** (todas las secciones y su
