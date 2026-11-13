@@ -48,6 +48,7 @@ from odoo.exceptions import UserError
 
 from . import horario as H
 from .avisos_texto import armar
+from .conversacion import SIN_PEDIDO_DE_NOCHE
 from .transaccion import confirmar
 
 _logger = logging.getLogger(__name__)
@@ -417,8 +418,11 @@ class DcasaReparto(models.Model):
         for conv in esperando:
             if conv.asignada_a and max(conv.reparto_desde, apertura) > limite:
                 continue   # se la dieron hace poco (en minutos de horario): todavía tiene tiempo
-            if conv.asignada_a and conv.aviso_de_noche:
-                continue   # su vendedora (de la noche) se entera al final de esta vuelta: sus minutos cuentan desde ahí
+            if conv.asignada_a and conv.aviso_de_noche and ahora < apertura + timedelta(minutes=2 * minutos):
+                # Su vendedora (de la noche) se entera en la lista de la mañana y sus minutos cuentan desde ahí. Pasado
+                # este rato (dos veces «pasar a otra»), el rescate de siempre: si ese aviso nunca salió, nadie se queda
+                # esperando para siempre.
+                continue
             try:
                 with self.env.cr.savepoint():
                     elegida = self._reasignar_si_nadie_contesta(conv, apertura)
@@ -484,6 +488,9 @@ class DcasaReparto(models.Model):
                             'razon': razon[:300], 'anterior_id': antes.id or False})
         elegida.dcasa_turno = max(self._equipo(hoy).mapped('dcasa_turno') or [0]) + 1
         conv._aviso(razon)
+        if conv.aviso_de_noche and antes:
+            # El rescate de un cliente de la noche (su vendedora nunca supo de él): desde aquí es como de día.
+            conv.write(SIN_PEDIDO_DE_NOCHE)
         if not conv.aviso_de_noche:
             texto = self._texto_de_reasignada(conv, antes, regla, minutos)
             if not conv._avisar_por_telegram(texto, usuarios=elegida, acciones=True):

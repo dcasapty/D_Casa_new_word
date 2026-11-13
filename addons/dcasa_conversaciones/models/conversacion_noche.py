@@ -92,10 +92,10 @@ class DcasaConversacionNoche(models.Model):
 
     def _anotar_archivo_de_noche(self, que):
         """Un comprobante, una cédula o algo que Juan no leyó, de noche: se avisa al abrir (queda lo más importante de
-        lo que mandó)."""
+        lo que mandó). Uno igual de importante que el que ya se avisó (un segundo comprobante) se vuelve a avisar."""
         self.ensure_one()
         actual = self.sudo().archivo_de_noche
-        if PRIORIDAD_DE_ARCHIVO.get(que, 0) > PRIORIDAD_DE_ARCHIVO.get(actual, 0):
+        if PRIORIDAD_DE_ARCHIVO.get(que, 0) >= PRIORIDAD_DE_ARCHIVO.get(actual, 0):
             self.sudo().write({'archivo_de_noche': que, 'archivo_de_noche_avisado': False})
 
     # ------------------------------------------------------------------
@@ -111,8 +111,11 @@ class DcasaConversacionNoche(models.Model):
         reparto (``DIAS_MAXIMOS_DE_ESPERA``), aunque la tienda cierre una semana. Devuelve cuántas volvieron."""
         ahora = fields.Datetime.now()
         antes_de_abrir = self.env['dcasa.reparto']._apertura_de_hoy() - ANTES_DE_ABRIR
+        # Solo los que necesitan algo: los ya puestos en el reparto no ocupan el lote de la vuelta siguiente.
         de_la_noche = self.sudo().search([
             ('aviso_de_noche', '!=', False), ('traspaso_sin_atender_desde', '!=', False), ('estado', '!=', 'cerrada'),
+            '|', '|', '|', ('estado', '=', 'bot'), ('reparto_desde', '=', False),
+            ('reparto_desde', '<', antes_de_abrir), '&', ('pausada_hasta', '!=', False), ('pausada_hasta', '<=', ahora),
         ], order='aviso_de_noche, id', limit=LOTE_DE_LA_MANANA)
         volvieron = 0
         for conv in de_la_noche:
@@ -133,12 +136,15 @@ class DcasaConversacionNoche(models.Model):
     @api.model
     def _soltar_lo_de_la_noche_ajeno(self):
         """Al abrir, el cliente de la noche que ya tenía a alguien sigue con esa persona solo con las reglas del día:
-        es una vendedora del reparto, está disponible (no se marcó «No disponible») y, con «Parejo», lo atendió dentro
-        de los «Días que un cliente sigue con su vendedora». Si no, queda sin dueña y se reparte como de día. Devuelve
+        es una vendedora del reparto, está disponible (no se marcó «No disponible»), con «Parejo» lo atendió dentro de
+        los «Días que un cliente sigue con su vendedora» y VINO: está activa (la regla de «Recibe solo quien usó el
+        sistema hace poco»). Mientras no aparezca, el cliente la espera (sin aviso); si no aparece activa dentro de esos
+        minutos desde la apertura, se suelta. Lo que no cumple queda sin dueña y se reparte como de día. Devuelve
         cuántos soltó."""
         ajustes = self.env['dcasa.juan.ajustes'].obtener()
         Reparto = self.env['dcasa.reparto']
         equipo = Reparto._equipo()
+        plazo = Reparto._apertura_de_hoy() + timedelta(minutes=ajustes.reparto_activa_minutos)
         soltados = 0
         for conv in self.sudo().search([
                 ('aviso_de_noche', '!=', False), ('traspaso_sin_atender_desde', '!=', False),
@@ -147,11 +153,19 @@ class DcasaConversacionNoche(models.Model):
             sigue = duena in equipo and duena.dcasa_disponible
             if sigue and ajustes.reparto_modo == 'parejo':
                 sigue = bool(Reparto._vendedora_de_siempre(conv, duena, ajustes.reparto_dias_misma_vendedora)[0])
+            activa = sigue and bool(Reparto._activas_entre(duena))
+            if sigue and not activa and fields.Datetime.now() >= plazo:
+                sigue = False   # no vino: como de día, no recibe
             if sigue:
+                if activa:
+                    # Lo recibe ella: queda en el libro como «siguió con su vendedora» (cuenta como recibido hoy, y si
+                    # nadie le contesta y pasa a otra, no vuelve a ella en las horas siguientes).
+                    Reparto._anotar(conv, duena, 'misma', self.env._('Sigue con %s: lo tenía de noche y vino.',
+                                                                     duena.name))
                 continue
             conv.asignada_a = False
-            conv._aviso(self.env._('Abrió la tienda: %s no está para recibir a este cliente (no está disponible o no '
-                                   'lo atendió estos días), así que se reparte.', duena.name))
+            conv._aviso(self.env._('Abrió la tienda: %s no está para recibir a este cliente (no vino, no está '
+                                   'disponible o no lo atendió estos días), así que se reparte.', duena.name))
             soltados += 1
         return soltados
 
@@ -203,29 +217,53 @@ class DcasaConversacionNoche(models.Model):
         """``(por_persona, pedidos, archivos, listos, sin_nadie)`` de lo pendiente de la noche (ver
         ``_avisar_lo_de_la_noche``): ``{vendedora: sus clientes}``; los que van a las de siempre como «pide una
         persona»; aquellos cuyo archivo va a las de siempre; los que ya no quedan pendientes después de esta vuelta; y
-        los que esperan turno pero se avisan a todas porque no hay ninguna vendedora disponible."""
+        los que esperan turno pero se avisan a todas porque no hay ninguna vendedora disponible.
+
+        Los que esperan turno se buscan aparte (y solo si les falta algo): nunca ocupan el lote de los que ya tienen a
+        quién avisar."""
         reparte = ajustes.reparto_modo != 'manual' and ajustes.reparto_reasignar_minutos > 0
-        pendientes = self.sudo().search(['|', ('aviso_de_noche', '!=', False), ('archivo_de_noche', '!=', False)],
-                                        order='id', limit=LOTE_DE_LA_MANANA)
+        Reparto = self.env['dcasa.reparto']
         vacio = self.sudo().browse()
-        nadie = bool(reparte and pendientes and not self.env['dcasa.reparto']._disponibles())
+        hay_algo = ['|', ('aviso_de_noche', '!=', False), ('archivo_de_noche', '!=', False)]
+        sin_turno = ['|', '|', '|', ('asignada_a', '!=', False), ('aviso_de_noche', '=', False),
+                     ('traspaso_sin_atender_desde', '=', False), ('estado', '=', 'cerrada')]
+        resto = self.sudo().search(hay_algo + (sin_turno if reparte else []), order='id', limit=LOTE_DE_LA_MANANA)
         por_persona, pedidos, archivos, listos, sin_nadie = {}, vacio, vacio, vacio, vacio
-        for conv in pendientes:
+        for conv in resto:
             espera = conv._espera_a_una_persona() and conv.estado != 'cerrada'
             if conv.archivo_de_noche and not conv.archivo_de_noche_avisado:
                 archivos |= conv
-            if espera and reparte and not conv.asignada_a:
-                # Espera su turno en el reparto: se avisa cuando le toque a alguien (o a todas, si no hay nadie).
-                if nadie and not conv.aviso_de_noche_a_todas:
-                    pedidos |= conv
-                    sin_nadie |= conv
-                continue
-            listos |= conv
             if espera and reparte:
+                if not Reparto._activas_entre(conv.asignada_a):
+                    continue   # su vendedora todavía no vino: el aviso le llega cuando entre (o se suelta)
                 por_persona[conv.asignada_a] = por_persona.get(conv.asignada_a, vacio) | conv
             elif espera:
                 pedidos |= conv
+            listos |= conv
+        if reparte:
+            nadie = self._nadie_para_recibir(ajustes)
+            pendiente = ['&', ('archivo_de_noche', '!=', False), ('archivo_de_noche_avisado', '=', False)]
+            esperan = self.sudo().search([
+                ('aviso_de_noche', '!=', False), ('traspaso_sin_atender_desde', '!=', False),
+                ('estado', '!=', 'cerrada'), ('asignada_a', '=', False),
+                *(['|', ('aviso_de_noche_a_todas', '=', False)] if nadie else []), *pendiente,
+            ], order='id', limit=LOTE_DE_LA_MANANA)
+            for conv in esperan:
+                if conv.archivo_de_noche and not conv.archivo_de_noche_avisado:
+                    archivos |= conv
+                if nadie and not conv.aviso_de_noche_a_todas:
+                    pedidos |= conv
+                    sin_nadie |= conv
         return por_persona, pedidos, archivos, listos, sin_nadie
+
+    @api.model
+    def _nadie_para_recibir(self, ajustes):
+        """¿Al abrir no hay ninguna vendedora para recibir, ya pasado el plazo para que lleguen
+        (``reparto_activa_minutos`` desde la apertura)? Una mañana normal (las vendedoras entran a los pocos minutos) no
+        es un aviso a todas."""
+        Reparto = self.env['dcasa.reparto']
+        plazo = Reparto._apertura_de_hoy() + timedelta(minutes=ajustes.reparto_activa_minutos)
+        return fields.Datetime.now() >= plazo and not Reparto._disponibles()
 
     def _aviso_de_la_manana(self, usuario, pedidos=None):
         """Un solo mensaje para ``usuario`` (o, sin él, para las personas de siempre) con estos clientes de la noche. Si

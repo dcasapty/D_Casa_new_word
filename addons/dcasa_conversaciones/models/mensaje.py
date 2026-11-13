@@ -134,6 +134,12 @@ class DcasaMensaje(models.Model):
         help='Compañeras mencionadas con @ en esta nota interna.')
     tiene_sensible = fields.Boolean('Adjunto sensible', readonly=True,
                                     help='Comprobante de pago o documento de identidad: no se le muestra a la IA.')
+    imagen_sin_leer = fields.Selection(
+        [('apagado', 'El lector de imágenes está apagado'), ('tope', 'Ya iban muchas (o el cupo de IA)'),
+         ('fallo', 'El lector falló'), ('ilegible', 'No se lee')], 'Imagen que Juan no leyó', readonly=True,
+        index='btree_not_null',
+        help='Por qué Juan no leyó una imagen de este mensaje. Con esto se avisa a Gerencia si el lector está apagado '
+             'o falla seguido.')
     origen = fields.Selection([('canal', 'Del canal'), ('odoo', 'Escrito en Odoo')], default='canal', readonly=True,
                               required=True)
     usuario_id = fields.Many2one('res.users', 'Escrito por', readonly=True,

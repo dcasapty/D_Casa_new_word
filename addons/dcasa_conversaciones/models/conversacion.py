@@ -161,6 +161,10 @@ class DcasaConversacion(models.Model):
     ultimo_aviso_archivo_en = fields.Datetime(
         'Último aviso de archivo', readonly=True,
         help='Para no avisar de cada foto de una ráfaga: a lo más una vez cada 10 minutos.')
+    ultimo_aviso_sin_leer_en = fields.Datetime(
+        'Último aviso de una imagen sin leer (sin hablar de pago)', readonly=True, copy=False,
+        help='Una imagen que Juan no leyó porque ya iban muchas o el lector está apagado, y el cliente no habla de '
+             'pago: a lo más un aviso por conversación al día.')
     estado_pendiente_de_avisar = fields.Boolean(
         readonly=True, help='El cambio de estado aún no se le avisó al Worker (se reintenta solo).')
     # --- De noche (con «De noche nadie recibe clientes»): lo que se avisa al abrir. Ver ``conversacion_noche.py``.
@@ -311,6 +315,9 @@ class DcasaConversacion(models.Model):
             self._revisar_pausa_a_mano()
         tomas = self._revisar_asignacion_a_mano(vals['asignada_a']) \
             if 'asignada_a' in vals and not self.env.su else {}
+        if 'asignada_a' in vals and not self.env.su:
+            # Asignada a mano: el cliente de la noche ya es de esa persona y el reparto de la mañana no lo mueve.
+            vals = dict(vals, **SIN_PEDIDO_DE_NOCHE)
         if vals.get('nota_para_el_bot'):
             # El asistente la lee en cada respuesta: nunca más larga que lo que permite la pantalla.
             vals = dict(vals, nota_para_el_bot=str(vals['nota_para_el_bot'])[:MAX_NOTA_PARA_EL_BOT])
@@ -482,7 +489,7 @@ class DcasaConversacion(models.Model):
             mensaje._adjuntar(datos['adjuntos'])
         conv._despues_de_mensaje(mensaje)
         if datos['direccion'] == 'entrante' and datos['autor'] == 'cliente' and datos.get('adjuntos'):
-            conv._avisar_archivos_del_cliente(datos['adjuntos'])
+            conv._avisar_archivos_del_cliente(datos['adjuntos'], mensaje)
         mensaje._publicar_en_chatter()
         conv._notificar_panel('mensaje', mensaje)
         return conv, mensaje, True
@@ -865,7 +872,8 @@ class DcasaConversacion(models.Model):
         conversación; si nadie la atiende o no tiene Telegram, a las personas de siempre. No avisa fuera del horario
         laboral (si así se pidió, o con «De noche nadie recibe clientes») ni de esperas de más de un día (ya son otra
         cosa), ni del cliente de la noche que todavía espera su turno en el reparto (le llega en la lista de la mañana a
-        quien le toque: ``_avisar_lo_de_la_noche``). Devuelve cuántos avisos mandó.
+        quien le toque: ``_avisar_lo_de_la_noche``), salvo que ya se haya avisado a todas porque no había nadie al
+        abrir. Devuelve cuántos avisos mandó.
         """
         ajustes = self.env['dcasa.juan.ajustes'].obtener()
         if ajustes.aviso_espera_minutos <= 0:
@@ -878,7 +886,9 @@ class DcasaConversacion(models.Model):
             ('estado', '=', 'humano'), ('ultimo_mensaje_autor', '=', 'cliente'),
             ('ultimo_mensaje_cliente', '<=', ahora - timedelta(minutes=ajustes.aviso_espera_minutos)),
             ('ultimo_mensaje_cliente', '>=', ahora - timedelta(hours=HORAS_MAXIMAS_DE_ESPERA_AVISADA)),
-            ('aviso_de_noche', '=', False),
+            # El de la noche que espera su turno se avisa en la lista de quien lo reciba; el que ya se avisó a todas (no
+            # había nadie al abrir) se recuerda como de día si el cliente insiste.
+            '|', ('aviso_de_noche', '=', False), ('aviso_de_noche_a_todas', '=', True),
         ], order='ultimo_mensaje_cliente', limit=50)
         avisos = 0
         sin_avisar = esperando.filtered(
@@ -1464,59 +1474,6 @@ class DcasaConversacion(models.Model):
         except Exception:   # noqa: BLE001
             _logger.exception('Juan: no se pudo avisar de la mención en la conversación %s', self.id)
         return resultado
-
-    def _avisar_archivos_del_cliente(self, adjuntos):
-        """Avisa por Telegram, EN PARALELO, cuando el cliente manda un comprobante de pago, su cédula, o algo que Juan
-        no leyó: un archivo (un PDF puede ser el comprobante del banco) o una imagen que el lector no leyó (falló,
-        tardó, ya iban muchas hoy o era ilegible: llega sin clase). Las demás fotos y videos se ven en el chat, sin
-        aviso, salvo que Gerencia encienda «Avisar de fotos y archivos» (pedido de la dueña, 2026-11-13: «la gente envía
-        fotos de Instagram y el sistema puede determinar que es una factura»).
-
-        Un aviso por mensaje, por lo más importante: comprobante > cédula > lo que Juan no leyó > otra foto.
-
-        * Comprobante y cédula: con «Avisar de comprobantes y documentos», siempre (a quién le llega no cambia).
-        * Lo que Juan no leyó: también con ese ajuste, a lo más uno cada 10 minutos por conversación.
-        * Otra foto o video: solo con «Avisar de fotos y archivos», a lo más uno cada 10 minutos.
-
-        El asistente sigue atendiendo: no se pausa nada. Quien recibe el aviso decide si interviene. Si ya la atiende
-        una persona, no se avisa (ya la está viendo). De noche, con «De noche nadie recibe clientes», no sale nada: el
-        comprobante, la cédula o lo que Juan no leyó se avisan al abrir (``_avisar_lo_de_la_noche``). Nunca rompe el
-        registro del mensaje.
-        """
-        self.ensure_one()
-        try:
-            with self.env.cr.savepoint():
-                ajustes = self.env['dcasa.juan.ajustes'].obtener()
-                archivos = [a for a in adjuntos if a.get('tipo') in ('imagen', 'documento', 'video')]
-                if not archivos or not self._controla_bot():
-                    return
-                clases = {a.get('clase') for a in archivos}
-                sin_leer = [a for a in archivos
-                            if a.get('tipo') == 'documento' or (a.get('tipo') == 'imagen' and not a.get('clase'))]
-                if ajustes.avisar_comprobantes and 'comprobante' in clases:
-                    que = 'comprobante'
-                elif ajustes.avisar_comprobantes and 'identidad' in clases:
-                    que = 'identidad'
-                elif ajustes.avisar_comprobantes and sin_leer:
-                    que = 'documento'
-                elif ajustes.avisar_archivos:
-                    que = 'foto'
-                else:
-                    return
-                if self._es_de_noche(ajustes=ajustes):
-                    if que != 'foto':
-                        self._anotar_archivo_de_noche(que)
-                    return
-                if que in ('documento', 'foto'):
-                    ahora = fields.Datetime.now()
-                    if self.ultimo_aviso_archivo_en and \
-                            ahora - self.ultimo_aviso_archivo_en < PAUSA_ENTRE_AVISOS_DE_ARCHIVO:
-                        return
-                    self.sudo().ultimo_aviso_archivo_en = ahora
-                self._avisar_por_telegram(
-                    self._texto_archivo(que, sin_leer[0] if sin_leer else None), acciones=True)
-        except Exception:   # noqa: BLE001
-            _logger.exception('Juan: no se pudo avisar del archivo del cliente en la conversación %s', self.id)
 
     def _avisar_por_telegram(self, texto, usuarios=None, acciones=False, botones=None):
         """Aviso por Telegram (el bot de Brian). Nunca falla: es un extra de la actividad. Devuelve a cuántas les llegó.

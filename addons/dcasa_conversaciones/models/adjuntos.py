@@ -27,8 +27,12 @@ from PIL import Image, ImageOps
 _logger = logging.getLogger(__name__)
 
 TIPOS = ('imagen', 'audio', 'documento', 'video')
-# Lo que entendió el lector de imágenes del Worker (opcional): sirve para avisar a la dueña.
-CLASES = ('producto', 'publicacion', 'comprobante', 'identidad', 'otra')
+# Lo que entendió el lector de imágenes del Worker (opcional): sirve para avisar a la dueña. «sin_leer»: una imagen que
+# Juan no leyó; el porqué viene en ``sin_leer`` (ver ``MOTIVOS_SIN_LEER``).
+CLASES = ('producto', 'publicacion', 'comprobante', 'identidad', 'otra', 'sin_leer')
+# Por qué Juan no leyó una imagen: no hay lector, ya iban muchas (o el cupo de IA, o el anti-spam), el lector falló o no
+# se lee. Una imagen sin clase y sin porqué (un Juan viejo) se toma como «fallo».
+MOTIVOS_SIN_LEER = ('apagado', 'tope', 'fallo', 'ilegible')
 MAX_ADJUNTOS = 5
 # La foto de perfil del cliente: pequeña (los canales la dan de ~10-60 KB) y de tipos de imagen reales.
 MAX_FOTO_DE_PERFIL = 300 * 1024
@@ -108,8 +112,8 @@ def nombre_con_extension(nombre, mime):
 def validar(adjunto):
     """Normaliza un adjunto del contrato o lanza ``AdjuntoInvalido``.
 
-    Devuelve ``{tipo, nombre, mime, url, base64, sensible, clase}`` (url y base64 son excluyentes; ``clase`` es una de
-    ``CLASES`` o ``None``).
+    Devuelve ``{tipo, nombre, mime, url, base64, sensible, clase, sin_leer}`` (url y base64 son excluyentes; ``clase``
+    es una de ``CLASES`` o ``None``; ``sin_leer``, uno de ``MOTIVOS_SIN_LEER`` o ``None``).
     """
     if not isinstance(adjunto, dict):
         raise AdjuntoInvalido('Cada adjunto debe ser un objeto.')
@@ -129,6 +133,7 @@ def validar(adjunto):
         raise AdjuntoInvalido('El «base64» del adjunto no es válido.')
     mime = mime_seguro(adjunto.get('mime'))
     clase = str(adjunto.get('clase') or '').strip().lower()
+    sin_leer = str(adjunto.get('sin_leer') or '').strip().lower()
     return {
         'tipo': tipo,
         'nombre': nombre_seguro(adjunto.get('nombre'), por_defecto=NOMBRE_POR_TIPO.get(tipo, 'adjunto')),
@@ -137,6 +142,7 @@ def validar(adjunto):
         'base64': contenido or None,
         'sensible': bool(adjunto.get('sensible')),
         'clase': clase if clase in CLASES else None,
+        'sin_leer': sin_leer if sin_leer in MOTIVOS_SIN_LEER else None,
     }
 
 

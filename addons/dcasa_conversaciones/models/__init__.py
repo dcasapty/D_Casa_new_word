@@ -7,7 +7,7 @@ from . import ir_attachment
 from . import conocimiento, pregunta_responder, presencia, crm_lead
 from . import reparto, conversacion_reparto
 # Los textos de los avisos por Telegram y «de noche nadie recibe clientes» (2026-11-13).
-from . import conversacion_avisos, conversacion_noche
+from . import conversacion_avisos, conversacion_noche, conversacion_archivos
 from . import conversacion_panel, conversacion_panel_extra, conversacion_panel_catalogo
 from . import cliente_worker_panel, panel_juan, panel_reparto, telegram_consola
 # Comentarios de Instagram y Facebook que atendió Juan (2026-11-12).

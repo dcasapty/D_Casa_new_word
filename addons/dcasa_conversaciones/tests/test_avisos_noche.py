@@ -19,6 +19,7 @@ from odoo.tests import tagged
 from odoo.tools.misc import file_path
 
 from ..models.conversacion import PIE_DE_AVISO
+from ..models.conversacion_archivos import FALLOS_SEGUIDOS
 from .test_reparto_justo import panama
 from .test_reparto_tomar import TomarCase
 
@@ -331,7 +332,9 @@ class TestAlAbrir(NocheCase):
     def test_si_al_abrir_no_hay_ninguna_vendedora_se_avisa_una_vez_a_las_de_siempre(self):
         conv = self.pasar('Quiere comprar hoy el comedor')
         self.vence_la_pausa()
-        self.abrir()   # nadie usó Odoo todavía
+        self.abrir()   # nadie usó Odoo todavía: una mañana normal (todavía tienen tiempo de llegar)
+        self.assertFalse(self.enviar.called, 'Dentro del plazo para llegar no se avisa a todas')
+        self.abrir(minutos=31)   # pasado «Recibe solo quien usó el sistema hace poco» y sigue sin venir nadie
         self.assertFalse(conv.asignada_a)
         for usuario in (self.vendedora, self.beto, self.gerente):
             (texto, _b), = self.avisos_a(usuario)
@@ -340,9 +343,9 @@ class TestAlAbrir(NocheCase):
             self.assertIn('Nadie lo tiene todavía', texto)
         self.assertTrue(conv.reparto_desde and conv.aviso_de_noche, 'Sigue esperando su turno en el reparto')
         self.enviar.reset_mock()
-        self.abrir(minutos=5)
+        self.abrir(minutos=36)
         self.assertFalse(self.enviar.called, 'No se repite en cada vuelta')
-        self.abrir(self.vendedora, minutos=10)   # llega Ana: el cliente es suyo y le llega su aviso
+        self.abrir(self.vendedora, minutos=40)   # llega Ana: el cliente es suyo y le llega su aviso
         self.assertEqual(conv.asignada_a, self.vendedora)
         (texto, _b), = self.avisos_a(self.vendedora)
         self.assertTrue(texto.startswith('🟢 Cliente nuevo para ti\n'), texto)
@@ -479,6 +482,111 @@ class TestSoloComprobantesDeVerdad(NocheCase):
         self.assertIn('el precio de una publicación no cuenta', campos['avisar_comprobantes'].help)
         self.assertIn('un PDF', campos['avisar_comprobantes'].help)
         self.assertIn('Viene apagado', campos['avisar_archivos'].help)
+
+
+@tagged('post_install', '-at_install')
+class TestImagenesQueJuanNoLeyo(NocheCase):
+    """Revisión, segunda vuelta: Juan dice por qué no leyó una imagen («sin_leer»: fallo, ilegible, tope, apagado) y
+    Odoo decide si avisa."""
+
+    AHORA = panama(2026, 10, 9, 10, 0)
+
+    def setUp(self):
+        super().setUp()
+        self.ajustes.avisar_archivos = False   # el de fábrica
+
+    def sin_leer(self, motivo, nombre='IMG.jpg'):
+        return {**SIN_LEER, 'nombre': nombre, 'clase': 'sin_leer', 'sin_leer': motivo}
+
+    def test_el_contrato_valida_la_clase_y_el_porque(self):
+        from ..models import adjuntos as A
+        base = {'tipo': 'imagen', 'url': 'https://x.example/a.jpg'}
+        self.assertEqual(A.validar({**base, 'clase': 'sin_leer', 'sin_leer': 'Tope'})['sin_leer'], 'tope')
+        self.assertIsNone(A.validar({**base, 'clase': 'sin_leer', 'sin_leer': 'otro'})['sin_leer'])
+        self.assertIsNone(A.validar({**base, 'clase': 'algo_nuevo'})['clase'], 'Una clase desconocida cae en None')
+
+    def test_fallo_e_ilegible_avisan_como_ahora_uno_cada_10_minutos(self):
+        for motivo in ('fallo', 'ilegible'):
+            with self.subTest(motivo=motivo):
+                self.enviar.reset_mock()
+                conv = self.cliente()
+                self.mandar(conv, self.sin_leer(motivo), 'mira')
+                self.mandar(conv, self.sin_leer(motivo), 'y esta')
+                (texto, _b), = self.avisos_a(self.vendedora)
+                self.assertTrue(texto.startswith('📎 Mandó una imagen que Juan no pudo leer\n'), texto)
+                with freeze_time(self.AHORA + timedelta(minutes=11)):
+                    self.mandar(conv, self.sin_leer(motivo), 'otra')
+                self.assertEqual(len(self.avisos_a(self.vendedora)), 2)
+
+    def test_tope_o_apagado_avisan_si_habla_de_pago(self):
+        for motivo, texto in (('tope', 'Listo, ya te hice el YAPPY'), ('apagado', 'te mandé la transferencia'),
+                              ('tope', 'ahí va el depósito'), ('apagado', 'es el abono de la cama')):
+            with self.subTest(motivo=motivo, texto=texto):
+                self.enviar.reset_mock()
+                conv = self.cliente()
+                conv.sudo().ultimo_aviso_sin_leer_en = fields.Datetime.now()   # ya gastó el aviso del día
+                self.mandar(conv, self.sin_leer(motivo), texto)
+                self.assertEqual(len(self.avisos_a(self.vendedora)), 1, texto)
+
+    def test_el_pago_puede_estar_en_un_mensaje_anterior(self):
+        conv = self.cliente()
+        conv.sudo().ultimo_aviso_sin_leer_en = fields.Datetime.now()
+        self.registrar('Ya pagué, te mando la captura', id_externo=conv.id_externo, ts=fields.Datetime.now())
+        self.mandar(conv, self.sin_leer('tope'), '')
+        self.assertEqual(len(self.avisos_a(self.vendedora)), 1)
+
+    def test_tope_o_apagado_sin_hablar_de_pago_un_aviso_por_conversacion_al_dia(self):
+        conv = self.cliente()
+        for minutos in (0, 15, 60, 23 * 60):
+            with freeze_time(self.AHORA + timedelta(minutes=minutos)):
+                self.mandar(conv, self.sin_leer('tope', f'ig{minutos}.jpg'), '¿y esta la tienen?')
+        self.assertEqual(len(self.avisos_a(self.vendedora)), 1)
+        with freeze_time(self.AHORA + timedelta(hours=24, minutes=1)):
+            self.mandar(conv, self.sin_leer('tope', 'otra.jpg'), '¿y esta?')
+        self.assertEqual(len(self.avisos_a(self.vendedora)), 2, 'Al día siguiente, otro')
+
+    def test_una_imagen_sin_clase_ni_porque_es_un_fallo(self):
+        conv = self.cliente()
+        self.mandar(conv, SIN_LEER, '¿y esta?')
+        (texto, _b), = self.avisos_a(self.vendedora)
+        self.assertTrue(texto.startswith('📎 Mandó una imagen que Juan no pudo leer\n'), texto)
+        mensaje = conv.mensaje_ids.filtered(lambda m: m.autor == 'cliente').sorted('id')[-1]
+        self.assertEqual(mensaje.imagen_sin_leer, 'fallo')
+
+    def test_gerencia_sabe_una_vez_al_dia_si_el_lector_esta_apagado(self):
+        for n in range(3):
+            self.mandar(self.cliente(), self.sin_leer('apagado'), f'mira {n}')
+        del_lector = [t for t, _b in self.avisos_a(self.gerente) if t.startswith('⚠️ Para Gerencia: Juan no está')]
+        self.assertEqual(len(del_lector), 1)
+        self.assertIn('El lector de imágenes de Juan está apagado', del_lector[0])
+        self.assertFalse([t for t, _b in self.avisos_a(self.vendedora) if 'Para Gerencia' in t])
+        with freeze_time(self.AHORA + timedelta(days=1)):
+            self.mandar(self.cliente(), self.sin_leer('apagado'), 'mira')
+        self.assertEqual(len([t for t, _b in self.avisos_a(self.gerente) if 'Juan no está leyendo' in t]), 2)
+
+    def test_gerencia_sabe_si_el_lector_falla_seguido(self):
+        for n in range(FALLOS_SEGUIDOS - 1):
+            self.mandar(self.cliente(), self.sin_leer('fallo'), f'mira {n}')
+        self.assertFalse([t for t, _b in self.avisos_a(self.gerente) if 'Juan no está leyendo' in t],
+                         'Un fallo suelto no es una alarma')
+        with freeze_time(self.AHORA + timedelta(minutes=30)):
+            self.mandar(self.cliente(), self.sin_leer('fallo'), 'una más')
+        del_lector = [t for t, _b in self.avisos_a(self.gerente) if 'Juan no está leyendo' in t]
+        self.assertEqual(len(del_lector), 1)
+        self.assertIn(f'no pudo leer las fotos de {FALLOS_SEGUIDOS} mensajes de clientes', del_lector[0])
+        self.assertForma(del_lector[0])
+
+    def test_tope_no_alerta_a_gerencia(self):
+        for n in range(5):
+            self.mandar(self.cliente(), self.sin_leer('tope'), f'mira {n}')
+        self.assertFalse([t for t, _b in self.avisos_a(self.gerente) if 'Juan no está leyendo' in t])
+
+    def test_de_noche_tope_sin_pago_queda_para_la_manana(self):
+        with freeze_time(NOCHE):
+            conv = self.cliente()
+            self.mandar(conv, self.sin_leer('tope'), '¿y esta?')
+            self.assertEqual(conv.archivo_de_noche, 'documento')
+            self.assertFalse(self.enviar.called)
 
 
 @tagged('post_install', '-at_install')
