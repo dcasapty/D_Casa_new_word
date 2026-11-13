@@ -22,7 +22,6 @@ Es un dato personal (lo que escribió la persona): se borra con la conversación
 import logging
 
 from odoo import api, fields, models
-from odoo.exceptions import AccessError
 
 from .mensaje import CLAVE_SISTEMA
 
@@ -60,12 +59,8 @@ class DcasaComentario(models.Model):
     motivo = fields.Char('Por qué no salió', readonly=True)
     aviso_id = fields.Many2one('dcasa.mensaje', 'Aviso en el hilo', readonly=True, ondelete='set null')
 
+    # Nadie lo edita a mano: el equipo de ventas solo lo lee (ir.model.access.csv) y lo escribe el sistema (con sudo).
     _comentario_unico = models.Constraint('UNIQUE(red, id_comentario)', 'Ese comentario ya está registrado.')
-
-    def write(self, vals):
-        if not self.env.context.get(CLAVE_SISTEMA) and not self.env.su:
-            raise AccessError(self.env._('El registro de los comentarios no se edita.'))
-        return super().write(vals)
 
     # ------------------------------------------------------------------
     # Registrar (lo usa la API; privado: escribe con sudo)
