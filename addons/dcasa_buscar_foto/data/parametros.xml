@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- «Busca con una foto» nace ENCENDIDA (la dueña dijo que sí, 2026-11-13). noupdate: un despliegue nunca la vuelve a
+         encender si Gerencia la apagó en Sitio web › Busca con una foto. Los topes no se escriben aquí: sin parámetro
+         valen los de fábrica (models/buscar_foto.py, TOPES_DE_FABRICA). -->
+    <data noupdate="1">
+        <record id="parametro_activo" model="ir.config_parameter">
+            <field name="key">dcasa_buscar_foto.activo</field>
+            <field name="value">True</field>
+        </record>
+    </data>
+</odoo>

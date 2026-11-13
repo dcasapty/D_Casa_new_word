@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ===================================================================
+         «Busca con una foto» (models/buscar_foto.py, controllers/main.py, static/src/js/buscar_foto.js).
+
+         El botón es una <label> con el <input type="file"> encima (transparente): un toque abre el selector del
+         teléfono (cámara o galería) sin depender del JavaScript. El input no tiene «name»: dentro del formulario de
+         búsqueda de /shop no viaja con la búsqueda por nombre. El JavaScript achica la foto y la manda a /shop/foto.
+         Sin token CSRF aquí: estas páginas se guardan en el borde y el JS pide uno fresco antes de enviar.
+         =================================================================== -->
+
+    <template id="boton_camara" name="D'CASA: botón Busca con una foto">
+        <label t-attf-class="o_dcasa_foto_boton #{dcasa_foto_clase or ''}" title="Busca con una foto"
+               data-dcasa-foto="">
+            <i class="fa fa-camera" aria-hidden="true"/>
+            <span t-attf-class="o_dcasa_foto_boton_texto #{'visually-hidden' if dcasa_foto_solo_icono else ''}"
+                  t-out="dcasa_foto_texto or 'Busca con una foto'"/>
+            <input type="file" accept="image/*" class="o_dcasa_foto_archivo"/>
+        </label>
+    </template>
+
+    <!-- En la búsqueda de la cabecera (el modal de Odoo): debajo de la caja, sin tocar los botones de la cabecera. -->
+    <template id="camara_en_el_modal" inherit_id="website.header_search_box" name="D'CASA: Busca con una foto en la búsqueda">
+        <xpath expr="//div[@id='o_search_modal']//div[hasclass('modal-content')]" position="inside">
+            <div t-if="website and website._dcasa_buscar_foto_activa()" class="o_dcasa_foto_en_modal">
+                <span class="o_dcasa_foto_en_modal_texto">¿Viste un mueble que te gustó?</span>
+                <t t-call="dcasa_buscar_foto.boton_camara">
+                    <t t-set="dcasa_foto_clase" t-valuef="o_dcasa_foto_boton_claro"/>
+                </t>
+            </div>
+        </xpath>
+    </template>
+
+    <!-- En la barra de búsqueda de /shop: el ícono de la cámara al lado de la caja (dentro del mismo formulario). -->
+    <template id="camara_en_la_tienda" inherit_id="website_sale.search" name="D'CASA: Busca con una foto en la tienda">
+        <xpath expr="//t[@t-call='website.website_search_box_input']" position="inside">
+            <t t-if="website and website._dcasa_buscar_foto_activa()" t-call="dcasa_buscar_foto.boton_camara">
+                <t t-set="dcasa_foto_clase" t-valuef="o_dcasa_foto_boton_icono"/>
+                <t t-set="dcasa_foto_solo_icono" t-value="True"/>
+            </t>
+        </xpath>
+    </template>
+
+    <!-- /shop/foto: para empezar, los resultados («Esto se parece a tu foto») o un mensaje. -->
+    <template id="pagina" name="D'CASA: Busca con una foto">
+        <t t-call="website.layout">
+            <t t-set="additional_title" t-value="titulo"/>
+            <t t-set="meta_description">Toma una foto de un mueble o sube una captura y te mostramos lo que se le parece en la tienda de D'CASA.</t>
+            <div id="wrap" t-attf-class="o_dcasa_foto_pagina o_dcasa_foto_{{ estado }}" t-att-data-estado="estado">
+                <section class="o_dcasa_container o_dcasa_foto_cabeza">
+                    <p class="o_dcasa_kicker"><t t-if="estado == 'resultados'">Busca con una foto</t><t t-else="">Catálogo D'CASA</t></p>
+                    <h1 class="o_dcasa_h2" t-out="titulo"/>
+                    <t t-if="estado == 'inicio'">
+                        <p class="o_dcasa_lead">Toma una foto de un mueble o sube una captura (también de Instagram) y te
+                            mostramos lo que se le parece en la tienda.</p>
+                    </t>
+                    <t t-elif="estado == 'resultados'">
+                        <p t-if="por_codigo" class="o_dcasa_lead">Lo encontramos por el código que se ve en tu foto.</p>
+                        <p t-elif="etiqueta" class="o_dcasa_lead">Lo que vimos: <strong t-out="etiqueta"/>.</p>
+                    </t>
+                    <div t-else="" class="o_dcasa_foto_mensaje" role="status">
+                        <i t-attf-class="fa #{'fa-id-card-o' if estado == 'documento' else ('fa-clock-o' if estado == 'no_ahora' else 'fa-camera')}" aria-hidden="true"/>
+                        <p>
+                            <t t-out="mensaje"/>
+                            <span t-if="etiqueta and estado == 'nada'" class="o_dcasa_foto_vimos">Lo que vimos: <strong t-out="etiqueta"/>.</span>
+                        </p>
+                    </div>
+                    <div class="o_dcasa_foto_acciones">
+                        <t t-if="estado != 'no_ahora'" t-call="dcasa_buscar_foto.boton_camara">
+                            <t t-set="dcasa_foto_clase" t-valuef="o_dcasa_foto_boton_grande"/>
+                            <t t-set="dcasa_foto_texto" t-value="'Sube o toma una foto' if estado == 'inicio' else 'Probar con otra foto'"/>
+                        </t>
+                        <div class="o_dcasa_foto_por_nombre">
+                            <t t-call="website.website_search_box_input">
+                                <t t-set="action" t-valuef="/shop"/>
+                                <t t-set="search_type" t-valuef="products"/>
+                                <t t-set="default_style" t-valuef="true"/>
+                                <t t-set="placeholder" t-valuef="O búscalo por nombre: cama queen, sofá…"/>
+                            </t>
+                        </div>
+                    </div>
+                    <p class="o_dcasa_foto_privacidad">Tu foto no se guarda: la usamos solo para buscar.
+                        <a href="/privacidad#busca-con-una-foto">Política de privacidad</a></p>
+                </section>
+
+                <section t-if="items" class="o_dcasa_container o_dcasa_foto_resultados" aria-label="Productos parecidos">
+                    <ul class="o_dcasa_foto_grid" role="list">
+                        <li t-foreach="items" t-as="item">
+                            <t t-call="website_dcasa.tarjeta_producto"/>
+                        </li>
+                    </ul>
+                </section>
+
+                <section class="o_dcasa_foto_whatsapp" aria-labelledby="dcasa-foto-wa">
+                    <div class="o_dcasa_container">
+                        <h2 id="dcasa-foto-wa" class="o_dcasa_foto_whatsapp_titulo">¿No es lo que buscas?</h2>
+                        <p>Mándanos la foto por WhatsApp y te ayudamos a encontrarlo.</p>
+                        <a t-att-href="whatsapp" target="_blank" rel="noopener" class="btn btn-lg btn-primary o_dcasa_foto_whatsapp_cta">
+                            <i class="fa fa-whatsapp me-2" aria-hidden="true"/>Escríbenos por WhatsApp
+                            <span class="visually-hidden">(se abre en una pestaña nueva)</span></a>
+                    </div>
+                </section>
+            </div>
+        </t>
+    </template>
+
+    <!-- Política de privacidad (Ley 81 de 2019): el párrafo de «Busca con una foto», en la sección de inteligencia
+         artificial. TEXTO PROPUESTO: lo aprueba la dueña (y el abogado) antes de producción. -->
+    <template id="privacidad_busca_con_una_foto" inherit_id="website_dcasa.privacidad_cuerpo" name="D'CASA: privacidad de Busca con una foto">
+        <xpath expr="//h2[@id='inteligencia-artificial']/following-sibling::p[1]" position="after">
+            <p id="busca-con-una-foto"><strong>Busca con una foto.</strong> Si buscas un mueble con una foto en nuestra
+                tienda en línea, la inteligencia artificial de Cloudflare la mira solo para reconocer el mueble (qué es,
+                su medida o el código que se vea) y mostrarte productos parecidos. Tu foto no se guarda: ni en nuestro
+                sistema ni en Cloudflare, y no se envía a Meta ni a Anthropic. Se usa para esa búsqueda y se descarta.
+                Para evitar abusos contamos cuántas búsquedas se hacen por hora, con una huella que no dice quién eres y
+                que se borra al día siguiente.</p>
+        </xpath>
+    </template>
+</odoo>

@@ -2749,6 +2749,27 @@
    ]
   },
   {
+   "id": "buscar-foto",
+   "categoria": "tienda",
+   "grupo": "Tienda en línea",
+   "titulo": "Encender o apagar «Busca con una foto» en la tienda",
+   "logras": "En la tienda web sale un botón de cámara en la búsqueda: el cliente sube la foto de un mueble (o una captura de Instagram) y le salen los productos publicados que se le parecen. Aquí lo enciendes o lo apagas, cambias cuántas fotos puede buscar cada persona y ves cuántas búsquedas hubo.",
+   "destino": {
+    "menu": "dcasa_buscar_foto.menu_dcasa_buscar_foto"
+   },
+   "nota": "Viene encendido. Si la foto parece un comprobante o una cédula, no se busca nada. La foto nunca se guarda. Cada búsqueda cuenta en el gasto de IA de Juan (Costos de IA): si se llega al tope del mes, la tienda dice que ahora no se puede buscar por foto. Solo Gerencia y los administradores lo cambian.",
+   "palabras": [
+    "foto",
+    "buscar por foto",
+    "busca con una foto",
+    "camara",
+    "imagen",
+    "parecidos",
+    "tienda",
+    "instagram"
+   ]
+  },
+  {
    "id": "metodos-envio",
    "categoria": "tienda",
    "grupo": "Tienda en línea",
