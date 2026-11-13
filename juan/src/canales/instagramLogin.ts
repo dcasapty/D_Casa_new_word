@@ -117,7 +117,7 @@ export function soloDeLaCuenta(cuerpo: MetaCuerpo, ids: ReadonlySet<string> | nu
 }
 
 /** Una promesa con plazo: si no termina a tiempo, `defecto` (sin lanzar). */
-async function conPlazo<T>(p: Promise<T>, ms: number, defecto: T): Promise<T> {
+export async function conPlazo<T>(p: Promise<T>, ms: number, defecto: T): Promise<T> {
   let reloj: ReturnType<typeof setTimeout> | undefined;
   try {
     return await Promise.race([p.catch(() => defecto), new Promise<T>((r) => (reloj = setTimeout(() => r(defecto), ms)))]);

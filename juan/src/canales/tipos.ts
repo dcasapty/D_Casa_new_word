@@ -216,6 +216,8 @@ export interface SaludCanal {
   /** null = este canal no puede saberlo (no hay una conexión que mirar). */
   conectado: boolean | null;
   detalle?: string;
+  /** Lo que hay que saber de los comentarios de ese canal (se muestra en /salud si «Responder comentarios» está encendido). */
+  avisosComentarios?: string[];
 }
 
 /** Una llave que vence y el canal renueva solo (Instagram por inicio de sesión de Instagram). Fechas, nunca el valor. */

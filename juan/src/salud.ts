@@ -208,6 +208,10 @@ export async function informeDeSalud(d: DepsSalud): Promise<InformeDeSalud> {
       `Meta entregó una respuesta privada a un comentario de ${otroId.red ?? "una red"} a un id distinto del que comentó: Juan le avisó a esa conversación para que su eco no se tome como una vendedora; si la persona contesta, su mensaje sale en otra conversación de Odoo. Revísalo en la prueba real`,
     );
   }
+  const topePrivadas = await leerJson<{ ts: number; tope?: number }>(d, "comentario_tope_privadas");
+  if (topePrivadas && topePrivadas.ts > hace24h) {
+    avisos.push(`se llegó al tope de ${topePrivadas.tope ?? "?"} respuestas privadas a comentarios en una hora (entre todas las personas): las de más quedaron anotadas sin respuesta`);
+  }
   const ecoAdelantado = await leerJson<{ ts: number; red?: string }>(d, "comentario_eco_adelantado");
   if (ecoAdelantado && ecoAdelantado.ts > d.ahora() - 7 * 24 * 3600_000) {
     avisos.push(`el eco de una respuesta privada a un comentario de ${ecoAdelantado.red ?? "una red"} llegó antes que su aviso y se tomó un momento como una vendedora (Juan deshizo la pausa; en Odoo puede verse como mensaje de una vendedora)`);
@@ -253,6 +257,7 @@ export async function informeDeSalud(d: DepsSalud): Promise<InformeDeSalud> {
     if (activo) {
       problemas.push(...(local.problemas ?? []));
       avisos.push(...(local.avisos ?? []));
+      if (cfg.comentarios.activo) avisos.push(...(s.avisosComentarios ?? []));
     }
   }
 

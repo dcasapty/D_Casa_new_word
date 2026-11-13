@@ -967,6 +967,32 @@ describe("webhooks de Meta (WhatsApp Cloud, Messenger, Instagram): el 200 sale D
     expect(sinMessenger.pedidas).toEqual([]);
   });
 
+  it("si no se sabe cuál es la página (Meta no contesta GET /me), el mensaje del aviso se guarda y se contesta 500; el reintento trae el comentario", async () => {
+    const ahora = Math.floor(Date.now() / 1000);
+    const aviso = {
+      object: "page",
+      entry: [
+        {
+          id: "100200300400500",
+          time: ahora,
+          messaging: [{ sender: { id: "2838000000000009" }, recipient: { id: "100200300400500" }, timestamp: Date.now(), message: { mid: "m.reintento", text: "Hola" } }],
+          changes: [{ field: "feed", value: { from: { id: "2838000000000001", name: "Ana" }, comment_id: "1_9", post_id: "100200300400500_1", parent_id: "100200300400500_1", item: "comment", verb: "add", message: "¿Precio?", created_time: ahora } }],
+        },
+      ],
+    };
+    let caido = true;
+    const redRara = vi.fn(async (url: unknown) => (String(url).includes("/me?") ? (caido ? Response.json({ error: { message: "caído", code: 2 } }, { status: 500 }) : Response.json({ id: "100200300400500" })) : new Response("{}")));
+    const m = montar({ config: { ...encendidos, comentarios: { activo: true } }, adaptadores: [crearMeta({ fetch: redRara as unknown as typeof fetch, dormir: async () => {} })] });
+    const primero = await m.pedir(await firmado("/webhooks/meta", aviso), envMeta);
+    expect(primero.status).toBe(500);
+    expect(m.conv.guardados.map((e) => e.id_mensaje)).toEqual(["m.reintento"]);
+    caido = false;
+    const reintento = await m.pedir(await firmado("/webhooks/meta", aviso), envMeta);
+    expect(reintento.status).toBe(200);
+    // El mensaje ya guardado se reconoce (no se guarda dos veces); el comentario entra.
+    expect(m.conv.guardados.map((e) => e.id_mensaje)).toEqual(["m.reintento", "comentario:facebook:1_9"]);
+  });
+
   it("Telegram y el puente QR siguen igual: no pasan por la bandeja", async () => {
     const m = montarMeta();
     const qr = await m.pedir(post("/webhooks/whatsapp-qr", { id_mensaje: "3EB0X", de: "50760261919@s.whatsapp.net", tipo: "texto", texto: "Hola", ts: 1_790_000_000 }, { "x-wa-token": WA_TOKEN }), envMeta);

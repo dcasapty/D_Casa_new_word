@@ -510,7 +510,8 @@ describe("lo que falta y el registro", () => {
   });
 
   it("salud: configurado o no, sin pretender saber si hay conexión", async () => {
-    expect(await adaptador.salud!("messenger", env)).toEqual({ configurado: true, faltan: [], conectado: null });
+    // (Puede traer `avisosComentarios`: si se sabe cuál es la página, para los comentarios; ver comentarios-revision2.)
+    expect(await adaptador.salud!("messenger", env)).toMatchObject({ configurado: true, faltan: [], conectado: null });
     expect((await adaptador.salud!("messenger", {} as Env)).faltan).toContain("META_PAGE_TOKEN");
   });
 

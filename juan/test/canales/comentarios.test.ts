@@ -343,16 +343,17 @@ describe("solo los comentarios de D'CASA (revisión del 2026-11-13)", () => {
     expect(deLaPaginaEnIg.entrantes).toEqual([]);
   });
 
-  it("/webhooks/meta: quién es la página se pregunta una vez y se recuerda; si Meta no contesta, los comentarios de ese aviso se dejan de lado (los mensajes no)", async () => {
+  it("/webhooks/meta: quién es la página se pregunta una vez y se recuerda; si Meta no contesta, se guardan los mensajes y se contesta 500 (Meta reintenta el lote)", async () => {
     const ahora = Math.floor(Date.now() / 1000);
     const bien = graphFalso();
     await bien.adaptador.recibir(await firmado(deFacebook({ created_time: ahora }), SECRETO_FB, "/webhooks/meta"), envPagina);
     await bien.adaptador.recibir(await firmado(deFacebook({ created_time: ahora, comment_id: "777_999" }), SECRETO_FB, "/webhooks/meta"), envPagina);
     expect(bien.llamadas.filter((l) => l.url.includes("instagram_business_account"))).toHaveLength(1);
-    const caido = graphFalso((c) => (c.url.includes("instagram_business_account") ? Response.json({ error: { message: "caído", code: 2 } }, { status: 500 }) : undefined));
+    const caido = graphFalso((c) => (new URL(c.url).pathname.endsWith("/me") ? Response.json({ error: { message: "caído", code: 2 } }, { status: 500 }) : undefined));
     const conMensaje: MetaCuerpo = { ...deFacebook({ created_time: ahora }), entry: [{ ...deFacebook({ created_time: ahora }).entry![0], messaging: [{ sender: { id: PSID }, recipient: { id: PAGINA }, timestamp: Date.now(), message: { mid: "m.1", text: "hola" } }] }] };
     const r = await caido.adaptador.recibir(await firmado(conMensaje, SECRETO_FB, "/webhooks/meta"), envPagina);
-    expect(r.respuesta.status).toBe(200);
+    expect(r.respuesta.status).toBe(500);
+    expect(r.guardarAntes).toBe(true);
     expect(r.entrantes.map((e) => (e.comentario ? "comentario" : e.id_mensaje))).toEqual(["m.1"]);
   });
 
