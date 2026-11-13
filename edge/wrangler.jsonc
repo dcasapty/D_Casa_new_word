@@ -102,7 +102,8 @@
   // "ratelimits": [
   //   { "name": "LIMITE_ACCESO", "namespace_id": "1101", "simple": { "limit": 10, "period": 60 } },
   //   { "name": "LIMITE_FORMULARIOS", "namespace_id": "1102", "simple": { "limit": 10, "period": 60 } },
-  //   { "name": "LIMITE_CARRITO", "namespace_id": "1103", "simple": { "limit": 120, "period": 60 } }
+  //   { "name": "LIMITE_CARRITO", "namespace_id": "1103", "simple": { "limit": 120, "period": 60 } },
+  //   { "name": "LIMITE_FOTO", "namespace_id": "1104", "simple": { "limit": 6, "period": 60 } }
   // ],
 
   // Dominio propio (docs/historico/TRASLADO_DOMINIO.md, 2026-10-26): dcasapty.com y www van a este Worker. Cloudflare crea solo

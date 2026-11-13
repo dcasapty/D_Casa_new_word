@@ -27,7 +27,6 @@ lo que la página pide. Es la única ruta pública de envíos, así que va estri
   ``Referrer-Policy: no-referrer`` (Google Maps no se entera del enlace) y una CSP con nonce. La ubicación del chofer
   solo se usa para buscar el lugar más cercano: ni se guarda ni se escribe en el registro.
 """
-import ipaddress
 import json
 import logging
 import secrets
@@ -38,6 +37,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from odoo import http
+from odoo.addons.dcasa_base.red import llave_ip
 from odoo.http import request
 
 from ..motor import choferes
@@ -70,19 +70,6 @@ _candado = threading.Lock()
 _ventanas = {}                # IP (o su red /64, o TODOS) → deque de instantes (time.monotonic) del último minuto
 _ocupado = threading.BoundedSemaphore(MAX_A_LA_VEZ)
 _dia = {'llave': None, 'busquedas': 0, 'avisado': False}     # llave = (fecha, enlace): un enlace nuevo empieza en 0
-
-
-def llave_ip(ip):
-    """La llave del límite: la IPv4 entera; de una IPv6, su red /64 (lo que recibe un solo cliente)."""
-    try:
-        direccion = ipaddress.ip_address(ip)
-    except ValueError:
-        return ip or '-'
-    if direccion.version == 6:
-        if direccion.ipv4_mapped:
-            return str(direccion.ipv4_mapped)
-        return str(ipaddress.ip_network(f'{direccion}/64', strict=False))
-    return str(direccion)
 
 
 def excede(ip, ahora=None, maximo=MAX_POR_MINUTO, ventana=ESPERA_S):

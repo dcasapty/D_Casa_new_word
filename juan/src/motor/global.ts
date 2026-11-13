@@ -8,12 +8,21 @@ import type { Uso } from "./precios";
 
 export interface GastoDelMes {
   mes: string;
+  /** Lo de los modelos que contestan (Meta, Claude, OpenAI): el tope del mes, el saldo con Meta y los turnos. */
   usd: number;
   turnos: number;
   porModelo: { modelo: string; usd: number; turnos: number; estimado: boolean }[];
   /** Modelos cuyo costo se estimó porque no tenían precio cargado en Odoo. */
   modelosSinPrecio: string[];
+  /**
+   * Lo que cobra Cloudflare (Workers AI), APARTE: «Busca con una foto» (`cloudflare:lector-de-fotos`) y cualquier `@cf/…`.
+   * No suma en `usd`, `turnos` ni en el gasto por día: no es deuda con Meta ni una respuesta de Juan.
+   */
+  cloudflare: { concepto: string; usd: number; lecturas: number; estimado: boolean }[];
 }
+
+/** ¿Es algo que cobra Cloudflare (Workers AI) y no un modelo que contesta? */
+export const esDeCloudflare = (modelo: string) => modelo.startsWith("cloudflare:") || modelo.startsWith("@cf/");
 
 /** La lógica, sin Cloudflare: se prueba con SQLite de Node. */
 export class AlmacenGlobal {
@@ -59,7 +68,8 @@ export class AlmacenGlobal {
   }
 
   registrarGasto(mes: string, modelo: string, uso: Uso, usd: number, estimado = false, dia?: string): void {
-    if (dia) {
+    // Lo de Cloudflare no entra en la gráfica por día (es la de Meta: la pantalla la arma con el acumulado del mes).
+    if (dia && !esDeCloudflare(modelo)) {
       this.sql.correr(
         "INSERT INTO gasto_dia (dia, usd, turnos) VALUES (?, ?, 1) ON CONFLICT(dia) DO UPDATE SET usd = usd + excluded.usd, turnos = turnos + 1",
         dia,
@@ -85,13 +95,15 @@ export class AlmacenGlobal {
   }
 
   gastoMes(mes: string): GastoDelMes {
-    const filas = this.sql.todos<{ modelo: string; usd: number; turnos: number; estimado: number }>("SELECT modelo, usd, turnos, estimado FROM gasto WHERE mes = ?", mes);
+    const todas = this.sql.todos<{ modelo: string; usd: number; turnos: number; estimado: number }>("SELECT modelo, usd, turnos, estimado FROM gasto WHERE mes = ?", mes);
+    const filas = todas.filter((f) => !esDeCloudflare(f.modelo));
     return {
       mes,
       usd: filas.reduce((n, f) => n + f.usd, 0),
       turnos: filas.reduce((n, f) => n + f.turnos, 0),
       porModelo: filas.map((f) => ({ ...f, estimado: f.estimado === 1 })),
       modelosSinPrecio: filas.filter((f) => f.estimado === 1).map((f) => f.modelo),
+      cloudflare: todas.filter((f) => esDeCloudflare(f.modelo)).map((f) => ({ concepto: f.modelo, usd: f.usd, lecturas: f.turnos, estimado: f.estimado === 1 })),
     };
   }
 

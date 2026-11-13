@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Las huellas (sesión y conexión) solo hacen falta para el tope por hora: se borran al día siguiente. Las filas,
+         a los 90 días (models/uso.py). -->
+    <record id="cron_limpiar_uso" model="ir.cron">
+        <field name="name">Busca con una foto: borrar huellas y búsquedas viejas</field>
+        <field name="model_id" ref="model_dcasa_buscar_foto_uso"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_limpiar()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>
