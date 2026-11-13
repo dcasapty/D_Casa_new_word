@@ -811,3 +811,30 @@ describe("staging: noindex en todo", () => {
     expect(res.headers.has("X-Robots-Tag")).toBe(false);
   });
 });
+
+describe("producción: el noindex que pone Odoo pasa tal cual (lote 1 de la web)", () => {
+  // Odoo (website_dcasa/models/buscador.py) pone `noindex` en las páginas para entrar y `noindex, follow` en los
+  // resultados de búsqueda. El borde no las guarda (llevan /web o ?search=) y no toca esa cabecera.
+  it("entrar, crear cuenta, recuperar la clave y buscar", async () => {
+    const casos: [string, string][] = [
+      ["/web/login", "noindex"],
+      ["/web/signup", "noindex"],
+      ["/web/reset_password", "noindex"],
+      ["/shop?search=sofa", "noindex, follow"],
+      ["/shop/category/salas-3?search=sofa", "noindex, follow"],
+    ];
+    for (const [ruta, robots] of casos) {
+      const almacen = almacenMemoria();
+      const forward = vi.fn(async () => new Response("<html>Odoo</html>", {
+        headers: { "Content-Type": "text/html; charset=utf-8", "X-Robots-Tag": robots },
+      }));
+      const { d, terminar } = deps({ entorno: "produccion", forward }, almacen);
+      const res = await handleRequest(get(ruta), d);
+      await terminar();
+      expect(res.status, ruta).toBe(200);
+      expect(res.headers.get("X-Robots-Tag"), ruta).toBe(robots);
+      expect(rutaEstatica(new URL(`https://${HOST}${ruta}`), "GET"), ruta).toBeNull();
+      expect([...almacen.datos.keys()].filter((k) => k.startsWith("html:")), ruta).toEqual([]);
+    }
+  });
+});

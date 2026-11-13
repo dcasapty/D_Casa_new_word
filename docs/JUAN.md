@@ -94,8 +94,9 @@ Meta). El par es único.
    `{"ok":true,"resultado":{...}}`. Se ejecuta como el usuario técnico `juan` (grupo propio, sin
    los grupos internos), registrado en `brian.accion`. Herramientas (todas de **vista pública**):
    - `buscar_productos(consulta, categoria?, limite?)` → nombre, código, precio, `mas_itbms:true`,
-     disponibilidad en etiqueta (`disponible|pocas|agotado`, **nunca** el número), medidas, combo,
-     URL, foto, solo **publicados**.
+     disponibilidad en etiqueta (`disponible|pocas|agotado`, **nunca** el número; la misma regla y el mismo cálculo
+     que la ficha de la tienda: `dcasa_base/disponibilidad.py` y `product.template._dcasa_disponibilidad`), medidas,
+     combo, URL, foto, solo **publicados**.
    - `ver_producto(codigo)` → lo anterior más descripción, variantes, galería.
    - `listar_categorias()`.
    - `reglas_socios()` → cifras de `puntos.json` ya redactadas en lenguaje de cliente.

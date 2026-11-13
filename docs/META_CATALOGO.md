@@ -110,7 +110,7 @@ image_link, additional_image_link, brand, product_type, custom_label_0 … custo
 | `product_type` | La ruta de la categoría pública principal, con « > » |
 | `custom_label_0` | La categoría pública principal (la primera por `sequence`), en ASCII: `habitacion_de_ninos` |
 | `custom_label_1` | El código de la campaña (vacío si no tiene o si la campaña está archivada) |
-| `custom_label_2` | `disponible` / `pocas` (5 o menos, el umbral de Juan y del Escáner) / `agotado`, según `dcasa_stock`; sin control de inventario (combos), `disponible`. Mientras el inventario no esté confirmado no se usa para anuncios; se emite igual |
+| `custom_label_2` | `disponible` / `pocas` (5 o menos: la regla de Juan, de la tienda y del Escáner, `dcasa_base/disponibilidad.py`) / `agotado`, según `dcasa_stock`; sin control de inventario (combos), `disponible`. Mientras el inventario no esté confirmado no se usa para anuncios; se emite igual |
 | `custom_label_3` | Franja de precio con los mismos cortes de los filtros de Productos: `hasta_100`, `100_a_300`, `300_a_600`, `mas_de_600` (una prueba lo compara) |
 | `custom_label_4` | El código público `DC-…`, en mayúsculas, tal como lo ve el cliente |
 

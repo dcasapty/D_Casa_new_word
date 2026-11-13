@@ -2333,3 +2333,216 @@ html.o_dcasa_navegando::before {
         min-height: 2.75rem;
     }
 }
+
+// ---------------------------------------------------------------------------
+// Lote 1 de la web (2026-11-13): buscar, carrito vacío y la foto en grande (views/buscador_templates.xml).
+// ---------------------------------------------------------------------------
+
+// Celular: la lupa junto al carrito, las dos con 44 px de área táctil (WCAG 2.5.5) y planas, como el resto de la
+// píldora. Sobre la foto se pintan blancas con la misma regla del vidrio ahumado (o_navlink_background_hover).
+#wrapwrap > header#top .o_header_mobile {
+    .o_header_mobile_buttons_wrap {
+        gap: .25rem !important;
+    }
+
+    .o_dcasa_lupa_movil,
+    .o_wsale_my_cart > a {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.75rem;
+        height: 2.75rem;
+        padding: 0 !important;
+    }
+
+    .o_dcasa_lupa_movil .oi {
+        font-size: 1.1rem;
+    }
+}
+
+// La caja de búsqueda que abre la lupa: en el celular, pegada arriba y a lo ancho (con el teclado abierto, la lista
+// de sugerencias necesita el espacio).
+@media (max-width: 575.98px) {
+    #o_search_modal .modal-dialog {
+        margin: .75rem;
+        padding-top: 0 !important;
+    }
+
+    #o_search_modal .modal-content {
+        margin-top: 0 !important;
+    }
+}
+
+// El sitio para botones extra del buscador (views/buscador_templates.xml) no dibuja caja: sus botones se acomodan como
+// si fueran hijos directos de la caja de búsqueda.
+.o_dcasa_buscador_extra {
+    display: contents;
+}
+
+// Celular: en /shop la caja de búsqueda va sola en su fila, a lo ancho; «Ordenar por» y «Filtros» en la de abajo.
+// Las tres en una fila dejaban la caja en ~125 px (no se leía ni el texto de ayuda) y un botón extra dentro de la
+// caja (la cámara de «Busca con una foto», website_dcasa.buscador_botones_extra) no cabía.
+@media (max-width: 575.98px) {
+    #o_wsale_products_header .products_header {
+        flex-wrap: wrap !important;
+        row-gap: .5rem;
+
+        > .o_wsale_products_header_search_form_container {
+            display: block !important;
+            order: -1;
+            flex: 1 0 100%;
+            width: 100%;
+            max-width: 100%;
+            margin-right: 0 !important;
+        }
+
+        // La lupa que abre la búsqueda en una ventana (Odoo la usa cuando no cabe la caja): la caja ya está a la vista.
+        > a[data-bs-target="#o_wsale_search_modal"] {
+            display: none !important;
+        }
+    }
+}
+
+// Búsqueda sin resultados en el catálogo: algo útil (categorías y WhatsApp), no solo «sin resultados».
+.o_dcasa_sin_resultados {
+    max-width: 40rem;
+    margin-inline: auto;
+    color: $dcasa-tinta;
+
+    .o_dcasa_lead {
+        margin-inline: auto;
+        color: $dcasa-gris;
+    }
+}
+
+.o_dcasa_sin_resultados_titulo,
+.o_dcasa_carrito_vacio_titulo {
+    font-family: 'Anton', 'Oswald', sans-serif;
+    font-weight: 400;
+    text-transform: uppercase;
+    font-size: clamp(1.75rem, 3.6vw, 2.5rem);
+    color: $dcasa-azul;
+    overflow-wrap: anywhere;
+}
+
+.o_dcasa_sin_resultados_categorias {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: .5rem;
+    margin: 1.5rem 0;
+
+    .btn {
+        border-radius: 999px;
+        padding-inline: 1.25rem;
+    }
+}
+
+// Carrito vacío: título de la marca, una línea y los dos caminos (catálogo y WhatsApp).
+.o_dcasa_carrito_vacio_titulo {
+    text-align: center;
+    margin-bottom: .5rem;
+}
+
+.o_dcasa_carrito_vacio_texto {
+    text-align: center;
+    color: $dcasa-gris;
+}
+
+.o_dcasa_carrito_vacio_acciones {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: .75rem;
+}
+
+// Los botones de estas dos pantallas, con la letra de los CTA del sitio (Oswald, caja alta) y 48 px de alto.
+.o_dcasa_carrito_vacio_acciones .btn,
+.o_dcasa_sin_resultados_wa {
+    min-height: 3rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Oswald', sans-serif;
+    font-weight: 500;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+
+@media (max-width: 575.98px) {
+    .o_dcasa_carrito_vacio_acciones .btn {
+        width: 100%;
+    }
+}
+
+// Ficha: la lupa sobre la foto (abre el visor de Odoo) y la foto avisa que se puede agrandar.
+#o-carousel-product .o_carousel_product_outer {
+    position: relative;
+}
+
+.ecom-zoomable .product_detail_img {
+    cursor: zoom-in;
+}
+
+.o_dcasa_ver_grande {
+    position: absolute;
+    top: .75rem;
+    right: .75rem;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    border: 0;
+    border-radius: 50%;
+    color: $dcasa-azul;
+    background: rgba(#FFFFFF, .92);
+    font-size: 1.15rem;
+
+    &:hover {
+        color: #FFFFFF;
+        background: $dcasa-azul;
+    }
+
+    &:focus-visible {
+        outline: 3px solid $dcasa-azul;
+        outline-offset: 2px;
+    }
+}
+
+// Sin la opción de Odoo, el botón no tendría qué abrir.
+.o_wsale_product_page:not(.ecom-zoomable) .o_dcasa_ver_grande {
+    display: none;
+}
+
+// El visor: los gestos con el dedo los maneja foto_grande.js (no el navegador) y la X se toca con el dedo.
+.o_wsale_image_viewer_image {
+    touch-action: none;
+}
+
+// Por encima de la foto acercada (Odoo deja la cabecera del visor en z-index 1, igual que la foto, y de 40 px).
+.o_wsale_image_viewer .o_wsale_image_viewer_header {
+    position: relative;
+    z-index: 3;
+    height: auto;
+    padding: .5rem;
+    pointer-events: none;
+
+    > div {
+        padding: 0 !important;
+        pointer-events: auto;
+    }
+
+    // La X (lo que Odoo escucha es su <span>): un círculo navy de 44 px, visible también sobre una foto blanca.
+    .fa-times {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.75rem;
+        height: 2.75rem;
+        border-radius: 50%;
+        color: #FFFFFF;
+        background: rgba($dcasa-navy, .85);
+    }
+}

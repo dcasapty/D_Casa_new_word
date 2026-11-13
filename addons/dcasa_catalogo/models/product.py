@@ -1,5 +1,9 @@
 from odoo import api, fields, models
+from odoo.addons.dcasa_base.disponibilidad import AGOTADO, DISPONIBLE, POCAS, etiqueta_existencias
 from odoo.fields import Domain
+
+# Lo que lee el cliente en la ficha de la tienda (nunca el número de existencias).
+TEXTOS_DISPONIBILIDAD = {DISPONIBLE: 'Disponible', POCAS: 'Quedan pocas', AGOTADO: 'Agotado'}
 
 
 class ProductTemplate(models.Model):
@@ -38,6 +42,39 @@ class ProductTemplate(models.Model):
         for plantilla in controlados:
             plantilla.dcasa_stock = sum(
                 por_variante.get(variante.id, 0.0) for variante in plantilla.product_variant_ids)
+
+    def _dcasa_disponibilidad(self, variante=None):
+        """``disponible`` / ``pocas`` / ``agotado`` de este producto (o de una de sus medidas) para el cliente.
+
+        Lo que dicen Juan y la ficha de la tienda: la regla de ``dcasa_base/disponibilidad.py`` con las unidades
+        libres (en existencia menos lo reservado) de la medida elegida o, sin medida, de todas; el umbral de «pocas»
+        es el del producto (5 si no se cambió). Nunca el número.
+        """
+        self.ensure_one()
+        plantilla = self.sudo()
+        if not plantilla.is_storable:
+            return etiqueta_existencias(0, controla_inventario=False)
+        variantes = variante.sudo() if variante else plantilla.product_variant_ids
+        libres = sum(max(v.free_qty, 0.0) for v in variantes)
+        return etiqueta_existencias(libres, umbral=plantilla.available_threshold)
+
+    def _dcasa_disponibilidad_ficha(self, variante=None):
+        """Lo que pinta la ficha de la tienda: ``{'estado': 'pocas', 'texto': 'Quedan pocas'}``."""
+        estado = self._dcasa_disponibilidad(variante or None)
+        return {'estado': estado, 'texto': TEXTOS_DISPONIBILIDAD[estado]}
+
+    def _get_additionnal_combination_info(self, product_or_template, quantity, uom, date, website):
+        """Al cambiar de medida (y al abrir la ficha) el JavaScript de Odoo pide esta información: lleva la etiqueta
+        de la medida elegida y ``disponibilidad.js`` la repinta. Solo en ese pedido de la ficha (el que marca
+        ``website_sale_stock``): el catálogo de Meta y Black Weekend usan esta misma función por cada variante y no
+        necesitan contar existencias."""
+        info = super()._get_additionnal_combination_info(product_or_template, quantity, uom, date, website)
+        if website and self.env.context.get('website_sale_stock_get_quantity'):
+            variante = product_or_template if product_or_template.is_product_variant else None
+            plantilla = variante.product_tmpl_id if variante else product_or_template
+            ficha = plantilla._dcasa_disponibilidad_ficha(variante)
+            info.update(dcasa_disponibilidad=ficha['estado'], dcasa_disponibilidad_texto=ficha['texto'])
+        return info
 
 
 class ProductProduct(models.Model):

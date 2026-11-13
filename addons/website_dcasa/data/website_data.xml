@@ -52,5 +52,11 @@
         <record id="website_sale.product_terms_and_conditions" model="ir.ui.view">
             <field name="active" eval="False"/>
         </record>
+
+        <!-- La foto de la ficha se ve en grande al tocarla («Zoom al hacer clic» de Odoo; lote 1 de la web,
+             2026-11-13). El botón de la lupa sobre la foto y los gestos con el dedo dependen de esta opción. -->
+        <record id="website_sale.product_picture_magnify_click" model="ir.ui.view">
+            <field name="active" eval="True"/>
+        </record>
     </data>
 </odoo>

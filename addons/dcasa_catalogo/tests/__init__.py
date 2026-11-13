@@ -9,3 +9,4 @@ from . import test_combos_armables
 from . import test_combos_navegador
 from . import test_copiar_navegador
 from . import test_productos_limpios
+from . import test_disponibilidad_ficha

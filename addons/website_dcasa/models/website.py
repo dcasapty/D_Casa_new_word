@@ -392,13 +392,21 @@ class Website(models.Model):
         }
         if base:
             datos['url'] = base
-            datos['logo'] = f'{base}/logo.png?company={company.id}'
+            datos['logo'] = self._dcasa_logo_publico(base)
         return json_scriptsafe.dumps(datos, ensure_ascii=False)
+
+    def _dcasa_logo_publico(self, base):
+        """El logo para Google, uno solo en todos los datos estructurados: el del sitio (el de la cabecera), en una
+        dirección estable. Antes la portada decía dos distintos (``/logo.png?company=1`` y
+        ``/web/image/website/1/logo?unique=…``, que cambiaba con cada cambio del sitio)."""
+        self.ensure_one()
+        return f'{base}/web/image/website/{self.id}/logo' if base else ''
 
     def _dcasa_json_ld(self):
         """Datos estructurados FurnitureStore para Google (tienda local).
 
-        JSON seguro dentro de <script> (escapa <, >, & y U+2028/9) con el helper de Odoo.
+        JSON seguro dentro de <script> (escapa <, >, & y U+2028/9) con el helper de Odoo. El logo es el mismo que el de
+        ``Organization`` (``_dcasa_logo_publico``).
         """
         self.ensure_one()
         company = self.company_id
@@ -409,7 +417,7 @@ class Website(models.Model):
             '@id': base and f'{base}/#tienda',
             'name': company.name,
             'url': base,
-            'logo': base and base + self.image_url(self, 'logo'),
+            'logo': self._dcasa_logo_publico(base),
             'image': base and f'{base}/website_dcasa/static/src/img/hero.webp',
             'telephone': company.phone,
             'email': company.email,

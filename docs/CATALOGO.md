@@ -504,3 +504,81 @@ tres topes que Gerencia cambia en una pantalla, y cuántas búsquedas hubo (y su
 **Pruebas:** `dcasa_buscar_foto/tests/` (la ruta con el Worker simulado, los topes, el interruptor, la limpieza y las
 funciones puras), `juan/test/odoo-panel-buscar-foto.test.ts` (el punto de entrada) y `edge/test/buscar-foto.test.ts`
 (el freno de ráfagas y que nada de esto se guarde en la caché del borde).
+
+## La tienda en línea: buscar, la ficha y lo que Google no muestra
+
+Lote 1 de la web, aprobado por la dueña el 2026-11-13 («Sí, arranca el lote 1»). Capturas de antes y después (Odoo
+local con datos de prueba, 1366 y 390 px) para su visto bueno antes de producción.
+
+* **Buscar.** La lupa de la cabecera abre una caja que busca **en el catálogo** (`/shop?search=…`): los resultados se
+  ven como la tienda (fotos grandes, precio con «+ ITBMS» y el mismo botón de agregar). La lista que sale mientras se
+  escribe se queda, solo con productos. En el **celular la lupa está a la vista, junto al carrito** (antes la búsqueda
+  estaba escondida dentro del menú), con 44 px de área táctil, y abre la misma caja. La búsqueda vieja de Odoo
+  (`/website/search`, una lista con fotos chiquitas) lleva al catálogo con lo que se buscó.
+  `website_dcasa/views/buscador_templates.xml`, `controllers/main.py` (`BuscadorDcasa`).
+* **La barra de búsqueda de `/shop` en el celular** va sola en su fila, a lo ancho, con el mismo texto de ayuda
+  («Escribe lo que buscas»; en una categoría, el «Buscar en …» de Odoo); «Ordenar por» y «Filtros» quedan en la fila
+  de abajo. Antes las tres iban en una fila y la caja quedaba de ~125 px: no se leía el texto de ayuda ni cabía un
+  botón más dentro (la cámara de «Busca con una foto»). En la computadora no cambia.
+* **Una tilde no es otra búsqueda.** Odoo, cuando no hallaba la palabra exacta, buscaba la más parecida y avisaba «Su
+  búsqueda "sofa" no coincidió con nada. Se muestran los resultados para "sofá"». Si la diferencia es solo de tildes o
+  mayúsculas, ahora salen los resultados sin ese aviso (en el catálogo, en la lista mientras se escribe y en la búsqueda
+  general). Si de verdad es otra palabra, el aviso queda en tuteo: «No encontramos "sofas". Te mostramos lo que hay de
+  "sofá"». `website_dcasa/models/buscador.py` (`_search_with_fuzzy`).
+* **Sin resultados:** «No encontramos "…"», las categorías de «Compra por espacio» que tienen algo publicado y
+  **«Escríbenos por WhatsApp»** con lo que buscó ya escrito («Hola D'CASA, busco: …»). Sin el rango de precio de
+  «$ 0.00» de Odoo. Escribir sin nada y dar Enter lleva al catálogo entero.
+* **`/catalogo` y `/tienda`** llevan al catálogo con un 301 (lo que venga después del «?», como una búsqueda o una
+  campaña, se conserva).
+* **Carrito vacío** en la voz de la marca: «Tu carrito está vacío», «Mira el catálogo y agrega lo que te guste», los
+  botones **«Ver el catálogo»** y «Escríbenos por WhatsApp» (el botón flotante no sale en el carrito). «Reordenado
+  rápido» (traducción de Odoo) no se le muestra a quien no tiene cuenta; con cuenta se llama **«Volver a pedir»**. El
+  botón sigue en la página aunque no se vea: el JavaScript del carrito de Odoo lo usa al cambiar cantidades.
+* **La foto de la ficha en grande.** Es el visor de Odoo («Zoom al hacer clic», que el módulo deja siempre encendido):
+  se abre al tocar la foto o la **lupa redonda** que ahora está sobre la foto. Con el dedo: un toque acerca (2,5 veces;
+  el de Odoo acercaba poco, pensado para el ratón) y otro la deja como estaba, **dos dedos acercan** (hasta 4 veces) y,
+  ya acercada, **un dedo la mueve**. La X para cerrar es un círculo navy de 44 px que se ve también sobre una foto
+  blanca. `website_dcasa/static/src/js/foto_grande.js`.
+* **Disponibilidad en la ficha:** «Disponible», «Quedan pocas» o «Agotado», **nunca el número**, junto al precio.
+  * Es **la misma regla que usa Juan**, y vive en un solo lugar: `dcasa_base/disponibilidad.py`
+    (`etiqueta_existencias`: agotado con 0 o menos; «pocas» de 1 al umbral del producto, 5 si no se cambió;
+    disponible si hay más o si el producto no controla inventario). Juan, el catálogo de Meta (`nivel_existencias`) y
+    el Escáner (`dcasa_barras`) la importan de ahí; antes cada uno tenía su copia.
+  * Las unidades que cuentan son las **libres** (en existencia menos lo reservado) de la medida elegida, o de todas si
+    no hay medida: `product.template._dcasa_disponibilidad` (`dcasa_catalogo/models/product.py`), el mismo método que
+    usa Juan (`_j_existencias`). Al cambiar de medida en la ficha, la etiqueta cambia sola
+    (`dcasa_catalogo/static/src/js/disponibilidad.js`).
+  * **Comprar o no comprar no cambia:** un producto «Agotado» que la tienda deja vender (existencias sin confirmar,
+    `allow_out_of_stock_order`) se sigue pudiendo agregar al carrito. Los mensajes de Odoo «N en existencia» (daría el
+    número) y su «Agotado» genérico (repetiría la etiqueta) no se muestran.
+  * **La ficha guardada en el borde se refresca:** todo cambio de existencias (recepción, venta entregada, ajuste,
+    reserva) deja la marca de `dcasa_tienda_borde` (`stock.quant`) y el borde da por viejas las páginas guardadas; y,
+    además, al abrir la ficha Odoo vuelve a pedir la información de la combinación y la etiqueta se pinta con la de
+    ese momento, aunque la página venga del borde.
+  * Los datos para Google siguen **sin** disponibilidad (`PUBLICAR_DISPONIBILIDAD = False` en
+    `website_dcasa/controllers/main.py`): eso es otra decisión.
+* **Medidas:** ya existían como dato (`dcasa_medidas`, de `data/fichas.json`: las impresas en la foto del proveedor) y
+  la ficha ya las mostraba. En la copia local de la base, 144 de los 229 productos publicados las tienen; **ninguno de
+  los colchones** (tampoco el DR-1033): no se inventó ninguna.
+* **Lo que Google no muestra:** `/web/login`, `/web/signup` y `/web/reset_password` llevan `noindex` (Google mostraba
+  «Login - D'CASA Panamá» con el texto de la web vieja) y los resultados de búsqueda `noindex, follow`, en la cabecera
+  `X-Robots-Tag` y en `<meta name="robots">`; ninguna está en el mapa del sitio y el borde no cambia esa cabecera
+  ([OPERACION.md](OPERACION.md#tienda-rápida-caché-de-páginas-en-el-borde)). Los datos estructurados de la portada
+  dicen **un solo logo** (`/web/image/website/1/logo`, el de la cabecera; antes también `/logo.png?company=1`).
+* **Un sitio para botones extra en la caja de búsqueda** (la cámara de «Busca con una foto»): la plantilla vacía
+  `website_dcasa.buscador_botones_extra`, dentro de la caja, justo antes de la lupa de enviar. La llaman todas las cajas
+  de búsqueda del sitio (la de la cabecera, la del menú del celular y la barra de `/shop`); quien agrega un botón la
+  hereda con `position="inside"` y tiene a mano `search_type` («products» en la cabecera y en `/shop`), `action` y
+  `search`. Va dentro de un `<span class="o_dcasa_buscador_extra">` que no dibuja caja (`display: contents`): sin él,
+  con el editor del sitio abierto (quien puede editar el sitio) Odoo dejaba sus marcas de edición en el `t-call` y
+  toda página con la cabecera daba error 500. Al heredar esta plantilla, el botón va **dentro** de ella, no con un
+  `t-call` suelto metido por `xpath` en la caja de Odoo.
+
+**Contrato visual:** la lupa cambia la cabecera del celular a propósito; las cinco referencias de 390 px
+(`website_dcasa/tests/referencia/cabecera-*-390.webp`) se regeneraron con `scripts/actualizar_referencias_visuales.sh`.
+Las de 1440 px y las del hero no cambiaron de diseño y quedan las de antes. El contrato de estilos no cambió.
+
+Pruebas: `website_dcasa/tests/test_buscador.py` (reglas, Google, mapa del sitio, logo, /catalogo, búsqueda, tilde, sin
+resultados, carrito, foto, sitio para botones), `test_buscador_movil.py` (en Chrome como teléfono a 360, 390 y 430 px:
+la lupa junto al carrito sin romper la cabecera y los gestos del visor), `dcasa_catalogo/tests/test_disponibilidad_ficha.py`
+y `dcasa_base/tests/test_disponibilidad.py`; en el borde, `edge/test/paginas.test.ts`.

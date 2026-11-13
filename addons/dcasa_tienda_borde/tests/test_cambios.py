@@ -86,6 +86,17 @@ class TestMarcasDeCambio(TransactionCase):
         self.env['stock.quant']._update_available_quantity(self.variante, bodega.lot_stock_id, 5)
         self.assertIn(self.producto.id, self._marcados())
 
+    def test_ajuste_de_inventario_refresca_la_ficha(self):
+        """La ficha dice «Disponible», «Quedan pocas» o «Agotado» (dcasa_catalogo): un conteo hecho desde Inventario
+        (el camino de la dueña, no el método interno) también deja la ficha guardada en el borde por renovar."""
+        bodega = self.env['stock.warehouse'].search([('company_id', '=', self.env.company.id)], limit=1)
+        quant = self.env['stock.quant'].with_context(inventory_mode=True).create({
+            'product_id': self.variante.id, 'location_id': bodega.lot_stock_id.id, 'inventory_quantity': 3})
+        self._confirmar()
+        self.Pendiente.search([]).unlink()
+        quant.action_apply_inventory()
+        self.assertIn(self.producto.id, self._marcados())
+
     def test_venta_confirmada(self):
         orden = self.env['sale.order'].create({
             'partner_id': self.cliente.id,

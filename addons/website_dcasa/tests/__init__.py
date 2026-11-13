@@ -17,3 +17,5 @@ from . import test_privacidad_checkout
 from . import test_ajustes_sin_disenador
 from . import test_pedidos_web_sin_vendedora
 from . import test_nombres_cliente
+from . import test_buscador
+from . import test_buscador_movil
