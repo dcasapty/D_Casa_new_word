@@ -55,7 +55,7 @@ class BrianHerramientasConversaciones(models.AbstractModel):
         nombre='resumen_de_conversaciones',
         descripcion='El Resumen de Juan (Conversaciones › Resumen): mensajes, clientes, lo que Juan resolvió solo, '
                     'oportunidades, ventas atribuidas, tasa de cierre, cuánto se tarda en contestar y los comentarios '
-                    'de Instagram y Facebook que atendió (preguntas respondidas y quejas).',
+                    'de Instagram y Facebook (preguntas respondidas y quejas).',
         parametros={'periodo': PARAM_PERIODO_JUAN},
         nivel='lectura', categoria='ventas', grupos=VENTAS,
         ejemplos=['¿cuál es la tasa de cierre de Juan?', '¿cuántas conversaciones hubo esta semana? → 7_dias',
