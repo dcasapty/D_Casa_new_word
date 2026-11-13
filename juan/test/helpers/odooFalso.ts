@@ -333,6 +333,14 @@ export class OdooFalso implements OdooApi {
     return { ok: true, conversacion_id: this.conversacionId };
   }
 
+  /** Brian de la tienda: las herramientas que pidió (sin conversación). También quedan en `llamadas` con `conversacion_id: null`. */
+  llamadasTienda: { nombre: string; args: Record<string, unknown> }[] = [];
+
+  async herramientaTienda(nombre: string, args: Record<string, unknown>): Promise<ResultadoHerramienta> {
+    if (!this.caido) this.llamadasTienda.push({ nombre, args });
+    return this.herramienta(nombre, args, null);
+  }
+
   /** Llamadas a una herramienta, para afirmar en las pruebas. */
   de(nombre: string) {
     return this.llamadas.filter((l) => l.nombre === nombre);

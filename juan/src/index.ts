@@ -7,12 +7,13 @@ import { mesDelNegocio } from "./config";
 import type { Env } from "./env";
 import { Conversacion } from "./motor/do";
 import { Global } from "./motor/global";
+import { TiendaSesion } from "./tienda/do";
 import { obtenerConfig, odooDe } from "./odoo/fabrica";
 import { manejar, type ConversacionApi, type DepsRutas } from "./rutas";
 import { avisarPorTelegram } from "./canales/telegram";
 import { decidirAvisos, informeDeSalud, type EstadoDeAvisos } from "./salud";
 
-export { Conversacion, Global };
+export { Conversacion, Global, TiendaSesion };
 
 function depsDeRutas(env: Env, ctx: ExecutionContext): DepsRutas {
   const global = () => env.GLOBAL.get(env.GLOBAL.idFromName("juan"));
@@ -26,6 +27,10 @@ function depsDeRutas(env: Env, ctx: ExecutionContext): DepsRutas {
     gastoMes: async (mes) => (await global().gastoMes(mes)).usd,
     modelosSinPrecio: async (mes) => (await global().gastoMes(mes)).modelosSinPrecio,
     leerSalud: async (clave) => global().leerSalud(clave),
+    gastoTienda: async (mes, dia) => {
+      const g = await global().gastoTienda(mes, dia);
+      return { usd: g.usd, turnosHoy: g.turnosHoy };
+    },
     ahora: () => Date.now(),
     esperarDespues: (trabajo) => ctx.waitUntil(trabajo),
     // Palomitas y reacciones (2026-11-07): directo a Odoo, sin pasar por el Durable Object (rutas.ts → `despacharEventos`).
@@ -78,6 +83,10 @@ async function informarSalud(env: Env): Promise<void> {
     gastoMes: async (mes) => (await global.gastoMes(mes)).usd,
     modelosSinPrecio: async (mes) => (await global.gastoMes(mes)).modelosSinPrecio,
     leerSalud: async (clave) => global.leerSalud(clave),
+    gastoTienda: async (mes, dia) => {
+      const g = await global.gastoTienda(mes, dia);
+      return { usd: g.usd, turnosHoy: g.turnosHoy };
+    },
     ahora: () => Date.now(),
   });
   const mes = mesDelNegocio(cfg.horario.zona, Date.now());

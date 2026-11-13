@@ -199,6 +199,11 @@ export interface OdooApi {
   eventos?(eventos: EventoCanal[]): Promise<RespuestaEventos>;
   /** Opcional: un comentario de Instagram o Facebook que Juan atendió (`POST /comentario`). Un Odoo viejo contesta 404. */
   comentario?(cuerpo: CuerpoComentario): Promise<RespuestaComentario>;
+  /**
+   * Brian de la tienda (docs/JUAN.md › «Brian de la tienda»): una herramienta de LECTURA, sin `conversacion_id` (la tienda no tiene
+   * conversación en Odoo) y con `origen: "tienda"`. La misma ruta y el mismo token que las de Juan.
+   */
+  herramientaTienda?(nombre: string, argumentos: Record<string, unknown>): Promise<ResultadoHerramienta>;
 }
 
 export interface OpcionesCliente {
@@ -285,14 +290,17 @@ export class OdooCliente implements OdooApi {
    * Si falla, el modelo recibe el error y lo dice con honestidad.
    */
   async herramienta(nombre: string, argumentos: Record<string, unknown>, conversacion_id: number | null): Promise<ResultadoHerramienta> {
+    return this.ejecutarHerramienta({ nombre, argumentos, conversacion_id });
+  }
+
+  /** Brian de la tienda: la misma ruta, SIN la clave `conversacion_id` y con `origen: "tienda"` (un Odoo viejo lo ignora). */
+  async herramientaTienda(nombre: string, argumentos: Record<string, unknown>): Promise<ResultadoHerramienta> {
+    return this.ejecutarHerramienta({ nombre, argumentos, origen: "tienda" });
+  }
+
+  private async ejecutarHerramienta(cuerpo: Record<string, unknown>): Promise<ResultadoHerramienta> {
     try {
-      const r = await this.llamar<{ ok?: boolean; resultado?: unknown; error?: string }>(
-        "POST",
-        "/herramienta",
-        { nombre, argumentos, conversacion_id },
-        0,
-        30_000,
-      );
+      const r = await this.llamar<{ ok?: boolean; resultado?: unknown; error?: string }>("POST", "/herramienta", cuerpo, 0, 30_000);
       return r.ok === false ? { ok: false, error: r.error ?? "la herramienta falló", transitorio: false } : { ok: true, resultado: r.resultado };
     } catch (e) {
       const rechazo = e instanceof OdooError && e.estado === 422 && e.detalle ? e.detalle.slice(0, 400) : undefined;

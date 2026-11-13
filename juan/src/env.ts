@@ -3,6 +3,7 @@
 
 import type { Conversacion } from "./motor/do";
 import type { Global } from "./motor/global";
+import type { TiendaSesion } from "./tienda/do";
 
 export interface Env {
   // ── Bindings ──────────────────────────────────────────────────────────────
@@ -10,6 +11,8 @@ export interface Env {
   CONVERSACION: DurableObjectNamespace<Conversacion>;
   /** Un solo Durable Object: gasto de IA del mes y estado de salud. */
   GLOBAL: DurableObjectNamespace<Global>;
+  /** Brian de la tienda: un Durable Object por sesión (`tienda:<sid>`) con el contexto de 2 horas (docs/JUAN.md). */
+  TIENDA?: DurableObjectNamespace<TiendaSesion>;
   /** Service binding al Worker `dcasa` (que reenvía a Odoo). Worker a Worker NUNCA por URL pública. */
   DCASA: Fetcher;
   /** Service binding al puente de WhatsApp por QR (`puente-wa/`). */

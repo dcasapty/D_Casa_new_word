@@ -35,6 +35,7 @@ export class AlmacenGlobal {
     sql.correr("CREATE TABLE IF NOT EXISTS respuestas_publicas (id INTEGER PRIMARY KEY AUTOINCREMENT, ts INTEGER NOT NULL)");
     // Lo mismo con las PRIVADAS (cada una es un turno completo de IA): el tope global por hora, entre todas las cuentas.
     sql.correr("CREATE TABLE IF NOT EXISTS respuestas_privadas (id INTEGER PRIMARY KEY AUTOINCREMENT, ts INTEGER NOT NULL)");
+    crearTablasDeLaTienda(sql);
   }
 
   /**
@@ -136,12 +137,163 @@ export class AlmacenGlobal {
   }
 }
 
+// ── Brian de la tienda (docs/JUAN.md › «Brian de la tienda») ──────────────────
+//
+// Sus topes de red y del día y su presupuesto propio viven aquí porque son de TODOS los visitantes: este objeto es uno solo y atiende
+// de a una petición, así que «contar y apartar» sin esperas en medio es atómico (dos mensajes a la vez no se pasan del tope).
+// Su gasto va en su PROPIA tabla: nunca suma en `gasto` (el de Juan: su tope, «Por pagar a Meta» y los cortes de Odoo).
+
+/** Lo que se aparta para un turno de la tienda: vence solo si el Worker se cae a la mitad (no queda dinero «apartado» para siempre). */
+export const VIDA_DE_UNA_RESERVA_MS = 3 * 60_000;
+const VIDA_DE_UN_TURNO_DE_LA_TIENDA_MS = 26 * 3600_000;
+
+export interface ReservaTienda {
+  /** La red del visitante ya ofuscada (HMAC): aquí nunca llega la IP ni la red en claro. */
+  red: string;
+  /** «AAAA-MM-DD» y «AAAA-MM», en la hora de Panamá. */
+  dia: string;
+  mes: string;
+  porRed: number;
+  porDia: number;
+  presupuestoUsd: number;
+  /** Lo que puede costar este turno (0 si no llama a la IA). */
+  reservaUsd: number;
+}
+
+export type ResultadoReservaTienda = { ok: true; id: number } | { ok: false; motivo: "tope_red" | "tope_dia" | "presupuesto" };
+
+export interface GastoTienda {
+  mes: string;
+  proveedor: string;
+  modelo: string;
+  uso: Uso;
+  usd: number;
+  estimado: boolean;
+}
+
+export interface GastoTiendaDelMes {
+  mes: string;
+  usd: number;
+  turnos: number;
+  porModelo: { proveedor: string; modelo: string; usd: number; turnos: number; estimado: boolean }[];
+  /** Lo apartado por turnos que todavía corren. */
+  enVueloUsd: number;
+  /** Mensajes atendidos hoy (todos, con IA o sin ella). */
+  turnosHoy: number;
+}
+
+function crearTablasDeLaTienda(sql: Sql): void {
+  // Cada mensaje aceptado (con o sin IA): la hora, el día, la red ofuscada y lo apartado. Se borran a las 26 horas.
+  sql.correr(`CREATE TABLE IF NOT EXISTS tienda_turnos (id INTEGER PRIMARY KEY AUTOINCREMENT, ts INTEGER NOT NULL, dia TEXT NOT NULL,
+    red TEXT NOT NULL, reserva REAL NOT NULL DEFAULT 0, vence INTEGER NOT NULL DEFAULT 0)`);
+  sql.correr(`CREATE TABLE IF NOT EXISTS tienda_gasto (
+    mes TEXT NOT NULL, proveedor TEXT NOT NULL, modelo TEXT NOT NULL,
+    entrada INTEGER NOT NULL DEFAULT 0, cache_lectura INTEGER NOT NULL DEFAULT 0,
+    cache_escritura INTEGER NOT NULL DEFAULT 0, salida INTEGER NOT NULL DEFAULT 0,
+    usd REAL NOT NULL DEFAULT 0, turnos INTEGER NOT NULL DEFAULT 0, estimado INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (mes, proveedor, modelo))`);
+}
+
+/** Los topes y el presupuesto de la tienda, sin Cloudflare (se prueba con SQLite de Node). */
+export class TopesDeLaTienda {
+  constructor(private readonly sql: Sql) {
+    crearTablasDeLaTienda(sql);
+  }
+
+  /**
+   * Cuenta y aparta UN mensaje si cabe en el tope por red (última hora), en el del día y en el presupuesto del mes (lo gastado más
+   * lo apartado por los turnos en curso más lo que puede costar este). Todo sin esperas en medio: es atómico dentro del objeto.
+   */
+  reservar(p: ReservaTienda, ahora: number): ResultadoReservaTienda {
+    this.sql.correr("DELETE FROM tienda_turnos WHERE ts < ?", ahora - VIDA_DE_UN_TURNO_DE_LA_TIENDA_MS);
+    const porRed = this.sql.uno<{ n: number }>("SELECT COUNT(*) AS n FROM tienda_turnos WHERE red = ? AND ts > ?", p.red, ahora - 3600_000)?.n ?? 0;
+    if (porRed >= p.porRed) return { ok: false, motivo: "tope_red" };
+    const delDia = this.sql.uno<{ n: number }>("SELECT COUNT(*) AS n FROM tienda_turnos WHERE dia = ?", p.dia)?.n ?? 0;
+    if (delDia >= p.porDia) return { ok: false, motivo: "tope_dia" };
+    // El presupuesto solo frena lo que gasta: un turno sin IA (reserva 0: pedir una persona, calificar…) pasa aunque esté agotado.
+    const reserva = Math.max(0, p.reservaUsd);
+    if (reserva > 0) {
+      const gastado = this.gastado(p.mes);
+      const enVuelo = this.enVuelo(ahora);
+      if (gastado + enVuelo + reserva > Math.max(0, p.presupuestoUsd) + 1e-9) return { ok: false, motivo: "presupuesto" };
+    }
+    this.sql.correr("INSERT INTO tienda_turnos (ts, dia, red, reserva, vence) VALUES (?, ?, ?, ?, ?)", ahora, p.dia, p.red, reserva, ahora + VIDA_DE_UNA_RESERVA_MS);
+    const id = this.sql.uno<{ id: number }>("SELECT last_insert_rowid() AS id")?.id ?? 0;
+    return { ok: true, id };
+  }
+
+  /** El turno terminó: suelta lo apartado y anota lo que de verdad costó (cada modelo con su proveedor, en su propio renglón). */
+  cerrar(id: number, gastos: readonly GastoTienda[]): void {
+    this.sql.correr("UPDATE tienda_turnos SET reserva = 0, vence = 0 WHERE id = ?", id);
+    for (const g of gastos) {
+      if (!(g.usd >= 0) || !Number.isFinite(g.usd)) continue;
+      this.sql.correr(
+        `INSERT INTO tienda_gasto (mes, proveedor, modelo, entrada, cache_lectura, cache_escritura, salida, usd, turnos, estimado)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+         ON CONFLICT(mes, proveedor, modelo) DO UPDATE SET
+           entrada = entrada + excluded.entrada, cache_lectura = cache_lectura + excluded.cache_lectura,
+           cache_escritura = cache_escritura + excluded.cache_escritura, salida = salida + excluded.salida,
+           usd = usd + excluded.usd, turnos = turnos + 1, estimado = MAX(estimado, excluded.estimado)`,
+        g.mes,
+        g.proveedor,
+        g.modelo,
+        g.uso.entrada,
+        g.uso.cacheLectura,
+        g.uso.cacheEscritura,
+        g.uso.salida,
+        g.usd,
+        g.estimado ? 1 : 0,
+      );
+    }
+  }
+
+  gastoMes(mes: string, dia: string, ahora: number): GastoTiendaDelMes {
+    const filas = this.sql.todos<{ proveedor: string; modelo: string; usd: number; turnos: number; estimado: number }>(
+      "SELECT proveedor, modelo, usd, turnos, estimado FROM tienda_gasto WHERE mes = ? ORDER BY usd DESC",
+      mes,
+    );
+    return {
+      mes,
+      usd: filas.reduce((n, f) => n + f.usd, 0),
+      turnos: filas.reduce((n, f) => n + f.turnos, 0),
+      porModelo: filas.map((f) => ({ ...f, estimado: f.estimado === 1 })),
+      enVueloUsd: this.enVuelo(ahora),
+      turnosHoy: this.sql.uno<{ n: number }>("SELECT COUNT(*) AS n FROM tienda_turnos WHERE dia = ?", dia)?.n ?? 0,
+    };
+  }
+
+  private gastado(mes: string): number {
+    return this.sql.uno<{ usd: number | null }>("SELECT SUM(usd) AS usd FROM tienda_gasto WHERE mes = ?", mes)?.usd ?? 0;
+  }
+
+  private enVuelo(ahora: number): number {
+    return this.sql.uno<{ usd: number | null }>("SELECT SUM(reserva) AS usd FROM tienda_turnos WHERE vence > ?", ahora)?.usd ?? 0;
+  }
+}
+
 export class Global extends DurableObject<Env> {
   private readonly almacen: AlmacenGlobal;
+  private readonly tienda: TopesDeLaTienda;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
-    this.almacen = new AlmacenGlobal(sqlDeDurableObject(ctx.storage.sql));
+    const sql = sqlDeDurableObject(ctx.storage.sql);
+    this.almacen = new AlmacenGlobal(sql);
+    this.tienda = new TopesDeLaTienda(sql);
+  }
+
+  /** Brian de la tienda: cuenta y aparta un mensaje (topes de red y del día, presupuesto propio). */
+  reservarTurnoTienda(p: ReservaTienda): ResultadoReservaTienda {
+    return this.tienda.reservar(p, Date.now());
+  }
+
+  /** Brian de la tienda: suelta lo apartado y anota lo que costó, en su propia tabla. */
+  cerrarTurnoTienda(id: number, gastos: GastoTienda[]): void {
+    this.tienda.cerrar(id, gastos);
+  }
+
+  gastoTienda(mes: string, dia: string): GastoTiendaDelMes {
+    return this.tienda.gastoMes(mes, dia, Date.now());
   }
 
   registrarGasto(mes: string, modelo: string, uso: Uso, usd: number, estimado: boolean, dia?: string): void {

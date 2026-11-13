@@ -5,7 +5,7 @@
 // docs/JUAN.md). Mientras falten, no se cae: responde con un mensaje claro. Aquí solo viajan NOMBRES de
 // secretos y estados; jamás un valor.
 
-import { canalActivo, mesDelNegocio, type Config, type ProveedorIa } from "./config";
+import { canalActivo, diaDelNegocio, mesDelNegocio, type Config, type ProveedorIa } from "./config";
 import type { Env } from "./env";
 import type { AdaptadorCanal, CanalId, EstadoDeLlave, SaludCanal, SaludLocal } from "./canales/tipos";
 import { TODOS_LOS_CANALES } from "./canales/tipos";
@@ -48,6 +48,27 @@ export interface EstadoDeIa {
   modelos_sin_precio: string[];
 }
 
+/**
+ * Brian de la tienda (el chat de dcasapty.com; docs/JUAN.md): ¿está listo? El pase (el token compartido con Odoo), la IA, los ajustes de
+ * Odoo y el presupuesto propio del mes. Su gasto va aparte: no suma en `gasto_ia_mes_usd` ni en el tope de Juan.
+ */
+export interface SaludTienda {
+  listo: boolean;
+  activo: boolean;
+  /** «odoo»: llegó `brian_tienda` en `/config`; «fabrica»: no llegó (y entonces está apagado). */
+  ajustes: "odoo" | "fabrica";
+  /** El token con que se verifican los pases (JUAN_WORKER_TOKEN) está cargado. */
+  pase: boolean;
+  /** Algún proveedor de IA de los elegidos en Odoo tiene clave. */
+  ia: boolean;
+  presupuesto_usd: number;
+  /** Lo gastado este mes por la tienda; `null` si el contador no respondió (sin dato, no un cero). */
+  gasto_mes_usd: number | null;
+  agotado: boolean;
+  turnos_hoy: number | null;
+  tope_dia: number;
+}
+
 export interface InformeDeSalud {
   ok: boolean;
   /** Una frase para una persona: qué pasa y qué hacer. */
@@ -71,6 +92,7 @@ export interface InformeDeSalud {
   problemas: string[];
   /** Cosas que conviene saber aunque todo funcione (p. ej. un modelo que entrena con los mensajes). */
   avisos: string[];
+  tienda: SaludTienda;
 }
 
 export interface DepsSalud {
@@ -85,6 +107,8 @@ export interface DepsSalud {
   leerSalud?(clave: string): Promise<{ json: string; ts: number } | null>;
   /** false = no se pregunta a nadie por la red (el endpoint público no debe poder usarse para molestar al puente). */
   consultarConexiones?: boolean;
+  /** Brian de la tienda: lo gastado en el mes y los mensajes de hoy (su propio contador, en el Durable Object Global). */
+  gastoTienda?(mes: string, dia: string): Promise<{ usd: number; turnosHoy: number }>;
 }
 
 const redondear = (n: number) => Math.round(n * 100) / 100;
@@ -261,6 +285,26 @@ export async function informeDeSalud(d: DepsSalud): Promise<InformeDeSalud> {
     }
   }
 
+  // ── Brian de la tienda ──
+  const t = cfg.tienda;
+  const deLaTienda = d.gastoTienda ? await d.gastoTienda(mes, diaDelNegocio(cfg.horario.zona, d.ahora())).catch(() => null) : null;
+  const agotado = deLaTienda !== null && deLaTienda.usd >= t.presupuesto_mes_usd;
+  const tienda: SaludTienda = {
+    listo: t.activo && !!d.env.JUAN_WORKER_TOKEN && alguno && !!d.env.TIENDA && !agotado,
+    activo: t.activo,
+    ajustes: t.desde_odoo ? "odoo" : "fabrica",
+    pase: !!d.env.JUAN_WORKER_TOKEN,
+    ia: alguno,
+    presupuesto_usd: t.presupuesto_mes_usd,
+    // Con 4 decimales: un mes tranquilo de la tienda son centavos (con 2, un gasto real saldría como 0).
+    gasto_mes_usd: deLaTienda === null ? null : Math.round(deLaTienda.usd * 10_000) / 10_000,
+    agotado,
+    turnos_hoy: deLaTienda?.turnosHoy ?? null,
+    tope_dia: t.tope_dia,
+  };
+  if (t.activo && agotado) avisos.push(`Brian de la tienda llegó a su presupuesto de ${mes}: el chat de la página no contesta con IA hasta que Gerencia lo suba o empiece el mes`);
+  if (t.activo && !d.env.TIENDA) problemas.push("Brian de la tienda está encendido pero el Worker no tiene su Durable Object (TIENDA): el chat de la página no contesta");
+
   const tope = cfg.presupuesto_ia_mensual_usd;
   return {
     ok: problemas.length === 0,
@@ -276,6 +320,7 @@ export async function informeDeSalud(d: DepsSalud): Promise<InformeDeSalud> {
     tope_alcanzado: gasto !== null && tope > 0 && gasto >= tope,
     problemas,
     avisos,
+    tienda,
   };
 }
 
@@ -291,6 +336,8 @@ export interface InformePublico {
   entorno: string;
   secretos_faltantes: string[];
   ia: { proveedor: ProveedorIa; respaldo: ProveedorIa | null; lista: boolean };
+  /** Brian de la tienda, sin cifras: ¿listo?, ¿encendido?, ¿de dónde vienen los ajustes?, ¿pase?, ¿IA?, ¿presupuesto? */
+  tienda: { listo: boolean; activo: boolean; ajustes: "odoo" | "fabrica"; pase: boolean; ia: boolean; presupuesto: "disponible" | "agotado" | "sin_dato" };
   /** `puerta`, `llave`, `cuenta`, `ignorados` y `suscripcion` solo en los canales que las tienen (Instagram). */
   canales: Record<
     CanalId,
@@ -307,6 +354,14 @@ export async function informePublico(d: DepsSalud): Promise<InformePublico> {
     entorno: i.entorno,
     secretos_faltantes: i.secretos_faltantes,
     ia: { proveedor: i.ia.proveedor, respaldo: i.ia.respaldo, lista: i.ia.con_clave.includes(i.ia.proveedor) || (!!i.ia.respaldo && i.ia.con_clave.includes(i.ia.respaldo)) },
+    tienda: {
+      listo: i.tienda.listo,
+      activo: i.tienda.activo,
+      ajustes: i.tienda.ajustes,
+      pase: i.tienda.pase,
+      ia: i.tienda.ia,
+      presupuesto: i.tienda.gasto_mes_usd === null ? "sin_dato" : i.tienda.agotado ? "agotado" : "disponible",
+    },
     canales: Object.fromEntries(
       TODOS_LOS_CANALES.map((c) => {
         const k = i.canales[c];
