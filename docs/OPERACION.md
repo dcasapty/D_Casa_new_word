@@ -538,6 +538,14 @@ de lo incluido en el plan de Workers (estimación en `edge/CONTRATO_CONTENEDOR.m
 4. Para producción: cambiar `TIENDA_ESTATICA` a `"on"` en `edge/wrangler.jsonc` (raíz) y desplegar.
    Para apagarla: `"off"` y desplegar; todo vuelve a salir de Odoo al instante.
 
+**Lo que Google no muestra (lote 1 de la web, 2026-11-13).** Odoo pone `X-Robots-Tag: noindex` en
+`/web/login`, `/web/signup` y `/web/reset_password`, y `noindex, follow` en los resultados de búsqueda
+(`/shop?search=…`, `/website/search`), además del `<meta name="robots">` de la página
+(`website_dcasa/models/buscador.py`). El borde nunca guarda esas páginas (llevan `/web` o `?search=`) y su
+cabecera pasa tal cual en producción (`edge/test/paginas.test.ts`, «el noindex que pone Odoo pasa tal
+cual»); en staging, como siempre, todo va con `noindex, nofollow`. Ninguna de ellas va al mapa del sitio.
+Detalle en [CATALOGO.md](CATALOGO.md#la-tienda-en-línea-buscar-la-ficha-y-lo-que-google-no-muestra).
+
 **Si algo se ve viejo:** forzar la invalidación
 `curl -X POST -H "Authorization: Bearer <TIENDA_FEED_TOKEN>" https://<sitio>/__edge/tienda/regenerar`.
 Si el Worker no puede leer el almacén, la página la da Odoo (nunca una página en blanco). Logs:
