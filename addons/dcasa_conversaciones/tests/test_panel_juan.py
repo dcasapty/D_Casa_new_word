@@ -413,6 +413,28 @@ class TestCostos(JuanCase):
         self.assertEqual(r['modelos_sin_precio'], ['muse-spark-1.3'])
         self.assertEqual(r['avisos'], ['el modelo x-contributor puede entrenar'])
 
+    def test_lo_de_cloudflare_va_en_su_propio_renglon_y_no_es_deuda_con_meta(self):
+        """«Busca con una foto» (Workers AI) lo cobra Cloudflare: el Worker lo manda aparte (``cloudflare``) y aquí sale
+        como «Cloudflare: lector de fotos», con sus fotos y no «respuestas». No suma en «Por pagar a Meta» (que sale del
+        gasto de /odoo/salud, ya sin Cloudflare) ni en las respuestas. Un ``@cf/…`` mezclado con los modelos (un Worker
+        viejo) también se aparta."""
+        sin_cloudflare = self.panel.costos()
+        self.worker.rutas[('GET', '/odoo/costos')] = {
+            **COSTOS,
+            'por_modelo': [*COSTOS['por_modelo'],
+                           {'modelo': '@cf/meta/llama-4-scout-17b-16e-instruct', 'usd': 0.25, 'turnos': 5}],
+            'cloudflare': [{'concepto': 'cloudflare:lector-de-fotos', 'usd': 1.5, 'lecturas': 30, 'estimado': False}],
+        }
+        r = self.panel.costos()
+        self.assertEqual(r['pagos'], sin_cloudflare['pagos'], 'El saldo con Meta no cambia')
+        self.assertEqual(r['turnos'], 321)
+        meta = [m for m in r['por_modelo'] if not m.get('aparte')]
+        self.assertEqual([m['modelo'] for m in meta], ['claude-sonnet-5-5', 'claude-haiku-4-5'])
+        aparte = [(m['modelo'], m['usd'], m['lecturas'], m['turnos']) for m in r['por_modelo'] if m.get('aparte')]
+        self.assertEqual(aparte, [('Cloudflare: lector de fotos', 1.5, 30, 0),
+                                  ('Cloudflare: @cf/meta/llama-4-scout-17b-16e-instruct', 0.25, 5, 0)])
+        self.assertEqual(r['cloudflare_usd'], 1.75)
+
     def test_si_el_worker_no_tiene_el_detalle_por_modelo_igual_hay_pantalla(self):
         self.worker.rutas[('GET', '/odoo/costos')] = ({'ok': False, 'error': 'no encontrado'}, 404)
         r = self.panel.costos()
