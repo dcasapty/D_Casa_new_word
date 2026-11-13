@@ -1,5 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <!-- Ficha: «Disponible», «Quedan pocas» o «Agotado» junto al precio, con la regla de Juan (nunca el número).
+         Odoo vuelve a pedir la información al abrir la ficha y al cambiar de medida: disponibilidad.js la repinta, así
+         que una ficha guardada en el borde también muestra la de ahora. Comprar o no comprar no cambia. -->
+    <template id="producto_disponibilidad" inherit_id="website_sale.product" name="D'CASA: disponibilidad en la ficha">
+        <xpath expr="//div[hasclass('o_wsale_product_details_content_section_price')]" position="inside">
+            <t t-set="dcasa_disponibilidad" t-value="product._dcasa_disponibilidad_ficha(product_variant)"/>
+            <p class="o_dcasa_disponibilidad" t-att-data-estado="dcasa_disponibilidad['estado']" role="status">
+                <span class="o_dcasa_disponibilidad_punto" aria-hidden="true"/>
+                <span class="o_dcasa_disponibilidad_texto" t-out="dcasa_disponibilidad['texto']"/>
+            </p>
+        </xpath>
+    </template>
+
     <!-- Ficha: medidas (impresas en la foto del proveedor) y precio en combo, cada uno con su
          etiqueta y separado del precio para que nadie los confunda. -->
     <template id="producto_medidas_y_combo" inherit_id="website_sale.product" name="D'CASA: medidas y combo">

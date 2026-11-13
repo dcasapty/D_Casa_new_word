@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates>
+    <!-- La disponibilidad la dice la etiqueta de D'CASA (views/product_templates.xml): fuera el «N en existencia» de Odoo
+         (daría el número si alguien enciende «Mostrar disponibilidad») y su «Agotado» genérico, que la repetiría. El
+         mensaje propio de agotado que escriba Gerencia y el aviso por correo de Odoo se quedan. -->
+    <t t-inherit="website_sale_stock.product_availability" t-inherit-mode="extension">
+        <xpath expr="//div[@id='threshold_message']" position="replace"/>
+        <xpath expr="//t[@t-elif='!allow_out_of_stock_order']" position="replace"/>
+    </t>
+</templates>

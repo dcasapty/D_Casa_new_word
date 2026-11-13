@@ -16,6 +16,7 @@ import math
 import re
 
 from odoo import api, models, tools
+from odoo.addons.dcasa_base.disponibilidad import etiqueta_existencias  # la misma regla de Juan y de la tienda
 from odoo.addons.dcasa_base.models.codigo_publico import normalizar_codigo_publico
 from odoo.addons.dcasa_base.models.product import _puede_cambiar_precios
 from odoo.exceptions import AccessError, UserError
@@ -24,7 +25,6 @@ LARGO_MAXIMO = 64            # un código más largo no es de un lector: se reco
 MAXIMO_CANDIDATOS = 8
 MAXIMO_CANTIDAD = 100000     # una cantidad mayor es un error de dedo, no un conteo
 MAXIMO_PRECIO = 1000000      # un precio mayor es un error de dedo
-UMBRAL_POCAS = 5.0           # igual que Juan, el asistente de clientes (conversaciones/publico.py): ≤ 5 → «pocas»
 
 _CONTROL = re.compile(r'[\x00-\x1f\x7f]')
 _NO_ALFANUMERICO = re.compile(r'[^0-9A-Za-z]')
@@ -43,15 +43,6 @@ def clave_tolerante(texto):
     Los lectores que escriben como teclado cambian los símbolos si el teclado del equipo está en otro idioma.
     """
     return _NO_ALFANUMERICO.sub('', texto or '').upper()
-
-
-def etiqueta_existencias(unidades, controla_inventario=True):
-    """``disponible`` / ``pocas`` / ``agotado``. Sin control de inventario no hay cifra: se dice «disponible»."""
-    if not controla_inventario:
-        return 'disponible'
-    if unidades <= 0:
-        return 'agotado'
-    return 'pocas' if unidades <= UMBRAL_POCAS else 'disponible'
 
 
 def precio_texto(precio):
@@ -220,7 +211,7 @@ class DcasaBarras(models.AbstractModel):
             'unidad': producto.uom_id.name,
             'admite_decimales': tools.float_is_zero(0.5 - producto.uom_id.round(0.5), precision_digits=6),
             'unidades': unidades if controla else None,
-            'etiqueta': etiqueta_existencias(unidades, controla),
+            'etiqueta': etiqueta_existencias(unidades, controla_inventario=controla),
             'ubicaciones': [{'id': u.id, 'nombre': u.complete_name, 'cantidad': c} for u, c in existencias],
             'puede_contar': controla and producto.tracking == 'none'
                             and self.env.user.has_group('stock.group_stock_manager'),

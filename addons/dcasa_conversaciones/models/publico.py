@@ -11,11 +11,15 @@ en WhatsApp.
 import re
 import unicodedata
 
+from odoo.addons.dcasa_base.disponibilidad import (  # noqa: F401 (la regla vive en dcasa_base; aquí, por compatibilidad)
+    AGOTADO,
+    DISPONIBLE,
+    ETIQUETAS_EXISTENCIAS,
+    POCAS,
+    etiqueta_existencias,
+)
 from odoo.addons.dcasa_base.models.codigo_publico import es_codigo_publico, normalizar_codigo_publico
 
-DISPONIBLE, POCAS, AGOTADO = 'disponible', 'pocas', 'agotado'
-ETIQUETAS_EXISTENCIAS = (DISPONIBLE, POCAS, AGOTADO)
-UMBRAL_POCAS_POR_DEFECTO = 5.0
 LIMITE_POR_DEFECTO = 5
 LIMITE_MAXIMO = 8
 
@@ -75,21 +79,6 @@ def limite_seguro(valor, defecto=LIMITE_POR_DEFECTO, maximo=LIMITE_MAXIMO):
     except (TypeError, ValueError):
         return defecto
     return min(max(valor, 1), maximo)
-
-
-def etiqueta_existencias(libres, umbral=UMBRAL_POCAS_POR_DEFECTO, controla_inventario=True):
-    """``disponible`` / ``pocas`` / ``agotado`` a partir de las unidades libres. Nunca devuelve el número.
-
-    Sin control de inventario no hay cifra que dar: se muestra como la tienda, «disponible».
-    """
-    if not controla_inventario:
-        return DISPONIBLE
-    libres = float(libres or 0)
-    if libres <= 0:
-        return AGOTADO
-    if libres <= float(umbral if umbral is not None else UMBRAL_POCAS_POR_DEFECTO):
-        return POCAS
-    return DISPONIBLE
 
 
 def precio_texto(precio, mas_itbms=True):
