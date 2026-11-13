@@ -7,6 +7,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { TEXTO_SIN_DATO } from "../../src/dcasa/salvaguardas";
+import { haySinPublicarEn } from "../../src/motor/herramientas";
 import { crearMundo } from "../helpers/mundo";
 
 const buscarCama = { llamadas: [{ nombre: "buscar_productos", args: { consulta: "cama" } }] };
@@ -136,17 +137,102 @@ describe("nunca un número de existencias", () => {
   });
 });
 
-describe("lo que no aparece en la herramienta, no se inventa", () => {
-  it("si el producto no existe, la herramienta lo dice y el bot no lo ofrece", async () => {
+// Lo que devuelve Odoo (`_juan_buscar_productos`) cuando no hay nada publicado pero sí se vende (hoy, los colchones).
+const NOTA_NO_LO_MANEJAMOS =
+  "Nada coincide con esa búsqueda en todo el sistema de D'CASA, ni en la tienda en línea ni fuera de ella: aquí sí puedes decirle que eso no lo manejamos y ofrecerle lo que sí hay (listar_categorias).";
+const MOTIVO_COLCHON = "El cliente busca «colchón». Lo tenemos en el sistema (Colchones), pero no está publicado en la tienda en línea: confírmale modelos y precios.";
+const COLCHONES_SIN_PUBLICAR = {
+  encontrados: 0,
+  mostrados: 0,
+  productos: [],
+  estado: "hay_sin_publicar",
+  sin_publicar: { cuantos: 3, categorias: ["Colchones"] },
+  motivo_para_la_vendedora: MOTIVO_COLCHON,
+  nota:
+    "Esto SÍ lo trabajamos: hay productos así en el sistema de D'CASA, pero no están publicados en la tienda en línea y sus modelos, precios y disponibilidad no están revisados para clientes. " +
+    "No digas que no lo manejamos ni des modelos, precios ni disponibilidad. Dile al cliente que sí lo trabajamos y que una vendedora le confirma los modelos y los precios " +
+    "(p. ej. «Sí, trabajamos [lo que busca]. Los modelos y los precios te los confirma una vendedora.») y llama a pasar_a_vendedora con motivo_para_la_vendedora como motivo.",
+};
+const buscarColchon = { llamadas: [{ nombre: "buscar_productos", args: { consulta: "colchón" } }] };
+
+describe("lo que se vende sin estar publicado no se niega (incidente del 2026-11-13)", () => {
+  it("el modelo recibe el estado y la orden de no negarlo, sin nombres ni precios", async () => {
     const m = crearMundo();
-    m.odoo.manejadores.buscar_productos = () => ({ productos: [] });
+    m.odoo.manejadores.buscar_productos = () => COLCHONES_SIN_PUBLICAR;
+    const g = m.guion([
+      buscarColchon,
+      { llamadas: [{ nombre: "pasar_a_vendedora", args: { motivo: MOTIVO_COLCHON } }] },
+      { texto: "Sí, los trabajamos. Los modelos y los precios te los confirma una vendedora." },
+    ]);
+    await m.conversar("buenas, quiero un colchón");
+    expect(g.prompts()[1]).toContain('"estado":"hay_sin_publicar"');
+    expect(g.prompts()[1]).toContain("No digas que no lo manejamos");
+    const texto = m.canal.textos.join("\n");
+    expect(texto).toContain("Sí, los trabajamos. Los modelos y los precios te los confirma una vendedora.");
+    // La vendedora que la recibe sabe qué busca el cliente.
+    const pases = m.odoo.de("pasar_a_vendedora");
+    expect(pases).toHaveLength(1);
+    expect(String(pases[0].args.motivo)).toContain("colchón");
+  });
+
+  it("si el modelo lo niega («solo manejamos la cama, no el colchón solo»), no sale: reescribe y pasa a una vendedora", async () => {
+    const m = crearMundo();
+    m.odoo.manejadores.buscar_productos = () => COLCHONES_SIN_PUBLICAR;
+    const g = m.guion([
+      buscarColchon,
+      { texto: "Revisé el catálogo y ahorita solo manejamos la cama (la estructura), no el colchón solo." },
+      { llamadas: [{ nombre: "pasar_a_vendedora", args: { motivo: MOTIVO_COLCHON } }] },
+      { texto: "Sí, los trabajamos. Los modelos y los precios te los confirma una vendedora." },
+    ]);
+    await m.conversar("buenas, quiero un colchón");
+    const texto = m.canal.textos.join("\n");
+    expect(texto).not.toMatch(/solo manejamos|no el colchón solo/);
+    expect(texto).toContain("Sí, los trabajamos.");
+    expect(g.prompts()[2]).toContain("<correccion>");
+    expect(g.prompts()[2]).toContain("SÍ trabajamos");
+    expect(m.odoo.de("pasar_a_vendedora")).toHaveLength(1);
+  });
+
+  it("si insiste en negarlo, esa oración no sale nunca", async () => {
+    const m = crearMundo();
+    m.odoo.manejadores.buscar_productos = () => COLCHONES_SIN_PUBLICAR;
+    m.guion([
+      buscarColchon,
+      { llamadas: [{ nombre: "pasar_a_vendedora", args: { motivo: MOTIVO_COLCHON } }] },
+      { texto: "No manejamos colchones solos." },
+      { texto: "Colchones no los tenemos." },
+    ]);
+    await m.conversar("buenas, quiero un colchón");
+    const texto = m.canal.textos.join("\n");
+    expect(texto).not.toMatch(/no manejamos|no los tenemos/i);
+    expect(texto).toContain(TEXTO_SIN_DATO);
+    expect(m.odoo.de("pasar_a_vendedora")).toHaveLength(1);
+  });
+
+  it("cotizar con el código de algo sin publicar también cuenta como respaldo", () => {
+    expect(haySinPublicarEn("cotizar", { creada: false, motivo: "sin_publicar", mensaje: "…" })).toBe(true);
+    expect(haySinPublicarEn("cotizar", { creada: false, motivo: "producto_no_encontrado", mensaje: "…" })).toBe(false);
+    expect(haySinPublicarEn("ver_producto", { estado: "hay_sin_publicar" })).toBe(true);
+    // Con productos publicados y otros sin publicar, el aviso `sin_publicar` también respalda («otros modelos, una vendedora»).
+    expect(haySinPublicarEn("buscar_productos", { productos: [{ codigo: "DC-1" }], sin_publicar: { cuantos: 2, categorias: [] } })).toBe(true);
+    expect(haySinPublicarEn("buscar_productos", { productos: [], estado: "no_lo_manejamos" })).toBe(false);
+    expect(haySinPublicarEn("buscar_conocimiento", { estado: "hay_sin_publicar" })).toBe(false);
+  });
+});
+
+describe("lo que no aparece en la herramienta, no se inventa", () => {
+  it("si el producto no existe en todo el sistema, la herramienta lo dice (no_lo_manejamos) y el bot no lo ofrece", async () => {
+    const m = crearMundo();
+    m.odoo.manejadores.buscar_productos = () => ({ encontrados: 0, mostrados: 0, productos: [], estado: "no_lo_manejamos", nota: NOTA_NO_LO_MANEJAMOS });
     const g = m.guion([
       { llamadas: [{ nombre: "buscar_productos", args: { consulta: "cuna" } }] },
       { texto: "Cunas no las manejamos. ¿Te muestro camas?" },
     ]);
     await m.conversar("¿tienen cunas?");
     expect(g.prompts()[1]).toContain('"productos":[]');
+    expect(g.prompts()[1]).toContain('"estado":"no_lo_manejamos"');
     expect(m.canal.textos.join("\n")).toContain("no las manejamos");
+    expect(m.odoo.de("pasar_a_vendedora")).toHaveLength(0);
   });
 
   it("el nombre de una herramienta o su respuesta cruda nunca llega al cliente", async () => {

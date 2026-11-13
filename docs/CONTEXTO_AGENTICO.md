@@ -427,6 +427,9 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   respaldo previo de staging (staging dormido: «curl: (56) Recv failure», cuarta vez); se despertó staging con tres
   `curl …/web/login` y se repitió solo el trabajo fallado («rerun_failed_jobs»): bien. Luego **Desplegar Juan 21** (run
   43328387534) para el Worker (la guardia del envío y `/odoo/salud` con `mes`).
+- **Desplegar Juan 22** (13 nov, 00:4x UTC; run 43339636718) · PR #114, squash `d5c9ef9`, CI 342 con staging (run
+  43328896843). La segunda puerta de Instagram, apagada sin sus dos secretos. Solo Worker: el diff no tocaba `addons/`,
+  así que no hubo Desplegar de Odoo. Bien al primer intento.
 - **Versión estable 4 ensayada en staging** (11 nov, 03:16–03:40 UTC, run 42951600639 de «Volver a una versión
   estable», lanzado desde la rama de trabajo: el botón solo exige `main` para producción). Estable 4 = imagen de
   Desplegar 63 (`acda72c1…`, `app_version` `3e2ccfc`) + Juan hasta Desplegar Juan 20. Bien al primer intento.

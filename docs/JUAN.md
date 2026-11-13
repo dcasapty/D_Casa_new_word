@@ -229,7 +229,12 @@ Heredado del CRM de Baby Caleb y **ampliado con medios**. Service binding `PUENT
    límite de honestidad arriba: nunca afirma ser humano, y si le preguntan de verdad, lo dice).
    Escribir *persona* / *vendedora* / *humano* pasa a una vendedora **siempre**.
 2. **Nunca inventa**: precio, existencia, medida, color, plazo, descuento ni promesa. Todo lo
-   dice una herramienta; si no aparece, «no lo manejamos» o «te lo confirma una vendedora».
+   dice una herramienta. **«No lo manejamos» solo cuando la herramienta lo dice** (`no_lo_manejamos`: no existe nada,
+   ni publicado ni sin publicar). Si existe en el sistema pero no está publicado en la tienda en línea
+   (`hay_sin_publicar`, 2026-11-13: un cliente pidió un colchón, los colchones no estaban publicados y Juan dijo «solo
+   manejamos la cama»), dice que sí lo trabajamos, que una vendedora le confirma modelos y precios, y pasa a una
+   vendedora; la herramienta no le da nombres, precios ni existencias de lo no publicado, y la guardia (`niega_producto`)
+   quita un «no lo manejamos» en ese turno. Si no está claro, «te lo confirma una vendedora».
    Precios con «+ ITBMS». Existencias solo como etiqueta.
 3. Entregas, flete, financiamiento, apartados y descuentos (decisión de la dueña, 2026-10-16): explica **solo lo que
    diga `buscar_conocimiento`**, con sus mismas cifras y condiciones; lo que no esté ahí, y el caso concreto del

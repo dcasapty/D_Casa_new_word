@@ -8,6 +8,7 @@ import {
   asegurarItbms,
   detectarExistencias,
   detectarMandaALeer,
+  detectarNiegaProducto,
   detectarPromesas,
   detectarSerHumano,
   extraerMontos,
@@ -276,6 +277,61 @@ describe("regla 11 · voz de la marca", () => {
 
   it("«correr» o «corredor» no se confunden con «corre»", () => {
     expect(analizar("El corredor del pasillo mide 2 metros.", ctx()).graves).toEqual([]);
+  });
+});
+
+describe("lo que se vende sin estar publicado no se niega (incidente del 2026-11-13: «solo manejamos la cama, no el colchón solo»)", () => {
+  const conRespaldo = (extra: Partial<ContextoRevision> = {}) => ctx({ haySinPublicar: true, ...extra });
+
+  it("reconoce las formas de negar un producto, en español y en inglés", () => {
+    for (const frase of [
+      "Revisé el catálogo y ahorita solo manejamos la cama (la estructura), no el colchón solo.",
+      "Colchones no los manejamos.",
+      "No tenemos colchones por ahora.",
+      "Eso ya no lo vendemos.",
+      "Tampoco trabajamos colchones.",
+      "No contamos con colchones sueltos.",
+      "Sorry, we don't carry mattresses.",
+      "We only sell the bed frame.",
+    ]) {
+      expect(detectarNiegaProducto(frase), frase).not.toEqual([]);
+    }
+  });
+
+  it("decir que no está en la tienda en línea, o la etiqueta de existencias, no es negarlo", () => {
+    for (const frase of [
+      "Sí, los trabajamos. Los modelos y los precios te los confirma una vendedora.",
+      "No los tenemos publicados en la tienda en línea, pero sí los trabajamos.",
+      "Ahorita no lo tenemos disponible: sale agotado.",
+      "No lo tenemos en la página todavía; una vendedora te confirma los modelos.",
+      "We don't have it on the website yet, but a salesperson will confirm models and prices.",
+    ]) {
+      expect(detectarNiegaProducto(frase), frase).toEqual([]);
+    }
+  });
+
+  it("con el respaldo de la herramienta (hay productos así sin publicar), negarlo es grave y se reescribe", () => {
+    const a = analizar("Revisé el catálogo y ahorita solo manejamos la cama (la estructura), no el colchón solo.", conRespaldo());
+    expect(a.graves).toEqual([{ tipo: "niega_producto", detalle: "solo manejamos" }]);
+    expect(analizar("Sí, los trabajamos. Los modelos y los precios te los confirma una vendedora.", conRespaldo()).graves).toEqual([]);
+  });
+
+  it("sin ese respaldo no se toca: «no lo manejamos» es cierto cuando la herramienta dijo que no hay nada así", () => {
+    expect(analizar("Cunas no las manejamos. ¿Te muestro camas?", ctx()).graves).toEqual([]);
+    expect(analizar("Cunas no las manejamos. ¿Te muestro camas?", ctx({ haySinPublicar: false })).graves).toEqual([]);
+  });
+
+  it("si insiste, sale solo la oración que no niega", () => {
+    const texto = "No manejamos colchones. Una vendedora te confirma los modelos y los precios.";
+    expect(quitarGraves(texto, conRespaldo())).toBe("Una vendedora te confirma los modelos y los precios.");
+  });
+
+  it("la nota de corrección le dice que sí lo trabajamos y qué decir", () => {
+    const n = notaDeCorreccion([{ tipo: "niega_producto", detalle: "solo manejamos" }]);
+    expect(n).toMatch(/NO se envió/);
+    expect(n).toContain("SÍ trabajamos");
+    expect(n).toContain("una vendedora le confirma modelos y precios");
+    expect(n).toContain("sin dar ninguno");
   });
 });
 

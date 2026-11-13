@@ -10,6 +10,7 @@
 import { describe, expect, it } from "vitest";
 import { CONFIG_POR_DEFECTO, normalizarConfig } from "../../src/config";
 import { HERRAMIENTAS_DEL_CONTRATO, contextoDelChat, promptEstable, promptParaFugas, promptSeguimiento } from "../../src/dcasa/prompt";
+import { detectarFuga } from "../../src/dcasa/salvaguardas";
 import { textoPasoAVendedora } from "../../src/dcasa/textos";
 import { AHORA_INICIAL } from "../helpers/mundo";
 
@@ -42,9 +43,33 @@ describe("<fuentes_de_verdad> apunta a las herramientas de Odoo", () => {
     expect(fuentes).toMatch(/LLAMA a la herramienta/);
   });
 
-  it("lo que no aparece en la herramienta no existe o lo confirma una vendedora", () => {
-    expect(fuentes).toMatch(/NO lo manejamos|te lo confirma una vendedora/);
+  it("«no lo manejamos» solo cuando la herramienta lo dice; lo que se vende sin publicar va a una vendedora (incidente del 2026-11-13)", () => {
+    expect(fuentes).toContain("«No lo manejamos» SOLO cuando la herramienta lo diga (estado no_lo_manejamos");
+    expect(fuentes).toMatch(/Con hay_sin_publicar el producto SÍ se trabaja/);
+    expect(fuentes).toMatch(/sin dar modelos ni precios, dile que sí lo trabajamos y que una vendedora se los confirma, y llama a pasar_a_vendedora/);
+    expect(fuentes).toMatch(/Si no está claro .*«te lo confirma una vendedora»/);
     expect(fuentes).toMatch(/Nunca lo ofrezcas por si acaso/);
+    // El texto viejo («si no aparece, ese producto NO lo manejamos») le hizo negar los colchones a un cliente.
+    expect(prompt).not.toMatch(/ese producto NO lo manejamos|si no aparece: «no lo manejamos»/);
+    // Se pasa a una vendedora con lo que busca el cliente, y hay un ejemplo de cómo se dice.
+    expect(bloque("como_trabajas")).toContain("pide algo que la búsqueda marcó hay_sin_publicar (en el motivo, qué busca)");
+    expect(bloque("voz")).toContain("un producto con hay_sin_publicar");
+    expect(bloque("ejemplos_de_tono")).toMatch(/hay_sin_publicar, después de pasar_a_vendedora\): Sí, los trabajamos\. Los modelos y los precios te los confirma una vendedora\./);
+  });
+
+  it("las frases que Juan le dirá a un cliente con hay_sin_publicar no se confunden con una copia del prompt", () => {
+    const ctxFugas = { preciosProducto: new Set<number>(), cifrasConocidas: new Set<number>(), textoDelPrompt: promptParaFugas(cfg) };
+    for (const frase of [
+      "Sí, lo trabajamos, solo que no sale en la tienda en línea. Los modelos y los precios te los confirma una vendedora.",
+      "Sí trabajamos colchones aunque no estén publicados en la tienda en línea; una vendedora te confirma modelos y precios.",
+      "Sí, los trabajamos. Los modelos y los precios te los confirma una vendedora. Listo, ya avisé a una vendedora para que te atienda por aquí.",
+      "Es un producto que trabajamos pero no está publicado en la tienda en línea: una vendedora te confirma modelos y precios.",
+      "Lo tenemos en el sistema aunque no esté publicado en la tienda en línea, y una vendedora te confirma los modelos.",
+      "Sí, lo trabajamos aunque no esté en la tienda en línea. Una vendedora te confirma modelos y precios.",
+      "Te digo que sí lo trabajamos y que una vendedora te confirma los modelos y los precios.",
+    ]) {
+      expect(detectarFuga(frase, ctxFugas), frase).toBeNull();
+    }
   });
 
   it("los precios llevan «+ ITBMS» y se copian de precio_texto", () => {
@@ -103,6 +128,10 @@ describe("las 11 reglas de comportamiento del contrato (docs/JUAN.md)", () => {
     for (const x of ["precio", "existencia", "medida", "color", "plazo", "descuento", "promesa"]) expect(r).toContain(x);
     expect(r).toContain("+ ITBMS");
     expect(r).toMatch(/Existencias solo como etiqueta/);
+    // «No lo manejamos» solo con la herramienta; lo que se vende sin publicar nunca se niega (incidente del 2026-11-13).
+    expect(r).toContain("«No lo manejamos» solo cuando la herramienta lo diga (no_lo_manejamos)");
+    expect(r).toContain("lo que tiene hay_sin_publicar nunca se niega");
+    expect(r).toContain("si no está claro, «te lo confirma una vendedora»");
   });
 
   it("3 · entregas, flete, financiamiento, apartados y descuentos: solo lo que diga la base de conocimiento; lo demás, una vendedora", () => {
@@ -269,6 +298,7 @@ describe("la voz de la marca (CLAUDE.md)", () => {
     expect(prompt.indexOf("<ultimo_recordatorio>")).toBeGreaterThan(prompt.indexOf("</reglas>"));
     expect(bloque("ultimo_recordatorio")).toMatch(/tuteo/);
     expect(bloque("ultimo_recordatorio")).toMatch(/\+ ITBMS/);
+    expect(bloque("ultimo_recordatorio")).toContain("«no lo manejamos» solo si la herramienta lo dice");
   });
 
   it("enseña con ejemplos de tono, sin cifras", () => {

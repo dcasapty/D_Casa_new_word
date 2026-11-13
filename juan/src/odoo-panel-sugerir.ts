@@ -168,6 +168,7 @@ const QUE_SE_QUITO: Record<TipoProblema, string> = {
   manda_a_leer: "una invitación a leer políticas o términos",
   se_hace_pasar_por_persona: "una frase sobre ser persona o no ser un bot",
   palabra_prohibida: "una palabra que la marca no usa",
+  niega_producto: "decir que no manejamos algo que sí se vende aunque no esté publicado en la tienda en línea",
 };
 
 /** Lo que dice la revisión de un borrador. */

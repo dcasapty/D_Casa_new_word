@@ -11,6 +11,10 @@ Reglas que se cumplen aquí (docs/JUAN.md y crm-whatsapp.md §3.1):
 
 * **Vista pública**: solo productos PUBLICADOS en la tienda, con el precio «+ ITBMS», existencias solo
   como etiqueta (``disponible``/``pocas``/``agotado``, nunca el número) y nada de costos.
+* **Lo que se vende pero no está publicado** (hoy, los colchones) no se muestra, pero tampoco se niega: la búsqueda
+  devuelve ``estado: hay_sin_publicar`` con cuántos y su categoría (sin nombres, precios ni existencias, que no están
+  revisados para el público) y Juan lo pasa a una vendedora. «No lo manejamos» solo cuando no hay NADA en el sistema
+  (incidente del 2026-11-13: Juan negó los colchones y el cliente se fue).
 * **Ninguna escribe puntos, precios, stock, facturas ni pagos**, ni lee datos de otros clientes: el
   cliente SIEMPRE sale de la conversación (``juan_conversacion_id``, puesto por la API), nunca de un argumento.
 * **Cifras de Socios** solo desde ``puntos.json`` (``reglas_clientes.redactar``).
@@ -20,6 +24,8 @@ Los datos se leen con ``sudo()`` porque ``juan`` no tiene permisos internos: la 
 filtros (publicados) y en lo que se devuelve (lista blanca de campos), no en los permisos del usuario.
 """
 import logging
+import re
+from collections import Counter
 
 from odoo import api, fields, models
 from odoo.addons.dcasa_base.models.codigo_publico import normalizar_codigo_publico
@@ -51,6 +57,38 @@ AVISO_PRECIOS = ('Los precios son sin ITBMS: el 7 % se suma en el carrito. La di
                  'etiqueta del sistema; una vendedora la confirma antes de cualquier compra.')
 PARAM_CONSULTA = {'type': 'string', 'description': 'Lo que busca el cliente, con sus palabras: «colchón queen», '
                                                     '«sofá gris», o el código de la ficha, p. ej. «DC-K7M4PX».'}
+
+# Lo que se vende pero no está publicado en la tienda en línea (incidente del 2026-11-13: Juan negó los colchones).
+QUE_HACER_SIN_PUBLICAR = (
+    'No digas que no lo manejamos ni des modelos, precios ni disponibilidad. Dile al cliente que sí lo trabajamos y '
+    'que una vendedora le confirma los modelos y los precios (p. ej. «Sí, trabajamos [lo que busca]. Los modelos y los '
+    'precios te los confirma una vendedora.») y llama a pasar_a_vendedora con motivo_para_la_vendedora como motivo.')
+NOTA_HAY_SIN_PUBLICAR = (
+    'Esto SÍ lo trabajamos: hay productos así en el sistema de D\'CASA, pero no están publicados en la tienda en línea '
+    'y sus modelos, precios y disponibilidad no están revisados para clientes. ' + QUE_HACER_SIN_PUBLICAR)
+NOTA_CODIGO_SIN_PUBLICAR = (
+    'Ese código SÍ es de un producto que trabajamos, pero no está publicado en la tienda en línea y su modelo, precio '
+    'y disponibilidad no están revisados para clientes. ' + QUE_HACER_SIN_PUBLICAR)
+NOTA_TAMBIEN_SIN_PUBLICAR = (
+    'Además hay productos así en el sistema de D\'CASA que no están publicados en la tienda en línea (sin modelos ni '
+    'precios para dar). Ofrece primero los de arriba; si lo que pide el cliente no está entre ellos, no digas que no '
+    'lo manejamos: dile que otros modelos se los confirma una vendedora y, si los quiere, llama a pasar_a_vendedora '
+    'con motivo_para_la_vendedora como motivo.')
+NOTA_NO_LO_MANEJAMOS = (
+    'Nada coincide con esa búsqueda en todo el sistema de D\'CASA, ni en la tienda en línea ni fuera de ella: aquí sí '
+    'puedes decirle que eso no lo manejamos y ofrecerle lo que sí hay (listar_categorias).')
+NO_NIEGUES = ('Por esta búsqueda no le digas al cliente que no lo manejamos: si no das con lo que pide, dile que una '
+              'vendedora se lo confirma.')
+MAX_CATEGORIAS_SIN_PUBLICAR = 5
+# Relleno que no dice qué producto es: no cuenta para saber si alguna palabra de la búsqueda sí existe.
+PALABRAS_VACIAS = frozenset({'con', 'sin', 'para', 'por', 'los', 'las', 'del', 'una', 'uno', 'unos', 'unas', 'que',
+                             'mas', 'muy', 'algo', 'otro', 'otra', 'the', 'and', 'for', 'with'})
+
+
+def parece_codigo(consulta):
+    """Un código (DC-K7M4PX, o una referencia como «DR-1032»), no palabras: una sola pieza con algún número."""
+    texto = P.normalizar(consulta).strip()
+    return bool(normalizar_codigo_publico(consulta) or re.fullmatch(r'(?=[^ ]*\d)[a-z0-9][a-z0-9./-]{3,}', texto))
 
 
 class BrianHerramientasJuan(models.AbstractModel):
@@ -88,6 +126,77 @@ class BrianHerramientasJuan(models.AbstractModel):
     @api.model
     def _j_plantillas_publicadas(self):
         return self.env['product.template'].sudo().search(self._j_dominio_publicado())
+
+    @api.model
+    def _j_dominio_sin_publicar(self):
+        """Lo que D'CASA vende (``sale_ok``, activo) y NO está publicado en la tienda en línea, solo para saber que
+        existe: de esto nunca sale un nombre, un precio ni una existencia. Sin servicios (el flete o el premio de Socios
+        no son productos que un cliente busque)."""
+        dominio = [('sale_ok', '=', True), ('is_published', '=', False), ('type', '!=', 'service')]
+        website = self._j_website()
+        if website:
+            # Lo mismo que acota la tienda (este sitio y su empresa), sin la regla de «publicado» de los visitantes.
+            dominio += [('website_id', 'in', [False, website.id]), ('company_id', 'in', [False, website.company_id.id])]
+        return dominio
+
+    @api.model
+    def _j_plantillas_sin_publicar(self):
+        return self.env['product.template'].sudo().search(self._j_dominio_sin_publicar())
+
+    @api.model
+    def _j_plantilla_por_codigo(self, codigo, plantillas):
+        """La plantilla de ``plantillas`` con ese código: el público (DC-K7M4PX) o, por si el cliente trae la referencia
+        del proveedor (de una foto o de una conversación vieja), esa, exacta: un «%» o un «_» no son comodines."""
+        codigo = ' '.join(str(codigo or '').split())
+        if not codigo or not plantillas:
+            return plantillas.browse()
+        publico = normalizar_codigo_publico(codigo)
+        plantilla = plantillas.filtered(lambda p: p.dcasa_codigo_publico == publico)[:1] if publico else None
+        if plantilla:
+            return plantilla
+        bajo = codigo.lower()
+        variantes = self.env['product.product'].sudo().search([
+            ('product_tmpl_id', 'in', plantillas.ids), ('default_code', 'ilike', codigo)])
+        exacta = variantes.filtered(lambda v: (v.default_code or '').lower() == bajo)[:1]
+        if exacta:
+            return exacta.product_tmpl_id
+        return plantillas.filtered(lambda p: (p.default_code or '').lower() == bajo)[:1]
+
+    @api.model
+    def _j_puntuados(self, consulta, candidatos):
+        """Las plantillas de ``candidatos`` que coinciden con ``consulta``, la mejor primero."""
+        puntuados = []
+        for plantilla, nombre, codigo, extra in candidatos:
+            puntos = P.puntuar(consulta, nombre, codigo, extra)
+            if puntos:
+                puntuados.append((-puntos, nombre, plantilla.id, plantilla))
+        puntuados.sort(key=lambda t: t[:3])
+        return [t[3] for t in puntuados]
+
+    @api.model
+    def _j_palabras_que_aparecen(self, consulta, candidatos):
+        """Las palabras de la búsqueda (sin relleno) que sí salen en algún producto, aunque no todas en el mismo."""
+        vistas = []
+        for palabra in re.findall(r'[a-z0-9]+', P.normalizar(consulta)):
+            if len(palabra) < 3 or palabra.isdigit() or palabra in PALABRAS_VACIAS or palabra in vistas:
+                continue
+            if any(P.puntuar(palabra, nombre, codigo, extra) for _plantilla, nombre, codigo, extra in candidatos):
+                vistas.append(palabra)
+        return vistas
+
+    @api.model
+    def _j_sin_publicar(self, busca, plantillas):
+        """Lo único que se dice de lo no publicado: cuántos y su categoría de la tienda (sin nombres, precios ni
+        existencias), y el motivo para la vendedora que recibe la conversación."""
+        # La categoría más común primero («colchón» → Colchones antes que la de una colchoneta suelta).
+        cuantas = Counter(c.name for p in plantillas for c in p.public_categ_ids)
+        categorias = sorted(cuantas, key=lambda n: (-cuantas[n], n))[:MAX_CATEGORIAS_SIN_PUBLICAR]
+        donde = f' ({", ".join(categorias)})' if categorias else ''
+        return {
+            'sin_publicar': {'cuantos': len(plantillas), 'categorias': categorias},
+            'motivo_para_la_vendedora': f'El cliente busca {busca}. Lo tenemos en el sistema{donde}, pero no está '
+                                        'publicado en la tienda en línea: confírmale modelos y precios.',
+        }
 
     @api.model
     def _j_existencias(self, plantilla, variante=None):
@@ -171,7 +280,8 @@ class BrianHerramientasJuan(models.AbstractModel):
         elegidas = todas.filtered(lambda c: P.puntuar(texto, c.name, '', c.display_name or ''))
         if not elegidas:
             nombres = ', '.join(sorted(set(todas.mapped('name'))))
-            raise BrianError(f'No tengo una categoría que se llame «{texto}». Las categorías son: {nombres}.')
+            raise BrianError(f'No tengo una categoría que se llame «{texto}». Las categorías son: {nombres}. Si no '
+                             'es ninguna de esas, vuelve a buscar sin categoría antes de decir que no lo manejamos.')
         return Categoria.search([('id', 'child_of', elegidas.ids)])
 
     # ------------------------------------------------------------------
@@ -180,8 +290,9 @@ class BrianHerramientasJuan(models.AbstractModel):
 
     @herramienta(
         nombre=PREFIJO + 'buscar_productos',
-        descripcion='Busca productos publicados en la tienda por nombre, código, categoría, tamaño o color. '
-                    'Devuelve precio (+ ITBMS), disponibilidad en etiqueta, medidas, combo, enlace y foto.',
+        descripcion='Busca productos de la tienda por nombre, código, categoría, tamaño o color: precio (+ ITBMS), '
+                    'disponibilidad, medidas, combo, enlace y foto. Sin resultados, sigue el «estado» '
+                    '(hay_sin_publicar, busca_de_nuevo o no_lo_manejamos).',
         parametros={
             'consulta': PARAM_CONSULTA,
             'categoria': {'type': 'string', 'description': 'Opcional: una categoría de la tienda, p. ej. «Colchones».'},
@@ -196,29 +307,56 @@ class BrianHerramientasJuan(models.AbstractModel):
         consulta = str(consulta or '').strip()[:200]
         if not P.palabras(consulta):
             raise BrianError('Dime qué producto buscas, por ejemplo «cama queen» o el código de la ficha (DC-…).')
-        plantillas = self._j_plantillas_publicadas()
+        publicadas = self._j_plantillas_publicadas()
+        en_la_categoria = publicadas
         if categoria:
             categorias = self._j_categorias_que_coinciden(str(categoria))
-            plantillas = plantillas.filtered(lambda p: p.public_categ_ids & categorias)
-        puntuados = []
-        for plantilla, nombre, codigo, extra in self._j_candidatos(plantillas):
-            puntos = P.puntuar(consulta, nombre, codigo, extra)
-            if puntos:
-                puntuados.append((-puntos, nombre, plantilla.id, plantilla))
-        puntuados.sort(key=lambda t: t[:3])
-        tope = P.limite_seguro(limite)
-        base = self._j_base_url()
-        return {
-            'encontrados': len(puntuados),
-            'mostrados': min(len(puntuados), tope),
-            'productos': [self._j_ficha_corta(t[3], base) for t in puntuados[:tope]],
-            'nota': AVISO_PRECIOS,
-        }
+            en_la_categoria = publicadas.filtered(lambda p: p.public_categ_ids & categorias)
+        candidatos = self._j_candidatos(publicadas)
+        todos = self._j_puntuados(consulta, candidatos)
+        ids_de_la_categoria = set(en_la_categoria.ids)
+        encontrados = [p for p in todos if p.id in ids_de_la_categoria]
+        # Lo no publicado se busca igual (las mismas palabras, sin categoría: la pregunta es si D'CASA lo trabaja).
+        candidatos_sin_publicar = self._j_candidatos(self._j_plantillas_sin_publicar())
+        sin_publicar = self._j_puntuados(consulta, candidatos_sin_publicar)
+        if encontrados:
+            tope = P.limite_seguro(limite)
+            base = self._j_base_url()
+            resultado = {
+                'encontrados': len(encontrados),
+                'mostrados': min(len(encontrados), tope),
+                'productos': [self._j_ficha_corta(p, base) for p in encontrados[:tope]],
+                'nota': AVISO_PRECIOS,
+            }
+            if sin_publicar:
+                resultado.update(self._j_sin_publicar(f'«{consulta}»', sin_publicar),
+                                 nota_sin_publicar=NOTA_TAMBIEN_SIN_PUBLICAR)
+            return resultado
+        vacio = {'encontrados': 0, 'mostrados': 0, 'productos': []}
+        if todos:   # publicados sí hay, pero en otra categoría
+            return {**vacio, 'estado': 'busca_de_nuevo',
+                    'nota': f'En la categoría «{categoria}» no hay nada así, pero en otras de la tienda sí: vuelve a '
+                            f'buscar sin categoría. {NO_NIEGUES}'}
+        if sin_publicar:
+            return {**vacio, 'estado': 'hay_sin_publicar', **self._j_sin_publicar(f'«{consulta}»', sin_publicar),
+                    'nota': NOTA_HAY_SIN_PUBLICAR}
+        if parece_codigo(consulta):   # un código mal copiado no es «no lo manejamos»
+            return {**vacio, 'estado': 'busca_de_nuevo',
+                    'nota': f'No encuentro el código «{consulta}» en el sistema de D\'CASA (puede estar mal escrito): '
+                            f'pídele al cliente el nombre o una foto del producto y búscalo así. {NO_NIEGUES}'}
+        palabras = self._j_palabras_que_aparecen(consulta, candidatos + candidatos_sin_publicar)
+        if palabras:
+            return {**vacio, 'estado': 'busca_de_nuevo',
+                    'nota': f'Ningún producto tiene todas esas palabras juntas, pero sí hay productos con '
+                            f'{", ".join(f"«{p}»" for p in palabras)}: vuelve a buscar con menos palabras (p. ej. '
+                            f'solo «{palabras[0]}»). {NO_NIEGUES}'}
+        return {**vacio, 'estado': 'no_lo_manejamos', 'nota': NOTA_NO_LO_MANEJAMOS}
 
     @herramienta(
         nombre=PREFIJO + 'ver_producto',
         descripcion='Ficha completa de un producto publicado por su código: descripción, medidas, variantes '
-                    '(tamaños o colores) con su disponibilidad y la galería de fotos.',
+                    '(tamaños o colores) con su disponibilidad y fotos. Si no está publicado, devuelve estado '
+                    'hay_sin_publicar (sin datos del producto).',
         parametros={'codigo': {'type': 'string', 'description': 'Código del producto, el que devolvió '
                                                                 'buscar_productos o el que dice el cliente: '
                                                                 'p. ej. «DC-K7M4PX».'}},
@@ -227,20 +365,14 @@ class BrianHerramientasJuan(models.AbstractModel):
     )
     def _juan_ver_producto(self, codigo):
         codigo = str(codigo or '').strip()[:60]
-        plantillas = self._j_plantillas_publicadas()
-        publico = normalizar_codigo_publico(codigo)
-        plantilla = plantillas.filtered(lambda p: p.dcasa_codigo_publico == publico)[:1] if publico \
-            else plantillas.browse()
+        plantilla = self._j_plantilla_por_codigo(codigo, self._j_plantillas_publicadas())
         if not plantilla:
-            # El cliente puede traer la referencia del proveedor (de una foto o de una conversación vieja).
-            producto = self.env['product.product'].sudo().search([
-                ('product_tmpl_id', 'in', plantillas.ids), ('default_code', '=ilike', codigo)],
-                limit=1) if codigo else None
-            plantilla = producto.product_tmpl_id if producto else plantillas.filtered(
-                lambda p: (p.default_code or '').lower() == codigo.lower())[:1]
-        if not plantilla:
-            raise BrianError(f'No encuentro el código «{codigo}» entre los productos de la tienda. '
-                             'Búscalo por nombre con buscar_productos; si no aparece, no lo manejamos.')
+            sin_publicar = self._j_plantilla_por_codigo(codigo, self._j_plantillas_sin_publicar())
+            if sin_publicar:
+                return {'estado': 'hay_sin_publicar', **self._j_sin_publicar(f'el código «{codigo}»', sin_publicar),
+                        'nota': NOTA_CODIGO_SIN_PUBLICAR}
+            raise BrianError(f'No encuentro el código «{codigo}» en el sistema de D\'CASA (puede estar mal escrito). '
+                             f'Búscalo por nombre con buscar_productos y sigue lo que diga. {NO_NIEGUES}')
         base = self._j_base_url()
         ficha = self._j_ficha_corta(plantilla, base)
         descripcion = plantilla.description_sale or html2plaintext(plantilla.description_ecommerce or '')
