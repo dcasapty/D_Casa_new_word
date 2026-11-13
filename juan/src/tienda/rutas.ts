@@ -1,8 +1,8 @@
 // `POST /tienda/v1/mensaje` (y su `OPTIONS`): el chat de «Brian de la tienda» en dcasapty.com (contrato §2; docs/JUAN.md).
 //
 // El navegador habla directo con este Worker (no a través de Odoo: una respuesta de IA tarda de 3 a 20 s y no debe ocupar un hilo de
-// Odoo). Aquí: CORS (solo los orígenes permitidos), el pase de Odoo (firma, vencimiento y red de la conexión) y el cuerpo. Lo demás
-// (topes, contexto, IA, guardia) lo hace el Durable Object de la sesión.
+// Odoo). Aquí: CORS (solo los orígenes permitidos), el pase de Odoo (firma, vencimiento y `sid`; su red no se compara) y el cuerpo.
+// Lo demás (topes, contexto, IA, guardia) lo hace el Durable Object de la sesión.
 //
 // Nada de lo que llega se escribe en los registros: ni el texto, ni la IP, ni el `sid`, ni la ubicación.
 
@@ -11,7 +11,7 @@ import type { Env } from "../env";
 import { hmacHex } from "../seguridad";
 import type { DepsRutas } from "../rutas";
 import type { EntradaTienda, MotivoTienda, SalidaTienda } from "./motor";
-import { verificarPase } from "./pase";
+import { llaveDeRed, verificarPase } from "./pase";
 import { validarPeticionTienda } from "./peticion";
 
 export const RUTA_DEL_MENSAJE = "/tienda/v1/mensaje";
@@ -70,7 +70,7 @@ export async function manejarTienda(ruta: string, req: Request, env: Env, d: Pic
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: { ...cabecerasCors(origen), "cache-control": "no-store" } });
   if (req.method !== "POST") return responder({ ok: false, motivo: "fallo" }, 405, origen, { allow: "POST, OPTIONS" });
 
-  const verificado = await verificarPase(env.JUAN_WORKER_TOKEN, req.headers.get("authorization"), req.headers.get("cf-connecting-ip"), d.ahora());
+  const verificado = await verificarPase(env.JUAN_WORKER_TOKEN, req.headers.get("authorization"), d.ahora());
   if (!verificado.ok) return error("pase", 401, origen);
 
   const largo = Number(req.headers.get("content-length") ?? 0);
@@ -89,8 +89,9 @@ export async function manejarTienda(ruta: string, req: Request, env: Env, d: Pic
   const sesion = deps.sesion?.(verificado.pase.sid) ?? (env.TIENDA ? (env.TIENDA.get(env.TIENDA.idFromName(`tienda:${verificado.pase.sid}`)) as unknown as SesionTiendaApi) : null);
   if (!sesion) return error("fallo", 503, origen);
   try {
-    // La red se guarda ofuscada (HMAC con el token del Worker) y solo una hora y pico, para el tope por red.
-    const red = (await hmacHex(env.JUAN_WORKER_TOKEN ?? "", `brian-tienda-red:${verificado.pase.red}`)).slice(0, 32);
+    // El tope por red: la IPv4 entera o la /64 de la IPv6 de la conexión (como el borde), guardada ofuscada (HMAC con el token del
+    // Worker) y solo 26 horas.
+    const red = (await hmacHex(env.JUAN_WORKER_TOKEN ?? "", `brian-tienda-red:${llaveDeRed(req.headers.get("cf-connecting-ip"))}`)).slice(0, 32);
     const r = await sesion.atender({ peticion, red });
     return responder(r.cuerpo, r.status, origen, r.reintentarEn ? { "retry-after": String(r.reintentarEn) } : {});
   } catch (e) {

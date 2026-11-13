@@ -99,7 +99,7 @@ export interface ConfigTienda {
   presupuesto_mes_usd: number;
   /** Mensajes por hora por sesión (`sid` del pase). */
   tope_sesion_hora: number;
-  /** Mensajes por hora por red (la /24 de IPv4 o la /64 de IPv6). */
+  /** Mensajes por hora por red de la conexión (la IPv4 entera o la /64 de una IPv6, como el borde). */
   tope_red_hora: number;
   /** Mensajes por día (de Panamá) entre todos. */
   tope_dia: number;

@@ -1,6 +1,6 @@
 /**
  * `POST /tienda/v1/mensaje` por el enrutador de verdad (rutas.ts → tienda/rutas.ts): CORS solo para los orígenes permitidos, el pase
- * (firma, vencimiento, red de la conexión) y el cuerpo. El Durable Object de la sesión es un doble que anota lo que recibe.
+ * (firma, vencimiento y sid; su red no se compara), la llave del tope por red (de la conexión) y el cuerpo. El Durable Object de la sesión es un doble que anota lo que recibe.
  */
 import { describe, expect, it } from "vitest";
 import { CONFIG_POR_DEFECTO, normalizarConfig, type Config } from "../../src/config";
@@ -115,22 +115,30 @@ describe("el pase", () => {
     expect(JSON.stringify(m.recibidos[0].entrada)).not.toContain("190.140.12");
   });
 
-  it("la misma red da la misma llave (el tope por red funciona) y otra red, otra", async () => {
+  it("la llave del tope por red sale de la conexión: la IPv4 entera o la /64 de la IPv6 (nunca la red del pase)", async () => {
     const m = montar();
-    await m.pedir(await mensaje(undefined, { ip: "190.140.12.34" }));
-    await m.pedir(await mensaje(undefined, { ip: "190.140.12.99" }));
-    const otra = await firmarPase(TOKEN, { v: 1, sid: SID, exp: Math.floor(AHORA / 1000) + 1800, red: "190.140.99.0/24", sitio: 1 });
-    await m.pedir(await mensaje(undefined, { ip: "190.140.99.1", autorizacion: `Pase ${otra}` }));
-    const [a, b, c] = m.recibidos.map((r) => r.entrada.red);
-    expect(a).toBe(b);
-    expect(c).not.toBe(a);
+    const llave = async (ip: string) => {
+      await m.pedir(await mensaje(undefined, { ip }));
+      return m.recibidos.at(-1)!.entrada.red;
+    };
+    // Dos clientes del mismo operador (misma /24) no comparten tope.
+    expect(await llave("190.140.12.34")).not.toBe(await llave("190.140.12.99"));
+    expect(await llave("190.140.12.34")).toBe(await llave("190.140.12.34"));
+    // Una IPv6: toda su /64 es un solo cliente.
+    expect(await llave("2001:db8:0:1::1")).toBe(await llave("2001:db8:0:1:ffff::2"));
+    expect(await llave("2001:db8:0:1::1")).not.toBe(await llave("2001:db8:0:2::1"));
+    expect(JSON.stringify(m.recibidos.map((r) => r.entrada))).not.toMatch(/190\.140|2001:db8/);
   });
 
-  it("vencido, de otra red, alterado, sin pase o sin token en el Worker: 401 «pase» (con CORS, para que la página lo lea)", async () => {
+  it("el pase vale aunque el navegador llegue al Worker por otra familia o desde otra IP que la que vio Odoo", async () => {
+    const m = montar();
+    for (const ip of ["2001:db8:0:1::5", "200.1.1.1", "190.140.13.34"]) expect((await m.pedir(await mensaje(undefined, { ip }))).status).toBe(200);
+  });
+
+  it("vencido, alterado, sin pase o sin token en el Worker: 401 «pase» (con CORS, para que la página lo lea)", async () => {
     const m = montar();
     const casos = [
       await mensaje(undefined, { autorizacion: `Pase ${await pase({ exp: Math.floor(AHORA / 1000) - 10 })}` }),
-      await mensaje(undefined, { ip: "200.1.1.1" }),
       await mensaje(undefined, { autorizacion: `Pase ${(await pase()).replace(/.$/, (c) => (c === "A" ? "B" : "A"))}` }),
       await mensaje(undefined, { autorizacion: "" }),
     ];

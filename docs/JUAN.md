@@ -348,11 +348,12 @@ Odoo lo da en `POST /dcasa/brian/v1/pase` (con CSRF y Turnstile si el sitio lo t
   token que Odoo y el Worker ya comparten: no hay que pegar ningún secreto nuevo en Cloudflare.
 - `firma = HMAC-SHA256(llave, <el texto base64url del payload>)`.
 - `payload = {v: 1, sid, exp, red, sitio}`. `sid`: la sesión del visitante, que Odoo recuerda. `red`: la del visitante
-  vista por Odoo, IPv4 `/24` (`190.140.12.0/24`) o IPv6 `/64` (`2001:db8:0:1::/64`, sin comprimir).
-- El Worker comprueba la firma **en tiempo constante**, que no esté vencido (y que no dure más de una hora) y que la IP de
-  `CF-Connecting-IP` esté **dentro** de esa red (misma familia; prefijo de /24 a /32 o de /64 a /128). Un pase copiado no
-  sirve desde otra red. Cualquier falla: 401 `pase`, y la página pide uno nuevo una vez. Sin `JUAN_WORKER_TOKEN` en el
-  Worker no pasa ninguno.
+  vista por Odoo (informativa).
+- El Worker comprueba la firma **en tiempo constante**, que no esté vencido (y que no dure más de una hora) y el `sid`.
+  **La `red` del pase no se compara con la conexión** (coordinador, 2026-11-13): el navegador puede llegar a dcasapty.com
+  por IPv6 y al Worker por IPv4, y entonces todo pase daría 401. El abuso lo frenan los 30 minutos del pase, el tope de
+  pases por red que cuenta Odoo y los topes del Worker. Cualquier falla: 401 `pase`, y la página pide uno nuevo una vez.
+  Sin `JUAN_WORKER_TOKEN` en el Worker no pasa ninguno.
 
 ### Los topes y el presupuesto
 
@@ -363,7 +364,7 @@ o Odoo dormido sin una copia reciente) está apagado.**
 | Tope | De fábrica | Dónde se cuenta (sin carreras) |
 |---|---|---|
 | Mensajes por hora por sesión (`sid`) | 20 | En el Durable Object de la sesión, que atiende de a un mensaje (un tercero encimado mientras otros dos esperan recibe `tope_sesion` al instante). `confirmar_carrito` no cuenta. |
-| Mensajes por hora por red | 60 | En el Durable Object `Global`, con la red **ofuscada** (HMAC con el token del Worker); se borra a las 26 horas. |
+| Mensajes por hora por red | 60 | En el Durable Object `Global`. La red es la de la **conexión** (`CF-Connecting-IP`): la IPv4 entera o la /64 de una IPv6, igual que el borde y la búsqueda por foto (nunca la /24 de una IPv4: el mismo operador la comparte entre muchos clientes, y está el CGNAT). Se guarda **ofuscada** (HMAC con el token del Worker) y se borra a las 26 horas. |
 | Mensajes por día, entre todos | 1000 | En `Global` (el día es el de Panamá). |
 | Presupuesto propio del mes | 30 USD | En `Global`, **aparte** del de Juan y del de la foto. 0 = no se gasta nada. |
 
@@ -995,7 +996,7 @@ Durable Objects corren sobre SQLite de Node.
 | `test/rutas.test.ts` | Todas las direcciones: `/odoo/*` con token, `/media` firmado, webhooks, canal apagado, y que no sobreviva ninguna ruta del CRM de Baby Caleb. |
 | `test/punta-a-punta.test.ts` | Telegram -> ráfaga -> IA -> respuesta -> Odoo, con las clases reales de Durable Object, el cron y el primer despliegue sin secretos. |
 | `test/despliegue.test.ts` | La configuración de Cloudflare: el binding `DCASA` entra por `JuanEntrada` (con `entrypoint`), producción y staging iguales. |
-| `test/tienda/` | Brian de la tienda: el pase (válido, vencido, de otra red, alterado; las cuentas comparadas con `node:crypto`), CORS, los topes y el presupuesto, la lista blanca, las tarjetas, el carrito, la ubicación que no se guarda, el borrado a las 2 horas, la guardia, `confirmar_carrito`, la calificación y de punta a punta con las clases reales. |
+| `test/tienda/` | Brian de la tienda: el pase (válido, vencido, alterado, y que vale desde otra red; las cuentas comparadas con `node:crypto`), la llave del tope por red, CORS, los topes y el presupuesto, la lista blanca, las tarjetas, el carrito, la ubicación que no se guarda, el borrado a las 2 horas, la guardia, `confirmar_carrito`, la calificación y de punta a punta con las clases reales. |
 | `test/integracion/` | **Con el Odoo de verdad** (no un doble): se omite sin `ODOO_INTEGRACION_URL`; la corre `scripts/integracion_juan.sh`. Ver «Contrato verificado» (Parte 1). |
 
 > Los dobles de Odoo de las demás pruebas **hablan como el Odoo real** desde la integración: `pasar_a_vendedora` devuelve

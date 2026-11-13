@@ -4,11 +4,12 @@
 //   pase  = base64url(payload) "." base64url(firma)
 //   llave = HMAC-SHA256(JUAN_WORKER_TOKEN, "brian-tienda-pase-v1")          (los 32 bytes crudos)
 //   firma = HMAC-SHA256(llave, <el texto base64url del payload>)
-//   payload = {v: 1, sid, exp, red, sitio}
+//   payload = {v: 1, sid, exp, red?, sitio}
 //
-// Sin secretos nuevos: la llave sale del token que Odoo y el Worker ya comparten. Se comprueba la firma en tiempo constante,
-// que no esté vencido y que la `red` (la /24 de IPv4 o la /64 de IPv6 del visitante, vista por Odoo) contenga la IP desde la
-// que llega la petición (`CF-Connecting-IP`): un pase copiado no sirve desde otra red.
+// Sin secretos nuevos: la llave sale del token que Odoo y el Worker ya comparten. Se comprueban la firma (en tiempo constante), el
+// vencimiento y el `sid`. La `red` del pase NO se compara con la conexión (decisión del coordinador, 2026-11-13): el navegador puede
+// llegar a dcasapty.com por IPv6 y al Worker por IPv4, y todo pase daría 401. El abuso lo frenan los 30 minutos del pase, el tope de
+// pases por red de Odoo y los topes del Worker (por sesión, por red de la conexión —`llaveDeRed`— y por día).
 
 const codificador = new TextEncoder();
 
@@ -21,11 +22,12 @@ export interface Pase {
   sid: string;
   /** Epoch en segundos. */
   exp: number;
-  red: string;
+  /** La red que vio Odoo, si la trae: informativa, no se compara con la conexión. */
+  red: string | null;
   sitio: number;
 }
 
-export type MotivoDePase = "sin_token" | "falta" | "forma" | "firma" | "vencido" | "red";
+export type MotivoDePase = "sin_token" | "falta" | "forma" | "firma" | "vencido";
 
 export type ResultadoPase = { ok: true; pase: Pase } | { ok: false; motivo: MotivoDePase };
 
@@ -136,27 +138,18 @@ export function bytesDeIp(texto: string): Uint8Array | null {
 }
 
 /**
- * ¿La IP de la conexión está dentro de la `red` del pase? La red es «dirección/prefijo» (o una IP sola = su prefijo completo),
- * de la misma familia, con un prefijo de /24 a /32 en IPv4 o de /64 a /128 en IPv6: una red más ancha no se acepta.
+ * La llave del tope por red del Worker, de `CF-Connecting-IP`: la IPv4 entera o la red /64 de una IPv6 (lo que recibe un solo cliente),
+ * igual que el borde y la búsqueda por foto. Nunca la /24 de una IPv4: muchos clientes del mismo operador comparten una (y está el
+ * CGNAT). Una IPv4 escrita como IPv6 (::ffff:a.b.c.d) cuenta como IPv4. Sin IP o con algo que no es una IP: «sin-ip» (una sola llave
+ * para todos esos, que así no se escapan del tope).
  */
-export function ipEnRed(ip: string, red: string): boolean {
-  const ipBytes = bytesDeIp(ip);
-  if (!ipBytes) return false;
-  const [direccion, prefijoTexto, sobra] = red.trim().split("/");
-  if (sobra !== undefined) return false;
-  const redBytes = bytesDeIp(direccion ?? "");
-  if (!redBytes || redBytes.length !== ipBytes.length) return false;
-  const bits = redBytes.length * 8;
-  if (prefijoTexto !== undefined && !/^\d{1,3}$/.test(prefijoTexto)) return false;
-  const prefijo = prefijoTexto === undefined ? bits : Number(prefijoTexto);
-  const minimo = redBytes.length === 4 ? 24 : 64;
-  if (prefijo < minimo || prefijo > bits) return false;
-  for (let i = 0; i < prefijo; i++) {
-    const byte = i >> 3;
-    const mascara = 0x80 >> (i & 7);
-    if ((ipBytes[byte] & mascara) !== (redBytes[byte] & mascara)) return false;
-  }
-  return true;
+export function llaveDeRed(ip: string | null): string {
+  const b = ip ? bytesDeIp(ip) : null;
+  if (!b) return "sin-ip";
+  if (b.length === 4) return b.join(".");
+  const grupos: string[] = [];
+  for (let i = 0; i < 8; i += 2) grupos.push(((b[i] << 8) | b[i + 1]).toString(16));
+  return `${grupos.join(":")}::/64`;
 }
 
 // ── Verificar ────────────────────────────────────────────────────────────────
@@ -164,11 +157,11 @@ export function ipEnRed(ip: string, red: string): boolean {
 const SID = /^[A-Za-z0-9_-]{16,64}$/;
 
 /**
- * Verifica `Authorization: Pase <pase>` contra el token de Odoo, el reloj y la IP de la conexión. Falla cerrado: sin token
- * configurado, sin cabecera o con cualquier cosa rara, no pasa. El orden importa: primero la firma (en tiempo constante) y
- * solo después se lee lo que dice el payload.
+ * Verifica `Authorization: Pase <pase>` contra el token de Odoo y el reloj: firma, vencimiento y `sid` (la red del pase no se compara).
+ * Falla cerrado: sin token configurado, sin cabecera o con cualquier cosa rara, no pasa. El orden importa: primero la firma (en
+ * tiempo constante) y solo después se lee lo que dice el payload.
  */
-export async function verificarPase(token: string | undefined, cabecera: string | null, ip: string | null, ahoraMs: number): Promise<ResultadoPase> {
+export async function verificarPase(token: string | undefined, cabecera: string | null, ahoraMs: number): Promise<ResultadoPase> {
   if (!token) return { ok: false, motivo: "sin_token" };
   const m = /^Pase\s+(\S+)$/i.exec((cabecera ?? "").trim());
   if (!m) return { ok: false, motivo: "falta" };
@@ -191,12 +184,12 @@ export async function verificarPase(token: string | undefined, cabecera: string 
   }
   if (!datos || typeof datos !== "object" || Array.isArray(datos)) return { ok: false, motivo: "forma" };
   const d = datos as Record<string, unknown>;
-  if (d.v !== 1 || typeof d.sid !== "string" || !SID.test(d.sid) || typeof d.red !== "string" || d.red.length > 64) return { ok: false, motivo: "forma" };
+  if (d.v !== 1 || typeof d.sid !== "string" || !SID.test(d.sid)) return { ok: false, motivo: "forma" };
   if (typeof d.exp !== "number" || !Number.isFinite(d.exp)) return { ok: false, motivo: "forma" };
   const sitio = typeof d.sitio === "number" && Number.isInteger(d.sitio) ? d.sitio : 0;
   const ahoraS = ahoraMs / 1000;
   if (d.exp <= ahoraS) return { ok: false, motivo: "vencido" };
   if (d.exp > ahoraS + VIDA_MAXIMA_S) return { ok: false, motivo: "forma" };
-  if (!ip || !ipEnRed(ip, d.red)) return { ok: false, motivo: "red" };
-  return { ok: true, pase: { sid: d.sid, exp: d.exp, red: d.red, sitio } };
+  const red = typeof d.red === "string" && d.red.length <= 64 ? d.red : null;
+  return { ok: true, pase: { sid: d.sid, exp: d.exp, red, sitio } };
 }
