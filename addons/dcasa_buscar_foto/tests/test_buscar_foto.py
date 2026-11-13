@@ -84,7 +84,7 @@ class TestBuscarFoto(HttpCase):
 
     def setUp(self):
         super().setUp()
-        # Los topes cuentan las búsquedas ya hechas: cada prueba empieza sin ninguna (una base usada para capturas trae).
+        # Los topes cuentan las búsquedas hechas: cada prueba empieza sin ninguna (una base de capturas ya trae).
         self.env['dcasa.buscar.foto.uso'].sudo().search([]).unlink()
         param = self.env['ir.config_parameter'].sudo()
         param.set_param(PARAM_ACTIVO, 'True')
