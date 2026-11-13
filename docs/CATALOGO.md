@@ -497,7 +497,10 @@ local con datos de prueba, 1366 y 390 px) para su visto bueno antes de producci�
   `website_dcasa.buscador_botones_extra`, dentro de la caja, justo antes de la lupa de enviar. La llaman todas las cajas
   de búsqueda del sitio (la de la cabecera, la del menú del celular y la barra de `/shop`); quien agrega un botón la
   hereda con `position="inside"` y tiene a mano `search_type` («products» en la cabecera y en `/shop`), `action` y
-  `search`.
+  `search`. Va dentro de un `<span class="o_dcasa_buscador_extra">` que no dibuja caja (`display: contents`): sin él,
+  con el editor del sitio abierto (quien puede editar el sitio) Odoo dejaba sus marcas de edición en el `t-call` y
+  toda página con la cabecera daba error 500. Al heredar esta plantilla, el botón va **dentro** de ella, no con un
+  `t-call` suelto metido por `xpath` en la caja de Odoo.
 
 **Contrato visual:** la lupa cambia la cabecera del celular a propósito; las cinco referencias de 390 px
 (`website_dcasa/tests/referencia/cabecera-*-390.webp`) se regeneraron con `scripts/actualizar_referencias_visuales.sh`.
