@@ -33,7 +33,7 @@ import { consultasComoTexto, correrTurno, elegirNivel, rondasDeHerramientas, typ
 import { planDeIntentos, type FabricaDeModelos, type ProveedorIa, type SeleccionDeModelo } from "./proveedores";
 import { aplicarTope, costoDe, sumarUso, USO_VACIO, type Nivel, type Uso } from "./precios";
 import { firmarUrlMedio } from "./mediosUrl";
-import { esProductoSeguro, type LectorDeImagenes, type LecturaImagen } from "./vision";
+import { esComprobante, esProductoSeguro, type LectorDeImagenes, type LecturaImagen } from "./vision";
 import type { Sql } from "./sql";
 
 // ── Constantes ──────────────────────────────────────────────────────────────
@@ -677,8 +677,9 @@ export class MotorConversacion {
     if (aNotar.length > 0 && !silenciada && !this.silencioDeOdoo(ahora)) {
       this.cola.agregar("herramienta", { nombre: "anotar_conversacion", argumentos: { nota: this.notaDeArchivos(aNotar) } }, ahora);
     }
-    // Un comprobante de pago: etiqueta para que las vendedoras lo encuentren (el bot nunca lo da por confirmado).
-    if (lecturas.some((l) => l && (l.tipo === "comprobante" || l.parece_pago)) && !silenciada && !this.silencioDeOdoo(ahora)) {
+    // Un comprobante de pago: etiqueta para que las vendedoras lo encuentren (el bot nunca lo da por confirmado). Solo la prueba de un
+    // pago hecho: el precio de una publicación no (`esComprobante`).
+    if (lecturas.some((l) => esComprobante(l)) && !silenciada && !this.silencioDeOdoo(ahora)) {
       this.cola.agregar("herramienta", { nombre: "etiquetar_conversacion", argumentos: { etiqueta: "Comprobante recibido" } }, ahora);
     }
 
@@ -2600,10 +2601,20 @@ export class MotorConversacion {
   }
 }
 
-/** Lo que Odoo necesita saber de una imagen leída: su clase y si es sensible. Ante cualquier señal de pago o identidad, manda lo prudente. */
+/**
+ * Lo que Odoo necesita saber de una imagen leída: su clase y si es sensible. Comprobante = la prueba de un pago hecho (`esComprobante`);
+ * ante cualquier señal de identidad, manda lo prudente. Una publicación o un producto con `parece_pago` llega con su propia clase y SIN
+ * «sensible»: en Odoo, sensible quiere decir «comprobante o documento» (lo dice la etiqueta del chat) y esconde el texto del cliente de
+ * «Sugerir» y del resumen; un anuncio con su precio no trae datos personales que esconder. El bot igual no lo trata como producto.
+ */
 function marcaDeLectura(l: LecturaImagen): Pick<AdjuntoOdoo, "clase" | "sensible"> {
-  const clase: NonNullable<AdjuntoOdoo["clase"]> =
-    l.tipo === "comprobante" || l.parece_pago ? "comprobante" : l.tipo === "identidad" || l.parece_identidad ? "identidad" : l.tipo === "ilegible" ? "otra" : l.tipo;
+  const clase: NonNullable<AdjuntoOdoo["clase"]> = esComprobante(l)
+    ? "comprobante"
+    : l.tipo === "identidad" || l.parece_identidad
+      ? "identidad"
+      : l.tipo === "ilegible"
+        ? "otra"
+        : l.tipo;
   return { clase, ...(clase === "comprobante" || clase === "identidad" ? { sensible: true } : {}) };
 }
 

@@ -64,7 +64,7 @@ describe("comprobantes y documentos: siguen el camino de siempre", () => {
     expect(m.odoo.de("etiquetar_conversacion").map((c) => c.args.etiqueta)).toEqual(["Comprobante recibido"]);
   });
 
-  it("una imagen que el lector llamó «producto» pero con señal de pago o de identidad se trata como sensible", async () => {
+  it("una imagen que el lector llamó «producto» pero con señal de pago o de identidad no se trata como producto", async () => {
     for (const señal of [{ parece_pago: true }, { parece_identidad: true }]) {
       const m = crearMundo({ mirarImagen: async () => ({ ...PUBLICACION, ...señal }) });
       const g = m.guion([{ texto: "Recibí tu archivo. Una vendedora lo revisa." }]);
@@ -73,6 +73,23 @@ describe("comprobantes y documentos: siguen el camino de siempre", () => {
       expect(g.prompts()[0]).not.toContain("código: «822F»");
       expect(m.odoo.de("anotar_conversacion")).toHaveLength(1);
     }
+  });
+
+  it("una publicación con su precio (el lector marcó parece_pago) no se etiqueta «Comprobante recibido», pero el bot tampoco la trata como producto", async () => {
+    const m = crearMundo({ mirarImagen: async () => ({ ...PUBLICACION, parece_pago: true }) });
+    const g = m.guion([{ texto: "Recibí tu imagen. ¿Me dices el código?" }]);
+    await m.conversar("¿esta la tienen? sale a $299", imagen("instagram.jpg"));
+    expect(m.odoo.de("etiquetar_conversacion")).toHaveLength(0);
+    expect(g.prompts()[0]).toContain("NO lo ves y no puedes describirlo");
+    expect(g.prompts()[0]).not.toContain("código: «822F»");
+    expect(m.odoo.de("anotar_conversacion")).toHaveLength(1);
+  });
+
+  it("una imagen «otra» con señal de pago sí se etiqueta «Comprobante recibido»", async () => {
+    const m = crearMundo({ mirarImagen: async () => ({ tipo: "otra", codigos: [], categoria: null, medida: null, parece_pago: true, parece_identidad: false }) });
+    m.guion([{ texto: "Recibí tu archivo. Una vendedora lo revisa." }]);
+    await m.conversar("listo", imagen("captura.jpg"));
+    expect(m.odoo.de("etiquetar_conversacion").map((c) => c.args.etiqueta)).toEqual(["Comprobante recibido"]);
   });
 
   it("una cédula no se etiqueta como comprobante ni se lee: solo se anota", async () => {
@@ -103,13 +120,28 @@ describe("lo que Odoo recibe del archivo (para avisar a la dueña en paralelo)",
     expect(adjuntoEnOdoo(m)).toMatchObject({ clase: "comprobante", sensible: true });
   });
 
-  it("una imagen «producto» con señal de pago o de identidad llega como comprobante o identidad, sensible", async () => {
-    for (const [señal, clase] of [[{ parece_pago: true }, "comprobante"], [{ parece_identidad: true }, "identidad"]] as const) {
-      const m = crearMundo({ mirarImagen: async () => ({ ...PUBLICACION, ...señal }) });
-      m.guion([{ texto: "Recibí tu archivo." }]);
-      await m.conversar("mira", imagen());
-      expect(adjuntoEnOdoo(m), JSON.stringify(señal)).toMatchObject({ clase, sensible: true });
+  it("una publicación con señal de identidad llega como identidad, sensible (ante la duda, la cédula)", async () => {
+    const m = crearMundo({ mirarImagen: async () => ({ ...PUBLICACION, parece_identidad: true }) });
+    m.guion([{ texto: "Recibí tu archivo." }]);
+    await m.conversar("mira", imagen());
+    expect(adjuntoEnOdoo(m)).toMatchObject({ clase: "identidad", sensible: true });
+  });
+
+  it("una publicación o un producto con su precio (parece_pago) llega con su clase y sin marca de sensible: no es un comprobante", async () => {
+    for (const tipo of ["publicacion", "producto"] as const) {
+      const m = crearMundo({ mirarImagen: async () => ({ ...PUBLICACION, tipo, parece_pago: true }) });
+      m.guion([{ texto: "Recibí tu imagen." }]);
+      await m.conversar("¿y esta? $299", imagen());
+      expect(adjuntoEnOdoo(m), tipo).toMatchObject({ tipo: "imagen", clase: tipo });
+      expect(adjuntoEnOdoo(m).sensible, tipo).toBeUndefined();
     }
+  });
+
+  it("«otra» con señal de pago llega como comprobante, sensible", async () => {
+    const m = crearMundo({ mirarImagen: async () => ({ tipo: "otra", codigos: [], categoria: null, medida: null, parece_pago: true, parece_identidad: false }) });
+    m.guion([{ texto: "Recibí tu archivo." }]);
+    await m.conversar("listo", imagen("captura.jpg"));
+    expect(adjuntoEnOdoo(m)).toMatchObject({ clase: "comprobante", sensible: true });
   });
 
   it("sin lector, el adjunto llega como siempre: sin clase ni marca", async () => {
