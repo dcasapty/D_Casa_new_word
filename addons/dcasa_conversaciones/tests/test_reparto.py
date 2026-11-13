@@ -82,7 +82,9 @@ class TestRepartoPorTurnos(JuanCase):
         self.assertEqual(conv.activity_ids.user_id, self.beto)
         (destino, texto), = [c.args for c in self.enviar.call_args_list]
         self.assertEqual(destino, '5550003', 'Solo a quien le tocó')
-        self.assertIn('Te tocó a ti', texto)
+        self.assertTrue(texto.startswith('🟢 Cliente nuevo para ti\n'), texto)
+        self.assertIn('te escribe por', texto)
+        self.assertIn('Toca «Atender» para contestarle.', texto)
         avisos = [m.texto for m in conv.mensaje_ids if m.tipo == 'aviso']
         self.assertTrue(any('Le tocó a Beto Vendedor por turno' in a for a in avisos), avisos)
 

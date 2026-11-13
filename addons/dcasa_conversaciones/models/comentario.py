@@ -26,6 +26,7 @@ from datetime import timedelta
 
 from odoo import api, fields, models
 
+from .avisos_texto import armar
 from .mensaje import CLAVE_SISTEMA
 
 _logger = logging.getLogger(__name__)
@@ -198,11 +199,12 @@ class DcasaComentario(models.Model):
         try:
             with self.env.cr.savepoint():
                 quien = conv.partner_id.display_name or conv.id_externo
-                texto = self.env._(
-                    'Para Gerencia: queja en un comentario de %(red)s de %(quien)s: "%(dicho)s". Juan no la respondió. '
-                    'Está en Conversaciones.', red=dict(REDES)[self.red], quien=quien, dicho=self._lo_que_dijo())
-                if self.enlace:
-                    texto = f'{texto}\n{self.enlace}'
+                texto = armar(
+                    self.env._('📣 Para Gerencia: una queja en un comentario'),
+                    self.env._('%(quien)s se quejó en un comentario de %(red)s: "%(dicho)s". Juan no la respondió.',
+                               quien=quien, red=dict(REDES)[self.red], dicho=self._lo_que_dijo()),
+                    self.env._('Contéstale tú o pídeselo a alguien: está en Conversaciones.'),
+                    self.enlace or '')
                 gerencia = self.env['dcasa.reparto']._gerencia_que_recibe_avisos()
                 enviados = conv._avisar_por_telegram(texto, usuarios=gerencia) if gerencia else 0
                 if not enviados:

@@ -1,11 +1,13 @@
 # Piezas puras (sin base de datos): horario, celulares, adjuntos, vista pública y reglas de Socios para clientes.
 from . import crm_reglas, horario, celulares, adjuntos, publico, reglas_clientes, conocimiento_texto, tienda, firma
-from . import transaccion, panel_calculos
+from . import transaccion, panel_calculos, avisos_texto
 # Modelos.
 from . import ajustes, cliente_worker, etiquetas, conversacion, mensaje, mensaje_parte, res_partner, res_users
 from . import ir_attachment
 from . import conocimiento, pregunta_responder, presencia, crm_lead
 from . import reparto, conversacion_reparto
+# Los textos de los avisos por Telegram y «de noche nadie recibe clientes» (2026-11-13).
+from . import conversacion_avisos, conversacion_noche
 from . import conversacion_panel, conversacion_panel_extra, conversacion_panel_catalogo
 from . import cliente_worker_panel, panel_juan, panel_reparto, telegram_consola
 # Comentarios de Instagram y Facebook que atendió Juan (2026-11-12).

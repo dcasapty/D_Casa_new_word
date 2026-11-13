@@ -5,6 +5,7 @@ from . import (
     test_api,
     test_atajos_inicio,
     test_avisos,
+    test_avisos_noche,
     test_bandeja,
     test_celulares,
     test_citas,

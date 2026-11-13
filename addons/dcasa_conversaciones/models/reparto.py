@@ -47,6 +47,7 @@ from odoo import api, fields, models
 from odoo.exceptions import UserError
 
 from . import horario as H
+from .avisos_texto import armar
 from .transaccion import confirmar
 
 _logger = logging.getLogger(__name__)
@@ -364,7 +365,8 @@ class DcasaReparto(models.Model):
     def _cron_reasignar(self):
         """Cada 5 minutos y solo dentro del horario laboral: el cliente al que la vendedora que le dio el reparto no le
         contestó en ``reparto_reasignar_minutos`` (minutos de horario: lo de antes de abrir no cuenta) pasa a otra
-        activa, y el que el reparto dejó sin dueña (no había nadie activa) se le da a la primera que se active.
+        activa, y el que el reparto dejó sin dueña (no había nadie activa, o era de noche) se le da a la primera que se
+        active (su vendedora de siempre primero, con «Parejo»).
 
         Solo mira conversaciones con ``reparto_desde``: se borra en cuanto alguien del equipo le escribe al cliente, la
         toma, la asigna a mano o vuelve al asistente, así que lo que atiende una persona no se toca. Cada cambio se
@@ -373,13 +375,32 @@ class DcasaReparto(models.Model):
         El tope («Máximo de clientes esperándole a la vez», ``_con_lugar``): los que esperan desde antes de abrir se
         reparten entre las que van llegando y, si solo hay una, recibe el siguiente en cuanto contesta uno (al contestar
         se adelanta la próxima vuelta: ver ``dcasa.conversacion._adelantar_reparto``). Ver
-        ``_reasignar_si_nadie_contesta`` para lo de día."""
+        ``_reasignar_si_nadie_contesta`` para lo de día.
+
+        Lo de la noche (con «De noche nadie recibe clientes», ver ``conversacion_noche.py``): primero vuelven al reparto
+        los clientes de la noche cuya pausa venció, y al final de cada vuelta cada persona recibe UN aviso con lo suyo
+        (``dcasa.conversacion._avisar_lo_de_la_noche``), también con el reparto apagado."""
         ajustes = self.env['dcasa.juan.ajustes'].obtener()
         minutos = ajustes.reparto_reasignar_minutos
-        horario = ajustes.horario()
-        ahora = fields.Datetime.now()
-        if ajustes.reparto_modo == 'manual' or minutos <= 0 or not H.dentro_de_horario(ahora, horario):
+        if not H.dentro_de_horario(fields.Datetime.now(), ajustes.horario()):
             return 0
+        Conversacion = self.env['dcasa.conversacion']
+        cambiadas = 0
+        if ajustes.reparto_modo != 'manual' and minutos > 0:
+            Conversacion._volver_al_reparto_lo_de_la_noche()
+            cambiadas = self._pasar_a_otra_las_que_esperan(minutos)
+        try:
+            with self.env.cr.savepoint():
+                Conversacion._avisar_lo_de_la_noche()
+        except Exception:   # noqa: BLE001 — el aviso de la mañana no deja sin reparto al resto
+            _logger.exception('Juan: no pude mandar los avisos de lo que llegó de noche.')
+        confirmar(self.env)
+        return cambiadas
+
+    @api.model
+    def _pasar_a_otra_las_que_esperan(self, minutos):
+        """La vuelta de «pasar a otra si no contesta» (ver ``_cron_reasignar``). Devuelve cuántas cambió."""
+        ahora = fields.Datetime.now()
         # Desde cuándo cuenta: lo que pasó antes de abrir hoy no son minutos en que alguien podía contestar.
         apertura = self._apertura_de_hoy()
         limite = ahora - timedelta(minutes=minutos)
@@ -412,48 +433,87 @@ class DcasaReparto(models.Model):
         """Le da ``conv`` a otra vendedora activa que no la haya tenido en las últimas horas (o a la primera activa, si
         nadie la tenía). Devuelve a quién se la dio, o vacío si no hay nadie nueva (se queda como está).
 
+        Si nadie la tenía y, con «Parejo», su vendedora de siempre está disponible, vuelve con ella aunque esté llena
+        (como cuando Juan pasa un cliente de día; así vuelve el cliente de la noche con quien ya lo atendía).
+
         El tope: no se le da a quien ya tiene el máximo de clientes esperándole, salvo a un cliente que quedó sin dueña
         DENTRO del horario (``reparto_desde`` desde la ``apertura`` de hoy): ese se da aunque todas estén llenas, a la
         que lleva menos (revisión adversarial, 2026-11-12: de día nadie se queda sin dueña por el tope). El que espera
-        desde antes de abrir (los de la noche) y el que ya tiene dueña sí esperan lugar."""
+        desde antes de abrir (los de la noche) y el que ya tiene dueña sí esperan lugar.
+
+        El cliente de la noche (``aviso_de_noche``) no avisa aquí: le llega a ella en la lista de la mañana."""
         vacio = self.env['res.users']
+        ajustes = self.env['dcasa.juan.ajustes'].obtener()
         antes = conv.asignada_a
         hoy = self._hoy()
         ya_la_tuvieron = self.sudo().search([
             ('conversacion_id', '=', conv.id),
             ('momento', '>=', fields.Datetime.now() - timedelta(hours=HORAS_SIN_REPETIR))]).usuario_id
         disponibles = self._disponibles(hoy) - antes - ya_la_tuvieron
-        candidatas = self._con_lugar(disponibles, excepto=conv)
-        apertura = apertura or self._apertura_de_hoy()
-        if not candidatas and not antes and conv.reparto_desde >= apertura:
-            candidatas = disponibles
-        if not candidatas:
-            return vacio
-        cuentas = self._cuentas(candidatas, hoy, hoy, excepto=conv)
-        elegida = self._ordenar(candidatas, cuentas)[0]
-        minutos = self.env['dcasa.juan.ajustes'].obtener().reparto_reasignar_minutos
-        if antes:
+        regla, elegida, momento = 'reasignada', vacio, None
+        if not antes and ajustes.reparto_modo == 'parejo':
+            elegida, momento = self._vendedora_de_siempre(conv, disponibles, ajustes.reparto_dias_misma_vendedora)
+            if elegida:
+                regla = 'misma'
+        if not elegida:
+            candidatas = self._con_lugar(disponibles, excepto=conv)
+            apertura = apertura or self._apertura_de_hoy()
+            if not candidatas and not antes and conv.reparto_desde >= apertura:
+                candidatas = disponibles
+            if not candidatas:
+                return vacio
+            cuentas = self._cuentas(candidatas, hoy, hoy, excepto=conv)
+            elegida = self._ordenar(candidatas, cuentas)[0]
+        minutos = ajustes.reparto_reasignar_minutos
+        if regla == 'misma':
+            razon = self.env._('Sigue con %(quien)s: ya atendió a este cliente %(cuando)s.',
+                               quien=elegida.name, cuando=self._hace_cuanto(momento))
+        elif antes:
             razon = self.env._('%(antes)s no le contestó al cliente en %(min)s minutos: pasó a %(nueva)s.',
                                antes=antes.name, min=minutos, nueva=elegida.name)
         else:
             razon = self.env._('Nadie la tenía: pasó a %s, que está activa.', elegida.name)
         conv.write({'asignada_a': elegida.id, 'reparto_desde': fields.Datetime.now()})
         # Siempre una línea nueva (sin la regla de «una vez al día»): el libro dice quién la tuvo y cuándo.
-        self.sudo().create({'conversacion_id': conv.id, 'usuario_id': elegida.id, 'dia': hoy, 'regla': 'reasignada',
+        self.sudo().create({'conversacion_id': conv.id, 'usuario_id': elegida.id, 'dia': hoy, 'regla': regla,
                             'razon': razon[:300], 'anterior_id': antes.id or False})
         elegida.dcasa_turno = max(self._equipo(hoy).mapped('dcasa_turno') or [0]) + 1
         conv._aviso(razon)
-        cliente = conv.partner_id.display_name or conv.id_externo
-        canal = dict(self.env['dcasa.conversacion']._fields['canal'].selection).get(conv.canal, conv.canal)
-        texto = self.env._('Te tocó a ti: %(cliente)s espera respuesta por %(canal)s. %(razon)s',
-                           cliente=cliente, canal=canal, razon=razon)
-        if not conv._avisar_por_telegram(texto, usuarios=elegida, acciones=True):
-            conv._avisar_por_telegram(texto, acciones=True)
-        gerencia = self._gerencia_que_recibe_avisos()
-        if gerencia and antes:
-            conv._avisar_por_telegram(self.env._('Para Gerencia: %s', razon), usuarios=gerencia)
+        if not conv.aviso_de_noche:
+            texto = self._texto_de_reasignada(conv, antes, regla, minutos)
+            if not conv._avisar_por_telegram(texto, usuarios=elegida, acciones=True):
+                conv._avisar_por_telegram(texto, acciones=True)
+            gerencia = self._gerencia_que_recibe_avisos()
+            if gerencia and antes:
+                conv._avisar_por_telegram(self._texto_para_gerencia(conv, antes, elegida, minutos), usuarios=gerencia)
         conv._notificar_panel('estado')
         return elegida
+
+    @api.model
+    def _texto_de_reasignada(self, conv, antes, regla, minutos):
+        """El aviso para quien recibe un cliente que esperaba (la misma forma que los demás: ver
+        ``conversacion_avisos.py``)."""
+        cliente, canal = conv._aviso_cliente(), conv._aviso_canal()
+        espera = self.env._('%(cliente)s escribe por %(canal)s y espera respuesta.', cliente=cliente, canal=canal)
+        if regla == 'misma':
+            return armar(self.env._('🟢 Volvió un cliente tuyo'), f"{espera} {self.env._('Ya lo atendiste antes.')}",
+                         self.env._('Toca «Atender» para contestarle.'))
+        if antes:
+            return armar(self.env._('🔁 Te pasaron un cliente'), espera,
+                         self.env._('%(antes)s no le contestó en %(min)s minutos: ahora es tuyo.', antes=antes.name,
+                                    min=minutos),
+                         self.env._('Toca «Atender» para contestarle.'))
+        return armar(self.env._('🟢 Cliente nuevo para ti'), espera, self.env._('Nadie lo tenía todavía.'),
+                     self.env._('Toca «Atender» para contestarle.'))
+
+    @api.model
+    def _texto_para_gerencia(self, conv, antes, nueva, minutos):
+        return armar(
+            self.env._('🔁 Para Gerencia: un cliente cambió de vendedora'),
+            self.env._('%(cliente)s (%(canal)s) pasó de %(antes)s a %(nueva)s: %(antes)s no le contestó en %(min)s '
+                       'minutos.', cliente=conv._aviso_cliente(), canal=conv._aviso_canal(), antes=antes.name,
+                       nueva=nueva.name, min=minutos),
+            self.env._('No tienes que hacer nada: queda escrito en la conversación y en la pantalla Reparto.'))
 
     @api.model
     def _apertura_de_hoy(self):

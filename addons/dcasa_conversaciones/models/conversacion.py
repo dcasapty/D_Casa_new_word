@@ -47,6 +47,9 @@ MAX_NOTA = 1000
 # (models/telegram_consola.py). Texto fijo, sin traducir: es lo que se busca al recibir la respuesta.
 PIE_DE_AVISO = '↩ Responde a este mensaje para escribirle al cliente. (Conversación n.º %s)'
 REFERENCIA_DE_AVISO = r'Conversación n\.º (\d+)'
+# La lista de la mañana (varios clientes de la noche) no lleva ese pie: trae un «Atender» por cliente y esta frase, con
+# la que la consola reconoce que alguien le respondió a la lista en vez de al «Listo» de un cliente.
+FRASE_DE_LA_LISTA = 'Toca «Atender» en el que vas a contestar.'
 MAX_NOTA_PARA_EL_BOT = 500
 # Lo único que el equipo (vendedoras y Gerencia) cambia a mano (formulario o RPC) en una conversación. Lo demás (estado,
 # pausa por los botones, nota para el asistente, seguimiento, último mensaje, resumen) lo escribe el sistema con sudo,
@@ -62,6 +65,16 @@ MOTIVOS_DE_BAJA = ('no_contactar', 'no contactar', 'no lo contacten', 'baja', 'o
 # Quien espera a una persona deja de «esperar» a la semana (la misma que usa Sofía para «Contéstale»): si alguien lo
 # atendió por otro lado (una llamada, en la tienda) y no lo marcó, el seguimiento no queda frenado para siempre.
 DIAS_ESPERA_A_UNA_PERSONA = 7
+# Lo que se avisa al abrir de lo que llegó de noche (con «De noche nadie recibe clientes»): de lo más a lo menos
+# importante. Ver ``conversacion_noche.py``.
+ARCHIVOS_DE_NOCHE = [('comprobante', 'Un comprobante de pago'), ('documento', 'Un archivo que Juan no lee'),
+                     ('identidad', 'Un documento de identidad')]
+# Alguien del equipo ya se ocupó del cliente: lo que quedó de la noche ya no se avisa.
+SIN_AVISOS_DE_NOCHE = {'aviso_de_noche': False, 'aviso_de_noche_motivo': False, 'aviso_de_noche_urgente': False,
+                       'archivo_de_noche': False}
+# Fotos, videos y archivos: a lo más un aviso por conversación cada tanto (una ráfaga de fotos no es una ráfaga de
+# avisos).
+PAUSA_ENTRE_AVISOS_DE_ARCHIVO = timedelta(minutes=10)
 
 
 class DcasaConversacion(models.Model):
@@ -147,6 +160,18 @@ class DcasaConversacion(models.Model):
         help='Para no avisar de cada foto de una ráfaga: a lo más una vez cada 10 minutos.')
     estado_pendiente_de_avisar = fields.Boolean(
         readonly=True, help='El cambio de estado aún no se le avisó al Worker (se reintenta solo).')
+    # --- De noche (con «De noche nadie recibe clientes»): lo que se avisa al abrir. Ver ``conversacion_noche.py``.
+    aviso_de_noche = fields.Datetime(
+        'Pidió una persona de noche', readonly=True, copy=False, index='btree_not_null',
+        help='Juan la pasó a una persona con la tienda cerrada: nadie la recibió ni se avisó. Al abrir se reparte y a '
+             'quien le toque le llega un solo aviso con su lista. Se borra al avisar o en cuanto alguien del equipo se '
+             'ocupa del cliente.')
+    aviso_de_noche_motivo = fields.Char('Lo que anotó Juan de noche', readonly=True, copy=False)
+    aviso_de_noche_urgente = fields.Boolean('Juan lo marcó urgente de noche', readonly=True, copy=False)
+    archivo_de_noche = fields.Selection(
+        ARCHIVOS_DE_NOCHE, 'Mandó de noche', readonly=True, copy=False, index='btree_not_null',
+        help='Lo más importante que el cliente mandó con la tienda cerrada (un comprobante, un archivo que Juan no lee '
+             'o su cédula): se avisa al abrir.')
 
     _conversacion_unica = models.Constraint(
         'UNIQUE(canal, id_externo)', 'Ya existe una conversación con esa persona por ese canal.')
@@ -494,6 +519,7 @@ class DcasaConversacion(models.Model):
             valores['seguimiento_proximo'] = False
             valores['reparto_desde'] = False   # alguien del equipo le contestó (p. ej. desde el teléfono)
             valores['traspaso_sin_atender_desde'] = False
+            valores.update(SIN_AVISOS_DE_NOCHE)
             valores.update(self._valores_de_pausa(ajustes, ahora, cambia_a_humano=self.estado != 'humano'))
         self.write(valores)
         if mensaje.autor == 'bot':
@@ -826,18 +852,22 @@ class DcasaConversacion(models.Model):
 
         Una vez por espera (si el cliente vuelve a escribir y nadie contesta, se vuelve a avisar). Va a quien atiende la
         conversación; si nadie la atiende o no tiene Telegram, a las personas de siempre. No avisa fuera del horario
-        laboral (si así se pidió) ni de esperas de más de un día (ya son otra cosa). Devuelve cuántos avisos mandó.
+        laboral (si así se pidió, o con «De noche nadie recibe clientes») ni de esperas de más de un día (ya son otra
+        cosa), ni del cliente de la noche que todavía espera su turno en el reparto (le llega en la lista de la mañana a
+        quien le toque: ``_avisar_lo_de_la_noche``). Devuelve cuántos avisos mandó.
         """
         ajustes = self.env['dcasa.juan.ajustes'].obtener()
         if ajustes.aviso_espera_minutos <= 0:
             return 0
         ahora = fields.Datetime.now()
-        if ajustes.aviso_espera_solo_horario and not H.dentro_de_horario(ahora, ajustes.horario()):
+        if (ajustes.aviso_espera_solo_horario or ajustes.reparto_nadie_de_noche) and \
+                not H.dentro_de_horario(ahora, ajustes.horario()):
             return 0
         esperando = self.sudo().search([
             ('estado', '=', 'humano'), ('ultimo_mensaje_autor', '=', 'cliente'),
             ('ultimo_mensaje_cliente', '<=', ahora - timedelta(minutes=ajustes.aviso_espera_minutos)),
             ('ultimo_mensaje_cliente', '>=', ahora - timedelta(hours=HORAS_MAXIMAS_DE_ESPERA_AVISADA)),
+            ('aviso_de_noche', '=', False),
         ], order='ultimo_mensaje_cliente', limit=50)
         avisos = 0
         sin_avisar = esperando.filtered(
@@ -845,17 +875,12 @@ class DcasaConversacion(models.Model):
         for conv in sin_avisar:
             conv.espera_avisada_en = ahora   # primero: si el aviso falla no se repite cada 5 minutos
             minutos = int((ahora - conv.ultimo_mensaje_cliente).total_seconds() // 60)
-            texto = self.env._(
-                '⏰ %(cliente)s lleva %(min)s min esperando respuesta por %(canal)s. %(quien)s',
-                cliente=conv.partner_id.display_name or conv.id_externo, min=minutos,
-                canal=dict(CANALES).get(conv.canal, conv.canal),
-                quien=self.env._('La atiende %s.', conv.asignada_a.name) if conv.asignada_a
-                else self.env._('Nadie la atiende todavía.'))
             enviados = 0
             if conv.asignada_a:
-                enviados = conv._avisar_por_telegram(texto, usuarios=conv.asignada_a, acciones=True)
+                enviados = conv._avisar_por_telegram(conv._texto_espera(minutos, para_quien_lo_tiene=True),
+                                                     usuarios=conv.asignada_a, acciones=True)
             if not enviados:
-                conv._avisar_por_telegram(texto, acciones=True)
+                conv._avisar_por_telegram(conv._texto_espera(minutos, para_quien_lo_tiene=False), acciones=True)
             avisos += 1
         return avisos
 
@@ -908,8 +933,8 @@ class DcasaConversacion(models.Model):
             valores = {'estado': 'humano', 'pausada_hasta': ahora + timedelta(minutes=minutos) if minutos else False,
                        'seguimiento_proximo': False, 'nota_para_el_bot': False}
             if usuario:
-                # Una persona la toma: es suya (el reparto ya no la mueve).
-                valores.update({'asignada_a': usuario.id, 'reparto_desde': False})
+                # Una persona la toma: es suya (el reparto ya no la mueve, y lo de la noche ya no se avisa).
+                valores.update({'asignada_a': usuario.id, 'reparto_desde': False, **SIN_AVISOS_DE_NOCHE})
             conv.write(valores)
 
     def _accion_abrir_en_panel(self):
@@ -944,7 +969,7 @@ class DcasaConversacion(models.Model):
         ahora = fields.Datetime.now()
         for conv in self.sudo().filtered('traspaso_sin_atender_desde'):
             # Ya la atendió una persona: deja de esperar al reparto (no cuenta para el tope ni pasa a otra).
-            conv.write({'traspaso_sin_atender_desde': False, 'reparto_desde': False})
+            conv.write({'traspaso_sin_atender_desde': False, 'reparto_desde': False, **SIN_AVISOS_DE_NOCHE})
             conv._aviso(self.env._('%s marcó que ya atendió a esta persona.', self.env.user.name))
             conv._programar_seguimiento(desde=ahora)
             conv._notificar_panel('estado')
@@ -995,7 +1020,7 @@ class DcasaConversacion(models.Model):
         ahora = fields.Datetime.now()
         for conv in self.sudo():
             conv.write({'estado': 'bot', 'pausada_hasta': False, 'nota_para_el_bot': nota, 'reparto_desde': False,
-                        'traspaso_sin_atender_desde': False})
+                        'traspaso_sin_atender_desde': False, **SIN_AVISOS_DE_NOCHE})
             conv._programar_seguimiento(desde=ahora)
             texto = self.env._('%s devolvió la conversación al asistente.', usuario.name)
             if nota:
@@ -1007,7 +1032,8 @@ class DcasaConversacion(models.Model):
     def _cerrar(self, usuario):
         for conv in self.sudo():
             conv.write({'estado': 'cerrada', 'pausada_hasta': False, 'seguimiento_proximo': False,
-                        'nota_para_el_bot': False, 'reparto_desde': False, 'traspaso_sin_atender_desde': False})
+                        'nota_para_el_bot': False, 'reparto_desde': False, 'traspaso_sin_atender_desde': False,
+                        **SIN_AVISOS_DE_NOCHE})
             conv._aviso(self.env._('%s cerró la conversación.', usuario.name))
             conv._notificar_panel('estado')
 
@@ -1144,7 +1170,7 @@ class DcasaConversacion(models.Model):
             'ultima_actividad': ahora, 'ultimo_mensaje_texto': (texto or self.env._('(adjunto)'))[:140],
             'ultimo_mensaje_autor': 'vendedora', 'seguimiento_proximo': False, 'asignada_a': usuario.id,
             'nota_para_el_bot': False, 'reparto_desde': False, 'traspaso_sin_atender_desde': False,
-            **conv._valores_de_pausa(ajustes, ahora, cambia_a_humano=la_tomo)})
+            **SIN_AVISOS_DE_NOCHE, **conv._valores_de_pausa(ajustes, ahora, cambia_a_humano=la_tomo)})
         mensaje._publicar_en_chatter()
         if anterior:
             # Era el cliente de otra vendedora (quien llama ya pidió la confirmación si estaba activa).
@@ -1316,20 +1342,29 @@ class DcasaConversacion(models.Model):
     # ------------------------------------------------------------------
 
     def _pasar_a_vendedora(self, motivo, urgencia='normal'):
-        """Pausa al asistente, deja una actividad y avisa. Devuelve lo que el asistente le dice al cliente."""
+        """Pausa al asistente, deja una actividad y avisa. Devuelve lo que el asistente le dice al cliente.
+
+        De noche, con «De noche nadie recibe clientes» (Ajustes de Juan), no se le da a nadie ni se avisa por Telegram:
+        queda esperando la apertura (``_dejar_para_la_manana``). La actividad y el aviso en el hilo, como siempre."""
         self.ensure_one()
         ajustes = self.env['dcasa.juan.ajustes'].obtener()
         ahora = fields.Datetime.now()
         horario = ajustes.horario()
         dentro = H.dentro_de_horario(ahora, horario)
+        de_noche = not dentro and ajustes.reparto_nadie_de_noche
+        urgente = urgencia == 'alta'
         self._poner_en_humano()
         # Espera a una persona hasta que alguien del equipo le escriba (aunque la pausa venza): sin «¿sigues
         # interesado?».
         self.sudo().write({'traspaso_sin_atender_desde': ahora})
-        reparto = self._repartir()
-        por_turno = reparto.usuario
+        if de_noche:
+            frase_de_noche = self._dejar_para_la_manana(motivo, urgente)
+            por_turno, regla, sin_nadie, razon = self.env['res.users'], '', False, ''
+        else:
+            reparto = self._repartir()
+            frase_de_noche = None
+            por_turno, regla, sin_nadie, razon = reparto.usuario, reparto.regla, reparto.sin_nadie, reparto.razon
         responsable = self.asignada_a or ajustes.responsable_id or self.env.ref('base.user_admin', False)
-        urgente = urgencia == 'alta'
         cliente = self.partner_id.display_name or self.id_externo
         resumen = self.env._('%(u)sAtender a %(c)s (%(canal)s)', u='URGENTE: ' if urgente else '', c=cliente,
                              canal=dict(CANALES).get(self.canal, self.canal))
@@ -1337,24 +1372,24 @@ class DcasaConversacion(models.Model):
             self.sudo().activity_schedule(
                 'mail.mail_activity_data_todo', summary=resumen[:200],
                 note=escape((motivo or '')[:MAX_NOTA]) or False, user_id=responsable.id)
-        texto_aviso = self.env._(
-            '%(r)s\nMotivo: %(m)s\n%(h)s', r=resumen, m=motivo or '—',
-            h=self.env._('Dentro del horario.') if dentro else self.env._('Fuera del horario laboral.'))
-        if por_turno:
+        if not de_noche:
+            # Fuera de horario sin el interruptor: se avisa como de día, y el aviso dice qué le prometió Juan.
+            cuando = None if dentro else H.cuando_atienden(ahora, horario).rstrip('.')
             # Le tocó (por turno o porque ya era su cliente): el aviso va a ella (si tiene Telegram vinculado; si no, a
             # las de siempre).
-            texto_aviso = self.env._('Es un cliente tuyo: ya lo atendiste.\n%s', texto_aviso) \
-                if reparto.regla == 'misma' else self.env._('Te tocó a ti.\n%s', texto_aviso)
-        elif reparto.sin_nadie:
-            texto_aviso = self.env._('Nadie estaba disponible para recibirla.\n%s', texto_aviso)
-        enviados = self._avisar_por_telegram(texto_aviso, usuarios=por_turno, acciones=True) if por_turno else 0
-        if not enviados:
-            self._avisar_por_telegram(texto_aviso, acciones=True)
+            enviados = self._avisar_por_telegram(
+                self._texto_traspaso(motivo, urgente, para_ella=True, misma=regla == 'misma', cuando=cuando),
+                usuarios=por_turno, acciones=True) if por_turno else 0
+            if not enviados:
+                self._avisar_por_telegram(self._texto_traspaso(
+                    motivo, urgente, para_ella=False, sin_nadie=sin_nadie, cuando=cuando), acciones=True)
         self._aviso(self.env._('El asistente pasó la conversación a una vendedora. Motivo: %s',
                                (motivo or '—')[:300]))
-        if por_turno:
-            self._aviso(reparto.razon)
-        elif reparto.sin_nadie:
+        if frase_de_noche:
+            self._aviso(frase_de_noche)
+        elif por_turno:
+            self._aviso(razon)
+        elif sin_nadie:
             self._aviso(self.env._(
                 'Nadie estaba disponible para recibirla: la tarea quedó con %s y se avisó a todo el equipo.',
                 responsable.name if responsable else '—'))
@@ -1403,8 +1438,7 @@ class DcasaConversacion(models.Model):
                         escape((nota.texto or '')[:MAX_NOTA])),
                     partner_ids=mencionadas.partner_id.ids, subtype_xmlid='mail.mt_note', message_type='comment')
                 resultado['telegram'] = self._avisar_por_telegram(
-                    self.env._('%(autora)s te mencionó en la conversación con %(quien)s: %(nota)s',
-                               autora=autora, quien=quien, nota=(nota.texto or '')[:400]), usuarios=mencionadas)
+                    self._texto_mencion(autora, nota.texto), usuarios=mencionadas)
                 if fecha_tarea:
                     for usuario in mencionadas:
                         self.sudo().activity_schedule(
@@ -1418,10 +1452,19 @@ class DcasaConversacion(models.Model):
         return resultado
 
     def _avisar_archivos_del_cliente(self, adjuntos):
-        """Avisa por Telegram, EN PARALELO, cuando el cliente manda un comprobante, un documento o una foto.
+        """Avisa por Telegram, EN PARALELO, cuando el cliente manda un comprobante de pago, su cédula o un archivo que
+        Juan no puede leer (un PDF: puede ser el comprobante del banco). Las demás fotos y videos se ven en el chat,
+        sin aviso, salvo que Gerencia encienda «Avisar de fotos y archivos» (pedido de la dueña, 2026-11-13: «la gente
+        envía fotos de Instagram y el sistema puede determinar que es una factura»).
 
-        El asistente sigue atendiendo: no se pausa nada. Quien recibe el aviso decide si interviene. Si ya la
-        atiende una persona, no se avisa (ya la está viendo). Nunca rompe el registro del mensaje.
+        * Comprobante y cédula: con «Avisar de comprobantes y documentos», siempre (a quién le llega no cambia).
+        * Un archivo que no es imagen ni video: también con ese ajuste, a lo más uno cada 10 minutos por conversación.
+        * Otra foto o video: solo con «Avisar de fotos y archivos», a lo más uno cada 10 minutos.
+
+        El asistente sigue atendiendo: no se pausa nada. Quien recibe el aviso decide si interviene. Si ya la atiende
+        una persona, no se avisa (ya la está viendo). De noche, con «De noche nadie recibe clientes», no sale nada: el
+        comprobante, el archivo o la cédula se avisan al abrir (``_avisar_lo_de_la_noche``). Nunca rompe el registro del
+        mensaje.
         """
         self.ensure_one()
         try:
@@ -1430,39 +1473,44 @@ class DcasaConversacion(models.Model):
                 archivos = [a for a in adjuntos if a.get('tipo') in ('imagen', 'documento', 'video')]
                 if not archivos or not self._controla_bot():
                     return
-                quien = self.name or self.celular or self.env._('un cliente')
-                canal = dict(CANALES).get(self.canal, self.canal)
                 clases = {a.get('clase') for a in archivos}
+                documentos = [a for a in archivos if a.get('tipo') == 'documento']
                 if ajustes.avisar_comprobantes and 'comprobante' in clases:
-                    self._avisar_por_telegram(self.env._(
-                        'Posible comprobante de pago de %(quien)s por %(canal)s. El asistente sigue atendiendo; '
-                        'tú decides si intervienes. Verifica el pago en el banco antes de entregar nada.',
-                        quien=quien, canal=canal), acciones=True)
+                    que = 'comprobante'
+                elif ajustes.avisar_comprobantes and documentos:
+                    que = 'documento'
                 elif ajustes.avisar_comprobantes and 'identidad' in clases:
-                    self._avisar_por_telegram(self.env._(
-                        '%(quien)s mandó un documento de identidad por %(canal)s. El asistente sigue atendiendo '
-                        'y no lo ve; tú decides si intervienes.', quien=quien, canal=canal), acciones=True)
+                    que = 'identidad'
                 elif ajustes.avisar_archivos:
+                    que = 'foto'
+                else:
+                    return
+                if self._es_de_noche(ajustes=ajustes):
+                    if que != 'foto':
+                        self._anotar_archivo_de_noche(que)
+                    return
+                if que in ('documento', 'foto'):
                     ahora = fields.Datetime.now()
-                    if self.ultimo_aviso_archivo_en and ahora - self.ultimo_aviso_archivo_en < timedelta(minutes=10):
+                    if self.ultimo_aviso_archivo_en and \
+                            ahora - self.ultimo_aviso_archivo_en < PAUSA_ENTRE_AVISOS_DE_ARCHIVO:
                         return
                     self.sudo().ultimo_aviso_archivo_en = ahora
-                    self._avisar_por_telegram(self.env._(
-                        '%(quien)s mandó una imagen o un archivo por %(canal)s. El asistente sigue atendiendo; '
-                        'tú decides si intervienes.', quien=quien, canal=canal), acciones=True)
+                self._avisar_por_telegram(
+                    self._texto_archivo(que, documentos[0].get('mime') if documentos else None), acciones=True)
         except Exception:   # noqa: BLE001
             _logger.exception('Juan: no se pudo avisar del archivo del cliente en la conversación %s', self.id)
 
-    def _avisar_por_telegram(self, texto, usuarios=None, acciones=False):
-        """Aviso por Telegram (el bot de Brian). Nunca falla: es un extra de la actividad.
+    def _avisar_por_telegram(self, texto, usuarios=None, acciones=False, botones=None):
+        """Aviso por Telegram (el bot de Brian). Nunca falla: es un extra de la actividad. Devuelve a cuántas les llegó.
 
         ``usuarios``: solo a esas personas (por ejemplo, las mencionadas en una nota). Sin ellas: a quienes se eligieron
         en Ajustes de Juan, o a todas las vendedoras con Telegram vinculado.
 
         ``acciones``: el aviso es de un cliente que espera. Lleva el botón «Atender» y, al final, de qué conversación
         es: quien responde a ese mensaje le escribe al cliente (con confirmación; ver ``telegram_consola.py``).
+
+        ``botones``: los de un aviso de varios clientes (la lista de la mañana): un «Atender» por cliente y sin pie.
         """
-        botones = None
         if acciones and len(self) == 1:
             texto = f'{texto}\n\n{PIE_DE_AVISO % self.id}'
             botones = [[{'text': 'Atender', 'callback_data': f'juan:t:{self.id}'}]]

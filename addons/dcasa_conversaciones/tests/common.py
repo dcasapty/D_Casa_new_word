@@ -58,6 +58,9 @@ class JuanCase(TransactionCase):
         # Las vendedoras de prueba nunca abren Odoo: sin esto, la regla «recibe solo quien está activa» las dejaría sin
         # nada. Las pruebas de esa regla la encienden (``test_reparto_activas.py``).
         cls.ajustes.reparto_activa_minutos = 0
+        # Las pruebas corren a cualquier hora: «De noche nadie recibe clientes» (encendido de fábrica) dependería del
+        # reloj. Las de esa regla lo encienden con el reloj quieto (``test_avisos_noche.py``).
+        cls.ajustes.reparto_nadie_de_noche = False
         cls.juan = cls.env.ref('dcasa_conversaciones.user_juan')
         cls.vendedora = new_test_user(
             cls.env, login='juan_vendedora', name='Vendedora Prueba',

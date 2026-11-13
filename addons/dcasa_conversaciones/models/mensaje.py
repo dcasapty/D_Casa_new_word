@@ -28,6 +28,7 @@ from . import firma as F
 from . import horario as H
 from . import transaccion
 from .ajustes import CANALES
+from .avisos_texto import armar
 
 _logger = logging.getLogger(__name__)
 
@@ -800,10 +801,11 @@ class DcasaMensaje(models.Model):
             if not parametros.get_param(pendiente):
                 continue
             parametros.set_param(pendiente, False)
-            texto = self.env._(
-                '⚠️ WhatsApp no está entregando los mensajes de D\'CASA (código %(codigo)s). %(que)s Mientras tanto, '
-                'los mensajes salen con «No llegó»: cuando se arregle, hay que volver a escribirles a esos '
-                'clientes.', codigo=codigo, que=que)
+            texto = armar(
+                self.env._('⚠️ WhatsApp no está entregando los mensajes'),
+                self.env._('%(que)s Código de Meta: %(codigo)s.', que=que, codigo=codigo),
+                self.env._('Mientras tanto, los mensajes de D\'CASA a los clientes salen con «No llegó».'),
+                self.env._('Cuando se arregle, hay que volver a escribirles a esos clientes.'))
             enviados = 0
             try:
                 enviados = (gerencia and Conversacion._avisar_por_telegram(texto, usuarios=gerencia)) or \
