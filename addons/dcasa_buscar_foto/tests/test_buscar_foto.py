@@ -18,7 +18,8 @@ from odoo import http
 from odoo.tests import HttpCase, tagged
 
 from ..controllers.main import FECHA_PRIVACIDAD, MENSAJES, TITULO_RESULTADOS
-from ..models.buscar_foto import MAX_BYTES_FOTO, PARAM_ACTIVO, PARAM_TOPES, TIMEOUT_BUSCAR_FOTO
+from ..models import buscar_foto as B
+from ..models.buscar_foto import MAX_BYTES_FOTO, PARAM_ACTIVO, PARAM_TOPE_MES, PARAM_TOPES, TIMEOUT_BUSCAR_FOTO
 
 URL_WORKER = 'https://juan.prueba.example.com'
 TOKEN_WORKER = 'w' * 40
@@ -88,7 +89,7 @@ class TestBuscarFoto(HttpCase):
         self.env['dcasa.buscar.foto.uso'].sudo().search([]).unlink()
         param = self.env['ir.config_parameter'].sudo()
         param.set_param(PARAM_ACTIVO, 'True')
-        for clave in PARAM_TOPES.values():
+        for clave in (*PARAM_TOPES.values(), PARAM_TOPE_MES):
             param.set_param(clave, '')
         entorno = patch.dict(os.environ, {'JUAN_URL': URL_WORKER, 'JUAN_WORKER_TOKEN': TOKEN_WORKER})
         entorno.start()
@@ -130,22 +131,56 @@ class TestBuscarFoto(HttpCase):
     # La cámara y el interruptor
     # ------------------------------------------------------------------
 
-    def test_la_camara_sale_en_la_busqueda_del_sitio_y_en_la_tienda(self):
+    def _cajas(self, html):
+        """Cada caja de búsqueda de la página (el <form> de Odoo), con lo que tiene adentro."""
+        return re.findall(r'<form[^>]*o_searchbar_form.*?</form>', html, re.S)
+
+    def test_la_camara_va_dentro_de_cada_caja_que_busca_productos(self):
+        """En el sitio de website_dcasa (buscador_botones_extra): dentro de la caja, justo antes de la lupa de enviar,
+        en la cabecera (la lupa de la computadora y la del celular abren la misma caja), en el menú del celular y en la
+        barra de /shop. Nunca como un renglón aparte: no le quita espacio al teléfono."""
         portada = self.url_open('/').text
-        modal = re.search(r'id="o_search_modal".*?</div>\s*</div>\s*</div>', portada, re.S).group(0)
-        self.assertIn('o_dcasa_foto_en_modal', modal)
-        self.assertIn('Busca con una foto', modal)
         tienda = self.url_open('/shop').text
+        modal = re.search(r'id="o_search_modal".*?</form>', portada, re.S).group(0)
         barra = re.search(r'<form[^>]*o_wsale_products_searchbar_form.*?</form>', tienda, re.S).group(0)
-        self.assertIn('o_dcasa_foto_boton_icono', barra)
-        for html in (modal, barra):
-            archivo = re.search(r'<input[^>]*o_dcasa_foto_archivo[^>]*>', html).group(0)
-            self.assertIn('type="file"', archivo)
-            self.assertIn('accept="image/*"', archivo)
-            # Sin «name»: dentro del formulario de búsqueda no viaja con la búsqueda por nombre. Sin «capture»: el
-            # teléfono deja elegir entre la cámara y la galería.
-            self.assertNotIn('name=', archivo)
-            self.assertNotIn('capture', archivo)
+        for nombre, caja in (('cabecera', modal), ('barra de /shop', barra)):
+            with self.subTest(nombre):
+                self.assertRegex(caja, r'(?s)<span class="o_dcasa_buscador_extra">\s*<label[^>]*o_dcasa_foto_en_caja'
+                                       r'.*?</label>\s*</span>\s*<button[^>]*type="submit"')
+                archivo = re.search(r'<input[^>]*o_dcasa_foto_archivo[^>]*>', caja).group(0)
+                self.assertIn('type="file"', archivo)
+                self.assertIn('accept="image/*"', archivo)
+                # Sin «name»: dentro del formulario de búsqueda no viaja con la búsqueda por nombre. Sin «capture»: el
+                # teléfono deja elegir entre la cámara y la galería.
+                self.assertNotIn('name=', archivo)
+                self.assertNotIn('capture', archivo)
+                self.assertIn('title="Busca con una foto"', caja)
+        # Todas las cajas de productos la llevan (también la del menú del celular), una por caja.
+        for html in (portada, tienda):
+            cajas = [c for c in self._cajas(html) if 'data-search-type="products"' in c]
+            self.assertTrue(cajas)
+            self.assertEqual([c.count('o_dcasa_foto_en_caja') for c in cajas], [1] * len(cajas))
+        self.assertNotIn('o_dcasa_foto_en_modal', portada, 'Ya no va un renglón aparte debajo de la caja')
+
+    def test_una_caja_que_no_busca_productos_no_la_lleva(self):
+        vista = self.env['ir.ui.view'].create({
+            'name': 'Caja del blog de prueba', 'type': 'qweb', 'key': 'dcasa_buscar_foto.prueba_caja_blog',
+            'arch': '<t t-name="dcasa_buscar_foto.prueba_caja_blog"><t t-call="website.website_search_box_input">'
+                    '<t t-set="search_type" t-valuef="blogs"/><t t-set="action" t-valuef="/blog"/></t></t>',
+        })
+        html = str(self.env['ir.qweb']._render(vista.id, {'website': self.website}))
+        self.assertIn('o_dcasa_buscador_extra', html)
+        self.assertNotIn('o_dcasa_foto_boton', html)
+
+    def test_con_el_editor_del_sitio_las_paginas_con_la_camara_abren(self):
+        """Quien puede editar el sitio recibe las plantillas con las marcas del editor: con la cámara puesta, ninguna
+        página con la cabecera puede dar error 500 (le pasó al sitio de botones con un t-call suelto)."""
+        self.authenticate('admin', 'admin')
+        for ruta in ('/', '/shop', '/shop?search=cama', self.cama_queen.website_url, '/shop/foto', '/shop/cart'):
+            with self.subTest(ruta=ruta):
+                respuesta = self.url_open(ruta)
+                self.assertEqual(respuesta.status_code, 200)
+                self.assertIn('o_dcasa_foto_en_caja', respuesta.text)
 
     def test_apagada_no_sale_la_camara_y_la_ruta_no_existe(self):
         csrf = self._csrf()
@@ -182,14 +217,14 @@ class TestBuscarFoto(HttpCase):
         self.assertNotEqual(respuesta.status_code, 200)
         self.assertEqual(self.al_worker, [])
 
-    def test_solo_jpeg_png_y_webp_de_hasta_4_mb(self):
+    def test_solo_jpeg_png_y_webp_de_hasta_1_5_mb(self):
         malas = {
             'gif': base64.b64encode(b'GIF89a' + b'\x00' * 40).decode(),
             'svg': base64.b64encode(b'<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"/>').decode(),
             'html con nombre de foto': base64.b64encode(b'<html>no soy una foto</html>').decode(),
             'base64 roto': 'esto no es base64!!',
             'vacía': '',
-            'más de 4 MB': base64.b64encode(b'\xff\xd8\xff' + b'\x00' * MAX_BYTES_FOTO).decode(),
+            'más de 1,5 MB': base64.b64encode(b'\xff\xd8\xff' + b'\x00' * MAX_BYTES_FOTO).decode(),
         }
         for nombre, foto in malas.items():
             with self.subTest(nombre):
@@ -221,7 +256,14 @@ class TestBuscarFoto(HttpCase):
         self.assertEqual((llamada['metodo'], llamada['url']), ('POST', f'{URL_WORKER}/odoo/buscar-foto'))
         self.assertEqual(llamada['headers']['Authorization'], f'Bearer {TOKEN_WORKER}')
         self.assertEqual(llamada['timeout'], TIMEOUT_BUSCAR_FOTO)
-        self.assertEqual(llamada['json'], {'mime': 'image/jpeg', 'base64': FOTO})
+        # Con el techo de la foto en el mes (Sitio web › Busca con una foto; 5 USD de fábrica): lo aplica el Worker.
+        self.assertEqual(llamada['json'], {'mime': 'image/jpeg', 'base64': FOTO, 'tope_mes_usd': 5.0})
+        self.assertEqual(MAX_BYTES_FOTO, 1536 * 1024)
+        self.assertEqual(TIMEOUT_BUSCAR_FOTO[1], 15)
+        self.env['ir.config_parameter'].sudo().set_param(PARAM_TOPE_MES, '2.5')
+        self.opener.cookies.clear()
+        self.buscar()
+        self.assertEqual(self.al_worker[-1]['json']['tope_mes_usd'], 2.5)
 
     def test_por_codigo_leido_solo_lo_publicado(self):
         self.contesta = respuesta_http({'ok': True, 'lectura': lectura(codigos=['xht022-q-g', 'OCULTA-1'],
@@ -368,6 +410,30 @@ class TestBuscarFoto(HttpCase):
         self.assertEqual(self.estado(self.buscar()), 'no_ahora')
         self.assertEqual(len(self.al_worker), 1)
 
+    def test_con_tres_busquedas_a_la_vez_la_cuarta_no_espera(self):
+        """El semáforo del proceso (3, sin espera): con tres búsquedas esperando al Worker, la cuarta recibe «ahora no
+        podemos» al instante, sin llamar al Worker ni contar para los topes."""
+        tomados = 0
+        try:
+            while B._SEMAFORO.acquire(blocking=False):
+                tomados += 1
+            self.assertEqual(tomados, B.MAX_A_LA_VEZ)
+            respuesta = self.buscar()
+            self.assertEqual(self.estado(respuesta), 'no_ahora')
+            self.assertEqual(self.al_worker, [])
+            self.assertEqual(self.env['dcasa.buscar.foto.uso'].sudo().search_count([]), 0)
+        finally:
+            for _ in range(tomados):
+                B._SEMAFORO.release()
+        self.assertEqual(self.estado(self.buscar()), 'resultados', 'Al soltarse, vuelve a buscar')
+
+    def test_cada_causa_del_worker_es_ahora_no_podemos(self):
+        for causa, estado in (('tope_foto', 429), ('reserva', 429), ('no_disponible', 503), ('tardo', 504)):
+            with self.subTest(causa):
+                self.env['dcasa.buscar.foto.uso'].sudo().search([]).unlink()
+                self.contesta = respuesta_http({'ok': False, 'causa': causa, 'error': 'x'}, estado)
+                self.assertEqual(self.estado(self.buscar()), 'no_ahora')
+
     def test_lo_que_falla_en_el_worker_tambien_cuenta_para_el_tope(self):
         self.env['ir.config_parameter'].sudo().set_param(PARAM_TOPES['visitante'], '1')
         self.contesta = requests.ReadTimeout('tardó')
@@ -419,7 +485,7 @@ class TestBuscarFoto(HttpCase):
         self.env.invalidate_all()
         self.assertEqual(self.env['ir.attachment'].sudo().search_count([]), adjuntos, 'Ningún adjunto (ni en R2)')
         self.assertEqual(self.env['mail.message'].sudo().search_count([]), mensajes)
-        # Lo único que queda: la hora, el resultado y dos huellas que no se revierten.
+        # Lo único que queda: la hora, el resultado y dos huellas con la sal del día (se borran al día siguiente).
         usos = self.env['dcasa.buscar.foto.uso'].sudo().search([], order='id desc', limit=2)
         self.assertEqual(sorted(usos.mapped('resultado')), ['no_ahora', 'resultados'])
         self.assertEqual(set(usos._fields) - {'id', 'display_name'},

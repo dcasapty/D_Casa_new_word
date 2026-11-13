@@ -58,41 +58,25 @@ $dcasa-foto-gris: #4A5163;
     cursor: pointer;
 }
 
-// Ícono solo, al lado de la caja de /shop (el formulario se vuelve una fila: caja + cámara).
-.o_wsale_products_searchbar_form.o_searchbar_form {
-    display: flex;
-    align-items: stretch;
-    gap: .5rem;
-
-    > .input-group {
-        flex: 1 1 auto;
-        min-width: 0;
-    }
-}
-
-.o_dcasa_foto_boton_icono {
+// Dentro de la caja de búsqueda (la de la cabecera, la del menú del celular y la de /shop), al lado de la lupa: el sitio
+// de website_dcasa no dibuja caja (display: contents), así que la cámara se acomoda como un elemento más del
+// «input-group» de Odoo, con el fondo de la caja (sus clases: views/templates.xml) y sin borde propio.
+.input-group .o_dcasa_foto_boton.o_dcasa_foto_en_caja {
     flex: 0 0 auto;
     width: 2.75rem;
+    min-width: 2.75rem;
     padding: 0;
-}
+    border: 0;
+    border-radius: 0;
+    color: $dcasa-foto-azul;
 
-// En el celular la barra de /shop ya trae la caja, «Ordenar» y «Filtros» en una sola fila: la cámara se angosta un poco
-// (sigue de 44 px de alto) para que la fila quepa en 360 px sin ensanchar la página (website_dcasa/tests/test_movil.py).
-@media (max-width: 575.98px) {
-    .o_wsale_products_searchbar_form.o_searchbar_form {
-        gap: .25rem;
+    &:hover {
+        background: inherit;
+        color: $dcasa-foto-navy;
     }
 
-    .o_dcasa_foto_boton_icono {
-        width: 2.25rem;
-        min-width: 2.25rem;
-    }
-}
-
-// Menos de 360 px (teléfonos muy viejos): no cabe; la cámara sigue en la búsqueda del sitio y en /shop/foto.
-@media (max-width: 359.98px) {
-    .o_wsale_products_searchbar_form .o_dcasa_foto_boton_icono {
-        display: none;
+    &:focus-within {
+        outline-offset: -3px;
     }
 }
 
@@ -107,20 +91,6 @@ $dcasa-foto-gris: #4A5163;
         background: $dcasa-foto-navy;
         border-color: $dcasa-foto-navy;
     }
-}
-
-// En el modal de la búsqueda de la cabecera: una fila debajo de la caja.
-.o_dcasa_foto_en_modal {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: .5rem 1rem;
-    padding: .85rem 1rem;
-    border-top: 1px solid rgba($dcasa-foto-navy, .12);
-    background: #FFFFFF;
-    color: $dcasa-foto-navy;
-    font-family: 'Inter', sans-serif;
 }
 
 .o_dcasa_foto_aviso {

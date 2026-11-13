@@ -41,6 +41,31 @@ class TestLectura(BaseCase):
         self.assertEqual((rara['categoria'], rara['medida']), (None, None))
         self.assertTrue(rara['parece_pago'] and rara['parece_identidad'], 'Sin las señales: lo prudente')
 
+    def test_tipos_raros_no_revientan(self):
+        """Lo que llega del Worker se revisa con su tipo: una lista o un diccionario donde va un texto se descarta."""
+        for cambio in ({'categoria': ['cama']}, {'medida': {'queen': 1}}, {'categoria': 5}, {'medida': True},
+                       {'codigos': 'XHT022'}, {'codigos': [['A1']]}):
+            with self.subTest(cambio):
+                leida = B.normalizar_lectura({'tipo': 'producto', 'categoria': 'cama', 'medida': 'queen',
+                                              'codigos': ['XHT022'], **cambio})
+                self.assertEqual(leida['tipo'], 'producto')
+                self.assertIn(leida['categoria'], ('cama', None))
+                self.assertIn(leida['medida'], ('queen', None))
+                self.assertTrue(all(isinstance(c, str) for c in leida['codigos']))
+                self.assertIsInstance(B.etiqueta_de(leida), str)
+        for tipo in (['producto'], {'producto': 1}, None, 3):
+            self.assertIsNone(B.normalizar_lectura({'tipo': tipo}))
+        self.assertEqual(B.etiqueta_de({'categoria': ['cama'], 'medida': {'x': 1}}), '')
+
+    def test_la_huella_lleva_la_sal_del_dia(self):
+        self.assertFalse(B.huella('sal', 'c', None))
+        self.assertFalse(B.huella(None, 'c', '10.0.0.0/24'))
+        una = B.huella('sal-1', 'c', '10.0.0.0/24')
+        self.assertEqual(len(una), 32)
+        self.assertEqual(una, B.huella('sal-1', 'c', '10.0.0.0/24'))
+        self.assertNotEqual(una, B.huella('sal-2', 'c', '10.0.0.0/24'), 'Otro día, otra huella')
+        self.assertNotEqual(una, B.huella('sal-1', 'v', '10.0.0.0/24'))
+
     def test_que_cuenta_como_documento(self):
         base = B.normalizar_lectura({'tipo': 'producto', 'categoria': 'cama', 'parece_pago': False,
                                      'parece_identidad': False})
@@ -54,8 +79,10 @@ class TestLectura(BaseCase):
         self.assertEqual(B.etiqueta_de({'categoria': 'algo raro', 'medida': None}), '')
         self.assertEqual(B.etiqueta_de(None), '')
 
-    def test_odoo_espera_mas_que_el_worker(self):
-        # El Worker contesta antes de 25 s (juan/src/odoo-panel-buscar-foto.ts); Odoo lee hasta 30.
+    def test_odoo_espera_mas_que_el_worker_pero_poco(self):
+        # El Worker contesta antes de 12 s (juan/src/odoo-panel-buscar-foto.ts); Odoo lee hasta 15: cada búsqueda
+        # tiene ocupado un hilo de Odoo mientras espera.
         conectar, leer = B.TIMEOUT_BUSCAR_FOTO
         self.assertLess(conectar, 5)
-        self.assertGreaterEqual(leer, 28)
+        self.assertEqual(leer, 15)
+        self.assertEqual(B.MAX_A_LA_VEZ, 3)

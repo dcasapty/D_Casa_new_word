@@ -2,3 +2,4 @@ id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_dcasa_buscar_foto_ajustes_gerencia,dcasa.buscar.foto.ajustes gerencia,model_dcasa_buscar_foto_ajustes,dcasa_base.group_gerencia,1,1,1,0
 access_dcasa_buscar_foto_ajustes_sistema,dcasa.buscar.foto.ajustes sistema,model_dcasa_buscar_foto_ajustes,base.group_system,1,1,1,0
 access_dcasa_buscar_foto_uso_sistema,dcasa.buscar.foto.uso sistema,model_dcasa_buscar_foto_uso,base.group_system,1,0,0,0
+access_dcasa_buscar_foto_sal_sistema,dcasa.buscar.foto.sal sistema,model_dcasa_buscar_foto_sal,base.group_system,1,0,0,0

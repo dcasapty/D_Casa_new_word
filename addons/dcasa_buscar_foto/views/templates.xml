@@ -19,23 +19,14 @@
         </label>
     </template>
 
-    <!-- En la búsqueda de la cabecera (el modal de Odoo): debajo de la caja, sin tocar los botones de la cabecera. -->
-    <template id="camara_en_el_modal" inherit_id="website.header_search_box" name="D'CASA: Busca con una foto en la búsqueda">
-        <xpath expr="//div[@id='o_search_modal']//div[hasclass('modal-content')]" position="inside">
-            <div t-if="website and website._dcasa_buscar_foto_activa()" class="o_dcasa_foto_en_modal">
-                <span class="o_dcasa_foto_en_modal_texto">¿Viste un mueble que te gustó?</span>
-                <t t-call="dcasa_buscar_foto.boton_camara">
-                    <t t-set="dcasa_foto_clase" t-valuef="o_dcasa_foto_boton_claro"/>
-                </t>
-            </div>
-        </xpath>
-    </template>
-
-    <!-- En la barra de búsqueda de /shop: el ícono de la cámara al lado de la caja (dentro del mismo formulario). -->
-    <template id="camara_en_la_tienda" inherit_id="website_sale.search" name="D'CASA: Busca con una foto en la tienda">
-        <xpath expr="//t[@t-call='website.website_search_box_input']" position="inside">
-            <t t-if="website and website._dcasa_buscar_foto_activa()" t-call="dcasa_buscar_foto.boton_camara">
-                <t t-set="dcasa_foto_clase" t-valuef="o_dcasa_foto_boton_icono"/>
+    <!-- La cámara, DENTRO de la caja de búsqueda y justo antes de la lupa de enviar, en el sitio que deja website_dcasa
+         para eso (buscador_templates.xml, buscador_botones_extra, ya envuelto en un <span> sin caja): la caja de la
+         cabecera (la lupa de la computadora y la del celular), la del menú del celular y la barra de /shop. Solo en las
+         que buscan productos (otras cajas, como la del blog, no la llevan). Toma el fondo de la caja (sus clases). -->
+    <template id="camara_en_el_buscador" inherit_id="website_dcasa.buscador_botones_extra" name="D'CASA: Busca con una foto en el buscador">
+        <xpath expr="." position="inside">
+            <t t-if="search_type == 'products' and website and website._dcasa_buscar_foto_activa()" t-call="dcasa_buscar_foto.boton_camara">
+                <t t-set="dcasa_foto_clase" t-value="'o_dcasa_foto_en_caja o_dcasa_foto_boton_icono %s' % (_input_classes or ('' if default_style else 'bg-light'))"/>
                 <t t-set="dcasa_foto_solo_icono" t-value="True"/>
             </t>
         </xpath>
@@ -105,7 +96,8 @@
     </template>
 
     <!-- Política de privacidad (Ley 81 de 2019): el párrafo de «Busca con una foto», en la sección de inteligencia
-         artificial. TEXTO PROPUESTO: lo aprueba la dueña (y el abogado) antes de producción. -->
+         artificial. Es un texto propuesto: antes de desplegar lo aprueba la dueña (docs/CATALOGO.md › Busca con una
+         foto). La página no lo marca como borrador. -->
     <template id="privacidad_busca_con_una_foto" inherit_id="website_dcasa.privacidad_cuerpo" name="D'CASA: privacidad de Busca con una foto">
         <xpath expr="//h2[@id='inteligencia-artificial']/following-sibling::p[1]" position="after">
             <p id="busca-con-una-foto"><strong>Busca con una foto.</strong> Si buscas un mueble con una foto en nuestra

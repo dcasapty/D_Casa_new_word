@@ -2,18 +2,26 @@
 
 El recorrido de una búsqueda (``dcasa.buscar.foto._dcasa_buscar``):
 
-1. **Valida** la foto: base64 válido, de 1 byte a 4 MB, y que los bytes sean de verdad JPEG, PNG o WebP (no se le cree
-   al tipo que dice el navegador). Si no: ``formato``.
-2. **Topes**, antes de gastar IA: por visitante y por conexión en la última hora, y en total en el día (hora de Panamá).
-   Se cuentan las filas de ``dcasa.buscar.foto.uso``, que no guardan la foto ni a la persona: la hora, el resultado y,
-   solo por un día, dos huellas HMAC (sesión y conexión) que no se pueden revertir. Si se pasa: ``no_ahora``.
-3. **Lectura** en el Worker de Juan (``POST /odoo/buscar-foto``, con ``JUAN_URL`` y ``JUAN_WORKER_TOKEN`` como el resto
-   de las pantallas de Juan). El Worker usa el mismo lector de imágenes de las conversaciones y devuelve SOLO el
-   registro cerrado; aquí se vuelve a normalizar contra listas cerradas (nunca se confía en lo que llega). Sin Worker,
-   con el tope de IA del mes alcanzado, caído o lento: ``no_ahora``.
-4. **Comprobantes y cédulas no se buscan**: tipo ``comprobante``/``identidad`` o cualquier señal de pago o de
+1. **Valida** la foto: base64 válido, de 1 byte a 1,5 MB, y que los bytes sean de verdad JPEG, PNG o WebP (no se le
+   cree al tipo que dice el navegador). Si no: ``formato``.
+2. **A lo sumo 3 a la vez por proceso** (``_SEMAFORO``, sin espera): la cuarta recibe ``no_ahora`` al instante, en vez
+   de dejar a Odoo esperando al Worker con más peticiones abiertas.
+3. **Topes, en una transacción corta aparte y ya confirmada antes de llamar al Worker** (``_dcasa_reservar``): bajo
+   ``pg_advisory_xact_lock`` y en READ COMMITTED se cuentan las búsquedas (por visitante y por conexión en la última
+   hora, y en total en el día, hora de Panamá) y, si hay cupo, se anota la fila. Cinco pedidos a la vez con tope 1
+   dejan pasar uno solo, y lo que reviente después (en el Worker o al buscar) igual quedó contado
+   (``scripts/revision_rvf_carrera_foto.py`` lo comprueba con transacciones de verdad). La fila no guarda la foto ni a
+   la persona: la hora, el resultado y, solo hasta el día siguiente, dos huellas (de la sesión y de la red de la
+   conexión: /24 en IPv4, /64 en IPv6) con una sal al azar del día que el cron borra. Son huellas que no dicen quién
+   eres y se borran al día siguiente.
+4. **Lectura** en el Worker de Juan (``POST /odoo/buscar-foto``, con ``JUAN_URL`` y ``JUAN_WORKER_TOKEN`` como el resto
+   de las pantallas de Juan; plazo de 15 s). El Worker usa el mismo lector de imágenes de las conversaciones, aplica el
+   tope mensual de la foto (``tope_mes_usd``, de Sitio web › Busca con una foto) y no lee nada con el gasto de Juan por
+   encima del 80 % de su tope; devuelve SOLO el registro cerrado, que aquí se vuelve a pasar por listas cerradas (con
+   sus tipos: nada mal formado revienta). Sin Worker, sin cupo de IA, caído o lento: ``no_ahora``.
+5. **Comprobantes y cédulas no se buscan**: tipo ``comprobante``/``identidad`` o cualquier señal de pago o de
    identidad → ``documento``. Lo que no es un mueble → ``otra``.
-5. **Búsqueda, solo entre lo publicado** (``website._dcasa_dominio_publicado``, como el «Agregar» de un clic): primero
+6. **Búsqueda, solo entre lo publicado** (``website._dcasa_dominio_publicado``, como el «Agregar» de un clic): primero
    por el código leído (el código público ``DC-…`` o la referencia, exacta: las mismas reglas que la búsqueda de Juan);
    si no, por categoría y medida (las mismas palabras y la misma puntuación que ``buscar_productos`` de Juan). Si no hay
    nada: ``nada``.
@@ -27,22 +35,33 @@ import hashlib
 import hmac
 import logging
 import re
+import secrets
+import threading
 from datetime import datetime, timedelta
 
 import pytz
 
-from odoo import api, fields, models
+from odoo import SUPERUSER_ID, api, fields, models
+from odoo.addons.dcasa_base.red import red_truncada
+from odoo.sql_db import Cursor
 
 _logger = logging.getLogger(__name__)
 
-# Odoo espera más que el Worker (juan/src/odoo-panel-buscar-foto.ts, PLAZO_BUSCAR_FOTO_MS = 25 s): una prueba del Worker
+# Odoo espera más que el Worker (juan/src/odoo-panel-buscar-foto.ts, PLAZO_BUSCAR_FOTO_MS = 12 s): una prueba del Worker
 # lee esta línea y exige el margen (docs/CONTEXTO_AGENTICO.md, regla 10).
-TIMEOUT_BUSCAR_FOTO = (3.05, 30)
-MAX_BYTES_FOTO = 4 * 1024 * 1024
+TIMEOUT_BUSCAR_FOTO = (3.05, 15)
+# El navegador manda la foto achicada (1024 px en JPEG: unos cientos de KB); 1,5 MB deja pasar una sin achicar pequeña.
+MAX_BYTES_FOTO = 1536 * 1024
 # Lo más que puede pesar la petición entera a /shop/foto (la foto en base64 pesa 4/3 más, más el resto del formulario).
 MAX_PETICION = MAX_BYTES_FOTO * 4 // 3 + 64 * 1024
 MAX_RESULTADOS = 12
 ZONA = 'America/Panama'
+# Búsquedas a la vez por proceso de Odoo (cada una espera al Worker hasta 15 s con su petición abierta).
+MAX_A_LA_VEZ = 3
+_SEMAFORO = threading.BoundedSemaphore(MAX_A_LA_VEZ)
+# La llave del cerrojo de los topes (pg_advisory_xact_lock): un número fijo de este módulo.
+CERROJO_TOPES = 0x0DCA5F070
+CONCEPTO_DEL_GASTO = 'cloudflare:lector-de-fotos'
 
 PARAM_ACTIVO = 'dcasa_buscar_foto.activo'
 PARAM_TOPES = {
@@ -50,9 +69,12 @@ PARAM_TOPES = {
     'conexion': 'dcasa_buscar_foto.tope_conexion_hora',
     'dia': 'dcasa_buscar_foto.tope_dia',
 }
+PARAM_TOPE_MES = 'dcasa_buscar_foto.tope_mes_usd'
 # Prudentes y cambiables en Sitio web › Busca con una foto. Por conexión es más alto que por visitante: en Panamá muchos
-# teléfonos salen a internet por la misma dirección del operador.
+# teléfonos salen a internet por la misma red del operador.
 TOPES_DE_FABRICA = {'visitante': 10, 'conexion': 30, 'dia': 200}
+TOPE_MES_DE_FABRICA = 5.0
+MAX_TOPE_MES = 1000.0
 
 MIMES = ('image/jpeg', 'image/png', 'image/webp')
 # Las mismas listas cerradas del lector (juan/src/motor/vision.ts).
@@ -87,7 +109,7 @@ def tipo_por_firma(datos):
 
 
 def decodificar_foto(texto):
-    """``(bytes, mime)`` de la foto en base64, o ``None`` si no sirve (vacía, rota, de más de 4 MB u otro tipo)."""
+    """``(bytes, mime)`` de la foto en base64, o ``None`` si no sirve (vacía, rota, de más de 1,5 MB u otro tipo)."""
     if not isinstance(texto, str):
         return None
     texto = texto.strip()
@@ -105,22 +127,30 @@ def decodificar_foto(texto):
     return (datos, mime) if mime else None
 
 
+def _de_la_lista(valor, permitidos):
+    """El valor si es un texto de la lista; si no (otro tipo, una lista, un diccionario…), ``None``."""
+    return valor if isinstance(valor, str) and valor in permitidos else None
+
+
 def normalizar_lectura(crudo):
     """El registro cerrado que mandó el Worker, otra vez contra las listas cerradas; ``None`` si no es uno.
 
-    Como en el lector: si faltan las señales de pago o de identidad, se asume lo prudente (que sí las hay)."""
-    if not isinstance(crudo, dict) or crudo.get('tipo') not in TIPOS:
+    Se revisa el TIPO de cada campo (un ``['cama']`` o un ``{'queen': 1}`` no revientan: se descartan). Como en el
+    lector: si faltan las señales de pago o de identidad (o no son ``false``), se asume lo prudente (que sí las hay)."""
+    if not isinstance(crudo, dict):
+        return None
+    tipo = _de_la_lista(crudo.get('tipo'), TIPOS)
+    if not tipo:
         return None
     codigos = []
     for codigo in crudo.get('codigos') if isinstance(crudo.get('codigos'), list) else []:
         if isinstance(codigo, str) and RE_CODIGO.match(codigo.strip()) and codigo.strip().upper() not in codigos:
             codigos.append(codigo.strip().upper())
-    categoria, medida = crudo.get('categoria'), crudo.get('medida')
     return {
-        'tipo': crudo['tipo'],
+        'tipo': tipo,
         'codigos': codigos[:3],
-        'categoria': categoria if categoria in CATEGORIAS else None,
-        'medida': medida if medida in MEDIDAS else None,
+        'categoria': _de_la_lista(crudo.get('categoria'), CATEGORIAS),
+        'medida': _de_la_lista(crudo.get('medida'), MEDIDAS),
         'parece_pago': crudo.get('parece_pago') is not False,
         'parece_identidad': crudo.get('parece_identidad') is not False,
     }
@@ -133,11 +163,18 @@ def es_documento(lectura):
 def etiqueta_de(lectura):
     """«Cama · Queen»: SOLO de listas cerradas (nunca texto de la imagen)."""
     partes = []
-    if lectura and lectura.get('categoria') in CATEGORIAS:
+    if lectura and _de_la_lista(lectura.get('categoria'), CATEGORIAS):
         partes.append(CATEGORIAS[lectura['categoria']][0])
-    if lectura and lectura.get('medida') in MEDIDAS:
+    if lectura and _de_la_lista(lectura.get('medida'), MEDIDAS):
         partes.append(MEDIDAS[lectura['medida']])
     return ' · '.join(partes)
+
+
+def huella(sal, tipo, valor):
+    """HMAC-SHA256 con la sal del día: sirve para contar, no dice de quién es; ``False`` sin valor."""
+    if not valor or not sal:
+        return False
+    return hmac.new(sal.encode(), f'{tipo}:{valor}'.encode(), hashlib.sha256).hexdigest()[:32]
 
 
 class DcasaBuscarFoto(models.AbstractModel):
@@ -167,43 +204,89 @@ class DcasaBuscarFoto(models.AbstractModel):
             topes[clave] = max(valor, 0)
         return topes
 
+    @api.model
+    def _dcasa_tope_mes(self):
+        """Lo más que la foto puede gastar de IA en el mes (USD): lo de Gerencia o 5 de fábrica (nunca sin tope)."""
+        try:
+            valor = float(self.env['ir.config_parameter'].sudo().get_param(PARAM_TOPE_MES) or TOPE_MES_DE_FABRICA)
+        except (TypeError, ValueError):
+            valor = TOPE_MES_DE_FABRICA
+        return min(max(valor, 0.0), MAX_TOPE_MES)
+
     # ------------------------------------------------------------------
-    # Huellas para los topes (sin guardar la sesión ni la dirección)
+    # Fechas y sales del día
     # ------------------------------------------------------------------
 
     @api.model
-    def _dcasa_huella(self, tipo, valor):
-        """HMAC-SHA256 con el secreto de la base: sirve para contar, no para saber de quién es."""
-        if not valor:
-            return False
-        secreto = self.env['ir.config_parameter'].sudo().get_param('database.secret') or self.env.cr.dbname
-        return hmac.new(secreto.encode(), f'{tipo}:{valor}'.encode(), hashlib.sha256).hexdigest()[:32]
+    def _dcasa_ahora_local(self, ahora=None):
+        return pytz.utc.localize(ahora or fields.Datetime.now()).astimezone(pytz.timezone(ZONA))
 
     @api.model
     def _dcasa_inicio_del_dia(self, ahora=None):
         """Medianoche de hoy en Panamá, en UTC sin zona (como se guardan los Datetime)."""
-        ahora = ahora or fields.Datetime.now()
-        zona = pytz.timezone(ZONA)
-        local = pytz.utc.localize(ahora).astimezone(zona)
-        medianoche = zona.localize(datetime(local.year, local.month, local.day))
+        local = self._dcasa_ahora_local(ahora)
+        medianoche = pytz.timezone(ZONA).localize(datetime(local.year, local.month, local.day))
         return medianoche.astimezone(pytz.utc).replace(tzinfo=None)
 
     @api.model
-    def _dcasa_sin_cupo(self, huella_visitante, huella_conexion):
-        """``None`` si hay cupo; si no, cuál tope se pasó (``visitante``, ``conexion`` o ``dia``). 0 = cerrado."""
-        topes = self._dcasa_topes()
-        Uso = self.env['dcasa.buscar.foto.uso'].sudo()
-        ahora = fields.Datetime.now()
-        hace_una_hora = ahora - timedelta(hours=1)
-        if Uso.search_count([('fecha', '>=', self._dcasa_inicio_del_dia(ahora))]) >= topes['dia']:
-            return 'dia'
-        if huella_visitante and Uso.search_count([
-                ('fecha', '>=', hace_una_hora), ('huella_visitante', '=', huella_visitante)]) >= topes['visitante']:
-            return 'visitante'
-        if huella_conexion and Uso.search_count([
-                ('fecha', '>=', hace_una_hora), ('huella_conexion', '=', huella_conexion)]) >= topes['conexion']:
-            return 'conexion'
-        return None
+    def _dcasa_sales(self, ahora=None):
+        """``(sal de hoy, sal de ayer)``, días de Panamá. La de hoy nace al azar con la primera búsqueda del día; el
+        cron borra las de antes de ayer. Con la de ayer se reconocen las búsquedas de antes de la medianoche (topes por
+        hora). Se llama con el cerrojo de los topes tomado (dos búsquedas a la vez no crean dos sales)."""
+        Sal = self.env['dcasa.buscar.foto.sal'].sudo()
+        hoy = self._dcasa_ahora_local(ahora).date()
+        sales = {s.fecha: s.valor for s in Sal.search([('fecha', 'in', [hoy, hoy - timedelta(days=1)])])}
+        if hoy not in sales:
+            sales[hoy] = Sal.create({'fecha': hoy, 'valor': secrets.token_hex(32)}).valor
+        return sales[hoy], sales.get(hoy - timedelta(days=1))
+
+    # ------------------------------------------------------------------
+    # La reserva del cupo (transacción corta aparte)
+    # ------------------------------------------------------------------
+
+    @api.model
+    def _dcasa_reservar(self, sesion, conexion):
+        """Cuenta y, si hay cupo, anota la búsqueda en una transacción PROPIA que se confirma al salir (antes de llamar
+        al Worker). Devuelve ``(id de la fila, None)`` o ``(None, el tope que se pasó)``.
+
+        En READ COMMITTED y bajo ``pg_advisory_xact_lock``: cada conteo ve lo que confirmaron las anteriores (en
+        REPEATABLE READ, la foto de la base se tomaría ANTES de esperar el cerrojo y no las vería). En las pruebas la
+        transacción es la de la prueba (``TestCursor``): ahí no se cambia el aislamiento."""
+        with self.env.registry.cursor() as cr:
+            if isinstance(cr, Cursor):
+                cr.execute('SET TRANSACTION ISOLATION LEVEL READ COMMITTED')
+            cr.execute('SELECT pg_advisory_xact_lock(%s)', [CERROJO_TOPES])
+            env = api.Environment(cr, SUPERUSER_ID, {})
+            Foto = env['dcasa.buscar.foto']
+            Uso = env['dcasa.buscar.foto.uso']
+            topes = Foto._dcasa_topes()
+            ahora = fields.Datetime.now()
+            hace_una_hora = ahora - timedelta(hours=1)
+            sal_hoy, sal_ayer = Foto._dcasa_sales(ahora)
+            red = red_truncada(conexion) if conexion else None
+            visitante = [h for h in (huella(sal_hoy, 'v', sesion), huella(sal_ayer, 'v', sesion)) if h]
+            de_la_red = [h for h in (huella(sal_hoy, 'c', red), huella(sal_ayer, 'c', red)) if h]
+            if Uso.search_count([('fecha', '>=', Foto._dcasa_inicio_del_dia(ahora))]) >= topes['dia']:
+                return None, 'dia'
+            if visitante and Uso.search_count([('fecha', '>=', hace_una_hora),
+                                               ('huella_visitante', 'in', visitante)]) >= topes['visitante']:
+                return None, 'visitante'
+            if de_la_red and Uso.search_count([('fecha', '>=', hace_una_hora),
+                                               ('huella_conexion', 'in', de_la_red)]) >= topes['conexion']:
+                return None, 'conexion'
+            # Cuenta desde ya, aunque el Worker falle o algo reviente después (la IA pudo correr igual).
+            uso = Uso.create({'huella_visitante': visitante[0] if visitante else False,
+                              'huella_conexion': de_la_red[0] if de_la_red else False, 'resultado': 'no_ahora'})
+            return uso.id, None
+
+    @api.model
+    def _dcasa_anotar(self, uso_id, estado):
+        """El resultado de la búsqueda, en otra transacción corta (la de la petición no ve la fila de la reserva)."""
+        try:
+            with self.env.registry.cursor() as cr:
+                cr.execute('UPDATE dcasa_buscar_foto_uso SET resultado = %s WHERE id = %s', [estado, uso_id])
+        except Exception:  # noqa: BLE001 — el resultado es para las cifras: nunca le cambia la página al cliente
+            _logger.warning('Busca con una foto: no se pudo anotar el resultado de una búsqueda.', exc_info=True)
 
     # ------------------------------------------------------------------
     # La búsqueda
@@ -221,43 +304,49 @@ class DcasaBuscarFoto(models.AbstractModel):
         if not foto:
             return resultado
         datos, mime = foto
-        huella_visitante = self._dcasa_huella('v', sesion)
-        huella_conexion = self._dcasa_huella('c', conexion)
-        tope = self._dcasa_sin_cupo(huella_visitante, huella_conexion)
-        if tope:
-            _logger.info('Busca con una foto: sin cupo (%s).', tope)
+        del foto
+        if not _SEMAFORO.acquire(blocking=False):
+            _logger.info('Busca con una foto: ya hay %s búsquedas a la vez en este proceso.', MAX_A_LA_VEZ)
             return {**resultado, 'estado': 'no_ahora'}
-        # Cuenta para los topes aunque el Worker falle (la IA pudo correr igual); el resultado se anota al final.
-        uso = self.env['dcasa.buscar.foto.uso'].sudo().create({
-            'huella_visitante': huella_visitante, 'huella_conexion': huella_conexion, 'resultado': 'no_ahora'})
-
-        lectura = self._dcasa_leer(datos, mime)
-        del datos, foto   # la foto no sale de esta función
-        if lectura is False:
+        try:
+            uso_id, tope = self._dcasa_reservar(sesion, conexion)
+            if tope:
+                _logger.info('Busca con una foto: sin cupo (%s).', tope)
+                return {**resultado, 'estado': 'no_ahora'}
             estado = 'no_ahora'
-        elif lectura is None or (lectura['tipo'] not in ('producto', 'publicacion') and not es_documento(lectura)):
-            estado = 'otra'
-        elif es_documento(lectura):
-            estado = 'documento'
-            lectura = None   # de un documento no se dice nada: ni categoría ni medida
-        else:
-            productos, por_codigo = self._dcasa_parecidos(website, lectura)
-            estado = 'resultados' if productos else 'nada'
-            resultado.update(productos=productos, por_codigo=por_codigo)
-        uso.resultado = estado
-        resultado.update(estado=estado, lectura=lectura or None, etiqueta=etiqueta_de(lectura))
+            try:
+                lectura = self._dcasa_leer(datos, mime)
+                del datos   # la foto no sale de aquí
+                mueble = bool(lectura) and lectura['tipo'] in ('producto', 'publicacion')
+                if lectura is False:
+                    estado = 'no_ahora'
+                elif lectura is None or (not mueble and not es_documento(lectura)):
+                    estado = 'otra'
+                elif es_documento(lectura):
+                    estado = 'documento'
+                    lectura = None   # de un documento no se dice nada: ni categoría ni medida
+                else:
+                    productos, por_codigo = self._dcasa_parecidos(website, lectura)
+                    estado = 'resultados' if productos else 'nada'
+                    resultado.update(productos=productos, por_codigo=por_codigo)
+                resultado.update(estado=estado, lectura=lectura or None, etiqueta=etiqueta_de(lectura))
+            finally:
+                self._dcasa_anotar(uso_id, estado)
+        finally:
+            _SEMAFORO.release()
         return resultado
 
     @api.model
     def _dcasa_leer(self, datos, mime):
         """El registro cerrado que leyó el Worker; ``None`` si no pudo leerla; ``False`` si no se pudo preguntar (sin
-        Worker, tope de IA del mes, caído o lento). Ni la foto ni la respuesta van al registro (log)."""
+        Worker, sin cupo de IA, caído o lento). Ni la foto ni la respuesta van al registro (log)."""
         respuesta = self.env['dcasa.juan.cliente'].sudo()._pedir(
-            'POST', '/odoo/buscar-foto', {'mime': mime, 'base64': base64.b64encode(datos).decode()},
+            'POST', '/odoo/buscar-foto',
+            {'mime': mime, 'base64': base64.b64encode(datos).decode(), 'tope_mes_usd': self._dcasa_tope_mes()},
             timeout=TIMEOUT_BUSCAR_FOTO)
-        cuerpo = respuesta.get('cuerpo') or {}
+        cuerpo = respuesta.get('cuerpo') if isinstance(respuesta.get('cuerpo'), dict) else {}
         if respuesta.get('error') or not respuesta.get('conectado') or cuerpo.get('ok') is not True:
-            causa = cuerpo.get('causa') if cuerpo.get('causa') in ('tope', 'no_disponible', 'tardo') else (
+            causa = _de_la_lista(cuerpo.get('causa'), ('tope', 'tope_foto', 'reserva', 'no_disponible', 'tardo')) or (
                 respuesta.get('causa') or ('sin_configurar' if respuesta.get('sin_configurar') else 'error'))
             _logger.info('Busca con una foto: el Worker no la leyó (%s).', causa)
             return False
@@ -277,7 +366,7 @@ class DcasaBuscarFoto(models.AbstractModel):
             por_codigo |= Juan._j_plantilla_por_codigo(codigo, publicadas.sudo())
         if por_codigo:
             return Plantilla.browse(por_codigo.ids[:MAX_RESULTADOS]), True
-        categoria = CATEGORIAS.get(lectura['categoria'])
+        categoria = CATEGORIAS.get(lectura['categoria']) if lectura['categoria'] else None
         if not categoria:
             return Plantilla.browse(), False
         candidatos = Juan._j_candidatos(publicadas.sudo())

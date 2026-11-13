@@ -7,7 +7,7 @@
  *   1. Se ve «Buscando muebles parecidos…» (una capa encima de todo, que el lector de pantalla anuncia).
  *   2. La foto se achica en el navegador: lado mayor de 1024 px como mucho, JPEG (una captura de Instagram o una foto de
  *      12 MP queda en unos cientos de KB). Si el navegador no la puede abrir, se manda tal cual si es JPEG, PNG o WebP
- *      de hasta 4 MB; si no, se avisa al lado del botón.
+ *      de hasta 1,5 MB; si no, se avisa al lado del botón.
  *   3. Se pide un token CSRF fresco (las páginas pueden venir de la caché del borde, con el token de otra sesión) y se
  *      envía un formulario normal a /shop/foto con la foto en base64 en un campo de texto: la respuesta es la página
  *      de resultados. Nada de la foto queda en el navegador (ni en localStorage, ni en el historial).
@@ -19,11 +19,11 @@ import { registry } from "@web/core/registry";
 
 export const LADO_MAXIMO = 1024;
 export const CALIDAD_JPEG = 0.85;
-export const MAX_BYTES = 4 * 1024 * 1024;
+export const MAX_BYTES = 1536 * 1024;
 export const TIPOS = ["image/jpeg", "image/png", "image/webp"];
 export const RUTA = "/shop/foto";
 export const TEXTO_CARGANDO = "Buscando muebles parecidos…";
-export const TEXTO_NO_ABRE = "Esa foto no la pudimos abrir. Prueba con otra en JPG, PNG o WebP de menos de 4 MB.";
+export const TEXTO_NO_ABRE = "Esa foto no la pudimos abrir. Prueba con otra en JPG, PNG o WebP de menos de 1,5 MB.";
 
 /** Medidas para que el lado mayor no pase de `maximo` (nunca agranda). */
 export function medidasReducidas(ancho, alto, maximo = LADO_MAXIMO) {
@@ -164,13 +164,15 @@ export function ocultarCargando() {
     document.documentElement.classList.remove("o_dcasa_foto_ocupado");
 }
 
+/** El aviso va debajo del botón o, si el botón está dentro de una caja de búsqueda, debajo de la caja (no dentro). */
 function avisar(boton, texto) {
-    let aviso = boton.parentElement?.querySelector(":scope > .o_dcasa_foto_aviso");
+    const ancla = boton.closest(".o_searchbar_form") ?? boton;
+    let aviso = ancla.parentElement?.querySelector(":scope > .o_dcasa_foto_aviso");
     if (!aviso) {
         aviso = document.createElement("p");
         aviso.className = "o_dcasa_foto_aviso";
         aviso.setAttribute("role", "alert");
-        boton.insertAdjacentElement("afterend", aviso);
+        ancla.insertAdjacentElement("afterend", aviso);
     }
     aviso.textContent = texto;
 }

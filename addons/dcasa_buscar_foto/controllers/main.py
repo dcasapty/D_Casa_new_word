@@ -21,7 +21,7 @@ TITULO_RESULTADOS = 'Esto se parece a tu foto'
 MENSAJES = {
     'documento': 'Esa foto parece un documento; para buscar, sube la foto de un mueble.',
     'no_ahora': 'Ahora no podemos buscar por foto; búscalo por nombre o escríbenos por WhatsApp.',
-    'formato': 'Esa foto no la pudimos abrir. Prueba con otra en JPG, PNG o WebP de menos de 4 MB.',
+    'formato': 'Esa foto no la pudimos abrir. Prueba con otra en JPG, PNG o WebP de menos de 1,5 MB.',
     'otra': 'No reconocimos un mueble en tu foto. Prueba con otra donde se vea el mueble completo.',
     'nada': 'No encontramos algo parecido en la tienda en línea. Mándanos la foto por WhatsApp y te decimos si lo '
             'tenemos.',

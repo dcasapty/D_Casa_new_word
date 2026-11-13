@@ -24,8 +24,12 @@
                                  help="Varios teléfonos pueden salir por la misma conexión (la del operador o el wifi de un lugar): por eso es más alto.">
                             <field name="tope_conexion_hora"/>
                         </setting>
+                        <setting id="dcasa_buscar_foto_tope_mes" string="Gasto de IA de la foto en el mes (USD)"
+                                 help="Lo más que las búsquedas por foto pueden gastar de inteligencia artificial en el mes. Se paga a Cloudflare, aparte de Meta, y se ve en Costos de IA como «Cloudflare: lector de fotos». Además, no se leen fotos cuando el gasto de Juan pasa del 80 % de su tope del mes: nunca le quita IA a las conversaciones. 0 = no se leen fotos.">
+                            <field name="tope_mes_usd"/>
+                        </setting>
                         <setting id="dcasa_buscar_foto_tope_dia" string="En total, por día"
-                                 help="Entre todos los visitantes, en el día (hora de Panamá). Al llegar a un tope, la tienda dice «Ahora no podemos buscar por foto; búscalo por nombre o escríbenos por WhatsApp». Lo mismo con el tope de IA del mes de Juan: cada búsqueda cuenta en ese gasto y se ve en Costos de IA.">
+                                 help="Entre todos los visitantes, en el día (hora de Panamá). Al llegar a cualquier tope, la tienda dice «Ahora no podemos buscar por foto; búscalo por nombre o escríbenos por WhatsApp».">
                             <field name="tope_dia"/>
                         </setting>
                     </block>
@@ -40,6 +44,7 @@
                             <div class="d-flex flex-column">
                                 <div>Encontraron productos: <field name="con_resultado_mes" class="oe_inline" readonly="1"/></div>
                                 <div>No encontraron nada parecido: <field name="sin_resultado_mes" class="oe_inline" readonly="1"/></div>
+                                <div>No eran un mueble: <field name="no_mueble_mes" class="oe_inline" readonly="1"/></div>
                                 <div>Parecían un documento: <field name="documentos_mes" class="oe_inline" readonly="1"/></div>
                                 <div>No se pudieron leer: <field name="no_leidas_mes" class="oe_inline" readonly="1"/></div>
                             </div>
