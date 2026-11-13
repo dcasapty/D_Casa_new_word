@@ -46,11 +46,14 @@
                         <field name="comentarios_texto_publico" invisible="not comentarios_activo" widget="text"
                                options="{'line_breaks': False}"/>
                         <field name="comentarios_tope_hora" invisible="not comentarios_activo"/>
+                        <field name="comentarios_publicas_persona" invisible="not comentarios_activo"/>
+                        <field name="comentarios_privadas_persona" invisible="not comentarios_activo"/>
                         <div class="text-muted" colspan="2">
                             Juan solo contesta los comentarios que preguntan (precio, medidas, colores, si hay, envío o
                             ganas de comprar): en público, corto, y la respuesta completa por mensaje privado. No contesta
                             etiquetas de amigos, emojis, saludos ni elogios. Las quejas no las contesta: avisa a Gerencia
-                            por Telegram. Cada comentario atendido queda en la conversación de esa persona.
+                            por Telegram. En Instagram la frase pública va sin nombre; en Facebook, con el nombre de pila
+                            solo si es un nombre limpio. Cada comentario atendido queda en la conversación de esa persona.
                         </div>
                     </group>
                     <group>

@@ -10,8 +10,8 @@ El Worker decide y contesta (``juan/src/motor/conversacion.ts``); aquí queda el
   publicación de Instagram: "…" · Juan le respondió en público y por privado», con el enlace a la publicación si viene.
   Una pregunta llega dos veces (``POST /dcasa/juan/v1/comentario``): con ``privada = pendiente`` ANTES de contestar
   (así el aviso queda antes de la respuesta en el hilo y la conversación existe para las herramientas) y con el
-  resultado al final, que pone al día el mismo aviso. Idempotente por ``red`` + ``id_comentario``; un resultado final
-  no se pisa.
+  resultado al final, que pone al día el mismo aviso. Si la IA u Odoo fallan, en medio puede llegar ``reintento``
+  (Juan lo vuelve a intentar en un rato). Idempotente por ``red`` + ``id_comentario``; un resultado final no se pisa.
 * Una **queja**: el aviso («Queja en un comentario: … · no se respondió») y Telegram a Gerencia (el mismo mecanismo de
   siempre; si a nadie de Gerencia le llega, a quienes reciben los avisos de Juan).
 * El comentario no es un mensaje del cliente: no abre la ventana de 24 h, no cuenta como «el cliente escribió» ni
@@ -30,9 +30,12 @@ _logger = logging.getLogger(__name__)
 REDES = [('facebook', 'Facebook'), ('instagram', 'Instagram')]
 CLASES = [('pregunta', 'Pregunta'), ('queja', 'Queja'), ('sin_clasificar', 'Sin clasificar (falló la IA)')]
 RESPUESTA_PRIVADA = [
-    ('pendiente', 'Preparándose'), ('respondida', 'Respondida'), ('fallo', 'Meta no la dejó salir'),
+    ('pendiente', 'Preparándose'), ('reintento', 'Juan lo vuelve a intentar'), ('respondida', 'Respondida'),
+    ('fallo', 'Meta no la dejó salir'), ('no_preparada', 'Juan no pudo prepararla'),
     ('incierta', 'No se sabe si llegó'), ('vendedora', 'No: la atiende una persona'), ('no', 'No se responde'),
 ]
+# Lo que todavía puede cambiar (Juan sigue con ese comentario); lo demás es un resultado final y no se pisa.
+PRIVADA_EN_CURSO = ('pendiente', 'reintento')
 RESPUESTA_PUBLICA = [
     ('pendiente', 'Preparándose'), ('respondida', 'Respondida'), ('fallo', 'Meta no la dejó salir'),
     ('incierta', 'No se sabe si salió'), ('tope', 'No: tope por hora'), ('no', 'No se responde'),
@@ -80,7 +83,8 @@ class DcasaComentario(models.Model):
         existente = Comentario.search([('red', '=', datos['red']), ('id_comentario', '=', datos['id_comentario'])],
                                       limit=1)
         if existente:
-            if existente.privada == 'pendiente' and datos['privada'] != 'pendiente':
+            if existente.privada in PRIVADA_EN_CURSO and datos['privada'] != 'pendiente' and (
+                    datos['privada'] != existente.privada or (datos.get('motivo') or False) != existente.motivo):
                 existente._poner_resultado(datos)
                 return existente, 'actualizado'
             return existente, 'repetido'
@@ -141,29 +145,36 @@ class DcasaComentario(models.Model):
         self.ensure_one()
         motivo = f' ({self.motivo})' if self.motivo else ''
         if self.clase == 'sin_clasificar':
-            return self.env._('Juan no pudo saber si era una pregunta (falló la IA) y no le respondió. Si hace falta, '
-                              'contéstale tú.')
+            return self.env._('Juan no pudo saber si era una pregunta (falló la IA%s) y no le respondió. Si hace '
+                              'falta, contéstale tú.', f': {self.motivo}' if self.motivo else '')
         privada, publica = self.privada, self.publica
         if privada == 'pendiente':
             return self.env._('Juan le está respondiendo.')
+        if privada == 'reintento':
+            return self.env._('Juan todavía no pudo prepararle la respuesta%s y lo vuelve a intentar en un rato. Si es '
+                              'urgente, contéstale tú desde Meta Business Suite.', motivo)
         if privada == 'respondida':
             return {
                 'respondida': self.env._('Juan le respondió en público y por privado.'),
                 'tope': self.env._('Juan le respondió por privado; en público no, porque ya iban las respuestas '
                                    'públicas de esta hora (el tope de Ajustes de Juan).'),
-                'fallo': self.env._('Juan le respondió por privado; en público Meta no lo dejó%s.', motivo),
+                'fallo': self.env._('Juan le respondió por privado; en público no salió%s.', motivo),
                 'incierta': self.env._('Juan le respondió por privado; no se sabe si salió la respuesta pública.'),
+                'no': self.env._('Juan le respondió por privado; en público no%s.', motivo),
             }.get(publica, self.env._('Juan le respondió por privado.'))
         if privada == 'fallo':
             return self.env._('Meta no dejó responderle por privado%s y en público tampoco se le respondió. '
                               'Contéstale tú desde Meta Business Suite.', motivo)
+        if privada == 'no_preparada':
+            return self.env._('Juan no pudo prepararle la respuesta%s, ni en los reintentos; en público tampoco se le '
+                              'respondió. Contéstale tú desde Meta Business Suite.', motivo)
         if privada == 'incierta':
             return self.env._('Juan empezó a responderle por privado, pero no se sabe si le llegó; en público no se le '
                               'respondió. Revísalo en Meta Business Suite.')
         if privada == 'vendedora':
             return self.env._('No se le respondió porque una persona del equipo atiende esta conversación: '
                               'contéstale tú.')
-        return self.env._('No se le respondió.')
+        return self.env._('No se le respondió%s.', motivo)
 
     def _avisar_queja_a_gerencia(self):
         """Telegram a Gerencia (el mismo mecanismo de los avisos de siempre); si a nadie de Gerencia le llega, a quienes

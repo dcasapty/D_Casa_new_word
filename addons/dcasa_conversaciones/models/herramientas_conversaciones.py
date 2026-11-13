@@ -113,15 +113,19 @@ class BrianHerramientasConversaciones(models.AbstractModel):
              WHERE ts >= %s AND ts < %s GROUP BY clase, privada""", [H.a_utc(inicio_local), H.a_utc(fin_local)])
         cuentas = {(clase, privada): n for clase, privada, n in self.env.cr.fetchall()}
         preguntas = {privada: n for (clase, privada), n in cuentas.items() if clase == 'pregunta'}
+        en_curso = ('pendiente', 'reintento')
         return {
             'preguntas_respondidas': preguntas.get('respondida', 0),
-            'preguntas_sin_respuesta_de_juan': sum(n for privada, n in preguntas.items() if privada != 'respondida'),
+            'preguntas_sin_respuesta_de_juan': sum(n for privada, n in preguntas.items()
+                                                   if privada != 'respondida' and privada not in en_curso),
+            'preguntas_en_curso': sum(n for privada, n in preguntas.items() if privada in en_curso),
             'quejas_avisadas_a_gerencia': sum(n for (clase, _p), n in cuentas.items() if clase == 'queja'),
             'sin_clasificar': sum(n for (clase, _p), n in cuentas.items() if clase == 'sin_clasificar'),
             'como_se_cuenta': 'Solo los comentarios que Juan atendió con «Responder comentarios» encendido (Ajustes de '
                               'Juan). Los que no preguntan nada (etiquetas, emojis, saludos, elogios) no se cuentan. '
-                              '«Sin respuesta de Juan» son las preguntas que Meta no dejó responder o que atendía una '
-                              'persona.',
+                              '«Sin respuesta de Juan» son las preguntas que Meta no dejó responder, que Juan no pudo '
+                              'preparar (falló la IA u Odoo), que atendía una persona, de alguien que ya llegó a su '
+                              'tope por persona o de cuando se apagó. «En curso»: Juan todavía las está respondiendo.',
         }
 
     @herramienta(

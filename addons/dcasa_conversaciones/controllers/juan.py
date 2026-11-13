@@ -68,7 +68,8 @@ TIPOS_DE_PARTE = dict(_TIPOS_DE_PARTE)
 # Comentarios: la red y el canal por el que va la respuesta privada (Facebook → Messenger).
 CANAL_DE_LA_RED = {'facebook': 'messenger', 'instagram': 'instagram'}
 RE_ID_COMENTARIO = re.compile(r'^[A-Za-z0-9_.:-]{1,128}$')
-RE_HOST_DE_META = re.compile(r'(^|\.)(facebook\.com|instagram\.com|fb\.com|fb\.me)$', re.IGNORECASE)
+# El anfitrión ENTERO (sin usuario, clave ni puerto): letras, cifras y guiones por partes, y que termine en uno de Meta.
+RE_HOST_DE_META = re.compile(r'^(?:[a-z0-9-]+\.)*(?:facebook\.com|instagram\.com|fb\.com|fb\.me)$', re.IGNORECASE)
 MAX_TEXTO_COMENTARIO = 2000
 
 _candado = threading.Lock()
@@ -224,16 +225,23 @@ def _evento(crudo):
 
 
 def _enlace_de_meta(valor):
-    """El enlace a la publicación comentada: solo https de Facebook o Instagram (nunca otra dirección); si no, nada."""
+    """El enlace a la publicación comentada: solo https de Facebook o Instagram (nunca otra dirección); si no, nada.
+
+    Se mira como lo mira un navegador, no como ``urlsplit``: el navegador toma «\\» como «/» (con
+    ``https://evil.example\\@www.facebook.com/x`` iría a evil.example) y quita tabuladores y saltos. Por eso no se
+    acepta ninguna «\\», espacio ni control, y el anfitrión (``netloc`` entero) tiene que ser de Meta, sin usuario,
+    clave ni puerto."""
     if not isinstance(valor, str) or len(valor) > 500 or RE_NO_GUARDABLE.search(valor):
         return None
-    if any(c.isspace() for c in valor):
+    if '\\' in valor or any(c.isspace() or ord(c) < 32 or ord(c) == 127 for c in valor):
         return None
     try:
         partes = urlsplit(valor)
     except ValueError:
         return None
-    return valor if partes.scheme == 'https' and partes.hostname and RE_HOST_DE_META.search(partes.hostname) else None
+    if partes.scheme != 'https' or not RE_HOST_DE_META.match(partes.netloc or ''):
+        return None
+    return valor
 
 
 class JuanAPI(http.Controller):

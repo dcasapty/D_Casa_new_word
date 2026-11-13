@@ -4,6 +4,10 @@ por privado» y «Apagado hasta que lo pruebes».
 Lo que hace Odoo: los ajustes (solo Gerencia y administradores), el aviso en el hilo de la conversación de esa persona
 (antes de la respuesta de Juan y puesto al día con el resultado), Telegram a Gerencia en una queja, la API
 ``POST /dcasa/juan/v1/comentario`` (idempotente), Brian y la Guía.
+
+Revisión adversarial del 2026-11-13: el enlace se valida como lo ve un navegador, el texto público no acepta
+direcciones web sin esquema ni llaves sueltas, tope por persona en Ajustes, «reintento» y «no_preparada» (la causa
+real, nunca «Meta no dejó») y pruebas que no dependen de lo que ya haya en la base.
 """
 from datetime import datetime, timedelta
 from unittest.mock import patch
@@ -33,23 +37,30 @@ def datos(**extra):
 @tagged('post_install', '-at_install')
 class TestAjustesDeComentarios(JuanCase):
 
+    CAMPOS = ('comentarios_activo', 'comentarios_facebook', 'comentarios_instagram', 'comentarios_texto_publico',
+              'comentarios_tope_hora', 'comentarios_publicas_persona', 'comentarios_privadas_persona')
+
     def test_de_fabrica_apagado_con_el_texto_de_la_duena(self):
-        a = self.ajustes
-        self.assertFalse(a.comentarios_activo, '«Apagado hasta que lo pruebes»')
-        self.assertTrue(a.comentarios_facebook and a.comentarios_instagram)
-        self.assertEqual(a.comentarios_texto_publico, TEXTO)
-        self.assertEqual(a.comentarios_tope_hora, 30)
-        self.assertEqual(a.como_json()['comentarios'], {
-            'activo': False, 'facebook': True, 'instagram': True,
-            'texto_publico': TEXTO, 'tope_por_hora': 30})
+        # Lo de fábrica (no lo que tenga esta base: puede estar encendido de una prueba anterior).
+        de_fabrica = self.env['dcasa.juan.ajustes'].default_get(list(self.CAMPOS))
+        self.assertEqual(de_fabrica, {
+            'comentarios_activo': False, 'comentarios_facebook': True, 'comentarios_instagram': True,
+            'comentarios_texto_publico': TEXTO, 'comentarios_tope_hora': 30, 'comentarios_publicas_persona': 1,
+            'comentarios_privadas_persona': 3}, '«Apagado hasta que lo pruebes»')
+        self.ajustes.write(de_fabrica)
+        self.assertEqual(self.ajustes.como_json()['comentarios'], {
+            'activo': False, 'facebook': True, 'instagram': True, 'texto_publico': TEXTO, 'tope_por_hora': 30,
+            'publicas_por_persona': 1, 'privadas_por_persona': 3})
 
     def test_el_worker_recibe_lo_que_cambia_gerencia(self):
         self.ajustes.with_user(self.gerente).write({
-            'comentarios_activo': True, 'comentarios_facebook': False, 'comentarios_tope_hora': 10,
+            'comentarios_activo': True, 'comentarios_facebook': False, 'comentarios_instagram': True,
+            'comentarios_tope_hora': 10, 'comentarios_publicas_persona': 0, 'comentarios_privadas_persona': 5,
             'comentarios_texto_publico': 'Gracias, {nombre}: te escribimos por privado.'})
         self.assertEqual(self.ajustes.como_json()['comentarios'], {
             'activo': True, 'facebook': False, 'instagram': True,
-            'texto_publico': 'Gracias, {nombre}: te escribimos por privado.', 'tope_por_hora': 10})
+            'texto_publico': 'Gracias, {nombre}: te escribimos por privado.', 'tope_por_hora': 10,
+            'publicas_por_persona': 0, 'privadas_por_persona': 5})
 
     def test_solo_gerencia_y_administradores_los_cambian(self):
         self.ajustes.with_user(self.gerente).comentarios_activo = True
@@ -58,7 +69,8 @@ class TestAjustesDeComentarios(JuanCase):
         self.ajustes.with_user(administrador).comentarios_tope_hora = 12
         self.assertEqual(self.ajustes.with_user(self.vendedora).comentarios_tope_hora, 12)   # leer, sí
         for campo, valor in (('comentarios_activo', False), ('comentarios_texto_publico', 'Hola'),
-                             ('comentarios_tope_hora', 99)):
+                             ('comentarios_tope_hora', 99), ('comentarios_publicas_persona', 2),
+                             ('comentarios_privadas_persona', 2)):
             with self.subTest(campo), self.assertRaises(AccessError):
                 self.ajustes.with_user(self.vendedora).write({campo: valor})
 
@@ -66,10 +78,28 @@ class TestAjustesDeComentarios(JuanCase):
         for valores in ({'comentarios_texto_publico': '   '}, {'comentarios_texto_publico': 'x' * 301},
                         {'comentarios_texto_publico': 'Hola {cliente}, te escribimos.'},
                         {'comentarios_texto_publico': 'Mira https://dcasapty.com'},
-                        {'comentarios_tope_hora': -1}, {'comentarios_tope_hora': 201}):
+                        {'comentarios_tope_hora': -1}, {'comentarios_tope_hora': 201},
+                        {'comentarios_publicas_persona': -1}, {'comentarios_publicas_persona': 11},
+                        {'comentarios_privadas_persona': 0}, {'comentarios_privadas_persona': 11}):
             with self.subTest(valores), self.assertRaises(ValidationError):
                 self.ajustes.write(valores)
-        self.ajustes.write({'comentarios_texto_publico': 'Hola {nombre}', 'comentarios_tope_hora': 0})
+        self.ajustes.write({'comentarios_texto_publico': 'Hola {nombre}', 'comentarios_tope_hora': 0,
+                            'comentarios_publicas_persona': 0, 'comentarios_privadas_persona': 10})
+
+    def test_el_texto_publico_no_acepta_direcciones_sin_esquema_ni_llaves_sueltas(self):
+        # Revisión adversarial (pasaban): un dominio sin «https://» o un correo también es un enlace; una llave
+        # suelta, un error.
+        for texto in ('¡Hola, {nombre}! Mira dcasapty.com/ofertas', 'Escríbenos: bit.ly/dcasa {nombre}',
+                      'Escríbenos a info@dcasapty.com', 'wa.me/50760261919', 'Visita www.dcasapty', '{nombre',
+                      'Hola {nombre}} te escribimos', 'Hola nombre} y {'):
+            with self.subTest(texto), self.assertRaises(ValidationError):
+                self.ajustes.with_user(self.gerente).write({'comentarios_texto_publico': texto})
+        # Lo que sí vale: puntos de fin de frase, cifras y signos.
+        for texto in (TEXTO, '¡Gracias, {nombre}! Te escribimos al privado. Abrimos 8:00-17:00.',
+                      'Te escribimos. ¡Gracias!'):
+            with self.subTest(texto):
+                self.ajustes.with_user(self.gerente).write({'comentarios_texto_publico': texto})
+                self.assertEqual(self.ajustes.comentarios_texto_publico, texto)
 
     def test_los_cambios_quedan_en_el_historial(self):
         self.ajustes.comentarios_activo = True
@@ -80,8 +110,7 @@ class TestAjustesDeComentarios(JuanCase):
     def test_el_grupo_esta_en_la_pantalla_de_ajustes(self):
         arco = self.env.ref('dcasa_conversaciones.view_dcasa_juan_ajustes_form').arch
         self.assertIn('Comentarios de Instagram y Facebook', arco)
-        for campo in ('comentarios_activo', 'comentarios_instagram', 'comentarios_facebook',
-                      'comentarios_texto_publico', 'comentarios_tope_hora'):
+        for campo in self.CAMPOS:
             self.assertIn(f'name="{campo}"', arco)
 
 
@@ -140,24 +169,55 @@ class TestAvisosDeComentarios(JuanCase):
         comentario, que = self.Comentario._registrar(datos(privada='fallo', publica='no', motivo='otro'))
         self.assertEqual(que, 'repetido')
         self.assertEqual((comentario.privada, comentario.publica), ('respondida', 'tope'))
-        self.assertEqual(self.Comentario.sudo().search_count([]), 1)
+        self.assertEqual(self.Comentario.sudo().search_count([('id_comentario', '=', '18100000000000002')]), 1)
         self.assertEqual(len(self.avisos(comentario.conversacion_id)), 1)
         self.assertIn('tope de Ajustes de Juan', comentario.aviso_id.texto)
 
     def test_cada_resultado_dicho_en_palabras(self):
         casos = {
             ('respondida', 'fallo', '(#200) Permissions error'):
-                'en público Meta no lo dejó ((#200) Permissions error)',
-            ('respondida', 'no', None): 'Juan le respondió por privado.',
+                'en público no salió ((#200) Permissions error)',
+            ('respondida', 'no', None): 'Juan le respondió por privado; en público no.',
+            ('respondida', 'no', 'tope por persona: ya se le respondió en público una vez en 24 horas'):
+                'en público no (tope por persona: ya se le respondió en público una vez en 24 horas).',
             ('fallo', 'no', '(#10900) Activity already replied to'): 'Meta no dejó responderle por privado',
+            ('no_preparada', 'no', 'la IA no respondió (overloaded)'):
+                'Juan no pudo prepararle la respuesta (la IA no respondió (overloaded)), ni en los reintentos',
             ('incierta', 'no', None): 'no se sabe si le llegó',
             ('vendedora', 'no', None): 'una persona del equipo atiende esta conversación',
+            ('no', 'no', 'se apagó «Responder comentarios»'): 'No se le respondió (se apagó «Responder comentarios»).',
+            ('no', 'no', 'tope por persona: ya se le respondieron 3 comentarios por privado en 24 horas'):
+                'No se le respondió (tope por persona',
         }
         for i, ((privada, publica, motivo), esperado) in enumerate(casos.items()):
-            with self.subTest(privada=privada, publica=publica):
+            with self.subTest(privada=privada, publica=publica, motivo=motivo):
                 comentario, _que = self.Comentario._registrar(datos(
                     id_comentario=f'1810000000000010{i}', privada=privada, publica=publica, motivo=motivo))
                 self.assertIn(esperado, comentario.aviso_id.texto)
+                if privada != 'fallo':
+                    self.assertNotIn('Meta no dejó', comentario.aviso_id.texto, 'la causa real, no Meta')
+
+    def test_si_la_ia_falla_dice_reintento_y_despues_el_resultado_en_el_mismo_aviso(self):
+        comentario, _que = self.Comentario._registrar(datos(id_comentario='r1'))
+        aviso = comentario.aviso_id
+        comentario, que = self.Comentario._registrar(datos(id_comentario='r1', privada='reintento',
+                                                           motivo='la IA no respondió (overloaded)'))
+        self.assertEqual(que, 'actualizado')
+        self.assertIn('todavía no pudo prepararle la respuesta (la IA no respondió (overloaded)) y lo vuelve a '
+                      'intentar', aviso.texto)
+        # El mismo «reintento» otra vez no cambia nada; uno con otra causa, sí; un «pendiente» tardío no lo regresa.
+        self.assertEqual(self.Comentario._registrar(datos(id_comentario='r1', privada='reintento',
+                                                          motivo='la IA no respondió (overloaded)'))[1], 'repetido')
+        otra_causa = 'Odoo no le dio a Juan el catálogo ni los precios'
+        self.assertEqual(self.Comentario._registrar(datos(id_comentario='r1', privada='reintento',
+                                                          motivo=otra_causa))[1], 'actualizado')
+        self.assertEqual(self.Comentario._registrar(datos(id_comentario='r1'))[1], 'repetido')
+        self.assertEqual(comentario.privada, 'reintento')
+        comentario, que = self.Comentario._registrar(datos(id_comentario='r1', privada='respondida',
+                                                           publica='respondida'))
+        self.assertEqual(que, 'actualizado')
+        self.assertEqual(comentario.aviso_id, aviso)
+        self.assertIn('Juan le respondió en público y por privado.', aviso.texto)
 
     def test_una_queja_no_se_responde_y_avisa_a_gerencia_por_telegram(self):
         comentario, _que = self.Comentario._registrar(datos(
@@ -206,19 +266,26 @@ class TestAvisosDeComentarios(JuanCase):
         self.assertFalse(comentario.exists(), 'Ley 81: se borra con la conversación')
 
     def test_brian_cuenta_comentarios_atendidos_y_quejas(self):
+        claves = ('preguntas_respondidas', 'preguntas_sin_respuesta_de_juan', 'preguntas_en_curso',
+                  'quejas_avisadas_a_gerencia', 'sin_clasificar')
+
+        def cuentas():
+            respuesta = self.env['brian.herramientas'].with_user(self.vendedora).ejecutar(
+                'resumen_de_conversaciones', {'periodo': '7_dias'})
+            self.assertTrue(respuesta['ok'], respuesta)
+            return respuesta['datos']['comentarios']
+        antes = cuentas()   # lo que ya haya en la base (la prueba cuenta lo que suma)
         ahora = fields.Datetime.now() - timedelta(minutes=5)
-        self.Comentario._registrar(datos(ts=ahora, privada='respondida', publica='respondida'))
-        self.Comentario._registrar(datos(ts=ahora, id_comentario='2', privada='fallo', publica='no'))
-        self.Comentario._registrar(datos(ts=ahora, id_comentario='3', clase='queja', privada='no', publica='no'))
-        self.Comentario._registrar(datos(ts=ahora - timedelta(days=40), id_comentario='4', clase='queja',
+        self.Comentario._registrar(datos(ts=ahora, id_comentario='b1', privada='respondida', publica='respondida'))
+        self.Comentario._registrar(datos(ts=ahora, id_comentario='b2', privada='fallo', publica='no'))
+        self.Comentario._registrar(datos(ts=ahora, id_comentario='b5', privada='no_preparada', publica='no'))
+        self.Comentario._registrar(datos(ts=ahora, id_comentario='b6', privada='reintento'))
+        self.Comentario._registrar(datos(ts=ahora, id_comentario='b3', clase='queja', privada='no', publica='no'))
+        self.Comentario._registrar(datos(ts=ahora - timedelta(days=40), id_comentario='b4', clase='queja',
                                          privada='no', publica='no'))
-        respuesta = self.env['brian.herramientas'].with_user(self.vendedora).ejecutar(
-            'resumen_de_conversaciones', {'periodo': '7_dias'})
-        self.assertTrue(respuesta['ok'], respuesta)
-        comentarios = respuesta['datos']['comentarios']
-        self.assertEqual((comentarios['preguntas_respondidas'], comentarios['preguntas_sin_respuesta_de_juan'],
-                          comentarios['quejas_avisadas_a_gerencia'], comentarios['sin_clasificar']), (1, 1, 1, 0))
-        self.assertIn('Responder comentarios', comentarios['como_se_cuenta'])
+        despues = cuentas()
+        self.assertEqual(tuple(despues[k] - antes[k] for k in claves), (1, 2, 1, 1, 0))
+        self.assertIn('Responder comentarios', despues['como_se_cuenta'])
 
     def test_la_guia_explica_donde_se_enciende(self):
         try:
@@ -265,18 +332,58 @@ class TestApiComentario(ApiCase):
             {'id_comentario': 'a b'}, {'id_comentario': None}, {'texto': '   '}, {'clase': 'otro'},
             {'privada': 'si'}, {'publica': 'tal vez'}, {'ts': 'ayer'}, {'id_externo': 'x y'},
         ]
+        antes = self.env['dcasa.comentario'].sudo().search_count([])
         for extra in malos:
             with self.subTest(extra):
                 self.assertEqual(self.post('comentario', self.cuerpo(**extra)).status_code, 400)
-        self.assertFalse(self.env['dcasa.comentario'].sudo().search_count([]))
+        self.assertEqual(self.env['dcasa.comentario'].sudo().search_count([]), antes, 'ninguno se guardó')
 
     def test_un_enlace_que_no_es_de_meta_se_descarta(self):
-        for enlace in ('https://evil.example/p', 'http://www.instagram.com/p/x', 'javascript:alert(1)',
-                       'https://instagram.com.evil.example/x'):
+        for i, enlace in enumerate(('https://evil.example/p', 'http://www.instagram.com/p/x', 'javascript:alert(1)',
+                                    'https://instagram.com.evil.example/x',
+                                    # Revisión adversarial (pasaban): urlsplit ve facebook.com; el navegador,
+                                    # evil.example.
+                                    'https://evil.example\\@www.facebook.com/x', 'https://evil.example\\.facebook.com/x',
+                                    'https://evil.example@www.facebook.com/x', 'https://www.facebook.com:8443/x',
+                                    'https://www.facebook.com/x\tz')):
             with self.subTest(enlace):
-                r = self.post('comentario', self.cuerpo(id_comentario=f'c{len(enlace)}', enlace=enlace)).json()
-                self.assertFalse(self.env['dcasa.comentario'].sudo().browse(r['comentario_id']).enlace)
+                r = self.post('comentario', self.cuerpo(id_comentario=f'c{i}', enlace=enlace))
+                self.assertEqual(r.status_code, 200, r.text)
+                comentario = self.env['dcasa.comentario'].sudo().browse(r.json()['comentario_id'])
+                self.assertFalse(comentario.enlace)
+                self.assertFalse(comentario.aviso_id.enlace)
+        r = self.post('comentario', self.cuerpo(id_comentario='bueno', enlace='https://m.facebook.com/dcasapty/posts/1'))
+        self.assertEqual(self.env['dcasa.comentario'].sudo().browse(r.json()['comentario_id']).enlace,
+                         'https://m.facebook.com/dcasapty/posts/1')
+
+    def test_reintento_y_no_preparada_entran_por_la_api(self):
+        self.assertEqual(self.post('comentario', self.cuerpo(id_comentario='api1')).status_code, 200)
+        r = self.post('comentario', self.cuerpo(id_comentario='api1', privada='reintento',
+                                                 motivo='la IA no respondió (overloaded)'))
+        self.assertFalse(r.json()['repetido'])
+        r = self.post('comentario', self.cuerpo(id_comentario='api1', privada='no_preparada', publica='no',
+                                                 motivo='la IA no respondió (overloaded)'))
+        self.assertFalse(r.json()['repetido'])
+        comentario = self.env['dcasa.comentario'].sudo().browse(r.json()['comentario_id'])
+        self.assertEqual(comentario.privada, 'no_preparada')
+        self.assertIn('Juan no pudo prepararle la respuesta', comentario.aviso_id.texto)
 
     def test_sin_token_no_entra(self):
         self.assertEqual(self.post('comentario', self.cuerpo(), token='otro-token-de-prueba-0123456789').status_code,
                          401)
+        self.assertEqual(self.post('comentario', self.cuerpo(), token=None).status_code, 401)
+
+    def test_ni_la_vendedora_ni_gerencia_editan_el_comentario_ni_su_aviso(self):
+        r = self.post('comentario', self.cuerpo(id_comentario='z1'))
+        comentario = self.env['dcasa.comentario'].sudo().browse(r.json()['comentario_id'])
+        for login in ('vendedora_api_c', 'gerente_api_c'):
+            grupos = 'base.group_user,sales_team.group_sale_salesman' if login.startswith('v') else \
+                'base.group_user,sales_team.group_sale_manager'
+            usuario = new_test_user(self.env, login=login, groups=grupos)
+            with self.subTest(login), self.assertRaises(AccessError):
+                comentario.with_user(usuario).with_context(dcasa_mensaje_sistema=True).write({'privada': 'respondida'})
+            with self.subTest(login), self.assertRaises(AccessError):
+                comentario.with_user(usuario).unlink()
+            with self.subTest(login), self.assertRaises(AccessError):
+                comentario.aviso_id.with_user(usuario).with_context(dcasa_mensaje_sistema=True).write(
+                    {'enlace': 'javascript:alert(1)'})
