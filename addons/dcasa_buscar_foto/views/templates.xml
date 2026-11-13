@@ -22,11 +22,14 @@
     <!-- La cámara, DENTRO de la caja de búsqueda y justo antes de la lupa de enviar, en el sitio que deja website_dcasa
          para eso (buscador_templates.xml, buscador_botones_extra, ya envuelto en un <span> sin caja): la caja de la
          cabecera (la lupa de la computadora y la del celular), la del menú del celular y la barra de /shop. Solo en las
-         que buscan productos (otras cajas, como la del blog, no la llevan). Toma el fondo de la caja (sus clases). -->
+         que buscan productos (otras cajas, como la del blog, no la llevan). De las clases de la caja solo toma las del
+         fondo (bg-…): sus bordes, redondeos y rellenos son de las puntas de la caja, no del medio, y su color de letra
+         (text-bg-…) le quitaría el azul de la marca al ícono. -->
     <template id="camara_en_el_buscador" inherit_id="website_dcasa.buscador_botones_extra" name="D'CASA: Busca con una foto en el buscador">
         <xpath expr="." position="inside">
             <t t-if="search_type == 'products' and website and website._dcasa_buscar_foto_activa()" t-call="dcasa_buscar_foto.boton_camara">
-                <t t-set="dcasa_foto_clase" t-value="'o_dcasa_foto_en_caja o_dcasa_foto_boton_icono %s' % (_input_classes or ('' if default_style else 'bg-light'))"/>
+                <t t-set="dcasa_foto_fondo" t-value="[c for c in ('%s %s' % (_input_classes or '', '' if default_style else 'bg-light')).split() if c.startswith('bg-')]"/>
+                <t t-set="dcasa_foto_clase" t-value="'o_dcasa_foto_en_caja o_dcasa_foto_boton_icono ' + ' '.join(dcasa_foto_fondo)"/>
                 <t t-set="dcasa_foto_solo_icono" t-value="True"/>
             </t>
         </xpath>

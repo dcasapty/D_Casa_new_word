@@ -155,6 +155,10 @@ class TestBuscarFoto(HttpCase):
                 self.assertNotIn('name=', archivo)
                 self.assertNotIn('capture', archivo)
                 self.assertIn('title="Busca con una foto"', caja)
+                # Del fondo de la caja sí; de sus bordes, redondeos y rellenos (los de las puntas), no.
+                clases = re.search(r'<label[^>]*class="([^"]*o_dcasa_foto_en_caja[^"]*)"', caja).group(1).split()
+                de_las_puntas = ('border', 'rounded', 'p-', 'ps-', 'pe-', 'px-', 'text-')
+                self.assertFalse([c for c in clases if c.startswith(de_las_puntas)], clases)
         # Todas las cajas de productos la llevan (también la del menú del celular), una por caja.
         for html in (portada, tienda):
             cajas = [c for c in self._cajas(html) if 'data-search-type="products"' in c]
