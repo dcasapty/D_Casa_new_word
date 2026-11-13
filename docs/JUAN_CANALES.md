@@ -492,6 +492,35 @@ Las pruebas del 9 y 10 nov engañaron justamente por usar cuentas con papel.
   como conversación nueva; como a los clientes reales nunca les llegó nada por la página, solo pasaría con las cuentas de
   prueba.
 
+## 3c. Comentarios de Instagram y Facebook (2026-11-13, apagado de fábrica)
+
+Pedido de la dueña: «También me interesa el tema de los comentarios por Instagram o Facebook». Decisiones (tal cual):
+«Solo los que preguntan», «Corto y lo demás por privado», «Apagado hasta que lo pruebes».
+
+- **Qué hace Juan:** solo responde comentarios que preguntan (precio, medidas, colores, si hay, envío, ganas de
+  comprar). Primero manda **una** respuesta privada (Meta permite una por comentario, dentro de 7 días) con la respuesta
+  completa, armada con las mismas herramientas y la misma guardia de un mensaje normal; solo si la privada salió, pone en
+  público la frase de Ajustes («¡Hola! Te escribimos por mensaje directo con los detalles.»). Lo público **nunca lleva
+  el nombre** de quien comenta (decisión técnica tras la revisión: nadie puede usar su nombre o usuario para hacerle
+  decir algo a la cuenta de D'CASA). No contesta etiquetas, emojis, saludos ni elogios. **Las quejas no se contestan:**
+  quedan en el hilo y avisan a Gerencia por Telegram (como mucho un aviso por persona cada 24 h). Una pregunta con
+  palabras de queja puede recibir la privada, pero nunca la pública. Si una vendedora ya atiende a esa persona, Juan no
+  se mete.
+- **Topes:** respuestas públicas por hora (30), por persona 1 pública y 3 privadas cada 24 h, y 60 privadas por hora en
+  total.
+- **Dónde se enciende:** Conversaciones › Configuración › Ajustes de Juan › «Comentarios de Instagram y Facebook»
+  (Gerencia y administradores). Hace falta además el canal donde seguiría la conversación (Messenger para Facebook,
+  Instagram para Instagram).
+- **Cómo llegan:** campo `feed` de la página (Facebook) y `comments` (Instagram, por la página o por la segunda puerta),
+  por los mismos webhooks. Solo se atienden los de la página y el Instagram de D'CASA (Juan lo averigua con `GET /me`;
+  variable opcional `META_PAGE_ID` de respaldo). Cada comentario atendido queda en la conversación de esa persona con
+  «Ver la publicación».
+- **Igual que los mensajes, Meta solo los manda con la app aprobada** (acceso avanzado): hasta entonces, solo los de
+  cuentas con papel. Permisos a pedir en la misma revisión: `pages_manage_engagement`, `pages_read_engagement`,
+  `pages_read_user_content` (Facebook) e `instagram_manage_comments` / `instagram_business_manage_comments` (Instagram).
+- **Por comprobar en la primera prueba real:** que el `recipient_id` de la privada sea el mismo que el `from.id` del
+  comentario (`/salud` avisa si no) y que Meta acepte una segunda privada a la misma persona en otro comentario.
+
 ## 4. El puente de WhatsApp por QR (no se usa en producción)
 
 `puente-wa/` es un Worker con su contenedor (Baileys) que mantiene una sesión de WhatsApp por QR, como un WhatsApp Web
