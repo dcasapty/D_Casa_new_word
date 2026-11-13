@@ -39,6 +39,8 @@ class ApiCase(HttpCase):
         self.addCleanup(entorno.stop)
         controlador._fallos.clear()
         self.addCleanup(controlador._fallos.clear)
+        # Ver ``JuanCase``: las pruebas corren a cualquier hora (la regla de la noche tiene las suyas, reloj quieto).
+        self.env['dcasa.juan.ajustes'].obtener().reparto_nadie_de_noche = False
         self._n = 0
         # El reloj del servidor manda: una fecha del futuro se recorta, así que los tests usan horas ya pasadas.
         self.hace_una_hora = fields.Datetime.now() - timedelta(hours=1)
