@@ -439,57 +439,84 @@ Pedido de la dueña (2026-11-13), al verlo en la web de un competidor: «lo de b
 `dcasa_buscar_foto`; **nace encendido**. Se apaga y se ajusta en *Sitio web › Busca con una foto* (Gerencia y
 administradores; también en la Guía).
 
-**Para el cliente.** Un botón de cámara en la búsqueda del sitio (el modal de Odoo, «¿Viste un mueble que te gustó?»)
-y al lado de la caja de búsqueda de `/shop`. Abre el selector del teléfono (tomar la foto o elegir una de la galería;
-sirve una captura de Instagram). El navegador achica la foto (lado mayor de 1024 px, JPEG) y muestra «Buscando muebles
-parecidos…». La respuesta es la página `/shop/foto`, como el catálogo: «Esto se parece a tu foto», las tarjetas de la
-portada (foto grande, precio «+ ITBMS», «Agregar» o «Elegir» y el WhatsApp del mueble) y, abajo, la banda azul «¿No es
-lo que buscas?» con «Escríbenos por WhatsApp» (el mensaje ya escrito le pide mandar la foto: allí la lee Juan).
-«Recargar» no reenvía la foto (la dirección queda en `/shop/foto`, la página para empezar).
+**Para el cliente.** Un ícono de cámara **dentro de la caja de búsqueda**, justo antes de la lupa de enviar, en todas
+las cajas que buscan productos: la de la cabecera (la abre la lupa de la computadora y la del celular), la del menú del
+celular y la barra de `/shop`. Va en el sitio que deja el lote 1 de la web para eso
+(`website_dcasa.buscador_botones_extra`, ver abajo); en el celular la barra de `/shop` ya tiene su propia fila, así que
+la cámara no le quita espacio a lo que se escribe (a 360, 390 y 430 px cabe «colchon queen»). Abre el selector del
+teléfono (tomar la foto o elegir una de la galería; sirve una captura de Instagram). El navegador achica la foto (lado
+mayor de 1024 px, JPEG) y muestra «Buscando muebles parecidos…». La respuesta es la página `/shop/foto`, como el
+catálogo: «Esto se parece a tu foto», las tarjetas de la portada (foto grande, precio «+ ITBMS», «Agregar» o «Elegir» y
+el WhatsApp del mueble) y, abajo, la franja color hueso «¿No es lo que buscas?» con el botón azul «Escríbenos por
+WhatsApp» (el mensaje ya escrito le pide mandar la foto: allí la lee Juan). «Recargar» no reenvía la foto (la dirección
+queda en `/shop/foto`, la página para empezar).
 
 **Por dentro** (`models/buscar_foto.py`):
 
 1. `POST /shop/foto` con CSRF (el token se pide fresco a `/dcasa/borde/csrf`: la página puede venir de la caché del
    borde). La foto viaja en base64 en un campo de **texto** del formulario (Werkzeug lo tiene en memoria; un archivo
-   de más de 500 KB lo escribiría en un temporal). Se valida por sus **bytes**: JPEG, PNG o WebP, de 1 byte a 4 MB; la
-   petición entera, como mucho ~5,4 MB (`max_content_length` de la ruta: más grande, 413 sin leerla).
-2. **Topes**, antes de gastar IA (cambiables en la pantalla; 0 = cerrado): **10 por visitante en una hora**, **30 por
-   conexión en una hora** (más alto porque en Panamá muchos teléfonos salen por la misma dirección del operador) y
-   **200 en total por día** (hora de Panamá). Se cuentan en `dcasa.buscar.foto.uso`: la hora, el resultado y dos
-   huellas HMAC (de la sesión y de la conexión) que no se pueden revertir; las huellas se borran al día siguiente y la
-   fila a los 90 días. El borde, además, frena ráfagas: 6 por minuto por IP (cubeta `foto` de `edge/src/bots.ts`); al
-   pasarse vuelve a `/shop/foto?espera=1` con el aviso de la tienda, no con un texto suelto.
-3. **Lectura** en el Worker de Juan, `POST /odoo/buscar-foto` con `JUAN_URL` y `JUAN_WORKER_TOKEN` (como las pantallas
-   de Juan; Odoo espera 30 s y el Worker contesta antes de 25). El Worker usa **el mismo lector** de las conversaciones
-   (`juan/src/motor/vision.ts`, solo importado) y devuelve **solo el registro cerrado**: tipo, hasta 3 códigos con
-   patrón estricto, categoría y medida de una lista, ¿parece pago?, ¿parece identidad? Odoo lo vuelve a pasar por las
-   listas cerradas. Ningún texto libre de la imagen llega a la página: solo «Lo que vimos: Cama · Queen» (etiquetas
-   fijas) o «Lo encontramos por el código que se ve en tu foto».
-4. **Comprobantes y cédulas no se buscan**: tipo comprobante o identidad, o cualquier señal de pago o de identidad
+   de más de 500 KB lo escribiría en un temporal). Se valida por sus **bytes**: JPEG, PNG o WebP, de 1 byte a
+   **1,5 MB** (igual que el Worker); la petición entera, como mucho ~2,1 MB (`max_content_length` de la ruta: más
+   grande, 413 sin leerla).
+2. **A lo sumo 3 búsquedas a la vez por proceso de Odoo** (un semáforo sin espera): la cuarta recibe «Ahora no podemos»
+   al instante, en vez de dejar otra petición esperando al Worker.
+3. **Topes**, antes de gastar IA (cambiables en la pantalla; 0 = cerrado): **10 por visitante en una hora**, **30 por
+   conexión en una hora** y **200 en total por día** (hora de Panamá). El cupo se reserva en una **transacción corta
+   aparte, confirmada antes de llamar al Worker**: bajo un cerrojo de PostgreSQL (`pg_advisory_xact_lock`, en READ
+   COMMITTED) se cuentan las búsquedas y, si hay cupo, se anota la fila. Así cinco pedidos al mismo tiempo con tope 1
+   dejan pasar uno solo, y lo que reviente después (en el Worker o al buscar) igual queda contado
+   (`scripts/revision_rvf_carrera_foto.py` lo comprueba con transacciones de verdad: `odoo-bin shell -d <base> <
+   scripts/revision_rvf_carrera_foto.py`, nunca en producción). La fila (`dcasa.buscar.foto.uso`) guarda la hora, el
+   resultado y, solo hasta el día siguiente, dos **huellas**: de la sesión y de la **red** de la conexión (/24 en IPv4,
+   /64 en IPv6: lo que recibe un cliente), hechas con una **sal al azar del día** (`dcasa.buscar.foto.sal`). Es una
+   huella que no dice quién eres y se borra al día siguiente; la sal también (el cron diario borra las de antes de
+   ayer); la fila entera, a los 90 días. Ojo: por la /24, el tope por conexión lo comparten hasta 256 direcciones
+   públicas (en Panamá muchos teléfonos salen por la misma red del operador: por eso es más alto que el del visitante).
+   El borde, además, frena ráfagas: 6 por minuto por conexión (la IPv4, o la /64 de la IPv6; cubeta `foto` de
+   `edge/src/bots.ts`); al pasarse vuelve a `/shop/foto?espera=1` con el aviso de la tienda, no con un texto suelto.
+4. **Lectura** en el Worker de Juan, `POST /odoo/buscar-foto` con `JUAN_URL` y `JUAN_WORKER_TOKEN` (como las pantallas
+   de Juan; Odoo espera **15 s** y el Worker contesta antes de 12). El Worker usa **el mismo lector** de las
+   conversaciones (`juan/src/motor/vision.ts`, solo importado) y devuelve **solo el registro cerrado**: tipo, hasta 3
+   códigos con patrón estricto, categoría y medida de una lista, ¿parece pago?, ¿parece identidad? Odoo lo vuelve a
+   pasar por las listas cerradas, revisando el tipo de cada campo (una lista o un diccionario donde va un texto se
+   descarta: nada mal formado revienta). Ningún texto libre de la imagen llega a la página: solo «Lo que vimos: Cama ·
+   Queen» (etiquetas fijas) o «Lo encontramos por el código que se ve en tu foto».
+5. **Comprobantes y cédulas no se buscan**: tipo comprobante o identidad, o cualquier señal de pago o de identidad
    (también si el modelo no la dice: lo prudente) → «Esa foto parece un documento; para buscar, sube la foto de un
-   mueble». No se muestra nada parecido ni lo que se vio.
-5. **Búsqueda, solo entre lo publicado** (`website._dcasa_dominio_publicado`): primero por el código leído (el código
+   mueble». No se muestra nada parecido ni lo que se vio. Lo que no es un mueble → «No reconocimos un mueble en tu foto».
+6. **Búsqueda, solo entre lo publicado** (`website._dcasa_dominio_publicado`): primero por el código leído (el código
    público `DC-…` o la referencia exacta, con la misma regla que `buscar_productos` de Juan; la referencia del
    proveedor nunca se muestra); si no hay código, por categoría y medida con las mismas palabras y la misma puntuación
    que la búsqueda de Juan («cama queen»; si con la medida no hay nada, «cama»; sofá también busca «sala»; clóset,
    «ropero» y «armario»). Hasta 12 productos. Sin nada: «No encontramos algo parecido en la tienda en línea».
-6. Si no se puede leer (sin Worker, lectura de imágenes apagada, tope de IA del mes, caído o lento) o se pasó un tope:
-   «Ahora no podemos buscar por foto; búscalo por nombre o escríbenos por WhatsApp», con la caja de búsqueda por
-   nombre a mano. Nunca un error de servidor.
+7. Si no se puede leer (sin Worker, lectura de imágenes apagada, sin cupo de IA, caído o lento), si ya hay 3 a la vez o
+   si se pasó un tope: «Ahora no podemos buscar por foto; búscalo por nombre o escríbenos por WhatsApp», con la caja de
+   búsqueda por nombre a mano. Nunca un error de servidor.
 
 **La foto nunca se guarda**: ni en Odoo (ningún modelo, adjunto, sesión ni mensaje), ni en R2, ni en los registros
-(logs) de Odoo o del Worker, ni en el Worker (que solo anota el gasto: modelo y tokens). Las pruebas lo verifican
+(logs) de Odoo o del Worker, ni en el Worker (que solo anota el gasto: tokens y dólares). Las pruebas lo verifican
 buscando la foto (y una marca que trae adentro) en todas las columnas de la base, en la sesión y en el registro
 (`dcasa_buscar_foto/tests/test_buscar_foto.py`, `juan/test/odoo-panel-buscar-foto.test.ts`).
 
-**Costo.** Cada lectura cuenta en el **tope de IA del mes** de Juan y se ve en *Conversaciones › Costos de IA* como
-`@cf/meta/llama-4-scout-17b-16e-instruct`, con el precio publicado por Cloudflare (US$0,27 por millón de tokens de
-entrada y US$0,85 de salida, leído el 2026-11-13; integrado en `juan/src/motor/precios.ts` porque `precios_ia` de Odoo
-solo trae los dos modelos de la conversación). Si Workers AI no dice los tokens, se anota una estimación alta.
+**Costo: un techo propio, aparte de Meta.** La lectura la cobra **Cloudflare** (Workers AI,
+`@cf/meta/llama-4-scout-17b-16e-instruct`, US$0,27 por millón de tokens de entrada y US$0,85 de salida, leído el
+2026-11-13; integrado en `juan/src/motor/precios.ts` porque `precios_ia` de Odoo solo trae los modelos de la
+conversación; si Workers AI no dice los tokens, se anota una estimación alta). Por eso:
+
+* Se anota en el Worker como `cloudflare:lector-de-fotos`, **fuera** del gasto de Juan: no suma en su tope del mes, en
+  «Por pagar a Meta», en el botón «Pagar», en la diferencia con lo que cobró Meta ni en las «respuestas». *Conversaciones
+  › Costos de IA* lo muestra en su propio renglón, «Cloudflare: lector de fotos», con cuántas fotos. (El lector de
+  imágenes de los chats no anota gasto, desde antes: nunca ensució el saldo con Meta. Si algún día lo anota, cualquier
+  `@cf/…` cae en la misma cuenta aparte.)
+* **Techo del mes de la foto**: *Sitio web › Busca con una foto › Gasto de IA de la foto en el mes*, **5 USD de
+  fábrica** (0 = no se leen fotos). Lo aplica el Worker (Odoo se lo manda en cada búsqueda, `tope_mes_usd`).
+* **Nunca le quita IA a las conversaciones**: con el gasto del mes de Juan por encima del **80 %** de su tope, no se lee
+  ninguna foto.
+* En los dos casos: «Ahora no podemos buscar por foto». La pantalla cuenta cuántas no se pudieron leer.
 
 **Privacidad.** `/privacidad` gana el párrafo «Busca con una foto» (sección de inteligencia artificial, ancla
-`#busca-con-una-foto`) y su fecha de actualización: texto propuesto, lo aprueba la dueña (y el abogado) antes de
-producción.
+`#busca-con-una-foto`) y su fecha de actualización. Lo que se publica no lleva marcas de borrador; **antes de desplegar,
+lo aprueba la dueña** (y el abogado si ella quiere): es un texto propuesto hasta entonces.
 
 **Lo que no hace (todavía).** No afina por color ni estilo: el lector no los devuelve. Se puede sumar como dos
 enumeraciones cerradas más en `vision.ts` (por ejemplo `color` ∈ blanco, negro, gris, beige, café, madera… y `estilo`)
@@ -499,11 +526,15 @@ y medida, y aquí se sumaría la palabra del color a la búsqueda («cama queen 
 (ver `docs/META_EVENTOS.md`).
 
 **Brian:** no lleva herramienta: es una función de la tienda para el cliente, su único ajuste es un interruptor con
-tres topes que Gerencia cambia en una pantalla, y cuántas búsquedas hubo (y su costo) ya se ve ahí y en Costos de IA.
+topes que Gerencia cambia en una pantalla, y cuántas búsquedas hubo (y su costo) ya se ve ahí y en Costos de IA.
 
-**Pruebas:** `dcasa_buscar_foto/tests/` (la ruta con el Worker simulado, los topes, el interruptor, la limpieza y las
-funciones puras), `juan/test/odoo-panel-buscar-foto.test.ts` (el punto de entrada) y `edge/test/buscar-foto.test.ts`
-(el freno de ráfagas y que nada de esto se guarde en la caché del borde).
+**Pruebas:** `dcasa_buscar_foto/tests/` (la ruta con el Worker simulado, la cámara en cada caja, con el editor del
+sitio abierto, los topes, el semáforo, el interruptor, la limpieza, las funciones puras y `test_revision_rvf.py`, las de
+la revisión adversarial, con la caja de `/shop` medida en Chrome a 360, 390 y 430 px), `dcasa_base/tests/test_red.py`
+(la llave de la conexión), `scripts/revision_rvf_carrera_foto.py` (las carreras), `juan/test/odoo-panel-buscar-foto.test.ts`
+y `juan/test/revision-rvf-*.test.ts` (el punto de entrada, el techo y la reserva del 80 %), `juan/test/motor/global.test.ts`
+(lo de Cloudflare aparte) y `edge/test/buscar-foto.test.ts`, `edge/test/revision-rvf-buscar-foto.test.ts` (el freno de
+ráfagas por /64 y que nada de esto se guarde en la caché del borde).
 
 ## La tienda en línea: buscar, la ficha y lo que Google no muestra
 
@@ -565,7 +596,7 @@ local con datos de prueba, 1366 y 390 px) para su visto bueno antes de producci�
   `X-Robots-Tag` y en `<meta name="robots">`; ninguna está en el mapa del sitio y el borde no cambia esa cabecera
   ([OPERACION.md](OPERACION.md#tienda-rápida-caché-de-páginas-en-el-borde)). Los datos estructurados de la portada
   dicen **un solo logo** (`/web/image/website/1/logo`, el de la cabecera; antes también `/logo.png?company=1`).
-* **Un sitio para botones extra en la caja de búsqueda** (la cámara de «Busca con una foto»): la plantilla vacía
+* **Un sitio para botones extra en la caja de búsqueda** (hoy lo usa la cámara de «Busca con una foto»): la plantilla vacía
   `website_dcasa.buscador_botones_extra`, dentro de la caja, justo antes de la lupa de enviar. La llaman todas las cajas
   de búsqueda del sitio (la de la cabecera, la del menú del celular y la barra de `/shop`); quien agrega un botón la
   hereda con `position="inside"` y tiene a mano `search_type` («products» en la cabecera y en `/shop`), `action` y

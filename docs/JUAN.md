@@ -152,14 +152,19 @@ Meta). El par es único.
      la conversación se quita. **No envía ni escribe nada.** El gasto cuenta para el tope del mes.
    * `POST /odoo/embeber` — `{textos:[string]}` (1 a 8, ≤ 2000 letras) → `{ok, vectores:[[1024 números a 4 decimales]], dimensiones, modelo}`: la «huella de
      significado» que usa la búsqueda opcional en el conocimiento (`@cf/baai/bge-m3`). Sin binding `AI`: 503 `{ok:false, faltan:["AI"]}`. No envía ni escribe nada.
-   * `GET /odoo/costos` — `{ok, mes, gasto_usd, turnos, tope_usd, por_modelo:[{modelo,usd,turnos,estimado}], modelos_sin_precio}`.
+   * `GET /odoo/costos` — `{ok, mes, gasto_usd, turnos, tope_usd, por_modelo:[{modelo,usd,turnos,estimado}], modelos_sin_precio,
+     cloudflare:[{concepto,usd,lecturas,estimado}]}`. `cloudflare` es lo que cobra Cloudflare (hoy, `cloudflare:lector-de-fotos`
+     de «Busca con una foto»): **no** entra en `gasto_usd`, `turnos` ni `por_modelo` (ni en `gasto_ia_mes_usd` de `/odoo/salud`).
    * `POST /odoo/buscar-foto` — «Busca con una foto» de la tienda web (`addons/dcasa_buscar_foto`, `juan/src/odoo-panel-buscar-foto.ts`):
-     `{mime: "image/jpeg"|"image/png"|"image/webp", base64}` (hasta 4 MB; los bytes tienen que ser de ese tipo) →
-     `{ok: true, lectura: {tipo, codigos, categoria, medida, parece_pago, parece_identidad} | null}`: **solo** el registro
-     cerrado del lector de imágenes de §12b (el mismo, importado), nunca texto libre. Errores: 400/413 (formato o tamaño),
-     429 `causa: "tope"` (tope de IA del mes: ni se lee), 503 `no_disponible` (sin `RECONOCER_IMAGENES=1` o sin el binding
-     `AI`), 502 `no_disponible` (Workers AI falló), 504 `tardo` (contesta siempre antes de 25 s; Odoo espera 30). La foto
-     **no se guarda** (ni en un Durable Object, ni en un registro); solo se anota el gasto (modelo y tokens) en `Global`.
+     `{mime: "image/jpeg"|"image/png"|"image/webp", base64, tope_mes_usd?}` (hasta 1,5 MB; los bytes tienen que ser de ese
+     tipo; `tope_mes_usd` de 0 a 1000, 5 si no viene) → `{ok: true, lectura: {tipo, codigos, categoria, medida, parece_pago,
+     parece_identidad} | null}`: **solo** el registro cerrado del lector de imágenes de §12b (el mismo, importado), nunca texto
+     libre. Errores: 400/413 (formato o tamaño), 429 `causa: "tope_foto"` (lo de la foto en el mes llegó a `tope_mes_usd`: ni
+     se lee), 429 `causa: "reserva"` (el gasto de Juan pasó del 80 % de su tope: lo que queda es para las conversaciones),
+     503 `no_disponible` (sin `RECONOCER_IMAGENES=1` o sin el binding `AI`), 502 `no_disponible` (Workers AI falló), 504
+     `tardo` (contesta siempre antes de 12 s; Odoo espera 15). La foto **no se guarda** (ni en un Durable Object, ni en un
+     registro); solo se anota el gasto (tokens y dólares) en `Global` como `cloudflare:lector-de-fotos`, **aparte** del de
+     Juan (ver «Gasto de IA»).
    * `GET /odoo/qr` — `{ok, estado, qr?, edad_s?}`; `qr` es un data URL PNG. Nunca se imprime en logs.
    * `POST /odoo/reiniciar` y `POST /odoo/desvincular` — acciones sobre el puente de WhatsApp (Odoo siempre pide confirmación).
 
@@ -601,7 +606,9 @@ respuesta.**
 
 El tope mensual (`presupuesto_ia_mensual_usd`, en Odoo) **no apaga** el bot: al llegar, baja al
 modelo barato y sigue contestando. El gasto se calcula con una tabla de precios (sección 8). «Busca con una foto» de la
-tienda también suma a ese gasto y, con el tope alcanzado, deja de leer fotos (§12b).
+tienda **no** suma a ese gasto: lo cobra Cloudflare (Workers AI) y se anota aparte (`cloudflare:lector-de-fotos`; `Global`
+deja fuera del gasto, los turnos y el gasto por día todo lo que empieza por `cloudflare:` o `@cf/`). Tiene su propio techo
+del mes (5 USD de fábrica, lo manda Odoo) y no lee fotos con el gasto de Juan por encima del 80 % de su tope (§12b).
 
 ## 3. Cómo agregar un canal nuevo
 
@@ -767,8 +774,8 @@ lo dice (Ley 81 de 2019). Lo que hay que saber de esa decisión:
 Los precios de Claude (Haiku, Sonnet, Opus) vienen integrados, sacados de la ronda 7. Revísalos
 cuando Anthropic los cambie. También viene integrado el del lector de imágenes de Workers AI
 (`@cf/meta/llama-4-scout-17b-16e-instruct`, US$0,27 / US$0,85 por millón de tokens, de la página de precios de Cloudflare
-leída el 2026-11-13), que usa «Busca con una foto» (§12b): `precios_ia` de Odoo solo trae los dos modelos de la
-conversación.
+leída el 2026-11-13), que usa «Busca con una foto» (§12b) para calcular lo suyo (aparte del gasto de Juan): `precios_ia` de
+Odoo solo trae los dos modelos de la conversación.
 
 ### Lo demás que se edita en Odoo
 
@@ -879,10 +886,12 @@ identidad, otra o ilegible.
 * **Busca con una foto (tienda web, 2026-11-13):** el mismo lector atiende `POST /odoo/buscar-foto` (Parte 1, «Odoo →
   Worker»): Odoo le manda la foto que un visitante subió en la tienda y recibe solo el registro cerrado; con eso busca entre
   lo publicado ([CATALOGO.md › Busca con una foto](CATALOGO.md#busca-con-una-foto)). A diferencia de las imágenes de las
-  conversaciones, **esta lectura sí cuenta para el tope mensual de IA** (se anota en `Global` como
-  `@cf/meta/llama-4-scout-17b-16e-instruct`, con el precio de Cloudflare integrado en `motor/precios.ts`: US$0,27 y US$0,85
-  por millón de tokens, leído el 2026-11-13) y, con el tope alcanzado, no se lee (la tienda dice «Ahora no podemos buscar
-  por foto»). `vision.ts` no cambió: solo se importa.
+  conversaciones, **esta lectura se anota** (en `Global`, como `cloudflare:lector-de-fotos`, con el precio de Cloudflare
+  integrado en `motor/precios.ts`: US$0,27 y US$0,85 por millón de tokens, leído el 2026-11-13), pero **aparte** del gasto de
+  Juan: no cuenta para su tope ni para el saldo con Meta, y Costos de IA la muestra en su propio renglón. Tiene su techo del
+  mes (`tope_mes_usd`, 5 USD de fábrica, en *Sitio web › Busca con una foto*) y no se lee con el gasto de Juan por encima
+  del 80 % de su tope; en los dos casos la tienda dice «Ahora no podemos buscar por foto». Hasta 1,5 MB y 12 s.
+  `vision.ts` no cambió: solo se importa.
 * **Lo que falta (Fase 2):** leer el monto, la referencia y la fecha de un comprobante para la vendedora y cruzarlos con el
   movimiento del banco en la conciliación. La verificación contra el banco, no la IA, es lo que protege de un comprobante falso.
 

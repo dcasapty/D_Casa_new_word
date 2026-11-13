@@ -2753,11 +2753,11 @@
    "categoria": "tienda",
    "grupo": "Tienda en línea",
    "titulo": "Encender o apagar «Busca con una foto» en la tienda",
-   "logras": "En la tienda web sale un botón de cámara en la búsqueda: el cliente sube la foto de un mueble (o una captura de Instagram) y le salen los productos publicados que se le parecen. Aquí lo enciendes o lo apagas, cambias cuántas fotos puede buscar cada persona y ves cuántas búsquedas hubo.",
+   "logras": "En la tienda web sale un botón de cámara dentro de la caja de búsqueda: el cliente sube la foto de un mueble (o una captura de Instagram) y le salen los productos publicados que se le parecen. Aquí lo enciendes o lo apagas, cambias cuántas fotos puede buscar cada persona, cuánto puede gastar de IA en el mes y ves cuántas búsquedas hubo.",
    "destino": {
     "menu": "dcasa_buscar_foto.menu_dcasa_buscar_foto"
    },
-   "nota": "Viene encendido. Si la foto parece un comprobante o una cédula, no se busca nada. La foto nunca se guarda. Cada búsqueda cuenta en el gasto de IA de Juan (Costos de IA): si se llega al tope del mes, la tienda dice que ahora no se puede buscar por foto. Solo Gerencia y los administradores lo cambian.",
+   "nota": "Viene encendido. Si la foto parece un comprobante o una cédula, no se busca nada. La foto nunca se guarda. Lo que gasta la lectura de las fotos lo cobra Cloudflare y se ve aparte en Costos de IA (no es deuda con Meta). Tiene su propio tope del mes, y si el gasto de Juan va por más del 80 % de su tope no se leen fotos: en esos casos la tienda dice que ahora no se puede buscar por foto. Solo Gerencia y los administradores lo cambian.",
    "palabras": [
     "foto",
     "buscar por foto",

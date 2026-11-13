@@ -32,7 +32,7 @@ Más abajo: [roles y grupos](#roles-y-grupos-mapa-completo) · [interruptores](#
 | Ver el chatbot y las conversaciones, atender clientes | Sí | Sí | Sí | Sí | Sí |
 | En una conversación, cambiar a mano el cliente, quién atiende, las etiquetas, la pausa y su respuesta. El estado, la nota para el asistente y los seguimientos solo cambian con los botones (Atender, Devolver, Cerrar); a mano, solo el administrador del sistema | Sí | Sí | Sí | Sí | Sí |
 | **Conversaciones › Costos de IA**: ver lo que cuesta Juan y tocar «Pagar» (el saldo con Meta vuelve a $0) o «Deshacer» el último pago (2026-11-12; el administrador que no es de Gerencia no ve el menú, pero el servidor lo deja y Brian se lo dice) | No | No | No | Sí | Sí |
-| **Sitio web › Busca con una foto** (2026-11-13): encender o apagar la cámara de la búsqueda de la tienda, cambiar los topes (por visitante, por conexión y por día) y ver cuántas búsquedas hubo. El servidor exige el grupo antes de guardar | No | No | No | Sí | Sí |
+| **Sitio web › Busca con una foto** (2026-11-13): encender o apagar la cámara de la búsqueda de la tienda, cambiar los topes (por visitante, por conexión y por día) y el techo del gasto de IA de la foto en el mes, y ver cuántas búsquedas hubo. El servidor exige el grupo antes de guardar | No | No | No | Sí | Sí |
 | **Ajustes de Juan › Comentarios de Instagram y Facebook** (2026-11-13): encender o apagar que Juan responda comentarios, elegir las redes, la frase pública y los topes. Los comentarios atendidos se ven en la conversación de cada persona (solo lectura; los escribe el servidor) | No | No | No | Sí | Sí |
 | Crear y editar clientes | Sí | Sí | Sí | Sí | Sí |
 | Ver productos (editar nombre y descripción) | Sí | Sí | Sí | Sí | Sí |
@@ -509,7 +509,7 @@ Lo que se enciende o se apaga sin tocar código (o con un cambio de una línea).
 | Black Weekend | `DCASA_BLACK_WEEKEND` y su ventana | producción `0`, staging `1` | Campaña visible |
 | Juan: canales y bot | *Conversaciones › Configuración › Ajustes de Juan* | WhatsApp QR y Telegram sí; API oficial, Messenger e Instagram no (en producción, la API oficial encendida desde el 2026-11-02) | Qué canales atiende el asistente ([JUAN_CANALES.md](JUAN_CANALES.md)) |
 | Tope de gasto de IA de Brian | *Brian › Ajustes* | 0 (sin tope) | Corta las llamadas al modelo al llegar |
-| Busca con una foto (tienda web) | *Sitio web › Busca con una foto* (`dcasa_buscar_foto.activo` y `dcasa_buscar_foto.tope_*`) | **encendido** (la dueña dijo que sí, 2026-11-13); 10 por visitante y 30 por conexión en una hora, 200 por día | La cámara en la búsqueda del sitio y de `/shop`; apagado, no sale y `/shop/foto` da 404 ([CATALOGO.md](CATALOGO.md#busca-con-una-foto)) |
+| Busca con una foto (tienda web) | *Sitio web › Busca con una foto* (`dcasa_buscar_foto.activo`, `dcasa_buscar_foto.tope_*` y `dcasa_buscar_foto.tope_mes_usd`) | **encendido** (la dueña dijo que sí, 2026-11-13); 10 por visitante y 30 por conexión en una hora, 200 por día; 5 USD de IA de la foto en el mes (y nada con el gasto de Juan por encima del 80 % de su tope) | La cámara en la búsqueda del sitio y de `/shop`; apagado, no sale y `/shop/foto` da 404 ([CATALOGO.md](CATALOGO.md#busca-con-una-foto)) |
 | Salidas de emergencia del arranque | `DCASA_PERMITIR_BAJAR`, `DCASA_HUMO=0` (panel del Worker) | sin poner | Solo mientras hagan falta ([OPERACION.md](OPERACION.md)) |
 
 ## Reglas no negociables de Socios y Vendedores
