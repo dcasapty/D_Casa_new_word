@@ -1273,6 +1273,77 @@ $dcasa-foto-fondo: #EEEDEA;
     background: rgba($dcasa-navy, .05);
 }
 
+// Horario de la tienda (de los Ajustes de Juan): una tabla corta, días a la izquierda y horas a la derecha.
+.o_dcasa_visita_horario {
+    margin-top: 2rem;
+}
+
+.o_dcasa_horario {
+    width: 100%;
+    margin-top: .75rem;
+    border-collapse: collapse;
+
+    th,
+    td {
+        padding: .6rem 0;
+        border-bottom: 1px solid rgba($dcasa-navy, .1);
+        vertical-align: top;
+    }
+
+    th {
+        font-weight: 600;
+        color: $dcasa-navy;
+        padding-right: 1rem;
+    }
+
+    td {
+        text-align: right;
+        color: $dcasa-tinta;
+        white-space: nowrap;
+    }
+}
+
+.o_dcasa_pie_horario {
+    font-size: .95rem;
+}
+
+// El mapa de Google: se carga solo con permiso de cookies o al tocar «Ver el mapa» (static/src/js/mapa.js).
+.o_dcasa_mapa_permiso {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    height: 100%;
+    padding: 1.5rem;
+    text-align: center;
+    color: $dcasa-navy;
+    background: $dcasa-hueso;
+    border-radius: $dcasa-radius;
+
+    .fa-map-marker {
+        font-size: 2.5rem;
+        color: $dcasa-azul;
+    }
+
+    p {
+        max-width: 26rem;
+        margin: 0;
+        color: $dcasa-gris;
+    }
+}
+
+.o_dcasa_mapa_cargado .o_dcasa_mapa_permiso {
+    display: none;
+}
+
+.o_dcasa_mapa iframe {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
+
 // ---------------------------------------------------------------------------
 // Páginas de Odoo con la marca: tienda, ficha, carrito, contacto (auditoría UX)
 // ---------------------------------------------------------------------------

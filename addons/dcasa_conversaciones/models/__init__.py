@@ -18,5 +18,7 @@ from . import brian_juan, herramientas_juan, herramientas_juan_cotizacion, herra
 from . import sale_origen
 # Brian lee el Resumen, el Reparto y las cotizaciones que vencen solas (2026-11-06).
 from . import herramientas_conversaciones
+# El horario de la tienda en el sitio (Visítanos y el pie), de estos mismos ajustes (2026-11-13).
+from . import horario_sitio
 # Solo para el entorno de prueba.
 from . import ejemplos

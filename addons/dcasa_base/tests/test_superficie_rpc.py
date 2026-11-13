@@ -861,6 +861,9 @@ LISTA_BLANCA = {
         'que esa persona puede ver; solo escribe la marca de sensible.',
     ('dcasa_conversaciones', 'dcasa.juan.ajustes', 'create'): 'Bloquea: los ajustes son un solo registro; sin sudo.',
     ('dcasa_conversaciones', 'dcasa.juan.ajustes', 'unlink'): 'Bloquea: los ajustes no se borran.',
+    ('dcasa_conversaciones', 'dcasa.juan.ajustes', 'write'):
+        OVERRIDE + ' Si cambia el horario, solo anota «renovar la tienda» para el borde (models/horario_sitio.py); '
+                   'sin sudo().',
     ('dcasa_conversaciones', 'dcasa.juan.ajustes', 'action_abrir'):
         ACCION_VENTANA + ' Comprueba check_access("read") antes.',
     ('dcasa_conversaciones', 'dcasa.juan.ajustes', 'action_cargar_ejemplos'):
