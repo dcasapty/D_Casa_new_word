@@ -56,7 +56,7 @@ class ProductTemplate(models.Model):
             return etiqueta_existencias(0, controla_inventario=False)
         variantes = variante.sudo() if variante else plantilla.product_variant_ids
         libres = sum(max(v.free_qty, 0.0) for v in variantes)
-        return etiqueta_existencias(libres, plantilla.available_threshold)
+        return etiqueta_existencias(libres, umbral=plantilla.available_threshold)
 
     def _dcasa_disponibilidad_ficha(self, variante=None):
         """Lo que pinta la ficha de la tienda: ``{'estado': 'pocas', 'texto': 'Quedan pocas'}``."""

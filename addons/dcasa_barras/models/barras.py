@@ -211,7 +211,7 @@ class DcasaBarras(models.AbstractModel):
             'unidad': producto.uom_id.name,
             'admite_decimales': tools.float_is_zero(0.5 - producto.uom_id.round(0.5), precision_digits=6),
             'unidades': unidades if controla else None,
-            'etiqueta': etiqueta_existencias(unidades, controla),
+            'etiqueta': etiqueta_existencias(unidades, controla_inventario=controla),
             'ubicaciones': [{'id': u.id, 'nombre': u.complete_name, 'cantidad': c} for u, c in existencias],
             'puede_contar': controla and producto.tracking == 'none'
                             and self.env.user.has_group('stock.group_stock_manager'),

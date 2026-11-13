@@ -26,6 +26,10 @@ class TestDisponibilidad(BaseCase):
         self.assertEqual(D.etiqueta_existencias(11, umbral=10), 'disponible')
         self.assertEqual(D.etiqueta_existencias(5, umbral=None), 'pocas', 'sin umbral, el de siempre')
 
+    def test_umbral_y_control_solo_por_nombre(self):
+        with self.assertRaises(TypeError):
+            D.etiqueta_existencias(3, False)   # ¿umbral o «no controla inventario»? Por nombre, sin dudas.
+
     def test_sin_control_de_inventario_es_disponible(self):
         self.assertEqual(D.etiqueta_existencias(0, controla_inventario=False), 'disponible')
         self.assertEqual(D.etiqueta_existencias(None, controla_inventario=False), 'disponible')

@@ -20,10 +20,12 @@ ETIQUETAS_EXISTENCIAS = (DISPONIBLE, POCAS, AGOTADO)
 UMBRAL_POCAS = 5.0
 
 
-def etiqueta_existencias(libres, umbral=UMBRAL_POCAS, controla_inventario=True):
+def etiqueta_existencias(libres, *, umbral=UMBRAL_POCAS, controla_inventario=True):
     """``disponible`` / ``pocas`` / ``agotado`` a partir de las unidades libres. Nunca devuelve el número.
 
-    Sin control de inventario no hay cifra que dar: se dice «disponible», como en la tienda.
+    Sin control de inventario no hay cifra que dar: se dice «disponible», como en la tienda. ``umbral`` y
+    ``controla_inventario`` van siempre por nombre (una copia vieja tenía ``controla_inventario`` de segundo: pasado
+    por posición, un «sí» se leía como umbral).
     """
     if not controla_inventario:
         return DISPONIBLE
