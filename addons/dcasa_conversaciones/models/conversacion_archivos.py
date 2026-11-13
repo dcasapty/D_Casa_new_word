@@ -7,12 +7,14 @@ leyó (revisión adversarial, 2026-11-13), porque puede ser un comprobante:
 
 * un archivo que no es imagen ni video (un PDF puede ser el del banco);
 * una imagen que el lector intentó leer y no pudo (``fallo``) o que no se lee (``ilegible``);
-* una imagen que Juan no leyó porque ya iban muchas, por el cupo de IA o el anti-spam (``tope``), o porque el lector
-  está apagado (``apagado``): solo si el cliente habla de pago en ese envío o en sus últimos mensajes; si no, a lo más
-  un aviso por conversación al día (con el lector caído, cada captura de Instagram avisaría).
+* una imagen que Juan no leyó porque ya iban muchas, por el cupo de IA o el anti-spam (``tope``), porque el lector está
+  apagado (``apagado``) o porque solo llegó su dirección (``sin_bajar``: las fotos de Messenger e Instagram): solo si el
+  cliente habla de pago en ese envío o en sus últimos mensajes; si no, a lo más un aviso por conversación al día (si
+  no, con el lector caído o por Instagram, cada captura avisaría).
 
 Una imagen sin clase y sin porqué (un Juan viejo) se toma como ``fallo``. Si el lector está apagado o falla seguido
-(``FALLOS_SEGUIDOS`` mensajes en ``VENTANA_DE_FALLOS``), Gerencia recibe UN aviso al día.
+(``FALLOS_SEGUIDOS`` mensajes con ``fallo`` en ``VENTANA_DE_FALLOS``; ni ``ilegible`` ni ``sin_bajar`` cuentan),
+Gerencia recibe UN aviso al día.
 """
 import logging
 import re
@@ -29,9 +31,21 @@ from .mensaje import CLAVE_SISTEMA
 _logger = logging.getLogger(__name__)
 
 # El cliente habla de pago (texto sin tildes ni mayúsculas).
+# Formas de Panamá incluidas: yapear («te yapeé», «yapié»), cancelar = pagar («cancelé», «cancelado»), «plata».
+# «Depósito» suelto no cuenta (también es la bodega: «¿lo tienen en depósito?»): solo con contexto de pago.
 PALABRAS_DE_PAGO = re.compile(
-    r'\b(pagos?|pague|pagado|pagamos|yappy|transferencias?|transferi|depositos?|deposite|abonos?|abone|'
-    r'comprobantes?|ach)\b')
+    r'\b(?:'
+    r'pag(?:o|os|ue|ado|ada|ados|adas|amos|aste|ar|aron)'
+    r'|yappy|yap(?:e|ee|ie|eo|ear|eado|eada|eamos|iamos|easte|iaste|iado|iada)'
+    r'|cancel(?:e|ado|ada|ados|adas|amos)'
+    r'|plata|dinero|recibos?'
+    r'|transferencias?|transferi|transferido|transferida|transfiero|transferimos|transferir|transferiste'
+    r'|deposit(?:e|ado|ada|ados|adas|amos|ar|aste|aron)'
+    r'|(?:hice|hicimos|hizo|mande|mandamos|envie|enviamos|te\s+mande|te\s+envie|ya\s+hice)\s+(?:el\s+|un\s+)?deposito'
+    r'|(?:el|un)\s+deposito\s+(?:de|del|por)'
+    r'|abonos?|abone|abonado|abonamos'
+    r'|comprobantes?|ach'
+    r')\b')
 # «Sus últimos mensajes»: los del cliente en esta conversación en este rato (hasta ``MAX_MENSAJES_RECIENTES``).
 MINUTOS_DE_TEXTO_RECIENTE = 30
 MAX_MENSAJES_RECIENTES = 5
@@ -123,7 +137,7 @@ class DcasaConversacionArchivos(models.Model):
                         if a.get('tipo') == 'documento' or m in ('fallo', 'ilegible')]
             if urgentes:
                 return 'documento', urgentes[0], False
-            suaves = [a for a, m in zip(archivos, motivos, strict=True) if m in ('tope', 'apagado')]
+            suaves = [a for a, m in zip(archivos, motivos, strict=True) if m in ('tope', 'apagado', 'sin_bajar')]
             if suaves:
                 if self._habla_de_pago(mensaje):
                     return 'documento', suaves[0], False
@@ -155,7 +169,7 @@ class DcasaConversacionArchivos(models.Model):
         presentes = [m for m in motivos if m]
         if not presentes:
             return
-        orden = ('apagado', 'fallo', 'ilegible', 'tope')
+        orden = ('apagado', 'fallo', 'ilegible', 'tope', 'sin_bajar')
         peor = min(presentes, key=orden.index)
         if mensaje:
             mensaje.with_context(**{CLAVE_SISTEMA: True}).sudo().imagen_sin_leer = peor

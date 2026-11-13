@@ -520,7 +520,7 @@ class TestImagenesQueJuanNoLeyo(NocheCase):
 
     def test_tope_o_apagado_avisan_si_habla_de_pago(self):
         for motivo, texto in (('tope', 'Listo, ya te hice el YAPPY'), ('apagado', 'te mandé la transferencia'),
-                              ('tope', 'ahí va el depósito'), ('apagado', 'es el abono de la cama')):
+                              ('tope', 'ya hice el depósito'), ('apagado', 'es el abono de la cama')):
             with self.subTest(motivo=motivo, texto=texto):
                 self.enviar.reset_mock()
                 conv = self.cliente()
@@ -576,10 +576,22 @@ class TestImagenesQueJuanNoLeyo(NocheCase):
         self.assertIn(f'no pudo leer las fotos de {FALLOS_SEGUIDOS} mensajes de clientes', del_lector[0])
         self.assertForma(del_lector[0])
 
-    def test_tope_no_alerta_a_gerencia(self):
-        for n in range(5):
-            self.mandar(self.cliente(), self.sin_leer('tope'), f'mira {n}')
-        self.assertFalse([t for t, _b in self.avisos_a(self.gerente) if 'Juan no está leyendo' in t])
+    def test_solo_el_fallo_alerta_a_gerencia(self):
+        for motivo in ('tope', 'ilegible', 'sin_bajar'):
+            with self.subTest(motivo=motivo):
+                for n in range(FALLOS_SEGUIDOS + 2):
+                    self.mandar(self.cliente(), self.sin_leer(motivo), f'mira {n}')
+                self.assertFalse([t for t, _b in self.avisos_a(self.gerente) if 'Juan no está leyendo' in t])
+
+    def test_sin_bajar_avisa_solo_si_habla_de_pago_o_una_vez_al_dia(self):
+        conv = self.cliente()
+        self.mandar(conv, self.sin_leer('sin_bajar', 'ig1.jpg'), '¿tienen esta?')
+        with freeze_time(self.AHORA + timedelta(minutes=15)):
+            self.mandar(conv, self.sin_leer('sin_bajar', 'ig2.jpg'), '¿y esta otra?')
+        self.assertEqual(len(self.avisos_a(self.vendedora)), 1)
+        with freeze_time(self.AHORA + timedelta(minutes=30)):
+            self.mandar(conv, self.sin_leer('sin_bajar', 'pago.jpg'), 'listo, te yapeé')
+        self.assertEqual(len(self.avisos_a(self.vendedora)), 2, 'Habla de pago: avisa')
 
     def test_de_noche_tope_sin_pago_queda_para_la_manana(self):
         with freeze_time(NOCHE):

@@ -30,9 +30,10 @@ TIPOS = ('imagen', 'audio', 'documento', 'video')
 # Lo que entendió el lector de imágenes del Worker (opcional): sirve para avisar a la dueña. «sin_leer»: una imagen que
 # Juan no leyó; el porqué viene en ``sin_leer`` (ver ``MOTIVOS_SIN_LEER``).
 CLASES = ('producto', 'publicacion', 'comprobante', 'identidad', 'otra', 'sin_leer')
-# Por qué Juan no leyó una imagen: no hay lector, ya iban muchas (o el cupo de IA, o el anti-spam), el lector falló o no
-# se lee. Una imagen sin clase y sin porqué (un Juan viejo) se toma como «fallo».
-MOTIVOS_SIN_LEER = ('apagado', 'tope', 'fallo', 'ilegible')
+# Por qué Juan no leyó una imagen: no hay lector, ya iban muchas (o el cupo de IA, o el anti-spam), no tenía la
+# imagen (solo su URL: Messenger e Instagram), el lector falló o no se lee. Una imagen sin clase y sin porqué (un Juan
+# viejo) se toma como «fallo».
+MOTIVOS_SIN_LEER = ('apagado', 'tope', 'sin_bajar', 'fallo', 'ilegible')
 MAX_ADJUNTOS = 5
 # La foto de perfil del cliente: pequeña (los canales la dan de ~10-60 KB) y de tipos de imagen reales.
 MAX_FOTO_DE_PERFIL = 300 * 1024
