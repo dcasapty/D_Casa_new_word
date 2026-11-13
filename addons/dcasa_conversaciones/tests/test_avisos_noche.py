@@ -33,6 +33,9 @@ PDF = {'tipo': 'documento', 'nombre': 'transferencia.pdf', 'mime': 'application/
        'sensible': False, 'clase': None}
 INSTAGRAM = {'tipo': 'imagen', 'nombre': 'captura.jpg', 'mime': 'image/jpeg', 'url': None, 'base64': None,
              'sensible': False, 'clase': 'publicacion'}
+# Una imagen que Juan no leyó (el lector falló o tardó, o era ilegible): llega sin clase.
+SIN_LEER = {'tipo': 'imagen', 'nombre': 'IMG_0001.jpg', 'mime': 'image/jpeg', 'url': None, 'base64': None,
+            'sensible': False, 'clase': None}
 PROHIBIDO = ('!!', 'remate', 'CORRE', 'Fuera del horario laboral', 'Dentro del horario')
 
 
@@ -138,22 +141,29 @@ class TestDeNocheNadieRecibe(NocheCase):
                 self.assertIn('Te escribe mañana a primera hora', respuesta['texto_para_el_cliente'],
                               'Lo que Juan le dice al cliente no cambia')
 
-    def test_el_cliente_que_ya_era_de_una_vendedora_sigue_siendo_suyo_sin_aviso(self):
+    def test_de_noche_no_se_le_quita_el_cliente_a_quien_lo_tenia(self):
         self.activa(self.vendedora)
-        conv = self.cliente()
-        conv.sudo().asignada_a = self.beto
-        conv._pasar_a_vendedora('Pregunta por su pedido')
-        self.assertEqual(conv.asignada_a, self.beto)
-        self.assertFalse(self.enviar.called)
-        self.assertEqual(conv.activity_ids.user_id, self.beto)
-        self.assertIn('Llegó con la tienda cerrada: sigue con Beto Vendedor y se le avisa al abrir.',
-                      self.avisos(conv))
+        for duena in (self.beto, self.gerente):
+            with self.subTest(duena=duena.name):
+                self.enviar.reset_mock()
+                conv = self.cliente()
+                conv.sudo().asignada_a = duena
+                conv._pasar_a_vendedora('Pregunta por su pedido')
+                self.assertEqual(conv.asignada_a, duena)
+                self.assertFalse(self.enviar.called)
+                self.assertEqual(conv.activity_ids.user_id, duena)
+                self.assertIn(f'Llegó con la tienda cerrada: de noche nadie recibe clientes. Al abrir sigue con '
+                              f'{duena.name} si está disponible; si no, se reparte.', self.avisos(conv))
 
-    def test_de_gerencia_no_se_queda_con_el_cliente_de_noche(self):
+    def test_al_abrir_gerencia_no_se_queda_con_el_cliente_de_la_noche(self):
+        """Gerencia no recibe del reparto: de día tampoco se quedaría con él."""
         conv = self.cliente()
         conv.sudo().asignada_a = self.gerente
         conv._pasar_a_vendedora('Duda')
-        self.assertFalse(conv.asignada_a, 'Gerencia no recibe del reparto: de día tampoco se quedaría con él')
+        self.vence_la_pausa()
+        self.abrir(self.vendedora)
+        self.assertEqual(conv.asignada_a, self.vendedora)
+        self.assertIn('Abrió la tienda: Gerente Prueba no está para recibir a este cliente', self.avisos(conv))
 
     def test_de_noche_ningun_telegram_por_archivos_ni_por_esperas(self):
         self.ajustes.write({'avisar_archivos': True, 'aviso_espera_solo_horario': False})
@@ -207,9 +217,13 @@ class TestAlAbrir(NocheCase):
         self.assertEqual({c.estado for c in clientes}, {'humano'}, 'Volvieron al reparto: el asistente calla')
         self.assertEqual(sorted(c.asignada_a.name for c in clientes),
                          ['Beto Vendedor', 'Beto Vendedor', 'Vendedora Prueba', 'Vendedora Prueba'])
+        for conv in clientes:
+            self.assertEqual(conv.reparto_desde, APERTURA, 'Sus 15 minutos cuentan desde que su vendedora se enteró')
+        listas = {}
         for usuario in (self.vendedora, self.beto):
             with self.subTest(usuario=usuario.name):
-                (texto, botones), = self.avisos_a(usuario)
+                (texto, botones), = [(t, b) for t, b in self.avisos_a(usuario) if t.startswith('☀️')]
+                listas[usuario] = texto
                 suyos = [c for c in clientes if c.asignada_a == usuario]
                 self.assertTrue(texto.startswith(f'☀️ Buenos días, {usuario.name.split()[0]}\n'), texto)
                 self.assertIn('Te tocan 2 clientes que escribieron de noche:', texto)
@@ -220,9 +234,15 @@ class TestAlAbrir(NocheCase):
                 self.assertTrue(all(b[0]['text'].startswith('Atender ') for b in botones))
                 for conv in suyos:
                     self.assertIn(conv.partner_id.name, texto)
-        self.assertFalse(self.avisos_a(self.gerente), 'A Gerencia no le llega nada de esto')
         con_pago = clientes[0]
-        (texto_pago, _b), = self.avisos_a(con_pago.asignada_a)
+        # El comprobante les llega TAMBIÉN a las de siempre (a quién le llega no cambia), en su propio aviso.
+        for usuario in (self.vendedora, self.beto, self.gerente):
+            with self.subTest(comprobante_a=usuario.name):
+                (pago, botones), = [(t, b) for t, b in self.avisos_a(usuario) if not t.startswith('☀️')]
+                self.assertTrue(pago.startswith('💵 Posible comprobante de pago\n'), pago)
+                self.assertIn(f'Lo atiende {con_pago.asignada_a.name}.', pago)
+                self.assertIn(PIE_DE_AVISO % con_pago.id, pago)
+        texto_pago = listas[con_pago.asignada_a]
         renglon = next(r for r in texto_pago.split('\n') if con_pago.partner_id.name in r)
         self.assertIn('Mandó un comprobante de pago: verifícalo en el banco antes de entregar nada.', renglon)
         self.assertIn('Quiere la cama número 1.', renglon)
@@ -279,6 +299,8 @@ class TestAlAbrir(NocheCase):
 
     def test_el_cliente_que_ya_era_suyo_le_llega_al_abrir(self):
         conv = self.cliente()
+        with freeze_time(NOCHE - timedelta(days=3)):   # Beto lo atendió hace 3 días (dentro de los 14)
+            self.Reparto._anotar(conv, self.beto, 'manual', 'Asignada a mano.')
         conv.sudo().asignada_a = self.beto
         conv._pasar_a_vendedora('Quiere saber cuándo le llega')
         self.vence_la_pausa()
@@ -305,6 +327,26 @@ class TestAlAbrir(NocheCase):
                 self.assertIn(f'{solo_pago.partner_id.name} (WhatsApp) mandó un comprobante de pago', texto)
                 self.assertEqual(len(botones), 3)
         self.assertFalse(primero.asignada_a, 'Con el reparto apagado nadie se lo queda solo')
+
+    def test_si_al_abrir_no_hay_ninguna_vendedora_se_avisa_una_vez_a_las_de_siempre(self):
+        conv = self.pasar('Quiere comprar hoy el comedor')
+        self.vence_la_pausa()
+        self.abrir()   # nadie usó Odoo todavía
+        self.assertFalse(conv.asignada_a)
+        for usuario in (self.vendedora, self.beto, self.gerente):
+            (texto, _b), = self.avisos_a(usuario)
+            self.assertTrue(texto.startswith('🙋 Un cliente pide una persona\n'), texto)
+            self.assertIn('Escribió de noche, con la tienda cerrada.', texto)
+            self.assertIn('Nadie lo tiene todavía', texto)
+        self.assertTrue(conv.reparto_desde and conv.aviso_de_noche, 'Sigue esperando su turno en el reparto')
+        self.enviar.reset_mock()
+        self.abrir(minutos=5)
+        self.assertFalse(self.enviar.called, 'No se repite en cada vuelta')
+        self.abrir(self.vendedora, minutos=10)   # llega Ana: el cliente es suyo y le llega su aviso
+        self.assertEqual(conv.asignada_a, self.vendedora)
+        (texto, _b), = self.avisos_a(self.vendedora)
+        self.assertTrue(texto.startswith('🟢 Cliente nuevo para ti\n'), texto)
+        self.assertFalse(conv.aviso_de_noche)
 
     def test_lo_de_la_noche_no_suena_otra_vez_como_cliente_que_espera(self):
         self.ajustes.aviso_espera_minutos = 10
@@ -375,8 +417,30 @@ class TestSoloComprobantesDeVerdad(NocheCase):
         super().setUp()
         self.ajustes.avisar_archivos = False   # el de fábrica
 
+    def test_una_imagen_que_juan_no_pudo_leer_avisa_como_el_pdf(self):
+        conv = self.cliente()
+        self.mandar(conv, SIN_LEER, 'listo, ya te hice el Yappy')
+        texto = self.textos()[0]
+        self.assertTrue(texto.startswith('📎 Mandó una imagen que Juan no pudo leer\n'), texto)
+        self.assertIn('mandó por WhatsApp una imagen que Juan no pudo leer: puede ser un comprobante.', texto)
+        self.assertIn('Si es un pago, verifícalo en el banco antes de entregar nada.', texto)
+        avisados = len(self.textos())
+        self.mandar(conv, SIN_LEER, 'otra')
+        self.assertEqual(len(self.textos()), avisados, 'A lo más uno cada 10 minutos')
+
+    def test_un_envio_con_varios_archivos_avisa_por_lo_mas_importante(self):
+        for adjuntos, titulo in (([PDF, CEDULA], '🪪 Mandó su cédula'), ([SIN_LEER, COMPROBANTE, CEDULA],
+                                                                         '💵 Posible comprobante de pago'),
+                                 ([INSTAGRAM, SIN_LEER], '📎 Mandó una imagen que Juan no pudo leer')):
+            with self.subTest(titulo=titulo):
+                self.enviar.reset_mock()
+                conv = self.cliente()
+                self.registrar('ahí va', id_externo=conv.id_externo, adjuntos=adjuntos, ts=fields.Datetime.now())
+                self.assertTrue(self.textos() and all(t.startswith(f'{titulo}\n') for t in self.textos()),
+                                self.textos())
+
     def test_una_foto_de_instagram_no_avisa(self):
-        for clase in ('publicacion', 'producto', 'otra', None):
+        for clase in ('publicacion', 'producto', 'otra'):
             with self.subTest(clase=clase):
                 self.mandar(self.cliente(), {**INSTAGRAM, 'clase': clase})
         self.assertFalse(self.enviar.called, self.textos())
@@ -439,7 +503,9 @@ class TestTextosClaros(NocheCase):
             'Gerencia': self.Reparto._texto_para_gerencia(conv, self.beto, self.vendedora, 15),
         }
         for que in ('comprobante', 'identidad', 'documento', 'foto'):
-            textos[que] = conv._texto_archivo(que, 'application/pdf')
+            textos[que] = conv._texto_archivo(que, PDF)
+        textos['imagen sin leer'] = conv._texto_archivo('documento', SIN_LEER)
+        textos['de noche, sin saber cuál'] = conv._texto_archivo('documento', de_noche=True)
         for nombre, texto in textos.items():
             with self.subTest(nombre):
                 self.assertForma(texto)

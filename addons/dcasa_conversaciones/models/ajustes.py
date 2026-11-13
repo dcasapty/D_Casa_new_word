@@ -263,8 +263,9 @@ class JuanAjustes(models.Model):
         'Avisar de comprobantes y documentos', default=True, tracking=True,
         help='Cuando un cliente manda un comprobante de pago (la prueba de un pago hecho: el precio de una publicación '
              'no cuenta) o su cédula, se avisa por Telegram a esas personas EN PARALELO: el asistente sigue atendiendo '
-             'y ellas deciden si intervienen. También cuando manda un archivo que Juan no puede leer (un PDF, por '
-             'ejemplo): puede ser un comprobante. De esos, a lo más un aviso cada 10 minutos por conversación.')
+             'y ellas deciden si intervienen. También cuando manda algo que Juan no pudo leer (un PDF, o una foto que '
+             'no alcanzó a leer o salió borrosa): puede ser un comprobante. De esos, a lo más un aviso cada 10 minutos '
+             'por conversación.')
     avisar_archivos = fields.Boolean(
         'Avisar de fotos y archivos', default=False, tracking=True,
         help='Cuando un cliente manda cualquier otra foto o video (por ejemplo la captura de un producto o una '

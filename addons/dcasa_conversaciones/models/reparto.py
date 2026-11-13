@@ -378,7 +378,8 @@ class DcasaReparto(models.Model):
         ``_reasignar_si_nadie_contesta`` para lo de día.
 
         Lo de la noche (con «De noche nadie recibe clientes», ver ``conversacion_noche.py``): primero vuelven al reparto
-        los clientes de la noche cuya pausa venció, y al final de cada vuelta cada persona recibe UN aviso con lo suyo
+        los clientes de la noche (``reparto_desde`` justo antes de abrir), el que tenía dueña sigue con ella solo con
+        las reglas del día, y al final de cada vuelta cada persona recibe UN aviso con lo suyo
         (``dcasa.conversacion._avisar_lo_de_la_noche``), también con el reparto apagado."""
         ajustes = self.env['dcasa.juan.ajustes'].obtener()
         minutos = ajustes.reparto_reasignar_minutos
@@ -388,6 +389,7 @@ class DcasaReparto(models.Model):
         cambiadas = 0
         if ajustes.reparto_modo != 'manual' and minutos > 0:
             Conversacion._volver_al_reparto_lo_de_la_noche()
+            Conversacion._soltar_lo_de_la_noche_ajeno()
             cambiadas = self._pasar_a_otra_las_que_esperan(minutos)
         try:
             with self.env.cr.savepoint():
@@ -415,6 +417,8 @@ class DcasaReparto(models.Model):
         for conv in esperando:
             if conv.asignada_a and max(conv.reparto_desde, apertura) > limite:
                 continue   # se la dieron hace poco (en minutos de horario): todavía tiene tiempo
+            if conv.asignada_a and conv.aviso_de_noche:
+                continue   # su vendedora (de la noche) se entera al final de esta vuelta: sus minutos cuentan desde ahí
             try:
                 with self.env.cr.savepoint():
                     elegida = self._reasignar_si_nadie_contesta(conv, apertura)
@@ -433,8 +437,9 @@ class DcasaReparto(models.Model):
         """Le da ``conv`` a otra vendedora activa que no la haya tenido en las últimas horas (o a la primera activa, si
         nadie la tenía). Devuelve a quién se la dio, o vacío si no hay nadie nueva (se queda como está).
 
-        Si nadie la tenía y, con «Parejo», su vendedora de siempre está disponible, vuelve con ella aunque esté llena
-        (como cuando Juan pasa un cliente de día; así vuelve el cliente de la noche con quien ya lo atendía).
+        El cliente de la noche (``aviso_de_noche``, con «De noche nadie recibe clientes»): si nadie lo tiene y, con
+        «Parejo», su vendedora de siempre está disponible, vuelve con ella aunque esté llena (como cuando Juan pasa un
+        cliente de día). De día el cron sigue como siempre: a la activa con lugar.
 
         El tope: no se le da a quien ya tiene el máximo de clientes esperándole, salvo a un cliente que quedó sin dueña
         DENTRO del horario (``reparto_desde`` desde la ``apertura`` de hoy): ese se da aunque todas estén llenas, a la
@@ -451,7 +456,7 @@ class DcasaReparto(models.Model):
             ('momento', '>=', fields.Datetime.now() - timedelta(hours=HORAS_SIN_REPETIR))]).usuario_id
         disponibles = self._disponibles(hoy) - antes - ya_la_tuvieron
         regla, elegida, momento = 'reasignada', vacio, None
-        if not antes and ajustes.reparto_modo == 'parejo':
+        if not antes and ajustes.reparto_modo == 'parejo' and conv.aviso_de_noche and ajustes.reparto_nadie_de_noche:
             elegida, momento = self._vendedora_de_siempre(conv, disponibles, ajustes.reparto_dias_misma_vendedora)
             if elegida:
                 regla = 'misma'

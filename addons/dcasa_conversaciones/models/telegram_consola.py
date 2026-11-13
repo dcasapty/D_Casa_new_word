@@ -92,11 +92,13 @@ class BrianTelegramEnlace(models.Model):
     def _conversar(self, texto, mensaje):
         """Brian llama aquí con cada mensaje de texto de un chat vinculado (ya filtrado y con límite de velocidad).
         Si es la respuesta a un aviso de Juan, se prepara el borrador; si no, sigue Brian como siempre."""
-        conversacion_id = self._conversacion_del_aviso(mensaje)
-        if not conversacion_id and self._es_la_lista_de_la_manana(mensaje):
+        # Primero la lista de la mañana: no lleva pie, y un «Conversación n.º N» en el nombre de un cliente de la lista
+        # no puede desviar la respuesta hacia otra conversación.
+        if self._es_la_lista_de_la_manana(mensaje):
             return self._enviar(self.chat_id, 'Ese mensaje trae varios clientes. Toca «Atender» en el que quieres '
                                               'contestar y responde al «Listo» que te llega: así sé a quién '
                                               'escribirle.')
+        conversacion_id = self._conversacion_del_aviso(mensaje)
         if not conversacion_id:
             return super()._conversar(texto, mensaje)
         self.ensure_one()

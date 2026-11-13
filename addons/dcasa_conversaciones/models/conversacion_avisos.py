@@ -127,8 +127,9 @@ class DcasaConversacionAvisos(models.Model):
             return self.env._('una imagen como archivo')
         return self.env._('un archivo')
 
-    def _texto_archivo(self, que, mime=None, de_noche=False):
-        """``que``: ``comprobante``, ``identidad``, ``documento`` (un archivo que Juan no lee) o ``foto``."""
+    def _texto_archivo(self, que, adjunto=None, de_noche=False):
+        """``que``: ``comprobante``, ``identidad``, ``documento`` (algo que Juan no leyó: un archivo, o una imagen que
+        el lector no leyó; ``adjunto`` dice cuál, si se sabe) o ``foto``."""
         self.ensure_one()
         cliente, canal = self._aviso_cliente(), self._aviso_canal()
         noche = self.env._('Llegó de noche, con la tienda cerrada.') if de_noche else ''
@@ -148,12 +149,23 @@ class DcasaConversacionAvisos(models.Model):
                 noche,
                 f"{self.env._('Revísalo en Conversaciones.')} {intervenir}")
         if que == 'documento':
-            return armar(
-                self.env._('📎 Mandó un archivo'),
-                self.env._('%(cliente)s mandó por %(canal)s %(que)s. Juan no puede leerlo: puede ser un comprobante.',
-                           cliente=cliente, canal=canal, que=self._que_archivo(mime)),
-                noche,
-                self.env._('Revísalo en Conversaciones. Si es un pago, verifícalo en el banco antes de entregar nada.'))
+            pago = self.env._('Si es un pago, verifícalo en el banco antes de entregar nada.')
+            if adjunto and adjunto.get('tipo') == 'imagen':
+                return armar(
+                    self.env._('📎 Mandó una imagen que Juan no pudo leer'),
+                    self.env._('%(cliente)s mandó por %(canal)s una imagen que Juan no pudo leer: puede ser un '
+                               'comprobante.', cliente=cliente, canal=canal),
+                    noche,
+                    f"{self.env._('Revísala en Conversaciones.')} {pago}")
+            if adjunto:
+                que_mando = self.env._('%(cliente)s mandó por %(canal)s %(que)s. Juan no puede leerlo: puede ser un '
+                                       'comprobante.', cliente=cliente, canal=canal,
+                                       que=self._que_archivo(adjunto.get('mime')))
+            else:
+                que_mando = self.env._('%(cliente)s mandó por %(canal)s un archivo o una imagen que Juan no pudo leer: '
+                                       'puede ser un comprobante.', cliente=cliente, canal=canal)
+            return armar(self.env._('📎 Mandó un archivo'), que_mando, noche,
+                         f"{self.env._('Revísalo en Conversaciones.')} {pago}")
         return armar(
             self.env._('🖼️ Mandó una foto'),
             self.env._('%(cliente)s mandó una foto o un video por %(canal)s. Juan sigue atendiendo.',
