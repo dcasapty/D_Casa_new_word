@@ -414,14 +414,18 @@ class DcasaReparto(models.Model):
             ('estado', '=', 'humano'), ('reparto_desde', '!=', False),
             ('reparto_desde', '>=', ahora - timedelta(days=DIAS_MAXIMOS_DE_ESPERA)),
         ], order='reparto_desde, id')
+        plazo = self._plazo_de_la_manana(apertura)
         cambiadas = 0
         for conv in esperando:
             if conv.asignada_a and max(conv.reparto_desde, apertura) > limite:
                 continue   # se la dieron hace poco (en minutos de horario): todavía tiene tiempo
-            if conv.asignada_a and conv.aviso_de_noche and ahora < apertura + timedelta(minutes=2 * minutos):
-                # Su vendedora (de la noche) se entera en la lista de la mañana y sus minutos cuentan desde ahí. Pasado
-                # este rato (dos veces «pasar a otra»), el rescate de siempre: si ese aviso nunca salió, nadie se queda
-                # esperando para siempre.
+            if conv.asignada_a and conv.aviso_de_noche and (
+                    ahora < plazo or (ahora < plazo + timedelta(minutes=2 * minutos)
+                                      and self._activas_entre(conv.asignada_a))):
+                # Su vendedora (de la noche) se entera en la lista de la mañana, al final de ESTA vuelta si ya vino, y
+                # sus minutos cuentan desde ahí: mientras puede llegar, o si ya vino y su aviso sale ahora, no se le
+                # rescata el cliente. Pasado ese rato (si el aviso de la mañana no sale), el rescate de siempre: nadie
+                # se queda esperando para siempre.
                 continue
             try:
                 with self.env.cr.savepoint():
@@ -435,6 +439,15 @@ class DcasaReparto(models.Model):
                 if cambiadas >= LOTE_DE_REASIGNAR:
                     break
         return cambiadas
+
+    @api.model
+    def _plazo_de_la_manana(self, apertura=None):
+        """Hasta cuándo, desde la apertura, el cliente de la noche espera a su vendedora antes del rescate: lo más largo
+        entre dos veces «Pasar a otra si no contesta» y «Recibe solo quien usó el sistema hace poco» (su rato para
+        llegar)."""
+        ajustes = self.env['dcasa.juan.ajustes'].obtener()
+        apertura = apertura or self._apertura_de_hoy()
+        return apertura + timedelta(minutes=max(2 * ajustes.reparto_reasignar_minutos, ajustes.reparto_activa_minutos))
 
     @api.model
     def _reasignar_si_nadie_contesta(self, conv, apertura=None):
@@ -454,6 +467,9 @@ class DcasaReparto(models.Model):
         vacio = self.env['res.users']
         ajustes = self.env['dcasa.juan.ajustes'].obtener()
         antes = conv.asignada_a
+        # Un cliente de la noche cuya vendedora nunca recibió el aviso de la mañana se rescata como «nadie lo tenía»:
+        # no se dice que no le contestó ni se le cuenta a Gerencia un cambio de vendedora.
+        nunca_supo = bool(antes and conv.aviso_de_noche)
         hoy = self._hoy()
         ya_la_tuvieron = self.sudo().search([
             ('conversacion_id', '=', conv.id),
@@ -477,7 +493,7 @@ class DcasaReparto(models.Model):
         if regla == 'misma':
             razon = self.env._('Sigue con %(quien)s: ya atendió a este cliente %(cuando)s.',
                                quien=elegida.name, cuando=self._hace_cuanto(momento))
-        elif antes:
+        elif antes and not nunca_supo:
             razon = self.env._('%(antes)s no le contestó al cliente en %(min)s minutos: pasó a %(nueva)s.',
                                antes=antes.name, min=minutos, nueva=elegida.name)
         else:
@@ -488,15 +504,15 @@ class DcasaReparto(models.Model):
                             'razon': razon[:300], 'anterior_id': antes.id or False})
         elegida.dcasa_turno = max(self._equipo(hoy).mapped('dcasa_turno') or [0]) + 1
         conv._aviso(razon)
-        if conv.aviso_de_noche and antes:
+        if nunca_supo:
             # El rescate de un cliente de la noche (su vendedora nunca supo de él): desde aquí es como de día.
             conv.write(SIN_PEDIDO_DE_NOCHE)
         if not conv.aviso_de_noche:
-            texto = self._texto_de_reasignada(conv, antes, regla, minutos)
+            texto = self._texto_de_reasignada(conv, vacio if nunca_supo else antes, regla, minutos)
             if not conv._avisar_por_telegram(texto, usuarios=elegida, acciones=True):
                 conv._avisar_por_telegram(texto, acciones=True)
             gerencia = self._gerencia_que_recibe_avisos()
-            if gerencia and antes:
+            if gerencia and antes and not nunca_supo:
                 conv._avisar_por_telegram(self._texto_para_gerencia(conv, antes, elegida, minutos), usuarios=gerencia)
         conv._notificar_panel('estado')
         return elegida

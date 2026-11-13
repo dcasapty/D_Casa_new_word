@@ -866,7 +866,8 @@ export class MotorConversacion {
     for (const a of e.adjuntos ?? []) {
       let lectura: LecturaImagen | null = null;
       // Por qué una imagen (no un sticker) no se leyó: Odoo decide con esto si avisa «puede ser un comprobante» (revisión, 2026-11-13).
-      let sinLeer: MotivoSinLeer | undefined = a.tipo === "imagen" && !a.sticker ? "fallo" : undefined;
+      // Sin los bytes (Messenger e Instagram mandan solo la URL) el lector ni la intenta: «sin_bajar», no un fallo del lector.
+      let sinLeer: MotivoSinLeer | undefined = a.tipo === "imagen" && !a.sticker ? "sin_bajar" : undefined;
       let url = a.url ?? null;
       if (a.bytes && a.bytes.byteLength > 0) {
         const mime = a.mime ?? "application/octet-stream";
@@ -878,6 +879,7 @@ export class MotorConversacion {
           else if (imagenesLeidas >= IMAGENES_POR_MENSAJE || !(e.propio || this.cabeOtraLecturaHoy(ahora))) sinLeer = "tope";
           else {
             imagenesLeidas++;
+            sinLeer = "fallo";   // si la lectura sale bien, manda la lectura; si no, el lector falló
             try {
               lectura = await this.deps.mirarImagen(a.bytes, mime);
             } catch (err) {

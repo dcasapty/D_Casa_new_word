@@ -8,6 +8,7 @@ from . import (
     test_avisos_noche,
     test_revision_avisos_noche,
     test_revision_avisos_noche_2,
+    test_revision_avisos_noche_3,
     test_revision_portables,
     test_bandeja,
     test_celulares,
