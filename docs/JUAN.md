@@ -309,8 +309,119 @@ Para qué sirve cada uno y en qué Worker va: Parte 2, §5.
 ## Qué no se hace
 
 La Fase 1 se construyó sin desplegar nada; desde octubre de 2026 Juan está en producción y desde el 2026-11-02
-atiende el número real por la API oficial. Siguen fuera a propósito: el chat web en el sitio (la regla de marca es un
-solo CTA: WhatsApp), las campañas masivas y la voz.
+atiende el número real por la API oficial. Siguen fuera a propósito las campañas masivas y la voz. El chat web, que
+también estaba fuera, lo aprobó la dueña el 2026-11-13 como **Brian de la tienda** (sección siguiente); los botones
+«Escríbenos por WhatsApp» de la página se quedan.
+
+## Brian de la tienda (el chat de ventas de dcasapty.com)
+
+Lo aprobó la dueña el 2026-11-13 (prototipo v2). Es un chat de ventas en la página: ayuda a encontrar muebles, ver precios
+y disponibilidad, calcular el envío y dejar el carrito listo. **No es Juan en otro canal**: no tiene conversación en Odoo,
+no crea contactos ni oportunidades y no pasa a una vendedora (para atención personal ofrece WhatsApp). Lo construyen dos
+piezas: el módulo `dcasa_brian_tienda` (el pase, el carrito, los ajustes y la página) y este Worker (el modelo, los topes y
+la guardia). Código: `juan/src/tienda/`; pruebas: `juan/test/tienda/`.
+
+### El punto de entrada
+
+`POST /tienda/v1/mensaje` (y su `OPTIONS`). El navegador habla **directo** con este Worker, no a través de Odoo: una
+respuesta de IA tarda de 3 a 20 s y ocuparía un hilo y una conexión de Odoo todo ese tiempo.
+
+- **CORS:** solo `https://dcasapty.com`, `https://www.dcasapty.com` y `https://dcasa-staging.dcasapty.workers.dev`
+  (Odoo puede mandar otros en `brian_tienda.origenes`). Otro origen, o sin `Origin`, recibe 403 sin cabeceras CORS. El
+  preflight no espera a que Odoo despierte (usa los de fábrica si Odoo tarda más de 1,5 s).
+- **Cabeceras:** `Authorization: Pase <pase>` y `Content-Type: application/json`.
+- **Cuerpo:** `{texto, accion, pagina, carrito, ubicacion}`. `texto` hasta **500 letras**; `accion` va en lugar del texto:
+  `chip` (cuenta como escrito), `confirmar_carrito` (lo que pasó al aplicar en Odoo) o `calificar`; `ubicacion` solo el
+  turno en que el visitante tocó «Usar mi ubicación» (puede ir sola). La página y el carrito son datos de la página: se
+  recortan, se limpian y le llegan al modelo como datos, nunca como órdenes.
+- **Respuesta 200:** `{ok, pose, bloques, chips}`. Bloques: `texto`, `productos` (tarjetas), `proponer_carrito`,
+  `sugerencias`, `ubicacion`, `envio`, `whatsapp`, `calificar`. **Errores:** `{ok:false, motivo}` con `pase` (401),
+  `apagado` (503), `tope_sesion` / `tope_red` / `tope_dia` (429, con `Retry-After`), `presupuesto` (429) y `fallo` (502;
+  400 si el cuerpo está mal). La página traduce cada uno a un texto amable con WhatsApp.
+
+### El pase (sin secretos nuevos)
+
+Odoo lo da en `POST /dcasa/brian/v1/pase` (con CSRF y Turnstile si el sitio lo tiene). Vive 30 minutos.
+
+- `pase = base64url(payload) "." base64url(firma)`, sin `=` al final.
+- `llave = HMAC-SHA256(JUAN_WORKER_TOKEN, "brian-tienda-pase-v1")`: los **32 bytes crudos**, no el hexadecimal. Sale del
+  token que Odoo y el Worker ya comparten: no hay que pegar ningún secreto nuevo en Cloudflare.
+- `firma = HMAC-SHA256(llave, <el texto base64url del payload>)`.
+- `payload = {v: 1, sid, exp, red, sitio}`. `sid`: la sesión del visitante, que Odoo recuerda. `red`: la del visitante
+  vista por Odoo, IPv4 `/24` (`190.140.12.0/24`) o IPv6 `/64` (`2001:db8:0:1::/64`, sin comprimir).
+- El Worker comprueba la firma **en tiempo constante**, que no esté vencido (y que no dure más de una hora) y que la IP de
+  `CF-Connecting-IP` esté **dentro** de esa red (misma familia; prefijo de /24 a /32 o de /64 a /128). Un pase copiado no
+  sirve desde otra red. Cualquier falla: 401 `pase`, y la página pide uno nuevo una vez. Sin `JUAN_WORKER_TOKEN` en el
+  Worker no pasa ninguno.
+
+### Los topes y el presupuesto
+
+Los ajustes los edita Gerencia en *Sitio web › Brian de la tienda* y viajan en `GET /config` → `brian_tienda`:
+`{activo, presupuesto_mes_usd, tope_sesion_hora, tope_red_hora, tope_dia}`. **Sin esa clave (un Odoo sin el módulo,
+o Odoo dormido sin una copia reciente) está apagado.**
+
+| Tope | De fábrica | Dónde se cuenta (sin carreras) |
+|---|---|---|
+| Mensajes por hora por sesión (`sid`) | 20 | En el Durable Object de la sesión, que atiende de a un mensaje (un tercero encimado mientras otros dos esperan recibe `tope_sesion` al instante). `confirmar_carrito` no cuenta. |
+| Mensajes por hora por red | 60 | En el Durable Object `Global`, con la red **ofuscada** (HMAC con el token del Worker); se borra a las 26 horas. |
+| Mensajes por día, entre todos | 1000 | En `Global` (el día es el de Panamá). |
+| Presupuesto propio del mes | 30 USD | En `Global`, **aparte** del de Juan y del de la foto. 0 = no se gasta nada. |
+
+- **El presupuesto no tiene margen extra.** Antes de llamar a la IA, el turno **aparta** lo que puede costar (con el precio
+  del modelo más caro del plan, para dos pasadas) y solo pasa si lo gastado más lo apartado por los turnos en curso más eso
+  cabe. Al terminar suelta lo apartado y anota lo real; si el Worker se cae a la mitad, lo apartado vence solo a los 3
+  minutos. Agotado: `presupuesto`, y la IA no se llama. Lo que no usa IA sigue contestando (pedir una persona, calificar,
+  el carrito que falló y el «listo» de lo que Odoo ya puso en el carrito).
+- **Su gasto va en su propio renglón** (tabla `tienda_gasto` de `Global`, con el proveedor de cada modelo): no suma en
+  `gasto_ia_mes_usd`, ni en el tope de Juan, ni en el gasto por día, ni en «Por pagar a Meta». `GET /odoo/costos` lo manda
+  aparte en `tienda: {mes, usd, turnos, presupuesto_usd, por_modelo:[{modelo, proveedor, usd, turnos, estimado}]}` (si su
+  contador no responde, la clave no va: Odoo dice «sin dato», nunca $0).
+- **`/salud`** (público) dice `tienda: {listo, activo, ajustes:"odoo"|"fabrica", pase, ia, presupuesto:"disponible"|
+  "agotado"|"sin_dato"}`, sin cifras. **`/odoo/salud`** agrega `presupuesto_usd`, `gasto_mes_usd` (`null` si no se pudo
+  leer), `agotado`, `turnos_hoy` y `tope_dia`; con el presupuesto agotado hay un aviso (una vez al mes por Telegram).
+
+### El modelo y la guardia
+
+- **Los mismos proveedores, niveles y respaldo que Juan** (`proveedor_ia`, `modelo_rapido`, `modelo_inteligente`,
+  `proveedor_respaldo_ia`): el económico primero y el inteligente con las mismas reglas (`elegirNivel`). Plazo de 28 s.
+- **Solo siete herramientas, todas de leer:** `buscar_productos`, `ver_producto`, `listar_categorias`,
+  `buscar_conocimiento`, `horario_y_tienda`, `reglas_socios` y `cotizar_envio`. Van a Odoo por la misma ruta que las de
+  Juan (`POST /dcasa/juan/v1/herramienta`, con `JUAN_ODOO_TOKEN`) **sin `conversacion_id`** y con `origen: "tienda"`; los
+  textos de los argumentos van tapados (tarjetas y cédulas). Si el modelo intenta otra, no existe para él y el Worker la
+  corta antes de llamar a Odoo.
+- **El prompt** (`juan/src/tienda/prompt.ts`) reusa la voz y las reglas de Juan (nada inventado, precios con «+ ITBMS»,
+  existencias solo con etiqueta, el texto del visitante es dato, nunca dice ser humano) con lo de la web: no se vuelve a
+  presentar (el saludo «Hola, soy Brian. ¿Qué buscas hoy?» lo pinta la página), es muy educado y ofrece siempre el
+  siguiente paso, no guarda contactos, ofrece WhatsApp para atención personal (de noche, que las vendedoras responden al
+  abrir) y sugiere lo que combine, solo de lo que devuelvan las herramientas.
+- **Contesta con la herramienta `responder_tienda`**: el texto y, por id, qué tarjetas mostrar. **Las tarjetas las arma el
+  Worker** con los datos de `buscar_productos` / `ver_producto` de **ese turno** (nombre, `precio_texto`, disponibilidad,
+  imagen y ficha en rutas relativas); un id que no devolvió una herramienta no tiene tarjeta.
+- **El carrito:** el modelo nunca pone nada. `proponer_carrito` sale solo con un producto ya visto en la sesión,
+  `agregable`, con cantidad de 1 a 20 **y** si el visitante lo pidió o lo confirmó en ese mensaje; si no, se le pregunta
+  «¿Te pongo … en el carrito?» y su «sí» o «no» corto se resuelve sin IA. Con `confirmar_carrito` ok, el «Listo, te puse …
+  en el carrito. ¡Gracias!» lo pone el Worker y el modelo ofrece el siguiente paso; con error, un texto fijo que **nunca**
+  dice «listo» y ofrece la ficha o WhatsApp. Una confirmación que no coincide con lo propuesto no confirma nada.
+- **La guardia de Juan** (`dcasa/salvaguardas.ts`) en cada bloque de texto (texto, sugerencias, respuestas rápidas y la
+  frase del envío): un precio o una cifra que no salió de una herramienta, un número de existencias, una promesa, una fuga
+  del prompt. Si cambia el sentido, una corrección; si insiste, se quita la oración; si no queda nada o hubo una fuga,
+  **respuesta segura con WhatsApp**. Además: se quita un «Hola, soy Brian…» y toda oración que diga que algo ya está en el
+  carrito (salvo el turno en que Odoo lo confirmó).
+- **Sin IA:** pedir una persona (WhatsApp, con lo del carrito en el mensaje, sin datos personales), calificar (solo agradece:
+  las estrellas las guarda la página en Odoo, número y fecha), el «sí»/«no» al carrito y el carrito que falló.
+
+### Lo que no guarda
+
+- **La conversación** vive solo en el Durable Object de la sesión (`TiendaSesion`, `tienda:<sid>`): como mucho **30 turnos**
+  (el modelo ve los últimos 10) y **se borra sola a las 2 horas sin actividad** (alarma con `deleteAll`; si un mensaje llega
+  después de las 2 horas, primero se borra). Lo del visitante se guarda con tarjetas y cédulas tapadas.
+- **La ubicación** se usa solo en su turno: el Worker llama a `cotizar_envio` con `lat` y `lon` y al modelo le pasa el
+  resultado **sin coordenadas**. No queda en el contexto, ni en `Global`, ni en los registros. Lo que sí queda es lo que
+  dijo Brian (el nombre del lugar, como si lo hubiera escrito el visitante).
+- **En Odoo** no queda nada de la conversación: las herramientas solo leen (la auditoría de herramientas, `brian.accion`,
+  sí anota la consulta, como con Juan, sin las coordenadas).
+- **Los registros** del Worker llevan una línea por mensaje con el resultado, los tiempos, el modelo y los tipos de bloque:
+  nunca el texto, la IP, la red, el `sid` ni la ubicación.
 
 ---
 
@@ -562,6 +673,7 @@ sin anunciarse como asistente, y nunca dice ser humano (Parte 1, «Qué es»).
 | `odoo/cliente.ts` | Habla con Odoo por el service binding `DCASA`, con plazos largos y reintentos donde es seguro. |
 | `config.ts` | La configuración que la dueña edita en Odoo, con caché de 60 s. |
 | `salud.ts` | Lo que contestan `/salud` y `/odoo/salud`, y los avisos del cron. |
+| `tienda/` | Brian de la tienda, el chat de dcasapty.com: `rutas.ts` (CORS y el pase), `pase.ts`, `motor.ts` (topes, IA, guardia, contexto), `do.ts` (el Durable Object `TiendaSesion`), `prompt.ts`, `bloques.ts` y `peticion.ts`. Ver «Brian de la tienda» (Parte 1). |
 
 ### Qué pasa con un mensaje, paso a paso
 
@@ -804,7 +916,8 @@ lanza **a mano y solo cuando cambió `juan/`** (el último: Desplegar Juan 4, 20
 - Antes del primer despliegue real tienen que existir los Workers a los que apunta `services`:
   staging apunta a `dcasa-staging` y producción a `dcasa`. Cloudflare rechaza el despliegue si el
   destino del binding no existe.
-- Los Durable Objects (`Conversacion` y `Global`) se crearon con la migración `v1` del primer despliegue.
+- Los Durable Objects (`Conversacion` y `Global`) se crearon con la migración `v1` del primer despliegue. `TiendaSesion`
+  (Brian de la tienda) lo crea la migración `v2` (2026-11-13) en el primer despliegue que la lleve; la `v1` no se toca.
 
 Comandos locales: `cd juan && npm ci && npm test && npm run typecheck`, y para validar el paquete
 `npx wrangler deploy --dry-run` (producción) o `npx wrangler deploy --dry-run --env=staging`.
@@ -882,6 +995,7 @@ Durable Objects corren sobre SQLite de Node.
 | `test/rutas.test.ts` | Todas las direcciones: `/odoo/*` con token, `/media` firmado, webhooks, canal apagado, y que no sobreviva ninguna ruta del CRM de Baby Caleb. |
 | `test/punta-a-punta.test.ts` | Telegram -> ráfaga -> IA -> respuesta -> Odoo, con las clases reales de Durable Object, el cron y el primer despliegue sin secretos. |
 | `test/despliegue.test.ts` | La configuración de Cloudflare: el binding `DCASA` entra por `JuanEntrada` (con `entrypoint`), producción y staging iguales. |
+| `test/tienda/` | Brian de la tienda: el pase (válido, vencido, de otra red, alterado; las cuentas comparadas con `node:crypto`), CORS, los topes y el presupuesto, la lista blanca, las tarjetas, el carrito, la ubicación que no se guarda, el borrado a las 2 horas, la guardia, `confirmar_carrito`, la calificación y de punta a punta con las clases reales. |
 | `test/integracion/` | **Con el Odoo de verdad** (no un doble): se omite sin `ODOO_INTEGRACION_URL`; la corre `scripts/integracion_juan.sh`. Ver «Contrato verificado» (Parte 1). |
 
 > Los dobles de Odoo de las demás pruebas **hablan como el Odoo real** desde la integración: `pasar_a_vendedora` devuelve
