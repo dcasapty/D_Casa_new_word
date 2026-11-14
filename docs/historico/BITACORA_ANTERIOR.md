@@ -1,8 +1,52 @@
 # Bitácora anterior (entradas viejas de LEEME_PRIMERO)
 
-> **Archivado el 2026-11-06, el 2026-11-11 y el 2026-11-13.** Texto completo de las entradas de la bitácora de
-> [LEEME_PRIMERO.md](../LEEME_PRIMERO.md) del 2026-10-16 al 2026-11-07 (1), la más nueva arriba. Allí quedan resumidas en una línea
+> **Archivado el 2026-11-06, el 2026-11-11, el 2026-11-13 y el 2026-11-14.** Texto completo de las entradas de la bitácora de
+> [LEEME_PRIMERO.md](../LEEME_PRIMERO.md) del 2026-10-16 al 2026-11-07 (2), la más nueva arriba. Allí quedan resumidas en una línea
 > cada una. Se conservan tal cual (con los nombres de personas quitados), como registro.
+
+### 2026-11-07 (2): issues #24 (Juan) y #25 (Conversaciones), lo que quedaba, en producción
+
+- La dueña aprobó el 2026-11-07 los pendientes de los dos issues, primero lo que ve el cliente. **Sin push, PR ni
+  despliegue**: cuando toque, **Odoo primero y después Juan** (Juan no depende del Odoo nuevo; la integración sí espera
+  el Odoo nuevo).
+- **Juan** (cada uno con su prueba, primero en rojo; `cd juan && npm test`: 1.223, `typecheck` limpio):
+  1. **Eco de Messenger e Instagram**: lo que sale se anota antes de enviar (`vuelo:*`); el eco ya no calla al bot 120 min
+     (`eco-meta.test.ts`, 4 de 7 en rojo).
+  2. y 3. **Notas de voz**: «quiero hablar con alguien» o «no me escriban» en audio valen como escritos; no se transcribe
+     ni se lee una imagen en descanso, con un repetido ni pasado el tope diario (`nota-de-voz.test.ts`, 7 de 8). El tope
+     de 20 notas de voz por persona al día que entró aquí **se quitó** el mismo día a pedido de la dueña («le agrada que
+     pueda responder notas de voz»): queda solo el tope diario general.
+  4. **Reintento del turno**: la corrección recibe su ronda de herramientas y la pasada sin herramientas lo consultado; la
+     misma escritura con los mismos argumentos va a Odoo una vez por turno, `pasar_a_vendedora` una vez, tope de 8
+     (`reintento-del-turno.test.ts`, 4 de 6; y una con el SDK real de Claude).
+  5. **Seguimiento**: se reclama antes de redactar y se vuelve a mirar al cliente justo antes de enviar
+     (`seguimiento-carrera.test.ts`, 4 de 6).
+  6. **Menores**: registros sin claves ni tokens; `{{LECCIONES}}` con función (`menores-ronda8.test.ts`, 3 de 3).
+- **Conversaciones** (`tests/test_ronda8_conversaciones.py`, 20 de 23 en rojo antes; Sofía, 2 nuevas en rojo antes):
+  atraso máximo de un seguimiento (**ajuste nuevo, 6 h**: lo vencido se salta con una nota, no sale de golpe), nada de
+  «¿sigues interesado?» tras un traspaso que nadie atendió (`traspaso_sin_atender_desde`; Sofía lo pone en «Contéstale»,
+  que antes NO cubría ese caso), seguimiento por persona (solo el canal por donde escribió último) y «No contactar» que
+  sigue a la persona al cambiar de ficha, un «descartado» tardío ya no cierra el ciclo nuevo, notas sin repetir en la
+  oportunidad, el mantenimiento purga los borradores de Telegram y la zona con número de casa o apartamento no se guarda.
+  En local, base nueva: `dcasa_conversaciones` 1.253 pruebas en dos mitades (solo las 2 referencias visuales a 390 px
+  que ya fallaban en esta máquina), `dcasa_sofia` 72, integración real de Juan 39 de 40; `ruff` limpio.
+- Cambió una prueba vieja con razón: `test_no_pide_fuera_de_horario_aunque_ya_toque` usa un atraso de 4 h (con 8 h ahora
+  se salta) y la integración `seguimiento.ts` espera que el «descartado» no cierre el ciclo nuevo (esperaba el hueco).
+- Lo que no cubre: las conversaciones que hoy ya esperan a una persona tras un traspaso no quedan marcadas (sin
+  migración: la marca empieza con el próximo traspaso). Quedan del #24 tres menores fuera de lo aprobado.
+- **Revisión adversarial** (10 hallazgos, todos arreglados con prueba; `9c00c16` Juan, `dfeb5ee` Odoo y Sofía): un rechazo de
+  `pasar_a_vendedora` ya no frena la llamada corregida (tampoco en el mismo paso); el reclamo del seguimiento es de quien lo
+  puso y se mira la tabla `seguimientos` justo antes de enviar; las notas de voz y fotos de una vendedora no gastan los topes
+  del cliente; prueba de la corrección con Meta. En Odoo: «espera a una persona» frena el seguimiento una semana como mucho, se
+  ve en la conversación y se quita con **«Ya la atendí»**; por persona solo cuentan las hermanas que podrían hacer el
+  seguimiento (un «hola» por otro canal ya no deja a nadie sin ninguno) y uno en camino por otro canal pospone, no borra;
+  solo se salta lo programado antes del límite (`seguimiento_programado_en`: «Crear oportunidad» al día siguiente sale) y,
+  si el siguiente también venció en la caída, también se salta (antes salía en la misma vuelta); «el cliente pidió que no lo
+  contacten» marca No contactar; la dirección exacta tampoco queda en `brian.accion`; un «Contéstale» descartado no vuelve
+  con cada mensaje mientras siga marcada. Pruebas: Juan 1.230 (`typecheck` limpio); Odoo, clases tocadas 125 + API,
+  superficie RPC y vecinas 128, 0 fallas (las 3 nuevas de atrasos y Sofía, en rojo antes); `ruff` limpio. No se corrió
+  `dcasa_conversaciones` entero ni la integración real de Juan (la integración escribe `seguimiento_proximo` a un minuto:
+  no la toca el atraso).
 
 ### 2026-11-07 (1): citas, reenviados, reacciones y palomitas en el chat, en producción
 
