@@ -432,3 +432,192 @@ escondidas:
   la miga de pan, las tarjetas, el carrito y lo demás ya se leen en formato título.
 * **Brian:** `productos_repetidos`, `nombres_por_pasar_a_mayusculas`, `pasar_nombres_a_mayusculas` (pide permiso) y
   `unir_productos` (pide permiso). Pruebas: `dcasa_catalogo/tests/test_productos_limpios.py`.
+
+## Busca con una foto
+
+Pedido de la dueña (2026-11-13), al verlo en la web de un competidor: «lo de buscar por foto también». Módulo
+`dcasa_buscar_foto`; **nace encendido**. Se apaga y se ajusta en *Sitio web › Busca con una foto* (Gerencia y
+administradores; también en la Guía).
+
+**Para el cliente.** Un ícono de cámara **dentro de la caja de búsqueda**, justo antes de la lupa de enviar, en todas
+las cajas que buscan productos: la de la cabecera (la abre la lupa de la computadora y la del celular), la del menú del
+celular y la barra de `/shop`. Va en el sitio que deja el lote 1 de la web para eso
+(`website_dcasa.buscador_botones_extra`, ver abajo); en el celular la barra de `/shop` ya tiene su propia fila, así que
+la cámara no le quita espacio a lo que se escribe (a 360, 390 y 430 px cabe «colchon queen»). Abre el selector del
+teléfono (tomar la foto o elegir una de la galería; sirve una captura de Instagram). El navegador achica la foto (lado
+mayor de 1024 px, JPEG) y muestra «Buscando muebles parecidos…». La respuesta es la página `/shop/foto`, como el
+catálogo: «Esto se parece a tu foto», las tarjetas de la portada (foto grande, precio «+ ITBMS», «Agregar» o «Elegir» y
+el WhatsApp del mueble) y, abajo, la franja color hueso «¿No es lo que buscas?» con el botón azul «Escríbenos por
+WhatsApp» (el mensaje ya escrito le pide mandar la foto: allí la lee Juan). «Recargar» no reenvía la foto (la dirección
+queda en `/shop/foto`, la página para empezar).
+
+**Por dentro** (`models/buscar_foto.py`):
+
+1. `POST /shop/foto` con CSRF (el token se pide fresco a `/dcasa/borde/csrf`: la página puede venir de la caché del
+   borde). La foto viaja en base64 en un campo de **texto** del formulario (Werkzeug lo tiene en memoria; un archivo
+   de más de 500 KB lo escribiría en un temporal). Se valida por sus **bytes**: JPEG, PNG o WebP, de 1 byte a
+   **1,5 MB** (igual que el Worker); la petición entera, como mucho ~2,1 MB (`max_content_length` de la ruta: más
+   grande, 413 sin leerla).
+2. **A lo sumo 3 búsquedas a la vez por proceso de Odoo** (un semáforo sin espera): la cuarta recibe «Ahora no podemos»
+   al instante, en vez de dejar otra petición esperando al Worker.
+3. **Topes**, antes de gastar IA (cambiables en la pantalla; 0 = cerrado): **10 por visitante en una hora**, **30 por
+   conexión en una hora** y **200 en total por día** (hora de Panamá). El cupo se reserva en una **transacción corta
+   aparte, confirmada antes de llamar al Worker**: bajo un cerrojo de PostgreSQL (`pg_advisory_xact_lock`, en READ
+   COMMITTED) se cuentan las búsquedas y, si hay cupo, se anota la fila. Así cinco pedidos al mismo tiempo con tope 1
+   dejan pasar uno solo, y lo que reviente después (en el Worker o al buscar) igual queda contado
+   (`scripts/revision_rvf_carrera_foto.py` lo comprueba con transacciones de verdad: `odoo-bin shell -d <base> <
+   scripts/revision_rvf_carrera_foto.py`, nunca en producción). La fila (`dcasa.buscar.foto.uso`) guarda la hora, el
+   resultado y, solo hasta el día siguiente, dos **huellas**: de la sesión y de la **conexión** (la IPv4 entera, o la
+   red /64 de una IPv6, que es lo que recibe un cliente: lo mismo que cuenta el borde), hechas con una **sal al azar del
+   día** (`dcasa.buscar.foto.sal`). Es una huella que no dice quién eres y se borra al día siguiente; la sal también (el
+   cron diario borra las de antes de ayer) y sin ella ya no se puede volver a calcular; la fila entera, a los 90 días.
+   No se cuenta por la /24: en Panamá muchos clientes de un mismo operador móvil la comparten (y el CGNAT), y chocarían
+   entre ellos. Aun así, varios teléfonos pueden salir por la misma IPv4 del operador: por eso el tope por conexión es
+   más alto que el del visitante.
+   El borde, además, frena ráfagas: 6 por minuto por conexión (la IPv4, o la /64 de la IPv6; cubeta `foto` de
+   `edge/src/bots.ts`); al pasarse vuelve a `/shop/foto?espera=1` con el aviso de la tienda, no con un texto suelto.
+4. **Lectura** en el Worker de Juan, `POST /odoo/buscar-foto` con `JUAN_URL` y `JUAN_WORKER_TOKEN` (como las pantallas
+   de Juan; Odoo espera **15 s** y el Worker contesta antes de 12). El Worker usa **el mismo lector** de las
+   conversaciones (`juan/src/motor/vision.ts`, solo importado) y devuelve **solo el registro cerrado**: tipo, hasta 3
+   códigos con patrón estricto, categoría y medida de una lista, ¿parece pago?, ¿parece identidad? Odoo lo vuelve a
+   pasar por las listas cerradas, revisando el tipo de cada campo (una lista o un diccionario donde va un texto se
+   descarta: nada mal formado revienta). Ningún texto libre de la imagen llega a la página: solo «Lo que vimos: Cama ·
+   Queen» (etiquetas fijas) o «Lo encontramos por el código que se ve en tu foto».
+5. **Comprobantes y cédulas no se buscan**: tipo comprobante o identidad, o cualquier señal de pago o de identidad
+   (también si el modelo no la dice: lo prudente) → «Esa foto parece un documento; para buscar, sube la foto de un
+   mueble». No se muestra nada parecido ni lo que se vio. Lo que no es un mueble → «No reconocimos un mueble en tu foto».
+6. **Búsqueda, solo entre lo publicado** (`website._dcasa_dominio_publicado`): primero por el código leído (el código
+   público `DC-…` o la referencia exacta, con la misma regla que `buscar_productos` de Juan; la referencia del
+   proveedor nunca se muestra); si no hay código, por categoría y medida con las mismas palabras y la misma puntuación
+   que la búsqueda de Juan («cama queen»; si con la medida no hay nada, «cama»; sofá también busca «sala»; clóset,
+   «ropero» y «armario»). Hasta 12 productos. Sin nada: «No encontramos algo parecido en la tienda en línea».
+7. Si no se puede leer (sin Worker, lectura de imágenes apagada, sin cupo de IA, caído o lento), si ya hay 3 a la vez o
+   si se pasó un tope: «Ahora no podemos buscar por foto; búscalo por nombre o escríbenos por WhatsApp», con la caja de
+   búsqueda por nombre a mano. Nunca un error de servidor.
+
+**La foto nunca se guarda**: ni en Odoo (ningún modelo, adjunto, sesión ni mensaje), ni en R2, ni en los registros
+(logs) de Odoo o del Worker, ni en el Worker (que solo anota el gasto: tokens y dólares). Las pruebas lo verifican
+buscando la foto (y una marca que trae adentro) en todas las columnas de la base, en la sesión y en el registro
+(`dcasa_buscar_foto/tests/test_buscar_foto.py`, `juan/test/odoo-panel-buscar-foto.test.ts`).
+
+**Costo: un techo propio, aparte de Meta.** La lectura la cobra **Cloudflare** (Workers AI,
+`@cf/meta/llama-4-scout-17b-16e-instruct`, US$0,27 por millón de tokens de entrada y US$0,85 de salida, leído el
+2026-11-13; integrado en `juan/src/motor/precios.ts` porque `precios_ia` de Odoo solo trae los modelos de la
+conversación; si Workers AI no dice los tokens, se anota una estimación alta). Por eso:
+
+* Se anota en el Worker como `cloudflare:lector-de-fotos`, **fuera** del gasto de Juan: no suma en su tope del mes, en
+  «Por pagar a Meta», en el botón «Pagar», en la diferencia con lo que cobró Meta ni en las «respuestas». *Conversaciones
+  › Costos de IA* lo muestra en su propio renglón, «Cloudflare: lector de fotos», con cuántas fotos. (El lector de
+  imágenes de los chats no anota gasto, desde antes: nunca ensució el saldo con Meta. Si algún día lo anota, cualquier
+  `@cf/…` cae en la misma cuenta aparte.)
+* **Techo del mes de la foto**: *Sitio web › Busca con una foto › Gasto de IA de la foto en el mes*, **5 USD de
+  fábrica** (0 = no se leen fotos). Lo aplica el Worker (Odoo se lo manda en cada búsqueda, `tope_mes_usd`).
+* **Nunca le quita IA a las conversaciones**: con el gasto del mes de Juan por encima del **80 %** de su tope, no se lee
+  ninguna foto.
+* En los dos casos: «Ahora no podemos buscar por foto». La pantalla cuenta cuántas no se pudieron leer.
+
+**Privacidad.** `/privacidad` gana el párrafo «Busca con una foto» (sección de inteligencia artificial, ancla
+`#busca-con-una-foto`) y su fecha de actualización. Lo que se publica no lleva marcas de borrador; **antes de desplegar,
+lo aprueba la dueña** (y el abogado si ella quiere): es un texto propuesto hasta entonces.
+
+**Lo que no hace (todavía).** No afina por color ni estilo: el lector no los devuelve. Se puede sumar como dos
+enumeraciones cerradas más en `vision.ts` (por ejemplo `color` ∈ blanco, negro, gris, beige, café, madera… y `estilo`)
+que `normalizarLectura` deja pasar o pone en `null`; Juan no cambia porque `conversacion.ts` solo lee códigos, categoría
+y medida, y aquí se sumaría la palabra del color a la búsqueda («cama queen gris»). Se dejó para después del cambio de
+`vision.ts` que está en curso (qué cuenta como comprobante), para no pisarlo. Tampoco manda `Search` al píxel de Meta
+(ver `docs/META_EVENTOS.md`).
+
+**Brian:** no lleva herramienta: es una función de la tienda para el cliente, su único ajuste es un interruptor con
+topes que Gerencia cambia en una pantalla, y cuántas búsquedas hubo (y su costo) ya se ve ahí y en Costos de IA.
+
+**Pruebas:** `dcasa_buscar_foto/tests/` (la ruta con el Worker simulado, la cámara en cada caja, con el editor del
+sitio abierto, los topes, el semáforo, el interruptor, la limpieza, las funciones puras y `test_revision_rvf.py`, las de
+la revisión adversarial, con la caja de `/shop` medida en Chrome a 360, 390 y 430 px), `dcasa_base/tests/test_red.py`
+(la llave de la conexión), `scripts/revision_rvf_carrera_foto.py` (las carreras), `juan/test/odoo-panel-buscar-foto.test.ts`
+y `juan/test/revision-rvf-*.test.ts` (el punto de entrada, el techo y la reserva del 80 %), `juan/test/motor/global.test.ts`
+(lo de Cloudflare aparte) y `edge/test/buscar-foto.test.ts`, `edge/test/revision-rvf-buscar-foto.test.ts` (el freno de
+ráfagas por /64 y que nada de esto se guarde en la caché del borde).
+
+## La tienda en línea: buscar, la ficha y lo que Google no muestra
+
+Lote 1 de la web, aprobado por la dueña el 2026-11-13 («Sí, arranca el lote 1»). Capturas de antes y después (Odoo
+local con datos de prueba, 1366 y 390 px) para su visto bueno antes de producción.
+
+* **Buscar.** La lupa de la cabecera abre una caja que busca **en el catálogo** (`/shop?search=…`): los resultados se
+  ven como la tienda (fotos grandes, precio con «+ ITBMS» y el mismo botón de agregar). La lista que sale mientras se
+  escribe se queda, solo con productos. En el **celular la lupa está a la vista, junto al carrito** (antes la búsqueda
+  estaba escondida dentro del menú), con 44 px de área táctil, y abre la misma caja. La búsqueda vieja de Odoo
+  (`/website/search`, una lista con fotos chiquitas) lleva al catálogo con lo que se buscó.
+  `website_dcasa/views/buscador_templates.xml`, `controllers/main.py` (`BuscadorDcasa`).
+* **La barra de búsqueda de `/shop` en el celular** va sola en su fila, a lo ancho, con el mismo texto de ayuda
+  («Escribe lo que buscas»; en una categoría, el «Buscar en …» de Odoo); «Ordenar por» y «Filtros» quedan en la fila
+  de abajo. Antes las tres iban en una fila y la caja quedaba de ~125 px: no se leía el texto de ayuda ni cabía un
+  botón más dentro (la cámara de «Busca con una foto»). En la computadora no cambia.
+* **Una tilde no es otra búsqueda.** Odoo, cuando no hallaba la palabra exacta, buscaba la más parecida y avisaba «Su
+  búsqueda "sofa" no coincidió con nada. Se muestran los resultados para "sofá"». Si la diferencia es solo de tildes o
+  mayúsculas, ahora salen los resultados sin ese aviso (en el catálogo, en la lista mientras se escribe y en la búsqueda
+  general). Si de verdad es otra palabra, el aviso queda en tuteo: «No encontramos "sofas". Te mostramos lo que hay de
+  "sofá"». `website_dcasa/models/buscador.py` (`_search_with_fuzzy`).
+* **Sin resultados:** «No encontramos "…"», las categorías de «Compra por espacio» que tienen algo publicado y
+  **«Escríbenos por WhatsApp»** con lo que buscó ya escrito («Hola D'CASA, busco: …»). Sin el rango de precio de
+  «$ 0.00» de Odoo. Escribir sin nada y dar Enter lleva al catálogo entero.
+* **`/catalogo` y `/tienda`** llevan al catálogo con un 301 (lo que venga después del «?», como una búsqueda o una
+  campaña, se conserva).
+* **Carrito vacío** en la voz de la marca: «Tu carrito está vacío», «Mira el catálogo y agrega lo que te guste», los
+  botones **«Ver el catálogo»** y «Escríbenos por WhatsApp» (el botón flotante no sale en el carrito). «Reordenado
+  rápido» (traducción de Odoo) no se le muestra a quien no tiene cuenta; con cuenta se llama **«Volver a pedir»**. El
+  botón sigue en la página aunque no se vea: el JavaScript del carrito de Odoo lo usa al cambiar cantidades.
+* **La foto de la ficha en grande.** Es el visor de Odoo («Zoom al hacer clic», que el módulo deja siempre encendido):
+  se abre al tocar la foto o la **lupa redonda** que ahora está sobre la foto. Con el dedo: un toque acerca (2,5 veces;
+  el de Odoo acercaba poco, pensado para el ratón) y otro la deja como estaba, **dos dedos acercan** (hasta 4 veces) y,
+  ya acercada, **un dedo la mueve**. La X para cerrar es un círculo navy de 44 px que se ve también sobre una foto
+  blanca. `website_dcasa/static/src/js/foto_grande.js`.
+* **Disponibilidad en la ficha:** «Disponible», «Quedan pocas» o «Agotado», **nunca el número**, en la misma línea del
+  precio, a la derecha de «+ ITBMS» (si no cabe, baja justo debajo). En el celular se ve al abrir la ficha, sin bajar y
+  sin que la tape la barra fija de «Agregar al carrito»: para eso la ficha tiene menos aire arriba de la foto y entre
+  la foto, el nombre y el precio, y a 360 px la barra fija va en una sola fila (sin el ícono del carrito). Medido con
+  un nombre de tres líneas y foto cuadrada en 360×800, 390×844 y 430×932
+  (`dcasa_catalogo/tests/test_disponibilidad_celular.py`); en una pantalla más baja (360×740) un nombre de tres
+  líneas deja la etiqueta unos 20 px debajo de la barra.
+  * Es **la misma regla que usa Juan**, y vive en un solo lugar: `dcasa_base/disponibilidad.py`
+    (`etiqueta_existencias`: agotado con 0 o menos; «pocas» de 1 al umbral del producto, 5 si no se cambió;
+    disponible si hay más o si el producto no controla inventario). Juan, el catálogo de Meta (`nivel_existencias`) y
+    el Escáner (`dcasa_barras`) la importan de ahí; antes cada uno tenía su copia.
+  * Las unidades que cuentan son las **libres** (en existencia menos lo reservado) de la medida elegida, o de todas si
+    no hay medida: `product.template._dcasa_disponibilidad` (`dcasa_catalogo/models/product.py`), el mismo método que
+    usa Juan (`_j_existencias`). Al cambiar de medida en la ficha, la etiqueta cambia sola
+    (`dcasa_catalogo/static/src/js/disponibilidad.js`).
+  * **Comprar o no comprar no cambia:** un producto «Agotado» que la tienda deja vender (existencias sin confirmar,
+    `allow_out_of_stock_order`) se sigue pudiendo agregar al carrito. Los mensajes de Odoo «N en existencia» (daría el
+    número) y su «Agotado» genérico (repetiría la etiqueta) no se muestran.
+  * **La ficha guardada en el borde se refresca:** todo cambio de existencias (recepción, venta entregada, ajuste,
+    reserva) deja la marca de `dcasa_tienda_borde` (`stock.quant`) y el borde da por viejas las páginas guardadas; y,
+    además, al abrir la ficha Odoo vuelve a pedir la información de la combinación y la etiqueta se pinta con la de
+    ese momento, aunque la página venga del borde.
+  * Los datos para Google siguen **sin** disponibilidad (`PUBLICAR_DISPONIBILIDAD = False` en
+    `website_dcasa/controllers/main.py`): eso es otra decisión.
+* **Medidas:** ya existían como dato (`dcasa_medidas`, de `data/fichas.json`: las impresas en la foto del proveedor) y
+  la ficha ya las mostraba. En la copia local de la base, 144 de los 229 productos publicados las tienen; **ninguno de
+  los colchones** (tampoco el DR-1033): no se inventó ninguna.
+* **Lo que Google no muestra:** `/web/login`, `/web/signup` y `/web/reset_password` llevan `noindex` (Google mostraba
+  «Login - D'CASA Panamá» con el texto de la web vieja) y los resultados de búsqueda `noindex, follow`, en la cabecera
+  `X-Robots-Tag` y en `<meta name="robots">`; ninguna está en el mapa del sitio y el borde no cambia esa cabecera
+  ([OPERACION.md](OPERACION.md#tienda-rápida-caché-de-páginas-en-el-borde)). Los datos estructurados de la portada
+  dicen **un solo logo** (`/web/image/website/1/logo`, el de la cabecera; antes también `/logo.png?company=1`).
+* **Un sitio para botones extra en la caja de búsqueda** (hoy lo usa la cámara de «Busca con una foto»): la plantilla vacía
+  `website_dcasa.buscador_botones_extra`, dentro de la caja, justo antes de la lupa de enviar. La llaman todas las cajas
+  de búsqueda del sitio (la de la cabecera, la del menú del celular y la barra de `/shop`); quien agrega un botón la
+  hereda con `position="inside"` y tiene a mano `search_type` («products» en la cabecera y en `/shop`), `action` y
+  `search`. Va dentro de un `<span class="o_dcasa_buscador_extra">` que no dibuja caja (`display: contents`): sin él,
+  con el editor del sitio abierto (quien puede editar el sitio) Odoo dejaba sus marcas de edición en el `t-call` y
+  toda página con la cabecera daba error 500. Al heredar esta plantilla, el botón va **dentro** de ella, no con un
+  `t-call` suelto metido por `xpath` en la caja de Odoo.
+
+**Contrato visual:** la lupa cambia la cabecera del celular a propósito; las cinco referencias de 390 px
+(`website_dcasa/tests/referencia/cabecera-*-390.webp`) se regeneraron con `scripts/actualizar_referencias_visuales.sh`.
+Las de 1440 px y las del hero no cambiaron de diseño y quedan las de antes. El contrato de estilos no cambió.
+
+Pruebas: `website_dcasa/tests/test_buscador.py` (reglas, Google, mapa del sitio, logo, /catalogo, búsqueda, tilde, sin
+resultados, carrito, foto, sitio para botones), `test_buscador_movil.py` (en Chrome como teléfono a 360, 390 y 430 px:
+la lupa junto al carrito sin romper la cabecera y los gestos del visor), `dcasa_catalogo/tests/test_disponibilidad_ficha.py`
+y `dcasa_base/tests/test_disponibilidad.py`; en el borde, `edge/test/paginas.test.ts`.

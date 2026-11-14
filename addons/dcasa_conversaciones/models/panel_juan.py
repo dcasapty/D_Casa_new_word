@@ -57,6 +57,40 @@ def guardar_foto(cr, fecha, acumulado, uid, cuando):
     return True
 
 
+# Lo que cobra Cloudflare (Workers AI), aparte de Meta: «Busca con una foto» lo anota como
+# ``cloudflare:lector-de-fotos`` (juan/src/odoo-panel-buscar-foto.ts); un modelo de Workers AI se llama ``@cf/…``.
+NOMBRES_DE_CLOUDFLARE = {'cloudflare:lector-de-fotos': 'Cloudflare: lector de fotos'}
+
+
+def es_de_cloudflare(modelo):
+    return isinstance(modelo, str) and (modelo.startswith('cloudflare:') or modelo.startswith('@cf/'))
+
+
+def renglones_de_cloudflare(cuerpo):
+    """Los renglones aparte de Cloudflare (``cloudflare`` de ``GET /odoo/costos``, y cualquier ``@cf/…`` o
+    ``cloudflare:…`` que viniera mezclado con los modelos): nombre, gasto y cuántas lecturas, sin «respuestas»."""
+    crudos = [c for c in (cuerpo.get('cloudflare') or []) if isinstance(c, dict)]
+    crudos += [{'concepto': m.get('modelo'), 'usd': m.get('usd'), 'lecturas': m.get('turnos'),
+                'estimado': m.get('estimado')}
+               for m in (cuerpo.get('por_modelo') or []) if isinstance(m, dict) and es_de_cloudflare(m.get('modelo'))]
+    renglones = {}
+    for c in crudos:
+        concepto = str(c.get('concepto') or '')[:80]
+        if not concepto:
+            continue
+        nombre = NOMBRES_DE_CLOUDFLARE.get(concepto) or f'Cloudflare: {concepto.removeprefix("cloudflare:")}'
+        try:
+            usd, lecturas = float(c.get('usd') or 0), int(c.get('lecturas') or 0)
+        except (TypeError, ValueError):
+            continue
+        fila = renglones.setdefault(nombre, {'modelo': nombre, 'usd': 0.0, 'turnos': 0, 'estimado': False,
+                                             'aparte': True, 'lecturas': 0})
+        fila['usd'] = round(fila['usd'] + usd, 4)
+        fila['lecturas'] += lecturas
+        fila['estimado'] = fila['estimado'] or bool(c.get('estimado'))
+    return sorted(renglones.values(), key=lambda r: -r['usd'])
+
+
 class DcasaJuanCostoDia(models.Model):
     """Una foto diaria del gasto de IA acumulado del mes (el Worker no guarda el gasto por día)."""
     _name = 'dcasa.juan.costo.dia'
@@ -448,8 +482,11 @@ class DcasaJuanPanel(models.AbstractModel):
         por_modelo = [{
             'modelo': str(m.get('modelo') or '')[:80], 'usd': round(float(m.get('usd') or 0), 4),
             'turnos': int(m.get('turnos') or 0), 'estimado': bool(m.get('estimado')),
-        } for m in (cuerpo.get('por_modelo') or []) if isinstance(m, dict)]
+        } for m in (cuerpo.get('por_modelo') or []) if isinstance(m, dict) and not es_de_cloudflare(m.get('modelo'))]
         por_modelo.sort(key=lambda m: -m['usd'])
+        # Lo que cobra Cloudflare (el lector de fotos de la tienda, Workers AI) va en su propio renglón: no es deuda con
+        # Meta ni suma «respuestas» (el Worker ya lo deja fuera del gasto del mes, del saldo y de los turnos).
+        aparte = renglones_de_cloudflare(cuerpo)
         mes = ahora_local.strftime('%Y-%m')
         fotos = {f.fecha: f.acumulado_usd for f in self.env['dcasa.juan.costo.dia'].sudo().search(
             [('mes', '=', mes)])}
@@ -466,8 +503,9 @@ class DcasaJuanPanel(models.AbstractModel):
             'proyeccion_usd': proyeccion, 'estado_del_tope': estado,
             'tope_alcanzado': bool(informe.get('tope_alcanzado')) or estado == 'alcanzado',
             'turnos': int(cuerpo.get('turnos') or sum(m['turnos'] for m in por_modelo)),
-            'por_modelo': por_modelo, 'por_dia': por_dia,
-            'hay_detalle_por_modelo': bool(por_modelo),
+            'por_modelo': por_modelo + aparte, 'por_dia': por_dia,
+            'hay_detalle_por_modelo': bool(por_modelo or aparte),
+            'cloudflare_usd': round(sum(r['usd'] for r in aparte), 4),
             'modelos_sin_precio': [str(m)[:80] for m in (ia.get('modelos_sin_precio') or [])],
             'ia': {'proveedor': ia.get('proveedor'), 'respaldo': ia.get('respaldo'),
                    'modelo_rapido': ia.get('modelo_rapido'), 'modelo_inteligente': ia.get('modelo_inteligente'),

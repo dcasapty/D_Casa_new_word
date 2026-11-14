@@ -94,8 +94,9 @@ Meta). El par es único.
    `{"ok":true,"resultado":{...}}`. Se ejecuta como el usuario técnico `juan` (grupo propio, sin
    los grupos internos), registrado en `brian.accion`. Herramientas (todas de **vista pública**):
    - `buscar_productos(consulta, categoria?, limite?)` → nombre, código, precio, `mas_itbms:true`,
-     disponibilidad en etiqueta (`disponible|pocas|agotado`, **nunca** el número), medidas, combo,
-     URL, foto, solo **publicados**.
+     disponibilidad en etiqueta (`disponible|pocas|agotado`, **nunca** el número; la misma regla y el mismo cálculo
+     que la ficha de la tienda: `dcasa_base/disponibilidad.py` y `product.template._dcasa_disponibilidad`), medidas,
+     combo, URL, foto, solo **publicados**.
    - `ver_producto(codigo)` → lo anterior más descripción, variantes, galería.
    - `listar_categorias()`.
    - `reglas_socios()` → cifras de `puntos.json` ya redactadas en lenguaje de cliente.
@@ -151,7 +152,19 @@ Meta). El par es único.
      la conversación se quita. **No envía ni escribe nada.** El gasto cuenta para el tope del mes.
    * `POST /odoo/embeber` — `{textos:[string]}` (1 a 8, ≤ 2000 letras) → `{ok, vectores:[[1024 números a 4 decimales]], dimensiones, modelo}`: la «huella de
      significado» que usa la búsqueda opcional en el conocimiento (`@cf/baai/bge-m3`). Sin binding `AI`: 503 `{ok:false, faltan:["AI"]}`. No envía ni escribe nada.
-   * `GET /odoo/costos` — `{ok, mes, gasto_usd, turnos, tope_usd, por_modelo:[{modelo,usd,turnos,estimado}], modelos_sin_precio}`.
+   * `GET /odoo/costos` — `{ok, mes, gasto_usd, turnos, tope_usd, por_modelo:[{modelo,usd,turnos,estimado}], modelos_sin_precio,
+     cloudflare:[{concepto,usd,lecturas,estimado}]}`. `cloudflare` es lo que cobra Cloudflare (hoy, `cloudflare:lector-de-fotos`
+     de «Busca con una foto»): **no** entra en `gasto_usd`, `turnos` ni `por_modelo` (ni en `gasto_ia_mes_usd` de `/odoo/salud`).
+   * `POST /odoo/buscar-foto` — «Busca con una foto» de la tienda web (`addons/dcasa_buscar_foto`, `juan/src/odoo-panel-buscar-foto.ts`):
+     `{mime: "image/jpeg"|"image/png"|"image/webp", base64, tope_mes_usd?}` (hasta 1,5 MB; los bytes tienen que ser de ese
+     tipo; `tope_mes_usd` de 0 a 1000, 5 si no viene) → `{ok: true, lectura: {tipo, codigos, categoria, medida, parece_pago,
+     parece_identidad} | null}`: **solo** el registro cerrado del lector de imágenes de §12b (el mismo, importado), nunca texto
+     libre. Errores: 400/413 (formato o tamaño), 429 `causa: "tope_foto"` (lo de la foto en el mes llegó a `tope_mes_usd`: ni
+     se lee), 429 `causa: "reserva"` (el gasto de Juan pasó del 80 % de su tope: lo que queda es para las conversaciones),
+     503 `no_disponible` (sin `RECONOCER_IMAGENES=1` o sin el binding `AI`), 502 `no_disponible` (Workers AI falló), 504
+     `tardo` (contesta siempre antes de 12 s; Odoo espera 15). La foto **no se guarda** (ni en un Durable Object, ni en un
+     registro); solo se anota el gasto (tokens y dólares) en `Global` como `cloudflare:lector-de-fotos`, **aparte** del de
+     Juan (ver «Gasto de IA»).
    * `GET /odoo/qr` — `{ok, estado, qr?, edad_s?}`; `qr` es un data URL PNG. Nunca se imprime en logs.
    * `POST /odoo/reiniciar` y `POST /odoo/desvincular` — acciones sobre el puente de WhatsApp (Odoo siempre pide confirmación).
 
@@ -592,7 +605,10 @@ respuesta.**
 ### Gasto de IA
 
 El tope mensual (`presupuesto_ia_mensual_usd`, en Odoo) **no apaga** el bot: al llegar, baja al
-modelo barato y sigue contestando. El gasto se calcula con una tabla de precios (sección 8).
+modelo barato y sigue contestando. El gasto se calcula con una tabla de precios (sección 8). «Busca con una foto» de la
+tienda **no** suma a ese gasto: lo cobra Cloudflare (Workers AI) y se anota aparte (`cloudflare:lector-de-fotos`; `Global`
+deja fuera del gasto, los turnos y el gasto por día todo lo que empieza por `cloudflare:` o `@cf/`). Tiene su propio techo
+del mes (5 USD de fábrica, lo manda Odoo) y no lee fotos con el gasto de Juan por encima del 80 % de su tope (§12b).
 
 ## 3. Cómo agregar un canal nuevo
 
@@ -649,7 +665,7 @@ Un despliegue nuevo **nunca borra** lo que pegaste en el panel (secretos ni vari
 La versión con más detalle (con staging, tope, estado de la IA y avisos) está en
 `GET /odoo/salud`, que pide `Authorization: Bearer <JUAN_WORKER_TOKEN>`.
 
-La pantalla de Odoo usa además `POST /odoo/sugerir`, `POST /odoo/resumir`, `POST /odoo/embeber` (huellas de significado, con Workers AI; sin el binding `AI` contesta 503), `GET /odoo/costos`, `GET /odoo/qr`, `POST /odoo/reiniciar` y
+La pantalla de Odoo usa además `POST /odoo/sugerir`, `POST /odoo/resumir`, `POST /odoo/embeber` (huellas de significado, con Workers AI; sin el binding `AI` contesta 503), `POST /odoo/buscar-foto` («Busca con una foto» de la tienda), `GET /odoo/costos`, `GET /odoo/qr`, `POST /odoo/reiniciar` y
 `POST /odoo/desvincular` (`juan/src/odoo-panel*.ts`), con el mismo token. Ninguna imprime el QR ni una clave en los logs, y los errores
 llegan a Odoo con un texto genérico (sin detalles internos).
 
@@ -756,7 +772,10 @@ lo dice (Ley 81 de 2019). Lo que hay que saber de esa decisión:
   Lo gastado antes con `muse-spark-1.3` queda estimado (no se recalcula). Meta no separa el gasto por clave.
 
 Los precios de Claude (Haiku, Sonnet, Opus) vienen integrados, sacados de la ronda 7. Revísalos
-cuando Anthropic los cambie.
+cuando Anthropic los cambie. También viene integrado el del lector de imágenes de Workers AI
+(`@cf/meta/llama-4-scout-17b-16e-instruct`, US$0,27 / US$0,85 por millón de tokens, de la página de precios de Cloudflare
+leída el 2026-11-13), que usa «Busca con una foto» (§12b) para calcular lo suyo (aparte del gasto de Juan): `precios_ia` de
+Odoo solo trae los dos modelos de la conversación.
 
 ### Lo demás que se edita en Odoo
 
@@ -864,6 +883,15 @@ identidad, otra o ilegible.
 * **Costo y tope:** cada lectura cuesta un poco de IA de Workers AI (a la cuenta de Cloudflare, aparte del tope mensual de
   Juan). Se leen hasta 3 imágenes por mensaje y 10 por persona al día; las demás siguen el camino de siempre. Con la
   conversación en descanso por spam o pasado el tope diario no se lee ninguna (issue #24).
+* **Busca con una foto (tienda web, 2026-11-13):** el mismo lector atiende `POST /odoo/buscar-foto` (Parte 1, «Odoo →
+  Worker»): Odoo le manda la foto que un visitante subió en la tienda y recibe solo el registro cerrado; con eso busca entre
+  lo publicado ([CATALOGO.md › Busca con una foto](CATALOGO.md#busca-con-una-foto)). A diferencia de las imágenes de las
+  conversaciones, **esta lectura se anota** (en `Global`, como `cloudflare:lector-de-fotos`, con el precio de Cloudflare
+  integrado en `motor/precios.ts`: US$0,27 y US$0,85 por millón de tokens, leído el 2026-11-13), pero **aparte** del gasto de
+  Juan: no cuenta para su tope ni para el saldo con Meta, y Costos de IA la muestra en su propio renglón. Tiene su techo del
+  mes (`tope_mes_usd`, 5 USD de fábrica, en *Sitio web › Busca con una foto*) y no se lee con el gasto de Juan por encima
+  del 80 % de su tope; en los dos casos la tienda dice «Ahora no podemos buscar por foto». Hasta 1,5 MB y 12 s.
+  `vision.ts` no cambió: solo se importa.
 * **Lo que falta (Fase 2):** leer el monto, la referencia y la fecha de un comprobante para la vendedora y cruzarlos con el
   movimiento del banco en la conciliación. La verificación contra el banco, no la IA, es lo que protege de un comprobante falso.
 

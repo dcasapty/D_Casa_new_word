@@ -109,9 +109,10 @@
                             <li t-foreach="d.por_modelo" t-as="m" t-key="m.modelo">
                                 <span class="o_dcj_p_modelo_nombre"><t t-out="m.modelo"/><span t-if="m.estimado" class="o_dcj_insignia o_dcj_insignia_alerta" title="Sin precio cargado: es una estimación"> estimado</span></span>
                                 <span class="o_dcj_p_modelo_barra" aria-hidden="true"><span t-att-style="'width:' + anchoDe(m) + '%'"/></span>
-                                <span class="o_dcj_p_modelo_valor"><strong t-out="usdFino(m.usd)"/> <span class="o_dcj_secundario">· <t t-out="numero(m.turnos)"/></span></span>
+                                <span class="o_dcj_p_modelo_valor"><strong t-out="usdFino(m.usd)"/> <span class="o_dcj_secundario">· <t t-if="m.aparte"><t t-out="numero(m.lecturas)"/> fotos</t><t t-else="" t-out="numero(m.turnos)"/></span></span>
                             </li>
                         </ul>
+                        <p t-if="d.cloudflare_usd" class="o_dcj_ayuda">Lo de Cloudflare (el lector de fotos de la tienda) se paga aparte: no suma en «Por pagar a Meta» ni en las respuestas.</p>
                     </section>
 
                     <section class="o_dcj_p_tarjeta">

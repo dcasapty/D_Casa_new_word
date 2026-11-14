@@ -4,6 +4,8 @@ Los avisos de un cliente que espera (traspaso del asistente, lleva rato sin resp
 archivo) llegan por el bot de Brian con dos cosas más:
 
 * El botón **Atender**: la conversación pasa a quien lo pulsa (el asistente calla), igual que el botón de la pantalla.
+  La lista de la mañana (los clientes de la noche, 2026-11-13) trae un «Atender» por cliente: al pulsar uno se quitan
+  solo los botones de ese cliente, y el «Listo» que confirma trae su propio pie, así que se responde a ESE mensaje.
 * Al final, «Conversación n.º N». **Quien responde a ese mensaje** (la función «Responder» de Telegram) escribe el
   texto que quiere mandarle al cliente. El bot NO lo manda: se lo enseña tal cual con los botones **Enviar** y
   **Cancelar**. Solo al pulsar «Enviar» sale por el canal del cliente.
@@ -25,7 +27,7 @@ from datetime import timedelta
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError
 
-from .conversacion import REFERENCIA_DE_AVISO
+from .conversacion import FRASE_DE_LA_LISTA, PIE_DE_AVISO, REFERENCIA_DE_AVISO
 from .conversacion_panel import MAX_RESPUESTA
 
 _logger = logging.getLogger(__name__)
@@ -81,9 +83,21 @@ class BrianTelegramEnlace(models.Model):
         encontrados = re.findall(REFERENCIA_DE_AVISO, previo.get('text') or '')
         return int(encontrados[-1]) if encontrados else False
 
+    @staticmethod
+    def _es_la_lista_de_la_manana(mensaje):
+        """¿Le respondió a la lista de la mañana (varios clientes, sin pie) en vez de al «Listo» de uno?"""
+        previo = mensaje.get('reply_to_message') or {}
+        return bool((previo.get('from') or {}).get('is_bot')) and FRASE_DE_LA_LISTA in (previo.get('text') or '')
+
     def _conversar(self, texto, mensaje):
         """Brian llama aquí con cada mensaje de texto de un chat vinculado (ya filtrado y con límite de velocidad).
         Si es la respuesta a un aviso de Juan, se prepara el borrador; si no, sigue Brian como siempre."""
+        # Primero la lista de la mañana: no lleva pie, y un «Conversación n.º N» en el nombre de un cliente de la lista
+        # no puede desviar la respuesta hacia otra conversación.
+        if self._es_la_lista_de_la_manana(mensaje):
+            return self._enviar(self.chat_id, 'Ese mensaje trae varios clientes. Toca «Atender» en el que quieres '
+                                              'contestar y responde al «Listo» que te llega: así sé a quién '
+                                              'escribirle.')
         conversacion_id = self._conversacion_del_aviso(mensaje)
         if not conversacion_id:
             return super()._conversar(texto, mensaje)
@@ -133,9 +147,15 @@ class BrianTelegramEnlace(models.Model):
         if not enlace or not coincide:
             return False
         if mensaje.get('message_id'):
-            # Los botones se quitan en cuanto se pulsan: un doble toque no repite nada.
+            # Los botones se quitan en cuanto se pulsan: un doble toque no repite nada. En la lista de la mañana (varios
+            # «Atender») se quitan solo los de ese cliente: los demás siguen a mano.
+            quedan = [fila for fila in ((mensaje.get('reply_markup') or {}).get('inline_keyboard') or [])
+                      if isinstance(fila, list) and fila and all(isinstance(b, dict) for b in fila)
+                      and not any(b.get('callback_data') == callback.get('data') for b in fila)]
+            if not str(callback.get('data') or '').startswith('juan:t:'):
+                quedan = []
             self._api('editMessageReplyMarkup', {'chat_id': chat_id, 'message_id': mensaje['message_id'],
-                                                 'reply_markup': {'inline_keyboard': []}})
+                                                 'reply_markup': {'inline_keyboard': quedan}})
         accion, identificador = coincide.group(1), int(coincide.group(2))
         if accion == 't':
             return enlace._atender_desde_telegram(identificador)
@@ -147,12 +167,13 @@ class BrianTelegramEnlace(models.Model):
         try:
             with self.env.cr.savepoint():
                 conv = yo.env['dcasa.conversacion']._para_panel(conversacion_id, escritura=True)
-                nombre = conv.name or conv.display_name
+                nombre = f'{conv._aviso_cliente()} ({conv._aviso_canal()})'
                 yo.env['dcasa.conversacion'].tomar(conversacion_id)
         except (UserError, AccessError) as error:
             return self._enviar(self.chat_id, str(error))
-        return self._enviar(self.chat_id, f'Listo: tomaste la conversación de {nombre}. El asistente calla. '
-                                          'Responde al aviso con tu mensaje para escribirle.')
+        # Con su propio pie: desde la lista de la mañana (varios clientes) se responde a ESTE mensaje.
+        return self._enviar(self.chat_id, f'✅ Listo: tomaste la conversación de {nombre}. Juan calla.\n\n'
+                                          f'{PIE_DE_AVISO % conversacion_id}')
 
     def _resolver_borrador(self, borrador_id, enviar):
         self.ensure_one()

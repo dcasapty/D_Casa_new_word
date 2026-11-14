@@ -262,7 +262,10 @@ class TestAvisosDeComentarios(JuanCase):
                                                     'llegó" · no se respondió. Se avisó a Gerencia.')
         self.assertEqual(len(self.telegram), 1)
         texto, usuarios, acciones = self.telegram[0]
-        self.assertIn('Para Gerencia: queja en un comentario de Facebook de Ana María López', texto)
+        self.assertTrue(texto.startswith('📣 Para Gerencia: una queja en un comentario\n'), texto)
+        self.assertIn('Ana María López se quejó en un comentario de Facebook: "Estafadores, pagué y nunca llegó". '
+                      'Juan no la respondió.', texto)
+        self.assertIn('Contéstale tú o pídeselo a alguien', texto)
         self.assertIn('https://www.facebook.com/dcasapty/posts/pfbid0abc', texto)
         self.assertIn(self.gerente, usuarios, 'a Gerencia')
         self.assertNotIn(self.vendedora, usuarios)

@@ -429,8 +429,10 @@ Si para ver la clave Meta te pide llenar «Business login settings» ⚠: como *
 4. **Verify and save** / «Verificar y guardar» ⚠. Si sale error: revisa que el valor sea idéntico (sin espacios) y que
    `INSTAGRAM_APP_SECRET` ya esté en Cloudflare (paso 5).
 5. En la lista de campos («Webhook fields») ⚠, que estén suscritos **`messages`** y, si aparece aparte,
-   **`message_echoes`** (con este se guarda en Odoo lo que una vendedora conteste desde la app de Instagram). Los demás
-   (`comments`, `messaging_seen`, reacciones…) pueden quedar: Juan los ignora.
+   **`message_echoes`** (con este se guarda en Odoo lo que una vendedora conteste desde la app de Instagram). Marca
+   también **`comments`** si se quiere que Juan conteste comentarios (§3c; desde Juan 24, apagado en Ajustes hasta que
+   la dueña lo encienda; pide además el permiso `instagram_business_manage_comments`, y si la llave se generó antes de
+   agregarlo hay que generar otra). Los demás (`messaging_seen`, reacciones…) pueden quedar: Juan los ignora.
 
 #### Paso 7. Poner la app «En vivo»
 
@@ -492,7 +494,7 @@ Las pruebas del 9 y 10 nov engañaron justamente por usar cuentas con papel.
   como conversación nueva; como a los clientes reales nunca les llegó nada por la página, solo pasaría con las cuentas de
   prueba.
 
-## 3c. Comentarios de Instagram y Facebook (2026-11-13, apagado de fábrica)
+## 3c. Comentarios de Instagram y Facebook (2026-11-13, en producción desde Desplegar 70 y Juan 24, apagado de fábrica)
 
 Pedido de la dueña: «También me interesa el tema de los comentarios por Instagram o Facebook». Decisiones (tal cual):
 «Solo los que preguntan», «Corto y lo demás por privado», «Apagado hasta que lo pruebes».

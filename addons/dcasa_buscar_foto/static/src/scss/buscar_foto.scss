@@ -1,0 +1,283 @@
+// «Busca con una foto» (views/templates.xml). Sistema plano de la marca: azul #1340B1, navy para el texto, el amarillo
+// SOLO sobre azul (la banda de WhatsApp). Botones de 44 px o más (dedo, no cursor); el input de archivo, de 16 px (si no,
+// el iPhone acerca la pantalla al tocarlo).
+
+$dcasa-foto-azul: #1340B1;
+$dcasa-foto-navy: #0E2A6B;
+$dcasa-foto-hueso: #F4F1EA;
+$dcasa-foto-gris: #4A5163;
+
+// ---------------------------------------------------------------------------
+// El botón (una <label> con el input de archivo transparente encima)
+// ---------------------------------------------------------------------------
+
+.o_dcasa_foto_boton {
+    position: relative;   // contiene al input (no ensancha la página)
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .5rem;
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+    margin: 0;
+    padding: .5rem 1rem;
+    border: 2px solid $dcasa-foto-azul;
+    border-radius: .75rem;
+    background: transparent;
+    color: $dcasa-foto-azul;
+    font-family: 'Oswald', sans-serif;
+    font-weight: 500;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    cursor: pointer;
+    overflow: hidden;
+    touch-action: manipulation;
+
+    .fa {
+        font-size: 1.15rem;
+    }
+
+    &:hover {
+        background: $dcasa-foto-azul;
+        color: #FFFFFF;
+    }
+
+    &:focus-within {
+        outline: 3px solid $dcasa-foto-azul;
+        outline-offset: 2px;
+    }
+}
+
+.o_dcasa_foto_archivo {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+// Dentro de la caja de búsqueda (la de la cabecera, la del menú del celular y la de /shop), al lado de la lupa: el sitio
+// de website_dcasa no dibuja caja (display: contents), así que la cámara se acomoda como un elemento más del
+// «input-group» de Odoo, con el fondo de la caja (sus clases: views/templates.xml) y sin borde propio.
+.input-group .o_dcasa_foto_boton.o_dcasa_foto_en_caja {
+    flex: 0 0 auto;
+    width: 2.75rem;
+    min-width: 2.75rem;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    color: $dcasa-foto-azul;
+
+    &:hover {
+        background: inherit;
+        color: $dcasa-foto-navy;
+    }
+
+    &:focus-within {
+        outline-offset: -3px;
+    }
+}
+
+// Grande, en /shop/foto: azul lleno (el CTA de la página).
+.o_dcasa_foto_boton_grande {
+    min-height: 3rem;
+    padding-inline: 1.5rem;
+    background: $dcasa-foto-azul;
+    color: #FFFFFF;
+
+    &:hover {
+        background: $dcasa-foto-navy;
+        border-color: $dcasa-foto-navy;
+    }
+}
+
+.o_dcasa_foto_aviso {
+    flex-basis: 100%;
+    margin: .5rem 0 0;
+    color: $dcasa-foto-navy;
+    font-size: .9375rem;
+}
+
+// ---------------------------------------------------------------------------
+// «Buscando muebles parecidos…»
+// ---------------------------------------------------------------------------
+
+.o_dcasa_foto_cargando {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;   // encima del modal de la búsqueda (1055)
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: rgba($dcasa-foto-navy, .72);
+}
+
+.o_dcasa_foto_cargando_caja {
+    width: 100%;
+    max-width: 22rem;
+    padding: 2rem 1.5rem;
+    border-radius: 1rem;
+    background: #FFFFFF;
+    color: $dcasa-foto-navy;
+    text-align: center;
+}
+
+.o_dcasa_foto_giro {
+    display: inline-block;
+    width: 3rem;
+    height: 3rem;
+    margin-bottom: 1rem;
+    border: 4px solid rgba($dcasa-foto-azul, .18);
+    border-top-color: $dcasa-foto-azul;
+    border-radius: 50%;
+    animation: o_dcasa_foto_giro .9s linear infinite;
+}
+
+@keyframes o_dcasa_foto_giro {
+    to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .o_dcasa_foto_giro {
+        animation-duration: 3s;
+    }
+}
+
+.o_dcasa_foto_cargando_titulo {
+    margin: 0 0 .35rem;
+    font-family: 'Oswald', sans-serif;
+    font-size: 1.35rem;
+    font-weight: 600;
+    color: $dcasa-foto-azul;
+}
+
+.o_dcasa_foto_cargando_sub {
+    margin: 0;
+    color: $dcasa-foto-gris;
+}
+
+// ---------------------------------------------------------------------------
+// /shop/foto
+// ---------------------------------------------------------------------------
+
+.o_dcasa_foto_cabeza {
+    padding-block: clamp(2rem, 5vw, 3.5rem) 1.5rem;
+
+    .o_dcasa_h2 {
+        margin-bottom: .75rem;
+    }
+}
+
+.o_dcasa_foto_mensaje {
+    display: flex;
+    align-items: flex-start;
+    gap: .85rem;
+    max-width: 44rem;
+    margin: 1rem 0 0;
+    padding: 1rem 1.25rem;
+    border-left: 4px solid $dcasa-foto-azul;
+    border-radius: .5rem;
+    background: $dcasa-foto-hueso;
+    color: $dcasa-foto-navy;
+    font-size: 1.0625rem;
+
+    .fa {
+        margin-top: .2rem;
+        font-size: 1.35rem;
+        color: $dcasa-foto-azul;
+    }
+
+    p {
+        margin: 0;
+    }
+}
+
+.o_dcasa_foto_vimos {
+    display: block;
+    margin-top: .35rem;
+    color: $dcasa-foto-gris;
+    font-size: .9375rem;
+}
+
+.o_dcasa_foto_acciones {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .75rem 1rem;
+    margin-top: 1.5rem;
+}
+
+.o_dcasa_foto_por_nombre {
+    flex: 1 1 18rem;
+    max-width: 30rem;
+
+    .oe_search_box {
+        font-size: 16px;
+    }
+}
+
+.o_dcasa_foto_privacidad {
+    margin: 1rem 0 0;
+    color: $dcasa-foto-gris;
+    font-size: .875rem;
+
+    a {
+        color: $dcasa-foto-azul;
+    }
+}
+
+.o_dcasa_foto_resultados {
+    padding-bottom: clamp(2rem, 5vw, 3.5rem);
+}
+
+.o_dcasa_foto_grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.75rem 1rem;
+
+    @media (min-width: 768px) {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    @media (min-width: 1200px) {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 2.5rem 1.5rem;
+    }
+
+    > li {
+        min-width: 0;
+    }
+}
+
+// La franja del final, en hueso (el pie del sitio ya es azul): texto navy y el botón azul (el amarillo solo va sobre azul).
+.o_dcasa_foto_whatsapp {
+    padding-block: clamp(2.5rem, 6vw, 4rem);
+    background: $dcasa-foto-hueso;
+    color: $dcasa-foto-navy;
+
+    p {
+        max-width: 36rem;
+        font-size: 1.0625rem;
+    }
+}
+
+.o_dcasa_foto_whatsapp_titulo {
+    font-family: 'Anton', 'Oswald', sans-serif;
+    font-weight: 400;
+    font-size: clamp(1.75rem, 4vw, 2.75rem);
+    text-transform: uppercase;
+    color: $dcasa-foto-azul;
+}
+
+.o_dcasa_foto_whatsapp_cta {
+    min-height: 3rem;
+    font-family: 'Oswald', sans-serif;
+    font-weight: 500;
+    letter-spacing: .04em;
+}

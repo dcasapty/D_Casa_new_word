@@ -22,7 +22,7 @@ from odoo.exceptions import AccessError, UserError
 from . import adjuntos as A
 from . import horario as H
 from .ajustes import CANALES
-from .conversacion import ESTADOS, GRUPO_VENDEDORA, MAX_NOTA
+from .conversacion import ESTADOS, GRUPO_VENDEDORA, MAX_NOTA, SIN_PEDIDO_DE_NOCHE
 from .mensaje import CLAVE_SISTEMA
 
 _logger = logging.getLogger(__name__)
@@ -481,7 +481,8 @@ class DcasaConversacionPanel(models.Model):
             else:
                 conv._exigir_que_no_se_lo_quite(self.env.user, self.env._('pasárselo a otra persona'))
             anterior = conv.sudo().asignada_a
-            conv.sudo().write({'asignada_a': usuario.id, 'reparto_desde': False})
+            # A mano: el reparto (también el de la mañana, con el cliente de la noche) ya no lo mueve.
+            conv.sudo().write({'asignada_a': usuario.id, 'reparto_desde': False, **SIN_PEDIDO_DE_NOCHE})
             if tomada_de:
                 # Se lo asignó a sí misma: es tomar el cliente de otra (aviso, línea «tomada» y Telegram si estaba).
                 conv._aviso(conv._cambio_de_mano(tomada_de, usuario, 'asignar'))
@@ -493,7 +494,7 @@ class DcasaConversacionPanel(models.Model):
                                        a=usuario.name))
         else:
             conv._exigir_que_no_se_lo_quite(self.env.user, self.env._('dejarlo sin asignar'))
-            conv.sudo().write({'asignada_a': False, 'reparto_desde': False})
+            conv.sudo().write({'asignada_a': False, 'reparto_desde': False, **SIN_PEDIDO_DE_NOCHE})
             conv._aviso(self.env._('%s dejó la conversación sin asignar.', self.env.user.name))
         conv._notificar_panel('asignacion')
         return conv._resumen_panel()

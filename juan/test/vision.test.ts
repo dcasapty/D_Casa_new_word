@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Env } from "../src/env";
-import { esProductoSeguro, lectorDeImagenes, normalizarLectura, type LecturaImagen } from "../src/motor/vision";
+import { esComprobante, esProductoSeguro, lectorDeImagenes, normalizarLectura, type LecturaImagen } from "../src/motor/vision";
 
 const FOTO = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]);
 const envCon = (p: Partial<Env>) => p as Env;
@@ -58,6 +58,41 @@ describe("esProductoSeguro: solo lo claro y sin señal de pago ni identidad", ()
     for (const tipo of ["comprobante", "identidad", "otra", "ilegible"] as const) expect(esProductoSeguro({ ...base, tipo })).toBe(false);
     expect(esProductoSeguro(null)).toBe(false);
     expect(esProductoSeguro(undefined)).toBe(false);
+  });
+});
+
+describe("esComprobante: solo la prueba de un pago hecho (la dueña, 2026-11-13)", () => {
+  const base: LecturaImagen = { tipo: "publicacion", codigos: [], categoria: "cama", medida: "queen", parece_pago: true, parece_identidad: false };
+  it("una publicación o un producto con su precio no es un comprobante, aunque el lector marque parece_pago", () => {
+    expect(esComprobante(base)).toBe(false);
+    expect(esComprobante({ ...base, tipo: "producto" })).toBe(false);
+    // …y tampoco se vuelve un producto seguro: el bot no pierde la prudencia.
+    expect(esProductoSeguro(base)).toBe(false);
+  });
+  it("un recibo sí, con o sin la señal", () => {
+    expect(esComprobante({ ...base, tipo: "comprobante" })).toBe(true);
+    expect(esComprobante({ ...base, tipo: "comprobante", parece_pago: false })).toBe(true);
+  });
+  it("«otra», «ilegible» o «identidad» con parece_pago sí cuentan como comprobante", () => {
+    for (const tipo of ["otra", "ilegible", "identidad"] as const) expect(esComprobante({ ...base, tipo }), tipo).toBe(true);
+    expect(esComprobante({ ...base, tipo: "otra", parece_pago: false })).toBe(false);
+  });
+  it("sin lectura no hay comprobante", () => {
+    expect(esComprobante(null)).toBe(false);
+    expect(esComprobante(undefined)).toBe(false);
+  });
+});
+
+describe("el prompt del lector distingue un pago hecho de un precio", () => {
+  it("le dice al modelo que el precio de una publicación no es un pago y deja el «ante la duda» para la cédula", async () => {
+    const ai = { run: vi.fn(async () => ({ response: { ...buena } })) };
+    const leer = lectorDeImagenes(envCon({ AI: ai, RECONOCER_IMAGENES: "1" }))!;
+    await leer(FOTO, "image/jpeg");
+    const sistema = (ai.run.mock.calls[0] as unknown as [string, { messages: { role: string; content: string }[] }])[1].messages[0].content;
+    expect(sistema).toContain("YA HECHO");
+    expect(sistema).toContain("NO es un pago");
+    expect(sistema).toContain("Ante la duda de si hay un documento de identidad");
+    expect(sistema).not.toContain("Ante la duda entre un producto y un comprobante");
   });
 });
 

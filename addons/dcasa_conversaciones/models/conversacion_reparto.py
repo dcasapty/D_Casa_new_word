@@ -27,7 +27,7 @@ from markupsafe import Markup, escape
 from odoo import fields, models
 from odoo.exceptions import UserError
 
-from .ajustes import CANALES
+from .avisos_texto import armar
 from .mensaje import CLAVE_SISTEMA
 from .reparto import ClienteDeOtraVendedora, Decision
 
@@ -272,7 +272,14 @@ class DcasaConversacionReparto(models.Model):
         except Exception:   # noqa: BLE001 — el aviso en Odoo es un extra
             _logger.exception('Juan: no se pudo avisar en Odoo del programado que no salió (%s)', self.id)
         recorte = texto if len(texto) <= MAX_TEXTO_EN_TELEGRAM else f'{texto[:MAX_TEXTO_EN_TELEGRAM]}…'
-        self._avisar_por_telegram(f'{para}\n\n{recorte}' if recorte else para, usuarios=avisar_a)
+        aviso = armar(
+            self.env._('⏸️ Un mensaje programado no salió'),
+            self.env._('El mensaje que %(quien)s dejó programado para %(cliente)s (%(canal)s) no salió: %(motivo)s.',
+                       quien=quien.name, cliente=cliente, canal=self._aviso_canal(), motivo=motivo),
+            self.env._('Quedó en el chat como nota interna (el cliente no la ve). Si hace falta, cópialo y envíalo.'))
+        if recorte:
+            aviso = f"{aviso}\n\n{self.env._('Decía:')}\n{recorte}"
+        self._avisar_por_telegram(aviso, usuarios=avisar_a)
 
     def _cambio_de_mano(self, anterior, usuario, forma):
         """``usuario`` (vendedora) se quedó con el cliente que atendía ``anterior`` (otra vendedora): la línea
@@ -284,11 +291,12 @@ class DcasaConversacionReparto(models.Model):
         como = dict(self.env['dcasa.reparto']._fields['forma'].selection).get(forma, '')
         self.env['dcasa.reparto']._anotar(self, usuario, 'tomada', f'{frase} {como}.', anterior=anterior, forma=forma)
         if self.env['dcasa.reparto']._esta_activa(anterior):
-            cliente = self.sudo().partner_id.display_name or self.id_externo
-            canal = dict(CANALES).get(self.canal, self.canal)
-            self._avisar_por_telegram(
+            self._avisar_por_telegram(armar(
+                self.env._('👋 Tomaron a tu cliente'),
                 self.env._('%(quien)s tomó a tu cliente %(cliente)s (%(canal)s).', quien=usuario.name,
-                           cliente=cliente, canal=canal), usuarios=anterior)
+                           cliente=self._aviso_cliente(), canal=self._aviso_canal()),
+                self.env._('Ya no tienes que contestarle. Si no estaban de acuerdo, háblalo con %s o con Gerencia.',
+                           usuario.name)), usuarios=anterior)
         return frase
 
     def _dejar_dicho_el_cambio(self, tomas):

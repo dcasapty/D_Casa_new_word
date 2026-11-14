@@ -291,22 +291,24 @@ class TestAvisoDeArchivosEnParalelo(JuanCase):
     def test_un_comprobante_avisa_sin_pausar_al_asistente(self):
         conv = self.archivo('comprobante')
         (texto,) = self.textos()
-        self.assertIn('Posible comprobante de pago de Karen', texto)
-        self.assertIn('sigue atendiendo', texto)
-        self.assertIn('Verifica el pago en el banco', texto)
+        self.assertTrue(texto.startswith('💵 Posible comprobante de pago\n'), texto)
+        self.assertIn('Karen mandó por WhatsApp algo que parece un comprobante de pago. Juan sigue atendiendo.',
+                      texto)
+        self.assertIn('Verifica el pago en el banco antes de entregar nada.', texto)
         self.assertEqual(conv.estado, 'bot', 'El asistente sigue atendiendo')
         self.assertTrue(conv._controla_bot())
 
     def test_un_documento_de_identidad_avisa_y_dice_que_el_asistente_no_lo_ve(self):
         self.archivo('identidad')
         (texto,) = self.textos()
-        self.assertIn('documento de identidad', texto)
-        self.assertIn('no lo ve', texto)
+        self.assertTrue(texto.startswith('🪪 Mandó su cédula\n'), texto)
+        self.assertIn('Karen mandó por WhatsApp un documento de identidad. Juan sigue atendiendo y no lo ve.', texto)
 
-    def test_una_foto_cualquiera_avisa_aparte_y_a_lo_mas_cada_10_minutos(self):
+    def test_con_avisar_fotos_encendido_una_foto_avisa_aparte_y_a_lo_mas_cada_10_minutos(self):
+        self.ajustes.avisar_archivos = True
         conv = self.archivo('producto')
         self.assertEqual(len(self.textos()), 1)
-        self.assertIn('imagen o un archivo', self.textos()[0])
+        self.assertTrue(self.textos()[0].startswith('🖼️ Mandó una foto\n'), self.textos()[0])
         self.registrar('otra', adjuntos=[{'tipo': 'imagen', 'nombre': 'b.jpg', 'mime': 'image/jpeg', 'url': None,
                                           'base64': None, 'sensible': False, 'clase': 'producto'}])
         self.assertEqual(len(self.textos()), 1, 'Otra foto enseguida no avisa otra vez')
@@ -316,6 +318,7 @@ class TestAvisoDeArchivosEnParalelo(JuanCase):
         self.assertEqual(len(self.textos()), 2)
 
     def test_un_comprobante_siempre_avisa_aunque_se_acabe_de_avisar_de_una_foto(self):
+        self.ajustes.avisar_archivos = True
         self.archivo('producto')
         self.registrar('el pago', adjuntos=[{'tipo': 'imagen', 'nombre': 'p.jpg', 'mime': 'image/jpeg', 'url': None,
                                              'base64': None, 'sensible': True, 'clase': 'comprobante'}])
@@ -323,8 +326,12 @@ class TestAvisoDeArchivosEnParalelo(JuanCase):
         self.assertIn('comprobante', self.textos()[1])
 
     def test_se_puede_apagar_cada_tipo_de_aviso(self):
-        self.ajustes.avisar_archivos = False
+        self.ajustes.avisar_archivos = True
         self.archivo('producto')
+        self.assertEqual(len(self.textos()), 1)
+        self.enviar.reset_mock()
+        self.ajustes.avisar_archivos = False
+        self.archivo('producto', id_externo='50769999998')
         self.assertFalse(self.textos())
         self.ajustes.avisar_comprobantes = False
         self.archivo('comprobante', id_externo='50769999999')

@@ -225,7 +225,9 @@ class TestRepartoParejo(RepartoCase):
         primera._pasar_a_vendedora('Volvió')
         (destino, texto), = [c.args for c in self.enviar.call_args_list]
         self.assertEqual(destino, '5550009')
-        self.assertIn('Es un cliente tuyo', texto)
+        self.assertTrue(texto.startswith('🟢 Volvió un cliente tuyo\n'), texto)
+        self.assertIn('Ya lo atendiste antes.', texto)
+        self.assertIn('Juan anotó: Volvió.', texto)
 
     def test_pasados_los_dias_el_cliente_se_reparte_de_nuevo(self):
         primera = self.pasar()
@@ -311,7 +313,8 @@ class TestRepartoParejo(RepartoCase):
         self.assertEqual(conv.estado, 'humano')
         self.assertEqual(conv.activity_ids.user_id, self.ajustes.responsable_id)
         self.assertEqual(sorted(c.args[0] for c in self.enviar.call_args_list), ['5550001', '5550003'])
-        self.assertIn('Nadie estaba disponible', self.enviar.call_args_list[0].args[1])
+        self.assertIn('No había ninguna vendedora disponible para dárselo.', self.enviar.call_args_list[0].args[1])
+        self.assertTrue(self.enviar.call_args_list[0].args[1].startswith('🙋 Un cliente pide una persona\n'))
         self.assertIn('Nadie estaba disponible para recibirla', self.avisos(conv))
         self.assertIn(self.ajustes.responsable_id.name, self.avisos(conv))
         self.assertFalse(self.Reparto.search([('conversacion_id', '=', conv.id)]))

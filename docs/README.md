@@ -27,6 +27,7 @@
 | Anunciar los productos en Facebook e Instagram: el catálogo que lee Meta y las campañas | [META_CATALOGO.md](META_CATALOGO.md) |
 | Medir los anuncios de Meta: el píxel, las ventas que se le reportan y el consentimiento del cliente | [META_EVENTOS.md](META_EVENTOS.md) |
 | Las fotos de los productos en grande y la app Marketing | [MARKETING.md](MARKETING.md) |
+| «Busca con una foto» en la tienda: cómo funciona, sus topes, privacidad y dónde se apaga | [CATALOGO.md › Busca con una foto](CATALOGO.md#busca-con-una-foto) |
 | Camila, la asistente del mail marketing: el permiso del cliente, la campaña de cada 15 días (Marketing › Camila) y cómo crear la clave de campañas de Resend | [CAMILA.md](CAMILA.md) |
 | Saber cuánto cuesta un envío (la calculadora), cargar los lugares y la tarifa, aprobarla, y cómo se encendería en la página web | [ENVIOS.md](ENVIOS.md) |
 | Saber qué ve un cliente en «Mi cuenta» (sus compras, cuánto le falta de un abono, sus puntos) | [SOCIOS.md › Mi cuenta](SOCIOS.md#mi-cuenta) |
@@ -61,6 +62,7 @@
 | `dcasa_brian` | [BRIAN.md](BRIAN.md) |
 | `dcasa_correo` (correo a clientes por Resend; encendido en producción desde el 2026-10-27) | [CORREO.md](CORREO.md) |
 | `dcasa_meta_catalogo` (catálogo para Meta por URL, apagado de fábrica) | [META_CATALOGO.md](META_CATALOGO.md) |
+| `dcasa_buscar_foto` («Busca con una foto» en la tienda, encendido de fábrica) | [CATALOGO.md › Busca con una foto](CATALOGO.md#busca-con-una-foto) |
 | `dcasa_meta_eventos` (píxel y Conversions API de Meta, apagados de fábrica) | [META_EVENTOS.md](META_EVENTOS.md) |
 | `dcasa_conversaciones` y el Worker `juan/` | [JUAN.md](JUAN.md) (contrato y el Worker por dentro) · [JUAN_ODOO.md](JUAN_ODOO.md) (bandeja, reparto, CRM) · [JUAN_CANALES.md](JUAN_CANALES.md) (canales) |
 | `dcasa_sofia` (Sofía, la asistente del CRM) | [SOFIA.md](SOFIA.md) |

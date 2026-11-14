@@ -303,6 +303,45 @@ class TestConsolaDeTelegram(JuanCase):
         (texto,) = self.textos()
         self.assertIn('tomaste la conversación de Karen', texto)
 
+    def test_atender_trae_su_pie_y_respondiendole_se_le_escribe_a_ese_cliente(self):
+        """La lista de la mañana (varios clientes) no lleva pie: se responde al «Listo» de cada uno."""
+        self.Enlace._procesar_update(self.pulsar(f'juan:t:{self.conv.id}'))
+        (listo,) = self.textos()
+        self.assertTrue(listo.endswith(PIE_DE_AVISO % self.conv.id), listo)
+        aviso = {'message_id': 91, 'from': {'is_bot': True, 'id': 999}, 'chat': {'id': 5550001, 'type': 'private'},
+                 'text': listo}
+        self.enviar.reset_mock()
+        self.Enlace._procesar_update(self.respuesta('Hola Karen, ya te atiendo', aviso=aviso))
+        borrador = self.Borrador.search([], order='id desc', limit=1)
+        self.assertEqual((borrador.conversacion_id, borrador.texto), (self.conv, 'Hola Karen, ya te atiendo'))
+
+    def test_en_la_lista_de_la_manana_atender_quita_solo_el_boton_de_ese_cliente(self):
+        otra = self.conversacion('hola', nombre='Lía', id_externo='50761230005')
+        filas = [[{'text': 'Atender 1 · Karen', 'callback_data': f'juan:t:{self.conv.id}'}],
+                 [{'text': 'Atender 2 · Lía', 'callback_data': f'juan:t:{otra.id}'}]]
+        update = self.pulsar(f'juan:t:{self.conv.id}')
+        update['callback_query']['message']['reply_markup'] = {'inline_keyboard': filas}
+        self.Enlace._procesar_update(update)
+        (quitar,) = [c for c in self.api.call_args_list if c.args[0] == 'editMessageReplyMarkup']
+        self.assertEqual(quitar.args[1]['reply_markup'], {'inline_keyboard': [filas[1]]})
+        self.assertEqual(self.conv.asignada_a, self.vendedora)
+        # Un botón de Enviar o Cancelar sí se lleva todos (el doble toque no repite nada).
+        borrador = self.preparar_borrador()
+        update = self.pulsar(f'juan:x:{borrador.id}')
+        update['callback_query']['message']['reply_markup'] = {'inline_keyboard': filas}
+        self.Enlace._procesar_update(update)
+        quitar = [c for c in self.api.call_args_list if c.args[0] == 'editMessageReplyMarkup'][-1]
+        self.assertEqual(quitar.args[1]['reply_markup'], {'inline_keyboard': []})
+
+    def test_responderle_a_la_lista_de_la_manana_explica_como_hacerlo(self):
+        lista = {'message_id': 92, 'from': {'is_bot': True, 'id': 999}, 'chat': {'id': 5550001, 'type': 'private'},
+                 'text': '☀️ Buenos días, Ana\nTe tocan 2 clientes que escribieron de noche:\n1. Karen (WhatsApp): x.\n'
+                         '2. Lía (WhatsApp): y.\nToca «Atender» en el que vas a contestar. Te llega un mensaje.'}
+        self.Enlace._procesar_update(self.respuesta('Hola Karen', aviso=lista))
+        self.assertFalse(self.Borrador.search_count([]))
+        (texto,) = self.textos()
+        self.assertIn('Ese mensaje trae varios clientes', texto)
+
     def test_quien_no_es_de_ventas_no_puede_atender(self):
         otra = self.conversacion('hola', nombre='Lía', id_externo='50761230009')
         self.Enlace._procesar_update(self.pulsar(f'juan:t:{otra.id}', chat_id='5550003'))

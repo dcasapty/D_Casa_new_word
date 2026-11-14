@@ -261,12 +261,16 @@ class JuanAjustes(models.Model):
              'y nadie la tiene asignada.')
     avisar_comprobantes = fields.Boolean(
         'Avisar de comprobantes y documentos', default=True, tracking=True,
-        help='Cuando un cliente manda lo que parece un comprobante de pago o un documento de identidad, se avisa '
-             'por Telegram a esas personas EN PARALELO: el asistente sigue atendiendo y ellas deciden si intervienen.')
+        help='Cuando un cliente manda un comprobante de pago (la prueba de un pago hecho: el precio de una publicación '
+             'no cuenta) o su cédula, se avisa por Telegram a esas personas EN PARALELO: el asistente sigue atendiendo '
+             'y ellas deciden si intervienen. También cuando manda algo que Juan no pudo leer (un PDF, o una foto que '
+             'no alcanzó a leer o salió borrosa): puede ser un comprobante. De esos, a lo más un aviso cada 10 minutos '
+             'por conversación.')
     avisar_archivos = fields.Boolean(
-        'Avisar de fotos y archivos', default=True, tracking=True,
-        help='Cuando un cliente manda cualquier otra foto o archivo (por ejemplo la captura de un producto), '
-             'también se avisa por Telegram, a lo más una vez cada 10 minutos por conversación. Apágalo si son muchos.')
+        'Avisar de fotos y archivos', default=False, tracking=True,
+        help='Cuando un cliente manda cualquier otra foto o video (por ejemplo la captura de un producto o una '
+             'publicación de Instagram), también se avisa por Telegram, a lo más una vez cada 10 minutos por '
+             'conversación. Viene apagado: esas fotos se ven en el chat, sin aviso (pedido de la dueña, 2026-11-13).')
     cotizacion_automatica = fields.Boolean(
         'Juan envía las cotizaciones solo', default=True, tracking=True,
         help='Cuando el cliente pide una cotización o el total de varios productos, Juan la arma con productos de la '
@@ -326,6 +330,12 @@ class JuanAjustes(models.Model):
              'En los dos últimos se le avisa a ella y solo reciben las vendedoras: Gerencia y los administradores '
              'pueden intervenir en cualquier conversación, pero no reciben. Si nadie está disponible, la tarea va al '
              'responsable por defecto y se avisa a todo el equipo, como siempre.')
+    reparto_nadie_de_noche = fields.Boolean(
+        'De noche nadie recibe clientes', default=True, tracking=True,
+        help='Fuera del horario de la tienda Juan atiende y anota; nadie recibe clientes ni avisos. Al abrir, los que '
+             'esperan se reparten parejo entre las que van llegando, y a cada una le llega un solo aviso con su lista. '
+             'El cliente que ya era de una vendedora sigue siendo suyo. Las menciones en una nota y los avisos a '
+             'Gerencia llegan a cualquier hora. Apagado, de noche todo es como de día.')
     reparto_dias_misma_vendedora = fields.Integer(
         'Días que un cliente sigue con su vendedora', default=14, tracking=True,
         help='Con el reparto «parejo»: si el cliente habló con una vendedora (o se la asignaron) en los últimos días '
@@ -361,7 +371,8 @@ class JuanAjustes(models.Model):
              '0 = no avisar.')
     aviso_espera_solo_horario = fields.Boolean(
         'Avisar solo en horario laboral', default=True, tracking=True,
-        help='Fuera del horario laboral nadie está para contestar: el aviso espera a que abran.')
+        help='Fuera del horario laboral nadie está para contestar: el aviso espera a que abran. Con «De noche nadie '
+             'recibe clientes» encendido, de noche no se avisa aunque esto esté apagado.')
     guardar_foto_perfil = fields.Boolean(
         'Guardar la foto de perfil del cliente', default=True, tracking=True,
         help='El asistente trae la foto de perfil de quien escribe (Telegram, WhatsApp, Messenger, Instagram) y la '

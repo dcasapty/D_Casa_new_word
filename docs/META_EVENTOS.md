@@ -88,7 +88,9 @@ pueden guardar los Ajustes de Meta ni usar el botón «Enviar evento de prueba»
   `AddToCart` (el carrito de Odoo por `add_to_cart_event` + `dcasa_meta_id` en `tracking_info`, y el «Agregar» de un
   clic de la portada y Black Weekend por `data-dcasa-meta-id`), `InitiateCheckout` (checkout) y `AddPaymentInfo`
   (confirmación) desde `<script type="application/json" id="dcasa-meta-datos">`, `Search` (`/shop?search=`, hasta 100
-  caracteres) y `Contact` (clic en `wa.me/` o `/whatsapp`). **Nunca `Purchase`.**
+  caracteres) y `Contact` (clic en `wa.me/` o `/whatsapp`). **Nunca `Purchase`.** «Busca con una foto»
+  (`/shop/foto`, `dcasa_buscar_foto`) **no** manda `Search`: no hay texto que buscar (solo una etiqueta de la foto) y
+  hacerlo obligaría a tocar `meta_pixel.js`; se cuenta en *Sitio web › Busca con una foto*.
 - Aviso de cookies: el de Odoo, en español y tuteo, azul sobre blanco (`static/src/scss/meta.scss`), con «Política de
   privacidad» y «Preferencias de cookies» en el pie (borra la elección y las cookies `_fbp`/`_fbc` y recarga).
 

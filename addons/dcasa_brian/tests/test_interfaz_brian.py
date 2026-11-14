@@ -46,19 +46,19 @@ class TestInterfazBrian(HttpCase):
         for archivo in ARCHIVOS:
             self.assertTrue(any(r.endswith(archivo) for r in rutas), f'{archivo} no está en web.assets_backend')
 
-    def test_icono_del_menu_es_el_dibujo_de_ia_sin_letras(self):
-        """El menú de Brian y el botón usan el mismo dibujo de IA de la marca; sin la «B» (pedido de la dueña)."""
+    def test_icono_del_menu_es_el_robot_de_brian(self):
+        """El menú de Brian y el botón usan el robot con audífonos que eligió la dueña (2026-11-13), sin letras."""
         menu = self.env.ref('dcasa_brian.menu_brian_raiz')
-        self.assertEqual(menu.web_icon, 'dcasa_brian,static/src/img/brian_ia.svg')
+        self.assertEqual(menu.web_icon, 'dcasa_brian,static/src/img/brian_robot_menu.png')
         self.assertTrue(menu.web_icon_data)
-        raiz = os.path.join(os.path.dirname(__file__), '..', 'static')
-        for ruta in ('src/img/brian_ia.svg', 'description/icon.svg'):
-            with open(os.path.join(raiz, ruta), encoding='utf-8') as f:
-                svg = f.read()
-            self.assertNotIn('<text', svg, ruta + ': el ícono no lleva letras')
-            self.assertIn('#1340B1', svg)
-            self.assertIn('#FED00F', svg)
-            self.assertNotIn('gradient', svg.lower())
+        raiz = os.path.join(os.path.dirname(__file__), '..', 'static', 'src', 'img')
+        with open(os.path.join(raiz, 'brian_robot_menu.png'), 'rb') as f:
+            self.assertEqual(f.read(8), b'\x89PNG\r\n\x1a\n', 'el ícono del menú es un PNG')
+        with open(os.path.join(raiz, 'brian_robot.webp'), 'rb') as f:
+            cabecera = f.read(12)
+        self.assertEqual((cabecera[:4], cabecera[8:12]), (b'RIFF', b'WEBP'), 'el robot del botón es un WebP')
+        for nombre in ('brian_robot_menu.png', 'brian_robot.webp'):
+            self.assertLess(os.path.getsize(os.path.join(raiz, nombre)), 60_000, nombre + ': liviano para el panel')
 
     def test_el_boton_flotante_es_un_icono_sin_la_b_ni_el_nombre(self):
         """Redondo y sin texto: «B» + «Brian» repetían el nombre. El nombre sigue en el aria-label y el tooltip."""
@@ -68,7 +68,10 @@ class TestInterfazBrian(HttpCase):
     if (boton.textContent.trim() !== "") {
         throw new Error("Brian: el botón no debe llevar texto: " + boton.textContent);
     }
-    if (!boton.querySelector("svg.o_brian_icono_ia")) { throw new Error("Brian: falta el dibujo de IA en el botón"); }
+    const robot = boton.querySelector("img.o_brian_icono_ia");
+    if (!robot) { throw new Error("Brian: falta el robot en el botón"); }
+    await esperar(() => robot.complete && robot.naturalWidth > 0, "que cargue la imagen del robot");
+    if (robot.getAttribute("alt") !== "") { throw new Error("Brian: la imagen es decorativa (alt vacío)"); }
     if (!/Brian/.test(boton.getAttribute("aria-label") || "") || !/Ctrl/.test(boton.title)) {
         throw new Error("Brian: el botón debe llevar su nombre accesible y el atajo");
     }
@@ -76,19 +79,18 @@ class TestInterfazBrian(HttpCase):
     if (Math.abs(caja.width - caja.height) > 1 || getComputedStyle(boton).borderRadius.indexOf("50%") < 0) {
         throw new Error("Brian: el botón debe ser redondo");
     }
-    const blanca = getComputedStyle(boton.querySelector(".o_brian_chispa")).fill;
-    const amarilla = getComputedStyle(boton.querySelector(".o_brian_chispa_chica")).fill;
-    if (blanca !== "rgb(255, 255, 255)" || amarilla !== "rgb(254, 208, 15)") {
-        throw new Error("Brian: chispa grande blanca y chica amarilla, no " + blanca + " / " + amarilla);
+    const marco = robot.getBoundingClientRect();
+    if (marco.width < 40 || marco.width > caja.width) {
+        throw new Error("Brian: el robot se ve completo dentro del botón (" + marco.width + " de " + caja.width + ")");
     }
-    // En el encabezado del panel tampoco hay letras dentro de la ficha azul.
+    // En el encabezado del panel tampoco hay letras: la ficha lleva el robot.
     boton.click();
     const panel = await esperar(() => document.querySelector(".o_brian_panel.o_brian_visible"), "el panel");
     const fichas = panel.querySelectorAll(".o_brian_monograma");
-    if (!fichas.length) { throw new Error("Brian: falta la ficha azul del encabezado"); }
+    if (!fichas.length) { throw new Error("Brian: falta la ficha del encabezado"); }
     for (const ficha of fichas) {
-        if (ficha.textContent.trim() !== "" || !ficha.querySelector("svg.o_brian_icono_ia")) {
-            throw new Error("Brian: la ficha del encabezado debe llevar el dibujo, no letras");
+        if (ficha.textContent.trim() !== "" || !ficha.querySelector("img.o_brian_icono_ia")) {
+            throw new Error("Brian: la ficha del encabezado debe llevar el robot, no letras");
         }
     }
     console.log("test successful");

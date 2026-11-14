@@ -22,6 +22,11 @@ Sitio web de D'CASA sobre el constructor de sitios y el eCommerce de Odoo:
 * Fotos de producto en WebP (y JPEG de respaldo) al ancho justo: ``/dcasa/img/...``,
   generadas una vez y cacheadas un año en el borde (models/imagen.py).
 * Enlaces al programa Socios D'CASA (/socios): puntos, referidos y premios.
+* Búsqueda (lote 1 de la web, 2026-11-13): la lupa también a la vista en el celular; la caja de la cabecera
+  busca en el catálogo (/shop?search=…, con fotos grandes, «+ ITBMS» y el botón de agregar) y una tilde ya no
+  da «no coincidió…»; sin resultados ofrece las categorías y WhatsApp. /catalogo y /tienda llevan al catálogo
+  (301). Las páginas para entrar y los resultados de búsqueda no salen en Google (noindex). Carrito vacío en
+  tuteo y la foto de la ficha en grande con el dedo (models/buscador.py, views/buscador_templates.xml).
 * Black Weekend: banda en la portada, página /black-weekend y etiqueta en las tarjetas de los
   productos marcados, solo dentro de la ventana de la campaña (models/black_weekend.py).
 
@@ -50,6 +55,7 @@ Todo el contenido de las páginas es editable con el constructor de Odoo
         'data/website_menu_data.xml',
         'data/tienda_data.xml',
         'views/tienda_templates.xml',
+        'views/buscador_templates.xml',
         'views/nombres_cliente_templates.xml',
         'data/seo_data.xml',
         'data/black_weekend_data.xml',
@@ -64,6 +70,7 @@ Todo el contenido de las páginas es editable con el constructor de Odoo
             'website_dcasa/static/src/scss/dcasa.scss',
             'website_dcasa/static/src/js/animaciones.js',
             'website_dcasa/static/src/js/carrito.js',
+            'website_dcasa/static/src/js/foto_grande.js',
         ],
     },
     'installable': True,

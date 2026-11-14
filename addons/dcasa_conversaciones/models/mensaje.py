@@ -28,6 +28,7 @@ from . import firma as F
 from . import horario as H
 from . import transaccion
 from .ajustes import CANALES
+from .avisos_texto import armar
 
 _logger = logging.getLogger(__name__)
 
@@ -133,6 +134,13 @@ class DcasaMensaje(models.Model):
         help='Compañeras mencionadas con @ en esta nota interna.')
     tiene_sensible = fields.Boolean('Adjunto sensible', readonly=True,
                                     help='Comprobante de pago o documento de identidad: no se le muestra a la IA.')
+    imagen_sin_leer = fields.Selection(
+        [('apagado', 'El lector de imágenes está apagado'), ('tope', 'Ya iban muchas (o el cupo de IA)'),
+         ('sin_bajar', 'Llegó solo su dirección (Messenger, Instagram)'), ('fallo', 'El lector falló'),
+         ('ilegible', 'No se lee')], 'Imagen que Juan no leyó', readonly=True,
+        index='btree_not_null',
+        help='Por qué Juan no leyó una imagen de este mensaje. Con esto se avisa a Gerencia si el lector está apagado '
+             'o falla seguido.')
     origen = fields.Selection([('canal', 'Del canal'), ('odoo', 'Escrito en Odoo')], default='canal', readonly=True,
                               required=True)
     usuario_id = fields.Many2one('res.users', 'Escrito por', readonly=True,
@@ -800,10 +808,11 @@ class DcasaMensaje(models.Model):
             if not parametros.get_param(pendiente):
                 continue
             parametros.set_param(pendiente, False)
-            texto = self.env._(
-                '⚠️ WhatsApp no está entregando los mensajes de D\'CASA (código %(codigo)s). %(que)s Mientras tanto, '
-                'los mensajes salen con «No llegó»: cuando se arregle, hay que volver a escribirles a esos '
-                'clientes.', codigo=codigo, que=que)
+            texto = armar(
+                self.env._('⚠️ WhatsApp no está entregando los mensajes'),
+                self.env._('%(que)s Código de Meta: %(codigo)s.', que=que, codigo=codigo),
+                self.env._('Mientras tanto, los mensajes de D\'CASA a los clientes salen con «No llegó».'),
+                self.env._('Cuando se arregle, hay que volver a escribirles a esos clientes.'))
             enviados = 0
             try:
                 enviados = (gerencia and Conversacion._avisar_por_telegram(texto, usuarios=gerencia)) or \

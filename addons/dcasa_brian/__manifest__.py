@@ -8,7 +8,7 @@ edita registros dentro de reglas claras (qué puede hacer solo, qué pide confir
 qué nunca hace). Funciona con Claude, ChatGPT, Grok, Llama u otro proveedor compatible,
 incluso con modelos pequeños. Ver docs/BRIAN.md.
 """,
-    'version': '19.0.1.0.0',
+    'version': '19.0.1.1.0',
     'category': 'Productivity',
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',

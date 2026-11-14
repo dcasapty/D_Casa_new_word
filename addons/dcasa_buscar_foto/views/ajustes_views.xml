@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Sitio web › Busca con una foto (Gerencia y administradores): el interruptor, los topes y cuántas búsquedas hubo.
+         Pantalla de ajustes como la del programa de vendedores: «Guardar» llama a execute (exige el grupo en el
+         servidor y avisa al borde) y «Descartar» a cancel. -->
+    <record id="view_dcasa_buscar_foto_ajustes_form" model="ir.ui.view">
+        <field name="name">dcasa.buscar.foto.ajustes.form</field>
+        <field name="model">dcasa.buscar.foto.ajustes</field>
+        <field name="arch" type="xml">
+            <form string="Busca con una foto" class="oe_form_configuration o_dcasa_buscar_foto_ajustes" js_class="base_settings">
+                <app string="Busca con una foto" name="website">
+                    <block title="Busca con una foto en la tienda" name="dcasa_buscar_foto_bloque">
+                        <setting id="dcasa_buscar_foto_activo"
+                                 help="Un botón de cámara en la búsqueda de la tienda web: el cliente sube la foto de un mueble (o una captura de Instagram) y le salen los productos publicados que se le parecen. Si la foto parece un comprobante o una cédula, no se busca nada. La foto nunca se guarda.">
+                            <field name="activo"/>
+                        </setting>
+                    </block>
+                    <block title="Topes (cuidan el costo de la IA y frenan abusos)" name="dcasa_buscar_foto_topes">
+                        <setting id="dcasa_buscar_foto_tope_visitante" string="Por visitante, en una hora"
+                                 help="Cuántas fotos puede buscar una misma persona en una hora. 0 = nadie puede buscar.">
+                            <field name="tope_visitante_hora"/>
+                        </setting>
+                        <setting id="dcasa_buscar_foto_tope_conexion" string="Por conexión a internet, en una hora"
+                                 help="Varios teléfonos pueden salir por la misma conexión (la del operador o el wifi de un lugar): por eso es más alto.">
+                            <field name="tope_conexion_hora"/>
+                        </setting>
+                        <setting id="dcasa_buscar_foto_tope_mes" string="Gasto de IA de la foto en el mes (USD)"
+                                 help="Lo más que las búsquedas por foto pueden gastar de inteligencia artificial en el mes. Se paga a Cloudflare, aparte de Meta, y se ve en Costos de IA como «Cloudflare: lector de fotos». Además, no se leen fotos cuando el gasto de Juan pasa del 80 % de su tope del mes: nunca le quita IA a las conversaciones. 0 = no se leen fotos.">
+                            <field name="tope_mes_usd"/>
+                        </setting>
+                        <setting id="dcasa_buscar_foto_tope_dia" string="En total, por día"
+                                 help="Entre todos los visitantes, en el día (hora de Panamá). Al llegar a cualquier tope, la tienda dice «Ahora no podemos buscar por foto; búscalo por nombre o escríbenos por WhatsApp».">
+                            <field name="tope_dia"/>
+                        </setting>
+                    </block>
+                    <block title="Cómo va" name="dcasa_buscar_foto_uso">
+                        <setting id="dcasa_buscar_foto_hoy" string="Búsquedas" help="Hoy y en los últimos 30 días.">
+                            <div class="d-flex flex-column">
+                                <div>Hoy: <field name="busquedas_hoy" class="oe_inline" readonly="1"/></div>
+                                <div>Últimos 30 días: <field name="busquedas_mes" class="oe_inline" readonly="1"/></div>
+                            </div>
+                        </setting>
+                        <setting id="dcasa_buscar_foto_resultados" string="Cómo terminaron (últimos 30 días)">
+                            <div class="d-flex flex-column">
+                                <div>Encontraron productos: <field name="con_resultado_mes" class="oe_inline" readonly="1"/></div>
+                                <div>No encontraron nada parecido: <field name="sin_resultado_mes" class="oe_inline" readonly="1"/></div>
+                                <div>No eran un mueble: <field name="no_mueble_mes" class="oe_inline" readonly="1"/></div>
+                                <div>Parecían un documento: <field name="documentos_mes" class="oe_inline" readonly="1"/></div>
+                                <div>No se pudieron leer: <field name="no_leidas_mes" class="oe_inline" readonly="1"/></div>
+                            </div>
+                        </setting>
+                    </block>
+                </app>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_dcasa_buscar_foto_ajustes" model="ir.actions.act_window">
+        <field name="name">Busca con una foto</field>
+        <field name="res_model">dcasa.buscar.foto.ajustes</field>
+        <field name="view_mode">form</field>
+        <field name="target">current</field>
+        <field name="view_id" ref="view_dcasa_buscar_foto_ajustes_form"/>
+        <field name="context">{'module': 'website', 'bin_size': False}</field>
+    </record>
+
+    <menuitem id="menu_dcasa_buscar_foto" name="Busca con una foto" parent="website.menu_website_configuration"
+              action="action_dcasa_buscar_foto_ajustes" sequence="45"
+              groups="dcasa_base.group_gerencia,base.group_system"/>
+</odoo>

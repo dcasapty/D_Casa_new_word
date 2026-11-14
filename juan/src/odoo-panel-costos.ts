@@ -34,6 +34,8 @@ export async function manejarCostos(req: Request, env: Env, d: Pick<DepsRutas, "
       por_modelo: g.porModelo.map((m) => ({ modelo: m.modelo, usd: redondear(m.usd), turnos: m.turnos, estimado: m.estimado })),
       modelos_sin_precio: g.modelosSinPrecio,
       por_dia: (Array.isArray(porDia) ? porDia : []).map((x) => ({ fecha: x.dia, usd: redondear(x.usd, 2) })),
+      // Lo de Cloudflare («Busca con una foto»), aparte: no suma en gasto_usd, turnos ni por_dia (no es deuda con Meta).
+      cloudflare: (g.cloudflare ?? []).map((c) => ({ concepto: c.concepto, usd: redondear(c.usd), lecturas: c.lecturas, estimado: c.estimado })),
     });
   } catch (e) {
     console.error("[juan] /odoo/costos:", e instanceof Error ? e.message : String(e));

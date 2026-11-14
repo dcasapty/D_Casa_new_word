@@ -2599,7 +2599,7 @@
    "categoria": "tienda",
    "grupo": "Conversaciones",
    "titulo": "Cambiar cómo contesta Juan",
-   "logras": "Prendes o apagas a Juan y ajustas lo que puede hacer: por ejemplo, si manda las cotizaciones solo o si cotiza los envíos («Juan cotiza envíos»).",
+   "logras": "Prendes o apagas a Juan y ajustas lo que puede hacer: por ejemplo, si manda las cotizaciones solo, si cotiza los envíos («Juan cotiza envíos») o si de noche alguien recibe clientes («De noche nadie recibe clientes»).",
    "destino": {
     "menu": "dcasa_conversaciones.menu_dcasa_juan_ajustes"
    },
@@ -2610,7 +2610,8 @@
     "automatico",
     "bot",
     "parejo",
-    "reparto"
+    "reparto",
+    "noche"
    ]
   },
   {
@@ -2746,6 +2747,27 @@
     "responsive",
     "sitio web",
     "preview"
+   ]
+  },
+  {
+   "id": "buscar-foto",
+   "categoria": "tienda",
+   "grupo": "Tienda en línea",
+   "titulo": "Encender o apagar «Busca con una foto» en la tienda",
+   "logras": "En la tienda web sale un botón de cámara dentro de la caja de búsqueda: el cliente sube la foto de un mueble (o una captura de Instagram) y le salen los productos publicados que se le parecen. Aquí lo enciendes o lo apagas, cambias cuántas fotos puede buscar cada persona, cuánto puede gastar de IA en el mes y ves cuántas búsquedas hubo.",
+   "destino": {
+    "menu": "dcasa_buscar_foto.menu_dcasa_buscar_foto"
+   },
+   "nota": "Viene encendido. Si la foto parece un comprobante o una cédula, no se busca nada. La foto nunca se guarda. Lo que gasta la lectura de las fotos lo cobra Cloudflare y se ve aparte en Costos de IA (no es deuda con Meta). Tiene su propio tope del mes, y si el gasto de Juan va por más del 80 % de su tope no se leen fotos: en esos casos la tienda dice que ahora no se puede buscar por foto. Solo Gerencia y los administradores lo cambian.",
+   "palabras": [
+    "foto",
+    "buscar por foto",
+    "busca con una foto",
+    "camara",
+    "imagen",
+    "parecidos",
+    "tienda",
+    "instagram"
    ]
   },
   {
@@ -3295,6 +3317,48 @@
     "parejo",
     "reparto",
     "chats pendientes"
+   ]
+  },
+  {
+   "id": "juan-noche",
+   "categoria": "tienda",
+   "grupo": "Conversaciones",
+   "titulo": "Que de noche nadie reciba clientes ni avisos",
+   "logras": "Fuera del horario de la tienda Juan atiende y anota, pero no le pasa clientes a nadie ni manda avisos por Telegram, aunque alguna vendedora siga conectada: todas pueden descansar. Al abrir, los clientes que esperan se reparten parejo entre las que van llegando y a cada una le llega un solo aviso con su lista. Si un cliente ya hablaba con una vendedora estos días y ella está disponible, vuelve con ella. Los comprobantes de la noche les llegan a las de siempre al abrir.",
+   "nota": "En Ajustes de Juan, «De noche nadie recibe clientes», junto al reparto. Viene encendido; si lo apagas, de noche todo vuelve a ser como de día. Las menciones en una nota y los avisos para Gerencia llegan a cualquier hora.",
+   "destino": {
+    "menu": "dcasa_conversaciones.menu_dcasa_juan_ajustes"
+   },
+   "palabras": [
+    "noche",
+    "descansar",
+    "madrugada",
+    "fuera de horario",
+    "de noche nadie recibe clientes",
+    "avisos de noche",
+    "telegram",
+    "reparto"
+   ]
+  },
+  {
+   "id": "juan-avisos-telegram",
+   "categoria": "tienda",
+   "grupo": "Conversaciones",
+   "titulo": "Saber de qué te avisa Juan por Telegram",
+   "logras": "Juan te avisa por Telegram cuando te toca un cliente, cuando uno te espera sin respuesta, cuando un cliente manda un comprobante de pago, su cédula o algo que Juan no pudo leer (un PDF o una foto borrosa), y cuando alguien te menciona en una nota. Las demás fotos, como las capturas de Instagram, se ven en el chat sin aviso. Cada aviso dice qué pasa, quién escribe y qué hacer.",
+   "nota": "En Ajustes de Juan: «Avisar de comprobantes y documentos» (encendido) y «Avisar de fotos y archivos» (viene apagado; enciéndelo si quieres aviso de cada foto). Un precio en una publicación no cuenta como comprobante. Para contestar desde Telegram, toca «Atender» y responde al mensaje.",
+   "destino": {
+    "menu": "dcasa_conversaciones.menu_dcasa_juan_ajustes"
+   },
+   "palabras": [
+    "avisos",
+    "notificaciones",
+    "telegram",
+    "comprobante",
+    "fotos",
+    "muchos avisos",
+    "repetidos",
+    "instagram"
    ]
   },
   {

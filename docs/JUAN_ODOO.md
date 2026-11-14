@@ -429,6 +429,20 @@ responsable por defecto y el aviso sale a todo el equipo («Nadie estaba disponi
   estado, recibidas en el periodo, clientes esperando, la última que le tocó y cuántas esperan sin dueña; desde ahí saca o vuelve
   a meter a alguien y enciende o apaga el reparto.
 
+* **De noche nadie recibe clientes** (decisión de la dueña, 2026-11-13: «que se pueda activar o desactivar»). *Ajustes de
+  Juan › De noche nadie recibe clientes*, **encendido** de fábrica y por la migración 19.0.1.5.0 (queda en el historial de
+  Ajustes). Fuera del horario de *Ajustes de Juan* el asistente atiende y anota, pero **nadie recibe clientes ni avisos de
+  clientes**: el que ya era de una vendedora sigue siéndolo, el nuevo queda sin dueña esperando turno, y lo que mandó
+  (comprobante, cédula, archivo) queda anotado para la mañana. **Al abrir**, el reparto de siempre los da de a pocos y a cada
+  vendedora le llega **un solo Telegram con su lista** (un botón «Atender» por cliente; si le toca uno solo, el aviso normal con
+  «Escribió de noche»). La vendedora de siempre lo recibe solo si **entró al sistema** (activa) y está dentro de los días de
+  «su vendedora»; si no aparece en *Recibe solo quien usó el sistema hace poco* desde la apertura, se reparte como de día. Los
+  15 minutos de «pasar a otra» cuentan desde que le llegó el aviso. Si pasada esa media hora no hay **ninguna** vendedora
+  activa, avisa una vez a las de siempre. Lo **asignado a mano** no lo mueve el reparto. Los comprobantes, cédulas y archivos de
+  la noche les llegan **también** a las de siempre al abrir (a quién le llega un comprobante no cambia). Ningún cliente de la
+  noche se pierde aunque la tienda cierre días. **Siguen llegando de noche:** menciones en una nota, «Tomaron a tu cliente», un
+  mensaje programado que no salió y los avisos de Gerencia. **Apagado**, de noche todo es como de día.
+
 Lo de «activas» y «pasar a otra» **solo corre con el reparto encendido** («Parejo» o «Por turnos»).
 
 ## Qué hace el asistente por su cuenta
@@ -695,6 +709,9 @@ Las de ejemplo no llevan cifras ni políticas.
 | Reparto de conversaciones | Nadie (apagado). Días que un cliente sigue con su vendedora: 14 · Recibe solo quien usó el sistema hace poco: 30 min · Pasar a otra si no contesta: 15 min · Máximo de clientes esperándole a la vez: 3. Ver «Trabajo en equipo y reparto» |
 | Comentarios de Instagram y Facebook | **Apagado** (decisión de la dueña, 2026-11-12: «Apagado hasta que lo pruebes»). Al encenderlo: Facebook e Instagram marcados · frase pública «¡Hola! Te escribimos por mensaje directo con los detalles.» · 30 públicas por hora · por persona en 24 h: 1 pública y 3 privadas. Ver «Comentarios de Instagram y Facebook» |
 | Avisar si un cliente espera | 10 minutos |
+| De noche nadie recibe clientes | **Encendido** (2026-11-13). Fuera del horario nadie recibe clientes ni avisos de clientes; al abrir, una lista por vendedora. Ver «Reparto de conversaciones» |
+| Avisar de comprobantes y documentos | Encendido: comprobantes de un pago hecho, cédulas, PDF y las imágenes que Juan no pudo leer |
+| Avisar de fotos y archivos | **Apagado** (2026-11-13; antes encendido): las fotos comunes ya no avisan |
 | El CRM se ajusta solo | Encendido · Días sin respuesta para archivarla: 30 |
 | Sofía | Revisar cada mañana y resumen por Telegram encendidos ([SOFIA.md](SOFIA.md)) |
 
@@ -722,17 +739,39 @@ recibe respuestas automáticas y las vendedoras siguen atendiendo.
 
 ## Avisos en paralelo: comprobantes, documentos y fotos
 
-Cuando un cliente manda un **comprobante de pago**, un **documento de identidad** o **una foto o archivo**, a las personas
-elegidas en *Ajustes de Juan › Avisar por Telegram a* les llega un aviso por Telegram **al mismo tiempo**: el asistente
-**sigue atendiendo** y esa persona decide si interviene (si lo hace, toma la conversación y el asistente calla).
+Cuando un cliente manda un **comprobante de pago**, un **documento de identidad** o **un archivo que el asistente no puede
+leer**, a las personas elegidas en *Ajustes de Juan › Avisar por Telegram a* les llega un aviso por Telegram **al mismo
+tiempo**: el asistente **sigue atendiendo** y esa persona decide si interviene (si lo hace, toma la conversación y el
+asistente calla). Desde 2026-11-13 (pedido de la dueña: «las fotos de Instagram se toman como factura») solo avisa lo que
+importa:
 
-* **Comprobante** (o algo con señal de pago): «Posible comprobante de pago de Karen por Telegram… Verifica el pago en el banco
-  antes de entregar nada.» Siempre avisa (si *Avisar de comprobantes y documentos* está encendido).
-* **Documento de identidad:** avisa y recuerda que el asistente no lo ve.
-* **Cualquier otra foto o archivo** (por ejemplo la captura de un producto que el asistente ya entendió): avisa a lo más una vez
-  cada 10 minutos por conversación; se apaga con *Avisar de fotos y archivos*.
+* **Comprobante:** solo la **prueba de un pago hecho** (transferencia, Yappy, ACH, depósito, recibo). **El precio de una
+  publicación o de un producto no es un pago**: una captura de Instagram con «$299» se ve en el chat, sin aviso ni etiqueta
+  «Comprobante recibido» (el lector de imágenes y `esComprobante` en `juan/src/motor/vision.ts`). Riesgo aceptado: un recibo
+  fotografiado encima de un mueble que el lector llame «producto» no avisa.
+* **Cédula u otro documento de identidad:** avisa siempre y recuerda que el asistente no lo ve.
+* **Un PDF u otro archivo** (Juan no lo lee): «📎 Mandó un archivo… puede ser un comprobante», a lo más uno cada 10 minutos por
+  conversación (depende de *Avisar de comprobantes y documentos*).
+* **Una imagen que Juan no pudo leer** (llega como `sin_leer` con su motivo):
+  * si **falló** o era **ilegible**: avisa como el archivo, uno cada 10 minutos;
+  * si **no la intentó** (pasó el tope de imágenes del mensaje o del día, sin cupo de IA, descanso del antispam, lector
+    apagado): avisa solo si el cliente habla de pago (pago, pagué, Yappy, transferencia, depósito, abono, comprobante, ACH);
+    si no, a lo más una vez al día por conversación;
+  * si el lector está apagado o falla en 3 mensajes dentro de una hora: **un** aviso al día a Gerencia («Juan no está leyendo
+    las fotos»), que de noche espera a que abra la tienda.
+* **Cualquier otra foto:** **sin aviso** (*Avisar de fotos y archivos* viene apagado de fábrica y por la migración); se ve en el
+  chat. Si se enciende, avisa a lo más una vez cada 10 minutos.
+* Con varios archivos en el mismo envío manda el más importante: comprobante > cédula > lo que Juan no leyó > foto.
 * Si la conversación ya la atiende una persona, no se avisa. Las notas de voz no avisan.
 * Quién recibe: las personas elegidas; si no eliges a nadie, todas las de ventas con su Telegram vinculado con Brian.
+
+**Forma de todos los avisos** (decisión de la dueña, «E»): emoji y título (lo urgente va en el título), quién y por dónde, qué
+pasó, qué hacer, y el pie para responder desde Telegram. Los textos viven en `models/conversacion_avisos.py`; el antes y
+después que vio la dueña está en la bitácora del 2026-11-13.
+
+**Orden de despliegue de esta entrega:** **Juan antes que Odoo.** Un Odoo viejo ve `sin_leer` como «sin clase» y avisa como
+hoy; un Odoo nuevo con el Juan viejo trataría cada sticker y cada imagen del tope como «falló» (como mucho un aviso cada 10
+minutos por conversación).
 
 ## Atender y contestar desde Telegram (sin abrir Odoo)
 
@@ -946,6 +985,7 @@ constante, respuestas `Cache-Control: no-store`, errores genéricos sin detalles
 | `POST /odoo/sugerir` | Recibe la conversación recortada y devuelve `{ok, texto, avisos, modelo}` o `{ok: false, causa, error}` (`tardo` 504, `no_disponible` 502, `vacio` 502, `revision` 502, `sin_clave` 503; con `respaldo_sin_clave` si la IA de respaldo no tiene clave). Usa solo herramientas de **lectura** (`buscar_productos`, `ver_producto`, `listar_categorias`, `reglas_socios`, `horario_y_tienda`, `buscar_conocimiento`), nivel inteligente (baja al rápido si se llegó al tope), registra el gasto y avisa de lo que quitó (fotos, enlaces) y de los `[CONFIRMAR…]`. **Contesta siempre antes de 42 s** (`PLAZO_TOTAL_MS`): el primer intento usa hasta el 60 % del plazo y el resto queda para el modelo rápido; una falla pasajera (red, 429, 5xx) se reintenta una vez; si el modelo gasta sus pasos consultando, se le pide que escriba con lo que consultó; si la revisión de la marca no deja nada con sentido, el modelo lo corrige una vez con el motivo. Una cifra que ya dijo la tienda en la conversación (el asistente o una vendedora) no cuenta como invento; lo que escribe el cliente, sí. Cada pedido deja una línea `[juan] sugerir {…}` con la causa, los tiempos y los modelos (sin textos ni teléfonos). |
 | `POST /odoo/embeber` | `{textos:[…]}` (1 a 8, hasta 2000 letras cada uno) → `{ok, vectores:[[1024 números]], dimensiones, modelo}`. Lo usa la búsqueda por significado. Sin binding `AI`: 503 con `faltan:["AI"]`. No envía ni escribe nada y no pasa por el tope de gasto (cuesta centavos por millón de palabras). |
 | `GET /odoo/costos` | Gasto del mes por modelo, turnos, tope y modelos sin precio cargado (desde el contador del Worker). |
+| `POST /odoo/buscar-foto` | «Busca con una foto» de la tienda web (`dcasa_buscar_foto`, no la usa esta pantalla): `{mime, base64, tope_mes_usd}` → solo el registro cerrado del lector de imágenes. Su gasto se ve aquí, en Costos de IA, en su propio renglón «Cloudflare: lector de fotos» (con cuántas fotos): lo cobra Cloudflare, así que no suma en «Por pagar a Meta», en el botón «Pagar», en la diferencia con lo que cobró Meta ni en las respuestas (`GET /odoo/costos` lo manda aparte, en `cloudflare`). Ver [CATALOGO.md › Busca con una foto](CATALOGO.md#busca-con-una-foto). |
 | `GET /odoo/qr` | El QR del puente de WhatsApp (data URL PNG) y su estado: `necesita_qr`, `conectado`, `desconectado`, `desvinculada`, `arrancando`, `apagado`. No imprime el QR en logs. |
 | `POST /odoo/reiniciar` · `POST /odoo/desvincular` | Reinicia o cierra la sesión del puente. |
 

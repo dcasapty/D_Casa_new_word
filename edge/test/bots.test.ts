@@ -7,6 +7,7 @@ import {
   filtrarAutomatizados,
   LIMITES,
   LimitadorMemoria,
+  llaveDeIp,
   type Limitador,
 } from "../src/bots";
 import { handleRequest, variablesDelContenedor } from "../src/handler";
@@ -140,6 +141,17 @@ describe("límite de intentos", () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     expect(await filtrarAutomatizados(post("/web/login"), new URL(SITIO + "/web/login"), { acceso: roto })).toBeNull();
     error.mockRestore();
+  });
+
+  it("la llave es la conexión: la IPv4 entera o la red /64 de la IPv6 (como llave_ip de Odoo)", () => {
+    expect(llaveDeIp("190.1.2.3")).toBe("190.1.2.3");
+    expect(llaveDeIp("2001:db8:1:2::1")).toBe("2001:db8:1:2::/64");
+    expect(llaveDeIp("2001:0DB8:0001:0002:ffff:ffff:ffff:ffff")).toBe("2001:db8:1:2::/64");
+    expect(llaveDeIp("2001:db8::1")).toBe("2001:db8:0:0::/64");
+    expect(llaveDeIp("2001:db8:1:3::1")).not.toBe(llaveDeIp("2001:db8:1:2::1"));
+    expect(llaveDeIp("::ffff:190.1.2.3")).toBe("190.1.2.3");
+    expect(llaveDeIp("fe80::1%eth0")).toBe("fe80:0:0:0::/64");
+    for (const raro of ["no-es-ip", "1:2:3", "2001:db8:::1", "1:2:3:4:5:6:7:8:9", "::ffff:300.1.2.3"]) expect(llaveDeIp(raro)).toBe(raro);
   });
 
   it("sin IP de Cloudflare no limita (pruebas locales)", async () => {

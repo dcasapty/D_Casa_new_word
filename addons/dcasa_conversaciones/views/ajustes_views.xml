@@ -119,6 +119,7 @@
                             <field name="pausa_por_defecto_minutos"/>
                             <field name="responsable_id" options="{'no_create': True}"/>
                             <field name="reparto_modo"/>
+                            <field name="reparto_nadie_de_noche"/>
                             <field name="reparto_dias_misma_vendedora" invisible="reparto_modo != 'parejo'"/>
                             <field name="reparto_activa_minutos" invisible="reparto_modo == 'manual'"/>
                             <field name="reparto_reasignar_minutos" invisible="reparto_modo == 'manual'"/>

@@ -54,6 +54,21 @@ describe("AlmacenGlobal: el gasto del mes", () => {
     expect(r.porModelo.find((m) => m.modelo === "claude-haiku-4-5")!.estimado).toBe(false);
   });
 
+  it("lo de Cloudflare (la foto de la tienda, cualquier @cf/) va aparte: no suma en el gasto, los turnos ni el día de Juan", () => {
+    const g = new AlmacenGlobal(crearSqlNode());
+    g.registrarGasto("2026-10", "muse-spark-1.3", uso(1, 1), 2, false, "2026-10-09");
+    g.registrarGasto("2026-10", "cloudflare:lector-de-fotos", uso(3000, 200), 0.75, false, "2026-10-09");
+    g.registrarGasto("2026-10", "cloudflare:lector-de-fotos", uso(3000, 200), 0.25, true);
+    g.registrarGasto("2026-10", "@cf/meta/llama-4-scout-17b-16e-instruct", uso(1, 1), 0.5);
+    const r = g.gastoMes("2026-10");
+    expect([r.usd, r.turnos, r.porModelo.map((m) => m.modelo), r.modelosSinPrecio]).toEqual([2, 1, ["muse-spark-1.3"], []]);
+    expect(r.cloudflare.sort((a, b) => a.concepto.localeCompare(b.concepto))).toEqual([
+      { concepto: "@cf/meta/llama-4-scout-17b-16e-instruct", usd: 0.5, lecturas: 1, estimado: false },
+      { concepto: "cloudflare:lector-de-fotos", usd: 1, lecturas: 2, estimado: true },
+    ]);
+    expect(g.gastoPorDia("2026-10")).toEqual([{ dia: "2026-10-09", usd: 2, turnos: 1 }]);
+  });
+
   it("guarda los tokens, también los de caché", () => {
     const sql = crearSqlNode();
     const g = new AlmacenGlobal(sql);

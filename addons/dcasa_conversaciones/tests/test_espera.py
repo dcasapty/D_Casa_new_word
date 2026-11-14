@@ -54,8 +54,9 @@ class TestClienteEsperando(JuanCase):
         self.assertEqual(self.Conversacion._avisar_clientes_esperando(), 1)
         self.assertEqual(self.destinos(), ['5550001'], 'Solo a quien la atiende')
         (texto,) = self.textos()
-        self.assertIn('Karen lleva 15 min esperando respuesta', texto)
-        self.assertIn('La atiende Vendedora Prueba', texto)
+        self.assertTrue(texto.startswith('⏰ Un cliente te espera\n'), texto)
+        self.assertIn('Karen te escribe por WhatsApp y lleva 15 minutos sin respuesta.', texto)
+        self.assertIn('Toca «Atender» para contestarle.', texto)
         self.assertEqual(conv.espera_avisada_en, self.ahora)
 
     def test_no_avisa_antes_de_tiempo(self):
@@ -78,7 +79,9 @@ class TestClienteEsperando(JuanCase):
         self.espera(15)
         self.Conversacion._avisar_clientes_esperando()
         self.assertEqual(self.destinos(), ['5550001', '5550002'])
-        self.assertIn('Nadie la atiende todavía', self.textos()[0])
+        self.assertTrue(self.textos()[0].startswith('⏰ Un cliente espera respuesta\n'), self.textos()[0])
+        self.assertIn('Nadie lo tiene todavía.', self.textos()[0])
+        self.assertIn('Toca «Atender» si lo vas a contestar tú.', self.textos()[0])
 
     def test_si_quien_la_atiende_no_tiene_telegram_avisa_a_las_demas(self):
         conv = self.espera(15, atiende=self.vendedora)
