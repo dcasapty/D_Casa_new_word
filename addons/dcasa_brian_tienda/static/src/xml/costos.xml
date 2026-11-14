@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
-    <!-- «Costos de IA»: Brian de la tienda en su propio renglón (contrato_cambios §4). Nunca se suma al gasto de Juan ni
-         a «Por pagar a Meta»; sin dato del Worker dice «sin dato», nunca $0. -->
+    <!-- «Costos de IA»: Brian de la tienda en su propio renglón (contrato_cambios §4). Nunca se suma al gasto de Juan (su
+         tope); lo de modelos de Meta va además en «Por pagar a Meta» (misma cuenta). Sin dato del Worker: «sin dato». -->
     <t t-inherit="dcasa_conversaciones.Costos" t-inherit-mode="extension">
         <xpath expr="//section[h2='Qué IA contesta']" position="before">
             <section t-if="d.tienda" class="o_dcj_p_tarjeta o_dcbt_costos" aria-labelledby="o_dcbt_costos_titulo">
@@ -12,6 +12,7 @@
                 <p t-if="d.tienda.sin_dato" class="o_dcj_p_detalle o_dcbt_sin_dato">Sin dato: el Worker todavía no dice cuánto va el chat de la web este mes.</p>
                 <t t-else="">
                     <p class="o_dcj_p_detalle o_dcbt_gasto"><strong t-out="usd(d.tienda.usd)"/> este mes<t t-if="d.tienda.presupuesto_usd !== null"> de un presupuesto de <strong t-out="usd(d.tienda.presupuesto_usd)"/></t>.</p>
+                    <p t-if="d.tienda.meta_usd" class="o_dcj_p_detalle o_dcbt_meta">De eso, <strong t-out="usdFino(d.tienda.meta_usd)"/> fue en modelos de Meta: Meta lo cobra en la misma cuenta de Juan y ya va en «Por pagar a Meta».</p>
                     <ul t-if="d.tienda.por_modelo.length" class="o_dcj_p_modelos">
                         <li t-foreach="d.tienda.por_modelo" t-as="m" t-key="m.modelo">
                             <span class="o_dcj_p_modelo_nombre"><t t-out="m.modelo"/><span t-if="m.estimado" class="o_dcj_insignia o_dcj_insignia_alerta" title="Sin precio cargado: es una estimación"> estimado</span></span>
@@ -19,7 +20,7 @@
                         </li>
                     </ul>
                 </t>
-                <p class="o_dcj_ayuda">Tiene su propio presupuesto (Sitio web › Brian de la tienda). No se suma al gasto de Juan ni a «Por pagar a Meta».</p>
+                <p class="o_dcj_ayuda">Tiene su propio presupuesto (Sitio web › Brian de la tienda) y no se suma al gasto de Juan. Lo de modelos de Meta va en «Por pagar a Meta»; lo de otros proveedores, solo aquí.</p>
             </section>
         </xpath>
     </t>

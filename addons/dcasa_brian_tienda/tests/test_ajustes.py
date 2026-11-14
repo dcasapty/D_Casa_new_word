@@ -77,7 +77,7 @@ class TestAjustes(TiendaCase):
             {'modelo': 'muse-spark-1.3', 'usd': 1.234, 'turnos': 45, 'estimado': False}, 'basura']}})
         self.assertEqual((datos['usd'], datos['turnos'], datos['presupuesto_usd']), (1.23, 45, 30))
         self.assertEqual(len(datos['por_modelo']), 1)
-        # En Costos de IA: un renglón aparte; el gasto de Juan y «Por pagar a Meta» no cambian.
+        # En Costos de IA: un renglón aparte; el gasto de Juan no cambia (lo de Meta: TestRevisionPorPagarAMeta).
         Panel = self.env['dcasa.juan.panel']
         self.assertEqual(Panel._costos_extra({'tienda': {'usd': 2.5}})['tienda']['usd'], 2.5)
         self.assertEqual(Panel._costos_extra({})['tienda'], {'sin_dato': True})
@@ -90,6 +90,45 @@ class TestAjustes(TiendaCase):
         with patch.object(Cliente, 'configurado', return_value=False):
             ajustes = self.env['dcasa.brian.tienda.ajustes'].with_user(self.gerencia).create({})
             self.assertIn('Sin dato', ajustes.gasto_mes)
+
+    def test_lo_de_meta_de_la_tienda_se_paga_con_juan_y_el_pago_guarda_su_corte(self):
+        """Por pagar a Meta = Juan + lo de Brian de la tienda en modelos de Meta (no lo de otros proveedores). «Pagar»
+        guarda el corte de los dos; después solo cuenta lo nuevo."""
+        Panel = self.env['dcasa.juan.panel'].with_user(self.env.ref('base.user_admin'))
+        mes = Panel._ahora_local().strftime('%Y-%m')
+        Cliente = type(self.env['dcasa.juan.cliente'])
+
+        def respuestas(meta_usd):
+            salud = {'conectado': True, 'error': None, 'cuerpo': {
+                'gasto_ia_mes_usd': 10.0, 'tope_usd': 50, 'mes': mes, 'ia': {'proveedor': 'meta'}}}
+            costos = {'conectado': True, 'error': None, 'cuerpo': {
+                'mes': mes, 'gasto_usd': 10.0, 'turnos': 100, 'por_modelo': [],
+                'tienda': {'mes': mes, 'usd': meta_usd + 2.0, 'turnos': 40, 'presupuesto_usd': 30, 'por_modelo': [
+                    {'modelo': 'muse-spark-1.3', 'proveedor': 'meta', 'usd': meta_usd - 0.5, 'turnos': 30},
+                    # Lo apartado de un turno que se cortó: también lo cobra Meta (por su proveedor, no por el nombre).
+                    {'modelo': 'turnos cortados (estimado)', 'proveedor': 'meta', 'usd': 0.5, 'turnos': 0,
+                     'estimado': True},
+                    {'modelo': 'claude-haiku', 'proveedor': 'anthropic', 'usd': 2.0, 'turnos': 10}]}}}
+            return (patch.object(Cliente, 'configurado', return_value=True),
+                    patch.object(Cliente, 'informe_de_salud', return_value=salud),
+                    patch.object(Cliente, 'costos', return_value=costos))
+
+        a, b, c = respuestas(5.0)
+        with a, b, c:
+            datos = Panel._datos_de_costos()
+            self.assertEqual((datos['tienda']['usd'], datos['tienda']['meta_usd']), (7.0, 5.0))
+            self.assertEqual((datos['pagos']['saldo'], datos['pagos']['otros_usd']), (15.0, 5.0),
+                             'los 2 USD de Anthropic no son de Meta')
+            pagado = Panel.pagar_ia(15.0)
+        pago = self.env['dcasa.juan.pago.ia'].browse(pagado['id'])
+        self.assertEqual((pago.monto_meta_usd, pago.corte_otros_mes, pago.corte_otros_usd), (15.0, mes, 5.0))
+        a, b, c = respuestas(6.5)
+        with a, b, c:
+            self.assertEqual(Panel._datos_de_costos()['pagos']['saldo'], 1.5, 'solo lo nuevo de la tienda')
+        # Con el corte en un mes anterior, lo del mes en curso es un mínimo (el Worker no da los meses pasados).
+        viejo = self.env['dcasa.juan.pago.ia'].new({'corte_mes': '2000-01', 'corte_otros_mes': '2000-01',
+                                                   'corte_otros_usd': 3.0})
+        self.assertEqual(Panel._pendiente_de_otros(viejo, {'mes': mes, 'usd': 4.0}), (4.0, True))
 
     def test_la_guia_tiene_la_pantalla(self):
         ruta = Path(__file__).resolve().parents[2] / 'dcasa_guia' / 'data' / 'guia.json'
@@ -145,9 +184,9 @@ class TestLaPagina(TiendaCase):
         html = ' '.join(self.url_open('/privacidad').text.split())
         self.assertIn('id="brian-de-la-tienda"', html)
         for frase in ('No guardamos la conversación', 'Usar mi ubicación', 'no se guarda',
-                      'solo el número de estrellas y la fecha'):
+                      'solo el número de estrellas y la fecha', 'hasta 30 mensajes: los últimos 15 intercambios'):
             self.assertIn(frase, html)
-        self.assertIn('13 de noviembre de 2026', html)
+        self.assertIn('14 de noviembre de 2026', html)
 
     def test_el_js_no_anida_plantillas_de_texto(self):
         """El minificador de Odoo (rjsmin) no entiende `…${`…`}…`: se come los espacios de la de adentro."""

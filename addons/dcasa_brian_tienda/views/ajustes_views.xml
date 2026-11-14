@@ -38,7 +38,7 @@
                     </block>
                     <block title="Cómo va este mes" name="dcasa_brian_tienda_uso">
                         <setting id="dcasa_brian_tienda_gasto" string="Gasto del mes"
-                                 help="Lo mide el Worker de Juan. Va en su propio renglón en Costos de IA y no se suma a «Por pagar a Meta».">
+                                 help="Lo mide el Worker de Juan. Va en su propio renglón en Costos de IA, aparte del gasto de Juan; lo de modelos de Meta también va en «Por pagar a Meta» (Meta lo cobra en la misma cuenta).">
                             <field name="gasto_mes" readonly="1"/>
                         </setting>
                         <setting id="dcasa_brian_tienda_calificaciones" string="Calificaciones"
