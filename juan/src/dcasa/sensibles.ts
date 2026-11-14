@@ -45,7 +45,9 @@ function esFecha(m: string): boolean {
  */
 const INVISIBLES = /(?!\u200d)\p{Cf}/gu;
 /** Todo lo que el modelo puede leer como «[» o como «<»/«>». */
-const CORCHETES = /[\[\uff3b\u3010\u3014\u3016\u3018\u301a\u2045\ufe5d\u298b\u298d\u298f]/gu;
+export const CORCHETES = /[\[\uff3b\u3010\u3014\u3016\u3018\u301a\u2045\ufe5d\u298b\u298d\u298f]/gu;
+/** Sus cierres (los de Brian de la tienda los cambian por «⟧»: tienda/motor.ts). */
+export const CORCHETES_QUE_CIERRAN = /[\]\uff3d\u3011\u3015\u3017\u3019\u301b\u2046\ufe5e\u298c\u298e\u2990]/gu;
 const ANGULO_ABRE = /[<\uff1c\ufe64\u2329\u3008]/g;
 const ANGULO_CIERRA = /[>\uff1e\ufe65\u232a\u3009]/g;
 /** Letras de otros alfabetos (y números) que se ven iguales a las latinas de las marcas. */

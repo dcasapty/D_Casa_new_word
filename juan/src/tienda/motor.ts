@@ -9,18 +9,18 @@
 //   → tarjetas armadas por el Worker con los datos de las herramientas de ESE turno → la guardia de Juan en cada texto
 //   → se guarda el contexto (máx. 30 turnos, sin la ubicación) → se anota el gasto en su propio renglón.
 
-import { generateText, hasToolCall, jsonSchema, stepCountIs, tool, type LanguageModel, type ModelMessage, type ToolSet } from "ai";
+import { APICallError, generateText, hasToolCall, jsonSchema, LoadAPIKeyError, stepCountIs, tool, type LanguageModel, type ModelMessage, type ToolSet } from "ai";
 import { dentroDeHorario, diaDelNegocio, mesDelNegocio, type Config } from "../config";
 import { pideUnaPersona } from "../dcasa/intencion";
 import { HERRAMIENTAS_DEL_CONTRATO, NOMBRES_DE_HERRAMIENTAS_LOCALES } from "../dcasa/prompt";
 import { analizar, quitarGraves, type ContextoRevision, type TipoProblema } from "../dcasa/salvaguardas";
-import { enmascararSensibles, textoParaElModelo } from "../dcasa/sensibles";
+import { CORCHETES, CORCHETES_QUE_CIERRAN, enmascararSensibles, textoParaElModelo } from "../dcasa/sensibles";
 import { oraciones } from "../dcasa/texto";
 import { horaLegible } from "../dcasa/textos";
-import type { GastoTienda, ResultadoReservaTienda, ReservaTienda } from "../motor/global";
+import { MODELO_DE_LO_CORTADO, type GastoTienda, type ResultadoReservaTienda, type ReservaTienda } from "../motor/global";
 import { cifrasDeTexto, construirHerramientas, procesarResultado, RegistroDelTurno, tomarRespaldoDeEnvio, type CacheDeHerramientas } from "../motor/herramientas";
 import { consultasComoTexto, elegirNivel, type ConsultaDelTurno } from "../motor/modelo";
-import { costoDe, sumarUso, usoDelSdk, USO_VACIO, type Uso } from "../motor/precios";
+import { costoDe, sumarUso, usoDelSdk, USO_VACIO, type TablaDePrecios, type Uso } from "../motor/precios";
 import { planDeIntentos, topeDeSalida, type FabricaDeModelos, type ProveedorIa, type SeleccionDeModelo } from "../motor/proveedores";
 import { partirEnBurbujas } from "../motor/burbujas";
 import type { Sql } from "../motor/sql";
@@ -55,8 +55,11 @@ import { contextoTienda, HERRAMIENTAS_DE_LA_TIENDA, POSES, promptTienda, promptT
 
 /** El contexto se borra solo tras 2 horas sin actividad (contrato §4). */
 export const VIDA_DEL_CONTEXTO_MS = 2 * 3600_000;
-/** Como mucho 30 turnos (un turno = lo que dijo el visitante y lo que contestó Brian). */
-export const MAX_TURNOS = 30;
+/**
+ * Como mucho 15 turnos (un turno = lo que dijo el visitante y lo que contestó Brian): 30 mensajes, lo que dice /privacidad
+ * («hasta 30 mensajes»; revisión adversarial, 2026-11-14). El modelo ve los últimos 10 turnos: no se pierde nada.
+ */
+export const MAX_TURNOS = 15;
 /** Lo que el modelo ve de la conversación: los últimos 10 turnos. */
 const MENSAJES_PARA_EL_MODELO = 20;
 const MAX_VISTOS = 60;
@@ -86,6 +89,8 @@ export interface EntradaTienda {
   peticion: PeticionTienda;
   /** La red del visitante ya ofuscada (HMAC con la llave del Worker): ni la IP ni la red en claro llegan aquí. */
   red: string;
+  /** La /48 de su IPv6, también ofuscada (null con IPv4). */
+  red48?: string | null;
 }
 
 export interface GlobalTiendaApi {
@@ -202,6 +207,8 @@ interface EntradaModelo {
   mensajes: ModelMessage[];
   herramientas: ToolSet;
   abortSignal: AbortSignal;
+  /** Cada paso que termina, con su uso: se anota en ese momento (aunque después la vuelta se corte o falle). */
+  alPaso(uso: Uso): void;
 }
 
 interface SalidaModelo {
@@ -229,6 +236,7 @@ async function correrModelo(e: EntradaModelo): Promise<SalidaModelo> {
     maxOutputTokens: topeDeSalida(e.sel.proveedor, e.sel.nivel),
     maxRetries: 0,
     abortSignal: e.abortSignal,
+    onStepEnd: (paso) => e.alPaso(usoDelSdk(paso.usage)),
   });
   const llamadas = r.steps.flatMap((s) => s.toolCalls);
   const final = [...llamadas].reverse().find((c) => c.toolName === NOMBRE_RESPONDER);
@@ -242,6 +250,74 @@ async function correrModelo(e: EntradaModelo): Promise<SalidaModelo> {
 }
 
 class PlazoVencido extends Error {}
+
+/** El renglón con que se anota lo que costó un turno que se cortó o falló sin que se pudiera medir (estimado: lo apartado). */
+export { MODELO_DE_LO_CORTADO };
+
+/**
+ * Lo que cuesta UN turno de la tienda, PASO POR PASO (revisión adversarial, 2026-11-14, B1): cada vuelta al modelo que termina se
+ * anota aunque el turno después se corte por el plazo o falle (el proveedor ya la cobró). Si una vuelta se cortó o falló con la
+ * petición ya enviada, lo que costó no se sabe: el turno anota al menos lo que se había apartado, como estimado. Todo va a la tabla
+ * de la tienda (nunca a la de Juan) cuando el turno se cierra; lo que llegue después ya no cuenta (lo cubre lo estimado).
+ */
+export class CuentaDelTurno {
+  private readonly usos = new Map<string, { sel: SeleccionDeModelo; uso: Uso }>();
+  private cerrada = false;
+  /** La última vuelta que se cortó o falló con la petición enviada (lo que costó no se sabe). */
+  sinMedir: SeleccionDeModelo | null = null;
+
+  constructor(
+    readonly mes: string,
+    readonly reservaUsd: number,
+    private readonly precios: TablaDePrecios,
+  ) {}
+
+  anotar(sel: SeleccionDeModelo, uso: Uso): void {
+    if (this.cerrada) return;
+    const clave = `${sel.proveedor}|${sel.modelo}`;
+    this.usos.set(clave, { sel, uso: sumarUso(this.usos.get(clave)?.uso ?? USO_VACIO, uso) });
+  }
+
+  /** Cierra la cuenta: un renglón por modelo y, si algo quedó sin medir, lo apartado que falte, como estimado. */
+  gastos(): GastoTienda[] {
+    this.cerrada = true;
+    const filas: GastoTienda[] = [...this.usos.values()].map(({ sel, uso }) => {
+      const c = costoDe(sel.modelo, uso, this.precios);
+      return { mes: this.mes, proveedor: sel.proveedor, modelo: sel.modelo, uso, usd: c.usd, estimado: c.estimado };
+    });
+    const medido = filas.reduce((n, f) => n + f.usd, 0);
+    if (this.sinMedir && medido < this.reservaUsd) {
+      filas.push({ mes: this.mes, proveedor: this.sinMedir.proveedor, modelo: MODELO_DE_LO_CORTADO, uso: USO_VACIO, usd: this.reservaUsd - medido, estimado: true });
+    }
+    return filas;
+  }
+}
+
+/** ¿El proveedor rechazó la petición sin procesarla (un 4xx, o sin clave)? Entonces no cobró: no hace falta estimar nada. */
+function rechazadaSinCobro(err: unknown): boolean {
+  if (LoadAPIKeyError.isInstance(err)) return true;
+  return APICallError.isInstance(err) && typeof err.statusCode === "number" && err.statusCode >= 400 && err.statusCode < 500;
+}
+
+/**
+ * Lo que escribió el visitante, para el modelo: la neutralización de Juan (etiquetas, marcas de confianza, tarjetas y cédulas) y,
+ * además, sin corchetes: las notas que arma el Worker van entre «[…]» y el visitante no puede imitarlas (revisión, 2026-11-14, I1).
+ * Todos los que el modelo puede leer como corchete (los de ancho completo «［］», «【】»…: la clase de dcasa/sensibles.ts) se cambian.
+ */
+export function sinCorchetes(texto: string): string {
+  return texto.replace(CORCHETES, "⟦").replace(CORCHETES_QUE_CIERRAN, "⟧");
+}
+
+export function delVisitanteParaElModelo(texto: string): string {
+  return sinCorchetes(textoParaElModelo(texto));
+}
+
+/** Lo que se guarda de lo que dijo el visitante (o una nota del Worker), con su origen explícito: nunca se adivina por la forma. */
+interface Entrada {
+  texto: string;
+  origen: "visitante" | "sistema";
+}
+const nota = (texto: string): Entrada => ({ texto, origen: "sistema" });
 
 // ── Textos fijos (sin IA) ────────────────────────────────────────────────────
 
@@ -257,6 +333,7 @@ export const TEXTO_CARRITO_FALLO = "No pude ponerlo en el carrito ahorita, discu
 export const TEXTO_SIN_CONFIRMAR = "Gracias. ¿Te ayudo con algo más?";
 export const TEXTO_SI = "Con gusto, te lo pongo en el carrito.";
 export const TEXTO_NO = "Perfecto, sin problema. ¿Te muestro algo más?";
+export const TEXTO_OCUPADO = "Hay mucha gente escribiendo en este momento. Inténtalo otra vez en un momentito, o escríbenos por WhatsApp.";
 export const OPCIONES_DESPUES_DEL_CARRITO = ["¿Cuánto cuesta el envío?", "Seguir viendo"];
 export const CHIPS_DE_OFERTA = ["Sí, ponlo en el carrito", "No, gracias"];
 
@@ -423,12 +500,29 @@ export class MotorTienda {
     const mes = mesDelNegocio(cfg.horario.zona, ahora);
     const dia = diaDelNegocio(cfg.horario.zona, ahora);
     const reservar = (reservaUsd: number) =>
-      this.deps.global.reservarTurnoTienda({ red: e.red, dia, mes, porRed: t.tope_red_hora, porDia: t.tope_dia, presupuestoUsd: t.presupuesto_mes_usd, reservaUsd });
+      this.deps.global.reservarTurnoTienda({
+        red: e.red,
+        red48: e.red48 ?? null,
+        dia,
+        mes,
+        porRed: t.tope_red_hora,
+        porDia: t.tope_dia,
+        porRedDia: t.tope_red_dia,
+        porRed48: t.tope_red48_hora,
+        porRed48Dia: t.tope_red48_dia,
+        enVueloMax: t.tope_en_vuelo,
+        enVueloRed: t.tope_en_vuelo_red,
+        proveedor: planDeIntentos(cfg, "inteligente", this.deps.proveedoresDisponibles())[0]?.proveedor ?? cfg.proveedor_ia,
+        presupuestoUsd: t.presupuesto_mes_usd,
+        reservaUsd,
+      });
     let reserva: ResultadoReservaTienda;
+    let reservaUsd = usaIa ? this.reservaDelTurno(cfg) : 0;
     try {
-      reserva = await reservar(usaIa ? this.reservaDelTurno(cfg) : 0);
-      // Lo que Odoo ya puso en el carrito se confirma igual con el presupuesto agotado: con el texto fijo, sin la IA.
-      if (!reserva.ok && reserva.motivo === "presupuesto" && plan.tipo === "agregado") {
+      reserva = await reservar(reservaUsd);
+      // Lo que Odoo ya puso en el carrito se confirma igual con el presupuesto agotado o con mucha gente: texto fijo, sin la IA.
+      if (!reserva.ok && (reserva.motivo === "presupuesto" || reserva.motivo === "ocupado") && plan.tipo === "agregado") {
+        reservaUsd = 0;
         reserva = await reservar(0);
         plan.sinIa = true;
       }
@@ -437,15 +531,23 @@ export class MotorTienda {
       this.log("error", `no se pudo apartar el turno: ${limpiarError(err)}`);
       return terminar({ status: 502, cuerpo: { ok: false, motivo: "fallo" } });
     }
+    if (!reserva.ok && reserva.motivo === "ocupado") {
+      // Demasiados turnos con IA a la vez entre todos: una respuesta amable (no es un tope del visitante; no se guarda ni se cuenta).
+      const noche = !dentroDeHorario(cfg.horario, ahora);
+      return terminar({
+        status: 200,
+        cuerpo: { ok: true, pose: noche ? "durmiendo" : "burbuja_chat", bloques: [{ tipo: "texto", texto: TEXTO_OCUPADO }, { tipo: "whatsapp", texto: TEXTO_DEL_BOTON_DE_WHATSAPP, mensaje: mensajeDeWhatsapp(p.carrito, []) }], chips: [] },
+      });
+    }
     if (!reserva.ok) {
       const espera = reserva.motivo === "tope_red" ? 900 : reserva.motivo === "tope_dia" ? 3600 : undefined;
-      return terminar({ status: 429, cuerpo: { ok: false, motivo: reserva.motivo }, ...(espera ? { reintentarEn: espera } : {}) });
+      return terminar({ status: 429, cuerpo: { ok: false, motivo: reserva.motivo as Exclude<typeof reserva.motivo, "ocupado"> }, ...(espera ? { reintentarEn: espera } : {}) });
     }
     if (!esConfirmacion) this.deps.sql.correr("INSERT INTO envios (ts) VALUES (?)", ahora);
 
-    const gastos: GastoTienda[] = [];
+    const cuenta = new CuentaDelTurno(mes, reservaUsd, cfg.precios_ia);
     try {
-      const salida = await this.ejecutar(cfg, p, plan, gastos, diag);
+      const salida = await this.ejecutar(cfg, p, plan, cuenta, diag);
       if (salida.cuerpo.ok) {
         this.poner("ultimo", ahora);
         this.recortar();
@@ -456,7 +558,16 @@ export class MotorTienda {
       this.log("error", `el turno falló: ${limpiarError(err)}`);
       return terminar({ status: 502, cuerpo: { ok: false, motivo: "fallo" } });
     } finally {
-      await this.deps.global.cerrarTurnoTienda(reserva.id, gastos).catch((err) => this.log("warn", `no se pudo anotar el gasto: ${limpiarError(err)}`));
+      // Si cerrar falla (el Global no responde, un despliegue), se reintenta una vez; si tampoco, lo apartado vence a los 3 minutos
+      // y pasa a gasto estimado (global.ts → `liquidarVencidas`): lo cobrado no se suelta como si no hubiera costado nada.
+      const gastos = cuenta.gastos();
+      const cerrar = () => this.deps.global.cerrarTurnoTienda(reserva.id, gastos);
+      await cerrar()
+        .catch(async () => {
+          await new Promise((r) => setTimeout(r, 250));
+          await cerrar();
+        })
+        .catch((err) => this.log("warn", `no se pudo cerrar el turno (lo apartado pasará a gasto estimado): ${limpiarError(err)}`));
     }
   }
 
@@ -490,13 +601,13 @@ export class MotorTienda {
     return { tipo: "modelo" };
   }
 
-  private async ejecutar(cfg: Config, p: PeticionTienda, plan: Plan, gastos: GastoTienda[], diag: Record<string, unknown>): Promise<SalidaTienda> {
+  private async ejecutar(cfg: Config, p: PeticionTienda, plan: Plan, cuenta: CuentaDelTurno, diag: Record<string, unknown>): Promise<SalidaTienda> {
     const ahora = this.deps.ahora();
     const noche = !dentroDeHorario(cfg.horario, ahora);
     const textoDelVisitante = p.accion?.tipo === "chip" ? p.accion.valor : p.texto;
     const vistos = this.vistos();
     const whatsapp = (): Bloque => ({ tipo: "whatsapp", texto: TEXTO_DEL_BOTON_DE_WHATSAPP, mensaje: mensajeDeWhatsapp(p.carrito, vistos.slice(-2)) });
-    const fijo = (bloques: Bloque[], chips: string[] = [], entrada?: string, pose?: Pose): SalidaTienda => {
+    const fijo = (bloques: Bloque[], chips: string[] = [], entrada?: Entrada, pose?: Pose): SalidaTienda => {
       const respuesta: RespuestaTienda = {
         ok: true,
         pose: pose ?? elegirPose({ bloques, herramientas: [], noche, delModelo: null, textoDelVisitante, productos: [], agradecimiento: /gracias|thank/i.test(textoDelVisitante) }),
@@ -511,7 +622,7 @@ export class MotorTienda {
       case "calificar": {
         // Las estrellas las guarda el navegador en Odoo (con su sesión): aquí solo se agradece, una vez por sesión.
         this.poner("calificado", 1);
-        return fijo([{ tipo: "texto", texto: TEXTO_GRACIAS_POR_CALIFICAR }], [], "[El cliente calificó la atención]", "cinco_estrellas");
+        return fijo([{ tipo: "texto", texto: TEXTO_GRACIAS_POR_CALIFICAR }], [], nota("[El cliente calificó la atención]"), "cinco_estrellas");
       }
       case "persona": {
         const texto = noche ? `${TEXTO_PERSONA} ${lineaDeNoche(cfg)}` : TEXTO_PERSONA;
@@ -532,7 +643,7 @@ export class MotorTienda {
       }
       case "sin_confirmar":
         // La página avisó de un carrito que Brian no propuso (o ya confirmado): no se afirma nada.
-        return fijo([{ tipo: "texto", texto: TEXTO_SIN_CONFIRMAR }], [], "[La página avisó de un cambio en el carrito]");
+        return fijo([{ tipo: "texto", texto: TEXTO_SIN_CONFIRMAR }], [], nota("[La página avisó de un cambio en el carrito]"));
       case "carrito_fallo": {
         // Odoo dijo que NO: Brian nunca dice «listo». El texto es fijo y ofrece la ficha o WhatsApp.
         this.poner("pendiente", null);
@@ -540,21 +651,21 @@ export class MotorTienda {
         const bloques: Bloque[] = [{ tipo: "texto", texto: TEXTO_CARRITO_FALLO }];
         if (visto?.url) bloques.push({ tipo: "productos", productos: [{ ...tarjetaDe(visto), agregable: false }] });
         bloques.push(whatsapp());
-        return fijo(bloques, [], `[No se pudo poner en el carrito: ${plan.oferta.nombre}]`);
+        return fijo(bloques, [], nota(`[No se pudo poner en el carrito: ${plan.oferta.nombre}]`));
       }
       case "agregado": {
         this.poner("pendiente", null);
         const listo = textoListo(plan.oferta.nombre, plan.oferta.cantidad);
-        return this.turnoConModelo(cfg, p, gastos, diag, {
+        return this.turnoConModelo(cfg, p, cuenta, diag, {
           antes: listo,
           sinIa: plan.sinIa,
-          entrada: `[Se puso en el carrito: ${plan.oferta.cantidad} × ${plan.oferta.nombre}]`,
+          entrada: nota(`[Se puso en el carrito: ${plan.oferta.cantidad} × ${plan.oferta.nombre}]`),
           nota: `El sistema ya puso en el carrito ${plan.oferta.cantidad} × «${plan.oferta.nombre}» (Odoo lo confirmó) y ya se lo dijo al cliente con «${listo}». No lo repitas ni vuelvas a dar las gracias. Ofrécele el siguiente paso en una o dos líneas: si buscar_productos devuelve algo que combine con eso, sugiérelo con cortesía; si no, calcular el envío o seguir viendo.`,
           sinFallar: true,
         });
       }
       case "modelo":
-        return this.turnoConModelo(cfg, p, gastos, diag, {});
+        return this.turnoConModelo(cfg, p, cuenta, diag, {});
     }
   }
 
@@ -563,9 +674,9 @@ export class MotorTienda {
   private async turnoConModelo(
     cfg: Config,
     p: PeticionTienda,
-    gastos: GastoTienda[],
+    cuenta: CuentaDelTurno,
     diag: Record<string, unknown>,
-    op: { antes?: string; nota?: string; entrada?: string; sinFallar?: boolean; sinIa?: boolean },
+    op: { antes?: string; nota?: string; entrada?: Entrada; sinFallar?: boolean; sinIa?: boolean },
   ): Promise<SalidaTienda> {
     const reloj = this.deps.reloj ?? Date.now;
     const inicio = reloj();
@@ -573,7 +684,6 @@ export class MotorTienda {
     const queda = () => inicio + plazo - reloj();
     const ahora = this.deps.ahora();
     const noche = !dentroDeHorario(cfg.horario, ahora);
-    const mes = mesDelNegocio(cfg.horario.zona, ahora);
     const textoDelVisitante = p.accion?.tipo === "chip" ? p.accion.valor : p.texto;
     const vistosAntes = this.vistos();
     const whatsapp = (): Bloque => ({ tipo: "whatsapp", texto: TEXTO_DEL_BOTON_DE_WHATSAPP, mensaje: mensajeDeWhatsapp(p.carrito, vistosAntes.slice(-2)) });
@@ -646,24 +756,15 @@ export class MotorTienda {
     const dinamico = (extra = "") =>
       contextoTienda(cfg, { ahora, pagina: p.pagina, carrito: p.carrito, envioPorUbicacion, nota: op.nota }) + extra;
     const actual = textoDelVisitante
-      ? textoParaElModelo(textoDelVisitante)
+      ? delVisitanteParaElModelo(textoDelVisitante)
       : p.ubicacion
         ? "(El cliente tocó «Usar mi ubicación».)"
         : "(El cliente sigue en la página.)";
     const mensajes: ModelMessage[] = [...this.historialParaElModelo(), { role: "user", content: actual }];
-    const usos = new Map<string, { sel: SeleccionDeModelo; uso: Uso }>();
-    const anotarUso = (sel: SeleccionDeModelo, uso: Uso) => {
-      const clave = `${sel.proveedor}|${sel.modelo}`;
-      usos.set(clave, { sel, uso: sumarUso(usos.get(clave)?.uso ?? USO_VACIO, uso) });
-    };
-    const anotarGastos = () => {
-      for (const { sel, uso } of usos.values()) {
-        const c = costoDe(sel.modelo, uso, cfg.precios_ia);
-        gastos.push({ mes, proveedor: sel.proveedor, modelo: sel.modelo, uso, usd: c.usd, estimado: c.estimado });
-      }
-    };
-
-    /** Una vuelta con un plazo; los fallos se anotan para /salud (sin claves). */
+    /**
+     * Una vuelta con un plazo; los fallos se anotan para /salud (sin claves). Cada paso que termina se anota en la cuenta del turno en
+     * ese momento; si la vuelta se corta o falla con la petición ya enviada, la cuenta lo sabe y anota al menos lo apartado.
+     */
     const vuelta = async (sel: SeleccionDeModelo, ms: number, o: { extra?: string; previos?: ModelMessage[]; soloResponder?: boolean } = {}): Promise<SalidaModelo | null> => {
       if (ms <= 500) return null;
       const control = new AbortController();
@@ -682,13 +783,13 @@ export class MotorTienda {
         mensajes: [...mensajes, ...(o.previos ?? [])],
         herramientas: o.soloResponder ? { [NOMBRE_RESPONDER]: herramientas[NOMBRE_RESPONDER] } : herramientas,
         abortSignal: control.signal,
+        alPaso: (uso) => cuenta.anotar(sel, uso),
       });
       llamada.catch(() => {});
       try {
-        const s = await Promise.race([llamada, vencido]);
-        anotarUso(sel, s.uso);
-        return s;
+        return await Promise.race([llamada, vencido]);
       } catch (err) {
+        if (!rechazadaSinCobro(err)) cuenta.sinMedir = sel;
         const motivo = err instanceof PlazoVencido ? "tardó demasiado" : limpiarError(err);
         this.log("warn", `la IA ${sel.proveedor}/${sel.modelo} falló: ${motivo}`);
         await this.deps.global.guardarSalud?.("ia_fallo", JSON.stringify({ proveedor: sel.proveedor, modelo: sel.modelo, motivo: `(tienda) ${motivo}`, ts: ahora })).catch(() => {});
@@ -707,10 +808,7 @@ export class MotorTienda {
       const s = await vuelta(plan[i], ms);
       if (s) [salida, usado] = [s, plan[i]];
     }
-    if (!salida || !usado) {
-      anotarGastos();
-      return sinIa("ia");
-    }
+    if (!salida || !usado) return sinIa("ia");
     diag.modelo = usado.modelo;
     let consultas = [...consultasPrevias, ...salida.consultas];
     let herramientasUsadas = [...salida.herramientasUsadas];
@@ -764,7 +862,6 @@ export class MotorTienda {
         }
       }
     }
-    anotarGastos();
     diag.herramientas = herramientasUsadas;
     diag.revision = revision.graves;
 
@@ -851,7 +948,7 @@ export class MotorTienda {
   private salidaDelModelo(
     bloques: Bloque[],
     chips: string[],
-    op: { entrada?: string },
+    op: { entrada?: Entrada },
     p: PeticionTienda,
     noche: boolean,
     respuesta: RespuestaDelModelo | null,
@@ -866,18 +963,20 @@ export class MotorTienda {
 
   // ── El contexto guardado (como mucho 30 turnos, sin la ubicación) ──
 
-  /** Lo que se guarda de lo que dijo el visitante: su texto con tarjetas y cédulas tapadas, o una nota del sistema. Nunca coordenadas. */
-  private entradaParaElHistorial(p: PeticionTienda): string {
-    if (p.accion?.tipo === "chip") return enmascararSensibles(p.accion.valor);
-    if (p.texto) return enmascararSensibles(p.texto);
-    if (p.ubicacion) return "[El cliente compartió su ubicación para calcular el envío]";
-    return "[El cliente sigue en la página]";
+  /**
+   * Lo que se guarda de lo que dijo el visitante: su texto con tarjetas y cédulas tapadas, con origen «visitante» aunque empiece con
+   * «[» (I1 de la revisión: nunca se adivina por la forma). Sin texto, una nota del Worker. Nunca coordenadas.
+   */
+  private entradaParaElHistorial(p: PeticionTienda): Entrada {
+    if (p.accion?.tipo === "chip") return { texto: enmascararSensibles(p.accion.valor), origen: "visitante" };
+    if (p.texto) return { texto: enmascararSensibles(p.texto), origen: "visitante" };
+    if (p.ubicacion) return nota("[El cliente compartió su ubicación para calcular el envío]");
+    return nota("[El cliente sigue en la página]");
   }
 
-  private guardarTurno(entrada: string, bloques: readonly Bloque[]): void {
+  private guardarTurno(entrada: Entrada, bloques: readonly Bloque[]): void {
     const ahora = this.deps.ahora();
-    const sistema = entrada.startsWith("[");
-    this.deps.sql.correr("INSERT INTO mensajes (rol, origen, texto, ts) VALUES ('cliente', ?, ?, ?)", sistema ? "sistema" : "visitante", entrada.slice(0, 600), ahora);
+    this.deps.sql.correr("INSERT INTO mensajes (rol, origen, texto, ts) VALUES ('cliente', ?, ?, ?)", entrada.origen, entrada.texto.slice(0, 600), ahora);
     this.deps.sql.correr("INSERT INTO mensajes (rol, origen, texto, ts) VALUES ('brian', 'sistema', ?, ?)", resumenDeLaRespuesta(bloques).slice(0, 2500), ahora);
   }
 
@@ -893,7 +992,7 @@ export class MotorTienda {
   /** Lo que ve el modelo: lo del visitante como DATO (sin etiquetas que imiten las nuestras), lo de Brian tal cual. Empieza con el cliente. */
   private historialParaElModelo(): ModelMessage[] {
     const salida: ModelMessage[] = this.mensajesGuardados().map((f) =>
-      f.rol === "brian" ? { role: "assistant" as const, content: f.texto } : { role: "user" as const, content: f.origen === "sistema" ? f.texto : textoParaElModelo(f.texto) },
+      f.rol === "brian" ? { role: "assistant" as const, content: f.texto } : { role: "user" as const, content: f.origen === "sistema" ? f.texto : delVisitanteParaElModelo(f.texto) },
     );
     while (salida.length && salida[0].role !== "user") salida.shift();
     return salida;

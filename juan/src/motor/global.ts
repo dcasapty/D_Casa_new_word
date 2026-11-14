@@ -5,6 +5,7 @@ import { DurableObject } from "cloudflare:workers";
 import type { Env } from "../env";
 import { sqlDeDurableObject, type Sql } from "./sql";
 import type { Uso } from "./precios";
+import { TIENDA_POR_DEFECTO } from "../config";
 
 export interface GastoDelMes {
   mes: string;
@@ -155,24 +156,48 @@ export class AlmacenGlobal {
 // de a una petición, así que «contar y apartar» sin esperas en medio es atómico (dos mensajes a la vez no se pasan del tope).
 // Su gasto va en su PROPIA tabla: nunca suma en `gasto` (el de Juan: su tope, «Por pagar a Meta» y los cortes de Odoo).
 
-/** Lo que se aparta para un turno de la tienda: vence solo si el Worker se cae a la mitad (no queda dinero «apartado» para siempre). */
+/**
+ * Lo que se aparta para un turno de la tienda vence a los 3 minutos. Si para entonces nadie cerró el turno (el Worker se cayó, o el
+ * cierre falló), lo apartado pasa a ser GASTO estimado (`liquidarVencidas`): no se suelta como si no hubiera costado nada.
+ */
 export const VIDA_DE_UNA_RESERVA_MS = 3 * 60_000;
+/** El renglón del gasto de la tienda para lo que se cobró sin poder medirse (un turno cortado, o una reserva que nadie cerró). */
+export const MODELO_DE_LO_CORTADO = "turnos cortados (estimado)";
+/** Marca de una reserva que ya pasó a gasto estimado: si el cierre llega tarde, no se cuenta dos veces. */
+const LIQUIDADA = -1;
 const VIDA_DE_UN_TURNO_DE_LA_TIENDA_MS = 26 * 3600_000;
 
 export interface ReservaTienda {
   /** La red del visitante ya ofuscada (HMAC): aquí nunca llega la IP ni la red en claro. */
   red: string;
+  /** La /48 de una IPv6, también ofuscada (null con IPv4): muchas /64 de la misma /48 no saltan el tope por red. */
+  red48?: string | null;
   /** «AAAA-MM-DD» y «AAAA-MM», en la hora de Panamá. */
   dia: string;
   mes: string;
+  /** Por hora por red. */
   porRed: number;
+  /** Por día entre todos. */
   porDia: number;
+  /** Por día por red (sin él, el de fábrica: una sola IP no se lleva el tope del día de todos). */
+  porRedDia?: number;
+  /** Por hora por /48 (sin él, 3 × el de por red). */
+  porRed48?: number;
+  /** Por día por /48 (sin él, 3 × el de por red y por día). */
+  porRed48Dia?: number;
+  /** Turnos con IA a la vez, entre todos (sin él, el de fábrica). */
+  enVueloMax?: number;
+  /** La parte justa de cada red en los turnos a la vez (sin él, el de fábrica): más que eso nunca deja fuera a otra red. */
+  enVueloRed?: number;
+  /** El proveedor de la IA del turno: si la reserva vence sin cerrarse, su gasto estimado va con él. */
+  proveedor?: string;
   presupuestoUsd: number;
   /** Lo que puede costar este turno (0 si no llama a la IA). */
   reservaUsd: number;
 }
 
-export type ResultadoReservaTienda = { ok: true; id: number } | { ok: false; motivo: "tope_red" | "tope_dia" | "presupuesto" };
+/** «ocupado»: ya hay demasiados turnos con IA a la vez (no es un tope del visitante: en un momento vuelve a poder). */
+export type ResultadoReservaTienda = { ok: true; id: number } | { ok: false; motivo: "tope_red" | "tope_dia" | "presupuesto" | "ocupado" };
 
 export interface GastoTienda {
   mes: string;
@@ -198,6 +223,14 @@ function crearTablasDeLaTienda(sql: Sql): void {
   // Cada mensaje aceptado (con o sin IA): la hora, el día, la red ofuscada y lo apartado. Se borran a las 26 horas.
   sql.correr(`CREATE TABLE IF NOT EXISTS tienda_turnos (id INTEGER PRIMARY KEY AUTOINCREMENT, ts INTEGER NOT NULL, dia TEXT NOT NULL,
     red TEXT NOT NULL, reserva REAL NOT NULL DEFAULT 0, vence INTEGER NOT NULL DEFAULT 0)`);
+  // La /48 de IPv6 (2026-11-14). Una tabla que ya existía sin la columna la recibe aquí (si ya la tiene, SQLite se queja y no pasa nada).
+  for (const columna of ["red48 TEXT", "proveedor TEXT"]) {
+    try {
+      sql.correr(`ALTER TABLE tienda_turnos ADD COLUMN ${columna}`);
+    } catch {
+      /* ya estaba */
+    }
+  }
   sql.correr(`CREATE TABLE IF NOT EXISTS tienda_gasto (
     mes TEXT NOT NULL, proveedor TEXT NOT NULL, modelo TEXT NOT NULL,
     entrada INTEGER NOT NULL DEFAULT 0, cache_lectura INTEGER NOT NULL DEFAULT 0,
@@ -217,49 +250,109 @@ export class TopesDeLaTienda {
    * lo apartado por los turnos en curso más lo que puede costar este). Todo sin esperas en medio: es atómico dentro del objeto.
    */
   reservar(p: ReservaTienda, ahora: number): ResultadoReservaTienda {
+    // Primero lo vencido sin cerrar pasa a gasto (antes de borrar lo viejo, para que nada se pierda).
+    this.liquidarVencidas(ahora);
     this.sql.correr("DELETE FROM tienda_turnos WHERE ts < ?", ahora - VIDA_DE_UN_TURNO_DE_LA_TIENDA_MS);
-    const porRed = this.sql.uno<{ n: number }>("SELECT COUNT(*) AS n FROM tienda_turnos WHERE red = ? AND ts > ?", p.red, ahora - 3600_000)?.n ?? 0;
-    if (porRed >= p.porRed) return { ok: false, motivo: "tope_red" };
-    const delDia = this.sql.uno<{ n: number }>("SELECT COUNT(*) AS n FROM tienda_turnos WHERE dia = ?", p.dia)?.n ?? 0;
-    if (delDia >= p.porDia) return { ok: false, motivo: "tope_dia" };
-    // El presupuesto solo frena lo que gasta: un turno sin IA (reserva 0: pedir una persona, calificar…) pasa aunque esté agotado.
+    const n = (consulta: string, ...params: (string | number)[]) => this.sql.uno<{ n: number }>(consulta, ...params)?.n ?? 0;
+    const haceUnaHora = ahora - 3600_000;
+    if (n("SELECT COUNT(*) AS n FROM tienda_turnos WHERE red = ? AND ts > ?", p.red, haceUnaHora) >= p.porRed) return { ok: false, motivo: "tope_red" };
+    // Una sola red no se lleva el tope del día de todos (60 por hora serían 1440 al día, más que los 1000 del día).
+    const porRedDia = p.porRedDia ?? TIENDA_POR_DEFECTO.tope_red_dia;
+    if (n("SELECT COUNT(*) AS n FROM tienda_turnos WHERE red = ? AND dia = ?", p.red, p.dia) >= porRedDia) return { ok: false, motivo: "tope_red" };
+    // Con IPv6, una /48 tiene 65 536 redes /64: juntas no pasan de estos topes, por hora y por día (cambiando de /64 cada 45
+    // mensajes, una sola /48 juntaba los 1000 del día en unas 5 horas y media).
+    if (p.red48) {
+      if (n("SELECT COUNT(*) AS n FROM tienda_turnos WHERE red48 = ? AND ts > ?", p.red48, haceUnaHora) >= (p.porRed48 ?? p.porRed * 3)) return { ok: false, motivo: "tope_red" };
+      if (n("SELECT COUNT(*) AS n FROM tienda_turnos WHERE red48 = ? AND dia = ?", p.red48, p.dia) >= (p.porRed48Dia ?? porRedDia * 3)) return { ok: false, motivo: "tope_red" };
+    }
+    if (n("SELECT COUNT(*) AS n FROM tienda_turnos WHERE dia = ?", p.dia) >= p.porDia) return { ok: false, motivo: "tope_dia" };
+    // El presupuesto y el tope de turnos a la vez solo frenan lo que usa la IA: un turno sin IA (reserva 0: pedir una persona,
+    // calificar…) pasa aunque estén llenos.
     const reserva = Math.max(0, p.reservaUsd);
     if (reserva > 0) {
+      if (this.ocupado(p, ahora)) return { ok: false, motivo: "ocupado" };
       const gastado = this.gastado(p.mes);
       const enVuelo = this.enVuelo(ahora);
       if (gastado + enVuelo + reserva > Math.max(0, p.presupuestoUsd) + 1e-9) return { ok: false, motivo: "presupuesto" };
     }
-    this.sql.correr("INSERT INTO tienda_turnos (ts, dia, red, reserva, vence) VALUES (?, ?, ?, ?, ?)", ahora, p.dia, p.red, reserva, ahora + VIDA_DE_UNA_RESERVA_MS);
+    this.sql.correr(
+      "INSERT INTO tienda_turnos (ts, dia, red, red48, reserva, vence, proveedor) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      ahora,
+      p.dia,
+      p.red,
+      p.red48 ?? null,
+      reserva,
+      ahora + VIDA_DE_UNA_RESERVA_MS,
+      p.proveedor ?? null,
+    );
     const id = this.sql.uno<{ id: number }>("SELECT last_insert_rowid() AS id")?.id ?? 0;
     return { ok: true, id };
   }
 
-  /** El turno terminó: suelta lo apartado y anota lo que de verdad costó (cada modelo con su proveedor, en su propio renglón). */
-  cerrar(id: number, gastos: readonly GastoTienda[]): void {
-    this.sql.correr("UPDATE tienda_turnos SET reserva = 0, vence = 0 WHERE id = ?", id);
-    for (const g of gastos) {
-      if (!(g.usd >= 0) || !Number.isFinite(g.usd)) continue;
-      this.sql.correr(
-        `INSERT INTO tienda_gasto (mes, proveedor, modelo, entrada, cache_lectura, cache_escritura, salida, usd, turnos, estimado)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
-         ON CONFLICT(mes, proveedor, modelo) DO UPDATE SET
-           entrada = entrada + excluded.entrada, cache_lectura = cache_lectura + excluded.cache_lectura,
-           cache_escritura = cache_escritura + excluded.cache_escritura, salida = salida + excluded.salida,
-           usd = usd + excluded.usd, turnos = turnos + 1, estimado = MAX(estimado, excluded.estimado)`,
-        g.mes,
-        g.proveedor,
-        g.modelo,
-        g.uso.entrada,
-        g.uso.cacheLectura,
-        g.uso.cacheEscritura,
-        g.uso.salida,
-        g.usd,
-        g.estimado ? 1 : 0,
-      );
+  /**
+   * ¿Hay demasiados turnos con IA a la vez? Cada red cuenta como mucho su parte justa (`enVueloRed`, 2 de fábrica): una sola conexión
+   * puede usar los lugares libres, pero lo que pase de su parte nunca deja fuera a otra red (revisión adversarial, segunda vuelta). Y
+   * una red que ya tiene su parte no agrega más si en total ya se llegó al tope.
+   */
+  private ocupado(p: ReservaTienda, ahora: number): boolean {
+    const tope = p.enVueloMax ?? TIENDA_POR_DEFECTO.tope_en_vuelo;
+    const parte = p.enVueloRed ?? TIENDA_POR_DEFECTO.tope_en_vuelo_red;
+    const porRed = this.sql.todos<{ red: string; n: number }>("SELECT red, COUNT(*) AS n FROM tienda_turnos WHERE reserva > 0 AND vence > ? GROUP BY red", ahora);
+    const total = porRed.reduce((s, f) => s + f.n, 0);
+    const justo = porRed.reduce((s, f) => s + Math.min(f.n, parte), 0);
+    const deEstaRed = porRed.find((f) => f.red === p.red)?.n ?? 0;
+    return justo >= tope || (deEstaRed >= parte && total >= tope);
+  }
+
+  /**
+   * Lo apartado que venció sin que nadie cerrara el turno (el Worker se cayó, o el cierre falló dos veces) pasa a GASTO estimado, en el
+   * renglón «turnos cortados (estimado)» con su proveedor: si la IA trabajó, el proveedor cobró. Se marca para no contarlo dos veces.
+   */
+  private liquidarVencidas(ahora: number): void {
+    const vencidas = this.sql.todos<{ id: number; dia: string; reserva: number; proveedor: string | null }>(
+      "SELECT id, dia, reserva, proveedor FROM tienda_turnos WHERE reserva > 0 AND vence > 0 AND vence <= ?",
+      ahora,
+    );
+    for (const v of vencidas) {
+      this.sql.correr("UPDATE tienda_turnos SET reserva = 0, vence = ? WHERE id = ?", LIQUIDADA, v.id);
+      this.anotarGasto({ mes: v.dia.slice(0, 7), proveedor: v.proveedor ?? "desconocido", modelo: MODELO_DE_LO_CORTADO, uso: { entrada: 0, cacheLectura: 0, cacheEscritura: 0, salida: 0 }, usd: v.reserva, estimado: true });
     }
   }
 
+  /**
+   * El turno terminó: suelta lo apartado y anota lo que de verdad costó (cada modelo con su proveedor, en su propio renglón). Si el
+   * cierre llega cuando la reserva ya pasó a gasto estimado, no se anota otra vez: lo estimado (lo apartado, el máximo) se queda.
+   */
+  cerrar(id: number, gastos: readonly GastoTienda[]): void {
+    const fila = this.sql.uno<{ vence: number }>("SELECT vence FROM tienda_turnos WHERE id = ?", id);
+    if (fila?.vence === LIQUIDADA) return;
+    this.sql.correr("UPDATE tienda_turnos SET reserva = 0, vence = 0 WHERE id = ?", id);
+    for (const g of gastos) this.anotarGasto(g);
+  }
+
+  private anotarGasto(g: GastoTienda): void {
+    if (!(g.usd >= 0) || !Number.isFinite(g.usd)) return;
+    this.sql.correr(
+      `INSERT INTO tienda_gasto (mes, proveedor, modelo, entrada, cache_lectura, cache_escritura, salida, usd, turnos, estimado)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+       ON CONFLICT(mes, proveedor, modelo) DO UPDATE SET
+         entrada = entrada + excluded.entrada, cache_lectura = cache_lectura + excluded.cache_lectura,
+         cache_escritura = cache_escritura + excluded.cache_escritura, salida = salida + excluded.salida,
+         usd = usd + excluded.usd, turnos = turnos + 1, estimado = MAX(estimado, excluded.estimado)`,
+      g.mes,
+      g.proveedor,
+      g.modelo,
+      g.uso.entrada,
+      g.uso.cacheLectura,
+      g.uso.cacheEscritura,
+      g.uso.salida,
+      g.usd,
+      g.estimado ? 1 : 0,
+    );
+  }
+
   gastoMes(mes: string, dia: string, ahora: number): GastoTiendaDelMes {
+    this.liquidarVencidas(ahora);
     const filas = this.sql.todos<{ proveedor: string; modelo: string; usd: number; turnos: number; estimado: number }>(
       "SELECT proveedor, modelo, usd, turnos, estimado FROM tienda_gasto WHERE mes = ? ORDER BY usd DESC",
       mes,

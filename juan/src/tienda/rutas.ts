@@ -11,7 +11,7 @@ import type { Env } from "../env";
 import { hmacHex } from "../seguridad";
 import type { DepsRutas } from "../rutas";
 import type { EntradaTienda, MotivoTienda, SalidaTienda } from "./motor";
-import { llaveDeRed, verificarPase } from "./pase";
+import { llaveDeRed, llaveDeRed48, verificarPase } from "./pase";
 import { validarPeticionTienda } from "./peticion";
 
 export const RUTA_DEL_MENSAJE = "/tienda/v1/mensaje";
@@ -91,8 +91,13 @@ export async function manejarTienda(ruta: string, req: Request, env: Env, d: Pic
   try {
     // El tope por red: la IPv4 entera o la /64 de la IPv6 de la conexión (como el borde), guardada ofuscada (HMAC con el token del
     // Worker) y solo 26 horas.
-    const red = (await hmacHex(env.JUAN_WORKER_TOKEN ?? "", `brian-tienda-red:${llaveDeRed(req.headers.get("cf-connecting-ip"))}`)).slice(0, 32);
-    const r = await sesion.atender({ peticion, red });
+    const ip = req.headers.get("cf-connecting-ip");
+    const ofuscar = async (llave: string) => (await hmacHex(env.JUAN_WORKER_TOKEN ?? "", llave)).slice(0, 32);
+    const red = await ofuscar(`brian-tienda-red:${llaveDeRed(ip)}`);
+    // Con IPv6, también su /48 (el tope por /48); con IPv4, no hay.
+    const llave48 = llaveDeRed48(ip);
+    const red48 = llave48 ? await ofuscar(`brian-tienda-red48:${llave48}`) : null;
+    const r = await sesion.atender({ peticion, red, red48 });
     return responder(r.cuerpo, r.status, origen, r.reintentarEn ? { "retry-after": String(r.reintentarEn) } : {});
   } catch (e) {
     console.error("[juan] tienda:", e instanceof Error ? e.message.slice(0, 200) : "error");
