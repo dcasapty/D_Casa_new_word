@@ -44,7 +44,8 @@ la producción. Apruébalo y punto.»); la revisión adversarial no se salta (re
         Mastercard, «Pase U», Yappy). Odoo no trae proveedor de Tilopay: hay que hacerlo; las claves solo en
         Cloudflare, nunca en el chat.
       - **Search Console:** la dueña pedirá ayuda para dar de alta el sitio (pasos para el jefe).
-      - **El mapa:** si el CSP del borde bloquea el `iframe` de Google, abrir `frame-src` solo para Visítanos.
+      - **El mapa:** el borde solo manda `frame-ancestors 'self'` (no `frame-src`), así que el `iframe` de Google no se
+        bloquea; comprobarlo en producción con el permiso de cookies aceptado.
       - **«Tu compra lista»** (de la cotización de WhatsApp al carrito con un código o enlace, con lista de deseos):
         borrador de diseño hecho en la sesión del 2026-11-13; esperar el informe de la comparación con Carbone y las
         decisiones de la dueña.
