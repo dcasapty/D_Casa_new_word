@@ -904,6 +904,16 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   navegador («websocket-client module is not installed»), pero una aserción escrita después de los subtests corre
   igual y falla (`0 != 2`). Las pruebas de navegador se saltan enteras al principio cuando no hay navegador, o cuentan
   dentro de cada subtest. En local sí está instalado: el fallo solo se ve en el CI.
+- **Dos módulos que heredan la misma ruta pisan en orden alfabético** (2026-11-14, CI 354): `dcasa_buscar_foto` y
+  `dcasa_brian_tienda` ponen cada uno la fecha de `/privacidad`; Odoo carga los independientes por nombre y el último
+  gana, así que la foto (13 nov) tapaba a Brian (14 nov). Regla: quien cambia un valor compartido compara y solo lo
+  sube (la fecha más nueva gana), y las pruebas aceptan «esta o una más nueva».
+- **Un xpath que busca un atributo que otra herencia cambia rompe el guardado con el editor** (2026-11-14):
+  `pie_mi_cuenta` buscaba `//a[@href='/my']` y cambiaba el enlace a `/mi-cuenta`. Al guardar el pie con el
+  constructor, la copia del sitio ya trae `/mi-cuenta` y la herencia no encuentra su ancla: error de validación. Se vio
+  solo con todos los módulos instalados (en local con dos módulos pasaba). Regla: el xpath acepta el valor de antes y
+  el de después (`@href='/my' or @href='/mi-cuenta'`), y las pruebas de editor se corren con la lista completa de
+  `Makefile`.
 - **Pruebas que dependen de la hora** (2026-11-13): con la regla «de noche nadie recibe clientes» encendida de fábrica,
   las pruebas viejas del reparto y de la API dependían del reloj del CI. `tests/common.py` de `dcasa_conversaciones`
   la apaga (`reparto_nadie_de_noche = False`) y las pruebas de esa regla la encienden con el reloj quieto
