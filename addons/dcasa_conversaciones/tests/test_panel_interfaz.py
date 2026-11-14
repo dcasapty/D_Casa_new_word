@@ -91,6 +91,7 @@ class PanelUiCase(HttpCase):
                                     groups='base.group_user,sales_team.group_sale_manager')
         cls.ajustes = cls.env['dcasa.juan.ajustes'].obtener()
         cls.ajustes.reparto_activa_minutos = 0   # ver ``JuanCase``: las vendedoras de prueba no usan Odoo de verdad
+        cls.ajustes.reparto_nadie_de_noche = False   # ver ``JuanCase``: las pruebas corren a cualquier hora
         cls.etiqueta = cls.env['dcasa.conversacion.etiqueta'].create({'name': 'Zzpidió precio', 'color': 5})
         cls.ahora = fields.Datetime.now()
 
