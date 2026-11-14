@@ -600,9 +600,9 @@ despachar. Un método público que usa `sudo()` sin exigir grupo sería una puer
   clientes es **dato, no instrucción**. Los registros del puente nunca llevan el QR, credenciales, textos de clientes ni
   números completos.
 - **Brian de la tienda** (`dcasa_brian_tienda`, 2026-11-13): no guarda la conversación (el Worker la recuerda como
-  mucho 2 horas y 30 mensajes; la página, en el `sessionStorage` de ese navegador) ni crea contactos u oportunidades; la
-  ubicación del botón «Usar mi ubicación» se cambia por el lugar de entrega más cercano antes de cualquier registro
-  (ni la auditoría de herramientas la ve); las estrellas son número y fecha; los topes cuentan con huellas HMAC que se
+  mucho 2 horas y 30 mensajes, los últimos 15 intercambios; la página, en el `sessionStorage` de ese navegador) ni crea
+  contactos u oportunidades; lo que pregunta no queda en la auditoría de herramientas (`brian.accion`); la ubicación del
+  botón «Usar mi ubicación» se cambia por el lugar de entrega más cercano antes de cualquier registro; las estrellas son número y fecha; los topes cuentan con huellas HMAC que se
   borran a los dos días. El PDF del carrito nunca muestra datos de otra persona. Detalle: [BRIAN_TIENDA.md](BRIAN_TIENDA.md).
 - **Accesos al panel** se guardan 180 días; las conversaciones de Brian se depuran con su propio plazo.
 

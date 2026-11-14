@@ -25,7 +25,7 @@ Módulo: `addons/dcasa_seguridad`. Borde: `edge/src/bots.ts`.
 | API de Odoo por XML-RPC/JSON-RPC (`/jsonrpc`, `/xmlrpc`, `/json/2`) | Borde | Cerrada desde internet |
 | Cabeceras HTTPS (HSTS, nosniff, anti-iframe ajeno) | Borde | Activas en todas las respuestas |
 | Rutas de sondeo (`/wp-admin`, `/.env`, `*.php`…) y escáneres (`sqlmap`, `nikto`…) | Borde | 404 / 403 sin despertar a Odoo |
-| Límite de intentos por conexión (la IPv4, o la red /64 de la IPv6) en login, clave, registro, formularios, /socios, carrito y «Busca con una foto» | Borde | Activo (contador en memoria; mejor con el binding de Cloudflare, §7) |
+| Límite de intentos por conexión (la IPv4, o la red /64 de la IPv6) en login, clave, registro, formularios, /socios, carrito, «Busca con una foto» y la cotización en PDF del chat de la tienda (el único GET) | Borde | Activo (contador en memoria; mejor con el binding de Cloudflare, §7) |
 | Cloudflare Turnstile (captcha invisible) | Odoo `website_cf_turnstile` | **Listo y apagado** hasta tener las claves (§6) |
 | **La puerta del equipo** (PIN al correo con Cloudflare Access antes de la clave) | Borde + `dcasa_seguridad` | **Staging en modo «1»**; producción en «0» hasta aclarar por qué `/master` daba «Not Found» (§8) |
 | robots.txt para rastreadores de IA | `dcasa_seguridad` | Política «equilibrada» (§6.3) |

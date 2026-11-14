@@ -34,6 +34,7 @@ from collections import defaultdict, deque
 from urllib.parse import urlsplit
 
 from odoo import SUPERUSER_ID, fields, http
+from odoo.addons.dcasa_brian.models.registro import SIN_AUDITORIA
 from odoo.exceptions import ConcurrencyError
 from odoo.http import request
 from odoo.service.model import PG_CONCURRENCY_EXCEPTIONS_TO_RETRY
@@ -536,7 +537,10 @@ class JuanAPI(http.Controller):
         if nombre == 'crear_oportunidad' and R.parece_direccion_exacta(argumentos.get('zona')):
             # Una dirección exacta no se guarda (issue #25): tampoco en la auditoría de Brian (``brian.accion``).
             argumentos = {clave: valor for clave, valor in argumentos.items() if clave != 'zona'}
-        if nombre == 'cotizar_envio' and ('lat' in argumentos or 'lon' in argumentos):
+        if nombre == 'cotizar_envio' and cuerpo.get('origen') == ORIGEN_TIENDA \
+                and ('lat' in argumentos or 'lon' in argumentos):
+            # Solo el chat de la tienda manda coordenadas (el botón «Usar mi ubicación»). A Juan no le sirven: no están
+            # en el esquema y la herramienta las rechaza como parámetros que no existen.
             argumentos, directo = self._ubicacion_a_lugar(entorno, argumentos, contexto)
             if directo is not None:
                 return _respuesta({'ok': True, 'resultado': directo})
@@ -563,6 +567,9 @@ class JuanAPI(http.Controller):
                 raise _Error(403, f'El chat de la tienda no usa «{nombre[:60]}».')
             if conversacion_id is not None:
                 raise _Error(400, 'El chat de la tienda no tiene conversación en Odoo: sin «conversacion_id».')
+            # Lo que pregunta el visitante (lo que busca, su barrio) no queda en la auditoría de Brian: la privacidad
+            # promete que la conversación no se guarda. Son todas de leer (la lista blanca de arriba).
+            return {SIN_AUDITORIA: True}
         if conversacion_id is None:
             return {}
         if not isinstance(conversacion_id, int) or isinstance(conversacion_id, bool):

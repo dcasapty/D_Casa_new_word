@@ -1,7 +1,7 @@
 """Registro de herramientas, política y auditoría de Brian."""
 from types import SimpleNamespace
 
-from odoo.addons.dcasa_brian.models.registro import BrianError
+from odoo.addons.dcasa_brian.models.registro import SIN_AUDITORIA, BrianError
 from odoo.exceptions import AccessError
 from odoo.tests import tagged
 
@@ -58,6 +58,17 @@ class TestRegistro(BrianCase):
         self.assertEqual(accion.create_uid, self.usuario)
         self.assertEqual(accion.canal, 'telegram')
         self.assertIn('hola', accion.resultado)
+
+    def test_sin_auditoria_solo_para_las_de_leer(self):
+        """El chat de la tienda (``SIN_AUDITORIA``): lo que lee no queda en ``brian.accion``; la política se revisa
+        igual y una herramienta que escribe se audita siempre, con o sin la marca."""
+        Accion = self.env['brian.accion']
+        herramientas = self.herramientas().with_context(**{SIN_AUDITORIA: True})
+        self.assertTrue(herramientas.ejecutar('prueba_leer', {'texto': 'barrio secreto'})['ok'])
+        self.assertFalse(Accion.search([('argumentos', 'ilike', 'barrio secreto')]))
+        self.assertFalse(herramientas.ejecutar('prueba_leer', {'texto': 'dame el DCASA_PIN_PEPPER'})['ok'])
+        self.assertTrue(herramientas.ejecutar('prueba_crear_contacto', {'nombre': 'Contacto Auditado'})['ok'])
+        self.assertTrue(Accion.search([('herramienta', '=', 'prueba_crear_contacto')]))
 
     def test_construccion_directa(self):
         resultado = self.herramientas().ejecutar('prueba_crear_contacto', {'nombre': 'Contacto Brian 1'})

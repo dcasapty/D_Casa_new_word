@@ -109,6 +109,13 @@ describe("límite de intentos", () => {
     expect(cubetaDe("POST", "/dcasa/brian/v1/pase")).toBe("carrito");
     expect(cubetaDe("POST", "/dcasa/brian/v1/carrito/agregar")).toBe("carrito");
     expect(cubetaDe("GET", "/dcasa/brian/v1/carrito")).toBeNull();
+    // La cotización en PDF: el único GET con freno (wkhtmltopdf en Odoo), también con idioma delante.
+    expect(cubetaDe("GET", "/dcasa/brian/v1/carrito/cotizacion.pdf")).toBe("pdf");
+    expect(cubetaDe("GET", "/es/dcasa/brian/v1/carrito/cotizacion.pdf")).toBe("pdf");
+    expect(cubetaDe("HEAD", "/dcasa/brian/v1/carrito/cotizacion.pdf")).toBe("pdf");
+    expect(cubetaDe("OPTIONS", "/dcasa/brian/v1/carrito/cotizacion.pdf")).toBeNull();
+    expect(cubetaDe("GET", "/shop/cart")).toBeNull();
+    expect(LIMITES.pdf).toBe(6);
     expect(cubetaDe("GET", "/web/login")).toBeNull();
     expect(cubetaDe("POST", "/brian/mcp")).toBeNull(); // MCP tiene su propio límite por usuario
     expect(cubetaDe("POST", "/brian/telegram/secreto")).toBeNull();

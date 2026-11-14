@@ -5,6 +5,9 @@
 * ``POST /carrito/agregar``         — ``{producto_id, cantidad}``: lo que Brian propuso o tocó el visitante (§3).
 * ``POST /carrito/cantidad``        — ``{producto_id, cantidad}`` (0 = quitar).
 * ``GET  /carrito/cotizacion.pdf``  — la cotización del carrito, con los números de Odoo y «Cliente: (por confirmar)».
+  Cada una arranca wkhtmltopdf y ocupa una conexión de la base (Odoo corre con ``workers = 0``): a lo sumo 2 a la vez
+  por proceso (sin esperar: la tercera recibe 503 con ``Retry-After``), 10 por hora por conexión (la IPv4 entera o la
+  /64, contador confirmado aparte), 10 por hora por sesión, y el borde frena las ráfagas (6 por minuto por conexión).
 * ``POST /calificar``               — ``{estrellas}``: solo número y fecha, una vez por ``sid`` (contrato_cambios §5).
 
 Reglas de todas:
@@ -23,9 +26,11 @@ Reglas de todas:
 """
 import json
 import logging
+import threading
 import time
 
 from odoo import http
+from odoo.addons.dcasa_base.red import llave_ip
 from odoo.addons.dcasa_conversaciones.models import publico as P
 from odoo.addons.website_dcasa.controllers.main import DcasaTienda
 from odoo.fields import Domain
@@ -38,10 +43,17 @@ _logger = logging.getLogger(__name__)
 RAIZ = '/dcasa/brian/v1'
 MAX_CUERPO = 2048
 MAX_CANTIDAD = 20
-MAX_PDF_POR_HORA = 10
+MAX_PDF_POR_HORA = 10              # por sesión
+MAX_PDF_POR_CONEXION_HORA = 10     # por conexión (IPv4 entera o /64): una cookie nueva no da cupo nuevo
+MAX_PDF_A_LA_VEZ = 2               # por proceso: cada PDF es un wkhtmltopdf y una conexión de la base
+_SEMAFORO_PDF = threading.BoundedSemaphore(MAX_PDF_A_LA_VEZ)
+TEXTO_SIN_PDF = 'Por ahora no podemos armar más cotizaciones. Inténtalo en un rato o escríbenos por WhatsApp.'
+TEXTO_PDF_OCUPADO = 'Estamos armando otras cotizaciones. Inténtalo de nuevo en unos segundos.'
 MAX_ID = 2 ** 31
 # La política de privacidad cambia con este módulo (views/templates.xml, «Brian, el chat de la tienda»): su fecha.
-FECHA_PRIVACIDAD = '13 de noviembre de 2026'
+FECHA_PRIVACIDAD = '14 de noviembre de 2026'
+MESES = ('enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre',
+         'noviembre', 'diciembre')
 
 
 def _json(datos, estado=200):
@@ -50,6 +62,15 @@ def _json(datos, estado=200):
         headers=[('Content-Type', 'application/json; charset=utf-8'), ('Cache-Control', 'no-store'),
                  ('X-Content-Type-Options', 'nosniff'), ('X-Robots-Tag', 'noindex')],
         status=estado)
+
+
+def _fecha(texto):
+    """«14 de noviembre de 2026» → ``(2026, 11, 14)``; lo que no se entiende, ``(0, 0, 0)``."""
+    partes = str(texto or '').lower().split(' de ')
+    try:
+        return int(partes[2]), MESES.index(partes[1].strip()) + 1, int(partes[0])
+    except (IndexError, ValueError):
+        return 0, 0, 0
 
 
 def _entero(valor, minimo, maximo):
@@ -181,7 +202,9 @@ class DcasaBrianTiendaAPI(http.Controller):
             return _json({'ok': True, 'carrito': self._carrito()})
         linea = orden.website_order_line.filtered(lambda sol: sol.product_id.id == producto_id)[:1]
         if linea:
-            nueva = min(int(linea.product_uom_qty) + cantidad, MAX_CANTIDAD) if sumar else cantidad
+            actual = int(linea.product_uom_qty)
+            # Sumar nunca baja una línea: si ya tenía más de 20 (puestas en /shop/cart), se queda como estaba.
+            nueva = max(actual, min(actual + cantidad, MAX_CANTIDAD)) if sumar else cantidad
             orden._cart_update_line_quantity(line_id=linea.id, quantity=nueva)
         elif sumar:
             orden._cart_add(product_id=producto_id, quantity=cantidad)
@@ -204,29 +227,45 @@ class DcasaBrianTiendaAPI(http.Controller):
     @http.route(f'{RAIZ}/carrito/cotizacion.pdf', type='http', auth='public', website=True, methods=['GET'],
                 sitemap=False)
     def cotizacion(self, **_kw):
-        """La cotización del carrito de ESTA sesión. Sin carrito, al carrito. Con tope por sesión (10 por hora)."""
-        if not request.env['dcasa.brian.tienda'].sudo()._activo():
+        """La cotización del carrito de ESTA sesión. Sin carrito, al carrito. Con los topes del docstring del módulo:
+        a la vez por proceso, por conexión y por sesión."""
+        Tienda = request.env['dcasa.brian.tienda'].sudo()
+        if not Tienda._activo():
             raise request.not_found()
         orden = request.cart
         if not orden or not orden.website_order_line:
             return request.redirect('/shop/cart')
-        ahora = time.time()
-        recientes = [t for t in request.session.get(SESION_PDF) or []
-                     if isinstance(t, (int, float)) and ahora - t < 3600]
-        if len(recientes) >= MAX_PDF_POR_HORA:
-            return request.make_response(
-                'Por ahora no podemos armar más cotizaciones. Inténtalo en un rato o escríbenos por WhatsApp.',
-                headers=[('Content-Type', 'text/plain; charset=utf-8'), ('Cache-Control', 'no-store')], status=429)
-        request.session[SESION_PDF] = recientes + [int(ahora)]
-        cliente = self._cliente_de(orden)
-        contenido, tipo = request.env['ir.actions.report'].sudo().with_context(
-            dcasa_brian_cliente=cliente, report_pdf_no_attachment=True)._render_qweb_pdf(
-            'dcasa_brian_tienda.action_report_cotizacion_carrito', [orden.id])
+        # Sin esperar: con dos armándose, la tercera se va al instante (no retiene la conexión de la base esperando).
+        if not _SEMAFORO_PDF.acquire(blocking=False):
+            _logger.info('Brian de la tienda: ya hay %s cotizaciones en PDF a la vez.', MAX_PDF_A_LA_VEZ)
+            return self._sin_pdf(TEXTO_PDF_OCUPADO, 503, 20)
+        try:
+            ahora = time.time()
+            recientes = [t for t in request.session.get(SESION_PDF) or []
+                         if isinstance(t, (int, float)) and ahora - t < 3600]
+            if len(recientes) >= MAX_PDF_POR_HORA:
+                return self._sin_pdf(TEXTO_SIN_PDF, 429, 600)
+            conexion = llave_ip(request.httprequest.remote_addr or '')
+            if not Tienda._reservar_confirmado(f'pdf:{Tienda._huella(conexion)}', MAX_PDF_POR_CONEXION_HORA):
+                _logger.info('Brian de la tienda: una conexión llegó al tope de cotizaciones en PDF de esta hora.')
+                return self._sin_pdf(TEXTO_SIN_PDF, 429, 600)
+            request.session[SESION_PDF] = recientes + [int(ahora)]
+            contenido, tipo = request.env['ir.actions.report'].sudo().with_context(
+                dcasa_brian_cliente=self._cliente_de(orden), report_pdf_no_attachment=True)._render_qweb_pdf(
+                'dcasa_brian_tienda.action_report_cotizacion_carrito', [orden.id])
+        finally:
+            _SEMAFORO_PDF.release()
         es_pdf = tipo == 'pdf'
         return request.make_response(contenido, headers=[
             ('Content-Type', 'application/pdf' if es_pdf else 'text/html; charset=utf-8'),
             ('Content-Disposition', 'attachment; filename="cotizacion-dcasa.pdf"' if es_pdf else 'inline'),
             ('Cache-Control', 'no-store'), ('X-Robots-Tag', 'noindex'), ('X-Content-Type-Options', 'nosniff')])
+
+    @staticmethod
+    def _sin_pdf(texto, estado, reintento_s):
+        return request.make_response(texto, status=estado, headers=[
+            ('Content-Type', 'text/plain; charset=utf-8'), ('Cache-Control', 'no-store'),
+            ('Retry-After', str(reintento_s)), ('X-Robots-Tag', 'noindex')])
 
     @staticmethod
     def _cliente_de(orden):
@@ -262,11 +301,13 @@ class DcasaBrianTiendaAPI(http.Controller):
 
 
 class DcasaPrivacidadConBrian(DcasaTienda):
-    """La política de privacidad dice cuándo cambió: con el párrafo de «Brian, el chat de la tienda», esta fecha."""
+    """La política de privacidad dice cuándo cambió: con el párrafo de «Brian, el chat de la tienda», esta fecha, salvo
+    que otro módulo (p. ej. «Busca con una foto») ya puso una más reciente: la fecha solo avanza."""
 
     @http.route()
     def privacidad(self, **kwargs):
         respuesta = super().privacidad(**kwargs)
-        if getattr(respuesta, 'qcontext', None) is not None:
-            respuesta.qcontext['actualizado'] = FECHA_PRIVACIDAD
+        qcontext = getattr(respuesta, 'qcontext', None)
+        if qcontext is not None and _fecha(qcontext.get('actualizado')) < _fecha(FECHA_PRIVACIDAD):
+            qcontext['actualizado'] = FECHA_PRIVACIDAD
         return respuesta

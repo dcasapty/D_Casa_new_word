@@ -1,7 +1,11 @@
 """El carrito del chat (contrato §3): la sesión del visitante, solo lo publicado y agregable, las cantidades, que otro
 visitante no vea el carrito ajeno, el PDF sin datos de nadie y las estrellas (número y fecha)."""
-from odoo.tests import new_test_user, tagged
+from unittest.mock import patch
 
+from odoo.tests import new_test_user, tagged
+from odoo.tools import mute_logger
+
+from ..controllers import main as C
 from .common import RAIZ, TiendaCase
 
 
@@ -121,7 +125,34 @@ class TestCotizacionPdf(TiendaCase):
         self.post('carrito/agregar', {'producto_id': self.colchon.product_variant_id.id, 'cantidad': 1})
         for _ in range(10):
             self.assertEqual(self.url_open(f'{RAIZ}/carrito/cotizacion.pdf').status_code, 200)
-        self.assertEqual(self.url_open(f'{RAIZ}/carrito/cotizacion.pdf').status_code, 429)
+        respuesta = self.url_open(f'{RAIZ}/carrito/cotizacion.pdf')
+        self.assertEqual((respuesta.status_code, respuesta.headers['Retry-After']), (429, '600'))
+        self.assertIn('WhatsApp', respuesta.text)
+
+    def test_a_lo_sumo_dos_cotizaciones_a_la_vez(self):
+        """Con dos armándose (el semáforo lleno), la tercera se va al instante con 503 y Retry-After, sin contar."""
+        self.post('carrito/agregar', {'producto_id': self.colchon.product_variant_id.id, 'cantidad': 1})
+        self.assertEqual(C.MAX_PDF_A_LA_VEZ, 2)
+        tomados = [C._SEMAFORO_PDF.acquire(blocking=False) for _ in range(C.MAX_PDF_A_LA_VEZ)]
+        try:
+            self.assertEqual(tomados, [True, True])
+            respuesta = self.url_open(f'{RAIZ}/carrito/cotizacion.pdf')
+            self.assertEqual((respuesta.status_code, respuesta.headers['Retry-After']), (503, '20'))
+            self.assertIn('otras cotizaciones', respuesta.text)
+        finally:
+            for _ in tomados:
+                C._SEMAFORO_PDF.release()
+        self.assertEqual(self.env['dcasa.brian.tienda.cupo'].sudo().search_count([('llave', 'like', 'pdf:%')]), 0)
+        self.assertEqual(self.url_open(f'{RAIZ}/carrito/cotizacion.pdf').status_code, 200, 'y al soltarse, vuelve')
+
+    def test_si_el_pdf_falla_el_semaforo_se_suelta(self):
+        self.post('carrito/agregar', {'producto_id': self.colchon.product_variant_id.id, 'cantidad': 1})
+        Reporte = type(self.env['ir.actions.report'])
+        with patch.object(Reporte, '_render_qweb_pdf', side_effect=RuntimeError('wkhtmltopdf se cayó')), \
+                mute_logger('odoo.http'):
+            for _ in range(3):
+                self.assertEqual(self.url_open(f'{RAIZ}/carrito/cotizacion.pdf').status_code, 500)
+        self.assertEqual(self.url_open(f'{RAIZ}/carrito/cotizacion.pdf').status_code, 200)
 
 
 @tagged('post_install', '-at_install')

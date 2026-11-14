@@ -32,8 +32,9 @@ import logging
 import secrets
 import time
 
-from odoo import api, fields, models
+from odoo import SUPERUSER_ID, api, fields, models
 from odoo.addons.dcasa_conversaciones.models import horario as H
+from odoo.sql_db import Cursor
 
 _logger = logging.getLogger(__name__)
 
@@ -241,6 +242,17 @@ class DcasaBrianTienda(models.AbstractModel):
               RETURNING cuenta""", {'llave': llave, 'ventana': ventana})
         cuenta = cr.fetchone()[0]
         return cuenta <= tope
+
+    @api.model
+    def _reservar_confirmado(self, llave, tope):
+        """Como ``_reservar``, pero en una transacción PROPIA y corta que se confirma al salir: cuenta aunque lo que
+        venga después falle, y el cerrojo no queda tomado mientras dura (p. ej. un PDF). En READ COMMITTED: el segundo
+        pedido que espera el cerrojo ve la cuenta del primero (en REPEATABLE READ la foto de la base se tomaría antes de
+        esperar). En las pruebas la transacción es la de la prueba (``TestCursor``): ahí no se cambia el aislamiento."""
+        with self.env.registry.cursor() as cr:
+            if isinstance(cr, Cursor):
+                cr.execute('SET TRANSACTION ISOLATION LEVEL READ COMMITTED')
+            return api.Environment(cr, SUPERUSER_ID, {})['dcasa.brian.tienda']._reservar(llave, tope)
 
     # ------------------------------------------------------------------
     # El pase

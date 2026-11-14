@@ -156,6 +156,7 @@ export interface Env {
   LIMITE_FORMULARIOS?: RateLimit;
   LIMITE_CARRITO?: RateLimit;
   LIMITE_FOTO?: RateLimit;
+  LIMITE_PDF?: RateLimit;
 }
 
 /**
@@ -447,7 +448,7 @@ export default {
       entorno: env.DCASA_ENTORNO,
       puerta: depsPuerta(env),
       puertaEstado: estadoPuerta(env),
-      limitadores: { acceso: env.LIMITE_ACCESO, formulario: env.LIMITE_FORMULARIOS, carrito: env.LIMITE_CARRITO, foto: env.LIMITE_FOTO },
+      limitadores: { acceso: env.LIMITE_ACCESO, formulario: env.LIMITE_FORMULARIOS, carrito: env.LIMITE_CARRITO, foto: env.LIMITE_FOTO, pdf: env.LIMITE_PDF },
     });
   },
 
