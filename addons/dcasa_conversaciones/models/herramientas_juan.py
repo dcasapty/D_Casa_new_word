@@ -32,6 +32,7 @@ from odoo.addons.dcasa_base.models.codigo_publico import normalizar_codigo_publi
 from odoo.addons.dcasa_brian.models.registro import BrianError, herramienta
 from odoo.addons.dcasa_socios.models import reglas as R
 from odoo.addons.website_dcasa.models.black_weekend import leer_combo
+from odoo.fields import Domain
 from odoo.tools import html2plaintext
 
 from . import celulares
@@ -228,8 +229,20 @@ class BrianHerramientasJuan(models.AbstractModel):
         return f'{base}/web/image/product.template/{plantilla.id}/image_1024' if tiene else None
 
     @api.model
+    def _j_agregable(self, plantilla):
+        """¿Se agrega al carrito sin pasar por la ficha? Las reglas del «Agregar» de un clic de la tienda (una sola
+        variante, sin atributos que elegir, sin combo ni opcionales y con precio). Para las tarjetas de «Brian de la
+        tienda»: si no, la tarjeta lleva a la ficha. La ruta del carrito lo vuelve a comprobar."""
+        website = self._j_website()
+        precio = plantilla.list_price
+        if not website or not plantilla.sale_ok or not precio or precio <= 0:
+            return False
+        return bool(website._dcasa_compra_directa(plantilla, precio))
+
+    @api.model
     def _j_ficha_corta(self, plantilla, base):
         mas_itbms = self._j_mas_itbms(plantilla)
+        foto = self._j_foto(plantilla, base)
         return {
             'nombre': plantilla._dcasa_nombre_cliente(),   # formato título, como lo lee el cliente (F5)
             # El código público (DC-K7M4PX) es el único que ve el cliente: la referencia del proveedor no sale.
@@ -242,7 +255,14 @@ class BrianHerramientasJuan(models.AbstractModel):
             'combo': self._j_combo(plantilla),
             'categorias': plantilla.public_categ_ids.mapped('name'),
             'url': f'{base}{plantilla.website_url}' if plantilla.website_url else None,
-            'foto': self._j_foto(plantilla, base),
+            'foto': foto,
+            # Para las tarjetas de «Brian de la tienda» (contrato_cambios §8): la variante que se agrega, la foto y la
+            # ficha en rutas relativas (sirven en producción, staging y local) y si se agrega directo.
+            'producto_id': plantilla.product_variant_id.id or None,
+            'plantilla_id': plantilla.id,
+            'imagen': f'/web/image/product.template/{plantilla.id}/image_512' if foto else None,
+            'ruta': plantilla.website_url or None,
+            'agregable': self._j_agregable(plantilla),
         }
 
     @api.model
@@ -352,14 +372,26 @@ class BrianHerramientasJuan(models.AbstractModel):
         descripcion='Ficha completa de un producto publicado por su código: descripción, medidas, variantes '
                     '(tamaños o colores) con su disponibilidad y fotos. Si no está publicado, devuelve estado '
                     'hay_sin_publicar (sin datos del producto).',
-        parametros={'codigo': {'type': 'string', 'description': 'Código del producto, el que devolvió '
-                                                                'buscar_productos o el que dice el cliente: '
-                                                                'p. ej. «DC-K7M4PX».'}},
-        requeridos=['codigo'], nivel='lectura', categoria='catalogo', grupos=GRUPOS,
+        parametros={
+            'codigo': {'type': 'string', 'description': 'Código del producto, el que devolvió buscar_productos o el '
+                                                        'que dice el cliente: p. ej. «DC-K7M4PX».'},
+            'producto_id': {'type': 'integer', 'description': 'En vez del código: el producto_id que devolvió '
+                                                              'buscar_productos (o el de la ficha que mira el cliente '
+                                                              'en la tienda).'},
+        },
+        nivel='lectura', categoria='catalogo', grupos=GRUPOS,
         ejemplos=['«¿cuánto mide el DC-K7M4PX?» → codigo=DC-K7M4PX'],
     )
-    def _juan_ver_producto(self, codigo):
+    def _juan_ver_producto(self, codigo=None, producto_id=None):
         codigo = str(codigo or '').strip()[:60]
+        if producto_id is not None and not codigo:
+            plantilla = self._j_plantilla_por_producto_id(producto_id)
+            if not plantilla:
+                raise BrianError('Ese producto no está publicado en la tienda en línea. Búscalo por nombre con '
+                                 f'buscar_productos y sigue lo que diga. {NO_NIEGUES}')
+            return self._j_ficha_completa(plantilla)
+        if not codigo:
+            raise BrianError('Dime el código del producto (p. ej. «DC-K7M4PX») o su producto_id.')
         plantilla = self._j_plantilla_por_codigo(codigo, self._j_plantillas_publicadas())
         if not plantilla:
             sin_publicar = self._j_plantilla_por_codigo(codigo, self._j_plantillas_sin_publicar())
@@ -368,6 +400,21 @@ class BrianHerramientasJuan(models.AbstractModel):
                         'nota': NOTA_CODIGO_SIN_PUBLICAR}
             raise BrianError(f'No encuentro el código «{codigo}» en el sistema de D\'CASA (puede estar mal escrito). '
                              f'Búscalo por nombre con buscar_productos y sigue lo que diga. {NO_NIEGUES}')
+        return self._j_ficha_completa(plantilla)
+
+    @api.model
+    def _j_plantilla_por_producto_id(self, producto_id):
+        """La plantilla PUBLICADA de ese ``product.product`` (el ``producto_id`` de las tarjetas); si no, vacía."""
+        if isinstance(producto_id, bool) or not isinstance(producto_id, int) or not 0 < producto_id < 2 ** 31:
+            return self.env['product.template']
+        variante = self.env['product.product'].sudo().browse(producto_id).exists()
+        if not variante:
+            return self.env['product.template']
+        return self.env['product.template'].sudo().search(
+            Domain.AND([self._j_dominio_publicado(), [('id', '=', variante.product_tmpl_id.id)]]), limit=1)
+
+    @api.model
+    def _j_ficha_completa(self, plantilla):
         base = self._j_base_url()
         ficha = self._j_ficha_corta(plantilla, base)
         descripcion = plantilla.description_sale or html2plaintext(plantilla.description_ecommerce or '')

@@ -1,0 +1,1544 @@
+// «Brian de la tienda» (static/src/js/brian_tienda.js): la burbuja con el robot y el chat, tal como el prototipo v2
+// que aprobó la dueña (scratchpad/brian_tienda/prototipo.html). Sistema plano de la marca: azul #1340B1, navy para el
+// texto; el amarillo solo sobre azul (el punto de «en línea» de la cabecera). Todo cuelga de `.o_dcbt`: nada de aquí
+// toca el resto del sitio. Clases con el prefijo `o_dcbt_` (las del prototipo, `.btn`, `.panel`, `.toast`, chocarían
+// con Bootstrap).
+
+.o_dcbt {
+    --o-dcbt-azul: #1340B1;
+    --o-dcbt-azul-osc: #0F3591;
+    --o-dcbt-navy: #0E2A6B;
+    --o-dcbt-amarillo: #FED00F;
+    --o-dcbt-blanco: #FFFFFF;
+    --o-dcbt-tinta: #1B2233;
+    --o-dcbt-gris: #4A5163;
+    --o-dcbt-gris-claro: #6B7690;
+    --o-dcbt-linea: #E2E7F0;
+    --o-dcbt-linea-fuerte: #CBD3E1;
+    --o-dcbt-niebla: #F4F6FA;
+    --o-dcbt-azul-50: #EEF3FD;
+    --o-dcbt-azul-200: #C3D2F6;
+    --o-dcbt-ok: #17663A;
+    --o-dcbt-ok-fondo: #E4F3E9;
+    --o-dcbt-pocas: #8A3B05;
+    --o-dcbt-pocas-fondo: #FCEDE1;
+    --o-dcbt-agotado-fondo: #ECEEF2;
+    --o-dcbt-error: #A1260D;
+    --o-dcbt-f-titulo: "Anton", "Oswald", Impact, "Arial Narrow", sans-serif;
+    --o-dcbt-f-sub: "Oswald", "Arial Narrow", sans-serif;
+    --o-dcbt-f-texto: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --o-dcbt-curva: cubic-bezier(.22, 1, .36, 1);
+    // Cuánto sube la burbuja (el JS la sube sobre la barra fija de «Agregar al carrito» de la ficha en el celular).
+    --o-dcbt-abajo: 24px;
+    color: var(--o-dcbt-tinta);
+    font-family: var(--o-dcbt-f-texto);
+
+    *,
+    *::before,
+    *::after {
+        box-sizing: border-box;
+    }
+
+    [hidden] {
+        display: none !important;
+    }
+
+    button {
+        font: inherit;
+        cursor: pointer;
+    }
+
+    svg {
+        display: block;
+    }
+
+    :focus-visible {
+        outline: 3px solid var(--o-dcbt-azul);
+        outline-offset: 2px;
+    }
+}
+
+.o_dcbt_ico {
+    display: inline-flex;
+}
+
+// ---------------------------------------------------------------------------
+// El robot en su círculo (una pose a la vez; el JS cambia la pose con su transición)
+// ---------------------------------------------------------------------------
+
+.o_dcbt_pose {
+    position: relative;
+    display: block;
+    flex: none;
+    border-radius: 50%;
+    overflow: hidden;
+    background: var(--o-dcbt-azul);
+    isolation: isolate;
+
+    img {
+        position: absolute;
+        left: 7%;
+        top: 7%;
+        width: 86%;
+        height: 86%;
+        object-fit: contain;
+        display: block;
+        user-select: none;
+        -webkit-user-drag: none;
+    }
+
+    img.o_dcbt_encuadrado {
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .o_dcbt_flash {
+        position: absolute;
+        inset: 0;
+        background: var(--o-dcbt-blanco);
+        opacity: 0;
+        pointer-events: none;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// La burbuja (sin texto): reemplaza la burbuja flotante de WhatsApp
+// ---------------------------------------------------------------------------
+
+.o_dcbt_burbuja {
+    position: fixed;
+    z-index: 1032;   // como la de WhatsApp: sobre lo fijo de Odoo (1030) y la barra de la ficha (1031)
+    right: #{"max(24px, env(safe-area-inset-right, 0px))"};
+    bottom: calc(var(--o-dcbt-abajo) + env(safe-area-inset-bottom, 0px));
+    width: 78px;
+    height: 78px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: var(--o-dcbt-azul);
+    transform-origin: 50% 100%;
+    box-shadow: 0 0 0 3px var(--o-dcbt-blanco), 0 6px 16px rgba(14, 42, 107, .26);
+    transition: transform .2s var(--o-dcbt-curva), bottom .35s var(--o-dcbt-curva), opacity .25s ease;
+    animation: o_dcbt_entra 0.9s var(--o-dcbt-curva) .45s backwards;
+    text-decoration: none;
+
+    .o_dcbt_pose {
+        position: absolute;
+        inset: 0;
+    }
+
+    &:hover {
+        transform: scale(1.06);
+    }
+
+    &:active {
+        transform: scale(.94);
+    }
+
+    &:focus-visible {
+        outline: 3px solid var(--o-dcbt-navy);
+        outline-offset: 5px;
+    }
+
+    &::after {
+        content: "";
+        position: absolute;
+        inset: -3px;
+        border-radius: 50%;
+        border: 2px solid var(--o-dcbt-azul);
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    &.o_dcbt_halo::after {
+        animation: o_dcbt_halo 1.6s ease-out;
+    }
+
+    &.o_dcbt_abriendo {
+        z-index: 1046;
+        pointer-events: none;
+    }
+
+    &.o_dcbt_ya_entro {
+        animation: none;
+    }
+
+    // Se hace a un lado mientras tendría que tapar un botón de la página («Pregunta por este mueble por WhatsApp»,
+    // «Agregar al carrito», los botones de WhatsApp): nunca tapa uno.
+    &.o_dcbt_aparte {
+        opacity: 0;
+        transform: translateX(24px) scale(.8);
+        pointer-events: none;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .o_dcbt {
+        --o-dcbt-abajo: 16px;
+    }
+
+    .o_dcbt_burbuja {
+        width: 68px;
+        height: 68px;
+        right: #{"max(16px, env(safe-area-inset-right, 0px))"};
+    }
+}
+
+// En el editor del sitio no estorba (como la de WhatsApp).
+body.editor_enable .o_dcbt {
+    display: none;
+}
+
+@keyframes o_dcbt_entra {
+    0% {
+        transform: translateY(22px) scale(.3);
+        opacity: 0;
+    }
+
+    55% {
+        transform: translateY(0) scale(1.1);
+        opacity: 1;
+    }
+
+    78% {
+        transform: scale(.96);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+@keyframes o_dcbt_halo {
+    0% {
+        opacity: .5;
+        transform: scale(1);
+    }
+
+    100% {
+        opacity: 0;
+        transform: scale(1.6);
+    }
+}
+
+@keyframes o_dcbt_salta {
+    0% {
+        transform: scale(.4);
+    }
+
+    60% {
+        transform: scale(1.25);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// El panel del chat
+// ---------------------------------------------------------------------------
+
+.o_dcbt_panel {
+    position: fixed;
+    z-index: 1044;   // sobre la cabecera y la barra de la ficha; bajo los menús laterales (1045) y los modales
+    right: 24px;
+    bottom: 24px;
+    width: 380px;
+    height: #{"min(600px, calc(100vh - 48px))"};
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--o-dcbt-niebla);
+    border-radius: 18px;
+    border: 1px solid var(--o-dcbt-linea);
+    box-shadow: 0 8px 24px rgba(14, 42, 107, .16);
+    text-align: left;
+    font-size: 16px;
+    line-height: 1.4;
+
+    &.o_dcbt_ampliado {
+        width: #{"min(1100px, calc(100vw - 48px))"};
+        height: #{"min(780px, calc(100vh - 48px))"};
+    }
+}
+
+@media (max-width: 767.98px) {
+    .o_dcbt_panel {
+        inset: auto 0 auto 0;
+        top: var(--o-dcbt-vv-arriba, 0px);
+        width: 100%;
+        height: var(--o-dcbt-vv-alto, 100%);
+        border-radius: 0;
+        border: 0;
+        box-shadow: none;
+
+        &.o_dcbt_ampliado {
+            width: 100%;
+            height: var(--o-dcbt-vv-alto, 100%);
+        }
+    }
+
+    // Con el chat abierto en el celular, la página de atrás no se mueve.
+    html.o_dcbt_abierto,
+    html.o_dcbt_abierto body {
+        overflow: hidden;
+    }
+}
+
+.o_dcbt_velo {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    background: var(--o-dcbt-azul);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.o_dcbt_cab {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 10px 4px 10px 12px;
+    background: var(--o-dcbt-azul);
+    color: var(--o-dcbt-blanco);
+
+    :focus-visible {
+        outline-color: var(--o-dcbt-blanco);
+        outline-offset: 0;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .o_dcbt_cab {
+        padding-top: calc(10px + env(safe-area-inset-top, 0px));
+        padding-left: #{"max(12px, env(safe-area-inset-left, 0px))"};
+        padding-right: #{"max(4px, env(safe-area-inset-right, 0px))"};
+    }
+}
+
+.o_dcbt_avatar_cab {
+    width: 44px;
+    height: 44px;
+    box-shadow: 0 0 0 2px var(--o-dcbt-blanco);
+}
+
+.o_dcbt_cab_textos {
+    flex: 1;
+    min-width: 0;
+
+    h2 {
+        margin: 0;
+        font: 400 22px/1 var(--o-dcbt-f-titulo);
+        letter-spacing: .03em;
+        text-transform: uppercase;
+        color: var(--o-dcbt-blanco);
+    }
+}
+
+.o_dcbt_cab_estado {
+    margin: 4px 0 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font: 500 11.5px/1.2 var(--o-dcbt-f-sub);
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--o-dcbt-azul-200);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.o_dcbt_punto {
+    width: 8px;
+    height: 8px;
+    flex: none;
+    border-radius: 50%;
+    background: var(--o-dcbt-amarillo);   // sobre azul: nunca toca el blanco
+
+    &.o_dcbt_apagado {
+        background: var(--o-dcbt-azul-200);
+    }
+}
+
+.o_dcbt_cab_boton {
+    width: 44px;
+    height: 44px;
+    flex: none;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--o-dcbt-blanco);
+    text-decoration: none;
+
+    svg {
+        width: 23px;
+        height: 23px;
+    }
+
+    &:hover,
+    &:focus-visible {
+        background: var(--o-dcbt-azul-osc);
+        color: var(--o-dcbt-blanco);
+    }
+}
+
+.o_dcbt_panel_cuerpo {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+}
+
+.o_dcbt_chat_col {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.o_dcbt_vitrina {
+    display: none;
+    flex: 1;
+    min-width: 0;
+    flex-direction: column;
+    background: var(--o-dcbt-blanco);
+}
+
+.o_dcbt_ampliado {
+    .o_dcbt_vitrina {
+        display: flex;
+    }
+}
+
+@media (min-width: 768px) {
+    .o_dcbt_ampliado .o_dcbt_chat_col {
+        flex: 0 0 400px;
+        border-right: 1px solid var(--o-dcbt-linea);
+    }
+
+    .o_dcbt_solo_cel {
+        display: none !important;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .o_dcbt_ampliado .o_dcbt_chat_col {
+        display: none;
+    }
+}
+
+.o_dcbt_vitrina_cab {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 18px 10px;
+
+    h3 {
+        margin: 0;
+        font: 600 17px/1.2 var(--o-dcbt-f-sub);
+        letter-spacing: .04em;
+        text-transform: uppercase;
+        color: var(--o-dcbt-navy);
+    }
+}
+
+.o_dcbt_volver {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    margin: 0 4px 0 -6px;
+    padding: 0 6px;
+    border: 0;
+    background: transparent;
+    font-size: 15px;
+    color: var(--o-dcbt-azul);
+
+    svg {
+        width: 22px;
+        height: 22px;
+    }
+}
+
+.o_dcbt_vitrina_grid {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    grid-auto-rows: max-content;
+    align-content: start;
+    gap: 14px;
+    padding: 4px 18px 18px;
+
+    .o_dcbt_tarjeta {
+        flex: none;
+        width: auto;
+    }
+
+    .o_dcbt_tarjeta_info {
+        padding: 9px 10px 10px;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .o_dcbt_vitrina_grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        padding: 4px 12px 16px;
+
+        .o_dcbt_paso button {
+            width: 30px;
+        }
+
+        .o_dcbt_btn_ver {
+            min-width: 44px;
+            padding: 0 6px;
+        }
+
+        .o_dcbt_btn_agregar {
+            font-size: 13px;
+        }
+    }
+}
+
+.o_dcbt_vitrina_vacia {
+    grid-column: 1 / -1;
+    display: grid;
+    justify-items: center;
+    gap: 10px;
+    padding: 40px 12px;
+    text-align: center;
+    color: var(--o-dcbt-gris);
+    font-size: 14px;
+
+    .o_dcbt_pose {
+        width: 84px;
+        height: 84px;
+    }
+}
+
+.o_dcbt_vitrina_pie {
+    flex: none;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 14px;
+    padding: 12px 18px;
+    border-top: 1px solid var(--o-dcbt-linea);
+    background: var(--o-dcbt-blanco);
+
+    .o_dcbt_btn {
+        flex: 0 0 auto;
+    }
+
+    small {
+        white-space: nowrap;
+        font-weight: 600;
+        font-size: 12px;
+        color: var(--o-dcbt-navy);
+    }
+}
+
+.o_dcbt_resumen {
+    flex: 1 1 180px;
+    font-size: 14px;
+    color: var(--o-dcbt-gris);
+
+    strong {
+        font: 600 20px/1 var(--o-dcbt-f-sub);
+        color: var(--o-dcbt-azul);
+    }
+}
+
+@media (max-width: 767.98px) {
+    .o_dcbt_vitrina_pie {
+        padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+
+        .o_dcbt_resumen {
+            flex-basis: 100%;
+        }
+
+        .o_dcbt_btn {
+            flex: 1 1 0;
+            padding: 0 8px;
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Los mensajes
+// ---------------------------------------------------------------------------
+
+.o_dcbt_cuerpo {
+    flex: 1;
+    min-height: 0;
+    position: relative;
+    display: flex;
+}
+
+.o_dcbt_mensajes {
+    flex: 1;
+    min-width: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 14px 16px 12px;
+}
+
+.o_dcbt_intro {
+    display: grid;
+    justify-items: center;
+    gap: 2px;
+    padding: 4px 0 8px;
+    text-align: center;
+}
+
+.o_dcbt_avatar_intro {
+    width: 84px;
+    height: 84px;
+    margin-bottom: 6px;
+}
+
+.o_dcbt_intro_nombre {
+    margin: 0;
+    font: 600 16px/1.2 var(--o-dcbt-f-sub);
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: var(--o-dcbt-navy);
+}
+
+.o_dcbt_intro_sub {
+    margin: 0;
+    font-size: 12.5px;
+    color: var(--o-dcbt-gris);
+}
+
+.o_dcbt_dia {
+    align-self: center;
+    margin: 2px 0 6px;
+
+    span {
+        display: inline-block;
+        padding: 3px 12px;
+        border-radius: 999px;
+        background: #E6EAF2;
+        color: var(--o-dcbt-gris);
+        font-size: 12px;
+        font-weight: 600;
+    }
+}
+
+.o_dcbt_fila {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    max-width: 100%;
+
+    > .o_dcbt_avatar {
+        width: 32px;
+        height: 32px;
+    }
+
+    &.o_dcbt_de_brian {
+        align-self: flex-start;
+        padding-right: 26px;
+    }
+
+    &.o_dcbt_de_brian.o_dcbt_seguida > .o_dcbt_avatar {
+        visibility: hidden;
+    }
+
+    &.o_dcbt_ancha {
+        align-self: stretch;
+        padding-right: 0;
+        margin-right: -16px;
+    }
+
+    &.o_dcbt_del_cliente {
+        align-self: flex-end;
+        padding-left: 52px;
+    }
+
+    &.o_dcbt_fallida .o_dcbt_globo {
+        opacity: .72;
+    }
+}
+
+.o_dcbt_del_cliente + .o_dcbt_de_brian,
+.o_dcbt_de_brian + .o_dcbt_del_cliente,
+.o_dcbt_chips + .o_dcbt_fila,
+.o_dcbt_privacidad + .o_dcbt_fila {
+    margin-top: 6px;
+}
+
+.o_dcbt_globo {
+    min-width: 0;
+    margin: 0;
+    padding: 9px 13px 10px;
+    border-radius: 18px;
+    font-size: 15px;
+    line-height: 1.42;
+    overflow-wrap: anywhere;
+    white-space: pre-line;
+}
+
+.o_dcbt_de_brian .o_dcbt_globo {
+    background: var(--o-dcbt-blanco);
+    border: 1px solid var(--o-dcbt-linea);
+    color: var(--o-dcbt-tinta);
+    border-top-left-radius: 6px;
+}
+
+.o_dcbt_de_brian.o_dcbt_seguida .o_dcbt_globo {
+    border-top-left-radius: 18px;
+}
+
+.o_dcbt_del_cliente .o_dcbt_globo {
+    background: var(--o-dcbt-azul);
+    color: var(--o-dcbt-blanco);
+    border-bottom-right-radius: 6px;
+}
+
+.o_dcbt_entra {
+    animation: o_dcbt_entra_msg .24s var(--o-dcbt-curva) backwards;
+}
+
+@keyframes o_dcbt_entra_msg {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+}
+
+.o_dcbt_escribiendo {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 14px 15px;
+
+    i {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #8391AE;
+        animation: o_dcbt_punto 1.1s ease-in-out infinite;
+    }
+
+    i:nth-child(2) {
+        animation-delay: .15s;
+    }
+
+    i:nth-child(3) {
+        animation-delay: .3s;
+    }
+}
+
+@keyframes o_dcbt_punto {
+    0%,
+    60%,
+    100% {
+        transform: translateY(0);
+        opacity: .45;
+    }
+
+    30% {
+        transform: translateY(-4px);
+        opacity: 1;
+    }
+}
+
+.o_dcbt_chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 2px 0 4px 40px;
+}
+
+.o_dcbt_chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 40px;
+    padding: 0 15px;
+    border-radius: 999px;
+    border: 1.5px solid var(--o-dcbt-azul);
+    background: var(--o-dcbt-blanco);
+    color: var(--o-dcbt-azul);
+    font-weight: 600;
+    font-size: 14px;
+    line-height: 1.15;
+    text-align: left;
+
+    svg {
+        width: 17px;
+        height: 17px;
+    }
+
+    &:hover {
+        background: var(--o-dcbt-azul-50);
+    }
+}
+
+.o_dcbt_privacidad {
+    margin: -2px 0 4px 40px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--o-dcbt-gris);
+
+    svg {
+        width: 14px;
+        height: 14px;
+        color: var(--o-dcbt-azul);
+        flex: none;
+    }
+}
+
+// Botones del chat
+.o_dcbt_btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 42px;
+    padding: 0 14px;
+    border-radius: 10px;
+    border: 1.5px solid var(--o-dcbt-azul);
+    font-weight: 600;
+    font-size: 14px;
+    line-height: 1.1;
+    text-decoration: none;
+    text-align: center;
+
+    svg {
+        width: 18px;
+        height: 18px;
+        flex: none;
+    }
+
+    &:hover,
+    &:focus {
+        text-decoration: none;
+    }
+
+    &[disabled] {
+        opacity: .5;
+        cursor: default;
+    }
+}
+
+.o_dcbt_btn_azul {
+    background: var(--o-dcbt-azul);
+    color: var(--o-dcbt-blanco);
+
+    &:hover,
+    &:focus-visible {
+        background: var(--o-dcbt-azul-osc);
+        border-color: var(--o-dcbt-azul-osc);
+        color: var(--o-dcbt-blanco);
+    }
+}
+
+.o_dcbt_btn_borde {
+    background: var(--o-dcbt-blanco);
+    color: var(--o-dcbt-azul);
+
+    &:hover,
+    &:focus-visible {
+        background: var(--o-dcbt-azul-50);
+        color: var(--o-dcbt-azul);
+    }
+}
+
+.o_dcbt_btn_hecho {
+    background: var(--o-dcbt-azul-50);
+    color: var(--o-dcbt-azul);
+    border-color: var(--o-dcbt-azul-200);
+}
+
+.o_dcbt_btn_grande {
+    min-height: 50px;
+    border-radius: 12px;
+    font-size: 15.5px;
+}
+
+// Selector de cantidad (– 1 +)
+.o_dcbt_paso {
+    display: inline-flex;
+    align-items: center;
+    flex: none;
+    height: 40px;
+    border: 1px solid var(--o-dcbt-linea-fuerte);
+    border-radius: 10px;
+    background: var(--o-dcbt-blanco);
+
+    button {
+        width: 36px;
+        height: 38px;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: var(--o-dcbt-azul);
+        display: grid;
+        place-items: center;
+        border-radius: 9px;
+
+        &:hover:not([disabled]) {
+            background: var(--o-dcbt-azul-50);
+        }
+
+        &[disabled] {
+            color: var(--o-dcbt-linea-fuerte);
+            cursor: default;
+        }
+
+        svg {
+            width: 16px;
+            height: 16px;
+        }
+    }
+
+    output {
+        min-width: 26px;
+        text-align: center;
+        font-weight: 600;
+        font-size: 15px;
+        color: var(--o-dcbt-navy);
+        font-variant-numeric: tabular-nums;
+    }
+}
+
+// Tarjetas que se deslizan
+.o_dcbt_carrusel_caja {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    display: flex;
+}
+
+.o_dcbt_flecha {
+    display: none;
+    position: absolute;
+    z-index: 1;
+    top: 56px;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: 50%;
+    border: 1px solid var(--o-dcbt-linea-fuerte);
+    background: var(--o-dcbt-blanco);
+    color: var(--o-dcbt-azul);
+    place-items: center;
+    box-shadow: 0 2px 6px rgba(14, 42, 107, .12);
+
+    svg {
+        width: 18px;
+        height: 18px;
+    }
+
+    &:hover {
+        background: var(--o-dcbt-azul-50);
+    }
+}
+
+.o_dcbt_flecha_izq {
+    left: 6px;
+}
+
+.o_dcbt_flecha_der {
+    right: 22px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .o_dcbt_flecha {
+        display: grid;
+    }
+}
+
+.o_dcbt_carrusel {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    gap: 10px;
+    margin: 0;
+    padding: 1px 16px 8px 0;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: thin;
+    list-style: none;
+}
+
+.o_dcbt_tarjeta {
+    flex: 0 0 236px;
+    scroll-snap-align: start;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--o-dcbt-blanco);
+    border: 1px solid var(--o-dcbt-linea);
+    border-radius: 14px;
+
+    h3 {
+        margin: 0;
+        min-height: 2.6em;
+        font-family: var(--o-dcbt-f-texto);
+        font-size: 14px;
+        font-weight: 600;
+        line-height: 1.3;
+        color: var(--o-dcbt-navy);
+        text-transform: none;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+}
+
+.o_dcbt_tarjeta_foto {
+    aspect-ratio: 16 / 10;
+    max-width: 100%;
+    border-bottom: 1px solid var(--o-dcbt-linea);
+    background: var(--o-dcbt-blanco);
+
+    img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+}
+
+.o_dcbt_tarjeta_info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    padding: 10px 12px 12px;
+}
+
+.o_dcbt_precio {
+    margin: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+
+    strong {
+        font: 600 20px/1 var(--o-dcbt-f-sub);
+        color: var(--o-dcbt-azul);
+    }
+
+    small {
+        font-weight: 600;
+        font-size: 12px;
+        color: var(--o-dcbt-navy);
+    }
+}
+
+.o_dcbt_dispo {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 9px;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 12px;
+    line-height: 1;
+
+    &::before {
+        content: "";
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: currentColor;
+    }
+}
+
+.o_dcbt_dispo_ok {
+    color: var(--o-dcbt-ok);
+    background: var(--o-dcbt-ok-fondo);
+}
+
+.o_dcbt_dispo_pocas {
+    color: var(--o-dcbt-pocas);
+    background: var(--o-dcbt-pocas-fondo);
+}
+
+.o_dcbt_dispo_agotado {
+    color: var(--o-dcbt-gris);
+    background: var(--o-dcbt-agotado-fondo);
+}
+
+.o_dcbt_tarjeta_fila {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    margin-top: auto;
+    padding-top: 2px;
+}
+
+.o_dcbt_btn_ver {
+    flex: none;
+    min-width: 54px;
+    min-height: 40px;
+    padding: 0 10px;
+}
+
+.o_dcbt_btn_preguntar {
+    flex: 1;
+    min-width: 0;
+    padding: 0 8px;
+    white-space: nowrap;
+}
+
+.o_dcbt_btn_agregar {
+    width: 100%;
+    white-space: nowrap;
+    padding: 0 8px;
+}
+
+// Tarjetas de una sola cosa (carrito, ubicación, envío, estrellas)
+.o_dcbt_card {
+    background: var(--o-dcbt-blanco);
+    border: 1px solid var(--o-dcbt-linea);
+    border-radius: 16px;
+    padding: 12px;
+    width: #{"min(100%, 300px)"};
+    display: grid;
+    gap: 10px;
+
+    h3 {
+        margin: 0;
+        font: 600 19px/1.2 var(--o-dcbt-f-sub);
+        color: var(--o-dcbt-navy);
+        text-transform: none;
+    }
+}
+
+.o_dcbt_carrito_cab {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--o-dcbt-navy);
+}
+
+.o_dcbt_check {
+    width: 24px;
+    height: 24px;
+    flex: none;
+    border-radius: 50%;
+    background: var(--o-dcbt-azul);
+    color: var(--o-dcbt-blanco);
+    display: grid;
+    place-items: center;
+
+    svg {
+        width: 14px;
+        height: 14px;
+    }
+}
+
+.o_dcbt_linea_carrito {
+    display: grid;
+    grid-template-columns: 58px minmax(0, 1fr);
+    gap: 4px 10px;
+    align-items: center;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--o-dcbt-linea);
+
+    img {
+        width: 58px;
+        height: 42px;
+        object-fit: cover;
+        border-radius: 8px;
+        border: 1px solid var(--o-dcbt-linea);
+        grid-row: span 2;
+        align-self: start;
+        background: var(--o-dcbt-blanco);
+    }
+}
+
+.o_dcbt_carrito_nombre {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.3;
+    color: var(--o-dcbt-tinta);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.o_dcbt_linea_controles {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+
+    .o_dcbt_paso {
+        height: 34px;
+    }
+
+    .o_dcbt_paso button {
+        width: 32px;
+        height: 32px;
+    }
+}
+
+.o_dcbt_linea_precio {
+    margin-left: auto;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--o-dcbt-navy);
+    font-variant-numeric: tabular-nums;
+}
+
+.o_dcbt_quitar {
+    min-height: 32px;
+    padding: 0 4px;
+    border: 0;
+    background: transparent;
+    color: var(--o-dcbt-gris);
+    font-size: 12.5px;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.o_dcbt_carrito_total {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+    font-size: 13.5px;
+    color: var(--o-dcbt-gris);
+
+    strong {
+        font: 600 19px/1 var(--o-dcbt-f-sub);
+        color: var(--o-dcbt-azul);
+        font-variant-numeric: tabular-nums;
+    }
+
+    small {
+        font-weight: 600;
+        font-size: 12px;
+        color: var(--o-dcbt-navy);
+    }
+}
+
+.o_dcbt_carrito_botones {
+    display: grid;
+    gap: 8px;
+}
+
+.o_dcbt_carrito_vacio {
+    margin: 0;
+    font-size: 14px;
+    color: var(--o-dcbt-gris);
+}
+
+.o_dcbt_envio_eti {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font: 500 12px/1.2 var(--o-dcbt-f-sub);
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: var(--o-dcbt-gris);
+
+    svg {
+        width: 16px;
+        height: 16px;
+        color: var(--o-dcbt-azul);
+    }
+}
+
+.o_dcbt_envio_texto {
+    margin: 0;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: var(--o-dcbt-niebla);
+    font-size: 14px;
+    line-height: 1.45;
+    color: var(--o-dcbt-tinta);
+}
+
+.o_dcbt_osm {
+    margin: -4px 0 0;
+    font-size: 11px;
+    color: var(--o-dcbt-gris-claro);
+}
+
+.o_dcbt_wa_card {
+    display: grid;
+    gap: 6px;
+    width: #{"min(100%, 290px)"};
+}
+
+.o_dcbt_wa_num {
+    margin: 0;
+    font-size: 12.5px;
+    color: var(--o-dcbt-gris);
+    text-align: center;
+
+    span:first-child {
+        color: var(--o-dcbt-navy);
+        font-weight: 600;
+        user-select: all;
+    }
+}
+
+.o_dcbt_estrellas {
+    display: flex;
+    gap: 4px;
+}
+
+.o_dcbt_estrella {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--o-dcbt-azul);
+    display: grid;
+    place-items: center;
+
+    svg {
+        width: 28px;
+        height: 28px;
+    }
+
+    &:hover:not([disabled]) {
+        background: var(--o-dcbt-azul-50);
+    }
+
+    &[disabled] {
+        cursor: default;
+    }
+
+    .o_dcbt_relleno {
+        fill: none;
+    }
+
+    &.o_dcbt_activa .o_dcbt_relleno {
+        fill: var(--o-dcbt-azul);
+    }
+}
+
+.o_dcbt_fallo {
+    align-self: flex-end;
+    margin: -2px 0 4px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 2px 6px;
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--o-dcbt-error);
+
+    svg {
+        width: 15px;
+        height: 15px;
+    }
+}
+
+.o_dcbt_reintentar {
+    min-height: 36px;
+    padding: 0 8px;
+    border: 0;
+    background: transparent;
+    color: var(--o-dcbt-azul);
+    font-weight: 600;
+    font-size: 13px;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.o_dcbt_aviso {
+    position: absolute;
+    z-index: 4;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: max-content;
+    max-width: calc(100% - 32px);
+    margin: 0;
+    padding: 9px 14px;
+    border-radius: 12px;
+    background: var(--o-dcbt-navy);
+    color: var(--o-dcbt-blanco);
+    font-size: 13px;
+    line-height: 1.4;
+    box-shadow: 0 4px 12px rgba(14, 42, 107, .2);
+}
+
+.o_dcbt_verificando {
+    flex: none;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px 0;
+    background: var(--o-dcbt-blanco);
+    border-top: 1px solid var(--o-dcbt-linea);
+    font-size: 12px;
+    color: var(--o-dcbt-gris);
+
+    svg {
+        width: 14px;
+        height: 14px;
+        color: var(--o-dcbt-azul);
+    }
+}
+
+.o_dcbt_turnstile {
+    display: flex;
+    justify-content: center;
+    padding: 6px 12px 0;
+    background: var(--o-dcbt-blanco);
+}
+
+.o_dcbt_composer {
+    flex: none;
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    margin: 0;
+    background: var(--o-dcbt-blanco);
+    border-top: 1px solid var(--o-dcbt-linea);
+    padding: 10px 12px;
+
+    textarea {
+        flex: 1;
+        min-width: 0;
+        height: 48px;
+        min-height: 48px;
+        max-height: 128px;
+        margin: 0;
+        padding: 13px 16px;
+        border-radius: 24px;
+        border: 1px solid var(--o-dcbt-linea-fuerte);
+        background: var(--o-dcbt-niebla);
+        color: var(--o-dcbt-tinta);
+        font: 400 16px/1.35 var(--o-dcbt-f-texto);
+        resize: none;
+        overflow-y: auto;
+
+        &::placeholder {
+            color: var(--o-dcbt-gris-claro);
+        }
+
+        &:focus {
+            outline: none;
+            border-color: var(--o-dcbt-azul);
+            background: var(--o-dcbt-blanco);
+            box-shadow: 0 0 0 3px var(--o-dcbt-azul-200);
+        }
+
+        &:disabled {
+            opacity: .7;
+        }
+    }
+}
+
+.o_dcbt_verificando:not([hidden]) + .o_dcbt_composer,
+.o_dcbt_turnstile:not([hidden]) + .o_dcbt_composer {
+    border-top: 0;
+    padding-top: 6px;
+}
+
+@media (max-width: 767.98px) {
+    .o_dcbt_composer {
+        padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+        padding-left: #{"max(12px, env(safe-area-inset-left, 0px))"};
+        padding-right: #{"max(12px, env(safe-area-inset-right, 0px))"};
+    }
+
+    .o_dcbt_teclado .o_dcbt_composer {
+        padding-bottom: 10px;
+    }
+}
+
+.o_dcbt_enviar {
+    flex: none;
+    width: 48px;
+    height: 48px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: var(--o-dcbt-azul);
+    color: var(--o-dcbt-blanco);
+    display: grid;
+    place-items: center;
+    transition: background .15s;
+
+    svg {
+        width: 22px;
+        height: 22px;
+        margin-left: 2px;
+    }
+
+    &:disabled {
+        background: var(--o-dcbt-azul-200);
+        cursor: default;
+    }
+
+    &:not(:disabled):hover {
+        background: var(--o-dcbt-azul-osc);
+    }
+}
+
+@media (pointer: coarse) {
+    .o_dcbt_btn,
+    .o_dcbt_chip {
+        min-height: 44px;
+    }
+
+    .o_dcbt_paso {
+        height: 44px;
+
+        button {
+            height: 42px;
+        }
+    }
+}
+
+// Con movimiento reducido, quieto: ni entradas, ni halo, ni reposo, ni transiciones (el JS tampoco anima las poses).
+@media (prefers-reduced-motion: reduce) {
+    .o_dcbt *,
+    .o_dcbt *::before,
+    .o_dcbt *::after,
+    .o_dcbt_burbuja {
+        animation: none !important;
+        transition: none !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+@media print {
+    .o_dcbt {
+        display: none !important;
+    }
+}

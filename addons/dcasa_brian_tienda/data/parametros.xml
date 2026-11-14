@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- «Brian de la tienda» nace ENCENDIDO (la dueña lo aprobó, 2026-11-13). noupdate: un despliegue nunca lo vuelve a
+         encender si Gerencia lo apagó en Sitio web › Brian de la tienda. El presupuesto y los topes no se escriben
+         aquí: sin parámetro valen los de fábrica (models/pase.py, DE_FABRICA). -->
+    <data noupdate="1">
+        <record id="parametro_activo" model="ir.config_parameter">
+            <field name="key">dcasa_brian_tienda.activo</field>
+            <field name="value">True</field>
+        </record>
+    </data>
+</odoo>

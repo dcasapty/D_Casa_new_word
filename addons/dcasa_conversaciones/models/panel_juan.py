@@ -513,7 +513,14 @@ class DcasaJuanPanel(models.AbstractModel):
             'avisos': [str(a)[:300] for a in (informe.get('avisos') or [])][:8],
             # El mes del acumulado lo dice el Worker (el de Odoo solo si es un Worker viejo que no lo manda).
             'pagos': self._saldo_ia((informe['mes'] if C.mes_valido(informe.get('mes')) else mes, gasto)),
+            **self._costos_extra(cuerpo),
         }
+
+    @api.model
+    def _costos_extra(self, cuerpo):
+        """Renglones aparte que agregan otros módulos con lo que el Worker mandó en ``/odoo/costos`` (``cuerpo``),
+        p. ej. «Brian de la tienda» (``dcasa_brian_tienda``). No cambian el gasto de Juan ni «Por pagar a Meta»."""
+        return {}
 
     # ------------------------------------------------------------------
     # Conexiones

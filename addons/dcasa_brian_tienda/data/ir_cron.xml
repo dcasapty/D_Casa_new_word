@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Los contadores del tope de pases solo sirven para la hora en curso: se borran a los dos días (models/cupo.py). -->
+    <record id="cron_limpiar_cupos" model="ir.cron">
+        <field name="name">Brian de la tienda: borrar contadores viejos</field>
+        <field name="model_id" ref="model_dcasa_brian_tienda_cupo"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_limpiar()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>

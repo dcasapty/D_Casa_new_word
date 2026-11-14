@@ -555,6 +555,14 @@ cabecera pasa tal cual en producción (`edge/test/paginas.test.ts`, «el noindex
 cual»); en staging, como siempre, todo va con `noindex, nofollow`. Ninguna de ellas va al mapa del sitio.
 Detalle en [CATALOGO.md](CATALOGO.md#la-tienda-en-línea-buscar-la-ficha-y-lo-que-google-no-muestra).
 
+**El chat de la tienda (Brian, 2026-11-13).** La burbuja va en el HTML guardado igual para todos (el WhatsApp del
+sitio, el horario y las poses en atributos `data-*`); el token CSRF, el pase y el carrito los pide el JS al abrir el
+chat. El borde nunca guarda `/dcasa/brian/` (`NEVER_CACHE_PREFIXES` en `edge/src/routing.ts`) y sus POST cuentan en la
+cubeta del carrito (120 por minuto por IP, `edge/src/bots.ts`). Abrir el chat no vuelve «personal» la sesión (sus
+claves están en `CLAVES_NEUTRAS` de `dcasa_tienda_borde`): quien solo conversó sigue recibiendo las páginas guardadas;
+al agregar al carrito, sí. Encenderlo o apagarlo en Sitio web › Brian de la tienda da por viejas las páginas
+guardadas. Detalle: [BRIAN_TIENDA.md](BRIAN_TIENDA.md).
+
 **Si algo se ve viejo:** forzar la invalidación
 `curl -X POST -H "Authorization: Bearer <TIENDA_FEED_TOKEN>" https://<sitio>/__edge/tienda/regenerar`.
 Si el Worker no puede leer el almacén, la página la da Odoo (nunca una página en blanco). Logs:

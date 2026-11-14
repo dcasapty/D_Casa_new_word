@@ -38,6 +38,9 @@ class TestWebsitePages(HttpCase):
         # Con algo publicado, la tarjeta lleva a su categoría (sin nada, abre WhatsApp: TestPortadaDinamica).
         self.env['product.template'].create({'name': 'SOFÁ PUBLICADO', 'list_price': 10.0, 'is_published': True,
                                              'public_categ_ids': [(6, 0, salas.ids)]})
+        # Con «Brian de la tienda» (dcasa_brian_tienda) encendido, la burbuja flotante es la suya: aquí se prueba la de
+        # WhatsApp, la que sale con Brian apagado o sin ese módulo.
+        self.env['ir.config_parameter'].sudo().set_param('dcasa_brian_tienda.activo', 'False')
         response = self.url_open('/')
         self.assertEqual(response.status_code, 200)
         html = response.text

@@ -1175,6 +1175,11 @@ LISTA_BLANCA = {
         'Botón «Guardar»: exige Gerencia o administrador en el servidor (_dcasa_exigir) ANTES del sudo con que guarda '
         'el interruptor y los topes (ir.config_parameter), y valida cada tope (0 a 10 000).',
     ('dcasa_buscar_foto', 'dcasa.buscar.foto.ajustes', 'cancel'): ACCION_VENTANA,
+    # --- dcasa_brian_tienda («Brian de la tienda», el chat de la web, 2026-11-13) -------------------------------------
+    ('dcasa_brian_tienda', 'dcasa.brian.tienda.ajustes', 'execute'):
+        'Botón «Guardar»: exige Gerencia o administrador en el servidor (_dcasa_exigir) ANTES del sudo con que guarda '
+        'el interruptor, el presupuesto y los topes (ir.config_parameter), y valida cada número (0 al máximo).',
+    ('dcasa_brian_tienda', 'dcasa.brian.tienda.ajustes', 'cancel'): ACCION_VENTANA,
 }
 
 # Modelos abstractos sin ACL: por RPC no se puede llamar NINGÚN método suyo (S-09).

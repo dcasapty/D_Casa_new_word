@@ -2823,6 +2823,27 @@
    ]
   },
   {
+   "id": "brian-tienda",
+   "categoria": "tienda",
+   "grupo": "Tienda en línea",
+   "titulo": "Encender o apagar a Brian, el chat de la tienda",
+   "logras": "En la tienda web sale la burbuja de Brian (en lugar de la de WhatsApp): busca muebles, calcula el envío y deja el carrito listo. Aquí lo enciendes o lo apagas, cambias el presupuesto del mes y los topes de mensajes, y ves cuánto va gastando y cómo lo califican los clientes.",
+   "destino": {
+    "menu": "dcasa_brian_tienda.menu_dcasa_brian_tienda"
+   },
+   "nota": "Viene encendido. No guarda la conversación ni crea contactos; para atención personal ofrece WhatsApp. Su gasto va en su propio renglón de Costos de IA y no se suma a «Por pagar a Meta». Solo Gerencia y los administradores lo cambian.",
+   "palabras": [
+    "brian",
+    "chat",
+    "chat de la tienda",
+    "burbuja",
+    "asistente",
+    "tienda",
+    "web",
+    "carrito"
+   ]
+  },
+  {
    "id": "meta-catalogo",
    "categoria": "tienda",
    "grupo": "Anuncios en Meta",

@@ -115,6 +115,18 @@ describe("route", () => {
     }
   });
 
+  it("lleva el chat de la tienda (Brian) a Odoo, sin caché ni bloqueo", () => {
+    for (const path of ["/dcasa/brian/v1/pase", "/dcasa/brian/v1/carrito", "/dcasa/brian/v1/carrito/cotizacion.pdf", "/es/dcasa/brian/v1/carrito"]) {
+      expect(isBlockedPath(path), path).toBe(false);
+      for (const method of ["GET", "HEAD", "POST"]) {
+        expect(route(u(path), method), `${method} ${path}`).toEqual({ kind: "origin", cacheable: false });
+        expect(rutaEstatica(u(path), method), `${method} ${path}`).toBeNull();
+      }
+    }
+    // Las fotos del robot sí son estáticos del módulo (se guardan como los demás).
+    expect(route(u("/dcasa_brian_tienda/static/src/img/poses/saludando.webp"), "GET")).toEqual({ kind: "origin", cacheable: true });
+  });
+
   it("lleva el enlace de los choferes a Odoo, sin caché ni bloqueo", () => {
     const secreto = "7ZgTRgBMdl9zjefGCr3boBMzAipMZhnv";
     for (const path of [`/envios/choferes/${secreto}`, `/envios/choferes/${secreto}/buscar`, `/envios/choferes/${secreto}/cerca`]) {

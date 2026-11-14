@@ -71,6 +71,14 @@ RE_ID_COMENTARIO = re.compile(r'^[A-Za-z0-9_.:-]{1,128}$')
 # El anfitrión ENTERO (sin usuario, clave ni puerto): letras, cifras y guiones por partes, y que termine en uno de Meta.
 RE_HOST_DE_META = re.compile(r'^(?:[a-z0-9-]+\.)*(?:facebook\.com|instagram\.com|fb\.com|fb\.me)$', re.IGNORECASE)
 MAX_TEXTO_COMENTARIO = 2000
+# «Brian de la tienda» (el chat de la web, dcasa_brian_tienda): el Worker llama con ``origen: "tienda"`` y sin
+# conversación, y solo puede usar las herramientas de LEER de esta lista blanca (contrato §5). El Worker ya corta las
+# demás; Odoo lo vuelve a exigir.
+ORIGEN_TIENDA = 'tienda'
+HERRAMIENTAS_DE_LA_TIENDA = frozenset({
+    'buscar_productos', 'ver_producto', 'listar_categorias', 'buscar_conocimiento', 'horario_y_tienda',
+    'reglas_socios', 'cotizar_envio',
+})
 
 _candado = threading.Lock()
 _fallos = defaultdict(deque)
@@ -524,17 +532,14 @@ class JuanAPI(http.Controller):
             raise _Error(400, '«argumentos» debe ser un objeto.')
         if nombre not in {h['nombre'] for h in self._catalogo(entorno)}:
             raise _Error(404, f'No existe la herramienta «{nombre[:60]}».')
-        conversacion_id = cuerpo.get('conversacion_id')
-        contexto = {}
-        if conversacion_id is not None:
-            if not isinstance(conversacion_id, int) or isinstance(conversacion_id, bool):
-                raise _Error(400, '«conversacion_id» debe ser un número entero.')
-            if not entorno['dcasa.conversacion'].sudo().browse(conversacion_id).exists():
-                raise _Error(404, 'No existe esa conversación.')
-            contexto['juan_conversacion_id'] = conversacion_id
+        contexto = self._contexto_de_herramienta(entorno, cuerpo, nombre)
         if nombre == 'crear_oportunidad' and R.parece_direccion_exacta(argumentos.get('zona')):
             # Una dirección exacta no se guarda (issue #25): tampoco en la auditoría de Brian (``brian.accion``).
             argumentos = {clave: valor for clave, valor in argumentos.items() if clave != 'zona'}
+        if nombre == 'cotizar_envio' and ('lat' in argumentos or 'lon' in argumentos):
+            argumentos, directo = self._ubicacion_a_lugar(entorno, argumentos, contexto)
+            if directo is not None:
+                return _respuesta({'ok': True, 'resultado': directo})
         if nombre == 'cotizar_envio' and isinstance(argumentos.get('lugar'), str) \
                 and R.parece_direccion_exacta(argumentos['lugar']):
             # Para el envío basta el barrio, el PH o el punto de referencia: el número de casa, apartamento o piso se
@@ -547,6 +552,44 @@ class JuanAPI(http.Controller):
         if resultado.get('requiere_confirmacion'):
             return _respuesta({'ok': False, 'error': 'Esa herramienta necesita confirmación de una persona.'}, 409)
         return _respuesta({'ok': False, 'error': resultado.get('error') or 'No se pudo ejecutar la herramienta.'}, 422)
+
+    @staticmethod
+    def _contexto_de_herramienta(entorno, cuerpo, nombre):
+        """La conversación (si viene) y, desde el chat de la tienda (``origen: tienda``), su lista blanca: solo las
+        herramientas de leer y nunca con conversación."""
+        conversacion_id = cuerpo.get('conversacion_id')
+        if cuerpo.get('origen') == ORIGEN_TIENDA:
+            if nombre not in HERRAMIENTAS_DE_LA_TIENDA:
+                raise _Error(403, f'El chat de la tienda no usa «{nombre[:60]}».')
+            if conversacion_id is not None:
+                raise _Error(400, 'El chat de la tienda no tiene conversación en Odoo: sin «conversacion_id».')
+        if conversacion_id is None:
+            return {}
+        if not isinstance(conversacion_id, int) or isinstance(conversacion_id, bool):
+            raise _Error(400, '«conversacion_id» debe ser un número entero.')
+        if not entorno['dcasa.conversacion'].sudo().browse(conversacion_id).exists():
+            raise _Error(404, 'No existe esa conversación.')
+        return {'juan_conversacion_id': conversacion_id}
+
+    @staticmethod
+    def _ubicacion_a_lugar(entorno, argumentos, contexto):
+        """«Usar mi ubicación» del chat de la tienda (contrato §4): ``lat``/``lon`` se cambian AQUÍ por el lugar de la
+        tabla más cercano y no siguen (ni a la herramienta, ni a la auditoría ``brian.accion``, ni al registro).
+
+        Devuelve ``(argumentos, directo)``: ``directo`` es la respuesta sin correr la herramienta (envíos apagados o
+        ningún lugar cerca) o ``None``."""
+        lat, lon = argumentos.get('lat'), argumentos.get('lon')
+        argumentos = {clave: valor for clave, valor in argumentos.items() if clave not in ('lat', 'lon', 'lugar')}
+        Herramientas = entorno['brian.herramientas']
+        apagado = Herramientas._j_envios_encendidos()
+        lugar = None if apagado else Herramientas._j_envio_lugar_cercano(lat, lon)
+        del lat, lon
+        if apagado:
+            return argumentos, dict(apagado, por_ubicacion=True)
+        if not lugar:
+            return argumentos, Herramientas._j_envio_sin_lugar_cerca()
+        contexto['juan_envio_por_ubicacion'] = True
+        return dict(argumentos, lugar_id=lugar.id), None
 
     # ------------------------------------------------------------------
     # POST /seguimiento/hecho
