@@ -7,7 +7,7 @@
  */
 import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { aBase64Url, bytesDeIp, deBase64Url, firmarPase, llaveDeRed, llaveDelPase, verificarPase } from "../../src/tienda/pase";
+import { aBase64Url, bytesDeIp, deBase64Url, firmarPase, llaveDeRed, llaveDeRed48, llaveDelPase, verificarPase } from "../../src/tienda/pase";
 
 const TOKEN = "token-del-worker-de-prueba-0123456789abcdef";
 const AHORA = Date.UTC(2026, 10, 13, 16, 0);
@@ -128,6 +128,12 @@ describe("la llave del tope por red (de CF-Connecting-IP, como el borde)", () =>
   it("una IPv4 dentro de IPv6 (::ffff:a.b.c.d) cuenta como IPv4; sin IP o con algo raro, una sola llave para todos", () => {
     expect(llaveDeRed("::ffff:190.140.12.34")).toBe("190.140.12.34");
     for (const raro of [null, "", "no-es-ip", "1.2.3", "256.1.1.1"]) expect(llaveDeRed(raro)).toBe("sin-ip");
+  });
+
+  it("la /48 de una IPv6 (para el tope por /48); con IPv4 o sin IP, ninguna", () => {
+    expect(llaveDeRed48("2001:db8:aa:1:2:3:4:5")).toBe("2001:db8:aa::/48");
+    expect(llaveDeRed48("2001:0db8:00aa:ffff::1")).toBe("2001:db8:aa::/48");
+    for (const sin of ["190.140.12.34", "::ffff:190.140.12.34", null, "no-es-ip"]) expect(llaveDeRed48(sin)).toBeNull();
   });
 
   it("lee bien las IP, y lo que no es una IP no pasa", () => {

@@ -130,6 +130,19 @@ describe("el pase", () => {
     expect(JSON.stringify(m.recibidos.map((r) => r.entrada))).not.toMatch(/190\.140|2001:db8/);
   });
 
+  it("con IPv6 también va su /48 ofuscada (el tope por /48); con IPv4, ninguna", async () => {
+    const m = montar();
+    const red48 = async (ip: string) => {
+      await m.pedir(await mensaje(undefined, { ip }));
+      return m.recibidos.at(-1)!.entrada.red48;
+    };
+    const a = await red48("2001:db8:aa:1::1");
+    expect(a).toMatch(/^[0-9a-f]{32}$/);
+    expect(await red48("2001:db8:aa:ffff::9")).toBe(a); // otra /64 de la misma /48
+    expect(await red48("2001:db8:bb:1::1")).not.toBe(a);
+    expect(await red48("190.140.12.34")).toBeNull();
+  });
+
   it("el pase vale aunque el navegador llegue al Worker por otra familia o desde otra IP que la que vio Odoo", async () => {
     const m = montar();
     for (const ip of ["2001:db8:0:1::5", "200.1.1.1", "190.140.13.34"]) expect((await m.pedir(await mensaje(undefined, { ip }))).status).toBe(200);

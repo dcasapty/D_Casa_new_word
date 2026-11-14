@@ -5,6 +5,7 @@ import { DurableObject } from "cloudflare:workers";
 import type { Env } from "../env";
 import { sqlDeDurableObject, type Sql } from "./sql";
 import type { Uso } from "./precios";
+import { TIENDA_POR_DEFECTO } from "../config";
 
 export interface GastoDelMes {
   mes: string;
@@ -162,17 +163,28 @@ const VIDA_DE_UN_TURNO_DE_LA_TIENDA_MS = 26 * 3600_000;
 export interface ReservaTienda {
   /** La red del visitante ya ofuscada (HMAC): aquí nunca llega la IP ni la red en claro. */
   red: string;
+  /** La /48 de una IPv6, también ofuscada (null con IPv4): muchas /64 de la misma /48 no saltan el tope por red. */
+  red48?: string | null;
   /** «AAAA-MM-DD» y «AAAA-MM», en la hora de Panamá. */
   dia: string;
   mes: string;
+  /** Por hora por red. */
   porRed: number;
+  /** Por día entre todos. */
   porDia: number;
+  /** Por día por red (sin él, el de fábrica: una sola IP no se lleva el tope del día de todos). */
+  porRedDia?: number;
+  /** Por hora por /48 (sin él, 3 × el de por red). */
+  porRed48?: number;
+  /** Turnos con IA a la vez, entre todos (sin él, el de fábrica). */
+  enVueloMax?: number;
   presupuestoUsd: number;
   /** Lo que puede costar este turno (0 si no llama a la IA). */
   reservaUsd: number;
 }
 
-export type ResultadoReservaTienda = { ok: true; id: number } | { ok: false; motivo: "tope_red" | "tope_dia" | "presupuesto" };
+/** «ocupado»: ya hay demasiados turnos con IA a la vez (no es un tope del visitante: en un momento vuelve a poder). */
+export type ResultadoReservaTienda = { ok: true; id: number } | { ok: false; motivo: "tope_red" | "tope_dia" | "presupuesto" | "ocupado" };
 
 export interface GastoTienda {
   mes: string;
@@ -198,6 +210,12 @@ function crearTablasDeLaTienda(sql: Sql): void {
   // Cada mensaje aceptado (con o sin IA): la hora, el día, la red ofuscada y lo apartado. Se borran a las 26 horas.
   sql.correr(`CREATE TABLE IF NOT EXISTS tienda_turnos (id INTEGER PRIMARY KEY AUTOINCREMENT, ts INTEGER NOT NULL, dia TEXT NOT NULL,
     red TEXT NOT NULL, reserva REAL NOT NULL DEFAULT 0, vence INTEGER NOT NULL DEFAULT 0)`);
+  // La /48 de IPv6 (2026-11-14). Una tabla que ya existía sin la columna la recibe aquí (si ya la tiene, SQLite se queja y no pasa nada).
+  try {
+    sql.correr("ALTER TABLE tienda_turnos ADD COLUMN red48 TEXT");
+  } catch {
+    /* ya estaba */
+  }
   sql.correr(`CREATE TABLE IF NOT EXISTS tienda_gasto (
     mes TEXT NOT NULL, proveedor TEXT NOT NULL, modelo TEXT NOT NULL,
     entrada INTEGER NOT NULL DEFAULT 0, cache_lectura INTEGER NOT NULL DEFAULT 0,
@@ -218,18 +236,25 @@ export class TopesDeLaTienda {
    */
   reservar(p: ReservaTienda, ahora: number): ResultadoReservaTienda {
     this.sql.correr("DELETE FROM tienda_turnos WHERE ts < ?", ahora - VIDA_DE_UN_TURNO_DE_LA_TIENDA_MS);
-    const porRed = this.sql.uno<{ n: number }>("SELECT COUNT(*) AS n FROM tienda_turnos WHERE red = ? AND ts > ?", p.red, ahora - 3600_000)?.n ?? 0;
-    if (porRed >= p.porRed) return { ok: false, motivo: "tope_red" };
-    const delDia = this.sql.uno<{ n: number }>("SELECT COUNT(*) AS n FROM tienda_turnos WHERE dia = ?", p.dia)?.n ?? 0;
-    if (delDia >= p.porDia) return { ok: false, motivo: "tope_dia" };
-    // El presupuesto solo frena lo que gasta: un turno sin IA (reserva 0: pedir una persona, calificar…) pasa aunque esté agotado.
+    const n = (consulta: string, ...params: (string | number)[]) => this.sql.uno<{ n: number }>(consulta, ...params)?.n ?? 0;
+    const haceUnaHora = ahora - 3600_000;
+    if (n("SELECT COUNT(*) AS n FROM tienda_turnos WHERE red = ? AND ts > ?", p.red, haceUnaHora) >= p.porRed) return { ok: false, motivo: "tope_red" };
+    // Una sola red no se lleva el tope del día de todos (60 por hora serían 1440 al día, más que los 1000 del día).
+    const porRedDia = p.porRedDia ?? TIENDA_POR_DEFECTO.tope_red_dia;
+    if (n("SELECT COUNT(*) AS n FROM tienda_turnos WHERE red = ? AND dia = ?", p.red, p.dia) >= porRedDia) return { ok: false, motivo: "tope_red" };
+    // Con IPv6, una /48 tiene 65 536 redes /64: juntas no pasan de este tope.
+    if (p.red48 && n("SELECT COUNT(*) AS n FROM tienda_turnos WHERE red48 = ? AND ts > ?", p.red48, haceUnaHora) >= (p.porRed48 ?? p.porRed * 3)) return { ok: false, motivo: "tope_red" };
+    if (n("SELECT COUNT(*) AS n FROM tienda_turnos WHERE dia = ?", p.dia) >= p.porDia) return { ok: false, motivo: "tope_dia" };
+    // El presupuesto y el tope de turnos a la vez solo frenan lo que usa la IA: un turno sin IA (reserva 0: pedir una persona,
+    // calificar…) pasa aunque estén llenos.
     const reserva = Math.max(0, p.reservaUsd);
     if (reserva > 0) {
+      if (n("SELECT COUNT(*) AS n FROM tienda_turnos WHERE reserva > 0 AND vence > ?", ahora) >= (p.enVueloMax ?? TIENDA_POR_DEFECTO.tope_en_vuelo)) return { ok: false, motivo: "ocupado" };
       const gastado = this.gastado(p.mes);
       const enVuelo = this.enVuelo(ahora);
       if (gastado + enVuelo + reserva > Math.max(0, p.presupuestoUsd) + 1e-9) return { ok: false, motivo: "presupuesto" };
     }
-    this.sql.correr("INSERT INTO tienda_turnos (ts, dia, red, reserva, vence) VALUES (?, ?, ?, ?, ?)", ahora, p.dia, p.red, reserva, ahora + VIDA_DE_UNA_RESERVA_MS);
+    this.sql.correr("INSERT INTO tienda_turnos (ts, dia, red, red48, reserva, vence) VALUES (?, ?, ?, ?, ?, ?)", ahora, p.dia, p.red, p.red48 ?? null, reserva, ahora + VIDA_DE_UNA_RESERVA_MS);
     const id = this.sql.uno<{ id: number }>("SELECT last_insert_rowid() AS id")?.id ?? 0;
     return { ok: true, id };
   }

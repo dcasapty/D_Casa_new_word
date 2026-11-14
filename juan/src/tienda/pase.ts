@@ -152,6 +152,18 @@ export function llaveDeRed(ip: string | null): string {
   return `${grupos.join(":")}::/64`;
 }
 
+/**
+ * La /48 de una IPv6 de la conexión (los tres primeros grupos), para el tope por /48: una /48 tiene 65 536 redes /64 y, sin esto,
+ * quien tiene una podría saltar el tope por red cambiando de /64. Con IPv4 (o sin IP), null: ahí no hay /48 que mirar.
+ */
+export function llaveDeRed48(ip: string | null): string | null {
+  const b = ip ? bytesDeIp(ip) : null;
+  if (!b || b.length !== 16) return null;
+  const grupos: string[] = [];
+  for (let i = 0; i < 6; i += 2) grupos.push(((b[i] << 8) | b[i + 1]).toString(16));
+  return `${grupos.join(":")}::/48`;
+}
+
 // ── Verificar ────────────────────────────────────────────────────────────────
 
 const SID = /^[A-Za-z0-9_-]{16,64}$/;
