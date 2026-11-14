@@ -5,7 +5,10 @@ la ventana ampliada, Esc, el foco, que no tape la barra de la ficha ni «Pregunt
 movimiento reducido."""
 import contextlib
 import os
+from datetime import datetime
 from unittest.mock import patch
+
+import pytz
 
 from odoo import Command
 from odoo.addons.dcasa_envios.tests.common import importar
@@ -17,6 +20,8 @@ from .common import TOKEN_ODOO, TOKEN_WORKER, TiendaCase
 from .worker_simulado import WorkerSimulado
 
 ALTO = 800
+DE_DIA = ('saludando', 'con_laptop', 'escritorio', 'busto_estrella', 'bolsita', 'mapa', 'cinta_metrica', 'corazon',
+          'burbuja_chat', 'cinco_estrellas', 'fidelidad', 'asomado_burbuja', 'cama', 'cocina', 'marco_foto')
 COSTA = (8.9415, -79.8415)    # Costa Inventada, del fixture sintético de envíos
 
 ESPERAR = """
@@ -154,8 +159,93 @@ PURAS = """(() => {
                m.urlPropia('https://dcasapty.com/shop/x-2'), m.urlPropia('//malo.example.com/x')],
         precio: m.partirPrecio('$278.00 + ITBMS'),
         wa: m.mensajeWhatsApp({ lineas: [{ cantidad: 2, nombre: 'Colchón' }] }),
+        // La pose por sección: entre las páginas salen las 15 de día (el Inicio solo, también); dormido, nunca.
+        cobertura: {
+            inicio: [...m.posesDeSecciones('inicio')],
+            todas: [...new Set(['inicio', 'catalogo', 'ficha', 'carrito', 'visitanos'].flatMap((t) => [...m.posesDeSecciones(t)]))],
+            durmiendo: Object.keys(m.SECCIONES).some((t) => m.posesDeSecciones(t).has('durmiendo')),
+        },
+        activa: (() => {
+            const cama = { pose: 'cama', orden: 2 }, cocina = { pose: 'cocina', orden: 3 }, sala = { pose: 'corazon', orden: 1 };
+            const pose = (s) => (s ? s.pose : null);
+            return [pose(m.seccionActiva(new Set([cocina, cama]), new Set(), 'corazon')),
+                    pose(m.seccionActiva(new Set([cama, cocina]), new Set([cama]), 'cama')),
+                    pose(m.seccionActiva(new Set([cama, cocina]), new Set([cama, cocina]), 'cocina')),
+                    pose(m.seccionActiva(new Set([sala]), new Set(), 'corazon'))];
+        })(),
+        minimo: m.MIN_ENTRE_CAMBIOS_MS,
+        enInicio: m.seccionesDeLaPagina(m.tipoDePagina('/'), '/').map((s) => [s.pose, s.orden]),
     };
 })()"""
+
+# Baja por la página deteniéndose donde se le pide y anota cada cambio de pose de la burbuja cerrada (con su hora).
+BAJAR = """
+    const cajaPose = document.querySelector('button.o_dcbt_burbuja .o_dcbt_pose');
+    const actual = () => { const i = cajaPose.querySelector('img.o_dcbt_img_pose:not(.o_dcbt_saliendo)'); return i ? i.dataset.pose : null; };
+    const cambios = [];
+    let ultima = actual();
+    new MutationObserver(() => { const a = actual(); if (a && a !== ultima) { ultima = a; cambios.push([Date.now(), a]); } }).observe(cajaPose, { childList: true });
+    const ir = async (sel, ms) => {
+        const el = document.querySelector(sel);
+        if (!el) { throw new Error('No está la sección ' + sel); }
+        const r = el.getBoundingClientRect();
+        window.scrollTo(0, Math.max(1, scrollY + r.top + Math.min(r.height, 200) / 2 - innerHeight * 0.475));
+        await esperar(ms);
+    };
+    const minimo = () => Math.min(...cambios.slice(1).map((c, i) => c[0] - cambios[i][0]), 99999);
+"""
+
+POSE_EN_EL_INICIO = """(async () => {
+    /*ESPERAR*/
+    /*BAJAR*/
+    await esperar(3200);
+    const res = { quieta: cambios.length, alLlegar: actual() };
+    // Pasa rápido por dos secciones y se detiene en Socios: cuenta donde se detiene.
+    await ir('.o_dcasa_beneficios', 200);
+    await ir('.o_dcasa_categorias .o_dcasa_section_head', 200);
+    await ir('.o_dcasa_socios_band', 3200);
+    res.trasPasarRapido = cambios.map((c) => c[1]);
+    // Dos seguidas: la segunda espera el mínimo entre cambios.
+    await ir('.o_dcasa_galeria', 900);
+    await ir('.o_dcasa_ayuda .o_dcasa_steps', 3400);
+    await ir('.o_dcasa_visita_franja', 3200);
+    res.cambios = cambios.map((c) => c[1]);
+    res.minimo = minimo();
+    res.sinScrollDeLado = document.documentElement.scrollWidth <= innerWidth;
+    return res;
+})()""".replace('/*ESPERAR*/', ESPERAR).replace('/*BAJAR*/', BAJAR)
+
+POSE_EN_LA_FICHA = """(async () => {
+    /*ESPERAR*/
+    /*BAJAR*/
+    await esperar(3200);
+    const res = { quieta: cambios.length, alLlegar: actual() };
+    await ir('.o_wsale_product_details_content_section_price', 1500);   // las fotos, fijas al lado, ya están
+    res.alMoverse = cambios.map((c) => c[1]);
+    // Con el chat abierto no cambia; al cerrarlo, se pone al día con la sección donde quedó (el pie).
+    document.querySelector('button.o_dcbt_burbuja').click();
+    await hasta(() => !document.querySelector('#o_dcbt_panel').hidden, 'el chat abierto');
+    const antes = cambios.length;
+    await ir('#bottom, footer', 3200);
+    res.conElChatAbierto = cambios.length - antes;
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await hasta(() => document.querySelector('#o_dcbt_panel').hidden, 'que se cierre');
+    await esperar(3200);
+    res.alCerrar = actual();
+    res.minimo = minimo();
+    return res;
+})()""".replace('/*ESPERAR*/', ESPERAR).replace('/*BAJAR*/', BAJAR)
+
+SIN_CAMBIOS = """(async () => {
+    /*ESPERAR*/
+    /*BAJAR*/
+    await esperar(2500);
+    const alLlegar = actual();
+    for (const sel of ['#product_details', '#bottom, footer', '.o_wsale_product_images']) {
+        await ir(sel, 2800);
+    }
+    return { alLlegar, cambios: cambios.map((c) => c[1]), ahora: actual() };
+})()""".replace('/*ESPERAR*/', ESPERAR).replace('/*BAJAR*/', BAJAR)
 
 
 class NavegadorCase(TiendaCase):
@@ -261,10 +351,22 @@ class TestChatEnElNavegador(NavegadorCase):
             self.evaluar(browser, '(async () => { ' + ESPERAR + ' return true; })()')
             r = self.evaluar(browser, PURAS)
         self.assertEqual(r['poses'], {
-            'inicio': 'asomado_burbuja', 'catalogo': 'con_laptop', 'ficha': 'cinta_metrica', 'carrito': 'bolsita',
+            'inicio': 'asomado_burbuja', 'catalogo': 'con_laptop', 'ficha': 'marco_foto', 'carrito': 'bolsita',
             'socios': 'fidelidad', 'visitanos': 'mapa', 'foto': 'marco_foto', 'otra': 'asomado_burbuja',
             'colchones': 'cama', 'cocina': 'cocina', 'oficina': 'escritorio', 'salas': 'con_laptop',
             'noche': 'durmiendo'})
+        dia = set(DE_DIA)
+        self.assertEqual(set(r['cobertura']['todas']), dia, 'entre el Inicio, el catálogo, la ficha, el carrito y Visítanos')
+        self.assertEqual(set(r['cobertura']['inicio']), dia, 'el Inicio, la página más larga, pasa por todas')
+        self.assertFalse(r['cobertura']['durmiendo'], 'dormido es solo de noche')
+        self.assertEqual(r['activa'], ['cama', 'cocina', None, None])
+        self.assertEqual(r['minimo'], 2500)
+        en_inicio = [p for p, _orden in r['enInicio']]
+        self.assertEqual(en_inicio[0], 'asomado_burbuja', 'arriba, la de la página')
+        self.assertEqual([o for _p, o in r['enInicio']], list(range(len(en_inicio))))
+        for pose in ('saludando', 'con_laptop', 'cama', 'cocina', 'escritorio', 'fidelidad', 'marco_foto', 'cinta_metrica',
+                     'burbuja_chat', 'mapa'):
+            self.assertIn(pose, en_inicio, 'secciones que el Inicio siempre tiene')
         # 10:00 a. m. de un viernes (abierto), 9:00 p. m. del viernes (cerrado), 5:30 p. m. del domingo (cerrado).
         self.assertEqual(r['noche'], [False, True, True])
         self.assertEqual(r['urls'], ['/shop/x-1', None, None, '/shop/x-2', None])
@@ -318,3 +420,43 @@ class TestConElEditor(TiendaCase):
         admin.group_ids = [Command.link(self.env.ref('website.group_website_designer').id)]
         self.start_tour(self.env['website'].get_client_action_url('/'), 'dcasa_brian_tienda_editor', login='admin',
                         timeout=180)
+
+
+@tagged('post_install', '-at_install')
+class TestPoseAlBajar(NavegadorCase):
+    """La burbuja cerrada sigue a la sección que el visitante tiene en pantalla (pedido de la dueña, 2026-11-14): un
+    cambio cada 2,5 s como mucho, donde se detiene; ni con el chat abierto, ni de noche, ni con movimiento reducido."""
+
+    def test_en_el_inicio_sigue_a_la_seccion_donde_se_detiene(self):
+        with self.chrome(390) as browser:
+            browser.navigate_to(self.base_url() + '/', wait_stop=True)
+            r = self.evaluar(browser, POSE_EN_EL_INICIO)
+        self.assertEqual((r['quieta'], r['alLlegar']), (0, 'asomado_burbuja'), 'sin moverse, la de la página')
+        self.assertEqual(r['trasPasarRapido'], ['fidelidad'], 'al pasar rápido, cuenta donde se detiene')
+        self.assertEqual(r['cambios'], ['fidelidad', 'marco_foto', 'cinta_metrica', 'mapa'])
+        self.assertGreaterEqual(r['minimo'], 2400, 'nunca dos cambios en menos de 2,5 s')
+        self.assertTrue(r['sinScrollDeLado'])
+
+    def test_en_la_ficha_y_con_el_chat_abierto(self):
+        with self.chrome(1366, 768, movil=False) as browser:
+            browser.navigate_to(self.base_url() + self.colchon.website_url, wait_stop=True)
+            r = self.evaluar(browser, POSE_EN_LA_FICHA)
+        self.assertEqual((r['quieta'], r['alLlegar']), (0, 'marco_foto'))
+        self.assertEqual(r['alMoverse'], ['bolsita'], 'el precio y «Agregar al carrito»')
+        self.assertEqual(r['conElChatAbierto'], 0, 'con el chat abierto la burbuja no cambia')
+        self.assertEqual(r['alCerrar'], 'saludando', 'al cerrarlo, la del pie, donde quedó')
+        self.assertGreaterEqual(r['minimo'], 2400)
+
+    def test_de_noche_dormido_y_con_movimiento_reducido_quieto(self):
+        with self.chrome(390, reducido=True) as browser:
+            browser.navigate_to(self.base_url() + self.colchon.website_url, wait_stop=True)
+            r = self.evaluar(browser, SIN_CAMBIOS)
+        self.assertEqual((r['alLlegar'], r['cambios'], r['ahora']), ('marco_foto', [], 'marco_foto'))
+        # De noche: hoy (hora de Panamá) cerrado. La ficha no se guarda en la memoria de páginas de Odoo.
+        hoy = datetime.now(pytz.timezone('America/Panama')).isoweekday() % 7   # 0 = domingo, como el JS
+        campos = ['dia_domingo', 'dia_lunes', 'dia_martes', 'dia_miercoles', 'dia_jueves', 'dia_viernes', 'dia_sabado']
+        self.env['dcasa.juan.ajustes'].obtener().write({c: i != hoy for i, c in enumerate(campos)})
+        with self.chrome(390) as browser:
+            browser.navigate_to(self.base_url() + self.colchon.website_url, wait_stop=True)
+            r = self.evaluar(browser, SIN_CAMBIOS)
+        self.assertEqual((r['alLlegar'], r['cambios'], r['ahora']), ('durmiendo', [], 'durmiendo'))
