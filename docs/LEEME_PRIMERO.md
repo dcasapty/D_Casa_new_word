@@ -36,7 +36,7 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 | Programar, probar y subir a la rama de trabajo | No (autorizado de forma permanente) |
 | Desplegar a **staging** | **Antes, capturas a la dueña y su visto bueno** (regla del 2026-10-17: capturas → su filtro → pruebas → staging → producción). Capturas con datos de prueba, en computadora y celular, revisadas antes de mandarlas |
 | Crear el PR hacia `main` | Solo cuando lo pide o ya dijo «pásalo a producción» |
-| Unir a `main` y desplegar a **producción** | Permiso general desde el 2026-10-17 («súbelo en cuanto vayas terminando») **para lo que ella ya vio en capturas** y pasó pruebas y revisión. Si el código cambia después de su visto bueno, se le avisa antes |
+| Unir a `main` y desplegar a **producción** | Permiso general desde el 2026-10-17 («súbelo en cuanto vayas terminando») para lo que pasó pruebas y revisión. **Desde el 2026-11-13 sin esperar su visto bueno a las capturas** («no esperes mi aprobación para pasar a producción. Apruébalo y punto»): se le muestran igual, pero no se espera. La revisión adversarial no se salta |
 | Borrar datos, ramas, respaldos, secretos | Sí, y mirando primero qué se borra |
 | Cifras de dinero, puntos, comisiones, impuestos | Nunca se inventan (ver `CLAUDE.md`: `puntos.json`, reglas de marca) |
 
@@ -109,11 +109,63 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 > sigue. Se guardan las diez más recientes; las viejas se resumen en una línea abajo y su texto completo pasa a
 > [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md).
 
+### 2026-11-13 (2) y 2026-11-14: avisos de Telegram ordenados, lote 1 de la web, «Busca con una foto», ícono de Brian y horario de la tienda (Desplegar 71 y Juan 25); Brian de la tienda y lote 2 de la web (Desplegar 72 y Juan 26), en producción
+
+**Y desde el 2026-11-14, 07:46 UTC (salud sana: `{"ok": true, "version": "f461cad33626", "base_al_dia": true, "humo": "ok"}`):** otra vez **Juan antes que Odoo** (el Durable Object `TiendaSesion` es la migración v2 del Worker): **Desplegar Juan 26** (run 43571228282, 07:28–07:30 UTC; `/salud` con `ea3bd96d6a74358dc633a8a62b4f7f797c6772af`, `tienda` lista y encendida con los ajustes de Odoo) y **Desplegar 72** (run 43571429646, 07:30–07:46 UTC) con la imagen `sha256:cff08b93711395b7ac1ef8030c6d4230008eda2a6f9e27d972288e0667d774a3` y `app_version` `f461cad33626b07adc2d5a70ca1971aaae595015` (PR #118, squash `ea3bd96`; CI 355 con staging, run 43564565700), con respaldo previo. Comprobado en dcasapty.com a 390 px: la burbuja de Brian en lugar de la de WhatsApp, una respuesta en 5,7 s con 5 tarjetas de colchones de verdad, el horario en el pie, `/privacidad` del 14 de noviembre y el mapa de Visítanos sin cargar hasta el permiso; sin errores en la consola.
+
+**En producción desde el 2026-11-14, 00:35 UTC (salud sana: `{"ok": true, "version": "2bcc23e70c14", "base_al_dia": true, "humo": "ok"}`):** **Juan antes que Odoo** (lo pide `sin_leer`): **Desplegar Juan 25** (run 43533101840, 00:18 UTC; `/salud` con `894959be9830a65d0f581199f8911b088b42dcfd`; los mismos 5 avisos de siempre) y **Desplegar 71** (run 43533399099) con la imagen `sha256:99d1039a03df35dce88615e55b3bb9fb7891525bfb73bae4b6fab1ede39ea259` y `app_version` `2bcc23e70c1437d93c4fab310602ef2a71f9b747` (PR #117, squash `894959b`; CI 349 con staging, run 43524742607), con respaldo previo. **Es lo último en producción.**
+
+- **Autorización nueva de la dueña (2026-11-13):** «no esperes mi aprobación para pasar a producción. Apruébalo y punto»
+  y «vamos a subirlo lo antes posible». Esta entrega subió sin su visto bueno a las capturas; las revisiones adversariales
+  se hicieron igual (son las que cuidan el dinero y los datos).
+- **Avisos de Telegram** (pedido: «son muchos o muy repetidos… a la 1 de la mañana veo vendedoras activas»; eligió «A (que
+  se pueda activar o desactivar) B. E.», no C ni D; «sigamos con Telegram»): de noche nadie recibe clientes (interruptor en
+  Ajustes de Juan, encendido; lista por vendedora al abrir), solo avisan los pagos hechos, las cédulas y lo que Juan no
+  pudo leer (`sin_leer` con su motivo; las capturas de Instagram con precio ya no son comprobantes), y textos en una sola
+  forma. Detalle en [JUAN_ODOO.md](JUAN_ODOO.md) (reparto y «Avisos en paralelo»). Tres vueltas de revisión adversarial.
+- **Horario de la tienda** (lo dio la dueña): lunes a sábado 9:00 a. m.–6:00 p. m., domingo 9:00 a. m.–5:00 p. m. La
+  migración `post-horario.py` lo puso en Ajustes de Juan solo si seguía el de fábrica (8 a 17). Es configurable ahí mismo
+  (la dueña preguntó; se le dijo dónde).
+- **Informe externo D'CASA contra Carbone** (agente de Chrome de la dueña, 65 capturas): **2 de 3 «errores críticos» eran
+  falsos** (la búsqueda con Enter y el carrito sí funcionan; el robot del informe fue más rápido que la página); se comprobó
+  todo en producción antes de tocar nada. Lo real entró en el **lote 1 de la web**. Google mostraba `/web/login` con el
+  texto de la web vieja y sin logo: ahora `noindex`; falta el trámite de **Search Console** (la dueña: «luego»).
+- **«Busca con una foto»** (la dueña: «me gustó mucho el buscador de imagen de Carbone»), módulo `dcasa_buscar_foto`, con
+  revisión adversarial (el bloqueante: los topes no aguantaban pedidos simultáneos). El texto de `/privacidad` quedó
+  aprobado por la autorización general.
+- **Ícono de Brian en el panel:** el robot pensativo con guiño que mandó la dueña (su archivo
+  `web_pensativo_oficina_busto_ojosorig_cut.png`).
+- **Brian de la tienda** (chat de ventas en la web). Decisiones de la dueña: se llama Brian y se presenta una vez; tope
+  de IA propio de 30 USD al mes (Juan atiende 300–400 clientes al día con ~1,30 USD diarios); la burbuja sin texto
+  reemplaza la de WhatsApp (WhatsApp va dentro del chat); muy educado, como Juan; la cotización del visitante es el carrito
+  armado con su PDF; usar **los 16 robots** que mandó (`scratchpad`, zip `icon_15_bolsita_cutout`) con pose y transición
+  distintas por página y estado; ubicación para el envío («si ya aprobé los precios de envío»); estrellas, sí; ampliar el
+  chat, sí. Prototipo v2 aprobado (~80 % y los cambios). Construido en dos partes (Worker y Odoo, contrato escrito).
+  **Tres vueltas de revisión adversarial**: la primera con dos bloqueantes (el tope de 30 USD no anotaba los turnos que
+  cortaba el plazo; el PDF podía agotar las conexiones de la base), la segunda con cuatro menores del Worker y la tercera
+  con un hueco de permisos (un usuario interno podía esconder sus consultas de la auditoría poniendo una marca en el
+  contexto). Todo cerrado salvo «Por pagar a Meta» en el cambio de mes (pendiente antes del 1 de diciembre, en
+  PRIORIDADES). El CI con todos los módulos encontró dos más (la fecha de `/privacidad` y que el pie no se podía guardar
+  con el constructor por `pie_mi_cuenta`). Prueba de punta a punta en staging con el Worker de verdad antes de subir.
+- **Lote 2 de la web:** horario en Visítanos y el pie (de Ajustes de Juan), mapa de Google solo con permiso de cookies,
+  opiniones solo de quien compró y pagó, aprobadas por Gerencia, con invitación en el correo de la factura pagada. Va con
+  Brian de la tienda.
+- **«Tu compra lista»** (del chat al carrito con un código): diseño en borrador, sin aprobar; el carrito real de Brian de
+  la tienda cubre la primera parte.
+- **Incidencias de la sesión:** dos pausas por el límite de uso de 5 horas (los ayudantes se pararon cerca de una hora
+  cada vez) y dos reinicios del contenedor (se pierden PostgreSQL y las corridas en segundo plano; los árboles y los
+  commits quedan). Se reanudó cada ayudante desde donde quedó.
+- **Sigue:** **Tilopay** la otra semana (Odoo no lo trae: hay que conectarlo; métodos: los que tenga activos); Search
+  Console; «Por pagar a Meta» en el cambio de mes (antes del 1 de diciembre); Turnstile en el chat antes de anunciarlo
+  en grande; herramientas del Brian del panel para la tienda y las opiniones; y un detalle de texto: Brian dice «a
+  partir de las 9:00 a. m..» con dos puntos (`juan/src/tienda/motor.ts`, el aviso de tienda cerrada). El mapa no
+  necesita regla nueva: el borde no manda `frame-src` (OPERACION).
+
 ### 2026-11-13: Juan ya no dice «no lo manejamos» de lo que no está publicado (Desplegar 69 y Juan 23) y responde comentarios de Instagram y Facebook, apagado (Desplegar 70 y Juan 24), en producción
 
 **En producción desde el 2026-11-13, 03:20 UTC (salud sana: `{"ok": true, "version": "2ced21ccb09f", "base_al_dia": true, "humo": "ok"}`):** **Desplegar 69** (run 43356475622) con la imagen `sha256:1ad42b80f08882c6d05db19cb3d66fba5a54c7c14e69cf4e98b2165db5b7bb67` y `app_version` `2ced21ccb09f555da0159f1493867318617100e1` (PR #115, squash `7d965cd`; CI 345 con staging, run 43347631246), con respaldo previo. Y **Desplegar Juan 23** (run 43358329275, 03:22 UTC; `/salud` con `7d965cdab4b99f039172308f3339cc16b5d27a5b`).
 
-**Y desde las 04:45 UTC (salud sana: `{"ok": true, "version": "70ac6f349a9e", "base_al_dia": true, "humo": "ok"}`):** **Desplegar 70** (run 43365883978) con la imagen `sha256:7c1a9d4cbfd6743d8480aabb44aac055d1c0729d6e23a9f48c4463d7215b7324` y `app_version` `70ac6f349a9e8be6f2939f063360de1031272fc9` (PR #116, squash `24493be`; CI 347 con staging, run 43358982543), con respaldo previo. Y **Desplegar Juan 24** (run 43367600509, 04:47 UTC; `/salud` con `24493be1a67c06a19b6d0266e5c0eb20a80598f9`; los mismos 5 avisos de antes, nada nuevo). **Es lo último en producción.**
+**Y desde las 04:45 UTC (salud sana: `{"ok": true, "version": "70ac6f349a9e", "base_al_dia": true, "humo": "ok"}`):** **Desplegar 70** (run 43365883978) con la imagen `sha256:7c1a9d4cbfd6743d8480aabb44aac055d1c0729d6e23a9f48c4463d7215b7324` y `app_version` `70ac6f349a9e8be6f2939f063360de1031272fc9` (PR #116, squash `24493be`; CI 347 con staging, run 43358982543), con respaldo previo. Y **Desplegar Juan 24** (run 43367600509, 04:47 UTC; `/salud` con `24493be1a67c06a19b6d0266e5c0eb20a80598f9`; los mismos 5 avisos de antes, nada nuevo).
 
 - **Qué pasó:** la dueña mandó la captura de un cliente al que Juan le dijo «solo manejamos la cama, no el colchón solo» («¿Esto es verdad?»). No: los colchones existen, pero no estaban publicados en la tienda y la búsqueda de Juan solo ve lo publicado. Ahora, cuando no encuentra algo publicado, la herramienta le dice por qué: `hay_sin_publicar` (existe en Odoo sin publicar: Juan dice «sí lo trabajamos», no da datos y pasa a una vendedora), `busca_de_nuevo` (probar otra palabra) o `no_lo_manejamos` (solo entonces lo puede decir). El Worker tiene además una guardia (`niega_producto`) que frena el «no lo manejamos» si la herramienta no lo dijo. Se le dio a la dueña el mensaje para el cliente.
 - **La dueña ya publicó los colchones** (7 en la tienda; se encuentran con «colchón» y con «colchon») **y le escribió al cliente.**
@@ -146,8 +198,7 @@ arreglos del celular, la caja de responder del chat en el celular y la lista ent
 staging, run 43104407376), con respaldo previo: «Entregas pendientes» igual que Bodega y «Más datos» en la cotización.
 **Y desde el 2026-11-12, 02:06 UTC (confirmado sano y estable a las 02:19):** **Desplegar 67** (run 43138676351) con la
 imagen `sha256:4a8a7ac0…` y `app_version` `f28c2ccd39abb3aeee1ed853bb1013004d80913f` (PR #112, squash `50b343b`; CI
-338 con staging, run 43131640599), con respaldo previo: el **modo oscuro**. **Es lo último en producción y es más nuevo
-que la versión estable 4.**
+338 con staging, run 43131640599), con respaldo previo: el **modo oscuro**. Era más nuevo que la versión estable 4.
 
 - **Aprobaciones de la dueña (tal cual):**
   - «Si me gustaron los cambios para móvil lo que me gustaría es que así como se ve en detalles compacto y grandes así
@@ -506,52 +557,9 @@ Juan 12 (3b86ee3).
   de la dueña). La dueña dejó `novedades.dcasapty.com` verificado en Resend con «Auto configure» de Cloudflare y el conteo
   de aperturas y clics encendido en `links.novedades.dcasapty.com`.
 
-### 2026-11-07 (2): issues #24 (Juan) y #25 (Conversaciones), lo que quedaba, en producción
-
-- La dueña aprobó el 2026-11-07 los pendientes de los dos issues, primero lo que ve el cliente. **Sin push, PR ni
-  despliegue**: cuando toque, **Odoo primero y después Juan** (Juan no depende del Odoo nuevo; la integración sí espera
-  el Odoo nuevo).
-- **Juan** (cada uno con su prueba, primero en rojo; `cd juan && npm test`: 1.223, `typecheck` limpio):
-  1. **Eco de Messenger e Instagram**: lo que sale se anota antes de enviar (`vuelo:*`); el eco ya no calla al bot 120 min
-     (`eco-meta.test.ts`, 4 de 7 en rojo).
-  2. y 3. **Notas de voz**: «quiero hablar con alguien» o «no me escriban» en audio valen como escritos; no se transcribe
-     ni se lee una imagen en descanso, con un repetido ni pasado el tope diario (`nota-de-voz.test.ts`, 7 de 8). El tope
-     de 20 notas de voz por persona al día que entró aquí **se quitó** el mismo día a pedido de la dueña («le agrada que
-     pueda responder notas de voz»): queda solo el tope diario general.
-  4. **Reintento del turno**: la corrección recibe su ronda de herramientas y la pasada sin herramientas lo consultado; la
-     misma escritura con los mismos argumentos va a Odoo una vez por turno, `pasar_a_vendedora` una vez, tope de 8
-     (`reintento-del-turno.test.ts`, 4 de 6; y una con el SDK real de Claude).
-  5. **Seguimiento**: se reclama antes de redactar y se vuelve a mirar al cliente justo antes de enviar
-     (`seguimiento-carrera.test.ts`, 4 de 6).
-  6. **Menores**: registros sin claves ni tokens; `{{LECCIONES}}` con función (`menores-ronda8.test.ts`, 3 de 3).
-- **Conversaciones** (`tests/test_ronda8_conversaciones.py`, 20 de 23 en rojo antes; Sofía, 2 nuevas en rojo antes):
-  atraso máximo de un seguimiento (**ajuste nuevo, 6 h**: lo vencido se salta con una nota, no sale de golpe), nada de
-  «¿sigues interesado?» tras un traspaso que nadie atendió (`traspaso_sin_atender_desde`; Sofía lo pone en «Contéstale»,
-  que antes NO cubría ese caso), seguimiento por persona (solo el canal por donde escribió último) y «No contactar» que
-  sigue a la persona al cambiar de ficha, un «descartado» tardío ya no cierra el ciclo nuevo, notas sin repetir en la
-  oportunidad, el mantenimiento purga los borradores de Telegram y la zona con número de casa o apartamento no se guarda.
-  En local, base nueva: `dcasa_conversaciones` 1.253 pruebas en dos mitades (solo las 2 referencias visuales a 390 px
-  que ya fallaban en esta máquina), `dcasa_sofia` 72, integración real de Juan 39 de 40; `ruff` limpio.
-- Cambió una prueba vieja con razón: `test_no_pide_fuera_de_horario_aunque_ya_toque` usa un atraso de 4 h (con 8 h ahora
-  se salta) y la integración `seguimiento.ts` espera que el «descartado» no cierre el ciclo nuevo (esperaba el hueco).
-- Lo que no cubre: las conversaciones que hoy ya esperan a una persona tras un traspaso no quedan marcadas (sin
-  migración: la marca empieza con el próximo traspaso). Quedan del #24 tres menores fuera de lo aprobado.
-- **Revisión adversarial** (10 hallazgos, todos arreglados con prueba; `9c00c16` Juan, `dfeb5ee` Odoo y Sofía): un rechazo de
-  `pasar_a_vendedora` ya no frena la llamada corregida (tampoco en el mismo paso); el reclamo del seguimiento es de quien lo
-  puso y se mira la tabla `seguimientos` justo antes de enviar; las notas de voz y fotos de una vendedora no gastan los topes
-  del cliente; prueba de la corrección con Meta. En Odoo: «espera a una persona» frena el seguimiento una semana como mucho, se
-  ve en la conversación y se quita con **«Ya la atendí»**; por persona solo cuentan las hermanas que podrían hacer el
-  seguimiento (un «hola» por otro canal ya no deja a nadie sin ninguno) y uno en camino por otro canal pospone, no borra;
-  solo se salta lo programado antes del límite (`seguimiento_programado_en`: «Crear oportunidad» al día siguiente sale) y,
-  si el siguiente también venció en la caída, también se salta (antes salía en la misma vuelta); «el cliente pidió que no lo
-  contacten» marca No contactar; la dirección exacta tampoco queda en `brian.accion`; un «Contéstale» descartado no vuelve
-  con cada mensaje mientras siga marcada. Pruebas: Juan 1.230 (`typecheck` limpio); Odoo, clases tocadas 125 + API,
-  superficie RPC y vecinas 128, 0 fallas (las 3 nuevas de atrasos y Sofía, en rojo antes); `ruff` limpio. No se corrió
-  `dcasa_conversaciones` entero ni la integración real de Juan (la integración escribe `seguimiento_proximo` a un minuto:
-  no la toca el atraso).
-
 ### Entradas anteriores (una línea cada una; el texto completo en [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md))
 
+- **2026-11-07 (2):** issues #24 (Juan) y #25 (Conversaciones), lo que quedaba, en producción.
 - **2026-11-07 (1):** citas, reenviados, reacciones y palomitas en el chat, en producción.
 - **2026-11-06 (9):** Camila etapa 1b: la lista de las novedades crece sola.
 - **2026-11-06 (8):** «Ver más» en la foto del catálogo y Dependabot, en producción.

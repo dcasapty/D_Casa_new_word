@@ -444,6 +444,27 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   hecho que algo de Meta «no anda» o «sí anda», leer la documentación del campo: los avisos de comentarios piden acceso
   avanzado por las dos puertas (página e inicio de sesión de Instagram). Y al contar resultados en HTML, no fiarse de un
   atributo (`itemprop="name"`) cuyo orden cambia: contar la tarjeta (`oe_product_cart`).
+- **Desplegar Juan 25 y Desplegar 71** (14 nov; salud sana a las 00:35 UTC: `{"ok": true, "version": "2bcc23e70c14",
+  "base_al_dia": true, "humo": "ok"}`) · PR #117, squash `894959b`, `app_version`
+  `2bcc23e70c1437d93c4fab310602ef2a71f9b747`, imagen `sha256:99d1039a…`, CI 349 con staging (run 43524742607). Avisos de
+  Telegram ordenados (la noche sin clientes), lote 1 de la web, «Busca con una foto» (módulo nuevo
+  `dcasa_buscar_foto`), el robot como ícono de Brian y el horario de la tienda; con respaldo previo. **Por primera vez
+  Juan antes que Odoo:** Desplegar Juan 25 (run 43533101840, 00:18 UTC; `/salud` con `894959be…`) y después Desplegar 71
+  (run 43533399099). La razón: Odoo nuevo trata `sin_leer` sin motivo como un fallo del lector; si Odoo sube primero,
+  cada imagen que el Juan viejo manda sin motivo levanta un aviso falso. **Regla:** cuando Odoo empieza a esperar un
+  campo nuevo del Worker, Juan va primero; cuando el Worker empieza a llamar una ruta nueva de Odoo, Odoo va primero
+  (o el Worker tolera el 404). Bien al primer intento. La dueña autorizó subirlo sin esperar su visto bueno («Apruébalo
+  y punto»).
+- **Desplegar Juan 26 y Desplegar 72** (14 nov; salud sana a las 07:46 UTC: `{"ok": true, "version": "f461cad33626",
+  "base_al_dia": true, "humo": "ok"}`) · PR #118, squash `ea3bd96`, `app_version`
+  `f461cad33626b07adc2d5a70ca1971aaae595015`, imagen `sha256:cff08b93…`, CI 355 con staging (run 43564565700). Brian de
+  la tienda (módulo nuevo `dcasa_brian_tienda`) y el lote 2 de la web; con respaldo previo. Otra vez Juan primero (run
+  43571228282, 07:28–07:30 UTC; el Durable Object `TiendaSesion` es su migración v2) y Odoo después (run 43571429646,
+  07:30–07:46 UTC). Antes del deploy: tres vueltas de revisión adversarial y cuatro CI (351 falló por una prueba de
+  navegador sin `websocket-client`; 352 y 353 se cancelaron para meter arreglos; 354 falló con todos los módulos por la
+  fecha de `/privacidad` y el xpath de `pie_mi_cuenta`). Prueba de punta a punta en staging con el Worker de verdad.
+  **Lección de la prueba:** en staging hay que esperar `networkidle` antes de tocar la burbuja: sin el JS cargado el
+  botón no hace nada (en un teléfono lento pasaría igual; anotarlo si alguien se queja). Bien al primer intento.
 - **Versión estable 4 ensayada en staging** (11 nov, 03:16–03:40 UTC, run 42951600639 de «Volver a una versión
   estable», lanzado desde la rama de trabajo: el botón solo exige `main` para producción). Estable 4 = imagen de
   Desplegar 63 (`acda72c1…`, `app_version` `3e2ccfc`) + Juan hasta Desplegar Juan 20. Bien al primer intento.
@@ -671,6 +692,26 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 - **El límite de uso de 5 horas corta a todos los ayudantes a la vez** y el contenedor puede reiniciarse (PostgreSQL
   queda apagado): al volver, `service postgresql start` y retomar cada ayudante con un mensaje (su trabajo queda en su
   rama); no lanzar uno nuevo.
+- **El disco se llena con bases de prueba** (2026-11-14): cada `scripts/test.sh` con un `DB_NAME` nuevo deja una base de
+  ~250 MB y cada árbol de trabajo ~1 GB; tras dos días quedaban 600 MB libres. Al cerrar cada lote: `sudo -u postgres
+  dropdb <base>` (y su `~/.local/share/Odoo/filestore/<base>`) de las que ya no corre nadie (mirar `ps aux | grep
+  odoo-bin` antes) y `git worktree remove --force` de los árboles ya unidos.
+- **Ayudantes en paralelo duplican migraciones** (2026-11-13): el del lote 2 de la web y el de los avisos escribieron
+  cada uno su `migrations/19.0.1.5.0/post-migrate.py` en `dcasa_conversaciones` (conflicto add/add al unir; el del
+  lote 2 además repetía el cambio de horario). Se quedó el de los avisos y lo del horario pasó a `post-horario.py`:
+  Odoo corre **todos** los `post-*.py` de la carpeta de la versión. **Regla:** en el encargo de cada ayudante, decir qué
+  módulo sube de versión y quién escribe su migración; al unir, `git diff --name-status` buscando `migrations/`.
+- **Un informe externo (auditoría, otro bot, un amigo) se comprueba en producción antes de tocar nada** (2026-11-13): el
+  informe «D'CASA contra Carbone» decía que la búsqueda y el carrito estaban rotos; en producción no lo estaban (lo que
+  sí fallaba era otra cosa: la lupa escondida en el celular y los resultados con otro diseño). Guiones de comprobación
+  con Playwright en la carpeta de trabajo de la sesión; se arregló solo lo verificado.
+- **Topes por red: IPv4 entera, IPv6 por /64** (2026-11-13). En Panamá los celulares salen por CGNAT: con /24 un tope
+  «por red» junta a cientos de personas de la misma operadora. Una IPv4 cuenta sola; una IPv6 cuenta por su /64 (lo que
+  un hogar o un teléfono recibe entero, así cambiar de dirección dentro no salta el tope). La llave vive en un solo
+  lugar: `dcasa_base/red.py` (`llave_ip`) en Odoo y `llaveDeIp` en el borde y en Juan, con sal del día si se guarda.
+- **Un pase firmado no se ata a la red** (2026-11-13, Brian de la tienda): el navegador habla con dos dominios (Odoo y
+  el Worker de Juan) y el teléfono puede salir por IPv4 a uno y por IPv6 al otro. Atar el pase a la red rompía el chat
+  sin aviso. Se ata a la sesión (`sid`) y a la vida corta (30 min), y los topes por red los cuenta cada lado.
 
 - **Lo que una auditoría por direcciones no ve (2026-11-11):** el recorrido de Playwright abre cada pantalla por su
   `/odoo/action-<id>` y la mide ya cargada. Así no vio tres fallas que la dueña sufría a diario en el iPhone: la
@@ -850,6 +891,44 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 
 ### Odoo 19
 
+- **Cuatro trampas de la página que encontró Brian de la tienda (2026-11-13; detalle en BRIAN_TIENDA.md):**
+  - El tema del sitio pone `height: auto !important` a las `<section>` en el celular: el chat quedaba de 640 px con el
+    campo de escribir fuera de la pantalla. Lo flotante va en un `<div role="dialog">`, no en un `<section>`.
+  - El minificador de JavaScript de Odoo se come los espacios del borde de una plantilla de texto (`` `…` ``) metida
+    dentro de otra («abramos(atendemos»). Esos textos se arman con `+`; una prueba (`test_ajustes.py` de
+    `dcasa_brian_tienda`) lo revisa.
+  - `website.page` guarda la portada y las páginas una hora para los visitantes: un cambio del horario de Juan tarda
+    hasta una hora (más lo que guarde el borde) en verse en la página. Lo que tiene que verse al momento sale por JS
+    (el pase) o limpia esa memoria (`set_param`).
+  - Las pruebas que comparan el `/config` de Juan llave por llave fallaron en el CI (con todo instalado) cuando
+    `dcasa_brian_tienda` agregó `brian_tienda`. Arreglo: la prueba saca esa llave antes de comparar
+    (`datos.pop('brian_tienda', None)`). **Regla:** el módulo que agrega una llave a `/config` corre las pruebas de
+    `dcasa_conversaciones` con él instalado.
+- **No meter un `t-call` suelto por `xpath` dentro de la caja de búsqueda de Odoo** (2026-11-13, «Busca con una foto»):
+  con el editor del sitio abierto (quien puede editar el sitio), Odoo dejaba sus marcas de edición en el `t-call` y toda
+  página con la cabecera daba error 500; el visitante no lo veía. Arreglo: la plantilla vacía
+  `website_dcasa.buscador_botones_extra` dentro de un `<span class="o_dcasa_buscador_extra">` (`display: contents`),
+  que se hereda con `position="inside"` (CATALOGO.md). **Regla:** toda plantilla que toque la cabecera se prueba
+  también abriendo la página como administrador con el editor.
+- **En el CI, el trabajo «Tests de Odoo» no tiene `websocket-client`** (2026-11-14, CI 351): Odoo salta los subtests de
+  navegador («websocket-client module is not installed»), pero una aserción escrita después de los subtests corre
+  igual y falla (`0 != 2`). Las pruebas de navegador se saltan enteras al principio cuando no hay navegador, o cuentan
+  dentro de cada subtest. En local sí está instalado: el fallo solo se ve en el CI.
+- **Dos módulos que heredan la misma ruta pisan en orden alfabético** (2026-11-14, CI 354): `dcasa_buscar_foto` y
+  `dcasa_brian_tienda` ponen cada uno la fecha de `/privacidad`; Odoo carga los independientes por nombre y el último
+  gana, así que la foto (13 nov) tapaba a Brian (14 nov). Regla: quien cambia un valor compartido compara y solo lo
+  sube (la fecha más nueva gana), y las pruebas aceptan «esta o una más nueva».
+- **Un xpath que busca un atributo que otra herencia cambia rompe el guardado con el editor** (2026-11-14):
+  `pie_mi_cuenta` buscaba `//a[@href='/my']` y cambiaba el enlace a `/mi-cuenta`. Al guardar el pie con el
+  constructor, la copia del sitio ya trae `/mi-cuenta` y la herencia no encuentra su ancla: error de validación. Se vio
+  solo con todos los módulos instalados (en local con dos módulos pasaba). Regla: el xpath acepta el valor de antes y
+  el de después (`@href='/my' or @href='/mi-cuenta'`), y las pruebas de editor se corren con la lista completa de
+  `Makefile`.
+- **Pruebas que dependen de la hora** (2026-11-13): con la regla «de noche nadie recibe clientes» encendida de fábrica,
+  las pruebas viejas del reparto y de la API dependían del reloj del CI. `tests/common.py` de `dcasa_conversaciones`
+  la apaga (`reparto_nadie_de_noche = False`) y las pruebas de esa regla la encienden con el reloj quieto
+  (`test_avisos_noche.py`). **Regla:** todo interruptor nuevo que dependa de la hora va apagado en el `common` de las
+  pruebas.
 - **Modo oscuro del panel (2026-11-12), cómo está hecho y la regla para lo nuevo:**
   - **Odoo Community trae el andamio y no la paleta.** El paquete `web.assets_web_dark` (= el claro + los
     `*.dark.scss`) y la plantilla que lo elige existen; `ir.http.color_scheme()` contesta siempre «light» y la paleta

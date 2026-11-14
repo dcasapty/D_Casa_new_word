@@ -3,8 +3,9 @@
  * scratchpad/brian_tienda/contrato.md y contrato_cambios.md). Lleva a la web real el prototipo v2 que aprobó la dueña.
  *
  *   · La burbuja reemplaza la de WhatsApp. Sin JS es un enlace a WhatsApp; con JS abre el chat. Su pose sale del tipo
- *     de página (al llegar a otra página cambia de la pose anterior a la nueva con su propia transición) y de noche
- *     duerme. Se hace a un lado si fuera a tapar un botón de la página; en la ficha del celular sube sobre la barra de
+ *     de página (al llegar a otra página cambia de la pose anterior a la nueva con su propia transición), y al bajar o
+ *     subir sigue a la sección que el visitante tiene en pantalla (``SECCIONES``: entre todas las páginas salen las 15
+ *     poses de día; un cambio cada 2,5 s como mucho, con ``IntersectionObserver``). De noche duerme. Se hace a un lado si fuera a tapar un botón de la página; en la ficha del celular sube sobre la barra de
  *     «Agregar al carrito».
  *   · Funciona sobre páginas guardadas en el borde: nada viene personalizado en el HTML. Al abrir, el JS pide un token
  *     CSRF fresco (/dcasa/borde/csrf), el pase (POST /dcasa/brian/v1/pase) y el carrito (GET /dcasa/brian/v1/carrito).
@@ -49,7 +50,7 @@ const PAGINAS = {
     cocina: { pose: "cocina", trans: "desliza" },
     escritorios: { pose: "escritorio", trans: "cruce" },
     categoria: { pose: "con_laptop", trans: "sacudida" },
-    ficha: { pose: "cinta_metrica", trans: "estira" },
+    ficha: { pose: "marco_foto", trans: "enfoque" },    // arriba están las fotos; las medidas, más abajo
     carrito: { pose: "bolsita", trans: "salto" },
     socios: { pose: "fidelidad", trans: "giro" },
     visitanos: { pose: "mapa", trans: "pendulo" },
@@ -190,6 +191,149 @@ export function poseDePagina(pagina, noche, ruta = "") {
         return PAGINAS.categoria;
     }
     return PAGINAS[pagina.tipo] || PAGINAS.otra;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// La pose por sección (pedido de la dueña, 2026-11-14: «que el ícono vaya cambiando con el scroll»)
+// ---------------------------------------------------------------------------------------------------------------------
+
+/** Lo mínimo entre dos cambios de pose de la burbuja, y lo que tiene que quedarse quieta una sección para contar. */
+export const MIN_ENTRE_CAMBIOS_MS = 2500;
+const ESTABLE_MS = 450;
+/** La franja de la ventana que decide «la sección que tienes en pantalla»: del 45 % al 50 % de la altura. */
+const FRANJA = "-45% 0px -50% 0px";
+/** Los productos del catálogo van pasando por estas poses de a cuatro (sin repetir la de al lado). */
+const CICLO_CATALOGO = ["corazon", "busto_estrella", "bolsita", "escritorio", "cocina", "con_laptop"];
+const POR_TRAMO = 4;
+
+function poseDeTema(texto, otra) {
+    const t = normalizar(texto);
+    if (/colchon|dormir|recamara|cama/.test(t)) {
+        return "cama";
+    }
+    if (/cocina|comedor|estante|organizacion/.test(t)) {
+        return "cocina";
+    }
+    if (/oficina|escritorio/.test(t)) {
+        return "escritorio";
+    }
+    if (/zapatera/.test(t)) {
+        return "bolsita";
+    }
+    return otra;
+}
+const atributo = (el, sel, nombre) => (el && el.querySelector(sel) ? el.querySelector(sel).getAttribute(nombre) || "" : "");
+const temaDeCarrusel = (el) => poseDeTema((el.closest("section") ? el.closest("section").getAttribute("aria-label") || "" : "") + " " + (el.textContent || ""), "busto_estrella");
+const temaDeTarjeta = (el) => poseDeTema(atributo(el, "img", "src") + " " + (el.textContent || ""), "corazon");
+const PIE = { sel: "#bottom, footer", pose: "saludando" };
+
+/**
+ * Las secciones de cada tipo de página y su pose, de arriba abajo (las que existen en website_dcasa y website_sale;
+ * ninguna inventada). ``pose``: el nombre, ``null`` = la de la página, o una función ``(elemento, i)`` con ``poses`` (las
+ * que puede dar). Si varias cruzan la franja a la vez (una fila de tarjetas, dos columnas), van pasando una por una
+ * mientras sigan ahí (``seccionActiva``).
+ */
+export const SECCIONES = {
+    inicio: [
+        { sel: ".o_dcasa_hero", pose: null },
+        { sel: ".o_dcasa_beneficios", pose: "saludando" },
+        { sel: ".o_dcasa_bw", pose: "busto_estrella" },
+        { sel: ".o_dcasa_categorias .o_dcasa_section_head", pose: "con_laptop" },
+        { sel: ".o_dcasa_categorias .o_dcasa_cat", pose: temaDeTarjeta, poses: ["corazon", "cama", "bolsita", "cocina", "escritorio"] },
+        { sel: ".o_dcasa_rail .o_dcasa_section_head", pose: temaDeCarrusel, poses: ["busto_estrella", "cama", "cocina", "escritorio", "bolsita"] },
+        { sel: ".o_dcasa_rail .o_dcasa_rail_track", pose: "bolsita" },
+        { sel: ".o_dcasa_split", pose: "corazon" },
+        { sel: ".o_dcasa_socios_band", pose: "fidelidad" },
+        { sel: ".o_dcasa_resenas", pose: "cinco_estrellas" },
+        { sel: ".o_dcasa_galeria", pose: "marco_foto" },
+        { sel: ".o_dcasa_ayuda .o_dcasa_steps", pose: "cinta_metrica" },
+        { sel: ".o_dcasa_ayuda .o_dcasa_faq", pose: "burbuja_chat" },
+        { sel: ".o_dcasa_visita_franja", pose: "mapa" },
+        PIE,
+    ],
+    catalogo: [
+        { sel: ".o_dcasa_sin_resultados", pose: "burbuja_chat" },
+        { sel: "#products_grid .oe_product", pose: (el, i) => (i < POR_TRAMO ? null : CICLO_CATALOGO[(Math.floor(i / POR_TRAMO) - 1) % CICLO_CATALOGO.length]), poses: CICLO_CATALOGO },
+        { sel: "#o_wsale_pager", pose: "burbuja_chat" },
+        { sel: "#bottom, footer", pose: "burbuja_chat" },
+    ],
+    ficha: [
+        { sel: ".o_wsale_product_images", pose: null },
+        { sel: ".o_wsale_product_details_content_section_price, .o_wsale_product_details_content_section_cta", pose: "bolsita" },
+        { sel: ".o_wsale_product_details_content_section_specs, .o_wsale_product_details_content_section_accordion, #product_full_description:not(.oe_empty)", pose: "cinta_metrica" },
+        { sel: ".o_wsale_product_details_content_section_contact", pose: "burbuja_chat" },
+        { sel: "#dcasa-opiniones", pose: "cinco_estrellas" },
+        { sel: ".o_wsale_alternative_products", pose: "corazon" },
+        PIE,
+    ],
+    carrito: [
+        { sel: ".o_wsale_accessory_products", pose: "corazon" },
+        PIE,
+    ],
+    visitanos: [
+        { sel: ".o_dcasa_hero", pose: null },
+        { sel: ".o_dcasa_visita_direccion, .o_dcasa_visita_lista", pose: "saludando" },
+        { sel: ".o_dcasa_visita_horario", pose: "busto_estrella" },
+        { sel: ".o_dcasa_visita_aviso", pose: "burbuja_chat" },
+        { sel: ".o_dcasa_mapa", pose: "mapa" },
+        PIE,
+    ],
+    socios: [PIE],
+    otra: [PIE],
+};
+SECCIONES.categoria = SECCIONES.catalogo;
+
+/** Todas las poses que puede dar un tipo de página (la suya y las de sus secciones). */
+export function posesDeSecciones(tipo, ruta = "") {
+    const propia = poseDePagina({ tipo }, false, ruta).pose;
+    const poses = new Set([propia]);
+    for (const regla of SECCIONES[tipo] || []) {
+        for (const p of typeof regla.pose === "function" ? regla.poses : [regla.pose || propia]) {
+            poses.add(p);
+        }
+    }
+    return poses;
+}
+
+/** Los elementos de las secciones de esta página con su pose, en el orden de la página. */
+export function seccionesDeLaPagina(pagina, ruta = "", doc = document) {
+    const propia = poseDePagina(pagina, false, ruta).pose;
+    const vistos = new Set();
+    const lista = [];
+    for (const regla of SECCIONES[pagina.tipo] || SECCIONES.otra) {
+        doc.querySelectorAll(regla.sel).forEach((el, i) => {
+            if (vistos.has(el)) {
+                return;
+            }
+            const p = typeof regla.pose === "function" ? regla.pose(el, i) : regla.pose;
+            vistos.add(el);
+            lista.push({ el, pose: POSES.includes(p) && p !== "durmiendo" ? p : propia });
+        });
+    }
+    lista.sort((a, b) => (a.el.compareDocumentPosition(b.el) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1));
+    lista.forEach((s, orden) => {
+        s.orden = orden;
+    });
+    return lista;
+}
+
+/**
+ * De las secciones que cruzan la franja, la que toca ahora (o ``null``: se queda como está): la primera, en el orden de
+ * la página, que todavía no se mostró desde que entró a la franja y con otra pose que la de ahora. Así una fila de
+ * tarjetas o dos columnas van pasando por sus poses mientras el visitante se detiene ahí, y la burbuja no vuelve atrás.
+ * ``mostradas``: las que ya salieron (se olvidan al salir de la franja).
+ */
+export function seccionActiva(visibles, mostradas = new Set(), poseActual = null) {
+    let activa = null;
+    for (const s of visibles) {
+        if (mostradas.has(s) || s.pose === poseActual) {
+            continue;
+        }
+        if (!activa || s.orden < activa.orden) {
+            activa = s;
+        }
+    }
+    return activa;
 }
 
 /** ¿Es fuera del horario de Ajustes de Juan? (hora de Panamá). ``horario``: {inicio, fin, dias, zona, fin_domingo}. */
@@ -362,6 +506,7 @@ export class ChatBrian {
         this.ponerPoseDeBurbuja();
         this.escuchar(document, "keydown", (ev) => this.alTeclado(ev));
         this.vigilarBotonesDeLaPagina();
+        this.vigilarSecciones();
         const guardado = leerAlmacen(CLAVE_CHAT);
         if (guardado && Array.isArray(guardado.historial) && guardado.historial.length) {
             this.restaurado = guardado;
@@ -465,13 +610,109 @@ export class ChatBrian {
         const destino = poseDePagina(this.pagina, this.noche, this.ruta);
         const previa = leerAlmacen(CLAVE_POSE);
         guardarAlmacen(CLAVE_POSE, destino.pose);
+        this.poseBurbuja = destino.pose;
+        this.ultimoCambio = Date.now();
         if (previa && POSES.includes(previa) && previa !== destino.pose && !reducir()) {
             this.burbujaPose.append(this.imgPose(previa));
+            this.ultimoCambio += 1500;   // el cambio de llegada cuenta para el mínimo entre cambios
             const id = setTimeout(() => this.cambiarPose(this.burbujaPose, destino.pose, destino.trans), 1500);
             this.limpiezas.push(() => clearTimeout(id));
         } else {
             this.burbujaPose.append(this.imgPose(destino.pose));
         }
+    }
+
+    // ------------------------------------------------------------------ la pose que sigue a la sección en pantalla
+
+    /** Al bajar o subir, la burbuja cerrada toma la pose de la sección que cruza la franja de la ventana (``SECCIONES``).
+     * Sin cálculos en cada evento de scroll: ``IntersectionObserver``. Empieza cuando el visitante se mueve (al llegar,
+     * la de la página). De noche (dormido) y con movimiento reducido, quieta como siempre. */
+    vigilarSecciones() {
+        if (this.noche || reducir() || !window.IntersectionObserver) {
+            return;
+        }
+        const secciones = seccionesDeLaPagina(this.pagina, this.ruta);
+        if (!secciones.length) {
+            return;
+        }
+        const porElemento = new Map(secciones.map((s) => [s.el, s]));
+        this.visibles = new Set();
+        this.mostradas = new Set();
+        const observador = new window.IntersectionObserver((entradas) => {
+            for (const e of entradas) {
+                const s = porElemento.get(e.target);
+                if (e.isIntersecting) {
+                    this.visibles.add(s);
+                } else {
+                    this.visibles.delete(s);
+                    this.mostradas.delete(s);
+                }
+            }
+            this.programarPoseDeSeccion();
+        }, { rootMargin: FRANJA, threshold: 0 });
+        secciones.forEach((s) => observador.observe(s.el));
+        const alMoverse = () => {
+            if (!this.seMovio) {
+                this.seMovio = true;
+                this.programarPoseDeSeccion();
+            }
+        };
+        this.escuchar(window, "scroll", alMoverse, { passive: true });
+        this.limpiezas.push(() => {
+            observador.disconnect();
+            clearTimeout(this.relojSeccion);
+        });
+    }
+
+    /** La pose de la sección en pantalla, cuando toca: la sección tiene que quedarse un momento (al pasar rápido, cuenta
+     * donde se detiene) y entre dos cambios pasan al menos ``MIN_ENTRE_CAMBIOS_MS``. */
+    programarPoseDeSeccion() {
+        clearTimeout(this.relojSeccion);
+        const activa = this.seMovio && this.laQueToca();
+        if (!activa) {
+            return;
+        }
+        const espera = Math.max(ESTABLE_MS, this.ultimoCambio + MIN_ENTRE_CAMBIOS_MS - Date.now());
+        this.relojSeccion = setTimeout(() => this.ponerPoseDeSeccion(), espera);
+    }
+
+    /** Las que ya tienen la pose de ahora cuentan como mostradas (si no, al cambiar volvería a ellas). */
+    laQueToca() {
+        if (!this.visibles) {
+            return null;
+        }
+        for (const s of this.visibles) {
+            if (s.pose === this.poseBurbuja) {
+                this.mostradas.add(s);
+            }
+        }
+        return seccionActiva(this.visibles, this.mostradas, this.poseBurbuja);
+    }
+
+    ponerPoseDeSeccion() {
+        const activa = this.laQueToca();
+        if (!activa) {
+            return;
+        }
+        // Con el chat abierto o la burbuja apartada no cambia: al cerrarse o volver, se pone al día (``programar…``).
+        if (this.estado.abierto || this.burbuja.hidden || this.burbuja.classList.contains("o_dcbt_aparte") || reducir()) {
+            return;
+        }
+        if (Date.now() - this.ultimoCambio < MIN_ENTRE_CAMBIOS_MS) {
+            this.programarPoseDeSeccion();
+            return;
+        }
+        this.burbuja.getAnimations().forEach((a) => a.cancel());   // el reposo no va encima de una transición
+        this.poseBurbuja = activa.pose;
+        this.ultimoCambio = Date.now();
+        for (const s of this.visibles) {
+            if (s.pose === activa.pose) {
+                this.mostradas.add(s);
+            }
+        }
+        guardarAlmacen(CLAVE_POSE, activa.pose);   // la página siguiente llega con esta
+        this.cambiarPose(this.burbujaPose, activa.pose, TRANS_DE_POSE[activa.pose]);
+        this.programarPoseDeSeccion();   // si en la franja queda otra (una fila, dos columnas), le toca después
     }
 
     /** La pose de Brian dentro del chat (el avatar de la cabecera y de los mensajes nuevos). */
@@ -488,6 +729,9 @@ export class ChatBrian {
     reposo() {
         if (this.estado.abierto || this.burbuja.hidden || reducir() || !this.burbuja.animate || this.burbuja.classList.contains("o_dcbt_aparte")) {
             return;
+        }
+        if (Date.now() - (this.ultimoCambio || 0) < 1800) {
+            return;   // está cambiando de pose: el reposo, en la vuelta siguiente
         }
         const actual = this.burbujaPose.querySelector("img.o_dcbt_img_pose:not(.o_dcbt_saliendo)");
         const dormido = actual && actual.dataset.pose === "durmiendo";
@@ -562,7 +806,11 @@ export class ChatBrian {
                 break;
             }
         }
+        const estaba = this.burbuja.classList.contains("o_dcbt_aparte");
         this.burbuja.classList.toggle("o_dcbt_aparte", tapa);
+        if (estaba && !tapa) {
+            this.programarPoseDeSeccion();   // vuelve con la pose de la sección donde quedó
+        }
     }
 
     // ------------------------------------------------------------------ el panel
@@ -757,6 +1005,7 @@ export class ChatBrian {
             }
             this.burbuja.focus({ preventScroll: true });
             this.acomodarBurbuja();
+            this.programarPoseDeSeccion();
             if (this.estado.carritoCambio && this.pagina.tipo === "carrito") {
                 window.location.reload(); // la página del carrito se pone al día con lo que cambió en el chat
             }
