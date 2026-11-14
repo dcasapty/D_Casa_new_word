@@ -91,8 +91,22 @@ navegador ──(3) /dcasa/brian/v1/carrito/* (sesión, CSRF) ──────
   la cabecera con WhatsApp, ampliar y cerrar, las tarjetas con selector de cantidad, las sugerencias, la ubicación, la
   ventana ampliada con la cuadrícula, las estrellas y la noche. Todo cuelga de `.o_dcbt` (clases `o_dcbt_*`).
 - **La pose por página**: inicio (asomado), catálogo (con laptop), colchones (cama), cocina, oficina (escritorio),
-  ficha (cinta métrica), carrito (bolsita), socios (fidelidad), visítanos (mapa), busca con una foto (marco), de noche
-  (dormido). Al llegar a otra página la burbuja trae la pose anterior y cambia a la nueva con su transición.
+  ficha (marco, por las fotos de arriba), carrito (bolsita), socios (fidelidad), visítanos (mapa), busca con una foto
+  (marco), de noche (dormido). Al llegar a otra página la burbuja trae la pose anterior y cambia a la nueva con su
+  transición.
+- **La pose por sección** (pedido de la dueña, 2026-11-14): al bajar y subir, la burbuja cerrada toma la pose de la
+  sección que cruza la franja del 45 al 50 % de la ventana (`SECCIONES` en el JS, con `IntersectionObserver`; una fila o
+  dos columnas van pasando por sus poses). Entre el Inicio, el catálogo, la ficha, el carrito y Visítanos salen las 15
+  poses de día; el Inicio solo, todas: portada asomado → beneficios saludando → «Compra por espacio» con laptop → sus
+  tarjetas (salas corazón, recámaras y colchones cama, zapateras bolsita, estantes cocina, oficina escritorio) →
+  carruseles (el título por su tema o estrella; los productos bolsita) → «Te lo llevas hoy» corazón → Socios fidelidad →
+  reseñas cinco estrellas → Inspírate marco → «Mídelo en 3 pasos» cinta métrica → preguntas burbuja de chat → Visítanos
+  mapa → pie saludando. Ficha: fotos marco, precio y «Agregar» bolsita, medidas cinta métrica, «Pregunta por este
+  mueble» burbuja de chat, opiniones cinco estrellas, sugeridos corazón. Catálogo: la de la página arriba, cada cuatro
+  productos otra (corazón, estrella, bolsita, escritorio, cocina, con laptop) y al final burbuja de chat. Visítanos:
+  dirección saludando, horario estrella, «Antes de venir» burbuja de chat, mapa. Empieza cuando el visitante se mueve,
+  cambia una vez cada 2,5 s como mucho (al pasar rápido, cuenta donde se detiene) y no cambia con el chat abierto, con
+  la burbuja apartada, de noche (dormido) ni con movimiento reducido. El reposo de cada 7 s no va encima de un cambio.
 - **No tapa nada**: en la ficha del celular sube sobre la barra fija de «Agregar al carrito»; y se hace a un lado
   mientras tendría debajo «Pregunta por este mueble por WhatsApp», «Agregar al carrito», un botón de WhatsApp o el de
   pagar del carrito. No sale en el pago (`/shop/checkout`, `/shop/payment`…), en `/my`, en Mi cuenta (su barra de
