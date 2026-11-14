@@ -11,8 +11,10 @@ registerWebsitePreviewTour("dcasa_brian_tienda_editor", { url: "/", edition: tru
         trigger: ".o_builder_sidebar_open",
     },
     {
+        // En modo edición el editor detiene el JS y las animaciones de la página: la burbuja queda como el enlace a
+        // WhatsApp de la página sin JS (y puede no verse). Basta con que esté: la página no dio error.
         content: "La página carga entera, con la burbuja de Brian",
-        trigger: ":iframe #wrapwrap #o_dcasa_brian a.o_dcbt_burbuja[href]",
+        trigger: ":iframe #wrapwrap:has(#o_dcasa_brian a.o_dcbt_burbuja[href])",
     },
     {
         content: "Y sin la burbuja de WhatsApp (la reemplaza)",
