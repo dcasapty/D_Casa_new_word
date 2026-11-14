@@ -90,8 +90,11 @@ export function isBlockedPath(pathname: string): boolean {
  * - `/envios/choferes/`: el enlace secreto de la calculadora para choferes (addons/dcasa_envios,
  *   controllers/choferes.py). El secreto va en la ruta y Gerencia puede apagarlo o cambiarlo en
  *   cualquier momento: una copia en el borde seguiría abriéndolo. Odoo además responde `no-store`.
+ * - `/dcasa/brian/`: lo que la página de la tienda le pide a Odoo para el chat «Brian de la tienda» (el pase firmado,
+ *   el carrito y la cotización en PDF de la sesión del visitante; addons/dcasa_brian_tienda). Es de cada visitante:
+ *   nunca se guarda, aunque Odoo dijera «public». Odoo además responde `no-store`.
  */
-const NEVER_CACHE_PREFIXES = ["/brian/", "/envios/choferes/"];
+const NEVER_CACHE_PREFIXES = ["/brian/", "/envios/choferes/", "/dcasa/brian/"];
 
 /**
  * Recursos estáticos o versionados que se pueden guardar en la caché del borde. Que la

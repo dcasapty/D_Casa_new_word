@@ -104,6 +104,10 @@ describe("límite de intentos", () => {
     expect(cubetaDe("POST", "/website/form/crm.lead")).toBe("formulario");
     expect(cubetaDe("POST", "/shop/cart/add")).toBe("carrito");
     expect(cubetaDe("POST", "/shop/address/submit")).toBe("carrito");
+    // El chat de la tienda (Brian): el pase, el carrito y las estrellas, con el límite del carrito.
+    expect(cubetaDe("POST", "/dcasa/brian/v1/pase")).toBe("carrito");
+    expect(cubetaDe("POST", "/dcasa/brian/v1/carrito/agregar")).toBe("carrito");
+    expect(cubetaDe("GET", "/dcasa/brian/v1/carrito")).toBeNull();
     expect(cubetaDe("GET", "/web/login")).toBeNull();
     expect(cubetaDe("POST", "/brian/mcp")).toBeNull(); // MCP tiene su propio límite por usuario
     expect(cubetaDe("POST", "/brian/telegram/secreto")).toBeNull();

@@ -107,7 +107,8 @@ const RUTAS_ACCESO = [
   "/socios/pin",
 ];
 const RUTAS_FORMULARIO = ["/website/form/", "/website/mass_mailing/"];
-const RUTAS_CARRITO = ["/shop/cart/", "/shop/address", "/shop/checkout", "/shop/payment", "/shop/confirm_order"];
+// El chat de la tienda (addons/dcasa_brian_tienda): el pase, agregar y cambiar cantidades, calificar. Como el carrito.
+const RUTAS_CARRITO = ["/shop/cart/", "/shop/address", "/shop/checkout", "/shop/payment", "/shop/confirm_order", "/dcasa/brian/v1/"];
 
 /** ¿Qué límite aplica? Solo a métodos que escriben (POST, PUT…); las lecturas nunca. */
 export function cubetaDe(method: string, pathname: string): Cubeta | null {
