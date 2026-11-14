@@ -1,21 +1,25 @@
 # Prioridades vigentes
 
-Puesto al día el **2026-11-12** (envíos de Juan, reparto justo, Costos de IA; Messenger e Instagram sin llegar a los clientes). Es el orden en que se trabaja: cada sesión lo lee al empezar y lo pone al día al
+Puesto al día el **2026-11-14** (avisos de Telegram ordenados, lote 1 de la web, «Busca con una foto», horario de la tienda; Brian de la tienda y lote 2 de la web en camino). Es el orden en que se trabaja: cada sesión lo lee al empezar y lo pone al día al
 terminar (ver [LEEME_PRIMERO.md](LEEME_PRIMERO.md)). Aquí va **un solo estado**, el de hoy; lo que pasó cada día está en
 la bitácora de LEEME_PRIMERO (y lo más viejo en [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md)).
 
-Cada cosa nueva pasa por capturas a la dueña, su visto bueno, pruebas y staging; a producción, con su «sí» (reglas en
-LEEME_PRIMERO §2).
+Cada cosa nueva pasa por capturas a la dueña, pruebas, staging y, si toca dinero, permisos o Socios, revisión adversarial.
+**Desde el 2026-11-13 la dueña no pide su visto bueno para pasar a producción** («Y no esperes mi aprobación para pasar
+la producción. Apruébalo y punto.»); la revisión adversarial no se salta (reglas en LEEME_PRIMERO §2).
 
-## Estado al 2026-11-13
+## Estado al 2026-11-14
 
 - **Producción funciona desde el 2026-10-13** y **`dcasapty.com` (y `www`) apunta al sistema nuevo desde el
-  2026-10-27** (Desplegar 31). Odoo y el borde: **Desplegar 70** (13 nov, PR #116: comentarios de Instagram y Facebook, apagados; antes, Desplegar 69, PR #115: Juan ya no dice «no lo manejamos» de lo que no está publicado; antes, Desplegar 68, PR #113: Juan cotiza envíos con la promoción, reparto justo y Costos de IA con «Pagar»; antes, Desplegar 67, PR #112: el modo oscuro; el 11 nov, Desplegar 66 con
+  2026-10-27** (Desplegar 31). Odoo y el borde: **Desplegar 71** (14 nov, PR #117: avisos de Telegram ordenados con la noche sin clientes, lote 1 de
+  la web, «Busca con una foto», el robot como ícono de Brian y el horario de la tienda; antes, Desplegar 70, PR #116:
+  comentarios de Instagram y Facebook, apagados; antes, Desplegar 69, PR #115: Juan ya no dice «no lo manejamos» de lo que no está publicado; antes, Desplegar 68, PR #113: Juan cotiza envíos con la promoción, reparto justo y Costos de IA con «Pagar»; antes, Desplegar 67, PR #112: el modo oscuro; el 11 nov, Desplegar 66 con
   entregas igual que Bodega y «Más datos», y antes, Desplegar 65 con el Inicio nuevo, el celular al entrar y la caja del chat, y Desplegar 64 con
   los 21 arreglos de la auditoría visual). Juan: **Desplegar
-  Juan 24** (13 nov, PR #116; Juan 23 trajo «no lo manejamos» y Juan 22 la segunda puerta de Instagram, apagada). La **versión estable 4** es la anterior (Desplegar 63 + Juan 20)
-  ([VERSIONES_ESTABLES.md](VERSIONES_ESTABLES.md)). El contenedor instala 30 de los 31 módulos de `addons/` (todos
-  menos `dcasa_fe_pa`, a propósito).
+  Juan 25** (14 nov, PR #117: `sin_leer` con su motivo, el comprobante solo si es un pago hecho y la foto de la tienda;
+  Juan 24, 13 nov, PR #116; Juan 23 trajo «no lo manejamos» y Juan 22 la segunda puerta de Instagram, apagada). La **versión estable 4** es la anterior (Desplegar 63 + Juan 20)
+  ([VERSIONES_ESTABLES.md](VERSIONES_ESTABLES.md)). El contenedor instala 31 de los 32 módulos de `addons/` (todos
+  menos `dcasa_fe_pa`, a propósito); con Brian de la tienda serán 32 de 33.
 - **⚠ Messenger e Instagram NO les llegan a los clientes (descubierto el 2026-11-12):** solo a cuentas con papel en la
   app (la app «D'CASA Juan» no tiene la aprobación de Meta). Ver «Lo que sigue» (punto 00) y JUAN_CANALES §3.
 - **Juan atiende WhatsApp (API oficial de Meta), Messenger e Instagram** (estos dos, solo a cuentas con papel en la app: ver arriba), con fotos en los tres, y Telegram. WhatsApp
@@ -30,6 +34,21 @@ LEEME_PRIMERO §2).
   («Es esta persona»); tasa de cierre en el Resumen de Juan; Sofía. Detalle en la bitácora.
 
 ## Lo que sigue, en orden
+
+0000. **Brian de la tienda y lote 2 de la web, a producción el 2026-11-14 sin hora programada** (la dueña: «vamos a
+      subirlo lo antes posible»). Módulo nuevo `dcasa_brian_tienda` (chat de ventas en la web con el motor de Juan,
+      ver [BRIAN_TIENDA.md](BRIAN_TIENDA.md)) y, del lote 2, el horario en Visítanos y el pie (sale de Ajustes de
+      Juan), el mapa de Google con permiso de cookies y las opiniones de productos aprobadas por Gerencia. Orden:
+      **Juan antes que Odoo** (el Durable Object `TiendaSesion` es la migración v2 del Worker). Después:
+      - **Tilopay** (la semana del 2026-11-16): pasarela de pago con todos los métodos que tenga activos (Visa,
+        Mastercard, «Pase U», Yappy). Odoo no trae proveedor de Tilopay: hay que hacerlo; las claves solo en
+        Cloudflare, nunca en el chat.
+      - **Search Console:** la dueña pedirá ayuda para dar de alta el sitio (pasos para el jefe).
+      - **El mapa:** si el CSP del borde bloquea el `iframe` de Google, abrir `frame-src` solo para Visítanos.
+      - **«Tu compra lista»** (de la cotización de WhatsApp al carrito con un código o enlace, con lista de deseos):
+        borrador de diseño hecho en la sesión del 2026-11-13; esperar el informe de la comparación con Carbone y las
+        decisiones de la dueña.
+      - **Fotos y medidas de los productos:** las sube Marketing.
 
 00. **Messenger e Instagram para todos los clientes** (la dueña, 2026-11-12, con el diagnóstico de un amigo y de otro
     Claude: los mensajes de clientes reales nunca llegan; solo los de cuentas con papel en la app). Plan:
