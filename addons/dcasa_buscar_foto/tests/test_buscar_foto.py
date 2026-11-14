@@ -17,7 +17,7 @@ import requests
 from odoo import http
 from odoo.tests import HttpCase, tagged
 
-from ..controllers.main import FECHA_PRIVACIDAD, MENSAJES, TITULO_RESULTADOS
+from ..controllers.main import FECHA_PRIVACIDAD, MENSAJES, TITULO_RESULTADOS, fecha_ordenable
 from ..models import buscar_foto as B
 from ..models.buscar_foto import MAX_BYTES_FOTO, PARAM_ACTIVO, PARAM_TOPE_MES, PARAM_TOPES, TIMEOUT_BUSCAR_FOTO
 
@@ -520,4 +520,7 @@ class TestBuscarFoto(HttpCase):
         for frase in ('inteligencia artificial de Cloudflare', 'Tu foto no se guarda',
                       'no se envía a Meta ni a Anthropic'):
             self.assertIn(frase, re.sub(r'\s+', ' ', parrafo))
-        self.assertIn(FECHA_PRIVACIDAD, html)
+        # La fecha es la de este módulo o una más nueva (otro módulo que también cambia la política, como Brian de la
+        # tienda, puede haber puesto la suya): nunca una más vieja.
+        fecha = re.search(r'Última actualización: ([^<]+)</p>', html).group(1).strip()
+        self.assertGreaterEqual(fecha_ordenable(fecha), fecha_ordenable(FECHA_PRIVACIDAD), fecha)
