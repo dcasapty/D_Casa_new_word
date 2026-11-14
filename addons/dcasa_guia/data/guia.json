@@ -2734,6 +2734,42 @@
    ]
   },
   {
+   "id": "opiniones-aprobar",
+   "categoria": "tienda",
+   "grupo": "Tienda en línea",
+   "titulo": "Publicar las opiniones que dejaron los clientes",
+   "logras": "Lees lo que opinó cada cliente de un producto que compró y pagó, y decides si sale en la ficha de la tienda en línea: «Publicar» o «No publicar». Nadie puede escribirlas ni cambiarlas a mano.",
+   "destino": {
+    "menu": "website_dcasa.menu_dcasa_resenas"
+   },
+   "palabras": [
+    "reseñas",
+    "opiniones",
+    "estrellas",
+    "comentarios de clientes",
+    "aprobar opinion",
+    "calificaciones"
+   ]
+  },
+  {
+   "id": "horario-tienda",
+   "categoria": "tienda",
+   "grupo": "Tienda en línea",
+   "titulo": "Cambiar el horario de la tienda que sale en la página",
+   "logras": "El horario de Visítanos y del pie de la página sale de los ajustes de Juan («Horario laboral»): lo cambias ahí y se cambia en la página y en Juan a la vez.",
+   "destino": {
+    "menu": "dcasa_conversaciones.menu_dcasa_juan_ajustes"
+   },
+   "palabras": [
+    "horario",
+    "hora de abrir",
+    "hora de cerrar",
+    "domingo",
+    "visitanos",
+    "abierto"
+   ]
+  },
+  {
    "id": "vista-previa",
    "categoria": "tienda",
    "grupo": "Tienda en línea",

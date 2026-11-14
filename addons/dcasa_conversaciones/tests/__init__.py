@@ -30,6 +30,7 @@ from . import (
     test_foto_perfil,
     test_herramientas,
     test_horario,
+    test_horario_sitio,
     test_panel,
     test_panel_caja_celular,
     test_panel_catalogo,

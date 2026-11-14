@@ -335,11 +335,12 @@ class TestMarcaYMovimiento(HttpCase):
         html = respuesta.text
         self.assertIn('Frente al Parque Libertadores', html)
         self.assertNotIn('Local 4550', html, 'La dirección vieja ya no sale')
-        self.assertIn('https://www.google.com/maps/embed?pb=', html)
-        self.assertRegex(html, r'title="Mapa: D(&#39;|\')CASA en La Chorrera"')
+        # El mapa de Google se carga en el navegador solo con permiso (test_visitanos.py): aquí, su dirección.
+        self.assertIn('data-dcasa-mapa="https://www.google.com/maps/embed?pb=', html)
+        self.assertRegex(html, r'data-dcasa-mapa-titulo="Mapa: D(&#39;|\')CASA en La Chorrera"')
+        self.assertNotIn('<iframe', html)
         self.assertIn('destination=8.8765881%2C-79.7867962', html)
         self.assertIn('Escríbenos por WhatsApp', html)
-        self.assertNotIn('horario de', html.lower(), 'No se inventa un horario')
         datos = json.loads(self.env.ref('website.default_website')._dcasa_json_ld())
         self.assertEqual(datos['geo']['latitude'], 8.8765881)
 

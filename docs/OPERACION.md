@@ -538,6 +538,15 @@ de lo incluido en el plan de Workers (estimación en `edge/CONTRATO_CONTENEDOR.m
 4. Para producción: cambiar `TIENDA_ESTATICA` a `"on"` en `edge/wrangler.jsonc` (raíz) y desplegar.
    Para apagarla: `"off"` y desplegar; todo vuelve a salir de Odoo al instante.
 
+**Visítanos y opiniones (lote 2 de la web, 2026-11-13).** Cambiar el horario en los Ajustes de Juan (horas o días)
+deja la marca «renovar todo» (`dcasa_conversaciones/models/horario_sitio.py`): el horario sale en Visítanos y en el pie
+de todas las páginas. Publicar, esconder o borrar una opinión publicada marca su ficha (`website_dcasa/models/resena.py`).
+El mapa de Google de Visítanos lo pone el navegador (solo con las cookies aceptadas o al tocar «Ver el mapa»), así que la
+página guardada en el borde es la misma para todos y no trae el `<iframe>`. **Cabeceras de seguridad:** el borde solo
+pone `Content-Security-Policy: frame-ancestors 'self'` (y solo si Odoo no mandó una); no hay `frame-src`, así que el
+`<iframe>` de Google Maps se permite en cualquier página. No se agregó un `frame-src` para todo el sitio porque podría
+romper otros marcos (pagos, videos) sin un inventario; queda anotado como pendiente.
+
 **Lo que Google no muestra (lote 1 de la web, 2026-11-13).** Odoo pone `X-Robots-Tag: noindex` en
 `/web/login`, `/web/signup` y `/web/reset_password`, y `noindex, follow` en los resultados de búsqueda
 (`/shop?search=…`, `/website/search`), además del `<meta name="robots">` de la página

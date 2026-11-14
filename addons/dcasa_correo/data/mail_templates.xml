@@ -45,6 +45,7 @@
     <t t-elif="v['pagada']">
         <p style="margin:0 0 12px 0;">Gracias por tu compra<t t-if="v['nombre']">, <t t-out="v['nombre']"/></t>. Tu factura <strong t-out="v['numero']"/> quedó pagada por completo.</p>
         <p t-if="v['puntos_compra']" style="margin:0 0 12px 0;">Con esta compra sumaste <strong><t t-out="v['puntos_compra']"/> puntos</strong>.</p>
+        <p t-if="v['opinar']" style="margin:0 0 12px 0;">¿Qué tal tu compra? Cuéntanos en <a t-att-href="v['opinar']" style="color:#1340B1;font-weight:bold;">Mi cuenta › Tus opiniones</a>: la leemos y la publicamos en la tienda.</p>
         <p style="margin:0;color:#4A5163;">Tu factura va adjunta en PDF.</p>
     </t>
     <t t-else="">

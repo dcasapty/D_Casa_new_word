@@ -932,3 +932,133 @@ $mc-escritorio: 992px;
         border-color: rgba($mc-azul, .25);
     }
 }
+
+// ---------------------------------------------------------------------------
+// Tus opiniones (lote 2 de la web): elegir de 1 a 5 estrellas con el dedo (48 px) o el teclado (radios de verdad).
+// Las estrellas en el ámbar de las de Google, como en la ficha; nunca el amarillo de marca sobre blanco.
+// ---------------------------------------------------------------------------
+$mc-estrella: #F5B300;
+$mc-estrella-vacia: #D5D0C4;
+
+.o_dcasa_mc_opinar {
+    background: #FFFFFF;
+    border: 2px solid $mc-borde;
+    border-radius: 1rem;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+}
+
+.o_dcasa_mc_opinar_producto {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.o_dcasa_mc_opinar_nombre {
+    font-size: 1.0625rem;
+    font-weight: 700;
+    color: $mc-navy;
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.o_dcasa_mc_elegir {
+    border: 0;
+    padding: 0;
+    margin: 0 0 1rem;
+}
+
+.o_dcasa_mc_elegir_titulo {
+    display: block;
+    font-weight: 600;
+    color: $mc-tinta;
+    margin-bottom: .35rem;
+    float: none;
+    width: auto;
+    font-size: 1rem;
+}
+
+// Las 5 van en el HTML de la 5 a la 1 y se pintan de la 1 a la 5 (row-reverse): «~» colorea las de la izquierda.
+.o_dcasa_mc_elegir_fila {
+    display: inline-flex;
+    flex-direction: row-reverse;
+    gap: .15rem;
+}
+
+.o_dcasa_mc_elegir_radio {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+}
+
+.o_dcasa_mc_elegir_estrella {
+    width: 3rem;
+    height: 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: .5rem;
+    cursor: pointer;
+
+    svg {
+        width: 2.25rem;
+        height: 2.25rem;
+        fill: $mc-estrella-vacia;
+        transition: fill .15s ease;
+    }
+}
+
+.o_dcasa_mc_elegir_radio:checked ~ .o_dcasa_mc_elegir_estrella svg,
+.o_dcasa_mc_elegir_estrella:hover svg,
+.o_dcasa_mc_elegir_estrella:hover ~ .o_dcasa_mc_elegir_estrella svg {
+    fill: $mc-estrella;
+}
+
+.o_dcasa_mc_elegir_radio:focus-visible + .o_dcasa_mc_elegir_estrella {
+    outline: 3px solid $mc-azul;
+    outline-offset: 2px;
+}
+
+.o_dcasa_mc_opinar_texto {
+    font-size: 1rem;
+    min-height: 6rem;
+}
+
+.o_dcasa_mc_enviada {
+    background: #FFFFFF;
+    border: 2px solid $mc-borde;
+    border-radius: 1rem;
+    padding: 1rem 1.25rem;
+
+    .o_dcasa_estrellas {
+        margin-right: .5rem;
+        vertical-align: middle;
+    }
+}
+
+.o_dcasa_mc_enviada_cabeza {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: .35rem .75rem;
+    margin-bottom: .35rem;
+    color: $mc-navy;
+}
+
+.o_dcasa_mc_enviada_texto {
+    margin: .5rem 0 0;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+}
+
+.o_dcasa_mc_opinion_aprobada {
+    background: rgba($mc-verde, .1);
+    color: $mc-verde;
+}
+
+.o_dcasa_mc_opinion_rechazada {
+    color: $mc-gris;
+}

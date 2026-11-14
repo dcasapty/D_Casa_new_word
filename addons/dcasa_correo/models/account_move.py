@@ -90,6 +90,7 @@ class AccountMove(models.Model):
             asunto = self.env._("Tu factura %s de D'CASA", numero)
             titular = self.env._('TU FACTURA')
         puntos_compra = sum(move.dcasa_compra_ids.filtered(lambda c: not c.anulada_en).mapped('puntos'))
+        enlaces = correo._enlaces()
         return {
             'numero': numero,
             'asunto': asunto,
@@ -104,8 +105,20 @@ class AccountMove(models.Model):
             'vencido': bool(estado['vencido']),
             # Los puntos que dio esta compra, del libro de Socios (solo cuando quedó pagada).
             'puntos_compra': correo._puntos(puntos_compra) if puntos_compra > 0 else '',
-            'enlaces': correo._enlaces(),
+            'enlaces': enlaces,
+            # Pagada por completo: la invitación a opinar en Mi cuenta (lote 2 de la web), solo si de esta factura le
+            # queda algo por opinar (comprado, pagado, a la vista en la tienda y sin opinión). Nunca con saldo.
+            'opinar': self._dcasa_correo_opinar(enlaces) if pagada else '',
         }
+
+    def _dcasa_correo_opinar(self, enlaces):
+        """El enlace a «Tus opiniones» de Mi cuenta si esta factura trae algo que el cliente puede opinar; si no, ''."""
+        self.ensure_one()
+        if not self.env['dcasa.correo']._mi_cuenta_instalado():
+            return ''
+        if not self.env['dcasa.resena']._dcasa_por_resenar(self.sudo().partner_id, facturas=self):
+            return ''
+        return f"{enlaces['cuenta']}/opiniones"
 
     # ------------------------------------------------------------------
     # Brian: «mándale la factura por correo»
