@@ -465,6 +465,11 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   fecha de `/privacidad` y el xpath de `pie_mi_cuenta`). Prueba de punta a punta en staging con el Worker de verdad.
   **Lección de la prueba:** en staging hay que esperar `networkidle` antes de tocar la burbuja: sin el JS cargado el
   botón no hace nada (en un teléfono lento pasaría igual; anotarlo si alguien se queja). Bien al primer intento.
+- **Desplegar 73** (14 nov, 17:39–17:54 UTC; salud sana; run 43622302488) · PR #119, squash `77702bb`, `app_version`
+  `17f0c8295bf842c854c71c4c8222afb146a5aeac`, imagen `sha256:b97f72d0…`, CI 357 con staging (run 43615430952). La
+  burbuja de Brian cambia de pose con la sección en pantalla (solo JS de `dcasa_brian_tienda`; Juan no cambió, así que
+  no hubo Desplegar Juan). **Lección:** el primer intento de squash dio 409 porque escribí de memoria el SHA largo de
+  `expectedHeadSha`; siempre `git rev-parse` antes, nunca completar un SHA a ojo. Bien al segundo intento, sin daño.
 - **Versión estable 4 ensayada en staging** (11 nov, 03:16–03:40 UTC, run 42951600639 de «Volver a una versión
   estable», lanzado desde la rama de trabajo: el botón solo exige `main` para producción). Estable 4 = imagen de
   Desplegar 63 (`acda72c1…`, `app_version` `3e2ccfc`) + Juan hasta Desplegar Juan 20. Bien al primer intento.
