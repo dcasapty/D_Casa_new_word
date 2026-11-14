@@ -35,12 +35,18 @@ export function aceptoCookiesOpcionales() {
 export class DcasaMapa extends Interaction {
     static selector = "[data-dcasa-mapa]";
     dynamicContent = {
+        _root: { "t-att-class": () => ({ o_dcasa_mapa_cargado: this.cargado }) },
         ".o_dcasa_mapa_ver": { "t-on-click": this.cargar },
     };
+
+    setup() {
+        this.cargado = false;
+    }
 
     start() {
         if (aceptoCookiesOpcionales() === true) {
             this.cargar();
+            this.updateContent();   // en start() no se refresca solo (sí después de cada evento)
         } else {
             this.addListener(document, "optionalCookiesAccepted", () => this.cargar());
         }
@@ -48,7 +54,7 @@ export class DcasaMapa extends Interaction {
 
     cargar() {
         const direccion = this.el.dataset.dcasaMapa || "";
-        if (this.el.querySelector("iframe") || !MAPA_PERMITIDO.test(direccion)) {
+        if (this.cargado || this.el.querySelector("iframe") || !MAPA_PERMITIDO.test(direccion)) {
             return;
         }
         const mapa = document.createElement("iframe");
@@ -57,8 +63,10 @@ export class DcasaMapa extends Interaction {
         mapa.loading = "lazy";
         mapa.allowFullscreen = true;
         mapa.referrerPolicy = "strict-origin-when-cross-origin";
-        this.el.appendChild(mapa);
-        this.el.classList.add("o_dcasa_mapa_cargado");
+        // insert() y t-att-class se deshacen solos al detener la interacción (p. ej. al abrir el editor del sitio):
+        // el <iframe> nunca se queda en la página que se edita.
+        this.insert(mapa);
+        this.cargado = true;
     }
 }
 

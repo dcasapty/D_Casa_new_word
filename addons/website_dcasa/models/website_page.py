@@ -10,4 +10,9 @@ class WebsitePage(models.Model):
         clave = super()._get_cache_key(request)
         if hasattr(request, 'pricelist'):
             clave += (request.pricelist.id, request.fiscal_position.id)
+        # El horario del pie no vive en una vista (sale de los Ajustes de Juan, models/horario_tienda.py): si cambia,
+        # la página que Odoo guarda para el visitante (hasta 1 h) tiene que ser otra, como al cambiar una vista.
+        website = getattr(request, 'website', None)
+        if website:
+            clave += (tuple(fila['corto'] for fila in website._dcasa_horario_tienda()),)
         return clave

@@ -193,7 +193,9 @@
                             </ul>
                             <!-- Horario: de los Ajustes de Juan (models/horario_tienda.py). Si no se sabe, no se muestra. -->
                             <t t-set="horario" t-value="website._dcasa_horario_tienda()"/>
-                            <div t-if="horario" class="o_dcasa_visita_horario">
+                            <!-- t-ignore: sin las marcas del editor, el constructor no toca ni guarda esta tabla (si la
+                                 guardara, el horario quedaría escrito como texto fijo en la vista). -->
+                            <div t-if="horario" class="o_dcasa_visita_horario" t-ignore="true">
                                 <h2 class="o_dcasa_kicker">Horario</h2>
                                 <table class="o_dcasa_horario">
                                     <caption class="visually-hidden">Días y horas de la tienda (hora de Panamá)</caption>
@@ -220,7 +222,9 @@
                         <!-- El mapa de Google pone cookies: se carga solo si quien visita ya aceptó las cookies opcionales del
                              aviso del sitio, o cuando toca «Ver el mapa» (static/src/js/mapa.js). La página es la misma para
                              todos (la guarda el borde): la decisión se toma en el navegador. -->
-                        <div class="o_dcasa_mapa o_dcasa_mapa_grande"
+                        <!-- t-ignore: el constructor no toca ni guarda el recuadro (si lo guardara con el mapa ya
+                             cargado, el <iframe> de Google quedaría fijo en la vista y cargaría sin permiso). -->
+                        <div class="o_dcasa_mapa o_dcasa_mapa_grande" t-ignore="true"
                              data-dcasa-mapa="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3942.0322672536827!2d-79.7867962!3d8.876588100000001!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8fac99005edffcdf%3A0x6c9c01465bb08b38!2sD'CASA!5e0!3m2!1ses-419!2spa!4v1790675155871!5m2!1ses-419!2spa"
                              data-dcasa-mapa-titulo="Mapa: D'CASA en La Chorrera">
                             <div class="o_dcasa_mapa_permiso">
