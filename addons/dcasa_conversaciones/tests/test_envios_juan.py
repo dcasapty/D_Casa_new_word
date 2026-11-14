@@ -547,11 +547,10 @@ class TestEnvioPorLaApi(ApiCase):
         self.assertIs(resultado['por_ubicacion'], True)
         self.assertIn('Costa Inventada', resultado['frase_para_el_cliente'])
         texto = json.dumps(resultado)
-        accion = self.env['brian.accion'].sudo().search([('herramienta', '=', 'juan_cotizar_envio')], limit=1)
-        self.assertEqual(json.loads(accion.argumentos), {'lugar_id': costa.id}, 'la auditoría solo ve el lugar')
+        self.assertFalse(self.env['brian.accion'].sudo().search([('herramienta', '=', 'juan_cotizar_envio')]),
+                         'lo que pregunta el chat de la tienda no queda en la auditoría')
         for rastro in ('8.9415', '79.8415', '8.94153'):
             self.assertNotIn(rastro, texto)
-            self.assertNotIn(rastro, json.dumps(accion.read()[0], default=str))
             self.assertFalse([r for r in registros if rastro in r], 'ni en el registro del servidor')
 
     def test_lejos_de_todo_o_fuera_de_panama_pide_el_barrio(self):

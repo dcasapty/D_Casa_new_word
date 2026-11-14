@@ -4,12 +4,12 @@
 la ventana ampliada, Esc, el foco, que no tape la barra de la ficha ni «Pregunta por este mueble por WhatsApp» y el
 movimiento reducido."""
 import contextlib
-import json
 import os
 from unittest.mock import patch
 
 from odoo import Command
 from odoo.addons.dcasa_envios.tests.common import importar
+from odoo.tests import common as comun
 from odoo.tests import new_test_user, tagged
 from odoo.tests.common import TEST_CURSOR_COOKIE_NAME, ChromeBrowser
 
@@ -173,6 +173,10 @@ class NavegadorCase(TiendaCase):
 
     def setUp(self):
         super().setUp()
+        if comun.websocket is None:
+            # Sin websocket-client (el CI) Odoo salta cada navegador; sin esto, lo que se afirma después de los subtests
+            # (p. ej. cuántas ubicaciones recibió el Worker) fallaría sin que el navegador haya corrido.
+            self.skipTest('websocket-client module is not installed')
         self.worker = WorkerSimulado(TOKEN_WORKER, self.base_url(), TOKEN_ODOO,
                                      cookie_odoo=lambda: f'{TEST_CURSOR_COOKIE_NAME}={self.http_request_key}')
         puerto = self.worker.iniciar()
@@ -241,17 +245,14 @@ class TestChatEnElNavegador(NavegadorCase):
         for ancho, movil in ((390, True), (1366, False)):
             with self.subTest(ancho=ancho), self.chrome(ancho, 844 if movil else 768, movil=movil) as browser:
                 antes = self.env['dcasa.brian.tienda.calificacion'].sudo().search_count([])
+                ubicaciones = self.worker.ubicaciones
                 browser.navigate_to(self.base_url() + '/', wait_stop=True)
                 r = self.evaluar(browser, CHAT)
                 self.revisar_chat(r, ancho)
                 self.assertEqual(self.env['dcasa.brian.tienda.calificacion'].sudo().search_count([]), antes + 1)
-        # El carrito es el de Odoo (la sesión de cada navegador) y la ubicación nunca llegó a guardarse.
-        self.assertEqual(self.worker.ubicaciones, 2)
-        acciones = self.env['brian.accion'].sudo().search([('herramienta', '=', 'juan_cotizar_envio')])
-        self.assertTrue(acciones)
-        for accion in acciones:
-            self.assertEqual(set(json.loads(accion.argumentos)), {'lugar_id'})
-            self.assertNotIn('79.84', json.dumps(accion.read()[0], default=str))
+                self.assertEqual(self.worker.ubicaciones, ubicaciones + 1, 'la ubicación llegó al Worker una vez')
+        # La ubicación nunca llegó a guardarse, y lo que preguntó el chat no queda en la auditoría de Brian.
+        self.assertFalse(self.env['brian.accion'].sudo().search([('herramienta', '=', 'juan_cotizar_envio')]))
         self.assertFalse([c for c in self.worker.recibidos if 'ubicacion' in c])
 
     def test_las_funciones_de_la_pagina(self):

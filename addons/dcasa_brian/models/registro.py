@@ -175,6 +175,19 @@ def describir_parametros(spec):
     return ', '.join(partes) or 'ninguno'
 
 
+# Contexto para correr una herramienta de LECTURA sin dejarla en ``brian.accion`` (el chat de la tienda: su privacidad
+# promete que la conversación no se guarda). La política se revisa igual; las que escriben se auditan siempre.
+SIN_AUDITORIA = 'brian_sin_auditoria'
+
+
+class _SinRegistro:
+    """Hace las veces de la acción de auditoría cuando no se registra (``SIN_AUDITORIA``)."""
+    id = False
+
+    def marcar(self, *_args, **_kwargs):
+        return True
+
+
 class BrianHerramientas(models.AbstractModel):
     """Catálogo y ejecución de herramientas. AbstractModel sin ACL: NADA se llama por RPC.
 
@@ -288,7 +301,10 @@ class BrianHerramientas(models.AbstractModel):
             return {'ok': False, 'error': f'Parámetros que no existen: {", ".join(sorted(desconocidos))}. '
                                           f'Los de «{nombre}» son: {describir_parametros(spec)}.'}
 
-        accion = Accion.registrar(spec, argumentos, canal=canal, conversacion=conversacion)
+        if self.env.context.get(SIN_AUDITORIA) and spec['nivel'] == 'lectura':
+            accion = _SinRegistro()
+        else:
+            accion = Accion.registrar(spec, argumentos, canal=canal, conversacion=conversacion)
         politica = self.env['brian.politica']
         try:
             politica.verificar(spec, argumentos)
