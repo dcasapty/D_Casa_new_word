@@ -682,6 +682,10 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 - **El límite de uso de 5 horas corta a todos los ayudantes a la vez** y el contenedor puede reiniciarse (PostgreSQL
   queda apagado): al volver, `service postgresql start` y retomar cada ayudante con un mensaje (su trabajo queda en su
   rama); no lanzar uno nuevo.
+- **El disco se llena con bases de prueba** (2026-11-14): cada `scripts/test.sh` con un `DB_NAME` nuevo deja una base de
+  ~250 MB y cada árbol de trabajo ~1 GB; tras dos días quedaban 600 MB libres. Al cerrar cada lote: `sudo -u postgres
+  dropdb <base>` (y su `~/.local/share/Odoo/filestore/<base>`) de las que ya no corre nadie (mirar `ps aux | grep
+  odoo-bin` antes) y `git worktree remove --force` de los árboles ya unidos.
 - **Ayudantes en paralelo duplican migraciones** (2026-11-13): el del lote 2 de la web y el de los avisos escribieron
   cada uno su `migrations/19.0.1.5.0/post-migrate.py` en `dcasa_conversaciones` (conflicto add/add al unir; el del
   lote 2 además repetía el cambio de horario). Se quedó el de los avisos y lo del horario pasó a `post-horario.py`:
@@ -896,6 +900,10 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `website_dcasa.buscador_botones_extra` dentro de un `<span class="o_dcasa_buscador_extra">` (`display: contents`),
   que se hereda con `position="inside"` (CATALOGO.md). **Regla:** toda plantilla que toque la cabecera se prueba
   también abriendo la página como administrador con el editor.
+- **En el CI, el trabajo «Tests de Odoo» no tiene `websocket-client`** (2026-11-14, CI 351): Odoo salta los subtests de
+  navegador («websocket-client module is not installed»), pero una aserción escrita después de los subtests corre
+  igual y falla (`0 != 2`). Las pruebas de navegador se saltan enteras al principio cuando no hay navegador, o cuentan
+  dentro de cada subtest. En local sí está instalado: el fallo solo se ve en el CI.
 - **Pruebas que dependen de la hora** (2026-11-13): con la regla «de noche nadie recibe clientes» encendida de fábrica,
   las pruebas viejas del reparto y de la API dependían del reloj del CI. `tests/common.py` de `dcasa_conversaciones`
   la apaga (`reparto_nadie_de_noche = False`) y las pruebas de esa regla la encienden con el reloj quieto
