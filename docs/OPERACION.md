@@ -558,7 +558,11 @@ Detalle en [CATALOGO.md](CATALOGO.md#la-tienda-en-línea-buscar-la-ficha-y-lo-qu
 **El chat de la tienda (Brian, 2026-11-13).** La burbuja va en el HTML guardado igual para todos (el WhatsApp del
 sitio, el horario y las poses en atributos `data-*`); el token CSRF, el pase y el carrito los pide el JS al abrir el
 chat. El borde nunca guarda `/dcasa/brian/` (`NEVER_CACHE_PREFIXES` en `edge/src/routing.ts`) y sus POST cuentan en la
-cubeta del carrito (120 por minuto por IP, `edge/src/bots.ts`). Abrir el chat no vuelve «personal» la sesión (sus
+cubeta del carrito (120 por minuto por IP, `edge/src/bots.ts`). La cotización en PDF
+(`GET /dcasa/brian/v1/carrito/cotizacion.pdf`) tiene su propia cubeta, `pdf`: **6 por minuto por conexión** (la IPv4
+entera o la /64), el único GET con freno, porque cada una arranca wkhtmltopdf en Odoo (binding opcional `LIMITE_PDF`
+en `edge/wrangler.jsonc`, comentado como los demás; sin él, el contador en memoria). Odoo además deja a lo sumo 2 a la
+vez y 10 por hora por conexión (revisión, 2026-11-14). Abrir el chat no vuelve «personal» la sesión (sus
 claves están en `CLAVES_NEUTRAS` de `dcasa_tienda_borde`): quien solo conversó sigue recibiendo las páginas guardadas;
 al agregar al carrito, sí. Encenderlo o apagarlo en Sitio web › Brian de la tienda da por viejas las páginas
 guardadas. Detalle: [BRIAN_TIENDA.md](BRIAN_TIENDA.md).

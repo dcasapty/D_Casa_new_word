@@ -51,8 +51,14 @@ navegador ──(3) /dcasa/brian/v1/carrito/* (sesión, CSRF) ──────
   del «Agregar» de la portada); si hay que elegir medida, color o combo: `{ok:false, motivo:"elegir", url}` con la
   ficha. Cada visitante ve solo su carrito.
 - **El PDF** (`report/cotizacion.xml`): las líneas, el subtotal, el ITBMS y el total de Odoo; «Cliente: (por
-  confirmar)» salvo que lo pida un usuario con sesión y el carrito sea suyo. No se guarda como adjunto. 10 por hora por
-  sesión.
+  confirmar)» salvo que lo pida un usuario con sesión y el carrito sea suyo. No se guarda como adjunto. Cada PDF arranca
+  wkhtmltopdf y ocupa una conexión de la base (Odoo corre con `workers = 0`), así que lleva cuatro frenos (revisión,
+  2026-11-14): **a lo sumo 2 a la vez por proceso** (un semáforo sin espera: la tercera recibe al instante 503 con
+  `Retry-After` y «Estamos armando otras cotizaciones…», sin retener la conexión esperando), **10 por hora por
+  conexión** (la IPv4 entera o la /64, `llave_ip`; contador confirmado en una transacción aparte, bajo
+  `pg_advisory_xact_lock` y en READ COMMITTED: una cookie nueva o diez pedidos a la vez no dan cupo nuevo), 10 por hora
+  por sesión, y en el borde **6 por minuto por conexión** (cubeta `pdf`, el único GET con freno). Pasado el tope: 429 con
+  `Retry-After` y un texto amable con WhatsApp.
 - **Las estrellas**: `POST /calificar` `{estrellas}`, solo si esa sesión recibió un pase y una vez por `sid`
   (`dcasa.brian.tienda.calificacion`: número y fecha; la ven Gerencia y administradores; nadie la escribe por la
   interfaz).
@@ -60,16 +66,23 @@ navegador ──(3) /dcasa/brian/v1/carrito/* (sesión, CSRF) ──────
   (Odoo vuelve a exigir la lista blanca: `buscar_productos`, `ver_producto`, `listar_categorias`,
   `buscar_conocimiento`, `horario_y_tienda`, `reglas_socios`, `cotizar_envio`). Para las tarjetas, cada producto trae
   además `producto_id`, `plantilla_id`, `imagen`, `ruta` y `agregable`; `ver_producto` acepta `producto_id`.
+  **No quedan en la auditoría de Brian** (`brian.accion`): lo que busca el visitante o su barrio no se guarda, como dice
+  la privacidad (contexto `brian_sin_auditoria`; solo para las de leer: la política se revisa igual y una herramienta
+  que escribe se audita siempre). Tampoco cuentan para el tope de acciones por minuto del usuario técnico de Juan.
 - **El envío por ubicación**: el Worker manda `lat`/`lon` a `cotizar_envio` (no están en el esquema de la herramienta:
   el modelo no las ve ni las inventa). La API de Juan las cambia por el lugar de la tabla más cercano (a 3 km como
-  mucho, como la calculadora de choferes) **antes** de correr la herramienta: ni la auditoría (`brian.accion`) ni el
-  registro ven las coordenadas. Devuelve lo de siempre más `por_ubicacion: true`; sin lugar cerca, `motivo: "lejos"`.
+  mucho, como la calculadora de choferes) **antes** de correr la herramienta: el registro no ve las coordenadas. Solo
+  con `origen: "tienda"`: a Juan (WhatsApp) no le sirven y la herramienta las rechaza como parámetros que no existen. Devuelve lo de siempre más `por_ubicacion: true`; sin lugar cerca, `motivo: "lejos"`.
   `cotizar_envio` ya funciona sin conversación (sin cotización, con la promoción dicha con sus condiciones).
 - **Los ajustes llegan al Worker** en `GET /dcasa/juan/v1/config`, clave `brian_tienda`
   (`activo`, `presupuesto_mes_usd`, `tope_sesion_hora`, `tope_red_hora`, `tope_dia`).
 - **El gasto** lo manda el Worker en `/odoo/costos` (`tienda`) y Odoo lo pinta en su propio renglón de **Costos de IA**
-  («Brian de la tienda (chat de la web)») y en los ajustes. **Nunca** se suma al gasto de Juan ni a «Por pagar a Meta»;
-  sin dato del Worker dice «sin dato», nunca $0.
+  («Brian de la tienda (chat de la web)») y en los ajustes. **Nunca** se suma al gasto de Juan (ni a su tope); sin
+  dato del Worker dice «sin dato», nunca $0. **Lo de modelos de Meta sí va en «Por pagar a Meta»** (revisión,
+  2026-11-14): Brian usa los mismos modelos y la misma cuenta que Juan, así que Meta lo cobra. Odoo guarda el
+  `proveedor` de cada renglón y suma los de `meta` (`_otros_de_meta`); al tocar «Pagar», el pago guarda también ese
+  corte (`corte_otros_mes`, `corte_otros_usd`). Si el último pago fue en un mes anterior, la cifra es un mínimo (el
+  Worker solo da el mes en curso) y la pantalla lo dice.
 
 ## La página (`static/src/js/brian_tienda.js`, `static/src/scss/brian_tienda.scss`)
 
@@ -118,8 +131,8 @@ python3 addons/dcasa_brian_tienda/tests/worker_simulado.py --puerto 8787 --token
 ## Privacidad
 
 La política (`/privacidad#brian-de-la-tienda`) lo dice en la sección de inteligencia artificial: lo que se escribe va
-al proveedor de IA (el de Juan, con sus condiciones), la conversación no se guarda (como mucho 2 horas y 30 mensajes en
-el Worker), la ubicación solo se usa para el envío y no se guarda, Brian no ve ni cambia datos ni compras, las estrellas
+al proveedor de IA (el de Juan, con sus condiciones), la conversación no se guarda (como mucho 2 horas y 30 mensajes,
+los últimos 15 intercambios, en el Worker), la ubicación solo se usa para el envío y no se guarda, Brian no ve ni cambia datos ni compras, las estrellas
 son número y fecha, y los topes cuentan por conexión sin guardar quién es. **Texto propuesto**: lo aprueba la dueña (y
 el abogado) antes de producción.
 
