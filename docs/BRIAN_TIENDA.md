@@ -81,8 +81,8 @@ navegador ──(3) /dcasa/brian/v1/carrito/* (sesión, CSRF) ──────
   (dormido). Al llegar a otra página la burbuja trae la pose anterior y cambia a la nueva con su transición.
 - **No tapa nada**: en la ficha del celular sube sobre la barra fija de «Agregar al carrito»; y se hace a un lado
   mientras tendría debajo «Pregunta por este mueble por WhatsApp», «Agregar al carrito», un botón de WhatsApp o el de
-  pagar del carrito. No sale en el pago (`/shop/checkout`, `/shop/payment`…), en `/my` ni en el panel; ahí, y con Brian
-  apagado, vuelve la burbuja de WhatsApp.
+  pagar del carrito. No sale en el pago (`/shop/checkout`, `/shop/payment`…), en `/my`, en Mi cuenta (su barra de
+  secciones va fija abajo) ni en el panel; ahí, y con Brian apagado, vuelve la burbuja de WhatsApp.
 - **Sobre las páginas guardadas en el borde**: el HTML es el mismo para todos (el WhatsApp del sitio, el horario y las
   poses en atributos `data-*`). El token CSRF, el pase y el carrito los pide el JS al abrir. Las claves de sesión del
   chat no vuelven «personal» la sesión (`dcasa_tienda_borde`, `CLAVES_NEUTRAS`) y el borde nunca guarda

@@ -116,7 +116,11 @@ class TestLaPagina(TiendaCase):
         self.assertIn('id="o_dcasa_brian"', self.url_open('/shop/cart').text)
         self.assertIn('id="o_dcasa_brian"', self.url_open(self.colchon.website_url).text)
         self.assertIn('id="o_dcasa_brian"', self.url_open('/shop').text)
-        self.assertFalse(self.env['website'].browse(self.website.id)._dcasa_brian_en_esta_pagina('/shop/payment'))
+        sitio = self.env['website'].browse(self.website.id)
+        for ruta in ('/shop/payment', '/shop/checkout', '/my', '/my/orders', '/mi-cuenta', '/mi-cuenta/compras'):
+            self.assertFalse(sitio._dcasa_brian_en_esta_pagina(ruta), ruta)
+        for ruta in ('/', '/shop', '/shop/cart', '/socios', '/visitanos'):
+            self.assertTrue(sitio._dcasa_brian_en_esta_pagina(ruta), ruta)
 
     def test_la_pagina_es_la_misma_para_todo_visitante(self):
         """Se guarda en el borde: nada de la sesión (ni el sid, ni el carrito, ni un pase) va en el HTML."""

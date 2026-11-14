@@ -123,5 +123,8 @@ class TestCheckoutEnLaWeb(HttpCase):
         self.assertIn('lang="es', html)
 
     def test_sin_boton_flotante_en_el_carrito(self):
+        # Con «Brian de la tienda» (dcasa_brian_tienda) encendido, la burbuja flotante es la suya: aquí se prueba la de
+        # WhatsApp, la que sale con Brian apagado o sin ese módulo.
+        self.env['ir.config_parameter'].sudo().set_param('dcasa_brian_tienda.activo', 'False')
         self.assertIn('o_dcasa_wa_float', self.url_open('/').text)
         self.assertNotIn('o_dcasa_wa_float', self.url_open('/shop/cart').text)
