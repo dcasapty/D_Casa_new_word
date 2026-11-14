@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <!-- «Costos de IA»: Brian de la tienda en su propio renglón (contrato_cambios §4). Nunca se suma al gasto de Juan ni
+         a «Por pagar a Meta»; sin dato del Worker dice «sin dato», nunca $0. -->
+    <t t-inherit="dcasa_conversaciones.Costos" t-inherit-mode="extension">
+        <xpath expr="//section[h2='Qué IA contesta']" position="before">
+            <section t-if="d.tienda" class="o_dcj_p_tarjeta o_dcbt_costos" aria-labelledby="o_dcbt_costos_titulo">
+                <header class="o_dcj_p_tarjeta_cabecera">
+                    <h2 id="o_dcbt_costos_titulo">Brian de la tienda (chat de la web)</h2>
+                    <span class="o_dcj_secundario" t-if="!d.tienda.sin_dato and d.tienda.turnos"><t t-out="numero(d.tienda.turnos)"/> respuestas en el mes</span>
+                </header>
+                <p t-if="d.tienda.sin_dato" class="o_dcj_p_detalle o_dcbt_sin_dato">Sin dato: el Worker todavía no dice cuánto va el chat de la web este mes.</p>
+                <t t-else="">
+                    <p class="o_dcj_p_detalle o_dcbt_gasto"><strong t-out="usd(d.tienda.usd)"/> este mes<t t-if="d.tienda.presupuesto_usd !== null"> de un presupuesto de <strong t-out="usd(d.tienda.presupuesto_usd)"/></t>.</p>
+                    <ul t-if="d.tienda.por_modelo.length" class="o_dcj_p_modelos">
+                        <li t-foreach="d.tienda.por_modelo" t-as="m" t-key="m.modelo">
+                            <span class="o_dcj_p_modelo_nombre"><t t-out="m.modelo"/><span t-if="m.estimado" class="o_dcj_insignia o_dcj_insignia_alerta" title="Sin precio cargado: es una estimación"> estimado</span></span>
+                            <span class="o_dcj_p_modelo_valor"><strong t-out="usdFino(m.usd)"/> <span class="o_dcj_secundario">· <t t-out="numero(m.turnos)"/></span></span>
+                        </li>
+                    </ul>
+                </t>
+                <p class="o_dcj_ayuda">Tiene su propio presupuesto (Sitio web › Brian de la tienda). No se suma al gasto de Juan ni a «Por pagar a Meta».</p>
+            </section>
+        </xpath>
+    </t>
+</templates>

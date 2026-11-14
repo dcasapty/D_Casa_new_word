@@ -1155,6 +1155,11 @@ LISTA_BLANCA = {
         'Las mismas revisiones que «Listo»; anota el «no» (quita el permiso; no es la baja).',
     ('dcasa_camila', 'dcasa.camila.pregunta', 'action_sin_correo'):
         'Las mismas revisiones que «Listo»; no anota nada (sin correo no hay sí).',
+    # --- dcasa_brian_tienda («Brian de la tienda», el chat de la web, 2026-11-13) -------------------------------------
+    ('dcasa_brian_tienda', 'dcasa.brian.tienda.ajustes', 'execute'):
+        'Botón «Guardar»: exige Gerencia o administrador en el servidor (_dcasa_exigir) ANTES del sudo con que guarda '
+        'el interruptor, el presupuesto y los topes (ir.config_parameter), y valida cada número (0 al máximo).',
+    ('dcasa_brian_tienda', 'dcasa.brian.tienda.ajustes', 'cancel'): ACCION_VENTANA,
 }
 
 # Modelos abstractos sin ACL: por RPC no se puede llamar NINGÚN método suyo (S-09).

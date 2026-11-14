@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- «Descargar cotización (PDF)» del chat de la tienda (controllers/main.py, /dcasa/brian/v1/carrito/cotizacion.pdf).
+         Los mismos números del carrito: cada línea, el subtotal, el ITBMS y el total los calcula Odoo. «Cliente:» dice
+         «(por confirmar)» salvo que quien la pida sea un usuario con sesión y el carrito sea suyo: un carrito anónimo
+         nunca muestra datos de nadie (ni la dirección del sitio ni la ficha «Public user»). Sin botón en el panel (sin
+         binding) y sin guardar el PDF como adjunto. -->
+    <record id="action_report_cotizacion_carrito" model="ir.actions.report">
+        <field name="name">Cotización del carrito (chat de la tienda)</field>
+        <field name="model">sale.order</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">dcasa_brian_tienda.report_cotizacion_carrito</field>
+        <field name="report_file">dcasa_brian_tienda.report_cotizacion_carrito</field>
+        <field name="print_report_name">'cotizacion-dcasa'</field>
+    </record>
+
+    <template id="report_cotizacion_carrito">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <t t-set="o" t-value="doc"/>
+                <t t-set="layout_document_title">Cotización</t>
+                <t t-call="web.external_layout">
+                    <div class="page o_dcasa_brian_cotizacion">
+                        <p class="mb-1">Fecha: <span t-out="context_timestamp(datetime.datetime.now()).strftime('%d/%m/%Y')"/></p>
+                        <p class="mb-3">Cliente: <strong t-out="env.context.get('dcasa_brian_cliente') or '(por confirmar)'"/></p>
+                        <table class="table table-sm o_main_table">
+                            <thead>
+                                <tr>
+                                    <th class="text-start">Código</th>
+                                    <th class="text-start">Producto</th>
+                                    <th class="text-end">Cantidad</th>
+                                    <th class="text-end">Precio</th>
+                                    <th class="text-end">Subtotal</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr t-foreach="doc.website_order_line" t-as="linea">
+                                    <td t-out="linea.product_id.product_tmpl_id.dcasa_codigo_publico or ''"/>
+                                    <td t-out="linea.product_id._dcasa_nombre_cliente()"/>
+                                    <td class="text-end" t-out="int(linea.product_uom_qty)"/>
+                                    <td class="text-end"><span t-out="linea.price_subtotal / linea.product_uom_qty if linea.product_uom_qty else 0"
+                                                               t-options="{'widget': 'monetary', 'display_currency': doc.currency_id}"/></td>
+                                    <td class="text-end"><span t-field="linea.price_subtotal"
+                                                               t-options="{'widget': 'monetary', 'display_currency': doc.currency_id}"/></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <table class="table table-sm ms-auto" style="width: 45%;">
+                            <tr>
+                                <td>Subtotal</td>
+                                <td class="text-end"><span t-field="doc.amount_untaxed" t-options="{'widget': 'monetary', 'display_currency': doc.currency_id}"/></td>
+                            </tr>
+                            <tr>
+                                <td>ITBMS</td>
+                                <td class="text-end"><span t-field="doc.amount_tax" t-options="{'widget': 'monetary', 'display_currency': doc.currency_id}"/></td>
+                            </tr>
+                            <tr class="fw-bold">
+                                <td>Total</td>
+                                <td class="text-end"><span t-field="doc.amount_total" t-options="{'widget': 'monetary', 'display_currency': doc.currency_id}"/></td>
+                            </tr>
+                        </table>
+                        <p class="mt-4 small">Esta cotización no aparta los productos. La disponibilidad, el costo del envío y la
+                            fecha de entrega te los confirma una vendedora por WhatsApp.</p>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+</odoo>

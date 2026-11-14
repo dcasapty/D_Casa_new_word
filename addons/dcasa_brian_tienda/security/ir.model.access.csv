@@ -1,0 +1,6 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_dcasa_brian_tienda_ajustes_gerencia,dcasa.brian.tienda.ajustes gerencia,model_dcasa_brian_tienda_ajustes,dcasa_base.group_gerencia,1,1,1,0
+access_dcasa_brian_tienda_ajustes_sistema,dcasa.brian.tienda.ajustes sistema,model_dcasa_brian_tienda_ajustes,base.group_system,1,1,1,0
+access_dcasa_brian_tienda_calificacion_gerencia,dcasa.brian.tienda.calificacion gerencia,model_dcasa_brian_tienda_calificacion,dcasa_base.group_gerencia,1,0,0,0
+access_dcasa_brian_tienda_calificacion_sistema,dcasa.brian.tienda.calificacion sistema,model_dcasa_brian_tienda_calificacion,base.group_system,1,0,0,0
+access_dcasa_brian_tienda_cupo_sistema,dcasa.brian.tienda.cupo sistema,model_dcasa_brian_tienda_cupo,base.group_system,1,0,0,0
