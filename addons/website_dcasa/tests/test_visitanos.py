@@ -6,6 +6,9 @@
   ya aceptó las cookies opcionales, si las acepta luego o si toca el botón. Sin eso, el navegador no le pide nada a
   Google (se mira con `fetch_proxy`, por donde pasa toda petición externa del Chrome de las pruebas).
 """
+from lxml import html as lxml_html
+
+from odoo import Command
 from odoo.addons.website_dcasa.models.horario_tienda import filas_horario, hora_amable
 from odoo.tests import HttpCase, TransactionCase, tagged
 
@@ -67,7 +70,9 @@ class TestVisitanosHorario(HttpCase):
         self.assertIn('class="o_dcasa_horario"', html)
         self.assertRegex(html, r'<th scope="row">Lunes a sábado</th>\s*<td>9:00 a\. m\. a 6:00 p\. m\.</td>')
         self.assertRegex(html, r'<th scope="row">Domingo</th>\s*<td>9:00 a\. m\. a 5:00 p\. m\.</td>')
-        self.assertIn('Lun. a sáb. 9:00 a. m. a 6:00 p. m.<br/>Dom. 9:00 a. m. a 5:00 p. m.', html, 'Pie')
+        fila = r'<span class="o_dcasa_pie_horario_fila">%s</span>'
+        self.assertRegex(html, fila % r'Lun\. a sáb\. 9:00 a\. m\. a 6:00 p\. m\.' + r'\s*'
+                         + fila % r'Dom\. 9:00 a\. m\. a 5:00 p\. m\.', 'Pie')
         self.assertNotIn('feriado', html.lower(), 'No se inventan feriados')
         # el pie es el mismo en todo el sitio
         self.assertIn('Lun. a sáb. 9:00 a. m. a 6:00 p. m.', self.url_open('/').text)
@@ -173,3 +178,82 @@ class TestVisitanosMapa(HttpCase):
         html = self.url_open('/').text
         self.assertNotIn('data-dcasa-mapa=', html)
         self.assertNotIn('google.com/maps/embed', html)
+
+
+OTRO_HORARIO = [{'dias': 'Lunes a viernes', 'horas': '10:00 a. m. a 7:00 p. m.',
+                 'corto': 'Lun. a vie. 10:00 a. m. a 7:00 p. m.'}]
+
+
+def _es_guardable(el):
+    """Lo que el editor del sitio guarda al salir (html_builder, save_plugin.js: «savable_selectors»): una zona
+    .oe_structure de una vista o un elemento con las marcas del editor (``data-oe-field``: lo estático de una vista)."""
+    clases = (el.get('class') or '').split()
+    return bool(('oe_structure' in clases and el.get('data-oe-id') and el.get('data-oe-xpath'))
+                or el.get('data-oe-field'))
+
+
+def _guardable(el):
+    """La zona que el editor guardaría con ``el`` dentro (el mismo, un ancestro o un descendiente), o None."""
+    for candidato in (*el.iterancestors(), el, *el.iterdescendants()):
+        if isinstance(candidato.tag, str) and _es_guardable(candidato):
+            return candidato
+    return None
+
+
+@tagged('post_install', '-at_install')
+class TestHorarioYElEditor(HttpCase):
+    """El pie lo puede editar quien tiene el constructor del sitio. Al guardar, el editor manda el HTML ya dibujado de
+    la zona editable y Odoo lo escribe tal cual en la vista (``ir.ui.view.save``): lo que se dibuja dentro (un
+    ``t-out``) queda como texto fijo. El horario no puede quedar en una zona así: si no, un cambio en los Ajustes de
+    Juan ya no se vería."""
+
+    def setUp(self):
+        super().setUp()
+        self.website = self.env.ref('website.default_website')
+        self.horario = FILAS
+        self.patch(self.env.registry['website'], '_dcasa_horario_tienda', lambda website: self.horario)
+        # Alguien con el constructor del sitio. En D'CASA nadie lo tiene (dcasa_interfaz se lo quita a todos y frena
+        # el guardado de las vistas propias), salvo con el escape documentado: aquí se simula ese caso.
+        self.env.ref('base.user_admin').group_ids = [Command.link(self.env.ref('website.group_website_designer').id)]
+        self.env['ir.config_parameter'].sudo().set_param('dcasa_interfaz.sitio_editable', '1')
+
+    def _como_editor(self, ruta):
+        self.authenticate('admin', 'admin')
+        html = self.url_open(ruta).text
+        self.authenticate(None, None)
+        return lxml_html.fromstring(html)
+
+    def test_el_horario_no_queda_en_una_zona_que_el_editor_guarda(self):
+        raiz = self._como_editor('/')
+        (pie,) = raiz.xpath('//div[@id="footer"]')
+        self.assertIsNotNone(_guardable(pie), 'El pie sí es una zona que el editor guarda')
+        lineas = raiz.xpath('//*[contains(concat(" ", @class, " "), " o_dcasa_pie_horario ")]')
+        self.assertTrue(lineas, 'El horario sale en el pie')
+        for linea in lineas:
+            self.assertIsNone(_guardable(linea), 'El horario quedaría congelado al guardar con el editor')
+        visita = self._como_editor('/visitanos')
+        for selector in ('o_dcasa_visita_horario', 'o_dcasa_mapa', 'o_dcasa_pie_horario'):
+            (el,) = visita.xpath(f'//*[contains(concat(" ", @class, " "), " {selector} ")]')
+            self.assertIsNone(_guardable(el), f'{selector} de Visítanos no está en una zona que el editor guarda')
+
+    def test_guardar_el_pie_con_el_editor_no_congela_el_horario(self):
+        """Como el editor: abre la página, cambia un texto del pie y guarda (``save`` con el HTML dibujado de la zona y
+        su xpath, en el contexto del sitio). Luego cambia el horario: el pie enseña el nuevo."""
+        raiz = self._como_editor('/')
+        (pie,) = raiz.xpath('//div[@id="footer"]')
+        (parrafo,) = pie.xpath('.//p[contains(., "Tu casa, bien amueblada")]')
+        parrafo.text = parrafo.text.replace('Tu casa, bien amueblada.', 'Tu casa, bien amueblada (editado).')
+        vista = self.env['ir.ui.view'].browse(int(pie.get('data-oe-id')))
+        vista.with_user(self.env.ref('base.user_admin')).with_context(website_id=self.website.id).save(
+            lxml_html.tostring(pie, encoding='unicode'), pie.get('data-oe-xpath'))
+
+        html = self.url_open('/').text
+        self.assertIn('Tu casa, bien amueblada (editado).', html, 'El cambio del editor quedó guardado')
+        self.assertIn('Lun. a sáb. 9:00 a. m. a 6:00 p. m.', html)
+        self.horario = OTRO_HORARIO   # como cambiar el horario en los Ajustes de Juan
+        html = self.url_open('/').text
+        self.assertIn('Lun. a vie. 10:00 a. m. a 7:00 p. m.', html, 'El pie enseña el horario nuevo')
+        self.assertNotIn('Lun. a sáb. 9:00 a. m. a 6:00 p. m.', html, 'Y ya no el viejo, congelado en el pie')
+        copia = self.env['ir.ui.view'].search([('key', '=', vista.key), ('website_id', '=', self.website.id)])
+        self.assertTrue(copia, 'El editor guardó su copia del pie para el sitio')
+        self.assertNotIn('a. m.', copia.arch, 'En la vista guardada no quedó ningún horario escrito')

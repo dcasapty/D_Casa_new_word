@@ -278,7 +278,9 @@
         </xpath>
     </template>
 
-    <!-- Pie de página con los datos reales de D'CASA (editable en el constructor). -->
+    <!-- Pie de página con los datos reales de D'CASA (editable en el constructor). Nada dinámico aquí dentro: al guardar,
+         el editor escribe en la vista el HTML ya dibujado de esta zona (ir.ui.view.save) y un t-out quedaría como texto
+         fijo. Lo dinámico va fuera, como el horario (pie_horario, abajo). -->
     <template id="footer_dcasa" inherit_id="website.footer_custom" name="D'CASA: pie de página">
         <xpath expr="//div[@id='footer']" position="replace">
             <div id="footer" class="oe_structure oe_structure_solo o_dcasa_footer" t-ignore="true" t-if="not no_footer">
@@ -305,10 +307,6 @@
                             <div class="col-lg-3 pb24">
                                 <h2 class="o_dcasa_kicker">Visítanos</h2>
                                 <p>Frente al Parque Libertadores, diagonal a la Discoteca Seven<br/>La Chorrera, Panamá Oeste</p>
-                                <t t-set="dcasa_horario_pie" t-value="website._dcasa_horario_tienda() if website else []"/>
-                                <p t-if="dcasa_horario_pie" class="o_dcasa_pie_horario">
-                                    <t t-foreach="dcasa_horario_pie" t-as="fila"><t t-out="fila['corto']"/><br t-if="not fila_last"/></t>
-                                </p>
                                 <p><a href="/visitanos">Cómo llegar</a></p>
                             </div>
                             <div class="col-lg-3 pb24">
@@ -323,6 +321,29 @@
                         </div>
                     </div>
                 </section>
+            </div>
+        </xpath>
+    </template>
+
+    <!-- El horario de la tienda en el pie, en su propia franja FUERA de #footer: #footer es la zona que guarda el
+         constructor del sitio (oe_structure) y lo que se dibuja dentro se guarda como texto fijo al editar el pie.
+         Aquí no es una zona que el editor guarde, así que siempre sale de los Ajustes de Juan
+         (website._dcasa_horario_tienda, models/horario_tienda.py). t-ignore: sin las marcas del editor, el constructor
+         tampoco la toca. Sin <t> sueltos: elementos de verdad (lección del lote 1 con las marcas del editor). -->
+    <template id="pie_horario" inherit_id="website.layout" name="D'CASA: horario en el pie">
+        <xpath expr="//div[@id='footer']" position="after">
+            <!-- El div de afuera es el que mete la herencia: Odoo le pega las marcas del editor (data-oe-*) aunque
+                 lleve t-ignore. Por eso el t-ignore va en el de adentro: así ninguno de los dos queda con marcas. -->
+            <div class="o_dcasa_pie_franja">
+                <div t-foreach="[website._dcasa_horario_tienda()] if website and not no_footer else []"
+                     t-as="dcasa_horario_pie" t-if="dcasa_horario_pie" class="o_dcasa_pie_horario_banda" t-ignore="true">
+                    <div class="container">
+                        <p class="o_dcasa_pie_horario">
+                            <span class="o_dcasa_pie_horario_titulo">Horario de la tienda</span>
+                            <span t-foreach="dcasa_horario_pie" t-as="fila" class="o_dcasa_pie_horario_fila" t-out="fila['corto']"/>
+                        </p>
+                    </div>
+                </div>
             </div>
         </xpath>
     </template>

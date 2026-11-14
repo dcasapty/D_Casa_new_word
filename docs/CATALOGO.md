@@ -628,8 +628,8 @@ Lote 2 de la web, aprobado por la dueña el 2026-11-13. Capturas (Odoo local con
 visto bueno antes de producción.
 
 * **Horario en Visítanos.** Una tabla de días y horas («Lunes a sábado · 9:00 a. m. a 6:00 p. m.», «Domingo · 9:00 a. m.
-  a 5:00 p. m.») y una línea corta en el pie de todas las páginas. Sale de **un solo lugar**: el horario de los
-  **Ajustes de Juan** (`horario_inicio`, `horario_fin`, `horario_fin_domingo` y los días; el mismo que usa Juan).
+  a 5:00 p. m.») y una franja corta en el pie de todas las páginas («Horario de la tienda»). Sale de **un solo
+  lugar**: el horario de los **Ajustes de Juan** (`horario_inicio`, `horario_fin`, `horario_fin_domingo` y los días; el mismo que usa Juan).
   `website_dcasa` no depende de `dcasa_conversaciones`: deja el gancho `website._dcasa_horario_tienda()`
   (`website_dcasa/models/horario_tienda.py`, vacío = no se muestra nada, no se inventa) y `dcasa_conversaciones` lo
   llena (`models/horario_sitio.py`). Un día apagado sale «Cerrado»; un domingo sin hora propia se junta con la semana.
@@ -637,6 +637,15 @@ visto bueno antes de producción.
   solo si los ajustes seguían con los de fábrica (8 a 17 todos los días); si alguien ya puso otro, no se toca. Ojo: es
   también el horario laboral de Juan (seguimientos, avisos y reparto se mueven con él). Al cambiarlo, el borde renueva
   las páginas ([OPERACION.md](OPERACION.md#tienda-rápida-caché-de-páginas-en-el-borde)).
+  * **El constructor del sitio no lo congela.** El pie (`#footer`) es una zona que el constructor guarda: al salir del
+    editor, Odoo escribe en la vista el HTML **ya dibujado** de esa zona (`ir.ui.view.save`), así que algo dinámico
+    adentro quedaría como texto fijo y un cambio en los Ajustes de Juan ya no se vería (se comprobó con una prueba:
+    pasaba). Por eso el horario va en su **propia franja, fuera de `#footer`** (vista `website_dcasa.pie_horario`,
+    debajo de las columnas), y la franja, la tabla de Visítanos y el recuadro del mapa llevan `t-ignore="true"`: sin las
+    marcas del editor, el constructor no los toca ni los guarda. El mapa, además, se quita solo al abrir el editor (se
+    pone con `insert()` de la interacción), así que el `<iframe>` de Google nunca queda escrito en una vista.
+  * **La caché de páginas de Odoo** (la portada y demás páginas del sitio, hasta 1 h para el visitante) incluye el
+    horario en su llave (`website_dcasa/models/website_page.py`): al cambiarlo, Odoo dibuja la página de nuevo.
 * **El mapa de Google solo con permiso.** Visítanos ya no carga el `<iframe>` de Google al abrir (Google guarda cookies).
   Trae un recuadro «El mapa es de Google y puede guardar cookies en tu navegador» con **«Ver el mapa»**. El mapa se carga
   solo si quien visita ya aceptó las cookies opcionales en el aviso del sitio (la cookie `website_cookies_bar` con
