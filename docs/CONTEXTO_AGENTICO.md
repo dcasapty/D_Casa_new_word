@@ -455,6 +455,16 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   campo nuevo del Worker, Juan va primero; cuando el Worker empieza a llamar una ruta nueva de Odoo, Odoo va primero
   (o el Worker tolera el 404). Bien al primer intento. La dueña autorizó subirlo sin esperar su visto bueno («Apruébalo
   y punto»).
+- **Desplegar Juan 26 y Desplegar 72** (14 nov; salud sana a las 07:46 UTC: `{"ok": true, "version": "f461cad33626",
+  "base_al_dia": true, "humo": "ok"}`) · PR #118, squash `ea3bd96`, `app_version`
+  `f461cad33626b07adc2d5a70ca1971aaae595015`, imagen `sha256:cff08b93…`, CI 355 con staging (run 43564565700). Brian de
+  la tienda (módulo nuevo `dcasa_brian_tienda`) y el lote 2 de la web; con respaldo previo. Otra vez Juan primero (run
+  43571228282, 07:28–07:30 UTC; el Durable Object `TiendaSesion` es su migración v2) y Odoo después (run 43571429646,
+  07:30–07:46 UTC). Antes del deploy: tres vueltas de revisión adversarial y cuatro CI (351 falló por una prueba de
+  navegador sin `websocket-client`; 352 y 353 se cancelaron para meter arreglos; 354 falló con todos los módulos por la
+  fecha de `/privacidad` y el xpath de `pie_mi_cuenta`). Prueba de punta a punta en staging con el Worker de verdad.
+  **Lección de la prueba:** en staging hay que esperar `networkidle` antes de tocar la burbuja: sin el JS cargado el
+  botón no hace nada (en un teléfono lento pasaría igual; anotarlo si alguien se queja). Bien al primer intento.
 - **Versión estable 4 ensayada en staging** (11 nov, 03:16–03:40 UTC, run 42951600639 de «Volver a una versión
   estable», lanzado desde la rama de trabajo: el botón solo exige `main` para producción). Estable 4 = imagen de
   Desplegar 63 (`acda72c1…`, `app_version` `3e2ccfc`) + Juan hasta Desplegar Juan 20. Bien al primer intento.
