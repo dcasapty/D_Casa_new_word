@@ -40,6 +40,17 @@ la producción. Apruébalo y punto.»); la revisión adversarial no se salta (re
       ver [BRIAN_TIENDA.md](BRIAN_TIENDA.md)) y, del lote 2, el horario en Visítanos y el pie (sale de Ajustes de
       Juan), el mapa de Google con permiso de cookies y las opiniones de productos aprobadas por Gerencia. Orden:
       **Juan antes que Odoo** (el Durable Object `TiendaSesion` es la migración v2 del Worker). Después:
+      - **Antes del 1 de diciembre: «Por pagar a Meta» en el cambio de mes** (revisión adversarial, tercera vuelta):
+        lo que Brian de la tienda gasta en Meta después del último pago se pierde si el pago siguiente cae en otro mes
+        (el Worker solo da el mes en curso; la pantalla ya dice que la cifra es un mínimo). Arreglo: una foto diaria de
+        lo que lleva la tienda en Meta, como `dcasa.juan.costo.dia`, o que el Worker mande también el mes anterior.
+        Prueba del revisor guardada en la carpeta de trabajo de la sesión (`pendiente_meta/`): pasarla al módulo.
+        Solo importa si Juan usa el modelo de Meta.
+      - **Turnstile en el chat de la tienda** antes de anunciarlo en grande (el código ya lo soporta: falta crear la
+        llave en Cloudflare y ponerla en el sitio). Sin él, unas pocas redes pueden agotar el tope del día de Brian (no
+        el dinero: el tope de 30 USD aguanta).
+      - **Herramientas del Brian del panel** para lo nuevo: `resumen_de_brian_tienda` (gasto, presupuesto y estrellas) y
+        opiniones por aprobar.
       - **Tilopay** (la semana del 2026-11-16): pasarela de pago con todos los métodos que tenga activos (Visa,
         Mastercard, «Pase U», Yappy). Odoo no trae proveedor de Tilopay: hay que hacerlo; las claves solo en
         Cloudflare, nunca en el chat.
