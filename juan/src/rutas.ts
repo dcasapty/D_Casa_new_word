@@ -10,6 +10,7 @@
 //   POST /odoo/olvidar                → borrar la copia de trabajo de una conversación (cuando Odoo la elimina)
 //   GET  /odoo/salud                  → estado del Worker
 //   (las cuatro de /odoo/* con Authorization: Bearer <JUAN_WORKER_TOKEN>, en tiempo constante)
+//   POST /tienda/v1/mensaje           → Brian de la tienda, el chat de dcasapty.com (CORS + pase de Odoo: tienda/rutas.ts)
 
 import { atiendeEntrante, canalActivo, CONFIG_POR_DEFECTO, type Config } from "./config";
 import { adaptadorPorRuta } from "./canales";
@@ -23,6 +24,7 @@ import { nombreDeConversacion, verificarUrlMedio } from "./motor/mediosUrl";
 import { rutasDelPanel } from "./odoo-panel";
 import { informeDeSalud, informePublico, secretosGeneralesFaltantes } from "./salud";
 import { bearerValido } from "./seguridad";
+import { manejarTienda } from "./tienda/rutas";
 
 /** Lo que las rutas necesitan de una conversación (el stub del Durable Object o un doble en las pruebas). */
 export interface ConversacionApi {
@@ -53,6 +55,8 @@ export interface DepsRutas {
   eventos?(eventos: EventoCanal[]): Promise<RespuestaEventos>;
   /** Pausa entre reintentos de los eventos (las pruebas la ponen en 0). */
   dormir?(ms: number): Promise<void>;
+  /** Brian de la tienda: su gasto del mes y los mensajes de hoy, para /salud (su propio contador; no suma en el de Juan). */
+  gastoTienda?(mes: string, dia: string): Promise<{ usd: number; turnosHoy: number }>;
 }
 
 /**
@@ -89,8 +93,10 @@ export async function manejar(req: Request, env: Env, d: DepsRutas): Promise<Res
 
   if (ruta === "/salud") {
     if (req.method !== "GET") return error("método no permitido", 405);
-    return json(await informePublico({ env, adaptadores: d.adaptadores, config: d.config, gastoMes: d.gastoMes, modelosSinPrecio: d.modelosSinPrecio, leerSalud: d.leerSalud, ahora: d.ahora }));
+    return json(await informePublico({ env, adaptadores: d.adaptadores, config: d.config, gastoMes: d.gastoMes, modelosSinPrecio: d.modelosSinPrecio, leerSalud: d.leerSalud, ahora: d.ahora, gastoTienda: d.gastoTienda }));
   }
+
+  if (ruta.startsWith("/tienda/")) return manejarTienda(ruta, req, env, d);
 
   const adaptador = adaptadorPorRuta(ruta, d.adaptadores);
   if (adaptador) return webhook(adaptador, req, env, d);
@@ -295,7 +301,7 @@ async function odoo(ruta: string, req: Request, env: Env, d: DepsRutas): Promise
 
   if (ruta === "/odoo/salud") {
     if (req.method !== "GET") return error("método no permitido", 405);
-    const informe = await informeDeSalud({ env, adaptadores: d.adaptadores, config: d.config, gastoMes: d.gastoMes, modelosSinPrecio: d.modelosSinPrecio, leerSalud: d.leerSalud, ahora: d.ahora });
+    const informe = await informeDeSalud({ env, adaptadores: d.adaptadores, config: d.config, gastoMes: d.gastoMes, modelosSinPrecio: d.modelosSinPrecio, leerSalud: d.leerSalud, ahora: d.ahora, gastoTienda: d.gastoTienda });
     return json(informe);
   }
 

@@ -8,15 +8,20 @@
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
 
-  // Un Durable Object por conversación (`canal:id_externo`) y uno solo para el gasto de IA y la salud.
-  // Los dos con almacenamiento SQLite propio: sin D1, sin Vectorize ni R2. Workers AI (binding `ai`, abajo) solo transcribe notas de voz.
+  // Un Durable Object por conversación (`canal:id_externo`), uno solo para el gasto de IA y la salud, y uno por sesión de Brian de la
+  // tienda (`tienda:<sid>`, el chat de dcasapty.com: se borra solo a las 2 horas sin actividad). Los tres con SQLite propio: sin D1, sin
+  // Vectorize ni R2. Workers AI (binding `ai`, abajo) solo transcribe notas de voz. La migración `v2` (2026-11-13) crea `TiendaSesion`.
   "durable_objects": {
     "bindings": [
       { "name": "CONVERSACION", "class_name": "Conversacion" },
-      { "name": "GLOBAL", "class_name": "Global" }
+      { "name": "GLOBAL", "class_name": "Global" },
+      { "name": "TIENDA", "class_name": "TiendaSesion" }
     ]
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Conversacion", "Global"] }],
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["Conversacion", "Global"] },
+    { "tag": "v2", "new_sqlite_classes": ["TiendaSesion"] }
+  ],
 
   // Workers AI: notas de voz (Whisper, TRANSCRIBIR_AUDIO=1), lectura de imágenes (RECONOCER_IMAGENES=1) y, solo si Gerencia lo enciende
   // en Odoo, la búsqueda del conocimiento por significado (bge-m3, POST /odoo/embeber). No se usa para contestar: eso lo hace el
@@ -70,10 +75,14 @@
       "durable_objects": {
         "bindings": [
           { "name": "CONVERSACION", "class_name": "Conversacion" },
-          { "name": "GLOBAL", "class_name": "Global" }
+          { "name": "GLOBAL", "class_name": "Global" },
+          { "name": "TIENDA", "class_name": "TiendaSesion" }
         ]
       },
-      "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Conversacion", "Global"] }],
+      "migrations": [
+        { "tag": "v1", "new_sqlite_classes": ["Conversacion", "Global"] },
+        { "tag": "v2", "new_sqlite_classes": ["TiendaSesion"] }
+      ],
       "ai": { "binding": "AI" },
       // Hoy solo existe `dcasa-staging`: staging habla con ese.
       "services": [

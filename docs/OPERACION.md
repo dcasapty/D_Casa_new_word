@@ -538,6 +538,15 @@ de lo incluido en el plan de Workers (estimación en `edge/CONTRATO_CONTENEDOR.m
 4. Para producción: cambiar `TIENDA_ESTATICA` a `"on"` en `edge/wrangler.jsonc` (raíz) y desplegar.
    Para apagarla: `"off"` y desplegar; todo vuelve a salir de Odoo al instante.
 
+**Visítanos y opiniones (lote 2 de la web, 2026-11-13).** Cambiar el horario en los Ajustes de Juan (horas o días)
+deja la marca «renovar todo» (`dcasa_conversaciones/models/horario_sitio.py`): el horario sale en Visítanos y en el pie
+de todas las páginas. Publicar, esconder o borrar una opinión publicada marca su ficha (`website_dcasa/models/resena.py`).
+El mapa de Google de Visítanos lo pone el navegador (solo con las cookies aceptadas o al tocar «Ver el mapa»), así que la
+página guardada en el borde es la misma para todos y no trae el `<iframe>`. **Cabeceras de seguridad:** el borde solo
+pone `Content-Security-Policy: frame-ancestors 'self'` (y solo si Odoo no mandó una); no hay `frame-src`, así que el
+`<iframe>` de Google Maps se permite en cualquier página. No se agregó un `frame-src` para todo el sitio porque podría
+romper otros marcos (pagos, videos) sin un inventario; queda anotado como pendiente.
+
 **Lo que Google no muestra (lote 1 de la web, 2026-11-13).** Odoo pone `X-Robots-Tag: noindex` en
 `/web/login`, `/web/signup` y `/web/reset_password`, y `noindex, follow` en los resultados de búsqueda
 (`/shop?search=…`, `/website/search`), además del `<meta name="robots">` de la página
@@ -545,6 +554,18 @@ de lo incluido en el plan de Workers (estimación en `edge/CONTRATO_CONTENEDOR.m
 cabecera pasa tal cual en producción (`edge/test/paginas.test.ts`, «el noindex que pone Odoo pasa tal
 cual»); en staging, como siempre, todo va con `noindex, nofollow`. Ninguna de ellas va al mapa del sitio.
 Detalle en [CATALOGO.md](CATALOGO.md#la-tienda-en-línea-buscar-la-ficha-y-lo-que-google-no-muestra).
+
+**El chat de la tienda (Brian, 2026-11-13).** La burbuja va en el HTML guardado igual para todos (el WhatsApp del
+sitio, el horario y las poses en atributos `data-*`); el token CSRF, el pase y el carrito los pide el JS al abrir el
+chat. El borde nunca guarda `/dcasa/brian/` (`NEVER_CACHE_PREFIXES` en `edge/src/routing.ts`) y sus POST cuentan en la
+cubeta del carrito (120 por minuto por IP, `edge/src/bots.ts`). La cotización en PDF
+(`GET /dcasa/brian/v1/carrito/cotizacion.pdf`) tiene su propia cubeta, `pdf`: **6 por minuto por conexión** (la IPv4
+entera o la /64), el único GET con freno, porque cada una arranca wkhtmltopdf en Odoo (binding opcional `LIMITE_PDF`
+en `edge/wrangler.jsonc`, comentado como los demás; sin él, el contador en memoria). Odoo además deja a lo sumo 2 a la
+vez y 10 por hora por conexión (revisión, 2026-11-14). Abrir el chat no vuelve «personal» la sesión (sus
+claves están en `CLAVES_NEUTRAS` de `dcasa_tienda_borde`): quien solo conversó sigue recibiendo las páginas guardadas;
+al agregar al carrito, sí. Encenderlo o apagarlo en Sitio web › Brian de la tienda da por viejas las páginas
+guardadas. Detalle: [BRIAN_TIENDA.md](BRIAN_TIENDA.md).
 
 **Si algo se ve viejo:** forzar la invalidación
 `curl -X POST -H "Authorization: Bearer <TIENDA_FEED_TOKEN>" https://<sitio>/__edge/tienda/regenerar`.

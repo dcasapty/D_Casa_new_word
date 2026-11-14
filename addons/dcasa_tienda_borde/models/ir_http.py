@@ -29,10 +29,15 @@ COOKIE_PERSONAL = 'dcasa_personal'
 # dcasa_sesiones. Cualquier otra clave con valor (``uid``, ``pre_uid``, ``sale_order_id``,
 # ``website_sale_cart_quantity``, ``wishlist_ids``, ``dcasa_socio``, la tarifa elegida, el modo
 # lista/cuadrícula…) vuelve personal la sesión: lo desconocido, también.
+# Las de «Brian de la tienda» (dcasa_brian_tienda/models/pase.py, CLAVES_DE_SESION: el sid del chat, la hora de su
+# último pase, la verificación, los PDF pedidos y si ya calificó) tampoco: el chat no se dibuja en el HTML de Odoo, lo
+# pide el JS; quien solo abrió el chat sigue recibiendo las páginas guardadas en el borde. Su carrito sí cuenta
+# (sale_order_id).
 CLAVES_NEUTRAS = frozenset({
     'context', 'create_time', 'db', 'debug', 'login', 'uid', 'session_token', '_trace',
     '_trace_disable', 'geoip', 'website_sale_current_pl', 'website_sale_pricelist_time',
     'fiscal_position_id', 'dcasa_padrino', 'gc_previous_sessions',
+    'dcasa_brian_sid', 'dcasa_brian_hora', 'dcasa_brian_verificado', 'dcasa_brian_pdf', 'dcasa_brian_calificado',
 })
 
 

@@ -172,6 +172,18 @@ LISTA_BLANCA = {
                     'vigente y la huella de la clave de Gerencia ANTES de aplicar con sudo; los intentos se cuentan.',
     ('dcasa_base', 'sale.order', 'action_dcasa_pedir_descuento'): ACCION_VENTANA,
     ('website_dcasa', 'sale.order', 'action_dcasa_apartar'): SIN_SUDO,
+    ('website_dcasa', 'dcasa.resena', 'create'):
+        'Bloquea: sin sudo lanza AccessError (las opiniones las crea solo Mi cuenta, ya comprobada la compra pagada).',
+    ('website_dcasa', 'dcasa.resena', 'write'):
+        'Bloquea: sin sudo lanza UserError (lo que dijo el cliente no se cambia; el estado, solo con sus botones).',
+    ('website_dcasa', 'dcasa.resena', 'unlink'):
+        OVERRIDE + ' Solo avisa al borde si estaba publicada; borrar lo frena el ACL (solo administrador); sin sudo().',
+    ('website_dcasa', 'dcasa.resena', 'action_aprobar'):
+        'Botón «Publicar»: exige Gerencia o administrador en el servidor y check_access ANTES del sudo que cambia el '
+        'estado (quién y cuándo lo pone el servidor).',
+    ('website_dcasa', 'dcasa.resena', 'action_rechazar'):
+        'Botón «No publicar»: exige Gerencia o administrador en el servidor y check_access ANTES del sudo que cambia '
+        'el estado (quién y cuándo lo pone el servidor).',
     ('website_dcasa', 'ir.qweb.field.image', 'record_to_html'):
         OVERRIDE + ' Solo agrega srcset/sizes/width/height/loading a la <img>; sin sudo().',
     ('website_dcasa', 'ir.qweb.field.image_url', 'record_to_html'):
@@ -861,6 +873,9 @@ LISTA_BLANCA = {
         'que esa persona puede ver; solo escribe la marca de sensible.',
     ('dcasa_conversaciones', 'dcasa.juan.ajustes', 'create'): 'Bloquea: los ajustes son un solo registro; sin sudo.',
     ('dcasa_conversaciones', 'dcasa.juan.ajustes', 'unlink'): 'Bloquea: los ajustes no se borran.',
+    ('dcasa_conversaciones', 'dcasa.juan.ajustes', 'write'):
+        OVERRIDE + ' Si cambia el horario, solo anota «renovar la tienda» para el borde (models/horario_sitio.py); '
+                   'sin sudo().',
     ('dcasa_conversaciones', 'dcasa.juan.ajustes', 'action_abrir'):
         ACCION_VENTANA + ' Comprueba check_access("read") antes.',
     ('dcasa_conversaciones', 'dcasa.juan.ajustes', 'action_cargar_ejemplos'):
@@ -1160,6 +1175,11 @@ LISTA_BLANCA = {
         'Botón «Guardar»: exige Gerencia o administrador en el servidor (_dcasa_exigir) ANTES del sudo con que guarda '
         'el interruptor y los topes (ir.config_parameter), y valida cada tope (0 a 10 000).',
     ('dcasa_buscar_foto', 'dcasa.buscar.foto.ajustes', 'cancel'): ACCION_VENTANA,
+    # --- dcasa_brian_tienda («Brian de la tienda», el chat de la web, 2026-11-13) -------------------------------------
+    ('dcasa_brian_tienda', 'dcasa.brian.tienda.ajustes', 'execute'):
+        'Botón «Guardar»: exige Gerencia o administrador en el servidor (_dcasa_exigir) ANTES del sudo con que guarda '
+        'el interruptor, el presupuesto y los topes (ir.config_parameter), y valida cada número (0 al máximo).',
+    ('dcasa_brian_tienda', 'dcasa.brian.tienda.ajustes', 'cancel'): ACCION_VENTANA,
 }
 
 # Modelos abstractos sin ACL: por RPC no se puede llamar NINGÚN método suyo (S-09).

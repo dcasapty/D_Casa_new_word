@@ -191,9 +191,27 @@
                                 <li><i class="fa fa-instagram fa-fw me-2" aria-hidden="true"/>
                                     <a href="https://www.instagram.com/dcasapty" target="_blank" rel="noopener">@dcasapty</a></li>
                             </ul>
+                            <!-- Horario: de los Ajustes de Juan (models/horario_tienda.py). Si no se sabe, no se muestra. -->
+                            <t t-set="horario" t-value="website._dcasa_horario_tienda()"/>
+                            <!-- t-ignore: sin las marcas del editor, el constructor no toca ni guarda esta tabla (si la
+                                 guardara, el horario quedaría escrito como texto fijo en la vista). -->
+                            <div t-if="horario" class="o_dcasa_visita_horario" t-ignore="true">
+                                <h2 class="o_dcasa_kicker">Horario</h2>
+                                <table class="o_dcasa_horario">
+                                    <caption class="visually-hidden">Días y horas de la tienda (hora de Panamá)</caption>
+                                    <tbody>
+                                        <tr t-foreach="horario" t-as="fila">
+                                            <th scope="row" t-out="fila['dias']"/>
+                                            <td t-out="fila['horas']"/>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
                             <div class="o_dcasa_visita_aviso">
                                 <h2 class="o_dcasa_kicker">Antes de venir</h2>
-                                <p>Escríbenos y te confirmamos el horario, las existencias y los colores disponibles
+                                <p t-if="horario">Escríbenos y te confirmamos las existencias y los colores disponibles
+                                    del mueble que te gusta. Muchos vienen en caja: te los llevas hoy mismo.</p>
+                                <p t-else="">Escríbenos y te confirmamos el horario, las existencias y los colores disponibles
                                     del mueble que te gusta. Muchos vienen en caja: te los llevas hoy mismo.</p>
                                 <a t-att-href="website._dcasa_whatsapp_url('Hola D\'CASA, quiero visitarlos en la tienda')"
                                    class="btn btn-lg btn-primary" target="_blank" rel="noopener">
@@ -201,10 +219,19 @@
                                     <span class="visually-hidden">(se abre en una pestaña nueva)</span></a>
                             </div>
                         </div>
-                        <div class="o_dcasa_mapa o_dcasa_mapa_grande">
-                            <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3942.0322672536827!2d-79.7867962!3d8.876588100000001!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8fac99005edffcdf%3A0x6c9c01465bb08b38!2sD'CASA!5e0!3m2!1ses-419!2spa!4v1790675155871!5m2!1ses-419!2spa"
-                                    title="Mapa: D'CASA en La Chorrera" width="600" height="450" loading="lazy"
-                                    allowfullscreen="" referrerpolicy="strict-origin-when-cross-origin"/>
+                        <!-- El mapa de Google pone cookies: se carga solo si quien visita ya aceptó las cookies opcionales del
+                             aviso del sitio, o cuando toca «Ver el mapa» (static/src/js/mapa.js). La página es la misma para
+                             todos (la guarda el borde): la decisión se toma en el navegador. -->
+                        <!-- t-ignore: el constructor no toca ni guarda el recuadro (si lo guardara con el mapa ya
+                             cargado, el <iframe> de Google quedaría fijo en la vista y cargaría sin permiso). -->
+                        <div class="o_dcasa_mapa o_dcasa_mapa_grande" t-ignore="true"
+                             data-dcasa-mapa="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3942.0322672536827!2d-79.7867962!3d8.876588100000001!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8fac99005edffcdf%3A0x6c9c01465bb08b38!2sD'CASA!5e0!3m2!1ses-419!2spa!4v1790675155871!5m2!1ses-419!2spa"
+                             data-dcasa-mapa-titulo="Mapa: D'CASA en La Chorrera">
+                            <div class="o_dcasa_mapa_permiso">
+                                <i class="fa fa-map-marker" aria-hidden="true"/>
+                                <p>El mapa es de Google y puede guardar cookies en tu navegador.</p>
+                                <button type="button" class="btn btn-lg btn-primary o_dcasa_mapa_ver">Ver el mapa</button>
+                            </div>
                         </div>
                     </div>
                 </section>

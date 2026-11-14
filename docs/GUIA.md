@@ -42,6 +42,10 @@ factura en borrador, corregir o anular una factura publicada (solo Gerencia desd
 cerrado. Las de cobrar (registrar un cobro, un abono, cobrar con Tafi o Crediviva) salen solo a quien cobra (Caja,
 Gerencia, contabilidad); las de notas de crédito y anular, solo a Gerencia: llevan `grupos`.
 
+Lote 2 de la web (2026-11-13), en «Tienda en línea»: **Publicar las opiniones que dejaron los clientes** (Ventas › Hoy ›
+Opiniones por aprobar; la ven quienes pueden abrir ese menú: Gerencia y administradores) y **Cambiar el horario de la
+tienda que sale en la página** (los Ajustes de Juan: el mismo horario sale en Visítanos, en el pie y en Juan).
+
 ### La cinta «Estás haciendo»
 
 Al llegar con **Llévame ahí**, abajo de la pantalla queda una cinta pequeña y discreta:

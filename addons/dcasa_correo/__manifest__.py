@@ -24,7 +24,7 @@ Correo a clientes por Resend
 
 Paso a paso para la dueña: ``docs/CORREO.md``.
 """,
-    'version': '19.0.1.1.0',
+    'version': '19.0.1.2.0',
     'category': 'Sales/Sales',
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',

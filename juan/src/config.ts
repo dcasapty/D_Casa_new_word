@@ -83,7 +83,60 @@ export interface Config {
   telegram_abierto: boolean;
   /** Los comentarios de Instagram y Facebook (2026-11-12): apagados de fábrica («Apagado hasta que lo pruebes»). */
   comentarios: ConfigComentarios;
+  /** Brian de la tienda, el chat de ventas de dcasapty.com (2026-11-13, «sí» de la dueña): su interruptor, sus topes y su presupuesto. */
+  tienda: ConfigTienda;
 }
+
+/**
+ * «Sitio web › Brian de la tienda» en Odoo (Gerencia y administradores), en `GET /config` → `brian_tienda` (los nombres los fija el
+ * módulo `dcasa_brian_tienda`; docs/JUAN.md › «Brian de la tienda»). Sin la clave (un Odoo sin el módulo, o Odoo dormido sin copia
+ * reciente): APAGADO, porque nadie puede dar pases.
+ */
+export interface ConfigTienda {
+  /** El interruptor (con la clave presente, encendido salvo un `false` de verdad). */
+  activo: boolean;
+  /** El presupuesto propio del mes, aparte del de Juan y del de la foto. 0 = no se gasta nada. */
+  presupuesto_mes_usd: number;
+  /** Mensajes por hora por sesión (`sid` del pase). */
+  tope_sesion_hora: number;
+  /** Mensajes por hora por red de la conexión (la IPv4 entera o la /64 de una IPv6, como el borde). */
+  tope_red_hora: number;
+  /** Mensajes por día (de Panamá) entre todos. */
+  tope_dia: number;
+  /**
+   * Mensajes por día por red de la conexión (revisión adversarial, 2026-11-14): con solo el tope por hora, una sola IP llegaba a 1440
+   * al día y se llevaba el tope del día de todos. De fábrica, el 5 % del tope del día. Odoo todavía no lo manda: opcional.
+   */
+  tope_red_dia: number;
+  /** Mensajes por hora por /48 de IPv6 (muchas /64 de una misma /48 no saltan el tope por red). De fábrica, 3 × el tope por red. Opcional. */
+  tope_red48_hora: number;
+  /** Mensajes por día por /48 de IPv6. De fábrica, 3 × el tope por red y por día. Opcional. */
+  tope_red48_dia: number;
+  /** Turnos con IA a la vez, entre todos: el resto recibe un «hay mucha gente, inténtalo en un momento» amable. Opcional. */
+  tope_en_vuelo: number;
+  /** La parte justa de cada red en esos turnos a la vez: lo que pase de ahí nunca deja fuera a otra red. De fábrica, 2. Opcional. */
+  tope_en_vuelo_red: number;
+  /** Los orígenes que pueden llamar al Worker desde el navegador (CORS). Opcional en Odoo. */
+  origenes: string[];
+  /** La clave `brian_tienda` llegó de Odoo (y no son los valores de fábrica): lo dice `/salud`. */
+  desde_odoo: boolean;
+}
+
+export const ORIGENES_DE_LA_TIENDA_POR_DEFECTO: readonly string[] = ["https://dcasapty.com", "https://www.dcasapty.com", "https://dcasa-staging.dcasapty.workers.dev"];
+export const TIENDA_POR_DEFECTO: ConfigTienda = {
+  activo: false,
+  presupuesto_mes_usd: 30,
+  tope_sesion_hora: 20,
+  tope_red_hora: 60,
+  tope_dia: 1000,
+  tope_red_dia: 50,
+  tope_red48_hora: 180,
+  tope_red48_dia: 150,
+  tope_en_vuelo: 8,
+  tope_en_vuelo_red: 2,
+  origenes: [...ORIGENES_DE_LA_TIENDA_POR_DEFECTO],
+  desde_odoo: false,
+};
 
 /** Ajustes de Juan › «Comentarios de Instagram y Facebook». Solo Gerencia y los administradores los cambian. */
 export interface ConfigComentarios {
@@ -151,6 +204,7 @@ export const CONFIG_POR_DEFECTO: Config = {
     privadas_por_persona: PRIVADAS_POR_PERSONA_POR_DEFECTO,
     privadas_por_hora: PRIVADAS_POR_HORA_POR_DEFECTO,
   },
+  tienda: TIENDA_POR_DEFECTO,
 };
 
 /** Canales que arrancan encendidos si Odoo no dice nada. La Cloud API y Meta empiezan APAGADOS. */
@@ -349,6 +403,42 @@ export function normalizarConfig(crudo: unknown): Config {
     telegram_chats: normalizarChats(c.telegram_chats),
     telegram_abierto: c.telegram_abierto === true,
     comentarios: normalizarComentarios(c.comentarios),
+    tienda: normalizarTienda(c.brian_tienda),
+  };
+}
+
+const MAX_ORIGENES = 10;
+
+/** Un origen web exacto (`https://host[:puerto]`, sin ruta), en minúsculas; o null. */
+export function origenValido(v: unknown): string | null {
+  if (typeof v !== "string") return null;
+  const t = v.trim().toLowerCase().replace(/\/+$/, "");
+  return /^https:\/\/[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(:\d{1,5})?$/.test(t) ? t : null;
+}
+
+/** Los ajustes de Brian de la tienda. Sin la clave, apagado; con ella, lo que no viene o no se entiende queda como de fábrica. */
+export function normalizarTienda(v: unknown): ConfigTienda {
+  const d = TIENDA_POR_DEFECTO;
+  if (!esObjeto(v)) return { ...d, origenes: [...d.origenes] };
+  const origenes = Array.isArray(v.origenes) ? [...new Set(v.origenes.map(origenValido).filter((o): o is string => !!o))].slice(0, MAX_ORIGENES) : [];
+  const porRed = Math.round(numero(v.tope_red_hora, d.tope_red_hora, 1, 2000));
+  const delDia = Math.round(numero(v.tope_dia, d.tope_dia, 1, 100_000));
+  const porRedDia = Math.round(numero(v.tope_red_dia, Math.max(1, Math.round(delDia * 0.05)), 1, 100_000));
+  const enVuelo = Math.round(numero(v.tope_en_vuelo, d.tope_en_vuelo, 1, 100));
+  return {
+    activo: typeof v.activo === "boolean" ? v.activo : true,
+    presupuesto_mes_usd: numero(v.presupuesto_mes_usd, d.presupuesto_mes_usd, 0, 1000),
+    tope_sesion_hora: Math.round(numero(v.tope_sesion_hora, d.tope_sesion_hora, 1, 200)),
+    tope_red_hora: porRed,
+    tope_dia: delDia,
+    // Los tres de la revisión adversarial: si Odoo no los manda, de fábrica (el del día por red sigue al tope del día que mande Odoo).
+    tope_red_dia: porRedDia,
+    tope_red48_hora: Math.round(numero(v.tope_red48_hora, porRed * 3, 1, 10_000)),
+    tope_red48_dia: Math.round(numero(v.tope_red48_dia, porRedDia * 3, 1, 100_000)),
+    tope_en_vuelo: enVuelo,
+    tope_en_vuelo_red: Math.round(numero(v.tope_en_vuelo_red, Math.min(d.tope_en_vuelo_red, enVuelo), 1, enVuelo)),
+    origenes: origenes.length ? origenes : [...d.origenes],
+    desde_odoo: true,
   };
 }
 

@@ -34,6 +34,8 @@ TOLERANCIA_MINIMA = 0.05
 TOLERANCIA_RELATIVA = 0.01
 CLAVE_DEL_CERROJO = 'dcasa_conversaciones.pago_ia_cerrojo'
 CAMBIO = 'El saldo cambió: vuelve a abrir la pantalla.'
+OTROS_DE_MESES_ANTERIORES = ('No incluye lo que Brian de la tienda gastó en modelos de Meta en meses anteriores: '
+                             'el Worker solo da el mes en curso.')
 
 
 class DcasaJuanPagoIa(models.Model):
@@ -59,6 +61,11 @@ class DcasaJuanPagoIa(models.Model):
         ('inicio_de_mes', 'El inicio del mes (aproximado)'),
     ], 'De dónde salió el corte', required=True, readonly=True)
     corte_foto = fields.Date('Foto usada', readonly=True)
+    # Lo que otros asistentes (hoy, Brian de la tienda) llevaban gastado en el mes en modelos de Meta al pagar: los
+    # mismos modelos y la misma cuenta que Juan, así que Meta también lo cobra (revisión, 2026-11-14).
+    corte_otros_mes = fields.Char('Mes del corte de otros asistentes', readonly=True, help='AAAA-MM (mes del Worker).')
+    corte_otros_usd = fields.Float('Otros asistentes en modelos de Meta, en el corte (USD)', digits=(12, 6),
+                                   readonly=True)
     anulado = fields.Boolean(readonly=True, index=True)
     anulado_el = fields.Datetime('Anulado el', readonly=True)
     anulado_por = fields.Many2one('res.users', 'Lo anuló', readonly=True, ondelete='restrict')
@@ -150,7 +157,8 @@ class DcasaJuanPanelPagos(models.AbstractModel):
             raise UserError(self.env._('No pude hablar con Juan: inténtalo en un momento.'))
         ahora = self._ahora_local()
         mes = informe['mes'] if C.mes_valido(informe.get('mes')) else ahora.strftime('%Y-%m')
-        actual = self._saldo_ia((mes, float(gasto)))['saldo']
+        otros = self._otros_de_meta_ahora()
+        actual = self._saldo_ia((mes, float(gasto)), otros)['saldo']
         # Se vuelve a mirar el saldo DESPUÉS de hablar con el Worker y con el cerrojo tomado: si lo visto quedó atrás
         # (se consumió más desde que se abrió la pantalla), pagar lo visto borraría consumo sin pagar.
         if actual is None or abs(actual - saldo) > max(TOLERANCIA_MINIMA, TOLERANCIA_RELATIVA * actual):
@@ -160,6 +168,8 @@ class DcasaJuanPanelPagos(models.AbstractModel):
             'fecha': fields.Datetime.now(), 'monto_meta_usd': saldo, 'registrado_por': self.env.user.id,
             'al_momento': True, 'corte_mes': corte['mes'], 'corte_acumulado_usd': corte['acumulado'],
             'corte_origen': corte['origen'],
+            'corte_otros_mes': otros['mes'] if otros else False,
+            'corte_otros_usd': otros['usd'] if otros else 0.0,
         })
         return {'ok': True, 'id': pago.id, 'monto': saldo}
 
@@ -192,8 +202,11 @@ class DcasaJuanPanelPagos(models.AbstractModel):
         return self.env['dcasa.juan.pago.ia'].sudo().search([('anulado', '=', False)], limit=1)
 
     @api.model
-    def _saldo_ia(self, ahora=None):
+    def _saldo_ia(self, ahora=None, otros=None):
         """«Por pagar a Meta» con ``ahora`` = ``(mes, acumulado)`` que acaba de decir el Worker (sin él, ``None``).
+
+        ``otros`` = ``{mes, usd}``: lo que otros asistentes (Brian de la tienda) llevan en el mes en modelos de Meta
+        (``_otros_de_meta``); se suma aparte, sin cambiar la cuenta de Juan, y queda en ``otros_usd``.
 
         Con pagos, lo consumido desde el último (``periodos_de_pagos``); sin pagos, lo del mes, como siempre mostró la
         pantalla. ``aprox``: la cifra es un mínimo (a algún mes le faltan fotos, o el contador del Worker volvió a
@@ -218,7 +231,43 @@ class DcasaJuanPanelPagos(models.AbstractModel):
         datos.update(saldo=saldo, aprox=aprox, aprox_texto=texto)
         if vigentes:
             datos['saldo_si_se_deshace'] = self._saldo_desde(vigentes[1:], cierres, ahora)[0]
+        if otros and datos['saldo'] is not None:
+            pendiente, incompleto = self._pendiente_de_otros(vigentes[:1], otros)
+            datos['saldo'] = round(datos['saldo'] + pendiente, 2)
+            datos['otros_usd'] = round(pendiente, 2)
+            if incompleto:
+                datos['aprox'] = True
+                datos['aprox_texto'] = f"{datos['aprox_texto']} {self.env._(OTROS_DE_MESES_ANTERIORES)}".strip()
+            if datos['saldo_si_se_deshace'] is not None:
+                datos['saldo_si_se_deshace'] = round(
+                    datos['saldo_si_se_deshace'] + self._pendiente_de_otros(vigentes[1:2], otros)[0], 2)
         return datos
+
+    # ------------------------------------------------------------------
+    # Otros asistentes en modelos de Meta (Brian de la tienda)
+    # ------------------------------------------------------------------
+
+    @api.model
+    def _otros_de_meta(self, extra):
+        """``{mes, usd}`` de lo que otros asistentes gastaron este mes en modelos de Meta, con los renglones aparte de
+        «Costos de IA» (``extra``, de ``_costos_extra``); ``None`` si no hay. Lo pone ``dcasa_brian_tienda``."""
+        return None
+
+    @api.model
+    def _otros_de_meta_ahora(self):
+        """Lo mismo, preguntándole al Worker ahora (al pagar)."""
+        return None
+
+    @api.model
+    def _pendiente_de_otros(self, pago, otros):
+        """``(usd, incompleto)``: lo de ``otros`` sin pagar desde ``pago`` (el último que cuenta, o vacío). Sin pago, lo
+        del mes (como Juan); con el corte en este mes, lo de después del corte; con el corte en un mes anterior, lo del
+        mes en curso, que es un mínimo (``incompleto``): el Worker no da los meses pasados."""
+        if not pago:
+            return otros['usd'], False
+        if pago.corte_otros_mes == otros['mes']:
+            return max(otros['usd'] - (pago.corte_otros_usd or 0.0), 0.0), False
+        return otros['usd'], (pago.corte_otros_mes or pago.corte_mes) < otros['mes']
 
     @api.model
     def _saldo_desde(self, vigentes, cierres, ahora):

@@ -39,6 +39,8 @@ class ApiCase(HttpCase):
         self.addCleanup(entorno.stop)
         controlador._fallos.clear()
         self.addCleanup(controlador._fallos.clear)
+        # Ver ``JuanCase``: las pruebas corren a cualquier hora (la regla de la noche tiene las suyas, reloj quieto).
+        self.env['dcasa.juan.ajustes'].obtener().reparto_nadie_de_noche = False
         self._n = 0
         # El reloj del servidor manda: una fecha del futuro se recorta, así que los tests usan horas ya pasadas.
         self.hace_una_hora = fields.Datetime.now() - timedelta(hours=1)
@@ -370,6 +372,7 @@ class TestEstadoYConfig(ApiCase):
     def test_config_trae_todo_lo_del_contrato(self):
         cuerpo = self.get('config').json()
         self.assertTrue(cuerpo.pop('ok'))
+        cuerpo.pop('brian_tienda', None)   # la agrega dcasa_brian_tienda (el chat de la web) si está instalado
         self.assertEqual(set(cuerpo), {
             'nombre_publico', 'bot_activo_global', 'canales_activos', 'horario', 'seguimiento',
             'presupuesto_ia_mensual_usd', 'proveedor_ia', 'proveedor_respaldo_ia', 'modelo_rapido',

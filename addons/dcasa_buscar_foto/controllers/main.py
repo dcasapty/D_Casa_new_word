@@ -16,6 +16,17 @@ from ..models.buscar_foto import MAX_PETICION
 
 # La política de privacidad cambia con este módulo (views/templates.xml, «Busca con una foto»): su fecha también.
 FECHA_PRIVACIDAD = '13 de noviembre de 2026'
+MESES = ('enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre',
+         'noviembre', 'diciembre')
+
+
+def fecha_ordenable(texto):
+    """«13 de noviembre de 2026» → ``(2026, 11, 13)``; lo que no se entiende, ``(0, 0, 0)``."""
+    partes = str(texto or '').lower().split(' de ')
+    try:
+        return int(partes[2]), MESES.index(partes[1].strip()) + 1, int(partes[0])
+    except (IndexError, ValueError):
+        return 0, 0, 0
 
 TITULO_RESULTADOS = 'Esto se parece a tu foto'
 MENSAJES = {
@@ -79,11 +90,14 @@ class DcasaBuscarFotoTienda(http.Controller):
 
 
 class DcasaPrivacidadConFoto(DcasaTienda):
-    """La política de privacidad dice cuándo cambió: con el párrafo de «Busca con una foto», esta fecha."""
+    """La política de privacidad dice cuándo cambió: con el párrafo de «Busca con una foto», esta fecha, salvo que otro
+    módulo que también la cambia (Brian de la tienda) ya haya puesto una más nueva: gana siempre la más reciente, sin
+    importar en qué orden carga Odoo los módulos."""
 
     @http.route()
     def privacidad(self, **kwargs):
         respuesta = super().privacidad(**kwargs)
-        if getattr(respuesta, 'qcontext', None) is not None:
-            respuesta.qcontext['actualizado'] = FECHA_PRIVACIDAD
+        qcontext = getattr(respuesta, 'qcontext', None)
+        if qcontext is not None and fecha_ordenable(qcontext.get('actualizado')) < fecha_ordenable(FECHA_PRIVACIDAD):
+            qcontext['actualizado'] = FECHA_PRIVACIDAD
         return respuesta

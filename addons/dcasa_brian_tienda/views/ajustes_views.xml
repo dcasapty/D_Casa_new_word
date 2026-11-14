@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Sitio web › Brian de la tienda (Gerencia y administradores). «Guardar» llama a execute (exige el grupo en el
+         servidor y avisa al borde) y «Descartar» a cancel. El gasto y las calificaciones son de solo lectura. -->
+    <record id="view_dcasa_brian_tienda_ajustes_form" model="ir.ui.view">
+        <field name="name">dcasa.brian.tienda.ajustes.form</field>
+        <field name="model">dcasa.brian.tienda.ajustes</field>
+        <field name="arch" type="xml">
+            <form string="Brian de la tienda" class="oe_form_configuration o_dcasa_brian_tienda_ajustes" js_class="base_settings">
+                <app string="Brian de la tienda" name="website">
+                    <block title="Brian, el chat de la tienda" name="dcasa_brian_tienda_bloque">
+                        <setting id="dcasa_brian_tienda_activo"
+                                 help="En el sitio sale la burbuja de Brian (en lugar de la de WhatsApp): busca muebles, calcula el envío con la tarifa aprobada y deja el carrito listo; para atención personal ofrece WhatsApp. No guarda la conversación ni crea contactos.">
+                            <field name="activo"/>
+                        </setting>
+                    </block>
+                    <block title="Presupuesto y topes (cuidan el costo de la IA y frenan abusos)" name="dcasa_brian_tienda_topes">
+                        <setting id="dcasa_brian_tienda_presupuesto" string="Presupuesto del mes (USD)"
+                                 help="Lo más que puede gastar el chat de la tienda en el mes, aparte del gasto de Juan. Al llegar, Brian deja de contestar y ofrece WhatsApp. 0 = no contesta.">
+                            <field name="presupuesto_mes_usd"/>
+                        </setting>
+                        <setting id="dcasa_brian_tienda_tope_sesion" string="Mensajes por visitante, en una hora"
+                                 help="Cuántos mensajes puede mandar una misma persona en una hora.">
+                            <field name="tope_sesion_hora"/>
+                        </setting>
+                        <setting id="dcasa_brian_tienda_tope_red" string="Mensajes por conexión a internet, en una hora"
+                                 help="Varios teléfonos pueden salir por la misma conexión (la del operador o el wifi de un lugar): por eso es más alto.">
+                            <field name="tope_red_hora"/>
+                        </setting>
+                        <setting id="dcasa_brian_tienda_tope_dia" string="Mensajes en total, por día"
+                                 help="Entre todos los visitantes, en el día. Al llegar, el chat queda en pausa hasta el día siguiente y ofrece WhatsApp.">
+                            <field name="tope_dia"/>
+                        </setting>
+                        <setting id="dcasa_brian_tienda_tope_pases" string="Chats nuevos por conexión, en una hora"
+                                 help="Cuántas veces se puede abrir un chat nuevo desde una misma conexión en una hora (frena a los robots).">
+                            <field name="tope_pases_red_hora"/>
+                        </setting>
+                    </block>
+                    <block title="Cómo va este mes" name="dcasa_brian_tienda_uso">
+                        <setting id="dcasa_brian_tienda_gasto" string="Gasto del mes"
+                                 help="Lo mide el Worker de Juan. Va en su propio renglón en Costos de IA, aparte del gasto de Juan; lo de modelos de Meta también va en «Por pagar a Meta» (Meta lo cobra en la misma cuenta).">
+                            <field name="gasto_mes" readonly="1"/>
+                        </setting>
+                        <setting id="dcasa_brian_tienda_calificaciones" string="Calificaciones"
+                                 help="Las estrellas que dejaron los visitantes al terminar. Solo se guarda el número y la fecha.">
+                            <div class="d-flex flex-column">
+                                <div>Cuántas: <field name="calificaciones_mes" class="oe_inline" readonly="1"/></div>
+                                <div>Promedio: <field name="promedio_mes" class="oe_inline" readonly="1"/></div>
+                            </div>
+                        </setting>
+                    </block>
+                </app>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_dcasa_brian_tienda_ajustes" model="ir.actions.act_window">
+        <field name="name">Brian de la tienda</field>
+        <field name="res_model">dcasa.brian.tienda.ajustes</field>
+        <field name="view_mode">form</field>
+        <field name="target">current</field>
+        <field name="view_id" ref="view_dcasa_brian_tienda_ajustes_form"/>
+        <field name="context">{'module': 'website', 'bin_size': False}</field>
+    </record>
+
+    <menuitem id="menu_dcasa_brian_tienda" name="Brian de la tienda" parent="website.menu_website_configuration"
+              action="action_dcasa_brian_tienda_ajustes" sequence="46"
+              groups="dcasa_base.group_gerencia,base.group_system"/>
+</odoo>

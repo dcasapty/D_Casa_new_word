@@ -494,6 +494,7 @@ class DcasaJuanPanel(models.AbstractModel):
         proyeccion = C.proyeccion_del_mes(gasto, ahora_local)
         estado = C.estado_del_tope(gasto, proyeccion, tope)
         ia = informe.get('ia') or {}
+        extra = self._costos_extra(cuerpo)
         return {
             'configurado': True, 'ok': True,
             'mes': mes, 'mes_nombre': f'{H.MESES[ahora_local.month - 1]} de {ahora_local.year}',
@@ -512,8 +513,17 @@ class DcasaJuanPanel(models.AbstractModel):
                    'claves_faltantes': [str(c) for c in (ia.get('claves_faltantes') or [])]},
             'avisos': [str(a)[:300] for a in (informe.get('avisos') or [])][:8],
             # El mes del acumulado lo dice el Worker (el de Odoo solo si es un Worker viejo que no lo manda).
-            'pagos': self._saldo_ia((informe['mes'] if C.mes_valido(informe.get('mes')) else mes, gasto)),
+            'pagos': self._saldo_ia((informe['mes'] if C.mes_valido(informe.get('mes')) else mes, gasto),
+                                    self._otros_de_meta(extra)),
+            **extra,
         }
+
+    @api.model
+    def _costos_extra(self, cuerpo):
+        """Renglones aparte que agregan otros módulos con lo que el Worker mandó en ``/odoo/costos`` (``cuerpo``),
+        p. ej. «Brian de la tienda» (``dcasa_brian_tienda``). No cambian el gasto de Juan; a «Por pagar a Meta» solo
+        llega lo que ``_otros_de_meta`` saque de ellos (lo gastado en modelos de Meta)."""
+        return {}
 
     # ------------------------------------------------------------------
     # Conexiones

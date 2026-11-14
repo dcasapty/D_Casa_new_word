@@ -22,6 +22,7 @@ from odoo.addons.dcasa_base.nombres import nombre_para_cliente
 from odoo.addons.dcasa_invoice.models import lineas as L
 from odoo.addons.dcasa_socios.models import reglas as R
 from odoo.addons.dcasa_socios.models.dcasa_canje import ESTADOS_CANJE
+from odoo.addons.website_dcasa.models.resena import LARGO_MAXIMO as LARGO_OPINION
 
 TZ = pytz.timezone('America/Panama')
 MESES = ('ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic')
@@ -44,6 +45,9 @@ TEXTO_SIN_FACTURA = 'Tu factura y tus pagos aparecen aquí cuando se emita.'
 TEXTO_COMO = 'Retiro en la tienda o entrega a domicilio: lo coordinamos por WhatsApp.'
 # El mueble se entrega pagado completo (decisión de la dueña, 2026-10-17): con saldo, nunca «Listo».
 TEXTO_AL_TERMINAR = 'Cuando termines de pagar, te escribimos para coordinar la entrega o el retiro.'
+# Cómo ve el cliente en qué quedó su opinión (models/resena.py de website_dcasa).
+ESTADO_OPINION = {'pendiente': 'La estamos leyendo', 'aprobada': 'Publicada en la ficha',
+                  'rechazada': 'No la publicamos'}
 
 
 # ---------------------------------------------------------------------------
@@ -557,6 +561,7 @@ class DcasaMiCuenta(models.AbstractModel):
             'ultima': next((c for c in compras if c['grupo'] != 'canceladas'), None),
             'puntos': puntos,
             'hay_compras': bool(compras),
+            'por_opinar': len(self.env['dcasa.resena']._dcasa_por_resenar(ficha, website=website)),
         }
 
     def _mc_puntos(self, ficha, base_url=''):
@@ -644,6 +649,33 @@ class DcasaMiCuenta(models.AbstractModel):
             'es_socio': bool(ficha.active and ficha.dcasa_reclamada and ficha.dcasa_socio_estado == 'activo'),
             'tienda': tienda,
         }
+
+    # ------------------------------------------------------------------------
+    # Opiniones (lote 2 de la web): de lo que compró y pagó; Gerencia decide si se publican
+    # ------------------------------------------------------------------------
+
+    def _mc_por_opinar(self, ficha, website):
+        """Lo que puede opinar: comprado, pagado por completo, a la vista en la tienda y sin opinión todavía."""
+        por_opinar = []
+        for plantilla in self.env['dcasa.resena']._dcasa_por_resenar(ficha, website=website):
+            variante = plantilla.product_variant_id
+            por_opinar.append({
+                'id': plantilla.id,
+                'nombre': self._mc_nombre(variante),
+                'foto': self._mc_foto(website, variante),
+            })
+        return por_opinar
+
+    def _mc_opiniones(self, ficha, website):
+        enviadas = [{
+            'nombre': self._mc_nombre(resena.product_tmpl_id.product_variant_id),
+            'estrellas': resena.estrellas,
+            'texto': resena.texto or '',
+            'fecha': fecha_corta(resena.create_date),
+            'estado': resena.estado,
+            'estado_texto': ESTADO_OPINION[resena.estado],
+        } for resena in self.env['dcasa.resena']._dcasa_del_cliente(ficha)]
+        return {'por_opinar': self._mc_por_opinar(ficha, website), 'enviadas': enviadas, 'largo_maximo': LARGO_OPINION}
 
     @staticmethod
     def _mc_primer_nombre(persona):

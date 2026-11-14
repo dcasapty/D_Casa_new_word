@@ -35,7 +35,7 @@ import json
 
 from odoo import api, models
 from odoo.addons.dcasa_brian.models.registro import BrianError, herramienta
-from odoo.addons.dcasa_envios.motor import buscador
+from odoo.addons.dcasa_envios.motor import buscador, choferes
 from odoo.addons.dcasa_envios.motor import tarjeta as motor_tarjeta
 from odoo.addons.dcasa_envios.motor.promocion import con_el_precio_normal, recordar, respaldo, tiene_beneficio
 from odoo.addons.dcasa_envios.motor.tarifa import Tarifa
@@ -342,7 +342,23 @@ class BrianHerramientasJuanEnvios(models.AbstractModel):
                   'eligió «el de San Miguelito» de la lista → cotizar_envio(lugar_id=…)'],
     )
     def _juan_cotizar_envio(self, lugar=None, lugar_id=None):
-        conv = self._j_conversacion()
+        datos = self._j_cotizar_envio(lugar, lugar_id)
+        if self.env.context.get('juan_envio_por_ubicacion'):
+            # El lugar salió de la ubicación del cliente (la API la cambió por el lugar más cercano): lo dice, sin
+            # coordenadas (contrato de «Brian de la tienda» §4).
+            datos['por_ubicacion'] = True
+        return datos
+
+    @api.model
+    def _j_conversacion_opcional(self):
+        """La conversación si la API la puso; si no (``cotizar_envio`` desde el chat de la tienda), vacía."""
+        conversacion_id = self.env.context.get('juan_conversacion_id')
+        return self.env['dcasa.conversacion'].sudo().browse(conversacion_id).exists() if conversacion_id \
+            else self.env['dcasa.conversacion']
+
+    @api.model
+    def _j_cotizar_envio(self, lugar=None, lugar_id=None):
+        conv = self._j_conversacion_opcional()
         apagado = self._j_envios_encendidos()
         if apagado:
             return apagado
@@ -355,12 +371,13 @@ class BrianHerramientasJuanEnvios(models.AbstractModel):
         sin_precio = self._j_envio_sin_precio_para_el_cliente(tarjeta)
         if sin_precio:
             return sin_precio
-        abiertas = self._j_cotizaciones_de_la_conversacion(conv, limite=MAX_COTIZACIONES + 1)
+        abiertas = self._j_cotizaciones_de_la_conversacion(conv, limite=MAX_COTIZACIONES + 1) if conv \
+            else self.env['sale.order']
         # Con más de una cotización abierta no se sabe de cuál habla el cliente: la promoción se dice con sus
         # condiciones (sin «tu compra pasa de…») y, para sumar el envío, se le pregunta a cuál (I6).
         datos, orden, resultado = self._j_envio_con_promocion(
             conv, tarjeta, orden=abiertas if len(abiertas) == 1 else abiertas.browse())
-        datos.update(self._j_envio_que_sigue(tarjeta, abiertas, orden))
+        datos.update(self._j_envio_que_sigue(tarjeta, abiertas, orden) if conv else self._j_envio_que_sigue_tienda())
         if resultado['condicional'] or resultado['aplica']:
             datos['instruccion'] += ' No calcules nada: las cifras de la promoción son las de la frase.'
         return datos
@@ -415,6 +432,41 @@ class BrianHerramientasJuanEnvios(models.AbstractModel):
         if not tarjeta['con_precio']:
             return self._j_envio_aparte(tarjeta)
         return None
+
+    @staticmethod
+    def _j_envio_que_sigue_tienda():
+        """Sin conversación (el chat de la tienda, «Brian de la tienda»): no hay cotización ni ``agregar_envio``."""
+        return {
+            'cotizacion': None,
+            'instruccion': 'Dile al cliente la frase tal cual (puedes acortarla, sin cambiar ninguna cifra ni la '
+                           'condición). La promoción solo se confirma con la compra. ' + FECHA_DE_ENTREGA,
+        }
+
+    @api.model
+    def _j_envio_lugar_cercano(self, lat, lon):
+        """El lugar de la tabla más cercano a ``lat``, ``lon`` (a no más de 3 km, como «Usar mi ubicación» de la
+        calculadora de choferes), o ``None`` si las coordenadas no son de Panamá o no hay ninguno cerca. Las
+        coordenadas no se guardan ni se escriben en el registro: solo se usan aquí."""
+        punto = choferes.ubicacion_valida(lat, lon)
+        if not punto:
+            return None
+        Lugar = self.env['dcasa.envio.lugar'].sudo()
+        indice, ids = Lugar._indice()
+        cercanos = choferes.cercanos(indice.lugares, punto[0], punto[1], maximo=1)
+        if not cercanos:
+            return None
+        return Lugar.browse(ids[cercanos[0][0]]).exists() or None
+
+    @staticmethod
+    def _j_envio_sin_lugar_cerca():
+        """La ubicación del cliente no cae cerca de ningún lugar de la tabla (o no es de Panamá)."""
+        return {
+            'estado': 'no_encontrado', 'motivo': 'lejos', 'por_ubicacion': True, 'parecidos': [],
+            'frase_para_el_cliente': 'No encontré un lugar de nuestra tabla de envíos cerca de tu ubicación. ¿Me '
+                                     'dices el barrio, el PH o un punto de referencia?',
+            'instruccion': 'No des ningún precio. Pídele el barrio, el PH o un punto de referencia (nunca la dirección '
+                           'exacta) y vuelve a llamar con «lugar». Si no lo sabe, ofrece WhatsApp.',
+        }
 
     @api.model
     def _j_envio_que_sigue(self, tarjeta, abiertas, orden):

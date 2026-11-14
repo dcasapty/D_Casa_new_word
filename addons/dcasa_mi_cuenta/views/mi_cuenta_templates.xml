@@ -193,6 +193,13 @@
                 <a t-else="" href="/shop" class="btn btn-outline-primary w-100 o_dcasa_mc_btn mt-3">Ver el catálogo</a>
             </section>
 
+            <!-- 2b. Opinar de lo que compró y pagó (lote 2 de la web) -->
+            <section t-if="por_opinar" class="o_dcasa_mc_bloque" aria-labelledby="mc_opinar">
+                <h2 id="mc_opinar" class="o_dcasa_mc_h2">¿Qué tal tu compra?</h2>
+                <p class="o_dcasa_mc_nota mb-0">Cuéntanos qué tal te fue: tu opinión ayuda a otros clientes a escoger.</p>
+                <a href="/mi-cuenta/opiniones" class="btn btn-outline-primary w-100 o_dcasa_mc_btn mt-3">Dejar mi opinión</a>
+            </section>
+
             <!-- 3. Los puntos (placa azul: el amarillo solo sobre azul) -->
             <section class="o_dcasa_mc_puntos" aria-labelledby="mc_puntos">
                 <h2 id="mc_puntos" class="o_dcasa_mc_kicker">Socios D'CASA · tus puntos</h2>
@@ -254,6 +261,8 @@
                 <p t-if="grupo['ocultas']" class="o_dcasa_mc_nota">Y <t t-out="grupo['ocultas']"/> más. Si necesitas una,
                     escríbenos por WhatsApp.</p>
             </section>
+            <p t-if="grupos" class="o_dcasa_mc_nota"><a href="/mi-cuenta/opiniones">Tus opiniones</a>: cuéntanos qué
+                tal te fue con lo que ya pagaste.</p>
             <section class="o_dcasa_mc_bloque o_dcasa_mc_ayuda">
                 <a t-att-href="whatsapp" target="_blank" rel="noopener" class="btn btn-primary w-100 o_dcasa_mc_btn">
                     <i class="fa fa-whatsapp me-2" aria-hidden="true"/>¿Dudas? Escríbenos por WhatsApp</a>
@@ -532,6 +541,68 @@
                     <li><a href="/socios/terminos">Reglas del programa de socios</a></li>
                     <li><a href="/privacidad">Política de privacidad</a></li>
                     <li><a href="/terminos">Términos y condiciones</a></li>
+                </ul>
+            </section>
+        </t>
+    </template>
+
+    <!-- ===================================================================== opiniones
+         Solo de lo que compró y pagó por completo, una vez por producto; Gerencia la lee antes de publicarla
+         (website_dcasa/models/resena.py). En la ficha sale su primer nombre y la inicial del apellido. -->
+    <template id="opiniones" name="Mi cuenta: opiniones">
+        <t t-call="dcasa_mi_cuenta.marco">
+            <t t-set="titulo">Tus opiniones</t>
+            <t t-set="pestana">Tus opiniones · Mi cuenta</t>
+            <a href="/mi-cuenta/compras" class="o_dcasa_mc_volver"><i class="fa fa-arrow-left me-2" aria-hidden="true"/>Mis compras</a>
+            <section class="o_dcasa_mc_bloque" aria-labelledby="mc_opinar">
+                <h2 id="mc_opinar" class="o_dcasa_mc_h2">¿Qué tal te fue?</h2>
+                <p class="o_dcasa_mc_nota">Cuéntanos qué tal lo que compraste. La leemos antes de publicarla y en la
+                    ficha del producto sale tu primer nombre y la inicial de tu apellido.</p>
+                <p t-if="not por_opinar" class="o_dcasa_mc_vacio">Cuando una compra tuya quede pagada por completo,
+                    aquí puedes contarnos qué tal te fue con cada mueble.</p>
+                <form t-foreach="por_opinar" t-as="item" method="post" action="/mi-cuenta/opiniones"
+                      class="o_dcasa_mc_opinar" t-attf-aria-labelledby="mc_opinar_#{item['id']}">
+                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                    <input type="hidden" name="producto_id" t-att-value="item['id']"/>
+                    <div class="o_dcasa_mc_opinar_producto">
+                        <span class="o_dcasa_mc_foto">
+                            <img t-if="item['foto']" t-att-src="item['foto']" alt="" width="256" height="256" loading="lazy"/>
+                            <i t-else="" class="fa fa-cube" aria-hidden="true"/>
+                        </span>
+                        <h3 t-attf-id="mc_opinar_#{item['id']}" class="o_dcasa_mc_opinar_nombre" t-out="item['nombre']"/>
+                    </div>
+                    <fieldset class="o_dcasa_mc_elegir">
+                        <legend class="o_dcasa_mc_elegir_titulo">¿Cuántas estrellas le das?</legend>
+                        <div class="o_dcasa_mc_elegir_fila">
+                            <t t-foreach="[5, 4, 3, 2, 1]" t-as="n">
+                                <input type="radio" name="estrellas" t-att-value="n" required="required"
+                                       t-attf-id="mc_estrella_#{item['id']}_#{n}" class="o_dcasa_mc_elegir_radio"/>
+                                <label t-attf-for="mc_estrella_#{item['id']}_#{n}" class="o_dcasa_mc_elegir_estrella">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.3l-5.8 3.1 1.1-6.5L2.6 9.3l6.5-.9L12 2.5Z"/></svg>
+                                    <span class="visually-hidden"><t t-out="n"/> <t t-out="'estrella' if n == 1 else 'estrellas'"/></span>
+                                </label>
+                            </t>
+                        </div>
+                    </fieldset>
+                    <label t-attf-for="mc_texto_#{item['id']}" class="o_dcasa_mc_elegir_titulo">Tu opinión <span class="o_dcasa_mc_nota">(si quieres)</span></label>
+                    <textarea t-attf-id="mc_texto_#{item['id']}" name="texto" rows="3" t-att-maxlength="largo_maximo"
+                              class="form-control o_dcasa_mc_opinar_texto"
+                              placeholder="¿Cómo te quedó? ¿Qué tal la calidad y la entrega?"/>
+                    <button type="submit" class="btn btn-primary w-100 o_dcasa_mc_btn mt-3">Enviar mi opinión</button>
+                </form>
+            </section>
+            <section t-if="enviadas" class="o_dcasa_mc_bloque" aria-labelledby="mc_enviadas">
+                <h2 id="mc_enviadas" class="o_dcasa_mc_h2">Ya nos contaste</h2>
+                <ul class="o_dcasa_mc_lista o_dcasa_mc_enviadas" role="list">
+                    <li t-foreach="enviadas" t-as="opinion" class="o_dcasa_mc_enviada">
+                        <div class="o_dcasa_mc_enviada_cabeza">
+                            <strong t-out="opinion['nombre']"/>
+                            <span t-attf-class="o_dcasa_mc_etiqueta o_dcasa_mc_opinion_#{opinion['estado']}" t-out="opinion['estado_texto']"/>
+                        </div>
+                        <t t-call="website_dcasa.estrellas"><t t-set="cuantas" t-value="opinion['estrellas']"/></t>
+                        <span class="o_dcasa_mc_nota" t-out="opinion['fecha']"/>
+                        <p t-if="opinion['texto']" class="o_dcasa_mc_enviada_texto" t-out="opinion['texto']"/>
+                    </li>
                 </ul>
             </section>
         </t>

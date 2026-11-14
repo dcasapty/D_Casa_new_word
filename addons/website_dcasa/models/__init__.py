@@ -11,3 +11,5 @@ from . import sale_order
 from . import pedido_web
 from . import nombres_cliente
 from . import buscador
+from . import horario_tienda
+from . import resena

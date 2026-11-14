@@ -48,6 +48,15 @@ class TestSesionPersonal(TransactionCase):
             with self.subTest(datos=datos):
                 self.assertTrue(sesion_personal(_sesion(**datos)))
 
+    def test_el_chat_de_la_tienda_no_vuelve_personal_la_pagina(self):
+        """«Brian de la tienda» guarda en la sesión su sid, la hora del último pase, la verificación, los PDF y si ya
+        calificó: nada de eso cambia el HTML de Odoo (el chat lo pide el JS). Quien solo abrió el chat sigue recibiendo
+        las páginas del borde; si agrega al carrito, ``sale_order_id`` la vuelve personal como siempre."""
+        chat = {'dcasa_brian_sid': 'a' * 22, 'dcasa_brian_hora': '2026-11-13 18', 'dcasa_brian_verificado': 1,
+                'dcasa_brian_pdf': [1], 'dcasa_brian_calificado': 'a' * 22}
+        self.assertFalse(sesion_personal(_sesion(**chat)))
+        self.assertTrue(sesion_personal(_sesion(**chat, sale_order_id=7)))
+
     def test_neutras_no_incluyen_lo_personal(self):
         for clave in ('uid', 'login'):
             # uid y login están en la lista porque toda sesión los tiene; uid se mira aparte.

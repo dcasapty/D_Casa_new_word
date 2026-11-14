@@ -49,6 +49,7 @@ pero sin efecto hasta que alguien lo enciende.
 | `dcasa_conversaciones` | Bandeja de conversaciones con clientes, reparto, CRM automático y la API de Juan | brian, catalogo, interfaz, socios, contactos | 5 (+13 de Juan) | Sin los tokens de Juan, la API responde 503 | [JUAN_ODOO.md](JUAN_ODOO.md) · [JUAN.md](JUAN.md) · [JUAN_CANALES.md](JUAN_CANALES.md) |
 | `dcasa_sofia` | Sofía, la asistente del CRM: revisa con un botón y cada mañana y propone; una persona aprueba | conversaciones, contactos | (2 en `dcasa_brian`) | No (las propuestas siempre las aprueba una persona) | [SOFIA.md](SOFIA.md) |
 | `dcasa_camila` | Camila, la asistente del mail marketing: arma la campaña de correo cada 15 días con lo que hay en tienda y el precio de la tienda en línea; una persona la aprueba y sale por Resend Broadcasts solo a quien dijo que sí (permiso en la ficha) | correo, marketing, conversaciones, sofia, brian, contactos, website_dcasa | 1 | **Sí**: sin `RESEND_CAMPANAS_API_KEY` no sale ninguna campaña; staging nunca envía; el cron solo arma borradores | [CAMILA.md](CAMILA.md) |
+| `dcasa_brian_tienda` | Brian, el chat de ventas de la tienda web: la burbuja (en lugar de la de WhatsApp), el pase para el Worker de Juan, el carrito y la cotización en PDF del visitante, el envío por ubicación y Sitio web › Brian de la tienda | website_dcasa, conversaciones | — (lo ve `costos_de_juan`) | **No**: encendido (la dueña lo aprobó); sin `JUAN_URL`/`JUAN_WORKER_TOKEN` no da pases | [BRIAN_TIENDA.md](BRIAN_TIENDA.md) |
 | `dcasa_correo` | Correo a clientes por Resend (factura, abono, bienvenida) | base, invoice, socios, website_dcasa, conversaciones | 3 | **Sí**: sin `RESEND_API_KEY` y sin encenderlo en Ajustes no sale nada (en producción, encendido desde el 2026-10-27) | [CORREO.md](CORREO.md) |
 | `dcasa_buscar_foto` | **Busca con una foto** en la tienda web: la cámara en la búsqueda, el Worker de Juan lee la foto (solo un registro cerrado) y salen los productos publicados que se le parecen; la foto nunca se guarda | website_dcasa, conversaciones | — | No: nace **encendido** (la dueña dijo que sí); topes por visitante, por conexión y por día, y 5 USD de IA de la foto al mes | [CATALOGO.md › Busca con una foto](CATALOGO.md#busca-con-una-foto) |
 | `dcasa_meta_catalogo` | El catálogo de la tienda por URL para los anuncios de Facebook e Instagram | base, catalogo, website_dcasa | (`estado_de_meta` en `dcasa_brian`) | **Sí**: la dirección no entrega nada hasta que Gerencia lo enciende | [META_CATALOGO.md](META_CATALOGO.md) |
@@ -459,6 +460,21 @@ además como módulo de todo el servidor (`server_wide_modules = base,web,dcasa_
   ahora»; aprobar sigue siendo de la pantalla).
 - **Crons:** «Sofía: revisión del CRM de cada mañana» (mira cada 30 minutos si ya toca).
 - **Apagado de fábrica:** no; la revisión de la mañana y el resumen por Telegram se apagan en *Ajustes de Juan*.
+
+## `dcasa_brian_tienda` — Brian, el chat de ventas de la tienda web
+
+- **Para qué:** el chat «Brian de la tienda» de dcasapty.com (aprobado por la dueña el 2026-11-13): la burbuja con el
+  robot reemplaza la de WhatsApp, el chat busca muebles, deja el carrito listo, calcula el envío y abre WhatsApp para
+  atención personal ([BRIAN_TIENDA.md](BRIAN_TIENDA.md)).
+- **Depende de:** `website_dcasa`, `dcasa_conversaciones`.
+- **Modelos:** `dcasa.brian.tienda` (abstracto: pase, ajustes, topes), `dcasa.brian.tienda.cupo` (contadores del tope
+  de pases, con huella), `dcasa.brian.tienda.calificacion` (estrellas y fecha), `dcasa.brian.tienda.ajustes`
+  (pantalla). Hereda `dcasa.juan.ajustes` (`como_json` → `brian_tienda`), `dcasa.juan.panel` (`_costos_extra` →
+  `tienda`) y `website`.
+- **Rutas:** `/dcasa/brian/v1/pase`, `/carrito`, `/carrito/agregar`, `/carrito/cantidad`, `/carrito/cotizacion.pdf`,
+  `/calificar` (públicas, sesión del visitante, CSRF en cabecera).
+- **Crons:** «Brian de la tienda: borrar contadores viejos» (diario).
+- **Apagado de fábrica:** no (encendido). Sitio web › Brian de la tienda lo apaga; apagado vuelve la burbuja de WhatsApp.
 
 ## `dcasa_camila` — Camila, la asistente del mail marketing
 

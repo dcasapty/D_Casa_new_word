@@ -4,7 +4,7 @@
 //
 // Solo números y nombres de modelo: ningún secreto, ningún mensaje de cliente.
 
-import { mesDelNegocio } from "./config";
+import { diaDelNegocio, mesDelNegocio } from "./config";
 import type { Env } from "./env";
 import { fallo, respuesta } from "./odoo-panel-comun";
 import type { DepsRutas } from "./rutas";
@@ -25,9 +25,25 @@ export async function manejarCostos(req: Request, env: Env, d: Pick<DepsRutas, "
     } catch {
       /* se muestra el resto */
     }
+    // Brian de la tienda, APARTE: no suma en gasto_usd, turnos, por_modelo ni por_dia (esos son de Juan: su tope y «Por pagar a
+    // Meta»). Si no se puede leer, la clave no va y Odoo dice «sin dato» (nunca un $0 inventado).
+    let tienda: Record<string, unknown> | null = null;
+    try {
+      const t = await global.gastoTienda(mes, diaDelNegocio(cfg.horario.zona, d.ahora()));
+      tienda = {
+        mes,
+        usd: redondear(t.usd),
+        turnos: t.turnos,
+        presupuesto_usd: cfg.tienda.presupuesto_mes_usd,
+        por_modelo: t.porModelo.map((m) => ({ modelo: m.modelo, proveedor: m.proveedor, usd: redondear(m.usd), turnos: m.turnos, estimado: m.estimado })),
+      };
+    } catch {
+      /* sin dato de la tienda: el resto sigue igual */
+    }
     return respuesta({
       ok: true,
       mes,
+      ...(tienda ? { tienda } : {}),
       gasto_usd: redondear(g.usd, 2),
       turnos: g.turnos,
       tope_usd: cfg.presupuesto_ia_mensual_usd,

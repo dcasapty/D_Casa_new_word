@@ -30,6 +30,7 @@
 | «Busca con una foto» en la tienda: cómo funciona, sus topes, privacidad y dónde se apaga | [CATALOGO.md › Busca con una foto](CATALOGO.md#busca-con-una-foto) |
 | Camila, la asistente del mail marketing: el permiso del cliente, la campaña de cada 15 días (Marketing › Camila) y cómo crear la clave de campañas de Resend | [CAMILA.md](CAMILA.md) |
 | Saber cuánto cuesta un envío (la calculadora), cargar los lugares y la tarifa, aprobarla, y cómo se encendería en la página web | [ENVIOS.md](ENVIOS.md) |
+| Brian, el chat de ventas de la tienda web: qué hace, cómo se enciende, su presupuesto y qué no guarda | [BRIAN_TIENDA.md](BRIAN_TIENDA.md) |
 | Saber qué ve un cliente en «Mi cuenta» (sus compras, cuánto le falta de un abono, sus puntos) | [SOCIOS.md › Mi cuenta](SOCIOS.md#mi-cuenta) |
 | Crear o ubicar al equipo en Odoo (sin invitaciones por error) | [EQUIPO.md](EQUIPO.md) |
 | Saber qué ve y qué no ve cada rol (vendedora, Caja, Gerencia, Marketing, contador), los interruptores y dónde viven las políticas del sitio | [PERMISOS.md](PERMISOS.md) |
@@ -38,7 +39,7 @@
 
 ## Por módulo (`addons/`)
 
-`addons/` tiene **29 módulos**; el contenedor instala 28 (todos menos `dcasa_fe_pa`, a propósito). Resumen de cada uno
+`addons/` tiene **30 módulos**; el contenedor instala 29 (todos menos `dcasa_fe_pa`, a propósito). Resumen de cada uno
 (para qué, dependencias, modelos, menús, herramientas de Brian, qué viene apagado): [MODULOS.md](MODULOS.md).
 
 | Módulo | Documento |
@@ -65,6 +66,7 @@
 | `dcasa_buscar_foto` («Busca con una foto» en la tienda, encendido de fábrica) | [CATALOGO.md › Busca con una foto](CATALOGO.md#busca-con-una-foto) |
 | `dcasa_meta_eventos` (píxel y Conversions API de Meta, apagados de fábrica) | [META_EVENTOS.md](META_EVENTOS.md) |
 | `dcasa_conversaciones` y el Worker `juan/` | [JUAN.md](JUAN.md) (contrato y el Worker por dentro) · [JUAN_ODOO.md](JUAN_ODOO.md) (bandeja, reparto, CRM) · [JUAN_CANALES.md](JUAN_CANALES.md) (canales) |
+| `dcasa_brian_tienda` (el chat de la tienda, encendido) | [BRIAN_TIENDA.md](BRIAN_TIENDA.md) |
 | `dcasa_sofia` (Sofía, la asistente del CRM) | [SOFIA.md](SOFIA.md) |
 | `dcasa_envios` (calculadora de envíos; los datos los carga Gerencia, no están en el repositorio) | [ENVIOS.md](ENVIOS.md) |
 | `dcasa_camila` (Camila, la asistente del mail marketing; las campañas salen por Resend con su propia clave) | [CAMILA.md](CAMILA.md) |

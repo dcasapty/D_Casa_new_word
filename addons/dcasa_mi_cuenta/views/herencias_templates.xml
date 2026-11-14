@@ -26,9 +26,11 @@
         </xpath>
     </template>
 
-    <!-- Pie de página: «Mi cuenta». -->
+    <!-- Pie de página: «Mi cuenta». El xpath acepta también /mi-cuenta: si alguien guarda el pie con el constructor del
+         sitio, la copia guardada ya trae el enlace cambiado y un xpath solo a '/my' dejaba de encontrarlo (error de
+         validación al guardar; lo encontró la prueba del horario del pie, 2026-11-14). -->
     <template id="pie_mi_cuenta" inherit_id="website_dcasa.footer_dcasa" name="Mi cuenta: pie de página">
-        <xpath expr="//a[@href='/my']" position="attributes">
+        <xpath expr="//a[@href='/my' or @href='/mi-cuenta']" position="attributes">
             <attribute name="href">/mi-cuenta</attribute>
         </xpath>
     </template>

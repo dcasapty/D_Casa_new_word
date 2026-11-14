@@ -19,3 +19,5 @@ from . import test_pedidos_web_sin_vendedora
 from . import test_nombres_cliente
 from . import test_buscador
 from . import test_buscador_movil
+from . import test_visitanos
+from . import test_resenas

@@ -175,6 +175,16 @@ def describir_parametros(spec):
     return ', '.join(partes) or 'ninguno'
 
 
+class _SinRegistro:
+    """Hace las veces de la acción de auditoría cuando no se registra (``ejecutar(..., auditar=False)``: solo el chat de
+    la tienda, cuya privacidad promete que la conversación no se guarda). Nunca sale del contexto: el contexto lo
+    puede mandar el navegador por ``call_kw`` (revisión adversarial, tercera vuelta, 2026-11-14)."""
+    id = False
+
+    def marcar(self, *_args, **_kwargs):
+        return True
+
+
 class BrianHerramientas(models.AbstractModel):
     """Catálogo y ejecución de herramientas. AbstractModel sin ACL: NADA se llama por RPC.
 
@@ -263,13 +273,16 @@ class BrianHerramientas(models.AbstractModel):
 
     @api.private
     @api.model
-    def ejecutar(self, nombre, argumentos=None, canal='chat', conversacion=None, confirmado=False):
+    def ejecutar(self, nombre, argumentos=None, canal='chat', conversacion=None, confirmado=False, auditar=True):
         """Ejecuta una herramienta como el usuario actual, con política y registro de auditoría.
 
         Devuelve siempre un dict:
           {'ok': True, 'datos': {...}}
           {'ok': False, 'error': 'mensaje en español'}
           {'ok': False, 'requiere_confirmacion': True, 'accion_id': id, 'resumen': '…'}
+
+        ``auditar=False`` (solo lo pasa la API de Juan para el chat de la tienda, ``origen: tienda``): una herramienta
+        de LECTURA no queda en ``brian.accion``. La política se revisa igual; las que escriben se auditan siempre.
         """
         argumentos = dict(argumentos or {})
         spec = self._todas().get(nombre)
@@ -288,7 +301,10 @@ class BrianHerramientas(models.AbstractModel):
             return {'ok': False, 'error': f'Parámetros que no existen: {", ".join(sorted(desconocidos))}. '
                                           f'Los de «{nombre}» son: {describir_parametros(spec)}.'}
 
-        accion = Accion.registrar(spec, argumentos, canal=canal, conversacion=conversacion)
+        if not auditar and spec['nivel'] == 'lectura':
+            accion = _SinRegistro()
+        else:
+            accion = Accion.registrar(spec, argumentos, canal=canal, conversacion=conversacion)
         politica = self.env['brian.politica']
         try:
             politica.verificar(spec, argumentos)

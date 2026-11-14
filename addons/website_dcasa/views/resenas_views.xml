@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Opiniones de productos por aprobar (lote 2 de la web). Las deja el cliente desde Mi cuenta, solo de lo que
+         compró y pagó; aquí Gerencia o un administrador decide si se publica en la ficha. Nadie las crea ni las
+         cambia a mano (models/resena.py). -->
+    <record id="view_dcasa_resena_list" model="ir.ui.view">
+        <field name="name">dcasa.resena.list</field>
+        <field name="model">dcasa.resena</field>
+        <field name="arch" type="xml">
+            <list string="Opiniones de productos" create="0" delete="0" edit="0"
+                  decoration-muted="estado == 'rechazada'" decoration-info="estado == 'pendiente'">
+                <field name="create_date" string="Fecha" widget="date"/>
+                <field name="product_tmpl_id"/>
+                <field name="estrellas"/>
+                <field name="texto"/>
+                <field name="partner_id"/>
+                <field name="estado" widget="badge"
+                       decoration-info="estado == 'pendiente'" decoration-success="estado == 'aprobada'"/>
+                <button name="action_aprobar" type="object" string="Publicar" icon="fa-check"
+                        class="btn-link text-success" invisible="estado == 'aprobada'"/>
+                <button name="action_rechazar" type="object" string="No publicar" icon="fa-times"
+                        class="btn-link text-danger" invisible="estado == 'rechazada'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_dcasa_resena_form" model="ir.ui.view">
+        <field name="name">dcasa.resena.form</field>
+        <field name="model">dcasa.resena</field>
+        <field name="arch" type="xml">
+            <form string="Opinión" create="0" delete="0" edit="0">
+                <header>
+                    <button name="action_aprobar" type="object" string="Publicar" class="btn-primary"
+                            invisible="estado == 'aprobada'"/>
+                    <button name="action_rechazar" type="object" string="No publicar"
+                            invisible="estado == 'rechazada'"/>
+                    <field name="estado" widget="statusbar" statusbar_visible="pendiente,aprobada,rechazada"/>
+                </header>
+                <sheet>
+                    <div class="alert alert-info" role="status" invisible="estado != 'pendiente'">
+                        La dejó el cliente desde Mi cuenta, de un producto que compró y pagó. Si la publicas, sale en
+                        la ficha con su primer nombre y la inicial del apellido.
+                    </div>
+                    <group>
+                        <group>
+                            <field name="product_tmpl_id"/>
+                            <field name="estrellas"/>
+                            <field name="nombre_publico"/>
+                        </group>
+                        <group>
+                            <field name="partner_id"/>
+                            <field name="factura_id"/>
+                            <field name="create_date" string="Fecha"/>
+                            <field name="revisado_por_id" invisible="not revisado_por_id"/>
+                            <field name="revisado_el" invisible="not revisado_el"/>
+                        </group>
+                    </group>
+                    <field name="texto" placeholder="Sin texto: solo dejó las estrellas."/>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_dcasa_resena_search" model="ir.ui.view">
+        <field name="name">dcasa.resena.search</field>
+        <field name="model">dcasa.resena</field>
+        <field name="arch" type="xml">
+            <search string="Opiniones">
+                <field name="product_tmpl_id"/>
+                <field name="partner_id"/>
+                <filter name="por_revisar" string="Por revisar" domain="[('estado', '=', 'pendiente')]"/>
+                <filter name="publicadas" string="Publicadas" domain="[('estado', '=', 'aprobada')]"/>
+                <filter name="no_publicadas" string="No publicadas" domain="[('estado', '=', 'rechazada')]"/>
+                <group>
+                    <filter name="por_producto" string="Producto" context="{'group_by': 'product_tmpl_id'}"/>
+                    <filter name="por_estado" string="Estado" context="{'group_by': 'estado'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_dcasa_resenas" model="ir.actions.act_window">
+        <field name="name">Opiniones de productos</field>
+        <field name="res_model">dcasa.resena</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_dcasa_resena_search"/>
+        <field name="context">{'search_default_por_revisar': 1}</field>
+        <field name="path">opiniones</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No hay opiniones por revisar.</p>
+            <p>Las deja el cliente desde Mi cuenta, solo de lo que compró y ya pagó. Aquí decides cuáles se publican
+               en la ficha del producto: «Publicar» o «No publicar». Nadie las puede escribir ni cambiar a mano.</p>
+        </field>
+    </record>
+
+    <menuitem id="menu_dcasa_resenas" name="Opiniones por aprobar" parent="dcasa_base.menu_dcasa_hoy"
+              action="action_dcasa_resenas" sequence="16"
+              groups="dcasa_base.group_gerencia,base.group_system"/>
+</odoo>

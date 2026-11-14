@@ -37,6 +37,7 @@ class TestAjustesPorDefecto(JuanCase):
 
     def test_json_exacto_del_contrato(self):
         datos = self.ajustes.como_json()
+        datos.pop('brian_tienda', None)   # la agrega dcasa_brian_tienda (el chat de la web) si está instalado
         self.assertEqual(set(datos), {
             'nombre_publico', 'bot_activo_global', 'canales_activos', 'horario', 'seguimiento',
             'presupuesto_ia_mensual_usd', 'proveedor_ia', 'proveedor_respaldo_ia', 'modelo_rapido',

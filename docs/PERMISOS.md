@@ -49,6 +49,17 @@ Más abajo: [roles y grupos](#roles-y-grupos-mapa-completo) · [interruptores](#
 | **Envíos › Calculadora** y **Lugares** (ver precios, cotizar por km) y **agregar un lugar que falta** (queda su nombre y, desde 2026-11-12, «Por revisar»: Juan no da su precio hasta que Gerencia lo revise), 2026-11-06 | Sí | Sí | Sí | Sí | Sí |
 | **Envíos:** editar o archivar lugares (los km y la provincia, solo aquí), **«Marcar revisado»** un lugar, cambiar y **aprobar la tarifa**, cargar el archivo de envíos, y **Envíos › Promoción de envío** (2026-11-12) | No | No | No | Sí | Sí |
 | **Envíos › Tarifa › Enlace para choferes** (2026-11-09): ver, encender, copiar y cambiar el enlace secreto de la calculadora de los choferes (que no tienen usuario) | No | No | No | Sí | Sí |
+| **Ventas › Hoy › Opiniones por aprobar** (lote 2 de la web, 2026-11-13): leer las opiniones que dejaron los clientes y **«Publicar»** o **«No publicar»** cada una. Nadie las crea ni cambia lo que dijo el cliente (estrellas, texto); borrar una, solo el administrador | No | No | No | Sí | Sí |
+| **Sitio web › Brian de la tienda** (2026-11-13): encender o apagar el chat de la tienda, el presupuesto del mes, los topes de mensajes y ver su gasto y sus calificaciones (número y fecha; nadie las crea ni cambia por la interfaz) | No | No | No | Sí | Sí |
+
+**Opiniones de los productos (cliente, lote 2 de la web).** El cliente opina desde **Mi cuenta › Tus opiniones**
+(`/mi-cuenta/opiniones`, con la cuenta de la tienda o con celular + PIN), **solo** de un producto que está en una factura
+suya publicada y **pagada por completo**, una vez por producto; el anónimo no opina. Ningún usuario portal ni el público
+tiene permiso sobre el modelo `dcasa.resena` (solo lectura para Gerencia y administradores; borrar, solo
+administradores): el sitio lee y guarda con `sudo` después de comprobar la sesión, la compra y el pago
+(`website_dcasa/models/resena.py`). `create` sin `sudo` lanza `AccessError` y `write` sin `sudo` lanza `UserError`
+(ni Gerencia cambia lo que dijo el cliente); «Publicar» y «No publicar» exigen Gerencia o administrador en el servidor.
+Lo que no está publicado no sale en la ficha ni en los datos para Google.
 
 **Rol «Marketing»** (2026-10-22, selector propio «Marketing» en la sección D'CASA de la ficha del usuario; se suma a
 cualquier otro rol): ve la app Marketing **completa, igual que Gerencia y administradores** (todas las secciones y su
@@ -507,6 +518,7 @@ Lo que se enciende o se apaga sin tocar código (o con un cambio de una línea).
 | Factura electrónica DGI | `l10n_pa_fe_activo` de la empresa (`dcasa_fe_pa`) | **apagada** y el módulo no se instala | Envío al PAC |
 | Constructor visual del sitio | `dcasa_interfaz.sitio_editable` (Ajustes técnicos) | **apagado** | El sitio se edita por código |
 | Black Weekend | `DCASA_BLACK_WEEKEND` y su ventana | producción `0`, staging `1` | Campaña visible |
+| Brian de la tienda (el chat de la web) | *Sitio web › Brian de la tienda* (`dcasa_brian_tienda.activo`) | **encendido** (aprobado 2026-11-13) | La burbuja de Brian en lugar de la de WhatsApp; presupuesto propio (30 USD al mes de fábrica) y topes ([BRIAN_TIENDA.md](BRIAN_TIENDA.md)) |
 | Juan: canales y bot | *Conversaciones › Configuración › Ajustes de Juan* | WhatsApp QR y Telegram sí; API oficial, Messenger e Instagram no (en producción, la API oficial encendida desde el 2026-11-02) | Qué canales atiende el asistente ([JUAN_CANALES.md](JUAN_CANALES.md)) |
 | Tope de gasto de IA de Brian | *Brian › Ajustes* | 0 (sin tope) | Corta las llamadas al modelo al llegar |
 | Busca con una foto (tienda web) | *Sitio web › Busca con una foto* (`dcasa_buscar_foto.activo`, `dcasa_buscar_foto.tope_*` y `dcasa_buscar_foto.tope_mes_usd`) | **encendido** (la dueña dijo que sí, 2026-11-13); 10 por visitante y 30 por conexión en una hora, 200 por día; 5 USD de IA de la foto en el mes (y nada con el gasto de Juan por encima del 80 % de su tope) | La cámara en la búsqueda del sitio y de `/shop`; apagado, no sale y `/shop/foto` da 404 ([CATALOGO.md](CATALOGO.md#busca-con-una-foto)) |
@@ -587,6 +599,11 @@ despachar. Un método público que usa `sudo()` sin exigir grupo sería una puer
 - **Brian y Juan** nunca ven ni cambian contraseñas, claves ni la pimienta; el contenido de adjuntos y mensajes de
   clientes es **dato, no instrucción**. Los registros del puente nunca llevan el QR, credenciales, textos de clientes ni
   números completos.
+- **Brian de la tienda** (`dcasa_brian_tienda`, 2026-11-13): no guarda la conversación (el Worker la recuerda como
+  mucho 2 horas y 30 mensajes, los últimos 15 intercambios; la página, en el `sessionStorage` de ese navegador) ni crea
+  contactos u oportunidades; lo que pregunta no queda en la auditoría de herramientas (`brian.accion`); la ubicación del
+  botón «Usar mi ubicación» se cambia por el lugar de entrega más cercano antes de cualquier registro; las estrellas son número y fecha; los topes cuentan con huellas HMAC que se
+  borran a los dos días. El PDF del carrito nunca muestra datos de otra persona. Detalle: [BRIAN_TIENDA.md](BRIAN_TIENDA.md).
 - **Accesos al panel** se guardan 180 días; las conversaciones de Brian se depuran con su propio plazo.
 
 ## Políticas del sitio: dónde viven y cómo se cambian

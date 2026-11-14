@@ -2734,6 +2734,42 @@
    ]
   },
   {
+   "id": "opiniones-aprobar",
+   "categoria": "tienda",
+   "grupo": "Tienda en línea",
+   "titulo": "Publicar las opiniones que dejaron los clientes",
+   "logras": "Lees lo que opinó cada cliente de un producto que compró y pagó, y decides si sale en la ficha de la tienda en línea: «Publicar» o «No publicar». Nadie puede escribirlas ni cambiarlas a mano.",
+   "destino": {
+    "menu": "website_dcasa.menu_dcasa_resenas"
+   },
+   "palabras": [
+    "reseñas",
+    "opiniones",
+    "estrellas",
+    "comentarios de clientes",
+    "aprobar opinion",
+    "calificaciones"
+   ]
+  },
+  {
+   "id": "horario-tienda",
+   "categoria": "tienda",
+   "grupo": "Tienda en línea",
+   "titulo": "Cambiar el horario de la tienda que sale en la página",
+   "logras": "El horario de Visítanos y del pie de la página sale de los ajustes de Juan («Horario laboral»): lo cambias ahí y se cambia en la página y en Juan a la vez.",
+   "destino": {
+    "menu": "dcasa_conversaciones.menu_dcasa_juan_ajustes"
+   },
+   "palabras": [
+    "horario",
+    "hora de abrir",
+    "hora de cerrar",
+    "domingo",
+    "visitanos",
+    "abierto"
+   ]
+  },
+  {
    "id": "vista-previa",
    "categoria": "tienda",
    "grupo": "Tienda en línea",
@@ -2784,6 +2820,27 @@
     "flete",
     "delivery",
     "entrega"
+   ]
+  },
+  {
+   "id": "brian-tienda",
+   "categoria": "tienda",
+   "grupo": "Tienda en línea",
+   "titulo": "Encender o apagar a Brian, el chat de la tienda",
+   "logras": "En la tienda web sale la burbuja de Brian (en lugar de la de WhatsApp): busca muebles, calcula el envío y deja el carrito listo. Aquí lo enciendes o lo apagas, cambias el presupuesto del mes y los topes de mensajes, y ves cuánto va gastando y cómo lo califican los clientes.",
+   "destino": {
+    "menu": "dcasa_brian_tienda.menu_dcasa_brian_tienda"
+   },
+   "nota": "Viene encendido. No guarda la conversación ni crea contactos; para atención personal ofrece WhatsApp. Su gasto va en su propio renglón de Costos de IA y no se suma a «Por pagar a Meta». Solo Gerencia y los administradores lo cambian.",
+   "palabras": [
+    "brian",
+    "chat",
+    "chat de la tienda",
+    "burbuja",
+    "asistente",
+    "tienda",
+    "web",
+    "carrito"
    ]
   },
   {

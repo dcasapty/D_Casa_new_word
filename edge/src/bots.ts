@@ -8,7 +8,7 @@
  *    de SEO y de compartir enlaces. Tampoco las librerías HTTP genéricas (python, curl, node):
  *    las usan Brian por MCP, Telegram y las integraciones.
  * 3. Límite de intentos por conexión (la IPv4, o la red /64 de una IPv6) en los POST sensibles (login, clave, registro, formularios,
- *    carrito, «Busca con una foto»): 429 con Retry-After (la foto: de vuelta a /shop/foto con el
+ *    carrito, «Busca con una foto») y en un solo GET, la cotización en PDF del chat de la tienda: 429 con Retry-After (la foto: de vuelta a /shop/foto con el
  *    aviso de la tienda, sin errores feos). Usa el binding de Rate Limiting de Workers si existe
  *    (wrangler.jsonc, hoy comentado) y si no, un contador en memoria del isolate (aproximado:
  *    cada ubicación de Cloudflare y cada isolate cuentan por su lado; frena ráfagas, no es exacto).
@@ -85,7 +85,7 @@ export function esEscaner(userAgent: string | null): boolean {
 
 // ------------------------------------------------------------------ límite de intentos
 
-export type Cubeta = "acceso" | "formulario" | "carrito" | "foto";
+export type Cubeta = "acceso" | "formulario" | "carrito" | "foto" | "pdf";
 
 /**
  * Intentos por minuto y por IP. Generosos: en Panamá mucha gente sale a internet por la
@@ -98,6 +98,9 @@ export const LIMITES: Record<Cubeta, number> = {
   // «Busca con una foto» (addons/dcasa_buscar_foto): cada una ocupa a Odoo y a la IA hasta 30 s. Freno de ráfagas;
   // los topes de verdad (por visitante y por hora, y por día) los pone Odoo.
   foto: 6,
+  // La cotización en PDF del chat de la tienda (addons/dcasa_brian_tienda): cada una arranca wkhtmltopdf en Odoo y ocupa
+  // una conexión de la base (workers = 0). El único GET con freno; Odoo además pone su tope por conexión y por hora.
+  pdf: 6,
 };
 
 const RUTAS_ACCESO = [
@@ -111,16 +114,20 @@ const RUTAS_ACCESO = [
   "/socios/pin",
 ];
 const RUTAS_FORMULARIO = ["/website/form/", "/website/mass_mailing/"];
-const RUTAS_CARRITO = ["/shop/cart/", "/shop/address", "/shop/checkout", "/shop/payment", "/shop/confirm_order"];
+// El chat de la tienda (addons/dcasa_brian_tienda): el pase, agregar y cambiar cantidades, calificar. Como el carrito.
+const RUTAS_CARRITO = ["/shop/cart/", "/shop/address", "/shop/checkout", "/shop/payment", "/shop/confirm_order", "/dcasa/brian/v1/"];
 /** Adonde llega la foto (POST). Al pasarse, de vuelta a la página con el aviso «Ahora no podemos buscar por foto». */
 export const RUTA_FOTO = "/shop/foto";
 const RUTAS_FOTO = [RUTA_FOTO];
 export const FOTO_ESPERA = `${RUTA_FOTO}?espera=1`;
+/** La cotización en PDF del carrito, desde el chat de la tienda: un GET caro (wkhtmltopdf en Odoo). */
+export const RUTA_PDF_TIENDA = "/dcasa/brian/v1/carrito/cotizacion.pdf";
 
-/** ¿Qué límite aplica? Solo a métodos que escriben (POST, PUT…); las lecturas nunca. */
+/** ¿Qué límite aplica? A métodos que escriben (POST, PUT…); de las lecturas, solo la cotización en PDF. */
 export function cubetaDe(method: string, pathname: string): Cubeta | null {
-  if (method === "GET" || method === "HEAD" || method === "OPTIONS") return null;
   const rutas = candidatas(pathname);
+  if (method === "GET" || method === "HEAD") return rutas.includes(RUTA_PDF_TIENDA) ? "pdf" : null;
+  if (method === "OPTIONS") return null;
   const empieza = (prefijos: string[]) =>
     rutas.some((ruta) => prefijos.some((p) => ruta === p.replace(/\/$/, "") || ruta.startsWith(p.endsWith("/") ? p : `${p}/`)));
   if (empieza(RUTAS_ACCESO)) return "acceso";
@@ -213,6 +220,7 @@ const enMemoria: Record<Cubeta, LimitadorMemoria> = {
   formulario: new LimitadorMemoria(LIMITES.formulario),
   carrito: new LimitadorMemoria(LIMITES.carrito),
   foto: new LimitadorMemoria(LIMITES.foto),
+  pdf: new LimitadorMemoria(LIMITES.pdf),
 };
 
 export const REINTENTO_429_S = 60;
