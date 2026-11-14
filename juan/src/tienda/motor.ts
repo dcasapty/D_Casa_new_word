@@ -14,10 +14,10 @@ import { dentroDeHorario, diaDelNegocio, mesDelNegocio, type Config } from "../c
 import { pideUnaPersona } from "../dcasa/intencion";
 import { HERRAMIENTAS_DEL_CONTRATO, NOMBRES_DE_HERRAMIENTAS_LOCALES } from "../dcasa/prompt";
 import { analizar, quitarGraves, type ContextoRevision, type TipoProblema } from "../dcasa/salvaguardas";
-import { enmascararSensibles, textoParaElModelo } from "../dcasa/sensibles";
+import { CORCHETES, CORCHETES_QUE_CIERRAN, enmascararSensibles, textoParaElModelo } from "../dcasa/sensibles";
 import { oraciones } from "../dcasa/texto";
 import { horaLegible } from "../dcasa/textos";
-import type { GastoTienda, ResultadoReservaTienda, ReservaTienda } from "../motor/global";
+import { MODELO_DE_LO_CORTADO, type GastoTienda, type ResultadoReservaTienda, type ReservaTienda } from "../motor/global";
 import { cifrasDeTexto, construirHerramientas, procesarResultado, RegistroDelTurno, tomarRespaldoDeEnvio, type CacheDeHerramientas } from "../motor/herramientas";
 import { consultasComoTexto, elegirNivel, type ConsultaDelTurno } from "../motor/modelo";
 import { costoDe, sumarUso, usoDelSdk, USO_VACIO, type TablaDePrecios, type Uso } from "../motor/precios";
@@ -252,7 +252,7 @@ async function correrModelo(e: EntradaModelo): Promise<SalidaModelo> {
 class PlazoVencido extends Error {}
 
 /** El renglón con que se anota lo que costó un turno que se cortó o falló sin que se pudiera medir (estimado: lo apartado). */
-export const MODELO_DE_LO_CORTADO = "turnos cortados (estimado)";
+export { MODELO_DE_LO_CORTADO };
 
 /**
  * Lo que cuesta UN turno de la tienda, PASO POR PASO (revisión adversarial, 2026-11-14, B1): cada vuelta al modelo que termina se
@@ -302,9 +302,14 @@ function rechazadaSinCobro(err: unknown): boolean {
 /**
  * Lo que escribió el visitante, para el modelo: la neutralización de Juan (etiquetas, marcas de confianza, tarjetas y cédulas) y,
  * además, sin corchetes: las notas que arma el Worker van entre «[…]» y el visitante no puede imitarlas (revisión, 2026-11-14, I1).
+ * Todos los que el modelo puede leer como corchete (los de ancho completo «［］», «【】»…: la clase de dcasa/sensibles.ts) se cambian.
  */
+export function sinCorchetes(texto: string): string {
+  return texto.replace(CORCHETES, "⟦").replace(CORCHETES_QUE_CIERRAN, "⟧");
+}
+
 export function delVisitanteParaElModelo(texto: string): string {
-  return textoParaElModelo(texto).replace(/\[/g, "⟦").replace(/\]/g, "⟧");
+  return sinCorchetes(textoParaElModelo(texto));
 }
 
 /** Lo que se guarda de lo que dijo el visitante (o una nota del Worker), con su origen explícito: nunca se adivina por la forma. */
@@ -504,7 +509,10 @@ export class MotorTienda {
         porDia: t.tope_dia,
         porRedDia: t.tope_red_dia,
         porRed48: t.tope_red48_hora,
+        porRed48Dia: t.tope_red48_dia,
         enVueloMax: t.tope_en_vuelo,
+        enVueloRed: t.tope_en_vuelo_red,
+        proveedor: planDeIntentos(cfg, "inteligente", this.deps.proveedoresDisponibles())[0]?.proveedor ?? cfg.proveedor_ia,
         presupuestoUsd: t.presupuesto_mes_usd,
         reservaUsd,
       });
@@ -550,7 +558,16 @@ export class MotorTienda {
       this.log("error", `el turno falló: ${limpiarError(err)}`);
       return terminar({ status: 502, cuerpo: { ok: false, motivo: "fallo" } });
     } finally {
-      await this.deps.global.cerrarTurnoTienda(reserva.id, cuenta.gastos()).catch((err) => this.log("warn", `no se pudo anotar el gasto: ${limpiarError(err)}`));
+      // Si cerrar falla (el Global no responde, un despliegue), se reintenta una vez; si tampoco, lo apartado vence a los 3 minutos
+      // y pasa a gasto estimado (global.ts → `liquidarVencidas`): lo cobrado no se suelta como si no hubiera costado nada.
+      const gastos = cuenta.gastos();
+      const cerrar = () => this.deps.global.cerrarTurnoTienda(reserva.id, gastos);
+      await cerrar()
+        .catch(async () => {
+          await new Promise((r) => setTimeout(r, 250));
+          await cerrar();
+        })
+        .catch((err) => this.log("warn", `no se pudo cerrar el turno (lo apartado pasará a gasto estimado): ${limpiarError(err)}`));
     }
   }
 

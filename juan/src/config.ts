@@ -110,8 +110,12 @@ export interface ConfigTienda {
   tope_red_dia: number;
   /** Mensajes por hora por /48 de IPv6 (muchas /64 de una misma /48 no saltan el tope por red). De fábrica, 3 × el tope por red. Opcional. */
   tope_red48_hora: number;
+  /** Mensajes por día por /48 de IPv6. De fábrica, 3 × el tope por red y por día. Opcional. */
+  tope_red48_dia: number;
   /** Turnos con IA a la vez, entre todos: el resto recibe un «hay mucha gente, inténtalo en un momento» amable. Opcional. */
   tope_en_vuelo: number;
+  /** La parte justa de cada red en esos turnos a la vez: lo que pase de ahí nunca deja fuera a otra red. De fábrica, 2. Opcional. */
+  tope_en_vuelo_red: number;
   /** Los orígenes que pueden llamar al Worker desde el navegador (CORS). Opcional en Odoo. */
   origenes: string[];
   /** La clave `brian_tienda` llegó de Odoo (y no son los valores de fábrica): lo dice `/salud`. */
@@ -127,7 +131,9 @@ export const TIENDA_POR_DEFECTO: ConfigTienda = {
   tope_dia: 1000,
   tope_red_dia: 50,
   tope_red48_hora: 180,
+  tope_red48_dia: 150,
   tope_en_vuelo: 8,
+  tope_en_vuelo_red: 2,
   origenes: [...ORIGENES_DE_LA_TIENDA_POR_DEFECTO],
   desde_odoo: false,
 };
@@ -417,6 +423,8 @@ export function normalizarTienda(v: unknown): ConfigTienda {
   const origenes = Array.isArray(v.origenes) ? [...new Set(v.origenes.map(origenValido).filter((o): o is string => !!o))].slice(0, MAX_ORIGENES) : [];
   const porRed = Math.round(numero(v.tope_red_hora, d.tope_red_hora, 1, 2000));
   const delDia = Math.round(numero(v.tope_dia, d.tope_dia, 1, 100_000));
+  const porRedDia = Math.round(numero(v.tope_red_dia, Math.max(1, Math.round(delDia * 0.05)), 1, 100_000));
+  const enVuelo = Math.round(numero(v.tope_en_vuelo, d.tope_en_vuelo, 1, 100));
   return {
     activo: typeof v.activo === "boolean" ? v.activo : true,
     presupuesto_mes_usd: numero(v.presupuesto_mes_usd, d.presupuesto_mes_usd, 0, 1000),
@@ -424,9 +432,11 @@ export function normalizarTienda(v: unknown): ConfigTienda {
     tope_red_hora: porRed,
     tope_dia: delDia,
     // Los tres de la revisión adversarial: si Odoo no los manda, de fábrica (el del día por red sigue al tope del día que mande Odoo).
-    tope_red_dia: Math.round(numero(v.tope_red_dia, Math.max(1, Math.round(delDia * 0.05)), 1, 100_000)),
+    tope_red_dia: porRedDia,
     tope_red48_hora: Math.round(numero(v.tope_red48_hora, porRed * 3, 1, 10_000)),
-    tope_en_vuelo: Math.round(numero(v.tope_en_vuelo, d.tope_en_vuelo, 1, 100)),
+    tope_red48_dia: Math.round(numero(v.tope_red48_dia, porRedDia * 3, 1, 100_000)),
+    tope_en_vuelo: enVuelo,
+    tope_en_vuelo_red: Math.round(numero(v.tope_en_vuelo_red, Math.min(d.tope_en_vuelo_red, enVuelo), 1, enVuelo)),
     origenes: origenes.length ? origenes : [...d.origenes],
     desde_odoo: true,
   };

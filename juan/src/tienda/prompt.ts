@@ -11,7 +11,7 @@
 // Igual que el de Juan: ningún dato del negocio vive aquí (ni un precio, ni una cifra, ni la dirección). Hay una prueba que lo vigila.
 
 import { dentroDeHorario, type Config } from "../config";
-import { neutralizarEtiquetas } from "../dcasa/sensibles";
+import { CORCHETES, CORCHETES_QUE_CIERRAN, neutralizarEtiquetas } from "../dcasa/sensibles";
 import { horaLegible } from "../dcasa/textos";
 
 /** Las únicas herramientas de Odoo que Brian de la tienda puede usar (contrato §5): todas de LECTURA. */
@@ -204,7 +204,7 @@ const PAGINA_LEGIBLE: Record<TipoDePagina, string> = {
 };
 
 /** Lo que manda la página (nombres del carrito, la categoría), como dato: sin etiquetas y sin corchetes (no imita las notas del Worker). */
-const comoDato = (t: string) => neutralizarEtiquetas(t).replace(/\[/g, "⟦").replace(/\]/g, "⟧");
+const comoDato = (t: string) => neutralizarEtiquetas(t).replace(CORCHETES, "⟦").replace(CORCHETES_QUE_CIERRAN, "⟧");
 
 /** El bloque que cambia en cada turno: la hora, el horario, dónde está el cliente y qué tiene en el carrito (todo como datos). */
 export function contextoTienda(cfg: Config, d: DatosDelTurnoTienda): string {

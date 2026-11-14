@@ -371,7 +371,7 @@ Odoo lo da en `POST /dcasa/brian/v1/pase` (con CSRF y Turnstile si el sitio lo t
 
 Los ajustes los edita Gerencia en *Sitio web › Brian de la tienda* y viajan en `GET /config` → `brian_tienda`:
 `{activo, presupuesto_mes_usd, tope_sesion_hora, tope_red_hora, tope_dia}` y, si algún día Odoo los manda (hoy no: son
-opcionales), `tope_red_dia`, `tope_red48_hora` y `tope_en_vuelo`. **Sin esa clave (un Odoo sin el módulo, o Odoo dormido
+opcionales), `tope_red_dia`, `tope_red48_hora`, `tope_red48_dia`, `tope_en_vuelo` y `tope_en_vuelo_red`. **Sin esa clave (un Odoo sin el módulo, o Odoo dormido
 sin una copia reciente) está apagado.**
 
 | Tope | De fábrica | Dónde se cuenta (sin carreras) |
@@ -380,8 +380,10 @@ sin una copia reciente) está apagado.**
 | Mensajes por hora por red | 60 | En el Durable Object `Global`. La red es la de la **conexión** (`CF-Connecting-IP`): la IPv4 entera o la /64 de una IPv6, igual que el borde y la búsqueda por foto (nunca la /24 de una IPv4: el mismo operador la comparte entre muchos clientes, y está el CGNAT). Se guarda **ofuscada** (HMAC con el token del Worker) y se borra a las 26 horas. |
 | Mensajes por día por red | 50 (el 5 % del tope del día) | En `Global`. Sin él, una sola conexión (60 por hora son 1440 al día) se llevaba el tope del día de todos y apagaba a Brian hasta el día siguiente (revisión adversarial, 2026-11-14). Pasado, `tope_red`. |
 | Mensajes por hora por /48 de IPv6 | 180 (3 × el de por red) | En `Global`, también ofuscada. Una /48 tiene 65 536 redes /64: cambiar de /64 no salta el tope por red. Pasado, `tope_red`. Con IPv4 no aplica. |
+| Mensajes por día por /48 de IPv6 | 150 (3 × el de por red y por día) | En `Global`. Sin él, cambiando de /64 cada 45 mensajes una sola /48 juntaba los 1000 del día en unas 5 horas y media. Pasado, `tope_red`. |
 | Mensajes por día, entre todos | 1000 | En `Global` (el día es el de Panamá). |
 | Turnos con IA a la vez, entre todos | 8 | En `Global`, contando lo apartado que sigue en curso. El de más recibe una respuesta amable (200: «Hay mucha gente escribiendo en este momento…», con WhatsApp), que no se guarda ni cuenta para los topes. Lo que no usa IA pasa igual. |
+| Parte justa de cada red en esos turnos | 2 | Al contar los 8, cada red suma como mucho 2: una sola conexión puede usar los lugares libres, pero lo que pase de su parte nunca deja fuera a otra red, y con el total lleno no agrega más (la misma respuesta amable). |
 | Presupuesto propio del mes | 30 USD | En `Global`, **aparte** del de Juan y del de la foto. 0 = no se gasta nada. |
 
 - **El presupuesto no tiene margen extra.** Antes de llamar a la IA, el turno **aparta** lo que puede costar (con el precio
@@ -395,6 +397,9 @@ sin una copia reciente) está apagado.**
   había apartado, en el renglón «turnos cortados (estimado)». Un rechazo del proveedor sin procesar (un 4xx, sin clave) no
   cobra y no se estima. Antes, un turno que el plazo cortaba no anotaba nada y el tope de 30 USD no frenaba a quien lo
   provocara a propósito.
+- **Lo apartado nunca se suelta sin cuenta.** Si cerrar el turno falla (el `Global` no responde, un despliegue), se reintenta una
+  vez; si tampoco, a los 3 minutos lo apartado pasa a **gasto estimado** («turnos cortados (estimado)», con el proveedor del turno).
+  Si el cierre llega después, no se cuenta dos veces.
 - **Su gasto va en su propio renglón** (tabla `tienda_gasto` de `Global`, con el proveedor de cada modelo): no suma en
   `gasto_ia_mes_usd`, ni en el tope de Juan, ni en el gasto por día, ni en «Por pagar a Meta». `GET /odoo/costos` lo manda
   aparte en `tienda: {mes, usd, turnos, presupuesto_usd, por_modelo:[{modelo, proveedor, usd, turnos, estimado}]}` (si su
@@ -439,7 +444,7 @@ sin una copia reciente) está apagado.**
   (15 turnos, lo que dice /privacidad; el modelo ve los últimos 10 turnos) y **se borra sola a las 2 horas sin actividad**
   (alarma con `deleteAll`; si un mensaje llega después de las 2 horas, primero se borra). Lo del visitante se guarda con
   tarjetas y cédulas tapadas y con su origen explícito: **siempre** vuelve al modelo neutralizado (sin etiquetas, sin marcas de
-  confianza y sin corchetes), también en los turnos siguientes; solo las notas que arma el Worker («[Se puso en el carrito: …]»)
+  confianza y sin ningún corchete, tampoco los de ancho completo como «［］» o «【】»), también en los turnos siguientes; solo las notas que arma el Worker («[Se puso en el carrito: …]»)
   van como del sistema (revisión adversarial, 2026-11-14: un texto que empezaba con «[» se colaba como nota del sistema).
 - **La ubicación** se usa solo en su turno: el Worker llama a `cotizar_envio` con `lat` y `lon` y al modelo le pasa el
   resultado **sin coordenadas**. No queda en el contexto, ni en `Global`, ni en los registros. Lo que sí queda es lo que
