@@ -67,8 +67,9 @@ navegador ──(3) /dcasa/brian/v1/carrito/* (sesión, CSRF) ──────
   `buscar_conocimiento`, `horario_y_tienda`, `reglas_socios`, `cotizar_envio`). Para las tarjetas, cada producto trae
   además `producto_id`, `plantilla_id`, `imagen`, `ruta` y `agregable`; `ver_producto` acepta `producto_id`.
   **No quedan en la auditoría de Brian** (`brian.accion`): lo que busca el visitante o su barrio no se guarda, como dice
-  la privacidad (contexto `brian_sin_auditoria`; solo para las de leer: la política se revisa igual y una herramienta
-  que escribe se audita siempre). Tampoco cuentan para el tope de acciones por minuto del usuario técnico de Juan.
+  la privacidad (`ejecutar(..., auditar=False)`, que solo pasa la API de Juan con `origen: tienda`; nunca sale del
+  contexto, que el navegador puede mandar por `call_kw`; solo para las de leer: la política se revisa igual y una
+  herramienta que escribe se audita siempre). Tampoco cuentan para el tope de acciones por minuto del usuario técnico de Juan.
 - **El envío por ubicación**: el Worker manda `lat`/`lon` a `cotizar_envio` (no están en el esquema de la herramienta:
   el modelo no las ve ni las inventa). La API de Juan las cambia por el lugar de la tabla más cercano (a 3 km como
   mucho, como la calculadora de choferes) **antes** de correr la herramienta: el registro no ve las coordenadas. Solo

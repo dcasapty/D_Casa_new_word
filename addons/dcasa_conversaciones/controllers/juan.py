@@ -34,7 +34,6 @@ from collections import defaultdict, deque
 from urllib.parse import urlsplit
 
 from odoo import SUPERUSER_ID, fields, http
-from odoo.addons.dcasa_brian.models.registro import SIN_AUDITORIA
 from odoo.exceptions import ConcurrencyError
 from odoo.http import request
 from odoo.service.model import PG_CONCURRENCY_EXCEPTIONS_TO_RETRY
@@ -550,7 +549,7 @@ class JuanAPI(http.Controller):
             # quita antes de buscar y de la auditoría (issue #25).
             argumentos = dict(argumentos, lugar=R.quitar_direccion_exacta(argumentos['lugar']))
         resultado = entorno['brian.herramientas'].with_context(**contexto).ejecutar(
-            PREFIJO_HERRAMIENTA + nombre, argumentos, canal='juan')
+            PREFIJO_HERRAMIENTA + nombre, argumentos, canal='juan', auditar=cuerpo.get('origen') != ORIGEN_TIENDA)
         if resultado.get('ok'):
             return _respuesta({'ok': True, 'resultado': resultado.get('datos') or {}})
         if resultado.get('requiere_confirmacion'):
@@ -568,8 +567,9 @@ class JuanAPI(http.Controller):
             if conversacion_id is not None:
                 raise _Error(400, 'El chat de la tienda no tiene conversación en Odoo: sin «conversacion_id».')
             # Lo que pregunta el visitante (lo que busca, su barrio) no queda en la auditoría de Brian: la privacidad
-            # promete que la conversación no se guarda. Son todas de leer (la lista blanca de arriba).
-            return {SIN_AUDITORIA: True}
+            # promete que la conversación no se guarda. Va como parámetro de ``ejecutar`` (``auditar=False``, abajo),
+            # nunca en el contexto. Son todas de leer (la lista blanca de arriba).
+            return {}
         if conversacion_id is None:
             return {}
         if not isinstance(conversacion_id, int) or isinstance(conversacion_id, bool):
