@@ -187,6 +187,49 @@ class TestBuscarProductos(HerramientasCase):
         self.assertTrue(cama['foto'].endswith(f'/web/image/product.template/{self.cama.id}/image_1024'))
 
 
+@tagged('post_install', '-at_install')
+class TestTarjetasDeLaTienda(HerramientasCase):
+    """«Brian de la tienda» (dcasa_brian_tienda) arma sus tarjetas con lo que devuelven buscar_productos y ver_producto:
+    la variante que se agrega, la foto y la ficha en rutas relativas y si se agrega directo (contrato_cambios §8). Lo
+    que Juan ya usaba no cambia."""
+
+    def test_cada_producto_trae_lo_de_la_tarjeta(self):
+        (cama,) = self.salida('buscar_productos', {'consulta': 'ZZ-CAMA'})['productos']
+        self.assertEqual(cama['producto_id'], self.cama.product_variant_id.id)
+        self.assertEqual(cama['plantilla_id'], self.cama.id)
+        self.assertEqual(cama['ruta'], self.cama.website_url)
+        self.assertTrue(cama['ruta'].startswith('/shop/'), 'relativa: sirve en producción, staging y local')
+        self.assertIsNone(cama['imagen'], 'sin foto, sin imagen (como «foto»)')
+        self.assertIs(cama['agregable'], True)
+        self.cama.image_1920 = _PNG
+        self.env.flush_all()
+        (cama,) = self.salida('buscar_productos', {'consulta': 'ZZ-CAMA'})['productos']
+        self.assertEqual(cama['imagen'], f'/web/image/product.template/{self.cama.id}/image_512')
+        # Lo de siempre sigue igual.
+        self.assertTrue(cama['foto'].endswith(f'/web/image/product.template/{self.cama.id}/image_1024'))
+        self.assertEqual(cama['precio_texto'], '$349.99 + ITBMS')
+
+    def test_con_medidas_que_elegir_no_se_agrega_directo(self):
+        ficha = self.salida('ver_producto', {'codigo': self.colchon.dcasa_codigo_publico})
+        self.assertIs(ficha['agregable'], False, 'hay que elegir la medida: la tarjeta lleva a la ficha')
+        self.assertEqual(ficha['plantilla_id'], self.colchon.id)
+        self.mesa.list_price = 0
+        self.env.flush_all()
+        self.assertIs(self.salida('ver_producto', {'codigo': self.mesa.dcasa_codigo_publico})['agregable'], False,
+                      'sin precio tampoco')
+
+    def test_ver_producto_por_producto_id(self):
+        ficha = self.salida('ver_producto', {'producto_id': self.cama.product_variant_id.id})
+        self.assertEqual((ficha['nombre'], ficha['codigo']), ('Zzcama Roble Queen', self.cama.dcasa_codigo_publico))
+        self.assertIn('descripcion', ficha)
+        for producto_id in (self.secreto.product_variant_id.id, 99999999, 0, -3):
+            with self.subTest(producto_id=producto_id):
+                error = self.error('ver_producto', {'producto_id': producto_id})
+                self.assertIn('no está publicado', error)
+                self.assertNotIn('SECRETO', error.upper().replace('ZZ', ''))
+        self.assertIn('Dime el código', self.error('ver_producto', {}))
+
+
 def _claves(valor):
     """Todas las llaves de un resultado, a cualquier profundidad."""
     if isinstance(valor, dict):
@@ -205,7 +248,8 @@ class TestLoQueSeVendeSinPublicar(HerramientasCase):
     NADA."""
 
     DATOS_DE_PRODUCTO = {'nombre', 'codigo', 'precio', 'precio_texto', 'disponibilidad', 'medidas', 'combo', 'url',
-                         'foto', 'galeria', 'variantes', 'descripcion'}
+                         'foto', 'galeria', 'variantes', 'descripcion', 'producto_id', 'plantilla_id', 'imagen', 'ruta',
+                         'agregable'}
 
     @classmethod
     def setUpClass(cls):

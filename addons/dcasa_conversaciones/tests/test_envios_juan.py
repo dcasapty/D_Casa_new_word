@@ -5,6 +5,7 @@ Los lugares y la tarifa son los del fixture sintético de dcasa_envios (precios 
 provincia de Panamá, $45; Villa Prueba, en Panamá Oeste, $15; Barrio Simulado, en Colón, $105). La promoción es la de
 noviembre que viene cargada, y las pruebas fijan la fecha de Panamá en el 12 de noviembre de 2026."""
 import json
+import logging
 from datetime import date
 from unittest.mock import patch
 
@@ -12,6 +13,7 @@ from odoo import Command
 from odoo.addons.dcasa_envios.tests.common import importar
 from odoo.tests import new_test_user, tagged
 
+from ..controllers import juan as controlador
 from ..models import crm_reglas as R
 from .test_api import ApiCase
 from .test_cotizacion_automatica import CotizarCase
@@ -464,6 +466,38 @@ class TestAgregarEnvio(EnviosJuanCase):
 
 
 @tagged('post_install', '-at_install')
+class TestEnvioSinConversacion(EnviosJuanCase):
+    """«Brian de la tienda» llama ``cotizar_envio`` sin conversación (no hay cotización ni ``agregar_envio``)."""
+
+    def tienda(self, **argumentos):
+        resultado = self.env['brian.herramientas'].with_user(self.juan).ejecutar(
+            'juan_cotizar_envio', argumentos, canal='juan')
+        self.assertTrue(resultado.get('ok'), resultado)
+        return resultado['datos']
+
+    def test_da_el_mismo_precio_y_la_promocion_con_sus_condiciones(self):
+        datos = self.tienda(lugar='Costa Inventada')
+        con_conversacion = self.envio(lugar='Costa Inventada')
+        self.assertEqual(datos['estado'], 'precio')
+        self.assertEqual(datos['frase_para_el_cliente'], con_conversacion['frase_para_el_cliente'])
+        self.assertEqual(datos['respaldo_envio'], con_conversacion['respaldo_envio'])
+        self.assertIsNone(datos['cotizacion'])
+        self.assertNotIn('cotizar', datos['instruccion'])
+        self.assertNotIn('agregar_envio', datos['instruccion'])
+        self.assertIn('vendedora', datos['instruccion'], 'la fecha de entrega la confirma una vendedora')
+        self.assertNotIn('por_ubicacion', datos)
+
+    def test_el_lugar_mas_cercano_a_unas_coordenadas(self):
+        Herramientas = self.env['brian.herramientas']
+        self.assertEqual(Herramientas._j_envio_lugar_cercano(8.9415, -79.8415), self.costa)
+        self.assertEqual(Herramientas._j_envio_lugar_cercano(8.97081, -79.87081), self.colon)
+        for lat, lon in ((9.5, -79.0), (40.4, -3.7), ('8.94', '-79.84'), (None, None), (True, -79.8),
+                         (float('nan'), 1)):
+            with self.subTest(lat=lat, lon=lon):
+                self.assertIsNone(Herramientas._j_envio_lugar_cercano(lat, lon))
+
+
+@tagged('post_install', '-at_install')
 class TestEnvioPorLaApi(ApiCase):
 
     @classmethod
@@ -489,3 +523,66 @@ class TestEnvioPorLaApi(ApiCase):
         self.assertNotIn('casa 45', accion.argumentos)
         self.assertIn('Costa Inventada', json.loads(accion.argumentos)['lugar'])
         self.assertNotIn('casa 45', json.dumps(resultado))
+
+    # ------------------------------------------------------------------ «Brian de la tienda» (contrato §4)
+
+    def tienda(self, argumentos, nombre='cotizar_envio', **extra):
+        return self.post('herramienta', {'nombre': nombre, 'argumentos': argumentos, 'origen': 'tienda', **extra})
+
+    def test_con_la_ubicacion_cotiza_el_lugar_mas_cercano_sin_guardar_las_coordenadas(self):
+        costa = self.env['dcasa.envio.lugar'].search([('name', '=', 'Costa Inventada')])
+        registros = []
+        manejador = logging.Handler()
+        manejador.emit = lambda registro: registros.append(registro.getMessage())
+        raiz = logging.getLogger()
+        raiz.addHandler(manejador)
+        try:
+            respuesta = self.tienda({'lat': 8.94153, 'lon': -79.84153})
+        finally:
+            raiz.removeHandler(manejador)
+        self.assertEqual(respuesta.status_code, 200)
+        resultado = respuesta.json()['resultado']
+        self.assertEqual(resultado['estado'], 'precio')
+        self.assertEqual(resultado['lugar']['lugar_id'], costa.id)
+        self.assertIs(resultado['por_ubicacion'], True)
+        self.assertIn('Costa Inventada', resultado['frase_para_el_cliente'])
+        texto = json.dumps(resultado)
+        accion = self.env['brian.accion'].sudo().search([('herramienta', '=', 'juan_cotizar_envio')], limit=1)
+        self.assertEqual(json.loads(accion.argumentos), {'lugar_id': costa.id}, 'la auditoría solo ve el lugar')
+        for rastro in ('8.9415', '79.8415', '8.94153'):
+            self.assertNotIn(rastro, texto)
+            self.assertNotIn(rastro, json.dumps(accion.read()[0], default=str))
+            self.assertFalse([r for r in registros if rastro in r], 'ni en el registro del servidor')
+
+    def test_lejos_de_todo_o_fuera_de_panama_pide_el_barrio(self):
+        antes = self.env['brian.accion'].sudo().search_count([('herramienta', '=', 'juan_cotizar_envio')])
+        for lat, lon in ((9.5, -79.0), (40.4, -3.7), ('x', 'y')):
+            with self.subTest(lat=lat, lon=lon):
+                resultado = self.tienda({'lat': lat, 'lon': lon}).json()['resultado']
+                self.assertEqual((resultado['estado'], resultado['motivo']), ('no_encontrado', 'lejos'))
+                self.assertIs(resultado['por_ubicacion'], True)
+                self.assertNotIn('$', json.dumps(resultado))
+        self.assertEqual(self.env['brian.accion'].sudo().search_count(
+            [('herramienta', '=', 'juan_cotizar_envio')]), antes, 'sin herramienta corrida, nada que auditar')
+
+    def test_con_los_envios_apagados_lo_dice_tambien_por_ubicacion(self):
+        self.env['dcasa.juan.ajustes'].obtener().cotizar_envios = False
+        resultado = self.tienda({'lat': 8.9415, 'lon': -79.8415}).json()['resultado']
+        self.assertEqual(resultado['estado'], 'apagado')
+        self.assertIs(resultado['por_ubicacion'], True)
+
+    def test_el_chat_de_la_tienda_solo_usa_las_de_leer_y_sin_conversacion(self):
+        de_la_tienda = controlador.HERRAMIENTAS_DE_LA_TIENDA
+        self.assertEqual(de_la_tienda, {'buscar_productos', 'ver_producto', 'listar_categorias', 'buscar_conocimiento',
+                                        'horario_y_tienda', 'reglas_socios', 'cotizar_envio'})
+        catalogo = {h['nombre'] for h in self.get('herramientas').json()['herramientas']}
+        for nombre in sorted(catalogo - de_la_tienda):
+            with self.subTest(nombre=nombre):
+                respuesta = self.tienda({}, nombre=nombre)
+                self.assertEqual(respuesta.status_code, 403, respuesta.text)
+        self.post('mensaje', self.mensaje())
+        con_conversacion = self.tienda({'lugar': 'Costa Inventada'}, conversacion_id=self.conversacion().id)
+        self.assertEqual(con_conversacion.status_code, 400)
+        self.assertEqual(self.tienda({'lugar': 'Costa Inventada'}).json()['resultado']['estado'], 'precio')
+        # Sin «origen» (un Worker viejo) sigue como siempre.
+        self.assertEqual(self.post('herramienta', {'nombre': 'horario_y_tienda', 'argumentos': {}}).status_code, 200)
