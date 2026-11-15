@@ -545,10 +545,10 @@ VIDRIO = """(async () => {
     document.querySelector('button.o_dcbt_burbuja').click();
     await hasta(() => document.querySelector('#o_dcbt_panel:not([hidden]) .o_dcbt_cab'), 'el panel abierto');
     await esperar(500);
-    // Sin foco: con el foco, el ícono va en navy a propósito (se mide el color de reposo).
-    const sinFoco = () => document.activeElement && document.activeElement.blur();
-    const medir = () => {
-        sinFoco();
+    // Sin foco: con el foco, el ícono va en navy a propósito (se mide el color de reposo, después de su transición).
+    const medir = async () => {
+        if (document.activeElement) { document.activeElement.blur(); }
+        await esperar(400);
         const panel = document.querySelector('#o_dcbt_panel');
         const cab = panel.querySelector('.o_dcbt_cab');
         const vidrio = getComputedStyle(cab, '::before');
@@ -562,10 +562,10 @@ VIDRIO = """(async () => {
             punto: { aro: getComputedStyle(punto).borderTopColor, apagado: punto.classList.contains('o_dcbt_apagado') },
         };
     };
-    const normal = medir();
+    const normal = await medir();
     document.querySelector('#o_dcbt_panel .o_dcbt_cab_boton[aria-pressed]').click();
     await esperar(500);
-    return { normal, ampliado: medir(), esAmpliado: document.querySelector('#o_dcbt_panel').classList.contains('o_dcbt_ampliado'),
+    return { normal, ampliado: await medir(), esAmpliado: document.querySelector('#o_dcbt_panel').classList.contains('o_dcbt_ampliado'),
              refraccion: document.documentElement.classList.contains('o_dcasa_refraccion') };
 })()""".replace('/*ESPERAR*/', ESPERAR)
 
