@@ -1,6 +1,6 @@
 # Prioridades vigentes
 
-Puesto al día el **2026-11-15** (portada v3 en producción, Desplegar 75). Es el orden en que se trabaja: cada sesión lo lee al empezar y lo pone al día al
+Puesto al día el **2026-11-15** (bandas en azul noche, pie claro y contacto en producción, Desplegar 76; Black Friday y Andrés en la rama). Es el orden en que se trabaja: cada sesión lo lee al empezar y lo pone al día al
 terminar (ver [LEEME_PRIMERO.md](LEEME_PRIMERO.md)). Aquí va **un solo estado**, el de hoy; lo que pasó cada día está en
 la bitácora de LEEME_PRIMERO (y lo más viejo en [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md)).
 
@@ -11,7 +11,7 @@ la producción. Apruébalo y punto.»); la revisión adversarial no se salta (re
 ## Estado al 2026-11-15
 
 - **Producción funciona desde el 2026-10-13** y **`dcasapty.com` (y `www`) apunta al sistema nuevo desde el
-  2026-10-27** (Desplegar 31). Odoo y el borde: **Desplegar 75** (15 nov, PR #121: la portada v3, con secciones compactas, el carrito como ícono, la paleta nueva y la barra del chat de vidrio; antes, Desplegar 73 (14 nov, PR #119: la burbuja de Brian cambia de robot con el scroll); antes,
+  2026-10-27** (Desplegar 31). Odoo y el borde: **Desplegar 76** (15 nov, PR #122: bandas en azul noche, pie claro, menú sin «Escríbenos», sección de contacto y el carrito en el chat de la tienda; antes, Desplegar 75 (15 nov, PR #121: la portada v3, con secciones compactas, el carrito como ícono, la paleta nueva y la barra del chat de vidrio; antes, Desplegar 73 (14 nov, PR #119: la burbuja de Brian cambia de robot con el scroll); antes,
   Desplegar 72, PR #118: Brian de la tienda, el chat de ventas en la web, y el
   lote 2 de la web: horario, mapa y opiniones; antes, Desplegar 71, PR #117: avisos de Telegram ordenados con la noche sin clientes, lote 1 de
   la web, «Busca con una foto», el robot como ícono de Brian y el horario de la tienda; antes, Desplegar 70, PR #116:
@@ -37,6 +37,13 @@ la producción. Apruébalo y punto.»); la revisión adversarial no se salta (re
   («Es esta persona»); tasa de cierre en el Resumen de Juan; Sofía. Detalle en la bitácora.
 
 ## Lo que sigue, en orden
+
+000000. **Black Friday (viernes 27 de noviembre) y «Andrés»: en la rama, sin subir** (commits `5648d0d` y `2893b8f`).
+       Campaña del sitio desde el panel (fechas, casilla, precio de campaña como regla de tarifa, /promociones y
+       «Promociones» en el menú) y el chat de la tienda renombrado a Andrés (Brian queda en el panel). Falta: la
+       respuesta de la dueña sobre «Combo con colchón» en campaña, las pruebas nuevas, la **revisión adversarial**
+       (toca precios), capturas de Andrés, CI con staging, producción y **Desplegar Juan**. Que quede en producción
+       con días de margen antes del 27 para que marquen los productos.
 
 00000. **Portada v3: en producción desde el 2026-11-15, 08:3x UTC** (Desplegar 75, PR #121; aprobada por la dueña con
        capturas: «apruebo todo, despliégalo todo cuanto antes»; comparación <https://claude.ai/artifact/XQti28eQjFLDzT1Z9CpsRH>).

@@ -470,6 +470,23 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   burbuja de Brian cambia de pose con la sección en pantalla (solo JS de `dcasa_brian_tienda`; Juan no cambió, así que
   no hubo Desplegar Juan). **Lección:** el primer intento de squash dio 409 porque escribí de memoria el SHA largo de
   `expectedHeadSha`; siempre `git rev-parse` antes, nunca completar un SHA a ojo. Bien al segundo intento, sin daño.
+- **Desplegar 76** (15 nov, 19:48–20:0x UTC; salud sana: `{"ok": true, "version": "754aceaf18e7", "base_al_dia":
+  true, "humo": "ok"}`; run 43754485392) · PR #122, squash `b012494`, `app_version`
+  `754aceaf18e7ed66ef1e69ec59a2ab5351a80574`, imagen `sha256:1cfb8e4f226604186ee8298d4c37dd5651a248f96c94119db3ee820b8b033207`,
+  CI 365 con staging (run 43732155027; las pruebas de Odoo del CI tardaron ~45 min). Paleta con bandas en azul noche
+  y pie claro, menú sin «Escríbenos», sección de contacto y el carrito en el chat de la tienda; con respaldo previo;
+  Juan no cambió. Bien al primer intento. **Lecciones:** (1) **la tarifa del visitante:** en esta base la tarifa
+  «Default» no está ofrecida al sitio (`website.pricelist_ids` vacío), así que `request.pricelist` sale vacío y la
+  página muestra el precio sin tarifa, mientras el carrito sí usa la del contacto. Cualquier regla de tarifa (la
+  campaña del sitio) necesita que el sitio la ofrezca (`dcasa.campana._dcasa_tarifa_del_sitio`). (2) Juan y el chat
+  de la tienda dicen `list_price` a secas (`_j_ficha_corta`): un precio especial tiene que pasar por ahí también.
+  (3) Una regla de tarifa de **precio fijo** deja iguales todas las variantes; para bajar lo mismo a cada medida, la
+  fórmula con `price_surcharge` negativo. (4) Las capturas que comparan «hoy» con una propuesta: cuando la propuesta
+  ya está en el código, el «hoy» se simula con un selector más específico que el del código (si no, sale igual).
+  (5) La máquina se reinició dos veces: lo que no está en la rama se pierde con ella; pasar el trabajo a la rama en
+  cuanto se pueda subir sin romper la regla de «nada entre el CI y el squash». (6) La prueba
+  `TestRevisionPdf.test_el_tope_de_cotizaciones_no_se_salta_con_otra_sesion` puede fallar si la corrida cruza el
+  cambio de hora (pasó a las 15:00): es de la hora, no del cambio; repetirla.
 - **Desplegar 75** (15 nov, 08:16–08:3x UTC; salud sana: `{"ok": true, "version": "6c7fdc425be3", "base_al_dia":
   true, "humo": "ok"}`; run 43693725820) · PR #121, squash `6221175`, `app_version`
   `6c7fdc425be329adb00180abfc5a20347bf2ff0f`, imagen `sha256:84085a134a139c75cf76db42220b342d958691334551d43fb33dea637eba0065`,

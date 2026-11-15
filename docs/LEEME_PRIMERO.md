@@ -109,6 +109,35 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 > sigue. Se guardan las diez más recientes; las viejas se resumen en una línea abajo y su texto completo pasa a
 > [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md).
 
+### 2026-11-15 (3): bandas en azul noche y pie claro, menú sin «Escríbenos», contacto y el carrito en el chat, en producción (Desplegar 76); Black Friday y «Andrés» en la rama
+
+**En producción desde el 2026-11-15, ~19:55 UTC (salud sana: `{"ok": true, "version": "754aceaf18e7", "base_al_dia": true, "humo": "ok"}`):** **Desplegar 76** (run 43754485392) con la imagen `sha256:1cfb8e4f226604186ee8298d4c37dd5651a248f96c94119db3ee820b8b033207` y `app_version` `754aceaf18e7ed66ef1e69ec59a2ab5351a80574` (PR #122, squash `b012494`; CI 365 con staging, run 43732155027), con respaldo previo. Juan no cambió. **Es lo último en producción.** Comprobado en dcasapty.com a 1440 y 390 px: sin «Escríbenos» en el menú, con la sección de contacto, pie #F6F5F2, avisos y Socios en azul noche, el número de /visitanos a WhatsApp; sin errores en la consola.
+
+- **Aprobación de la dueña (tal cual, en corto):** «apruebo todo excepto el color amarillo en el carrito de compra…
+  prefiero dejarlo como está» y «avísame cuando esté en producción». Hoja: <https://claude.ai/artifact/V2J95Wg3zJfPyrkoachd2L>.
+- **Qué lleva:** paleta «composición 3» con el pie en el blanco grisáceo de la portada (no los cremas: «esos huesos no
+  me agradan»); menú sin «Escríbenos» y sección «¿Te quedó alguna duda?» (WhatsApp y correo) antes de Visítanos;
+  el número de /visitanos abre WhatsApp; el chat de la tienda con el carrito en su barra (al día con la página),
+  sugerencias del catálogo y «Lo más buscado» en la vitrina vacía.
+- **Color de la cantidad del carrito:** pidió investigación «para que mis gustos no me nublen». Recomendé amarilla
+  con aro azul (sobre la foto de la portada la azul mide 1.2–1.4:1); **decidió dejarla azul**. Todo en
+  [COLOR_CANTIDAD_CARRITO.md](COLOR_CANTIDAD_CARRITO.md): no se vuelve a proponer sin un dato nuevo.
+- **En la rama, sin probar ni subir (commits `5648d0d` y `2893b8f`):**
+  - **Campaña del sitio (Black Friday, viernes 27 de noviembre):** Sitio web › Campaña del sitio (nombre, fechas,
+    frase), la casilla «En la campaña» con un precio de campaña opcional (regla de tarifa con las mismas fechas, el
+    normal tachado), «Aplicar un descuento», «Empezar de cero» (aprobado por ella), /promociones y «Promociones»
+    sencilla en el menú. Capturas: <https://claude.ai/artifact/GxqG2zGJZ949owo6Pbqwgn>. **Hallazgo:** el sitio no
+    usaba la tarifa con el visitante (la página mostraba el precio sin tarifa y el carrito sí la usaba); la campaña
+    deja la tarifa «Default» ofrecida al sitio. Juan y Andrés dicen el precio de campaña mientras rige.
+  - **El chat de la tienda se llama Andrés** (pedido de la dueña: «que brian sea el del panel de administración»).
+    Cambian los textos visibles, el motor del Worker (`juan/src/tienda`) y la Guía; los nombres técnicos se quedan.
+    Necesita **Desplegar Juan** además de Odoo.
+- **Sigue:** su respuesta sobre la línea «Combo con colchón» en campaña; las pruebas nuevas de la campaña y la
+  revisión adversarial (toca precios); capturas de Andrés; luego CI con staging, producción y Desplegar Juan, con
+  días de margen antes del 27.
+- **Esta máquina:** se reinició dos veces en la tarde (PostgreSQL queda abajo: `pg_ctlcluster 16 main start`). El
+  trabajo sin subir de Black Friday vivía en una copia aparte del scratchpad; se pasó a la rama apenas terminó el squash.
+
 ### 2026-11-15 (2): portada v3 (paleta, espaciado, categorías y carriles en una fila, carrito como ícono, chat de vidrio), en producción (Desplegar 75)
 
 **En producción desde el 2026-11-15, 08:3x UTC (salud sana: `{"ok": true, "version": "6c7fdc425be3", "base_al_dia": true, "humo": "ok"}`):** **Desplegar 75** (run 43693725820) con la imagen `sha256:84085a134a139c75cf76db42220b342d958691334551d43fb33dea637eba0065` y `app_version` `6c7fdc425be329adb00180abfc5a20347bf2ff0f` (PR #121, squash `6221175`; CI 363 con staging, run 43689911281), con respaldo previo. Juan no cambió (sin Desplegar Juan). **Es lo último en producción.** Comprobado en dcasapty.com a 1440 y 390 px: categorías con los conteos reales (Salas 2, Recámaras 121, Colchones 7, Zapateras 28, Estantes 70, Oficina 6), carriles en una fila con flechas y línea de avance, carrito redondo de 48 px (barra en el celular), «Agotado» en una zapatera de «Lo más buscado» que de verdad está en 0; sin errores en la consola.
