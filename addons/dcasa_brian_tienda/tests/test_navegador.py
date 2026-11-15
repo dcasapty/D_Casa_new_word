@@ -545,7 +545,10 @@ VIDRIO = """(async () => {
     document.querySelector('button.o_dcbt_burbuja').click();
     await hasta(() => document.querySelector('#o_dcbt_panel:not([hidden]) .o_dcbt_cab'), 'el panel abierto');
     await esperar(500);
+    // Sin foco: con el foco, el ícono va en navy a propósito (se mide el color de reposo).
+    const sinFoco = () => document.activeElement && document.activeElement.blur();
     const medir = () => {
+        sinFoco();
         const panel = document.querySelector('#o_dcbt_panel');
         const cab = panel.querySelector('.o_dcbt_cab');
         const vidrio = getComputedStyle(cab, '::before');

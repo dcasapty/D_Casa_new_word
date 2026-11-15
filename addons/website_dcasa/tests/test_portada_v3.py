@@ -8,7 +8,7 @@ entiende sin la palabra, una paleta más profesional). Lo que se fija aquí:
 * Los carriles traen las flechas y la línea de avance escondidas: carril.js las enciende si hay algo que deslizar.
 * En Chrome, en la computadora (1440 × 900) y en un teléfono (390 px): las categorías en una fila de seis y en 3 × 2,
   «Lo más buscado» cabe en una pantalla con cinco tarjetas a la vista, las flechas mueven el carril, el carrito es
-  redondo de 44 px (una barra ancha en el teléfono) y nada ensancha la página.
+  redondo de 48 px (una barra ancha en el teléfono) y nada ensancha la página.
 """
 import contextlib
 
@@ -203,8 +203,8 @@ class TestPortadaV3(HttpCase):
         self.assertTrue(r['avanceVisible'])
         self.assertGreater(r['desplazado'], 0, 'la flecha mueve el carril')
         self.assertFalse(r['atrasDespues'], 'después de avanzar se puede volver')
-        self.assertAlmostEqual(r['carrito']['ancho'], 44, delta=1)
-        self.assertAlmostEqual(r['carrito']['alto'], 44, delta=1)
+        self.assertAlmostEqual(r['carrito']['ancho'], 48, delta=1, msg='redondo de 48 px: el mínimo de los botones')
+        self.assertAlmostEqual(r['carrito']['alto'], 48, delta=1, msg='redondo, no ovalado')
         self.assertEqual(r['carrito']['texto'], '')
         self.assertTrue(r['carrito']['svg'])
         self.assertTrue(r['carrito']['etiqueta'].startswith('Agregar '))
@@ -222,6 +222,6 @@ class TestPortadaV3(HttpCase):
         self.assertLess(r['anchoTarjeta'], 180)
         self.assertFalse(r['flechasVisibles'], 'en el teléfono se desliza con el dedo')
         self.assertGreater(r['carrito']['ancho'], 80, 'en la tarjeta angosta el carrito es una barra ancha')
-        self.assertGreaterEqual(r['carrito']['alto'], 40)
+        self.assertAlmostEqual(r['carrito']['alto'], 48, delta=1)
         self.assertEqual(r['carrito']['texto'], '')
         self.assertLessEqual(r['paginaAncho'], r['pantalla'], 'nada ensancha la página')

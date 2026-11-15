@@ -238,7 +238,8 @@ class TestPortadaDinamica(HttpCase):
         })]
         respuesta = self._agregar(self.sofa.id)
         self.assertIn(self.sofa.website_url, respuesta.headers['Location'])
-        self.assertIn('>Elegir<', self.url_open('/').text, 'Con variantes la tarjeta lleva a la ficha')
+        # v3 (2026-11-15): el mismo ícono del carrito, que lleva a la ficha y lo dice a los lectores de pantalla.
+        self.assertIn('Elegir medida o color de', self.url_open('/').text, 'Con variantes la tarjeta lleva a la ficha')
 
     def test_precio_cero_bloqueado_no_se_agrega(self):
         self.website.prevent_zero_price_sale = True

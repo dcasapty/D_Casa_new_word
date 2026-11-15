@@ -79,11 +79,18 @@ html {
 .o_dcasa_kicker {
     font-family: 'Oswald', sans-serif;
     font-weight: 500;
-    font-size: .8125rem;
+    font-size: .875rem;
     letter-spacing: .14em;
     text-transform: uppercase;
-    margin-bottom: .4rem;
+    margin-bottom: .6rem;
     color: $dcasa-gris;
+}
+
+// v3: en la cabecera de cada sección, un poco más chico y más pegado al titular. Solo ahí: el de la foto grande del
+// inicio no cambia (contrato visual, tests/test_contrato_visual.py).
+.o_dcasa_section_head .o_dcasa_kicker {
+    font-size: .8125rem;
+    margin-bottom: .4rem;
 }
 
 .o_dcasa_kicker_light {
@@ -1103,13 +1110,7 @@ $dcasa-hero-velo: .45;
 
         .o_dcasa_pcard_add {
             width: 100%;
-            height: 2.5rem;
             border-radius: 999px;
-        }
-
-        .o_dcasa_pcard_wa {
-            width: 2.5rem;
-            height: 2.5rem;
         }
     }
 }
@@ -1257,13 +1258,14 @@ $dcasa-foto-fondo: #EEEDEA;
     }
 }
 
-// Íconos redondos de 44 px (el mínimo de toque de Apple): el carrito lleno en azul, WhatsApp con contorno.
-// El nombre para lectores de pantalla va en aria-label («Agregar … al carrito»).
-.o_dcasa_pcard_add,
-.o_dcasa_pcard_wa {
-    width: 2.75rem;
-    height: 2.75rem;
-    min-height: 0;
+// Íconos redondos de 48 px (el mínimo de los botones del sitio, «.o_dcasa_home .btn»: dedo, no cursor): el carrito
+// lleno en azul, WhatsApp con contorno. Con `.o_dcasa_pcard` delante para ganarle a esa regla (si no, salían de
+// 44 × 48, ovalados). El nombre para lectores de pantalla va en aria-label («Agregar … al carrito»).
+.o_dcasa_pcard .o_dcasa_pcard_add,
+.o_dcasa_pcard .o_dcasa_pcard_wa {
+    width: 3rem;
+    height: 3rem;
+    min-height: 3rem;
     flex: none;
     display: inline-grid;
     place-items: center;
