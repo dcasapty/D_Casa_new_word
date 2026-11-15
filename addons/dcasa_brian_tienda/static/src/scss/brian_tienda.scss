@@ -252,7 +252,8 @@ body.editor_enable .o_dcbt {
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    background: var(--o-dcbt-niebla);
+    // Sin fondo propio: el gris claro va en el cuerpo, para que la cabecera de vidrio vea la página de atrás.
+    background: transparent;
     border-radius: 18px;
     border: 1px solid var(--o-dcbt-linea);
     box-shadow: 0 8px 24px rgba(14, 42, 107, .16);
@@ -298,19 +299,49 @@ body.editor_enable .o_dcbt {
     pointer-events: none;
 }
 
+// Cabecera de vidrio líquido (pedido de la dueña, 2026-11-15: «del mismo material que el navbar… los íconos negros;
+// el robot tal cual»). Es el mismo vidrio de la píldora del sitio (website_dcasa/static/src/scss/dcasa.scss,
+// `.o_main_nav::before`): blanco al 62 %, desenfoque y saturación, filos de luz arriba y abajo y, donde el navegador
+// puede (Chromium), la refracción de agua del filtro #dcasa-liquido que enciende animaciones.js. Va en un ::before,
+// igual que allá. Texto en navy y tinta; el amarillo del punto de «en línea» va con un aro azul (nunca toca el blanco).
 .o_dcbt_cab {
+    position: relative;
+    isolation: isolate;
     flex: none;
     display: flex;
     align-items: center;
     gap: 9px;
     padding: 10px 4px 10px 12px;
-    background: var(--o-dcbt-azul);
-    color: var(--o-dcbt-blanco);
+    background: transparent;
+    color: var(--o-dcbt-tinta);
+    border-bottom: 1px solid rgba(14, 42, 107, .08);
 
-    :focus-visible {
-        outline-color: var(--o-dcbt-blanco);
-        outline-offset: 0;
+    &::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        background: rgba(255, 255, 255, .62);
+        -webkit-backdrop-filter: blur(16px) saturate(210%) brightness(1.08);
+        backdrop-filter: blur(16px) saturate(210%) brightness(1.08);
+        box-shadow:
+            inset 0 1.5px 0 rgba(255, 255, 255, .95),
+            inset 0 -1px 0 rgba(255, 255, 255, .35),
+            inset 0 0 0 1px rgba(255, 255, 255, .12);
+        pointer-events: none;
     }
+
+    // El foco va por dentro del círculo del botón (por fuera chocaba con el borde de la pantalla en el celular).
+    :focus-visible {
+        outline: 2px solid var(--o-dcbt-azul);
+        outline-offset: -4px;
+    }
+}
+
+// La refracción de agua, la misma variable que usa la píldora del sitio (solo existe donde el navegador la soporta).
+html.o_dcasa_refraccion .o_dcbt_cab::before {
+    -webkit-backdrop-filter: var(--dcasa-refraccion);
+    backdrop-filter: var(--dcasa-refraccion);
 }
 
 @media (max-width: 767.98px) {
@@ -336,7 +367,7 @@ body.editor_enable .o_dcbt {
         font: 400 22px/1 var(--o-dcbt-f-titulo);
         letter-spacing: .03em;
         text-transform: uppercase;
-        color: var(--o-dcbt-blanco);
+        color: var(--o-dcbt-navy);
     }
 }
 
@@ -348,24 +379,29 @@ body.editor_enable .o_dcbt {
     font: 500 11.5px/1.2 var(--o-dcbt-f-sub);
     letter-spacing: .04em;
     text-transform: uppercase;
-    color: var(--o-dcbt-azul-200);
+    color: var(--o-dcbt-gris);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
+// Amarillo con aro azul: sobre el vidrio claro, el amarillo toca el azul, nunca el blanco.
 .o_dcbt_punto {
-    width: 8px;
-    height: 8px;
+    width: 10px;
+    height: 10px;
     flex: none;
     border-radius: 50%;
-    background: var(--o-dcbt-amarillo);   // sobre azul: nunca toca el blanco
+    border: 2px solid var(--o-dcbt-azul);
+    background: var(--o-dcbt-amarillo);
 
     &.o_dcbt_apagado {
-        background: var(--o-dcbt-azul-200);
+        border-color: var(--o-dcbt-gris-claro);
+        background: var(--o-dcbt-gris-claro);
     }
 }
 
+// Íconos negros (tinta, el mismo de los enlaces del navbar) sobre el vidrio; al pasar o con el foco, la gota azul
+// clarita del navbar.
 .o_dcbt_cab_boton {
     width: 44px;
     height: 44px;
@@ -375,8 +411,9 @@ body.editor_enable .o_dcbt {
     border: 0;
     border-radius: 50%;
     background: transparent;
-    color: var(--o-dcbt-blanco);
+    color: var(--o-dcbt-tinta);
     text-decoration: none;
+    transition: background-color .2s ease, color .2s ease;
 
     svg {
         width: 23px;
@@ -385,8 +422,8 @@ body.editor_enable .o_dcbt {
 
     &:hover,
     &:focus-visible {
-        background: var(--o-dcbt-azul-osc);
-        color: var(--o-dcbt-blanco);
+        background: rgba(19, 64, 177, .1);
+        color: var(--o-dcbt-navy);
     }
 }
 
@@ -394,6 +431,7 @@ body.editor_enable .o_dcbt {
     flex: 1;
     min-height: 0;
     display: flex;
+    background: var(--o-dcbt-niebla);
 }
 
 .o_dcbt_chat_col {

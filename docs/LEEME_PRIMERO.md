@@ -109,6 +109,57 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 > sigue. Se guardan las diez más recientes; las viejas se resumen en una línea abajo y su texto completo pasa a
 > [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md).
 
+### 2026-11-15 (2): portada v3 (paleta, espaciado, categorías y carriles en una fila, carrito como ícono, chat de vidrio), en la rama esperando su visto bueno
+
+- **Pedido de la dueña (tal cual, en corto):** «¿Qué le hace falta a tu casa?» y «Lo más buscado» «se salen una página
+  entera»; mirar cómo reparte el espacio jamar.com.pa; «si ve un carrito, entiende que es añadir al carrito… que el texto no
+  sea tan grande, que quepa más»; mejorar la paleta; la barra azul del chat «del mismo material que el navbar… los iconos
+  negros… el robotcito tal cual»; y después: «no quiero copiar a Jamar… superarlos con creces… sofisticado, moderno… con
+  sentido de necesidad y urgencia… respetando el branding». **Pidió capturas antes de cualquier prueba o subida.**
+- **Hecho en la rama (sin CI, sin staging):** `website_dcasa` (paleta v3: hueso #F6F5F2 en vez del beige #F4F1EA, titulares
+  de 56 a 40 px, secciones de 120 a 72 px; categorías 6 en fila / 3×2 con el nombre y «N productos» debajo
+  (`_dcasa_categoria_cantidad`); carriles de la portada en una fila deslizable con flechas y línea de avance, `carril.js`;
+  tarjeta blanca 4:5 con el carrito solo con ícono (`icono_carrito`, aria-label intacto) y WhatsApp, y en tarjeta angosta
+  una barra con `@container`; Inspírate en una fila). `dcasa_catalogo`: «Quedan pocas» / «Agotado» sobre la foto con la
+  regla de la ficha (`tarjeta_disponibilidad`). `dcasa_brian_tienda`: cabecera de vidrio igual a la píldora (mismo
+  `--dcasa-refraccion`), texto navy, íconos tinta, punto amarillo con aro azul. Mismo hueso en Mi cuenta y «Busca con una
+  foto»; los correos no. Black Weekend no cambia (su carril y su tarjeta son propios).
+- **Medido (copia de prueba, 1440 × 900):** portada de 10.425 a 6.530 px; categorías de 1.473 a 491; «Lo más buscado» de
+  1.468 a 646. Comparación para la dueña: <https://claude.ai/artifact/XQti28eQjFLDzT1Z9CpsRH>.
+- **Esta máquina:** contenedor nuevo; Odoo con `git submodule update --init --depth 1 vendor/odoo` y venv de Python 3.12
+  en el scratchpad (con 3.13 no compila `rl-renderPM`; receta en CONTEXTO_AGENTICO). Capturas con la base `web_antes`
+  (worktree del commit anterior) y `web_despues`; la cama «Tono Arena» con 2 unidades solo en la copia, para mostrar la
+  etiqueta.
+- **Sigue:** con su «sí»: pruebas nuevas (conteo de categorías, botón con ícono y aria-label, etiqueta de disponibilidad,
+  flechas del carril en Chrome, vidrio del chat), `scripts/test.sh` de los módulos tocados, CI con staging y capturas del
+  celular de verdad. Ojo: la portada guardada en el borde puede tardar en mostrar un «Quedan pocas» nuevo.
+
+### 2026-11-15: alternativas para Messenger e Instagram sin la revisión de Meta (OpenReply y 14 repos más). Solo investigación: no cambió código ni producción
+
+- **Pedido:** ver si OpenReply (`diwenne/openreply`), una lista de MCPs de Instagram y otros repos sirven para que Juan conteste
+  Instagram y Messenger a todos los clientes sin que los jefes pasen la revisión de la app de Meta y la verificación del negocio.
+- **Conclusión: ninguno quita la revisión y ninguno supera a Juan.** OpenReply es un clon de ManyChat solo de Instagram
+  (palabra clave en un comentario → DM con textos fijos): sin IA, sin base de conocimiento, sin memoria, sin Messenger; es
+  autoalojado (Next.js + Postgres + Redis) y **no tiene planes** (el sitio es una demo). Sus propios documentos dicen que
+  para cuentas sin rol en la app hace falta revisión y verificación del negocio. Los 5 MCPs de Instagram son herramientas para
+  un asistente (publicar, leer): ninguno recibe DMs y contesta solo; 4 piden app propia de Meta y revisión para DMs de
+  clientes reales; el quinto (`official-Arvind`) usa `instagrapi` (no oficial) y su README avisa de cierre de la cuenta.
+  Los otros (comment-to-DM, bots de WhatsApp por Baileys) no usan IA o usan WhatsApp no oficial: no aportan.
+- **Lo único que se acerca:** un proveedor que pone **su propia app de Meta**: **Zernio** (antes Late; patrocina OpenReply,
+  alimenta ZernFlow). API de bandeja con Instagram, Facebook, WhatsApp, Telegram; avisos entrantes por webhook; envío por
+  `POST /api/v1/inbox/conversations/{id}/messages`. Precio (de resultados de búsqueda de su documentación, no del sitio):
+  pago por cuenta con 2 gratis y 10.000 mensajes al mes gratis, después US$0,0001 por mensaje; las fuentes se contradicen
+  en algo. **No verificado:** que su app tenga acceso avanzado de mensajería para Instagram y Messenger (para WhatsApp sí
+  dice «sin crear app ni pasar revisión»); terceros dicen que un proveedor «mueve» la revisión, no la elimina. Reseñas
+  mixtas en Trustpilot. **El proxy de esta sesión bloquea `zernio.com` y `openreply.diwen.dev`**: no se leyeron sus sitios.
+- **Si se prueba:** un adaptador nuevo en `juan/src/canales/` (interfaz de `tipos.ts`; los adaptadores de hoy miden 250–550
+  líneas), apagado de fábrica. Primero la prueba barata: conectar una cuenta de Instagram SIN papel a Zernio (cuenta gratis) y
+  ver si el mensaje llega al webhook. **Privacidad:** los mensajes y nombres de clientes pasarían por un tercero (hoy van
+  Meta → Juan → Odoo); pide el visto bueno de los jefes y revisar sus términos (Ley 81).
+- **Sigue:** decisión de los jefes: (a) verificar el negocio y pedir la revisión (el camino de siempre), (b) probar Zernio
+  con la prueba barata, o (c) dejarlo como está. Meta también lanzó su propio «Business Agent» (junio 2026; gratis según
+  unas fuentes, con cobro por token según otras; no verificado en Meta): compite con Juan y no usa Odoo, no se recomienda.
+
 ### 2026-11-13 (2) y 2026-11-14: avisos de Telegram ordenados, lote 1 de la web, «Busca con una foto», ícono de Brian y horario de la tienda (Desplegar 71 y Juan 25); Brian de la tienda y lote 2 de la web (Desplegar 72 y Juan 26) y la burbuja que cambia con el scroll (Desplegar 73), en producción
 
 **Y desde el 2026-11-14, 17:54 UTC (salud sana: `{"ok": true, "version": "17f0c8295bf8", "base_al_dia": true, "humo": "ok"}`):** **Desplegar 73** (run 43622302488, 17:39–17:54 UTC) con la imagen `sha256:b97f72d07a908705d881d237fae3c2799e387fb07a92f73abffe5daf1b0cc133` y `app_version` `17f0c8295bf842c854c71c4c8222afb146a5aeac` (PR #119, squash `77702bb`; CI 357 con staging, run 43615430952), con respaldo previo; solo Odoo (Juan no cambió). La burbuja cerrada de Brian cambia de robot según la sección en pantalla. La dueña: «lo que yo quería también es que el ícono fuera cambiando con el scroll» y «por cada sección y a medida que hay scroll quiero que todos los iconos se usen en la burbuja del chat»; «No me tienes que hacer un video, solo hazlo y mándalo a producción». Antes preguntó por qué en el celular no se movía: era de noche (Brian duerme de 6 p. m. a 9 a. m.; le gustó así) y de día sí cambia al navegar. También: «felicidades por esas animaciones me gustaron mucho y las transiciones». Comprobado en dcasapty.com a 390 px: bajando por el Inicio, 12 poses distintas y sin errores.

@@ -7,12 +7,16 @@ $dcasa-azul: #1340B1;
 $dcasa-azul-osc: #0F3591;
 $dcasa-amarillo: #FED00F;
 $dcasa-navy: #0E2A6B;
-$dcasa-hueso: #F4F1EA;
-$dcasa-hueso-2: #EAE5DA;
+// Paleta v3 (pedido de la dueña, 2026-11-15: «mejorar las paletas… más profesional, más estilizado»): el hueso
+// beige (#F4F1EA) pasó a un hueso casi neutro que no pelea con el gris de estudio de las fotos ni con el azul;
+// las tarjetas de producto van en blanco con un filo fino. El azul, el amarillo y el navy no cambian.
+$dcasa-hueso: #F6F5F2;
+$dcasa-hueso-2: #E9E7E1;
+$dcasa-filo: #E3E1DB;   // borde de las tarjetas blancas sobre el hueso
 $dcasa-tinta: #1B2233;
-$dcasa-gris: #4A5163;   // 7.9:1 sobre blanco, 7.1:1 sobre hueso
+$dcasa-gris: #4A5163;   // 7.9:1 sobre blanco, 7.4:1 sobre hueso
 $dcasa-radius: 1rem;
-$dcasa-sec: clamp(3.5rem, 8vw, 7.5rem);   // 56 px en móvil → 120 px en escritorio
+$dcasa-sec: clamp(2.5rem, 5vw, 4.5rem);   // 40 px en móvil → 72 px en escritorio (antes 56 → 120: secciones de más de una pantalla)
 $dcasa-gutter: clamp(1rem, 4vw, 3rem);
 $dcasa-banda: 14px;
 $dcasa-curva: cubic-bezier(.22, 1, .36, 1);
@@ -64,8 +68,9 @@ html {
     margin-bottom: 1rem;
 }
 
+// v3: 28 → 40 px (antes 32 → 56): el titular sigue mandando sin comerse la pantalla.
 .o_dcasa_h2 {
-    font-size: clamp(2rem, 4.2vw, 3.5rem);
+    font-size: clamp(1.75rem, 2.9vw, 2.5rem);
     color: $dcasa-azul;
     margin-bottom: 0;
 }
@@ -79,6 +84,13 @@ html {
     text-transform: uppercase;
     margin-bottom: .6rem;
     color: $dcasa-gris;
+}
+
+// v3: en la cabecera de cada sección, un poco más chico y más pegado al titular. Solo ahí: el de la foto grande del
+// inicio no cambia (contrato visual, tests/test_contrato_visual.py).
+.o_dcasa_section_head .o_dcasa_kicker {
+    font-size: .8125rem;
+    margin-bottom: .4rem;
 }
 
 .o_dcasa_kicker_light {
@@ -98,6 +110,7 @@ html {
 .o_dcasa_link {
     font-family: 'Oswald', sans-serif;
     font-weight: 500;
+    font-size: .9375rem;
     letter-spacing: .06em;
     text-transform: uppercase;
     color: $dcasa-azul;
@@ -117,8 +130,15 @@ html {
     flex-wrap: wrap;
     align-items: flex-end;
     justify-content: space-between;
-    gap: 1rem 2rem;
-    margin-bottom: clamp(1.75rem, 3.5vw, 3rem);
+    gap: .75rem 2rem;
+    margin-bottom: clamp(1.25rem, 2.2vw, 1.75rem);
+}
+
+// Lo que va a la derecha del titular: «Ver todo» y, en los carriles, las flechas.
+.o_dcasa_section_extra {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
 }
 
 // "Azul arriba, amarillo abajo": banda que sostiene la sección azul.
@@ -755,25 +775,45 @@ $dcasa-hero-velo: .45;
 // 3. Compra por espacio
 // ---------------------------------------------------------------------------
 
+// v3 (2026-11-15, pedido de la dueña: «se salen una página entera»; referencia, jamar.com.pa): las seis
+// categorías en UNA fila en la computadora y en 3 × 2 en el celular, foto cuadrada y el nombre debajo
+// (antes, tarjetas 4:5 de tres en tres: 1.473 px de alto en una pantalla de 1440 × 900).
 .o_dcasa_cat_grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: .75rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem .625rem;
 
-    @media (min-width: 768px) {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 1.25rem;
+    @media (min-width: 992px) {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: 1rem;
     }
 }
 
 .o_dcasa_cat {
-    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: .55rem;
+    border-radius: $dcasa-radius;
+    text-decoration: none;
+    color: $dcasa-navy;
+
+    &:hover,
+    &:focus-visible {
+        color: $dcasa-azul;
+    }
+
+    &:hover .o_dcasa_cat_foto img,
+    &:focus-visible .o_dcasa_cat_foto img {
+        transform: scale(1.05);
+    }
+}
+
+.o_dcasa_cat_foto {
     display: block;
+    aspect-ratio: 1;
     border-radius: $dcasa-radius;
     overflow: hidden;
-    aspect-ratio: 4 / 5;
     background: $dcasa-hueso-2;
-    text-decoration: none;
 
     img {
         width: 100%;
@@ -781,34 +821,32 @@ $dcasa-hero-velo: .45;
         object-fit: cover;
         transition: transform .5s ease;
     }
-
-    &:hover img,
-    &:focus-visible img {
-        transform: scale(1.04);
-    }
 }
 
-// Etiqueta sólida (no texto sobre foto): contraste garantizado.
+// El nombre va debajo, sobre el hueso (no sobre la foto): contraste garantizado (navy 13:1).
 .o_dcasa_cat_label {
-    position: absolute;
-    left: .75rem;
-    bottom: .75rem;
-    background: #FFFFFF;
-    color: $dcasa-azul;
-    border-radius: .6rem;
-    padding: .5rem .85rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 .3rem;
     font-family: 'Oswald', sans-serif;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: .05em;
-    font-size: clamp(.85rem, 1.4vw, 1.1rem);
+    line-height: 1.2;
+    font-size: clamp(.8125rem, 1.1vw, .9375rem);
 }
 
-// Categoría sin nada publicado: la tarjeta abre WhatsApp (website._dcasa_categorias).
-.o_dcasa_cat_wa {
+// Debajo del nombre: cuántos productos hay publicados o, sin nada publicado, «Pregúntanos por WhatsApp» (la tarjeta
+// abre WhatsApp: website._dcasa_categorias).
+.o_dcasa_cat_nota {
+    flex-basis: 100%;
+    font-family: 'Inter', sans-serif;
     font-weight: 500;
+    font-size: .75rem;
     text-transform: none;
     letter-spacing: 0;
+    color: $dcasa-gris;
 }
 
 // ---------------------------------------------------------------------------
@@ -853,10 +891,267 @@ $dcasa-hero-velo: .45;
     min-width: 0;
 }
 
+// v3 (2026-11-15): los dos carriles de la portada («Lo más buscado», «Para dormir mejor») van en UNA fila que se
+// desliza (antes, una grilla de 4 × 2: 1.468 px de alto en una pantalla de 1440 × 900). Asoma la tarjeta siguiente:
+// se entiende que hay más. Flechas y línea de avance: carril.js (sin JavaScript, el carril igual se desliza).
+// Black Weekend tiene su propio carril (.o_dcasa_bw) y no cambia.
+.o_dcasa_rail {
+    --carril-gap: .75rem;
+    --carril-visibles: 2.2;   // celular: dos tarjetas enteras y asoma la tercera
+
+    @media (min-width: 576px) {
+        --carril-gap: 1rem;
+        --carril-visibles: 3.25;
+    }
+
+    @media (min-width: 992px) {
+        --carril-visibles: 4;
+    }
+
+    @media (min-width: 1280px) {
+        --carril-visibles: 5;
+    }
+
+    .o_dcasa_rail_track {
+        grid-auto-columns: calc((100% - (var(--carril-visibles) - 1) * var(--carril-gap)) / var(--carril-visibles));
+        gap: var(--carril-gap);
+        padding-bottom: .25rem;
+        scrollbar-width: none;
+
+        &::-webkit-scrollbar {
+            display: none;
+        }
+
+        @media (min-width: 992px) {
+            grid-auto-flow: column;
+            grid-template-columns: none;
+            overflow-x: auto;
+            overflow-y: hidden;
+            overscroll-behavior-x: contain;
+            // Un filo de aire para que el foco y el borde del «hover» no se corten en las orillas.
+            margin-inline: -.25rem;
+            padding: .25rem;
+            scroll-padding-inline: .25rem;
+        }
+    }
+}
+
+// Flechas del carril (computadora): redondas, de vidrio claro como la cabecera, con el azul de la marca.
+.o_dcasa_carril_flechas {
+    display: none;
+    gap: .5rem;
+
+    @media (min-width: 768px) {
+        display: flex;
+
+        &[hidden] {
+            display: none;
+        }
+    }
+}
+
+.o_dcasa_carril_flecha {
+    width: 2.75rem;
+    height: 2.75rem;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border-radius: 50%;
+    border: 1px solid $dcasa-filo;
+    background: #FFFFFF;
+    color: $dcasa-azul;
+    transition: background-color $dcasa-t-rapida ease, color $dcasa-t-rapida ease, border-color $dcasa-t-rapida ease;
+
+    svg {
+        width: 1.125rem;
+        height: 1.125rem;
+    }
+
+    &:hover:not(:disabled),
+    &:focus-visible {
+        background: $dcasa-azul;
+        border-color: $dcasa-azul;
+        color: #FFFFFF;
+    }
+
+    &:focus-visible {
+        outline: 3px solid $dcasa-azul;
+        outline-offset: 2px;
+    }
+
+    &:disabled {
+        color: rgba($dcasa-gris, .45);
+        cursor: default;
+    }
+}
+
+// Línea de avance bajo el carril: cuánto se ha recorrido (y que hay más). Solo cuando hay algo que deslizar.
+.o_dcasa_carril_avance {
+    position: relative;
+    height: 3px;
+    margin-top: clamp(1rem, 2vw, 1.5rem);
+    border-radius: 3px;
+    background: $dcasa-hueso-2;
+    overflow: hidden;
+
+    &[hidden] {
+        display: none;
+    }
+
+    > span {
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: calc(var(--avance-ancho, .25) * 100%);
+        transform: translateX(calc(var(--avance, 0) * (100% / var(--avance-ancho, .25) - 100%)));
+        border-radius: inherit;
+        background: $dcasa-azul;
+        transition: transform .15s linear;
+    }
+}
+
+// Tarjeta de la portada (v3): blanca con un filo fino sobre el hueso, foto 4:5 (las del catálogo son verticales:
+// el cuadrado cortaba zapateras y estantes), nombre en dos renglones, y abajo el precio con el carrito y WhatsApp
+// en íconos redondos: quien compra en línea reconoce el carrito sin la palabra (pedido de la dueña).
 .o_dcasa_pcard {
+    position: relative;
     height: 100%;
     display: flex;
     flex-direction: column;
+    background: #FFFFFF;
+    border: 1px solid $dcasa-filo;
+    border-radius: $dcasa-radius;
+    overflow: hidden;
+    transition: border-color $dcasa-t-rapida ease;
+
+    &:hover,
+    &:focus-within {
+        border-color: rgba($dcasa-azul, .45);
+    }
+
+    .o_dcasa_pcard_media {
+        aspect-ratio: 4 / 5;
+        border-radius: 0;
+    }
+
+    .o_dcasa_pcard_body {
+        padding: .75rem .875rem .875rem;
+    }
+
+    .o_dcasa_pcard_name {
+        font-size: .9375rem;
+        font-weight: 500;
+        line-height: 1.35;
+        min-height: 2.7em;   // dos renglones siempre: los precios quedan alineados en la fila
+        margin-bottom: .625rem;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .o_dcasa_pcard_price {
+        display: flex;
+        flex-direction: column;
+        margin: 0;
+        font-size: 1.25rem;
+        line-height: 1.1;
+
+        .o_dcasa_mas_itbms {
+            margin: .2rem 0 0;
+            font-size: .75rem;
+            color: $dcasa-gris;
+        }
+    }
+}
+
+// Precio a la izquierda, botones a la derecha; si la tarjeta es angosta, los botones bajan solos.
+.o_dcasa_pcard_pie {
+    margin-top: auto;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: .5rem;
+}
+
+// Tarjeta angosta (el celular: dos por pantalla, ~160 px): el nombre con tres renglones, el precio arriba y abajo una
+// barra azul con el carrito (solo el ícono) y WhatsApp al lado. Mide la tarjeta, no la pantalla.
+.o_dcasa_pcard {
+    container: dcasa-tarjeta / inline-size;
+}
+
+@container dcasa-tarjeta (max-width: 13.5rem) {
+    .o_dcasa_pcard .o_dcasa_pcard_body {
+        padding: .625rem .625rem .75rem;
+    }
+
+    .o_dcasa_pcard .o_dcasa_pcard_name {
+        font-size: .875rem;
+        -webkit-line-clamp: 3;
+        min-height: 4.05em;
+        margin-bottom: .5rem;
+    }
+
+    // Con `.o_dcasa_pcard` delante: las reglas generales de los botones van más abajo en este archivo y, con la misma
+    // especificidad, ganarían.
+    .o_dcasa_pcard .o_dcasa_pcard_pie {
+        flex-direction: column;
+        align-items: stretch;
+        gap: .625rem;
+    }
+
+    .o_dcasa_pcard .o_dcasa_pcard_actions {
+        margin-left: 0;
+
+        > form,
+        > .o_dcasa_pcard_add {
+            flex: 1;
+        }
+
+        .o_dcasa_pcard_add {
+            width: 100%;
+            border-radius: 999px;
+        }
+    }
+}
+
+// Disponibilidad real sobre la foto (dcasa_catalogo, misma regla y mismas palabras que la ficha; nunca el número).
+// Solo «Quedan pocas» (navy con el punto amarillo: el amarillo toca el navy, no el blanco) y «Agotado».
+.o_dcasa_pcard_estado {
+    position: absolute;
+    top: .625rem;
+    right: .625rem;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    margin: 0;
+    padding: .3rem .65rem;
+    border-radius: 999px;
+    font-family: 'Oswald', sans-serif;
+    font-weight: 500;
+    font-size: .75rem;
+    line-height: 1.2;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: #FFFFFF;
+    background: $dcasa-navy;
+
+    &::before {
+        content: '';
+        width: .45rem;
+        height: .45rem;
+        border-radius: 50%;
+        background: $dcasa-amarillo;
+    }
+
+    &[data-estado="agotado"] {
+        background: $dcasa-gris;
+
+        &::before {
+            background: #FFFFFF;
+        }
+    }
 }
 
 // <picture> (WebP con respaldo) no debe crear una caja: la <img> sigue siendo la hija que se mide.
@@ -954,34 +1249,61 @@ $dcasa-foto-fondo: #EEEDEA;
 }
 
 .o_dcasa_pcard_actions {
-    margin-top: auto;
     display: flex;
-    gap: .5rem;
+    gap: .375rem;
+    margin-left: auto;
 
-    form,
-    > .o_dcasa_pcard_add {
-        flex: 1;
+    form {
+        display: flex;
     }
+}
 
-    .btn {
-        min-height: 3rem;
+// Íconos redondos de 48 px (el mínimo de los botones del sitio, «.o_dcasa_home .btn»: dedo, no cursor): el carrito
+// lleno en azul, WhatsApp con contorno. Con `.o_dcasa_pcard` delante para ganarle a esa regla (si no, salían de
+// 44 × 48, ovalados). El nombre para lectores de pantalla va en aria-label («Agregar … al carrito»).
+.o_dcasa_pcard .o_dcasa_pcard_add,
+.o_dcasa_pcard .o_dcasa_pcard_wa {
+    width: 3rem;
+    height: 3rem;
+    min-height: 3rem;
+    flex: none;
+    display: inline-grid;
+    place-items: center;
+    padding: 0;
+    border-radius: 50%;
+
+    svg {
+        width: 1.3rem;
+        height: 1.3rem;
     }
 }
 
 .o_dcasa_pcard_add {
-    width: 100%;
+    border: 0;
+
+    // Cargando (carrito.js usa el cargador de Odoo, que antepone un ícono que gira): en un botón redondo,
+    // solo el que gira, centrado.
+    &.o_btn_loading {
+        > .fa-spin {
+            margin: 0 !important;
+        }
+
+        > svg {
+            display: none;
+        }
+    }
 }
 
 .o_dcasa_pcard_wa {
-    width: 3rem;
-    padding: 0;
-    border: 2px solid $dcasa-azul;
+    border: 1.5px solid rgba($dcasa-azul, .35);
+    background: #FFFFFF;
     color: $dcasa-azul;
-    font-size: 1.35rem;
+    font-size: 1.3rem;
 
     &:hover,
     &:focus-visible {
         background: $dcasa-azul;
+        border-color: $dcasa-azul;
         color: #FFFFFF;
     }
 }
@@ -1071,14 +1393,15 @@ $dcasa-foto-fondo: #EEEDEA;
 // 8. Inspírate
 // ---------------------------------------------------------------------------
 
+// v3: las seis fotos en una fila en la computadora (antes 3 × 2: 1.255 px de alto) y de tres en tres en el celular.
 .o_dcasa_galeria {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: .75rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: .5rem;
 
-    @media (min-width: 768px) {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 1.25rem;
+    @media (min-width: 992px) {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: 1rem;
     }
 
     img {
@@ -2085,6 +2408,7 @@ body.editor_enable .o_dcasa_wa_float {
 // ---------------------------------------------------------------------------
 
 @media (prefers-reduced-motion: reduce) {
+    .o_dcasa_carril_avance > span,
     .o_dcasa_cat img,
     .o_dcasa_pcard_media img,
     .o_dcasa_wa_float,

@@ -38,6 +38,12 @@ la producción. Apruébalo y punto.»); la revisión adversarial no se salta (re
 
 ## Lo que sigue, en orden
 
+00000. **Portada v3** (2026-11-15, pedido de la dueña: secciones que «se salen una página entera», el carrito como ícono,
+       paleta más profesional, la barra del chat de vidrio): **en la rama, esperando su visto bueno sobre las capturas**
+       (<https://claude.ai/artifact/XQti28eQjFLDzT1Z9CpsRH>). Pidió ver capturas antes de cualquier prueba o subida.
+       Decisiones abiertas: el número de productos bajo cada categoría, «Quedan pocas» sobre la foto y el hueso nuevo.
+       Con su «sí»: pruebas nuevas, CI con staging y producción (detalle en la bitácora, 2026-11-15 (2)).
+
 0000. **Brian de la tienda y lote 2 de la web: en producción desde el 2026-11-14, 07:46 UTC** (Desplegar 72 y Juan 26;
       la dueña: «vamos a subirlo lo antes posible»). Módulo nuevo `dcasa_brian_tienda` (chat de ventas en la web con el motor de Juan,
       ver [BRIAN_TIENDA.md](BRIAN_TIENDA.md)) y, del lote 2, el horario en Visítanos y el pie (sale de Ajustes de
@@ -85,6 +91,10 @@ la producción. Apruébalo y punto.»); la revisión adversarial no se salta (re
       `instagram_business_manage_comments` en la misma revisión que Messenger.
     - **Paquete para la revisión de Meta** (textos de cada permiso y guion del video): ofrecido a la dueña el
       2026-11-13; base en el borrador de permisos de la sesión y JUAN_CANALES paso 9.
+    - **Alternativas investigadas el 2026-11-15** (OpenReply, MCPs de Instagram y otros repos; detalle en la bitácora de
+      LEEME_PRIMERO): ninguna quita la revisión de Meta. La única pista es **Zernio**, un proveedor con su propia app de
+      Meta (sin verificar para Instagram y Messenger; los mensajes pasarían por un tercero). Espera la decisión de los
+      jefes; la prueba barata es conectar una cuenta de Instagram sin papel a una cuenta gratis de Zernio.
 0. **Envíos de Juan, reparto justo de chats y Costos de IA con «Pagar»** (2026-11-12): ver la bitácora. (Los colchones
    ya están publicados, 2026-11-13.) Falta de la dueña: revisar en Envíos › Lugares (filtro «Por revisar (Gerencia)») los lugares agregados a mano, para que Juan
    dé su precio; archivar la nota de la promoción de noviembre en el Conocimiento el 1 de diciembre; preguntar a la

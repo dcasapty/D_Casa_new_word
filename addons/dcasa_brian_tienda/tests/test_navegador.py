@@ -536,3 +536,59 @@ class TestBrianDeNoche(NavegadorCase):
             browser.navigate_to(self.base_url() + self.colchon.website_url, wait_stop=True)
             r = self.evaluar(browser, NOCHE_BURBUJA)
         self.assertEqual((r['alLlegar'], r['cambios']), ('marco_foto', ['bolsita']), 'como de día')
+
+
+# La cabecera del chat, de vidrio (pedido y aprobación de la dueña, 2026-11-15: «del mismo material que el navbar…
+# los iconos negros… el robotcito tal cual»; y que ampliado siga igual). Se mide normal y ampliada.
+VIDRIO = """(async () => {
+    /*ESPERAR*/
+    document.querySelector('button.o_dcbt_burbuja').click();
+    await hasta(() => document.querySelector('#o_dcbt_panel:not([hidden]) .o_dcbt_cab'), 'el panel abierto');
+    await esperar(500);
+    // Sin foco: con el foco, el ícono va en navy a propósito (se mide el color de reposo, después de su transición).
+    const medir = async () => {
+        if (document.activeElement) { document.activeElement.blur(); }
+        await esperar(400);
+        const panel = document.querySelector('#o_dcbt_panel');
+        const cab = panel.querySelector('.o_dcbt_cab');
+        const vidrio = getComputedStyle(cab, '::before');
+        const punto = cab.querySelector('.o_dcbt_punto');
+        return {
+            fondo: vidrio.backgroundColor, filtro: vidrio.backdropFilter || vidrio.webkitBackdropFilter || '',
+            cabecera: getComputedStyle(cab).backgroundColor, panel: getComputedStyle(panel).backgroundColor,
+            cuerpo: getComputedStyle(panel.querySelector('.o_dcbt_panel_cuerpo')).backgroundColor,
+            titulo: getComputedStyle(cab.querySelector('h2')).color,
+            iconos: [...cab.querySelectorAll('.o_dcbt_cab_boton')].map((b) => getComputedStyle(b).color),
+            punto: { aro: getComputedStyle(punto).borderTopColor, apagado: punto.classList.contains('o_dcbt_apagado') },
+        };
+    };
+    const normal = await medir();
+    document.querySelector('#o_dcbt_panel .o_dcbt_cab_boton[aria-pressed]').click();
+    await esperar(500);
+    return { normal, ampliado: await medir(), esAmpliado: document.querySelector('#o_dcbt_panel').classList.contains('o_dcbt_ampliado'),
+             refraccion: document.documentElement.classList.contains('o_dcasa_refraccion') };
+})()""".replace('/*ESPERAR*/', ESPERAR)
+
+
+@tagged('post_install', '-at_install')
+class TestCabeceraDeVidrio(NavegadorCase):
+
+    def test_la_cabecera_es_del_vidrio_del_navbar_normal_y_ampliada(self):
+        with self.chrome(1366, 768, movil=False) as browser:
+            browser.navigate_to(self.base_url() + '/', wait_stop=True)
+            r = self.evaluar(browser, VIDRIO)
+        self.assertTrue(r['esAmpliado'])
+        for tamano in ('normal', 'ampliado'):
+            m = r[tamano]
+            with self.subTest(tamano=tamano):
+                self.assertEqual(m['fondo'], 'rgba(255, 255, 255, 0.62)', 'el blanco al 62 % de la píldora del sitio')
+                self.assertIn('blur', m['filtro'])
+                if r['refraccion']:
+                    self.assertIn('dcasa-liquido', m['filtro'], 'la refracción de agua del navbar')
+                self.assertEqual(m['cabecera'], 'rgba(0, 0, 0, 0)', 'ya no es la barra azul')
+                self.assertEqual(m['panel'], 'rgba(0, 0, 0, 0)', 'el vidrio ve la página de atrás')
+                self.assertEqual(m['cuerpo'], 'rgb(244, 246, 250)', 'el gris claro va en el cuerpo')
+                self.assertEqual(m['titulo'], 'rgb(14, 42, 107)', 'D’CASA en navy')
+                self.assertEqual(set(m['iconos']), {'rgb(27, 34, 51)'}, 'los íconos negros (tinta)')
+                if not m['punto']['apagado']:
+                    self.assertEqual(m['punto']['aro'], 'rgb(19, 64, 177)', 'el amarillo con aro azul: no toca el blanco')

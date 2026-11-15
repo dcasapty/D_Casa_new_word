@@ -77,6 +77,7 @@ Todo el contenido de las páginas es editable con el constructor de Odoo
             'website_dcasa/static/src/scss/dcasa.scss',
             'website_dcasa/static/src/js/animaciones.js',
             'website_dcasa/static/src/js/carrito.js',
+            'website_dcasa/static/src/js/carril.js',
             'website_dcasa/static/src/js/foto_grande.js',
             'website_dcasa/static/src/js/mapa.js',
         ],
