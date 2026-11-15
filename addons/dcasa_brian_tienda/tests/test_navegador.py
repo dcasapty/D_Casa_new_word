@@ -236,6 +236,30 @@ POSE_EN_LA_FICHA = """(async () => {
     return res;
 })()""".replace('/*ESPERAR*/', ESPERAR).replace('/*BAJAR*/', BAJAR)
 
+NOCHE_CHAT = """(async () => {
+    /*ESPERAR*/
+    const chat = window.__dcasaBrian;
+    const poses = [];
+    const original = chat.pose.bind(chat);
+    chat.pose = (p) => { poses.push(p); return original(p); };
+    const burbuja = (document.querySelector('button.o_dcbt_burbuja img.o_dcbt_img_pose:not(.o_dcbt_saliendo)') || {}).dataset;
+    document.querySelector('button.o_dcbt_burbuja').click();
+    await hasta(() => globos().some((g) => g.includes('Hola, soy Brian')) && globos().length >= 2, 'el saludo');
+    let pase = null;
+    try { pase = JSON.parse(sessionStorage.getItem('dcasa.brian.pase')); } catch (e) { pase = null; }
+    return { burbuja: burbuja ? burbuja.pose : null, globos: globos(), poses, noche: pase && pase.noche,
+             avisar: pase && pase.avisar_cerrado };
+})()""".replace('/*ESPERAR*/', ESPERAR)
+
+NOCHE_BURBUJA = """(async () => {
+    /*ESPERAR*/
+    /*BAJAR*/
+    await esperar(3200);
+    const alLlegar = actual();
+    await ir('.o_wsale_product_details_content_section_price', 1500);
+    return { alLlegar, cambios: cambios.map((c) => c[1]) };
+})()""".replace('/*ESPERAR*/', ESPERAR).replace('/*BAJAR*/', BAJAR)
+
 SIN_CAMBIOS = """(async () => {
     /*ESPERAR*/
     /*BAJAR*/
@@ -427,6 +451,15 @@ class TestPoseAlBajar(NavegadorCase):
     """La burbuja cerrada sigue a la sección que el visitante tiene en pantalla (pedido de la dueña, 2026-11-14): un
     cambio cada 2,5 s como mucho, donde se detiene; ni con el chat abierto, ni de noche, ni con movimiento reducido."""
 
+    def setUp(self):
+        super().setUp()
+        # De día a cualquier hora (si no, de noche el robot duerme y no cambia: la prueba dependería de la hora).
+        self.env['dcasa.juan.ajustes'].obtener().write({
+            'horario_inicio': 0.0, 'horario_fin': 23.98, 'horario_fin_domingo': 0.0, 'dia_domingo': True,
+            'dia_lunes': True, 'dia_martes': True, 'dia_miercoles': True, 'dia_jueves': True, 'dia_viernes': True,
+            'dia_sabado': True})
+        self.env.registry.clear_cache('templates')   # Odoo guarda la portada (con el horario) una hora
+
     def test_en_el_inicio_sigue_a_la_seccion_donde_se_detiene(self):
         with self.chrome(390) as browser:
             browser.navigate_to(self.base_url() + '/', wait_stop=True)
@@ -460,3 +493,46 @@ class TestPoseAlBajar(NavegadorCase):
             browser.navigate_to(self.base_url() + self.colchon.website_url, wait_stop=True)
             r = self.evaluar(browser, SIN_CAMBIOS)
         self.assertEqual((r['alLlegar'], r['cambios'], r['ahora']), ('durmiendo', [], 'durmiendo'))
+
+
+@tagged('post_install', '-at_install')
+class TestBrianDeNoche(NavegadorCase):
+    """Los dos interruptores de la noche (Sitio web › Brian de la tienda; pedido de la dueña, 2026-11-15): de fábrica,
+    Brian saluda como de día (no dice que no hay vendedoras) y el robot de la burbuja duerme."""
+
+    def setUp(self):
+        super().setUp()
+        # Hoy (hora de Panamá) cerrado. Se prueba en la ficha: Odoo no la guarda en su memoria de páginas.
+        hoy = datetime.now(pytz.timezone('America/Panama')).isoweekday() % 7   # 0 = domingo, como el JS
+        campos = ['dia_domingo', 'dia_lunes', 'dia_martes', 'dia_miercoles', 'dia_jueves', 'dia_viernes', 'dia_sabado']
+        self.env['dcasa.juan.ajustes'].obtener().write({c: i != hoy for i, c in enumerate(campos)})
+
+    def test_el_saludo_de_noche_con_y_sin_aviso(self):
+        cerrada = 'Ahora la tienda está cerrada'
+        with self.chrome(1366, 768, movil=False) as browser:
+            browser.navigate_to(self.base_url() + self.colchon.website_url, wait_stop=True)
+            r = self.evaluar(browser, NOCHE_CHAT)
+        self.assertEqual((r['noche'], r['avisar']), (True, False), 'el pase dice la verdad y que no hay que avisar')
+        self.assertEqual(r['burbuja'], 'durmiendo', 'el robot de la burbuja sí duerme')
+        self.assertEqual(r['globos'][:2], ['Hola, soy Brian. ¿Qué buscas hoy?', 'Con gusto te ayudo a encontrar tu '
+                         'mueble, ver precios, calcular el envío o dejarte el carrito listo.'], 'saluda como de día')
+        self.assertFalse([g for g in r['globos'] if cerrada in g])
+        self.assertNotIn('durmiendo', r['poses'], 'el avatar del chat no se duerme')
+        self.env['ir.config_parameter'].sudo().set_param('dcasa_brian_tienda.avisar_cerrado', 'True')
+        with self.chrome(1366, 768, movil=False) as browser:
+            browser.navigate_to(self.base_url() + self.colchon.website_url, wait_stop=True)
+            r = self.evaluar(browser, NOCHE_CHAT)
+        self.assertEqual((r['noche'], r['avisar']), (True, True))
+        self.assertTrue(r['globos'][1].startswith(cerrada), r['globos'])
+        self.assertIn('durmiendo', r['poses'], 'con el aviso, el avatar se duerme mientras escribe')
+
+    def test_la_burbuja_de_noche_con_y_sin_dormir(self):
+        with self.chrome(1366, 768, movil=False) as browser:
+            browser.navigate_to(self.base_url() + self.colchon.website_url, wait_stop=True)
+            r = self.evaluar(browser, NOCHE_BURBUJA)
+        self.assertEqual((r['alLlegar'], r['cambios']), ('durmiendo', []), 'de fábrica duerme y no cambia al bajar')
+        self.env['ir.config_parameter'].sudo().set_param('dcasa_brian_tienda.dormir_de_noche', 'False')
+        with self.chrome(1366, 768, movil=False) as browser:
+            browser.navigate_to(self.base_url() + self.colchon.website_url, wait_stop=True)
+            r = self.evaluar(browser, NOCHE_BURBUJA)
+        self.assertEqual((r['alLlegar'], r['cambios']), ('marco_foto', ['bolsita']), 'como de día')

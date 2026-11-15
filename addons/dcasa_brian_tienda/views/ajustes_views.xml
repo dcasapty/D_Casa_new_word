@@ -14,6 +14,16 @@
                             <field name="activo"/>
                         </setting>
                     </block>
+                    <block title="Fuera del horario" name="dcasa_brian_tienda_noche">
+                        <setting id="dcasa_brian_tienda_avisar_cerrado"
+                                 help="Encendido: de noche, Brian saluda diciendo que la tienda está cerrada y que una vendedora responde por WhatsApp en cuanto abran. Apagado: Brian siempre saluda como de día y ayuda igual (busca, calcula el envío, deja el carrito listo).">
+                            <field name="avisar_cerrado"/>
+                        </setting>
+                        <setting id="dcasa_brian_tienda_dormir_de_noche"
+                                 help="Encendido: fuera del horario el robot de la burbuja duerme. Apagado: de noche la burbuja se porta como de día (cambia con la página y al bajar). El horario es el de Ajustes de Juan.">
+                            <field name="dormir_de_noche"/>
+                        </setting>
+                    </block>
                     <block title="Presupuesto y topes (cuidan el costo de la IA y frenan abusos)" name="dcasa_brian_tienda_topes">
                         <setting id="dcasa_brian_tienda_presupuesto" string="Presupuesto del mes (USD)"
                                  help="Lo más que puede gastar el chat de la tienda en el mes, aparte del gasto de Juan. Al llegar, Brian deja de contestar y ofrece WhatsApp. 0 = no contesta.">

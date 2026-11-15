@@ -116,6 +116,12 @@ export interface ConfigTienda {
   tope_en_vuelo: number;
   /** La parte justa de cada red en esos turnos a la vez: lo que pase de ahí nunca deja fuera a otra red. De fábrica, 2. Opcional. */
   tope_en_vuelo_red: number;
+  /**
+   * Fuera del horario de las vendedoras, ¿Brian lo dice? true (como hasta el 2026-11-15): la línea de «la tienda está cerrada, te
+   * responden al abrir», la pose dormida y el aviso al modelo. false (la dueña: «que siempre esté activo»): atiende igual que de día y
+   * solo si piden una persona o el horario dice con amabilidad cuándo responden las vendedoras. Opcional: sin la clave, true.
+   */
+  avisar_cerrado: boolean;
   /** Los orígenes que pueden llamar al Worker desde el navegador (CORS). Opcional en Odoo. */
   origenes: string[];
   /** La clave `brian_tienda` llegó de Odoo (y no son los valores de fábrica): lo dice `/salud`. */
@@ -134,6 +140,7 @@ export const TIENDA_POR_DEFECTO: ConfigTienda = {
   tope_red48_dia: 150,
   tope_en_vuelo: 8,
   tope_en_vuelo_red: 2,
+  avisar_cerrado: true,
   origenes: [...ORIGENES_DE_LA_TIENDA_POR_DEFECTO],
   desde_odoo: false,
 };
@@ -437,6 +444,8 @@ export function normalizarTienda(v: unknown): ConfigTienda {
     tope_red48_dia: Math.round(numero(v.tope_red48_dia, porRedDia * 3, 1, 100_000)),
     tope_en_vuelo: enVuelo,
     tope_en_vuelo_red: Math.round(numero(v.tope_en_vuelo_red, Math.min(d.tope_en_vuelo_red, enVuelo), 1, enVuelo)),
+    // Solo un false de verdad lo apaga: sin la clave (un Odoo de antes) se porta como siempre.
+    avisar_cerrado: v.avisar_cerrado !== false,
     origenes: origenes.length ? origenes : [...d.origenes],
     desde_odoo: true,
   };

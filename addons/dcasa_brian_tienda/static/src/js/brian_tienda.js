@@ -474,9 +474,11 @@ export class ChatBrian {
         }
         this.ruta = window.location.pathname;
         this.pagina = tipoDePagina(this.ruta);
-        this.noche = esDeNoche(this.horario);
+        // De noche el robot de la burbuja duerme, salvo que Gerencia lo apague (Sitio web › Brian de la tienda, en el HTML
+        // como data-dormir; al cambiarlo, el borde rehace las páginas). El chat por dentro decide con el pase.
+        this.noche = raiz.dataset.dormir !== "0" && esDeNoche(this.horario);
         this.estado = {
-            abierto: false, saludado: false, ampliado: false, pausa: false, pose: this.noche ? "durmiendo" : "saludando",
+            abierto: false, saludado: false, ampliado: false, pausa: false, pose: "saludando",
             autor: null, posePrevia: null, vistos: [], carrito: null, carritoCambio: false,
         };
         this.historial = [];
@@ -1471,7 +1473,7 @@ export class ChatBrian {
             if (!r.ok || typeof r.pase !== "string" || typeof r.worker !== "string") {
                 return { ok: false, motivo: r.motivo || "fallo" };
             }
-            const pase = { ok: true, pase: r.pase, worker: r.worker.replace(/\/+$/, ""), vence: ahora + (Number(r.vence_en) || 1800), noche: Boolean(r.noche), horario_texto: typeof r.horario_texto === "string" ? r.horario_texto : "" };
+            const pase = { ok: true, pase: r.pase, worker: r.worker.replace(/\/+$/, ""), vence: ahora + (Number(r.vence_en) || 1800), noche: Boolean(r.noche), avisar_cerrado: r.avisar_cerrado === true, horario_texto: typeof r.horario_texto === "string" ? r.horario_texto : "" };
             guardarAlmacen(CLAVE_PASE, pase);
             return pase;
         } finally {
@@ -1844,8 +1846,8 @@ export class ChatBrian {
                 this.sinRespuesta(pase.motivo, null, null);
                 return;
             }
-            const noche = pase.noche;
-            this.noche = noche;
+            // Fuera del horario solo lo dice (y el avatar se duerme) si Gerencia lo pidió; si no, saluda como de día.
+            const noche = pase.noche && pase.avisar_cerrado;
             this.pose(noche ? "durmiendo" : "saludando");
             const quitar = this.escribiendo();
             await pausa(700);
