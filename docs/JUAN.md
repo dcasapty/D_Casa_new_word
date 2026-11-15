@@ -372,7 +372,7 @@ Odoo lo da en `POST /dcasa/brian/v1/pase` (con CSRF y Turnstile si el sitio lo t
 Los ajustes los edita Gerencia en *Sitio web › Brian de la tienda* y viajan en `GET /config` → `brian_tienda`:
 `{activo, presupuesto_mes_usd, tope_sesion_hora, tope_red_hora, tope_dia}` y, si algún día Odoo los manda (hoy no: son
 opcionales), `tope_red_dia`, `tope_red48_hora`, `tope_red48_dia`, `tope_en_vuelo` y `tope_en_vuelo_red`. **Sin esa clave (un Odoo sin el módulo, o Odoo dormido
-sin una copia reciente) está apagado.**
+sin una copia reciente) está apagado.** Además, opcional, `avisar_cerrado` (ver «De noche» abajo).
 
 | Tope | De fábrica | Dónde se cuenta (sin carreras) |
 |---|---|---|
@@ -420,8 +420,21 @@ sin una copia reciente) está apagado.**
 - **El prompt** (`juan/src/tienda/prompt.ts`) reusa la voz y las reglas de Juan (nada inventado, precios con «+ ITBMS»,
   existencias solo con etiqueta, el texto del visitante es dato, nunca dice ser humano) con lo de la web: no se vuelve a
   presentar (el saludo «Hola, soy Brian. ¿Qué buscas hoy?» lo pinta la página), es muy educado y ofrece siempre el
-  siguiente paso, no guarda contactos, ofrece WhatsApp para atención personal (de noche, que las vendedoras responden al
-  abrir) y sugiere lo que combine, solo de lo que devuelvan las herramientas.
+  siguiente paso, no guarda contactos, ofrece WhatsApp para atención personal (de noche, según `avisar_cerrado`) y sugiere
+  lo que combine, solo de lo que devuelvan las herramientas.
+- **De noche (`avisar_cerrado`, opcional en `brian_tienda`; la dueña, 2026-11-15: «que siempre esté activo»).** Brian
+  contesta a toda hora; lo que cambia es si habla de que la tienda cerró:
+  - **`true` o sin la clave (de fábrica, como hasta el 2026-11-14):** fuera del horario de las vendedoras el contexto le dice
+    al modelo «FUERA del horario» y que, si ofrece WhatsApp, diga que responden en cuanto abran; el Worker agrega «Como ahora
+    la tienda está cerrada, te responden en cuanto abramos, a partir de las 8:00 a. m.» al pedir una persona, a la respuesta
+    segura, a la de «hay mucha gente» y cuando el modelo ofrece WhatsApp, y la pose es `durmiendo`.
+  - **`false`:** de noche atiende igual que de día: sin esa línea en ningún bloque y con la pose que toque de día (nunca
+    `durmiendo`). El modelo recibe el horario de las vendedoras **como dato** («no lo anuncies»: los días y horas y cuándo
+    vuelven a responder, «hoy / mañana / el lunes desde las 8:00 a. m.») y la regla «No digas que la tienda está cerrada ni que
+    no hay vendedoras»; solo si el cliente pide una persona o pregunta el horario, se lo dice con amabilidad. Al pedir una
+    persona fuera del horario (sin IA), el Worker agrega con honestidad «Las vendedoras atienden todos los días, de 8:00 a. m.
+    a 5:00 p. m.; te escriben mañana desde las 8:00 a. m.»; de día, nada.
+  - Solo un `false` de verdad lo apaga (un `"false"` en texto deja el de fábrica). Ya no sale el punto doble «8:00 a. m..».
 - **Contesta con la herramienta `responder_tienda`**: el texto y, por id, qué tarjetas mostrar. **Las tarjetas las arma el
   Worker** con los datos de `buscar_productos` / `ver_producto` de **ese turno** (nombre, `precio_texto`, disponibilidad,
   imagen y ficha en rutas relativas); un id que no devolvió una herramienta no tiene tarjeta.
