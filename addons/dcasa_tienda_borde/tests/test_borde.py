@@ -96,7 +96,7 @@ class TestCacheDelBorde(HttpCase):
         return self._otro('GET', ruta, headers={CABECERA_BORDE: token}, cookies=cookies)
 
     def test_relleno_es_el_html_de_odoo_y_anonimo(self):
-        for ruta in ('/', '/shop', self.producto.website_url, '/black-weekend', '/visitanos'):
+        for ruta in ('/', '/shop', self.producto.website_url, '/promociones', '/visitanos'):
             with self.subTest(ruta=ruta):
                 guardable = self._relleno(ruta)
                 self.assertEqual(guardable.status_code, 200)

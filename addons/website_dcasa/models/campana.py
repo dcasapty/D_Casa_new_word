@@ -18,7 +18,7 @@ productos se marcaban desde el Excel del catálogo (models/black_weekend.py).
   hace regenerar toda la tienda del borde (dcasa_tienda_borde).
 """
 import logging
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 
 import pytz
 
@@ -29,6 +29,10 @@ from odoo.tools import float_compare, float_round
 _logger = logging.getLogger(__name__)
 
 ZONA = pytz.timezone('America/Panama')
+# Lo último que rigió de la campaña cuando se pusieron al día los carritos (``_dcasa_campana_carritos_al_dia``).
+PARAM_FIRMA_CARRITOS = 'website_dcasa.campana_firma_carritos'
+# Carritos más viejos que esto (sin tocar) no se recalculan: ya nadie vuelve a ellos.
+DIAS_DE_CARRITO = 30
 
 
 def limites_utc(inicio, fin):
@@ -133,6 +137,47 @@ class DcasaCampana(models.Model):
             if tarifa and not tarifa.website_id:
                 tarifa.write({'selectable': True})
                 _logger.info('Campaña: la tarifa %s queda ofrecida al sitio %s.', tarifa.display_name, sitio.name)
+
+    @api.model
+    def _dcasa_campana_firma(self, ahora=None):
+        """Lo que rige en este momento: «plantilla:rebaja» de cada regla de campaña en fechas, ordenado."""
+        momento = ahora or fields.Datetime.now()
+        reglas = self.env['product.pricelist.item'].sudo().search([
+            ('dcasa_campana', '=', True), ('date_start', '<=', momento), ('date_end', '>=', momento)])
+        return ','.join(sorted({f'{r.product_tmpl_id.id}:{r.price_surcharge:.2f}' for r in reglas}))
+
+    @api.model
+    def _dcasa_campana_carritos_al_dia(self, ahora=None):
+        """Cron horario: si cambió lo que rige (empieza o termina la campaña, o cambió un precio o una fecha), pone al
+        día los precios de los carritos abiertos de la tienda que tienen alguno de esos productos.
+
+        Odoo calcula cada línea nueva del carrito con la hora actual, pero no vuelve a calcular las que ya estaban: una
+        cama puesta el 26 seguiría a precio normal el 27 aunque la página diga el de campaña. Solo carritos (borrador,
+        de la tienda, sin fecha de apartado); nunca un apartado ni un pedido confirmado. Devuelve cuántos tocó.
+        """
+        param = self.env['ir.config_parameter'].sudo()
+        firma = self._dcasa_campana_firma(ahora)
+        antes = param.get_param(PARAM_FIRMA_CARRITOS)
+        if antes == firma:
+            return 0
+        param.set_param(PARAM_FIRMA_CARRITOS, firma)
+        if antes is None:
+            return 0   # primera vez: solo se anota lo que rige
+        plantillas = {int(par.split(':')[0]) for par in (antes or '').split(',') + firma.split(',') if par}
+        if not plantillas:
+            return 0
+        Pedido = self.env['sale.order'].sudo()
+        dominio = [('state', '=', 'draft'), ('website_id', '!=', False),
+                   ('order_line.product_id.product_tmpl_id', 'in', list(plantillas)),
+                   ('write_date', '>=', fields.Datetime.now() - timedelta(days=DIAS_DE_CARRITO))]
+        if 'dcasa_apartado_vence' in Pedido._fields:
+            dominio.append(('dcasa_apartado_vence', '=', False))
+        carritos = Pedido.search(dominio)
+        for carrito in carritos:
+            carrito._recompute_prices()
+        if carritos:
+            _logger.info('Campaña: %s carritos de la tienda al día con los precios que rigen.', len(carritos))
+        return len(carritos)
 
     # ------------------------------------------------------------------
     # Botones

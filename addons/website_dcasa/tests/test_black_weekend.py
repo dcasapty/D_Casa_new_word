@@ -189,7 +189,7 @@ class TestPaginasBlackWeekend(_Base, HttpCase):
         self.assertIn('class="o_dcasa_bw"', html)
         self.assertIn('Cama Black de Prueba', html)
         self.assertLess(html.index('o_dcasa_bw'), html.index('Lo más buscado'))
-        self.assertIn('href="/black-weekend"', html)
+        self.assertIn('href="/promociones"', html)  # /black-weekend lleva ahí (campaña del sitio)
         self.assertRegex(html, r'187[.,]99')
         self.assertIn('Agregar al carrito', html)
         self.assertIn(f'c%C3%B3digo%20{self.cama.dcasa_codigo_publico}', html, 'WhatsApp con el código público')
