@@ -688,14 +688,14 @@ class TestCarritoEnLaBarra(NavegadorCase):
         self.assertEqual(r['lleno']['cuenta'], '2')
         self.assertEqual(r['lleno']['etiqueta'], 'Ver tu carrito: 2 artículos')
         self.assertEqual(r['lleno']['href'], '/shop/cart')
-        # El color de la cantidad (investigación del 2026-11-15, docs/COLOR_CANTIDAD_CARRITO.md): amarilla, número azul
-        # noche, aro azul; igual en el chat y en el menú del sitio.
+        # El color de la cantidad: azul con número blanco, en el chat (con filo blanco) y en el menú. La investigación
+        # recomendó amarilla con aro azul; la dueña decidió dejarla azul (2026-11-15, docs/COLOR_CANTIDAD_CARRITO.md).
         for donde in ('colores', 'coloresMenu'):
             with self.subTest(donde=donde):
-                fondo, texto, aro = r['lleno'][donde]
-                self.assertEqual(fondo, 'rgb(254, 208, 15)', 'la cantidad, amarilla')
-                self.assertEqual(texto, 'rgb(14, 42, 107)', 'el número, azul noche (9:1)')
-                self.assertIn('rgb(19, 64, 177)', aro, 'el aro azul: el amarillo no toca el blanco')
+                fondo, texto, _aro = r['lleno'][donde]
+                self.assertEqual(fondo, 'rgb(19, 64, 177)', 'la cantidad, azul')
+                self.assertEqual(texto, 'rgb(255, 255, 255)', 'el número, blanco (8.8:1)')
+        self.assertIn('rgb(255, 255, 255)', r['lleno']['colores'][2], 'en el chat, el filo blanco la despega del círculo')
         self.assertEqual((r['otraVez']['wa'], r['otraVez']['carrito']), (True, False), 'vacío otra vez: WhatsApp')
 
     def test_la_conversacion_que_sigue_en_otra_pagina_lee_el_carrito(self):

@@ -6,9 +6,13 @@ solo deja dos colores: el azul `#1340B1` y el amarillo `#FED00F`. La cantidad es
 
 ## Decisión
 
-**Amarilla, con el número en azul noche `#0E2A6B` y un aro azul `#1340B1` de 2 px.** La misma en el menú
-(`website_dcasa/static/src/scss/dcasa.scss`) y en el chat (`dcasa_brian_tienda/static/src/scss/brian_tienda.scss`).
-Las pruebas: `dcasa_brian_tienda/tests/test_navegador.py`, `TestCarritoEnLaBarra`.
+**La dueña decidió dejarla azul, como estaba** (2026-11-15, después de ver la investigación y las capturas de las dos):
+azul `#1340B1` con número blanco, en el menú (la de Odoo, `bg-primary`) y en el chat de Brian (con un filo blanco que la
+despega del círculo, `dcasa_brian_tienda/static/src/scss/brian_tienda.scss`). La prueba que lo cuida:
+`dcasa_brian_tienda/tests/test_navegador.py`, `TestCarritoEnLaBarra`.
+
+La recomendación de la investigación había sido amarilla con número azul noche y aro azul. Queda escrita abajo por si se
+quiere revisar; no se vuelve a proponer sin un dato nuevo (por ejemplo, una prueba A/B o quejas de que no se ve).
 
 ## Lo que dice la investigación
 
@@ -40,8 +44,10 @@ La cabecera de D'CASA cambia: **sobre la foto de la portada es vidrio oscuro** (
 | El número dentro | blanco sobre azul 8.76:1 | azul noche sobre amarillo 9.12:1 |
 
 Medido con capturas del Odoo local (mediana de los píxeles junto a la burbuja) y la fórmula de luminancia de WCAG.
-Cada color falla en uno de los dos casos; **la amarilla con aro azul es la única que cumple en los dos**, y el aro
-mantiene la regla de marca (el amarillo nunca toca el blanco).
+Cada color falla en uno de los dos casos; la amarilla con aro azul era la única que cumplía en los dos, y el aro
+mantenía la regla de marca (el amarillo nunca toca el blanco). Con la azul, lo que queda pendiente es la cabecera sobre
+la foto: si algún día hiciera falta, un filo blanco alrededor de la burbuja (7:1 contra ese vidrio) la despega sin
+cambiar el color.
 
 ## Lo que no hace
 

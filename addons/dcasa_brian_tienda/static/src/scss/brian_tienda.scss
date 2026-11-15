@@ -435,9 +435,8 @@ html.o_dcasa_refraccion .o_dcbt_cab::before {
 }
 
 // El carrito en la barra (con algo en el carrito, en lugar de WhatsApp; pedido de la dueña, 2026-11-15: «que se vea así»,
-// como el del menú del sitio): el círculo gris claro con el carrito y la cantidad en una burbuja amarilla con número
-// azul noche y aro azul, igual que en el menú (investigación del color: docs/COLOR_CANTIDAD_CARRITO.md). El aro azul
-// separa el amarillo del vidrio claro: el amarillo nunca toca el blanco.
+// como el del menú del sitio): el círculo gris claro con el carrito y la cantidad en una burbuja azul con número blanco,
+// con un filo blanco que la despega del círculo (el azul toca el blanco: está bien; el amarillo no podría).
 .o_dcbt_cab_carrito {
     position: relative;
     background: rgba(27, 34, 51, .07);
@@ -455,9 +454,9 @@ html.o_dcasa_refraccion .o_dcbt_cab::before {
     border-radius: 999px;
     font: 700 12px/1 var(--o-dcbt-f-texto);
     font-variant-numeric: tabular-nums;
-    color: var(--o-dcbt-navy);
-    background: var(--o-dcbt-amarillo);
-    box-shadow: 0 0 0 2px var(--o-dcbt-azul);
+    color: var(--o-dcbt-blanco);
+    background: var(--o-dcbt-azul);
+    box-shadow: 0 0 0 2px var(--o-dcbt-blanco);
     pointer-events: none;
 }
 

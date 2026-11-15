@@ -2894,17 +2894,6 @@ html.o_dcasa_navegando::before {
     }
 }
 
-// La cantidad del carrito (investigación del 2026-11-15, docs/COLOR_CANTIDAD_CARRITO.md): amarilla con número azul
-// noche y un aro azul. Sobre la foto de la portada la cabecera es oscura y una cantidad azul medía 1.2-1.4:1 (no se
-// veía); la amarilla mide 4-5:1. Sobre la cabecera clara, el aro azul (8.8:1 contra el blanco) la separa y cumple la
-// regla de marca: el amarillo nunca toca el blanco. La misma burbuja en el chat de Brian (dcasa_brian_tienda).
-#wrapwrap > header#top .my_cart_quantity {
-    background-color: $dcasa-amarillo !important;   // Odoo la pinta con .bg-primary (!important)
-    color: $dcasa-navy;
-    box-shadow: 0 0 0 2px $dcasa-azul;
-    font-variant-numeric: tabular-nums;
-}
-
 // La caja de búsqueda que abre la lupa: en el celular, pegada arriba y a lo ancho (con el teclado abierto, la lista
 // de sugerencias necesita el espacio).
 @media (max-width: 575.98px) {
