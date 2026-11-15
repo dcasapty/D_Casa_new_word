@@ -6,17 +6,17 @@
         <field name="name">dcasa.brian.tienda.ajustes.form</field>
         <field name="model">dcasa.brian.tienda.ajustes</field>
         <field name="arch" type="xml">
-            <form string="Brian de la tienda" class="oe_form_configuration o_dcasa_brian_tienda_ajustes" js_class="base_settings">
-                <app string="Brian de la tienda" name="website">
-                    <block title="Brian, el chat de la tienda" name="dcasa_brian_tienda_bloque">
+            <form string="Andrés, el chat de la tienda" class="oe_form_configuration o_dcasa_brian_tienda_ajustes" js_class="base_settings">
+                <app string="Andrés, el chat de la tienda" name="website">
+                    <block title="Andrés, el chat de la tienda" name="dcasa_brian_tienda_bloque">
                         <setting id="dcasa_brian_tienda_activo"
-                                 help="En el sitio sale la burbuja de Brian (en lugar de la de WhatsApp): busca muebles, calcula el envío con la tarifa aprobada y deja el carrito listo; para atención personal ofrece WhatsApp. No guarda la conversación ni crea contactos.">
+                                 help="En el sitio sale la burbuja de Andrés (en lugar de la de WhatsApp): busca muebles, calcula el envío con la tarifa aprobada y deja el carrito listo; para atención personal ofrece WhatsApp. No guarda la conversación ni crea contactos.">
                             <field name="activo"/>
                         </setting>
                     </block>
                     <block title="Fuera del horario" name="dcasa_brian_tienda_noche">
                         <setting id="dcasa_brian_tienda_avisar_cerrado"
-                                 help="Encendido: de noche, Brian saluda diciendo que la tienda está cerrada y que una vendedora responde por WhatsApp en cuanto abran. Apagado: Brian siempre saluda como de día y ayuda igual (busca, calcula el envío, deja el carrito listo).">
+                                 help="Encendido: de noche, Andrés saluda diciendo que la tienda está cerrada y que una vendedora responde por WhatsApp en cuanto abran. Apagado: Andrés siempre saluda como de día y ayuda igual (busca, calcula el envío, deja el carrito listo).">
                             <field name="avisar_cerrado"/>
                         </setting>
                         <setting id="dcasa_brian_tienda_dormir_de_noche"
@@ -26,7 +26,7 @@
                     </block>
                     <block title="Presupuesto y topes (cuidan el costo de la IA y frenan abusos)" name="dcasa_brian_tienda_topes">
                         <setting id="dcasa_brian_tienda_presupuesto" string="Presupuesto del mes (USD)"
-                                 help="Lo más que puede gastar el chat de la tienda en el mes, aparte del gasto de Juan. Al llegar, Brian deja de contestar y ofrece WhatsApp. 0 = no contesta.">
+                                 help="Lo más que puede gastar el chat de la tienda en el mes, aparte del gasto de Juan. Al llegar, Andrés deja de contestar y ofrece WhatsApp. 0 = no contesta.">
                             <field name="presupuesto_mes_usd"/>
                         </setting>
                         <setting id="dcasa_brian_tienda_tope_sesion" string="Mensajes por visitante, en una hora"
@@ -65,7 +65,7 @@
     </record>
 
     <record id="action_dcasa_brian_tienda_ajustes" model="ir.actions.act_window">
-        <field name="name">Brian de la tienda</field>
+        <field name="name">Andrés, el chat de la tienda</field>
         <field name="res_model">dcasa.brian.tienda.ajustes</field>
         <field name="view_mode">form</field>
         <field name="target">current</field>
@@ -73,7 +73,7 @@
         <field name="context">{'module': 'website', 'bin_size': False}</field>
     </record>
 
-    <menuitem id="menu_dcasa_brian_tienda" name="Brian de la tienda" parent="website.menu_website_configuration"
+    <menuitem id="menu_dcasa_brian_tienda" name="Andrés, el chat de la tienda" parent="website.menu_website_configuration"
               action="action_dcasa_brian_tienda_ajustes" sequence="46"
               groups="dcasa_base.group_gerencia,base.group_system"/>
 </odoo>

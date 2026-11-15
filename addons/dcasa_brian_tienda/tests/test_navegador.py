@@ -42,8 +42,8 @@ CHAT = """(async () => {
     const res = { errores: [] };
     const burbuja = document.querySelector('button.o_dcbt_burbuja');
     burbuja.click();
-    await hasta(() => globos().some((g) => g.includes('Hola, soy Brian. ¿Qué buscas hoy?')), 'el saludo');
-    res.saludos = globos().filter((g) => g.includes('Hola, soy Brian')).length;
+    await hasta(() => globos().some((g) => g.includes('Hola, soy Andrés. ¿Qué buscas hoy?')), 'el saludo');
+    res.saludos = globos().filter((g) => g.includes('Hola, soy Andrés')).length;
     res.expandido = burbuja.getAttribute('aria-expanded');
     // Las sugerencias dependen del catálogo (las dos categorías con más productos): se escribe «Colchones», que es lo
     // mismo que manda el botón.
@@ -142,7 +142,7 @@ BURBUJA = """(async () => {
 QUIETO = """(async () => {
     /*ESPERAR*/
     document.querySelector('button.o_dcbt_burbuja').click();
-    await hasta(() => globos().some((g) => g.includes('Hola, soy Brian')), 'el saludo');
+    await hasta(() => globos().some((g) => g.includes('Hola, soy Andrés')), 'el saludo');
     await esperar(300);
     const delChat = (a) => a.effect && a.effect.target && a.effect.target.closest && a.effect.target.closest('#o_dcasa_brian');
     return { animaciones: document.getAnimations().filter((a) => a.playState === 'running' && delChat(a)).map((a) => a.animationName || 'waapi'),
@@ -250,7 +250,7 @@ NOCHE_CHAT = """(async () => {
     chat.pose = (p) => { poses.push(p); return original(p); };
     const burbuja = (document.querySelector('button.o_dcbt_burbuja img.o_dcbt_img_pose:not(.o_dcbt_saliendo)') || {}).dataset;
     document.querySelector('button.o_dcbt_burbuja').click();
-    await hasta(() => globos().some((g) => g.includes('Hola, soy Brian')) && globos().length >= 2, 'el saludo');
+    await hasta(() => globos().some((g) => g.includes('Hola, soy Andrés')) && globos().length >= 2, 'el saludo');
     let pase = null;
     try { pase = JSON.parse(sessionStorage.getItem('dcasa.brian.pase')); } catch (e) { pase = null; }
     return { burbuja: burbuja ? burbuja.pose : null, globos: globos(), poses, noche: pase && pase.noche,
@@ -520,7 +520,7 @@ class TestBrianDeNoche(NavegadorCase):
             r = self.evaluar(browser, NOCHE_CHAT)
         self.assertEqual((r['noche'], r['avisar']), (True, False), 'el pase dice la verdad y que no hay que avisar')
         self.assertEqual(r['burbuja'], 'durmiendo', 'el robot de la burbuja sí duerme')
-        self.assertEqual(r['globos'][:2], ['Hola, soy Brian. ¿Qué buscas hoy?', 'Con gusto te ayudo a encontrar tu '
+        self.assertEqual(r['globos'][:2], ['Hola, soy Andrés. ¿Qué buscas hoy?', 'Con gusto te ayudo a encontrar tu '
                          'mueble, ver precios, calcular el envío o dejarte el carrito listo.'], 'saluda como de día')
         self.assertFalse([g for g in r['globos'] if cerrada in g])
         self.assertNotIn('durmiendo', r['poses'], 'el avatar del chat no se duerme')
@@ -629,7 +629,7 @@ CARRITO_EN_LA_BARRA = """(async () => {
     /*ESPERAR*/ /*BARRA*/
     const r = {};
     document.querySelector('button.o_dcbt_burbuja').click();
-    await hasta(() => globos().some((g) => g.includes('Hola, soy Brian')), 'el saludo');
+    await hasta(() => globos().some((g) => g.includes('Hola, soy Andrés')), 'el saludo');
     await esperar(600);
     r.vacio = barra();
     const primeras = document.querySelector('#o_dcbt_panel .o_dcbt_chips');
@@ -649,7 +649,7 @@ CARRITO_EN_LA_BARRA = """(async () => {
 SIGUE_EN_OTRA_PAGINA_1 = """(async () => {
     /*ESPERAR*/ /*BARRA*/
     document.querySelector('button.o_dcbt_burbuja').click();
-    await hasta(() => globos().some((g) => g.includes('Hola, soy Brian')), 'el saludo');
+    await hasta(() => globos().some((g) => g.includes('Hola, soy Andrés')), 'el saludo');
     await esperar(600);
     const antes = barra();
     await agregarDesdeLaPagina(1, null);   // sin tocar el menú: como la página que agrega y se va a otra
@@ -662,7 +662,7 @@ SIGUE_EN_OTRA_PAGINA_2 = """(async () => {
     await hasta(() => document.querySelector('#o_dcbt_panel:not([hidden])'), 'el chat abierto otra vez');
     await hasta(() => barra().carrito, 'el carrito en la barra');
     const pie = document.querySelector('#o_dcbt_panel .o_dcbt_vitrina_pie');
-    return { barra: barra(), pie: pie ? pie.textContent : null, historial: globos().filter((g) => g.includes('Hola, soy Brian')).length };
+    return { barra: barra(), pie: pie ? pie.textContent : null, historial: globos().filter((g) => g.includes('Hola, soy Andrés')).length };
 })()"""
 
 

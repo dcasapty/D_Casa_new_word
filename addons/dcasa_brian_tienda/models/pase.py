@@ -154,7 +154,7 @@ def leer_pase(pase, token, ahora=None):
 
 class DcasaBrianTienda(models.AbstractModel):
     _name = 'dcasa.brian.tienda'
-    _description = 'Brian de la tienda (pase, ajustes y carrito)'
+    _description = 'Andrés (chat de la tienda): pase, ajustes y carrito'
 
     # ------------------------------------------------------------------
     # Ajustes (ir.config_parameter; Sitio web › Brian de la tienda)

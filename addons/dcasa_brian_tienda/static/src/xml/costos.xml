@@ -6,7 +6,7 @@
         <xpath expr="//section[h2='Qué IA contesta']" position="before">
             <section t-if="d.tienda" class="o_dcj_p_tarjeta o_dcbt_costos" aria-labelledby="o_dcbt_costos_titulo">
                 <header class="o_dcj_p_tarjeta_cabecera">
-                    <h2 id="o_dcbt_costos_titulo">Brian de la tienda (chat de la web)</h2>
+                    <h2 id="o_dcbt_costos_titulo">Andrés (chat de la tienda)</h2>
                     <span class="o_dcj_secundario" t-if="!d.tienda.sin_dato and d.tienda.turnos"><t t-out="numero(d.tienda.turnos)"/> respuestas en el mes</span>
                 </header>
                 <p t-if="d.tienda.sin_dato" class="o_dcj_p_detalle o_dcbt_sin_dato">Sin dato: el Worker todavía no dice cuánto va el chat de la web este mes.</p>
