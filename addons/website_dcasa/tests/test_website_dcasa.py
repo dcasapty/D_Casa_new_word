@@ -382,11 +382,16 @@ class TestMarcaYMovimiento(HttpCase):
         self.assertIn('info@dcasapty.com', html)
         self.assertIn('href="/whatsapp"', html)
 
-    def test_cta_de_la_cabecera_es_whatsapp(self):
-        html = self.url_open('/shop').text
-        self.assertRegex(html, r'class="[^"]*btn_cta[^"]*"|btn_cta')
-        cta = re.search(r'<a[^>]*btn_cta[^>]*>', html).group(0)
-        self.assertIn('href="/whatsapp"', cta)
+    def test_whatsapp_sin_boton_en_el_menu_y_con_la_seccion_de_contacto(self):
+        """Decisión de la dueña (2026-11-15): «Escríbenos» sale del menú; la portada lleva una sección pequeña que
+        invita a escribir por WhatsApp o por correo, antes de Visítanos."""
+        self.assertNotIn('btn_cta', self.url_open('/shop').text, 'el menú ya no lleva «Escríbenos»')
+        portada = self.url_open('/').text
+        seccion = re.search(r'<section class="o_dcasa_contacto_cta".*?</section>', portada, re.S)
+        self.assertTrue(seccion, 'la portada trae la sección de contacto')
+        self.assertIn('href="/whatsapp"', seccion.group(0))
+        self.assertRegex(seccion.group(0), r'href="mailto:[^"]+@[^"]+"')
+        self.assertLess(portada.index('o_dcasa_contacto_cta'), portada.index('id="visitanos"'), 'antes de Visítanos')
 
     def test_cache_de_pagina_separa_tarifas(self):
         pagina = self.env.ref('website.homepage_page')

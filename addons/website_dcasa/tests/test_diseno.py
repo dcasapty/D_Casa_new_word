@@ -67,8 +67,8 @@ class TestDisenoUniforme(HttpCase):
                 self.assertIn('o_search_modal', cabecera, 'Búsqueda')
                 # «Inicia sesión» de Odoo, o «Mi cuenta» (/mi-cuenta) si dcasa_mi_cuenta está instalado.
                 self.assertRegex(cabecera, r'href="/(?:web/login|mi-cuenta)"', 'Cuenta')
-                self.assertRegex(cabecera, r'class="[^"]*btn_cta[^"]*"[^>]*>.*?Escríbenos</a>',
-                                 'Botón azul «Escríbenos» (CTA único)')
+                # Sin «Escríbenos» en el menú (decisión de la dueña, 2026-11-15): WhatsApp sigue en los avisos y el pie.
+                self.assertNotIn('btn_cta', cabecera, 'el menú ya no lleva «Escríbenos»')
                 self.assertEqual(cabecera.count('id="top_menu"'), 1)
 
     def test_paginas_con_foto_llevan_la_cabecera_encima(self):
@@ -201,6 +201,25 @@ class TestDisenoUniforme(HttpCase):
                 }
             }
             const pie = document.querySelector('footer#bottom');
+            // Paleta 2026-11-15 (pedido de la dueña): bloques grandes en azul noche, el azul puro solo en acentos, y el
+            // pie en el mismo blanco grisáceo de la portada. Nada amarillo en el pie: el amarillo no toca lo claro.
+            const fondo = (sel) => getComputedStyle(document.querySelector(sel)).backgroundColor;
+            for (const sel of ['.o_dcasa_anuncios', '.o_dcasa_socios_band']) {
+                if (fondo(sel) !== 'rgb(14, 42, 107)') fallar(sel + ' no va en azul noche: ' + fondo(sel));
+            }
+            if (getComputedStyle(pie).backgroundColor !== 'rgb(246, 245, 242)') {
+                fallar('el pie no va en el blanco grisáceo: ' + getComputedStyle(pie).backgroundColor);
+            }
+            if (fondo('footer#bottom .o_footer_copyright') !== 'rgb(233, 231, 225)') {
+                fallar('el copyright no va un tono más oscuro: ' + fondo('footer#bottom .o_footer_copyright'));
+            }
+            for (const el of pie.querySelectorAll('*')) {
+                const e = getComputedStyle(el);
+                if ([e.color, e.backgroundColor, e.borderTopColor].includes('rgb(254, 208, 15)')) {
+                    fallar('amarillo en el pie claro: ' + el.tagName + '.' + el.className);
+                    break;
+                }
+            }
             for (const el of [pie, ...pie.querySelectorAll('*')]) {
                 const e = getComputedStyle(el);
                 if (e.backgroundImage !== 'none' || e.filter !== 'none' || parseFloat(e.opacity) < 1) {

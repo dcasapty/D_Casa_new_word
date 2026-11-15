@@ -609,7 +609,12 @@ BARRA = """
         const cab = document.querySelector('#o_dcbt_panel .o_dcbt_cab');
         const wa = cab && cab.querySelector('a[target="_blank"]');
         const carrito = cab && cab.querySelector('.o_dcbt_cab_carrito');
+        const globo = carrito && getComputedStyle(carrito.querySelector('.o_dcbt_cab_cuenta'));
+        const menu = document.querySelector('.my_cart_quantity');
+        const deMenu = menu && getComputedStyle(menu);
         return { wa: wa ? !wa.hidden : null, carrito: carrito ? !carrito.hidden : null,
+                 colores: globo ? [globo.backgroundColor, globo.color, globo.boxShadow] : null,
+                 coloresMenu: deMenu ? [deMenu.backgroundColor, deMenu.color, deMenu.boxShadow] : null,
                  cuenta: carrito ? carrito.querySelector('.o_dcbt_cab_cuenta').textContent : null,
                  etiqueta: carrito ? carrito.getAttribute('aria-label') : null, href: carrito ? carrito.getAttribute('href') : null };
     };
@@ -683,6 +688,14 @@ class TestCarritoEnLaBarra(NavegadorCase):
         self.assertEqual(r['lleno']['cuenta'], '2')
         self.assertEqual(r['lleno']['etiqueta'], 'Ver tu carrito: 2 artículos')
         self.assertEqual(r['lleno']['href'], '/shop/cart')
+        # El color de la cantidad (investigación del 2026-11-15, docs/COLOR_CANTIDAD_CARRITO.md): amarilla, número azul
+        # noche, aro azul; igual en el chat y en el menú del sitio.
+        for donde in ('colores', 'coloresMenu'):
+            with self.subTest(donde=donde):
+                fondo, texto, aro = r['lleno'][donde]
+                self.assertEqual(fondo, 'rgb(254, 208, 15)', 'la cantidad, amarilla')
+                self.assertEqual(texto, 'rgb(14, 42, 107)', 'el número, azul noche (9:1)')
+                self.assertIn('rgb(19, 64, 177)', aro, 'el aro azul: el amarillo no toca el blanco')
         self.assertEqual((r['otraVez']['wa'], r['otraVez']['carrito']), (True, False), 'vacío otra vez: WhatsApp')
 
     def test_la_conversacion_que_sigue_en_otra_pagina_lee_el_carrito(self):

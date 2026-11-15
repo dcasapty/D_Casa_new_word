@@ -14,10 +14,12 @@ $o-color-palettes: map-merge($o-color-palettes, (
         'o-color-2': #FED00F, // Amarillo D'CASA — acción y banda
         'o-color-3': #F6F5F2, // Hueso claro — fondos alternos (v3, 2026-11-15: casi neutro; antes #F4F1EA)
         'o-color-4': #FFFFFF, // Blanco — aire
-        'o-color-5': #0E2A6B, // Navy — texto largo y pie
+        'o-color-5': #0E2A6B, // Navy — texto largo, bandas grandes y Visítanos
         'menu': 1,
-        'footer': 4,
-        'copyright': 5,
+        // Pie en el blanco grisáceo de la portada (o_cc2), pedido de la dueña 2026-11-15: el azul puro en un bloque
+        // grande cansaba la vista. La franja del copyright va un tono más oscura (dcasa.scss, «Pie de página»).
+        'footer': 2,
+        'copyright': 2,
     ),
 ));
 

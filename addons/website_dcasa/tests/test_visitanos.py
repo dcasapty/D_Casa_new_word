@@ -6,6 +6,8 @@
   ya aceptó las cookies opcionales, si las acepta luego o si toca el botón. Sin eso, el navegador no le pide nada a
   Google (se mira con `fetch_proxy`, por donde pasa toda petición externa del Chrome de las pruebas).
 """
+import re
+
 from lxml import html as lxml_html
 
 from odoo import Command
@@ -156,6 +158,13 @@ class TestVisitanosMapa(HttpCase):
 
     def _pidio_a_google_maps(self):
         return any(url.startswith('https://www.google.com/maps') for url in self.externas)
+
+    def test_el_numero_abre_whatsapp(self):
+        """Pedido de la dueña (2026-11-15): tocar el número en Visítanos abre WhatsApp (no una llamada)."""
+        html = self.url_open('/visitanos').text
+        self.assertNotIn('href="tel:', html)
+        enlace = re.search(r'<a[^>]*href="(https://wa\.me/[^"]+)"[^>]*>\s*\+507 6026-1919', html)
+        self.assertTrue(enlace, 'el número lleva a WhatsApp')
 
     def test_sin_permiso_no_carga_el_mapa(self):
         self.browser_js('/visitanos', MAPA_SIN_TOCAR, timeout=90)
