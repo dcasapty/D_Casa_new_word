@@ -11,14 +11,15 @@ la producción. Apruébalo y punto.»); la revisión adversarial no se salta (re
 ## Estado al 2026-11-14
 
 - **Producción funciona desde el 2026-10-13** y **`dcasapty.com` (y `www`) apunta al sistema nuevo desde el
-  2026-10-27** (Desplegar 31). Odoo y el borde: **Desplegar 73** (14 nov, PR #119: la burbuja de Brian cambia de robot con el scroll; antes,
+  2026-10-27** (Desplegar 31). Odoo y el borde: **Desplegar 74** (15 nov, PR #120: Brian siempre activo de noche, con dos interruptores; antes,
+  Desplegar 73, PR #119: la burbuja de Brian cambia de robot con el scroll; antes,
   Desplegar 72, PR #118: Brian de la tienda, el chat de ventas en la web, y el
   lote 2 de la web: horario, mapa y opiniones; antes, Desplegar 71, PR #117: avisos de Telegram ordenados con la noche sin clientes, lote 1 de
   la web, «Busca con una foto», el robot como ícono de Brian y el horario de la tienda; antes, Desplegar 70, PR #116:
   comentarios de Instagram y Facebook, apagados; antes, Desplegar 69, PR #115: Juan ya no dice «no lo manejamos» de lo que no está publicado; antes, Desplegar 68, PR #113: Juan cotiza envíos con la promoción, reparto justo y Costos de IA con «Pagar»; antes, Desplegar 67, PR #112: el modo oscuro; el 11 nov, Desplegar 66 con
   entregas igual que Bodega y «Más datos», y antes, Desplegar 65 con el Inicio nuevo, el celular al entrar y la caja del chat, y Desplegar 64 con
   los 21 arreglos de la auditoría visual). Juan: **Desplegar
-  Juan 26** (14 nov, PR #118: Brian de la tienda, `POST /tienda/v1/mensaje` y el Durable Object `TiendaSesion`;
+  Juan 27** (15 nov, PR #120: `avisar_cerrado`; Juan 26, 14 nov, PR #118: Brian de la tienda, `POST /tienda/v1/mensaje` y el Durable Object `TiendaSesion`;
   Juan 25, 14 nov, PR #117: `sin_leer` con su motivo, el comprobante solo si es un pago hecho y la foto de la tienda;
   Juan 24, 13 nov, PR #116; Juan 23 trajo «no lo manejamos» y Juan 22 la segunda puerta de Instagram, apagada). La **versión estable 4** es la anterior (Desplegar 63 + Juan 20)
   ([VERSIONES_ESTABLES.md](VERSIONES_ESTABLES.md)). El contenedor instala 31 de los 32 módulos de `addons/` (todos
@@ -53,7 +54,7 @@ la producción. Apruébalo y punto.»); la revisión adversarial no se salta (re
       - **Turnstile en el chat de la tienda** antes de anunciarlo en grande (el código ya lo soporta: falta crear la
         llave en Cloudflare y ponerla en el sitio). Sin él, unas pocas redes pueden agotar el tope del día de Brian (no
         el dinero: el tope de 30 USD aguanta).
-      - **Texto de Brian:** el aviso de tienda cerrada termina en «9:00 a. m..» (dos puntos; `juan/src/tienda/motor.ts`).
+      - **Comedores:** Brian dice «Comedores no los manejamos» (no hay comedores publicados). Confirmar con la dueña.
       - **Herramientas del Brian del panel** para lo nuevo: `resumen_de_brian_tienda` (gasto, presupuesto y estrellas) y
         opiniones por aprobar.
       - **Tilopay** (la semana del 2026-11-16): pasarela de pago con todos los métodos que tenga activos (Visa,

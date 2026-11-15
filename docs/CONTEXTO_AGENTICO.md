@@ -470,6 +470,12 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   burbuja de Brian cambia de pose con la sección en pantalla (solo JS de `dcasa_brian_tienda`; Juan no cambió, así que
   no hubo Desplegar Juan). **Lección:** el primer intento de squash dio 409 porque escribí de memoria el SHA largo de
   `expectedHeadSha`; siempre `git rev-parse` antes, nunca completar un SHA a ojo. Bien al segundo intento, sin daño.
+- **Desplegar Juan 27 y Desplegar 74** (15 nov; salud sana a las 04:02 UTC) · PR #120, squash `3cd053b`, `app_version`
+  `d52a72b7dd9d3de8ab63ab0a7d7a1ca2892e00ec`, imagen `sha256:a224f8c2…`, CI 359 con staging (run 43668175433). Brian
+  siempre activo de noche (`avisar_cerrado` en `/config`; sin la clave, Juan se porta como antes, así que Juan va
+  primero sin riesgo). **Lección:** staging estaba detenido («contenedor: stopped») y `/web/login` daba 503 varios
+  minutos; `GET /` (la tienda guardada en el borde) contesta igual y no lo despierta: hay que insistir con
+  `/web/login` hasta el 200 (unos 4 minutos) antes de lanzar el CI con staging. Bien al primer intento.
 - **Versión estable 4 ensayada en staging** (11 nov, 03:16–03:40 UTC, run 42951600639 de «Volver a una versión
   estable», lanzado desde la rama de trabajo: el botón solo exige `main` para producción). Estable 4 = imagen de
   Desplegar 63 (`acda72c1…`, `app_version` `3e2ccfc`) + Juan hasta Desplegar Juan 20. Bien al primer intento.
