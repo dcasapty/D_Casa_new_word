@@ -58,7 +58,10 @@ const PAGINAS = {
     noche: { pose: "durmiendo", trans: "sueno" },
     otra: { pose: "asomado_burbuja", trans: "pop" },
 };
-const INICIO = ["Colchones", "Salas", "¿Cuánto cuesta el envío?", "Formas de pago"];
+// Sugerencias del saludo (pedido de la dueña, 2026-11-15, «opción 2»): las dos primeras son las categorías con más
+// productos publicados, que manda Odoo con el pase (`sugerencias`); estas, solo si Odoo no mandó ninguna.
+const SUGERENCIAS_DE_FABRICA = ["Colchones", "Salas"];
+const INICIO_FIJAS = ["¿Cuánto cuesta el envío?", "Formas de pago"];
 const SIGUE_TRAS_AGREGAR = ["¿Cuánto cuesta el envío?", "Formas de pago", "Seguir viendo"];
 const DISPO = { disponible: ["o_dcbt_dispo_ok", "Disponible"], pocas: ["o_dcbt_dispo_pocas", "Quedan pocas"], agotado: ["o_dcbt_dispo_agotado", "Agotado"] };
 const MAX_TEXTO = 500;
@@ -509,6 +512,12 @@ export class ChatBrian {
         this.escuchar(document, "keydown", (ev) => this.alTeclado(ev));
         this.vigilarBotonesDeLaPagina();
         this.vigilarSecciones();
+        this.vigilarCarritoDeLaPagina();
+        this.escuchar(document, "visibilitychange", () => {
+            if (!document.hidden && this.estado.abierto) {
+                this.refrescarCarrito(); // pudo cambiarlo en otra pestaña
+            }
+        });
         const guardado = leerAlmacen(CLAVE_CHAT);
         if (guardado && Array.isArray(guardado.historial) && guardado.historial.length) {
             this.restaurado = guardado;
@@ -828,11 +837,15 @@ export class ChatBrian {
             class: "o_dcbt_cab_boton", href: this.urlWhatsApp(), target: "_blank", rel: "noopener",
             "aria-label": "Escríbenos por WhatsApp (se abre en otra pestaña)", html: ICO.wa,
         });
+        // Con algo en el carrito, en lugar de WhatsApp: el carrito con su cantidad, que lleva a /shop/cart.
+        this.cabCuenta = el("span", { class: "o_dcbt_cab_cuenta", "aria-hidden": "true" });
+        this.cabCarrito = el("a", { class: "o_dcbt_cab_boton o_dcbt_cab_carrito", href: "/shop/cart", hidden: true, html: ICO.carrito });
+        this.cabCarrito.append(this.cabCuenta);
         this.btnAmpliar = el("button", { type: "button", class: "o_dcbt_cab_boton", "aria-pressed": "false", "aria-label": esCelular() ? "Ver los productos en cuadrícula" : "Ampliar el chat", html: ICO.ampliar });
         this.btnCerrar = el("button", { type: "button", class: "o_dcbt_cab_boton", "aria-label": "Cerrar el chat", html: ICO.cerrar });
         const cab = el("header", { class: "o_dcbt_cab" }, this.cabPose,
             el("div", { class: "o_dcbt_cab_textos" }, el("h2", { id: "o_dcbt_titulo", text: "D'CASA" }), el("p", { class: "o_dcbt_cab_estado" }, this.cabPunto, this.cabTexto)),
-            this.cabWa, this.btnAmpliar, this.btnCerrar);
+            this.cabWa, this.cabCarrito, this.btnAmpliar, this.btnCerrar);
         this.aviso = el("p", { class: "o_dcbt_aviso", role: "status", hidden: true });
         this.lista = el("div", { class: "o_dcbt_mensajes", role: "log", "aria-live": "polite", "aria-label": "Conversación" },
             el("div", { class: "o_dcbt_intro" }, this.cajaPose("o_dcbt_avatar_intro", "asomado_burbuja"),
@@ -947,6 +960,10 @@ export class ChatBrian {
             this.restaurar(this.restaurado);
             this.restaurado = null;
         }
+        // La conversación que sigue de otra página ya «saludó» y no volvía a leer el carrito: el chat decía «Tu carrito
+        // está vacío» con la cama ya puesta desde la página (2026-11-15). Se lee siempre al abrir.
+        this.refrescarCarrito();
+        this.pintarCabCarrito();
         this.estado.abierto = true;
         this.yaAbrio = true;
         this.burbuja.classList.remove("o_dcbt_halo", "o_dcbt_aparte");
@@ -1326,14 +1343,30 @@ export class ChatBrian {
             return;
         }
         const vistos = this.estado.vistos.map((clave) => this.productos && this.productos.get(clave)).filter(Boolean);
-        if (!vistos.length) {
-            const vacia = el("div", { class: "o_dcbt_vitrina_vacia" }, this.cajaPose("", "con_laptop"), el("p", { text: "Aquí verás, en cuadrícula, los productos que te muestre Brian." }));
+        const chipsDeCategorias = () => {
             const chips = el("div", { class: "o_dcbt_chips", style: "margin:0;justify-content:center" });
-            for (const t of ["Colchones", "Salas"]) {
+            for (const t of this.sugerenciasDeProductos()) {
                 chips.append(el("button", { type: "button", class: "o_dcbt_chip", "data-chip": t, text: t }));
             }
-            vacia.append(chips);
+            return chips;
+        };
+        if (!vistos.length && this.sugeridos && this.sugeridos.length) {
+            // Mientras Brian no muestra nada, el espacio grande no queda vacío (pedido de la dueña, 2026-11-15):
+            // «Lo más buscado» de la portada, con las mismas tarjetas (se agregan desde aquí).
+            this.productos = this.productos || new Map();
+            for (const p of this.sugeridos) {
+                this.productos.set(String(p.producto_id || p.plantilla_id || p.nombre), p);
+            }
+            const cab = el("div", { class: "o_dcbt_sugeridos_cab" },
+                el("p", { class: "o_dcbt_sugeridos_eti", text: "Brian te sugiere" }),
+                el("p", { class: "o_dcbt_sugeridos_titulo", text: "Lo más buscado" }),
+                chipsDeCategorias());
+            this.vitrinaGrid.replaceChildren(cab, ...this.sugeridos.map((p) => this.tarjeta(p)));
+        } else if (!vistos.length) {
+            const vacia = el("div", { class: "o_dcbt_vitrina_vacia" }, this.cajaPose("", "con_laptop"), el("p", { text: "Aquí verás, en cuadrícula, los productos que te muestre Brian." }));
+            vacia.append(chipsDeCategorias());
             this.vitrinaGrid.replaceChildren(vacia);
+            this.cargarSugeridos();
         } else {
             this.vitrinaGrid.replaceChildren(...vistos.map((p) => this.tarjeta(p)));
         }
@@ -1390,7 +1423,77 @@ export class ChatBrian {
             this.lista.querySelectorAll("[data-carrito]").forEach((card) => this.pintarCarritoCard(card));
             this.pintarPieVitrina();
             this.cabWa.href = this.urlWhatsApp();
+            this.pintarCabCarrito();
+            if (salta && n && this.cabCuenta && !reducir()) {
+                this.cabCuenta.animate([{ transform: "scale(.4)" }, { transform: "scale(1.25)", offset: 0.6 }, { transform: "scale(1)" }], { duration: 500, easing: B });
+            }
         }
+    }
+
+    /** Con algo en el carrito, el ícono de WhatsApp de la barra pasa a ser el carrito con su cantidad (pedido de la dueña,
+     *  2026-11-15); con el carrito vacío vuelve WhatsApp. WhatsApp sigue en las tarjetas del chat cuando hace falta. */
+    pintarCabCarrito() {
+        if (!this.cabCarrito) {
+            return;
+        }
+        const n = Number(this.estado.carrito && this.estado.carrito.cantidad_total) || 0;
+        this.cabCarrito.hidden = n === 0;
+        this.cabWa.hidden = n > 0;
+        this.cabCuenta.textContent = n > 99 ? "99+" : String(n);
+        this.cabCarrito.setAttribute("aria-label", `Ver tu carrito: ${n} ${n === 1 ? "artículo" : "artículos"}`);
+    }
+
+    /** Lee otra vez el carrito de Odoo, una sola vez aunque lo pidan varias cosas seguidas. */
+    refrescarCarrito() {
+        clearTimeout(this.idRefrescoCarrito);
+        this.idRefrescoCarrito = setTimeout(() => {
+            this.cargarCarrito().catch(() => {});
+        }, 250);
+    }
+
+    /** El «Agregar» de la ficha y de las tarjetas cambia el número del carrito del menú: si no coincide con el del chat,
+     *  el chat lo vuelve a leer (y Brian, que recibe el carrito con cada mensaje, habla del de verdad). */
+    vigilarCarritoDeLaPagina() {
+        const globos = document.querySelectorAll(".my_cart_quantity");
+        if (!globos.length || !("MutationObserver" in window)) {
+            return;
+        }
+        const vigia = new MutationObserver(() => {
+            const enLaPagina = Math.max(...[...globos].map((g) => Number(g.textContent.trim()) || 0));
+            const enElChat = Number(this.estado.carrito && this.estado.carrito.cantidad_total) || 0;
+            if (enLaPagina !== enElChat) {
+                this.refrescarCarrito();
+            }
+        });
+        globos.forEach((g) => vigia.observe(g, { childList: true, characterData: true, subtree: true }));
+        this.limpiezas.push(() => {
+            vigia.disconnect();
+            clearTimeout(this.idRefrescoCarrito);
+        });
+    }
+
+    /** Las tarjetas de «Lo más buscado» para la vitrina sin productos: se piden una vez por página. */
+    async cargarSugeridos() {
+        if (this.pidiendoSugeridos || this.sugeridos) {
+            return;
+        }
+        this.pidiendoSugeridos = true;
+        try {
+            const r = await this.odoo("GET", `${RUTA}/vitrina`);
+            this.sugeridos = r.ok && Array.isArray(r.productos) ? r.productos.map(ChatBrian.productoValido).filter(Boolean).slice(0, 6) : [];
+        } finally {
+            this.pidiendoSugeridos = false;
+        }
+        if (this.sugeridos.length) {
+            this.pintarVitrina();
+        }
+    }
+
+    /** Las dos sugerencias de productos del saludo y de la vitrina vacía (las de Odoo, o las de fábrica). */
+    sugerenciasDeProductos() {
+        const pase = leerAlmacen(CLAVE_PASE);
+        const deOdoo = pase && Array.isArray(pase.sugerencias) ? pase.sugerencias : [];
+        return deOdoo.length ? deOdoo : SUGERENCIAS_DE_FABRICA;
     }
 
     carritoParaWorker() {
@@ -1473,7 +1576,8 @@ export class ChatBrian {
             if (!r.ok || typeof r.pase !== "string" || typeof r.worker !== "string") {
                 return { ok: false, motivo: r.motivo || "fallo" };
             }
-            const pase = { ok: true, pase: r.pase, worker: r.worker.replace(/\/+$/, ""), vence: ahora + (Number(r.vence_en) || 1800), noche: Boolean(r.noche), avisar_cerrado: r.avisar_cerrado === true, horario_texto: typeof r.horario_texto === "string" ? r.horario_texto : "" };
+            const pase = { ok: true, pase: r.pase, worker: r.worker.replace(/\/+$/, ""), vence: ahora + (Number(r.vence_en) || 1800), noche: Boolean(r.noche), avisar_cerrado: r.avisar_cerrado === true, horario_texto: typeof r.horario_texto === "string" ? r.horario_texto : "",
+                sugerencias: Array.isArray(r.sugerencias) ? r.sugerencias.filter((s) => typeof s === "string" && s.trim() && s.length <= 30).slice(0, 2) : [] };
             guardarAlmacen(CLAVE_PASE, pase);
             return pase;
         } finally {
@@ -1860,8 +1964,9 @@ export class ChatBrian {
             this.globo(saludo);
             await pausa(500);
             this.globo(segundo);
-            this.chips(INICIO);
-            this.anotar({ tipo: "brian", texto: saludo, pose: "saludando" }, { tipo: "brian", texto: segundo }, { tipo: "chips", opciones: INICIO });
+            const inicio = [...this.sugerenciasDeProductos(), ...INICIO_FIJAS];
+            this.chips(inicio);
+            this.anotar({ tipo: "brian", texto: saludo, pose: "saludando" }, { tipo: "brian", texto: segundo }, { tipo: "chips", opciones: inicio });
         });
     }
 

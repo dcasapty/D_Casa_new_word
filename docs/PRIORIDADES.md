@@ -1,6 +1,6 @@
 # Prioridades vigentes
 
-Puesto al día el **2026-11-14** (avisos de Telegram ordenados, lote 1 de la web, «Busca con una foto», horario de la tienda; Brian de la tienda y lote 2 de la web, todo en producción). Es el orden en que se trabaja: cada sesión lo lee al empezar y lo pone al día al
+Puesto al día el **2026-11-15** (portada v3 en producción, Desplegar 75). Es el orden en que se trabaja: cada sesión lo lee al empezar y lo pone al día al
 terminar (ver [LEEME_PRIMERO.md](LEEME_PRIMERO.md)). Aquí va **un solo estado**, el de hoy; lo que pasó cada día está en
 la bitácora de LEEME_PRIMERO (y lo más viejo en [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md)).
 
@@ -8,10 +8,10 @@ Cada cosa nueva pasa por capturas a la dueña, pruebas, staging y, si toca diner
 **Desde el 2026-11-13 la dueña no pide su visto bueno para pasar a producción** («Y no esperes mi aprobación para pasar
 la producción. Apruébalo y punto.»); la revisión adversarial no se salta (reglas en LEEME_PRIMERO §2).
 
-## Estado al 2026-11-14
+## Estado al 2026-11-15
 
 - **Producción funciona desde el 2026-10-13** y **`dcasapty.com` (y `www`) apunta al sistema nuevo desde el
-  2026-10-27** (Desplegar 31). Odoo y el borde: **Desplegar 73** (14 nov, PR #119: la burbuja de Brian cambia de robot con el scroll; antes,
+  2026-10-27** (Desplegar 31). Odoo y el borde: **Desplegar 75** (15 nov, PR #121: la portada v3, con secciones compactas, el carrito como ícono, la paleta nueva y la barra del chat de vidrio; antes, Desplegar 73 (14 nov, PR #119: la burbuja de Brian cambia de robot con el scroll); antes,
   Desplegar 72, PR #118: Brian de la tienda, el chat de ventas en la web, y el
   lote 2 de la web: horario, mapa y opiniones; antes, Desplegar 71, PR #117: avisos de Telegram ordenados con la noche sin clientes, lote 1 de
   la web, «Busca con una foto», el robot como ícono de Brian y el horario de la tienda; antes, Desplegar 70, PR #116:
@@ -38,11 +38,12 @@ la producción. Apruébalo y punto.»); la revisión adversarial no se salta (re
 
 ## Lo que sigue, en orden
 
-00000. **Portada v3** (2026-11-15, pedido de la dueña: secciones que «se salen una página entera», el carrito como ícono,
-       paleta más profesional, la barra del chat de vidrio): **en la rama, esperando su visto bueno sobre las capturas**
-       (<https://claude.ai/artifact/XQti28eQjFLDzT1Z9CpsRH>). Pidió ver capturas antes de cualquier prueba o subida.
-       Decisiones abiertas: el número de productos bajo cada categoría, «Quedan pocas» sobre la foto y el hueso nuevo.
-       Con su «sí»: pruebas nuevas, CI con staging y producción (detalle en la bitácora, 2026-11-15 (2)).
+00000. **Portada v3: en producción desde el 2026-11-15, 08:3x UTC** (Desplegar 75, PR #121; aprobada por la dueña con
+       capturas: «apruebo todo, despliégalo todo cuanto antes»; comparación <https://claude.ai/artifact/XQti28eQjFLDzT1Z9CpsRH>).
+       Secciones que caben en una pantalla, categorías con «N productos», carriles en una fila con flechas, carrito como
+       ícono, «Quedan pocas» / «Agotado» con la regla de la ficha, hueso #F6F5F2 y la barra del chat de vidrio. Falta que
+       la dueña lo mire en su iPhone. Ideas para ofrecerle: «Lo más buscado» con lo que tiene existencia primero y Black
+       Weekend con el carril nuevo (detalle en la bitácora, 2026-11-15 (2)).
 
 0000. **Brian de la tienda y lote 2 de la web: en producción desde el 2026-11-14, 07:46 UTC** (Desplegar 72 y Juan 26;
       la dueña: «vamos a subirlo lo antes posible»). Módulo nuevo `dcasa_brian_tienda` (chat de ventas en la web con el motor de Juan,

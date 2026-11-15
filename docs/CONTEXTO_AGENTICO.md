@@ -470,6 +470,20 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   burbuja de Brian cambia de pose con la sección en pantalla (solo JS de `dcasa_brian_tienda`; Juan no cambió, así que
   no hubo Desplegar Juan). **Lección:** el primer intento de squash dio 409 porque escribí de memoria el SHA largo de
   `expectedHeadSha`; siempre `git rev-parse` antes, nunca completar un SHA a ojo. Bien al segundo intento, sin daño.
+- **Desplegar 75** (15 nov, 08:16–08:3x UTC; salud sana: `{"ok": true, "version": "6c7fdc425be3", "base_al_dia":
+  true, "humo": "ok"}`; run 43693725820) · PR #121, squash `6221175`, `app_version`
+  `6c7fdc425be329adb00180abfc5a20347bf2ff0f`, imagen `sha256:84085a134a139c75cf76db42220b342d958691334551d43fb33dea637eba0065`,
+  CI 363 con staging (run 43689911281). La portada v3 (secciones compactas, carrito como ícono, paleta nueva, chat de
+  vidrio); con respaldo previo; Juan no cambió. Bien al primer intento. **Lecciones:** (1) **las pruebas de navegador
+  solo corren en local**: el CI no instala `websocket-client` y Odoo las salta; para un cambio visual, correr
+  `scripts/test.sh` aquí con `pip install websocket-client` en el venv (encontró 5 fallas que el CI habría dejado pasar:
+  el antetítulo más chico tocaba el hero del contrato visual y el carrito salía ovalado). (2) `.o_dcasa_home .btn` pide
+  `min-height: 3rem` y es más específica que una clase sola: un botón de la portada con otro tamaño necesita un selector
+  de dos clases. (3) La portada tarda 2-3 s en arrancar las interacciones: medir flechas, carriles o burbuja antes de eso
+  da «no está»; esperar a que `.o_dcasa_rail_track` tenga `id` (lo pone `carril.js`). (4) Para capturas del chat con
+  conversación, `dcasa_brian_tienda/tests/worker_simulado.py` corre suelto (`--puerto`, `--token-worker`, `--odoo`,
+  `--token-odoo`) y Odoo con `JUAN_URL`, `JUAN_WORKER_TOKEN` y `JUAN_ODOO_TOKEN`; en esta máquina el puerto 8787 ya está
+  ocupado (usar 8788).
 - **Versión estable 4 ensayada en staging** (11 nov, 03:16–03:40 UTC, run 42951600639 de «Volver a una versión
   estable», lanzado desde la rama de trabajo: el botón solo exige `main` para producción). Estable 4 = imagen de
   Desplegar 63 (`acda72c1…`, `app_version` `3e2ccfc`) + Juan hasta Desplegar Juan 20. Bien al primer intento.

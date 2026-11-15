@@ -368,13 +368,11 @@ class TestContratoVisual(HttpCase):
         self.assertEqual(m['html']['sobreFoto'], tipo == 'ahumado')
         self.assertTrue(m['html']['medida'] or tipo == 'claro')
         self.assertTrue(m['logo'], 'logo WebP de D\'CASA en la píldora')
-        self.assertTrue(m['cta'], 'botón «Escríbenos» en la píldora')
-        self.assertIn('Escríbenos', m['cta']['texto'])
-        self.assertEqual(_rgba(m['cta']['fondo'])[:3], AZUL, 'CTA azul (el amarillo nunca toca el blanco)')
-        self.assertEqual(m['cta']['radio'], '999px')
+        # Sin «Escríbenos» en la píldora (decisión de la dueña, 2026-11-15: «puede irse… ya está en el pie»; la
+        # portada lleva una sección pequeña de contacto antes de Visítanos).
+        self.assertIsNone(m['cta'], 'sin botón «Escríbenos» en la píldora')
         if ancho >= 992:
             self.assertTrue(m['menu']['visible'], 'menú visible en escritorio')
-            self.assertTrue(m['cta']['visible'], 'botón «Escríbenos» visible en escritorio')
             self.assertFalse(m['hamburguesa']['visible'], 'sin hamburguesa en escritorio')
             self.assertIn('Oswald', m['menu']['fuente'])
             self.assertEqual(m['menu']['mayusculas'], 'uppercase')

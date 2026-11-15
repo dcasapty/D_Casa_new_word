@@ -229,8 +229,7 @@ html {
 .o_dcasa_hero,
 .o_dcasa_socios_band,
 .o_dcasa_visita,
-.o_dcasa_anuncios,
-.o_dcasa_footer {
+.o_dcasa_anuncios {
     a:focus-visible,
     button:focus-visible {
         outline: 3px solid $dcasa-amarillo;
@@ -242,8 +241,10 @@ html {
 // Barra de anuncios
 // ---------------------------------------------------------------------------
 
+// Paleta 2026-11-15: las superficies grandes van en azul noche; el azul puro queda para los acentos (titulares,
+// botones, enlaces, precios). El amarillo se ve más sobre el azul noche.
 .o_dcasa_anuncios {
-    background: $dcasa-azul;
+    background: $dcasa-navy;
     color: #FFFFFF;
     font-family: 'Oswald', sans-serif;
     font-size: .8125rem;
@@ -1349,12 +1350,12 @@ $dcasa-foto-fondo: #EEEDEA;
 // ---------------------------------------------------------------------------
 
 .o_dcasa_socios_band {
-    background: $dcasa-azul;
+    background: $dcasa-navy;   // azul noche (paleta 2026-11-15)
     color: #FFFFFF;
     padding-block: $dcasa-sec calc(#{$dcasa-sec} + #{$dcasa-banda} + 1.5rem);
     position: relative;
 
-    // Banda amarilla rodeada de azul (el amarillo nunca toca el fondo claro de la sección siguiente).
+    // Banda amarilla rodeada de azul noche (el amarillo nunca toca el fondo claro de la sección siguiente).
     &::after {
         content: '';
         position: absolute;
@@ -1410,6 +1411,52 @@ $dcasa-foto-fondo: #EEEDEA;
         aspect-ratio: 1;
         object-fit: cover;
         border-radius: $dcasa-radius;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Contacto (pedido de la dueña, 2026-11-15): una sección pequeña antes de Visítanos que invita a escribir por
+// WhatsApp o por correo (el menú ya no lleva «Escríbenos»). Sobre blanco: el botón principal es azul (el amarillo no
+// toca el blanco).
+// ---------------------------------------------------------------------------
+
+.o_dcasa_contacto_cta {
+    background: #FFFFFF;
+    border-top: 1px solid $dcasa-filo;
+    padding-block: clamp(1.5rem, 3vw, 2.25rem);
+}
+
+.o_dcasa_contacto_cta_inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem 2rem;
+}
+
+.o_dcasa_contacto_cta_titulo {
+    margin: 0 0 .25rem;
+    font-family: 'Anton', 'Oswald', sans-serif;
+    font-weight: 400;
+    text-transform: uppercase;
+    font-size: clamp(1.4rem, 2.2vw, 1.85rem);
+    line-height: 1.05;
+    color: $dcasa-azul;
+}
+
+.o_dcasa_contacto_cta_texto {
+    margin: 0;
+    color: $dcasa-gris;
+}
+
+.o_dcasa_contacto_cta_botones {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .75rem;
+
+    .btn {
+        min-height: 3rem;
+        border-radius: 999px;
     }
 }
 
@@ -1638,7 +1685,7 @@ $dcasa-foto-fondo: #EEEDEA;
     gap: .25rem 1.5rem;
     margin: 0;
     padding-top: 1rem;
-    border-top: 1px solid rgba(#FFFFFF, .25);
+    border-top: 1px solid $dcasa-filo;
     font-size: .95rem;
 }
 
@@ -1647,7 +1694,7 @@ $dcasa-foto-fondo: #EEEDEA;
     font-size: .8125rem;
     letter-spacing: .08em;
     text-transform: uppercase;
-    color: $dcasa-amarillo;   // sobre el azul del pie, como los títulos de sus columnas
+    color: $dcasa-azul;   // como los títulos de las columnas del pie
 }
 
 // El mapa de Google: se carga solo con permiso de cookies o al tocar «Ver el mapa» (static/src/js/mapa.js).
@@ -1943,9 +1990,17 @@ $dcasa-foto-fondo: #EEEDEA;
 // Pie de página
 // ---------------------------------------------------------------------------
 
+// Paleta 2026-11-15: el pie va en el blanco grisáceo de la portada (o_cc2 en primary_variables.scss) con texto en
+// tinta, títulos en azul y enlaces en azul noche. Sin amarillo: el amarillo no toca el fondo claro.
 .o_dcasa_footer {
+    color: $dcasa-tinta;
+
     .o_dcasa_kicker {
-        color: $dcasa-amarillo;
+        color: $dcasa-azul;
+    }
+
+    .fa {
+        color: $dcasa-azul;
     }
 
     // Objetivos táctiles de 44 px (WCAG 2.5.8).
@@ -1960,15 +2015,28 @@ $dcasa-foto-fondo: #EEEDEA;
     padding-block: .5rem;
 }
 
-// Pie sobre azul: enlaces en blanco (contraste AAA), amarillo al pasar.
+// Enlaces del pie en azul noche (12:1 sobre el blanco grisáceo), azul con subrayado al pasar; el foco, en azul.
 // #wrapwrap sube la especificidad por encima de las reglas de o_cc de Odoo.
 #wrapwrap .o_dcasa_footer a:not(.btn) {
-    color: #FFFFFF;
+    color: $dcasa-navy;
 
     &:hover,
     &:focus-visible {
-        color: $dcasa-amarillo;
+        color: $dcasa-azul;
+        text-decoration: underline;
     }
+
+    &:focus-visible {
+        outline: 3px solid $dcasa-azul;
+        outline-offset: 3px;
+    }
+}
+
+// La franja del copyright, un tono más oscura que el pie, con texto en gris (7:1).
+#wrapwrap .o_footer .o_footer_copyright {
+    background-color: $dcasa-hueso-2;
+    color: $dcasa-gris;
+    border-top: 0;
 }
 
 @media (max-width: 767.98px) {

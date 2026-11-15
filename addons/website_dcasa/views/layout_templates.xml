@@ -162,7 +162,13 @@
     </template>
 
     <!-- Botón de la cabecera: el CTA único del ADN en lugar de «Contáctanos». -->
+    <!-- Sin «Escríbenos» en el menú (decisión de la dueña, 2026-11-15: «puede irse… ya está en el pie»). WhatsApp sigue en la
+         franja de avisos de arriba, en la portada (foto grande y la sección de contacto), en las tarjetas, en el chat de
+         Brian y en el pie. El enlace queda en la plantilla (las variantes de Odoo se apoyan en él) pero no se dibuja. -->
     <template id="header_cta_dcasa" inherit_id="website.header_call_to_action" name="D'CASA: WhatsApp en la cabecera">
+        <xpath expr="//li" position="attributes">
+            <attribute name="t-if">False</attribute>
+        </xpath>
         <xpath expr="//a[hasclass('btn_cta')]" position="replace">
             <a href="/whatsapp" target="_blank" rel="noopener nofollow" class="oe_unremovable btn btn-primary btn_cta"
                aria-label="Escríbenos por WhatsApp"><i class="fa fa-whatsapp me-2" aria-hidden="true"/>Escríbenos</a>

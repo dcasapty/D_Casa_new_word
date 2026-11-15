@@ -172,8 +172,26 @@
         </section>
     </template>
 
-    <!-- Portada: una franja corta que lleva a la página «Visítanos» (el mapa vive allá). -->
+    <!-- Portada: una franja corta que lleva a la página «Visítanos» (el mapa vive allá). Antes, una sección pequeña
+         de contacto (pedido de la dueña, 2026-11-15: sin «Escríbenos» en el menú, «un CTA pequeño que invite a
+         escribirnos al WhatsApp o al correo»). Va aquí y no en la portada: esta plantilla llega aunque la portada se haya
+         editado en el constructor. -->
     <template id="seccion_visitanos" name="D'CASA: visítanos (franja)">
+        <t t-set="correo_tienda" t-value="website.company_id.email or 'info@dcasapty.com'"/>
+        <section class="o_dcasa_contacto_cta" aria-labelledby="dcasa-contacto-titulo">
+            <div class="o_dcasa_container o_dcasa_contacto_cta_inner">
+                <div>
+                    <h2 id="dcasa-contacto-titulo" class="o_dcasa_contacto_cta_titulo">¿Te quedó alguna duda?</h2>
+                    <p class="o_dcasa_contacto_cta_texto">Escríbenos y te ayudamos a escoger.</p>
+                </div>
+                <div class="o_dcasa_contacto_cta_botones">
+                    <a href="/whatsapp" class="btn btn-primary" target="_blank" rel="noopener nofollow">
+                        <i class="fa fa-whatsapp me-2" aria-hidden="true"/>Escríbenos por WhatsApp<span class="visually-hidden"> (se abre en una pestaña nueva)</span></a>
+                    <a t-attf-href="mailto:{{ correo_tienda }}" class="btn o_dcasa_btn_contorno">
+                        <i class="fa fa-envelope me-2" aria-hidden="true"/><t t-out="correo_tienda"/></a>
+                </div>
+            </div>
+        </section>
         <section id="visitanos" class="o_dcasa_visita o_dcasa_visita_franja">
             <div class="o_dcasa_container o_dcasa_visita_franja_inner">
                 <div>
@@ -225,8 +243,11 @@
                                     <a t-attf-href="https://www.google.com/maps/dir/?api=1&amp;destination={{latitud}}%2C{{longitud}}"
                                        target="_blank" rel="noopener">Abrir la ruta en Google Maps
                                         <span class="visually-hidden">(se abre en una pestaña nueva)</span></a></li>
-                                <li><i class="fa fa-phone fa-fw me-2" aria-hidden="true"/>
-                                    <a href="tel:+50760261919">+507 6026-1919</a></li>
+                                <!-- El número abre WhatsApp (pedido de la dueña, 2026-11-15): es el canal donde se atiende. -->
+                                <li><i class="fa fa-whatsapp fa-fw me-2" aria-hidden="true"/>
+                                    <a t-att-href="website._dcasa_whatsapp_url('Hola D\'CASA, quiero información')"
+                                       target="_blank" rel="noopener">+507 6026-1919 <span class="o_dcasa_muted">· WhatsApp</span>
+                                        <span class="visually-hidden">(se abre en una pestaña nueva)</span></a></li>
                                 <li><i class="fa fa-envelope fa-fw me-2" aria-hidden="true"/>
                                     <a href="mailto:info@dcasapty.com">info@dcasapty.com</a></li>
                                 <li><i class="fa fa-instagram fa-fw me-2" aria-hidden="true"/>
