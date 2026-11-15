@@ -1343,14 +1343,30 @@ export class ChatBrian {
             return;
         }
         const vistos = this.estado.vistos.map((clave) => this.productos && this.productos.get(clave)).filter(Boolean);
-        if (!vistos.length) {
-            const vacia = el("div", { class: "o_dcbt_vitrina_vacia" }, this.cajaPose("", "con_laptop"), el("p", { text: "Aquí verás, en cuadrícula, los productos que te muestre Brian." }));
+        const chipsDeCategorias = () => {
             const chips = el("div", { class: "o_dcbt_chips", style: "margin:0;justify-content:center" });
             for (const t of this.sugerenciasDeProductos()) {
                 chips.append(el("button", { type: "button", class: "o_dcbt_chip", "data-chip": t, text: t }));
             }
-            vacia.append(chips);
+            return chips;
+        };
+        if (!vistos.length && this.sugeridos && this.sugeridos.length) {
+            // Mientras Brian no muestra nada, el espacio grande no queda vacío (pedido de la dueña, 2026-11-15):
+            // «Lo más buscado» de la portada, con las mismas tarjetas (se agregan desde aquí).
+            this.productos = this.productos || new Map();
+            for (const p of this.sugeridos) {
+                this.productos.set(String(p.producto_id || p.plantilla_id || p.nombre), p);
+            }
+            const cab = el("div", { class: "o_dcbt_sugeridos_cab" },
+                el("p", { class: "o_dcbt_sugeridos_eti", text: "Brian te sugiere" }),
+                el("p", { class: "o_dcbt_sugeridos_titulo", text: "Lo más buscado" }),
+                chipsDeCategorias());
+            this.vitrinaGrid.replaceChildren(cab, ...this.sugeridos.map((p) => this.tarjeta(p)));
+        } else if (!vistos.length) {
+            const vacia = el("div", { class: "o_dcbt_vitrina_vacia" }, this.cajaPose("", "con_laptop"), el("p", { text: "Aquí verás, en cuadrícula, los productos que te muestre Brian." }));
+            vacia.append(chipsDeCategorias());
             this.vitrinaGrid.replaceChildren(vacia);
+            this.cargarSugeridos();
         } else {
             this.vitrinaGrid.replaceChildren(...vistos.map((p) => this.tarjeta(p)));
         }
@@ -1454,6 +1470,23 @@ export class ChatBrian {
             vigia.disconnect();
             clearTimeout(this.idRefrescoCarrito);
         });
+    }
+
+    /** Las tarjetas de «Lo más buscado» para la vitrina sin productos: se piden una vez por página. */
+    async cargarSugeridos() {
+        if (this.pidiendoSugeridos || this.sugeridos) {
+            return;
+        }
+        this.pidiendoSugeridos = true;
+        try {
+            const r = await this.odoo("GET", `${RUTA}/vitrina`);
+            this.sugeridos = r.ok && Array.isArray(r.productos) ? r.productos.map(ChatBrian.productoValido).filter(Boolean).slice(0, 6) : [];
+        } finally {
+            this.pidiendoSugeridos = false;
+        }
+        if (this.sugeridos.length) {
+            this.pintarVitrina();
+        }
     }
 
     /** Las dos sugerencias de productos del saludo y de la vitrina vacía (las de Odoo, o las de fábrica). */

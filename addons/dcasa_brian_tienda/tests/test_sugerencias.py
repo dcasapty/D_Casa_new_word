@@ -39,3 +39,29 @@ class TestSugerenciasDelSaludo(TiendaCase):
         self.assertNotIn('Colchones', self._sugerencias(), 'lo no publicado no cuenta')
         Plantilla.search([('is_published', '=', True)]).write({'is_published': False})
         self.assertEqual(self._sugerencias(), [], 'sin nada publicado, ninguna: la página usa las de fábrica')
+
+
+@tagged('post_install', '-at_install')
+class TestVitrinaSugerida(TiendaCase):
+    """La vitrina del chat ampliado sin productos de la conversación (pedido de la dueña, 2026-11-15): «Lo más
+    buscado» de la portada, sin lo que ya está en el carrito, lo agotado al final y a lo sumo seis tarjetas."""
+
+    def test_lo_mas_buscado_sin_lo_del_carrito(self):
+        self.colchon.website_sequence = -99999   # primero en «Lo más buscado»
+        primero = self.url_open('/dcasa/brian/v1/vitrina').json()
+        self.assertTrue(primero['ok'])
+        self.assertLessEqual(len(primero['productos']), 6)
+        self.assertEqual(primero['productos'][0]['plantilla_id'], self.colchon.id)
+        self.assertEqual(set(primero['productos'][0]), {'producto_id', 'plantilla_id', 'nombre', 'precio_texto',
+                                                        'disponibilidad', 'imagen', 'ruta', 'agregable'})
+        agregado = self.post('carrito/agregar', {'producto_id': self.colchon.product_variant_id.id, 'cantidad': 1})
+        self.assertTrue(agregado.json()['ok'], agregado.text)
+        despues = self.url_open('/dcasa/brian/v1/vitrina').json()['productos']
+        sugeridos = [p['plantilla_id'] for p in despues]
+        self.assertNotIn(self.colchon.id, sugeridos, 'lo que ya está en el carrito no se sugiere')
+        estados = [p['disponibilidad'] for p in despues]
+        self.assertEqual(estados, sorted(estados, key=lambda e: e == 'agotado'), 'lo agotado, al final')
+
+    def test_apagado_no_sugiere(self):
+        self.env['ir.config_parameter'].sudo().set_param('dcasa_brian_tienda.activo', 'False')
+        self.assertEqual(self.url_open('/dcasa/brian/v1/vitrina').json(), {'ok': False, 'motivo': 'apagado'})

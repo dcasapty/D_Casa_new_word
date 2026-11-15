@@ -1606,3 +1606,33 @@ html.o_dcasa_refraccion .o_dcbt_cab::before {
         display: none !important;
     }
 }
+
+
+// La vitrina sin productos de la conversación: «Brian te sugiere · Lo más buscado», a lo ancho de la cuadrícula.
+.o_dcbt_sugeridos_cab {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 12px;
+
+    .o_dcbt_chips {
+        margin-left: auto !important;
+    }
+}
+
+.o_dcbt_sugeridos_eti {
+    margin: 0;
+    width: 100%;
+    font: 500 11.5px/1.2 var(--o-dcbt-f-sub);
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--o-dcbt-gris);
+}
+
+.o_dcbt_sugeridos_titulo {
+    margin: 0;
+    font: 400 22px/1.1 var(--o-dcbt-f-titulo);
+    text-transform: uppercase;
+    color: var(--o-dcbt-azul);
+}
