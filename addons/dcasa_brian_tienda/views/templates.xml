@@ -16,7 +16,8 @@
                 <t t-set="dcbt" t-value="website._dcasa_brian_datos()"/>
                 <aside id="o_dcasa_brian" class="o_dcbt" aria-label="Chat de la tienda"
                        t-att-data-whatsapp="dcbt['whatsapp']" t-att-data-horario="dcbt['horario']"
-                       t-att-data-poses="dcbt['poses']" t-att-data-turnstile="dcbt['turnstile'] or None">
+                       t-att-data-poses="dcbt['poses']" t-att-data-dormir="dcbt['dormir']"
+                       t-att-data-turnstile="dcbt['turnstile'] or None">
                     <a class="o_dcbt_burbuja" href="/whatsapp" target="_blank" rel="noopener nofollow"
                        title="Chat de la tienda" aria-label="Escríbenos por WhatsApp (se abre en una pestaña nueva)">
                         <span class="o_dcbt_pose" aria-hidden="true"/>

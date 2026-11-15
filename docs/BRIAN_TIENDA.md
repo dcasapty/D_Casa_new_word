@@ -13,10 +13,17 @@ Juan (`juan/`, rama aparte; su parte está en [JUAN.md](JUAN.md) › Brian de la
   cotización del carrito en PDF y, para atención personal, abre WhatsApp con el mensaje ya escrito.
 - **No guarda la conversación** ni crea contactos ni oportunidades. Las estrellas del final se guardan solo como número
   y fecha.
-- De noche Brian duerme en la burbuja y, al abrir, dice que las vendedoras responden por WhatsApp en cuanto abran (el
-  horario sale de Ajustes de Juan).
-- **Sitio web › Brian de la tienda** (Gerencia y administradores): encender o apagar, el presupuesto del mes (30 USD de
-  fábrica, aparte del de Juan), los topes de mensajes, cuánto va gastando y las calificaciones del mes.
+- **Siempre activo** (pedido de la dueña, 2026-11-15): de noche Brian saluda y ayuda como de día. Dos interruptores en
+  Sitio web › Brian de la tienda: **«Fuera del horario, avisar que la tienda está cerrada»** (`avisar_cerrado`,
+  **apagado** de fábrica; encendido, de noche saluda diciendo que la tienda está cerrada y que una vendedora responde
+  por WhatsApp en cuanto abran, y el avatar del chat se duerme mientras escribe) y **«De noche, el robot de la burbuja
+  duerme»** (`dormir_de_noche`, **encendido** de fábrica; apagado, de noche la burbuja se porta como de día, con sus
+  poses por página y por sección). El horario sale de Ajustes de Juan. El aviso viaja en el pase (`avisar_cerrado`, al
+  lado de `noche`, que sigue diciendo la verdad) y al Worker en `/config`; si el robot duerme va en el HTML
+  (`data-dormir`) y al cambiarlo el borde rehace las páginas, como con el interruptor.
+- **Sitio web › Brian de la tienda** (Gerencia y administradores): encender o apagar, los dos de la noche, el
+  presupuesto del mes (30 USD de fábrica, aparte del de Juan), los topes de mensajes, cuánto va gastando y las
+  calificaciones del mes.
 
 ## Cómo está armado
 
@@ -76,7 +83,7 @@ navegador ──(3) /dcasa/brian/v1/carrito/* (sesión, CSRF) ──────
   con `origen: "tienda"`: a Juan (WhatsApp) no le sirven y la herramienta las rechaza como parámetros que no existen. Devuelve lo de siempre más `por_ubicacion: true`; sin lugar cerca, `motivo: "lejos"`.
   `cotizar_envio` ya funciona sin conversación (sin cotización, con la promoción dicha con sus condiciones).
 - **Los ajustes llegan al Worker** en `GET /dcasa/juan/v1/config`, clave `brian_tienda`
-  (`activo`, `presupuesto_mes_usd`, `tope_sesion_hora`, `tope_red_hora`, `tope_dia`).
+  (`activo`, `avisar_cerrado`, `presupuesto_mes_usd`, `tope_sesion_hora`, `tope_red_hora`, `tope_dia`).
 - **El gasto** lo manda el Worker en `/odoo/costos` (`tienda`) y Odoo lo pinta en su propio renglón de **Costos de IA**
   («Brian de la tienda (chat de la web)») y en los ajustes. **Nunca** se suma al gasto de Juan (ni a su tope); sin
   dato del Worker dice «sin dato», nunca $0. **Lo de modelos de Meta sí va en «Por pagar a Meta»** (revisión,

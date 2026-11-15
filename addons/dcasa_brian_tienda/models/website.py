@@ -25,7 +25,8 @@ class Website(models.Model):
     def _dcasa_brian_datos(self):
         """Lo que la página necesita para la burbuja, igual para todo visitante (la página se puede guardar en el
         borde): el WhatsApp del sitio, el horario de Ajustes de Juan (para saber si es de noche sin pedir nada) y la
-        clave pública de Turnstile si el sitio lo tiene. Nada de la sesión."""
+        clave pública de Turnstile si el sitio lo tiene; y si el robot duerme de noche (al cambiarlo se rehacen las
+        páginas guardadas, como con el interruptor). Nada de la sesión."""
         self.ensure_one()
         coincide = RE_WA.match(self._dcasa_whatsapp_url('') or '')
         horario = self.env['dcasa.juan.ajustes'].sudo().obtener().horario()
@@ -34,4 +35,5 @@ class Website(models.Model):
             'horario': json.dumps(horario.como_json(), separators=(',', ':')),
             'poses': RUTA_POSES,
             'turnstile': self.env['dcasa.brian.tienda'].sudo()._turnstile_clave_publica(),
+            'dormir': '1' if self.env['dcasa.brian.tienda'].sudo()._dormir_de_noche() else '0',
         }
