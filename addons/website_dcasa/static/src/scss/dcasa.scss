@@ -2894,6 +2894,14 @@ html.o_dcasa_navegando::before {
     }
 }
 
+// Precio normal tachado junto al precio de campaña (tarjeta de la campaña y carriles de la portada).
+.o_dcasa_precio_antes {
+    margin-right: .4rem;
+    font-size: .8em;
+    font-weight: 400;
+    color: $dcasa-gris;
+}
+
 // La caja de búsqueda que abre la lupa: en el celular, pegada arriba y a lo ancho (con el teclado abierto, la lista
 // de sugerencias necesita el espacio).
 @media (max-width: 575.98px) {

@@ -2847,6 +2847,31 @@
    ]
   },
   {
+   "id": "campana-del-sitio",
+   "categoria": "tienda",
+   "grupo": "Tienda en línea",
+   "titulo": "Preparar una campaña como Black Friday (productos, precios y fechas)",
+   "logras": "Pones el nombre de la campaña y sus fechas, y eliges los productos con una casilla. A cada uno le puedes poner un precio de campaña (o un mismo descuento a varios). En esas fechas salen solos la sección en la portada, la página de la campaña, la etiqueta en las tarjetas y «Promociones» en el menú; el carrito cobra el precio de campaña y Juan y Brian dicen ese mismo precio. Al terminar, todo vuelve solo a la normalidad.",
+   "destino": {
+    "menu": "website_dcasa.menu_dcasa_campana"
+   },
+   "nota": "El precio de campaña es sin ITBMS, como el precio de venta, y tiene que ser menor que el normal. Sin las dos fechas no se aplica ningún precio de campaña. «Empezar de cero» desmarca todos los productos y borra sus precios de campaña. Lo ven y lo cambian Gerencia y los administradores.",
+   "palabras": [
+    "campaña",
+    "black friday",
+    "black weekend",
+    "promociones",
+    "promoción",
+    "oferta",
+    "ofertas",
+    "descuento",
+    "rebaja",
+    "precio especial",
+    "precio de campaña",
+    "cyber monday"
+   ]
+  },
+  {
    "id": "meta-catalogo",
    "categoria": "tienda",
    "grupo": "Anuncios en Meta",
