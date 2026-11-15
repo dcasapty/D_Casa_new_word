@@ -49,7 +49,7 @@ import {
   type RespuestaTienda,
 } from "./bloques";
 import type { PeticionTienda } from "./peticion";
-import { contextoTienda, HERRAMIENTAS_DE_LA_TIENDA, POSES, promptTienda, promptTiendaParaFugas, type Pose } from "./prompt";
+import { contextoTienda, HERRAMIENTAS_DE_LA_TIENDA, horarioLegible, POSES, promptTienda, promptTiendaParaFugas, proximaAtencion, sinPuntoFinal, type Pose } from "./prompt";
 
 // ── Constantes ──────────────────────────────────────────────────────────────
 
@@ -321,9 +321,27 @@ const nota = (texto: string): Entrada => ({ texto, origen: "sistema" });
 
 // ── Textos fijos (sin IA) ────────────────────────────────────────────────────
 
-/** De noche, quien quiera una persona sabe cuándo le contestan (el horario sale de Ajustes de Juan). */
+/** De noche, quien quiera una persona sabe cuándo le contestan (el horario sale de Ajustes de Juan). Sin «a. m..»: una sola vez el punto. */
 export function lineaDeNoche(cfg: Config): string {
-  return `Como ahora la tienda está cerrada, te responden en cuanto abramos, a partir de las ${horaLegible(cfg.horario.inicio)}.`;
+  return `Como ahora la tienda está cerrada, te responden en cuanto abramos, a partir de las ${sinPuntoFinal(horaLegible(cfg.horario.inicio))}.`;
+}
+
+/**
+ * ¿Brian anuncia que es de noche? Solo fuera del horario y con `avisar_cerrado` (de fábrica). Apagado (la dueña, 2026-11-15: «que
+ * siempre esté activo»), fuera del horario atiende igual que de día: sin la línea de noche y sin la pose dormida.
+ */
+export function anunciaLaNoche(cfg: Config, ms: number): boolean {
+  return cfg.tienda.avisar_cerrado && !dentroDeHorario(cfg.horario, ms);
+}
+
+/**
+ * Sin `avisar_cerrado`, cuando piden una persona fuera del horario: honesto, pero sin «cerrado» ni «no hay vendedoras». Dentro del
+ * horario (o con el aviso de siempre), nada.
+ */
+export function lineaDelHorarioAmable(cfg: Config, ms: number): string | null {
+  if (cfg.tienda.avisar_cerrado) return null;
+  const proxima = proximaAtencion(cfg, ms);
+  return proxima ? `Las vendedoras atienden ${horarioLegible(cfg)}; te escriben ${sinPuntoFinal(proxima)}.` : null;
 }
 
 export const TEXTO_PERSONA = "Claro que sí. Una persona del equipo te atiende por WhatsApp.";
@@ -533,7 +551,7 @@ export class MotorTienda {
     }
     if (!reserva.ok && reserva.motivo === "ocupado") {
       // Demasiados turnos con IA a la vez entre todos: una respuesta amable (no es un tope del visitante; no se guarda ni se cuenta).
-      const noche = !dentroDeHorario(cfg.horario, ahora);
+      const noche = anunciaLaNoche(cfg, ahora);
       return terminar({
         status: 200,
         cuerpo: { ok: true, pose: noche ? "durmiendo" : "burbuja_chat", bloques: [{ tipo: "texto", texto: TEXTO_OCUPADO }, { tipo: "whatsapp", texto: TEXTO_DEL_BOTON_DE_WHATSAPP, mensaje: mensajeDeWhatsapp(p.carrito, []) }], chips: [] },
@@ -603,7 +621,7 @@ export class MotorTienda {
 
   private async ejecutar(cfg: Config, p: PeticionTienda, plan: Plan, cuenta: CuentaDelTurno, diag: Record<string, unknown>): Promise<SalidaTienda> {
     const ahora = this.deps.ahora();
-    const noche = !dentroDeHorario(cfg.horario, ahora);
+    const noche = anunciaLaNoche(cfg, ahora);
     const textoDelVisitante = p.accion?.tipo === "chip" ? p.accion.valor : p.texto;
     const vistos = this.vistos();
     const whatsapp = (): Bloque => ({ tipo: "whatsapp", texto: TEXTO_DEL_BOTON_DE_WHATSAPP, mensaje: mensajeDeWhatsapp(p.carrito, vistos.slice(-2)) });
@@ -625,7 +643,8 @@ export class MotorTienda {
         return fijo([{ tipo: "texto", texto: TEXTO_GRACIAS_POR_CALIFICAR }], [], nota("[El cliente calificó la atención]"), "cinco_estrellas");
       }
       case "persona": {
-        const texto = noche ? `${TEXTO_PERSONA} ${lineaDeNoche(cfg)}` : TEXTO_PERSONA;
+        const amable = lineaDelHorarioAmable(cfg, ahora);
+        const texto = noche ? `${TEXTO_PERSONA} ${lineaDeNoche(cfg)}` : amable ? `${TEXTO_PERSONA} ${amable}` : TEXTO_PERSONA;
         return fijo([{ tipo: "texto", texto }, whatsapp()]);
       }
       case "si": {
@@ -683,7 +702,7 @@ export class MotorTienda {
     const plazo = this.deps.plazoMs ?? PLAZO_TOTAL_MS;
     const queda = () => inicio + plazo - reloj();
     const ahora = this.deps.ahora();
-    const noche = !dentroDeHorario(cfg.horario, ahora);
+    const noche = anunciaLaNoche(cfg, ahora);
     const textoDelVisitante = p.accion?.tipo === "chip" ? p.accion.valor : p.texto;
     const vistosAntes = this.vistos();
     const whatsapp = (): Bloque => ({ tipo: "whatsapp", texto: TEXTO_DEL_BOTON_DE_WHATSAPP, mensaje: mensajeDeWhatsapp(p.carrito, vistosAntes.slice(-2)) });
