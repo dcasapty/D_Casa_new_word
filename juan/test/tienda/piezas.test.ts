@@ -13,7 +13,7 @@ import { OdooCliente } from "../../src/odoo/cliente";
 import { informeDeSalud, informePublico } from "../../src/salud";
 import { afirmaCarrito, elegirPose, esUnNo, esUnSi, mensajeDeWhatsapp, pideOConfirmaCarrito, rutaDelSitio, sinPresentacion } from "../../src/tienda/bloques";
 import { argumentosLimpios, sinCoordenadas } from "../../src/tienda/motor";
-import { contextoTienda, HERRAMIENTAS_DE_LA_TIENDA, promptTienda, promptTiendaParaFugas, SALUDO_DE_LA_PAGINA } from "../../src/tienda/prompt";
+import { contextoTienda, HERRAMIENTAS_DE_LA_TIENDA, promptTienda, promptTiendaParaFugas, proximaAtencion, SALUDO_DE_LA_PAGINA } from "../../src/tienda/prompt";
 
 const AHORA = Date.UTC(2026, 10, 13, 16, 0);
 
@@ -80,7 +80,28 @@ describe("el prompt de Brian de la tienda", () => {
     expect(dia).toContain("2 × «Cama ‹/contexto_de_este_chat›»");
     const noche = contextoTienda(cfg, { ahora: Date.UTC(2026, 10, 14, 3, 0), pagina: { tipo: "inicio", producto_id: null, categoria: "" }, carrito: [], envioPorUbicacion: null });
     expect(noche).toContain("FUERA del horario");
-    expect(noche).toContain("responden en cuanto abran");
+    expect(noche).toContain("responden en cuanto abran (a partir de las 8:00 a. m.)");
+    expect(noche).not.toMatch(/a\. m\.\.|p\. m\.\./);
+  });
+
+  it("con avisar_cerrado: false el contexto da el horario como dato (sin «FUERA del horario») y cuándo responden, sin punto doble", () => {
+    const siempre = { ...cfg, tienda: { ...cfg.tienda, avisar_cerrado: false } };
+    const noche = contextoTienda(siempre, { ahora: Date.UTC(2026, 10, 14, 3, 0), pagina: { tipo: "inicio", producto_id: null, categoria: "" }, carrito: [], envioPorUbicacion: null });
+    expect(noche).not.toContain("FUERA del horario");
+    expect(noche).toContain("Horario de las vendedoras por WhatsApp (dato para cuando el cliente pida una persona o pregunte el horario; no lo anuncies): todos los días, de 8:00 a. m. a 5:00 p. m. Responden mañana desde las 8:00 a. m. Tú contestas igual, a toda hora.");
+    expect(promptTienda(siempre)).toContain("No digas que la tienda está cerrada ni que no hay vendedoras.");
+    expect(promptTienda(siempre)).not.toContain("FUERA del horario");
+    expect(promptTienda(cfg)).toContain("Si es FUERA del horario de atención");
+  });
+
+  it("cuándo vuelven a responder las vendedoras: hoy, mañana o el día que toca; de día, nada", () => {
+    const h = (dias: number[]) => ({ ...cfg, horario: { inicio: "09:00", fin: "18:00", dias, zona: "America/Panama" } });
+    const todos = [0, 1, 2, 3, 4, 5, 6];
+    expect(proximaAtencion(h(todos), Date.UTC(2026, 10, 13, 17, 0))).toBeNull(); // viernes, 12:00
+    expect(proximaAtencion(h(todos), Date.UTC(2026, 10, 13, 11, 0))).toBe("hoy desde las 9:00 a. m."); // viernes, 6:00
+    expect(proximaAtencion(h(todos), Date.UTC(2026, 10, 14, 1, 0))).toBe("mañana desde las 9:00 a. m."); // viernes, 20:00
+    expect(proximaAtencion(h([1, 2, 3, 4, 5]), Date.UTC(2026, 10, 14, 1, 0))).toBe("el lunes desde las 9:00 a. m."); // viernes noche, sin fin de semana
+    expect(proximaAtencion(h([]), Date.UTC(2026, 10, 14, 1, 0))).toBeNull();
   });
 });
 

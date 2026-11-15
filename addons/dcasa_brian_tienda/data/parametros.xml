@@ -8,5 +8,15 @@
             <field name="key">dcasa_brian_tienda.activo</field>
             <field name="value">True</field>
         </record>
+        <!-- Pedido de la dueña (2026-11-15): Brian «siempre activo». Fuera del horario NO avisa de fábrica que la tienda
+             está cerrada (saluda como de día); el robot de la burbuja sí duerme de noche (le gustó). -->
+        <record id="parametro_avisar_cerrado" model="ir.config_parameter">
+            <field name="key">dcasa_brian_tienda.avisar_cerrado</field>
+            <field name="value">False</field>
+        </record>
+        <record id="parametro_dormir_de_noche" model="ir.config_parameter">
+            <field name="key">dcasa_brian_tienda.dormir_de_noche</field>
+            <field name="value">True</field>
+        </record>
     </data>
 </odoo>

@@ -52,6 +52,10 @@ SESION_CALIFICADO = 'dcasa_brian_calificado'
 CLAVES_DE_SESION = (SESION_SID, SESION_HORA, SESION_VERIFICADO, SESION_PDF, SESION_CALIFICADO)
 
 PARAM_ACTIVO = 'dcasa_brian_tienda.activo'
+# Los dos interruptores de la noche (Sitio web › Brian de la tienda; data/parametros.xml, noupdate).
+PARAM_AVISAR_CERRADO = 'dcasa_brian_tienda.avisar_cerrado'   # apagado de fábrica: saluda como de día
+PARAM_DORMIR_DE_NOCHE = 'dcasa_brian_tienda.dormir_de_noche'  # encendido de fábrica: el robot de la burbuja duerme
+SI = ('1', 'true', 'yes', 'si', 'sí')
 PARAMS = {
     'presupuesto_mes_usd': 'dcasa_brian_tienda.presupuesto_mes_usd',
     'tope_sesion_hora': 'dcasa_brian_tienda.tope_sesion_hora',
@@ -159,8 +163,24 @@ class DcasaBrianTienda(models.AbstractModel):
     @api.model
     def _activo(self):
         """Encendido de fábrica (data/parametros.xml, noupdate). Apagado: sin burbuja, sin pases, el Worker se calla."""
-        valor = self.env['ir.config_parameter'].sudo().get_param(PARAM_ACTIVO, 'False')
-        return str(valor).strip().lower() in ('1', 'true', 'yes', 'si', 'sí')
+        return self._interruptor(PARAM_ACTIVO, False)
+
+    @api.model
+    def _avisar_cerrado(self):
+        """Fuera del horario, ¿el chat avisa que la tienda está cerrada? Apagado de fábrica: saluda como de día."""
+        return self._interruptor(PARAM_AVISAR_CERRADO, False)
+
+    @api.model
+    def _dormir_de_noche(self):
+        """De noche, ¿el robot de la burbuja duerme? Encendido de fábrica."""
+        return self._interruptor(PARAM_DORMIR_DE_NOCHE, True)
+
+    @api.model
+    def _interruptor(self, parametro, de_fabrica):
+        valor = self.env['ir.config_parameter'].sudo().get_param(parametro)
+        if valor is None or valor is False or str(valor).strip() == '':
+            return de_fabrica
+        return str(valor).strip().lower() in SI
 
     @api.model
     def _ajustes(self):
@@ -181,6 +201,7 @@ class DcasaBrianTienda(models.AbstractModel):
         ajustes = self._ajustes()
         return {
             'activo': self._activo(),
+            'avisar_cerrado': self._avisar_cerrado(),
             'presupuesto_mes_usd': ajustes['presupuesto_mes_usd'],
             'tope_sesion_hora': ajustes['tope_sesion_hora'],
             'tope_red_hora': ajustes['tope_red_hora'],
@@ -304,7 +325,9 @@ class DcasaBrianTienda(models.AbstractModel):
             'pase': firmar(payload, token),
             'worker': url,
             'vence_en': VIDA_PASE_S,
+            # La verdad (fuera del horario) y si hay que decirla: el saludo lo decide la página con los dos.
             'noche': not H.dentro_de_horario(ahora, horario),
+            'avisar_cerrado': self._avisar_cerrado(),
             'horario_texto': horario.texto()[:1].lower() + horario.texto()[1:],
         }
 

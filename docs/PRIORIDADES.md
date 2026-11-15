@@ -11,7 +11,8 @@ la producción. Apruébalo y punto.»); la revisión adversarial no se salta (re
 ## Estado al 2026-11-14
 
 - **Producción funciona desde el 2026-10-13** y **`dcasapty.com` (y `www`) apunta al sistema nuevo desde el
-  2026-10-27** (Desplegar 31). Odoo y el borde: **Desplegar 72** (14 nov, PR #118: Brian de la tienda, el chat de ventas en la web, y el
+  2026-10-27** (Desplegar 31). Odoo y el borde: **Desplegar 73** (14 nov, PR #119: la burbuja de Brian cambia de robot con el scroll; antes,
+  Desplegar 72, PR #118: Brian de la tienda, el chat de ventas en la web, y el
   lote 2 de la web: horario, mapa y opiniones; antes, Desplegar 71, PR #117: avisos de Telegram ordenados con la noche sin clientes, lote 1 de
   la web, «Busca con una foto», el robot como ícono de Brian y el horario de la tienda; antes, Desplegar 70, PR #116:
   comentarios de Instagram y Facebook, apagados; antes, Desplegar 69, PR #115: Juan ya no dice «no lo manejamos» de lo que no está publicado; antes, Desplegar 68, PR #113: Juan cotiza envíos con la promoción, reparto justo y Costos de IA con «Pagar»; antes, Desplegar 67, PR #112: el modo oscuro; el 11 nov, Desplegar 66 con
