@@ -45,7 +45,13 @@ CHAT = """(async () => {
     await hasta(() => globos().some((g) => g.includes('Hola, soy Brian. ¿Qué buscas hoy?')), 'el saludo');
     res.saludos = globos().filter((g) => g.includes('Hola, soy Brian')).length;
     res.expandido = burbuja.getAttribute('aria-expanded');
-    (await hasta(() => chip('Colchones'), 'las sugerencias del saludo')).click();
+    // Las sugerencias dependen del catálogo (las dos categorías con más productos): se escribe «Colchones», que es lo
+    // mismo que manda el botón.
+    await hasta(() => document.querySelector('#o_dcbt_panel .o_dcbt_chip'), 'las sugerencias del saludo');
+    const campo0 = document.querySelector('#o_dcbt_texto');
+    campo0.value = 'Colchones';
+    campo0.dispatchEvent(new Event('input', { bubbles: true }));
+    document.querySelector('#o_dcbt_panel .o_dcbt_composer').requestSubmit();
     const tarjeta = await hasta(() => document.querySelector('#o_dcbt_panel .o_dcbt_tarjeta'), 'las tarjetas');
     res.tarjeta = tarjeta.querySelector('h3').textContent;
     res.precio = tarjeta.querySelector('.o_dcbt_precio').textContent;
@@ -592,3 +598,101 @@ class TestCabeceraDeVidrio(NavegadorCase):
                 self.assertEqual(set(m['iconos']), {'rgb(27, 34, 51)'}, 'los íconos negros (tinta)')
                 if not m['punto']['apagado']:
                     self.assertEqual(m['punto']['aro'], 'rgb(19, 64, 177)', 'el amarillo con aro azul: no toca el blanco')
+
+
+# El carrito en la barra del chat (pedido de la dueña, 2026-11-15): con algo en el carrito, el ícono de WhatsApp pasa a
+# ser el carrito con su cantidad; vacío, vuelve WhatsApp. Y el chat al día con el carrito que cambia la PÁGINA (el
+# «Agregar» de la ficha: Odoo y después el número del menú), también al seguir la conversación en otra página (el chat
+# decía «Tu carrito está vacío» con la cama ya puesta).
+BARRA = """
+    const barra = () => {
+        const cab = document.querySelector('#o_dcbt_panel .o_dcbt_cab');
+        const wa = cab && cab.querySelector('a[target="_blank"]');
+        const carrito = cab && cab.querySelector('.o_dcbt_cab_carrito');
+        return { wa: wa ? !wa.hidden : null, carrito: carrito ? !carrito.hidden : null,
+                 cuenta: carrito ? carrito.querySelector('.o_dcbt_cab_cuenta').textContent : null,
+                 etiqueta: carrito ? carrito.getAttribute('aria-label') : null, href: carrito ? carrito.getAttribute('href') : null };
+    };
+    const agregarDesdeLaPagina = async (cantidad, menu) => {
+        await fetch('/shop/cart/add', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ jsonrpc: '2.0', method: 'call', params: { product_template_id: TMPL, product_id: PROD, quantity: cantidad } }) });
+        if (menu !== null) { document.querySelectorAll('.my_cart_quantity').forEach((g) => { g.textContent = String(menu); }); }
+    };
+"""
+
+CARRITO_EN_LA_BARRA = """(async () => {
+    /*ESPERAR*/ /*BARRA*/
+    const r = {};
+    document.querySelector('button.o_dcbt_burbuja').click();
+    await hasta(() => globos().some((g) => g.includes('Hola, soy Brian')), 'el saludo');
+    await esperar(600);
+    r.vacio = barra();
+    const primeras = document.querySelector('#o_dcbt_panel .o_dcbt_chips');
+    r.chips = primeras ? [...primeras.querySelectorAll('.o_dcbt_chip')].map((c) => c.textContent) : [];
+    r.sugerencias = JSON.parse(sessionStorage.getItem('dcasa.brian.pase') || '{}').sugerencias || null;
+    r.hayMenu = document.querySelectorAll('.my_cart_quantity').length;
+    await agregarDesdeLaPagina(2, 2);
+    await hasta(() => barra().carrito, 'el carrito en la barra');
+    r.lleno = barra();
+    await window.__dcasaBrian.odoo('POST', '/dcasa/brian/v1/carrito/cantidad', { producto_id: PROD, cantidad: 0 });
+    document.querySelectorAll('.my_cart_quantity').forEach((g) => { g.textContent = '0'; });
+    await hasta(() => barra().wa && !barra().carrito, 'WhatsApp de vuelta');
+    r.otraVez = barra();
+    return r;
+})()"""
+
+SIGUE_EN_OTRA_PAGINA_1 = """(async () => {
+    /*ESPERAR*/ /*BARRA*/
+    document.querySelector('button.o_dcbt_burbuja').click();
+    await hasta(() => globos().some((g) => g.includes('Hola, soy Brian')), 'el saludo');
+    await esperar(600);
+    const antes = barra();
+    await agregarDesdeLaPagina(1, null);   // sin tocar el menú: como la página que agrega y se va a otra
+    await esperar(300);
+    return antes;
+})()"""
+
+SIGUE_EN_OTRA_PAGINA_2 = """(async () => {
+    /*ESPERAR*/ /*BARRA*/
+    await hasta(() => document.querySelector('#o_dcbt_panel:not([hidden])'), 'el chat abierto otra vez');
+    await hasta(() => barra().carrito, 'el carrito en la barra');
+    const pie = document.querySelector('#o_dcbt_panel .o_dcbt_vitrina_pie');
+    return { barra: barra(), pie: pie ? pie.textContent : null, historial: globos().filter((g) => g.includes('Hola, soy Brian')).length };
+})()"""
+
+
+@tagged('post_install', '-at_install')
+class TestCarritoEnLaBarra(NavegadorCase):
+
+    def _js(self, codigo):
+        variante = self.colchon.product_variant_id
+        return (codigo.replace('/*ESPERAR*/', ESPERAR).replace('/*BARRA*/', BARRA)
+                .replace('TMPL', str(self.colchon.id)).replace('PROD', str(variante.id)))
+
+    def test_whatsapp_o_el_carrito_con_su_cantidad_al_dia_con_la_pagina(self):
+        with self.chrome(1366, 768, movil=False) as browser:
+            browser.navigate_to(self.base_url() + '/', wait_stop=True)
+            r = self.evaluar(browser, self._js(CARRITO_EN_LA_BARRA))
+        self.assertEqual((r['vacio']['wa'], r['vacio']['carrito']), (True, False), 'carrito vacío: WhatsApp')
+        self.assertTrue(r['sugerencias'] is not None, 'el pase trae las sugerencias')
+        self.assertEqual(r['chips'][-2:], ['¿Cuánto cuesta el envío?', 'Formas de pago'])
+        if r['sugerencias']:
+            self.assertEqual(r['chips'][:-2], r['sugerencias'], 'las primeras, las del catálogo')
+        self.assertGreater(r['hayMenu'], 0, 'el menú del sitio tiene el número del carrito')
+        self.assertEqual((r['lleno']['wa'], r['lleno']['carrito']), (False, True), 'con algo: el carrito')
+        self.assertEqual(r['lleno']['cuenta'], '2')
+        self.assertEqual(r['lleno']['etiqueta'], 'Ver tu carrito: 2 artículos')
+        self.assertEqual(r['lleno']['href'], '/shop/cart')
+        self.assertEqual((r['otraVez']['wa'], r['otraVez']['carrito']), (True, False), 'vacío otra vez: WhatsApp')
+
+    def test_la_conversacion_que_sigue_en_otra_pagina_lee_el_carrito(self):
+        with self.chrome(1366, 768, movil=False) as browser:
+            browser.navigate_to(self.base_url() + '/', wait_stop=True)
+            antes = self.evaluar(browser, self._js(SIGUE_EN_OTRA_PAGINA_1))
+            browser.navigate_to(self.base_url() + '/shop', wait_stop=True)
+            r = self.evaluar(browser, self._js(SIGUE_EN_OTRA_PAGINA_2))
+        self.assertFalse(antes['carrito'])
+        self.assertTrue(r['barra']['carrito'], 'el chat lee el carrito al seguir en otra página')
+        self.assertEqual(r['barra']['cuenta'], '1')
+        self.assertEqual(r['historial'], 1, 'la conversación sigue: no se vuelve a presentar')
+        self.assertNotIn('vacío', r['pie'] or '', 'la vitrina tampoco dice «vacío»')

@@ -33,6 +33,7 @@ from odoo import http
 from odoo.addons.dcasa_base.red import llave_ip
 from odoo.addons.dcasa_conversaciones.models import publico as P
 from odoo.addons.website_dcasa.controllers.main import DcasaTienda
+from odoo.addons.website_dcasa.models.website import CATEGORIAS_PORTADA
 from odoo.fields import Domain
 from odoo.http import request
 
@@ -50,6 +51,8 @@ _SEMAFORO_PDF = threading.BoundedSemaphore(MAX_PDF_A_LA_VEZ)
 TEXTO_SIN_PDF = 'Por ahora no podemos armar más cotizaciones. Inténtalo en un rato o escríbenos por WhatsApp.'
 TEXTO_PDF_OCUPADO = 'Estamos armando otras cotizaciones. Inténtalo de nuevo en unos segundos.'
 MAX_ID = 2 ** 31
+# Las sugerencias del saludo dicen la categoría con la palabra que escribiría un cliente («Camas», no «Recámaras»).
+NOMBRE_SUGERENCIA = {'recamaras': 'Camas', 'oficina': 'Escritorios'}
 # La política de privacidad cambia con este módulo (views/templates.xml, «Brian, el chat de la tienda»): su fecha.
 FECHA_PRIVACIDAD = '14 de noviembre de 2026'
 MESES = ('enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre',
@@ -122,7 +125,19 @@ class DcasaBrianTiendaAPI(http.Controller):
         turnstile = cuerpo.get('turnstile') if isinstance(cuerpo.get('turnstile'), str) else ''
         resultado = request.env['dcasa.brian.tienda'].sudo()._emitir(
             request.session, request.httprequest.remote_addr, request.website, turnstile=turnstile)
+        if resultado.get('ok'):
+            resultado['sugerencias'] = self._sugerencias()
         return _json(resultado)
+
+    def _sugerencias(self):
+        """Las dos categorías de la portada con más productos publicados, para las sugerencias del saludo (pedido de la
+        dueña, 2026-11-15, «opción 2»: la lista fija decía «Salas» con 2 productos y no decía «Camas», con 121). Es el
+        mismo número que la portada pone debajo de cada categoría; con empate, el orden de la portada. Sin nada
+        publicado, ninguna: la página usa las de fábrica."""
+        website = request.website
+        cuentas = [(website._dcasa_categoria_cantidad(clave), -orden, NOMBRE_SUGERENCIA.get(clave, nombre))
+                   for orden, (clave, nombre, _alt) in enumerate(CATEGORIAS_PORTADA)]
+        return [nombre for cantidad, _orden, nombre in sorted(cuentas, reverse=True) if cantidad][:2]
 
     # ------------------------------------------------------------------
     # El carrito

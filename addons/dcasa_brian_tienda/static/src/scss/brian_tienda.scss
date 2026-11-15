@@ -434,6 +434,32 @@ html.o_dcasa_refraccion .o_dcbt_cab::before {
     background: var(--o-dcbt-niebla);
 }
 
+// El carrito en la barra (con algo en el carrito, en lugar de WhatsApp; pedido de la dueña, 2026-11-15: «que se vea así»,
+// como el del menú del sitio): el círculo gris claro con el carrito y la cantidad en una burbuja azul con número blanco,
+// con un filo blanco que la despega del círculo (el azul toca el blanco: está bien; el amarillo no podría).
+.o_dcbt_cab_carrito {
+    position: relative;
+    background: rgba(27, 34, 51, .07);
+}
+
+.o_dcbt_cab_cuenta {
+    position: absolute;
+    top: 1px;
+    right: -2px;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 5px;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    font: 700 12px/1 var(--o-dcbt-f-texto);
+    font-variant-numeric: tabular-nums;
+    color: var(--o-dcbt-blanco);
+    background: var(--o-dcbt-azul);
+    box-shadow: 0 0 0 2px var(--o-dcbt-blanco);
+    pointer-events: none;
+}
+
 .o_dcbt_chat_col {
     flex: 1;
     min-width: 0;
