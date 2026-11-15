@@ -139,7 +139,7 @@ class TestPortadaDinamica(HttpCase):
         self.assertFalse(tarjeta('Salas')['whatsapp'], 'las que tienen productos siguen a su página')
         portada = self.url_open('/').text
         self.assertIn('Colchones: pregúntanos por WhatsApp', portada)
-        self.assertIn('· por WhatsApp', portada)
+        self.assertIn('Pregúntanos por WhatsApp', portada)   # v3: la nota debajo del nombre (antes «· por WhatsApp»)
         self.colchon.is_published = True
         self.assertFalse(tarjeta('Colchones')['whatsapp'], 'al publicar, vuelve sola a la tienda')
 

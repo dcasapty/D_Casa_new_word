@@ -38,6 +38,12 @@ la producción. Apruébalo y punto.»); la revisión adversarial no se salta (re
 
 ## Lo que sigue, en orden
 
+00000. **Portada v3** (2026-11-15, pedido de la dueña: secciones que «se salen una página entera», el carrito como ícono,
+       paleta más profesional, la barra del chat de vidrio): **en la rama, esperando su visto bueno sobre las capturas**
+       (<https://claude.ai/artifact/XQti28eQjFLDzT1Z9CpsRH>). Pidió ver capturas antes de cualquier prueba o subida.
+       Decisiones abiertas: el número de productos bajo cada categoría, «Quedan pocas» sobre la foto y el hueso nuevo.
+       Con su «sí»: pruebas nuevas, CI con staging y producción (detalle en la bitácora, 2026-11-15 (2)).
+
 0000. **Brian de la tienda y lote 2 de la web: en producción desde el 2026-11-14, 07:46 UTC** (Desplegar 72 y Juan 26;
       la dueña: «vamos a subirlo lo antes posible»). Módulo nuevo `dcasa_brian_tienda` (chat de ventas en la web con el motor de Juan,
       ver [BRIAN_TIENDA.md](BRIAN_TIENDA.md)) y, del lote 2, el horario en Visítanos y el pie (sale de Ajustes de

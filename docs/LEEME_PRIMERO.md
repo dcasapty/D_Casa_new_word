@@ -109,6 +109,31 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 > sigue. Se guardan las diez más recientes; las viejas se resumen en una línea abajo y su texto completo pasa a
 > [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md).
 
+### 2026-11-15 (2): portada v3 (paleta, espaciado, categorías y carriles en una fila, carrito como ícono, chat de vidrio), en la rama esperando su visto bueno
+
+- **Pedido de la dueña (tal cual, en corto):** «¿Qué le hace falta a tu casa?» y «Lo más buscado» «se salen una página
+  entera»; mirar cómo reparte el espacio jamar.com.pa; «si ve un carrito, entiende que es añadir al carrito… que el texto no
+  sea tan grande, que quepa más»; mejorar la paleta; la barra azul del chat «del mismo material que el navbar… los iconos
+  negros… el robotcito tal cual»; y después: «no quiero copiar a Jamar… superarlos con creces… sofisticado, moderno… con
+  sentido de necesidad y urgencia… respetando el branding». **Pidió capturas antes de cualquier prueba o subida.**
+- **Hecho en la rama (sin CI, sin staging):** `website_dcasa` (paleta v3: hueso #F6F5F2 en vez del beige #F4F1EA, titulares
+  de 56 a 40 px, secciones de 120 a 72 px; categorías 6 en fila / 3×2 con el nombre y «N productos» debajo
+  (`_dcasa_categoria_cantidad`); carriles de la portada en una fila deslizable con flechas y línea de avance, `carril.js`;
+  tarjeta blanca 4:5 con el carrito solo con ícono (`icono_carrito`, aria-label intacto) y WhatsApp, y en tarjeta angosta
+  una barra con `@container`; Inspírate en una fila). `dcasa_catalogo`: «Quedan pocas» / «Agotado» sobre la foto con la
+  regla de la ficha (`tarjeta_disponibilidad`). `dcasa_brian_tienda`: cabecera de vidrio igual a la píldora (mismo
+  `--dcasa-refraccion`), texto navy, íconos tinta, punto amarillo con aro azul. Mismo hueso en Mi cuenta y «Busca con una
+  foto»; los correos no. Black Weekend no cambia (su carril y su tarjeta son propios).
+- **Medido (copia de prueba, 1440 × 900):** portada de 10.425 a 6.530 px; categorías de 1.473 a 491; «Lo más buscado» de
+  1.468 a 646. Comparación para la dueña: <https://claude.ai/artifact/XQti28eQjFLDzT1Z9CpsRH>.
+- **Esta máquina:** contenedor nuevo; Odoo con `git submodule update --init --depth 1 vendor/odoo` y venv de Python 3.12
+  en el scratchpad (con 3.13 no compila `rl-renderPM`; receta en CONTEXTO_AGENTICO). Capturas con la base `web_antes`
+  (worktree del commit anterior) y `web_despues`; la cama «Tono Arena» con 2 unidades solo en la copia, para mostrar la
+  etiqueta.
+- **Sigue:** con su «sí»: pruebas nuevas (conteo de categorías, botón con ícono y aria-label, etiqueta de disponibilidad,
+  flechas del carril en Chrome, vidrio del chat), `scripts/test.sh` de los módulos tocados, CI con staging y capturas del
+  celular de verdad. Ojo: la portada guardada en el borde puede tardar en mostrar un «Quedan pocas» nuevo.
+
 ### 2026-11-15: alternativas para Messenger e Instagram sin la revisión de Meta (OpenReply y 14 repos más). Solo investigación: no cambió código ni producción
 
 - **Pedido:** ver si OpenReply (`diwenne/openreply`), una lista de MCPs de Instagram y otros repos sirven para que Juan conteste

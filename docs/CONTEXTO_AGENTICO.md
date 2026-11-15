@@ -811,7 +811,8 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 
 - **Contenedor nuevo, sin Odoo ni dependencias (2026-11-02):** `vendor/odoo` puede venir sin bajar (`git submodule
   status` empieza con `-`): `git submodule update --init --depth 1 vendor/odoo` (unos minutos). Las dependencias van en
-  un venv del scratchpad con `psycopg2-binary` y sin `python-ldap` (no compilan sin las librerías del sistema):
+  un venv del scratchpad **con `python3.12`** (el del CI; con el `python3` de la máquina, 3.13, `rl-renderPM` no compila y
+  `make setup` falla, 2026-11-15), con `psycopg2-binary` y sin `python-ldap` (no compilan sin las librerías del sistema):
   `grep -v -i "^psycopg2\|^python-ldap" vendor/odoo/requirements.txt > req.txt`. El rol `odoo` de PostgreSQL hay que
   crearlo (`CREATE ROLE odoo LOGIN SUPERUSER PASSWORD 'odoo'`) y Chromium está en `/opt/pw-browsers/chromium` (enlace
   `chromium` en el `bin` del venv para las pruebas de navegador). Correr con `PATH=<venv>/bin:$PATH PYTHON=<venv>/bin/python`.
