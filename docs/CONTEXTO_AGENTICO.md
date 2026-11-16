@@ -727,6 +727,13 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 
 ### Esta máquina (sesiones de Claude)
 
+- **Las pruebas del navegador fallan por carrera cuando la máquina está cargada** (2026-11-16):
+  `dcasa_brian_tienda:TestNotaDeVoz.test_el_tope_lo_recortado_y_los_errores_amables` falló en una batería de 1629
+  pruebas («1 != 0»: el mensaje de la parte anterior llegó al Worker simulado DESPUÉS de contarlos) y pasó sola, 5 de
+  5, en la misma máquina y el mismo código. Antes de dar por mala una prueba del navegador en una batería larga,
+  correrla sola. La prueba cuenta lo que llegó al Worker justo después de un envío: si se vuelve a repetir, hay que
+  esperar a que llegue en vez de contar enseguida.
+
 - **El servidor de GitHub de la sesión puede morirse y no vuelve** (2026-11-16): justo después de que la dueña
   reconectara la cuenta de GitHub, todas las herramientas `mcp__github__*` empezaron a contestar «invalid session» y
   siguieron así el resto de la sesión (se reintentó una docena de veces en una hora). `git push` **sí** seguía
