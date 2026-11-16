@@ -109,7 +109,7 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 > sigue. Se guardan las diez más recientes; las viejas se resumen en una línea abajo y su texto completo pasa a
 > [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md).
 
-### 2026-11-16 (3): los combos del Black Friday, probados y listos para subir; la subida se frenó por GitHub
+### 2026-11-16 (3): el Black Friday en producción (Desplegar 77 y Juan 28)
 
 **Nada nuevo en producción todavía** (sigue Desplegar 76). La sesión tomó el traspaso y cerró el **paso 0**.
 
@@ -126,12 +126,18 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 - **Rama de la subida: `claude/black-friday-solo`** (sale de `62868d5`, que ya trae el nombre «Andrés» de `1937f89`).
   Solo Black Friday: ni Andrés vendedor, ni voz, ni micrófono, ni portada. **Batería del paso 0: 1543 pruebas, 0
   fallas.**
-- **La subida no se pudo hacer:** el servidor de GitHub de la sesión dejó de responder («invalid session») justo
-  después de reconectar la cuenta, y sin él no se pueden lanzar los flujos de Actions (CI, Desplegar Juan,
-  Desplegar). `git push` sí funciona, así que todo está subido a las ramas. **Lo primero de la próxima sesión es
-  lanzar el CI con staging sobre `claude/black-friday-solo` y seguir la receta.**
+- **En producción: Desplegar 77** (PR #126, squash `a904ec65`, `app_version` `26b357d3bd51…`, imagen
+  `sha256:ebc046c9…`, CI 371 con staging) y **Juan 28** (Juan primero, porque el nombre «Andrés» vive en
+  `juan/src/tienda`). Con respaldo previo. Comprobado en producción: `/dcasa/salud` sano con la versión nueva, la
+  portada responde, `/promociones` da 404 y el menú no lo muestra (todavía no hay campaña), y el chat abre diciendo
+  **«Hola, soy Andrés»**.
+- **Susto del camino:** el servidor de GitHub de la sesión estuvo una hora contestando «invalid session» justo
+  después de reconectar la cuenta. `git push` seguía funcionando. Volvió solo al reiniciarse el proceso de la
+  sesión; está anotado en CONTEXTO_AGENTICO.
 - En la rama de trabajo quedó además el último pendiente de las notas de voz (el micrófono que quedaba encendido si
   la pantalla se cerraba mientras pedía permiso) y las dos pruebas del carrusel arregladas.
+- **La segunda entrega NO subió** (Andrés vendedor, voz, micrófono y portada): su revisión adversarial independiente
+  encontró un **bloqueante que necesita decisión de la dueña** (ver PRIORIDADES).
 
 ### 2026-11-16 (2): todo el plan Andrés, voz y portada subido a la rama, incluso lo que quedó a medias (traspaso a otra cuenta)
 

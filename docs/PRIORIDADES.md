@@ -1,6 +1,6 @@
 # Prioridades vigentes
 
-Puesto al día el **2026-11-16** (noche) (sigue Desplegar 76 en producción; en la rama, el Black Friday, Andrés y todo el plan Andrés, voz y portada, parte a medias: ver [PLAN_ANDRES_VOZ_PORTADA.md › Traspaso](PLAN_ANDRES_VOZ_PORTADA.md#traspaso-del-2026-11-16-madrugada-dónde-quedó-cada-parte)). Es el orden en que se trabaja: cada sesión lo lee al empezar y lo pone al día al
+Puesto al día el **2026-11-16** (el Black Friday ya está en producción: Desplegar 77 y Juan 28. En la rama de trabajo queda la segunda entrega —Andrés vendedor, notas de voz, micrófono y portada—, que **no se sube** hasta arreglar lo de Socios y el envío gratis: ver abajo y [PLAN_ANDRES_VOZ_PORTADA.md](PLAN_ANDRES_VOZ_PORTADA.md)). Es el orden en que se trabaja: cada sesión lo lee al empezar y lo pone al día al
 terminar (ver [LEEME_PRIMERO.md](LEEME_PRIMERO.md)). Aquí va **un solo estado**, el de hoy; lo que pasó cada día está en
 la bitácora de LEEME_PRIMERO (y lo más viejo en [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md)).
 
@@ -38,18 +38,39 @@ la producción. Apruébalo y punto.»); la revisión adversarial no se salta (re
 
 ## Lo que sigue, en orden
 
-**LO PRIMERO: subir el Black Friday.** Está probado y listo en la rama **`claude/black-friday-solo`** (commit
-`26b357d3` y los que sigan): la campaña del sitio, los combos inamovibles con todos los arreglos de las dos revisiones
-adversariales y el chat renombrado a Andrés. **Batería del paso 0: 1543 pruebas, 0 fallas** (2026-11-16).
-**La subida se frenó porque el servidor de GitHub de la sesión dejó de responder** («invalid session») y sin él no se
-pueden lanzar los flujos de Actions. `git push` sí funciona. Al empezar: lanzar `ci.yml` con `desplegar_en=staging`
-sobre esa rama y seguir la receta de [DESPLIEGUE.md](DESPLIEGUE.md) (PR `[skip ci]`, squash con el SHA exacto,
-**Desplegar Juan** y después **Desplegar** con respaldo previo). El Black Friday es el **viernes 27**: hay que dejarlo
-en producción con días de margen para que la dueña alcance a marcar los productos.
+**EL BLACK FRIDAY YA ESTÁ EN PRODUCCIÓN** (2026-11-16, Desplegar 77 y Juan 28; PR #126, squash `a904ec65`,
+`app_version` `26b357d3bd51…`). La campaña del sitio desde el panel, los combos inamovibles con la regla del par y el
+chat de la web como Andrés. Comprobado: salud sana, portada, `/promociones` en 404 mientras no haya campaña y el chat
+diciendo «Hola, soy Andrés». **Falta que la dueña cree la campaña** (los pasos están en `RESUMEN_PARA_LA_DUENA.md` y
+en el plan): el Black Friday es el **viernes 27**.
 
-**Después**, la segunda entrega en `claude/merge-rama-to-main-ty3koz`: Andrés vendedor (A1–A5), notas de voz,
-micrófono del chat y la portada en carrusel. Falta correr sus baterías de Odoo, una revisión independiente de los
-arreglos de Andrés (sobre todo el de Socios) y las capturas de la portada a 1440 y 390 para la dueña.
+**LO PRIMERO AHORA: la decisión de la dueña sobre Socios y el envío gratis.** La revisión adversarial independiente de
+Andrés vendedor encontró un **bloqueante**: si un socio usa un premio de puntos en el carrito web y con eso el carrito
+baja del mínimo de la promoción, **se pierde el envío gratis**. Con las cifras de hoy: carrito de $205, premio de $10
+(1.000 puntos) → el carrito queda en $195.65, la promoción se borra y el socio paga $45 de envío. Gasta puntos para
+perder dinero. Choca con la decisión M6 de la dueña (2026-11-12: el premio sí cuenta para medir la promoción), así que
+**no se cambia sin su «sí»**. Dos salidas: (a) avisar y no dejar canjear cuando el premio mata la promoción; (b) no
+contar las líneas de premio al medir la promoción, solo en carritos web.
+
+**Después, la segunda entrega** en `claude/merge-rama-to-main-ty3koz` (Andrés vendedor, notas de voz, micrófono y
+portada). **No se sube hasta arreglar lo de arriba.** Lo demás que dejó esa revisión:
+
+- *Importante:* el total **sí** puede quedar negativo por el cobro de premio en el mostrador (`_aplicar_en_venta` no
+  mide el total y `action_confirm` tampoco). El arreglo de `_dcasa_total_sin_premios` solo cubre el camino web.
+- *Importante:* la guardia del Worker que impide que Andrés afirme cambios del carrito se salta con una oración que
+  acabe en «?» sin «¿» («…lo dejé en 2, ok?»).
+- *Importante:* la línea del premio de Socios viaja al Worker y al modelo, y Andrés puede proponer quitarla (eso
+  cancela el canje). Arreglo: saltarla en `_carrito()`.
+- *Menores:* `/carrito/envio` acepta cualquier `lugar_id` sin que Andrés lo haya cotizado; dos `GET` escriben en la
+  base; el mismo canje puede quedar en dos ventas abiertas; y la prueba nueva del premio pasa con los dos
+  comportamientos (no decide nada).
+
+Quedan además dos cosas del Black Friday, anotadas y sin bloquear:
+
+- La web y Juan publican la línea de combo escrita en el Excel («Combo con colchón $649.99»), un texto que nadie
+  recalcula y que puede no coincidir con lo que cobra la cotización. Viene de antes.
+- La pantalla «Armar combo» muestra precios sin la oferta. El arreglo está escrito (parche guardado) pero rompió dos
+  pruebas y se dejó fuera para no retrasar el Black Friday.
 
 0000000. **Primero termina el 000000 de abajo (Black Friday). Después, la siguiente ronda que pidió la dueña, con su plan
         escrito en [PLAN_ANDRES_VOZ_PORTADA.md](PLAN_ANDRES_VOZ_PORTADA.md).**

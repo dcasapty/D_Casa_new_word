@@ -470,6 +470,18 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   burbuja de Brian cambia de pose con la sección en pantalla (solo JS de `dcasa_brian_tienda`; Juan no cambió, así que
   no hubo Desplegar Juan). **Lección:** el primer intento de squash dio 409 porque escribí de memoria el SHA largo de
   `expectedHeadSha`; siempre `git rev-parse` antes, nunca completar un SHA a ojo. Bien al segundo intento, sin daño.
+- **Desplegar 77** (16 nov, 13:01–13:2x UTC; salud sana: `{"ok": true, "version": "26b357d3bd51", "base_al_dia":
+  true, "humo": "ok"}`; run 43871897257) · PR #126, squash `a904ec65`, `app_version`
+  `26b357d3bd51d1e64b5fa51fcdbba8cda2cc4280`, imagen
+  `sha256:ebc046c979058cb9d354a4a25179196a356a068b61e989e94c5d5e910894b742`, CI 371 con staging (run 43861779415).
+  El Black Friday: la campaña del sitio, los combos inamovibles con la regla del par y el chat de la web como Andrés;
+  con respaldo previo. **Juan 28 ANTES que Odoo** (el saludo «Hola, soy Andrés» vive en `juan/src/tienda/prompt.ts`;
+  el de la página, en `brian_tienda.js`). Bien al primer intento. **Lecciones:** (1) el paso «Esperar a que el sitio
+  esté sano» del despliegue a staging tardó 16 minutos **después** de que staging ya respondía con la versión nueva
+  (son los 600 s de vigilancia más las vueltas): no hay que darlo por colgado ni relanzar nada. (2) La API de Actions
+  devuelve el estado de una ejecución **cacheado** varios minutos (`updated_at` se queda quieto): para saber si un
+  despliegue terminó, mirar `/dcasa/salud` del sitio, no solo el estado del job. (3) Abrir el PR dispara otro CI
+  aunque el título lleve `[skip ci]` (eso solo vale para los push): cancelarlo, como dice la receta.
 - **Desplegar 76** (15 nov, 19:48–20:0x UTC; salud sana: `{"ok": true, "version": "754aceaf18e7", "base_al_dia":
   true, "humo": "ok"}`; run 43754485392) · PR #122, squash `b012494`, `app_version`
   `754aceaf18e7ed66ef1e69ec59a2ab5351a80574`, imagen `sha256:1cfb8e4f226604186ee8298d4c37dd5651a248f96c94119db3ee820b8b033207`,
@@ -726,6 +738,11 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 ## Trampas de Odoo 19 / Cloudflare / GitHub ya conocidas
 
 ### Esta máquina (sesiones de Claude)
+
+- **El servidor de GitHub de la sesión vuelve solo cuando el proceso se reinicia** (2026-11-16): tras una hora de
+  «invalid session» en todas las herramientas `mcp__github__*`, el reinicio del proceso de la sesión lo reconectó y
+  volvió a funcionar. Mientras tanto, `git push` seguía sirviendo. O sea: no hay que rehacer ramas ni buscar atajos;
+  se sigue trabajando y subiendo con git, y se reintenta cada tanto.
 
 - **Las pruebas del navegador fallan por carrera cuando la máquina está cargada** (2026-11-16):
   `dcasa_brian_tienda:TestNotaDeVoz.test_el_tope_lo_recortado_y_los_errores_amables` falló en una batería de 1629
