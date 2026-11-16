@@ -50,7 +50,7 @@ _MEMO = '_dcasa_bw_activo'
 # «Ver todo el Navidad»). Se mira la primera palabra en español; los nombres en inglés (Black Friday) van con «el».
 _ARTICULOS = ('el', 'la', 'los', 'las')
 _ADJETIVOS_DELANTE = {'gran', 'mega', 'super', 'hiper', 'mini'}   # «Gran Venta»: manda la palabra que sigue
-_FEMENINAS = {'noche', 'madre', 'tarde', 'gente', 'clase', 'parte', 'calle', 'llave'}
+_FEMENINAS = {'noche', 'madre', 'tarde', 'gente', 'clase', 'parte', 'calle', 'llave', 'promo', 'expo', 'foto'}
 _MASCULINAS_EN_A = {'dia', 'mapa', 'programa', 'sistema', 'tema', 'clima', 'planeta', 'idioma', 'problema', 'sofa',
                     'papa', 'drama', 'poema'}
 _SINGULARES_EN_S = {'mes', 'vs', 'plus', 'mas', 'tres', 'seis'}

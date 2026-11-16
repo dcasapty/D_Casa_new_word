@@ -5,13 +5,14 @@ Pedido de la dueña (2026-11-15): manejar Black Friday desde el panel marcando p
 precio de campaña opcional que el carrito cobre de verdad y que vuelva solo al terminar (models/campana.py).
 """
 from datetime import date, datetime, timedelta
+from unittest.mock import patch
 from urllib.parse import unquote
 
 from freezegun import freeze_time
 
 from odoo import Command, fields
 from odoo.addons.website_dcasa.models.black_weekend import PARAM_ACTIVO, PARAM_FIN, PARAM_INICIO, articulo_y_nombre
-from odoo.addons.website_dcasa.models.campana import COMBO_SIN_CAMPANA, PARAM_FIRMA_CARRITOS, limites_utc
+from odoo.addons.website_dcasa.models.campana import COMBO_SIN_CAMPANA, INTERNO, PARAM_FIRMA_CARRITOS, limites_utc
 from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.tests import HttpCase, TransactionCase, tagged
 
@@ -283,17 +284,22 @@ class TestCampanaPrecios(_Base, TransactionCase):
         self._en_campana()
         variante = self.cama.product_variant_id
         momento = datetime(2026, 11, 28, 15, 0)
-        combo = self.tarifa.with_context(**{COMBO_SIN_CAMPANA: True})
+        combo = self.tarifa.with_context(**{COMBO_SIN_CAMPANA: INTERNO})
         self.assertEqual(self._precio(variante, momento), 150.0)
         self.assertEqual(round(combo._get_product_price(variante, 1.0, date=momento), 2), 200.0, 'en combo: el normal')
         self.assertEqual(round(combo._get_product_price(otra.product_variant_id, 1.0, date=momento), 2), 90.0,
                          'las demás reglas de la tarifa siguen')
+        # La bandera mandada desde afuera (por RPC llega como ``true``) no vale.
+        de_afuera = self.tarifa.with_context(**{COMBO_SIN_CAMPANA: True})
+        self.assertEqual(round(de_afuera._get_product_price(variante, 1.0, date=momento), 2), 150.0)
         self.assertFalse(self.campana.dcasa_rebaja_combos, 'apagado de fábrica')
-        self.assertFalse(any(self._reglas(self.cama).mapped('dcasa_campana_combos')))
+        self.assertEqual(self._reglas(self.cama).dcasa_campana_id, self.campana)
         regla = self._reglas(self.cama)
-        self.campana.dcasa_rebaja_combos = True
-        self.assertEqual(self._reglas(self.cama), regla, 'la misma regla, solo cambia la marca')
-        self.assertTrue(all(self._reglas(self.cama).mapped('dcasa_campana_combos')))
+        Regla = type(self.env['product.pricelist.item'])
+        with patch.object(Regla, 'write', side_effect=AssertionError('el interruptor no reescribe reglas')), \
+                patch.object(Regla, 'create', side_effect=AssertionError('ni crea reglas')):
+            self.campana.dcasa_rebaja_combos = True
+        self.assertEqual(self._reglas(self.cama), regla, 'la misma regla')
         self.assertEqual(round(combo._get_product_price(variante, 1.0, date=momento), 2), 150.0,
                          'encendido: el combo también toma la campaña')
         self.campana.dcasa_rebaja_combos = False
@@ -385,6 +391,9 @@ class TestCampanaPrecios(_Base, TransactionCase):
         self.assertEqual(articulo_y_nombre('Cyber Monday'), ('el', 'Cyber Monday'))
         self.assertEqual(articulo_y_nombre('Promociones de enero'), ('las', 'Promociones de enero'))
         self.assertEqual(articulo_y_nombre('Mes de la Patria'), ('el', 'Mes de la Patria'))
+        self.assertEqual(articulo_y_nombre('Promo Navideña'), ('la', 'Promo Navideña'))
+        self.assertEqual(articulo_y_nombre('Expo Muebles'), ('la', 'Expo Muebles'))
+        self.assertEqual(articulo_y_nombre('Promos de enero'), ('las', 'Promos de enero'))
 
     def test_limites_utc(self):
         self.assertEqual(limites_utc(date(2026, 11, 27), date(2026, 11, 27)),
