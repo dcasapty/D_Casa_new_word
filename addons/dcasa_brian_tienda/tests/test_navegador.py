@@ -1062,7 +1062,7 @@ class TestNotaDeVoz(NavegadorCase):
             self.assertTrue(r['antes']['voz']['boton'])
             self.assertTrue(r['antes']['lado'], 'el micrófono va junto a «Enviar»')
             self.assertEqual(r['antes']['etiqueta'], 'Mandar una nota de voz')
-            self.assertEqual(r['antes']['voz']['pista'], 'Si prefieres, mándame una nota de voz con el micrófono.')
+            self.assertEqual(r['antes']['voz']['pista'], 'Si prefieres, mándame una nota de voz.')
             self.assertEqual(r['antes']['pedidos'], 0, 'el permiso del micrófono solo se pide al tocarlo')
             self.assertIsNone(r['pistaTrasEscribir'], 'la sugerencia no insiste: se va con el primer mensaje')
             # Grabando: el tiempo, cancelar y «Listo» en el renglón del campo; el foco en «Listo».

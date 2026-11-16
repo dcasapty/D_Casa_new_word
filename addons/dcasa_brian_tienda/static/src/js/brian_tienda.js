@@ -990,7 +990,7 @@ export class ChatBrian {
             el("span", { class: "o_dcbt_voz_punto", "aria-hidden": "true" }), this.vozEstado, this.vozTiempo,
             el("span", { class: "o_dcbt_voz_barra", "aria-hidden": "true" }, this.vozAvance), this.vozCancelar, this.vozListo);
         // «Si prefieres, mándame una nota de voz»: una vez por sesión, bajo el campo, y se va sola al primer mensaje.
-        this.vozPista = el("p", { class: "o_dcbt_voz_pista", hidden: true }, ico("microfono"), el("span", { text: "Si prefieres, mándame una nota de voz con el micrófono." }));
+        this.vozPista = el("p", { class: "o_dcbt_voz_pista", hidden: true }, ico("microfono"), el("span", { text: "Si prefieres, mándame una nota de voz." }));
         this.vozAnuncio = el("p", { class: "visually-hidden", role: "status", "aria-live": "polite" });
         this.form = el("form", { class: "o_dcbt_composer", autocomplete: "off" },
             el("label", { class: "visually-hidden", for: "o_dcbt_texto", text: "Escribe tu mensaje" }), this.campo, this.btnVoz, this.btnEnviar,
