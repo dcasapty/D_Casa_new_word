@@ -1,10 +1,10 @@
 /**
  * Portada (2026-11-16): el hero en carrusel y la sección «de cine» (models/portada.py, views/homepage_templates.xml).
  *
- *   · DcasaVitrina  el carrusel del hero. Enciende las barras, la pausa y las flechas (nacen escondidas: sin
- *                   JavaScript se ve la primera diapositiva). El avance automático lo marca la barra activa: una
- *                   animación CSS que se llena en --vitrina-tiempo; al terminar, pasa a la siguiente. Así, pausar es
- *                   solo pausar esa animación (puntero encima, foco dentro o el botón de pausa) y con movimiento
+ *   · DcasaVitrina  el carrusel del hero (foto a un lado, bloque azul noche al otro). Enciende las barras, la
+ *                   pausa y las flechas (nacen escondidas: sin JavaScript se ve la primera diapositiva). El avance
+ *                   automático lo marca la barra activa: una animación CSS que se llena en --vitrina-tiempo; al
+ *                   terminar, pasa a la siguiente. Así, pausar es solo pausar esa animación (puntero encima, foco dentro o el botón de pausa) y con movimiento
  *                   reducido no avanza nunca (la barra no se anima). Con el dedo, deslizar la foto cambia de producto.
  *   · DcasaCine     las cintas de fotos corren solas con CSS; aquí solo el botón de pausa (WCAG 2.2.2) y la pausa
  *                   mientras el dedo está apoyado en ellas.
@@ -67,6 +67,18 @@ export class DcasaVitrina extends Interaction {
     }
 
     start() {
+        // Mientras el carrusel se ve, el botón flotante de WhatsApp espera fuera: el bloque ya trae el suyo.
+        if ("IntersectionObserver" in window) {
+            const raiz = document.documentElement;
+            const observador = new IntersectionObserver(([entrada]) => {
+                raiz.classList.toggle("o_dcasa_vitrina_a_la_vista", entrada.isIntersecting);
+            });
+            observador.observe(this.el);
+            this.registerCleanup(() => {
+                observador.disconnect();
+                raiz.classList.remove("o_dcasa_vitrina_a_la_vista");
+            });
+        }
         if (!this.viva) {
             return;
         }

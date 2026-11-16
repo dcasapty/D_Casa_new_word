@@ -13,7 +13,8 @@ sección «de cine» (models/portada.py, views/homepage_templates.xml, static/sr
 * La sección «de cine»: dos cintas con fotos del catálogo publicado (sin repetir los carriles de arriba) y el botón al
   catálogo; sin fotos suficientes no sale.
 * En Chrome: las flechas, las barras y la pausa; el avance automático (y quieto con movimiento reducido); deslizar con
-  el dedo; las cintas que corren y se pausan; nada ensancha la página y la foto no queda bajo la cabecera.
+  el dedo; las cintas que corren y se pausan; la foto de orilla a orilla sin que el bloque azul noche la tape, la
+  píldora clara y nada ensancha la página.
 """
 import base64
 import contextlib
@@ -26,6 +27,7 @@ from psycopg2 import IntegrityError
 
 from odoo import Command
 from odoo.addons.website_dcasa.models.portada import CARRUSEL_INICIAL, MINIMO_CINE, PARAM_SEMBRADO
+from odoo.addons.website_dcasa.tests.test_black_weekend import amarillo_sobre_blanco
 from odoo.exceptions import AccessError
 from odoo.tests import HttpCase, tagged
 from odoo.tests import common as comun
@@ -198,6 +200,20 @@ class TestCarruselPortada(HttpCase):
         self.assertEqual(precarga[0].get('imagesrcset'), fuente)
         self.assertEqual(precarga[0].get('fetchpriority'), 'high')
 
+    def test_el_amarillo_nunca_toca_el_blanco(self):
+        """El botón amarillo del carrusel va en el bloque azul noche; el de la sección de cine (blanca) es azul."""
+        self._elegir(*self.camas)
+        texto, arbol = self._portada()
+        self.assertEqual(amarillo_sobre_blanco(texto), [])
+        vitrina = self._vitrina(arbol)
+        self.assertTrue(vitrina.xpath('.//div[contains(@class, "o_dcasa_vitrina_panel")]//h1'), 'el titular, en el bloque')
+        self.assertTrue(vitrina.xpath('.//div[contains(@class, "o_dcasa_vitrina_panel")]//a[contains(@class, "o_dcasa_btn_amarillo")]'))
+        self.assertNotIn('o_dcasa_hero ', (vitrina.get('class') or '') + ' ',
+                         'sin la clase del hero de siempre: la píldora no se vuelve ahumada sobre la foto clara')
+        cine = arbol.xpath('//section[contains(@class, "o_dcasa_cine")]')[0]
+        self.assertFalse(cine.xpath('.//*[contains(@class, "o_dcasa_btn_amarillo")]'))
+        self.assertEqual(cine.xpath('.//a[contains(@class, "btn-primary")]/@href'), ['/shop'])
+
     def test_si_nada_se_puede_mostrar_vuelve_el_hero_de_siempre(self):
         self._elegir(self.sin_publicar, self.sin_foto)
         _texto, arbol = self._portada()
@@ -301,8 +317,8 @@ class TestCarruselPortada(HttpCase):
         seccion = arbol.xpath('//section[contains(@class, "o_dcasa_cine")]')
         self.assertTrue(seccion, 'la portada trae la sección de cine')
         seccion = seccion[0]
-        self.assertEqual(seccion.xpath('.//a[contains(@class, "o_dcasa_btn_amarillo")]/@href'), ['/shop'])
-        self.assertEqual(' '.join(seccion.xpath('.//a[contains(@class, "o_dcasa_btn_amarillo")]')[0].text_content().split()),
+        self.assertEqual(seccion.xpath('.//a[contains(@class, "btn-primary")]/@href'), ['/shop'])
+        self.assertEqual(' '.join(seccion.xpath('.//a[contains(@class, "btn-primary")]')[0].text_content().split()),
                          'Ver el catálogo')
         self.assertIsNotNone(seccion.xpath('.//button[contains(@class, "o_dcasa_cine_pausa")]')[0].get('hidden'))
         cintas = seccion.xpath('.//div[contains(concat(" ", @class, " "), " o_dcasa_cine_cinta ")]')
@@ -386,7 +402,11 @@ class TestCarruselPortada(HttpCase):
         self.assertEqual(r['sinPausaAvanza'], 2, 'sin pausa avanza sola')
         self.assertEqual(r['vivoSolo'], 'off', 'lo que avanza solo no interrumpe al lector de pantalla')
         self.assertEqual(r['visibles'], 1, 'se ve una sola diapositiva a la vez')
-        self.assertTrue(r['fotoBajoCabecera'], 'la foto empieza debajo de la píldora de la cabecera')
+        self.assertTrue(r['fotoOrillaAOrilla'], 'la foto llega a la orilla derecha y arriba')
+        self.assertTrue(r['bloqueNoTapaLaFoto'], 'el bloque azul noche no tapa la foto')
+        self.assertTrue(r['altoPantalla'], 'el hero mide al menos el alto de la pantalla')
+        self.assertTrue(r['pildoraClara'], 'sobre la foto clara, la píldora va clara')
+        self.assertTrue(r['whatsappEspera'], 'el WhatsApp flotante espera fuera mientras se ve el carrusel')
         self.assertTrue(r['nadaEnsancha'], 'nada ensancha la página')
         self.assertEqual(r['cine']['animacion'], 'dcasa-correr')
         self.assertEqual(r['cine']['estado'], 'running')
@@ -408,7 +428,9 @@ class TestCarruselPortada(HttpCase):
         self._elegir(*self.camas)
         r = self._en_chrome(PASOS_TELEFONO, ancho=390, alto=844, movil=True)
         self.assertTrue(r['fotoArriba'], 'en el celular la foto va arriba del titular')
-        self.assertTrue(r['fotoBajoCabecera'], 'y debajo de la cabecera')
+        self.assertTrue(r['fotoOrillaAOrilla'], 'de orilla a orilla')
+        self.assertTrue(r['bloqueNoTapaLaFoto'], 'y el bloque azul noche debajo, sin taparla')
+        self.assertTrue(r['etiquetaSobreLaFoto'], 'la etiqueta del producto va sobre la foto')
         self.assertTrue(r['botonVisible'], 'el botón amarillo se ve sin bajar')
         self.assertEqual(r['trasDeslizar'], 1, 'deslizar a la izquierda pasa al siguiente')
         self.assertFalse(r['abrioFicha'], 'deslizar no abre la ficha')
@@ -426,10 +448,14 @@ PRUEBA_JS = """(async () => {
     const actual = () => [...vitrina.querySelectorAll('.o_dcasa_vitrina_foto')].findIndex((f) => f.classList.contains('is-activa'));
     const visible = (el) => !!el && !el.hidden && getComputedStyle(el).display !== 'none';
     const [pausa, atras, adelante] = vitrina.querySelectorAll('.o_dcasa_vitrina_boton');
-    const piso = Math.max(...[...document.querySelectorAll('header#top .o_main_nav')].filter((n) => n.getBoundingClientRect().height).map((n) => n.getBoundingClientRect().bottom));
+    const foto = vitrina.querySelector('.o_dcasa_vitrina_fotos').getBoundingClientRect();
+    const panel = vitrina.querySelector('.o_dcasa_vitrina_panel').getBoundingClientRect();
     const r = {
         controlesVisibles: visible(vitrina.querySelector('.o_dcasa_vitrina_barras')) && visible(adelante),
-        fotoBajoCabecera: vitrina.querySelector('.o_dcasa_vitrina_fotos').getBoundingClientRect().top >= piso,
+        fotoOrillaAOrilla: Math.abs(foto.right - window.innerWidth) < 1 && Math.abs(foto.top - vitrina.getBoundingClientRect().top) < 1,
+        bloqueNoTapaLaFoto: !(panel.left < foto.right - 1 && panel.right > foto.left + 1 && panel.top < foto.bottom - 1 && panel.bottom > foto.top + 1),
+        pildoraClara: !document.documentElement.classList.contains('o_dcasa_nav_sobre_foto'),
+        whatsappEspera: document.documentElement.classList.contains('o_dcasa_vitrina_a_la_vista'),
         nadaEnsancha: document.documentElement.scrollWidth <= window.innerWidth,
     };
     const tren = document.querySelector('.o_dcasa_cine_tren');
@@ -443,6 +469,7 @@ PRUEBA_JS = """(async () => {
 
 PASOS_COMPUTADORA = """
     // Lejos del carrusel: el ratón encima lo detiene.
+    r.altoPantalla = vitrina.getBoundingClientRect().height >= window.innerHeight - 1;
     r.alEmpezar = actual();
     adelante.click(); await esperar(100);
     r.trasSiguiente = actual();
@@ -485,6 +512,8 @@ PASOS_TELEFONO = """
     const fotos = vitrina.querySelector('.o_dcasa_vitrina_fotos');
     const titular = document.querySelector('.o_dcasa_hero_vitrina h1');
     r.fotoArriba = fotos.getBoundingClientRect().bottom <= titular.getBoundingClientRect().top;
+    const etiqueta = vitrina.querySelector('.o_dcasa_vitrina_texto.is-activa').getBoundingClientRect();
+    r.etiquetaSobreLaFoto = etiqueta.top >= foto.top && etiqueta.bottom <= foto.bottom && etiqueta.right <= window.innerWidth;
     const amarillo = document.querySelector('.o_dcasa_hero_vitrina .o_dcasa_btn_amarillo').getBoundingClientRect();
     r.botonVisible = amarillo.top < window.innerHeight;
     r.flechaAncho = adelante.getBoundingClientRect().width;

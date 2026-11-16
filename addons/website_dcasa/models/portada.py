@@ -26,7 +26,7 @@ _logger = logging.getLogger(__name__)
 MAX_DIAPOSITIVAS = 8
 # Anchos de la foto del hero (WebP de /dcasa/img, models/imagen.py) y el ancho con que se pinta.
 ANCHOS_HERO = (512, 1024, 1600)
-TAMANOS_HERO = '(min-width: 992px) 40vw, 92vw'
+TAMANOS_HERO = '(min-width: 992px) 58vw, 100vw'
 
 # Sección «de cine»: de qué categorías salen las fotos (en este orden, intercaladas) y cuántas de cada una.
 CATEGORIAS_CINE = ('recamaras', 'colchones', 'salas', 'zapateras', 'organizacion', 'oficina')

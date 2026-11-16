@@ -1502,6 +1502,12 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
     crean productos con el código.
   - En las pruebas con `lxml`, `contains(@class, "o_dcasa_cine_cinta")` también encuentra `o_dcasa_cine_cintas`: para
     una clase exacta, `contains(concat(" ", @class, " "), " clase ")`.
+  - Una foto con `height: 100%` dentro de una celda de *grid* estira la fila a su alto natural (una foto vertical
+    dejaba el hero de 1500 px y la etiqueta fuera de la pantalla): las diapositivas van con `position: absolute;
+    inset: 0` y el alto lo ponen el bloque o la pantalla. Una foto vertical o cuadrada no llena una pantalla ancha
+    sin cortar la cama o dejarla bajo el texto: en la computadora la foto llena su lado y el texto va en su bloque.
+  - Sobre una foto clara la píldora ahumada no se lee: el carrusel no lleva la clase `o_dcasa_hero` (la que la vuelve
+    ahumada) y la regla que la hace «nacer ahumada» excluye la portada con `:has(.o_dcasa_hero_vitrina)`.
   - El contrato visual de Juan (`dcasa_conversaciones/tests/test_panel_visual.py`) es la clase `TestContratoVisualJuan`
     (no `TestPanelVisual`). Su script de referencias reescribe las seis: se suben solo las que cambiaron de verdad. La
     pantalla `.o_dcj_p.o_action` lleva a propósito una barra de desplazamiento fina que el `PREPARAR` de la prueba no
