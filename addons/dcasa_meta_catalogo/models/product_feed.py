@@ -43,6 +43,7 @@ from odoo.http import request
 from odoo.tools import split_every
 
 from . import reglas_meta as R
+from .tarifa_lote import REGLAS_DEL_LOTE, ReglasDelLote
 
 _logger = logging.getLogger(__name__)
 
@@ -296,6 +297,9 @@ class ProductFeed(models.Model):
         filas = []
         with feed._dcasa_meta_visitante() as sitio:
             variantes = reparto['incluidos'].with_env(sitio.env).with_context(lang=feed.lang_id.code)
+            if request.pricelist and variantes:
+                # Las reglas de la tarifa, una sola búsqueda para todo el catálogo (tarifa_lote.py).
+                variantes = variantes.with_context(**{REGLAS_DEL_LOTE: ReglasDelLote(request.pricelist, variantes)})
             for lote in split_every(LOTE, variantes.ids, variantes.browse):
                 for variante in lote:
                     fila = feed._dcasa_meta_fila(variante, sitio, hoy, base, idioma, reparto['fotos'][variante.id])

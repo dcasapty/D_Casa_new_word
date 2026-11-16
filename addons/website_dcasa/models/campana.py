@@ -202,6 +202,10 @@ class DcasaCampana(models.Model):
         usaba (la del contacto). Con una regla de campaña, la página diría el precio normal y el carrito cobraría el
         de campaña. Marcarla «seleccionable» la ofrece al sitio; con una sola tarifa Odoo no muestra ningún selector
         y los precios no cambian (no tiene otras reglas). No toca nada si ya hay una tarifa ofrecida.
+
+        Queda marcada de respaldo (``dcasa_respaldo_del_sitio``): en cuanto el sitio tenga una tarifa propia (por
+        ejemplo, una solo para la web), la de respaldo deja de ofrecerse sola y el visitante ve la propia
+        (``product.pricelist._dcasa_retirar_respaldo``).
         """
         if not self.env['res.groups']._is_feature_enabled('product.group_product_pricelist'):
             return
@@ -214,7 +218,7 @@ class DcasaCampana(models.Model):
             if not (tarifa and tarifa.active and tarifa.company_id in (sitio.company_id, self.env['res.company'])):
                 tarifa = sitio.user_id.sudo().partner_id.property_product_pricelist
             if tarifa and not tarifa.website_id:
-                tarifa.write({'selectable': True})
+                tarifa.write({'selectable': True, 'dcasa_respaldo_del_sitio': True})
                 _logger.info('Campaña: la tarifa %s queda ofrecida al sitio %s.', tarifa.display_name, sitio.name)
 
     @api.model
@@ -493,6 +497,42 @@ class ProductPricelistItem(models.Model):
 
 class ProductPricelist(models.Model):
     _inherit = 'product.pricelist'
+
+    dcasa_respaldo_del_sitio = fields.Boolean(
+        'Ofrecida al sitio de respaldo', readonly=True, copy=False,
+        help='La campaña del sitio la ofreció al visitante porque el sitio no tenía ninguna tarifa. Deja de ofrecerse '
+             'sola en cuanto el sitio tiene una tarifa propia.')
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        tarifas = super().create(vals_list)
+        tarifas._dcasa_retirar_respaldo()
+        return tarifas
+
+    def write(self, vals):
+        resultado = super().write(vals)
+        if {'website_id', 'selectable', 'code', 'active', 'company_id'} & set(vals):
+            self._dcasa_retirar_respaldo()
+        return resultado
+
+    def _dcasa_retirar_respaldo(self):
+        """La tarifa de respaldo deja de ofrecerse cuando todo sitio donde se ofrece ya tiene otra propia (sin las de
+        cupón): si no, el visitante seguiría con la general (va primero) y la tarifa del sitio no serviría. Las reglas
+        de la campaña se pasan a la que queda."""
+        Tarifa = self.env['product.pricelist'].sudo()
+        respaldos = Tarifa.search([('dcasa_respaldo_del_sitio', '=', True), ('selectable', '=', True)])
+        if not respaldos:
+            return
+        retirar = respaldos
+        for sitio in self.env['website'].sudo().search([]):
+            ofrecidas = Tarifa.search(Tarifa._get_website_pricelists_domain(sitio))
+            if (ofrecidas & respaldos) and not (ofrecidas - respaldos).filtered(lambda t: not t.code):
+                retirar -= ofrecidas   # este sitio no tiene otra: la de respaldo se queda
+        if retirar:
+            retirar.write({'selectable': False, 'dcasa_respaldo_del_sitio': False})
+            _logger.info('Campaña: la tarifa %s deja de ofrecerse al sitio (ya tiene una propia).',
+                         ', '.join(retirar.mapped('display_name')))
+            self.env['product.template']._dcasa_campana_sincronizar()
 
     def _get_applicable_rules_domain(self, products, date, **kwargs):
         """Con ``COMBO_SIN_CAMPANA`` (una pieza de un combo armado), sin las reglas de la campaña que no rebajan los

@@ -395,6 +395,21 @@ class TestCampanaPrecios(_Base, TransactionCase):
         self.assertEqual(articulo_y_nombre('Expo Muebles'), ('la', 'Expo Muebles'))
         self.assertEqual(articulo_y_nombre('Promos de enero'), ('las', 'Promos de enero'))
 
+    def test_la_tarifa_de_respaldo_se_retira_cuando_el_sitio_tiene_una_propia(self):
+        Tarifa = self.env['product.pricelist']
+        dominio = Tarifa._get_website_pricelists_domain(self.website)
+        respaldo = Tarifa.search(dominio).filtered('dcasa_respaldo_del_sitio')
+        if not respaldo:
+            self.skipTest('En esta base el sitio ya tenía su tarifa: no hubo respaldo')
+        self._en_campana()
+        self.assertTrue(self._reglas(self.cama).filtered(lambda r: r.pricelist_id == respaldo))
+        cupon = Tarifa.create({'name': 'Cupón (prueba)', 'code': 'PRUEBA10', 'selectable': False})
+        self.assertTrue(respaldo.selectable, 'una tarifa de cupón no es la del visitante: el respaldo se queda')
+        propia = Tarifa.create({'name': 'Solo la web (prueba)', 'website_id': self.website.id})
+        self.assertFalse(respaldo.selectable)
+        self.assertEqual(Tarifa.search(dominio), propia | cupon)
+        self.assertEqual(self._reglas(self.cama).pricelist_id, propia, 'la campaña pasa a la tarifa del sitio')
+
     def test_limites_utc(self):
         self.assertEqual(limites_utc(date(2026, 11, 27), date(2026, 11, 27)),
                          (datetime(2026, 11, 27, 5, 0, 0), datetime(2026, 11, 28, 4, 59, 59)))

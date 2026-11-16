@@ -6,6 +6,7 @@ from datetime import timedelta
 
 from odoo import Command, fields
 from odoo.addons.dcasa_catalogo.models.combo_armable import SIN_RECALCULAR
+from odoo.exceptions import ValidationError
 from odoo.tests import tagged
 
 from .test_combos_armables import COMBO_KING, CombosCommon
@@ -55,7 +56,10 @@ class TestRvCombosCampana(CombosCommon):
         self.assertEqual((cama.price_unit, colchon.price_unit), (400.0, COMBO_KING))
         rpc = cama.with_user(self.vendedora).with_context(**{SIN_RECALCULAR: True})
         rpc.write({'dcasa_combo_sin_campana': False})
-        rpc.write({'price_unit': 350.0})
+        # Arreglado, la marca no se borra y el tope mide la rebaja contra el precio del combo (400): 350 es un 12,5 %,
+        # más que su tope del 10 %, así que ni siquiera entra (más estricto que corregirlo después).
+        with self.assertRaises(ValidationError):
+            rpc.write({'price_unit': 350.0})
         self.assertEqual(colchon.price_unit, COMBO_KING)
         self.assertEqual(cama.price_unit, 400.0, 'la cama del combo no toma la campaña')
 
