@@ -989,7 +989,7 @@ VOZ_CANCELAR = """(async () => {
 # Cada paso después del primero (el chat ya abierto): graba, toca «Listo» y espera lo que diga ``hasta``.
 VOZ_PASO = """(async () => {
     /*ESPERAR*/ /*VOZ*/
-    if (panel().hidden || !globos().length) { await abrirChat(); }
+    if (!panel() || panel().hidden || !globos().length) { await abrirChat(); }   // el panel se arma al abrir el chat
     await hasta(() => voz().boton, 'el micrófono');
     const antes = { cliente: delCliente().length, globos: globos().length };
     const r = {};
