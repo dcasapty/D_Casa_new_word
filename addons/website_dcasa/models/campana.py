@@ -265,6 +265,11 @@ class ProductTemplate(models.Model):
     def _dcasa_campana_deseadas(self):
         """{(tarifa, plantilla): {surcharge, date_start, date_end}}: las reglas que tienen que existir ahora."""
         deseadas = {}
+        if not self.env['res.groups']._is_feature_enabled('product.group_product_pricelist'):
+            # Con las tarifas apagadas la página no las aplica (request.pricelist vacío) pero el carrito sí (la del
+            # contacto): una regla haría cobrar un precio distinto del que se muestra. Sin reglas, la campaña sale
+            # con los precios normales y la pantalla lo avisa (tarifas_apagadas).
+            return deseadas
         Campana = self.env['dcasa.campana'].sudo()
         productos = self.sudo().with_context(active_test=True).search([
             ('dcasa_black_weekend', '=', True), ('dcasa_campana_precio', '>', 0)])

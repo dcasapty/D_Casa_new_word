@@ -37,8 +37,9 @@
                     </group>
                     <field name="tarifas_apagadas" invisible="1"/>
                     <div class="alert alert-warning" role="alert" invisible="not tarifas_apagadas">
-                        <strong>Las tarifas de Odoo están apagadas:</strong> los productos salen en la campaña, pero los
-                        precios de campaña no se aplican. Hay que encender «Tarifas» en Ajustes › Ventas.
+                        <strong>Las tarifas de Odoo están apagadas:</strong> los productos salen en la campaña con su
+                        precio normal; los precios de campaña no se aplican hasta que un administrador encienda «Tarifas»
+                        en Ajustes › Ventas.
                     </div>
                     <div class="alert alert-info mb-0" role="note">
                         <p class="mb-1"><strong>Cómo funciona.</strong> En las fechas de arriba salen solos la sección de

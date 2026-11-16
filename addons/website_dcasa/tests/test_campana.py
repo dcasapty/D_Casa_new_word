@@ -30,6 +30,10 @@ class _Base:
         cls.campana = cls.env['dcasa.campana'].search([('website_id', '=', cls.website.id)]) \
             or cls.env['dcasa.campana'].create({'website_id': cls.website.id})
         cls.campana.write({'name': 'Black Friday', 'fecha_inicio': False, 'fecha_fin': False, 'frase': False})
+        # Las tarifas encendidas, como en producción, y la del visitante ofrecida al sitio.
+        cls.env.ref('base.group_user').write({
+            'implied_ids': [Command.link(cls.env.ref('product.group_product_pricelist').id)]})
+        cls.env['dcasa.campana']._dcasa_tarifa_del_sitio()
         cls.recamaras = cls.env.ref('website_dcasa.public_category_recamaras')
         cls.cama = cls.env['product.template'].create({
             'name': 'CAMA CAMPAÑA DE PRUEBA', 'list_price': 200.0, 'is_published': True,
@@ -175,6 +179,15 @@ class TestCampanaPrecios(_Base, TransactionCase):
         self.assertIsNone(vigente(self.cama, ahora=datetime(2026, 11, 26, 12, 0)))
         self.assertEqual(vigente(self.cama, ahora=datetime(2026, 11, 28, 12, 0)), 150.0)
         self.assertIsNone(vigente(self.cama, ahora=datetime(2026, 12, 2, 12, 0)))
+
+    def test_con_las_tarifas_apagadas_no_hay_precio_de_campana(self):
+        self.env.ref('base.group_user').write({
+            'implied_ids': [Command.unlink(self.env.ref('product.group_product_pricelist').id)]})
+        if self.env['res.groups']._is_feature_enabled('product.group_product_pricelist'):
+            self.skipTest('Otro grupo enciende las tarifas en esta base')
+        self._en_campana()
+        self.assertFalse(self._reglas(), 'la página no las aplicaría y el carrito sí: ninguna')
+        self.assertTrue(self.campana.tarifas_apagadas)
 
     def test_limites_utc(self):
         self.assertEqual(limites_utc(date(2026, 11, 27), date(2026, 11, 27)),
