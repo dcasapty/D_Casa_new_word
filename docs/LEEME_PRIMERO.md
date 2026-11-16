@@ -109,6 +109,47 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 > sigue. Se guardan las diez más recientes; las viejas se resumen en una línea abajo y su texto completo pasa a
 > [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md).
 
+### 2026-11-16: Black Friday y «Andrés» listos en la rama sin subir (pausa por límite de uso); plan de la ronda siguiente
+
+**Nada nuevo en producción** (sigue Desplegar 76, `754aceaf18e7`). La sesión se pausó por el límite de uso de la cuenta, a
+pedido de la dueña: «sube la rama lo que tengas y añade todo lo que avanzamos para que otro Claude finalice».
+
+- **Listo en la rama:** el código está en `cae5e57`.
+  - **Campaña del sitio:** Black Friday desde el panel, con pruebas en `website_dcasa/tests/test_campana.py` y
+    `dcasa_conversaciones/tests/test_precio_campana.py`.
+  - **Revisión adversarial:** tres vueltas, sin bloqueantes. Se arreglaron:
+    - permisos: solo Gerencia y los que cambian precios;
+    - solo las tarifas del sitio, sin pisar las reglas propias;
+    - el piso de variantes;
+    - los disparos exactos del cron;
+    - la revisión de los carritos viejos y en el pago;
+    - el bloqueo de `date_order`;
+    - las reglas que se guardan 30 días;
+    - los combos;
+    - la huella del catálogo de Meta.
+  - **«Andrés»:** el chat de la tienda tiene nombre nuevo, en Odoo y en `juan/src/tienda`.
+- **La dueña ya autorizó la subida** («lleva ya todo a producción»). Falta:
+  - repetir las pruebas locales con `cae5e57`: la vuelta con `11f9822` llevaba más de 600 en verde, sin terminar;
+  - CI con staging, PR, squash, Desplegar y **Desplegar Juan**;
+  - explicarle los pasos del panel.
+
+  Todo eso está en el **paso 0** de [PLAN_ANDRES_VOZ_PORTADA.md](PLAN_ANDRES_VOZ_PORTADA.md). El Black Friday es el
+  viernes 27: hay que subirlo con días de margen.
+- **Pedidos nuevos (2026-11-16, con capturas del chat):** quedan como plan, en el mismo documento.
+  - Andrés como buen vendedor:
+    - el carrito y la cotización no se pierden al subir en el chat;
+    - ofrece sumar el envío a la cotización;
+    - reacciona una vez cuando el cliente quita o vacía el carrito;
+    - cambia cantidades conversando;
+    - la vitrina va ordenada por pedido.
+  - Notas de voz para Andrés y Brian, sin guardar el audio, para que nadie pueda clonar voces.
+  - El hero en carrusel con camas propias («805, 801 y la negra 300-300»: confirmarlas con fotos).
+  - Una sección «de cine» tipo panaclaw.com/proyectos con un botón al catálogo.
+- **Preguntas abiertas a la dueña:**
+  - **I6.** ¿El precio de campaña vale también en la tienda física, o solo en la web? Hoy vale en todos lados.
+  - La línea del combo se esconde mientras rige un precio de campaña. Lo decidí yo y ella lo puede revertir.
+- **Esta máquina:** se reinició cuatro veces entre el 15 y el 16. Lo que no está en la rama se pierde.
+
 ### 2026-11-15 (3): bandas en azul noche y pie claro, menú sin «Escríbenos», contacto y el carrito en el chat, en producción (Desplegar 76); Black Friday y «Andrés» en la rama
 
 **En producción desde el 2026-11-15, ~19:55 UTC (salud sana: `{"ok": true, "version": "754aceaf18e7", "base_al_dia": true, "humo": "ok"}`):** **Desplegar 76** (run 43754485392) con la imagen `sha256:1cfb8e4f226604186ee8298d4c37dd5651a248f96c94119db3ee820b8b033207` y `app_version` `754aceaf18e7ed66ef1e69ec59a2ab5351a80574` (PR #122, squash `b012494`; CI 365 con staging, run 43732155027), con respaldo previo. Juan no cambió. **Es lo último en producción.** Comprobado en dcasapty.com a 1440 y 390 px: sin «Escríbenos» en el menú, con la sección de contacto, pie #F6F5F2, avisos y Socios en azul noche, el número de /visitanos a WhatsApp; sin errores en la consola.

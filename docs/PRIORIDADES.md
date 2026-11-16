@@ -38,12 +38,31 @@ la producción. Apruébalo y punto.»); la revisión adversarial no se salta (re
 
 ## Lo que sigue, en orden
 
-000000. **Black Friday (viernes 27 de noviembre) y «Andrés»: en la rama, sin subir** (commits `5648d0d` y `2893b8f`).
-       Campaña del sitio desde el panel (fechas, casilla, precio de campaña como regla de tarifa, /promociones y
-       «Promociones» en el menú) y el chat de la tienda renombrado a Andrés (Brian queda en el panel). Falta: la
-       respuesta de la dueña sobre «Combo con colchón» en campaña, las pruebas nuevas, la **revisión adversarial**
-       (toca precios), capturas de Andrés, CI con staging, producción y **Desplegar Juan**. Que quede en producción
-       con días de margen antes del 27 para que marquen los productos.
+0000000. **Primero termina el 000000 de abajo (Black Friday). Después, la siguiente ronda que pidió la dueña, con su plan
+        escrito en [PLAN_ANDRES_VOZ_PORTADA.md](PLAN_ANDRES_VOZ_PORTADA.md).**
+        Andrés como vendedor (carrito siempre a mano en el chat, envío en la cotización, reacción al quitar o vaciar,
+        cambiar cantidades conversando, vitrina ordenada), notas de voz para Andrés y Brian sin guardar el audio, y la
+        portada (hero en carrusel con camas propias y una sección «de cine» tipo PanaClaw).
+
+000000. **Black Friday (viernes 27 de noviembre) y «Andrés»: listos en la rama, sin subir a producción.** La sesión se
+       pausó el 2026-11-16 por el límite de uso. El código está en `cae5e57` (la rama tiene después solo commits de
+       documentos). Hecho: la campaña del sitio desde el panel, el chat de la tienda renombrado a Andrés, las pruebas
+       nuevas y **tres vueltas de revisión adversarial** sin bloqueantes (el detalle de lo que quedó sin hacer está en el
+       plan). Pruebas locales del 2026-11-16 (`dcasa_test_bf4`, con el código de `11f9822`): más de 600 sin ninguna
+       falla cuando se pausó, sin terminar. **Para terminar, en orden** (el paso 0 de
+       [PLAN_ANDRES_VOZ_PORTADA.md](PLAN_ANDRES_VOZ_PORTADA.md) trae los comandos):
+       1. Correr otra vez las pruebas locales: `website_dcasa`, `dcasa_tienda_borde`, `dcasa_brian_tienda`,
+          `dcasa_conversaciones` (las clases de precios), `dcasa_socios`, `dcasa_abonos` y `dcasa_meta_catalogo`, más
+          `cd juan && npm test && npm run typecheck`.
+       2. CI con staging en la rama, PR `[skip ci]`, squash, **Desplegar** con `respaldo_previo` y **Desplegar Juan**
+          (cambió `juan/src/tienda`).
+       3. Confirmar que el chat saluda «Hola, soy Andrés» y que /promociones da 404 mientras no haya campaña.
+       4. Avisarle a la dueña y explicarle los pasos del panel (están en el plan). Hay que dejarlo en producción con días de
+          margen antes del 27, para que alcance a marcar los productos.
+       Preguntas abiertas para ella:
+       - **I6.** ¿El precio de campaña vale también en la tienda física, o solo en la web? Hoy vale en todos lados.
+       - **Combo con colchón.** Mientras rige un precio de campaña, la línea del combo se esconde. Eso lo decidí yo y
+         ella lo puede revertir.
 
 00000. **Portada v3: en producción desde el 2026-11-15, 08:3x UTC** (Desplegar 75, PR #121; aprobada por la dueña con
        capturas: «apruebo todo, despliégalo todo cuanto antes»; comparación <https://claude.ai/artifact/XQti28eQjFLDzT1Z9CpsRH>).

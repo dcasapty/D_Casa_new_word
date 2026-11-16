@@ -928,6 +928,25 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 
 ### Odoo 19
 
+- **Cinco trampas de precios que salieron con la campaña del sitio (2026-11-15/16, `website_dcasa/models/campana.py`):**
+  - Si la opción «Tarifas» (`product.group_product_pricelist`) está apagada, `request.pricelist` llega vacío y la
+    página muestra el precio de lista, pero el carrito sí usa la tarifa del contacto: precio en pantalla y en el
+    carrito distintos. Además, si el sitio no ofrece ninguna tarifa *selectable*, pasa lo mismo.
+    `_dcasa_tarifa_del_sitio` deja la tarifa pública ofrecida; la campaña no crea reglas con la opción apagada, y
+    las pruebas la encienden en su `setUp`.
+  - Una regla de precio fijo aplana las variantes (la king y la queen quedan al mismo precio). La rebaja va como
+    fórmula sobre `list_price` con `price_surcharge` negativo; el tachado sale de `_show_discount_on_shop`.
+  - `ir.config_parameter.get_param` devuelve el valor por defecto tanto si la clave no existe como si vale `''`:
+    para distinguir «primera vez» de «vacío» hay que leer el registro.
+  - Los carritos web en borrador calculan con `now()` (`_get_order_date` de website_sale), pero los pedidos que no
+    son web usan `date_order`: quien pueda escribir `date_order` puede traer un precio de campaña vencido. Se bloquea
+    para quien no cambia precios.
+  - Las reglas se ordenan por `applied_on`, `min_quantity` desc, `categ_id` desc e `id` desc: una regla nueva de la
+    campaña le gana a una vieja del mismo nivel. Por eso no se crea si la tarifa ya trae su propia regla activa para
+    el producto.
+- **Pruebas que dependen de la hora:** `freezegun` está en el venv y en el CI (`with freeze_time(...)`), y la campaña se
+  programa con `ir.cron._trigger(at=...)` en el inicio y el fin exactos además del cron horario.
+
 - **Cuatro trampas de la página que encontró Brian de la tienda (2026-11-13; detalle en BRIAN_TIENDA.md):**
   - El tema del sitio pone `height: auto !important` a las `<section>` en el celular: el chat quedaba de 640 px con el
     campo de escribir fuera de la pantalla. Lo flotante va en un `<div role="dialog">`, no en un `<section>`.
