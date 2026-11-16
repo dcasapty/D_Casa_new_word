@@ -10,7 +10,7 @@ from odoo.addons.website_dcasa.models.campana import con_defaults
 from odoo.exceptions import AccessError, ValidationError
 from odoo.tests import tagged
 
-from .test_combos_armables import COMBO_KING, CombosCommon
+from .test_combos_armables import COMBO_KING, NORMAL_KING, CombosCommon
 
 
 @tagged('post_install', '-at_install', 'rv_combos')
@@ -30,8 +30,10 @@ class TestRv2CombosCampana(CombosCommon):
         hoy = fields.Date.context_today(cls.campana)
         cls.campana.write({'fecha_inicio': hoy - timedelta(days=1), 'fecha_fin': hoy + timedelta(days=1),
                            'dcasa_rebaja_combos': False})
-        # Cama king 400 → 350 en campaña. El colchón king va a 300 solo y a COMBO_KING en combo.
-        cls.cama_king.product_tmpl_id.write({'dcasa_black_weekend': True, 'dcasa_campana_precio': 350.0})
+        # Cama king 400 → 385 en campaña (pierde 15 al entrar al combo) y colchón king 300 solo, 260 en combo (gana
+        # 40). Gana más de lo que pierde, así que el combo se queda: es el escenario en que todavía hay que partir
+        # líneas de camas. El caso al revés tiene su propia prueba más abajo.
+        cls.cama_king.product_tmpl_id.write({'dcasa_black_weekend': True, 'dcasa_campana_precio': 385.0})
         # Un producto para la línea de descuento de importe fijo (negativa).
         cls.descuento = cls.env['product.template'].create({
             'name': 'DESCUENTO DE PRUEBA', 'type': 'service', 'list_price': 0.0}).product_variant_id
@@ -55,8 +57,8 @@ class TestRv2CombosCampana(CombosCommon):
         self.assertEqual(colchon.price_unit, COMBO_KING, 'el colchón entró en combo')
         camas = self.linea(orden, self.cama_king)
         self.assertEqual(sum(camas.mapped('product_uom_qty')), 3, 'no se perdió ni se duplicó ninguna cama')
-        self.assertEqual(sorted(camas.mapped('price_unit')), [350.0, 400.0],
-                         'la del combo a 400 (sin campaña) y las dos de sobra a 350 (con campaña)')
+        self.assertEqual(sorted(camas.mapped('price_unit')), [385.0, 400.0],
+                         'la del combo a 400 (sin campaña) y las dos de sobra a 385 (con campaña)')
 
     def test_el_tope_de_descuento_se_mide_con_el_pedido_ya_partido(self):
         """El sudo con que se parte NO apaga el tope: se mide después, con las dos líneas de camas ya hechas. Con el
@@ -67,8 +69,8 @@ class TestRv2CombosCampana(CombosCommon):
         self.env['sale.order.line'].with_user(self.vendedora).create(
             {'order_id': orden.id, 'product_id': self.colchon_king.id, 'product_uom_qty': 1})
         camas = self.linea(orden, self.cama_king)
-        self.assertEqual(sorted(camas.mapped('price_unit')), [350.0, 400.0], 'el pedido quedó partido')
-        autorizado = 400.0 + 2 * 350.0 + COMBO_KING
+        self.assertEqual(sorted(camas.mapped('price_unit')), [385.0, 400.0], 'el pedido quedó partido')
+        autorizado = 400.0 + 2 * 385.0 + COMBO_KING
         self.assertAlmostEqual(sum(orden.order_line.mapped(lambda ln: ln.price_unit * ln.product_uom_qty)),
                                autorizado, places=2)
         with self.assertRaisesRegex(ValidationError, 'tope'):
@@ -82,7 +84,7 @@ class TestRv2CombosCampana(CombosCommon):
         self.env['sale.order.line'].with_user(self.vendedora).create(
             {'order_id': orden.id, 'product_id': self.colchon_king.id, 'product_uom_qty': 1})
         camas = self.linea(orden, self.cama_king)
-        self.assertEqual(sorted(camas.mapped('price_unit')), [350.0, 400.0])
+        self.assertEqual(sorted(camas.mapped('price_unit')), [385.0, 400.0])
         self.assertEqual(sum(camas.mapped('product_uom_qty')), 2)
 
     # --- 2. El precio negociado a mano no se pisa ------------------------------------
@@ -92,7 +94,7 @@ class TestRv2CombosCampana(CombosCommon):
         campaña y la devolvía a 400: el cliente ya tenía la cotización en 380."""
         orden = self.orden(productos=[self.cama_king])
         cama = self.linea(orden, self.cama_king)
-        self.assertEqual(cama.price_unit, 350.0, 'sola, la cama toma la campaña')
+        self.assertEqual(cama.price_unit, 385.0, 'sola, la cama toma la campaña')
         cama.with_user(self.vendedora).price_unit = 380.0
         self.env['sale.order.line'].with_user(self.vendedora).create(
             {'order_id': orden.id, 'product_id': self.colchon_king.id, 'product_uom_qty': 1})
@@ -112,7 +114,7 @@ class TestRv2CombosCampana(CombosCommon):
         orden = self.orden(productos=[self.cama_king, self.colchon_king])
         self.assertEqual(self.linea(orden, self.cama_king).price_unit, 400.0)
         self.linea(orden, self.colchon_king).with_user(self.vendedora).unlink()
-        self.assertEqual(self.linea(orden, self.cama_king).price_unit, 350.0,
+        self.assertEqual(self.linea(orden, self.cama_king).price_unit, 385.0,
                          'fuera del combo vuelve sola al precio de campaña')
 
     # --- 3. Comprar junto nunca sale más caro que comprar por separado ---------------
@@ -128,13 +130,38 @@ class TestRv2CombosCampana(CombosCommon):
         orden = self.orden(productos=[self.cama_king, self.colchon_king])
         colchon, cama = self.linea(orden, self.colchon_king), self.linea(orden, self.cama_king)
         self.assertEqual(colchon.price_unit, 150.0, 'el colchón se cobra al precio de Black Friday, no a 260')
-        self.assertEqual(cama.price_unit, 350.0, 'y la cama también toma su precio de Black Friday')
+        self.assertEqual(cama.price_unit, 385.0, 'y la cama también toma su precio de Black Friday')
         self.assertFalse(colchon.dcasa_combo_con_precio, 'no cuenta como combo')
         self.assertFalse(cama.dcasa_combo_sin_campana, 'y la cama no queda marcada como pieza de combo')
         self.assertFalse(colchon.dcasa_combo_ahorro_unitario, 'no se anuncia ningún ahorro que no existe')
         juntos = cama.price_unit + colchon.price_unit
-        sueltos = 350.0 + 150.0
+        sueltos = 385.0 + 150.0
         self.assertEqual(juntos, sueltos, 'comprar junto nunca sale más caro que comprar por separado')
+
+    def test_la_cama_en_oferta_y_el_colchon_no_el_combo_no_puede_salir_mas_caro(self):
+        """El segundo ejemplo de la dueña (2026-11-16): cama de $400 que en Black Friday va a $350, y colchón de $300
+        que en combo vale $260 (el colchón NO está en oferta).
+
+        Sueltos: 350 + 300 = $650. En combo saldría 400 + 260 = $660: diez dólares MÁS por comprar junto. Como el
+        combo encarece, se deshace: cada pieza va a su precio de campaña (la cama) o al normal (el colchón)."""
+        self.cama_king.product_tmpl_id.with_user(self.gerencia).write({'dcasa_campana_precio': 350.0})
+        orden = self.orden(productos=[self.cama_king, self.colchon_king])
+        cama, colchon = self.linea(orden, self.cama_king), self.linea(orden, self.colchon_king)
+        self.assertEqual((cama.price_unit, colchon.price_unit), (350.0, NORMAL_KING))
+        self.assertEqual(cama.price_unit + colchon.price_unit, 650.0, 'lo mismo que comprarlas por separado')
+        self.assertFalse(colchon.dcasa_combo_con_precio, 'el combo se deshizo')
+        self.assertFalse(cama.dcasa_combo_sin_campana, 'la cama conserva su precio de Black Friday')
+        self.assertFalse(colchon.dcasa_combo_ahorro_unitario, 'y en el papel no sale «descuento combo»')
+
+    def test_si_el_combo_sigue_siendo_el_mas_barato_se_queda_tal_cual(self):
+        """Sin nada en campaña, la cama no pierde nada y el combo gana: se queda como siempre."""
+        self.cama_king.product_tmpl_id.with_user(self.gerencia).write(
+            {'dcasa_black_weekend': False, 'dcasa_campana_precio': False})
+        orden = self.orden(productos=[self.cama_king, self.colchon_king])
+        cama, colchon = self.linea(orden, self.cama_king), self.linea(orden, self.colchon_king)
+        self.assertEqual((cama.price_unit, colchon.price_unit), (400.0, COMBO_KING))
+        self.assertTrue(colchon.dcasa_combo_con_precio)
+        self.assertEqual(colchon.dcasa_combo_ahorro_unitario, 40.0)
 
     def test_si_la_campana_no_le_gana_al_combo_el_combo_sigue_igual(self):
         """Con el colchón en campaña a $280 (más que los $260 del combo), el combo sigue mandando: $260, y la cama

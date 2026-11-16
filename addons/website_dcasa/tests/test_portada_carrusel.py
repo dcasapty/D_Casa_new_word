@@ -430,7 +430,10 @@ class TestCarruselPortada(HttpCase):
         self.assertTrue(r['fotoArriba'], 'en el celular la foto va arriba del titular')
         self.assertTrue(r['fotoOrillaAOrilla'], 'de orilla a orilla')
         self.assertTrue(r['bloqueNoTapaLaFoto'], 'y el bloque azul noche debajo, sin taparla')
-        self.assertTrue(r['etiquetaSobreLaFoto'], 'la etiqueta del producto va sobre la foto')
+        self.assertTrue(r['etiquetaDebajoDeLaFoto'],
+                        'en el celular la etiqueta va debajo de la foto y antes del bloque azul (portada v2)')
+        self.assertTrue(r['etiquetaSobreAzul'],
+                        'la etiqueta va sobre el mismo azul noche del bloque: el amarillo nunca toca el blanco')
         self.assertTrue(r['botonVisible'], 'el botón amarillo se ve sin bajar')
         self.assertEqual(r['trasDeslizar'], 1, 'deslizar a la izquierda pasa al siguiente')
         self.assertFalse(r['abrioFicha'], 'deslizar no abre la ficha')
@@ -452,7 +455,9 @@ PRUEBA_JS = """(async () => {
     const panel = vitrina.querySelector('.o_dcasa_vitrina_panel').getBoundingClientRect();
     const r = {
         controlesVisibles: visible(vitrina.querySelector('.o_dcasa_vitrina_barras')) && visible(adelante),
-        fotoOrillaAOrilla: Math.abs(foto.right - window.innerWidth) < 1 && Math.abs(foto.top - vitrina.getBoundingClientRect().top) < 1,
+        // El ancho del DOCUMENTO, no el de la ventana: con la página desplazable, innerWidth incluye la barra de
+        // desplazamiento (1440 contra 1425 de documento, medido en Chrome el 2026-11-16) y la foto nunca «llegaría».
+        fotoOrillaAOrilla: Math.abs(foto.right - document.documentElement.clientWidth) < 1 && Math.abs(foto.top - vitrina.getBoundingClientRect().top) < 1,
         bloqueNoTapaLaFoto: !(panel.left < foto.right - 1 && panel.right > foto.left + 1 && panel.top < foto.bottom - 1 && panel.bottom > foto.top + 1),
         pildoraClara: !document.documentElement.classList.contains('o_dcasa_nav_sobre_foto'),
         whatsappEspera: document.documentElement.classList.contains('o_dcasa_vitrina_a_la_vista'),
@@ -513,7 +518,13 @@ PASOS_TELEFONO = """
     const titular = document.querySelector('.o_dcasa_hero_vitrina h1');
     r.fotoArriba = fotos.getBoundingClientRect().bottom <= titular.getBoundingClientRect().top;
     const etiqueta = vitrina.querySelector('.o_dcasa_vitrina_texto.is-activa').getBoundingClientRect();
-    r.etiquetaSobreLaFoto = etiqueta.top >= foto.top && etiqueta.bottom <= foto.bottom && etiqueta.right <= window.innerWidth;
+    const panelMovil = vitrina.querySelector('.o_dcasa_vitrina_panel').getBoundingClientRect();
+    // En el celular la etiqueta va JUSTO DEBAJO de la foto, antes del bloque azul noche (encima taparía la cama).
+    r.etiquetaDebajoDeLaFoto = etiqueta.top >= foto.bottom - 1 && etiqueta.bottom <= panelMovil.top + 1
+        && etiqueta.right <= document.documentElement.clientWidth;
+    // Mismo fondo que el bloque azul noche: el amarillo de «Ver detalles» nunca queda sobre blanco.
+    r.etiquetaSobreAzul = getComputedStyle(vitrina.querySelector('.o_dcasa_vitrina_texto.is-activa')).backgroundColor
+        === getComputedStyle(vitrina.querySelector('.o_dcasa_vitrina_panel')).backgroundColor;
     const amarillo = document.querySelector('.o_dcasa_hero_vitrina .o_dcasa_btn_amarillo').getBoundingClientRect();
     r.botonVisible = amarillo.top < window.innerHeight;
     r.flechaAncho = adelante.getBoundingClientRect().width;

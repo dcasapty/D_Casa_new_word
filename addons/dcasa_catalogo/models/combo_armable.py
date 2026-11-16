@@ -380,30 +380,76 @@ class SaleOrder(models.Model):
             and ln.product_id.dcasa_tipo_combo in ('cama', 'colchon') and ln.product_id.dcasa_medida)
         candidatas = candidatas.sorted(lambda ln: (ln.sequence, ln._origin.id or 10 ** 12))
         clave = self._dcasa_clave_linea
-        por_clave, camas, colchones = {}, [], []
+        # Solo si hay campaña viva vale la pena calcular lo que gana y lo que pierde cada pieza (son cálculos de
+        # tarifa). Sin campaña, la cama no pierde nada y el precio en combo siempre es menor que el normal.
+        hay_campana = self._dcasa_hay_campana()
+        por_clave, camas, colchones, pierde = {}, [], [], {}
         for linea in candidatas:
             producto = linea.product_id
             por_clave[clave(linea)] = linea
             if producto.dcasa_tipo_combo == 'cama':
                 camas.append({'clave': clave(linea), 'medida': producto.dcasa_medida,
                               'capacidad': linea.product_uom_qty * max(producto.dcasa_colchones_por_cama, 1)})
+                # Lo que esa cama PIERDE por unidad al entrar al combo: su precio sin campaña menos el de campaña.
+                pierde[clave(linea)] = linea._dcasa_pierde_por_la_campana() if hay_campana else 0.0
             else:
                 preferida = linea.dcasa_combo_cama_id
-                # Si la campaña lo deja más barato suelto, no cuenta como combo (decisión de la dueña, 2026-11-16):
-                # ni toma el precio en combo, ni le quita la campaña a ninguna cama.
-                con_precio = (producto.dcasa_precio_combo > 0 and linea.product_uom_id == producto.uom_id
-                              and not linea._dcasa_campana_gana_al_combo())
+                con_precio = producto.dcasa_precio_combo > 0 and linea.product_uom_id == producto.uom_id
                 colchones.append({
                     'clave': clave(linea), 'medida': producto.dcasa_medida, 'cantidad': linea.product_uom_qty,
                     'con_precio': con_precio,
                     # Descuento de verdad: el precio en combo es menor que el normal («Revisar» si ya no lo es).
                     'descuento': con_precio and producto.dcasa_combo_estado == 'listo',
+                    # Lo que GANA el colchón por unidad al entrar al combo: lo que pagaría suelto (con campaña) menos
+                    # su precio en combo. Puede ser negativo, si la campaña lo deja más barato que el combo.
+                    'gana': (linea._dcasa_gana_por_el_combo() if (hay_campana and con_precio) else None),
                     'preferida': clave(preferida) if preferida else None})
-        uso_claves = {}
-        pares = reglas.emparejar_combos(camas, colchones, uso=uso_claves)
+        uso_claves, detalle = {}, {}
+        pares = reglas.emparejar_combos(camas, colchones, uso=uso_claves, detalle=detalle)
+        if hay_campana:
+            uso_claves, detalle, pares = self._dcasa_deshacer_combos_que_encarecen(
+                camas, colchones, pierde, uso_claves, detalle, pares)
         if uso is not None:
             uso.update({por_clave[cama]: ocupa for cama, ocupa in uso_claves.items()})
         return {por_clave[colchon]: (por_clave[cama], con_precio) for colchon, (cama, con_precio) in pares.items()}
+
+    def _dcasa_deshacer_combos_que_encarecen(self, camas, colchones, pierde, uso_claves, detalle, pares):
+        """Regla de la dueña (2026-11-16): **se compara el total del par**.
+
+        Si el combo (la cama a su precio normal, sin campaña, y el colchón a su precio en combo) sale igual o más
+        barato que comprar las dos piezas sueltas con su precio de campaña, el combo se queda tal cual. Si sale más
+        caro, el combo se deshace y cada pieza va a su precio de campaña (o al normal si no está en campaña). Nunca se
+        suman los dos descuentos, y un combo deshecho no imprime «descuento combo».
+
+        Visto por par: el combo encarece cuando lo que la cama PIERDE (su campaña) es más que lo que el colchón GANA
+        (lo que pagaría suelto menos su precio en combo; negativo si la campaña ya lo dejaba más barato).
+
+        Deshacer un combo libera su cama, así que se vuelve a emparejar y se vuelve a mirar. Solo se quitan combos
+        (nunca se devuelven), así que la vuelta termina: como mucho, una por colchón."""
+        self.ensure_one()
+        moneda = self.currency_id or self.company_id.currency_id or self.env.company.currency_id
+        for _vuelta in range(len(colchones) + 1):
+            peores = []
+            for colchon in colchones:
+                if not colchon['con_precio'] or colchon['gana'] is None:
+                    continue
+                gana = colchon['gana'] * colchon['cantidad']
+                perdido = sum(unidades * pierde.get(cama, 0.0)
+                              for cama, unidades in detalle.get(colchon['clave'], {}).items())
+                if moneda.compare_amounts(perdido, gana) > 0:
+                    peores.append(colchon)
+            if not peores:
+                break
+            for colchon in peores:
+                colchon['con_precio'] = False
+                colchon['descuento'] = False
+            uso_claves, detalle = {}, {}
+            pares = reglas.emparejar_combos(camas, colchones, uso=uso_claves, detalle=detalle)
+        return uso_claves, detalle, pares
+
+    def _dcasa_hay_campana(self):
+        """¿Hay alguna regla de la campaña del sitio en esta base? Si no, no hay nada que comparar."""
+        return bool(self.env['product.pricelist.item'].sudo().search_count([('dcasa_campana', '=', True)], limit=1))
 
     @staticmethod
     def _dcasa_en_combo(pares, uso):
@@ -903,22 +949,34 @@ class SaleOrderLine(models.Model):
         fecha = (self.order_id and self.order_id.date_order) or fields.Datetime.now()
         return compania.currency_id._convert(producto.dcasa_precio_combo, moneda, compania, fecha, round=False)
 
-    def _dcasa_campana_gana_al_combo(self):
-        """¿Esta pieza sale MÁS BARATA suelta, con su precio de campaña, que a precio en combo?
+    def _dcasa_precios_con_y_sin_campana(self):
+        """``(con campaña, sin campaña)`` de esta línea, por unidad, en la moneda de la venta y sin ITBMS.
 
-        Decisión de la dueña (2026-11-16): «comprar juntos nunca puede salir más caro que comprar por separado». Si el
-        precio de campaña del colchón es menor que su precio en combo, **ese colchón ya no cuenta como combo**: se
-        cobra a precio de campaña y la cama que iba con él también toma el suyo. Los combos siguen sin rebajarse: lo
-        único que se evita es cobrar de más por comprar junto."""
+        Se calculan pidiéndole el precio a la tarifa (``_dcasa_combo_precio_normal``), que vuelve a escoger la regla
+        cada vez. NO se usa ``pricelist_item_id``: ese campo se calcula a partir del campo guardado
+        ``dcasa_combo_sin_campana`` y no depende del contexto, así que en una línea que ya estaba en un combo
+        devolvería siempre el precio sin campaña (revisión adversarial, 2026-11-16)."""
         self.ensure_one()
-        combo = self._dcasa_combo_en_moneda()
-        if combo <= 0:
-            return False
-        # El precio de la tarifa CON la campaña: se llama a Odoo directo, saltando nuestra bandera de «sin campaña».
-        sin_marca = self.with_context(**{COMBO_SIN_CAMPANA: None})
-        con_campana = super(SaleOrderLine, sin_marca)._get_pricelist_price()
-        moneda = self.currency_id or self.order_id.currency_id or self.env.company.currency_id
-        return bool(moneda.compare_amounts(con_campana, combo) < 0)
+        orden = self.order_id
+        if not orden or not orden.pricelist_id or not self.product_id:
+            return 0.0, 0.0
+        fecha = self._get_order_date()
+        con = self.product_id._dcasa_combo_precio_normal(orden, sin_campana=False, fecha=fecha)
+        sin = self.product_id._dcasa_combo_precio_normal(orden, sin_campana=True, fecha=fecha)
+        return con, sin
+
+    def _dcasa_pierde_por_la_campana(self):
+        """Lo que esta cama PIERDE por unidad al entrar a un combo: su precio de campaña se queda fuera."""
+        self.ensure_one()
+        con, sin = self._dcasa_precios_con_y_sin_campana()
+        return max(sin - con, 0.0)
+
+    def _dcasa_gana_por_el_combo(self):
+        """Lo que este colchón GANA por unidad al entrar a un combo: lo que pagaría suelto (con su precio de campaña)
+        menos su precio en combo. Negativo si la campaña ya lo dejaba más barato que el combo."""
+        self.ensure_one()
+        con, _sin = self._dcasa_precios_con_y_sin_campana()
+        return con - self._dcasa_combo_en_moneda()
 
     def _dcasa_precio_combo(self):
         """El precio en combo que le toca a esta línea (moneda de la venta, sin ITBMS) o ``None``: es un colchón con
