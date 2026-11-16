@@ -34,6 +34,9 @@ Sitio web de D'CASA sobre el constructor de sitios y el eCommerce de Odoo:
   ``aggregateRating`` solo con las publicadas.
 * Black Weekend: banda en la portada, página /black-weekend y etiqueta en las tarjetas de los
   productos marcados, solo dentro de la ventana de la campaña (models/black_weekend.py).
+* Portada (2026-11-16): el hero en carrusel con productos propios que Gerencia elige y ordena en
+  Sitio web › Carrusel de la portada (vacío = el hero de siempre) y una sección «de cine» con dos
+  cintas de fotos del catálogo publicado que corren solas y un botón al catálogo (models/portada.py).
 
 Todo el contenido de las páginas es editable con el constructor de Odoo
 (Sitio web > Editar), sin programador.
@@ -56,6 +59,7 @@ Todo el contenido de las páginas es editable con el constructor de Odoo
         'views/resenas_templates.xml',
         'views/black_weekend_templates.xml',
         'views/campana_views.xml',
+        'views/portada_views.xml',
         'views/homepage_templates.xml',
         'views/paginas_templates.xml',
         'views/legal_templates.xml',
@@ -81,6 +85,7 @@ Todo el contenido de las páginas es editable con el constructor de Odoo
             'website_dcasa/static/src/js/carril.js',
             'website_dcasa/static/src/js/foto_grande.js',
             'website_dcasa/static/src/js/mapa.js',
+            'website_dcasa/static/src/js/portada.js',
         ],
     },
     'installable': True,

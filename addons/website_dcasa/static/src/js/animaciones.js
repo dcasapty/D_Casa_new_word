@@ -257,7 +257,7 @@ export class DcasaFotos extends Interaction {
 
     start() {
         const fotos = this.el.querySelectorAll(
-            ".o_dcasa_pcard_media img, #o_wsale_products_grid .oe_product_image_link img"
+            ".o_dcasa_pcard_media img, .o_dcasa_cine_marco img, #o_wsale_products_grid .oe_product_image_link img"
         );
         for (const foto of fotos) {
             if (foto.complete && foto.naturalWidth) {
