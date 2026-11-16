@@ -62,7 +62,7 @@ class DcasaCheckout(WebsiteSale):
         vuelve a calcular líneas que ya estaban: una cama puesta antes del inicio o una corrección de precio de
         Gerencia se cobraría vieja hasta el cron horario)."""
         if order_sudo and order_sudo.state == 'draft':
-            order_sudo._dcasa_campana_al_dia()
+            order_sudo._dcasa_campana_al_dia_si_hay()
         return super()._check_cart(order_sudo)
 
     def _prepare_product_values(self, product, category, **kwargs):

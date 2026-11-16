@@ -125,18 +125,22 @@ class DcasaCampana(models.Model):
     def create(self, vals_list):
         registros = super().create(vals_list)
         _marcar(self.env, [0], 'campaña del sitio')
+        registros._dcasa_borde_programar()
         return registros
+
+    def _dcasa_borde_programar(self):
+        """La vigilancia de la campaña corre justo al empezar y al terminar (no a la hora siguiente)."""
+        cron = self.env.ref('dcasa_tienda_borde.cron_vigilar_black_weekend', raise_if_not_found=False)
+        if cron:
+            for momento in self._dcasa_campana_momentos():
+                cron.sudo()._trigger(at=momento)
 
     def write(self, vals):
         resultado = super().write(vals)
         if {'name', 'frase', 'fecha_inicio', 'fecha_fin', 'website_id'} & set(vals):
             _marcar(self.env, [0], 'campaña del sitio')
         if {'fecha_inicio', 'fecha_fin'} & set(vals):
-            # La vigilancia de la campaña corre justo al empezar y al terminar (no a la hora siguiente).
-            cron = self.env.ref('dcasa_tienda_borde.cron_vigilar_black_weekend', raise_if_not_found=False)
-            if cron:
-                for momento in self._dcasa_campana_momentos():
-                    cron.sudo()._trigger(at=momento)
+            self._dcasa_borde_programar()
         return resultado
 
     def unlink(self):

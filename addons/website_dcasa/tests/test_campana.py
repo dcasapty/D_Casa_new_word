@@ -54,7 +54,7 @@ class _Base:
 
 
 @tagged('post_install', '-at_install')
-@freeze_time('2026-11-27 04:00:00')   # una hora antes del inicio en Panamá: las reglas ya existen (VENTANA_PREVIA)
+@freeze_time('2026-11-20 12:00:00')   # una semana antes: la campaña ya está programada y sus reglas existen
 class TestCampanaPrecios(_Base, TransactionCase):
 
     @classmethod
@@ -192,16 +192,37 @@ class TestCampanaPrecios(_Base, TransactionCase):
         self.assertFalse(self._reglas(), 'la página no las aplicaría y el carrito sí: ninguna')
         self.assertTrue(self.campana.tarifas_apagadas)
 
-    def test_las_reglas_solo_existen_cerca_de_las_fechas(self):
-        with freeze_time('2026-11-20 12:00:00'):
-            self._en_campana()
-            self.assertFalse(self._reglas(), 'una semana antes: ninguna (una cotización con otra fecha no la toma)')
-        with freeze_time('2026-11-27 03:30:00'):
-            self.env['product.template']._dcasa_campana_sincronizar()
-            self.assertTrue(self._reglas(self.cama), 'hora y media antes del inicio en Panamá: ya está')
-        with freeze_time('2026-12-01 05:00:01'):
+    def test_las_reglas_se_quedan_un_mes_para_las_cotizaciones_de_la_campana(self):
+        self._en_campana()
+        self.assertTrue(self._reglas(self.cama), 'programada: ya existe (con sus fechas no cuenta antes)')
+        with freeze_time('2026-12-15 12:00:00'):
             self.env['dcasa.campana']._dcasa_campana_carritos_al_dia()
-            self.assertFalse(self._reglas(), 'terminó: el cron la quita')
+            self.assertTrue(self._reglas(self.cama), 'una cotización del 28 sigue con su precio autorizado')
+            self.assertIsNone(self.website._dcasa_campana_precio_vigente(self.cama), 'pero ya no rige')
+        with freeze_time('2026-12-31 06:00:00'):
+            self.env['dcasa.campana']._dcasa_campana_carritos_al_dia()
+            self.assertFalse(self._reglas(), 'un mes después del fin el cron la quita')
+
+    def test_solo_quien_cambia_precios_cambia_la_fecha_de_una_cotizacion(self):
+        vendedora = self.env['res.users'].create({
+            'name': 'Vendedora fecha', 'login': 'vendedora_fecha',
+            'group_ids': [Command.set([self.env.ref('dcasa_base.group_vendedora').id])]})
+        cliente = self.env['res.partner'].create({'name': 'Cliente fecha'})
+        orden = self.env['sale.order'].create({
+            'partner_id': cliente.id, 'user_id': vendedora.id,
+            'order_line': [Command.create({'product_id': self.cama.product_variant_id.id})]})
+        with self.assertRaises(AccessError):
+            orden.with_user(vendedora).write({'date_order': datetime(2026, 11, 28, 15, 0)})
+        orden.write({'date_order': datetime(2026, 11, 28, 15, 0)})   # el sistema (y Gerencia), sí
+
+    def test_un_combo_no_lleva_precio_de_campana(self):
+        variante = self.cama.product_variant_id
+        combo = self.env['product.combo'].create({
+            'name': 'Combo campaña', 'combo_item_ids': [Command.create({'product_id': variante.id})]})
+        producto = self.env['product.template'].create({
+            'name': 'COMBO CAMA', 'type': 'combo', 'list_price': 300.0, 'combo_ids': [Command.set(combo.ids)]})
+        with self.assertRaises(ValidationError):
+            producto.write({'dcasa_black_weekend': True, 'dcasa_campana_precio': 250.0})
 
     def test_solo_gerencia_cambia_la_campana(self):
         vendedora = self.env['res.users'].create({
