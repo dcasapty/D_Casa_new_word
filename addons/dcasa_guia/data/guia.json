@@ -2831,7 +2831,7 @@
    "destino": {
     "menu": "dcasa_brian_tienda.menu_dcasa_brian_tienda"
    },
-   "nota": "Viene encendido, saludando igual de día y de noche (fuera del horario no avisa que la tienda está cerrada) y con el robot dormido de noche. No guarda la conversación ni crea contactos; para atención personal ofrece WhatsApp. Su gasto va en su propio renglón de Costos de IA y no se suma a «Por pagar a Meta». Solo Gerencia y los administradores lo cambian.",
+   "nota": "Viene encendido, saludando igual de día y de noche (fuera del horario no avisa que la tienda está cerrada) y con el robot dormido de noche. No guarda la conversación ni crea contactos; para atención personal ofrece WhatsApp. Si las notas de voz de Juan están encendidas, junto a «Enviar» sale un micrófono: el cliente le habla hasta un minuto y Andrés recibe lo que dijo como texto; el audio no se guarda en ningún lado. Su gasto va en su propio renglón de Costos de IA y no se suma a «Por pagar a Meta». Solo Gerencia y los administradores lo cambian.",
    "palabras": [
     "chat",
     "chat de la tienda",
@@ -2844,7 +2844,9 @@
     "horario",
     "tienda cerrada",
     "andrés",
-    "andres"
+    "andres",
+    "micrófono del chat",
+    "nota de voz del cliente"
    ]
   },
   {

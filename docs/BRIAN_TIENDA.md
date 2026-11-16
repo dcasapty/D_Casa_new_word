@@ -40,6 +40,10 @@ Juan (`juan/`, rama aparte; su parte está en [JUAN.md](JUAN.md) › Brian de la
     Andrés confirma con lo que quedó en el carrito («Listo, quité…») y, si quitó algo, ofrece una alternativa una vez.
   - **La vitrina ordenada:** en el chat ampliado, arriba «En tu carrito»; después un grupo por cada cosa que se pidió (el
     más reciente primero y abierto; los de antes, plegados). «Lo más buscado» sigue saliendo cuando todavía no hay nada.
+- **Notas de voz** (pedido de la dueña, 2026-11-16, plan B): si las notas de voz están encendidas en el Worker, junto a
+  «Enviar» sale un micrófono. El cliente habla hasta un minuto, toca «Listo» y lo que dijo sale escrito en su globo y le
+  llega a Andrés como si lo hubiera escrito. El audio no se guarda en ningún lado. Una vez por visita, bajo el campo,
+  Andrés sugiere «Si prefieres, mándame una nota de voz con el micrófono».
 
 ## Cómo está armado
 
@@ -162,7 +166,7 @@ navegador ──(3) /dcasa/brian/v1/carrito/* (sesión, CSRF) ──────
   chat no vuelven «personal» la sesión (`dcasa_tienda_borde`, `CLAVES_NEUTRAS`) y el borde nunca guarda
   `/dcasa/brian/` (`edge/src/routing.ts`). Sin JavaScript la burbuja es un enlace a WhatsApp.
 - **La barra del carrito y su hoja** (A1): `.o_dcbt_barra`, entre la conversación y el campo de escribir (el formulario
-  `.o_dcbt_composer` queda igual: un botón de micrófono iría junto a «Enviar»). Se ve con algo en el carrito; el botón de
+  `.o_dcbt_composer`, con el micrófono junto a «Enviar», va debajo). Se ve con algo en el carrito; el botón de
   la izquierda (`aria-expanded`, `aria-controls="o_dcbt_hoja"`) abre la hoja `#o_dcbt_hoja` (`role="region"`) sobre la
   conversación con el carrito editable, el envío, el ITBMS y el total con ITBMS de Odoo; «Cotización» descarga el PDF. Esc
   cierra primero la hoja; al abrirla el foco va a «Cerrar» y al cerrarla vuelve a la barra. En la computadora, con la
@@ -198,8 +202,10 @@ navegador ──(3) /dcasa/brian/v1/carrito/* (sesión, CSRF) ──────
 ## Mientras el Worker no esté
 
 `addons/dcasa_brian_tienda/tests/worker_simulado.py` responde `POST /tienda/v1/mensaje` según el contrato (pase, CORS,
-tarjetas solo de las herramientas de Odoo, `proponer_carrito`, ubicación, WhatsApp, estrellas y los errores). Lo usan
-las pruebas del navegador y las capturas; se puede correr suelto:
+tarjetas solo de las herramientas de Odoo, `proponer_carrito`, ubicación, WhatsApp, estrellas y los errores) y las notas
+de voz (`GET /tienda/v1/voz` y `POST /tienda/v1/voz`: revisa el pase, el tipo, el tamaño y los primeros bytes y devuelve
+un texto fijo o el error que se le pida; del audio anota solo el tipo, los KB y la duración). Lo usan las pruebas del
+navegador y las capturas; se puede correr suelto:
 
 ```
 python3 addons/dcasa_brian_tienda/tests/worker_simulado.py --puerto 8787 --token-worker <JUAN_WORKER_TOKEN> \
@@ -216,11 +222,34 @@ nota de voz (hasta un minuto) se convierte en texto con la IA de Cloudflare y el
 no se comparte, no se usa para imitar la voz). **Texto propuesto**: lo aprueba la dueña (y el abogado) antes de
 producción.
 
-## Notas de voz (el botón va después)
+## Notas de voz (el micrófono del chat)
 
-El Worker ya tiene `POST /tienda/v1/voz` y `GET /tienda/v1/voz` (contrato en docs/JUAN.md §12a): el audio crudo con el
-mismo pase, de vuelta solo `{ok, texto, recortado}`. La página manda ese texto por `/tienda/v1/mensaje` como un mensaje
-normal. El botón del micrófono en `brian_tienda.js` lo pega quien cambia el chat de la tienda.
+El contrato del Worker está en docs/JUAN.md §12a (`GET` y `POST /tienda/v1/voz`). En la página (`brian_tienda.js`,
+sección «notas de voz»; estilos en `brian_tienda.scss`):
+
+- **Cuándo sale:** al abrir el chat, con el Worker del pase (el guardado o el nuevo), la página pregunta una vez por
+  página `GET {worker}/tienda/v1/voz` (sin pase, con CORS). El micrófono sale junto a «Enviar» solo con
+  `disponible: true`, si el navegador puede grabar (`getUserMedia`, `MediaRecorder`, conexión segura) y si graba uno de
+  los `tipos` que acepta el Worker (por orden: WebM Opus, Ogg Opus, WebM, Ogg, MP4). Con el chat en pausa, no sale.
+- **El permiso del micrófono se pide recién al tocarlo.** Graba con MediaRecorder a ~32 kbps; mientras graba, en el
+  mismo renglón del campo: el punto rojo con la palabra «Grabando», el tiempo («0:07 / 1:00»), la barra del minuto,
+  cancelar (X) y «Listo» (el foco va ahí). Al llegar a `max_segundos` para sola y se manda. Esc, la X, cerrar el chat,
+  la cuadrícula del celular o irse de la página la tiran: el micrófono se apaga y no se manda nada.
+- **El audio** vive solo en memoria mientras se graba y va UNA vez: `POST {worker}/tienda/v1/voz?duracion_ms=<n>` con
+  `Authorization: Pase <pase>` y el tipo de la grabación (con un pase vencido, uno nuevo y otra vez, una sola). Nunca
+  se guarda en el navegador ni en lo conversado.
+- **Con `{ok: true, texto}`**: el texto sale en el globo del visitante y se manda por `/tienda/v1/mensaje` como un
+  mensaje normal (el motor no cambia). Con `recortado: true`, o si el visitante ya tenía algo escrito, el texto queda en
+  la caja para que lo revise y lo mande él.
+- **Los errores** los dice Andrés, amable y con la salida de escribirlo: sin permiso del micrófono, sin micrófono, muy
+  corta, muy larga o pesada, no se entendió, los topes y el presupuesto («Escríbelo, por favor»), y lo demás («No pude
+  escuchar tu nota ahora…»). Con `no_disponible` el micrófono se va; con `apagado`, el chat entero pasa a WhatsApp.
+- **«Si prefieres, mándame una nota de voz con el micrófono.»** sale bajo el campo una sola vez por sesión
+  (`sessionStorage`, `dcasa.brian.voz_pista`) y solo con micrófono; se va con el primer mensaje, al tocar el micrófono o
+  al cerrar el chat. El prompt de Andrés no cambió.
+- **Accesible:** `aria-label` en el micrófono, cancelar y «Listo», el tiempo como `role="timer"` y un aviso para
+  lectores de pantalla («Grabando…», «Nota de voz cancelada: no se mandó nada»). Con movimiento reducido, el punto no
+  late. En el celular la nota ocupa el renglón del campo: no tapa la barra del carrito ni la conversación.
 
 ## Pruebas
 
@@ -233,7 +262,10 @@ normal. El botón del micrófono en `brian_tienda.js` lo pega quien cambia el ch
   promoción siga a la compra, el PDF, lo que no se suma, otro visitante y los topes.
 - `test_ajustes.py`: permisos, lo que llega al Worker, el renglón de Costos de IA, la Guía, la burbuja en lugar de la de
   WhatsApp, la página igual para todos, el editor del sitio (la trampa del error 500) y la privacidad.
-- `test_navegador.py` (Chrome): el chat de punta a punta a 390 y 1366 px con el Worker simulado; Andrés vendedor
+- `test_navegador.py` (Chrome): el chat de punta a punta a 390 y 1366 px con el Worker simulado; las notas de voz
+  (`TestNotaDeVoz`, con el micrófono de prueba de Chrome: el botón solo si el Worker lo ofrece, grabar, mandar, el globo
+  y el mensaje normal a 390 y 1440 px con la barra del carrito, cancelar con Esc y con la X, el tope, lo recortado, los
+  errores amables, sin permiso, `no_disponible` y el movimiento reducido); Andrés vendedor
   (`TestAndresVendedor`: la barra encima del campo, la vitrina por pedidos, el envío sumado, la hoja, la reacción una
   sola vez, quitar conversando y lo que llegó al Worker); la burbuja a 360, 390,
   430 y 1366 px en inicio, catálogo, ficha y carrito, que no tape la barra ni el botón de WhatsApp de la ficha, el

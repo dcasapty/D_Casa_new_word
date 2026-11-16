@@ -1096,7 +1096,8 @@ marcado «estimado».
   muestra el tiempo y deja cancelar), manda el audio aquí y, con el `texto`, **lo manda como un mensaje normal por
   `/tienda/v1/mensaje`** (`{texto, pagina, carrito}`) y lo pinta en el globo del visitante. Así la lógica del chat no se
   duplica, el visitante ve lo que se entendió antes de la respuesta y el motor (`tienda/motor.ts`) no cambia. Con
-  `recortado: true` conviene dejar el texto en la caja para que el visitante lo revise antes de mandarlo.
+  `recortado: true` conviene dejar el texto en la caja para que el visitante lo revise antes de mandarlo. **Hecho en la
+  página** (`brian_tienda.js`, rama `local/integra`): docs/BRIAN_TIENDA.md › «Notas de voz (el micrófono del chat)».
 - **Topes y presupuesto:** cuenta como **un mensaje** en los topes de red, /48 y del día y en los turnos con IA a la vez
   (`tienda_turnos` de `Global`: comparte la cuenta con los mensajes) y tiene **su propio tope por sesión** (el mismo
   número que `tope_sesion_hora`, contado aparte en `tienda_voz`, con el `sid` ofuscado y solo la hora). Su costo va al
