@@ -2856,7 +2856,7 @@
    "destino": {
     "menu": "website_dcasa.menu_dcasa_campana"
    },
-   "nota": "El precio de campaña es sin ITBMS, como el precio de venta, y tiene que ser menor que el normal. Sin las dos fechas no se aplica ningún precio de campaña. «Empezar de cero» desmarca todos los productos y borra sus precios de campaña. Lo ven y lo cambian Gerencia y los administradores.",
+   "nota": "El precio de campaña es sin ITBMS, como el precio de venta, y tiene que ser menor que el normal. Sin las dos fechas no se aplica ningún precio de campaña. «Empezar de cero» desmarca todos los productos y borra sus precios de campaña. Los combos cama + colchón de la cotización van a su precio de siempre, sin el precio de campaña, mientras el interruptor «La campaña también rebaja los combos» (en la misma pantalla) esté apagado, como viene. Lo ven y lo cambian Gerencia y los administradores.",
    "palabras": [
     "campaña",
     "black friday",
@@ -2869,7 +2869,9 @@
     "rebaja",
     "precio especial",
     "precio de campaña",
-    "cyber monday"
+    "cyber monday",
+    "combos",
+    "combo con campaña"
    ]
   },
   {
