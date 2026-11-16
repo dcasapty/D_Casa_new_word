@@ -121,8 +121,10 @@ class TestRv2CombosCampana(CombosCommon):
         """El ejemplo de la dueña (2026-11-16): colchón de $300 normal, $260 en combo, y en Black Friday a $150.
         Suelto se paga $150, así que en combo NO se puede cobrar $260. Ese colchón deja de contar como combo: va a
         $150 y la cama que iba con él también toma su precio de campaña ($350)."""
+        # El precio de campaña se pone en la plantilla y cada medida baja lo mismo: 100 en la queen deja la king
+        # en 150 (300 − 150), justo el ejemplo de la dueña.
         self.colchon_king.product_tmpl_id.with_user(self.gerencia).write(
-            {'dcasa_black_weekend': True, 'dcasa_campana_precio': 150.0})
+            {'dcasa_black_weekend': True, 'dcasa_campana_precio': 100.0})
         orden = self.orden(productos=[self.cama_king, self.colchon_king])
         colchon, cama = self.linea(orden, self.colchon_king), self.linea(orden, self.cama_king)
         self.assertEqual(colchon.price_unit, 150.0, 'el colchón se cobra al precio de Black Friday, no a 260')
@@ -137,8 +139,9 @@ class TestRv2CombosCampana(CombosCommon):
     def test_si_la_campana_no_le_gana_al_combo_el_combo_sigue_igual(self):
         """Con el colchón en campaña a $280 (más que los $260 del combo), el combo sigue mandando: $260, y la cama
         vuelve a su precio sin campaña ($400), que es la regla «los combos son inamovibles»."""
+        # 230 en la queen deja la king en 280: más que los 260 del combo.
         self.colchon_king.product_tmpl_id.with_user(self.gerencia).write(
-            {'dcasa_black_weekend': True, 'dcasa_campana_precio': 280.0})
+            {'dcasa_black_weekend': True, 'dcasa_campana_precio': 230.0})
         orden = self.orden(productos=[self.cama_king, self.colchon_king])
         colchon, cama = self.linea(orden, self.colchon_king), self.linea(orden, self.cama_king)
         self.assertEqual(colchon.price_unit, COMBO_KING)
@@ -149,7 +152,7 @@ class TestRv2CombosCampana(CombosCommon):
         """Una cama king y dos colchones king: uno con campaña a $150 (ya no es combo) y el otro con su precio en
         combo. La cama le toca al que sí es combo."""
         self.colchon_king.product_tmpl_id.with_user(self.gerencia).write(
-            {'dcasa_black_weekend': True, 'dcasa_campana_precio': 150.0})
+            {'dcasa_black_weekend': True, 'dcasa_campana_precio': 100.0})
         otro = self.env['product.template'].with_user(self.gerencia).create({
             'name': 'COLCHON DE PRUEBA KING DOS', 'type': 'consu', 'is_storable': True,
             'list_price': 300.0}).product_variant_id
