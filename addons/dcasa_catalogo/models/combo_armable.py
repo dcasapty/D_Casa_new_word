@@ -389,7 +389,10 @@ class SaleOrder(models.Model):
                               'capacidad': linea.product_uom_qty * max(producto.dcasa_colchones_por_cama, 1)})
             else:
                 preferida = linea.dcasa_combo_cama_id
-                con_precio = producto.dcasa_precio_combo > 0 and linea.product_uom_id == producto.uom_id
+                # Si la campaña lo deja más barato suelto, no cuenta como combo (decisión de la dueña, 2026-11-16):
+                # ni toma el precio en combo, ni le quita la campaña a ninguna cama.
+                con_precio = (producto.dcasa_precio_combo > 0 and linea.product_uom_id == producto.uom_id
+                              and not linea._dcasa_campana_gana_al_combo())
                 colchones.append({
                     'clave': clave(linea), 'medida': producto.dcasa_medida, 'cantidad': linea.product_uom_qty,
                     'con_precio': con_precio,
@@ -442,13 +445,14 @@ class SaleOrder(models.Model):
         for cama, sobran in self._dcasa_camas_solas_con_campana(lineas).items():
             if not cama._dcasa_se_puede_partir():
                 continue
-            # Todo en sudo (revisión adversarial, 2026-11-16). Partir no cambia ni los precios ni el total: la misma
-            # cantidad queda repartida en dos líneas y cada precio lo pone la tarifa. Pero ENTRE bajar la cantidad y
-            # crear la línea nueva el pedido queda a medias, y ahí el tope de descuento de la vendedora
-            # (dcasa_base/models/sale_order_line.py) mediría un descuento global que no existe: con una cotización que
-            # ya trae un descuento de importe fijo, la venta fallaría con «El descuento total pasa del tope». Un tope
-            # del programa nunca hace fallar una venta. El tope del pedido se vuelve a medir enterito en la escritura
-            # que disparó todo esto, con el pedido ya completo.
+            # Las dos escrituras van en sudo (revisión adversarial, 2026-11-16). Partir SÍ cambia el total: las camas
+            # que quedan solas toman el precio de campaña, que es justamente para lo que se parte. Lo que no puede
+            # pasar es que el tope de descuento de la vendedora (dcasa_base/models/sale_order_line.py) mida el pedido
+            # ENTRE bajar la cantidad y crear la línea nueva: ahí falta mercancía pero sobra el descuento, y una
+            # cotización con un descuento de importe fijo reventaba con «El descuento total pasa del tope», hablando
+            # de un descuento que nadie puso. Un tope del programa nunca hace fallar una venta.
+            # El tope sí se mide, enterito y con el pedido ya partido: _dcasa_validar_tope_del_pedido (más arriba en
+            # este archivo) llama a _dcasa_recalcular_combos ANTES de medir, y esa es la medición que vale.
             interna = cama.with_context(**_interno(sin_recalcular=True))
             sistema = interna.sudo()
             sistema.write({'product_uom_qty': cama.product_uom_qty - sobran})
@@ -827,8 +831,8 @@ class SaleOrderLine(models.Model):
         # Un precio que la vendedora negoció a mano NO se pisa porque la cama entre o salga del combo (revisión
         # adversarial, 2026-11-16): el cliente ya tiene esa cotización. Lo del colchón que entra o sale del precio en
         # combo se queda como estaba (es lo documentado desde que existe el combo armado).
-        if (('dcasa_combo_con_precio' in vals or cambio_el_precio)
-                and not self.is_downpayment and not self._dcasa_precio_a_mano()):
+        if (('dcasa_combo_con_precio' in vals or (cambio_el_precio and not self._dcasa_precio_a_mano()))
+                and not self.is_downpayment):
             self._dcasa_reponer_precio()
             if regla_antes is not None and (regla_antes._show_discount() or self.pricelist_item_id._show_discount()):
                 self._compute_discount()   # una regla en % de la tarifa sale como descuento
@@ -887,9 +891,38 @@ class SaleOrderLine(models.Model):
             'Esta línea tiene %(sobran)s cama(s) sin colchón: van sin el precio de campaña. Pásalas a otra línea para '
             'que lo tomen.', sobran=sobran)
 
+    def _dcasa_combo_en_moneda(self):
+        """El precio en combo del producto de esta línea, en la moneda de la venta y sin ITBMS (sin mirar si hay cama
+        libre). 0 si el producto no tiene precio en combo."""
+        self.ensure_one()
+        producto = self.product_id
+        if not producto or producto.dcasa_precio_combo <= 0:
+            return 0.0
+        compania = self.company_id or self.order_id.company_id or self.env.company
+        moneda = self.currency_id or compania.currency_id
+        fecha = (self.order_id and self.order_id.date_order) or fields.Datetime.now()
+        return compania.currency_id._convert(producto.dcasa_precio_combo, moneda, compania, fecha, round=False)
+
+    def _dcasa_campana_gana_al_combo(self):
+        """¿Esta pieza sale MÁS BARATA suelta, con su precio de campaña, que a precio en combo?
+
+        Decisión de la dueña (2026-11-16): «comprar juntos nunca puede salir más caro que comprar por separado». Si el
+        precio de campaña del colchón es menor que su precio en combo, **ese colchón ya no cuenta como combo**: se
+        cobra a precio de campaña y la cama que iba con él también toma el suyo. Los combos siguen sin rebajarse: lo
+        único que se evita es cobrar de más por comprar junto."""
+        self.ensure_one()
+        combo = self._dcasa_combo_en_moneda()
+        if combo <= 0:
+            return False
+        # El precio de la tarifa CON la campaña: se llama a Odoo directo, saltando nuestra bandera de «sin campaña».
+        sin_marca = self.with_context(**{COMBO_SIN_CAMPANA: None})
+        con_campana = super(SaleOrderLine, sin_marca)._get_pricelist_price()
+        moneda = self.currency_id or self.order_id.currency_id or self.env.company.currency_id
+        return bool(moneda.compare_amounts(con_campana, combo) < 0)
+
     def _dcasa_precio_combo(self):
         """El precio en combo que le toca a esta línea (moneda de la venta, sin ITBMS) o ``None``: es un colchón con
-        precio en combo y en la venta hay una cama libre de su medida."""
+        precio en combo, en la venta hay una cama libre de su medida y la campaña no lo deja más barato suelto."""
         self.ensure_one()
         producto = self.product_id
         if es_interno(self.env, SIN_PRECIO_COMBO) or not self.order_id or not producto \
@@ -902,10 +935,7 @@ class SaleOrderLine(models.Model):
         par = self.order_id._dcasa_emparejar(lineas).get(self)
         if not par or not par[1]:
             return None
-        compania = self.company_id or self.order_id.company_id or self.env.company
-        moneda = self.currency_id or compania.currency_id
-        fecha = self.order_id.date_order or fields.Datetime.now()
-        return compania.currency_id._convert(producto.dcasa_precio_combo, moneda, compania, fecha, round=False)
+        return self._dcasa_combo_en_moneda()
 
     def _get_display_price(self):
         precio = super()._get_display_price()
