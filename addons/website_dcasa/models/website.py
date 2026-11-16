@@ -243,11 +243,16 @@ class Website(models.Model):
 
     def _dcasa_categoria_tiene_productos(self, clave):
         """¿Hay algo publicado y a la venta en esta categoría (o sus hijas) para este sitio?"""
+        return bool(self._dcasa_categoria_cantidad(clave, limit=1))
+
+    def _dcasa_categoria_cantidad(self, clave, limit=None):
+        """Cuántos productos publicados y a la venta hay en esta categoría (o sus hijas) para este sitio: el número
+        que la portada pone debajo de cada categoría (dato real del catálogo, nunca escrito a mano)."""
         categoria = self._dcasa_categoria(clave)
         if not categoria:
-            return False
+            return 0
         dominio = Domain.AND([self._dcasa_dominio_publicado(), [('public_categ_ids', 'child_of', categoria.sudo().id)]])
-        return bool(self.env['product.template'].sudo().search_count(dominio, limit=1))
+        return self.env['product.template'].sudo().search_count(dominio, limit=limit)
 
     def _dcasa_categorias(self):
         """Tarjetas de «Compra por espacio»: la URL sale de la categoría real de la tienda.
@@ -258,9 +263,11 @@ class Website(models.Model):
         self.ensure_one()
         tarjetas = []
         for clave, nombre, alt in CATEGORIAS_PORTADA:
-            con_productos = self._dcasa_categoria_tiene_productos(clave)
+            cantidad = self._dcasa_categoria_cantidad(clave)
+            con_productos = bool(cantidad)
             tarjetas.append({
                 'nombre': nombre,
+                'cantidad': cantidad,
                 'url': self._dcasa_categoria_url(clave) if con_productos else self._dcasa_whatsapp_url(
                     f"Hola D'CASA, quiero información de {nombre.lower()}"),
                 'whatsapp': not con_productos,

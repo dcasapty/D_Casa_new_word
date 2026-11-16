@@ -1,6 +1,6 @@
 # Prioridades vigentes
 
-Puesto al día el **2026-11-14** (avisos de Telegram ordenados, lote 1 de la web, «Busca con una foto», horario de la tienda; Brian de la tienda y lote 2 de la web, todo en producción). Es el orden en que se trabaja: cada sesión lo lee al empezar y lo pone al día al
+Puesto al día el **2026-11-15** (bandas en azul noche, pie claro y contacto en producción, Desplegar 76; Black Friday y Andrés en la rama). Es el orden en que se trabaja: cada sesión lo lee al empezar y lo pone al día al
 terminar (ver [LEEME_PRIMERO.md](LEEME_PRIMERO.md)). Aquí va **un solo estado**, el de hoy; lo que pasó cada día está en
 la bitácora de LEEME_PRIMERO (y lo más viejo en [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md)).
 
@@ -8,11 +8,10 @@ Cada cosa nueva pasa por capturas a la dueña, pruebas, staging y, si toca diner
 **Desde el 2026-11-13 la dueña no pide su visto bueno para pasar a producción** («Y no esperes mi aprobación para pasar
 la producción. Apruébalo y punto.»); la revisión adversarial no se salta (reglas en LEEME_PRIMERO §2).
 
-## Estado al 2026-11-14
+## Estado al 2026-11-15
 
 - **Producción funciona desde el 2026-10-13** y **`dcasapty.com` (y `www`) apunta al sistema nuevo desde el
-  2026-10-27** (Desplegar 31). Odoo y el borde: **Desplegar 74** (15 nov, PR #120: Brian siempre activo de noche, con dos interruptores; antes,
-  Desplegar 73, PR #119: la burbuja de Brian cambia de robot con el scroll; antes,
+  2026-10-27** (Desplegar 31). Odoo y el borde: **Desplegar 76** (15 nov, PR #122: bandas en azul noche, pie claro, menú sin «Escríbenos», sección de contacto y el carrito en el chat de la tienda; antes, Desplegar 75 (15 nov, PR #121: la portada v3, con secciones compactas, el carrito como ícono, la paleta nueva y la barra del chat de vidrio; antes, Desplegar 74 (15 nov, PR #120: Brian siempre activo de noche, con dos interruptores); antes, Desplegar 73 (14 nov, PR #119: la burbuja de Brian cambia de robot con el scroll); antes,
   Desplegar 72, PR #118: Brian de la tienda, el chat de ventas en la web, y el
   lote 2 de la web: horario, mapa y opiniones; antes, Desplegar 71, PR #117: avisos de Telegram ordenados con la noche sin clientes, lote 1 de
   la web, «Busca con una foto», el robot como ícono de Brian y el horario de la tienda; antes, Desplegar 70, PR #116:
@@ -38,6 +37,41 @@ la producción. Apruébalo y punto.»); la revisión adversarial no se salta (re
   («Es esta persona»); tasa de cierre en el Resumen de Juan; Sofía. Detalle en la bitácora.
 
 ## Lo que sigue, en orden
+
+0000000. **Primero termina el 000000 de abajo (Black Friday). Después, la siguiente ronda que pidió la dueña, con su plan
+        escrito en [PLAN_ANDRES_VOZ_PORTADA.md](PLAN_ANDRES_VOZ_PORTADA.md).**
+        Andrés como vendedor (carrito siempre a mano en el chat, envío en la cotización, reacción al quitar o vaciar,
+        cambiar cantidades conversando, vitrina ordenada), notas de voz para Andrés y Brian sin guardar el audio, y la
+        portada (hero en carrusel con camas propias y una sección «de cine» tipo PanaClaw).
+
+000000. **Black Friday (viernes 27 de noviembre) y «Andrés»: listos en la rama, sin subir a producción.** La sesión se
+       pausó el 2026-11-16 por el límite de uso. El código está en `cae5e57` (la rama tiene después solo commits de
+       documentos). Hecho: la campaña del sitio desde el panel, el chat de la tienda renombrado a Andrés, las pruebas
+       nuevas y **tres vueltas de revisión adversarial** sin bloqueantes (el detalle de lo que quedó sin hacer está en el
+       plan). Pruebas locales del 2026-11-16 (`dcasa_test_bf4`, con el código de `11f9822`): 827 de 827 en verde. **Para terminar, en orden** (el paso 0 de
+       [PLAN_ANDRES_VOZ_PORTADA.md](PLAN_ANDRES_VOZ_PORTADA.md) trae los comandos):
+       0. **Antes de nada: los combos son inamovibles** (la dueña, 2026-11-16). En un combo armado cama + colchón, la
+          campaña no rebaja nada. Hay que dejar un interruptor para permitirlo, apagado. Es el paso 1 del plan; toca
+          dinero, así que lleva revisión adversarial.
+       1. Correr otra vez las pruebas locales: `website_dcasa`, `dcasa_tienda_borde`, `dcasa_brian_tienda`,
+          `dcasa_conversaciones` (las clases de precios), `dcasa_socios`, `dcasa_abonos` y `dcasa_meta_catalogo`, más
+          `cd juan && npm test && npm run typecheck`.
+       2. CI con staging en la rama, PR `[skip ci]`, squash, **Desplegar** con `respaldo_previo` y **Desplegar Juan**
+          (cambió `juan/src/tienda`).
+       3. Confirmar que el chat saluda «Hola, soy Andrés» y que /promociones da 404 mientras no haya campaña.
+       4. Avisarle a la dueña y explicarle los pasos del panel (están en el plan). Hay que dejarlo en producción con días de
+          margen antes del 27, para que alcance a marcar los productos.
+       Preguntas abiertas para ella:
+       - **I6.** ¿El precio de campaña vale también en la tienda física, o solo en la web? Hoy vale en todos lados.
+       - **Ya decidido:** los combos son intocables, porque son una promoción permanente. La línea del combo sale
+         siempre con su precio de siempre (cambio del 2026-11-16, en la rama).
+
+00000. **Portada v3: en producción desde el 2026-11-15, 08:3x UTC** (Desplegar 75, PR #121; aprobada por la dueña con
+       capturas: «apruebo todo, despliégalo todo cuanto antes»; comparación <https://claude.ai/artifact/XQti28eQjFLDzT1Z9CpsRH>).
+       Secciones que caben en una pantalla, categorías con «N productos», carriles en una fila con flechas, carrito como
+       ícono, «Quedan pocas» / «Agotado» con la regla de la ficha, hueso #F6F5F2 y la barra del chat de vidrio. Falta que
+       la dueña lo mire en su iPhone. Ideas para ofrecerle: «Lo más buscado» con lo que tiene existencia primero y Black
+       Weekend con el carril nuevo (detalle en la bitácora, 2026-11-15 (2)).
 
 0000. **Brian de la tienda y lote 2 de la web: en producción desde el 2026-11-14, 07:46 UTC** (Desplegar 72 y Juan 26;
       la dueña: «vamos a subirlo lo antes posible»). Módulo nuevo `dcasa_brian_tienda` (chat de ventas en la web con el motor de Juan,
@@ -86,6 +120,10 @@ la producción. Apruébalo y punto.»); la revisión adversarial no se salta (re
       `instagram_business_manage_comments` en la misma revisión que Messenger.
     - **Paquete para la revisión de Meta** (textos de cada permiso y guion del video): ofrecido a la dueña el
       2026-11-13; base en el borrador de permisos de la sesión y JUAN_CANALES paso 9.
+    - **Alternativas investigadas el 2026-11-15** (OpenReply, MCPs de Instagram y otros repos; detalle en la bitácora de
+      LEEME_PRIMERO): ninguna quita la revisión de Meta. La única pista es **Zernio**, un proveedor con su propia app de
+      Meta (sin verificar para Instagram y Messenger; los mensajes pasarían por un tercero). Espera la decisión de los
+      jefes; la prueba barata es conectar una cuenta de Instagram sin papel a una cuenta gratis de Zernio.
 0. **Envíos de Juan, reparto justo de chats y Costos de IA con «Pagar»** (2026-11-12): ver la bitácora. (Los colchones
    ya están publicados, 2026-11-13.) Falta de la dueña: revisar en Envíos › Lugares (filtro «Por revisar (Gerencia)») los lugares agregados a mano, para que Juan
    dé su precio; archivar la nota de la promoción de noviembre en el Conocimiento el 1 de diciembre; preguntar a la

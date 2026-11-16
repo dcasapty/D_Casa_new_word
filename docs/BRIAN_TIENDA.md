@@ -40,7 +40,7 @@ navegador ──(3) /dcasa/brian/v1/carrito/* (sesión, CSRF) ──────
   payload lleva `v`, `sid` (de la sesión del visitante: el mismo navegador, el mismo `sid`), `exp` (30 min), `red`
   (IPv4 /24 o IPv6 /64, formato exacto en `red_de` y en `scratchpad/brian_tienda/contrato_cambios.md` §2; el Worker
   ya no la compara con la conexión, porque el navegador puede llegar a la tienda por IPv6 y al Worker por IPv4) y
-  `sitio`. Respuesta: `{ok, pase, worker, vence_en, noche, horario_texto}` o `{ok:false, motivo: apagado|verificacion|tope}`.
+  `sitio`. Respuesta: `{ok, pase, worker, vence_en, noche, horario_texto, sugerencias}` (`sugerencias`: las dos categorías de la portada con más productos publicados, con la palabra de un cliente: «Camas», «Escritorios»; desde el 2026-11-15) o `{ok:false, motivo: apagado|verificacion|tope}`.
 - **Tope de pases**: 20 por hora por conexión (cambiable): la IPv4 entera o la red /64 de la IPv6, como el borde y el
   Worker (nunca la /24, que comparten muchos clientes del mismo operador). Un contador por conexión y por hora
   (`dcasa.brian.tienda.cupo`, con

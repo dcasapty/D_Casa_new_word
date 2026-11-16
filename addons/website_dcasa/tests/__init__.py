@@ -21,3 +21,5 @@ from . import test_buscador
 from . import test_buscador_movil
 from . import test_visitanos
 from . import test_resenas
+from . import test_portada_v3
+from . import test_campana

@@ -246,7 +246,7 @@ class TestContratoVisual(HttpCase):
             'public_categ_ids': [(6, 0, recamaras.ids)], 'dcasa_black_weekend': True,
         })
         cls.paginas = {'portada': '/', 'tienda': '/shop', 'ficha': cls.producto.website_url,
-                       'socios': '/socios', 'black-weekend': '/black-weekend'}
+                       'socios': '/socios', 'black-weekend': '/promociones'}
 
     # ------------------------------------------------------------------ Chrome
     @contextlib.contextmanager
@@ -293,6 +293,11 @@ class TestContratoVisual(HttpCase):
         medido = {}
         for ancho, alto in VENTANAS:
             for nombre, ruta in self.paginas.items():
+                # La campaña encendida solo para su página: con campaña, el menú suma «Promociones» en todas, y el
+                # contrato de las demás es la cabecera de todos los días (campaña del sitio, 2026-11-15).
+                encendida = '1' if nombre == 'black-weekend' else '0'
+                self.env['ir.config_parameter'].sudo().set_param(PARAM_ACTIVO, encendida)
+                self.env.flush_all()
                 with self._chrome(ancho, alto) as browser:
                     browser.navigate_to(self.base_url() + ruta, wait_stop=True)
                     self.assertTrue(browser._wait_ready(), f'{ruta} no terminó de cargar')
@@ -368,13 +373,11 @@ class TestContratoVisual(HttpCase):
         self.assertEqual(m['html']['sobreFoto'], tipo == 'ahumado')
         self.assertTrue(m['html']['medida'] or tipo == 'claro')
         self.assertTrue(m['logo'], 'logo WebP de D\'CASA en la píldora')
-        self.assertTrue(m['cta'], 'botón «Escríbenos» en la píldora')
-        self.assertIn('Escríbenos', m['cta']['texto'])
-        self.assertEqual(_rgba(m['cta']['fondo'])[:3], AZUL, 'CTA azul (el amarillo nunca toca el blanco)')
-        self.assertEqual(m['cta']['radio'], '999px')
+        # Sin «Escríbenos» en la píldora (decisión de la dueña, 2026-11-15: «puede irse… ya está en el pie»; la
+        # portada lleva una sección pequeña de contacto antes de Visítanos).
+        self.assertIsNone(m['cta'], 'sin botón «Escríbenos» en la píldora')
         if ancho >= 992:
             self.assertTrue(m['menu']['visible'], 'menú visible en escritorio')
-            self.assertTrue(m['cta']['visible'], 'botón «Escríbenos» visible en escritorio')
             self.assertFalse(m['hamburguesa']['visible'], 'sin hamburguesa en escritorio')
             self.assertIn('Oswald', m['menu']['fuente'])
             self.assertEqual(m['menu']['mayusculas'], 'uppercase')

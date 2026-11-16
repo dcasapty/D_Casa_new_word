@@ -33,6 +33,7 @@ from odoo import http
 from odoo.addons.dcasa_base.red import llave_ip
 from odoo.addons.dcasa_conversaciones.models import publico as P
 from odoo.addons.website_dcasa.controllers.main import DcasaTienda
+from odoo.addons.website_dcasa.models.website import CATEGORIAS_PORTADA
 from odoo.fields import Domain
 from odoo.http import request
 
@@ -50,8 +51,13 @@ _SEMAFORO_PDF = threading.BoundedSemaphore(MAX_PDF_A_LA_VEZ)
 TEXTO_SIN_PDF = 'Por ahora no podemos armar más cotizaciones. Inténtalo en un rato o escríbenos por WhatsApp.'
 TEXTO_PDF_OCUPADO = 'Estamos armando otras cotizaciones. Inténtalo de nuevo en unos segundos.'
 MAX_ID = 2 ** 31
+# Las sugerencias del saludo dicen la categoría con la palabra que escribiría un cliente («Camas», no «Recámaras»).
+NOMBRE_SUGERENCIA = {'recamaras': 'Camas', 'oficina': 'Escritorios'}
+# Lo que la página necesita de cada producto para pintar su tarjeta (lo mismo que valida `productoValido` en el JS).
+CAMPOS_TARJETA = ('producto_id', 'plantilla_id', 'nombre', 'precio_texto', 'disponibilidad', 'imagen', 'ruta',
+                  'agregable')
 # La política de privacidad cambia con este módulo (views/templates.xml, «Brian, el chat de la tienda»): su fecha.
-FECHA_PRIVACIDAD = '14 de noviembre de 2026'
+FECHA_PRIVACIDAD = '16 de noviembre de 2026'   # el chat de la tienda se llama Andrés
 MESES = ('enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre',
          'noviembre', 'diciembre')
 
@@ -122,7 +128,19 @@ class DcasaBrianTiendaAPI(http.Controller):
         turnstile = cuerpo.get('turnstile') if isinstance(cuerpo.get('turnstile'), str) else ''
         resultado = request.env['dcasa.brian.tienda'].sudo()._emitir(
             request.session, request.httprequest.remote_addr, request.website, turnstile=turnstile)
+        if resultado.get('ok'):
+            resultado['sugerencias'] = self._sugerencias()
         return _json(resultado)
+
+    def _sugerencias(self):
+        """Las dos categorías de la portada con más productos publicados, para las sugerencias del saludo (pedido de la
+        dueña, 2026-11-15, «opción 2»: la lista fija decía «Salas» con 2 productos y no decía «Camas», con 121). Es el
+        mismo número que la portada pone debajo de cada categoría; con empate, el orden de la portada. Sin nada
+        publicado, ninguna: la página usa las de fábrica."""
+        website = request.website
+        cuentas = [(website._dcasa_categoria_cantidad(clave), -orden, NOMBRE_SUGERENCIA.get(clave, nombre))
+                   for orden, (clave, nombre, _alt) in enumerate(CATEGORIAS_PORTADA)]
+        return [nombre for cantidad, _orden, nombre in sorted(cuentas, reverse=True) if cantidad][:2]
 
     # ------------------------------------------------------------------
     # El carrito
@@ -162,6 +180,25 @@ class DcasaBrianTiendaAPI(http.Controller):
         if not request.env['dcasa.brian.tienda'].sudo()._activo():
             return _json({'ok': False, 'motivo': 'apagado'})
         return _json({'ok': True, 'carrito': self._carrito()})
+
+    @http.route(f'{RAIZ}/vitrina', type='http', auth='public', website=True, methods=['GET'], sitemap=False)
+    def vitrina(self, **_kw):
+        if not request.env['dcasa.brian.tienda'].sudo()._activo():
+            return _json({'ok': False, 'motivo': 'apagado'})
+        return _json({'ok': True, 'productos': self._sugeridos()})
+
+    def _sugeridos(self):
+        """Lo que muestra el chat ampliado mientras Brian no ha mostrado nada (pedido de la dueña, 2026-11-15: «cómo
+        aprovechamos ese espacio enorme»): «Lo más buscado» de la portada, los mismos productos en el mismo orden, con
+        lo que tiene existencia primero y sin lo que ya está en el carrito. Las tarjetas son las de las herramientas de
+        Brian (`_j_ficha_corta`): mismo precio, disponibilidad y «Agregar» que cuando él los muestra."""
+        orden = request.cart
+        en_carrito = set(orden.website_order_line.product_id.product_tmpl_id.ids) if orden else set()
+        herramientas = request.env['brian.herramientas'].sudo()
+        fichas = [herramientas._j_ficha_corta(item['producto'], '')
+                  for item in request.website._dcasa_productos(limit=12) if item['producto'].id not in en_carrito]
+        fichas.sort(key=lambda ficha: ficha.get('disponibilidad') == 'agotado')   # estable: el orden de la portada
+        return [{clave: ficha.get(clave) for clave in CAMPOS_TARJETA} for ficha in fichas[:6]]
 
     def _producto(self, producto_id):
         """``(variante, plantilla)`` publicada en este sitio, buscada como el visitante; ``(None, None)`` si no."""

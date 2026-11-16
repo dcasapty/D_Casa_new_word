@@ -81,7 +81,10 @@ class SaleOrder(models.Model):
             return
         hoy = fields.Date.context_today(self)
         for orden in self.filtered(lambda o: o.website_id and not o.dcasa_apartado_vence):
-            orden.sudo().dcasa_apartado_vence = hoy + timedelta(days=dias)
+            # La fecha del pedido pasa a la de la compra (no la del día en que nació el carrito): de ella sale el precio
+            # autorizado si después se toca una línea (p. ej. una compra hecha en la campaña del sitio).
+            orden.sudo().write({
+                'dcasa_apartado_vence': hoy + timedelta(days=dias), 'date_order': fields.Datetime.now()})
 
     def action_dcasa_apartar(self):
         """Botón «Apartar»: la vendedora aparta a mano; cuenta los mismos días que un apartado de la tienda."""

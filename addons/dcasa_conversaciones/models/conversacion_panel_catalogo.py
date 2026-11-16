@@ -83,6 +83,7 @@ class DcasaConversacionCatalogo(models.Model):
         website = website if website is not None else self.env['website'].sudo().search(
             [], order='sequence, id', limit=1)
         ficha = herramientas._j_ficha_corta(plantilla, base)
+        rebaja = herramientas._j_rebaja_de_campana(plantilla)   # lo que baja cada medida si rige una campaña
         fotos = (1 if ficha['foto'] else 0) + len(plantilla.sudo().product_template_image_ids)
         ficha.update({
             'id': plantilla.id,
@@ -97,7 +98,7 @@ class DcasaConversacionCatalogo(models.Model):
                 'id': v.id,
                 'nombre': v.with_context(display_default_code=False).display_name,
                 'codigo': v.default_code or '',
-                'precio_texto': P.precio_texto(v.lst_price, ficha['mas_itbms']),
+                'precio_texto': P.precio_texto(v.lst_price + rebaja, ficha['mas_itbms']),
                 'disponibilidad': herramientas._j_existencias(plantilla, v),
             } for v in plantilla.sudo().product_variant_ids[:MAX_VARIANTES]],
         })

@@ -19,6 +19,8 @@ CAMPOS_PLANTILLA = frozenset({
     'optional_product_ids', 'website_ribbon_id', 'combo_ids',
     # Black Weekend (website_dcasa) y el combo del catálogo (dcasa_catalogo), que sale en su tarjeta.
     'dcasa_black_weekend', 'dcasa_bw_orden', 'dcasa_bw_variante_id', 'dcasa_combo',
+    # El precio de campaña (website_dcasa, campana.py): su regla de tarifa ya marca, pero el tachado sale de aquí.
+    'dcasa_campana_precio',
     # El código público (dcasa_base) sale en la ficha y en el mensaje de WhatsApp: si un administrador lo regenera,
     # la página guardada en el borde se vuelve a armar.
     'dcasa_codigo_publico',
@@ -112,6 +114,38 @@ class Website(models.Model):
         resultado = super().write(vals)
         if CAMPOS_SITIO.intersection(vals):
             _marcar(self.env, [0], 'ajustes del sitio')
+        return resultado
+
+
+class DcasaCampana(models.Model):
+    """La campaña del sitio (website_dcasa): nombre, frase y fechas salen en la portada, su página y el menú."""
+    _inherit = 'dcasa.campana'
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        registros = super().create(vals_list)
+        _marcar(self.env, [0], 'campaña del sitio')
+        registros._dcasa_borde_programar()
+        return registros
+
+    def _dcasa_borde_programar(self):
+        """La vigilancia de la campaña corre justo al empezar y al terminar (no a la hora siguiente)."""
+        cron = self.env.ref('dcasa_tienda_borde.cron_vigilar_black_weekend', raise_if_not_found=False)
+        if cron:
+            for momento in self._dcasa_campana_momentos():
+                cron.sudo()._trigger(at=momento)
+
+    def write(self, vals):
+        resultado = super().write(vals)
+        if {'name', 'frase', 'fecha_inicio', 'fecha_fin', 'website_id'} & set(vals):
+            _marcar(self.env, [0], 'campaña del sitio')
+        if {'fecha_inicio', 'fecha_fin'} & set(vals):
+            self._dcasa_borde_programar()
+        return resultado
+
+    def unlink(self):
+        resultado = super().unlink()
+        _marcar(self.env, [0], 'campaña del sitio')
         return resultado
 
 

@@ -21,8 +21,8 @@ from odoo.tools.misc import file_path
 PALABRAS_PROHIBIDAS = ('tafi', 'tiempo limitado', 'remate', 'cuotas', 'financiamiento', 'corre!', 'cuenta regresiva')
 # Clases que pintan amarillo y los fondos oscuros (negro, azul, navy, foto oscurecida) donde pueden ir.
 CLASES_AMARILLAS = {'o_dcasa_btn_amarillo', 'o_dcasa_bw_titulo'}
-FONDOS_OSCUROS = {'o_dcasa_bw', 'o_dcasa_hero', 'o_dcasa_socios_band', 'o_dcasa_visita', 'o_dcasa_anuncios',
-                  'o_dcasa_footer'}
+# El pie ya no es oscuro (paleta 2026-11-15: blanco grisáceo), así que no admite amarillo.
+FONDOS_OSCUROS = {'o_dcasa_bw', 'o_dcasa_hero', 'o_dcasa_socios_band', 'o_dcasa_visita', 'o_dcasa_anuncios'}
 
 
 class _AmarilloSobreBlanco(HTMLParser):
@@ -189,7 +189,7 @@ class TestPaginasBlackWeekend(_Base, HttpCase):
         self.assertIn('class="o_dcasa_bw"', html)
         self.assertIn('Cama Black de Prueba', html)
         self.assertLess(html.index('o_dcasa_bw'), html.index('Lo más buscado'))
-        self.assertIn('href="/black-weekend"', html)
+        self.assertIn('href="/promociones"', html)  # /black-weekend lleva ahí (campaña del sitio)
         self.assertRegex(html, r'187[.,]99')
         self.assertIn('Agregar al carrito', html)
         self.assertIn(f'c%C3%B3digo%20{self.cama.dcasa_codigo_publico}', html, 'WhatsApp con el código público')

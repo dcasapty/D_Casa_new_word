@@ -9,7 +9,7 @@ GUARDAR_DIAS = 2
 
 class DcasaBrianTiendaCupo(models.Model):
     _name = 'dcasa.brian.tienda.cupo'
-    _description = 'Brian de la tienda: contadores del tope de pases (sin datos de nadie)'
+    _description = 'Andrés (chat de la tienda): contadores del tope de pases (sin datos de nadie)'
     _log_access = False
 
     llave = fields.Char(required=True, readonly=True)

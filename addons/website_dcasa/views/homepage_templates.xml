@@ -9,7 +9,19 @@
          del programa, y se actualizan solos.
          =================================================================== -->
 
-    <!-- Tarjeta de producto de los carruseles: foto, nombre, precio y «Agregar». -->
+    <!-- Ícono «agregar al carrito» (carrito con un +): quien compra en línea lo reconoce sin la palabra (pedido de la
+         dueña, 2026-11-15). Trazo como los íconos de los beneficios; el nombre lo da el aria-label del botón. -->
+    <template id="icono_carrito" name="D'CASA: ícono de agregar al carrito">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.9"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+            <path d="M3 4h2.2l2.1 10.1a1.6 1.6 0 0 0 1.6 1.3h8.2a1.6 1.6 0 0 0 1.6-1.2L20.4 8H6.1"/>
+            <circle cx="9.6" cy="19.6" r="1.35"/>
+            <circle cx="17.2" cy="19.6" r="1.35"/>
+            <path d="M13.2 9.6v3.6M11.4 11.4H15"/>
+        </svg>
+    </template>
+
+    <!-- Tarjeta de producto de los carruseles (v3): foto, nombre, y abajo el precio con el carrito y WhatsApp. -->
     <template id="tarjeta_producto" name="D'CASA: tarjeta de producto">
         <t t-set="producto" t-value="item['producto']"/>
         <article class="o_dcasa_pcard">
@@ -27,28 +39,38 @@
             </a>
             <div class="o_dcasa_pcard_body">
                 <h3 class="o_dcasa_pcard_name"><a t-att-href="producto.website_url" t-out="producto._dcasa_nombre_cliente()"/></h3>
-                <p t-if="item['precio'] or not website.prevent_zero_price_sale" class="o_dcasa_pcard_price">
-                    <span t-out="item['precio']" t-options="{'widget': 'monetary', 'display_currency': item['moneda']}"/>
-                    <t t-call="website_dcasa.mas_itbms"><t t-set="producto_itbms" t-value="producto"/></t>
-                </p>
-                <div class="o_dcasa_pcard_actions">
-                    <form t-if="item['directo']" action="/dcasa/carrito/agregar" method="post">
-                        <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
-                        <input type="hidden" name="product_template_id" t-att-value="producto.id"/>
-                        <button type="submit" class="btn btn-primary o_dcasa_pcard_add"
-                                t-attf-aria-label="Agregar {{ producto._dcasa_nombre_cliente() }} al carrito">Agregar</button>
-                    </form>
-                    <a t-else="" t-att-href="producto.website_url" class="btn btn-primary o_dcasa_pcard_add">Elegir</a>
-                    <a t-att-href="website._dcasa_whatsapp_producto(producto)" target="_blank" rel="noopener"
-                       class="btn o_dcasa_pcard_wa" t-attf-aria-label="Preguntar por {{ producto._dcasa_nombre_cliente() }} por WhatsApp (se abre en una pestaña nueva)">
-                        <i class="fa fa-whatsapp" aria-hidden="true"/>
-                    </a>
+                <div class="o_dcasa_pcard_pie">
+                    <p t-if="item['precio'] or not website.prevent_zero_price_sale" class="o_dcasa_pcard_price">
+                        <span t-out="item['precio']" t-options="{'widget': 'monetary', 'display_currency': item['moneda']}"/>
+                        <t t-call="website_dcasa.mas_itbms"><t t-set="producto_itbms" t-value="producto"/></t>
+                    </p>
+                    <div class="o_dcasa_pcard_actions">
+                        <form t-if="item['directo']" action="/dcasa/carrito/agregar" method="post">
+                            <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                            <input type="hidden" name="product_template_id" t-att-value="producto.id"/>
+                            <button type="submit" class="btn btn-primary o_dcasa_pcard_add" title="Agregar al carrito"
+                                    t-attf-aria-label="Agregar {{ producto._dcasa_nombre_cliente() }} al carrito">
+                                <t t-call="website_dcasa.icono_carrito"/>
+                            </button>
+                        </form>
+                        <!-- Con medidas o colores para elegir: el mismo carrito lleva a la ficha. -->
+                        <a t-else="" t-att-href="producto.website_url" class="btn btn-primary o_dcasa_pcard_add" title="Elegir medida o color"
+                           t-attf-aria-label="Elegir medida o color de {{ producto._dcasa_nombre_cliente() }}">
+                            <t t-call="website_dcasa.icono_carrito"/>
+                        </a>
+                        <a t-att-href="website._dcasa_whatsapp_producto(producto)" target="_blank" rel="noopener"
+                           class="btn o_dcasa_pcard_wa" title="Preguntar por WhatsApp"
+                           t-attf-aria-label="Preguntar por {{ producto._dcasa_nombre_cliente() }} por WhatsApp (se abre en una pestaña nueva)">
+                            <i class="fa fa-whatsapp" aria-hidden="true"/>
+                        </a>
+                    </div>
                 </div>
             </div>
         </article>
     </template>
 
-    <!-- Carrusel horizontal (móvil) / grilla (escritorio). -->
+    <!-- Carril (v3): UNA fila que se desliza, en el celular y en la computadora. Las flechas y la línea de avance
+         nacen escondidas y las enciende carril.js solo si hay algo que deslizar (sin JavaScript, se desliza igual). -->
     <template id="carrusel_productos" name="D'CASA: carrusel de productos">
         <section t-if="items" class="o_dcasa_section o_dcasa_rail" t-att-aria-label="titulo">
             <div class="o_dcasa_container">
@@ -57,13 +79,28 @@
                         <p class="o_dcasa_kicker" t-out="antetitulo"/>
                         <h2 class="o_dcasa_h2" data-titular="" t-out="titulo"/>
                     </div>
-                    <a t-att-href="enlace" class="o_dcasa_link">Ver todo<span class="visually-hidden">: <t t-out="titulo"/></span> <span aria-hidden="true">→</span></a>
+                    <div class="o_dcasa_section_extra">
+                        <div class="o_dcasa_carril_flechas" hidden="">
+                            <button type="button" class="o_dcasa_carril_flecha" data-carril="-1" disabled=""
+                                    t-attf-aria-label="Anteriores de {{ titulo }}">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+                                     stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M15 5l-7 7 7 7"/></svg>
+                            </button>
+                            <button type="button" class="o_dcasa_carril_flecha" data-carril="1"
+                                    t-attf-aria-label="Más de {{ titulo }}">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+                                     stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 5l7 7-7 7"/></svg>
+                            </button>
+                        </div>
+                        <a t-att-href="enlace" class="o_dcasa_link">Ver todo<span class="visually-hidden">: <t t-out="titulo"/></span> <span aria-hidden="true">→</span></a>
+                    </div>
                 </div>
                 <div class="o_dcasa_rail_track" role="list" data-anim-cascada="">
                     <div t-foreach="items" t-as="item" class="o_dcasa_rail_item" role="listitem">
                         <t t-call="website_dcasa.tarjeta_producto"/>
                     </div>
                 </div>
+                <div class="o_dcasa_carril_avance" aria-hidden="true" hidden=""><span/></div>
             </div>
         </section>
     </template>
@@ -90,12 +127,16 @@
                        t-att-target="cat['whatsapp'] and '_blank' or None"
                        t-att-rel="cat['whatsapp'] and 'noopener' or None"
                        t-att-aria-label="cat['whatsapp'] and ('%s: pregúntanos por WhatsApp' % cat['nombre']) or None">
-                        <img t-att-src="cat['imagen']" t-att-alt="cat['alt']" width="800" height="1000"
-                             t-att-srcset="'%s 400w, %s 800w' % (cat['imagen_chica'], cat['imagen'])"
-                             sizes="(min-width: 768px) 30vw, 46vw" loading="lazy" decoding="async"/>
-                        <span class="o_dcasa_cat_label"><t t-out="cat['nombre']"/>
-                            <span t-if="cat['whatsapp']" class="o_dcasa_cat_wa">· por WhatsApp</span>
-                            <span aria-hidden="true">→</span></span>
+                        <span class="o_dcasa_cat_foto">
+                            <img t-att-src="cat['imagen']" t-att-alt="cat['alt']" width="800" height="1000"
+                                 t-att-srcset="'%s 400w, %s 800w' % (cat['imagen_chica'], cat['imagen'])"
+                                 sizes="(min-width: 992px) 15vw, 31vw" loading="lazy" decoding="async"/>
+                        </span>
+                        <!-- Debajo de la foto: el nombre y cuántos productos hay publicados (dato real del catálogo). -->
+                        <span class="o_dcasa_cat_label"><t t-out="cat['nombre']"/> <span aria-hidden="true">→</span>
+                            <span t-if="cat['whatsapp']" class="o_dcasa_cat_nota">Pregúntanos por WhatsApp</span>
+                            <span t-elif="cat.get('cantidad')" class="o_dcasa_cat_nota"><t t-out="cat['cantidad']"/>
+                                <t t-if="cat['cantidad'] == 1">producto</t><t t-else="">productos</t></span></span>
                     </a>
                 </div>
             </div>
@@ -131,8 +172,26 @@
         </section>
     </template>
 
-    <!-- Portada: una franja corta que lleva a la página «Visítanos» (el mapa vive allá). -->
+    <!-- Portada: una franja corta que lleva a la página «Visítanos» (el mapa vive allá). Antes, una sección pequeña
+         de contacto (pedido de la dueña, 2026-11-15: sin «Escríbenos» en el menú, «un CTA pequeño que invite a
+         escribirnos al WhatsApp o al correo»). Va aquí y no en la portada: esta plantilla llega aunque la portada se haya
+         editado en el constructor. -->
     <template id="seccion_visitanos" name="D'CASA: visítanos (franja)">
+        <t t-set="correo_tienda" t-value="website.company_id.email or 'info@dcasapty.com'"/>
+        <section class="o_dcasa_contacto_cta" aria-labelledby="dcasa-contacto-titulo">
+            <div class="o_dcasa_container o_dcasa_contacto_cta_inner">
+                <div>
+                    <h2 id="dcasa-contacto-titulo" class="o_dcasa_contacto_cta_titulo">¿Te quedó alguna duda?</h2>
+                    <p class="o_dcasa_contacto_cta_texto">Escríbenos y te ayudamos a escoger.</p>
+                </div>
+                <div class="o_dcasa_contacto_cta_botones">
+                    <a href="/whatsapp" class="btn btn-primary" target="_blank" rel="noopener nofollow">
+                        <i class="fa fa-whatsapp me-2" aria-hidden="true"/>Escríbenos por WhatsApp<span class="visually-hidden"> (se abre en una pestaña nueva)</span></a>
+                    <a t-attf-href="mailto:{{ correo_tienda }}" class="btn o_dcasa_btn_contorno">
+                        <i class="fa fa-envelope me-2" aria-hidden="true"/><t t-out="correo_tienda"/></a>
+                </div>
+            </div>
+        </section>
         <section id="visitanos" class="o_dcasa_visita o_dcasa_visita_franja">
             <div class="o_dcasa_container o_dcasa_visita_franja_inner">
                 <div>
@@ -184,8 +243,11 @@
                                     <a t-attf-href="https://www.google.com/maps/dir/?api=1&amp;destination={{latitud}}%2C{{longitud}}"
                                        target="_blank" rel="noopener">Abrir la ruta en Google Maps
                                         <span class="visually-hidden">(se abre en una pestaña nueva)</span></a></li>
-                                <li><i class="fa fa-phone fa-fw me-2" aria-hidden="true"/>
-                                    <a href="tel:+50760261919">+507 6026-1919</a></li>
+                                <!-- El número abre WhatsApp (pedido de la dueña, 2026-11-15): es el canal donde se atiende. -->
+                                <li><i class="fa fa-whatsapp fa-fw me-2" aria-hidden="true"/>
+                                    <a t-att-href="website._dcasa_whatsapp_url('Hola D\'CASA, quiero información')"
+                                       target="_blank" rel="noopener">+507 6026-1919 <span class="o_dcasa_muted">· WhatsApp</span>
+                                        <span class="visually-hidden">(se abre en una pestaña nueva)</span></a></li>
                                 <li><i class="fa fa-envelope fa-fw me-2" aria-hidden="true"/>
                                     <a href="mailto:info@dcasapty.com">info@dcasapty.com</a></li>
                                 <li><i class="fa fa-instagram fa-fw me-2" aria-hidden="true"/>

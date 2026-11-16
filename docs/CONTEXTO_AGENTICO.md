@@ -470,6 +470,37 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   burbuja de Brian cambia de pose con la sección en pantalla (solo JS de `dcasa_brian_tienda`; Juan no cambió, así que
   no hubo Desplegar Juan). **Lección:** el primer intento de squash dio 409 porque escribí de memoria el SHA largo de
   `expectedHeadSha`; siempre `git rev-parse` antes, nunca completar un SHA a ojo. Bien al segundo intento, sin daño.
+- **Desplegar 76** (15 nov, 19:48–20:0x UTC; salud sana: `{"ok": true, "version": "754aceaf18e7", "base_al_dia":
+  true, "humo": "ok"}`; run 43754485392) · PR #122, squash `b012494`, `app_version`
+  `754aceaf18e7ed66ef1e69ec59a2ab5351a80574`, imagen `sha256:1cfb8e4f226604186ee8298d4c37dd5651a248f96c94119db3ee820b8b033207`,
+  CI 365 con staging (run 43732155027; las pruebas de Odoo del CI tardaron ~45 min). Paleta con bandas en azul noche
+  y pie claro, menú sin «Escríbenos», sección de contacto y el carrito en el chat de la tienda; con respaldo previo;
+  Juan no cambió. Bien al primer intento. **Lecciones:** (1) **la tarifa del visitante:** en esta base la tarifa
+  «Default» no está ofrecida al sitio (`website.pricelist_ids` vacío), así que `request.pricelist` sale vacío y la
+  página muestra el precio sin tarifa, mientras el carrito sí usa la del contacto. Cualquier regla de tarifa (la
+  campaña del sitio) necesita que el sitio la ofrezca (`dcasa.campana._dcasa_tarifa_del_sitio`). (2) Juan y el chat
+  de la tienda dicen `list_price` a secas (`_j_ficha_corta`): un precio especial tiene que pasar por ahí también.
+  (3) Una regla de tarifa de **precio fijo** deja iguales todas las variantes; para bajar lo mismo a cada medida, la
+  fórmula con `price_surcharge` negativo. (4) Las capturas que comparan «hoy» con una propuesta: cuando la propuesta
+  ya está en el código, el «hoy» se simula con un selector más específico que el del código (si no, sale igual).
+  (5) La máquina se reinició dos veces: lo que no está en la rama se pierde con ella; pasar el trabajo a la rama en
+  cuanto se pueda subir sin romper la regla de «nada entre el CI y el squash». (6) La prueba
+  `TestRevisionPdf.test_el_tope_de_cotizaciones_no_se_salta_con_otra_sesion` puede fallar si la corrida cruza el
+  cambio de hora (pasó a las 15:00): es de la hora, no del cambio; repetirla.
+- **Desplegar 75** (15 nov, 08:16–08:3x UTC; salud sana: `{"ok": true, "version": "6c7fdc425be3", "base_al_dia":
+  true, "humo": "ok"}`; run 43693725820) · PR #121, squash `6221175`, `app_version`
+  `6c7fdc425be329adb00180abfc5a20347bf2ff0f`, imagen `sha256:84085a134a139c75cf76db42220b342d958691334551d43fb33dea637eba0065`,
+  CI 363 con staging (run 43689911281). La portada v3 (secciones compactas, carrito como ícono, paleta nueva, chat de
+  vidrio); con respaldo previo; Juan no cambió. Bien al primer intento. **Lecciones:** (1) **las pruebas de navegador
+  solo corren en local**: el CI no instala `websocket-client` y Odoo las salta; para un cambio visual, correr
+  `scripts/test.sh` aquí con `pip install websocket-client` en el venv (encontró 5 fallas que el CI habría dejado pasar:
+  el antetítulo más chico tocaba el hero del contrato visual y el carrito salía ovalado). (2) `.o_dcasa_home .btn` pide
+  `min-height: 3rem` y es más específica que una clase sola: un botón de la portada con otro tamaño necesita un selector
+  de dos clases. (3) La portada tarda 2-3 s en arrancar las interacciones: medir flechas, carriles o burbuja antes de eso
+  da «no está»; esperar a que `.o_dcasa_rail_track` tenga `id` (lo pone `carril.js`). (4) Para capturas del chat con
+  conversación, `dcasa_brian_tienda/tests/worker_simulado.py` corre suelto (`--puerto`, `--token-worker`, `--odoo`,
+  `--token-odoo`) y Odoo con `JUAN_URL`, `JUAN_WORKER_TOKEN` y `JUAN_ODOO_TOKEN`; en esta máquina el puerto 8787 ya está
+  ocupado (usar 8788).
 - **Desplegar Juan 27 y Desplegar 74** (15 nov; salud sana a las 04:02 UTC) · PR #120, squash `3cd053b`, `app_version`
   `d52a72b7dd9d3de8ab63ab0a7d7a1ca2892e00ec`, imagen `sha256:a224f8c2…`, CI 359 con staging (run 43668175433). Brian
   siempre activo de noche (`avisar_cerrado` en `/config`; sin la clave, Juan se porta como antes, así que Juan va
@@ -817,7 +848,8 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 
 - **Contenedor nuevo, sin Odoo ni dependencias (2026-11-02):** `vendor/odoo` puede venir sin bajar (`git submodule
   status` empieza con `-`): `git submodule update --init --depth 1 vendor/odoo` (unos minutos). Las dependencias van en
-  un venv del scratchpad con `psycopg2-binary` y sin `python-ldap` (no compilan sin las librerías del sistema):
+  un venv del scratchpad **con `python3.12`** (el del CI; con el `python3` de la máquina, 3.13, `rl-renderPM` no compila y
+  `make setup` falla, 2026-11-15), con `psycopg2-binary` y sin `python-ldap` (no compilan sin las librerías del sistema):
   `grep -v -i "^psycopg2\|^python-ldap" vendor/odoo/requirements.txt > req.txt`. El rol `odoo` de PostgreSQL hay que
   crearlo (`CREATE ROLE odoo LOGIN SUPERUSER PASSWORD 'odoo'`) y Chromium está en `/opt/pw-browsers/chromium` (enlace
   `chromium` en el `bin` del venv para las pruebas de navegador). Correr con `PATH=<venv>/bin:$PATH PYTHON=<venv>/bin/python`.
@@ -901,6 +933,25 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   a 390 px 7.68 % sin tocar esas pantallas (2026-11-07). Si sale otra cifra en otra pantalla, sí es del cambio.
 
 ### Odoo 19
+
+- **Cinco trampas de precios que salieron con la campaña del sitio (2026-11-15/16, `website_dcasa/models/campana.py`):**
+  - Si la opción «Tarifas» (`product.group_product_pricelist`) está apagada, `request.pricelist` llega vacío y la
+    página muestra el precio de lista, pero el carrito sí usa la tarifa del contacto: precio en pantalla y en el
+    carrito distintos. Además, si el sitio no ofrece ninguna tarifa *selectable*, pasa lo mismo.
+    `_dcasa_tarifa_del_sitio` deja la tarifa pública ofrecida; la campaña no crea reglas con la opción apagada, y
+    las pruebas la encienden en su `setUp`.
+  - Una regla de precio fijo aplana las variantes (la king y la queen quedan al mismo precio). La rebaja va como
+    fórmula sobre `list_price` con `price_surcharge` negativo; el tachado sale de `_show_discount_on_shop`.
+  - `ir.config_parameter.get_param` devuelve el valor por defecto tanto si la clave no existe como si vale `''`:
+    para distinguir «primera vez» de «vacío» hay que leer el registro.
+  - Los carritos web en borrador calculan con `now()` (`_get_order_date` de website_sale), pero los pedidos que no
+    son web usan `date_order`: quien pueda escribir `date_order` puede traer un precio de campaña vencido. Se bloquea
+    para quien no cambia precios.
+  - Las reglas se ordenan por `applied_on`, `min_quantity` desc, `categ_id` desc e `id` desc: una regla nueva de la
+    campaña le gana a una vieja del mismo nivel. Por eso no se crea si la tarifa ya trae su propia regla activa para
+    el producto.
+- **Pruebas que dependen de la hora:** `freezegun` está en el venv y en el CI (`with freeze_time(...)`), y la campaña se
+  programa con `ir.cron._trigger(at=...)` en el inicio y el fin exactos además del cron horario.
 
 - **Cuatro trampas de la página que encontró Brian de la tienda (2026-11-13; detalle en BRIAN_TIENDA.md):**
   - El tema del sitio pone `height: auto !important` a las `<section>` en el celular: el chat quedaba de 640 px con el

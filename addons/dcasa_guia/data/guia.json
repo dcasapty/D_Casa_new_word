@@ -2826,14 +2826,13 @@
    "id": "brian-tienda",
    "categoria": "tienda",
    "grupo": "Tienda en línea",
-   "titulo": "Encender o apagar a Brian, el chat de la tienda",
-   "logras": "En la tienda web sale la burbuja de Brian (en lugar de la de WhatsApp): busca muebles, calcula el envío y deja el carrito listo. Aquí lo enciendes o lo apagas, decides si fuera del horario avisa que la tienda está cerrada y si el robot de la burbuja duerme de noche, cambias el presupuesto del mes y los topes de mensajes, y ves cuánto va gastando y cómo lo califican los clientes.",
+   "titulo": "Encender o apagar a Andrés, el chat de la tienda",
+   "logras": "En la tienda web sale la burbuja de Andrés (en lugar de la de WhatsApp): busca muebles, calcula el envío y deja el carrito listo. Aquí lo enciendes o lo apagas, decides si fuera del horario avisa que la tienda está cerrada y si el robot de la burbuja duerme de noche, cambias el presupuesto del mes y los topes de mensajes, y ves cuánto va gastando y cómo lo califican los clientes.",
    "destino": {
     "menu": "dcasa_brian_tienda.menu_dcasa_brian_tienda"
    },
    "nota": "Viene encendido, saludando igual de día y de noche (fuera del horario no avisa que la tienda está cerrada) y con el robot dormido de noche. No guarda la conversación ni crea contactos; para atención personal ofrece WhatsApp. Su gasto va en su propio renglón de Costos de IA y no se suma a «Por pagar a Meta». Solo Gerencia y los administradores lo cambian.",
    "palabras": [
-    "brian",
     "chat",
     "chat de la tienda",
     "burbuja",
@@ -2843,7 +2842,34 @@
     "carrito",
     "noche",
     "horario",
-    "tienda cerrada"
+    "tienda cerrada",
+    "andrés",
+    "andres"
+   ]
+  },
+  {
+   "id": "campana-del-sitio",
+   "categoria": "tienda",
+   "grupo": "Tienda en línea",
+   "titulo": "Preparar una campaña como Black Friday (productos, precios y fechas)",
+   "logras": "Pones el nombre de la campaña y sus fechas, y eliges los productos con una casilla. A cada uno le puedes poner un precio de campaña (o un mismo descuento a varios). En esas fechas salen solos la sección en la portada, la página de la campaña, la etiqueta en las tarjetas y «Promociones» en el menú; el carrito cobra el precio de campaña y Juan y Andrés dicen ese mismo precio. Al terminar, todo vuelve solo a la normalidad.",
+   "destino": {
+    "menu": "website_dcasa.menu_dcasa_campana"
+   },
+   "nota": "El precio de campaña es sin ITBMS, como el precio de venta, y tiene que ser menor que el normal. Sin las dos fechas no se aplica ningún precio de campaña. «Empezar de cero» desmarca todos los productos y borra sus precios de campaña. Lo ven y lo cambian Gerencia y los administradores.",
+   "palabras": [
+    "campaña",
+    "black friday",
+    "black weekend",
+    "promociones",
+    "promoción",
+    "oferta",
+    "ofertas",
+    "descuento",
+    "rebaja",
+    "precio especial",
+    "precio de campaña",
+    "cyber monday"
    ]
   },
   {

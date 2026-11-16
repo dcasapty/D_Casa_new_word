@@ -237,7 +237,8 @@ class TestLaPagina(TiendaCase):
         for frase in ('No guardamos la conversación', 'Usar mi ubicación', 'no se guarda',
                       'solo el número de estrellas y la fecha', 'hasta 30 mensajes: los últimos 15 intercambios'):
             self.assertIn(frase, html)
-        self.assertIn('14 de noviembre de 2026', html)
+        self.assertIn('Andrés, el chat de la tienda', html)
+        self.assertIn('16 de noviembre de 2026', html)
 
     def test_el_js_no_anida_plantillas_de_texto(self):
         """El minificador de Odoo (rjsmin) no entiende `…${`…`}…`: se come los espacios de la de adentro."""

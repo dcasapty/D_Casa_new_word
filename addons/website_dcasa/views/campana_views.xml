@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Campaña del sitio (models/campana.py): Sitio web › Campaña del sitio, para Gerencia y administradores. -->
+    <record id="view_dcasa_campana_form" model="ir.ui.view">
+        <field name="name">dcasa.campana.form</field>
+        <field name="model">dcasa.campana</field>
+        <field name="arch" type="xml">
+            <form string="Campaña del sitio">
+                <header>
+                    <button name="action_productos" type="object" string="Elegir productos y precios" class="btn-primary"/>
+                    <button name="action_empezar_de_cero" type="object" string="Empezar de cero"
+                            confirm="Se desmarcan todos los productos de la campaña y se borran sus precios de campaña. ¿Seguimos?"/>
+                    <field name="estado" widget="statusbar" statusbar_visible="apagada,programada,activa,terminada"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_productos" type="object" class="oe_stat_button" icon="fa-tags">
+                            <field name="producto_count" widget="statinfo" string="En la campaña"/>
+                        </button>
+                        <button name="action_productos" type="object" class="oe_stat_button" icon="fa-usd">
+                            <field name="con_precio_count" widget="statinfo" string="Con precio de campaña"/>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name" placeholder="Black Friday"/></h1>
+                    </div>
+                    <group>
+                        <group string="Fechas (hora de Panamá)">
+                            <field name="fecha_inicio"/>
+                            <field name="fecha_fin"/>
+                        </group>
+                        <group string="En la página">
+                            <field name="frase" placeholder="Muebles y colchones seleccionados"/>
+                            <field name="website_id" groups="base.group_system" options="{'no_create': True}"/>
+                        </group>
+                    </group>
+                    <field name="tarifas_apagadas" invisible="1"/>
+                    <div class="alert alert-warning" role="alert" invisible="not tarifas_apagadas">
+                        <strong>Las tarifas de Odoo están apagadas:</strong> los productos salen en la campaña con su
+                        precio normal; los precios de campaña no se aplican hasta que un administrador encienda «Tarifas»
+                        en Ajustes › Ventas.
+                    </div>
+                    <div class="alert alert-info mb-0" role="note">
+                        <p class="mb-1"><strong>Cómo funciona.</strong> En las fechas de arriba salen solos la sección de
+                            la campaña en la portada, su página (/promociones), la etiqueta en las tarjetas y «Promociones»
+                            en el menú. Al terminar, todo se quita solo.</p>
+                        <p class="mb-1">Los productos se marcan con «Elegir productos y precios». El precio de campaña
+                            es opcional y sin ITBMS: solo rige en estas fechas, el carrito lo cobra y la tarjeta muestra el
+                            precio normal tachado. Sin precio, el producto sale con su precio normal.</p>
+                        <p class="mb-0">Sin fechas, la campaña está apagada. La tienda guardada en internet puede tardar
+                            hasta una hora en mostrar el cambio; el carrito cobra siempre el precio correcto.</p>
+                    </div>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_dcasa_campana" model="ir.actions.server">
+        <field name="name">Campaña del sitio</field>
+        <field name="model_id" ref="model_dcasa_campana"/>
+        <field name="state">code</field>
+        <field name="code">action = model.action_abrir()</field>
+        <field name="group_ids" eval="[Command.set([ref('dcasa_base.group_gerencia'), ref('base.group_system')])]"/>
+    </record>
+
+    <menuitem id="menu_dcasa_campana" name="Campaña del sitio" parent="website.menu_website_configuration"
+              action="action_dcasa_campana" sequence="8" groups="dcasa_base.group_gerencia,base.group_system"/>
+
+    <!-- La lista para elegir: casilla, orden, precio normal, precio de campaña y su descuento, todo en un renglón. -->
+    <record id="view_dcasa_campana_productos_list" model="ir.ui.view">
+        <field name="name">product.template.list.dcasa.campana</field>
+        <field name="model">product.template</field>
+        <field name="priority">90</field>
+        <field name="arch" type="xml">
+            <list string="Productos de la campaña" editable="bottom" create="false" delete="false"
+                  default_order="dcasa_black_weekend desc, dcasa_bw_orden, name">
+                <field name="dcasa_bw_orden" widget="handle"/>
+                <field name="dcasa_black_weekend" widget="boolean_toggle"/>
+                <field name="name" readonly="1"/>
+                <field name="dcasa_codigo_publico" readonly="1" optional="show"/>
+                <field name="public_categ_ids" widget="many2many_tags" readonly="1" optional="hide"/>
+                <field name="list_price" readonly="1" string="Precio normal"/>
+                <field name="dcasa_campana_precio" string="Precio de campaña"/>
+                <field name="dcasa_campana_descuento" string="Descuento %"
+                       decoration-warning="dcasa_campana_descuento &gt;= 60"/>
+                <field name="is_published" readonly="1" optional="show" widget="boolean"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_dcasa_campana_productos_search" model="ir.ui.view">
+        <field name="name">product.template.search.dcasa.campana</field>
+        <field name="model">product.template</field>
+        <field name="priority">90</field>
+        <field name="arch" type="xml">
+            <search string="Productos de la campaña">
+                <field name="name" string="Producto" filter_domain="['|', '|', ('name', 'ilike', self), ('default_code', 'ilike', self), ('dcasa_codigo_publico', 'ilike', self)]"/>
+                <field name="public_categ_ids"/>
+                <filter name="en_campana" string="En la campaña" domain="[('dcasa_black_weekend', '=', True)]"/>
+                <filter name="sin_campana" string="Fuera de la campaña" domain="[('dcasa_black_weekend', '=', False)]"/>
+                <filter name="con_precio" string="Con precio de campaña" domain="[('dcasa_campana_precio', '&gt;', 0)]"/>
+                <separator/>
+                <filter name="publicados" string="Publicados en la tienda" domain="[('is_published', '=', True)]"/>
+                <group>
+                    <filter name="por_categoria" string="Categoría" context="{'group_by': 'categ_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_dcasa_campana_productos" model="ir.actions.act_window">
+        <field name="name">Productos de la campaña</field>
+        <field name="res_model">product.template</field>
+        <field name="view_mode">list</field>
+        <field name="view_id" ref="view_dcasa_campana_productos_list"/>
+        <field name="search_view_id" ref="view_dcasa_campana_productos_search"/>
+        <field name="domain">[('sale_ok', '=', True)]</field>
+        <field name="context">{'search_default_publicados': 1}</field>
+        <field name="group_ids" eval="[Command.set([ref('dcasa_base.group_gerencia'), ref('base.group_system')])]"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No hay productos publicados.</p>
+        </field>
+    </record>
+
+    <!-- «Aplicar un mismo % a los seleccionados» (en Acciones de la lista). -->
+    <record id="view_dcasa_campana_descuento_form" model="ir.ui.view">
+        <field name="name">dcasa.campana.descuento.form</field>
+        <field name="model">dcasa.campana.descuento</field>
+        <field name="arch" type="xml">
+            <form string="Aplicar un descuento">
+                <p>Los productos seleccionados quedan en la campaña con su precio normal menos este porcentaje,
+                    redondeado al centavo. Después se puede cambiar el precio de cada uno en la lista.</p>
+                <p class="text-muted">En un producto con medidas o colores de precio distinto, cada uno baja lo mismo en
+                    dólares: el porcentaje vale para el precio normal del producto, no para cada medida.</p>
+                <group>
+                    <field name="porcentaje"/>
+                    <field name="producto_ids" widget="many2many_tags" readonly="1"/>
+                </group>
+                <footer>
+                    <button name="action_aplicar" type="object" string="Aplicar" class="btn-primary"/>
+                    <button string="Cancelar" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_dcasa_campana_descuento" model="ir.actions.act_window">
+        <field name="name">Aplicar un descuento de campaña</field>
+        <field name="res_model">dcasa.campana.descuento</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="binding_model_id" ref="product.model_product_template"/>
+        <field name="binding_view_types">list</field>
+        <field name="group_ids" eval="[Command.set([ref('dcasa_base.group_gerencia'), ref('base.group_system')])]"/>
+    </record>
+</odoo>

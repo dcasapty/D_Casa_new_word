@@ -213,6 +213,7 @@ class BrianHerramientasJuan(models.AbstractModel):
 
     @api.model
     def _j_combo(self, plantilla):
+        # También con precio de campaña: el combo es una promoción permanente y no se toca (la dueña, 2026-11-16).
         texto = (plantilla.dcasa_combo or '').strip()
         if not texto:
             return None
@@ -234,21 +235,43 @@ class BrianHerramientasJuan(models.AbstractModel):
         variante, sin atributos que elegir, sin combo ni opcionales y con precio). Para las tarjetas de «Brian de la
         tienda»: si no, la tarjeta lleva a la ficha. La ruta del carrito lo vuelve a comprobar."""
         website = self._j_website()
-        precio = plantilla.list_price
+        precio = self._j_precio(plantilla)[0]
         if not website or not plantilla.sale_ok or not precio or precio <= 0:
             return False
         return bool(website._dcasa_compra_directa(plantilla, precio))
 
     @api.model
+    def _j_rebaja_de_campana(self, plantilla):
+        """Lo que baja cada medida o color de ``plantilla`` por la campaña que rige ahora (0.0 si no rige)."""
+        website = self._j_website()
+        return website._dcasa_campana_rebaja_vigente(plantilla) if website else 0.0
+
+    @api.model
+    def _j_precio(self, plantilla):
+        """(precio, normal, campaña): el que cobra el carrito ahora. Durante una campaña con precio especial
+        (website_dcasa, Sitio web › Campaña del sitio) es el de campaña y ``normal`` el de siempre; si no, el de
+        siempre y ``normal`` None. Juan y Brian dicen este, no el de la ficha a secas."""
+        website = self._j_website()
+        normal = plantilla.list_price
+        campana = website._dcasa_campana_precio_vigente(plantilla) if website else None
+        if campana:
+            return campana, normal, website._dcasa_campana_nombre()
+        return normal, None, None
+
+    @api.model
     def _j_ficha_corta(self, plantilla, base):
         mas_itbms = self._j_mas_itbms(plantilla)
         foto = self._j_foto(plantilla, base)
+        precio, normal, campana = self._j_precio(plantilla)
+        precio_texto = P.precio_texto(precio, mas_itbms)
+        if campana:
+            precio_texto += f' (precio de {campana}; el normal es {P.precio_texto(normal, False)})'
         return {
             'nombre': plantilla._dcasa_nombre_cliente(),   # formato título, como lo lee el cliente (F5)
             # El código público (DC-K7M4PX) es el único que ve el cliente: la referencia del proveedor no sale.
             'codigo': plantilla.dcasa_codigo_publico or '',
-            'precio': round(plantilla.list_price, 2),
-            'precio_texto': P.precio_texto(plantilla.list_price, mas_itbms),
+            'precio': round(precio, 2),
+            'precio_texto': precio_texto,
             'mas_itbms': mas_itbms,
             'disponibilidad': self._j_existencias(plantilla),
             'medidas': plantilla.dcasa_medidas or '',
@@ -422,10 +445,12 @@ class BrianHerramientasJuan(models.AbstractModel):
         mas_itbms = ficha['mas_itbms']
         if plantilla.product_variant_count > 1:
             # Sin código por variante: el código público es del producto y la medida o el color se elige con «opcion».
+            # Con campaña rigiendo, cada medida baja lo mismo (la regla de la tarifa): el precio que cobra el carrito.
+            rebaja = self._j_rebaja_de_campana(plantilla)
             ficha['variantes'] = [{
                 'nombre': v._dcasa_nombre_cliente(),
-                'precio': round(v.lst_price, 2),
-                'precio_texto': P.precio_texto(v.lst_price, mas_itbms),
+                'precio': round(v.lst_price + rebaja, 2),
+                'precio_texto': P.precio_texto(v.lst_price + rebaja, mas_itbms),
                 'disponibilidad': self._j_existencias(plantilla, v),
             } for v in plantilla.sudo().product_variant_ids[:MAX_VARIANTES]]
         ficha['galeria'] = [f'{base}/web/image/product.image/{i.id}/image_1024'

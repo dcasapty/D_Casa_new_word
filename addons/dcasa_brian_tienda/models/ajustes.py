@@ -26,17 +26,17 @@ def _de_fabrica(clave):
 
 class DcasaBrianTiendaAjustes(models.TransientModel):
     _name = 'dcasa.brian.tienda.ajustes'
-    _description = 'Brian de la tienda: ajustes'
+    _description = 'Andrés (chat de la tienda): ajustes'
 
     activo = fields.Boolean(
-        'Brian de la tienda en el sitio', default=lambda self: self.env['dcasa.brian.tienda']._activo(),
-        help='Encendido: en el sitio sale la burbuja de Brian en lugar de la de WhatsApp. Apagado: vuelve la de '
-             'WhatsApp y Brian no contesta.')
+        'Andrés en el sitio', default=lambda self: self.env['dcasa.brian.tienda']._activo(),
+        help='Encendido: en el sitio sale la burbuja de Andrés en lugar de la de WhatsApp. Apagado: vuelve la de '
+             'WhatsApp y Andrés no contesta.')
     avisar_cerrado = fields.Boolean(
         'Fuera del horario, avisar que la tienda está cerrada',
         default=lambda self: self.env['dcasa.brian.tienda']._avisar_cerrado(),
-        help='Encendido: de noche, Brian saluda diciendo que la tienda está cerrada y que una vendedora responde por '
-             'WhatsApp en cuanto abran. Apagado (de fábrica): Brian siempre saluda como de día y ayuda igual.')
+        help='Encendido: de noche, Andrés saluda diciendo que la tienda está cerrada y que una vendedora responde por '
+             'WhatsApp en cuanto abran. Apagado (de fábrica): Andrés siempre saluda como de día y ayuda igual.')
     dormir_de_noche = fields.Boolean(
         'De noche, el robot de la burbuja duerme',
         default=lambda self: self.env['dcasa.brian.tienda']._dormir_de_noche(),
@@ -79,7 +79,7 @@ class DcasaBrianTiendaAjustes(models.TransientModel):
     @api.model
     def _dcasa_exigir(self):
         if not any(self.env.user.has_group(grupo) for grupo in GRUPOS):
-            raise AccessError(self.env._('Solo Gerencia y los administradores cambian «Brian de la tienda».'))
+            raise AccessError(self.env._('Solo Gerencia y los administradores cambian a Andrés, el chat de la tienda.'))
 
     def execute(self):
         """Botón «Guardar». Exige Gerencia o administrador en el servidor antes del ``sudo()``."""
@@ -111,4 +111,4 @@ class DcasaBrianTiendaAjustes(models.TransientModel):
 
     def _compute_display_name(self):
         for ajustes in self:
-            ajustes.display_name = self.env._('Brian de la tienda')
+            ajustes.display_name = self.env._('Andrés, el chat de la tienda')

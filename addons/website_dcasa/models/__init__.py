@@ -7,6 +7,7 @@ from . import ir_qweb
 from . import producto
 from . import imagen
 from . import black_weekend
+from . import campana
 from . import sale_order
 from . import pedido_web
 from . import nombres_cliente
