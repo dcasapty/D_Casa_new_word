@@ -41,12 +41,36 @@ documentos. Las capturas de la campaña ya las aprobó la
 dueña (<https://claude.ai/artifact/GxqG2zGJZ949owo6Pbqwgn>), igual que el nombre «Andrés» y el botón «Empezar de cero».
 Ya autorizó la subida: «lleva ya todo a producción». La revisión adversarial ya se hizo (tres vueltas).
 
-1. **Pruebas locales.** El 2026-11-16, con el código de `11f9822`, pasaron 827 de 827. Hay que repetirlas con el
+1. **Antes de subir: «los combos son inamovibles».** Hay que programar esta regla primero, porque sin ella el Black
+   Friday rompe lo que pidió la dueña. Sus palabras del 2026-11-16: «no quiero tocar en absoluto los combos. Los combos
+   son inamovibles aunque hayan estrategias o ofertas… si aplican una promoción u oferta, no contempla los combos que
+   tienen descuento. Aunque se pudiera… romper la regla, por ahora no quiero romperla. Pero debería poderse, pero no
+   quiero».
+   - **El problema hoy:** la vendedora arma en la cotización el combo cama + colchón
+     (`dcasa_catalogo/models/combo_armable.py`, `_dcasa_recalcular_combos` y `_dcasa_emparejar`). La cama toma la
+     tarifa, y con la campaña rigiendo eso es el precio de Black Friday. El colchón va a su «precio en combo».
+   - **La regla:** en un combo armado, la cama y el colchón emparejados se calculan **sin las reglas de la campaña**
+     (`product.pricelist.item.dcasa_campana`). Las demás reglas de la tarifa se mantienen. Al salir del combo, cada
+     pieza vuelve a su precio con campaña. Cuando entra o sale del combo, la cama también se vuelve a calcular (hoy
+     solo se recalcula el colchón: `_dcasa_reponer_precio` cuando cambia `dcasa_combo_con_precio`).
+   - **Cómo, sugerido:** una bandera de contexto que saque las reglas `dcasa_campana` del dominio de reglas aplicables
+     de la tarifa. Esa parte va en `website_dcasa/models/campana.py`; mirar `_get_applicable_rules_domain` en
+     `vendor/odoo/addons/product/models/product_pricelist.py`. `dcasa_catalogo` la usa en las líneas del combo:
+     `dcasa_catalogo` ya depende de `website_dcasa`.
+   - **Hay que comprobar con una prueba** que el «precio en combo» del colchón no cambie cuando el colchón tiene precio
+     de campaña.
+   - **«Debería poderse»:** un interruptor en la campaña, «La campaña también rebaja los combos», **apagado** y que
+     solo Gerencia puede cambiar. Lo apagado es lo que vale hoy.
+   - **Ya está:** los combos tipo «Combo» de Odoo no admiten precio de campaña (`_check_dcasa_campana_precio`). La
+     línea «Combo con colchón $X» sale siempre con su precio de siempre (`a18ff7f`).
+   - **Revisión adversarial obligatoria**, porque toca dinero. Las capturas no hacen falta: no cambia ninguna pantalla,
+     salvo la casilla del interruptor, que sí hay que mostrarle.
+2. **Pruebas locales.** El 2026-11-16, con el código de `11f9822`, pasaron 827 de 827. Hay que repetirlas con el
    código final (los arreglos de `cae5e57` y el combo de vuelta):
    `TEST_TAGS="/website_dcasa,/dcasa_tienda_borde,/dcasa_brian_tienda,/dcasa_conversaciones:TestPrecioDeCampanaEnLaFicha,/dcasa_conversaciones:TestHerramientas,/dcasa_conversaciones:TestPanelCatalogo,/dcasa_conversaciones:TestPagosIa,/dcasa_socios,/dcasa_abonos,/dcasa_meta_catalogo"`
    con `scripts/test.sh` (el venv y Chrome, como en CONTEXTO_AGENTICO › Esta máquina). Correr también
    `cd juan && npm test && npm run typecheck` (1810 en verde el 2026-11-16) y `ruff check addons`.
-2. **Desplegar Odoo.** Seguir la receta de LEEME_PRIMERO:
+3. **Desplegar Odoo.** Seguir la receta de LEEME_PRIMERO:
    1. Correr `ci.yml` en la rama con `desplegar_en=staging`.
    2. Sacar el digest del job «Desplegar a staging».
    3. Abrir el PR con «[skip ci]» en el título.
@@ -56,13 +80,13 @@ Ya autorizó la subida: «lleva ya todo a producción». La revisión adversaria
       probado y `respaldo_previo` en true.
    7. Cancelar el CI del PR.
    8. Correr `git merge -s ours origin/main`.
-3. **Desplegar Juan** (`desplegar-juan.yml`: `production`, `dry_run` en false), porque cambió `juan/src/tienda`
+4. **Desplegar Juan** (`desplegar-juan.yml`: `production`, `dry_run` en false), porque cambió `juan/src/tienda`
    (Andrés).
-4. **Verificar.**
+5. **Verificar.**
    - `/dcasa/salud` responde sano con la versión nueva.
    - El chat de la tienda saluda «Hola, soy Andrés».
    - Sin campaña, /promociones da 404 y el menú no muestra «Promociones».
-5. **Avisarle a la dueña en palabras sencillas, con estos pasos para el panel:**
+6. **Avisarle a la dueña en palabras sencillas, con estos pasos para el panel:**
    1. Entrar a Sitio web › Configuración › **Campaña del sitio**.
    2. Tocar **«Empezar de cero»**: las camas del Black Weekend siguen marcadas.
    3. Poner el nombre («Black Friday»), las fechas reales y, si quiere, una frase. Las horas son de Panamá: la campaña
@@ -71,13 +95,9 @@ Ya autorizó la subida: «lleva ya todo a producción». La revisión adversaria
       opcional: un producto marcado sin precio sale en la página con su precio normal).
    5. Para varios productos a la vez: seleccionarlos y usar Acción › **«Aplicar un descuento de campaña»** (%).
    6. «Promociones» aparece sola en el menú cuando empieza la campaña y se quita cuando termina.
-6. **Preguntas abiertas para ella** (no cambiar nada sin su «sí»):
+7. **Preguntas abiertas para ella** (no cambiar nada sin su «sí»):
    - **I6.** ¿El precio de campaña vale también en la tienda física, o solo en la web? Hoy vale en todos lados.
-   - **Combo armado en la tienda.** Solo importa si a la I6 contesta «en todos lados». Cuando la vendedora arma en
-     una cotización el combo cama + colchón (`dcasa_catalogo/models/combo_armable.py`), la cama toma la tarifa, o sea
-     el precio de Black Friday. El colchón queda a su «precio en combo». ¿La cama va a su precio normal o al de Black
-     Friday? Por lo que dijo («intocables»), lo más probable es que vaya al normal. Hay que confirmarlo antes de
-     programarlo: toca dinero y necesita revisión adversarial.
+   - **Combos, ya contestado (2026-11-16):** son inamovibles. Es el paso 1 de arriba.
    - **Ya decidido (2026-11-16):** «los combos son intocables. Esa es una promoción permanente de la empresa…
      supongo que es a cosas individuales y no a combos». La línea «Combo con colchón $X» sale siempre con su precio
      de siempre, también con precio de campaña, en la página y en lo que dicen Juan y Andrés. Los combos tipo «Combo»

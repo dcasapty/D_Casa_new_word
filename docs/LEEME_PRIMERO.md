@@ -147,8 +147,9 @@ pedido de la dueña: «sube la rama lo que tengas y añade todo lo que avanzamos
   - Una sección «de cine» tipo panaclaw.com/proyectos con un botón al catálogo.
 - **Preguntas abiertas a la dueña:**
   - **I6.** ¿El precio de campaña vale también en la tienda física, o solo en la web? Hoy vale en todos lados.
-  - **Combo armado en la tienda.** Solo importa si la I6 es «en todos lados»: ¿la cama va a su precio normal o al de
-    Black Friday? El detalle está en el plan.
+  - **Ya contestó, y es una regla:** «no quiero tocar en absoluto los combos. Los combos son inamovibles aunque
+    hayan estrategias o ofertas… debería poderse, pero no quiero». Una campaña nunca rebaja un combo armado. Hay que
+    programarlo antes de subir (paso 1 del plan) y dejar un interruptor apagado.
   - **Ya contestó:** «los combos son intocables. Esa es una promoción permanente de la empresa». La línea «Combo con
     colchón $X» vuelve a salir con precio de campaña, en la página, con Juan y con Andrés.
 - **Esta máquina:** se reinició cuatro veces entre el 15 y el 16. Lo que no está en la rama se pierde.
