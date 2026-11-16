@@ -235,7 +235,10 @@ class TestLaPagina(TiendaCase):
         html = ' '.join(self.url_open('/privacidad').text.split())
         self.assertIn('id="brian-de-la-tienda"', html)
         for frase in ('No guardamos la conversación', 'Usar mi ubicación', 'no se guarda',
-                      'solo el número de estrellas y la fecha', 'hasta 30 mensajes: los últimos 15 intercambios'):
+                      'solo el número de estrellas y la fecha', 'hasta 30 mensajes: los últimos 15 intercambios',
+                      # Las notas de voz (2026-11-16): se convierten en texto y el audio no se guarda.
+                      'nota de voz de hasta un minuto', 'la convierte en texto', 'el audio no se guarda en ningún lado',
+                      'no se usa para imitar tu voz', 'chats, mensajes y notas de voz'):
             self.assertIn(frase, html)
         self.assertIn('Andrés, el chat de la tienda', html)
         self.assertIn('16 de noviembre de 2026', html)

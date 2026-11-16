@@ -1,1 +1,1 @@
-from . import chat, mcp, telegram
+from . import chat, mcp, telegram, voz

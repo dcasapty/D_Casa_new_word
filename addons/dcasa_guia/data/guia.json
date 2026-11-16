@@ -3105,6 +3105,25 @@
    ]
   },
   {
+   "id": "brian-notas-de-voz",
+   "categoria": "administrar",
+   "grupo": "Brian",
+   "titulo": "Dictarle a Brian con una nota de voz",
+   "logras": "En vez de escribir, le hablas a Brian: lo que dices se convierte en texto y queda en su caja para que lo revises antes de mandarlo. El audio no se guarda en ningún lado.",
+   "destino": null,
+   "nota": "Abre a Brian (el robot de abajo a la derecha) y toca el micrófono, al lado de la caja de texto. La primera vez, el navegador te pide permiso para usar el micrófono. Habla con calma, hasta un minuto, y toca «Listo» (el botón con el visto). Si no quieres mandar nada, toca la X o la tecla Esc. Después revisa el texto, corrígelo si hace falta y envíalo como siempre.",
+   "palabras": [
+    "nota de voz",
+    "notas de voz",
+    "audio",
+    "dictar",
+    "hablarle",
+    "microfono",
+    "voz",
+    "grabar"
+   ]
+  },
+  {
    "id": "correo-clientes-ajustes",
    "categoria": "administrar",
    "grupo": "Correo a clientes",

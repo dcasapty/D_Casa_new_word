@@ -1049,6 +1049,78 @@ Workers AI, dentro de la misma cuenta de Cloudflare, y el texto entra a la conve
   de tu cuenta; el texto sigue las mismas reglas que cualquier mensaje (los comprobantes y cédulas
   nunca llegan a la IA).
 
+## 12a. Notas de voz de Andrés y de Brian del panel (2026-11-16, en la rama)
+
+Pedido de la dueña: poder hablarle a Andrés (el chat de la tienda) y a Brian del panel, **con protección para que nadie
+use la herramienta para clonar voces**. Dos rutas nuevas transcriben con el mismo Whisper de las notas de WhatsApp
+(`motor/transcribir.ts`, con `TRANSCRIBIR_AUDIO=1` y el binding `ai`) y devuelven **solo el texto**. La lógica común está
+en `juan/src/motor/voz.ts`.
+
+**Lo que protege contra la clonación de voces (no se negocia):**
+
+- **El audio no se guarda en ningún lado**: ni en R2, ni en un Durable Object (la voz de la tienda ni siquiera toca el de
+  la sesión), ni en la conversación, ni en los registros, ni en Odoo (ni adjunto, ni mensaje, ni auditoría). Se lee en
+  memoria, va una vez a Whisper de Workers AI (dentro de la cuenta de Cloudflare de D'CASA) y sus bytes se borran
+  (`fill(0)`) al terminar, pase lo que pase.
+- **No se devuelve ni se reenvía**: la respuesta trae solo `texto` (ni segmentos, ni palabras con sus tiempos, ni VTT).
+- **No se usa para generar voz**: el único modelo que recibe el audio es `@cf/openai/whisper-large-v3-turbo`; en el
+  Worker no existe ningún modelo que hable (una prueba lo exige).
+- **Notas cortas**: hasta **60 s** y **1 MB**, solo WebM, Ogg u MP4 (lo que graba un navegador) y con los bytes que
+  corresponden al tipo. La duración se mira tres veces: la que dice el navegador (`duracion_ms`), la del contenedor (sin
+  decodificar: el último bloque del WebM, la última página del Ogg, la caja `mvhd` del MP4) y la que dice Whisper. Si
+  la nota pasa de 65 s (60 más el margen del navegador), **el texto no se devuelve** (se cobra igual: Whisper ya trabajó).
+- **Topes** para que nadie la use como un transcriptor gratis (abajo). Los registros llevan solo el resultado, los
+  KB y los milisegundos: nunca el audio, el texto, la IP, la red, el `sid` ni el usuario.
+
+**Costo:** US$0.0005 por minuto de audio (tabla de precios de Workers AI, leída el 2026-11-16, sin descontar los neurons
+gratis). Antes de llamar a Whisper se aparta el peor caso (el audio grabado al mínimo de Opus, 6 kbps); después se anota
+lo real con la duración que dice Whisper (la mide Cloudflare). La del contenedor la escribe quien manda la nota: sirve
+para rechazar antes, nunca para cobrar de menos; si Whisper no dice la duración, tarda o falla, se anota el peor caso,
+marcado «estimado».
+
+### `POST /tienda/v1/voz` (Andrés)
+
+- **La misma puerta que `/tienda/v1/mensaje`**: el mismo CORS (solo los orígenes de la tienda; `OPTIONS` dice
+  `GET, POST, OPTIONS`) y el mismo pase (`Authorization: Pase <pase>`).
+- **Entrada:** `POST /tienda/v1/voz?duracion_ms=<entero>` con `Content-Type: audio/webm | audio/ogg | audio/mp4` (con
+  `;codecs=…` si se quiere) y **el audio crudo en el cuerpo** (no JSON).
+- **Respuesta 200:** `{ok: true, texto, recortado}`. `texto` tiene como mucho **500 letras** (lo que acepta
+  `/tienda/v1/mensaje`); si la nota decía más, va recortado entre palabras y `recortado: true`.
+- **Errores** `{ok: false, motivo}`: `pase` 401 · `apagado` 503 (la tienda apagada) · `no_disponible` 503 (sin
+  `TRANSCRIBIR_AUDIO=1` o sin binding) · `tipo` 415 · `audio` 400 · `muy_pesada` 413 · `muy_larga` 413 · `tope_sesion`,
+  `tope_red`, `tope_dia`, `ocupado` 429 con `Retry-After` · `presupuesto` 429 · `no_se_entendio` 422 · `tardo` 504 ·
+  `fallo` 502.
+- **`GET /tienda/v1/voz`** (sin pase, con CORS): `{ok, disponible, max_segundos, max_bytes, tipos}`. La página muestra el
+  micrófono solo con `disponible: true` (la tienda encendida y la transcripción también).
+- **Cómo la usa la página (contrato para el botón):** graba con MediaRecorder (Opus a 32 kbps, corta sola a los 60 s,
+  muestra el tiempo y deja cancelar), manda el audio aquí y, con el `texto`, **lo manda como un mensaje normal por
+  `/tienda/v1/mensaje`** (`{texto, pagina, carrito}`) y lo pinta en el globo del visitante. Así la lógica del chat no se
+  duplica, el visitante ve lo que se entendió antes de la respuesta y el motor (`tienda/motor.ts`) no cambia. Con
+  `recortado: true` conviene dejar el texto en la caja para que el visitante lo revise antes de mandarlo.
+- **Topes y presupuesto:** cuenta como **un mensaje** en los topes de red, /48 y del día y en los turnos con IA a la vez
+  (`tienda_turnos` de `Global`: comparte la cuenta con los mensajes) y tiene **su propio tope por sesión** (el mismo
+  número que `tope_sesion_hora`, contado aparte en `tienda_voz`, con el `sid` ofuscado y solo la hora). Su costo va al
+  **gasto de la tienda** (renglón «notas de voz (Whisper)», proveedor `cloudflare`): suma en su presupuesto, nunca en el
+  de Juan ni en «Por pagar a Meta», y no suma en las «respuestas» del mes. En Costos de IA sale en la tarjeta de Andrés.
+
+### `POST /odoo/voz` (Brian del panel)
+
+- Con `Authorization: Bearer <JUAN_WORKER_TOKEN>` (el token con que Odoo ya le habla al Worker; `/odoo/*`).
+- **Entrada (JSON):** `{mime, base64, usuario, duracion_ms?, tope_mes_usd?}`. `usuario` es el id del usuario de Odoo:
+  el Worker lo guarda ofuscado (HMAC) y solo 26 horas, para su tope.
+- **Respuesta:** `{ok: true, texto, recortado}` (hasta 2000 letras) o `{ok: false, causa, error}` con las causas de
+  arriba más `tope_usuario`, `tope_dia` y `tope_mes` (429).
+- **Topes de fábrica** (`odoo-panel-voz.ts`): 30 notas por hora por persona, 500 al día entre todo el equipo y un techo
+  de US$5 al mes (como «Busca con una foto»; Odoo puede mandar otro en `tope_mes_usd`).
+- **Gasto:** en «Costos de IA», renglón aparte **«Cloudflare: notas de voz del panel»** (`cloudflare:notas-de-voz-del-panel`):
+  no suma en el gasto de Juan, ni en su tope, ni en «Por pagar a Meta».
+- Odoo: el botón del micrófono y `/dcasa/brian/v1/voz` (solo usuarios internos) en `dcasa_brian`; la llamada al Worker en
+  `dcasa_conversaciones/models/brian_voz.py` (docs/BRIAN.md › «Notas de voz»).
+
+**Pruebas:** `juan/test/voz.test.ts`, `test/tienda/voz.test.ts`, `test/odoo-panel-voz.test.ts`,
+`test/motor/global-voz.test.ts` y `test/transcribir.test.ts`. **Por verificar en staging:** que Whisper de Workers AI
+acepte el WebM de Chrome y el MP4 de Safari tal como salen de MediaRecorder (con el Ogg de WhatsApp ya funciona).
+
 ## 12b. Imágenes de los clientes (encendido)
 
 Muchos clientes mandan una captura de un producto o de una publicación. Un **lector de imágenes aparte**
