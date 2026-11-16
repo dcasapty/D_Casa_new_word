@@ -40,6 +40,7 @@
                                     <span class="o_dcasa_combo_medida" t-out="combo.cama.medida"/>
                                     <t t-out="cantidadTexto(combo.cama.cantidad)"/> × <t t-out="dinero(combo.cama.precio_linea)"/>
                                 </div>
+                                <div t-if="combo.cama.aviso" class="o_dcasa_combo_detalle o_dcasa_combo_motivo o_dcasa_combo_aviso_solas" t-out="combo.cama.aviso"/>
                             </div>
                             <button t-if="editable" class="btn btn-secondary o_dcasa_combo_cambiar_cama"
                                     t-att-disabled="state.trabajando" t-on-click="() => this.cambiarCama(combo)">

@@ -41,13 +41,13 @@
     <template id="privacidad_brian_tienda" inherit_id="website_dcasa.privacidad_cuerpo"
               name="D'CASA: privacidad de Brian de la tienda">
         <xpath expr="//h2[@id='inteligencia-artificial']/following-sibling::ul[1]" position="after">
-            <p id="brian-de-la-tienda"><strong>Brian, el chat de la tienda.</strong> En nuestra tienda en línea puedes
-                conversar con Brian, un asistente de inteligencia artificial. Lo que le escribes se envía a nuestro
+            <p id="brian-de-la-tienda"><strong>Andrés, el chat de la tienda.</strong> En nuestra tienda en línea puedes
+                conversar con Andrés, un asistente de inteligencia artificial. Lo que le escribes se envía a nuestro
                 proveedor de inteligencia artificial (el mismo de Juan, con las mismas condiciones de arriba) para
                 contestarte. No guardamos la conversación ni creamos una ficha tuya: el chat recuerda lo que hablaron
                 como mucho dos horas sin actividad (hasta 30 mensajes: los últimos 15 intercambios) y después se borra
                 solo. Si tocas «Usar mi ubicación», tu ubicación se usa solo para encontrar el lugar de entrega más
-                cercano y calcular el envío, y no se guarda. Brian no ve ni cambia tus datos ni tus compras: el carrito lo cambias tú, desde tu
+                cercano y calcular el envío, y no se guarda. Andrés no ve ni cambia tus datos ni tus compras: el carrito lo cambias tú, desde tu
                 navegador. Si calificas la atención con estrellas, guardamos solo el número de estrellas y la fecha.
                 Para evitar abusos contamos cuántos chats y mensajes llegan por hora desde una misma conexión, sin
                 guardar quién eres.</p>

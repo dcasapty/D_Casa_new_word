@@ -34,8 +34,8 @@ TOLERANCIA_MINIMA = 0.05
 TOLERANCIA_RELATIVA = 0.01
 CLAVE_DEL_CERROJO = 'dcasa_conversaciones.pago_ia_cerrojo'
 CAMBIO = 'El saldo cambió: vuelve a abrir la pantalla.'
-OTROS_DE_MESES_ANTERIORES = ('No incluye lo que Brian de la tienda gastó en modelos de Meta en meses anteriores: '
-                             'el Worker solo da el mes en curso.')
+OTROS_DE_MESES_ANTERIORES = ('No incluye lo que Andrés (el chat de la tienda) gastó en modelos de Meta en meses '
+                             'anteriores: el Worker solo da el mes en curso.')
 
 
 class DcasaJuanPagoIa(models.Model):

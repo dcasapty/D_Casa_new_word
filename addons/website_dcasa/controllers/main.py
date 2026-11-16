@@ -6,6 +6,7 @@ from odoo.addons.account.controllers.terms import TermsController
 from odoo.addons.dcasa_base.models.codigo_publico import normalizar_codigo_publico
 from odoo.addons.website.controllers.main import Website
 from odoo.addons.website_dcasa.models.black_weekend import RUTA as RUTA_BLACK_WEEKEND
+from odoo.addons.website_dcasa.models.black_weekend import RUTA_PROMOCIONES
 from odoo.addons.website_dcasa.models.website import LATITUD, LONGITUD
 from odoo.addons.website_sale.controllers.main import WebsiteSale
 from odoo.fields import Domain
@@ -55,6 +56,14 @@ class DcasaCheckout(WebsiteSale):
     Dirección sin empresa ni VAT y con Panamá ya elegido; datos estructurados de la ficha sin
     disponibilidad inventada y con las migas en español.
     """
+
+    def _check_cart(self, order_sudo):
+        """Antes de pagar, el carrito toma el precio que rige ahora en los productos de la campaña del sitio (Odoo no
+        vuelve a calcular líneas que ya estaban: una cama puesta antes del inicio o una corrección de precio de
+        Gerencia se cobraría vieja hasta el cron horario)."""
+        if order_sudo and order_sudo.state == 'draft':
+            order_sudo._dcasa_campana_al_dia_si_hay()
+        return super()._check_cart(order_sudo)
 
     def _prepare_product_values(self, product, category, **kwargs):
         valores = super()._prepare_product_values(product, category, **kwargs)
@@ -114,11 +123,11 @@ class DcasaCheckout(WebsiteSale):
 
 
 def _sitemap_black_weekend(env, rule, qs):
-    """/black-weekend entra al sitemap solo mientras la campaña está activa y tiene productos."""
+    """/promociones entra al sitemap solo mientras la campaña está activa y tiene productos."""
     website = env['website'].get_current_website()
-    if (not qs or qs.lower() in RUTA_BLACK_WEEKEND) and website._dcasa_black_weekend_activo() \
+    if (not qs or qs.lower() in RUTA_PROMOCIONES) and website._dcasa_black_weekend_activo() \
             and env['product.template'].search_count(website._dcasa_bw_dominio(), limit=1):
-        yield {'loc': RUTA_BLACK_WEEKEND}
+        yield {'loc': RUTA_PROMOCIONES}
 
 
 class DcasaTienda(http.Controller):
@@ -182,9 +191,15 @@ class DcasaTienda(http.Controller):
         ]), limit=1) if normal else None
         return request.redirect(producto.website_url if producto else '/shop', code=302)
 
-    @http.route(RUTA_BLACK_WEEKEND, type='http', auth='public', website=True, sitemap=_sitemap_black_weekend)
+    @http.route(RUTA_BLACK_WEEKEND, type='http', auth='public', website=True, sitemap=False)
+    def black_weekend_antes(self, **kwargs):
+        """La dirección del Black Weekend de octubre (compartida en redes): lleva a la de la campaña."""
+        return request.redirect(RUTA_PROMOCIONES, code=301)
+
+    @http.route(RUTA_PROMOCIONES, type='http', auth='public', website=True, sitemap=_sitemap_black_weekend)
     def black_weekend(self, **kwargs):
-        """Productos de la campaña Black Weekend. Fuera de la ventana (o sin productos), no existe: 404."""
+        """Productos de la campaña del sitio (Black Friday, Black Weekend…). Fuera de sus fechas (o sin productos),
+        no existe: 404."""
         website = request.website
         if not website._dcasa_black_weekend_activo():
             raise request.not_found()

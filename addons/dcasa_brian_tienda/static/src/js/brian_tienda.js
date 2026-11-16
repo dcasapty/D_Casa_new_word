@@ -1120,7 +1120,7 @@ export class ChatBrian {
 
     escribiendo() {
         const antes = [this.estado.autor, this.estado.posePrevia];
-        const fila = this.filaBrian(el("div", { class: "o_dcbt_globo o_dcbt_escribiendo" }, el("i"), el("i"), el("i"), el("span", { class: "visually-hidden", text: "Brian está escribiendo" })));
+        const fila = this.filaBrian(el("div", { class: "o_dcbt_globo o_dcbt_escribiendo" }, el("i"), el("i"), el("i"), el("span", { class: "visually-hidden", text: "Andrés está escribiendo" })));
         return () => {
             fila.remove();
             [this.estado.autor, this.estado.posePrevia] = antes;
@@ -1358,12 +1358,12 @@ export class ChatBrian {
                 this.productos.set(String(p.producto_id || p.plantilla_id || p.nombre), p);
             }
             const cab = el("div", { class: "o_dcbt_sugeridos_cab" },
-                el("p", { class: "o_dcbt_sugeridos_eti", text: "Brian te sugiere" }),
+                el("p", { class: "o_dcbt_sugeridos_eti", text: "Andrés te sugiere" }),
                 el("p", { class: "o_dcbt_sugeridos_titulo", text: "Lo más buscado" }),
                 chipsDeCategorias());
             this.vitrinaGrid.replaceChildren(cab, ...this.sugeridos.map((p) => this.tarjeta(p)));
         } else if (!vistos.length) {
-            const vacia = el("div", { class: "o_dcbt_vitrina_vacia" }, this.cajaPose("", "con_laptop"), el("p", { text: "Aquí verás, en cuadrícula, los productos que te muestre Brian." }));
+            const vacia = el("div", { class: "o_dcbt_vitrina_vacia" }, this.cajaPose("", "con_laptop"), el("p", { text: "Aquí verás, en cuadrícula, los productos que te muestre Andrés." }));
             vacia.append(chipsDeCategorias());
             this.vitrinaGrid.replaceChildren(vacia);
             this.cargarSugeridos();
@@ -1956,7 +1956,7 @@ export class ChatBrian {
             const quitar = this.escribiendo();
             await pausa(700);
             quitar();
-            const saludo = "Hola, soy Brian. ¿Qué buscas hoy?";
+            const saludo = "Hola, soy Andrés. ¿Qué buscas hoy?";
             const segundo = noche
                 ? "Ahora la tienda está cerrada, pero yo te ayudo con gusto. Si necesitas a una vendedora, te responde por WhatsApp en cuanto abramos" + (pase.horario_texto ? " (atendemos " + pase.horario_texto + ")" : "") + "."
                 : "Con gusto te ayudo a encontrar tu mueble, ver precios, calcular el envío o dejarte el carrito listo.";

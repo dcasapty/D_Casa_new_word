@@ -109,6 +109,80 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 > sigue. Se guardan las diez más recientes; las viejas se resumen en una línea abajo y su texto completo pasa a
 > [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md).
 
+### 2026-11-16: Black Friday y «Andrés» listos en la rama sin subir (pausa por límite de uso); plan de la ronda siguiente
+
+**Nada nuevo en producción** (sigue Desplegar 76, `754aceaf18e7`). La sesión se pausó por el límite de uso de la cuenta, a
+pedido de la dueña: «sube la rama lo que tengas y añade todo lo que avanzamos para que otro Claude finalice».
+
+- **Listo en la rama:** el código está en `cae5e57`.
+  - **Campaña del sitio:** Black Friday desde el panel, con pruebas en `website_dcasa/tests/test_campana.py` y
+    `dcasa_conversaciones/tests/test_precio_campana.py`.
+  - **Revisión adversarial:** tres vueltas, sin bloqueantes. Se arreglaron:
+    - permisos: solo Gerencia y los que cambian precios;
+    - solo las tarifas del sitio, sin pisar las reglas propias;
+    - el piso de variantes;
+    - los disparos exactos del cron;
+    - la revisión de los carritos viejos y en el pago;
+    - el bloqueo de `date_order`;
+    - las reglas que se guardan 30 días;
+    - los combos;
+    - la huella del catálogo de Meta.
+  - **«Andrés»:** el chat de la tienda tiene nombre nuevo, en Odoo y en `juan/src/tienda`.
+- **La dueña ya autorizó la subida** («lleva ya todo a producción»). Falta:
+  - repetir las pruebas locales con el código final: la vuelta con `11f9822` dio 827 de 827 en verde;
+  - CI con staging, PR, squash, Desplegar y **Desplegar Juan**;
+  - explicarle los pasos del panel.
+
+  Todo eso está en el **paso 0** de [PLAN_ANDRES_VOZ_PORTADA.md](PLAN_ANDRES_VOZ_PORTADA.md). El Black Friday es el
+  viernes 27: hay que subirlo con días de margen.
+- **Pedidos nuevos (2026-11-16, con capturas del chat):** quedan como plan, en el mismo documento.
+  - Andrés como buen vendedor:
+    - el carrito y la cotización no se pierden al subir en el chat;
+    - ofrece sumar el envío a la cotización;
+    - reacciona una vez cuando el cliente quita o vacía el carrito;
+    - cambia cantidades conversando;
+    - la vitrina va ordenada por pedido.
+  - Notas de voz para Andrés y Brian, sin guardar el audio, para que nadie pueda clonar voces.
+  - El hero en carrusel con camas propias («805, 801 y la negra 300-300»: confirmarlas con fotos).
+  - Una sección «de cine» tipo panaclaw.com/proyectos con un botón al catálogo.
+- **Preguntas abiertas a la dueña:**
+  - **I6.** ¿El precio de campaña vale también en la tienda física, o solo en la web? Hoy vale en todos lados.
+  - **Ya contestó, y es una regla:** «no quiero tocar en absoluto los combos. Los combos son inamovibles aunque
+    hayan estrategias o ofertas… debería poderse, pero no quiero». Una campaña nunca rebaja un combo armado. Hay que
+    programarlo antes de subir (paso 1 del plan) y dejar un interruptor apagado.
+  - **Ya contestó:** «los combos son intocables. Esa es una promoción permanente de la empresa». La línea «Combo con
+    colchón $X» vuelve a salir con precio de campaña, en la página, con Juan y con Andrés.
+- **Esta máquina:** se reinició cuatro veces entre el 15 y el 16. Lo que no está en la rama se pierde.
+
+### 2026-11-15 (3): bandas en azul noche y pie claro, menú sin «Escríbenos», contacto y el carrito en el chat, en producción (Desplegar 76); Black Friday y «Andrés» en la rama
+
+**En producción desde el 2026-11-15, ~19:55 UTC (salud sana: `{"ok": true, "version": "754aceaf18e7", "base_al_dia": true, "humo": "ok"}`):** **Desplegar 76** (run 43754485392) con la imagen `sha256:1cfb8e4f226604186ee8298d4c37dd5651a248f96c94119db3ee820b8b033207` y `app_version` `754aceaf18e7ed66ef1e69ec59a2ab5351a80574` (PR #122, squash `b012494`; CI 365 con staging, run 43732155027), con respaldo previo. Juan no cambió. **Es lo último en producción.** Comprobado en dcasapty.com a 1440 y 390 px: sin «Escríbenos» en el menú, con la sección de contacto, pie #F6F5F2, avisos y Socios en azul noche, el número de /visitanos a WhatsApp; sin errores en la consola.
+
+- **Aprobación de la dueña (tal cual, en corto):** «apruebo todo excepto el color amarillo en el carrito de compra…
+  prefiero dejarlo como está» y «avísame cuando esté en producción». Hoja: <https://claude.ai/artifact/V2J95Wg3zJfPyrkoachd2L>.
+- **Qué lleva:** paleta «composición 3» con el pie en el blanco grisáceo de la portada (no los cremas: «esos huesos no
+  me agradan»); menú sin «Escríbenos» y sección «¿Te quedó alguna duda?» (WhatsApp y correo) antes de Visítanos;
+  el número de /visitanos abre WhatsApp; el chat de la tienda con el carrito en su barra (al día con la página),
+  sugerencias del catálogo y «Lo más buscado» en la vitrina vacía.
+- **Color de la cantidad del carrito:** pidió investigación «para que mis gustos no me nublen». Recomendé amarilla
+  con aro azul (sobre la foto de la portada la azul mide 1.2–1.4:1); **decidió dejarla azul**. Todo en
+  [COLOR_CANTIDAD_CARRITO.md](COLOR_CANTIDAD_CARRITO.md): no se vuelve a proponer sin un dato nuevo.
+- **En la rama, sin probar ni subir (commits `5648d0d` y `2893b8f`):**
+  - **Campaña del sitio (Black Friday, viernes 27 de noviembre):** Sitio web › Campaña del sitio (nombre, fechas,
+    frase), la casilla «En la campaña» con un precio de campaña opcional (regla de tarifa con las mismas fechas, el
+    normal tachado), «Aplicar un descuento», «Empezar de cero» (aprobado por ella), /promociones y «Promociones»
+    sencilla en el menú. Capturas: <https://claude.ai/artifact/GxqG2zGJZ949owo6Pbqwgn>. **Hallazgo:** el sitio no
+    usaba la tarifa con el visitante (la página mostraba el precio sin tarifa y el carrito sí la usaba); la campaña
+    deja la tarifa «Default» ofrecida al sitio. Juan y Andrés dicen el precio de campaña mientras rige.
+  - **El chat de la tienda se llama Andrés** (pedido de la dueña: «que brian sea el del panel de administración»).
+    Cambian los textos visibles, el motor del Worker (`juan/src/tienda`) y la Guía; los nombres técnicos se quedan.
+    Necesita **Desplegar Juan** además de Odoo.
+- **Sigue:** su respuesta sobre la línea «Combo con colchón» en campaña; las pruebas nuevas de la campaña y la
+  revisión adversarial (toca precios); capturas de Andrés; luego CI con staging, producción y Desplegar Juan, con
+  días de margen antes del 27.
+- **Esta máquina:** se reinició dos veces en la tarde (PostgreSQL queda abajo: `pg_ctlcluster 16 main start`). El
+  trabajo sin subir de Black Friday vivía en una copia aparte del scratchpad; se pasó a la rama apenas terminó el squash.
+
 ### 2026-11-15 (2): portada v3 (paleta, espaciado, categorías y carriles en una fila, carrito como ícono, chat de vidrio), en producción (Desplegar 75)
 
 **En producción desde el 2026-11-15, 08:3x UTC (salud sana: `{"ok": true, "version": "6c7fdc425be3", "base_al_dia": true, "humo": "ok"}`):** **Desplegar 75** (run 43693725820) con la imagen `sha256:84085a134a139c75cf76db42220b342d958691334551d43fb33dea637eba0065` y `app_version` `6c7fdc425be329adb00180abfc5a20347bf2ff0f` (PR #121, squash `6221175`; CI 363 con staging, run 43689911281), con respaldo previo. Juan no cambió (sin Desplegar Juan). **Es lo último en producción.** Comprobado en dcasapty.com a 1440 y 390 px: categorías con los conteos reales (Salas 2, Recámaras 121, Colchones 7, Zapateras 28, Estantes 70, Oficina 6), carriles en una fila con flechas y línea de avance, carrito redondo de 48 px (barra en el celular), «Agotado» en una zapatera de «Lo más buscado» que de verdad está en 0; sin errores en la consola.
@@ -171,7 +245,9 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
   con la prueba barata, o (c) dejarlo como está. Meta también lanzó su propio «Business Agent» (junio 2026; gratis según
   unas fuentes, con cobro por token según otras; no verificado en Meta): compite con Juan y no usa Odoo, no se recomienda.
 
-### 2026-11-13 (2) y 2026-11-14: avisos de Telegram ordenados, lote 1 de la web, «Busca con una foto», ícono de Brian y horario de la tienda (Desplegar 71 y Juan 25); Brian de la tienda y lote 2 de la web (Desplegar 72 y Juan 26) y la burbuja que cambia con el scroll (Desplegar 73), en producción
+### 2026-11-13 (2) y 2026-11-14: avisos de Telegram ordenados, lote 1 de la web, «Busca con una foto», ícono de Brian y horario de la tienda (Desplegar 71 y Juan 25); Brian de la tienda y lote 2 de la web (Desplegar 72 y Juan 26) y la burbuja que cambia con el scroll (Desplegar 73), en producción; el 2026-11-15, Brian siempre activo de noche (Juan 27 y Desplegar 74)
+
+**Y desde el 2026-11-15, 04:02 UTC (salud sana: `{"ok": true, "version": "d52a72b7dd9d", "base_al_dia": true, "humo": "ok"}`):** **Desplegar Juan 27** (run 43673722798, 03:44–03:47 UTC; `/salud` con `3cd053bcb0e86146385c2a3c7e4d74f6dae23c8f`) y **Desplegar 74** (run 43673907302, 03:47–04:02 UTC) con la imagen `sha256:a224f8c215c6cf78739fb3f5672fc5750e6592889519a9173307d670bbddc127` y `app_version` `d52a72b7dd9d3de8ab63ab0a7d7a1ca2892e00ec` (PR #120, squash `3cd053b`; CI 359 con staging, run 43668175433), con respaldo previo. La dueña probó a Brian de noche: «lo primero que dice es que no hay vendedoras… prefiero que él siempre esté activo… solo lo quiero configurar». Dos interruptores en Sitio web › Brian de la tienda: «Fuera del horario, avisar que la tienda está cerrada» (`avisar_cerrado`, apagado) y «De noche, el robot de la burbuja duerme» (`dormir_de_noche`, encendido: antes dijo que el robot dormido le gustaba). Comprobado en dcasapty.com a las 11 p. m.: saluda «Hola, soy Brian. ¿Qué buscas hoy?» sin «cerrada»; al pedir una vendedora da el horario y «te escriben mañana desde las 9:00 a. m.»; la burbuja dormida; sin «a. m..». **Por confirmar con la dueña:** Brian dijo «Comedores no los manejamos» (en el catálogo publicado no hay comedores; si sí los venden, hay que publicarlos o decírselo a Juan en el Conocimiento).
 
 **Y desde el 2026-11-14, 17:54 UTC (salud sana: `{"ok": true, "version": "17f0c8295bf8", "base_al_dia": true, "humo": "ok"}`):** **Desplegar 73** (run 43622302488, 17:39–17:54 UTC) con la imagen `sha256:b97f72d07a908705d881d237fae3c2799e387fb07a92f73abffe5daf1b0cc133` y `app_version` `17f0c8295bf842c854c71c4c8222afb146a5aeac` (PR #119, squash `77702bb`; CI 357 con staging, run 43615430952), con respaldo previo; solo Odoo (Juan no cambió). La burbuja cerrada de Brian cambia de robot según la sección en pantalla. La dueña: «lo que yo quería también es que el ícono fuera cambiando con el scroll» y «por cada sección y a medida que hay scroll quiero que todos los iconos se usen en la burbuja del chat»; «No me tienes que hacer un video, solo hazlo y mándalo a producción». Antes preguntó por qué en el celular no se movía: era de noche (Brian duerme de 6 p. m. a 9 a. m.; le gustó así) y de día sí cambia al navegar. También: «felicidades por esas animaciones me gustaron mucho y las transiciones». Comprobado en dcasapty.com a 390 px: bajando por el Inicio, 12 poses distintas y sin errores.
 

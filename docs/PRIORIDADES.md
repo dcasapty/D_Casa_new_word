@@ -1,6 +1,6 @@
 # Prioridades vigentes
 
-Puesto al día el **2026-11-15** (portada v3 en producción, Desplegar 75). Es el orden en que se trabaja: cada sesión lo lee al empezar y lo pone al día al
+Puesto al día el **2026-11-15** (bandas en azul noche, pie claro y contacto en producción, Desplegar 76; Black Friday y Andrés en la rama). Es el orden en que se trabaja: cada sesión lo lee al empezar y lo pone al día al
 terminar (ver [LEEME_PRIMERO.md](LEEME_PRIMERO.md)). Aquí va **un solo estado**, el de hoy; lo que pasó cada día está en
 la bitácora de LEEME_PRIMERO (y lo más viejo en [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md)).
 
@@ -11,14 +11,14 @@ la producción. Apruébalo y punto.»); la revisión adversarial no se salta (re
 ## Estado al 2026-11-15
 
 - **Producción funciona desde el 2026-10-13** y **`dcasapty.com` (y `www`) apunta al sistema nuevo desde el
-  2026-10-27** (Desplegar 31). Odoo y el borde: **Desplegar 75** (15 nov, PR #121: la portada v3, con secciones compactas, el carrito como ícono, la paleta nueva y la barra del chat de vidrio; antes, Desplegar 73 (14 nov, PR #119: la burbuja de Brian cambia de robot con el scroll); antes,
+  2026-10-27** (Desplegar 31). Odoo y el borde: **Desplegar 76** (15 nov, PR #122: bandas en azul noche, pie claro, menú sin «Escríbenos», sección de contacto y el carrito en el chat de la tienda; antes, Desplegar 75 (15 nov, PR #121: la portada v3, con secciones compactas, el carrito como ícono, la paleta nueva y la barra del chat de vidrio; antes, Desplegar 74 (15 nov, PR #120: Brian siempre activo de noche, con dos interruptores); antes, Desplegar 73 (14 nov, PR #119: la burbuja de Brian cambia de robot con el scroll); antes,
   Desplegar 72, PR #118: Brian de la tienda, el chat de ventas en la web, y el
   lote 2 de la web: horario, mapa y opiniones; antes, Desplegar 71, PR #117: avisos de Telegram ordenados con la noche sin clientes, lote 1 de
   la web, «Busca con una foto», el robot como ícono de Brian y el horario de la tienda; antes, Desplegar 70, PR #116:
   comentarios de Instagram y Facebook, apagados; antes, Desplegar 69, PR #115: Juan ya no dice «no lo manejamos» de lo que no está publicado; antes, Desplegar 68, PR #113: Juan cotiza envíos con la promoción, reparto justo y Costos de IA con «Pagar»; antes, Desplegar 67, PR #112: el modo oscuro; el 11 nov, Desplegar 66 con
   entregas igual que Bodega y «Más datos», y antes, Desplegar 65 con el Inicio nuevo, el celular al entrar y la caja del chat, y Desplegar 64 con
   los 21 arreglos de la auditoría visual). Juan: **Desplegar
-  Juan 26** (14 nov, PR #118: Brian de la tienda, `POST /tienda/v1/mensaje` y el Durable Object `TiendaSesion`;
+  Juan 27** (15 nov, PR #120: `avisar_cerrado`; Juan 26, 14 nov, PR #118: Brian de la tienda, `POST /tienda/v1/mensaje` y el Durable Object `TiendaSesion`;
   Juan 25, 14 nov, PR #117: `sin_leer` con su motivo, el comprobante solo si es un pago hecho y la foto de la tienda;
   Juan 24, 13 nov, PR #116; Juan 23 trajo «no lo manejamos» y Juan 22 la segunda puerta de Instagram, apagada). La **versión estable 4** es la anterior (Desplegar 63 + Juan 20)
   ([VERSIONES_ESTABLES.md](VERSIONES_ESTABLES.md)). El contenedor instala 31 de los 32 módulos de `addons/` (todos
@@ -37,6 +37,34 @@ la producción. Apruébalo y punto.»); la revisión adversarial no se salta (re
   («Es esta persona»); tasa de cierre en el Resumen de Juan; Sofía. Detalle en la bitácora.
 
 ## Lo que sigue, en orden
+
+0000000. **Primero termina el 000000 de abajo (Black Friday). Después, la siguiente ronda que pidió la dueña, con su plan
+        escrito en [PLAN_ANDRES_VOZ_PORTADA.md](PLAN_ANDRES_VOZ_PORTADA.md).**
+        Andrés como vendedor (carrito siempre a mano en el chat, envío en la cotización, reacción al quitar o vaciar,
+        cambiar cantidades conversando, vitrina ordenada), notas de voz para Andrés y Brian sin guardar el audio, y la
+        portada (hero en carrusel con camas propias y una sección «de cine» tipo PanaClaw).
+
+000000. **Black Friday (viernes 27 de noviembre) y «Andrés»: listos en la rama, sin subir a producción.** La sesión se
+       pausó el 2026-11-16 por el límite de uso. El código está en `cae5e57` (la rama tiene después solo commits de
+       documentos). Hecho: la campaña del sitio desde el panel, el chat de la tienda renombrado a Andrés, las pruebas
+       nuevas y **tres vueltas de revisión adversarial** sin bloqueantes (el detalle de lo que quedó sin hacer está en el
+       plan). Pruebas locales del 2026-11-16 (`dcasa_test_bf4`, con el código de `11f9822`): 827 de 827 en verde. **Para terminar, en orden** (el paso 0 de
+       [PLAN_ANDRES_VOZ_PORTADA.md](PLAN_ANDRES_VOZ_PORTADA.md) trae los comandos):
+       0. **Antes de nada: los combos son inamovibles** (la dueña, 2026-11-16). En un combo armado cama + colchón, la
+          campaña no rebaja nada. Hay que dejar un interruptor para permitirlo, apagado. Es el paso 1 del plan; toca
+          dinero, así que lleva revisión adversarial.
+       1. Correr otra vez las pruebas locales: `website_dcasa`, `dcasa_tienda_borde`, `dcasa_brian_tienda`,
+          `dcasa_conversaciones` (las clases de precios), `dcasa_socios`, `dcasa_abonos` y `dcasa_meta_catalogo`, más
+          `cd juan && npm test && npm run typecheck`.
+       2. CI con staging en la rama, PR `[skip ci]`, squash, **Desplegar** con `respaldo_previo` y **Desplegar Juan**
+          (cambió `juan/src/tienda`).
+       3. Confirmar que el chat saluda «Hola, soy Andrés» y que /promociones da 404 mientras no haya campaña.
+       4. Avisarle a la dueña y explicarle los pasos del panel (están en el plan). Hay que dejarlo en producción con días de
+          margen antes del 27, para que alcance a marcar los productos.
+       Preguntas abiertas para ella:
+       - **I6.** ¿El precio de campaña vale también en la tienda física, o solo en la web? Hoy vale en todos lados.
+       - **Ya decidido:** los combos son intocables, porque son una promoción permanente. La línea del combo sale
+         siempre con su precio de siempre (cambio del 2026-11-16, en la rama).
 
 00000. **Portada v3: en producción desde el 2026-11-15, 08:3x UTC** (Desplegar 75, PR #121; aprobada por la dueña con
        capturas: «apruebo todo, despliégalo todo cuanto antes»; comparación <https://claude.ai/artifact/XQti28eQjFLDzT1Z9CpsRH>).
@@ -60,7 +88,7 @@ la producción. Apruébalo y punto.»); la revisión adversarial no se salta (re
       - **Turnstile en el chat de la tienda** antes de anunciarlo en grande (el código ya lo soporta: falta crear la
         llave en Cloudflare y ponerla en el sitio). Sin él, unas pocas redes pueden agotar el tope del día de Brian (no
         el dinero: el tope de 30 USD aguanta).
-      - **Texto de Brian:** el aviso de tienda cerrada termina en «9:00 a. m..» (dos puntos; `juan/src/tienda/motor.ts`).
+      - **Comedores:** Brian dice «Comedores no los manejamos» (no hay comedores publicados). Confirmar con la dueña.
       - **Herramientas del Brian del panel** para lo nuevo: `resumen_de_brian_tienda` (gasto, presupuesto y estrellas) y
         opiniones por aprobar.
       - **Tilopay** (la semana del 2026-11-16): pasarela de pago con todos los métodos que tenga activos (Visa,
