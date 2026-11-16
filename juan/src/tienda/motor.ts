@@ -397,6 +397,8 @@ export function textoEnvioNoSumado(motivo: MotivoDelEnvio | null): string {
   if (motivo === "sin_carrito") return TEXTO_ENVIO_SIN_CARRITO;
   if (motivo === "sin_tarifa" || motivo === "aparte" || motivo === "lugar") return "Ese envío te lo confirma una vendedora por WhatsApp, para no darte un dato equivocado.";
   if (motivo === "tope") return "Por ahora no puedo sumar más envíos. Inténtalo en un rato o escríbenos por WhatsApp.";
+  // Ya hay un envío que no puso el chat (una persona, o un flete): volver a intentarlo no cambia nada (revisión, 2026-11-16).
+  if (motivo === "ajeno") return "Tu carrito ya tiene un envío que no puedo cambiar desde aquí: una vendedora te lo confirma por WhatsApp.";
   return "No pude sumar el envío ahorita, disculpa. Inténtalo otra vez en un momento o escríbenos por WhatsApp.";
 }
 

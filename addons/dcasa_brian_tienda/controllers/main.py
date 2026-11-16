@@ -218,6 +218,8 @@ class DcasaBrianTiendaAPI(http.Controller):
     def carrito(self, **_kw):
         if not request.env['dcasa.brian.tienda'].sudo()._activo():
             return _json({'ok': False, 'motivo': 'apagado'})
+        if request.cart:
+            request.cart.sudo()._dcasa_revisar_envio_sumado()   # un envío sumado que hoy ya no se daría, fuera
         return _json({'ok': True, 'carrito': self._carrito()})
 
     @http.route(f'{RAIZ}/vitrina', type='http', auth='public', website=True, methods=['GET'], sitemap=False)
@@ -336,7 +338,11 @@ class DcasaBrianTiendaAPI(http.Controller):
             _logger.info('Brian de la tienda: una conexión llegó al tope de envíos sumados de esta hora.')
             return _json({'ok': False, 'motivo': 'tope'}, 429)
         request.session[SESION_ENVIO] = recientes + [int(ahora)]
-        puesto = orden.sudo()._dcasa_envio_poner(lugar, tarjeta['total'])
+        orden = orden.sudo()
+        # La entrega «te cotizamos por WhatsApp» ($0) que puso la tienda al pasar por el pago no es de una persona: se
+        # cambia por el envío, como la de «Retiro en tienda» (revisión adversarial, 2026-11-16: si no, «ajeno» siempre).
+        orden._dcasa_quitar_entrega_por_cotizar()
+        puesto = orden._dcasa_envio_poner(lugar, tarjeta['total'])
         if not puesto['puesto']:
             return _json({'ok': False, 'motivo': MOTIVO_DEL_ENVIO.get(puesto['motivo'], 'fallo')})
         return _json({'ok': True, 'ya_estaba': bool(puesto.get('ya_estaba')), 'carrito': self._carrito()})
@@ -356,6 +362,7 @@ class DcasaBrianTiendaAPI(http.Controller):
         orden = request.cart
         if not orden or not orden.website_order_line:
             return request.redirect('/shop/cart')
+        orden.sudo()._dcasa_revisar_envio_sumado()   # el PDF nunca da un envío que hoy ya no se daría
         # Sin esperar: con dos armándose, la tercera se va al instante (no retiene la conexión de la base esperando).
         if not _SEMAFORO_PDF.acquire(blocking=False):
             _logger.info('Brian de la tienda: ya hay %s cotizaciones en PDF a la vez.', MAX_PDF_A_LA_VEZ)

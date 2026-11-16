@@ -1,4 +1,5 @@
 from odoo import api, fields, models
+from odoo.addons.dcasa_invoice.models import lineas as lineas_factura
 from odoo.exceptions import AccessError, UserError
 
 from . import reglas as R
@@ -107,6 +108,16 @@ class SaleOrder(models.Model):
             }
         return super()._cart_update_line_quantity(line_id, quantity, **kwargs)
 
+    def _set_delivery_method(self, delivery_method, rate=None):
+        # Al elegir la entrega (en el pago, o /shop/payment al rehacer el carrito) el envío puede cambiar: el premio se
+        # vuelve a revisar para que el total nunca quede negativo.
+        resultado = super()._set_delivery_method(delivery_method, rate=rate)
+        for orden in self:
+            aviso = orden._dcasa_limpiar_premios_web()
+            if aviso:
+                orden.shop_warning = aviso
+        return resultado
+
     def _verify_cart_after_update(self):
         res = super()._verify_cart_after_update()
         # Si la bolsa se achicó por debajo del premio o el código venció, el premio sale solo
@@ -136,9 +147,15 @@ class SaleOrder(models.Model):
         return self.order_line.filtered('dcasa_canje_id')
 
     def _dcasa_total_sin_premios(self):
-        """Lo que paga el cliente antes del descuento con puntos (centavos)."""
+        """Lo que paga el cliente por los PRODUCTOS antes del descuento con puntos (centavos). El envío no cuenta (ni el
+        flete): el que suma el chat de la tienda (dcasa_brian_tienda) puede irse al pagar, cuando la tienda vuelve a
+        «te cotizamos» ($0), y un premio que solo cabía gracias al envío dejaría el total negativo (revisión
+        adversarial, 2026-11-16). Antes de esa suma los carritos web no tenían envío con precio: es lo de siempre."""
         self.ensure_one()
-        return R.a_centavos(sum((self.order_line - self._dcasa_lineas_premio()).mapped('price_total')))
+        lineas = self.order_line - self._dcasa_lineas_premio()
+        fletes = lineas_factura.productos_de_flete(lineas.product_id)
+        productos = lineas.filtered(lambda line: not line.is_delivery and line.product_id not in fletes)
+        return R.a_centavos(sum(productos.mapped('price_total')))
 
     def _dcasa_limpiar_premios_web(self):
         """Antes de enseñar o cobrar el carrito: fuera las líneas de premios que ya no están pendientes
@@ -154,7 +171,9 @@ class SaleOrder(models.Model):
             caducas.with_context(dcasa_soltar_canje=False).unlink()
             aviso = self.env._('El código de tu premio venció o se canceló: lo quitamos del carrito.')
         vivas = lineas - caducas
-        if vivas and self._dcasa_total_sin_premios() < R.a_centavos(sum(vivas.dcasa_canje_id.mapped('valor'))):
+        # Red: un total negativo nunca (p. ej. si el envío cambió al pagar); los puntos vuelven.
+        if vivas and (self._dcasa_total_sin_premios() < R.a_centavos(sum(vivas.dcasa_canje_id.mapped('valor')))
+                      or self.currency_id.compare_amounts(self.amount_total, 0.0) < 0):
             self._dcasa_quitar_puntos_web(
                 self.env._('Tu carrito quedó por debajo del descuento del premio: te devolvimos los puntos.'))
             aviso = self.env._('Tu carrito quedó por debajo del descuento del premio: te devolvimos los puntos.')
