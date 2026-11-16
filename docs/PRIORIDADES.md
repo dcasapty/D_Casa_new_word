@@ -1,6 +1,6 @@
 # Prioridades vigentes
 
-Puesto al día el **2026-11-15** (bandas en azul noche, pie claro y contacto en producción, Desplegar 76; Black Friday y Andrés en la rama). Es el orden en que se trabaja: cada sesión lo lee al empezar y lo pone al día al
+Puesto al día el **2026-11-16** (sigue Desplegar 76 en producción; en la rama, el Black Friday, Andrés y todo el plan Andrés, voz y portada, parte a medias: ver [PLAN_ANDRES_VOZ_PORTADA.md › Traspaso](PLAN_ANDRES_VOZ_PORTADA.md#traspaso-del-2026-11-16-madrugada-dónde-quedó-cada-parte)). Es el orden en que se trabaja: cada sesión lo lee al empezar y lo pone al día al
 terminar (ver [LEEME_PRIMERO.md](LEEME_PRIMERO.md)). Aquí va **un solo estado**, el de hoy; lo que pasó cada día está en
 la bitácora de LEEME_PRIMERO (y lo más viejo en [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md)).
 
@@ -37,6 +37,10 @@ la producción. Apruébalo y punto.»); la revisión adversarial no se salta (re
   («Es esta persona»); tasa de cierre en el Resumen de Juan; Sofía. Detalle en la bitácora.
 
 ## Lo que sigue, en orden
+
+**Primero, terminar la ronda del plan** ([PLAN_ANDRES_VOZ_PORTADA.md › Traspaso del 2026-11-16](PLAN_ANDRES_VOZ_PORTADA.md#traspaso-del-2026-11-16-madrugada-dónde-quedó-cada-parte)):
+probar y cerrar los arreglos de combos (paso 0, antes del Black Friday del viernes 27), de voz y de la portada, correr
+la batería de Odoo sobre la rama unida y subir (Desplegar Juan y Desplegar). La rama **no** se despliega tal cual.
 
 0000000. **Primero termina el 000000 de abajo (Black Friday). Después, la siguiente ronda que pidió la dueña, con su plan
         escrito en [PLAN_ANDRES_VOZ_PORTADA.md](PLAN_ANDRES_VOZ_PORTADA.md).**

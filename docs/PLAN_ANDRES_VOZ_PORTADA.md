@@ -3,7 +3,130 @@
 Escrito el 2026-11-16 para que otra sesión lo continúe. Antes de empezar, leer `CLAUDE.md`, `docs/LEEME_PRIMERO.md`
 (cómo se trabaja con la dueña, autorizaciones, receta de producción y bitácora) y `docs/PRIORIDADES.md`.
 
-## Estado al dejar este plan
+## Traspaso del 2026-11-16 (madrugada): dónde quedó cada parte
+
+La sesión que tomó este plan se pausó otra vez por el límite de uso, y la dueña sigue con otra cuenta. Ella pidió
+subir **todo, incluso lo incompleto**, a la rama de trabajo `claude/merge-rama-to-main-ty3koz`. Ahí están las
+cinco partes del plan, unidas sin conflictos (commit de unión `4e2009a`). Las ramas `local/*` y los árboles de esta
+máquina ya no hacen falta: todo está en la rama.
+
+**No se puede desplegar tal cual.** Algunos commits dicen «WIP» porque son arreglos a medias de las revisiones
+adversariales. Sobre la rama unida se comprobó que `ruff check addons` está limpio, que Python compila, que el
+Worker pasa `npm run typecheck` y que `npx vitest run` da 1921 pasan y 40 saltadas. **Las pruebas de Odoo no se
+corrieron sobre la rama unida.**
+
+### Paso 0: combos inamovibles (antes del Black Friday, viernes 27)
+
+- **Hecho:** `4d3ac80` y `80946c5`. Los combos se calculan sin la campaña, hay un interruptor «La campaña también
+  rebaja los combos» solo para Gerencia, quedó I-B (la fecha del precio por línea) y los textos en femenino.
+- **Revisión adversarial: 8 hallazgos.** Las 13 pruebas del revisor están en
+  `addons/dcasa_catalogo/tests/test_rv_combos_campana.py`. Los arreglos están en `ae55d8c` y `62868d5`, los dos
+  **sin probar**. Esto atacan:
+  1. *(bloqueante)* La segunda cama de un combo tomaba la campaña. El arreglo hace que `emparejar_combos` marque
+     todas las camas que dieron lugar a un colchón en combo.
+  2. Banderas de contexto que se podían mandar por RPC. Ahora son un centinela interno, y los campos que pone el
+     sistema se rechazan en `write`.
+  3. Fallas de CI que ya venían de `1937f89`: la `LISTA_BLANCA` de `TestSuperficieRpc` y el catálogo de Meta
+     (`sale_price` vacío y 1 consulta por producto). Se arreglan con `dcasa_meta_catalogo/models/tarifa_lote.py`.
+  4. Una línea con 2 camas y 1 colchón: se parte la línea o se avisa.
+  6. El precio con una tarifa basada en otra (tarifa de respaldo).
+  8. «Promo» y «Expo» ya están en `_FEMENINAS`.
+- **Por verificar:**
+  - 5: un colchón cuyo precio en combo ya no es menor que el normal no debe quitarle la campaña a la cama
+    (`combo_armable.py:354`).
+  - 7: el interruptor debe leerse desde la campaña en `_get_applicable_rules_domain`, sin reescribir todas las
+    reglas ni regenerar toda la tienda (`dcasa_tienda_borde/models/marcas.py:299-302`).
+- **Falta:**
+  1. Correr la batería del paso 0 (más abajo) con `/dcasa_base:TestSuperficieRpc` y `/dcasa_meta_catalogo`.
+  2. Una revisión rápida e independiente de los arreglos.
+  3. Subir: primero *Desplegar Juan* (el nombre «Andrés» vive en `juan/src/tienda`) y después Odoo.
+  4. Darle a la dueña los pasos del panel: Sitio web › Configuración › Campaña del sitio.
+
+### A: Andrés como buen vendedor
+
+- **Hecho (A1 a A5):** `177eafe`, `2b42aa5`, `d804558`, `d8b5a26` y `4ab2816`.
+- **Revisión adversarial: 2 importantes y 3 menores, los 5 arreglados en `7c9ee8f`.** Las pruebas del revisor
+  están en `addons/dcasa_brian_tienda/tests/test_revision_vendedor.py` y
+  `juan/test/tienda/revision_vendedor.test.ts`.
+  - El 1 toca Socios: `_dcasa_total_sin_premios` ya no cuenta el envío, así que un premio de puntos solo cubre los
+    productos y el total nunca queda negativo. Ninguna cifra de `puntos.json` cambia.
+  - El 2 deja volver a sumar el envío después de pasar por el pago.
+- **Falta:**
+  - Correr las pruebas de Odoo de `dcasa_brian_tienda`, `dcasa_envios` y `dcasa_socios`: la sesión se cortó y no
+    se sabe si pasaron.
+  - Una verificación independiente de los arreglos, sobre todo el 1.
+  - Pregunta abierta a la dueña: qué hace el pago con el envío sumado (`docs/BRIAN_TIENDA.md`).
+
+### B: notas de voz (Andrés y Brian del panel)
+
+- **Hecho:** `d8fdef0`, `d94b555`, `c17d951`, `d420219`, `456a21e`, `b6d4576` y `f07dc78`.
+- **Revisión adversarial:** la privacidad se cumple (el audio no se guarda), pero no estaba lista por costo y
+  abuso. Las pruebas del revisor están en `juan/test/rv_voz_revision.test.ts`. Los arreglos van **a medias** en
+  `eeb76cd` (WIP):
+  1. *(bloqueante, a medias)* Medir la duración que de verdad se decodifica, sumando el TOC de cada paquete Opus
+     (`juan/src/motor/duracion.ts`, nuevo). Hay que rechazar lo que pase de 65 s antes de apartar, y apartar y
+     cobrar con esa duración. Falta corregir JUAN.md §12a, donde dice «peor caso de 6 kbps».
+  2. *(a medias)* La reserva «en vuelo» queda tomada si el visitante corta la conexión. El arreglo es darle vida
+     corta o meter la transcripción en `ctx.waitUntil` (`juan/src/motor/global.ts`, `juan/src/tienda/voz.ts`).
+     La sesión iba a sumar las pruebas de la tienda para esto (crédito y `waitUntil`).
+  3. *(resuelto, `2936aa5`)* `juan/node_modules` se había versionado como enlace. Ahora `.gitignore` dice
+     `node_modules`, sin barra.
+  4. *Menores:*
+     - **Pendiente:** `addons/dcasa_brian/static/src/js/brian_voz.js:70`. Si el panel se desmonta mientras se
+       pide el permiso, el micrófono queda encendido.
+     - **Por verificar:** que el texto alcance para «un minuto» (hoy son 500 letras) y que la nota y su mensaje
+       cuenten una sola vez en los topes.
+  5. *(a medias, `juan/src/motor/transcribir.ts`)* Juan por WhatsApp debe tener un tope de duración real y anotar
+     el gasto en un renglón de Cloudflare, nunca en «Por pagar a Meta».
+- **Falta:**
+  - Terminar lo de arriba.
+  - Correr `TEST_TAGS="/dcasa_brian,/dcasa_brian_tienda,/dcasa_conversaciones:TestBrianVozWorker,/dcasa_guia"`.
+  - Una revisión rápida de los arreglos.
+
+### Micrófono en el chat de Andrés (la unión de A y B)
+
+- **Hecho:** `4f68cab`, `f43aa07`, `fbd9a2c`, `5fa4bd8` y `c70ad96`. El botón sale junto a «Enviar» solo si el
+  Worker lo ofrece. Graba Opus, corta sola al tope, se puede cancelar y el texto vuelve al chat. El Worker simulado
+  de las pruebas atiende las notas.
+- **Falta:**
+  - Confirmar que pasan las pruebas del micrófono en el navegador: se cortó al correrlas, y solo corren en local
+    porque el CI no tiene websocket-client.
+  - Capturas a 1440 y 390.
+
+### C: la portada
+
+- **Hecho:** de `f9d87d4` a `708b77d`.
+  - El hero es un carrusel que se elige desde el panel. Nace con las 8 camas que aprobó la dueña, buscadas por
+    código público: DC-ZKXSHJ, DC-SVQ7QF, DC-VTQJDJ, DC-2THJMG, DC-7RFSYH, DC-YY9N99, DC-FQNH3X y DC-STGW72.
+  - La v2 es la que ella pidió («pantalla completa, sin fondo negro»): foto de orilla a orilla, sin velo, y el
+    texto en un bloque liso azul noche (a la izquierda, o abajo en el celular).
+  - La sección «de cine» quedó en blanco con botón azul.
+  - `9cd7908` (WIP) trae las referencias visuales regeneradas **sin mirarlas**.
+- **Falta:**
+  - Las pruebas del carrusel en el navegador y la de Black Weekend.
+  - Mirar las referencias regeneradas.
+  - Correr `TEST_TAGS="/website_dcasa,/dcasa_tienda_borde,/dcasa_conversaciones:TestContratoVisualJuan,/dcasa_guia"`.
+  - **Capturas a 1440 y 390 para la dueña**, antes de subir.
+
+### Para cerrar la ronda
+
+1. La batería completa de Odoo sobre la rama unida.
+2. La receta de producción: CI con staging, PR `[skip ci]`, *squash* con el SHA exacto, *Desplegar Juan*,
+   *Desplegar* y comprobar `/dcasa/salud` y la salud de Juan.
+3. Poner al día la bitácora, PRIORIDADES y CONTEXTO_AGENTICO.
+4. LEEME_PRIMERO tiene 15 entradas: archivar las 5 más viejas en `historico/BITACORA_ANTERIOR.md`.
+5. El PR de Dependabot #98 (parches de `@ai-sdk/*` y `ai` en `juan/`).
+6. Ramas para borrar, **solo con el «sí» de la dueña**: `claude/determined-einstein-ouls04` (ya unida aquí),
+   `claude/bold-volta-fsqq4c` (no aprobado aún) y las de `dependabot/*` viejas. Las `estable-*` se quedan.
+7. Preguntas abiertas a la dueña:
+   - el envío en el pago;
+   - I6 (precio de campaña en todos lados o solo en la web);
+   - comedores («no los manejamos»);
+   - Turnstile;
+   - el mes de «Por pagar a Meta» antes del 1 de diciembre;
+   - la suscripción `feed` de Facebook para los comentarios.
+
+## Estado al escribir este plan (antes de la ronda del 16 de noviembre)
 
 - **En producción:** paleta con bandas en azul noche y pie claro, menú sin «Escríbenos», sección de contacto, el
   número de /visitanos a WhatsApp y el carrito en la barra del chat de la tienda (Desplegar 76, PR #122).

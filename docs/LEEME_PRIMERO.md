@@ -109,6 +109,19 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 > sigue. Se guardan las diez más recientes; las viejas se resumen en una línea abajo y su texto completo pasa a
 > [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md).
 
+### 2026-11-16 (2): todo el plan Andrés, voz y portada subido a la rama, incluso lo que quedó a medias (traspaso a otra cuenta)
+
+**Nada nuevo en producción** (sigue Desplegar 76). La sesión trabajó el plan con ayudantes en paralelo, cada uno en su
+rama local: combos inamovibles, Andrés vendedor (A1–A5), notas de voz, micrófono en el chat y la portada en carrusel a
+pantalla completa sin fondo negro (lo pidió la dueña al ver las capturas). Hubo tres revisiones adversariales: Andrés
+quedó arreglado; combos y voz quedaron con los arreglos a medias. Todos los ayudantes se cortaron por el límite de uso
+de 5 horas y la dueña pidió: «sube incluso lo incompleto con el avance actual y lo que falta». Las cinco ramas se
+unieron sin conflictos en `claude/merge-rama-to-main-ty3koz`. Sobre la unión pasan ruff y las 1921 pruebas y el
+typecheck del Worker; **las de Odoo no se corrieron**. Qué falta en cada parte, con sus commits: **[PLAN_ANDRES_VOZ_PORTADA.md
+› Traspaso del 2026-11-16](PLAN_ANDRES_VOZ_PORTADA.md#traspaso-del-2026-11-16-madrugada-dónde-quedó-cada-parte)**.
+Lección: con varios ayudantes a la vez, el límite de 5 horas llega para todos juntos; subir a la rama de trabajo
+cada avance que pase las pruebas rápidas, no al final.
+
 ### 2026-11-16: Black Friday y «Andrés» listos en la rama sin subir (pausa por límite de uso); plan de la ronda siguiente
 
 **Nada nuevo en producción** (sigue Desplegar 76, `754aceaf18e7`). La sesión se pausó por el límite de uso de la cuenta, a
