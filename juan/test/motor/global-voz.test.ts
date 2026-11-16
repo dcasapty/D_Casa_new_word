@@ -4,7 +4,17 @@
  * audio ni el texto.
  */
 import { describe, expect, it } from "vitest";
-import { AlmacenGlobal, MODELO_DE_LA_VOZ, PROVEEDOR_DE_LA_VOZ, TopesDeLaTienda, type ReservaVozPanel, type ReservaVozTienda } from "../../src/motor/global";
+import {
+  AlmacenGlobal,
+  MODELO_DE_LA_VOZ,
+  PROVEEDOR_DE_LA_VOZ,
+  TopesDeLaTienda,
+  VIDA_DE_UNA_RESERVA_DE_VOZ_MS,
+  VIDA_DEL_CREDITO_DE_VOZ_MS,
+  type ReservaTienda,
+  type ReservaVozPanel,
+  type ReservaVozTienda,
+} from "../../src/motor/global";
 import { USO_VACIO } from "../../src/motor/precios";
 import { crearSqlNode } from "../helpers/sqlNode";
 
@@ -64,6 +74,39 @@ describe("TopesDeLaTienda.reservarVoz (Andrés)", () => {
     expect(g.turnos).toBe(0);
     expect(g.porModelo).toEqual([{ proveedor: "cloudflare", modelo: "notas de voz (Whisper)", usd: 0.0004, turnos: 1, estimado: false }]);
     expect(g.enVueloUsd).toBe(0);
+  });
+
+  it("una nota que nadie cierra (el visitante cortó) suelta su lugar «en vuelo» a los 30 s y queda como gasto estimado", () => {
+    const t = new TopesDeLaTienda(crearSqlNode());
+    const base = { enVueloMax: 2, enVueloRed: 2, reservaUsd: 0.0002 };
+    expect(t.reservarVoz(voz({ ...base, sesion: "a" }), AHORA).ok).toBe(true);
+    expect(t.reservarVoz(voz({ ...base, sesion: "b" }), AHORA).ok).toBe(true);
+    const mensaje: ReservaTienda = { red: "otra", dia: "2026-11-16", mes: "2026-11", porRed: 60, porDia: 1000, enVueloMax: 2, enVueloRed: 2, presupuestoUsd: 30, proveedor: "anthropic", reservaUsd: 0.02 };
+    expect(t.reservar(mensaje, AHORA + 1000)).toEqual({ ok: false, motivo: "ocupado" });
+    expect(VIDA_DE_UNA_RESERVA_DE_VOZ_MS).toBe(30_000);
+    expect(t.reservar(mensaje, AHORA + VIDA_DE_UNA_RESERVA_DE_VOZ_MS + 1)).toMatchObject({ ok: true });
+    const g = t.gastoMes("2026-11", "2026-11-16", AHORA + VIDA_DE_UNA_RESERVA_DE_VOZ_MS + 1);
+    expect(g.porModelo.find((m) => m.proveedor === PROVEEDOR_DE_LA_VOZ)).toMatchObject({ estimado: true });
+  });
+
+  it("el crédito: el mensaje siguiente de la misma red no vuelve a contar (una sola vez, y vence)", () => {
+    const t = new TopesDeLaTienda(crearSqlNode());
+    expect(t.reservarVoz(voz({ porRed: 1 }), AHORA).ok).toBe(true);
+    const mensaje: ReservaTienda = { red: "red-a", dia: "2026-11-16", mes: "2026-11", porRed: 1, porDia: 1000, presupuestoUsd: 30, reservaUsd: 0 };
+    expect(t.reservar(mensaje, AHORA + 1)).toMatchObject({ ok: true });
+    expect(t.reservar(mensaje, AHORA + 2)).toEqual({ ok: false, motivo: "tope_red" });
+    // Otra red no se lleva el crédito de esta.
+    const t2 = new TopesDeLaTienda(crearSqlNode());
+    t2.reservarVoz(voz({ porRed: 1, red: "red-x" }), AHORA);
+    expect(t2.reservar({ ...mensaje, red: "red-y", porRed: 0 }, AHORA + 1)).toEqual({ ok: false, motivo: "tope_red" });
+    // Vencido, ya no vale.
+    const t3 = new TopesDeLaTienda(crearSqlNode());
+    t3.reservarVoz(voz({ porRed: 1 }), AHORA);
+    expect(t3.reservar(mensaje, AHORA + VIDA_DEL_CREDITO_DE_VOZ_MS + 1)).toEqual({ ok: false, motivo: "tope_red" });
+    // Una nota de voz no usa el crédito de otra nota.
+    const t5 = new TopesDeLaTienda(crearSqlNode());
+    t5.reservarVoz(voz({ porRed: 1 }), AHORA);
+    expect(t5.reservarVoz(voz({ porRed: 1, sesion: "otra" }), AHORA + 1)).toEqual({ ok: false, motivo: "tope_red" });
   });
 
   it("la tabla de la sesión solo guarda la hora y la llave ofuscada", () => {

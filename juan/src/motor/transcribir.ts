@@ -6,11 +6,20 @@
 // además dice cuánto duró el audio para cobrarlo y para no devolver el texto de un audio más largo que el tope).
 
 import type { Env } from "../env";
+import { costoDeLaVoz, duracionDecodificada, tipoDeAudio } from "./duracion";
 
 /** Una nota de voz normal pesa unas decenas de KB; más de esto no es una nota de voz y no vale la pena procesarlo. */
 const MAX_BYTES_AUDIO = 8 * 1024 * 1024;
 /** El único modelo que se llama con el audio: transcribe (audio → texto). No hay ningún modelo que genere voz en este Worker. */
 export const MODELO_WHISPER = "@cf/openai/whisper-large-v3-turbo";
+/**
+ * Lo más largo que se transcribe de WhatsApp (revisión adversarial, 2026-11-16): 10 minutos de lo que de verdad se decodifica. Más,
+ * o un audio que no se puede medir con certeza, no se transcribe: Juan hace lo de siempre cuando no puede escuchar una nota (le pide
+ * con amabilidad que lo escriba, o le dice que una vendedora la escucha) y la vendedora la oye en Odoo.
+ */
+export const MAX_SEGUNDOS_WHATSAPP = 600;
+/** El renglón de «Costos de IA» para lo que cobra Cloudflare por transcribir las notas de WhatsApp (aparte del gasto de Juan). */
+export const CONCEPTO_VOZ_WHATSAPP = "cloudflare:notas-de-voz-whatsapp";
 
 export interface Transcripcion {
   /** El texto, sin espacios sobrantes; null si Whisper no entendió nada. */
@@ -55,8 +64,36 @@ export function whisperDe(env: Env): ((bytes: Uint8Array) => Promise<Transcripci
   };
 }
 
-export function transcriptorDe(env: Env): ((bytes: Uint8Array, mime: string) => Promise<string | null>) | undefined {
+/**
+ * Las notas de voz de WhatsApp (y los demás canales). Antes de llamar a Whisper se mide lo que de verdad dura (motor/duracion.ts:
+ * paquete por paquete, sin decodificar): si no se puede medir o pasa de MAX_SEGUNDOS_WHATSAPP, no se transcribe (null). Lo que cobra
+ * Cloudflare se anota con `anotarGasto` (en producción, el renglón CONCEPTO_VOZ_WHATSAPP de `Global`: nunca en el gasto del modelo de
+ * Juan ni en «Por pagar a Meta»), con la duración medida o la de Whisper, la mayor; si Whisper falla, la medida, «estimado».
+ */
+export function transcriptorDe(
+  env: Env,
+  anotarGasto?: (usd: number, estimado: boolean) => Promise<void>,
+): ((bytes: Uint8Array, mime: string) => Promise<string | null>) | undefined {
   const whisper = whisperDe(env);
   if (!whisper) return undefined;
-  return async (bytes) => (await whisper(bytes)).texto;
+  return async (bytes, mime) => {
+    if (bytes.byteLength === 0 || bytes.byteLength > MAX_BYTES_AUDIO) return null;
+    const tipo = tipoDeAudio(mime);
+    const segundos = tipo ? duracionDecodificada(bytes, tipo) : null;
+    if (segundos === null || segundos > MAX_SEGUNDOS_WHATSAPP) {
+      // Solo el tipo y los segundos (nada del audio ni de quién lo mandó).
+      console.warn(`[juan] nota de voz sin transcribir: ${segundos === null ? `no se pudo medir (${tipo ?? "tipo no medible"})` : `dura ${Math.round(segundos)} s`}`);
+      return null;
+    }
+    let r: Transcripcion | null = null;
+    try {
+      r = await whisper(bytes);
+      return r.texto;
+    } finally {
+      if (anotarGasto) {
+        const usd = costoDeLaVoz(Math.max(segundos, r?.segundos ?? 0));
+        await anotarGasto(usd, r === null).catch(() => console.warn("[juan] nota de voz: no se pudo anotar el gasto"));
+      }
+    }
+  };
 }

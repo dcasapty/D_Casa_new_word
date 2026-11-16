@@ -58,7 +58,7 @@ function montar(op: { config?: Config; ai?: { run: (...a: unknown[]) => Promise<
     },
     gastoMes: async () => 0,
     ahora: () => AHORA,
-    esperarDespues: () => {},
+    esperarDespues: vi.fn(),
   };
   const global = {
     reservarVozTienda: vi.fn(async (p: Parameters<TopesDeLaTienda["reservarVoz"]>[0]) => topes.reservarVoz(p, AHORA)),
@@ -117,7 +117,7 @@ describe("la puerta: el mismo CORS y el mismo pase que el chat", () => {
     const res = await get(montar());
     expect(res.status).toBe(200);
     expect(res.headers.get("access-control-allow-origin")).toBe(ORIGEN);
-    expect(await leer(res)).toEqual({ ok: true, disponible: true, max_segundos: 60, max_bytes: MAX_BYTES_VOZ, tipos: ["audio/webm", "audio/ogg", "audio/mp4"] });
+    expect(await leer(res)).toEqual({ ok: true, disponible: true, max_segundos: 30, max_bytes: MAX_BYTES_VOZ, tipos: ["audio/webm", "audio/ogg", "audio/mp4"] });
     expect((await leer(await get(montar({ bandera: "0" })))).disponible).toBe(false);
     expect((await leer(await get(montar({ ai: null })))).disponible).toBe(false);
     expect((await leer(await get(montar({ config: normalizarConfig({ brian_tienda: { activo: false } }) })))).disponible).toBe(false);
@@ -169,14 +169,14 @@ describe("una nota de voz: solo el texto de vuelta", () => {
   });
 
   it("un texto más largo que lo que acepta el chat (500 letras) vuelve recortado y lo dice", async () => {
-    const m = montar({ texto: "quiero una cama ".repeat(60), duracion: 55 });
-    const cuerpo = await leer(await m.pedir(await nota(webmOpus(55), { duracion: "55000" })));
+    const m = montar({ texto: "quiero una cama ".repeat(60), duracion: 30 });
+    const cuerpo = await leer(await m.pedir(await nota(webmOpus(30), { duracion: "30000" })));
     expect(cuerpo.recortado).toBe(true);
     expect([...cuerpo.texto].length).toBeLessThanOrEqual(500);
   });
 
   it("Ogg (Firefox) y MP4 (Safari) también", async () => {
-    for (const [audio, tipo] of [[oggOpus(3), "audio/ogg;codecs=opus"], [mp4(3), "audio/mp4"], [mp4(0), "audio/mp4"]] as const) {
+    for (const [audio, tipo] of [[oggOpus(3), "audio/ogg;codecs=opus"], [mp4(3), "audio/mp4"], [mp4(3, { fragmentos: true }), "audio/mp4"]] as const) {
       const res = await montar().pedir(await nota(audio, { tipo }));
       expect(res.status).toBe(200);
     }
@@ -215,7 +215,7 @@ describe("lo que se rechaza antes de gastar", () => {
 
   it("si Whisper dice que duró más de un minuto: 413 y el texto NO sale (pero se cobra)", async () => {
     const m = montar({ duracion: 240 });
-    const res = await m.pedir(await nota(mp4(0), { tipo: "audio/mp4" }));
+    const res = await m.pedir(await nota(mp4(3, { fragmentos: true }), { tipo: "audio/mp4" }));
     expect([res.status, await leer(res)]).toEqual([413, { ok: false, motivo: "muy_larga" }]);
     expect(m.topes.gastoMes("2026-11", "2026-11-16", AHORA).usd).toBeCloseTo(costoDeLaVoz(240), 10);
   });
@@ -274,3 +274,53 @@ describe("los topes y el presupuesto de la tienda", () => {
     expect(p.sesion).toMatch(/^[0-9a-f]{32}$/);
   });
 });
+
+describe("la duración de verdad (revisión adversarial, 2026-11-16)", () => {
+  it("la tienda acepta hasta unos 30 s (lo que cabe en un mensaje): 40 s de verdad se rechazan antes de apartar, aunque el archivo diga 10", async () => {
+    for (const audio of [webmOpus(40), oggOpus(40, { mentir: 10 }), webmOpus(40, { conDuracion: 10 })]) {
+      const m = montar();
+      const res = await m.pedir(await nota(audio, { tipo: audio[0] === 0x4f ? "audio/ogg" : "audio/webm", duracion: "10000" }));
+      expect([res.status, await leer(res)]).toEqual([413, { ok: false, motivo: "muy_larga" }]);
+      expect((m.ai as { run: ReturnType<typeof vi.fn> }).run).not.toHaveBeenCalled();
+      expect(m.global.reservarVozTienda).not.toHaveBeenCalled();
+    }
+  });
+
+  it("lo apartado es el costo de lo que de verdad dura; si Whisper tarda, se anota esa duración (no un mínimo)", async () => {
+    const m = montar({ ai: { run: () => new Promise(() => {}) } });
+    const audio = oggOpus(25, { mentir: 2 });
+    const res = await manejarTienda("/tienda/v1/voz", await nota(audio, { tipo: "audio/ogg" }), m.env, m.d, { voz: { global: m.global, plazoMs: 20 } });
+    expect(res.status).toBe(504);
+    expect(m.global.reservarVozTienda.mock.calls[0][0].reservaUsd).toBeCloseTo(costoDeLaVoz(25), 4);
+    const g = m.topes.gastoMes("2026-11", "2026-11-16", AHORA);
+    expect(g.usd).toBeCloseTo(costoDeLaVoz(25), 4);
+    expect(g.porModelo[0].estimado).toBe(true);
+  });
+});
+
+describe("si el visitante corta la conexión", () => {
+  it("la transcripción y el cierre de la reserva corren dentro de waitUntil (no los cancela Cloudflare)", async () => {
+    const m = montar();
+    const res = await m.pedir(await nota());
+    expect(res.status).toBe(200);
+    const esperar = m.d.esperarDespues as unknown as ReturnType<typeof vi.fn>;
+    expect(esperar).toHaveBeenCalledTimes(1);
+    await esperar.mock.calls[0][0];
+    expect(m.global.cerrarTurnoTienda).toHaveBeenCalledTimes(1);
+    expect(m.topes.gastoMes("2026-11", "2026-11-16", AHORA).enVueloUsd).toBe(0);
+  });
+});
+
+describe("la nota y su mensaje cuentan una vez", () => {
+  it("el mensaje que la página manda con el texto de la nota usa su crédito: no vuelve a contar en los topes de red y del día", async () => {
+    const m = montar({ config: normalizarConfig({ brian_tienda: { activo: true, tope_red_hora: 1 } }) });
+    expect((await m.pedir(await nota())).status).toBe(200);
+    const red = m.global.reservarVozTienda.mock.calls[0][0].red;
+    const mensaje = { red, dia: "2026-11-16", mes: "2026-11", porRed: 1, porDia: 1000, presupuestoUsd: 30, proveedor: "anthropic", reservaUsd: 0.02 };
+    // El tope por red (1 por hora) ya lo gastó la nota: su mensaje pasa igual, una sola vez.
+    expect(m.topes.reservar(mensaje, AHORA + 1000)).toMatchObject({ ok: true });
+    expect(m.topes.reservar(mensaje, AHORA + 2000)).toEqual({ ok: false, motivo: "tope_red" });
+    expect(m.topes.gastoMes("2026-11", "2026-11-16", AHORA + 2000).turnosHoy).toBe(1);
+  });
+});
+
