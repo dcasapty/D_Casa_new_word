@@ -73,6 +73,21 @@ def es_interno(env, clave):
     return env.context.get(clave) is INTERNO
 
 
+def con_defaults(env, vals, campos):
+    """``vals`` más los ``default_<campo>`` del contexto (revisión adversarial, 2026-11-16).
+
+    Odoo pone los valores por defecto DENTRO de ``create`` (``_add_missing_default_values``), o sea después de
+    nuestros overrides: una guarda que solo mira ``vals`` se salta mandando el valor en el contexto
+    (``with_context(default_dcasa_campana_precio=1).create({...})``). Esto los junta para que la guarda vea lo que
+    de verdad se va a guardar."""
+    salida = dict(vals)
+    for campo in campos:
+        clave = f'default_{campo}'
+        if campo not in salida and clave in env.context:
+            salida[campo] = env.context[clave]
+    return salida
+
+
 def _exigir_precios(env):
     if not _puede_cambiar_precios(env):
         raise AccessError(env._('Solo Gerencia y los administradores cambian la campaña del sitio y sus precios.'))
@@ -156,7 +171,10 @@ class DcasaCampana(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
-        if any(vals.get('dcasa_rebaja_combos') for vals in vals_list):
+        # Con los ``default_`` del contexto (ver ``con_defaults``): el ACL ya limita quién crea campañas, pero la
+        # guarda del interruptor no puede depender de eso.
+        if any(con_defaults(self.env, vals, ('dcasa_rebaja_combos',)).get('dcasa_rebaja_combos')
+               for vals in vals_list):
             _exigir_gerencia(self.env)
         campanas = super().create(vals_list)
         self.env['product.template']._dcasa_campana_sincronizar()
@@ -355,10 +373,12 @@ class ProductTemplate(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
-        if any(CAMPOS_CAMPANA.intersection(v) and any(v.get(c) for c in CAMPOS_CAMPANA) for v in vals_list):
+        # Con los ``default_`` del contexto: si no, se entra a la campaña sin ser Gerencia y sin crear su regla.
+        efectivos = [con_defaults(self.env, v, CAMPOS_CAMPANA) for v in vals_list]
+        if any(CAMPOS_CAMPANA.intersection(v) and any(v.get(c) for c in CAMPOS_CAMPANA) for v in efectivos):
             _exigir_precios(self.env)
         productos = super().create(vals_list)
-        if any(v.get('dcasa_black_weekend') or v.get('dcasa_campana_precio') for v in vals_list):
+        if any(v.get('dcasa_black_weekend') or v.get('dcasa_campana_precio') for v in efectivos):
             self._dcasa_campana_sincronizar()
         return productos
 

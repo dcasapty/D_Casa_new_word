@@ -46,7 +46,7 @@ import math
 
 from odoo import api, fields, models
 from odoo.addons.dcasa_base.models.product import _puede_cambiar_precios
-from odoo.addons.website_dcasa.models.campana import COMBO_SIN_CAMPANA, INTERNO, es_interno
+from odoo.addons.website_dcasa.models.campana import COMBO_SIN_CAMPANA, INTERNO, con_defaults, es_interno
 from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.tools import float_compare, float_is_zero
 
@@ -160,8 +160,11 @@ class ProductTemplate(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
+        # Con los ``default_`` del contexto (ver ``con_defaults``): si no, una cama nacería con 6 colchones por cama
+        # sin pasar por Gerencia, y absorbería seis colchones al precio en combo.
         if not _puede_cambiar_precios(self.env) and any(
-                (vals.get('dcasa_colchones_por_cama') or 1) != 1 for vals in vals_list):
+                (con_defaults(self.env, vals, ('dcasa_colchones_por_cama',)).get('dcasa_colchones_por_cama') or 1) != 1
+                for vals in vals_list):
             raise _aviso_gerencia(self.env)
         return super().create(vals_list)
 
@@ -272,7 +275,10 @@ class ProductProduct(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
-        if not _puede_cambiar_precios(self.env) and any(vals.get('dcasa_precio_combo') for vals in vals_list):
+        # Con los ``default_`` del contexto (ver ``con_defaults``): el precio en combo lo pone Gerencia.
+        if not _puede_cambiar_precios(self.env) and any(
+                con_defaults(self.env, vals, ('dcasa_precio_combo',)).get('dcasa_precio_combo')
+                for vals in vals_list):
             raise _aviso_gerencia(self.env)
         return super().create(vals_list)
 
@@ -436,12 +442,20 @@ class SaleOrder(models.Model):
         for cama, sobran in self._dcasa_camas_solas_con_campana(lineas).items():
             if not cama._dcasa_se_puede_partir():
                 continue
+            # Todo en sudo (revisión adversarial, 2026-11-16). Partir no cambia ni los precios ni el total: la misma
+            # cantidad queda repartida en dos líneas y cada precio lo pone la tarifa. Pero ENTRE bajar la cantidad y
+            # crear la línea nueva el pedido queda a medias, y ahí el tope de descuento de la vendedora
+            # (dcasa_base/models/sale_order_line.py) mediría un descuento global que no existe: con una cotización que
+            # ya trae un descuento de importe fijo, la venta fallaría con «El descuento total pasa del tope». Un tope
+            # del programa nunca hace fallar una venta. El tope del pedido se vuelve a medir enterito en la escritura
+            # que disparó todo esto, con el pedido ya completo.
             interna = cama.with_context(**_interno(sin_recalcular=True))
-            interna.write({'product_uom_qty': cama.product_uom_qty - sobran})
-            # Copia en sudo: conserva la fecha del precio de la línea (I-B), que la vendedora no puede mandar.
-            nueva = interna.sudo().copy({
+            sistema = interna.sudo()
+            sistema.write({'product_uom_qty': cama.product_uom_qty - sobran})
+            # La copia conserva la fecha del precio de la línea (I-B), que la vendedora no puede mandar.
+            nueva = sistema.copy({
                 'order_id': self.id, 'product_uom_qty': sobran, 'sequence': cama.sequence,
-                'dcasa_fecha_precio': cama.dcasa_fecha_precio}).with_env(interna.env)
+                'dcasa_fecha_precio': cama.dcasa_fecha_precio})
             nueva._dcasa_reponer_precio()
             partio = True
         return partio
@@ -810,7 +824,11 @@ class SaleOrderLine(models.Model):
         moneda = self.currency_id or self.order_id.currency_id
         cambio_el_precio = precio_antes is not None and bool(
             moneda.compare_amounts(self._get_display_price(), precio_antes))
-        if ('dcasa_combo_con_precio' in vals or cambio_el_precio) and not self.is_downpayment:
+        # Un precio que la vendedora negoció a mano NO se pisa porque la cama entre o salga del combo (revisión
+        # adversarial, 2026-11-16): el cliente ya tiene esa cotización. Lo del colchón que entra o sale del precio en
+        # combo se queda como estaba (es lo documentado desde que existe el combo armado).
+        if (('dcasa_combo_con_precio' in vals or cambio_el_precio)
+                and not self.is_downpayment and not self._dcasa_precio_a_mano()):
             self._dcasa_reponer_precio()
             if regla_antes is not None and (regla_antes._show_discount() or self.pricelist_item_id._show_discount()):
                 self._compute_discount()   # una regla en % de la tarifa sale como descuento
@@ -848,15 +866,21 @@ class SaleOrderLine(models.Model):
         sin = self.product_id._dcasa_combo_precio_normal(orden, sin_campana=True, fecha=fecha)
         return bool((self.currency_id or orden.currency_id).compare_amounts(con, sin))
 
+    def _dcasa_precio_a_mano(self):
+        """¿Alguien le puso el precio a mano a esta línea? Odoo guarda en ``technical_price_unit`` el precio que puso
+        el sistema: si ya no coinciden, el de la línea lo escribió una persona y no se pisa."""
+        self.ensure_one()
+        moneda = self.currency_id or self.order_id.currency_id
+        return bool(moneda.compare_amounts(self.technical_price_unit, self.price_unit))
+
     def _dcasa_se_puede_partir(self):
         """¿Se puede partir esta línea de camas sin riesgo? Sin facturar ni entregar, en la unidad del producto y al
         precio que puso el sistema (un precio a mano no se reparte)."""
         self.ensure_one()
-        moneda = self.currency_id or self.order_id.currency_id
         return bool(not self.display_type and not self.is_downpayment and not self.combo_item_id
                     and not self.qty_invoiced and not self.qty_delivered
                     and self.product_uom_id == self.product_id.uom_id
-                    and not moneda.compare_amounts(self.technical_price_unit, self.price_unit))
+                    and not self._dcasa_precio_a_mano())
 
     def _dcasa_aviso_camas_solas(self, sobran):
         return self.env._(
