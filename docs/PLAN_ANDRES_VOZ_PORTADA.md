@@ -170,6 +170,10 @@ Ya autorizó la subida: «lleva ya todo a producción». La revisión adversaria
   - Brian del panel (`addons/dcasa_brian`): el mismo botón en su panel; la transcripción por el Worker con el token
     de Odoo (Odoo no transcribe). Revisar permisos: solo usuarios internos.
 - Revisión adversarial obligatoria (privacidad, abuso, costos de IA).
+- **Estado (2026-11-16, rama `local/voz`):** hechas las dos rutas del Worker (`POST /tienda/v1/voz` con el pase y los
+  topes de la tienda; `POST /odoo/voz` con el token de Odoo), el micrófono de Brian del panel, la privacidad y la Guía.
+  Contrato y protecciones en docs/JUAN.md §12a. **Falta:** el botón en el chat de la tienda (`brian_tienda.js`), la
+  revisión adversarial y comprobar en staging que Whisper acepta el WebM de Chrome y el MP4 de Safari.
 
 ## C. La portada
 

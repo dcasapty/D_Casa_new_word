@@ -155,8 +155,16 @@ python3 addons/dcasa_brian_tienda/tests/worker_simulado.py --puerto 8787 --token
 La política (`/privacidad#brian-de-la-tienda`) lo dice en la sección de inteligencia artificial: lo que se escribe va
 al proveedor de IA (el de Juan, con sus condiciones), la conversación no se guarda (como mucho 2 horas y 30 mensajes,
 los últimos 15 intercambios, en el Worker), la ubicación solo se usa para el envío y no se guarda, Brian no ve ni cambia datos ni compras, las estrellas
-son número y fecha, y los topes cuentan por conexión sin guardar quién es. **Texto propuesto**: lo aprueba la dueña (y
-el abogado) antes de producción.
+son número y fecha, y los topes cuentan por conexión sin guardar quién es. Desde el 2026-11-16 dice también que **una
+nota de voz (hasta un minuto) se convierte en texto con la IA de Cloudflare y el audio no se guarda** (nadie lo escucha,
+no se comparte, no se usa para imitar la voz). **Texto propuesto**: lo aprueba la dueña (y el abogado) antes de
+producción.
+
+## Notas de voz (el botón va después)
+
+El Worker ya tiene `POST /tienda/v1/voz` y `GET /tienda/v1/voz` (contrato en docs/JUAN.md §12a): el audio crudo con el
+mismo pase, de vuelta solo `{ok, texto, recortado}`. La página manda ese texto por `/tienda/v1/mensaje` como un mensaje
+normal. El botón del micrófono en `brian_tienda.js` lo pega quien cambia el chat de la tienda.
 
 ## Pruebas
 
