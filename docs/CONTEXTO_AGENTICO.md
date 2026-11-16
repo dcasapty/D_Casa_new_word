@@ -727,6 +727,24 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 
 ### Esta máquina (sesiones de Claude)
 
+- **El servidor de GitHub de la sesión puede morirse y no vuelve** (2026-11-16): justo después de que la dueña
+  reconectara la cuenta de GitHub, todas las herramientas `mcp__github__*` empezaron a contestar «invalid session» y
+  siguieron así el resto de la sesión (se reintentó una docena de veces en una hora). `git push` **sí** seguía
+  funcionando (usa otro camino). Consecuencia: no se pueden lanzar los flujos de Actions, o sea **no se puede
+  desplegar**, aunque todo esté probado. El `gh` de la máquina tampoco sirve de salida: su `GH_TOKEN` es inválido.
+  Qué hacer: subir todo a las ramas con `git push` (eso no se pierde), dejar escrito en PRIORIDADES qué rama y qué
+  commit hay que desplegar, y que la próxima sesión lance el CI. **No** borrar ni rehacer ramas por esto.
+- **El repositorio se movió de `vivimahechagarcia05-spec` a `dcasapty`** (2026-11-16) y la dirección vieja redirige.
+  El proxy de la sesión solo autoriza la **vieja**: si se pone la nueva en `git remote set-url`, el push falla con
+  «not in this session's authorized repository set». Hay que dejar el remoto con la dirección vieja; git avisa del
+  traslado y empuja igual al repositorio nuevo. `add_repo` del repositorio nuevo tampoco sirve: la sesión ya tiene uno
+  con el mismo nombre y chocarían en la misma carpeta.
+- **El submódulo `vendor/odoo` se baja con `--depth 1` apuntando a la rama equivocada** (2026-11-16): en un contenedor
+  nuevo, `git submodule update --init --depth 1 vendor/odoo` trajo la punta de `20.0` en vez del commit fijado (Odoo
+  19), y el árbol queda marcado con `+`. Se arregla pidiendo el commit exacto:
+  `cd vendor/odoo && git fetch --depth 1 origin <sha> && git checkout <sha>`. Si antes se cortó un `fetch`, queda un
+  `.git/modules/vendor/odoo/index.lock` que hay que borrar a mano.
+
 - **No unir ramas en el árbol que está leyendo una corrida de pruebas larga** (2026-11-12): una corrida de
   `scripts/test.sh` sobre el árbol principal tomó el JavaScript nuevo a mitad de camino y dos pruebas de navegador
   fallaron sin culpa del código. Para la prueba final de un lote, `git worktree add --detach <copia> HEAD` y correr ahí

@@ -1,6 +1,6 @@
 # Prioridades vigentes
 
-Puesto al día el **2026-11-16** (sigue Desplegar 76 en producción; en la rama, el Black Friday, Andrés y todo el plan Andrés, voz y portada, parte a medias: ver [PLAN_ANDRES_VOZ_PORTADA.md › Traspaso](PLAN_ANDRES_VOZ_PORTADA.md#traspaso-del-2026-11-16-madrugada-dónde-quedó-cada-parte)). Es el orden en que se trabaja: cada sesión lo lee al empezar y lo pone al día al
+Puesto al día el **2026-11-16** (noche) (sigue Desplegar 76 en producción; en la rama, el Black Friday, Andrés y todo el plan Andrés, voz y portada, parte a medias: ver [PLAN_ANDRES_VOZ_PORTADA.md › Traspaso](PLAN_ANDRES_VOZ_PORTADA.md#traspaso-del-2026-11-16-madrugada-dónde-quedó-cada-parte)). Es el orden en que se trabaja: cada sesión lo lee al empezar y lo pone al día al
 terminar (ver [LEEME_PRIMERO.md](LEEME_PRIMERO.md)). Aquí va **un solo estado**, el de hoy; lo que pasó cada día está en
 la bitácora de LEEME_PRIMERO (y lo más viejo en [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md)).
 
@@ -38,9 +38,18 @@ la producción. Apruébalo y punto.»); la revisión adversarial no se salta (re
 
 ## Lo que sigue, en orden
 
-**Primero, terminar la ronda del plan** ([PLAN_ANDRES_VOZ_PORTADA.md › Traspaso del 2026-11-16](PLAN_ANDRES_VOZ_PORTADA.md#traspaso-del-2026-11-16-madrugada-dónde-quedó-cada-parte)):
-probar y cerrar los arreglos de combos (paso 0, antes del Black Friday del viernes 27), de voz y de la portada, correr
-la batería de Odoo sobre la rama unida y subir (Desplegar Juan y Desplegar). La rama **no** se despliega tal cual.
+**LO PRIMERO: subir el Black Friday.** Está probado y listo en la rama **`claude/black-friday-solo`** (commit
+`26b357d3` y los que sigan): la campaña del sitio, los combos inamovibles con todos los arreglos de las dos revisiones
+adversariales y el chat renombrado a Andrés. **Batería del paso 0: 1543 pruebas, 0 fallas** (2026-11-16).
+**La subida se frenó porque el servidor de GitHub de la sesión dejó de responder** («invalid session») y sin él no se
+pueden lanzar los flujos de Actions. `git push` sí funciona. Al empezar: lanzar `ci.yml` con `desplegar_en=staging`
+sobre esa rama y seguir la receta de [DESPLIEGUE.md](DESPLIEGUE.md) (PR `[skip ci]`, squash con el SHA exacto,
+**Desplegar Juan** y después **Desplegar** con respaldo previo). El Black Friday es el **viernes 27**: hay que dejarlo
+en producción con días de margen para que la dueña alcance a marcar los productos.
+
+**Después**, la segunda entrega en `claude/merge-rama-to-main-ty3koz`: Andrés vendedor (A1–A5), notas de voz,
+micrófono del chat y la portada en carrusel. Falta correr sus baterías de Odoo, una revisión independiente de los
+arreglos de Andrés (sobre todo el de Socios) y las capturas de la portada a 1440 y 390 para la dueña.
 
 0000000. **Primero termina el 000000 de abajo (Black Friday). Después, la siguiente ronda que pidió la dueña, con su plan
         escrito en [PLAN_ANDRES_VOZ_PORTADA.md](PLAN_ANDRES_VOZ_PORTADA.md).**
