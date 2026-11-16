@@ -29,14 +29,18 @@ class TestRvCombosCampana(CombosCommon):
         hoy = fields.Date.context_today(cls.campana)
         cls.campana.write({'fecha_inicio': hoy - timedelta(days=1), 'fecha_fin': hoy + timedelta(days=1),
                            'dcasa_rebaja_combos': False})
-        # La cama king 400 → 350 en campaña. El colchón king NO está en la campaña: va a 300 solo, 260 en combo.
-        cls.cama_king.product_tmpl_id.write({'dcasa_black_weekend': True, 'dcasa_campana_precio': 350.0})
+        # La cama king 400 → 385 en campaña. El colchón king NO está en la campaña: va a 300 solo, 260 en combo.
+        # (El 385 no es casual: la cama pierde 15 al entrar al combo y el colchón gana 40, así que el combo sigue
+        # siendo el más barato y se queda tal cual. Con la regla del par, del 2026-11-16, un 350 lo desharía: la cama
+        # perdería 50 y el par saldría más caro que comprar suelto. Ese caso tiene sus pruebas en
+        # test_rv2_combos_campana.py.)
+        cls.cama_king.product_tmpl_id.write({'dcasa_black_weekend': True, 'dcasa_campana_precio': 385.0})
 
     # --- Hallazgos -------------------------------------------------------------------
 
     def test_rv_dos_camas_en_lineas_y_un_colchon_por_dos_la_segunda_cama_toma_la_campana(self):
         """Dos camas king (dos líneas) y una línea de 2 colchones king: son dos combos con precio en combo (el colchón
-        ocupa las dos camas), pero solo la «cama principal» queda sin campaña. La otra cama va a 350 y su colchón a
+        ocupa las dos camas), pero solo la «cama principal» queda sin campaña. La otra cama va a 385 y su colchón a
         260: campaña + combo juntos."""
         orden = self.orden(productos=[self.cama_king, self.cama_king])
         self.env['sale.order.line'].with_user(self.vendedora).create(
@@ -50,7 +54,7 @@ class TestRvCombosCampana(CombosCommon):
     def test_rv_contexto_sin_recalcular_por_rpc_deja_campana_y_combo_juntos(self):
         """Una vendedora manda por RPC el contexto interno ``dcasa_combo_sin_recalcular``: borra la marca de la cama
         del combo (campo «readonly» solo en pantalla) y le pone el precio de campaña. El tope la mide contra la
-        campaña (sin marca) y el emparejamiento, que la volvería a marcar, no corre: cama 350 + colchón 260."""
+        campaña (sin marca) y el emparejamiento, que la volvería a marcar, no corre: cama 385 + colchón 260."""
         orden = self.orden(productos=[self.cama_king, self.colchon_king])
         cama, colchon = self.linea(orden, self.cama_king), self.linea(orden, self.colchon_king)
         self.assertEqual((cama.price_unit, colchon.price_unit), (400.0, COMBO_KING))
@@ -78,7 +82,7 @@ class TestRvCombosCampana(CombosCommon):
                             'base_pricelist_id': self.tarifa.id, 'price_discount': 0.0})]})
         self.cliente.property_product_pricelist = mayorista
         solo = self.orden(productos=[self.cama_king])
-        self.assertEqual(solo.order_line.price_unit, 350.0, 'la cama sola hereda la campaña de la tarifa base')
+        self.assertEqual(solo.order_line.price_unit, 385.0, 'la cama sola hereda la campaña de la tarifa base')
         orden = self.orden(productos=[self.cama_king, self.colchon_king])
         cama = self.linea(orden, self.cama_king)
         self.assertTrue(cama.dcasa_combo_sin_campana)
@@ -94,15 +98,15 @@ class TestRvCombosCampana(CombosCommon):
         orden = self.orden(productos=[self.cama_king, self.colchon_king])
         cama, colchon = self.linea(orden, self.cama_king), self.linea(orden, self.colchon_king)
         self.assertEqual(colchon.price_unit, 250.0, 'el colchón va a su normal: el combo no rebaja nada')
-        self.assertEqual(cama.price_unit, 350.0, 'sin descuento de combo, la cama conserva la campaña')
+        self.assertEqual(cama.price_unit, 385.0, 'sin descuento de combo, la cama conserva la campaña')
 
     def test_rv_cama_por_dos_con_un_colchon_cobra_la_cama_sola_sin_campana(self):
         """Una línea de 2 camas king con 1 colchón: un combo y una cama sola. Toda la línea queda sin campaña: la cama
-        sola se cobra a 400 y no a 350."""
+        sola se cobra a 400 y no a 385."""
         orden = self.orden(productos=[self.cama_king, self.colchon_king])
         cama = self.linea(orden, self.cama_king)
         cama.with_user(self.vendedora).product_uom_qty = 2
-        self.assertLessEqual(cama.price_subtotal, 400.0 + 350.0, 'una cama en combo (400) y una sola (350)')
+        self.assertLessEqual(cama.price_subtotal, 400.0 + 385.0, 'una cama en combo (400) y una sola (385)')
 
     def test_rv_textos_promo_y_expo_en_femenino(self):
         from odoo.addons.website_dcasa.models.black_weekend import articulo_y_nombre
@@ -119,12 +123,12 @@ class TestRvCombosCampana(CombosCommon):
         cama = self.linea(copia, self.cama_king)
         colchon = self.linea(copia, self.colchon_king)
         colchon.with_user(self.vendedora).product_uom_qty = 2   # dos colchones, una cama: sale del combo
-        self.assertEqual((cama.price_unit, colchon.price_unit), (350.0, 300.0))
+        self.assertEqual((cama.price_unit, colchon.price_unit), (385.0, 300.0))
         cama.with_user(self.vendedora).product_uom_qty = 2      # dos camas: dos combos
         self.assertEqual((cama.price_unit, colchon.price_unit), (400.0, COMBO_KING))
         (colchon | cama).with_user(self.vendedora).write({'product_uom_qty': 1})
         colchon.with_user(self.vendedora).product_id = self.colchon_queen   # otra medida: sale del combo
-        self.assertEqual(cama.price_unit, 350.0)
+        self.assertEqual(cama.price_unit, 385.0)
         self.assertFalse(cama.dcasa_combo_sin_campana)
         colchon.with_user(self.vendedora).product_id = self.colchon_king    # vuelve
         self.assertEqual((cama.price_unit, colchon.price_unit), (400.0, COMBO_KING))
@@ -147,7 +151,7 @@ class TestRvCombosCampana(CombosCommon):
         (combo | sola).order_line.invalidate_recordset()
         lineas = (combo | sola).order_line
         lineas._compute_pricelist_item_id()   # todas juntas en un solo cómputo
-        self.assertEqual(sola.order_line.price_unit, 350.0)
+        self.assertEqual(sola.order_line.price_unit, 385.0)
         self.assertTrue(sola.order_line.pricelist_item_id.dcasa_campana)
         self.assertFalse(self.linea(combo, self.cama_king).pricelist_item_id.dcasa_campana)
 
