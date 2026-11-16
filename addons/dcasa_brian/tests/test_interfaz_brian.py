@@ -10,6 +10,7 @@ ARCHIVOS = (
     'dcasa_brian/static/src/js/brian_servicio.js',
     'dcasa_brian/static/src/js/brian_panel.js',
     'dcasa_brian/static/src/js/brian_markdown.js',
+    'dcasa_brian/static/src/js/brian_voz.js',
     'dcasa_brian/static/src/xml/brian_panel.xml',
     'dcasa_brian/static/src/scss/brian_panel.scss',
 )

@@ -755,6 +755,81 @@ $brian-pantallas-con-scroll: o_sofia, o_camila, o_dcasa_envios, o_dcasa_guia, o_
     .o_brian_ayuda { display: none; }
 }
 
+// --- Nota de voz: el tiempo a la vista, cancelar y «Listo». Plano: punto rojo solo mientras graba (con la palabra
+// «Grabando» al lado: el color nunca es la única señal), barra azul del minuto. --------------------------------
+.o_brian_entrada_voz { align-items: center; }
+
+.o_brian_grabando {
+    flex: 1;
+    min-width: 0;
+    min-height: 34px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-left: 6px;
+}
+
+.o_brian_grabando_punto {
+    flex: none;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--dc-tinta-3);
+}
+.o_brian_grabando_punto_activo {
+    background: var(--dc-mal, #B3261E);
+    animation: o_brian_latido 1.2s ease-in-out infinite;
+}
+@keyframes o_brian_latido {
+    50% { opacity: .35; }
+}
+
+.o_brian_grabando_estado {
+    flex: none;
+    color: var(--dc-tinta);
+    font-size: .9rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.o_brian_grabando_tiempo {
+    flex: none;
+    color: var(--dc-tinta-2);
+    font-size: .85rem;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.o_brian_grabando_barra {
+    flex: 1;
+    min-width: 24px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--dc-perla);
+    overflow: hidden;
+
+    > span {
+        display: block;
+        height: 100%;
+        background: var(--dc-azul-600);
+        transition: width .25s linear;
+    }
+}
+
+.o_brian_voz_nota {
+    margin: 6px 2px 0;
+    font-size: .74rem;
+    color: var(--dc-tinta-2);
+    text-align: center;
+
+    .fa { margin-right: 4px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .o_brian_grabando_punto_activo { animation: none; }
+    .o_brian_grabando_barra > span { transition: none; }
+}
+
 // Arrastrar y soltar
 .o_brian_soltar {
     position: absolute;

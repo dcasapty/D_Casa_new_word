@@ -321,7 +321,10 @@ class BrianConversacion(models.Model):
         """Estado del proveedor de IA (sin la clave). Solo usuarios internos: el portal no usa Brian."""
         if not self.env.su and not self.env.user.has_group('base.group_user'):
             raise AccessError(self.env._('Brian es solo para el equipo de D’CASA.'))
-        return self.env['brian.proveedores'].estado()
+        estado = self.env['brian.proveedores'].estado()
+        # ¿El micrófono? Las notas de voz se pasan a texto en el Worker de Juan; el audio no se guarda (models/voz.py).
+        estado['voz'] = self.env['dcasa.brian.voz'].disponible()
+        return estado
 
     @api.model
     def mis_conversaciones(self, limite=30):

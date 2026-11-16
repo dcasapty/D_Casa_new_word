@@ -190,24 +190,64 @@
                         </li>
                     </ul>
 
-                    <form class="o_brian_entrada" t-on-submit.prevent="() => this.enviar()">
-                        <button type="button" class="o_brian_icono_btn o_brian_clip" aria-label="Adjuntar archivos o fotos"
-                                title="Adjuntar archivos o fotos" t-on-click="elegirArchivo">
-                            <i class="fa fa-paperclip" aria-hidden="true"/>
-                        </button>
-                        <input type="file" multiple="multiple" class="d-none" t-ref="archivo" t-on-change="alElegirArchivo"
-                               tabindex="-1" aria-hidden="true"/>
-                        <label for="o_brian_texto" class="visually-hidden">Escríbele a Brian</label>
-                        <textarea id="o_brian_texto" class="o_brian_texto" rows="1" t-ref="entrada"
-                                  placeholder="Escríbele a Brian…" t-model="state.texto"
-                                  t-on-keydown="alTeclear" t-on-input="alEscribir" t-on-paste="alPegar"
-                                  aria-describedby="o_brian_ayuda"/>
-                        <button type="submit" class="o_brian_enviar" aria-label="Enviar" title="Enviar (Enter)"
-                                t-att-disabled="state.pensando or (!state.texto.trim() and !state.adjuntos.length)">
-                            <i class="fa fa-arrow-up" aria-hidden="true"/>
-                        </button>
+                    <form class="o_brian_entrada" t-att-class="{'o_brian_entrada_voz': vozActiva}" t-on-submit.prevent="() => this.enviar()">
+                        <t t-if="!vozActiva">
+                            <button type="button" class="o_brian_icono_btn o_brian_clip" aria-label="Adjuntar archivos o fotos"
+                                    title="Adjuntar archivos o fotos" t-on-click="elegirArchivo">
+                                <i class="fa fa-paperclip" aria-hidden="true"/>
+                            </button>
+                            <input type="file" multiple="multiple" class="d-none" t-ref="archivo" t-on-change="alElegirArchivo"
+                                   tabindex="-1" aria-hidden="true"/>
+                            <label for="o_brian_texto" class="visually-hidden">Escríbele a Brian</label>
+                            <textarea id="o_brian_texto" class="o_brian_texto" rows="1" t-ref="entrada"
+                                      placeholder="Escríbele a Brian…" t-model="state.texto"
+                                      t-on-keydown="alTeclear" t-on-input="alEscribir" t-on-paste="alPegar"
+                                      aria-describedby="o_brian_ayuda"/>
+                            <!-- Nota de voz: se pasa a texto en el Worker de Juan; el audio no se guarda (brian_voz.js). -->
+                            <button t-if="puedeGrabar" type="button" class="o_brian_icono_btn o_brian_microfono"
+                                    aria-label="Dictarle a Brian con una nota de voz"
+                                    title="Nota de voz: se pasa a texto y el audio no se guarda"
+                                    t-att-disabled="state.pensando" t-on-click="empezarVoz">
+                                <i class="fa fa-microphone" aria-hidden="true"/>
+                            </button>
+                            <button type="submit" class="o_brian_enviar" aria-label="Enviar" title="Enviar (Enter)"
+                                    t-att-disabled="state.pensando or (!state.texto.trim() and !state.adjuntos.length)">
+                                <i class="fa fa-arrow-up" aria-hidden="true"/>
+                            </button>
+                        </t>
+                        <div t-else="" class="o_brian_grabando" role="group" aria-label="Nota de voz para Brian">
+                            <span class="o_brian_grabando_punto" t-att-class="{'o_brian_grabando_punto_activo': state.voz === 'grabando'}"
+                                  aria-hidden="true"/>
+                            <span class="o_brian_grabando_estado">
+                                <t t-if="state.voz === 'pidiendo'">Pidiendo el micrófono…</t>
+                                <t t-elif="state.voz === 'grabando'">Grabando</t>
+                                <t t-else="">Pasando a texto…</t>
+                            </span>
+                            <span class="o_brian_grabando_tiempo" role="timer" aria-live="off">
+                                <t t-esc="relojVoz"/><span class="o_brian_grabando_max"> / <t t-esc="relojMaximo"/></span>
+                            </span>
+                            <span class="o_brian_grabando_barra" aria-hidden="true">
+                                <span t-attf-style="width: {{ porcentajeVoz }}%"/>
+                            </span>
+                            <button type="button" class="o_brian_icono_btn o_brian_voz_cancelar"
+                                    aria-label="Cancelar la nota de voz (Esc): no se manda nada" title="Cancelar (Esc)"
+                                    t-att-disabled="state.voz === 'transcribiendo'" t-on-click="() => this.cancelarVoz()">
+                                <i class="fa fa-times" aria-hidden="true"/>
+                            </button>
+                            <button type="button" class="o_brian_enviar o_brian_voz_listo" t-ref="vozListo"
+                                    aria-label="Listo: pasar la nota a texto" title="Listo: pasar a texto"
+                                    t-att-disabled="state.voz !== 'grabando'" t-on-click="terminarVoz">
+                                <i t-if="state.voz === 'transcribiendo'" class="fa fa-circle-o-notch fa-spin" aria-hidden="true"/>
+                                <i t-else="" class="fa fa-check" aria-hidden="true"/>
+                            </button>
+                        </div>
                     </form>
-                    <p id="o_brian_ayuda" class="o_brian_ayuda">Enter envía · Shift + Enter, nueva línea · Ctrl + J abre y cierra</p>
+                    <p class="visually-hidden o_brian_voz_anuncio" role="status" aria-live="polite" t-esc="state.vozAnuncio"/>
+                    <p t-if="vozActiva" class="o_brian_voz_nota">
+                        <i class="fa fa-lock" aria-hidden="true"/>
+                        Solo se queda el texto: el audio no se guarda. Hasta un minuto.
+                    </p>
+                    <p t-else="" id="o_brian_ayuda" class="o_brian_ayuda">Enter envía · Shift + Enter, nueva línea · Ctrl + J abre y cierra</p>
                 </footer>
             </t>
 
