@@ -129,7 +129,7 @@ pedido de la dueña: «sube la rama lo que tengas y añade todo lo que avanzamos
     - la huella del catálogo de Meta.
   - **«Andrés»:** el chat de la tienda tiene nombre nuevo, en Odoo y en `juan/src/tienda`.
 - **La dueña ya autorizó la subida** («lleva ya todo a producción»). Falta:
-  - repetir las pruebas locales con `cae5e57`: la vuelta con `11f9822` llevaba más de 600 en verde, sin terminar;
+  - repetir las pruebas locales con el código final: la vuelta con `11f9822` dio 827 de 827 en verde;
   - CI con staging, PR, squash, Desplegar y **Desplegar Juan**;
   - explicarle los pasos del panel.
 
@@ -147,7 +147,10 @@ pedido de la dueña: «sube la rama lo que tengas y añade todo lo que avanzamos
   - Una sección «de cine» tipo panaclaw.com/proyectos con un botón al catálogo.
 - **Preguntas abiertas a la dueña:**
   - **I6.** ¿El precio de campaña vale también en la tienda física, o solo en la web? Hoy vale en todos lados.
-  - La línea del combo se esconde mientras rige un precio de campaña. Lo decidí yo y ella lo puede revertir.
+  - **Combo armado en la tienda.** Solo importa si la I6 es «en todos lados»: ¿la cama va a su precio normal o al de
+    Black Friday? El detalle está en el plan.
+  - **Ya contestó:** «los combos son intocables. Esa es una promoción permanente de la empresa». La línea «Combo con
+    colchón $X» vuelve a salir con precio de campaña, en la página, con Juan y con Andrés.
 - **Esta máquina:** se reinició cuatro veces entre el 15 y el 16. Lo que no está en la rama se pierde.
 
 ### 2026-11-15 (3): bandas en azul noche y pie claro, menú sin «Escríbenos», contacto y el carrito en el chat, en producción (Desplegar 76); Black Friday y «Andrés» en la rama

@@ -66,4 +66,5 @@ class TestPrecioDeCampanaEnLaFicha(TransactionCase):
         self.cama.write({'dcasa_black_weekend': True, 'dcasa_campana_precio': 150.0})
         precios = sorted(v['precio'] for v in self.herramientas._j_ficha_completa(self.cama)['variantes'])
         self.assertEqual(precios, [150.0, 210.0], 'la King conserva sus 60 de diferencia')
-        self.assertIsNone(self.herramientas._j_combo(self.cama), 'con precio de campaña no se dice el combo del Excel')
+        combo = self.herramientas._j_combo(self.cama)
+        self.assertEqual(combo and combo['precio'], 469.99, 'el combo es intocable: sigue con su precio de siempre')

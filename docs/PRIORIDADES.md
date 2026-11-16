@@ -48,8 +48,7 @@ la producción. Apruébalo y punto.»); la revisión adversarial no se salta (re
        pausó el 2026-11-16 por el límite de uso. El código está en `cae5e57` (la rama tiene después solo commits de
        documentos). Hecho: la campaña del sitio desde el panel, el chat de la tienda renombrado a Andrés, las pruebas
        nuevas y **tres vueltas de revisión adversarial** sin bloqueantes (el detalle de lo que quedó sin hacer está en el
-       plan). Pruebas locales del 2026-11-16 (`dcasa_test_bf4`, con el código de `11f9822`): más de 600 sin ninguna
-       falla cuando se pausó, sin terminar. **Para terminar, en orden** (el paso 0 de
+       plan). Pruebas locales del 2026-11-16 (`dcasa_test_bf4`, con el código de `11f9822`): 827 de 827 en verde. **Para terminar, en orden** (el paso 0 de
        [PLAN_ANDRES_VOZ_PORTADA.md](PLAN_ANDRES_VOZ_PORTADA.md) trae los comandos):
        1. Correr otra vez las pruebas locales: `website_dcasa`, `dcasa_tienda_borde`, `dcasa_brian_tienda`,
           `dcasa_conversaciones` (las clases de precios), `dcasa_socios`, `dcasa_abonos` y `dcasa_meta_catalogo`, más
@@ -61,8 +60,10 @@ la producción. Apruébalo y punto.»); la revisión adversarial no se salta (re
           margen antes del 27, para que alcance a marcar los productos.
        Preguntas abiertas para ella:
        - **I6.** ¿El precio de campaña vale también en la tienda física, o solo en la web? Hoy vale en todos lados.
-       - **Combo con colchón.** Mientras rige un precio de campaña, la línea del combo se esconde. Eso lo decidí yo y
-         ella lo puede revertir.
+       - **Combo armado en la tienda** (solo si la I6 es «en todos lados»): ¿la cama va a su precio normal o al de Black
+         Friday? El detalle está en el plan.
+       - **Ya decidido:** los combos son intocables, porque son una promoción permanente. La línea del combo sale
+         siempre con su precio de siempre (cambio del 2026-11-16, en la rama).
 
 00000. **Portada v3: en producción desde el 2026-11-15, 08:3x UTC** (Desplegar 75, PR #121; aprobada por la dueña con
        capturas: «apruebo todo, despliégalo todo cuanto antes»; comparación <https://claude.ai/artifact/XQti28eQjFLDzT1Z9CpsRH>).

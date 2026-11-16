@@ -36,12 +36,13 @@ Escrito el 2026-11-16 para que otra sesión lo continúe. Antes de empezar, leer
 
 ## 0. Terminar la subida de Black Friday y Andrés (lo primero)
 
-El código está en `cae5e57`; después solo hay commits de documentos. Las capturas de la campaña ya las aprobó la
+El código está en `cae5e57`. El commit que devuelve el combo, del 2026-11-16, va encima; después solo hay commits de
+documentos. Las capturas de la campaña ya las aprobó la
 dueña (<https://claude.ai/artifact/GxqG2zGJZ949owo6Pbqwgn>), igual que el nombre «Andrés» y el botón «Empezar de cero».
 Ya autorizó la subida: «lleva ya todo a producción». La revisión adversarial ya se hizo (tres vueltas).
 
-1. **Pruebas locales.** Se corrieron el 2026-11-16 con el código de `11f9822` y llevaban más de 600 en verde cuando se
-   pausó, sin terminar. Hay que repetirlas con el de `cae5e57`:
+1. **Pruebas locales.** El 2026-11-16, con el código de `11f9822`, pasaron 827 de 827. Hay que repetirlas con el
+   código final (los arreglos de `cae5e57` y el combo de vuelta):
    `TEST_TAGS="/website_dcasa,/dcasa_tienda_borde,/dcasa_brian_tienda,/dcasa_conversaciones:TestPrecioDeCampanaEnLaFicha,/dcasa_conversaciones:TestHerramientas,/dcasa_conversaciones:TestPanelCatalogo,/dcasa_conversaciones:TestPagosIa,/dcasa_socios,/dcasa_abonos,/dcasa_meta_catalogo"`
    con `scripts/test.sh` (el venv y Chrome, como en CONTEXTO_AGENTICO › Esta máquina). Correr también
    `cd juan && npm test && npm run typecheck` (1810 en verde el 2026-11-16) y `ruff check addons`.
@@ -72,8 +73,15 @@ Ya autorizó la subida: «lleva ya todo a producción». La revisión adversaria
    6. «Promociones» aparece sola en el menú cuando empieza la campaña y se quita cuando termina.
 6. **Preguntas abiertas para ella** (no cambiar nada sin su «sí»):
    - **I6.** ¿El precio de campaña vale también en la tienda física, o solo en la web? Hoy vale en todos lados.
-   - **Combo con colchón.** Mientras rige un precio de campaña, la línea «Combo con colchón» se esconde. Eso lo
-     decidí yo y ella lo puede revertir.
+   - **Combo armado en la tienda.** Solo importa si a la I6 contesta «en todos lados». Cuando la vendedora arma en
+     una cotización el combo cama + colchón (`dcasa_catalogo/models/combo_armable.py`), la cama toma la tarifa, o sea
+     el precio de Black Friday. El colchón queda a su «precio en combo». ¿La cama va a su precio normal o al de Black
+     Friday? Por lo que dijo («intocables»), lo más probable es que vaya al normal. Hay que confirmarlo antes de
+     programarlo: toca dinero y necesita revisión adversarial.
+   - **Ya decidido (2026-11-16):** «los combos son intocables. Esa es una promoción permanente de la empresa…
+     supongo que es a cosas individuales y no a combos». La línea «Combo con colchón $X» sale siempre con su precio
+     de siempre, también con precio de campaña, en la página y en lo que dicen Juan y Andrés. Los combos tipo «Combo»
+     de Odoo ya no admiten precio de campaña.
 7. Anotar en la bitácora, PRIORIDADES y CONTEXTO_AGENTICO.
 
 ## A. Andrés como buen vendedor (lo primero: es lo que más vende)

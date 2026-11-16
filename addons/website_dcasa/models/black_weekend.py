@@ -248,10 +248,9 @@ class Website(models.Model):
                 'precio_visible': precio_visible,
                 'moneda': moneda,
                 'directo': directo,
-                # Con precio de campaña rigiendo, la línea del combo (su precio de siempre, del Excel) no sale: al lado
-                # de la cama rebajada confundía (decisión del 2026-11-15; la dueña puede pedir que vuelva).
-                'combo': (leer_combo(producto.dcasa_combo)
-                          if 'dcasa_combo' in producto._fields and not (antes and antes > precio) else None),
+                # El combo sale siempre con su precio de siempre, también con precio de campaña: «los combos son
+                # intocables, es una promoción permanente de la empresa» (la dueña, 2026-11-16).
+                'combo': leer_combo(producto.dcasa_combo) if 'dcasa_combo' in producto._fields else None,
                 'codigo': codigo,
                 'whatsapp': self._dcasa_bw_whatsapp(producto, codigo),
                 'alt': producto._dcasa_nombre_cliente(),

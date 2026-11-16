@@ -213,10 +213,9 @@ class BrianHerramientasJuan(models.AbstractModel):
 
     @api.model
     def _j_combo(self, plantilla):
+        # También con precio de campaña: el combo es una promoción permanente y no se toca (la dueña, 2026-11-16).
         texto = (plantilla.dcasa_combo or '').strip()
-        if not texto or self._j_precio(plantilla)[2]:
-            # Con precio de campaña rigiendo, el combo del Excel (su precio de siempre) no se dice: la página tampoco
-            # lo muestra y confundía al lado de la cama rebajada.
+        if not texto:
             return None
         combo = leer_combo(texto)
         if not combo:

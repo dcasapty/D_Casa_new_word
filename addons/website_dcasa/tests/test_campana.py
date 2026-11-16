@@ -374,7 +374,9 @@ class TestCampanaSitio(_Base, HttpCase):
         self.assertRegex(portada, r'150[.,]00')
         self.assertIn('href="/promociones"', portada)
         self.assertIn('o_dcasa_menu_promo', portada, '«Promociones» en el menú')
-        self.assertNotIn('Combo con colchón First Class', portada, 'con precio de campaña, sin la línea del combo')
+        # Los combos son intocables (la dueña, 2026-11-16): su línea sigue, con su precio de siempre.
+        self.assertIn('Combo con colchón First Class', portada, 'con precio de campaña, el combo sigue')
+        self.assertRegex(portada, r'469[.,]99')
         pagina = self.url_open('/promociones')
         self.assertEqual(pagina.status_code, 200)
         self.assertIn('Black Friday', pagina.text)
