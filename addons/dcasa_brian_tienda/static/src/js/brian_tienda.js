@@ -20,6 +20,11 @@
  *     (proponer_cambio_carrito) lo aplica la página en Odoo y le cuenta lo que quedó (confirmar_cambio); la vitrina va
  *     ordenada: «En tu carrito» arriba y un grupo plegable por cada pedido, el más reciente primero.
  *   · La ubicación (navigator.geolocation) solo se pide al tocar «Usar mi ubicación actual» y viaja solo en ese turno.
+ *   · Notas de voz (docs/JUAN.md §12a): el micrófono junto a «Enviar» sale solo si el Worker dice que está disponible
+ *     (GET {worker}/tienda/v1/voz, sin pase). El permiso del micrófono se pide al tocarlo; graba con MediaRecorder
+ *     (Opus a ~32 kbps), muestra el tiempo, corta sola al tope y deja cancelar (X o Esc). El audio crudo va UNA vez al
+ *     Worker (POST {worker}/tienda/v1/voz, con el pase), vive solo en memoria y vuelve solo el texto, que sale en el
+ *     globo del visitante y se manda como un mensaje normal (si vino recortado, queda en la caja para revisarlo).
  *   · Lo conversado se recuerda en ESTE navegador (sessionStorage, se borra al cerrar la pestaña) para que el chat siga
  *     igual al pasar de página; Odoo no guarda la conversación.
  *   · Accesible: foco, Esc para cerrar, aria-*; con movimiento reducido, quieto.
@@ -84,6 +89,17 @@ const CLAVE_REACCION = "dcasa.brian.reaccion";
 /** Lo que Andrés propone y la página aplica en Odoo con la sesión del visitante (nunca al restaurar la conversación). */
 const PROPUESTAS = new Set(["proponer_carrito", "proponer_cambio_carrito", "sumar_envio"]);
 const TEXTO_ENVIO_SUMADO = "Listo, te lo sumé: el total lo ves en tu carrito y en la cotización.";
+/** Notas de voz: Opus a 32 kbps (un minuto pesa unos 240 KB; el tope del Worker es 1 MB). Por orden: Chrome y Edge
+ *  graban WebM, Firefox Ogg (o WebM), Safari MP4; de estos, solo los que el Worker dice que acepta (``tipos``). */
+const VOZ_BITS = 32000;
+const VOZ_TIPOS_PREFERIDOS = ["audio/webm;codecs=opus", "audio/ogg;codecs=opus", "audio/webm", "audio/ogg", "audio/mp4"];
+/** Lo de fábrica si el Worker no lo dice (docs/JUAN.md §12a: hasta 60 s y 1 MB). */
+const VOZ_MAX_SEGUNDOS = 60;
+const VOZ_MAX_BYTES = 1024 * 1024;
+/** Menos que esto no es una nota (un toque sin querer): no se manda. */
+const VOZ_MIN_MS = 600;
+/** «Si prefieres, mándame una nota de voz» sale una sola vez por sesión. */
+const CLAVE_VOZ_PISTA = "dcasa.brian.voz_pista";
 const RUTA = "/dcasa/brian/v1";
 /** Botones de la página que la burbuja nunca tapa (se hace a un lado mientras estén debajo). */
 const NO_TAPAR = '.o_dcasa_wa_producto, #add_to_cart, a.btn[href*="wa.me"], a.btn[href^="/whatsapp"], [name="website_sale_main_button"], .o_dcasa_brian_no_tapar';
@@ -111,6 +127,8 @@ const ICO = {
     mira: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.4" fill="currentColor" stroke="none"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>',
     lapiz: `<svg ${TRAZO}><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg>`,
     estrella: '<svg viewBox="0 0 24 24" aria-hidden="true"><path class="o_dcbt_relleno" d="m12 3.2 2.7 5.5 6 .9-4.4 4.2 1 6-5.3-2.8-5.3 2.8 1-6-4.4-4.2 6-.9z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>',
+    microfono: `<svg ${TRAZO}><rect x="9" y="2.8" width="6" height="11.4" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5v3.7M8.6 21.2h6.8"/></svg>`,
+    equis: `<svg ${TRAZO}><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg>`,
 };
 
 const B = "cubic-bezier(.22, 1, .36, 1)";
@@ -432,6 +450,63 @@ export function mensajeWhatsApp(carrito, extra) {
     return texto.slice(0, 600);
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+// Notas de voz: funciones puras (docs/JUAN.md §12a; se prueban en el navegador)
+// ---------------------------------------------------------------------------------------------------------------------
+
+/** «0:07»: los segundos como los lee cualquiera. */
+export function relojVoz(segundos) {
+    const s = Math.max(0, Math.floor(Number(segundos) || 0));
+    return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+}
+
+/** El tipo que graba este navegador, de los que acepta el Worker (``tipos``: «audio/webm», …), o "" si ninguno. */
+export function tipoDeVoz(tipos, puede) {
+    const aceptados = new Set((Array.isArray(tipos) ? tipos : []).filter((t) => typeof t === "string").map((t) => t.toLowerCase()));
+    const soporta = puede || ((t) => {
+        try {
+            return Boolean(window.MediaRecorder && window.MediaRecorder.isTypeSupported(t));
+        } catch {
+            return false;
+        }
+    });
+    return VOZ_TIPOS_PREFERIDOS.find((t) => aceptados.has(t.split(";")[0]) && soporta(t)) || "";
+}
+
+/** Lo que dice ``GET /tienda/v1/voz``, validado: ``{max_segundos, max_bytes, tipos}`` si hay micrófono, o ``null``. */
+export function vozOfrecida(datos) {
+    if (!datos || typeof datos !== "object" || datos.disponible !== true || !Array.isArray(datos.tipos) || !datos.tipos.length) {
+        return null;
+    }
+    const segundos = Number.isInteger(datos.max_segundos) && datos.max_segundos >= 3 && datos.max_segundos <= 300 ? datos.max_segundos : VOZ_MAX_SEGUNDOS;
+    const bytes = Number.isInteger(datos.max_bytes) && datos.max_bytes > 0 ? Math.min(datos.max_bytes, 8 * VOZ_MAX_BYTES) : VOZ_MAX_BYTES;
+    return { max_segundos: segundos, max_bytes: bytes, tipos: datos.tipos.filter((t) => typeof t === "string").slice(0, 8) };
+}
+
+/** Lo que se le dice al visitante cuando la nota no sirvió: siempre amable y con la salida de escribirlo. */
+export function textoErrorVoz(motivo) {
+    const largo = "Tu nota quedó muy larga (hasta un minuto). Mándame una más corta o escríbelo, por favor.";
+    const noEntendi = "No te entendí bien. ¿Me lo repites un poco más cerca del micrófono? O escríbelo, por favor.";
+    const tope = "Por ahora no puedo escuchar más notas de voz. Escríbelo, por favor.";
+    const textos = {
+        permiso: "Para mandarme una nota de voz, permite el micrófono en tu navegador. Si no, escríbelo, por favor.",
+        sin_microfono: "No encontré un micrófono para grabar. Escríbelo, por favor.",
+        corta: "La nota quedó muy corta y no alcancé a escucharte. Inténtalo otra vez o escríbelo, por favor.",
+        muy_larga: largo,
+        muy_pesada: largo,
+        no_se_entendio: noEntendi,
+        audio: noEntendi,
+        tope_sesion: tope,
+        tope_red: tope,
+        tope_dia: tope,
+        tope: tope,
+        presupuesto: tope,
+        ocupado: "Estoy escuchando muchas notas a la vez. Escríbelo, por favor, o inténtalo en un ratito.",
+        no_disponible: "Ahora no puedo escuchar notas de voz. Escríbelo, por favor.",
+    };
+    return textos[motivo] || "No pude escuchar tu nota ahora. Inténtalo otra vez o escríbelo, por favor.";
+}
+
 function leerAlmacen(clave) {
     try {
         const crudo = window.sessionStorage.getItem(clave);
@@ -509,7 +584,13 @@ export class ChatBrian {
             autor: null, posePrevia: null, vistos: [], carrito: null, carritoCambio: false,
             // A5: un grupo por cada respuesta con tarjetas ({id, titulo, claves, abierto}); A1: la hoja del carrito.
             grupos: [], hoja: false,
+            // La nota de voz: inactiva · pidiendo (el permiso del micrófono) · grabando · transcribiendo.
+            voz: "inactiva",
         };
+        // Lo que ofrece el Worker para las notas de voz ({max_segundos, max_bytes, tipos}) o null: sin micrófono.
+        this.voz = null;
+        this.grabacion = null;
+        this.intentoVoz = 0;
         this.idGrupo = 0;
         this.ultimoPedido = "";
         this.historial = [];
@@ -546,6 +627,8 @@ export class ChatBrian {
                 this.refrescarCarrito(); // pudo cambiarlo en otra pestaña
             }
         });
+        // Al irse de la página, una nota a medio grabar se tira y el micrófono se apaga (no se manda nada).
+        this.escuchar(window, "pagehide", () => this.cancelarVoz({ enfocar: false }));
         const guardado = leerAlmacen(CLAVE_CHAT);
         if (guardado && Array.isArray(guardado.historial) && guardado.historial.length) {
             this.restaurado = guardado;
@@ -566,6 +649,7 @@ export class ChatBrian {
     }
 
     destruir() {
+        this.cancelarVoz({ enfocar: false });
         for (const fn of this.limpiezas.splice(0)) {
             try {
                 fn();
@@ -891,11 +975,26 @@ export class ChatBrian {
         this.hojaCerrar = el("button", { type: "button", class: "o_dcbt_cab_boton o_dcbt_hoja_cerrar", "aria-label": "Cerrar el carrito", html: ICO.cerrar });
         this.hoja = el("div", { id: "o_dcbt_hoja", class: "o_dcbt_hoja", role: "region", "aria-labelledby": "o_dcbt_hoja_titulo", hidden: true },
             el("div", { class: "o_dcbt_hoja_cab" }, el("h3", { id: "o_dcbt_hoja_titulo", text: "Tu carrito" }), this.hojaCerrar), this.hojaCuerpo);
-        // El campo de texto con su botón de enviar: lo de escribir va aquí (un botón de micrófono iría junto a «Enviar»).
+        // El campo de texto con el micrófono y el botón de enviar. El micrófono sale solo si el Worker ofrece las notas de
+        // voz (``revisarVoz``); mientras graba, el campo y los dos botones dejan su lugar a la nota: el tiempo, cancelar
+        // y «Listo» (en el mismo renglón: en el celular no tapa la barra del carrito ni la conversación).
         this.campo = el("textarea", { id: "o_dcbt_texto", name: "texto", rows: "1", placeholder: "Escribe tu mensaje…", enterkeyhint: "send", maxlength: String(MAX_TEXTO) });
+        this.btnVoz = el("button", { type: "button", class: "o_dcbt_voz", "aria-label": "Mandar una nota de voz", title: "Nota de voz: se pasa a texto y el audio no se guarda", hidden: true, html: ICO.microfono });
         this.btnEnviar = el("button", { type: "submit", class: "o_dcbt_enviar", "aria-label": "Enviar", disabled: true, html: ICO.enviar });
+        this.vozEstado = el("span", { class: "o_dcbt_voz_estado" });
+        this.vozTiempo = el("span", { class: "o_dcbt_voz_tiempo", role: "timer", "aria-live": "off" });
+        this.vozAvance = el("span");
+        this.vozCancelar = el("button", { type: "button", class: "o_dcbt_voz_cancelar", "aria-label": "Cancelar la nota de voz (Esc): no se manda nada", title: "Cancelar (Esc)", html: ICO.equis });
+        this.vozListo = el("button", { type: "button", class: "o_dcbt_enviar o_dcbt_voz_listo", "aria-label": "Listo: mandar la nota de voz", title: "Listo", html: ICO.check });
+        this.vozCaja = el("div", { class: "o_dcbt_voz_grabando", role: "group", "aria-label": "Nota de voz", hidden: true },
+            el("span", { class: "o_dcbt_voz_punto", "aria-hidden": "true" }), this.vozEstado, this.vozTiempo,
+            el("span", { class: "o_dcbt_voz_barra", "aria-hidden": "true" }, this.vozAvance), this.vozCancelar, this.vozListo);
+        // «Si prefieres, mándame una nota de voz»: una vez por sesión, bajo el campo, y se va sola al primer mensaje.
+        this.vozPista = el("p", { class: "o_dcbt_voz_pista", hidden: true }, ico("microfono"), el("span", { text: "Si prefieres, mándame una nota de voz con el micrófono." }));
+        this.vozAnuncio = el("p", { class: "visually-hidden", role: "status", "aria-live": "polite" });
         this.form = el("form", { class: "o_dcbt_composer", autocomplete: "off" },
-            el("label", { class: "visually-hidden", for: "o_dcbt_texto", text: "Escribe tu mensaje" }), this.campo, this.btnEnviar);
+            el("label", { class: "visually-hidden", for: "o_dcbt_texto", text: "Escribe tu mensaje" }), this.campo, this.btnVoz, this.btnEnviar,
+            this.vozCaja, this.vozPista, this.vozAnuncio);
         this.vitrinaGrid = el("div", { class: "o_dcbt_vitrina_grid" });
         this.vitrinaPie = el("div", { class: "o_dcbt_vitrina_pie" });
         const volver = el("button", { type: "button", class: "o_dcbt_volver o_dcbt_solo_cel" }, ico("izq"), el("span", { text: "Chat" }));
@@ -915,6 +1014,9 @@ export class ChatBrian {
         this.escuchar(volver, "click", () => this.ampliar(false));
         this.escuchar(this.barraVer, "click", () => this.abrirHoja(!this.estado.hoja));
         this.escuchar(this.hojaCerrar, "click", () => this.abrirHoja(false));
+        this.escuchar(this.btnVoz, "click", () => this.empezarVoz());
+        this.escuchar(this.vozCancelar, "click", () => this.cancelarVoz());
+        this.escuchar(this.vozListo, "click", () => this.terminarVoz());
         this.escuchar(this.campo, "input", () => {
             this.autoAlto();
             this.btnEnviar.disabled = !this.campo.value.trim() || this.estado.pausa;
@@ -1006,7 +1108,13 @@ export class ChatBrian {
         this.refrescarCarrito();
         this.pintarCabCarrito();
         this.pintarBarra();
+        // ¿Hay micrófono? Con un pase de antes ya se sabe a qué Worker preguntar; si no, se pregunta al llegar el pase.
+        const paseGuardado = leerAlmacen(CLAVE_PASE);
+        if (paseGuardado && typeof paseGuardado.worker === "string") {
+            this.revisarVoz(paseGuardado.worker);
+        }
         this.estado.abierto = true;
+        this.pintarVoz();
         this.yaAbrio = true;
         this.burbuja.classList.remove("o_dcbt_halo", "o_dcbt_aparte");
         this.burbuja.classList.add("o_dcbt_ya_entro");
@@ -1048,6 +1156,8 @@ export class ChatBrian {
             return;
         }
         this.abrirHoja(false);
+        this.cancelarVoz({ enfocar: false });   // una nota a medio grabar se tira: no se manda nada
+        this.ocultarPista();
         this.estado.abierto = false;
         this.guardar();
         this.burbuja.setAttribute("aria-expanded", "false");
@@ -1091,7 +1201,9 @@ export class ChatBrian {
         if (ev.key !== "Escape" || !this.estado.abierto) {
             return;
         }
-        if (this.estado.hoja) {
+        if (["pidiendo", "grabando"].includes(this.estado.voz)) {
+            this.cancelarVoz(); // primero se tira la nota que se está grabando (no se manda nada)
+        } else if (this.estado.hoja) {
             this.abrirHoja(false); // primero se cierra la hoja del carrito
         } else if (this.estado.ampliado) {
             this.ampliar(false);
@@ -1107,6 +1219,7 @@ export class ChatBrian {
         const antes = this.panel.getBoundingClientRect();
         if (si && esCelular()) {
             this.abrirHoja(false); // en el celular la vitrina ocupa la pantalla (y trae su propio pie con el carrito)
+            this.cancelarVoz({ enfocar: false }); // y tapa el campo: una nota a medio grabar se tira
         }
         this.estado.ampliado = si;
         this.panel.classList.toggle("o_dcbt_ampliado", si);
@@ -1791,6 +1904,7 @@ export class ChatBrian {
             const pase = { ok: true, pase: r.pase, worker: r.worker.replace(/\/+$/, ""), vence: ahora + (Number(r.vence_en) || 1800), noche: Boolean(r.noche), avisar_cerrado: r.avisar_cerrado === true, horario_texto: typeof r.horario_texto === "string" ? r.horario_texto : "",
                 sugerencias: Array.isArray(r.sugerencias) ? r.sugerencias.filter((s) => typeof s === "string" && s.trim() && s.length <= 30).slice(0, 2) : [] };
             guardarAlmacen(CLAVE_PASE, pase);
+            this.revisarVoz(pase.worker);
             return pase;
         } finally {
             this.verificando.hidden = true;
@@ -1881,6 +1995,7 @@ export class ChatBrian {
         }
         if (mostrar) {
             this.abrirHoja(false); // lo que escribe o toca el visitante se lee en la conversación (un aviso no la cierra)
+            this.ocultarPista();   // la sugerencia de la nota de voz no insiste
         }
         this.quitarChips();
         const fila = mostrar ? this.cliente(mostrar) : null;
@@ -2234,6 +2349,7 @@ export class ChatBrian {
             this.campo.placeholder = apagado ? "El chat no está disponible" : "Por hoy el chat está en pausa";
             this.btnEnviar.disabled = true;
             this.estadoCab(apagado ? "No disponible" : "En pausa por hoy", true);
+            this.pintarVoz();   // en pausa tampoco hay micrófono
         }
     }
 
@@ -2406,6 +2522,325 @@ export class ChatBrian {
             this.campo.disabled = true;
             this.campo.placeholder = "Por hoy el chat está en pausa";
             this.estadoCab();
+            this.pintarVoz();
+        }
+    }
+
+    // ------------------------------------------------------------------ notas de voz (docs/JUAN.md §12a)
+
+    /** ¿Este navegador puede grabar? (Necesita una conexión segura: https o localhost.) */
+    static puedeGrabar() {
+        return Boolean(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder && window.isSecureContext !== false);
+    }
+
+    /** Le pregunta al Worker, sin pase y una vez por página, si hay notas de voz (y sus topes). Sin respuesta, no hay
+     *  micrófono; al volver a abrir el chat se pregunta otra vez. */
+    async revisarVoz(worker) {
+        if (this.vozRevisada || typeof worker !== "string" || !/^https?:\/\//.test(worker) || !ChatBrian.puedeGrabar()) {
+            return;
+        }
+        this.vozRevisada = true;
+        try {
+            const r = await fetch(worker.replace(/\/+$/, "") + "/tienda/v1/voz", { method: "GET", mode: "cors", credentials: "omit", cache: "no-store" });
+            const ofrecida = vozOfrecida(r.ok ? await r.json() : null);
+            this.voz = ofrecida && tipoDeVoz(ofrecida.tipos) ? ofrecida : null;
+        } catch {
+            this.voz = null;
+            this.vozRevisada = false;
+        }
+        this.pintarVoz();
+    }
+
+    /** El renglón de escribir según la nota: el micrófono (si hay), o el tiempo, cancelar y «Listo» mientras graba. */
+    pintarVoz() {
+        if (!this.btnVoz) {
+            return;
+        }
+        const v = this.estado.voz;
+        const activa = v !== "inactiva";
+        this.btnVoz.hidden = activa || !this.voz || this.estado.pausa;
+        this.campo.hidden = activa;
+        this.btnEnviar.hidden = activa;
+        this.vozCaja.hidden = !activa;
+        this.vozCaja.dataset.estado = v;
+        this.form.classList.toggle("o_dcbt_composer_voz", activa);
+        this.vozEstado.textContent = v === "pidiendo" ? "Pidiendo el micrófono…" : v === "transcribiendo" ? "Pasando a texto…" : "Grabando";
+        this.vozCancelar.disabled = v === "transcribiendo";
+        this.vozListo.disabled = v !== "grabando";
+        this.vozListo.innerHTML = v === "transcribiendo" ? '<span class="o_dcbt_voz_girando" aria-hidden="true"></span>' : ICO.check;
+        this.pintarTiempoVoz(activa ? this.vozSegundos || 0 : 0);
+        // La sugerencia: solo con micrófono, sin grabar y si en esta sesión todavía no salió.
+        const pista = !this.btnVoz.hidden && this.estado.abierto && !this.pistaVista && !leerAlmacen(CLAVE_VOZ_PISTA);
+        this.vozPista.hidden = !pista;
+        if (pista) {
+            this.pistaMostrada = true;
+        }
+    }
+
+    pintarTiempoVoz(segundos) {
+        const maximo = (this.voz && this.voz.max_segundos) || VOZ_MAX_SEGUNDOS;
+        this.vozTiempo.textContent = relojVoz(segundos) + " / " + relojVoz(maximo);
+        this.vozAvance.style.width = Math.min(100, Math.round((segundos / maximo) * 100)) + "%";
+    }
+
+    /** La sugerencia de la nota de voz no vuelve en esta sesión una vez que salió (sin insistir). */
+    ocultarPista() {
+        if (this.pistaMostrada && !this.pistaVista) {
+            this.pistaVista = true;
+            guardarAlmacen(CLAVE_VOZ_PISTA, 1);
+        }
+        if (this.vozPista) {
+            this.vozPista.hidden = true;
+        }
+    }
+
+    anunciarVoz(texto) {
+        if (this.vozAnuncio) {
+            this.vozAnuncio.textContent = texto;
+        }
+    }
+
+    /** El micrófono: el permiso se pide recién aquí (al tocarlo). Graba hasta el tope del Worker, con el tiempo a la vista. */
+    async empezarVoz() {
+        if (!this.voz || this.estado.voz !== "inactiva" || this.estado.pausa) {
+            return;
+        }
+        const tipo = tipoDeVoz(this.voz.tipos);
+        if (!tipo) {
+            return;
+        }
+        this.ocultarPista();
+        this.abrirHoja(false);
+        const intento = ++this.intentoVoz;
+        this.estado.voz = "pidiendo";
+        this.vozSegundos = 0;
+        this.pintarVoz();
+        this.anunciarVoz("Pidiendo permiso para usar el micrófono…");
+        let flujo = null;
+        try {
+            flujo = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, channelCount: 1 } });
+        } catch (error) {
+            if (intento === this.intentoVoz && this.estado.voz === "pidiendo") {
+                this.estado.voz = "inactiva";
+                this.pintarVoz();
+                this.errorVoz(["NotAllowedError", "SecurityError"].includes(error && error.name) ? "permiso" : "sin_microfono");
+            }
+            return;
+        }
+        const apagar = () => flujo.getTracks().forEach((p) => p.stop());
+        if (intento !== this.intentoVoz || this.estado.voz !== "pidiendo") {
+            apagar(); // se canceló mientras el navegador pedía el permiso
+            return;
+        }
+        let grabadora;
+        try {
+            grabadora = new window.MediaRecorder(flujo, { mimeType: tipo, audioBitsPerSecond: VOZ_BITS });
+        } catch {
+            apagar();
+            this.estado.voz = "inactiva";
+            this.pintarVoz();
+            this.errorVoz("fallo");
+            return;
+        }
+        // La nota vive solo en memoria (sus pedazos), nunca en el navegador ni en la conversación guardada.
+        const g = { flujo, grabadora, tipo, partes: [], inicio: Date.now(), fin: 0, cancelada: false };
+        this.grabacion = g;
+        grabadora.ondataavailable = (ev) => {
+            if (ev.data && ev.data.size && !g.cancelada) {
+                g.partes.push(ev.data);
+            }
+        };
+        grabadora.onstop = () => this.alPararVoz(g);
+        grabadora.start(1000);
+        this.estado.voz = "grabando";
+        this.idRelojVoz = setInterval(() => {
+            const segundos = (Date.now() - g.inicio) / 1000;
+            this.vozSegundos = Math.min(segundos, this.voz ? this.voz.max_segundos : VOZ_MAX_SEGUNDOS);
+            this.pintarTiempoVoz(this.vozSegundos);
+            if (this.voz && segundos >= this.voz.max_segundos) {
+                this.terminarVoz(); // al llegar al tope para sola y se manda
+            }
+        }, 250);
+        this.pintarVoz();
+        this.vozListo.focus({ preventScroll: true });
+        this.anunciarVoz("Grabando. Toca «Listo» cuando termines; Esc cancela.");
+    }
+
+    /** «Listo» (o el tope): para de grabar; la nota se manda cuando el navegador la entrega (``alPararVoz``). */
+    terminarVoz() {
+        const g = this.grabacion;
+        if (this.estado.voz !== "grabando" || !g) {
+            return;
+        }
+        clearInterval(this.idRelojVoz);
+        g.fin = Date.now();
+        this.estado.voz = "transcribiendo";
+        this.pintarVoz();
+        this.anunciarVoz("Pasando tu nota a texto…");
+        try {
+            g.grabadora.stop();
+        } catch {
+            this.alPararVoz(g);
+        }
+    }
+
+    /** Cancelar (X, Esc, cerrar el chat o irse de la página): se tira lo grabado y se apaga el micrófono. */
+    cancelarVoz({ enfocar = true } = {}) {
+        if (!["pidiendo", "grabando"].includes(this.estado.voz)) {
+            return;
+        }
+        this.intentoVoz++;
+        clearInterval(this.idRelojVoz);
+        const g = this.grabacion;
+        this.grabacion = null;
+        if (g) {
+            g.cancelada = true;
+            g.partes = [];
+            try {
+                if (g.grabadora.state !== "inactive") {
+                    g.grabadora.stop();
+                }
+            } catch {
+                // nada: igual se apaga abajo
+            }
+            this.soltarVoz(g);
+        }
+        this.estado.voz = "inactiva";
+        this.vozSegundos = 0;
+        this.pintarVoz();
+        this.anunciarVoz("Nota de voz cancelada: no se mandó nada.");
+        if (enfocar && this.btnVoz && !this.btnVoz.hidden) {
+            this.btnVoz.focus({ preventScroll: true });
+        }
+    }
+
+    /** Apaga el micrófono (el navegador deja de mostrar que graba). */
+    soltarVoz(g) {
+        for (const pista of (g.flujo && g.flujo.getTracks && g.flujo.getTracks()) || []) {
+            pista.stop();
+        }
+        g.flujo = null;
+    }
+
+    alPararVoz(g) {
+        if (g.listo) {
+            return;
+        }
+        g.listo = true;
+        this.soltarVoz(g);
+        if (g.cancelada) {
+            return;
+        }
+        if (this.grabacion === g) {
+            this.grabacion = null;
+        }
+        const maximo = ((this.voz && this.voz.max_segundos) || VOZ_MAX_SEGUNDOS) * 1000;
+        const ms = Math.min((g.fin || Date.now()) - g.inicio, maximo);
+        const tipo = String(g.grabadora.mimeType || g.tipo).toLowerCase() || g.tipo;
+        const partes = g.partes;
+        g.partes = [];
+        if (!partes.length || ms < VOZ_MIN_MS) {
+            this.estado.voz = "inactiva";
+            this.pintarVoz();
+            this.errorVoz("corta");
+            return;
+        }
+        const nota = new Blob(partes, { type: tipo });
+        if (nota.size > ((this.voz && this.voz.max_bytes) || VOZ_MAX_BYTES)) {
+            this.estado.voz = "inactiva";
+            this.pintarVoz();
+            this.errorVoz("muy_pesada");
+            return;
+        }
+        this.mandarVoz(nota, tipo, ms);
+    }
+
+    /** La nota va UNA vez al Worker; vuelve solo el texto. Con el texto: el globo del visitante y un mensaje normal por
+     *  ``/tienda/v1/mensaje`` (la lógica del chat no se duplica). Si vino recortado, o si ya había algo escrito, queda en
+     *  la caja para que el visitante lo revise y lo mande él. */
+    async mandarVoz(nota, tipo, ms) {
+        let r;
+        try {
+            r = await this.workerVoz(nota, tipo, ms);
+        } catch {
+            r = { ok: false, motivo: "fallo" };
+        }
+        nota = null;
+        this.estado.voz = "inactiva";
+        this.vozSegundos = 0;
+        this.pintarVoz();
+        const texto = r && r.ok && typeof r.texto === "string" ? r.texto.trim().slice(0, MAX_TEXTO) : "";
+        if (!texto) {
+            this.errorVoz(r && r.ok ? "no_se_entendio" : r && r.motivo);
+            return;
+        }
+        const borrador = this.campo.value.trim();
+        if (r.recortado === true || borrador) {
+            this.campo.value = (borrador ? borrador + " " + texto : texto).slice(0, MAX_TEXTO);
+            this.autoAlto();
+            this.btnEnviar.disabled = this.estado.pausa;
+            this.campo.focus({ preventScroll: true });
+            const aviso = r.recortado === true ? "Tu nota era larga y tomé la primera parte: revísala y envíala." : "Listo: revisa el texto y envíalo.";
+            this.anunciarVoz(aviso);
+            if (r.recortado === true) {
+                this.mostrarAviso(aviso);
+            }
+            return;
+        }
+        this.anunciarVoz("");
+        if (!this.btnVoz.hidden) {
+            this.btnVoz.focus({ preventScroll: true });
+        }
+        this.enviar({ texto, mostrar: texto });
+    }
+
+    /** ``POST {worker}/tienda/v1/voz?duracion_ms=…`` con el audio crudo y el pase (con un pase rechazado, uno nuevo y
+     *  otra vez, una sola). */
+    async workerVoz(nota, tipo, ms, reintento = true) {
+        const pase = await this.asegurarPase();
+        if (!pase.ok) {
+            return pase;
+        }
+        const control = window.AbortController ? new AbortController() : null;
+        const plazo = setTimeout(() => control && control.abort(), PLAZO_WORKER_MS);
+        try {
+            const r = await fetch(pase.worker + "/tienda/v1/voz?duracion_ms=" + Math.max(0, Math.round(ms)), {
+                method: "POST", mode: "cors", credentials: "omit", cache: "no-store", signal: control ? control.signal : undefined,
+                headers: { Authorization: "Pase " + pase.pase, "Content-Type": tipo },
+                body: nota,
+            });
+            const datos = await r.json().catch(() => ({ ok: false, motivo: "fallo" }));
+            if ((r.status === 401 || datos.motivo === "pase") && reintento) {
+                guardarAlmacen(CLAVE_PASE, null);
+                const nuevo = await this.asegurarPase(true);
+                if (!nuevo.ok) {
+                    return nuevo;
+                }
+                return this.workerVoz(nota, tipo, ms, false);
+            }
+            return datos && typeof datos === "object" ? datos : { ok: false, motivo: "fallo" };
+        } catch {
+            return { ok: false, motivo: "fallo" };
+        } finally {
+            clearTimeout(plazo);
+        }
+    }
+
+    /** Lo que no salió, dicho por Andrés en palabras amables (siempre con la salida de escribirlo). */
+    errorVoz(motivo) {
+        if (motivo === "apagado") {
+            this.sinRespuesta("apagado", null, null); // la tienda se apagó: el chat entero pasa a WhatsApp
+            return;
+        }
+        if (motivo === "no_disponible") {
+            this.voz = null; // el Worker ya no transcribe: el micrófono se va
+        }
+        const frase = textoErrorVoz(motivo);
+        this.globo(frase);
+        this.anotar({ tipo: "brian", texto: frase });
+        this.pintarVoz();
+        if (!this.btnVoz.hidden) {
+            this.btnVoz.focus({ preventScroll: true });
         }
     }
 }

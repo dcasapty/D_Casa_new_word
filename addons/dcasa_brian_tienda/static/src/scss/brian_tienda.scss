@@ -1944,6 +1944,179 @@ html.o_dcasa_refraccion .o_dcbt_cab::before {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Notas de voz (docs/JUAN.md §12a): el micrófono junto a «Enviar» (azul sobre blanco, «Enviar» sigue siendo el botón
+// lleno) y, mientras graba, en el mismo renglón: el punto rojo con la palabra «Grabando» (el color nunca es la única
+// señal), el tiempo, la barra del minuto en azul, cancelar y «Listo». Plano, sin el amarillo. Debajo del campo, una vez
+// por sesión, «Si prefieres, mándame una nota de voz».
+// ---------------------------------------------------------------------------
+
+.o_dcbt_composer {
+    flex-wrap: wrap;
+    row-gap: 4px;
+
+    textarea {
+        flex: 1 1 0%;
+    }
+}
+
+.o_dcbt_voz {
+    flex: none;
+    width: 48px;
+    height: 48px;
+    padding: 0;
+    border: 1.5px solid var(--o-dcbt-azul-200);
+    border-radius: 50%;
+    background: var(--o-dcbt-blanco);
+    color: var(--o-dcbt-azul);
+    display: grid;
+    place-items: center;
+    transition: background-color .15s ease, border-color .15s ease;
+
+    svg {
+        width: 22px;
+        height: 22px;
+    }
+
+    &:hover {
+        border-color: var(--o-dcbt-azul);
+        background: var(--o-dcbt-azul-50);
+    }
+}
+
+.o_dcbt_voz_grabando {
+    flex: 1 1 0%;
+    min-width: 0;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-left: 8px;
+}
+
+.o_dcbt_voz_punto {
+    flex: none;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--o-dcbt-gris-claro);
+}
+
+.o_dcbt_voz_grabando[data-estado="grabando"] .o_dcbt_voz_punto {
+    background: var(--o-dcbt-error);
+    animation: o_dcbt_voz_latido 1.2s ease-in-out infinite;
+}
+
+@keyframes o_dcbt_voz_latido {
+    50% {
+        opacity: .35;
+    }
+}
+
+.o_dcbt_voz_estado {
+    flex: none;
+    font: 600 14px/1.2 var(--o-dcbt-f-texto);
+    color: var(--o-dcbt-navy);
+    white-space: nowrap;
+}
+
+.o_dcbt_voz_tiempo {
+    flex: none;
+    font-size: 13px;
+    color: var(--o-dcbt-gris);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.o_dcbt_voz_barra {
+    flex: 1;
+    min-width: 12px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--o-dcbt-linea);
+    overflow: hidden;
+
+    > span {
+        display: block;
+        width: 0;
+        height: 100%;
+        background: var(--o-dcbt-azul);
+        transition: width .25s linear;
+    }
+}
+
+.o_dcbt_voz_cancelar {
+    flex: none;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--o-dcbt-tinta);
+    display: grid;
+    place-items: center;
+
+    svg {
+        width: 20px;
+        height: 20px;
+    }
+
+    &:not(:disabled):hover {
+        background: var(--o-dcbt-niebla);
+    }
+
+    &:disabled {
+        opacity: .4;
+        cursor: default;
+    }
+}
+
+.o_dcbt_voz_listo svg {
+    margin-left: 0;
+}
+
+.o_dcbt_voz_girando {
+    width: 20px;
+    height: 20px;
+    border: 2.5px solid rgba(255, 255, 255, .45);
+    border-top-color: var(--o-dcbt-blanco);
+    border-radius: 50%;
+    animation: o_dcbt_voz_gira .8s linear infinite;
+}
+
+@keyframes o_dcbt_voz_gira {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.o_dcbt_voz_pista {
+    flex: 0 0 100%;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    padding: 0 6px 0 16px;
+    font-size: 12.5px;
+    line-height: 1.3;
+    color: var(--o-dcbt-gris);
+
+    svg {
+        flex: none;
+        width: 15px;
+        height: 15px;
+        color: var(--o-dcbt-azul);
+    }
+}
+
+@media (max-width: 380px) {
+    .o_dcbt_voz_grabando {
+        gap: 8px;
+        padding-left: 4px;
+    }
+}
+
 @media (pointer: coarse) {
     .o_dcbt_btn,
     .o_dcbt_chip {
