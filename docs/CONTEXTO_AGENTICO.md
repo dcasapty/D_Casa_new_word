@@ -1486,6 +1486,32 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 - **Las pruebas de `dcasa_base` (como `TestSuperficieRpc`) no corren con `-u dcasa_camila`**: Odoo solo corre las
   `post_install` de los módulos que actualiza, y actualizar `dcasa_base` arrastra a todos. Para revisar la lista blanca
   de RPC en local sin eso: `odoo-bin shell` con `T.metodos_de_dcasa(env) - set(T.LISTA_BLANCA)` (debe dar vacío).
+- **Portada en carrusel (2026-11-16), lo aprendido:**
+  - Una *Interaction* de Odoo 19 aplica su `dynamicContent` **antes** de `start()`: una bandera que decide una clase
+    (`t-att-class`) se pone en `setup()`; si se pone en `start()`, la clase no aparece hasta el siguiente evento.
+  - El hero de siempre vive en un bloque editable (`oe_structure_dcasa_hero`): lo nuevo va en su propia plantilla con
+    `t-call`, y el bloque editable dentro de un `<t t-else>` propio (no con `t-else` en el `div`): una vista guardada
+    con el editor lo reemplaza por su id, y si la condición estuviera en el `div` se perdería y saldrían los dos heros
+    (prueba `test_con_el_editor_del_sitio_abierto_la_portada_abre`, con un usuario diseñador: recibe las marcas del editor
+    sin `enable_editor`).
+  - Algo que cambia la portada sin tocar una vista (el carrusel, el horario) va en `website.page._get_cache_key`: Odoo
+    guarda la portada de los visitantes hasta una hora.
+  - Sembrar datos «una sola vez» en una base que ya tiene el módulo: `<function>` en un archivo de datos **sin**
+    `noupdate` (los `noupdate` solo corren al instalar) y una marca en `ir.config_parameter`; así no pisa lo que Gerencia
+    cambie después. `dcasa_codigo_publico` solo se da al crear el producto (después no se cambia): en las pruebas, se
+    crean productos con el código.
+  - En las pruebas con `lxml`, `contains(@class, "o_dcasa_cine_cinta")` también encuentra `o_dcasa_cine_cintas`: para
+    una clase exacta, `contains(concat(" ", @class, " "), " clase ")`.
+  - Una foto con `height: 100%` dentro de una celda de *grid* estira la fila a su alto natural (una foto vertical
+    dejaba el hero de 1500 px y la etiqueta fuera de la pantalla): las diapositivas van con `position: absolute;
+    inset: 0` y el alto lo ponen el bloque o la pantalla. Una foto vertical o cuadrada no llena una pantalla ancha
+    sin cortar la cama o dejarla bajo el texto: en la computadora la foto llena su lado y el texto va en su bloque.
+  - Sobre una foto clara la píldora ahumada no se lee: el carrusel no lleva la clase `o_dcasa_hero` (la que la vuelve
+    ahumada) y la regla que la hace «nacer ahumada» excluye la portada con `:has(.o_dcasa_hero_vitrina)`.
+  - El contrato visual de Juan (`dcasa_conversaciones/tests/test_panel_visual.py`) es la clase `TestContratoVisualJuan`
+    (no `TestPanelVisual`). Su script de referencias reescribe las seis: se suben solo las que cambiaron de verdad. La
+    pantalla `.o_dcj_p.o_action` lleva a propósito una barra de desplazamiento fina que el `PREPARAR` de la prueba no
+    alcanza a esconder: a 390 px sale en Conexiones (en un teléfono real va encima del contenido).
 
 ### Cloudflare
 

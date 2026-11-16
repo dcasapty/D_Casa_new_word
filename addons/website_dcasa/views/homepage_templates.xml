@@ -105,6 +105,156 @@
         </section>
     </template>
 
+    <!-- Hero en carrusel (pedido de la dueña, 2026-11-16: «algo dinámico, interactivo, que cambie», con fotos propias;
+         segunda vuelta: «pantalla completa… y no fondo negro»). Los productos y su orden se eligen en Sitio web ›
+         Carrusel de la portada (models/portada.py); sin productos no se llama y queda el hero de siempre.
+         De orilla a orilla y del alto de la pantalla: a la izquierda (abajo en el celular) un bloque liso azul noche con
+         el titular, los botones y los controles; a la derecha (arriba en el celular) la foto del producto llenando su
+         lado, sin velo. Las fotos del catálogo son verticales o cuadradas: a lo ancho de toda la pantalla la cama
+         quedaría cortada o debajo del texto; así se ve entera. Sobre la foto, una etiqueta azul noche con el nombre y
+         «Ver detalles». Lo que cambia en cada diapositiva es la foto y su etiqueta; el titular y los botones, no.
+         Sin JavaScript se ve la primera; static/src/js/portada.js enciende los controles, el avance automático (lento,
+         se detiene con el puntero, el foco o el botón de pausa) y el deslizar con el dedo. Con movimiento reducido no
+         avanza solo. La primera foto es la imagen LCP: «eager», prioridad alta y precargada desde la cabecera
+         (layout_templates.xml, layout_precarga_hero). Sin la clase o_dcasa_hero: la píldora de la cabecera va clara
+         (sobre una foto clara, la ahumada no se lee). -->
+    <template id="hero_carrusel" name="D'CASA: hero en carrusel">
+        <t t-set="dcasa_total" t-value="len(dcasa_vitrina)"/>
+        <section class="o_dcasa_hero_vitrina" aria-labelledby="dcasa-hero-titulo">
+            <div class="o_dcasa_vitrina" role="region" aria-roledescription="carrusel"
+                 aria-label="Productos de D'CASA" t-att-data-total="dcasa_total">
+                <div class="o_dcasa_vitrina_fotos">
+                    <!-- Las fotos enlazan a la ficha con el ratón; para el lector de pantalla y el teclado, el enlace es
+                         «Ver detalles», en la etiqueta (abajo). -->
+                    <a t-foreach="dcasa_vitrina" t-as="diapo" t-att-href="diapo['url']" tabindex="-1" aria-hidden="true"
+                       t-attf-class="o_dcasa_vitrina_foto {{ 'is-activa' if diapo_first else '' }}">
+                        <picture>
+                            <source t-if="diapo['srcset']" type="image/webp" t-att-srcset="diapo['srcset']"
+                                    t-att-sizes="diapo['sizes']"/>
+                            <img t-att-src="diapo['src']" t-att-alt="diapo['nombre']" width="1200" height="1600"
+                                 t-att-srcset="diapo['srcset_respaldo']" t-att-sizes="diapo['sizes']"
+                                 t-att-loading="'eager' if diapo_first else 'lazy'"
+                                 t-att-fetchpriority="'high' if diapo_first else 'low'"
+                                 t-att-decoding="None if diapo_first else 'async'"/>
+                        </picture>
+                    </a>
+                </div>
+
+                <!-- La etiqueta de cada diapositiva: sobre la foto en la computadora; en el celular, justo debajo de
+                     ella (encima taparía la cama). aria-live: «off» mientras avanza sola y «polite» cuando quien visita
+                     la cambia (portada.js), como pide el patrón de carrusel de WAI-ARIA. -->
+                <div class="o_dcasa_vitrina_textos" aria-live="off">
+                    <div t-foreach="dcasa_vitrina" t-as="diapo" role="group" aria-roledescription="diapositiva"
+                         t-attf-aria-label="{{ diapo_index + 1 }} de {{ dcasa_total }}"
+                         t-attf-class="o_dcasa_vitrina_texto {{ 'is-activa' if diapo_first else '' }}">
+                        <p class="o_dcasa_vitrina_nombre" t-out="diapo['nombre']"/>
+                        <a t-att-href="diapo['url']" class="o_dcasa_vitrina_ver"><span class="o_dcasa_vitrina_ver_texto">Ver
+                            detalles</span><span class="visually-hidden">: <t t-out="diapo['nombre']"/></span>
+                            <span aria-hidden="true">→</span></a>
+                    </div>
+                </div>
+
+                <div class="o_dcasa_vitrina_panel">
+                    <div class="o_dcasa_hero_texto" data-anim-entrada="">
+                        <p class="o_dcasa_kicker o_dcasa_kicker_light">Mueblería en La Chorrera · Entregas en Panamá Oeste, Panamá y Colón</p>
+                        <h1 id="dcasa-hero-titulo" class="o_dcasa_display">Tu casa, bien amueblada.</h1>
+                        <p class="o_dcasa_hero_sub">Salas, recámaras, colchones y zapateras con precios claros.
+                            Muchos vienen en caja: te los llevas hoy mismo.</p>
+                        <div class="o_dcasa_ctas">
+                            <a href="/shop" class="btn btn-lg o_dcasa_btn_amarillo">Ver el catálogo</a>
+                            <a href="/whatsapp" class="btn btn-lg o_dcasa_btn_linea" target="_blank" rel="noopener nofollow">
+                                <i class="fa fa-whatsapp me-2" aria-hidden="true"/>Escríbenos por WhatsApp <span class="visually-hidden">(se abre en una pestaña nueva)</span>
+                            </a>
+                        </div>
+                    </div>
+                    <!-- Controles: nacen escondidos y solo los enciende portada.js si hay más de una diapositiva. En la
+                         computadora van abajo del bloque, a la izquierda (abajo a la derecha flota el chat de la tienda);
+                         en el celular, arriba del bloque, justo debajo de la foto. -->
+                    <div t-if="dcasa_total &gt; 1" class="o_dcasa_vitrina_controles">
+                        <div class="o_dcasa_vitrina_barras" hidden="">
+                            <button t-foreach="dcasa_vitrina" t-as="diapo" type="button" class="o_dcasa_vitrina_barra"
+                                    t-att-data-ir="diapo_index" t-att-aria-current="'true' if diapo_first else None"
+                                    t-attf-aria-label="Ver {{ diapo_index + 1 }} de {{ dcasa_total }}: {{ diapo['nombre'] }}">
+                                <span/>
+                            </button>
+                        </div>
+                        <div class="o_dcasa_vitrina_botones" hidden="">
+                            <button type="button" class="o_dcasa_vitrina_boton o_dcasa_vitrina_pausa" aria-pressed="false"
+                                    aria-label="Pausar el carrusel">
+                                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" class="o_dcasa_vitrina_ico_pausa">
+                                    <path d="M8 5v14M16 5v14"/></svg>
+                                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" class="o_dcasa_vitrina_ico_seguir">
+                                    <path d="M8 5l11 7-11 7z"/></svg>
+                            </button>
+                            <button type="button" class="o_dcasa_vitrina_boton" data-paso="-1" aria-label="Producto anterior">
+                                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15 5l-7 7 7 7"/></svg>
+                            </button>
+                            <button type="button" class="o_dcasa_vitrina_boton" data-paso="1" aria-label="Producto siguiente">
+                                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 5l7 7-7 7"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </template>
+
+    <!-- Sección «de cine» (pedido de la dueña, 2026-11-16, en el espíritu de panaclaw.com/proyectos): grande, a media
+         portada, con dos cintas de fotos del catálogo que corren solas en sentidos contrarios y un botón al catálogo.
+         Fondo blanco (segunda vuelta: «nada de negro»): va justo antes de la banda azul noche de Socios y dos bandas
+         oscuras pegadas se leerían como una sola. Por eso el botón es azul (el amarillo nunca toca el blanco).
+         Las fotos salen de lo publicado por categoría (models/portada.py, website._dcasa_cine): nada escrito a mano.
+         Solo CSS para el movimiento; portada.js suma el botón de pausa (WCAG 2.2.2) y la pausa al tocar. Se detiene
+         con el puntero encima o con el foco; con movimiento reducido no se mueve (una fila que se desliza). -->
+    <template id="seccion_cine" name="D'CASA: sección de cine">
+        <t t-set="cine" t-value="website._dcasa_cine()"/>
+        <section t-if="cine" class="o_dcasa_cine" aria-labelledby="dcasa-cine-titulo">
+            <div class="o_dcasa_cine_inner">
+                <div class="o_dcasa_cine_texto" data-anim-cascada="izquierda">
+                    <p class="o_dcasa_kicker">Catálogo D'CASA</p>
+                    <h2 id="dcasa-cine-titulo" class="o_dcasa_h2 o_dcasa_cine_titulo" data-titular="">Date una vuelta por la tienda</h2>
+                    <p class="o_dcasa_cine_lead">Camas, colchones, salas, zapateras y más: míralo todo con su precio en el catálogo.</p>
+                    <div class="o_dcasa_ctas">
+                        <a href="/shop" class="btn btn-lg btn-primary">Ver el catálogo</a>
+                    </div>
+                    <button type="button" class="o_dcasa_cine_pausa" aria-pressed="false" hidden="">
+                        <i class="fa fa-pause" aria-hidden="true"/><span>Pausar las fotos</span>
+                    </button>
+                </div>
+                <div class="o_dcasa_cine_cintas" data-anim="">
+                    <div t-foreach="cine['cintas']" t-as="cinta"
+                         t-attf-class="o_dcasa_cine_cinta {{ 'is-reversa' if cinta['reversa'] else '' }}"
+                         t-attf-style="--vuelta: {{ cinta['duracion'] }}">
+                        <ul class="o_dcasa_cine_tren" role="list">
+                            <t t-foreach="range(cinta['copias'])" t-as="copia">
+                                <li t-foreach="cinta['fotos']" t-as="foto" class="o_dcasa_cine_foto"
+                                    t-att-aria-hidden="'true' if copia else None">
+                                    <!-- Solo la foto y su categoría, como un fotograma; el nombre lo dicen el lector de
+                                         pantalla y el globo del ratón (la cinta se detiene con el puntero encima). -->
+                                    <a t-att-href="foto['producto'].website_url" t-att-title="foto['nombre']"
+                                       t-att-tabindex="-1 if copia else None">
+                                        <span class="o_dcasa_cine_marco">
+                                            <picture>
+                                                <t t-set="dcasa_webp" t-value="website._dcasa_img_srcset(foto['producto'], (256, 512))"/>
+                                                <source t-if="dcasa_webp" type="image/webp" t-att-srcset="dcasa_webp"
+                                                        sizes="(min-width: 992px) 13rem, 9.5rem"/>
+                                                <img t-att-src="website.image_url(foto['producto'], 'image_512')" alt=""
+                                                     width="512" height="683" loading="lazy" decoding="async"
+                                                     sizes="(min-width: 992px) 13rem, 9.5rem"/>
+                                            </picture>
+                                            <span class="o_dcasa_cine_cat" t-out="foto['categoria']"/>
+                                        </span>
+                                        <span class="visually-hidden">: <t t-out="foto['nombre']"/></span>
+                                    </a>
+                                </li>
+                            </t>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </template>
+
     <!-- Secciones dinámicas de la portada: plantillas propias (t-call) y no en línea, para que
          una actualización del módulo llegue aunque la portada ya se haya editado en el constructor. -->
     <template id="seccion_categorias" name="D'CASA: compra por espacio">
@@ -144,6 +294,9 @@
     </template>
 
     <template id="seccion_socios" name="D'CASA: banda de socios">
+        <!-- La sección «de cine» va justo antes, a media portada. Se llama desde aquí y no desde la portada: una portada
+             ya editada en el constructor es una copia que no recibiría un t-call nuevo; esta plantilla, sí. -->
+        <t t-call="website_dcasa.seccion_cine"/>
         <t t-set="reglas" t-value="website._dcasa_reglas_socios()"/>
         <section class="o_dcasa_socios_band" aria-labelledby="dcasa-socios-titulo">
             <div class="o_dcasa_container o_dcasa_split_grid">
@@ -305,7 +458,15 @@
         <xpath expr="//div[@id='wrap']" position="replace">
             <div id="wrap" class="o_dcasa_home">
 
-                <!-- 1. Hero: la foto a sangre, oscurecida, con el texto en blanco encima -->
+                <!-- 1. Hero. Con productos elegidos en Sitio web › Carrusel de la portada: el carrusel (su plantilla,
+                     website_dcasa.hero_carrusel). Sin productos: la foto a sangre, oscurecida, con el texto en blanco
+                     encima. El bloque editable va dentro de su propio <t t-else>: si algún día se guardó con el editor
+                     (una vista que lo reemplaza por su id), lo guardado sigue dentro de la condición. -->
+                <t t-set="dcasa_vitrina" t-value="website._dcasa_hero_carrusel()"/>
+                <t t-if="dcasa_vitrina">
+                    <t t-call="website_dcasa.hero_carrusel"/>
+                </t>
+                <t t-else="">
                 <div class="oe_structure" id="oe_structure_dcasa_hero">
                     <section class="o_dcasa_hero" data-snippet="s_text_block" data-name="Portada">
                         <div class="o_dcasa_hero_media">
@@ -331,6 +492,7 @@
                         </div>
                     </section>
                 </div>
+                </t>
 
                 <!-- 2. Beneficios: las tres objeciones de compra, resueltas arriba -->
                 <div class="oe_structure" id="oe_structure_dcasa_beneficios">

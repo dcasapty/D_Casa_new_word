@@ -510,12 +510,13 @@ html.o_dcasa_refraccion #wrapwrap > header#top .o_main_nav::before {
 // de luz): solo cambia el tinte del vidrio y el color del texto.
 // · html.o_dcasa_nav_sobre_foto la pone animaciones.js mientras la foto asoma bajo la píldora.
 // · Antes de que animaciones.js mida (o sin JavaScript), las páginas con la cabecera encima del
-//   contenido (o_header_overlay) ya nacen ahumadas: sin destello al cargar (ronda 6).
+//   contenido (o_header_overlay) ya nacen ahumadas: sin destello al cargar (ronda 6). La portada con el
+//   carrusel de productos no: su foto es clara y ahí va el vidrio claro (models/portada.py).
 // Ronda 6, corrección de la dueña: la píldora es una sola en todo el sitio (logo, menú, carrito,
 // búsqueda, cuenta, «Escríbenos» y este vidrio líquido). La tienda, la ficha y el carrito abren
 // sobre fondo claro: ahí el mismo vidrio va claro, con el texto en tinta.
 html.o_dcasa_nav_sobre_foto #wrapwrap > header#top:not(.o_header_affixed),
-html:not(.o_dcasa_nav_medida) #wrapwrap.o_header_overlay > header#top:not(.o_header_affixed) {
+html:not(.o_dcasa_nav_medida) #wrapwrap.o_header_overlay:not(:has(.o_dcasa_hero_vitrina)) > header#top:not(.o_header_affixed) {
     .o_main_nav::before {
         background: rgba(#000000, .26);
         border-color: rgba(#FFFFFF, .38);
@@ -708,6 +709,400 @@ $dcasa-hero-velo: .45;
     .o_dcasa_hero_sub {
         text-shadow: 0 1px 2px rgba(#000000, .5), 0 0 1px rgba(#000000, .6);
     }
+}
+
+// ---------------------------------------------------------------------------
+// 1b. Hero en carrusel (models/portada.py, website_dcasa.hero_carrusel; static/src/js/portada.js)
+//
+// De orilla a orilla y del alto de la pantalla (segunda vuelta de la dueña: «pantalla completa… y no fondo negro»).
+// En la computadora: a la izquierda un bloque liso azul noche (el de las bandas del sitio) con el titular, los botones
+// y los controles; a la derecha la foto llenando su lado, sin velo. En el celular: la foto arriba y el bloque abajo.
+// Las fotos del catálogo son verticales o cuadradas: a lo ancho de toda la pantalla la cama quedaría cortada o
+// debajo del texto; en su lado se ve entera. Sin degradados ni sombras; el amarillo, solo sobre el azul noche.
+// ---------------------------------------------------------------------------
+
+$dcasa-vitrina-tiempo: 6.5s;   // lo que dura cada diapositiva (la barra activa tarda eso en llenarse)
+$dcasa-vitrina-panel: 42%;     // ancho del bloque azul en la computadora
+
+.o_dcasa_hero_vitrina {
+    position: relative;
+    background: $dcasa-navy;
+    color: #FFFFFF;
+    overflow: hidden;
+
+    a:focus-visible,
+    button:focus-visible {
+        outline: 3px solid $dcasa-amarillo;
+        outline-offset: 3px;
+    }
+}
+
+.o_dcasa_vitrina {
+    --vitrina-tiempo: #{$dcasa-vitrina-tiempo};
+    display: flex;
+    flex-direction: column;
+
+    @media (min-width: 992px) {
+        display: grid;
+        grid-template-columns: minmax(27rem, $dcasa-vitrina-panel) minmax(0, 1fr);
+        min-height: 100vh;
+        min-height: 100svh;
+    }
+}
+
+// La foto: arriba en el celular (la cabecera flota encima, sobre la pared de la foto), a la derecha en la
+// computadora, del alto entero del hero.
+.o_dcasa_vitrina_fotos {
+    position: relative;
+    height: 50vh;
+    height: 50svh;
+    min-height: 19rem;
+    overflow: hidden;
+    background: $dcasa-hueso-2;
+    touch-action: pan-y;   // el dedo desliza de lado; hacia arriba y abajo, la página
+
+    @media (min-width: 992px) {
+        grid-column: 2;
+        grid-row: 1;
+        height: auto;
+        min-height: 0;
+    }
+}
+
+// Diapositivas apiladas en la misma celda: la activa aparece encima con un fundido. «visibility» saca a las demás del
+// lector de pantalla y del tabulador sin esperar al fundido de entrada.
+.o_dcasa_vitrina_foto,
+.o_dcasa_vitrina_texto {
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity .9s ease, visibility 0s linear .9s;
+
+    &.is-activa {
+        opacity: 1;
+        visibility: visible;
+        transition: opacity .9s ease, visibility 0s;
+    }
+}
+
+// Encima unas de otras y sin alto propio: la foto no estira el hero (lo mide el bloque o la pantalla).
+.o_dcasa_vitrina_foto {
+    position: absolute;
+    inset: 0;
+    display: block;
+    overflow: hidden;
+
+    img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: 50% 30%;   // celular: la cama abajo de la cabecera, entera
+
+        @media (min-width: 992px) {
+            object-position: 50% 55%;
+        }
+    }
+
+    // Un acercamiento lento mientras se ve (como la foto del hero de siempre).
+    &.is-activa img {
+        animation: dcasa-vitrina-zoom 9s ease-out both;
+    }
+}
+
+@keyframes dcasa-vitrina-zoom {
+    from {
+        transform: scale(1.05);
+    }
+    to {
+        transform: scale(1);
+    }
+}
+
+// La etiqueta del producto: azul noche liso, el nombre en blanco y «Ver detalles» en amarillo (sobre el azul).
+// En la computadora flota sobre la foto, abajo a la izquierda (abajo a la derecha flota el chat de la tienda); en el
+// celular va justo debajo de la foto, ya sobre el azul del bloque (encima taparía la cama).
+.o_dcasa_vitrina_textos {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: start;
+    padding: .75rem $dcasa-gutter 0;
+    background: $dcasa-navy;
+
+    @media (min-width: 992px) {
+        position: absolute;
+        left: unquote('calc(max(27rem, #{$dcasa-vitrina-panel}) + 1.75rem)');
+        right: 7rem;
+        bottom: 2rem;
+        z-index: 1;
+        padding: 0;
+        background: none;
+        pointer-events: none;   // fuera de la etiqueta, el clic va a la foto
+    }
+}
+
+.o_dcasa_vitrina_texto {
+    grid-area: 1 / 1;
+    display: flex;
+    align-items: center;
+    gap: .9rem;
+    max-width: 100%;
+    min-width: 0;
+    background: $dcasa-navy;
+
+    @media (min-width: 992px) {
+        padding: .35rem .5rem .35rem 1.1rem;
+        border-radius: 999px;
+        pointer-events: auto;
+    }
+}
+
+// En el celular el nombre entra en dos líneas; en la etiqueta de la computadora, en una.
+.o_dcasa_vitrina_nombre {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    min-width: 0;
+    margin: 0;
+    overflow: hidden;
+    font-family: 'Oswald', sans-serif;
+    font-weight: 500;
+    font-size: 1rem;
+    line-height: 1.3;
+    color: #FFFFFF;
+
+    @media (min-width: 992px) {
+        display: block;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        font-size: 1.0625rem;
+    }
+}
+
+.o_dcasa_vitrina_ver {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    padding-inline: .5rem;
+    font-family: 'Oswald', sans-serif;
+    font-weight: 500;
+    font-size: .875rem;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: $dcasa-amarillo;
+    text-decoration: none;
+
+    &:hover {
+        color: #FFFFFF;
+    }
+
+    // Subrayado solo bajo las palabras, no bajo la flecha.
+    .o_dcasa_vitrina_ver_texto {
+        text-decoration: underline;
+        text-decoration-thickness: 2px;
+        text-underline-offset: .35em;
+    }
+
+    > span[aria-hidden] {
+        margin-left: .4rem;
+    }
+}
+
+// El bloque azul noche: liso, sin degradado ni sombra.
+.o_dcasa_vitrina_panel {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: .25rem $dcasa-gutter 2rem;
+    background: $dcasa-navy;
+
+    @media (min-width: 992px) {
+        grid-column: 1;
+        grid-row: 1;
+        justify-content: center;
+        gap: 2.5rem;
+        padding: 9.5rem clamp(2rem, 3.5vw, 3.5rem) 3rem;
+        padding-inline-start: unquote('max(#{$dcasa-gutter}, calc((100vw - 1440px) / 2 + #{$dcasa-gutter}))');
+    }
+
+    .o_dcasa_display {
+        color: #FFFFFF;
+        font-size: clamp(3rem, 5.4vw, 5.25rem);
+    }
+
+    .o_dcasa_hero_sub {
+        font-size: clamp(1.05rem, 1.25vw, 1.2rem);
+        line-height: 1.55;
+        color: #FFFFFF;
+        max-width: 30rem;
+        margin-bottom: 0;
+    }
+
+    // Los dos botones caben en una fila del bloque.
+    .o_dcasa_ctas .btn {
+        font-size: 1rem;
+        padding-inline: 1.35rem;
+    }
+
+    // En el celular el antetítulo repite la barra de arriba (entregas) y empujaba los botones fuera de la pantalla.
+    @media (max-width: 575.98px) {
+        .o_dcasa_hero_texto > .o_dcasa_kicker {
+            display: none;
+        }
+
+        .o_dcasa_display {
+            margin-bottom: .75rem;
+        }
+
+        .o_dcasa_ctas .btn {
+            width: 100%;
+        }
+    }
+}
+
+// Los controles: abajo del bloque en la computadora; arriba en el celular (abajo flotan WhatsApp y el chat).
+.o_dcasa_vitrina_controles {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+
+    @media (max-width: 991.98px) {
+        order: -1;
+    }
+}
+
+// Barras de avance: una por producto (cada una es un botón para ir a él). La activa se llena en --vitrina-tiempo y,
+// al terminar, portada.js pasa a la siguiente.
+.o_dcasa_vitrina_barras {
+    flex: 1;
+    display: flex;
+    gap: .375rem;
+    min-width: 0;
+}
+
+.o_dcasa_vitrina_barra {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    min-width: 1.5rem;
+    height: 2.75rem;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+
+    span {
+        position: relative;
+        display: block;
+        width: 100%;
+        height: 3px;
+        border-radius: 2px;
+        overflow: hidden;
+        background: rgba(#FFFFFF, .3);
+    }
+
+    span::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: $dcasa-amarillo;
+        transform: scaleX(0);
+        transform-origin: left center;
+    }
+
+    &:hover span {
+        background: rgba(#FFFFFF, .55);
+    }
+}
+
+.o_dcasa_vitrina.is-viva .o_dcasa_vitrina_barra[aria-current] span::after {
+    animation: dcasa-vitrina-avance var(--vitrina-tiempo) linear forwards;
+}
+
+// Quieta mientras el ratón está encima, el foco adentro o con el botón de pausa.
+.o_dcasa_vitrina:is(.is-pausada, .is-encima, .is-con-foco) .o_dcasa_vitrina_barra[aria-current] span::after {
+    animation-play-state: paused;
+}
+
+// Con movimiento reducido no avanza sola: la barra del producto que se ve, llena.
+.o_dcasa_vitrina.is-quieta .o_dcasa_vitrina_barra[aria-current] span::after {
+    animation: none;
+    transform: none;
+}
+
+@keyframes dcasa-vitrina-avance {
+    to {
+        transform: scaleX(1);
+    }
+}
+
+.o_dcasa_vitrina_botones {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+
+    @media (max-width: 575.98px) {
+        gap: .375rem;
+    }
+}
+
+.o_dcasa_vitrina_boton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
+    border: 1.5px solid rgba(#FFFFFF, .7);
+    border-radius: 50%;
+    background: transparent;
+    color: #FFFFFF;
+    transition: background-color $dcasa-t-rapida ease, color $dcasa-t-rapida ease;
+
+    svg {
+        width: 1.15rem;
+        height: 1.15rem;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2.2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    &:hover {
+        background: #FFFFFF;
+        color: $dcasa-navy;
+    }
+}
+
+.o_dcasa_vitrina_pausa {
+    .o_dcasa_vitrina_ico_seguir {
+        display: none;
+        fill: currentColor;
+        stroke-width: 1.5;
+    }
+
+    &[aria-pressed='true'] {
+        .o_dcasa_vitrina_ico_pausa {
+            display: none;
+        }
+
+        .o_dcasa_vitrina_ico_seguir {
+            display: block;
+        }
+    }
+}
+
+// Sin nada que avance (movimiento reducido), el botón de pausa sobra.
+.o_dcasa_vitrina.is-quieta .o_dcasa_vitrina_pausa {
+    display: none;
+}
+
+// Con el carrusel a la vista, el botón flotante de WhatsApp espera fuera (el bloque ya trae el suyo).
+html.o_dcasa_vitrina_a_la_vista .o_dcasa_wa_float {
+    opacity: 0;
+    transform: scale(.8);
+    pointer-events: none;
 }
 
 // ---------------------------------------------------------------------------
@@ -2095,6 +2490,181 @@ body.editor_enable .o_dcasa_wa_float {
 }
 
 // ---------------------------------------------------------------------------
+// Sección «de cine» (models/portada.py, website_dcasa.seccion_cine): una banda grande en blanco, el texto y el botón a
+// la izquierda y dos cintas de fotos del catálogo que corren solas, en sentidos contrarios, hasta la orilla derecha
+// (en el celular, debajo del texto y de orilla a orilla). Mismo mecanismo que la cinta de opiniones (dcasa-correr):
+// cada cinta va impresa varias veces y una vuelta es la mitad exacta de su ancho.
+// ---------------------------------------------------------------------------
+
+// Blanca y no azul noche: va pegada a la banda de Socios (azul noche) y dos bandas oscuras juntas se leerían como una.
+.o_dcasa_cine {
+    background: #FFFFFF;
+    color: $dcasa-tinta;
+    padding-block: clamp(3rem, 7vw, 6rem);
+    overflow: hidden;
+}
+
+.o_dcasa_cine_inner {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2rem;
+
+    @media (min-width: 992px) {
+        grid-template-columns: minmax(18rem, 25rem) minmax(0, 1fr);
+        gap: clamp(2.5rem, 4vw, 4.5rem);
+        align-items: center;
+        // El texto respeta el margen del sitio; las cintas siguen hasta la orilla derecha de la pantalla.
+        padding-inline-start: unquote('max(#{$dcasa-gutter}, calc((100% - 1440px) / 2 + #{$dcasa-gutter}))');
+    }
+}
+
+.o_dcasa_cine_texto {
+    @media (max-width: 991.98px) {
+        padding-inline: $dcasa-gutter;
+    }
+}
+
+.o_dcasa_cine_titulo {
+    font-size: clamp(2.25rem, 4.2vw, 3.75rem);
+}
+
+.o_dcasa_cine_lead {
+    font-size: clamp(1.05rem, 1.3vw, 1.2rem);
+    line-height: 1.55;
+    color: $dcasa-gris;
+    margin: 1rem 0 1.75rem;
+    max-width: 26rem;
+}
+
+.o_dcasa_cine_pausa {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    min-height: 2.75rem;
+    margin-top: 1.25rem;
+    padding: 0 1rem;
+    border: 1px solid $dcasa-hueso-2;
+    border-radius: 999px;
+    background: #FFFFFF;
+    color: $dcasa-tinta;
+    font-size: .875rem;
+
+    &[aria-pressed='true'] .fa::before {
+        content: '\f04b';   // play
+    }
+
+    &[hidden] {
+        display: none;
+    }
+}
+
+.o_dcasa_cine_cintas {
+    display: grid;
+    gap: 1.25rem;
+    min-width: 0;
+}
+
+.o_dcasa_cine_cinta {
+    overflow: hidden;
+}
+
+// Sin gap ni relleno en el tren: la mitad exacta del ancho es una vuelta (sin salto).
+.o_dcasa_cine_tren {
+    display: flex;
+    width: max-content;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    animation: dcasa-correr var(--vuelta, 60s) linear infinite;
+}
+
+.o_dcasa_cine_cinta.is-reversa .o_dcasa_cine_tren {
+    animation-direction: reverse;
+}
+
+// Quietas con el puntero encima, el dedo apoyado o el botón de pausa.
+.o_dcasa_cine_cintas:hover .o_dcasa_cine_tren,
+.o_dcasa_cine.is-tocada .o_dcasa_cine_tren,
+.o_dcasa_cine.is-pausada .o_dcasa_cine_tren {
+    animation-play-state: paused;
+}
+
+// Con el teclado, las cintas se detienen y se pueden desplazar: la foto enfocada nunca queda fuera del borde.
+.o_dcasa_cine_cinta:focus-within {
+    overflow-x: auto;
+
+    .o_dcasa_cine_tren {
+        animation: none;
+    }
+}
+
+.o_dcasa_cine_foto {
+    flex: none;
+    width: 9.5rem;
+    margin-inline-end: .875rem;
+
+    @media (min-width: 992px) {
+        width: 13rem;
+        margin-inline-end: 1.25rem;
+    }
+
+    a {
+        display: block;
+        color: $dcasa-tinta;
+        text-decoration: none;
+    }
+}
+
+// Como las tarjetas de producto: la foto de estudio (fondo claro) con un filo fino sobre el blanco.
+.o_dcasa_cine_marco {
+    position: relative;
+    display: block;
+    aspect-ratio: 3 / 4;
+    border: 1px solid $dcasa-filo;
+    border-radius: $dcasa-radius;
+    overflow: hidden;
+    background: $dcasa-foto-fondo;
+
+    img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform .5s $dcasa-curva;
+    }
+
+    img.o_dcasa_foto_ancha {
+        object-fit: contain;
+    }
+
+    a:hover & img {
+        transform: scale(1.04);
+    }
+}
+
+// La categoría, en una etiqueta azul noche dentro de la foto: el amarillo va sobre el azul noche, nunca sobre la foto
+// clara.
+.o_dcasa_cine_cat {
+    position: absolute;
+    left: .6rem;
+    bottom: .6rem;
+    padding: .3rem .65rem;
+    border-radius: 999px;
+    background: $dcasa-navy;
+    color: $dcasa-amarillo;
+    font-family: 'Oswald', sans-serif;
+    font-weight: 500;
+    font-size: .6875rem;
+    line-height: 1.2;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+
+    @media (min-width: 992px) {
+        font-size: .75rem;
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Opiniones de Google (cinta en movimiento)
 // ---------------------------------------------------------------------------
 
@@ -2494,8 +3064,35 @@ body.editor_enable .o_dcasa_wa_float {
     }
 
     [data-anim-entrada] > *,
-    .o_dcasa_hero_media img {
+    .o_dcasa_hero_media img,
+    .o_dcasa_vitrina_foto.is-activa img {
         animation: none;
+    }
+
+    // Carrusel del hero: sin fundido (cambia al instante, solo cuando quien visita lo pide).
+    .o_dcasa_vitrina_foto,
+    .o_dcasa_vitrina_foto.is-activa,
+    .o_dcasa_vitrina_texto,
+    .o_dcasa_vitrina_texto.is-activa,
+    .o_dcasa_cine_marco img {
+        transition: none;
+    }
+
+    .o_dcasa_cine_foto a:hover .o_dcasa_cine_marco img {
+        transform: none;
+    }
+
+    // Sección «de cine»: las cintas quietas, sin sus copias, y cada una se desliza con el dedo o la rueda.
+    .o_dcasa_cine_tren {
+        animation: none;
+    }
+
+    .o_dcasa_cine_foto[aria-hidden='true'] {
+        display: none;
+    }
+
+    .o_dcasa_cine_cinta {
+        overflow-x: auto;
     }
 
     .o_dcasa_resenas_cinta.is-viva .o_dcasa_resenas_tren {
