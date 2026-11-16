@@ -16,6 +16,11 @@ productos se marcaban desde el Excel del catálogo (models/black_weekend.py).
   dejaría todas iguales). Sin las dos fechas no se crea ninguna regla: un precio rebajado sin fin no sale solo.
 * La sincronización solo toca las reglas que cambian (crear, actualizar o borrar), porque cada cambio de una tarifa
   hace regenerar toda la tienda del borde (dcasa_tienda_borde).
+* Revisión adversarial (2026-11-16): los campos de la campaña los cambia solo quien cambia precios (Gerencia,
+  administradores); las reglas van solo en las tarifas que el sitio ofrece y existen solo cerca de las fechas (desde
+  dos horas antes hasta que termina), para que una cotización con la fecha cambiada no tome el precio de campaña; una
+  variante nunca queda en cero o negativa; el carrito se pone al día al pagar (``_check_cart``) y en los bordes de la
+  campaña (cron disparado a la hora exacta).
 """
 import logging
 from datetime import datetime, time, timedelta
@@ -23,7 +28,8 @@ from datetime import datetime, time, timedelta
 import pytz
 
 from odoo import api, fields, models
-from odoo.exceptions import UserError, ValidationError
+from odoo.addons.dcasa_base.models.product import _puede_cambiar_precios
+from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.tools import float_compare, float_round
 
 _logger = logging.getLogger(__name__)
@@ -31,8 +37,19 @@ _logger = logging.getLogger(__name__)
 ZONA = pytz.timezone('America/Panama')
 # Lo último que rigió de la campaña cuando se pusieron al día los carritos (``_dcasa_campana_carritos_al_dia``).
 PARAM_FIRMA_CARRITOS = 'website_dcasa.campana_firma_carritos'
-# Carritos más viejos que esto (sin tocar) no se recalculan: ya nadie vuelve a ellos.
+# Carritos más viejos que esto (sin tocar) no se recalculan con el cron (al pagar, sí: ``_check_cart``).
 DIAS_DE_CARRITO = 30
+# Las reglas de campaña existen desde un poco antes del inicio (el cron es horario) hasta el fin; fuera de eso no.
+VENTANA_PREVIA = timedelta(hours=2)
+# Lo que define la campaña de un producto: lo cambia solo quien cambia precios (dcasa_base, CAMPOS_SOLO_GERENCIA).
+CAMPOS_CAMPANA = frozenset({'dcasa_black_weekend', 'dcasa_bw_orden', 'dcasa_bw_variante_id', 'dcasa_campana_precio'})
+# Contexto para escribir muchos productos y sincronizar una sola vez al final.
+SIN_SINCRONIZAR = 'dcasa_campana_sin_sincronizar'
+
+
+def _exigir_precios(env):
+    if not _puede_cambiar_precios(env):
+        raise AccessError(env._('Solo Gerencia y los administradores cambian la campaña del sitio y sus precios.'))
 
 
 def limites_utc(inicio, fin):
@@ -110,12 +127,28 @@ class DcasaCampana(models.Model):
         resultado = super().write(vals)
         if {'fecha_inicio', 'fecha_fin', 'website_id'} & set(vals):
             self.env['product.template']._dcasa_campana_sincronizar()
+            self._dcasa_campana_programar()
         return resultado
 
     def unlink(self):
         resultado = super().unlink()
         self.env['product.template']._dcasa_campana_sincronizar()
         return resultado
+
+    def _dcasa_campana_momentos(self):
+        """Los momentos en que cambia lo que rige: antes del inicio (crear reglas), el inicio y el fin."""
+        momentos = []
+        for campana in self.filtered(lambda c: c.fecha_inicio and c.fecha_fin):
+            desde, hasta = limites_utc(campana.fecha_inicio, campana.fecha_fin)
+            momentos += [desde - VENTANA_PREVIA + timedelta(minutes=5), desde, hasta + timedelta(seconds=1)]
+        return [m for m in momentos if m > fields.Datetime.now()]
+
+    def _dcasa_campana_programar(self):
+        """El cron de los carritos corre justo en el inicio y el fin (no esperar a la hora siguiente)."""
+        cron = self.env.ref('website_dcasa.ir_cron_dcasa_campana_carritos', raise_if_not_found=False)
+        if cron:
+            for momento in self._dcasa_campana_momentos():
+                cron.sudo()._trigger(at=momento)
 
     @api.model
     def _dcasa_tarifa_del_sitio(self):
@@ -133,7 +166,10 @@ class DcasaCampana(models.Model):
             if self.env['product.pricelist'].sudo().search_count(
                     self.env['product.pricelist']._get_website_pricelists_domain(sitio), limit=1):
                 continue
-            tarifa = sitio.user_id.sudo().partner_id.property_product_pricelist
+            # La tarifa pública de Odoo; si no está, la del visitante sin sesión.
+            tarifa = self.env.ref('product.list0', raise_if_not_found=False)
+            if not (tarifa and tarifa.active and tarifa.company_id in (sitio.company_id, self.env['res.company'])):
+                tarifa = sitio.user_id.sudo().partner_id.property_product_pricelist
             if tarifa and not tarifa.website_id:
                 tarifa.write({'selectable': True})
                 _logger.info('Campaña: la tarifa %s queda ofrecida al sitio %s.', tarifa.display_name, sitio.name)
@@ -155,9 +191,10 @@ class DcasaCampana(models.Model):
         cama puesta el 26 seguiría a precio normal el 27 aunque la página diga el de campaña. Solo carritos (borrador,
         de la tienda, sin fecha de apartado); nunca un apartado ni un pedido confirmado. Devuelve cuántos tocó.
         """
+        self.env['product.template']._dcasa_campana_sincronizar(ahora)   # crear o borrar reglas según la hora
         param = self.env['ir.config_parameter'].sudo()
         firma = self._dcasa_campana_firma(ahora)
-        antes = param.get_param(PARAM_FIRMA_CARRITOS)
+        antes = param.get_param(PARAM_FIRMA_CARRITOS, None)
         if antes == firma:
             return 0
         param.set_param(PARAM_FIRMA_CARRITOS, firma)
@@ -173,8 +210,7 @@ class DcasaCampana(models.Model):
         if 'dcasa_apartado_vence' in Pedido._fields:
             dominio.append(('dcasa_apartado_vence', '=', False))
         carritos = Pedido.search(dominio)
-        for carrito in carritos:
-            carrito._recompute_prices()
+        carritos._dcasa_campana_al_dia(plantillas)
         if carritos:
             _logger.info('Campaña: %s carritos de la tienda al día con los precios que rigen.', len(carritos))
         return len(carritos)
@@ -207,10 +243,13 @@ class DcasaCampana(models.Model):
     def action_empezar_de_cero(self):
         """Desmarca todos los productos y borra sus precios de campaña (para empezar una campaña nueva)."""
         self.ensure_one()
+        _exigir_precios(self.env)
         marcados = self.env['product.template'].search([
             '|', ('dcasa_black_weekend', '=', True), ('dcasa_campana_precio', '!=', False)])
         cantidad = len(marcados)
-        marcados.write({'dcasa_black_weekend': False, 'dcasa_campana_precio': False, 'dcasa_bw_orden': 0})
+        marcados.with_context(**{SIN_SINCRONIZAR: True}).write(
+            {'dcasa_black_weekend': False, 'dcasa_campana_precio': False, 'dcasa_bw_orden': 0})
+        self.env['product.template']._dcasa_campana_sincronizar()
         self.message_post(body=self.env._('Empezar de cero: %(n)s productos desmarcados y sin precio de campaña.',
                                           n=cantidad))
         return True
@@ -247,22 +286,46 @@ class ProductTemplate(models.Model):
                 raise ValidationError(self.env._(
                     'El precio de campaña de «%(nombre)s» (%(campana).2f) tiene que ser menor que su precio normal '
                     '(%(normal).2f).', nombre=producto.name, campana=precio, normal=producto.list_price))
+            minimo = producto._dcasa_campana_variante_mas_barata()
+            if minimo + precio - producto.list_price <= 0:
+                raise ValidationError(self.env._(
+                    'Con ese precio de campaña, una medida o un color de «%(nombre)s» quedaría en cero o negativo '
+                    '(cada uno baja lo mismo: %(rebaja).2f). Pon un precio de campaña mayor.',
+                    nombre=producto.name, rebaja=producto.list_price - precio))
+
+    def _dcasa_campana_variante_mas_barata(self):
+        """El precio normal de la variante activa más barata (con su diferencia de color o medida)."""
+        self.ensure_one()
+        variantes = self.sudo().product_variant_ids.filtered('active')
+        return min(variantes.mapped('lst_price')) if variantes else self.list_price
 
     @api.model_create_multi
     def create(self, vals_list):
+        if any(CAMPOS_CAMPANA.intersection(v) and any(v.get(c) for c in CAMPOS_CAMPANA) for v in vals_list):
+            _exigir_precios(self.env)
         productos = super().create(vals_list)
         if any(v.get('dcasa_black_weekend') or v.get('dcasa_campana_precio') for v in vals_list):
             self._dcasa_campana_sincronizar()
         return productos
 
     def write(self, vals):
+        if CAMPOS_CAMPANA.intersection(vals):
+            _exigir_precios(self.env)
         resultado = super().write(vals)
         if {'dcasa_black_weekend', 'dcasa_campana_precio', 'list_price', 'active', 'company_id'} & set(vals):
             self._dcasa_campana_sincronizar()
         return resultado
 
     @api.model
-    def _dcasa_campana_deseadas(self):
+    def _dcasa_campana_tarifas(self, sitio):
+        """Las tarifas que el sitio ofrece al visitante (no las de mayoristas ni las internas). Si no ofrece ninguna,
+        la del visitante sin sesión."""
+        Tarifa = self.env['product.pricelist'].sudo()
+        tarifas = Tarifa.search(Tarifa._get_website_pricelists_domain(sitio))
+        return tarifas or sitio.user_id.sudo().partner_id.property_product_pricelist
+
+    @api.model
+    def _dcasa_campana_deseadas(self, ahora=None):
         """{(tarifa, plantilla): {surcharge, date_start, date_end}}: las reglas que tienen que existir ahora."""
         deseadas = {}
         if not self.env['res.groups']._is_feature_enabled('product.group_product_pricelist'):
@@ -273,16 +336,18 @@ class ProductTemplate(models.Model):
         Campana = self.env['dcasa.campana'].sudo()
         productos = self.sudo().with_context(active_test=True).search([
             ('dcasa_black_weekend', '=', True), ('dcasa_campana_precio', '>', 0)])
+        momento = ahora or fields.Datetime.now()
+        Regla = self.env['product.pricelist.item'].sudo()
         for campana in Campana.search([('fecha_inicio', '!=', False), ('fecha_fin', '!=', False)]):
             desde, hasta = limites_utc(campana.fecha_inicio, campana.fecha_fin)
+            if not desde - VENTANA_PREVIA <= momento <= hasta:
+                # Lejos del inicio o ya terminó: ninguna regla (una cotización con otra fecha no la toma).
+                continue
             sitio = campana.website_id
             moneda = sitio.company_id.currency_id
-            # Todas las tarifas activas que puede usar el sitio: las suyas y las generales de la empresa (la del
-            # visitante sin sesión sale de su contacto, no de website.pricelist_ids). Así también las ven las
-            # vendedoras al cotizar en esas fechas: el mismo precio en la tienda y en la web.
-            tarifas = self.env['product.pricelist'].sudo().search([
-                ('company_id', 'in', [False, sitio.company_id.id]), ('website_id', 'in', [False, sitio.id])])
-            for tarifa in tarifas:
+            # Solo las tarifas que el sitio ofrece (en esta base, la general: también la usan las vendedoras al
+            # cotizar en esas fechas, el mismo precio en la tienda y en la web).
+            for tarifa in self._dcasa_campana_tarifas(sitio):
                 if tarifa.currency_id != moneda:
                     _logger.warning('Campaña: la tarifa %s no está en %s; no lleva precios de campaña.',
                                     tarifa.display_name, moneda.name)
@@ -292,16 +357,31 @@ class ProductTemplate(models.Model):
                         continue
                     rebaja = float_round(producto.dcasa_campana_precio - producto.list_price,
                                          precision_rounding=moneda.rounding)
+                    if producto._dcasa_campana_variante_mas_barata() + rebaja <= 0:
+                        continue   # una medida quedaría en cero o negativa (la validación ya lo impide al escribir)
+                    # Una regla propia de ese producto en esa tarifa (mayorista, precio especial) manda: no se pisa.
+                    if Regla.search_count([
+                            ('pricelist_id', '=', tarifa.id), ('dcasa_campana', '=', False),
+                            '|', ('product_tmpl_id', '=', producto.id),
+                            ('product_id', 'in', producto.product_variant_ids.ids)], limit=1):
+                        _logger.warning('Campaña: %s ya tiene un precio propio en la tarifa %s; no lleva el de '
+                                        'campaña.', producto.display_name, tarifa.display_name)
+                        continue
                     deseadas[(tarifa.id, producto.id)] = {
                         'price_surcharge': rebaja, 'date_start': desde, 'date_end': hasta}
         return deseadas
 
     @api.model
-    def _dcasa_campana_sincronizar(self):
+    def _dcasa_campana_sincronizar(self, ahora=None):
         """Deja las reglas de campaña de las tarifas iguales a lo deseado, tocando solo lo que cambió."""
+        if self.env.context.get(SIN_SINCRONIZAR):
+            return
         Regla = self.env['product.pricelist.item'].sudo().with_context(active_test=False)
-        deseadas = self._dcasa_campana_deseadas()
         existentes = Regla.search([('dcasa_campana', '=', True)])
+        if not existentes and not self.env['dcasa.campana'].sudo().search_count(
+                [('fecha_inicio', '!=', False), ('fecha_fin', '!=', False)], limit=1):
+            return   # sin campaña con fechas ni reglas: nada que hacer (las importaciones del catálogo no pagan esto)
+        deseadas = self._dcasa_campana_deseadas(ahora)
         sobran = Regla.browse()
         for regla in existentes:
             clave = (regla.pricelist_id.id, regla.product_tmpl_id.id)
@@ -347,6 +427,12 @@ class ProductPricelistItem(models.Model):
                                        'producto o las fechas en Sitio web › Campaña del sitio.'))
         return super().write(vals)
 
+    def unlink(self):
+        if not self.env.su and any(r.dcasa_campana for r in self):
+            raise UserError(self.env._('Esta regla la maneja la campaña del sitio: se quita desmarcando el producto o '
+                                       'cambiando las fechas en Sitio web › Campaña del sitio.'))
+        return super().unlink()
+
 
 class DcasaCampanaDescuento(models.TransientModel):
     """«Aplicar un mismo % a los seleccionados»: llena el precio de campaña de cada uno (redondeado al centavo)."""
@@ -365,8 +451,43 @@ class DcasaCampanaDescuento(models.TransientModel):
 
     def action_aplicar(self):
         self.ensure_one()
-        for producto in self.producto_ids:
+        _exigir_precios(self.env)
+        for producto in self.producto_ids.with_context(**{SIN_SINCRONIZAR: True}):
             moneda = producto.currency_id
             precio = float_round(producto.list_price * (1 - self.porcentaje / 100), precision_rounding=moneda.rounding)
             producto.write({'dcasa_black_weekend': True, 'dcasa_campana_precio': precio if precio > 0 else False})
+        self.env['product.template']._dcasa_campana_sincronizar()
         return {'type': 'ir.actions.act_window_close'}
+
+
+class SaleOrder(models.Model):
+    _inherit = 'sale.order'
+
+    @api.model
+    def _dcasa_campana_plantillas_en_juego(self):
+        """Productos cuyo precio puede haber cambiado por la campaña: marcados, con precio de campaña, con regla de
+        campaña o en lo último que rigió."""
+        Producto = self.env['product.template'].sudo()
+        ids = set(Producto.search(['|', ('dcasa_black_weekend', '=', True), ('dcasa_campana_precio', '>', 0)]).ids)
+        ids |= set(self.env['product.pricelist.item'].sudo().search([('dcasa_campana', '=', True)]).product_tmpl_id.ids)
+        firma = self.env['ir.config_parameter'].sudo().get_param(PARAM_FIRMA_CARRITOS) or ''
+        ids |= {int(par.split(':')[0]) for par in firma.split(',') if par}
+        return ids
+
+    def _dcasa_campana_al_dia(self, plantillas=None):
+        """Vuelve a calcular el precio de las líneas de esos productos en carritos de la tienda (borrador, sin
+        apartado): las demás líneas, los premios de puntos (dcasa_socios) y el envío no se tocan."""
+        plantillas = self._dcasa_campana_plantillas_en_juego() if plantillas is None else set(plantillas)
+        if not plantillas:
+            return
+        for orden in self.filtered(lambda o: o.state == 'draft' and o.website_id):
+            if 'dcasa_apartado_vence' in orden._fields and orden.dcasa_apartado_vence:
+                continue
+            lineas = orden._get_update_prices_lines().filtered(
+                lambda linea: linea.product_id.product_tmpl_id.id in plantillas)
+            if not lineas:
+                continue
+            lineas.invalidate_recordset(['pricelist_item_id'])
+            lineas.with_context(force_price_recomputation=True)._compute_price_unit()
+            lineas.discount = 0.0
+            lineas._compute_discount()

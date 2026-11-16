@@ -214,7 +214,9 @@ class BrianHerramientasJuan(models.AbstractModel):
     @api.model
     def _j_combo(self, plantilla):
         texto = (plantilla.dcasa_combo or '').strip()
-        if not texto:
+        if not texto or self._j_precio(plantilla)[2]:
+            # Con precio de campaña rigiendo, el combo del Excel (su precio de siempre) no se dice: la página tampoco
+            # lo muestra y confundía al lado de la cama rebajada.
             return None
         combo = leer_combo(texto)
         if not combo:
@@ -238,6 +240,12 @@ class BrianHerramientasJuan(models.AbstractModel):
         if not website or not plantilla.sale_ok or not precio or precio <= 0:
             return False
         return bool(website._dcasa_compra_directa(plantilla, precio))
+
+    @api.model
+    def _j_rebaja_de_campana(self, plantilla):
+        """Lo que baja cada medida o color de ``plantilla`` por la campaña que rige ahora (0.0 si no rige)."""
+        website = self._j_website()
+        return website._dcasa_campana_rebaja_vigente(plantilla) if website else 0.0
 
     @api.model
     def _j_precio(self, plantilla):
@@ -438,10 +446,12 @@ class BrianHerramientasJuan(models.AbstractModel):
         mas_itbms = ficha['mas_itbms']
         if plantilla.product_variant_count > 1:
             # Sin código por variante: el código público es del producto y la medida o el color se elige con «opcion».
+            # Con campaña rigiendo, cada medida baja lo mismo (la regla de la tarifa): el precio que cobra el carrito.
+            rebaja = self._j_rebaja_de_campana(plantilla)
             ficha['variantes'] = [{
                 'nombre': v._dcasa_nombre_cliente(),
-                'precio': round(v.lst_price, 2),
-                'precio_texto': P.precio_texto(v.lst_price, mas_itbms),
+                'precio': round(v.lst_price + rebaja, 2),
+                'precio_texto': P.precio_texto(v.lst_price + rebaja, mas_itbms),
                 'disponibilidad': self._j_existencias(plantilla, v),
             } for v in plantilla.sudo().product_variant_ids[:MAX_VARIANTES]]
         ficha['galeria'] = [f'{base}/web/image/product.image/{i.id}/image_1024'

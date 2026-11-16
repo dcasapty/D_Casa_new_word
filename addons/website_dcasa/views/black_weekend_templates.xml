@@ -150,11 +150,13 @@
         <field name="inherit_id" ref="product.product_template_form_view"/>
         <field name="arch" type="xml">
             <field name="categ_id" position="after">
-                <field name="dcasa_black_weekend"/>
-                <field name="dcasa_bw_orden" invisible="not dcasa_black_weekend"/>
+                <field name="dcasa_black_weekend" groups="product.group_product_manager,base.group_system"/>
+                <field name="dcasa_bw_orden" invisible="not dcasa_black_weekend"
+                       groups="product.group_product_manager,base.group_system"/>
                 <field name="dcasa_campana_precio" invisible="not dcasa_black_weekend"
-                       groups="dcasa_base.group_gerencia,base.group_system"/>
+                       groups="product.group_product_manager,base.group_system"/>
                 <field name="dcasa_bw_variante_id" invisible="not dcasa_black_weekend"
+                       groups="product.group_product_manager,base.group_system"
                        options="{'no_create': True}"/>
             </field>
         </field>

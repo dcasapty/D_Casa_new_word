@@ -175,18 +175,28 @@ class Website(models.Model):
             setattr(request, _MEMO, activo)
         return activo
 
-    def _dcasa_campana_precio_vigente(self, plantilla, ahora=None):
-        """El precio de campaña de ``plantilla`` si rige en este momento (su regla de tarifa está en fechas); None si
-        no. Para Juan y Brian, que dicen el precio sin pasar por la tarifa: así dicen el mismo que cobra el carrito."""
+    def _dcasa_campana_rebaja_vigente(self, plantilla, ahora=None):
+        """Lo que baja ``plantilla`` (y cada una de sus medidas o colores) por la campaña en este momento: la rebaja
+        de su regla en la tarifa del sitio (negativa), o 0.0 si no rige. Para Juan y Andrés, que dicen el precio sin
+        pasar por la tarifa: así dicen el mismo que cobra el carrito."""
+        if not self.env['res.groups']._is_feature_enabled('product.group_product_pricelist'):
+            return 0.0
         plantilla = plantilla.sudo()
-        precio = plantilla.dcasa_campana_precio if 'dcasa_campana_precio' in plantilla._fields else 0.0
-        if not (plantilla.dcasa_black_weekend and precio and precio < plantilla.list_price):
-            return None
+        if not ('dcasa_campana_precio' in plantilla._fields and plantilla.dcasa_black_weekend
+                and plantilla.dcasa_campana_precio):
+            return 0.0
+        sitio = self if (self and len(self) == 1) else self.get_current_website()
         momento = ahora or fields.Datetime.now()
+        tarifas = self.env['product.template']._dcasa_campana_tarifas(sitio)
         regla = self.env['product.pricelist.item'].sudo().search([
-            ('dcasa_campana', '=', True), ('product_tmpl_id', '=', plantilla.id),
+            ('dcasa_campana', '=', True), ('product_tmpl_id', '=', plantilla.id), ('pricelist_id', 'in', tarifas.ids),
             ('date_start', '<=', momento), ('date_end', '>=', momento)], limit=1)
-        return precio if regla else None
+        return regla.price_surcharge if regla else 0.0
+
+    def _dcasa_campana_precio_vigente(self, plantilla, ahora=None):
+        """El precio de campaña de ``plantilla`` si rige en este momento; None si no."""
+        rebaja = self._dcasa_campana_rebaja_vigente(plantilla, ahora)
+        return round(plantilla.sudo().list_price + rebaja, 2) if rebaja else None
 
     def _dcasa_bw_fechas(self):
         ventana = self._dcasa_bw_ventana()

@@ -57,6 +57,14 @@ class DcasaCheckout(WebsiteSale):
     disponibilidad inventada y con las migas en español.
     """
 
+    def _check_cart(self, order_sudo):
+        """Antes de pagar, el carrito toma el precio que rige ahora en los productos de la campaña del sitio (Odoo no
+        vuelve a calcular líneas que ya estaban: una cama puesta antes del inicio o una corrección de precio de
+        Gerencia se cobraría vieja hasta el cron horario)."""
+        if order_sudo and order_sudo.state == 'draft':
+            order_sudo._dcasa_campana_al_dia()
+        return super()._check_cart(order_sudo)
+
     def _prepare_product_values(self, product, category, **kwargs):
         valores = super()._prepare_product_values(product, category, **kwargs)
         if not PUBLICAR_DISPONIBILIDAD and valores.get('product_markup_data'):

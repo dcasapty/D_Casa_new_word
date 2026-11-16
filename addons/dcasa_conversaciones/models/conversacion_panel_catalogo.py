@@ -97,7 +97,8 @@ class DcasaConversacionCatalogo(models.Model):
                 'id': v.id,
                 'nombre': v.with_context(display_default_code=False).display_name,
                 'codigo': v.default_code or '',
-                'precio_texto': P.precio_texto(v.lst_price, ficha['mas_itbms']),
+                'precio_texto': P.precio_texto(v.lst_price + herramientas._j_rebaja_de_campana(plantilla),
+                                               ficha['mas_itbms']),
                 'disponibilidad': herramientas._j_existencias(plantilla, v),
             } for v in plantilla.sudo().product_variant_ids[:MAX_VARIANTES]],
         })

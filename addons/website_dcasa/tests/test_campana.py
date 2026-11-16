@@ -6,10 +6,12 @@ precio de campaña opcional que el carrito cobre de verdad y que vuelva solo al 
 """
 from datetime import date, datetime, timedelta
 
+from freezegun import freeze_time
+
 from odoo import Command, fields
 from odoo.addons.website_dcasa.models.black_weekend import PARAM_ACTIVO, PARAM_FIN, PARAM_INICIO
 from odoo.addons.website_dcasa.models.campana import PARAM_FIRMA_CARRITOS, limites_utc
-from odoo.exceptions import UserError, ValidationError
+from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.tests import HttpCase, TransactionCase, tagged
 
 
@@ -52,6 +54,7 @@ class _Base:
 
 
 @tagged('post_install', '-at_install')
+@freeze_time('2026-11-27 04:00:00')   # una hora antes del inicio en Panamá: las reglas ya existen (VENTANA_PREVIA)
 class TestCampanaPrecios(_Base, TransactionCase):
 
     @classmethod
@@ -189,6 +192,59 @@ class TestCampanaPrecios(_Base, TransactionCase):
         self.assertFalse(self._reglas(), 'la página no las aplicaría y el carrito sí: ninguna')
         self.assertTrue(self.campana.tarifas_apagadas)
 
+    def test_las_reglas_solo_existen_cerca_de_las_fechas(self):
+        with freeze_time('2026-11-20 12:00:00'):
+            self._en_campana()
+            self.assertFalse(self._reglas(), 'una semana antes: ninguna (una cotización con otra fecha no la toma)')
+        with freeze_time('2026-11-27 03:30:00'):
+            self.env['product.template']._dcasa_campana_sincronizar()
+            self.assertTrue(self._reglas(self.cama), 'hora y media antes del inicio en Panamá: ya está')
+        with freeze_time('2026-12-01 05:00:01'):
+            self.env['dcasa.campana']._dcasa_campana_carritos_al_dia()
+            self.assertFalse(self._reglas(), 'terminó: el cron la quita')
+
+    def test_solo_gerencia_cambia_la_campana(self):
+        vendedora = self.env['res.users'].create({
+            'name': 'Vendedora campaña', 'login': 'vendedora_campana',
+            'group_ids': [Command.set([self.env.ref('dcasa_base.group_vendedora').id])]})
+        cama = self.cama.with_user(vendedora)
+        for valores in ({'dcasa_campana_precio': 1.0}, {'dcasa_black_weekend': True}, {'dcasa_bw_orden': 5}):
+            with self.subTest(valores=valores), self.assertRaises(AccessError):
+                cama.write(valores)
+        with self.assertRaises(AccessError):
+            self.env['product.template'].with_user(vendedora).create(
+                {'name': 'Nueva', 'list_price': 50.0, 'dcasa_black_weekend': True, 'dcasa_campana_precio': 1.0})
+        with self.assertRaises(AccessError):
+            self.campana.with_user(vendedora).action_empezar_de_cero()
+        cama.write({'name': 'CAMA RENOMBRADA POR LA VENDEDORA'})   # lo demás del producto, sí
+
+    def test_ninguna_medida_queda_en_cero_o_negativa(self):
+        medida = self.env['product.attribute'].create({'name': 'Medida barata', 'create_variant': 'always'})
+        twin, king = self.env['product.attribute.value'].create([
+            {'name': 'Twin', 'attribute_id': medida.id}, {'name': 'King', 'attribute_id': medida.id}])
+        self.cama.write({'list_price': 300.0, 'attribute_line_ids': [Command.create({
+            'attribute_id': medida.id, 'value_ids': [Command.set([twin.id, king.id])]})]})
+        self.cama.attribute_line_ids.product_template_value_ids.filtered(
+            lambda v: v.product_attribute_value_id == twin).price_extra = -150.0
+        with self.assertRaises(ValidationError):
+            self.cama.write({'dcasa_black_weekend': True, 'dcasa_campana_precio': 120.0})   # la Twin a −30
+        self.cama.write({'dcasa_black_weekend': True, 'dcasa_campana_precio': 200.0})       # la Twin a 50: bien
+
+    def test_un_precio_propio_de_la_tarifa_no_se_pisa(self):
+        self.env['product.pricelist.item'].create({
+            'pricelist_id': self.tarifa.id, 'applied_on': '1_product', 'product_tmpl_id': self.cama.id,
+            'compute_price': 'fixed', 'fixed_price': 120.0})
+        self._en_campana()
+        self.assertFalse(self._reglas(self.cama).filtered(lambda r: r.pricelist_id == self.tarifa))
+
+    def test_la_regla_no_se_borra_a_mano(self):
+        self._en_campana()
+        gerente = self.env['res.users'].create({
+            'name': 'Gerente borra', 'login': 'gerente_borra_regla',
+            'group_ids': [Command.set([self.env.ref('dcasa_base.group_gerencia').id])]})
+        with self.assertRaises(UserError):
+            self._reglas(self.cama)[:1].with_user(gerente).unlink()
+
     def test_limites_utc(self):
         self.assertEqual(limites_utc(date(2026, 11, 27), date(2026, 11, 27)),
                          (datetime(2026, 11, 27, 5, 0, 0), datetime(2026, 11, 28, 4, 59, 59)))
@@ -247,9 +303,26 @@ class TestCampanaCarritos(_Base, TransactionCase):
         self.assertEqual(carrito.order_line.price_unit, 200.0)
 
     def test_la_primera_vez_solo_anota(self):
-        self.env['ir.config_parameter'].sudo().search([('key', '=', PARAM_FIRMA_CARRITOS)]).unlink()
-        self.assertEqual(self.env['dcasa.campana']._dcasa_campana_carritos_al_dia(), 0)
-        self.assertIsNotNone(self.env['ir.config_parameter'].sudo().get_param(PARAM_FIRMA_CARRITOS))
+        param = self.env['ir.config_parameter'].sudo()
+        param.search([('key', '=', PARAM_FIRMA_CARRITOS)]).unlink()
+        carrito = self._pedido()
+        hoy = fields.Date.context_today(self.campana)
+        self.campana.write({'fecha_inicio': hoy - timedelta(days=1), 'fecha_fin': hoy + timedelta(days=1)})
+        self.cama.write({'dcasa_black_weekend': True, 'dcasa_campana_precio': 150.0})
+        param.search([('key', '=', PARAM_FIRMA_CARRITOS)]).unlink()
+        al_dia = self.env['dcasa.campana']._dcasa_campana_carritos_al_dia()
+        self.assertEqual(al_dia, 0, 'sin firma anterior: solo anota')
+        self.assertIsNotNone(param.get_param(PARAM_FIRMA_CARRITOS, None))
+        self.assertEqual(carrito.order_line.price_unit, 200.0)
+
+    def test_al_pagar_el_carrito_toma_el_precio_que_rige(self):
+        carrito = self._pedido()
+        hoy = fields.Date.context_today(self.campana)
+        self.campana.write({'fecha_inicio': hoy - timedelta(days=1), 'fecha_fin': hoy + timedelta(days=1)})
+        self.cama.write({'dcasa_black_weekend': True, 'dcasa_campana_precio': 150.0})
+        self.assertEqual(carrito.order_line.price_unit, 200.0, 'Odoo no recalcula sola la línea que ya estaba')
+        carrito._dcasa_campana_al_dia()   # lo que hace _check_cart antes de pagar
+        self.assertEqual(carrito.order_line.price_unit, 150.0)
 
 
 @tagged('post_install', '-at_install')

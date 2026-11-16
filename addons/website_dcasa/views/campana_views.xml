@@ -118,6 +118,7 @@
         <field name="search_view_id" ref="view_dcasa_campana_productos_search"/>
         <field name="domain">[('sale_ok', '=', True)]</field>
         <field name="context">{'search_default_publicados': 1}</field>
+        <field name="group_ids" eval="[Command.set([ref('dcasa_base.group_gerencia'), ref('base.group_system')])]"/>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">No hay productos publicados.</p>
         </field>
@@ -131,6 +132,8 @@
             <form string="Aplicar un descuento">
                 <p>Los productos seleccionados quedan en la campaña con su precio normal menos este porcentaje,
                     redondeado al centavo. Después se puede cambiar el precio de cada uno en la lista.</p>
+                <p class="text-muted">En un producto con medidas o colores de precio distinto, cada uno baja lo mismo en
+                    dólares: el porcentaje vale para el precio normal del producto, no para cada medida.</p>
                 <group>
                     <field name="porcentaje"/>
                     <field name="producto_ids" widget="many2many_tags" readonly="1"/>

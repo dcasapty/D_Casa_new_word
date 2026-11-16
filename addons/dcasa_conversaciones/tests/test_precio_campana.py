@@ -21,9 +21,13 @@ class TestPrecioDeCampanaEnLaFicha(TransactionCase):
         cls.campana.write({'name': 'Black Friday', 'fecha_inicio': False, 'fecha_fin': False})
         cls.cama = cls.env['product.template'].create({
             'name': 'CAMA FICHA CAMPAÑA', 'list_price': 200.0, 'is_published': True, 'sale_ok': True,
+            'dcasa_combo': 'Combo con colchón First Class $469.99',
             'public_categ_ids': [Command.set(cls.env.ref('website_dcasa.public_category_recamaras').ids)],
         })
         cls.herramientas = cls.env['brian.herramientas'].sudo()
+        cls.env.ref('base.group_user').write({
+            'implied_ids': [Command.link(cls.env.ref('product.group_product_pricelist').id)]})
+        cls.env['dcasa.campana']._dcasa_tarifa_del_sitio()
 
     def test_sin_campana_el_precio_de_siempre(self):
         ficha = self.herramientas._j_ficha_corta(self.cama, '')
@@ -45,3 +49,21 @@ class TestPrecioDeCampanaEnLaFicha(TransactionCase):
         self.campana.write({'fecha_inicio': hoy + timedelta(days=5), 'fecha_fin': hoy + timedelta(days=8)})
         self.cama.write({'dcasa_black_weekend': True, 'dcasa_campana_precio': 150.0})
         self.assertEqual(self.herramientas._j_ficha_corta(self.cama, '')['precio'], 200.0)
+
+    def test_cada_medida_baja_lo_mismo_en_la_ficha_completa(self):
+        medida = self.env['product.attribute'].create({'name': 'Medida ficha', 'create_variant': 'always'})
+        full, king = self.env['product.attribute.value'].create([
+            {'name': 'Full', 'attribute_id': medida.id}, {'name': 'King', 'attribute_id': medida.id}])
+        self.cama.write({'attribute_line_ids': [Command.create({
+            'attribute_id': medida.id, 'value_ids': [Command.set([full.id, king.id])]})]})
+        self.cama.attribute_line_ids.product_template_value_ids.filtered(
+            lambda v: v.product_attribute_value_id == king).price_extra = 60.0
+        self.env.ref('base.group_user').write({
+            'implied_ids': [Command.link(self.env.ref('product.group_product_pricelist').id)]})
+        self.env['dcasa.campana']._dcasa_tarifa_del_sitio()
+        hoy = fields.Date.context_today(self.campana)
+        self.campana.write({'fecha_inicio': hoy - timedelta(days=1), 'fecha_fin': hoy + timedelta(days=1)})
+        self.cama.write({'dcasa_black_weekend': True, 'dcasa_campana_precio': 150.0})
+        precios = sorted(v['precio'] for v in self.herramientas._j_ficha_completa(self.cama)['variantes'])
+        self.assertEqual(precios, [150.0, 210.0], 'la King conserva sus 60 de diferencia')
+        self.assertIsNone(self.herramientas._j_combo(self.cama), 'con precio de campaña no se dice el combo del Excel')
