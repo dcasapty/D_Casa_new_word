@@ -16,6 +16,7 @@
 """
 import logging
 import re
+import unicodedata
 from datetime import date, datetime, time
 
 import pytz
@@ -45,6 +46,16 @@ _COMBO = re.compile(r'^\s*(Combo con colchón)\s*(.*?)\s*\$\s*([\d,]+(?:\.\d+)?)
 _MESES = ('enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre',
           'octubre', 'noviembre', 'diciembre')
 _MEMO = '_dcasa_bw_activo'
+# El artículo del nombre de la campaña en «Ver todo el …» y «me interesa del …» (revisión adversarial, tercera vuelta:
+# «Ver todo el Navidad»). Se mira la primera palabra en español; los nombres en inglés (Black Friday) van con «el».
+_ARTICULOS = ('el', 'la', 'los', 'las')
+_ADJETIVOS_DELANTE = {'gran', 'mega', 'super', 'hiper', 'mini'}   # «Gran Venta»: manda la palabra que sigue
+_FEMENINAS = {'noche', 'madre', 'tarde', 'gente', 'clase', 'parte', 'calle', 'llave'}
+_MASCULINAS_EN_A = {'dia', 'mapa', 'programa', 'sistema', 'tema', 'clima', 'planeta', 'idioma', 'problema', 'sofa',
+                    'papa', 'drama', 'poema'}
+_SINGULARES_EN_S = {'mes', 'vs', 'plus', 'mas', 'tres', 'seis'}
+_TODO = {'el': 'todo el', 'la': 'toda la', 'los': 'todos los', 'las': 'todas las'}
+_DE = {'el': 'del', 'la': 'de la', 'los': 'de los', 'las': 'de las'}
 
 
 def leer_fecha(valor):
@@ -69,6 +80,30 @@ def leer_combo(texto):
         return None
     colchon = m.group(2).strip()
     return {'texto': f'{m.group(1)} {colchon}'.strip(), 'colchon': colchon, 'precio': precio}
+
+
+def _sin_tildes(texto):
+    return ''.join(c for c in unicodedata.normalize('NFD', texto.lower()) if unicodedata.category(c) != 'Mn')
+
+
+def _femenina(palabra):
+    return palabra in _FEMENINAS or palabra.endswith(('cion', 'sion', 'dad', 'tad', 'tud', 'umbre')) or (
+        palabra.endswith('a') and palabra not in _MASCULINAS_EN_A)
+
+
+def articulo_y_nombre(nombre):
+    """(artículo, nombre sin artículo): «Black Friday» → ('el', 'Black Friday'); «Navidad» → ('la', …); «Fiestas
+    Patrias» → ('las', …); «Día de las Madres» → ('el', …); «La Gran Venta» → ('la', 'Gran Venta')."""
+    nombre = ' '.join((nombre or '').split())
+    palabras = nombre.split(' ')
+    limpias = [re.sub(r'[^a-zñ]', '', _sin_tildes(p)) for p in palabras]
+    if len(palabras) > 1 and limpias[0] in _ARTICULOS:
+        return limpias[0], ' '.join(palabras[1:])   # la dueña ya le puso el artículo
+    primera = next((p for p in limpias if p not in _ADJETIVOS_DELANTE), '') if limpias else ''
+    if len(primera) > 3 and primera.endswith('s') and primera not in _SINGULARES_EN_S:
+        femenina = _femenina(primera[:-1]) or (primera.endswith('es') and _femenina(primera[:-2]))
+        return ('las' if femenina else 'los'), nombre
+    return ('la' if _femenina(primera) else 'el'), nombre
 
 
 def fechas_en_texto(inicio, fin):
@@ -125,6 +160,18 @@ class Website(models.Model):
         if campana and (campana.fecha_inicio or campana.fecha_fin):
             return campana.name
         return 'Black Weekend'
+
+    @api.model
+    def _dcasa_campana_ver_todo(self):
+        """«Ver todo el Black Friday», «Ver toda la Navidad», «Ver todas las Fiestas Patrias»."""
+        articulo, nombre = articulo_y_nombre(self._dcasa_campana_nombre())
+        return f'Ver {_TODO[articulo]} {nombre}'
+
+    @api.model
+    def _dcasa_campana_de(self):
+        """«del Black Friday», «de la Navidad», «de las Fiestas Patrias» (para «me interesa …», «información …»)."""
+        articulo, nombre = articulo_y_nombre(self._dcasa_campana_nombre())
+        return f'{_DE[articulo]} {nombre}'
 
     @api.model
     def _dcasa_campana_frase(self):
@@ -271,7 +318,7 @@ class Website(models.Model):
 
     def _dcasa_bw_whatsapp(self, producto, codigo):
         nombre = producto._dcasa_nombre_cliente()
-        texto = f"Hola D'CASA, me interesa del {self._dcasa_campana_nombre()}: {nombre}"
+        texto = f"Hola D'CASA, me interesa {self._dcasa_campana_de()}: {nombre}"
         return self._dcasa_whatsapp_url(f'{texto} (código {codigo})' if codigo else texto)
 
     def _dcasa_bw_marcado(self, producto):

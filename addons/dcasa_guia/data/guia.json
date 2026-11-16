@@ -2831,7 +2831,7 @@
    "destino": {
     "menu": "dcasa_brian_tienda.menu_dcasa_brian_tienda"
    },
-   "nota": "Viene encendido, saludando igual de día y de noche (fuera del horario no avisa que la tienda está cerrada) y con el robot dormido de noche. No guarda la conversación ni crea contactos; para atención personal ofrece WhatsApp. Su gasto va en su propio renglón de Costos de IA y no se suma a «Por pagar a Meta». Solo Gerencia y los administradores lo cambian.",
+   "nota": "Viene encendido, saludando igual de día y de noche (fuera del horario no avisa que la tienda está cerrada) y con el robot dormido de noche. No guarda la conversación ni crea contactos; para atención personal ofrece WhatsApp. Si las notas de voz de Juan están encendidas, junto a «Enviar» sale un micrófono: el cliente le habla hasta un minuto y Andrés recibe lo que dijo como texto; el audio no se guarda en ningún lado. Su gasto va en su propio renglón de Costos de IA y no se suma a «Por pagar a Meta». Solo Gerencia y los administradores lo cambian.",
    "palabras": [
     "chat",
     "chat de la tienda",
@@ -2844,7 +2844,9 @@
     "horario",
     "tienda cerrada",
     "andrés",
-    "andres"
+    "andres",
+    "micrófono del chat",
+    "nota de voz del cliente"
    ]
   },
   {
@@ -2856,7 +2858,7 @@
    "destino": {
     "menu": "website_dcasa.menu_dcasa_campana"
    },
-   "nota": "El precio de campaña es sin ITBMS, como el precio de venta, y tiene que ser menor que el normal. Sin las dos fechas no se aplica ningún precio de campaña. «Empezar de cero» desmarca todos los productos y borra sus precios de campaña. Lo ven y lo cambian Gerencia y los administradores.",
+   "nota": "El precio de campaña es sin ITBMS, como el precio de venta, y tiene que ser menor que el normal. Sin las dos fechas no se aplica ningún precio de campaña. «Empezar de cero» desmarca todos los productos y borra sus precios de campaña. Los combos cama + colchón de la cotización van a su precio de siempre, sin el precio de campaña, mientras el interruptor «La campaña también rebaja los combos» (en la misma pantalla) esté apagado, como viene. Lo ven y lo cambian Gerencia y los administradores.",
    "palabras": [
     "campaña",
     "black friday",
@@ -2869,7 +2871,9 @@
     "rebaja",
     "precio especial",
     "precio de campaña",
-    "cyber monday"
+    "cyber monday",
+    "combos",
+    "combo con campaña"
    ]
   },
   {
@@ -3100,6 +3104,25 @@
     "historial de brian",
     "auditoria",
     "acciones"
+   ]
+  },
+  {
+   "id": "brian-notas-de-voz",
+   "categoria": "administrar",
+   "grupo": "Brian",
+   "titulo": "Dictarle a Brian con una nota de voz",
+   "logras": "En vez de escribir, le hablas a Brian: lo que dices se convierte en texto y queda en su caja para que lo revises antes de mandarlo. El audio no se guarda en ningún lado.",
+   "destino": null,
+   "nota": "Abre a Brian (el robot de abajo a la derecha) y toca el micrófono, al lado de la caja de texto. La primera vez, el navegador te pide permiso para usar el micrófono. Habla con calma, hasta un minuto, y toca «Listo» (el botón con el visto). Si no quieres mandar nada, toca la X o la tecla Esc. Después revisa el texto, corrígelo si hace falta y envíalo como siempre.",
+   "palabras": [
+    "nota de voz",
+    "notas de voz",
+    "audio",
+    "dictar",
+    "hablarle",
+    "microfono",
+    "voz",
+    "grabar"
    ]
   },
   {

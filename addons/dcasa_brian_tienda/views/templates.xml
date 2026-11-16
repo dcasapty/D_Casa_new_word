@@ -44,13 +44,16 @@
             <p id="brian-de-la-tienda"><strong>Andrés, el chat de la tienda.</strong> En nuestra tienda en línea puedes
                 conversar con Andrés, un asistente de inteligencia artificial. Lo que le escribes se envía a nuestro
                 proveedor de inteligencia artificial (el mismo de Juan, con las mismas condiciones de arriba) para
-                contestarte. No guardamos la conversación ni creamos una ficha tuya: el chat recuerda lo que hablaron
+                contestarte. Si prefieres hablarle, puedes mandarle una nota de voz de hasta un minuto: la
+                inteligencia artificial de Cloudflare la convierte en texto y el audio no se guarda en ningún lado (nadie
+                lo escucha, no se comparte y no se usa para imitar tu voz); solo queda el texto, igual que si lo hubieras
+                escrito. No guardamos la conversación ni creamos una ficha tuya: el chat recuerda lo que hablaron
                 como mucho dos horas sin actividad (hasta 30 mensajes: los últimos 15 intercambios) y después se borra
                 solo. Si tocas «Usar mi ubicación», tu ubicación se usa solo para encontrar el lugar de entrega más
                 cercano y calcular el envío, y no se guarda. Andrés no ve ni cambia tus datos ni tus compras: el carrito lo cambias tú, desde tu
                 navegador. Si calificas la atención con estrellas, guardamos solo el número de estrellas y la fecha.
-                Para evitar abusos contamos cuántos chats y mensajes llegan por hora desde una misma conexión, sin
-                guardar quién eres.</p>
+                Para evitar abusos contamos cuántos chats, mensajes y notas de voz llegan por hora desde una misma
+                conexión, sin guardar quién eres.</p>
         </xpath>
     </template>
 </odoo>

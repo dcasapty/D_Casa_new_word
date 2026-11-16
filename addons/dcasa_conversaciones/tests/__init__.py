@@ -62,3 +62,4 @@ from . import (
     test_brian_conversaciones,
     test_precio_campana,
 )
+from . import test_brian_voz

@@ -35,6 +35,17 @@
                             <field name="website_id" groups="base.group_system" options="{'no_create': True}"/>
                         </group>
                     </group>
+                    <!-- «Los combos son inamovibles» (la dueña, 2026-11-16): apagado de fábrica; solo Gerencia y
+                         administradores abren esta pantalla y el servidor lo exige igual (models/campana.py). -->
+                    <group string="Combos cama + colchón" name="combos">
+                        <field name="dcasa_rebaja_combos" widget="boolean_toggle"/>
+                        <div colspan="2" class="text-muted o_dcasa_campana_combos_ayuda">
+                            Apagado: los combos que se arman en la cotización van a su precio de siempre (la cama a su
+                            precio normal y el colchón a su precio en combo), sin el precio de campaña, aunque la cama
+                            o el colchón lo tengan. Encendido: la cama y el colchón del combo también toman el precio de
+                            campaña. Solo lo cambian Gerencia y los administradores.
+                        </div>
+                    </group>
                     <field name="tarifas_apagadas" invisible="1"/>
                     <div class="alert alert-warning" role="alert" invisible="not tarifas_apagadas">
                         <strong>Las tarifas de Odoo están apagadas:</strong> los productos salen en la campaña con su
@@ -47,7 +58,9 @@
                             en el menú. Al terminar, todo se quita solo.</p>
                         <p class="mb-1">Los productos se marcan con «Elegir productos y precios». El precio de campaña
                             es opcional y sin ITBMS: solo rige en estas fechas, el carrito lo cobra y la tarjeta muestra el
-                            precio normal tachado. Sin precio, el producto sale con su precio normal.</p>
+                            precio normal tachado. Sin precio, el producto sale con su precio normal. Los combos cama +
+                            colchón de la cotización no toman el precio de campaña mientras el interruptor de arriba
+                            esté apagado.</p>
                         <p class="mb-0">Sin fechas, la campaña está apagada. La tienda guardada en internet puede tardar
                             hasta una hora en mostrar el cambio; el carrito cobra siempre el precio correcto.</p>
                     </div>

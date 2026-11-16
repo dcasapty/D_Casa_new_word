@@ -22,6 +22,10 @@
  * Los adjuntos se suben como ir.attachment (res_model='brian.conversacion', res_id=id)
  * y viajan por id. Todo error se muestra como notificación: si el núcleo falla, el resto
  * del backend sigue funcionando.
+ *
+ * Notas de voz (brian_voz.js): el micrófono graba hasta un minuto, la nota pasa a texto en el
+ * Worker de Juan (`/dcasa/brian/v1/voz`, solo usuarios internos) y el texto queda en la caja
+ * para revisarlo y mandarlo. El audio no se guarda en ningún lado ni se adjunta.
  */
 import { Component, onMounted, onWillUnmount, useEffect, useExternalListener, useRef, useState } from "@odoo/owl";
 import { browser } from "@web/core/browser/browser";
@@ -31,6 +35,7 @@ import { registry } from "@web/core/registry";
 import { getDataURLFromFile } from "@web/core/utils/urls";
 import { useBus, useService } from "@web/core/utils/hooks";
 import { parsearMarkdown } from "./brian_markdown";
+import { GrabadoraDeVoz, MAX_SEGUNDOS_VOZ, reloj, transcribir, vozSoportada } from "./brian_voz";
 
 const MODELO = "brian.conversacion";
 const MAX_ADJUNTO = 15 * 1024 * 1024;
@@ -38,6 +43,7 @@ const MAX_TITULO = 60;
 const RESINCRONIZAR_CADA = 2000;
 const AVISO_BORRADA =
     "Esa conversación se borró (quizá desde otra pantalla). Empezamos una nueva; lo que escribiste sigue en la caja.";
+const TEXTO_VOZ_FALLO = "No pude pasar la nota a texto ahora. Inténtalo en un momento o escríbele a Brian.";
 const AVISO_SIN_CLAVE =
     "Brian aún no tiene su clave de IA; pídele a quien administra el sistema que la configure en Ajustes\u00a0›\u00a0Brian.";
 
@@ -166,6 +172,7 @@ export class BrianPanel extends Component {
         this.mensajesRef = useRef("mensajes");
         this.archivoRef = useRef("archivo");
         this.lanzadorRef = useRef("lanzador");
+        this.vozListoRef = useRef("vozListo");
         this.state = useState({
             cargado: false,
             proveedor: null,
@@ -187,7 +194,13 @@ export class BrianPanel extends Component {
             pasos: [],
             turno: null,
             recienTermino: false,
+            // Nota de voz: inactiva · pidiendo (el permiso del micrófono) · grabando · transcribiendo.
+            voz: "inactiva",
+            vozSegundos: 0,
+            vozAnuncio: "",
         });
+        this.grabadora = null;
+        this.enfocarAlVolver = true;
         this.abierto = useState(this.brian.estado);
         this.contadorLocal = 0;
         this.temporizadorTermine = null;
@@ -203,6 +216,10 @@ export class BrianPanel extends Component {
                     }
                     browser.setTimeout(() => this.entradaRef.el?.focus(), 30);
                 } else if (!primeraVez) {
+                    // Al cerrar el panel, una nota a medio grabar se tira (no se manda nada).
+                    if (this.grabadora) {
+                        this.cancelarVoz({ enfocar: false });
+                    }
                     const previo = this.brian.focoPrevio;
                     const visible = (el) => el && document.body.contains(el) && el.offsetParent !== null;
                     const destino = [previo, this.lanzadorRef.el, document.querySelector(".o_brian_systray_btn")].find(
@@ -240,6 +257,24 @@ export class BrianPanel extends Component {
         );
         onMounted(() => this.ajustarAltura());
 
+        // Nota de voz: el foco va a «Listo» al empezar a grabar y vuelve a la caja al terminar (después de pintar: un
+        // botón deshabilitado o una caja que todavía no existe no reciben el foco).
+        let vozAnterior = "inactiva";
+        useEffect(
+            (voz) => {
+                if (voz === "grabando") {
+                    this.vozListoRef.el?.focus();
+                } else if (voz === "inactiva" && vozAnterior !== "inactiva") {
+                    this.ajustarAltura();
+                    if (this.abierto.abierto && this.enfocarAlVolver) {
+                        this.entradaRef.el?.focus();
+                    }
+                }
+                vozAnterior = voz;
+            },
+            () => [this.state.voz]
+        );
+
         // Al editar un nombre, el foco va a su caja.
         useEffect(
             (id) => {
@@ -267,6 +302,7 @@ export class BrianPanel extends Component {
             this.bus.unsubscribe("dcasa_brian/conversacion_cambiada", this.alCambiarRemoto);
             this.bus.unsubscribe("dcasa_brian/pasos", this.alPasosRemoto);
             browser.clearTimeout(this.temporizadorTermine);
+            this.grabadora?.cancelar();
         });
         // Red de seguridad si el bus no conecta: al volver a la pestaña, se comprueba.
         this.ultimaSincronia = 0;
@@ -764,7 +800,9 @@ export class BrianPanel extends Component {
         if (ev.key === "Escape") {
             ev.stopPropagation();
             ev.preventDefault();
-            if (this.state.vista === "historial") {
+            if (this.grabadora) {
+                this.cancelarVoz();
+            } else if (this.state.vista === "historial") {
                 this.volverAlChat();
             } else {
                 this.brian.cerrar();
@@ -782,6 +820,127 @@ export class BrianPanel extends Component {
 
     enfocar() {
         browser.setTimeout(() => this.entradaRef.el?.focus(), 0);
+    }
+
+    // --- Notas de voz ---------------------------------------------------------------------
+
+    /** El micrófono se ofrece si el servidor lo tiene (el Worker de Juan conectado) y el navegador puede grabar. */
+    get puedeGrabar() {
+        return Boolean(this.state.proveedor?.voz) && vozSoportada();
+    }
+
+    get vozActiva() {
+        return this.state.voz !== "inactiva";
+    }
+
+    get relojVoz() {
+        return reloj(this.state.vozSegundos);
+    }
+
+    get relojMaximo() {
+        return reloj(MAX_SEGUNDOS_VOZ);
+    }
+
+    get porcentajeVoz() {
+        return Math.min(100, Math.round((this.state.vozSegundos / MAX_SEGUNDOS_VOZ) * 100));
+    }
+
+    async empezarVoz() {
+        if (this.vozActiva || this.state.pensando) {
+            return;
+        }
+        this.state.voz = "pidiendo";
+        this.state.vozSegundos = 0;
+        this.state.vozAnuncio = "";
+        const grabadora = new GrabadoraDeVoz({
+            alCambiar: (segundos) => {
+                this.state.vozSegundos = Math.min(segundos, MAX_SEGUNDOS_VOZ);
+            },
+            alTerminar: (nota) => this.pasarATexto(nota),
+        });
+        this.grabadora = grabadora;
+        try {
+            await grabadora.empezar();
+        } catch (error) {
+            grabadora.cancelar();
+            if (this.grabadora === grabadora) {
+                this.grabadora = null;
+                this.enfocarAlVolver = true;
+                this.state.voz = "inactiva";
+                const negado = ["NotAllowedError", "SecurityError"].includes(error?.name);
+                this.notification.add(
+                    negado
+                        ? "Para dictarle a Brian, permite el micrófono en tu navegador."
+                        : "No pude usar el micrófono. Revisa que esté conectado.",
+                    { type: "warning", title: "Brian" }
+                );
+            }
+            return;
+        }
+        if (this.grabadora !== grabadora) {
+            // Se canceló mientras el navegador pedía el permiso.
+            grabadora.cancelar();
+            return;
+        }
+        this.state.voz = "grabando";
+        this.state.vozAnuncio = "Grabando. Toca «Listo» cuando termines; Esc cancela.";
+    }
+
+    /** «Listo»: para de grabar y la nota va a pasarse a texto (`pasarATexto`, cuando el navegador la entrega). */
+    terminarVoz() {
+        if (this.state.voz !== "grabando") {
+            return;
+        }
+        this.state.voz = "transcribiendo";
+        this.state.vozAnuncio = "Pasando tu nota a texto…";
+        this.grabadora?.terminar();
+    }
+
+    /** Cancelar: se tira lo grabado y se apaga el micrófono. No se manda nada. */
+    cancelarVoz({ enfocar = true } = {}) {
+        if (this.state.voz === "transcribiendo") {
+            return;
+        }
+        this.grabadora?.cancelar();
+        this.grabadora = null;
+        this.enfocarAlVolver = enfocar;
+        this.state.voz = "inactiva";
+        this.state.vozSegundos = 0;
+        this.state.vozAnuncio = "Nota de voz cancelada: no se mandó nada.";
+    }
+
+    async pasarATexto(nota) {
+        this.grabadora = null;
+        this.state.voz = "transcribiendo";
+        this.state.vozAnuncio = "Pasando tu nota a texto…";
+        try {
+            const r = await transcribir(nota);
+            if (r?.ok && r.texto) {
+                const previo = this.state.texto.trim();
+                this.state.texto = previo ? `${previo} ${r.texto}` : r.texto;
+                this.state.vozAnuncio = r.recortado
+                    ? "Listo. La nota era muy larga y tomé la primera parte: revisa el texto y envíalo."
+                    : "Listo: revisa el texto y envíalo.";
+                if (r.recortado) {
+                    this.notification.add("La nota era muy larga y tomé la primera parte. Revísala antes de enviarla.", {
+                        type: "info",
+                        title: "Brian",
+                    });
+                }
+            } else {
+                this.state.vozAnuncio = r?.error || TEXTO_VOZ_FALLO;
+                this.notification.add(r?.error || TEXTO_VOZ_FALLO, { type: "warning", title: "Brian" });
+            }
+        } catch (error) {
+            const texto = error?.data?.message && /AccessError/.test(error?.data?.name || "") ? error.data.message : TEXTO_VOZ_FALLO;
+            this.state.vozAnuncio = texto;
+            this.notification.add(texto, { type: "danger", title: "Brian" });
+        } finally {
+            nota.blob = null;
+            this.enfocarAlVolver = true;
+            this.state.voz = "inactiva";
+            this.state.vozSegundos = 0;
+        }
     }
 
     // --- Adjuntos ----------------------------------------------------------------------

@@ -4,7 +4,8 @@
 // Camino de un mensaje (contrato §2; docs/JUAN.md › «Brian de la tienda»):
 //   ¿contexto viejo? (2 h sin actividad → se borra) → ¿encendido? → tope por sesión (aquí: el objeto atiende de a uno)
 //   → tope por red, tope del día y presupuesto propio (el Durable Object Global: atómico) → ¿hace falta la IA?
-//      · no: pedir una persona, un «sí»/«no» a «¿te lo pongo en el carrito?», calificar, el carrito que falló → texto fijo
+//      · no: pedir una persona, un «sí»/«no» a «¿te lo pongo en el carrito?» (o a sumar el envío, o a cambiar el carrito),
+//        calificar, el carrito que falló, el envío que se sumó (A2) y la reacción al quitar algo (A3) → texto fijo
 //      · sí: el modelo con la lista blanca de herramientas de Odoo (solo leer) y `responder_tienda`
 //   → tarjetas armadas por el Worker con los datos de las herramientas de ESE turno → la guardia de Juan en cada texto
 //   → se guarda el contexto (máx. 30 turnos, sin la ubicación) → se anota el gasto en su propio renglón.
@@ -15,7 +16,7 @@ import { pideUnaPersona } from "../dcasa/intencion";
 import { HERRAMIENTAS_DEL_CONTRATO, NOMBRES_DE_HERRAMIENTAS_LOCALES } from "../dcasa/prompt";
 import { analizar, quitarGraves, type ContextoRevision, type TipoProblema } from "../dcasa/salvaguardas";
 import { CORCHETES, CORCHETES_QUE_CIERRAN, enmascararSensibles, textoParaElModelo } from "../dcasa/sensibles";
-import { oraciones } from "../dcasa/texto";
+import { normalizar, oraciones } from "../dcasa/texto";
 import { horaLegible } from "../dcasa/textos";
 import { MODELO_DE_LO_CORTADO, type GastoTienda, type ResultadoReservaTienda, type ReservaTienda } from "../motor/global";
 import { cifrasDeTexto, construirHerramientas, procesarResultado, RegistroDelTurno, tomarRespaldoDeEnvio, type CacheDeHerramientas } from "../motor/herramientas";
@@ -38,18 +39,22 @@ import {
   MAX_TARJETAS,
   mensajeDeWhatsapp,
   opcionCorta,
+  pideCambiarCarrito,
   pideOConfirmaCarrito,
+  pideSumarEnvio,
+  pideVerCarrito,
   productosDelResultado,
   sinPresentacion,
   tarjetaDe,
   TEXTO_DE_UBICACION,
   TEXTO_DEL_BOTON_DE_WHATSAPP,
+  tituloDelGrupo,
   type Bloque,
   type ProductoVisto,
   type RespuestaTienda,
 } from "./bloques";
-import type { PeticionTienda } from "./peticion";
-import { contextoTienda, HERRAMIENTAS_DE_LA_TIENDA, horarioLegible, POSES, promptTienda, promptTiendaParaFugas, proximaAtencion, sinPuntoFinal, type Pose } from "./prompt";
+import { textoCorto, type MotivoDelEnvio, type PeticionTienda } from "./peticion";
+import { comoDato, contextoTienda, HERRAMIENTAS_DE_LA_TIENDA, horarioLegible, POSES, promptTienda, promptTiendaParaFugas, proximaAtencion, sinPuntoFinal, type LineaDelCarrito, type Pose } from "./prompt";
 
 // ── Constantes ──────────────────────────────────────────────────────────────
 
@@ -133,6 +138,14 @@ interface Oferta {
   producto_id: number;
   cantidad: number;
   nombre: string;
+  /** A4: la cantidad que tenía en el carrito cuando se propuso el cambio. */
+  antes?: number;
+}
+
+/** A2: un envío con precio que dio `cotizar_envio` en la sesión (el lugar de la tabla), para sumarlo a la cotización. */
+interface EnvioCotizado {
+  lugar_id: number;
+  lugar: string;
 }
 
 /** Lo que el modelo puede mandar en `responder_tienda` (se valida todo: nada se usa a ciegas). */
@@ -141,6 +154,8 @@ interface RespuestaDelModelo {
   productos: unknown[];
   ofrecer_carrito: unknown;
   proponer_carrito: unknown;
+  cambiar_carrito: unknown;
+  sumar_envio: boolean;
   sugerencias: { texto: string; opciones: unknown[] } | null;
   pedir_ubicacion: boolean;
   whatsapp: boolean;
@@ -162,6 +177,8 @@ export const ESQUEMA_RESPONDER = {
     productos: { type: "array", items: REF_PRODUCTO, description: "Los productos que la página muestra en tarjetas (de los que devolvieron las herramientas en este mensaje), hasta 6." },
     ofrecer_carrito: { type: "object", properties: { producto: REF_PRODUCTO, cantidad: { type: "integer" } }, description: "El producto que le PREGUNTAS si quiere poner en el carrito." },
     proponer_carrito: { type: "object", properties: { producto: REF_PRODUCTO, cantidad: { type: "integer" } }, description: "Solo si el cliente pidió o confirmó en este mensaje poner ese producto en el carrito." },
+    cambiar_carrito: { type: "object", properties: { producto: REF_PRODUCTO, cantidad: { type: "integer" } }, description: "Solo si el cliente pidió en este mensaje cambiar la cantidad de un producto de SU carrito o quitarlo: el producto_id y la cantidad nueva (0 = quitar)." },
+    sumar_envio: { type: "boolean", description: "true si el cliente pidió o confirmó en este mensaje sumar a su cotización el envío que ya calculaste." },
     sugerencias: { type: "object", properties: { texto: { type: "string" }, opciones: { type: "array", items: { type: "string" } } }, description: "Una pregunta corta con 2 o 3 opciones." },
     pedir_ubicacion: { type: "boolean", description: "true si necesitas saber a dónde se lleva para calcular el envío." },
     whatsapp: { type: "boolean", description: "true si conviene que lo atienda una persona por WhatsApp." },
@@ -188,6 +205,8 @@ function leerRespuestaDelModelo(v: unknown): RespuestaDelModelo | null {
     productos: Array.isArray(o.productos) ? o.productos.slice(0, 20) : [],
     ofrecer_carrito: o.ofrecer_carrito,
     proponer_carrito: o.proponer_carrito,
+    cambiar_carrito: o.cambiar_carrito,
+    sumar_envio: o.sumar_envio === true,
     sugerencias: sug,
     pedir_ubicacion: o.pedir_ubicacion === true,
     whatsapp: o.whatsapp === true,
@@ -217,6 +236,8 @@ interface SalidaModelo {
   uso: Uso;
   consultas: ConsultaDelTurno[];
   herramientasUsadas: string[];
+  /** Lo que el modelo buscó con buscar_productos en esta vuelta (para el título del grupo de la vitrina, A5). */
+  busquedas: string[];
 }
 
 async function correrModelo(e: EntradaModelo): Promise<SalidaModelo> {
@@ -246,6 +267,9 @@ async function correrModelo(e: EntradaModelo): Promise<SalidaModelo> {
     uso: usoDelSdk(r.totalUsage),
     consultas: r.steps.flatMap((s) => s.toolResults.filter((t) => t.toolName !== NOMBRE_RESPONDER).map((t) => ({ herramienta: t.toolName, resultado: t.output }))),
     herramientasUsadas: llamadas.map((c) => c.toolName).filter((n) => n !== NOMBRE_RESPONDER),
+    busquedas: llamadas
+      .filter((c) => c.toolName === "buscar_productos" && esObjeto(c.input) && typeof c.input.consulta === "string")
+      .map((c) => String((c.input as Record<string, unknown>).consulta)),
   };
 }
 
@@ -359,6 +383,52 @@ export function textoListo(nombre: string, cantidad: number): string {
   return `Listo, te puse ${cantidad > 1 ? `${cantidad} × ` : ""}${nombre} en el carrito. ¡Gracias!`;
 }
 
+// A2. El envío en la cotización: Andrés ofrece; la página le pide a Odoo que lo ponga; Andrés nunca dice la cifra sumada.
+export const TEXTO_OFRECER_ENVIO = "¿Te lo sumo a la cotización?";
+export const CHIPS_DE_ENVIO = ["Sí, súmalo a la cotización", "No, gracias"];
+export const TEXTO_SUMO_ENVIO = "Con gusto, te lo sumo a la cotización.";
+export const TEXTO_ENVIO_SUMADO = "Listo, te lo sumé: el total lo ves en tu carrito y en la cotización.";
+export const TEXTO_ENVIO_YA_ESTABA = "Ese envío ya está sumado: el total lo ves en tu carrito y en la cotización.";
+export const TEXTO_ENVIO_SIN_CARRITO = "Para sumarte el envío, primero pon en el carrito lo que te gustó; después te lo sumo con gusto.";
+export const OPCIONES_DESPUES_DEL_ENVIO = ["Formas de pago", "Seguir viendo"];
+
+/** Lo que dice Andrés cuando Odoo no sumó el envío (por el motivo que contó la página). Nunca una cifra. */
+export function textoEnvioNoSumado(motivo: MotivoDelEnvio | null): string {
+  if (motivo === "sin_carrito") return TEXTO_ENVIO_SIN_CARRITO;
+  if (motivo === "sin_tarifa" || motivo === "aparte" || motivo === "lugar") return "Ese envío te lo confirma una vendedora por WhatsApp, para no darte un dato equivocado.";
+  if (motivo === "tope") return "Por ahora no puedo sumar más envíos. Inténtalo en un rato o escríbenos por WhatsApp.";
+  return "No pude sumar el envío ahorita, disculpa. Inténtalo otra vez en un momento o escríbenos por WhatsApp.";
+}
+
+// A4. Cambiar el carrito conversando: la página lo aplica en Odoo y Andrés confirma con lo que dice el carrito de Odoo.
+export const CHIPS_DE_CAMBIO = ["Sí, cámbialo", "No, gracias"];
+export const TEXTO_CAMBIO = "Con gusto, ya lo cambio.";
+export const TEXTO_CAMBIO_FALLO = "No pude cambiar el carrito ahorita, disculpa. Puedes hacerlo desde «Ver» en la barra del carrito o, si prefieres, te ayudan por WhatsApp.";
+
+export function preguntaDeCambio(o: Oferta): string {
+  return o.cantidad === 0 ? `¿Quito ${o.nombre} del carrito?` : `¿Cambio la cantidad de ${o.nombre} a ${o.cantidad}?`;
+}
+
+export function textoCambioHecho(nombre: string, cantidad: number): string {
+  return cantidad === 0 ? `Listo, quité ${nombre} del carrito.` : `Listo, ahora tienes ${cantidad} × ${nombre} en el carrito.`;
+}
+
+// A3. La reacción al quitar o vaciar: una sola vez por sesión, amable, con una alternativa y sin insistir (sin la IA).
+export const CHIPS_DE_ALTERNATIVA = ["Una más económica", "Con más prestaciones", "No, gracias"];
+
+export function textoDeReaccion(nombre: string, vacio: boolean, quitado: boolean): string {
+  if (vacio) return "Vi que vaciaste el carrito. ¿Te ayudo a buscar otra opción, más económica o con más prestaciones?";
+  if (!nombre) return "Vi que quitaste algo del carrito. ¿Te busco otra opción, más económica o con más prestaciones?";
+  return quitado
+    ? `Vi que quitaste ${nombre}. ¿Te busco una opción más económica o una con más prestaciones?`
+    : `Vi que bajaste la cantidad de ${nombre}. Si quieres, te busco otra opción, más económica o con más prestaciones.`;
+}
+
+/** Un nombre que viene de la página (una línea del carrito), para decirlo y anotarlo: corto, sin enlaces ni corchetes. */
+function nombreDeLaPagina(t: string): string {
+  return comoDato(textoCorto(t.replace(/https?:\/\/\S+|www\.\S+/gi, ""), 60)).replace(/[<>{}]/g, "").trim();
+}
+
 const QUE_ESTUVO_MAL: Record<TipoProblema, string> = {
   precio_inventado: "una cifra de dinero que no salió de una herramienta",
   cifra_inventada: "una cifra (plazo, porcentaje o cuotas) que no salió de una herramienta",
@@ -438,6 +508,11 @@ export class MotorTienda {
     }
   }
 
+  /** Las preguntas pendientes («¿te lo pongo?», «¿te lo sumo?», «¿lo quito?», la alternativa de A3): solo vale la última. */
+  private olvidarOfertas(): void {
+    for (const clave of ["oferta", "oferta_envio", "oferta_cambio", "alternativa"]) this.poner(clave, null);
+  }
+
   /**
    * Un mensaje a la vez por sesión (el objeto puede recibir otro mientras espera a la IA): se atienden en orden. Si ya hay dos
    * esperando, el tercero recibe el tope de la sesión: la página no manda mensajes encimados.
@@ -499,7 +574,8 @@ export class MotorTienda {
 
     const p = e.peticion;
     const accion = p.accion;
-    const esConfirmacion = accion?.tipo === "confirmar_carrito";
+    // Lo que avisa la página (lo que pasó en Odoo, o que el visitante quitó algo) no es un mensaje del visitante: no cuenta.
+    const esConfirmacion = accion?.tipo === "confirmar_carrito" || accion?.tipo === "confirmar_envio" || accion?.tipo === "confirmar_cambio" || accion?.tipo === "carrito_bajo";
 
     // ── Tope por sesión (este objeto atiende de a uno: contar y anotar no se pisan) ──
     if (!esConfirmacion) {
@@ -514,7 +590,9 @@ export class MotorTienda {
     // ── Qué se va a hacer (y si llama a la IA) ──
     const plan = this.planear(p);
     diag.plan = plan.tipo;
-    const usaIa = plan.tipo === "modelo" || plan.tipo === "agregado";
+    // A3: la reacción ya se dio en esta sesión: nada que decir (ni topes, ni contexto, ni IA). Andrés nunca insiste.
+    if (plan.tipo === "nada") return terminar({ status: 200, cuerpo: { ok: true, pose: "asomado_burbuja", bloques: [], chips: [] } });
+    const usaIa = plan.tipo === "modelo" || plan.tipo === "agregado" || plan.tipo === "cambio_hecho";
     const mes = mesDelNegocio(cfg.horario.zona, ahora);
     const dia = diaDelNegocio(cfg.horario.zona, ahora);
     const reservar = (reservaUsd: number) =>
@@ -539,7 +617,7 @@ export class MotorTienda {
     try {
       reserva = await reservar(reservaUsd);
       // Lo que Odoo ya puso en el carrito se confirma igual con el presupuesto agotado o con mucha gente: texto fijo, sin la IA.
-      if (!reserva.ok && (reserva.motivo === "presupuesto" || reserva.motivo === "ocupado") && plan.tipo === "agregado") {
+      if (!reserva.ok && (reserva.motivo === "presupuesto" || reserva.motivo === "ocupado") && (plan.tipo === "agregado" || plan.tipo === "cambio_hecho")) {
         reservaUsd = 0;
         reserva = await reservar(0);
         plan.sinIa = true;
@@ -607,6 +685,27 @@ export class MotorTienda {
       if (!coincide) return { tipo: "sin_confirmar" };
       return accion.resultado === "ok" ? { tipo: "agregado", oferta: pendiente } : { tipo: "carrito_fallo", oferta: pendiente };
     }
+    if (accion?.tipo === "confirmar_envio") {
+      // A2: solo el envío que Andrés propuso sumar (y una vez): otro lugar, o repetido, no confirma nada.
+      const pendiente = this.leerJson<EnvioCotizado>("pendiente_envio");
+      if (!pendiente || pendiente.lugar_id !== accion.lugar_id) return { tipo: "sin_confirmar" };
+      return accion.resultado === "ok" ? { tipo: "envio_sumado", envio: pendiente } : { tipo: "envio_fallo", envio: pendiente, motivo: accion.motivo };
+    }
+    if (accion?.tipo === "confirmar_cambio") {
+      // A4: solo el cambio que Andrés propuso; lo que se dice sale del carrito que manda la página con la confirmación (el de Odoo).
+      const pendiente = this.leerJson<Oferta>("pendiente_cambio");
+      if (!pendiente || pendiente.producto_id !== accion.producto_id || pendiente.cantidad !== accion.cantidad) return { tipo: "sin_confirmar" };
+      if (accion.resultado !== "ok") return { tipo: "cambio_fallo", oferta: pendiente };
+      const real = p.carrito.find((l) => l.producto_id === pendiente.producto_id)?.cantidad ?? 0;
+      if ((pendiente.cantidad === 0) !== (real === 0)) return { tipo: "cambio_fallo", oferta: pendiente };
+      return { tipo: "cambio_hecho", oferta: pendiente, cantidad: real };
+    }
+    if (accion?.tipo === "carrito_bajo") {
+      // A3: una sola vez por sesión (la página también lo cuida). El nombre, el de la herramienta si se vio; si no, el de la página.
+      if (this.leer("reaccion_carrito") === "1") return { tipo: "nada" };
+      const visto = accion.producto_id !== null ? this.vistos().find((v) => v.producto_id === accion.producto_id) : undefined;
+      return { tipo: "reaccion", nombre: visto?.nombre ?? nombreDeLaPagina(accion.nombre), vacio: p.carrito.length === 0, quitado: accion.ahora === 0 };
+    }
     const texto = accion?.tipo === "chip" ? accion.valor : p.texto;
     if (texto && pideUnaPersona(texto)) return { tipo: "persona" };
     const oferta = this.leerJson<Oferta>("oferta");
@@ -616,6 +715,24 @@ export class MotorTienda {
       if (esUnSi(texto) && visto) return { tipo: "si", oferta: { ...oferta, nombre: visto.nombre } };
       if (esUnNo(texto)) return { tipo: "no" };
     }
+    // A2: «¿Te lo sumo a la cotización?» → «sí» (o «súmalo»), sin la IA.
+    const ofertaEnvio = this.leerJson<EnvioCotizado>("oferta_envio");
+    if (ofertaEnvio && texto && !p.ubicacion) {
+      if (esUnSi(texto) || pideSumarEnvio(texto)) return planDeEnvio(p, ofertaEnvio);
+      if (esUnNo(texto)) return { tipo: "no" };
+    }
+    // A4: «¿Quito … del carrito?» → «sí», sin la IA, si ese producto sigue en el carrito.
+    const ofertaCambio = this.leerJson<Oferta>("oferta_cambio");
+    if (ofertaCambio && texto && !p.ubicacion) {
+      const sigue = p.carrito.some((l) => l.producto_id === ofertaCambio.producto_id);
+      if (sigue && (esUnSi(texto) || /^(si )?(por favor )?(cambialo|cambiala|quitalo|quitala|hazlo)( por favor)?$/.test(normalizar(texto)))) return { tipo: "si_cambio", oferta: ofertaCambio };
+      if (esUnNo(texto)) return { tipo: "no" };
+    }
+    // A3: «No, gracias» a la alternativa que ofreció al quitar algo: se respeta, sin la IA.
+    if (this.leer("alternativa") === "1" && texto && esUnNo(texto)) return { tipo: "no" };
+    // A2: «súmale el envío a la cotización» con un envío ya calculado en la sesión (aunque haya pasado otro mensaje).
+    const cotizado = this.leerJson<EnvioCotizado>("envio_cotizado");
+    if (cotizado && texto && !p.ubicacion && pideSumarEnvio(texto)) return planDeEnvio(p, cotizado);
     return { tipo: "modelo" };
   }
 
@@ -649,7 +766,7 @@ export class MotorTienda {
       }
       case "si": {
         // «¿Te lo pongo en el carrito?» → «sí»: sin la IA (`planear` ya comprobó que el producto sigue visto y es agregable).
-        this.poner("oferta", null);
+        this.olvidarOfertas();
         this.poner("pendiente", JSON.stringify(plan.oferta));
         return fijo([
           { tipo: "texto", texto: TEXTO_SI },
@@ -657,9 +774,69 @@ export class MotorTienda {
         ]);
       }
       case "no": {
-        this.poner("oferta", null);
+        this.olvidarOfertas();
         return fijo([{ tipo: "texto", texto: TEXTO_NO }]);
       }
+      case "sumar_envio": {
+        // A2: Andrés no suma: le pide a la página que le pida a Odoo la línea del envío (la de dcasa_envios, con su promoción).
+        this.olvidarOfertas();
+        if (plan.sinCarrito) return fijo([{ tipo: "texto", texto: TEXTO_ENVIO_SIN_CARRITO }]);
+        if (plan.ya) return fijo([{ tipo: "texto", texto: TEXTO_ENVIO_YA_ESTABA }, { tipo: "carrito" }], [], undefined, "bolsita");
+        this.poner("pendiente_envio", JSON.stringify(plan.envio));
+        return fijo([{ tipo: "texto", texto: TEXTO_SUMO_ENVIO }, { tipo: "sumar_envio", lugar_id: plan.envio.lugar_id, lugar: plan.envio.lugar }], [], undefined, "bolsita");
+      }
+      case "envio_sumado":
+        // Odoo lo puso: el texto es fijo y nunca dice la cifra (el total lo da el carrito de Odoo).
+        this.poner("pendiente_envio", null);
+        return fijo(
+          [{ tipo: "texto", texto: TEXTO_ENVIO_SUMADO }, { tipo: "sugerencias", texto: "¿Seguimos?", opciones: OPCIONES_DESPUES_DEL_ENVIO }],
+          [],
+          nota(`[Se sumó a la cotización el envío a ${comoDato(plan.envio.lugar)}]`),
+          "bolsita",
+        );
+      case "envio_fallo": {
+        this.poner("pendiente_envio", null);
+        const bloques: Bloque[] = [{ tipo: "texto", texto: textoEnvioNoSumado(plan.motivo) }];
+        if (plan.motivo !== "sin_carrito") bloques.push(whatsapp());
+        return fijo(bloques, [], nota(`[No se pudo sumar el envío a ${comoDato(plan.envio.lugar)}]`));
+      }
+      case "si_cambio": {
+        // A4: «¿Quito …?» → «sí»: la página lo aplica en Odoo y confirma.
+        this.olvidarOfertas();
+        this.poner("pendiente_cambio", JSON.stringify(plan.oferta));
+        return fijo([{ tipo: "texto", texto: TEXTO_CAMBIO }, { tipo: "proponer_cambio_carrito", producto_id: plan.oferta.producto_id, cantidad: plan.oferta.cantidad, nombre: plan.oferta.nombre }], [], undefined, "bolsita");
+      }
+      case "cambio_fallo":
+        this.poner("pendiente_cambio", null);
+        return fijo([{ tipo: "texto", texto: TEXTO_CAMBIO_FALLO }, whatsapp()], [], nota(`[No se pudo cambiar en el carrito: ${plan.oferta.nombre}]`));
+      case "cambio_hecho": {
+        this.poner("pendiente_cambio", null);
+        const listo = textoCambioHecho(plan.oferta.nombre, plan.cantidad);
+        const bajo = plan.cantidad < (plan.oferta.antes ?? Number.POSITIVE_INFINITY);
+        // Al quitar o bajar, la alternativa la ofrece este turno: la reacción de A3 ya no se repite en la sesión (nunca insiste).
+        if (bajo) this.poner("reaccion_carrito", 1);
+        return this.turnoConModelo(cfg, p, cuenta, diag, {
+          antes: listo,
+          sinIa: plan.sinIa,
+          entrada: nota(`[Se cambió en el carrito: ${plan.oferta.nombre} → ${plan.cantidad}]`),
+          nota:
+            `El sistema ya cambió el carrito (Odoo lo confirmó): «${plan.oferta.nombre}» quedó en ${plan.cantidad}, y ya se lo dijo al cliente con «${listo}». No lo repitas. ` +
+            (bajo
+              ? "Ofrécele con cortesía, una sola vez y sin insistir, una alternativa: si buscar_productos devuelve algo parecido más económico o con más prestaciones, muéstralo; si no, pregúntale qué busca."
+              : "Ofrécele el siguiente paso en una o dos líneas: calcular el envío, la cotización o seguir viendo."),
+          sinFallar: true,
+        });
+      }
+      case "reaccion": {
+        // A3: una vez por sesión, amable, con una alternativa y sin la IA. «No, gracias» se respeta sin la IA.
+        this.poner("reaccion_carrito", 1);
+        this.olvidarOfertas();
+        this.poner("alternativa", 1);
+        const que = plan.vacio ? "[El cliente vació el carrito]" : `[El cliente ${plan.quitado ? "quitó del carrito" : "bajó la cantidad en el carrito de"}: ${plan.nombre || "un producto"}]`;
+        return fijo([{ tipo: "texto", texto: textoDeReaccion(plan.nombre, plan.vacio, plan.quitado) }], [...CHIPS_DE_ALTERNATIVA], nota(que), "corazon");
+      }
+      case "nada":
+        return { status: 200, cuerpo: { ok: true, pose: "asomado_burbuja", bloques: [], chips: [] } };
       case "sin_confirmar":
         // La página avisó de un carrito que Brian no propuso (o ya confirmado): no se afirma nada.
         return fijo([{ tipo: "texto", texto: TEXTO_SIN_CONFIRMAR }], [], nota("[La página avisó de un cambio en el carrito]"));
@@ -706,7 +883,7 @@ export class MotorTienda {
     const textoDelVisitante = p.accion?.tipo === "chip" ? p.accion.valor : p.texto;
     const vistosAntes = this.vistos();
     const whatsapp = (): Bloque => ({ tipo: "whatsapp", texto: TEXTO_DEL_BOTON_DE_WHATSAPP, mensaje: mensajeDeWhatsapp(p.carrito, vistosAntes.slice(-2)) });
-    this.poner("oferta", null);
+    this.olvidarOfertas();
 
     /** Cuando la IA no puede: el carrito ya confirmado no se pierde; lo demás es un fallo que la página traduce con WhatsApp. */
     const sinIa = (motivo: string): SalidaTienda => {
@@ -773,7 +950,7 @@ export class MotorTienda {
 
     const sistemaEstable = promptTienda(cfg);
     const dinamico = (extra = "") =>
-      contextoTienda(cfg, { ahora, pagina: p.pagina, carrito: p.carrito, envioPorUbicacion, nota: op.nota }) + extra;
+      contextoTienda(cfg, { ahora, pagina: p.pagina, carrito: p.carrito, envioEnElCarrito: p.envioDelCarrito?.lugar ?? null, envioPorUbicacion, nota: op.nota }) + extra;
     const actual = textoDelVisitante
       ? delVisitanteParaElModelo(textoDelVisitante)
       : p.ubicacion
@@ -831,6 +1008,7 @@ export class MotorTienda {
     diag.modelo = usado.modelo;
     let consultas = [...consultasPrevias, ...salida.consultas];
     let herramientasUsadas = [...salida.herramientasUsadas];
+    let busquedas = [...salida.busquedas];
 
     // Gastó sus pasos consultando y no contestó: que conteste con lo que ya consultó, solo con responder_tienda.
     if (!salida.respuesta && !salida.texto) {
@@ -840,7 +1018,7 @@ export class MotorTienda {
         previos: consultado ? [{ role: "user", content: consultado }] : [],
         soloResponder: true,
       });
-      if (s2 && (s2.respuesta || s2.texto)) salida = { ...s2, consultas: salida.consultas, herramientasUsadas: salida.herramientasUsadas };
+      if (s2 && (s2.respuesta || s2.texto)) salida = { ...s2, consultas: salida.consultas, herramientasUsadas: salida.herramientasUsadas, busquedas: salida.busquedas };
     }
 
     // ── 2) La guardia de Juan en el texto principal (una corrección si cambia el sentido; si no, se quita la oración) ──
@@ -878,6 +1056,7 @@ export class MotorTienda {
           revision = rev3;
           consultas = [...consultas, ...s3.consultas];
           herramientasUsadas = [...herramientasUsadas, ...s3.herramientasUsadas];
+          busquedas = [...busquedas, ...s3.busquedas];
         }
       }
     }
@@ -901,6 +1080,8 @@ export class MotorTienda {
     // ── 4) Los bloques ──
     const bloques: Bloque[] = [];
     let chips: string[] = [];
+    /** Ya hay una pregunta con sus respuestas («¿te lo pongo?», «¿lo quito?»): la del envío no se le encima. */
+    let hayOferta = false;
     if (revision.fuga) {
       // El modelo dejó ver algo interno: nada de lo que escribió sale. Respuesta segura con WhatsApp.
       bloques.push({ tipo: "texto", texto: noche ? `${TEXTO_SEGURO} ${lineaDeNoche(cfg)}` : TEXTO_SEGURO }, whatsapp());
@@ -918,7 +1099,8 @@ export class MotorTienda {
       const prod = buscarProducto(ref, delTurno.values());
       if (prod && !elegidas.includes(prod) && elegidas.length < MAX_TARJETAS) elegidas.push(prod);
     }
-    if (elegidas.length) bloques.push({ tipo: "productos", productos: elegidas.map(tarjetaDe) });
+    // A5: el título del grupo de la vitrina: lo que buscó en este turno (si pasa la guardia) o la categoría de Odoo que más se repite.
+    if (elegidas.length) bloques.push({ tipo: "productos", productos: elegidas.map(tarjetaDe), titulo: tituloDeBusqueda(busquedas, contexto()) ?? tituloDelGrupo(elegidas) });
 
     if (!seguro && respuesta) {
       // El carrito: proponer solo con permiso del visitante; si no, se le pregunta (y se recuerda la oferta).
@@ -931,7 +1113,19 @@ export class MotorTienda {
         const oferta = (prop ?? ofr)!;
         this.poner("oferta", JSON.stringify(oferta));
         chips = [...CHIPS_DE_OFERTA];
+        hayOferta = true;
         if (prop && !/carrito/i.test(principal)) bloques.push({ tipo: "texto", texto: `¿Te pongo ${oferta.nombre} en el carrito?` });
+      }
+      // A4: cambiar o quitar algo que YA está en el carrito: con el pedido del visitante, la página lo aplica; si no, se pregunta.
+      const cambio = prop ?? ofr ? null : cambioDelCarrito(respuesta.cambiar_carrito, p.carrito, sesion.values());
+      if (cambio && (pideCambiarCarrito(textoDelVisitante) || pideOConfirmaCarrito(textoDelVisitante))) {
+        bloques.push({ tipo: "proponer_cambio_carrito", producto_id: cambio.producto_id, cantidad: cambio.cantidad, nombre: cambio.nombre });
+        this.poner("pendiente_cambio", JSON.stringify(cambio));
+      } else if (cambio) {
+        this.poner("oferta_cambio", JSON.stringify(cambio));
+        chips = [...CHIPS_DE_CAMBIO];
+        hayOferta = true;
+        bloques.push({ tipo: "texto", texto: preguntaDeCambio(cambio) });
       }
       if (respuesta.sugerencias) {
         const t = revisarTexto(respuesta.sugerencias.texto, contexto(), false);
@@ -942,12 +1136,37 @@ export class MotorTienda {
       if (!chips.length) chips = respuesta.chips.map(opcionCorta).filter((c) => c && textoLimpio(c, contexto())).slice(0, MAX_CHIPS);
     }
 
-    // El envío: la frase de cotizar_envio tal cual (si pasa la guardia), con su lugar.
+    // El envío: la frase de cotizar_envio tal cual (si pasa la guardia), con su lugar (y su lugar_id, para sumarlo: A2).
     const envio = ultimoEnvio(consultas);
+    let envioMostrado: EnvioCotizado | null = null;
     if (envio) {
       const t = revisarTexto(envio.frase, contexto(), false);
-      if (!t.fuga && t.graves.length === 0 && t.limpio) bloques.push({ tipo: "envio", texto: t.limpio, lugar: envio.lugar });
+      if (!t.fuga && t.graves.length === 0 && t.limpio) {
+        bloques.push({ tipo: "envio", texto: t.limpio, lugar: envio.lugar, lugar_id: envio.lugar_id });
+        if (envio.lugar_id !== null) {
+          envioMostrado = { lugar_id: envio.lugar_id, lugar: envio.lugar };
+          this.poner("envio_cotizado", JSON.stringify(envioMostrado));
+        }
+      }
     }
+    // A2: sumar el envío a la cotización. Andrés no suma: la página le pide a Odoo la línea del envío. Con el pedido del visitante
+    // (y un envío con precio de la sesión, con algo en el carrito y que no esté ya sumado), sale `sumar_envio`; si no, se ofrece.
+    const cotizado = this.leerJson<EnvioCotizado>("envio_cotizado");
+    const sumable = (c: EnvioCotizado | null): c is EnvioCotizado => !!c && p.carrito.length > 0 && p.envioDelCarrito?.lugar_id !== c.lugar_id;
+    const hayPropuesta = bloques.some((b) => b.tipo === "proponer_carrito" || b.tipo === "proponer_cambio_carrito");
+    if (!seguro && !hayPropuesta && respuesta?.sumar_envio && sumable(cotizado) && (pideSumarEnvio(textoDelVisitante) || pideOConfirmaCarrito(textoDelVisitante))) {
+      bloques.push({ tipo: "sumar_envio", lugar_id: cotizado.lugar_id, lugar: cotizado.lugar });
+      this.poner("pendiente_envio", JSON.stringify(cotizado));
+    } else if (!seguro && !hayPropuesta && !hayOferta) {
+      const ofrecer = sumable(envioMostrado) ? envioMostrado : respuesta?.sumar_envio && sumable(cotizado) ? cotizado : null;
+      if (ofrecer) {
+        if (!/\bsum[oa]\b|\bsumar/i.test(principal)) bloques.push({ tipo: "texto", texto: TEXTO_OFRECER_ENVIO });
+        this.poner("oferta_envio", JSON.stringify(ofrecer));
+        chips = [...CHIPS_DE_ENVIO];
+      }
+    }
+    // «Dame la cotización»: la tarjeta del carrito con su PDF (los números los pinta la página con lo de Odoo).
+    if (!seguro && p.carrito.length && pideVerCarrito(textoDelVisitante) && !bloques.some((b) => b.tipo === "sumar_envio")) bloques.push({ tipo: "carrito" });
 
     const pideWhatsapp = seguro || !!respuesta?.whatsapp || registro.haySinPublicar;
     if (seguro) bloques.unshift({ tipo: "texto", texto: TEXTO_SEGURO });
@@ -1044,9 +1263,22 @@ type Plan =
   | { tipo: "calificar"; estrellas: number }
   | { tipo: "si"; oferta: Oferta }
   | { tipo: "no" }
+  | { tipo: "nada" }
   | { tipo: "sin_confirmar" }
   | { tipo: "agregado"; oferta: Oferta; sinIa?: boolean }
-  | { tipo: "carrito_fallo"; oferta: Oferta };
+  | { tipo: "carrito_fallo"; oferta: Oferta }
+  | { tipo: "sumar_envio"; envio: EnvioCotizado; ya: boolean; sinCarrito: boolean }
+  | { tipo: "envio_sumado"; envio: EnvioCotizado }
+  | { tipo: "envio_fallo"; envio: EnvioCotizado; motivo: MotivoDelEnvio | null }
+  | { tipo: "si_cambio"; oferta: Oferta }
+  | { tipo: "cambio_hecho"; oferta: Oferta; cantidad: number; sinIa?: boolean }
+  | { tipo: "cambio_fallo"; oferta: Oferta }
+  | { tipo: "reaccion"; nombre: string; vacio: boolean; quitado: boolean };
+
+/** A2: sumar un envío ya cotizado (si el carrito tiene algo y ese envío no está ya sumado). */
+function planDeEnvio(p: PeticionTienda, envio: EnvioCotizado): Plan {
+  return { tipo: "sumar_envio", envio, ya: p.envioDelCarrito?.lugar_id === envio.lugar_id, sinCarrito: p.carrito.length === 0 };
+}
 
 // ── Ayudas ───────────────────────────────────────────────────────────────────
 
@@ -1079,15 +1311,42 @@ function productoDelCarrito(v: unknown, vistos: Iterable<ProductoVisto>): Oferta
   return { producto_id: prod.producto_id, cantidad, nombre: prod.nombre };
 }
 
-/** La última cotización de envío del turno con precio (la frase y el lugar), si hay. */
-function ultimoEnvio(consultas: readonly ConsultaDelTurno[]): { frase: string; lugar: string } | null {
+/**
+ * A4: el cambio que propone el modelo, solo de un producto que YA está en el carrito (lo dice la página), con una cantidad nueva de
+ * 0 a 20 (0 = quitar) distinta de la que tiene. El nombre, el de la herramienta si se vio en la sesión; si no, el de la página.
+ */
+function cambioDelCarrito(v: unknown, carrito: readonly LineaDelCarrito[], vistos: Iterable<ProductoVisto>): Oferta | null {
+  if (!esObjeto(v)) return null;
+  const ref = v.producto ?? v.producto_id;
+  let linea: LineaDelCarrito | undefined;
+  if (typeof ref === "number" && Number.isInteger(ref)) linea = carrito.find((l) => l.producto_id === ref);
+  else if (typeof ref === "string" && /^\d{1,10}$/.test(ref.trim())) linea = carrito.find((l) => l.producto_id === Number(ref.trim()));
+  else if (typeof ref === "string" && ref.trim()) linea = carrito.find((l) => normalizar(l.nombre) === normalizar(ref));
+  if (!linea || linea.producto_id === null) return null;
+  const cantidad = v.cantidad;
+  if (typeof cantidad !== "number" || !Number.isInteger(cantidad) || cantidad < 0 || cantidad > 20 || cantidad === linea.cantidad) return null;
+  const visto = [...vistos].find((x) => x.producto_id === linea.producto_id);
+  return { producto_id: linea.producto_id, cantidad, nombre: visto?.nombre ?? nombreDeLaPagina(linea.nombre), antes: linea.cantidad };
+}
+
+/** A5: lo último que buscó el modelo con buscar_productos, como título corto del grupo (si no trae cifras ni nada que la guardia pare). */
+function tituloDeBusqueda(busquedas: readonly string[], ctx: ContextoRevision): string | null {
+  const t = textoCorto(busquedas[busquedas.length - 1] ?? "", 40).replace(/[<>{}\[\]"«»]/g, "").trim();
+  if (!t || /\d|https?:|www\./i.test(t) || !textoLimpio(t, ctx)) return null;
+  return t.charAt(0).toLocaleUpperCase("es") + t.slice(1);
+}
+
+/** La última cotización de envío del turno con precio (la frase, el lugar y su lugar_id de la tabla), si hay. */
+function ultimoEnvio(consultas: readonly ConsultaDelTurno[]): { frase: string; lugar: string; lugar_id: number | null } | null {
   for (let i = consultas.length - 1; i >= 0; i--) {
     const c = consultas[i];
     if (c.herramienta !== "cotizar_envio" || !esObjeto(c.resultado)) continue;
     const r = c.resultado.resultado;
     if (!esObjeto(r) || r.estado !== "precio" || typeof r.frase_para_el_cliente !== "string") continue;
     const lugar = esObjeto(r.lugar) && typeof r.lugar.nombre === "string" ? r.lugar.nombre.trim().slice(0, 80) : "";
-    return { frase: r.frase_para_el_cliente, lugar };
+    const id = esObjeto(r.lugar) ? r.lugar.lugar_id : null;
+    const lugar_id = typeof id === "number" && Number.isInteger(id) && id > 0 && id < 2 ** 31 ? id : null;
+    return { frase: r.frase_para_el_cliente, lugar, lugar_id };
   }
   return null;
 }
@@ -1127,6 +1386,9 @@ function resumenDeLaRespuesta(bloques: readonly Bloque[]): string {
     if (b.tipo === "texto") partes.push(b.texto);
     else if (b.tipo === "productos") partes.push(`[Tarjetas que mostré: ${b.productos.map((p) => `«${p.nombre}» (id ${p.producto_id ?? "—"}) a ${p.precio_texto || "precio en la ficha"}, ${p.disponibilidad ?? "sin etiqueta"}${p.agregable ? "" : ", se elige en su ficha"}`).join("; ")}]`);
     else if (b.tipo === "proponer_carrito") partes.push(`[Propuse poner en el carrito: ${b.cantidad} × «${b.nombre}»]`);
+    else if (b.tipo === "proponer_cambio_carrito") partes.push(`[Propuse cambiar en el carrito: «${b.nombre}» → ${b.cantidad}]`);
+    else if (b.tipo === "sumar_envio") partes.push(`[Propuse sumar a la cotización el envío a ${b.lugar}]`);
+    else if (b.tipo === "carrito") partes.push("[Le mostré su carrito con la cotización]");
     else if (b.tipo === "sugerencias") partes.push(`${b.texto} (${b.opciones.join(" / ")})`);
     else if (b.tipo === "envio") partes.push(`[Envío a ${b.lugar || "un lugar"}: ${b.texto}]`);
     else if (b.tipo === "ubicacion") partes.push(`[Pedí a dónde se lleva]`);
