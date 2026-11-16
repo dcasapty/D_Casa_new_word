@@ -57,7 +57,7 @@ NOMBRE_SUGERENCIA = {'recamaras': 'Camas', 'oficina': 'Escritorios'}
 CAMPOS_TARJETA = ('producto_id', 'plantilla_id', 'nombre', 'precio_texto', 'disponibilidad', 'imagen', 'ruta',
                   'agregable')
 # La política de privacidad cambia con este módulo (views/templates.xml, «Brian, el chat de la tienda»): su fecha.
-FECHA_PRIVACIDAD = '16 de noviembre de 2026'   # el chat de la tienda se llama Andrés
+FECHA_PRIVACIDAD = '16 de noviembre de 2026'   # el chat se llama Andrés y entiende notas de voz (el audio no se guarda)
 MESES = ('enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre',
          'noviembre', 'diciembre')
 
