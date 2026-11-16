@@ -200,6 +200,7 @@ export class BrianPanel extends Component {
             vozAnuncio: "",
         });
         this.grabadora = null;
+        this.enfocarAlVolver = true;
         this.abierto = useState(this.brian.estado);
         this.contadorLocal = 0;
         this.temporizadorTermine = null;
@@ -255,6 +256,24 @@ export class BrianPanel extends Component {
             () => [this.state.mensajes.length, this.state.pensando, this.state.vista, this.state.pasos.length]
         );
         onMounted(() => this.ajustarAltura());
+
+        // Nota de voz: el foco va a «Listo» al empezar a grabar y vuelve a la caja al terminar (después de pintar: un
+        // botón deshabilitado o una caja que todavía no existe no reciben el foco).
+        let vozAnterior = "inactiva";
+        useEffect(
+            (voz) => {
+                if (voz === "grabando") {
+                    this.vozListoRef.el?.focus();
+                } else if (voz === "inactiva" && vozAnterior !== "inactiva") {
+                    this.ajustarAltura();
+                    if (this.abierto.abierto && this.enfocarAlVolver) {
+                        this.entradaRef.el?.focus();
+                    }
+                }
+                vozAnterior = voz;
+            },
+            () => [this.state.voz]
+        );
 
         // Al editar un nombre, el foco va a su caja.
         useEffect(
@@ -846,6 +865,7 @@ export class BrianPanel extends Component {
             grabadora.cancelar();
             if (this.grabadora === grabadora) {
                 this.grabadora = null;
+                this.enfocarAlVolver = true;
                 this.state.voz = "inactiva";
                 const negado = ["NotAllowedError", "SecurityError"].includes(error?.name);
                 this.notification.add(
@@ -854,7 +874,6 @@ export class BrianPanel extends Component {
                         : "No pude usar el micrófono. Revisa que esté conectado.",
                     { type: "warning", title: "Brian" }
                 );
-                this.enfocar();
             }
             return;
         }
@@ -865,7 +884,6 @@ export class BrianPanel extends Component {
         }
         this.state.voz = "grabando";
         this.state.vozAnuncio = "Grabando. Toca «Listo» cuando termines; Esc cancela.";
-        browser.setTimeout(() => this.vozListoRef.el?.focus(), 0);
     }
 
     /** «Listo»: para de grabar y la nota va a pasarse a texto (`pasarATexto`, cuando el navegador la entrega). */
@@ -885,12 +903,10 @@ export class BrianPanel extends Component {
         }
         this.grabadora?.cancelar();
         this.grabadora = null;
+        this.enfocarAlVolver = enfocar;
         this.state.voz = "inactiva";
         this.state.vozSegundos = 0;
         this.state.vozAnuncio = "Nota de voz cancelada: no se mandó nada.";
-        if (enfocar) {
-            this.enfocar();
-        }
     }
 
     async pasarATexto(nota) {
@@ -921,12 +937,9 @@ export class BrianPanel extends Component {
             this.notification.add(texto, { type: "danger", title: "Brian" });
         } finally {
             nota.blob = null;
+            this.enfocarAlVolver = true;
             this.state.voz = "inactiva";
             this.state.vozSegundos = 0;
-            browser.setTimeout(() => {
-                this.ajustarAltura();
-                this.entradaRef.el?.focus();
-            }, 0);
         }
     }
 

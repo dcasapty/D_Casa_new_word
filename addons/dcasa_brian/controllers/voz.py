@@ -1,8 +1,9 @@
 """``POST /dcasa/brian/v1/voz``: la nota de voz del panel de Brian pasada a texto (``models/voz.py``).
 
 JSON-RPC con la sesión del usuario (``auth='user'``) y **solo usuarios internos** (el portal y el público no). El
-cuerpo se lee en memoria (nunca a un archivo temporal) y con tope (``max_content_length``). El audio se reenvía una vez
-al Worker de Juan y se suelta: no queda en ningún adjunto, mensaje, auditoría ni registro. Solo vuelve el texto.
+cuerpo se lee en memoria (nunca a un archivo temporal), con ``max_content_length`` en la ruta y, en todo caso, el modelo
+rechaza más de ``MAX_BASE64`` sin llamar al Worker. El audio se reenvía una vez al Worker de Juan y se suelta: no queda
+en ningún adjunto, mensaje, auditoría ni registro. Solo vuelve el texto.
 
 Entrada (``params``): ``{audio: <base64>, mime: "audio/webm;codecs=opus" | "audio/ogg" | "audio/mp4", duracion_ms}``.
 Salida: ``{ok: true, texto, recortado}`` o ``{ok: false, causa, error}`` (``error`` en palabras sencillas).

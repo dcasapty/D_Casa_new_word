@@ -211,11 +211,11 @@ class TestVozBrianHttp(HttpCase):
             enorme = json.dumps({'jsonrpc': '2.0', 'method': 'call', 'id': 1,
                                  'params': {'audio': 'A' * (MAX_CUERPO + 10), 'mime': 'audio/webm'}})
             respuesta = self.llamar(None, cuerpo=enorme)
-            # werkzeug corta la lectura (413); por JSON-RPC llega como error con ese nombre. Nunca un resultado.
+            # Si la ruta corta la lectura: 413 o un error de JSON-RPC. Si no, el modelo la rechaza sin llamar al Worker.
             if respuesta.status_code != 413:
-                error = respuesta.json().get('error') or {}
-                self.assertNotIn('result', respuesta.json())
-                self.assertIn('RequestEntityTooLarge', error.get('data', {}).get('name', ''))
+                cuerpo = respuesta.json()
+                self.assertTrue('error' in cuerpo or cuerpo['result'] == {
+                    'ok': False, 'causa': 'muy_pesada', 'error': TEXTOS['muy_pesada']}, cuerpo)
         worker.assert_not_called()
 
     def test_solo_post(self):
@@ -280,14 +280,14 @@ class TestVozBrianHttp(HttpCase):
     await esperar(() => panel.querySelector(".o_brian_grabando_tiempo")?.textContent.startsWith("0:01"),
         "el tiempo corriendo", 8000);
     const listo = panel.querySelector(".o_brian_voz_listo");
-    if (document.activeElement !== listo) { throw new Error("Brian: el foco debe ir a «Listo» al grabar"); }
+    await esperar(() => document.activeElement === listo, "el foco en «Listo» al grabar");
     listo.click();
     const caja = await esperar(() => {
         const t = panel.querySelector(".o_brian_texto");
         return t && t.value.includes("cotizaciones") && t;
     }, "el texto de la nota en la caja");
     if (panel.querySelector(".o_brian_burbuja_usuario")) { throw new Error("Brian: la nota no debe enviarse sola"); }
-    if (document.activeElement !== caja) { throw new Error("Brian: el foco debe volver a la caja para revisar"); }
+    await esperar(() => document.activeElement === caja, "el foco de vuelta en la caja para revisar");
     if (!/revisa el texto/i.test(panel.querySelector(".o_brian_voz_anuncio")?.textContent || "")) {
         throw new Error("Brian: el lector de pantalla no oyó que la nota quedó lista");
     }
