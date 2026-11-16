@@ -121,7 +121,7 @@ describe("Brian de la tienda, de punta a punta", () => {
     expect(cuerpo.ok).toBe(true);
     expect(cuerpo.bloques).toEqual([
       { tipo: "texto", texto: "Mira este colchón queen; el precio es + ITBMS. ¿Para qué cuarto lo buscas?" },
-      { tipo: "productos", productos: [{ producto_id: 456, plantilla_id: 123, nombre: "Colchón Queen Ortopédico", precio_texto: "$278.00 + ITBMS", disponibilidad: "disponible", imagen: "/web/image/product.template/123/image_512", url: "/shop/colchon-123", agregable: true }] },
+      { tipo: "productos", productos: [{ producto_id: 456, plantilla_id: 123, nombre: "Colchón Queen Ortopédico", precio_texto: "$278.00 + ITBMS", disponibilidad: "disponible", imagen: "/web/image/product.template/123/image_512", url: "/shop/colchon-123", agregable: true }], titulo: "Colchón queen" },
     ]);
     expect(cuerpo.pose).toBe("cama");
     // A Claude: solo las herramientas de la lista blanca (de las 13 de prueba que publica Odoo) y responder_tienda.

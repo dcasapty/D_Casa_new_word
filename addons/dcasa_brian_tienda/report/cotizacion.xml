@@ -4,7 +4,10 @@
          Los mismos números del carrito: cada línea, el subtotal, el ITBMS y el total los calcula Odoo. «Cliente:» dice
          «(por confirmar)» salvo que quien la pida sea un usuario con sesión y el carrito sea suyo: un carrito anónimo
          nunca muestra datos de nadie (ni la dirección del sitio ni la ficha «Public user»). Sin botón en el panel (sin
-         binding) y sin guardar el PDF como adjunto. -->
+         binding) y sin guardar el PDF como adjunto.
+         El envío que sumó Andrés (A2: la línea de dcasa_envios con el precio de la calculadora y, si aplica, la de la
+         promoción) va debajo de los productos, con su nombre y su monto de Odoo: la tienda no lo pone entre sus líneas
+         (website_order_line), pero sí en los totales. -->
     <record id="action_report_cotizacion_carrito" model="ir.actions.report">
         <field name="name">Cotización del carrito (chat de la tienda)</field>
         <field name="model">sale.order</field>
@@ -23,6 +26,7 @@
                     <div class="page o_dcasa_brian_cotizacion">
                         <p class="mb-1">Fecha: <span t-out="context_timestamp(datetime.datetime.now()).strftime('%d/%m/%Y')"/></p>
                         <p class="mb-3">Cliente: <strong t-out="env.context.get('dcasa_brian_cliente') or '(por confirmar)'"/></p>
+                        <t t-set="envios" t-value="(doc.order_line - doc.website_order_line).filtered(lambda l: not l.display_type and (l.is_delivery or l.dcasa_envio_lugar_id or l.dcasa_promocion_envio_id))"/>
                         <table class="table table-sm o_main_table">
                             <thead>
                                 <tr>
@@ -43,6 +47,15 @@
                                     <td class="text-end"><span t-field="linea.price_subtotal"
                                                                t-options="{'widget': 'monetary', 'display_currency': doc.currency_id}"/></td>
                                 </tr>
+                                <tr t-foreach="envios" t-as="linea" class="o_dcasa_brian_envio">
+                                    <td/>
+                                    <td t-out="(linea.name or '').split('\n')[0]"/>
+                                    <td class="text-end" t-out="int(linea.product_uom_qty)"/>
+                                    <td class="text-end"><span t-field="linea.price_unit"
+                                                               t-options="{'widget': 'monetary', 'display_currency': doc.currency_id}"/></td>
+                                    <td class="text-end"><span t-field="linea.price_subtotal"
+                                                               t-options="{'widget': 'monetary', 'display_currency': doc.currency_id}"/></td>
+                                </tr>
                             </tbody>
                         </table>
                         <table class="table table-sm ms-auto" style="width: 45%;">
@@ -59,8 +72,12 @@
                                 <td class="text-end"><span t-field="doc.amount_total" t-options="{'widget': 'monetary', 'display_currency': doc.currency_id}"/></td>
                             </tr>
                         </table>
-                        <p class="mt-4 small">Esta cotización no aparta los productos. La disponibilidad, el costo del envío y la
-                            fecha de entrega te los confirma una vendedora por WhatsApp.</p>
+                        <p t-if="not envios.filtered('dcasa_envio_lugar_id')" class="mt-4 small">Esta cotización no aparta los
+                            productos. La disponibilidad, el costo del envío y la fecha de entrega te los confirma una vendedora por
+                            WhatsApp.</p>
+                        <p t-else="" class="mt-4 small">Esta cotización no aparta los productos. El envío es el de nuestra tabla de
+                            envíos para el lugar indicado; la disponibilidad y la fecha de entrega te las confirma una vendedora por
+                            WhatsApp.</p>
                     </div>
                 </t>
             </t>

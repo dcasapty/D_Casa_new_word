@@ -8,11 +8,31 @@ export const MAX_TEXTO = 500;
 const MAX_LINEAS_DEL_CARRITO = 20;
 const MAX_NOMBRE = 80;
 const MAX_CATEGORIA = 60;
+const MAX_ID = 2 ** 31;
+
+/**
+ * Por qué Odoo no sumó el envío (`POST /dcasa/brian/v1/carrito/envio`): la página lo cuenta tal cual. Otro motivo cualquiera se
+ * lee como `fallo` (nunca llega texto libre de la página a lo que dice Andrés).
+ */
+export const MOTIVOS_DEL_ENVIO = ["sin_carrito", "sin_tarifa", "aparte", "lugar", "ajeno", "tope", "apagado", "fallo"] as const;
+export type MotivoDelEnvio = (typeof MOTIVOS_DEL_ENVIO)[number];
 
 export type AccionTienda =
   | { tipo: "chip"; valor: string }
   | { tipo: "confirmar_carrito"; producto_id: number; cantidad: number; resultado: "ok" | "error" }
+  /** A2: lo que pasó cuando la página le pidió a Odoo sumar el envío que Andrés propuso (`sumar_envio`). */
+  | { tipo: "confirmar_envio"; lugar_id: number; resultado: "ok" | "error"; motivo: MotivoDelEnvio | null }
+  /** A4: lo que pasó cuando la página aplicó en Odoo el cambio que Andrés propuso (`proponer_cambio_carrito`). */
+  | { tipo: "confirmar_cambio"; producto_id: number; cantidad: number; resultado: "ok" | "error" }
+  /** A3: el visitante bajó una cantidad o quitó algo del carrito (con el chat abierto). `ahora` 0 = lo quitó. */
+  | { tipo: "carrito_bajo"; producto_id: number | null; nombre: string; antes: number; ahora: number }
   | { tipo: "calificar"; estrellas: number };
+
+/** A2: el envío que ya está en el carrito (lo dice Odoo a la página; la página se lo pasa al Worker como dato). */
+export interface EnvioDelCarrito {
+  lugar_id: number | null;
+  lugar: string;
+}
 
 export interface Ubicacion {
   lat: number;
@@ -25,6 +45,8 @@ export interface PeticionTienda {
   accion: AccionTienda | null;
   pagina: DatosDeLaPagina;
   carrito: LineaDelCarrito[];
+  /** El envío que la página dice que ya está sumado en el carrito (o null). Dato de la página, como las líneas. */
+  envioDelCarrito: EnvioDelCarrito | null;
   /** Solo el turno en que tocó «Usar mi ubicación». Nunca se guarda. */
   ubicacion: Ubicacion | null;
 }
@@ -59,6 +81,24 @@ function validarAccion(v: unknown): AccionTienda | null | "mal" {
     if (producto_id === null || cantidad === null || (v.resultado !== "ok" && v.resultado !== "error")) return "mal";
     return { tipo: "confirmar_carrito", producto_id, cantidad, resultado: v.resultado };
   }
+  if (v.tipo === "confirmar_envio") {
+    const lugar_id = entero(v.lugar_id, 1, MAX_ID);
+    if (lugar_id === null || (v.resultado !== "ok" && v.resultado !== "error")) return "mal";
+    const motivo = v.resultado === "ok" ? null : (MOTIVOS_DEL_ENVIO as readonly unknown[]).includes(v.motivo) ? (v.motivo as MotivoDelEnvio) : "fallo";
+    return { tipo: "confirmar_envio", lugar_id, resultado: v.resultado, motivo };
+  }
+  if (v.tipo === "confirmar_cambio") {
+    const producto_id = entero(v.producto_id, 1, MAX_ID);
+    const cantidad = entero(v.cantidad, 0, 20);
+    if (producto_id === null || cantidad === null || (v.resultado !== "ok" && v.resultado !== "error")) return "mal";
+    return { tipo: "confirmar_cambio", producto_id, cantidad, resultado: v.resultado };
+  }
+  if (v.tipo === "carrito_bajo") {
+    const antes = entero(v.antes, 1, 999);
+    const ahora = entero(v.ahora, 0, 998);
+    if (antes === null || ahora === null || ahora >= antes) return "mal";
+    return { tipo: "carrito_bajo", producto_id: entero(v.producto_id, 1, MAX_ID), nombre: textoCorto(v.nombre, MAX_NOMBRE), antes, ahora };
+  }
   if (v.tipo === "calificar") {
     const estrellas = entero(v.estrellas, 1, 5);
     return estrellas === null ? "mal" : { tipo: "calificar", estrellas };
@@ -86,6 +126,14 @@ function validarCarrito(v: unknown): LineaDelCarrito[] {
   return salida;
 }
 
+function validarEnvioDelCarrito(v: unknown): EnvioDelCarrito | null {
+  const c = esObjeto(v) ? v : {};
+  if (!esObjeto(c.envio)) return null;
+  const lugar = textoCorto(c.envio.lugar, MAX_NOMBRE);
+  const lugar_id = entero(c.envio.lugar_id, 1, MAX_ID);
+  return lugar || lugar_id !== null ? { lugar_id, lugar } : null;
+}
+
 function validarUbicacion(v: unknown): Ubicacion | null | "mal" {
   if (v === undefined || v === null) return null;
   if (!esObjeto(v)) return "mal";
@@ -107,5 +155,5 @@ export function validarPeticionTienda(cuerpo: unknown): PeticionTienda | string 
   // La acción va EN LUGAR del texto (contrato §2).
   const final = accion ? "" : texto;
   if (!final && !accion && !ubicacion) return "falta el texto";
-  return { texto: final, accion, pagina: validarPagina(cuerpo.pagina), carrito: validarCarrito(cuerpo.carrito), ubicacion };
+  return { texto: final, accion, pagina: validarPagina(cuerpo.pagina), carrito: validarCarrito(cuerpo.carrito), envioDelCarrito: validarEnvioDelCarrito(cuerpo.carrito), ubicacion };
 }
