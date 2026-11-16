@@ -71,6 +71,15 @@ class TestCarruselPortada(HttpCase):
         cls.sin_publicar = Plantilla.create({**base, 'name': 'ZZCARRUSEL CAMA SIN PUBLICAR', 'is_published': False,
                                              'image_1920': _foto((90, 90, 90))})
         cls.sin_foto = Plantilla.create({**base, 'name': 'ZZCARRUSEL CAMA SIN FOTO'})
+        # Catálogo para la sección «de cine» (también en una base sin el catálogo real): cuatro con foto en cada una de
+        # cinco categorías. Los carriles de arriba se llevan como mucho 16; quedan fotos para las cintas.
+        cls.catalogo = Plantilla.browse()
+        for clave in ('colchones', 'salas', 'zapateras', 'organizacion', 'oficina'):
+            categoria = cls.env.ref(f'website_dcasa.public_category_{clave}')
+            for i in range(4):
+                cls.catalogo |= Plantilla.create({
+                    **base, 'name': f'ZZCINE {clave.upper()} {i}', 'public_categ_ids': [Command.set(categoria.ids)],
+                    'image_1920': _foto((60 + 30 * i, 120, 160), 300, 400)})
         cls.gerente = _usuario(cls.env, 'gerente_carrusel', 'dcasa_base.group_gerencia')
         cls.vendedora = _usuario(cls.env, 'vendedora_carrusel', 'dcasa_base.group_vendedora')
         cls.interno = _usuario(cls.env, 'interno_carrusel')
@@ -296,7 +305,7 @@ class TestCarruselPortada(HttpCase):
         self.assertEqual(' '.join(seccion.xpath('.//a[contains(@class, "o_dcasa_btn_amarillo")]')[0].text_content().split()),
                          'Ver el catálogo')
         self.assertIsNotNone(seccion.xpath('.//button[contains(@class, "o_dcasa_cine_pausa")]')[0].get('hidden'))
-        cintas = seccion.xpath('.//div[contains(@class, "o_dcasa_cine_cinta")]')
+        cintas = seccion.xpath('.//div[contains(concat(" ", @class, " "), " o_dcasa_cine_cinta ")]')
         self.assertEqual(len(cintas), 2)
         self.assertIn('is-reversa', _clases(cintas[1]), 'la segunda corre al revés')
         datos = self.website._dcasa_cine()
@@ -424,6 +433,7 @@ PRUEBA_JS = """(async () => {
         nadaEnsancha: document.documentElement.scrollWidth <= window.innerWidth,
     };
     const tren = document.querySelector('.o_dcasa_cine_tren');
+    if (!tren) { throw new Error('la portada no trae la sección de cine'); }
     r.cine = { animacion: getComputedStyle(tren).animationName, estado: getComputedStyle(tren).animationPlayState,
                pausaVisible: visible(document.querySelector('.o_dcasa_cine_pausa')),
                copiasVisibles: [...document.querySelectorAll('.o_dcasa_cine_foto[aria-hidden]')].some(visible) };
@@ -454,6 +464,8 @@ PASOS_COMPUTADORA = """
     for (let i = 0; i < 40 && actual() === 1; i++) { await esperar(50); }
     r.sinPausaAvanza = actual();
     r.vivoSolo = vitrina.querySelector('.o_dcasa_vitrina_textos').getAttribute('aria-live');
+    pausa.click(); pausa.blur();
+    await esperar(1100);   // la anterior se desvanece en 0,9 s
     r.visibles = [...vitrina.querySelectorAll('.o_dcasa_vitrina_foto')].filter((f) => getComputedStyle(f).visibility === 'visible').length;
     const botonCine = document.querySelector('.o_dcasa_cine_pausa');
     botonCine.click(); await esperar(100);

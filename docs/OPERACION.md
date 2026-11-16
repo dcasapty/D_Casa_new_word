@@ -589,6 +589,7 @@ que llegue por código ya no se ve en ella (las dos versiones chocan y gana la c
 | Entrada | Para qué |
 |---|---|
 | **Vista previa móvil** | el sitio tal como lo ve un visitante, en un marco de teléfono (390×844), tableta (768) o escritorio (1440). Atajos a Inicio, Tienda, Socios y Visítanos, cualquier dirección a mano, «Recargar» y «Abrir aparte». También desde el Inicio: botón **Ver en el celular**. Nunca abre el modo edición |
+| **Carrusel de la portada** | qué productos salen arriba en la portada y en qué orden (arrastrando; el de arriba primero): cada uno con su foto grande, su nombre y un botón a su ficha. Vacía = la foto de siempre. Nació (una sola vez, 2026-11-16) con las ocho camas que aprobó la dueña, buscadas por su código público; desde ahí la lista es de Gerencia y una actualización no la vuelve a llenar (`website_dcasa/models/portada.py`). Solo salen los productos publicados y con foto; el cambio se ve al momento en Odoo y en unos segundos en el borde |
 | Sitio → Contenido → **Páginas** | ver las páginas y **publicarlas o despublicarlas**; al pulsar una fila se abre en la vista previa móvil. Nombre, dirección y contenido vienen del código; el título y la descripción para Google solo los puede cambiar un administrador (Odoo los guarda en la vista) |
 | Sitio → Contenido → **Productos** y eCommerce → **Productos** | publicar/despublicar productos en la tienda, fotos, descripciones, categorías: esto sí es trabajo del día a día |
 | eCommerce → **Pedidos** | pedidos, carritos abandonados y clientes de la tienda en línea |
@@ -655,11 +656,12 @@ actualización del módulo (`make update` o el despliegue) se lo quita.
 
 El diseño aprobado de la píldora de vidrio líquido y del hero de la portada está fijado en un test
 que abre el sitio en Chrome a 1440 y 390 px (`addons/website_dcasa/tests/test_contrato_visual.py`),
-en las cinco páginas tipo: `/`, `/shop`, una ficha, `/socios` y `/black-weekend`. Tiene dos niveles:
+en las páginas tipo: `/` (dos veces: con el hero de siempre y con el carrusel de productos), `/shop`, una ficha,
+`/socios` y `/promociones`. Tiene dos niveles:
 
 | Nivel | Qué mide | Falla cuando… |
 |---|---|---|
-| **Estilos computados** (bloqueante, siempre) | `.o_main_nav::before`: `backdrop-filter` con `blur(` y `saturate(`, tinte `rgba(255,255,255,.62)` con texto tinta (vidrio claro: tienda, ficha) o `rgba(0,0,0,.26)` con texto blanco (ahumado: portada, socios, Black Weekend), radio de píldora `32px`, filos de luz, **los mismos valores en todas las páginas del mismo tipo**; hamburguesa visible en el celular. Hero de la portada: `.o_dcasa_hero_texto` sin fondo, texto blanco con halo, velo negro plano del 35-50 %, nada azul ni navy detrás del titular | cualquier valor se sale del contrato. No depende de la versión de Chrome ni de las fuentes del sistema: si falla, el navbar o el hero cambiaron de verdad |
+| **Estilos computados** (bloqueante, siempre) | `.o_main_nav::before`: `backdrop-filter` con `blur(` y `saturate(`, tinte `rgba(255,255,255,.62)` con texto tinta (vidrio claro: tienda, ficha) o `rgba(0,0,0,.26)` con texto blanco (ahumado: portada, socios, Black Weekend), radio de píldora `32px`, filos de luz, **los mismos valores en todas las páginas del mismo tipo**; hamburguesa visible en el celular. Hero de la portada: `.o_dcasa_hero_texto` sin fondo, texto blanco con halo, velo negro plano del 35-50 %, nada azul ni navy detrás del titular. Con el carrusel (`.o_dcasa_hero_vitrina`): texto blanco sobre el negro del hero sin placa, la foto de estudio entera sin velo ni filtro en su marco de 16 px, debajo de la píldora y sin montarse sobre el texto | cualquier valor se sale del contrato. No depende de la versión de Chrome ni de las fuentes del sistema: si falla, el navbar o el hero cambiaron de verdad |
 | **Píxeles contra las referencias** | capturas de la cabecera (todas las páginas) y del hero (portada, a media resolución) contra `addons/website_dcasa/tests/referencia/*.webp` (sin pérdida). Cuenta los píxeles con una diferencia > 40/255 en algún canal | superan la tolerancia: **1,5 %** en local, **6 %** en CI (`CI=true`); `DCASA_TOLERANCIA_VISUAL` manda sobre ambas |
 
 Las capturas son deterministas: viewport fijo, `prefers-reduced-motion: reduce`, animaciones y
