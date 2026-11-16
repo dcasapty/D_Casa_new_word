@@ -612,10 +612,18 @@ class SaleOrderLine(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
+        # Como la fecha de la cotización: quien no cambia precios no fecha una línea dentro de una campaña.
         ahora = fields.Datetime.now()
+        fija = not self.env.su and not _puede_cambiar_precios(self.env)
         for vals in vals_list:
-            vals.setdefault('dcasa_fecha_precio', ahora)
+            if fija or not vals.get('dcasa_fecha_precio'):
+                vals['dcasa_fecha_precio'] = ahora
         return super().create(vals_list)
+
+    def write(self, vals):
+        if 'dcasa_fecha_precio' in vals and not self.env.su and not _puede_cambiar_precios(self.env):
+            raise AccessError(self.env._('Solo Gerencia cambia la fecha del precio de una línea.'))
+        return super().write(vals)
 
     def _get_order_date(self):
         """La fecha con que se calcula el precio de la línea: en una venta que no es de la web, cuando se agregó la

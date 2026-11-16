@@ -351,6 +351,22 @@ class TestCampanaPrecios(_Base, TransactionCase):
             en_campana = self.env['sale.order.line'].create({'order_id': antes.id, 'product_id': variante.id})
             self.assertEqual(en_campana.price_unit, 150.0)
 
+    def test_la_vendedora_no_le_cambia_la_fecha_del_precio_a_una_linea(self):
+        self._en_campana()
+        vendedora = self.env['res.users'].create({
+            'name': 'Vendedora fecha línea', 'login': 'vendedora_fecha_linea',
+            'group_ids': [Command.set([self.env.ref('dcasa_base.group_vendedora').id])]})
+        cliente = self.env['res.partner'].create({'name': 'Cliente fecha línea'})
+        orden = self.env['sale.order'].with_user(vendedora).create({
+            'partner_id': cliente.id, 'user_id': vendedora.id, 'pricelist_id': self.tarifa.id})
+        linea = self.env['sale.order.line'].with_user(vendedora).create({
+            'order_id': orden.id, 'product_id': self.cama.product_variant_id.id,
+            'dcasa_fecha_precio': datetime(2026, 11, 28, 15, 0)})
+        self.assertEqual(linea.dcasa_fecha_precio, datetime(2026, 11, 20, 12, 0), 'la de hoy, no la que mandó')
+        self.assertEqual(linea.price_unit, 200.0)
+        with self.assertRaises(AccessError):
+            linea.with_user(vendedora).write({'dcasa_fecha_precio': datetime(2026, 11, 28, 15, 0)})
+
     def test_los_textos_con_el_nombre_en_femenino_o_en_plural(self):
         self._en_campana()
         casos = {
