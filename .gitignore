@@ -25,3 +25,4 @@ node_modules
 .vscode/
 # Copias de trabajo de los agentes de Claude Code
 .claude/worktrees/
+capturas_portada/
