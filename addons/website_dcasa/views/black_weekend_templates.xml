@@ -79,7 +79,7 @@
                             <p t-if="bw_nombre == 'Black Weekend'" class="o_dcasa_bw_sub">Camas seleccionadas con su precio de cama sola y en combo con colchón<t t-if="bw_fechas">, <t t-out="bw_fechas"/></t>.</p>
                             <p t-else="" class="o_dcasa_bw_sub"><t t-if="bw_frase" t-out="bw_frase"/><t t-else="">Productos seleccionados</t><t t-if="bw_fechas">, <t t-out="bw_fechas"/></t>.</p>
                         </div>
-                        <a href="/promociones" class="btn btn-lg o_dcasa_btn_amarillo">Ver todo el <t t-out="bw_nombre"/></a>
+                        <a href="/promociones" class="btn btn-lg o_dcasa_btn_amarillo" t-out="website._dcasa_campana_ver_todo()"/>
                     </div>
                     <div class="o_dcasa_rail_track o_dcasa_bw_track" role="list" data-anim-cascada="">
                         <div t-foreach="bw_items" t-as="item" class="o_dcasa_rail_item" role="listitem">
@@ -120,7 +120,7 @@
                             </li>
                         </ul>
                         <p class="o_dcasa_bw_sub mt-4">¿Dudas con medidas, colores o la entrega? Escríbenos y te ayudamos a escoger.</p>
-                        <a t-att-href="website._dcasa_whatsapp_url('Hola D\'CASA, quiero información del ' + bw_nombre)"
+                        <a t-att-href="website._dcasa_whatsapp_url('Hola D\'CASA, quiero información ' + website._dcasa_campana_de())"
                            target="_blank" rel="noopener" class="btn btn-lg o_dcasa_btn_amarillo">
                             <i class="fa fa-whatsapp me-2" aria-hidden="true"/>Escríbenos por WhatsApp
                             <span class="visually-hidden">(se abre en una pestaña nueva)</span></a>

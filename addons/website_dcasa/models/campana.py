@@ -22,6 +22,15 @@ productos se marcaban desde el Excel del catálogo (models/black_weekend.py).
   cambia quien cambia precios (si no, se podría fechar dentro de la campaña); una variante nunca queda en cero o
   negativa; un producto tipo combo no lleva precio de campaña; el carrito se pone al día al pagar y en los bordes de
   la campaña (cron disparado a la hora exacta).
+* «Los combos son inamovibles» (la dueña, 2026-11-16: «no quiero tocar en absoluto los combos… aunque se pudiera…
+  romper la regla, por ahora no quiero romperla. Pero debería poderse»): la cama y el colchón de un combo armado en la
+  cotización (dcasa_catalogo, ``combo_armable.py``) se calculan con la bandera de contexto ``COMBO_SIN_CAMPANA``, que
+  saca de la tarifa las reglas de campaña; las demás reglas siguen. El interruptor «La campaña también rebaja los
+  combos» (``dcasa_rebaja_combos``, apagado; solo Gerencia y administradores) lo deshace: con él encendido las reglas
+  llevan ``dcasa_campana_combos`` y la bandera ya no las saca.
+* Una línea de una venta que no es de la web se calcula con la fecha en que se agregó (``dcasa_fecha_precio``), no con
+  la de la cotización: una cotización abierta en la campaña no le da el precio de campaña a una línea nueva después
+  del fin (las reglas siguen 30 días para las líneas que ya tenía). Revisión adversarial, tercera vuelta (I-B).
 """
 import logging
 from datetime import datetime, time, timedelta
@@ -48,11 +57,20 @@ DESPUES_DEL_FIN = timedelta(days=30)
 CAMPOS_CAMPANA = frozenset({'dcasa_black_weekend', 'dcasa_bw_orden', 'dcasa_bw_variante_id', 'dcasa_campana_precio'})
 # Contexto para escribir muchos productos y sincronizar una sola vez al final.
 SIN_SINCRONIZAR = 'dcasa_campana_sin_sincronizar'
+# Contexto con que se calcula una pieza de un combo armado (dcasa_catalogo): la tarifa sin las reglas de campaña, salvo
+# las de una campaña que también rebaja los combos (``dcasa_campana_combos``).
+COMBO_SIN_CAMPANA = 'dcasa_combo_sin_campana'
 
 
 def _exigir_precios(env):
     if not _puede_cambiar_precios(env):
         raise AccessError(env._('Solo Gerencia y los administradores cambian la campaña del sitio y sus precios.'))
+
+
+def _exigir_gerencia(env):
+    """El interruptor de los combos: solo Gerencia y los administradores (no basta con poder cambiar precios)."""
+    if not (env.su or env.user.has_group('dcasa_base.group_gerencia') or env.user.has_group('base.group_system')):
+        raise AccessError(env._('Solo Gerencia y los administradores deciden si la campaña también rebaja los combos.'))
 
 
 def limites_utc(inicio, fin):
@@ -79,6 +97,11 @@ class DcasaCampana(models.Model):
     frase = fields.Char('Frase corta', tracking=True,
                         help='Debajo del título en la portada y en la página. Sin cifras inventadas: los precios '
                              'salen de cada producto.')
+    dcasa_rebaja_combos = fields.Boolean(
+        'La campaña también rebaja los combos', default=False, tracking=True,
+        help='Apagado (lo normal): los combos cama + colchón que se arman en la cotización van a su precio de siempre, '
+             'sin el precio de campaña, aunque la cama o el colchón lo tengan. Encendido: la cama y el colchón del '
+             'combo también toman el precio de campaña. Solo lo cambian Gerencia y los administradores.')
     estado = fields.Selection([('apagada', 'Apagada'), ('programada', 'Programada'), ('activa', 'Activa ahora'),
                                ('terminada', 'Terminada')], compute='_compute_estado')
     producto_count = fields.Integer('Productos en la campaña', compute='_compute_producto_count')
@@ -122,16 +145,22 @@ class DcasaCampana(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
+        if any(vals.get('dcasa_rebaja_combos') for vals in vals_list):
+            _exigir_gerencia(self.env)
         campanas = super().create(vals_list)
         self.env['product.template']._dcasa_campana_sincronizar()
         campanas._dcasa_campana_programar()
         return campanas
 
     def write(self, vals):
+        if 'dcasa_rebaja_combos' in vals:
+            _exigir_gerencia(self.env)
         resultado = super().write(vals)
         if {'fecha_inicio', 'fecha_fin', 'website_id'} & set(vals):
             self.env['product.template']._dcasa_campana_sincronizar()
             self._dcasa_campana_programar()
+        elif 'dcasa_rebaja_combos' in vals:
+            self.env['product.template']._dcasa_campana_sincronizar()
         return resultado
 
     def unlink(self):
@@ -381,7 +410,8 @@ class ProductTemplate(models.Model):
                                         'campaña.', producto.display_name, tarifa.display_name)
                         continue
                     deseadas[(tarifa.id, producto.id)] = {
-                        'price_surcharge': rebaja, 'date_start': desde, 'date_end': hasta}
+                        'price_surcharge': rebaja, 'date_start': desde, 'date_end': hasta,
+                        'dcasa_campana_combos': campana.dcasa_rebaja_combos}
         return deseadas
 
     @api.model
@@ -427,6 +457,10 @@ class ProductPricelistItem(models.Model):
         'Regla de la campaña del sitio', readonly=True, copy=False, index=True,
         help='La crea y la borra la campaña del sitio (Sitio web › Campaña del sitio). No se edita a mano: se '
              'cambia el precio de campaña del producto o las fechas de la campaña.')
+    dcasa_campana_combos = fields.Boolean(
+        'También rebaja los combos', readonly=True, copy=False,
+        help='Copia del interruptor «La campaña también rebaja los combos» de la campaña del sitio. Apagado, esta '
+             'regla no rebaja la cama ni el colchón de un combo armado en la cotización.')
 
     def _show_discount_on_shop(self):
         """En la tienda, el precio de campaña sale con el normal tachado (Odoo solo lo hace con descuentos en %)."""
@@ -445,6 +479,18 @@ class ProductPricelistItem(models.Model):
             raise UserError(self.env._('Esta regla la maneja la campaña del sitio: se quita desmarcando el producto o '
                                        'cambiando las fechas en Sitio web › Campaña del sitio.'))
         return super().unlink()
+
+
+class ProductPricelist(models.Model):
+    _inherit = 'product.pricelist'
+
+    def _get_applicable_rules_domain(self, products, date, **kwargs):
+        """Con ``COMBO_SIN_CAMPANA`` (una pieza de un combo armado), sin las reglas de la campaña que no rebajan los
+        combos: la pieza toma lo que le daría la tarifa sin campaña (sus otras reglas o su precio normal)."""
+        dominio = super()._get_applicable_rules_domain(products, date, **kwargs)
+        if self.env.context.get(COMBO_SIN_CAMPANA):
+            dominio = [*dominio, '|', ('dcasa_campana', '=', False), ('dcasa_campana_combos', '=', True)]
+        return dominio
 
 
 class DcasaCampanaDescuento(models.TransientModel):
@@ -489,8 +535,10 @@ class SaleOrder(models.Model):
         return super().create(vals_list)
 
     def write(self, vals):
-        # La fecha de una cotización define su precio autorizado (dcasa_base) y la regla de campaña que toma: solo la
-        # cambia quien cambia precios. Confirmar (que también la escribe, con state='sale') y el sistema, sí.
+        # La fecha de una cotización: solo la cambia quien cambia precios (de ella salían el precio autorizado y la
+        # regla de campaña de sus líneas; desde I-B cada línea fuera de la web usa la suya, pero las líneas de antes y
+        # los pedidos de la web siguen con la del pedido). Confirmar (que también la escribe, con state='sale') y el
+        # sistema, sí.
         if ('date_order' in vals and vals.get('state') != 'sale' and not self.env.su
                 and not _puede_cambiar_precios(self.env)
                 and any(orden.state in ('draft', 'sent') for orden in self)):
@@ -548,3 +596,37 @@ class SaleOrder(models.Model):
             lineas._compute_discount()
             if hasattr(orden, '_dcasa_limpiar_premios_web'):
                 orden._dcasa_limpiar_premios_web()   # si la compra bajó por debajo del premio de puntos
+
+
+class SaleOrderLine(models.Model):
+    _inherit = 'sale.order.line'
+
+    # I-B (revisión adversarial, tercera vuelta): sin esto, una cotización hecha en la campaña le daba el precio de
+    # campaña a cualquier línea nueva hasta 30 días después del fin (Odoo calcula con la fecha del pedido y las reglas
+    # se quedan ese tiempo para las cotizaciones de la campaña).
+    dcasa_fecha_precio = fields.Datetime(
+        'Fecha del precio', readonly=True, copy=False,
+        help='Cuándo se agregó la línea. En las ventas que no son de la tienda en línea, su precio de tarifa (y el de '
+             'campaña) se calcula con esta fecha y no con la de la cotización. Vacía en las líneas de antes: usan la '
+             'fecha de la cotización.')
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        ahora = fields.Datetime.now()
+        for vals in vals_list:
+            vals.setdefault('dcasa_fecha_precio', ahora)
+        return super().create(vals_list)
+
+    def _get_order_date(self):
+        """La fecha con que se calcula el precio de la línea: en una venta que no es de la web, cuando se agregó la
+        línea (una línea nueva en una cotización de la campaña ya no toma el precio de campaña después del fin; una
+        agregada en la campaña a una cotización vieja, sí). La tienda en línea sigue como Odoo (el carrito, con la hora
+        actual) y las líneas de antes de este cambio, con la fecha del pedido."""
+        self.ensure_one()
+        if self.order_id.website_id:
+            return super()._get_order_date()
+        if self.dcasa_fecha_precio:
+            return self.dcasa_fecha_precio
+        if not self._origin.id:
+            return fields.Datetime.now()   # línea nueva en la pantalla, todavía sin guardar
+        return super()._get_order_date()

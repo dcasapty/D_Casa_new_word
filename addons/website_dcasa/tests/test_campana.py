@@ -5,12 +5,13 @@ Pedido de la dueña (2026-11-15): manejar Black Friday desde el panel marcando p
 precio de campaña opcional que el carrito cobre de verdad y que vuelva solo al terminar (models/campana.py).
 """
 from datetime import date, datetime, timedelta
+from urllib.parse import unquote
 
 from freezegun import freeze_time
 
 from odoo import Command, fields
-from odoo.addons.website_dcasa.models.black_weekend import PARAM_ACTIVO, PARAM_FIN, PARAM_INICIO
-from odoo.addons.website_dcasa.models.campana import PARAM_FIRMA_CARRITOS, limites_utc
+from odoo.addons.website_dcasa.models.black_weekend import PARAM_ACTIVO, PARAM_FIN, PARAM_INICIO, articulo_y_nombre
+from odoo.addons.website_dcasa.models.campana import COMBO_SIN_CAMPANA, PARAM_FIRMA_CARRITOS, limites_utc
 from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.tests import HttpCase, TransactionCase, tagged
 
@@ -272,6 +273,103 @@ class TestCampanaPrecios(_Base, TransactionCase):
         with self.assertRaises(UserError):
             self._reglas(self.cama)[:1].with_user(gerente).unlink()
 
+    def test_la_bandera_de_los_combos_saca_la_campana_y_el_interruptor_la_devuelve(self):
+        """«Los combos son inamovibles» (la dueña, 2026-11-16): una pieza de un combo armado (dcasa_catalogo) se calcula
+        con ``COMBO_SIN_CAMPANA``: sin las reglas de campaña, con las demás reglas de la tarifa."""
+        otra = self.env['product.template'].create({'name': 'OTRA CON PRECIO PROPIO', 'list_price': 100.0})
+        self.env['product.pricelist.item'].create({
+            'pricelist_id': self.tarifa.id, 'applied_on': '1_product', 'product_tmpl_id': otra.id,
+            'compute_price': 'fixed', 'fixed_price': 90.0})
+        self._en_campana()
+        variante = self.cama.product_variant_id
+        momento = datetime(2026, 11, 28, 15, 0)
+        combo = self.tarifa.with_context(**{COMBO_SIN_CAMPANA: True})
+        self.assertEqual(self._precio(variante, momento), 150.0)
+        self.assertEqual(round(combo._get_product_price(variante, 1.0, date=momento), 2), 200.0, 'en combo: el normal')
+        self.assertEqual(round(combo._get_product_price(otra.product_variant_id, 1.0, date=momento), 2), 90.0,
+                         'las demás reglas de la tarifa siguen')
+        self.assertFalse(self.campana.dcasa_rebaja_combos, 'apagado de fábrica')
+        self.assertFalse(any(self._reglas(self.cama).mapped('dcasa_campana_combos')))
+        regla = self._reglas(self.cama)
+        self.campana.dcasa_rebaja_combos = True
+        self.assertEqual(self._reglas(self.cama), regla, 'la misma regla, solo cambia la marca')
+        self.assertTrue(all(self._reglas(self.cama).mapped('dcasa_campana_combos')))
+        self.assertEqual(round(combo._get_product_price(variante, 1.0, date=momento), 2), 150.0,
+                         'encendido: el combo también toma la campaña')
+        self.campana.dcasa_rebaja_combos = False
+        self.assertEqual(round(combo._get_product_price(variante, 1.0, date=momento), 2), 200.0)
+
+    def test_solo_gerencia_y_administradores_cambian_el_interruptor_de_combos(self):
+        Usuarios = self.env['res.users']
+        grupos = {
+            'vendedora': ['dcasa_base.group_vendedora'],
+            # Puede cambiar precios (administra productos y ventas) pero no es Gerencia: no decide sobre los combos.
+            'precios': ['base.group_user', 'product.group_product_manager', 'sales_team.group_sale_manager'],
+            'gerencia': ['dcasa_base.group_gerencia'],
+            'admin': ['base.group_user', 'base.group_system'],
+        }
+        usuarios = {clave: Usuarios.create({
+            'name': f'Combos {clave}', 'login': f'combos_interruptor_{clave}',
+            'group_ids': [Command.set([self.env.ref(g).id for g in lista])]}) for clave, lista in grupos.items()}
+        for clave in ('vendedora', 'precios'):
+            with self.subTest(clave), self.assertRaisesRegex(AccessError, 'rebaja los combos'):
+                self.campana.with_user(usuarios[clave]).write({'dcasa_rebaja_combos': True})
+        self.assertFalse(self.campana.dcasa_rebaja_combos)
+        self.campana.with_user(usuarios['gerencia']).write({'dcasa_rebaja_combos': True})
+        self.assertTrue(self.campana.dcasa_rebaja_combos)
+        self.campana.with_user(usuarios['admin']).write({'dcasa_rebaja_combos': False})
+        self.assertFalse(self.campana.dcasa_rebaja_combos)
+        # La pantalla lo muestra (la abre solo Gerencia o un administrador).
+        arch = self.env['dcasa.campana'].with_user(usuarios['gerencia']).get_views([(False, 'form')])
+        self.assertIn('name="dcasa_rebaja_combos"', arch['views']['form']['arch'])
+
+    def test_una_linea_nueva_despues_del_fin_no_toma_el_precio_de_campana(self):
+        """I-B: Odoo calcula con la fecha de la cotización y las reglas se quedan 30 días después del fin; fuera de la
+        web cada línea se calcula con la fecha en que se agregó."""
+        self._en_campana()
+        cliente = self.env['res.partner'].create({'name': 'Cliente I-B'})
+        variante = self.cama.product_variant_id
+        with freeze_time('2026-11-28 15:00:00'):
+            orden = self.env['sale.order'].create({
+                'partner_id': cliente.id, 'pricelist_id': self.tarifa.id,
+                'order_line': [Command.create({'product_id': variante.id})]})
+            vieja = orden.order_line
+            self.assertEqual(vieja.price_unit, 150.0)
+        with freeze_time('2026-12-10 15:00:00'):   # terminó; la regla sigue para las cotizaciones de la campaña
+            nueva = self.env['sale.order.line'].create({'order_id': orden.id, 'product_id': variante.id})
+            self.assertEqual(nueva.price_unit, 200.0, 'una línea nueva va al precio de hoy')
+            vieja.product_uom_qty = 2
+            self.assertEqual(vieja.price_unit, 150.0, 'la de la campaña conserva su precio')
+            orden.action_update_prices()
+            self.assertEqual((vieja.price_unit, nueva.price_unit), (150.0, 200.0))
+        # Y al revés: una cotización de antes de la campaña, con una línea agregada en la campaña.
+        antes = self.env['sale.order'].create({
+            'partner_id': cliente.id, 'pricelist_id': self.tarifa.id,
+            'order_line': [Command.create({'product_id': variante.id})]})
+        self.assertEqual(antes.order_line.price_unit, 200.0)
+        with freeze_time('2026-11-28 15:00:00'):
+            en_campana = self.env['sale.order.line'].create({'order_id': antes.id, 'product_id': variante.id})
+            self.assertEqual(en_campana.price_unit, 150.0)
+
+    def test_los_textos_con_el_nombre_en_femenino_o_en_plural(self):
+        self._en_campana()
+        casos = {
+            'Black Friday': ('Ver todo el Black Friday', 'me interesa del Black Friday: '),
+            'Navidad': ('Ver toda la Navidad', 'me interesa de la Navidad: '),
+            'Semana del Mueble': ('Ver toda la Semana del Mueble', 'me interesa de la Semana del Mueble: '),
+            'Fiestas Patrias': ('Ver todas las Fiestas Patrias', 'me interesa de las Fiestas Patrias: '),
+            'Día de las Madres': ('Ver todo el Día de las Madres', 'me interesa del Día de las Madres: '),
+            'La Gran Venta': ('Ver toda la Gran Venta', 'me interesa de la Gran Venta: '),
+        }
+        for nombre, (ver_todo, interesa) in casos.items():
+            with self.subTest(nombre):
+                self.campana.name = nombre
+                self.assertEqual(self.website._dcasa_campana_ver_todo(), ver_todo)
+                self.assertIn(interesa, unquote(self.website._dcasa_bw_whatsapp(self.cama, 'DC-1')))
+        self.assertEqual(articulo_y_nombre('Cyber Monday'), ('el', 'Cyber Monday'))
+        self.assertEqual(articulo_y_nombre('Promociones de enero'), ('las', 'Promociones de enero'))
+        self.assertEqual(articulo_y_nombre('Mes de la Patria'), ('el', 'Mes de la Patria'))
+
     def test_limites_utc(self):
         self.assertEqual(limites_utc(date(2026, 11, 27), date(2026, 11, 27)),
                          (datetime(2026, 11, 27, 5, 0, 0), datetime(2026, 11, 28, 4, 59, 59)))
@@ -389,6 +487,16 @@ class TestCampanaSitio(_Base, HttpCase):
         portada = self.url_open('/').text
         self.assertIn('Combo con colchón First Class', portada)
         self.assertRegex(portada, r'200[.,]00')
+
+    def test_nombre_en_femenino_en_la_portada_y_la_pagina(self):
+        self._activa()
+        self.campana.name = 'Navidad'
+        portada = self.url_open('/').text
+        self.assertIn('Ver toda la Navidad', portada)
+        self.assertNotIn('Ver todo el Navidad', portada)
+        pagina = unquote(self.url_open('/promociones').text)
+        self.assertIn('quiero información de la Navidad', pagina)
+        self.assertIn('me interesa de la Navidad', pagina)
 
     def test_frase_del_panel(self):
         self._activa()
