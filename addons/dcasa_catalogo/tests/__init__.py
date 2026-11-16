@@ -12,4 +12,5 @@ from . import test_productos_limpios
 from . import test_disponibilidad_ficha
 from . import test_disponibilidad_celular
 from . import test_disponibilidad_portada
+from . import test_rv2_combos_campana
 from . import test_rv_combos_campana

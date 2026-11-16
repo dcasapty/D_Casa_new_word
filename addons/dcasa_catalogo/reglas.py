@@ -354,7 +354,7 @@ def medida_de_valor(valor):
 _TOLERANCIA = 1e-6
 
 
-def emparejar_combos(camas, colchones, uso=None):
+def emparejar_combos(camas, colchones, uso=None, detalle=None):
     """Qué colchón va en combo con qué cama de la misma venta.
 
     ``camas``: lista de dicts ``{'clave', 'medida', 'capacidad'}`` en el orden de la venta (capacidad = cuántas camas
@@ -374,6 +374,10 @@ def emparejar_combos(camas, colchones, uso=None):
     combo **y descuento de verdad** (``'descuento'`` del colchón, por defecto igual a ``con_precio``). Cuenta TODAS las
     camas en que cabe un colchón, no solo la que se muestra: dos camas en dos líneas con una línea de 2 colchones son
     dos combos (los combos son inamovibles: ninguna de las dos toma la campaña).
+
+    ``detalle`` (otro dict que se llena, opcional): lo mismo pero abierto por colchón,
+    ``{clave del colchón: {clave de la cama: colchones que le ocupa}}``. Sirve para comparar el total de cada par
+    (cuánto pierde la cama contra cuánto gana el colchón).
     """
     libre = {cama['clave']: float(cama['capacidad'] or 0) for cama in camas}
     por_medida = {}
@@ -399,6 +403,9 @@ def emparejar_combos(camas, colchones, uso=None):
                 falta -= toma
                 if cuenta and toma > _TOLERANCIA:
                     uso[clave] = uso.get(clave, 0.0) + toma
+                    if detalle is not None:
+                        detalle.setdefault(colchon['clave'], {})[clave] = \
+                            detalle.setdefault(colchon['clave'], {}).get(clave, 0.0) + toma
                 if falta <= _TOLERANCIA:
                     break
             resultado[colchon['clave']] = (principal, con_precio)
