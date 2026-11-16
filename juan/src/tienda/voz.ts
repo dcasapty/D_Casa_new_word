@@ -6,12 +6,17 @@
 // ve lo que se entendió antes de la respuesta.
 //
 //   · El audio no toca el Durable Object de la sesión, ni la conversación, ni R2, ni los registros. Se borra de la memoria al terminar.
+//   · La duración es la que de verdad se decodifica (motor/duracion.ts), hasta MAX_SEGUNDOS_TIENDA (unos 30 s: lo que cabe en un
+//     mensaje del chat). Más larga, o imposible de medir: se rechaza ANTES de apartar nada. Se aparta y se cobra con esa duración.
 //   · Cuenta como un mensaje en los topes de red, /48 y del día, y en los turnos a la vez; tiene además su tope por sesión (el mismo
-//     número que los mensajes por hora por sesión, contado aparte en `Global`). Su costo va en el gasto de la tienda (renglón
-//     «notas de voz (Whisper)», proveedor `cloudflare`): suma en su presupuesto, nunca en el de Juan ni en «Por pagar a Meta».
+//     número que los mensajes por hora por sesión, contado aparte en `Global`). El mensaje que la página manda enseguida con el texto
+//     NO vuelve a contar: la nota deja un crédito para su red (global.ts). Su costo va en el gasto de la tienda (renglón «notas de
+//     voz (Whisper)», proveedor `cloudflare`): suma en su presupuesto, nunca en el de Juan ni en «Por pagar a Meta».
+//   · La transcripción y el cierre de la reserva corren dentro de `waitUntil`: si el visitante corta la conexión, igual terminan y
+//     sueltan su lugar «en vuelo» (y, por si acaso, la reserva de una nota vence a los 30 s, no a los 3 minutos).
 //
 // Entrada:  POST /tienda/v1/voz?duracion_ms=<entero>   Authorization: Pase <pase>   Content-Type: audio/webm | audio/ogg | audio/mp4
-//           (con `;codecs=…` si se quiere)   Cuerpo: los bytes del audio, hasta MAX_BYTES_VOZ y MAX_SEGUNDOS_VOZ.
+//           (con `;codecs=…` si se quiere)   Cuerpo: los bytes del audio, hasta MAX_BYTES_VOZ y MAX_SEGUNDOS_TIENDA.
 // Salida:   200 {ok: true, texto, recortado}   (texto de hasta MAX_TEXTO letras, lo mismo que acepta `/tienda/v1/mensaje`)
 //           {ok: false, motivo}: pase 401 · apagado 503 · no_disponible 503 · tipo 415 · audio 400 · muy_pesada 413 · muy_larga 413
 //           · tope_sesion / tope_red / tope_dia / presupuesto / ocupado 429 (con Retry-After salvo presupuesto) · no_se_entendio 422
@@ -30,7 +35,8 @@ import {
   esProblema,
   leerConTope,
   MAX_BYTES_VOZ,
-  MAX_SEGUNDOS_VOZ,
+  MAX_SEGUNDOS_TIENDA,
+  TOLERANCIA_SEGUNDOS,
   reservaDeLaNota,
   tipoDeAudio,
   TIPOS_DE_AUDIO,
@@ -85,6 +91,8 @@ export interface ContextoVozTienda {
   sid: string;
   /** Responde con CORS (lo arma tienda/rutas.ts con el origen ya comprobado). */
   responder(cuerpo: unknown, status: number, extra?: Record<string, string>): Response;
+  /** `ctx.waitUntil`: lo que sigue aunque el visitante corte la conexión (la transcripción y el cierre de la reserva). */
+  esperarDespues?(trabajo: Promise<unknown>): void;
   deps?: DepsVozTienda;
 }
 
@@ -96,7 +104,7 @@ export async function disponibilidadDeLaVoz(env: Env, config: () => Promise<Conf
   } catch {
     activo = false;
   }
-  return { ok: true, disponible: activo && !!whisperDe(env), max_segundos: MAX_SEGUNDOS_VOZ, max_bytes: MAX_BYTES_VOZ, tipos: [...TIPOS_DE_AUDIO] };
+  return { ok: true, disponible: activo && !!whisperDe(env), max_segundos: MAX_SEGUNDOS_TIENDA, max_bytes: MAX_BYTES_VOZ, tipos: [...TIPOS_DE_AUDIO] };
 }
 
 export async function atenderVozTienda(c: ContextoVozTienda): Promise<Response> {
@@ -117,7 +125,7 @@ export async function atenderVozTienda(c: ContextoVozTienda): Promise<Response> 
   const tipo = tipoDeAudio(c.req.headers.get("content-type"));
   if (!tipo) return error("tipo", 415);
   const declarada = duracionDeclarada(new URL(c.req.url).searchParams.get("duracion_ms"));
-  if (declarada !== null && declarada > (MAX_SEGUNDOS_VOZ + 5) * 1000) return error("muy_larga", 413);
+  if (declarada !== null && declarada > (MAX_SEGUNDOS_TIENDA + TOLERANCIA_SEGUNDOS) * 1000) return error("muy_larga", 413);
 
   let cfg: Config;
   try {
@@ -132,7 +140,8 @@ export async function atenderVozTienda(c: ContextoVozTienda): Promise<Response> 
   const bytes = await leerConTope(c.req, MAX_BYTES_VOZ).catch(() => null);
   if (bytes === null) return error("muy_pesada", 413);
   const kb = Math.ceil(bytes.byteLength / 1024);
-  const nota = validarNota(bytes, tipo, declarada);
+  // La duración de verdad (contada paquete por paquete), antes de apartar nada.
+  const nota = validarNota(bytes, tipo, declarada, MAX_SEGUNDOS_TIENDA);
   if (esProblema(nota)) {
     bytes.fill(0);
     return error(nota.motivo, nota.status, {}, kb);
@@ -186,21 +195,29 @@ export async function atenderVozTienda(c: ContextoVozTienda): Promise<Response> 
     return error(m, 429, espera ? { "retry-after": String(espera) } : {}, kb);
   }
 
-  let r: ResultadoNota | null = null;
-  try {
-    r = await transcribirNota(c.env, nota, { maxLetras: MAX_TEXTO, plazoMs: deps.plazoMs });
-  } finally {
-    // Suelta lo apartado y anota lo que costó (si no se llamó a Whisper, nada). Si cerrar falla, se reintenta una vez; si tampoco,
-    // lo apartado pasa a gasto estimado a los 3 minutos (global.ts): lo cobrado nunca se suelta como si no hubiera costado.
-    const gastos: GastoTienda[] = r && r.usd > 0 ? [{ mes, proveedor: PROVEEDOR_DE_LA_VOZ, modelo: MODELO_DE_LA_VOZ, uso: USO_VACIO, usd: r.usd, estimado: r.estimado }] : [];
-    const cerrar = () => global.cerrarTurnoTienda(reserva.id, gastos);
-    await cerrar()
-      .catch(async () => {
-        await new Promise((res) => setTimeout(res, 250));
-        await cerrar();
-      })
-      .catch(() => log("warn", { resultado: "sin_cerrar" }));
-  }
+  const id = reserva.id;
+  // La transcripción y el cierre, juntos y dentro de `waitUntil`: si el visitante corta la conexión, Cloudflare no los cancela y el
+  // lugar «en vuelo» se suelta igual (con lo que costó anotado).
+  const trabajo = (async (): Promise<ResultadoNota> => {
+    let r: ResultadoNota | null = null;
+    try {
+      r = await transcribirNota(c.env, nota, { maxLetras: MAX_TEXTO, plazoMs: deps.plazoMs });
+      return r;
+    } finally {
+      // Suelta lo apartado y anota lo que costó (si no se llamó a Whisper, nada). Si cerrar falla, se reintenta una vez; si
+      // tampoco, lo apartado pasa a gasto estimado a los 30 s (global.ts): lo cobrado nunca se suelta como si no hubiera costado.
+      const gastos: GastoTienda[] = r && r.usd > 0 ? [{ mes, proveedor: PROVEEDOR_DE_LA_VOZ, modelo: MODELO_DE_LA_VOZ, uso: USO_VACIO, usd: r.usd, estimado: r.estimado }] : [];
+      const cerrar = () => global.cerrarTurnoTienda(id, gastos);
+      await cerrar()
+        .catch(async () => {
+          await new Promise((res) => setTimeout(res, 250));
+          await cerrar();
+        })
+        .catch(() => log("warn", { resultado: "sin_cerrar" }));
+    }
+  })();
+  c.esperarDespues?.(trabajo.catch(() => undefined));
+  const r = await trabajo;
   if (!r.ok) return error(r.motivo, STATUS[r.motivo], {}, kb);
   log("info", { resultado: "ok", kb, recortado: r.recortado });
   return c.responder({ ok: true, texto: r.texto, recortado: r.recortado }, 200);

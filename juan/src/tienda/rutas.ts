@@ -65,7 +65,7 @@ function responder(cuerpo: unknown, status: number, origen: string | null, extra
 
 const error = (motivo: MotivoTienda, status: number, origen: string | null, extra: Record<string, string> = {}) => responder({ ok: false, motivo }, status, origen, extra);
 
-export async function manejarTienda(ruta: string, req: Request, env: Env, d: Pick<DepsRutas, "config" | "ahora">, deps: DepsRutaTienda = {}): Promise<Response> {
+export async function manejarTienda(ruta: string, req: Request, env: Env, d: Pick<DepsRutas, "config" | "ahora"> & Partial<Pick<DepsRutas, "esperarDespues">>, deps: DepsRutaTienda = {}): Promise<Response> {
   const esVoz = ruta === RUTA_DE_LA_VOZ;
   if (ruta !== RUTA_DEL_MENSAJE && !esVoz) return new Response("no encontrado", { status: 404 });
   const origen = req.headers.get("origin");
@@ -89,6 +89,7 @@ export async function manejarTienda(ruta: string, req: Request, env: Env, d: Pic
         ahora: d.ahora,
         sid: verificado.pase.sid,
         responder: (cuerpo, status, extra = {}) => responder(cuerpo, status, origen, extra, metodos),
+        esperarDespues: d.esperarDespues,
         deps: deps.voz,
       });
     } catch (e) {

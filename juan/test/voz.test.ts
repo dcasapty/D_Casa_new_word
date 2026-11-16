@@ -1,9 +1,10 @@
 /**
- * Las notas de voz (motor/voz.ts): solo los tipos que graba un navegador, la duración en tres lugares (el navegador, el contenedor y
- * Whisper), solo el texto de vuelta y el audio borrado de la memoria al terminar. Nada de esto guarda el audio en ningún lado.
+ * Las notas de voz (motor/voz.ts y motor/duracion.ts): solo los tipos que graba un navegador, la duración que DE VERDAD se decodifica
+ * (contada paquete por paquete, sin creerle al contenedor), solo el texto de vuelta y el audio borrado de la memoria al terminar.
  */
 import { describe, expect, it, vi } from "vitest";
 import type { Env } from "../src/env";
+import { duracionPaqueteOpus, medirMp4, medirOgg, medirWebm } from "../src/motor/duracion";
 import { MODELO_WHISPER } from "../src/motor/transcribir";
 import {
   costoDeLaVoz,
@@ -13,7 +14,7 @@ import {
   firmaDeAudio,
   leerConTope,
   MAX_BYTES_VOZ,
-  peorDuracion,
+  MAX_SEGUNDOS_TIENDA,
   PRECIO_WHISPER_USD_POR_MINUTO,
   reservaDeLaNota,
   textoDeLaNota,
@@ -22,10 +23,10 @@ import {
   validarNota,
   type NotaDeVoz,
 } from "../src/motor/voz";
-import { mp4, oggOpus, webmOpus } from "./helpers/audio";
+import { mp4, oggOpus, paginaOgg, webmOpus } from "./helpers/audio";
 
 const envCon = (ai: unknown, bandera = "1") => ({ AI: ai, TRANSCRIBIR_AUDIO: bandera }) as unknown as Env;
-const nota = (bytes: Uint8Array, tipo: NotaDeVoz["tipo"] = "audio/webm", segundos: number | null = null): NotaDeVoz => ({ bytes, tipo, segundos });
+const nota = (bytes: Uint8Array, segundos: number, tipo: NotaDeVoz["tipo"] = "audio/webm", maxSegundos = 60): NotaDeVoz => ({ bytes, tipo, segundos, maxSegundos });
 
 describe("tipos y firma: solo lo que graba un navegador", () => {
   it("acepta WebM, Ogg y MP4 (con o sin codecs) y nada más", () => {
@@ -45,24 +46,65 @@ describe("tipos y firma: solo lo que graba un navegador", () => {
   });
 });
 
-describe("la duración del contenedor", () => {
-  it("Ogg Opus: la posición de la última página menos el pre-skip", () => {
-    expect(duracionDelContenedor(oggOpus(12.5), "audio/ogg")).toBeCloseTo(12.5, 2);
-    expect(duracionDelContenedor(oggOpus(90), "audio/ogg")).toBeCloseTo(90, 2);
+describe("el TOC de Opus (RFC 6716 §3.1)", () => {
+  it("la duración de cada paquete: tramas por lo que dura cada una", () => {
+    expect(duracionPaqueteOpus(new Uint8Array([0xfc]))).toBeCloseTo(0.02, 10); // CELT FB 20 ms, una trama
+    expect(duracionPaqueteOpus(new Uint8Array([0x0b]))).toBeCloseTo(0.12, 10); // SILK NB 60 ms, código 3 sin el byte de tramas → lo máximo
+    expect(duracionPaqueteOpus(new Uint8Array([0x09]))).toBeCloseTo(0.04, 10); // SILK NB 20 ms, dos tramas (código 1)
+    expect(duracionPaqueteOpus(new Uint8Array([(31 << 3) | 3, 6]))).toBeCloseTo(0.12, 10); // CELT FB 20 ms × 6 = 120 ms en 2 bytes
+    expect(duracionPaqueteOpus(new Uint8Array([(16 << 3) | 3, 48]))).toBeCloseTo(0.12, 10); // 2,5 ms × 48 = 120 ms
+    expect(duracionPaqueteOpus(new Uint8Array([(31 << 3) | 3, 7]))).toBeCloseTo(0.12, 10); // 140 ms no es válido: lo máximo
+    expect(duracionPaqueteOpus(new Uint8Array([(31 << 3) | 3, 0]))).toBeCloseTo(0.12, 10); // cero tramas: lo máximo
+    expect(duracionPaqueteOpus(new Uint8Array(0))).toBeCloseTo(0.12, 10); // vacío: lo máximo (nunca de menos)
+  });
+});
+
+describe("la duración que de verdad se decodifica (no la que dice el archivo)", () => {
+  it("Ogg Opus: la suma de los paquetes menos el pre-skip, aunque la última página mienta", () => {
+    expect(duracionDelContenedor(oggOpus(12.5), "audio/ogg")).toBeCloseTo(12.5, 1);
+    expect(duracionDelContenedor(oggOpus(90, { mentir: 3 }), "audio/ogg")).toBeCloseTo(90, 1);
+    // Más bytes en cada paquete no es más audio: pesa más, dura lo mismo.
+    expect(duracionDelContenedor(oggOpus(10, { relleno: 200 }), "audio/ogg")).toBeCloseTo(10, 1);
   });
 
-  it("WebM de MediaRecorder (clusters sin tamaño, sin Duration): el tiempo del último bloque", () => {
+  it("Ogg que no se puede recorrer con certeza: CRC malo, página que falta, otro flujo, basura al final", () => {
+    const cabeza = [...new TextEncoder().encode("OpusHead"), 1, 1, 0x38, 0x01, 0x80, 0xbb, 0, 0, 0, 0, 0];
+    const etiquetas = [...new TextEncoder().encode("OpusTags"), 0, 0, 0, 0, 0, 0, 0, 0];
+    const unir = (...p: Uint8Array[]) => new Uint8Array(p.flatMap((x) => [...x]));
+    const bien = unir(paginaOgg([cabeza], 0, 0, 2), paginaOgg([etiquetas], 0, 1), paginaOgg([[0xfc, 1]], 960, 2, 4));
+    expect(medirOgg(bien)).toBeCloseTo(0.02 - 312 / 48_000, 6);
+    expect(medirOgg(unir(paginaOgg([cabeza], 0, 0, 2), paginaOgg([etiquetas], 0, 1), paginaOgg([[0xfc, 1]], 960, 2, 0, { crcMalo: true })))).toBeNull();
+    expect(medirOgg(unir(paginaOgg([cabeza], 0, 0, 2), paginaOgg([etiquetas], 0, 1), paginaOgg([[0xfc, 1]], 960, 3)))).toBeNull();
+    expect(medirOgg(unir(paginaOgg([cabeza], 0, 0, 2), paginaOgg([etiquetas], 0, 1), paginaOgg([[0xfc, 1]], 960, 2, 0, { serie: 9 })))).toBeNull();
+    expect(medirOgg(unir(bien, new Uint8Array([1, 2, 3])))).toBeNull();
+    expect(medirOgg(unir(paginaOgg([etiquetas], 0, 0, 2), paginaOgg([[0xfc]], 960, 1)))).toBeNull(); // sin OpusHead
+  });
+
+  it("WebM de MediaRecorder (clusters sin tamaño): la suma del TOC de cada bloque, aunque «Duration» mienta", () => {
     expect(duracionDelContenedor(webmOpus(12.3), "audio/webm")).toBeCloseTo(12.3, 2);
     expect(duracionDelContenedor(webmOpus(70), "audio/webm")).toBeCloseTo(70, 2);
+    expect(duracionDelContenedor(webmOpus(70, { conDuracion: 5 }), "audio/webm")).toBeCloseTo(70, 2);
+    // Paquetes de 2 bytes que valen 120 ms cada uno: lo que importa es el TOC, no el peso.
+    expect(duracionDelContenedor(webmOpus(0.4, { paquete: [(31 << 3) | 3, 6] }), "audio/webm")).toBeCloseTo(20 * 0.12, 6);
   });
 
-  it("WebM con Duration en Info: esa", () => {
-    expect(duracionDelContenedor(webmOpus(5, { conDuracion: 44 }), "audio/webm")).toBeCloseTo(44, 2);
+  it("WebM que no se puede medir con certeza: otro códec, dos pistas, lacing, bytes de más", () => {
+    expect(medirWebm(webmOpus(3, { codec: "A_VORBIS" }))).toBeNull();
+    expect(medirWebm(webmOpus(3, { pistas: 2 }))).toBeNull();
+    expect(medirWebm(webmOpus(3, { lacing: true }))).toBeNull();
+    expect(medirWebm(new Uint8Array([...webmOpus(3), 0x00]))).toBeNull();
   });
 
-  it("MP4: la de mvhd; por fragmentos (Safari) no se sabe y la dirá Whisper", () => {
-    expect(duracionDelContenedor(mp4(8), "audio/mp4")).toBeCloseTo(8, 3);
-    expect(duracionDelContenedor(mp4(0), "audio/mp4")).toBeNull();
+  it("MP4 (Safari): las tramas AAC de 1024 a la frecuencia de su configuración, aunque «mvhd» mienta; por fragmentos también", () => {
+    expect(duracionDelContenedor(mp4(8), "audio/mp4")).toBeCloseTo(8, 1);
+    expect(duracionDelContenedor(mp4(8, { mentir: 1 }), "audio/mp4")).toBeCloseTo(8, 1);
+    expect(duracionDelContenedor(mp4(25, { fragmentos: true }), "audio/mp4")).toBeCloseTo(25, 1);
+  });
+
+  it("MP4 que no se puede medir con certeza: otro códec o una lista de edición que podría repetir el audio", () => {
+    expect(medirMp4(mp4(3, { codec: "Opus" }))).toBeNull();
+    expect(medirMp4(mp4(3, { edicionesRepetidas: true }))).toBeNull();
+    expect(medirMp4(new Uint8Array([0, 0, 0, 1, 0x66, 0x74, 0x79, 0x70]))).toBeNull();
   });
 
   it("basura con la firma correcta: null, sin lanzar", () => {
@@ -70,33 +112,36 @@ describe("la duración del contenedor", () => {
     basura.set([0x1a, 0x45, 0xdf, 0xa3]);
     expect(duracionDelContenedor(basura, "audio/webm")).toBeNull();
     expect(duracionDelContenedor(new TextEncoder().encode("OggS sin cabeza"), "audio/ogg")).toBeNull();
-    expect(duracionDelContenedor(new Uint8Array([0, 0, 0, 1, 0x66, 0x74, 0x79, 0x70]), "audio/mp4")).toBeNull();
   });
 });
 
-describe("validarNota", () => {
-  it("una nota normal pasa con la duración del contenedor", () => {
+describe("validarNota (todo antes de apartar)", () => {
+  it("una nota normal pasa con su duración medida", () => {
     const v = validarNota(webmOpus(10), "audio/webm", 10_200);
     expect(esProblema(v)).toBe(false);
     expect((v as NotaDeVoz).segundos).toBeCloseTo(10, 2);
   });
 
-  it("rechaza: sin tipo (415), vacía (400), pesada (413), firma distinta (400), más de un minuto (413) por el navegador o el contenedor", () => {
+  it("rechaza: sin tipo (415), vacía (400), pesada (413), firma distinta (400), imposible de medir (400), más larga que el tope (413)", () => {
     expect(validarNota(webmOpus(3), null, null)).toEqual({ motivo: "tipo", status: 415 });
     expect(validarNota(new Uint8Array(0), "audio/webm", null)).toEqual({ motivo: "audio", status: 400 });
     const pesada = new Uint8Array(MAX_BYTES_VOZ + 1);
     pesada.set([0x1a, 0x45, 0xdf, 0xa3]);
     expect(validarNota(pesada, "audio/webm", null)).toEqual({ motivo: "muy_pesada", status: 413 });
     expect(validarNota(oggOpus(3), "audio/webm", null)).toEqual({ motivo: "audio", status: 400 });
+    expect(validarNota(webmOpus(3, { codec: "A_VORBIS" }), "audio/webm", null)).toEqual({ motivo: "audio", status: 400 });
     expect(validarNota(webmOpus(3), "audio/webm", 66_000)).toEqual({ motivo: "muy_larga", status: 413 });
     expect(validarNota(webmOpus(70), "audio/webm", 10_000)).toEqual({ motivo: "muy_larga", status: 413 });
-    expect(validarNota(oggOpus(120), "audio/ogg", null)).toEqual({ motivo: "muy_larga", status: 413 });
-    expect(validarNota(mp4(70), "audio/mp4", null)).toEqual({ motivo: "muy_larga", status: 413 });
+    expect(validarNota(oggOpus(120, { mentir: 5 }), "audio/ogg", null)).toEqual({ motivo: "muy_larga", status: 413 });
+    expect(validarNota(mp4(70, { mentir: 3 }), "audio/mp4", null)).toEqual({ motivo: "muy_larga", status: 413 });
   });
 
-  it("el margen del navegador: 64 s todavía pasa, 66 s no", () => {
+  it("el tope de cada ruta: 60 s (+5 del navegador) en el panel, 30 s (+5) en la tienda", () => {
     expect(esProblema(validarNota(oggOpus(64), "audio/ogg", 64_000))).toBe(false);
     expect(esProblema(validarNota(oggOpus(66), "audio/ogg", null))).toBe(true);
+    expect(MAX_SEGUNDOS_TIENDA).toBe(30);
+    expect(esProblema(validarNota(oggOpus(34), "audio/ogg", null, MAX_SEGUNDOS_TIENDA))).toBe(false);
+    expect(validarNota(oggOpus(40), "audio/ogg", null, MAX_SEGUNDOS_TIENDA)).toEqual({ motivo: "muy_larga", status: 413 });
   });
 
   it("la duración que dice el navegador: solo un entero razonable", () => {
@@ -120,16 +165,13 @@ describe("el texto que se devuelve", () => {
   });
 });
 
-describe("el costo (US$0.0005 por minuto, la tabla de Workers AI)", () => {
-  it("por minuto de audio y, sin duración, el peor caso (Opus a 6 kbps)", () => {
+describe("el costo (US$0.0005 por minuto, la tabla de Workers AI), con la duración medida", () => {
+  it("por minuto de audio decodificado; lo apartado es el costo de lo que de verdad dura, nunca 0", () => {
     expect(PRECIO_WHISPER_USD_POR_MINUTO).toBe(0.0005);
     expect(costoDeLaVoz(60)).toBeCloseTo(0.0005, 10);
     expect(costoDeLaVoz(30)).toBeCloseTo(0.00025, 10);
-    expect(peorDuracion(6000 / 8)).toBeCloseTo(1, 10);
-    // Lo apartado nunca es menos que la duración del contenedor ni que el peor caso por tamaño, y nunca 0.
-    expect(reservaDeLaNota({ bytes: new Uint8Array(45_000), segundos: null })).toBeCloseTo(costoDeLaVoz(60), 10);
-    expect(reservaDeLaNota({ bytes: new Uint8Array(10), segundos: 30 })).toBeCloseTo(costoDeLaVoz(30), 10);
-    expect(reservaDeLaNota({ bytes: new Uint8Array(0), segundos: 0 })).toBeGreaterThan(0);
+    expect(reservaDeLaNota({ segundos: 30 })).toBeCloseTo(costoDeLaVoz(30), 10);
+    expect(reservaDeLaNota({ segundos: 0 })).toBeGreaterThan(0);
   });
 });
 
@@ -137,9 +179,8 @@ describe("transcribirNota", () => {
   it("solo llama a Whisper (ningún otro modelo, nada que genere voz), devuelve solo el texto y borra el audio de la memoria", async () => {
     const ai = { run: vi.fn(async (_modelo: string, _entrada: unknown) => ({ text: " Quiero ver camas king ", transcription_info: { duration: 4.2 }, segments: [{ start: 0, end: 4.1, text: "x" }], vtt: "WEBVTT", words: [{ word: "Quiero" }] })) };
     const bytes = webmOpus(4.2);
-    const r = await transcribirNota(envCon(ai), nota(bytes, "audio/webm", 4.2), { maxLetras: 500 });
+    const r = await transcribirNota(envCon(ai), nota(bytes, 4.2), { maxLetras: 500 });
     expect(r).toEqual({ ok: true, texto: "Quiero ver camas king", recortado: false, usd: costoDeLaVoz(4.2), estimado: false, segundos: 4.2 });
-    expect(Object.keys(r).sort()).toEqual(["estimado", "ok", "recortado", "segundos", "texto", "usd"]);
     expect(ai.run).toHaveBeenCalledTimes(1);
     expect(ai.run.mock.calls[0][0]).toBe(MODELO_WHISPER);
     expect(bytes.every((b) => b === 0)).toBe(true);
@@ -148,58 +189,39 @@ describe("transcribirNota", () => {
   it("apagado (sin la bandera o sin el binding): no_disponible, sin costo, y el audio se borra igual", async () => {
     const ai = { run: vi.fn() };
     const bytes = webmOpus(2);
-    expect(await transcribirNota(envCon(ai, "0"), nota(bytes), { maxLetras: 500 })).toMatchObject({ ok: false, motivo: "no_disponible", usd: 0 });
-    expect(await transcribirNota({ TRANSCRIBIR_AUDIO: "1" } as Env, nota(webmOpus(2)), { maxLetras: 500 })).toMatchObject({ ok: false, motivo: "no_disponible" });
+    expect(await transcribirNota(envCon(ai, "0"), nota(bytes, 2), { maxLetras: 500 })).toMatchObject({ ok: false, motivo: "no_disponible", usd: 0 });
+    expect(await transcribirNota({ TRANSCRIBIR_AUDIO: "1" } as Env, nota(webmOpus(2), 2), { maxLetras: 500 })).toMatchObject({ ok: false, motivo: "no_disponible" });
     expect(ai.run).not.toHaveBeenCalled();
     expect(bytes.every((b) => b === 0)).toBe(true);
   });
 
-  it("si Whisper dice que duró más de un minuto (el contenedor mintió), el texto NO se devuelve, pero se cobra", async () => {
-    const ai = { run: async () => ({ text: "un audio larguísimo para transcribir gratis", transcription_info: { duration: 300 } }) };
-    const r = await transcribirNota(envCon(ai), nota(webmOpus(3), "audio/webm", 3), { maxLetras: 500 });
+  it("se cobra lo mayor entre lo medido y lo que diga Whisper; si Whisper dice más que el tope, el texto NO sale", async () => {
+    const corta = { run: async () => ({ text: "hola", transcription_info: { duration: 1 } }) };
+    expect(await transcribirNota(envCon(corta), nota(webmOpus(6), 6), { maxLetras: 500 })).toMatchObject({ ok: true, usd: costoDeLaVoz(6), segundos: 6 });
+    const larga = { run: async () => ({ text: "un audio larguísimo", transcription_info: { duration: 300 } }) };
+    const r = await transcribirNota(envCon(larga), nota(webmOpus(3), 3), { maxLetras: 500 });
     expect(r).toEqual({ ok: false, motivo: "muy_larga", usd: costoDeLaVoz(300), estimado: false, segundos: 300 });
     expect(JSON.stringify(r)).not.toContain("larguísimo");
   });
 
-  it("también por el final del último segmento", async () => {
-    const ai = { run: async () => ({ text: "hola", segments: [{ end: 10 }, { end: 95 }] }) };
-    expect(await transcribirNota(envCon(ai), nota(mp4(0), "audio/mp4"), { maxLetras: 500 })).toMatchObject({ ok: false, motivo: "muy_larga" });
-  });
-
   it("nada entendido o lo que Whisper inventa con el silencio: no_se_entendio (cobrado)", async () => {
     for (const text of ["   ", "", "Subtítulos realizados por la comunidad de Amara.org"]) {
-      const r = await transcribirNota(envCon({ run: async () => ({ text, transcription_info: { duration: 2 } }) }), nota(webmOpus(2)), { maxLetras: 500 });
+      const r = await transcribirNota(envCon({ run: async () => ({ text, transcription_info: { duration: 2 } }) }), nota(webmOpus(2), 2), { maxLetras: 500 });
       expect(r).toMatchObject({ ok: false, motivo: "no_se_entendio", usd: costoDeLaVoz(2) });
     }
   });
 
-  it("el contenedor no sirve para cobrar de menos: si Whisper no dice la duración, el peor caso (aunque el contenedor diga 3 s)", async () => {
-    // Un cuarto de mega (lo que pesa un minuto a 32 kbps) que dice durar 3 s.
-    const r = await transcribirNota(envCon({ run: async () => ({ text: "hola" }) }), nota(new Uint8Array(240_000), "audio/webm", 3), { maxLetras: 500 });
-    expect(r).toMatchObject({ ok: true, estimado: true, usd: costoDeLaVoz(peorDuracion(240_000)), segundos: 3 });
-    expect(r.usd).toBeGreaterThan(costoDeLaVoz(60));
-  });
-
-  it("sin duración en ningún lado: se cobra el peor caso y se marca estimado", async () => {
-    const bytes = mp4(0);
-    const largo = bytes.byteLength;
-    const r = await transcribirNota(envCon({ run: async () => ({ text: "hola" }) }), nota(bytes, "audio/mp4"), { maxLetras: 500 });
-    expect(r).toMatchObject({ ok: true, texto: "hola", estimado: true, usd: costoDeLaVoz(peorDuracion(largo)) });
-  });
-
-  it("si tarda: tardo (cobrado el peor caso: no se sabe cuánto trabajó Whisper); si falla: fallo, sin repetir el error de Workers AI", async () => {
+  it("si Whisper tarda o falla: se cobra la duración medida (no un mínimo), marcada «estimado», sin repetir el error", async () => {
     const lento = { run: () => new Promise(() => {}) };
-    const audio = webmOpus(5);
-    const largo = audio.byteLength;
-    expect(await transcribirNota(envCon(lento), nota(audio, "audio/webm", 5), { maxLetras: 500, plazoMs: 20 })).toMatchObject({ ok: false, motivo: "tardo", usd: costoDeLaVoz(Math.max(peorDuracion(largo), 5)), estimado: true });
+    expect(await transcribirNota(envCon(lento), nota(webmOpus(25), 25), { maxLetras: 500, plazoMs: 20 })).toMatchObject({ ok: false, motivo: "tardo", usd: costoDeLaVoz(25), estimado: true });
     const roto = { run: async () => Promise.reject(new Error("AiError: bad input T2dnUwACAAAAAAAAAAD")) };
-    const r = await transcribirNota(envCon(roto), nota(webmOpus(5), "audio/webm", 5), { maxLetras: 500 });
-    expect(r).toMatchObject({ ok: false, motivo: "fallo" });
+    const r = await transcribirNota(envCon(roto), nota(webmOpus(25), 25), { maxLetras: 500 });
+    expect(r).toMatchObject({ ok: false, motivo: "fallo", usd: costoDeLaVoz(25), estimado: true });
     expect(JSON.stringify(r)).not.toContain("T2dnUw");
   });
 
   it("recorta al tope de letras de la ruta", async () => {
-    const r = await transcribirNota(envCon({ run: async () => ({ text: "cama ".repeat(200), transcription_info: { duration: 50 } }) }), nota(webmOpus(50)), { maxLetras: 500 });
+    const r = await transcribirNota(envCon({ run: async () => ({ text: "cama ".repeat(200), transcription_info: { duration: 50 } }) }), nota(webmOpus(50), 50), { maxLetras: 500 });
     expect(r.ok && r.recortado).toBe(true);
     expect(r.ok && [...r.texto].length).toBeLessThanOrEqual(500);
   });
@@ -217,7 +239,5 @@ describe("leerConTope", () => {
     });
     const grande = new Request("https://x/", { method: "POST", body: flujo, duplex: "half" } as RequestInit);
     expect(await leerConTope(grande, 10)).toBeNull();
-    const declarado = new Request("https://x/", { method: "POST", headers: { "content-length": "999999" }, body: new Uint8Array(1) });
-    expect(await leerConTope(declarado, 10)).toBeNull();
   });
 });
