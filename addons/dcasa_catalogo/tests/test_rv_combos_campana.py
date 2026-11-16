@@ -60,12 +60,14 @@ class TestRvCombosCampana(CombosCommon):
         self.assertEqual((cama.price_unit, colchon.price_unit), (400.0, COMBO_KING))
         rpc = cama.with_user(self.vendedora).with_context(**{SIN_RECALCULAR: True})
         rpc.write({'dcasa_combo_sin_campana': False})
-        # Arreglado, la marca no se borra y el tope mide la rebaja contra el precio del combo (400): 350 es un 12,5 %,
-        # más que su tope del 10 %, así que ni siquiera entra (más estricto que corregirlo después).
-        with self.assertRaises(ValidationError):
-            rpc.write({'price_unit': 350.0})
+        # Arreglado, la marca no se borra: el emparejamiento la vuelve a poner al medir el tope.
+        # (El tope mide la rebaja contra lo que la cama costaría suelta, 385: poner 350 a mano es un 9,1 % y entra en
+        # su tope del 10 %, como en cualquier otra línea. Lo que no puede hacer es sacarle la marca al combo.)
+        rpc.write({'price_unit': 350.0})
         self.assertEqual(colchon.price_unit, COMBO_KING)
-        self.assertEqual(cama.price_unit, 400.0, 'la cama del combo no toma la campaña')
+        self.assertTrue(cama.dcasa_combo_sin_campana, 'la cama sigue marcada como pieza del combo')
+        with self.assertRaises(ValidationError):
+            rpc.write({'price_unit': 300.0})   # un 22 %: muy por encima de su tope
 
     def test_rv_contexto_sin_recalcular_al_quitar_la_cama_el_colchon_conserva_el_combo(self):
         """Misma raíz (ya existía antes de esta rama): quitar la cama con ``dcasa_combo_sin_recalcular`` deja el

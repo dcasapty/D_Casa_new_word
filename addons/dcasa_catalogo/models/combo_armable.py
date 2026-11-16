@@ -1010,8 +1010,17 @@ class SaleOrderLine(models.Model):
         )
 
     def _dcasa_precio_autorizado(self):
-        """El precio en combo lo autorizó Gerencia: no cuenta como rebaja de la vendedora (sí lo que rebaje encima)."""
+        """El precio en combo lo autorizó Gerencia: no cuenta como rebaja de la vendedora (sí lo que rebaje encima).
+
+        Y entrar al combo nunca SUBE lo autorizado (revisión adversarial, 2026-11-16): si subiera, una cama rebajada
+        al máximo con su precio de campaña pasaría a estar rebajada el doble al armarle el combo, sin aviso ninguno,
+        porque las banderas del emparejamiento no vuelven a disparar la medición del tope. Se topa con lo que la
+        pieza pagaría suelta ese día."""
         autorizado = super()._dcasa_precio_autorizado()
+        if self.dcasa_combo_sin_campana:
+            con_campana, _sin = self._dcasa_precios_con_y_sin_campana()
+            if con_campana > 0:
+                autorizado = min(autorizado, self._dcasa_con_impuestos(con_campana))
         combo = self._dcasa_precio_combo()
         if combo is None:
             return autorizado
@@ -1025,9 +1034,17 @@ class SaleOrderLine(models.Model):
             linea.with_context(sale_write_from_compute=True)._reset_price_unit()
 
     def _dcasa_ahorro_unitario_combo(self):
-        """Precio normal menos precio en combo de una unidad, en la misma base que ``price_unit``."""
+        """Lo que de verdad ahorra una unidad en el combo, en la misma base que ``price_unit``.
+
+        Se mide contra lo que el cliente pagaría por esa pieza SUELTA ESE DÍA: si hay precio de campaña, ese; si no,
+        el normal. Antes se medía contra el precio sin campaña, así que durante una campaña el papel imprimía un
+        «precio normal» que ese día no se practicaba y un ahorro mayor que el real (regla de marca: no inventar
+        precios; revisión adversarial, 2026-11-16)."""
         self.ensure_one()
         normal = self.with_context(**_interno(sin_precio_combo=True))._get_display_price()
+        con_campana, _sin = self._dcasa_precios_con_y_sin_campana()
+        if con_campana > 0:
+            normal = min(normal, con_campana)
         combo = self._get_display_price()
         return max(self._dcasa_con_impuestos(normal) - self._dcasa_con_impuestos(combo), 0.0)
 

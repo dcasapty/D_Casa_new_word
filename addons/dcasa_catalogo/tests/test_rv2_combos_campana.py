@@ -189,7 +189,41 @@ class TestRv2CombosCampana(CombosCommon):
         self.assertEqual(self.linea(orden, otro).price_unit, 255.0, 'el que sí es combo se queda con la cama')
         self.assertEqual(self.linea(orden, self.cama_king).price_unit, 400.0, 'esa cama sí va sin campaña')
 
-    # --- 4. Las guardas de Gerencia no se saltan con el contexto ---------------------
+    # --- 4. Ni el papel ni el tope se inventan un precio ------------------------------
+
+    def test_el_ahorro_del_papel_se_mide_contra_lo_que_cuesta_suelto_ese_dia(self):
+        """Colchón de 300 normal, 260 en combo, y en campaña 280 (la campaña no le gana al combo, así que el combo se
+        queda). El papel NO puede decir «precio 300 · ahorras 40»: ese día suelto cuesta 280, así que el ahorro de
+        verdad son 20."""
+        self.colchon_king.product_tmpl_id.with_user(self.gerencia).write(
+            {'dcasa_black_weekend': True, 'dcasa_campana_precio': 230.0})   # la king queda en 280
+        orden = self.orden(productos=[self.cama_king, self.colchon_king])
+        colchon = self.linea(orden, self.colchon_king)
+        self.assertEqual(colchon.price_unit, COMBO_KING, 'el combo se queda')
+        self.assertEqual(colchon.dcasa_combo_ahorro_unitario, 20.0, '280 suelto menos 260 en combo')
+
+    def test_sin_campana_el_ahorro_del_papel_es_el_de_siempre(self):
+        self.cama_king.product_tmpl_id.with_user(self.gerencia).write(
+            {'dcasa_black_weekend': False, 'dcasa_campana_precio': False})
+        orden = self.orden(productos=[self.cama_king, self.colchon_king])
+        self.assertEqual(self.linea(orden, self.colchon_king).dcasa_combo_ahorro_unitario, 40.0)
+
+    def test_armar_el_combo_no_duplica_la_rebaja_que_ya_tenia_la_cama(self):
+        """La vendedora rebaja la cama sola hasta su tope (385 → 346.50, un 10 %) y DESPUÉS le arma el combo. Antes,
+        al entrar al combo lo autorizado subía de 385 a 400 y la rebaja pasaba a ser del 13,4 % sin que nadie midiera
+        nada. Ahora lo autorizado no sube por entrar al combo."""
+        orden = self.orden(productos=[self.cama_king])
+        cama = self.linea(orden, self.cama_king)
+        self.assertEqual(cama.price_unit, 385.0)
+        cama.with_user(self.vendedora).price_unit = 346.50
+        self.env['sale.order.line'].with_user(self.vendedora).create(
+            {'order_id': orden.id, 'product_id': self.colchon_king.id, 'product_uom_qty': 1})
+        cama = self.linea(orden, self.cama_king)
+        self.assertEqual(cama.price_unit, 346.50, 'el precio a mano se respeta')
+        self.assertLessEqual(cama._dcasa_precio_autorizado(), 385.0,
+                             'lo autorizado no sube por entrar al combo: la rebaja sigue siendo la misma')
+
+    # --- 5. Las guardas de Gerencia no se saltan con el contexto ---------------------
 
     def test_los_colchones_por_cama_no_se_ponen_con_un_default_del_contexto(self):
         Plantilla = self.env['product.template'].with_user(self.vendedora)

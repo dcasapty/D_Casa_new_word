@@ -505,7 +505,8 @@ class TestCombosYCampana(CombosCommon):
         cama, colchon = self.linea(orden, self.cama_king), self.linea(orden, self.colchon_king)
         self.assertEqual((cama.price_unit, colchon.price_unit), (400.0, COMBO_KING))
         self.assertTrue(cama.dcasa_combo_sin_campana and colchon.dcasa_combo_sin_campana)
-        self.assertEqual(colchon.dcasa_combo_ahorro, 40.0, 'el ahorro, contra el precio normal (no el de campaña)')
+        self.assertEqual(colchon.dcasa_combo_ahorro, 20.0,
+                         'el ahorro, contra lo que costaría suelto ESE DÍA (280 de campaña), no contra los 300')
         self.assertEqual(colchon.technical_price_unit, colchon.price_unit, 'no queda como «precio a mano»')
         self.assertEqual(cama.technical_price_unit, cama.price_unit)
         # Lo mismo armado desde el panel (la vendedora y Brian).
@@ -533,10 +534,18 @@ class TestCombosYCampana(CombosCommon):
         self.assertEqual((cama.price_unit, colchon.price_unit), (385.0, 250.0))
         self.assertFalse(cama.dcasa_combo_sin_campana or colchon.dcasa_combo_sin_campana)
 
-    def test_la_vendedora_no_le_pone_a_mano_el_precio_de_campana_a_la_cama_del_combo(self):
+    def test_el_tope_de_la_vendedora_se_mide_contra_lo_que_la_cama_costaria_suelta(self):
+        """El tope de la vendedora NO cambia porque la cama entre o salga de un combo (revisión adversarial,
+        2026-11-16): siempre se mide contra lo que esa pieza costaría suelta ese día (aquí, 385 de campaña), aunque
+        en el combo se cobre 400. Si el tope subiera al entrar al combo, una cama ya rebajada al máximo quedaría
+        rebajada el doble sin que nadie lo midiera."""
         orden = self.orden(productos=[self.cama_king, self.colchon_king])
+        cama = self.linea(orden, self.cama_king)
+        self.assertEqual(cama.price_unit, 400.0, 'en el combo se cobra 400')
+        cama.with_user(self.vendedora).price_unit = 350.0   # un 9,1 % sobre 385: entra en su tope del 10 %
+        self.assertEqual(cama.price_unit, 350.0)
         with self.assertRaisesRegex(ValidationError, 'puedes rebajar hasta 10'):
-            self.linea(orden, self.cama_king).with_user(self.vendedora).price_unit = 350.0
+            cama.with_user(self.vendedora).price_unit = 340.0   # un 11,7 %: ya no
 
     def test_sin_campana_de_por_medio_la_cama_conserva_su_precio_al_entrar_al_combo(self):
         orden = self.orden(productos=[self.cama_var_queen])
@@ -585,7 +594,7 @@ class TestCombosYCampana(CombosCommon):
         de_afuera = colchon.with_user(self.vendedora).with_context(
             dcasa_combo_sin_recalcular=True, dcasa_combo_sin_precio=True, dcasa_tarifa_sin_campana=True)
         de_afuera.write({'dcasa_combo_ahorro_unitario': 999.0, 'dcasa_combo_con_precio': False})
-        self.assertEqual((colchon.dcasa_combo_ahorro_unitario, colchon.dcasa_combo_con_precio), (40.0, True))
+        self.assertEqual((colchon.dcasa_combo_ahorro_unitario, colchon.dcasa_combo_con_precio), (20.0, True))
         sola = self.env['sale.order.line'].with_user(self.vendedora).with_context(dcasa_combo_sin_recalcular=True) \
             .create({'order_id': self.orden().id, 'product_id': self.cama_king.id, 'dcasa_combo_sin_campana': True})
         self.assertEqual((sola.price_unit, sola.dcasa_combo_sin_campana), (385.0, False))
