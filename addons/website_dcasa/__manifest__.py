@@ -55,6 +55,7 @@ Todo el contenido de las páginas es editable con el constructor de Odoo
         'views/layout_templates.xml',
         'views/resenas_templates.xml',
         'views/black_weekend_templates.xml',
+        'views/campana_views.xml',
         'views/homepage_templates.xml',
         'views/paginas_templates.xml',
         'views/legal_templates.xml',

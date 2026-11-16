@@ -209,8 +209,13 @@ LISTA_BLANCA = {
         'API del panel: check_access("write"), solo cotizaciones y líneas de esa cotización. ' + SIN_SUDO,
     ('dcasa_catalogo', 'sale.order', 'dcasa_combo_quitar'):
         'API del panel: check_access("write"), solo cotizaciones y líneas de esa cotización. ' + SIN_SUDO,
+    ('dcasa_catalogo', 'sale.order.line', 'create'):
+        OVERRIDE + ' Solo quita de lo que llega los campos que pone el emparejamiento (CAMPOS_DEL_SISTEMA); '
+        'sin sudo().',
     ('dcasa_catalogo', 'sale.order.line', 'write'):
-        OVERRIDE + ' Solo vuelve a emparejar camas y colchones (y su precio) de la misma venta; sin sudo().',
+        OVERRIDE + ' Solo vuelve a emparejar camas y colchones (y su precio) de la misma venta; los campos que pone el '
+        'emparejamiento no se guardan desde afuera; sin sudo() (salvo la copia de una línea de camas que se parte, ya '
+        'con el permiso de escribir la cotización y con valores del sistema).',
     ('dcasa_catalogo', 'sale.order.line', 'unlink'):
         OVERRIDE + ' Antes de quitar una cama, su colchón vuelve a su precio normal; sin sudo().',
     ('dcasa_catalogo', 'product.template', 'create'):
@@ -638,6 +643,47 @@ LISTA_BLANCA = {
         OVERRIDE + ' Comprueba check_access("unlink") antes de anular con sudo los puntos y la comisión de un borrador '
                    'que se borra, y solo después de que Odoo aceptó borrarlo.',
     ('website_dcasa', 'sale.order', 'action_quotation_sent'): OVERRIDE + ' Solo agrega la fecha del apartado.',
+    # Campaña del sitio (models/campana.py): el ACL de dcasa.campana es solo de Gerencia y administradores.
+    ('website_dcasa', 'dcasa.campana', 'action_abrir'):
+        'Abre la campaña del sitio actual; si falta, la crea como el usuario (ACL: Gerencia y administradores). '
+        + SIN_SUDO,
+    ('website_dcasa', 'dcasa.campana', 'action_productos'): ACCION_VENTANA,
+    ('website_dcasa', 'dcasa.campana', 'action_empezar_de_cero'):
+        'Botón: exige quien cambia precios (_exigir_precios) y el ACL antes de escribir los productos. ' + SIN_SUDO,
+    ('website_dcasa', 'dcasa.campana', 'create'):
+        OVERRIDE + ' El interruptor de los combos exige Gerencia o administrador (_exigir_gerencia); después pone al '
+        'día las reglas de campaña en sudo con los datos de la campaña, nunca con lo que llega.',
+    ('website_dcasa', 'dcasa.campana', 'write'):
+        OVERRIDE + ' El interruptor de los combos exige Gerencia o administrador (_exigir_gerencia); con fechas nuevas '
+        'pone al día las reglas en sudo con los datos de la campaña, nunca con lo que llega.',
+    ('website_dcasa', 'dcasa.campana', 'unlink'):
+        OVERRIDE + ' Después de borrar (ACL: solo administradores) quita en sudo las reglas que ya no tienen campaña.',
+    ('website_dcasa', 'dcasa.campana.descuento', 'action_aplicar'):
+        ASISTENTE + ' Además exige quien cambia precios (_exigir_precios) antes de escribir.',
+    ('website_dcasa', 'product.pricelist', 'create'):
+        OVERRIDE + ' Después, en sudo, deja de ofrecer al sitio la tarifa de respaldo si el sitio ya tiene una propia '
+        '(solo lee tarifas y sitios; nunca usa lo que llega).',
+    ('website_dcasa', 'product.pricelist', 'write'):
+        OVERRIDE + ' Después, en sudo, deja de ofrecer al sitio la tarifa de respaldo si el sitio ya tiene una propia '
+        '(solo lee tarifas y sitios; nunca usa lo que llega).',
+    ('website_dcasa', 'product.pricelist.item', 'write'):
+        OVERRIDE + ' Solo niega cambiar a mano una regla de la campaña (fuera de sudo).',
+    ('website_dcasa', 'product.pricelist.item', 'unlink'):
+        OVERRIDE + ' Solo niega borrar a mano una regla de la campaña (fuera de sudo).',
+    ('website_dcasa', 'product.template', 'create'):
+        OVERRIDE + ' Los campos de la campaña exigen quien cambia precios (_exigir_precios); después pone al día las '
+        'reglas en sudo con los datos de los productos y la campaña, nunca con lo que llega.',
+    ('website_dcasa', 'product.template', 'write'):
+        OVERRIDE + ' Los campos de la campaña exigen quien cambia precios (_exigir_precios); después pone al día las '
+        'reglas en sudo con los datos de los productos y la campaña, nunca con lo que llega.',
+    ('website_dcasa', 'sale.order', 'create'):
+        OVERRIDE + ' Solo deja con la hora actual la fecha de una cotización de quien no cambia precios.',
+    ('website_dcasa', 'sale.order', 'write'):
+        OVERRIDE + ' Solo niega cambiar la fecha de una cotización a quien no cambia precios.',
+    ('website_dcasa', 'sale.order.line', 'create'):
+        OVERRIDE + ' Pone la fecha del precio de la línea (I-B); la de quien no cambia precios es siempre la actual.',
+    ('website_dcasa', 'sale.order.line', 'write'):
+        OVERRIDE + ' Solo niega cambiar la fecha del precio de una línea a quien no cambia precios.',
     ('dcasa_socios', 'sale.order', 'action_confirm'):
         OVERRIDE + ' Comprueba check_access("write") antes de sellar premios con sudo.',
     ('dcasa_socios', 'sale.order', 'action_dcasa_cobrar_premio'): ACCION_VENTANA,
@@ -729,6 +775,11 @@ LISTA_BLANCA = {
     ('dcasa_tienda_borde', 'product.pricelist.item', 'create'): OVERRIDE + ' Marca «regenerar todo».',
     ('dcasa_tienda_borde', 'product.pricelist.item', 'write'): OVERRIDE + ' Marca «regenerar todo».',
     ('dcasa_tienda_borde', 'product.pricelist.item', 'unlink'): OVERRIDE + ' Marca «regenerar todo».',
+    ('dcasa_tienda_borde', 'dcasa.campana', 'create'):
+        OVERRIDE + ' Marca «regenerar todo» y programa la vigilancia de la campaña.',
+    ('dcasa_tienda_borde', 'dcasa.campana', 'write'):
+        OVERRIDE + ' Marca «regenerar todo» si cambia lo que sale en el sitio y programa la vigilancia.',
+    ('dcasa_tienda_borde', 'dcasa.campana', 'unlink'): OVERRIDE + ' Marca «regenerar todo».',
     # --- dcasa_brian ----------------------------------------------------------------------
     # El chat del panel: ACL de group_user + regla «cada quien sus conversaciones»; los
     # métodos validan dueño de la conversación y de la acción (B-04).

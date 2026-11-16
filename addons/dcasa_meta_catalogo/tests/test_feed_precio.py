@@ -89,6 +89,20 @@ class TestFeedPrecio(MetaComun, HttpCase):
         # Sin descuento, la cama no lleva sale_price.
         self.assertEqual(self._filas_por_ruta()[str(self.king.id)]['sale_price'], '')
 
+    def test_la_tarifa_del_sitio_manda_sobre_la_general_de_respaldo(self):
+        """Como en producción: la general quedó ofrecida al sitio de respaldo (website_dcasa,
+        ``_dcasa_tarifa_del_sitio``). Si después se crea una tarifa para la tienda en línea, el visitante (y el
+        catálogo) ven la de la tienda, no la general."""
+        self.env.ref('base.group_user').write({
+            'implied_ids': [Command.link(self.env.ref('product.group_product_pricelist').id)]})
+        Tarifa = self.env['product.pricelist']
+        Tarifa.search(Tarifa._get_website_pricelists_domain(self.website)).write({'selectable': False, 'code': False})
+        self.env['dcasa.campana']._dcasa_tarifa_del_sitio()
+        respaldo = Tarifa.search([('dcasa_respaldo_del_sitio', '=', True)])
+        self.assertTrue(respaldo.selectable)
+        self.test_descuento_de_la_tarifa_sale_como_sale_price()
+        self.assertFalse(respaldo.selectable, 'la general deja de ofrecerse sola')
+
     def _igual_que_la_ficha(self, **valores_tarifa):
         """Con otra tarifa (la que sea que Odoo le dé al visitante), el catálogo dice lo mismo que la ficha."""
         self.env.user.group_ids += self.env.ref('product.group_product_pricelist')

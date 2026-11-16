@@ -202,9 +202,10 @@ export function afirmaCarrito(oracion: string): boolean {
   return AFIRMA_CARRITO.some((r) => r.test(t));
 }
 
-/** «Hola, soy Brian…» al empezar: la página ya lo presentó (contrato, «Voz»). Se quita esa primera frase. */
+/** «Hola, soy Andrés…» al empezar: la página ya lo presentó (contrato, «Voz»). Se quita esa primera frase. También
+ * «soy Brian», el nombre que tuvo hasta el 2026-11-15 (Brian es ahora solo el asistente del panel). */
 export function sinPresentacion(textoDelModelo: string): string {
-  return textoDelModelo.replace(/^\s*(?:¡\s*)?(?:hola|buenas|buenos dias|buenas tardes|buenas noches)[\s,!.¡]*(?:,\s*)?soy brian\b[^.!?\n]*[.!?]?\s*/i, "").trim();
+  return textoDelModelo.replace(/^\s*(?:¡\s*)?(?:hola|buenas|buenos dias|buenas tardes|buenas noches)[\s,!.¡]*(?:,\s*)?soy (?:andr[eé]s|brian)\b[^.!?\n]*[.!?]?\s*/i, "").trim();
 }
 
 /** Una opción o un chip: corto, de una línea, sin enlaces. */

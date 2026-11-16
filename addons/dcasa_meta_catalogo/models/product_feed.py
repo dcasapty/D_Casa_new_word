@@ -43,6 +43,7 @@ from odoo.http import request
 from odoo.tools import split_every
 
 from . import reglas_meta as R
+from .tarifa_lote import REGLAS_DEL_LOTE, ReglasDelLote
 
 _logger = logging.getLogger(__name__)
 
@@ -296,6 +297,9 @@ class ProductFeed(models.Model):
         filas = []
         with feed._dcasa_meta_visitante() as sitio:
             variantes = reparto['incluidos'].with_env(sitio.env).with_context(lang=feed.lang_id.code)
+            if request.pricelist and variantes:
+                # Las reglas de la tarifa, una sola búsqueda para todo el catálogo (tarifa_lote.py).
+                variantes = variantes.with_context(**{REGLAS_DEL_LOTE: ReglasDelLote(request.pricelist, variantes)})
             for lote in split_every(LOTE, variantes.ids, variantes.browse):
                 for variante in lote:
                     fila = feed._dcasa_meta_fila(variante, sitio, hoy, base, idioma, reparto['fotos'][variante.id])
@@ -396,6 +400,10 @@ class ProductFeed(models.Model):
             [(cuantos, ultima)] = self.env[modelo].sudo().with_context(active_test=False)._read_group(
                 dominio, [], ['__count', 'write_date:max'])
             partes.append(f'{modelo}:{cuantos}:{ultima}')
+        # Lo que rige de la campaña del sitio (website_dcasa): sus reglas existen desde que se programa, así que al
+        # empezar o terminar no cambia nada de lo anterior y el archivo tiene que volver a armarse igual.
+        if 'dcasa.campana' in self.env:
+            partes.append('campana:' + self.env['dcasa.campana']._dcasa_campana_firma())
         return '|'.join(partes)
 
     def _dcasa_meta_guardado(self):

@@ -54,7 +54,8 @@ describe("el prompt de Brian de la tienda", () => {
   });
 
   it("es Brian (no Juan), no se vuelve a presentar, reusa las reglas de Juan y nombra solo la lista blanca", () => {
-    expect(p).toContain("Eres Brian");
+    expect(p).toContain("Eres Andrés");
+    expect(p).not.toContain("Brian");
     expect(p).not.toMatch(/Eres Juan|soy Juan/);
     expect(p).toContain(`«${SALUDO_DE_LA_PAGINA}»: NO te vuelvas a presentar`);
     expect(p).toContain("+ ITBMS");
@@ -124,9 +125,11 @@ describe("lo que se decide sin la IA", () => {
   });
 
   it("la presentación que ya hizo la página se quita", () => {
+    expect(sinPresentacion("Hola, soy Andrés. ¿Qué buscas hoy?")).toBe("¿Qué buscas hoy?");
+    expect(sinPresentacion("Hola, soy Andres. Te ayudo.")).toBe("Te ayudo.");
     expect(sinPresentacion("Hola, soy Brian. ¿Qué buscas hoy?")).toBe("¿Qué buscas hoy?");
-    expect(sinPresentacion("¡Hola! Soy Brian, de D'CASA. Te ayudo.")).toBe("Te ayudo.");
-    expect(sinPresentacion("Soy Brian, el asistente virtual de D'CASA.")).toBe("Soy Brian, el asistente virtual de D'CASA.");
+    expect(sinPresentacion("¡Hola! Soy Andrés, de D'CASA. Te ayudo.")).toBe("Te ayudo.");
+    expect(sinPresentacion("Soy Andrés, el asistente virtual de D'CASA.")).toBe("Soy Andrés, el asistente virtual de D'CASA.");
   });
 
   it("el mensaje de WhatsApp: lo del carrito (o lo último que vio), sin enlaces ni etiquetas", () => {

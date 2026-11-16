@@ -12,4 +12,17 @@
         <field name="nextcall" eval="(DateTime.now() + relativedelta(days=1)).replace(hour=7, minute=0, second=0).strftime('%Y-%m-%d %H:%M:%S')"/>
         <field name="active" eval="True"/>
     </record>
+
+    <!-- Cada hora: si cambiaron los precios de campaña que rigen (empieza o termina la campaña, o Gerencia cambió un
+         precio o las fechas), los carritos abiertos de la tienda se ponen al día (models/campana.py). Nunca un
+         apartado ni un pedido confirmado. -->
+    <record id="ir_cron_dcasa_campana_carritos" model="ir.cron">
+        <field name="name">D'CASA: carritos al día con la campaña del sitio</field>
+        <field name="model_id" ref="model_dcasa_campana"/>
+        <field name="state">code</field>
+        <field name="code">model._dcasa_campana_carritos_al_dia()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">hours</field>
+        <field name="active" eval="True"/>
+    </record>
 </odoo>

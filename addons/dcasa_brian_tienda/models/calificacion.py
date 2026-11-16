@@ -10,7 +10,7 @@ from odoo import api, fields, models
 
 class DcasaBrianTiendaCalificacion(models.Model):
     _name = 'dcasa.brian.tienda.calificacion'
-    _description = 'Brian de la tienda: calificaciones (estrellas y fecha)'
+    _description = 'Andrés (chat de la tienda): calificaciones (estrellas y fecha)'
     _order = 'fecha desc, id desc'
     _log_access = False
     _rec_name = 'fecha'

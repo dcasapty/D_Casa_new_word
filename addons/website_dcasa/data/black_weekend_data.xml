@@ -7,4 +7,8 @@
          (DCASA_BLACK_WEEKEND*) y lo que se cambie en Ajustes > Técnico > Parámetros del sistema
          no se pisa al actualizar. -->
     <function model="website" name="_dcasa_bw_parametros_por_defecto"/>
+
+    <!-- Campaña del sitio (models/campana.py): la tarifa del visitante, ofrecida al sitio para que la página muestre
+         el mismo precio que cobra el carrito (incluido el de campaña). Idempotente: corre en cada actualización. -->
+    <function model="dcasa.campana" name="_dcasa_tarifa_del_sitio"/>
 </odoo>

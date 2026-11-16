@@ -367,7 +367,7 @@ const QUE_ESTUVO_MAL: Record<TipoProblema, string> = {
   fuga: "información interna",
   secreto: "un dato que el cliente dio en confianza",
   manda_a_leer: "mandar al cliente a leer políticas o términos",
-  se_hace_pasar_por_persona: "decir que eres una persona o que no eres un bot (eres Brian, el asistente virtual de D'CASA)",
+  se_hace_pasar_por_persona: "decir que eres una persona o que no eres un bot (eres Andrés, el asistente virtual de D'CASA)",
   palabra_prohibida: "una palabra que la marca no usa",
   niega_producto: "decir que no manejamos algo que sí se trabaja aunque no esté en la tienda en línea (di que sí y ofrece WhatsApp)",
 };

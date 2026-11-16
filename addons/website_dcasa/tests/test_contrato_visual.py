@@ -246,7 +246,7 @@ class TestContratoVisual(HttpCase):
             'public_categ_ids': [(6, 0, recamaras.ids)], 'dcasa_black_weekend': True,
         })
         cls.paginas = {'portada': '/', 'tienda': '/shop', 'ficha': cls.producto.website_url,
-                       'socios': '/socios', 'black-weekend': '/black-weekend'}
+                       'socios': '/socios', 'black-weekend': '/promociones'}
 
     # ------------------------------------------------------------------ Chrome
     @contextlib.contextmanager
@@ -293,6 +293,11 @@ class TestContratoVisual(HttpCase):
         medido = {}
         for ancho, alto in VENTANAS:
             for nombre, ruta in self.paginas.items():
+                # La campaña encendida solo para su página: con campaña, el menú suma «Promociones» en todas, y el
+                # contrato de las demás es la cabecera de todos los días (campaña del sitio, 2026-11-15).
+                encendida = '1' if nombre == 'black-weekend' else '0'
+                self.env['ir.config_parameter'].sudo().set_param(PARAM_ACTIVO, encendida)
+                self.env.flush_all()
                 with self._chrome(ancho, alto) as browser:
                     browser.navigate_to(self.base_url() + ruta, wait_stop=True)
                     self.assertTrue(browser._wait_ready(), f'{ruta} no terminó de cargar')
