@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Env } from "../src/env";
-import { transcriptorDe } from "../src/motor/transcribir";
+import { MODELO_WHISPER, transcriptorDe, whisperDe } from "../src/motor/transcribir";
 
 const AUDIO = new Uint8Array([79, 103, 103, 83, 0, 2, 0, 0]);
 
@@ -39,5 +39,16 @@ describe("transcriptorDe (notas de voz)", () => {
     expect(await t(new Uint8Array(0), "audio/ogg")).toBeNull();
     expect(await t(new Uint8Array(9 * 1024 * 1024), "audio/ogg")).toBeNull();
     expect(ai.run).not.toHaveBeenCalled();
+  });
+
+  it("whisperDe: el texto y la duración (de transcription_info o del último segmento), nada más; apagado igual que el transcriptor", async () => {
+    expect(whisperDe(envCon({ AI: { run: vi.fn() } }))).toBeUndefined();
+    const ai = { run: vi.fn(async (_modelo: string, _entrada: unknown) => ({ text: " hola ", transcription_info: { duration: 3.5 }, segments: [{ end: 3.4 }], vtt: "WEBVTT", words: [] })) };
+    expect(await whisperDe(envCon({ AI: ai, TRANSCRIBIR_AUDIO: "1" }))!(AUDIO)).toEqual({ texto: "hola", segundos: 3.5 });
+    expect(ai.run.mock.calls[0][0]).toBe(MODELO_WHISPER);
+    const soloSegmentos = { run: async () => ({ text: "x", segments: [{ end: 2 }, { end: 7.25 }] }) };
+    expect(await whisperDe(envCon({ AI: soloSegmentos, TRANSCRIBIR_AUDIO: "1" }))!(AUDIO)).toEqual({ texto: "x", segundos: 7.25 });
+    const sinNada = { run: async () => ({ text: 42 }) };
+    expect(await whisperDe(envCon({ AI: sinNada, TRANSCRIBIR_AUDIO: "1" }))!(AUDIO)).toEqual({ texto: null, segundos: null });
   });
 });
