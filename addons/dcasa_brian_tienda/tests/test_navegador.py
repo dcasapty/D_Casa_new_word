@@ -669,10 +669,16 @@ SIGUE_EN_OTRA_PAGINA_2 = """(async () => {
 @tagged('post_install', '-at_install')
 class TestCarritoEnLaBarra(NavegadorCase):
 
+    def setUp(self):
+        super().setUp()
+        # Los ids se leen ANTES de abrir el navegador: con la página abierta, sus pedidos (las fotos, el pase) usan el
+        # mismo cursor de la prueba y leer el ORM a la vez daba, a veces, una variante vacía (2026-11-16).
+        self.ids = (self.colchon.id, self.colchon.product_variant_id.id)
+
     def _js(self, codigo):
-        variante = self.colchon.product_variant_id
+        plantilla, variante = self.ids
         return (codigo.replace('/*ESPERAR*/', ESPERAR).replace('/*BARRA*/', BARRA)
-                .replace('TMPL', str(self.colchon.id)).replace('PROD', str(variante.id)))
+                .replace('TMPL', str(plantilla)).replace('PROD', str(variante)))
 
     def test_whatsapp_o_el_carrito_con_su_cantidad_al_dia_con_la_pagina(self):
         with self.chrome(1366, 768, movil=False) as browser:
