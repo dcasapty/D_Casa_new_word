@@ -213,7 +213,13 @@ class TestCampanaPrecios(_Base, TransactionCase):
             'order_line': [Command.create({'product_id': self.cama.product_variant_id.id})]})
         with self.assertRaises(AccessError):
             orden.with_user(vendedora).write({'date_order': datetime(2026, 11, 28, 15, 0)})
+        with self.assertRaises(AccessError):
+            orden.with_user(vendedora).write({'date_order': datetime(2026, 11, 28, 15, 0), 'state': 'draft'})
         orden.write({'date_order': datetime(2026, 11, 28, 15, 0)})   # el sistema (y Gerencia), sí
+        # Al crearla tampoco: nace con la hora actual.
+        nueva = self.env['sale.order'].with_user(vendedora).create({
+            'partner_id': cliente.id, 'user_id': vendedora.id, 'date_order': datetime(2026, 11, 28, 15, 0)})
+        self.assertEqual(nueva.date_order.date(), date(2026, 11, 20), 'la fecha de hoy, no la que mandó')
 
     def test_un_combo_no_lleva_precio_de_campana(self):
         variante = self.cama.product_variant_id

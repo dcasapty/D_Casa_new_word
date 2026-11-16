@@ -396,6 +396,10 @@ class ProductFeed(models.Model):
             [(cuantos, ultima)] = self.env[modelo].sudo().with_context(active_test=False)._read_group(
                 dominio, [], ['__count', 'write_date:max'])
             partes.append(f'{modelo}:{cuantos}:{ultima}')
+        # Lo que rige de la campaña del sitio (website_dcasa): sus reglas existen desde que se programa, así que al
+        # empezar o terminar no cambia nada de lo anterior y el archivo tiene que volver a armarse igual.
+        if 'dcasa.campana' in self.env:
+            partes.append('campana:' + self.env['dcasa.campana']._dcasa_campana_firma())
         return '|'.join(partes)
 
     def _dcasa_meta_guardado(self):

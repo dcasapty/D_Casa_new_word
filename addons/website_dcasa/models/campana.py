@@ -476,10 +476,22 @@ class DcasaCampanaDescuento(models.TransientModel):
 class SaleOrder(models.Model):
     _inherit = 'sale.order'
 
+    @api.model_create_multi
+    def create(self, vals_list):
+        # Una cotización nueva nace con la hora actual: quien no cambia precios no la fecha dentro de una campaña (el
+        # formulario manda la hora en que se abrió, por eso la tolerancia).
+        if not self.env.su and not _puede_cambiar_precios(self.env):
+            ahora = fields.Datetime.now()
+            for vals in vals_list:
+                fecha = fields.Datetime.to_datetime(vals.get('date_order')) if vals.get('date_order') else None
+                if fecha and abs(fecha - ahora) > timedelta(hours=1):
+                    vals['date_order'] = ahora
+        return super().create(vals_list)
+
     def write(self, vals):
         # La fecha de una cotización define su precio autorizado (dcasa_base) y la regla de campaña que toma: solo la
-        # cambia quien cambia precios. Confirmar (que también la escribe) y el sistema, sí.
-        if ('date_order' in vals and 'state' not in vals and not self.env.su
+        # cambia quien cambia precios. Confirmar (que también la escribe, con state='sale') y el sistema, sí.
+        if ('date_order' in vals and vals.get('state') != 'sale' and not self.env.su
                 and not _puede_cambiar_precios(self.env)
                 and any(orden.state in ('draft', 'sent') for orden in self)):
             raise AccessError(self.env._('Solo Gerencia cambia la fecha de una cotización (de ella sale su precio).'))
