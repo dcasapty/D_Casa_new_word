@@ -471,9 +471,12 @@ la tienda» se queda: Andrés **ofrece**, la página le pide a Odoo y el total l
   dijo que sí en ese mensaje; si no, se le pregunta. La página llama a Odoo (`POST /dcasa/brian/v1/carrito/envio`
   `{lugar_id}`: solo el lugar, nunca un precio) y confirma con `confirmar_envio`; con `ok`, el texto es fijo y sin cifras:
   «Listo, te lo sumé: el total lo ves en tu carrito y en la cotización.»; con error, un texto fijo por motivo (con WhatsApp
-  salvo que falte el carrito). Con el carrito vacío: «primero pon en el carrito lo que te gustó». Ya sumado: lo dice y
-  muestra el carrito. El contexto le dice al modelo «El envío a X ya está sumado…» y la guardia quita «te lo sumé», «ya está
-  incluido» y «te lo quité» del modelo.
+  salvo que falte el carrito; con `ajeno`, que una vendedora se lo confirma, sin «inténtalo otra vez»). Con el carrito
+  vacío: «primero pon en el carrito lo que te gustó». Ya sumado: lo dice y
+  muestra el carrito. El contexto le dice al modelo «El envío a X ya está sumado…» y la guardia quita del modelo toda
+  confirmación de algo que no hizo Odoo («te lo sumé», «ya agregué / incluí el envío», «el envío ya está en tu
+  cotización», «cambié la cantidad», «te lo quité», «retiré…»); lo que va en una pregunta («¿Quieres que te lo quite
+  del carrito?») o en subjuntivo no se toca, ni lo que se dice del ITBMS.
 - **A3. La reacción al quitar o vaciar.** `carrito_bajo` (lo manda la página con el chat abierto) se contesta **una vez por
   sesión** (`reaccion_carrito`), sin la IA, con el nombre de la herramienta si el producto se vio (si no, el de la página,
   limpio y sin corchetes): «Vi que quitaste X. ¿Te busco una opción más económica o una con más prestaciones?» (o «vaciaste

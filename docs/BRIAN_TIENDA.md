@@ -105,9 +105,22 @@ navegador ──(3) /dcasa/brian/v1/carrito/* (sesión, CSRF) ──────
     «te cotizamos por WhatsApp» es $0. Mientras el transportista sea ese, las líneas que puso el sistema conservan su
     precio (una marca de contexto que es un objeto: por RPC nunca llega). Si la compra deja de cumplir la promoción, la
     quita dcasa_envios con una nota; si pasa a cumplirla, se suma. Sin productos que entregar, el envío sale.
-  - **Al pagar** (`/shop/checkout`, `/shop/payment`), elegir la entrega vuelve a poner la de Odoo («te cotizamos por
-    WhatsApp», $0), como hasta hoy: el envío sumado vale para el carrito del chat y la cotización en PDF. **Pregunta
-    abierta a la dueña:** ¿quiere que el pago respete el envío sumado? No se cambió sin su «sí».
+  - **Solo mientras valgan las reglas con que se sumó** (revisión adversarial, 2026-11-16): si Gerencia apaga «Juan
+    cotiza envíos», la tarifa vuelve a revisión o el lugar se archiva o queda sin precio, el envío sumado sale en el
+    siguiente cambio del carrito, al pedir el carrito (`GET /carrito`) o al armar el PDF, y vuelve la entrega de Odoo.
+  - **Al pagar**, la tienda de Odoo decide la entrega como hasta hoy y el envío sumado vale para el carrito del chat y
+    la cotización en PDF:
+    - `/shop/payment` siempre vuelve a poner la entrega del transportista («te cotizamos por WhatsApp», $0).
+    - `/shop/checkout` solo la rehace si el monto del envío no es el precio del transportista ($0): con un envío que
+      cuesta, vuelve «te cotizamos»; con el envío gratis por la promoción (monto $0) el envío sumado sigue en esa
+      página, con su promoción, hasta `/shop/payment`.
+    - Si el visitante vuelve al chat, la línea de «te cotizamos» en $0 que puso la tienda se cambia por el envío al
+      volver a sumarlo (como la de «Retiro en tienda»); un envío con precio que puso una persona no se toca (`ajeno`,
+      y Andrés dice que una vendedora se lo confirma por WhatsApp).
+    - **Pregunta abierta a la dueña:** ¿quiere que el pago respete el envío sumado? No se cambió sin su «sí».
+  - **Los premios de Socios no cuentan el envío** (`dcasa_socios`, `_dcasa_total_sin_premios`): un premio de puntos
+    solo cabe en lo que valen los productos, como antes de que el chat sumara envíos; y si al elegir la entrega el
+    total quedara negativo, el premio sale y los puntos vuelven.
   - El PDF trae las líneas del envío debajo de los productos y lo dice al pie.
 - **Las estrellas**: `POST /calificar` `{estrellas}`, solo si esa sesión recibió un pase y una vez por `sid`
   (`dcasa.brian.tienda.calificacion`: número y fecha; la ven Gerencia y administradores; nadie la escribe por la
@@ -260,6 +273,9 @@ sección «notas de voz»; estilos en `brian_tienda.scss`):
 - `test_envio_carrito.py` (A2): la línea de dcasa_envios con su promoción y los números de Odoo, que el navegador no
   mande el precio, otro lugar y el mismo, que cambiar el carrito (desde el chat o como la tienda) no lo vuelva $0 y la
   promoción siga a la compra, el PDF, lo que no se suma, otro visitante y los topes.
+- `test_revision_vendedor.py` (revisión adversarial de A2): el premio de puntos no se paga con el envío, sumar el
+  envío después de pasar por el pago, lo que hace el pago con el envío sumado, apagar los envíos (o la tarifa en
+  revisión, o el lugar archivado) y `ajeno`.
 - `test_ajustes.py`: permisos, lo que llega al Worker, el renglón de Costos de IA, la Guía, la burbuja en lugar de la de
   WhatsApp, la página igual para todos, el editor del sitio (la trampa del error 500) y la privacidad.
 - `test_navegador.py` (Chrome): el chat de punta a punta a 390 y 1366 px con el Worker simulado; las notas de voz

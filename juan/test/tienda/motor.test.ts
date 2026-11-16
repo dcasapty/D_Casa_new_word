@@ -1227,3 +1227,28 @@ describe("A1 y A5. La cotización a mano y la vitrina ordenada por lo pedido", (
     expect(tituloDelGrupo([{ categorias: [] }])).toBeNull();
   });
 });
+
+// ── Revisión adversarial (2026-11-16) ──────────────────────────────────────────────────────────────────────
+describe("rv: el modelo no puede afirmar que sumó el envío o cambió el carrito sin que Odoo lo confirme", () => {
+  it("«agrégale el envío a mi cotización» sin envío calculado: «Listo, ya agregué el envío…» no llega al visitante", async () => {
+    const m = montar({ pasos: [responder({ texto: "Listo, ya agregué el envío a tu cotización. ¿Algo más?", sumar_envio: true })] });
+    const r = ok(await m.pedir({ texto: "agrégale el envío a mi cotización", carrito: UN_COLCHON }));
+    expect(bloquesDe(r, "sumar_envio")).toEqual([]);
+    expect(textos(r).join(" ")).not.toMatch(/agregu[eé] el env[ií]o/i);
+  });
+  it("«déjame solo uno» con un producto que no está en el carrito: «Listo, cambié la cantidad a 1» no llega", async () => {
+    const m = montar({ pasos: [responder({ texto: "Listo, cambié la cantidad a 1. ¿Te muestro algo más?", cambiar_carrito: { producto: 999, cantidad: 1 } })] });
+    const r = ok(await m.pedir({ texto: "déjame solo uno", carrito: DOS_COLCHONES }));
+    expect(bloquesDe(r, "proponer_cambio_carrito")).toEqual([]);
+    expect(textos(r).join(" ")).not.toMatch(/cambi[eé] la cantidad/i);
+  });
+  it("«ajeno» (el carrito ya tiene un envío que no puso el chat): un texto propio, sin «inténtalo otra vez», con WhatsApp", async () => {
+    const m = montar({ pasos: [cotizar(), responder({ texto: "Ese es el envío." })] });
+    ok(await m.pedir({ texto: "¿cuánto cuesta el envío a Villa Lucre?", carrito: UN_COLCHON }));
+    ok(await m.pedir({ texto: "súmalo", carrito: UN_COLCHON }));
+    const r = ok(await m.pedir({ accion: { tipo: "confirmar_envio", lugar_id: 77, resultado: "error", motivo: "ajeno" }, carrito: UN_COLCHON }));
+    expect(textos(r)).toEqual(["Tu carrito ya tiene un envío que no puedo cambiar desde aquí: una vendedora te lo confirma por WhatsApp."]);
+    expect(textos(r).join(" ")).not.toMatch(/int[eé]ntalo/i);
+    expect(bloquesDe(r, "whatsapp")).toHaveLength(1);
+  });
+});

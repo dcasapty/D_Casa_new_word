@@ -247,15 +247,28 @@ const AFIRMA_CARRITO = [
   /\b(?:agregad[oa]s?|a[nñ]adid[oa]s?|puest[oa]s?) (?:a|al|en) (?:el |tu )?carrito\b/,
   /\bi (?:added|put) (?:it|them)\b/,
   /\b(?:added|is now) (?:to|in) your cart\b/,
-  // Quitar del carrito o sumar el envío (A2, A4): tampoco lo hace el modelo; lo confirma Odoo y lo dice el Worker.
-  /\b(?:te |ya )?(?:lo|la|los|las) (?:quite|saque|sume|borre|elimine)\b/,
-  /\b(?:quite|saque|borre|elimine) (?:\S+ ){0,6}del carrito\b/,
-  /\b(?:te |ya )?sume (?:\S+ ){0,3}(?:envio|flete)\b/,
-  /\b(?:ya )?(?:esta|quedo|queda) (?:sumado|incluido) (?:\S+ ){0,3}(?:cotizacion|carrito)\b/,
+  // Quitar del carrito, cambiar la cantidad o sumar el envío (A2, A4): tampoco lo hace el modelo; lo confirma Odoo y lo dice
+  // el Worker (revisión adversarial, 2026-11-16: «agregué / incluí / cambié / retiré», «el envío ya está en tu cotización»).
+  /\b(?:te |ya )?(?:lo|la|los|las) (?:quite|saque|sume|borre|elimine|retire)\b/,
+  /\b(?:quite|saque|borre|elimine|retire) (?:\S+ ){0,6}del carrito\b/,
+  /\b(?:deje|cambie) (?:\S+ ){0,6}(?:en|del) (?:el |tu )?carrito\b/,
+  /\b(?:sume|agregue|a[nñ]adi|inclui|puse|meti) (?:\S+ ){0,3}(?:envio|flete)\b/,
+  /\b(?:cambie|actualice|ajuste|deje|baje|subi) (?:\S+ ){0,3}(?:cantidad|cantidades)\b/,
+  /\b(?:envio|flete)\b(?: \S+){0,3} (?:esta|estan|quedo|queda) (?:sumad[oa]|incluid[oa]|agregad[oa]|puest[oa]|en (?:tu|la) (?:cotizacion|carrito))\b/,
+  /\bya (?:lo|la|los|las) tienes (?:sumad[oa]s?|incluid[oa]s?|agregad[oa]s?|en (?:tu|la) cotizacion)\b/,
 ];
 
+/**
+ * ¿Esta oración dice que algo YA se hizo en el carrito o en la cotización? Lo que se pregunta no se afirma: se mira solo lo que va
+ * antes del «¿» (así «Ya te lo puse en el carrito, ¿algo más?» sí cuenta), una oración sin «¿» que termina en «?» es una pregunta,
+ * y una cláusula en subjuntivo («¿Quieres que te lo quite…?», «que la saque») no es una confirmación.
+ */
 export function afirmaCarrito(oracion: string): boolean {
-  const t = sinAcentos(oracion.toLowerCase());
+  let t = sinAcentos(oracion.toLowerCase()).trim();
+  const pregunta = t.indexOf("¿");
+  if (pregunta >= 0) t = t.slice(0, pregunta);
+  else if (/\?\s*$/.test(t)) return false;
+  t = t.replace(/\bque (?:te |me |se )?(?:lo|la|los|las) \S+/g, "que");
   return AFIRMA_CARRITO.some((r) => r.test(t));
 }
 

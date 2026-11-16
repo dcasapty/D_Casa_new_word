@@ -5,3 +5,4 @@ from . import test_navegador
 from . import test_revision_adversarial
 from . import test_sugerencias
 from . import test_envio_carrito
+from . import test_revision_vendedor
