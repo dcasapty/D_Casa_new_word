@@ -222,6 +222,52 @@ class TestVozBrianHttp(HttpCase):
         self.authenticate('voz_http_interno', 'voz_http_interno')
         self.assertIn(self.url_open('/dcasa/brian/v1/voz').status_code, (404, 405))
 
+    def test_si_el_panel_se_cierra_mientras_pide_permiso_el_microfono_no_queda_encendido(self):
+        """Revisión adversarial (2026-11-16): si la pantalla se cerraba mientras el navegador pedía el permiso del
+        micrófono, el flujo llegaba DESPUÉS de cancelar y se quedaba grabando para siempre, con la lucecita del
+        micrófono encendida y sin nadie que la apagara."""
+        self.env['ir.config_parameter'].sudo().set_param('dcasa_brian.proveedor', 'prueba')
+        codigo = ESPERAR + """
+(async () => {
+    // El permiso tarda: así da tiempo a cerrar el panel antes de que llegue el micrófono.
+    let pistasApagadas = 0;
+    let entregado = false;
+    navigator.mediaDevices.getUserMedia = async () => {
+        await new Promise((ok) => setTimeout(ok, 1200));
+        const ctx = new AudioContext();
+        const tono = ctx.createOscillator();
+        const destino = ctx.createMediaStreamDestination();
+        tono.connect(destino);
+        tono.start();
+        destino.stream.getTracks().forEach((p) => {
+            const parar = p.stop.bind(p);
+            p.stop = () => { pistasApagadas++; parar(); };
+        });
+        entregado = true;
+        return destino.stream;
+    };
+    await esperar(() => document.querySelector(".o_brian_lanzador"), "el botón flotante");
+    document.querySelector(".o_brian_lanzador").click();
+    const panel = await esperar(() => document.querySelector(".o_brian_panel.o_brian_visible"), "el panel");
+    const mic = await esperar(() => panel.querySelector(".o_brian_microfono"), "el botón del micrófono");
+    mic.click();
+    // Se cierra la pantalla ANTES de que el navegador entregue el micrófono.
+    if (entregado) { throw new Error("Brian: el permiso llegó demasiado rápido para esta prueba"); }
+    panel.querySelector(".o_brian_cerrar").click();
+    await esperar(() => !document.querySelector(".o_brian_panel.o_brian_visible"), "el panel cerrado");
+    await esperar(() => entregado, "el micrófono entregado por el navegador", 8000);
+    await esperar(() => pistasApagadas > 0, "el micrófono apagado al llegar tarde");
+    if (document.querySelector(".o_brian_grabando_punto_activo")) {
+        throw new Error("Brian: se quedó grabando con el panel cerrado");
+    }
+    console.log("test successful");
+})().catch((e) => console.error(e.message || e));
+"""
+        with patch.object(self.Voz, '_disponible', return_value=True), \
+                patch.object(self.Voz, '_pedir_al_worker') as worker:
+            self.browser_js('/odoo', codigo, ready="odoo.isReady", login='admin', timeout=120)
+        worker.assert_not_called()
+
     def test_microfono_en_el_navegador(self):
         """El micrófono (con una voz de mentira: un tono del propio navegador), el tiempo a la vista, Esc cancela sin
         mandar nada, «Listo» pasa la nota a texto y el texto queda en la caja para revisarlo. Nada queda guardado."""

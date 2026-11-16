@@ -5,6 +5,7 @@
  * Lo que no se negocia (docs/BRIAN.md › «Notas de voz»): el audio no se guarda en ningún lado (ni en el navegador: vive en
  * memoria mientras se graba y se suelta al mandarlo o al cancelar), el micrófono se apaga al terminar (las pistas se
  * detienen) y solo graba cuando la persona lo pide, con el tiempo a la vista. Un minuto como mucho: al llegar, para solo.
+ * Si la pantalla se cierra mientras el navegador pide el permiso, el micrófono se apaga al llegar y no se graba nada.
  */
 import { browser } from "@web/core/browser/browser";
 import { rpc } from "@web/core/network/rpc";
@@ -67,9 +68,18 @@ export class GrabadoraDeVoz {
     }
 
     async empezar() {
-        this.flujo = await browser.navigator.mediaDevices.getUserMedia({
+        const flujo = await browser.navigator.mediaDevices.getUserMedia({
             audio: { echoCancellation: true, noiseSuppression: true, channelCount: 1 },
         });
+        // Si cancelaron (o el panel se cerró) mientras el navegador pedía el permiso, el micrófono se apaga aquí mismo
+        // y no se graba nada: antes el flujo llegaba después de `cancelar()` y quedaba encendido para siempre.
+        if (this.cancelada) {
+            for (const pista of flujo?.getTracks?.() || []) {
+                pista.stop();
+            }
+            return;
+        }
+        this.flujo = flujo;
         const tipo = tipoDeGrabacion();
         const opciones = { audioBitsPerSecond: BITS_POR_SEGUNDO, ...(tipo ? { mimeType: tipo } : {}) };
         try {
@@ -104,6 +114,7 @@ export class GrabadoraDeVoz {
         }
     }
 
+    /** Tira lo grabado y apaga el micrófono. Sirve también antes de que el navegador dé el permiso. */
     cancelar() {
         this.cancelada = true;
         this.partes = [];
