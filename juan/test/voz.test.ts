@@ -173,6 +173,13 @@ describe("transcribirNota", () => {
     }
   });
 
+  it("el contenedor no sirve para cobrar de menos: si Whisper no dice la duración, el peor caso (aunque el contenedor diga 3 s)", async () => {
+    // Un cuarto de mega (lo que pesa un minuto a 32 kbps) que dice durar 3 s.
+    const r = await transcribirNota(envCon({ run: async () => ({ text: "hola" }) }), nota(new Uint8Array(240_000), "audio/webm", 3), { maxLetras: 500 });
+    expect(r).toMatchObject({ ok: true, estimado: true, usd: costoDeLaVoz(peorDuracion(240_000)), segundos: 3 });
+    expect(r.usd).toBeGreaterThan(costoDeLaVoz(60));
+  });
+
   it("sin duración en ningún lado: se cobra el peor caso y se marca estimado", async () => {
     const bytes = mp4(0);
     const largo = bytes.byteLength;
@@ -180,9 +187,11 @@ describe("transcribirNota", () => {
     expect(r).toMatchObject({ ok: true, texto: "hola", estimado: true, usd: costoDeLaVoz(peorDuracion(largo)) });
   });
 
-  it("si tarda: tardo (cobrado con lo que se sepa); si falla: fallo, sin repetir el error de Workers AI", async () => {
+  it("si tarda: tardo (cobrado el peor caso: no se sabe cuánto trabajó Whisper); si falla: fallo, sin repetir el error de Workers AI", async () => {
     const lento = { run: () => new Promise(() => {}) };
-    expect(await transcribirNota(envCon(lento), nota(webmOpus(5), "audio/webm", 5), { maxLetras: 500, plazoMs: 20 })).toMatchObject({ ok: false, motivo: "tardo", usd: costoDeLaVoz(5) });
+    const audio = webmOpus(5);
+    const largo = audio.byteLength;
+    expect(await transcribirNota(envCon(lento), nota(audio, "audio/webm", 5), { maxLetras: 500, plazoMs: 20 })).toMatchObject({ ok: false, motivo: "tardo", usd: costoDeLaVoz(Math.max(peorDuracion(largo), 5)), estimado: true });
     const roto = { run: async () => Promise.reject(new Error("AiError: bad input T2dnUwACAAAAAAAAAAD")) };
     const r = await transcribirNota(envCon(roto), nota(webmOpus(5), "audio/webm", 5), { maxLetras: 500 });
     expect(r).toMatchObject({ ok: false, motivo: "fallo" });

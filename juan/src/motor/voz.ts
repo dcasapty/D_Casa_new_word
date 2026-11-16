@@ -225,7 +225,7 @@ export function reservaDeLaNota(nota: Pick<NotaDeVoz, "bytes" | "segundos">): nu
 /** Lo que entendió Whisper, limpio: sin controles ni saltos, con los espacios juntos y recortado (entre palabras) a `max` letras. */
 export function textoDeLaNota(texto: string, max: number): { texto: string; recortado: boolean } {
   const limpio = texto
-    .replace(/[\u0000-\u001f\u007f-\u009f  ​-‏‪-‮⁦-⁩﻿]+/g, " ")
+    .replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
   const letras = [...limpio];
@@ -257,28 +257,32 @@ export async function transcribirNota(env: Env, nota: NotaDeVoz, op: { maxLetras
     nota.bytes.fill(0);
     return { ok: false, motivo: "no_disponible", ...sinCosto };
   }
-  // Si no se sabe cuánto duró, se cobra el peor caso (mejor pasarse que quedarse corto con el presupuesto).
-  const cobro = (segundos: number | null) => ({
-    usd: costoDeLaVoz(segundos ?? peorDuracion(nota.bytes.byteLength)),
-    estimado: segundos === null,
+  // Se cobra con la duración que dice Whisper (la mide Cloudflare al decodificar). La del contenedor la escribe el navegador
+  // (o quien arme la petición): sirve para rechazar antes, nunca para cobrar de menos. Sin la de Whisper, el peor caso por el
+  // tamaño, marcado «estimado»: mejor pasarse que quedarse corto con el presupuesto.
+  const cobro = (deWhisper: number | null, segundos: number | null = deWhisper) => ({
+    usd: costoDeLaVoz(deWhisper ?? Math.max(peorDuracion(nota.bytes.byteLength), nota.segundos ?? 0)),
+    estimado: deWhisper === null,
     segundos,
   });
   let reloj: ReturnType<typeof setTimeout> | undefined;
   const plazo = new Promise<"tardo">((r) => (reloj = setTimeout(() => r("tardo"), op.plazoMs ?? PLAZO_VOZ_MS)));
   try {
     const r = await Promise.race([whisper(nota.bytes), plazo]);
-    // Whisper pudo seguir trabajando (y cobrarse): se anota con la duración que se sepa.
-    if (r === "tardo") return { ok: false, motivo: "tardo", ...cobro(nota.segundos) };
+    // Whisper pudo seguir trabajando (y cobrarse) sin decir cuánto: el peor caso.
+    if (r === "tardo") return { ok: false, motivo: "tardo", ...cobro(null, nota.segundos) };
+    // Para el tope de un minuto vale la mayor de las dos pistas.
     const pistas = [r.segundos, nota.segundos].filter((s): s is number => s !== null);
     const segundos = pistas.length ? Math.max(...pistas) : null;
-    if (segundos !== null && segundos > SEGUNDOS_ACEPTADOS) return { ok: false, motivo: "muy_larga", ...cobro(segundos) };
-    if (!r.texto || ALUCINACIONES.some((a) => a.test(r.texto!))) return { ok: false, motivo: "no_se_entendio", ...cobro(segundos) };
+    const cobrado = cobro(r.segundos, segundos);
+    if (segundos !== null && segundos > SEGUNDOS_ACEPTADOS) return { ok: false, motivo: "muy_larga", ...cobrado };
+    if (!r.texto || ALUCINACIONES.some((a) => a.test(r.texto!))) return { ok: false, motivo: "no_se_entendio", ...cobrado };
     const limpio = textoDeLaNota(r.texto, op.maxLetras);
-    if (!limpio.texto) return { ok: false, motivo: "no_se_entendio", ...cobro(segundos) };
-    return { ok: true, texto: limpio.texto, recortado: limpio.recortado, ...cobro(segundos) };
+    if (!limpio.texto) return { ok: false, motivo: "no_se_entendio", ...cobrado };
+    return { ok: true, texto: limpio.texto, recortado: limpio.recortado, ...cobrado };
   } catch {
-    // El error de Workers AI no se repite (podría traer un pedazo de la petición); se cobra lo que se sepa.
-    return { ok: false, motivo: "fallo", ...cobro(nota.segundos) };
+    // El error de Workers AI no se repite (podría traer un pedazo de la petición); no se sabe si cobró: el peor caso.
+    return { ok: false, motivo: "fallo", ...cobro(null, nota.segundos) };
   } finally {
     clearTimeout(reloj);
     nota.bytes.fill(0);

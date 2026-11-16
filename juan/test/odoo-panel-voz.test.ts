@@ -2,13 +2,14 @@
  * `POST /odoo/voz` (Brian del panel) por el enrutador de verdad: solo con el token de Odoo, solo el texto de vuelta, topes por usuario
  * y por día, el techo del mes y el gasto en su propio renglón de Cloudflare (aparte del de Juan). El contador es el de verdad.
  */
+import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { normalizarConfig } from "../src/config";
 import type { Env } from "../src/env";
 import { AlmacenGlobal } from "../src/motor/global";
 import { USO_VACIO } from "../src/motor/precios";
 import { MODELO_WHISPER } from "../src/motor/transcribir";
-import { costoDeLaVoz, MAX_BYTES_VOZ } from "../src/motor/voz";
+import { costoDeLaVoz, MAX_BYTES_VOZ, MAX_SEGUNDOS_VOZ, PLAZO_VOZ_MS, TIPOS_DE_AUDIO } from "../src/motor/voz";
 import { CONCEPTO_DEL_GASTO, TOPE_POR_USUARIO_HORA } from "../src/odoo-panel-voz";
 import { manejar, type DepsRutas } from "../src/rutas";
 import { aBase64, oggOpus, webmOpus } from "./helpers/audio";
@@ -153,5 +154,16 @@ describe("POST /odoo/voz", () => {
   it("solo POST", async () => {
     const m = montar();
     expect((await m.pedir(new Request(URL_VOZ, { headers: { authorization: `Bearer ${TOKEN}` } }))).status).toBe(405);
+  });
+
+  it("Odoo espera, con margen, lo que tarda el Worker (TIMEOUT_VOZ) y valida los mismos tipos y topes (dcasa_brian/models/voz.py)", () => {
+    const puente = readFileSync(new URL("../../addons/dcasa_conversaciones/models/brian_voz.py", import.meta.url), "utf8");
+    const m = /^TIMEOUT_VOZ\s*=\s*\(\s*[\d.]+\s*,\s*([\d.]+)\s*\)/m.exec(puente);
+    expect(m, "brian_voz.py define TIMEOUT_VOZ = (conectar, leer)").not.toBeNull();
+    expect(Number(m![1]) * 1000).toBeGreaterThanOrEqual(PLAZO_VOZ_MS + 5000);
+    const reglas = readFileSync(new URL("../../addons/dcasa_brian/models/voz.py", import.meta.url), "utf8");
+    expect(/^TIPOS = \(([^)]*)\)/m.exec(reglas)?.[1].match(/audio\/\w+/g)).toEqual([...TIPOS_DE_AUDIO]);
+    expect(Number(/^MAX_BYTES = 1024 \* 1024$/m.test(reglas) ? 1024 * 1024 : NaN)).toBe(MAX_BYTES_VOZ);
+    expect(Number(/^MAX_SEGUNDOS = (\d+)$/m.exec(reglas)?.[1])).toBe(MAX_SEGUNDOS_VOZ);
   });
 });

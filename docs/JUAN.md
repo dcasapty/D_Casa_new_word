@@ -1030,7 +1030,9 @@ en `juan/src/motor/voz.ts`.
 
 **Costo:** US$0.0005 por minuto de audio (tabla de precios de Workers AI, leída el 2026-11-16, sin descontar los neurons
 gratis). Antes de llamar a Whisper se aparta el peor caso (el audio grabado al mínimo de Opus, 6 kbps); después se anota
-lo real con la duración que diga Whisper o el contenedor; si nadie la dice, el peor caso, marcado «estimado».
+lo real con la duración que dice Whisper (la mide Cloudflare). La del contenedor la escribe quien manda la nota: sirve
+para rechazar antes, nunca para cobrar de menos; si Whisper no dice la duración, tarda o falla, se anota el peor caso,
+marcado «estimado».
 
 ### `POST /tienda/v1/voz` (Andrés)
 
