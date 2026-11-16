@@ -1,8 +1,8 @@
 # ruff: noqa: E501  (JavaScript del navegador embebido en texto)
 """La página de verdad en Chrome, con el Worker simulado (tests/worker_simulado.py): la burbuja a 360, 390, 430 y
 1366 px, el chat de punta a punta (saludo, tarjetas de Odoo, «te lo puse en el carrito», la ubicación, las estrellas),
-la ventana ampliada, Esc, el foco, que no tape la barra de la ficha ni «Pregunta por este mueble por WhatsApp» y el
-movimiento reducido."""
+la ventana ampliada, Esc, el foco, que no tape la barra de la ficha ni «Pregunta por este mueble por WhatsApp», el
+movimiento reducido y el micrófono de las notas de voz (con el micrófono de prueba de Chrome)."""
 import contextlib
 import os
 from datetime import datetime
@@ -20,6 +20,8 @@ from .common import TOKEN_ODOO, TOKEN_WORKER, TiendaCase
 from .worker_simulado import WorkerSimulado
 
 ALTO = 800
+# Chrome con un micrófono de prueba (un pitido) y el permiso ya dado: MediaRecorder graba de verdad.
+MICROFONO_DE_PRUEBA = ('--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream')
 DE_DIA = ('saludando', 'con_laptop', 'escritorio', 'busto_estrella', 'bolsita', 'mapa', 'cinta_metrica', 'corazon',
           'burbuja_chat', 'cinco_estrellas', 'fidelidad', 'asomado_burbuja', 'cama', 'cocina', 'marco_foto')
 COSTA = (8.9415, -79.8415)    # Costa Inventada, del fixture sintético de envíos
@@ -278,6 +280,13 @@ SIN_CAMBIOS = """(async () => {
 })()""".replace('/*ESPERAR*/', ESPERAR).replace('/*BAJAR*/', BAJAR)
 
 
+class ChromeConMicrofono(ChromeBrowser):
+    """El Chrome de las pruebas de Odoo con el micrófono de prueba (las opciones van antes de la página inicial)."""
+
+    def _spawn_chrome(self, cmd):
+        return super()._spawn_chrome([*cmd[:-1], *MICROFONO_DE_PRUEBA, cmd[-1]])
+
+
 class NavegadorCase(TiendaCase):
 
     @classmethod
@@ -306,9 +315,9 @@ class NavegadorCase(TiendaCase):
         self.addCleanup(entorno.stop)
 
     @contextlib.contextmanager
-    def chrome(self, ancho, alto=ALTO, movil=True, reducido=False):
+    def chrome(self, ancho, alto=ALTO, movil=True, reducido=False, microfono=False):
         self.browser_size = f'{ancho}x{alto}'
-        browser = ChromeBrowser(self, headless=True)
+        browser = (ChromeConMicrofono if microfono else ChromeBrowser)(self, headless=True)
         with self.allow_requests(browser=browser), contextlib.ExitStack() as atexit:
             atexit.callback(self._wait_remaining_requests)
             atexit.enter_context(browser.cleanup)
@@ -865,3 +874,325 @@ class TestAndresVendedor(NavegadorCase):
             (cambio,) = [c for c in nuevos if (c.get('accion') or {}).get('tipo') == 'confirmar_cambio']
             self.assertEqual((cambio['accion']['cantidad'], cambio['accion']['resultado'], cambio['carrito']), (0, 'ok', None),
                              'el carrito que quedó (vacío), el de Odoo')
+
+
+# Las notas de voz en el chat de la tienda (docs/JUAN.md §12a; docs/BRIAN_TIENDA.md › «Notas de voz»): el micrófono sale
+# solo si el Worker lo ofrece; graba con el micrófono de prueba de Chrome, manda el audio crudo con el pase y, con el texto,
+# lo pinta en el globo del visitante y lo manda como un mensaje normal. Cancelar no manda nada; los errores, amables.
+VOZ = """
+    const panel = () => document.querySelector('#o_dcbt_panel');
+    const voz = () => {
+        const p = panel();
+        const b = p && p.querySelector('button.o_dcbt_voz');
+        const g = p && p.querySelector('.o_dcbt_voz_grabando');
+        const pista = p && p.querySelector('.o_dcbt_voz_pista');
+        return { boton: !!b && !b.hidden && b.getBoundingClientRect().width > 0, estado: g && !g.hidden ? g.dataset.estado : null,
+                 campo: !!p && !p.querySelector('#o_dcbt_texto').hidden, enviar: !!p && !p.querySelector('.o_dcbt_enviar[type="submit"]').hidden,
+                 pista: !!pista && !pista.hidden ? pista.textContent : null,
+                 tiempo: p ? (p.querySelector('.o_dcbt_voz_tiempo') || {}).textContent : null,
+                 anuncio: p ? (p.querySelector('.o_dcbt_composer [role="status"]') || {}).textContent : null };
+    };
+    // Los pedidos del micrófono (el permiso solo se pide al tocar el botón) y sus pistas, para ver que se apagan.
+    window.__microfono = window.__microfono || { pedidos: 0, flujos: [] };
+    const microfono = window.__microfono;
+    if (navigator.mediaDevices && !microfono.contado) {
+        const original = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+        navigator.mediaDevices.getUserMedia = async (c) => { microfono.pedidos++; const f = await original(c); microfono.flujos.push(f); return f; };
+        microfono.contado = true;
+    }
+    const apagados = () => microfono.flujos.every((f) => f.getTracks().every((t) => t.readyState === 'ended'));
+    const escribir = (texto) => {
+        const campo = document.querySelector('#o_dcbt_texto');
+        campo.value = texto;
+        campo.dispatchEvent(new Event('input', { bubbles: true }));
+        document.querySelector('#o_dcbt_panel .o_dcbt_composer').requestSubmit();
+    };
+    const preguntoPorLaVoz = () => performance.getEntriesByType('resource').some((e) => e.name.includes('/tienda/v1/voz'));
+    const abrirChat = async () => {
+        document.querySelector('button.o_dcbt_burbuja').click();
+        await hasta(() => globos().some((g) => g.includes('Hola, soy Andrés')) && document.querySelector('#o_dcbt_panel .o_dcbt_chip'), 'el saludo');
+        await hasta(preguntoPorLaVoz, 'la pregunta al Worker por el micrófono');
+        await esperar(400);
+    };
+    const tocar = (sel) => document.querySelector('#o_dcbt_panel ' + sel).click();
+    const grabar = async () => {
+        tocar('button.o_dcbt_voz');
+        await hasta(() => voz().estado === 'grabando', 'grabando');
+    };
+    const delCliente = () => [...document.querySelectorAll('#o_dcbt_panel .o_dcbt_del_cliente .o_dcbt_globo')].map((g) => g.textContent);
+"""
+
+VOZ_NO_DISPONIBLE = """(async () => {
+    /*ESPERAR*/ /*VOZ*/
+    await abrirChat();
+    return { voz: voz(), pedidos: microfono.pedidos };
+})()"""
+
+VOZ_GRABAR = """(async () => {
+    /*ESPERAR*/ /*VOZ*/
+    const r = {};
+    await abrirChat();
+    await hasta(() => voz().boton, 'el micrófono');
+    const boton = panel().querySelector('button.o_dcbt_voz');
+    r.antes = { voz: voz(), pedidos: microfono.pedidos, etiqueta: boton.getAttribute('aria-label'),
+                lado: boton.nextElementSibling === panel().querySelector('.o_dcbt_enviar[type="submit"]') };
+    // Algo en el carrito: con la barra de A1 a la vista, la nota no tapa nada.
+    escribir('Colchones');
+    const tarjeta = await hasta(() => panel().querySelector('.o_dcbt_carrusel .o_dcbt_tarjeta [data-agregar]'), 'las tarjetas');
+    tarjeta.click();
+    await hasta(() => !panel().querySelector('.o_dcbt_barra').hidden, 'la barra del carrito');
+    r.pistaTrasEscribir = voz().pista;
+    const respuestas = globos().filter((g) => g.startsWith('Encontré estos')).length;
+    await grabar();
+    r.grabando = { voz: voz(), pedidos: microfono.pedidos, foco: document.activeElement === panel().querySelector('.o_dcbt_voz_listo'),
+                   etiquetaListo: panel().querySelector('.o_dcbt_voz_listo').getAttribute('aria-label') };
+    await hasta(() => /^0:0[2-9]/.test(voz().tiempo || ''), 'dos segundos de grabación');
+    r.tiempo = voz().tiempo;
+    r.cajas = { barra: caja(panel().querySelector('.o_dcbt_barra')), composer: caja(panel().querySelector('.o_dcbt_composer')),
+                nota: caja(panel().querySelector('.o_dcbt_voz_grabando')), mensajes: caja(panel().querySelector('.o_dcbt_mensajes')),
+                panel: caja(panel()), alto: innerHeight, ancho: innerWidth };
+    tocar('.o_dcbt_voz_listo');
+    await hasta(() => delCliente().includes('Busco un colchón queen'), 'el texto en el globo del visitante');
+    await hasta(() => globos().filter((g) => g.startsWith('Encontré estos')).length > respuestas, 'la respuesta de Andrés al texto');
+    r.despues = { voz: voz(), apagados: apagados(), grabacion: window.__dcasaBrian.grabacion,
+                  guardado: sessionStorage.getItem('dcasa.brian.chat') || '' };
+    r.sinScrollDeLado = document.documentElement.scrollWidth <= innerWidth;
+    return r;
+})()"""
+
+VOZ_CANCELAR = """(async () => {
+    /*ESPERAR*/ /*VOZ*/
+    const r = {};
+    await abrirChat();
+    await hasta(() => voz().boton, 'el micrófono');
+    const antes = delCliente().length;
+    // Esc: se tira la nota y el micrófono se apaga; el chat sigue abierto.
+    await grabar();
+    await esperar(1200);
+    const delChat = (a) => a.effect && a.effect.target && a.effect.target.closest && a.effect.target.closest('#o_dcasa_brian');
+    r.animaciones = document.getAnimations().filter((a) => a.playState === 'running' && delChat(a)).length;
+    r.reducido = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await hasta(() => voz().estado === null, 'cancelada con Esc');
+    await esperar(300);
+    r.esc = { voz: voz(), apagados: apagados(), abierto: !panel().hidden, foco: document.activeElement === panel().querySelector('button.o_dcbt_voz') };
+    // La X: lo mismo.
+    await grabar();
+    await esperar(800);
+    tocar('.o_dcbt_voz_cancelar');
+    await hasta(() => voz().estado === null, 'cancelada con la X');
+    await esperar(1500);
+    r.x = { voz: voz(), apagados: apagados(), pedidos: microfono.pedidos, nuevos: delCliente().length - antes };
+    return r;
+})()"""
+
+# Cada paso después del primero (el chat ya abierto): graba, toca «Listo» y espera lo que diga ``hasta``.
+VOZ_PASO = """(async () => {
+    /*ESPERAR*/ /*VOZ*/
+    if (panel().hidden || !globos().length) { await abrirChat(); }
+    await hasta(() => voz().boton, 'el micrófono');
+    const antes = { cliente: delCliente().length, globos: globos().length };
+    const r = {};
+    MODO
+    r.voz = voz();
+    r.nuevosDelCliente = delCliente().slice(antes.cliente);
+    r.nuevosDeAndres = globos().slice(antes.globos).filter((g) => !delCliente().includes(g));
+    r.campo = document.querySelector('#o_dcbt_texto').value;
+    r.apagados = apagados();
+    return r;
+})()"""
+
+LISTO_Y_ERROR = """
+    await grabar();
+    await esperar(1200);
+    tocar('.o_dcbt_voz_listo');
+    await hasta(() => voz().estado === null && globos().length > antes.globos, 'la respuesta a la nota');
+    await esperar(300);
+"""
+
+LISTO_Y_CAJA = """
+    await grabar();
+    await esperar(1200);
+    tocar('.o_dcbt_voz_listo');
+    await hasta(() => voz().estado === null && document.querySelector('#o_dcbt_texto').value, 'el texto en la caja');
+    await esperar(600);
+    r.foco = document.activeElement === document.querySelector('#o_dcbt_texto');
+"""
+
+SOLA_AL_TOPE = """
+    await grabar();
+    r.tope = voz().tiempo;
+    await hasta(() => delCliente().length > antes.cliente, 'la nota que paró sola al tope', 15000);
+"""
+
+SIN_PERMISO = """
+    const real = navigator.mediaDevices.getUserMedia;
+    navigator.mediaDevices.getUserMedia = async () => { throw new DOMException('negado', 'NotAllowedError'); };
+    tocar('button.o_dcbt_voz');
+    await hasta(() => globos().length > antes.globos, 'el aviso del permiso');
+    await esperar(300);
+    navigator.mediaDevices.getUserMedia = real;
+"""
+
+
+@tagged('post_install', '-at_install')
+class TestNotaDeVoz(NavegadorCase):
+
+    def _js(self, codigo, modo=''):
+        return codigo.replace('/*ESPERAR*/', ESPERAR).replace('/*VOZ*/', VOZ).replace('MODO', modo)
+
+    def test_el_microfono_sale_solo_si_el_worker_lo_ofrece(self):
+        self.worker.voz['disponible'] = False
+        with self.chrome(1366, 768, movil=False, microfono=True) as browser:
+            browser.navigate_to(self.base_url() + '/', wait_stop=True)
+            r = self.evaluar(browser, self._js(VOZ_NO_DISPONIBLE))
+        self.assertGreaterEqual(self.worker.consultas_voz, 1, 'la página le preguntó al Worker')
+        self.assertFalse(r['voz']['boton'], 'sin notas de voz en el Worker, no hay micrófono')
+        self.assertIsNone(r['voz']['pista'], 'ni la sugerencia de mandar una nota')
+        self.assertTrue(r['voz']['campo'] and r['voz']['enviar'])
+        self.assertEqual(r['pedidos'], 0)
+
+    def test_graba_manda_pinta_el_texto_y_lo_envia(self):
+        for ancho, movil in ((390, True), (1440, False)):
+            voces, recibidos = len(self.worker.voces), len(self.worker.recibidos)
+            with self.subTest(ancho=ancho), self.chrome(ancho, 844 if movil else 900, movil=movil, microfono=True) as browser:
+                browser.navigate_to(self.base_url() + '/', wait_stop=True)
+                r = self.evaluar(browser, self._js(VOZ_GRABAR), timeout=180)
+            # Antes de tocarlo: el micrófono junto a «Enviar», la sugerencia una vez y el permiso sin pedir.
+            self.assertTrue(r['antes']['voz']['boton'])
+            self.assertTrue(r['antes']['lado'], 'el micrófono va junto a «Enviar»')
+            self.assertEqual(r['antes']['etiqueta'], 'Mandar una nota de voz')
+            self.assertEqual(r['antes']['voz']['pista'], 'Si prefieres, mándame una nota de voz con el micrófono.')
+            self.assertEqual(r['antes']['pedidos'], 0, 'el permiso del micrófono solo se pide al tocarlo')
+            self.assertIsNone(r['pistaTrasEscribir'], 'la sugerencia no insiste: se va con el primer mensaje')
+            # Grabando: el tiempo, cancelar y «Listo» en el renglón del campo; el foco en «Listo».
+            g = r['grabando']
+            self.assertEqual(g['pedidos'], 1)
+            self.assertEqual((g['voz']['campo'], g['voz']['enviar'], g['voz']['boton']), (False, False, False))
+            self.assertTrue(g['foco'], 'el foco va a «Listo»')
+            self.assertEqual(g['etiquetaListo'], 'Listo: mandar la nota de voz')
+            self.assertIn('Grabando', g['voz']['anuncio'])
+            self.assertTrue(r['tiempo'].endswith('/ 1:00'), r['tiempo'])
+            # No tapa nada: la nota va dentro del renglón de escribir, debajo de la barra del carrito y en la pantalla.
+            c = r['cajas']
+            self.assertLessEqual(c['barra']['abajo'], c['composer']['y'] + 1, 'la barra del carrito, encima')
+            self.assertLessEqual(c['mensajes']['abajo'], c['barra']['y'] + 1, 'la conversación, encima de la barra')
+            self.assertGreaterEqual(c['nota']['y'], c['composer']['y'] - 1)
+            self.assertLessEqual(c['nota']['abajo'], c['composer']['abajo'] + 1)
+            self.assertLessEqual(c['nota']['derecha'], c['ancho'])
+            self.assertLessEqual(c['composer']['abajo'], c['alto'] + 1)
+            # Mandada: el texto como globo del visitante y como mensaje normal; el micrófono, apagado.
+            d = r['despues']
+            self.assertTrue(d['voz']['boton'] and d['voz']['campo'])
+            self.assertTrue(d['apagados'], 'el micrófono se apaga al terminar')
+            self.assertIsNone(d['grabacion'])
+            self.assertNotIn('audio', d['guardado'].lower(), 'en el navegador queda solo el texto')
+            self.assertTrue(r['sinScrollDeLado'])
+            (nota,) = self.worker.voces[voces:]
+            self.assertEqual(nota['tipo'], 'audio/webm', 'el WebM con Opus que graba Chrome')
+            self.assertGreater(nota['kb'], 0)
+            self.assertGreaterEqual(nota['duracion_ms'], 1800)
+            self.assertLess(nota['duracion_ms'], 30000)
+            self.assertIsNone(nota['motivo'])
+            textos = [c.get('texto') for c in self.worker.recibidos[recibidos:]]
+            self.assertIn('Busco un colchón queen', textos, 'el texto llegó por /tienda/v1/mensaje como un mensaje')
+
+    def test_cancelar_no_manda_nada_y_con_movimiento_reducido_quieto(self):
+        voces, recibidos = len(self.worker.voces), len(self.worker.recibidos)
+        with self.chrome(390, 844, reducido=True, microfono=True) as browser:
+            browser.navigate_to(self.base_url() + '/', wait_stop=True)
+            r = self.evaluar(browser, self._js(VOZ_CANCELAR), timeout=120)
+        self.assertTrue(r['reducido'])
+        self.assertEqual(r['animaciones'], 0, 'grabando, nada se mueve con movimiento reducido')
+        for como in ('esc', 'x'):
+            with self.subTest(como=como):
+                self.assertIsNone(r[como]['voz']['estado'])
+                self.assertTrue(r[como]['voz']['campo'] and r[como]['voz']['boton'])
+                self.assertTrue(r[como]['apagados'], 'el micrófono se apaga')
+                self.assertIn('no se mandó nada', r[como]['voz']['anuncio'])
+        self.assertTrue(r['esc']['abierto'], 'Esc tira la nota, no cierra el chat')
+        self.assertTrue(r['esc']['foco'], 'el foco vuelve al micrófono')
+        self.assertEqual(r['x']['pedidos'], 2)
+        self.assertEqual(r['x']['nuevos'], 0)
+        self.assertEqual(len(self.worker.voces), voces, 'al Worker no llegó ninguna nota')
+        self.assertEqual(len(self.worker.recibidos), recibidos, 'ni un mensaje')
+
+    def test_el_tope_lo_recortado_y_los_errores_amables(self):
+        with self.chrome(1366, 768, movil=False, microfono=True) as browser:
+            browser.navigate_to(self.base_url() + '/', wait_stop=True)
+            # Corta sola al llegar al tope del Worker (aquí 3 s) y se manda.
+            self.worker.voz.update(max_segundos=3, texto='Busco una cama matrimonial')
+            r = self.evaluar(browser, self._js(VOZ_PASO, SOLA_AL_TOPE), timeout=120)
+            self.assertTrue(r['tope'].endswith('/ 0:03'), r['tope'])
+            self.assertEqual(r['nuevosDelCliente'], ['Busco una cama matrimonial'])
+            self.assertLessEqual(self.worker.voces[-1]['duracion_ms'], 3000)
+            self.assertGreaterEqual(self.worker.voces[-1]['duracion_ms'], 2500)
+            self.assertTrue(r['apagados'])
+            self.worker.voz['max_segundos'] = 60
+            # Recortado: el texto queda en la caja para que el visitante lo revise y lo mande él.
+            recibidos = len(self.worker.recibidos)
+            self.worker.voz.update(texto='Quiero ver salas', recortado=True)
+            r = self.evaluar(browser, self._js(VOZ_PASO, LISTO_Y_CAJA), timeout=120)
+            self.assertEqual(r['campo'], 'Quiero ver salas')
+            self.assertTrue(r['foco'])
+            self.assertEqual(r['nuevosDelCliente'], [], 'no se mandó solo')
+            self.assertEqual(len(self.worker.recibidos), recibidos)
+            self.assertIn('tomé la primera parte', r['voz']['anuncio'])
+            self.worker.voz['recortado'] = False
+            self.evaluar(browser, "(() => { const c = document.querySelector('#o_dcbt_texto'); c.value = ''; c.dispatchEvent(new Event('input', { bubbles: true })); return true; })()")
+            # Los errores del Worker, en palabras amables (y nada llega como mensaje).
+            esperados = {
+                'no_se_entendio': 'No te entendí bien. ¿Me lo repites un poco más cerca del micrófono? O escríbelo, por favor.',
+                'tope_sesion': 'Por ahora no puedo escuchar más notas de voz. Escríbelo, por favor.',
+                'muy_larga': 'Tu nota quedó muy larga (hasta un minuto). Mándame una más corta o escríbelo, por favor.',
+                'fallo': 'No pude escuchar tu nota ahora. Inténtalo otra vez o escríbelo, por favor.',
+            }
+            for motivo, frase in esperados.items():
+                with self.subTest(motivo=motivo):
+                    recibidos = len(self.worker.recibidos)
+                    self.worker.voz['motivo'] = motivo
+                    r = self.evaluar(browser, self._js(VOZ_PASO, LISTO_Y_ERROR), timeout=120)
+                    self.assertEqual(r['nuevosDeAndres'], [frase])
+                    self.assertEqual(r['nuevosDelCliente'], [])
+                    self.assertEqual(len(self.worker.recibidos), recibidos)
+                    self.assertTrue(r['voz']['boton'], 'el micrófono sigue')
+            # Sin permiso del micrófono: lo dice y ofrece escribirlo; no llega nada al Worker.
+            voces = len(self.worker.voces)
+            r = self.evaluar(browser, self._js(VOZ_PASO, SIN_PERMISO), timeout=60)
+            self.assertEqual(r['nuevosDeAndres'], ['Para mandarme una nota de voz, permite el micrófono en tu navegador. Si no, '
+                                                   'escríbelo, por favor.'])
+            self.assertEqual(len(self.worker.voces), voces)
+            self.assertTrue(r['voz']['boton'])
+            # El Worker dejó de transcribir: lo dice y el micrófono se va.
+            self.worker.voz['motivo'] = 'no_disponible'
+            r = self.evaluar(browser, self._js(VOZ_PASO, LISTO_Y_ERROR), timeout=120)
+            self.assertEqual(r['nuevosDeAndres'], ['Ahora no puedo escuchar notas de voz. Escríbelo, por favor.'])
+            self.assertFalse(r['voz']['boton'], 'sin transcripción en el Worker, el micrófono se va')
+            self.assertTrue(r['voz']['campo'], 'escribir sigue igual')
+            self.assertTrue(r['apagados'], 'el micrófono de prueba quedó apagado en cada nota')
+
+    def test_las_funciones_de_la_voz(self):
+        with self.chrome(390) as browser:
+            browser.navigate_to(self.base_url() + '/', wait_stop=True)
+            self.evaluar(browser, '(async () => { ' + ESPERAR + ' return true; })()')
+            r = self.evaluar(browser, """(() => {
+                const m = window.odoo.loader.modules.get('@dcasa_brian_tienda/js/brian_tienda');
+                const todo = () => true;
+                return {
+                    reloj: [m.relojVoz(0), m.relojVoz(7.9), m.relojVoz(60), m.relojVoz(-3)],
+                    tipo: [m.tipoDeVoz(['audio/webm', 'audio/ogg', 'audio/mp4'], todo), m.tipoDeVoz(['audio/mp4'], todo),
+                           m.tipoDeVoz(['audio/ogg'], (t) => t !== 'audio/ogg;codecs=opus'), m.tipoDeVoz(['audio/wav'], todo), m.tipoDeVoz(null, todo)],
+                    ofrecida: [m.vozOfrecida({ disponible: false, tipos: ['audio/webm'] }), m.vozOfrecida({ disponible: true, tipos: [] }),
+                               m.vozOfrecida({ disponible: true, max_segundos: 60, max_bytes: 1048576, tipos: ['audio/webm'] }),
+                               m.vozOfrecida({ disponible: true, max_segundos: 'x', max_bytes: -1, tipos: ['audio/webm'] })],
+                    textos: ['permiso', 'sin_microfono', 'corta', 'muy_pesada', 'audio', 'tope_red', 'tope_dia', 'presupuesto', 'ocupado', 'no_disponible', 'tardo', 'raro'].map(m.textoErrorVoz),
+                };
+            })()""")
+        self.assertEqual(r['reloj'], ['0:00', '0:07', '1:00', '0:00'])
+        self.assertEqual(r['tipo'], ['audio/webm;codecs=opus', 'audio/mp4', 'audio/ogg', '', ''])
+        self.assertEqual(r['ofrecida'][:2], [None, None])
+        self.assertEqual(r['ofrecida'][2], {'max_segundos': 60, 'max_bytes': 1048576, 'tipos': ['audio/webm']})
+        self.assertEqual(r['ofrecida'][3], {'max_segundos': 60, 'max_bytes': 1048576, 'tipos': ['audio/webm']})
+        for texto in r['textos']:
+            self.assertTrue(texto.endswith(('escríbelo, por favor.', 'Escríbelo, por favor.', 'en un ratito.')), texto)
+        self.assertNotIn('¡', ''.join(r['textos']))

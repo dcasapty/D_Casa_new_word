@@ -21,6 +21,10 @@ Hace lo que el contrato pide del Worker, en pequeño:
   «sí» o «súmalo» → ``sumar_envio``; ``confirmar_envio`` → «Listo, te lo sumé…» (sin cifras); «quita …» o «deja N» →
   ``proponer_cambio_carrito`` (solo lo que está en el carrito) y ``confirmar_cambio`` con lo que dice el carrito;
   ``carrito_bajo`` → la reacción, una sola vez por sesión (la segunda, sin bloques).
+* Las notas de voz (docs/JUAN.md §12a): ``GET /tienda/v1/voz`` (sin pase, con CORS) dice si hay micrófono y
+  ``POST /tienda/v1/voz?duracion_ms=…`` (con el pase, el audio crudo) revisa el tipo, el tamaño y los primeros bytes y
+  devuelve un texto fijo (``voz['texto']``) o el error de ``voz['motivo']``. El audio no se guarda: de cada nota queda
+  solo el tipo, los KB y la duración (``voces``), para las pruebas.
 """
 import argparse
 import base64
@@ -31,11 +35,27 @@ import json
 import re
 import threading
 import time
+import urllib.parse
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 ETIQUETA = b'brian-tienda-pase-v1'
 ERRORES = {'tope_sesion': 429, 'tope_red': 429, 'tope_dia': 429, 'presupuesto': 429, 'apagado': 503, 'fallo': 502}
+RUTA_VOZ = '/tienda/v1/voz'
+TIPOS_VOZ = ('audio/webm', 'audio/ogg', 'audio/mp4')
+# Los estados de cada error de la nota, como el Worker de verdad (juan/src/tienda/voz.ts).
+ERRORES_VOZ = {'pase': 401, 'apagado': 503, 'no_disponible': 503, 'tipo': 415, 'audio': 400, 'muy_pesada': 413,
+               'muy_larga': 413, 'tope_sesion': 429, 'tope_red': 429, 'tope_dia': 429, 'presupuesto': 429,
+               'ocupado': 429, 'no_se_entendio': 422, 'tardo': 504, 'fallo': 502}
+
+
+def firma_de_audio(inicio, tipo):
+    """Los primeros bytes dicen lo mismo que el tipo: WebM (EBML), Ogg («OggS») o MP4 (caja «ftyp»)."""
+    if tipo == 'audio/webm':
+        return inicio[:4] == b'\x1a\x45\xdf\xa3'
+    if tipo == 'audio/ogg':
+        return inicio[:4] == b'OggS'
+    return inicio[4:8] == b'ftyp'
 
 
 def _red(ip):
@@ -82,6 +102,11 @@ class WorkerSimulado:
         self.sesiones = {}                      # sid → {'vistos': {producto_id: producto}, 'ultimo': producto_id}
         self.recibidos = []                     # lo que llegó (para las pruebas), sin la ubicación
         self.ubicaciones = 0
+        # Las notas de voz: lo que dice el GET y lo que responde el POST (las pruebas lo cambian).
+        self.voz = {'disponible': True, 'max_segundos': 60, 'max_bytes': 1024 * 1024, 'texto': 'Busco un colchón queen',
+                    'recortado': False, 'motivo': None}
+        self.consultas_voz = 0                  # cuántas veces la página preguntó si hay micrófono
+        self.voces = []                         # de cada nota: {tipo, kb, duracion_ms}; el audio, nunca
         self.servidor = None
 
     # ------------------------------------------------------------------ Odoo
@@ -322,6 +347,14 @@ class WorkerSimulado:
                 self.wfile.write(cuerpo)
 
             def do_GET(self):  # noqa: N802
+                if urllib.parse.urlsplit(self.path).path == RUTA_VOZ:
+                    # Sin pase: solo si la página muestra el micrófono y los topes de la nota.
+                    worker.consultas_voz += 1
+                    v = worker.voz
+                    self._json(200, {'ok': True, 'disponible': bool(v.get('disponible')),
+                                     'max_segundos': v.get('max_segundos', 60),
+                                     'max_bytes': v.get('max_bytes', 1024 * 1024), 'tipos': list(TIPOS_VOZ)})
+                    return
                 # Lo poco de «Odoo → Worker» que leen las pantallas (Costos de IA, Sitio web › Brian de la tienda): el
                 # simulado no gasta IA, así que su gasto es $0 y sus respuestas, las que contestó de verdad.
                 esquema, _, token = (self.headers.get('Authorization') or '').partition(' ')
@@ -342,19 +375,56 @@ class WorkerSimulado:
             def do_OPTIONS(self):  # noqa: N802
                 self.send_response(204)
                 self._cors()
-                self.send_header('Access-Control-Allow-Methods', 'POST, OPTIONS')
+                voz = urllib.parse.urlsplit(self.path).path == RUTA_VOZ
+                self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS' if voz else 'POST, OPTIONS')
                 self.send_header('Access-Control-Allow-Headers', 'Authorization, Content-Type')
                 self.send_header('Access-Control-Max-Age', '600')
                 self.end_headers()
 
+            def _voz(self, payload):
+                """La nota: el tipo, el tamaño y los primeros bytes; de vuelta, solo el texto. El audio se descarta."""
+                v = worker.voz
+                tipo = (self.headers.get('Content-Type') or '').split(';')[0].strip().lower()
+                largo = int(self.headers.get('Content-Length') or 0)
+                audio = self.rfile.read(min(largo, v.get('max_bytes', 1024 * 1024) + 1)) if largo else b''
+                inicio, kb = audio[:16], -(-len(audio) // 1024)
+                del audio                       # como el Worker: el audio no se guarda en ningún lado
+                consulta = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+                try:
+                    duracion = int((consulta.get('duracion_ms') or ['0'])[0])
+                except ValueError:
+                    duracion = None
+                if tipo not in TIPOS_VOZ:
+                    motivo = 'tipo'
+                elif largo > v.get('max_bytes', 1024 * 1024):
+                    motivo = 'muy_pesada'
+                elif not firma_de_audio(inicio, tipo):
+                    motivo = 'audio'
+                elif duracion is not None and duracion > (v.get('max_segundos', 60) + 5) * 1000:
+                    motivo = 'muy_larga'
+                elif not v.get('disponible'):
+                    motivo = 'no_disponible'
+                else:
+                    motivo = v.get('motivo')
+                worker.voces.append({'tipo': tipo, 'kb': kb, 'duracion_ms': duracion, 'sid': payload['sid'],
+                                     'motivo': motivo})
+                if motivo:
+                    self._json(ERRORES_VOZ.get(motivo, 502), {'ok': False, 'motivo': motivo})
+                    return
+                self._json(200, {'ok': True, 'texto': v.get('texto') or '', 'recortado': bool(v.get('recortado'))})
+
             def do_POST(self):  # noqa: N802
-                if self.path != '/tienda/v1/mensaje':
+                ruta = urllib.parse.urlsplit(self.path).path
+                if ruta not in ('/tienda/v1/mensaje', RUTA_VOZ):
                     self._json(404, {'ok': False, 'motivo': 'fallo'})
                     return
                 esquema, _, pase = (self.headers.get('Authorization') or '').partition(' ')
                 payload = leer_pase(pase, worker.token_worker) if esquema == 'Pase' else None
                 if not payload:
                     self._json(401, {'ok': False, 'motivo': 'pase'})
+                    return
+                if ruta == RUTA_VOZ:
+                    self._voz(payload)
                     return
                 largo = int(self.headers.get('Content-Length') or 0)
                 try:
