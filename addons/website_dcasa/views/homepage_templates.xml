@@ -139,9 +139,10 @@
                         <a t-foreach="dcasa_vitrina" t-as="diapo" t-att-href="diapo['url']" tabindex="-1" aria-hidden="true"
                            t-attf-class="o_dcasa_vitrina_foto {{ 'is-activa' if diapo_first else '' }}">
                             <picture>
-                                <source type="image/webp" t-att-srcset="diapo['srcset']" t-att-sizes="diapo['sizes']"/>
+                                <source t-if="diapo['srcset']" type="image/webp" t-att-srcset="diapo['srcset']"
+                                        t-att-sizes="diapo['sizes']"/>
                                 <img t-att-src="diapo['src']" t-att-alt="diapo['nombre']" width="1200" height="1600"
-                                     t-att-sizes="diapo['sizes']"
+                                     t-att-srcset="diapo['srcset_respaldo']" t-att-sizes="diapo['sizes']"
                                      t-att-loading="'eager' if diapo_first else 'lazy'"
                                      t-att-fetchpriority="'high' if diapo_first else 'low'"
                                      t-att-decoding="None if diapo_first else 'async'"/>

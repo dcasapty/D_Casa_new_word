@@ -7,6 +7,10 @@ vuelva a dañar»). Fija, medido en Chrome y a dos anchos (1440 y 390), el dise�
   los mismos valores en TODAS las páginas del mismo tipo; hamburguesa visible en el celular.
 * Portada sin placa: texto blanco directo sobre la foto, velo negro plano del 35-50 %, halo fino en
   el texto y ningún elemento con fondo detrás del titular.
+* Portada con el carrusel de productos (models/portada.py, 2026-11-16): el texto blanco sobre el negro del
+  hero, sin placa (nada azul ni navy, ningún fondo detrás del titular); la foto de estudio entera, sin velo ni
+  filtro, en su marco de esquinas suaves, que empieza debajo de la píldora (la píldora ahumada nunca queda sobre
+  el gris claro de una foto) y no se monta sobre el texto.
 * Capturas de referencia («golden») en tests/referencia/, comparadas con tolerancia.
 
 Dos niveles:
@@ -27,7 +31,7 @@ import pathlib
 import re
 from unittest.mock import patch
 
-from PIL import Image, ImageChops
+from PIL import Image, ImageChops, ImageDraw
 
 from odoo.addons.website_dcasa.models.black_weekend import PARAM_ACTIVO, PARAM_FIN, PARAM_INICIO
 from odoo.tests import HttpCase, tagged
@@ -63,8 +67,8 @@ VELO_MIN, VELO_MAX = .35, .50
 AZUL, NAVY = (19, 64, 177), (14, 42, 107)
 
 # Página → tipo de vidrio al abrir (claro sobre fondo claro, ahumado sobre foto o fondo oscuro).
-TIPO_DE_VIDRIO = {'portada': 'ahumado', 'tienda': 'claro', 'ficha': 'claro', 'socios': 'ahumado',
-                  'black-weekend': 'ahumado'}
+TIPO_DE_VIDRIO = {'portada': 'ahumado', 'portada-carrusel': 'ahumado', 'tienda': 'claro', 'ficha': 'claro',
+                  'socios': 'ahumado', 'black-weekend': 'ahumado'}
 
 # Deja la página quieta y determinista antes de medir o capturar: sin animaciones ni transiciones,
 # entradas ya terminadas, barra de scroll oculta, fuentes e imágenes cargadas, cabecera medida.
@@ -157,7 +161,53 @@ MEDIR = """
             cabecera: rect(cabecera),
         };
         const hero = document.querySelector('.o_dcasa_hero:not(.o_dcasa_hero_compacto)');
-        if (hero) {
+        const detrasDe = (el) => {
+            const r = el.getBoundingClientRect();
+            const puntos = [[r.left + 2, r.top + 2], [r.right - 2, r.top + 2], [r.left + 2, r.bottom - 2],
+                            [r.right - 2, r.bottom - 2], [r.left + r.width / 2, r.top + r.height / 2]];
+            const detras = [];
+            for (const [x, y] of puntos) {
+                for (const otro of document.elementsFromPoint(x, y)) {
+                    if (el.contains(otro)) {
+                        continue;
+                    }
+                    detras.push({ sel: nombre(otro), fondo: cs(otro).backgroundColor, imagen: cs(otro).backgroundImage,
+                                  esHero: otro === hero });
+                    if (otro === hero) {
+                        break;
+                    }
+                }
+            }
+            return detras;
+        };
+        if (hero && hero.classList.contains('o_dcasa_hero_vitrina')) {
+            const marco = hero.querySelector('.o_dcasa_vitrina_fotos');
+            const img = hero.querySelector('.o_dcasa_vitrina_foto.is-activa img');
+            const texto = hero.querySelector('.o_dcasa_hero_texto');
+            const titulo = hero.querySelector('.o_dcasa_display');
+            const sub = hero.querySelector('.o_dcasa_hero_sub');
+            const kicker = hero.querySelector('.o_dcasa_hero_texto > .o_dcasa_kicker');
+            const piso = Math.max(...[...cabecera.querySelectorAll('.o_main_nav')].filter(visible)
+                .map((n) => n.getBoundingClientRect().bottom));
+            const a = texto.getBoundingClientRect(), b = marco.getBoundingClientRect();
+            res.vitrina = {
+                rect: rect(hero),
+                fondo: cs(hero).backgroundColor,
+                opacidadFoto: parseFloat(cs(img).opacity),
+                opacidadDiapositiva: parseFloat(cs(img.closest('.o_dcasa_vitrina_foto')).opacity),
+                filtroFoto: cs(img).filter,
+                mezclaFoto: cs(img).mixBlendMode,
+                marcoImagen: cs(marco).backgroundImage,
+                marcoRadio: cs(marco).borderTopLeftRadius,
+                capas: ['::before', '::after'].flatMap((p) => [cs(marco, p).content, cs(texto, p).content]),
+                fotoBajoPildora: b.top >= piso,
+                textoSobreFoto: a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top,
+                textoFondo: cs(texto).backgroundColor,
+                textoImagen: cs(texto).backgroundImage,
+                colores: { titulo: cs(titulo).color, sub: cs(sub).color, kicker: kicker ? cs(kicker).color : null },
+                detras: detrasDe(titulo),
+            };
+        } else if (hero) {
             const img = hero.querySelector('.o_dcasa_hero_media img');
             const media = img.parentElement;
             const texto = hero.querySelector('.o_dcasa_hero_texto');
@@ -207,6 +257,22 @@ MEDIR = """
 """
 
 
+def _cama_de_estudio(cabecero):
+    """Foto 3:4 de una cama como las del catálogo (fondo de estudio claro), dibujada: el contrato no depende del
+    catálogo real."""
+    imagen = Image.new('RGB', (900, 1200), (226, 226, 224))
+    dibujo = ImageDraw.Draw(imagen)
+    dibujo.rectangle((0, 900, 900, 1200), fill=(206, 206, 204))           # piso
+    dibujo.rectangle((150, 380, 750, 760), fill=cabecero)                 # cabecero
+    dibujo.rectangle((90, 640, 810, 900), fill=(245, 245, 243))           # colchón y edredón
+    dibujo.rectangle((90, 880, 810, 930), fill=cabecero)                  # base
+    for x in (120, 760):
+        dibujo.rectangle((x, 930, x + 24, 1010), fill=(30, 30, 30))       # patas
+    salida = io.BytesIO()
+    imagen.save(salida, 'JPEG', quality=92)
+    return base64.b64encode(salida.getvalue())
+
+
 def _rgba(color):
     """'rgb(1, 2, 3)' / 'rgba(1, 2, 3, 0.5)' → (1, 2, 3, alfa)."""
     numeros = re.findall(r'[\d.]+', color or '')
@@ -245,8 +311,17 @@ class TestContratoVisual(HttpCase):
             'name': 'Cama del contrato visual', 'list_price': 99.99, 'is_published': True,
             'public_categ_ids': [(6, 0, recamaras.ids)], 'dcasa_black_weekend': True,
         })
-        cls.paginas = {'portada': '/', 'tienda': '/shop', 'ficha': cls.producto.website_url,
+        cls.paginas = {'portada': '/', 'portada-carrusel': '/', 'tienda': '/shop', 'ficha': cls.producto.website_url,
                        'socios': '/socios', 'black-weekend': '/promociones'}
+        # Dos camas «de estudio» dibujadas (fondo gris claro, cabecero y colchón) para el carrusel de la portada.
+        cls.Diapositiva = cls.env['dcasa.portada.diapositiva']
+        cls.camas_carrusel = cls.env['product.template'].browse()
+        for nombre, cabecero in (('Cama queen negra del contrato visual', (28, 28, 30)),
+                                 ('Cama king rosada del contrato visual', (214, 128, 150))):
+            cls.camas_carrusel |= cls.env['product.template'].create({
+                'name': nombre, 'list_price': 159.99, 'is_published': True,
+                'public_categ_ids': [(6, 0, recamaras.ids)], 'image_1920': _cama_de_estudio(cabecero),
+            })
 
     # ------------------------------------------------------------------ Chrome
     @contextlib.contextmanager
@@ -297,6 +372,11 @@ class TestContratoVisual(HttpCase):
                 # contrato de las demás es la cabecera de todos los días (campaña del sitio, 2026-11-15).
                 encendida = '1' if nombre == 'black-weekend' else '0'
                 self.env['ir.config_parameter'].sudo().set_param(PARAM_ACTIVO, encendida)
+                # El carrusel de la portada solo para su página; las demás, con el hero de siempre.
+                self.Diapositiva.search([]).unlink()
+                if nombre == 'portada-carrusel':
+                    for orden, producto in enumerate(self.camas_carrusel, start=1):
+                        self.Diapositiva.create({'product_tmpl_id': producto.id, 'sequence': orden})
                 self.env.flush_all()
                 with self._chrome(ancho, alto) as browser:
                     browser.navigate_to(self.base_url() + ruta, wait_stop=True)
@@ -305,8 +385,9 @@ class TestContratoVisual(HttpCase):
                                     f'{ruta} a {ancho}px: la cabecera no llegó a medirse (JS del sitio)')
                     medidas = self._evaluar(browser, MEDIR)
                     capturas = {'cabecera': self._capturar(browser, medidas['cabecera'], alto)}
-                    if medidas.get('hero'):
-                        capturas['hero'] = self._capturar(browser, medidas['hero']['rect'], alto)
+                    if medidas.get('hero') or medidas.get('vitrina'):
+                        caja = (medidas.get('hero') or medidas['vitrina'])['rect']
+                        capturas['hero'] = self._capturar(browser, caja, alto)
                     capturas = {parte: img.reduce(REDUCCION[parte]) for parte, img in capturas.items()}
                     excepcion = browser._result.done() and browser._result.exception()
                     self.assertFalse(excepcion, f'{ruta} a {ancho}px: error de JavaScript en la página: {excepcion}')
@@ -388,6 +469,37 @@ class TestContratoVisual(HttpCase):
                 self.assertIn('invert(1)', m['hamburguesa']['filtroIcono'] or '', 'hamburguesa blanca sobre la foto')
             else:
                 self.assertEqual(m['hamburguesa']['filtroIcono'], 'none', 'hamburguesa en tinta sobre fondo claro')
+
+    def test_02b_portada_con_carrusel_sin_placa_y_la_foto_entera(self):
+        medido = self._medir_todo()
+        for ancho, _alto in VENTANAS:
+            v = medido['portada-carrusel', ancho]['medidas'].get('vitrina')
+            with self.subTest(ancho=ancho):
+                self.assertTrue(v, 'con productos elegidos, la portada abre con el carrusel (.o_dcasa_hero_vitrina)')
+                self.assertEqual(v['fondo'], 'rgb(0, 0, 0)', 'el negro de siempre del hero')
+                self.assertEqual(v['opacidadFoto'], 1.0, 'la foto de estudio sin velo')
+                self.assertEqual(v['opacidadDiapositiva'], 1.0)
+                self.assertEqual(v['filtroFoto'], 'none')
+                self.assertEqual(v['mezclaFoto'], 'normal')
+                self.assertEqual(v['marcoImagen'], 'none', 'sin degradado sobre la foto')
+                self.assertEqual(v['marcoRadio'], RADIO_PILDORA, 'esquinas suaves como la píldora')
+                for capa in v['capas']:
+                    self.assertIn(capa, ('none', 'normal'), 'ninguna capa ::before/::after sobre la foto o el texto')
+                self.assertTrue(v['fotoBajoPildora'], 'la píldora ahumada nunca sobre el gris claro de la foto')
+                self.assertFalse(v['textoSobreFoto'], 'el texto no se monta sobre la foto de estudio')
+                self.assertEqual(v['textoFondo'], 'rgba(0, 0, 0, 0)', 'el bloque de texto no tiene fondo (sin placa)')
+                self.assertEqual(v['textoImagen'], 'none')
+                for cual, color in v['colores'].items():
+                    if color is not None:     # el antetítulo no sale en el celular
+                        self.assertEqual(color, 'rgb(255, 255, 255)', f'{cual} blanco')
+                for el in v['detras']:
+                    rgba = _rgba(el['fondo'])
+                    if el['esHero']:
+                        self.assertEqual(rgba[:3], (0, 0, 0))
+                        continue
+                    self.assertEqual(rgba[3], 0.0, f'{el["sel"]} tiene fondo detrás del titular: {el["fondo"]}')
+                    self.assertNotIn(rgba[:3], (AZUL, NAVY), f'{el["sel"]} azul/navy detrás del titular')
+                    self.assertEqual(el['imagen'], 'none', f'{el["sel"]} con imagen o degradado detrás del titular')
 
     def test_02_hero_de_la_portada_sin_placa(self):
         medido = self._medir_todo()

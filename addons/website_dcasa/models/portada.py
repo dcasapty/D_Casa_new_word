@@ -11,6 +11,7 @@
 Las plantillas están en ``views/homepage_templates.xml`` (``hero_carrusel``, ``seccion_cine``) y el movimiento en
 ``static/src/js/portada.js``.
 """
+import logging
 import math
 
 from odoo import api, fields, models
@@ -18,6 +19,8 @@ from odoo.fields import Domain
 from odoo.http import request
 
 from .website import CATEGORIAS_PORTADA
+
+_logger = logging.getLogger(__name__)
 
 # Diapositivas que se muestran como mucho: más no se alcanzan a ver y cada una es una foto grande.
 MAX_DIAPOSITIVAS = 8
@@ -37,6 +40,16 @@ SEGUNDOS_POR_FOTO = 4.5
 ORDEN_CATALOGO = 'website_sequence asc, id desc'
 
 _MEMO = '_dcasa_hero_carrusel'
+
+# Las camas que la dueña aprobó para el carrusel (2026-11-16, con la hoja de fotos de producción a la vista: «sí, están
+# bien»), por su código público («DC-…», el que sale en la ficha), en este orden: Cama Queen Color Black (la «300-300»),
+# Cama King Rosada (la «801»), Cama Queen Black 805, Cama Queen Beige 805, Cama Queen Light Gray 805, Cama Queen Ivory
+# 8017-1002-Q, Cama King Dark Grey y Cama King Ivory. El carrusel nace con ellas UNA sola vez (``_dcasa_sembrar``); lo
+# que no exista en la base (una copia local, staging) se salta.
+CARRUSEL_INICIAL = ('DC-ZKXSHJ', 'DC-SVQ7QF', 'DC-VTQJDJ', 'DC-2THJMG', 'DC-7RFSYH', 'DC-YY9N99', 'DC-FQNH3X',
+                    'DC-STGW72')
+# Ya se sembró (fecha): no se vuelve a hacer aunque Gerencia vacíe la lista después.
+PARAM_SEMBRADO = 'website_dcasa.carrusel_sembrado'
 
 
 class DcasaPortadaDiapositiva(models.Model):
@@ -60,6 +73,37 @@ class DcasaPortadaDiapositiva(models.Model):
 
     _producto_unico = models.Constraint('unique(website_id, product_tmpl_id)', 'Ese producto ya está en el carrusel.')
 
+    @api.model
+    def _dcasa_sembrar(self):
+        """El carrusel nace con las camas que aprobó la dueña (``CARRUSEL_INICIAL``), una sola vez.
+
+        Corre al instalar y en cada actualización del módulo (data/portada_data.xml), pero solo hace algo la primera
+        vez: deja la marca ``PARAM_SEMBRADO`` y desde ahí la lista es de Gerencia (cambiarla, reordenarla o vaciarla
+        para volver al hero de siempre). Solo llena la lista de un sitio que la tenga vacía; los códigos que no existen
+        se saltan sin error. Devuelve cuántas diapositivas creó.
+        """
+        Param = self.env['ir.config_parameter'].sudo()
+        if Param.get_param(PARAM_SEMBRADO):
+            return 0
+        Diapositiva = self.sudo()
+        Producto = self.env['product.template'].sudo()
+        productos = []
+        for codigo in CARRUSEL_INICIAL:
+            producto = Producto.search([('dcasa_codigo_publico', '=', codigo)], limit=1)
+            if producto and producto not in productos:
+                productos.append(producto)
+        creadas = 0
+        for sitio in self.env['website'].sudo().search([]):
+            if Diapositiva.search_count([('website_id', '=', sitio.id)], limit=1):
+                continue
+            for orden, producto in enumerate(productos, start=1):
+                Diapositiva.create({'website_id': sitio.id, 'product_tmpl_id': producto.id, 'sequence': orden * 10})
+                creadas += 1
+        Param.set_param(PARAM_SEMBRADO, fields.Datetime.to_string(fields.Datetime.now()))
+        _logger.info("D'CASA portada: carrusel sembrado con %s diapositiva(s) (%s de %s camas encontradas).",
+                     creadas, len(productos), len(CARRUSEL_INICIAL))
+        return creadas
+
     @api.depends('product_tmpl_id.is_published', 'product_tmpl_id.sale_ok', 'product_tmpl_id.image_128',
                  'product_tmpl_id.active')
     def _compute_en_portada(self):
@@ -79,7 +123,8 @@ class Website(models.Model):
             [('website_id', '=', self.id)]).mapped('product_tmpl_id').ids)
 
     def _dcasa_hero_carrusel(self):
-        """Diapositivas del hero: ``[{'producto', 'nombre', 'url', 'srcset', 'src'}]``, en el orden del panel.
+        """Diapositivas del hero, en el orden del panel: el producto, su nombre de cliente, su ficha y su foto grande
+        (``srcset`` en WebP, ``srcset_respaldo`` y ``src`` de Odoo).
 
         Vacío (el hero de siempre) si nadie eligió productos o si ninguno se puede mostrar: sin publicar, fuera de la
         venta en el sitio, archivado o sin foto. La precarga de la cabecera y la portada lo piden en la misma
@@ -95,14 +140,17 @@ class Website(models.Model):
             dominio = Domain.AND([self._dcasa_dominio_publicado(), [('id', 'in', ids)]])
             visibles = {p.id: p for p in self.env['product.template'].search(dominio)}
             for producto in (visibles[i] for i in ids if i in visibles):
-                srcset = self._dcasa_img_srcset(producto, ANCHOS_HERO)
-                if not srcset:
+                # La foto grande: WebP del ancho justo (/dcasa/img) y, de respaldo, el JPEG/PNG de Odoo a 512-1920 px.
+                webp = self._dcasa_img_srcset(producto, ANCHOS_HERO)
+                if not (webp or producto.with_context(bin_size=True).image_1920):
                     continue
                 diapositivas.append({
                     'producto': producto,
                     'nombre': producto._dcasa_nombre_cliente(),
                     'url': producto.website_url,
-                    'srcset': srcset,
+                    'srcset': webp,
+                    'srcset_respaldo': ', '.join(
+                        f'{self.image_url(producto, f"image_{ancho}")} {ancho}w' for ancho in (512, 1024, 1920)),
                     'sizes': TAMANOS_HERO,
                     'src': self.image_url(producto, 'image_1024'),
                 })

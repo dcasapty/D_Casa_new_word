@@ -72,6 +72,19 @@ class TestMarcasDeCambio(TransactionCase):
             'pricelist_id': tarifa.id, 'compute_price': 'percentage', 'percent_price': 10})
         self.assertIn(0, self._marcados())
 
+    def test_carrusel_de_la_portada_regenera_todo(self):
+        """Elegir, reordenar o quitar un producto del carrusel cambia la portada guardada en el borde."""
+        sitio = self.env['website'].search([], limit=1)
+        Diapositiva = self.env['dcasa.portada.diapositiva']
+        diapositiva = Diapositiva.create({'website_id': sitio.id, 'product_tmpl_id': self.producto.id})
+        self.assertIn(0, self._marcados())
+        self.Pendiente.search([]).unlink()
+        diapositiva.sequence = 99
+        self.assertIn(0, self._marcados())
+        self.Pendiente.search([]).unlink()
+        diapositiva.unlink()
+        self.assertIn(0, self._marcados())
+
     def test_vista_que_no_es_del_sitio_no_marca(self):
         vista = self.env['ir.ui.view'].create({
             'name': 'Vista formulario marcas', 'type': 'form', 'model': 'res.partner',

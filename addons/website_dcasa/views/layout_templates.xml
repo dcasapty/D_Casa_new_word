@@ -76,8 +76,11 @@
         <xpath expr="//head" position="inside">
             <t t-if="website and request and request.httprequest.path in ('/', website.homepage_url or '/')">
                 <t t-set="dcasa_primera" t-value="(website._dcasa_hero_carrusel() or [None])[0]"/>
-                <link t-if="dcasa_primera" rel="preload" as="image" type="image/webp" fetchpriority="high"
-                      t-att-imagesrcset="dcasa_primera['srcset']" t-att-imagesizes="dcasa_primera['sizes']"/>
+                <link t-if="dcasa_primera and dcasa_primera['srcset']" rel="preload" as="image" type="image/webp"
+                      fetchpriority="high" t-att-imagesrcset="dcasa_primera['srcset']"
+                      t-att-imagesizes="dcasa_primera['sizes']"/>
+                <link t-elif="dcasa_primera" rel="preload" as="image" fetchpriority="high" t-att-href="dcasa_primera['src']"
+                      t-att-imagesrcset="dcasa_primera['srcset_respaldo']" t-att-imagesizes="dcasa_primera['sizes']"/>
                 <link t-else="" rel="preload" as="image" fetchpriority="high"
                       href="/website_dcasa/static/src/img/hero.webp"
                       imagesrcset="/website_dcasa/static/src/img/hero-800.webp 800w, /website_dcasa/static/src/img/hero.webp 1400w"

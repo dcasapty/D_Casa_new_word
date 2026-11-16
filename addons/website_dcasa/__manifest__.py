@@ -72,6 +72,7 @@ Todo el contenido de las páginas es editable con el constructor de Odoo
         'data/seo_data.xml',
         'data/black_weekend_data.xml',
         'data/ir_cron_data.xml',
+        'data/portada_data.xml',
     ],
     'assets': {
         'web._assets_primary_variables': [
