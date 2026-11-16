@@ -26,8 +26,11 @@ productos se marcaban desde el Excel del catálogo (models/black_weekend.py).
   romper la regla, por ahora no quiero romperla. Pero debería poderse»): la cama y el colchón de un combo armado en la
   cotización (dcasa_catalogo, ``combo_armable.py``) se calculan con la bandera de contexto ``COMBO_SIN_CAMPANA``, que
   saca de la tarifa las reglas de campaña; las demás reglas siguen. El interruptor «La campaña también rebaja los
-  combos» (``dcasa_rebaja_combos``, apagado; solo Gerencia y administradores) lo deshace: con él encendido las reglas
-  llevan ``dcasa_campana_combos`` y la bandera ya no las saca.
+  combos» (``dcasa_rebaja_combos``, apagado; solo Gerencia y administradores) lo deshace: la bandera no saca las reglas
+  de una campaña con el interruptor encendido (cada regla sabe de qué campaña es, ``dcasa_campana_id``; cambiar el
+  interruptor no reescribe ninguna regla, así la tienda del borde no se regenera entera).
+* Las banderas internas de contexto (esta y las de los combos) valen solo con ``INTERNO``, un objeto de Python que
+  una llamada por RPC (JSON) no puede fabricar: mandarlas desde afuera no salta ninguna regla.
 * Una línea de una venta que no es de la web se calcula con la fecha en que se agregó (``dcasa_fecha_precio``), no con
   la de la cotización: una cotización abierta en la campaña no le da el precio de campaña a una línea nueva después
   del fin (las reglas siguen 30 días para las líneas que ya tenía). Revisión adversarial, tercera vuelta (I-B).
@@ -57,9 +60,17 @@ DESPUES_DEL_FIN = timedelta(days=30)
 CAMPOS_CAMPANA = frozenset({'dcasa_black_weekend', 'dcasa_bw_orden', 'dcasa_bw_variante_id', 'dcasa_campana_precio'})
 # Contexto para escribir muchos productos y sincronizar una sola vez al final.
 SIN_SINCRONIZAR = 'dcasa_campana_sin_sincronizar'
+# El valor de las banderas internas de contexto: un objeto que JSON no puede fabricar (una llamada por RPC que mande la
+# clave con ``true`` no vale). Se compara con ``is`` (``es_interno``).
+INTERNO = object()
 # Contexto con que se calcula una pieza de un combo armado (dcasa_catalogo): la tarifa sin las reglas de campaña, salvo
-# las de una campaña que también rebaja los combos (``dcasa_campana_combos``).
-COMBO_SIN_CAMPANA = 'dcasa_combo_sin_campana'
+# las de una campaña que también rebaja los combos (``dcasa_rebaja_combos``). Su valor: ``INTERNO``.
+COMBO_SIN_CAMPANA = 'dcasa_tarifa_sin_campana'
+
+
+def es_interno(env, clave):
+    """¿Trae el contexto la bandera interna ``clave`` puesta por el código (no por una llamada de afuera)?"""
+    return env.context.get(clave) is INTERNO
 
 
 def _exigir_precios(env):
@@ -156,11 +167,10 @@ class DcasaCampana(models.Model):
         if 'dcasa_rebaja_combos' in vals:
             _exigir_gerencia(self.env)
         resultado = super().write(vals)
+        # El interruptor de los combos no toca las reglas: lo lee la tarifa al calcular (_get_applicable_rules_domain).
         if {'fecha_inicio', 'fecha_fin', 'website_id'} & set(vals):
             self.env['product.template']._dcasa_campana_sincronizar()
             self._dcasa_campana_programar()
-        elif 'dcasa_rebaja_combos' in vals:
-            self.env['product.template']._dcasa_campana_sincronizar()
         return resultado
 
     def unlink(self):
@@ -192,6 +202,10 @@ class DcasaCampana(models.Model):
         usaba (la del contacto). Con una regla de campaña, la página diría el precio normal y el carrito cobraría el
         de campaña. Marcarla «seleccionable» la ofrece al sitio; con una sola tarifa Odoo no muestra ningún selector
         y los precios no cambian (no tiene otras reglas). No toca nada si ya hay una tarifa ofrecida.
+
+        Queda marcada de respaldo (``dcasa_respaldo_del_sitio``): en cuanto el sitio tenga una tarifa propia (por
+        ejemplo, una solo para la web), la de respaldo deja de ofrecerse sola y el visitante ve la propia
+        (``product.pricelist._dcasa_retirar_respaldo``).
         """
         if not self.env['res.groups']._is_feature_enabled('product.group_product_pricelist'):
             return
@@ -204,7 +218,7 @@ class DcasaCampana(models.Model):
             if not (tarifa and tarifa.active and tarifa.company_id in (sitio.company_id, self.env['res.company'])):
                 tarifa = sitio.user_id.sudo().partner_id.property_product_pricelist
             if tarifa and not tarifa.website_id:
-                tarifa.write({'selectable': True})
+                tarifa.write({'selectable': True, 'dcasa_respaldo_del_sitio': True})
                 _logger.info('Campaña: la tarifa %s queda ofrecida al sitio %s.', tarifa.display_name, sitio.name)
 
     @api.model
@@ -411,7 +425,7 @@ class ProductTemplate(models.Model):
                         continue
                     deseadas[(tarifa.id, producto.id)] = {
                         'price_surcharge': rebaja, 'date_start': desde, 'date_end': hasta,
-                        'dcasa_campana_combos': campana.dcasa_rebaja_combos}
+                        'dcasa_campana_id': campana.id}
         return deseadas
 
     @api.model
@@ -457,10 +471,10 @@ class ProductPricelistItem(models.Model):
         'Regla de la campaña del sitio', readonly=True, copy=False, index=True,
         help='La crea y la borra la campaña del sitio (Sitio web › Campaña del sitio). No se edita a mano: se '
              'cambia el precio de campaña del producto o las fechas de la campaña.')
-    dcasa_campana_combos = fields.Boolean(
-        'También rebaja los combos', readonly=True, copy=False,
-        help='Copia del interruptor «La campaña también rebaja los combos» de la campaña del sitio. Apagado, esta '
-             'regla no rebaja la cama ni el colchón de un combo armado en la cotización.')
+    dcasa_campana_id = fields.Many2one(
+        'dcasa.campana', 'Campaña', readonly=True, copy=False, ondelete='set null',
+        help='La campaña del sitio que creó esta regla. Con su interruptor «La campaña también rebaja los combos» '
+             'apagado, la regla no rebaja la cama ni el colchón de un combo armado en la cotización.')
 
     def _show_discount_on_shop(self):
         """En la tienda, el precio de campaña sale con el normal tachado (Odoo solo lo hace con descuentos en %)."""
@@ -484,12 +498,50 @@ class ProductPricelistItem(models.Model):
 class ProductPricelist(models.Model):
     _inherit = 'product.pricelist'
 
+    dcasa_respaldo_del_sitio = fields.Boolean(
+        'Ofrecida al sitio de respaldo', readonly=True, copy=False,
+        help='La campaña del sitio la ofreció al visitante porque el sitio no tenía ninguna tarifa. Deja de ofrecerse '
+             'sola en cuanto el sitio tiene una tarifa propia.')
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        tarifas = super().create(vals_list)
+        tarifas._dcasa_retirar_respaldo()
+        return tarifas
+
+    def write(self, vals):
+        resultado = super().write(vals)
+        if {'website_id', 'selectable', 'code', 'active', 'company_id'} & set(vals):
+            self._dcasa_retirar_respaldo()
+        return resultado
+
+    def _dcasa_retirar_respaldo(self):
+        """La tarifa de respaldo deja de ofrecerse cuando todo sitio donde se ofrece ya tiene otra propia (sin las de
+        cupón): si no, el visitante seguiría con la general (va primero) y la tarifa del sitio no serviría. Las reglas
+        de la campaña se pasan a la que queda."""
+        Tarifa = self.env['product.pricelist'].sudo()
+        respaldos = Tarifa.search([('dcasa_respaldo_del_sitio', '=', True), ('selectable', '=', True)])
+        if not respaldos:
+            return
+        retirar = respaldos
+        for sitio in self.env['website'].sudo().search([]):
+            ofrecidas = Tarifa.search(Tarifa._get_website_pricelists_domain(sitio))
+            if (ofrecidas & respaldos) and not (ofrecidas - respaldos).filtered(lambda t: not t.code):
+                retirar -= ofrecidas   # este sitio no tiene otra: la de respaldo se queda
+        if retirar:
+            retirar.write({'selectable': False, 'dcasa_respaldo_del_sitio': False})
+            _logger.info('Campaña: la tarifa %s deja de ofrecerse al sitio (ya tiene una propia).',
+                         ', '.join(retirar.mapped('display_name')))
+            self.env['product.template']._dcasa_campana_sincronizar()
+
     def _get_applicable_rules_domain(self, products, date, **kwargs):
         """Con ``COMBO_SIN_CAMPANA`` (una pieza de un combo armado), sin las reglas de la campaña que no rebajan los
         combos: la pieza toma lo que le daría la tarifa sin campaña (sus otras reglas o su precio normal)."""
         dominio = super()._get_applicable_rules_domain(products, date, **kwargs)
-        if self.env.context.get(COMBO_SIN_CAMPANA):
-            dominio = [*dominio, '|', ('dcasa_campana', '=', False), ('dcasa_campana_combos', '=', True)]
+        if es_interno(self.env, COMBO_SIN_CAMPANA):
+            # El interruptor se lee de la campaña en este momento (sudo: la vendedora no lee dcasa.campana).
+            rebajan = self.env['dcasa.campana'].sudo().search([('dcasa_rebaja_combos', '=', True)]).ids
+            dominio = [*dominio, '|', ('dcasa_campana', '=', False), ('dcasa_campana_id', 'in', rebajan)]
         return dominio
 
 

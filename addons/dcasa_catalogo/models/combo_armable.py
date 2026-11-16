@@ -33,14 +33,22 @@ Cómo se cumple en el servidor (no solo en la pantalla):
   ``_dcasa_recalcular_combos``, y la bandera ``COMBO_SIN_CAMPANA`` de website_dcasa); las demás reglas de la tarifa
   siguen. El colchón va a su precio en combo aunque tenga precio de campaña, y la cama a su precio de siempre. Al salir
   del combo, cada pieza vuelve a su precio con campaña (la cama también se recalcula al entrar o salir, si con eso
-  cambia su regla de tarifa). Un colchón sin precio en combo no hace combo con descuento: él y su cama siguen con la
-  campaña. El interruptor «La campaña también rebaja los combos» (apagado) lo deshace.
+  cambia su precio). Un colchón sin precio en combo, o con uno que ya no es menor que el normal, no hace combo con
+  descuento: él y su cama siguen con la campaña. Cuentan todas las camas que ocupa un colchón (una línea de 2 colchones
+  con dos camas en dos líneas son dos combos). Si una línea de varias camas tiene colchón solo para algunas, se parte:
+  las camas que van solas pasan a su propia línea y toman la campaña (si no se puede partir, el panel y la línea lo
+  avisan). El interruptor «La campaña también rebaja los combos» (apagado) lo deshace.
+* Las banderas internas de contexto (``SIN_RECALCULAR``, ``SIN_PRECIO_COMBO``, ``QUITANDO``) valen solo con el
+  ``INTERNO`` de website_dcasa, que una llamada por RPC no puede fabricar; los campos que pone el sistema
+  (``CAMPOS_DEL_SISTEMA``) no se escriben desde afuera.
 """
+import math
+
 from odoo import api, fields, models
 from odoo.addons.dcasa_base.models.product import _puede_cambiar_precios
-from odoo.addons.website_dcasa.models.campana import COMBO_SIN_CAMPANA
+from odoo.addons.website_dcasa.models.campana import COMBO_SIN_CAMPANA, INTERNO, es_interno
 from odoo.exceptions import AccessError, UserError, ValidationError
-from odoo.tools import float_compare
+from odoo.tools import float_compare, float_is_zero
 
 from .. import reglas
 
@@ -49,7 +57,10 @@ TIPOS = [('cama', 'Cama'), ('colchon', 'Colchón')]
 ATRIBUTOS_DE_MEDIDA = ('tamano', 'medida')
 SIN_RECALCULAR = 'dcasa_combo_sin_recalcular'
 SIN_PRECIO_COMBO = 'dcasa_combo_sin_precio'
-QUITANDO = 'dcasa_combo_quitando'   # ids de las líneas que se están quitando: ya no cuentan para emparejar
+QUITANDO = 'dcasa_combo_quitando'   # (INTERNO, ids) de las líneas que se están quitando: ya no cuentan para emparejar
+# Los pone el emparejamiento; escritos desde afuera (pantalla, RPC, Brian) no se guardan.
+CAMPOS_DEL_SISTEMA = frozenset({'dcasa_combo_con_precio', 'dcasa_combo_ahorro_unitario', 'dcasa_combo_sin_campana'})
+_TOLERANCIA = 1e-6
 # Lo que cambia el emparejamiento y dcasa_base no mide en el tope (el orden de las líneas y la cama preferida).
 # (y lo que guarda el propio emparejamiento: si alguien lo escribe a mano, se vuelve a calcular).
 CAMPOS_DE_EMPAREJAR = {'sequence', 'dcasa_combo_cama_id', 'dcasa_combo_con_precio', 'dcasa_combo_ahorro_unitario',
@@ -67,6 +78,26 @@ PRECIOS_COMBO_APROBADOS = {
 MAX_CANTIDAD = 20
 MAX_RESULTADOS = 40
 MAX_BUSCAR = 300
+
+
+def _quitando(env):
+    """Los ids de las líneas que se están quitando (solo si los puso el código)."""
+    valor = env.context.get(QUITANDO)
+    if isinstance(valor, tuple) and len(valor) == 2 and valor[0] is INTERNO:
+        return valor[1]
+    return ()
+
+
+def _interno(**claves):
+    """Contexto con banderas internas: ``_interno(sin_recalcular=True, quitando=ids)``."""
+    contexto = {}
+    if claves.get('sin_recalcular'):
+        contexto[SIN_RECALCULAR] = INTERNO
+    if claves.get('sin_precio_combo'):
+        contexto[SIN_PRECIO_COMBO] = INTERNO
+    if 'quitando' in claves:
+        contexto[QUITANDO] = (INTERNO, tuple(claves['quitando']))
+    return contexto
 
 
 def _moneda(moneda, monto):
@@ -293,7 +324,8 @@ class ProductProduct(models.Model):
         la línea; por defecto, ahora (como una línea nueva de una cotización)."""
         self.ensure_one()
         if orden and orden.pricelist_id:
-            tarifa = orden.pricelist_id.with_context(**{COMBO_SIN_CAMPANA: True}) if sin_campana else orden.pricelist_id
+            tarifa = orden.pricelist_id.with_context(**{COMBO_SIN_CAMPANA: INTERNO}) if sin_campana \
+                else orden.pricelist_id
             return tarifa._get_product_price(self, 1.0, currency=orden.currency_id, date=fecha or fields.Datetime.now())
         return self.lst_price
 
@@ -325,11 +357,13 @@ class SaleOrder(models.Model):
     def _dcasa_clave_linea(linea):
         return linea._origin.id or linea.id
 
-    def _dcasa_emparejar(self, lineas=None):
+    def _dcasa_emparejar(self, lineas=None, uso=None):
         """``{línea del colchón: (línea de la cama, con_precio)}`` de esta venta (``reglas.emparejar_combos``).
 
         Solo cuentan las líneas de producto con cantidad: ni secciones, ni anticipos, ni los combos de Odoo y sus
-        piezas. ``lineas`` permite medir la venta sin las que se van a quitar (o con una que se está creando)."""
+        piezas. ``lineas`` permite medir la venta sin las que se van a quitar (o con una que se está creando).
+        ``uso`` (dict que se llena): ``{línea de cama: colchones con descuento de combo que ocupa}``, todas las camas
+        que ocupan, no solo la que se muestra."""
         self.ensure_one()
         if not self._dcasa_combos_armables():
             return {}
@@ -349,12 +383,68 @@ class SaleOrder(models.Model):
                               'capacidad': linea.product_uom_qty * max(producto.dcasa_colchones_por_cama, 1)})
             else:
                 preferida = linea.dcasa_combo_cama_id
+                con_precio = producto.dcasa_precio_combo > 0 and linea.product_uom_id == producto.uom_id
                 colchones.append({
                     'clave': clave(linea), 'medida': producto.dcasa_medida, 'cantidad': linea.product_uom_qty,
-                    'con_precio': producto.dcasa_precio_combo > 0 and linea.product_uom_id == producto.uom_id,
+                    'con_precio': con_precio,
+                    # Descuento de verdad: el precio en combo es menor que el normal («Revisar» si ya no lo es).
+                    'descuento': con_precio and producto.dcasa_combo_estado == 'listo',
                     'preferida': clave(preferida) if preferida else None})
-        pares = reglas.emparejar_combos(camas, colchones)
+        uso_claves = {}
+        pares = reglas.emparejar_combos(camas, colchones, uso=uso_claves)
+        if uso is not None:
+            uso.update({por_clave[cama]: ocupa for cama, ocupa in uso_claves.items()})
         return {por_clave[colchon]: (por_clave[cama], con_precio) for colchon, (cama, con_precio) in pares.items()}
+
+    @staticmethod
+    def _dcasa_en_combo(pares, uso):
+        """Las líneas que van sin campaña: las camas que ocupa un colchón con descuento de combo y esos colchones."""
+        colchones = {colchon for colchon, (_cama, con_precio) in pares.items()
+                     if con_precio and colchon.product_id.dcasa_combo_estado == 'listo'}
+        return colchones | set(uso)
+
+    @staticmethod
+    def _dcasa_camas_de_sobra(cama, ocupa):
+        """Cuántas camas de la línea ``cama`` no llevan colchón con descuento de combo (0 si no es una cantidad
+        entera)."""
+        cantidad = cama.product_uom_qty
+        if not float_is_zero(cantidad - round(cantidad), precision_digits=6):
+            return 0
+        usadas = math.ceil(ocupa / max(cama.product_id.dcasa_colchones_por_cama, 1) - _TOLERANCIA)
+        return max(int(round(cantidad)) - usadas, 0)
+
+    def _dcasa_camas_solas_con_campana(self, lineas=None):
+        """``{línea de cama: camas de sobra}`` de las líneas de camas con colchón solo para algunas, cuando las de
+        sobra tomarían un precio de campaña distinto si fueran en su propia línea."""
+        self.ensure_one()
+        uso = {}
+        self._dcasa_emparejar(lineas, uso=uso)
+        resultado = {}
+        for cama, ocupa in uso.items():
+            sobran = self._dcasa_camas_de_sobra(cama, ocupa)
+            if sobran and cama._dcasa_la_campana_cambia_el_precio():
+                resultado[cama] = sobran
+        return resultado
+
+    def _dcasa_partir_camas(self, lineas):
+        """Las camas que van solas en una línea con colchón solo para algunas pasan a su propia línea (toman la
+        campaña; las del combo, no). Solo en cotizaciones y si es seguro (``_dcasa_se_puede_partir``). ¿Partió?"""
+        self.ensure_one()
+        if self.state not in ('draft', 'sent') or self.locked:
+            return False
+        partio = False
+        for cama, sobran in self._dcasa_camas_solas_con_campana(lineas).items():
+            if not cama._dcasa_se_puede_partir():
+                continue
+            interna = cama.with_context(**_interno(sin_recalcular=True))
+            interna.write({'product_uom_qty': cama.product_uom_qty - sobran})
+            # Copia en sudo: conserva la fecha del precio de la línea (I-B), que la vendedora no puede mandar.
+            nueva = interna.sudo().copy({
+                'order_id': self.id, 'product_uom_qty': sobran, 'sequence': cama.sequence,
+                'dcasa_fecha_precio': cama.dcasa_fecha_precio}).with_env(interna.env)
+            nueva._dcasa_reponer_precio()
+            partio = True
+        return partio
 
     def _dcasa_recalcular_combos(self, sin=None):
         """Deja cada colchón con su cama y su precio al día después de un cambio de líneas.
@@ -364,38 +454,22 @@ class SaleOrder(models.Model):
         (su tarifa, sin la campaña del sitio); si al entrar o salir del combo cambia la regla de tarifa de la cama, su
         precio también se vuelve a calcular (sin campaña de por medio, la cama conserva el precio que tenía). Lo ya
         facturado y las ventas bloqueadas no se tocan. ``sin``: líneas que se van a quitar."""
-        if self.env.context.get(SIN_RECALCULAR):
+        if es_interno(self.env, SIN_RECALCULAR):
             return
         vacia = self.env['sale.order.line']
         for orden in self.exists():
             lineas = orden.order_line - (sin or vacia)
-            pares = orden._dcasa_emparejar(lineas)
-            # Las piezas de los combos con precio en combo: el colchón y su cama.
-            en_combo = {pieza for colchon, (cama, con_precio) in pares.items() if con_precio
-                        for pieza in (colchon, cama)}
+            if orden._dcasa_combos_armables() and orden._dcasa_partir_camas(lineas):
+                lineas = orden.order_line - (sin or vacia)
+            uso = {}
+            pares = orden._dcasa_emparejar(lineas, uso=uso)
+            en_combo = self._dcasa_en_combo(pares, uso)
             for linea in lineas.filtered(lambda ln: not ln.display_type and ln.product_id):
                 if linea.qty_invoiced or orden.locked:
                     continue
                 cama, con_precio = pares.get(linea, (vacia, False))
-                callada = linea.with_context(**{SIN_RECALCULAR: True, QUITANDO: (sin or vacia).ids})
-                vals = {}
-                if linea.dcasa_combo_cama_id != cama:
-                    vals['dcasa_combo_cama_id'] = cama.id
-                if linea.dcasa_combo_con_precio != con_precio:
-                    vals['dcasa_combo_con_precio'] = con_precio
-                sin_campana = linea in en_combo
-                regla_antes = None
-                if linea.dcasa_combo_sin_campana != sin_campana:
-                    vals['dcasa_combo_sin_campana'] = sin_campana
-                    regla_antes = callada.pricelist_item_id
-                if vals:
-                    callada.write(vals)
-                cambio_la_regla = regla_antes is not None and callada.pricelist_item_id != regla_antes
-                if ('dcasa_combo_con_precio' in vals or cambio_la_regla) and not linea.is_downpayment:
-                    callada._dcasa_reponer_precio()
-                ahorro = callada._dcasa_ahorro_unitario_combo() if con_precio else 0.0
-                if float_compare(linea.dcasa_combo_ahorro_unitario, ahorro, precision_digits=4):
-                    callada.write({'dcasa_combo_ahorro_unitario': ahorro})
+                linea.with_context(**_interno(sin_recalcular=True, quitando=(sin or vacia).ids))._dcasa_combo_al_dia(
+                    cama, con_precio, linea in en_combo)
 
     def _dcasa_validar_tope_del_pedido(self, antes=None):
         # dcasa_base mide el tope al crear, cambiar o quitar líneas: antes, cada colchón queda con su precio justo
@@ -508,6 +582,7 @@ class SaleOrder(models.Model):
         self.ensure_one()
         self.check_access('read')
         pares = self._dcasa_emparejar()
+        solas = self._dcasa_camas_solas_con_campana() if self._dcasa_combos_armables() else {}
         por_cama = {}
         for colchon, (cama, _con_precio) in pares.items():
             por_cama.setdefault(cama, self.env['sale.order.line'])
@@ -520,8 +595,11 @@ class SaleOrder(models.Model):
             if tipo == 'cama' and linea in por_cama:
                 colchones = por_cama[linea].sorted(lambda ln: (ln.sequence, ln.id))
                 piezas = linea | colchones
+                fila_cama = self._dcasa_combo_linea_panel(linea)
+                if linea in solas:
+                    fila_cama['aviso'] = linea._dcasa_aviso_camas_solas(solas[linea])
                 combos.append({
-                    'cama': self._dcasa_combo_linea_panel(linea),
+                    'cama': fila_cama,
                     'colchones': [self._dcasa_combo_linea_panel(c) for c in colchones],
                     'total': sum(piezas.mapped('price_subtotal')),
                     'ahorro': sum(c.dcasa_combo_ahorro for c in colchones if c.dcasa_combo_con_precio),
@@ -674,6 +752,7 @@ class SaleOrderLine(models.Model):
     @api.depends('dcasa_combo_cama_id', 'dcasa_combo_colchon_ids', 'dcasa_combo_con_precio',
                  'dcasa_combo_ahorro_unitario', 'product_uom_qty', 'currency_id')
     def _compute_dcasa_combo(self):
+        solas_por_orden = {}
         for linea in self:
             ahorro = linea.dcasa_combo_ahorro_unitario * linea.product_uom_qty if linea.dcasa_combo_con_precio else 0.0
             linea.dcasa_combo_ahorro = ahorro
@@ -685,8 +764,16 @@ class SaleOrderLine(models.Model):
                     linea.dcasa_combo_texto = self.env._('Combo · ahorras %s', _moneda(moneda, ahorro))
                 else:
                     linea.dcasa_combo_texto = self.env._('Combo')
-            elif linea.dcasa_combo_colchon_ids:
-                linea.dcasa_combo_texto = self.env._('Combo')
+            elif linea.dcasa_combo_colchon_ids or linea.dcasa_combo_sin_campana:
+                # Una línea de varias camas con colchón solo para algunas, que no se pudo partir: que se vea.
+                orden = linea.order_id
+                if orden not in solas_por_orden:
+                    solas_por_orden[orden] = orden._dcasa_camas_solas_con_campana() \
+                        if orden and orden._dcasa_combos_armables() else {}
+                sobran = solas_por_orden[orden].get(linea)
+                linea.dcasa_combo_texto = self.env._(
+                    'Combo · %(sobran)s cama(s) sin colchón: pásalas a otra línea para el precio de campaña',
+                    sobran=sobran) if sobran else self.env._('Combo')
             else:
                 linea.dcasa_combo_texto = False
 
@@ -699,17 +786,93 @@ class SaleOrderLine(models.Model):
         en_combo = self.filtered('dcasa_combo_sin_campana')
         super(SaleOrderLine, self - en_combo)._compute_pricelist_item_id()
         if en_combo:
-            super(SaleOrderLine, en_combo.with_context(**{COMBO_SIN_CAMPANA: True}))._compute_pricelist_item_id()
+            super(SaleOrderLine, en_combo.with_context(**{COMBO_SIN_CAMPANA: INTERNO}))._compute_pricelist_item_id()
+
+    def _dcasa_combo_al_dia(self, cama, con_precio, sin_campana):
+        """Deja esta línea con su cama, su precio en combo y su marca «sin campaña» (``_dcasa_recalcular_combos``, que
+        la llama con las banderas internas puestas)."""
+        self.ensure_one()
+        vals = {}
+        if self.dcasa_combo_cama_id != cama:
+            vals['dcasa_combo_cama_id'] = cama.id
+        if self.dcasa_combo_con_precio != con_precio:
+            vals['dcasa_combo_con_precio'] = con_precio
+        precio_antes = regla_antes = None
+        if self.dcasa_combo_sin_campana != sin_campana:
+            vals['dcasa_combo_sin_campana'] = sin_campana
+            if not self.is_downpayment:
+                regla_antes = self.pricelist_item_id
+                precio_antes = self._get_display_price()
+        if vals:
+            self.write(vals)
+        # Al entrar o salir del combo, la pieza se recalcula si con eso cambia su precio de tarifa (se comparan precios:
+        # con una tarifa basada en otra, la regla es la misma y el precio no).
+        moneda = self.currency_id or self.order_id.currency_id
+        cambio_el_precio = precio_antes is not None and bool(
+            moneda.compare_amounts(self._get_display_price(), precio_antes))
+        if ('dcasa_combo_con_precio' in vals or cambio_el_precio) and not self.is_downpayment:
+            self._dcasa_reponer_precio()
+            if regla_antes is not None and (regla_antes._show_discount() or self.pricelist_item_id._show_discount()):
+                self._compute_discount()   # una regla en % de la tarifa sale como descuento
+        ahorro = self._dcasa_ahorro_unitario_combo() if con_precio else 0.0
+        if float_compare(self.dcasa_combo_ahorro_unitario, ahorro, precision_digits=4):
+            self.write({'dcasa_combo_ahorro_unitario': ahorro})
+
+    def _dcasa_sin_campana_si_combo(self):
+        """La línea con la bandera de la tarifa sin campaña si es pieza de un combo (para una tarifa basada en otra:
+        la regla de la línea calcula su base con la otra tarifa, y esa también va sin campaña)."""
+        if self.dcasa_combo_sin_campana and not es_interno(self.env, COMBO_SIN_CAMPANA):
+            return self.with_context(**{COMBO_SIN_CAMPANA: INTERNO})
+        return self
+
+    def _get_pricelist_price(self):
+        linea = self._dcasa_sin_campana_si_combo()
+        if linea is self:
+            return super()._get_pricelist_price()
+        return super(SaleOrderLine, linea)._get_pricelist_price()
+
+    def _get_pricelist_price_before_discount(self):
+        linea = self._dcasa_sin_campana_si_combo()
+        if linea is self:
+            return super()._get_pricelist_price_before_discount()
+        return super(SaleOrderLine, linea)._get_pricelist_price_before_discount()
+
+    def _dcasa_la_campana_cambia_el_precio(self):
+        """¿El precio de tarifa de esta línea cambia con o sin la campaña del sitio (en su fecha)?"""
+        self.ensure_one()
+        orden = self.order_id
+        if not orden.pricelist_id or not self.product_id:
+            return False
+        fecha = self._get_order_date()
+        con = self.product_id._dcasa_combo_precio_normal(orden, sin_campana=False, fecha=fecha)
+        sin = self.product_id._dcasa_combo_precio_normal(orden, sin_campana=True, fecha=fecha)
+        return bool((self.currency_id or orden.currency_id).compare_amounts(con, sin))
+
+    def _dcasa_se_puede_partir(self):
+        """¿Se puede partir esta línea de camas sin riesgo? Sin facturar ni entregar, en la unidad del producto y al
+        precio que puso el sistema (un precio a mano no se reparte)."""
+        self.ensure_one()
+        moneda = self.currency_id or self.order_id.currency_id
+        return bool(not self.display_type and not self.is_downpayment and not self.combo_item_id
+                    and not self.qty_invoiced and not self.qty_delivered
+                    and self.product_uom_id == self.product_id.uom_id
+                    and not moneda.compare_amounts(self.technical_price_unit, self.price_unit))
+
+    def _dcasa_aviso_camas_solas(self, sobran):
+        return self.env._(
+            'Esta línea tiene %(sobran)s cama(s) sin colchón: van sin el precio de campaña. Pásalas a otra línea para '
+            'que lo tomen.', sobran=sobran)
 
     def _dcasa_precio_combo(self):
         """El precio en combo que le toca a esta línea (moneda de la venta, sin ITBMS) o ``None``: es un colchón con
         precio en combo y en la venta hay una cama libre de su medida."""
         self.ensure_one()
         producto = self.product_id
-        if self.env.context.get(SIN_PRECIO_COMBO) or not self.order_id or not producto \
+        if es_interno(self.env, SIN_PRECIO_COMBO) or not self.order_id or not producto \
                 or producto.dcasa_tipo_combo != 'colchon' or producto.dcasa_precio_combo <= 0:
             return None
-        lineas = self.order_id.order_line.filtered(lambda ln: ln.id not in self.env.context.get(QUITANDO, ()))
+        quitando = _quitando(self.env)
+        lineas = self.order_id.order_line.filtered(lambda ln: ln.id not in quitando)
         if self not in lineas:
             lineas |= self
         par = self.order_id._dcasa_emparejar(lineas).get(self)
@@ -752,17 +915,30 @@ class SaleOrderLine(models.Model):
     def _dcasa_ahorro_unitario_combo(self):
         """Precio normal menos precio en combo de una unidad, en la misma base que ``price_unit``."""
         self.ensure_one()
-        normal = self.with_context(**{SIN_PRECIO_COMBO: True})._get_display_price()
+        normal = self.with_context(**_interno(sin_precio_combo=True))._get_display_price()
         combo = self._get_display_price()
         return max(self._dcasa_con_impuestos(normal) - self._dcasa_con_impuestos(combo), 0.0)
 
     # --- Guardar ----------------------------------------------------------------------
 
+    @api.model_create_multi
+    def create(self, vals_list):
+        # Lo que pone el emparejamiento no se manda desde afuera (lo vuelve a poner al medir el tope, enseguida).
+        if not es_interno(self.env, SIN_RECALCULAR):
+            vals_list = [{campo: valor for campo, valor in vals.items() if campo not in CAMPOS_DEL_SISTEMA}
+                         for vals in vals_list]
+        return super().create(vals_list)
+
     def write(self, vals):
+        if CAMPOS_DEL_SISTEMA & set(vals) and not es_interno(self.env, SIN_RECALCULAR):
+            # Escrito desde afuera (la pantalla, RPC, Brian): no se guarda. Lo pone solo el emparejamiento.
+            vals = {campo: valor for campo, valor in vals.items() if campo not in CAMPOS_DEL_SISTEMA}
+            if not vals:
+                return True
         resultado = super().write(vals)
         # El tope (dcasa_base) ya recalculó los combos si cambió el producto, la cantidad o el precio; el orden de
         # las líneas y la cama preferida no los mide el tope.
-        if CAMPOS_DE_EMPAREJAR & set(vals) and not self.env.context.get(SIN_RECALCULAR):
+        if CAMPOS_DE_EMPAREJAR & set(vals) and not es_interno(self.env, SIN_RECALCULAR):
             self.order_id._dcasa_recalcular_combos()
         return resultado
 
@@ -770,7 +946,7 @@ class SaleOrderLine(models.Model):
         # Antes de quitar la cama, su colchón vuelve a su precio normal: así el tope del pedido, que se mide al
         # quitar, ya ve el precio justo.
         ordenes = self.order_id
-        if not self.env.context.get(SIN_RECALCULAR):
+        if not es_interno(self.env, SIN_RECALCULAR):
             ordenes._dcasa_recalcular_combos(sin=self)
         return super().unlink()
 

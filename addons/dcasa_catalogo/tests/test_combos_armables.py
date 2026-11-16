@@ -91,6 +91,17 @@ class TestReglasCombos(TransactionCase):
         colchones[1]['cantidad'] = 1
         self.assertEqual(reglas.emparejar_combos(camas, colchones), {'M1': ('C2', True), 'M2': ('C1', True)})
 
+    def test_el_uso_cuenta_todas_las_camas_que_ocupa_un_colchon_con_descuento(self):
+        camas = [{'clave': 'C1', 'medida': 'King', 'capacidad': 1}, {'clave': 'C2', 'medida': 'King', 'capacidad': 1}]
+        colchones = [{'clave': 'M1', 'medida': 'King', 'cantidad': 2, 'con_precio': True, 'preferida': None}]
+        uso = {}
+        self.assertEqual(reglas.emparejar_combos(camas, colchones, uso=uso), {'M1': ('C1', True)})
+        self.assertEqual(uso, {'C1': 1.0, 'C2': 1.0}, 'los dos colchones ocupan las dos camas')
+        colchones[0]['descuento'] = False   # el precio en combo ya no es menor que el normal
+        uso = {}
+        reglas.emparejar_combos(camas, colchones, uso=uso)
+        self.assertEqual(uso, {}, 'sin descuento de verdad no ocupa ninguna cama «sin campaña»')
+
 
 class CombosCommon(TransactionCase):
 
@@ -537,6 +548,56 @@ class TestCombosYCampana(CombosCommon):
         orden = self.orden(productos=[self.cama_king, self.colchon_king])
         cama, colchon = self.linea(orden, self.cama_king), self.linea(orden, self.colchon_king)
         self.assertEqual((cama.price_unit, colchon.price_unit), (350.0, 250.0), 'la campaña también en el combo')
+
+    def test_una_linea_de_dos_camas_con_un_colchon_se_parte(self):
+        orden = self.orden(productos=[self.cama_king, self.colchon_king])
+        cama = self.linea(orden, self.cama_king)
+        cama.with_user(self.vendedora).product_uom_qty = 2
+        camas = self.linea(orden, self.cama_king).sorted('id')
+        self.assertEqual([(c.product_uom_qty, c.price_unit, c.dcasa_combo_sin_campana) for c in camas],
+                         [(1.0, 400.0, True), (1.0, 350.0, False)], 'la del combo sin campaña; la sola, con campaña')
+        self.assertEqual(self.linea(orden, self.colchon_king).price_unit, COMBO_KING)
+
+    def test_si_no_se_puede_partir_la_linea_lo_avisa(self):
+        orden = self.orden(productos=[self.cama_king, self.colchon_king])
+        cama = self.linea(orden, self.cama_king)
+        cama.with_user(self.vendedora).price_unit = 390.0   # precio a mano: no se reparte entre dos líneas
+        cama.with_user(self.vendedora).product_uom_qty = 2
+        self.assertEqual(len(self.linea(orden, self.cama_king)), 1, 'no se partió')
+        self.assertIn('1 cama(s) sin colchón', cama.dcasa_combo_texto)
+        panel = orden.with_user(self.vendedora).dcasa_combo_panel()
+        self.assertIn('Pásalas a otra línea', panel['combos'][0]['cama']['aviso'])
+        # Sin campaña de por medio no hay nada que avisar ni que partir.
+        self.cama_king.product_tmpl_id.dcasa_campana_precio = False
+        cama.invalidate_recordset(['dcasa_combo_texto'])
+        self.assertEqual(cama.dcasa_combo_texto, 'Combo')
+
+    def test_lo_que_pone_el_sistema_no_se_escribe_desde_afuera(self):
+        """Por RPC llega ``true``, no la bandera interna: ni el contexto ni los campos del emparejamiento valen."""
+        orden = self.orden(productos=[self.cama_king, self.colchon_king])
+        colchon = self.linea(orden, self.colchon_king)
+        de_afuera = colchon.with_user(self.vendedora).with_context(
+            dcasa_combo_sin_recalcular=True, dcasa_combo_sin_precio=True, dcasa_tarifa_sin_campana=True)
+        de_afuera.write({'dcasa_combo_ahorro_unitario': 999.0, 'dcasa_combo_con_precio': False})
+        self.assertEqual((colchon.dcasa_combo_ahorro_unitario, colchon.dcasa_combo_con_precio), (40.0, True))
+        sola = self.env['sale.order.line'].with_user(self.vendedora).with_context(dcasa_combo_sin_recalcular=True) \
+            .create({'order_id': self.orden().id, 'product_id': self.cama_king.id, 'dcasa_combo_sin_campana': True})
+        self.assertEqual((sola.price_unit, sola.dcasa_combo_sin_campana), (350.0, False))
+
+    def test_una_regla_en_porcentaje_de_la_tarifa_sale_como_descuento_al_entrar_al_combo(self):
+        self.env.ref('base.group_user').write({
+            'implied_ids': [Command.link(self.env.ref('sale.group_discount_per_so_line').id)]})
+        self.env['product.pricelist.item'].create({
+            'pricelist_id': self.tarifa.id, 'applied_on': '3_global', 'compute_price': 'percentage',
+            'percent_price': 10.0})
+        orden = self.orden(productos=[self.cama_king])
+        cama = orden.order_line
+        self.assertEqual((cama.price_unit, cama.discount), (350.0, 0.0), 'la regla de campaña manda')
+        colchon = self.env['sale.order.line'].with_user(self.vendedora).create(
+            {'order_id': orden.id, 'product_id': self.colchon_king.id})
+        self.assertEqual((cama.price_unit, cama.discount), (400.0, 10.0), 'en combo: la regla en % de la tarifa')
+        colchon.with_user(self.vendedora).unlink()
+        self.assertEqual((cama.price_unit, cama.discount), (350.0, 0.0))
 
     def test_el_panel_muestra_los_precios_del_combo(self):
         respuesta = self.orden().with_user(self.vendedora).dcasa_combo_colchones(self.cama_king.id)

@@ -57,3 +57,21 @@ class TestRendimientoFeed(MetaComun, TransactionCase):
         consultas_60, _filas = self._medir(self._catalogo(60), TOPE_60 + 70)
         por_producto = (consultas_60 - consultas_20) / 40
         self.assertLessEqual(por_producto, 1.5, f'{consultas_20} → {consultas_60}: {por_producto:.2f} por producto')
+
+    def test_con_la_tarifa_general_ofrecida_al_sitio_tampoco_crece(self):
+        """Como en producción desde la campaña del sitio: tarifas encendidas y la general ofrecida al sitio
+        (website_dcasa, ``_dcasa_tarifa_del_sitio``). Las reglas de la tarifa se buscan una vez para todo el catálogo
+        (tarifa_lote.py): el mismo tope que sin tarifas."""
+        self.env.ref('base.group_user').write({
+            'implied_ids': [Command.link(self.env.ref('product.group_product_pricelist').id)]})
+        Tarifa = self.env['product.pricelist']
+        Tarifa.search(Tarifa._get_website_pricelists_domain(self.website)).write({'selectable': False, 'code': False})
+        self.env['dcasa.campana']._dcasa_tarifa_del_sitio()
+        self.assertTrue(Tarifa.search(Tarifa._get_website_pricelists_domain(self.website)), 'la general, ofrecida')
+        consultas_20, filas_20 = self._medir(self._catalogo(20), TOPE_20)
+        consultas_60, filas_60 = self._medir(self._catalogo(60), TOPE_60)
+        self.assertEqual((filas_20, filas_60), (20, 60))
+        por_producto = (consultas_60 - consultas_20) / 40
+        self.assertLessEqual(
+            por_producto, MAXIMO_POR_PRODUCTO,
+            f'{consultas_20} consultas para 20 productos y {consultas_60} para 60: {por_producto:.2f} por producto')
