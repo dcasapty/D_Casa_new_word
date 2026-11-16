@@ -325,7 +325,7 @@ atiende el número real por la API oficial. Siguen fuera a propósito las campa�
 también estaba fuera, lo aprobó la dueña el 2026-11-13 como **Brian de la tienda** (sección siguiente); los botones
 «Escríbenos por WhatsApp» de la página se quedan.
 
-## Brian de la tienda (el chat de ventas de dcasapty.com)
+## Brian de la tienda (el chat de ventas de dcasapty.com; desde el 2026-11-16, «Andrés»)
 
 Lo aprobó la dueña el 2026-11-13 (prototipo v2). Es un chat de ventas en la página: ayuda a encontrar muebles, ver precios
 y disponibilidad, calcular el envío y dejar el carrito listo. **No es Juan en otro canal**: no tiene conversación en Odoo,
@@ -343,11 +343,18 @@ respuesta de IA tarda de 3 a 20 s y ocuparía un hilo y una conexión de Odoo to
   preflight no espera a que Odoo despierte (usa los de fábrica si Odoo tarda más de 1,5 s).
 - **Cabeceras:** `Authorization: Pase <pase>` y `Content-Type: application/json`.
 - **Cuerpo:** `{texto, accion, pagina, carrito, ubicacion}`. `texto` hasta **500 letras**; `accion` va en lugar del texto:
-  `chip` (cuenta como escrito), `confirmar_carrito` (lo que pasó al aplicar en Odoo) o `calificar`; `ubicacion` solo el
-  turno en que el visitante tocó «Usar mi ubicación» (puede ir sola). La página y el carrito son datos de la página: se
-  recortan, se limpian y le llegan al modelo como datos, nunca como órdenes.
-- **Respuesta 200:** `{ok, pose, bloques, chips}`. Bloques: `texto`, `productos` (tarjetas), `proponer_carrito`,
-  `sugerencias`, `ubicacion`, `envio`, `whatsapp`, `calificar`. **Errores:** `{ok:false, motivo}` con `pase` (401),
+  `chip` (cuenta como escrito), `confirmar_carrito` (lo que pasó al aplicar en Odoo) o `calificar`; desde el 2026-11-16
+  (Andrés vendedor, A2 a A4) también `confirmar_envio` `{lugar_id, resultado: ok|error, motivo?}` (`motivo` de una lista
+  fija: `sin_carrito`, `sin_tarifa`, `aparte`, `lugar`, `ajeno`, `tope`, `apagado`; otro cualquiera es `fallo`),
+  `confirmar_cambio` `{producto_id, cantidad 0 a 20, resultado}` y `carrito_bajo` `{producto_id, nombre, antes, ahora}`
+  (`ahora` menor que `antes`; 0 = lo quitó). `carrito` puede traer `envio: {lugar_id, lugar}`, el envío que Odoo dice que
+  ya está sumado. `ubicacion` solo el turno en que el visitante tocó «Usar mi ubicación» (puede ir sola). La página y el
+  carrito son datos de la página: se recortan, se limpian y le llegan al modelo como datos, nunca como órdenes.
+  `confirmar_*` y `carrito_bajo` no cuentan para el tope por sesión.
+- **Respuesta 200:** `{ok, pose, bloques, chips}`. Bloques: `texto`, `productos` (tarjetas, con `titulo` para el grupo
+  de la vitrina), `proponer_carrito`, `proponer_cambio_carrito` `{producto_id, cantidad, nombre}`, `sugerencias`,
+  `ubicacion`, `envio` (con `lugar_id`), `sumar_envio` `{lugar_id, lugar}`, `carrito` (la página pinta su tarjeta con lo
+  de Odoo), `whatsapp`, `calificar`. Una respuesta sin bloques quiere decir «nada que decir» (la segunda reacción de A3). **Errores:** `{ok:false, motivo}` con `pase` (401),
   `apagado` (503), `tope_sesion` / `tope_red` / `tope_dia` (429, con `Retry-After`), `presupuesto` (429) y `fallo` (502;
   400 si el cuerpo está mal). La página traduce cada uno a un texto amable con WhatsApp.
 
@@ -450,6 +457,43 @@ sin una copia reciente) está apagado.** Además, opcional, `avisar_cerrado` (ve
   carrito (salvo el turno en que Odoo lo confirmó).
 - **Sin IA:** pedir una persona (WhatsApp, con lo del carrito en el mensaje, sin datos personales), calificar (solo agradece:
   las estrellas las guarda la página en Odoo, número y fecha), el «sí»/«no» al carrito y el carrito que falló.
+
+### Andrés como buen vendedor (A1 a A5, 2026-11-16)
+
+Pedido de la dueña con capturas del chat (`docs/PLAN_ANDRES_VOZ_PORTADA.md` § A). La regla «No sumes… el total lo calcula
+la tienda» se queda: Andrés **ofrece**, la página le pide a Odoo y el total lo dice el carrito.
+
+- **A2. El envío en la cotización.** Cuando `cotizar_envio` da un precio, el bloque `envio` lleva el `lugar_id` de la tabla y
+  la sesión lo recuerda (`envio_cotizado`). Con algo en el carrito y ese envío todavía no sumado, el Worker agrega «¿Te lo
+  sumo a la cotización?» con «Sí, súmalo a la cotización» / «No, gracias». El «sí» (o «súmale el envío a la cotización»,
+  aunque hayan pasado otros mensajes) se resuelve **sin la IA**: «Con gusto, te lo sumo a la cotización.» + `sumar_envio`.
+  El modelo también puede pedirlo (`sumar_envio: true` en `responder_tienda`), pero solo sale si el visitante lo pidió o
+  dijo que sí en ese mensaje; si no, se le pregunta. La página llama a Odoo (`POST /dcasa/brian/v1/carrito/envio`
+  `{lugar_id}`: solo el lugar, nunca un precio) y confirma con `confirmar_envio`; con `ok`, el texto es fijo y sin cifras:
+  «Listo, te lo sumé: el total lo ves en tu carrito y en la cotización.»; con error, un texto fijo por motivo (con WhatsApp
+  salvo que falte el carrito). Con el carrito vacío: «primero pon en el carrito lo que te gustó». Ya sumado: lo dice y
+  muestra el carrito. El contexto le dice al modelo «El envío a X ya está sumado…» y la guardia quita «te lo sumé», «ya está
+  incluido» y «te lo quité» del modelo.
+- **A3. La reacción al quitar o vaciar.** `carrito_bajo` (lo manda la página con el chat abierto) se contesta **una vez por
+  sesión** (`reaccion_carrito`), sin la IA, con el nombre de la herramienta si el producto se vio (si no, el de la página,
+  limpio y sin corchetes): «Vi que quitaste X. ¿Te busco una opción más económica o una con más prestaciones?» (o «vaciaste
+  el carrito», o «bajaste la cantidad de X»), con «Una más económica», «Con más prestaciones» y «No, gracias» (que se respeta
+  sin la IA). La segunda vez: 200 sin bloques, sin tocar topes, contexto ni IA. Al modelo le llega como nota del sistema
+  («[El cliente quitó del carrito: X]»).
+- **A4. Cambiar el carrito conversando.** `cambiar_carrito {producto, cantidad}` en `responder_tienda` (0 = quitar), solo de
+  un producto que **ya está en el carrito** que manda la página (por `producto_id`, que el contexto le da, o por su nombre
+  exacto), con cantidad de 0 a 20 distinta de la que tiene. Con el pedido del visitante en ese mensaje («quita», «déjame
+  solo uno», «mejor dos»…) sale `proponer_cambio_carrito`; si no, «¿Quito X del carrito?» / «¿Cambio la cantidad de X a
+  N?» con «Sí, cámbialo» (sin la IA). Con `confirmar_cambio` ok, lo que se dice sale del carrito que la página manda con la
+  confirmación (el de Odoo): «Listo, quité X del carrito.» o «Listo, ahora tienes N × X en el carrito.» y el modelo ofrece,
+  una vez y sin insistir, una alternativa (con `buscar_productos`); si el carrito no cambió o hubo error, un texto fijo con
+  WhatsApp. Al quitar o bajar así, la reacción de A3 ya no sale en esa sesión. Con el presupuesto agotado, confirma igual
+  (texto fijo).
+- **A5. El título del grupo de la vitrina.** El bloque `productos` lleva `titulo`: lo último que el modelo buscó con
+  `buscar_productos` en ese turno (con mayúscula, hasta 40 letras, sin cifras ni nada que la guardia pare) o, si no, la
+  categoría de Odoo que más se repite entre esas tarjetas.
+- **«Dame la cotización»:** con algo en el carrito, el turno lleva el bloque `carrito` (la página pinta la tarjeta con el
+  PDF).
 
 ### Lo que no guarda
 

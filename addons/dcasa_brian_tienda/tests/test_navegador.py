@@ -709,3 +709,153 @@ class TestCarritoEnLaBarra(NavegadorCase):
         self.assertEqual(r['barra']['cuenta'], '1')
         self.assertEqual(r['historial'], 1, 'la conversación sigue: no se vuelve a presentar')
         self.assertNotIn('vacío', r['pie'] or '', 'la vitrina tampoco dice «vacío»')
+
+
+# Andrés como buen vendedor (docs/PLAN_ANDRES_VOZ_PORTADA.md, A1 a A5; pedido de la dueña, 2026-11-16): la barra del
+# carrito siempre a mano, el envío sumado a la cotización con la línea de Odoo, la reacción al quitar (una vez), cambiar
+# el carrito conversando y la vitrina ordenada por pedidos. Con el Worker simulado, que habla el contrato nuevo.
+VENDEDOR = """(async () => {
+    /*ESPERAR*/
+    const r = { errores: [] };
+    const escribir = (texto) => {
+        const campo = document.querySelector('#o_dcbt_texto');
+        campo.value = texto;
+        campo.dispatchEvent(new Event('input', { bubbles: true }));
+        document.querySelector('#o_dcbt_panel .o_dcbt_composer').requestSubmit();
+    };
+    const visible = (el) => !!el && !el.closest('[hidden]') && el.getBoundingClientRect().height > 0;
+    const barra = () => {
+        const b = document.querySelector('#o_dcbt_panel .o_dcbt_barra');
+        return b && !b.hidden ? { texto: b.querySelector('.o_dcbt_barra_ver').textContent, expandida: b.querySelector('.o_dcbt_barra_ver').getAttribute('aria-expanded'),
+                                  pdf: b.querySelector('a.o_dcbt_barra_pdf').getAttribute('href'), caja: caja(b) } : null;
+    };
+    const cuantos = (t) => globos().filter((g) => g.includes(t)).length;
+    document.querySelector('button.o_dcbt_burbuja').click();
+    await hasta(() => globos().some((g) => g.includes('Hola, soy Andrés')) && document.querySelector('#o_dcbt_panel .o_dcbt_chip'), 'el saludo');
+    r.barraVacia = barra();
+    // Camas: tres de la base (desde su tarjeta).
+    escribir('Muéstrame camas');
+    const base = await hasta(() => [...document.querySelectorAll('#o_dcbt_panel .o_dcbt_carrusel .o_dcbt_tarjeta')].find((t) => /Base de Cama/i.test(t.textContent) && t.querySelector('[data-agregar]')), 'la base de cama');
+    base.querySelector('[data-paso="1"]').click();
+    base.querySelector('[data-paso="1"]').click();
+    base.querySelector('[data-agregar]').click();
+    await hasta(() => barra(), 'la barra del carrito');
+    r.barra = barra();
+    r.composer = caja(document.querySelector('#o_dcbt_panel .o_dcbt_composer'));
+    // Colchones: uno.
+    escribir('Ahora colchones');
+    const colchon = await hasta(() => document.querySelectorAll('#o_dcbt_panel .o_dcbt_carrusel').length >= 2 && [...document.querySelectorAll('#o_dcbt_panel .o_dcbt_carrusel')].pop().querySelector('.o_dcbt_tarjeta [data-agregar]'), 'los colchones');
+    colchon.click();
+    await hasta(() => (barra() || {}).texto && barra().texto.includes('4 artículos'), 'cuatro artículos');
+    // A5: la vitrina, con «En tu carrito» arriba y un grupo por pedido (el más reciente primero, abierto).
+    document.querySelector('#o_dcbt_panel .o_dcbt_cab_boton[aria-pressed]').click();
+    await esperar(600);
+    const vitrina = document.querySelector('#o_dcbt_panel .o_dcbt_vitrina_grid');
+    r.vitrina = { primero: vitrina.firstElementChild.className, lineas: vitrina.querySelectorAll('.o_dcbt_seccion_carrito .o_dcbt_linea_carrito').length,
+                  grupos: [...vitrina.querySelectorAll('.o_dcbt_grupo')].map((g) => [g.querySelector('.o_dcbt_grupo_titulo').textContent, g.open, g.querySelectorAll('.o_dcbt_tarjeta').length]) };
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await esperar(400);
+    // A2: el envío; Andrés ofrece sumarlo y, con el sí, la página se lo pide a Odoo.
+    escribir('¿Cuánto cuesta el envío a Costa Inventada?');
+    await hasta(() => globos().includes('¿Te lo sumo a la cotización?'), 'la oferta del envío');
+    (await hasta(() => chip('Sí, súmalo'), 'el chip de sumar')).click();
+    await hasta(() => globos().includes('Listo, te lo sumé: el total lo ves en tu carrito y en la cotización.'), 'el «te lo sumé»');
+    await hasta(() => (barra() || {}).texto && barra().texto.includes('+ envío'), 'la barra con el envío');
+    const tarjetas = [...document.querySelectorAll('#o_dcbt_panel [data-carrito]')];
+    r.envioEnLaTarjeta = tarjetas.pop().textContent;
+    r.barraConEnvio = barra();
+    // A1: la hoja del carrito, editable, sin salir del chat.
+    document.querySelector('#o_dcbt_panel .o_dcbt_barra_ver').click();
+    await hasta(() => visible(document.querySelector('#o_dcbt_hoja')), 'la hoja abierta');
+    const hoja = document.querySelector('#o_dcbt_hoja');
+    r.hoja = { expandida: barra().expandida, foco: document.activeElement === hoja.querySelector('.o_dcbt_hoja_cerrar'), lineas: hoja.querySelectorAll('.o_dcbt_linea_carrito').length,
+               envio: hoja.querySelectorAll('.o_dcbt_linea_envio').length, texto: hoja.textContent, caja: caja(hoja), panel: caja(document.querySelector('#o_dcbt_panel')) };
+    // A3: quitar el colchón desde la hoja → Andrés reacciona UNA vez.
+    [...hoja.querySelectorAll('.o_dcbt_linea_carrito')].find((l) => /Colch/i.test(l.textContent)).querySelector('[data-quitar]').click();
+    await hasta(() => cuantos('Vi que quitaste') === 1, 'la reacción al quitar');
+    r.reaccion = globos().find((g) => g.includes('Vi que quitaste'));
+    r.chipsReaccion = [...document.querySelectorAll('#o_dcbt_panel .o_dcbt_chips')].pop().textContent;
+    await esperar(300);
+    // Bajar otra cantidad: ya no reacciona (nunca insiste).
+    const enHoja = document.querySelector('#o_dcbt_hoja:not([hidden]) .o_dcbt_linea_carrito [data-paso="-1"]');
+    if (enHoja) { enHoja.click(); } else {
+        document.querySelector('#o_dcbt_panel .o_dcbt_barra_ver').click();
+        (await hasta(() => document.querySelector('#o_dcbt_hoja:not([hidden]) .o_dcbt_linea_carrito [data-paso="-1"]'), 'el menos')).click();
+    }
+    await hasta(() => (barra() || {}).texto && barra().texto.includes('2 artículos'), 'dos artículos');
+    await esperar(1200);
+    r.reacciones = cuantos('Vi que');
+    r.marca = sessionStorage.getItem('dcasa.brian.reaccion');
+    // Esc cierra primero la hoja (el chat sigue abierto).
+    if (!document.querySelector('#o_dcbt_hoja').hidden) {
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        await esperar(300);
+    }
+    r.trasEsc = { hoja: !document.querySelector('#o_dcbt_hoja').hidden, chat: !document.querySelector('#o_dcbt_panel').hidden };
+    // A4: cambiar el carrito conversando: Andrés propone, la página lo aplica en Odoo y Andrés confirma.
+    escribir('Quita la base de cama, por favor');
+    await hasta(() => globos().some((g) => g.startsWith('Listo, quité')), 'el «listo, quité»');
+    await hasta(() => !barra(), 'la barra se va con el carrito vacío');
+    r.quite = globos().find((g) => g.startsWith('Listo, quité'));
+    r.reaccionesAlFinal = cuantos('Vi que');
+    r.sinScrollDeLado = document.documentElement.scrollWidth <= innerWidth;
+    return r;
+})()""".replace('/*ESPERAR*/', ESPERAR)
+
+
+@tagged('post_install', '-at_install')
+class TestAndresVendedor(NavegadorCase):
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.costa = cls.env['dcasa.envio.lugar'].search([('name', '=', 'Costa Inventada')])
+        # Las camas del catálogo de ejemplo saldrían antes en «camas»: el chat de prueba ve solo las suyas.
+        cls.env['product.template'].search([('name', 'ilike', 'cama'), ('name', 'not ilike', 'ZZBT')]).write(
+            {'is_published': False})
+
+    def test_la_barra_el_envio_la_reaccion_cambiar_conversando_y_la_vitrina(self):
+        for ancho, movil in ((390, True), (1366, False)):
+            recibidos = len(self.worker.recibidos)
+            with self.subTest(ancho=ancho), self.chrome(ancho, 844 if movil else 768, movil=movil) as browser:
+                browser.navigate_to(self.base_url() + '/', wait_stop=True)
+                r = self.evaluar(browser, VENDEDOR, timeout=240)
+            # A1: sin carrito no hay barra; con algo, encima del campo de texto, con los números de Odoo y el PDF.
+            self.assertIsNone(r['barraVacia'])
+            self.assertIn('3 artículos', r['barra']['texto'])
+            self.assertIn('$209.97', r['barra']['texto'])
+            self.assertIn('+ ITBMS', r['barra']['texto'])
+            self.assertEqual(r['barra']['pdf'], '/dcasa/brian/v1/carrito/cotizacion.pdf')
+            self.assertEqual(r['barra']['expandida'], 'false')
+            self.assertLessEqual(r['barra']['caja']['abajo'], r['composer']['y'] + 1, 'encima del campo de texto')
+            # A5: «En tu carrito» arriba; Colchones (lo último) abierto, Camas plegado.
+            self.assertIn('o_dcbt_seccion_carrito', r['vitrina']['primero'])
+            self.assertEqual(r['vitrina']['lineas'], 2)
+            self.assertEqual([g[:2] for g in r['vitrina']['grupos']], [['Colchones', True], ['Camas', False]])
+            # A2: la línea del envío de Odoo en la tarjeta y la barra; Andrés no dijo ninguna cifra al sumarlo.
+            self.assertIn('Envío a domicilio: Costa Inventada', r['envioEnLaTarjeta'])
+            self.assertIn('+ envío', r['barraConEnvio']['texto'])
+            # La hoja: editable, con el envío y los totales de Odoo, dentro del panel; el foco en «Cerrar».
+            self.assertEqual(r['hoja']['expandida'], 'true')
+            self.assertTrue(r['hoja']['foco'])
+            self.assertEqual((r['hoja']['lineas'], r['hoja']['envio'] >= 1), (2, True))
+            self.assertIn('Total con ITBMS', r['hoja']['texto'])
+            self.assertGreaterEqual(r['hoja']['caja']['y'], r['hoja']['panel']['y'])
+            # A3: una sola reacción, amable y con alternativas; la segunda baja no la repite.
+            self.assertTrue(r['reaccion'].startswith('Vi que quitaste ZZBT Colchón Queen'), r['reaccion'])
+            self.assertIn('Una más económica', r['chipsReaccion'])
+            self.assertEqual((r['reacciones'], r['marca']), (1, '1'))
+            self.assertEqual(r['trasEsc'], {'hoja': False, 'chat': True})
+            # A4: lo propuso Andrés, lo aplicó la página en Odoo y lo confirmó con el carrito que quedó.
+            self.assertTrue(r['quite'].startswith('Listo, quité'), r['quite'])
+            self.assertEqual(r['reaccionesAlFinal'], 1, 'quitar a pedido del visitante no es «vi que quitaste»')
+            self.assertTrue(r['sinScrollDeLado'])
+            # Lo que llegó al Worker: el envío solo con el lugar (nunca un precio), el aviso de A3 una vez.
+            nuevos = self.worker.recibidos[recibidos:]
+            acciones = [c['accion'] for c in nuevos if c.get('accion')]
+            envios = [a for a in acciones if a['tipo'] == 'confirmar_envio']
+            self.assertEqual(envios, [{'tipo': 'confirmar_envio', 'lugar_id': self.costa.id, 'resultado': 'ok'}])
+            self.assertEqual(len([a for a in acciones if a['tipo'] == 'carrito_bajo']), 1)
+            (cambio,) = [c for c in nuevos if (c.get('accion') or {}).get('tipo') == 'confirmar_cambio']
+            self.assertEqual((cambio['accion']['cantidad'], cambio['accion']['resultado'], cambio['carrito']), (0, 'ok', None),
+                             'el carrito que quedó (vacío), el de Odoo')

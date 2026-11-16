@@ -1390,11 +1390,11 @@ export class ChatBrian {
         this.barraVer.replaceChildren(
             el("span", { class: "o_dcbt_barra_ico", "aria-hidden": "true" }, ico("carrito"), el("span", { class: "o_dcbt_barra_cuenta", text: n > 99 ? "99+" : String(n) })),
             el("span", { class: "o_dcbt_barra_textos" },
-                el("span", { class: "o_dcbt_barra_linea" }, articulos, c.envio ? " · con envío" : "", " · ", el("span", { class: "o_dcbt_barra_accion", text: abierta ? "Ocultar" : "Ver" })),
+                el("span", { class: "o_dcbt_barra_linea", text: articulos + (c.envio ? " + envío" : "") }),
                 el("span", { class: "o_dcbt_barra_total" }, el("strong", { text: total }), mas ? el("small", { text: ` ${mas}` }) : null)),
-            ico(abierta ? "abajo" : "arriba", "o_dcbt_ico o_dcbt_barra_flecha"));
+            el("span", { class: "o_dcbt_barra_accion" }, ico(abierta ? "abajo" : "arriba"), el("span", { text: abierta ? "Cerrar" : "Ver" })));
         this.barraVer.setAttribute("aria-expanded", String(abierta));
-        this.barraVer.setAttribute("aria-label", `Tu carrito: ${articulos}${c.envio ? " con envío" : ""}, ${c.total_texto}. ${abierta ? "Ocultar el carrito" : "Ver y cambiar el carrito"}`);
+        this.barraVer.setAttribute("aria-label", `Tu carrito: ${articulos}${c.envio ? " más el envío" : ""}, ${c.total_texto}. ${abierta ? "Cerrar el carrito" : "Ver y cambiar el carrito"}`);
         if (abierta) {
             this.pintarCarritoCard(this.hojaCuerpo, true);
         }
@@ -1879,7 +1879,9 @@ export class ChatBrian {
         if (this.estado.ampliado && esCelular()) {
             this.ampliar(false);
         }
-        this.abrirHoja(false);
+        if (mostrar) {
+            this.abrirHoja(false); // lo que escribe o toca el visitante se lee en la conversación (un aviso no la cierra)
+        }
         this.quitarChips();
         const fila = mostrar ? this.cliente(mostrar) : null;
         if (mostrar) {

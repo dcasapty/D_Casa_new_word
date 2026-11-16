@@ -602,6 +602,10 @@ html.o_dcasa_refraccion .o_dcbt_cab::before {
     gap: 10px 22px;
 }
 
+.o_dcbt_seccion_carrito .o_dcbt_vitrina_lineas > :last-child {
+    border-bottom: 0;
+}
+
 .o_dcbt_grupo {
     border-top: 1px solid var(--o-dcbt-linea);
     padding-top: 6px;
@@ -1624,7 +1628,7 @@ html.o_dcasa_refraccion .o_dcbt_cab::before {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 8px 12px;
+    padding: 8px 10px;
     background: var(--o-dcbt-blanco);
     border-top: 1px solid var(--o-dcbt-linea);
 }
@@ -1635,8 +1639,8 @@ html.o_dcasa_refraccion .o_dcbt_cab::before {
     min-height: 48px;
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 4px 8px 4px 4px;
+    gap: 8px;
+    padding: 4px 4px 4px 4px;
     border: 1px solid var(--o-dcbt-azul-200);
     border-radius: 12px;
     background: var(--o-dcbt-azul-50);
@@ -1653,8 +1657,8 @@ html.o_dcasa_refraccion .o_dcbt_cab::before {
 .o_dcbt_barra_ico {
     position: relative;
     flex: none;
-    width: 40px;
-    height: 40px;
+    width: 36px;
+    height: 36px;
     display: grid;
     place-items: center;
     border-radius: 50%;
@@ -1688,6 +1692,7 @@ html.o_dcasa_refraccion .o_dcbt_cab::before {
     min-width: 0;
     display: grid;
     gap: 2px;
+    padding-left: 4px;   // la cantidad del carrito asoma por la derecha del círculo: que no toque el texto
 }
 
 .o_dcbt_barra_linea {
@@ -1700,11 +1705,22 @@ html.o_dcasa_refraccion .o_dcbt_cab::before {
     color: var(--o-dcbt-gris);
 }
 
+// «Ver» con su flecha, a la derecha: siempre a la vista aunque el texto de la izquierda se recorte.
 .o_dcbt_barra_accion {
+    flex: none;
+    display: grid;
+    justify-items: center;
+    gap: 0;
+    min-width: 36px;
+    font: 600 11px/1.1 var(--o-dcbt-f-sub);
+    letter-spacing: .06em;
+    text-transform: uppercase;
     color: var(--o-dcbt-azul);
-    font-weight: 600;
-    text-decoration: underline;
-    text-underline-offset: 2px;
+
+    svg {
+        width: 20px;
+        height: 20px;
+    }
 }
 
 .o_dcbt_barra_total {
@@ -1714,7 +1730,7 @@ html.o_dcasa_refraccion .o_dcbt_cab::before {
     font-variant-numeric: tabular-nums;
 
     strong {
-        font: 600 18px/1.15 var(--o-dcbt-f-sub);
+        font: 600 17px/1.15 var(--o-dcbt-f-sub);
         color: var(--o-dcbt-azul);
     }
 
@@ -1725,20 +1741,11 @@ html.o_dcasa_refraccion .o_dcbt_cab::before {
     }
 }
 
-.o_dcbt_barra_flecha {
-    flex: none;
-    color: var(--o-dcbt-azul);
-
-    svg {
-        width: 20px;
-        height: 20px;
-    }
-}
-
 .o_dcbt_barra_pdf {
     flex: none;
     min-height: 48px;
-    padding: 0 12px;
+    gap: 6px;
+    padding: 0 11px;
     border-radius: 12px;
 }
 
