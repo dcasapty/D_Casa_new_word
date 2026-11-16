@@ -1068,18 +1068,21 @@ en `juan/src/motor/voz.ts`.
 - **No se devuelve ni se reenvía**: la respuesta trae solo `texto` (ni segmentos, ni palabras con sus tiempos, ni VTT).
 - **No se usa para generar voz**: el único modelo que recibe el audio es `@cf/openai/whisper-large-v3-turbo`; en el
   Worker no existe ningún modelo que hable (una prueba lo exige).
-- **Notas cortas**: hasta **60 s** y **1 MB**, solo WebM, Ogg u MP4 (lo que graba un navegador) y con los bytes que
-  corresponden al tipo. La duración se mira tres veces: la que dice el navegador (`duracion_ms`), la del contenedor (sin
-  decodificar: el último bloque del WebM, la última página del Ogg, la caja `mvhd` del MP4) y la que dice Whisper. Si
-  la nota pasa de 65 s (60 más el margen del navegador), **el texto no se devuelve** (se cobra igual: Whisper ya trabajó).
+- **Notas cortas**: hasta **30 s** en el chat de la tienda (Andrés) y **60 s** en el panel (Brian), **1 MB**, solo WebM,
+  Ogg u MP4 (lo que graba un navegador) y con los bytes que corresponden al tipo. La duración es **la que de verdad se
+  decodifica** (`motor/duracion.ts`): se cuenta paquete por paquete, sin decodificar (el TOC de cada paquete Opus en el
+  Ogg y en el WebM; las muestras de AAC en el MP4), así que lo que diga el contenedor de sí mismo no sirve para mentir.
+  Lo que no se puede medir con certeza **no se transcribe**. Si la nota pasa del tope más 5 s de margen, se rechaza
+  **antes de apartar nada y sin llamar a Whisper**: no cuesta nada (revisión adversarial, 2026-11-16).
 - **Topes** para que nadie la use como un transcriptor gratis (abajo). Los registros llevan solo el resultado, los
   KB y los milisegundos: nunca el audio, el texto, la IP, la red, el `sid` ni el usuario.
 
 **Costo:** US$0.0005 por minuto de audio (tabla de precios de Workers AI, leída el 2026-11-16, sin descontar los neurons
-gratis). Antes de llamar a Whisper se aparta el peor caso (el audio grabado al mínimo de Opus, 6 kbps); después se anota
-lo real con la duración que dice Whisper (la mide Cloudflare). La del contenedor la escribe quien manda la nota: sirve
-para rechazar antes, nunca para cobrar de menos; si Whisper no dice la duración, tarda o falla, se anota el peor caso,
-marcado «estimado».
+gratis). Antes de llamar a Whisper se aparta **lo que cuesta la duración medida** (`motor/duracion.ts`), no un peor caso
+inventado; después se anota lo real con la mayor de las dos duraciones: la medida y la que dice Whisper (la mide
+Cloudflare). Nunca se cobra de menos: si Whisper no dice la duración, tarda o falla, se anota la medida, marcada
+«estimado». El gasto va al renglón de **Cloudflare** («notas de voz (Whisper)»), nunca al del modelo de Juan ni a «Por
+pagar a Meta».
 
 ### `POST /tienda/v1/voz` (Andrés)
 
