@@ -164,6 +164,26 @@ class SaleOrder(models.Model):
         productos = lineas.filtered(lambda line: not line.is_delivery and line.product_id not in fletes)
         return R.a_centavos(sum(productos.mapped('price_total')))
 
+    def _dcasa_envio_que_cuesta_el_premio(self, valor_centavos, puesto=False):
+        """Lo que el socio pagaría DE MÁS en el envío por usar un premio de ``valor_centavos`` en este carrito,
+        porque la compra queda por debajo del mínimo de la promoción de envío. ``0.0`` si no pierde nada.
+
+        Decisión de la dueña (2026-11-17): «avisarle y no dejar canjear». La revisión adversarial encontró que un
+        premio podía tirar la compra por debajo del mínimo y hacerle perder el envío gratis: gastaba puntos para
+        pagar más. Aquí solo se MIDE; quien llama decide. ``puesto`` dice si el premio ya está en el carrito (al
+        limpiar) o todavía no (al canjear).
+
+        El mínimo lo mide ``dcasa_envios``, que es su dueño, y no siempre está instalado (las pruebas de Socios
+        corren solas): sin él no hay promoción que perder y esto devuelve ``0.0``."""
+        self.ensure_one()
+        if not valor_centavos or not hasattr(self, '_dcasa_promocion_si_la_compra_cambia'):
+            return 0.0
+        valor = valor_centavos / 100.0
+        sin_premio = self._dcasa_promocion_si_la_compra_cambia(valor if puesto else 0.0)[1]
+        con_premio = self._dcasa_promocion_si_la_compra_cambia(0.0 if puesto else -valor)[1]
+        perdida = sin_premio - con_premio
+        return perdida if perdida > 0 else 0.0
+
     def _dcasa_limpiar_premios_web(self):
         """Antes de enseñar o cobrar el carrito: fuera las líneas de premios que ya no están pendientes
         (vencieron o se cancelaron) y, si el carrito se achicó por debajo del premio, se quita el
@@ -184,6 +204,18 @@ class SaleOrder(models.Model):
             self._dcasa_quitar_puntos_web(
                 self.env._('Tu carrito quedó por debajo del descuento del premio: te devolvimos los puntos.'))
             aviso = self.env._('Tu carrito quedó por debajo del descuento del premio: te devolvimos los puntos.')
+        # Y si el carrito cambió de modo que el premio ahora le cuesta la promoción del envío (y eso le sale igual o
+        # más caro que el propio descuento), los puntos vuelven antes de que pague: la dueña eligió que un premio
+        # nunca le salga más caro al socio (2026-11-17). Se vuelve a leer porque el bloque de arriba pudo quitarlo.
+        puestas = self._dcasa_lineas_premio().sudo().filtered(
+            lambda line: line.dcasa_canje_id.estado == 'solicitado')
+        if puestas:
+            valor = R.a_centavos(sum(puestas.dcasa_canje_id.mapped('valor')))
+            if self._dcasa_premio_no_conviene(valor, puesto=True):
+                texto = self.env._('Tu carrito cambió y con el premio perderías la promoción del envío: te '
+                                   'devolvimos los puntos para que no pagues más.')
+                self._dcasa_quitar_puntos_web(texto)
+                aviso = texto
         return aviso
 
     def _dcasa_valores_puntos_web(self):
@@ -221,6 +253,28 @@ class SaleOrder(models.Model):
                 cabe = 0  # sin la cifra en puntos.json, el canje libre no existe
             valores['dcasa_puntos_libres_max'] = cabe if cabe >= minimo else 0
         return valores
+
+    def _dcasa_premio_no_conviene(self, valor_centavos, puesto=False):
+        """¿Un premio de ``valor_centavos`` en este carrito le sale al socio igual o más caro que su descuento, por
+        hacerle perder la promoción del envío? Devuelve lo que pagaría de envío (dinero) o ``0.0``."""
+        self.ensure_one()
+        perdida = self._dcasa_envio_que_cuesta_el_premio(valor_centavos, puesto=puesto)
+        return perdida if perdida and R.a_centavos(perdida) >= valor_centavos else 0.0
+
+    def _dcasa_exigir_que_el_premio_convenga(self, valor_centavos):
+        """El premio nunca puede salirle más caro que su descuento (la dueña, 2026-11-17: «avisarle y no dejar
+        canjear»): si al usarlo la compra baja del mínimo de la promoción del envío y el envío que pagaría iguala o
+        pasa lo que le descuenta el premio, se le avisa y no se canjea. Sus puntos no se mueven: el canje ni se pide.
+        Si le sigue conviniendo (el descuento es mayor que el envío que perdería), se deja."""
+        self.ensure_one()
+        perdida = self._dcasa_premio_no_conviene(valor_centavos)
+        if not perdida:
+            return
+        raise UserError(self.env._(
+            'Con ese premio tu compra baja de lo que pide la promoción del envío, así que pagarías %(envio)s de '
+            'envío y el premio solo te descuenta %(premio)s: te saldría más caro. Guarda tus puntos para la próxima '
+            'o agrega algo al carrito.',
+            envio=R.como_dolares(R.a_centavos(perdida)), premio=R.como_dolares(valor_centavos)))
 
     def _dcasa_usar_puntos_web(self, premio=None, puntos=None):
         """El socio usa sus puntos en su carrito: se pide el canje (reserva los puntos, código de
@@ -261,6 +315,7 @@ class SaleOrder(models.Model):
         if valor_centavos > total:
             raise UserError(self.env._(
                 'Ese descuento (%s) es mayor que tu carrito. Elige uno más pequeño.', R.como_dolares(valor_centavos)))
+        self._dcasa_exigir_que_el_premio_convenga(valor_centavos)
         canje = self.env['dcasa.canje']._pedir(socio, premio, puntos=puntos, origen='web')
         canje._aplicar_en_venta(self)
         return canje
