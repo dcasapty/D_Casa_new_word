@@ -53,7 +53,9 @@ perder dinero. Choca con la decisión M6 de la dueña (2026-11-12: el premio sí
 contar las líneas de premio al medir la promoción, solo en carritos web.
 
 **Después, la segunda entrega** en `claude/merge-rama-to-main-ty3koz` (Andrés vendedor, notas de voz, micrófono y
-portada). **No se sube hasta arreglar lo de arriba.** Lo demás que dejó esa revisión:
+portada). **Está probada y lista: 3547 pruebas de Odoo y 1924 del Worker, 0 fallas** (2026-11-17, instalando también
+`dcasa_nomina`, con lo que las tres pruebas de la Guía que «fallaban en local» también pasan). **No se sube hasta
+arreglar lo de arriba.** Lo demás que dejó esa revisión:
 
 - *Importante:* el total **sí** puede quedar negativo por el cobro de premio en el mostrador (`_aplicar_en_venta` no
   mide el total y `action_confirm` tampoco). El arreglo de `_dcasa_total_sin_premios` solo cubre el camino web.

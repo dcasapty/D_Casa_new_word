@@ -739,6 +739,11 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 
 ### Esta máquina (sesiones de Claude)
 
+- **Las tres pruebas de `dcasa_guia` que «fallan en local» pasan si se instala `dcasa_nomina`** (2026-11-17). La
+  tarea «planilla» de la Guía es de nómina: sin ese módulo, la búsqueda no la encuentra y tres pruebas fallan. No es
+  una falla real ni hace falta saltarlas: basta sumar `dcasa_nomina` a la lista de módulos de `scripts/test.sh`. Con
+  eso, la batería de la segunda entrega dio 3547 pruebas y 0 fallas.
+
 - **El servidor de GitHub de la sesión vuelve solo cuando el proceso se reinicia** (2026-11-16): tras una hora de
   «invalid session» en todas las herramientas `mcp__github__*`, el reinicio del proceso de la sesión lo reconectó y
   volvió a funcionar. Mientras tanto, `git push` seguía sirviendo. O sea: no hay que rehacer ramas ni buscar atajos;
