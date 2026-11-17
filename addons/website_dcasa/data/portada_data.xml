@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- El carrusel de la portada nace con las camas que aprobó la dueña (models/portada.py, CARRUSEL_INICIAL). Corre al
+         instalar y en cada actualización, pero solo la primera vez hace algo: después la lista es de Gerencia. -->
+    <function model="dcasa.portada.diapositiva" name="_dcasa_sembrar"/>
+</odoo>

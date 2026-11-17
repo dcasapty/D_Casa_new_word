@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Carrusel de la portada (models/portada.py): Sitio web › Carrusel de la portada, para Gerencia y administradores.
+         Una lista que se ordena arrastrando: el de arriba sale primero. Vacía = el hero de siempre. -->
+    <record id="view_dcasa_portada_diapositiva_list" model="ir.ui.view">
+        <field name="name">dcasa.portada.diapositiva.list</field>
+        <field name="model">dcasa.portada.diapositiva</field>
+        <field name="arch" type="xml">
+            <list string="Carrusel de la portada" editable="bottom" decoration-muted="not en_portada">
+                <field name="sequence" widget="handle"/>
+                <field name="imagen" widget="image" options="{'size': [48, 48]}" string=""/>
+                <field name="product_tmpl_id" options="{'no_create': True, 'no_open': True}"/>
+                <field name="default_code" optional="show"/>
+                <field name="en_portada" widget="boolean" readonly="1"/>
+                <field name="website_id" groups="base.group_system" options="{'no_create': True}" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_dcasa_portada_diapositiva" model="ir.actions.act_window">
+        <field name="name">Carrusel de la portada</field>
+        <field name="res_model">dcasa.portada.diapositiva</field>
+        <field name="view_mode">list</field>
+        <field name="view_id" ref="view_dcasa_portada_diapositiva_list"/>
+        <field name="group_ids" eval="[Command.set([ref('dcasa_base.group_gerencia'), ref('base.group_system')])]"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Elige los productos del carrusel de la portada</p>
+            <p>Con «Nuevo» agregas un producto publicado; su foto principal, su nombre y un botón a su ficha salen arriba
+                en la portada, uno tras otro. Arrastra para cambiar el orden: el de arriba sale primero.</p>
+            <p>Mientras la lista esté vacía, la portada muestra la foto de siempre.</p>
+        </field>
+    </record>
+
+    <menuitem id="menu_dcasa_portada_diapositiva" name="Carrusel de la portada" parent="website.menu_website_configuration"
+              action="action_dcasa_portada_diapositiva" sequence="7" groups="dcasa_base.group_gerencia,base.group_system"/>
+</odoo>
