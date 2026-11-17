@@ -504,7 +504,10 @@ PASOS_COMPUTADORA = """
     vitrina.style.setProperty('--vitrina-tiempo', '0.4s');
     for (let i = 0; i < 240 && actual() === r.alEmpezar; i++) { await esperar(50); }
     r.trasEsperar = actual();
-    await esperar(2000);   // la que se va se desvanece en 1,8 s
+    // Para contar cuántas se ven hay que dejar de cambiar: con 0,4 s entre fotos y 1,8 s de fundido siempre
+    // habría dos a medio camino. Se alarga el tiempo, se deja terminar el fundido y recién ahí se cuenta.
+    vitrina.style.setProperty('--vitrina-tiempo', '600s');
+    await esperar(2500);
     r.visibles = fotos().filter((f) => parseFloat(getComputedStyle(f).opacity) > 0.01).length;
     const botonCine = document.querySelector('.o_dcasa_cine_pausa');
     botonCine.click(); await esperar(100);
