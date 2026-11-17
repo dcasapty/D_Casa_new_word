@@ -15,4 +15,7 @@ class WebsitePage(models.Model):
         website = getattr(request, 'website', None)
         if website:
             clave += (tuple(fila['corto'] for fila in website._dcasa_horario_tienda()),)
+            # Lo mismo con el carrusel de la portada (models/portada.py): elegir o reordenar productos en el panel se ve
+            # al momento, sin esperar a que venza la página guardada.
+            clave += (website._dcasa_hero_firma(),)
         return clave
