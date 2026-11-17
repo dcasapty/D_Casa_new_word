@@ -8,9 +8,10 @@ from unittest.mock import patch
 
 from odoo import Command
 from odoo.addons.dcasa_envios.tests.common import importar
+from odoo.exceptions import UserError
 from odoo.tests import new_test_user, tagged
 
-from .common import TiendaCase
+from .common import RAIZ, TiendaCase
 
 HOY = 'odoo.addons.dcasa_envios.models.promocion.EnvioPromocion._hoy'
 PIN = '482915'
@@ -71,16 +72,34 @@ class TestRevisionVendedor(TiendaCase):
         self.assertEqual(orden.partner_id, self.socia)
         self.assertTrue(self.sumar(self.colon).json()['ok'])
         self.assertGreater(orden.amount_total, 100)
-        try:
+        # Arreglado: el premio se mide contra los PRODUCTOS ($4.28), no contra el carrito con el envío, así que no se
+        # puede usar. La prueba ya no acepta las dos cosas (segunda revisión, 2026-11-16).
+        with self.assertRaisesRegex(UserError, 'mayor que tu carrito'):
             orden._dcasa_usar_puntos_web(premio=diez)
-        except Exception as error:   # noqa: BLE001 — lo correcto: no deja usarlo (el premio pasa de los productos)
-            self.assertIn('mayor que tu carrito', str(error))
-            return
-        orden._recompute_cart()      # lo primero que hace /shop/payment
-        orden.invalidate_recordset()
-        self.assertTrue(orden.order_line.filtered('dcasa_canje_id'), 'el premio sigue en el carrito')
-        self.assertGreaterEqual(orden.amount_total, 0.0,
-                                'al pagar el envío vuelve a $0 y el premio de puntos deja el total negativo')
+        self.assertFalse(orden.order_line.filtered('dcasa_canje_id'), 'el premio no entró')
+        self.assertGreaterEqual(orden.amount_total, 0.0)
+
+    def test_rv_el_premio_de_socios_no_viaja_al_chat_como_un_producto(self):
+        """El premio es una línea negativa que la tienda muestra en el carrito. No puede salir entre los productos
+        que la página le manda al Worker: le contaría a Andrés que este visitante es socio y tiene un premio puesto, y
+        Andrés podría proponer «quitarlo» (eso cancela el canje). Va en ``extras``, con el envío."""
+        self.socia._dcasa_asegurar_ficha()
+        self.socia._dcasa_guardar_pin(PIN)
+        self.env['dcasa.movimiento']._asentar(self.socia, 'ajuste', 1500, 'test', motivo='Saldo de prueba')
+        self.authenticate('zzrv_socia', CLAVE)
+        self.assertTrue(self.agregar(self.base_cama).json()['ok'])
+        orden = self.orden()
+        orden._dcasa_usar_puntos_web(premio=self.env.ref('dcasa_socios.premio_desc_10'))
+        premio = orden.order_line.filtered('dcasa_canje_id')
+        self.assertTrue(premio, 'el premio está en la venta')
+        carrito = self.url_open(f'{RAIZ}/carrito').json()
+        ids = [ln['producto_id'] for ln in carrito['lineas']]
+        self.assertNotIn(premio.product_id.id, ids, 'el premio no va entre los productos del carrito')
+        self.assertEqual(carrito['cantidad_total'], len(carrito['lineas']),
+                         'la cuenta de artículos cuadra con lo que se pinta')
+        extras = [e for e in carrito['extras'] if e['tipo'] == 'premio']
+        self.assertEqual(len(extras), 1, 'el premio sale en «extras»')
+        self.assertTrue(extras[0]['subtotal_texto'].startswith('−'), extras[0]['subtotal_texto'])
 
     # ------------------------------------------------------------------ 2. Después de elegir la entrega en el pago
     def test_rv_tras_elegir_entrega_a_domicilio_en_el_pago_se_puede_sumar_el_envio(self):

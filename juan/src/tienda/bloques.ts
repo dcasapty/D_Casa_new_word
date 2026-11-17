@@ -259,15 +259,18 @@ const AFIRMA_CARRITO = [
 ];
 
 /**
- * ¿Esta oración dice que algo YA se hizo en el carrito o en la cotización? Lo que se pregunta no se afirma: se mira solo lo que va
- * antes del «¿» (así «Ya te lo puse en el carrito, ¿algo más?» sí cuenta), una oración sin «¿» que termina en «?» es una pregunta,
- * y una cláusula en subjuntivo («¿Quieres que te lo quite…?», «que la saque») no es una confirmación.
+ * ¿Esta oración dice que algo YA se hizo en el carrito o en la cotización? Lo que se PREGUNTA no se afirma: se quitan las
+ * cláusulas interrogativas enteras («¿…?»), estén donde estén, y se revisa todo lo demás. Una cláusula en subjuntivo
+ * («¿Quieres que te lo quite…?», «que la saque») tampoco es una confirmación.
+ *
+ * Antes se miraba solo lo que iba ANTES del primer «¿», y una oración sin «¿» que terminaba en «?» se daba por pregunta y no se
+ * revisaba (revisión adversarial, 2026-11-16). Así se colaba «ya te lo quité del carrito y lo dejé en 2, ok?», que es escribir
+ * como se escribe en español informal, y Andrés afirmaba un cambio que Odoo podía no haber hecho. Las frases que OFRECEN van en
+ * presente («te lo quito», «te lo dejo en 2») y no están en la lista, así que preguntar sin «¿» sigue saliendo entero.
  */
 export function afirmaCarrito(oracion: string): boolean {
   let t = sinAcentos(oracion.toLowerCase()).trim();
-  const pregunta = t.indexOf("¿");
-  if (pregunta >= 0) t = t.slice(0, pregunta);
-  else if (/\?\s*$/.test(t)) return false;
+  t = t.replace(/¿[^?]*\??/g, " ");
   t = t.replace(/\bque (?:te |me |se )?(?:lo|la|los|las) \S+/g, "que");
   return AFIRMA_CARRITO.some((r) => r.test(t));
 }

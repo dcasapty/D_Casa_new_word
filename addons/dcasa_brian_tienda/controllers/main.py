@@ -168,7 +168,14 @@ class DcasaBrianTiendaAPI(http.Controller):
         if not orden:
             return vacio
         lineas = []
-        for linea in orden.website_order_line:
+        # El premio del programa Socios es una línea negativa que la tienda SÍ muestra (website_order_line solo
+        # esconde el envío). No puede ir entre los productos (revisión adversarial, 2026-11-16): viajaba al Worker y
+        # al modelo —o sea, le contaba a Andrés que este visitante es socio y tiene un premio puesto—, Andrés podía
+        # proponer «quitarlo» (eso cancela el canje), y al quitarlo el servidor solo, el chat reaccionaba ofreciendo
+        # «algo más económico» por el premio del propio cliente. Va con el envío, en ``extras``, con su menos delante.
+        premios = orden.order_line.filtered('dcasa_canje_id') if 'dcasa_canje_id' in orden.order_line._fields \
+            else orden.order_line.browse()
+        for linea in orden.website_order_line - premios:
             producto = linea.product_id
             if not producto:
                 continue
@@ -184,7 +191,7 @@ class DcasaBrianTiendaAPI(http.Controller):
         return {
             'lineas': lineas,
             'cantidad_total': int(orden.cart_quantity),
-            **self._envio_del_carrito(orden),
+            **self._envio_del_carrito(orden, premios),
             'total_texto': P.precio_texto(orden.amount_untaxed, mas_itbms),
             'itbms_texto': P.precio_texto(orden.amount_tax, False),
             'total_con_itbms_texto': P.precio_texto(orden.amount_total, False),
@@ -196,11 +203,19 @@ class DcasaBrianTiendaAPI(http.Controller):
         texto = P.precio_texto(abs(monto), mas_itbms)
         return f'−{texto}' if monto < 0 else texto
 
-    def _envio_del_carrito(self, orden):
+    def _envio_del_carrito(self, orden, premios=None):
         """El envío del carrito, que no está entre las líneas de la tienda (``website_order_line`` no muestra las de
         envío) pero sí en los totales: ``envio`` (el lugar de la tabla, si lo puso el sistema) y ``extras`` (cada línea
-        de envío o de su promoción con su nombre y su monto, de Odoo), para que la página y el PDF digan lo mismo."""
+        de envío o de su promoción con su nombre y su monto, de Odoo), para que la página y el PDF digan lo mismo.
+
+        ``premios``: las líneas del programa Socios, que salen de los productos y entran aquí con su menos delante."""
         extras = []
+        for linea in premios or orden.order_line.browse():
+            extras.append({
+                'tipo': 'premio',
+                'nombre': (linea.name or '').split('\n')[0][:120],
+                'subtotal_texto': self._monto_texto(linea.price_subtotal, bool(linea.tax_ids)),
+            })
         for linea in orden.order_line - orden.website_order_line:
             if linea.display_type or not (linea.is_delivery or linea.dcasa_envio_lugar_id
                                           or linea.dcasa_promocion_envio_id):

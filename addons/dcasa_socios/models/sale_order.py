@@ -46,6 +46,13 @@ class SaleOrder(models.Model):
         # venta se comprueba ANTES de sellar premios con sudo (método público por RPC).
         self.check_access('write')
         for order in self:
+            # Última red (revisión adversarial, 2026-11-16): una venta con premio nunca se confirma en negativo, por
+            # el camino que sea. Lo normal es que no llegue aquí (_aplicar_en_venta ya lo frena al poner el premio),
+            # pero el precio de los productos puede bajar DESPUÉS de aplicarlo.
+            if order.order_line.dcasa_canje_id and order.currency_id.compare_amounts(order.amount_total, 0.0) < 0:
+                raise UserError(self.env._(
+                    'Esta venta queda en negativo (%s) por el premio del programa Socios. Quita el premio o agrega '
+                    'productos antes de confirmarla.', order.currency_id.format(order.amount_total)))
             order.order_line.dcasa_canje_id._entregar(
                 self.env.user.login, sale_order=order, partner=order.partner_id.commercial_partner_id)
         res = super().action_confirm()

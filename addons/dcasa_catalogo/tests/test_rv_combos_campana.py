@@ -89,8 +89,10 @@ class TestRvCombosCampana(CombosCommon):
         cama = self.linea(orden, self.cama_king)
         self.assertTrue(cama.dcasa_combo_sin_campana)
         panel = orden.with_user(self.vendedora).dcasa_combo_panel()['combos'][0]['cama']
-        self.assertEqual(panel['precio'], 400.0, 'el panel dice 400')
-        self.assertEqual(cama.price_unit, 400.0, 'y la línea también debería')
+        # El panel separa las dos cifras: lo que la cama cuesta SUELTA ese día y lo que se cobra en el combo.
+        self.assertEqual(panel['precio'], 385.0, 'suelta ese día, con la campaña heredada de la tarifa base')
+        self.assertEqual(panel['precio_linea'], 400.0, 'y en el combo se cobra 400')
+        self.assertEqual(cama.price_unit, 400.0, 'la línea cobra lo mismo que dice el panel')
 
     def test_rv_colchon_sin_descuento_real_le_quita_la_campana_a_la_cama(self):
         """El precio normal del colchón bajó por debajo de su precio en combo («Revisar: ya no es menor»): el combo no

@@ -260,6 +260,15 @@ class DcasaCanje(models.Model):
             raise UserError(self.env._('Los premios de producto se entregan desde Socios > Canjes.'))
         if order.order_line.filtered(lambda line: line.dcasa_canje_id == canje):
             raise UserError(self.env._('Ese premio ya está en esta venta.'))
+        # El premio nunca puede pasar de lo que se está comprando (revisión adversarial, 2026-11-16). La guarda vivía
+        # solo en el camino de la tienda web; en el mostrador, cobrar un premio de $100 sobre una venta de $4.28
+        # dejaba el total en NEGATIVO y la venta se confirmaba igual. Aquí cubre los dos caminos.
+        total = order._dcasa_total_sin_premios()
+        if R.a_centavos(canje.valor) > total:
+            raise UserError(self.env._(
+                'El premio %(codigo)s vale %(premio)s y esta venta lleva %(venta)s en productos: el premio no puede '
+                'ser mayor. Agrega productos o usa un premio más pequeño.',
+                codigo=canje.codigo, premio=R.como_dolares(R.a_centavos(canje.valor)), venta=R.como_dolares(total)))
         producto = self.env.ref('dcasa_socios.product_premio_canje').sudo()
         # ITBMS explícito: el producto puede haberse creado antes de cargar el plan contable.
         impuestos = producto.taxes_id or order.company_id.account_sale_tax_id
