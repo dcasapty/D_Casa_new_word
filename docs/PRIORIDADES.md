@@ -56,28 +56,25 @@ chat de la web como Andrés. Comprobado: salud sana, portada, `/promociones` en 
 diciendo «Hola, soy Andrés». **Falta que la dueña cree la campaña** (los pasos están en `RESUMEN_PARA_LA_DUENA.md` y
 en el plan): el Black Friday es el **viernes 27**.
 
-**LO PRIMERO AHORA: la decisión de la dueña sobre Socios y el envío gratis.** La revisión adversarial independiente de
-Andrés vendedor encontró un **bloqueante**: si un socio usa un premio de puntos en el carrito web y con eso el carrito
-baja del mínimo de la promoción, **se pierde el envío gratis**. Con las cifras de hoy: carrito de $205, premio de $10
-(1.000 puntos) → el carrito queda en $195.65, la promoción se borra y el socio paga $45 de envío. Gasta puntos para
-perder dinero. Choca con la decisión M6 de la dueña (2026-11-12: el premio sí cuenta para medir la promoción), así que
-**no se cambia sin su «sí»**. Dos salidas: (a) avisar y no dejar canjear cuando el premio mata la promoción; (b) no
-contar las líneas de premio al medir la promoción, solo en carritos web.
+**DECIDIDO (la dueña, 2026-11-17): «avisarle y no dejar canjear».** Era el bloqueante que frenaba la segunda
+entrega: un premio de puntos podía tirar la compra por debajo del mínimo de la promoción de envío y hacerle perder el
+envío gratis (carrito de $205 sin ITBMS, premio de $10 → la compra queda en $195.65 y paga $45 de envío: gastaba
+puntos para pagar más). **Ya está programado, probado y revisado** (ver la bitácora del 2026-11-17 y
+[SOCIOS.md](SOCIOS.md)): si lo que pagaría de envío iguala o pasa lo que le descuenta el premio, se le avisa con las
+dos cifras y no se canjea; si el premio descuenta más de lo que perdería, se deja pasar porque ahí sí le conviene
+(eso lo decidí yo y se le dijo). Cubre el carrito web y el mostrador, y al quitar un premio la promoción del envío se
+vuelve a ofrecer.
 
 **Después, la segunda entrega** en `claude/merge-rama-to-main-ty3koz` (Andrés vendedor, notas de voz, micrófono y
 portada). **Está probada y lista: 3547 pruebas de Odoo y 1924 del Worker, 0 fallas** (2026-11-17, instalando también
 `dcasa_nomina`, con lo que las tres pruebas de la Guía que «fallaban en local» también pasan). **No se sube hasta
 arreglar lo de arriba.** Lo demás que dejó esa revisión:
 
-- *Importante:* el total **sí** puede quedar negativo por el cobro de premio en el mostrador (`_aplicar_en_venta` no
-  mide el total y `action_confirm` tampoco). El arreglo de `_dcasa_total_sin_premios` solo cubre el camino web.
-- *Importante:* la guardia del Worker que impide que Andrés afirme cambios del carrito se salta con una oración que
-  acabe en «?» sin «¿» («…lo dejé en 2, ok?»).
-- *Importante:* la línea del premio de Socios viaja al Worker y al modelo, y Andrés puede proponer quitarla (eso
-  cancela el canje). Arreglo: saltarla en `_carrito()`.
-- *Menores:* `/carrito/envio` acepta cualquier `lugar_id` sin que Andrés lo haya cotizado; dos `GET` escriben en la
-  base; el mismo canje puede quedar en dos ventas abiertas; y la prueba nueva del premio pasa con los dos
-  comportamientos (no decide nada).
+- *Menores que siguen abiertos:* `/carrito/envio` acepta cualquier `lugar_id` sin que Andrés lo haya cotizado; dos
+  `GET` escriben en la base; el mismo canje puede quedar en dos ventas abiertas; y el carrito sigue ofreciéndole al
+  socio premios que el servidor va a rechazar (el aviso llega después del clic, no antes).
+- *(Los tres «importantes» de esta lista —el total negativo en el mostrador, la guardia del Worker con «ok?» y el
+  premio viajando al chat— se arreglaron el 2026-11-17; ver la bitácora.)*
 
 **Ya arreglado el 2026-11-17** (en la rama, sin subir, a la espera de la decisión de arriba):
 

@@ -269,6 +269,19 @@ class DcasaCanje(models.Model):
                 'El premio %(codigo)s vale %(premio)s y esta venta lleva %(venta)s en productos: el premio no puede '
                 'ser mayor. Agrega productos o usa un premio más pequeño.',
                 codigo=canje.codigo, premio=R.como_dolares(R.a_centavos(canje.valor)), venta=R.como_dolares(total)))
+        # Y nunca puede salirle al cliente MÁS CARO que su descuento (la dueña, 2026-11-17). Va aquí, como la guarda
+        # del total negativo, porque por aquí pasan los DOS caminos: el carrito web avisa antes de pedir el canje,
+        # pero en el mostrador «Cobrar premio» entraba directo y un premio que tiraba la compra por debajo del mínimo
+        # de la promoción le hacía pagar el envío entero, sin que nadie se lo dijera (revisión adversarial,
+        # 2026-11-17). Aquí el código ya está pedido: no se cobra, pero sigue valiendo para otra venta.
+        perdida = order._dcasa_premio_no_conviene(R.a_centavos(canje.valor))
+        if perdida:
+            raise UserError(self.env._(
+                'El premio %(codigo)s hace que la compra baje de lo que pide la promoción del envío: se pagarían '
+                '%(envio)s de envío y el premio solo descuenta %(premio)s, así que al cliente le sale más caro. '
+                'Agrega algo a la venta o guarda el código para otra compra.',
+                codigo=canje.codigo, envio=R.como_dolares(R.a_centavos(perdida)),
+                premio=R.como_dolares(R.a_centavos(canje.valor))))
         producto = self.env.ref('dcasa_socios.product_premio_canje').sudo()
         impuestos, base = self._dcasa_impuestos_y_base(canje.valor, order.company_id)
         order.with_context(dcasa_aplicando_premio=True).write({'order_line': [(0, 0, {

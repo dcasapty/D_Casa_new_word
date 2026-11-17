@@ -739,6 +739,27 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 
 ### Esta máquina (sesiones de Claude)
 
+- **La línea del premio de Socios no baja la compra por su valor de cara** (2026-11-17): rebaja la BASE sin
+  impuesto y el ITBMS va encima (base + ITBMS = el valor del premio). Un premio de $10 baja la compra medida sin
+  ITBMS en **$9.35**, no en $10. Medir las dos cosas por igual se equivoca por el impuesto: el aviso al socio dice
+  una cifra que no es y el bloqueo salta en el borde equivocado. La cuenta vive en un solo sitio
+  (`dcasa.canje._dcasa_impuestos_y_base`) justo para que quien crea la línea y quien pregunta «¿cuánto bajaría la
+  compra?» no se separen. El mismo error al revés: el ahorro de la promoción de envío es una BASE y el valor del
+  premio va con ITBMS, así que al compararlos hay que subir el ahorro con los impuestos de la línea del envío (hoy va
+  sin ellos, pero `_dcasa_envio_lleva_itbms()` existe porque puede cambiar).
+
+- **`_dcasa_promocion_sincronizar` solo quita, nunca repone** (2026-11-17): si la compra baja del mínimo, borra la
+  línea de la promoción **y con ella los términos guardados**. Deshacer la bajada no la trae de vuelta, porque la
+  promoción se ofrece al sumar el envío. Quien deshaga una bajada (p. ej. devolver un premio) tiene que llamar
+  `_dcasa_promocion_volver_a_ofrecer()` a mano, o deja al cliente sin el descuento Y sin el beneficio. Y lo que eran
+  términos ya prometidos de una promoción vencida o cambiada no vuelve nunca: se fue con la línea.
+
+- **Una guarda de dinero puesta solo en el camino web deja el mostrador abierto** (2026-11-17, segunda vez que pasa):
+  los premios entran por `_dcasa_usar_puntos_web` (carrito) y por el asistente «Cobrar premio» (mostrador), y el
+  único punto común es `dcasa.canje._aplicar_en_venta`. La guarda del total negativo ya se había tenido que mover
+  ahí por lo mismo. Regla: toda guarda de dinero sobre un premio va en `_aplicar_en_venta`; la del carrito se queda
+  además, para avisar **antes** de reservar los puntos.
+
 - **Diez «fallas» del QR de los documentos son una librería que falta en el entorno virtual, no código**
   (2026-11-17). En una batería local, `dcasa_invoice` (`TestQrDocumentos`, `TestNotaDeEntregaFacil`,
   `TestDocumentosIntactos`) y `dcasa_fe_pa` (`TestFlujoSimulado`) dieron 10 errores, todos con el mismo fondo:

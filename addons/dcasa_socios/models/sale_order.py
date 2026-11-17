@@ -180,13 +180,19 @@ class SaleOrder(models.Model):
             return 0.0
         # Cuánto mueve la compra medida la línea del premio: la base sin ITBMS y el valor entero con ITBMS, igual que
         # la pone dcasa.canje._aplicar_en_venta. Tomarlos por igual se equivoca por el impuesto y el aviso mentiría.
+        # La compra de ahora, primero: si tal como está no hay promoción (ni envío, ni mínimo, ni fechas), con el
+        # premio tampoco la habrá y no hay nada que perder. Así el caso de todos los días sale por aquí sin pagar la
+        # segunda cuenta ni la del impuesto del premio.
+        ahora = self._dcasa_promocion_si_la_compra_cambia()[1]
+        if not puesto and not ahora:
+            return 0.0
         valor = valor_centavos / 100.0
         base = self.env['dcasa.canje']._dcasa_impuestos_y_base(valor, self.company_id)[1]
         if puesto:   # ya está en el carrito: «sin premio» es devolverle lo que el premio le bajó
             sin_premio = self._dcasa_promocion_si_la_compra_cambia(base, valor)[1]
-            con_premio = self._dcasa_promocion_si_la_compra_cambia()[1]
+            con_premio = ahora
         else:        # todavía no está: «con premio» es la compra de ahora menos lo que le bajaría
-            sin_premio = self._dcasa_promocion_si_la_compra_cambia()[1]
+            sin_premio = ahora
             con_premio = self._dcasa_promocion_si_la_compra_cambia(-base, -valor)[1]
         perdida = sin_premio - con_premio
         return perdida if perdida > 0 else 0.0

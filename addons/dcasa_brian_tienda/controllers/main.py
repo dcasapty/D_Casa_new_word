@@ -234,7 +234,13 @@ class DcasaBrianTiendaAPI(http.Controller):
         if not request.env['dcasa.brian.tienda'].sudo()._activo():
             return _json({'ok': False, 'motivo': 'apagado'})
         if request.cart:
-            request.cart.sudo()._dcasa_revisar_envio_sumado()   # un envío sumado que hoy ya no se daría, fuera
+            carrito = request.cart.sudo()
+            carrito._dcasa_revisar_envio_sumado()   # un envío sumado que hoy ya no se daría, fuera
+            # Y un premio de Socios que venció, que ya no cabe o que con este carrito le costaría la promoción del
+            # envío: fuera, con sus puntos de vuelta. Lo hacían /shop/cart y el pago, pero no este carrito, así que
+            # el chat podía seguir mostrando un premio que al socio ya no le convenía (revisión adversarial,
+            # 2026-11-17). El orden importa: primero el envío, porque de él depende lo del premio.
+            carrito._dcasa_limpiar_premios_web()
         return _json({'ok': True, 'carrito': self._carrito()})
 
     @http.route(f'{RAIZ}/vitrina', type='http', auth='public', website=True, methods=['GET'], sitemap=False)

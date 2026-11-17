@@ -321,8 +321,8 @@ class SaleOrder(models.Model):
     def _dcasa_promocion_si_la_compra_cambia(self, sin_itbms=0.0, con_itbms=0.0):
         """La promoción del envío de esta cotización si la compra subiera o bajara (dinero, no centavos; negativo =
         baja): ``(resultado, ahorro)``. ``resultado`` es ``None`` si la cotización no tiene un envío a domicilio del
-        sistema que pueda llevar promoción; ``ahorro`` es lo que D'CASA le regala o le abona del envío (``0.0`` si no
-        aplica).
+        sistema que pueda llevar promoción; ``ahorro`` es lo que el cliente DEJA DE PAGAR por el envío, con los
+        impuestos que lleve la línea (``0.0`` si no aplica).
 
         Van las dos cifras porque la promoción puede medir con ITBMS o sin él (``mide``) y una misma línea no mueve
         igual las dos: la del premio de Socios, por ejemplo, rebaja la base sin impuesto y el valor entero con él.
@@ -346,7 +346,14 @@ class SaleOrder(models.Model):
             resultado = motor_promocion.con_lo_prometido(guardados, envio.price_unit, compra)
         else:
             resultado = self._dcasa_promocion_calcular(envio, compra)[0]
-        ahorro = moneda.round(resultado['ahorro']) if resultado.get('aplica') else 0.0
+        ahorro = resultado['ahorro'] if resultado.get('aplica') else 0.0
+        if ahorro > 0 and envio.tax_ids:
+            # Lo que el cliente DEJA DE PAGAR, no la base: la línea de la promoción lleva los impuestos del envío
+            # (``_dcasa_promocion_crear``). Quien compara esto con el valor de un premio (que va con ITBMS) tiene que
+            # comparar peras con peras; hoy el producto del transportista va sin impuestos, pero puede cambiar y una
+            # posición fiscal puede mapearlos (revisión adversarial, 2026-11-17).
+            ahorro = envio.tax_ids._get_tax_details(ahorro, 1.0)['total_included']
+        ahorro = moneda.round(ahorro)
         return resultado, (ahorro if ahorro > 0 else 0.0)
 
     def _dcasa_promocion_porque_no(self, resultado):

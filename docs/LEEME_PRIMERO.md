@@ -109,6 +109,40 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 > sigue. Se guardan las diez más recientes; las viejas se resumen en una línea abajo y su texto completo pasa a
 > [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md).
 
+### 2026-11-17 (3): decidido lo de Socios y el envío gratis — un premio nunca le sale más caro al socio
+
+**La decisión que frenaba la segunda entrega ya está tomada y programada** (en la rama, probada y revisada; sube en
+cuanto pase el CI). La dueña eligió, entre dos opciones que se le presentaron con las cifras: **«avisarle y no dejar
+canjear»**.
+
+- **El problema** (lo encontró la revisión adversarial de Andrés vendedor): la línea del premio baja la compra medida
+  (decisión M6 de la dueña), así que podía tirarla por debajo del mínimo de la promoción de envío y hacerle perder el
+  envío gratis. Carrito de $205 sin ITBMS, premio de $10 → la compra queda en $195.65 y paga $45 de envío. **Gastaba
+  puntos para pagar más.**
+- **Lo que quedó:** antes de canjear se compara lo que pagaría de envío con lo que le descuenta el premio. Si iguala o
+  pasa, se le avisa con las dos cifras y no se canjea (sus puntos no se mueven: el canje ni se pide). **Decidí yo (y
+  se le dijo):** si el premio descuenta MÁS de lo que perdería, se deja pasar, porque ahí el socio sale ganando y
+  bloquearlo sería quitarle un beneficio real.
+- **Dos fallos míos que encontraron las pruebas y la revisión, los dos de dinero:**
+  1. Yo medía la bajada por el **valor de cara** del premio; la línea rebaja la **base** sin impuesto ($9.35 para un
+     premio de $10). El aviso habría dicho una cifra que no era y el bloqueo saltaba en el borde equivocado. La
+     cuenta del impuesto quedó en un solo sitio para que no se vuelvan a separar.
+  2. Al devolverle los puntos, **la promoción no volvía**: el sincronizador de envíos solo quita esa línea, nunca la
+     repone. El socio quedaba sin el premio Y pagando el envío: peor que el problema original. Ahora, al quitar un
+     premio —lo quite el sistema o el socio— la promoción se vuelve a ofrecer.
+- **Un BLOQUEANTE de la revisión independiente:** la guarda vivía solo en el carrito web, y por «Cobrar premio» del
+  **mostrador** el premio entraba directo: cobrar uno de $25 sobre una venta de $205 con envío gratis le hacía pagar
+  $21.64 más, sin que nadie se lo dijera. Pasó a `_aplicar_en_venta`, por donde van los dos caminos (es la segunda vez
+  que una guarda de dinero de premios se tiene que mover ahí; quedó anotado como regla). En el mostrador el código
+  sigue valiendo para otra compra.
+- **Dos hallazgos más de la revisión, arreglados:** el ahorro de la promoción es una base y el valor del premio va con
+  ITBMS, así que al compararlos ahora el ahorro sube con los impuestos del envío (hoy va sin ellos, pero puede
+  cambiar); y el carrito del chat no corría la limpieza de premios, así que podía seguir mostrando uno que ya no le
+  convenía. También se probó el borde exacto que eligió la dueña («iguala» → no se canjea), que antes pasaba igual
+  con `>` que con `>=`.
+- **Sigue abierto, anotado:** el carrito le ofrece premios que el servidor va a rechazar (el aviso llega después del
+  clic); y si lo que se pierde eran términos ya prometidos de una promoción vencida, esos no vuelven.
+
 ### 2026-11-17 (2): la portada nueva en producción (CI/CD 377), el hero como fondo en movimiento
 
 **En producción: la portada nueva** (ejecución 377 de CI/CD a mano desde `main`, squash `447d6efe`, PR #127; Juan
@@ -399,19 +433,10 @@ pedido de la dueña: «sube la rama lo que tengas y añade todo lo que avanzamos
   partir de las 9:00 a. m..» con dos puntos (`juan/src/tienda/motor.ts`, el aviso de tienda cerrada). El mapa no
   necesita regla nueva: el borde no manda `frame-src` (OPERACION).
 
-### 2026-11-13: Juan ya no dice «no lo manejamos» de lo que no está publicado (Desplegar 69 y Juan 23) y responde comentarios de Instagram y Facebook, apagado (Desplegar 70 y Juan 24), en producción
-
-**En producción desde el 2026-11-13, 03:20 UTC (salud sana: `{"ok": true, "version": "2ced21ccb09f", "base_al_dia": true, "humo": "ok"}`):** **Desplegar 69** (run 43356475622) con la imagen `sha256:1ad42b80f08882c6d05db19cb3d66fba5a54c7c14e69cf4e98b2165db5b7bb67` y `app_version` `2ced21ccb09f555da0159f1493867318617100e1` (PR #115, squash `7d965cd`; CI 345 con staging, run 43347631246), con respaldo previo. Y **Desplegar Juan 23** (run 43358329275, 03:22 UTC; `/salud` con `7d965cdab4b99f039172308f3339cc16b5d27a5b`).
-
-**Y desde las 04:45 UTC (salud sana: `{"ok": true, "version": "70ac6f349a9e", "base_al_dia": true, "humo": "ok"}`):** **Desplegar 70** (run 43365883978) con la imagen `sha256:7c1a9d4cbfd6743d8480aabb44aac055d1c0729d6e23a9f48c4463d7215b7324` y `app_version` `70ac6f349a9e8be6f2939f063360de1031272fc9` (PR #116, squash `24493be`; CI 347 con staging, run 43358982543), con respaldo previo. Y **Desplegar Juan 24** (run 43367600509, 04:47 UTC; `/salud` con `24493be1a67c06a19b6d0266e5c0eb20a80598f9`; los mismos 5 avisos de antes, nada nuevo).
-
-- **Qué pasó:** la dueña mandó la captura de un cliente al que Juan le dijo «solo manejamos la cama, no el colchón solo» («¿Esto es verdad?»). No: los colchones existen, pero no estaban publicados en la tienda y la búsqueda de Juan solo ve lo publicado. Ahora, cuando no encuentra algo publicado, la herramienta le dice por qué: `hay_sin_publicar` (existe en Odoo sin publicar: Juan dice «sí lo trabajamos», no da datos y pasa a una vendedora), `busca_de_nuevo` (probar otra palabra) o `no_lo_manejamos` (solo entonces lo puede decir). El Worker tiene además una guardia (`niega_producto`) que frena el «no lo manejamos» si la herramienta no lo dijo. Se le dio a la dueña el mensaje para el cliente.
-- **La dueña ya publicó los colchones** (7 en la tienda; se encuentran con «colchón» y con «colchon») **y le escribió al cliente.**
-- **Comentarios de Instagram y Facebook, en producción y apagados** (JUAN_CANALES §3c; dos vueltas de revisión adversarial, bloqueantes cerrados). Decidí yo (y se le dijo): la frase pública nunca lleva el nombre de quien comenta. La dueña preguntó si funcionarían con la puerta del jefe: **no**; Meta pide acceso avanzado para los avisos de comentarios también por inicio de sesión de Instagram, así que solo llegan los de cuentas con papel hasta la revisión de la app. Se le explicó cómo probarlo con su propia cuenta. Se le mandaron las capturas de Ajustes (computadora y celular).
-- **Sigue:** el jefe sigue los pasos de la segunda puerta (JUAN_CANALES §3b) y marca `feed` / `comments` en la app; la dueña prueba los comentarios con una cuenta con papel; paquete para la revisión de Meta (Messenger y comentarios), ofrecido a la dueña.
-
 ### Entradas anteriores (una línea cada una; el texto completo en [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md))
 
+- **2026-11-13:** Juan ya no dice «no lo manejamos» de lo que no está publicado (Desplegar 69 y Juan 23) y
+  responde comentarios de Instagram y Facebook, apagado (Desplegar 70 y Juan 24), en producción
 - **2026-11-12:** Juan cotiza envíos con la promoción, reparto justo de chats y Costos de IA con «Pagar», en
   producción (Desplegar 68 y Juan 21); se descubrió que Messenger e Instagram no les llegan a los clientes
 - **2026-11-11 (3):** Inicio nuevo, el celular al entrar, la caja del chat, entregas = Bodega, «Más datos» y modo oscuro, en producción (Desplegar 65, 66 y 67)

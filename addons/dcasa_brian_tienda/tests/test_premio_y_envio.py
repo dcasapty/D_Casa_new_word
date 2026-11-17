@@ -227,3 +227,53 @@ class TestPremioFrenteAlEnvio(TiendaCase):
         _impuestos, base = self.env['dcasa.canje']._dcasa_impuestos_y_base(10.0, orden.company_id)
         self.assertAlmostEqual(premio.price_subtotal, -base, places=2, msg='la línea rebaja la base')
         self.assertAlmostEqual(premio.price_total, -10.0, places=2, msg='base + ITBMS = el valor del premio')
+
+    # ------------------------------------------------------------- el mostrador y el borde exacto
+
+    def test_en_el_mostrador_tampoco_se_cobra_un_premio_que_le_sale_mas_caro(self):
+        """Hallazgo de la revisión independiente (2026-11-17): la guarda vivía solo en el carrito web, y por
+        «Cobrar premio» del mostrador el premio entraba directo. Cotización de $205 con el envío gratis: cobrar un
+        premio de $25 le borraba la promoción y el cliente pagaba $21.64 MÁS por quemar 2.500 puntos, sin que nadie
+        se lo dijera. Ahora la guarda vive en ``_aplicar_en_venta``, por donde pasan los dos caminos, y el código
+        sigue valiendo para otra compra."""
+        self.socia._dcasa_asegurar_ficha()
+        self.socia._dcasa_guardar_pin(PIN)
+        self.env['dcasa.movimiento']._asentar(self.socia, 'ajuste', 60000, 'test', motivo='Saldo de prueba')
+        orden = self.env['sale.order'].sudo().create({
+            'partner_id': self.socia.id,
+            'order_line': [Command.create({'product_id': self.sofa.product_variant_id.id, 'product_uom_qty': 1})],
+        })
+        self.assertFalse(orden.website_id, 'es una cotización del mostrador, no un carrito web')
+        puesto = orden._dcasa_envio_poner(self.costa, 45.0)
+        self.assertTrue(puesto['puesto'], puesto)
+        self.assertTrue(self.promocion_puesta(orden), 'la promoción está puesta')
+        antes = orden.amount_total
+        canje = self.env['dcasa.canje']._pedir(self.socia, self.premio('premio_desc_25'), origen='app')
+        with self.assertRaisesRegex(UserError, 'promoción del envío'):
+            canje._aplicar_en_venta(orden)
+        self.assertFalse(orden.order_line.filtered('dcasa_canje_id'), 'el premio no entró')
+        self.assertTrue(self.promocion_puesta(orden), 'la promoción sigue puesta')
+        self.assertEqual(orden.amount_total, antes, 'y el total no subió')
+        self.assertEqual(canje.estado, 'solicitado', 'el código sigue valiendo para otra compra')
+
+    def test_el_borde_exacto_se_bloquea_cuando_iguala_lo_que_perderia(self):
+        """La dueña dijo «iguala o pasa» → no se canjea. Si alguien cambiara el ``>=`` por ``>`` las demás pruebas
+        pasarían igual, así que este borde se prueba aparte: con una pérdida de exactamente lo que vale el premio,
+        se bloquea; con un centavo menos, pasa."""
+        self.socia_con_puntos()
+        orden = self.carrito_con_envio()
+        with patch.object(type(orden), '_dcasa_envio_que_cuesta_el_premio', return_value=25.0):
+            self.assertEqual(orden._dcasa_premio_no_conviene(2500), 25.0, 'igual: no conviene')
+        with patch.object(type(orden), '_dcasa_envio_que_cuesta_el_premio', return_value=24.99):
+            self.assertFalse(orden._dcasa_premio_no_conviene(2500), 'un centavo menos: sí conviene')
+
+    def test_el_ahorro_que_se_compara_es_lo_que_el_cliente_deja_de_pagar(self):
+        """Otro hallazgo de la revisión: el ahorro de la promoción es una BASE y el valor del premio va con ITBMS.
+        Hoy el envío va sin impuestos, así que las dos cifras coinciden; la prueba lo fija para que, si algún día el
+        envío lleva ITBMS, el ahorro que se compara suba con él y no se cuele un premio que sale más caro."""
+        self.socia_con_puntos()
+        orden = self.carrito_con_envio()
+        envio = orden.order_line.filtered('dcasa_envio_lugar_id')[:1]
+        _resultado, ahorro = orden._dcasa_promocion_si_la_compra_cambia()
+        esperado = envio.tax_ids._get_tax_details(45.0, 1.0)['total_included'] if envio.tax_ids else 45.0
+        self.assertAlmostEqual(ahorro, esperado, places=2)
