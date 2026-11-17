@@ -193,6 +193,12 @@ MEDIR = """
                 contraste: { imagen: contraste.backgroundImage, color: contraste.backgroundColor,
                              mezcla: contraste.mixBlendMode },
                 // De orilla a orilla: la foto llena el hero entero, de las dos orillas y de arriba abajo.
+                // Se mide la IMAGEN, no solo su marco: lo que la dueña ve es la foto cubriendo la pantalla.
+                imagenCubreElHero: (() => {
+                    const i = img.getBoundingClientRect();
+                    return i.left <= b.left + 1 && i.right >= b.right - 1
+                        && i.top <= b.top + 1 && i.bottom >= b.bottom - 1;
+                })(),
                 fotoOrillaIzquierda: Math.abs(b.left) < 1,
                 fotoOrillaDerecha: Math.abs(b.right - innerWidth) < 1,
                 fotoArriba: Math.abs(b.top - h.top) < 1,
@@ -503,6 +509,7 @@ class TestContratoVisual(HttpCase):
                 self.assertNotIn('rgb(0, 0, 0', v['contraste']['imagen'])
                 # El encuadre (el zoom lento no se mide aquí: estas capturas congelan toda animación a propósito,
                 # para salir siempre iguales; el zoom se comprueba en TestCarruselPortada, en un Chrome normal).
+                self.assertTrue(v['imagenCubreElHero'], 'la foto misma cubre el hero entero, sin huecos')
                 self.assertTrue(v['fotoOrillaIzquierda'], 'la foto llega a la orilla izquierda')
                 self.assertTrue(v['fotoOrillaDerecha'], 'y a la derecha')
                 self.assertTrue(v['fotoArriba'], 'y arriba, bajo la cabecera de vidrio')
