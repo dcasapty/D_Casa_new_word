@@ -739,6 +739,34 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 
 ### Esta máquina (sesiones de Claude)
 
+- **Diez «fallas» del QR de los documentos son una librería que falta en el entorno virtual, no código**
+  (2026-11-17). En una batería local, `dcasa_invoice` (`TestQrDocumentos`, `TestNotaDeEntregaFacil`,
+  `TestDocumentosIntactos`) y `dcasa_fe_pa` (`TestFlujoSimulado`) dieron 10 errores, todos con el mismo fondo:
+  `ModuleNotFoundError: rlPyCairo` / `_rl_renderPM` desde `reportlab/graphics/renderPM.py`. Es el dibujo del QR.
+  En el servidor de GitHub están y pasan (el job de la imagen Docker incluso comprueba que la factura en PDF sale con
+  el diseño de D'CASA). O sea: antes de ponerse a arreglar, mirar si el error es un `ModuleNotFoundError`; si lo es,
+  no es del cambio.
+
+- **Una copia de trabajo de git (`git worktree`) NO trae el submódulo `vendor/odoo`** (2026-11-17): la batería muere
+  al instante con `can't open file '.../solo/vendor/odoo/odoo-bin'`. No hay que clonar el submódulo otra vez: se
+  corre con `ODOO_DIR=/home/user/D_Casa_new_word/vendor/odoo` apuntando al del repositorio principal, después de
+  comprobar que el SHA del submódulo es el mismo en las dos ramas.
+
+- **Para contar cuántas fotos se ven en un carrusel hay que pararlo primero** (2026-11-17): con 0,4 s entre fotos y
+  1,8 s de fundido siempre hay dos a medio camino, así que la prueba daba «2 != 1» sin que nada estuviera roto. La
+  receta: acortar el tiempo para provocar el cambio, luego alargarlo (`--vitrina-tiempo: 600s`), dejar terminar el
+  fundido y recién ahí contar.
+
+- **La primera foto del carrusel cambia a los 6,5 s de verdad, aunque la prueba acorte el tiempo después**
+  (2026-11-17): el primer cambio ya quedó programado con el valor real antes de que la prueba toque
+  `--vitrina-tiempo`, así que hay que esperar al menos ese tiempo (240 × 50 ms) o la prueba falla con «no cambió».
+  Lo mismo al revés: la prueba de «movimiento reducido» solo prueba algo si espera MÁS de 6,5 s.
+
+- **En el arnés del contrato visual las animaciones están congeladas: no se puede medir el zoom ahí** (2026-11-17).
+  Ese arnés corre con `prefers-reduced-motion: reduce` e inyecta `*, *::before, *::after { animation: none
+  !important; }`, así que medir `animationName` solo comprueba la congelación. El zoom se verifica en
+  `TestCarruselPortada`, en un Chrome normal.
+
 - **Las tres pruebas de `dcasa_guia` que «fallan en local» pasan si se instala `dcasa_nomina`** (2026-11-17). La
   tarea «planilla» de la Guía es de nómina: sin ese módulo, la búsqueda no la encuentra y tres pruebas fallan. No es
   una falla real ni hace falta saltarlas: basta sumar `dcasa_nomina` a la lista de módulos de `scripts/test.sh`. Con

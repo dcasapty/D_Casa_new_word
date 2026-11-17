@@ -109,6 +109,41 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 > sigue. Se guardan las diez más recientes; las viejas se resumen en una línea abajo y su texto completo pasa a
 > [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md).
 
+### 2026-11-17 (2): la portada nueva en producción (CI/CD 377), el hero como fondo en movimiento
+
+**En producción: la portada nueva** (ejecución 377 de CI/CD a mano desde `main`, squash `447d6efe`, PR #127; Juan
+sigue en 28). El resto de la segunda entrega —Andrés vendedor, notas de voz y micrófono— **sigue sin subir**, a la
+espera de la decisión de la dueña sobre Socios y el envío gratis.
+
+- **Lo que pidió la dueña:** «como si fuese un video corrido… imágenes con un tipo suave zoom», «no quiero ni
+  siquiera que el usuario tenga control», «ni siquiera tiene que tener el nombre del producto» y, sobre el
+  contraste, «el fondo no lo quiero oscuro». Se le mostraron **cinco opciones** de contraste en azul de marca, en
+  computadora y en celular; eligió la quinta («me gusta mucho la última imagen y cómo se ve en celular»).
+- **Qué quedó:** el hero dejó de ser un carrusel con mandos y pasó a ser un fondo. Las fotos de los productos que
+  Gerencia elige en Sitio web › Carrusel de la portada cubren la pantalla entera, se funden unas en otras en orden al
+  azar y llevan un zoom lento que no para. Encima va solo el texto de siempre: sin nombres, sin enlaces, sin flechas,
+  sin barras y sin pausa. Sin productos elegidos queda el hero de antes, igual que antes.
+- **El contraste se resuelve en azul de marca, nunca oscureciendo la foto:** un degradado diagonal (navy → azul →
+  transparente) en `::after`, sin bordes ni franjas; en el celular va de abajo hacia arriba. El amarillo sigue
+  cayendo siempre sobre azul.
+- **Accesibilidad:** el fondo es decorativo (`aria-hidden`, `alt` vacío), así que el lector de pantalla lee el texto y
+  no una lista de camas; con «movimiento reducido» no cambia de foto ni hace zoom. La primera foto sigue siendo la
+  imagen LCP.
+- **El contrato visual ahora exige dos cosas más** que antes no se miraban: que la **foto misma** cubra el hero de
+  orilla a orilla, y que la capa de contraste sea de marca y **nunca negra**. Referencias regeneradas en el mismo
+  commit.
+- **Rama aparte, como con el Black Friday:** `claude/portada-solo`, sacada de `main`, 21 archivos, todos dentro de
+  `addons/website_dcasa/`. No toca Socios, ni el chat, ni nada que mueva dinero. Así la portada pudo subir hoy sin
+  arrastrar la segunda entrega.
+- **Comprobado en producción** (en computadora y en celular, con el navegador de verdad): hero a pantalla completa,
+  7 fotos, la foto cubre el hero, el zoom corriendo, la capa en navy y azul **sin nada de negro**, cero mandos y
+  `aria-hidden` puesto. Salud del borde sana: `{"ok": true, "version": "447d6efe6c74", "base_al_dia": true,
+  "humo": "ok"}`.
+- **Pendiente anotado:** el contrato visual del panel de Juan falla a 390 px (`panel-lista-390` 7,7 % y
+  `panel-conexiones-390` 13,7 % de píxeles distintos). **Viene de `main`, no de la portada** (esta rama no toca nada
+  de Juan). Hay que mirarlo aparte: o es un cambio a propósito al que le faltó regenerar sus referencias, o es una
+  falla de verdad en el celular.
+
 ### 2026-11-17: la pantalla «Armar combo», tres arreglos de Socios y del chat, y los parches de IA de Juan
 
 **Nada nuevo en producción** (sigue Desplegar 77 y Juan 28). Todo en la rama de trabajo, a la espera de la decisión
@@ -375,22 +410,10 @@ pedido de la dueña: «sube la rama lo que tengas y añade todo lo que avanzamos
 - **Comentarios de Instagram y Facebook, en producción y apagados** (JUAN_CANALES §3c; dos vueltas de revisión adversarial, bloqueantes cerrados). Decidí yo (y se le dijo): la frase pública nunca lleva el nombre de quien comenta. La dueña preguntó si funcionarían con la puerta del jefe: **no**; Meta pide acceso avanzado para los avisos de comentarios también por inicio de sesión de Instagram, así que solo llegan los de cuentas con papel hasta la revisión de la app. Se le explicó cómo probarlo con su propia cuenta. Se le mandaron las capturas de Ajustes (computadora y celular).
 - **Sigue:** el jefe sigue los pasos de la segunda puerta (JUAN_CANALES §3b) y marca `feed` / `comments` en la app; la dueña prueba los comentarios con una cuenta con papel; paquete para la revisión de Meta (Messenger y comentarios), ofrecido a la dueña.
 
-### 2026-11-12: Juan cotiza envíos con la promoción, reparto justo de chats y Costos de IA con «Pagar», en producción (Desplegar 68 y Juan 21); Messenger e Instagram no les llegan a los clientes
-
-**En producción desde el 2026-11-12, 23:1x UTC (salud sana: `{"ok": true, "version": "98f8002aab2b", "base_al_dia": true, "humo": "ok"}`):** **Desplegar 68** (run 43325822963) con la imagen `sha256:f2efed11…` y `app_version` `98f8002aab2b11af216c60fa847bc0d161aaf153` (PR #113, squash `b78d472`; CI 340 con staging, run 43280069880, segundo intento: el primero frenó en el respaldo previo de staging dormido), con respaldo previo. Y **Desplegar Juan 21** (run 43328387534) para el Worker. Después, **Desplegar Juan 22** (2026-11-13, 00:4x UTC, run 43339636718; PR #114, squash `d5c9ef9`; CI 342 con staging, run 43328896843): la segunda puerta de Instagram, **apagada** hasta que el jefe ponga `INSTAGRAM_TOKEN` e `INSTAGRAM_APP_SECRET` (`/salud` dice `"puerta": "pagina_facebook"`).
-
-- **Aprobaciones de la dueña (tal cual):**
-  - Juan cotiza envíos: «tienes mi sí» (Juan pregunta «¿quieres que te lo sume a la cotización?»); la frase con la promoción: «lo ideal es que explique bien que el envío realmente o regularmente cuesta tanto y que nosotros le estamos añadiendo $20 por la promoción, pero que a partir cuando termine la promoción el costo puede volver a su precio original». Decisiones: «Sin ITBMS (Recomendado)»; «Toda la provincia de Panamá (Recomendado)»; los $200 «Después del descuento»; una cotización de noviembre confirmada en diciembre «Sí, se respeta»; un lugar nuevo de una vendedora «No, hasta que Gerencia lo revise».
-  - Costos de IA: «Simplemente me gustaría que un botón diga pagar y que el saldo que ya había ¡fuap! Ya salga como pago y que la cuenta empiece de nuevo» y, con las capturas: «me parece también bien el botón de pagar. Eso está excelente».
-  - Reparto: «Sí, me parece bien eso que tú dices en cuanto a la atención de los chats»; «estas notas que se dejan solamente es entre vendedoras. Cualquier administrativo puede entrar y responder, hacer y deshacer, y delegar y cambiar chats». Y: «exacto cuando termines mandalo a produccion».
-- **Qué lleva:** ver PR #113 y [ENVIOS.md](ENVIOS.md) › Juan cotiza el envío; [JUAN_ODOO.md](JUAN_ODOO.md) › Costos de IA y Trabajo en equipo y reparto. Revisión adversarial independiente: envíos en tres vueltas (dos bloqueantes cerrados), reparto y costos en dos vueltas (un bloqueante cerrado).
-- **Decidí yo (y se le dijo):** Caja y Contabilidad cuentan como «administrativas» para el reparto; el programado que no sale queda como nota interna.
-- **Falta de la dueña:** revisar en Envíos › Lugares (filtro «Por revisar (Gerencia)») los lugares agregados a mano antes de hoy (la migración los dejó «Por revisar»: Juan no da su precio hasta entonces); archivar la nota de la promoción de noviembre en el Conocimiento el 1 de diciembre; preguntar a la contadora si el envío lleva ITBMS (hoy `DCASA-ENTREGA` no lo lleva).
-- **Hallazgo de la dueña (con otro Claude y un amigo): Messenger e Instagram NO les llegan a los clientes.** Las pruebas del 9 y 10 nov se hicieron con cuentas con papel en la app; Meta solo manda los avisos de esas cuentas mientras la app no tenga acceso avanzado. Corregido en JUAN_CANALES §3 y PRIORIDADES (punto 00). Aprobó: (1) probar la «segunda puerta» de Instagram (inicio de sesión de Instagram, con la cuenta propia de D'CASA; lo hace el jefe desde su cuenta personal) — está en producción desde Juan 22 (apagada) y los pasos del jefe están en JUAN_CANALES §3b; (2) **comentarios** de Instagram y Facebook: «Solo los que preguntan», «Corto y lo demás por privado», «Apagado hasta que lo pruebes» (se construye después de la segunda puerta). Para Messenger el único camino es la revisión de la app de Meta con el negocio verificado.
-- **Sigue:** desplegar la segunda puerta de Instagram (CI → PR → Desplegar Juan); que el jefe siga los pasos y pruebe con una cuenta SIN papel; comentarios; paquete para la revisión de Meta (Messenger y comentarios).
-
 ### Entradas anteriores (una línea cada una; el texto completo en [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md))
 
+- **2026-11-12:** Juan cotiza envíos con la promoción, reparto justo de chats y Costos de IA con «Pagar», en
+  producción (Desplegar 68 y Juan 21); se descubrió que Messenger e Instagram no les llegan a los clientes
 - **2026-11-11 (3):** Inicio nuevo, el celular al entrar, la caja del chat, entregas = Bodega, «Más datos» y modo oscuro, en producción (Desplegar 65, 66 y 67)
 - **2026-11-11 (2):** auditoría visual del panel; 21 arreglos en producción (Desplegar 64); propuesta 2 del Inicio
 - **2026-11-11:** versión estable 4; Instagram con fotos confirmado; enlace de choferes encendido; cierre de semana

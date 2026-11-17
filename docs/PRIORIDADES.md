@@ -1,6 +1,6 @@
 # Prioridades vigentes
 
-Puesto al día el **2026-11-16** (el Black Friday ya está en producción: Desplegar 77 y Juan 28. En la rama de trabajo queda la segunda entrega —Andrés vendedor, notas de voz, micrófono y portada—, que **no se sube** hasta arreglar lo de Socios y el envío gratis: ver abajo y [PLAN_ANDRES_VOZ_PORTADA.md](PLAN_ANDRES_VOZ_PORTADA.md)). Es el orden en que se trabaja: cada sesión lo lee al empezar y lo pone al día al
+Puesto al día el **2026-11-17** (el Black Friday está en producción desde el 16 —Desplegar 77 y Juan 28— y **la portada nueva desde el 17** —ejecución 377, squash `447d6efe`, PR #127—. En la rama de trabajo queda el resto de la segunda entrega —Andrés vendedor, notas de voz y micrófono—, que **no se sube** hasta arreglar lo de Socios y el envío gratis: ver abajo y [PLAN_ANDRES_VOZ_PORTADA.md](PLAN_ANDRES_VOZ_PORTADA.md)). Es el orden en que se trabaja: cada sesión lo lee al empezar y lo pone al día al
 terminar (ver [LEEME_PRIMERO.md](LEEME_PRIMERO.md)). Aquí va **un solo estado**, el de hoy; lo que pasó cada día está en
 la bitácora de LEEME_PRIMERO (y lo más viejo en [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md)).
 
@@ -8,8 +8,10 @@ Cada cosa nueva pasa por capturas a la dueña, pruebas, staging y, si toca diner
 **Desde el 2026-11-13 la dueña no pide su visto bueno para pasar a producción** («Y no esperes mi aprobación para pasar
 la producción. Apruébalo y punto.»); la revisión adversarial no se salta (reglas en LEEME_PRIMERO §2).
 
-## Estado al 2026-11-15
+## Estado al 2026-11-17
 
+- **Lo último en producción: la portada nueva** (2026-11-17, CI/CD 377, `app_version` `447d6efe6c74`, PR #127);
+  antes, el Black Friday (2026-11-16, Desplegar 77 y Juan 28).
 - **Producción funciona desde el 2026-10-13** y **`dcasapty.com` (y `www`) apunta al sistema nuevo desde el
   2026-10-27** (Desplegar 31). Odoo y el borde: **Desplegar 76** (15 nov, PR #122: bandas en azul noche, pie claro, menú sin «Escríbenos», sección de contacto y el carrito en el chat de la tienda; antes, Desplegar 75 (15 nov, PR #121: la portada v3, con secciones compactas, el carrito como ícono, la paleta nueva y la barra del chat de vidrio; antes, Desplegar 74 (15 nov, PR #120: Brian siempre activo de noche, con dos interruptores); antes, Desplegar 73 (14 nov, PR #119: la burbuja de Brian cambia de robot con el scroll); antes,
   Desplegar 72, PR #118: Brian de la tienda, el chat de ventas en la web, y el
@@ -37,6 +39,16 @@ la producción. Apruébalo y punto.»); la revisión adversarial no se salta (re
   («Es esta persona»); tasa de cierre en el Resumen de Juan; Sofía. Detalle en la bitácora.
 
 ## Lo que sigue, en orden
+
+**LA PORTADA NUEVA YA ESTÁ EN PRODUCCIÓN** (2026-11-17, ejecución 377 de CI/CD a mano desde `main`, squash
+`447d6efe`, PR #127). El hero es un fondo en movimiento: las fotos del catálogo a pantalla completa, en orden al azar,
+con fundido y zoom lento, sin mandos ni nombres, y el contraste resuelto en azul de marca (la dueña eligió la opción 5
+de cinco). Comprobado en vivo en computadora y en celular. Subió en una rama aparte (`claude/portada-solo`, sacada de
+`main`, solo `addons/website_dcasa/`), así que **no arrastró** el resto de la segunda entrega.
+
+**Pendiente que salió de ahí:** el contrato visual del panel de Juan falla a 390 px (`panel-lista-390` 7,7 % y
+`panel-conexiones-390` 13,7 % de píxeles distintos). Viene de `main`, no de la portada. Hay que mirar si es un cambio
+a propósito al que le faltó regenerar las referencias o una falla de verdad en el celular.
 
 **EL BLACK FRIDAY YA ESTÁ EN PRODUCCIÓN** (2026-11-16, Desplegar 77 y Juan 28; PR #126, squash `a904ec65`,
 `app_version` `26b357d3bd51…`). La campaña del sitio desde el panel, los combos inamovibles con la regla del par y el
