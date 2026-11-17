@@ -318,11 +318,14 @@ class SaleOrder(models.Model):
                                 dia=motor_promocion.prometido_hasta(guardados).strftime('%d/%m/%Y'), porque=porque)
         return envio, resultado, None, porque
 
-    def _dcasa_promocion_si_la_compra_cambia(self, delta):
-        """La promoción del envío de esta cotización si la compra subiera o bajara ``delta`` (dinero, no centavos;
-        negativo = baja): ``(resultado, ahorro)``. ``resultado`` es ``None`` si la cotización no tiene un envío a
-        domicilio del sistema que pueda llevar promoción; ``ahorro`` es lo que D'CASA le regala o le abona del envío
-        (``0.0`` si no aplica).
+    def _dcasa_promocion_si_la_compra_cambia(self, sin_itbms=0.0, con_itbms=0.0):
+        """La promoción del envío de esta cotización si la compra subiera o bajara (dinero, no centavos; negativo =
+        baja): ``(resultado, ahorro)``. ``resultado`` es ``None`` si la cotización no tiene un envío a domicilio del
+        sistema que pueda llevar promoción; ``ahorro`` es lo que D'CASA le regala o le abona del envío (``0.0`` si no
+        aplica).
+
+        Van las dos cifras porque la promoción puede medir con ITBMS o sin él (``mide``) y una misma línea no mueve
+        igual las dos: la del premio de Socios, por ejemplo, rebaja la base sin impuesto y el valor entero con él.
 
         Mide igual que ``_dcasa_promocion_revisar`` (lo prometido si los términos guardados siguen valiendo, la
         promoción de hoy si no), pero sin tocar nada: sirve para preguntar «¿y si la compra fuera otra?» antes de
@@ -334,10 +337,10 @@ class SaleOrder(models.Model):
             return None, 0.0
         moneda = self.currency_id or self.company_id.currency_id
         compra = self._dcasa_envio_compra()
-        if delta:
+        if sin_itbms or con_itbms:
             compra = dict(compra,
-                          subtotal_sin_itbms=moneda.round(compra['subtotal_sin_itbms'] + delta),
-                          subtotal_con_itbms=moneda.round(compra['subtotal_con_itbms'] + delta))
+                          subtotal_sin_itbms=moneda.round(compra['subtotal_sin_itbms'] + sin_itbms),
+                          subtotal_con_itbms=moneda.round(compra['subtotal_con_itbms'] + con_itbms))
         guardados = self.order_line.filtered('dcasa_promocion_terminos')[:1].dcasa_promocion_terminos
         if guardados and not self._dcasa_promocion_vencida(guardados):
             resultado = motor_promocion.con_lo_prometido(guardados, envio.price_unit, compra)

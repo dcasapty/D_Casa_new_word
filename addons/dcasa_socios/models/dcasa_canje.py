@@ -270,10 +270,7 @@ class DcasaCanje(models.Model):
                 'ser mayor. Agrega productos o usa un premio más pequeño.',
                 codigo=canje.codigo, premio=R.como_dolares(R.a_centavos(canje.valor)), venta=R.como_dolares(total)))
         producto = self.env.ref('dcasa_socios.product_premio_canje').sudo()
-        # ITBMS explícito: el producto puede haberse creado antes de cargar el plan contable.
-        impuestos = producto.taxes_id or order.company_id.account_sale_tax_id
-        base = canje.valor if all(impuestos.mapped('price_include')) else \
-            impuestos._get_tax_details(canje.valor, 1.0, special_mode='total_included')['total_excluded']
+        impuestos, base = self._dcasa_impuestos_y_base(canje.valor, order.company_id)
         order.with_context(dcasa_aplicando_premio=True).write({'order_line': [(0, 0, {
             'product_id': producto.id,
             'name': self.env._('Premio %(codigo)s: %(premio)s', codigo=canje.codigo, premio=canje.premio_nombre),
@@ -283,6 +280,21 @@ class DcasaCanje(models.Model):
             'dcasa_canje_id': canje.id,
         })]})
         return order.order_line.filtered(lambda line: line.dcasa_canje_id == canje)
+
+    @api.model
+    def _dcasa_impuestos_y_base(self, valor, compania=None):
+        """Los impuestos de la línea del premio y su base sin impuesto, para un premio de ``valor``: la línea rebaja
+        la base como un descuento y base + ITBMS = el valor del premio (lo que el cliente deja de pagar).
+
+        Está aparte porque no solo la usa quien crea la línea: Socios también necesita saber CUÁNTO bajaría la compra
+        medida (sin ITBMS baja la base; con ITBMS baja el valor entero) antes de poner el premio, para avisarle al
+        socio si con eso perdería la promoción del envío. Si las dos cuentas se separaran, el aviso mentiría."""
+        producto = self.env.ref('dcasa_socios.product_premio_canje').sudo()
+        # ITBMS explícito: el producto puede haberse creado antes de cargar el plan contable.
+        impuestos = producto.taxes_id or (compania or self.env.company).account_sale_tax_id
+        base = valor if all(impuestos.mapped('price_include')) else \
+            impuestos._get_tax_details(valor, 1.0, special_mode='total_included')['total_excluded']
+        return impuestos, base
 
     def _cerrar(self, estado, motivo, autor, desde=('solicitado',)):
         """Cierra los canjes que están en alguno de los estados ``desde`` y devuelve sus puntos
