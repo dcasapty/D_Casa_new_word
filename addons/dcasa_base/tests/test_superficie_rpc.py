@@ -780,6 +780,12 @@ LISTA_BLANCA = {
     ('dcasa_tienda_borde', 'dcasa.campana', 'write'):
         OVERRIDE + ' Marca «regenerar todo» si cambia lo que sale en el sitio y programa la vigilancia.',
     ('dcasa_tienda_borde', 'dcasa.campana', 'unlink'): OVERRIDE + ' Marca «regenerar todo».',
+    ('dcasa_tienda_borde', 'dcasa.portada.diapositiva', 'create'):
+        OVERRIDE + ' Marca el carrusel de la portada para regenerar su HTML; sin sudo().',
+    ('dcasa_tienda_borde', 'dcasa.portada.diapositiva', 'write'):
+        OVERRIDE + ' Marca el carrusel de la portada para regenerar su HTML; sin sudo().',
+    ('dcasa_tienda_borde', 'dcasa.portada.diapositiva', 'unlink'):
+        OVERRIDE + ' Marca el carrusel de la portada para regenerar su HTML; sin sudo().',
     # --- dcasa_brian ----------------------------------------------------------------------
     # El chat del panel: ACL de group_user + regla «cada quien sus conversaciones»; los
     # métodos validan dueño de la conversación y de la acción (B-04).
@@ -1231,6 +1237,10 @@ LISTA_BLANCA = {
         'Botón «Guardar»: exige Gerencia o administrador en el servidor (_dcasa_exigir) ANTES del sudo con que guarda '
         'el interruptor, el presupuesto y los topes (ir.config_parameter), y valida cada número (0 al máximo).',
     ('dcasa_brian_tienda', 'dcasa.brian.tienda.ajustes', 'cancel'): ACCION_VENTANA,
+    ('dcasa_brian_tienda', 'sale.order.line', 'write'):
+        OVERRIDE + ' Solo NIEGA: con el centinela interno de la tienda (CONSERVAR_ENVIO, que no se puede mandar por '
+                   'RPC) deja fuera las líneas de envío del sistema para que la tienda no las vuelva $0. Sin el '
+                   'centinela no cambia nada y sigue el super(); sin sudo().',
 }
 
 # Modelos abstractos sin ACL: por RPC no se puede llamar NINGÚN método suyo (S-09).

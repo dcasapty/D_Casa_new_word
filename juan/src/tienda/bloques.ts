@@ -5,6 +5,10 @@
 //   · `proponer_carrito` solo con un producto ya visto en la sesión, agregable y con una cantidad válida, y solo si el visitante lo
 //     pidió o lo confirmó en ese mensaje.
 //   · El mensaje de WhatsApp lleva lo del carrito (o lo último que se le mostró), sin datos personales.
+//   · `sumar_envio` (A2) solo con un lugar que dio `cotizar_envio` con precio en la sesión, y solo si el visitante lo pidió o dijo
+//     que sí; la página le pide a Odoo que ponga la línea del envío (la de `dcasa_envios`, con su promoción). Andrés no suma nada.
+//   · `proponer_cambio_carrito` (A4) solo con un producto que YA está en el carrito (lo dice la página), cantidad de 0 a 20 (0 =
+//     quitar), y solo si el visitante pidió el cambio en ese mensaje o dijo que sí a la pregunta. La página lo aplica en Odoo.
 
 import { normalizar, sinAcentos } from "../dcasa/texto";
 import type { LineaDelCarrito, Pose } from "./prompt";
@@ -26,11 +30,17 @@ export interface TarjetaDeProducto {
 
 export type Bloque =
   | { tipo: "texto"; texto: string }
-  | { tipo: "productos"; productos: TarjetaDeProducto[] }
+  /** `titulo`: el grupo de la vitrina (A5), la categoría que más se repite entre esas tarjetas (de Odoo), o null. */
+  | { tipo: "productos"; productos: TarjetaDeProducto[]; titulo?: string | null }
   | { tipo: "proponer_carrito"; producto_id: number; cantidad: number; nombre: string }
+  | { tipo: "proponer_cambio_carrito"; producto_id: number; cantidad: number; nombre: string }
   | { tipo: "sugerencias"; texto: string; opciones: string[] }
   | { tipo: "ubicacion"; texto: string }
-  | { tipo: "envio"; texto: string; lugar: string }
+  /** `lugar_id`: el lugar de la tabla de envíos que dio `cotizar_envio` (para sumarlo, A2); null si no vino. */
+  | { tipo: "envio"; texto: string; lugar: string; lugar_id?: number | null }
+  | { tipo: "sumar_envio"; lugar_id: number; lugar: string }
+  /** La tarjeta del carrito con su cotización: la pinta la página con los números de Odoo. */
+  | { tipo: "carrito" }
   | { tipo: "whatsapp"; texto: string; mensaje: string }
   | { tipo: "calificar" };
 
@@ -176,6 +186,48 @@ export function esUnSi(textoDelVisitante: string): boolean {
   return /^(si|sip|si por favor|si porfa|dale|ok|okay|claro|claro que si|perfecto|de una|yes|sure|si gracias|si ponlo|si ponla|si agregalo|si agregala|ponlo|ponla|agregalo|agregala|si ponlo en el carrito|si ponla en el carrito|ponlo en el carrito|ponla en el carrito|si agregalo al carrito|agregalo al carrito)$/.test(t);
 }
 
+/**
+ * A2. ¿Pide en ESTE mensaje sumar el envío a su cotización o a su carrito? («súmale el envío», «súmalo a la cotización», «agrégale el
+ * envío», «inclúyelo»). Un «sí» corto a la pregunta «¿Te lo sumo a la cotización?» lo resuelve `esUnSi`.
+ */
+export function pideSumarEnvio(textoDelVisitante: string): boolean {
+  const t = ` ${normalizar(textoDelVisitante)} `;
+  if (!t.trim() || / no (me )?(lo |la )?(sumes|agregues|incluyas|pongas|metas) /.test(t)) return false;
+  if (/ (sumale|sumalo|sumala|sumamelo|sumamela|sumelo|sumele|sumarlo|sumarle|sumarmelo|sumamelo) /.test(t)) return true;
+  if (/ (suma|sumar|sumas|sumes|sumarias) (el |ese |eso |lo |la )?(envio|flete|eso|delivery) /.test(t)) return true;
+  if (/ (lo|la|me lo|me la) (sumas|sumarias|puedes sumar|podrias sumar) /.test(t)) return true;
+  if (/ cotizacion con (el )?(envio|flete) | con (el )?(envio|flete) (incluido|sumado) /.test(t)) return true;
+  return / (agrega|agregale|agregalo|anade|anadele|anadelo|incluye|incluyelo|incluyele|ponle|pon|mete|metele) (?:\S+ ){0,3}(envio|flete|delivery) /.test(t);
+}
+
+/**
+ * A4. ¿Pide en ESTE mensaje cambiar la cantidad de algo del carrito o quitarlo? («quita la cama», «déjame solo uno», «mejor dos»,
+ * «ya no quiero el colchón», «uno menos»). Conservador: sin uno de estos verbos, el modelo solo puede preguntar.
+ */
+export function pideCambiarCarrito(textoDelVisitante: string): boolean {
+  const t = ` ${normalizar(textoDelVisitante)} `;
+  if (!t.trim()) return false;
+  return /( quita| quitale| quitalo| quitala| quitalos| quitar| saca| sacalo| sacala| sacar| elimina| eliminalo| eliminala| borra| borralo| borrala| remueve| cambia| cambialo| cambiala| cambiame| deja | dejame| dejalo| dejala| baja | bajale| sube | subele| reduce| aumenta| ya no (lo |la |los |las )?quiero| no (lo |la )?quiero| mejor (solo |nada mas )?(un|una|uno|dos|tres|cuatro|cinco|\d+) | solo (un|una|uno|dos|tres|cuatro|cinco|\d+) | (uno|una|otro|otra) (mas|menos) | ponme (solo |nada mas )?(un|una|uno|dos|tres|cuatro|cinco|\d+) | en vez de )/.test(t);
+}
+
+/** ¿Pide ver su carrito o la cotización? («dame la cotización», «¿qué tengo en el carrito?»). La página pinta la tarjeta. */
+export function pideVerCarrito(textoDelVisitante: string): boolean {
+  const t = ` ${normalizar(textoDelVisitante)} `;
+  return /( cotizacion | cotizame | cotizarme | presupuesto | el pdf | ver (mi|el) carrito | mi carrito | que tengo en el carrito )/.test(t);
+}
+
+/**
+ * El título del grupo de la vitrina (A5): la categoría (de Odoo) que más se repite entre las tarjetas de ESE turno; con empate, la
+ * de la primera tarjeta. Sin categorías, null (la página usa lo que pidió el visitante).
+ */
+export function tituloDelGrupo(productos: readonly Pick<ProductoVisto, "categorias">[]): string | null {
+  const cuenta = new Map<string, number>();
+  for (const p of productos) for (const c of new Set(p.categorias.map((x) => x.trim()).filter(Boolean))) cuenta.set(c, (cuenta.get(c) ?? 0) + 1);
+  let mejor: string | null = null;
+  for (const [c, n] of cuenta) if (mejor === null || n > (cuenta.get(mejor) ?? 0)) mejor = c;
+  return mejor ? mejor.replace(/[<>{}\[\]]/g, "").slice(0, 40) || null : null;
+}
+
 /** Un «no» corto a esa misma pregunta. */
 export function esUnNo(textoDelVisitante: string): boolean {
   const t = normalizar(textoDelVisitante);
@@ -195,10 +247,31 @@ const AFIRMA_CARRITO = [
   /\b(?:agregad[oa]s?|a[nñ]adid[oa]s?|puest[oa]s?) (?:a|al|en) (?:el |tu )?carrito\b/,
   /\bi (?:added|put) (?:it|them)\b/,
   /\b(?:added|is now) (?:to|in) your cart\b/,
+  // Quitar del carrito, cambiar la cantidad o sumar el envío (A2, A4): tampoco lo hace el modelo; lo confirma Odoo y lo dice
+  // el Worker (revisión adversarial, 2026-11-16: «agregué / incluí / cambié / retiré», «el envío ya está en tu cotización»).
+  /\b(?:te |ya )?(?:lo|la|los|las) (?:quite|saque|sume|borre|elimine|retire)\b/,
+  /\b(?:quite|saque|borre|elimine|retire) (?:\S+ ){0,6}del carrito\b/,
+  /\b(?:deje|cambie) (?:\S+ ){0,6}(?:en|del) (?:el |tu )?carrito\b/,
+  /\b(?:sume|agregue|a[nñ]adi|inclui|puse|meti) (?:\S+ ){0,3}(?:envio|flete)\b/,
+  /\b(?:cambie|actualice|ajuste|deje|baje|subi) (?:\S+ ){0,3}(?:cantidad|cantidades)\b/,
+  /\b(?:envio|flete)\b(?: \S+){0,3} (?:esta|estan|quedo|queda) (?:sumad[oa]|incluid[oa]|agregad[oa]|puest[oa]|en (?:tu|la) (?:cotizacion|carrito))\b/,
+  /\bya (?:lo|la|los|las) tienes (?:sumad[oa]s?|incluid[oa]s?|agregad[oa]s?|en (?:tu|la) cotizacion)\b/,
 ];
 
+/**
+ * ¿Esta oración dice que algo YA se hizo en el carrito o en la cotización? Lo que se PREGUNTA no se afirma: se quitan las
+ * cláusulas interrogativas enteras («¿…?»), estén donde estén, y se revisa todo lo demás. Una cláusula en subjuntivo
+ * («¿Quieres que te lo quite…?», «que la saque») tampoco es una confirmación.
+ *
+ * Antes se miraba solo lo que iba ANTES del primer «¿», y una oración sin «¿» que terminaba en «?» se daba por pregunta y no se
+ * revisaba (revisión adversarial, 2026-11-16). Así se colaba «ya te lo quité del carrito y lo dejé en 2, ok?», que es escribir
+ * como se escribe en español informal, y Andrés afirmaba un cambio que Odoo podía no haber hecho. Las frases que OFRECEN van en
+ * presente («te lo quito», «te lo dejo en 2») y no están en la lista, así que preguntar sin «¿» sigue saliendo entero.
+ */
 export function afirmaCarrito(oracion: string): boolean {
-  const t = sinAcentos(oracion.toLowerCase());
+  let t = sinAcentos(oracion.toLowerCase()).trim();
+  t = t.replace(/¿[^?]*\??/g, " ");
+  t = t.replace(/\bque (?:te |me |se )?(?:lo|la|los|las) \S+/g, "que");
   return AFIRMA_CARRITO.some((r) => r.test(t));
 }
 
@@ -248,7 +321,7 @@ export interface SenalesDePose {
 export function elegirPose(s: SenalesDePose): Pose {
   const hay = (tipo: Bloque["tipo"]) => s.bloques.some((b) => b.tipo === tipo);
   if (hay("calificar")) return "cinco_estrellas";
-  if (hay("proponer_carrito")) return "bolsita";
+  if (hay("proponer_carrito") || hay("proponer_cambio_carrito") || hay("sumar_envio") || hay("carrito")) return "bolsita";
   if (hay("envio") || hay("ubicacion")) return "mapa";
   if (hay("whatsapp")) return s.noche ? "durmiendo" : "burbuja_chat";
   if (s.agradecimiento) return "corazon";

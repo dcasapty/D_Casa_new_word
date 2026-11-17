@@ -11,6 +11,7 @@
 //   GET  /odoo/salud                  → estado del Worker
 //   (las cuatro de /odoo/* con Authorization: Bearer <JUAN_WORKER_TOKEN>, en tiempo constante)
 //   POST /tienda/v1/mensaje           → Brian de la tienda, el chat de dcasapty.com (CORS + pase de Odoo: tienda/rutas.ts)
+//   POST /tienda/v1/voz               → sus notas de voz: el audio entra, solo sale el texto (tienda/voz.ts)
 
 import { atiendeEntrante, canalActivo, CONFIG_POR_DEFECTO, type Config } from "./config";
 import { adaptadorPorRuta } from "./canales";

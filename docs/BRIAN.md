@@ -239,6 +239,30 @@ El tipo se decide por la **firma del archivo**, no por la etiqueta del navegador
   transparencia, ≤ 5 MB) sin tocar el adjunto original. Formatos que PIL no abre (p. ej. HEIC)
   reciben un aviso: mándala como JPG o PNG.
 
+## Notas de voz (2026-11-16, en la rama)
+
+Pedido de la dueña: darle indicaciones a Brian hablando, **sin que nadie pueda usar la herramienta para clonar voces**.
+
+- **En el panel:** un micrófono al lado de la caja de texto (solo si el Worker de Juan está conectado y el navegador puede
+  grabar). Al tocarlo, el navegador pide permiso la primera vez; se ve «Grabando», el tiempo («0:07 / 1:00») y una barra
+  del minuto; **Esc o la X cancelan** sin mandar nada y **«Listo»** pasa la nota a texto. A los 60 s para sola. El texto
+  queda **en la caja** (no se envía solo): la persona lo revisa, lo corrige y lo manda como cualquier mensaje. Debajo se
+  lee «Solo se queda el texto: el audio no se guarda». Accesible: botones con nombre, el foco va a «Listo» al grabar y
+  vuelve a la caja al terminar, y un aviso para lectores de pantalla («Listo: revisa el texto y envíalo»); el punto rojo
+  no late con «reducir movimiento».
+- **Por dentro:** `static/src/js/brian_voz.js` (MediaRecorder, Opus a 32 kbps; al terminar apaga el micrófono) →
+  `POST /dcasa/brian/v1/voz` (`controllers/voz.py`: JSON-RPC, `auth='user'`, **solo usuarios internos**, cuerpo con tope
+  y en memoria) → `dcasa.brian.voz.transcribir` (`models/voz.py`: tipo, firma, tamaño y duración; privado, no se llama
+  por RPC) → el Worker de Juan, `POST /odoo/voz`, con el token de Odoo (`dcasa_conversaciones/models/brian_voz.py`).
+  Odoo no transcribe: lo hace Whisper de Workers AI, en la cuenta de Cloudflare de D'CASA (docs/JUAN.md §12a).
+- **Lo que no se negocia:** el audio **no se guarda en Odoo** (ni adjunto, ni mensaje, ni auditoría, ni registro), no se
+  devuelve y no se usa para generar voz; tampoco en el Worker. Solo vuelve el texto.
+- **Topes y gasto:** los cuenta el Worker (30 notas por hora por persona, 500 al día, US$5 al mes) y el gasto sale en
+  Costos de IA en su renglón «Cloudflare: notas de voz del panel».
+- **Pruebas:** `dcasa_brian/tests/test_voz.py` (interno sí; portal y público no, también por HTTP; nada queda guardado ni
+  en los registros; las reglas de la nota; el micrófono en Chrome con una voz de mentira) y
+  `dcasa_conversaciones/tests/test_brian_voz.py` (la llamada al Worker). La Guía: «Dictarle a Brian con una nota de voz».
+
 ## Importar productos desde el Excel de un proveedor
 
 Para el inventario nuevo: se le manda a Brian el Excel del proveedor (chat o Telegram) y se le

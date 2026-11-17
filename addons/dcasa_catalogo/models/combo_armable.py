@@ -597,12 +597,14 @@ class SaleOrder(models.Model):
     def _dcasa_combo_producto(self, variante, gerencia=False, sin_campana=None, fecha=None):
         """Una cama o un colchón como lo pinta el panel: foto, nombre, medida, precio, disponibles y características.
 
-        El precio es el de una pieza de combo (sin la campaña del sitio: los combos son inamovibles) para una cama o un
-        colchón con precio en combo; un colchón sin precio en combo no hace combo con descuento y va con la campaña.
-        ``sin_campana`` y ``fecha``: los de una línea que ya está en la cotización."""
+        ``precio`` es SIEMPRE lo que esa pieza costaría suelta ese día: si hay precio de campaña, ese. Antes las camas
+        y los colchones con precio en combo se pintaban sin la campaña, así que durante una oferta el panel le mostraba
+        a la vendedora un precio que ese día no se practicaba (la web decía otro) y un «ahorro» que no existía. El
+        precio que se va a cobrar lo decide la regla del par (``_dcasa_deshacer_combos_que_encarecen``), no esta
+        pantalla. ``sin_campana`` y ``fecha``: los de una línea que ya está en la cotización."""
         detalle = [texto for texto in (variante.dcasa_medidas, (variante.description_sale or '').strip()) if texto]
         if sin_campana is None:
-            sin_campana = variante.dcasa_tipo_combo == 'cama' or variante.dcasa_precio_combo > 0
+            sin_campana = False
         fila = {
             'id': variante.id,
             'nombre': variante.with_context(display_default_code=False).display_name,
@@ -628,8 +630,9 @@ class SaleOrder(models.Model):
         return fila
 
     def _dcasa_combo_linea_panel(self, linea):
-        fila = self._dcasa_combo_producto(linea.product_id, sin_campana=linea.dcasa_combo_sin_campana,
-                                          fecha=linea._get_order_date())
+        # También aquí el «precio» de referencia es lo que costaría suelta ese día: lo que se cobra va en
+        # ``precio_linea``, y un precio de referencia que no se practica es un precio inventado.
+        fila = self._dcasa_combo_producto(linea.product_id, fecha=linea._get_order_date())
         fila.update({
             'linea_id': linea.id,
             'cantidad': linea.product_uom_qty,

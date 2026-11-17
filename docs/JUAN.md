@@ -325,7 +325,7 @@ atiende el número real por la API oficial. Siguen fuera a propósito las campa�
 también estaba fuera, lo aprobó la dueña el 2026-11-13 como **Brian de la tienda** (sección siguiente); los botones
 «Escríbenos por WhatsApp» de la página se quedan.
 
-## Brian de la tienda (el chat de ventas de dcasapty.com)
+## Brian de la tienda (el chat de ventas de dcasapty.com; desde el 2026-11-16, «Andrés»)
 
 Lo aprobó la dueña el 2026-11-13 (prototipo v2). Es un chat de ventas en la página: ayuda a encontrar muebles, ver precios
 y disponibilidad, calcular el envío y dejar el carrito listo. **No es Juan en otro canal**: no tiene conversación en Odoo,
@@ -343,11 +343,18 @@ respuesta de IA tarda de 3 a 20 s y ocuparía un hilo y una conexión de Odoo to
   preflight no espera a que Odoo despierte (usa los de fábrica si Odoo tarda más de 1,5 s).
 - **Cabeceras:** `Authorization: Pase <pase>` y `Content-Type: application/json`.
 - **Cuerpo:** `{texto, accion, pagina, carrito, ubicacion}`. `texto` hasta **500 letras**; `accion` va en lugar del texto:
-  `chip` (cuenta como escrito), `confirmar_carrito` (lo que pasó al aplicar en Odoo) o `calificar`; `ubicacion` solo el
-  turno en que el visitante tocó «Usar mi ubicación» (puede ir sola). La página y el carrito son datos de la página: se
-  recortan, se limpian y le llegan al modelo como datos, nunca como órdenes.
-- **Respuesta 200:** `{ok, pose, bloques, chips}`. Bloques: `texto`, `productos` (tarjetas), `proponer_carrito`,
-  `sugerencias`, `ubicacion`, `envio`, `whatsapp`, `calificar`. **Errores:** `{ok:false, motivo}` con `pase` (401),
+  `chip` (cuenta como escrito), `confirmar_carrito` (lo que pasó al aplicar en Odoo) o `calificar`; desde el 2026-11-16
+  (Andrés vendedor, A2 a A4) también `confirmar_envio` `{lugar_id, resultado: ok|error, motivo?}` (`motivo` de una lista
+  fija: `sin_carrito`, `sin_tarifa`, `aparte`, `lugar`, `ajeno`, `tope`, `apagado`; otro cualquiera es `fallo`),
+  `confirmar_cambio` `{producto_id, cantidad 0 a 20, resultado}` y `carrito_bajo` `{producto_id, nombre, antes, ahora}`
+  (`ahora` menor que `antes`; 0 = lo quitó). `carrito` puede traer `envio: {lugar_id, lugar}`, el envío que Odoo dice que
+  ya está sumado. `ubicacion` solo el turno en que el visitante tocó «Usar mi ubicación» (puede ir sola). La página y el
+  carrito son datos de la página: se recortan, se limpian y le llegan al modelo como datos, nunca como órdenes.
+  `confirmar_*` y `carrito_bajo` no cuentan para el tope por sesión.
+- **Respuesta 200:** `{ok, pose, bloques, chips}`. Bloques: `texto`, `productos` (tarjetas, con `titulo` para el grupo
+  de la vitrina), `proponer_carrito`, `proponer_cambio_carrito` `{producto_id, cantidad, nombre}`, `sugerencias`,
+  `ubicacion`, `envio` (con `lugar_id`), `sumar_envio` `{lugar_id, lugar}`, `carrito` (la página pinta su tarjeta con lo
+  de Odoo), `whatsapp`, `calificar`. Una respuesta sin bloques quiere decir «nada que decir» (la segunda reacción de A3). **Errores:** `{ok:false, motivo}` con `pase` (401),
   `apagado` (503), `tope_sesion` / `tope_red` / `tope_dia` (429, con `Retry-After`), `presupuesto` (429) y `fallo` (502;
   400 si el cuerpo está mal). La página traduce cada uno a un texto amable con WhatsApp.
 
@@ -450,6 +457,46 @@ sin una copia reciente) está apagado.** Además, opcional, `avisar_cerrado` (ve
   carrito (salvo el turno en que Odoo lo confirmó).
 - **Sin IA:** pedir una persona (WhatsApp, con lo del carrito en el mensaje, sin datos personales), calificar (solo agradece:
   las estrellas las guarda la página en Odoo, número y fecha), el «sí»/«no» al carrito y el carrito que falló.
+
+### Andrés como buen vendedor (A1 a A5, 2026-11-16)
+
+Pedido de la dueña con capturas del chat (`docs/PLAN_ANDRES_VOZ_PORTADA.md` § A). La regla «No sumes… el total lo calcula
+la tienda» se queda: Andrés **ofrece**, la página le pide a Odoo y el total lo dice el carrito.
+
+- **A2. El envío en la cotización.** Cuando `cotizar_envio` da un precio, el bloque `envio` lleva el `lugar_id` de la tabla y
+  la sesión lo recuerda (`envio_cotizado`). Con algo en el carrito y ese envío todavía no sumado, el Worker agrega «¿Te lo
+  sumo a la cotización?» con «Sí, súmalo a la cotización» / «No, gracias». El «sí» (o «súmale el envío a la cotización»,
+  aunque hayan pasado otros mensajes) se resuelve **sin la IA**: «Con gusto, te lo sumo a la cotización.» + `sumar_envio`.
+  El modelo también puede pedirlo (`sumar_envio: true` en `responder_tienda`), pero solo sale si el visitante lo pidió o
+  dijo que sí en ese mensaje; si no, se le pregunta. La página llama a Odoo (`POST /dcasa/brian/v1/carrito/envio`
+  `{lugar_id}`: solo el lugar, nunca un precio) y confirma con `confirmar_envio`; con `ok`, el texto es fijo y sin cifras:
+  «Listo, te lo sumé: el total lo ves en tu carrito y en la cotización.»; con error, un texto fijo por motivo (con WhatsApp
+  salvo que falte el carrito; con `ajeno`, que una vendedora se lo confirma, sin «inténtalo otra vez»). Con el carrito
+  vacío: «primero pon en el carrito lo que te gustó». Ya sumado: lo dice y
+  muestra el carrito. El contexto le dice al modelo «El envío a X ya está sumado…» y la guardia quita del modelo toda
+  confirmación de algo que no hizo Odoo («te lo sumé», «ya agregué / incluí el envío», «el envío ya está en tu
+  cotización», «cambié la cantidad», «te lo quité», «retiré…»); lo que va en una pregunta («¿Quieres que te lo quite
+  del carrito?») o en subjuntivo no se toca, ni lo que se dice del ITBMS.
+- **A3. La reacción al quitar o vaciar.** `carrito_bajo` (lo manda la página con el chat abierto) se contesta **una vez por
+  sesión** (`reaccion_carrito`), sin la IA, con el nombre de la herramienta si el producto se vio (si no, el de la página,
+  limpio y sin corchetes): «Vi que quitaste X. ¿Te busco una opción más económica o una con más prestaciones?» (o «vaciaste
+  el carrito», o «bajaste la cantidad de X»), con «Una más económica», «Con más prestaciones» y «No, gracias» (que se respeta
+  sin la IA). La segunda vez: 200 sin bloques, sin tocar topes, contexto ni IA. Al modelo le llega como nota del sistema
+  («[El cliente quitó del carrito: X]»).
+- **A4. Cambiar el carrito conversando.** `cambiar_carrito {producto, cantidad}` en `responder_tienda` (0 = quitar), solo de
+  un producto que **ya está en el carrito** que manda la página (por `producto_id`, que el contexto le da, o por su nombre
+  exacto), con cantidad de 0 a 20 distinta de la que tiene. Con el pedido del visitante en ese mensaje («quita», «déjame
+  solo uno», «mejor dos»…) sale `proponer_cambio_carrito`; si no, «¿Quito X del carrito?» / «¿Cambio la cantidad de X a
+  N?» con «Sí, cámbialo» (sin la IA). Con `confirmar_cambio` ok, lo que se dice sale del carrito que la página manda con la
+  confirmación (el de Odoo): «Listo, quité X del carrito.» o «Listo, ahora tienes N × X en el carrito.» y el modelo ofrece,
+  una vez y sin insistir, una alternativa (con `buscar_productos`); si el carrito no cambió o hubo error, un texto fijo con
+  WhatsApp. Al quitar o bajar así, la reacción de A3 ya no sale en esa sesión. Con el presupuesto agotado, confirma igual
+  (texto fijo).
+- **A5. El título del grupo de la vitrina.** El bloque `productos` lleva `titulo`: lo último que el modelo buscó con
+  `buscar_productos` en ese turno (con mayúscula, hasta 40 letras, sin cifras ni nada que la guardia pare) o, si no, la
+  categoría de Odoo que más se repite entre esas tarjetas.
+- **«Dame la cotización»:** con algo en el carrito, el turno lleva el bloque `carrito` (la página pinta la tarjeta con el
+  PDF).
 
 ### Lo que no guarda
 
@@ -1004,6 +1051,82 @@ Workers AI, dentro de la misma cuenta de Cloudflare, y el texto entra a la conve
 * Privacidad: el audio de un cliente es dato personal. Solo viaja del canal a tu Worker y a Workers AI
   de tu cuenta; el texto sigue las mismas reglas que cualquier mensaje (los comprobantes y cédulas
   nunca llegan a la IA).
+
+## 12a. Notas de voz de Andrés y de Brian del panel (2026-11-16, en la rama)
+
+Pedido de la dueña: poder hablarle a Andrés (el chat de la tienda) y a Brian del panel, **con protección para que nadie
+use la herramienta para clonar voces**. Dos rutas nuevas transcriben con el mismo Whisper de las notas de WhatsApp
+(`motor/transcribir.ts`, con `TRANSCRIBIR_AUDIO=1` y el binding `ai`) y devuelven **solo el texto**. La lógica común está
+en `juan/src/motor/voz.ts`.
+
+**Lo que protege contra la clonación de voces (no se negocia):**
+
+- **El audio no se guarda en ningún lado**: ni en R2, ni en un Durable Object (la voz de la tienda ni siquiera toca el de
+  la sesión), ni en la conversación, ni en los registros, ni en Odoo (ni adjunto, ni mensaje, ni auditoría). Se lee en
+  memoria, va una vez a Whisper de Workers AI (dentro de la cuenta de Cloudflare de D'CASA) y sus bytes se borran
+  (`fill(0)`) al terminar, pase lo que pase.
+- **No se devuelve ni se reenvía**: la respuesta trae solo `texto` (ni segmentos, ni palabras con sus tiempos, ni VTT).
+- **No se usa para generar voz**: el único modelo que recibe el audio es `@cf/openai/whisper-large-v3-turbo`; en el
+  Worker no existe ningún modelo que hable (una prueba lo exige).
+- **Notas cortas**: hasta **30 s** en el chat de la tienda (Andrés) y **60 s** en el panel (Brian), **1 MB**, solo WebM,
+  Ogg u MP4 (lo que graba un navegador) y con los bytes que corresponden al tipo. La duración es **la que de verdad se
+  decodifica** (`motor/duracion.ts`): se cuenta paquete por paquete, sin decodificar (el TOC de cada paquete Opus en el
+  Ogg y en el WebM; las muestras de AAC en el MP4), así que lo que diga el contenedor de sí mismo no sirve para mentir.
+  Lo que no se puede medir con certeza **no se transcribe**. Si la nota pasa del tope más 5 s de margen, se rechaza
+  **antes de apartar nada y sin llamar a Whisper**: no cuesta nada (revisión adversarial, 2026-11-16).
+- **Topes** para que nadie la use como un transcriptor gratis (abajo). Los registros llevan solo el resultado, los
+  KB y los milisegundos: nunca el audio, el texto, la IP, la red, el `sid` ni el usuario.
+
+**Costo:** US$0.0005 por minuto de audio (tabla de precios de Workers AI, leída el 2026-11-16, sin descontar los neurons
+gratis). Antes de llamar a Whisper se aparta **lo que cuesta la duración medida** (`motor/duracion.ts`), no un peor caso
+inventado; después se anota lo real con la mayor de las dos duraciones: la medida y la que dice Whisper (la mide
+Cloudflare). Nunca se cobra de menos: si Whisper no dice la duración, tarda o falla, se anota la medida, marcada
+«estimado». El gasto va al renglón de **Cloudflare** («notas de voz (Whisper)»), nunca al del modelo de Juan ni a «Por
+pagar a Meta».
+
+### `POST /tienda/v1/voz` (Andrés)
+
+- **La misma puerta que `/tienda/v1/mensaje`**: el mismo CORS (solo los orígenes de la tienda; `OPTIONS` dice
+  `GET, POST, OPTIONS`) y el mismo pase (`Authorization: Pase <pase>`).
+- **Entrada:** `POST /tienda/v1/voz?duracion_ms=<entero>` con `Content-Type: audio/webm | audio/ogg | audio/mp4` (con
+  `;codecs=…` si se quiere) y **el audio crudo en el cuerpo** (no JSON).
+- **Respuesta 200:** `{ok: true, texto, recortado}`. `texto` tiene como mucho **500 letras** (lo que acepta
+  `/tienda/v1/mensaje`); si la nota decía más, va recortado entre palabras y `recortado: true`.
+- **Errores** `{ok: false, motivo}`: `pase` 401 · `apagado` 503 (la tienda apagada) · `no_disponible` 503 (sin
+  `TRANSCRIBIR_AUDIO=1` o sin binding) · `tipo` 415 · `audio` 400 · `muy_pesada` 413 · `muy_larga` 413 · `tope_sesion`,
+  `tope_red`, `tope_dia`, `ocupado` 429 con `Retry-After` · `presupuesto` 429 · `no_se_entendio` 422 · `tardo` 504 ·
+  `fallo` 502.
+- **`GET /tienda/v1/voz`** (sin pase, con CORS): `{ok, disponible, max_segundos, max_bytes, tipos}`. La página muestra el
+  micrófono solo con `disponible: true` (la tienda encendida y la transcripción también).
+- **Cómo la usa la página (contrato para el botón):** graba con MediaRecorder (Opus a 32 kbps, corta sola a los 60 s,
+  muestra el tiempo y deja cancelar), manda el audio aquí y, con el `texto`, **lo manda como un mensaje normal por
+  `/tienda/v1/mensaje`** (`{texto, pagina, carrito}`) y lo pinta en el globo del visitante. Así la lógica del chat no se
+  duplica, el visitante ve lo que se entendió antes de la respuesta y el motor (`tienda/motor.ts`) no cambia. Con
+  `recortado: true` conviene dejar el texto en la caja para que el visitante lo revise antes de mandarlo. **Hecho en la
+  página** (`brian_tienda.js`, rama `local/integra`): docs/BRIAN_TIENDA.md › «Notas de voz (el micrófono del chat)».
+- **Topes y presupuesto:** cuenta como **un mensaje** en los topes de red, /48 y del día y en los turnos con IA a la vez
+  (`tienda_turnos` de `Global`: comparte la cuenta con los mensajes) y tiene **su propio tope por sesión** (el mismo
+  número que `tope_sesion_hora`, contado aparte en `tienda_voz`, con el `sid` ofuscado y solo la hora). Su costo va al
+  **gasto de la tienda** (renglón «notas de voz (Whisper)», proveedor `cloudflare`): suma en su presupuesto, nunca en el
+  de Juan ni en «Por pagar a Meta», y no suma en las «respuestas» del mes. En Costos de IA sale en la tarjeta de Andrés.
+
+### `POST /odoo/voz` (Brian del panel)
+
+- Con `Authorization: Bearer <JUAN_WORKER_TOKEN>` (el token con que Odoo ya le habla al Worker; `/odoo/*`).
+- **Entrada (JSON):** `{mime, base64, usuario, duracion_ms?, tope_mes_usd?}`. `usuario` es el id del usuario de Odoo:
+  el Worker lo guarda ofuscado (HMAC) y solo 26 horas, para su tope.
+- **Respuesta:** `{ok: true, texto, recortado}` (hasta 2000 letras) o `{ok: false, causa, error}` con las causas de
+  arriba más `tope_usuario`, `tope_dia` y `tope_mes` (429).
+- **Topes de fábrica** (`odoo-panel-voz.ts`): 30 notas por hora por persona, 500 al día entre todo el equipo y un techo
+  de US$5 al mes (como «Busca con una foto»; Odoo puede mandar otro en `tope_mes_usd`).
+- **Gasto:** en «Costos de IA», renglón aparte **«Cloudflare: notas de voz del panel»** (`cloudflare:notas-de-voz-del-panel`):
+  no suma en el gasto de Juan, ni en su tope, ni en «Por pagar a Meta».
+- Odoo: el botón del micrófono y `/dcasa/brian/v1/voz` (solo usuarios internos) en `dcasa_brian`; la llamada al Worker en
+  `dcasa_conversaciones/models/brian_voz.py` (docs/BRIAN.md › «Notas de voz»).
+
+**Pruebas:** `juan/test/voz.test.ts`, `test/tienda/voz.test.ts`, `test/odoo-panel-voz.test.ts`,
+`test/motor/global-voz.test.ts` y `test/transcribir.test.ts`. **Por verificar en staging:** que Whisper de Workers AI
+acepte el WebM de Chrome y el MP4 de Safari tal como salen de MediaRecorder (con el Ogg de WhatsApp ya funciona).
 
 ## 12b. Imágenes de los clientes (encendido)
 

@@ -310,6 +310,17 @@ cotización?»). Lo de Juan está en [JUAN.md](JUAN.md) › Reglas (3); aquí, l
   impuestos que diga la posición fiscal de la venta) en la cotización abierta de **esa** conversación y manda el PDF nuevo.
   Solo suma un lugar que `cotizar_envio` cotizó en esa misma conversación; con más de una cotización abierta, pregunta a
   cuál. Nunca toca una venta confirmada ni la de otro cliente.
+* **Frente a los premios de Socios** (la dueña, 2026-11-17): como el premio baja la compra medida (M6), podía
+  hacerle perder la promoción y salirle más caro que su descuento. `_dcasa_promocion_si_la_compra_cambia(sin_itbms,
+  con_itbms)` contesta «¿cómo quedaría la promoción si la compra fuera otra?» sin tocar nada, y devuelve lo que el
+  cliente **deja de pagar** (con los impuestos que lleve la línea, no la base). Van las dos cifras porque la
+  promoción puede medir con ITBMS o sin él y una misma línea no mueve igual las dos. Socios la usa para avisar y no
+  dejar canjear; el detalle está en [SOCIOS.md](SOCIOS.md).
+* **`_dcasa_promocion_volver_a_ofrecer`:** `_dcasa_promocion_sincronizar` solo **quita** o pone al día la línea de la
+  promoción; **nunca repone** una que quitó, porque la promoción se ofrece al sumar el envío y no se regala sola. Este
+  método la vuelve a poner (con la promoción de **hoy** y la compra de ahora) en una cotización abierta que volvió a
+  dar para ella, y es solo para quien sabe que la bajada se deshizo: hoy, Socios al devolver un premio. No toca ventas
+  confirmadas ni bloqueadas, no duplica la línea y deja su nota.
 * **Promoción de envío** (Envíos › Promoción de envío, Gerencia; modelo `dcasa.envio.promocion`, cuentas en
   `motor/promocion.py`): fechas (inclusive, hora de Panamá), compra mínima **sin ITBMS y después de descuentos y premios
   de Socios** (más de, no igual), provincias con envío gratis, abono fijo para las demás y «no aplica con colchón». La de

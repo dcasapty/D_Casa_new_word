@@ -58,6 +58,21 @@ código `DCA…` o el nombre del padrino.
   el carrito baja del valor del premio, o si el código vence, los puntos vuelven con un asiento contrario.
 - Si el pedido se cancela (aun confirmado), el canje se cierra y los puntos vuelven con el motivo
   «Se canceló el pedido …». La línea del premio no admite cantidad: se usa una vez o se quita.
+- **Un premio nunca puede salirle al cliente más caro que su descuento** (la dueña, 2026-11-17). La línea del premio
+  baja la compra medida (decisión M6), así que podía tirarla por debajo del mínimo de la **promoción de envío** y
+  hacerle perder el envío gratis: carrito de $205 sin ITBMS, premio de $10 → la compra queda en $195.65 (la línea
+  rebaja la base sin impuesto, $9.35, no los $10 de su cara), la promoción se borra y paga $45 de envío. **Gastaba
+  puntos para pagar más.** Ahora, antes de canjear, se compara lo que pagaría de envío con lo que le descuenta el
+  premio: si **iguala o pasa**, se le avisa con las dos cifras y **no se canjea** (sus puntos no se mueven, porque el
+  canje ni se pide); si el premio descuenta **más** de lo que perdería, se deja, porque ahí sí sale ganando. La guarda
+  vive en `dcasa.canje._aplicar_en_venta`, por donde pasan los dos caminos, así que el **mostrador** («Cobrar premio»)
+  también avisa y no cobra; ahí el código ya está pedido y **sigue valiendo** para otra compra.
+- Y si el carrito cambia **después** de canjear y el premio pasa a costarle la promoción, los puntos vuelven antes de
+  enseñarle o cobrarle el carrito. Al quitar un premio —lo quite el sistema o el socio con «Quitar»— la promoción del
+  envío **se vuelve a ofrecer** (`_dcasa_promocion_volver_a_ofrecer`): el sincronizador de envíos solo quita esa
+  línea, nunca la repone, así que sin eso el socio quedaba sin puntos **y** pagando el envío. Vuelve con la promoción
+  de **hoy**: si terminó entre el canje y la devolución, no vuelve (sumar el envío después de que terminó no la da), y
+  si lo que se había perdido eran términos ya prometidos de una promoción vencida o cambiada, esos no vuelven.
 - Parámetro `dcasa_socios.puntos_en_carrito` (Ajustes → Ventas → *Socios: puntos en el carrito web*):
   `premios` (por defecto: solo los premios del catálogo) o `todo` (además, el socio elige cuántos puntos
   usar contra cualquier producto; el descuento sale de `canje.puntosPorDolar` en `puntos.json`,

@@ -109,6 +109,138 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 > sigue. Se guardan las diez más recientes; las viejas se resumen en una línea abajo y su texto completo pasa a
 > [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md).
 
+### 2026-11-17 (3): decidido lo de Socios y el envío gratis — un premio nunca le sale más caro al socio
+
+**La decisión que frenaba la segunda entrega ya está tomada y programada** (en la rama, probada y revisada; sube en
+cuanto pase el CI). La dueña eligió, entre dos opciones que se le presentaron con las cifras: **«avisarle y no dejar
+canjear»**.
+
+- **El problema** (lo encontró la revisión adversarial de Andrés vendedor): la línea del premio baja la compra medida
+  (decisión M6 de la dueña), así que podía tirarla por debajo del mínimo de la promoción de envío y hacerle perder el
+  envío gratis. Carrito de $205 sin ITBMS, premio de $10 → la compra queda en $195.65 y paga $45 de envío. **Gastaba
+  puntos para pagar más.**
+- **Lo que quedó:** antes de canjear se compara lo que pagaría de envío con lo que le descuenta el premio. Si iguala o
+  pasa, se le avisa con las dos cifras y no se canjea (sus puntos no se mueven: el canje ni se pide). **Decidí yo (y
+  se le dijo):** si el premio descuenta MÁS de lo que perdería, se deja pasar, porque ahí el socio sale ganando y
+  bloquearlo sería quitarle un beneficio real.
+- **Dos fallos míos que encontraron las pruebas y la revisión, los dos de dinero:**
+  1. Yo medía la bajada por el **valor de cara** del premio; la línea rebaja la **base** sin impuesto ($9.35 para un
+     premio de $10). El aviso habría dicho una cifra que no era y el bloqueo saltaba en el borde equivocado. La
+     cuenta del impuesto quedó en un solo sitio para que no se vuelvan a separar.
+  2. Al devolverle los puntos, **la promoción no volvía**: el sincronizador de envíos solo quita esa línea, nunca la
+     repone. El socio quedaba sin el premio Y pagando el envío: peor que el problema original. Ahora, al quitar un
+     premio —lo quite el sistema o el socio— la promoción se vuelve a ofrecer.
+- **Un BLOQUEANTE de la revisión independiente:** la guarda vivía solo en el carrito web, y por «Cobrar premio» del
+  **mostrador** el premio entraba directo: cobrar uno de $25 sobre una venta de $205 con envío gratis le hacía pagar
+  $21.64 más, sin que nadie se lo dijera. Pasó a `_aplicar_en_venta`, por donde van los dos caminos (es la segunda vez
+  que una guarda de dinero de premios se tiene que mover ahí; quedó anotado como regla). En el mostrador el código
+  sigue valiendo para otra compra.
+- **Dos hallazgos más de la revisión, arreglados:** el ahorro de la promoción es una base y el valor del premio va con
+  ITBMS, así que al compararlos ahora el ahorro sube con los impuestos del envío (hoy va sin ellos, pero puede
+  cambiar); y el carrito del chat no corría la limpieza de premios, así que podía seguir mostrando uno que ya no le
+  convenía. También se probó el borde exacto que eligió la dueña («iguala» → no se canjea), que antes pasaba igual
+  con `>` que con `>=`.
+- **Sigue abierto, anotado:** el carrito le ofrece premios que el servidor va a rechazar (el aviso llega después del
+  clic); y si lo que se pierde eran términos ya prometidos de una promoción vencida, esos no vuelven.
+
+### 2026-11-17 (2): la portada nueva en producción (CI/CD 377), el hero como fondo en movimiento
+
+**En producción: la portada nueva** (ejecución 377 de CI/CD a mano desde `main`, squash `447d6efe`, PR #127; Juan
+sigue en 28). El resto de la segunda entrega —Andrés vendedor, notas de voz y micrófono— **sigue sin subir**, a la
+espera de la decisión de la dueña sobre Socios y el envío gratis.
+
+- **Lo que pidió la dueña:** «como si fuese un video corrido… imágenes con un tipo suave zoom», «no quiero ni
+  siquiera que el usuario tenga control», «ni siquiera tiene que tener el nombre del producto» y, sobre el
+  contraste, «el fondo no lo quiero oscuro». Se le mostraron **cinco opciones** de contraste en azul de marca, en
+  computadora y en celular; eligió la quinta («me gusta mucho la última imagen y cómo se ve en celular»).
+- **Qué quedó:** el hero dejó de ser un carrusel con mandos y pasó a ser un fondo. Las fotos de los productos que
+  Gerencia elige en Sitio web › Carrusel de la portada cubren la pantalla entera, se funden unas en otras en orden al
+  azar y llevan un zoom lento que no para. Encima va solo el texto de siempre: sin nombres, sin enlaces, sin flechas,
+  sin barras y sin pausa. Sin productos elegidos queda el hero de antes, igual que antes.
+- **El contraste se resuelve en azul de marca, nunca oscureciendo la foto:** un degradado diagonal (navy → azul →
+  transparente) en `::after`, sin bordes ni franjas; en el celular va de abajo hacia arriba. El amarillo sigue
+  cayendo siempre sobre azul.
+- **Accesibilidad:** el fondo es decorativo (`aria-hidden`, `alt` vacío), así que el lector de pantalla lee el texto y
+  no una lista de camas; con «movimiento reducido» no cambia de foto ni hace zoom. La primera foto sigue siendo la
+  imagen LCP.
+- **El contrato visual ahora exige dos cosas más** que antes no se miraban: que la **foto misma** cubra el hero de
+  orilla a orilla, y que la capa de contraste sea de marca y **nunca negra**. Referencias regeneradas en el mismo
+  commit.
+- **Rama aparte, como con el Black Friday:** `claude/portada-solo`, sacada de `main`, 21 archivos, todos dentro de
+  `addons/website_dcasa/`. No toca Socios, ni el chat, ni nada que mueva dinero. Así la portada pudo subir hoy sin
+  arrastrar la segunda entrega.
+- **Comprobado en producción** (en computadora y en celular, con el navegador de verdad): hero a pantalla completa,
+  7 fotos, la foto cubre el hero, el zoom corriendo, la capa en navy y azul **sin nada de negro**, cero mandos y
+  `aria-hidden` puesto. Salud del borde sana: `{"ok": true, "version": "447d6efe6c74", "base_al_dia": true,
+  "humo": "ok"}`.
+- **Pendiente anotado:** el contrato visual del panel de Juan falla a 390 px (`panel-lista-390` 7,7 % y
+  `panel-conexiones-390` 13,7 % de píxeles distintos). **Viene de `main`, no de la portada** (esta rama no toca nada
+  de Juan). Hay que mirarlo aparte: o es un cambio a propósito al que le faltó regenerar sus referencias, o es una
+  falla de verdad en el celular.
+
+### 2026-11-17: la pantalla «Armar combo», tres arreglos de Socios y del chat, y los parches de IA de Juan
+
+**Nada nuevo en producción** (sigue Desplegar 77 y Juan 28). Todo en la rama de trabajo, a la espera de la decisión
+de la dueña sobre Socios y el envío gratis (ver [PRIORIDADES.md](PRIORIDADES.md)).
+
+- **«Armar combo»** (lo que pidió la dueña después del Black Friday): su columna «precio» salía sin la campaña, así
+  que durante una oferta le mostraba a la vendedora un precio que ese día no se practicaba —la web decía otro— y un
+  ahorro que no existía. Ahora «precio» es lo que la pieza cuesta SUELTA ESE DÍA y «precio_linea» lo que se cobra en
+  el combo. 238 pruebas en verde.
+- **El total negativo en el mostrador:** la guarda «el premio no pasa del carrito» vivía solo en la tienda web. Pasó
+  a `_aplicar_en_venta` (por donde van los dos caminos) y `action_confirm` quedó con una última red.
+- **La guardia del Worker:** se saltaba con una oración que terminara en «?» sin «¿» («ya te lo quité…, ok?») y con
+  una pregunta en medio. Ahora se quitan las cláusulas interrogativas enteras y se revisa todo lo demás.
+- **El premio de Socios ya no viaja al chat entre los productos:** le contaba al modelo que el visitante es socio y
+  tiene un premio puesto, Andrés podía proponer quitarlo (eso cancela el canje) y reaccionaba ofreciendo «algo más
+  económico» por el premio del propio cliente. Va en «extras», con el envío.
+- **PR de Dependabot #98 unido a main** (parches de `@ai-sdk/*` y `ai` en `juan/`), con el CI completo en verde y
+  revisado que los cambios de comportamiento del registro tocan APIs que Juan no usa. Juan: 1924 pruebas en verde con
+  las librerías nuevas. **No cambia producción hasta el próximo «Desplegar Juan».**
+
+### 2026-11-16 (3): el Black Friday en producción (Desplegar 77 y Juan 28)
+
+**Nada nuevo en producción todavía** (sigue Desplegar 76). La sesión tomó el traspaso y cerró el **paso 0**.
+
+- **Los dos puntos por verificar del traspaso estaban bien**: un colchón cuyo precio en combo ya no es menor no le
+  quita la campaña a la cama, y el interruptor se lee de la campaña en `_get_applicable_rules_domain` sin reescribir
+  reglas ni regenerar la tienda.
+- **Dos revisiones adversariales independientes** (toca dinero). La primera encontró 1 bloqueante y 14 hallazgos más;
+  la segunda, hecha sobre el arreglo de la primera, encontró que ese arreglo **se quedaba corto** y 2 bloqueantes
+  más. Todo lo de dinero está arreglado y probado; lo de rendimiento quedó anotado.
+- **Decisión de la dueña (la regla del par):** se compara el total del par. Si el combo (cama a precio normal y
+  colchón a precio en combo) sale igual o más barato que comprar las dos piezas sueltas con su precio de Black
+  Friday, el combo se queda; si sale más caro, el combo se deshace y cada pieza va a su precio de oferta. «Comprar
+  juntos nunca puede salir más caro que comprar por separado.»
+- **Rama de la subida: `claude/black-friday-solo`** (sale de `62868d5`, que ya trae el nombre «Andrés» de `1937f89`).
+  Solo Black Friday: ni Andrés vendedor, ni voz, ni micrófono, ni portada. **Batería del paso 0: 1543 pruebas, 0
+  fallas.**
+- **En producción: Desplegar 77** (PR #126, squash `a904ec65`, `app_version` `26b357d3bd51…`, imagen
+  `sha256:ebc046c9…`, CI 371 con staging) y **Juan 28** (Juan primero, porque el nombre «Andrés» vive en
+  `juan/src/tienda`). Con respaldo previo. Comprobado en producción: `/dcasa/salud` sano con la versión nueva, la
+  portada responde, `/promociones` da 404 y el menú no lo muestra (todavía no hay campaña), y el chat abre diciendo
+  **«Hola, soy Andrés»**.
+- **Susto del camino:** el servidor de GitHub de la sesión estuvo una hora contestando «invalid session» justo
+  después de reconectar la cuenta. `git push` seguía funcionando. Volvió solo al reiniciarse el proceso de la
+  sesión; está anotado en CONTEXTO_AGENTICO.
+- En la rama de trabajo quedó además el último pendiente de las notas de voz (el micrófono que quedaba encendido si
+  la pantalla se cerraba mientras pedía permiso) y las dos pruebas del carrusel arregladas.
+- **La segunda entrega NO subió** (Andrés vendedor, voz, micrófono y portada): su revisión adversarial independiente
+  encontró un **bloqueante que necesita decisión de la dueña** (ver PRIORIDADES).
+
+### 2026-11-16 (2): todo el plan Andrés, voz y portada subido a la rama, incluso lo que quedó a medias (traspaso a otra cuenta)
+
+**Nada nuevo en producción** (sigue Desplegar 76). La sesión trabajó el plan con ayudantes en paralelo, cada uno en su
+rama local: combos inamovibles, Andrés vendedor (A1–A5), notas de voz, micrófono en el chat y la portada en carrusel a
+pantalla completa sin fondo negro (lo pidió la dueña al ver las capturas). Hubo tres revisiones adversariales: Andrés
+quedó arreglado; combos y voz quedaron con los arreglos a medias. Todos los ayudantes se cortaron por el límite de uso
+de 5 horas y la dueña pidió: «sube incluso lo incompleto con el avance actual y lo que falta». Las cinco ramas se
+unieron sin conflictos en `claude/merge-rama-to-main-ty3koz`. Sobre la unión pasan ruff y las 1921 pruebas y el
+typecheck del Worker; **las de Odoo no se corrieron**. Qué falta en cada parte, con sus commits: **[PLAN_ANDRES_VOZ_PORTADA.md
+› Traspaso del 2026-11-16](PLAN_ANDRES_VOZ_PORTADA.md#traspaso-del-2026-11-16-madrugada-dónde-quedó-cada-parte)**.
+Lección: con varios ayudantes a la vez, el límite de 5 horas llega para todos juntos; subir a la rama de trabajo
+cada avance que pase las pruebas rápidas, no al final.
+
 ### 2026-11-16: Black Friday y «Andrés» listos en la rama sin subir (pausa por límite de uso); plan de la ronda siguiente
 
 **Nada nuevo en producción** (sigue Desplegar 76, `754aceaf18e7`). La sesión se pausó por el límite de uso de la cuenta, a
@@ -301,404 +433,19 @@ pedido de la dueña: «sube la rama lo que tengas y añade todo lo que avanzamos
   partir de las 9:00 a. m..» con dos puntos (`juan/src/tienda/motor.ts`, el aviso de tienda cerrada). El mapa no
   necesita regla nueva: el borde no manda `frame-src` (OPERACION).
 
-### 2026-11-13: Juan ya no dice «no lo manejamos» de lo que no está publicado (Desplegar 69 y Juan 23) y responde comentarios de Instagram y Facebook, apagado (Desplegar 70 y Juan 24), en producción
-
-**En producción desde el 2026-11-13, 03:20 UTC (salud sana: `{"ok": true, "version": "2ced21ccb09f", "base_al_dia": true, "humo": "ok"}`):** **Desplegar 69** (run 43356475622) con la imagen `sha256:1ad42b80f08882c6d05db19cb3d66fba5a54c7c14e69cf4e98b2165db5b7bb67` y `app_version` `2ced21ccb09f555da0159f1493867318617100e1` (PR #115, squash `7d965cd`; CI 345 con staging, run 43347631246), con respaldo previo. Y **Desplegar Juan 23** (run 43358329275, 03:22 UTC; `/salud` con `7d965cdab4b99f039172308f3339cc16b5d27a5b`).
-
-**Y desde las 04:45 UTC (salud sana: `{"ok": true, "version": "70ac6f349a9e", "base_al_dia": true, "humo": "ok"}`):** **Desplegar 70** (run 43365883978) con la imagen `sha256:7c1a9d4cbfd6743d8480aabb44aac055d1c0729d6e23a9f48c4463d7215b7324` y `app_version` `70ac6f349a9e8be6f2939f063360de1031272fc9` (PR #116, squash `24493be`; CI 347 con staging, run 43358982543), con respaldo previo. Y **Desplegar Juan 24** (run 43367600509, 04:47 UTC; `/salud` con `24493be1a67c06a19b6d0266e5c0eb20a80598f9`; los mismos 5 avisos de antes, nada nuevo).
-
-- **Qué pasó:** la dueña mandó la captura de un cliente al que Juan le dijo «solo manejamos la cama, no el colchón solo» («¿Esto es verdad?»). No: los colchones existen, pero no estaban publicados en la tienda y la búsqueda de Juan solo ve lo publicado. Ahora, cuando no encuentra algo publicado, la herramienta le dice por qué: `hay_sin_publicar` (existe en Odoo sin publicar: Juan dice «sí lo trabajamos», no da datos y pasa a una vendedora), `busca_de_nuevo` (probar otra palabra) o `no_lo_manejamos` (solo entonces lo puede decir). El Worker tiene además una guardia (`niega_producto`) que frena el «no lo manejamos» si la herramienta no lo dijo. Se le dio a la dueña el mensaje para el cliente.
-- **La dueña ya publicó los colchones** (7 en la tienda; se encuentran con «colchón» y con «colchon») **y le escribió al cliente.**
-- **Comentarios de Instagram y Facebook, en producción y apagados** (JUAN_CANALES §3c; dos vueltas de revisión adversarial, bloqueantes cerrados). Decidí yo (y se le dijo): la frase pública nunca lleva el nombre de quien comenta. La dueña preguntó si funcionarían con la puerta del jefe: **no**; Meta pide acceso avanzado para los avisos de comentarios también por inicio de sesión de Instagram, así que solo llegan los de cuentas con papel hasta la revisión de la app. Se le explicó cómo probarlo con su propia cuenta. Se le mandaron las capturas de Ajustes (computadora y celular).
-- **Sigue:** el jefe sigue los pasos de la segunda puerta (JUAN_CANALES §3b) y marca `feed` / `comments` en la app; la dueña prueba los comentarios con una cuenta con papel; paquete para la revisión de Meta (Messenger y comentarios), ofrecido a la dueña.
-
-### 2026-11-12: Juan cotiza envíos con la promoción, reparto justo de chats y Costos de IA con «Pagar», en producción (Desplegar 68 y Juan 21); Messenger e Instagram no les llegan a los clientes
-
-**En producción desde el 2026-11-12, 23:1x UTC (salud sana: `{"ok": true, "version": "98f8002aab2b", "base_al_dia": true, "humo": "ok"}`):** **Desplegar 68** (run 43325822963) con la imagen `sha256:f2efed11…` y `app_version` `98f8002aab2b11af216c60fa847bc0d161aaf153` (PR #113, squash `b78d472`; CI 340 con staging, run 43280069880, segundo intento: el primero frenó en el respaldo previo de staging dormido), con respaldo previo. Y **Desplegar Juan 21** (run 43328387534) para el Worker. Después, **Desplegar Juan 22** (2026-11-13, 00:4x UTC, run 43339636718; PR #114, squash `d5c9ef9`; CI 342 con staging, run 43328896843): la segunda puerta de Instagram, **apagada** hasta que el jefe ponga `INSTAGRAM_TOKEN` e `INSTAGRAM_APP_SECRET` (`/salud` dice `"puerta": "pagina_facebook"`).
-
-- **Aprobaciones de la dueña (tal cual):**
-  - Juan cotiza envíos: «tienes mi sí» (Juan pregunta «¿quieres que te lo sume a la cotización?»); la frase con la promoción: «lo ideal es que explique bien que el envío realmente o regularmente cuesta tanto y que nosotros le estamos añadiendo $20 por la promoción, pero que a partir cuando termine la promoción el costo puede volver a su precio original». Decisiones: «Sin ITBMS (Recomendado)»; «Toda la provincia de Panamá (Recomendado)»; los $200 «Después del descuento»; una cotización de noviembre confirmada en diciembre «Sí, se respeta»; un lugar nuevo de una vendedora «No, hasta que Gerencia lo revise».
-  - Costos de IA: «Simplemente me gustaría que un botón diga pagar y que el saldo que ya había ¡fuap! Ya salga como pago y que la cuenta empiece de nuevo» y, con las capturas: «me parece también bien el botón de pagar. Eso está excelente».
-  - Reparto: «Sí, me parece bien eso que tú dices en cuanto a la atención de los chats»; «estas notas que se dejan solamente es entre vendedoras. Cualquier administrativo puede entrar y responder, hacer y deshacer, y delegar y cambiar chats». Y: «exacto cuando termines mandalo a produccion».
-- **Qué lleva:** ver PR #113 y [ENVIOS.md](ENVIOS.md) › Juan cotiza el envío; [JUAN_ODOO.md](JUAN_ODOO.md) › Costos de IA y Trabajo en equipo y reparto. Revisión adversarial independiente: envíos en tres vueltas (dos bloqueantes cerrados), reparto y costos en dos vueltas (un bloqueante cerrado).
-- **Decidí yo (y se le dijo):** Caja y Contabilidad cuentan como «administrativas» para el reparto; el programado que no sale queda como nota interna.
-- **Falta de la dueña:** revisar en Envíos › Lugares (filtro «Por revisar (Gerencia)») los lugares agregados a mano antes de hoy (la migración los dejó «Por revisar»: Juan no da su precio hasta entonces); archivar la nota de la promoción de noviembre en el Conocimiento el 1 de diciembre; preguntar a la contadora si el envío lleva ITBMS (hoy `DCASA-ENTREGA` no lo lleva).
-- **Hallazgo de la dueña (con otro Claude y un amigo): Messenger e Instagram NO les llegan a los clientes.** Las pruebas del 9 y 10 nov se hicieron con cuentas con papel en la app; Meta solo manda los avisos de esas cuentas mientras la app no tenga acceso avanzado. Corregido en JUAN_CANALES §3 y PRIORIDADES (punto 00). Aprobó: (1) probar la «segunda puerta» de Instagram (inicio de sesión de Instagram, con la cuenta propia de D'CASA; lo hace el jefe desde su cuenta personal) — está en producción desde Juan 22 (apagada) y los pasos del jefe están en JUAN_CANALES §3b; (2) **comentarios** de Instagram y Facebook: «Solo los que preguntan», «Corto y lo demás por privado», «Apagado hasta que lo pruebes» (se construye después de la segunda puerta). Para Messenger el único camino es la revisión de la app de Meta con el negocio verificado.
-- **Sigue:** desplegar la segunda puerta de Instagram (CI → PR → Desplegar Juan); que el jefe siga los pasos y pruebe con una cuenta SIN papel; comentarios; paquete para la revisión de Meta (Messenger y comentarios).
-
-### 2026-11-11 (3): Inicio nuevo, el celular al entrar, la caja del chat, entregas = Bodega, «Más datos» y modo oscuro, en producción (Desplegar 65, 66 y 67)
-
-**En producción desde el 2026-11-11, 21:20 UTC (confirmado sano y estable a las 21:34):** **Desplegar 65** (Odoo y el
-borde; run 43101954871) con la imagen `sha256:66e84351…` y `app_version` `b62903127c5483c8e6bd1cd4700e97a766accfb2`
-(PR #110, squash `b8d6a51`; CI 334 con staging, run 43093423535), con respaldo previo. Lleva el Inicio nuevo, los tres
-arreglos del celular, la caja de responder del chat en el celular y la lista entera en tableta. Juan no cambió.
-
-**Y desde las 22:36 UTC (confirmado sano y estable a las 22:49):** **Desplegar 66** (run 43112609143) con la imagen
-`sha256:a3bbe22a…` y `app_version` `8859a44eb6316281e327103a0566259fc6e558f1` (PR #111, squash `b66302a`; CI 336 con
-staging, run 43104407376), con respaldo previo: «Entregas pendientes» igual que Bodega y «Más datos» en la cotización.
-**Y desde el 2026-11-12, 02:06 UTC (confirmado sano y estable a las 02:19):** **Desplegar 67** (run 43138676351) con la
-imagen `sha256:4a8a7ac0…` y `app_version` `f28c2ccd39abb3aeee1ed853bb1013004d80913f` (PR #112, squash `50b343b`; CI
-338 con staging, run 43131640599), con respaldo previo: el **modo oscuro**. Era más nuevo que la versión estable 4.
-
-- **Aprobaciones de la dueña (tal cual):**
-  - «Si me gustaron los cambios para móvil lo que me gustaría es que así como se ve en detalles compacto y grandes así
-    como actualmente está los iconos de los accesos rápidos de resto apruebo todo para producción así que empieza con
-    todas las mejoras y el tema con el diseño nuevo en las dos versiones claro y oscuro». Se leyó así: en el celular
-    los accesos directos se pueden ver de tres tamaños (Compactos, Detalle y Grandes como estaban), lo elige cada
-    quien y se recuerda en ese aparato; el Inicio nuevo y el tema claro y oscuro quedan aprobados para producción.
-  - «Y si apruebo la mejora de la caja de Juan» (la caja de responder del chat en el celular, boceto
-    <https://claude.ai/artifact/A6P3KWL2F5KJx5MfX4sBsH>).
-  - Sobre las tres decisiones abiertas («Más datos» en la cotización, Conversaciones en tableta y que «Entregas
-    pendientes» cuente igual que «Bodega»): «Lo que consideres mejor y más lógico y coherente y funcional». Se decidió:
-    (a) «Entregas pendientes» del Inicio muestra las mismas entregas que Bodega (pedidos con pago o abono) y una línea
-    discreta con las que esperan pago; (b) en tableta la lista de chats se ve entera mientras no haya un chat abierto y
-    se reduce a las fotos al abrir uno (se respeta la preferencia guardada); (c) en la cotización, un bloque «Más
-    datos» que se pliega (teléfono fijo, direcciones, vencimiento, lista de precios, términos de pago), cerrado salvo
-    que algo pida atención, sin mover ningún campo de la vista.
-  - «Si gustas trabaja con multiagentes en paralelo».
-  - Con las capturas del menú nuevo del celular y de la caja del chat a la vista (y avisada de los detalles en que la
-    caja se apartó del boceto): «si apruebo todo». Y: «avísame cuando esté en producción» (se le avisó a las 21:29 UTC,
-    con qué probar en su iPhone).
-- **Inicio nuevo (propuesta 2), terminado en la rama** (`b67ea7e`): mismo orden y contenido, accesos del celular en
-  tres tamaños (`dcasa.inicio.atajos` en el aparato, «Compactos» la primera vez), tres contadores que llevan a cada
-  panel, cifras que suben al abrir, barras delgadas; todo cuelga de `.o_dcasa_tablero` (`tablero.scss`).
-  `test_inicio_tablero.py` (8 pruebas). Capturas mostradas a la dueña. Tres detalles en que se apartó del boceto y que
-  ella puede objetar: los accesos de la computadora un poco más bajos (64 px), el pie de cada panel dice siempre «Ver
-  las N…», y las dos cifras de la vendedora van una sobre otra en el celular.
-- **Reporte de la dueña sobre el celular (con tres capturas de su iPhone):** «tan pronto inicio sesión, aparece en
-  blanco, tengo que tocar el menú del navbar, tocar inicio, me lleva a una subcarpeta y luego después sí puedo ir al
-  inicio… en iPhone, cuando estoy en un chat y si deslizo el dedo desde la zona extrema izquierda hacia la derecha…
-  no vuelve atrás, sino que vuelve al inicio de todo y no a las conversaciones». **La auditoría visual no lo vio**: el
-  recorrido abría cada pantalla por su dirección y medía la pantalla ya cargada; nunca probó «entrar y esperar» ni los
-  gestos del teléfono. Tres causas, tres arreglos, en la rama (`0428ef2`, `e9f0e74`, unidos en `516a20e`):
-  1. *Pantalla en blanco al entrar.* El Inicio esperaba las cifras del servidor antes de pintar nada
-     (`onWillStart`); mientras tanto solo se veía la barra de arriba. Se reprodujo retrasando `obtener_datos`: sale
-     idéntico a su captura. Ahora el Inicio se pinta de inmediato (`.o_dcasa_arranque`: el saludo de verdad y bloques
-     en gris) y las cifras llegan después; si no llegan, lo dice y ofrece «Reintentar». Además, el área de trabajo
-     vacía dice «Cargando…» para cualquier pantalla que tarde (`arranque.scss`). En esta máquina el servidor entrega
-     las cifras en 0,1–0,2 s y producción contesta en 0,2–0,3 s por pedido: lo lento es la suma de pedidos del primer
-     arranque en el teléfono, no una consulta en particular.
-  2. *La «subcarpeta».* Era el menú de Odoo para el celular, de dos caras: primero «las secciones de la app abierta» y,
-     con un botón, «Todas las aplicaciones». En el Inicio no hay secciones: salía una hoja con solo la palabra
-     «Inicio», sin nada que tocar. Ahora el cajón es propio (`menu_celular.js`, hereda de la barra lateral de la
-     computadora): «Inicio» y «Buscar» fijos arriba; debajo todas las aplicaciones; la que está abierta viene con sus
-     secciones a la vista; la flecha de cada aplicación despliega las suyas sin salir de donde se está; tocar una
-     pantalla la abre y cierra el menú. Todo lo que se toca mide 44 px o más.
-  3. *«Atrás» en el chat.* En el celular Conversaciones muestra una cosa a la vez, pero para el navegador era una sola
-     página: el gesto de «atrás» salía a la pantalla anterior. Ahora cada cosa abierta (chat, ficha, ventana, foto)
-     pone un paso en el historial y «atrás» cierra la de más arriba (`atras.js`, con `router.skipLoad` de Odoo para que
-     no recargue la pantalla). De vuelta en la lista ya no se recuerda un chat «abierto» que no se ve. En la
-     computadora no cambia nada.
-  Pruebas: `test_celular_arranque_y_menu.py` (dcasa_interfaz) y `test_panel_atras.py` (dcasa_conversaciones). En la
-  copia local: `/dcasa_interfaz` completo, 0 fallas; las clases del chat en celular y computadora, 45 de 46 (la que
-  falla, `test_sin_reparto_por_turnos_no_hay_interruptor`, es por los ajustes de la base de capturas, no por el cambio).
-  **El menú nuevo es interfaz nueva**: se le mostraron las capturas a la dueña; ella había pedido «lo que sea mejor para
-  el uso adecuado y accesible del navbar en móviles».
-- **Caja de responder del chat en el celular y lista en tableta (en producción con Desplegar 65, `565e8a0`):** la
-  caja vacía bajó de 215 a 111 px en 360 y 390 px de ancho, sin quitar herramientas. Renglón 1: quién atiende,
-  «Devolver»/«Atender» y Respuesta / Nota; renglón 2: «+», «Sugerir», el texto y Enviar; dentro del «+»: Adjuntar,
-  Foto del catálogo, Cotización, Rápidas y Programar. En tableta (hasta 1100 px) la lista de chats se ve entera
-  mientras no hay uno abierto. `test_panel_caja_celular.py`, `TestDisposicionDeTableta`. Se apartó del boceto en
-  nombres («Adjuntar», «Foto del catálogo») y en que «Atender» es un enlace; la hora de vuelta del asistente no se ve
-  en el celular (antes salía cortada). La dueña lo aprobó así.
-- **«Entregas pendientes» = Bodega y «Más datos» en la cotización (en producción con Desplegar 66, `b5c5440`):** el panel y la cifra del Inicio muestran las mismas entregas que Bodega (pedidos con pago o abono) y un
-  renglón gris dice cuántas más esperan («2 más esperan pago o abono») y abre esa lista; quien ve el panel sin permiso
-  de Inventario sigue viendo todas. En la cotización, un botón «Más datos» pliega teléfono fijo, direcciones,
-  vencimiento, lista de precios y términos de pago **sin mover ningún campo** (se esconden con `:has()`); nace cerrado,
-  se abre solo si la entrega va a otra dirección o falta un dato obligatorio, y se recuerda en el aparato. En el
-  celular los productos suben 353 px. `test_entregas_inicio.py`, `test_mas_datos.py`. Dudas menores que la dueña puede
-  opinar al verlo: que el botón nombre también «teléfono fijo», y que al abrir los datos aparecen en su sitio de
-  siempre (encima del botón).
-- **Modo oscuro (en producción con Desplegar 67, `6228a4a`; aprobado por la dueña):**
-  la dueña vio trece capturas (celular y computadora) y dijo: «Si me gusta, apruebo el modo oscuro para producción».
-  Gris «de consola» (fondo #1F2226, superficies #2A2E33), botones en azul #3A63CF, amarillo solo en insignias. Lo
-  enciende cada persona en el menú de su usuario («Modo oscuro»); se guarda en ese navegador (galleta `color_scheme`,
-  un año) y el panel se recarga. Por defecto, claro. **El claro no cambió**: su hoja compilada es idéntica byte a byte.
-  Cómo está hecho y la regla para lo nuevo, en CONTEXTO_AGENTICO («Modo oscuro»). Control de contraste: 634 pantallas
-  y 17.340 textos medidos; lo único bajo 3:1 que es nuevo en oscuro son botones deshabilitados (≈3,0:1; en claro
-  ≈2,6:1). `test_modo_oscuro.py` (20 pruebas). En la Guía: «Poner el sistema en modo oscuro». Decisiones del ayudante
-  que la dueña vio en las capturas y puede objetar: en oscuro los botones amarillos grandes («Validar» de Bodega,
-  «Revisar ahora» de Sofía, «Nueva campaña») van en azul; las cifras grandes en blanco. Preguntas abiertas, sin prisa:
-  ¿el interruptor también en el menú de las tres rayas del celular?; ¿por usuario en vez de por navegador?; ¿que siga
-  solo el modo del teléfono?; las fotos de producto, el QR y la vista previa del correo quedan sobre blanco. Sin ver
-  con datos: Envíos con tarifa, Bodega dentro de una entrega, Escáner con un producto leído, Camila con una campaña.
-- **Los ayudantes y el límite de uso:** cada frente en su copia de trabajo (ver CONTEXTO_AGENTICO, «Varios agentes a
-  la vez»). El límite de la cuenta (cinco horas) los cortó tres veces; se reanudaron con su avance intacto las dos
-  primeras; la tercera, el modo oscuro se reanudó a las 23:40 UTC (el límite ya dejaba) y terminó a las 00:57.
-- **Sigue:** que la dueña pruebe
-  en su iPhone lo desplegado (no se pudo probar en un teléfono real ni con su usuario); el modo oscuro con sus
-  capturas. Siguen sin respuesta: borrar la rama remota `claude/bold-volta-fsqq4c` y el motivo real en «Quedó por
-  enviar». Pendientes menores anotados por los ayudantes: en tableta parada (768–991 px) el botón de Brian tapa
-  «Enviar» del chat (ya pasaba); las referencias de píxeles de 390 px de la lista y de Conexiones no coinciden en esta
-  máquina.
-- **Esta máquina:** con el «sí» de la dueña («Sí, borra las dos») se borraron los 13 worktrees viejos de
-  `.claude/worktrees` y 15 bases locales de pruebas: el disco pasó de 1 GB a ~20 GB libres.
-
-### 2026-11-11 (2): auditoría visual del panel; 21 arreglos en producción (Desplegar 64); propuesta 2 del Inicio
-
-**En producción desde el 2026-11-11, 09:15 UTC:** **Desplegar 64** (Odoo y el borde; run 42992509876) con la imagen
-`sha256:e84667ef…` y `app_version` `cf64f97d898b1da616fc6c82bdd6f6559906e19d` (PR #109, squash `b8c6044`; CI 332 con
-staging, run 42984980093), con respaldo previo. Juan no cambió (Desplegar Juan 20). **Es más nuevo que la versión
-estable 4**: si la dueña lo da por bueno unos días, toca nombrar la estable 5.
-
-- **Autorización de la dueña (antes de dormir, tal cual):** «todos los arreglos de la auditoría que no son parte de un
-  nuevo diseño, puedes ya irlos subiendo y publicando y mandarlos a producción. Pero lo que hace parte de una nueva
-  interfaz o nuevo tema, eso tengo que analizarlo y verlo muy bien, incluso en dispositivos móviles». Y: «espero que
-  todos los errores… ya estén solucionados y en producción cuando yo despierte». Por eso esta tanda fue a producción
-  sin esperar su visto bueno sobre capturas; **nada de diseño nuevo se subió**.
-- **Pedido de la dueña:** «una auditoría completa del aspecto visual del panel… en dispositivos móviles… y en distintas
-  computadoras… encontrar ciertos problemas y solucionarlos… modernizar sin dañar lo que ya funciona». Y, con un video
-  de un tablero que le encantó: «sí busco un modernismo así… sin olvidar el branding que ya tenemos… ahora mismo es
-  estático».
-- **Cómo se hizo:** 660 pantallas capturadas y medidas con Playwright en una copia local con datos de prueba: las 242
-  del menú de Gerencia en celular (390 px) y portátil (1366 px); las 18 apps en celular de 360 px, tableta parada y
-  acostada, 1280 px y 1920 px; las 43 de la vendedora; y 15 pantallas por dentro (chat, cotización, contacto,
-  producto, oportunidad, factura, entrega). Resultado: ninguna pantalla se sale de costado, la vendedora sin errores,
-  **19 molestias**. Informe con capturas de antes y después (página privada de la dueña):
-  <https://claude.ai/artifact/QN3GPdAtm7nKxQtu9X64MP>.
-- **Arreglado y en producción, con prueba de navegador cada uno:**
-  1. *Fecha con hora cortada en todas las listas de la computadora* («11 nov,…»). Causa: Odoo mide el ancho de una
-     fecha en un bloque invisible colgado del `<body>`, y el `<body>` de D'CASA es una rejilla; el bloque caía en la
-     columna de la barra lateral angosta (68 px). `barra_lateral.scss` + `listas.js` (la columna puede encogerse hasta
-     lo que mide una fecha de este año). En Cotizaciones, Origen y Estado llevan ancho fijo para que las etiquetas no
-     se corten. `test_listas_fechas.py`.
-  2. *El botón de Brian tapaba el ITBMS y el Total de la cotización* y la última columna de las listas: formularios,
-     listas y tarjetas de Odoo terminan con el mismo hueco que ya tenían las pantallas propias (`brian_panel.scss`,
-     `test_boton_no_tapa.py`).
-  3. *Aviso de lista vacía*: ya no dice «Toca «Nuevo»» donde no hay ese botón, y sale también en las listas sin texto
-     de ayuda, que quedaban con cuatro renglones en blanco (`sin_odoo.js`, `test_lista_vacia.py`). Cierra UI-01 de
-     [auditoria/ui-backend.md](auditoria/ui-backend.md).
-  4. *Listas en el celular*: las columnas de texto no bajan de 170 px (48 de 105 listas salían en «CAM…», «Client…») y
-     la lista se desliza de lado como antes. El botón de copiar se queda.
-  5. *Cabecera de los formularios en el celular en un renglón* (de 128 a 62 px): «Actividad» va solo con su ícono.
-  6. *Compras en el celular*: el aviso de «no hay nada» va debajo del tablero de cifras, no encima.
-  7. *Ficha del contacto en el celular*: la foto mide 72 px para que el nombre y el correo se lean.
-  8. *Barra de arriba en el celular*: el reloj de actividades medía 29 px de ancho (las rayitas 36, Brian 38): ahora 44.
-  9. *El ejemplo de «Sitio web» del contacto* ya no nombra a odoo.com.
-  10. *Pestañas de Contabilidad en la computadora*: su barra de desplazamiento va escondida y con el mouse no se
-      alcanzaban las últimas («ITBMS», «Analítica») en 1366 px; ahora bajan a otro renglón (`contabilidad.scss`,
-      `test_pantallas.py`). En el celular se siguen deslizando con el dedo.
-  11. *Sitio web › Páginas* daba «Acceso denegado» a Gerencia (la lista de Odoo 19 pide el grupo de editor del sitio y
-      lee las plantillas): el menú ya no se muestra. No se cambió ningún permiso (`sitio_views.xml`, `test_sitio.py`).
-  12. *Compras en el celular*: las cinco cifras del tablero van de tres en tres con el nombre entero (salían
-      «Solicit… de cotiza…»).
-  13. *Oportunidad en el celular*: ya no queda el «en» de «$ 0.00 en 0.00 %» colgando junto al monto.
-  14. *Letra de 10,9 px* en «Ctrl K» y en la franja de Envíos del celular: 12 px.
-- **Segundo recorrido (lo que solo se ve al usar el panel):** un agente recorrió ventanas, desplegables y formularios en
-  celular y portátil con las dos cuentas de prueba; 15 hallazgos, cada uno mirado en su captura antes de tocar nada.
-  Arreglados y en producción:
-  15. *Conversaciones: fecha al revés.* Una conversación vieja decía «11/04/26» para el 4 de noviembre: el formato
-      numérico de «es-PA» es mes/día/año. Ahora día/mes/año (`utilidades.js`), igual en las conversaciones anteriores
-      de Brian. `test_panel_interfaz.py` vigila además que ninguna pantalla propia arme fechas de solo números con
-      «es-PA».
-  16. *Escáner sin cámara o sin permiso*: el aviso de Odoo salía gris oscuro sobre el fondo negro; ahora se lee
-      (`camara.scss`). El campo «Precio nuevo» salía como campo crudo del navegador.
-  17. *Cotización en el celular*: «Enviar por WhatsApp» se partía en dos líneas, los tres puntos caían debajo y el
-      estado se montaba sobre el botón. Ahora el botón y sus tres puntos van juntos y el estado baja limpio a su
-      renglón si no cabe (`global.scss`, `test_cotizacion_celular.py`).
-  18. *Vendedora: tres botones bajo las líneas* («Descuento», «Agregar envío», «Pedir descuento a Gerencia») quedaban
-      como cajas de tres renglones; ahora cada uno en una línea y el que no cabe baja.
-  19. *Inicio y Estadísticas*: «Hoy / Esta semana / Este mes / Un rango» salían con el marco gris del navegador (son
-      `<button>` sin `.btn` y les faltaba `border: 0`).
-  20. *«Buscar» de la barra lateral* contestaba «No se encontraron comandos» al escribir «facturas»: abría el modo
-      «comandos» de Odoo. Ahora abre en la búsqueda de pantallas (`openMainPalette({ searchValue: "/" })`).
-  21. *«Cobrar premio»*: la venta salía rotulada «Order»; ahora «Venta» (solo el rótulo del campo).
-- **Anotado y sin tocar** (es de Odoo estándar, es un dato o es diseño): la tarjeta «Instale Odoo», OdooBot y el aviso de
-  notificaciones push; «Manual Payment» como nombre del método de pago (dato: se cambia en Ajustes); pie de los
-  diálogos con tres botones desiguales en el celular; la barra de la Actividad se desliza de lado en el celular; filtros
-  de 27 px de alto en el celular; gráficas de Odoo en celeste; tablas dinámicas en el celular; pantallas de 1920 px.
-  Detalle con capturas en el informe: <https://claude.ai/artifact/QN3GPdAtm7nKxQtu9X64MP>.
-- **Inicio nuevo, propuesta 2** (boceto; **no** está en el panel, ni en staging): <https://claude.ai/artifact/6s9iQpc8ZFh1DNse8vA2RG>.
-  La dueña vio la propuesta 1 (<https://claude.ai/artifact/VUKX4zkP16JQ5HVcDwjm6G>) y dijo: «todo está un poco
-  maximalista»; «el orden actual está muy bien. Y alterarles esto va a hacer que tengan cierta resistencia al cambio. La
-  idea es proponerles lo que ya está en una versión mejorada»; «en el modo claro, me gusta que mantengas ese blanco y
-  esos azules. Pero en el modo oscuro, me gustaría algo más grisáceo y serio… más estilo Cubase 16»; en el celular «es
-  muy importante preservar los accesos directos de utilidad, que son mensajería, escáner, órdenes de las cotizaciones
-  que crean las vendedoras, y el chatbot con página web, que es la segunda, y los pedidos a entregar… y el mismo
-  dashboard que ya existe, pero todo organizado de una mejor forma»; y «estos temas y estos gráficos prefiero yo primero
-  antes aprobarlos y poderlos ver muy bien en todas sus formas, antes de tirarlos a staging o a producción». La
-  propuesta 2 conserva el orden de hoy (botones, nueve accesos, tres paneles, avisos, ventas, cifras, gráficas), pone los
-  nueve accesos en la primera pantalla del celular (interruptor «Compactos / Detalle» para comparar), suma tres
-  contadores que llevan a cada panel, y trae el modo oscuro en gris. Movimiento discreto.
-- **Pruebas:** CI 330 (`3ce4c4a`, los diez primeros, con staging) verde; CI 331 cancelado (quedó viejo al subir más
-  arreglos); **CI 332** (`cf64f97`, todo junto, con staging) verde: staging sano con esa versión. En local, sobre la
-  base de capturas, las clases tocadas pasan.
-- **Boceto de la caja de responder del chat en el celular** (de 211 a 111 px, sin quitar herramientas):
-  <https://claude.ai/artifact/A6P3KWL2F5KJx5MfX4sBsH>. No se tocó el chat: es la pantalla que más se usa y sus botones
-  de 44 px están a propósito. Espera su decisión.
-- **Falta de la dueña:** (1) la propuesta 2 del Inicio: ¿le gusta?, ¿accesos compactos o con detalle en el celular?;
-  (2) el boceto de la caja del chat; (3) en la cotización, ¿se guardan los datos de pocas veces en «Más datos» para que
-  los productos queden arriba?; (4) Conversaciones en tableta nace con la lista reducida a iniciales (a propósito hasta
-  1100 px): ¿que abra entera mientras no haya un chat elegido?; (5) en el Inicio, «Entregas pendientes» cuenta todas las
-  entregas por despachar y el acceso «Bodega» solo las que tienen pago o abono (pueden decir números distintos): ¿se
-  dejan iguales? Y siguen sin respuesta: borrar los 18 GB de worktrees viejos y la rama remota `claude/bold-volta-fsqq4c`.
-- **Sigue:** que la dueña mire el panel en producción y la propuesta 2; con su respuesta, construir el Inicio nuevo en la
-  rama y mostrárselo en capturas (celular incluido) **antes** de staging.
-- **En esta máquina (resuelto el mismo día, ver la entrada de arriba):** el disco estaba al 98 % por 13 worktrees viejos
-  de agentes y bases locales de pruebas; se borraron con el «sí» de la dueña. Las pruebas locales de esta tanda se
-  corrieron sobre la base de capturas, no en una base limpia.
-### 2026-11-11: versión estable 4; Instagram con fotos confirmado; enlace de choferes encendido; cierre de semana
-
-**En producción** (sin despliegues nuevos de Odoo): Odoo y el borde en Desplegar 63 (`3e2ccfc`) y Juan en Desplegar
-Juan 20 (`c378382`). Este día solo se registró la versión estable, se ordenó la documentación y se cerraron issues.
-
-- **Versión estable 4** (pedido de la dueña: «actualizar esta versión como la última versión estable»): Desplegar 63
-  (imagen `sha256:acda72c1…`, `app_version` `3e2ccfc`) con Juan hasta Desplegar Juan 20. En `.github/versiones_estables.json`,
-  en el botón «Volver a una versión estable» y en [VERSIONES_ESTABLES.md](VERSIONES_ESTABLES.md), con la nota de que
-  Juan se vuelve aparte. **Ensayada en staging** con el botón: run 42951600639, bien en unos 24 minutos.
-- **Instagram con fotos, confirmado por la dueña** (Juan 20: la foto se sube en el mismo envío, como Messenger).
-  **Enlace para choferes encendido** por la dueña.
-- **Issues cerrados** (resueltos según la dueña el 7 nov): #9, #10 y #12 (códigos de barras) y #26 (topes de Brian).
-  Quedan 10 abiertos (privacidad #22 y #23, Juan #24, CRM fase 2 #15 y #17 a #21, puerta `/master` #27).
-- **Evaluación pedida por la dueña:** 82/100 «en producción de verdad». Para subir a 90+: avisos a Gerencia cuando un
-  canal de Meta deja de enviar o recibir (el 131070 no avisaba), la IA de respaldo de Juan (`ANTHROPIC_API_KEY`
-  falta, según `/salud`), plantillas de WhatsApp y nombre visible, privacidad (#22 y #23).
-- **Dependabot #98** (Juan: `ai` 7.0.164 y `@ai-sdk/*`, versiones de parche) queda abierto a propósito: no se
-  despliega Juan al cierre de la semana sin nadie mirando. Va primero la semana que viene.
-- **Sigue:** ver [PRIORIDADES.md](PRIORIDADES.md) «Lo que sigue».
-
-### 2026-11-10: WhatsApp 131070 RESUELTO («redireccionar conversación» a D'CASA Juan); Juan pide el control y anota todo
-
-**Resuelto (10 nov, tarde):** con la cuenta de los jefes (administradores del portafolio DCasa Pty), la dueña encontró en
-Meta el botón **«redireccionar conversación»** (el Enrutamiento de conversaciones), mandó las conversaciones a «D'CASA
-Juan» y **eliminó a Callbell**. WhatsApp volvió a enviar y recibir sin esperar los 7 días que decía soporte.
-
-**En producción** desde el 2026-11-10: PR #104, CI #315, **Desplegar Juan 17** (`main` = d40607f, árbol = cf52548);
-PR #105, CI #317, **Desplegar Juan 18** (`main` = ac75436, árbol = 4c16cd2); y PR #106, CI #319, **Desplegar Juan 19**
-(`main` = f8a6c24, árbol = b955b2f); y PR #107, CI #321, **Desplegar Juan 20** (`main` = c378382, árbol = f1cba72).
-Odoo sin cambios.
-
-- **Instagram conectado** (10 nov, tarde) por la página DCASA PTY, con la misma app y la misma llave que Messenger
-  (`META_PAGE_TOKEN` reemplazada; Messenger siguió funcionando). Juan contestó un DM de prueba y salió en Odoo con el
-  nombre. La foto no salía (igual que Messenger el 9 nov). **Juan 19** la subía aparte (`attachment_id`) y siguió
-  fallando; **Juan 20** la sube en el mismo envío como Messenger y, si falla, Odoo muestra lo que dijo Meta a cada intento.
-  **Confirmado por la dueña: la foto llegó por Instagram.**
-  Se descartó la guía de un conocido («inicio de sesión con Instagram»): otra llave que vence y cambios en Juan.
-
-- **La causa más probable del 131070**: el **«Enrutamiento de conversaciones»** de Meta (Conversation Routing, desde
-  septiembre de 2026) decide qué app es la principal de los chats del número; solo esa contesta y las demás reciben
-  131070. Al quitar Callbell, Meta **no nombra otra principal** por su cuenta. Ver [JUAN_CANALES.md](JUAN_CANALES.md) §1.
-- **Juan 17:** si un envío da 131070, Juan pide el control de ese chat (Thread Control, «take») y, si Meta se lo da,
-  manda otra vez lo rechazado. Todo envío rechazado deja su código y su `fbtrace_id` en el registro de `dcasa-juan`.
-  **Juan 18:** un aviso de WhatsApp que no da mensaje ni palomita se anota con su forma (campo, claves, tipos), sin datos.
-- **Pruebas con soporte de Meta (chat):** a las 12:13 un envío desde el Explorador de la API Graph (app «D'CASA Juan»,
-  número de la tienda) **llegó** al celular: **ya se puede enviar**. Los mensajes al número llegan (doble palomita) pero
-  no a Odoo. Se volvió a suscribir la app a la WABA (`POST 1313438470854835/subscribed_apps` → `success: true`) y a las
-  12:22 Meta sí llamó al webhook (200), pero el mensaje no apareció en Odoo (Juan 18 dirá qué forma tiene ese aviso).
-- **Soporte de Meta:** tras un cambio de proveedor, el número tarda **hasta 7 días** en desvincularse de la app y del
-  activo anterior (desde el 9 nov: hasta el **16 nov**). **Callbell** propuso eliminar el número y volver a
-  registrarlo: **no se hace** (se pierde límite, calidad y plantillas; hace falta la SIM y quizá el PIN de dos pasos).
-  Se le pidió a Callbell quitar sus enlaces y decir si puso PIN. Los jefes ya entraron como administradores del
-  portafolio: queda una revisión con Claude en Chrome del enrutamiento, socios y apps conectadas (cambios solo con «sí»).
-- **Sigue:** WhatsApp, Messenger e Instagram funcionan con fotos (el 131070 se resolvió el mismo 10 nov). El enlace
-  de choferes ya está encendido (11 nov). Pendiente: el motivo real en «Quedó por enviar», pedir un nombre visible
-  nuevo de WhatsApp («DCasa Pty» DECLINED) y, si la dueña lo pide, respuestas a comentarios de Instagram.
-
-### 2026-11-09 (tarde y noche): enlace para choferes; «Colchones» abre WhatsApp; Messenger conectado; WhatsApp bloqueado por Meta (131070)
-
-**En producción** desde el 2026-11-09: PR #100, CI #305, Desplegar 63 (imagen `sha256:acda72c1…`, versión 3e2ccfc) y
-Juan 13 (`main` = 4a01039, árbol = 3e2ccfc).
-
-- **Enlace para choferes** (pedido de la dueña: «un link de calculadora a los choferes … que no vean la tabla de
-  kilometraje»; «un solo enlace para todos»). En Envíos › Tarifa, abajo, Gerencia lo enciende, copia el enlace y lo
-  cambia con «Crear un enlace nuevo». El chofer busca el lugar y ve solo el nombre, la zona, el precio **desde D'CASA**
-  y la ruta en Google Maps; nunca los km ni la tabla; sin tarifa aprobada, «confirma el precio con la tienda».
-  **«Usar mi ubicación» viene apagado** («por defecto inamovible … que nosotros lo decidamos»): solo Gerencia lo
-  enciende. Ver [ENVIOS.md](ENVIOS.md) «Enlace para choferes». La dueña **lo encendió el 11 nov**.
-- **Revisión de seguridad independiente** del enlace: nada bloqueante; se arreglaron los límites (2 búsquedas a la
-  vez, 1 500 por día con nota a quien creó el enlace y contador en la ficha, IPv6 por /64, 300 por minuto entre todos,
-  texto corto), cuerpos rotos que daban 500, `write` sin permiso que rearmaba el buscador, `create` que aceptaba el
-  secreto y el borde que no reconocía el enlace con idioma delante. Lo no evitable (quien tiene el enlace ve precios
-  y Google Maps los km) quedó escrito en ENVIOS.md.
-- **Portada:** una categoría sin nada publicado (hoy «Colchones») abre WhatsApp con «quiero información de
-  colchones»; al publicar un colchón vuelve sola a la tienda (decisión de la dueña). Confirmado en producción.
-- **Dependabot** #96, #97 y #98 (Juan: `ai` y `@ai-sdk/*`; borde y puente: `workers-types` y `wrangler`).
-- **CI:** la 303 falló en la prueba de «Colchones» (el catálogo del CI ya trae colchones publicados) y la 304 en una
-  prueba del puente que dependía de la velocidad de la máquina; las dos reproducidas en local y arregladas (ver
-  CONTEXTO_AGENTICO).
-- **Messenger conectado** (con Claude en Chrome y la dueña): control total de la página para la cuenta usada, webhook,
-  suscripciones solo en DCASA PTY y `META_PAGE_TOKEN`. Juan contestó un «Hola buenas» y la conversación salió en Odoo.
-  Hasta la revisión de Meta (que pide verificar el negocio: lo ve la administración) solo contesta a quien tiene rol en
-  la app. **Instagram** quedó a medias: «Invalid Scopes» (faltan los permisos de Instagram en la app) y hace falta
-  entrar con acceso al portafolio DCasa Pty. Pasos en [JUAN_CANALES.md](JUAN_CANALES.md) §3.
-- **WhatsApp dejó de enviar desde las 16:00** con el código **131070** («otra app controla la conversación»). No fue el
-  token de la página ni el sistema (Messenger funcionó de punta a punta a la misma hora): en Meta el número quedó
-  **sin cuenta de mensajes** («Add a Messaging account»), probablemente porque Callbell retiró la suya cuando se le pidió
-  retirar su línea de crédito. Lo arreglan los dueños en Meta desde DCasa Pty (crear y ligar una cuenta de mensajes con
-  su tarjeta). Ver JUAN_CANALES §1 «Si deja de contestar».
-- **Fotos de Messenger** (madrugada del 10): el texto salía y la foto no («(#100) Error al subir el producto»: Meta no
-  lograba bajarla de nuestra URL). Juan ahora sube el archivo a Meta (multipart `filedata`), con respaldo por URL. En
-  producción: PR #101, CI #308, **Desplegar Juan 14** (`main` = 4cc4b97, árbol = 3af9123; Odoo sin cambios).
-  **Confirmado** por la dueña: la foto de la cama llegó por Messenger con su texto.
-- **El nombre del cliente de Messenger e Instagram** (en Odoo salía «Messenger 2838…»): Juan se lo pide a Meta una vez
-  por conversación antes de guardar el mensaje; Odoo cambia el nombre provisional por el real. En producción: PR #102,
-  CI #310, **Desplegar Juan 15** (`main` = 7707b53, árbol = 5d19c7c).
-- **Sigue:** que los dueños liguen la cuenta de mensajes (y probar que Juan vuelva a enviar; si sigue el 131070, el
-  «Agente de negocios de Meta»); encender el enlace de choferes; Instagram;
-  en el próximo lote, el motivo real en el aviso «Quedó por enviar».
-
-### 2026-11-09: «No llegó» por el pago de Meta (131042); preguntas sin respuesta para las vendedoras; videos con voz
-
-**En producción** desde el 2026-11-09: PR #99, CI #301, Desplegar 62 (imagen `sha256:f467a09a…`, versión 5882fa4) y
-Juan 12 (3b86ee3).
-
-- **«No llegó» desde hace dos días** (WhatsApp oficial; «a veces sí, a veces no»). **Causa:** el globito de la
-  etiqueta dice **131042, «Business eligibility payment issue»**: Meta no deja salir los mensajes por un problema de
-  **pago de la cuenta de WhatsApp Business**, no del sistema ni de la IA. En Facturación y pagos › Cuentas de mensajes
-  la cuenta del número (la que era de **Callbell**, ID …764382) se pagaba con una **línea de crédito de Callbell**; la
-  dueña dejó Callbell y conectó Juan con el mismo número. Las otras dos «DCasa Pty» no tienen método de pago. **Lo
-  arregla la dueña en Meta** (tarjeta propia y predeterminada en esa cuenta; si no la deja, pedirle a Callbell que
-  revoque la línea; información fiscal). Se le dio un encargo para Claude en Chrome que revisa todo en solo lectura y
-  trae un reporte. Lo ya fallido no se reenvía solo: las vendedoras vuelven a escribirles.
-- **En el sistema** (la revisión de estos cambios, más abajo): los motivos de la cuenta (131042 pago, 131031 bloqueo, 131048 spam)
-  en palabras de la tienda y con su código siempre entero; **aviso por Telegram a Gerencia** (cron
-  `ir_cron_avisos_de_cuenta`, una vez cada 6 h por código, reintento a la media hora si no le llegó a nadie; los
-  recibos de más de 2 h no avisan; también un rechazo al enviar). Ver [CONTEXTO_AGENTICO.md](CONTEXTO_AGENTICO.md)
-  «WhatsApp oficial (Meta)».
-- **Preguntas sin respuesta para las vendedoras** (pedido de la dueña): menú para Ventas y botón **Contestar**. Sin
-  cifras ni política (dinero, números también en palabras, plazos, horarios, garantía, entregas, crédito, cambios,
-  descuentos…; `conocimiento_texto.necesita_revision`, por raíces), Juan la usa al momento; con eso, Gerencia la revisa
-  («Convertir en conocimiento», borrador). El tema es editable y se limpia; la pregunta del cliente también se revisa
-  (un «sí» no confirma un precio que el cliente inventó). La dueña no alcanzó a elegir: se usó la opción recomendada.
-  **Revisión adversarial independiente** (dos pasadas): un bloqueo (el precio de la pregunta en el título) y varias
-  cosas a mejorar, todo arreglado con su prueba.
-- **Videos:** a los 3 de camas (805, 801, Queen Black) y a los 3 del lanzamiento de la página se les puso la voz de
-  Yuli (ElevenLabs v4) y música de Suno pedidas al **Calendario de Marketing** por MCP (≈ $0.66 en total), pegadas por
-  frase con ffmpeg y revisadas con un reconocedor de voz (vosk). El calendario no tiene herramienta para subir archivos
-  ni para leer los medios de una publicación: la dueña subió los videos a mano a los días 11, 13 y 15 de noviembre.
-
-### 2026-11-07 (3): Camila: «Abrieron» y «Tocaron» en 0; remitente propio de las campañas y aviso de Resend, en producción
-
-- La tabla de campañas decía 0 «Abrieron» y 0 «Tocaron». **Causa:** Resend trae el conteo de aperturas y clics
-  apagado por dominio y Camila salía del remitente de las facturas (`ventas@dcasapty.com`); encenderlo ahí pondría el
-  píxel y cambiaría los enlaces de las facturas. **Decisión** ([CAMILA.md](CAMILA.md) §1d): un subdominio de
-  marketing (`novedades.dcasapty.com`, seguimiento `links`) con el conteo encendido; las facturas, limpias.
-- **«Remitente de las campañas»** (al final de Camila; Gerencia y administradores; `dcasa_camila.remitente`): vacío =
-  el de las facturas (nada cambia hasta que se ponga). El *broadcast* y «Enviarme una prueba» salen de ahí con el
-  nombre «D'CASA Panamá» y la respuesta a `info@dcasapty.com` de siempre. El remitente de las facturas no se tocó.
-- **El aviso:** con la clave de campañas y en producción, Camila lee `GET /domains` (y el detalle) cada 6 horas con el
-  cron, al guardar el remitente, con «Revisar ahora» y al tocar «Enviar». Sin verificar o sin estar en Resend: lo dice
-  y **no deja enviar**; con el conteo apagado: «Resend no está contando … de este remitente: Abrieron y Tocaron saldrán
-  en 0» con los tres pasos. La pantalla solo lee lo guardado (nunca llama a Resend ni se cae por él); si Resend falla,
-  una nota suave. Debajo de la tabla: las enviadas sin conteo siempre dirán 0. La Guía: «¿Por qué Abrieron sale en
-  0?». Brian lo dice en `estado_campanas`.
-- Pruebas (primero en rojo sobre el código de antes: 3 fallas y 34 errores): `test_remitente.py` (28, dos en el
-  navegador: el aviso arriba, la nota, **la pantalla baja hasta el final** en computadora y celular sin scroll de lado,
-  Gerencia cambia el remitente) y `test_resend.py` (+1). Todo `dcasa_camila` en base nueva: 238 en verde (en dos
-  tandas); la lista blanca de RPC revisada por `odoo-bin shell` (vacía); `ruff` limpio. De `dcasa_guia`, 3 pruebas
-  del buscador fallan en esa base angosta porque no tiene `dcasa_nomina` («planilla», «seguro-social»): no es de este
-  cambio. Capturas con datos inventados en el scratchpad de la sesión (`capturas_camila_remitente`).
-- **Sin push, PR ni despliegue.** Falta de la dueña ([CAMILA.md](CAMILA.md) §6b): agregar y verificar
-  `novedades.dcasapty.com` en Resend (DNS en Cloudflare, nube gris), encenderle el conteo con `links`, y poner el
-  remitente en Camila. Si la prueba no sale desde el subdominio, la clave de las facturas está limitada a un dominio en
-  Resend › API Keys.
-- **En producción:** PR #95 (`main` = `848d314`, árbol = `e53e5d8`), **Desplegar 61** sano y confirmado 19:00 UTC
-  (versión `e53e5d8b4ebf`) y **Desplegar Juan 11** (`848d314`, que además quita el tope de 20 notas de voz al día a pedido
-  de la dueña). La dueña dejó `novedades.dcasapty.com` verificado en Resend con «Auto configure» de Cloudflare y el conteo
-  de aperturas y clics encendido en `links.novedades.dcasapty.com`.
-
 ### Entradas anteriores (una línea cada una; el texto completo en [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md))
 
+- **2026-11-13:** Juan ya no dice «no lo manejamos» de lo que no está publicado (Desplegar 69 y Juan 23) y
+  responde comentarios de Instagram y Facebook, apagado (Desplegar 70 y Juan 24), en producción
+- **2026-11-12:** Juan cotiza envíos con la promoción, reparto justo de chats y Costos de IA con «Pagar», en
+  producción (Desplegar 68 y Juan 21); se descubrió que Messenger e Instagram no les llegan a los clientes
+- **2026-11-11 (3):** Inicio nuevo, el celular al entrar, la caja del chat, entregas = Bodega, «Más datos» y modo oscuro, en producción (Desplegar 65, 66 y 67)
+- **2026-11-11 (2):** auditoría visual del panel; 21 arreglos en producción (Desplegar 64); propuesta 2 del Inicio
+- **2026-11-11:** versión estable 4; Instagram con fotos confirmado; enlace de choferes encendido; cierre de semana
+- **2026-11-10:** WhatsApp 131070 RESUELTO («redireccionar conversación» a D'CASA Juan); Juan pide el control y anota todo
+- **2026-11-09 (tarde y noche):** enlace para choferes; «Colchones» abre WhatsApp; Messenger conectado; WhatsApp bloqueado por Meta (131070)
+- **2026-11-09:** «No llegó» por el pago de Meta (131042); preguntas sin respuesta para las vendedoras; videos con voz
+- **2026-11-07 (3):** Camila: «Abrieron» y «Tocaron» en 0; remitente propio de las campañas y aviso de Resend, en producción
 - **2026-11-07 (2):** issues #24 (Juan) y #25 (Conversaciones), lo que quedaba, en producción.
 - **2026-11-07 (1):** citas, reenviados, reacciones y palomitas en el chat, en producción.
 - **2026-11-06 (9):** Camila etapa 1b: la lista de las novedades crece sola.

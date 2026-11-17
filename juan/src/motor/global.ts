@@ -25,6 +25,22 @@ export interface GastoDelMes {
 /** ¿Es algo que cobra Cloudflare (Workers AI) y no un modelo que contesta? */
 export const esDeCloudflare = (modelo: string) => modelo.startsWith("cloudflare:") || modelo.startsWith("@cf/");
 
+/** Una nota de voz de Brian del panel (odoo-panel-voz.ts): quién (ofuscado), cuándo y sus topes. */
+export interface ReservaVozPanel {
+  /** El usuario de Odoo, ya ofuscado (HMAC con el token del Worker). */
+  usuario: string;
+  /** «AAAA-MM-DD» y «AAAA-MM», en la hora de Panamá. */
+  dia: string;
+  mes: string;
+  porUsuarioHora: number;
+  porDia: number;
+  /** Lo más que pueden costar las notas del panel en el mes (USD), en el renglón `concepto` de `gasto`. */
+  topeMesUsd: number;
+  concepto: string;
+}
+
+export type ResultadoReservaVozPanel = { ok: true } | { ok: false; motivo: "tope_usuario" | "tope_dia" | "tope_mes"; reintentarEn?: number };
+
 /** La lógica, sin Cloudflare: se prueba con SQLite de Node. */
 export class AlmacenGlobal {
   constructor(private readonly sql: Sql) {
@@ -45,7 +61,28 @@ export class AlmacenGlobal {
     sql.correr("CREATE TABLE IF NOT EXISTS respuestas_publicas (id INTEGER PRIMARY KEY AUTOINCREMENT, ts INTEGER NOT NULL)");
     // Lo mismo con las PRIVADAS (cada una es un turno completo de IA): el tope global por hora, entre todas las cuentas.
     sql.correr("CREATE TABLE IF NOT EXISTS respuestas_privadas (id INTEGER PRIMARY KEY AUTOINCREMENT, ts INTEGER NOT NULL)");
+    // Las notas de voz de Brian del panel (odoo-panel-voz.ts): solo la hora, el día y el usuario de Odoo ofuscado, para sus topes.
+    // Nunca el audio ni el texto. Se borran a las 26 horas.
+    sql.correr("CREATE TABLE IF NOT EXISTS voz_panel (id INTEGER PRIMARY KEY AUTOINCREMENT, ts INTEGER NOT NULL, dia TEXT NOT NULL, usuario TEXT NOT NULL)");
     crearTablasDeLaTienda(sql);
+  }
+
+  /**
+   * Brian del panel: aparta UNA nota de voz si el usuario no pasó su tope por hora, el panel el suyo del día y lo de las notas en el
+   * mes (`concepto` en `gasto`) no llegó a su techo. Sin esperas en medio: atómico dentro del objeto.
+   */
+  reservarVozPanel(p: ReservaVozPanel, ahora: number): ResultadoReservaVozPanel {
+    this.sql.correr("DELETE FROM voz_panel WHERE ts < ?", ahora - 26 * 3600_000);
+    const n = (consulta: string, ...params: (string | number)[]) => this.sql.uno<{ n: number }>(consulta, ...params)?.n ?? 0;
+    const delUsuario = this.sql.todos<{ ts: number }>("SELECT ts FROM voz_panel WHERE usuario = ? AND ts > ? ORDER BY ts", p.usuario, ahora - 3600_000);
+    if (delUsuario.length >= p.porUsuarioHora) {
+      return { ok: false, motivo: "tope_usuario", reintentarEn: Math.max(1, Math.ceil((delUsuario[0].ts + 3600_000 - ahora) / 1000)) };
+    }
+    if (n("SELECT COUNT(*) AS n FROM voz_panel WHERE dia = ?", p.dia) >= p.porDia) return { ok: false, motivo: "tope_dia" };
+    const gastado = this.sql.uno<{ usd: number | null }>("SELECT usd FROM gasto WHERE mes = ? AND modelo = ?", p.mes, p.concepto)?.usd ?? 0;
+    if (p.topeMesUsd <= 0 || gastado >= p.topeMesUsd) return { ok: false, motivo: "tope_mes" };
+    this.sql.correr("INSERT INTO voz_panel (ts, dia, usuario) VALUES (?, ?, ?)", ahora, p.dia, p.usuario);
+    return { ok: true };
   }
 
   /**
@@ -161,6 +198,17 @@ export class AlmacenGlobal {
  * cierre falló), lo apartado pasa a ser GASTO estimado (`liquidarVencidas`): no se suelta como si no hubiera costado nada.
  */
 export const VIDA_DE_UNA_RESERVA_MS = 3 * 60_000;
+/**
+ * Lo apartado para una nota de voz vence mucho antes (revisión adversarial, 2026-11-16): ninguna dura más que el plazo de Whisper
+ * (PLAZO_VOZ_MS, 20 s) y, si el visitante corta la conexión y el cierre no llega, un lugar «en vuelo» no puede quedar tomado 3
+ * minutos (con 8 notas cortadas, todas las clientas recibían «hay mucha gente»).
+ */
+export const VIDA_DE_UNA_RESERVA_DE_VOZ_MS = 30_000;
+/**
+ * Una nota de voz ya contó como un mensaje en los topes de red y del día; el mensaje que la página manda enseguida con su texto no
+ * vuelve a contar: la nota deja un «crédito» para su red, que el siguiente mensaje de esa red usa una sola vez.
+ */
+export const VIDA_DEL_CREDITO_DE_VOZ_MS = 10 * 60_000;
 /** El renglón del gasto de la tienda para lo que se cobró sin poder medirse (un turno cortado, o una reserva que nadie cerró). */
 export const MODELO_DE_LO_CORTADO = "turnos cortados (estimado)";
 /** Marca de una reserva que ya pasó a gasto estimado: si el cierre llega tarde, no se cuenta dos veces. */
@@ -191,13 +239,31 @@ export interface ReservaTienda {
   enVueloRed?: number;
   /** El proveedor de la IA del turno: si la reserva vence sin cerrarse, su gasto estimado va con él. */
   proveedor?: string;
+  /** Cuánto vive lo apartado si nadie cierra el turno (sin él, VIDA_DE_UNA_RESERVA_MS). */
+  vidaMs?: number;
   presupuestoUsd: number;
   /** Lo que puede costar este turno (0 si no llama a la IA). */
   reservaUsd: number;
 }
 
+/**
+ * Las notas de voz de Andrés (tienda/voz.ts): su costo va en el gasto de la tienda con este renglón y este proveedor (lo cobra
+ * Cloudflare, no Meta: nunca entra en «Por pagar a Meta»). No suman en las «respuestas» del mes.
+ */
+export const MODELO_DE_LA_VOZ = "notas de voz (Whisper)";
+export const PROVEEDOR_DE_LA_VOZ = "cloudflare";
+
+/** Una nota de voz de la tienda: cuenta como un mensaje en los topes de red y del día y en el presupuesto, más su tope por sesión. */
+export interface ReservaVozTienda extends ReservaTienda {
+  /** El `sid` del pase, ofuscado (HMAC con el token del Worker). */
+  sesion: string;
+  /** Notas de voz por hora por sesión. */
+  porSesion: number;
+}
+
 /** «ocupado»: ya hay demasiados turnos con IA a la vez (no es un tope del visitante: en un momento vuelve a poder). */
 export type ResultadoReservaTienda = { ok: true; id: number } | { ok: false; motivo: "tope_red" | "tope_dia" | "presupuesto" | "ocupado" };
+export type ResultadoReservaVozTienda = ResultadoReservaTienda | { ok: false; motivo: "tope_sesion"; reintentarEn: number };
 
 export interface GastoTienda {
   mes: string;
@@ -224,13 +290,18 @@ function crearTablasDeLaTienda(sql: Sql): void {
   sql.correr(`CREATE TABLE IF NOT EXISTS tienda_turnos (id INTEGER PRIMARY KEY AUTOINCREMENT, ts INTEGER NOT NULL, dia TEXT NOT NULL,
     red TEXT NOT NULL, reserva REAL NOT NULL DEFAULT 0, vence INTEGER NOT NULL DEFAULT 0)`);
   // La /48 de IPv6 (2026-11-14). Una tabla que ya existía sin la columna la recibe aquí (si ya la tiene, SQLite se queja y no pasa nada).
-  for (const columna of ["red48 TEXT", "proveedor TEXT"]) {
+  // `cuenta` = 0: el mensaje que sigue a una nota de voz (usó su crédito): no vuelve a contar en los topes de red y del día.
+  for (const columna of ["red48 TEXT", "proveedor TEXT", "cuenta INTEGER NOT NULL DEFAULT 1"]) {
     try {
       sql.correr(`ALTER TABLE tienda_turnos ADD COLUMN ${columna}`);
     } catch {
       /* ya estaba */
     }
   }
+  // Las notas de voz de cada sesión (solo la hora y el `sid` ofuscado: nunca el audio ni el texto), para su tope por hora.
+  sql.correr("CREATE TABLE IF NOT EXISTS tienda_voz (id INTEGER PRIMARY KEY AUTOINCREMENT, ts INTEGER NOT NULL, sesion TEXT NOT NULL)");
+  // El crédito que deja cada nota de voz para el mensaje que la sigue (la red ofuscada y hasta cuándo vale).
+  sql.correr("CREATE TABLE IF NOT EXISTS tienda_creditos (id INTEGER PRIMARY KEY AUTOINCREMENT, red TEXT NOT NULL, vence INTEGER NOT NULL)");
   sql.correr(`CREATE TABLE IF NOT EXISTS tienda_gasto (
     mes TEXT NOT NULL, proveedor TEXT NOT NULL, modelo TEXT NOT NULL,
     entrada INTEGER NOT NULL DEFAULT 0, cache_lectura INTEGER NOT NULL DEFAULT 0,
@@ -250,22 +321,32 @@ export class TopesDeLaTienda {
    * lo apartado por los turnos en curso más lo que puede costar este). Todo sin esperas en medio: es atómico dentro del objeto.
    */
   reservar(p: ReservaTienda, ahora: number): ResultadoReservaTienda {
+    return this.apartar(p, ahora, true);
+  }
+
+  /** `usarCredito`: un mensaje puede usar el crédito que dejó una nota de voz de su red (una nota de voz, no). */
+  private apartar(p: ReservaTienda, ahora: number, usarCredito: boolean): ResultadoReservaTienda {
     // Primero lo vencido sin cerrar pasa a gasto (antes de borrar lo viejo, para que nada se pierda).
     this.liquidarVencidas(ahora);
     this.sql.correr("DELETE FROM tienda_turnos WHERE ts < ?", ahora - VIDA_DE_UN_TURNO_DE_LA_TIENDA_MS);
+    this.sql.correr("DELETE FROM tienda_creditos WHERE vence <= ?", ahora);
     const n = (consulta: string, ...params: (string | number)[]) => this.sql.uno<{ n: number }>(consulta, ...params)?.n ?? 0;
-    const haceUnaHora = ahora - 3600_000;
-    if (n("SELECT COUNT(*) AS n FROM tienda_turnos WHERE red = ? AND ts > ?", p.red, haceUnaHora) >= p.porRed) return { ok: false, motivo: "tope_red" };
-    // Una sola red no se lleva el tope del día de todos (60 por hora serían 1440 al día, más que los 1000 del día).
-    const porRedDia = p.porRedDia ?? TIENDA_POR_DEFECTO.tope_red_dia;
-    if (n("SELECT COUNT(*) AS n FROM tienda_turnos WHERE red = ? AND dia = ?", p.red, p.dia) >= porRedDia) return { ok: false, motivo: "tope_red" };
-    // Con IPv6, una /48 tiene 65 536 redes /64: juntas no pasan de estos topes, por hora y por día (cambiando de /64 cada 45
-    // mensajes, una sola /48 juntaba los 1000 del día en unas 5 horas y media).
-    if (p.red48) {
-      if (n("SELECT COUNT(*) AS n FROM tienda_turnos WHERE red48 = ? AND ts > ?", p.red48, haceUnaHora) >= (p.porRed48 ?? p.porRed * 3)) return { ok: false, motivo: "tope_red" };
-      if (n("SELECT COUNT(*) AS n FROM tienda_turnos WHERE red48 = ? AND dia = ?", p.red48, p.dia) >= (p.porRed48Dia ?? porRedDia * 3)) return { ok: false, motivo: "tope_red" };
+    // El mensaje que sigue a una nota de voz ya contó con ella: no vuelve a contar ni a frenarse en los topes de red y del día.
+    const credito = usarCredito ? this.sql.uno<{ id: number }>("SELECT id FROM tienda_creditos WHERE red = ? AND vence > ? ORDER BY id LIMIT 1", p.red, ahora) : undefined;
+    if (!credito) {
+      const haceUnaHora = ahora - 3600_000;
+      if (n("SELECT COUNT(*) AS n FROM tienda_turnos WHERE red = ? AND ts > ? AND cuenta = 1", p.red, haceUnaHora) >= p.porRed) return { ok: false, motivo: "tope_red" };
+      // Una sola red no se lleva el tope del día de todos (60 por hora serían 1440 al día, más que los 1000 del día).
+      const porRedDia = p.porRedDia ?? TIENDA_POR_DEFECTO.tope_red_dia;
+      if (n("SELECT COUNT(*) AS n FROM tienda_turnos WHERE red = ? AND dia = ? AND cuenta = 1", p.red, p.dia) >= porRedDia) return { ok: false, motivo: "tope_red" };
+      // Con IPv6, una /48 tiene 65 536 redes /64: juntas no pasan de estos topes, por hora y por día (cambiando de /64 cada 45
+      // mensajes, una sola /48 juntaba los 1000 del día en unas 5 horas y media).
+      if (p.red48) {
+        if (n("SELECT COUNT(*) AS n FROM tienda_turnos WHERE red48 = ? AND ts > ? AND cuenta = 1", p.red48, haceUnaHora) >= (p.porRed48 ?? p.porRed * 3)) return { ok: false, motivo: "tope_red" };
+        if (n("SELECT COUNT(*) AS n FROM tienda_turnos WHERE red48 = ? AND dia = ? AND cuenta = 1", p.red48, p.dia) >= (p.porRed48Dia ?? porRedDia * 3)) return { ok: false, motivo: "tope_red" };
+      }
+      if (n("SELECT COUNT(*) AS n FROM tienda_turnos WHERE dia = ? AND cuenta = 1", p.dia) >= p.porDia) return { ok: false, motivo: "tope_dia" };
     }
-    if (n("SELECT COUNT(*) AS n FROM tienda_turnos WHERE dia = ?", p.dia) >= p.porDia) return { ok: false, motivo: "tope_dia" };
     // El presupuesto y el tope de turnos a la vez solo frenan lo que usa la IA: un turno sin IA (reserva 0: pedir una persona,
     // calificar…) pasa aunque estén llenos.
     const reserva = Math.max(0, p.reservaUsd);
@@ -276,17 +357,38 @@ export class TopesDeLaTienda {
       if (gastado + enVuelo + reserva > Math.max(0, p.presupuestoUsd) + 1e-9) return { ok: false, motivo: "presupuesto" };
     }
     this.sql.correr(
-      "INSERT INTO tienda_turnos (ts, dia, red, red48, reserva, vence, proveedor) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO tienda_turnos (ts, dia, red, red48, reserva, vence, proveedor, cuenta) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
       ahora,
       p.dia,
       p.red,
       p.red48 ?? null,
       reserva,
-      ahora + VIDA_DE_UNA_RESERVA_MS,
+      ahora + Math.max(1, p.vidaMs ?? VIDA_DE_UNA_RESERVA_MS),
       p.proveedor ?? null,
+      credito ? 0 : 1,
     );
     const id = this.sql.uno<{ id: number }>("SELECT last_insert_rowid() AS id")?.id ?? 0;
+    if (credito) this.sql.correr("DELETE FROM tienda_creditos WHERE id = ?", credito.id);
     return { ok: true, id };
+  }
+
+  /**
+   * Una nota de voz de Andrés: primero su tope por sesión (por hora) y después lo mismo que un mensaje (red, /48, día, turnos a la vez
+   * y presupuesto, con `reservaUsd` > 0). Todo en la misma llamada: atómico. Se cierra con `cerrar`, como un turno.
+   */
+  reservarVoz(p: ReservaVozTienda, ahora: number): ResultadoReservaVozTienda {
+    this.sql.correr("DELETE FROM tienda_voz WHERE ts <= ?", ahora - 3600_000);
+    const deLaSesion = this.sql.todos<{ ts: number }>("SELECT ts FROM tienda_voz WHERE sesion = ? ORDER BY ts", p.sesion);
+    if (deLaSesion.length >= p.porSesion) {
+      return { ok: false, motivo: "tope_sesion", reintentarEn: Math.max(1, Math.ceil((deLaSesion[0].ts + 3600_000 - ahora) / 1000)) };
+    }
+    // Vida corta (la pide quien sea): una nota cortada a medias no puede tener un lugar «en vuelo» más que el plazo de Whisper.
+    const r = this.apartar({ ...p, vidaMs: VIDA_DE_UNA_RESERVA_DE_VOZ_MS }, ahora, false);
+    if (r.ok) {
+      this.sql.correr("INSERT INTO tienda_voz (ts, sesion) VALUES (?, ?)", ahora, p.sesion);
+      this.sql.correr("INSERT INTO tienda_creditos (red, vence) VALUES (?, ?)", p.red, ahora + VIDA_DEL_CREDITO_DE_VOZ_MS);
+    }
+    return r;
   }
 
   /**
@@ -360,10 +462,11 @@ export class TopesDeLaTienda {
     return {
       mes,
       usd: filas.reduce((n, f) => n + f.usd, 0),
-      turnos: filas.reduce((n, f) => n + f.turnos, 0),
+      // Las «respuestas» del mes: las notas de voz no son respuestas (cada una ya trae su mensaje). Su gasto sí suma en `usd`.
+      turnos: filas.reduce((n, f) => n + (f.modelo === MODELO_DE_LA_VOZ && f.proveedor === PROVEEDOR_DE_LA_VOZ ? 0 : f.turnos), 0),
       porModelo: filas.map((f) => ({ ...f, estimado: f.estimado === 1 })),
       enVueloUsd: this.enVuelo(ahora),
-      turnosHoy: this.sql.uno<{ n: number }>("SELECT COUNT(*) AS n FROM tienda_turnos WHERE dia = ?", dia)?.n ?? 0,
+      turnosHoy: this.sql.uno<{ n: number }>("SELECT COUNT(*) AS n FROM tienda_turnos WHERE dia = ? AND cuenta = 1", dia)?.n ?? 0,
     };
   }
 
@@ -390,6 +493,16 @@ export class Global extends DurableObject<Env> {
   /** Brian de la tienda: cuenta y aparta un mensaje (topes de red y del día, presupuesto propio). */
   reservarTurnoTienda(p: ReservaTienda): ResultadoReservaTienda {
     return this.tienda.reservar(p, Date.now());
+  }
+
+  /** Andrés: aparta una nota de voz (su tope por sesión más los de un mensaje y el presupuesto). Se cierra con `cerrarTurnoTienda`. */
+  reservarVozTienda(p: ReservaVozTienda): ResultadoReservaVozTienda {
+    return this.tienda.reservarVoz(p, Date.now());
+  }
+
+  /** Brian del panel: aparta una nota de voz (tope por usuario y por día, techo del mes). El gasto se anota con `registrarGasto`. */
+  reservarVozPanel(p: ReservaVozPanel): ResultadoReservaVozPanel {
+    return this.almacen.reservarVozPanel(p, Date.now());
   }
 
   /** Brian de la tienda: suelta lo apartado y anota lo que costó, en su propia tabla. */

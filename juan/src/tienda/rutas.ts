@@ -1,4 +1,5 @@
 // `POST /tienda/v1/mensaje` (y su `OPTIONS`): el chat de «Brian de la tienda» en dcasapty.com (contrato §2; docs/JUAN.md).
+// `POST /tienda/v1/voz` (y `GET`, `OPTIONS`): sus notas de voz, con el mismo CORS y el mismo pase; el resto en tienda/voz.ts.
 //
 // El navegador habla directo con este Worker (no a través de Odoo: una respuesta de IA tarda de 3 a 20 s y no debe ocupar un hilo de
 // Odoo). Aquí: CORS (solo los orígenes permitidos), el pase de Odoo (firma, vencimiento y `sid`; su red no se compara) y el cuerpo.
@@ -13,6 +14,7 @@ import type { DepsRutas } from "../rutas";
 import type { EntradaTienda, MotivoTienda, SalidaTienda } from "./motor";
 import { llaveDeRed, llaveDeRed48, verificarPase } from "./pase";
 import { validarPeticionTienda } from "./peticion";
+import { atenderVozTienda, disponibilidadDeLaVoz, RUTA_DE_LA_VOZ, type DepsVozTienda } from "./voz";
 
 export const RUTA_DEL_MENSAJE = "/tienda/v1/mensaje";
 /** El cuerpo más grande que se lee: 500 letras de texto más el carrito y la página caben de sobra. */
@@ -26,6 +28,8 @@ export interface SesionTiendaApi {
 
 export interface DepsRutaTienda {
   sesion?(sid: string): SesionTiendaApi;
+  /** Las notas de voz (`/tienda/v1/voz`, tienda/voz.ts): el contador `Global` y el plazo, para las pruebas. */
+  voz?: DepsVozTienda;
 }
 
 /** Los orígenes permitidos: los de Odoo si llegan a tiempo; si no, los de fábrica (un preflight no espera a que Odoo despierte). */
@@ -41,10 +45,10 @@ async function origenesPermitidos(d: Pick<DepsRutas, "config">): Promise<readonl
   }
 }
 
-function cabecerasCors(origen: string): Record<string, string> {
+function cabecerasCors(origen: string, metodos = "POST, OPTIONS"): Record<string, string> {
   return {
     "access-control-allow-origin": origen,
-    "access-control-allow-methods": "POST, OPTIONS",
+    "access-control-allow-methods": metodos,
     "access-control-allow-headers": "authorization, content-type",
     "access-control-expose-headers": "retry-after",
     "access-control-max-age": "600",
@@ -52,26 +56,47 @@ function cabecerasCors(origen: string): Record<string, string> {
   };
 }
 
-function responder(cuerpo: unknown, status: number, origen: string | null, extra: Record<string, string> = {}): Response {
+function responder(cuerpo: unknown, status: number, origen: string | null, extra: Record<string, string> = {}, metodos?: string): Response {
   return new Response(JSON.stringify(cuerpo), {
     status,
-    headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff", ...(origen ? cabecerasCors(origen) : { vary: "Origin" }), ...extra },
+    headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff", ...(origen ? cabecerasCors(origen, metodos) : { vary: "Origin" }), ...extra },
   });
 }
 
 const error = (motivo: MotivoTienda, status: number, origen: string | null, extra: Record<string, string> = {}) => responder({ ok: false, motivo }, status, origen, extra);
 
-export async function manejarTienda(ruta: string, req: Request, env: Env, d: Pick<DepsRutas, "config" | "ahora">, deps: DepsRutaTienda = {}): Promise<Response> {
-  if (ruta !== RUTA_DEL_MENSAJE) return new Response("no encontrado", { status: 404 });
+export async function manejarTienda(ruta: string, req: Request, env: Env, d: Pick<DepsRutas, "config" | "ahora"> & Partial<Pick<DepsRutas, "esperarDespues">>, deps: DepsRutaTienda = {}): Promise<Response> {
+  const esVoz = ruta === RUTA_DE_LA_VOZ;
+  if (ruta !== RUTA_DEL_MENSAJE && !esVoz) return new Response("no encontrado", { status: 404 });
   const origen = req.headers.get("origin");
   const permitidos = await origenesPermitidos(d);
   // Solo desde la tienda: otro origen (o sin `Origin`) no recibe ni las cabeceras CORS.
   if (!origen || !permitidos.includes(origen.toLowerCase())) return new Response("origen no permitido", { status: 403, headers: { vary: "Origin", "cache-control": "no-store" } });
-  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: { ...cabecerasCors(origen), "cache-control": "no-store" } });
-  if (req.method !== "POST") return responder({ ok: false, motivo: "fallo" }, 405, origen, { allow: "POST, OPTIONS" });
+  const metodos = esVoz ? "GET, POST, OPTIONS" : "POST, OPTIONS";
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: { ...cabecerasCors(origen, metodos), "cache-control": "no-store" } });
+  // ¿Se muestra el micrófono? Sin pase: solo dice si está disponible y los topes de la nota.
+  if (esVoz && req.method === "GET") return responder(await disponibilidadDeLaVoz(env, d.config), 200, origen, {}, metodos);
+  if (req.method !== "POST") return responder({ ok: false, motivo: "fallo" }, 405, origen, { allow: metodos }, metodos);
 
   const verificado = await verificarPase(env.JUAN_WORKER_TOKEN, req.headers.get("authorization"), d.ahora());
-  if (!verificado.ok) return error("pase", 401, origen);
+  if (!verificado.ok) return responder({ ok: false, motivo: "pase" }, 401, origen, {}, metodos);
+  if (esVoz) {
+    try {
+      return await atenderVozTienda({
+        req,
+        env,
+        config: d.config,
+        ahora: d.ahora,
+        sid: verificado.pase.sid,
+        responder: (cuerpo, status, extra = {}) => responder(cuerpo, status, origen, extra, metodos),
+        esperarDespues: d.esperarDespues,
+        deps: deps.voz,
+      });
+    } catch (e) {
+      console.error("[juan] tienda voz:", e instanceof Error ? e.name : "error");
+      return responder({ ok: false, motivo: "fallo" }, 502, origen, {}, metodos);
+    }
+  }
 
   const largo = Number(req.headers.get("content-length") ?? 0);
   if (largo > MAX_CUERPO) return error("fallo", 400, origen);

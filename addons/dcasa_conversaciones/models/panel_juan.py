@@ -59,7 +59,9 @@ def guardar_foto(cr, fecha, acumulado, uid, cuando):
 
 # Lo que cobra Cloudflare (Workers AI), aparte de Meta: «Busca con una foto» lo anota como
 # ``cloudflare:lector-de-fotos`` (juan/src/odoo-panel-buscar-foto.ts); un modelo de Workers AI se llama ``@cf/…``.
-NOMBRES_DE_CLOUDFLARE = {'cloudflare:lector-de-fotos': 'Cloudflare: lector de fotos'}
+NOMBRES_DE_CLOUDFLARE = {'cloudflare:lector-de-fotos': 'Cloudflare: lector de fotos',
+                         # Las notas de voz de Brian del panel (juan/src/odoo-panel-voz.ts): Whisper de Workers AI.
+                         'cloudflare:notas-de-voz-del-panel': 'Cloudflare: notas de voz del panel'}
 
 
 def es_de_cloudflare(modelo):

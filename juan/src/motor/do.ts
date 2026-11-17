@@ -6,11 +6,13 @@ import { DurableObject } from "cloudflare:workers";
 import { adaptadorDe } from "../canales";
 import type { Entrante } from "../canales/tipos";
 import type { Env } from "../env";
+import { mesDelNegocio } from "../config";
 import { obtenerConfig, obtenerHerramientas, odooDe } from "../odoo/fabrica";
 import { MotorConversacion, type DepsMotor, type GlobalApi, type NotaDeRespuestaAComentario, type SolicitudEnviar, type SolicitudSeguimiento } from "./conversacion";
 import { fabricaDeProduccion, proveedoresConClave } from "./proveedores";
+import { USO_VACIO } from "./precios";
 import { sqlDeDurableObject } from "./sql";
-import { transcriptorDe } from "./transcribir";
+import { CONCEPTO_VOZ_WHATSAPP, transcriptorDe } from "./transcribir";
 import { lectorDeImagenes } from "./vision";
 import { TOPE_DIARIO_POR_DEFECTO } from "./antispam";
 
@@ -53,7 +55,11 @@ export function depsDeProduccion(ctx: DurableObjectState, env: Env): DepsMotor {
     urlPublica: env.URL_PUBLICA || undefined,
     urlSitio: env.URL_SITIO || undefined,
     secretoDeMedios: env.JUAN_WORKER_TOKEN,
-    transcribir: transcriptorDe(env),
+    // Lo que cobra Cloudflare por cada nota, en su propio renglón de Costos de IA (aparte del gasto de Juan y de «Por pagar a Meta»).
+    transcribir: transcriptorDe(env, async (usd, estimado) => {
+      const cfg = await obtenerConfig(env);
+      await globalDe(env).registrarGasto(mesDelNegocio(cfg.horario.zona, Date.now()), CONCEPTO_VOZ_WHATSAPP, USO_VACIO, usd, estimado);
+    }),
     mirarImagen: lectorDeImagenes(env),
     // La conversación de otro id (la respuesta privada a un comentario que Meta entregó a otro id: motor → `avisarAlOtroDestinatario`).
     conversacion: (canal, id) => env.CONVERSACION.get(env.CONVERSACION.idFromName(`${canal}:${id}`)) as unknown as { anotarRespuestaDeComentario(n: NotaDeRespuestaAComentario): Promise<unknown> },

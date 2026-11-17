@@ -305,3 +305,26 @@ class ProductPricelistItem(models.Model):
         resultado = super().unlink()
         _marcar(self.env, [0], 'tarifa')
         return resultado
+
+
+class DcasaPortadaDiapositiva(models.Model):
+    """El carrusel de la portada (website_dcasa, models/portada.py): elegir, quitar o reordenar sus productos cambia el
+    HTML de la portada que guarda el borde."""
+    _inherit = 'dcasa.portada.diapositiva'
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        registros = super().create(vals_list)
+        _marcar(self.env, [0], 'carrusel de la portada')
+        return registros
+
+    def write(self, vals):
+        resultado = super().write(vals)
+        if {'product_tmpl_id', 'sequence', 'website_id'} & set(vals):
+            _marcar(self.env, [0], 'carrusel de la portada')
+        return resultado
+
+    def unlink(self):
+        resultado = super().unlink()
+        _marcar(self.env, [0], 'carrusel de la portada')
+        return resultado

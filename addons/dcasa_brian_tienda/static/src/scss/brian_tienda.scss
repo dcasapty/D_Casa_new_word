@@ -532,15 +532,15 @@ html.o_dcasa_refraccion .o_dcbt_cab::before {
     }
 }
 
+// La vitrina (A5, pedido de la dueña, 2026-11-16: «lo viejo y lo nuevo juntos le hace ruido»): arriba «En tu carrito»;
+// después un grupo plegable por cada pedido, el más reciente primero; «Lo más buscado» cuando todavía no hay nada.
 .o_dcbt_vitrina_grid {
     flex: 1;
     min-height: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    grid-auto-rows: max-content;
-    align-content: start;
+    display: flex;
+    flex-direction: column;
     gap: 14px;
     padding: 4px 18px 18px;
 
@@ -554,12 +554,138 @@ html.o_dcasa_refraccion .o_dcbt_cab::before {
     }
 }
 
+.o_dcbt_rejilla {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    grid-auto-rows: max-content;
+    align-content: start;
+    gap: 14px;
+}
+
+.o_dcbt_seccion_sugeridos {
+    display: grid;
+    gap: 12px;
+}
+
+.o_dcbt_seccion_carrito {
+    padding: 12px 14px 4px;
+    border: 1px solid var(--o-dcbt-azul-200);
+    border-radius: 14px;
+    background: var(--o-dcbt-azul-50);
+
+    .o_dcbt_linea_carrito,
+    .o_dcbt_linea_envio {
+        border-bottom-color: var(--o-dcbt-azul-200);
+    }
+}
+
+.o_dcbt_seccion_titulo {
+    margin: 0 0 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font: 400 20px/1.1 var(--o-dcbt-f-titulo);
+    letter-spacing: .02em;
+    text-transform: uppercase;
+    color: var(--o-dcbt-navy);
+
+    svg {
+        width: 20px;
+        height: 20px;
+        color: var(--o-dcbt-azul);
+    }
+}
+
+.o_dcbt_vitrina_lineas {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 10px 22px;
+}
+
+.o_dcbt_seccion_carrito .o_dcbt_vitrina_lineas > :last-child {
+    border-bottom: 0;
+}
+
+.o_dcbt_grupo {
+    border-top: 1px solid var(--o-dcbt-linea);
+    padding-top: 6px;
+
+    &[open] > .o_dcbt_rejilla {
+        margin-top: 8px;
+    }
+
+    &[open] .o_dcbt_grupo_flecha {
+        transform: rotate(180deg);
+    }
+}
+
+.o_dcbt_grupo_cab {
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 44px;
+    cursor: pointer;
+    border-radius: 10px;
+
+    &::-webkit-details-marker,
+    &::marker {
+        display: none;
+        content: '';
+    }
+
+    &:hover .o_dcbt_grupo_titulo {
+        color: var(--o-dcbt-azul-osc);
+    }
+}
+
+.o_dcbt_grupo_titulo {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font: 400 22px/1.1 var(--o-dcbt-f-titulo);
+    letter-spacing: .02em;
+    text-transform: uppercase;
+    color: var(--o-dcbt-azul);
+}
+
+.o_dcbt_grupo_cuenta {
+    flex: none;
+    font: 500 12px/1.2 var(--o-dcbt-f-sub);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--o-dcbt-gris);
+}
+
+.o_dcbt_grupo_flecha {
+    margin-left: auto;
+    flex: none;
+    color: var(--o-dcbt-azul);
+    transition: transform .2s ease;
+
+    svg {
+        width: 22px;
+        height: 22px;
+    }
+}
+
 @media (max-width: 767.98px) {
     .o_dcbt_vitrina_grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 10px;
         padding: 4px 12px 16px;
+    }
 
+    .o_dcbt_rejilla {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .o_dcbt_grupo_titulo {
+        font-size: 19px;
+    }
+
+    .o_dcbt_vitrina_grid {
         .o_dcbt_paso button {
             width: 30px;
         }
@@ -610,6 +736,13 @@ html.o_dcasa_refraccion .o_dcbt_cab::before {
         font-weight: 600;
         font-size: 12px;
         color: var(--o-dcbt-navy);
+    }
+}
+
+// En la computadora, con la barra del carrito a la vista (A1), el pie de la vitrina diría lo mismo dos veces.
+@media (min-width: 768px) {
+    .o_dcbt_con_barra .o_dcbt_vitrina_pie {
+        display: none;
     }
 }
 
@@ -1484,6 +1617,243 @@ html.o_dcasa_refraccion .o_dcbt_cab::before {
     background: var(--o-dcbt-blanco);
 }
 
+// ---------------------------------------------------------------------------
+// A1. La barra del carrito, fija encima del campo de texto, y la hoja con el carrito editable (pedido de la dueña,
+// 2026-11-16: «el carrito y el botón se van para arriba»). Azul y navy sobre blanco; la cantidad, azul con número blanco
+// (como la del menú del sitio); el amarillo no se usa aquí.
+// ---------------------------------------------------------------------------
+
+.o_dcbt_barra {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    background: var(--o-dcbt-blanco);
+    border-top: 1px solid var(--o-dcbt-linea);
+}
+
+.o_dcbt_barra_ver {
+    flex: 1;
+    min-width: 0;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 4px 4px 4px;
+    border: 1px solid var(--o-dcbt-azul-200);
+    border-radius: 12px;
+    background: var(--o-dcbt-azul-50);
+    color: var(--o-dcbt-navy);
+    text-align: left;
+    transition: background-color .15s ease, border-color .15s ease;
+
+    &:hover,
+    &[aria-expanded="true"] {
+        border-color: var(--o-dcbt-azul);
+    }
+}
+
+.o_dcbt_barra_ico {
+    position: relative;
+    flex: none;
+    width: 36px;
+    height: 36px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--o-dcbt-blanco);
+    color: var(--o-dcbt-azul);
+
+    svg {
+        width: 22px;
+        height: 22px;
+    }
+}
+
+.o_dcbt_barra_cuenta {
+    position: absolute;
+    top: -3px;
+    right: -6px;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: var(--o-dcbt-azul);
+    color: var(--o-dcbt-blanco);
+    box-shadow: 0 0 0 2px var(--o-dcbt-blanco);
+    font: 700 12px/20px var(--o-dcbt-f-texto);
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+}
+
+.o_dcbt_barra_textos {
+    flex: 1;
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+    padding-left: 4px;   // la cantidad del carrito asoma por la derecha del círculo: que no toque el texto
+}
+
+.o_dcbt_barra_linea {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font: 500 12px/1.2 var(--o-dcbt-f-sub);
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--o-dcbt-gris);
+}
+
+// «Ver» con su flecha, a la derecha: siempre a la vista aunque el texto de la izquierda se recorte.
+.o_dcbt_barra_accion {
+    flex: none;
+    display: grid;
+    justify-items: center;
+    gap: 0;
+    min-width: 36px;
+    font: 600 11px/1.1 var(--o-dcbt-f-sub);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--o-dcbt-azul);
+
+    svg {
+        width: 20px;
+        height: 20px;
+    }
+}
+
+.o_dcbt_barra_total {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-variant-numeric: tabular-nums;
+
+    strong {
+        font: 600 17px/1.15 var(--o-dcbt-f-sub);
+        color: var(--o-dcbt-azul);
+    }
+
+    small {
+        font-weight: 600;
+        font-size: 12px;
+        color: var(--o-dcbt-navy);
+    }
+}
+
+.o_dcbt_barra_pdf {
+    flex: none;
+    min-height: 48px;
+    gap: 6px;
+    padding: 0 11px;
+    border-radius: 12px;
+}
+
+@media (max-width: 380px) {
+    .o_dcbt_barra {
+        gap: 6px;
+        padding: 8px;
+    }
+
+    .o_dcbt_barra_pdf {
+        padding: 0 10px;
+        font-size: 13px;
+    }
+
+    .o_dcbt_barra_total strong {
+        font-size: 16px;
+    }
+}
+
+.o_dcbt_hoja {
+    position: absolute;
+    z-index: 3;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    max-height: calc(100% - 12px);
+    display: flex;
+    flex-direction: column;
+    background: var(--o-dcbt-blanco);
+    border: 1px solid var(--o-dcbt-linea);
+    border-bottom: 0;
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -6px 18px rgba(14, 42, 107, .12);
+}
+
+.o_dcbt_hoja_cab {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 4px 2px 16px;
+
+    h3 {
+        margin: 0;
+        font: 400 20px/1.1 var(--o-dcbt-f-titulo);
+        letter-spacing: .02em;
+        text-transform: uppercase;
+        color: var(--o-dcbt-navy);
+    }
+}
+
+.o_dcbt_hoja_cuerpo {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    display: grid;
+    gap: 10px;
+    padding: 4px 16px 16px;
+}
+
+// El envío y su promoción en el carrito (A2): de Odoo, sin controles.
+.o_dcbt_linea_envio {
+    display: grid;
+    grid-template-columns: 20px minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--o-dcbt-linea);
+    font-size: 13px;
+    color: var(--o-dcbt-tinta);
+
+    p {
+        margin: 0;
+        line-height: 1.3;
+    }
+
+    svg {
+        width: 18px;
+        height: 18px;
+        color: var(--o-dcbt-azul);
+    }
+}
+
+.o_dcbt_linea_promo .o_dcbt_linea_precio {
+    color: var(--o-dcbt-ok);
+}
+
+.o_dcbt_carrito_desglose {
+    margin: -4px 0 0;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 2px 12px;
+    font-size: 13px;
+    color: var(--o-dcbt-gris);
+    font-variant-numeric: tabular-nums;
+
+    dt {
+        font-weight: 400;
+    }
+
+    dd {
+        margin: 0;
+        text-align: right;
+        color: var(--o-dcbt-navy);
+        font-weight: 600;
+    }
+}
+
 .o_dcbt_composer {
     flex: none;
     display: flex;
@@ -1571,6 +1941,179 @@ html.o_dcasa_refraccion .o_dcbt_cab::before {
 
     &:not(:disabled):hover {
         background: var(--o-dcbt-azul-osc);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Notas de voz (docs/JUAN.md §12a): el micrófono junto a «Enviar» (azul sobre blanco, «Enviar» sigue siendo el botón
+// lleno) y, mientras graba, en el mismo renglón: el punto rojo con la palabra «Grabando» (el color nunca es la única
+// señal), el tiempo, la barra del minuto en azul, cancelar y «Listo». Plano, sin el amarillo. Debajo del campo, una vez
+// por sesión, «Si prefieres, mándame una nota de voz».
+// ---------------------------------------------------------------------------
+
+.o_dcbt_composer {
+    flex-wrap: wrap;
+    row-gap: 4px;
+
+    textarea {
+        flex: 1 1 0%;
+    }
+}
+
+.o_dcbt_voz {
+    flex: none;
+    width: 48px;
+    height: 48px;
+    padding: 0;
+    border: 1.5px solid var(--o-dcbt-azul-200);
+    border-radius: 50%;
+    background: var(--o-dcbt-blanco);
+    color: var(--o-dcbt-azul);
+    display: grid;
+    place-items: center;
+    transition: background-color .15s ease, border-color .15s ease;
+
+    svg {
+        width: 22px;
+        height: 22px;
+    }
+
+    &:hover {
+        border-color: var(--o-dcbt-azul);
+        background: var(--o-dcbt-azul-50);
+    }
+}
+
+.o_dcbt_voz_grabando {
+    flex: 1 1 0%;
+    min-width: 0;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-left: 8px;
+}
+
+.o_dcbt_voz_punto {
+    flex: none;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--o-dcbt-gris-claro);
+}
+
+.o_dcbt_voz_grabando[data-estado="grabando"] .o_dcbt_voz_punto {
+    background: var(--o-dcbt-error);
+    animation: o_dcbt_voz_latido 1.2s ease-in-out infinite;
+}
+
+@keyframes o_dcbt_voz_latido {
+    50% {
+        opacity: .35;
+    }
+}
+
+.o_dcbt_voz_estado {
+    flex: none;
+    font: 600 14px/1.2 var(--o-dcbt-f-texto);
+    color: var(--o-dcbt-navy);
+    white-space: nowrap;
+}
+
+.o_dcbt_voz_tiempo {
+    flex: none;
+    font-size: 13px;
+    color: var(--o-dcbt-gris);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.o_dcbt_voz_barra {
+    flex: 1;
+    min-width: 12px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--o-dcbt-linea);
+    overflow: hidden;
+
+    > span {
+        display: block;
+        width: 0;
+        height: 100%;
+        background: var(--o-dcbt-azul);
+        transition: width .25s linear;
+    }
+}
+
+.o_dcbt_voz_cancelar {
+    flex: none;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--o-dcbt-tinta);
+    display: grid;
+    place-items: center;
+
+    svg {
+        width: 20px;
+        height: 20px;
+    }
+
+    &:not(:disabled):hover {
+        background: var(--o-dcbt-niebla);
+    }
+
+    &:disabled {
+        opacity: .4;
+        cursor: default;
+    }
+}
+
+.o_dcbt_voz_listo svg {
+    margin-left: 0;
+}
+
+.o_dcbt_voz_girando {
+    width: 20px;
+    height: 20px;
+    border: 2.5px solid rgba(255, 255, 255, .45);
+    border-top-color: var(--o-dcbt-blanco);
+    border-radius: 50%;
+    animation: o_dcbt_voz_gira .8s linear infinite;
+}
+
+@keyframes o_dcbt_voz_gira {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.o_dcbt_voz_pista {
+    flex: 0 0 100%;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    padding: 0 6px 0 16px;
+    font-size: 12.5px;
+    line-height: 1.3;
+    color: var(--o-dcbt-gris);
+
+    svg {
+        flex: none;
+        width: 15px;
+        height: 15px;
+        color: var(--o-dcbt-azul);
+    }
+}
+
+@media (max-width: 380px) {
+    .o_dcbt_voz_grabando {
+        gap: 8px;
+        padding-left: 4px;
     }
 }
 

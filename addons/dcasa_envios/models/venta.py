@@ -318,6 +318,44 @@ class SaleOrder(models.Model):
                                 dia=motor_promocion.prometido_hasta(guardados).strftime('%d/%m/%Y'), porque=porque)
         return envio, resultado, None, porque
 
+    def _dcasa_promocion_si_la_compra_cambia(self, sin_itbms=0.0, con_itbms=0.0):
+        """La promoción del envío de esta cotización si la compra subiera o bajara (dinero, no centavos; negativo =
+        baja): ``(resultado, ahorro)``. ``resultado`` es ``None`` si la cotización no tiene un envío a domicilio del
+        sistema que pueda llevar promoción; ``ahorro`` es lo que el cliente DEJA DE PAGAR por el envío, con los
+        impuestos que lleve la línea (``0.0`` si no aplica).
+
+        Van las dos cifras porque la promoción puede medir con ITBMS o sin él (``mide``) y una misma línea no mueve
+        igual las dos: la del premio de Socios, por ejemplo, rebaja la base sin impuesto y el valor entero con él.
+
+        Mide igual que ``_dcasa_promocion_revisar`` (lo prometido si los términos guardados siguen valiendo, la
+        promoción de hoy si no), pero sin tocar nada: sirve para preguntar «¿y si la compra fuera otra?» antes de
+        cambiarla. Lo usa Socios para saber qué le costaría al socio un premio de puntos en el envío."""
+        self.ensure_one()
+        envios = self.order_line.filtered(lambda linea: linea.dcasa_envio_lugar_id and not linea.display_type)
+        envio = envios[:1]
+        if len(envios) != 1 or not envio._dcasa_envio_a_domicilio_del_sistema():
+            return None, 0.0
+        moneda = self.currency_id or self.company_id.currency_id
+        compra = self._dcasa_envio_compra()
+        if sin_itbms or con_itbms:
+            compra = dict(compra,
+                          subtotal_sin_itbms=moneda.round(compra['subtotal_sin_itbms'] + sin_itbms),
+                          subtotal_con_itbms=moneda.round(compra['subtotal_con_itbms'] + con_itbms))
+        guardados = self.order_line.filtered('dcasa_promocion_terminos')[:1].dcasa_promocion_terminos
+        if guardados and not self._dcasa_promocion_vencida(guardados):
+            resultado = motor_promocion.con_lo_prometido(guardados, envio.price_unit, compra)
+        else:
+            resultado = self._dcasa_promocion_calcular(envio, compra)[0]
+        ahorro = resultado['ahorro'] if resultado.get('aplica') else 0.0
+        if ahorro > 0 and envio.tax_ids:
+            # Lo que el cliente DEJA DE PAGAR, no la base: la línea de la promoción lleva los impuestos del envío
+            # (``_dcasa_promocion_crear``). Quien compara esto con el valor de un premio (que va con ITBMS) tiene que
+            # comparar peras con peras; hoy el producto del transportista va sin impuestos, pero puede cambiar y una
+            # posición fiscal puede mapearlos (revisión adversarial, 2026-11-17).
+            ahorro = envio.tax_ids._get_tax_details(ahorro, 1.0)['total_included']
+        ahorro = moneda.round(ahorro)
+        return resultado, (ahorro if ahorro > 0 else 0.0)
+
     def _dcasa_promocion_porque_no(self, resultado):
         motivo = resultado['motivo']
         if motivo == motor_promocion.MONTO:
@@ -443,6 +481,30 @@ class SaleOrder(models.Model):
             if original.order_line.filtered('dcasa_promocion_envio_id'):
                 copia._dcasa_promocion_reponer()
         return copias
+
+    def _dcasa_promocion_volver_a_ofrecer(self):
+        """Vuelve a poner la promoción del envío (la de HOY, con la compra de ahora) en una cotización abierta que no
+        la tiene y que vuelve a dar para ella. Devuelve ``True`` si la puso.
+
+        Hace falta porque ``_dcasa_promocion_sincronizar`` solo QUITA o pone al día una línea que ya está: nunca
+        repone una que quitó, ya que la promoción se ofrece al sumar el envío y no se regala sola. Esto es para quien
+        sí sabe que la bajada de la compra se deshizo. Hoy lo usa Socios cuando le devuelve al socio un premio que le
+        había costado la promoción: sin esto, el socio se quedaba sin puntos Y sin envío gratis."""
+        self.ensure_one()
+        if self.state not in ESTADOS_EDITABLES or self.locked \
+                or self.order_line.filtered('dcasa_promocion_envio_id'):
+            return False
+        envios = self.order_line.filtered(lambda linea: linea.dcasa_envio_lugar_id and not linea.display_type)
+        if len(envios) != 1 or not envios._dcasa_envio_a_domicilio_del_sistema():
+            return False
+        resultado, terminos = self._dcasa_promocion_calcular(envios)
+        if not terminos:
+            return False
+        self._dcasa_promocion_crear(envios, resultado, terminos)
+        self._dcasa_promocion_nota(self.env._(
+            'La promoción de envío se volvió a poner: la compra vuelve a pasar del mínimo (−%s).',
+            dinero(resultado['ahorro'])))
+        return True
 
     def _dcasa_promocion_reponer(self):
         """En la copia de una cotización que tenía la promoción del envío: se vuelve a calcular con la promoción de hoy

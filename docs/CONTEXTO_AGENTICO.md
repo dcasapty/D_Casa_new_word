@@ -470,6 +470,18 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   burbuja de Brian cambia de pose con la sección en pantalla (solo JS de `dcasa_brian_tienda`; Juan no cambió, así que
   no hubo Desplegar Juan). **Lección:** el primer intento de squash dio 409 porque escribí de memoria el SHA largo de
   `expectedHeadSha`; siempre `git rev-parse` antes, nunca completar un SHA a ojo. Bien al segundo intento, sin daño.
+- **Desplegar 77** (16 nov, 13:01–13:2x UTC; salud sana: `{"ok": true, "version": "26b357d3bd51", "base_al_dia":
+  true, "humo": "ok"}`; run 43871897257) · PR #126, squash `a904ec65`, `app_version`
+  `26b357d3bd51d1e64b5fa51fcdbba8cda2cc4280`, imagen
+  `sha256:ebc046c979058cb9d354a4a25179196a356a068b61e989e94c5d5e910894b742`, CI 371 con staging (run 43861779415).
+  El Black Friday: la campaña del sitio, los combos inamovibles con la regla del par y el chat de la web como Andrés;
+  con respaldo previo. **Juan 28 ANTES que Odoo** (el saludo «Hola, soy Andrés» vive en `juan/src/tienda/prompt.ts`;
+  el de la página, en `brian_tienda.js`). Bien al primer intento. **Lecciones:** (1) el paso «Esperar a que el sitio
+  esté sano» del despliegue a staging tardó 16 minutos **después** de que staging ya respondía con la versión nueva
+  (son los 600 s de vigilancia más las vueltas): no hay que darlo por colgado ni relanzar nada. (2) La API de Actions
+  devuelve el estado de una ejecución **cacheado** varios minutos (`updated_at` se queda quieto): para saber si un
+  despliegue terminó, mirar `/dcasa/salud` del sitio, no solo el estado del job. (3) Abrir el PR dispara otro CI
+  aunque el título lleve `[skip ci]` (eso solo vale para los push): cancelarlo, como dice la receta.
 - **Desplegar 76** (15 nov, 19:48–20:0x UTC; salud sana: `{"ok": true, "version": "754aceaf18e7", "base_al_dia":
   true, "humo": "ok"}`; run 43754485392) · PR #122, squash `b012494`, `app_version`
   `754aceaf18e7ed66ef1e69ec59a2ab5351a80574`, imagen `sha256:1cfb8e4f226604186ee8298d4c37dd5651a248f96c94119db3ee820b8b033207`,
@@ -726,6 +738,90 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 ## Trampas de Odoo 19 / Cloudflare / GitHub ya conocidas
 
 ### Esta máquina (sesiones de Claude)
+
+- **La línea del premio de Socios no baja la compra por su valor de cara** (2026-11-17): rebaja la BASE sin
+  impuesto y el ITBMS va encima (base + ITBMS = el valor del premio). Un premio de $10 baja la compra medida sin
+  ITBMS en **$9.35**, no en $10. Medir las dos cosas por igual se equivoca por el impuesto: el aviso al socio dice
+  una cifra que no es y el bloqueo salta en el borde equivocado. La cuenta vive en un solo sitio
+  (`dcasa.canje._dcasa_impuestos_y_base`) justo para que quien crea la línea y quien pregunta «¿cuánto bajaría la
+  compra?» no se separen. El mismo error al revés: el ahorro de la promoción de envío es una BASE y el valor del
+  premio va con ITBMS, así que al compararlos hay que subir el ahorro con los impuestos de la línea del envío (hoy va
+  sin ellos, pero `_dcasa_envio_lleva_itbms()` existe porque puede cambiar).
+
+- **`_dcasa_promocion_sincronizar` solo quita, nunca repone** (2026-11-17): si la compra baja del mínimo, borra la
+  línea de la promoción **y con ella los términos guardados**. Deshacer la bajada no la trae de vuelta, porque la
+  promoción se ofrece al sumar el envío. Quien deshaga una bajada (p. ej. devolver un premio) tiene que llamar
+  `_dcasa_promocion_volver_a_ofrecer()` a mano, o deja al cliente sin el descuento Y sin el beneficio. Y lo que eran
+  términos ya prometidos de una promoción vencida o cambiada no vuelve nunca: se fue con la línea.
+
+- **Una guarda de dinero puesta solo en el camino web deja el mostrador abierto** (2026-11-17, segunda vez que pasa):
+  los premios entran por `_dcasa_usar_puntos_web` (carrito) y por el asistente «Cobrar premio» (mostrador), y el
+  único punto común es `dcasa.canje._aplicar_en_venta`. La guarda del total negativo ya se había tenido que mover
+  ahí por lo mismo. Regla: toda guarda de dinero sobre un premio va en `_aplicar_en_venta`; la del carrito se queda
+  además, para avisar **antes** de reservar los puntos.
+
+- **Diez «fallas» del QR de los documentos son una librería que falta en el entorno virtual, no código**
+  (2026-11-17). En una batería local, `dcasa_invoice` (`TestQrDocumentos`, `TestNotaDeEntregaFacil`,
+  `TestDocumentosIntactos`) y `dcasa_fe_pa` (`TestFlujoSimulado`) dieron 10 errores, todos con el mismo fondo:
+  `ModuleNotFoundError: rlPyCairo` / `_rl_renderPM` desde `reportlab/graphics/renderPM.py`. Es el dibujo del QR.
+  En el servidor de GitHub están y pasan (el job de la imagen Docker incluso comprueba que la factura en PDF sale con
+  el diseño de D'CASA). O sea: antes de ponerse a arreglar, mirar si el error es un `ModuleNotFoundError`; si lo es,
+  no es del cambio.
+
+- **Una copia de trabajo de git (`git worktree`) NO trae el submódulo `vendor/odoo`** (2026-11-17): la batería muere
+  al instante con `can't open file '.../solo/vendor/odoo/odoo-bin'`. No hay que clonar el submódulo otra vez: se
+  corre con `ODOO_DIR=/home/user/D_Casa_new_word/vendor/odoo` apuntando al del repositorio principal, después de
+  comprobar que el SHA del submódulo es el mismo en las dos ramas.
+
+- **Para contar cuántas fotos se ven en un carrusel hay que pararlo primero** (2026-11-17): con 0,4 s entre fotos y
+  1,8 s de fundido siempre hay dos a medio camino, así que la prueba daba «2 != 1» sin que nada estuviera roto. La
+  receta: acortar el tiempo para provocar el cambio, luego alargarlo (`--vitrina-tiempo: 600s`), dejar terminar el
+  fundido y recién ahí contar.
+
+- **La primera foto del carrusel cambia a los 6,5 s de verdad, aunque la prueba acorte el tiempo después**
+  (2026-11-17): el primer cambio ya quedó programado con el valor real antes de que la prueba toque
+  `--vitrina-tiempo`, así que hay que esperar al menos ese tiempo (240 × 50 ms) o la prueba falla con «no cambió».
+  Lo mismo al revés: la prueba de «movimiento reducido» solo prueba algo si espera MÁS de 6,5 s.
+
+- **En el arnés del contrato visual las animaciones están congeladas: no se puede medir el zoom ahí** (2026-11-17).
+  Ese arnés corre con `prefers-reduced-motion: reduce` e inyecta `*, *::before, *::after { animation: none
+  !important; }`, así que medir `animationName` solo comprueba la congelación. El zoom se verifica en
+  `TestCarruselPortada`, en un Chrome normal.
+
+- **Las tres pruebas de `dcasa_guia` que «fallan en local» pasan si se instala `dcasa_nomina`** (2026-11-17). La
+  tarea «planilla» de la Guía es de nómina: sin ese módulo, la búsqueda no la encuentra y tres pruebas fallan. No es
+  una falla real ni hace falta saltarlas: basta sumar `dcasa_nomina` a la lista de módulos de `scripts/test.sh`. Con
+  eso, la batería de la segunda entrega dio 3547 pruebas y 0 fallas.
+
+- **El servidor de GitHub de la sesión vuelve solo cuando el proceso se reinicia** (2026-11-16): tras una hora de
+  «invalid session» en todas las herramientas `mcp__github__*`, el reinicio del proceso de la sesión lo reconectó y
+  volvió a funcionar. Mientras tanto, `git push` seguía sirviendo. O sea: no hay que rehacer ramas ni buscar atajos;
+  se sigue trabajando y subiendo con git, y se reintenta cada tanto.
+
+- **Las pruebas del navegador fallan por carrera cuando la máquina está cargada** (2026-11-16):
+  `dcasa_brian_tienda:TestNotaDeVoz.test_el_tope_lo_recortado_y_los_errores_amables` falló en una batería de 1629
+  pruebas («1 != 0»: el mensaje de la parte anterior llegó al Worker simulado DESPUÉS de contarlos) y pasó sola, 5 de
+  5, en la misma máquina y el mismo código. Antes de dar por mala una prueba del navegador en una batería larga,
+  correrla sola. La prueba cuenta lo que llegó al Worker justo después de un envío: si se vuelve a repetir, hay que
+  esperar a que llegue en vez de contar enseguida.
+
+- **El servidor de GitHub de la sesión puede morirse y no vuelve** (2026-11-16): justo después de que la dueña
+  reconectara la cuenta de GitHub, todas las herramientas `mcp__github__*` empezaron a contestar «invalid session» y
+  siguieron así el resto de la sesión (se reintentó una docena de veces en una hora). `git push` **sí** seguía
+  funcionando (usa otro camino). Consecuencia: no se pueden lanzar los flujos de Actions, o sea **no se puede
+  desplegar**, aunque todo esté probado. El `gh` de la máquina tampoco sirve de salida: su `GH_TOKEN` es inválido.
+  Qué hacer: subir todo a las ramas con `git push` (eso no se pierde), dejar escrito en PRIORIDADES qué rama y qué
+  commit hay que desplegar, y que la próxima sesión lance el CI. **No** borrar ni rehacer ramas por esto.
+- **El repositorio se movió de `vivimahechagarcia05-spec` a `dcasapty`** (2026-11-16) y la dirección vieja redirige.
+  El proxy de la sesión solo autoriza la **vieja**: si se pone la nueva en `git remote set-url`, el push falla con
+  «not in this session's authorized repository set». Hay que dejar el remoto con la dirección vieja; git avisa del
+  traslado y empuja igual al repositorio nuevo. `add_repo` del repositorio nuevo tampoco sirve: la sesión ya tiene uno
+  con el mismo nombre y chocarían en la misma carpeta.
+- **El submódulo `vendor/odoo` se baja con `--depth 1` apuntando a la rama equivocada** (2026-11-16): en un contenedor
+  nuevo, `git submodule update --init --depth 1 vendor/odoo` trajo la punta de `20.0` en vez del commit fijado (Odoo
+  19), y el árbol queda marcado con `+`. Se arregla pidiendo el commit exacto:
+  `cd vendor/odoo && git fetch --depth 1 origin <sha> && git checkout <sha>`. Si antes se cortó un `fetch`, queda un
+  `.git/modules/vendor/odoo/index.lock` que hay que borrar a mano.
 
 - **No unir ramas en el árbol que está leyendo una corrida de pruebas larga** (2026-11-12): una corrida de
   `scripts/test.sh` sobre el árbol principal tomó el JavaScript nuevo a mitad de camino y dos pruebas de navegador
@@ -1486,6 +1582,32 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 - **Las pruebas de `dcasa_base` (como `TestSuperficieRpc`) no corren con `-u dcasa_camila`**: Odoo solo corre las
   `post_install` de los módulos que actualiza, y actualizar `dcasa_base` arrastra a todos. Para revisar la lista blanca
   de RPC en local sin eso: `odoo-bin shell` con `T.metodos_de_dcasa(env) - set(T.LISTA_BLANCA)` (debe dar vacío).
+- **Portada en carrusel (2026-11-16), lo aprendido:**
+  - Una *Interaction* de Odoo 19 aplica su `dynamicContent` **antes** de `start()`: una bandera que decide una clase
+    (`t-att-class`) se pone en `setup()`; si se pone en `start()`, la clase no aparece hasta el siguiente evento.
+  - El hero de siempre vive en un bloque editable (`oe_structure_dcasa_hero`): lo nuevo va en su propia plantilla con
+    `t-call`, y el bloque editable dentro de un `<t t-else>` propio (no con `t-else` en el `div`): una vista guardada
+    con el editor lo reemplaza por su id, y si la condición estuviera en el `div` se perdería y saldrían los dos heros
+    (prueba `test_con_el_editor_del_sitio_abierto_la_portada_abre`, con un usuario diseñador: recibe las marcas del editor
+    sin `enable_editor`).
+  - Algo que cambia la portada sin tocar una vista (el carrusel, el horario) va en `website.page._get_cache_key`: Odoo
+    guarda la portada de los visitantes hasta una hora.
+  - Sembrar datos «una sola vez» en una base que ya tiene el módulo: `<function>` en un archivo de datos **sin**
+    `noupdate` (los `noupdate` solo corren al instalar) y una marca en `ir.config_parameter`; así no pisa lo que Gerencia
+    cambie después. `dcasa_codigo_publico` solo se da al crear el producto (después no se cambia): en las pruebas, se
+    crean productos con el código.
+  - En las pruebas con `lxml`, `contains(@class, "o_dcasa_cine_cinta")` también encuentra `o_dcasa_cine_cintas`: para
+    una clase exacta, `contains(concat(" ", @class, " "), " clase ")`.
+  - Una foto con `height: 100%` dentro de una celda de *grid* estira la fila a su alto natural (una foto vertical
+    dejaba el hero de 1500 px y la etiqueta fuera de la pantalla): las diapositivas van con `position: absolute;
+    inset: 0` y el alto lo ponen el bloque o la pantalla. Una foto vertical o cuadrada no llena una pantalla ancha
+    sin cortar la cama o dejarla bajo el texto: en la computadora la foto llena su lado y el texto va en su bloque.
+  - Sobre una foto clara la píldora ahumada no se lee: el carrusel no lleva la clase `o_dcasa_hero` (la que la vuelve
+    ahumada) y la regla que la hace «nacer ahumada» excluye la portada con `:has(.o_dcasa_hero_vitrina)`.
+  - El contrato visual de Juan (`dcasa_conversaciones/tests/test_panel_visual.py`) es la clase `TestContratoVisualJuan`
+    (no `TestPanelVisual`). Su script de referencias reescribe las seis: se suben solo las que cambiaron de verdad. La
+    pantalla `.o_dcj_p.o_action` lleva a propósito una barra de desplazamiento fina que el `PREPARAR` de la prueba no
+    alcanza a esconder: a 390 px sale en Conexiones (en un teléfono real va encima del contenido).
 
 ### Cloudflare
 

@@ -1,6 +1,6 @@
 # Prioridades vigentes
 
-Puesto al día el **2026-11-15** (bandas en azul noche, pie claro y contacto en producción, Desplegar 76; Black Friday y Andrés en la rama). Es el orden en que se trabaja: cada sesión lo lee al empezar y lo pone al día al
+Puesto al día el **2026-11-17** (el Black Friday está en producción desde el 16 —Desplegar 77 y Juan 28— y **la portada nueva desde el 17** —ejecución 377, squash `447d6efe`, PR #127—. En la rama de trabajo queda el resto de la segunda entrega —Andrés vendedor, notas de voz y micrófono—, que **no se sube** hasta arreglar lo de Socios y el envío gratis: ver abajo y [PLAN_ANDRES_VOZ_PORTADA.md](PLAN_ANDRES_VOZ_PORTADA.md)). Es el orden en que se trabaja: cada sesión lo lee al empezar y lo pone al día al
 terminar (ver [LEEME_PRIMERO.md](LEEME_PRIMERO.md)). Aquí va **un solo estado**, el de hoy; lo que pasó cada día está en
 la bitácora de LEEME_PRIMERO (y lo más viejo en [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md)).
 
@@ -8,8 +8,10 @@ Cada cosa nueva pasa por capturas a la dueña, pruebas, staging y, si toca diner
 **Desde el 2026-11-13 la dueña no pide su visto bueno para pasar a producción** («Y no esperes mi aprobación para pasar
 la producción. Apruébalo y punto.»); la revisión adversarial no se salta (reglas en LEEME_PRIMERO §2).
 
-## Estado al 2026-11-15
+## Estado al 2026-11-17
 
+- **Lo último en producción: la portada nueva** (2026-11-17, CI/CD 377, `app_version` `447d6efe6c74`, PR #127);
+  antes, el Black Friday (2026-11-16, Desplegar 77 y Juan 28).
 - **Producción funciona desde el 2026-10-13** y **`dcasapty.com` (y `www`) apunta al sistema nuevo desde el
   2026-10-27** (Desplegar 31). Odoo y el borde: **Desplegar 76** (15 nov, PR #122: bandas en azul noche, pie claro, menú sin «Escríbenos», sección de contacto y el carrito en el chat de la tienda; antes, Desplegar 75 (15 nov, PR #121: la portada v3, con secciones compactas, el carrito como ícono, la paleta nueva y la barra del chat de vidrio; antes, Desplegar 74 (15 nov, PR #120: Brian siempre activo de noche, con dos interruptores); antes, Desplegar 73 (14 nov, PR #119: la burbuja de Brian cambia de robot con el scroll); antes,
   Desplegar 72, PR #118: Brian de la tienda, el chat de ventas en la web, y el
@@ -37,6 +39,59 @@ la producción. Apruébalo y punto.»); la revisión adversarial no se salta (re
   («Es esta persona»); tasa de cierre en el Resumen de Juan; Sofía. Detalle en la bitácora.
 
 ## Lo que sigue, en orden
+
+**LA PORTADA NUEVA YA ESTÁ EN PRODUCCIÓN** (2026-11-17, ejecución 377 de CI/CD a mano desde `main`, squash
+`447d6efe`, PR #127). El hero es un fondo en movimiento: las fotos del catálogo a pantalla completa, en orden al azar,
+con fundido y zoom lento, sin mandos ni nombres, y el contraste resuelto en azul de marca (la dueña eligió la opción 5
+de cinco). Comprobado en vivo en computadora y en celular. Subió en una rama aparte (`claude/portada-solo`, sacada de
+`main`, solo `addons/website_dcasa/`), así que **no arrastró** el resto de la segunda entrega.
+
+**Pendiente que salió de ahí:** el contrato visual del panel de Juan falla a 390 px (`panel-lista-390` 7,7 % y
+`panel-conexiones-390` 13,7 % de píxeles distintos). Viene de `main`, no de la portada. Hay que mirar si es un cambio
+a propósito al que le faltó regenerar las referencias o una falla de verdad en el celular.
+
+**EL BLACK FRIDAY YA ESTÁ EN PRODUCCIÓN** (2026-11-16, Desplegar 77 y Juan 28; PR #126, squash `a904ec65`,
+`app_version` `26b357d3bd51…`). La campaña del sitio desde el panel, los combos inamovibles con la regla del par y el
+chat de la web como Andrés. Comprobado: salud sana, portada, `/promociones` en 404 mientras no haya campaña y el chat
+diciendo «Hola, soy Andrés». **Falta que la dueña cree la campaña** (los pasos están en `RESUMEN_PARA_LA_DUENA.md` y
+en el plan): el Black Friday es el **viernes 27**.
+
+**DECIDIDO (la dueña, 2026-11-17): «avisarle y no dejar canjear».** Era el bloqueante que frenaba la segunda
+entrega: un premio de puntos podía tirar la compra por debajo del mínimo de la promoción de envío y hacerle perder el
+envío gratis (carrito de $205 sin ITBMS, premio de $10 → la compra queda en $195.65 y paga $45 de envío: gastaba
+puntos para pagar más). **Ya está programado, probado y revisado** (ver la bitácora del 2026-11-17 y
+[SOCIOS.md](SOCIOS.md)): si lo que pagaría de envío iguala o pasa lo que le descuenta el premio, se le avisa con las
+dos cifras y no se canjea; si el premio descuenta más de lo que perdería, se deja pasar porque ahí sí le conviene
+(eso lo decidí yo y se le dijo). Cubre el carrito web y el mostrador, y al quitar un premio la promoción del envío se
+vuelve a ofrecer.
+
+**Después, la segunda entrega** en `claude/merge-rama-to-main-ty3koz` (Andrés vendedor, notas de voz, micrófono y
+portada). **Está probada y lista: 3547 pruebas de Odoo y 1924 del Worker, 0 fallas** (2026-11-17, instalando también
+`dcasa_nomina`, con lo que las tres pruebas de la Guía que «fallaban en local» también pasan). **No se sube hasta
+arreglar lo de arriba.** Lo demás que dejó esa revisión:
+
+- *Menores que siguen abiertos:* `/carrito/envio` acepta cualquier `lugar_id` sin que Andrés lo haya cotizado; dos
+  `GET` escriben en la base; el mismo canje puede quedar en dos ventas abiertas; y el carrito sigue ofreciéndole al
+  socio premios que el servidor va a rechazar (el aviso llega después del clic, no antes).
+- *(Los tres «importantes» de esta lista —el total negativo en el mostrador, la guardia del Worker con «ok?» y el
+  premio viajando al chat— se arreglaron el 2026-11-17; ver la bitácora.)*
+
+**Ya arreglado el 2026-11-17** (en la rama, sin subir, a la espera de la decisión de arriba):
+
+- La pantalla **«Armar combo»** ya muestra los precios de verdad: `precio` es lo que la pieza cuesta suelta ese día y
+  `precio_linea` lo que se cobra en el combo (238 pruebas en verde).
+- El **total negativo en el mostrador**: la guarda del premio pasó a `_aplicar_en_venta` (los dos caminos) y
+  `action_confirm` tiene una última red.
+- La **guardia del Worker**: ya no se salta escribiendo «…ok?» sin abrir la pregunta, ni poniendo una pregunta en medio.
+- El **premio de Socios** ya no viaja al chat entre los productos: va en «extras», con el envío.
+- **PR de Dependabot #98 unido** (parches de `@ai-sdk/*` y `ai` en `juan/`): CI completo en verde y revisado que los
+  cambios de comportamiento del registro tocan APIs que Juan no usa. **No cambia producción hasta el próximo
+  «Desplegar Juan».**
+
+Queda del Black Friday, anotado y sin bloquear:
+
+- La web y Juan publican la línea de combo escrita en el Excel («Combo con colchón $649.99»), un texto que nadie
+  recalcula y que puede no coincidir con lo que cobra la cotización. Viene de antes.
 
 0000000. **Primero termina el 000000 de abajo (Black Friday). Después, la siguiente ronda que pidió la dueña, con su plan
         escrito en [PLAN_ANDRES_VOZ_PORTADA.md](PLAN_ANDRES_VOZ_PORTADA.md).**

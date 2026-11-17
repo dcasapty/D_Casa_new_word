@@ -10,7 +10,7 @@ __pycache__/
 filestore/
 
 # Node / Cloudflare
-node_modules/
+node_modules
 .wrangler/
 .dev.vars
 
@@ -25,3 +25,5 @@ node_modules/
 .vscode/
 # Copias de trabajo de los agentes de Claude Code
 .claude/worktrees/
+capturas_portada/
+capturas_hero/

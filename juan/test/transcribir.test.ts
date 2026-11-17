@@ -1,8 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Env } from "../src/env";
-import { transcriptorDe } from "../src/motor/transcribir";
+import { CONCEPTO_VOZ_WHATSAPP, MAX_SEGUNDOS_WHATSAPP, MODELO_WHISPER, transcriptorDe, whisperDe } from "../src/motor/transcribir";
+import { costoDeLaVoz } from "../src/motor/voz";
+import { aBase64, mp4, oggOpus } from "./helpers/audio";
 
 const AUDIO = new Uint8Array([79, 103, 103, 83, 0, 2, 0, 0]);
+/** Una nota de voz de WhatsApp de verdad en su forma: Ogg Opus de 4 s. */
+const NOTA = oggOpus(4);
 
 function envCon(parcial: Partial<Env>): Env {
   return parcial as Env;
@@ -24,13 +28,13 @@ describe("transcriptorDe (notas de voz)", () => {
     const ai = { run: vi.fn(async () => ({ text: "  busco una cama queen  " })) };
     const t = transcriptorDe(envCon({ AI: ai, TRANSCRIBIR_AUDIO: "1" }));
     expect(t).toBeDefined();
-    expect(await t!(AUDIO, "audio/ogg")).toBe("busco una cama queen");
-    expect(ai.run).toHaveBeenCalledWith("@cf/openai/whisper-large-v3-turbo", { audio: btoa(String.fromCharCode(...AUDIO)) });
+    expect(await t!(NOTA, "audio/ogg; codecs=opus")).toBe("busco una cama queen");
+    expect(ai.run).toHaveBeenCalledWith("@cf/openai/whisper-large-v3-turbo", { audio: aBase64(NOTA) });
   });
 
   it("si Whisper no entiende nada devuelve null (el bot pide que lo escriban)", async () => {
     const t = transcriptorDe(envCon({ AI: { run: async () => ({ text: "   " }) }, TRANSCRIBIR_AUDIO: "1" }));
-    expect(await t!(AUDIO, "audio/ogg")).toBeNull();
+    expect(await t!(NOTA, "audio/ogg")).toBeNull();
   });
 
   it("no procesa un audio vacío ni uno enorme", async () => {
@@ -39,5 +43,63 @@ describe("transcriptorDe (notas de voz)", () => {
     expect(await t(new Uint8Array(0), "audio/ogg")).toBeNull();
     expect(await t(new Uint8Array(9 * 1024 * 1024), "audio/ogg")).toBeNull();
     expect(ai.run).not.toHaveBeenCalled();
+  });
+
+  it("whisperDe: el texto y la duración (de transcription_info o del último segmento), nada más; apagado igual que el transcriptor", async () => {
+    expect(whisperDe(envCon({ AI: { run: vi.fn() } }))).toBeUndefined();
+    const ai = { run: vi.fn(async (_modelo: string, _entrada: unknown) => ({ text: " hola ", transcription_info: { duration: 3.5 }, segments: [{ end: 3.4 }], vtt: "WEBVTT", words: [] })) };
+    expect(await whisperDe(envCon({ AI: ai, TRANSCRIBIR_AUDIO: "1" }))!(AUDIO)).toEqual({ texto: "hola", segundos: 3.5 });
+    expect(ai.run.mock.calls[0][0]).toBe(MODELO_WHISPER);
+    const soloSegmentos = { run: async () => ({ text: "x", segments: [{ end: 2 }, { end: 7.25 }] }) };
+    expect(await whisperDe(envCon({ AI: soloSegmentos, TRANSCRIBIR_AUDIO: "1" }))!(AUDIO)).toEqual({ texto: "x", segundos: 7.25 });
+    const sinNada = { run: async () => ({ text: 42 }) };
+    expect(await whisperDe(envCon({ AI: sinNada, TRANSCRIBIR_AUDIO: "1" }))!(AUDIO)).toEqual({ texto: null, segundos: null });
+  });
+
+});
+
+describe("WhatsApp: la duración de verdad y su gasto (revisión adversarial, 2026-11-16)", () => {
+  const conGasto = (ai: unknown) => {
+    const gastos: [number, boolean][] = [];
+    const t = transcriptorDe(envCon({ AI: ai as Env["AI"], TRANSCRIBIR_AUDIO: "1" }), async (usd, estimado) => void gastos.push([usd, estimado]))!;
+    return { t, gastos };
+  };
+
+  it("se mide antes de llamar a Whisper: más de 10 minutos de verdad no se transcribe (aunque la última página diga 10 s) y no cuesta nada", async () => {
+    expect(MAX_SEGUNDOS_WHATSAPP).toBe(600);
+    const ai = { run: vi.fn(async () => ({ text: "hola" })) };
+    const { t, gastos } = conGasto(ai);
+    expect(await t(oggOpus(MAX_SEGUNDOS_WHATSAPP + 5, { mentir: 10 }), "audio/ogg")).toBeNull();
+    expect(ai.run).not.toHaveBeenCalled();
+    expect(gastos).toEqual([]);
+    expect(await t(oggOpus(MAX_SEGUNDOS_WHATSAPP - 5), "audio/ogg")).toBe("hola");
+  });
+
+  it("lo que no se puede medir con certeza (otro tipo, un Ogg roto) no se transcribe: Juan hace lo de siempre", async () => {
+    const ai = { run: vi.fn(async () => ({ text: "hola" })) };
+    const { t } = conGasto(ai);
+    expect(await t(AUDIO, "audio/ogg")).toBeNull();
+    expect(await t(NOTA, "audio/mpeg")).toBeNull();
+    expect(await t(NOTA, "audio/amr")).toBeNull();
+    expect(ai.run).not.toHaveBeenCalled();
+    // Un MP4 con AAC (un audio de iPhone) sí se mide.
+    expect(await t(mp4(5), "audio/mp4")).toBe("hola");
+  });
+
+  it("el gasto se anota con lo medido o lo que diga Whisper (lo mayor); si Whisper falla, lo medido, «estimado»", async () => {
+    const corta = conGasto({ run: async () => ({ text: "hola", transcription_info: { duration: 1 } }) });
+    await corta.t(oggOpus(30), "audio/ogg");
+    expect(corta.gastos).toHaveLength(1);
+    expect(corta.gastos[0][0]).toBeCloseTo(costoDeLaVoz(30), 5);
+    expect(corta.gastos[0][1]).toBe(false);
+    const rota = conGasto({ run: async () => Promise.reject(new Error("Workers AI caído")) });
+    await expect(rota.t(oggOpus(30), "audio/ogg")).rejects.toThrow();
+    expect(rota.gastos).toHaveLength(1);
+    expect(rota.gastos[0][0]).toBeCloseTo(costoDeLaVoz(30), 5);
+    expect(rota.gastos[0][1]).toBe(true);
+  });
+
+  it("su renglón es de Cloudflare (aparte del gasto de Juan y de «Por pagar a Meta»)", () => {
+    expect(CONCEPTO_VOZ_WHATSAPP.startsWith("cloudflare:")).toBe(true);
   });
 });

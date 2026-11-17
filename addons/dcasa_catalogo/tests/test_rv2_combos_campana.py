@@ -223,7 +223,28 @@ class TestRv2CombosCampana(CombosCommon):
         self.assertLessEqual(cama._dcasa_precio_autorizado(), 385.0,
                              'lo autorizado no sube por entrar al combo: la rebaja sigue siendo la misma')
 
-    # --- 5. Las guardas de Gerencia no se saltan con el contexto ---------------------
+    # --- 5. La pantalla «Armar combo» no muestra precios que no se practican ---------
+
+    def test_el_panel_muestra_lo_que_la_pieza_cuesta_suelta_ese_dia(self):
+        """Durante una oferta, el panel le mostraba a la vendedora el precio SIN campaña (400 por la cama), mientras
+        la web decía 385: cotizaba distinto de lo que el cliente veía, y anunciaba un ahorro que no existía."""
+        self.colchon_king.product_tmpl_id.with_user(self.gerencia).write(
+            {'dcasa_black_weekend': True, 'dcasa_campana_precio': 230.0})   # la king queda en 280
+        respuesta = self.orden().with_user(self.vendedora).dcasa_combo_colchones(self.cama_king.id)
+        self.assertEqual(respuesta['cama']['precio'], 385.0, 'la cama, a lo que cuesta suelta ese día')
+        fila = next(c for c in respuesta['colchones'] if c['id'] == self.colchon_king.id)
+        self.assertEqual((fila['precio'], fila['precio_combo'], fila['ahorro']), (280.0, COMBO_KING, 20.0),
+                         'el colchón, a 280 suelto, 260 en combo y 20 de ahorro de verdad')
+
+    def test_el_panel_sin_campana_muestra_los_precios_de_siempre(self):
+        self.cama_king.product_tmpl_id.with_user(self.gerencia).write(
+            {'dcasa_black_weekend': False, 'dcasa_campana_precio': False})
+        respuesta = self.orden().with_user(self.vendedora).dcasa_combo_colchones(self.cama_king.id)
+        self.assertEqual(respuesta['cama']['precio'], 400.0)
+        fila = next(c for c in respuesta['colchones'] if c['id'] == self.colchon_king.id)
+        self.assertEqual((fila['precio'], fila['precio_combo'], fila['ahorro']), (NORMAL_KING, COMBO_KING, 40.0))
+
+    # --- 6. Las guardas de Gerencia no se saltan con el contexto ---------------------
 
     def test_los_colchones_por_cama_no_se_ponen_con_un_default_del_contexto(self):
         Plantilla = self.env['product.template'].with_user(self.vendedora)

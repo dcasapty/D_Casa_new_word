@@ -27,3 +27,4 @@ from . import test_fechas_panama
 from . import test_brian_al_dia
 from . import test_boton_no_tapa
 from . import test_revision_adversarial_3
+from . import test_voz

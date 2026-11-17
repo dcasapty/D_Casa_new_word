@@ -260,11 +260,30 @@ class DcasaCanje(models.Model):
             raise UserError(self.env._('Los premios de producto se entregan desde Socios > Canjes.'))
         if order.order_line.filtered(lambda line: line.dcasa_canje_id == canje):
             raise UserError(self.env._('Ese premio ya está en esta venta.'))
+        # El premio nunca puede pasar de lo que se está comprando (revisión adversarial, 2026-11-16). La guarda vivía
+        # solo en el camino de la tienda web; en el mostrador, cobrar un premio de $100 sobre una venta de $4.28
+        # dejaba el total en NEGATIVO y la venta se confirmaba igual. Aquí cubre los dos caminos.
+        total = order._dcasa_total_sin_premios()
+        if R.a_centavos(canje.valor) > total:
+            raise UserError(self.env._(
+                'El premio %(codigo)s vale %(premio)s y esta venta lleva %(venta)s en productos: el premio no puede '
+                'ser mayor. Agrega productos o usa un premio más pequeño.',
+                codigo=canje.codigo, premio=R.como_dolares(R.a_centavos(canje.valor)), venta=R.como_dolares(total)))
+        # Y nunca puede salirle al cliente MÁS CARO que su descuento (la dueña, 2026-11-17). Va aquí, como la guarda
+        # del total negativo, porque por aquí pasan los DOS caminos: el carrito web avisa antes de pedir el canje,
+        # pero en el mostrador «Cobrar premio» entraba directo y un premio que tiraba la compra por debajo del mínimo
+        # de la promoción le hacía pagar el envío entero, sin que nadie se lo dijera (revisión adversarial,
+        # 2026-11-17). Aquí el código ya está pedido: no se cobra, pero sigue valiendo para otra venta.
+        perdida = order._dcasa_premio_no_conviene(R.a_centavos(canje.valor))
+        if perdida:
+            raise UserError(self.env._(
+                'El premio %(codigo)s hace que la compra baje de lo que pide la promoción del envío: se pagarían '
+                '%(envio)s de envío y el premio solo descuenta %(premio)s, así que al cliente le sale más caro. '
+                'Agrega algo a la venta o guarda el código para otra compra.',
+                codigo=canje.codigo, envio=R.como_dolares(R.a_centavos(perdida)),
+                premio=R.como_dolares(R.a_centavos(canje.valor))))
         producto = self.env.ref('dcasa_socios.product_premio_canje').sudo()
-        # ITBMS explícito: el producto puede haberse creado antes de cargar el plan contable.
-        impuestos = producto.taxes_id or order.company_id.account_sale_tax_id
-        base = canje.valor if all(impuestos.mapped('price_include')) else \
-            impuestos._get_tax_details(canje.valor, 1.0, special_mode='total_included')['total_excluded']
+        impuestos, base = self._dcasa_impuestos_y_base(canje.valor, order.company_id)
         order.with_context(dcasa_aplicando_premio=True).write({'order_line': [(0, 0, {
             'product_id': producto.id,
             'name': self.env._('Premio %(codigo)s: %(premio)s', codigo=canje.codigo, premio=canje.premio_nombre),
@@ -274,6 +293,21 @@ class DcasaCanje(models.Model):
             'dcasa_canje_id': canje.id,
         })]})
         return order.order_line.filtered(lambda line: line.dcasa_canje_id == canje)
+
+    @api.model
+    def _dcasa_impuestos_y_base(self, valor, compania=None):
+        """Los impuestos de la línea del premio y su base sin impuesto, para un premio de ``valor``: la línea rebaja
+        la base como un descuento y base + ITBMS = el valor del premio (lo que el cliente deja de pagar).
+
+        Está aparte porque no solo la usa quien crea la línea: Socios también necesita saber CUÁNTO bajaría la compra
+        medida (sin ITBMS baja la base; con ITBMS baja el valor entero) antes de poner el premio, para avisarle al
+        socio si con eso perdería la promoción del envío. Si las dos cuentas se separaran, el aviso mentiría."""
+        producto = self.env.ref('dcasa_socios.product_premio_canje').sudo()
+        # ITBMS explícito: el producto puede haberse creado antes de cargar el plan contable.
+        impuestos = producto.taxes_id or (compania or self.env.company).account_sale_tax_id
+        base = valor if all(impuestos.mapped('price_include')) else \
+            impuestos._get_tax_details(valor, 1.0, special_mode='total_included')['total_excluded']
+        return impuestos, base
 
     def _cerrar(self, estado, motivo, autor, desde=('solicitado',)):
         """Cierra los canjes que están en alguno de los estados ``desde`` y devuelve sus puntos

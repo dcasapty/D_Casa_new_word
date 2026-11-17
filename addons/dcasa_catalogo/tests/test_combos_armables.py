@@ -615,18 +615,23 @@ class TestCombosYCampana(CombosCommon):
         self.assertEqual((cama.price_unit, cama.discount), (385.0, 0.0))
 
     def test_el_panel_muestra_los_precios_del_combo(self):
+        """En el panel, ``precio`` es lo que la pieza cuesta SUELTA ESE DÍA (con su precio de campaña si lo tiene) y
+        ``precio_linea`` es lo que se cobra en la cotización. Antes ``precio`` salía sin campaña, así que durante una
+        oferta el panel decía un precio que ese día no se practicaba y un ahorro que no existía."""
         respuesta = self.orden().with_user(self.vendedora).dcasa_combo_colchones(self.cama_king.id)
-        self.assertEqual(respuesta['cama']['precio'], 400.0)
+        self.assertEqual(respuesta['cama']['precio'], 385.0, 'la cama, a lo que cuesta suelta ese día')
         fila = next(c for c in respuesta['colchones'] if c['id'] == self.colchon_king.id)
-        self.assertEqual((fila['precio'], fila['precio_combo'], fila['ahorro']), (NORMAL_KING, COMBO_KING, 40.0))
+        self.assertEqual((fila['precio'], fila['precio_combo'], fila['ahorro']), (280.0, COMBO_KING, 20.0),
+                         'suelto 280, en combo 260: el ahorro de verdad son 20')
         sin = next(c for c in respuesta['colchones'] if c['id'] == self.colchon_sin.id)
         self.assertEqual((sin['precio'], sin['precio_combo']), (250.0, None), 'sin precio en combo: con campaña')
         panel = self.orden(productos=[self.cama_king, self.colchon_king]).with_user(self.vendedora).dcasa_combo_panel()
         (combo,) = panel['combos']
-        self.assertEqual(combo['cama']['precio_linea'], 400.0)
+        self.assertEqual(combo['cama']['precio'], 385.0, 'suelta ese día')
+        self.assertEqual(combo['cama']['precio_linea'], 400.0, 'lo que se cobra en el combo')
         self.assertEqual((combo['colchones'][0]['precio'], combo['colchones'][0]['precio_linea']),
-                         (NORMAL_KING, COMBO_KING))
-        self.assertEqual(combo['total'], 400.0 + COMBO_KING)
+                         (280.0, COMBO_KING))
+        self.assertEqual(combo['total'], 400.0 + COMBO_KING, 'el total es lo que se cobra')
 
 
 @tagged('post_install', '-at_install')

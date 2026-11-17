@@ -12,7 +12,19 @@
  *   · Los mensajes van DIRECTO al Worker de Juan (POST {worker}/tienda/v1/mensaje, «Authorization: Pase …»). El modelo
  *     nunca toca el carrito: si Brian propone agregar, la página lo aplica en Odoo con la sesión del visitante y le
  *     cuenta el resultado (accion confirmar_carrito). Los precios y totales que se ven salen de Odoo.
+ *   · Andrés como buen vendedor (docs/PLAN_ANDRES_VOZ_PORTADA.md, A1 a A5): la barra del carrito fija encima del campo
+ *     de texto («N artículos · $X + ITBMS · Ver / Cotización»; al tocarla, el carrito editable sin salir del chat); el
+ *     envío que Andrés calculó se suma a la cotización con el sí del visitante (la página se lo pide a Odoo:
+ *     POST /dcasa/brian/v1/carrito/envio, solo con el lugar de la tabla); al bajar o quitar algo con el chat abierto,
+ *     la página le avisa al Worker UNA vez por sesión (accion carrito_bajo); lo que Andrés propone cambiar
+ *     (proponer_cambio_carrito) lo aplica la página en Odoo y le cuenta lo que quedó (confirmar_cambio); la vitrina va
+ *     ordenada: «En tu carrito» arriba y un grupo plegable por cada pedido, el más reciente primero.
  *   · La ubicación (navigator.geolocation) solo se pide al tocar «Usar mi ubicación actual» y viaja solo en ese turno.
+ *   · Notas de voz (docs/JUAN.md §12a): el micrófono junto a «Enviar» sale solo si el Worker dice que está disponible
+ *     (GET {worker}/tienda/v1/voz, sin pase). El permiso del micrófono se pide al tocarlo; graba con MediaRecorder
+ *     (Opus a ~32 kbps), muestra el tiempo, corta sola al tope y deja cancelar (X o Esc). El audio crudo va UNA vez al
+ *     Worker (POST {worker}/tienda/v1/voz, con el pase), vive solo en memoria y vuelve solo el texto, que sale en el
+ *     globo del visitante y se manda como un mensaje normal (si vino recortado, queda en la caja para revisarlo).
  *   · Lo conversado se recuerda en ESTE navegador (sessionStorage, se borra al cerrar la pestaña) para que el chat siga
  *     igual al pasar de página; Odoo no guarda la conversación.
  *   · Accesible: foco, Esc para cerrar, aria-*; con movimiento reducido, quieto.
@@ -72,6 +84,22 @@ const PLAZO_UBICACION_MS = 8000;
 const CLAVE_CHAT = "dcasa.brian.chat";
 const CLAVE_PASE = "dcasa.brian.pase";
 const CLAVE_POSE = "dcasa.brian.pose";
+/** A3: Andrés ya reaccionó en esta sesión a que el visitante quitó algo (una sola vez; el Worker también lo cuida). */
+const CLAVE_REACCION = "dcasa.brian.reaccion";
+/** Lo que Andrés propone y la página aplica en Odoo con la sesión del visitante (nunca al restaurar la conversación). */
+const PROPUESTAS = new Set(["proponer_carrito", "proponer_cambio_carrito", "sumar_envio"]);
+const TEXTO_ENVIO_SUMADO = "Listo, te lo sumé: el total lo ves en tu carrito y en la cotización.";
+/** Notas de voz: Opus a 32 kbps (un minuto pesa unos 240 KB; el tope del Worker es 1 MB). Por orden: Chrome y Edge
+ *  graban WebM, Firefox Ogg (o WebM), Safari MP4; de estos, solo los que el Worker dice que acepta (``tipos``). */
+const VOZ_BITS = 32000;
+const VOZ_TIPOS_PREFERIDOS = ["audio/webm;codecs=opus", "audio/ogg;codecs=opus", "audio/webm", "audio/ogg", "audio/mp4"];
+/** Lo de fábrica si el Worker no lo dice (docs/JUAN.md §12a: hasta 60 s y 1 MB). */
+const VOZ_MAX_SEGUNDOS = 60;
+const VOZ_MAX_BYTES = 1024 * 1024;
+/** Menos que esto no es una nota (un toque sin querer): no se manda. */
+const VOZ_MIN_MS = 600;
+/** «Si prefieres, mándame una nota de voz» sale una sola vez por sesión. */
+const CLAVE_VOZ_PISTA = "dcasa.brian.voz_pista";
 const RUTA = "/dcasa/brian/v1";
 /** Botones de la página que la burbuja nunca tapa (se hace a un lado mientras estén debajo). */
 const NO_TAPAR = '.o_dcasa_wa_producto, #add_to_cart, a.btn[href*="wa.me"], a.btn[href^="/whatsapp"], [name="website_sale_main_button"], .o_dcasa_brian_no_tapar';
@@ -85,6 +113,8 @@ const ICO = {
     menos: `<svg ${TRAZO}><path d="M6 12h12"/></svg>`,
     mas: `<svg ${TRAZO}><path d="M12 6v12M6 12h12"/></svg>`,
     izq: `<svg ${TRAZO}><path d="m14.5 5.5-6.5 6.5 6.5 6.5"/></svg>`,
+    arriba: `<svg ${TRAZO}><path d="m5.5 14.5 6.5-6.5 6.5 6.5"/></svg>`,
+    abajo: `<svg ${TRAZO}><path d="m5.5 9.5 6.5 6.5 6.5-6.5"/></svg>`,
     der: `<svg ${TRAZO}><path d="m9.5 5.5 6.5 6.5-6.5 6.5"/></svg>`,
     ampliar: `<svg ${TRAZO}><path d="M14 4h6v6M10 20H4v-6M20 4l-6.5 6.5M4 20l6.5-6.5"/></svg>`,
     reducir: `<svg ${TRAZO}><path d="M4 14h6v6M20 10h-6V4M13.5 10.5 20 4M10.5 13.5 4 20"/></svg>`,
@@ -97,6 +127,8 @@ const ICO = {
     mira: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.4" fill="currentColor" stroke="none"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>',
     lapiz: `<svg ${TRAZO}><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg>`,
     estrella: '<svg viewBox="0 0 24 24" aria-hidden="true"><path class="o_dcbt_relleno" d="m12 3.2 2.7 5.5 6 .9-4.4 4.2 1 6-5.3-2.8-5.3 2.8 1-6-4.4-4.2 6-.9z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>',
+    microfono: `<svg ${TRAZO}><rect x="9" y="2.8" width="6" height="11.4" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5v3.7M8.6 21.2h6.8"/></svg>`,
+    equis: `<svg ${TRAZO}><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg>`,
 };
 
 const B = "cubic-bezier(.22, 1, .36, 1)";
@@ -395,6 +427,16 @@ export function partirPrecio(texto) {
     return m ? [m[1], "+ ITBMS"] : [t, ""];
 }
 
+/** El título de un grupo de la vitrina (A5): corto, de una línea, con mayúscula inicial. */
+export function tituloDeGrupo(texto) {
+    const t = String(texto || "").replace(/\s+/g, " ").trim();
+    if (!t) {
+        return "";
+    }
+    const corto = t.length > 40 ? t.slice(0, 39).trimEnd() + "…" : t;
+    return corto.charAt(0).toLocaleUpperCase("es") + corto.slice(1);
+}
+
 /** El mensaje que va escrito en WhatsApp: lo del Worker o, si no, lo del carrito (sin datos personales). */
 export function mensajeWhatsApp(carrito, extra) {
     let texto = "Hola D'CASA, vengo del chat de la web.";
@@ -406,6 +448,63 @@ export function mensajeWhatsApp(carrito, extra) {
         texto += " " + extra;
     }
     return texto.slice(0, 600);
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Notas de voz: funciones puras (docs/JUAN.md §12a; se prueban en el navegador)
+// ---------------------------------------------------------------------------------------------------------------------
+
+/** «0:07»: los segundos como los lee cualquiera. */
+export function relojVoz(segundos) {
+    const s = Math.max(0, Math.floor(Number(segundos) || 0));
+    return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+}
+
+/** El tipo que graba este navegador, de los que acepta el Worker (``tipos``: «audio/webm», …), o "" si ninguno. */
+export function tipoDeVoz(tipos, puede) {
+    const aceptados = new Set((Array.isArray(tipos) ? tipos : []).filter((t) => typeof t === "string").map((t) => t.toLowerCase()));
+    const soporta = puede || ((t) => {
+        try {
+            return Boolean(window.MediaRecorder && window.MediaRecorder.isTypeSupported(t));
+        } catch {
+            return false;
+        }
+    });
+    return VOZ_TIPOS_PREFERIDOS.find((t) => aceptados.has(t.split(";")[0]) && soporta(t)) || "";
+}
+
+/** Lo que dice ``GET /tienda/v1/voz``, validado: ``{max_segundos, max_bytes, tipos}`` si hay micrófono, o ``null``. */
+export function vozOfrecida(datos) {
+    if (!datos || typeof datos !== "object" || datos.disponible !== true || !Array.isArray(datos.tipos) || !datos.tipos.length) {
+        return null;
+    }
+    const segundos = Number.isInteger(datos.max_segundos) && datos.max_segundos >= 3 && datos.max_segundos <= 300 ? datos.max_segundos : VOZ_MAX_SEGUNDOS;
+    const bytes = Number.isInteger(datos.max_bytes) && datos.max_bytes > 0 ? Math.min(datos.max_bytes, 8 * VOZ_MAX_BYTES) : VOZ_MAX_BYTES;
+    return { max_segundos: segundos, max_bytes: bytes, tipos: datos.tipos.filter((t) => typeof t === "string").slice(0, 8) };
+}
+
+/** Lo que se le dice al visitante cuando la nota no sirvió: siempre amable y con la salida de escribirlo. */
+export function textoErrorVoz(motivo) {
+    const largo = "Tu nota quedó muy larga (hasta un minuto). Mándame una más corta o escríbelo, por favor.";
+    const noEntendi = "No te entendí bien. ¿Me lo repites un poco más cerca del micrófono? O escríbelo, por favor.";
+    const tope = "Por ahora no puedo escuchar más notas de voz. Escríbelo, por favor.";
+    const textos = {
+        permiso: "Para mandarme una nota de voz, permite el micrófono en tu navegador. Si no, escríbelo, por favor.",
+        sin_microfono: "No encontré un micrófono para grabar. Escríbelo, por favor.",
+        corta: "La nota quedó muy corta y no alcancé a escucharte. Inténtalo otra vez o escríbelo, por favor.",
+        muy_larga: largo,
+        muy_pesada: largo,
+        no_se_entendio: noEntendi,
+        audio: noEntendi,
+        tope_sesion: tope,
+        tope_red: tope,
+        tope_dia: tope,
+        tope: tope,
+        presupuesto: tope,
+        ocupado: "Estoy escuchando muchas notas a la vez. Escríbelo, por favor, o inténtalo en un ratito.",
+        no_disponible: "Ahora no puedo escuchar notas de voz. Escríbelo, por favor.",
+    };
+    return textos[motivo] || "No pude escuchar tu nota ahora. Inténtalo otra vez o escríbelo, por favor.";
 }
 
 function leerAlmacen(clave) {
@@ -483,7 +582,17 @@ export class ChatBrian {
         this.estado = {
             abierto: false, saludado: false, ampliado: false, pausa: false, pose: "saludando",
             autor: null, posePrevia: null, vistos: [], carrito: null, carritoCambio: false,
+            // A5: un grupo por cada respuesta con tarjetas ({id, titulo, claves, abierto}); A1: la hoja del carrito.
+            grupos: [], hoja: false,
+            // La nota de voz: inactiva · pidiendo (el permiso del micrófono) · grabando · transcribiendo.
+            voz: "inactiva",
         };
+        // Lo que ofrece el Worker para las notas de voz ({max_segundos, max_bytes, tipos}) o null: sin micrófono.
+        this.voz = null;
+        this.grabacion = null;
+        this.intentoVoz = 0;
+        this.idGrupo = 0;
+        this.ultimoPedido = "";
         this.historial = [];
         this.cola = Promise.resolve();
         this.limpiezas = [];
@@ -518,6 +627,8 @@ export class ChatBrian {
                 this.refrescarCarrito(); // pudo cambiarlo en otra pestaña
             }
         });
+        // Al irse de la página, una nota a medio grabar se tira y el micrófono se apaga (no se manda nada).
+        this.escuchar(window, "pagehide", () => this.cancelarVoz({ enfocar: false }));
         const guardado = leerAlmacen(CLAVE_CHAT);
         if (guardado && Array.isArray(guardado.historial) && guardado.historial.length) {
             this.restaurado = guardado;
@@ -538,6 +649,7 @@ export class ChatBrian {
     }
 
     destruir() {
+        this.cancelarVoz({ enfocar: false });
         for (const fn of this.limpiezas.splice(0)) {
             try {
                 fn();
@@ -853,10 +965,36 @@ export class ChatBrian {
             el("p", { class: "o_dcbt_dia" }, el("span", { text: "Hoy" })));
         this.verificando = el("p", { class: "o_dcbt_verificando", hidden: true }, ico("escudo"), el("span", { text: "Conexión segura…" }));
         this.cajaTurnstile = el("div", { class: "o_dcbt_turnstile", hidden: true });
+        // A1: la barra del carrito, fija encima del campo de texto («N artículos · $X + ITBMS · Ver / Cotización»). Al
+        // tocarla se abre la hoja con el carrito editable, sin salir del chat. Los números, siempre de Odoo.
+        this.barraVer = el("button", { type: "button", class: "o_dcbt_barra_ver", "aria-expanded": "false", "aria-controls": "o_dcbt_hoja" });
+        this.barraPdf = el("a", { class: "o_dcbt_btn o_dcbt_btn_azul o_dcbt_barra_pdf", href: `${RUTA}/carrito/cotizacion.pdf`, download: "cotizacion-dcasa.pdf", "aria-label": "Descargar la cotización en PDF" },
+            ico("pdf"), el("span", { text: "Cotización" }));
+        this.barra = el("div", { class: "o_dcbt_barra", role: "group", "aria-label": "Tu carrito", hidden: true }, this.barraVer, this.barraPdf);
+        this.hojaCuerpo = el("div", { class: "o_dcbt_hoja_cuerpo" });
+        this.hojaCerrar = el("button", { type: "button", class: "o_dcbt_cab_boton o_dcbt_hoja_cerrar", "aria-label": "Cerrar el carrito", html: ICO.cerrar });
+        this.hoja = el("div", { id: "o_dcbt_hoja", class: "o_dcbt_hoja", role: "region", "aria-labelledby": "o_dcbt_hoja_titulo", hidden: true },
+            el("div", { class: "o_dcbt_hoja_cab" }, el("h3", { id: "o_dcbt_hoja_titulo", text: "Tu carrito" }), this.hojaCerrar), this.hojaCuerpo);
+        // El campo de texto con el micrófono y el botón de enviar. El micrófono sale solo si el Worker ofrece las notas de
+        // voz (``revisarVoz``); mientras graba, el campo y los dos botones dejan su lugar a la nota: el tiempo, cancelar
+        // y «Listo» (en el mismo renglón: en el celular no tapa la barra del carrito ni la conversación).
         this.campo = el("textarea", { id: "o_dcbt_texto", name: "texto", rows: "1", placeholder: "Escribe tu mensaje…", enterkeyhint: "send", maxlength: String(MAX_TEXTO) });
+        this.btnVoz = el("button", { type: "button", class: "o_dcbt_voz", "aria-label": "Mandar una nota de voz", title: "Nota de voz: se pasa a texto y el audio no se guarda", hidden: true, html: ICO.microfono });
         this.btnEnviar = el("button", { type: "submit", class: "o_dcbt_enviar", "aria-label": "Enviar", disabled: true, html: ICO.enviar });
+        this.vozEstado = el("span", { class: "o_dcbt_voz_estado" });
+        this.vozTiempo = el("span", { class: "o_dcbt_voz_tiempo", role: "timer", "aria-live": "off" });
+        this.vozAvance = el("span");
+        this.vozCancelar = el("button", { type: "button", class: "o_dcbt_voz_cancelar", "aria-label": "Cancelar la nota de voz (Esc): no se manda nada", title: "Cancelar (Esc)", html: ICO.equis });
+        this.vozListo = el("button", { type: "button", class: "o_dcbt_enviar o_dcbt_voz_listo", "aria-label": "Listo: mandar la nota de voz", title: "Listo", html: ICO.check });
+        this.vozCaja = el("div", { class: "o_dcbt_voz_grabando", role: "group", "aria-label": "Nota de voz", hidden: true },
+            el("span", { class: "o_dcbt_voz_punto", "aria-hidden": "true" }), this.vozEstado, this.vozTiempo,
+            el("span", { class: "o_dcbt_voz_barra", "aria-hidden": "true" }, this.vozAvance), this.vozCancelar, this.vozListo);
+        // «Si prefieres, mándame una nota de voz»: una vez por sesión, bajo el campo, y se va sola al primer mensaje.
+        this.vozPista = el("p", { class: "o_dcbt_voz_pista", hidden: true }, ico("microfono"), el("span", { text: "Si prefieres, mándame una nota de voz." }));
+        this.vozAnuncio = el("p", { class: "visually-hidden", role: "status", "aria-live": "polite" });
         this.form = el("form", { class: "o_dcbt_composer", autocomplete: "off" },
-            el("label", { class: "visually-hidden", for: "o_dcbt_texto", text: "Escribe tu mensaje" }), this.campo, this.btnEnviar);
+            el("label", { class: "visually-hidden", for: "o_dcbt_texto", text: "Escribe tu mensaje" }), this.campo, this.btnVoz, this.btnEnviar,
+            this.vozCaja, this.vozPista, this.vozAnuncio);
         this.vitrinaGrid = el("div", { class: "o_dcbt_vitrina_grid" });
         this.vitrinaPie = el("div", { class: "o_dcbt_vitrina_pie" });
         const volver = el("button", { type: "button", class: "o_dcbt_volver o_dcbt_solo_cel" }, ico("izq"), el("span", { text: "Chat" }));
@@ -866,7 +1004,7 @@ export class ChatBrian {
         this.panel = el("div", { id: "o_dcbt_panel", class: "o_dcbt_panel", role: "dialog", "aria-labelledby": "o_dcbt_titulo", hidden: true },
             cab,
             el("div", { class: "o_dcbt_panel_cuerpo" },
-                el("div", { class: "o_dcbt_chat_col" }, el("div", { class: "o_dcbt_cuerpo" }, this.aviso, this.lista), this.verificando, this.cajaTurnstile, this.form),
+                el("div", { class: "o_dcbt_chat_col" }, el("div", { class: "o_dcbt_cuerpo" }, this.aviso, this.lista, this.hoja), this.barra, this.verificando, this.cajaTurnstile, this.form),
                 this.vitrina),
             this.velo);
         this.raiz.append(this.panel);
@@ -874,6 +1012,11 @@ export class ChatBrian {
         this.escuchar(this.btnCerrar, "click", () => this.cerrar());
         this.escuchar(this.btnAmpliar, "click", () => this.ampliar(!this.estado.ampliado));
         this.escuchar(volver, "click", () => this.ampliar(false));
+        this.escuchar(this.barraVer, "click", () => this.abrirHoja(!this.estado.hoja));
+        this.escuchar(this.hojaCerrar, "click", () => this.abrirHoja(false));
+        this.escuchar(this.btnVoz, "click", () => this.empezarVoz());
+        this.escuchar(this.vozCancelar, "click", () => this.cancelarVoz());
+        this.escuchar(this.vozListo, "click", () => this.terminarVoz());
         this.escuchar(this.campo, "input", () => {
             this.autoAlto();
             this.btnEnviar.disabled = !this.campo.value.trim() || this.estado.pausa;
@@ -964,7 +1107,14 @@ export class ChatBrian {
         // está vacío» con la cama ya puesta desde la página (2026-11-15). Se lee siempre al abrir.
         this.refrescarCarrito();
         this.pintarCabCarrito();
+        this.pintarBarra();
+        // ¿Hay micrófono? Con un pase de antes ya se sabe a qué Worker preguntar; si no, se pregunta al llegar el pase.
+        const paseGuardado = leerAlmacen(CLAVE_PASE);
+        if (paseGuardado && typeof paseGuardado.worker === "string") {
+            this.revisarVoz(paseGuardado.worker);
+        }
         this.estado.abierto = true;
+        this.pintarVoz();
         this.yaAbrio = true;
         this.burbuja.classList.remove("o_dcbt_halo", "o_dcbt_aparte");
         this.burbuja.classList.add("o_dcbt_ya_entro");
@@ -1005,6 +1155,9 @@ export class ChatBrian {
         if (!this.estado.abierto) {
             return;
         }
+        this.abrirHoja(false);
+        this.cancelarVoz({ enfocar: false });   // una nota a medio grabar se tira: no se manda nada
+        this.ocultarPista();
         this.estado.abierto = false;
         this.guardar();
         this.burbuja.setAttribute("aria-expanded", "false");
@@ -1048,7 +1201,11 @@ export class ChatBrian {
         if (ev.key !== "Escape" || !this.estado.abierto) {
             return;
         }
-        if (this.estado.ampliado) {
+        if (["pidiendo", "grabando"].includes(this.estado.voz)) {
+            this.cancelarVoz(); // primero se tira la nota que se está grabando (no se manda nada)
+        } else if (this.estado.hoja) {
+            this.abrirHoja(false); // primero se cierra la hoja del carrito
+        } else if (this.estado.ampliado) {
             this.ampliar(false);
         } else {
             this.cerrar();
@@ -1060,6 +1217,10 @@ export class ChatBrian {
             return;
         }
         const antes = this.panel.getBoundingClientRect();
+        if (si && esCelular()) {
+            this.abrirHoja(false); // en el celular la vitrina ocupa la pantalla (y trae su propio pie con el carrito)
+            this.cancelarVoz({ enfocar: false }); // y tapa el campo: una nota a medio grabar se tira
+        }
         this.estado.ampliado = si;
         this.panel.classList.toggle("o_dcbt_ampliado", si);
         this.btnAmpliar.setAttribute("aria-pressed", String(si));
@@ -1224,21 +1385,33 @@ export class ChatBrian {
         };
     }
 
-    carrusel(productos) {
+    /** Las tarjetas de una respuesta: en la conversación, deslizables; en la vitrina (A5), un grupo con su título (lo que
+     *  manda el Worker, o lo que pidió el visitante). */
+    carrusel(productos, titulo) {
         const lista = (productos || []).map(ChatBrian.productoValido).filter(Boolean).slice(0, 12);
         if (!lista.length) {
             return;
         }
         this.productos = this.productos || new Map();
         const c = el("div", { class: "o_dcbt_carrusel", role: "list", "aria-label": "Productos" });
+        const claves = [];
         for (const p of lista) {
             this.productos.set(String(p.producto_id || p.plantilla_id || p.nombre), p);
             c.append(this.tarjeta(p));
             const clave = String(p.producto_id || p.plantilla_id || p.nombre);
+            claves.push(clave);
             if (!this.estado.vistos.includes(clave)) {
                 this.estado.vistos.push(clave);
             }
         }
+        const nombre = tituloDeGrupo(titulo) || tituloDeGrupo(this.ultimoPedido) || "Lo que te mostré";
+        // El grupo de antes (el más reciente) se pliega solo; el nuevo se abre. Lo que el visitante abra o cierre se respeta.
+        this.estado.grupos.forEach((g) => {
+            if (g.abierto === null) {
+                g.abierto = false;
+            }
+        });
+        this.estado.grupos.push({ id: ++this.idGrupo, titulo: nombre, claves, abierto: null });
         const caja = el("div", { class: "o_dcbt_carrusel_caja" }, c);
         if (lista.length > 1) {
             const flecha = (dir) => el("button", {
@@ -1261,30 +1434,107 @@ export class ChatBrian {
 
     // ------------------------------------------------------------------ tarjetas de una sola cosa
 
-    pintarCarritoCard(card) {
+    /** Una línea del carrito, editable (– cantidad +, Quitar) con su subtotal de Odoo. La usan la tarjeta, la hoja y la
+     *  vitrina; los toques los atiende ``alTocarPanel`` (``data-linea``, ``data-quitar``). */
+    lineaCarrito(l) {
+        const imagen = urlPropia(l.imagen);
+        return el("div", { class: "o_dcbt_linea_carrito" },
+            imagen ? el("img", { src: imagen, alt: "", width: "58", height: "42" }) : el("span"),
+            el("p", { class: "o_dcbt_carrito_nombre", text: l.nombre }),
+            el("div", { class: "o_dcbt_linea_controles" }, this.selectorCantidad(l.cantidad, { "data-linea": String(l.producto_id) }),
+                el("button", { type: "button", class: "o_dcbt_quitar", "data-quitar": String(l.producto_id), text: "Quitar", "aria-label": `Quitar ${l.nombre}` }),
+                el("span", { class: "o_dcbt_linea_precio", text: partirPrecio(l.subtotal_texto)[0] })));
+    }
+
+    /** El envío y su promoción (A2), como los dice Odoo: no se editan aquí; el total ya los trae. */
+    lineasDelEnvio(carrito) {
+        const extras = Array.isArray(carrito.extras) ? carrito.extras.slice(0, 4) : [];
+        return extras.filter((x) => x && typeof x.nombre === "string" && typeof x.subtotal_texto === "string").map((x) =>
+            el("div", { class: "o_dcbt_linea_envio" + (x.tipo === "promocion" ? " o_dcbt_linea_promo" : "") },
+                ico(x.tipo === "promocion" ? "check" : "camion"),
+                el("p", { text: x.nombre.slice(0, 120) }),
+                el("span", { class: "o_dcbt_linea_precio", text: partirPrecio(x.subtotal_texto)[0] })));
+    }
+
+    pintarCarritoCard(card, completo = false) {
         const carrito = this.estado.carrito || { lineas: [], cantidad_total: 0 };
-        const hijos = [el("p", { class: "o_dcbt_carrito_cab" }, ico("check", "o_dcbt_check"), el("span", { text: "En tu carrito" }))];
+        const hijos = completo ? [] : [el("p", { class: "o_dcbt_carrito_cab" }, ico("check", "o_dcbt_check"), el("span", { text: "En tu carrito" }))];
         if (!carrito.lineas.length) {
             hijos.push(el("p", { class: "o_dcbt_carrito_vacio", text: "Tu carrito está vacío." }));
         }
         for (const l of carrito.lineas) {
-            const imagen = urlPropia(l.imagen);
-            hijos.push(el("div", { class: "o_dcbt_linea_carrito" },
-                imagen ? el("img", { src: imagen, alt: "", width: "58", height: "42" }) : el("span"),
-                el("p", { class: "o_dcbt_carrito_nombre", text: l.nombre }),
-                el("div", { class: "o_dcbt_linea_controles" }, this.selectorCantidad(l.cantidad, { "data-linea": String(l.producto_id) }),
-                    el("button", { type: "button", class: "o_dcbt_quitar", "data-quitar": String(l.producto_id), text: "Quitar", "aria-label": `Quitar ${l.nombre}` }),
-                    el("span", { class: "o_dcbt_linea_precio", text: partirPrecio(l.subtotal_texto)[0] }))));
+            hijos.push(this.lineaCarrito(l));
         }
         if (carrito.lineas.length) {
+            hijos.push(...this.lineasDelEnvio(carrito));
             const n = carrito.cantidad_total;
             const [total, mas] = partirPrecio(carrito.total_texto);
-            hijos.push(el("div", { class: "o_dcbt_carrito_total" }, el("span", { text: `${n} ${n === 1 ? "artículo" : "artículos"}` }), el("span", null, el("strong", { text: total }), mas ? el("small", { text: ` ${mas}` }) : null)),
-                el("div", { class: "o_dcbt_carrito_botones" },
-                    el("a", { class: "o_dcbt_btn o_dcbt_btn_azul", href: "/shop/cart" }, ico("carrito"), el("span", { text: "Ver mi carrito" })),
-                    el("a", { class: "o_dcbt_btn o_dcbt_btn_borde", href: `${RUTA}/carrito/cotizacion.pdf`, download: "cotizacion-dcasa.pdf" }, ico("pdf"), el("span", { text: "Descargar cotización (PDF)" }))));
+            hijos.push(el("div", { class: "o_dcbt_carrito_total" }, el("span", { text: `${n} ${n === 1 ? "artículo" : "artículos"}` }), el("span", null, el("strong", { text: total }), mas ? el("small", { text: ` ${mas}` }) : null)));
+            if (completo && carrito.itbms_texto && carrito.total_con_itbms_texto) {
+                hijos.push(el("dl", { class: "o_dcbt_carrito_desglose" },
+                    el("dt", { text: "ITBMS" }), el("dd", { text: carrito.itbms_texto }),
+                    el("dt", { text: "Total con ITBMS" }), el("dd", { text: carrito.total_con_itbms_texto })));
+            }
+            hijos.push(el("div", { class: "o_dcbt_carrito_botones" },
+                el("a", { class: "o_dcbt_btn o_dcbt_btn_azul", href: "/shop/cart" }, ico("carrito"), el("span", { text: "Ver mi carrito" })),
+                el("a", { class: "o_dcbt_btn o_dcbt_btn_borde", href: `${RUTA}/carrito/cotizacion.pdf`, download: "cotizacion-dcasa.pdf" }, ico("pdf"), el("span", { text: "Descargar cotización (PDF)" }))));
         }
         card.replaceChildren(...hijos);
+    }
+
+    // ------------------------------------------------------------------ A1: la barra del carrito y su hoja
+
+    /** La barra fija encima del campo de texto: con algo en el carrito, «N artículos · $X + ITBMS · Ver» y «Cotización». */
+    pintarBarra() {
+        if (!this.barra) {
+            return;
+        }
+        const c = this.estado.carrito;
+        const n = Number(c && c.cantidad_total) || 0;
+        this.barra.hidden = n === 0;
+        this.panel.classList.toggle("o_dcbt_con_barra", n > 0);
+        if (!n) {
+            this.abrirHoja(false);
+            return;
+        }
+        const abierta = this.estado.hoja;
+        const [total, mas] = partirPrecio(c.total_texto);
+        const articulos = `${n} ${n === 1 ? "artículo" : "artículos"}`;
+        this.barraVer.replaceChildren(
+            el("span", { class: "o_dcbt_barra_ico", "aria-hidden": "true" }, ico("carrito"), el("span", { class: "o_dcbt_barra_cuenta", text: n > 99 ? "99+" : String(n) })),
+            el("span", { class: "o_dcbt_barra_textos" },
+                el("span", { class: "o_dcbt_barra_linea", text: articulos + (c.envio ? " + envío" : "") }),
+                el("span", { class: "o_dcbt_barra_total" }, el("strong", { text: total }), mas ? el("small", { text: ` ${mas}` }) : null)),
+            el("span", { class: "o_dcbt_barra_accion" }, ico(abierta ? "abajo" : "arriba"), el("span", { text: abierta ? "Cerrar" : "Ver" })));
+        this.barraVer.setAttribute("aria-expanded", String(abierta));
+        this.barraVer.setAttribute("aria-label", `Tu carrito: ${articulos}${c.envio ? " más el envío" : ""}, ${c.total_texto}. ${abierta ? "Cerrar el carrito" : "Ver y cambiar el carrito"}`);
+        if (abierta) {
+            this.pintarCarritoCard(this.hojaCuerpo, true);
+        }
+    }
+
+    /** La hoja del carrito (editable) sobre la conversación, sin salir del chat. Esc o «Cerrar» la cierran. */
+    abrirHoja(si) {
+        if (!this.hoja || this.estado.hoja === si) {
+            return;
+        }
+        if (si && this.barra.hidden) {
+            return;
+        }
+        // El foco vuelve a la barra solo si estaba en la hoja (si el visitante escribía, se queda en el campo).
+        const enLaHoja = this.hoja.contains(document.activeElement);
+        this.estado.hoja = si;
+        this.hoja.hidden = !si;
+        this.panel.classList.toggle("o_dcbt_con_hoja", si);
+        this.pintarBarra();
+        if (si) {
+            if (!reducir() && this.hoja.animate) {
+                this.hoja.animate([{ transform: "translateY(24px)", opacity: 0 }, { transform: "none", opacity: 1 }], { duration: 240, easing: B });
+            }
+            this.hojaCerrar.focus({ preventScroll: true });
+        } else if (enLaHoja && !this.barra.hidden) {
+            this.barraVer.focus({ preventScroll: true });
+        }
     }
 
     tarjetaCarrito() {
@@ -1342,7 +1592,6 @@ export class ChatBrian {
             this.pintarPieVitrina();
             return;
         }
-        const vistos = this.estado.vistos.map((clave) => this.productos && this.productos.get(clave)).filter(Boolean);
         const chipsDeCategorias = () => {
             const chips = el("div", { class: "o_dcbt_chips", style: "margin:0;justify-content:center" });
             for (const t of this.sugerenciasDeProductos()) {
@@ -1350,8 +1599,45 @@ export class ChatBrian {
             }
             return chips;
         };
-        if (!vistos.length && this.sugeridos && this.sugeridos.length) {
-            // Mientras Brian no muestra nada, el espacio grande no queda vacío (pedido de la dueña, 2026-11-15):
+        const hijos = [];
+        // A5: arriba, «En tu carrito» (editable, los números de Odoo).
+        const carrito = this.estado.carrito;
+        if (carrito && Array.isArray(carrito.lineas) && carrito.lineas.length) {
+            const lineas = el("div", { class: "o_dcbt_vitrina_lineas" }, ...carrito.lineas.map((l) => this.lineaCarrito(l)), ...this.lineasDelEnvio(carrito));
+            hijos.push(el("section", { class: "o_dcbt_seccion o_dcbt_seccion_carrito", "aria-labelledby": "o_dcbt_sec_carrito" },
+                el("h4", { id: "o_dcbt_sec_carrito", class: "o_dcbt_seccion_titulo" }, ico("carrito"), el("span", { text: "En tu carrito" })), lineas));
+        }
+        // Después, un grupo por cada pedido, el más reciente primero; un producto sale solo en su grupo más reciente.
+        const yaSale = new Set();
+        const grupos = [];
+        for (const g of [...this.estado.grupos].reverse()) {
+            const productos = [];
+            for (const clave of g.claves) {
+                const p = this.productos && this.productos.get(clave);
+                if (p && !yaSale.has(clave)) {
+                    yaSale.add(clave);
+                    productos.push(p);
+                }
+            }
+            if (productos.length) {
+                grupos.push([g, productos]);
+            }
+        }
+        grupos.forEach(([g, productos], i) => {
+            const abierto = g.abierto === null ? i === 0 : g.abierto;
+            const resumen = el("summary", { class: "o_dcbt_grupo_cab" },
+                el("span", { class: "o_dcbt_grupo_titulo", text: g.titulo }),
+                el("span", { class: "o_dcbt_grupo_cuenta", text: `${productos.length} ${productos.length === 1 ? "producto" : "productos"}` }),
+                ico("abajo", "o_dcbt_ico o_dcbt_grupo_flecha"));
+            const grupo = el("details", { class: "o_dcbt_grupo", "data-grupo": String(g.id), open: abierto },
+                resumen, el("div", { class: "o_dcbt_rejilla", role: "list" }, ...productos.map((p) => this.tarjeta(p))));
+            grupo.addEventListener("toggle", () => {
+                g.abierto = grupo.open;
+            });
+            hijos.push(grupo);
+        });
+        if (!grupos.length && this.sugeridos && this.sugeridos.length) {
+            // Mientras Andrés no muestra nada, el espacio grande no queda vacío (pedido de la dueña, 2026-11-15):
             // «Lo más buscado» de la portada, con las mismas tarjetas (se agregan desde aquí).
             this.productos = this.productos || new Map();
             for (const p of this.sugeridos) {
@@ -1361,15 +1647,15 @@ export class ChatBrian {
                 el("p", { class: "o_dcbt_sugeridos_eti", text: "Andrés te sugiere" }),
                 el("p", { class: "o_dcbt_sugeridos_titulo", text: "Lo más buscado" }),
                 chipsDeCategorias());
-            this.vitrinaGrid.replaceChildren(cab, ...this.sugeridos.map((p) => this.tarjeta(p)));
-        } else if (!vistos.length) {
+            hijos.push(el("section", { class: "o_dcbt_seccion o_dcbt_seccion_sugeridos" }, cab,
+                el("div", { class: "o_dcbt_rejilla", role: "list" }, ...this.sugeridos.map((p) => this.tarjeta(p)))));
+        } else if (!grupos.length) {
             const vacia = el("div", { class: "o_dcbt_vitrina_vacia" }, this.cajaPose("", "con_laptop"), el("p", { text: "Aquí verás, en cuadrícula, los productos que te muestre Andrés." }));
             vacia.append(chipsDeCategorias());
-            this.vitrinaGrid.replaceChildren(vacia);
+            hijos.push(vacia);
             this.cargarSugeridos();
-        } else {
-            this.vitrinaGrid.replaceChildren(...vistos.map((p) => this.tarjeta(p)));
         }
+        this.vitrinaGrid.replaceChildren(...hijos);
         this.pintarPieVitrina();
     }
 
@@ -1392,10 +1678,13 @@ export class ChatBrian {
 
     // ------------------------------------------------------------------ el carrito (el de Odoo, con la sesión del visitante)
 
-    ponerCarrito(carrito, salta) {
+    /** El carrito de Odoo en el chat. ``origen``: «andres» cuando lo cambió una propuesta de Andrés que la página aplicó
+     *  (A4): eso no es «el visitante quitó algo» (A3). */
+    ponerCarrito(carrito, salta, origen = "visitante") {
         if (!carrito || !Array.isArray(carrito.lineas)) {
             return;
         }
+        const previo = this.estado.carrito;
         this.estado.carrito = carrito;
         const n = Number(carrito.cantidad_total) || 0;
         try {
@@ -1421,11 +1710,42 @@ export class ChatBrian {
                 }
             });
             this.lista.querySelectorAll("[data-carrito]").forEach((card) => this.pintarCarritoCard(card));
-            this.pintarPieVitrina();
+            if (this.estado.ampliado) {
+                // «En tu carrito» de la vitrina al día, sin perder dónde estaba.
+                const arriba = this.vitrinaGrid.scrollTop;
+                this.pintarVitrina();
+                this.vitrinaGrid.scrollTop = arriba;
+            } else {
+                this.pintarPieVitrina();
+            }
             this.cabWa.href = this.urlWhatsApp();
             this.pintarCabCarrito();
+            this.pintarBarra();
             if (salta && n && this.cabCuenta && !reducir()) {
                 this.cabCuenta.animate([{ transform: "scale(.4)" }, { transform: "scale(1.25)", offset: 0.6 }, { transform: "scale(1)" }], { duration: 500, easing: B });
+            }
+            const cuenta = this.barra && this.barra.querySelector(".o_dcbt_barra_cuenta");
+            if (salta && cuenta && !reducir()) {
+                cuenta.animate([{ transform: "scale(.4)" }, { transform: "scale(1.25)", offset: 0.6 }, { transform: "scale(1)" }], { duration: 500, easing: B });
+            }
+        }
+        if (origen !== "andres") {
+            this.revisarBaja(previo, carrito);
+        }
+    }
+
+    /** A3: con el chat abierto, si el visitante bajó una cantidad o quitó algo (desde el chat, la página u otra pestaña),
+     *  Andrés lo sabe UNA vez por sesión y contesta con una alternativa; nunca insiste. */
+    revisarBaja(previo, nuevo) {
+        if (!previo || !Array.isArray(previo.lineas) || !this.estado.abierto || this.estado.pausa || leerAlmacen(CLAVE_REACCION)) {
+            return;
+        }
+        for (const l of previo.lineas) {
+            const ahora = (nuevo.lineas.find((x) => x.producto_id === l.producto_id) || { cantidad: 0 }).cantidad;
+            if (Number.isInteger(ahora) && Number.isInteger(l.cantidad) && ahora < l.cantidad) {
+                guardarAlmacen(CLAVE_REACCION, 1);
+                this.enviar({ accion: { tipo: "carrito_bajo", producto_id: entero(l.producto_id), nombre: String(l.nombre || "").slice(0, 80), antes: Math.min(l.cantidad, 999), ahora: Math.min(ahora, Math.min(l.cantidad, 999) - 1) } });
+                return;
             }
         }
     }
@@ -1501,7 +1821,12 @@ export class ChatBrian {
         if (!c || !c.lineas.length) {
             return null;
         }
-        return { lineas: c.lineas.slice(0, 20).map((l) => ({ producto_id: l.producto_id, nombre: l.nombre, cantidad: l.cantidad })), total_texto: c.total_texto };
+        const datos = { lineas: c.lineas.slice(0, 20).map((l) => ({ producto_id: l.producto_id, nombre: l.nombre, cantidad: l.cantidad })), total_texto: c.total_texto };
+        // A2: el envío que ya está sumado (lo dice Odoo), para que Andrés no lo vuelva a ofrecer y lo sepa.
+        if (c.envio && entero(c.envio.lugar_id)) {
+            datos.envio = { lugar_id: c.envio.lugar_id, lugar: String(c.envio.lugar || "").slice(0, 80) };
+        }
+        return datos;
     }
 
     async cargarCarrito() {
@@ -1579,6 +1904,7 @@ export class ChatBrian {
             const pase = { ok: true, pase: r.pase, worker: r.worker.replace(/\/+$/, ""), vence: ahora + (Number(r.vence_en) || 1800), noche: Boolean(r.noche), avisar_cerrado: r.avisar_cerrado === true, horario_texto: typeof r.horario_texto === "string" ? r.horario_texto : "",
                 sugerencias: Array.isArray(r.sugerencias) ? r.sugerencias.filter((s) => typeof s === "string" && s.trim() && s.length <= 30).slice(0, 2) : [] };
             guardarAlmacen(CLAVE_PASE, pase);
+            this.revisarVoz(pase.worker);
             return pase;
         } finally {
             this.verificando.hidden = true;
@@ -1667,10 +1993,19 @@ export class ChatBrian {
         if (this.estado.ampliado && esCelular()) {
             this.ampliar(false);
         }
+        if (mostrar) {
+            this.abrirHoja(false); // lo que escribe o toca el visitante se lee en la conversación (un aviso no la cierra)
+            this.ocultarPista();   // la sugerencia de la nota de voz no insiste
+        }
         this.quitarChips();
         const fila = mostrar ? this.cliente(mostrar) : null;
         if (mostrar) {
-            this.anotar({ tipo: "cliente", texto: mostrar });
+            // Lo que pidió (escrito o tocado): el título del grupo de la vitrina si el Worker no manda uno (A5).
+            const pedido = Boolean(texto || (accion && accion.tipo === "chip"));
+            if (pedido) {
+                this.ultimoPedido = mostrar;
+            }
+            this.anotar({ tipo: "cliente", texto: mostrar, pedido });
         }
         return this.enCola(() => this.turno({ texto, accion, ubicacion }, fila));
     }
@@ -1684,20 +2019,29 @@ export class ChatBrian {
         const cuerpo = { texto: datos.texto, accion: datos.accion, pagina: this.pagina, carrito: this.carritoParaWorker(), ubicacion: datos.ubicacion };
         const r = await this.worker(cuerpo);
         quitar();
+        const aviso = datos.accion && datos.accion.tipo === "carrito_bajo";
         if (!r.ok) {
-            this.sinRespuesta(r.motivo, fila, datos);
+            if (!aviso) {
+                this.sinRespuesta(r.motivo, fila, datos); // el aviso de A3 no es un mensaje del visitante: si falla, nada
+            }
             return;
+        }
+        if (!Array.isArray(r.bloques) || !r.bloques.length) {
+            return; // nada que decir (p. ej. Andrés ya reaccionó en esta sesión)
         }
         await this.pintarRespuesta(r);
         this.anotar({ tipo: "respuesta", datos: r });
     }
 
-    async pintarRespuesta(r, restaurando = false) {
+    /** Pinta una respuesta del Worker. ``carritoTrasTexto``: la tarjeta del carrito (con lo de Odoo) justo después del
+     *  primer texto (el «listo» de una propuesta aplicada), antes de las sugerencias. */
+    async pintarRespuesta(r, restaurando = false, { carritoTrasTexto = false } = {}) {
         if (typeof r.pose === "string") {
             this.pose(r.pose);
         }
         const propuestas = [];
         let primero = true;
+        let carritoPuesto = !carritoTrasTexto;
         for (const b of Array.isArray(r.bloques) ? r.bloques.slice(0, 20) : []) {
             if (!b || typeof b !== "object") {
                 continue;
@@ -1706,11 +2050,19 @@ export class ChatBrian {
                 await pausa(260);
             }
             primero = false;
+            if (!carritoPuesto && b.tipo !== "texto") {
+                this.tarjetaCarrito();
+                carritoPuesto = true;
+            }
             if (b.tipo === "texto" && typeof b.texto === "string" && b.texto.trim()) {
                 this.globo(b.texto);
+                if (!carritoPuesto) {
+                    this.tarjetaCarrito();
+                    carritoPuesto = true;
+                }
             } else if (b.tipo === "productos") {
-                this.carrusel(b.productos);
-            } else if (b.tipo === "proponer_carrito") {
+                this.carrusel(b.productos, typeof b.titulo === "string" ? b.titulo : "");
+            } else if (PROPUESTAS.has(b.tipo)) {
                 propuestas.push(b);
             } else if (b.tipo === "sugerencias") {
                 if (typeof b.texto === "string" && b.texto.trim()) {
@@ -1733,13 +2085,95 @@ export class ChatBrian {
                 this.tarjetaCarrito();
             }
         }
+        if (!carritoPuesto) {
+            this.tarjetaCarrito();
+        }
         if (Array.isArray(r.chips)) {
             this.chips(r.chips);
         }
         if (!restaurando) {
             for (const propuesta of propuestas.slice(0, 1)) {
-                await this.aplicarPropuesta(propuesta);
+                if (propuesta.tipo === "sumar_envio") {
+                    await this.aplicarEnvio(propuesta);
+                } else if (propuesta.tipo === "proponer_cambio_carrito") {
+                    await this.aplicarCambio(propuesta);
+                } else {
+                    await this.aplicarPropuesta(propuesta);
+                }
             }
+        }
+    }
+
+    /** La respuesta del Worker a lo que la página aplicó en Odoo (sin propuestas: esas ya pasaron). */
+    async confirmarAlWorker(accion, conCarrito) {
+        const quitar = this.escribiendo();
+        const respuesta = await this.worker({ texto: null, accion, pagina: this.pagina, carrito: this.carritoParaWorker(), ubicacion: null });
+        quitar();
+        if (!respuesta.ok) {
+            return false;
+        }
+        const datos = { ...respuesta, bloques: (respuesta.bloques || []).filter((x) => x && !PROPUESTAS.has(x.tipo)) };
+        await this.pintarRespuesta(datos, false, { carritoTrasTexto: conCarrito });
+        this.anotar({ tipo: "respuesta", datos, carrito: conCarrito });
+        return true;
+    }
+
+    /** A2: Andrés propuso sumar el envío (el visitante dijo que sí): la página le pide a Odoo que ponga la línea del envío
+     *  (solo el lugar de la tabla; el precio y la promoción los pone Odoo) y le cuenta al Worker qué pasó. */
+    async aplicarEnvio(b) {
+        const lugarId = entero(b.lugar_id);
+        if (!lugarId || lugarId <= 0) {
+            return;
+        }
+        const r = await this.odoo("POST", `${RUTA}/carrito/envio`, { lugar_id: lugarId });
+        if (r.ok && r.carrito) {
+            this.estado.carritoCambio = true;
+            this.ponerCarrito(r.carrito, true, "andres");
+        }
+        const accion = { tipo: "confirmar_envio", lugar_id: lugarId, resultado: r.ok ? "ok" : "error" };
+        if (!r.ok) {
+            accion.motivo = typeof r.motivo === "string" ? r.motivo.slice(0, 20) : "fallo";
+        }
+        if (await this.confirmarAlWorker(accion, Boolean(r.ok))) {
+            return;
+        }
+        if (r.ok) {
+            this.globo(TEXTO_ENVIO_SUMADO); // la verdad de Odoo aunque el Worker no conteste
+            this.tarjetaCarrito();
+            this.anotar({ tipo: "brian", texto: TEXTO_ENVIO_SUMADO }, { tipo: "carrito" });
+        } else {
+            const frase = "No pude sumar el envío ahorita. Inténtalo otra vez o escríbenos por WhatsApp.";
+            this.globo(frase);
+            this.tarjetaWA();
+            this.anotar({ tipo: "brian", texto: frase }, { tipo: "whatsapp" });
+        }
+    }
+
+    /** A4: Andrés propuso cambiar una cantidad o quitar algo (el visitante lo pidió): la página lo aplica en Odoo con su
+     *  sesión y le manda al Worker el carrito que quedó (la verdad de Odoo) para que Andrés lo confirme. */
+    async aplicarCambio(b) {
+        const productoId = entero(b.producto_id);
+        const cantidad = entero(b.cantidad);
+        if (!productoId || productoId <= 0 || cantidad === null || cantidad < 0 || cantidad > MAX_CANTIDAD) {
+            return;
+        }
+        const r = this.enCarrito(productoId)
+            ? await this.odoo("POST", `${RUTA}/carrito/cantidad`, { producto_id: productoId, cantidad })
+            : { ok: false, motivo: "no_esta" };
+        if (r.ok && r.carrito) {
+            this.estado.carritoCambio = true;
+            this.ponerCarrito(r.carrito, false, "andres");
+        }
+        const conCarrito = Boolean(r.ok && this.estado.carrito && this.estado.carrito.lineas.length);
+        if (await this.confirmarAlWorker({ tipo: "confirmar_cambio", producto_id: productoId, cantidad, resultado: r.ok ? "ok" : "error" }, conCarrito)) {
+            return;
+        }
+        const frase = r.ok ? "Listo, ya cambié tu carrito." : "No pude cambiar el carrito. Inténtalo desde «Ver» en la barra del carrito.";
+        this.globo(frase);
+        this.anotar({ tipo: "brian", texto: frase });
+        if (conCarrito) {
+            this.tarjetaCarrito();
+            this.anotar({ tipo: "carrito" });
         }
     }
 
@@ -1754,22 +2188,15 @@ export class ChatBrian {
         const resultado = r.ok ? "ok" : "error";
         if (r.ok) {
             this.estado.carritoCambio = true;
-            this.ponerCarrito(r.carrito, true);
+            this.ponerCarrito(r.carrito, true, "andres");
         }
-        const quitar = this.escribiendo();
-        const respuesta = await this.worker({ texto: null, accion: { tipo: "confirmar_carrito", producto_id: productoId, cantidad, resultado }, pagina: this.pagina, carrito: this.carritoParaWorker(), ubicacion: null });
-        quitar();
-        if (respuesta.ok) {
-            await this.pintarRespuesta({ ...respuesta, bloques: (respuesta.bloques || []).filter((x) => x && x.tipo !== "proponer_carrito") });
-            this.anotar({ tipo: "respuesta", datos: { ...respuesta, bloques: (respuesta.bloques || []).filter((x) => x && x.tipo !== "proponer_carrito") } });
-        } else if (r.ok) {
+        const respondio = await this.confirmarAlWorker({ tipo: "confirmar_carrito", producto_id: productoId, cantidad, resultado }, Boolean(r.ok));
+        if (!respondio && r.ok) {
             this.globo("Listo, te lo puse en el carrito. Gracias por escogernos.");
-            this.anotar({ tipo: "brian", texto: "Listo, te lo puse en el carrito. Gracias por escogernos." });
-        }
-        if (r.ok) {
             this.tarjetaCarrito();
-            this.anotar({ tipo: "carrito" });
-        } else if (r.motivo === "elegir" && r.url) {
+            this.anotar({ tipo: "brian", texto: "Listo, te lo puse en el carrito. Gracias por escogernos." }, { tipo: "carrito" });
+        }
+        if (!r.ok && r.motivo === "elegir" && r.url) {
             this.tarjetaFicha(r.url, "Elegir en la ficha");
             this.anotar({ tipo: "ficha", url: r.url });
         }
@@ -1922,6 +2349,7 @@ export class ChatBrian {
             this.campo.placeholder = apagado ? "El chat no está disponible" : "Por hoy el chat está en pausa";
             this.btnEnviar.disabled = true;
             this.estadoCab(apagado ? "No disponible" : "En pausa por hoy", true);
+            this.pintarVoz();   // en pausa tampoco hay micrófono
         }
     }
 
@@ -2061,13 +2489,16 @@ export class ChatBrian {
             }
             if (e.tipo === "cliente" && typeof e.texto === "string") {
                 this.cliente(e.texto);
+                if (e.pedido) {
+                    this.ultimoPedido = e.texto;
+                }
             } else if (e.tipo === "brian" && typeof e.texto === "string") {
                 if (e.pose) {
                     this.pose(e.pose);
                 }
                 this.globo(e.texto);
             } else if (e.tipo === "respuesta" && e.datos) {
-                this.pintarRespuesta(e.datos, true);
+                this.pintarRespuesta(e.datos, true, { carritoTrasTexto: e.carrito === true });
             } else if (e.tipo === "carrito") {
                 this.tarjetaCarrito();
             } else if (e.tipo === "chips") {
@@ -2091,6 +2522,325 @@ export class ChatBrian {
             this.campo.disabled = true;
             this.campo.placeholder = "Por hoy el chat está en pausa";
             this.estadoCab();
+            this.pintarVoz();
+        }
+    }
+
+    // ------------------------------------------------------------------ notas de voz (docs/JUAN.md §12a)
+
+    /** ¿Este navegador puede grabar? (Necesita una conexión segura: https o localhost.) */
+    static puedeGrabar() {
+        return Boolean(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder && window.isSecureContext !== false);
+    }
+
+    /** Le pregunta al Worker, sin pase y una vez por página, si hay notas de voz (y sus topes). Sin respuesta, no hay
+     *  micrófono; al volver a abrir el chat se pregunta otra vez. */
+    async revisarVoz(worker) {
+        if (this.vozRevisada || typeof worker !== "string" || !/^https?:\/\//.test(worker) || !ChatBrian.puedeGrabar()) {
+            return;
+        }
+        this.vozRevisada = true;
+        try {
+            const r = await fetch(worker.replace(/\/+$/, "") + "/tienda/v1/voz", { method: "GET", mode: "cors", credentials: "omit", cache: "no-store" });
+            const ofrecida = vozOfrecida(r.ok ? await r.json() : null);
+            this.voz = ofrecida && tipoDeVoz(ofrecida.tipos) ? ofrecida : null;
+        } catch {
+            this.voz = null;
+            this.vozRevisada = false;
+        }
+        this.pintarVoz();
+    }
+
+    /** El renglón de escribir según la nota: el micrófono (si hay), o el tiempo, cancelar y «Listo» mientras graba. */
+    pintarVoz() {
+        if (!this.btnVoz) {
+            return;
+        }
+        const v = this.estado.voz;
+        const activa = v !== "inactiva";
+        this.btnVoz.hidden = activa || !this.voz || this.estado.pausa;
+        this.campo.hidden = activa;
+        this.btnEnviar.hidden = activa;
+        this.vozCaja.hidden = !activa;
+        this.vozCaja.dataset.estado = v;
+        this.form.classList.toggle("o_dcbt_composer_voz", activa);
+        this.vozEstado.textContent = v === "pidiendo" ? "Pidiendo el micrófono…" : v === "transcribiendo" ? "Pasando a texto…" : "Grabando";
+        this.vozCancelar.disabled = v === "transcribiendo";
+        this.vozListo.disabled = v !== "grabando";
+        this.vozListo.innerHTML = v === "transcribiendo" ? '<span class="o_dcbt_voz_girando" aria-hidden="true"></span>' : ICO.check;
+        this.pintarTiempoVoz(activa ? this.vozSegundos || 0 : 0);
+        // La sugerencia: solo con micrófono, sin grabar y si en esta sesión todavía no salió.
+        const pista = !this.btnVoz.hidden && this.estado.abierto && !this.pistaVista && !leerAlmacen(CLAVE_VOZ_PISTA);
+        this.vozPista.hidden = !pista;
+        if (pista) {
+            this.pistaMostrada = true;
+        }
+    }
+
+    pintarTiempoVoz(segundos) {
+        const maximo = (this.voz && this.voz.max_segundos) || VOZ_MAX_SEGUNDOS;
+        this.vozTiempo.textContent = relojVoz(segundos) + " / " + relojVoz(maximo);
+        this.vozAvance.style.width = Math.min(100, Math.round((segundos / maximo) * 100)) + "%";
+    }
+
+    /** La sugerencia de la nota de voz no vuelve en esta sesión una vez que salió (sin insistir). */
+    ocultarPista() {
+        if (this.pistaMostrada && !this.pistaVista) {
+            this.pistaVista = true;
+            guardarAlmacen(CLAVE_VOZ_PISTA, 1);
+        }
+        if (this.vozPista) {
+            this.vozPista.hidden = true;
+        }
+    }
+
+    anunciarVoz(texto) {
+        if (this.vozAnuncio) {
+            this.vozAnuncio.textContent = texto;
+        }
+    }
+
+    /** El micrófono: el permiso se pide recién aquí (al tocarlo). Graba hasta el tope del Worker, con el tiempo a la vista. */
+    async empezarVoz() {
+        if (!this.voz || this.estado.voz !== "inactiva" || this.estado.pausa) {
+            return;
+        }
+        const tipo = tipoDeVoz(this.voz.tipos);
+        if (!tipo) {
+            return;
+        }
+        this.ocultarPista();
+        this.abrirHoja(false);
+        const intento = ++this.intentoVoz;
+        this.estado.voz = "pidiendo";
+        this.vozSegundos = 0;
+        this.pintarVoz();
+        this.anunciarVoz("Pidiendo permiso para usar el micrófono…");
+        let flujo = null;
+        try {
+            flujo = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, channelCount: 1 } });
+        } catch (error) {
+            if (intento === this.intentoVoz && this.estado.voz === "pidiendo") {
+                this.estado.voz = "inactiva";
+                this.pintarVoz();
+                this.errorVoz(["NotAllowedError", "SecurityError"].includes(error && error.name) ? "permiso" : "sin_microfono");
+            }
+            return;
+        }
+        const apagar = () => flujo.getTracks().forEach((p) => p.stop());
+        if (intento !== this.intentoVoz || this.estado.voz !== "pidiendo") {
+            apagar(); // se canceló mientras el navegador pedía el permiso
+            return;
+        }
+        let grabadora;
+        try {
+            grabadora = new window.MediaRecorder(flujo, { mimeType: tipo, audioBitsPerSecond: VOZ_BITS });
+        } catch {
+            apagar();
+            this.estado.voz = "inactiva";
+            this.pintarVoz();
+            this.errorVoz("fallo");
+            return;
+        }
+        // La nota vive solo en memoria (sus pedazos), nunca en el navegador ni en la conversación guardada.
+        const g = { flujo, grabadora, tipo, partes: [], inicio: Date.now(), fin: 0, cancelada: false };
+        this.grabacion = g;
+        grabadora.ondataavailable = (ev) => {
+            if (ev.data && ev.data.size && !g.cancelada) {
+                g.partes.push(ev.data);
+            }
+        };
+        grabadora.onstop = () => this.alPararVoz(g);
+        grabadora.start(1000);
+        this.estado.voz = "grabando";
+        this.idRelojVoz = setInterval(() => {
+            const segundos = (Date.now() - g.inicio) / 1000;
+            this.vozSegundos = Math.min(segundos, this.voz ? this.voz.max_segundos : VOZ_MAX_SEGUNDOS);
+            this.pintarTiempoVoz(this.vozSegundos);
+            if (this.voz && segundos >= this.voz.max_segundos) {
+                this.terminarVoz(); // al llegar al tope para sola y se manda
+            }
+        }, 250);
+        this.pintarVoz();
+        this.vozListo.focus({ preventScroll: true });
+        this.anunciarVoz("Grabando. Toca «Listo» cuando termines; Esc cancela.");
+    }
+
+    /** «Listo» (o el tope): para de grabar; la nota se manda cuando el navegador la entrega (``alPararVoz``). */
+    terminarVoz() {
+        const g = this.grabacion;
+        if (this.estado.voz !== "grabando" || !g) {
+            return;
+        }
+        clearInterval(this.idRelojVoz);
+        g.fin = Date.now();
+        this.estado.voz = "transcribiendo";
+        this.pintarVoz();
+        this.anunciarVoz("Pasando tu nota a texto…");
+        try {
+            g.grabadora.stop();
+        } catch {
+            this.alPararVoz(g);
+        }
+    }
+
+    /** Cancelar (X, Esc, cerrar el chat o irse de la página): se tira lo grabado y se apaga el micrófono. */
+    cancelarVoz({ enfocar = true } = {}) {
+        if (!["pidiendo", "grabando"].includes(this.estado.voz)) {
+            return;
+        }
+        this.intentoVoz++;
+        clearInterval(this.idRelojVoz);
+        const g = this.grabacion;
+        this.grabacion = null;
+        if (g) {
+            g.cancelada = true;
+            g.partes = [];
+            try {
+                if (g.grabadora.state !== "inactive") {
+                    g.grabadora.stop();
+                }
+            } catch {
+                // nada: igual se apaga abajo
+            }
+            this.soltarVoz(g);
+        }
+        this.estado.voz = "inactiva";
+        this.vozSegundos = 0;
+        this.pintarVoz();
+        this.anunciarVoz("Nota de voz cancelada: no se mandó nada.");
+        if (enfocar && this.btnVoz && !this.btnVoz.hidden) {
+            this.btnVoz.focus({ preventScroll: true });
+        }
+    }
+
+    /** Apaga el micrófono (el navegador deja de mostrar que graba). */
+    soltarVoz(g) {
+        for (const pista of (g.flujo && g.flujo.getTracks && g.flujo.getTracks()) || []) {
+            pista.stop();
+        }
+        g.flujo = null;
+    }
+
+    alPararVoz(g) {
+        if (g.listo) {
+            return;
+        }
+        g.listo = true;
+        this.soltarVoz(g);
+        if (g.cancelada) {
+            return;
+        }
+        if (this.grabacion === g) {
+            this.grabacion = null;
+        }
+        const maximo = ((this.voz && this.voz.max_segundos) || VOZ_MAX_SEGUNDOS) * 1000;
+        const ms = Math.min((g.fin || Date.now()) - g.inicio, maximo);
+        const tipo = String(g.grabadora.mimeType || g.tipo).toLowerCase() || g.tipo;
+        const partes = g.partes;
+        g.partes = [];
+        if (!partes.length || ms < VOZ_MIN_MS) {
+            this.estado.voz = "inactiva";
+            this.pintarVoz();
+            this.errorVoz("corta");
+            return;
+        }
+        const nota = new Blob(partes, { type: tipo });
+        if (nota.size > ((this.voz && this.voz.max_bytes) || VOZ_MAX_BYTES)) {
+            this.estado.voz = "inactiva";
+            this.pintarVoz();
+            this.errorVoz("muy_pesada");
+            return;
+        }
+        this.mandarVoz(nota, tipo, ms);
+    }
+
+    /** La nota va UNA vez al Worker; vuelve solo el texto. Con el texto: el globo del visitante y un mensaje normal por
+     *  ``/tienda/v1/mensaje`` (la lógica del chat no se duplica). Si vino recortado, o si ya había algo escrito, queda en
+     *  la caja para que el visitante lo revise y lo mande él. */
+    async mandarVoz(nota, tipo, ms) {
+        let r;
+        try {
+            r = await this.workerVoz(nota, tipo, ms);
+        } catch {
+            r = { ok: false, motivo: "fallo" };
+        }
+        nota = null;
+        this.estado.voz = "inactiva";
+        this.vozSegundos = 0;
+        this.pintarVoz();
+        const texto = r && r.ok && typeof r.texto === "string" ? r.texto.trim().slice(0, MAX_TEXTO) : "";
+        if (!texto) {
+            this.errorVoz(r && r.ok ? "no_se_entendio" : r && r.motivo);
+            return;
+        }
+        const borrador = this.campo.value.trim();
+        if (r.recortado === true || borrador) {
+            this.campo.value = (borrador ? borrador + " " + texto : texto).slice(0, MAX_TEXTO);
+            this.autoAlto();
+            this.btnEnviar.disabled = this.estado.pausa;
+            this.campo.focus({ preventScroll: true });
+            const aviso = r.recortado === true ? "Tu nota era larga y tomé la primera parte: revísala y envíala." : "Listo: revisa el texto y envíalo.";
+            this.anunciarVoz(aviso);
+            if (r.recortado === true) {
+                this.mostrarAviso(aviso);
+            }
+            return;
+        }
+        this.anunciarVoz("");
+        if (!this.btnVoz.hidden) {
+            this.btnVoz.focus({ preventScroll: true });
+        }
+        this.enviar({ texto, mostrar: texto });
+    }
+
+    /** ``POST {worker}/tienda/v1/voz?duracion_ms=…`` con el audio crudo y el pase (con un pase rechazado, uno nuevo y
+     *  otra vez, una sola). */
+    async workerVoz(nota, tipo, ms, reintento = true) {
+        const pase = await this.asegurarPase();
+        if (!pase.ok) {
+            return pase;
+        }
+        const control = window.AbortController ? new AbortController() : null;
+        const plazo = setTimeout(() => control && control.abort(), PLAZO_WORKER_MS);
+        try {
+            const r = await fetch(pase.worker + "/tienda/v1/voz?duracion_ms=" + Math.max(0, Math.round(ms)), {
+                method: "POST", mode: "cors", credentials: "omit", cache: "no-store", signal: control ? control.signal : undefined,
+                headers: { Authorization: "Pase " + pase.pase, "Content-Type": tipo },
+                body: nota,
+            });
+            const datos = await r.json().catch(() => ({ ok: false, motivo: "fallo" }));
+            if ((r.status === 401 || datos.motivo === "pase") && reintento) {
+                guardarAlmacen(CLAVE_PASE, null);
+                const nuevo = await this.asegurarPase(true);
+                if (!nuevo.ok) {
+                    return nuevo;
+                }
+                return this.workerVoz(nota, tipo, ms, false);
+            }
+            return datos && typeof datos === "object" ? datos : { ok: false, motivo: "fallo" };
+        } catch {
+            return { ok: false, motivo: "fallo" };
+        } finally {
+            clearTimeout(plazo);
+        }
+    }
+
+    /** Lo que no salió, dicho por Andrés en palabras amables (siempre con la salida de escribirlo). */
+    errorVoz(motivo) {
+        if (motivo === "apagado") {
+            this.sinRespuesta("apagado", null, null); // la tienda se apagó: el chat entero pasa a WhatsApp
+            return;
+        }
+        if (motivo === "no_disponible") {
+            this.voz = null; // el Worker ya no transcribe: el micrófono se va
+        }
+        const frase = textoErrorVoz(motivo);
+        this.globo(frase);
+        this.anotar({ tipo: "brian", texto: frase });
+        this.pintarVoz();
+        if (!this.btnVoz.hidden) {
+            this.btnVoz.focus({ preventScroll: true });
         }
     }
 }

@@ -1,6 +1,7 @@
-# Brian de la tienda (el chat de ventas de dcasapty.com)
+# Andrés, el chat de ventas de dcasapty.com (antes «Brian de la tienda»)
 
-Aprobado por la dueña el 2026-11-13 (prototipo v2). Módulo `addons/dcasa_brian_tienda` (Odoo y la página) y el Worker de
+Aprobado por la dueña el 2026-11-13 (prototipo v2). Desde el 2026-11-16 se llama **Andrés** (Brian es solo el asistente del
+panel); el módulo y las rutas conservan el nombre `brian` (`dcasa_brian_tienda`, `/dcasa/brian/v1/`). Módulo `addons/dcasa_brian_tienda` (Odoo y la página) y el Worker de
 Juan (`juan/`, rama aparte; su parte está en [JUAN.md](JUAN.md) › Brian de la tienda). **Viene encendido.**
 
 ## En palabras sencillas
@@ -24,6 +25,25 @@ Juan (`juan/`, rama aparte; su parte está en [JUAN.md](JUAN.md) › Brian de la
 - **Sitio web › Brian de la tienda** (Gerencia y administradores): encender o apagar, los dos de la noche, el
   presupuesto del mes (30 USD de fábrica, aparte del de Juan), los topes de mensajes, cuánto va gastando y las
   calificaciones del mes.
+- **Andrés como buen vendedor** (pedido de la dueña, 2026-11-16, plan A1 a A5 de `PLAN_ANDRES_VOZ_PORTADA.md`):
+  - **El carrito siempre a mano:** con algo en el carrito, una barra fija encima del campo de escribir dice «4 artículos ·
+    $649.96 + ITBMS · Ver» y tiene el botón «Cotización» (el PDF). Al tocarla se abre el carrito (cambiar cantidades,
+    quitar, el envío si está, el ITBMS y el total) sin salir del chat; en el celular, igual.
+  - **El envío en la cotización:** cuando Andrés calcula el envío y hay algo en el carrito, pregunta «¿Te lo sumo a la
+    cotización?». Con el sí, la página le pide a Odoo que ponga el envío en el carrito (la misma línea que pone Juan, con
+    la promoción del mes si la compra la cumple) y Andrés dice «Listo, te lo sumé: el total lo ves en tu carrito y en la
+    cotización». Andrés nunca dice la cifra sumada.
+  - **Si quitas algo:** con el chat abierto, la primera vez que el cliente baja una cantidad o vacía el carrito, Andrés
+    dice una sola vez algo como «Vi que quitaste la cama. ¿Te busco una opción más económica o una con más
+    prestaciones?». No insiste.
+  - **Cambiar el carrito conversando:** «quita la cama», «déjame solo uno». Andrés lo propone, la página lo hace en Odoo y
+    Andrés confirma con lo que quedó en el carrito («Listo, quité…») y, si quitó algo, ofrece una alternativa una vez.
+  - **La vitrina ordenada:** en el chat ampliado, arriba «En tu carrito»; después un grupo por cada cosa que se pidió (el
+    más reciente primero y abierto; los de antes, plegados). «Lo más buscado» sigue saliendo cuando todavía no hay nada.
+- **Notas de voz** (pedido de la dueña, 2026-11-16, plan B): si las notas de voz están encendidas en el Worker, junto a
+  «Enviar» sale un micrófono. El cliente habla hasta un minuto, toca «Listo» y lo que dijo sale escrito en su globo y le
+  llega a Andrés como si lo hubiera escrito. El audio no se guarda en ningún lado. Una vez por visita, bajo el campo,
+  Andrés sugiere «Si prefieres, mándame una nota de voz».
 
 ## Cómo está armado
 
@@ -53,7 +73,11 @@ navegador ──(3) /dcasa/brian/v1/carrito/* (sesión, CSRF) ──────
   visitante y le cuenta el resultado (`accion: confirmar_carrito`). Si el visitante toca «Agregar al carrito» en una
   tarjeta, la página lo aplica y lo dice sin gastar IA. Los precios y totales siempre salen de Odoo.
 - **El carrito** (`controllers/main.py`): `POST /carrito/agregar` y `/carrito/cantidad` (`{producto_id, cantidad}`,
-  1 a 20, 0 = quitar), `GET /carrito` y `GET /carrito/cotizacion.pdf`. CSRF en la cabecera `X-CSRF-Token` y cuerpo
+  1 a 20, 0 = quitar), `POST /carrito/envio` (A2, abajo), `GET /carrito` y `GET /carrito/cotizacion.pdf`. `GET /carrito`
+  (y lo que devuelven los POST) es `{lineas, cantidad_total, envio, extras, total_texto, itbms_texto,
+  total_con_itbms_texto}`: `envio` = `{lugar_id, lugar}` si el envío lo puso el sistema (o `null`) y `extras` = las líneas
+  del envío y de su promoción (`{tipo: envio|promocion, nombre, subtotal_texto}`, la promoción como «−$45.00»), que la
+  tienda de Odoo no cuenta entre sus líneas pero sí en los totales. CSRF en la cabecera `X-CSRF-Token` y cuerpo
   JSON de hasta 2 KB. Solo productos publicados en el sitio, que se agregan sin elegir nada y con precio (las reglas
   del «Agregar» de la portada); si hay que elegir medida, color o combo: `{ok:false, motivo:"elegir", url}` con la
   ficha. Cada visitante ve solo su carrito.
@@ -66,6 +90,38 @@ navegador ──(3) /dcasa/brian/v1/carrito/* (sesión, CSRF) ──────
   `pg_advisory_xact_lock` y en READ COMMITTED: una cookie nueva o diez pedidos a la vez no dan cupo nuevo), 10 por hora
   por sesión, y en el borde **6 por minuto por conexión** (cubeta `pdf`, el único GET con freno). Pasado el tope: 429 con
   `Retry-After` y un texto amable con WhatsApp.
+- **El envío en la cotización** (A2): `POST /carrito/envio` `{lugar_id}` (CSRF en la cabecera, JSON de 2 KB, la sesión
+  del visitante). **El navegador manda solo el lugar de la tabla de envíos; el precio nunca** (si manda otro campo, se
+  ignora). Odoo pone el envío por el mismo camino que Juan (`sale.order._dcasa_envio_poner`: el transportista «Entrega a
+  domicilio: te cotizamos por WhatsApp», el precio de la calculadora y, si la compra la cumple, la promoción vigente) y
+  con las mismas reglas que `agregar_envio`: «Juan cotiza envíos» encendido, la tarifa aprobada por Gerencia, el lugar
+  activo, revisado y con un precio claro. Respuestas: `{ok: true, ya_estaba, carrito}` o `{ok: false, motivo}` con
+  `sin_carrito` (el carrito no tiene productos), `sin_tarifa`, `lugar` (no existe o está archivado), `aparte` (sin
+  precio para el cliente), `ajeno`, `tope` (429), `formato` (400), `csrf` (403) o `apagado`. **Topes:** 6 por hora por
+  sesión y 30 por hora por conexión (la IPv4 entera o la /64; contador confirmado aparte, como el del PDF): cada suma
+  escribe en la venta y deja una nota.
+  - **Que la tienda no lo vuelva $0** (`models/venta.py`): la tienda de Odoo, después de cada cambio del carrito
+    (también los del chat), le vuelve a pedir el precio al transportista y se lo pone a todas las líneas de envío; el de
+    «te cotizamos por WhatsApp» es $0. Mientras el transportista sea ese, las líneas que puso el sistema conservan su
+    precio (una marca de contexto que es un objeto: por RPC nunca llega). Si la compra deja de cumplir la promoción, la
+    quita dcasa_envios con una nota; si pasa a cumplirla, se suma. Sin productos que entregar, el envío sale.
+  - **Solo mientras valgan las reglas con que se sumó** (revisión adversarial, 2026-11-16): si Gerencia apaga «Juan
+    cotiza envíos», la tarifa vuelve a revisión o el lugar se archiva o queda sin precio, el envío sumado sale en el
+    siguiente cambio del carrito, al pedir el carrito (`GET /carrito`) o al armar el PDF, y vuelve la entrega de Odoo.
+  - **Al pagar**, la tienda de Odoo decide la entrega como hasta hoy y el envío sumado vale para el carrito del chat y
+    la cotización en PDF:
+    - `/shop/payment` siempre vuelve a poner la entrega del transportista («te cotizamos por WhatsApp», $0).
+    - `/shop/checkout` solo la rehace si el monto del envío no es el precio del transportista ($0): con un envío que
+      cuesta, vuelve «te cotizamos»; con el envío gratis por la promoción (monto $0) el envío sumado sigue en esa
+      página, con su promoción, hasta `/shop/payment`.
+    - Si el visitante vuelve al chat, la línea de «te cotizamos» en $0 que puso la tienda se cambia por el envío al
+      volver a sumarlo (como la de «Retiro en tienda»); un envío con precio que puso una persona no se toca (`ajeno`,
+      y Andrés dice que una vendedora se lo confirma por WhatsApp).
+    - **Pregunta abierta a la dueña:** ¿quiere que el pago respete el envío sumado? No se cambió sin su «sí».
+  - **Los premios de Socios no cuentan el envío** (`dcasa_socios`, `_dcasa_total_sin_premios`): un premio de puntos
+    solo cabe en lo que valen los productos, como antes de que el chat sumara envíos; y si al elegir la entrega el
+    total quedara negativo, el premio sale y los puntos vuelven.
+  - El PDF trae las líneas del envío debajo de los productos y lo dice al pie.
 - **Las estrellas**: `POST /calificar` `{estrellas}`, solo si esa sesión recibió un pase y una vez por `sid`
   (`dcasa.brian.tienda.calificacion`: número y fecha; la ven Gerencia y administradores; nadie la escribe por la
   interfaz).
@@ -122,6 +178,23 @@ navegador ──(3) /dcasa/brian/v1/carrito/* (sesión, CSRF) ──────
   poses en atributos `data-*`). El token CSRF, el pase y el carrito los pide el JS al abrir. Las claves de sesión del
   chat no vuelven «personal» la sesión (`dcasa_tienda_borde`, `CLAVES_NEUTRAS`) y el borde nunca guarda
   `/dcasa/brian/` (`edge/src/routing.ts`). Sin JavaScript la burbuja es un enlace a WhatsApp.
+- **La barra del carrito y su hoja** (A1): `.o_dcbt_barra`, entre la conversación y el campo de escribir (el formulario
+  `.o_dcbt_composer`, con el micrófono junto a «Enviar», va debajo). Se ve con algo en el carrito; el botón de
+  la izquierda (`aria-expanded`, `aria-controls="o_dcbt_hoja"`) abre la hoja `#o_dcbt_hoja` (`role="region"`) sobre la
+  conversación con el carrito editable, el envío, el ITBMS y el total con ITBMS de Odoo; «Cotización» descarga el PDF. Esc
+  cierra primero la hoja; al abrirla el foco va a «Cerrar» y al cerrarla vuelve a la barra. En la computadora, con la
+  barra a la vista, el pie de la vitrina ampliada no se repite.
+- **Lo que Andrés propone, lo aplica la página** con la sesión del visitante y le cuenta al Worker lo que dijo Odoo:
+  `proponer_carrito` → `/carrito/agregar` → `confirmar_carrito`; `sumar_envio` → `/carrito/envio` → `confirmar_envio`
+  (A2); `proponer_cambio_carrito` → `/carrito/cantidad` → `confirmar_cambio`, con el carrito que quedó (A4). La tarjeta
+  del carrito sale justo después del «Listo…». Al restaurar la conversación en otra página, nada se vuelve a aplicar.
+- **La reacción al quitar** (A3): `ponerCarrito` compara el carrito de antes con el nuevo; con el chat abierto, si una
+  cantidad bajó (desde el chat, la página u otra pestaña), le avisa al Worker (`accion: carrito_bajo`) **una vez por
+  sesión** (`sessionStorage`, `dcasa.brian.reaccion`; el Worker también lo cuida). Lo que cambió una propuesta de Andrés
+  no cuenta. Si el aviso falla, no se dice nada.
+- **La vitrina** (A5): «En tu carrito» (las líneas editables) y un `<details>` por cada respuesta con tarjetas, el más
+  reciente primero, con el título que manda el Worker (`titulo` del bloque `productos`) o lo que pidió el visitante; un
+  producto sale solo en su grupo más reciente; lo que el visitante abre o cierra se respeta.
 - **Al pasar de página** el chat sigue igual: lo conversado se recuerda en ese navegador (`sessionStorage`, se borra al
   cerrar la pestaña o a las 2 horas sin actividad), nunca en Odoo. La ubicación no se guarda ni ahí.
 - **Accesible**: foco al abrir (el campo en la computadora, cerrar en el celular) y de vuelta a la burbuja al cerrar,
@@ -142,8 +215,10 @@ navegador ──(3) /dcasa/brian/v1/carrito/* (sesión, CSRF) ──────
 ## Mientras el Worker no esté
 
 `addons/dcasa_brian_tienda/tests/worker_simulado.py` responde `POST /tienda/v1/mensaje` según el contrato (pase, CORS,
-tarjetas solo de las herramientas de Odoo, `proponer_carrito`, ubicación, WhatsApp, estrellas y los errores). Lo usan
-las pruebas del navegador y las capturas; se puede correr suelto:
+tarjetas solo de las herramientas de Odoo, `proponer_carrito`, ubicación, WhatsApp, estrellas y los errores) y las notas
+de voz (`GET /tienda/v1/voz` y `POST /tienda/v1/voz`: revisa el pase, el tipo, el tamaño y los primeros bytes y devuelve
+un texto fijo o el error que se le pida; del audio anota solo el tipo, los KB y la duración). Lo usan las pruebas del
+navegador y las capturas; se puede correr suelto:
 
 ```
 python3 addons/dcasa_brian_tienda/tests/worker_simulado.py --puerto 8787 --token-worker <JUAN_WORKER_TOKEN> \
@@ -155,8 +230,39 @@ python3 addons/dcasa_brian_tienda/tests/worker_simulado.py --puerto 8787 --token
 La política (`/privacidad#brian-de-la-tienda`) lo dice en la sección de inteligencia artificial: lo que se escribe va
 al proveedor de IA (el de Juan, con sus condiciones), la conversación no se guarda (como mucho 2 horas y 30 mensajes,
 los últimos 15 intercambios, en el Worker), la ubicación solo se usa para el envío y no se guarda, Brian no ve ni cambia datos ni compras, las estrellas
-son número y fecha, y los topes cuentan por conexión sin guardar quién es. **Texto propuesto**: lo aprueba la dueña (y
-el abogado) antes de producción.
+son número y fecha, y los topes cuentan por conexión sin guardar quién es. Desde el 2026-11-16 dice también que **una
+nota de voz (hasta un minuto) se convierte en texto con la IA de Cloudflare y el audio no se guarda** (nadie lo escucha,
+no se comparte, no se usa para imitar la voz). **Texto propuesto**: lo aprueba la dueña (y el abogado) antes de
+producción.
+
+## Notas de voz (el micrófono del chat)
+
+El contrato del Worker está en docs/JUAN.md §12a (`GET` y `POST /tienda/v1/voz`). En la página (`brian_tienda.js`,
+sección «notas de voz»; estilos en `brian_tienda.scss`):
+
+- **Cuándo sale:** al abrir el chat, con el Worker del pase (el guardado o el nuevo), la página pregunta una vez por
+  página `GET {worker}/tienda/v1/voz` (sin pase, con CORS). El micrófono sale junto a «Enviar» solo con
+  `disponible: true`, si el navegador puede grabar (`getUserMedia`, `MediaRecorder`, conexión segura) y si graba uno de
+  los `tipos` que acepta el Worker (por orden: WebM Opus, Ogg Opus, WebM, Ogg, MP4). Con el chat en pausa, no sale.
+- **El permiso del micrófono se pide recién al tocarlo.** Graba con MediaRecorder a ~32 kbps; mientras graba, en el
+  mismo renglón del campo: el punto rojo con la palabra «Grabando», el tiempo («0:07 / 1:00»), la barra del minuto,
+  cancelar (X) y «Listo» (el foco va ahí). Al llegar a `max_segundos` para sola y se manda. Esc, la X, cerrar el chat,
+  la cuadrícula del celular o irse de la página la tiran: el micrófono se apaga y no se manda nada.
+- **El audio** vive solo en memoria mientras se graba y va UNA vez: `POST {worker}/tienda/v1/voz?duracion_ms=<n>` con
+  `Authorization: Pase <pase>` y el tipo de la grabación (con un pase vencido, uno nuevo y otra vez, una sola). Nunca
+  se guarda en el navegador ni en lo conversado.
+- **Con `{ok: true, texto}`**: el texto sale en el globo del visitante y se manda por `/tienda/v1/mensaje` como un
+  mensaje normal (el motor no cambia). Con `recortado: true`, o si el visitante ya tenía algo escrito, el texto queda en
+  la caja para que lo revise y lo mande él.
+- **Los errores** los dice Andrés, amable y con la salida de escribirlo: sin permiso del micrófono, sin micrófono, muy
+  corta, muy larga o pesada, no se entendió, los topes y el presupuesto («Escríbelo, por favor»), y lo demás («No pude
+  escuchar tu nota ahora…»). Con `no_disponible` el micrófono se va; con `apagado`, el chat entero pasa a WhatsApp.
+- **«Si prefieres, mándame una nota de voz.»** sale bajo el campo una sola vez por sesión
+  (`sessionStorage`, `dcasa.brian.voz_pista`) y solo con micrófono; se va con el primer mensaje, al tocar el micrófono o
+  al cerrar el chat. El prompt de Andrés no cambió.
+- **Accesible:** `aria-label` en el micrófono, cancelar y «Listo», el tiempo como `role="timer"` y un aviso para
+  lectores de pantalla («Grabando…», «Nota de voz cancelada: no se mandó nada»). Con movimiento reducido, el punto no
+  late. En el celular la nota ocupa el renglón del campo: no tapa la barra del carrito ni la conversación.
 
 ## Pruebas
 
@@ -164,11 +270,24 @@ el abogado) antes de producción.
   CSRF, apagado, Turnstile, el tope por conexión (la IP entera, no la /24) y **dos pedidos a la vez** (dos conexiones reales), la limpieza.
 - `test_carrito.py`: publicados, variantes, sin precio, cantidades, otro visitante, el PDF sin datos ajenos, el tope de
   PDF y las estrellas.
+- `test_envio_carrito.py` (A2): la línea de dcasa_envios con su promoción y los números de Odoo, que el navegador no
+  mande el precio, otro lugar y el mismo, que cambiar el carrito (desde el chat o como la tienda) no lo vuelva $0 y la
+  promoción siga a la compra, el PDF, lo que no se suma, otro visitante y los topes.
+- `test_revision_vendedor.py` (revisión adversarial de A2): el premio de puntos no se paga con el envío, sumar el
+  envío después de pasar por el pago, lo que hace el pago con el envío sumado, apagar los envíos (o la tarifa en
+  revisión, o el lugar archivado) y `ajeno`.
 - `test_ajustes.py`: permisos, lo que llega al Worker, el renglón de Costos de IA, la Guía, la burbuja en lugar de la de
   WhatsApp, la página igual para todos, el editor del sitio (la trampa del error 500) y la privacidad.
-- `test_navegador.py` (Chrome): el chat de punta a punta a 390 y 1366 px con el Worker simulado, la burbuja a 360, 390,
+- `test_navegador.py` (Chrome): el chat de punta a punta a 390 y 1366 px con el Worker simulado; las notas de voz
+  (`TestNotaDeVoz`, con el micrófono de prueba de Chrome: el botón solo si el Worker lo ofrece, grabar, mandar, el globo
+  y el mensaje normal a 390 y 1440 px con la barra del carrito, cancelar con Esc y con la X, el tope, lo recortado, los
+  errores amables, sin permiso, `no_disponible` y el movimiento reducido); Andrés vendedor
+  (`TestAndresVendedor`: la barra encima del campo, la vitrina por pedidos, el envío sumado, la hoja, la reacción una
+  sola vez, quitar conversando y lo que llegó al Worker); la burbuja a 360, 390,
   430 y 1366 px en inicio, catálogo, ficha y carrito, que no tape la barra ni el botón de WhatsApp de la ficha, el
   movimiento reducido y la administradora abriendo el sitio en modo edición (tour `dcasa_brian_tienda_editor`).
+- En `juan/test/tienda/motor.test.ts`: A1 a A5 del Worker (ofrecer y sumar el envío sin cifras, la reacción una vez,
+  cambiar el carrito con la verdad de Odoo, el título de cada grupo).
 - En `dcasa_conversaciones`: las tarjetas (`TestTarjetasDeLaTienda`), `cotizar_envio` sin conversación y por ubicación
   y la lista blanca de la tienda (`test_envios_juan.py`). En el borde: `routing.test.ts` y `bots.test.ts`.
 
