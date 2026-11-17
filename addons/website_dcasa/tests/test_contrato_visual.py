@@ -173,10 +173,9 @@ MEDIR = """
             const sub = vitrina.querySelector('.o_dcasa_hero_sub');
             const kicker = vitrina.querySelector('.o_dcasa_hero_texto > .o_dcasa_kicker');
             const amarillo = vitrina.querySelector('.o_dcasa_btn_amarillo');
-            const etiqueta = vitrina.querySelector('.o_dcasa_vitrina_texto.is-activa');
-            const ver = etiqueta.querySelector('.o_dcasa_vitrina_ver');
             const a = panel.getBoundingClientRect(), b = marco.getBoundingClientRect();
             const h = vitrina.getBoundingClientRect();
+            const contraste = cs(vitrina.querySelector('.o_dcasa_vitrina'), '::after');
             res.vitrina = {
                 rect: rect(vitrina),
                 fondo: cs(vitrina).backgroundColor,
@@ -188,8 +187,14 @@ MEDIR = """
                 filtroFoto: cs(img).filter,
                 mezclaFoto: cs(img).mixBlendMode,
                 marcoImagen: cs(marco).backgroundImage,
+                // La ÚNICA capa permitida es el degradado azul de contraste, y va sobre la vitrina, no sobre la
+                // foto ni sobre el bloque del texto.
                 capas: ['::before', '::after'].flatMap((p) => [cs(marco, p).content, cs(panel, p).content]),
-                // De orilla a orilla: la foto llega a la orilla derecha (y abajo en la computadora), sin margen.
+                contraste: { imagen: contraste.backgroundImage, color: contraste.backgroundColor,
+                             mezcla: contraste.mixBlendMode },
+                zoom: cs(img).animationName,
+                // De orilla a orilla: la foto llena el hero entero, de las dos orillas y de arriba abajo.
+                fotoOrillaIzquierda: Math.abs(b.left) < 1,
                 fotoOrillaDerecha: Math.abs(b.right - innerWidth) < 1,
                 fotoArriba: Math.abs(b.top - h.top) < 1,
                 fotoAbajo: Math.abs(b.bottom - h.bottom) < 1,
@@ -198,8 +203,9 @@ MEDIR = """
                     && a.top < b.bottom - 1 && a.bottom > b.top + 1,
                 colores: { titulo: cs(titulo).color, sub: cs(sub).color, kicker: kicker ? cs(kicker).color : null },
                 amarillo: { fondo: cs(amarillo).backgroundColor, dentroDelPanel: panel.contains(amarillo) },
-                etiqueta: { fondo: cs(etiqueta).backgroundColor, imagen: cs(etiqueta).backgroundImage,
-                            sombra: cs(etiqueta).boxShadow, ver: cs(ver).color },
+                // Nada que manejar: el hero es un fondo, no un carrusel que se recorre.
+                mandos: vitrina.querySelectorAll('.o_dcasa_vitrina_barra, .o_dcasa_vitrina_boton,'
+                    + ' .o_dcasa_vitrina_nombre, .o_dcasa_vitrina_fotos a').length,
                 sobreFoto: html.contains('o_dcasa_nav_sobre_foto'),
             };
         }
@@ -466,39 +472,52 @@ class TestContratoVisual(HttpCase):
             else:
                 self.assertEqual(m['hamburguesa']['filtroIcono'], 'none', 'hamburguesa en tinta sobre fondo claro')
 
-    def test_02b_portada_con_carrusel_a_pantalla_completa_y_el_texto_en_azul_noche(self):
+    def test_02b_el_hero_es_un_fondo_en_movimiento_con_el_contraste_en_azul(self):
+        """La dueña, 2026-11-17: la foto cubre todo el hero y se mueve; encima solo el texto; el contraste se
+        resuelve con un degradado AZUL DE MARCA, nunca oscureciendo la foto, y no hay nada que el visitante maneje.
+        """
         medido = self._medir_todo()
         for ancho, alto in VENTANAS:
             v = medido['portada-carrusel', ancho]['medidas'].get('vitrina')
             with self.subTest(ancho=ancho):
-                self.assertTrue(v, 'con productos elegidos, la portada abre con el carrusel (.o_dcasa_hero_vitrina)')
+                self.assertTrue(v, 'con productos elegidos, la portada abre con el fondo (.o_dcasa_hero_vitrina)')
                 self.assertEqual(v['fondo'], NAVY_CSS, 'nada de negro: el azul noche de las bandas del sitio')
-                self.assertEqual(v['panelFondo'], NAVY_CSS, 'el bloque del texto, azul noche liso')
-                self.assertEqual(v['panelImagen'], 'none', 'sin degradados')
-                self.assertEqual(v['panelSombra'], 'none', 'sin sombras')
+                # La foto, limpia: ni velo, ni filtro, ni degradado encima de ella.
                 self.assertEqual(v['opacidadFoto'], 1.0, 'la foto sin velo')
                 self.assertEqual(v['opacidadDiapositiva'], 1.0)
                 self.assertEqual(v['filtroFoto'], 'none')
                 self.assertEqual(v['mezclaFoto'], 'normal')
-                self.assertEqual(v['marcoImagen'], 'none', 'sin degradado sobre la foto')
+                self.assertEqual(v['marcoImagen'], 'none', 'sin degradado sobre la pila de fotos')
                 for capa in v['capas']:
-                    self.assertIn(capa, ('none', 'normal'), 'ninguna capa ::before/::after sobre la foto o el bloque')
-                self.assertTrue(v['fotoOrillaDerecha'], 'la foto llega a la orilla de la pantalla')
+                    self.assertIn(capa, ('none', 'normal'), 'ninguna capa ::before/::after sobre la foto o el texto')
+                # El bloque del texto ya no es una placa azul: solo coloca el texto encima de la foto.
+                self.assertEqual(v['panelFondo'], 'rgba(0, 0, 0, 0)', 'sin placa: el texto va sobre la foto')
+                self.assertEqual(v['panelImagen'], 'none', 'sin degradados en el bloque')
+                self.assertEqual(v['panelSombra'], 'none', 'sin sombras')
+                # El contraste: un degradado en azul de marca, nunca negro.
+                self.assertIn('gradient', v['contraste']['imagen'], 'el contraste es un degradado, no un velo plano')
+                self.assertEqual(v['contraste']['mezcla'], 'normal')
+                for rgb in (NAVY, AZUL):
+                    self.assertIn(f'rgba({rgb[0]}, {rgb[1]}, {rgb[2]}', v['contraste']['imagen'],
+                                  'el degradado es del azul de la marca')
+                self.assertNotIn('rgba(0, 0, 0', v['contraste']['imagen'], 'el fondo nunca se oscurece con negro')
+                self.assertNotIn('rgb(0, 0, 0', v['contraste']['imagen'])
+                # El movimiento y el encuadre.
+                self.assertEqual(v['zoom'], 'dcasa-vitrina-zoom', 'la foto lleva el zoom lento')
+                self.assertTrue(v['fotoOrillaIzquierda'], 'la foto llega a la orilla izquierda')
+                self.assertTrue(v['fotoOrillaDerecha'], 'y a la derecha')
                 self.assertTrue(v['fotoArriba'], 'y arriba, bajo la cabecera de vidrio')
-                self.assertFalse(v['textoSobreFoto'], 'el bloque del texto no tapa la foto (la cama se ve entera)')
-                if ancho >= 992:
-                    self.assertTrue(v['fotoAbajo'], 'en la computadora, la foto del alto entero del hero')
-                    self.assertGreaterEqual(v['altoPantalla'], alto, 'del alto de la pantalla')
+                self.assertTrue(v['fotoAbajo'], 'y abajo: cubre el hero entero')
+                self.assertGreaterEqual(v['altoPantalla'], alto, 'del alto de la pantalla')
+                self.assertTrue(v['textoSobreFoto'], 'el texto va ENCIMA de la foto, no a su lado')
+                # Nada que tocar y nada que leer de más.
+                self.assertEqual(v['mandos'], 0, 'sin flechas, barras, nombres ni enlaces: es un fondo')
                 for cual, color in v['colores'].items():
                     if color is not None:     # el antetítulo no sale en el celular
                         self.assertEqual(color, 'rgb(255, 255, 255)', f'{cual} blanco')
                 self.assertEqual(v['amarillo']['fondo'], 'rgb(254, 208, 15)')
-                self.assertTrue(v['amarillo']['dentroDelPanel'], 'el botón amarillo, sobre el azul noche')
-                self.assertEqual(v['etiqueta']['fondo'], NAVY_CSS, 'la etiqueta del producto, azul noche')
-                self.assertEqual(v['etiqueta']['imagen'], 'none')
-                self.assertEqual(v['etiqueta']['sombra'], 'none')
-                self.assertEqual(v['etiqueta']['ver'], 'rgb(254, 208, 15)', '«Ver detalles» amarillo sobre el azul')
-                self.assertFalse(v['sobreFoto'], 'la píldora va clara sobre el carrusel')
+                self.assertTrue(v['amarillo']['dentroDelPanel'], 'el botón amarillo, sobre el degradado azul')
+                self.assertFalse(v['sobreFoto'], 'la píldora va clara sobre el fondo')
 
     def test_02_hero_de_la_portada_sin_placa(self):
         medido = self._medir_todo()

@@ -105,19 +105,21 @@
         </section>
     </template>
 
-    <!-- Hero en carrusel (pedido de la dueña, 2026-11-16: «algo dinámico, interactivo, que cambie», con fotos propias;
-         segunda vuelta: «pantalla completa… y no fondo negro»). Los productos y su orden se eligen en Sitio web ›
-         Carrusel de la portada (models/portada.py); sin productos no se llama y queda el hero de siempre.
-         De orilla a orilla y del alto de la pantalla: a la izquierda (abajo en el celular) un bloque liso azul noche con
-         el titular, los botones y los controles; a la derecha (arriba en el celular) la foto del producto llenando su
-         lado, sin velo. Las fotos del catálogo son verticales o cuadradas: a lo ancho de toda la pantalla la cama
-         quedaría cortada o debajo del texto; así se ve entera. Sobre la foto, una etiqueta azul noche con el nombre y
-         «Ver detalles». Lo que cambia en cada diapositiva es la foto y su etiqueta; el titular y los botones, no.
-         Sin JavaScript se ve la primera; static/src/js/portada.js enciende los controles, el avance automático (lento,
-         se detiene con el puntero, el foco o el botón de pausa) y el deslizar con el dedo. Con movimiento reducido no
-         avanza solo. La primera foto es la imagen LCP: «eager», prioridad alta y precargada desde la cabecera
-         (layout_templates.xml, layout_precarga_hero). Sin la clase o_dcasa_hero: la píldora de la cabecera va clara
-         (sobre una foto clara, la ahumada no se lee). -->
+    <!-- Hero: UN FONDO EN MOVIMIENTO (la dueña, 2026-11-17: «como si fuese un video corrido… imágenes con un tipo
+         suave zoom, que cambian, que transicionan allá de fondo. Y encima el texto»; «no quiero ni siquiera que el
+         usuario tenga control de este carrusel»; «ni siquiera tiene que tener el nombre del producto»).
+         Los productos y su orden se eligen en Sitio web › Carrusel de la portada (models/portada.py); sin productos
+         no se llama y queda el hero de siempre.
+         Las fotos cubren el hero entero (de orilla a orilla y del alto de la pantalla), se funden unas en otras en
+         orden al azar y llevan un zoom lento que no para nunca. Encima va SOLO el texto de siempre: ni nombres, ni
+         enlaces, ni flechas, ni barras, ni pausa. Como no se maneja ni aporta información, la pila de fotos es
+         decorativa: aria-hidden y alt vacío (el lector de pantalla lee el texto, no una lista de camas).
+         El contraste del texto se resuelve en el SCSS con un degradado azul de marca sobre la foto, nunca
+         oscureciéndola (regla 1: el amarillo solo sobre azul).
+         Sin JavaScript se ve la primera, quieta; static/src/js/portada.js solo decide cuándo cambiar de foto, y con
+         movimiento reducido no cambia. La primera foto es la imagen LCP: «eager», prioridad alta y precargada desde
+         la cabecera (layout_templates.xml, layout_precarga_hero). Sin la clase o_dcasa_hero: la píldora de la
+         cabecera va clara (sobre una foto clara, la ahumada no se lee). -->
     <template id="hero_carrusel" name="D'CASA: hero con fondo en movimiento">
         <t t-set="dcasa_total" t-value="len(dcasa_vitrina)"/>
         <section class="o_dcasa_hero_vitrina" aria-labelledby="dcasa-hero-titulo">

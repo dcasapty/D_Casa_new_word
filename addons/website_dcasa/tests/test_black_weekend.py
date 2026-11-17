@@ -22,7 +22,9 @@ PALABRAS_PROHIBIDAS = ('tafi', 'tiempo limitado', 'remate', 'cuotas', 'financiam
 # Clases que pintan amarillo y los fondos oscuros (negro, azul, navy, foto oscurecida) donde pueden ir.
 CLASES_AMARILLAS = {'o_dcasa_btn_amarillo', 'o_dcasa_bw_titulo'}
 # El pie ya no es oscuro (paleta 2026-11-15: blanco grisáceo), así que no admite amarillo.
-# El bloque azul noche del carrusel de la portada (2026-11-16) también.
+# El bloque del texto del hero (2026-11-17) también: no tiene fondo propio, pero se apoya sobre el degradado azul
+# de marca que cubre esa zona de la foto (ver .o_dcasa_vitrina::after en dcasa.scss), así que el amarillo cae
+# siempre sobre azul, nunca sobre blanco.
 FONDOS_OSCUROS = {'o_dcasa_bw', 'o_dcasa_hero', 'o_dcasa_socios_band', 'o_dcasa_visita', 'o_dcasa_anuncios',
                   'o_dcasa_vitrina_panel'}
 

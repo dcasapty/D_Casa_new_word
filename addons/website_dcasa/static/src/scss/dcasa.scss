@@ -752,6 +752,33 @@ $dcasa-vitrina-panel: 42%;     // ancho del bloque azul en la computadora
     @media (min-width: 992px) {
         align-items: center;
     }
+
+    // El contraste del texto se resuelve en AZUL DE MARCA, nunca oscureciendo la foto (la dueña, 2026-11-17: «el
+    // fondo no lo quiero oscuro»). Un degradado diagonal muy abierto entra por arriba-izquierda —donde va el texto—
+    // y se abre hasta transparente antes del lado derecho, así que la cama se sigue viendo entera y el amarillo del
+    // botón cae siempre sobre azul (regla 1 de marca). Va en ::after para que las fotos queden limpias; sin bordes
+    // ni franjas que corten.
+    &::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(118deg,
+            rgba($dcasa-navy, .90) 0%,
+            rgba($dcasa-azul, .62) 30%,
+            rgba($dcasa-azul, .18) 58%,
+            rgba($dcasa-azul, 0) 80%);
+        pointer-events: none;
+    }
+
+    // En el celular el texto va abajo: el azul sube desde el pie y deja limpia la parte de arriba de la foto.
+    @media (max-width: 991px) {
+        &::after {
+            background: linear-gradient(to top,
+                rgba($dcasa-navy, .92) 0%,
+                rgba($dcasa-azul, .55) 42%,
+                rgba($dcasa-azul, 0) 78%);
+        }
+    }
 }
 
 // La pila de fotos: detrás de todo y de orilla a orilla.
