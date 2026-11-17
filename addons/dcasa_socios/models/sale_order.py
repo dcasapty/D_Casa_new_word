@@ -328,11 +328,15 @@ class SaleOrder(models.Model):
         return canje
 
     def _dcasa_quitar_puntos_web(self, motivo=None):
-        """El socio quita el premio del carrito: se cancela el canje y los puntos vuelven."""
+        """El socio quita el premio del carrito: se cancela el canje y los puntos vuelven. Y si con el premio puesto
+        la compra había bajado del mínimo de la promoción del envío, se vuelve a ofrecer: el sincronizador de envíos
+        solo quita esa línea, nunca la repone, así que sin esto el socio se quedaba sin puntos Y sin envío gratis."""
         self.ensure_one()
         lineas = self._dcasa_lineas_premio().sudo()
         lineas.dcasa_canje_id._cancelar_por_socio(motivo or self.env._('Quitaste el premio del carrito.'))
         lineas.with_context(dcasa_soltar_canje=False).unlink()
+        if hasattr(self, '_dcasa_promocion_volver_a_ofrecer'):
+            self._dcasa_promocion_volver_a_ofrecer()
         return True
 
 

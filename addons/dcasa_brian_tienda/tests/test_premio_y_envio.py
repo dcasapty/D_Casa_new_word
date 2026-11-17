@@ -201,6 +201,20 @@ class TestPremioFrenteAlEnvio(TiendaCase):
         carrito = self.url_open(f'{RAIZ}/carrito').json()['carrito']
         self.assertFalse([e for e in carrito['extras'] if e['tipo'] == 'premio'], 'el premio no sale en el carrito')
         self.assertEqual(self.socia.dcasa_saldo, saldo, 'los puntos volvieron enteros')
+        self.assertTrue([e for e in carrito['extras'] if e['tipo'] == 'promocion'],
+                        'y el carrito vuelve a mostrar la promoción del envío')
+
+    def test_si_el_socio_quita_el_premio_a_mano_la_promocion_vuelve(self):
+        """El socio puso un premio que le costó la promoción (le convenía: descuenta más de lo que perdía) y
+        después cambia de idea y lo quita con el botón «Quitar». La promoción del envío vuelve, porque la compra
+        otra vez pasa del mínimo: el sincronizador de envíos solo quita esa línea, nunca la repone."""
+        self.socia_con_puntos()
+        orden = self.carrito_con_envio()
+        orden._dcasa_usar_puntos_web(premio=self.premio('premio_desc_50'))
+        self.assertFalse(self.promocion_puesta(orden), 'con el premio puesto la promoción se fue')
+        orden._dcasa_quitar_puntos_web()
+        self.assertFalse(orden.order_line.filtered('dcasa_canje_id'), 'el premio salió')
+        self.assertTrue(self.promocion_puesta(orden), 'la promoción volvió sola')
 
     # ------------------------------------------------------------- la cuenta del impuesto
 

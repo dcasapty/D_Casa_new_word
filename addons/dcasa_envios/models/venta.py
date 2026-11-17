@@ -475,6 +475,30 @@ class SaleOrder(models.Model):
                 copia._dcasa_promocion_reponer()
         return copias
 
+    def _dcasa_promocion_volver_a_ofrecer(self):
+        """Vuelve a poner la promoción del envío (la de HOY, con la compra de ahora) en una cotización abierta que no
+        la tiene y que vuelve a dar para ella. Devuelve ``True`` si la puso.
+
+        Hace falta porque ``_dcasa_promocion_sincronizar`` solo QUITA o pone al día una línea que ya está: nunca
+        repone una que quitó, ya que la promoción se ofrece al sumar el envío y no se regala sola. Esto es para quien
+        sí sabe que la bajada de la compra se deshizo. Hoy lo usa Socios cuando le devuelve al socio un premio que le
+        había costado la promoción: sin esto, el socio se quedaba sin puntos Y sin envío gratis."""
+        self.ensure_one()
+        if self.state not in ESTADOS_EDITABLES or self.locked \
+                or self.order_line.filtered('dcasa_promocion_envio_id'):
+            return False
+        envios = self.order_line.filtered(lambda linea: linea.dcasa_envio_lugar_id and not linea.display_type)
+        if len(envios) != 1 or not envios._dcasa_envio_a_domicilio_del_sistema():
+            return False
+        resultado, terminos = self._dcasa_promocion_calcular(envios)
+        if not terminos:
+            return False
+        self._dcasa_promocion_crear(envios, resultado, terminos)
+        self._dcasa_promocion_nota(self.env._(
+            'La promoción de envío se volvió a poner: la compra vuelve a pasar del mínimo (−%s).',
+            dinero(resultado['ahorro'])))
+        return True
+
     def _dcasa_promocion_reponer(self):
         """En la copia de una cotización que tenía la promoción del envío: se vuelve a calcular con la promoción de hoy
         y la compra de la copia; si no aplica, queda la nota con el porqué."""
