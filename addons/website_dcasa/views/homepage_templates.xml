@@ -118,39 +118,26 @@
          avanza solo. La primera foto es la imagen LCP: «eager», prioridad alta y precargada desde la cabecera
          (layout_templates.xml, layout_precarga_hero). Sin la clase o_dcasa_hero: la píldora de la cabecera va clara
          (sobre una foto clara, la ahumada no se lee). -->
-    <template id="hero_carrusel" name="D'CASA: hero en carrusel">
+    <template id="hero_carrusel" name="D'CASA: hero con fondo en movimiento">
         <t t-set="dcasa_total" t-value="len(dcasa_vitrina)"/>
         <section class="o_dcasa_hero_vitrina" aria-labelledby="dcasa-hero-titulo">
-            <div class="o_dcasa_vitrina" role="region" aria-roledescription="carrusel"
-                 aria-label="Productos de D'CASA" t-att-data-total="dcasa_total">
-                <div class="o_dcasa_vitrina_fotos">
-                    <!-- Las fotos enlazan a la ficha con el ratón; para el lector de pantalla y el teclado, el enlace es
-                         «Ver detalles», en la etiqueta (abajo). -->
-                    <a t-foreach="dcasa_vitrina" t-as="diapo" t-att-href="diapo['url']" tabindex="-1" aria-hidden="true"
-                       t-attf-class="o_dcasa_vitrina_foto {{ 'is-activa' if diapo_first else '' }}">
+            <div class="o_dcasa_vitrina" t-att-data-total="dcasa_total">
+                <!-- FONDO Y NADA MÁS (la dueña, 2026-11-17): «simplemente quiero la foto detrás, el texto». Las fotos
+                     se funden unas en otras con un zoom lento y continuo, en orden al azar. Ni nombres, ni enlaces,
+                     ni flechas, ni barras, ni pausa: el visitante no maneja nada. Por eso es decorativo y va con
+                     aria-hidden y alt vacío: el lector de pantalla lee el texto, no una lista de camas. -->
+                <div class="o_dcasa_vitrina_fotos" aria-hidden="true">
+                    <div t-foreach="dcasa_vitrina" t-as="diapo" t-attf-style="--i: {{ diapo_index }};"
+                         t-attf-class="o_dcasa_vitrina_foto {{ 'is-activa' if diapo_first else '' }}">
                         <picture>
                             <source t-if="diapo['srcset']" type="image/webp" t-att-srcset="diapo['srcset']"
                                     t-att-sizes="diapo['sizes']"/>
-                            <img t-att-src="diapo['src']" t-att-alt="diapo['nombre']" width="1200" height="1600"
+                            <img t-att-src="diapo['src']" alt="" width="1200" height="1600"
                                  t-att-srcset="diapo['srcset_respaldo']" t-att-sizes="diapo['sizes']"
                                  t-att-loading="'eager' if diapo_first else 'lazy'"
                                  t-att-fetchpriority="'high' if diapo_first else 'low'"
                                  t-att-decoding="None if diapo_first else 'async'"/>
                         </picture>
-                    </a>
-                </div>
-
-                <!-- La etiqueta de cada diapositiva: sobre la foto en la computadora; en el celular, justo debajo de
-                     ella (encima taparía la cama). aria-live: «off» mientras avanza sola y «polite» cuando quien visita
-                     la cambia (portada.js), como pide el patrón de carrusel de WAI-ARIA. -->
-                <div class="o_dcasa_vitrina_textos" aria-live="off">
-                    <div t-foreach="dcasa_vitrina" t-as="diapo" role="group" aria-roledescription="diapositiva"
-                         t-attf-aria-label="{{ diapo_index + 1 }} de {{ dcasa_total }}"
-                         t-attf-class="o_dcasa_vitrina_texto {{ 'is-activa' if diapo_first else '' }}">
-                        <p class="o_dcasa_vitrina_nombre" t-out="diapo['nombre']"/>
-                        <a t-att-href="diapo['url']" class="o_dcasa_vitrina_ver"><span class="o_dcasa_vitrina_ver_texto">Ver
-                            detalles</span><span class="visually-hidden">: <t t-out="diapo['nombre']"/></span>
-                            <span aria-hidden="true">→</span></a>
                     </div>
                 </div>
 
@@ -165,33 +152,6 @@
                             <a href="/whatsapp" class="btn btn-lg o_dcasa_btn_linea" target="_blank" rel="noopener nofollow">
                                 <i class="fa fa-whatsapp me-2" aria-hidden="true"/>Escríbenos por WhatsApp <span class="visually-hidden">(se abre en una pestaña nueva)</span>
                             </a>
-                        </div>
-                    </div>
-                    <!-- Controles: nacen escondidos y solo los enciende portada.js si hay más de una diapositiva. En la
-                         computadora van abajo del bloque, a la izquierda (abajo a la derecha flota el chat de la tienda);
-                         en el celular, arriba del bloque, justo debajo de la foto. -->
-                    <div t-if="dcasa_total &gt; 1" class="o_dcasa_vitrina_controles">
-                        <div class="o_dcasa_vitrina_barras" hidden="">
-                            <button t-foreach="dcasa_vitrina" t-as="diapo" type="button" class="o_dcasa_vitrina_barra"
-                                    t-att-data-ir="diapo_index" t-att-aria-current="'true' if diapo_first else None"
-                                    t-attf-aria-label="Ver {{ diapo_index + 1 }} de {{ dcasa_total }}: {{ diapo['nombre'] }}">
-                                <span/>
-                            </button>
-                        </div>
-                        <div class="o_dcasa_vitrina_botones" hidden="">
-                            <button type="button" class="o_dcasa_vitrina_boton o_dcasa_vitrina_pausa" aria-pressed="false"
-                                    aria-label="Pausar el carrusel">
-                                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" class="o_dcasa_vitrina_ico_pausa">
-                                    <path d="M8 5v14M16 5v14"/></svg>
-                                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" class="o_dcasa_vitrina_ico_seguir">
-                                    <path d="M8 5l11 7-11 7z"/></svg>
-                            </button>
-                            <button type="button" class="o_dcasa_vitrina_boton" data-paso="-1" aria-label="Producto anterior">
-                                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15 5l-7 7 7 7"/></svg>
-                            </button>
-                            <button type="button" class="o_dcasa_vitrina_boton" data-paso="1" aria-label="Producto siguiente">
-                                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 5l7 7-7 7"/></svg>
-                            </button>
                         </div>
                     </div>
                 </div>

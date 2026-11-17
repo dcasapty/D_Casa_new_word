@@ -1,11 +1,10 @@
 /**
  * Portada (2026-11-16): el hero en carrusel y la sección «de cine» (models/portada.py, views/homepage_templates.xml).
  *
- *   · DcasaVitrina  el carrusel del hero (foto a un lado, bloque azul noche al otro). Enciende las barras, la
- *                   pausa y las flechas (nacen escondidas: sin JavaScript se ve la primera diapositiva). El avance
- *                   automático lo marca la barra activa: una animación CSS que se llena en --vitrina-tiempo; al
- *                   terminar, pasa a la siguiente. Así, pausar es solo pausar esa animación (puntero encima, foco dentro o el botón de pausa) y con movimiento
- *                   reducido no avanza nunca (la barra no se anima). Con el dedo, deslizar la foto cambia de producto.
+ *   · DcasaVitrina  el FONDO del hero: las fotos se funden unas en otras, en orden al azar, cada --vitrina-tiempo.
+ *                   El visitante no maneja nada (no hay flechas, barras, pausa ni deslizar): es un fondo, no un
+ *                   carrusel que se recorre. El zoom lento es del CSS y no para nunca; con movimiento reducido no
+ *                   cambia de foto. Sin JavaScript se ve la primera, quieta.
  *   · DcasaCine     las cintas de fotos corren solas con CSS; aquí solo el botón de pausa (WCAG 2.2.2) y la pausa
  *                   mientras el dedo está apoyado en ellas.
  *
@@ -16,175 +15,93 @@ import { registry } from "@web/core/registry";
 
 const reducido = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-/** Distancia mínima (px) de un deslizamiento horizontal para cambiar de diapositiva. */
-export const DESLIZAR_MINIMO = 40;
-
 /**
- * Índice de la diapositiva que sigue (o la anterior con paso -1), dando la vuelta en las orillas.
- * @param {number} actual
- * @param {number} paso
- * @param {number} total
+ * El fondo del hero (la dueña, 2026-11-17): las fotos se funden unas en otras, en orden al azar, sin que el visitante
+ * maneje nada. No hay flechas, ni barras, ni pausa, ni deslizar: es un fondo, no un carrusel que se recorre.
+ * El zoom lento lo hace el CSS y no para nunca; aquí solo se decide cuándo cambiar de foto.
+ * Con movimiento reducido no cambia nunca: se queda la primera.
  */
-export function vecina(actual, paso, total) {
-    return total ? (((actual + paso) % total) + total) % total : 0;
-}
-
 export class DcasaVitrina extends Interaction {
     static selector = ".o_dcasa_vitrina";
-    dynamicContent = {
-        ".o_dcasa_vitrina_barra": { "t-on-click": this.alBarra },
-        ".o_dcasa_vitrina_boton[data-paso]": { "t-on-click": this.alPaso },
-        ".o_dcasa_vitrina_pausa": {
-            "t-on-click": this.alternarPausa,
-            "t-att-aria-pressed": () => String(this.pausada),
-            "t-att-aria-label": () => (this.pausada ? "Reanudar el carrusel" : "Pausar el carrusel"),
-        },
-        ".o_dcasa_vitrina_barras": { "t-on-animationend.noUpdate": this.alLlenarBarra },
-        _root: {
-            "t-att-class": () => ({
-                "is-viva": this.viva,
-                "is-quieta": this.viva && this.quieta,
-                "is-pausada": this.pausada,
-                "is-encima": this.encima,
-                "is-con-foco": this.conFoco,
-            }),
-        },
-    };
 
     setup() {
         this.fotos = [...this.el.querySelectorAll(".o_dcasa_vitrina_foto")];
-        this.textos = [...this.el.querySelectorAll(".o_dcasa_vitrina_texto")];
-        this.barras = [...this.el.querySelectorAll(".o_dcasa_vitrina_barra")];
-        this.vivo = this.el.querySelector(".o_dcasa_vitrina_textos");
         this.total = this.fotos.length;
         this.actual = Math.max(0, this.fotos.findIndex((foto) => foto.classList.contains("is-activa")));
-        // Las clases del contenedor se aplican antes de start(): se decide aquí.
-        this.viva = this.total > 1;
-        this.quieta = reducido();
-        this.pausada = false;
-        this.encima = false;
-        this.conFoco = false;
+        // Orden al azar, empezando por la que ya se está viendo (es la que el navegador precargó: el LCP no cambia).
+        this.orden = barajar(this.fotos.map((_, i) => i).filter((i) => i !== this.actual));
+        this.paso = 0;
+        this.temporizador = null;
     }
 
     start() {
-        // Mientras el carrusel se ve, el botón flotante de WhatsApp espera fuera: el bloque ya trae el suyo.
-        if ("IntersectionObserver" in window) {
-            const raiz = document.documentElement;
-            const observador = new IntersectionObserver(([entrada]) => {
+        const raiz = document.documentElement;
+        // Mientras el hero se ve, el botón flotante de WhatsApp espera fuera (el texto ya trae el suyo).
+        this.mirador = new IntersectionObserver((entradas) => {
+            for (const entrada of entradas) {
                 raiz.classList.toggle("o_dcasa_vitrina_a_la_vista", entrada.isIntersecting);
-            });
-            observador.observe(this.el);
-            this.registerCleanup(() => {
-                observador.disconnect();
-                raiz.classList.remove("o_dcasa_vitrina_a_la_vista");
-            });
-        }
-        if (!this.viva) {
-            return;
-        }
-        const controles = this.el.querySelectorAll(".o_dcasa_vitrina_barras, .o_dcasa_vitrina_botones");
-        controles.forEach((el) => el.removeAttribute("hidden"));
-        this.registerCleanup(() => controles.forEach((el) => el.setAttribute("hidden", "")));
-
-        // Pausa mientras el ratón está encima o el foco adentro (el dedo no: un toque no es «estar encima»).
-        this.addListener(this.el, "pointerenter", (ev) => {
-            if (ev.pointerType === "mouse") {
-                this.encima = true;
             }
-        });
-        this.addListener(this.el, "pointerleave", () => {
-            this.encima = false;
-        });
-        this.addListener(this.el, "focusin", () => {
-            this.conFoco = true;
-        });
-        this.addListener(this.el, "focusout", (ev) => {
-            if (!this.el.contains(ev.relatedTarget)) {
-                this.conFoco = false;
-            }
-        });
-
-        // Deslizar la foto con el dedo. Un deslizamiento no es un clic: el enlace de la foto no se abre.
-        const marco = this.el.querySelector(".o_dcasa_vitrina_fotos");
-        this.addListener(marco, "pointerdown", (ev) => {
-            this.inicio = ev.pointerType === "mouse" ? null : { x: ev.clientX, y: ev.clientY };
-            this.deslizo = false;
-        });
-        this.addListener(marco, "pointerup", (ev) => {
-            if (!this.inicio) {
-                return;
-            }
-            const dx = ev.clientX - this.inicio.x;
-            const dy = ev.clientY - this.inicio.y;
-            this.inicio = null;
-            if (Math.abs(dx) >= DESLIZAR_MINIMO && Math.abs(dx) > Math.abs(dy)) {
-                this.deslizo = true;
-                this.ir(vecina(this.actual, dx < 0 ? 1 : -1, this.total), true);
-            }
-        });
-        this.addListener(marco, "pointercancel", () => {
-            this.inicio = null;
-        });
-        this.addListener(
-            marco,
-            "click",
-            (ev) => {
-                if (this.deslizo) {
-                    ev.preventDefault();
-                    this.deslizo = false;
-                }
-            },
-            { capture: true }
-        );
-
+        }, { threshold: 0.25 });
+        this.mirador.observe(this.el);
         this.registerCleanup(() => {
-            this.vivo?.setAttribute("aria-live", "off");
+            this.mirador.disconnect();
+            raiz.classList.remove("o_dcasa_vitrina_a_la_vista");
         });
-    }
-
-    alBarra(ev) {
-        this.ir(Number(ev.currentTarget.dataset.ir) || 0, true);
-    }
-
-    alPaso(ev) {
-        this.ir(vecina(this.actual, Number(ev.currentTarget.dataset.paso) || 1, this.total), true);
-    }
-
-    alternarPausa() {
-        this.pausada = !this.pausada;
-    }
-
-    /** La barra activa terminó de llenarse: toca la siguiente (solo si de verdad corría el avance). */
-    alLlenarBarra(ev) {
-        const barra = this.barras[this.actual];
-        if (!this.viva || this.quieta || !barra || !barra.contains(ev.target)) {
-            return;
-        }
-        this.ir(vecina(this.actual, 1, this.total), false);
-    }
-
-    /**
-     * Muestra la diapositiva `indice`. `porQuien`: si la cambió quien visita, el lector de pantalla anuncia la nueva
-     * (aria-live «polite»); mientras avanza sola, no interrumpe («off»).
-     */
-    ir(indice, porQuien) {
-        if (indice === this.actual || !this.fotos[indice]) {
-            return;
-        }
-        for (const lista of [this.fotos, this.textos]) {
-            lista[this.actual]?.classList.remove("is-activa");
-            lista[indice]?.classList.add("is-activa");
-        }
-        this.barras[this.actual]?.removeAttribute("aria-current");
-        this.barras[indice]?.setAttribute("aria-current", "true");
-        this.actual = indice;
-        this.vivo?.setAttribute("aria-live", porQuien ? "polite" : "off");
-        // La que sigue se pide ya: cuando le toque, está lista.
-        const proxima = this.fotos[vecina(indice, 1, this.total)]?.querySelector("img");
-        if (proxima && proxima.loading === "lazy") {
-            proxima.loading = "eager";
+        if (this.total > 1 && !reducido()) {
+            this.programar();
         }
     }
+
+    destroy() {
+        this.parar();
+    }
+
+    parar() {
+        if (this.temporizador) {
+            this.services.timer?.clearTimeout?.(this.temporizador);
+            clearTimeout(this.temporizador);
+            this.temporizador = null;
+        }
+    }
+
+    programar() {
+        this.parar();
+        const ms = tiempoDeLaVitrina(this.el);
+        this.temporizador = setTimeout(() => this.siguiente(), ms);
+        this.registerCleanup(() => this.parar());
+    }
+
+    siguiente() {
+        if (!this.orden.length) {
+            // Otra vuelta, barajada de nuevo y sin repetir la que se está viendo de primera.
+            this.orden = barajar(this.fotos.map((_, i) => i).filter((i) => i !== this.actual));
+        }
+        const proxima = this.orden.shift();
+        this.fotos[this.actual]?.classList.remove("is-activa");
+        this.fotos[proxima]?.classList.add("is-activa");
+        this.actual = proxima;
+        this.programar();
+    }
+}
+
+/** Una copia barajada (Fisher-Yates). */
+export function barajar(lista) {
+    const copia = [...lista];
+    for (let i = copia.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copia[i], copia[j]] = [copia[j], copia[i]];
+    }
+    return copia;
+}
+
+/** Lo que dura cada foto, en milisegundos, leído de `--vitrina-tiempo` (para poder acortarlo en las pruebas). */
+export function tiempoDeLaVitrina(el) {
+    const valor = getComputedStyle(el).getPropertyValue("--vitrina-tiempo").trim();
+    const numero = parseFloat(valor);
+    if (!numero || Number.isNaN(numero)) {
+        return 7000;
+    }
+    return valor.endsWith("ms") ? numero : numero * 1000;
 }
 
 export class DcasaCine extends Interaction {
