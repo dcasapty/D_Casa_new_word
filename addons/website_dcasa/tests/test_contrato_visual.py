@@ -192,7 +192,6 @@ MEDIR = """
                 capas: ['::before', '::after'].flatMap((p) => [cs(marco, p).content, cs(panel, p).content]),
                 contraste: { imagen: contraste.backgroundImage, color: contraste.backgroundColor,
                              mezcla: contraste.mixBlendMode },
-                zoom: cs(img).animationName,
                 // De orilla a orilla: la foto llena el hero entero, de las dos orillas y de arriba abajo.
                 fotoOrillaIzquierda: Math.abs(b.left) < 1,
                 fotoOrillaDerecha: Math.abs(b.right - innerWidth) < 1,
@@ -502,8 +501,8 @@ class TestContratoVisual(HttpCase):
                                   'el degradado es del azul de la marca')
                 self.assertNotIn('rgba(0, 0, 0', v['contraste']['imagen'], 'el fondo nunca se oscurece con negro')
                 self.assertNotIn('rgb(0, 0, 0', v['contraste']['imagen'])
-                # El movimiento y el encuadre.
-                self.assertEqual(v['zoom'], 'dcasa-vitrina-zoom', 'la foto lleva el zoom lento')
+                # El encuadre (el zoom lento no se mide aquí: estas capturas congelan toda animación a propósito,
+                # para salir siempre iguales; el zoom se comprueba en TestCarruselPortada, en un Chrome normal).
                 self.assertTrue(v['fotoOrillaIzquierda'], 'la foto llega a la orilla izquierda')
                 self.assertTrue(v['fotoOrillaDerecha'], 'y a la derecha')
                 self.assertTrue(v['fotoArriba'], 'y arriba, bajo la cabecera de vidrio')
