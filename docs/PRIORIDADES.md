@@ -1,6 +1,6 @@
 # Prioridades vigentes
 
-Puesto al día el **2026-11-15** (bandas en azul noche, pie claro y contacto en producción, Desplegar 76; Black Friday y Andrés en la rama). Es el orden en que se trabaja: cada sesión lo lee al empezar y lo pone al día al
+Puesto al día el **2026-11-17** (guía de Instagram con Claude in Chrome; antes, 2026-11-15 (bandas en azul noche, pie claro y contacto en producción, Desplegar 76; Black Friday y Andrés en la rama)). Es el orden en que se trabaja: cada sesión lo lee al empezar y lo pone al día al
 terminar (ver [LEEME_PRIMERO.md](LEEME_PRIMERO.md)). Aquí va **un solo estado**, el de hoy; lo que pasó cada día está en
 la bitácora de LEEME_PRIMERO (y lo más viejo en [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md)).
 
@@ -111,7 +111,9 @@ la producción. Apruébalo y punto.»); la revisión adversarial no se salta (re
       (según Meta, si la app solo sirve la cuenta propia basta el acceso estándar, sin revisión; hay fuentes que dicen
       lo contrario y el amigo de la dueña lo logró así con otro cliente). Pide en Juan una segunda llave (`IG…`, se
       renueva cada 60 días) y la clave secreta de la app de Instagram. Si no alcanza, va en la misma revisión de la app.
-      **En producción desde Juan 22, apagada:** falta que el jefe siga JUAN_CANALES §3b y pruebe con una cuenta SIN papel.
+      **En producción desde Juan 22, apagada:** falta seguir la guía y probar con una cuenta SIN papel.
+      **Desde el 2026-11-17 hay guía paso a paso para Claude in Chrome:** [INSTAGRAM_CON_CHROME.md](INSTAGRAM_CON_CHROME.md).
+      La hace un socio con acceso al portafolio DCasa Pty, en una app nueva, «D'CASA Instagram», sin tocar «D'CASA Juan».
     - **Comentarios: en producción desde Desplegar 70 y Juan 24, apagados** (JUAN_CANALES §3c). Los avisos de
       comentarios piden acceso avanzado por las dos puertas (también por inicio de sesión de Instagram): hasta la
       revisión de la app solo llegan los de cuentas con papel. Falta: que el jefe marque `feed` (página) y `comments`

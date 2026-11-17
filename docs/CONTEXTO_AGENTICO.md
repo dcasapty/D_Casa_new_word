@@ -1605,6 +1605,16 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   with Unified login» es otra cosa (otra llave, para publicar): Juan contesta Instagram por Messenger con la llave de
   la página.
 
+- **Instagram por «inicio de sesión de Instagram»: la guía que funcionó afuera** (2026-11-17,
+  [INSTAGRAM_CON_CHROME.md](INSTAGRAM_CON_CHROME.md)). Meta ya no crea apps con «Otro › Negocio»: ahora se filtra por
+  «Mensajes comerciales» › «Administrar mensajes y contenido en Instagram», y la app se activa con el botón «Publicar»,
+  que no es la revisión. Para añadir la cuenta sin publicar, Meta exige el rol «Evaluador de Instagram», que no es el
+  «Evaluador» normal, aceptado desde `instagram.com/accounts/manage_access/`. Juan no enciende la suscripción de la
+  cuenta (`POST /me/subscribed_apps`): solo la consulta, así que se enciende en Meta. **Firma:** Juan acepta
+  `INSTAGRAM_APP_SECRET` y, de respaldo, `META_APP_SECRET` (la de «D'CASA Juan»). Con una app nueva, si Meta firma con
+  la clave de Básica, sale 401: se cambia el valor de `INSTAGRAM_APP_SECRET`. Antes de decir «no funciona», mirar los
+  `POST /webhooks/instagram` en los registros de Cloudflare (ninguno, 401 o 200).
+
 ### GitHub
 
 - **Dependabot: dos PR que tocan el mismo `package-lock.json` chocan** (2026-11-06, #7 y #8 de `edge/`): se juntan a mano

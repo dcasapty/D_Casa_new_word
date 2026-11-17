@@ -316,6 +316,12 @@ Texto para Meta:
 
 ## 3b. Instagram por «inicio de sesión de Instagram» (la segunda puerta, 2026-11-12)
 
+> **Desde el 2026-11-17 la guía para hacerlo con Claude in Chrome es [INSTAGRAM_CON_CHROME.md](INSTAGRAM_CON_CHROME.md).**
+> Es la que le dio resultado a un conocido de la dueña, adaptada a D'CASA. Usa el flujo actual de Meta para crear una
+> app: el caso de uso «Administrar mensajes y contenido en Instagram» y el botón «Publicar». Ese flujo reemplaza la
+> opción B del paso 2 de abajo, porque «Otro › Negocio» ya no existe así. Los pasos de abajo siguen valiendo como
+> referencia.
+
 La dueña aprobó probar esta puerta («me parece bien esa segunda puerta y que él inicie como una persona normal desde su
 cuenta personal y que todo lo haga el jefe»). Juan ya la trae (Desplegar Juan 22, ruta `/webhooks/instagram`,
 `juan/src/canales/instagramLogin.ts` e `instagramLlave.ts`), **apagada** hasta que se pongan `INSTAGRAM_TOKEN` e
@@ -481,7 +487,11 @@ Las pruebas del 9 y 10 nov engañaron justamente por usar cuentas con papel.
 4. Si no pasa nada, en **Cloudflare › `dcasa-juan` › Logs** ⚠ busca `POST /webhooks/instagram`:
    - **No aparece ninguno:** Meta no está mandando los mensajes de clientes reales → con el acceso estándar no alcanza
      (o falta el paso 3.5 o el paso 7). Anotarlo: el siguiente camino es la revisión de la app.
-   - **Aparece con 401:** la clave del paso 4 no es la correcta (¿se pegó la de Facebook?).
+   - **Aparece con 401:** Meta firma con otra clave. Puede ser que se pegó la de Facebook en lugar de la de Instagram, o
+     que Meta firme con la «Clave secreta de la app» de Configuración › Básica de la app nueva. La guía del conocido acepta
+     las dos claves. Juan acepta solo `INSTAGRAM_APP_SECRET` y, de respaldo, `META_APP_SECRET`, que es la de «D'CASA
+     Juan». Arreglo: poner en `INSTAGRAM_APP_SECRET` la otra clave de la app nueva. No hace falta volver a verificar el
+     webhook.
    - **Aparece con 200 pero no hay nada en Odoo:** mira `/salud` (paso 8: ¿«otra cuenta»?) y que Instagram esté encendido
      en Odoo (*Ajustes de Juan › «Dónde contesta»*).
 

@@ -109,6 +109,35 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 > sigue. Se guardan las diez más recientes; las viejas se resumen en una línea abajo y su texto completo pasa a
 > [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md).
 
+### 2026-11-17: guía para conectar el Instagram de D'CASA con Claude in Chrome (solo documentos)
+
+**Nada nuevo en producción**: no cambió código.
+
+- **Pedido de un socio** con acceso al portafolio DCasa Pty y permiso de la empresa: que Juan conteste Instagram como
+  WhatsApp, siguiendo la guía con la que un conocido conectó el Instagram de otro cliente. Pidió las instrucciones para
+  Claude in Chrome.
+- **Hallazgo:** esa guía usa la misma puerta que Juan ya trae desde Juan 22, «inicio de sesión de Instagram», y nunca se
+  terminó de conectar. El 2026-11-17, `/salud` seguía con `"puerta": "pagina_facebook"`. **No hace falta programar ni
+  desplegar:** hay que crear una app nueva («D'CASA Instagram») y poner `INSTAGRAM_APP_SECRET` e `INSTAGRAM_TOKEN` en
+  Cloudflare.
+- **Hecho:** [INSTAGRAM_CON_CHROME.md](INSTAGRAM_CON_CHROME.md), el prompt adaptado (Cloudflare en lugar del panel del
+  conocido, las URL de D'CASA y el orden que pide Juan: las claves antes del webhook). Lo que suma frente a §3b:
+  - el flujo nuevo de Meta para crear apps, con el caso de uso «Administrar mensajes y contenido en Instagram» y el
+    botón «Publicar»;
+  - el rol «Evaluador de Instagram»;
+  - qué hacer si se perdió `META_VERIFY_TOKEN`;
+  - que Juan no enciende solo la suscripción de la cuenta.
+  JUAN_CANALES §3b apunta a la guía.
+- **Riesgo anotado:** Juan valida la firma con `INSTAGRAM_APP_SECRET` y, de respaldo, `META_APP_SECRET`, que es la de
+  «D'CASA Juan». El panel del conocido acepta las dos claves de la app nueva. Si Meta firmara con la «Clave secreta de
+  la app» (Básica), los avisos darían 401. Arreglo sin código: poner esa clave en `INSTAGRAM_APP_SECRET` (paso B7 de la
+  guía). Si pasa, conviene que Juan acepte una segunda clave.
+- **Visto de paso:**
+  - `/salud` de Juan da `ok: false` por `ANTHROPIC_API_KEY` faltante (el respaldo de la IA); no se tocó.
+  - La política de privacidad no nombra Instagram ni Messenger: solo WhatsApp y Telegram.
+- **Sigue:** que el socio siga la guía y pruebe con una cuenta **sin papel**. Si no llega nada, la revisión de Meta
+  (PRIORIDADES, punto 00).
+
 ### 2026-11-16: Black Friday y «Andrés» listos en la rama sin subir (pausa por límite de uso); plan de la ronda siguiente
 
 **Nada nuevo en producción** (sigue Desplegar 76, `754aceaf18e7`). La sesión se pausó por el límite de uso de la cuenta, a

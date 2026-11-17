@@ -19,6 +19,7 @@
 | Dar de baja mermas, daños, muestras y regalos; ver la bitácora de bodega; encender las alertas de bodega por Telegram | [EXISTENCIAS.md](EXISTENCIAS.md) |
 | Atender conversaciones con Juan: la bandeja, el reparto entre vendedoras, el CRM que se ajusta solo | [JUAN_ODOO.md](JUAN_ODOO.md) |
 | Los canales de Juan: WhatsApp por la API oficial, Telegram, conectar Messenger e Instagram | [JUAN_CANALES.md](JUAN_CANALES.md) |
+| Conectar el Instagram de D'CASA a Juan paso a paso con Claude in Chrome (la «segunda puerta») | [INSTAGRAM_CON_CHROME.md](INSTAGRAM_CON_CHROME.md) |
 | Usar a Sofía, la asistente del CRM (propone a quién escribirle; una persona aprueba) | [SOFIA.md](SOFIA.md) |
 | Usar Brian, el asistente del panel | [BRIAN.md](BRIAN.md) |
 | La puerta del equipo `/master` (cómo comprobarla y cuándo encenderla) | [PUERTA_MASTER.md](PUERTA_MASTER.md) |
