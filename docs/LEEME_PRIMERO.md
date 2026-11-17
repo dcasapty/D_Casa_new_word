@@ -109,6 +109,26 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 > sigue. Se guardan las diez más recientes; las viejas se resumen en una línea abajo y su texto completo pasa a
 > [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md).
 
+### 2026-11-17: la pantalla «Armar combo», tres arreglos de Socios y del chat, y los parches de IA de Juan
+
+**Nada nuevo en producción** (sigue Desplegar 77 y Juan 28). Todo en la rama de trabajo, a la espera de la decisión
+de la dueña sobre Socios y el envío gratis (ver [PRIORIDADES.md](PRIORIDADES.md)).
+
+- **«Armar combo»** (lo que pidió la dueña después del Black Friday): su columna «precio» salía sin la campaña, así
+  que durante una oferta le mostraba a la vendedora un precio que ese día no se practicaba —la web decía otro— y un
+  ahorro que no existía. Ahora «precio» es lo que la pieza cuesta SUELTA ESE DÍA y «precio_linea» lo que se cobra en
+  el combo. 238 pruebas en verde.
+- **El total negativo en el mostrador:** la guarda «el premio no pasa del carrito» vivía solo en la tienda web. Pasó
+  a `_aplicar_en_venta` (por donde van los dos caminos) y `action_confirm` quedó con una última red.
+- **La guardia del Worker:** se saltaba con una oración que terminara en «?» sin «¿» («ya te lo quité…, ok?») y con
+  una pregunta en medio. Ahora se quitan las cláusulas interrogativas enteras y se revisa todo lo demás.
+- **El premio de Socios ya no viaja al chat entre los productos:** le contaba al modelo que el visitante es socio y
+  tiene un premio puesto, Andrés podía proponer quitarlo (eso cancela el canje) y reaccionaba ofreciendo «algo más
+  económico» por el premio del propio cliente. Va en «extras», con el envío.
+- **PR de Dependabot #98 unido a main** (parches de `@ai-sdk/*` y `ai` en `juan/`), con el CI completo en verde y
+  revisado que los cambios de comportamiento del registro tocan APIs que Juan no usa. Juan: 1924 pruebas en verde con
+  las librerías nuevas. **No cambia producción hasta el próximo «Desplegar Juan».**
+
 ### 2026-11-16 (3): el Black Friday en producción (Desplegar 77 y Juan 28)
 
 **Nada nuevo en producción todavía** (sigue Desplegar 76). La sesión tomó el traspaso y cerró el **paso 0**.
@@ -369,116 +389,9 @@ pedido de la dueña: «sube la rama lo que tengas y añade todo lo que avanzamos
 - **Hallazgo de la dueña (con otro Claude y un amigo): Messenger e Instagram NO les llegan a los clientes.** Las pruebas del 9 y 10 nov se hicieron con cuentas con papel en la app; Meta solo manda los avisos de esas cuentas mientras la app no tenga acceso avanzado. Corregido en JUAN_CANALES §3 y PRIORIDADES (punto 00). Aprobó: (1) probar la «segunda puerta» de Instagram (inicio de sesión de Instagram, con la cuenta propia de D'CASA; lo hace el jefe desde su cuenta personal) — está en producción desde Juan 22 (apagada) y los pasos del jefe están en JUAN_CANALES §3b; (2) **comentarios** de Instagram y Facebook: «Solo los que preguntan», «Corto y lo demás por privado», «Apagado hasta que lo pruebes» (se construye después de la segunda puerta). Para Messenger el único camino es la revisión de la app de Meta con el negocio verificado.
 - **Sigue:** desplegar la segunda puerta de Instagram (CI → PR → Desplegar Juan); que el jefe siga los pasos y pruebe con una cuenta SIN papel; comentarios; paquete para la revisión de Meta (Messenger y comentarios).
 
-### 2026-11-11 (3): Inicio nuevo, el celular al entrar, la caja del chat, entregas = Bodega, «Más datos» y modo oscuro, en producción (Desplegar 65, 66 y 67)
-
-**En producción desde el 2026-11-11, 21:20 UTC (confirmado sano y estable a las 21:34):** **Desplegar 65** (Odoo y el
-borde; run 43101954871) con la imagen `sha256:66e84351…` y `app_version` `b62903127c5483c8e6bd1cd4700e97a766accfb2`
-(PR #110, squash `b8d6a51`; CI 334 con staging, run 43093423535), con respaldo previo. Lleva el Inicio nuevo, los tres
-arreglos del celular, la caja de responder del chat en el celular y la lista entera en tableta. Juan no cambió.
-
-**Y desde las 22:36 UTC (confirmado sano y estable a las 22:49):** **Desplegar 66** (run 43112609143) con la imagen
-`sha256:a3bbe22a…` y `app_version` `8859a44eb6316281e327103a0566259fc6e558f1` (PR #111, squash `b66302a`; CI 336 con
-staging, run 43104407376), con respaldo previo: «Entregas pendientes» igual que Bodega y «Más datos» en la cotización.
-**Y desde el 2026-11-12, 02:06 UTC (confirmado sano y estable a las 02:19):** **Desplegar 67** (run 43138676351) con la
-imagen `sha256:4a8a7ac0…` y `app_version` `f28c2ccd39abb3aeee1ed853bb1013004d80913f` (PR #112, squash `50b343b`; CI
-338 con staging, run 43131640599), con respaldo previo: el **modo oscuro**. Era más nuevo que la versión estable 4.
-
-- **Aprobaciones de la dueña (tal cual):**
-  - «Si me gustaron los cambios para móvil lo que me gustaría es que así como se ve en detalles compacto y grandes así
-    como actualmente está los iconos de los accesos rápidos de resto apruebo todo para producción así que empieza con
-    todas las mejoras y el tema con el diseño nuevo en las dos versiones claro y oscuro». Se leyó así: en el celular
-    los accesos directos se pueden ver de tres tamaños (Compactos, Detalle y Grandes como estaban), lo elige cada
-    quien y se recuerda en ese aparato; el Inicio nuevo y el tema claro y oscuro quedan aprobados para producción.
-  - «Y si apruebo la mejora de la caja de Juan» (la caja de responder del chat en el celular, boceto
-    <https://claude.ai/artifact/A6P3KWL2F5KJx5MfX4sBsH>).
-  - Sobre las tres decisiones abiertas («Más datos» en la cotización, Conversaciones en tableta y que «Entregas
-    pendientes» cuente igual que «Bodega»): «Lo que consideres mejor y más lógico y coherente y funcional». Se decidió:
-    (a) «Entregas pendientes» del Inicio muestra las mismas entregas que Bodega (pedidos con pago o abono) y una línea
-    discreta con las que esperan pago; (b) en tableta la lista de chats se ve entera mientras no haya un chat abierto y
-    se reduce a las fotos al abrir uno (se respeta la preferencia guardada); (c) en la cotización, un bloque «Más
-    datos» que se pliega (teléfono fijo, direcciones, vencimiento, lista de precios, términos de pago), cerrado salvo
-    que algo pida atención, sin mover ningún campo de la vista.
-  - «Si gustas trabaja con multiagentes en paralelo».
-  - Con las capturas del menú nuevo del celular y de la caja del chat a la vista (y avisada de los detalles en que la
-    caja se apartó del boceto): «si apruebo todo». Y: «avísame cuando esté en producción» (se le avisó a las 21:29 UTC,
-    con qué probar en su iPhone).
-- **Inicio nuevo (propuesta 2), terminado en la rama** (`b67ea7e`): mismo orden y contenido, accesos del celular en
-  tres tamaños (`dcasa.inicio.atajos` en el aparato, «Compactos» la primera vez), tres contadores que llevan a cada
-  panel, cifras que suben al abrir, barras delgadas; todo cuelga de `.o_dcasa_tablero` (`tablero.scss`).
-  `test_inicio_tablero.py` (8 pruebas). Capturas mostradas a la dueña. Tres detalles en que se apartó del boceto y que
-  ella puede objetar: los accesos de la computadora un poco más bajos (64 px), el pie de cada panel dice siempre «Ver
-  las N…», y las dos cifras de la vendedora van una sobre otra en el celular.
-- **Reporte de la dueña sobre el celular (con tres capturas de su iPhone):** «tan pronto inicio sesión, aparece en
-  blanco, tengo que tocar el menú del navbar, tocar inicio, me lleva a una subcarpeta y luego después sí puedo ir al
-  inicio… en iPhone, cuando estoy en un chat y si deslizo el dedo desde la zona extrema izquierda hacia la derecha…
-  no vuelve atrás, sino que vuelve al inicio de todo y no a las conversaciones». **La auditoría visual no lo vio**: el
-  recorrido abría cada pantalla por su dirección y medía la pantalla ya cargada; nunca probó «entrar y esperar» ni los
-  gestos del teléfono. Tres causas, tres arreglos, en la rama (`0428ef2`, `e9f0e74`, unidos en `516a20e`):
-  1. *Pantalla en blanco al entrar.* El Inicio esperaba las cifras del servidor antes de pintar nada
-     (`onWillStart`); mientras tanto solo se veía la barra de arriba. Se reprodujo retrasando `obtener_datos`: sale
-     idéntico a su captura. Ahora el Inicio se pinta de inmediato (`.o_dcasa_arranque`: el saludo de verdad y bloques
-     en gris) y las cifras llegan después; si no llegan, lo dice y ofrece «Reintentar». Además, el área de trabajo
-     vacía dice «Cargando…» para cualquier pantalla que tarde (`arranque.scss`). En esta máquina el servidor entrega
-     las cifras en 0,1–0,2 s y producción contesta en 0,2–0,3 s por pedido: lo lento es la suma de pedidos del primer
-     arranque en el teléfono, no una consulta en particular.
-  2. *La «subcarpeta».* Era el menú de Odoo para el celular, de dos caras: primero «las secciones de la app abierta» y,
-     con un botón, «Todas las aplicaciones». En el Inicio no hay secciones: salía una hoja con solo la palabra
-     «Inicio», sin nada que tocar. Ahora el cajón es propio (`menu_celular.js`, hereda de la barra lateral de la
-     computadora): «Inicio» y «Buscar» fijos arriba; debajo todas las aplicaciones; la que está abierta viene con sus
-     secciones a la vista; la flecha de cada aplicación despliega las suyas sin salir de donde se está; tocar una
-     pantalla la abre y cierra el menú. Todo lo que se toca mide 44 px o más.
-  3. *«Atrás» en el chat.* En el celular Conversaciones muestra una cosa a la vez, pero para el navegador era una sola
-     página: el gesto de «atrás» salía a la pantalla anterior. Ahora cada cosa abierta (chat, ficha, ventana, foto)
-     pone un paso en el historial y «atrás» cierra la de más arriba (`atras.js`, con `router.skipLoad` de Odoo para que
-     no recargue la pantalla). De vuelta en la lista ya no se recuerda un chat «abierto» que no se ve. En la
-     computadora no cambia nada.
-  Pruebas: `test_celular_arranque_y_menu.py` (dcasa_interfaz) y `test_panel_atras.py` (dcasa_conversaciones). En la
-  copia local: `/dcasa_interfaz` completo, 0 fallas; las clases del chat en celular y computadora, 45 de 46 (la que
-  falla, `test_sin_reparto_por_turnos_no_hay_interruptor`, es por los ajustes de la base de capturas, no por el cambio).
-  **El menú nuevo es interfaz nueva**: se le mostraron las capturas a la dueña; ella había pedido «lo que sea mejor para
-  el uso adecuado y accesible del navbar en móviles».
-- **Caja de responder del chat en el celular y lista en tableta (en producción con Desplegar 65, `565e8a0`):** la
-  caja vacía bajó de 215 a 111 px en 360 y 390 px de ancho, sin quitar herramientas. Renglón 1: quién atiende,
-  «Devolver»/«Atender» y Respuesta / Nota; renglón 2: «+», «Sugerir», el texto y Enviar; dentro del «+»: Adjuntar,
-  Foto del catálogo, Cotización, Rápidas y Programar. En tableta (hasta 1100 px) la lista de chats se ve entera
-  mientras no hay uno abierto. `test_panel_caja_celular.py`, `TestDisposicionDeTableta`. Se apartó del boceto en
-  nombres («Adjuntar», «Foto del catálogo») y en que «Atender» es un enlace; la hora de vuelta del asistente no se ve
-  en el celular (antes salía cortada). La dueña lo aprobó así.
-- **«Entregas pendientes» = Bodega y «Más datos» en la cotización (en producción con Desplegar 66, `b5c5440`):** el panel y la cifra del Inicio muestran las mismas entregas que Bodega (pedidos con pago o abono) y un
-  renglón gris dice cuántas más esperan («2 más esperan pago o abono») y abre esa lista; quien ve el panel sin permiso
-  de Inventario sigue viendo todas. En la cotización, un botón «Más datos» pliega teléfono fijo, direcciones,
-  vencimiento, lista de precios y términos de pago **sin mover ningún campo** (se esconden con `:has()`); nace cerrado,
-  se abre solo si la entrega va a otra dirección o falta un dato obligatorio, y se recuerda en el aparato. En el
-  celular los productos suben 353 px. `test_entregas_inicio.py`, `test_mas_datos.py`. Dudas menores que la dueña puede
-  opinar al verlo: que el botón nombre también «teléfono fijo», y que al abrir los datos aparecen en su sitio de
-  siempre (encima del botón).
-- **Modo oscuro (en producción con Desplegar 67, `6228a4a`; aprobado por la dueña):**
-  la dueña vio trece capturas (celular y computadora) y dijo: «Si me gusta, apruebo el modo oscuro para producción».
-  Gris «de consola» (fondo #1F2226, superficies #2A2E33), botones en azul #3A63CF, amarillo solo en insignias. Lo
-  enciende cada persona en el menú de su usuario («Modo oscuro»); se guarda en ese navegador (galleta `color_scheme`,
-  un año) y el panel se recarga. Por defecto, claro. **El claro no cambió**: su hoja compilada es idéntica byte a byte.
-  Cómo está hecho y la regla para lo nuevo, en CONTEXTO_AGENTICO («Modo oscuro»). Control de contraste: 634 pantallas
-  y 17.340 textos medidos; lo único bajo 3:1 que es nuevo en oscuro son botones deshabilitados (≈3,0:1; en claro
-  ≈2,6:1). `test_modo_oscuro.py` (20 pruebas). En la Guía: «Poner el sistema en modo oscuro». Decisiones del ayudante
-  que la dueña vio en las capturas y puede objetar: en oscuro los botones amarillos grandes («Validar» de Bodega,
-  «Revisar ahora» de Sofía, «Nueva campaña») van en azul; las cifras grandes en blanco. Preguntas abiertas, sin prisa:
-  ¿el interruptor también en el menú de las tres rayas del celular?; ¿por usuario en vez de por navegador?; ¿que siga
-  solo el modo del teléfono?; las fotos de producto, el QR y la vista previa del correo quedan sobre blanco. Sin ver
-  con datos: Envíos con tarifa, Bodega dentro de una entrega, Escáner con un producto leído, Camila con una campaña.
-- **Los ayudantes y el límite de uso:** cada frente en su copia de trabajo (ver CONTEXTO_AGENTICO, «Varios agentes a
-  la vez»). El límite de la cuenta (cinco horas) los cortó tres veces; se reanudaron con su avance intacto las dos
-  primeras; la tercera, el modo oscuro se reanudó a las 23:40 UTC (el límite ya dejaba) y terminó a las 00:57.
-- **Sigue:** que la dueña pruebe
-  en su iPhone lo desplegado (no se pudo probar en un teléfono real ni con su usuario); el modo oscuro con sus
-  capturas. Siguen sin respuesta: borrar la rama remota `claude/bold-volta-fsqq4c` y el motivo real en «Quedó por
-  enviar». Pendientes menores anotados por los ayudantes: en tableta parada (768–991 px) el botón de Brian tapa
-  «Enviar» del chat (ya pasaba); las referencias de píxeles de 390 px de la lista y de Conexiones no coinciden en esta
-  máquina.
-- **Esta máquina:** con el «sí» de la dueña («Sí, borra las dos») se borraron los 13 worktrees viejos de
-  `.claude/worktrees` y 15 bases locales de pruebas: el disco pasó de 1 GB a ~20 GB libres.
-
 ### Entradas anteriores (una línea cada una; el texto completo en [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md))
 
+- **2026-11-11 (3):** Inicio nuevo, el celular al entrar, la caja del chat, entregas = Bodega, «Más datos» y modo oscuro, en producción (Desplegar 65, 66 y 67)
 - **2026-11-11 (2):** auditoría visual del panel; 21 arreglos en producción (Desplegar 64); propuesta 2 del Inicio
 - **2026-11-11:** versión estable 4; Instagram con fotos confirmado; enlace de choferes encendido; cierre de semana
 - **2026-11-10:** WhatsApp 131070 RESUELTO («redireccionar conversación» a D'CASA Juan); Juan pide el control y anota todo

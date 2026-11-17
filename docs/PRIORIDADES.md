@@ -65,12 +65,22 @@ portada). **No se sube hasta arreglar lo de arriba.** Lo demás que dejó esa re
   base; el mismo canje puede quedar en dos ventas abiertas; y la prueba nueva del premio pasa con los dos
   comportamientos (no decide nada).
 
-Quedan además dos cosas del Black Friday, anotadas y sin bloquear:
+**Ya arreglado el 2026-11-17** (en la rama, sin subir, a la espera de la decisión de arriba):
+
+- La pantalla **«Armar combo»** ya muestra los precios de verdad: `precio` es lo que la pieza cuesta suelta ese día y
+  `precio_linea` lo que se cobra en el combo (238 pruebas en verde).
+- El **total negativo en el mostrador**: la guarda del premio pasó a `_aplicar_en_venta` (los dos caminos) y
+  `action_confirm` tiene una última red.
+- La **guardia del Worker**: ya no se salta escribiendo «…ok?» sin abrir la pregunta, ni poniendo una pregunta en medio.
+- El **premio de Socios** ya no viaja al chat entre los productos: va en «extras», con el envío.
+- **PR de Dependabot #98 unido** (parches de `@ai-sdk/*` y `ai` en `juan/`): CI completo en verde y revisado que los
+  cambios de comportamiento del registro tocan APIs que Juan no usa. **No cambia producción hasta el próximo
+  «Desplegar Juan».**
+
+Queda del Black Friday, anotado y sin bloquear:
 
 - La web y Juan publican la línea de combo escrita en el Excel («Combo con colchón $649.99»), un texto que nadie
   recalcula y que puede no coincidir con lo que cobra la cotización. Viene de antes.
-- La pantalla «Armar combo» muestra precios sin la oferta. El arreglo está escrito (parche guardado) pero rompió dos
-  pruebas y se dejó fuera para no retrasar el Black Friday.
 
 0000000. **Primero termina el 000000 de abajo (Black Friday). Después, la siguiente ronda que pidió la dueña, con su plan
         escrito en [PLAN_ANDRES_VOZ_PORTADA.md](PLAN_ANDRES_VOZ_PORTADA.md).**

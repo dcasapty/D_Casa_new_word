@@ -92,7 +92,7 @@ class TestRevisionVendedor(TiendaCase):
         orden._dcasa_usar_puntos_web(premio=self.env.ref('dcasa_socios.premio_desc_10'))
         premio = orden.order_line.filtered('dcasa_canje_id')
         self.assertTrue(premio, 'el premio está en la venta')
-        carrito = self.url_open(f'{RAIZ}/carrito').json()
+        carrito = self.url_open(f'{RAIZ}/carrito').json()['carrito']
         ids = [ln['producto_id'] for ln in carrito['lineas']]
         self.assertNotIn(premio.product_id.id, ids, 'el premio no va entre los productos del carrito')
         self.assertEqual(carrito['cantidad_total'], len(carrito['lineas']),
