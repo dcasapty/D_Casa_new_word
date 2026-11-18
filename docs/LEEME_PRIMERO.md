@@ -109,11 +109,22 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 > sigue. Se guardan las diez más recientes; las viejas se resumen en una línea abajo y su texto completo pasa a
 > [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md).
 
-### 2026-11-17 (3): decidido lo de Socios y el envío gratis — un premio nunca le sale más caro al socio
+### 2026-11-17 (3) y 2026-11-18: la segunda entrega completa en producción (CI/CD 380 y Juan 29)
 
-**La decisión que frenaba la segunda entrega ya está tomada y programada** (en la rama, probada y revisada; sube en
-cuanto pase el CI). La dueña eligió, entre dos opciones que se le presentaron con las cifras: **«avisarle y no dejar
-canjear»**.
+**En producción desde el 2026-11-18, 00:5x UTC:** la segunda entrega entera (PR #128, squash `d2ba8caf`,
+ejecución 380 de CI/CD a mano desde `main`) y **Desplegar Juan 29** (01:0x UTC, misma versión). Salud del borde
+sana: `{"ok": true, "version": "d2ba8caff071", "base_al_dia": true, "humo": "ok"}`. El `/salud` de Juan responde con
+`d2ba8caf` en `produccion`, la tienda lista y activa; las 4 «cosas por revisar» que lista son claves y canales que
+**ya faltaban** (la `ANTHROPIC_API_KEY` de respaldo y el puente de WhatsApp por QR, que nunca se desplegó), no algo
+que trajera esta subida.
+
+**Lleva:** Andrés como mejor vendedor, las notas de voz (de Andrés y del panel de Brian), el micrófono del chat, la
+pantalla «Armar combo» con los precios de verdad, los tres arreglos de las revisiones (el total negativo del
+mostrador por los dos caminos, la guardia del Worker que se saltaba con «…ok?» y el premio que viajaba al chat) y la
+regla nueva de Socios que va abajo.
+
+**La decisión que la frenaba ya está tomada y programada.** La dueña eligió, entre dos opciones que se le
+presentaron con las cifras: **«avisarle y no dejar canjear»**.
 
 - **El problema** (lo encontró la revisión adversarial de Andrés vendedor): la línea del premio baja la compra medida
   (decisión M6 de la dueña), así que podía tirarla por debajo del mínimo de la promoción de envío y hacerle perder el
