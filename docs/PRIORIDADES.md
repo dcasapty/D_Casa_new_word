@@ -1,6 +1,6 @@
 # Prioridades vigentes
 
-Puesto al día el **2026-11-17** (el Black Friday está en producción desde el 16 —Desplegar 77 y Juan 28— y **la portada nueva desde el 17** —ejecución 377, squash `447d6efe`, PR #127—. En la rama de trabajo queda el resto de la segunda entrega —Andrés vendedor, notas de voz y micrófono—, que **no se sube** hasta arreglar lo de Socios y el envío gratis: ver abajo y [PLAN_ANDRES_VOZ_PORTADA.md](PLAN_ANDRES_VOZ_PORTADA.md)). Es el orden en que se trabaja: cada sesión lo lee al empezar y lo pone al día al
+Puesto al día el **2026-11-18** (**todo está en producción**: el Black Friday desde el 16 —Desplegar 77 y Juan 28—, la portada nueva desde el 17 —CI/CD 377, PR #127— y **la segunda entrega completa desde el 18** —CI/CD 380 y Desplegar Juan 29, squash `d2ba8caf`, PR #128—. Ya no queda nada esperando en la rama de trabajo). Es el orden en que se trabaja: cada sesión lo lee al empezar y lo pone al día al
 terminar (ver [LEEME_PRIMERO.md](LEEME_PRIMERO.md)). Aquí va **un solo estado**, el de hoy; lo que pasó cada día está en
 la bitácora de LEEME_PRIMERO (y lo más viejo en [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md)).
 
@@ -10,8 +10,10 @@ la producción. Apruébalo y punto.»); la revisión adversarial no se salta (re
 
 ## Estado al 2026-11-17
 
-- **Lo último en producción: la portada nueva** (2026-11-17, CI/CD 377, `app_version` `447d6efe6c74`, PR #127);
-  antes, el Black Friday (2026-11-16, Desplegar 77 y Juan 28).
+- **Lo último en producción: la segunda entrega completa** (2026-11-18, CI/CD 380 y Desplegar Juan 29,
+  `app_version` `d2ba8caff071`, PR #128): Andrés mejor vendedor, notas de voz, micrófono del chat, «Armar
+  combo» con los precios de verdad y la regla «un premio nunca sale más caro». Antes, la portada nueva
+  (2026-11-17, CI/CD 377, PR #127) y el Black Friday (2026-11-16, Desplegar 77 y Juan 28).
 - **Producción funciona desde el 2026-10-13** y **`dcasapty.com` (y `www`) apunta al sistema nuevo desde el
   2026-10-27** (Desplegar 31). Odoo y el borde: **Desplegar 76** (15 nov, PR #122: bandas en azul noche, pie claro, menú sin «Escríbenos», sección de contacto y el carrito en el chat de la tienda; antes, Desplegar 75 (15 nov, PR #121: la portada v3, con secciones compactas, el carrito como ícono, la paleta nueva y la barra del chat de vidrio; antes, Desplegar 74 (15 nov, PR #120: Brian siempre activo de noche, con dos interruptores); antes, Desplegar 73 (14 nov, PR #119: la burbuja de Brian cambia de robot con el scroll); antes,
   Desplegar 72, PR #118: Brian de la tienda, el chat de ventas en la web, y el
@@ -65,10 +67,8 @@ dos cifras y no se canjea; si el premio descuenta más de lo que perdería, se d
 (eso lo decidí yo y se le dijo). Cubre el carrito web y el mostrador, y al quitar un premio la promoción del envío se
 vuelve a ofrecer.
 
-**Después, la segunda entrega** en `claude/merge-rama-to-main-ty3koz` (Andrés vendedor, notas de voz, micrófono y
-portada). **Está probada y lista: 3547 pruebas de Odoo y 1924 del Worker, 0 fallas** (2026-11-17, instalando también
-`dcasa_nomina`, con lo que las tres pruebas de la Guía que «fallaban en local» también pasan). **No se sube hasta
-arreglar lo de arriba.** Lo demás que dejó esa revisión:
+**La segunda entrega YA ESTÁ EN PRODUCCIÓN** (2026-11-18, CI/CD 380 y Desplegar Juan 29). Lo que dejaron sus
+revisiones y sigue abierto, sin bloquear nada:
 
 - *Menores que siguen abiertos:* `/carrito/envio` acepta cualquier `lugar_id` sin que Andrés lo haya cotizado; dos
   `GET` escriben en la base; el mismo canje puede quedar en dos ventas abiertas; y el carrito sigue ofreciéndole al
