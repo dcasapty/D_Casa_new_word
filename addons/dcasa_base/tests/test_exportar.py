@@ -5,10 +5,11 @@
   lo tenían. Caja, la Vendedora, contabilidad sola, un usuario interno cualquiera y el portal no lo tienen y reciben el
   error de siempre.
 * Exportar no abre nada nuevo: el exportador lee con los permisos de quien exporta. Lo que Gerencia no puede leer (la
-  clave del PIN de socios, los datos técnicos de Meta, los parámetros del sistema) sigue sin salir en un Excel, y el
-  costo del producto sigue cerrado para quien no es de los que lo ven aunque alguien le diera el permiso de exportar.
+  clave del PIN de socios, los datos técnicos de Meta, los parámetros del sistema) sigue sin salir en un Excel. El
+  costo del producto lo ve Gerencia (y por eso lo exporta); quien exporta ve ya los costos, y una prueba lo vigila.
 """
 from odoo import Command
+from odoo.addons.dcasa_base.models.costos_cerrados import ve_costos
 from odoo.exceptions import AccessError, UserError
 from odoo.tests import TransactionCase, tagged
 
@@ -91,17 +92,28 @@ class TestExportar(TransactionCase):
         self.assertEqual(parametro.with_user(self.admin).export_data(['key', 'value'])['datas'],
                          [['dcasa.prueba.exportar', 'secreto']])
 
-    def test_el_costo_sigue_cerrado_aunque_alguien_pueda_exportar(self):
-        """Caja con el permiso de exportar (por un descuido de configuración) no se baja el costo: el exportador lee
-        con sus permisos y el costo está cerrado para ella. Gerencia, que ya lo ve, lo exporta."""
+    def test_quien_puede_exportar_ya_ve_los_costos(self):
+        """El costo del producto está cerrado para Caja y la Vendedora, pero ``export_data`` no pasa por el cierre de
+        ``read`` (``models/costos_cerrados.py``). Lo que lo hace seguro es que quien trae el permiso de exportar ya ve
+        los costos (Gerencia y administradores): nadie exporta más de lo que ya ve. Si algún día otro rol recibe el
+        permiso de exportar sin ver el costo, esta prueba falla y hay que cerrar ``export_data`` también."""
+        quienes = self.env['res.users'].with_context(active_test=False).search(
+            [('all_group_ids', 'in', self.exportar.ids)])
+        self.assertIn(self.gerencia, quienes)
+        for usuario in quienes:
+            if usuario._is_superuser():
+                continue
+            with self.subTest(usuario.login):
+                self.assertTrue(ve_costos(self.env(user=usuario)), usuario.login)
+
+    def test_gerencia_exporta_el_costo_que_ya_ve_y_caja_no_exporta(self):
         producto = self.env['product.template'].create({'name': 'MUEBLE EXPORTAR', 'standard_price': 123.0})
-        caja_con_permiso = crear_usuario(
-            self.env, 'exp_caja_exporta', 'dcasa_base.group_caja', 'base.group_allow_export')
-        self.assertTrue(caja_con_permiso.has_group('base.group_allow_export'))
-        suyo = producto.with_user(caja_con_permiso)
-        self.assertEqual(suyo.export_data(['name'])['datas'], [['MUEBLE EXPORTAR']])
-        with self.assertRaises(AccessError):
-            suyo.export_data(['name', 'standard_price'])
-        self.assertNotIn('standard_price', suyo.fields_get())
         de_gerencia = producto.with_user(self.gerencia)
         self.assertEqual(de_gerencia.export_data(['name', 'standard_price'])['datas'], [['MUEBLE EXPORTAR', 123.0]])
+        for usuario in (self.caja, self.vendedora):
+            with self.subTest(usuario.login):
+                self.assertFalse(ve_costos(self.env(user=usuario)))
+                with self.assertRaises(UserError):
+                    producto.with_user(usuario).export_data(['name', 'standard_price'])
+                with self.assertRaises(AccessError):
+                    producto.with_user(usuario).read(['standard_price'])
