@@ -37,6 +37,8 @@ CAMPOS_SITIO = frozenset({
     'dcasa_whatsapp_number', 'shop_ppg', 'shop_default_sort', 'prevent_zero_price_sale',
     'show_line_subtotals_tax_selection', 'domain', 'name', 'company_id', 'social_instagram',
     'social_tiktok', 'social_facebook', 'homepage_url',
+    # Los segundos que dura cada foto del hero de la portada (website_dcasa, portada.py): van en su HTML.
+    'dcasa_hero_segundos',
 })
 
 

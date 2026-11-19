@@ -2798,14 +2798,17 @@
    "id": "carrusel-portada",
    "categoria": "tienda",
    "grupo": "Tienda en línea",
-   "titulo": "Elegir los productos del carrusel de la portada",
-   "logras": "Eliges qué productos salen arriba en la portada, uno tras otro: su foto, su nombre y un botón a su ficha. Con «Nuevo» agregas un producto publicado y arrastrando cambias el orden; el de arriba sale primero. Si dejas la lista vacía, la portada muestra la foto de siempre.",
+   "titulo": "Elegir los productos y la velocidad del carrusel de la portada",
+   "logras": "Eliges qué productos salen de fondo arriba en la portada, una foto tras otra, y cuántos segundos dura cada una (arriba, en «Segundos que dura cada foto»: de 2 a 15, de fábrica 3). Con «Agregar una línea» pones un producto publicado y arrastrando eliges cuál sale primero; las demás van en orden al azar. Si dejas la lista vacía, la portada muestra la foto de siempre.",
    "destino": {
     "menu": "website_dcasa.menu_dcasa_portada_diapositiva"
    },
-   "nota": "Solo salen los productos publicados en la tienda y con foto; la columna «Sale en la portada» dice cuáles. El cambio se ve en la página en unos segundos. Lo ven y lo cambian Gerencia y los administradores.",
+   "nota": "Solo salen los productos publicados en la tienda y con foto; la columna «Sale en la portada» dice cuáles. El cambio, de productos o de segundos, se ve en la página en unos segundos. El paso de una foto a la otra y el zoom lento se ajustan solos al tiempo que pongas. Lo ven y lo cambian Gerencia y los administradores.",
    "palabras": [
     "carrusel",
+    "velocidad de la portada",
+    "segundos de cada foto",
+    "cambiar más rápido las fotos",
     "portada",
     "inicio de la página",
     "foto de la portada",
@@ -2861,7 +2864,7 @@
    "destino": {
     "menu": "dcasa_brian_tienda.menu_dcasa_brian_tienda"
    },
-   "nota": "Viene encendido, saludando igual de día y de noche (fuera del horario no avisa que la tienda está cerrada) y con el robot dormido de noche. No guarda la conversación ni crea contactos; para atención personal ofrece WhatsApp. Si las notas de voz de Juan están encendidas, junto a «Enviar» sale un micrófono: el cliente le habla hasta un minuto y Andrés recibe lo que dijo como texto; el audio no se guarda en ningún lado. Su gasto va en su propio renglón de Costos de IA y no se suma a «Por pagar a Meta». Solo Gerencia y los administradores lo cambian.",
+   "nota": "Viene encendido, saludando igual de día y de noche (fuera del horario no avisa que la tienda está cerrada) y con el robot dormido de noche. No guarda la conversación ni crea contactos; para atención personal ofrece WhatsApp. Si las notas de voz de Juan están encendidas, junto a «Enviar» sale un micrófono: el cliente le habla hasta un minuto y Andrés recibe lo que dijo como texto; el audio no se guarda en ningún lado. En la computadora el chat abre ya ampliado: el chat a la izquierda y, a la derecha, «Lo más buscado» (después, los productos de la conversación); quien lo prefiere lo achica con el botón de la esquina y su navegador lo recuerda. En el celular no cambia. Su gasto va en su propio renglón de Costos de IA y no se suma a «Por pagar a Meta». Solo Gerencia y los administradores lo cambian.",
    "palabras": [
     "chat",
     "chat de la tienda",
@@ -2876,7 +2879,9 @@
     "andrés",
     "andres",
     "micrófono del chat",
-    "nota de voz del cliente"
+    "nota de voz del cliente",
+    "chat ampliado",
+    "tamaño del chat"
    ]
   },
   {

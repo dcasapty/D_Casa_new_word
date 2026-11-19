@@ -721,7 +721,13 @@ $dcasa-hero-velo: .45;
 // debajo del texto; en su lado se ve entera. Sin degradados ni sombras; el amarillo, solo sobre el azul noche.
 // ---------------------------------------------------------------------------
 
-$dcasa-vitrina-tiempo: 6.5s;   // lo que dura cada diapositiva (la barra activa tarda eso en llenarse)
+// Lo que dura cada foto de fábrica (la dueña, 2026-11-19: «de unos 2 a 3 segundos»). Gerencia lo cambia en el panel
+// (Sitio web › Carrusel de la portada, de 2 a 15 s) y la plantilla lo escribe en el hero como --vitrina-tiempo; este
+// valor solo vale si esa variable no llega. El fundido y el zoom se calculan con ella: nada de abajo lleva segundos fijos.
+$dcasa-vitrina-tiempo: 3s;
+$dcasa-vitrina-fundido: .35;   // el fundido dura esta parte de lo que dura cada foto (con 3 s: 1,05 s)
+$dcasa-vitrina-fundido-tope: 2.4s;   // y nunca más que esto, aunque cada foto dure 15 s
+$dcasa-vitrina-zoom-vueltas: 6;      // el zoom tarda esto × lo que dura cada foto en ir (y otro tanto en volver)
 $dcasa-vitrina-panel: 42%;     // ancho del bloque azul en la computadora
 
 .o_dcasa_hero_vitrina {
@@ -789,12 +795,15 @@ $dcasa-vitrina-panel: 42%;     // ancho del bloque azul en la computadora
 }
 
 // Apiladas en el mismo sitio; la activa aparece con un fundido largo. Nada de «imagen quieta, salto, imagen quieta»:
-// el fundido dura casi dos segundos y el zoom no para nunca.
+// el fundido dura poco más de la tercera parte del tiempo de cada foto (con el de fábrica, 3 s: un segundo) y el
+// zoom no para nunca. Los dos escalan con --vitrina-tiempo: si Gerencia lo cambia en el panel, el movimiento se ve
+// igual de suave (a 2 s el fundido es de 0,7 s; a 15 s, de 2,4 s).
 .o_dcasa_vitrina_foto {
     position: absolute;
     inset: 0;
     opacity: 0;
-    transition: opacity 1.8s ease-in-out;
+    transition: opacity clamp(.5s, calc(var(--vitrina-tiempo, #{$dcasa-vitrina-tiempo}) * #{$dcasa-vitrina-fundido}),
+        #{$dcasa-vitrina-fundido-tope}) ease-in-out;
 
     &.is-activa {
         opacity: 1;
@@ -806,10 +815,13 @@ $dcasa-vitrina-panel: 42%;     // ancho del bloque azul en la computadora
         height: 100%;
         object-fit: cover;
         object-position: 50% 42%;
-        // El zoom lento y continuo. Cada foto arranca en un punto distinto del recorrido (--i) para que dos seguidas
+        // El zoom lento y continuo. Va a un ritmo fijo POR FOTO (6 veces lo que dura cada una en ir, otro tanto en
+        // volver): lo que se alcanza a ver del zoom mientras una foto está a la vista es siempre el mismo, dure
+        // 2 s o 15 s, sin saltos. Cada foto arranca en un punto distinto del recorrido (--i) para que dos seguidas
         // no se muevan igual.
-        animation: dcasa-vitrina-zoom 38s ease-in-out infinite alternate;
-        animation-delay: calc(var(--i, 0) * -6s);
+        animation: dcasa-vitrina-zoom calc(var(--vitrina-tiempo, #{$dcasa-vitrina-tiempo}) * #{$dcasa-vitrina-zoom-vueltas})
+            ease-in-out infinite alternate;
+        animation-delay: calc(var(--i, 0) * var(--vitrina-tiempo, #{$dcasa-vitrina-tiempo}) * -1);
         will-change: transform;
     }
 }

@@ -3,8 +3,9 @@
 texto») y la sección «de cine» (models/portada.py, views/homepage_templates.xml, static/src/js/portada.js).
 Lo que se fija aquí:
 
-* El ajuste: «Sitio web › Carrusel de la portada», una lista que se ordena arrastrando; solo Gerencia y los
-  administradores la ven y la cambian.
+* El ajuste: «Sitio web › Carrusel de la portada», una pantalla con los segundos que dura cada foto (3 de fábrica,
+  de 2 a 15) y la lista de productos, que se ordena arrastrando; solo Gerencia y los administradores la ven y la cambian
+  (la dueña, 2026-11-19: «demoran… 5 a 6 segundos… de unos 2 a 3, o poderlo definir yo mismo»).
 * Vacío = el hero de siempre (también si nada de la lista se puede mostrar: sin publicar o sin foto). Con productos:
   las fotos ocupan la pantalla entera y se funden unas en otras, en orden al azar, con un zoom lento que no para.
   Encima, SOLO el texto de siempre: ni nombres de producto, ni enlaces, ni flechas, ni barras, ni pausa. El visitante
@@ -17,12 +18,14 @@ Lo que se fija aquí:
   abre, y un hero guardado con el editor sigue dentro de su condición.
 * La sección «de cine»: dos cintas con fotos del catálogo publicado (sin repetir los carriles de arriba) y el botón al
   catálogo; sin fotos suficientes no sale.
-* En Chrome: la foto de orilla a orilla y del alto de la pantalla, el zoom corriendo, el cambio solo de foto (y quieto
-  con movimiento reducido), que no haya NADA que tocar, la píldora clara y que nada ensanche la página.
+* En Chrome: la foto de orilla a orilla y del alto de la pantalla, el zoom corriendo, el cambio solo de foto dentro del
+  tiempo elegido (y quieto con movimiento reducido), el fundido y el zoom a escala con ese tiempo, que no haya NADA que
+  tocar, la píldora clara y que nada ensanche la página.
 """
 import base64
 import contextlib
 import io
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from lxml import html as lhtml
@@ -32,8 +35,8 @@ from psycopg2 import IntegrityError
 from odoo import Command
 from odoo.addons.website_dcasa.models.portada import CARRUSEL_INICIAL, MINIMO_CINE, PARAM_SEMBRADO
 from odoo.addons.website_dcasa.tests.test_black_weekend import amarillo_sobre_blanco
-from odoo.exceptions import AccessError
-from odoo.tests import HttpCase, tagged
+from odoo.exceptions import AccessError, ValidationError
+from odoo.tests import Form, HttpCase, tagged
 from odoo.tests import common as comun
 from odoo.tests.common import ChromeBrowser
 from odoo.tools import mute_logger
@@ -257,6 +260,105 @@ class TestCarruselPortada(HttpCase):
         self.Diapositiva.search([]).unlink()
         self.assertIsNone(self._vitrina(self._portada()[1]), 'y vaciar la lista vuelve al hero de siempre')
 
+    # ------------------------------------------------------------------ los segundos de cada foto
+
+    def _tiempo_de_la_portada(self):
+        """Lo que la portada le dice al navegador: el estilo del fondo (``--vitrina-tiempo``)."""
+        _texto, arbol = self._portada()
+        fondo = self._vitrina(arbol).xpath('.//div[contains(concat(" ", @class, " "), " o_dcasa_vitrina ")]')[0]
+        return fondo.get('style')
+
+    def test_de_fabrica_cada_foto_dura_3_segundos_y_la_plantilla_lo_dice(self):
+        self.assertEqual(self.website.dcasa_hero_segundos, 3.0, 'de fábrica, 3 segundos por foto')
+        self.assertEqual(self.website._dcasa_hero_tiempo(), '3s')
+        self._elegir(*self.camas)
+        self.assertEqual(self._tiempo_de_la_portada(), '--vitrina-tiempo: 3s;', 'la plantilla lo escribe en el fondo')
+
+    def test_la_portada_usa_los_segundos_que_se_eligen(self):
+        self._elegir(*self.camas)
+        for valor, texto in ((2, '2s'), (2.5, '2.5s'), (7.5, '7.5s'), (15, '15s')):
+            with self.subTest(segundos=valor):
+                self.website.dcasa_hero_segundos = valor
+                self.assertEqual(self.website._dcasa_hero_tiempo(), texto)
+                self.assertEqual(self._tiempo_de_la_portada(), f'--vitrina-tiempo: {texto};')
+
+    def test_los_segundos_van_de_2_a_15(self):
+        for bueno in (2, 3, 2.5, 15):
+            with self.subTest(bueno=bueno):
+                self.website.dcasa_hero_segundos = bueno
+                self.assertEqual(self.website.dcasa_hero_segundos, bueno)
+        for malo in (0, 1, 1.9, 15.1, 16, 60, -3):
+            with self.subTest(malo=malo), self.assertRaises(ValidationError) as error, self.cr.savepoint():
+                self.website.dcasa_hero_segundos = malo
+            self.assertIn('de 2 a 15', str(error.exception), 'el mensaje dice los límites en palabras sencillas')
+        self.assertEqual(self.website.dcasa_hero_segundos, 15.0, 'un valor fuera de rango no se guarda')
+
+    def test_un_valor_suelto_en_la_base_no_rompe_la_portada(self):
+        """Si alguien dejara en la base un valor fuera de rango (SQL a mano), la portada sigue y lo acota."""
+        self._elegir(*self.camas)
+        for suelto, esperado in ((0.0, '3s'), (0.2, '2s'), (99.0, '15s')):
+            with self.subTest(suelto=suelto):
+                self.cr.execute('UPDATE website SET dcasa_hero_segundos = %s WHERE id = %s', (suelto, self.website.id))
+                self.website.invalidate_recordset()
+                self.assertEqual(self.website._dcasa_hero_tiempo(), esperado)
+                self.assertEqual(self._tiempo_de_la_portada(), f'--vitrina-tiempo: {esperado};')
+
+    def test_cambiar_los_segundos_cambia_la_firma_y_la_portada_guardada(self):
+        """Odoo guarda la portada de los visitantes hasta una hora: los segundos van en la clave de esa memoria."""
+        self._elegir(*self.camas)
+        pedido = SimpleNamespace(website=self.website, lang=SimpleNamespace(code='es_419'),
+                                 httprequest=SimpleNamespace(path='/'), session=SimpleNamespace(debug=''))
+        Pagina = self.env['website.page']
+        firma, clave = self.website._dcasa_hero_firma(), Pagina._get_cache_key(pedido)
+        self.assertEqual(self._tiempo_de_la_portada(), '--vitrina-tiempo: 3s;', 'la portada ya quedó guardada')
+        self.website.dcasa_hero_segundos = 6
+        self.assertNotEqual(self.website._dcasa_hero_firma(), firma, 'los segundos entran en la firma')
+        self.assertNotEqual(Pagina._get_cache_key(pedido), clave, 'y en la clave de la portada guardada')
+        self.assertEqual(self._tiempo_de_la_portada(), '--vitrina-tiempo: 6s;', 'el cambio se ve sin esperar la hora')
+        self.website.dcasa_hero_segundos = 3
+        self.assertEqual(self.website._dcasa_hero_firma(), firma, 'y volver al valor de antes, a la misma firma')
+
+    def test_gerencia_cambia_los_segundos_y_la_lista_desde_su_pantalla_y_nada_mas_del_sitio(self):
+        gerente_sitio = self.website.with_user(self.gerente)
+        accion = gerente_sitio.action_abrir_carrusel()
+        self.assertEqual((accion['res_model'], accion['res_id'], accion['view_mode']),
+                         ('website', self.website.id, 'form'), 'abre el sitio actual')
+        # La pantalla: el campo de los segundos arriba y la lista de productos, como la ve Gerencia.
+        with Form(gerente_sitio, view='website_dcasa.view_website_carrusel_form') as pantalla:
+            self.assertEqual(pantalla.dcasa_hero_segundos, 3.0)
+            pantalla.dcasa_hero_segundos = 2.5
+            with pantalla.dcasa_hero_diapositiva_ids.new() as linea:
+                linea.product_tmpl_id = self.camas[0]
+        self.assertEqual(self.website.dcasa_hero_segundos, 2.5)
+        self.assertEqual(self.website.dcasa_hero_diapositiva_ids.product_tmpl_id, self.camas[0])
+        self.assertEqual(self.website.dcasa_hero_diapositiva_ids.website_id, self.website)
+        # Nada más del sitio: ni el nombre, ni el dominio, ni una foto del carrusel de otro sitio.
+        for campo, valor in (('name', 'Otro nombre'), ('domain', 'https://otro.example'), ('social_facebook', 'x')):
+            with self.subTest(campo=campo), self.assertRaises(AccessError):
+                gerente_sitio.write({campo: valor})
+        with self.assertRaises(AccessError):
+            gerente_sitio.write({'dcasa_hero_segundos': 4, 'name': 'Mezclado'})
+        self.assertEqual(self.website.dcasa_hero_segundos, 2.5, 'lo mezclado no se guarda ni a medias')
+        with self.assertRaises(AccessError):
+            self.env['website'].with_user(self.gerente).create({'name': 'Sitio nuevo'})
+        with self.assertRaises(AccessError):
+            gerente_sitio.unlink()
+        # Los administradores siguen escribiendo todo el sitio.
+        self.website.with_user(self.env.ref('base.user_admin')).write({'dcasa_hero_segundos': 4, 'name': self.website.name})
+
+    def test_quien_no_es_gerencia_no_cambia_los_segundos(self):
+        for usuario in (self.vendedora, self.interno):
+            with self.subTest(usuario=usuario.login):
+                with self.assertRaises(AccessError):
+                    self.website.with_user(usuario).write({'dcasa_hero_segundos': 2})
+                with self.assertRaises(AccessError):
+                    self.website.with_user(usuario).write({'dcasa_hero_diapositiva_ids': [Command.create(
+                        {'product_tmpl_id': self.camas[0].id})]})
+        self.assertEqual(self.website.dcasa_hero_segundos, 3.0)
+        menu = 'website_dcasa.menu_dcasa_portada_diapositiva'
+        accion = self.env.ref('website_dcasa.action_dcasa_portada_carrusel')
+        self.assertEqual(self.env.ref(menu).action, accion, 'el menú abre la pantalla con los segundos y la lista')
+
     def test_con_el_editor_del_sitio_abierto_la_portada_abre(self):
         """Quien tiene el grupo de diseñador recibe las plantillas con las marcas del editor (inherit_branding): ni
         con el carrusel ni sin él la portada puede dar error. Un hero guardado con el editor (una vista que reemplaza
@@ -425,6 +527,45 @@ class TestCarruselPortada(HttpCase):
         self.assertTrue(r['cine']['pausaVisible'])
         self.assertEqual(r['cine']['enPausa'], 'paused', 'el botón detiene las cintas')
 
+    def _ritmo_en_chrome(self, segundos, espera_ms):
+        """Pone los segundos en el sitio, abre la portada en Chrome y mide el ritmo del fondo (PASOS_RITMO)."""
+        self.website.dcasa_hero_segundos = segundos
+        self._elegir(*self.camas)
+        return self._en_chrome(PASOS_RITMO.replace('ESPERA_MAX', str(espera_ms)))['ritmo']
+
+    def _comprobar_escala(self, r, segundos):
+        """El fundido y el zoom escalan con lo que dura cada foto (SCSS: clamp y calc sobre --vitrina-tiempo)."""
+        self.assertEqual(r['tiempo'], f'{segundos:g}s', 'el fondo lleva los segundos que eligió Gerencia')
+        fundido = min(max(0.35 * segundos, 0.5), 2.4)
+        self.assertAlmostEqual(r['fundido'], fundido, delta=0.02, msg='el fundido es una parte del tiempo de la foto')
+        self.assertLessEqual(r['fundido'], 0.4 * segundos, 'y nunca pasa del 40 % de lo que dura la foto')
+        self.assertAlmostEqual(r['zoom'], 6 * segundos, delta=0.05, msg='el zoom va al mismo ritmo por foto')
+        for i, desfase in enumerate(r['desfase']):
+            self.assertAlmostEqual(desfase, -i * segundos, delta=0.05, msg='cada foto arranca en un punto distinto')
+
+    def test_con_2_segundos_la_foto_cambia_dentro_del_tiempo(self):
+        r = self._ritmo_en_chrome(2, 3500)
+        self.assertTrue(r['cambio'], 'con 2 segundos por foto, la foto cambió antes de los 3,5 s (antes tardaba 6,5)')
+        self._comprobar_escala(r, 2)
+
+    def test_con_3_segundos_de_fabrica_la_foto_cambia_dentro_del_tiempo(self):
+        r = self._ritmo_en_chrome(3, 4500)
+        self.assertTrue(r['cambio'], 'con los 3 segundos de fábrica, la foto cambió antes de los 4,5 s')
+        self._comprobar_escala(r, 3)
+
+    def test_con_15_segundos_la_foto_no_cambia_antes_y_sigue_elegante(self):
+        r = self._ritmo_en_chrome(15, 7000)
+        self.assertFalse(r['cambio'], 'con 15 segundos por foto no cambió en 7 s: el valor se respeta hacia los dos lados')
+        self._comprobar_escala(r, 15)
+
+    def test_con_2_segundos_hay_fundido_y_se_ve_una_sola_foto_al_asentarse(self):
+        """A 2 s el fundido (0,7 s) deja pasar a la siguiente foto sin dejar dos a medias para siempre."""
+        self.website.dcasa_hero_segundos = 2
+        self._elegir(*self.camas)
+        r = self._en_chrome(PASOS_ASENTARSE)
+        self.assertEqual(r['visiblesAlAsentarse'], 1, 'tras el fundido queda una sola foto a la vista')
+        self.assertGreaterEqual(r['cambios'], 2, 'y siguió cambiando de foto a foto, sin quedarse trabada')
+
     def test_con_movimiento_reducido_nada_se_mueve_solo(self):
         self._elegir(*self.camas)
         r = self._en_chrome(PASOS_REDUCIDO, reducido=True)
@@ -497,24 +638,28 @@ PRUEBA_JS = r"""(async () => {
     return r;
 })()"""
 
-# El primer cambio ya está programado desde que carga la página, con el tiempo de verdad ($dcasa-vitrina-tiempo,
-# 6,5 s): acortar --vitrina-tiempo aquí solo vale de la segunda vez en adelante. Por eso se espera hasta ESPERA_FONDO.
+# El primer cambio ya está programado desde que carga la página, con el tiempo de verdad (los 3 s de fábrica de
+# website.dcasa_hero_segundos): acortar --vitrina-tiempo aquí solo vale de la segunda vez en adelante. Por eso se espera
+# hasta 12 s (240 × 50 ms), más que ese primer tiempo.
 PASOS_COMPUTADORA = """
     r.alEmpezar = actual();
     vitrina.style.setProperty('--vitrina-tiempo', '0.4s');
     for (let i = 0; i < 240 && actual() === r.alEmpezar; i++) { await esperar(50); }
     r.trasEsperar = actual();
-    // Para contar cuántas se ven hay que dejar de cambiar: con 0,4 s entre fotos y 1,8 s de fundido siempre
-    // habría dos a medio camino. Se alarga el tiempo, se deja terminar el fundido y recién ahí se cuenta.
+    // Para contar cuántas se ven hay que dejar de cambiar: con 0,4 s entre fotos y varios segundos de fundido siempre
+    // habría dos a medio camino. Se alarga el tiempo (el último cambio ya programado ocurre en menos de 0,4 s y su
+    // fundido, ahora de 2,4 s, tarda lo suyo) y se espera a que se asiente: se cuenta cuando queda una sola, hasta 8 s.
     vitrina.style.setProperty('--vitrina-tiempo', '600s');
-    await esperar(2500);
-    r.visibles = fotos().filter((f) => parseFloat(getComputedStyle(f).opacity) > 0.01).length;
+    const cuantas = () => fotos().filter((f) => parseFloat(getComputedStyle(f).opacity) > 0.01).length;
+    const t1 = performance.now();
+    while (cuantas() !== 1 && performance.now() - t1 < 8000) { await esperar(100); }
+    r.visibles = cuantas();
     const botonCine = document.querySelector('.o_dcasa_cine_pausa');
     botonCine.click(); await esperar(100);
     r.cine.enPausa = getComputedStyle(tren).animationPlayState;
 """
 
-# Se espera MÁS que el tiempo de verdad de una diapositiva (6,5 s): si con movimiento reducido se hubiera
+# Se espera MÁS que el triple del tiempo de verdad de una foto (3 s de fábrica): si con movimiento reducido se hubiera
 # programado el cambio, aquí ya habría pasado.
 PASOS_REDUCIDO = """
     await esperar(9000);
@@ -541,4 +686,40 @@ PASOS_TELEFONO = """
     await esperar(300);
     r.deslizarCambia = actual() !== antes;
     r.abrioFicha = location.href !== inicio;
+"""
+
+# El ritmo del fondo con los segundos que puso Gerencia (el sitio ya trae el valor; no se toca --vitrina-tiempo): lo que
+# el CSS calcula con él (fundido, zoom, desfase de cada foto) y si la foto cambia dentro del tiempo (ESPERA_MAX, en ms).
+PASOS_RITMO = """
+    const una = fotos()[0];
+    const ritmo = {
+        tiempo: getComputedStyle(vitrina).getPropertyValue('--vitrina-tiempo').trim(),
+        fundido: parseFloat(getComputedStyle(una).transitionDuration),
+        zoom: parseFloat(getComputedStyle(una.querySelector('img')).animationDuration),
+        desfase: fotos().map((f) => parseFloat(getComputedStyle(f.querySelector('img')).animationDelay)),
+    };
+    const inicial = actual();
+    const t0 = performance.now();
+    while (actual() === inicial && performance.now() - t0 < ESPERA_MAX) { await esperar(25); }
+    ritmo.cambio = actual() !== inicial;
+    r.ritmo = ritmo;
+"""
+
+# Con 2 s por foto y 0,7 s de fundido: se deja pasar varias fotos y, parando el cambio, se cuenta cuántas quedan a la vista.
+PASOS_ASENTARSE = """
+    let cambios = 0;
+    let previa = actual();
+    const t0 = performance.now();
+    while (cambios < 2 && performance.now() - t0 < 12000) {
+        await esperar(50);
+        if (actual() !== previa) { cambios++; previa = actual(); }
+    }
+    r.cambios = cambios;
+    vitrina.style.setProperty('--vitrina-tiempo', '600s');
+    // El último cambio ya programado ocurre en menos de 2 s y su fundido (ahora de 2,4 s) tarda lo suyo: se cuenta cuando
+    // queda una sola, hasta 8 s.
+    const cuantas = () => fotos().filter((f) => parseFloat(getComputedStyle(f).opacity) > 0.01).length;
+    const t1 = performance.now();
+    while (cuantas() !== 1 && performance.now() - t1 < 8000) { await esperar(100); }
+    r.visiblesAlAsentarse = cuantas();
 """

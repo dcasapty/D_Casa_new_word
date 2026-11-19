@@ -22,6 +22,9 @@ from .worker_simulado import WorkerSimulado
 ALTO = 800
 # Chrome con un micrófono de prueba (un pitido) y el permiso ya dado: MediaRecorder graba de verdad.
 MICROFONO_DE_PRUEBA = ('--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream')
+# Chrome sin pantalla no dice qué puntero tiene (pointer: none, hover: none); con esto dice lo que dice una computadora
+# de verdad: ratón (pointer: fine, hover: hover).
+RATON_DE_PRUEBA = ('--blink-settings=primaryPointerType=4,primaryHoverType=2,availablePointerTypes=4,availableHoverTypes=2',)
 DE_DIA = ('saludando', 'con_laptop', 'escritorio', 'busto_estrella', 'bolsita', 'mapa', 'cinta_metrica', 'corazon',
           'burbuja_chat', 'cinco_estrellas', 'fidelidad', 'asomado_burbuja', 'cama', 'cocina', 'marco_foto')
 COSTA = (8.9415, -79.8415)    # Costa Inventada, del fixture sintético de envíos
@@ -45,6 +48,11 @@ CHAT = """(async () => {
     const burbuja = document.querySelector('button.o_dcbt_burbuja');
     burbuja.click();
     await hasta(() => globos().some((g) => g.includes('Hola, soy Andrés. ¿Qué buscas hoy?')), 'el saludo');
+    // En la computadora el chat abre YA ampliado (la dueña, 2026-11-19); en el celular, no.
+    const panel0 = document.querySelector('#o_dcbt_panel');
+    res.alAbrir = { ampliado: panel0.classList.contains('o_dcbt_ampliado'), ancho: panel0.getBoundingClientRect().width,
+                    pulsado: panel0.querySelector('.o_dcbt_cab_boton[aria-pressed]').getAttribute('aria-pressed'),
+                    etiqueta: panel0.querySelector('.o_dcbt_cab_boton[aria-pressed]').getAttribute('aria-label') };
     res.saludos = globos().filter((g) => g.includes('Hola, soy Andrés')).length;
     res.expandido = burbuja.getAttribute('aria-expanded');
     // Las sugerencias dependen del catálogo (las dos categorías con más productos): se escribe «Colchones», que es lo
@@ -54,7 +62,8 @@ CHAT = """(async () => {
     campo0.value = 'Colchones';
     campo0.dispatchEvent(new Event('input', { bubbles: true }));
     document.querySelector('#o_dcbt_panel .o_dcbt_composer').requestSubmit();
-    const tarjeta = await hasta(() => document.querySelector('#o_dcbt_panel .o_dcbt_tarjeta'), 'las tarjetas');
+    // Las de la conversación (en la computadora, ya ampliada, la vitrina trae aparte «Lo más buscado»).
+    const tarjeta = await hasta(() => document.querySelector('#o_dcbt_panel .o_dcbt_chat_col .o_dcbt_tarjeta'), 'las tarjetas');
     res.tarjeta = tarjeta.querySelector('h3').textContent;
     res.precio = tarjeta.querySelector('.o_dcbt_precio').textContent;
     res.imagen = tarjeta.querySelector('img') ? tarjeta.querySelector('img').getAttribute('src') : null;
@@ -88,10 +97,14 @@ CHAT = """(async () => {
     escribir('Gracias, Brian');
     (await hasta(() => document.querySelector('#o_dcbt_panel .o_dcbt_estrella[data-estrellas="5"]'), 'las estrellas')).click();
     await hasta(() => globos().some((g) => g.includes('Gracias por calificarme')), 'las gracias');
-    // La ventana ampliada (en el celular, la cuadrícula) y Esc: primero vuelve al tamaño normal, después cierra.
-    document.querySelector('#o_dcbt_panel .o_dcbt_cab_boton[aria-pressed]').click();
-    await esperar(500);
+    // La ventana ampliada (en el celular, la cuadrícula) y Esc: primero vuelve al tamaño normal, después cierra. En la
+    // computadora ya estaba ampliada desde que se abrió: solo en el celular hay que pedirla.
     const panel = document.querySelector('#o_dcbt_panel');
+    if (!panel.classList.contains('o_dcbt_ampliado')) {
+        document.querySelector('#o_dcbt_panel .o_dcbt_cab_boton[aria-pressed]').click();
+        await esperar(500);
+    }
+    await esperar(300);
     res.ampliado = { clase: panel.classList.contains('o_dcbt_ampliado'), ancho: panel.getBoundingClientRect().width,
                      vitrina: document.querySelectorAll('#o_dcbt_panel .o_dcbt_vitrina_grid .o_dcbt_tarjeta').length };
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
@@ -236,6 +249,10 @@ POSE_EN_LA_FICHA = """(async () => {
     const antes = cambios.length;
     await ir('#bottom, footer', 3200);
     res.conElChatAbierto = cambios.length - antes;
+    // En la computadora el chat abrió ampliado: el primer Esc lo vuelve al tamaño normal y el segundo lo cierra.
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await esperar(500);
+    res.trasPrimerEsc = !document.querySelector('#o_dcbt_panel').hidden;
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     await hasta(() => document.querySelector('#o_dcbt_panel').hidden, 'que se cierre');
     await esperar(3200);
@@ -287,6 +304,13 @@ class ChromeConMicrofono(ChromeBrowser):
         return super()._spawn_chrome([*cmd[:-1], *MICROFONO_DE_PRUEBA, cmd[-1]])
 
 
+class ChromeConRaton(ChromeBrowser):
+    """El Chrome de las pruebas diciendo que tiene ratón, como una computadora (el de las pruebas no declara puntero)."""
+
+    def _spawn_chrome(self, cmd):
+        return super()._spawn_chrome([*cmd[:-1], *RATON_DE_PRUEBA, cmd[-1]])
+
+
 class NavegadorCase(TiendaCase):
 
     @classmethod
@@ -315,9 +339,10 @@ class NavegadorCase(TiendaCase):
         self.addCleanup(entorno.stop)
 
     @contextlib.contextmanager
-    def chrome(self, ancho, alto=ALTO, movil=True, reducido=False, microfono=False):
+    def chrome(self, ancho, alto=ALTO, movil=True, reducido=False, microfono=False, raton=False):
         self.browser_size = f'{ancho}x{alto}'
-        browser = (ChromeConMicrofono if microfono else ChromeBrowser)(self, headless=True)
+        clase = ChromeConMicrofono if microfono else ChromeConRaton if raton else ChromeBrowser
+        browser = clase(self, headless=True)
         with self.allow_requests(browser=browser), contextlib.ExitStack() as atexit:
             atexit.callback(self._wait_remaining_requests)
             atexit.enter_context(browser.cleanup)
@@ -362,6 +387,13 @@ class TestChatEnElNavegador(NavegadorCase):
         self.assertTrue(r['privacidad'])
         self.assertEqual(r['lugar'], 'Costa Inventada')
         self.assertIn('Costa Inventada', r['envio'])
+        if ancho >= 1024:
+            self.assertEqual(r['alAbrir']['ampliado'], True, 'en la computadora el chat abre ya ampliado')
+            self.assertEqual((r['alAbrir']['pulsado'], r['alAbrir']['etiqueta']), ('true', 'Volver al tamaño normal'))
+            self.assertGreater(r['alAbrir']['ancho'], 900)
+        else:
+            self.assertEqual(r['alAbrir']['ampliado'], False, 'en el celular abre como siempre, sin ampliar')
+            self.assertEqual(r['alAbrir']['pulsado'], 'false')
         self.assertTrue(r['ampliado']['clase'])
         self.assertGreaterEqual(r['ampliado']['vitrina'], 1, 'la cuadrícula con los productos de la conversación')
         if ancho >= 1000:
@@ -492,6 +524,7 @@ class TestPoseAlBajar(NavegadorCase):
         self.assertEqual((r['quieta'], r['alLlegar']), (0, 'marco_foto'))
         self.assertEqual(r['alMoverse'], ['bolsita'], 'el precio y «Agregar al carrito»')
         self.assertEqual(r['conElChatAbierto'], 0, 'con el chat abierto la burbuja no cambia')
+        self.assertTrue(r['trasPrimerEsc'], 'el primer Esc solo vuelve del tamaño ampliado: el chat sigue abierto')
         self.assertEqual(r['alCerrar'], 'saludando', 'al cerrarlo, la del pie, donde quedó')
         self.assertGreaterEqual(r['minimo'], 2400)
 
@@ -577,10 +610,16 @@ VIDRIO = """(async () => {
             punto: { aro: getComputedStyle(punto).borderTopColor, apagado: punto.classList.contains('o_dcbt_apagado') },
         };
     };
-    const normal = await medir();
+    // En la computadora el chat abre ya ampliado (2026-11-19): se mide como abre y, tras el botón, el otro tamaño.
+    const panel = document.querySelector('#o_dcbt_panel');
+    const alAbrir = await medir();
+    const abrioAmpliado = panel.classList.contains('o_dcbt_ampliado');
     document.querySelector('#o_dcbt_panel .o_dcbt_cab_boton[aria-pressed]').click();
     await esperar(500);
-    return { normal, ampliado: await medir(), esAmpliado: document.querySelector('#o_dcbt_panel').classList.contains('o_dcbt_ampliado'),
+    const despues = await medir();
+    const otroAmpliado = panel.classList.contains('o_dcbt_ampliado');
+    return { normal: abrioAmpliado ? despues : alAbrir, ampliado: abrioAmpliado ? alAbrir : despues,
+             abrioAmpliado, esAmpliado: abrioAmpliado !== otroAmpliado,
              refraccion: document.documentElement.classList.contains('o_dcasa_refraccion') };
 })()""".replace('/*ESPERAR*/', ESPERAR)
 
@@ -592,7 +631,8 @@ class TestCabeceraDeVidrio(NavegadorCase):
         with self.chrome(1366, 768, movil=False) as browser:
             browser.navigate_to(self.base_url() + '/', wait_stop=True)
             r = self.evaluar(browser, VIDRIO)
-        self.assertTrue(r['esAmpliado'])
+        self.assertTrue(r['abrioAmpliado'], 'en la computadora el chat abre ya ampliado')
+        self.assertTrue(r['esAmpliado'], 'y el botón lo deja en el otro tamaño')
         for tamano in ('normal', 'ampliado'):
             m = r[tamano]
             with self.subTest(tamano=tamano):
@@ -762,8 +802,11 @@ VENDEDOR = """(async () => {
     const colchon = await hasta(() => document.querySelectorAll('#o_dcbt_panel .o_dcbt_carrusel').length >= 2 && [...document.querySelectorAll('#o_dcbt_panel .o_dcbt_carrusel')].pop().querySelector('.o_dcbt_tarjeta [data-agregar]'), 'los colchones');
     colchon.click();
     await hasta(() => (barra() || {}).texto && barra().texto.includes('4 artículos'), 'cuatro artículos');
-    // A5: la vitrina, con «En tu carrito» arriba y un grupo por pedido (el más reciente primero, abierto).
-    document.querySelector('#o_dcbt_panel .o_dcbt_cab_boton[aria-pressed]').click();
+    // A5: la vitrina, con «En tu carrito» arriba y un grupo por pedido (el más reciente primero, abierto). En la
+    // computadora el chat ya abrió ampliado: solo en el celular hay que pedir la cuadrícula.
+    if (!document.querySelector('#o_dcbt_panel').classList.contains('o_dcbt_ampliado')) {
+        document.querySelector('#o_dcbt_panel .o_dcbt_cab_boton[aria-pressed]').click();
+    }
     await esperar(600);
     const vitrina = document.querySelector('#o_dcbt_panel .o_dcbt_vitrina_grid');
     r.vitrina = { primero: vitrina.firstElementChild.className, lineas: vitrina.querySelectorAll('.o_dcbt_seccion_carrito .o_dcbt_linea_carrito').length,
@@ -1196,3 +1239,269 @@ class TestNotaDeVoz(NavegadorCase):
         for texto in r['textos']:
             self.assertTrue(texto.endswith(('escríbelo, por favor.', 'Escríbelo, por favor.', 'en un ratito.')), texto)
         self.assertNotIn('¡', ''.join(r['textos']))
+
+
+# El chat abre YA AMPLIADO en la computadora (pedido de la dueña, 2026-11-19: «por defecto, en la versión de solo
+# escritorio, cuando la persona abre el chatbot de Andrés, quiero el modo ampliado… y que, si la persona quiere, pueda
+# achicarlo o cerrarlo, pero por defecto que sea el ampliado»). Computadora = al menos 1024 px de ancho y 600 de alto y sin
+# puntero táctil (pointer: coarse); el celular y la tableta no cambian. La elección de la persona se recuerda en ese navegador con una sola marca
+# (localStorage «dcasa.brian.tamano»); cerrar con la X o con Esc no la cambia.
+TAMANO = """
+    /*ESPERAR*/
+    const panel = () => document.querySelector('#o_dcbt_panel');
+    const marca = () => { try { return localStorage.getItem('dcasa.brian.tamano'); } catch (e) { return 'sin acceso'; } };
+    // Cada llamada con fetch del chat (a Odoo o al Worker) queda anotada desde aquí: abrir no puede gastar IA.
+    window.__llamadas = [];
+    const fetchOriginal = window.fetch.bind(window);
+    window.fetch = (...a) => { window.__llamadas.push(String(a[0] && a[0].url ? a[0].url : a[0])); return fetchOriginal(...a); };
+    const llamadas = (parte) => window.__llamadas.filter((u) => u.includes(parte)).length;
+    const abrir = async () => {
+        document.querySelector('button.o_dcbt_burbuja').click();
+        await hasta(() => panel() && !panel().hidden, 'el chat abierto');
+        await esperar(700);
+    };
+    const estado = () => {
+        const p = panel();
+        const b = p.querySelector('.o_dcbt_cab_boton[aria-pressed]');
+        const r = p.getBoundingClientRect();
+        return { ampliado: p.classList.contains('o_dcbt_ampliado'), pulsado: b.getAttribute('aria-pressed'), etiqueta: b.getAttribute('aria-label'),
+                 ancho: Math.round(r.width), alto: Math.round(r.height), dentro: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight,
+                 abierto: !p.hidden };
+    };
+    const tocarTamano = async () => { panel().querySelector('.o_dcbt_cab_boton[aria-pressed]').click(); await esperar(600); };
+    const cerrarConX = async () => {
+        panel().querySelector('.o_dcbt_cab_boton[aria-label="Cerrar el chat"]').click();
+        await hasta(() => panel().hidden, 'que se cierre');
+        await esperar(500);
+    };
+    const esc = async () => { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await esperar(500); };
+"""
+
+
+@tagged('post_install', '-at_install')
+class TestChatAmpliadoPorDefecto(NavegadorCase):
+
+    def _js(self, codigo):
+        return '(async () => {' + TAMANO.replace('/*ESPERAR*/', ESPERAR) + codigo + '})()'
+
+    def _pagina(self, browser, codigo, ruta='/'):
+        browser.navigate_to(self.base_url() + ruta, wait_stop=True)
+        return self.evaluar(browser, self._js(codigo), timeout=180)
+
+    def test_abre_ampliado_a_1440_con_lo_mas_buscado_y_sin_gastar_ia(self):
+        recibidos = len(self.worker.recibidos)
+        with self.chrome(1440, 900, movil=False, raton=True) as browser:
+            r = self._pagina(browser, """
+                // Antes de abrir el chat, ni una sola petición a Brian (ni a Odoo ni al Worker): lo mide el navegador desde
+                // que cargó la página, no solo desde que la prueba empezó a mirar.
+                await esperar(1500);
+                const recursos = performance.getEntriesByType('resource');
+                const r = { marcaInicial: marca(), vitrinaAntes: llamadas('/dcasa/brian/v1/vitrina'), mensajesAntes: llamadas('/tienda/v1/mensaje'),
+                            recursosTotales: recursos.length, brianAntes: recursos.filter((e) => e.name.includes('/dcasa/brian/') || e.name.includes('/tienda/v1/')).length };
+                await abrir();
+                r.alAbrir = estado();
+                r.foco = document.activeElement && document.activeElement.id;
+                r.sinBloqueo = !document.documentElement.classList.contains('o_dcbt_abierto');
+                await hasta(() => panel().querySelector('.o_dcbt_seccion_sugeridos .o_dcbt_tarjeta'), 'Lo más buscado');
+                r.titulo = panel().querySelector('.o_dcbt_sugeridos_titulo').textContent;
+                r.tarjetas = panel().querySelectorAll('.o_dcbt_vitrina .o_dcbt_seccion_sugeridos .o_dcbt_tarjeta').length;
+                const chat = panel().querySelector('.o_dcbt_chat_col').getBoundingClientRect();
+                const vitrina = panel().querySelector('.o_dcbt_vitrina').getBoundingClientRect();
+                r.chatALaIzquierda = chat.right <= vitrina.left + 1 && chat.width > 300;
+                r.vitrinaAncho = Math.round(vitrina.width);
+                r.vitrinaPedida = llamadas('/dcasa/brian/v1/vitrina');
+                r.mensajes = llamadas('/tienda/v1/mensaje');
+                r.sinScrollDeLado = document.documentElement.scrollWidth <= innerWidth;
+                return r;""")
+        self.assertIsNone(r['marcaInicial'], 'sin elegir nada no hay marca')
+        self.assertEqual((r['vitrinaAntes'], r['mensajesAntes']), (0, 0), 'antes de abrir el chat no se pide nada')
+        self.assertLess(r['recursosTotales'], 250, 'el registro de recursos del navegador no se llenó: la cuenta de abajo vale')
+        self.assertEqual(r['brianAntes'], 0, 'quien nunca abre el chat no genera ninguna petición a Brian')
+        self.assertTrue(r['alAbrir']['ampliado'], 'a 1440 px el chat abre ya ampliado')
+        self.assertEqual((r['alAbrir']['pulsado'], r['alAbrir']['etiqueta']), ('true', 'Volver al tamaño normal'))
+        self.assertGreater(r['alAbrir']['ancho'], 1000)
+        self.assertTrue(r['alAbrir']['dentro'], 'el panel cabe en la pantalla')
+        self.assertEqual(r['foco'], 'o_dcbt_texto', 'el foco entra al campo de escribir')
+        self.assertTrue(r['sinBloqueo'], 'en la computadora la página de atrás no se bloquea (como siempre)')
+        self.assertEqual(r['titulo'], 'Lo más buscado', 'mientras Andrés no muestre nada, «Lo más buscado»')
+        self.assertGreaterEqual(r['tarjetas'], 1)
+        self.assertTrue(r['chatALaIzquierda'], 'el chat a la izquierda y la vitrina a su derecha')
+        self.assertGreater(r['vitrinaAncho'], 500)
+        self.assertEqual(r['vitrinaPedida'], 1, '«Lo más buscado» se pide una sola vez, al abrir')
+        self.assertEqual(r['mensajes'], 0, 'abrir no es un mensaje: ninguna llamada al Worker de IA')
+        self.assertEqual(len(self.worker.recibidos), recibidos, 'el Worker no recibió ningún mensaje')
+        self.assertTrue(r['sinScrollDeLado'])
+
+    def test_achicar_se_recuerda_ampliar_otra_vez_tambien_y_cerrar_no_cambia_nada(self):
+        with self.chrome(1440, 900, movil=False) as browser:
+            r1 = self._pagina(browser, """
+                await abrir();
+                const r = { alAbrir: estado() };
+                await tocarTamano();
+                r.achicado = estado();
+                r.marcaAchicado = marca();
+                await cerrarConX();
+                r.marcaTrasCerrar = marca();
+                return r;""")
+            # Otra carga de la página (otro navegador abierto en el mismo sitio): respeta que quiere el tamaño normal.
+            r2 = self._pagina(browser, """
+                const r = { marcaAlCargar: marca() };
+                await abrir();
+                r.alAbrir = estado();
+                await tocarTamano();
+                r.ampliado = estado();
+                r.marcaAmpliado = marca();
+                await cerrarConX();
+                r.marcaTrasCerrar = marca();
+                return r;""", '/shop')
+            r3 = self._pagina(browser, """
+                await abrir();
+                return { alAbrir: estado(), marca: marca() };""")
+        self.assertTrue(r1['alAbrir']['ampliado'])
+        self.assertFalse(r1['achicado']['ampliado'], 'el botón vuelve al tamaño normal')
+        self.assertEqual((r1['achicado']['pulsado'], r1['achicado']['etiqueta']), ('false', 'Ampliar el chat'))
+        self.assertEqual(r1['achicado']['ancho'], 380)
+        self.assertEqual(r1['marcaAchicado'], 'normal', 'se recuerda en este navegador')
+        self.assertEqual(r1['marcaTrasCerrar'], 'normal', 'cerrar con la X no cambia la elección')
+        self.assertEqual(r2['marcaAlCargar'], 'normal')
+        self.assertFalse(r2['alAbrir']['ampliado'], 'en otra página y otra visita, sigue en el tamaño normal que eligió')
+        self.assertTrue(r2['ampliado']['ampliado'], 'si lo vuelve a ampliar…')
+        self.assertEqual(r2['marcaAmpliado'], 'ampliado', '…se recuerda eso')
+        self.assertEqual(r2['marcaTrasCerrar'], 'ampliado', 'cerrar con la X tampoco cambia ésta')
+        self.assertTrue(r3['alAbrir']['ampliado'], 'y la siguiente vez abre ampliado')
+        self.assertEqual(r3['marca'], 'ampliado')
+
+    def test_esc_achica_y_despues_cierra_sin_cambiar_la_eleccion(self):
+        with self.chrome(1440, 900, movil=False) as browser:
+            r1 = self._pagina(browser, """
+                await abrir();
+                const r = { alAbrir: estado() };
+                await esc();
+                r.trasPrimerEsc = estado();
+                r.marcaTrasPrimerEsc = marca();
+                await esc();
+                r.trasSegundoEsc = estado();
+                r.foco = document.activeElement === document.querySelector('button.o_dcbt_burbuja');
+                return r;""")
+            r2 = self._pagina(browser, """
+                await abrir();
+                return estado();""")
+        self.assertTrue(r1['alAbrir']['ampliado'])
+        self.assertEqual((r1['trasPrimerEsc']['abierto'], r1['trasPrimerEsc']['ampliado']), (True, False),
+                         'el primer Esc vuelve del tamaño ampliado (el chat sigue abierto)')
+        self.assertIsNone(r1['marcaTrasPrimerEsc'], 'Esc no es elegir un tamaño: no deja marca')
+        self.assertFalse(r1['trasSegundoEsc']['abierto'], 'el segundo Esc cierra')
+        self.assertTrue(r1['foco'], 'y el foco vuelve a la burbuja')
+        self.assertTrue(r2['ampliado'], 'la próxima vez abre ampliado otra vez (por defecto)')
+
+    def test_el_umbral_de_la_computadora(self):
+        casos = (
+            (1440, 900, False, True, 'escritorio'),
+            (1440, 900, False, True, 'escritorio con ratón declarado'),
+            (1366, 768, False, True, 'laptop'),
+            (1024, 768, False, True, 'justo en el umbral'),
+            (1023, 768, False, False, 'un pixel menos'),
+            (900, 800, False, False, 'tableta o ventana angosta'),
+            (1280, 560, False, False, 'sin alto para las dos columnas'),
+            (1366, 1024, True, False, 'tableta ancha con el dedo (puntero grueso)'),
+            (390, 844, True, False, 'celular'),
+        )
+        for ancho, alto, movil, ampliado, que in casos:
+            raton = 'con ratón' in que
+            with self.subTest(ancho=ancho, alto=alto, movil=movil, que=que), \
+                    self.chrome(ancho, alto, movil=movil, raton=raton) as browser:
+                r = self._pagina(browser, """
+                    await abrir();
+                    return { estado: estado(), marca: marca(), bloqueo: document.documentElement.classList.contains('o_dcbt_abierto') };""")
+                self.assertEqual(r['estado']['ampliado'], ampliado, que)
+                self.assertTrue(r['estado']['dentro'], 'el panel cabe en la pantalla (' + que + ')')
+                self.assertEqual(r['estado']['pulsado'], 'true' if ampliado else 'false')
+                self.assertIsNone(r['marca'], 'abrir no deja ninguna marca (' + que + ')')
+                if ancho < 768:
+                    self.assertTrue(r['bloqueo'], 'en el celular la página de atrás sigue sin moverse')
+                else:
+                    self.assertFalse(r['bloqueo'], 'en pantallas anchas la página de atrás no se bloquea (como siempre)')
+
+    def test_el_celular_sigue_igual_y_no_guarda_nada_al_ver_la_cuadricula(self):
+        with self.chrome(390, 844, movil=True) as browser:
+            r = self._pagina(browser, """
+                await abrir();
+                const r = { alAbrir: estado(), grande: panel().classList.contains('o_dcbt_ampliado') };
+                await tocarTamano();
+                r.cuadricula = estado();
+                r.marca = marca();
+                r.chatOculto = getComputedStyle(panel().querySelector('.o_dcbt_chat_col')).display === 'none';
+                await cerrarConX();
+                await abrir();
+                r.denuevo = estado();
+                return r;""")
+        self.assertFalse(r['alAbrir']['ampliado'], 'en el celular abre como siempre: el chat')
+        self.assertEqual(r['alAbrir']['etiqueta'], 'Ver los productos en cuadrícula')
+        self.assertTrue(r['cuadricula']['ampliado'], 'a pedido, la cuadrícula de productos')
+        self.assertTrue(r['chatOculto'], 'ocupa la pantalla entera, como siempre')
+        self.assertIsNone(r['marca'], 'en el celular esa elección no se recuerda: no es el tamaño de la computadora')
+        self.assertFalse(r['denuevo']['ampliado'], 'y la siguiente vez abre otra vez el chat')
+
+    def test_sin_almacenamiento_funciona_igual_sin_recordar(self):
+        with self.chrome(1440, 900, movil=False) as browser:
+            r = self._pagina(browser, """
+                // Un navegador que no deja guardar (ventana privada estricta, almacenamiento bloqueado).
+                Object.defineProperty(window, 'localStorage', { configurable: true, get() { throw new DOMException('Bloqueado', 'SecurityError'); } });
+                const r = { marca: marca() };
+                await abrir();
+                r.alAbrir = estado();
+                await tocarTamano();
+                r.achicado = estado();
+                await tocarTamano();
+                r.ampliado = estado();
+                await cerrarConX();
+                await abrir();
+                r.denuevo = estado();
+                r.hayCampo = !!document.querySelector('#o_dcbt_texto') && !document.querySelector('#o_dcbt_texto').disabled;
+                return r;""")
+            self.assertFalse(browser.had_failure, 'ni un console.error en la página')
+        self.assertEqual(r['marca'], 'sin acceso', 'la prueba sí bloqueó el almacenamiento')
+        self.assertTrue(r['alAbrir']['ampliado'], 'sin almacenamiento abre ampliado (lo de fábrica)')
+        self.assertFalse(r['achicado']['ampliado'], 'el botón funciona igual…')
+        self.assertTrue(r['ampliado']['ampliado'])
+        self.assertTrue(r['denuevo']['ampliado'], '…solo que no recuerda: la próxima vez, lo de fábrica')
+        self.assertTrue(r['hayCampo'], 'y el chat se puede usar')
+
+    def test_si_la_ventana_se_angosta_hasta_el_celular_vuelve_al_tamano_normal(self):
+        with self.chrome(1440, 900, movil=False) as browser:
+            r = self._pagina(browser, """
+                await abrir();
+                return { alAbrir: estado(), marca: marca() };""")
+            browser._websocket_request('Emulation.setDeviceMetricsOverride', params={
+                'width': 600, 'height': 800, 'deviceScaleFactor': 1, 'mobile': False})
+            r2 = self.evaluar(browser, self._js("""
+                await esperar(800);
+                const r = { angosta: estado(), marca: marca(), chatVisible: getComputedStyle(panel().querySelector('.o_dcbt_chat_col')).display !== 'none' };
+                return r;"""))
+        self.assertTrue(r['alAbrir']['ampliado'])
+        self.assertFalse(r2['angosta']['ampliado'], 'con la ventana angosta el chat vuelve al tamaño normal')
+        self.assertTrue(r2['angosta']['abierto'], 'sin cerrarse')
+        self.assertTrue(r2['chatVisible'], 'y la conversación se ve (no queda solo la vitrina)')
+        self.assertIsNone(r2['marca'], 'sin tocar lo que la persona eligió')
+
+    def test_al_pasar_de_pagina_el_chat_vuelve_en_tamano_normal(self):
+        """Lo conversado sigue al cambiar de página (sessionStorage) y el chat reabre en tamaño normal, como siempre:
+        quien toca «Ver» en una tarjeta va a la ficha y un chat de 1100 px encima taparía lo que fue a mirar."""
+        with self.chrome(1440, 900, movil=False) as browser:
+            r1 = self._pagina(browser, """
+                await abrir();
+                await hasta(() => globos().some((g) => g.includes('Hola, soy Andrés')), 'el saludo');
+                await esperar(1500);
+                return { alAbrir: estado(), marca: marca() };""")
+            browser.navigate_to(self.base_url() + '/shop', wait_stop=True)
+            r2 = self.evaluar(browser, self._js("""
+                await hasta(() => panel() && !panel().hidden, 'el chat abierto otra vez');
+                const r = { estado: estado(), saludos: globos().filter((g) => g.includes('Hola, soy Andrés')).length, marca: marca() };
+                await esperar(2500);   // que la página termine de arrancar: cerrar Chrome a media carga deja un error de red de Odoo
+                return r;"""),
+                timeout=120)
+        self.assertTrue(r1['alAbrir']['ampliado'])
+        self.assertTrue(r2['estado']['abierto'], 'el chat sigue abierto en la otra página')
+        self.assertFalse(r2['estado']['ampliado'], 'pero en tamaño normal')
+        self.assertEqual(r2['saludos'], 1, 'y la conversación sigue (no se vuelve a presentar)')
+        self.assertIsNone(r2['marca'], 'esto no cambia lo que la persona eligió')
