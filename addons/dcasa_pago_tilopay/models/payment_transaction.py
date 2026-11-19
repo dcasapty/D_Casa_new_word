@@ -107,9 +107,8 @@ class PaymentTransaction(models.Model):
                 'de pago.'))
 
     def _dcasa_tilopay_nueva_orden(self):
-        """``<referencia>-<8 letras y números al azar>``: única para siempre en Tilopay, imposible de adivinar
-        contando y
-        distinta entre staging y producción. Se guarda ANTES de llamar a Tilopay."""
+        """``<referencia>-<8 letras y números al azar>``: única para siempre en Tilopay, imposible de adivinar contando
+        y distinta entre staging y producción. Se guarda ANTES de llamar a Tilopay."""
         self.ensure_one()
         base = re.sub(r'[^A-Za-z0-9-]', '', self.reference or '')[:24].strip('-')
         for _intento in range(10):
@@ -318,10 +317,8 @@ class PaymentTransaction(models.Model):
     @api.model
     def _cron_dcasa_tilopay_reconciliar(self, limite=LOTE_DEL_CRON):
         """Pregunta por los pagos de Tilopay que quedaron sin confirmar (el aviso de compras no se reintenta y el
-        cliente
-        puede cerrar la pestaña). Los de más de 24 horas sin pago pasan a vencidos. Devuelve cuántos revisó. Sin
-        proveedor
-        activo y con claves, no hace nada (y no llama a nadie)."""
+        cliente puede cerrar la pestaña). Los de más de 24 horas sin pago pasan a vencidos. Devuelve cuántos revisó.
+        Sin proveedor activo y con claves, no hace nada (y no llama a nadie)."""
         proveedores = self.env['payment.provider'].sudo().search([('code', '=', CODIGO), ('state', '!=', 'disabled')])
         proveedores = proveedores.filtered(lambda p: p._dcasa_tilopay_conectado())
         if not proveedores:

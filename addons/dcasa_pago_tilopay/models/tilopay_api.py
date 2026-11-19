@@ -2,16 +2,13 @@
 
 Reglas que no se negocian (docs/TILOPAY.md):
 
-* Las claves (``TILOPAY_API_KEY``, ``TILOPAY_API_USER``, ``TILOPAY_API_PASSWORD``) se leen del entorno del
-contenedor EN EL
-  MOMENTO de usarlas. Nunca van a la base, a un campo, a un log, a una respuesta ni a un mensaje de error: todo
-  texto que
-  viene de afuera (o va hacia un log) pasa por ``limpiar``.
+* Las claves (``TILOPAY_API_KEY``, ``TILOPAY_API_USER``, ``TILOPAY_API_PASSWORD``) se leen del entorno del contenedor
+  EN EL MOMENTO de usarlas. Nunca van a la base, a un campo, a un log, a una respuesta ni a un mensaje de error: todo
+  texto que viene de afuera (o va hacia un log) pasa por ``limpiar``.
 * El token de Tilopay vive solo en la memoria del proceso (``_TOKENS``), con su vencimiento.
 * Esta capa NO registra cuerpos de petición ni de respuesta: solo la ruta y el código HTTP.
 * Un fallo de red, un tiempo agotado o una respuesta rara es ``ErrorTilopay``: quien llama deja la transacción
-pendiente.
-  Nunca se deduce «pagado» de un error.
+  pendiente. Nunca se deduce «pagado» de un error.
 * Lo único que puede decir «pagado» es ``evaluar_consulta``: una fila **aprobada** de ``consult`` con la orden que
   guardamos, el monto y la moneda exactos del pedido y el entorno que esperamos.
 """
@@ -189,9 +186,8 @@ def codificar_return_data(orden):
 
 
 def url_de_pago_valida(url):
-    """La dirección de la página de pago solo se acepta si es ``https`` de un anfitrión de ``tilopay.com``: Odoo
-    manda al
-    cliente a donde diga esta respuesta, y no debe poder mandarlo a otro sitio."""
+    """La dirección de la página de pago solo se acepta si es ``https`` de un anfitrión de ``tilopay.com``: Odoo manda
+    al cliente a donde diga esta respuesta, y no debe poder mandarlo a otro sitio."""
     try:
         partes = urlsplit(url)
     except (ValueError, AttributeError):
@@ -203,9 +199,8 @@ def url_de_pago_valida(url):
 
 def verificar_hash(order_hash, **datos):
     """HUECO (docs/TILOPAY.md §5.4). El algoritmo de ``OrderHash`` no es público: Tilopay lo entrega por Soporte.
-    Hasta entonces la firma NO se puede comprobar y esto lo dice con ``None``; la defensa es ``consult``. Cuando
-    llegue el
-    algoritmo se programa aquí con ``hmac.compare_digest`` y se suma como una comprobación MÁS, nunca en lugar de la
+    Hasta entonces la firma NO se puede comprobar y esto lo dice con ``None``; la defensa es ``consult``. Cuando llegue
+    el algoritmo se programa aquí con ``hmac.compare_digest`` y se suma como una comprobación MÁS, nunca en lugar de la
     consulta."""
     return None
 

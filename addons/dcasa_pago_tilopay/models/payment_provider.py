@@ -133,8 +133,7 @@ class PaymentProvider(models.Model):
     @api.model
     def _get_compatible_providers(self, *args, report=None, **kwargs):
         """Tilopay solo se ofrece para pagar un PEDIDO de venta (versión 1) y solo si está activo, con las claves
-        cargadas
-        y coherente con ``TILOPAY_ENTORNO``. Sin eso, ni sale ni estorba."""
+        cargadas y coherente con ``TILOPAY_ENTORNO``. Sin eso, ni sale ni estorba."""
         proveedores = super()._get_compatible_providers(*args, report=report, **kwargs)
         tilopay = proveedores.filtered(lambda p: p.code == CODIGO)
         if not tilopay:
