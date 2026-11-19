@@ -426,8 +426,10 @@ class TestCobrosYValorEnElNavegador(PantallasMixin, HttpCase):
             // El día que se toca otra vez se cierra y la tarjeta vuelve a ser la del mes (sin día no hay día).
             await esperar(() => doce(), 'el día 12 otra vez');
             doce().click();
-            await esperar(() => tarjeta() && titulo() === ESPERADO.mes.titulo && quieta(), 'de vuelta al mes');
-            igual(tarjeta().querySelector('.o_dcasa_cf_periodo_dia').disabled, true, 'sin día, el día espera');
+            const diaEspera = () => tarjeta().querySelector('.o_dcasa_cf_periodo_dia').disabled;
+            await esperar(() => tarjeta() && diaEspera() && titulo() === ESPERADO.mes.titulo && quieta(),
+                          'de vuelta al mes, sin día elegido');
+            igual(diaEspera(), true, 'sin día, el día espera');
             sinScrollDeCostado('cobrado, sin día elegido');
         """.replace('__ESPERADO__', json.dumps(esperado, ensure_ascii=False)).replace(
             '__MES__', mes).replace('__DOCE__', str(self.doce)) + "console.log('test successful'); })();"
