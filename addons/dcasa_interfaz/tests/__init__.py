@@ -20,8 +20,10 @@ from . import test_reponer
 from . import test_por_dia
 from . import test_movimientos
 from . import test_pantallas_navegador
+from . import test_cifras_que_suben
 from . import test_valor_inventario
 from . import test_cobros_por_forma
+from . import test_cobros_por_periodo
 from . import test_origen
 from . import test_oportunidad_celular
 from . import test_cotizacion_celular

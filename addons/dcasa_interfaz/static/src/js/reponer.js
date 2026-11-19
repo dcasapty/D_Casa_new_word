@@ -6,11 +6,12 @@
  * meses de ventas mirar y cuántos de reserva. Después, la lista por urgencia o por proveedor, el tiempo de llegada
  * (se pone o se cambia en una ventana) y el Excel, que arma el servidor (/dcasa/reponer/excel).
  */
-import { Component, onWillStart, onWillUnmount, useState } from "@odoo/owl";
+import { Component, onWillStart, onWillUnmount, useRef, useState } from "@odoo/owl";
 import { Dialog } from "@web/core/dialog/dialog";
 import { registry } from "@web/core/registry";
 import { debounce } from "@web/core/utils/timing";
 import { useService } from "@web/core/utils/hooks";
+import { useCifrasQueSuben } from "./cifras_que_suben";
 
 const DIAS_POR_MES = 30;
 const MESES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
@@ -121,6 +122,9 @@ export class DcasaReponer extends Component {
             error: "",
             vista: "urgencia", // "urgencia" | "proveedor"
         });
+        // Los contadores de arriba suben hasta su valor al abrir y cada vez que cambian (otro proveedor, otros meses).
+        this.raiz = useRef("raiz");
+        useCifrasQueSuben({ raiz: this.raiz });
         this.pedidoActual = 0;
         this.busquedaActual = 0;
         this.buscarConPausa = debounce(() => this.buscar(), 300);

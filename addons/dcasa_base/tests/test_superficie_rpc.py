@@ -534,6 +534,11 @@ LISTA_BLANCA = {
     ('dcasa_interfaz', 'dcasa.tablero', 'ventas_del_dia'):
         'Lectura de lo que se hizo un día: exige Gerencia o administrador (_exigir_gerencia) ANTES de leer; valida la '
         'base, la vendedora y el día (no futuro, de los últimos 24 meses). No escribe nada.',
+    ('dcasa_interfaz', 'dcasa.tablero', 'cobros_del_periodo'):
+        'Lectura de lo cobrado por forma de pago (con ITBMS) en el día, la semana, la quincena o el mes de un día: '
+        'exige Gerencia o administrador (_exigir_gerencia, AccessError) ANTES de leer; valida el periodo (uno de los '
+        'cuatro) y la fecha (bien escrita, no futura y de los últimos 24 meses), y recorta el periodo en curso a hoy. '
+        'Solo cuenta cobros (los de _dominio_de_cobros) sin sudo y no escribe nada.',
     ('dcasa_interfaz', 'dcasa.tablero', 'estadisticas'):
         'Lectura de las gráficas: exige Gerencia o administrador (_exigir_gerencia) ANTES de leer; valida el periodo '
         '(uno de los botones o un rango de hasta un año, no futuro) y la base. Devuelve solo totales.',

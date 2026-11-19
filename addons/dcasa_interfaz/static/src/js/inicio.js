@@ -4,12 +4,13 @@
  * Las cifras vienen de dcasa.tablero.obtener_datos (respetan los permisos de quien mira)
  * y cada una abre la lista que la explica. Debajo, los accesos del día a día y las apps.
  */
-import { Component, onWillUnmount, useEffect, useExternalListener, useRef, useState } from "@odoo/owl";
+import { Component, onWillUnmount, useExternalListener, useRef, useState } from "@odoo/owl";
 import { browser } from "@web/core/browser/browser";
 import { ConnectionLostError } from "@web/core/network/rpc";
 import { registry } from "@web/core/registry";
 import { user } from "@web/core/user";
 import { useService } from "@web/core/utils/hooks";
+import { sinMovimiento, useCifrasQueSuben } from "./cifras_que_suben";
 
 const ICONOS = {
     ventas_hoy: "fa-shopping-bag",
@@ -57,14 +58,8 @@ const MESES = [
 // Si las cifras tardan más que esto, el armazón lo dice («Está tardando más de lo normal…»).
 const ESPERA_LARGA = 6000;
 
-/** ¿La persona pidió menos movimiento en su aparato? Entonces nada sube ni se desliza. */
-function sinMovimiento() {
-    return browser.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
-
-// Cuánto tarda una cifra en subir hasta su valor, y hasta dónde llega la barra más alta de la semana (el resto del alto
-// queda para el monto que va encima de la barra).
-const DURACION_SUBIDA = 700;
+// Hasta dónde llega la barra más alta de la semana (el resto del alto queda para el monto que va encima de la barra).
+// La subida de las cifras (duración, curva, «menos movimiento») vive en cifras_que_suben.js, igual para todas las pantallas.
 const ALTO_DEL_TOPE = 88;
 // Topes «redondos» para la escala de la semana: el primero que alcance al día más alto (1,2 mil; 1,5 mil; 2 mil…).
 const PASOS_DEL_TOPE = [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10];
@@ -119,16 +114,8 @@ export class DcasaInicio extends Component {
         // en blanco: en el celular, tras entrar, parecía que el panel no había abierto (reporte de la dueña, 2026-11-11).
         this.cargar();
         // Las cifras principales suben hasta su valor al abrir y cada vez que cambian (otro periodo, otra vendedora).
-        this.cifrasPintadas = new WeakMap();
-        this.subidas = new Map();
-        useEffect(() => this.subirCifras());
-        onWillUnmount(() => {
-            for (const cuadro of this.subidas.values()) {
-                browser.cancelAnimationFrame(cuadro);
-            }
-            this.subidas.clear();
-            browser.clearTimeout(this.avisoDeEspera);
-        });
+        useCifrasQueSuben({ raiz: this.raiz, dinero: (valor) => this.dinero(valor) });
+        onWillUnmount(() => browser.clearTimeout(this.avisoDeEspera));
         // Tocar fuera de la ayuda abierta (o de su ícono) la cierra: en el celular no hay «pasar el mouse».
         useExternalListener(window, "click", (ev) => {
             if (this.state.ayuda && !ev.target.closest(".o_dcasa_ayuda_boton, .o_dcasa_ayuda_texto")) {
@@ -607,56 +594,6 @@ export class DcasaInicio extends Component {
 
     get maxTop() {
         return Math.max(0, ...this.state.datos.top.map((p) => p.cantidad));
-    }
-
-    /**
-     * Las cifras marcadas con «o_dcasa_sube» suben hasta su valor (data-valor). El texto de la etiqueta es SIEMPRE el
-     * valor final (lo pone la plantilla): mientras sube, el número que se ve va en «data-sube» y lo pinta el CSS con
-     * ::after encima del texto real, que queda transparente. Así ni las pruebas ni los lectores de pantalla ven un
-     * número a medias. Si la persona pidió menos movimiento, no sube nada.
-     */
-    subirCifras() {
-        const raiz = this.raiz.el;
-        if (!raiz) {
-            return;
-        }
-        const quieto = sinMovimiento();
-        for (const el of raiz.querySelectorAll(".o_dcasa_sube")) {
-            const hasta = Number(el.dataset.valor);
-            const desde = this.cifrasPintadas.get(el) || 0;
-            if (!Number.isFinite(hasta) || hasta === desde) {
-                continue;
-            }
-            this.cifrasPintadas.set(el, hasta);
-            this.dejarDeSubir(el);
-            if (quieto) {
-                continue;
-            }
-            const pintar =
-                el.dataset.formato === "moneda"
-                    ? (valor) => this.dinero(valor)
-                    : (valor) => new Intl.NumberFormat("en-US").format(Math.round(valor));
-            const empieza = browser.performance.now();
-            const paso = (ahora) => {
-                const avance = Math.min(1, Math.max(0, (ahora - empieza) / DURACION_SUBIDA));
-                if (avance >= 1 || !el.isConnected) {
-                    this.dejarDeSubir(el);
-                    return;
-                }
-                el.dataset.sube = pintar(desde + (hasta - desde) * (1 - (1 - avance) ** 3));
-                this.subidas.set(el, browser.requestAnimationFrame(paso));
-            };
-            el.dataset.sube = pintar(desde);
-            this.subidas.set(el, browser.requestAnimationFrame(paso));
-        }
-    }
-
-    dejarDeSubir(el) {
-        if (this.subidas.has(el)) {
-            browser.cancelAnimationFrame(this.subidas.get(el));
-            this.subidas.delete(el);
-        }
-        delete el.dataset.sube;
     }
 
     icono(cifra) {

@@ -3,10 +3,16 @@
  * como calendario (en el celular, una lista de días) con lo de cada día; al tocar un día, la lista de ese día y cada
  * documento se abre. Las cifras salen de dcasa.tablero.por_dia / ventas_del_dia (las mismas bases del Inicio) y el
  * servidor exige Gerencia o administrador.
+ *
+ * Arriba del detalle del día va la tarjeta «Cobrado por forma de pago» (dcasa.tablero.cobros_del_periodo) con su selector
+ * Día · Semana · Quincena · Mes: el periodo que contiene el día elegido. En la computadora vive arriba del panel de la
+ * derecha; en el celular, dentro del día que se abre (y, si no hay un día abierto, arriba de la lista, con el mes).
+ * Todas las cifras de la pantalla suben hasta su valor (cifras_que_suben.js).
  */
-import { Component, onWillStart, useState } from "@odoo/owl";
+import { Component, onWillStart, useRef, useState } from "@odoo/owl";
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
+import { useCifrasQueSuben } from "./cifras_que_suben";
 
 const SEMANA = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 const TITULOS = {
@@ -16,9 +22,26 @@ const TITULOS = {
     completadas: "Pagadas por completo, por día",
 };
 
-/** Lo que comparten «Por día» y «Estadísticas»: el dinero, los números y abrir listas o documentos. */
+// Los botones de «Cobrado por forma de pago»: el periodo que contiene el día elegido.
+const PERIODOS_DE_COBROS = [
+    { clave: "dia", nombre: "Día" },
+    { clave: "semana", nombre: "Semana" },
+    { clave: "quincena", nombre: "Quincena" },
+    { clave: "mes", nombre: "Mes" },
+];
+
+/**
+ * Lo que comparten «Por día», «Estadísticas» y «Valor del inventario»: el dinero, los números, abrir listas o documentos
+ * y las cifras que suben (la plantilla lleva ``t-ref="raiz"`` arriba y marca cada cifra con «o_dcasa_sube»).
+ */
 export const FormatoMixin = (Base) =>
     class extends Base {
+        setup() {
+            super.setup(...arguments);
+            this.raiz = useRef("raiz");
+            useCifrasQueSuben({ raiz: this.raiz, dinero: (valor) => this.dinero(valor) });
+        }
+
         dinero(valor) {
             const moneda = this.state.opciones?.moneda || { simbolo: "$", antes: true };
             const numero = new Intl.NumberFormat("en-US", {
@@ -84,9 +107,11 @@ export class DcasaPorDia extends FormatoMixin(Component) {
     static props = ["*"];
 
     setup() {
+        super.setup();
         this.orm = useService("orm");
         this.action = useService("action");
         this.semana = SEMANA;
+        this.periodosDeCobros = PERIODOS_DE_COBROS;
         const contexto = this.props.action?.context || {};
         this.state = useState({
             opciones: null,
@@ -99,7 +124,15 @@ export class DcasaPorDia extends FormatoMixin(Component) {
             cargando: false,
             cargandoDia: false,
             error: "",
+            // «Cobrado por forma de pago»: el periodo que eligió la persona (se recuerda aunque cambie de día), lo que
+            // contestó el servidor y si está cargando.
+            periodoCobros: "dia",
+            cobro: null,
+            cargandoCobro: false,
+            errorCobro: "",
         });
+        this.pedidoDeCobros = 0;
+        this.claveDeCobros = "";
         onWillStart(async () => {
             this.state.opciones = await this.orm.call("dcasa.tablero", "opciones_por_dia", []);
             await this.cargar(contexto.dcasa_dia || null);
@@ -197,6 +230,85 @@ export class DcasaPorDia extends FormatoMixin(Component) {
         return sentido === "sube" ? "o_bien" : sentido === "baja" ? "o_mal" : "o_igual";
     }
 
+    /** La flecha de «▲ 12.3 %»: va aparte del número para que, al subir, el número se mueva y la flecha no. */
+    get cambioFlecha() {
+        const sentido = this.state.datos?.anterior?.sentido;
+        return sentido === "sube" ? "▲ " : sentido === "baja" ? "▼ " : "";
+    }
+
+    /** El número de «▲ 12.3 %» sin signo (la flecha dice si sube o baja); sin base, ``null``: sale una raya. */
+    get cambioNumero() {
+        const cambio = this.state.datos?.anterior?.cambio;
+        return cambio === null || cambio === undefined ? null : Math.abs(cambio);
+    }
+
+    // ------------------------------------------------------------------
+    // Cobrado por forma de pago: el día, la semana, la quincena o el mes
+    // ------------------------------------------------------------------
+
+    /**
+     * El periodo que se muestra. Día, semana y quincena salen del día elegido; sin día elegido (un mes que ya pasó, o un día
+     * cerrado en el celular) se muestra el mes que se está viendo.
+     */
+    get periodoDeCobros() {
+        return this.state.dia ? this.state.periodoCobros : "mes";
+    }
+
+    /** El día que se le manda al servidor: el elegido o, sin elegir, el primero del mes que se está viendo. */
+    get diaDeCobros() {
+        return this.state.dia || (this.state.datos ? `${this.state.datos.mes}-01` : "");
+    }
+
+    /** «Semana del 16 al 22 de noviembre», con mayúscula para el título de la tarjeta. */
+    get tituloDeCobros() {
+        const texto = this.state.cobro?.etiqueta || "";
+        return texto.charAt(0).toUpperCase() + texto.slice(1);
+    }
+
+    /** Día, semana y quincena necesitan un día elegido: sin él, esos botones esperan. */
+    periodoDeshabilitado(clave) {
+        return !this.state.dia && clave !== "mes";
+    }
+
+    async cargarCobros(forzar = false) {
+        const dia = this.diaDeCobros;
+        if (!this.state.datos || !dia) {
+            return;
+        }
+        const periodo = this.periodoDeCobros;
+        const clave = `${periodo}:${dia}`;
+        if (!forzar && clave === this.claveDeCobros) {
+            return;
+        }
+        this.claveDeCobros = clave;
+        const pedido = ++this.pedidoDeCobros;
+        this.state.cargandoCobro = true;
+        this.state.errorCobro = "";
+        try {
+            const cobro = await this.orm.call("dcasa.tablero", "cobros_del_periodo", [dia], { periodo });
+            if (pedido === this.pedidoDeCobros) {
+                this.state.cobro = cobro;
+            }
+        } catch (error) {
+            if (pedido === this.pedidoDeCobros) {
+                this.claveDeCobros = "";
+                this.state.errorCobro = error?.data?.message || "No se pudo cargar lo cobrado.";
+            }
+        } finally {
+            if (pedido === this.pedidoDeCobros) {
+                this.state.cargandoCobro = false;
+            }
+        }
+    }
+
+    async cambiarPeriodoDeCobros(clave) {
+        if (this.periodoDeshabilitado(clave)) {
+            return;
+        }
+        this.state.periodoCobros = clave;
+        await this.cargarCobros();
+    }
+
     async cargar(diaElegido = null) {
         this.state.cargando = true;
         this.state.error = "";
@@ -218,6 +330,9 @@ export class DcasaPorDia extends FormatoMixin(Component) {
                 this.state.dia = null;
                 this.state.detalle = null;
             }
+            // Lo cobrado no depende de la base ni de la vendedora: si el día y el periodo siguen siendo los mismos, no
+            // se vuelve a pedir (ni se anima otra vez).
+            await this.cargarCobros();
         } catch (error) {
             this.state.error = error?.data?.message || "No se pudieron cargar las ventas.";
         } finally {
@@ -230,13 +345,16 @@ export class DcasaPorDia extends FormatoMixin(Component) {
             return;
         }
         if (!siempre && this.state.dia === dia.fecha) {
-            // Tocar otra vez el mismo día lo cierra (en el celular, la lista se recoge).
+            // Tocar otra vez el mismo día lo cierra (en el celular, la lista se recoge): lo cobrado vuelve al mes.
             this.state.dia = null;
             this.state.detalle = null;
+            await this.cargarCobros();
             return;
         }
         this.state.dia = dia.fecha;
         this.state.cargandoDia = true;
+        // Lo cobrado de ese día (o de su semana, quincena o mes) se pide a la vez que el detalle del día.
+        const cobros = this.cargarCobros();
         try {
             const detalle = await this.orm.call("dcasa.tablero", "ventas_del_dia", [dia.fecha], {
                 base: this.state.base,
@@ -250,6 +368,7 @@ export class DcasaPorDia extends FormatoMixin(Component) {
         } finally {
             this.state.cargandoDia = false;
         }
+        await cobros;
     }
 
     async cambiarBase(clave) {

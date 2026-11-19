@@ -213,16 +213,16 @@ administradores; «Lo más vendido» solo muestra ventas y unidades, no costos, 
 Facturado por día* y *Estadísticas › Resumen* son de **Gerencia y administradores** (`sales_team.group_sale_manager` o
 `base.group_system`, los mismos de Comparar); *Inventario › Movimientos*, de quien administra Inventario (Gerencia lo
 incluye) y los administradores (`stock.group_stock_manager` o `base.group_system`). Los menús llevan esos grupos y el
-servidor los exige otra vez en cada llamada (`dcasa.tablero.por_dia`, `ventas_del_dia`, `estadisticas`,
-`opciones_por_dia`; `dcasa.movimientos.*`) antes de leer: la Vendedora no los ve ni recibe las cifras por la conexión de
+servidor los exige otra vez en cada llamada (`dcasa.tablero.por_dia`, `ventas_del_dia`, `cobros_del_periodo`,
+`estadisticas`, `opciones_por_dia`; `dcasa.movimientos.*`) antes de leer: la Vendedora no los ve ni recibe las cifras por la conexión de
 datos, y Brian tampoco se las da (`ventas_por_dia`, `movimientos_de_producto`).
 
 **Valor del inventario** (2026-11-02, «solo para gerencia o administración»): *Inventario › Valor del inventario*,
 *Estadísticas › Valor del inventario* y su atajo del Inicio son de **Gerencia y administradores**
 (`sales_team.group_sale_manager` o `base.group_system`, como la ganancia). El servidor lo exige en cada llamada
 (`dcasa.tablero.valor_del_inventario`) y Brian también (`valor_del_inventario`): ni la Vendedora, ni Caja, ni
-contabilidad lo reciben. Lo cobrado por forma de pago de días y meses pasados va dentro de Por día y Estadísticas (los
-mismos permisos); Caja sigue viendo solo la «Caja de hoy» de su Inicio.
+contabilidad lo reciben. Lo cobrado por forma de pago del día, la semana, la quincena o el mes (tarjeta de Por día,
+`cobros_del_periodo`, 2026-11-19) y de periodos pasados en Estadísticas va con los mismos permisos; Caja sigue viendo solo la «Caja de hoy» de su Inicio.
 
 **Tope de descuento (10 % para la Vendedora)** — cerrado en esta revisión: se mide siempre al crear la línea (aunque el precio
 llegue por el contexto de la llamada), al cambiar de producto o de unidad de medida, y al tocar las banderas de anticipo o

@@ -255,7 +255,7 @@
    ],
    "grupo": "Hoy",
    "titulo": "Ver cuánto se vendió cada día del mes",
-   "logras": "El mes como un calendario (en el celular, una lista de días) con lo vendido cada día y cuántas ventas fueron. Tocas un día y ves cada pedido o factura de ese día, con su cliente, su vendedora y su estado; tocas uno y se abre. Arriba, el total del mes y cómo va contra el mes pasado, y lo cobrado en el mes por forma de pago (efectivo, Yappy, tarjeta…); al tocar un día, también lo cobrado ese día por forma de pago. Solo Gerencia.",
+   "logras": "El mes como un calendario (en el celular, una lista de días) con lo vendido cada día y cuántas ventas fueron. Tocas un día y ves cada pedido o factura de ese día, con su cliente, su vendedora y su estado; tocas uno y se abre. Arriba, el total del mes y cómo va contra el mes pasado. A la derecha, justo encima de las facturas del día, una sola tarjeta «Cobrado por forma de pago» (efectivo, Yappy, tarjeta…) que cambia por día, semana, quincena o mes. Todas las cifras suben hasta su valor al abrir y cada vez que cambian. Solo Gerencia.",
    "destino": {
     "menu": "dcasa_interfaz.menu_dcasa_ventas_por_dia"
    },
@@ -269,9 +269,13 @@
     {
      "texto": "Toca un día del calendario: a la derecha (en el celular, debajo del día) sale cada venta de ese día. «Ver en lista» las abre todas en una lista.",
      "destino": null
+    },
+    {
+     "texto": "En la tarjeta «Cobrado por forma de pago», arriba de las facturas del día, elige «Día», «Semana», «Quincena» o «Mes»: el título dice cuál es y cada ficha (efectivo, Yappy, tarjeta…) abre sus cobros. La semana va de lunes a domingo, la quincena es del 1 al 15 o del 16 al fin del mes, y el mes es el que estás viendo. Si el periodo todavía no termina, cuenta hasta hoy. En un mes que ya pasó, sin ningún día elegido, la tarjeta muestra el mes completo hasta que toques un día.",
+     "destino": null
     }
    ],
-   "nota": "Las ventas van sin ITBMS; el total con ITBMS sale aparte. «Contra» compara con los mismos días del mes pasado (el último hasta la misma hora de hoy) o, si el mes ya terminó, con el mes anterior completo, igual que Comparar del Inicio.",
+   "nota": "Las ventas van sin ITBMS; el total con ITBMS sale aparte, y lo cobrado va con ITBMS (es el dinero que entró, la misma cuenta de la Caja de hoy; no cambia con «Vendido», «Facturado» ni con la vendedora). «Contra» compara con los mismos días del mes pasado (el último hasta la misma hora de hoy) o, si el mes ya terminó, con el mes anterior completo, igual que Comparar del Inicio.",
    "brian": "¿Cuánto se vendió el martes?",
    "palabras": [
     "por dia",
@@ -284,7 +288,12 @@
     "vendido",
     "metodo de pago",
     "forma de pago",
-    "cobrado por dia"
+    "cobrado por dia",
+    "cobrado por semana",
+    "cobrado por quincena",
+    "cobrado del mes",
+    "cobros de la semana",
+    "cobros de la quincena"
    ]
   },
   {
@@ -304,7 +313,7 @@
     "cobros del dia",
     "cuadrar"
    ],
-   "nota": "Para los días anteriores y el total de un mes por forma de pago: Ventas por día (toca un día) o Estadísticas."
+   "nota": "Para los días anteriores, la semana, la quincena o el mes por forma de pago: Ventas por día (toca un día y mira la tarjeta «Cobrado por forma de pago») o Estadísticas."
   },
   {
    "id": "cobrar-cliente",
@@ -4143,7 +4152,7 @@
    "categoria": "reportes",
    "grupo": "Ventas",
    "titulo": "Ver las estadísticas de ventas en gráficas",
-   "logras": "Gráficas simples de un periodo (esta semana, este mes, el mes pasado, los últimos 3 meses, este año o las fechas que elijas): lo vendido cada día, por tipo de mueble, por vendedora, lo cobrado por forma de pago y los productos que más se venden, cada número con una frase que dice qué es. Tocas una barra y ves ese día. Solo Gerencia.",
+   "logras": "Gráficas simples de un periodo (esta semana, este mes, el mes pasado, los últimos 3 meses, este año o las fechas que elijas): lo vendido cada día, por tipo de mueble, por vendedora, lo cobrado por forma de pago y los productos que más se venden, cada número con una frase que dice qué es. Tocas una barra y ves ese día. Los números suben hasta su valor al abrir y cada vez que cambias de periodo. Solo Gerencia.",
    "destino": {
     "menu": "dcasa_interfaz.menu_estadisticas_resumen"
    },
