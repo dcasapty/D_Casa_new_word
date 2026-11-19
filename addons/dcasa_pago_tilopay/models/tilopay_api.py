@@ -6,6 +6,9 @@ Reglas que no se negocian (docs/TILOPAY.md):
   EN EL MOMENTO de usarlas. Nunca van a la base, a un campo, a un log, a una respuesta ni a un mensaje de error: todo
   texto que viene de afuera (o va hacia un log) pasa por ``limpiar``.
 * El token de Tilopay vive solo en la memoria del proceso (``_TOKENS``), con su vencimiento.
+* Tope de llamadas a Tilopay AL MISMO TIEMPO (``cupo``): cada una retiene una conexión de la base (hasta 15 s si Tilopay
+  está lento) y con ``workers = 0`` el grupo de conexiones es de 48 y es de TODA la tienda. Si el tope está lleno la
+  llamada ni se intenta (``ErrorTilopay('ocupado')``) y quien llama la deja para después.
 * Esta capa NO registra cuerpos de petición ni de respuesta: solo la ruta y el código HTTP.
 * Un fallo de red, un tiempo agotado o una respuesta rara es ``ErrorTilopay``: quien llama deja la transacción
   pendiente. Nunca se deduce «pagado» de un error.
@@ -14,6 +17,7 @@ Reglas que no se negocian (docs/TILOPAY.md):
 """
 import base64
 import binascii
+import contextlib
 import hashlib
 import logging
 import math
@@ -41,6 +45,11 @@ RUTA_PAGO = '/api/v1/processPayment'
 RUTA_CONSULTA = '/api/v1/consult'
 
 TIEMPO_ESPERA = (5, 10)        # (conectar, leer) en segundos: corto a propósito, la tienda no se cuelga por Tilopay
+# Llamadas a Tilopay a la vez, por proceso. Con ``workers = 0`` (un solo proceso) es el tope de toda la tienda; si algún
+# día hubiera varios procesos, cada uno se acota solo. La tarea programada tiene una reserva propia: si la web llena el
+# tope (alguien martillando con Tilopay lento), la tarea que rescata pagos igual puede preguntar.
+TOPE_DE_LLAMADAS_A_LA_VEZ = 6
+RESERVA_PARA_LA_TAREA = 2
 MAX_RESPUESTA = 1_000_000      # bytes
 LARGO_TEXTO = 200              # lo máximo que de un texto ajeno llega a un log o a una nota
 
@@ -90,8 +99,8 @@ class Credenciales(namedtuple('Credenciales', 'llave usuario clave')):
 
 
 class ErrorTilopay(Exception):
-    """Algo falló al hablar con Tilopay. ``tipo``: ``red`` | ``claves`` | ``respuesta`` | ``rechazo``. El texto ya viene
-    limpio: es seguro mostrarlo en un log."""
+    """Algo falló al hablar con Tilopay. ``tipo``: ``red`` | ``claves`` | ``respuesta`` | ``rechazo`` | ``ocupado``
+    (no se intentó: ya hay demasiadas llamadas a la vez). El texto ya viene limpio: es seguro mostrarlo en un log."""
 
     def __init__(self, tipo, detalle=''):
         super().__init__(f'{tipo}: {detalle}' if detalle else tipo)
@@ -220,6 +229,43 @@ def verificar_hash(order_hash, **datos):
     return None
 
 
+# ------------------------------------------------------------------ el tope de llamadas a la vez
+
+_CUPO = {'en_vuelo': 0}
+_CANDADO_CUPO = threading.Lock()
+
+
+def _limite(prioritario):
+    return TOPE_DE_LLAMADAS_A_LA_VEZ + (RESERVA_PARA_LA_TAREA if prioritario else 0)
+
+
+def llamadas_en_vuelo():
+    """Cuántas llamadas a Tilopay hay ahora mismo en este proceso (para las pruebas y para los registros)."""
+    return _CUPO['en_vuelo']
+
+
+def hay_cupo(prioritario=False):
+    """¿Cabe otra llamada a Tilopay ahora? Solo mira (no reserva): sirve para no gastar trabajo de la base en una
+    consulta que después no se podría hacer. La reserva de verdad la hace ``cupo``."""
+    with _CANDADO_CUPO:
+        return _CUPO['en_vuelo'] < _limite(prioritario)
+
+
+@contextlib.contextmanager
+def cupo(prioritario=False):
+    """Reserva un lugar para UNA llamada a Tilopay mientras dura el ``with``; si el tope está lleno NO espera: lanza
+    ``ErrorTilopay('ocupado')`` y la llamada ni se intenta. Se suelta siempre, pase lo que pase."""
+    with _CANDADO_CUPO:
+        if _CUPO['en_vuelo'] >= _limite(prioritario):
+            raise ErrorTilopay('ocupado', 'demasiadas llamadas a Tilopay a la vez')
+        _CUPO['en_vuelo'] += 1
+    try:
+        yield
+    finally:
+        with _CANDADO_CUPO:
+            _CUPO['en_vuelo'] -= 1
+
+
 # ------------------------------------------------------------------ el cliente HTTP
 
 _TOKENS = {}                # huella de las claves → (token, vence en time.monotonic())
@@ -241,8 +287,9 @@ def olvidar_tokens():
 class Cliente:
     """Habla con ``app.tilopay.com``. Un fallo es ``ErrorTilopay``; nunca se registran cuerpos."""
 
-    def __init__(self, creds):
+    def __init__(self, creds, prioritario=False):
         self._creds = creds
+        self._prioritario = prioritario      # la tarea programada: puede usar la reserva del tope de llamadas
 
     # -- bajo nivel
 
@@ -252,7 +299,8 @@ class Cliente:
             cabeceras['Authorization'] = 'bearer ' + self._token()
         inicio = time.monotonic()
         try:
-            respuesta = requests.post(HOST + ruta, json=cuerpo, headers=cabeceras, timeout=TIEMPO_ESPERA)
+            with cupo(self._prioritario):
+                respuesta = requests.post(HOST + ruta, json=cuerpo, headers=cabeceras, timeout=TIEMPO_ESPERA)
         except requests.exceptions.Timeout:
             _logger.warning('Tilopay %s: tiempo agotado (%.1f s).', ruta, time.monotonic() - inicio)
             raise ErrorTilopay('red', 'tiempo agotado') from None
