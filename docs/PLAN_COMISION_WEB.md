@@ -370,7 +370,8 @@ Mientras la opción esté vacía el sistema **mide y propone, pero no deja aprob
 
 ## 9. La propuesta de construcción
 
-El trozo más pequeño que da **medición y transparencia sin pagar nada solo** es el **paso 1 de tres fases**:
+Se construye en **tres fases** (la fase 1 es este documento). El trozo más pequeño, que da **medición y transparencia sin
+pagar nada solo**, es la fase 2:
 
 - **Fase 2 (MVP): medir y mostrar.** Reglas, ventas del sitio, libro, estado mensual, sello. **No paga nada y no toca
   la planilla.** Se puede construir ya: no depende del dictamen legal.
@@ -426,7 +427,7 @@ no tienen la Nómina ni Ventas, y la comisión no debe depender del departamento
 | Grupo | Qué puede |
 |---|---|
 | Gerencia (`dcasa_base.group_gerencia`) | Todo, **menos aprobar**: propone versiones, listas y propuestas, y hace ajustes con motivo. |
-| «Aprueba la comisión web» (grupo nuevo; **no** lo incluye Gerencia ni el administrador técnico) | Aprueba versiones, listas y propuestas, **si no figura entre quienes reciben**. |
+| «Aprueba la comisión web» (grupo nuevo; **no** lo incluye Gerencia ni el administrador técnico) | Ve todo en solo lectura y aprueba versiones, listas y propuestas, **si no figura entre quienes reciben**. |
 | «Recibe la comisión web» (grupo nuevo, solo lectura; el módulo lo da a las personas de la lista vigente) | Ve **su** parte y el estado general, sin nombres de clientes. |
 | Administrador técnico solo (`base.group_system`) | **Nada** de la comisión (puede, como siempre, asignarse roles: es el límite honesto de la sección 7). |
 
@@ -486,10 +487,10 @@ carreras entre el barrido y el gancho (un candado, como el de numeración de `dc
 |---|---|---|
 | 1 | Módulo, `dcasa.web.reglas` y `dcasa.web.reparto` (sin ninguna versión de fábrica) y sus permisos | Libre |
 | 2 | Testigo de origen (`dcasa_nacio_en_web`) y marcado único de lo que ya existe | Libre |
-| 3 | `dcasa.web.venta` + gancho de pago + barrido nocturno: **solo medir** (sin libro) | Los criterios fijos son libres; las **cuatro decisiones** (P3 y P2) quedan como parámetros sin responder |
+| 3 | `dcasa.web.venta` + gancho de pago + barrido nocturno: **solo medir** (sin libro) | Los criterios fijos son libres; las **cuatro decisiones** de la sección 2 (P3) quedan como parámetros sin responder |
 | 4 | Libro `dcasa.web.movimiento`, reversos y devoluciones | P2 (base y momento); P1 (para que cobre algo) |
-| 5 | Estado del mes (pantalla, Excel, PDF) y alertas | P5 (quién ve qué) |
-| 6 | Sello mensual, huella encadenada, «Verificar» y correo | P7 (a qué correos) |
+| 5 | Estado del mes (pantalla, Excel, PDF) y alertas | P5 (quiénes reciben y qué ve cada quien) |
+| 6 | Sello mensual, huella encadenada, «Verificar» y correo | P7 (quién aprueba y a quién le llega el sello) |
 | 7 | Pruebas, capturas en computadora y celular, Guía, Brian y documentos | — |
 | 8 | **Revisión adversarial**; CI con staging; producción | Aprobación de Gerencia |
 | 9 | **Fase 3:** propuesta, revisión y aprobación; «pagado fuera de planilla» | P6 y P7 |
@@ -504,3 +505,87 @@ carreras entre el barrido y el gancho (un candado, como el de numeración de `dc
 - El pago «en proceso de pago» cuenta (como en el bono por meta); el barrido nocturno reversa si el pago se cae.
 - El envío que suma el chat de la tienda puede desaparecer al pagar (A8): por eso queda fuera de la base.
 - Una factura de un mismo pedido en varias entregas se cuenta cada una al quedar pagada.
+
+## 10. Preguntas para Gerencia general
+
+Ocho preguntas, cada una con su recomendación y lo que pasa con cada respuesta. Las **P1 a P5** hacen falta para empezar a
+construir el módulo; las **P6 a P8**, antes de que se pague el primer centavo. **Ninguna pide un número**: el porcentaje y las
+personas los escribe Gerencia general en la pantalla de reglas, cuando quiera.
+
+**P1. ¿Cómo se define la comisión?**
+- **A (recomiendo): un porcentaje fijo sobre toda la base del sitio.** Fácil de entender, de medir y de explicar.
+- B: un porcentaje que solo se gana si el sitio llega a una meta del mes (como el bono por meta de las vendedoras).
+- C: porcentajes distintos por tipo de producto.
+- Efecto: con A el estado es una sola cuenta; B y C obligan a reglas más largas y más cosas que discutir. B y C quedan
+  para el futuro (sección 11).
+
+**P2. ¿Sobre qué monto, y cuándo cuenta una venta?**
+- **A (recomiendo): lo que entró, sin ITBMS, sin envío, con descuentos y menos devoluciones, y solo cuando la factura
+  queda pagada por completo.** Una devolución resta en el mes en que ocurre, y si deja saldo negativo se arrastra.
+- B: igual pero incluyendo el envío.
+- C: contar por cada abono, en proporción.
+- Efecto: A es lo más limpio y lo que ya hacen el bono por meta y el programa de vendedores. B cuenta como venta del
+  sitio un cobro que se paga al transportista. C obliga a deshacer pedazos si hay devolución.
+
+**P3. ¿Qué pasa con los casos dudosos?** (cada uno es un interruptor que se contesta una vez, en la pantalla de reglas)
+- **«Pago en la tienda»** (pedido de la web que se paga en el local): **A (recomiendo): cuenta**; B: no cuenta; C: cuenta solo
+  si paga dentro del plazo del apartado.
+- **Chatbot de WhatsApp (Juan):** **A (recomiendo): no cuenta** (es otro canal); B: cuenta.
+- **Envío:** **A (recomiendo): no cuenta**; B: cuenta. **Comisión de la pasarela:** **A (recomiendo): no se resta**; B: se resta
+  cuando cada pago la guarde.
+- Los demás casos de la tabla de la sección 2 (devoluciones, descuentos y premios de Socios, precio de campaña, ITBMS)
+  siguen mi recomendación **salvo que Gerencia diga lo contrario**.
+- Efecto: sin respuesta, esas ventas aparecen «en duda» y no suman; se ve cuánto dinero depende de cada una.
+
+**P4. Cuando una vendedora atiende o confirma un pedido de la web, ¿ese pedido cuenta también para su meta?**
+- **A (recomiendo, para empezar): sí, para las dos** (es lo que pasa hoy con la meta). La empresa paga dos incentivos por
+  esa venta, y el estado muestra cuántas ventas son así para decidir con datos.
+- B: solo comisión del sitio; la venta sale de la meta de la vendedora (le cambia su bono: hay que avisarle y decidir).
+- C: solo meta de la vendedora.
+- Efecto: A no cambia nada de lo que ya cobran las vendedoras. B y C sí, y conviene decidirlo con las cifras reales del estado.
+
+**P5. ¿Quiénes reciben, cómo se reparten y qué ve cada quien?**
+- Gerencia general escribe la lista (empleados) y el reparto (que suma 100 %). **Recomiendo** que cada persona vea el estado
+  completo y **su** parte, y no la parte de otra; y que no vea nombres de clientes.
+- Opciones del reparto: **A:** partes iguales; **B:** partes distintas que Gerencia fija; **C:** según lo que cada quien
+  aporta (no se puede medir sin inventar; **no recomiendo**).
+- Efecto: A y B se guardan como versión y se cambian hacia adelante; la salida o entrada de alguien a mitad de mes se
+  resuelve con una versión nueva y, si hace falta, con un ajuste con motivo.
+
+**P6. ¿Cómo y cuándo se paga?**
+- **A (recomiendo): por la planilla, en la primera quincena del mes siguiente al cierre, y solo con propuesta aprobada.**
+- B: por la planilla en otra fecha que Gerencia ponga (fin de mes, segunda quincena).
+- C: fuera de planilla (honorarios), con referencia de cada pago.
+- Efecto: A es lo que pidió el equipo y lo que ya hace el bono por meta. C no necesita cambios en la planilla pero el
+  dinero se mueve fuera del sistema. Para quien no está en planilla, C es la única salida.
+
+**P7. ¿Quién aprueba, y a quién le llega el sello de cada mes?**
+- **A (recomiendo): Gerencia general, con su propio usuario, aprueba; el sello llega a Gerencia general y a la contadora.**
+  El sistema **no deja aprobar a quien recibe**.
+- B: la contadora aprueba y Gerencia general solo recibe el sello.
+- C: cualquiera de Gerencia (**no recomiendo**: una persona de Gerencia puede ser quien recibe).
+- Efecto: A y B hacen que la cifra valga ante terceros. C deja la llave en manos de quien cobra. Con A, Gerencia general
+  necesita un usuario propio en el sistema y una cuenta de correo que quienes reciben no controlen.
+
+**P8. ¿Se pide el dictamen de la contadora y del abogado antes de pagar la primera comisión?**
+- **A (recomiendo): sí.** Mientras tanto el sistema mide, propone y sella; **no se aprueba ningún pago** hasta que la forma de
+  tratarlo (salario, sin descuentos o fuera de planilla) esté contestada.
+- B: pagar la primera como el bono por meta (como salario) y confirmar después.
+- Efecto: A retrasa el primer pago pero evita pagar mal y tener que corregir cuotas, décimo y renta. B corre el riesgo de
+  corregir después planillas ya confirmadas.
+
+## 11. Lo que NO se hará ahora
+
+Anotado como futuro, para no inflar esta primera versión:
+
+- **Escalones o metas** del sitio (un porcentaje distinto si el mes llega a cierto nivel) y **topes** mensuales o por
+  factura.
+- **Bonos por canal:** chatbot de WhatsApp, tienda física, otras pasarelas con porcentajes propios.
+- **Porcentajes por categoría o producto.**
+- **Pago quincenal** de la comisión (hoy solo la propuesta mensual).
+- **Retención por devoluciones:** esperar unos días antes de proponer lo vendido (como los puntos de vendedores).
+- **Restar la comisión de la pasarela** por cada venta (hoy solo el interruptor, apagado).
+- **La web como sucursal completa** (resultados propios: ventas, costos y comisión del sitio en una cuenta analítica
+  aparte), aprovechando los datos que este estado ya junta.
+- Un resumen de la comisión en el **Inicio** y avisos automáticos por Telegram.
+- **Aprobar o pagar automáticamente**: no se hará nunca sin una decisión explícita de Gerencia general.
