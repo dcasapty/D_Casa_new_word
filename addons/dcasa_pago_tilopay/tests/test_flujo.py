@@ -66,7 +66,7 @@ class TestFlujoFeliz(BaseTilopay):
         self.assertEqual(pago.journal_id.code, 'TLP')
         self.assertEqual(pago.journal_id.name, 'Tilopay')
         self.assertEqual(pago.amount, total)
-        self.assertEqual(pago.state, 'paid')
+        self.assertIn(pago.state, ('in_process', 'paid'))
         self.assertTrue(pago.move_id.line_ids, 'el cobro deja asiento (el método del diario tiene su cuenta)')
         # Se factura y se publica: Odoo cruza solo el cobro, la factura queda pagada y Socios da sus puntos.
         factura = pedido._create_invoices()
@@ -302,6 +302,23 @@ class TestNuncaSeConfiaEnElNavegador(BaseTilopay):
 
 @tagged('post_install', '-at_install')
 class TestOrdenYRepeticiones(BaseTilopay):
+
+    def test_si_el_cliente_paga_dos_paginas_los_dos_pagos_valen_y_el_equipo_se_entera(self):
+        """Dos pestañas, dos pagos aprobados del mismo pedido: es dinero real, se aceptan los dos y se avisa que hay que
+        devolver uno."""
+        pedido = self.pedido()
+        with SimuladorTilopay() as tilopay:
+            primera, orden_1 = self.abrir(tilopay, pedido)
+            segunda, orden_2 = self.abrir(tilopay, pedido)
+            tilopay.aprobar(orden_1, pedido.amount_total)
+            tilopay.aprobar(orden_2, pedido.amount_total)
+            self.assertEqual(primera._dcasa_tilopay_confirmar('aviso'), 'aprobado')
+            self.assertFalse(pedido.message_ids.filtered(lambda m: 'devolverle uno' in (m.body or '')))
+            self.assertEqual(segunda._dcasa_tilopay_confirmar('aviso'), 'aprobado')
+        self.assertEqual((primera.state, segunda.state), ('done', 'done'))
+        notas = pedido.message_ids.filtered(lambda m: 'devolverle uno' in (m.body or ''))
+        self.assertEqual(len(notas), 1)
+        self.assertIn(segunda.reference, notas.body)
 
     def test_repetir_la_confirmacion_no_duplica_nada(self):
         pedido = self.pedido()

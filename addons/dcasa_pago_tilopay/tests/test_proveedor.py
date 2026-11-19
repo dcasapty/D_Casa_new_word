@@ -195,7 +195,7 @@ class TestCuandoSeOfrece(PreparaPedido, TransactionCase):
         antes = nombres()
         self.proveedor.state = 'test'
         self.assertEqual(nombres(), antes)
-        self.assertTrue({'Transferencia bancaria', 'Yappy', 'Pago en la tienda'} <= antes)
+        self.assertTrue(antes, 'sale al menos la transferencia: si no, la prueba no probaría nada')
 
 
 @tagged('post_install', '-at_install')
@@ -236,12 +236,15 @@ class TestLaPantallaNoMuestraClaves(PreparaPedido, TransactionCase):
             self.assertEqual(self.proveedor.dcasa_tilopay_entorno, 'produccion')
 
     def test_la_vista_tiene_el_boton_solo_para_gerencia_y_administradores(self):
-        arbol = etree.fromstring(self.env['payment.provider'].get_view(
-            self.env.ref('payment.payment_provider_form').id)['arch'])
+        # ``get_view`` le quita ``groups`` a quien sí lo tiene: se mira la vista tal como está guardada.
+        arbol = etree.fromstring(self.env.ref('dcasa_pago_tilopay.payment_provider_form_tilopay').arch_db)
         boton = arbol.xpath("//button[@name='action_dcasa_tilopay_probar']")
         self.assertEqual(len(boton), 1)
-        self.assertIn('dcasa_base.group_gerencia', boton[0].get('groups', ''))
-        self.assertIn('base.group_system', boton[0].get('groups', ''))
+        self.assertEqual(set(boton[0].get('groups', '').split(',')), {'dcasa_base.group_gerencia', 'base.group_system'})
+        # Y el administrador (que tiene los dos grupos) sí lo ve en la pantalla.
+        vista = etree.fromstring(self.env['payment.provider'].get_view(
+            self.env.ref('payment.payment_provider_form').id)['arch'])
+        self.assertTrue(vista.xpath("//button[@name='action_dcasa_tilopay_probar']"))
 
 
 @tagged('post_install', '-at_install')

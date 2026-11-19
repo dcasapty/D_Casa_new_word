@@ -158,6 +158,7 @@ para no pagar nada falso, y la tarea programada suple al aviso si no llega.
 | `consult` no trae esa orden | Sigue pendiente (puede que Tilopay tarde) |
 | Varias filas aprobadas de la misma orden, o una fila de reembolso/reverso | No se paga automáticamente: el equipo lo revisa en el panel de Tilopay |
 | Tilopay caído, lento o con respuesta rara | Pendiente; se reintenta con la tarea programada. Nunca «pagada» |
+| El cliente abre dos páginas de pago y paga las dos | Los dos pagos son dinero real y los dos se aceptan; el pedido lleva una nota para el equipo: hay que devolverle uno desde el panel de Tilopay |
 | Transacción ya cancelada o vencida y llega un pago aprobado y correcto | Se acepta (hay dinero real); queda anotado |
 | Orden desconocida, de otro proveedor, de otra empresa | No pasa nada y la respuesta es idéntica |
 | Credenciales ausentes | Tilopay **no aparece** en la tienda; Odoo y el sitio siguen normales; el arranque no se entera |

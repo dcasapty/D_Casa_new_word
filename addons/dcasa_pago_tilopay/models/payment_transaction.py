@@ -200,6 +200,7 @@ class PaymentTransaction(models.Model):
                 self._dcasa_tilopay_anotar(self.env._(
                     'Tilopay confirmó un pago aprobado que llegó después de marcarse «%(estado)s»: el pedido se tomó '
                     'como pagado.', estado=estado_previo))
+            self._dcasa_tilopay_avisar_si_ya_estaba_pagado()
         elif veredicto == api_tilopay.RECHAZADO:
             self._set_error(MENSAJE_ERROR_RECHAZO)
             if anterior != veredicto:
@@ -292,6 +293,18 @@ class PaymentTransaction(models.Model):
                     cron.sudo()._trigger()
         except Exception:  # noqa: BLE001
             _logger.warning('Tilopay: no se pudo adelantar el cierre de %s (corre a su hora).', self.reference)
+
+    def _dcasa_tilopay_avisar_si_ya_estaba_pagado(self):
+        """Si el cliente abrió dos páginas de pago y pagó las dos, los dos pagos son dinero real y los dos se aceptan;
+        pero el equipo tiene que saber que a uno hay que devolverle el dinero (se hace en el panel de Tilopay)."""
+        for pedido in self.sudo().sale_order_ids:
+            otros = pedido.transaction_ids.filtered(lambda t: t != self and t.state == 'done')
+            ya_pagado = sum(otros.mapped('amount'))
+            if otros and pedido.currency_id.compare_amounts(ya_pagado, pedido.amount_total) >= 0:
+                self._dcasa_tilopay_anotar(self.env._(
+                    'Este pedido ya estaba pagado y Tilopay confirmó otro pago completo (%(ref)s): hay que devolverle '
+                    'uno al cliente desde el panel de Tilopay.', ref=self.reference))
+                return
 
     def _dcasa_tilopay_anotar(self, texto):
         """Una nota interna (solo el equipo) en los pedidos de esta transacción. Nunca hace fallar un pago."""
