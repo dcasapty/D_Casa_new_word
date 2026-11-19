@@ -50,6 +50,7 @@ pero sin efecto hasta que alguien lo enciende.
 | `dcasa_sofia` | Sofía, la asistente del CRM: revisa con un botón y cada mañana y propone; una persona aprueba | conversaciones, contactos | (2 en `dcasa_brian`) | No (las propuestas siempre las aprueba una persona) | [SOFIA.md](SOFIA.md) |
 | `dcasa_camila` | Camila, la asistente del mail marketing: arma la campaña de correo cada 15 días con lo que hay en tienda y el precio de la tienda en línea; una persona la aprueba y sale por Resend Broadcasts solo a quien dijo que sí (permiso en la ficha) | correo, marketing, conversaciones, sofia, brian, contactos, website_dcasa | 1 | **Sí**: sin `RESEND_CAMPANAS_API_KEY` no sale ninguna campaña; staging nunca envía; el cron solo arma borradores | [CAMILA.md](CAMILA.md) |
 | `dcasa_brian_tienda` | Brian, el chat de ventas de la tienda web: la burbuja (en lugar de la de WhatsApp), el pase para el Worker de Juan, el carrito y la cotización en PDF del visitante, el envío por ubicación y Sitio web › Brian de la tienda | website_dcasa, conversaciones | — (lo ve `costos_de_juan`) | **No**: encendido (la dueña lo aprobó); sin `JUAN_URL`/`JUAN_WORKER_TOKEN` no da pases | [BRIAN_TIENDA.md](BRIAN_TIENDA.md) |
+| `dcasa_pago_tilopay` | Pagos con tarjeta y Yappy por la página segura de Tilopay: confirma preguntándole a Tilopay (nunca por el navegador), cobro en el diario «Tilopay» | payment, account_payment, website_sale, base | 1 | **Sí**: nace apagado; hace falta que Gerencia lo encienda, las tres claves en Cloudflare y `TILOPAY_ENTORNO` coherente con el interruptor | [TILOPAY.md](TILOPAY.md) |
 | `dcasa_correo` | Correo a clientes por Resend (factura, abono, bienvenida) | base, invoice, socios, website_dcasa, conversaciones | 3 | **Sí**: sin `RESEND_API_KEY` y sin encenderlo en Ajustes no sale nada (en producción, encendido desde el 2026-10-27) | [CORREO.md](CORREO.md) |
 | `dcasa_buscar_foto` | **Busca con una foto** en la tienda web: la cámara en la búsqueda, el Worker de Juan lee la foto (solo un registro cerrado) y salen los productos publicados que se le parecen; la foto nunca se guarda | website_dcasa, conversaciones | — | No: nace **encendido** (la dueña dijo que sí); topes por visitante, por conexión y por día, y 5 USD de IA de la foto al mes | [CATALOGO.md › Busca con una foto](CATALOGO.md#busca-con-una-foto) |
 | `dcasa_meta_catalogo` | El catálogo de la tienda por URL para los anuncios de Facebook e Instagram | base, catalogo, website_dcasa | (`estado_de_meta` en `dcasa_brian`) | **Sí**: la dirección no entrega nada hasta que Gerencia lo enciende | [META_CATALOGO.md](META_CATALOGO.md) |
@@ -475,6 +476,20 @@ además como módulo de todo el servidor (`server_wide_modules = base,web,dcasa_
   `/calificar` (públicas, sesión del visitante, CSRF en cabecera).
 - **Crons:** «Brian de la tienda: borrar contadores viejos» (diario).
 - **Apagado de fábrica:** no (encendido). Sitio web › Brian de la tienda lo apaga; apagado vuelve la burbuja de WhatsApp.
+
+## `dcasa_pago_tilopay` — Pagos con tarjeta y Yappy (Tilopay)
+
+- **Para qué:** cobrar el pedido completo de la tienda y del portal (`/my/orders`) en la página alojada de Tilopay. Odoo nunca
+  ve una tarjeta y solo marca pagado lo que Tilopay confirma en una consulta de servidor a servidor ([TILOPAY.md](TILOPAY.md)).
+- **Depende de:** `payment`, `account_payment`, `website_sale`, `dcasa_base`.
+- **Modelos:** hereda `payment.provider` (código `tilopay`; sin campos de claves: «Conectado», «Entorno» y «Probar conexión»)
+  y `payment.transaction` (`dcasa_tilopay_orden`, `…_consulta`, `…_entorno_visto`, `…_veredicto`). Sin modelos nuevos.
+- **Rutas públicas:** `/payment/tilopay/return` (el cliente vuelve) y `/payment/tilopay/webhook` (el aviso del servidor); las
+  dos solo sirven para saber qué orden revisar. El reloj de «Estado del pago» (`/payment/status/poll`) también consulta.
+- **Crons:** «Tilopay: preguntar por los pagos sin confirmar» (cada 10 minutos; sin proveedor encendido no llama a nadie).
+- **Variables (Cloudflare):** `TILOPAY_API_KEY`, `TILOPAY_API_USER`, `TILOPAY_API_PASSWORD` (secretos) y `TILOPAY_ENTORNO`.
+- **Apagado de fábrica:** sí. Se ofrece solo con el interruptor de Odoo encendido, las claves cargadas y el interruptor de acuerdo
+  con `TILOPAY_ENTORNO` (Habilitado ↔ `produccion`, Modo de prueba ↔ `prueba`).
 
 ## `dcasa_camila` — Camila, la asistente del mail marketing
 
