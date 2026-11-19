@@ -195,7 +195,8 @@
 
     <!-- «Cobrado por forma de pago» (Por día): UNA tarjeta, arriba del detalle del día y encima de la lista de sus facturas.
          El selector Día · Semana · Quincena · Mes elige el periodo que contiene el día elegido; el título dice cuál es
-         («Semana del 16 al 22 de noviembre»). Con ITBMS: es el dinero que entró, la misma cuenta de la Caja de hoy. -->
+         («Semana del 16 al 22 de noviembre»). Con ITBMS: es el dinero que entró, la misma cuenta de la Caja de hoy. Si la
+         primera vez no se pudo cargar lo cobrado, la tarjeta lo dice (la segunda sección) en vez de dejar un hueco. -->
     <t t-name="dcasa_interfaz.PorDiaCobros">
         <section t-if="state.cobro and state.cobro.cobros" t-attf-class="o_dcasa_panel o_dcasa_pd_cobros {{state.cargando or state.cargandoCobro ? 'o_cargando' : ''}}"
                  aria-label="Cobrado por forma de pago">
@@ -203,11 +204,13 @@
                 <h2>Cobrado por forma de pago <small class="o_dcasa_sin_itbms">con ITBMS</small></h2>
                 <p class="o_dcasa_pd_cobros_periodo" t-out="tituloDeCobros"/>
             </div>
-            <div class="o_dcasa_periodos o_dcasa_cf_periodos" role="radiogroup" aria-label="Periodo de lo cobrado">
-                <button t-foreach="periodosDeCobros" t-as="per" t-key="per.clave" type="button" role="radio"
+            <!-- Botones normales con «aria-pressed» (Tab y Enter o espacio los manejan solos): el patrón de «radio» pide
+                 además las flechas del teclado, y aquí no hace falta. -->
+            <div class="o_dcasa_periodos o_dcasa_cf_periodos" role="group" aria-label="Periodo de lo cobrado">
+                <button t-foreach="periodosDeCobros" t-as="per" t-key="per.clave" type="button"
                         t-attf-class="o_dcasa_periodo o_dcasa_cf_periodo_{{per.clave}}"
                         t-att-class="{'o_activo': periodoDeCobros === per.clave}"
-                        t-att-aria-checked="periodoDeCobros === per.clave ? 'true' : 'false'"
+                        t-att-aria-pressed="periodoDeCobros === per.clave ? 'true' : 'false'"
                         t-att-disabled="periodoDeshabilitado(per.clave)"
                         t-on-click="() => this.cambiarPeriodoDeCobros(per.clave)" t-out="per.nombre"/>
             </div>
@@ -222,6 +225,10 @@
             <p class="o_dcasa_es_frase o_dcasa_cf_frase o_dcasa_cf_pie">El dinero que entró, por cómo se pagó: la misma cuenta de la Caja de
                 hoy. Un abono cuenta el día que se cobró.<t t-if="state.vendedor"> Es de toda la tienda: un cobro no se
                 separa por vendedora.</t></p>
+        </section>
+        <section t-elif="state.errorCobro and !state.cobro" class="o_dcasa_panel o_dcasa_pd_cobros" aria-label="Cobrado por forma de pago">
+            <h2>Cobrado por forma de pago <small class="o_dcasa_sin_itbms">con ITBMS</small></h2>
+            <p class="o_dcasa_error" role="alert" t-out="state.errorCobro"/>
         </section>
     </t>
 

@@ -78,6 +78,16 @@ class TestCifrasQueSubenCodigo(TransactionCase):
             self.assertNotIn('requestAnimationFrame(paso)', texto, f'{archivo.name} trae su propia subida de cifras')
             self.assertNotIn('data-sube', texto.replace('«data-sube»', ''), archivo.name)
 
+    def test_el_selector_de_cobros_son_botones_normales_con_aria_pressed(self):
+        """Un «radio» de verdad pide las flechas del teclado; el selector no las trae, así que son botones normales
+        (Tab y Enter o espacio los manejan solos) con ``aria-pressed``."""
+        xml = (FUENTES / 'xml' / 'por_dia.xml').read_text(encoding='utf-8')
+        selector = xml[xml.index('o_dcasa_cf_periodos'):xml.index('o_dcasa_cf_pista')]
+        self.assertIn('role="group"', selector)
+        self.assertIn('t-att-aria-pressed=', selector)
+        self.assertNotIn('role="radio', selector)
+        self.assertNotIn('aria-checked', selector)
+
     def test_el_modulo_compartido_cuida_el_movimiento_y_las_fugas(self):
         js = (FUENTES / 'js' / 'cifras_que_suben.js').read_text(encoding='utf-8')
         self.assertIn('prefers-reduced-motion: reduce', js)

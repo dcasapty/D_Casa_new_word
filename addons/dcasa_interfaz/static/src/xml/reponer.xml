@@ -162,11 +162,11 @@
                         </p>
                         <t t-else="">
                             <div class="o_dcasa_reponer_resumen">
-                                <span class="o_dcasa_reponer_cuenta o_cuenta_ya"><strong class="o_dcasa_sube" data-formato="entero" t-att-data-valor="d.resumen.ya" t-out="d.resumen.ya"/> para pedir ya</span>
-                                <span t-if="d.resumen.pedir" class="o_dcasa_reponer_cuenta o_cuenta_pedir"><strong class="o_dcasa_sube" data-formato="entero" t-att-data-valor="d.resumen.pedir" t-out="d.resumen.pedir"/> para pedir</span>
-                                <span t-if="d.resumen.falta" class="o_dcasa_reponer_cuenta o_cuenta_falta"><strong class="o_dcasa_sube" data-formato="entero" t-att-data-valor="d.resumen.falta" t-out="d.resumen.falta"/> sin tiempo de llegada</span>
-                                <span t-if="d.resumen.sin_proveedor" class="o_dcasa_reponer_cuenta o_cuenta_falta"><strong class="o_dcasa_sube" data-formato="entero" t-att-data-valor="d.resumen.sin_proveedor" t-out="d.resumen.sin_proveedor"/> sin proveedor</span>
-                                <span t-if="d.resumen.alcanza" class="o_dcasa_reponer_cuenta"><strong class="o_dcasa_sube" data-formato="entero" t-att-data-valor="d.resumen.alcanza" t-out="d.resumen.alcanza"/> <t t-out="d.resumen.alcanza === 1 ? 'alcanza' : 'alcanzan'"/></span>
+                                <span class="o_dcasa_reponer_cuenta o_cuenta_ya"><strong class="o_dcasa_sube" data-formato="entero" t-att-data-valor="d.resumen.ya" t-out="numero(d.resumen.ya)"/> para pedir ya</span>
+                                <span t-if="d.resumen.pedir" class="o_dcasa_reponer_cuenta o_cuenta_pedir"><strong class="o_dcasa_sube" data-formato="entero" t-att-data-valor="d.resumen.pedir" t-out="numero(d.resumen.pedir)"/> para pedir</span>
+                                <span t-if="d.resumen.falta" class="o_dcasa_reponer_cuenta o_cuenta_falta"><strong class="o_dcasa_sube" data-formato="entero" t-att-data-valor="d.resumen.falta" t-out="numero(d.resumen.falta)"/> sin tiempo de llegada</span>
+                                <span t-if="d.resumen.sin_proveedor" class="o_dcasa_reponer_cuenta o_cuenta_falta"><strong class="o_dcasa_sube" data-formato="entero" t-att-data-valor="d.resumen.sin_proveedor" t-out="numero(d.resumen.sin_proveedor)"/> sin proveedor</span>
+                                <span t-if="d.resumen.alcanza" class="o_dcasa_reponer_cuenta"><strong class="o_dcasa_sube" data-formato="entero" t-att-data-valor="d.resumen.alcanza" t-out="numero(d.resumen.alcanza)"/> <t t-out="d.resumen.alcanza === 1 ? 'alcanza' : 'alcanzan'"/></span>
                                 <span class="o_dcasa_reponer_cuenta o_cuenta_total">En total, pedir <strong class="o_dcasa_sube" data-formato="unidades" t-att-data-valor="d.unidades" t-out="numero(d.unidades)"/> unidades</span>
                             </div>
                             <div class="o_dcasa_reponer_vista" role="group" aria-label="Cómo ver la lista">
