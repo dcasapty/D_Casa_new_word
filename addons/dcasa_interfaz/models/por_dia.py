@@ -413,7 +413,7 @@ class DcasaTableroPorDia(models.AbstractModel):
 
     @api.model
     def _periodo_de_cobros(self, periodo):
-        if periodo in (None, False, ''):
+        if periodo is None or periodo is False or periodo == '':
             return 'dia'
         if not isinstance(periodo, str) or periodo not in PERIODOS_DE_COBROS:
             raise UserError(self.env._('Elige «Día», «Semana», «Quincena» o «Mes».'))

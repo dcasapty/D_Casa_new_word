@@ -24,6 +24,8 @@ from . import test_cifras_que_suben
 from . import test_valor_inventario
 from . import test_cobros_por_forma
 from . import test_cobros_por_periodo
+from . import test_revision_cobros
+from . import test_revision_cifras
 from . import test_origen
 from . import test_oportunidad_celular
 from . import test_cotizacion_celular

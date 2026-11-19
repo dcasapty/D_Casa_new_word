@@ -1056,7 +1056,10 @@ desde el botón **Ver por día** del bloque de Ventas del Inicio (con la base y 
   tarjeta muestra el mes; al tocar un día vuelve al periodo que la persona había elegido. Arriba va el **total cobrado**
   y debajo una ficha por forma de pago (el diario del cobro) con su monto y cuántos cobros; tocar una ficha abre esos
   cobros de ese periodo. Es **con ITBMS** y la misma cuenta de la «Caja de hoy» (`_dominio_de_cobros`): un abono cuenta el
-  día que se cobró y no cambia con «Vendido»/«Facturado» ni con la vendedora. El servidor es
+  día que se cobró y no cambia con «Vendido»/«Facturado» ni con la vendedora. Solo cuentan los pagos **de clientes**
+  (`partner_type = customer`): lo que un proveedor nos devuelve (un pago que entra, pero de un proveedor) **no** es dinero
+  cobrado y ya no se suma, ni aquí ni en la Caja de hoy ni en Brian (corrección del 2026-11-19 de una cuenta que ya
+  existía). El servidor es
   `dcasa.tablero.cobros_del_periodo(dia, periodo)` (Gerencia y administradores; periodo desconocido, fecha mal escrita,
   día futuro o de hace más de 24 meses dan un error claro); `por_dia` y `ventas_del_dia` siguen trayendo su `cobros`
   (mes y día) porque Brian los lee.

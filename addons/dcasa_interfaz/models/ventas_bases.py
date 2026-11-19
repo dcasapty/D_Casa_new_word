@@ -548,10 +548,12 @@ class DcasaTableroBases(models.AbstractModel):
 
     @api.model
     def _dominio_de_cobros(self, d0, d1):
-        """Lo cobrado a clientes entre dos días (con ITBMS): pagos recibidos y confirmados (en proceso o pagados), por
-        su fecha. La misma definición de «Cobrado hoy» de la caja del Inicio."""
-        return [('payment_type', '=', 'inbound'), ('state', 'in', ('in_process', 'paid')),
-                ('date', '>=', d0), ('date', '<=', d1)]
+        """Lo cobrado a clientes entre dos días (con ITBMS): pagos recibidos de CLIENTES y confirmados (en proceso o
+        pagados), por su fecha. La misma definición de «Cobrado hoy» de la caja del Inicio. Lo que un proveedor nos
+        devuelve (un pago que entra, pero de un proveedor) no es dinero cobrado: no cuenta (corrección del 2026-11-19:
+        la cuenta de antes lo sumaba)."""
+        return [('payment_type', '=', 'inbound'), ('partner_type', '=', 'customer'),
+                ('state', 'in', ('in_process', 'paid')), ('date', '>=', d0), ('date', '<=', d1)]
 
     @api.model
     def _cobrado(self, d0, d1, vendedor=None, corte=None):
