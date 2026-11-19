@@ -150,8 +150,8 @@ class TestInicioTableroCodigo(TransactionCase):
         for duracion in re.findall(r'animation:[^;]*?(\d+)ms', scss):
             self.assertLessEqual(int(duracion), 500)
         js = (FUENTES / 'js' / 'inicio.js').read_text(encoding='utf-8')
-        # La pregunta «¿pidió menos movimiento?» y la subida de las cifras viven en un solo módulo (2026-11-19), el mismo
-        # de todas las pantallas de métricas: el Inicio lo usa para las cifras y para el desplazamiento suave.
+        # La pregunta «¿pidió menos movimiento?» y la subida de las cifras viven en un solo módulo (2026-11-19), el
+        # mismo de todas las pantallas de métricas: el Inicio lo usa para las cifras y para el desplazamiento suave.
         compartido = (FUENTES / 'js' / 'cifras_que_suben.js').read_text(encoding='utf-8')
         self.assertIn('prefers-reduced-motion: reduce', compartido)
         self.assertIn('const quieto = sinMovimiento();', compartido)
