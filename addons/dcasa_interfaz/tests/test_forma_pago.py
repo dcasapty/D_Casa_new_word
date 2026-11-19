@@ -492,6 +492,20 @@ class TestFormaPagoEnElExcel(FormaPagoCommon, HttpCase):
         self.assertEqual(por_numero[self.sin_pago.name][0], '')
         self.assertIn('Efectivo forma pago', por_numero[self.mixta.name][1])
 
+    def test_la_plantilla_de_exportar_trae_las_columnas_de_la_lista_y_la_forma_de_pago(self):
+        """«Acción › Exportar › Plantilla › Facturas con forma de pago»: sin buscar campo por campo."""
+        plantilla = self.env.ref('dcasa_interfaz.exportacion_facturas_forma_pago').with_user(self.exporta)
+        self.assertEqual((plantilla.name, plantilla.resource), ('Facturas con forma de pago', 'account.move'))
+        campos = plantilla.export_fields.mapped('name')
+        for campo in ('name', 'invoice_partner_display_name', 'invoice_date', 'invoice_date_due', 'ref',
+                      'invoice_user_id', 'dcasa_origen', 'amount_tax', 'amount_total', 'status_in_payment',
+                      'dcasa_forma_pago'):
+            self.assertIn(campo, campos)
+        datos = (self.mixta | self.sin_pago).with_user(self.exporta).export_data(campos)['datas']
+        fila = next(f for f in datos if f[0] == self.mixta.name)
+        self.assertEqual(len(fila), len(campos))
+        self.assertEqual(fila[campos.index('dcasa_forma_pago')], 'Efectivo forma pago + Yappy forma pago')
+
     def test_exportar_lo_pide_el_permiso_de_exportar_y_asi_sigue(self):
         """Lo que ya era así y no se tocó: sin el permiso «Exportar» (``base.group_allow_export``) el servidor lo niega
         (Gerencia, Caja y Vendedora no lo traen; sí los administradores)."""

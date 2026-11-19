@@ -55,6 +55,7 @@ La interfaz de trabajo de D'CASA, hecha a medida:
         'views/layout_templates.xml',
         'data/iconos_data.xml',
         'data/avisos_data.xml',
+        'data/exportaciones_data.xml',
     ],
     'assets': {
         'web.assets_backend': [
