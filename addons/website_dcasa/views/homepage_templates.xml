@@ -123,7 +123,8 @@
     <template id="hero_carrusel" name="D'CASA: hero con fondo en movimiento">
         <t t-set="dcasa_total" t-value="len(dcasa_vitrina)"/>
         <section class="o_dcasa_hero_vitrina" aria-labelledby="dcasa-hero-titulo">
-            <div class="o_dcasa_vitrina" t-att-data-total="dcasa_total">
+            <div class="o_dcasa_vitrina" t-att-data-total="dcasa_total"
+                 t-attf-style="--vitrina-tiempo: {{ website._dcasa_hero_tiempo() }};">
                 <!-- FONDO Y NADA MÁS (la dueña, 2026-11-17): «simplemente quiero la foto detrás, el texto». Las fotos
                      se funden unas en otras con un zoom lento y continuo, en orden al azar. Ni nombres, ni enlaces,
                      ni flechas, ni barras, ni pausa: el visitante no maneja nada. Por eso es decorativo y va con

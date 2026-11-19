@@ -643,6 +643,11 @@ LISTA_BLANCA = {
         OVERRIDE + ' Comprueba check_access("unlink") antes de anular con sudo los puntos y la comisión de un borrador '
                    'que se borra, y solo después de que Odoo aceptó borrarlo.',
     ('website_dcasa', 'sale.order', 'action_quotation_sent'): OVERRIDE + ' Solo agrega la fecha del apartado.',
+    # Carrusel de la portada (models/portada.py): Gerencia escribe en `website` solo los segundos y la lista.
+    ('website_dcasa', 'website', 'action_abrir_carrusel'): ACCION_VENTANA,
+    ('website_dcasa', 'website', 'write'):
+        OVERRIDE + ' A quien no es administrador ni diseñador del sitio solo le deja cambiar los segundos del carrusel '
+        'y su lista (AccessError con cualquier otro campo); sin sudo: el ACL manda.',
     # Campaña del sitio (models/campana.py): el ACL de dcasa.campana es solo de Gerencia y administradores.
     ('website_dcasa', 'dcasa.campana', 'action_abrir'):
         'Abre la campaña del sitio actual; si falta, la crea como el usuario (ACL: Gerencia y administradores). '

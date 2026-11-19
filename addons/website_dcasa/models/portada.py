@@ -15,6 +15,7 @@ import logging
 import math
 
 from odoo import api, fields, models
+from odoo.exceptions import AccessError, ValidationError
 from odoo.fields import Domain
 from odoo.http import request
 
@@ -40,6 +41,15 @@ SEGUNDOS_POR_FOTO = 4.5
 ORDEN_CATALOGO = 'website_sequence asc, id desc'
 
 _MEMO = '_dcasa_hero_carrusel'
+
+# Cuánto dura cada foto del hero (la dueña, 2026-11-19: «demoran tal vez demasiado, 5 a 6 segundos… de unos 2 a 3
+# segundos, o tal vez poderlo definir yo mismo»). De fábrica 3 s; Gerencia lo cambia en el panel, entre el mínimo y
+# el máximo (más corto que 2 s marea; más largo que 15 s ya no se siente un fondo vivo).
+SEGUNDOS_HERO_FABRICA = 3.0
+SEGUNDOS_HERO_MINIMO = 2.0
+SEGUNDOS_HERO_MAXIMO = 15.0
+# Lo único del sitio que Gerencia (sin ser administradora) puede escribir: los segundos y la lista del carrusel.
+CAMPOS_HERO_DE_GERENCIA = frozenset({'dcasa_hero_segundos', 'dcasa_hero_diapositiva_ids'})
 
 # Las camas que la dueña aprobó para el carrusel (2026-11-16, con la hoja de fotos de producción a la vista: «sí, están
 # bien»), por su código público («DC-…», el que sale en la ficha), en este orden: Cama Queen Color Black (la «300-300»),
@@ -116,11 +126,68 @@ class DcasaPortadaDiapositiva(models.Model):
 class Website(models.Model):
     _inherit = 'website'
 
-    def _dcasa_hero_firma(self):
-        """Lo que define el carrusel de este sitio (productos y orden): va en la clave de la caché de la portada."""
+    dcasa_hero_segundos = fields.Float(
+        'Segundos que dura cada foto', default=SEGUNDOS_HERO_FABRICA, digits=(4, 1), copy=False,
+        help='Cuánto se queda cada foto de la portada antes de pasar a la siguiente (de 2 a 15 segundos; de fábrica '
+             '3). El fundido y el zoom lento se ajustan solos a este tiempo.')
+    dcasa_hero_diapositiva_ids = fields.One2many(
+        'dcasa.portada.diapositiva', 'website_id', 'Productos del carrusel', copy=False,
+        help='Qué productos salen en el fondo de la portada y en qué orden. Vacío = el hero de siempre.')
+
+    @api.constrains('dcasa_hero_segundos')
+    def _check_dcasa_hero_segundos(self):
+        for sitio in self:
+            if not SEGUNDOS_HERO_MINIMO <= sitio.dcasa_hero_segundos <= SEGUNDOS_HERO_MAXIMO:
+                raise ValidationError(self.env._(
+                    'Los segundos que dura cada foto van de %(minimo)s a %(maximo)s. Pusiste %(valor)s.',
+                    minimo=f'{SEGUNDOS_HERO_MINIMO:g}', maximo=f'{SEGUNDOS_HERO_MAXIMO:g}',
+                    valor=f'{sitio.dcasa_hero_segundos:g}'))
+
+    def write(self, vals):
+        # Gerencia puede cambiar el carrusel (la lista y los segundos) y nada más del sitio: el ACL de ``website`` le
+        # da escritura para esta pantalla, esta guarda la deja en estos dos campos (los administradores y quien edita
+        # el sitio siguen escribiendo lo que siempre). Sin sudo: el ACL y las reglas de registro mandan.
+        if not self.env.su and set(vals) - CAMPOS_HERO_DE_GERENCIA:
+            usuario = self.env.user
+            if not (usuario.has_group('base.group_system') or usuario.has_group('website.group_website_designer')):
+                raise AccessError(self.env._('Solo un administrador cambia los ajustes del sitio. '
+                                             'Tú puedes cambiar el carrusel de la portada.'))
+        return super().write(vals)
+
+    def action_abrir_carrusel(self):
+        """El menú «Carrusel de la portada»: abre la pantalla del sitio actual (segundos y lista de productos)."""
+        sitio = self.get_current_website()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': self.env._('Carrusel de la portada'),
+            'res_model': 'website',
+            'res_id': sitio.id,
+            'view_mode': 'form',
+            'views': [(self.env.ref('website_dcasa.view_website_carrusel_form').id, 'form')],
+            'target': 'current',
+        }
+
+    def _dcasa_hero_segundos(self):
+        """Los segundos de cada foto del hero, dentro de los límites (un valor suelto en la base no la rompe)."""
+        self.ensure_one()
+        valor = self.sudo().dcasa_hero_segundos or SEGUNDOS_HERO_FABRICA
+        return min(max(valor, SEGUNDOS_HERO_MINIMO), SEGUNDOS_HERO_MAXIMO)
+
+    def _dcasa_hero_tiempo(self):
+        """El tiempo para la plantilla, tal cual lo lee el CSS y el JavaScript (``--vitrina-tiempo: 3s``)."""
+        return f'{self._dcasa_hero_segundos():g}s'
+
+    def _dcasa_hero_ids(self):
+        """Los productos del carrusel de este sitio, en el orden del panel (sin mirar si se pueden mostrar)."""
         self.ensure_one()
         return tuple(self.env['dcasa.portada.diapositiva'].sudo().search(
             [('website_id', '=', self.id)]).mapped('product_tmpl_id').ids)
+
+    def _dcasa_hero_firma(self):
+        """Lo que define el carrusel de este sitio (productos, orden y segundos por foto): va en la clave de la caché
+        de la portada, así cambiar cualquiera de los tres se ve al momento."""
+        self.ensure_one()
+        return self._dcasa_hero_ids(), self._dcasa_hero_segundos()
 
     def _dcasa_hero_carrusel(self):
         """Diapositivas del hero, en el orden del panel: el producto, su nombre de cliente, su ficha y su foto grande
@@ -134,7 +201,7 @@ class Website(models.Model):
         memo = getattr(request, _MEMO, None) if request else None
         if memo is not None and self.id in memo:
             return memo[self.id]
-        ids = list(self._dcasa_hero_firma())
+        ids = list(self._dcasa_hero_ids())
         diapositivas = []
         if ids:
             dominio = Domain.AND([self._dcasa_dominio_publicado(), [('id', 'in', ids)]])
