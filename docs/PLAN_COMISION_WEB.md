@@ -252,3 +252,118 @@ agregan, imitando al bono por meta (A2):
 (restricción de base de datos); cada línea de propuesta solo puede estar en **una** línea de planilla; la liquidación
 baja el saldo en el momento de aprobar; el sistema no deja aprobar una propuesta de un mes cuyo estado no esté sellado; y
 una planilla cancelada solo **suelta** (no borra) lo que tomó.
+
+## 7. Conflicto de interés y confianza
+
+**Quienes reciben esta comisión también construyeron el sistema y lo administran.** Eso no es una acusación: es
+exactamente la situación en la que una cifra necesita controles para valer ante Gerencia general y ante la contadora. Estos
+son los que propongo, de lo más fuerte a lo más flojo, y al final lo que **no** se puede evitar.
+
+### Lo que sí se puede hacer
+
+1. **Quién cambia reglas y porcentaje: solo Gerencia, y no por ser administrador técnico.** El programa de vendedores deja
+   ajustar a Gerencia **y** a los administradores técnicos (A3); aquí no: un administrador sin el rol de Gerencia no ve
+   ni cambia las reglas.
+2. **Dos llaves.** Gerencia **propone** una versión de las reglas, una lista de quienes reciben o una propuesta de pago;
+   las **aprueba** alguien con un grupo aparte, «Aprueba la comisión web», que **no figure en la lista de quienes
+   reciben**. El servidor lo exige (la pantalla no es de confianza). Para que funcione, **Gerencia general necesita su
+   propio usuario** (P7). Opcional: exigir que quien aprueba tenga puesto el segundo factor (Odoo guarda si lo tiene).
+3. **Libro sin edición ni borrado.** Las filas no se editan ni se borran, ni por pantalla ni por RPC (se prueba); una
+   corrección es otra fila con motivo y autor. Las reglas aprobadas tampoco se editan (A3).
+4. **Registro de cambios.** Quién propuso y quién aprobó cada versión y cada propuesta de pago, cuándo, y qué cambió
+   frente a la anterior. Una pantalla **«Quién puede cambiar esto»** lista a las personas con el rol de Gerencia, con la
+   llave de aprobación y con el rol de administrador técnico.
+5. **Estado mensual congelado con huella (sello).** El día 1, de madrugada (con margen para pagos que estén en vuelo),
+   el sistema sella el mes que terminó: guarda cuántas filas, la base, el total, el porcentaje que rigió, el reparto,
+   **quiénes tenían la llave de aprobación** y una **huella** (SHA-256) calculada sobre todas las filas del mes **más la
+   huella del mes anterior**. Así cambiar un mes viejo obligaría a recalcular todas las huellas siguientes. El sello y el
+   PDF del estado se mandan por correo a **Gerencia general y a la contadora** (no a quienes reciben) y se muestran
+   en pantalla. Un botón **«Verificar contra el libro»** vuelve a calcular la huella y dice si coincide. Un mes sellado
+   **nunca se reabre**: un error se corrige con filas en el mes abierto. (Para el correo hay que sumar una clase nueva
+   a la política de `dcasa_correo`, que respeta el mismo interruptor y no sale en staging: A12.)
+6. **Testigo de origen que no se puede cambiar.** Cada pedido nuevo guarda en una marca de solo escritura si **nació en
+   la web**. Hoy `website_id` se puede cambiar por código y con él el origen del pedido (A6, A13). La comisión exige
+   las dos cosas, las pedidos que ya existían al instalar se marcan una sola vez en ese momento, y un cambio posterior
+   de `website_id` en un pedido que ya contó dispara una **alerta** en el estado.
+7. **Ni compras propias ni pedidos fantasma sin rastro.** Las compras de quienes reciben no cuentan (A3). Cada fila
+   muestra **cómo se pagó** y **si ese pago está conciliado con el banco**, y el sello dice qué parte de la base está
+   conciliada. Un pedido que se paga y se devuelve se reversa solo.
+8. **Mirar quién arma las campañas y los precios.** Quienes reciben también pueden tocar precios y campañas del sitio
+   (solo Gerencia y quienes cambian precios, A9). No inflan la base (el cliente tiene que pagar), pero sí pueden
+   cambiarla para bien o para mal. Por eso el estado muestra el **precio cobrado** y el sello **no esconde** los
+   meses de campaña. Cualquier cambio de campaña ya queda en su historial.
+9. **Un error de la comisión nunca frena una venta ni un cobro** (sección 9).
+10. **Revisión independiente.** Antes de usarlo, la contadora (o alguien de afuera) revisa las reglas, el reparto y el
+    primer sello; después, cada vez que cambie algo de eso. El código vive en un repositorio con pruebas y pasa por
+    revisión adversarial (sección 9).
+
+### Lo que NO se puede evitar (con franqueza)
+
+- **Un administrador técnico siempre puede tocar la base de datos**, cambiar el código desplegado, quitar un control o
+  darse un rol. La huella no lo impide: lo hace **visible**, y solo si Gerencia general **conserva los correos de cada
+  mes y alguien los compara**. Si nadie compara, el sello no sirve de nada.
+- **Si quien recibe controla el correo o el teléfono de quien aprueba**, las dos llaves se vacían. El correo del sello
+  tiene que ser de una cuenta que quienes reciben **no controlen**.
+- **Pedidos y pagos falsos.** Alguien con permisos podría crear un pedido por la web y registrar un pago que no ocurrió.
+  La conciliación con el banco, la devolución automática de lo que se revierte y la visibilidad del estado lo hacen
+  **detectable**, no imposible. En «Pago en la tienda» el efectivo no se concilia con ningún banco: es el punto más
+  flojo, y otro motivo para que Gerencia decida con calma esa opción (P3).
+- **El código lo escriben los mismos que cobran.** El repositorio es público, tiene pruebas y revisión adversarial, pero
+  no es independencia total: por eso el punto 10 (revisión de afuera).
+- Los respaldos que ya existen (copia diaria y cambios en el almacenamiento de Cloudflare) sirven para **comparar contra
+  una fecha anterior** si hay sospecha, pero están bajo el mismo control técnico.
+
+La regla práctica: **la cifra vale tanto como la costumbre de Gerencia de mirar el sello cada mes.** El sistema hace que
+mirar sea fácil y que cambiar algo en silencio deje rastro; no puede obligar a mirar.
+
+## 8. Lo legal y contable (preguntas para la contadora y el abogado)
+
+**Este documento no afirma ninguna tasa, fecha ni artículo, y no se buscó nada en la web: son preguntas.** Quien
+responde es la contadora o el abogado, no el sistema.
+
+### Qué hace el sistema hoy con el bono por meta (se lee del código)
+
+El bono por meta se trata **como salario** (A2, y lo dice el propio código: «REQUIERE CONTADOR»):
+
+- Suma a lo **devengado** de la línea y paga **seguro social** (trabajador y patrono), **seguro educativo**, **riesgo
+  profesional** del patrono e **ISR** como lo extra de esa quincena (no se proyecta al año).
+- Entra en la **base del décimo tercer mes** y en la **provisión del décimo** (la parte de lo devengado que se
+  provisiona), porque ambos leen lo devengado de las planillas confirmadas.
+- Entra en el **promedio de los últimos 11 meses** que usan las **vacaciones** y la **prima de antigüedad**, solo si la
+  persona ya tiene planillas confirmadas de ese tiempo; si no, el cálculo usa su salario mensual.
+- Sale en el comprobante de pago como «Bono por meta de ventas».
+
+Para la comisión web habría que elegir una de **tres formas de pagar**, y el sistema las soporta con una opción que se
+guarda **congelada en cada propuesta** (por eso se puede cambiar sin reprogramar):
+
+| Forma | Qué pasa en la planilla |
+|---|---|
+| **Como salario** (hoy, el bono por meta) | Paga cuotas e impuesto, entra en décimo, vacaciones y prima. |
+| **Sin descuentos** (hoy, los reembolsos) | Se suma al neto, no paga cuotas ni impuesto, no entra en décimo ni vacaciones. |
+| **Fuera de planilla** | No entra a la planilla; se paga aparte y el sistema anota la referencia. |
+
+Mientras la opción esté vacía el sistema **mide y propone, pero no deja aprobar un pago**.
+
+### Preguntas para la contadora
+
+1. Esta comisión (un porcentaje de lo vendido por el sitio, variable y mensual): ¿es **salario** para la nómina? Si lo
+   es, ¿entra en la base de seguro social, seguro educativo, riesgo profesional, ISR, décimo tercer mes, promedio de
+   vacaciones y prima de antigüedad, como hoy el bono por meta?
+2. Si **no** es salario (bono o gratificación): ¿en qué condiciones, con qué papel firmado y con qué retención de ISR, si
+   la hay? ¿Cómo se declara?
+3. Si alguien de la lista **no está en planilla** (socio o por honorarios): ¿cómo se le paga y qué documento lleva?
+4. ¿Qué **cuenta contable** lleva el gasto? ¿Se acumula (provisión) en el mes en que se vende, o se reconoce al pagar,
+   como hoy el bono por meta?
+5. El método de retención de ISR de la planilla (proyección anual, y lo extra como adicional): ¿sirve para una comisión
+   mensual?
+6. ¿La base correcta para el gasto es la del estado (sin ITBMS y sin envío), o la factura completa?
+
+### Preguntas para el abogado
+
+1. ¿Hay que formalizar la comisión por escrito (adenda o acuerdo)? ¿Qué debe decir: base, porcentaje, cuándo se paga,
+   qué pasa si la persona se va?
+2. Una comisión que se paga todos los meses y varía, aunque se llame bono: ¿genera derechos por habitualidad? ¿Se
+   puede cambiar o quitar hacia adelante, y con qué aviso?
+3. Si una venta se **devuelve después de pagada** la comisión: ¿se puede descontar de la planilla siguiente, con qué
+   consentimiento y hasta qué parte? (El sistema hoy no descuenta nada solo: lo deja como saldo negativo que se arrastra.)
+4. ¿Qué pasa con la comisión pendiente cuando alguien renuncia o termina la relación (liquidación)?
