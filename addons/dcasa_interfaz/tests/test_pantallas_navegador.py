@@ -256,6 +256,12 @@ class TestCobrosYValorEnElNavegador(PantallasMixin, HttpCase):
             igual(tarjeta().querySelector('.o_dcasa_pd_cobros_periodo').textContent, ESPERADO.dia.titulo, 'el periodo');
             igual(textos('.o_dcasa_pd_cobros .o_dcasa_periodo').slice(0, 4), ['Día', 'Semana', 'Quincena', 'Mes'],
                   'los cuatro periodos, en ese orden');
+            // Botones normales con «aria-pressed» (sin el patrón de radio, que pide flechas): uno solo está apretado.
+            const grupo = tarjeta().querySelector('.o_dcasa_cf_periodos');
+            igual(grupo.getAttribute('role'), 'group', 'el selector es un grupo de botones');
+            if (grupo.querySelector('[role="radio"], [aria-checked]')) { falla('sin roles de radio'); }
+            igual([...grupo.querySelectorAll('button')].map((b) => b.getAttribute('aria-pressed')),
+                  ['true', 'false', 'false', 'false'], 'solo el día está apretado');
 
             // Arriba de las facturas del día y sin bajar la pantalla.
             const lista = visibles('.o_dcasa_pd_documentos')[0];
@@ -291,6 +297,8 @@ class TestCobrosYValorEnElNavegador(PantallasMixin, HttpCase):
                 await esperar(() => !total().hasAttribute('data-sube'), 'el total quieto de ' + periodo);
                 igual(tarjeta().querySelector('.o_dcasa_periodo.o_activo').textContent,
                       {dia: 'Día', semana: 'Semana', quincena: 'Quincena', mes: 'Mes'}[periodo], 'el botón activo');
+                igual(tarjeta().querySelector('.o_dcasa_periodo[aria-pressed="true"]').textContent,
+                      tarjeta().querySelector('.o_dcasa_periodo.o_activo').textContent, 'aria-pressed sigue al activo');
                 igual(total().textContent, ESPERADO[periodo].total, 'el total de ' + periodo);
                 for (const [forma, monto] of Object.entries(ESPERADO[periodo].formas)) {
                     if (!ficha(forma) || ficha(forma).querySelector('.o_dcasa_cf_monto').textContent !== monto) {
@@ -438,6 +446,73 @@ class TestCobrosYValorEnElNavegador(PantallasMixin, HttpCase):
                 self.browser_size = tamano
                 self.browser_js('/odoo/action-dcasa_interfaz.accion_facturado_por_dia', codigo, login='gerencia_rol',
                                 timeout=180)
+
+    def test_por_dia_lo_cobrado_no_frena_al_resto_y_el_ultimo_clic_gana(self):
+        """Con lo cobrado MUY lento: un cambio de mes muestra el resto sin esperarlo (la tarjeta se atenúa hasta que
+        llega), y si se piden dos periodos seguidos y el primero tarda más, la respuesta vieja no pisa a la nueva."""
+        hoy = self.esperado_de_cobros(self.hoy)
+        pasado = self.esperado_de_cobros(self.doce)
+        mes = self.mes_pasado.strftime('%Y-%m')
+        codigo = '(async () => {' + COMUN_JS + r"""
+            const HOY = __HOY__;
+            const PASADO = __PASADO__;
+            const falla = (mensaje) => { throw new Error(mensaje); };
+            const pausa = (ms) => new Promise((ok) => setTimeout(ok, ms));
+            const visibles = (sel) => [...document.querySelectorAll(sel)].filter((e) => e.offsetParent !== null);
+            const tarjeta = () => visibles('.o_dcasa_pd_cobros')[0];
+            const titulo = () => tarjeta().querySelector('.o_dcasa_pd_cobros_periodo').textContent;
+            const total = () => tarjeta().querySelector('.o_dcasa_cf_total .o_dcasa_cf_monto');
+            await esperar(() => tarjeta() && !tarjeta().classList.contains('o_cargando'), 'la tarjeta de lo cobrado');
+            await esperar(() => !document.querySelector('[data-sube]'), 'las cifras quietas');
+            // Lo cobrado, lento (el periodo que se pide decide cuánto): se cambia el envío de las llamadas a mano.
+            const { rpc } = odoo.loader.modules.get('@web/core/network/rpc');
+            const original = rpc._rpc;
+            const demoras = { semana: 2200, quincena: 150, mes: 2200 };
+            rpc._rpc = function (url, params, settings) {
+                const periodo = String(url).includes('cobros_del_periodo') && params && params.kwargs
+                    && params.kwargs.periodo;
+                if (periodo && demoras[periodo]) {
+                    return new Promise((ok, mal) => setTimeout(
+                        () => original.call(this, url, params, settings).then(ok, mal), demoras[periodo]));
+                }
+                return original.call(this, url, params, settings);
+            };
+            try {
+                // 1) El último clic gana: «Semana» tarda 2,2 s y «Quincena» 0,15 s; la de la semana llega después.
+                const boton = (clave) => tarjeta().querySelector('.o_dcasa_cf_periodo_' + clave);
+                boton('semana').click();
+                boton('quincena').click();
+                await esperar(() => titulo() === HOY.quincena.titulo && !tarjeta().classList.contains('o_cargando'),
+                              'la quincena, que llegó primero');
+                await pausa(2800);                                  // llega la semana, ya vieja
+                igual(titulo(), HOY.quincena.titulo, 'la respuesta vieja no pisa a la nueva');
+                igual(total().textContent, HOY.quincena.total, 'ni el total');
+                igual(tarjeta().querySelector('.o_dcasa_periodo.o_activo').textContent, 'Quincena', 'ni el botón');
+                if (tarjeta().classList.contains('o_cargando')) { falla('la tarjeta se quedó cargando'); }
+
+                // 2) Un cambio de mes: lo cobrado (mes, 2,2 s) no frena a lo demás.
+                const lista = document.querySelector('.o_dcasa_pd_mes_select');
+                lista.value = '__MES__';
+                lista.dispatchEvent(new Event('change', { bubbles: true }));
+                const restoCargando = () => document.querySelector('.o_dcasa_pd_resumen.o_cargando, '
+                    + '.o_dcasa_pd_cuerpo.o_cargando');
+                await esperar(() => !restoCargando() && document.querySelector('.o_dcasa_pd_etiqueta')
+                              && document.querySelector('.o_dcasa_pd_celda[data-fecha="__DOCE__"]')
+                              && tarjeta().classList.contains('o_cargando'),
+                              'el resto del mes nuevo a la vista mientras lo cobrado sigue cargando', 60);
+                if (titulo() === PASADO.mes.titulo) { falla('lo cobrado todavía debía ser el de antes'); }
+                await esperar(() => titulo() === PASADO.mes.titulo && !tarjeta().classList.contains('o_cargando'),
+                              'lo cobrado del mes pasado', 60);
+                igual(total().textContent, PASADO.mes.total, 'el total del mes pasado');
+            } finally {
+                rpc._rpc = original;
+            }
+        """.replace('__HOY__', json.dumps(hoy, ensure_ascii=False)).replace(
+            '__PASADO__', json.dumps(pasado, ensure_ascii=False)).replace('__MES__', mes).replace(
+            '__DOCE__', str(self.doce)) + "console.log('test successful'); })();"
+        self.browser_size = '1440x900'
+        self.browser_js('/odoo/action-dcasa_interfaz.accion_facturado_por_dia', codigo, login='gerencia_rol',
+                        timeout=180)
 
     def test_valor_del_inventario(self):
         codigo = '(async () => {' + COMUN_JS + r"""

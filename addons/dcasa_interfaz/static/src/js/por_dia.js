@@ -133,9 +133,13 @@ export class DcasaPorDia extends FormatoMixin(Component) {
         });
         this.pedidoDeCobros = 0;
         this.claveDeCobros = "";
+        this.cobrosEnVuelo = null;
         onWillStart(async () => {
             this.state.opciones = await this.orm.call("dcasa.tablero", "opciones_por_dia", []);
             await this.cargar(contexto.dcasa_dia || null);
+            // Al abrir se espera lo cobrado (para que la tarjeta no aparezca después y empuje el detalle del día); en los
+            // cambios siguientes, no: lo demás se muestra sin esperarlo y la tarjeta se atenúa hasta que llegue.
+            await this.cobrosEnVuelo;
         });
     }
 
@@ -270,35 +274,43 @@ export class DcasaPorDia extends FormatoMixin(Component) {
         return !this.state.dia && clave !== "mes";
     }
 
-    async cargarCobros(forzar = false) {
+    /**
+     * Pide lo cobrado del periodo y el día de ahora. No bloquea a nadie: devuelve la promesa para quien quiera esperarla
+     * (solo al abrir la pantalla). El último pedido manda: una respuesta vieja que llega tarde se descarta.
+     */
+    cargarCobros(forzar = false) {
         const dia = this.diaDeCobros;
         if (!this.state.datos || !dia) {
-            return;
+            return this.cobrosEnVuelo || Promise.resolve();
         }
         const periodo = this.periodoDeCobros;
         const clave = `${periodo}:${dia}`;
         if (!forzar && clave === this.claveDeCobros) {
-            return;
+            return this.cobrosEnVuelo || Promise.resolve();
         }
         this.claveDeCobros = clave;
         const pedido = ++this.pedidoDeCobros;
         this.state.cargandoCobro = true;
         this.state.errorCobro = "";
-        try {
-            const cobro = await this.orm.call("dcasa.tablero", "cobros_del_periodo", [dia], { periodo });
-            if (pedido === this.pedidoDeCobros) {
-                this.state.cobro = cobro;
+        const promesa = (async () => {
+            try {
+                const cobro = await this.orm.call("dcasa.tablero", "cobros_del_periodo", [dia], { periodo });
+                if (pedido === this.pedidoDeCobros) {
+                    this.state.cobro = cobro;
+                }
+            } catch (error) {
+                if (pedido === this.pedidoDeCobros) {
+                    this.claveDeCobros = "";
+                    this.state.errorCobro = error?.data?.message || "No se pudo cargar lo cobrado.";
+                }
+            } finally {
+                if (pedido === this.pedidoDeCobros) {
+                    this.state.cargandoCobro = false;
+                }
             }
-        } catch (error) {
-            if (pedido === this.pedidoDeCobros) {
-                this.claveDeCobros = "";
-                this.state.errorCobro = error?.data?.message || "No se pudo cargar lo cobrado.";
-            }
-        } finally {
-            if (pedido === this.pedidoDeCobros) {
-                this.state.cargandoCobro = false;
-            }
-        }
+        })();
+        this.cobrosEnVuelo = promesa;
+        return promesa;
     }
 
     async cambiarPeriodoDeCobros(clave) {
@@ -331,8 +343,8 @@ export class DcasaPorDia extends FormatoMixin(Component) {
                 this.state.detalle = null;
             }
             // Lo cobrado no depende de la base ni de la vendedora: si el día y el periodo siguen siendo los mismos, no
-            // se vuelve a pedir (ni se anima otra vez).
-            await this.cargarCobros();
+            // se vuelve a pedir (ni se anima otra vez). Y no se espera: el resto ya se puede ver.
+            this.cargarCobros();
         } catch (error) {
             this.state.error = error?.data?.message || "No se pudieron cargar las ventas.";
         } finally {
@@ -348,13 +360,13 @@ export class DcasaPorDia extends FormatoMixin(Component) {
             // Tocar otra vez el mismo día lo cierra (en el celular, la lista se recoge): lo cobrado vuelve al mes.
             this.state.dia = null;
             this.state.detalle = null;
-            await this.cargarCobros();
+            this.cargarCobros();
             return;
         }
         this.state.dia = dia.fecha;
         this.state.cargandoDia = true;
-        // Lo cobrado de ese día (o de su semana, quincena o mes) se pide a la vez que el detalle del día.
-        const cobros = this.cargarCobros();
+        // Lo cobrado de ese día (o de su semana, quincena o mes) se pide a la vez que el detalle del día, sin esperarlo.
+        this.cargarCobros();
         try {
             const detalle = await this.orm.call("dcasa.tablero", "ventas_del_dia", [dia.fecha], {
                 base: this.state.base,
@@ -368,7 +380,6 @@ export class DcasaPorDia extends FormatoMixin(Component) {
         } finally {
             this.state.cargandoDia = false;
         }
-        await cobros;
     }
 
     async cambiarBase(clave) {
