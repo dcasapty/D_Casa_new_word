@@ -558,6 +558,14 @@ export const VARIABLES_DEL_CONTENEDOR = [
   // nada a Meta. Viaja desde el secreto de GitHub con cada despliegue; Odoo lo lee del entorno al enviar y jamás lo
   // guarda en la base ni lo escribe en un registro.
   "META_CAPI_TOKEN",
+  // Tilopay, la pasarela de pago (addons/dcasa_pago_tilopay; docs/TILOPAY.md). Opcionales: la dueña los pega en el panel de
+  // Cloudflare de cada Worker (no pasan por GitHub) y no impiden el arranque si faltan (Tilopay simplemente no se ofrece).
+  // Las tres claves son secretos; Odoo las lee del entorno en el momento de usarlas y jamás las guarda ni las escribe en un
+  // registro. TILOPAY_ENTORNO («prueba» o «produccion») no es secreta.
+  "TILOPAY_API_KEY",
+  "TILOPAY_API_USER",
+  "TILOPAY_API_PASSWORD",
+  "TILOPAY_ENTORNO",
   // Juan, el asistente de clientes (addons/dcasa_conversaciones; docs/JUAN_ODOO.md). Opcionales: la dueña
   // los pega en el panel de Cloudflare del Worker (no pasan por GitHub). Sin ellos Odoo arranca igual y la
   // API de Juan responde 503. JUAN_URL es la dirección (no secreta) del Worker «juan» para que Odoo lo llame.

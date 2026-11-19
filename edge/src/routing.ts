@@ -93,8 +93,12 @@ export function isBlockedPath(pathname: string): boolean {
  * - `/dcasa/brian/`: lo que la página de la tienda le pide a Odoo para el chat «Brian de la tienda» (el pase firmado,
  *   el carrito y la cotización en PDF de la sesión del visitante; addons/dcasa_brian_tienda). Es de cada visitante:
  *   nunca se guarda, aunque Odoo dijera «public». Odoo además responde `no-store`.
+ * - `/payment/tilopay/`: el retorno del cliente y el aviso del servidor de Tilopay (addons/dcasa_pago_tilopay). Llevan el
+ *   resultado de un pago: jamás se guardan. Son públicas a propósito (las manda Tilopay, sin cookies, y el navegador del
+ *   cliente al volver), no están en las rutas bloqueadas ni en los frenos de ritmo, y Odoo no se fía de lo que traen: le
+ *   pregunta a Tilopay (docs/TILOPAY.md).
  */
-const NEVER_CACHE_PREFIXES = ["/brian/", "/envios/choferes/", "/dcasa/brian/"];
+const NEVER_CACHE_PREFIXES = ["/brian/", "/envios/choferes/", "/dcasa/brian/", "/payment/tilopay/"];
 
 /**
  * Recursos estáticos o versionados que se pueden guardar en la caché del borde. Que la
