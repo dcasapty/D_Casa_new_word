@@ -35,9 +35,9 @@ class RespuestaFalsa:
 class SimuladorTilopay:
     """Sustituye a ``requests.post`` mientras dura el ``with``. Todo lo que cambia el comportamiento es un atributo:
 
-    ``falla`` = ``'tiempo'`` | ``'red'`` | ``'http500'`` | ``'basura'`` | ``'vacio'``; ``claves_buenas`` = ``False`` para que el
-    inicio de sesión dé 401; ``entorno`` = lo que dice ``environment`` en las filas; ``pagos[orden]`` = las filas de
-    ``consult`` (se llenan con ``aprobar``/``rechazar``)."""
+    ``falla`` = ``'tiempo'`` | ``'red'`` | ``'http500'`` | ``'basura'`` | ``'vacio'``; ``claves_buenas`` = ``False`` para
+    que el inicio de sesión dé 401; ``entorno`` = lo que dice ``environment`` en las filas; ``pagos[orden]`` = las filas
+    de     ``consult`` (se llenan con ``aprobar``/``rechazar``)."""
 
     def __init__(self, entorno='Test'):
         self.llamadas = []            # [(ruta, cuerpo, cabeceras)]
@@ -133,7 +133,8 @@ class SimuladorTilopay:
             return RespuestaFalsa(200, {'type': '403', 'message': 'llave inválida'})
         filas = self.pagos.get(cuerpo.get('orderNumber'))
         if not filas:
-            return RespuestaFalsa(200, {'type': '400', 'message': f"Order number: {cuerpo.get('orderNumber')} does not exist"})
+            orden = cuerpo.get('orderNumber')
+            return RespuestaFalsa(200, {'type': '400', 'message': f'Order number: {orden} does not exist'})
         return RespuestaFalsa(200, {'type': '200', 'message': '', 'response': filas})
 
 
@@ -198,7 +199,8 @@ class PreparaPedido:
 
 
 class ComunTilopay(PreparaPedido):
-    """Lo de siempre en las pruebas con base de datos: proveedor encendido, claves de mentira y memoria de tokens limpia."""
+    """Lo de siempre en las pruebas con base de datos: proveedor encendido, claves de mentira y memoria de tokens
+    limpia."""
     estado_del_proveedor = 'test'
 
     @classmethod
@@ -213,7 +215,8 @@ class ComunTilopay(PreparaPedido):
         self.addCleanup(entorno().start().stop)
 
     def abrir(self, tilopay, pedido=None, monto=None):
-        """Crea la transacción y la página de pago (como lo hace la tienda). Devuelve (transacción, orden de Tilopay)."""
+        """Crea la transacción y la página de pago (como lo hace la tienda). Devuelve (transacción, orden de
+        Tilopay)."""
         pedido = pedido or self.pedido()
         tx = self.transaccion(pedido, monto)
         tx._get_processing_values()

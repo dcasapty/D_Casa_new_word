@@ -7,7 +7,8 @@ Pagos con Tilopay
 =================
 
 * El cliente paga en la **página alojada de Tilopay** (Odoo nunca ve una tarjeta). Al volver, o cuando Tilopay avisa, o
-  cuando una tarea programada pregunta, Odoo **consulta a Tilopay de servidor a servidor** y solo marca pagado si la orden
+  cuando una tarea programada pregunta, Odoo **consulta a Tilopay de servidor a servidor** y solo marca pagado si
+  la orden
   existe, está aprobada, el monto y la moneda son exactamente los del pedido y el pago es del entorno que se espera
   (prueba o real).
 * **Las claves viven solo como secretos del Worker de Cloudflare** (``TILOPAY_API_KEY``, ``TILOPAY_API_USER``,

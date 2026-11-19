@@ -1,11 +1,11 @@
-"""Las rutas públicas de verdad (HTTP): el aviso, el retorno del cliente y «Estado del pago». Siempre con el Tilopay simulado."""
+"""Las rutas públicas de verdad (HTTP): el aviso, el retorno del cliente y «Estado del pago». Siempre con el
+Tilopay simulado."""
 import json
 import logging
 
+from odoo.addons.dcasa_pago_tilopay.models import tilopay_api as api
 from odoo.tests import HttpCase, tagged
 from odoo.tests.common import JsonRpcException
-
-from odoo.addons.dcasa_pago_tilopay.models import tilopay_api as api
 
 from .common import SECRETOS, ComunTilopay, SimuladorTilopay
 

@@ -1,6 +1,7 @@
 """El proveedor «Tilopay»: lee sus claves del entorno del contenedor y decide si se ofrece en la tienda.
 
-Las claves NO tienen campo: no hay dónde guardarlas ni dónde mostrarlas. La pantalla enseña solo «Conectado» (están las tres
+Las claves NO tienen campo: no hay dónde guardarlas ni dónde mostrarlas. La pantalla enseña solo «Conectado» (están
+las tres
 cargadas) y «Entorno» (lo que dice ``TILOPAY_ENTORNO``). «Probar conexión» abre sesión en Tilopay y dice sí o no.
 """
 import logging
@@ -8,9 +9,9 @@ import logging
 from markupsafe import Markup
 
 from odoo import api, fields, models
-from odoo.exceptions import AccessError, UserError
 from odoo.addons.dcasa_base import _nombrar
 from odoo.addons.payment import utils as payment_utils
+from odoo.exceptions import AccessError, UserError
 
 from . import tilopay_api as api_tilopay
 
@@ -72,7 +73,8 @@ class PaymentProvider(models.Model):
                 proveedor.dcasa_tilopay_prueba_texto = self.env._('todavía no se ha probado')
 
     def _dcasa_tilopay_conectado(self):
-        """Las tres claves están cargadas en el servidor (no dice si Tilopay las acepta: eso lo dice «Probar conexión»)."""
+        """Las tres claves están cargadas en el servidor (no dice si Tilopay las acepta: eso lo dice «Probar
+        conexión»)."""
         return api_tilopay.credenciales() is not None
 
     def _dcasa_tilopay_cliente(self):
@@ -88,15 +90,17 @@ class PaymentProvider(models.Model):
         """Por qué Tilopay NO se ofrece hoy, en una frase para una persona; ``None`` si se ofrece."""
         self.ensure_one()
         if self.state == 'disabled':
-            return self.env._('Está apagado: nadie lo ve en la tienda. Se enciende con «Modo de prueba» o «Habilitado».')
+            return self.env._(
+                'Está apagado: nadie lo ve en la tienda. Se enciende con «Modo de prueba» o «Habilitado».')
         if not self._dcasa_tilopay_conectado():
             return self.env._('Faltan las claves en Cloudflare (TILOPAY_API_KEY, TILOPAY_API_USER y '
                               'TILOPAY_API_PASSWORD). Mientras tanto, Tilopay no aparece en la tienda.')
         entorno = self._dcasa_tilopay_entorno()
         if self.state == 'enabled' and entorno != api_tilopay.PRODUCCION:
-            return self.env._('Cloudflare dice «prueba» (TILOPAY_ENTORNO) y aquí está «Habilitado». Pon «Modo de '
-                              'prueba» o, cuando vayas a cobrar de verdad, cambia TILOPAY_ENTORNO a «produccion». No se '
-                              'ofrece mientras no coincidan.')
+            return self.env._(
+                'Cloudflare dice «prueba» (TILOPAY_ENTORNO) y aquí está «Habilitado». Pon «Modo de prueba» o, '
+                'cuando vayas a cobrar de verdad, cambia TILOPAY_ENTORNO a «produccion». No se ofrece mientras no '
+                'coincidan.')
         if self.state == 'test' and entorno != api_tilopay.PRUEBA:
             return self.env._('Cloudflare dice «produccion» (TILOPAY_ENTORNO) y aquí está en «Modo de prueba». Pon '
                               '«Habilitado» o cambia TILOPAY_ENTORNO a «prueba». No se ofrece mientras no coincidan.')
@@ -121,7 +125,8 @@ class PaymentProvider(models.Model):
 
     @api.model
     def _get_compatible_providers(self, *args, report=None, **kwargs):
-        """Tilopay solo se ofrece para pagar un PEDIDO de venta (versión 1) y solo si está activo, con las claves cargadas
+        """Tilopay solo se ofrece para pagar un PEDIDO de venta (versión 1) y solo si está activo, con las claves
+        cargadas
         y coherente con ``TILOPAY_ENTORNO``. Sin eso, ni sale ni estorba."""
         proveedores = super()._get_compatible_providers(*args, report=report, **kwargs)
         tilopay = proveedores.filtered(lambda p: p.code == CODIGO)
@@ -142,13 +147,15 @@ class PaymentProvider(models.Model):
     def action_dcasa_tilopay_probar(self):
         """Botón «Probar conexión»: abre sesión en Tilopay y dice sí o no. No muestra ni guarda ningún dato."""
         self._dcasa_tilopay_exigir_gerencia()
-        self = self.sudo()  # ya se comprobó el grupo; el modelo de proveedores solo lo lee el administrador del sistema
-        self.ensure_one()
-        if self.code != CODIGO:
+        # Ya se comprobó el grupo; el modelo de proveedores solo lo lee el administrador del sistema.
+        proveedor = self.sudo()
+        proveedor.ensure_one()
+        if proveedor.code != CODIGO:
             raise UserError(self.env._('Este botón es solo del proveedor Tilopay.'))
         credenciales = api_tilopay.credenciales()
         if credenciales is None:
-            bien, texto = False, self.env._('No hay claves cargadas: pégalas en Cloudflare (ver «Estado en la tienda»).')
+            bien, texto = False, self.env._(
+                'No hay claves cargadas: pégalas en Cloudflare (ver «Estado en la tienda»).')
         else:
             try:
                 api_tilopay.Cliente(credenciales).probar()
@@ -156,11 +163,12 @@ class PaymentProvider(models.Model):
             except api_tilopay.ErrorTilopay as error:
                 _logger.warning('Tilopay: la prueba de conexión falló (%s).', error.tipo)
                 texto = {
-                    'claves': self.env._('No: Tilopay no aceptó el usuario y la contraseña. Revisa las claves en Cloudflare.'),
+                    'claves': self.env._(
+                        'No: Tilopay no aceptó el usuario y la contraseña. Revisa las claves en Cloudflare.'),
                     'red': self.env._('No: no se pudo hablar con Tilopay ahora. Intenta de nuevo en un momento.'),
                 }.get(error.tipo, self.env._('No: Tilopay respondió algo inesperado. Intenta de nuevo.'))
                 bien = False
-        self.write({'dcasa_tilopay_prueba_fecha': fields.Datetime.now(), 'dcasa_tilopay_prueba_ok': bien})
+        proveedor.write({'dcasa_tilopay_prueba_fecha': fields.Datetime.now(), 'dcasa_tilopay_prueba_ok': bien})
         return {
             'type': 'ir.actions.client', 'tag': 'display_notification',
             'params': {'title': self.env._('Conexión con Tilopay'), 'message': texto,

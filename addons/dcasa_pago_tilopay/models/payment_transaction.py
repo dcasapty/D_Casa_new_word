@@ -42,7 +42,8 @@ MENSAJE_ERROR_RECHAZO = ('Tilopay no pudo aprobar este pago. Puedes intentarlo d
                          'forma de pago.')
 MENSAJE_ERROR_DISTINTO = ('Tilopay reportó un cobro distinto al de tu pedido, así que no lo tomamos como pago. Nuestro '
                           'equipo lo revisa; escríbenos por WhatsApp si necesitas ayuda.')
-MENSAJE_CANCELADO = 'El pago no se completó. Tu pedido sigue guardado: puedes intentarlo de nuevo o elegir otra forma de pago.'
+MENSAJE_CANCELADO = ('El pago no se completó. Tu pedido sigue guardado: puedes intentarlo de nuevo o elegir otra forma '
+                     'de pago.')
 MENSAJE_VENCIDO = 'Este intento de pago venció sin recibirse el pago. Puedes intentarlo de nuevo.'
 
 
@@ -75,13 +76,14 @@ class PaymentTransaction(models.Model):
             _logger.warning('Tilopay: no se pudo abrir la página de pago de %s: %s', self.reference, error)
             raise ValidationError(self.env._(
                 'No pudimos abrir la página de pago de Tilopay. Intenta de nuevo en un momento o elige otra forma de '
-                'pago.'))
+                'pago.')) from None
         partes = urlsplit(url)
         return {'api_url': urlunsplit(partes._replace(query='', fragment='')),
                 'url_params': dict(parse_qsl(partes.query, keep_blank_values=True))}
 
     def _dcasa_tilopay_exigir_listo(self):
-        """Lo que se exige para abrir una página de pago, aunque el cliente haya mandado un proveedor que no se le ofreció."""
+        """Lo que se exige para abrir una página de pago, aunque el cliente haya mandado un proveedor que no se le
+        ofreció."""
         self.ensure_one()
         if not self.provider_id._dcasa_tilopay_ofrecible():
             raise ValidationError(self.env._(
@@ -100,10 +102,12 @@ class PaymentTransaction(models.Model):
             ('create_date', '>=', fields.Datetime.now() - VENTANA_DE_INTENTOS)])
         if recientes >= INTENTOS_EN_CURSO:
             raise ValidationError(self.env._(
-                'Ya hay varios intentos de pago en curso para este pedido. Espera unos minutos o elige otra forma de pago.'))
+                'Ya hay varios intentos de pago en curso para este pedido. Espera unos minutos o elige otra forma '
+                'de pago.'))
 
     def _dcasa_tilopay_nueva_orden(self):
-        """``<referencia>-<8 letras y números al azar>``: única para siempre en Tilopay, imposible de adivinar contando y
+        """``<referencia>-<8 letras y números al azar>``: única para siempre en Tilopay, imposible de adivinar
+        contando y
         distinta entre staging y producción. Se guarda ANTES de llamar a Tilopay."""
         self.ensure_one()
         base = re.sub(r'[^A-Za-z0-9-]', '', self.reference or '')[:24].strip('-')
@@ -169,7 +173,8 @@ class PaymentTransaction(models.Model):
         """El marco de Odoo vuelve a comparar monto y moneda: aquí solo para un pago aprobado ya verificado."""
         if self.provider_code != CODIGO:
             return super()._extract_amount_data(payment_data)
-        if isinstance(payment_data, api_tilopay.DatosVerificados) and payment_data.get('veredicto') == api_tilopay.APROBADO:
+        if (isinstance(payment_data, api_tilopay.DatosVerificados)
+                and payment_data.get('veredicto') == api_tilopay.APROBADO):
             return {'amount': float(payment_data['monto']), 'currency_code': payment_data['moneda']}
         return None
 
@@ -193,8 +198,8 @@ class PaymentTransaction(models.Model):
             self._set_done(extra_allowed_states=('cancel', 'error'))
             if estado_previo in ('cancel', 'error'):
                 self._dcasa_tilopay_anotar(self.env._(
-                    'Tilopay confirmó un pago aprobado que llegó después de marcarse «%(estado)s»: el pedido se tomó como '
-                    'pagado.', estado=estado_previo))
+                    'Tilopay confirmó un pago aprobado que llegó después de marcarse «%(estado)s»: el pedido se tomó '
+                    'como pagado.', estado=estado_previo))
         elif veredicto == api_tilopay.RECHAZADO:
             self._set_error(MENSAJE_ERROR_RECHAZO)
             if anterior != veredicto:
@@ -203,17 +208,17 @@ class PaymentTransaction(models.Model):
             self._set_error(MENSAJE_ERROR_DISTINTO)
             if anterior != veredicto:
                 self._dcasa_tilopay_anotar(self.env._(
-                    'Tilopay dice haber cobrado algo distinto al pedido (%s). NO se tomó como pago: revísalo en el panel '
-                    'de Tilopay.', detalle))
+                    'Tilopay dice haber cobrado algo distinto al pedido (%s). NO se tomó como pago: revísalo en el '
+                    'panel de Tilopay.', detalle))
         else:  # sin registro, entorno, captura, ambiguo, inválido: no cambia nada
             _logger.warning('Tilopay: la transacción %s sigue como está (%s: %s).', self.reference, veredicto, detalle)
             if veredicto == api_tilopay.SIN_REGISTRO and payment_data.get('navegador_cancelo') \
                     and self.state in ('draft', 'pending'):
                 self._set_canceled(MENSAJE_CANCELADO)
-            elif veredicto != api_tilopay.SIN_REGISTRO and anterior != veredicto:
+            elif veredicto not in (api_tilopay.SIN_REGISTRO, anterior):
                 self._dcasa_tilopay_anotar(self.env._(
-                    'Tilopay respondió algo que no se pudo tomar como pago (%s): %s. El pedido sigue sin pagar; revísalo '
-                    'en el panel de Tilopay.', veredicto, detalle))
+                    'Tilopay respondió algo que no se pudo tomar como pago (%s): %s. El pedido sigue sin pagar; '
+                    'revísalo en el panel de Tilopay.', veredicto, detalle))
 
     def _dcasa_tilopay_bloquear(self):
         """Bloquea la fila de la transacción mientras se consulta: dos avisos a la vez no la procesan dos veces. Si otra
@@ -283,8 +288,10 @@ class PaymentTransaction(models.Model):
 
     @api.model
     def _cron_dcasa_tilopay_reconciliar(self, limite=LOTE_DEL_CRON):
-        """Pregunta por los pagos de Tilopay que quedaron sin confirmar (el aviso de compras no se reintenta y el cliente
-        puede cerrar la pestaña). Los de más de 24 horas sin pago pasan a vencidos. Devuelve cuántos revisó. Sin proveedor
+        """Pregunta por los pagos de Tilopay que quedaron sin confirmar (el aviso de compras no se reintenta y el
+        cliente
+        puede cerrar la pestaña). Los de más de 24 horas sin pago pasan a vencidos. Devuelve cuántos revisó. Sin
+        proveedor
         activo y con claves, no hace nada (y no llama a nadie)."""
         proveedores = self.env['payment.provider'].sudo().search([('code', '=', CODIGO), ('state', '!=', 'disabled')])
         proveedores = proveedores.filtered(lambda p: p._dcasa_tilopay_conectado())
@@ -297,13 +304,14 @@ class PaymentTransaction(models.Model):
             ('create_date', '>=', ahora - VENTANA_DEL_CRON), ('create_date', '<=', ahora - MINIMO_PARA_EL_CRON),
         ], order='dcasa_tilopay_consulta asc nulls first, id', limit=limite)
         revisadas = 0
-        for tx in pendientes:
+        sin_pago = (api_tilopay.SIN_REGISTRO, api_tilopay.RECHAZADO)
+        for pendiente in pendientes:
+            tx = pendiente.with_prefetch()
             try:
                 with self.env.cr.savepoint():
-                    tx = tx.with_prefetch()
                     veredicto = tx._dcasa_tilopay_confirmar('cron')
-                    if tx.state in ('draft', 'pending') and veredicto in (api_tilopay.SIN_REGISTRO, api_tilopay.RECHAZADO) \
-                            and tx.create_date <= ahora - VIDA_DE_UN_INTENTO:
+                    vencida = tx.create_date <= ahora - VIDA_DE_UN_INTENTO
+                    if tx.state in ('draft', 'pending') and veredicto in sin_pago and vencida:
                         tx._set_canceled(MENSAJE_VENCIDO)
                 revisadas += 1
                 self.env.cr.commit()

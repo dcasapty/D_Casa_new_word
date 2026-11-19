@@ -4,9 +4,8 @@ import base64
 import logging
 from decimal import Decimal
 
-from odoo.tests import BaseCase, tagged
-
 from odoo.addons.dcasa_pago_tilopay.models import tilopay_api as api
+from odoo.tests import BaseCase, tagged
 
 from .common import CLAVE, LLAVE, SECRETOS, USUARIO, RespuestaFalsa, SimuladorTilopay, entorno
 
@@ -36,7 +35,7 @@ class TestClavesYFormas(BaseCase):
         with entorno():
             creds = api.credenciales()
         self.assertEqual((creds.llave, creds.usuario, creds.clave), (LLAVE, USUARIO, CLAVE))
-        for texto in (repr(creds), str(creds), f'{creds}', '%s' % (creds,)):
+        for texto in (repr(creds), str(creds), f'{creds}'):
             for secreto in SECRETOS:
                 self.assertNotIn(secreto, texto)
 
@@ -50,7 +49,8 @@ class TestClavesYFormas(BaseCase):
     def test_el_entorno_por_defecto_es_prueba(self):
         """Lo seguro: sin variable (o con una rara) un pago real no se acepta, y uno de prueba nunca paga producción."""
         for valor, esperado in ((None, 'prueba'), ('', 'prueba'), ('lo-que-sea', 'prueba'), ('prueba', 'prueba'),
-                                ('produccion', 'produccion'), (' Producción ', 'produccion'), ('PRODUCTION', 'produccion')):
+                                ('produccion', 'produccion'), (' Producción ', 'produccion'), ('PRODUCTION',
+                                'produccion')):
             with self.subTest(valor=valor), entorno(TILOPAY_ENTORNO=valor):
                 self.assertEqual(api.entorno_esperado(), esperado)
 

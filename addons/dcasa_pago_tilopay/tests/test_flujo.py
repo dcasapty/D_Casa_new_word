@@ -1,17 +1,15 @@
 """De punta a punta con un Tilopay simulado: pedido → página de pago → confirmación (siempre preguntándole a Tilopay) →
 pedido confirmado, cobro en el diario «Tilopay», factura cruzada y puntos de Socios. Y cada caso raro."""
-import logging
 import re
 from datetime import timedelta
 
 from psycopg2 import IntegrityError
 
 from odoo import Command, fields
+from odoo.addons.dcasa_pago_tilopay.models import tilopay_api as api
 from odoo.exceptions import ValidationError
 from odoo.tests import TransactionCase, tagged
 from odoo.tools import mute_logger
-
-from odoo.addons.dcasa_pago_tilopay.models import tilopay_api as api
 
 from .common import LLAVE, SECRETOS, ComunTilopay, SimuladorTilopay, entorno
 
@@ -94,7 +92,7 @@ class TestFlujoFeliz(BaseTilopay):
             'provider_id': self.proveedor.id, 'payment_method_id': self.metodo.id, 'amount': pedido.amount_total,
             'currency_id': pedido.currency_id.id, 'partner_id': self.cliente.id, 'operation': 'online_redirect',
             'reference': 'INV/2026/00001-1', 'sale_order_ids': [Command.set(pedido.ids)]})
-        with SimuladorTilopay() as tilopay:
+        with SimuladorTilopay():
             tx._get_processing_values()
         self.assertTrue(api.orden_valida(tx.dcasa_tilopay_orden), tx.dcasa_tilopay_orden)
 
@@ -187,7 +185,8 @@ class TestNuncaSeConfiaEnElNavegador(BaseTilopay):
         with SimuladorTilopay() as tilopay:
             tx, orden = self.abrir(tilopay, pedido)
         with self.assertLogs('odoo.addons.dcasa_pago_tilopay.models.payment_transaction', 'WARNING'):
-            tx._process('tilopay', {'reference': tx.reference, 'veredicto': 'aprobado', 'monto': 107.0, 'moneda': 'USD'})
+            tx._process('tilopay', {'reference': tx.reference, 'veredicto': 'aprobado', 'monto': 107.0, 'moneda':
+            'USD'})
         self.assertEqual(tx.state, 'draft')
         with self.assertLogs('odoo.addons.dcasa_pago_tilopay.models.payment_transaction', 'WARNING'):
             tx._process('tilopay', dict(veredicto='aprobado', reference=tx.reference))
@@ -198,7 +197,8 @@ class TestNuncaSeConfiaEnElNavegador(BaseTilopay):
         otro = self.env['payment.provider'].search([('code', '=', 'custom')], limit=1)
         tx = self.env['payment.transaction'].create({
             'provider_id': otro.id, 'payment_method_id': otro.payment_method_ids[:1].id, 'amount': pedido.amount_total,
-            'currency_id': pedido.currency_id.id, 'partner_id': self.cliente.id, 'sale_order_ids': [Command.set(pedido.ids)]})
+            'currency_id': pedido.currency_id.id, 'partner_id': self.cliente.id,
+            'sale_order_ids': [Command.set(pedido.ids)]})
         tx.dcasa_tilopay_orden = 'ORDEN-DE-OTRO-PROVEEDOR-1'
         self.assertFalse(self.env['payment.transaction']._dcasa_tilopay_buscar('ORDEN-DE-OTRO-PROVEEDOR-1'))
         with SimuladorTilopay() as tilopay:
@@ -221,7 +221,8 @@ class TestNuncaSeConfiaEnElNavegador(BaseTilopay):
         otro = self.env['payment.provider'].search([('code', '=', 'custom')], limit=1)
         previo = self.env['payment.transaction'].create({
             'provider_id': otro.id, 'payment_method_id': otro.payment_method_ids[:1].id, 'amount': 10.0,
-            'currency_id': pedido.currency_id.id, 'partner_id': self.cliente.id, 'sale_order_ids': [Command.set(pedido.ids)]})
+            'currency_id': pedido.currency_id.id, 'partner_id': self.cliente.id,
+            'sale_order_ids': [Command.set(pedido.ids)]})
         previo._set_done()
         tx = self.transaccion(pedido)
         with SimuladorTilopay() as tilopay, self.assertRaises(ValidationError):
@@ -367,7 +368,8 @@ class TestOrdenYRepeticiones(BaseTilopay):
         tx = self.transaccion(pedido)
         with SimuladorTilopay() as tilopay:
             tilopay.falla = 'tiempo'
-            with self.assertLogs('odoo.addons.dcasa_pago_tilopay', 'WARNING'), self.assertRaises(ValidationError) as ctx:
+            with self.assertLogs('odoo.addons.dcasa_pago_tilopay', 'WARNING'), \
+                    self.assertRaises(ValidationError) as ctx:
                 tx._get_processing_values()
         mensaje = str(ctx.exception)
         self.assertIn('otra forma de pago', mensaje)
@@ -379,7 +381,8 @@ class TestOrdenYRepeticiones(BaseTilopay):
         tx = self.transaccion(self.pedido())
         with SimuladorTilopay() as tilopay:
             tilopay.claves_buenas = False
-            with self.assertLogs('odoo.addons.dcasa_pago_tilopay', 'WARNING'), self.assertRaises(ValidationError) as ctx:
+            with self.assertLogs('odoo.addons.dcasa_pago_tilopay', 'WARNING'), \
+                    self.assertRaises(ValidationError) as ctx:
                 tx._get_processing_values()
         for secreto in SECRETOS:
             self.assertNotIn(secreto, str(ctx.exception))

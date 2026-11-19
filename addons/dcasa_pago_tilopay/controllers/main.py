@@ -14,9 +14,8 @@ import json
 import logging
 
 from odoo import http
-from odoo.http import request
-
 from odoo.addons.payment.controllers.post_processing import PaymentPostProcessing
+from odoo.http import request
 
 from ..models import tilopay_api as api_tilopay
 
@@ -96,7 +95,8 @@ class TilopayController(http.Controller):
 
 
 class TilopayPostProcessing(PaymentPostProcessing):
-    """Mientras el cliente espera en «Estado del pago», cada vuelta del reloj de esa página le pregunta a Tilopay (con el
+    """Mientras el cliente espera en «Estado del pago», cada vuelta del reloj de esa página le pregunta a Tilopay
+    (con el
     freno de una consulta cada 5 segundos por transacción): así un pago de Yappy que se aprueba tarde no se queda dando
     vueltas aunque el aviso no llegue."""
 

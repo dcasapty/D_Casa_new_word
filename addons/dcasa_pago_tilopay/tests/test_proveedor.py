@@ -4,12 +4,11 @@ import logging
 
 from lxml import etree
 
+from odoo.addons.dcasa_pago_tilopay.models import tilopay_api as api
 from odoo.exceptions import AccessError
 from odoo.tests import TransactionCase, new_test_user, tagged
 
-from odoo.addons.dcasa_pago_tilopay.models import tilopay_api as api
-
-from .common import LLAVE, SECRETOS, PreparaPedido, SimuladorTilopay, entorno
+from .common import SECRETOS, PreparaPedido, SimuladorTilopay, entorno
 
 
 def todo_el_texto(valor):
@@ -39,11 +38,12 @@ class TestNaceApagado(PreparaPedido, TransactionCase):
 
     def test_el_cobro_cae_en_el_diario_tilopay(self):
         proveedor = self.env.ref('dcasa_pago_tilopay.payment_provider_tilopay')
-        diario = self.env['account.journal'].search([('code', '=', 'TLP'), ('company_id', '=', proveedor.company_id.id)])
+        diario = self.env['account.journal'].search(
+            [('code', '=', 'TLP'), ('company_id', '=', proveedor.company_id.id)])
         self.assertEqual(len(diario), 1)
         self.assertEqual((diario.name, diario.type), ('Tilopay', 'bank'))
         self.assertEqual(proveedor.journal_id, diario)
-        linea = diario.inbound_payment_method_line_ids.filtered(lambda l: l.payment_provider_id == proveedor)
+        linea = diario.inbound_payment_method_line_ids.filtered(lambda linea: linea.payment_provider_id == proveedor)
         self.assertEqual(len(linea), 1)
 
     def test_preparar_se_puede_repetir_sin_duplicar_el_diario(self):
@@ -192,7 +192,8 @@ class TestProbarConexion(PreparaPedido, TransactionCase):
         super().setUpClass()
         cls.preparar_tilopay('test')
         cls.gerencia = new_test_user(cls.env, login='til_gerencia', groups='base.group_user,dcasa_base.group_gerencia')
-        cls.vendedora = new_test_user(cls.env, login='til_vendedora', groups='base.group_user,sales_team.group_sale_salesman')
+        cls.vendedora = new_test_user(
+            cls.env, login='til_vendedora', groups='base.group_user,sales_team.group_sale_salesman')
 
     def setUp(self):
         super().setUp()
