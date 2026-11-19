@@ -1,8 +1,8 @@
 """Qué es una «venta online»: UNA sola definición para todo el sistema (decisión de Gerencia, 2026-11-19).
 
-La usan tres cosas que NO se parecen: el bono por meta de las vendedoras (``dcasa_nomina``), el avance que ellas ven en su
-Inicio (``dcasa_interfaz``) y la comisión del programa de vendedores (``dcasa_socios``), y además la comisión del sitio
-web (``dcasa_comision_web``). Por eso vive aquí, en la base: ninguna de ellas depende de las otras.
+La usan tres cosas que NO se parecen: el bono por meta de las vendedoras (``dcasa_nomina``), el avance que ellas ven en
+su Inicio (``dcasa_interfaz``) y la comisión del programa de vendedores (``dcasa_socios``), y además la comisión del
+sitio web (``dcasa_comision_web``). Por eso vive aquí, en la base: ninguna de ellas depende de las otras.
 
 **Cuenta como venta online** (``sale.order.dcasa_venta_online``), y por lo tanto nunca es de una vendedora:
 
