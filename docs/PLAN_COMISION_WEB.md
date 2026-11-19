@@ -283,13 +283,13 @@ son los que propongo, de lo más fuerte a lo más flojo, y al final lo que **no*
    a la política de `dcasa_correo`, que respeta el mismo interruptor y no sale en staging: A12.)
 6. **Testigo de origen que no se puede cambiar.** Cada pedido nuevo guarda en una marca de solo escritura si **nació en
    la web**. Hoy `website_id` se puede cambiar por código y con él el origen del pedido (A6, A13). La comisión exige
-   las dos cosas, las pedidos que ya existían al instalar se marcan una sola vez en ese momento, y un cambio posterior
+   las dos cosas, los pedidos que ya existían al instalar se marcan una sola vez en ese momento, y un cambio posterior
    de `website_id` en un pedido que ya contó dispara una **alerta** en el estado.
 7. **Ni compras propias ni pedidos fantasma sin rastro.** Las compras de quienes reciben no cuentan (A3). Cada fila
    muestra **cómo se pagó** y **si ese pago está conciliado con el banco**, y el sello dice qué parte de la base está
    conciliada. Un pedido que se paga y se devuelve se reversa solo.
 8. **Mirar quién arma las campañas y los precios.** Quienes reciben también pueden tocar precios y campañas del sitio
-   (solo Gerencia y quienes cambian precios, A9). No inflan la base (el cliente tiene que pagar), pero sí pueden
+   (solo Gerencia y quienes cambian precios, A14). No inflan la base (el cliente tiene que pagar), pero sí pueden
    cambiarla para bien o para mal. Por eso el estado muestra el **precio cobrado** y el sello **no esconde** los
    meses de campaña. Cualquier cambio de campaña ya queda en su historial.
 9. **Un error de la comisión nunca frena una venta ni un cobro** (sección 9).
@@ -327,8 +327,8 @@ El bono por meta se trata **como salario** (A2, y lo dice el propio código: «R
 
 - Suma a lo **devengado** de la línea y paga **seguro social** (trabajador y patrono), **seguro educativo**, **riesgo
   profesional** del patrono e **ISR** como lo extra de esa quincena (no se proyecta al año).
-- Entra en la **base del décimo tercer mes** y en la **provisión del décimo** (la parte de lo devengado que se
-  provisiona), porque ambos leen lo devengado de las planillas confirmadas.
+- Entra en la **base del décimo tercer mes** (que suma lo devengado de las planillas confirmadas) y en la
+  **provisión del décimo** (una parte de lo devengado de esa misma planilla, si la contadora la activa).
 - Entra en el **promedio de los últimos 11 meses** que usan las **vacaciones** y la **prima de antigüedad**, solo si la
   persona ya tiene planillas confirmadas de ese tiempo; si no, el cálculo usa su salario mensual.
 - Sale en el comprobante de pago como «Bono por meta de ventas».
@@ -367,3 +367,140 @@ Mientras la opción esté vacía el sistema **mide y propone, pero no deja aprob
 3. Si una venta se **devuelve después de pagada** la comisión: ¿se puede descontar de la planilla siguiente, con qué
    consentimiento y hasta qué parte? (El sistema hoy no descuenta nada solo: lo deja como saldo negativo que se arrastra.)
 4. ¿Qué pasa con la comisión pendiente cuando alguien renuncia o termina la relación (liquidación)?
+
+## 9. La propuesta de construcción
+
+El trozo más pequeño que da **medición y transparencia sin pagar nada solo** es el **paso 1 de tres fases**:
+
+- **Fase 2 (MVP): medir y mostrar.** Reglas, ventas del sitio, libro, estado mensual, sello. **No paga nada y no toca
+  la planilla.** Se puede construir ya: no depende del dictamen legal.
+- **Fase 3: propuesta, revisión y aprobación.** Las dos llaves y el registro del pago fuera de planilla.
+- **Fase 4: enlace con la planilla.** Solo después del dictamen (P8) y de elegir cómo se trata al pagar.
+
+### 9.1 Qué se construye (módulo nuevo `dcasa_comision_web`)
+
+Depende de `dcasa_base`, `dcasa_nomina`, `dcasa_interfaz` (el origen), `dcasa_invoice` (para reconocer el flete) y
+`website_sale`. Ningún campo en modelos de Odoo sin el prefijo `dcasa_`.
+
+| Modelo | Para qué | Notas |
+|---|---|---|
+| `dcasa.web.reglas` + `dcasa.web.reparto` | Una versión de las reglas y su lista de personas con su % de reparto | Porcentaje y tratamiento **vacíos**; las cuatro decisiones de la sección 2; estados borrador/aprobada; aprobada no se edita ni se borra; «rige desde» solo hacia adelante (patrón de `dcasa.vend.reglas`, A3); la suma del reparto es 100 %. **Sin registros de fábrica**: el módulo nace sin versiones. |
+| `dcasa.web.venta` | Una fila por factura que cuenta o está en duda | Congela base, porcentaje, versión, cómo se pagó, conciliación, vendedora, referencias. Un índice único evita dos filas activas de la misma factura (patrón de `dcasa.vend.comision`, A3). Si no hay versión vigente: se mide y no genera filas de libro. |
+| `dcasa.web.movimiento` | **El libro**, por persona, en centavos enteros | `write` y `unlink` bloqueados; restricción `monto <> 0`; `reversa_id` único; motivo obligatorio en ajustes y reversos; el mes de Panamá se guarda calculado; **una sola puerta de entrada** (`_asentar`). Saldo = suma (patrón de `dcasa.vend.movimiento`, A3). |
+| `dcasa.web.cierre` | El sello de cada mes | Mes único por empresa; huella y huella anterior; a quién se mandó y cuándo; no se edita. |
+| `dcasa.web.propuesta` + líneas (fase 3) | La propuesta de pago y su aprobación | Único por persona y mes; estados de la sección 6; quién aprobó. |
+| `sale.order.dcasa_nacio_en_web` | El testigo de origen | Se escribe al crear; no se puede cambiar; se marca una vez a los pedidos que ya existen. |
+
+### 9.2 Qué cálculo corre y cuándo (y por qué nunca frena una venta)
+
+1. **Al quedar pagada una factura** (gancho `_invoice_paid_hook`, que Odoo llama tras conciliar, A13): se anota la venta
+   y las filas del libro. Va **dentro de un savepoint** y con el error al registro, exactamente como la comisión de
+   vendedores (A3): **un error o un tope de la comisión nunca hace fallar un cobro ni una factura**. El gancho puede
+   llamarse más de una vez (de «en proceso de pago» a «pagada»): es idempotente.
+2. **Cada noche, un barrido** que (a) anota las facturas del sitio pagadas que no tienen venta (un gancho que falló),
+   (b) **compara el libro con la verdad** de cada venta —devoluciones, notas aplicadas sueltas, pago revertido,
+   factura cancelada o vuelta a borrador— y asienta la **diferencia** como fila contraria, y (c) arma las
+   alertas. Comparar con la verdad (en vez de reaccionar a eventos sueltos) es lo que cubre las notas de crédito que
+   se aplican sin enlazar, lo que el bono por meta ya hace (A1).
+3. **El día 1, de madrugada** (hora de Panamá): corre el barrido, **sella el mes** y arma la propuesta (fase 3).
+4. La definición de «pagada por completo y qué día» **ya existe dos veces** en el sistema (bono por meta y «Completadas»
+   del Inicio, A5). No hacer una tercera copia: **reutilizar una y agregar una prueba que verifique que las dos dan lo
+   mismo**.
+5. Sin porcentaje vigente en el momento de anotar, la venta se mide y **no genera filas de libro**: lo medido antes de
+   la primera versión no cobra nunca (solo hacia adelante).
+
+### 9.3 Pantallas y dónde viven
+
+Una **app propia «Comisión del sitio web»** (como «Mis gastos por reembolsar», no dentro de Nómina): quienes reciben
+no tienen la Nómina ni Ventas, y la comisión no debe depender del departamento.
+
+- **Estado del mes** (la pantalla de abrir): el estado de la sección 5, con Excel (como los reportes contables, A12) y PDF
+  (como los comprobantes, A12).
+- **Ventas del sitio**: la lista de ventas con sus filtros y enlace a factura y pedido (Gerencia).
+- **Libro** y **Sellos** (Gerencia y aprobadores): el libro con sus filtros y los sellos con «Verificar».
+- **Configuración › Reglas** y **Quién puede cambiar esto** (Gerencia).
+- Fase 3: **Propuestas**. Fase 4: nada nuevo en esta app (lo demás vive en Nómina).
+
+### 9.4 Permisos
+
+| Grupo | Qué puede |
+|---|---|
+| Gerencia (`dcasa_base.group_gerencia`) | Todo, **menos aprobar**: propone versiones, listas y propuestas, y hace ajustes con motivo. |
+| «Aprueba la comisión web» (grupo nuevo; **no** lo incluye Gerencia ni el administrador técnico) | Aprueba versiones, listas y propuestas, **si no figura entre quienes reciben**. |
+| «Recibe la comisión web» (grupo nuevo, solo lectura; el módulo lo da a las personas de la lista vigente) | Ve **su** parte y el estado general, sin nombres de clientes. |
+| Administrador técnico solo (`base.group_system`) | **Nada** de la comisión (puede, como siempre, asignarse roles: es el límite honesto de la sección 7). |
+
+Hay regla de registros para que cada quien vea lo suyo y regla de empresa (como el resto de los modelos de nómina, A4). Los
+botones llaman a métodos que **comprueban el grupo en el servidor** y ninguno recibe `@api.model` (la lista llama con ids). Los
+métodos nuevos se suman a la `LISTA_BLANCA` de `dcasa_base/tests/test_superficie_rpc.py` solo si deben ser públicos.
+
+### 9.5 Pruebas que hacen falta
+
+Una prueba por cada decisión de la tabla de la sección 2, con **cifras de prueba creadas por la propia prueba**:
+
+1. **Qué cuenta:** pedido web pagado por cada tipo de diario (pasarela de prueba, transferencia, caja); chatbot y vendedora
+   **no**; factura mixta (solo líneas web); envío, ITBMS y flete fuera de la base; descuento y premio de Socios dentro del
+   neto; compra de una persona de la lista fuera; factura histórica y anterior a la primera versión fuera.
+2. **Sin porcentaje:** la venta se mide, no hay filas de libro; con la primera versión, solo lo posterior cobra.
+3. **Versiones:** solo hacia adelante, no se editan ni se borran, el reparto suma 100 %, las cuatro decisiones son
+   obligatorias y los centavos del reparto cuadran siempre.
+4. **Libro:** `write` y `unlink` bloqueados (también por RPC), reverso único, saldo = suma, mes de Panamá en los bordes
+   (`freezegun`), una devolución usa las partes originales.
+5. **Reversos:** nota parcial y total, nota aplicada suelta, pago revertido, factura a borrador y cancelada, idempotencia
+   del gancho y del barrido, un mes sellado no cambia.
+6. **Savepoint:** forzar un error al anotar y comprobar que el cobro y la nota de crédito igual se publican.
+7. **Permisos:** quien recibe ve lo suyo y nada más; vendedora, Caja y Marketing no ven ni el menú ni por enlace; el
+   administrador técnico solo no puede cambiar reglas; **quien recibe no aprueba** (versión, lista ni propuesta);
+   no se puede escribir el testigo de origen.
+8. **Sello:** la huella se reproduce; si una prueba cambia una fila a mano (SQL), «Verificar» lo detecta; la cadena
+   depende del mes anterior.
+9. **Testigo de origen:** cambiar `website_id` después de crear no crea comisión y dispara la alerta.
+10. **Excel y PDF:** se generan, con los totales del estado; el de quien recibe no trae nombres de clientes.
+11. **Pantallas en el navegador** a 1440 y 390 px (como `test_pantallas_nomina.py`) y capturas para Gerencia.
+12. Fase 4, en `dcasa_nomina`: lo mismo que ya prueba el bono por meta (entra en la primera quincena, no se paga dos
+    veces, cancelar la planilla suelta, comprobante) para los tres tratamientos.
+
+### 9.6 Guía, Brian, documentos e instalación
+
+- **La Guía** (`addons/dcasa_guia/data/guia.json`): una tarea por pantalla («Ver el estado de comisión del sitio web»,
+  «Proponer un cambio de porcentaje», «Armar y aprobar la propuesta del mes», «Verificar el sello del mes»), en palabras
+  sencillas y **sin cifras**. Se escribe **cuando existan los menús**: si no, las pruebas de la Guía fallan porque el
+  destino no existe.
+- **Brian** (docs/BRIAN.md): una herramienta de **solo lectura** para Gerencia, «estado de la comisión del mes»; sin
+  herramientas que aprueben ni paguen.
+- Documentos: `docs/COMISION_WEB.md` (cómo se usa), `docs/PERMISOS.md` (las dos llaves) y `docs/MODULOS.md`.
+- **Instalación:** el módulo se suma a la lista `MODULES` del `Makefile` y a `ODOO_MODULES` de `docker/entrypoint.sh`
+  (si no, el contenedor de producción no lo instala).
+
+### 9.7 Revisión adversarial (la pide el dinero y los datos de empleados)
+
+Con revisor independiente y con la lista de ataques: **aprobar la propia comisión**; **cambiar el origen de un pedido**;
+**pagar dos veces** (dos propuestas, dos planillas, planilla cancelada y vuelta a calcular); montos negativos o
+redondeos que no cuadran; el borde del mes y de la hora; llamar los métodos por RPC o con `sudo`; ver lo de otra
+persona; un error tragado en el savepoint que esconda ventas (por eso las alertas); cambiar un mes sellado por SQL;
+carreras entre el barrido y el gancho (un candado, como el de numeración de `dcasa.vend.reglas`, A3).
+
+### 9.8 Pasos, en orden
+
+| # | Paso | ¿Depende de una decisión? |
+|---|---|---|
+| 1 | Módulo, `dcasa.web.reglas` y `dcasa.web.reparto` (sin ninguna versión de fábrica) y sus permisos | Libre |
+| 2 | Testigo de origen (`dcasa_nacio_en_web`) y marcado único de lo que ya existe | Libre |
+| 3 | `dcasa.web.venta` + gancho de pago + barrido nocturno: **solo medir** (sin libro) | Los criterios fijos son libres; las **cuatro decisiones** (P3 y P2) quedan como parámetros sin responder |
+| 4 | Libro `dcasa.web.movimiento`, reversos y devoluciones | P2 (base y momento); P1 (para que cobre algo) |
+| 5 | Estado del mes (pantalla, Excel, PDF) y alertas | P5 (quién ve qué) |
+| 6 | Sello mensual, huella encadenada, «Verificar» y correo | P7 (a qué correos) |
+| 7 | Pruebas, capturas en computadora y celular, Guía, Brian y documentos | — |
+| 8 | **Revisión adversarial**; CI con staging; producción | Aprobación de Gerencia |
+| 9 | **Fase 3:** propuesta, revisión y aprobación; «pagado fuera de planilla» | P6 y P7 |
+| 10 | **Fase 4:** enlace con la planilla (`dcasa_nomina`) para los tres tratamientos y su revisión | **P8: dictamen de la contadora y el abogado** |
+
+### 9.9 Riesgos y lo que hay que verificar al construir
+
+- La pasarela (Tilopay) se hace en otra rama y **todavía no existe**: la comisión solo necesita que su pago quede aplicado a
+  la factura y registrado en su diario. Comprobarlo cuando esa rama llegue, con un pago de prueba.
+- Un pedido de la web **entra sin vendedora**, y la vendedora que lo confirma se lo queda (A6): ese mismo pedido cuenta
+  para su bono por meta. Ver P4.
+- El pago «en proceso de pago» cuenta (como en el bono por meta); el barrido nocturno reversa si el pago se cae.
+- El envío que suma el chat de la tienda puede desaparecer al pagar (A8): por eso queda fuera de la base.
+- Una factura de un mismo pedido en varias entregas se cuenta cada una al quedar pagada.
