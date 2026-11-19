@@ -397,7 +397,8 @@ class TestCobrosYValorEnElNavegador(PantallasMixin, HttpCase):
                     falla(`debía partir de ${paso.antes} y partió de ${paso.espia[0]}`);
                 }
                 const e = paso.espia;
-                if (e.some((v, i) => i && v < e[i - 1]) || e.some((v) => v >= paso.despues)) {
+                // Al final el número ya redondea al valor (299.998 se ve «300.00»): nunca pasa de él, sí llega.
+                if (e.some((v, i) => i && v < e[i - 1]) || e.some((v) => v > paso.despues + 0.005)) {
                     falla('sube sin pasarse: ' + paso.espia.join(', '));
                 }
             }

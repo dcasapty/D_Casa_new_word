@@ -49,11 +49,14 @@ class TestCifrasQueSubenCodigo(TransactionCase):
             xml = archivo.read_text(encoding='utf-8')
             for plantilla in re.finditer(r'<t t-name="([^"]+)">(.*?)</t>\s*(?=<t t-name=|</templates>)', xml, re.S):
                 nombre, cuerpo = plantilla.groups()
-                raiz = re.search(r'<div[^>]*class="[^"]*\bo_action\b[^"]*"[^>]*>', cuerpo)
-                if 'o_dcasa_sube' not in cuerpo or not raiz:
+                # Las raíces de la pantalla (el armazón gris que se ve mientras llegan las cifras no cuenta).
+                raices = [r for r in re.findall(r'<div[^>]*class="[^"]*\bo_action\b[^"]*"[^>]*>', cuerpo)
+                          if 'o_dcasa_arranque' not in r]
+                if 'o_dcasa_sube' not in cuerpo or not raices:
                     continue
                 revisadas += 1
-                self.assertIn('t-ref="raiz"', raiz.group(0), f'{archivo.name} › {nombre}: la raíz lleva t-ref')
+                for raiz in raices:
+                    self.assertIn('t-ref="raiz"', raiz, f'{archivo.name} › {nombre}: la raíz lleva t-ref')
         self.assertGreaterEqual(revisadas, 6, 'Inicio, Por día, Estadísticas, Inventario, Reponer, Movimientos')
 
     def test_cada_pantalla_con_cifras_que_suben_usa_el_modulo_compartido(self):
