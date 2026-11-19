@@ -1,11 +1,38 @@
-# Comisión por las ventas del sitio web — diseño (fase 1)
+# Comisión por las ventas del sitio web — diseño (fase 1) y decisiones de Gerencia
 
-Escrito el 2026-11-19 para que **Gerencia general** lo decida y luego se construya. **Nada de esto está programado**:
-este documento solo propone, y cada decisión que no es obvia queda como pregunta (sección 10). No trae ningún
-porcentaje, monto ni regla laboral inventada: donde falta un dato, dice quién lo pone.
+Escrito el 2026-11-19 para que **Gerencia general** lo decidiera y luego se construyera. **Gerencia ya contestó** (sección
+siguiente) y la fase 2 y la 3 están construidas en `addons/dcasa_comision_web`: cómo funciona hoy, para administración,
+está en [COMISION_WEB.md](COMISION_WEB.md). Este documento se conserva como el diseño y la razón de cada cosa; donde la
+decisión de Gerencia difiere del diseño, **manda la decisión**.
 
 Las referencias a archivos y líneas del sistema están al final (Anexo A), para quien construya o revise. Quien solo
 decide puede leer las secciones 1, 2, 3, 6, 7 y 10.
+
+## Decisiones de Gerencia (2026-11-19)
+
+Las contestó la dueña (reenviando lo del jefe), con sus propias palabras. Resumen fiel, y qué cambió frente al diseño:
+
+| # | Decisión | Qué cambió frente al diseño, y por qué |
+|---|---|---|
+| 1 | **Porcentaje fijo sobre todo lo del sitio.** No es un bono por meta: aunque no se llegue a ninguna meta, hay porcentaje. | Es la opción A de P1 (la recomendada). Sin cambios. |
+| 2 | **La base de cálculo es una opción para administración**, fácil y clara, con una explicación en pantalla de si el porcentaje se calcula antes o después de cada cosa (impuestos, descuentos, envío, devoluciones, comisión de la pasarela): interruptores simples, **cada uno con un ejemplo con números de mentira** que se ve al cambiarlo, y un valor recomendado de fábrica (sin ITBMS, sin envío, con los descuentos ya aplicados, menos devoluciones, sin restar la pasarela). | El diseño dejaba cuatro «decisiones» que obligaban a contestar antes de guardar; ahora son **cinco interruptores con su valor recomendado ya puesto** (`dcasa.web.reglas`). Se agregó el ejemplo en pantalla. |
+| 3 | **Qué es una venta online:** compra en la página → cuenta; cotiza en la página y llega a la tienda con esa cotización → cuenta; **todas las ventas de Andrés** → cuentan; Juan lo manda a la página o al catálogo y **compra solo** → cuenta; Juan y **lo atiende una vendedora** → **no** cuenta (aunque ella mande el enlace después). | El diseño recomendaba que lo de Juan no contara (P3) y que «Pago en la tienda» fuera un interruptor. Ahora: «Pago en la tienda» **cuenta**, Andrés **cuenta siempre**, y lo de Juan se decide por quién llevó la venta, no por el canal. El testigo de origen (`dcasa_nacio_en_web`) se usa tal cual y se le sumaron dos marcas: `dcasa_via_andres` y `dcasa_llevada_por_vendedora`. Cómo queda cada caso: [COMISION_WEB.md](COMISION_WEB.md). El envío y la comisión de la pasarela son opciones de la base (punto 2). |
+| 4 | **Las vendedoras NUNCA reciben nada por una venta de la web.** | Es nuevo: el diseño dejaba que una venta de la web contara también para la meta de la vendedora (P4, opción A). Se cambió **lo que ya existía**: el bono por meta, el avance del Inicio y la comisión del programa de vendedores, con **una sola definición compartida** (`dcasa_base`). Solo hacia adelante: desde el «Rige desde» de la primera versión (nada retroactivo; el mes en curso queda partido por ese día). |
+| 5 | **Quiénes reciben se eligen desde Nómina**: la lista sale de los empleados de Nómina (no de un departamento), cada uno con su % de reparto (suma 100 %). | El menú vive dentro de la app de Nómina, no en una app propia (el diseño proponía una app aparte). Los permisos son los de «Administra la nómina» (Gerencia lo incluye); el administrador técnico solo no ve nada. Desaparece el grupo «Recibe la comisión web»: **los receptores no necesitan ver nada**. |
+| 6 | **Cuándo y cómo se paga lo decide administración, libremente**, con sus propios periodos. | No hay un mes fijo: la **liquidación** cubre el periodo que se elija (desde/hasta, con atajos), toma lo que todavía no se ha liquidado hasta esa fecha y nunca paga dos veces. Reemplaza la «propuesta mensual» sellada el día 1. |
+| 7 | **Administración y Gerencia pueden verlo todo.** Sin sello mensual por correo y sin huella encadenada (anotado como futuro). **Una sola protección**, automática y sin molestar: quien figura entre quienes reciben no puede aprobar una liquidación donde ella cobra. Libro sin edición ni borrado y liquidación aprobada que no se edita. | Se quitan: sellos, huella, «Verificar», segunda llave («Aprueba la comisión web»), alertas del estado y el estado por persona. Se mantiene: libro inmutable, versiones que no se editan y la regla de que quien cobra no aprueba. |
+| 8 | **La comisión NO cuenta como salario.** Dos conceptos, definidos por Gerencia/administración en pantalla: (a) el **porcentaje** por cada venta online y (b) una **tarifa fija** por mantener la plataforma (monto fijo periódico, que sale siempre de la empresa). Se pagan **sin descuentos de planilla** (como los reembolsos). | El diseño dejaba pendiente el tratamiento (salario / sin descuentos / fuera de planilla) hasta el dictamen. Ahora es «sin descuentos». **Ninguna cifra de fábrica** (ni la de ejemplo de la dueña). Conviene que la contadora deje por escrito el tratamiento (una línea, no bloquea nada). |
+
+**Lo que sigue valiendo del diseño:** la definición de «venta pagada por completo» (la misma del bono por meta y del Inicio),
+el libro en centavos con saldo = suma, los reversos por devolución y pago revertido, el savepoint que nunca frena un
+cobro, el barrido nocturno que compara el libro con la verdad, el mes de Panamá fijo en cada fila y el módulo sin cifras de
+fábrica. **Lo que ya no aplica** (secciones 5 a 7, 9 y 10 en lo que lo mencionan): el estado mensual sellado con huella y
+correo, las dos llaves con un grupo aparte, la propuesta mensual del día 1, el grupo «Recibe la comisión web», las cuatro
+decisiones obligatorias antes de guardar y la app propia.
+
+**Por verificar con Gerencia y la contadora** (la lista corta está al final de [COMISION_WEB.md](COMISION_WEB.md)):
+el programa de vendedores con códigos VEN (su enlace lleva a la tienda web), la cotización que arma Juan y el cliente paga,
+los 30 días del chat de Juan y el tratamiento por escrito de la comisión y de la tarifa fija.
 
 ## 1. Resumen de una página
 

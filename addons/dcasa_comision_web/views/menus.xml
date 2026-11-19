@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Dentro de la app de Nómina, para quien administra la nómina (Gerencia lo incluye). Nunca el grupo técnico solo. -->
+    <menuitem id="menu_comision_web" name="Comisión del sitio web" parent="dcasa_nomina.menu_nomina_raiz"
+              sequence="75" groups="dcasa_nomina.group_nomina"/>
+    <menuitem id="menu_ventas_sitio" name="Ventas del sitio" parent="menu_comision_web" action="accion_ventas"
+              sequence="10" groups="dcasa_nomina.group_nomina"/>
+    <menuitem id="menu_liquidaciones_web" name="Liquidaciones" parent="menu_comision_web"
+              action="accion_liquidaciones" sequence="20" groups="dcasa_nomina.group_nomina"/>
+    <menuitem id="menu_quienes_reciben" name="Quiénes reciben" parent="menu_comision_web"
+              action="accion_quienes_reciben" sequence="30" groups="dcasa_nomina.group_nomina"/>
+    <menuitem id="menu_libro_web" name="Libro" parent="menu_comision_web" action="accion_libro" sequence="40"
+              groups="dcasa_nomina.group_nomina"/>
+    <menuitem id="menu_reglas_web" name="Reglas" parent="menu_comision_web" action="accion_reglas" sequence="50"
+              groups="dcasa_nomina.group_nomina"/>
+</odoo>

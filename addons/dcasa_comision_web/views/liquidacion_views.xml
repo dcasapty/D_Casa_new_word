@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="liquidacion_list" model="ir.ui.view">
+        <field name="name">dcasa.web.liquidacion.list</field>
+        <field name="model">dcasa.web.liquidacion</field>
+        <field name="arch" type="xml">
+            <list string="Liquidaciones de la comisión del sitio web" decoration-muted="estado == 'cancelada'">
+                <field name="name"/>
+                <field name="fecha_desde"/>
+                <field name="fecha_hasta"/>
+                <field name="total" sum="Total"/>
+                <field name="estado" widget="badge" decoration-success="estado == 'pagada'"
+                       decoration-info="estado == 'aprobada'" decoration-warning="estado == 'borrador'"/>
+                <field name="aprobada_por" optional="show"/>
+                <field name="referencia_pago" optional="show"/>
+                <field name="currency_id" column_invisible="1"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="liquidacion_form" model="ir.ui.view">
+        <field name="name">dcasa.web.liquidacion.form</field>
+        <field name="model">dcasa.web.liquidacion</field>
+        <field name="arch" type="xml">
+            <form string="Liquidación de la comisión del sitio web">
+                <header>
+                    <button name="action_armar" type="object" string="Armar" class="btn-secondary"
+                            invisible="estado != 'borrador' or not id"/>
+                    <button name="action_aprobar" type="object" string="Aprobar" class="btn-primary"
+                            invisible="estado != 'borrador' or not linea_ids or tu_cobras"
+                            confirm="Al aprobar, lo que se debe en este periodo sale del saldo y ya no se puede cambiar. ¿Aprobar?"/>
+                    <button name="action_pagar" type="object" string="Marcar como pagada" class="btn-primary"
+                            invisible="estado != 'aprobada'"/>
+                    <button name="action_cancelar" type="object" string="Cancelar"
+                            invisible="estado not in ('borrador', 'aprobada')"
+                            confirm="¿Cancelar esta liquidación? Si estaba aprobada, lo que se debe vuelve al saldo."/>
+                    <field name="estado" widget="statusbar" statusbar_visible="borrador,aprobada,pagada"/>
+                </header>
+                <sheet>
+                    <field name="currency_id" invisible="1"/>
+                    <field name="tu_cobras" invisible="1"/>
+                    <div class="alert alert-info" role="alert" invisible="estado != 'borrador'">
+                        <strong>Cómo funciona.</strong> Elige el periodo que quieras (o un atajo) y toca «Armar»: se junta
+                        todo lo que se debe hasta esa fecha y todavía no se había liquidado. Nada se paga solo: alguien de
+                        Gerencia o de Nómina la aprueba, y después se marca como pagada con su referencia.
+                    </div>
+                    <div class="alert alert-warning" role="alert" invisible="not tu_cobras or estado != 'borrador'">
+                        Tú figuras entre quienes cobran en esta liquidación, así que la aprueba otra persona de Gerencia
+                        o de Nómina. Pídele que la revise: así todos quedamos tranquilos.
+                    </div>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group string="El periodo">
+                            <field name="atajo" readonly="estado != 'borrador'"/>
+                            <field name="fecha_desde" readonly="estado != 'borrador'"/>
+                            <field name="fecha_hasta" readonly="estado != 'borrador'"/>
+                            <field name="notas" readonly="estado != 'borrador'"/>
+                        </group>
+                        <group string="El pago">
+                            <field name="total"/>
+                            <field name="aprobada_por" invisible="not aprobada_por"/>
+                            <field name="aprobada_el" invisible="not aprobada_el"/>
+                            <field name="fecha_pago" readonly="estado != 'aprobada'"
+                                   invisible="estado not in ('aprobada', 'pagada')"/>
+                            <field name="referencia_pago" readonly="estado != 'aprobada'"
+                                   invisible="estado not in ('aprobada', 'pagada')"/>
+                            <field name="pagada_por" invisible="not pagada_por"/>
+                            <field name="motivo_cancelacion" invisible="estado not in ('aprobada', 'cancelada')"
+                                   readonly="estado == 'cancelada'"/>
+                        </group>
+                    </group>
+                    <group string="Por persona y concepto">
+                        <field name="linea_ids" nolabel="1" colspan="2">
+                            <list>
+                                <field name="empleado_id"/>
+                                <field name="concepto"/>
+                                <field name="monto" sum="Total"/>
+                                <field name="currency_id" column_invisible="1"/>
+                            </list>
+                        </field>
+                    </group>
+                    <group invisible="not avisos">
+                        <field name="avisos"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="liquidacion_search" model="ir.ui.view">
+        <field name="name">dcasa.web.liquidacion.search</field>
+        <field name="model">dcasa.web.liquidacion</field>
+        <field name="arch" type="xml">
+            <search string="Liquidaciones">
+                <field name="name"/>
+                <field name="referencia_pago"/>
+                <filter name="propuestas" string="Propuestas" domain="[('estado', '=', 'borrador')]"/>
+                <filter name="aprobadas" string="Aprobadas por pagar" domain="[('estado', '=', 'aprobada')]"/>
+                <filter name="pagadas" string="Pagadas" domain="[('estado', '=', 'pagada')]"/>
+                <separator/>
+                <filter name="por_estado" string="Estado" context="{'group_by': 'estado'}"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="accion_liquidaciones" model="ir.actions.act_window">
+        <field name="name">Liquidaciones de la comisión</field>
+        <field name="res_model">dcasa.web.liquidacion</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="liquidacion_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Todavía no hay liquidaciones.</p>
+            <p>Toca «Nuevo», elige el periodo y toca «Armar»: se junta lo que se debe a cada persona. Nada se paga solo.</p>
+        </field>
+    </record>
+</odoo>

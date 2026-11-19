@@ -117,9 +117,14 @@ class DcasaTableroBases(models.AbstractModel):
         """El filtro por el «Vendedor» del pedido (``user_id``), para la base ``vendido`` (pedidos)."""
         if vendedor in (None, False):
             return []
+        Order = self.env['sale.order']
+        # Una venta online nunca es de una vendedora: va a «Sin vendedora» (dcasa_base.models.venta_online).
         if vendedor == SIN_VENDEDORA:
-            return [('user_id', '=', False)]
-        return [('user_id', '=', getattr(vendedor, 'id', vendedor))]
+            if not Order._dcasa_online_desde():
+                return [('user_id', '=', False)]
+            return ['|', ('user_id', '=', False), '&', *Order._dcasa_dominio_online_desde('dcasa_fecha_venta')]
+        return [('user_id', '=', getattr(vendedor, 'id', vendedor))] \
+            + Order._dcasa_dominio_no_online_desde('dcasa_fecha_venta')
 
     # ------------------------------------------------------------------
     # Facturas, pagos y vendedoras (una lectura para todos)
@@ -191,8 +196,15 @@ class DcasaTableroBases(models.AbstractModel):
             de_la_nota.update(self._factura_de_cada_nota(aparte, self._pagos_de_facturas(aparte)))
         originales = self.env['account.move'].sudo().union(*de_la_nota.values())
         duenas = {}
+        online_desde = self.env['sale.order']._dcasa_online_desde()
         for documento in documentos | originales:
             pedidos = documento.line_ids.sale_line_ids.order_id
+            if pedidos and online_desde and documento.date >= online_desde:
+                # Una venta online nunca es de una vendedora: manda lo que no es online; si todo lo es, nadie.
+                pedidos = pedidos.filtered(lambda p: not p.dcasa_venta_online)
+                if not pedidos:
+                    duenas[documento.id] = (SIN_VENDEDORA, False)
+                    continue
             if pedidos:
                 usuario = pedidos.sorted('id')[:1].user_id
                 duenas[documento.id] = (usuario.id or SIN_VENDEDORA, bool(usuario))
@@ -596,8 +608,11 @@ class DcasaTableroBases(models.AbstractModel):
                     suma[fila['vendedora']][0] += 1
                 suma[fila['vendedora']][1] += fila['sin_itbms']
         else:
+            online_desde = self.env['sale.order']._dcasa_online_desde()
             for pedido in medida['pedidos']:
                 clave = pedido.user_id.id or SIN_VENDEDORA
+                if online_desde and pedido.dcasa_venta_online and pedido.dcasa_fecha_venta >= online_desde:
+                    clave = SIN_VENDEDORA
                 suma[clave][0] += 1
                 suma[clave][1] += pedido.amount_untaxed
         return suma
