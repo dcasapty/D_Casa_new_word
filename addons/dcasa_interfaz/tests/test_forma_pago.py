@@ -19,6 +19,7 @@ from datetime import date
 from odoo import Command, http
 from odoo.exceptions import UserError
 from odoo.tests import HttpCase, tagged
+from odoo.tools import mute_logger
 
 from .test_facturado import FacturadoCommon
 from .test_inicio_por_rol import crear_usuario
@@ -584,7 +585,8 @@ class TestFormaPagoEnElExcel(FormaPagoCommon, HttpCase):
                 self.assertFalse(usuario.has_group('base.group_allow_export'))
                 with self.assertRaises(UserError):
                     self.mixta.with_user(usuario).export_data(['name', 'dcasa_forma_pago'])
-                respuesta = self.bajar_xlsx(usuario.login)
+                with mute_logger('odoo.addons.web.controllers.export'):     # el error esperado no ensucia el registro
+                    respuesta = self.bajar_xlsx(usuario.login)
                 self.assertNotEqual(respuesta.status_code, 200)
                 self.assertNotIn(b'Efectivo forma pago', respuesta.content)
 
