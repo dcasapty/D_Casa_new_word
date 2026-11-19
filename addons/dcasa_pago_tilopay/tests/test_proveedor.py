@@ -122,6 +122,36 @@ class TestCuandoSeOfrece(PreparaPedido, TransactionCase):
                 self.env.company.id, self.cliente.id, 100, currency_id=euro.id, sale_order_id=pedido.id)
         self.assertNotIn(self.proveedor, proveedores)
 
+    def test_el_metodo_aparece_en_el_checkout_solo_cuando_el_proveedor_esta_listo(self):
+        """La tienda muestra MÉTODOS: «Tarjeta, Yappy y más (Tilopay)» sale con el proveedor listo y no sale si no."""
+        pedido = self.pedido()
+
+        def metodos():
+            with entorno():
+                proveedores = self.env['payment.provider']._get_compatible_providers(
+                    self.env.company.id, self.cliente.id, pedido.amount_total, currency_id=pedido.currency_id.id,
+                    sale_order_id=pedido.id)
+                return self.env['payment.method']._get_compatible_payment_methods(
+                    proveedores.ids, self.cliente.id, currency_id=pedido.currency_id.id, sale_order_id=pedido.id)
+
+        self.assertNotIn(self.metodo, metodos())
+        self.assertFalse(self.metodo.active)
+        self.proveedor.state = 'test'
+        self.assertTrue(self.metodo.active, 'al encender el proveedor se activa su método')
+        self.assertIn(self.metodo, metodos())
+        self.assertEqual(self.metodo.name, 'Tarjeta, Yappy y más (Tilopay)')
+        self.proveedor.state = 'disabled'
+        self.assertFalse(self.metodo.active, 'y al apagarlo se desactiva')
+        self.assertNotIn(self.metodo, metodos())
+
+    def test_configurar_la_tienda_no_enciende_tilopay(self):
+        """``website._dcasa_configurar_tienda`` (se corre al actualizar) deja los métodos de siempre y nunca prende
+        Tilopay."""
+        self.proveedor.write({'state': 'disabled', 'is_published': False})
+        self.website._dcasa_configurar_tienda()
+        self.assertEqual(self.proveedor.state, 'disabled')
+        self.assertFalse(self.proveedor.is_published)
+
     def test_los_otros_metodos_de_la_tienda_siguen_igual(self):
         """Con Tilopay encendido o apagado, transferencia, Yappy y pago en la tienda salen igual."""
         pedido = self.pedido()
