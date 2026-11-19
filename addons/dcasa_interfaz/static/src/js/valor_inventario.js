@@ -13,6 +13,7 @@ export class DcasaValorInventario extends FormatoMixin(Component) {
     static props = ["*"];
 
     setup() {
+        super.setup();
         this.orm = useService("orm");
         this.action = useService("action");
         this.state = useState({ opciones: null, datos: null, cargando: false, error: "" });

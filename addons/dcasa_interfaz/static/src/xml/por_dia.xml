@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
-    <!-- «Por día»: en la computadora, el mes como calendario y el día elegido al lado; en el celular, una lista de días
-         y el día elegido se abre debajo de su fila. Las ventas van SIN ITBMS (el total con ITBMS, aparte). -->
+    <!-- «Por día»: en la computadora, el mes como calendario y, al lado, lo cobrado por forma de pago y el día elegido; en
+         el celular, una lista de días y el día elegido se abre debajo de su fila (con lo cobrado arriba de sus facturas).
+         Las ventas van SIN ITBMS (el total con ITBMS, aparte). Las cifras llevan «o_dcasa_sube»: suben hasta su valor
+         (cifras_que_suben.js); el texto de la etiqueta es siempre el valor final. -->
     <t t-name="dcasa_interfaz.PorDia">
-        <div class="o_action o_dcasa_inicio o_dcasa_por_dia">
+        <div class="o_action o_dcasa_inicio o_dcasa_por_dia" t-ref="raiz">
             <header class="o_dcasa_pantalla_cabeza">
                 <div>
                     <h1 class="o_dcasa_pd_titulo" t-out="titulo"/>
@@ -61,37 +63,30 @@
                             <t t-if="d.en_curso">En lo que va de <t t-out="d.nombre.split(' ')[0].toLowerCase()"/></t>
                             <t t-else="">Total de <t t-out="d.nombre"/></t>
                         </span>
-                        <strong class="o_dcasa_pd_valor" t-out="dinero(d.total.sin_itbms)"/>
+                        <strong class="o_dcasa_pd_valor o_dcasa_sube" data-formato="moneda"
+                                t-att-data-valor="d.total.sin_itbms" t-out="dinero(d.total.sin_itbms)"/>
                         <span class="o_dcasa_pd_nota">sin ITBMS · <t t-out="cuantasTexto(d.total.cuantas, d.base)"/><t t-if="d.total.notas"> · <t t-out="notasTexto(d.total.notas)"/></t></span>
-                        <span class="o_dcasa_pd_nota">ITBMS <t t-out="dinero(d.total.itbms)"/> · Total con ITBMS <t t-out="dinero(d.total.total)"/></span>
+                        <span class="o_dcasa_pd_nota">ITBMS <span class="o_dcasa_sube" data-formato="moneda" t-att-data-valor="d.total.itbms" t-out="dinero(d.total.itbms)"/> · Total con ITBMS <span class="o_dcasa_sube" data-formato="moneda" t-att-data-valor="d.total.total" t-out="dinero(d.total.total)"/></span>
                     </button>
                     <div class="o_dcasa_panel o_dcasa_pd_tarjeta o_dcasa_pd_anterior">
                         <span class="o_dcasa_pd_etiqueta">Contra el mes pasado · <t t-out="d.anterior.etiqueta"/></span>
-                        <strong t-attf-class="o_dcasa_pd_valor o_dcasa_pd_cambio {{cambioClase}}" t-out="cambioTexto"/>
-                        <span class="o_dcasa_pd_nota">Ese periodo: <t t-out="dinero(d.anterior.sin_itbms)"/> sin ITBMS · <t t-out="cuantasTexto(d.anterior.cuantas, d.base)"/></span>
+                        <!-- La flecha va aparte (data-prefijo): al subir, se mueve el número y la flecha ya es la del resultado. -->
+                        <strong t-attf-class="o_dcasa_pd_valor o_dcasa_pd_cambio o_dcasa_sube {{cambioClase}}" data-formato="decimal"
+                                data-decimales="1" data-sufijo=" %" t-att-data-prefijo="cambioFlecha"
+                                t-att-data-valor="cambioNumero" t-out="cambioTexto"/>
+                        <span class="o_dcasa_pd_nota">Ese periodo: <span class="o_dcasa_sube" data-formato="moneda" t-att-data-valor="d.anterior.sin_itbms" t-out="dinero(d.anterior.sin_itbms)"/> sin ITBMS · <t t-out="cuantasTexto(d.anterior.cuantas, d.base)"/></span>
                         <span t-if="d.anterior.hora" class="o_dcasa_pd_nota">Su último día cuenta hasta las <t t-out="d.anterior.hora"/>, como hoy.</span>
                     </div>
                     <div class="o_dcasa_panel o_dcasa_pd_tarjeta o_dcasa_pd_mejor">
                         <span class="o_dcasa_pd_etiqueta">Mejor día</span>
                         <t t-if="d.mejor">
-                            <strong class="o_dcasa_pd_valor" t-out="dinero(d.mejor.sin_itbms)"/>
+                            <strong class="o_dcasa_pd_valor o_dcasa_sube" data-formato="moneda"
+                                    t-att-data-valor="d.mejor.sin_itbms" t-out="dinero(d.mejor.sin_itbms)"/>
                             <span class="o_dcasa_pd_nota" t-out="d.mejor.nombre"/>
                         </t>
                         <strong t-else="" class="o_dcasa_pd_valor">—</strong>
-                        <span class="o_dcasa_pd_nota">Ticket promedio <t t-out="d.total.ticket === null ? '—' : dinero(d.total.ticket)"/></span>
+                        <span class="o_dcasa_pd_nota">Ticket promedio <span class="o_dcasa_sube" data-formato="moneda" t-att-data-valor="d.total.ticket" t-out="d.total.ticket === null ? '—' : dinero(d.total.ticket)"/></span>
                     </div>
-                </section>
-
-                <!-- Lo cobrado en el mes por forma de pago (con ITBMS), la misma cuenta de la Caja de hoy. -->
-                <section t-if="d and d.cobros" t-attf-class="o_dcasa_panel o_dcasa_pd_cobros {{state.cargando ? 'o_cargando' : ''}}"
-                         aria-label="Cobrado por forma de pago">
-                    <h2>Cobrado por forma de pago · <t t-out="d.nombre"/> <small class="o_dcasa_sin_itbms">con ITBMS</small></h2>
-                    <t t-call="dcasa_interfaz.CobrosPorForma">
-                        <t t-set="cobros" t-value="d.cobros"/>
-                        <t t-set="vacio" t-value="'Todavía no hay cobros este mes.'"/>
-                    </t>
-                    <p t-if="state.vendedor" class="o_dcasa_es_frase o_dcasa_cf_toda">Es de toda la tienda: un cobro no se
-                        separa por vendedora.</p>
                 </section>
 
                 <div t-if="d" t-attf-class="o_dcasa_pd_cuerpo {{state.cargando ? 'o_cargando' : ''}}">
@@ -117,10 +112,20 @@
                             </button>
                         </div>
                     </section>
-                    <section class="o_dcasa_panel o_dcasa_pd_lado" aria-label="El día elegido">
-                        <t t-if="state.detalle" t-call="dcasa_interfaz.PorDiaDetalle"/>
-                        <p t-else="" class="o_dcasa_vacio o_dcasa_pd_elige">Toca un día del calendario para ver lo que se hizo ese día.</p>
-                    </section>
+                    <!-- Computadora: a la derecha, lo cobrado (con su selector de periodo) arriba y debajo el día elegido
+                         con todas sus facturas. -->
+                    <div class="o_dcasa_pd_lado">
+                        <t t-call="dcasa_interfaz.PorDiaCobros"/>
+                        <section class="o_dcasa_panel o_dcasa_pd_dia" aria-label="El día elegido">
+                            <t t-if="state.detalle" t-call="dcasa_interfaz.PorDiaDetalle"/>
+                            <p t-else="" class="o_dcasa_vacio o_dcasa_pd_elige">Toca un día del calendario para ver lo que se hizo ese día.</p>
+                        </section>
+                    </div>
+
+                    <!-- Celular sin ningún día abierto: lo cobrado del mes, arriba de la lista de días. -->
+                    <div t-if="!state.dia" class="o_dcasa_pd_cobros_suelta">
+                        <t t-call="dcasa_interfaz.PorDiaCobros"/>
+                    </div>
 
                     <!-- Celular: una lista de días, del más reciente al primero; el elegido se abre debajo. -->
                     <ol class="list-unstyled o_dcasa_pd_lista" aria-label="Días del mes">
@@ -142,6 +147,7 @@
                                 <i t-attf-class="fa {{state.dia === dia.fecha ? 'fa-chevron-up' : 'fa-chevron-down'}} o_dcasa_pd_flecha" aria-hidden="true"/>
                             </button>
                             <div t-if="state.dia === dia.fecha and state.detalle" class="o_dcasa_pd_dentro">
+                                <t t-call="dcasa_interfaz.PorDiaCobros"/>
                                 <t t-call="dcasa_interfaz.PorDiaDetalle"/>
                             </div>
                         </li>
@@ -161,10 +167,10 @@
                         t-on-click="() => this.abrirLista(x.accion)">Ver en lista</button>
             </div>
             <p class="o_dcasa_pd_detalle_total">
-                <strong t-out="dinero(x.total.sin_itbms)"/> sin ITBMS · <t t-out="cuantasTexto(x.total.cuantas, x.base)"/><t t-if="x.total.notas"> · <t t-out="notasTexto(x.total.notas)"/></t>
-                <br/><small>ITBMS <t t-out="dinero(x.total.itbms)"/> · Total con ITBMS <t t-out="dinero(x.total.total)"/></small>
+                <strong class="o_dcasa_sube" data-formato="moneda" t-att-data-valor="x.total.sin_itbms" t-out="dinero(x.total.sin_itbms)"/> sin ITBMS · <t t-out="cuantasTexto(x.total.cuantas, x.base)"/><t t-if="x.total.notas"> · <t t-out="notasTexto(x.total.notas)"/></t>
+                <br/><small>ITBMS <span class="o_dcasa_sube" data-formato="moneda" t-att-data-valor="x.total.itbms" t-out="dinero(x.total.itbms)"/> · Total con ITBMS <span class="o_dcasa_sube" data-formato="moneda" t-att-data-valor="x.total.total" t-out="dinero(x.total.total)"/></small>
                 <t t-if="x.total.falta_por_cobrar !== null and x.total.falta_por_cobrar !== undefined">
-                    <br/><small>Falta por cobrar de esas facturas (con ITBMS) <t t-out="dinero(x.total.falta_por_cobrar)"/></small>
+                    <br/><small>Falta por cobrar de esas facturas (con ITBMS) <span class="o_dcasa_sube" data-formato="moneda" t-att-data-valor="x.total.falta_por_cobrar" t-out="dinero(x.total.falta_por_cobrar)"/></small>
                 </t>
             </p>
             <ul t-if="x.filas.length" class="list-unstyled mb-0 o_dcasa_pd_documentos">
@@ -184,31 +190,57 @@
                 </li>
             </ul>
             <p t-else="" class="o_dcasa_vacio">Ese día no hubo <t t-out="x.base === 'confirmado' ? 'pedidos confirmados' : 'facturas'"/>.</p>
-            <div t-if="x.cobros" class="o_dcasa_pd_cobros_dia">
-                <h3>Cobrado ese día por forma de pago <small class="o_dcasa_sin_itbms">con ITBMS</small></h3>
-                <t t-call="dcasa_interfaz.CobrosPorForma">
-                    <t t-set="cobros" t-value="x.cobros"/>
-                    <t t-set="vacio" t-value="'Ese día no hubo cobros.'"/>
-                </t>
-            </div>
         </div>
     </t>
 
+    <!-- «Cobrado por forma de pago» (Por día): UNA tarjeta, arriba del detalle del día y encima de la lista de sus facturas.
+         El selector Día · Semana · Quincena · Mes elige el periodo que contiene el día elegido; el título dice cuál es
+         («Semana del 16 al 22 de noviembre»). Con ITBMS: es el dinero que entró, la misma cuenta de la Caja de hoy. -->
+    <t t-name="dcasa_interfaz.PorDiaCobros">
+        <section t-if="state.cobro and state.cobro.cobros" t-attf-class="o_dcasa_panel o_dcasa_pd_cobros {{state.cargando or state.cargandoCobro ? 'o_cargando' : ''}}"
+                 aria-label="Cobrado por forma de pago">
+            <div class="o_dcasa_pd_cobros_cabeza">
+                <h2>Cobrado por forma de pago <small class="o_dcasa_sin_itbms">con ITBMS</small></h2>
+                <p class="o_dcasa_pd_cobros_periodo" t-out="tituloDeCobros"/>
+            </div>
+            <div class="o_dcasa_periodos o_dcasa_cf_periodos" role="radiogroup" aria-label="Periodo de lo cobrado">
+                <button t-foreach="periodosDeCobros" t-as="per" t-key="per.clave" type="button" role="radio"
+                        t-attf-class="o_dcasa_periodo o_dcasa_cf_periodo_{{per.clave}}"
+                        t-att-class="{'o_activo': periodoDeCobros === per.clave}"
+                        t-att-aria-checked="periodoDeCobros === per.clave ? 'true' : 'false'"
+                        t-att-disabled="periodoDeshabilitado(per.clave)"
+                        t-on-click="() => this.cambiarPeriodoDeCobros(per.clave)" t-out="per.nombre"/>
+            </div>
+            <p t-if="!state.dia" class="o_dcasa_es_frase o_dcasa_cf_pista">Toca un día para ver lo cobrado ese día, esa semana o esa quincena.</p>
+            <p t-if="state.cobro.nota" class="o_dcasa_es_frase o_dcasa_cf_pista" t-out="state.cobro.nota"/>
+            <p t-if="state.errorCobro" class="o_dcasa_error" role="alert" t-out="state.errorCobro"/>
+            <t t-call="dcasa_interfaz.CobrosPorForma">
+                <t t-set="cobros" t-value="state.cobro.cobros"/>
+                <t t-set="vacio" t-value="'No hubo cobros en este periodo.'"/>
+                <t t-set="sin_frase" t-value="true"/>
+            </t>
+            <p class="o_dcasa_es_frase o_dcasa_cf_frase o_dcasa_cf_pie">El dinero que entró, por cómo se pagó: la misma cuenta de la Caja de
+                hoy. Un abono cuenta el día que se cobró.<t t-if="state.vendedor"> Es de toda la tienda: un cobro no se
+                separa por vendedora.</t></p>
+        </section>
+    </t>
+
     <!-- Lo cobrado por forma de pago (Por día y Estadísticas): una ficha por forma (Efectivo, Yappy, Tarjeta…) con su
-         monto y cuántos cobros; tocarla abre esos cobros. Con ITBMS: es el dinero que entró. -->
+         monto y cuántos cobros; tocarla abre esos cobros. Con ITBMS: es el dinero que entró. Los montos suben hasta su valor.
+         Por día pone la frase al pie (sin_frase); Estadísticas la deja arriba. -->
     <t t-name="dcasa_interfaz.CobrosPorForma">
-        <p class="o_dcasa_es_frase o_dcasa_cf_frase">El dinero que entró, por cómo se pagó: la misma cuenta de la Caja de
+        <p t-if="!sin_frase" class="o_dcasa_es_frase o_dcasa_cf_frase">El dinero que entró, por cómo se pagó: la misma cuenta de la Caja de
             hoy. Un abono cuenta el día que se cobró.</p>
         <div t-if="cobros.filas.length" class="o_dcasa_cf_fichas">
             <button t-foreach="cobros.filas" t-as="c" t-key="c.clave" type="button" class="o_dcasa_cf_ficha"
                     t-on-click="() => this.abrirLista(c.accion)">
                 <span class="o_dcasa_cf_forma" t-out="c.forma"/>
-                <strong class="o_dcasa_cf_monto" t-out="dinero(c.monto)"/>
+                <strong class="o_dcasa_cf_monto o_dcasa_sube" data-formato="moneda" t-att-data-valor="c.monto" t-out="dinero(c.monto)"/>
                 <small t-out="cobrosTexto(c.cuantos)"/>
             </button>
             <button type="button" class="o_dcasa_cf_ficha o_dcasa_cf_total" t-on-click="() => this.abrirLista(cobros.accion)">
                 <span class="o_dcasa_cf_forma">Total cobrado</span>
-                <strong class="o_dcasa_cf_monto" t-out="dinero(cobros.total)"/>
+                <strong class="o_dcasa_cf_monto o_dcasa_sube" data-formato="moneda" t-att-data-valor="cobros.total" t-out="dinero(cobros.total)"/>
                 <small t-out="cobrosTexto(cobros.cuantos)"/>
             </button>
         </div>

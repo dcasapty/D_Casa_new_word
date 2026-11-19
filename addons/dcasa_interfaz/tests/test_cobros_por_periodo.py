@@ -245,13 +245,15 @@ class TestCobrosPorPeriodo(PorDiaCommon):
         self.cobro(20.0, date(2026, 1, 2), self.efectivo)
         self.cobro(5.0, date(2025, 12, 28))                                    # domingo: la semana anterior
         self.cobro(7.0, date(2026, 1, 5))                                      # lunes: la semana siguiente
+        self.cobro(3.0, date(2025, 12, 10))                                    # 1.ª quincena de diciembre
         for dia in (date(2025, 12, 31), date(2026, 1, 1), date(2025, 12, 29), date(2026, 1, 4)):
             with self.subTest(dia=str(dia)):
                 semana = self.periodo(dia, 'semana', hoy)
                 self.assertEqual((semana['desde'], semana['hasta']), ('2025-12-29', '2026-01-04'))
                 self.assertEqual(semana['cobros']['total'], 30.0)
-        self.assertEqual(self.periodo(date(2025, 12, 31), 'mes', hoy)['cobros']['total'], 15.0)
-        self.assertEqual(self.periodo(date(2025, 12, 31), 'quincena', hoy)['cobros']['total'], 10.0)
+        self.assertEqual(self.periodo(date(2025, 12, 31), 'mes', hoy)['cobros']['total'], 18.0)
+        self.assertEqual(self.periodo(date(2025, 12, 31), 'quincena', hoy)['cobros']['total'], 15.0)
+        self.assertEqual(self.periodo(date(2025, 12, 15), 'quincena', hoy)['cobros']['total'], 3.0)
         self.assertEqual(self.periodo(date(2026, 1, 2), 'mes', hoy)['cobros']['total'], 27.0)
         # Febrero de 2024 (bisiesto), con hoy = 10 de marzo.
         hoy = date(2024, 3, 10)
