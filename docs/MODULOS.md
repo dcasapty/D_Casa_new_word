@@ -50,6 +50,7 @@ pero sin efecto hasta que alguien lo enciende.
 | `dcasa_sofia` | Sofía, la asistente del CRM: revisa con un botón y cada mañana y propone; una persona aprueba | conversaciones, contactos | (2 en `dcasa_brian`) | No (las propuestas siempre las aprueba una persona) | [SOFIA.md](SOFIA.md) |
 | `dcasa_camila` | Camila, la asistente del mail marketing: arma la campaña de correo cada 15 días con lo que hay en tienda y el precio de la tienda en línea; una persona la aprueba y sale por Resend Broadcasts solo a quien dijo que sí (permiso en la ficha) | correo, marketing, conversaciones, sofia, brian, contactos, website_dcasa | 1 | **Sí**: sin `RESEND_CAMPANAS_API_KEY` no sale ninguna campaña; staging nunca envía; el cron solo arma borradores | [CAMILA.md](CAMILA.md) |
 | `dcasa_brian_tienda` | Brian, el chat de ventas de la tienda web: la burbuja (en lugar de la de WhatsApp), el pase para el Worker de Juan, el carrito y la cotización en PDF del visitante, el envío por ubicación y Sitio web › Brian de la tienda | website_dcasa, conversaciones | — (lo ve `costos_de_juan`) | **No**: encendido (la dueña lo aprobó); sin `JUAN_URL`/`JUAN_WORKER_TOKEN` no da pases | [BRIAN_TIENDA.md](BRIAN_TIENDA.md) |
+| `dcasa_comision_web` | La comisión por las ventas del sitio web: mide cada factura online pagada como una sucursal, calcula con un porcentaje fijo y una tarifa fija (reglas por versión, sin cifras de fábrica), libro inmutable y liquidaciones (propuesta, aprobación, pago); una venta online nunca es de una vendedora | base, nomina, invoice, conversaciones, website_sale | 6 | **Sí**: nace sin versión de reglas; sin ella solo mide y nada se calcula ni se paga (nada se paga solo nunca) | [COMISION_WEB.md](COMISION_WEB.md) |
 | `dcasa_correo` | Correo a clientes por Resend (factura, abono, bienvenida) | base, invoice, socios, website_dcasa, conversaciones | 3 | **Sí**: sin `RESEND_API_KEY` y sin encenderlo en Ajustes no sale nada (en producción, encendido desde el 2026-10-27) | [CORREO.md](CORREO.md) |
 | `dcasa_buscar_foto` | **Busca con una foto** en la tienda web: la cámara en la búsqueda, el Worker de Juan lee la foto (solo un registro cerrado) y salen los productos publicados que se le parecen; la foto nunca se guarda | website_dcasa, conversaciones | — | No: nace **encendido** (la dueña dijo que sí); topes por visitante, por conexión y por día, y 5 USD de IA de la foto al mes | [CATALOGO.md › Busca con una foto](CATALOGO.md#busca-con-una-foto) |
 | `dcasa_meta_catalogo` | El catálogo de la tienda por URL para los anuncios de Facebook e Instagram | base, catalogo, website_dcasa | (`estado_de_meta` en `dcasa_brian`) | **Sí**: la dirección no entrega nada hasta que Gerencia lo enciende | [META_CATALOGO.md](META_CATALOGO.md) |
@@ -475,6 +476,27 @@ además como módulo de todo el servidor (`server_wide_modules = base,web,dcasa_
   `/calificar` (públicas, sesión del visitante, CSRF en cabecera).
 - **Crons:** «Brian de la tienda: borrar contadores viejos» (diario).
 - **Apagado de fábrica:** no (encendido). Sitio web › Brian de la tienda lo apaga; apagado vuelve la burbuja de WhatsApp.
+
+## `dcasa_comision_web` — La comisión por las ventas del sitio web
+
+- **Para qué:** decisión de Gerencia del 2026-11-19: medir las ventas por internet como una sucursal, calcular el
+  porcentaje fijo y la tarifa fija de quienes reciben (empleados de Nómina) y liquidarlos por el periodo que se elija
+  ([COMISION_WEB.md](COMISION_WEB.md); diseño y decisiones en [PLAN_COMISION_WEB.md](PLAN_COMISION_WEB.md)).
+- **Depende de:** `dcasa_base`, `dcasa_nomina`, `dcasa_invoice`, `dcasa_conversaciones`, `website_sale`, `delivery`.
+- **La definición de «venta online» vive en `dcasa_base`** (`models/venta_online.py`: `dcasa_nacio_en_web`,
+  `dcasa_via_andres`, `dcasa_llevada_por_vendedora`, `dcasa_venta_online`, y `account.move._dcasa_factor_online`), no
+  aquí: el bono por meta (`dcasa_nomina`), el Inicio (`dcasa_interfaz`) y el programa de vendedores (`dcasa_socios`) la
+  usan sin depender de este módulo. Este módulo da el día desde el que rige para las vendedoras
+  (`sale.order._dcasa_online_desde`: el «Rige desde» de su primera versión) y decide, al confirmar un pedido de la web, si
+  una vendedora lo llevó por el chat de Juan.
+- **Modelos:** `dcasa.web.reglas` + `dcasa.web.reparto` (versiones, no se editan ni se borran), `dcasa.web.venta` (una
+  fila por factura), `dcasa.web.movimiento` (el libro, en centavos), `dcasa.web.liquidacion` + `…linea`. Hereda
+  `sale.order`, `account.move` (ganchos de pago y de notas de crédito, con savepoint) y `payment.transaction`
+  (`dcasa_comision_pasarela`).
+- **Crons:** «Comisión web: anotar lo que falte, comparar el libro con la verdad y anotar la tarifa» (diario).
+- **Menús:** Nómina › Comisión del sitio web (Ventas del sitio, Liquidaciones, Quiénes reciben, Libro, Reglas), solo
+  para «Administra la nómina» (Gerencia lo incluye).
+- **Apagado de fábrica:** nace sin versión de reglas, sin porcentaje y sin tarifa: solo mide.
 
 ## `dcasa_camila` — Camila, la asistente del mail marketing
 

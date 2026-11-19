@@ -27,7 +27,7 @@
                     <button name="action_armar" type="object" string="Armar" class="btn-secondary"
                             invisible="estado != 'borrador' or not id"/>
                     <button name="action_aprobar" type="object" string="Aprobar" class="btn-primary"
-                            invisible="estado != 'borrador' or not linea_ids"
+                            invisible="estado != 'borrador' or not linea_ids or tu_cobras"
                             confirm="Al aprobar, lo que se debe en este periodo sale del saldo y ya no se puede cambiar. ¿Aprobar?"/>
                     <button name="action_pagar" type="object" string="Marcar como pagada" class="btn-primary"
                             invisible="estado != 'aprobada'"/>

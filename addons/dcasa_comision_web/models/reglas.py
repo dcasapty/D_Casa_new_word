@@ -30,14 +30,11 @@ CLAVE_CREANDO = 'dcasa_comision_web_creando_version'
 PERIODOS = [('mensual', 'Cada mes'), ('quincenal', 'Cada quincena'), ('semanal', 'Cada semana')]
 
 # Las posiciones de cada interruptor, con las palabras con que se le explican a administración.
-ITBMS = [('sin', 'Sin ITBMS: el porcentaje se calcula antes del impuesto (recomendado)'),
-         ('con', 'Con ITBMS: el porcentaje se calcula después del impuesto')]
+ITBMS = [('sin', 'Antes del ITBMS (recomendado)'), ('con', 'Después del ITBMS')]
 ENVIO = [('sin', 'No cuenta el envío (recomendado)'), ('con', 'Cuenta el envío')]
-DESCUENTOS = [('despues', 'Después de los descuentos: con lo que de verdad se cobró (recomendado)'),
-              ('antes', 'Antes de los descuentos: con el precio de lista')]
-DEVOLUCIONES = [('resta', 'Se resta lo que el cliente devuelve (recomendado)'), ('no_resta', 'No se resta')]
-PASARELA = [('no_resta', 'No se resta lo que cobra la pasarela (recomendado)'),
-            ('resta', 'Se resta lo que cobra la pasarela')]
+DESCUENTOS = [('despues', 'Después de descuentos (recomendado)'), ('antes', 'Antes de descuentos (precio de lista)')]
+DEVOLUCIONES = [('resta', 'Se resta lo devuelto (recomendado)'), ('no_resta', 'No se resta lo devuelto')]
+PASARELA = [('no_resta', 'No se resta la pasarela (recomendado)'), ('resta', 'Se resta lo que cobra la pasarela')]
 
 # El ejemplo con números de mentira que se ve al cambiar un interruptor (centavos).
 EJEMPLO = {'productos': 100000, 'descuento_lineas': 0, 'descuento_negativas': 10000, 'envio': 5000, 'itbms': 9000,

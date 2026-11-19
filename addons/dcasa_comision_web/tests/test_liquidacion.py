@@ -157,8 +157,7 @@ class TestLiquidacion(ComisionReloj):
             liq.sudo().linea_ids[0].unlink()
         with self.assertRaisesRegex(UserError, 'no se borra'):
             liq.unlink()
-        with self.assertRaises(AccessError):
-            liq.linea_ids[0].with_user(self.u_nomina).write({'centavos': 1})
+        self.rechaza(lambda: liq.linea_ids[0].with_user(self.u_nomina).write({'centavos': 1}))
 
     def test_el_estado_no_se_cambia_a_mano_en_un_borrador(self):
         liq = self.liquidacion()

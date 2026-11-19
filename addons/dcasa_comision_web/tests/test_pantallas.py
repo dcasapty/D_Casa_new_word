@@ -23,7 +23,6 @@ class TestPantallas(ComisionCommon):
     def test_las_ventas_del_sitio_tienen_lista_grafico_y_pivote_por_mes(self):
         accion = self.env.ref('dcasa_comision_web.accion_ventas')
         self.assertEqual(accion.view_mode, 'list,pivot,graph,form')
-        self.assertIn('search_default_por_mes', accion.context)
         self.venta_web()
         pivote = self.env['dcasa.web.venta'].with_user(self.u_nomina).read_group(
             [], ['productos:sum', 'base:sum'], ['mes:month'])

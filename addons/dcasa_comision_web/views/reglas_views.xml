@@ -44,23 +44,21 @@
                     <div class="alert alert-warning" role="alert" invisible="not id">
                         Esta versión ya está guardada y no se edita. Para cambiar algo, usa «Nueva versión».
                     </div>
-                    <group>
-                        <group string="Cuánto y desde cuándo">
-                            <field name="numero" invisible="not id"/>
-                            <field name="rige_desde"/>
-                            <field name="porcentaje"/>
-                            <field name="tarifa_fija"/>
-                            <field name="tarifa_periodo"/>
-                            <field name="motivo"/>
-                            <field name="autor" invisible="not id"/>
-                        </group>
-                        <group string="¿Sobre qué se calcula el porcentaje?">
-                            <field name="base_itbms"/>
-                            <field name="base_envio"/>
-                            <field name="base_descuentos"/>
-                            <field name="base_devoluciones"/>
-                            <field name="base_pasarela"/>
-                        </group>
+                    <group string="Cuánto y desde cuándo">
+                        <field name="numero" invisible="not id"/>
+                        <field name="rige_desde"/>
+                        <field name="porcentaje"/>
+                        <field name="tarifa_fija"/>
+                        <field name="tarifa_periodo"/>
+                        <field name="motivo"/>
+                        <field name="autor" invisible="not id"/>
+                    </group>
+                    <group string="¿Sobre qué se calcula el porcentaje?">
+                        <field name="base_itbms"/>
+                        <field name="base_envio"/>
+                        <field name="base_descuentos"/>
+                        <field name="base_devoluciones"/>
+                        <field name="base_pasarela"/>
                     </group>
                     <group string="Cómo se ve con tus interruptores">
                         <field name="ejemplo_html" nolabel="1" colspan="2"/>

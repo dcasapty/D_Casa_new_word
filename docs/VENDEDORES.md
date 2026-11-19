@@ -10,6 +10,15 @@ altos**, cuando alguien compra con su código. Los puntos de vendedor se cambian
 > significan las cifras de fábrica. Si algo no cuadra, manda lo que dice Ajustes › Programa de vendedores (que
 > arranca igual a `puntos.json` hasta que alguien lo cambie).
 
+## Las ventas del sitio web no dan comisión de vendedor
+
+Decisión de Gerencia (2026-11-19): **una venta online nunca da comisión de vendedor** (la que nace en la página web, la de
+Andrés o la de alguien que compró solo después de hablar con Juan). La comisión queda escrita con el motivo «venta del
+sitio web» y cero puntos. Rige **hacia adelante**, desde el día en que Gerencia pone en vigencia la primera versión de las
+reglas de la comisión web ([COMISION_WEB.md](COMISION_WEB.md)); lo ya pagado no se toca y, sin esas reglas, nada cambia.
+**Por confirmar con Gerencia:** el enlace `dcasapty.com/v/VEN…` lleva a la tienda web, así que con esta regla esas compras ya
+no dan puntos de vendedor.
+
 ## En una frase
 
 *Yo le doy mi código de vendedor a alguien; si compra en D'CASA con mi código y paga, gano puntos. Si yo
