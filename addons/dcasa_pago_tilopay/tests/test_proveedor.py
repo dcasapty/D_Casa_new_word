@@ -124,10 +124,10 @@ class TestCuandoSeOfrece(PreparaPedido, TransactionCase):
         with entorno(TILOPAY_ENTORNO='prueba'):
             self.assertFalse(self.ofrecidos())
             self.assertIn('No se ofrece', self.proveedor.dcasa_tilopay_aviso)
-        with entorno(TILOPAY_ENTORNO='produccion'):
+        with entorno(TILOPAY_ENTORNO='produccion', DCASA_ENTORNO='produccion'):
             self.assertTrue(self.ofrecidos())
         self.proveedor.state = 'test'
-        with entorno(TILOPAY_ENTORNO='produccion'):
+        with entorno(TILOPAY_ENTORNO='produccion', DCASA_ENTORNO='produccion'):
             self.assertFalse(self.ofrecidos(), 'Cloudflare dice real pero Odoo sigue en modo de prueba')
 
     def test_sin_las_tres_claves_no_se_ofrece_y_no_falla(self):
@@ -227,12 +227,12 @@ class TestLaPantallaNoMuestraClaves(PreparaPedido, TransactionCase):
         self.assertEqual(datos['dcasa_tilopay_conectado'], 'si')
         self.assertEqual(datos['dcasa_tilopay_entorno'], 'prueba')
 
-    def test_la_pantalla_dice_conectado_y_entorno(self):
+    def test_la_pantalla_dice_claves_cargadas_y_entorno(self):
         with entorno():
             self.proveedor.invalidate_recordset()
             self.assertEqual(self.proveedor.dcasa_tilopay_conectado, 'si')
             self.assertEqual(self.proveedor.dcasa_tilopay_entorno, 'prueba')
-        with entorno(TILOPAY_ENTORNO='produccion', TILOPAY_API_KEY=None):
+        with entorno(TILOPAY_ENTORNO='produccion', DCASA_ENTORNO='produccion', TILOPAY_API_KEY=None):
             self.proveedor.invalidate_recordset()
             self.assertEqual(self.proveedor.dcasa_tilopay_conectado, 'no')
             self.assertEqual(self.proveedor.dcasa_tilopay_entorno, 'produccion')
@@ -273,7 +273,9 @@ class TestProbarConexion(PreparaPedido, TransactionCase):
         with entorno(), SimuladorTilopay() as tilopay:
             respuesta = self.probar(self.gerencia)
         params = respuesta['params']
-        self.assertEqual(params['type'], 'success')
+        # «warning», no «success»: se comprobó el usuario y la contraseña, pero no la llave (RV-10).
+        self.assertEqual(params['type'], 'warning')
+        self.assertIn('primer cobro de prueba', params['message'])
         self.assertTrue(self.proveedor.dcasa_tilopay_prueba_ok)
         self.assertTrue(self.proveedor.dcasa_tilopay_prueba_fecha)
         texto = todo_el_texto(respuesta)

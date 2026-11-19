@@ -1,8 +1,9 @@
 """El proveedor «Tilopay»: lee sus claves del entorno del contenedor y decide si se ofrece en la tienda.
 
-Las claves NO tienen campo: no hay dónde guardarlas ni dónde mostrarlas. La pantalla enseña solo «Conectado» (están
-las tres
-cargadas) y «Entorno» (lo que dice ``TILOPAY_ENTORNO``). «Probar conexión» abre sesión en Tilopay y dice sí o no.
+Las claves NO tienen campo: no hay dónde guardarlas ni dónde mostrarlas. La pantalla enseña solo «Claves cargadas»
+(están las tres cargadas en el servidor; no dice que Tilopay las acepte) y «Entorno» (lo que dice ``TILOPAY_ENTORNO``).
+«Probar conexión» abre sesión en Tilopay con el usuario y la contraseña; la llave no se puede comprobar sin hacer un
+cobro (Tilopay no publica qué contesta a una llave mala) y el mensaje lo dice.
 """
 import logging
 
@@ -39,7 +40,9 @@ class PaymentProvider(models.Model):
 
     code = fields.Selection(selection_add=[(CODIGO, NOMBRE)], ondelete={CODIGO: 'set default'})
     dcasa_tilopay_conectado = fields.Selection(
-        [('si', 'Sí'), ('no', 'No')], string='Conectado', compute='_compute_dcasa_tilopay')
+        [('si', 'Sí'), ('no', 'No')], string='Claves cargadas', compute='_compute_dcasa_tilopay',
+        help='Las tres claves (llave, usuario y contraseña) están cargadas en el servidor. No dice que Tilopay las '
+             'acepte: eso lo dice «Probar conexión» (usuario y contraseña) y el primer cobro de prueba (la llave).')
     dcasa_tilopay_entorno = fields.Selection(
         [(api_tilopay.PRUEBA, 'Prueba'), (api_tilopay.PRODUCCION, 'Producción')], string='Entorno',
         compute='_compute_dcasa_tilopay')
@@ -67,7 +70,8 @@ class PaymentProvider(models.Model):
             if proveedor.dcasa_tilopay_prueba_fecha:
                 proveedor.dcasa_tilopay_prueba_texto = self.env._(
                     '%(resultado)s (%(fecha)s)',
-                    resultado=self.env._('salió bien') if proveedor.dcasa_tilopay_prueba_ok else self.env._('falló'),
+                    resultado=(self.env._('sesión abierta (la llave se comprueba en el primer cobro de prueba)')
+                               if proveedor.dcasa_tilopay_prueba_ok else self.env._('falló')),
                     fecha=fields.Datetime.to_string(proveedor.dcasa_tilopay_prueba_fecha))
             else:
                 proveedor.dcasa_tilopay_prueba_texto = self.env._('todavía no se ha probado')
@@ -96,6 +100,11 @@ class PaymentProvider(models.Model):
             return self.env._('Faltan las claves en Cloudflare (TILOPAY_API_KEY, TILOPAY_API_USER y '
                               'TILOPAY_API_PASSWORD). Mientras tanto, Tilopay no aparece en la tienda.')
         entorno = self._dcasa_tilopay_entorno()
+        if api_tilopay.entorno_pedido() == api_tilopay.PRODUCCION and not api_tilopay.servidor_es_produccion():
+            if self.state == 'enabled':
+                return self.env._(
+                    'TILOPAY_ENTORNO dice «produccion», pero este servidor no es el de producción: aquí Tilopay solo '
+                    'cobra en prueba. Pon «Modo de prueba».')
         if self.state == 'enabled' and entorno != api_tilopay.PRODUCCION:
             return self.env._(
                 'Cloudflare dice «prueba» (TILOPAY_ENTORNO) y aquí está «Habilitado». Pon «Modo de prueba» o, '
@@ -151,7 +160,8 @@ class PaymentProvider(models.Model):
             raise AccessError(self.env._('Solo Gerencia y los administradores prueban la conexión con Tilopay.'))
 
     def action_dcasa_tilopay_probar(self):
-        """Botón «Probar conexión»: abre sesión en Tilopay y dice sí o no. No muestra ni guarda ningún dato."""
+        """Botón «Probar conexión»: abre sesión en Tilopay con el usuario y la contraseña y dice qué se comprobó y qué
+        no (la llave API solo se usa en un cobro). No muestra ni guarda ningún dato."""
         self._dcasa_tilopay_exigir_gerencia()
         # Ya se comprobó el grupo; el modelo de proveedores solo lo lee el administrador del sistema.
         proveedor = self.sudo()
@@ -165,7 +175,10 @@ class PaymentProvider(models.Model):
         else:
             try:
                 api_tilopay.Cliente(credenciales).probar()
-                bien, texto = True, self.env._('Sí: Tilopay aceptó el usuario y la contraseña.')
+                bien, texto = True, self.env._(
+                    'Tilopay aceptó el usuario y la contraseña. La «Llave API» no se puede comprobar aquí: se '
+                    'comprueba en el primer cobro de prueba (si estuviera mal, la tienda diría «No pudimos abrir la '
+                    'página de pago»).')
             except api_tilopay.ErrorTilopay as error:
                 _logger.warning('Tilopay: la prueba de conexión falló (%s).', error.tipo)
                 texto = {
@@ -178,7 +191,8 @@ class PaymentProvider(models.Model):
         return {
             'type': 'ir.actions.client', 'tag': 'display_notification',
             'params': {'title': self.env._('Conexión con Tilopay'), 'message': texto,
-                       'type': 'success' if bien else 'danger', 'sticky': not bien,
+                       # Ni «bien» a secas: la llave no se comprobó, y quien lo lee tiene que saberlo.
+                       'type': 'warning' if bien else 'danger', 'sticky': True,
                        # Que «Última prueba» se actualice en la pantalla sin que haya que recargarla.
                        'next': {'type': 'ir.actions.client', 'tag': 'soft_reload'}},
         }
