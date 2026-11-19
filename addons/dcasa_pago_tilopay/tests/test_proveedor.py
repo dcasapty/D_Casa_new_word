@@ -54,8 +54,8 @@ class TestNaceApagado(PreparaPedido, TransactionCase):
         self.assertEqual(self.env['account.journal'].search_count([('code', '=', 'TLP')]), 1)
 
     def test_al_encender_se_asegura_el_diario_aunque_el_plan_contable_lo_haya_borrado(self):
-        """En una base nueva Odoo carga el plan contable al final y borra los diarios que había: al encender el proveedor
-        el diario «Tilopay» vuelve a existir y el cobro no cae en el primer banco que haya."""
+        """En una base nueva Odoo carga el plan contable al final y borra los diarios que había: al encender el
+        proveedor el diario «Tilopay» vuelve a existir y el cobro no cae en el primer banco que haya."""
         proveedor = self.env.ref('dcasa_pago_tilopay.payment_provider_tilopay')
         self.env['account.payment.method.line'].search([('payment_provider_id', '=', proveedor.id)]).unlink()
         self.env['account.journal'].search([('code', '=', 'TLP')]).unlink()
