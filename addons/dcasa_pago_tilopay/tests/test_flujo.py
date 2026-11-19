@@ -75,6 +75,18 @@ class TestFlujoFeliz(BaseTilopay):
         self.assertTrue(pago.move_id.line_ids.filtered('reconciled'), 'el cobro quedó cruzado con la factura')
         self.assertTrue(factura.dcasa_compra_ids, 'la compra completa registra su compra en Socios')
 
+    def test_al_confirmar_se_adelanta_el_cierre_de_odoo(self):
+        """El cliente puede no estar mirando: se pide que la tarea que termina los pagos corra enseguida."""
+        pedido = self.pedido()
+        cron = self.env.ref('payment.cron_post_process_payment_tx')
+        antes = self.env['ir.cron.trigger'].sudo().search_count([('cron_id', '=', cron.id)])
+        with SimuladorTilopay() as tilopay:
+            tx, orden = self.abrir(tilopay, pedido)
+            self.assertEqual(self.env['ir.cron.trigger'].sudo().search_count([('cron_id', '=', cron.id)]), antes)
+            tilopay.aprobar(orden, pedido.amount_total)
+            tx._dcasa_tilopay_confirmar('aviso')
+        self.assertEqual(self.env['ir.cron.trigger'].sudo().search_count([('cron_id', '=', cron.id)]), antes + 1)
+
     def test_el_numero_de_orden_es_unico_aleatorio_y_valido(self):
         with SimuladorTilopay() as tilopay:
             ordenes = set()
@@ -121,6 +133,40 @@ class TestNuncaSeConfiaEnElNavegador(BaseTilopay):
         self.assertFalse(tx.payment_id)
         notas = pedido.message_ids.filtered(lambda m: 'NO se tomó como pago' in (m.body or ''))
         self.assertEqual(len(notas), 1, 'el equipo se entera, una sola vez')
+
+    def test_un_cambio_de_modo_con_pagos_a_medias_no_mezcla_pruebas_con_real(self):
+        """Creada en modo de prueba (is_live = False) no se paga con un pago real aunque ahora todo diga «produccion»."""
+        pedido = self.pedido()
+        with SimuladorTilopay(entorno='Production') as tilopay:
+            tx, orden = self.abrir(tilopay, pedido)
+            self.assertFalse(tx.is_live)
+            self.proveedor.state = 'enabled'
+            tilopay.aprobar(orden, pedido.amount_total)
+            with entorno(TILOPAY_ENTORNO='produccion'):
+                self.assertEqual(tx._dcasa_tilopay_confirmar('aviso'), 'entorno')
+        self.assertEqual(tx.state, 'draft')
+        # Y al revés: creada en real, un pago de «Test» no la paga aunque ahora todo diga «prueba».
+        self.proveedor.state = 'enabled'
+        pedido2 = self.pedido()
+        with entorno(TILOPAY_ENTORNO='produccion'), SimuladorTilopay(entorno='Test') as tilopay:
+            tx2, orden2 = self.abrir(tilopay, pedido2)
+            self.assertTrue(tx2.is_live)
+            self.proveedor.state = 'test'
+            tilopay.aprobar(orden2, pedido2.amount_total)
+            with entorno(TILOPAY_ENTORNO='prueba'):
+                self.assertEqual(tx2._dcasa_tilopay_confirmar('aviso'), 'entorno')
+        self.assertEqual(tx2.state, 'draft')
+
+    def test_un_texto_de_tilopay_nunca_se_vuelve_html_en_la_nota_del_pedido(self):
+        pedido = self.pedido()
+        with SimuladorTilopay() as tilopay:
+            tx, orden = self.abrir(tilopay, pedido)
+            tilopay.aprobar(orden, pedido.amount_total, moneda='<script>alert(1)</script>')
+            tx._dcasa_tilopay_confirmar('aviso')
+        notas = pedido.message_ids.filtered(lambda m: 'Tilopay dice haber cobrado' in (m.body or ''))
+        self.assertTrue(notas)
+        for nota in notas:
+            self.assertNotIn('<script>', str(nota.body))
 
     def test_pagar_de_mas_tampoco(self):
         pedido = self.pedido()

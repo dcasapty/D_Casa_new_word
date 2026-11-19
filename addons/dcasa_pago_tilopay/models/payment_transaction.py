@@ -16,6 +16,7 @@ from decimal import Decimal
 from urllib.parse import parse_qsl, urlsplit, urlunsplit
 
 import psycopg2
+from markupsafe import Markup
 
 from odoo import SUPERUSER_ID, api, fields, models
 from odoo.exceptions import ValidationError
@@ -260,19 +261,47 @@ class PaymentTransaction(models.Model):
         monto = Decimal(float_repr(float_round(tx.amount, precision_digits=2), 2))
         datos = api_tilopay.evaluar_consulta(
             cuerpo, tx.dcasa_tilopay_orden, monto, tx.currency_id.name, proveedor._dcasa_tilopay_entorno())
+        datos = tx._dcasa_tilopay_coherente_con_su_modo(datos)
         datos['reference'] = tx.reference
         datos['navegador_cancelo'] = bool(navegador_cancelo)
         tx._process(CODIGO, datos)
         _logger.info('Tilopay (%s): transacción %s → %s.', origen, tx.reference, datos['veredicto'])
+        if datos['veredicto'] == api_tilopay.APROBADO:
+            tx._dcasa_tilopay_adelantar_el_cierre()
         return datos['veredicto']
+
+    def _dcasa_tilopay_coherente_con_su_modo(self, datos):
+        """Un pago aprobado solo vale si el modo en que Tilopay dice que ocurrió es el mismo en que se CREÓ la
+        transacción (``is_live``: «Habilitado» en Odoo = real). Si alguien cambia de modo con pagos a medias, no se
+        mezclan."""
+        self.ensure_one()
+        if datos['veredicto'] != api_tilopay.APROBADO:
+            return datos
+        if self.is_live != (datos.get('entorno_visto') == api_tilopay.PRODUCCION):
+            return api_tilopay.DatosVerificados(
+                veredicto=api_tilopay.ENTORNO, orden=datos['orden'], entorno_visto=datos.get('entorno_visto'),
+                detalle='la transacción se creó en otro modo que el del pago (prueba o real)')
+        return datos
+
+    def _dcasa_tilopay_adelantar_el_cierre(self):
+        """Pide que la tarea de Odoo que termina los pagos (confirmar el pedido, el cobro) corra enseguida y no dentro
+        de 10 minutos: el cliente puede no estar mirando. Si no se puede, igual corre en su hora."""
+        try:
+            with self.env.cr.savepoint():
+                cron = self.env.ref('payment.cron_post_process_payment_tx', raise_if_not_found=False)
+                if cron:
+                    cron.sudo()._trigger()
+        except Exception:  # noqa: BLE001
+            _logger.warning('Tilopay: no se pudo adelantar el cierre de %s (corre a su hora).', self.reference)
 
     def _dcasa_tilopay_anotar(self, texto):
         """Una nota interna (solo el equipo) en los pedidos de esta transacción. Nunca hace fallar un pago."""
         try:
             with self.env.cr.savepoint():
                 robot = self.env['res.users'].sudo().browse(SUPERUSER_ID).partner_id
+                cuerpo = Markup('<p>%s</p>') % texto   # ``%`` escapa: un texto de afuera nunca es HTML
                 for pedido in self.sudo().sale_order_ids:
-                    pedido.message_post(body=texto, author_id=robot.id, subtype_xmlid='mail.mt_note')
+                    pedido.message_post(body=cuerpo, author_id=robot.id, subtype_xmlid='mail.mt_note')
         except Exception:  # noqa: BLE001 - una nota que no sale no debe tumbar la confirmación
             _logger.exception('Tilopay: no se pudo dejar la nota en el pedido de %s.', self.reference)
 
