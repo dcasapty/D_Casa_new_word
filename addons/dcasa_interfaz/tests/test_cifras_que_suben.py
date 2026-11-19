@@ -147,7 +147,8 @@ class TestCifrasQueSubenEnElNavegador(HttpCase):
             const subida = ojo.vistos.map(monto);
             if (subida.length < 3) { falla('se esperaban valores a medias: ' + subida.join(', ')); }
             if (subida.some((v, i) => i && v < subida[i - 1])) { falla('sube sin bajar: ' + subida.join(', ')); }
-            if (subida.some((v) => v < 0 || v >= 1000)) { falla('dentro de 0 y el valor: ' + subida.join(', ')); }
+            // Al final el número ya redondea al valor (999.998 se ve «1000.00»): nunca pasa de él, sí llega.
+            if (subida.some((v) => v < 0 || v > 1000.005)) { falla('dentro de 0 y el valor: ' + subida.join(', ')); }
             igual(dinamica.textContent, '$1000.00', 'termina en su valor');
             if (cifras.cuadros.size) { throw new Error('quedaron cuadros pendientes'); }
 
