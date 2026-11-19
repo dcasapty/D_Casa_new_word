@@ -169,7 +169,9 @@ Igual que el libro del programa de vendedores (A3), con dinero en vez de puntos:
 
 ### El «Estado de comisión del sitio web»
 
-Pantalla mensual (mes en curso o cerrado). Cada fila:
+Pantalla mensual (mes en curso o cerrado). Aunque el porcentaje siga vacío, sirve ya para lo que pidió Gerencia general:
+**medir las ventas por internet como una sucursal** (facturas, base, cuántas pasaron por una vendedora, cómo se pagaron),
+mes a mes. Cada fila:
 
 | Fecha de cobro | Anotada el | Factura (enlace) | Cómo pagó | ¿Conciliada con el banco? | ¿Atendió vendedora? | Base | % | Comisión | Mi parte |
 |---|---|---|---|---|---|---|---|---|---|
@@ -219,6 +221,12 @@ ese mes baja. El mes de la venta **no cambia**.
 
 Hay **dos llaves antes de que salga un centavo**: la aprobación de la propuesta y la confirmación de la planilla (que
 exige las tasas validadas por el contador y no se paga dos veces el mismo periodo: A2).
+
+**¿Y «pagarlo al final del mes»?** Lo vendido en noviembre se sella el 1 de diciembre y se paga en la planilla de diciembre
+que Gerencia elija: la primera quincena (recomendada, da tiempo a revisar) o la segunda (fin de diciembre). Pagarlo
+dentro del mismo mes en que se vendió exigiría sellar antes de que el mes termine; eso queda para el futuro, con cortes
+quincenales (sección 11). Mientras tanto, nadie se queda sin ver lo que lleva: el estado del mes en curso se ve al día,
+aunque todavía no esté sellado.
 
 ### Qué hace falta en `dcasa_nomina`
 
@@ -375,7 +383,7 @@ Depende de `dcasa_base`, `dcasa_nomina`, `dcasa_interfaz` (el origen), `dcasa_in
 | Modelo | Para qué | Notas |
 |---|---|---|
 | `dcasa.web.reglas` + `dcasa.web.reparto` | Una versión de las reglas y su lista de personas con su % de reparto | Porcentaje y tratamiento **vacíos**; las cuatro decisiones de la sección 2; estados borrador/aprobada; aprobada no se edita ni se borra; «rige desde» solo hacia adelante (patrón de `dcasa.vend.reglas`, A3); la suma del reparto es 100 %. **Sin registros de fábrica**: el módulo nace sin versiones. |
-| `dcasa.web.venta` | Una fila por factura que cuenta o está en duda | Congela base, porcentaje, versión, cómo se pagó, conciliación, vendedora, referencias. Un índice único evita dos filas activas de la misma factura (patrón de `dcasa.vend.comision`, A3). Si no hay versión vigente: se mide y no genera filas de libro. |
+| `dcasa.web.venta` | Una fila por factura que cuenta o está en duda | Congela base, porcentaje, versión, cómo se pagó, conciliación, vendedora, referencias, **y una copia del número y la fecha de la factura**, para que quien recibe pueda leer la fila sin tener permiso sobre facturas (el enlace solo funciona para quien ya lo tiene). Un índice único evita dos filas activas de la misma factura (patrón de `dcasa.vend.comision`, A3). Si no hay versión vigente: se mide y no genera filas de libro. |
 | `dcasa.web.movimiento` | **El libro**, por persona, en centavos enteros | `write` y `unlink` bloqueados; restricción `monto <> 0`; `reversa_id` único; motivo obligatorio en ajustes y reversos; el mes de Panamá se guarda calculado; **una sola puerta de entrada** (`_asentar`). Saldo = suma (patrón de `dcasa.vend.movimiento`, A3). |
 | `dcasa.web.cierre` | El sello de cada mes | Mes único por empresa; huella y huella anterior; a quién se mandó y cuándo; no se edita. |
 | `dcasa.web.propuesta` + líneas (fase 3) | La propuesta de pago y su aprobación | Único por persona y mes; estados de la sección 6; quién aprobó. |
