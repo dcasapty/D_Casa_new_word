@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- En Facturación › Configuración › Proveedores de pago › Tilopay. Nunca muestra una clave: solo si están cargadas
+         («Conectado») y el entorno que dice Cloudflare. -->
+    <record id="payment_provider_form_tilopay" model="ir.ui.view">
+        <field name="name">payment.provider.form.tilopay</field>
+        <field name="model">payment.provider</field>
+        <field name="inherit_id" ref="payment.payment_provider_form"/>
+        <field name="arch" type="xml">
+            <group name="provider_credentials" position="inside">
+                <group name="dcasa_tilopay" invisible="code != 'tilopay'" colspan="2">
+                    <div colspan="2" class="alert alert-info" role="alert">
+                        <p>Los clientes pagan con tarjeta o Yappy en la página segura de Tilopay: el sistema nunca ve una
+                        tarjeta. Las claves <strong>no se escriben aquí</strong>: viven como secretos del Worker de
+                        Cloudflare (<code>TILOPAY_API_KEY</code>, <code>TILOPAY_API_USER</code>,
+                        <code>TILOPAY_API_PASSWORD</code>) y el entorno, como <code>TILOPAY_ENTORNO</code>. El paso a
+                        paso está en <code>docs/TILOPAY.md</code>.</p>
+                    </div>
+                    <field name="dcasa_tilopay_conectado"
+                           help="Sí = las tres claves están cargadas en Cloudflare. Para comprobar que Tilopay las acepta, pulsa «Probar conexión»."/>
+                    <field name="dcasa_tilopay_entorno"
+                           help="Lo que dice Cloudflare (TILOPAY_ENTORNO). Tiene que ser el mismo modo que el interruptor «Modo Prueba» del panel de Tilopay."/>
+                    <field name="dcasa_tilopay_aviso" colspan="2" nolabel="0"/>
+                    <field name="dcasa_tilopay_prueba_texto"/>
+                    <div colspan="2">
+                        <button name="action_dcasa_tilopay_probar" type="object" class="btn btn-secondary"
+                                string="Probar conexión"
+                                groups="dcasa_base.group_gerencia,base.group_system"
+                               />
+                    </div>
+                </group>
+            </group>
+        </field>
+    </record>
+
+</odoo>
