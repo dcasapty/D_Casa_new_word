@@ -182,7 +182,7 @@ Los despliegues usan `--keep-vars` y no tocan lo que se pegó en el panel.
 | `TILOPAY_API_KEY` | **Secreto** | La **«Llave API»** de la cuenta **real** | La «Llave API» de la **cuenta de pruebas** de desarrollador | Panel de Tilopay › Integración con plataformas | Identifica el comercio en cada cobro y consulta |
 | `TILOPAY_API_USER` | **Secreto** | El **«Usuario API»** de la cuenta real | El «Usuario API» de la cuenta de pruebas | Mismo panel | Abre sesión en la API |
 | `TILOPAY_API_PASSWORD` | **Secreto** | La **«Contraseña API»** de la cuenta real | La «Contraseña API» de la cuenta de pruebas | Mismo panel | Abre sesión en la API |
-| `TILOPAY_ENTORNO` | **Variable normal** (Texto) | `prueba` mientras se hacen las pruebas finales y **`produccion` solo cuando todo salió bien** | `prueba` (siempre) | No es un dato de Tilopay: es lo que **tú dices que esperas** | Dice a Odoo si debe aceptar pagos de prueba o reales. Sin ella, Odoo asume `prueba` (lo seguro) |
+| `TILOPAY_ENTORNO` | **Variable normal** (Texto) | `prueba` mientras se hacen las pruebas finales y **`produccion` solo cuando todo salió bien** | **No hace falta pegarla:** ya viene fijada en `prueba` en el código (`edge/wrangler.jsonc`) y un despliegue siempre la deja así | No es un dato de Tilopay: es lo que **tú dices que esperas** | Dice a Odoo si debe aceptar pagos de prueba o reales. Sin ella, Odoo asume `prueba` (lo seguro) |
 
 Reglas:
 
@@ -201,15 +201,15 @@ Reglas:
 4. Pestaña **Configuración** (*Settings*) › sección **Variables y secretos** (*Variables and Secrets*) › botón **+ Agregar** (*Add*).
 5. Tipo: **Secreto** · Nombre: `TILOPAY_API_KEY` · Valor: la «Llave API» **de la cuenta de pruebas**. Guardar.
 6. Repite el paso 5 para `TILOPAY_API_USER` («Usuario API») y `TILOPAY_API_PASSWORD` («Contraseña API»).
-7. **+ Agregar** otra vez: Tipo: **Texto** · Nombre: `TILOPAY_ENTORNO` · Valor: `prueba`. Guardar.
+7. Staging **no necesita** `TILOPAY_ENTORNO`: ya viene fijada en `prueba` en el código. (En producción sí se pega, en el paso 10.)
 8. Pulsa **Implementar** (*Deploy*) si Cloudflare te lo pide. **Los cambios llegan a Odoo al reiniciar o en el siguiente despliegue**:
    avisa y se reinicia/despliega.
 9. En Odoo de staging: *Facturación › Configuración › Proveedores de pago › Tilopay*. Debe decir «Conectado: Sí» y
    «Entorno: Prueba». Pulsa **Probar conexión**. (Hoy el dominio `staging.dcasapty.com` aún no apunta al Worker de staging, ver
    `edge/wrangler.jsonc`: el cliente de prueba no podrá volver a la tienda después de pagar; la confirmación llega igual por la
    tarea programada, hasta 10 minutos. Para ver el retorno completo hay que apuntar ese dominio primero.)
-10. Para producción, mismo camino en el Worker **`dcasa`** con las claves de la cuenta **real** y `TILOPAY_ENTORNO` = `prueba` al
-    principio. Cuando las pruebas del §7 pasen **también en producción**, cambia `TILOPAY_ENTORNO` a `produccion`, apaga «Modo
+10. Para producción, mismo camino en el Worker **`dcasa`** con las claves de la cuenta **real**; además **+ Agregar** › Tipo: **Texto** ›
+    Nombre: `TILOPAY_ENTORNO` › Valor: `prueba` (sin esta variable Odoo también asume `prueba`, pero queda escrito). Cuando las pruebas del §7 pasen **también en producción**, cambia `TILOPAY_ENTORNO` a `produccion`, apaga «Modo
     Prueba» en el panel de Tilopay y en Odoo cambia el proveedor a **Habilitado**.
 
 ### 6.3 Qué se registra en el panel de Tilopay (con el dominio `dcasapty.com`)
@@ -236,8 +236,9 @@ Prueba» **encendido** en el panel. Nunca con una tarjeta real.
 0. Panel de Tilopay: «Modo Prueba» **encendido** (aparece un aviso arriba en todo el panel). Métodos de pago activos: tarjeta y Yappy.
 1. Cloudflare (§6.2) con las claves de pruebas y `TILOPAY_ENTORNO=prueba`; reiniciar.
 2. Odoo › *Facturación › Configuración › Proveedores de pago › Tilopay*: «Conectado: Sí», «Entorno: Prueba». **Probar conexión**: debe
-   decir que sí. Cambiar el estado a **Modo de prueba**, guardar y, para que también lo vean los visitantes (en modo de prueba
-   solo lo ve el equipo), pulsar **Publicado**.
+   decir que sí. Cambiar el estado a **Modo de prueba** y guardar. En modo de prueba Tilopay solo lo ve el equipo que tiene
+   sesión (entra con tu usuario de administrador para probar). **En staging**, si quieres que también lo vea un visitante,
+   pulsa **Publicado**. **En producción no pulses «Publicado» hasta el final**: así los clientes no ven una opción de pruebas.
 3. En la tienda: agrega un mueble barato, ve a pagar. Debe salir **«Pagar con tarjeta o Yappy»**. Con Tilopay apagado en Odoo no debe salir.
 4. **Pago aprobado:** elige Tilopay. Se abre la página de Tilopay. Tarjeta `4111111111111111`, vencimiento futuro, CVV cualquiera.
    Debe volver a la tienda y mostrar «¡Pago recibido!» y el pedido **confirmado**. En Odoo: la transacción en **Confirmado**, un cobro
