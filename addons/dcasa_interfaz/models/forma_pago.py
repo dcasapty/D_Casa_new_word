@@ -9,8 +9,11 @@ prueba compara las dos pantallas para que nunca discrepen.
 
 **Los campos** (guardados, para filtrar, agrupar y exportar):
 
-* ``dcasa_diario_pago_ids``: los diarios de los pagos aplicados a la factura (para filtrar por diario).
-* ``dcasa_forma_pago``: esos mismos diarios con su nombre, unidos con « + » (``Efectivo + Yappy``).
+* ``dcasa_diario_pago_ids``: los diarios de los pagos aplicados a la factura (para filtrar por diario). Solo lo ven
+  quienes pueden leer diarios (Facturación y contabilidad): un cliente del portal que lee su factura no tiene permiso
+  sobre los diarios y, sin esta restricción, leerla entera le daría error.
+* ``dcasa_forma_pago``: esos mismos diarios con su nombre, unidos con « + » (``Efectivo + Yappy``). Es texto: lo ve
+  quien ve la factura.
 
 **Las decisiones** (cada una tiene su prueba en ``tests/test_forma_pago.py``):
 
@@ -55,6 +58,7 @@ class AccountMoveFormaPago(models.Model):
     dcasa_diario_pago_ids = fields.Many2many(
         'account.journal', 'dcasa_move_diario_pago_rel', 'move_id', 'journal_id', string='Diarios de los pagos',
         compute='_compute_dcasa_forma_pago', store=True, copy=False, readonly=True,
+        groups='account.group_account_invoice,account.group_account_readonly,account.group_account_manager',
         help='Los diarios de los pagos aplicados a la factura (Efectivo, Yappy, Tarjeta…). Sirve para filtrar.')
     dcasa_forma_pago = fields.Char(
         'Forma de pago', compute='_compute_dcasa_forma_pago', store=True, copy=False, readonly=True,

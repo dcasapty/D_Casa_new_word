@@ -18,6 +18,22 @@
         </field>
     </record>
 
+    <!-- En el celular la lista de facturas son tarjetas (no hay columnas): la forma de pago va en una línea debajo del
+         cliente, y solo cuando ya se cobró algo. -->
+    <record id="account_move_kanban_dcasa_forma_pago" model="ir.ui.view">
+        <field name="name">account.move.kanban.dcasa.forma.pago</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_account_move_kanban"/>
+        <field name="arch" type="xml">
+            <xpath expr="//t[@t-name='card']/footer" position="before">
+                <div class="text-muted mb-2 o_dcasa_forma_pago" invisible="not dcasa_forma_pago">
+                    <i class="fa fa-money me-1" role="img" title="Forma de pago" aria-label="Forma de pago"/>
+                    <field name="dcasa_forma_pago"/>
+                </div>
+            </xpath>
+        </field>
+    </record>
+
     <!-- En la factura: solo para leer y sin ruido. Va en «Otra información», junto a la vendedora, y solo sale
          cuando ya se cobró algo. -->
     <record id="account_move_form_dcasa_forma_pago" model="ir.ui.view">
@@ -31,18 +47,17 @@
         </field>
     </record>
 
-    <!-- El buscador: escribe «Yappy» y filtra (busca en los diarios de los pagos, y en el texto de la forma de pago, que
-         también trae «Nota de crédito»); y «Agrupar por › Forma de pago», que agrupa por el texto guardado: cada
-         factura cae en un solo grupo, así los totales no se cuentan dos veces. Los nombres de los diarios son datos de la
-         empresa: nada de esto los escribe a mano. -->
+    <!-- El buscador: escribe «Yappy» y filtra (busca en el texto de la forma de pago, que también trae «Nota de
+         crédito»); y «Agrupar por › Forma de pago», que agrupa por el texto guardado: cada factura cae en un solo
+         grupo, así los totales no se cuentan dos veces. Los nombres de los diarios son datos de la empresa: nada de
+         esto los escribe a mano. -->
     <record id="account_move_search_dcasa_forma_pago" model="ir.ui.view">
         <field name="name">account.move.search.dcasa.forma.pago</field>
         <field name="model">account.move</field>
         <field name="inherit_id" ref="account.view_account_invoice_filter"/>
         <field name="arch" type="xml">
             <field name="invoice_user_id" position="after">
-                <field name="dcasa_forma_pago" string="Forma de pago"
-                       filter_domain="['|', ('dcasa_forma_pago', 'ilike', self), ('dcasa_diario_pago_ids', 'ilike', self)]"/>
+                <field name="dcasa_forma_pago" string="Forma de pago"/>
             </field>
             <filter name="salesperson" position="after">
                 <filter name="dcasa_por_forma_pago" string="Forma de pago" context="{'group_by': 'dcasa_forma_pago'}"/>

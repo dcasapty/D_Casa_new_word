@@ -349,6 +349,20 @@ class TestFormaPago(FormaPagoCommon):
         self.assertEqual(filas['records'][0]['dcasa_forma_pago'], 'Yappy forma pago')
 
 
+    def test_el_cliente_del_portal_lee_el_texto_y_no_tropieza_con_los_diarios(self):
+        """Los diarios solo los leen quienes pueden leer diarios (el cliente del portal no): el texto sí lo lee quien
+        ve la factura, y el campo de diarios ni siquiera se le ofrece."""
+        factura = self.factura()
+        self.pago(factura, 1000.0, self.yappy)
+        portal = self.env['res.users'].with_context(no_reset_password=True).create({
+            'name': 'Cliente portal forma pago', 'login': 'portal_forma_pago', 'partner_id': self.cliente.id,
+            'group_ids': [Command.set([self.env.ref('base.group_portal').id])]})
+        suya = factura.with_user(portal)
+        self.assertEqual(suya.read(['dcasa_forma_pago'])[0]['dcasa_forma_pago'], 'Yappy forma pago')
+        self.assertNotIn('dcasa_diario_pago_ids', suya.fields_get())
+        self.assertIn('dcasa_diario_pago_ids', factura.with_user(self.vendedora).fields_get())
+
+
 @tagged('post_install', '-at_install')
 class TestFormaPagoEnLote(FormaPagoCommon):
 
@@ -444,6 +458,12 @@ class TestFormaPagoPantallas(FormaPagoCommon):
         for usuario in (self.vendedora, self.caja, self.gerencia):
             with self.subTest(usuario.login):
                 self.assertIn('name="dcasa_forma_pago"', self.arch('account.view_out_invoice_tree', usuario=usuario))
+
+    def test_en_el_celular_la_tarjeta_de_la_factura_la_trae(self):
+        arch = self.arch('account.view_account_move_kanban', 'kanban')
+        self.assertRegex(arch, r'<field name="dcasa_forma_pago"')
+        self.assertLess(arch.index('name="dcasa_forma_pago"'), arch.index('<footer'))
+        self.assertIn('name="amount_total_in_currency_signed"', arch, 'lo de siempre sigue en su lugar')
 
     def test_el_buscador_la_trae_y_agrupa(self):
         arch = self.arch('account.view_account_invoice_filter', 'search')
