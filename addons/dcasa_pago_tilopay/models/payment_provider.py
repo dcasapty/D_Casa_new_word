@@ -142,6 +142,7 @@ class PaymentProvider(models.Model):
     def action_dcasa_tilopay_probar(self):
         """Botón «Probar conexión»: abre sesión en Tilopay y dice sí o no. No muestra ni guarda ningún dato."""
         self._dcasa_tilopay_exigir_gerencia()
+        self = self.sudo()  # ya se comprobó el grupo; el modelo de proveedores solo lo lee el administrador del sistema
         self.ensure_one()
         if self.code != CODIGO:
             raise UserError(self.env._('Este botón es solo del proveedor Tilopay.'))
@@ -159,7 +160,7 @@ class PaymentProvider(models.Model):
                     'red': self.env._('No: no se pudo hablar con Tilopay ahora. Intenta de nuevo en un momento.'),
                 }.get(error.tipo, self.env._('No: Tilopay respondió algo inesperado. Intenta de nuevo.'))
                 bien = False
-        self.sudo().write({'dcasa_tilopay_prueba_fecha': fields.Datetime.now(), 'dcasa_tilopay_prueba_ok': bien})
+        self.write({'dcasa_tilopay_prueba_fecha': fields.Datetime.now(), 'dcasa_tilopay_prueba_ok': bien})
         return {
             'type': 'ir.actions.client', 'tag': 'display_notification',
             'params': {'title': self.env._('Conexión con Tilopay'), 'message': texto,

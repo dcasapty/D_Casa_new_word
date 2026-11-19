@@ -137,15 +137,31 @@ class SimuladorTilopay:
         return RespuestaFalsa(200, {'type': '200', 'message': '', 'response': filas})
 
 
-def entorno(**cambios):
-    """``patch.dict(os.environ, ...)`` con las claves de mentira (y lo que se quiera cambiar; ``None`` la quita)."""
-    valores = {**ENTORNO_DE_PRUEBA, **cambios}
-    quitar = [k for k, v in valores.items() if v is None]
-    parche = patch.dict(os.environ, {k: v for k, v in valores.items() if v is not None})
-    parche.start()
-    for k in quitar:
-        os.environ.pop(k, None)
-    return parche
+class entorno:
+    """Las claves de mentira en ``os.environ`` (y lo que se quiera cambiar; ``None`` la quita). Sirve con ``with`` o con
+    ``.start()`` / ``.stop()``."""
+
+    def __init__(self, **cambios):
+        self.valores = {**ENTORNO_DE_PRUEBA, **cambios}
+        self._parche = None
+
+    def start(self):
+        quitar = [k for k, v in self.valores.items() if v is None]
+        self._parche = patch.dict(os.environ, {k: v for k, v in self.valores.items() if v is not None})
+        self._parche.start()
+        for k in quitar:
+            os.environ.pop(k, None)
+        return self
+
+    def stop(self):
+        self._parche.stop()
+
+    def __enter__(self):
+        return self.start()
+
+    def __exit__(self, *exc):
+        self.stop()
+        return False
 
 
 class PreparaPedido:
@@ -179,3 +195,29 @@ class PreparaPedido:
             'amount': pedido.amount_total if monto is None else monto, 'currency_id': pedido.currency_id.id,
             'partner_id': pedido.partner_invoice_id.id, 'operation': 'online_redirect',
             'sale_order_ids': [Command.set(pedido.ids)]})
+
+
+class ComunTilopay(PreparaPedido):
+    """Lo de siempre en las pruebas con base de datos: proveedor encendido, claves de mentira y memoria de tokens limpia."""
+    estado_del_proveedor = 'test'
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.preparar_tilopay(cls.estado_del_proveedor)
+
+    def setUp(self):
+        super().setUp()
+        api.olvidar_tokens()
+        self.addCleanup(api.olvidar_tokens)
+        self.addCleanup(entorno().start().stop)
+
+    def abrir(self, tilopay, pedido=None, monto=None):
+        """Crea la transacción y la página de pago (como lo hace la tienda). Devuelve (transacción, orden de Tilopay)."""
+        pedido = pedido or self.pedido()
+        tx = self.transaccion(pedido, monto)
+        tx._get_processing_values()
+        return tx, tx.dcasa_tilopay_orden
+
+    def llamadas_a_consulta(self, tilopay):
+        return tilopay.rutas(api.RUTA_CONSULTA)
