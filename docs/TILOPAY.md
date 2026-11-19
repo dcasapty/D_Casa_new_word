@@ -315,3 +315,14 @@ registros y pantallas.
 | `tests/test_rutas.py` | Por HTTP de verdad: el aviso responde igual exista o no la orden y no llama a nadie con una orden inventada; solo POST; tope de 16 KB; JSON con cualquier tipo de contenido; el retorno inventado no paga; el retorno usa `returnData`; pagar desde `/my/orders` y esperar en «Estado del pago»; ningún registro con claves en todo el recorrido |
 | `edge/test/tilopay.test.ts` | Las variables viajan al contenedor y no impiden el arranque; la ruta pasa a Odoo, sin caché, sin freno de ritmo, sin bloqueo (también con la puerta del equipo en modo obligatorio); un POST cortado no se repite desde el borde; staging fijado en `prueba` |
 
+
+**Resultado de la última corrida completa** (instalando todos los módulos del `Makefile` y corriendo `dcasa_pago_tilopay`, la lista de
+llamadas permitidas de `dcasa_base`, `dcasa_guia`, la tienda configurada de `website_dcasa` y `dcasa_socios`): **631 pruebas, 0 fallan,
+0 con error**; de ellas **117 son de Tilopay**. En el Worker: `npx vitest run` **293 pruebas pasan** (11 son de Tilopay) y `tsc --noEmit`
+sin errores. `ruff check addons` limpio.
+
+**Capturas** (Odoo con un Tilopay simulado y datos inventados; la dueña las ve antes de producción): la pantalla del proveedor y
+«Probar conexión», y la opción en el pago real de la tienda, sin elegir y elegida, a 1440 px y a 390 px. Al mirarlas salieron dos
+fallas reales que ya se corrigieron: el aviso decía «Pagar con tarjeta o Yappy» cuando la tienda dice «Tarjeta, Yappy y más (Tilopay)», y
+«Última prueba» no se actualizaba tras «Probar conexión». El triángulo amarillo junto al nombre del método en la tienda es el aviso de
+Odoo mientras el proveedor está en **Modo de prueba**; desaparece al pasarlo a **Habilitado**.
