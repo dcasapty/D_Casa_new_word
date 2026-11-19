@@ -646,11 +646,14 @@ PASOS_COMPUTADORA = """
     vitrina.style.setProperty('--vitrina-tiempo', '0.4s');
     for (let i = 0; i < 240 && actual() === r.alEmpezar; i++) { await esperar(50); }
     r.trasEsperar = actual();
-    // Para contar cuántas se ven hay que dejar de cambiar: con 0,4 s entre fotos y 1,8 s de fundido siempre
-    // habría dos a medio camino. Se alarga el tiempo, se deja terminar el fundido y recién ahí se cuenta.
+    // Para contar cuántas se ven hay que dejar de cambiar: con 0,4 s entre fotos y varios segundos de fundido siempre
+    // habría dos a medio camino. Se alarga el tiempo (el último cambio ya programado ocurre en menos de 0,4 s y su
+    // fundido, ahora de 2,4 s, tarda lo suyo) y se espera a que se asiente: se cuenta cuando queda una sola, hasta 8 s.
     vitrina.style.setProperty('--vitrina-tiempo', '600s');
-    await esperar(2500);
-    r.visibles = fotos().filter((f) => parseFloat(getComputedStyle(f).opacity) > 0.01).length;
+    const cuantas = () => fotos().filter((f) => parseFloat(getComputedStyle(f).opacity) > 0.01).length;
+    const t1 = performance.now();
+    while (cuantas() !== 1 && performance.now() - t1 < 8000) { await esperar(100); }
+    r.visibles = cuantas();
     const botonCine = document.querySelector('.o_dcasa_cine_pausa');
     botonCine.click(); await esperar(100);
     r.cine.enPausa = getComputedStyle(tren).animationPlayState;
@@ -713,6 +716,10 @@ PASOS_ASENTARSE = """
     }
     r.cambios = cambios;
     vitrina.style.setProperty('--vitrina-tiempo', '600s');
-    await esperar(1500);
-    r.visiblesAlAsentarse = fotos().filter((f) => parseFloat(getComputedStyle(f).opacity) > 0.01).length;
+    // El último cambio ya programado ocurre en menos de 2 s y su fundido (ahora de 2,4 s) tarda lo suyo: se cuenta cuando
+    // queda una sola, hasta 8 s.
+    const cuantas = () => fotos().filter((f) => parseFloat(getComputedStyle(f).opacity) > 0.01).length;
+    const t1 = performance.now();
+    while (cuantas() !== 1 && performance.now() - t1 < 8000) { await esperar(100); }
+    r.visiblesAlAsentarse = cuantas();
 """
