@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+
+    <!-- NACE APAGADO y sin publicar. Se ofrece en la tienda solo si Gerencia lo enciende, las claves están en Cloudflare y
+         el interruptor coincide con TILOPAY_ENTORNO (docs/TILOPAY.md). No hay campos de claves: no existe dónde ponerlas. -->
+    <record id="payment_provider_tilopay" model="payment.provider">
+        <field name="name">Tilopay</field>
+        <field name="code">tilopay</field>
+        <field name="state">disabled</field>
+        <field name="is_published" eval="False"/>
+        <field name="redirect_form_view_id" ref="redirect_form"/>
+        <field name="payment_method_ids" eval="[Command.set([ref('payment_method_tilopay')])]"/>
+    </record>
+
+</odoo>

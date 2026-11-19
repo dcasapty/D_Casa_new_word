@@ -103,6 +103,10 @@ cambia en el panel llega al contenedor **al reiniciar o en el siguiente desplieg
 | `JUAN_ODOO_TOKEN` | Secreto | Juan se identifica ante Odoo. **Mismo valor** que en `dcasa-juan` (§6). Sin él, `/dcasa/juan/**` responde 503 |
 | `JUAN_WORKER_TOKEN` | Secreto | Odoo se identifica ante Juan. **Mismo valor** que en `dcasa-juan` |
 | `JUAN_URL` | Variable | Dirección del Worker de Juan (`https://dcasa-juan.<subdominio>.workers.dev`) para que Odoo lo llame. También se puede poner en Odoo, *Ajustes de Juan* (parámetro `dcasa_conversaciones.juan_url`, `addons/dcasa_conversaciones/models/ajustes.py:42-45`) |
+| `TILOPAY_API_KEY` | Secreto | La «Llave API» de Tilopay (panel de Tilopay › Integración con plataformas). Producción: la de la cuenta real; staging: la de la cuenta de pruebas de desarrollador. Sin las tres claves, Tilopay no aparece en la tienda ([TILOPAY.md](../TILOPAY.md)) |
+| `TILOPAY_API_USER` | Secreto | El «Usuario API» de Tilopay |
+| `TILOPAY_API_PASSWORD` | Secreto | La «Contraseña API» de Tilopay |
+| `TILOPAY_ENTORNO` | Variable | `prueba` (por defecto) o `produccion`. Tiene que coincidir con el «Modo Prueba» del panel de Tilopay. Staging la trae fijada en `prueba` |
 | `BRIAN_TELEGRAM_CHATS` | Variable | IDs de los chats de Telegram a los que Brian atiende (coma). Sin ella, cualquiera que encuentre el bot recibe las instrucciones para vincularse ([BRIAN.md › Telegram](../BRIAN.md)) |
 | `DCASA_ALERTA_TELEGRAM_CHAT` | Variable | Chat al que el Worker avisa si el contenedor se cae (con el bot de Brian) |
 | `TURNSTILE_SITE_KEY` | Variable | Clave pública de Turnstile (o en `edge/wrangler.jsonc`, `:90-91`) |

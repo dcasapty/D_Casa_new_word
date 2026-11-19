@@ -3007,6 +3007,48 @@
    ]
   },
   {
+   "id": "tilopay-pagos",
+   "categoria": "tienda",
+   "grupo": "Tienda en línea",
+   "titulo": "Encender el pago con tarjeta o Yappy (Tilopay) y probar la conexión",
+   "logras": "Ves si las claves de Tilopay ya están cargadas, en qué entorno está (prueba o producción), si Tilopay aparece en la tienda y por qué no, y pulsas «Probar conexión» para confirmar que Tilopay las acepta. Cuando todo está bien, lo enciendes: el cliente paga en la página segura de Tilopay y el pedido queda pagado solo.",
+   "destino": {
+    "menu": "account_payment.payment_provider_menu"
+   },
+   "pasos": [
+    {
+     "texto": "Las claves no se escriben aquí ni se mandan por el chat: se pegan en el panel de Cloudflare como secretos (el paso a paso está en docs/TILOPAY.md).",
+     "destino": null
+    },
+    {
+     "texto": "Abre Tilopay en la lista, mira «Conectado» y «Entorno» y pulsa «Probar conexión».",
+     "destino": {
+      "menu": "account_payment.payment_provider_menu"
+     }
+    },
+    {
+     "texto": "Para probar con dinero de mentira, ponlo en «Modo de prueba». Para cobrar de verdad, «Habilitado» (y que Cloudflare diga «produccion»).",
+     "destino": null
+    }
+   ],
+   "nota": "Viene apagado. Si algo no coincide (entorno, claves o el interruptor), Tilopay simplemente no aparece en la tienda y la pantalla dice por qué. Esta pantalla es del administrador.",
+   "palabras": [
+    "tilopay",
+    "tarjeta",
+    "yappy",
+    "pago en linea",
+    "pasarela",
+    "cobrar con tarjeta",
+    "probar conexion",
+    "claves de tilopay",
+    "pago con tarjeta en la tienda"
+   ],
+   "grupos": [
+    "base.group_system",
+    "account.group_account_manager"
+   ]
+  },
+  {
    "id": "usuario-nuevo",
    "categoria": "administrar",
    "grupo": "Accesos",

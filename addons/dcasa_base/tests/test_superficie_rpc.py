@@ -1237,6 +1237,12 @@ LISTA_BLANCA = {
         'Botón «Guardar»: exige Gerencia o administrador en el servidor (_dcasa_exigir) ANTES del sudo con que guarda '
         'el interruptor, el presupuesto y los topes (ir.config_parameter), y valida cada número (0 al máximo).',
     ('dcasa_brian_tienda', 'dcasa.brian.tienda.ajustes', 'cancel'): ACCION_VENTANA,
+    # --- dcasa_pago_tilopay (pagos con tarjeta y Yappy, 2026-11-19) --------------------------------------------------
+    ('dcasa_pago_tilopay', 'payment.provider', 'action_dcasa_tilopay_probar'):
+        'Botón «Probar conexión»: exige Gerencia o administrador en el servidor (_dcasa_tilopay_exigir_gerencia) ANTES '
+        'de nada; solo abre sesión en Tilopay con las claves del entorno y dice sí o no (nunca las muestra, las '
+        'guarda ni las registra); lo único que escribe, con sudo ya comprobado el grupo, es la fecha y el resultado '
+        'de la prueba.',
     ('dcasa_brian_tienda', 'sale.order.line', 'write'):
         OVERRIDE + ' Solo NIEGA: con el centinela interno de la tienda (CONSERVAR_ENVIO, que no se puede mandar por '
                    'RPC) deja fuera las líneas de envío del sistema para que la tienda no las vuelva $0. Sin el '

@@ -82,6 +82,17 @@ export interface Env {
   RESEND_CAMPANAS_API_KEY?: string;
   /** Secreto opcional: token de la Conversions API de Meta (addons/dcasa_meta_eventos). Sin él no sale nada a Meta. */
   META_CAPI_TOKEN?: string;
+  // Tilopay, la pasarela de pago (addons/dcasa_pago_tilopay, docs/TILOPAY.md). Opcionales: se pegan en el panel de Cloudflare de
+  // cada Worker (producción con la cuenta real; staging con la cuenta de pruebas), nunca en el repositorio ni en GitHub. Sin
+  // las tres claves Tilopay no aparece en la tienda y nada más cambia; Odoo arranca igual.
+  /** Secreto: la «Llave API» del panel de Tilopay (Integración con plataformas). */
+  TILOPAY_API_KEY?: string;
+  /** Secreto: el «Usuario API» del panel de Tilopay. */
+  TILOPAY_API_USER?: string;
+  /** Secreto: la «Contraseña API» del panel de Tilopay. */
+  TILOPAY_API_PASSWORD?: string;
+  /** Variable (no secreta): «prueba» (por defecto) o «produccion». Tiene que coincidir con el «Modo Prueba» del panel de Tilopay. */
+  TILOPAY_ENTORNO?: string;
   /** Ids de los chats de Telegram a los que Brian atiende (coma); sin ella atiende a cualquier chat vinculado. */
   BRIAN_TELEGRAM_CHATS?: string;
   // Juan, el asistente de clientes (addons/dcasa_conversaciones, docs/JUAN_ODOO.md). Opcionales: se cargan en

@@ -1,9 +1,11 @@
 """Checkout de la tienda: cómo paga y recibe un cliente de D'CASA.
 
-Sin pasarela de tarjeta todavía: se cobra con Yappy o transferencia (los datos se mandan
-por WhatsApp; nunca se escriben aquí números de cuenta) o en la tienda. No hay pago contra entrega: el mueble se
-entrega cuando está pagado completo (decisión de la dueña, 2026-10-17); «Pago en la tienda» aparta el pedido por la
-página web los días de apartado (models/sale_order.py) para que pase a pagarlo.
+La tarjeta y Yappy en línea los ofrece Tilopay (módulo ``dcasa_pago_tilopay``, apagado de fábrica: solo sale con las
+claves cargadas en Cloudflare y encendido por Gerencia; docs/TILOPAY.md) y esta configuración nunca lo enciende. Sin él,
+se cobra con Yappy o transferencia (los datos se mandan por WhatsApp; nunca se escriben aquí números de cuenta) o en la
+tienda. No hay pago contra entrega: el mueble se entrega cuando está pagado completo (decisión de la dueña,
+2026-10-17); «Pago en la tienda» aparta el pedido por la página web los días de apartado (models/sale_order.py) para que
+pase a pagarlo.
 La entrega a domicilio se cotiza por WhatsApp, como promete el sitio; no hay «envío gratis».
 """
 from markupsafe import Markup

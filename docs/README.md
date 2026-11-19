@@ -65,6 +65,7 @@
 | `dcasa_meta_catalogo` (catálogo para Meta por URL, apagado de fábrica) | [META_CATALOGO.md](META_CATALOGO.md) |
 | `dcasa_buscar_foto` («Busca con una foto» en la tienda, encendido de fábrica) | [CATALOGO.md › Busca con una foto](CATALOGO.md#busca-con-una-foto) |
 | `dcasa_meta_eventos` (píxel y Conversions API de Meta, apagados de fábrica) | [META_EVENTOS.md](META_EVENTOS.md) |
+| `dcasa_pago_tilopay` (pagos con tarjeta y Yappy por Tilopay, apagado de fábrica; incluye la investigación, las amenazas y qué poner en Cloudflare) | [TILOPAY.md](TILOPAY.md) |
 | `dcasa_conversaciones` y el Worker `juan/` | [JUAN.md](JUAN.md) (contrato y el Worker por dentro) · [JUAN_ODOO.md](JUAN_ODOO.md) (bandeja, reparto, CRM) · [JUAN_CANALES.md](JUAN_CANALES.md) (canales) |
 | `dcasa_brian_tienda` (el chat de la tienda, encendido) | [BRIAN_TIENDA.md](BRIAN_TIENDA.md) |
 | `dcasa_sofia` (Sofía, la asistente del CRM) | [SOFIA.md](SOFIA.md) |
