@@ -295,3 +295,22 @@ Prueba» **encendido** en el panel. Nunca con una tarjeta real.
   escritura sobre ese proveedor y un menú para Gerencia; se dejó fuera a propósito en una versión que mueve dinero.
 - **Hueco conocido (aceptado):** una orden que existe tarda más en contestar el aviso (porque se consulta a Tilopay) que una
   que no existe. Para adivinar una orden hace falta además su parte al azar (8 letras y números): no es práctico.
+- **Brian** (`docs/BRIAN.md`): una herramienta de solo lectura «¿Tilopay está encendido y conectado?» (como `estado_de_meta`) no se
+  hizo; la activación es del administrador por pantalla y no hay nada que Brian deba poder cambiar.
+
+## 10. Cómo se probó
+
+Todo con un **Tilopay simulado**, sin red real ni dinero: `tests/common.py` trae `SimuladorTilopay`, que sustituye a
+`requests.post` y habla como el API documentado (inicio de sesión con 401 si las claves están mal, página de pago, orden duplicada,
+consulta con la lista de filas, entornos «Test» y «Production»). Odoo además **bloquea cualquier llamada de red** que una prueba
+no haya simulado. Las claves de las pruebas son inventadas y con forma reconocible (`LLAVE-DE-PRUEBA-…`) para buscarlas en
+registros y pantallas.
+
+| Dónde | Qué prueba |
+|---|---|
+| `tests/test_api.py` | Las claves no salen ni imprimiendo el objeto; formas de orden, retorno y aviso; la dirección de pago solo de `tilopay.com`; **`evaluar_consulta`** caso por caso (monto, moneda, orden ajena, rechazo, dos aprobadas, reembolsos, entorno, captura, formas raras); el cliente HTTP (token que se reutiliza, que se renueva, claves malas, tiempo agotado, red, basura, HTTP 500, ningún registro con claves) |
+| `tests/test_proveedor.py` | Nace apagado y sin publicar; diario «Tilopay» (también si el plan contable lo borra); se ofrece solo con las tres llaves; solo USD y solo pedidos; los otros métodos no cambian; la pantalla y sus datos no traen claves; «Probar conexión» (bien, claves malas, caído, sin claves, quién puede) |
+| `tests/test_flujo.py` | Pedido → página de pago → confirmación → pedido confirmado, cobro en el diario Tilopay, factura cruzada y compra en Socios; monto, moneda, entorno y modo distintos; orden de otra transacción o de otro proveedor; repeticiones, orden invertido y freno de 5 s; cancelada o vencida que luego paga; rechazo y reintento; Tilopay caído; dos pagos del mismo pedido; el monto del navegador; tope de páginas abiertas; la tarea programada |
+| `tests/test_rutas.py` | Por HTTP de verdad: el aviso responde igual exista o no la orden y no llama a nadie con una orden inventada; solo POST; tope de 16 KB; JSON con cualquier tipo de contenido; el retorno inventado no paga; el retorno usa `returnData`; pagar desde `/my/orders` y esperar en «Estado del pago»; ningún registro con claves en todo el recorrido |
+| `edge/test/tilopay.test.ts` | Las variables viajan al contenedor y no impiden el arranque; la ruta pasa a Odoo, sin caché, sin freno de ritmo, sin bloqueo (también con la puerta del equipo en modo obligatorio); un POST cortado no se repite desde el borde; staging fijado en `prueba` |
+
