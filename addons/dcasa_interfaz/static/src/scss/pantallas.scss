@@ -242,10 +242,27 @@ button.o_dcasa_pd_tarjeta, button.o_dcasa_es_numero {
 
 .o_dcasa_pd_hueco { min-height: 96px; }
 
+// A la derecha del calendario: arriba lo cobrado por forma de pago (con su selector de periodo) y debajo el día elegido con
+// todas sus facturas. Se queda a la vista al bajar por el calendario; si es más alto que la pantalla, se desplaza por
+// dentro (así la lista de facturas de un día largo se alcanza sin bajar toda la página).
+// De 768 a 1199 px (tableta) el panel no cabe al lado: la tarjeta de cobros sube arriba del calendario y el día elegido
+// baja debajo de él (display: contents + order), para que lo cobrado se vea sin bajar.
 .o_dcasa_pd_lado {
     position: sticky;
     top: 12px;
     min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-height: calc(100vh - 70px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+
+    @media (max-width: 1199.98px) {
+        display: contents;
+        .o_dcasa_pd_cobros { order: -1; }
+    }
 }
 
 .o_dcasa_pd_detalle {
@@ -487,6 +504,8 @@ button.o_dcasa_es_hfila {
     align-items: flex-end;
     strong { font-size: .92rem; color: var(--dc-azul-800); white-space: nowrap; }
     small { font-size: .75rem; color: var(--dc-tinta-3); white-space: nowrap; }
+    // Los números van pegados a la derecha: al subir, el que sube se queda pegado a ese lado.
+    .o_dcasa_sube[data-sube]::after { left: auto; right: 0; }
 }
 
 .o_dcasa_es_enlaces {
@@ -681,17 +700,48 @@ button.o_dcasa_mv_frase {
 
 .o_dcasa_mv_mas { margin-top: 12px; width: 100%; min-height: 44px; }
 
-// --- Cobrado por forma de pago (Por día y Estadísticas, 2026-11-02) --------------------------------
-// Una ficha por forma de pago; la del total, en azul lleno. En el celular, de a dos.
+// --- Cobrado por forma de pago (Por día y Estadísticas, 2026-11-02; Por día lo junta en una tarjeta, 2026-11-19) ----------
+// Por día: UNA tarjeta con su selector Día · Semana · Quincena · Mes, arriba del detalle del día. Una ficha por forma de
+// pago; la del total, en azul lleno. En el celular, de a dos.
 .o_dcasa_pd_cobros {
-    margin-bottom: 16px;
     transition: opacity var(--dc-transicion);
     &.o_cargando { opacity: .5; }
-    h2 { margin-bottom: 4px; }
+    h2 { margin-bottom: 2px; }
 }
 
+.o_dcasa_pd_cobros_cabeza { margin-bottom: 12px; }
+
+// El periodo que se está viendo, en azul oscuro sobre blanco: «Semana del 16 al 22 de noviembre».
+.o_dcasa_pd_cobros_periodo {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 800;
+    letter-spacing: -.01em;
+    line-height: 1.25;
+    color: var(--dc-azul-800);
+}
+
+// El selector del periodo ocupa todo el ancho de la tarjeta, con los cuatro botones del mismo tamaño.
+.o_dcasa_cf_periodos {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    width: 100%;
+    margin-bottom: 12px;
+
+    .o_dcasa_periodo {
+        min-height: 38px;
+        padding: 0 4px;
+        font-weight: 600;
+        white-space: nowrap;
+        &:disabled { opacity: .45; cursor: default; }
+        &:disabled:hover { color: var(--dc-tinta-2); }
+    }
+    @media (max-width: 575.98px) { .o_dcasa_periodo { min-height: 42px; font-size: .8125rem; } }
+}
+
+.o_dcasa_cf_pista { margin: 0 0 10px; }
 .o_dcasa_cf_frase { margin: 0 0 12px; }
-.o_dcasa_cf_toda { margin: 10px 0 0; }
+.o_dcasa_cf_pie { margin: 12px 0 0; }
 
 .o_dcasa_cf_fichas {
     display: grid;
@@ -739,11 +789,18 @@ button.o_dcasa_mv_frase {
     white-space: nowrap;
 }
 
-.o_dcasa_pd_cobros_dia {
-    margin-top: 16px;
-    padding-top: 14px;
-    border-top: 1px solid var(--dc-linea);
-    h3 { font-size: .95rem; font-weight: 700; margin: 0 0 4px; color: var(--dc-tinta); }
+// Celular: lo cobrado va dentro del día que se abre (arriba de sus facturas) y, sin ningún día abierto, arriba de la lista
+// de días (con el mes). En la computadora y la tableta esa copia no se ve: la tarjeta está arriba del panel de la derecha.
+.o_dcasa_pd_cobros_suelta { display: none; }
+
+@media (max-width: 767.98px) {
+    .o_dcasa_pd_cobros_suelta { display: block; }
+    .o_dcasa_pd_dentro > .o_dcasa_pd_cobros {
+        margin: 10px 0 14px;
+        box-shadow: none;
+        padding: 14px;
+        background: var(--dc-niebla);
+    }
 }
 
 // --- Valor del inventario (2026-11-02) --------------------------------------------------------------

@@ -3,7 +3,7 @@
     <!-- «Movimientos»: una línea de tiempo en palabras. Lo que entra en verde (+), lo que sale en rojo (−), los traslados
          sin signo (no cambian lo que hay en total). -->
     <t t-name="dcasa_interfaz.Movimientos">
-        <div class="o_action o_dcasa_inicio o_dcasa_movimientos">
+        <div class="o_action o_dcasa_inicio o_dcasa_movimientos" t-ref="raiz">
             <header class="o_dcasa_pantalla_cabeza">
                 <div>
                     <h1>Movimientos de inventario</h1>
@@ -66,7 +66,7 @@
                             <t t-if="p.codigo and p.barras"> · </t>
                             <t t-if="p.barras">Código de barras <t t-out="p.barras"/></t>
                         </p>
-                        <p t-if="p.lleva_inventario" class="o_dcasa_mv_hoy">Hay hoy: <strong t-out="cantidad(state.datos.existencia)"/></p>
+                        <p t-if="p.lleva_inventario" class="o_dcasa_mv_hoy">Hay hoy: <strong class="o_dcasa_sube" data-formato="unidades" t-att-data-valor="state.datos.existencia" t-out="cantidad(state.datos.existencia)"/></p>
                         <p t-else="" class="o_dcasa_mv_hoy">Este producto no lleva control de existencias.</p>
                     </div>
                     <button type="button" class="btn btn-outline-primary o_dcasa_mv_quitar" t-on-click="quitarProducto">

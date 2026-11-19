@@ -143,12 +143,11 @@ export class CifrasQueSuben {
         delete el.dataset.sube;
     }
 
-    /** Cancela todos los cuadros pendientes (al desmontar la pantalla). */
+    /** Cancela todos los cuadros pendientes (al desmontar la pantalla) y deja cada cifra con su valor final. */
     parar() {
-        for (const cuadro of this.cuadros.values()) {
-            browser.cancelAnimationFrame(cuadro);
+        for (const el of [...this.cuadros.keys()]) {
+            this.dejarDeSubir(el);
         }
-        this.cuadros.clear();
     }
 }
 
