@@ -143,13 +143,14 @@ class TestNuncaSeConfiaEnElNavegador(BaseTilopay):
             self.assertFalse(tx.is_live)
             self.proveedor.state = 'enabled'
             tilopay.aprobar(orden, pedido.amount_total)
-            with entorno(TILOPAY_ENTORNO='produccion'):
+            with entorno(TILOPAY_ENTORNO='produccion', DCASA_ENTORNO='produccion'):
                 self.assertEqual(tx._dcasa_tilopay_confirmar('aviso'), 'entorno')
         self.assertEqual(tx.state, 'draft')
         # Y al revés: creada en real, un pago de «Test» no la paga aunque ahora todo diga «prueba».
         self.proveedor.state = 'enabled'
         pedido2 = self.pedido()
-        with entorno(TILOPAY_ENTORNO='produccion'), SimuladorTilopay(entorno='Test') as tilopay:
+        with entorno(TILOPAY_ENTORNO='produccion', DCASA_ENTORNO='produccion'), \
+                SimuladorTilopay(entorno='Test') as tilopay:
             tx2, orden2 = self.abrir(tilopay, pedido2)
             self.assertTrue(tx2.is_live)
             self.proveedor.state = 'test'
@@ -189,7 +190,8 @@ class TestNuncaSeConfiaEnElNavegador(BaseTilopay):
     def test_un_pago_de_prueba_no_paga_produccion(self):
         self.proveedor.state = 'enabled'
         pedido = self.pedido()
-        with entorno(TILOPAY_ENTORNO='produccion'), SimuladorTilopay(entorno='Test') as tilopay:
+        with entorno(TILOPAY_ENTORNO='produccion', DCASA_ENTORNO='produccion'), \
+                SimuladorTilopay(entorno='Test') as tilopay:
             tx, orden = self.abrir(tilopay, pedido)
             tilopay.aprobar(orden, pedido.amount_total)
             self.assertEqual(tx._dcasa_tilopay_confirmar('retorno'), 'entorno')

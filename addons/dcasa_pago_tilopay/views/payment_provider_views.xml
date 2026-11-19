@@ -2,7 +2,7 @@
 <odoo>
 
     <!-- En Facturación › Configuración › Proveedores de pago › Tilopay. Nunca muestra una clave: solo si están cargadas
-         («Conectado») y el entorno que dice Cloudflare. -->
+         («Claves cargadas») y el entorno que dice Cloudflare. -->
     <record id="payment_provider_form_tilopay" model="ir.ui.view">
         <field name="name">payment.provider.form.tilopay</field>
         <field name="model">payment.provider</field>
@@ -18,7 +18,7 @@
                         paso está en <code>docs/TILOPAY.md</code>.</p>
                     </div>
                     <field name="dcasa_tilopay_conectado"
-                           help="Sí = las tres claves están cargadas en Cloudflare. Para comprobar que Tilopay las acepta, pulsa «Probar conexión»."/>
+                           help="Sí = las tres claves están cargadas en Cloudflare. No dice que Tilopay las acepte: «Probar conexión» comprueba el usuario y la contraseña, y la llave se comprueba en el primer cobro de prueba."/>
                     <field name="dcasa_tilopay_entorno"
                            help="Lo que dice Cloudflare (TILOPAY_ENTORNO). Tiene que ser el mismo modo que el interruptor «Modo Prueba» del panel de Tilopay."/>
                     <field name="dcasa_tilopay_aviso" colspan="2" nolabel="0"/>

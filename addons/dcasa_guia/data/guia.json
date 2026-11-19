@@ -3025,7 +3025,7 @@
    "categoria": "tienda",
    "grupo": "Tienda en línea",
    "titulo": "Encender el pago con tarjeta o Yappy (Tilopay) y probar la conexión",
-   "logras": "Ves si las claves de Tilopay ya están cargadas, en qué entorno está (prueba o producción), si Tilopay aparece en la tienda y por qué no, y pulsas «Probar conexión» para confirmar que Tilopay las acepta. Cuando todo está bien, lo enciendes: el cliente paga en la página segura de Tilopay y el pedido queda pagado solo.",
+   "logras": "Ves si las claves de Tilopay ya están cargadas, en qué entorno está (prueba o producción), si Tilopay aparece en la tienda y por qué no, y pulsas «Probar conexión» para confirmar que Tilopay acepta el usuario y la contraseña (la llave se comprueba en el primer cobro de prueba). Cuando todo está bien, lo enciendes: el cliente paga en la página segura de Tilopay y el pedido queda pagado solo.",
    "destino": {
     "menu": "account_payment.payment_provider_menu"
    },
@@ -3035,13 +3035,13 @@
      "destino": null
     },
     {
-     "texto": "Abre Tilopay en la lista, mira «Conectado» y «Entorno» y pulsa «Probar conexión».",
+     "texto": "Abre Tilopay en la lista, mira «Claves cargadas» y «Entorno» y pulsa «Probar conexión».",
      "destino": {
       "menu": "account_payment.payment_provider_menu"
      }
     },
     {
-     "texto": "Para probar con dinero de mentira, ponlo en «Modo de prueba». Para cobrar de verdad, «Habilitado» (y que Cloudflare diga «produccion»).",
+     "texto": "Para probar con dinero de mentira, ponlo en «Modo de prueba» y déjalo sin publicar: así solo lo ven y lo usan las personas del equipo con sesión, nunca un visitante. Para cobrar de verdad, «Habilitado» (y que Cloudflare diga «produccion»).",
      "destino": null
     }
    ],
@@ -3058,8 +3058,7 @@
     "pago con tarjeta en la tienda"
    ],
    "grupos": [
-    "base.group_system",
-    "account.group_account_manager"
+    "base.group_system"
    ]
   },
   {

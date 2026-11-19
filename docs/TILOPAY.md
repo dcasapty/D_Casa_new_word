@@ -88,12 +88,29 @@ oficial se marca **NO VERIFICADO** y **no se adivina**.
    sí queda para Gerencia y administradores.
 9. **Los textos de `state_message` los ve el cliente** (la página «Estado del pago» de Odoo los imprime): son amables, en español
    y sin datos internos. Lo técnico va a los registros (sin secretos) y a la nota del pedido (solo equipo).
+10. **Odoo solo filtra los proveedores por «Publicado» al MOSTRARLOS**, no al crear la transacción: quien manda a mano el número
+    del proveedor a `/my/orders/<id>/transaction` abre la página aunque nunca se le haya ofrecido. En «Modo de prueba» y sin
+    publicar eso era pagar un pedido real con la tarjeta de prueba pública. Ahora el propio proveedor lo exige: **sin publicar,
+    solo lo abre una persona del equipo con sesión** (la misma regla que Odoo aplica al mostrarlo).
+11. **El total del pedido puede cambiar después de abrir la página de pago.** Con la transacción en «borrador» el carrito sigue
+    editable (otra pestaña, o la vendedora) y, como el pago en línea no es obligatorio en esta base, Odoo confirma el pedido con
+    cualquier transacción hecha. Por eso, antes de dar un pago por bueno se compara lo cobrado con lo que **vale el pedido
+    ahora** (no con lo que valía al abrir). Si no coinciden NO se paga solo: el dinero entró, la transacción queda en error con un
+    mensaje para el cliente y Gerencia recibe una **nota y una actividad** en el pedido (cobrado X, el pedido ahora vale Y).
+    Hay una segunda comprobación justo antes de confirmar el pedido (otra vez, por si cambió entre medias).
+12. **«Probar conexión» no comprueba la llave.** Solo abre sesión con usuario y contraseña; la llave se usa en el primer cobro.
+    Tilopay no publica qué contesta a una llave mala (ni en `consult` ni en `processPayment`), y esta capa no inventa respuestas
+    de Tilopay: la pantalla lo dice con todas las letras («la llave se comprueba en el primer cobro de prueba») y el campo se llama
+    «Claves cargadas», no «Conectado».
+13. **`TILOPAY_ENTORNO=produccion` solo vale en el servidor de producción** (`DCASA_ENTORNO=produccion`, que el Worker fija solo
+    en `dcasa`): la misma regla de correos y de Meta. En staging o en una copia local, aunque alguien pegue «produccion», Tilopay
+    solo cobra en prueba.
 
 ## 4. Modelo de amenazas
 
 | Qué podría intentar un atacante | Qué lo frena |
 |---|---|
-| Leer la llave, el usuario o la contraseña | Solo existen como **secretos del Worker de Cloudflare** y en el entorno del contenedor. No están en el repositorio, en GitHub, en la base, en un campo de pantalla, en un log ni en una respuesta. La pantalla del proveedor muestra solo «Conectado: sí/no» y «Entorno». El token de Tilopay vive únicamente en la memoria del proceso. Una prueba comprueba con `assertLogs` que ningún registro trae claves ni tokens |
+| Leer la llave, el usuario o la contraseña | Solo existen como **secretos del Worker de Cloudflare** y en el entorno del contenedor. No están en el repositorio, en GitHub, en la base, en un campo de pantalla, en un log ni en una respuesta. La pantalla del proveedor muestra solo «Claves cargadas: sí/no» y «Entorno». El token de Tilopay vive únicamente en la memoria del proceso. Una prueba comprueba con `assertLogs` que ningún registro trae claves ni tokens |
 | Fingir un pago: abrir `/payment/tilopay/return?code=1&order=…` a mano | El `code` del navegador **no se usa**. Se busca la transacción por su número de orden, y se **consulta a Tilopay**: debe existir una fila aprobada de esa orden |
 | Fingir el aviso: POST a `/payment/tilopay/webhook` con un cuerpo falso | Igual: el cuerpo solo sirve para saber **qué orden revisar**; la decisión sale de la consulta. Un cuerpo inventado no cambia nada |
 | Pagar poco y que cuente por mucho (monto distinto) | El monto y la moneda salen **siempre** del pedido en el servidor (USD, 2 decimales, con ITBMS incluido). Si lo que Tilopay dice haber cobrado no es **exactamente** eso, el pago no se acepta y la transacción queda en error con aviso al equipo |
@@ -102,7 +119,11 @@ oficial se marca **NO VERIFICADO** y **no se adivina**.
 | Repetir un aviso viejo (replay) o repetirlo muchas veces | Es idempotente: una transacción ya pagada no se vuelve a procesar ni duplica el cobro, el asiento ni los puntos. Cada transacción se consulta como mucho **una vez cada 5 segundos**, así que repetir no gasta llamadas a Tilopay |
 | Mandar miles de avisos para gastar llamadas al API de Tilopay | **Nada se consulta antes de validar**: tamaño del cuerpo (tope 16 KB), forma de la orden (letras, números y guion, tope de largo), y que **exista** una transacción de Tilopay pendiente con esa orden (búsqueda por igualdad, sin SQL armado con texto). Orden inventada = no pasa nada y **no** se llama a Tilopay |
 | Averiguar qué órdenes existen (enumerar) | La ruta contesta **lo mismo** exista o no (el aviso: `200 {"estado":"ok"}`; el retorno: la misma redirección a `/payment/status`). Sin trazas de error hacia afuera |
-| Crear cientos de intentos de pago para saturar a Tilopay | Máximo 5 intentos sin terminar por pedido en 15 minutos; además el borde limita los POST de `/shop/payment` por IP |
+| Crear cientos de intentos de pago para saturar a Tilopay (cada página es una llamada a `processPayment` en la cuenta) | Máximo 5 intentos sin terminar por pedido en 15 minutos, **y un tope global de 300 páginas por hora** (`TOPE_PAGINAS_POR_HORA`; la tienda vende muy por debajo). Pasado el tope el cliente ve «Hay muchos pagos en curso…» y se le ofrece otra forma de pago. Además el borde limita los POST de `/shop/payment` por IP |
+| Dejar sin servicio la tarea que rescata pagos con una ráfaga de intentos basura | La tarea ordena por `coalesce(última consulta, creación)`: lo que lleva más tiempo esperando va primero y lo nuevo no se cuela. Lo reciente se pregunta cada 8 minutos, lo viejo cada hora, lo rechazado o cancelado cada 3 horas; trabaja por lotes hasta gastar 100 segundos; si Tilopay no contesta 3 veces seguidas, para |
+| Abrir a mano el proveedor de pruebas sin publicar (mandar `provider_id` a `/my/orders/…/transaction`) y pagar un pedido real con la tarjeta de prueba | Un proveedor sin publicar solo lo abre una persona del equipo con sesión (§3, punto 10). Aunque lo hiciera ella, el pedido queda con una nota «Pagado con una tarjeta de PRUEBA» |
+| Cambiar el pedido mientras el cliente paga (pagar 107 y quedarse con un pedido de 535, o al revés) | Se compara lo cobrado con el total **actual** del pedido antes de dar el pago por bueno y otra vez antes de confirmarlo (§3, punto 11); si no coinciden, no se paga solo y Gerencia recibe nota y actividad |
+| Pagar un pedido que ya se canceló | No se abre la página para un pedido cancelado; si se cancela mientras el cliente paga, el dinero entra y Gerencia recibe nota y actividad para devolverlo o reabrir el pedido |
 | Tumbar la tienda haciendo caer a Tilopay | Timeout corto (10 s). Una falla de red o de Tilopay deja la transacción **pendiente** (nunca «pagada») y nunca tumba la venta ni el arranque. Los pendientes se vuelven a preguntar solos |
 | Dos avisos a la vez sobre el mismo pago | Se bloquea la fila de la transacción (`FOR UPDATE SKIP LOCKED`): la segunda espera su turno o se salta |
 | Cambiar de modo (prueba ↔ real) con pagos a medias para mezclarlos | La transacción recuerda el modo en que se creó (`is_live`): un pago aprobado solo vale si el modo que dice Tilopay es el mismo |
@@ -121,7 +142,7 @@ para no pagar nada falso, y la tarea programada suple al aviso si no llega.
 
 ### 5.1 El camino feliz
 
-1. El cliente elige **«Tarjeta, Yappy y más (Tilopay)»** (solo sale si Tilopay está activo, conectado y coherente).
+1. El cliente elige **«Tarjeta, Yappy y más (Tilopay)»** (solo sale si Tilopay está activo, con las claves cargadas y coherente).
 2. Odoo crea la transacción (monto y moneda del **pedido**, no del navegador) y le da un `orderNumber` propio:
    `<referencia>-<8 letras y números al azar>`. Se guarda en `dcasa_tilopay_orden` **antes** de llamar a Tilopay.
 3. Odoo llama a `login` (token en memoria, se renueva solo) y a `processPayment`; Tilopay devuelve la dirección de su página.
@@ -129,7 +150,8 @@ para no pagar nada falso, y la tarea programada suple al aviso si no llega.
 5. Tilopay lo devuelve a `https://dcasapty.com/payment/tilopay/return` y, aparte, avisa a la ruta del aviso.
 6. **Cualquiera de esas llegadas, o la tarea programada, o la página «Estado del pago» mientras espera, hace lo mismo:** busca
    la transacción por su orden, la bloquea, **consulta a Tilopay** y compara orden, **monto, moneda, aprobación (`code = 1`) y
-   entorno**. Si todo coincide: `_set_done()`. Si algo no coincide: no se paga y se anota por qué.
+   entorno**, y además que el **pedido siga valiendo lo cobrado**. Si todo coincide: `_set_done()`. Si algo no coincide: no se
+   paga y se anota por qué.
 7. `_set_done()` dispara el flujo normal de Odoo, el mismo que cualquier pago en línea: confirma el pedido (reserva el
    inventario), registra el cobro **en el diario «Tilopay»** y, cuando se factura y se publica la factura, Odoo la cruza sola
    con ese cobro; al quedar pagada la factura completa, Socios da sus puntos (solo con la compra completa).
@@ -140,9 +162,16 @@ para no pagar nada falso, y la tarea programada suple al aviso si no llega.
   el cliente en la página de Tilopay. Qué métodos aparecen se maneja en el panel de Tilopay (§6.4).
 - **`orderNumber` propio, aleatorio y único**: Tilopay lo exige único para siempre, y así la orden de staging no choca con la de
   producción ni se puede adivinar contando.
-- **Un rechazo no es el final.** El cliente puede reintentar en la misma página de Tilopay con otra tarjeta. Por eso un rechazo
-  deja la transacción en error/pendiente, y **una consulta posterior que muestre un pago aprobado la pasa a pagada** (`error`,
-  `cancel` o `draft` → `done`). A las 24 horas sin pago se marca vencida y se deja de preguntar.
+- **Un rechazo no es el final.** El cliente puede reintentar en la misma página de Tilopay con otra tarjeta. Por eso **una consulta
+  posterior que muestre un pago aprobado la pasa a pagada** (`error`, `cancel` o `draft` → `done`). Esa consulta posterior existe:
+  la tarea programada pregunta por lo rechazado o cancelado de los últimos 3 días (cada 3 horas) y la página «Estado del pago»
+  también pregunta mientras la transacción esté en `error`. A las 24 horas sin pago, lo que sigue sin confirmar se marca vencido.
+- **Un estado que no es un rechazo claro no se da por rechazado.** Un rechazo del emisor trae un código **numérico** distinto de
+  «1». Cualquier otra cosa (vacío, texto, un estado intermedio como el de un Yappy que aún no responde) queda **pendiente**, sin
+  nota ni error, y la tarea vuelve a preguntar (§8, punto 11).
+- **Los montos de $1,000 o más** pueden llegar como «1,250.00». Se acepta esa forma (coma de miles y siempre dos decimales) y la
+  normal («1250.00»); cualquier otra forma rara no paga (queda como «monto distinto» con aviso al equipo). El monto que mandamos a
+  Tilopay va siempre sin coma.
 - **El diario «Tilopay»** (tipo banco, código `TLP`) se crea al instalar. Así, «Cobrado por forma de pago» y la Caja ven «Tilopay».
 - **No se enciende la factura automática** (`sale.automatic_invoice`): cambia lo que pasa con todos los proveedores y emite
   documentos fiscales. Queda como decisión de la dueña (§9).
@@ -160,6 +189,11 @@ para no pagar nada falso, y la tarea programada suple al aviso si no llega.
 | Tilopay caído, lento o con respuesta rara | Pendiente; se reintenta con la tarea programada. Nunca «pagada» |
 | El cliente abre dos páginas de pago y paga las dos | Los dos pagos son dinero real y los dos se aceptan; el pedido lleva una nota para el equipo: hay que devolverle uno desde el panel de Tilopay |
 | Transacción ya cancelada o vencida y llega un pago aprobado y correcto | Se acepta (hay dinero real); queda anotado |
+| El pedido cambió de total mientras el cliente pagaba | Error para esa transacción con un mensaje al cliente («Tu pedido cambió mientras pagabas…»); **no** se confirma el pedido; Gerencia recibe nota y actividad «cobrado X, el pedido ahora vale Y» (el dinero entró). Si el total vuelve a valer lo cobrado, una consulta posterior sí lo da por pagado |
+| Llega un pago aprobado de un pedido que ya está cancelado | El cobro entra; el pedido sigue cancelado; Gerencia recibe nota y actividad para devolverlo o reabrir el pedido |
+| El pago fue de prueba (`is_live` falso) y el pedido se confirmó | El pedido lleva la nota «Pagado con una tarjeta de PRUEBA…» (quien prepara la entrega lo ve) |
+| El pedido pagado era un «apartado por página web» | Al confirmarse pagado completo deja de ser apartado (sin fecha de vencimiento) |
+| Un código de estado raro o intermedio en `consult` | Pendiente, sin error ni nota; se vuelve a preguntar |
 | Orden desconocida, de otro proveedor, de otra empresa | No pasa nada y la respuesta es idéntica |
 | Credenciales ausentes | Tilopay **no aparece** en la tienda; Odoo y el sitio siguen normales; el arranque no se entera |
 | Proveedor apagado | Nada cambia: ni se ofrece ni responde a avisos con datos |
@@ -182,7 +216,7 @@ Los despliegues usan `--keep-vars` y no tocan lo que se pegó en el panel.
 | `TILOPAY_API_KEY` | **Secreto** | La **«Llave API»** de la cuenta **real** | La «Llave API» de la **cuenta de pruebas** de desarrollador | Panel de Tilopay › Integración con plataformas | Identifica el comercio en cada cobro y consulta |
 | `TILOPAY_API_USER` | **Secreto** | El **«Usuario API»** de la cuenta real | El «Usuario API» de la cuenta de pruebas | Mismo panel | Abre sesión en la API |
 | `TILOPAY_API_PASSWORD` | **Secreto** | La **«Contraseña API»** de la cuenta real | La «Contraseña API» de la cuenta de pruebas | Mismo panel | Abre sesión en la API |
-| `TILOPAY_ENTORNO` | **Variable normal** (Texto) | `prueba` mientras se hacen las pruebas finales y **`produccion` solo cuando todo salió bien** | **No hace falta pegarla:** ya viene fijada en `prueba` en el código (`edge/wrangler.jsonc`) y un despliegue siempre la deja así | No es un dato de Tilopay: es lo que **tú dices que esperas** | Dice a Odoo si debe aceptar pagos de prueba o reales. Sin ella, Odoo asume `prueba` (lo seguro) |
+| `TILOPAY_ENTORNO` | **Variable normal** (Texto) | `prueba` mientras se hacen las pruebas finales y **`produccion` solo cuando todo salió bien** | **No hace falta pegarla:** ya viene fijada en `prueba` en el código (`edge/wrangler.jsonc`) y un despliegue siempre la deja así | No es un dato de Tilopay: es lo que **tú dices que esperas** | Dice a Odoo si debe aceptar pagos de prueba o reales. Sin ella, Odoo asume `prueba` (lo seguro). `produccion` solo se obedece en el servidor de producción (`DCASA_ENTORNO=produccion`, que el Worker `dcasa` ya trae) |
 
 Reglas:
 
@@ -204,8 +238,9 @@ Reglas:
 7. Staging **no necesita** `TILOPAY_ENTORNO`: ya viene fijada en `prueba` en el código. (En producción sí se pega, en el paso 10.)
 8. Pulsa **Implementar** (*Deploy*) si Cloudflare te lo pide. **Los cambios llegan a Odoo al reiniciar o en el siguiente despliegue**:
    avisa y se reinicia/despliega.
-9. En Odoo de staging: *Facturación › Configuración › Proveedores de pago › Tilopay*. Debe decir «Conectado: Sí» y
-   «Entorno: Prueba». Pulsa **Probar conexión**. (Hoy el dominio `staging.dcasapty.com` aún no apunta al Worker de staging, ver
+9. En Odoo de staging: *Facturación › Configuración › Proveedores de pago › Tilopay*. Debe decir «Claves cargadas: Sí» y
+   «Entorno: Prueba». Pulsa **Probar conexión**: te dice si Tilopay aceptó el usuario y la contraseña, y avisa que la «Llave API» no
+   se puede comprobar ahí (se comprueba en el primer cobro de prueba). (Hoy el dominio `staging.dcasapty.com` aún no apunta al Worker de staging, ver
    `edge/wrangler.jsonc`: el cliente de prueba no podrá volver a la tienda después de pagar; la confirmación llega igual por la
    tarea programada, hasta 10 minutos. Para ver el retorno completo hay que apuntar ese dominio primero.)
 10. Para producción, mismo camino en el Worker **`dcasa`** con las claves de la cuenta **real**; además **+ Agregar** › Tipo: **Texto** ›
@@ -231,14 +266,18 @@ Las comisiones de cada método están en <https://tilopay.com/tarifas>: no se co
 ## 7. Guion de prueba (sandbox, con dinero de mentiras)
 
 Se hace **en staging** con la **cuenta de pruebas de desarrollador**, o en producción con `TILOPAY_ENTORNO=prueba` y el «Modo
-Prueba» **encendido** en el panel. Nunca con una tarjeta real.
+Prueba» **encendido** en el panel. Nunca con una tarjeta real. **En producción, solo con el proveedor «sin publicar» y con
+personas del equipo con sesión iniciada**: un visitante no puede abrirlo (§3, punto 10), y el pedido que se pague así queda
+**confirmado de verdad** (reserva inventario) con la nota «Pagado con una tarjeta de PRUEBA»: **anúlalo al terminar**.
 
 0. Panel de Tilopay: «Modo Prueba» **encendido** (aparece un aviso arriba en todo el panel). Métodos de pago activos: tarjeta y Yappy.
 1. Cloudflare (§6.2) con las claves de pruebas y `TILOPAY_ENTORNO=prueba`; reiniciar.
-2. Odoo › *Facturación › Configuración › Proveedores de pago › Tilopay*: «Conectado: Sí», «Entorno: Prueba». **Probar conexión**: debe
-   decir que sí. Cambiar el estado a **Modo de prueba** y guardar. En modo de prueba Tilopay solo lo ve el equipo que tiene
-   sesión (entra con tu usuario de administrador para probar). **En staging**, si quieres que también lo vea un visitante,
-   pulsa **Publicado**. **En producción no pulses «Publicado» hasta el final**: así los clientes no ven una opción de pruebas.
+2. Odoo › *Facturación › Configuración › Proveedores de pago › Tilopay*: «Claves cargadas: Sí», «Entorno: Prueba». **Probar
+   conexión**: debe decir que Tilopay aceptó el usuario y la contraseña (y que la llave se comprueba en el primer cobro: ése es
+   el paso 4). Cambiar el estado a **Modo de prueba** y guardar. En modo de prueba Tilopay solo lo ve **y lo puede abrir** el
+   equipo que tiene sesión (entra con tu usuario de administrador para probar). **En staging**, si quieres que también lo vea
+   un visitante, pulsa **Publicado**. **En producción no pulses «Publicado» hasta el final**: así los clientes no ven una
+   opción de pruebas y nadie puede abrirla a mano.
 3. En la tienda: agrega un mueble barato, ve a pagar. Debe salir **«Tarjeta, Yappy y más (Tilopay)»**. Con Tilopay apagado en Odoo no debe salir.
 4. **Pago aprobado:** elige Tilopay. Se abre la página de Tilopay. Tarjeta `4111111111111111`, vencimiento futuro, CVV cualquiera.
    Debe volver a la tienda y mostrar «¡Pago recibido!» y el pedido **confirmado**. En Odoo: la transacción en **Confirmado**, un cobro
@@ -257,9 +296,15 @@ Prueba» **encendido** en el panel. Nunca con una tarjeta real.
 12. **Portal:** desde un pedido enviado por correo (`/my/orders/…`), paga con Tilopay: mismo resultado.
 13. **Facturar:** crea y publica la factura del pedido pagado: debe quedar **pagada** sola y, si el cliente es Socio, dar sus puntos.
 14. **Mirar los registros** del contenedor: no debe aparecer ninguna clave, usuario, contraseña ni token.
-15. **Lo que hay que anotar y mandar** (para cerrar §8): el valor exacto que trae `order`, qué texto trae `environment` en `consult`
-    para pruebas y para real, qué trae `consult` de una orden que no existe y con una llave equivocada, y si Yappy aparece en la
-    página alojada.
+15. **Pedido de más de $1,000:** una compra con total mayor a mil dólares (por ejemplo varias unidades de un mueble barato). Debe
+    quedar pagada igual. Anota **cómo trae `amount` Tilopay en `consult`** («1250.00» o «1,250.00»): el código acepta las dos.
+16. **El pedido cambia mientras pagas:** abre la página de pago con un pedido; en otra pestaña cambia la cantidad; paga en la
+    página de Tilopay. El pedido **no** debe confirmarse; la transacción queda en error con «Tu pedido cambió mientras
+    pagabas»; Gerencia ve una actividad en el pedido («cobrado X, el pedido ahora vale Y»). Devuelve ese cobro de prueba desde el panel.
+17. **Un pago de prueba no pasa en silencio:** el pedido pagado en el paso 4 lleva la nota «Pagado con una tarjeta de PRUEBA».
+18. **Lo que hay que anotar y mandar** (para cerrar §8): el valor exacto que trae `order`, qué texto trae `environment` en `consult`
+    para pruebas y para real, qué trae `consult` de una orden que no existe y con una llave equivocada, qué `code` trae un Yappy
+    que todavía no responde, y si Yappy aparece en la página alojada.
 
 **Para pasar a real:** repetir 3, 4 y 9 con **una compra pequeña de verdad** (reembolsable desde el panel) apenas se cambie a
 `produccion` y se apague el «Modo Prueba»; revisar en el panel de Tilopay que la transacción dice «Producción».
@@ -276,6 +321,20 @@ Prueba» **encendido** en el panel. Nunca con una tarjeta real.
 8. Si los campos `billTo*` aceptan valores vacíos o hace falta mandar algo (el código manda datos neutros cuando faltan).
 9. Que la **página alojada** muestre Yappy y los demás métodos activos.
 10. Que la cuenta de pruebas de desarrollador sea **permanentemente** de pruebas (sin el interruptor).
+11. Los **códigos de estado de `consult`**: el ejemplo solo muestra «1» (aprobada); un rechazo trae «el código del emisor». Qué
+    `code` y qué `response` trae una transacción **pendiente** (Yappy sin responder). El código solo da por rechazado un código
+    numérico distinto de «1»; todo lo demás lo deja pendiente.
+12. El **valor exacto de `environment`** en `consult` para pagos reales (el ejemplo solo muestra «Test»; «PROD» y «TEST» son del
+    SDK). Hoy se aceptan, sin importar mayúsculas, `Test`/`prueba`/`sandbox` y `Production`/`produccion`/`prod`; cualquier otro
+    texto **no paga** y deja una nota clara en el pedido (el pago real no se confirmaría hasta que se sepa el valor).
+13. El **formato de `amount`** en montos de $1,000 o más («1250.00» o «1,250.00») y si alguna vez trae signo o separador distinto.
+    Hoy se aceptan esas dos formas; cualquier otra no paga.
+14. Los **campos exactos de `processPayment`** (cuáles son realmente obligatorios; que los `billTo*` neutros del código se acepten).
+15. El **aviso de compras (webhook)** puede traer más de un campo con forma de orden (p. ej. `order` y `orderNumber`): hoy, si trae
+    dos órdenes distintas, no se adivina y no se hace nada (la tarea programada y el retorno suplen).
+16. **Cloudflare:** que una variable fijada en `wrangler.jsonc` gane sobre la del panel con `--keep-vars` (el staging confía en eso
+    para quedar fijo en `prueba`). Se comprueba una vez en el panel tras el primer despliegue; la regla de que `produccion` exige
+    `DCASA_ENTORNO=produccion` ya reduce el riesgo si no fuera así.
 
 ## 9. Pendientes y siguiente paso
 
@@ -296,6 +355,17 @@ Prueba» **encendido** en el panel. Nunca con una tarjeta real.
   escritura sobre ese proveedor y un menú para Gerencia; se dejó fuera a propósito en una versión que mueve dinero.
 - **Hueco conocido (aceptado):** una orden que existe tarda más en contestar el aviso (porque se consulta a Tilopay) que una
   que no existe. Para adivinar una orden hace falta además su parte al azar (8 letras y números): no es práctico.
+- **Aviso para la contadora:** al desplegar esta versión, Odoo crea el **diario bancario «Tilopay»** (código `TLP`) y su **cuenta
+  contable**, **aunque el proveedor siga apagado**. Hay que avisarle para que revise esa cuenta y a qué rubro va.
+- **Gerencia recibe las actividades** de cobros que no cuadran (pedido cambiado, pedido cancelado). Si nadie tiene el grupo
+  Gerencia, las recibe quien administra el sistema.
+- **Freno de ritmo en el borde para `/payment/tilopay/*`:** no se puso. El contador de ritmo del Worker (`edge/src/bots.ts`) es
+  aproximado y, con los límites de Rate Limiting de Workers aún comentados en `wrangler.jsonc`, un freno por IP en una ruta que
+  llama Tilopay podría frenar sus avisos. Hoy se protege con lo que hay en Odoo: tamaño de cuerpo, forma de la orden, ninguna
+  llamada a Tilopay con una orden inventada y las consultas de 5 s por transacción. Si el aviso llegara a abusarse, se revisa con
+  los números reales de *Seguridad › Eventos*.
+- **El tope de 300 páginas de pago por hora** es un límite técnico (no una cifra del negocio); se cambia en `TOPE_PAGINAS_POR_HORA`
+  (`models/payment_transaction.py`). Pasado ese tope, otros clientes tampoco pueden abrir Tilopay esa hora (ven otra forma de pago).
 - **Brian** (`docs/BRIAN.md`): una herramienta de solo lectura «¿Tilopay está encendido y conectado?» (como `estado_de_meta`) no se
   hizo; la activación es del administrador por pantalla y no hay nada que Brian deba poder cambiar.
 
@@ -313,13 +383,16 @@ registros y pantallas.
 | `tests/test_proveedor.py` | Nace apagado y sin publicar; diario «Tilopay» (también si el plan contable lo borra); se ofrece solo con las tres llaves; solo USD y solo pedidos; los otros métodos no cambian; la pantalla y sus datos no traen claves; «Probar conexión» (bien, claves malas, caído, sin claves, quién puede) |
 | `tests/test_flujo.py` | Pedido → página de pago → confirmación → pedido confirmado, cobro en el diario Tilopay, factura cruzada y compra en Socios; monto, moneda, entorno y modo distintos; orden de otra transacción o de otro proveedor; repeticiones, orden invertido y freno de 5 s; cancelada o vencida que luego paga; rechazo y reintento; Tilopay caído; dos pagos del mismo pedido; el monto del navegador; tope de páginas abiertas; la tarea programada |
 | `tests/test_rutas.py` | Por HTTP de verdad: el aviso responde igual exista o no la orden y no llama a nadie con una orden inventada; solo POST; tope de 16 KB; JSON con cualquier tipo de contenido; el retorno inventado no paga; el retorno usa `returnData`; pagar desde `/my/orders` y esperar en «Estado del pago»; ningún registro con claves en todo el recorrido |
+| `tests/test_revision.py` | Las pruebas de la **revisión independiente** (2026-11-19), tal cual las escribió quien intentó romperlo: proveedor sin publicar abierto por un visitante, total del pedido que cambia mientras se paga (sube y baja), tarea programada saturada con intentos basura, pago de un pedido cancelado, rechazo o cancelación seguidos de un pago aprobado, apartado, diario borrado, `evaluar_consulta` con formas raras, rutas con la orden de otro, servidor que no es de producción, pago de prueba sin marca y «Probar conexión» |
+| `tests/test_correcciones.py` | Lo que esas correcciones piden además: nota y actividad para Gerencia (sin repetirse), el total que vuelve a coincidir, la última comprobación antes de confirmar, lo rechazado o cancelado cada 3 horas y solo 3 días, estado intermedio que queda pendiente, ritmo de la tarea (8 min / 1 h), orden por antigüedad, lotes, paro tras 3 fallas, presupuesto de tiempo, tope de 300 páginas por hora, montos de más de mil dólares y apartado |
 | `edge/test/tilopay.test.ts` | Las variables viajan al contenedor y no impiden el arranque; la ruta pasa a Odoo, sin caché, sin freno de ritmo, sin bloqueo (también con la puerta del equipo en modo obligatorio); un POST cortado no se repite desde el borde; staging fijado en `prueba` |
+| `edge/test/tilopay_revision.test.ts` | De la revisión independiente: variantes raras de la ruta (`.css`, `..`, `%70`, doble barra, con idioma) que nunca se vuelven cacheables ni caen en una ruta bloqueada, una respuesta «public» de Odoo que no se guarda, y claves vacías o con espacios que no inventan nada |
 
 
 **Resultado de la última corrida completa** (instalando todos los módulos del `Makefile` y corriendo `dcasa_pago_tilopay`, la lista de
-llamadas permitidas de `dcasa_base`, `dcasa_guia`, la tienda configurada de `website_dcasa` y `dcasa_socios`): **631 pruebas, 0 fallan,
-0 con error**; de ellas **117 son de Tilopay**. En el Worker: `npx vitest run` **293 pruebas pasan** (11 son de Tilopay) y `tsc --noEmit`
-sin errores. `ruff check addons` limpio.
+llamadas permitidas de `dcasa_base`, `dcasa_guia`, la tienda configurada de `website_dcasa` y `dcasa_socios`), después de la revisión
+independiente: **690 pruebas, 0 fallan, 0 con error**; de ellas **176 son de Tilopay**. En el Worker: `npx vitest run` **296 pruebas
+pasan** (14 son de Tilopay) y `tsc --noEmit` sin errores. `ruff check addons` limpio.
 
 **Capturas** (Odoo con un Tilopay simulado y datos inventados; la dueña las ve antes de producción): la pantalla del proveedor y
 «Probar conexión», y la opción en el pago real de la tienda, sin elegir y elegida, a 1440 px y a 390 px. Al mirarlas salieron dos

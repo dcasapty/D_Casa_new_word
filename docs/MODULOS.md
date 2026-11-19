@@ -483,12 +483,14 @@ además como módulo de todo el servidor (`server_wide_modules = base,web,dcasa_
 - **Para qué:** cobrar el pedido completo de la tienda y del portal (`/my/orders`) en la página alojada de Tilopay. Odoo nunca
   ve una tarjeta y solo marca pagado lo que Tilopay confirma en una consulta de servidor a servidor ([TILOPAY.md](TILOPAY.md)).
 - **Depende de:** `payment`, `account_payment`, `website_sale`, `dcasa_base`.
-- **Modelos:** hereda `payment.provider` (código `tilopay`; sin campos de claves: «Conectado», «Entorno» y «Probar conexión»)
+- **Modelos:** hereda `payment.provider` (código `tilopay`; sin campos de claves: «Claves cargadas», «Entorno» y «Probar conexión», que abre sesión pero no comprueba la llave)
   y `payment.transaction` (`dcasa_tilopay_orden`, `…_consulta`, `…_entorno_visto`, `…_veredicto`). Sin modelos nuevos.
 - **Rutas públicas:** `/payment/tilopay/return` (el cliente vuelve) y `/payment/tilopay/webhook` (el aviso del servidor); las
   dos solo sirven para saber qué orden revisar. El reloj de «Estado del pago» (`/payment/status/poll`) también consulta.
-- **Crons:** «Tilopay: preguntar por los pagos sin confirmar» (cada 10 minutos; sin proveedor encendido no llama a nadie).
-- **Variables (Cloudflare):** `TILOPAY_API_KEY`, `TILOPAY_API_USER`, `TILOPAY_API_PASSWORD` (secretos) y `TILOPAY_ENTORNO`.
+- **Crons:** «Tilopay: preguntar por los pagos sin confirmar» (cada 10 minutos; sin proveedor encendido no llama a nadie; lo
+  reciente cada 8 minutos, lo viejo cada hora, lo rechazado o cancelado cada 3 horas durante 3 días).
+- **Variables (Cloudflare):** `TILOPAY_API_KEY`, `TILOPAY_API_USER`, `TILOPAY_API_PASSWORD` (secretos) y `TILOPAY_ENTORNO`
+  (`produccion` solo vale con `DCASA_ENTORNO=produccion`).
 - **Apagado de fábrica:** sí. Se ofrece solo con el interruptor de Odoo encendido, las claves cargadas y el interruptor de acuerdo
   con `TILOPAY_ENTORNO` (Habilitado ↔ `produccion`, Modo de prueba ↔ `prueba`).
 

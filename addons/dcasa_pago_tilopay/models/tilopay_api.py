@@ -33,6 +33,7 @@ VARIABLE_LLAVE = 'TILOPAY_API_KEY'
 VARIABLE_USUARIO = 'TILOPAY_API_USER'
 VARIABLE_CLAVE = 'TILOPAY_API_PASSWORD'
 VARIABLE_ENTORNO = 'TILOPAY_ENTORNO'
+VARIABLE_SERVIDOR = 'DCASA_ENTORNO'     # lo fija el Worker: «produccion» o «staging» (sin ella: una máquina cualquiera)
 
 HOST = 'https://app.tilopay.com'
 RUTA_LOGIN = '/api/v1/login'
@@ -60,7 +61,8 @@ _ENVOLTURAS = ('data', 'response', 'payload', 'transaction')
 
 # Veredictos de ``evaluar_consulta``.
 APROBADO = 'aprobado'
-RECHAZADO = 'rechazado'          # hay intentos y ninguno aprobado
+RECHAZADO = 'rechazado'          # hay intentos y ninguno aprobado (con un código numérico de rechazo)
+PENDIENTE = 'pendiente'          # una fila que no es un rechazo claro (código raro o intermedio): se sigue esperando
 SIN_REGISTRO = 'sin_registro'    # Tilopay no tiene (todavía) esa orden
 MONTO = 'monto'
 MONEDA = 'moneda'
@@ -68,9 +70,10 @@ ENTORNO = 'entorno'              # aprobado, pero de prueba en producción (o al
 CAPTURA = 'captura'              # aprobado pero no capturado
 AMBIGUO = 'ambiguo'              # varias aprobadas, o reembolsos/reversos: lo mira una persona
 INVALIDO = 'invalido'            # la respuesta no tiene la forma esperada
+TOTAL_PEDIDO = 'total_pedido'    # aprobado, pero el pedido ya no vale lo que se cobró (lo decide Odoo, no la consulta)
 
 # Estos veredictos NO cambian el estado de la transacción (se queda como está y se anota).
-VEREDICTOS_SIN_CAMBIO = frozenset({SIN_REGISTRO, ENTORNO, CAPTURA, AMBIGUO, INVALIDO})
+VEREDICTOS_SIN_CAMBIO = frozenset({SIN_REGISTRO, PENDIENTE, ENTORNO, CAPTURA, AMBIGUO, INVALIDO})
 
 
 class Credenciales(namedtuple('Credenciales', 'llave usuario clave')):
@@ -115,11 +118,23 @@ def credenciales():
     return Credenciales(*valores) if all(valores) else None
 
 
-def entorno_esperado():
-    """``'prueba'`` o ``'produccion'``, según ``TILOPAY_ENTORNO``. Sin variable o con un valor raro: ``'prueba'``
-    (lo seguro: un pago real no se acepta y uno de prueba nunca paga producción)."""
+def servidor_es_produccion():
+    """¿Este servidor es el de producción? Solo ``DCASA_ENTORNO=produccion`` lo dice (la misma regla de correos y de
+    Meta): una copia en una máquina, o el staging, nunca aceptan dinero real aunque alguien pegue «produccion»."""
+    return (os.environ.get(VARIABLE_SERVIDOR) or '').strip().lower() == 'produccion'
+
+
+def entorno_pedido():
+    """Lo que dice ``TILOPAY_ENTORNO`` (``'prueba'`` o ``'produccion'``), sin mirar en qué servidor estamos."""
     valor = (os.environ.get(VARIABLE_ENTORNO) or '').strip().lower()
     return PRODUCCION if valor in ENTORNOS_REAL or valor == 'real' else PRUEBA
+
+
+def entorno_esperado():
+    """``'prueba'`` o ``'produccion'``. Sin variable o con un valor raro: ``'prueba'`` (lo seguro: un pago real no se
+    acepta y uno de prueba nunca paga producción). ``'produccion'`` exige las DOS cosas: que ``TILOPAY_ENTORNO`` lo
+    diga y que este servidor sea el de producción (``DCASA_ENTORNO``)."""
+    return PRODUCCION if entorno_pedido() == PRODUCCION and servidor_es_produccion() else PRUEBA
 
 
 def entorno_de(texto):
@@ -327,15 +342,53 @@ class DatosVerificados(dict):
     __slots__ = ()
 
 
+# Un monto con punto decimal («107.00») o, de $1,000 para arriba, con coma de miles y SIEMPRE dos decimales
+# («1,250.00»). Nada más: ni signo, ni exponente, ni coma decimal, ni espacios adentro, ni «1,250» a secas (ambiguo).
+RE_MONTO = re.compile(r'(?:[0-9]+(?:\.[0-9]{1,6})?|[0-9]{1,3}(?:,[0-9]{3})+\.[0-9]{2})')
+
+
 def _decimal(valor):
-    """``Decimal`` de un monto que Tilopay manda como texto (o número), o ``None`` si no es un monto."""
-    if isinstance(valor, bool) or valor is None:
+    """``Decimal`` de un monto que Tilopay manda como texto (o número), o ``None`` si no es un monto con una de las
+    formas de ``RE_MONTO``. Estricto a propósito: un formato que no se reconoce no paga (queda como «monto distinto»
+    con aviso al equipo)."""
+    if isinstance(valor, bool) or valor is None or not isinstance(valor, (str, int, float)):
+        return None
+    texto = str(valor).strip()
+    if not RE_MONTO.fullmatch(texto):     # solo dígitos ASCII: ``\d`` aceptaría cifras de otros alfabetos
         return None
     try:
-        numero = Decimal(str(valor).strip())
+        return Decimal(texto.replace(',', ''))
     except (InvalidOperation, ValueError):
         return None
-    return numero if numero.is_finite() else None
+
+
+def es_codigo_de_rechazo(codigo):
+    """Un rechazo claro: ``code`` es un texto de solo dígitos distinto de «1» (aprobado). Todo lo demás es incierto."""
+    return isinstance(codigo, str) and bool(re.fullmatch(r'[0-9]{1,4}', codigo.strip())) and codigo.strip() != '1'
+
+
+def _juzgar_fila_aprobada(dato, fila, monto, moneda, entorno):
+    """La única fila aprobada de la orden: solo es un pago si el entorno es el esperado, la moneda y el monto son
+    EXACTOS y está capturada. ``dato`` arma el ``DatosVerificados`` de ``evaluar_consulta``."""
+    entorno_visto = entorno_de(fila.get('environment'))
+    visto_texto = limpiar(fila.get('environment'))
+    if entorno_visto is None:
+        return dato(ENTORNO, detalle=f'el entorno «{visto_texto}» no se reconoce', entorno_visto=visto_texto)
+    if entorno_visto != entorno:
+        return dato(ENTORNO, detalle=f'Tilopay respondió «{entorno_visto}» y se esperaba «{entorno}»',
+                    entorno_visto=entorno_visto)
+    moneda_vista = str(fila.get('currency') or '').strip().upper()
+    if moneda_vista != str(moneda).strip().upper():
+        return dato(MONEDA, detalle=f'moneda distinta (Tilopay: {limpiar(moneda_vista)})', entorno_visto=entorno_visto)
+    monto_visto = _decimal(fila.get('amount'))
+    if monto_visto is None or monto_visto != monto:
+        return dato(MONTO, detalle=f'monto distinto (Tilopay: {limpiar(fila.get("amount"))}; pedido: {monto})',
+                    entorno_visto=entorno_visto)
+    captura = str(fila.get('capture') or '').strip().lower()
+    if captura and captura not in CAPTURA_VALIDA:
+        return dato(CAPTURA, detalle=f'el pago no está capturado ({limpiar(captura)})', entorno_visto=entorno_visto)
+    return dato(APROBADO, detalle='aprobado', entorno_visto=entorno_visto, monto=monto_visto, moneda=moneda_vista,
+                id_tilopay=limpiar(fila.get('id_tilopay')), autorizacion=limpiar(fila.get('auth')))
 
 
 def evaluar_consulta(cuerpo, orden, monto, moneda, entorno):
@@ -368,28 +421,14 @@ def evaluar_consulta(cuerpo, orden, monto, moneda, entorno):
         return dato(AMBIGUO, detalle=f'la orden trae movimientos que no son un pago ({tipos})')
     aprobadas = [f for f in pagos if str(f.get('code', '')).strip() == '1']
     if not aprobadas:
+        # Un rechazo del emisor trae un código numérico (el ejemplo oficial: «1» aprobado). Cualquier otra cosa (vacío,
+        # texto, un estado intermedio como el de un Yappy que aún no responde) NO se da por rechazo: se sigue esperando
+        # y la tarea programada vuelve a preguntar (docs/TILOPAY.md §8, punto 11).
+        if any(not es_codigo_de_rechazo(f.get('code')) for f in pagos):
+            return dato(PENDIENTE, detalle='Tilopay todavía no dice si el pago fue aprobado o rechazado')
         motivo = limpiar(pagos[-1].get('response') or pagos[-1].get('description') or '') if pagos else ''
         return dato(RECHAZADO, detalle=motivo or 'Tilopay no aprobó el pago')
     if len(aprobadas) > 1:
         return dato(AMBIGUO, detalle='la orden trae más de un pago aprobado')
 
-    fila = aprobadas[0]
-    entorno_visto = entorno_de(fila.get('environment'))
-    visto_texto = limpiar(fila.get('environment'))
-    if entorno_visto is None:
-        return dato(ENTORNO, detalle=f'el entorno «{visto_texto}» no se reconoce', entorno_visto=visto_texto)
-    if entorno_visto != entorno:
-        return dato(ENTORNO, detalle=f'Tilopay respondió «{entorno_visto}» y se esperaba «{entorno}»',
-                    entorno_visto=entorno_visto)
-    moneda_vista = str(fila.get('currency') or '').strip().upper()
-    if moneda_vista != str(moneda).strip().upper():
-        return dato(MONEDA, detalle=f'moneda distinta (Tilopay: {limpiar(moneda_vista)})', entorno_visto=entorno_visto)
-    monto_visto = _decimal(fila.get('amount'))
-    if monto_visto is None or monto_visto != monto:
-        return dato(MONTO, detalle=f'monto distinto (Tilopay: {limpiar(fila.get("amount"))}; pedido: {monto})',
-                    entorno_visto=entorno_visto)
-    captura = str(fila.get('capture') or '').strip().lower()
-    if captura and captura not in CAPTURA_VALIDA:
-        return dato(CAPTURA, detalle=f'el pago no está capturado ({limpiar(captura)})', entorno_visto=entorno_visto)
-    return dato(APROBADO, detalle='aprobado', entorno_visto=entorno_visto, monto=monto_visto, moneda=moneda_vista,
-                id_tilopay=limpiar(fila.get('id_tilopay')), autorizacion=limpiar(fila.get('auth')))
+    return _juzgar_fila_aprobada(dato, aprobadas[0], monto, moneda, entorno)

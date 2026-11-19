@@ -3,11 +3,12 @@
 import json as json_lib
 import os
 import uuid
+from datetime import timedelta
 from unittest.mock import patch
 
 import requests
 
-from odoo import Command
+from odoo import Command, fields
 from odoo.addons.dcasa_pago_tilopay.models import tilopay_api as api
 
 # Claves inventadas, con forma reconocible para buscarlas en logs y pantallas.
@@ -224,3 +225,9 @@ class ComunTilopay(PreparaPedido):
 
     def llamadas_a_consulta(self, tilopay):
         return tilopay.rutas(api.RUTA_CONSULTA)
+
+    def envejecer(self, tx, **delta):
+        """Hace que la transacción haya nacido hace ``delta`` (``minutes=…``, ``hours=…``)."""
+        antes = fields.Datetime.now() - timedelta(**delta)
+        self.env.cr.execute('UPDATE payment_transaction SET create_date = %s WHERE id = %s', [antes, tx.id])
+        tx.invalidate_recordset(['create_date'])
