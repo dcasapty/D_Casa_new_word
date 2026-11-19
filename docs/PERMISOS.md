@@ -50,6 +50,7 @@ Más abajo: [roles y grupos](#roles-y-grupos-mapa-completo) · [interruptores](#
 | **Envíos:** editar o archivar lugares (los km y la provincia, solo aquí), **«Marcar revisado»** un lugar, cambiar y **aprobar la tarifa**, cargar el archivo de envíos, y **Envíos › Promoción de envío** (2026-11-12) | No | No | No | Sí | Sí |
 | **Envíos › Tarifa › Enlace para choferes** (2026-11-09): ver, encender, copiar y cambiar el enlace secreto de la calculadora de los choferes (que no tienen usuario) | No | No | No | Sí | Sí |
 | **Ventas › Hoy › Opiniones por aprobar** (lote 2 de la web, 2026-11-13): leer las opiniones que dejaron los clientes y **«Publicar»** o **«No publicar»** cada una. Nadie las crea ni cambia lo que dijo el cliente (estrellas, texto); borrar una, solo el administrador | No | No | No | Sí | Sí |
+| **Exportar listas a Excel** (Acción › Exportar de cualquier lista; `base.group_allow_export`): pedido del jefe 2026-11-19, para bajar facturas con su forma de pago. Gerencia lo trae por su rol (`dcasa_roles.xml`); el exportador respeta los permisos de lectura de quien exporta, así que no abre el costo para quien no lo ve ni lo que solo ven los administradores (clave del PIN de Socios, datos de Meta, parámetros del sistema); `dcasa_base/tests/test_exportar.py` | No | No | No | Sí | Sí |
 | **Sitio web › Brian de la tienda** (2026-11-13): encender o apagar el chat de la tienda, el presupuesto del mes, los topes de mensajes y ver su gasto y sus calificaciones (número y fecha; nadie las crea ni cambia por la interfaz) | No | No | No | Sí | Sí |
 
 **Opiniones de los productos (cliente, lote 2 de la web).** El cliente opina desde **Mi cuenta › Tus opiniones**
@@ -190,7 +191,7 @@ notas de crédito de cliente; la lista que abre cada cifra la ve cada quien con 
 proveedor es solo de **Gerencia y administradores**. El servidor lo exige en cada llamada (`dcasa.reponer`, también el
 Excel en `/dcasa/reponer/excel` y las herramientas `que_reponer` y `poner_tiempo_llegada` de Brian); la Vendedora no ve
 el menú y, si lo pide por la conexión de datos, se le niega. El Excel lo arma el servidor: el «Exportar» general de Odoo
-sigue siendo solo de administradores.
+es de Gerencia y administradores (desde 2026-11-19; antes, solo administradores).
 
 **El costo del producto, el precio del proveedor y el margen, cerrados (etapa 1b(a), 2026-10-22,
 `dcasa_base/models/costos_cerrados.py`):** el campo «Costo» de la ficha del producto (y el costo unitario y el valor

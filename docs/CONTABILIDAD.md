@@ -84,6 +84,11 @@ octubre de 2026 la diferencia ($221.38 sin ITBMS) era una sola factura sin pedid
 vencida, no debe nada: no sale como vencido, y lo que pagó de más sale «a favor». El cierre de mes dice también lo que
 queda a favor de clientes.
 
+**«Forma de pago» de la factura** (2026-11-19, `dcasa_interfaz/models/forma_pago.py`): el diario de los pagos aplicados, con la misma
+definición de «cobro» del tablero (pagos de clientes en proceso o pagados). **Pregunta abierta para la contadora (no se ha
+decidido):** un cobro conciliado directo con una línea del extracto del banco, sin un pago de Odoo de por medio, hoy no cuenta
+como forma de pago (tampoco en «Cobrado por forma de pago»): esa factura sale sin forma de pago aunque esté pagada.
+
 La auditoría completa (qué se revisó, qué se encontró y qué le preguntamos a la contadora) está en [AUDITORIA_CONTABLE.md](historico/AUDITORIA_CONTABLE.md).
 
 ## Usuarios

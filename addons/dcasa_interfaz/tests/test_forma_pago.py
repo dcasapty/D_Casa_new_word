@@ -473,6 +473,30 @@ class TestFormaPagoPantallas(FormaPagoCommon):
         self.assertIn("'group_by': 'dcasa_forma_pago'", arch)
         self.assertIn('name="dcasa_origen_chatbot"', arch, 'lo de los otros módulos sigue en su lugar')
 
+    def test_el_metodo_de_pago_de_odoo_ya_no_se_confunde_con_la_forma_de_pago(self):
+        """El «Método de pago» de Odoo es el que el cliente prefiere (su ficha); se llama así en la factura y en
+        Agrupar por, y la columna nuestra sigue siendo «Forma de pago»."""
+        etiqueta = 'Método de pago preferido del cliente'
+        Factura = self.env['account.move']
+        for lang in ('en_US', 'es_419'):
+            if lang != 'en_US' and not self.env['res.lang']._lang_get(lang):
+                continue
+            with self.subTest(lang):
+                contexto = Factura.with_context(lang=lang)
+                formulario = contexto.get_view(self.env.ref('account.view_move_form').id, 'form')['arch']
+                self.assertEqual(formulario.count(f'string="{etiqueta}"'), 1, 'solo el de facturas de cliente')
+                self.assertEqual(formulario.count('name="preferred_payment_method_line_id"'), 2,
+                                 'los dos campos siguen (el de proveedores no se toca)')
+                buscador = contexto.get_view(self.env.ref('account.view_account_invoice_filter').id, 'search')['arch']
+                self.assertRegex(buscador, rf'<filter[^>]*name="preferred_payment_method_line"[^>]*string="{etiqueta}"'
+                                 rf'|<filter[^>]*string="{etiqueta}"[^>]*name="preferred_payment_method_line"')
+                self.assertRegex(buscador, r'<filter[^>]*string="Forma de pago"[^>]*name="dcasa_por_forma_pago"'
+                                 r'|<filter[^>]*name="dcasa_por_forma_pago"[^>]*string="Forma de pago"')
+                lista = contexto.get_view(self.env.ref('account.view_out_invoice_tree').id, 'list')['arch']
+                self.assertIn('name="dcasa_forma_pago"', lista)
+                self.assertEqual(contexto.fields_get(['dcasa_forma_pago'])['dcasa_forma_pago']['string'],
+                                 'Forma de pago')
+
     def test_el_formulario_la_muestra_solo_para_leer(self):
         arch = self.arch('account.view_move_form', 'form')
         self.assertRegex(arch, r'<field name="dcasa_forma_pago"[^>]*readonly="1"')
@@ -491,12 +515,9 @@ class TestFormaPagoPantallas(FormaPagoCommon):
 
 @tagged('post_install', '-at_install')
 class TestFormaPagoEnElExcel(FormaPagoCommon, HttpCase):
-
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        cls.exporta = crear_usuario(cls.env, 'exporta_forma_pago', 'dcasa_base.group_gerencia')
-        cls.exporta.group_ids = [Command.link(cls.env.ref('base.group_allow_export').id)]
+    """El Excel es el pedido central del jefe (2026-11-19): Gerencia exporta las facturas con su forma de pago; Caja, la
+    Vendedora y cualquier otro rol siguen sin el botón (``base.group_allow_export``: solo Gerencia y administradores).
+    Lo que Gerencia no puede leer tampoco sale en un Excel: ``dcasa_base/tests/test_exportar.py``."""
 
     def setUp(self):
         super().setUp()
@@ -505,8 +526,27 @@ class TestFormaPagoEnElExcel(FormaPagoCommon, HttpCase):
         self.pago(self.mixta, 600.0, self.efectivo)
         self.sin_pago = self.factura(precio=250.0)
 
+    def bajar_xlsx(self, login):
+        """«Acción › Exportar» de verdad (la ruta del botón) con las columnas Número, Forma de pago y Total."""
+        self.authenticate(login, login)
+        campos = [('name', 'Número', 'char'), ('dcasa_forma_pago', 'Forma de pago', 'char'),
+                  ('amount_total', 'Total', 'monetary')]
+        return self.url_open('/web/export/xlsx', data={
+            'data': json.dumps({
+                'context': {}, 'domain': [], 'groupby': [], 'ids': (self.mixta | self.sin_pago).ids,
+                'import_compat': False, 'model': 'account.move',
+                'fields': [{'name': n, 'label': e, 'type': t} for n, e, t in campos]}),
+            'csrf_token': http.Request.csrf_token(self)})
+
+    def test_gerencia_puede_exportar_sin_que_le_den_nada_aparte(self):
+        gerencia = self.env.ref('dcasa_base.group_gerencia')
+        self.assertIn(self.env.ref('base.group_allow_export'), gerencia.implied_ids, 'Gerencia lo trae por su rol')
+        self.assertTrue(self.gerencia.has_group('base.group_allow_export'))
+        self.assertNotIn(self.env.ref('base.group_allow_export'), self.gerencia.group_ids,
+                         'no se le puso a mano al usuario: viene con el rol')
+
     def test_export_data_trae_el_texto(self):
-        facturas = (self.mixta | self.sin_pago).with_user(self.exporta)
+        facturas = (self.mixta | self.sin_pago).with_user(self.gerencia)
         datos = facturas.export_data(['name', 'dcasa_forma_pago', 'dcasa_diario_pago_ids']).get('datas')
         por_numero = {fila[0]: fila[1:] for fila in datos if fila[0]}
         self.assertEqual(por_numero[self.mixta.name][0], 'Efectivo forma pago + Yappy forma pago')
@@ -515,39 +555,40 @@ class TestFormaPagoEnElExcel(FormaPagoCommon, HttpCase):
 
     def test_la_plantilla_de_exportar_trae_las_columnas_de_la_lista_y_la_forma_de_pago(self):
         """«Acción › Exportar › Plantilla › Facturas con forma de pago»: sin buscar campo por campo."""
-        plantilla = self.env.ref('dcasa_interfaz.exportacion_facturas_forma_pago').with_user(self.exporta)
+        plantilla = self.env.ref('dcasa_interfaz.exportacion_facturas_forma_pago').with_user(self.gerencia)
         self.assertEqual((plantilla.name, plantilla.resource), ('Facturas con forma de pago', 'account.move'))
         campos = plantilla.export_fields.mapped('name')
         for campo in ('name', 'invoice_partner_display_name', 'invoice_date', 'invoice_date_due', 'ref',
                       'invoice_user_id', 'dcasa_origen', 'amount_tax', 'amount_total', 'status_in_payment',
                       'dcasa_forma_pago'):
             self.assertIn(campo, campos)
-        datos = (self.mixta | self.sin_pago).with_user(self.exporta).export_data(campos)['datas']
+        datos = (self.mixta | self.sin_pago).with_user(self.gerencia).export_data(campos)['datas']
         fila = next(f for f in datos if f[0] == self.mixta.name)
         self.assertEqual(len(fila), len(campos))
         self.assertEqual(fila[campos.index('dcasa_forma_pago')], 'Efectivo forma pago + Yappy forma pago')
 
-    def test_exportar_lo_pide_el_permiso_de_exportar_y_asi_sigue(self):
-        """Lo que ya era así y no se tocó: sin el permiso «Exportar» (``base.group_allow_export``) el servidor lo niega
-        (Gerencia, Caja y Vendedora no lo traen; sí los administradores)."""
-        for usuario in (self.vendedora, self.caja, self.gerencia):
-            with self.subTest(usuario.login), self.assertRaises(UserError):
-                self.mixta.with_user(usuario).export_data(['name', 'dcasa_forma_pago'])
-
-    def test_el_xlsx_trae_la_forma_de_pago(self):
-        """El archivo de verdad: «Acción › Exportar» con la columna, abierto por dentro."""
-        self.authenticate('exporta_forma_pago', 'exporta_forma_pago')
-        campos = [('name', 'Número', 'char'), ('dcasa_forma_pago', 'Forma de pago', 'char'),
-                  ('amount_total', 'Total', 'monetary')]
-        respuesta = self.url_open('/web/export/xlsx', data={
-            'data': json.dumps({
-                'context': {}, 'domain': [], 'groupby': [], 'ids': (self.mixta | self.sin_pago).ids,
-                'import_compat': False, 'model': 'account.move',
-                'fields': [{'name': n, 'label': e, 'type': t} for n, e, t in campos]}),
-            'csrf_token': http.Request.csrf_token(self)})
+    def test_el_xlsx_de_gerencia_trae_la_forma_de_pago(self):
+        """El archivo de verdad, bajado por Gerencia, abierto por dentro."""
+        respuesta = self.bajar_xlsx('gerencia_rol')
         self.assertEqual(respuesta.status_code, 200, respuesta.text[:300])
         with zipfile.ZipFile(io.BytesIO(respuesta.content)) as libro:
             textos = libro.read('xl/sharedStrings.xml').decode()
         self.assertIn('Forma de pago', textos, 'el encabezado de la columna')
         self.assertIn('Efectivo forma pago + Yappy forma pago', textos)
         self.assertIn(self.mixta.name, re.sub('<[^>]+>', ' ', textos))
+
+    def test_caja_y_la_vendedora_no_bajan_el_excel(self):
+        """Ni por ``export_data`` ni por la ruta del botón: no es un cambio para ellas."""
+        for usuario in (self.caja, self.vendedora):
+            with self.subTest(usuario.login):
+                self.assertFalse(usuario.has_group('base.group_allow_export'))
+                with self.assertRaises(UserError):
+                    self.mixta.with_user(usuario).export_data(['name', 'dcasa_forma_pago'])
+                respuesta = self.bajar_xlsx(usuario.login)
+                self.assertNotEqual(respuesta.status_code, 200)
+                self.assertNotIn(b'Efectivo forma pago', respuesta.content)
+
+    def test_un_usuario_sin_el_permiso_recibe_el_error_de_siempre(self):
+        interno = crear_usuario(self.env, 'sin_exportar_forma_pago', 'account.group_account_invoice')
+        with self.assertRaisesRegex(UserError, '(?i)export'):
+            self.mixta.with_user(interno).export_data(['name'])

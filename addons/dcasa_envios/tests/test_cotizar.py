@@ -131,8 +131,7 @@ class TestCotizar(EnviosComun):
                          (15.0, '$15', 15.0, False))
         self.assertEqual((lejano.precio_envio, lejano.precio_envio_txt, lejano.cotizar_aparte),
                          (0.0, 'Cotizar aparte', True))
-        # Exportar es de quien tiene el permiso «Exportar» de Odoo (los administradores; se da en la ficha del usuario).
-        self.gerencia.group_ids = [(4, self.env.ref('base.group_allow_export').id)]
+        # Exportar es de Gerencia y los administradores: el rol de Gerencia trae el permiso «Exportar» de Odoo.
         filas = (villa | lejano).with_user(self.gerencia).export_data(['name', 'km', 'precio_envio',
                                                                        'precio_envio_txt'])['datas']
         self.assertEqual(filas, [['Villa Prueba', 1.2, 15.0, '$15'], ['Pueblo Lejano', 305.0, 0.0, 'Cotizar aparte']])

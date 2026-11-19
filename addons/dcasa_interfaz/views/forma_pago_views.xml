@@ -44,6 +44,12 @@
             <xpath expr="//group[@name='sale_info_group']/field[@name='invoice_user_id']" position="after">
                 <field name="dcasa_forma_pago" readonly="1" invisible="not dcasa_forma_pago"/>
             </xpath>
+            <!-- El «Método de pago» de Odoo (a la derecha, en Contabilidad) es el método que el cliente prefiere (el de su
+                 ficha), no con el que se cobró: se llama como es para que no se confunda con «Forma de pago». El de las
+                 facturas de proveedor (el segundo campo) no se toca. -->
+            <xpath expr="(//field[@name='preferred_payment_method_line_id'])[1]" position="attributes">
+                <attribute name="string">Método de pago preferido del cliente</attribute>
+            </xpath>
         </field>
     </record>
 
@@ -61,6 +67,10 @@
             </field>
             <filter name="salesperson" position="after">
                 <filter name="dcasa_por_forma_pago" string="Forma de pago" context="{'group_by': 'dcasa_forma_pago'}"/>
+            </filter>
+            <!-- Agrupar por «Método de pago» de Odoo es el método preferido del cliente (su ficha), no el cobrado. -->
+            <filter name="preferred_payment_method_line" position="attributes">
+                <attribute name="string">Método de pago preferido del cliente</attribute>
             </filter>
         </field>
     </record>

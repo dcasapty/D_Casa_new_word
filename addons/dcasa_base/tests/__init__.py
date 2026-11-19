@@ -18,3 +18,4 @@ from . import test_descuento_autorizacion
 from . import test_nombres_cliente
 from . import test_disponibilidad
 from . import test_red
+from . import test_exportar
