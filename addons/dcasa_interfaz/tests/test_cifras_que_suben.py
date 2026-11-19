@@ -10,6 +10,7 @@ métricas y estadísticas debería tener esa animación»).
 * Cada pantalla que marca cifras tiene su ``t-ref="raiz"`` (sin él, la animación se apaga en silencio).
 * Estadísticas, Valor del inventario y el Inicio de siempre suben al abrir y al cambiar.
 """
+import json
 import re
 from datetime import timedelta
 from pathlib import Path
@@ -350,6 +351,69 @@ class TestCifrasEnLasPantallas(PantallasMixin, HttpCase):
         """ + "console.log('test successful'); })();"
         self.browser_size = '1440x900'
         self.browser_js('/odoo/action-dcasa_interfaz.accion_estadisticas', codigo, login='gerencia_rol', timeout=120)
+
+    def test_por_dia_el_resumen_sube_al_cambiar_de_base_vendedora_y_mes(self):
+        """Por día: el total del resumen sube (o baja) desde el valor anterior al cambiar la base, la vendedora o el
+        mes; si el cambio no mueve la cifra, no se anima."""
+        gerencia = self.env['dcasa.tablero'].with_user(self.gerencia)
+        mes_pasado = (self.hoy.replace(day=1) - timedelta(days=1)).strftime('%Y-%m')
+
+        def total(**filtros):
+            return gerencia.por_dia(**filtros)['total']['sin_itbms']
+        esperado = {'facturado': total(base='facturado'), 'vendido': total(base='confirmado'),
+                    'otra': total(base='facturado', vendedor=self.otra.id),
+                    'mes_pasado': total(mes=mes_pasado, base='facturado')}
+        self.assertEqual(esperado['mes_pasado'], 300.0, 'la factura del mes pasado: 3 × $100')
+        self.assertNotEqual(esperado['facturado'], esperado['mes_pasado'])
+        codigo = '(async () => {' + COMUN_JS + ESPIAR_JS + r"""
+            const ESPERADO = __ESPERADO__;
+            const total = () => document.querySelector('.o_dcasa_pd_total .o_dcasa_pd_valor');
+            const cargando = () => document.querySelector('.o_cargando');
+            const clic = (selector) => () => document.querySelector(selector).click();
+            await esperar(() => total(), 'el total del mes');
+            await esperar(() => !total().hasAttribute('data-sube') && !cargando(), 'el total quieto');
+            igual(monto(total().textContent), ESPERADO.facturado, 'el total de Facturado');
+            const paso = async (que, accion, esperado) => {
+                const antes = monto(total().textContent);
+                const ojo = espiar(total());
+                accion();
+                await pausa(120);
+                await esperar(() => !cargando() && !total().hasAttribute('data-sube'), que, 60);
+                await pausa(60);
+                ojo.fin();
+                igual(monto(total().textContent), esperado, que + ': el valor final');
+                const vistos = ojo.vistos.map(monto);
+                if (antes === esperado) {
+                    igual(vistos, [], que + ': si no cambió, no se anima');
+                    return;
+                }
+                if (vistos.length < 3) { falla(que + ': se esperaban valores a medias: ' + vistos.join(', ')); }
+                if (Math.abs(vistos[0] - antes) > 0.005) { falla(`${que}: debía partir de ${antes}: ${vistos[0]}`); }
+                const lo = Math.min(antes, esperado) - 0.005, hi = Math.max(antes, esperado) + 0.005;
+                if (!vistos.every((v) => v >= lo && v <= hi)) { falla(que + ': fuera de rango: ' + vistos.join(', ')); }
+                const sube = esperado > antes;
+                if (vistos.some((v, i) => i && (sube ? v < vistos[i - 1] : v > vistos[i - 1]))) {
+                    falla(que + ': no es parejo: ' + vistos.join(', '));
+                }
+            };
+            await paso('Vendido', clic('.o_dcasa_pd_base_confirmado'), ESPERADO.vendido);
+            await paso('Facturado', clic('.o_dcasa_pd_base_facturado'), ESPERADO.facturado);
+            const lista = document.querySelector('.o_dcasa_pd_vendedora');
+            const cambio = (el, valor) => {
+                el.value = valor;
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+            };
+            await paso('otra vendedora', () => cambio(lista, '__OTRA__'), ESPERADO.otra);
+            await paso('todo el equipo', () => cambio(lista, ''), ESPERADO.facturado);
+            const mes = document.querySelector('.o_dcasa_pd_mes_select');
+            await paso('el mes pasado', () => cambio(mes, '__MES__'), ESPERADO.mes_pasado);
+        """.replace('__ESPERADO__', json.dumps(esperado)).replace('__OTRA__', str(self.otra.id)).replace(
+            '__MES__', mes_pasado) + "console.log('test successful'); })();"
+        for tamano in ('1440x900', '390x844'):
+            with self.subTest(tamano=tamano):
+                self.browser_size = tamano
+                self.browser_js('/odoo/action-dcasa_interfaz.accion_facturado_por_dia', codigo, login='gerencia_rol',
+                                timeout=180)
 
     def test_el_inicio_sigue_subiendo_sus_cifras(self):
         """El Inicio usa el mismo módulo y se ve igual: las cifras marcadas de siempre suben; el texto es el final."""
