@@ -100,14 +100,14 @@ class TilopayController(http.Controller):
 
 class TilopayPostProcessing(PaymentPostProcessing):
     """Mientras el cliente espera en «Estado del pago», cada vuelta del reloj de esa página le pregunta a Tilopay
-    (con el
-    freno de una consulta cada 5 segundos por transacción): así un pago de Yappy que se aprueba tarde no se queda dando
-    vueltas aunque el aviso no llegue."""
+    (con el freno de una consulta cada 5 segundos por transacción): así un pago de Yappy que se aprueba tarde no se
+    queda dando vueltas aunque el aviso no llegue. También pregunta si la transacción quedó en «error»: un rechazo
+    seguido de un pago aprobado en la misma página de Tilopay se recupera."""
 
     @http.route()
     def poll_status(self, **kwargs):
         tx = self._get_monitored_transaction()
-        if tx and tx.provider_code == 'tilopay' and tx.state in ('draft', 'pending'):
+        if tx and tx.provider_code == 'tilopay' and tx.state in ('draft', 'pending', 'error'):
             try:
                 with request.env.cr.savepoint():
                     tx._dcasa_tilopay_confirmar('estado')

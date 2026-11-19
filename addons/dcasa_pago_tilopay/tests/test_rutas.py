@@ -222,6 +222,22 @@ class TestPagarDesdeElPortalYEstadoDelPago(BaseHttp):
         self.assertEqual(pedido.state, 'sale', 'el reloj de la página también termina el trabajo de Odoo')
         self.assertEqual(tx.payment_id.journal_id.code, 'TLP')
 
+    def test_el_reloj_de_la_pagina_tambien_recupera_un_pago_que_llego_despues_de_un_rechazo(self):
+        """RV-5: primero el banco rechazó (la transacción quedó en «error»); después el cliente pagó aprobado desde la
+        misma página de Tilopay y el reloj de «Estado del pago» lo encuentra."""
+        pedido = self.pedido()
+        with SimuladorTilopay() as tilopay:
+            self.abrir_desde_el_portal(pedido)
+            orden = tilopay.orden_del_ultimo_pago()
+            tx = self.env['payment.transaction'].search([('dcasa_tilopay_orden', '=', orden)])
+            tilopay.rechazar(orden, pedido.amount_total)
+            self.assertEqual(self.make_jsonrpc_request('/payment/status/poll', {})['state'], 'error')
+            tilopay.aprobar(orden, pedido.amount_total)
+            tx.dcasa_tilopay_consulta = False            # pasaron más de 5 segundos
+            self.assertEqual(self.make_jsonrpc_request('/payment/status/poll', {})['state'], 'done')
+        self.releer(tx, pedido)
+        self.assertEqual(tx.state, 'done')
+
     def test_el_reloj_de_la_pagina_no_gasta_llamadas_de_mas(self):
         pedido = self.pedido()
         with SimuladorTilopay() as tilopay:
