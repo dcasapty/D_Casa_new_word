@@ -117,8 +117,8 @@ class DcasaWebVenta(models.Model):
         if operator not in ('=', 'in'):
             raise ValueError('Solo se filtra el estado por igual a.')
         partes = {'medida': [('reglas_id', '=', False)],
-                  'comisionada': [('reglas_id', '!=', False), ('cobrada', '=', True)],
-                  'revertida': [('reglas_id', '!=', False), ('cobrada', '=', False)]}
+                  'comisionada': ['&', ('reglas_id', '!=', False), ('cobrada', '=', True)],
+                  'revertida': ['&', ('reglas_id', '!=', False), ('cobrada', '=', False)]}
         dominio = []
         for valor in valores:
             dominio = ['|', *dominio, *partes[valor]] if dominio else partes[valor]
@@ -288,7 +288,7 @@ class DcasaWebVenta(models.Model):
             reglas = venta.reglas_id
             if not reglas:
                 continue
-            base = calculo.base_de_la_venta(c, reglas.opciones())
+            base = calculo.base_de_la_venta(c, reglas._opciones())
             venta.write({'base_centavos': base})
             debe = calculo.porcentaje_de(base, reglas.porcentaje) if pagada else 0
             partes = calculo.repartir(debe, [(r.empleado_id.id, r.porcentaje) for r in reglas.reparto_ids])

@@ -4172,6 +4172,98 @@
     "brillo",
     "colores de la pantalla"
    ]
+  },
+  {
+   "id": "comision-web-ventas",
+   "categoria": "tienda",
+   "grupo": "Medir el sitio",
+   "titulo": "Ver cuánto se vende por internet, mes a mes",
+   "logras": "Ves cada venta del sitio web que ya quedó pagada por completo, cómo llegó y cómo pagó, y la comparas mes a mes como si el sitio fuera una sucursal. Puedes bajarla a Excel.",
+   "destino": {
+    "menu": "dcasa_comision_web.menu_ventas_sitio"
+   },
+   "nota": "Se mide siempre, aunque todavía no haya porcentaje de comisión. Una venta que lleva una vendedora no cuenta como del sitio.",
+   "palabras": [
+    "ventas del sitio",
+    "ventas por internet",
+    "sucursal web",
+    "tienda en linea",
+    "cuanto vende la pagina",
+    "ventas online",
+    "comision del sitio"
+   ],
+   "tambien": [
+    "personal"
+   ],
+   "grupos": [
+    "dcasa_nomina.group_nomina"
+   ]
+  },
+  {
+   "id": "comision-web-reglas",
+   "categoria": "personal",
+   "grupo": "Comisión del sitio web",
+   "titulo": "Cambiar el porcentaje, la tarifa fija o quiénes reciben la comisión del sitio",
+   "logras": "Guardas una versión nueva de las reglas: el porcentaje de cada venta del sitio, la tarifa fija por mantener la plataforma, cómo se arma la base (con un ejemplo en pantalla) y quiénes reciben.",
+   "destino": {
+    "menu": "dcasa_comision_web.menu_reglas_web"
+   },
+   "nota": "Una versión guardada no se edita: un cambio es una versión nueva y solo rige hacia adelante. Conviene que la contadora deje por escrito cómo se trata esta comisión.",
+   "palabras": [
+    "porcentaje de comision",
+    "comision web",
+    "tarifa fija",
+    "plataforma",
+    "reglas de la comision",
+    "quienes reciben",
+    "reparto"
+   ],
+   "grupos": [
+    "dcasa_nomina.group_nomina"
+   ]
+  },
+  {
+   "id": "comision-web-quienes",
+   "categoria": "personal",
+   "grupo": "Comisión del sitio web",
+   "titulo": "Ver quién recibe la comisión del sitio y cuánto se le debe",
+   "logras": "Ves la lista de las personas que reciben, lo que le toca a cada una del reparto y lo que se le debe por el porcentaje y por la tarifa fija.",
+   "destino": {
+    "menu": "dcasa_comision_web.menu_quienes_reciben"
+   },
+   "nota": "La lista se elige entre los empleados de Nómina y no depende del departamento.",
+   "palabras": [
+    "quienes reciben",
+    "saldo de comision",
+    "cuanto se le debe",
+    "reparto de la comision",
+    "libro de la comision"
+   ],
+   "grupos": [
+    "dcasa_nomina.group_nomina"
+   ]
+  },
+  {
+   "id": "comision-web-liquidar",
+   "categoria": "personal",
+   "grupo": "Comisión del sitio web",
+   "titulo": "Liquidar la comisión del sitio web de un periodo",
+   "logras": "Eliges el periodo que quieras (una semana, una quincena, un mes), armas la propuesta con lo que todavía no se ha liquidado, otra persona la aprueba y después la marcas como pagada con su referencia.",
+   "destino": {
+    "menu": "dcasa_comision_web.menu_liquidaciones_web"
+   },
+   "nota": "Nada se paga solo. Quien figura entre las personas que cobran en la liquidación no la aprueba: la aprueba otra persona de Gerencia o de Nómina.",
+   "palabras": [
+    "liquidar comision",
+    "pagar comision",
+    "liquidacion",
+    "aprobar comision",
+    "periodo de la comision",
+    "pagar la tarifa"
+   ],
+   "grupos": [
+    "dcasa_nomina.group_nomina"
+   ]
   }
  ],
  "$empezar": "Las tareas de «Empieza por aquí», en este orden (solo salen las que la persona puede abrir)."

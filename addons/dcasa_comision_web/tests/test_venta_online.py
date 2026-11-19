@@ -39,7 +39,7 @@ class TestVentaOnline(ComisionCommon):
 
     def test_cotiza_en_la_pagina_y_paga_en_la_tienda_cuenta(self):
         """El mismo pedido que nació en la página, apartado y pagado en el local por Caja (sin pago de la pasarela)."""
-        orden = self.orden()
+        orden = self.orden(pago='en_tienda')
         self.assertTrue(orden.dcasa_nacio_en_web and orden.dcasa_venta_online)
         factura = self.facturar(orden)
         self.pagar(factura)

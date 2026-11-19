@@ -106,7 +106,7 @@ class DcasaWebReglas(models.Model):
             else:
                 version.estado = 'vigente' if version == vigente else 'anterior'
 
-    def opciones(self):
+    def _opciones(self):
         """Los interruptores de la base, como los lee ``calculo.base_de_la_venta``."""
         self.ensure_one()
         return {clave: self[clave] for clave in calculo.OPCIONES}
@@ -116,7 +116,7 @@ class DcasaWebReglas(models.Model):
         """Muestra, con números de mentira, qué entra y qué no en la base con los interruptores como están ahora. Es
         solo para entender: ninguna de estas cifras es de la empresa."""
         for version in self:
-            op = version.opciones()
+            op = version._opciones()
             c = EJEMPLO
             filas = [
                 ('Un mueble vendido', c['productos'], '+', True, 'Siempre cuenta.'),

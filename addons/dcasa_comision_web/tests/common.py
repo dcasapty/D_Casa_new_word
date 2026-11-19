@@ -72,7 +72,7 @@ class ComisionCommon(NominaCommon):
     # Pedidos, facturas y pagos
     # ------------------------------------------------------------------
 
-    def orden(self, web=True, lineas=None, cliente=None, vendedora=None, confirmar=True, **extra):
+    def orden(self, web=True, lineas=None, cliente=None, vendedora=None, confirmar=True, pago='a_mano', **extra):
         """Un pedido confirmado. ``lineas``: [(producto, precio, cantidad, extras)]; por defecto un mueble de 1,000.
         ``web=True`` lo hace nacer en la tienda en línea."""
         lineas = lineas or [(self.mueble, 1000.0, 1, {})]
@@ -85,9 +85,28 @@ class ComisionCommon(NominaCommon):
         if vendedora:
             valores['user_id'] = vendedora.id
         orden = self.env['sale.order'].with_context(mail_notrack=True).create(valores)
+        if web and pago == 'a_mano':
+            self.transaccion(orden, 'a_mano')
         if confirmar:
             orden.with_context(mail_notrack=True).action_confirm()
         return orden
+
+    def transaccion(self, orden, como):
+        """El intento de pago de un pedido de la web: ``a_mano`` (transferencia o Yappy que registra Caja),
+        ``en_tienda`` (el apartado) o ``pasarela`` (una pasarela de pago)."""
+        Proveedor = self.env['payment.provider'].sudo()
+        if como == 'pasarela':
+            proveedor = Proveedor.search([('code', '=', 'none'), ('name', '=', 'Pasarela de prueba')], limit=1) \
+                or Proveedor.create({'name': 'Pasarela de prueba', 'code': 'none', 'state': 'test'})
+        elif como == 'en_tienda':
+            proveedor = self.env.ref('delivery.payment_provider_cod')
+        else:
+            proveedor = self.env.ref('payment.payment_provider_transfer')
+        return self.env['payment.transaction'].sudo().create({
+            'provider_id': proveedor.id, 'amount': 1070.0, 'currency_id': self.company.currency_id.id,
+            'partner_id': orden.partner_id.id, 'reference': f'PRUEBA-{orden.name}-{como}',
+            'payment_method_id': self.env['payment.method'].search([], limit=1).id,
+            'sale_order_ids': [Command.set(orden.ids)], 'state': 'done'})
 
     def facturar(self, orden, fecha=DIA):
         factura = orden._create_invoices()

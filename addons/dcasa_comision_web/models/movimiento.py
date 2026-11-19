@@ -116,7 +116,7 @@ class DcasaWebMovimiento(models.Model):
     def _asentar(self, empleado, tipo, centavos, company, autor='sistema', **extra):
         """Escribe una fila. ÚNICO camino de entrada al libro."""
         ocurrido = extra.pop('ocurrido_en', None) or fields.Datetime.now()
-        concepto = extra.pop('concepto', None) or CONCEPTO_DE.get(tipo)
+        concepto = extra.pop('concepto', None) or CONCEPTO_DE.get(tipo) or 'comision'
         return self.sudo().create({
             'empleado_id': empleado.id, 'company_id': company.id, 'tipo': tipo, 'concepto': concepto,
             'centavos': centavos, 'autor': autor, 'ocurrido_en': ocurrido, 'mes': mes_de_panama(ocurrido), **extra})

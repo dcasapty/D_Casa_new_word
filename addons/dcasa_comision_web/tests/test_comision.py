@@ -9,7 +9,7 @@ from freezegun import freeze_time
 from psycopg2 import IntegrityError
 
 from odoo import Command
-from odoo.exceptions import AccessError, UserError, ValidationError
+from odoo.exceptions import UserError, ValidationError
 from odoo.tests import tagged
 from odoo.tools import mute_logger
 
@@ -229,10 +229,8 @@ class TestMedirYComisionar(ComisionReloj):
             fila.sudo().write({'centavos': 1})
         with self.assertRaisesRegex(UserError, 'no se borra'):
             fila.sudo().unlink()
-        with self.assertRaises(AccessError):
-            fila.with_user(self.u_nomina).write({'centavos': 1})
-        with self.assertRaises(AccessError):
-            fila.with_user(self.u_gerencia).unlink()
+        self.rechaza(lambda: fila.with_user(self.u_nomina).write({'centavos': 1}))
+        self.rechaza(lambda: fila.with_user(self.u_gerencia).unlink())
 
     def test_las_reglas_del_libro(self):
         Libro = self.env['dcasa.web.movimiento']

@@ -70,6 +70,15 @@ MARKETING_LECTURA = ('Lectura de Marketing: exige Gerencia (ventas administrador
                      'ANTES de leer (_exigir, AccessError); facturas, entregas y adjuntos los suma con sudo ya '
                      'comprobado el grupo; valida periodo, categoría y filtro; no escribe.')
 
+COMISION_WEB_BOTON = ('Botón de la liquidación de la comisión web: exige el grupo «Administra la nómina» en el '
+                      'servidor (_exigir_nomina) ANTES de cualquier sudo(); aprobar rechaza al usuario del sistema y a '
+                      'quien cobra en esa liquidación; el estado solo cambia con la llave interna ``_escribir``, ya '
+                      'comprobado el permiso.')
+COMISION_WEB_BLOQUEO = ('Solo BLOQUEA: lo guardado en la comisión web (versiones de reglas, libro, renglones) no se '
+                        'edita ni se borra, con ningún usuario ni con sudo(); nunca escribe.')
+COMISION_WEB_ACCION = ('Solo devuelve una acción de ventana con lo que rige hoy ya escrito; no lee ni escribe datos '
+                       'delicados: abrirla sin el permiso del modelo no muestra nada (ACL de «Administra la nómina»).')
+
 # (módulo, modelo, método): motivo por el que puede llamarse por RPC.
 LISTA_BLANCA = {
     # --- dcasa_base -------------------------------------------------------------------------
@@ -1241,6 +1250,39 @@ LISTA_BLANCA = {
         OVERRIDE + ' Solo NIEGA: con el centinela interno de la tienda (CONSERVAR_ENVIO, que no se puede mandar por '
                    'RPC) deja fuera las líneas de envío del sistema para que la tienda no las vuelva $0. Sin el '
                    'centinela no cambia nada y sigue el super(); sin sudo().',
+    # --- dcasa_base: el origen de la venta online ------------------------------------------------------
+    ('dcasa_base', 'sale.order', 'write'):
+        OVERRIDE + ' Solo NIEGA escribir las marcas de origen de la venta online (nació en la web, Andrés, la llevó '
+                   'una vendedora): solo se escriben por código, con una llave interna que por RPC nunca llega; sin '
+                   'sudo().',
+    # --- dcasa_comision_web ----------------------------------------------------------------------------
+    ('dcasa_comision_web', 'dcasa.web.liquidacion', 'action_armar'): COMISION_WEB_BOTON,
+    ('dcasa_comision_web', 'dcasa.web.liquidacion', 'action_aprobar'): COMISION_WEB_BOTON,
+    ('dcasa_comision_web', 'dcasa.web.liquidacion', 'action_pagar'): COMISION_WEB_BOTON,
+    ('dcasa_comision_web', 'dcasa.web.liquidacion', 'action_cancelar'): COMISION_WEB_BOTON,
+    ('dcasa_comision_web', 'dcasa.web.liquidacion', 'create'):
+        OVERRIDE + ' Solo numera la liquidación y descarta el estado que llegue; el ACL del grupo «Administra la '
+                   'nómina» manda; sin sudo().',
+    ('dcasa_comision_web', 'dcasa.web.liquidacion', 'write'):
+        OVERRIDE + ' Solo NIEGA editar lo que ya no es borrador (salvo la fecha y la referencia del pago de una '
+                   'aprobada); sin sudo().',
+    ('dcasa_comision_web', 'dcasa.web.liquidacion.linea', 'write'): COMISION_WEB_BLOQUEO,
+    ('dcasa_comision_web', 'dcasa.web.liquidacion.linea', 'unlink'): COMISION_WEB_BLOQUEO,
+    ('dcasa_comision_web', 'dcasa.web.movimiento', 'write'): COMISION_WEB_BLOQUEO,
+    ('dcasa_comision_web', 'dcasa.web.movimiento', 'unlink'): COMISION_WEB_BLOQUEO,
+    ('dcasa_comision_web', 'dcasa.web.reglas', 'write'): COMISION_WEB_BLOQUEO,
+    ('dcasa_comision_web', 'dcasa.web.reglas', 'create'):
+        OVERRIDE + ' Numera la versión, comprueba que solo rige hacia adelante y pone el autor; el ACL del grupo '
+                   '«Administra la nómina» manda; sin sudo().',
+    ('dcasa_comision_web', 'dcasa.web.reglas', 'action_nueva_version'): COMISION_WEB_ACCION,
+    ('dcasa_comision_web', 'dcasa.web.reparto', 'write'): COMISION_WEB_BLOQUEO,
+    ('dcasa_comision_web', 'dcasa.web.reparto', 'create'):
+        OVERRIDE + ' Solo deja crear renglones junto con su versión (llave interna que por RPC nunca llega); sin '
+                   'sudo().',
+    ('dcasa_comision_web', 'dcasa.web.reparto', 'action_cambiar_quienes_reciben'): COMISION_WEB_ACCION,
+    ('dcasa_comision_web', 'dcasa.web.venta', 'write'):
+        OVERRIDE + ' Solo NIEGA escribir a quien no es el sistema (las ventas del sitio las anota el sistema); sin '
+                   'sudo().',
 }
 
 # Modelos abstractos sin ACL: por RPC no se puede llamar NINGÚN método suyo (S-09).

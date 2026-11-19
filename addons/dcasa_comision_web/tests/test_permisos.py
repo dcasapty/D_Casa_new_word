@@ -43,13 +43,13 @@ class TestPermisos(ComisionCommon):
 
     def test_los_menus_son_de_gerencia_y_nomina_nunca_del_tecnico_solo(self):
         Menu = self.env['ir.ui.menu']
-        for nombre in MENUS:
-            menu = self.env.ref(f'dcasa_comision_web.{nombre}')
-            for usuario, ve in ((self.u_nomina, True), (self.u_gerencia, True), (self.u_vendedora, False),
-                                (self.u_caja, False), (self.u_marketing, False), (self.u_tecnico, False)):
+        for usuario, ve in ((self.u_nomina, True), (self.u_gerencia, True), (self.u_vendedora, False),
+                            (self.u_caja, False), (self.u_marketing, False), (self.u_tecnico, False)):
+            visibles = set(Menu.with_user(usuario)._visible_menu_ids())
+            for nombre in MENUS:
+                menu = self.env.ref(f'dcasa_comision_web.{nombre}')
                 with self.subTest(menu=nombre, usuario=usuario.login):
-                    visible = bool(Menu.with_user(usuario).search([('id', '=', menu.id)]))
-                    self.assertEqual(visible, ve)
+                    self.assertEqual(menu.id in visibles, ve)
 
     def test_el_menu_vive_dentro_de_la_app_de_nomina(self):
         raiz = self.env.ref('dcasa_nomina.menu_nomina_raiz')

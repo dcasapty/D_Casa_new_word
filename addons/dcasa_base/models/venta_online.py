@@ -73,12 +73,12 @@ class SaleOrderOnline(models.Model):
                 nacidas._dcasa_escribir_marca(dcasa_nacio_en_web=True)
         return ordenes
 
-    def _write(self, vals):
+    def write(self, vals):
         if any(clave in vals for clave in TESTIGOS) and self.env.context.get(CLAVE_CONTEXTO) is not ESCRIBIR:
             raise UserError(self.env._(
                 'El origen de la venta (si nació en la web, si pasó por Andrés o si la llevó una vendedora) lo pone '
                 'el sistema una sola vez: no se cambia a mano.'))
-        return super()._write(vals)
+        return super().write(vals)
 
     def _dcasa_escribir_marca(self, **marcas):
         """Único camino para escribir las marcas de origen (solo código del sistema; ver arriba)."""

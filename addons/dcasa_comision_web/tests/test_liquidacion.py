@@ -225,7 +225,7 @@ class TestLiquidacion(ComisionReloj):
 
     def test_un_saldo_en_contra_se_avisa_se_paga_cero_y_sigue(self):
         self.liquidacion().action_aprobar()
-        self.nota(self.venta_marzo.move_id, 1000.0, fecha='2030-04-02')       # devolución de una venta ya pagada
+        self.nota(self.venta_marzo, 1000.0, fecha='2030-04-02')       # devolución de una venta ya pagada
         liq = self.liquidacion(desde='2030-04-01', hasta='2030-04-30')
         self.assertFalse(liq.linea_ids, 'nunca se le cobra a alguien por la liquidación')
         self.assertIn('saldo en contra', liq.avisos)

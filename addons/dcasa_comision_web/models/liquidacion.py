@@ -39,7 +39,6 @@ ATAJOS = [
 ]
 EDITABLES_EN_BORRADOR = frozenset({'atajo', 'fecha_desde', 'fecha_hasta', 'notas'})
 EDITABLES_DEL_PAGO = frozenset({'fecha_pago', 'referencia_pago'})
-LIBRES = frozenset({'total'})
 
 
 def rango_del_atajo(atajo, hoy):
@@ -109,6 +108,7 @@ class DcasaWebLiquidacion(models.Model):
             liquidacion.total = sum(liquidacion.linea_ids.mapped('centavos')) / 100.0
 
     @api.depends('linea_ids.empleado_id')
+    @api.depends_context('uid')
     def _compute_quien_cobra(self):
         propios = self._empleados_del_usuario()
         for liquidacion in self:
@@ -141,16 +141,16 @@ class DcasaWebLiquidacion(models.Model):
     # Lo aprobado no se edita
     # ------------------------------------------------------------------
 
-    def _write(self, vals):
-        if self.env.context.get(CLAVE_ESCRIBIR) is not ESCRIBIR and set(vals) - LIBRES:
+    def write(self, vals):
+        if self.env.context.get(CLAVE_ESCRIBIR) is not ESCRIBIR:
             for liquidacion in self:
                 permitidos = EDITABLES_EN_BORRADOR if liquidacion.estado == 'borrador' else (
                     EDITABLES_DEL_PAGO if liquidacion.estado == 'aprobada' else frozenset())
-                if set(vals) - permitidos - {'write_date', 'write_uid'}:
+                if set(vals) - permitidos:
                     raise UserError(self.env._(
                         'Una liquidación aprobada no se edita: si hay un error, se cancela (antes de pagarla) y se '
                         'arma otra.'))
-        return super()._write(vals)
+        return super().write(vals)
 
     @api.ondelete(at_uninstall=False)
     def _solo_borradores(self):
@@ -305,11 +305,9 @@ class DcasaWebLiquidacionLinea(models.Model):
             linea.monto = linea.centavos / 100.0
 
     def write(self, vals):
-        if not self.env.su:
-            raise UserError(self.env._('Los renglones de una liquidación los arma el sistema.'))
-        return super().write(vals)
+        raise UserError(self.env._('Los renglones de una liquidación los arma el sistema y no se editan.'))
 
     def unlink(self):
-        if not self.env.su and any(ln.liquidacion_id.estado != 'borrador' for ln in self):
+        if any(ln.liquidacion_id.estado != 'borrador' for ln in self):
             raise UserError(self.env._('Una liquidación aprobada no se edita.'))
         return super().unlink()

@@ -138,10 +138,11 @@ class TestInicioDeLaVendedora(VendedoraCommon):
         self.version(10.0)
         online = self.vender(web=True)
         tienda = self.vender(web=False)
-        duenas = Tablero._duenas(online | tienda)
+        nota = self.nota(online, 100.0, fecha='2030-03-05')
+        duenas = Tablero._duenas(online | tienda | nota)
         self.assertEqual(duenas[online.id], ('sin', False))
         self.assertEqual(duenas[tienda.id], (self.u_vendedora.id, True))
-        self.assertEqual(duenas[self.nota(online, 100.0).id], ('sin', False), 'su nota es de la misma dueña')
+        self.assertEqual(duenas[nota.id], ('sin', False), 'su nota es de la misma dueña')
 
     def test_gerencia_filtra_por_vendedora_y_por_sin_vendedora(self):
         Orden = self.env['sale.order']
