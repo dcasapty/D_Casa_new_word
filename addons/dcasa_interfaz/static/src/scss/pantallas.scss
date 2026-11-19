@@ -39,6 +39,17 @@ $dc-rojo: #B3261E;
     display: flex;
     flex-direction: column;
     gap: 12px;
+
+    // En computadora, el mes, lo que se cuenta y la vendedora van en una sola fila (si no caben, bajan): así lo cobrado
+    // de la derecha sube y se ve sin bajar la pantalla.
+    @media (min-width: 1200px) {
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px 28px;
+        .o_dcasa_base_fila { flex: 1 1 auto; }
+        .o_dcasa_pd_error { flex: 1 1 100%; margin: 0; }
+    }
 }
 
 .o_dcasa_pd_mes {
@@ -709,7 +720,7 @@ button.o_dcasa_mv_frase {
     h2 { margin-bottom: 2px; }
 }
 
-.o_dcasa_pd_cobros_cabeza { margin-bottom: 12px; }
+.o_dcasa_pd_cobros_cabeza { margin-bottom: 10px; }
 
 // El periodo que se está viendo, en azul oscuro sobre blanco: «Semana del 16 al 22 de noviembre».
 .o_dcasa_pd_cobros_periodo {
@@ -726,7 +737,7 @@ button.o_dcasa_mv_frase {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     width: 100%;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
 
     .o_dcasa_periodo {
         min-height: 38px;
@@ -739,23 +750,23 @@ button.o_dcasa_mv_frase {
     @media (max-width: 575.98px) { .o_dcasa_periodo { min-height: 42px; font-size: .8125rem; } }
 }
 
-.o_dcasa_cf_pista { margin: 0 0 10px; }
+.o_dcasa_cf_pista { margin: 0 0 8px; }
 .o_dcasa_cf_frase { margin: 0 0 12px; }
 .o_dcasa_cf_pie { margin: 12px 0 0; }
 
 .o_dcasa_cf_fichas {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 10px;
-    @media (max-width: 575.98px) { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+    gap: 8px;
+    @media (max-width: 575.98px) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 .o_dcasa_cf_ficha {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 1px;
     min-width: 0;
-    padding: 10px 12px;
+    padding: 8px 10px;
     text-align: left;
     background: var(--dc-blanco);
     border: 1px solid var(--dc-linea);
@@ -764,26 +775,36 @@ button.o_dcasa_mv_frase {
 
     &:hover { border-color: var(--dc-azul-300); background: var(--dc-azul-50); }
     &:focus-visible { outline: none; box-shadow: var(--dc-foco); }
-    small { font-size: .75rem; color: var(--dc-tinta-3); }
+    small { font-size: .72rem; color: var(--dc-tinta-3); }
 
+    // El total, primero y de punta a punta: la etiqueta y los cobros a la izquierda, el monto grande a la derecha.
     &.o_dcasa_cf_total {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-areas: "forma monto" "cuantos monto";
+        align-items: center;
+        column-gap: 12px;
         background: var(--dc-azul-600);
         border-color: var(--dc-azul-600);
         color: var(--dc-blanco);
+        .o_dcasa_cf_forma { grid-area: forma; }
+        .o_dcasa_cf_monto { grid-area: monto; font-size: 1.5rem; }
+        small { grid-area: cuantos; }
         .o_dcasa_cf_forma, .o_dcasa_cf_monto, small { color: var(--dc-blanco); }
         &:hover { background: var(--dc-azul-700); border-color: var(--dc-azul-700); }
     }
 }
 
 .o_dcasa_cf_forma {
-    font-size: .78rem;
+    font-size: .75rem;
     font-weight: 600;
     color: var(--dc-tinta-2);
     overflow-wrap: anywhere;
 }
 
 .o_dcasa_cf_monto {
-    font-size: 1.1rem;
+    font-size: 1.05rem;
     font-weight: 800;
     color: var(--dc-azul-800);
     white-space: nowrap;

@@ -468,8 +468,7 @@ class DcasaTableroPorDia(models.AbstractModel):
         return {
             'periodo': periodo, 'dia': str(dia), 'desde': str(d0), 'hasta': str(fin), 'contado_hasta': str(hasta),
             'etiqueta': nombre, 'titulo': titulo, 'en_curso': faltan,
-            'nota': self.env._('Cuenta hasta hoy, %(hoy)s: los días que faltan todavía no suman.',
-                               hoy=_nombre_del_dia(hoy).lower()) if faltan else '',
+            'nota': self.env._('Cuenta hasta hoy, %(hoy)s.', hoy=_nombre_del_dia(hoy).lower()) if faltan else '',
             'cobros': self._cobros_por_forma(d0, hasta, titulo),
         }
 

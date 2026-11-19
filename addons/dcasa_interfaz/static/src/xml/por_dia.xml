@@ -226,22 +226,24 @@
     </t>
 
     <!-- Lo cobrado por forma de pago (Por día y Estadísticas): una ficha por forma (Efectivo, Yappy, Tarjeta…) con su
-         monto y cuántos cobros; tocarla abre esos cobros. Con ITBMS: es el dinero que entró. Los montos suben hasta su valor.
+         monto y cuántos cobros, y el total primero; tocarla abre esos cobros. Con ITBMS: es el dinero que entró. Los montos suben
+         hasta su valor.
          Por día pone la frase al pie (sin_frase); Estadísticas la deja arriba. -->
     <t t-name="dcasa_interfaz.CobrosPorForma">
         <p t-if="!sin_frase" class="o_dcasa_es_frase o_dcasa_cf_frase">El dinero que entró, por cómo se pagó: la misma cuenta de la Caja de
             hoy. Un abono cuenta el día que se cobró.</p>
         <div t-if="cobros.filas.length" class="o_dcasa_cf_fichas">
+            <!-- El total va primero y de punta a punta: es lo primero que se busca y se ve aunque haya muchas formas. -->
+            <button type="button" class="o_dcasa_cf_ficha o_dcasa_cf_total" t-on-click="() => this.abrirLista(cobros.accion)">
+                <span class="o_dcasa_cf_forma">Total cobrado</span>
+                <strong class="o_dcasa_cf_monto o_dcasa_sube" data-formato="moneda" t-att-data-valor="cobros.total" t-out="dinero(cobros.total)"/>
+                <small t-out="cobrosTexto(cobros.cuantos)"/>
+            </button>
             <button t-foreach="cobros.filas" t-as="c" t-key="c.clave" type="button" class="o_dcasa_cf_ficha"
                     t-on-click="() => this.abrirLista(c.accion)">
                 <span class="o_dcasa_cf_forma" t-out="c.forma"/>
                 <strong class="o_dcasa_cf_monto o_dcasa_sube" data-formato="moneda" t-att-data-valor="c.monto" t-out="dinero(c.monto)"/>
                 <small t-out="cobrosTexto(c.cuantos)"/>
-            </button>
-            <button type="button" class="o_dcasa_cf_ficha o_dcasa_cf_total" t-on-click="() => this.abrirLista(cobros.accion)">
-                <span class="o_dcasa_cf_forma">Total cobrado</span>
-                <strong class="o_dcasa_cf_monto o_dcasa_sube" data-formato="moneda" t-att-data-valor="cobros.total" t-out="dinero(cobros.total)"/>
-                <small t-out="cobrosTexto(cobros.cuantos)"/>
             </button>
         </div>
         <p t-else="" class="o_dcasa_vacio" t-out="vacio"/>
