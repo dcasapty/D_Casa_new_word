@@ -49,10 +49,19 @@ class TestClavesYFormas(BaseCase):
     def test_el_entorno_por_defecto_es_prueba(self):
         """Lo seguro: sin variable (o con una rara) un pago real no se acepta, y uno de prueba nunca paga producción."""
         for valor, esperado in ((None, 'prueba'), ('', 'prueba'), ('lo-que-sea', 'prueba'), ('prueba', 'prueba'),
-                                ('produccion', 'produccion'), (' Producción ', 'produccion'), ('PRODUCTION',
-                                'produccion')):
-            with self.subTest(valor=valor), entorno(TILOPAY_ENTORNO=valor):
+                                ('produccion', 'produccion'), (' Producción ', 'produccion'),
+                                ('PRODUCTION', 'produccion')):
+            with self.subTest(valor=valor), entorno(TILOPAY_ENTORNO=valor, DCASA_ENTORNO='produccion'):
                 self.assertEqual(api.entorno_esperado(), esperado)
+
+    def test_produccion_exige_que_el_servidor_sea_de_produccion(self):
+        """Pegar «produccion» en un staging o en una copia local no acepta dinero real (como correos y Meta)."""
+        for servidor in (None, '', 'staging', 'local', 'otra-cosa'):
+            with self.subTest(servidor=servidor), entorno(TILOPAY_ENTORNO='produccion', DCASA_ENTORNO=servidor):
+                self.assertEqual(api.entorno_esperado(), 'prueba')
+                self.assertEqual(api.entorno_pedido(), 'produccion', 'lo que dice el panel se ve aparte')
+        with entorno(TILOPAY_ENTORNO='produccion', DCASA_ENTORNO=' Produccion '):
+            self.assertEqual(api.entorno_esperado(), 'produccion')
 
     def test_limpiar_quita_claves_tokens_y_saltos(self):
         sucio = f'error con {LLAVE} y {CLAVE}\nlinea2 token eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.abcdefghijklmnop'
@@ -158,8 +167,35 @@ class TestEvaluarConsulta(BaseCase):
         r = evaluar(cuerpo(fila(code='4', response='Fondos insuficientes')))
         self.assertEqual(r['veredicto'], api.RECHAZADO)
         self.assertIn('Fondos insuficientes', r['detalle'])
-        for codigo in ('0', '2', '3', '', None, 'aprobado', '11', '1.0'):
+        for codigo in ('0', '2', '3', '11', ' 4 '):
             self.assertEqual(evaluar(cuerpo(fila(code=codigo)))['veredicto'], api.RECHAZADO, codigo)
+
+    def test_un_codigo_raro_o_intermedio_no_es_un_rechazo_queda_pendiente(self):
+        """Un Yappy que todavía no responde (o cualquier estado que no sea un código numérico de rechazo) NO se da por
+        rechazado: se sigue esperando y la tarea programada vuelve a preguntar (supuesto 3 de la revisión)."""
+        for codigo in ('', None, 'aprobado', 'pendiente', 'PENDING', '1.0', 'x1', True, 5, ['4']):
+            with self.subTest(codigo=codigo):
+                r = evaluar(cuerpo(fila(code=codigo)))
+                self.assertEqual(r['veredicto'], api.PENDIENTE)
+                self.assertNotIn('id_tilopay', r)
+        mezcla = evaluar(cuerpo(fila(code='4'), fila(code='pendiente')))
+        self.assertEqual(mezcla['veredicto'], api.PENDIENTE, 'una pendiente entre rechazadas sigue esperándose')
+        self.assertEqual(evaluar(cuerpo(fila(code='pendiente'), fila(code='1')))['veredicto'], api.APROBADO)
+
+    def test_montos_de_mil_dolares_o_mas(self):
+        """«1,250.00» (coma de miles y dos decimales) es un monto válido; cualquier otra forma rara no paga
+        (supuesto 2 de la revisión). Ninguna es laxa: nada de signos, exponentes ni coma decimal."""
+        grande = Decimal('1250.00')
+        for visto in ('1,250.00', '1250.00', '1250', '1250.0', 1250, 1250.0, '1,250.00 ', '12,345.00'):
+            esperado = Decimal('12345.00') if visto == '12,345.00' else grande
+            with self.subTest(visto=visto):
+                self.assertEqual(api.evaluar_consulta(cuerpo(fila(amount=visto)), ORDEN, esperado, 'USD',
+                                                      'prueba')['veredicto'], api.APROBADO)
+        for visto in ('1,250', '1.250,00', '1 250.00', '1,25.00', '1,2500.00', ',250.00', '1,250.0', '+1250.00',
+                      '-1250.00', '1e3', '1250.00.00', '１２５０', '1,250.00,00', '1,250,00', '0x4E2'):
+            with self.subTest(visto=visto):
+                self.assertEqual(api.evaluar_consulta(cuerpo(fila(amount=visto)), ORDEN, grande, 'USD',
+                                                      'prueba')['veredicto'], api.MONTO)
 
     def test_rechazado_y_luego_aprobado_paga(self):
         """El cliente se equivoca de tarjeta y reintenta en la misma página: cuenta el pago aprobado."""
