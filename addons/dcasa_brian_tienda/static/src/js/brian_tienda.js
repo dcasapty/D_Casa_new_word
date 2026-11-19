@@ -27,6 +27,11 @@
  *     globo del visitante y se manda como un mensaje normal (si vino recortado, queda en la caja para revisarlo).
  *   · Lo conversado se recuerda en ESTE navegador (sessionStorage, se borra al cerrar la pestaña) para que el chat siga
  *     igual al pasar de página; Odoo no guarda la conversación.
+ *   · En la computadora el chat abre YA AMPLIADO (chat a la izquierda, vitrina a la derecha; pedido de la dueña,
+ *     2026-11-19): pantalla ancha de verdad y sin puntero táctil (``esEscritorio``). En el celular y la tableta no
+ *     cambia nada. La persona puede achicarlo (o ampliarlo otra vez) y se recuerda en ESTE navegador con una sola marca
+ *     (localStorage, ``CLAVE_TAMANO``: «normal» o «ampliado», nunca nada de la conversación ni de la persona); cerrar
+ *     con la X o con Esc no la cambia. Al volver de otra página el chat reabre en tamaño normal, como siempre.
  *   · Accesible: foco, Esc para cerrar, aria-*; con movimiento reducido, quieto.
  *
  * Todo el texto que llega del Worker se pinta con textContent (nunca como HTML) y los enlaces e imágenes solo pueden
@@ -84,6 +89,8 @@ const PLAZO_UBICACION_MS = 8000;
 const CLAVE_CHAT = "dcasa.brian.chat";
 const CLAVE_PASE = "dcasa.brian.pase";
 const CLAVE_POSE = "dcasa.brian.pose";
+/** El tamaño que la persona dejó al chat en la computadora: «normal» o «ampliado» (en localStorage: solo esta marca). */
+const CLAVE_TAMANO = "dcasa.brian.tamano";
 /** A3: Andrés ya reaccionó en esta sesión a que el visitante quitó algo (una sola vez; el Worker también lo cuida). */
 const CLAVE_REACCION = "dcasa.brian.reaccion";
 /** Lo que Andrés propone y la página aplica en Odoo con la sesión del visitante (nunca al restaurar la conversación). */
@@ -528,8 +535,35 @@ function guardarAlmacen(clave, valor) {
     }
 }
 
+/** El tamaño que la persona eligió para el chat en la computadora («normal» o «ampliado»), o null si nunca eligió o este
+ *  navegador no deja guardar (ventana privada estricta, almacenamiento bloqueado): entonces el chat funciona igual. */
+function leerTamano() {
+    try {
+        const valor = window.localStorage.getItem(CLAVE_TAMANO);
+        return valor === "normal" || valor === "ampliado" ? valor : null;
+    } catch {
+        return null;
+    }
+}
+
+function guardarTamano(valor) {
+    try {
+        window.localStorage.setItem(CLAVE_TAMANO, valor);
+    } catch {
+        // Sin almacenamiento: no se recuerda la elección, nada más.
+    }
+}
+
 const reducir = () => window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const esCelular = () => window.matchMedia && window.matchMedia("(max-width: 767.98px)").matches;
+/** «Computadora» para el chat ampliado: pantalla ancha de verdad (el chat de 400 px y la vitrina caben con holgura, desde
+ *  1024 px), con alto para las dos columnas (600 px) y sin pantalla táctil como puntero principal. Un teléfono o una
+ *  tableta, aunque sea ancha, no (su puntero es grueso: ``pointer: coarse``). Se excluye lo táctil en lugar de exigir
+ *  «ratón» a propósito: así un navegador que no dice qué puntero tiene (``pointer: none``, como el Chrome sin pantalla
+ *  de las pruebas) cuenta como computadora y no se queda con el chat chico por no saber. */
+const esEscritorio = () => Boolean(window.matchMedia)
+    && window.matchMedia("(min-width: 1024px) and (min-height: 600px)").matches
+    && !window.matchMedia("(pointer: coarse)").matches;
 const pausa = (ms) => new Promise((r) => setTimeout(r, reducir() ? 0 : ms));
 const entero = (v) => (Number.isInteger(v) ? v : null);
 
@@ -619,6 +653,16 @@ export class ChatBrian {
         this.escuchar(this.burbuja, "click", () => this.abrir());
         this.ponerPoseDeBurbuja();
         this.escuchar(document, "keydown", (ev) => this.alTeclado(ev));
+        // Si la ventana se angosta hasta el celular con el chat ampliado por defecto, la vitrina taparía el chat entero:
+        // vuelve al tamaño normal (sin tocar lo que la persona eligió).
+        const angosta = window.matchMedia && window.matchMedia("(max-width: 767.98px)");
+        if (angosta && angosta.addEventListener) {
+            this.escuchar(angosta, "change", (ev) => {
+                if (ev.matches && this.ampliadoPorDefecto && this.estado.ampliado) {
+                    this.ampliar(false, true);
+                }
+            });
+        }
         this.vigilarBotonesDeLaPagina();
         this.vigilarSecciones();
         this.vigilarCarritoDeLaPagina();
@@ -1010,7 +1054,7 @@ export class ChatBrian {
         this.raiz.append(this.panel);
 
         this.escuchar(this.btnCerrar, "click", () => this.cerrar());
-        this.escuchar(this.btnAmpliar, "click", () => this.ampliar(!this.estado.ampliado));
+        this.escuchar(this.btnAmpliar, "click", () => this.alTocarAmpliar());
         this.escuchar(volver, "click", () => this.ampliar(false));
         this.escuchar(this.barraVer, "click", () => this.abrirHoja(!this.estado.hoja));
         this.escuchar(this.hojaCerrar, "click", () => this.abrirHoja(false));
@@ -1123,6 +1167,14 @@ export class ChatBrian {
         if (esCelular()) {
             document.documentElement.classList.add("o_dcbt_abierto");
         }
+        // En la computadora abre ya ampliado (la dueña, 2026-11-19), salvo que la persona haya achicado antes. Se decide
+        // antes de medir el panel (la animación de abrir parte de su tamaño final). Al volver de otra página
+        // (``sinAnimar``) reabre en tamaño normal, como siempre: «Ver» en una tarjeta lleva a la ficha y un chat de
+        // 1100 px encima taparía justo lo que la persona fue a mirar.
+        if (!sinAnimar && this.abreAmpliado()) {
+            this.ampliar(true, true);
+            this.ampliadoPorDefecto = true;
+        }
         this.ajustarAlto();
         if (!sinAnimar && !reducir() && this.panel.animate) {
             const g = this.geometria();
@@ -1212,10 +1264,27 @@ export class ChatBrian {
         }
     }
 
+    /** ¿Abre ya ampliado? En la computadora, sí, a menos que la persona haya achicado antes (se recuerda en este
+     *  navegador). En el celular y la tableta, nunca: ahí «ampliar» es ver los productos en cuadrícula, a pedido. */
+    abreAmpliado() {
+        return esEscritorio() && leerTamano() !== "normal";
+    }
+
+    /** El botón de ampliar y achicar de la cabecera: cambia el tamaño y, en la computadora, recuerda la elección para
+     *  las próximas veces y las otras páginas. En el celular no se recuerda nada (ahí es «ver la cuadrícula»). */
+    alTocarAmpliar() {
+        const si = !this.estado.ampliado;
+        this.ampliar(si);
+        if (!esCelular()) {
+            guardarTamano(si ? "ampliado" : "normal");
+        }
+    }
+
     ampliar(si, sinAnimar = false) {
         if (this.estado.ampliado === si || !this.panel) {
             return;
         }
+        this.ampliadoPorDefecto = false;   // lo que se hizo a mano deja de ser «el de fábrica»; abrir() lo vuelve a marcar
         const antes = this.panel.getBoundingClientRect();
         if (si && esCelular()) {
             this.abrirHoja(false); // en el celular la vitrina ocupa la pantalla (y trae su propio pie con el carrito)
@@ -1631,8 +1700,11 @@ export class ChatBrian {
                 ico("abajo", "o_dcbt_ico o_dcbt_grupo_flecha"));
             const grupo = el("details", { class: "o_dcbt_grupo", "data-grupo": String(g.id), open: abierto },
                 resumen, el("div", { class: "o_dcbt_rejilla", role: "list" }, ...productos.map((p) => this.tarjeta(p))));
-            grupo.addEventListener("toggle", () => {
-                g.abierto = grupo.open;
+            // Solo lo que la persona abre o cierra se respeta (el clic o Enter/Espacio en el título). El evento «toggle» no
+            // sirve: el navegador también lo dispara al pintar el grupo ya abierto, y entonces el grupo de antes quedaba
+            // «elegido» abierto y no se plegaba cuando llegaba uno más reciente (se vio con el chat ampliado de fábrica).
+            resumen.addEventListener("click", () => {
+                g.abierto = !grupo.open;
             });
             hijos.push(grupo);
         });
