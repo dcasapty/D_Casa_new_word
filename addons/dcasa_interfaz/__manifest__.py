@@ -49,6 +49,7 @@ La interfaz de trabajo de D'CASA, hecha a medida:
         'views/inventario_valor_views.xml',
         'views/sale_order_views.xml',
         'views/origen_views.xml',
+        'views/forma_pago_views.xml',
         'views/reponer_views.xml',
         'views/login_templates.xml',
         'views/layout_templates.xml',
