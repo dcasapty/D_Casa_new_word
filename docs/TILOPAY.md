@@ -121,7 +121,7 @@ para no pagar nada falso, y la tarea programada suple al aviso si no llega.
 
 ### 5.1 El camino feliz
 
-1. El cliente elige **«Pagar con tarjeta o Yappy»** (solo sale si Tilopay está activo, conectado y coherente).
+1. El cliente elige **«Tarjeta, Yappy y más (Tilopay)»** (solo sale si Tilopay está activo, conectado y coherente).
 2. Odoo crea la transacción (monto y moneda del **pedido**, no del navegador) y le da un `orderNumber` propio:
    `<referencia>-<8 letras y números al azar>`. Se guarda en `dcasa_tilopay_orden` **antes** de llamar a Tilopay.
 3. Odoo llama a `login` (token en memoria, se renueva solo) y a `processPayment`; Tilopay devuelve la dirección de su página.
@@ -239,7 +239,7 @@ Prueba» **encendido** en el panel. Nunca con una tarjeta real.
    decir que sí. Cambiar el estado a **Modo de prueba** y guardar. En modo de prueba Tilopay solo lo ve el equipo que tiene
    sesión (entra con tu usuario de administrador para probar). **En staging**, si quieres que también lo vea un visitante,
    pulsa **Publicado**. **En producción no pulses «Publicado» hasta el final**: así los clientes no ven una opción de pruebas.
-3. En la tienda: agrega un mueble barato, ve a pagar. Debe salir **«Pagar con tarjeta o Yappy»**. Con Tilopay apagado en Odoo no debe salir.
+3. En la tienda: agrega un mueble barato, ve a pagar. Debe salir **«Tarjeta, Yappy y más (Tilopay)»**. Con Tilopay apagado en Odoo no debe salir.
 4. **Pago aprobado:** elige Tilopay. Se abre la página de Tilopay. Tarjeta `4111111111111111`, vencimiento futuro, CVV cualquiera.
    Debe volver a la tienda y mostrar «¡Pago recibido!» y el pedido **confirmado**. En Odoo: la transacción en **Confirmado**, un cobro
    en el diario **Tilopay**, el pedido en «Pedido de venta». Anota qué trae `order` en la dirección de retorno.

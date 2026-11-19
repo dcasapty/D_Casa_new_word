@@ -115,6 +115,8 @@ class TestCuandoSeOfrece(PreparaPedido, TransactionCase):
         with entorno(TILOPAY_ENTORNO='prueba'):
             self.assertTrue(self.ofrecidos())
             self.assertIn('Listo', self.proveedor.dcasa_tilopay_aviso)
+            # El aviso nombra la opción tal como la ve el cliente en la tienda, no otra palabra.
+            self.assertIn('«Tarjeta, Yappy y más (Tilopay)»', self.proveedor.dcasa_tilopay_aviso)
 
     def test_en_produccion_hacen_falta_las_dos_llaves(self):
         """«Habilitado» en Odoo y TILOPAY_ENTORNO=produccion en Cloudflare: si uno solo dice «real», no se ofrece."""
@@ -279,6 +281,8 @@ class TestProbarConexion(PreparaPedido, TransactionCase):
             self.assertNotIn(secreto, texto)
         self.assertEqual(len(tilopay.rutas(api.RUTA_LOGIN)), 1)
         self.assertEqual(len(tilopay.llamadas), 1, 'solo abre sesión: no pide nada más')
+        self.assertEqual(params['next'], {'type': 'ir.actions.client', 'tag': 'soft_reload'},
+                         'la pantalla se refresca para mostrar «Última prueba»')
 
     def test_claves_que_tilopay_no_acepta(self):
         with entorno(), SimuladorTilopay() as tilopay:

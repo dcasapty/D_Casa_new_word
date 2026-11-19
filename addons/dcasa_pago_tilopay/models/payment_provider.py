@@ -63,7 +63,7 @@ class PaymentProvider(models.Model):
             proveedor.dcasa_tilopay_entorno = api_tilopay.entorno_esperado()
             problema = proveedor._dcasa_tilopay_problema()
             proveedor.dcasa_tilopay_aviso = problema or self.env._(
-                'Listo: Tilopay aparece en la tienda como «Pagar con tarjeta o Yappy».')
+                'Listo: Tilopay aparece en la tienda como «%s».', NOMBRE_DEL_METODO)
             if proveedor.dcasa_tilopay_prueba_fecha:
                 proveedor.dcasa_tilopay_prueba_texto = self.env._(
                     '%(resultado)s (%(fecha)s)',
@@ -178,7 +178,9 @@ class PaymentProvider(models.Model):
         return {
             'type': 'ir.actions.client', 'tag': 'display_notification',
             'params': {'title': self.env._('Conexión con Tilopay'), 'message': texto,
-                       'type': 'success' if bien else 'danger', 'sticky': not bien},
+                       'type': 'success' if bien else 'danger', 'sticky': not bien,
+                       # Que «Última prueba» se actualice en la pantalla sin que haya que recargarla.
+                       'next': {'type': 'ir.actions.client', 'tag': 'soft_reload'}},
         }
 
     # ------------------------------------------------------------------ al instalar
