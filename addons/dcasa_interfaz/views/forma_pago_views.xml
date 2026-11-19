@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- «Forma de pago» de cada factura (pedido de la dueña y del jefe, 2026-11-19): con qué se cobró, o sea el diario del
+         pago (Efectivo, Yappy, Tarjeta…), en la lista de Facturas, en el Excel, en el buscador y para agrupar.
+         models/forma_pago.py explica qué cuenta y qué no. -->
+
+    <!-- La lista de facturas de clientes (Ventas › Facturas y Facturación › Clientes › Facturas): junto al Estado, así
+         se lee «Total · Estado · Forma de pago» sin tener que deslizar. Las notas de crédito no llevan columna: no
+         son un cobro (su lista, ``view_out_credit_note_tree``, queda como estaba). -->
+    <record id="account_move_list_dcasa_forma_pago" model="ir.ui.view">
+        <field name="name">account.out.invoice.list.dcasa.forma.pago</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_out_invoice_tree"/>
+        <field name="arch" type="xml">
+            <field name="status_in_payment" position="after">
+                <field name="dcasa_forma_pago" optional="show"/>
+            </field>
+        </field>
+    </record>
+
+    <!-- En el celular la lista de facturas son tarjetas (no hay columnas): la forma de pago va en una línea debajo del
+         cliente, y solo cuando ya se cobró algo. -->
+    <record id="account_move_kanban_dcasa_forma_pago" model="ir.ui.view">
+        <field name="name">account.move.kanban.dcasa.forma.pago</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_account_move_kanban"/>
+        <field name="arch" type="xml">
+            <xpath expr="//t[@t-name='card']/footer" position="before">
+                <div class="text-muted mb-2 o_dcasa_forma_pago" invisible="not dcasa_forma_pago">
+                    <i class="fa fa-money me-1" role="img" title="Forma de pago" aria-label="Forma de pago"/>
+                    <field name="dcasa_forma_pago"/>
+                </div>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- En la factura: solo para leer y sin ruido. Va en «Otra información», junto a la vendedora, y solo sale
+         cuando ya se cobró algo. -->
+    <record id="account_move_form_dcasa_forma_pago" model="ir.ui.view">
+        <field name="name">account.move.form.dcasa.forma.pago</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//group[@name='sale_info_group']/field[@name='invoice_user_id']" position="after">
+                <field name="dcasa_forma_pago" readonly="1" invisible="not dcasa_forma_pago"/>
+            </xpath>
+            <!-- El «Método de pago» de Odoo (a la derecha, en Contabilidad) es el método que el cliente prefiere (el de su
+                 ficha), no con el que se cobró: se llama como es para que no se confunda con «Forma de pago». El de las
+                 facturas de proveedor (el segundo campo) no se toca. -->
+            <xpath expr="(//field[@name='preferred_payment_method_line_id'])[1]" position="attributes">
+                <attribute name="string">Método de pago preferido del cliente</attribute>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- El buscador: escribe «Yappy» y filtra (busca en el texto de la forma de pago, que también trae «Nota de
+         crédito»); y «Agrupar por › Forma de pago», que agrupa por el texto guardado: cada factura cae en un solo
+         grupo, así los totales no se cuentan dos veces. Los nombres de los diarios son datos de la empresa: nada de
+         esto los escribe a mano. -->
+    <record id="account_move_search_dcasa_forma_pago" model="ir.ui.view">
+        <field name="name">account.move.search.dcasa.forma.pago</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_account_invoice_filter"/>
+        <field name="arch" type="xml">
+            <field name="invoice_user_id" position="after">
+                <field name="dcasa_forma_pago" string="Forma de pago"/>
+            </field>
+            <filter name="salesperson" position="after">
+                <filter name="dcasa_por_forma_pago" string="Forma de pago" context="{'group_by': 'dcasa_forma_pago'}"/>
+            </filter>
+            <!-- Agrupar por «Método de pago» de Odoo es el método preferido del cliente (su ficha), no el cobrado. -->
+            <filter name="preferred_payment_method_line" position="attributes">
+                <attribute name="string">Método de pago preferido del cliente</attribute>
+            </filter>
+        </field>
+    </record>
+</odoo>

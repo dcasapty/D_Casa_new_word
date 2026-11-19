@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!-- La plantilla de «Acción › Exportar» de las facturas (pedido de la dueña y del jefe, 2026-11-19): las columnas de
+         la lista y «Forma de pago», ya elegidas, para bajar el Excel sin buscar campo por campo. Se crea una vez
+         (noupdate): si alguien la cambia, sus cambios se quedan. Solo la ven quienes pueden exportar
+         (``base.group_allow_export``). -->
+    <record id="exportacion_facturas_forma_pago" model="ir.exports">
+        <field name="name">Facturas con forma de pago</field>
+        <field name="resource">account.move</field>
+    </record>
+    <record id="exportacion_facturas_forma_pago_01" model="ir.exports.line">
+        <field name="export_id" ref="exportacion_facturas_forma_pago"/>
+        <field name="name">name</field>
+    </record>
+    <record id="exportacion_facturas_forma_pago_02" model="ir.exports.line">
+        <field name="export_id" ref="exportacion_facturas_forma_pago"/>
+        <field name="name">invoice_partner_display_name</field>
+    </record>
+    <record id="exportacion_facturas_forma_pago_03" model="ir.exports.line">
+        <field name="export_id" ref="exportacion_facturas_forma_pago"/>
+        <field name="name">invoice_date</field>
+    </record>
+    <record id="exportacion_facturas_forma_pago_04" model="ir.exports.line">
+        <field name="export_id" ref="exportacion_facturas_forma_pago"/>
+        <field name="name">invoice_date_due</field>
+    </record>
+    <record id="exportacion_facturas_forma_pago_05" model="ir.exports.line">
+        <field name="export_id" ref="exportacion_facturas_forma_pago"/>
+        <field name="name">ref</field>
+    </record>
+    <record id="exportacion_facturas_forma_pago_06" model="ir.exports.line">
+        <field name="export_id" ref="exportacion_facturas_forma_pago"/>
+        <field name="name">invoice_user_id</field>
+    </record>
+    <record id="exportacion_facturas_forma_pago_07" model="ir.exports.line">
+        <field name="export_id" ref="exportacion_facturas_forma_pago"/>
+        <field name="name">dcasa_origen</field>
+    </record>
+    <record id="exportacion_facturas_forma_pago_08" model="ir.exports.line">
+        <field name="export_id" ref="exportacion_facturas_forma_pago"/>
+        <field name="name">amount_untaxed</field>
+    </record>
+    <record id="exportacion_facturas_forma_pago_09" model="ir.exports.line">
+        <field name="export_id" ref="exportacion_facturas_forma_pago"/>
+        <field name="name">amount_tax</field>
+    </record>
+    <record id="exportacion_facturas_forma_pago_10" model="ir.exports.line">
+        <field name="export_id" ref="exportacion_facturas_forma_pago"/>
+        <field name="name">amount_total</field>
+    </record>
+    <record id="exportacion_facturas_forma_pago_11" model="ir.exports.line">
+        <field name="export_id" ref="exportacion_facturas_forma_pago"/>
+        <field name="name">status_in_payment</field>
+    </record>
+    <record id="exportacion_facturas_forma_pago_12" model="ir.exports.line">
+        <field name="export_id" ref="exportacion_facturas_forma_pago"/>
+        <field name="name">dcasa_forma_pago</field>
+    </record>
+</odoo>

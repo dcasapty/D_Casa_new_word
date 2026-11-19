@@ -3918,6 +3918,51 @@
    ]
   },
   {
+   "id": "forma-de-pago-facturas",
+   "categoria": "facturar",
+   "tambien": [
+    "reportes"
+   ],
+   "grupo": "Facturas de clientes",
+   "titulo": "Ver con qué se pagó cada factura y bajar el Excel",
+   "logras": "En la lista de facturas sale la columna «Forma de pago» (Efectivo, Yappy, Tarjeta…: con lo que se cobró cada una). La buscas por su nombre, las agrupas por forma de pago y bajas el Excel con esa columna.",
+   "destino": {
+    "menu": "dcasa_base.menu_dcasa_ventas_facturas"
+   },
+   "pasos": [
+    {
+     "texto": "Abre Ventas › Facturas. La columna «Forma de pago» sale junto al Estado.",
+     "destino": {
+      "menu": "dcasa_base.menu_dcasa_ventas_facturas"
+     }
+    },
+    {
+     "texto": "Para ver solo las que se pagaron con una forma, escribe su nombre en el buscador (por ejemplo «Yappy») y elige «Forma de pago». Para verlas todas separadas, abre «Agrupar por» y elige «Forma de pago».",
+     "destino": null
+    },
+    {
+     "texto": "Para el Excel: marca las facturas que quieras (o la casilla de arriba para todas), toca «Acción › Exportar», agrega «Forma de pago» a la lista de columnas y toca «Exportar».",
+     "destino": null
+    }
+   ],
+   "nota": "Una factura pagada en parte con dos formas dice las dos («Efectivo + Yappy»). Si se le aplicó una nota de crédito, dice «Nota de crédito». Una factura que todavía no se cobró queda en blanco. El botón «Exportar» sale para Gerencia (y los administradores); si no te sale, pídele el Excel a Gerencia.",
+   "palabras": [
+    "forma de pago",
+    "metodo de pago",
+    "con que pago",
+    "como pago",
+    "yappy",
+    "efectivo",
+    "tarjeta",
+    "diario",
+    "excel",
+    "exportar",
+    "descargar excel",
+    "bajar excel",
+    "facturas por forma de pago"
+   ]
+  },
+  {
    "id": "tablero-facturas",
    "categoria": "facturar",
    "grupo": "Facturas de clientes",
