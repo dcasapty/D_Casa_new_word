@@ -9,33 +9,23 @@ decide puede leer las secciones 1, 2, 3, 6, 7 y 10.
 
 ## 1. Resumen de una página
 
-1. **Qué cuenta:** una factura de un pedido que **nació en la tienda en línea** y quedó **pagada por completo**. No
-   importa con qué se pagó (pasarela, Yappy o transferencia a mano, o en la tienda) ni quién cobró: el origen lo
-   decide el pedido; el dinero, el pago completo.
-2. **Sobre qué monto:** lo que de verdad entró: sin ITBMS, sin el cargo de envío, con los descuentos ya aplicados y
-   menos las devoluciones.
-3. **El porcentaje** lo escribe Gerencia general en una pantalla. **Hoy está vacío y así se queda hasta que lo decida**:
-   sin porcentaje el sistema mide las ventas del sitio pero no calcula nada pagable. Cada cambio es una versión nueva
-   que rige solo hacia adelante; el historial no se edita.
-4. **Quién recibe:** una lista de **personas** (fichas de empleado) con su reparto, que suma 100 %. No depende del
-   departamento: quien cambie de área sigue igual hasta que Gerencia cambie la lista.
-5. **El libro:** cada venta y cada devolución queda en un libro que **no se edita ni se borra** (se corrige con un
-   asiento contrario y su motivo). De ahí sale el **«Estado de comisión del sitio web»** de cada mes: factura por
-   factura, su base, el porcentaje, el monto y el enlace. Con Excel y PDF. Gerencia ve todo; cada persona que recibe
-   ve el suyo, solo para leer.
-6. **Nada se paga solo.** Al cerrar el mes el sistema arma una **propuesta**; Gerencia la revisa y la ajusta (con
-   motivo); la **aprueba una persona de Gerencia que no recibe comisión**; y entonces pasa a la **planilla** (primera
-   quincena del mes siguiente, igual que el bono por meta) o se anota como pagada fuera de planilla.
-7. **Confianza:** quienes reciben también construyen y administran el sistema, así que el estado de cada mes se
-   **sella con una huella** que llega a Gerencia general y a la contadora, quien recibe no aprueba su propia comisión
-   y el origen de cada pedido queda con un testigo que no se puede cambiar después. Hay cosas que no se pueden
-   evitar y aquí se dicen con franqueza (sección 7).
-8. **Lo legal y contable** (si esto es salario, qué descuentos lleva, décimo, vacaciones, renta) **lo deciden la
-   contadora y el abogado**. Hoy el sistema trata el bono por meta como salario; la comisión web podrá cambiar de
-   tratamiento sin reprogramar.
-9. **Se construye por partes:** primero **medir y mostrar** (sin pagar nada); después propuesta y aprobación; al final
-   el enlace con la planilla, cuando haya dictamen.
-10. **Lo que se necesita de Gerencia general:** contestar 8 preguntas cortas (sección 10).
+1. **Qué cuenta:** la factura de un pedido que **nació en la tienda en línea** y quedó **pagada por completo**, sin
+   importar con qué se pagó (pasarela, Yappy o transferencia a mano, o en la tienda): el origen lo decide el pedido.
+2. **Sobre qué monto:** lo que de verdad entró: sin ITBMS, sin envío, con los descuentos y menos las devoluciones.
+3. **El porcentaje** lo escribe Gerencia general en una pantalla. **Hoy está vacío**: sin él el sistema solo mide, no calcula
+   nada pagable. Cada cambio es una versión nueva, solo hacia adelante, y el historial no se edita.
+4. **Quién recibe:** una lista de **personas** (fichas de empleado) con su reparto (suma 100 %), sin depender del departamento.
+5. **Libro y estado:** un libro que **no se edita ni se borra** (se corrige con un asiento contrario y su motivo) y un
+   **«Estado de comisión del sitio web»** mensual con cada factura, su base, porcentaje y monto. Excel y PDF; Gerencia ve
+   todo y cada persona ve lo suyo, solo para leer.
+6. **Nada se paga solo:** propuesta del mes → revisión → **aprobación de alguien de Gerencia que no recibe comisión** →
+   planilla (primera quincena del mes siguiente, como el bono por meta) o pago fuera de planilla.
+7. **Confianza:** como quienes reciben también administran el sistema, cada mes se **sella con una huella** que llega a
+   Gerencia general y a la contadora, quien recibe no aprueba lo suyo, y los límites se dicen con franqueza (sección 7).
+8. **Lo legal y contable** (si es salario, qué descuentos, décimo, vacaciones, renta) lo deciden la **contadora y el
+   abogado**. Hoy el bono por meta se trata como salario; aquí el tratamiento podrá cambiar sin reprogramar.
+9. **Por partes:** primero **medir y mostrar** sin pagar nada; luego propuesta y aprobación; al final la planilla, con dictamen.
+10. **Falta de Gerencia general:** contestar 8 preguntas cortas (sección 10).
 
 ## 2. Qué cuenta como «venta del sitio web»
 
@@ -73,8 +63,8 @@ aparece en el estado como «en duda» y no suma al monto**; así se ve cuánto d
 | Cotización de la web pagada en la tienda | Igual que «Pago en la tienda» | Mismo pedido, mismo origen. |
 | Factura que junta pedidos de varios orígenes | **Solo las líneas del pedido web** | La etiqueta de la factura da prioridad al chatbot sobre la web (A6); la comisión no se fía de esa etiqueta. |
 | Devolución o nota de crédito | **Resta** | En el mes en que se hace (asiento contrario con motivo). Cuenta también la nota que se aplicó suelta, sin enlazar a la factura (como en el bono por meta, A1). Parcial: resta lo devuelto. |
-| Devolución de una venta cuyo mes ya se pagó | **Resta en el mes en que ocurre**; si el saldo queda negativo, **se arrastra** | Nunca se descuenta de una planilla sin que Gerencia lo decida. Distinto del bono por meta, que no descuenta lo ya pagado (A1); aquí se propone lo contrario porque el libro lo permite sin esfuerzo. |
-| Pago revertido (contracargo) o factura que vuelve a borrador o se cancela | **Resta** | La revisión nocturna lo detecta (como hace el programa de vendedores, A3) y asienta el reverso. |
+| Devolución de una venta cuyo mes ya se pagó | **Resta en el mes en que ocurre**; si el saldo queda negativo, **se arrastra** | Igual que en el bono por meta, la nota resta en su propio mes (A1). Nunca se descuenta de una planilla sin que Gerencia lo decida (pregunta para el abogado, sección 8). |
+| Pago revertido (contracargo) o factura que vuelve a borrador o se cancela | **Resta** | La revisión nocturna lo detecta (como hace el programa de vendedores, A3) y asienta el reverso. El bono por meta, en cambio, no descuenta lo ya pagado si una venta pagada se queda sin cobrar (A1); aquí se propone lo contrario porque el libro lo permite sin esfuerzo. |
 | Pedido cancelado | **No** | No hay factura pagada. Si ya había contado y se cancela la factura, se reversa. |
 | Factura sin pagar o pagada en parte | **No** (todavía) | Sale en «Pendientes de cobro» como información, sin dinero. |
 | Descuentos y premios de Socios | **Se cuenta lo que entró** | El premio es una línea negativa que baja la base (A9); el descuento ya viene en el precio. Recomendado: neto, igual que el programa de vendedores. |
@@ -160,8 +150,7 @@ meta (A1).
   suyo**, con el reparto de ese momento. Si Gerencia quiere algo distinto (por ejemplo, repartir lo de los últimos
   días), lo ajusta **en la propuesta, con motivo**, y queda a la vista. La propuesta marca en rojo a quien sale con
   saldo pendiente.
-- **No se prorratea por días** como el sueldo de la planilla: la comisión nace de ventas, no del calendario; la
-  comisión sigue a la venta y no al día.
+- **No se prorratea por días** como el sueldo de la planilla: la comisión nace de ventas, no del calendario.
 
 ## 5. El libro y el estado de cuenta transparente
 
@@ -289,9 +278,9 @@ son los que propongo, de lo más fuerte a lo más flojo, y al final lo que **no*
    muestra **cómo se pagó** y **si ese pago está conciliado con el banco**, y el sello dice qué parte de la base está
    conciliada. Un pedido que se paga y se devuelve se reversa solo.
 8. **Mirar quién arma las campañas y los precios.** Quienes reciben también pueden tocar precios y campañas del sitio
-   (solo Gerencia y quienes cambian precios, A14). No inflan la base (el cliente tiene que pagar), pero sí pueden
-   cambiarla para bien o para mal. Por eso el estado muestra el **precio cobrado** y el sello **no esconde** los
-   meses de campaña. Cualquier cambio de campaña ya queda en su historial.
+   (solo Gerencia y quienes cambian precios, A14). No inflan la base a la fuerza (el cliente tiene que pagar), pero sí
+   pueden moverla para bien o para mal. Por eso el estado muestra el **precio cobrado**, el sello anota la **campaña
+   vigente del mes**, si la hay, y recomiendo que Gerencia general conozca y apruebe las campañas.
 9. **Un error de la comisión nunca frena una venta ni un cobro** (sección 9).
 10. **Revisión independiente.** Antes de usarlo, la contadora (o alguien de afuera) revisa las reglas, el reparto y el
     primer sello; después, cada vez que cambie algo de eso. El código vive en un repositorio con pruebas y pasa por
@@ -500,8 +489,8 @@ carreras entre el barrido y el gancho (un candado, como el de numeración de `dc
 
 - La pasarela (Tilopay) se hace en otra rama y **todavía no existe**: la comisión solo necesita que su pago quede aplicado a
   la factura y registrado en su diario. Comprobarlo cuando esa rama llegue, con un pago de prueba.
-- Un pedido de la web **entra sin vendedora**, y la vendedora que lo confirma se lo queda (A6): ese mismo pedido cuenta
-  para su bono por meta. Ver P4.
+- Un pedido de la web **entra sin vendedora**, y la vendedora que lo confirma se lo queda (A6): ese mismo pedido puede
+  contar también para su bono por meta (si ella está en el departamento de Ventas). Ver P4.
 - El pago «en proceso de pago» cuenta (como en el bono por meta); el barrido nocturno reversa si el pago se cae.
 - El envío que suma el chat de la tienda puede desaparecer al pagar (A8): por eso queda fuera de la base.
 - Una factura de un mismo pedido en varias entregas se cuenta cada una al quedar pagada.
@@ -638,7 +627,7 @@ código, manda el código. Las rutas son desde la raíz del repositorio.
 | | Cómo se calcula (de `website_id`) y cómo hereda la factura (prioridad chatbot, web, vendedora) | `addons/dcasa_interfaz/models/origen.py:14-15`, `:27-30`, `:36-47` |
 | | Lo que arma Juan es «Chatbot» | `addons/dcasa_conversaciones/models/sale_origen.py:101-106` |
 | | Etiquetas y filtros en las listas | `addons/dcasa_interfaz/views/origen_views.xml:4-96` |
-| | Los pedidos de la web entran **sin vendedora**; la que confirma se lo queda | `addons/website_dcasa/models/pedido_web.py:1-15`, `:31-45` |
+| | Los pedidos de la web entran **sin vendedora**; la que confirma se lo queda | `addons/website_dcasa/models/pedido_web.py:1-15`, `:31-42` |
 | | `website_id` solo está de solo lectura en la pantalla | `vendor/odoo/addons/website_sale/models/sale_order.py:24-28` |
 | **A7** | **Cómo llegan los pagos** | |
 | | Hoy no hay pasarela: Yappy y transferencia a mano, o pago en la tienda | `addons/website_dcasa/models/tienda.py:1-12`, `:17-30` |
@@ -657,7 +646,7 @@ código, manda el código. Las rutas son desde la raíz del repositorio.
 | | Doble factor y registro de accesos | `addons/dcasa_seguridad/__manifest__.py` |
 | | Respaldos en el almacenamiento de Cloudflare | `docs/OPERACION.md:32`, `:221` |
 | **A13** | **Odoo** | |
-| | El gancho `_invoice_paid_hook` se llama al conciliar (también de «en proceso de pago» a «pagada») | `vendor/odoo/addons/account/models/account_move_line.py:2788-2794`; `account_move.py:7361` |
+| | El gancho `_invoice_paid_hook` se llama al conciliar (también de «en proceso de pago» a «pagada») | `vendor/odoo/addons/account/models/account_move_line.py:2788-2794`; `vendor/odoo/addons/account/models/account_move.py:7361` |
 | | El pago sabe si está conciliado con el banco | `vendor/odoo/addons/account/models/account_payment.py:50-52` (`is_reconciled`, `is_matched`) |
 | | Si el usuario tiene segundo factor | `vendor/odoo/addons/auth_totp/models/res_users.py:35` (`totp_enabled`) |
 | **A14** | **Las campañas del sitio las toca solo Gerencia y quien cambia precios** | `docs/LEEME_PRIMERO.md:264` |
