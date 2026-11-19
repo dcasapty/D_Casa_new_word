@@ -23,6 +23,7 @@ _logger = logging.getLogger(__name__)
 
 MAX_CUERPO = 16 * 1024
 MAX_PARAMETROS = 50
+FORMULARIOS = ('application/x-www-form-urlencoded', 'multipart/form-data')
 
 
 class TilopayController(http.Controller):
@@ -75,13 +76,16 @@ class TilopayController(http.Controller):
         """Los datos del aviso como diccionario (formulario o JSON); vacío si no se entiende o es demasiado."""
         crudo = dict(list(datos.items())[:MAX_PARAMETROS])
         mimetype = (request.httprequest.mimetype or '').lower()
-        if mimetype == 'application/json' or mimetype.endswith('+json'):
-            try:
-                json_cuerpo = json.loads(request.httprequest.get_data(cache=False) or b'null')
-            except ValueError:
-                return crudo
-            if isinstance(json_cuerpo, dict):
-                crudo.update(json_cuerpo)
+        if mimetype in FORMULARIOS:
+            return crudo      # los campos del formulario ya vienen en ``datos``
+        # JSON con cualquier tipo de contenido (o sin él): la forma del aviso de compras no es pública
+        # (docs/TILOPAY.md §8).
+        try:
+            json_cuerpo = json.loads(request.httprequest.get_data(cache=False) or b'null')
+        except ValueError:
+            return crudo
+        if isinstance(json_cuerpo, dict):
+            crudo.update(json_cuerpo)
         return crudo
 
     @classmethod

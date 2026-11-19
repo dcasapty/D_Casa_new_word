@@ -62,6 +62,20 @@ class TestAviso(BaseHttp):
         self.releer(tx)
         self.assertEqual(tx.state, 'done')
 
+    def test_el_aviso_json_se_entiende_con_cualquier_tipo_de_contenido(self):
+        """La forma del aviso de compras no es pública: puede llegar como text/plain o sin tipo y seguir siendo JSON."""
+        for tipo in ('text/plain', 'application/json; charset=utf-8', 'application/octet-stream'):
+            with self.subTest(tipo=tipo):
+                pedido = self.pedido()
+                with SimuladorTilopay() as tilopay:
+                    tx, orden = self.abrir(tilopay, pedido)
+                    tilopay.aprobar(orden, pedido.amount_total)
+                    r = self.url_open(AVISO, data=json.dumps({'data': {'orderNumber': orden}}),
+                                      headers={'Content-Type': tipo})
+                self.assertEqual(r.status_code, 200)
+                self.releer(tx)
+                self.assertEqual(tx.state, 'done')
+
     def test_solo_acepta_post(self):
         for metodo in ('GET', 'PUT', 'DELETE'):
             r = self.url_open(AVISO, method=metodo)
