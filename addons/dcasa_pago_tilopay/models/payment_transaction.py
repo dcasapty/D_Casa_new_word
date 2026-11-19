@@ -18,7 +18,7 @@ from urllib.parse import parse_qsl, urlsplit, urlunsplit
 import psycopg2
 from markupsafe import Markup
 
-from odoo import SUPERUSER_ID, api, fields, models
+from odoo import SUPERUSER_ID, api, fields, models, modules
 from odoo.exceptions import ValidationError
 from odoo.tools import float_repr, float_round
 from odoo.tools.urls import urljoin
@@ -343,10 +343,11 @@ class PaymentTransaction(models.Model):
                     if tx.state in ('draft', 'pending') and veredicto in sin_pago and vencida:
                         tx._set_canceled(MENSAJE_VENCIDO)
                 revisadas += 1
-                self.env.cr.commit()
+                if not modules.module.current_test:   # una prueba no puede confirmar la base
+                    self.env.cr.commit()
             except psycopg2.OperationalError:
-                self.env.cr.rollback()
-            except Exception:  # noqa: BLE001 - un pago con problemas no detiene a los demás
+                if not modules.module.current_test:
+                    self.env.cr.rollback()
+            except Exception:  # noqa: BLE001 - un pago con problemas no detiene a los demás (el savepoint ya deshizo lo suyo)
                 _logger.exception('Tilopay: error al revisar la transacción %s.', tx.reference)
-                self.env.cr.rollback()
         return revisadas

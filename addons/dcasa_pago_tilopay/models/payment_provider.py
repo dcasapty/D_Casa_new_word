@@ -123,6 +123,13 @@ class PaymentProvider(models.Model):
             return super()._get_default_payment_method_codes()
         return {CODIGO}
 
+    def _activate_default_pms(self):
+        """Al encender el proveedor se asegura su diario «Tilopay»: sin él, Odoo mandaría el cobro al primer diario de
+        banco que encuentre (y los pagos de Tilopay se mezclarían con los del banco)."""
+        super()._activate_default_pms()
+        for proveedor in self.filtered(lambda p: p.code == CODIGO):
+            proveedor._dcasa_tilopay_asegurar_diario()
+
     @api.model
     def _get_compatible_providers(self, *args, report=None, **kwargs):
         """Tilopay solo se ofrece para pagar un PEDIDO de venta (versión 1) y solo si está activo, con las claves
@@ -193,6 +200,15 @@ class PaymentProvider(models.Model):
         metodo = self.env.ref('dcasa_pago_tilopay.payment_method_tilopay', raise_if_not_found=False)
         if metodo:
             _nombrar(metodo.sudo(), NOMBRE_DEL_METODO)
+
+    def _dcasa_tilopay_asegurar_diario(self):
+        """Si el proveedor todavía no tiene un diario propio (un método de cobro ligado a él), lo liga al «Tilopay»."""
+        self.ensure_one()
+        proveedor = self.sudo()
+        ligado = self.env['account.payment.method.line'].sudo().search_count(
+            [('payment_provider_id', '=', proveedor.id), ('journal_id', '!=', False)], limit=1)
+        if not ligado:
+            proveedor.journal_id = proveedor._dcasa_tilopay_diario()
 
     def _dcasa_tilopay_diario(self):
         """El diario de banco «Tilopay» de la empresa del proveedor (lo crea si no existe)."""

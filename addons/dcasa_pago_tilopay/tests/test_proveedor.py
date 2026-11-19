@@ -27,7 +27,8 @@ class TestNaceApagado(PreparaPedido, TransactionCase):
 
     def test_el_metodo_y_el_nombre_estan_en_espanol(self):
         proveedor = self.env.ref('dcasa_pago_tilopay.payment_provider_tilopay')
-        self.assertEqual(proveedor.payment_method_ids.name, 'Tarjeta, Yappy y más (Tilopay)')
+        self.assertEqual(proveedor.with_context(active_test=False).payment_method_ids.name,
+                         'Tarjeta, Yappy y más (Tilopay)')
         mensaje = str(proveedor.with_context(lang='es_419').pre_msg)
         self.assertIn('Pagar con tarjeta o Yappy', mensaje)
         self.assertIn('Tilopay', mensaje)
@@ -52,10 +53,39 @@ class TestNaceApagado(PreparaPedido, TransactionCase):
         proveedor._dcasa_tilopay_preparar()
         self.assertEqual(self.env['account.journal'].search_count([('code', '=', 'TLP')]), 1)
 
+    def test_al_encender_se_asegura_el_diario_aunque_el_plan_contable_lo_haya_borrado(self):
+        """En una base nueva Odoo carga el plan contable al final y borra los diarios que había: al encender el proveedor
+        el diario «Tilopay» vuelve a existir y el cobro no cae en el primer banco que haya."""
+        proveedor = self.env.ref('dcasa_pago_tilopay.payment_provider_tilopay')
+        self.env['account.payment.method.line'].search([('payment_provider_id', '=', proveedor.id)]).unlink()
+        self.env['account.journal'].search([('code', '=', 'TLP')]).unlink()
+        proveedor.state = 'test'
+        self.assertEqual(proveedor.journal_id.code, 'TLP')
+        self.assertEqual(proveedor.journal_id.name, 'Tilopay')
+        proveedor.state = 'disabled'
+        proveedor.state = 'test'
+        self.assertEqual(self.env['account.journal'].search_count([('code', '=', 'TLP')]), 1)
+
+    def test_en_una_base_nueva_el_diario_se_crea_despues_del_plan_contable(self):
+        """``post_init_hook`` se cuelga del mismo punto que dcasa_base: primero el plan, luego el diario."""
+        from odoo.addons.dcasa_pago_tilopay import post_init_hook
+        registro = self.env.registry
+        llamadas = []
+        registro._auto_install_template = lambda entorno: llamadas.append('plan')
+        try:
+            post_init_hook(self.env)
+            self.assertEqual(llamadas, [], 'todavía no: el plan va primero')
+            registro._auto_install_template(self.env)
+            self.assertEqual(llamadas, ['plan'])
+        finally:
+            del registro._auto_install_template
+        self.assertEqual(self.env['account.journal'].search_count([('code', '=', 'TLP')]), 1)
+
     def test_sin_claves_el_sistema_sigue_normal(self):
         """Odoo no se entera de que faltan las claves: nada lanza, el proveedor solo dice por qué no se ofrece."""
         with entorno(TILOPAY_API_KEY=None, TILOPAY_API_USER=None, TILOPAY_API_PASSWORD=None):
             proveedor = self.env.ref('dcasa_pago_tilopay.payment_provider_tilopay')
+            proveedor.state = 'test'
             proveedor.invalidate_recordset()
             self.assertEqual(proveedor.dcasa_tilopay_conectado, 'no')
             self.assertIn('Faltan las claves', proveedor.dcasa_tilopay_aviso)
@@ -91,7 +121,7 @@ class TestCuandoSeOfrece(PreparaPedido, TransactionCase):
         self.proveedor.state = 'enabled'
         with entorno(TILOPAY_ENTORNO='prueba'):
             self.assertFalse(self.ofrecidos())
-            self.assertIn('no se ofrece', self.proveedor.dcasa_tilopay_aviso)
+            self.assertIn('No se ofrece', self.proveedor.dcasa_tilopay_aviso)
         with entorno(TILOPAY_ENTORNO='produccion'):
             self.assertTrue(self.ofrecidos())
         self.proveedor.state = 'test'

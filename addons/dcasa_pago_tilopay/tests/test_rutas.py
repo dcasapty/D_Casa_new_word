@@ -38,7 +38,7 @@ class TestAviso(BaseHttp):
             sin_orden = self.post_json(AVISO, {'nada': 'util'})
             con_forma_rara = self.post_json(AVISO, {'orderNumber': {'a': 1}, 'order': ["x"]})
             inyeccion = self.post_json(AVISO, {'orderNumber': "x'; DROP TABLE payment_transaction;--"})
-            vacio = self.url_open(AVISO, data='')
+            vacio = self.url_open(AVISO, data='', method='POST')
             self.assertEqual(len(self.llamadas_a_consulta(tilopay)), 1,
                              'ninguna orden inventada ni cuerpo raro hace llamar a Tilopay')
         respuestas = [real, desconocida, basura, sin_orden, con_forma_rara, inyeccion, vacio]
