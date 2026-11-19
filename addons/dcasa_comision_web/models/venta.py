@@ -28,10 +28,8 @@ _logger = logging.getLogger(__name__)
 
 PAGADA = ('paid', 'in_payment')
 LLAVE_DE_VENTA = 731_900_102
-COMO_LLEGO = [('web', 'Compró en la página'), ('tienda', 'Cotizó en la página y pagó en la tienda'),
-              ('andres', 'Con Andrés (el chat de la tienda)'), ('juan', 'Llegó por Juan y compró solo')]
-FORMAS_DE_PAGO = [('pasarela', 'Pasarela de pago'), ('a_mano', 'Transferencia o Yappy (lo registra Caja)'),
-                  ('en_tienda', 'En la tienda')]
+COMO_LLEGO = [('web', 'Página'), ('tienda', 'Pagó en tienda'), ('andres', 'Andrés'), ('juan', 'Juan')]
+FORMAS_DE_PAGO = [('pasarela', 'Pasarela'), ('a_mano', 'Transferencia o Yappy'), ('en_tienda', 'En la tienda')]
 LOTE = 500
 
 

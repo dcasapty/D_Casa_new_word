@@ -108,8 +108,8 @@
                 </header>
                 <field name="empleado_id"/>
                 <field name="porcentaje" sum="Total"/>
-                <field name="por_pagar_comision" sum="Por pagar"/>
-                <field name="por_pagar_tarifa" sum="Por pagar"/>
+                <field name="por_pagar_comision" string="Debe (ventas)" sum="Debe"/>
+                <field name="por_pagar_tarifa" string="Debe (tarifa)" sum="Debe"/>
                 <field name="currency_id" column_invisible="1"/>
             </list>
         </field>
