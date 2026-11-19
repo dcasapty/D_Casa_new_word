@@ -107,8 +107,9 @@ cliente y puede cambiar al pagar. Cada uno de esos puntos es un parámetro o un 
 decisión escondida.
 
 **La comisión** de una venta es `base × porcentaje ÷ 100`, en centavos enteros (mitad hacia arriba, como la planilla).
-Se reparte entre las personas de la lista según su porcentaje de reparto; el centavo que sobre va siempre a la
-primera persona de la lista, para que la suma de las partes sea exactamente el total.
+Se reparte entre las personas de la lista según su porcentaje de reparto; los centavos que sobren van, de uno en
+uno y siempre en el mismo orden, a las primeras personas de la lista, para que la suma de las partes sea exactamente
+el total.
 
 ### Cuándo cuenta una venta
 
@@ -147,7 +148,7 @@ meta (A1).
 
 - La lista es parte de cada versión de las reglas: **empleados** (`hr.employee`) con su **porcentaje de reparto**, y
   una restricción exige que sumen 100 %. No usa el departamento: el bono por meta sí lo usa («Participa en la meta de
-  ventas», A1) y por eso quien cambia de departamento pierde el bono; aquí no pasa.
+  ventas», A1) y por eso quien cambia de departamento deja de participar; aquí no pasa.
 - Para **ver su estado** cada persona necesita su usuario ligado a la ficha de empleado. Para **cobrar por la
   planilla** necesita además estar incluida en planilla, con fecha de ingreso y salario (como cualquier colaborador:
   A2). Si falta algo, la propuesta lo avisa y esa parte queda por pagar para la próxima planilla que la incluya,
@@ -201,3 +202,53 @@ ese mes baja. El mes de la venta **no cambia**.
 | Gerencia (y quien aprueba) | Todo, con enlace a cada factura y pedido. |
 | Cada persona que recibe | El estado completo de ventas, totales y el porcentaje que rige, y **su** parte y saldo; no la parte de otra persona. **No ve el nombre del cliente** ni abre facturas si no tiene ya permiso de ventas (datos de personas). Solo lectura. |
 | Vendedoras, Caja, Marketing y todos los demás | Nada: ni el menú ni por enlace. |
+
+## 6. Cómo se paga
+
+### Las tres piezas que pidió Gerencia, y mi recomendación
+
+| Pieza | Qué es | Recomendación |
+|---|---|---|
+| **(a) Por la planilla**, como el bono por meta | La comisión entra a la línea de cada persona en la planilla quincenal; la planilla hace sus asientos, su comprobante y su pago. | **Sí**, es lo que se pidió («o desde nómina») y deja un solo lugar donde se ve todo el dinero de la persona. |
+| **(b) En las fechas que Gerencia defina** | Cada propuesta lleva «se paga en la planilla que termina el…». De fábrica: la primera quincena del mes siguiente, como el bono por meta (A2). Otras opciones: la segunda quincena, o la fecha que Gerencia ponga. | **Primera quincena del mes siguiente** al cierre, para dar tiempo a revisar y aprobar. |
+| **(c) Propuesta → revisión → aprobación** | El sistema arma la propuesta del mes; Gerencia o contabilidad la revisa y ajusta con motivo; al **aprobarla** recién se mueve el dinero. | **Sí, y que nada se pague solo.** Ningún proceso automático aprueba ni paga. |
+
+### El camino de una propuesta
+
+1. **Borrador.** El día 1 de cada mes, de madrugada, el sistema sella el estado del mes que terminó (sección 7) y arma la
+   propuesta con una fila por persona: *saldo que arrastra* + *lo del mes* = *a pagar*. Si el saldo de alguien es
+   negativo (devoluciones que superaron lo ganado), se propone **cero** y el saldo negativo sigue al mes siguiente:
+   nunca se le cobra a alguien por la planilla sin que Gerencia lo decida.
+2. **Revisada.** Gerencia o contabilidad la miran. Cualquier ajuste (por ejemplo por una salida a mitad de mes) es una
+   fila de **ajuste con motivo y autor** en el libro; no se pisa nada.
+3. **Aprobada.** La aprueba **una persona de Gerencia que no figura entre quienes reciben** (sección 7). Queda quién, cuándo
+   y la huella de lo aprobado. Al aprobar se anota en el libro una fila de **liquidación** (negativa) por persona: el
+   saldo baja y esa plata ya no puede entrar en otra propuesta.
+4. **En planilla → Pagada.** La planilla quincenal la toma al calcularse y la paga cuando se confirma y se paga; ahí
+   cambia a «Pagada». Quien está fuera de planilla se marca **pagada fuera de planilla** con fecha y referencia.
+5. **Cancelada** (antes de confirmar la planilla): se anula con una fila contraria y la plata vuelve al saldo.
+
+Hay **dos llaves antes de que salga un centavo**: la aprobación de la propuesta y la confirmación de la planilla (que
+exige las tasas validadas por el contador y no se paga dos veces el mismo periodo: A2).
+
+### Qué hace falta en `dcasa_nomina`
+
+Hoy la planilla ya sabe pagar «como salario» (el bono por meta y «otros ingresos») y «sin descuentos» (los reembolsos). Se
+agregan, imitando al bono por meta (A2):
+
+1. En la línea de la planilla (`dcasa.nomina.linea`): un campo `comision_web` (solo lectura) y la relación con las
+   líneas de propuesta que lo forman.
+2. `_enlazar_comision_web()`, llamado junto a `_enlazar_bonos()` al calcular: toma las propuestas **aprobadas y todavía no
+   enlazadas** de cada persona cuya fecha de pago sea anterior o igual al fin de esa quincena (como los
+   reembolsos), y las **suelta** si la planilla se cancela o la persona sale.
+3. El cálculo de la línea (`_compute_importes`) según el tratamiento que quedó **congelado en la propuesta**: **salario**
+   → suma a lo devengado y paga cuotas e impuesto como lo extra (como el bono por meta); **sin descuentos** → suma al neto
+   sin cuotas ni impuesto (como los reembolsos); **fuera de planilla** → no entra.
+4. El asiento: el gasto va a la cuenta de sueldos (salario) o a una **cuenta nueva** de la configuración de la nómina
+   (`cuenta_comision_web_id`) para el resto, o también para el salario si la contadora quiere verla aparte.
+5. El comprobante de pago: un renglón «Comisión del sitio web» (como el del bono por meta).
+
+**Cómo se evita pagar dos veces** (cinco candados): una propuesta aprobada es única por persona y mes
+(restricción de base de datos); cada línea de propuesta solo puede estar en **una** línea de planilla; la liquidación
+baja el saldo en el momento de aprobar; el sistema no deja aprobar una propuesta de un mes cuyo estado no esté sellado; y
+una planilla cancelada solo **suelta** (no borra) lo que tomó.
