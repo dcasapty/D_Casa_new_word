@@ -135,7 +135,8 @@ class TestNuncaSeConfiaEnElNavegador(BaseTilopay):
         self.assertEqual(len(notas), 1, 'el equipo se entera, una sola vez')
 
     def test_un_cambio_de_modo_con_pagos_a_medias_no_mezcla_pruebas_con_real(self):
-        """Creada en modo de prueba (is_live = False) no se paga con un pago real aunque ahora todo diga «produccion»."""
+        """Creada en modo de prueba (is_live = False) no se paga con un pago real aunque ahora todo diga
+        «produccion»."""
         pedido = self.pedido()
         with SimuladorTilopay(entorno='Production') as tilopay:
             tx, orden = self.abrir(tilopay, pedido)
