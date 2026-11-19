@@ -391,9 +391,9 @@ class TestFormaPagoEnLote(FormaPagoCommon):
         """Cuántas consultas cuesta que el campo de estas facturas nazca desde cero, como al actualizar el módulo en
         producción (se marca por calcular y se calcula y se guarda todo), contando con la memoria fría."""
         self.env.flush_all()
+        self.env.invalidate_all()                   # (esto también guarda lo pendiente: va antes de marcar)
         for nombre in ('dcasa_forma_pago', 'dcasa_diario_pago_ids'):
             self.env.add_to_compute(self.env['account.move']._fields[nombre], facturas)
-        self.env.invalidate_all()
         antes = self.env.cr.sql_log_count
         self.env.flush_all()
         return self.env.cr.sql_log_count - antes
@@ -405,6 +405,7 @@ class TestFormaPagoEnLote(FormaPagoCommon):
         self.consultas(facturas)                    # calienta lo que se guarda aparte (referencias, diarios)
         mitad = self.consultas(facturas[:15])
         todas = self.consultas(facturas)
+        self.assertGreater(mitad, 3, 'la cuenta tiene que haber medido algo: sin consultas no se calculó nada')
         self.assertEqual(todas, mitad, f'15 facturas costaron {mitad} consultas y 30 costaron {todas}: ¿una por cada?')
         self.assertLessEqual(todas, 40, 'son pocas consultas por cada combinación de diarios, no por factura')
         # Sale lo que debe: la cuarta de cada cinco lleva la nota de crédito y la quinta, anulada, no lleva nada.
