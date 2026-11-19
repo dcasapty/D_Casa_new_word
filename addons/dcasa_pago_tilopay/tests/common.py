@@ -35,9 +35,9 @@ class RespuestaFalsa:
 class SimuladorTilopay:
     """Sustituye a ``requests.post`` mientras dura el ``with``. Todo lo que cambia el comportamiento es un atributo:
 
-    ``falla`` = ``'tiempo'`` | ``'red'`` | ``'http500'`` | ``'basura'`` | ``'vacio'``; ``claves_buenas`` = ``False`` para
-    que el inicio de sesión dé 401; ``entorno`` = lo que dice ``environment`` en las filas; ``pagos[orden]`` = las filas
-    de     ``consult`` (se llenan con ``aprobar``/``rechazar``)."""
+    ``falla`` = ``'tiempo'`` | ``'red'`` | ``'http500'`` | ``'basura'`` | ``'vacio'``; ``claves_buenas`` = ``False``
+    para que el inicio de sesión dé 401; ``entorno`` = lo que dice ``environment`` en las filas; ``pagos[orden]`` = las
+    filas de ``consult`` (se llenan con ``aprobar``/``rechazar``)."""
 
     def __init__(self, entorno='Test'):
         self.llamadas = []            # [(ruta, cuerpo, cabeceras)]
