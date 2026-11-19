@@ -29,9 +29,9 @@ class TestCalculo(TransactionCase):
         self.assertEqual(base(), 100000 - 10000 - 20000)
 
     def test_cada_interruptor_cambia_la_base_en_lo_que_dice(self):
-        self.assertEqual(base(base_itbms='con'), 70000 + 9000 - 1800, 'con ITBMS suma el de la venta y resta el devuelto')
+        self.assertEqual(base(base_itbms='con'), 70000 + 9000 - 1800, 'con ITBMS: suma el suyo, resta el devuelto')
         self.assertEqual(base(base_envio='con'), 70000 + 5000)
-        self.assertEqual(base(base_descuentos='antes'), 100000 + 5000 - 20000, 'precio de lista: sin premio ni descuento')
+        self.assertEqual(base(base_descuentos='antes'), 100000 + 5000 - 20000, 'precio de lista: sin premio ni dto.')
         self.assertEqual(base(base_devoluciones='no_resta'), 90000)
         self.assertEqual(base(base_pasarela='resta'), 70000 - 3000)
 

@@ -7,6 +7,7 @@ from datetime import timedelta
 
 from odoo import Command, fields
 from odoo.addons.dcasa_nomina.tests.common import NominaCommon
+from odoo.exceptions import AccessError, UserError
 from odoo.tests import new_test_user
 
 DIA = '2030-03-04'          # un lunes: la semana y la quincena arrancan con él en las pruebas de tarifa
@@ -46,6 +47,15 @@ class ComisionCommon(NominaCommon):
         cls.ana.user_id = cls.u_ana
         cls.empleado_nomina = cls._empleado('Quien aprueba', 1200, '2029-01-01', user_id=cls.u_nomina.id)
 
+    def rechaza(self, funcion):
+        """La operación la rechaza Odoo (``UserError`` o ``AccessError``), sin dejar nada a medias."""
+        try:
+            with self.env.cr.savepoint():
+                funcion()
+        except (UserError, AccessError):
+            return
+        self.fail('Se esperaba que Odoo rechazara la operación y la dejó pasar.')
+
     # ------------------------------------------------------------------
     # Reglas
     # ------------------------------------------------------------------
@@ -62,7 +72,7 @@ class ComisionCommon(NominaCommon):
     # Pedidos, facturas y pagos
     # ------------------------------------------------------------------
 
-    def orden(self, web=True, lineas=None, cliente=None, vendedora=None, **extra):
+    def orden(self, web=True, lineas=None, cliente=None, vendedora=None, confirmar=True, **extra):
         """Un pedido confirmado. ``lineas``: [(producto, precio, cantidad, extras)]; por defecto un mueble de 1,000.
         ``web=True`` lo hace nacer en la tienda en línea."""
         lineas = lineas or [(self.mueble, 1000.0, 1, {})]
@@ -75,7 +85,8 @@ class ComisionCommon(NominaCommon):
         if vendedora:
             valores['user_id'] = vendedora.id
         orden = self.env['sale.order'].with_context(mail_notrack=True).create(valores)
-        orden.with_context(mail_notrack=True).action_confirm()
+        if confirmar:
+            orden.with_context(mail_notrack=True).action_confirm()
         return orden
 
     def facturar(self, orden, fecha=DIA):

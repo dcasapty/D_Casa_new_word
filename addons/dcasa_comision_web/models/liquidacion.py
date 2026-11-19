@@ -217,10 +217,10 @@ class DcasaWebLiquidacion(models.Model):
     # ------------------------------------------------------------------
 
     def action_aprobar(self):
-        self.check_access('write')
-        self._exigir_nomina()
         if self.env.uid == SUPERUSER_ID:
             raise UserError(self.env._('Una liquidación solo la aprueba una persona, con su propio usuario.'))
+        self.check_access('write')
+        self._exigir_nomina()
         propios = self._empleados_del_usuario()
         for liquidacion in self:
             if liquidacion.estado != 'borrador':

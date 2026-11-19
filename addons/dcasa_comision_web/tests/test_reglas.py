@@ -4,9 +4,12 @@ import re
 from datetime import timedelta
 from pathlib import Path
 
+from psycopg2 import IntegrityError
+
 from odoo import Command, fields
-from odoo.exceptions import AccessError, UserError, ValidationError
+from odoo.exceptions import UserError, ValidationError
 from odoo.tests import tagged
+from odoo.tools import mute_logger
 
 from .common import ComisionCommon
 
@@ -72,10 +75,8 @@ class TestReglas(ComisionCommon):
         for usuario in (self.env, self.env(user=self.u_nomina), self.env(user=self.u_gerencia)):
             with self.subTest(usuario=usuario.user.login):
                 registro = version.with_env(usuario)
-                with self.assertRaises((UserError, AccessError)):
-                    registro.write({'porcentaje': 99})
-                with self.assertRaises((UserError, AccessError)):
-                    registro.unlink()
+                self.rechaza(lambda registro=registro: registro.write({'porcentaje': 99}))
+                self.rechaza(lambda registro=registro: registro.unlink())
         with self.assertRaisesRegex(UserError, 'no se edita'):
             version.sudo().write({'porcentaje': 99})
         with self.assertRaisesRegex(UserError, 'no se borra'):
@@ -127,7 +128,7 @@ class TestReglas(ComisionCommon):
             self.version(0.0, tarifa=-5.0)
 
     def test_el_porcentaje_de_cada_persona_es_mas_de_cero(self):
-        with self.assertRaises((ValidationError, Exception)):
+        with self.assertRaises(IntegrityError), mute_logger('odoo.sql_db'):
             self.version(10.0, reparto=[(self.ana, 100.0), (self.beto, 0.0)])
 
     def test_nueva_version_abre_el_formulario_con_lo_que_rige_hoy(self):
@@ -148,7 +149,8 @@ class TestReglas(ComisionCommon):
     # ------------------------------------------------------------------ el ejemplo con números de mentira
 
     def ejemplo(self, **opciones):
-        return self.env['dcasa.web.reglas'].new({'porcentaje': opciones.pop('porcentaje', 0.0), **opciones}).ejemplo_html
+        valores = {'porcentaje': opciones.pop('porcentaje', 0.0), **opciones}
+        return self.env['dcasa.web.reglas'].new(valores).ejemplo_html
 
     def test_el_ejemplo_dice_que_es_de_mentira_y_la_base_recomendada(self):
         html = str(self.ejemplo())
@@ -157,7 +159,9 @@ class TestReglas(ComisionCommon):
         self.assertIn('Escribe el porcentaje', html)
 
     def test_el_ejemplo_se_mueve_con_cada_interruptor(self):
-        base = lambda **o: re.search(r'La base de este ejemplo es <strong>(\$[\d,.]+)</strong>', str(self.ejemplo(**o))).group(1)  # noqa: E731
+        def base(**opciones):
+            return re.search(r'La base de este ejemplo es <strong>(\$[\d,.]+)</strong>',
+                             str(self.ejemplo(**opciones))).group(1)
         self.assertEqual(base(), '$700.00')
         self.assertEqual(base(base_itbms='con'), '$772.00', '+90 de ITBMS −18 del devuelto')
         self.assertEqual(base(base_envio='con'), '$750.00')
@@ -169,7 +173,7 @@ class TestReglas(ComisionCommon):
         html = str(self.ejemplo(base_envio='con'))
         self.assertRegex(html, r'Cobro de envío</td><td class="text-end">\+\$50.00</td><td><strong>Entra</strong>')
         self.assertRegex(str(self.ejemplo()), r'Cobro de envío</td><td class="text-end">\+\$50.00</td>'
-                                              r'<td><strong>No entra</strong>')
+                         r'<td><strong>No entra</strong>')
 
     def test_con_porcentaje_el_ejemplo_dice_cuanto_seria_la_comision(self):
         html = str(self.ejemplo(porcentaje=10.0))
