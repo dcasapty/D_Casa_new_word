@@ -1,0 +1,325 @@
+"""Las reglas de la comisión del sitio web, por versión (decisión de Gerencia, 2026-11-19).
+
+Cada versión dice, desde cuándo rige: el porcentaje de cada venta online, la tarifa fija (con cada cuánto se anota),
+cómo se arma la base (cinco interruptores, cada uno con su ejemplo en pantalla) y quiénes reciben, con su reparto
+(suma 100 %). Una versión **no se edita ni se borra**: un cambio es una versión nueva, y solo rige hacia adelante
+(mismo patrón del programa de vendedores, ``dcasa.vend.reglas``). Lo ya anotado en el libro nunca se recalcula.
+
+**El módulo nace sin ninguna versión, sin porcentaje y sin tarifa**: no hay cifras de fábrica. Sin versión que rija,
+el sistema solo mide las ventas del sitio. Con porcentaje y tarifa vacíos (0) la versión es una pausa.
+
+El día de la PRIMERA versión es también el día desde el que una venta online deja de ser de una vendedora (bono por
+meta, Inicio y programa de vendedores): ``sale.order._dcasa_online_desde`` (``models/sale_order.py``).
+"""
+from datetime import timedelta
+
+from markupsafe import Markup
+
+from odoo import api, fields, models
+from odoo.exceptions import UserError, ValidationError
+
+from . import calculo
+from .movimiento import dia_de_panama
+
+# Candado para que dos personas que guardan a la vez no saquen el mismo número de versión.
+LLAVE_DE_NUMERACION = 731_900_101
+# Un objeto, no ``True``: el contexto que llega por RPC es JSON y nunca puede traerlo.
+CREANDO_VERSION = object()
+CLAVE_CREANDO = 'dcasa_comision_web_creando_version'
+
+PERIODOS = [('mensual', 'Cada mes'), ('quincenal', 'Cada quincena'), ('semanal', 'Cada semana')]
+
+# Las posiciones de cada interruptor, con las palabras con que se le explican a administración.
+ITBMS = [('sin', 'Sin ITBMS: el porcentaje se calcula antes del impuesto (recomendado)'),
+         ('con', 'Con ITBMS: el porcentaje se calcula después del impuesto')]
+ENVIO = [('sin', 'No cuenta el envío (recomendado)'), ('con', 'Cuenta el envío')]
+DESCUENTOS = [('despues', 'Después de los descuentos: con lo que de verdad se cobró (recomendado)'),
+              ('antes', 'Antes de los descuentos: con el precio de lista')]
+DEVOLUCIONES = [('resta', 'Se resta lo que el cliente devuelve (recomendado)'), ('no_resta', 'No se resta')]
+PASARELA = [('no_resta', 'No se resta lo que cobra la pasarela (recomendado)'),
+            ('resta', 'Se resta lo que cobra la pasarela')]
+
+# El ejemplo con números de mentira que se ve al cambiar un interruptor (centavos).
+EJEMPLO = {'productos': 100000, 'descuento_lineas': 0, 'descuento_negativas': 10000, 'envio': 5000, 'itbms': 9000,
+           'devuelto': 20000, 'devuelto_itbms': 1800, 'pasarela': 3000}
+
+
+def dinero(centavos):
+    return f'${centavos / 100:,.2f}'
+
+
+class DcasaWebReglas(models.Model):
+    _name = 'dcasa.web.reglas'
+    _description = 'Reglas de la comisión del sitio web (una versión)'
+    _order = 'rige_desde desc, numero desc'
+    _rec_name = 'nombre'
+
+    company_id = fields.Many2one('res.company', 'Empresa', required=True, index=True,
+                                 default=lambda self: self.env.company)
+    currency_id = fields.Many2one(related='company_id.currency_id')
+    numero = fields.Integer('Versión', readonly=True, index=True)
+    nombre = fields.Char(compute='_compute_nombre')
+    rige_desde = fields.Datetime(
+        'Rige desde', required=True, default=fields.Datetime.now, index=True,
+        help='Desde este momento, y solo desde entonces, se calcula con estas reglas. No se acepta una fecha que ya '
+             'pasó ni anterior a otra versión ya programada. Lo ya anotado no se recalcula.')
+    estado = fields.Selection([('programada', 'Programada'), ('vigente', 'Rige ahora'), ('anterior', 'Reemplazada')],
+                              compute='_compute_estado')
+    porcentaje = fields.Float(
+        'Porcentaje de cada venta del sitio', digits=(6, 3),
+        help='El porcentaje fijo de lo vendido por internet. No es un bono por meta: se paga aunque no se llegue a '
+             'ninguna meta. Déjalo en 0 si por ahora no hay porcentaje (las ventas se miden igual).')
+    tarifa_fija = fields.Monetary(
+        'Tarifa fija por mantener la plataforma', help='Un monto fijo que sale siempre de la empresa. Déjalo en 0 si '
+                                                       'no hay tarifa.')
+    tarifa_periodo = fields.Selection(PERIODOS, 'La tarifa se anota', required=True, default='mensual',
+                                      help='Cada cuánto se anota la tarifa fija: el primer día de cada mes, de cada '
+                                           'quincena (días 1 y 16) o de cada semana (lunes).')
+    base_itbms = fields.Selection(ITBMS, 'ITBMS', required=True, default='sin')
+    base_envio = fields.Selection(ENVIO, 'Envío', required=True, default='sin')
+    base_descuentos = fields.Selection(DESCUENTOS, 'Descuentos', required=True, default='despues')
+    base_devoluciones = fields.Selection(DEVOLUCIONES, 'Devoluciones', required=True, default='resta')
+    base_pasarela = fields.Selection(PASARELA, 'Comisión de la pasarela', required=True, default='no_resta')
+    reparto_ids = fields.One2many('dcasa.web.reparto', 'reglas_id', 'Quiénes reciben')
+    motivo = fields.Char('Motivo del cambio', help='Se ve en el historial. Es opcional, pero ayuda.')
+    autor = fields.Char('Quién lo guardó', readonly=True)
+    ejemplo_html = fields.Html('Un ejemplo con números de mentira', compute='_compute_ejemplo', sanitize=False)
+
+    # ------------------------------------------------------------------
+    # Cómputos
+    # ------------------------------------------------------------------
+
+    @api.depends('numero')
+    def _compute_nombre(self):
+        for version in self:
+            version.nombre = self.env._('Versión %s', version.numero) if version.numero else self.env._('Versión nueva')
+
+    @api.depends('rige_desde', 'company_id')
+    def _compute_estado(self):
+        ahora = fields.Datetime.now()
+        for version in self:
+            vigente = self._vigente(version.company_id, ahora) if version.id else self.browse()
+            if not version.id or not version.rige_desde:
+                version.estado = 'programada'
+            elif version.rige_desde > ahora:
+                version.estado = 'programada'
+            else:
+                version.estado = 'vigente' if version == vigente else 'anterior'
+
+    def opciones(self):
+        """Los interruptores de la base, como los lee ``calculo.base_de_la_venta``."""
+        self.ensure_one()
+        return {clave: self[clave] for clave in calculo.OPCIONES}
+
+    @api.depends('porcentaje', 'base_itbms', 'base_envio', 'base_descuentos', 'base_devoluciones', 'base_pasarela')
+    def _compute_ejemplo(self):
+        """Muestra, con números de mentira, qué entra y qué no en la base con los interruptores como están ahora. Es
+        solo para entender: ninguna de estas cifras es de la empresa."""
+        for version in self:
+            op = version.opciones()
+            c = EJEMPLO
+            filas = [
+                ('Un mueble vendido', c['productos'], '+', True, 'Siempre cuenta.'),
+                ('Descuento o premio ya aplicado', c['descuento_negativas'], '−', op['base_descuentos'] == 'despues',
+                 'Se resta si el porcentaje se calcula después de los descuentos.'),
+                ('Cobro de envío', c['envio'], '+', op['base_envio'] == 'con', 'Se suma solo si cuenta el envío.'),
+                ('ITBMS (el impuesto)', c['itbms'], '+', op['base_itbms'] == 'con',
+                 'Se suma solo si el porcentaje se calcula con el ITBMS.'),
+                ('El cliente devolvió', c['devuelto'] + (c['devuelto_itbms'] if op['base_itbms'] == 'con' else 0),
+                 '−', op['base_devoluciones'] == 'resta', 'Se resta si las devoluciones restan.'),
+                ('La pasarela cobró', c['pasarela'], '−', op['base_pasarela'] == 'resta',
+                 'Se resta solo si se resta lo que cobra la pasarela.'),
+            ]
+            cuerpo = Markup('').join(
+                Markup('<tr><td>{}</td><td class="text-end">{}{}</td><td><strong>{}</strong> '
+                       '<span class="text-muted">{}</span></td></tr>').format(
+                    nombre, signo, dinero(monto), 'Entra' if entra else 'No entra', nota)
+                for nombre, monto, signo, entra, nota in filas)
+            base = calculo.base_de_la_venta(c, op)
+            if version.porcentaje:
+                comision = calculo.porcentaje_de(base, version.porcentaje)
+                cierre = Markup('<p>Con tu porcentaje ({} %) la comisión de este ejemplo sería <strong>{}</strong>.</p>'
+                                ).format(f'{version.porcentaje:g}', dinero(comision))
+            else:
+                cierre = Markup('<p class="text-muted">Escribe el porcentaje para ver cuánto sería la comisión de '
+                                'este ejemplo.</p>')
+            version.ejemplo_html = Markup(
+                '<div class="o_dcasa_ejemplo"><p><strong>Ejemplo con números de mentira</strong>, solo para entender: '
+                'no son cifras de la empresa.</p>'
+                '<table class="table table-sm"><tbody>{}</tbody></table>'
+                '<p>La base de este ejemplo es <strong>{}</strong>.</p>{}</div>').format(cuerpo, dinero(base), cierre)
+
+    # ------------------------------------------------------------------
+    # Validaciones
+    # ------------------------------------------------------------------
+
+    @api.constrains('porcentaje', 'tarifa_fija', 'reparto_ids')
+    def _check_cifras(self):
+        for version in self:
+            if not 0 <= version.porcentaje <= 100:
+                raise ValidationError(self.env._('El porcentaje va de 0 a 100.'))
+            if version.tarifa_fija < 0:
+                raise ValidationError(self.env._('La tarifa fija no puede ser negativa.'))
+            reparto = version.reparto_ids
+            if (version.porcentaje > 0 or version.tarifa_fija > 0) and not reparto:
+                raise ValidationError(self.env._(
+                    'Elige quiénes reciben la comisión (empleados de Nómina) y cuánto le toca a cada quien.'))
+            if reparto and not calculo.suma_cien(reparto.mapped('porcentaje')):
+                total = sum(reparto.mapped('porcentaje'))
+                raise ValidationError(self.env._(
+                    'El reparto tiene que sumar 100 %%: ahora suma %s %%. Ajusta lo que le toca a cada quien.',
+                    f'{total:g}'))
+            if len(reparto.empleado_id) != len(reparto):
+                raise ValidationError(self.env._('Una persona sale una sola vez en el reparto.'))
+
+    # ------------------------------------------------------------------
+    # La versión no se edita ni se borra; solo rige hacia adelante
+    # ------------------------------------------------------------------
+
+    def write(self, vals):
+        raise UserError(self.env._(
+            'Una versión de las reglas no se edita: un cambio se hace guardando una versión nueva.'))
+
+    @api.ondelete(at_uninstall=False)
+    def _no_borrar(self):
+        raise UserError(self.env._(
+            'Una versión de las reglas no se borra: un error se corrige guardando una versión nueva.'))
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        ahora = fields.Datetime.now()
+        self.env.cr.execute('SELECT pg_advisory_xact_lock(%s)', [LLAVE_DE_NUMERACION])
+        self.env.cr.execute('SELECT COALESCE(MAX(numero), 0), MAX(rige_desde) FROM dcasa_web_reglas')
+        ultimo_numero, ultima_vigencia = self.env.cr.fetchone()
+        for vals in vals_list:
+            desde = fields.Datetime.to_datetime(vals.get('rige_desde')) or ahora
+            if desde < ahora - timedelta(minutes=1):
+                raise UserError(self.env._(
+                    'Un cambio solo rige hacia adelante: no se puede poner una fecha que ya pasó.'))
+            if ultima_vigencia and desde < ultima_vigencia:
+                raise UserError(self.env._(
+                    'Ya hay una versión programada para más adelante. No se puede guardar una que empiece antes.'))
+            ultimo_numero += 1
+            vals.update(numero=ultimo_numero, rige_desde=desde, autor=self.env.user.name)
+            ultima_vigencia = desde
+        # Los renglones del reparto solo se crean aquí, junto con su versión.
+        return super(DcasaWebReglas, self.with_context(**{CLAVE_CREANDO: CREANDO_VERSION})).create(vals_list)
+
+    # ------------------------------------------------------------------
+    # Qué versión rige
+    # ------------------------------------------------------------------
+
+    @api.model
+    def _vigente(self, company, ahora=None):
+        """La versión que rige en ``ahora`` (o ahora mismo) para ``company``; vacío si todavía no hay ninguna."""
+        ahora = ahora or fields.Datetime.now()
+        return self.sudo().search([('company_id', '=', company.id), ('rige_desde', '<=', ahora)],
+                                  order='rige_desde desc, numero desc', limit=1)
+
+    @api.model
+    def _vigente_el(self, company, dia):
+        """La versión que regía el día ``dia`` (fecha de Panamá): la más reciente que ya empezó ese día o antes. Para
+        anotar con calma una venta cobrada hace unos días (el barrido), no una de ahora mismo."""
+        ahora = fields.Datetime.now()
+        for version in self.sudo().search([('company_id', '=', company.id), ('rige_desde', '<=', ahora)],
+                                          order='rige_desde desc, numero desc'):
+            if dia_de_panama(version.rige_desde) <= dia:
+                return version
+        return self.browse()
+
+    @api.model
+    def _primera(self, company):
+        """La primera versión que se guardó (rija ya o no): marca desde cuándo una venta online deja de ser de las
+        vendedoras."""
+        return self.sudo().search([('company_id', '=', company.id)], order='rige_desde, numero', limit=1)
+
+    @api.model
+    def _versiones_desde(self, company):
+        return self.sudo().search([('company_id', '=', company.id)], order='rige_desde, numero')
+
+    def action_nueva_version(self):
+        """El botón «Nueva versión»: abre el formulario con lo que rige hoy ya escrito (la cabecera de una lista llama
+        con la lista de ids, que puede venir vacía)."""
+        return self._accion_nueva_version()
+
+    def _accion_nueva_version(self):
+        """Abre el formulario de una versión nueva con lo que rige hoy ya escrito: quien cambia una cosa no tiene que
+        volver a escribir las demás."""
+        vigente = self._vigente(self.env.company)
+        contexto = {}
+        if vigente:
+            contexto = {
+                'default_porcentaje': vigente.porcentaje, 'default_tarifa_fija': vigente.tarifa_fija,
+                'default_tarifa_periodo': vigente.tarifa_periodo,
+                **{f'default_{clave}': vigente[clave] for clave in calculo.OPCIONES},
+                'default_reparto_ids': [(0, 0, {'empleado_id': r.empleado_id.id, 'porcentaje': r.porcentaje,
+                                                'sequence': r.sequence}) for r in vigente.reparto_ids],
+            }
+        accion = self.env['ir.actions.actions']._for_xml_id('dcasa_comision_web.accion_reglas_nueva')
+        accion['context'] = contexto
+        return accion
+
+
+class DcasaWebReparto(models.Model):
+    _name = 'dcasa.web.reparto'
+    _description = 'Reparto de la comisión del sitio web (una persona en una versión)'
+    _order = 'sequence, id'
+
+    reglas_id = fields.Many2one('dcasa.web.reglas', required=True, index=True, ondelete='restrict')
+    sequence = fields.Integer(default=10, help='El orden decide a quién se le da primero un centavo que sobra.')
+    empleado_id = fields.Many2one('hr.employee', 'Persona', required=True, ondelete='restrict',
+                                  domain="[('dcasa_en_planilla', '=', True)]",
+                                  help='Empleados que están en Nómina. La lista no depende del departamento.')
+    porcentaje = fields.Float('Le toca (%)', required=True, digits=(5, 2))
+    company_id = fields.Many2one(related='reglas_id.company_id', store=True, index=True)
+    currency_id = fields.Many2one(related='company_id.currency_id')
+    por_pagar_comision = fields.Monetary(
+        'Por pagar: porcentaje', compute='_compute_saldos',
+        help='Lo que se le debe por el porcentaje de las ventas (la suma de su libro).')
+    por_pagar_tarifa = fields.Monetary('Por pagar: tarifa fija', compute='_compute_saldos')
+
+    _porcentaje_valido = models.Constraint('CHECK(porcentaje > 0 AND porcentaje <= 100)',
+                                           'A cada persona le toca más de 0 y hasta 100 %.')
+
+    @api.constrains('empleado_id', 'reglas_id')
+    def _check_empleado(self):
+        for linea in self:
+            empleado = linea.empleado_id
+            if not empleado.dcasa_en_planilla:
+                raise ValidationError(self.env._(
+                    '%s no está en Nómina. Los que reciben se eligen entre los empleados de Nómina.', empleado.name))
+            if empleado.company_id and empleado.company_id != linea.reglas_id.company_id:
+                raise ValidationError(self.env._('%s es de otra empresa.', empleado.name))
+
+    @api.depends('empleado_id', 'company_id')
+    def _compute_saldos(self):
+        saldos = self.env['dcasa.web.movimiento']._saldos(self.empleado_id)
+        for linea in self:
+            linea.por_pagar_comision = saldos.get((linea.empleado_id.id, 'comision'), 0) / 100.0
+            linea.por_pagar_tarifa = saldos.get((linea.empleado_id.id, 'tarifa'), 0) / 100.0
+
+    @api.model
+    def _accion_quienes_reciben(self):
+        """Nómina › Comisión del sitio web › Quiénes reciben: la lista de la versión que rige hoy."""
+        vigente = self.env['dcasa.web.reglas']._vigente(self.env.company)
+        accion = self.env['ir.actions.actions']._for_xml_id('dcasa_comision_web.accion_reparto')
+        accion['domain'] = [('reglas_id', '=', vigente.id)] if vigente else [('id', '=', False)]
+        return accion
+
+    def action_cambiar_quienes_reciben(self):
+        """Abre una versión nueva con lo de hoy ya escrito, para cambiar solo quiénes reciben."""
+        return self.env['dcasa.web.reglas']._accion_nueva_version()
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        if self.env.context.get(CLAVE_CREANDO) is not CREANDO_VERSION:
+            raise UserError(self.env._(
+                'El reparto no se agrega a una versión ya guardada: guarda una versión nueva con el reparto nuevo.'))
+        return super().create(vals_list)
+
+    def write(self, vals):
+        raise UserError(self.env._('El reparto de una versión no se edita: guarda una versión nueva.'))
+
+    @api.ondelete(at_uninstall=False)
+    def _no_borrar(self):
+        raise UserError(self.env._('El reparto de una versión no se borra: guarda una versión nueva.'))

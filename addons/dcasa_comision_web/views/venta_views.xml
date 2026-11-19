@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Ventas del sitio: una fila por factura pagada que salió de un pedido online. Se mide siempre. -->
+    <record id="venta_list" model="ir.ui.view">
+        <field name="name">dcasa.web.venta.list</field>
+        <field name="model">dcasa.web.venta</field>
+        <field name="arch" type="xml">
+            <list string="Ventas del sitio" create="0" delete="0" edit="0" decoration-muted="not cobrada">
+                <field name="fecha_cobro"/>
+                <field name="factura"/>
+                <field name="como_llego" widget="badge"/>
+                <field name="forma_pago"/>
+                <field name="atendida_por_vendedora" optional="show"/>
+                <field name="productos" sum="Vendido"/>
+                <field name="envio" optional="hide" sum="Envío"/>
+                <field name="devuelto" optional="show" sum="Devuelto"/>
+                <field name="base" sum="Base"/>
+                <field name="porcentaje" optional="hide"/>
+                <field name="comision" sum="Comisión"/>
+                <field name="estado" widget="badge" decoration-success="estado == 'comisionada'"
+                       decoration-danger="estado == 'revertida'"/>
+                <field name="cobrada" column_invisible="1"/>
+                <field name="currency_id" column_invisible="1"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="venta_form" model="ir.ui.view">
+        <field name="name">dcasa.web.venta.form</field>
+        <field name="model">dcasa.web.venta</field>
+        <field name="arch" type="xml">
+            <form string="Venta del sitio" create="0" delete="0" edit="0">
+                <header>
+                    <field name="estado" widget="statusbar" statusbar_visible="medida,comisionada,revertida"/>
+                </header>
+                <sheet>
+                    <field name="currency_id" invisible="1"/>
+                    <field name="cobrada" invisible="1"/>
+                    <div class="alert alert-warning" role="alert" invisible="cobrada">
+                        Esta factura ya no está pagada por completo (pago revertido, anulada o vuelta a borrador): lo que
+                        se había anotado se reversó en el libro.
+                    </div>
+                    <group>
+                        <group string="La venta">
+                            <field name="factura"/>
+                            <field name="move_id" string="Abrir la factura"/>
+                            <field name="fecha_factura"/>
+                            <field name="fecha_cobro"/>
+                            <field name="como_llego"/>
+                            <field name="forma_pago"/>
+                            <field name="atendida_por_vendedora"/>
+                        </group>
+                        <group string="Los montos (sin ITBMS)">
+                            <field name="productos"/>
+                            <field name="descuento_negativas_centavos" string="Descuentos y premios (centavos)"/>
+                            <field name="envio"/>
+                            <field name="devuelto"/>
+                        </group>
+                    </group>
+                    <group string="La comisión">
+                        <group>
+                            <field name="reglas_id"/>
+                            <field name="porcentaje"/>
+                            <field name="base"/>
+                            <field name="comision"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Libro de esta venta" name="libro">
+                            <field name="movimiento_ids">
+                                <list>
+                                    <field name="ocurrido_en"/>
+                                    <field name="empleado_id"/>
+                                    <field name="tipo"/>
+                                    <field name="monto" sum="Total"/>
+                                    <field name="motivo"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="venta_search" model="ir.ui.view">
+        <field name="name">dcasa.web.venta.search</field>
+        <field name="model">dcasa.web.venta</field>
+        <field name="arch" type="xml">
+            <search string="Ventas del sitio">
+                <field name="factura"/>
+                <filter name="este_mes" string="Cobradas este mes"
+                        domain="[('fecha_cobro', '&gt;=', (context_today().replace(day=1)).strftime('%Y-%m-%d'))]"/>
+                <filter name="con_vendedora" string="Atendió una vendedora" domain="[('atendida_por_vendedora', '=', True)]"/>
+                <filter name="sin_vendedora" string="Sin vendedora" domain="[('atendida_por_vendedora', '=', False)]"/>
+                <separator/>
+                <filter name="medidas" string="Solo medidas (sin comisión)" domain="[('reglas_id', '=', False)]"/>
+                <filter name="con_comision" string="Con comisión" domain="[('reglas_id', '!=', False)]"/>
+                <filter name="revertidas" string="Revertidas" domain="[('cobrada', '=', False)]"/>
+                <separator/>
+                <filter name="por_mes" string="Mes del cobro" context="{'group_by': 'mes'}"/>
+                <filter name="por_llegada" string="Cómo llegó" context="{'group_by': 'como_llego'}"/>
+                <filter name="por_pago" string="Cómo pagó" context="{'group_by': 'forma_pago'}"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="venta_pivot" model="ir.ui.view">
+        <field name="name">dcasa.web.venta.pivot</field>
+        <field name="model">dcasa.web.venta</field>
+        <field name="arch" type="xml">
+            <pivot string="Ventas del sitio por mes" sample="1">
+                <field name="mes" type="row" interval="month"/>
+                <field name="como_llego" type="col"/>
+                <field name="productos" type="measure"/>
+                <field name="base" type="measure"/>
+                <field name="comision" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="venta_graph" model="ir.ui.view">
+        <field name="name">dcasa.web.venta.graph</field>
+        <field name="model">dcasa.web.venta</field>
+        <field name="arch" type="xml">
+            <graph string="Ventas del sitio por mes" type="bar" sample="1">
+                <field name="mes" interval="month"/>
+                <field name="productos" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="accion_ventas" model="ir.actions.act_window">
+        <field name="name">Ventas del sitio</field>
+        <field name="res_model">dcasa.web.venta</field>
+        <field name="view_mode">list,pivot,graph,form</field>
+        <field name="search_view_id" ref="venta_search"/>
+        <field name="context">{'search_default_por_mes': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Todavía no hay ventas del sitio.</p>
+            <p>Aquí aparece cada factura pagada por completo que salió de un pedido de la página web, de Andrés o de
+               alguien que compró solo después de hablar con Juan. Se mide siempre, aunque todavía no haya porcentaje.
+               Puedes bajarlo a Excel con «Exportar».</p>
+        </field>
+    </record>
+
+    <!-- El libro: lo que se le debe a cada persona. Nadie lo edita ni lo borra. -->
+    <record id="movimiento_list" model="ir.ui.view">
+        <field name="name">dcasa.web.movimiento.list</field>
+        <field name="model">dcasa.web.movimiento</field>
+        <field name="arch" type="xml">
+            <list string="Libro de la comisión del sitio web" create="0" delete="0" edit="0">
+                <field name="ocurrido_en"/>
+                <field name="empleado_id"/>
+                <field name="concepto"/>
+                <field name="tipo" widget="badge"/>
+                <field name="monto" sum="Total"/>
+                <field name="motivo"/>
+                <field name="venta_id" optional="show"/>
+                <field name="liquidacion_id" optional="show"/>
+                <field name="autor" optional="hide"/>
+                <field name="currency_id" column_invisible="1"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="movimiento_search" model="ir.ui.view">
+        <field name="name">dcasa.web.movimiento.search</field>
+        <field name="model">dcasa.web.movimiento</field>
+        <field name="arch" type="xml">
+            <search string="Libro">
+                <field name="empleado_id"/>
+                <field name="motivo"/>
+                <filter name="tarifa" string="Tarifa fija" domain="[('concepto', '=', 'tarifa')]"/>
+                <filter name="porcentaje" string="Porcentaje de las ventas" domain="[('concepto', '=', 'comision')]"/>
+                <separator/>
+                <filter name="por_persona" string="Persona" context="{'group_by': 'empleado_id'}"/>
+                <filter name="por_mes" string="Mes" context="{'group_by': 'mes'}"/>
+                <filter name="por_tipo" string="Tipo" context="{'group_by': 'tipo'}"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="movimiento_pivot" model="ir.ui.view">
+        <field name="name">dcasa.web.movimiento.pivot</field>
+        <field name="model">dcasa.web.movimiento</field>
+        <field name="arch" type="xml">
+            <pivot string="Libro por persona y mes" sample="1">
+                <field name="empleado_id" type="row"/>
+                <field name="mes" type="col" interval="month"/>
+                <field name="monto" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="accion_libro" model="ir.actions.act_window">
+        <field name="name">Libro de la comisión</field>
+        <field name="res_model">dcasa.web.movimiento</field>
+        <field name="view_mode">list,pivot</field>
+        <field name="search_view_id" ref="movimiento_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">El libro está vacío.</p>
+            <p>Cada comisión, tarifa, devolución y liquidación queda anotada aquí, por persona. No se edita ni se borra:
+               un error se corrige con otra fila contraria y su motivo.</p>
+        </field>
+    </record>
+</odoo>
