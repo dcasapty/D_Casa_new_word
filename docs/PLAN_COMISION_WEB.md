@@ -520,12 +520,13 @@ personas los escribe Gerencia general en la pantalla de reglas, cuando quiera.
   para el futuro (sección 11).
 
 **P2. ¿Sobre qué monto, y cuándo cuenta una venta?**
-- **A (recomiendo): lo que entró, sin ITBMS, sin envío, con descuentos y menos devoluciones, y solo cuando la factura
-  queda pagada por completo.** Una devolución resta en el mes en que ocurre, y si deja saldo negativo se arrastra.
-- B: igual pero incluyendo el envío.
+- **A (recomiendo): lo que entró, sin ITBMS, con los descuentos puestos y menos las devoluciones, y solo cuando la factura
+  queda pagada por completo.** Una devolución resta en el mes en que ocurre, y si deja saldo negativo se arrastra. (El
+  envío se decide aparte, en P3.)
+- B: contar la venta al confirmar el pedido, aunque todavía no se haya cobrado.
 - C: contar por cada abono, en proporción.
-- Efecto: A es lo más limpio y lo que ya hacen el bono por meta y el programa de vendedores. B cuenta como venta del
-  sitio un cobro que se paga al transportista. C obliga a deshacer pedazos si hay devolución.
+- Efecto: A es lo más limpio y lo que ya hacen el bono por meta y el programa de vendedores. B paga por ventas que pueden
+  no cobrarse nunca. C obliga a deshacer pedazos si hay una devolución.
 
 **P3. ¿Qué pasa con los casos dudosos?** (cada uno es un interruptor que se contesta una vez, en la pantalla de reglas)
 - **«Pago en la tienda»** (pedido de la web que se paga en el local): **A (recomiendo): cuenta**; B: no cuenta; C: cuenta solo
@@ -589,3 +590,84 @@ Anotado como futuro, para no inflar esta primera versión:
   aparte), aprovechando los datos que este estado ya junta.
 - Un resumen de la comisión en el **Inicio** y avisos automáticos por Telegram.
 - **Aprobar o pagar automáticamente**: no se hará nunca sin una decisión explícita de Gerencia general.
+
+## Anexo A. De dónde sale cada dato (archivo y línea)
+
+Verificado contra el código de la rama `local/comision` (base `32cc9b2`) el 2026-11-19. Si algo no coincide con el
+código, manda el código. Las rutas son desde la raíz del repositorio.
+
+| Id | Qué | Dónde |
+|---|---|---|
+| **A1** | **El bono por meta** | |
+| | Quién participa (marca del departamento y usuario) | `addons/dcasa_nomina/models/meta_ventas.py:52` y `:192-196` |
+| | Qué cuenta: facturas del «Vendedor», pagadas, no históricas, desde la primera meta | `meta_ventas.py:225-264` (el filtro, `:239-242`) |
+| | Día de cobro (la última conciliación, nunca antes de la factura) | `meta_ventas.py:198-223` |
+| | Cada venta cuenta una sola vez; mes ya cerrado pasa al siguiente | `meta_ventas.py:266-288` |
+| | El bono: el porcentaje de TODO lo cobrado si llega a la meta; cron diario | `meta_ventas.py:294-320`, `:329-335` |
+| | La meta con vigencia por mes, solo hacia adelante | `meta_ventas.py:68-130` (restricción `:96-111`) |
+| | Pantallas, datos de fábrica y cron (las cifras que dio el jefe no se repiten aquí) | `addons/dcasa_nomina/views/meta_ventas_views.xml:4-166`, `data/meta_ventas_data.xml:10-31` |
+| | Cómo lo explica la documentación | `docs/NOMINA.md:150-187` |
+| **A2** | **Cómo entra algo a la planilla y cómo trata la nómina un bono** | |
+| | `otros_ingresos` y `comision_meta` en la línea | `addons/dcasa_nomina/models/planilla.py:541-546` |
+| | El bono suma a lo devengado, paga cuotas y aportes del patrono, y el ISR como lo extra; el neto | `planilla.py:592-631` (`:600-603`, `:613-618`, `:619-627`, `:630-631`) |
+| | Provisión del décimo sobre lo devengado | `planilla.py:406-409` |
+| | Entra en la **primera** planilla quincenal del mes (`día 1`); se llama al calcular | `planilla.py:252-289` (`:263`), `:235` |
+| | Los reembolsos entran «sin descuentos» y por fecha | `planilla.py:291-299` (`:297`), `:393-396`, `:630` |
+| | Soltar lo enlazado al cancelar o salir de la planilla | `planilla.py:512`, `:636-638` |
+| | Quién entra en una planilla (ingreso y salario) | `planilla.py:161-179` |
+| | No se paga dos veces el mismo periodo; confirmar exige tasas validadas | `planilla.py:123-141`, `:423-426` |
+| | Base del décimo y promedio de 11 meses (vacaciones y prima) | `addons/dcasa_nomina/models/hr_employee.py:50-61`, `:63-78`; `liquidacion.py:97` |
+| | Renglones del comprobante de pago | `addons/dcasa_nomina/report/nomina_reportes.xml:65-68` |
+| | Cuentas contables de la nómina | `addons/dcasa_nomina/models/config.py:12-23`, `:54-56`, `:94-102` |
+| | La regla de oro: las tasas las valida el contador | `docs/NOMINA.md:8-41` |
+| **A3** | **El programa de vendedores (el patrón de dinero bien hecho)** | |
+| | Quién puede ajustar (Gerencia **y** administradores técnicos) | `addons/dcasa_socios/models/vend_reglas.py:27` |
+| | La versión no se edita ni se borra; solo hacia adelante; candado de numeración | `vend_reglas.py:99-126` |
+| | `_vigentes()` nunca falla | `vend_reglas.py:172-182` |
+| | Libro: restricciones, sin editar ni borrar, reverso, saldo = suma | `addons/dcasa_socios/models/vend_movimiento.py:50-52`, `:60-66`, `:79-86`, `:89-94` |
+| | Comisión con campos congelados e índice único por factura | `addons/dcasa_socios/models/vend_comision.py:44-95` |
+| | Compra propia y otras razones de «no se paga» | `vend_comision.py:17-32`, `:306-` |
+| | Revisión nocturna de pagos revertidos; anular con asiento contrario; devolución parcial | `vend_comision.py:380-394`, `:396-416`, `:418-427` |
+| | El gancho de pago con savepoint y las notas de crédito | `addons/dcasa_socios/models/account_move_vend.py:36-47`, `:77-92` |
+| | Las reglas no negociables | `CLAUDE.md` («Programa de vendedores»); `docs/VENDEDORES.md:142-` |
+| **A4** | **Permisos y roles** | |
+| | El grupo «Administra la nómina»; Gerencia lo incluye; reglas de empresa | `addons/dcasa_nomina/security/nomina_security.xml:7-26`; `security/ir.model.access.csv` |
+| | Quién ve qué (la vendedora no ve nómina) y mapa de roles | `docs/PERMISOS.md:3`, `:480-490` |
+| **A5** | **«Pagada por completo, y qué día»: ya está dos veces** | `meta_ventas.py:198-223` y `addons/dcasa_interfaz/models/ventas_bases.py:15-17`, `:302-` |
+| **A6** | **El origen Web / Chatbot / Vendedora** | |
+| | Cómo se calcula (de `website_id`) y cómo hereda la factura (prioridad chatbot, web, vendedora) | `addons/dcasa_interfaz/models/origen.py:14-15`, `:27-30`, `:36-47` |
+| | Lo que arma Juan es «Chatbot» | `addons/dcasa_conversaciones/models/sale_origen.py:101-106` |
+| | Etiquetas y filtros en las listas | `addons/dcasa_interfaz/views/origen_views.xml:4-96` |
+| | Los pedidos de la web entran **sin vendedora**; la que confirma se lo queda | `addons/website_dcasa/models/pedido_web.py:1-15`, `:31-45` |
+| | `website_id` solo está de solo lectura en la pantalla | `vendor/odoo/addons/website_sale/models/sale_order.py:24-28` |
+| **A7** | **Cómo llegan los pagos** | |
+| | Hoy no hay pasarela: Yappy y transferencia a mano, o pago en la tienda | `addons/website_dcasa/models/tienda.py:1-12`, `:17-30` |
+| | Diarios de cobro (Efectivo, Yappy, Tarjeta) y financieras (Tafi, Crediviva) | `addons/dcasa_base/__init__.py:12-24` y `:21-` |
+| | Tilopay: en otra rama, todavía no existe | `docs/PRIORIDADES.md:149-151` |
+| **A8** | **Andrés y el carrito real** | `docs/BRIAN_TIENDA.md:12-14`, `:29-35`, `:72-83`, `:103-112` |
+| **A9** | **La base: premios, envío e ITBMS** | |
+| | Socios mide sin la línea del premio y sin envío ni flete | `addons/dcasa_socios/models/sale_order.py:156-165`; `docs/SOCIOS.md:62` |
+| | Cómo se reconoce un flete o un envío | `addons/dcasa_invoice/models/lineas.py:88-110`; `is_delivery` en `vendor/odoo/addons/delivery/models/sale_order_line.py:9` |
+| | Criterio contable (ventas sin ITBMS; dinero con ITBMS) | `docs/LEEME_PRIMERO.md:27` |
+| **A10** | **Apartados y abonos** | `addons/website_dcasa/models/sale_order.py:1-19`, `:111-119`; `docs/OPERACION.md:1212-1240`; `docs/DECISIONES_CONTABLES.md` (A3) |
+| **A11** | **La atribución «en tres» del chatbot** vive en el panel de Juan (no en el tablero del Inicio) y mira 30 días | `addons/dcasa_conversaciones/models/panel_juan.py:337-398`; `panel_calculos.py:19-21` |
+| **A12** | **Precedentes que se reutilizan** | |
+| | Política de correos (clases permitidas) | `addons/dcasa_correo/models/politica.py:28-35`; el comprobante de nómina como ejemplo: `addons/dcasa_nomina/models/comprobante.py:97` |
+| | Excel con `xlsxwriter` | `addons/dcasa_contabilidad/controllers/main.py:180-183` |
+| | Doble factor y registro de accesos | `addons/dcasa_seguridad/__manifest__.py` |
+| | Respaldos en el almacenamiento de Cloudflare | `docs/OPERACION.md:32`, `:221` |
+| **A13** | **Odoo** | |
+| | El gancho `_invoice_paid_hook` se llama al conciliar (también de «en proceso de pago» a «pagada») | `vendor/odoo/addons/account/models/account_move_line.py:2788-2794`; `account_move.py:7361` |
+| | El pago sabe si está conciliado con el banco | `vendor/odoo/addons/account/models/account_payment.py:50-52` (`is_reconciled`, `is_matched`) |
+| | Si el usuario tiene segundo factor | `vendor/odoo/addons/auth_totp/models/res_users.py:35` (`totp_enabled`) |
+| **A14** | **Las campañas del sitio las toca solo Gerencia y quien cambia precios** | `docs/LEEME_PRIMERO.md:264` |
+
+## Anexo B. Cómo se leyó el sistema (y una corrección al encargo)
+
+- «Las ventas atribuidas en tres» (solo Juan / Juan y vendedora / solo vendedora, ventana de 30 días) **no están en
+  `tablero.py`** sino en el panel de Juan (A11). Es una atribución por conversación, no por documento, y por eso la
+  comisión web no la usa: usa el origen del pedido.
+- Dos de las tres piezas que la comisión necesita **ya existen** en el sistema (el libro inmutable y las reglas
+  versionadas, A3; el «pagada por completo y qué día», A5). La parte nueva de verdad es el **reparto entre personas**, la
+  **propuesta con aprobación** y el **sello mensual**.
+- No se corrió ni se cambió ningún código: esta fase solo leyó el sistema y escribió este documento.
