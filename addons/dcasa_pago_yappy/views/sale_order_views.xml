@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- EL PEDIDO, SIN BUSCAR: cómo pagó, la entrega (con su dirección) y de dónde llegó la compra, justo arriba de las líneas
+         (producto, modelo, cantidad, precio, descuento). El celular del cliente ya sale en «Sus datos». Solo sale si el
+         pedido es de la web o tiene un pago en línea. -->
+    <record id="sale_order_form_dcasa_resumen_web" model="ir.ui.view">
+        <field name="name">sale.order.form.dcasa.resumen.web</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//group[@name='sale_header']" position="after">
+                <group name="dcasa_resumen_web" string="Pago, entrega y origen"
+                       invisible="not dcasa_pago_texto and not website_id">
+                    <field name="dcasa_pago_texto" readonly="1" colspan="2" widget="text"
+                           invisible="not dcasa_pago_texto"/>
+                    <field name="dcasa_origen_texto" readonly="1" colspan="2"/>
+                    <field name="dcasa_entrega_texto" readonly="1" colspan="2"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="sale_order_search_dcasa_yappy" model="ir.ui.view">
+        <field name="name">sale.order.search.dcasa.yappy</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_sales_order_filter"/>
+        <field name="arch" type="xml">
+            <filter name="my_sale_orders_filter" position="after">
+                <separator/>
+                <filter name="dcasa_yappy_pagado" string="Pagados con Yappy"
+                        domain="[('transaction_ids.provider_code', '=', 'yappy'), ('transaction_ids.state', '=', 'done')]"/>
+                <filter name="dcasa_yappy_sin_completar" string="Yappy sin completar (para retomar)"
+                        domain="[('state', 'in', ('draft', 'sent')), ('transaction_ids.provider_code', '=', 'yappy'), ('transaction_ids.state', 'in', ('pending', 'cancel', 'error'))]"/>
+            </filter>
+        </field>
+    </record>
+
+</odoo>

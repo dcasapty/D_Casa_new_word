@@ -1275,6 +1275,12 @@ LISTA_BLANCA = {
         'de nada; solo abre sesión en Tilopay con las claves del entorno y dice sí o no (nunca las muestra, las '
         'guarda ni las registra); lo único que escribe, con sudo ya comprobado el grupo, es la fecha y el resultado '
         'de la prueba.',
+    # --- dcasa_pago_yappy (pago directo con Yappy, 2026-11-20) -------------------------------------------------------
+    ('dcasa_pago_yappy', 'payment.provider', 'action_dcasa_yappy_probar'):
+        'Botón «Probar conexión»: exige Gerencia o administrador en el servidor (_dcasa_yappy_exigir_gerencia) ANTES '
+        'de nada; solo le pide a Yappy que valide el ID de comercio y el dominio de las variables del entorno (el '
+        'token se tira; nunca muestra, guarda ni registra una clave); lo único que escribe, con sudo ya comprobado el '
+        'grupo, es la fecha y el resultado de la prueba.',
     ('dcasa_brian_tienda', 'sale.order.line', 'write'):
         OVERRIDE + ' Solo NIEGA: con el centinela interno de la tienda (CONSERVAR_ENVIO, que no se puede mandar por '
                    'RPC) deja fuera las líneas de envío del sistema para que la tienda no las vuelva $0. Sin el '

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Lo que se ve dentro de la fila «Yappy» cuando está elegida: el número de Yappy de quien paga (ya escrito con el
+         celular del pedido, editable), el botón de Yappy (lo pone nuestro JavaScript desde el script de Yappy, solo con
+         esta fila elegida), un mensaje claro si algo falla y «Escríbenos por WhatsApp» si el botón no carga. El script y
+         el botón de Yappy NO se piden hasta que la clienta elige «Yappy» (static/src/interactions/payment_form.js). -->
+    <template id="inline_form" name="D'CASA Yappy: número y botón">
+        <t t-set="yappy_pedido" t-value="website_sale_order or sale_order"/>
+        <div class="o_dcasa_yappy"
+             t-att-data-yappy-script="provider_sudo._dcasa_yappy_cdn()"
+             t-att-data-yappy-whatsapp="website and website._dcasa_whatsapp_url('Hola D\'CASA, no pude pagar con Yappy') or ''">
+            <label class="o_dcasa_yappy_etiqueta" t-att-for="'o_dcasa_yappy_celular_%s' % provider_id">Tu número de Yappy</label>
+            <input type="tel" inputmode="numeric" autocomplete="tel-national" maxlength="20"
+                   name="o_dcasa_yappy_celular" class="form-control o_dcasa_yappy_campo"
+                   t-att-id="'o_dcasa_yappy_celular_%s' % provider_id"
+                   t-att-aria-describedby="'o_dcasa_yappy_ayuda_%s' % provider_id"
+                   t-att-value="provider_sudo._dcasa_yappy_celular_sugerido(yappy_pedido)"
+                   placeholder="6123 4567"/>
+            <p class="o_dcasa_yappy_ayuda" t-att-id="'o_dcasa_yappy_ayuda_%s' % provider_id">El celular donde tienes la app de Yappy, sin el +507. Te llega una solicitud de pago y tienes 5 minutos para confirmarla.</p>
+            <div class="o_dcasa_yappy_boton"/>
+            <p class="o_dcasa_yappy_mensaje" role="status" aria-live="polite" hidden="hidden"/>
+            <div class="o_dcasa_yappy_sin_script" hidden="hidden">
+                <p><i class="fa fa-exclamation-circle" aria-hidden="true"/>No pudimos cargar el botón de Yappy. Puede ser tu conexión o algo del lado de Yappy. Tu pedido sigue guardado.</p>
+                <div class="o_dcasa_yappy_acciones">
+                    <button type="button" class="o_dcasa_yappy_reintentar">Volver a intentarlo</button>
+                    <a class="o_dcasa_yappy_whatsapp" target="_blank" rel="noopener" t-att-href="website and website._dcasa_whatsapp_url('Hola D\'CASA, no pude pagar con Yappy') or '/contactus'">Escríbenos por WhatsApp<span class="visually-hidden"> (se abre en una pestaña nueva)</span></a>
+                </div>
+            </div>
+        </div>
+    </template>
+
+</odoo>
