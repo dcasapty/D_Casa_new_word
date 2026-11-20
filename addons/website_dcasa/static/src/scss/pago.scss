@@ -318,8 +318,9 @@ $pago-error: #B42318;                      // solo para «no se completó» (jun
 }
 .o_dcasa_pago_cabecera_in {
     display: flex;
+    flex-wrap: nowrap;
     align-items: center;
-    gap: 1rem;
+    gap: .75rem 1rem;
     max-width: 1120px;
     min-height: 4rem;
     margin-inline: auto;
@@ -328,12 +329,20 @@ $pago-error: #B42318;                      // solo para «no se completó» (jun
 .o_dcasa_pago_logo {
     display: inline-flex;
     flex: 0 0 auto;
-    img { display: block; height: 2.5rem; width: auto; }
+    img { display: block; height: 2.5rem; width: auto; max-width: none; }
+}
+// Celulares angostos: el logo y el enlace se achican un poco antes que partir un texto en dos renglones
+@media (max-width: 389.98px) {
+    .o_dcasa_pago_cabecera_in { gap: .5rem; }
+    .o_dcasa_pago_logo img { height: 2.125rem; }
+    .o_dcasa_pago_seguro, .o_dcasa_pago_volver { font-size: .8125rem; }
 }
 .o_dcasa_pago_seguro {
     display: inline-flex;
+    flex: 0 0 auto;
     align-items: center;
     gap: .4rem;
+    white-space: nowrap;
     font-size: .875rem;
     font-weight: 600;
     color: $pago-tinta;
@@ -342,8 +351,10 @@ $pago-error: #B42318;                      // solo para «no se completó» (jun
 .o_dcasa_pago_volver {
     margin-left: auto;
     display: inline-flex;
+    flex: 0 1 auto;
     align-items: center;
-    gap: .4rem;
+    gap: .25rem;
+    white-space: nowrap;
     min-height: 2.75rem;
     font-size: .9375rem;
     font-weight: 600;
@@ -365,7 +376,11 @@ $pago-error: #B42318;                      // solo para «no se completó» (jun
         .fa-angle-right { margin-inline: .5rem !important; font-size: 1rem !important; }
         a { color: $pago-azul; text-decoration: none; &:hover { text-decoration: underline; } }
         .fw-bold { color: $pago-tinta; }
+        // Los pasos que aún no tocan: Odoo los deja al 50 % de opacidad (2.4:1); aquí, gris de la marca a opacidad completa
+        .o_disabled { opacity: 1; .text-muted { color: $pago-gris !important; } }
     }
+    // El texto de ejemplo de un campo (placeholder) en el gris de la marca: 7.9:1 sobre blanco, no el 2.9:1 de Odoo
+    ::placeholder { color: $pago-gris; opacity: 1; }
 
     // La entrega: un recuadro de resumen, no una tarjeta con insignia
     #address_on_payment, .oe_cart > div.mt-3 {
@@ -439,6 +454,7 @@ $pago-error: #B42318;                      // solo para «no se completó» (jun
         .text-muted { color: $pago-gris !important; }
         // El premio de Socios es un descuento: el monto en azul con su signo, sin foto genérica
         tr.o_dcasa_pago_premio .td-price { color: $pago-azul; }
+        tr.o_dcasa_pago_premio .o_cart_item_count { display: none; }   // «1» no dice nada en un descuento
         // Sin foto genérica: un regalo en un recuadro del mismo tamaño que las miniaturas
         tr.o_dcasa_pago_premio .o_cart_product_image {
             img, .img { display: none; }

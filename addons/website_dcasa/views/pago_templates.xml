@@ -258,7 +258,7 @@
         <!-- Qué sigue: el CTA de la marca (WhatsApp) y volver a mirar muebles como enlace. Si el pago no se completó,
              el botón principal es «Intentar de nuevo» (ver abajo) y WhatsApp baja a contorno. -->
         <!-- «Pedido S00008» (Odoo dice «Orden»; en D'CASA es el pedido). -->
-        <xpath expr="//div[@id='order_name']/h5/span[1]" position="replace"><span>Pedido</span></xpath>
+        <xpath expr="//div[@id='order_name']/h5/span[1]" position="replace"><span>Pedido&#160;</span></xpath>
         <xpath expr="//t[@t-call='website_sale.address_on_checkout']/.." position="after">
             <div class="o_dcasa_pago_acciones">
                 <a t-att-href="website._dcasa_whatsapp_url('Hola D\'CASA, quiero coordinar mi pedido ' + (order.name or ''))"
