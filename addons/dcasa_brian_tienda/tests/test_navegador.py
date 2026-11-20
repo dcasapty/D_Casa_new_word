@@ -481,6 +481,75 @@ class TestBurbujaEnLaPagina(NavegadorCase):
         self.assertEqual(r['animaciones'], [], 'nada del chat se mueve')
 
 
+# Lote «legibilidad», arreglo 7: abre el cajón del menú del celular y dice cómo queda la burbuja con él abierto y cerrado.
+CAJON_Y_BURBUJA = """
+(async () => {
+    const esperar = (ms) => new Promise((ok) => setTimeout(ok, ms));
+    for (let i = 0; i < 200 && document.body.getAttribute('is-ready') !== 'true'; i++) { await esperar(50); }
+    await esperar(1500);
+    const burbuja = document.querySelector('.o_dcbt_burbuja');
+    const estado = () => { const cs = getComputedStyle(burbuja);
+                           return { opacidad: parseFloat(cs.opacity), puntero: cs.pointerEvents, aparte: burbuja.classList.contains('o_dcbt_aparte') }; };
+    const cerrado = estado();
+    document.querySelector('header#top [data-bs-target="#top_menu_collapse_mobile"]').click();
+    for (let i = 0; i < 60 && !document.querySelector('#top_menu_collapse_mobile.show'); i++) { await esperar(50); }
+    await esperar(700);
+    const abierto = estado();
+    document.querySelector('#top_menu_collapse_mobile .btn-close').click();
+    for (let i = 0; i < 60 && document.querySelector('#top_menu_collapse_mobile.show'); i++) { await esperar(50); }
+    await esperar(700);
+    return { cerrado, abierto, devuelta: estado() };
+})()
+"""
+
+# Sin resultados: baja hasta dejar un botón de categoría bajo la esquina de la burbuja y dice si ella se apartó.
+CHIPS_Y_BURBUJA = """
+(async () => {
+    const esperar = (ms) => new Promise((ok) => setTimeout(ok, ms));
+    for (let i = 0; i < 200 && document.body.getAttribute('is-ready') !== 'true'; i++) { await esperar(50); }
+    await esperar(1500);
+    const burbuja = document.querySelector('.o_dcbt_burbuja');
+    const chips = [...document.querySelectorAll('.o_dcasa_sin_resultados_categorias a')];
+    const caja = () => { const r = burbuja.getBoundingClientRect(); return { l: r.left - 8, r: r.right + 8, t: r.top - 8, b: r.bottom + 8 }; };
+    const bajo = (c) => { const k = caja(), r = c.getBoundingClientRect();
+                          return r.left < k.r && r.right > k.l && r.top < k.b && r.bottom > k.t; };
+    // El botón que más a la derecha termina: el que la burbuja alcanza.
+    const chip = chips.reduce((a, b) => (b.getBoundingClientRect().right > a.getBoundingClientRect().right ? b : a));
+    window.scrollBy(0, chip.getBoundingClientRect().bottom - (innerHeight - 24));
+    await esperar(700);
+    return { chips: chips.length, conGancho: chips.filter((c) => c.classList.contains('o_dcasa_brian_no_tapar')).length,
+             tapaAlgun: chips.some(bajo), visible: parseFloat(getComputedStyle(burbuja).opacity) > 0.5,
+             aparte: burbuja.classList.contains('o_dcbt_aparte') };
+})()
+"""
+
+
+@tagged('post_install', '-at_install')
+class TestBurbujaNoTapa(NavegadorCase):
+    """Arreglo 7 del lote «legibilidad»: en el celular la burbuja se quita mientras el cajón del menú está abierto (tapaba
+    «Mi cuenta») y nunca queda sobre un botón de categoría de «no encontramos». Solo CSS y plantilla: la lógica del chat
+    no cambió (el gancho `o_dcasa_brian_no_tapar` ya existía)."""
+
+    def test_con_el_cajon_del_menu_abierto_la_burbuja_se_quita(self):
+        with self.chrome(390) as browser:
+            browser.navigate_to(self.base_url() + '/shop', wait_stop=True)
+            r = self.evaluar(browser, CAJON_Y_BURBUJA)
+        self.assertGreater(r['cerrado']['opacidad'], .9, 'con el cajón cerrado la burbuja se ve')
+        self.assertEqual(r['abierto']['opacidad'], 0, 'con el cajón abierto no tapa «Mi cuenta»')
+        self.assertEqual(r['abierto']['puntero'], 'none', 'y no recibe toques')
+        self.assertGreater(r['devuelta']['opacidad'], .9, 'al cerrar el cajón vuelve')
+
+    def test_la_burbuja_se_aparta_de_los_botones_de_categoria_de_no_encontramos(self):
+        with self.chrome(390) as browser:
+            browser.navigate_to(self.base_url() + '/shop?search=zzqqxxnoexiste', wait_stop=True)
+            r = self.evaluar(browser, CHIPS_Y_BURBUJA)
+        self.assertGreaterEqual(r['chips'], 1, 'sin resultados salen las categorías con productos')
+        self.assertEqual(r['conGancho'], r['chips'], 'todos llevan el gancho que la burbuja ya respeta')
+        if r['tapaAlgun']:
+            self.assertFalse(r['visible'], 'la burbuja no se queda sobre un botón de categoría')
+            self.assertTrue(r['aparte'])
+
+
 @tagged('post_install', '-at_install')
 class TestConElEditor(TiendaCase):
     """La administradora con el editor del sitio (la trampa del error 500 del lote 1). En producción nadie tiene el

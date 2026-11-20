@@ -30,3 +30,4 @@ from . import test_ajustes_segunda_vuelta
 from . import test_pago_visual
 from . import test_pago_celular
 from . import test_pago_contraste
+from . import test_legibilidad

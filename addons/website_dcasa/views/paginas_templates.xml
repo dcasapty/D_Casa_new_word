@@ -32,6 +32,12 @@
                 </a>
             </p>
         </xpath>
+        <!-- Lote «legibilidad», arreglo 6: el botón decía «Enviar» (un verbo suelto), medía 77 × 38 y quedaba a la derecha.
+             Ahora dice qué va a pasar, va a todo el ancho de los campos y mide 48 px o más, como «Entrar» de /socios
+             (btn-lg w-100). Conserva la clase s_website_form_send: el formulario de Odoo lo busca por ella. -->
+        <xpath expr="//a[hasclass('s_website_form_send')]" position="replace">
+            <a href="#" role="button" class="btn btn-primary btn-lg w-100 s_website_form_send">Enviar mensaje</a>
+        </xpath>
         <!-- Una casa no tiene «empresa»: el campo sobra. -->
         <xpath expr="//input[@id='contact4']/.." position="replace"/>
         <xpath expr="//input[@id='contact1']" position="attributes">

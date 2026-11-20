@@ -844,6 +844,32 @@ $dcasa-vitrina-panel: 42%;     // ancho del bloque azul en la computadora
     }
 }
 
+// «Escríbenos por WhatsApp» del hero: relleno plano azul noche con letra blanca (13,44:1), sin degradado ni sombra.
+// Era solo un contorno transparente: sobre las fotos claras (la sábana blanca) medía de 1,6 a 2,3:1 en la computadora,
+// y es el único CTA de la marca. Con el fondo opaco el contraste no depende de la foto que toque. «Ver el catálogo»
+// (amarillo sobre azul) no cambia. Solo dentro de este hero: el contorno de las otras secciones queda como estaba.
+.o_dcasa_hero_vitrina .o_dcasa_btn_linea {
+    background: $dcasa-navy;
+    border-color: rgba(#FFFFFF, .9);
+    color: #FFFFFF;
+
+    &:hover,
+    &:focus-visible {
+        background: #FFFFFF;
+        color: $dcasa-azul;
+    }
+}
+
+// Lote «legibilidad», arreglo 7: en el celular el botón de WhatsApp del hero terminaba a 8 px de la burbuja de Andrés (el
+// botón en x = 298 y la burbuja desde x = 306, a 390 px de ancho). Con 1,6 rem de relleno a los lados (eran 2 rem) mide
+// unos 13 px menos y queda a 16 px o más (la burbuja mide 68 px y va a 16 px del borde derecho). En pantallas más
+// angostas el chat se aparta solo (el botón es de los que la burbuja respeta).
+@media (max-width: 575.98px) {
+    .o_dcasa_hero_vitrina .o_dcasa_btn_linea {
+        padding-inline: 1.6rem;
+    }
+}
+
 // Con el carrusel a la vista, el botón flotante de WhatsApp espera fuera (el bloque ya trae el suyo).
 html.o_dcasa_vitrina_a_la_vista .o_dcasa_wa_float {
     opacity: 0;
@@ -2006,6 +2032,22 @@ $dcasa-foto-fondo: #EEEDEA;
 #wrapwrap .o_wizard .o_disabled .text-muted,
 #wrapwrap .o_wizard .text-muted {
     color: $dcasa-gris !important;
+}
+
+// Y sin la mitad de opacidad con que Odoo apaga los pasos que aún no tocan («Dirección», «Pago»;
+// web/static/src/scss/ui.scss, .o_disabled): con ella el gris de arriba se veía #A5A8B1 sobre blanco, 2,38:1. Con el
+// gris de la marca a opacidad plena son 7,93:1; el paso actual se sigue distinguiendo por la negrilla.
+#wrapwrap .o_wizard .o_disabled {
+    opacity: 1;
+}
+
+// Marcas de relleno (placeholder) con el gris de la marca. Eran el gris por defecto de Odoo: «Escribe lo que buscas» de
+// la búsqueda del catálogo (cabecera, cajón del celular y /shop) medía 2,86:1 sobre el hueso y el «6000-0000» de Socios
+// 3,12:1 sobre blanco. El gris de la marca da 7,27:1 sobre el hueso y 7,93:1 sobre blanco. Solo estos dos lugares.
+.oe_search_box::placeholder,
+.o_dcasa_socios_form .form-control::placeholder {
+    color: $dcasa-gris;
+    opacity: 1;
 }
 
 .o_dcasa_sellos {
@@ -3208,6 +3250,57 @@ html.o_dcasa_navegando::before {
     .o_wsale_products_searchbar_form .oe_search_button {
         min-height: 2.75rem;
     }
+
+    // Lote «legibilidad», arreglo 4 (medidos en el celular de 390 px: de 32 a 40 px): la hamburguesa (40 × 42), «Ordenar
+    // por» y «Filtros» de la tienda (38), la X y «Mi cuenta» del cajón del menú (32 y 37), la X y «Eliminar filtros» del
+    // cajón de los filtros (32 y 34) y los campos y «Enviar» del contacto (38). Mismo tamaño visible: solo crece el área
+    // que toca el dedo.
+    #wrapwrap > header#top .o_header_mobile [data-bs-target="#top_menu_collapse_mobile"] {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 2.75rem;
+        min-height: 2.75rem;
+    }
+
+    .o_sortby_dropdown .dropdown-toggle,
+    [data-bs-target="#o_wsale_offcanvas"] {
+        display: inline-flex;
+        align-items: center;
+        min-height: 2.75rem;
+    }
+
+    // La X de los cajones: el relleno crece y el margen negativo lo compensa, así la X queda donde estaba.
+    .offcanvas-header .btn-close {
+        padding: .875rem;
+        margin: -.875rem -.875rem -.875rem auto;
+    }
+
+    #top_menu_collapse_mobile .o_nav_link_btn,
+    #o_wsale_offcanvas .offcanvas-body a.btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 2.75rem;
+    }
+
+    .o_dcasa_contacto .s_website_form_input:not(textarea),
+    .o_dcasa_contacto .s_website_form_send {
+        min-height: 2.75rem;
+    }
+
+    .o_dcasa_contacto .s_website_form_send {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+}
+
+// Lote «legibilidad», arreglo 6: «Enviar mensaje» del contacto como «Entrar» de /socios: a todo el ancho de los campos y de
+// 48 px o más (la plantilla le pone btn-lg w-100).
+.o_dcasa_contacto .s_website_form_send {
+    width: 100%;
+    min-height: 3rem;
 }
 
 // ---------------------------------------------------------------------------

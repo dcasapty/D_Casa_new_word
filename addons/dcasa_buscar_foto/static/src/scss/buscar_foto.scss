@@ -281,3 +281,33 @@ $dcasa-foto-gris: #4A5163;
     font-weight: 500;
     letter-spacing: .04em;
 }
+
+// Lote «legibilidad», arreglo 5: la pista de la cámara. Texto de apoyo en el gris de la marca (7,3:1 sobre el hueso), a la
+// derecha, bajo la caja, pegada a ella (la cámara va en el lado derecho de la caja); el ícono en el azul de la cámara.
+.o_dcasa_foto_pista {
+    margin: .25rem .25rem 0;
+    text-align: right;
+    font-size: .8125rem;
+    line-height: 1.2;
+    color: $dcasa-foto-gris;
+
+    .fa {
+        margin-right: .35rem;
+        color: $dcasa-foto-azul;
+    }
+}
+
+// En la ventana de la lupa (la caja de la cabecera) la caja no deja relleno abajo: la pista trae el suyo.
+#o_search_modal .o_dcasa_foto_pista {
+    margin: 0;
+    padding: .4rem .9rem .55rem;
+}
+
+// En la computadora la caja de /shop comparte fila con «Ordenar por»: la pista cuelga bajo la caja casi sin ensanchar la
+// fila (su alto, margen incluido, es 1,225 rem; se compensan 0,9 rem y los 0,325 rem que sobran empujan las fotos hacia
+// abajo para que la pista no las toque), así «Ordenar por» queda casi donde estaba (unos 3 px más abajo).
+@media (min-width: 992px) {
+    .o_wsale_products_searchbar_form:has(.o_dcasa_foto_pista) {
+        margin-bottom: -.9rem;
+    }
+}

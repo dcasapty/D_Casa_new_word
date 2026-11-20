@@ -21,14 +21,16 @@
         <xpath expr="//t[@t-call='website.website_search_box_input']" position="attributes">
             <attribute name="search_type.f">products</attribute>
             <attribute name="action.f">/shop</attribute>
-            <attribute name="placeholder.f">Escribe lo que buscas</attribute>
+            <attribute name="placeholder.f">Busca un mueble</attribute>
         </xpath>
     </template>
 
-    <!-- La barra de /shop dice lo mismo que la caja de la cabecera (en una categoría, Odoo dice «Buscar en Salas»). -->
+    <!-- La barra de /shop dice lo mismo que la caja de la cabecera (en una categoría, Odoo dice «Buscar en Salas»).
+         Lote «legibilidad», arreglo 5: el texto es corto («Busca un mueble») para que no se corte en el cajón del
+         celular (antes «Escribe lo que bus…»). -->
     <template id="tienda_buscador_texto" inherit_id="website_sale.search" name="D'CASA: texto de ayuda de la barra de la tienda">
         <xpath expr="//t[@t-call='website.website_search_box_input']" position="inside">
-            <t t-set="placeholder" t-value="placeholder or 'Escribe lo que buscas'"/>
+            <t t-set="placeholder" t-value="placeholder or 'Busca un mueble'"/>
         </xpath>
     </template>
 
@@ -46,6 +48,19 @@
     <template id="buscador_con_sitio_extra" inherit_id="website.website_search_box_input" name="D'CASA: sitio para botones del buscador">
         <xpath expr="//button[@type='submit']" position="before">
             <span class="o_dcasa_buscador_extra"><t t-call="website_dcasa.buscador_botones_extra"/></span>
+        </xpath>
+    </template>
+
+    <!-- Lote «legibilidad», arreglo 5: la caja de búsqueda se llamaba solo por su placeholder (sin <label> ni
+         aria-label: un lector de pantalla decía «campo de edición») y el botón de enviar «Búsqueda», un sustantivo.
+         Ahora el campo dice qué busca y el botón, qué hace. -->
+    <template id="buscador_accesible" inherit_id="website.website_search_box_input" name="D'CASA: el buscador con nombre y verbo">
+        <xpath expr="//input[@name='search']" position="attributes">
+            <attribute name="t-att-aria-label">'Buscar en el catálogo' if search_type == 'products' else 'Buscar'</attribute>
+        </xpath>
+        <xpath expr="//button[@type='submit']" position="attributes">
+            <attribute name="aria-label">Buscar</attribute>
+            <attribute name="title">Buscar</attribute>
         </xpath>
     </template>
 
@@ -86,6 +101,8 @@
         </xpath>
     </template>
 
+    <!-- Lote «legibilidad», arreglo 7: los botones de categoría llevan la clase o_dcasa_brian_no_tapar, el gancho que el
+         chat de Andrés ya tiene (brian_tienda.js, NO_TAPAR): la burbuja se aparta mientras quedaría sobre uno de ellos. -->
     <template id="busqueda_sin_resultados" name="D'CASA: búsqueda sin resultados">
         <div class="o_dcasa_sin_resultados" role="status">
             <div class="mb-3"><t t-call="website.empty_search_svg"/></div>
@@ -94,7 +111,7 @@
             <t t-set="dcasa_categorias" t-value="website._dcasa_categorias_para_buscar()"/>
             <ul t-if="dcasa_categorias" class="o_dcasa_sin_resultados_categorias list-unstyled" aria-label="Categorías del catálogo">
                 <li t-foreach="dcasa_categorias" t-as="dcasa_categoria">
-                    <a t-att-href="dcasa_categoria['url']" class="btn o_dcasa_btn_contorno" t-out="dcasa_categoria['nombre']"/>
+                    <a t-att-href="dcasa_categoria['url']" class="btn o_dcasa_btn_contorno o_dcasa_brian_no_tapar" t-out="dcasa_categoria['nombre']"/>
                 </li>
             </ul>
             <a class="btn btn-primary btn-lg o_dcasa_sin_resultados_wa" target="_blank" rel="noopener"

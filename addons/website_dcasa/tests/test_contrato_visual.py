@@ -38,6 +38,8 @@ from odoo.addons.website_dcasa.models.black_weekend import PARAM_ACTIVO, PARAM_F
 from odoo.tests import HttpCase, tagged
 from odoo.tests.common import ChromeBrowser, save_test_file
 
+from .contraste import contraste as _contraste
+
 _logger = logging.getLogger(__name__)
 
 REFERENCIAS = pathlib.Path(__file__).parent / 'referencia'
@@ -173,6 +175,7 @@ MEDIR = """
             const sub = vitrina.querySelector('.o_dcasa_hero_sub');
             const kicker = vitrina.querySelector('.o_dcasa_hero_texto > .o_dcasa_kicker');
             const amarillo = vitrina.querySelector('.o_dcasa_btn_amarillo');
+            const whatsapp = vitrina.querySelector('.o_dcasa_btn_linea');
             const a = panel.getBoundingClientRect(), b = marco.getBoundingClientRect();
             const h = vitrina.getBoundingClientRect();
             const contraste = cs(vitrina.querySelector('.o_dcasa_vitrina'), '::after');
@@ -208,6 +211,8 @@ MEDIR = """
                     && a.top < b.bottom - 1 && a.bottom > b.top + 1,
                 colores: { titulo: cs(titulo).color, sub: cs(sub).color, kicker: kicker ? cs(kicker).color : null },
                 amarillo: { fondo: cs(amarillo).backgroundColor, dentroDelPanel: panel.contains(amarillo) },
+                whatsapp: { fondo: cs(whatsapp).backgroundColor, imagen: cs(whatsapp).backgroundImage,
+                            color: cs(whatsapp).color, sombra: cs(whatsapp).boxShadow },
                 // Nada que manejar: el hero es un fondo, no un carrusel que se recorre.
                 mandos: vitrina.querySelectorAll('.o_dcasa_vitrina_barra, .o_dcasa_vitrina_boton,'
                     + ' .o_dcasa_vitrina_nombre, .o_dcasa_vitrina_fotos a').length,
@@ -523,6 +528,15 @@ class TestContratoVisual(HttpCase):
                         self.assertEqual(color, 'rgb(255, 255, 255)', f'{cual} blanco')
                 self.assertEqual(v['amarillo']['fondo'], 'rgb(254, 208, 15)')
                 self.assertTrue(v['amarillo']['dentroDelPanel'], 'el botón amarillo, sobre el degradado azul')
+                # «Escríbenos por WhatsApp»: relleno plano azul noche y letra blanca. Antes era solo un contorno
+                # transparente y sobre las fotos claras medía de 1,6 a 2,3:1; con el fondo opaco no depende de la foto.
+                w = v['whatsapp']
+                self.assertEqual(w['fondo'], NAVY_CSS, 'el botón de WhatsApp del hero lleva relleno azul noche')
+                self.assertEqual(w['color'], 'rgb(255, 255, 255)', 'con letra blanca')
+                self.assertEqual(w['imagen'], 'none', 'sin degradado')
+                self.assertEqual(w['sombra'], 'none', 'sin sombra')
+                self.assertGreaterEqual(_contraste(_rgba(w['color'])[:3], _rgba(w['fondo'])[:3]), 4.5,
+                                        'letra del botón de WhatsApp bajo 4,5:1')
                 self.assertFalse(v['sobreFoto'], 'la píldora va clara sobre el fondo')
 
     def test_02_hero_de_la_portada_sin_placa(self):
