@@ -587,7 +587,12 @@ class TestAnularYFechas(ComisionReloj):
         futura = self.version(10.0, rige_desde=fields.Datetime.now() + timedelta(days=10))
         factura = self.facturar(self.orden(), '2030-03-14')
         self.pagar(factura, '2030-03-14')                    # un pago con fecha del día en que rige
-        self.assertEqual(self.venta(factura).reglas_id, futura)
+        venta = self.venta(factura)
+        # Tercera revisión: un pago con fecha futura ya no escoge una versión programada (se calcula con la de hoy, y
+        # aquí todavía no rige ninguna). El candado de «ya se usó» se conserva por si una venta llegara a apuntar a una
+        # versión que todavía no rige: se prueba apuntándola a mano.
+        self.assertFalse(venta.reglas_id)
+        venta.sudo().reglas_id = futura
         futura.with_user(self.u_nomina).write({'motivo_anulacion': 'Prueba'})
         with self.assertRaisesRegex(UserError, 'ya se usó'):
             futura.with_user(self.u_nomina).action_anular()

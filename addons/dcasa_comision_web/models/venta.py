@@ -73,6 +73,16 @@ class DcasaWebVenta(models.Model):
         help='La fecha del pago es de dos días o más antes del día en que se anotó la venta. El día de cobro lo '
              'teclea quien registra el pago y decide si la venta es del sitio o de una vendedora: esto es la '
              'vigilancia para verlo (los bloqueos contables del periodo lo frenan, si existen).')
+    cobro_adelantado = fields.Boolean(
+        'Cobro con fecha futura', readonly=True, index=True,
+        help='La fecha del pago es posterior al día en que se anotó la venta. Una fecha futura no escoge una versión '
+             'de las reglas que todavía no rige: la venta se calcula con la versión de HOY. Es la vigilancia para ver '
+             'quién teclea pagos con fecha adelantada.')
+    nota_sin_producto = fields.Boolean(
+        'Una nota trae líneas sin producto', readonly=True, index=True,
+        help='Una nota de crédito de esta factura trae líneas sin producto (escritas a mano): no se puede saber si '
+             'devuelven un mueble o el envío, así que se restan de lo vendido. Revísala: si devolvía solo el envío, la '
+             'base queda más baja de lo que debería.')
     atendida_por_vendedora = fields.Boolean(
         'Una vendedora la atendió', readonly=True,
         help='El pedido tiene vendedora asignada (por ejemplo la que lo confirmó). Sigue siendo venta online.')
@@ -245,9 +255,21 @@ class DcasaWebVenta(models.Model):
         return notas
 
     @api.model
+    def _hay_nota_sin_producto(self, move):
+        """¿Alguna nota de crédito que resta de esta factura trae líneas sin producto? No se puede saber si devuelven un
+        mueble o el envío: se restan de lo vendido (decisión de la segunda revisión) y aquí se avisa."""
+        return any(ln.display_type == 'product' and not ln.product_id
+                   for nota in self._notas_de(move) for ln in nota.line_ids)
+
+    @api.model
     def _dia_de_cobro(self, move):
         dias, _notas = self.env['dcasa.nomina.meta.bono']._dias_de_cobro(move)
         return dias.get(move.id) or move.invoice_date or fields.Date.context_today(self)
+
+    @api.model
+    def _hoy(self):
+        """Hoy, fecha de Panamá (no la del servidor)."""
+        return fields.Date.context_today(self.with_context(tz='America/Panama'))
 
     @api.model
     def _pagada(self, move):
@@ -310,8 +332,9 @@ class DcasaWebVenta(models.Model):
             return existente
         company = move.company_id
         dia = self._dia_de_cobro(move)
-        # El corte es el DÍA DE COBRO (hora de Panamá), igual que para las vendedoras: ver ``reglas._vigente_el``.
-        reglas = self.env['dcasa.web.reglas']._vigente_el(company, dia)
+        # El corte es el DÍA DE COBRO (hora de Panamá), igual que para las vendedoras, pero un pago con fecha futura
+        # no escoge una versión que todavía no rige: ver ``reglas._vigente_para_cobro``.
+        reglas = self.env['dcasa.web.reglas']._vigente_para_cobro(company, dia)
         c, ordenes = self._componentes(move)
         forma = self._forma_de_pago(ordenes)
         venta = self.sudo().create({
@@ -319,7 +342,8 @@ class DcasaWebVenta(models.Model):
             'fecha_cobro': dia, 'mes': dia.replace(day=1), 'cobrada': True, 'forma_pago': forma,
             'como_llego': self._como_llego(ordenes, forma),
             'atendida_por_vendedora': self._atendida_por_vendedora(ordenes),
-            'cobro_atrasado': (fields.Date.context_today(self.with_context(tz='America/Panama')) - dia).days >= 2,
+            'cobro_atrasado': (self._hoy() - dia).days >= 2, 'cobro_adelantado': dia > self._hoy(),
+            'nota_sin_producto': self._hay_nota_sin_producto(move),
             'creado_por_id': ordenes[:1].dcasa_creada_por_id.id or False,
             'tocada_por_id': ordenes.dcasa_tocada_por_id[:1].id or False,
             'creado_por_personal': self._es_del_equipo(ordenes),
@@ -335,9 +359,14 @@ class DcasaWebVenta(models.Model):
     def _reconciliar(self):
         """Compara el libro con la verdad de cada venta y asienta la DIFERENCIA como fila contraria (o fila nueva).
         Idempotente: dos llamadas seguidas no asientan nada la segunda vez. Solo las ventas anotadas con una versión
-        de las reglas mueven el libro; las que solo se midieron no cobran nunca."""
+        de las reglas mueven el libro; las que solo se midieron no cobran nunca.
+
+        **Un re-cobro** (se canceló el pago y se registró otra vez, o se repuso con otra fecha) cambia el día en que la
+        factura quedó pagada: la venta cierra lo anotado con la versión anterior (un reverso, asiento contrario) y se
+        calcula de nuevo con la fecha y la versión que rigen ese día (``_cobrar_otra_vez``)."""
         Libro = self.env['dcasa.web.movimiento']
         huellas = self.sudo()._huellas()
+        dias, _notas = self.env['dcasa.nomina.meta.bono']._dias_de_cobro(self.sudo().move_id)
         for venta in self.sudo():
             move = venta.move_id
             self.env.cr.execute('SELECT pg_advisory_xact_lock(%s, %s)', [LLAVE_DE_VENTA, venta.id])
@@ -346,10 +375,17 @@ class DcasaWebVenta(models.Model):
             if move and move.state == 'posted':
                 c, _ordenes = self._componentes(move)
                 self._escribir_si_cambio(venta, {**self._valores_de_componentes(c), 'cobrada': pagada,
-                                                 'huella': huellas.get(venta.id)})
+                                                 'huella': huellas.get(venta.id),
+                                                 'nota_sin_producto': self._hay_nota_sin_producto(move)})
             else:
                 c = {clave: venta[f'{clave}_centavos'] for clave in calculo.COMPONENTES}
                 self._escribir_si_cambio(venta, {'cobrada': False, 'huella': huellas.get(venta.id)})
+            recobro = None
+            dia_real = dias.get(move.id) if move else None
+            if pagada and dia_real and dia_real != venta.fecha_cobro:
+                recobro = dia_real
+                if self._cobrar_otra_vez(venta, dia_real):
+                    antes_cobrada = False
             reglas = venta.reglas_id
             if not reglas:
                 continue
@@ -367,9 +403,44 @@ class DcasaWebVenta(models.Model):
                 if not diferencia:
                     continue
                 tipo, motivo = self._tipo_y_motivo(venta, move, diferencia, bool(filas), pagada, antes_devuelto,
-                                                   antes_cobrada)
+                                                   antes_cobrada, recobro)
                 Libro._asentar(self.env['hr.employee'].sudo().browse(empleado_id), tipo, diferencia, venta.company_id,
                                venta_id=venta.id, reglas_id=reglas.id, motivo=motivo)
+
+    def _cobrar_otra_vez(self, venta, dia):
+        """La factura de ``venta`` quedó pagada por completo otro día (``dia``): se canceló el pago y se registró otra
+        vez, o se repuso o se corrigió con otra fecha. El día de cobro decide qué versión de las reglas le toca y de
+        quién es la venta (el bono de las vendedoras ya usa el día en vivo): si aquí se quedara el día viejo, la venta
+        saldría de nadie o de las dos partes.
+
+        La venta se refresca (fecha, mes, versión, porcentaje y señales de fecha). Si la versión que rige ese día es
+        OTRA, antes se cierra lo anotado con la anterior con una fila contraria por persona (el libro nunca se edita ni
+        se borra, y lo que ya se haya liquidado o pagado no se toca: queda un saldo en contra que se compensa con lo
+        nuevo); el resto de ``_reconciliar`` la anota otra vez con las reglas de ese día. Si es la misma versión, el
+        libro no se mueve. Devuelve si cerró algo."""
+        Libro = self.env['dcasa.web.movimiento']
+        reglas = self.env['dcasa.web.reglas']._vigente_para_cobro(venta.company_id, dia)
+        cerro = False
+        if reglas != venta.reglas_id:
+            asentado = {}
+            for fila in Libro.sudo().search([('venta_id', '=', venta.id),
+                                             ('tipo', 'in', ('venta', 'devolucion', 'reverso'))]):
+                asentado[fila.empleado_id.id] = asentado.get(fila.empleado_id.id, 0) + fila.centavos
+            for empleado_id, centavos in sorted(asentado.items()):
+                if centavos:
+                    Libro._asentar(self.env['hr.employee'].sudo().browse(empleado_id), 'reverso', -centavos,
+                                   venta.company_id, venta_id=venta.id, reglas_id=venta.reglas_id.id or False,
+                                   motivo=self.env._(
+                                       'La factura %(factura)s se cobró otra vez el %(dia)s: se cierra lo anotado con '
+                                       'la versión anterior y se calcula de nuevo con las reglas de ese día.',
+                                       factura=venta.factura, dia=dia.strftime('%d/%m/%Y')))
+                    cerro = True
+        hoy = self._hoy()
+        self._escribir_si_cambio(venta, {
+            'fecha_cobro': dia, 'mes': dia.replace(day=1), 'reglas_id': reglas.id or False,
+            'porcentaje': reglas.porcentaje if reglas else 0.0,
+            'cobro_atrasado': venta.cobro_atrasado or (hoy - dia).days >= 2, 'cobro_adelantado': dia > hoy})
+        return cerro
 
     @api.model
     def _escribir_si_cambio(self, venta, valores):
@@ -380,31 +451,53 @@ class DcasaWebVenta(models.Model):
 
     def _huellas(self):
         """``{id de venta: huella}`` de lo que de verdad pasa hoy con cada factura (estado, estado de pago, notas de
-        crédito y conciliaciones), en UNA consulta para todas. Dos huellas iguales quieren decir que la factura no
-        cambió desde la última comparación con el libro."""
+        crédito con el producto de cada línea, conciliaciones con su fecha y lo que cobró la pasarela), en UNA consulta
+        para todas. Dos huellas iguales quieren decir que la factura no cambió desde la última comparación con el
+        libro (si la pasarela guarda su cobro después del pago, la huella lo ve y armar no paga de más)."""
         if not self.ids:
             return {}
         self.env.flush_all()
         self.env.cr.execute("""
             SELECT v.id, COALESCE(m.state, ''), COALESCE(m.payment_state, ''),
                    COALESCE((SELECT string_agg(n.id::text || ':' || n.state || ':' || n.amount_untaxed_signed::text
-                                               || ':' || n.amount_tax_signed::text, ',' ORDER BY n.id)
+                                               || ':' || n.amount_tax_signed::text || ':' || COALESCE((
+                                                   SELECT string_agg(COALESCE(nl.product_id, 0)::text, '.'
+                                                                     ORDER BY nl.id)
+                                                     FROM account_move_line nl
+                                                    WHERE nl.move_id = n.id AND nl.display_type = 'product'), ''),
+                                               ',' ORDER BY n.id)
                                FROM account_move n
                               WHERE n.reversed_entry_id = m.id AND n.move_type = 'out_refund'), ''),
-                   COALESCE((SELECT string_agg(p.id::text || ':' || p.amount::text, ',' ORDER BY p.id)
+                   COALESCE((SELECT string_agg(p.id::text || ':' || p.amount::text || ':' || p.max_date::text, ','
+                                               ORDER BY p.id)
                                FROM account_move_line l
                                JOIN account_partial_reconcile p ON p.debit_move_id = l.id OR p.credit_move_id = l.id
-                              WHERE l.move_id = m.id), '')
+                              WHERE l.move_id = m.id), ''),
+                   COALESCE((SELECT string_agg(t.id::text || ':' || t.state || ':'
+                                               || COALESCE(t.dcasa_comision_pasarela, 0)::text, ',' ORDER BY t.id)
+                               FROM payment_transaction t
+                              WHERE t.state IN ('done', 'authorized') AND t.id IN (
+                                    SELECT x.transaction_id
+                                      FROM account_move_line l
+                                      JOIN sale_order_line_invoice_rel r ON r.invoice_line_id = l.id
+                                      JOIN sale_order_line sl ON sl.id = r.order_line_id
+                                      JOIN sale_order_transaction_rel x ON x.sale_order_id = sl.order_id
+                                     WHERE l.move_id = m.id)), '')
               FROM dcasa_web_venta v
               LEFT JOIN account_move m ON m.id = v.move_id
              WHERE v.id IN %s""", [tuple(self.ids)])
         return {fila[0]: hashlib.md5('|'.join(fila[1:]).encode()).hexdigest() for fila in self.env.cr.fetchall()}
 
-    def _tipo_y_motivo(self, venta, move, diferencia, hay_filas, pagada, antes_devuelto, antes_cobrada):
+    def _tipo_y_motivo(self, venta, move, diferencia, hay_filas, pagada, antes_devuelto, antes_cobrada, recobro=None):
         """Qué tipo de fila es la diferencia y qué motivo lleva (se lo enseña al que recibe tal cual)."""
         nombre = move.name or venta.factura
         if not hay_filas:
             return 'venta', self.env._('Venta del sitio: factura %s pagada.', nombre)
+        if recobro and pagada and diferencia > 0:
+            return 'venta', self.env._(
+                'La factura %(factura)s se cobró otra vez el %(dia)s: se anota con las reglas de ese día '
+                '(versión %(version)s).', factura=nombre, dia=recobro.strftime('%d/%m/%Y'),
+                version=venta.reglas_id.numero)
         if not pagada:
             return 'reverso', self.env._('La factura %s ya no está pagada por completo (pago revertido, anulada o '
                                          'vuelta a borrador): se reversa lo anotado.', nombre)
@@ -440,7 +533,7 @@ class DcasaWebVenta(models.Model):
             for venta in self.sudo().search([
                     ('company_id', '=', company.id), ('reglas_id', '=', False), ('cobrada', '=', True),
                     ('fecha_cobro', '>=', dia_de_panama(primera.rige_desde))]):
-                reglas = Reglas._vigente_el(company, venta.fecha_cobro)
+                reglas = Reglas._vigente_para_cobro(company, venta.fecha_cobro)
                 if not reglas:
                     continue
                 try:
@@ -456,16 +549,17 @@ class DcasaWebVenta(models.Model):
 
     @api.model
     def _poner_al_dia(self):
-        """Compara con la verdad las ventas con comisión que siguen cobradas cuya factura CAMBIÓ desde la última vez (un
-        pago revertido, una factura anulada, borrada o con una nota de crédito nueva): lo usan, antes de sumar un
-        centavo, cada liquidación al armarse o aprobarse. Mirar si algo cambió cuesta una sola consulta para todas
-        (``_huellas``); solo se recomponen las que cambiaron. Devuelve cuántas se miraron. El barrido de cada noche
-        sigue comparando todas.
+        """Compara con la verdad las ventas con comisión (también las «apagadas»: un pago que se repuso por una vía sin
+        gancho, o una factura vuelta a borrador y publicada otra vez, vuelven a pagar) cuya factura CAMBIÓ desde la
+        última vez (un pago revertido, repuesto, una factura anulada, borrada o con una nota de crédito nueva): lo usan,
+        antes de sumar un centavo, cada liquidación al armarse o aprobarse. Mirar si algo cambió cuesta una sola
+        consulta para todas (``_huellas``); solo se recomponen las que cambiaron. Devuelve cuántas se miraron. El
+        barrido de cada noche sigue comparando todas.
 
         Un choque de concurrencia (otra transacción tocó lo mismo) se vuelve a lanzar: Odoo repite la operación con una
         foto nueva de la base. Tragárselo dejaba armar y aprobar con datos viejos."""
         self._atribuir_a_las_reglas()
-        ventas = self.sudo().search([('reglas_id', '!=', False), ('cobrada', '=', True)])
+        ventas = self.sudo().search([('reglas_id', '!=', False)])
         actuales = ventas._huellas()
         for venta in ventas.filtered(lambda v: v.huella != actuales.get(v.id)):
             try:

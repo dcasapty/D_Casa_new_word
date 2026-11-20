@@ -17,7 +17,7 @@ from odoo import SUPERUSER_ID, api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
 from . import calculo
-from .movimiento import CANDADO_NUMERACION, dia_de_panama
+from .movimiento import CANDADO_NUMERACION, ZONA, dia_de_panama
 
 GRUPO = 'dcasa_nomina.group_nomina'
 # Un objeto, no ``True``: el contexto que llega por RPC es JSON y nunca puede traerlo.
@@ -63,8 +63,17 @@ class DcasaWebReglas(models.Model):
              'para el sitio y deja de ser de las vendedoras. No se acepta un día que ya pasó. Una versión nueva manda '
              'desde su fecha en adelante sobre todas las anteriores (la última que se guardó): si otra ya '
              'programada tiene una fecha más lejana, queda tapada hasta que se anule. Lo ya anotado no se recalcula.')
-    estado = fields.Selection([('programada', 'Programada'), ('vigente', 'Rige ahora'), ('anterior', 'Reemplazada'),
-                               ('anulada', 'Anulada')], compute='_compute_estado')
+    estado = fields.Selection([('programada', 'Programada'), ('tapada', 'Tapada'), ('vigente', 'Rige ahora'),
+                               ('anterior', 'Reemplazada'), ('anulada', 'Anulada')], compute='_compute_estado')
+    tapada_por_id = fields.Many2one(
+        'dcasa.web.reglas', 'Tapada por', compute='_compute_tapada',
+        help='Otra versión, guardada después, que rige desde el mismo día o antes: manda sobre esta desde su fecha en '
+             'adelante, así que esta nunca va a regir (a menos que se anule la otra).')
+    aviso_tapada = fields.Char('Aviso de versión tapada', compute='_compute_tapada')
+    tapa_a_ids = fields.Many2many(
+        'dcasa.web.reglas', string='Tapa a', compute='_compute_tapada',
+        help='Las versiones programadas más lejanas, guardadas antes, que esta deja tapadas: ya no van a regir.')
+    aviso_tapa = fields.Char('Aviso al tapar otra versión', compute='_compute_tapada')
     anulada = fields.Boolean('Anulada', readonly=True, copy=False, index=True,
                              help='Una versión que todavía no rige se puede anular (con motivo) si se puso mal; nunca '
                                   'se borra. Una anulada no rige nunca.')
@@ -78,6 +87,11 @@ class DcasaWebReglas(models.Model):
     tarifa_fija = fields.Monetary(
         'Tarifa fija por mantener la plataforma', help='Un monto fijo que sale siempre de la empresa. Déjalo en 0 si '
                                                        'no hay tarifa.')
+    tope_ajuste = fields.Monetary(
+        'Tope de un ajuste a mano',
+        help='Lo máximo (en un sentido o en otro) que se puede anotar en un solo ajuste a mano en el libro. Déjalo en '
+             '0 si no quieres tope: solo se rechaza lo que no es un número o no cabe en el libro. Es una decisión de '
+             'Gerencia: el sistema no trae ninguna cifra.')
     tarifa_periodo = fields.Selection(PERIODOS, 'La tarifa se anota', required=True, default='mensual',
                                       help='Cada cuánto se anota la tarifa fija: el primer día de cada mes, de cada '
                                            'quincena (días 1 y 16) o de cada semana (lunes).')
@@ -100,7 +114,7 @@ class DcasaWebReglas(models.Model):
         for version in self:
             version.nombre = self.env._('Versión %s', version.numero) if version.numero else self.env._('Versión nueva')
 
-    @api.depends('rige_desde', 'company_id', 'anulada')
+    @api.depends('rige_desde', 'company_id', 'anulada', 'numero')
     def _compute_estado(self):
         ahora = fields.Datetime.now()
         for version in self:
@@ -108,9 +122,57 @@ class DcasaWebReglas(models.Model):
             if version.anulada:
                 version.estado = 'anulada'
             elif not version.id or not version.rige_desde or dia_de_panama(version.rige_desde) > dia_de_panama(ahora):
-                version.estado = 'programada'
+                version.estado = 'tapada' if version._tapada_por() else 'programada'
             else:
                 version.estado = 'vigente' if version == vigente else 'anterior'
+
+    def _tapada_por(self):
+        """La primera versión guardada DESPUÉS de esta (no anulada) que rige desde el mismo día o antes: desde su fecha
+        manda ella (``_de_este_dia``), así que esta no rige nunca mientras la otra no se anule. Vacío si no la tapa
+        ninguna."""
+        self.ensure_one()
+        if not self.id or self.anulada or not self.rige_desde:
+            return self.browse()
+        dia = dia_de_panama(self.rige_desde)
+        posteriores = self.sudo().search([('company_id', '=', self.company_id.id), ('anulada', '=', False),
+                                          ('numero', '>', self.numero)], order='numero')
+        return posteriores.filtered(lambda v: dia_de_panama(v.rige_desde) <= dia)[:1]
+
+    def _tapa_a(self):
+        """Las versiones programadas para más adelante, guardadas ANTES, que esta deja tapadas: rigen desde el mismo
+        día o después, y desde su fecha manda esta (la última que se guardó). Vale también para una versión nueva que
+        todavía no se guarda: la pantalla lo avisa mientras se escribe la fecha."""
+        self.ensure_one()
+        if self.anulada or not self.rige_desde:
+            return self.browse()
+        dia = dia_de_panama(self.rige_desde)
+        hoy = dia_de_panama(fields.Datetime.now())
+        dominio = [('company_id', '=', (self.company_id or self.env.company).id), ('anulada', '=', False)]
+        if self.id:
+            dominio.append(('numero', '<', self.numero))
+        antes = self.sudo().search(dominio)
+        return antes.filtered(lambda v: dia_de_panama(v.rige_desde) >= dia and dia_de_panama(v.rige_desde) > hoy)
+
+    @api.depends('rige_desde', 'company_id', 'anulada', 'numero')
+    def _compute_tapada(self):
+        for version in self:
+            tapada, tapa = version._tapada_por(), version._tapa_a()
+            version.tapada_por_id = tapada
+            version.tapa_a_ids = tapa
+            version.aviso_tapada = self.env._(
+                'Esta versión nunca va a regir: la versión %(otra)s, guardada después, manda desde el %(dia)s. '
+                'Si no era lo que querías, anula una de las dos.', otra=tapada.numero,
+                dia=dia_de_panama(tapada.rige_desde).strftime('%d/%m/%Y')) if tapada else False
+            numeros = sorted(tapa.mapped('numero'))
+            if len(numeros) > 1:
+                version.aviso_tapa = self.env._(
+                    'Esta versión tapa a las versiones %(otras)s, que estaban programadas para más adelante: esas ya '
+                    'no van a regir (se pueden anular).',
+                    otras=' y '.join([', '.join(map(str, numeros[:-1])), str(numeros[-1])]))
+            else:
+                version.aviso_tapa = self.env._(
+                    'Esta versión tapa a la versión %(otra)s, que estaba programada para más adelante: esa ya no va a '
+                    'regir (se puede anular).', otra=numeros[0]) if numeros else False
 
     def _opciones(self):
         """Los interruptores de la base, como los lee ``calculo.base_de_la_venta``."""
@@ -159,13 +221,15 @@ class DcasaWebReglas(models.Model):
     # Validaciones
     # ------------------------------------------------------------------
 
-    @api.constrains('porcentaje', 'tarifa_fija', 'reparto_ids')
+    @api.constrains('porcentaje', 'tarifa_fija', 'tope_ajuste', 'reparto_ids')
     def _check_cifras(self):
         for version in self:
             if not 0 <= version.porcentaje <= 100:
                 raise ValidationError(self.env._('El porcentaje va de 0 a 100.'))
             if version.tarifa_fija < 0:
                 raise ValidationError(self.env._('La tarifa fija no puede ser negativa.'))
+            if version.tope_ajuste < 0:
+                raise ValidationError(self.env._('El tope de un ajuste no puede ser negativo (0 es sin tope).'))
             reparto = version.reparto_ids
             if (version.porcentaje > 0 or version.tarifa_fija > 0) and not reparto:
                 raise ValidationError(self.env._(
@@ -199,7 +263,8 @@ class DcasaWebReglas(models.Model):
         anulando = self.env.context.get(CLAVE_ANULANDO)
         if anulando is not None and anulando is ANULANDO:
             return super().write(vals)
-        if set(vals) <= {'motivo_anulacion'} and all(v.estado == 'programada' and not v.anulada for v in self):
+        if set(vals) <= {'motivo_anulacion'} and all(
+                v.estado in ('programada', 'tapada') and not v.anulada for v in self):
             return super().write(vals)
         raise UserError(self.env._(
             'Una versión de las reglas no se edita: un cambio se hace guardando una versión nueva. Si todavía no rige '
@@ -218,7 +283,7 @@ class DcasaWebReglas(models.Model):
         if not self.env.user.has_group(GRUPO):
             raise UserError(self.env._('Solo Gerencia y quien administra la nómina anulan una versión.'))
         for version in self:
-            if version.anulada or version.estado != 'programada':
+            if version.anulada or version.estado not in ('programada', 'tapada'):
                 raise UserError(self.env._('Solo se anula una versión que todavía no rige.'))
             if not (version.motivo_anulacion or '').strip():
                 raise UserError(self.env._('Escribe el motivo de la anulación.'))
@@ -290,6 +355,14 @@ class DcasaWebReglas(models.Model):
         return self.sudo().search([('company_id', '=', company.id), ('anulada', '=', False)])._de_este_dia(dia)
 
     @api.model
+    def _vigente_para_cobro(self, company, dia):
+        """La versión que le toca a una venta cobrada el día ``dia``: la que regía ese día, pero **nunca la de un día
+        que todavía no llega**. Quien registra un pago teclea su fecha: un pago con fecha de dentro de 10 días no puede
+        escoger una versión programada para entonces (tercera revisión, 2026-11-20): se calcula con la de hoy."""
+        hoy = fields.Date.context_today(self.with_context(tz=ZONA))
+        return self._vigente_el(company, min(dia, hoy))
+
+    @api.model
     def _primera(self, company):
         """La primera versión que se guardó (rija ya o no): marca desde cuándo una venta online deja de ser de las
         vendedoras."""
@@ -314,6 +387,7 @@ class DcasaWebReglas(models.Model):
         if vigente:
             contexto = {
                 'default_porcentaje': vigente.porcentaje, 'default_tarifa_fija': vigente.tarifa_fija,
+                'default_tope_ajuste': vigente.tope_ajuste,
                 'default_tarifa_periodo': vigente.tarifa_periodo,
                 **{f'default_{clave}': vigente[clave] for clave in calculo.OPCIONES},
                 'default_reparto_ids': [(0, 0, {'empleado_id': r.empleado_id.id, 'porcentaje': r.porcentaje,
