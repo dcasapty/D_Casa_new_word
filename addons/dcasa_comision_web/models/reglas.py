@@ -17,7 +17,7 @@ from odoo import SUPERUSER_ID, api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
 from . import calculo
-from .movimiento import CANDADO_NUMERACION, ZONA, dia_de_panama
+from .movimiento import CANDADO_NUMERACION, MAXIMO_CENTAVOS, ZONA, dia_de_panama
 
 GRUPO = 'dcasa_nomina.group_nomina'
 # Un objeto, no ``True``: el contexto que llega por RPC es JSON y nunca puede traerlo.
@@ -40,6 +40,11 @@ PASARELA = [('no_resta', 'No se resta la pasarela (recomendado)'), ('resta', 'Se
 # El ejemplo con números de mentira que se ve al cambiar un interruptor (centavos).
 EJEMPLO = {'productos': 100000, 'descuento_lineas': 0, 'descuento_negativas': 10000, 'envio': 5000, 'itbms': 9000,
            'devuelto': 20000, 'devuelto_itbms': 1800, 'pasarela': 3000}
+
+
+# Lo más que cabe en una cifra de dinero de una versión (la tarifa y el tope se anotan en el libro, en centavos enteros
+# de 32 bits).
+LIMITE_DE_DINERO = MAXIMO_CENTAVOS / 100
 
 
 def dinero(centavos):
@@ -302,8 +307,31 @@ class DcasaWebReglas(models.Model):
                 valores[clave] = False
         return valores
 
+    @api.model
+    def _validar_cifras_crudas(self, vals):
+        """Las cifras que llegan de afuera (por RPC cualquiera manda ``nan``, ``inf``, un texto o un 1e30) se rechazan
+        con un mensaje claro ANTES de que Odoo intente redondearlas y falle con un error de Python sin traducir (cuarta
+        revisión adversarial, 2026-11-20). Un tope de 1e30 se guardaba y rompía después todos los ajustes."""
+        for campo in ('porcentaje', 'tarifa_fija', 'tope_ajuste'):
+            if campo not in vals:
+                continue
+            numero = calculo.numero_finito(vals[campo])
+            etiqueta = self._fields[campo].string
+            if numero is None:
+                raise UserError(self.env._(
+                    '«%s» no es un número válido: escribe una cifra, por ejemplo 25.50.', etiqueta))
+            if campo == 'porcentaje':
+                if not 0 <= numero <= 100:
+                    raise ValidationError(self.env._('El porcentaje va de 0 a 100.'))
+            elif abs(numero) > LIMITE_DE_DINERO:
+                raise UserError(self.env._(
+                    '«%(campo)s» es demasiado grande para el libro (llega hasta %(maximo)s). Revisa los ceros.',
+                    campo=etiqueta, maximo=f'{LIMITE_DE_DINERO:,.2f}'))
+
     @api.model_create_multi
     def create(self, vals_list):
+        for vals in vals_list:
+            self._validar_cifras_crudas(vals)
         ahora = fields.Datetime.now()
         # Quien guarda escribe el candado: dos versiones a la vez no sacan el mismo número (REPEATABLE READ).
         self.env['dcasa.web.candado']._tomar(CANDADO_NUMERACION)
@@ -471,6 +499,10 @@ class DcasaWebReparto(models.Model):
         if self.env.context.get(CLAVE_CREANDO) is not CREANDO_VERSION:
             raise UserError(self.env._(
                 'El reparto no se agrega a una versión ya guardada: guarda una versión nueva con el reparto nuevo.'))
+        for vals in vals_list:
+            if 'porcentaje' in vals and calculo.numero_finito(vals['porcentaje']) is None:
+                raise UserError(self.env._(
+                    'Lo que le toca a cada persona no es un número válido: escribe una cifra, por ejemplo 60.'))
         lineas = super().create(vals_list)
         for linea in lineas:
             # Se congelan los usuarios ligados HOY a la ficha (no se editan: ver ``write``).

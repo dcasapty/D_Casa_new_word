@@ -1,12 +1,10 @@
 """Un ajuste a mano en el libro de la comisión web: la corrección de lo ya pagado, de una tarifa parcial o de cualquier
 error que el sistema no pueda ver por sí solo. **Siempre con motivo**, solo Gerencia y quien administra la nómina, y por
 la puerta única del libro (``_asentar``): nunca se edita ni se borra una fila, se anota otra."""
-import math
-
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError
 
-from .calculo import a_centavos
+from .calculo import a_centavos, numero_finito
 from .movimiento import CONCEPTOS, MAXIMO_CENTAVOS
 
 GRUPO = 'dcasa_nomina.group_nomina'
@@ -31,10 +29,20 @@ class DcasaWebAjuste(models.TransientModel):
 
     @api.model
     def _validar_monto(self, monto):
-        """Un monto que no es un número (``inf``, ``nan``: el JSON de una llamada RPC los acepta) se rechaza con un
-        mensaje claro, antes de que Odoo intente redondearlo y falle con un error de Python sin traducir."""
-        if isinstance(monto, float) and not math.isfinite(monto):
+        """Un monto que no es un número (``inf``, ``nan``, un texto, un entero de 30 cifras: una llamada RPC manda lo
+        que quiera) o que no cabe en el libro se rechaza con un mensaje claro, antes de que Odoo intente redondearlo y
+        falle con un error de Python sin traducir."""
+        numero = numero_finito(monto)
+        if numero is None:
             raise UserError(self.env._('El monto no es un número válido: escribe una cifra, por ejemplo 25.50.'))
+        if abs(numero) > MAXIMO_CENTAVOS / 100:
+            raise UserError(self._monto_demasiado_grande())
+
+    @api.model
+    def _monto_demasiado_grande(self):
+        return self.env._(
+            'Ese monto es demasiado grande para anotarlo en el libro (llega hasta %s). Revisa los ceros.',
+            f'{MAXIMO_CENTAVOS / 100:,.2f}')
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -64,11 +72,11 @@ class DcasaWebAjuste(models.TransientModel):
         self._validar_monto(self.monto)
         centavos = a_centavos(self.monto)
         if abs(centavos) > MAXIMO_CENTAVOS:
-            raise UserError(self.env._(
-                'Ese monto es demasiado grande para anotarlo en el libro (llega hasta %s). Revisa los ceros.',
-                f'{MAXIMO_CENTAVOS / 100:,.2f}'))
+            raise UserError(self._monto_demasiado_grande())
+        # Un tope que no sea un número (no debería haber ninguno guardado) o que no cabe en el libro (más de lo que
+        # cabe en un ajuste) no frena nada: nunca rompe los ajustes.
         tope = self.env['dcasa.web.reglas']._vigente(self.company_id).tope_ajuste
-        if tope and abs(centavos) > a_centavos(tope):
+        if tope and numero_finito(tope) and abs(centavos) > a_centavos(tope):
             raise UserError(self.env._(
                 'Un ajuste no puede pasar de %(tope)s (el tope que Gerencia puso en las reglas vigentes). Si de verdad '
                 'hace falta más, pídele a Gerencia que cambie el tope en una versión nueva de las reglas.',

@@ -76,8 +76,9 @@ class DcasaWebVenta(models.Model):
     cobro_adelantado = fields.Boolean(
         'Cobro con fecha futura', readonly=True, index=True,
         help='La fecha del pago es posterior al día en que se anotó la venta. Una fecha futura no escoge una versión '
-             'de las reglas que todavía no rige: la venta se calcula con la versión de HOY. Es la vigilancia para ver '
-             'quién teclea pagos con fecha adelantada.')
+             'de las reglas que todavía no rige: la venta se calcula con la versión de HOY y se vuelve a calcular si '
+             'esa versión cambia (por ejemplo, al llegar el día del pago). Es la vigilancia para ver quién teclea '
+             'pagos con fecha adelantada: la señal se queda aunque el día ya haya llegado.')
     nota_sin_producto = fields.Boolean(
         'Una nota trae líneas sin producto', readonly=True, index=True,
         help='Una nota de crédito de esta factura trae líneas sin producto (escritas a mano): no se puede saber si '
@@ -380,11 +381,17 @@ class DcasaWebVenta(models.Model):
             else:
                 c = {clave: venta[f'{clave}_centavos'] for clave in calculo.COMPONENTES}
                 self._escribir_si_cambio(venta, {'cobrada': False, 'huella': huellas.get(venta.id)})
-            recobro = None
+            recobro, adelantado = None, False
             dia_real = dias.get(move.id) if move else None
             if pagada and dia_real and dia_real != venta.fecha_cobro:
                 recobro = dia_real
                 if self._cobrar_otra_vez(venta, dia_real):
+                    antes_cobrada = False
+            elif pagada and venta._adelantado_por_revisar():
+                # Un pago con fecha futura se calculó con la versión de HOY (``_vigente_para_cobro``) y esa versión pudo
+                # cambiar al llegar el día: se vuelve a evaluar, igual que si se cobrara hoy desde cero.
+                recobro, adelantado = venta.fecha_cobro, True
+                if self._cobrar_otra_vez(venta, venta.fecha_cobro, adelantado=True):
                     antes_cobrada = False
             reglas = venta.reglas_id
             if not reglas:
@@ -403,15 +410,30 @@ class DcasaWebVenta(models.Model):
                 if not diferencia:
                     continue
                 tipo, motivo = self._tipo_y_motivo(venta, move, diferencia, bool(filas), pagada, antes_devuelto,
-                                                   antes_cobrada, recobro)
+                                                   antes_cobrada, recobro, adelantado)
                 Libro._asentar(self.env['hr.employee'].sudo().browse(empleado_id), tipo, diferencia, venta.company_id,
                                venta_id=venta.id, reglas_id=reglas.id, motivo=motivo)
 
-    def _cobrar_otra_vez(self, venta, dia):
+    def _adelantado_por_revisar(self):
+        """¿Esta venta es de un pago con fecha futura (``cobro_adelantado``) al que HOY le toca otra versión de las
+        reglas que la que se anotó? Pasa cuando llega el día del pago, o antes si empieza a regir otra versión: el pago
+        se calculó con la versión de hoy (``reglas._vigente_para_cobro``) y se queda así hasta que se vuelva a mirar
+        (cuarta revisión adversarial, 2026-11-20). Es la comprobación barata de ``_poner_al_dia``: solo mira las
+        ventas señaladas con fecha futura."""
+        self.ensure_one()
+        if not (self.cobro_adelantado and self.cobrada and self.reglas_id and self.fecha_cobro):
+            return False
+        return self.env['dcasa.web.reglas']._vigente_para_cobro(self.company_id, self.fecha_cobro) != self.reglas_id
+
+    def _cobrar_otra_vez(self, venta, dia, adelantado=False):
         """La factura de ``venta`` quedó pagada por completo otro día (``dia``): se canceló el pago y se registró otra
         vez, o se repuso o se corrigió con otra fecha. El día de cobro decide qué versión de las reglas le toca y de
         quién es la venta (el bono de las vendedoras ya usa el día en vivo): si aquí se quedara el día viejo, la venta
         saldría de nadie o de las dos partes.
+
+        Con ``adelantado`` el día de cobro NO cambió: es un pago con fecha futura al que ya le toca otra versión (llegó
+        el día, o empezó a regir otra); solo se vuelve a escoger la versión, y la venta sigue señalada como «cobro con
+        fecha futura» (es la vigilancia de quien tecleó esa fecha).
 
         La venta se refresca (fecha, mes, versión, porcentaje y señales de fecha). Si la versión que rige ese día es
         OTRA, antes se cierra lo anotado con la anterior con una fila contraria por persona (el libro nunca se edita ni
@@ -431,21 +453,33 @@ class DcasaWebVenta(models.Model):
                     Libro._asentar(self.env['hr.employee'].sudo().browse(empleado_id), 'reverso', -centavos,
                                    venta.company_id, venta_id=venta.id, reglas_id=venta.reglas_id.id or False,
                                    motivo=self.env._(
+                                       'El cobro de la factura %(factura)s lleva la fecha %(dia)s, que todavía no '
+                                       'llegaba cuando se anotó: se cierra lo anotado con la versión de entonces y se '
+                                       'calcula de nuevo con la que le toca ahora.',
+                                       factura=venta.factura, dia=dia.strftime('%d/%m/%Y')) if adelantado
+                                   else self.env._(
                                        'La factura %(factura)s se cobró otra vez el %(dia)s: se cierra lo anotado con '
                                        'la versión anterior y se calcula de nuevo con las reglas de ese día.',
                                        factura=venta.factura, dia=dia.strftime('%d/%m/%Y')))
                     cerro = True
-        hoy = self._hoy()
-        self._escribir_si_cambio(venta, {
-            'fecha_cobro': dia, 'mes': dia.replace(day=1), 'reglas_id': reglas.id or False,
-            'porcentaje': reglas.porcentaje if reglas else 0.0,
-            'cobro_atrasado': venta.cobro_atrasado or (hoy - dia).days >= 2, 'cobro_adelantado': dia > hoy})
+        valores = {'reglas_id': reglas.id or False, 'porcentaje': reglas.porcentaje if reglas else 0.0}
+        if not adelantado:
+            hoy = self._hoy()
+            valores.update({
+                'fecha_cobro': dia, 'mes': dia.replace(day=1),
+                'cobro_atrasado': venta.cobro_atrasado or (hoy - dia).days >= 2, 'cobro_adelantado': dia > hoy})
+        self._escribir_si_cambio(venta, valores)
         return cerro
 
     @api.model
     def _escribir_si_cambio(self, venta, valores):
         """Escribe solo lo que cambió (no un UPDATE a cada fila cada vez que se compara)."""
-        cambios = {clave: valor for clave, valor in valores.items() if venta[clave] != valor}
+        def distinto(clave, valor):
+            # Un many2one se compara por su id (un registro contra un entero daba siempre «distinto» y un aviso).
+            if venta._fields[clave].type == 'many2one':
+                return venta[clave].id != (valor or 0)
+            return venta[clave] != valor
+        cambios = {clave: valor for clave, valor in valores.items() if distinto(clave, valor)}
         if cambios:
             venta.write(cambios)
 
@@ -488,11 +522,17 @@ class DcasaWebVenta(models.Model):
              WHERE v.id IN %s""", [tuple(self.ids)])
         return {fila[0]: hashlib.md5('|'.join(fila[1:]).encode()).hexdigest() for fila in self.env.cr.fetchall()}
 
-    def _tipo_y_motivo(self, venta, move, diferencia, hay_filas, pagada, antes_devuelto, antes_cobrada, recobro=None):
+    def _tipo_y_motivo(self, venta, move, diferencia, hay_filas, pagada, antes_devuelto, antes_cobrada, recobro=None,
+                       adelantado=False):
         """Qué tipo de fila es la diferencia y qué motivo lleva (se lo enseña al que recibe tal cual)."""
         nombre = move.name or venta.factura
         if not hay_filas:
             return 'venta', self.env._('Venta del sitio: factura %s pagada.', nombre)
+        if adelantado and pagada and diferencia > 0:
+            return 'venta', self.env._(
+                'El cobro de la factura %(factura)s lleva la fecha %(dia)s: se anota con la versión que le toca ahora '
+                '(versión %(version)s).', factura=nombre, dia=recobro.strftime('%d/%m/%Y'),
+                version=venta.reglas_id.numero)
         if recobro and pagada and diferencia > 0:
             return 'venta', self.env._(
                 'La factura %(factura)s se cobró otra vez el %(dia)s: se anota con las reglas de ese día '
@@ -561,7 +601,8 @@ class DcasaWebVenta(models.Model):
         self._atribuir_a_las_reglas()
         ventas = self.sudo().search([('reglas_id', '!=', False)])
         actuales = ventas._huellas()
-        for venta in ventas.filtered(lambda v: v.huella != actuales.get(v.id)):
+        # También las de un pago con fecha futura al que ya le toca otra versión (la huella no mira el calendario).
+        for venta in ventas.filtered(lambda v: v.huella != actuales.get(v.id) or v._adelantado_por_revisar()):
             try:
                 with self.env.cr.savepoint():
                     venta._reconciliar()

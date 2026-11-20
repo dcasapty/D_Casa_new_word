@@ -39,13 +39,20 @@ class TestVersionesYDiaDeCobro(Liquida):
         con_fecha_futura = self.env['dcasa.web.venta'].with_user(self.u_nomina).search([('cobro_adelantado', '=', True)])
         self.assertEqual(con_fecha_futura, futura)
 
-    def test_cuando_llega_el_dia_de_un_cobro_futuro_el_barrido_no_le_cambia_la_version(self):
+    def test_cuando_llega_el_dia_de_un_cobro_futuro_el_barrido_la_calcula_con_la_version_que_rige_ese_dia(self):
+        """Cuarta revisión: un pago con fecha futura se calcula con la versión de HOY; al llegar el día (aquí el 14, cuando
+        empieza a regir la de 50 %) el barrido la vuelve a escoger, igual que si se cobrara desde cero con esa fecha.
+        Antes se quedaba con la versión de hoy para siempre."""
         self.version(10.0)
         self.version(50.0, rige_desde=fields.Datetime.now() + timedelta(days=10))
         venta = self.venta(self.venta_web(fecha='2030-03-14'))
+        self.assertEqual((venta.reglas_id.numero, venta.comision_centavos), (1, 10000), 'hoy rige la de 10 %')
         self.avanzar('2030-03-20 15:00:00')
         self.env['dcasa.web.venta']._barrido()
-        self.assertEqual((venta.reglas_id.numero, venta.comision_centavos), (1, 10000))
+        self.assertEqual((venta.reglas_id.numero, venta.comision_centavos), (2, 50000))
+        desde_cero = self.venta(self.venta_web(fecha='2030-03-14'))
+        self.assertEqual((desde_cero.reglas_id.numero, desde_cero.comision_centavos), (2, 50000))
+        self.assertTrue(venta.cobro_adelantado, 'la señal de la fecha futura se queda')
 
     # ------------------------------------------------------------------ versión tapada
 

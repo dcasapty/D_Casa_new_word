@@ -15,7 +15,8 @@ Los componentes de una venta (``c``), todos en centavos enteros y sin signo, de 
 * ``devuelto_itbms``: el ITBMS de lo que devolvieron las notas;
 * ``pasarela``: lo que cobró la pasarela de pago, si el pago lo guardó.
 """
-from decimal import ROUND_FLOOR, ROUND_HALF_UP, Decimal
+import math
+from decimal import ROUND_FLOOR, ROUND_HALF_UP, Context, Decimal
 
 COMPONENTES = ('productos', 'descuento_lineas', 'descuento_negativas', 'envio', 'itbms', 'devuelto',
                'devuelto_envio', 'devuelto_itbms', 'pasarela')
@@ -30,9 +31,35 @@ OPCIONES = {
 }
 
 
+# Aguanta cualquier ``float`` finito (hasta 1e308): con la precisión normal (28 dígitos) un 1e30 daba un error.
+_PRECISION_AMPLIA = Context(prec=400)
+
+
+def numero_finito(valor):
+    """El ``float`` de ``valor`` (un número o un texto con un número) si es un número FINITO; si no, ``None``.
+
+    Una llamada RPC manda lo que quiera: ``nan``, ``inf``, un texto cualquiera, un entero de 30 cifras. Sin esto, cada
+    uno acababa en un error de Python sin traducir (``ValueError``, ``OverflowError``, ``InvalidOperation``). Vacío
+    (``None``, ``False``, ``''``) es cero, como lo entiende Odoo; un ``bool`` y cualquier otra cosa no son un número."""
+    if valor is None or valor is False or valor == '':
+        return 0.0
+    if isinstance(valor, bool) or not isinstance(valor, (int, float, Decimal, str)):
+        return None
+    try:
+        numero = float(valor)
+    except (ValueError, OverflowError, ArithmeticError):
+        return None
+    return numero if math.isfinite(numero) else None
+
+
 def a_centavos(monto):
-    """Un importe de Odoo (float con 2 decimales) a centavos enteros sin error de coma flotante."""
-    return int((Decimal(str(round(float(monto or 0.0), 2))) * 100).quantize(Decimal(1), rounding=ROUND_HALF_UP))
+    """Un importe de Odoo (float con 2 decimales) a centavos enteros sin error de coma flotante. Un número que no es
+    finito (``nan``, ``inf``) da ``ValueError``: quien recibe cifras de afuera las valida antes (``numero_finito``)."""
+    numero = float(monto or 0.0)
+    if not math.isfinite(numero):
+        raise ValueError('no es un número finito')
+    return int((Decimal(str(round(numero, 2))) * 100).quantize(
+        Decimal(1), rounding=ROUND_HALF_UP, context=_PRECISION_AMPLIA))
 
 
 def a_precio_de_lista(c, opciones, centavos):
