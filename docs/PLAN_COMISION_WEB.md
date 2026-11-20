@@ -73,6 +73,30 @@ de Juan) **y** sin intervención de una vendedora (chat de Juan en 30 días). To
 vendedora que atendió) no lo es. Frente al diseño original cambian tres cosas: Andrés ya no manda sobre la vendedora, la
 cotización de Juan ahora cuenta, y la compra con código VEN paga al vendedor y al sitio.
 
+### Segunda revisión independiente (2026-11-20): lo que cambió
+
+El segundo revisor no pudo romper la doble aprobación, el doble pago ni el doble número, y encontró estos huecos, ya cerrados
+(cada uno con su prueba en `tests/test_revision2_*.py` y `tests/test_endurecimiento.py`):
+
+* **El origen de la venta online no se fabricaba con el contexto** (`default_*`, que viaja por RPC y se aplica después de
+  `create`): ahora `default_get` lo descarta; igual el estado de una liquidación («propuesta» siempre) y «anulada» en una
+  versión. Nadie fabrica el origen ni por valor, ni por contexto, ni con `sudo()`.
+* **Una versión guardada después queda tapada por otra guardada antes**: ahora manda la última guardada desde su fecha (ver la
+  fila «Rige desde» de la tabla de campos).
+* **Quien aprueba no veía los ajustes a mano**: los avisos de la liquidación los listan (y marcan los de la misma persona que
+  cobra) y el servidor solo deja ajustar a quien figura o figuró en un reparto.
+* **Armar y aprobar recorrían todas las ventas**: una huella por venta, una consulta para todas, y solo se recomponen las que
+  cambiaron; los choques de concurrencia se repiten en vez de tragarse.
+* **Vigilancia del punto ciego**: el pedido digital guarda quién cambió su cliente o sus líneas o tecleó un precio.
+* Menores: anticipos con «antes de descuentos», nota que devuelve solo el envío, ITBMS a precio de lista, ganchos que no se
+  tragan errores ajenos, pago de pasarela con fecha de Panamá, cobros con fecha atrasada señalados, mensajes de vendedora que
+  nunca salieron, un año extremo en «Rige desde».
+
+**Quedó anotado, sin decidir:** (a) la **primera tarifa** de una versión que rige el día en que empieza un periodo: hoy se
+anota el periodo siguiente (lo escrito y la primera revisión), el segundo revisor pide que cuente el mismo día;
+(b) una **nota de crédito libre sin producto** que devuelve solo el envío no se puede atribuir (se resta de lo vendido); (c) el
+**día de cobro** lo teclea quien registra el pago (hoy se vigila, no se frena).
+
 **Lo que sigue valiendo del diseño:** la definición de «venta pagada por completo» (la misma del bono por meta y del Inicio),
 el libro en centavos con saldo = suma, los reversos por devolución y pago revertido, el savepoint que nunca frena un
 cobro, el barrido nocturno que compara el libro con la verdad, el mes de Panamá fijo en cada fila y el módulo sin cifras de
@@ -195,7 +219,7 @@ Una sola pantalla, **Comisión del sitio web › Reglas**, con pocos campos en p
 | Campo | Cómo viene |
 |---|---|
 | Porcentaje | **Vacío.** Sin porcentaje no se calcula nada pagable (las ventas se miden igual). |
-| Rige desde | Fecha y hora; **solo hacia adelante** (no se acepta una fecha pasada ni anterior a otra versión ya programada). |
+| Rige desde | Fecha y hora; **solo hacia adelante** (no se acepta una fecha pasada). Desde la segunda revisión (2026-11-20): una versión guardada después con una fecha más cercana que otra ya programada **se acepta** y manda desde su fecha en adelante (la última guardada); rechazarla trababa el módulo con una versión puesta con el año equivocado, y la que queda tapada se anula. |
 | Quiénes reciben y su reparto | Lista de empleados, suma 100 % (sección 4). |
 | Las cuatro decisiones de la sección 2 | **Sin responder.** No deja guardar hasta contestarlas. |
 | Cómo se trata al pagar (salario / sin descuentos / fuera de planilla) | **Vacío** hasta el dictamen (sección 8). Sin él se puede medir y proponer, no aprobar un pago. |

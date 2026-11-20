@@ -49,8 +49,10 @@ lo que una vendedora atendió) no es venta online.
 | Entra al chat de **Juan** y lo **atiende una vendedora** (aunque ella le mande el enlace después) | **No** | Al confirmar el pedido se mira el chat de Juan: si una vendedora le escribió al cliente en los 30 días anteriores, la venta la llevó ella (`dcasa_llevada_por_vendedora`). |
 | Lo que se arma en la tienda física, en Ventas o en el Punto de Venta (un pedido tecleado por una persona) | **No** | No nació por un flujo digital: nadie lo marca. |
 
-Las marcas se escriben **una vez, por código del sitio**, y nadie las cambia a mano (ni con `sudo()`, ni por RPC; tampoco
-el campo calculado «venta online», que se calcula solo). **Tener `website_id` no basta**: ese campo se acepta por RPC y
+Las marcas se escriben **una vez, por código del sitio**, y nadie las cambia ni las fabrica a mano: ni con `sudo()`, ni por
+RPC, **ni con un `default_*` en el contexto** (que también viaja por RPC y Odoo aplica después de `create`: el `default_get`
+de las marcas lo descarta), ni al importar o duplicar un pedido; tampoco el campo calculado «venta online», que se calcula
+solo. Lo mismo vale para el estado de una liquidación («propuesta» siempre al crearla) y para «anulada» en una versión. **Tener `website_id` no basta**: ese campo se acepta por RPC y
 cualquiera que teclee un pedido de mostrador podría ponérselo. Solo dos flujos reales marcan el origen: el carrito real
 (`website._create_cart`) y la herramienta de cotizar de Juan (la API que usa el Worker, con su autenticación). Por
 `_create_cart` nace todo lo que es de la página: la compra normal, la recompra, el carrito de **Andrés** (que además marca
@@ -59,6 +61,13 @@ la cotización que arma una vendedora desde el panel de conversaciones, **no** p
 instalar (a los de la página ya confirmados y todavía sin pagar por completo también se les miró el chat de Juan, para que
 uno atendido por una vendedora antes del despliegue no cuente como online). Si una factura junta un pedido online con otro
 de la tienda, solo cuentan como online las líneas del pedido online.
+
+**El pedido que nace por un flujo digital guarda además quién lo tocó**: si una persona del equipo (un usuario interno)
+cambia su cliente o sus líneas, o alguien teclea el precio de una línea (la tienda pone los precios sola), queda anotado
+(`dcasa_tocada_por_id`, que tampoco se escribe a mano). Así se ve el carrito que abre un visitante y arma después el equipo
+para cobrarlo como venta del sitio: sale en *Ventas del sitio* («Abrió o cambió el carrito alguien del equipo») y en
+*Pedidos de la página para revisar*. La cotización que arma Juan guarda a Juan como quien la creó (el asistente no cuenta
+como del equipo).
 
 **Cotizar en la página y pagar en la tienda SÍ cuenta** (decisión de Gerencia). Como alguien del equipo podría abrir un
 carrito en la página y cobrarlo en la tienda para llevarse la comisión del sitio y no la de vendedora, cada venta guarda
@@ -112,9 +121,11 @@ vendedora, cuenta igual que hoy.
   no hay porcentaje: las ventas se miden igual.
 * **Tarifa fija** por mantener la plataforma (un monto fijo que sale siempre de la empresa) y **cada cuánto se anota**:
   cada mes (por defecto), cada quincena o cada semana. En 0 no hay tarifa. La tarifa se anota **el primer día de cada
-  periodo** (el día 1; los días 1 y 16; cada lunes) con la versión que regía a las 00:00 de ese día. La primera tarifa de
-  una versión es la del primer periodo que empieza cuando ya rige (si rige un 10, la del mes empieza el día 1 del mes
-  siguiente; si hace falta algo distinto, se anota un ajuste con motivo).
+  periodo** (el día 1; los días 1 y 16; cada lunes) con la versión que regía el día anterior. La primera tarifa de una
+  versión es la del primer periodo que empieza **después** del día en que rige (si rige un 10, la del mes empieza el día 1
+  del mes siguiente; si rige un lunes, la semana de ese lunes no cuenta y la primera es la del lunes siguiente; no depende
+  de la hora tecleada). Si hace falta algo distinto, se anota un ajuste con motivo (queda por decidir con Gerencia: ver
+  abajo).
 * **Cómo se arma la base**, con cinco interruptores en palabras sencillas. Al cambiar uno, el **ejemplo con números de
   mentira** de la pantalla se mueve para que se vea qué entra y qué no:
 
@@ -134,6 +145,10 @@ vendedora, cuenta igual que hoy.
 día que ya pasó; hoy vale, porque «Rige desde» es el inicio de ese día en Panamá). Lo ya anotado en el libro **nunca se
 recalcula**. Pausar es guardar una versión con porcentaje y tarifa en 0.
 
+**Qué versión rige cuando se guardan en desorden:** la **última que se guardó**, desde su fecha en adelante. Si se guarda A
+«desde el 20» y después B «desde el 10», B manda desde el 10 y sigue mandando después del 20 (A queda tapada: se anula si se
+puso mal); si dos caen el mismo día, gana la última guardada, no la de la hora más tardía.
+
 **Si una versión se puso con la fecha equivocada** (por ejemplo, con el año errado) y todavía no rige, se **anula**: se
 escribe el motivo y se toca *Anular*; queda en la lista como «Anulada», con quién y cuándo, y es como si nunca se hubiera
 guardado (no frena nuevas versiones ni fija desde cuándo las vendedoras dejan de recibir lo online). Una que ya rige, o que
@@ -152,7 +167,14 @@ reparte entre quienes reciben. Nunca es negativa. Cada venta guarda con qué ver
 **«Antes de los descuentos» y las devoluciones.** Con esa posición la base es el precio de lista, así que **lo devuelto
 también se resta a precio de lista**, en la misma proporción: si el cliente devuelve la mitad de lo que pagó, se resta la
 mitad de la lista (no lo neto, que dejaría comisión sobre mercadería devuelta). Devolver todo deja la base en cero. El
-ejemplo de la pantalla lo muestra con sus números.
+ejemplo de la pantalla lo muestra con sus números. Con «antes de los descuentos» y «con ITBMS», el impuesto que se suma
+es el del precio de lista (y el que se resta por lo devuelto, también).
+
+**Anticipos y envío devuelto.** El anticipo que se resta en la factura final no es un descuento de precio: resta de lo
+vendido con cualquier posición del interruptor (ya se contó en la factura del anticipo). Una nota de crédito que devuelve
+**solo el envío** no baja la base cuando el envío no cuenta; si el envío cuenta, resta lo devuelto de envío. La línea de la
+nota se reconoce por su producto (el flete): **una nota libre, sin producto, no se puede atribuir** y se resta de lo
+vendido.
 
 ## Cuándo cuenta una venta y cómo se corrige
 
@@ -166,6 +188,13 @@ ejemplo de la pantalla lo muestra con sus números.
 * Un **pago revertido**, una factura **anulada**, vuelta a borrador o **borrada** **reversa** lo anotado **en el acto**
   (no espera al barrido de la noche), y **armar y aprobar una liquidación comparan antes** el libro con la verdad. Si
   vuelve a quedar pagada, se repone.
+* **Armar y aprobar** una liquidación miran, en una sola consulta, si cambió la factura de alguna venta (estado, pago,
+  notas, conciliaciones) y solo recomponen las que cambiaron; el barrido de cada noche las compara todas. Si otra operación
+  choca con la misma venta, el sistema repite la operación con una foto nueva de la base (no sigue con datos viejos).
+* El pago de una pasarela lleva la **fecha de Panamá** (no la del servidor), y un cobro cuya fecha es de **dos días o más**
+  antes del día en que se anotó la venta queda señalado en *Ventas del sitio* («Cobro con fecha atrasada»): el día de
+  cobro lo teclea quien registra el pago y decide de quién es la venta; lo frenan los bloqueos contables, si existen.
+* Un mensaje de una vendedora que **nunca salió** (fallido, por enviar o programado) no le quita la venta al sitio.
 * El **día de cobro** (el del pago, hora de Panamá) decide qué versión de las reglas le toca a la venta. Un cobro del mismo
   día en que se guarda la primera versión, aunque haya sido horas antes, se atribuye a esa versión al guardarla.
 * **Un error de la comisión nunca hace fallar un cobro ni una factura**: corre dentro de un savepoint y el error queda en el
@@ -180,6 +209,10 @@ Una fila por persona y por hecho, **en centavos enteros**. El **saldo es la suma
 saldo). Tipos: venta, devolución, reverso, tarifa fija, ajuste y liquidación. **No se edita ni se borra** (ni con `sudo()` ni
 por RPC): una corrección es otra fila con la cifra contraria, su motivo y su autor. Cada fila guarda el **mes de Panamá** en
 que se anotó y ese mes no se mueve: lo anotado en noviembre queda en noviembre.
+
+El **ajuste** solo se anota a quien **figura o ha figurado** en el reparto de alguna versión (el servidor lo exige, no solo la
+pantalla), y al armar una liquidación los **avisos** listan cada ajuste a mano que entra (de cuánto, por qué, quién y
+cuándo) y marcan los que anotó la misma persona que cobra.
 
 Hay **dos conceptos**, aparte en el libro y en cada liquidación: el **porcentaje de las ventas** y la **tarifa fija**.
 
@@ -257,4 +290,7 @@ referencia.
 5. **Compras de quienes reciben:** el diseño las excluía; con «una sola protección» hoy no se excluyen.
 6. **Un «hola» de una vendedora** basta para que la venta sea de ella y no del sitio (30 días, un solo mensaje). ¿Se deja así o
    se pide más (varios mensajes, o que ella haya cotizado)? Hoy se vigila en *Pedidos de la página para revisar*.
-7. **Primera tarifa:** se anota el primer día del periodo siguiente a que rige la versión; si hace falta una parcial, es un ajuste.
+7. **Primera tarifa:** se anota el primer día del periodo que empieza después del día en que rige la versión (no el mismo
+   día, aunque la versión rija desde las 00:00); si hace falta una parcial, es un ajuste. El segundo revisor opinó lo
+   contrario para el mismo caso (que el lunes en que rige ya cuente); no se cambió porque lo escrito pide «el periodo
+   siguiente» y la primera revisión lo da por bueno: queda para Gerencia.
