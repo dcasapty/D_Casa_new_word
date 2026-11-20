@@ -1,6 +1,6 @@
 # Prioridades vigentes
 
-Puesto al día el **2026-11-20** (lo nuevo está en la rama de trabajo, sin subir, y Yappy directo aparte, sin unir: ver «Estado al 2026-11-20»). Antes, el **2026-11-18** (**todo está en producción**: el Black Friday desde el 16 —Desplegar 77 y Juan 28—, la portada nueva desde el 17 —CI/CD 377, PR #127— y **la segunda entrega completa desde el 18** —CI/CD 380 y Desplegar Juan 29, squash `d2ba8caf`, PR #128—. Ya no queda nada esperando en la rama de trabajo). Es el orden en que se trabaja: cada sesión lo lee al empezar y lo pone al día al
+Puesto al día el **2026-11-20** (todo lo nuevo, Yappy directo incluido, está unido en la rama de trabajo, sin desplegar: ver «Estado al 2026-11-20»). Antes, el **2026-11-18** (**todo está en producción**: el Black Friday desde el 16 —Desplegar 77 y Juan 28—, la portada nueva desde el 17 —CI/CD 377, PR #127— y **la segunda entrega completa desde el 18** —CI/CD 380 y Desplegar Juan 29, squash `d2ba8caf`, PR #128—. Ya no queda nada esperando en la rama de trabajo). Es el orden en que se trabaja: cada sesión lo lee al empezar y lo pone al día al
 terminar (ver [LEEME_PRIMERO.md](LEEME_PRIMERO.md)). Aquí va **un solo estado**, el de hoy; lo que pasó cada día está en
 la bitácora de LEEME_PRIMERO (y lo más viejo en [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md)).
 
@@ -12,18 +12,18 @@ cambio en el diseño me gustaría verlo antes»; ver LEEME_PRIMERO §2).
 
 ## Estado al 2026-11-20
 
-- **En producción sigue `d2ba8caf`** (la segunda entrega, 2026-11-18). **En la rama de trabajo, probado y sin subir:** «Forma de pago»
-  en facturas y Exportar para Gerencia, ventas por día con selector y cifras animadas, segundos del carrusel configurables y Andrés
-  ampliado en escritorio, **Tilopay** (nace apagado) y la **comisión por ventas del sitio web** (sin versión de reglas: solo
-  mide). Detalle y SHA de cada rama en la bitácora de LEEME_PRIMERO (2026-11-19 y 20).
-- **Falta, en este orden:** segunda revisión independiente de la comisión (en curso), batería completa sobre la rama, subir por la
-  receta, y las capturas nuevas de Tilopay para la dueña.
-- **Yappy directo** (`local/yappy-fix` sobre `local/yappy`, módulo `dcasa_pago_yappy`, [YAPPY.md](YAPPY.md)): construido y probado con un Yappy
-  simulado y con el componente real en Chrome, **sin unir a la rama de trabajo ni desplegar**: trae cambios visuales (la fila «Yappy» con su campo y
-  su botón, el bloque «Qué compró» en el pedido) y espera que la dueña vea las capturas antes/después y diga que sí. Nace apagado. **La segunda
-  revisión independiente (RV6) ya está atendida** (H1–H10, YAPPY.md §14). Falta: su «sí»; el acceso al programa de pruebas de Yappy y la compra
-  de ensayo; las respuestas de Yappy y Cloudflare (§15); que la dueña decida la política de privacidad (§16); comprobar desde afuera la dirección
-  del aviso de staging (§7 B) antes de la prueba.
+- **En producción sigue `d2ba8caf`** (la segunda entrega, 2026-11-18). **La rama de trabajo (`960bf34`, subida, sin desplegar) ya trae todo lo
+  pendiente:** «Forma de pago» en facturas y Exportar para Gerencia, ventas por día, carrusel configurable, Andrés ampliado, retoques de la web, el rediseño
+  de la pasarela y el lote «legibilidad», **Tilopay** (nace apagado), la **comisión por ventas del sitio web** (sin versión de reglas: solo mide) y
+  **Yappy directo** (`dcasa_pago_yappy`, [YAPPY.md](YAPPY.md), nace apagado). La dueña vio las capturas antes/después y dijo «Me gustó todo el
+  trabajo» (queda aprobado lo visual) y eligió el botón gris de Yappy. Detalle y SHA de cada rama en la bitácora de LEEME_PRIMERO.
+- **Falta, en este orden:** (1) la batería completa de Odoo sobre `960bf34` y la segunda revisión independiente de Yappy (RV7), ambas en curso, y
+  arreglar lo que salga; (2) subir por la receta (LEEME_PRIMERO §3): staging con todo apagado, verificar, producción; (3) lo que depende de otros: las
+  claves de Tilopay y Yappy en Cloudflare (nunca por el chat), el programa de pruebas de Yappy y la compra de ensayo, las respuestas de Yappy y Cloudflare
+  (YAPPY.md §15), la política de privacidad (§16), las cifras de la comisión web y su tratamiento contable.
+- **Para los jefes:** el informe de ChatGPT quedó contrastado con el código (CONTEXTO_AGENTICO) y hay un tablero y un audio/video de 38 minutos con voz
+  gratis; la voz profesional (≈ US$7.30) espera el «sí» de la dueña. **Por comprobar en vivo:** CRM automático y cotizaciones sin vincular, 111 frente a
+  93 cotizaciones, margen de octubre y los $44.96 de IA.
 
 ## Estado al 2026-11-17
 

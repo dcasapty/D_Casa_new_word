@@ -110,6 +110,30 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 > sigue. Se guardan las diez más recientes; las viejas se resumen en una línea abajo y su texto completo pasa a
 > [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md).
 
+### 2026-11-20 (tarde): la rama de trabajo unida con todo lo pendiente (`960bf34`), el informe de ChatGPT contrastado con el código, y un audio y un video de 38 minutos para los jefes. SIN subir a producción (sigue `d2ba8caf`)
+
+- **Rama unida y subida a `claude/merge-rama-to-main-ty3koz` (`960bf34`, igual que `origin`; subirla no despliega nada):** «Forma de pago» en facturas,
+  ventas por día, retoques de la web, Tilopay (apagado), la comisión web (5 rondas de revisión; última unión `eaf2b33`, sin versión de reglas), el
+  rediseño visual de la pasarela, el lote «legibilidad» y **Yappy directo (`4e84bef`, apagado) ya unido**. La dueña vio las capturas antes/después y dijo
+  «Me gustó todo el trabajo» (vale como «sí» para la pasarela rediseñada, la legibilidad con el relleno del botón de WhatsApp, ventas por día,
+  facturas, Andrés ampliado y las pantallas de comisión) y **eligió el botón gris `dark` de Yappy**; la portada (hero) queda exactamente como hoy.
+- **Pruebas:** Workers en verde (borde 319, Juan 1,924 con 40 omitidas, puente-wa 667). La batería completa de Odoo sobre `960bf34` (32 módulos, base
+  nueva) y la segunda revisión independiente de Yappy (RV7) estaban en curso al escribir esto: ver la línea «Resultado» de abajo.
+- **El informe de ChatGPT** (la auditoría que la dueña hizo preguntándole a Brian): se leyó la conversación entera y se comparó con el código y con lo que
+  Brian contestó. Lo aclarado, con el archivo donde vive cada cosa, está en [CONTEXTO_AGENTICO.md](CONTEXTO_AGENTICO.md) («Lo que enseñó contrastar el
+  informe de ChatGPT con el código»). **Sigue abierto, para comprobar con el sistema en vivo:** si el interruptor del CRM automático está encendido y
+  cuántas cotizaciones no están vinculadas a su oportunidad (de ahí las «cero ganadas»), 111 frente a 93 cotizaciones, el margen de octubre (34.3 % o
+  35.9 %) y si los $44.96 de IA ya están dentro de los $111.93.
+- **Para los jefes, sin PDF:** un tablero (Artifact «Data», privado) con las cifras claras, y **un audio y un video de 38 minutos** que narran el informe
+  completo y resumen cada cuadro (63 diapositivas con la marca), hechos con una **voz local gratis**. La voz profesional (Emma, ElevenLabs, la de la
+  marca) costaría ≈ US$7.30 en total y **espera el «sí» de la dueña**. Cómo se hizo y qué trampas tuvo, en CONTEXTO_AGENTICO. Los archivos y el guion
+  llevan cifras de la empresa: **no** van al repositorio (es público).
+- **Falta, en este orden:** el resultado de la batería y de RV7 (arreglar lo que salga) → subir por la receta (§3): staging con todo apagado, verificar,
+  producción (Tilopay y Yappy apagados, comisión web **sin** versión de reglas, `-u dcasa_base,dcasa_comision_web,website_dcasa,dcasa_guia` y los módulos
+  de pago). Lo que depende de otros: las claves de Tilopay y Yappy en Cloudflare (**nunca por el chat**), el programa de pruebas de Yappy y la compra de
+  ensayo, la política de privacidad (Google/Yappy), las cifras de la comisión web, el tratamiento contable y el «sí» a la voz profesional.
+- **Resultado de la batería y de RV7:** (se anota abajo al terminar).
+
 ### 2026-11-20 (Yappy directo, segunda revisión independiente RV6): sus hallazgos H1–H10 arreglados o documentados, más cuatro retoques que salieron de probar el botón real. En `local/yappy-fix` (sobre `local/yappy`), SIN unir a la rama de trabajo y SIN desplegar
 
 El revisor independiente atacó `96bbd48` y dijo: unir y subir a staging apagado, sí; encender en prueba, sí con una condición (H1); cobrar de verdad, no
@@ -413,99 +437,11 @@ pedido de la dueña: «sube la rama lo que tengas y añade todo lo que avanzamos
     colchón $X» vuelve a salir con precio de campaña, en la página, con Juan y con Andrés.
 - **Esta máquina:** se reinició cuatro veces entre el 15 y el 16. Lo que no está en la rama se pierde.
 
-### 2026-11-15 (3): bandas en azul noche y pie claro, menú sin «Escríbenos», contacto y el carrito en el chat, en producción (Desplegar 76); Black Friday y «Andrés» en la rama
-
-**En producción desde el 2026-11-15, ~19:55 UTC (salud sana: `{"ok": true, "version": "754aceaf18e7", "base_al_dia": true, "humo": "ok"}`):** **Desplegar 76** (run 43754485392) con la imagen `sha256:1cfb8e4f226604186ee8298d4c37dd5651a248f96c94119db3ee820b8b033207` y `app_version` `754aceaf18e7ed66ef1e69ec59a2ab5351a80574` (PR #122, squash `b012494`; CI 365 con staging, run 43732155027), con respaldo previo. Juan no cambió. **Es lo último en producción.** Comprobado en dcasapty.com a 1440 y 390 px: sin «Escríbenos» en el menú, con la sección de contacto, pie #F6F5F2, avisos y Socios en azul noche, el número de /visitanos a WhatsApp; sin errores en la consola.
-
-- **Aprobación de la dueña (tal cual, en corto):** «apruebo todo excepto el color amarillo en el carrito de compra…
-  prefiero dejarlo como está» y «avísame cuando esté en producción». Hoja: <https://claude.ai/artifact/V2J95Wg3zJfPyrkoachd2L>.
-- **Qué lleva:** paleta «composición 3» con el pie en el blanco grisáceo de la portada (no los cremas: «esos huesos no
-  me agradan»); menú sin «Escríbenos» y sección «¿Te quedó alguna duda?» (WhatsApp y correo) antes de Visítanos;
-  el número de /visitanos abre WhatsApp; el chat de la tienda con el carrito en su barra (al día con la página),
-  sugerencias del catálogo y «Lo más buscado» en la vitrina vacía.
-- **Color de la cantidad del carrito:** pidió investigación «para que mis gustos no me nublen». Recomendé amarilla
-  con aro azul (sobre la foto de la portada la azul mide 1.2–1.4:1); **decidió dejarla azul**. Todo en
-  [COLOR_CANTIDAD_CARRITO.md](COLOR_CANTIDAD_CARRITO.md): no se vuelve a proponer sin un dato nuevo.
-- **En la rama, sin probar ni subir (commits `5648d0d` y `2893b8f`):**
-  - **Campaña del sitio (Black Friday, viernes 27 de noviembre):** Sitio web › Campaña del sitio (nombre, fechas,
-    frase), la casilla «En la campaña» con un precio de campaña opcional (regla de tarifa con las mismas fechas, el
-    normal tachado), «Aplicar un descuento», «Empezar de cero» (aprobado por ella), /promociones y «Promociones»
-    sencilla en el menú. Capturas: <https://claude.ai/artifact/GxqG2zGJZ949owo6Pbqwgn>. **Hallazgo:** el sitio no
-    usaba la tarifa con el visitante (la página mostraba el precio sin tarifa y el carrito sí la usaba); la campaña
-    deja la tarifa «Default» ofrecida al sitio. Juan y Andrés dicen el precio de campaña mientras rige.
-  - **El chat de la tienda se llama Andrés** (pedido de la dueña: «que brian sea el del panel de administración»).
-    Cambian los textos visibles, el motor del Worker (`juan/src/tienda`) y la Guía; los nombres técnicos se quedan.
-    Necesita **Desplegar Juan** además de Odoo.
-- **Sigue:** su respuesta sobre la línea «Combo con colchón» en campaña; las pruebas nuevas de la campaña y la
-  revisión adversarial (toca precios); capturas de Andrés; luego CI con staging, producción y Desplegar Juan, con
-  días de margen antes del 27.
-- **Esta máquina:** se reinició dos veces en la tarde (PostgreSQL queda abajo: `pg_ctlcluster 16 main start`). El
-  trabajo sin subir de Black Friday vivía en una copia aparte del scratchpad; se pasó a la rama apenas terminó el squash.
-
-### 2026-11-15 (2): portada v3 (paleta, espaciado, categorías y carriles en una fila, carrito como ícono, chat de vidrio), en producción (Desplegar 75)
-
-**En producción desde el 2026-11-15, 08:3x UTC (salud sana: `{"ok": true, "version": "6c7fdc425be3", "base_al_dia": true, "humo": "ok"}`):** **Desplegar 75** (run 43693725820) con la imagen `sha256:84085a134a139c75cf76db42220b342d958691334551d43fb33dea637eba0065` y `app_version` `6c7fdc425be329adb00180abfc5a20347bf2ff0f` (PR #121, squash `6221175`; CI 363 con staging, run 43689911281), con respaldo previo. Juan no cambió (sin Desplegar Juan). **Es lo último en producción.** Comprobado en dcasapty.com a 1440 y 390 px: categorías con los conteos reales (Salas 2, Recámaras 121, Colchones 7, Zapateras 28, Estantes 70, Oficina 6), carriles en una fila con flechas y línea de avance, carrito redondo de 48 px (barra en el celular), «Agotado» en una zapatera de «Lo más buscado» que de verdad está en 0; sin errores en la consola.
-
-- **Aprobación de la dueña (tal cual):** con las capturas y el chat ampliado de vidrio a la vista: «Perfecto, me encanta
-  eso… mándalo a las pruebas, mándalo a staging y a producción… apruebo todo, despliégalo todo cuanto antes».
-- **Lo que encontraron las pruebas locales antes del CI** (5 de 591, dos corridas): el antetítulo más chico tocaba la
-  foto grande de la portada (contrato visual del hero a 390 px, 1,99 %): ahora solo en la cabecera de las secciones; el
-  carrito salía de 44 × 48 porque `.o_dcasa_home .btn` pide 48 px mínimo: ahora 48 × 48; dos pruebas al día («Elegir» ya
-  no es texto; el color de los íconos del chat se mide sin foco y después de su transición). CI 361 y 362 cancelados para
-  meter esos arreglos.
-
-- **Pedido de la dueña (tal cual, en corto):** «¿Qué le hace falta a tu casa?» y «Lo más buscado» «se salen una página
-  entera»; mirar cómo reparte el espacio jamar.com.pa; «si ve un carrito, entiende que es añadir al carrito… que el texto no
-  sea tan grande, que quepa más»; mejorar la paleta; la barra azul del chat «del mismo material que el navbar… los iconos
-  negros… el robotcito tal cual»; y después: «no quiero copiar a Jamar… superarlos con creces… sofisticado, moderno… con
-  sentido de necesidad y urgencia… respetando el branding». **Pidió capturas antes de cualquier prueba o subida.**
-- **Qué lleva:** `website_dcasa` (paleta v3: hueso #F6F5F2 en vez del beige #F4F1EA, titulares
-  de 56 a 40 px, secciones de 120 a 72 px; categorías 6 en fila / 3×2 con el nombre y «N productos» debajo
-  (`_dcasa_categoria_cantidad`); carriles de la portada en una fila deslizable con flechas y línea de avance, `carril.js`;
-  tarjeta blanca 4:5 con el carrito solo con ícono (`icono_carrito`, aria-label intacto) y WhatsApp, y en tarjeta angosta
-  una barra con `@container`; Inspírate en una fila). `dcasa_catalogo`: «Quedan pocas» / «Agotado» sobre la foto con la
-  regla de la ficha (`tarjeta_disponibilidad`). `dcasa_brian_tienda`: cabecera de vidrio igual a la píldora (mismo
-  `--dcasa-refraccion`), texto navy, íconos tinta, punto amarillo con aro azul. Mismo hueso en Mi cuenta y «Busca con una
-  foto»; los correos no. Black Weekend no cambia (su carril y su tarjeta son propios).
-- **Medido (copia de prueba, 1440 × 900):** portada de 10.425 a 6.530 px; categorías de 1.473 a 491; «Lo más buscado» de
-  1.468 a 646. Comparación para la dueña: <https://claude.ai/artifact/XQti28eQjFLDzT1Z9CpsRH>.
-- **Esta máquina:** contenedor nuevo; Odoo con `git submodule update --init --depth 1 vendor/odoo` y venv de Python 3.12
-  en el scratchpad (con 3.13 no compila `rl-renderPM`; receta en CONTEXTO_AGENTICO). Capturas con la base `web_antes`
-  (worktree del commit anterior) y `web_despues`; la cama «Tono Arena» con 2 unidades solo en la copia, para mostrar la
-  etiqueta.
-- **Sigue:** que la dueña lo mire en su iPhone (en Safari el vidrio es esmerilado, sin la onda de agua: es lo mismo que le
-  pasa al navbar). Posibles mejoras que ella puede pedir: que «Lo más buscado» ponga primero lo que tiene existencia (hoy
-  sale un «Agotado» real en tercer lugar) y Black Weekend con el mismo carril y la tarjeta nueva (hoy conserva los suyos).
-  Ojo: la portada guardada en el borde puede tardar en mostrar un «Quedan pocas» nuevo.
-
-### 2026-11-15: alternativas para Messenger e Instagram sin la revisión de Meta (OpenReply y 14 repos más). Solo investigación: no cambió código ni producción
-
-- **Pedido:** ver si OpenReply (`diwenne/openreply`), una lista de MCPs de Instagram y otros repos sirven para que Juan conteste
-  Instagram y Messenger a todos los clientes sin que los jefes pasen la revisión de la app de Meta y la verificación del negocio.
-- **Conclusión: ninguno quita la revisión y ninguno supera a Juan.** OpenReply es un clon de ManyChat solo de Instagram
-  (palabra clave en un comentario → DM con textos fijos): sin IA, sin base de conocimiento, sin memoria, sin Messenger; es
-  autoalojado (Next.js + Postgres + Redis) y **no tiene planes** (el sitio es una demo). Sus propios documentos dicen que
-  para cuentas sin rol en la app hace falta revisión y verificación del negocio. Los 5 MCPs de Instagram son herramientas para
-  un asistente (publicar, leer): ninguno recibe DMs y contesta solo; 4 piden app propia de Meta y revisión para DMs de
-  clientes reales; el quinto (`official-Arvind`) usa `instagrapi` (no oficial) y su README avisa de cierre de la cuenta.
-  Los otros (comment-to-DM, bots de WhatsApp por Baileys) no usan IA o usan WhatsApp no oficial: no aportan.
-- **Lo único que se acerca:** un proveedor que pone **su propia app de Meta**: **Zernio** (antes Late; patrocina OpenReply,
-  alimenta ZernFlow). API de bandeja con Instagram, Facebook, WhatsApp, Telegram; avisos entrantes por webhook; envío por
-  `POST /api/v1/inbox/conversations/{id}/messages`. Precio (de resultados de búsqueda de su documentación, no del sitio):
-  pago por cuenta con 2 gratis y 10.000 mensajes al mes gratis, después US$0,0001 por mensaje; las fuentes se contradicen
-  en algo. **No verificado:** que su app tenga acceso avanzado de mensajería para Instagram y Messenger (para WhatsApp sí
-  dice «sin crear app ni pasar revisión»); terceros dicen que un proveedor «mueve» la revisión, no la elimina. Reseñas
-  mixtas en Trustpilot. **El proxy de esta sesión bloquea `zernio.com` y `openreply.diwen.dev`**: no se leyeron sus sitios.
-- **Si se prueba:** un adaptador nuevo en `juan/src/canales/` (interfaz de `tipos.ts`; los adaptadores de hoy miden 250–550
-  líneas), apagado de fábrica. Primero la prueba barata: conectar una cuenta de Instagram SIN papel a Zernio (cuenta gratis) y
-  ver si el mensaje llega al webhook. **Privacidad:** los mensajes y nombres de clientes pasarían por un tercero (hoy van
-  Meta → Juan → Odoo); pide el visto bueno de los jefes y revisar sus términos (Ley 81).
-- **Sigue:** decisión de los jefes: (a) verificar el negocio y pedir la revisión (el camino de siempre), (b) probar Zernio
-  con la prueba barata, o (c) dejarlo como está. Meta también lanzó su propio «Business Agent» (junio 2026; gratis según
-  unas fuentes, con cobro por token según otras; no verificado en Meta): compite con Juan y no usa Odoo, no se recomienda.
-
 ### Entradas anteriores (una línea cada una; el texto completo en [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md))
 
+- **2026-11-15 (3):** bandas en azul noche y pie claro, menú sin «Escríbenos», contacto y el carrito en el chat, en producción (Desplegar 76); Black Friday y «Andrés» en la rama
+- **2026-11-15 (2):** portada v3 (paleta, espaciado, categorías y carriles en una fila, carrito como ícono, chat de vidrio), en producción (Desplegar 75)
+- **2026-11-15:** alternativas para Messenger e Instagram sin la revisión de Meta (OpenReply y 14 repos más); solo investigación, ningún cambio
 - **2026-11-13 (2) y 2026-11-14:** avisos de Telegram ordenados, lote 1 de la web, «Busca con una foto», ícono de Brian y horario (Desplegar 71 y Juan 25); Brian de la tienda y lote 2 de la web (Desplegar 72 y Juan 26); la burbuja que cambia con el scroll (Desplegar 73); el 15, Brian siempre activo de noche (Juan 27 y Desplegar 74), en producción
 - **2026-11-13:** Juan ya no dice «no lo manejamos» de lo que no está publicado (Desplegar 69 y Juan 23) y
   responde comentarios de Instagram y Facebook, apagado (Desplegar 70 y Juan 24), en producción

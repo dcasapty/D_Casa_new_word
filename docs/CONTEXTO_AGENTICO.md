@@ -1780,6 +1780,37 @@ Lo que quedó escrito para no repetirlo:
   despachando el evento y mirando `defaultPrevented`. La prueba de 360 y 390 px de la fila (`test_en_el_celular_la_fila…`) es
   intermitente en esta máquina con otras sesiones corriendo: repetirla sola antes de culpar al código.
 
+### Lo que enseñó contrastar el informe de ChatGPT con el código y hacer el audio y el video (2026-11-20)
+
+- **Quién produce cada cifra del informe.** Las respuestas de Brian (el asistente del sistema, herramientas de solo lectura) alimentaron la auditoría.
+  «Último acceso» de una vendedora = `res.users.login_date` (`dcasa_brian/models/herramientas_usuarios.py`): mide el **inicio de sesión**, no que
+  trabaje; no prueba que no entre. El margen y la ganancia salen de `dcasa_base/models/utilidad.py` (`dcasa_utilidad`, **solo líneas con costo**) y de
+  `dcasa_interfaz/models/ventas_bases.py::_ganancia_de_filas`; el «costo de ventas en cero» del informe es otra cosa (la contabilidad), no se cruzan. Las
+  tasas de conversión (1.95 %, 1.05 %, 2.03 %) son atribuciones a 30 días y por periodos distintos (`dcasa_conversaciones/models/panel_calculos.py`):
+  no se comparan entre sí. Los pedidos de la web entran **sin vendedora** (`website_dcasa/models/pedido_web.py`, desde 2026-10-17) y las cotizaciones del
+  chatbot y de la web se cancelan solas a los 3 días (`cotizacion_dias_abierta`).
+- **«Cero oportunidades ganadas»:** el CRM automático (`dcasa.juan.ajustes.crm_automatico`, por defecto encendido) solo marca «ganada» si la oportunidad
+  tiene una cotización vinculada con factura **pagada** (`crm_lead.py::_dcasa_ganar_si_hay_pago`, cron cada 15 minutos). Si el interruptor está apagado o
+  las cotizaciones no están vinculadas a su oportunidad, da cero aunque se venda. **Hay que mirarlo en el sistema en vivo**, no se deduce del código.
+- **Mi primera lectura fue errónea** (presenté la diferencia de $129.99, el margen de 41.4 % y los «sin acceso» como fallas): se corrigió leyendo la
+  conversación y el código. Antes de decirle a la dueña que un número del informe está mal, rastrear de dónde sale en el código y en lo que contestó Brian.
+- **Audio y video para los jefes, sin pagar** (receta; los archivos y el guion llevan cifras de la empresa y **no** van al repositorio, que es público):
+  `piper-tts` en un `venv` (`pip install piper-tts num2words`), voz `es_MX-claude-high` (Hugging Face `rhasspy/piper-voices`; el proxy de la sesión deja
+  bajarla), 38 minutos de voz se generan en ≈ 5 minutos; una diapositiva por «beat» (voz + imagen), la duración de cada diapositiva = la de su audio; diapositivas
+  en HTML 1920×1080 con la marca (Anton y Oswald salen de `addons/website_dcasa/static/src/fonts/`, Inter es del sistema) capturadas con Playwright; `ffmpeg`
+  `concat` de imágenes + audio normalizado (`loudnorm`), `-tune stillimage -crf 28`: 38 minutos pesan ≈ 30 MB (mp3 a 64 kbps ≈ 18 MB). Trampas: los números
+  hay que decirlos en palabras y **con género** (`mil trescientas sesenta y una propuestas`, `veintiún mil`) y los nombres propios con su pronunciación
+  (`Brian`→«Brayan», `Odoo`→«Odú», `Yappy`→«Yapi», `ChatGPT`→«Chat Yi Pi Ti», `D'CASA`→«De Casa»); para revisar el diseño sin abrir 63 imágenes, planillas de
+  miniaturas con `ffmpeg … -t 9 -vf tile=3x3 -frames:v 1` (sin `-t`, ffmpeg se queja de «más de un archivo»). No se puede **escuchar** desde aquí: la dueña confirma
+  cómo suena.
+- **Voz profesional por la agencia (Calendario_Marketing):** `generar_locucion` suelta admite hasta 5,000 caracteres por llamada y la primera llamada solo
+  cotiza (1,118 caracteres con la voz Emma = US$0.25, ≈ US$7.30 para las 8 tandas del guion); **solo con el «sí» de la dueña** se repite con `confirmado=true`.
+  No está comprobado que el audio se pueda bajar al contenedor para meterlo en el video local; quedaría por la plataforma de la agencia.
+- **El contenedor «reiniciado» no siempre mata lo que corre de fondo:** tras el aviso de reinicio la batería de Odoo (un solo proceso) seguía viva y su `dropdb`
+  de relanzamiento falló con «being accessed by other users» (eso evitó borrar la base en uso). Antes de relanzar algo largo: `pgrep -fa odoo-bin` y mirar la hora
+  de la última línea del log. En cambio un `ffmpeg` largo lanzado en primer plano **sí** murió (código 137, archivo sin `moov`): lanzar lo largo con `nohup` a un
+  archivo temporal y renombrar al terminar.
+
 ### Cloudflare
 
 - **Un secreto nuevo del panel del Worker `dcasa` no llega a Odoo hasta que el contenedor arranca otra vez**
