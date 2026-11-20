@@ -44,7 +44,8 @@ from datetime import date
 from odoo import api, fields, models
 from odoo.exceptions import UserError
 
-TESTIGOS = ('dcasa_nacio_en_web', 'dcasa_via_andres', 'dcasa_llevada_por_vendedora', 'dcasa_creada_por_id')
+TESTIGOS = ('dcasa_nacio_en_web', 'dcasa_via_andres', 'dcasa_llevada_por_vendedora', 'dcasa_creada_por_id',
+            'dcasa_tocada_por_id')
 # Lo derivado de las marcas: se calcula, y escribirlo a mano se ignora (nunca cambia lo que cuenta).
 DERIVADOS = ('dcasa_venta_online',)
 CLAVE_CONTEXTO = 'dcasa_base_escribir_testigo'
@@ -71,6 +72,12 @@ class SaleOrderOnline(models.Model):
         'res.users', 'Carrito abierto por', readonly=True, copy=False, index='btree_not_null',
         help='Quién abrió el carrito de la página (el visitante o, si es alguien del equipo, quién fue). Sirve para '
              'vigilar si el personal teclea pedidos de la página; no cambia lo que cuenta.')
+    dcasa_tocada_por_id = fields.Many2one(
+        'res.users', 'Lo cambió el equipo', readonly=True, copy=False, index='btree_not_null',
+        help='La última persona del equipo (un usuario interno) que cambió el cliente o las líneas de un pedido que ya '
+             'nació por un flujo digital, o quien tecleó el precio de una línea (la tienda pone los precios sola). '
+             'Nadie lo escribe a mano. Es vigilancia: no cambia lo que cuenta. Cubre el carrito que abre un visitante '
+             'y después arma alguien a mano para cobrarlo como venta del sitio.')
     dcasa_venta_online = fields.Boolean(
         'Venta online', compute='_compute_dcasa_venta_online', store=True, index=True,
         help='La definición única: nació por un flujo digital (la página, Andrés, la cotización de Juan) y no la llevó '
@@ -110,12 +117,26 @@ class SaleOrderOnline(models.Model):
             vals = {k: v for k, v in vals.items() if k not in DERIVADOS}
             if not vals:
                 return True
-        return super().write(vals)
+        resultado = super().write(vals)
+        if ('partner_id' in vals or 'order_line' in vals) and self.env.context.get(CLAVE_CONTEXTO) is not ESCRIBIR:
+            self._dcasa_anotar_quien_toco()
+        return resultado
+
+    def _dcasa_anotar_quien_toco(self):
+        """Si una persona del equipo (un usuario interno, no un visitante ni un cliente) cambia el cliente o las líneas
+        de un pedido que nació por un flujo digital, queda anotado quién: así Gerencia ve el carrito que abrió un
+        visitante y después se armó a mano para cobrarlo como venta del sitio. Solo vigilancia."""
+        usuario = self.env.user
+        if usuario.share:
+            return
+        self.filtered(lambda o: o.dcasa_nacio_en_web and o.dcasa_tocada_por_id != usuario)._dcasa_escribir_marca(
+            dcasa_tocada_por_id=usuario.id)
 
     def _dcasa_escribir_marca(self, **marcas):
         """Único camino para escribir las marcas de origen (solo código del sistema; ver arriba)."""
         pendientes = self.filtered(lambda o: any(
-            (o[clave].id if clave == 'dcasa_creada_por_id' else o[clave]) != valor for clave, valor in marcas.items()))
+            (o[clave].id if o._fields[clave].type == 'many2one' else o[clave]) != valor
+            for clave, valor in marcas.items()))
         if pendientes:
             pendientes.sudo().with_context(**{CLAVE_CONTEXTO: ESCRIBIR}).write(marcas)
         return pendientes
@@ -144,6 +165,38 @@ class SaleOrderOnline(models.Model):
         if not desde:
             return []
         return ['|', ('dcasa_venta_online', '=', False), (campo_dia, '<', fields.Date.to_string(desde))]
+
+
+class SaleOrderLineOnline(models.Model):
+    _inherit = 'sale.order.line'
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        lineas = super().create(vals_list)
+        con_precio = lineas.browse(
+            [linea.id for linea, vals in zip(lineas, vals_list, strict=True) if 'price_unit' in vals])
+        con_precio._dcasa_anotar_precio_a_mano()
+        return lineas
+
+    def write(self, vals):
+        resultado = super().write(vals)
+        if 'price_unit' in vals:
+            self._dcasa_anotar_precio_a_mano()
+        return resultado
+
+    def _dcasa_anotar_precio_a_mano(self):
+        """El carrito, Andrés y las cotizaciones de Juan dejan que el precio de cada línea lo ponga la tienda: quien
+        TECLEA un precio en una línea de producto de un pedido que nació por un flujo digital lo está armando a mano
+        (para cobrarlo como venta del sitio con otro precio), y eso es lo que se vigila: ``dcasa_tocada_por_id``. No
+        cuentan el envío, el anticipo, los premios (precio negativo) ni lo que Odoo recalcula solo."""
+        if self.env.context.get('sale_write_from_compute'):
+            return
+        usuario = self.env.user
+        ordenes = self.filtered(
+            lambda ln: not ln.display_type and not ln.is_downpayment and ln.price_unit > 0
+            and not ('is_delivery' in ln._fields and ln.is_delivery) and ln.order_id.dcasa_nacio_en_web).order_id
+        ordenes.filtered(lambda o: o.dcasa_tocada_por_id != usuario)._dcasa_escribir_marca(
+            dcasa_tocada_por_id=usuario.id)
 
 
 class AccountMoveOnline(models.Model):

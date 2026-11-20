@@ -50,6 +50,7 @@
                             <field name="forma_pago"/>
                             <field name="atendida_por_vendedora"/>
                             <field name="creado_por_id"/>
+                            <field name="tocada_por_id"/>
                         </group>
                         <group string="Los montos (sin ITBMS)">
                             <field name="productos"/>
@@ -95,7 +96,7 @@
                         domain="[('fecha_cobro', '&gt;=', (context_today().replace(day=1)).strftime('%Y-%m-%d'))]"/>
                 <filter name="con_vendedora" string="Atendió una vendedora" domain="[('atendida_por_vendedora', '=', True)]"/>
                 <filter name="sin_vendedora" string="Sin vendedora" domain="[('atendida_por_vendedora', '=', False)]"/>
-                <filter name="carrito_del_equipo" string="Carrito abierto por alguien del equipo"
+                <filter name="carrito_del_equipo" string="Abrió o cambió el carrito alguien del equipo"
                         domain="[('creado_por_personal', '=', True)]"/>
                 <separator/>
                 <filter name="medidas" string="Solo medidas (sin comisión)" domain="[('reglas_id', '=', False)]"/>
@@ -106,6 +107,7 @@
                 <filter name="por_llegada" string="Cómo llegó" context="{'group_by': 'como_llego'}"/>
                 <filter name="por_pago" string="Cómo pagó" context="{'group_by': 'forma_pago'}"/>
                 <filter name="por_creador" string="Quién abrió el carrito" context="{'group_by': 'creado_por_id'}"/>
+                <filter name="por_tocada" string="Quién lo cambió" context="{'group_by': 'tocada_por_id'}"/>
             </search>
         </field>
     </record>

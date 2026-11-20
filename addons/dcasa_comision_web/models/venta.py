@@ -60,10 +60,14 @@ class DcasaWebVenta(models.Model):
     forma_pago = fields.Selection(FORMAS_DE_PAGO, 'Cómo pagó', readonly=True, index=True)
     creado_por_id = fields.Many2one('res.users', 'Carrito abierto por', readonly=True,
                                     help='Quién abrió el carrito de la página (dcasa_creada_por_id del pedido).')
+    tocada_por_id = fields.Many2one('res.users', 'Lo cambió el equipo', readonly=True,
+                                    help='La última persona del equipo que cambió el cliente o las líneas del pedido '
+                                         '(dcasa_tocada_por_id del pedido).')
     creado_por_personal = fields.Boolean(
         'Carrito de alguien del equipo', readonly=True, index=True,
-        help='El carrito lo abrió una persona del equipo (un usuario interno), no un visitante. Cotizar en la página y '
-             'pagar en la tienda SÍ cuenta (decisión de Gerencia): esto es la vigilancia para ver quién lo hace.')
+        help='Una persona del equipo (un usuario interno, no un visitante ni el asistente Juan) abrió el carrito o '
+             'cambió su cliente o sus líneas. Cotizar en la página y pagar en la tienda SÍ cuenta (decisión de '
+             'Gerencia): esto es la vigilancia para ver quién lo hace.')
     atendida_por_vendedora = fields.Boolean(
         'Una vendedora la atendió', readonly=True,
         help='El pedido tiene vendedora asignada (por ejemplo la que lo confirmó). Sigue siendo venta online.')
@@ -247,6 +251,13 @@ class DcasaWebVenta(models.Model):
         return 'tienda' if forma == 'en_tienda' else 'web'
 
     @api.model
+    def _es_del_equipo(self, ordenes):
+        """¿Alguien del equipo (un usuario interno) abrió el carrito de estos pedidos o cambió su cliente o sus líneas?
+        El asistente Juan y los visitantes son usuarios de portal o públicos: no cuentan como del equipo."""
+        ordenes = ordenes.sudo()
+        return bool(ordenes.dcasa_creada_por_id.filtered(lambda u: not u.share) or ordenes.dcasa_tocada_por_id)
+
+    @api.model
     def _atendida_por_vendedora(self, ordenes):
         juan = self.env.ref('dcasa_conversaciones.user_juan', raise_if_not_found=False)
         return any(o.user_id and o.user_id.id != SUPERUSER_ID and o.user_id != juan for o in ordenes.sudo())
@@ -285,8 +296,8 @@ class DcasaWebVenta(models.Model):
             'como_llego': self._como_llego(ordenes, forma),
             'atendida_por_vendedora': self._atendida_por_vendedora(ordenes),
             'creado_por_id': ordenes[:1].dcasa_creada_por_id.id or False,
-            'creado_por_personal': bool(ordenes[:1].dcasa_creada_por_id
-                                        and not ordenes[:1].dcasa_creada_por_id.share),
+            'tocada_por_id': ordenes.dcasa_tocada_por_id[:1].id or False,
+            'creado_por_personal': self._es_del_equipo(ordenes),
             'reglas_id': reglas.id or False, 'porcentaje': reglas.porcentaje if reglas else 0.0,
             **self._valores_de_componentes(c),
         })

@@ -94,6 +94,82 @@ class TestOrigenYVigilancia(ComisionReloj):
 
 # ----------------------------------------------------------------------------------------------------------------------
 # B2: quien cobra no aprueba lo suyo, aunque cambie su ficha
+@tagged('post_install', '-at_install')
+class TestVigilanciaDelPuntoCiego(ComisionReloj):
+    """Un carrito que abre un visitante y luego arma a mano alguien del equipo: queda señalado (segunda revisión)."""
+
+    def otro_cliente(self):
+        return self.env['res.partner'].create({'name': 'Cliente de mostrador vigilado', 'phone': '+507 6555-0391',
+                                               'email': 'mostrador.vigilado@example.com'})
+
+    def test_el_equipo_que_cambia_el_cliente_o_las_lineas_de_un_carrito_de_visitante_queda_anotado(self):
+        publico = self.env.ref('base.public_user')
+        for cambio in ({'partner_id': self.otro_cliente().id},
+                       {'order_line': [Command.create({'product_id': self.mueble.id, 'product_uom_qty': 1})]}):
+            with self.subTest(cambio=list(cambio)):
+                orden = self.orden(creado_por=publico, confirmar=False)
+                self.assertFalse(orden.dcasa_tocada_por_id)
+                orden.with_user(self.u_gerencia).write(cambio)
+                self.assertEqual(orden.dcasa_tocada_por_id, self.u_gerencia)
+
+    def test_un_visitante_o_un_cliente_que_edita_su_carrito_no_deja_senal(self):
+        orden = self.orden(creado_por=self.env.ref('base.public_user'), confirmar=False)
+        portal = new_test_user(self.env, login='com_portal_vigilado', groups='base.group_portal')
+        for usuario in (self.env.ref('base.public_user'), portal):
+            with self.subTest(usuario=usuario.login):
+                orden.with_user(usuario).sudo().write({'partner_id': orden.partner_id.id,
+                                                       'order_line': [Command.create({
+                                                           'product_id': self.mueble.id, 'product_uom_qty': 1})]})
+        self.assertFalse(orden.dcasa_tocada_por_id)
+
+    def test_teclear_el_precio_de_una_linea_de_un_pedido_digital_lo_senala_aunque_lo_haga_quien_abrio_el_carrito(self):
+        """La tienda pone los precios sola: un precio tecleado en una línea de producto es un pedido armado a mano."""
+        publico = self.env.ref('base.public_user')
+        for linea, esperado in (
+                ({'product_id': self.mueble.id, 'product_uom_qty': 1}, False),                      # lo normal
+                ({'product_id': self.premio.id, 'product_uom_qty': 1, 'price_unit': -50.0}, False),   # un premio
+                ({'product_id': self.mueble.id, 'product_uom_qty': 1, 'price_unit': 800.0}, True)):    # precio a mano
+            with self.subTest(linea=linea):
+                orden = self.orden(creado_por=publico, confirmar=False)
+                orden.with_user(publico).sudo().write({'order_line': [Command.create(linea)]})
+                self.assertEqual(bool(orden.dcasa_tocada_por_id), esperado)
+
+    def test_un_pedido_de_mostrador_no_se_marca_aunque_lo_cambie_el_equipo(self):
+        tienda = self.orden(web=False, confirmar=False)
+        tienda.with_user(self.u_gerencia).write({'partner_id': self.otro_cliente().id})
+        self.assertFalse(tienda.dcasa_tocada_por_id)
+
+    def test_la_marca_de_quien_lo_cambio_no_se_escribe_ni_se_fabrica_a_mano(self):
+        orden = self.orden(confirmar=False)
+        with self.assertRaisesRegex(UserError, 'lo pone el sistema'):
+            orden.sudo().write({'dcasa_tocada_por_id': self.u_gerencia.id})
+        creada = self.env['sale.order'].with_user(self.u_gerencia).with_context(
+            default_dcasa_tocada_por_id=self.u_caja.id).create({'partner_id': self.cliente.id})
+        self.assertFalse(creada.dcasa_tocada_por_id)
+
+    def test_la_venta_y_el_reporte_de_gerencia_muestran_quien_lo_cambio(self):
+        self.version(10.0)
+        orden = self.orden(creado_por=self.env.ref('base.public_user'), confirmar=False)
+        orden.with_user(self.u_gerencia).write({'partner_id': self.otro_cliente().id})
+        orden.action_confirm()
+        factura = self.facturar(orden)
+        self.pagar(factura)
+        venta = self.venta(factura)
+        self.assertEqual((venta.tocada_por_id, venta.creado_por_personal), (self.u_gerencia, True))
+        self.assertFalse(venta.creado_por_id.id == self.u_gerencia.id, 'el visitante abrió el carrito')
+        accion = self.env.ref('dcasa_comision_web.accion_pedidos_vigilados')
+        encontrados = self.env['sale.order'].with_user(self.u_gerencia).search(
+            safe_eval(accion.domain) + [('dcasa_tocada_por_id', '!=', False)])
+        self.assertEqual(encontrados, orden)
+
+    def test_la_cotizacion_de_juan_editada_por_el_equipo_tambien_queda_senalada(self):
+        juan = self.env.ref('dcasa_conversaciones.user_juan')
+        orden = self.orden(creado_por=juan, confirmar=False)
+        self.assertFalse(self.env['dcasa.web.venta']._es_del_equipo(orden), 'Juan no es una persona del equipo')
+        orden.with_user(self.u_vendedora).write({'partner_id': self.otro_cliente().id})
+        self.assertTrue(self.env['dcasa.web.venta']._es_del_equipo(orden))
+
+
 # ----------------------------------------------------------------------------------------------------------------------
 
 @tagged('post_install', '-at_install')

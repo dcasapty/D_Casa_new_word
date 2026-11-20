@@ -27,7 +27,8 @@ def migrate(cr, version):
          WHERE website_id IS NOT NULL AND dcasa_nacio_en_web IS NOT TRUE""")
     # Las cotizaciones que armó Juan (la herramienta de cotizar corre con el usuario del asistente).
     cr.execute("""
-        UPDATE sale_order o SET dcasa_nacio_en_web = TRUE
+        UPDATE sale_order o SET dcasa_nacio_en_web = TRUE,
+                                dcasa_creada_por_id = COALESCE(o.dcasa_creada_por_id, d.res_id)
           FROM ir_model_data d
          WHERE d.module = 'dcasa_conversaciones' AND d.name = 'user_juan' AND d.model = 'res.users'
            AND o.create_uid = d.res_id AND o.dcasa_nacio_en_web IS NOT TRUE""")

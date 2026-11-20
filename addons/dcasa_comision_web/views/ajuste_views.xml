@@ -45,6 +45,7 @@
                 <field name="partner_id"/>
                 <field name="user_id" string="Vendedora"/>
                 <field name="dcasa_creada_por_id" string="Carrito abierto por"/>
+                <field name="dcasa_tocada_por_id" string="Lo cambió el equipo"/>
                 <field name="dcasa_llevada_por_vendedora" string="La llevó una vendedora"/>
                 <field name="amount_untaxed" sum="Sin ITBMS"/>
                 <field name="state"/>
@@ -59,13 +60,17 @@
             <search string="Pedidos de la página para revisar">
                 <field name="name"/>
                 <field name="dcasa_creada_por_id"/>
+                <field name="dcasa_tocada_por_id"/>
                 <filter name="llevada" string="La llevó una vendedora (aunque sea un mensaje)"
                         domain="[('dcasa_llevada_por_vendedora', '=', True)]"/>
                 <filter name="del_equipo" string="Carrito abierto por alguien del equipo"
                         domain="[('dcasa_creada_por_id.share', '=', False)]"/>
+                <filter name="tocado" string="Lo cambió alguien del equipo (cliente o líneas)"
+                        domain="[('dcasa_tocada_por_id', '!=', False)]"/>
                 <separator/>
                 <filter name="por_creador" string="Quién abrió el carrito"
                         context="{'group_by': 'dcasa_creada_por_id'}"/>
+                <filter name="por_tocada" string="Quién lo cambió" context="{'group_by': 'dcasa_tocada_por_id'}"/>
                 <filter name="por_vendedora" string="Vendedora" context="{'group_by': 'user_id'}"/>
             </search>
         </field>
