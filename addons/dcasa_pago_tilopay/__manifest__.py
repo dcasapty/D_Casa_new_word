@@ -20,7 +20,7 @@ Pagos con Tilopay
 
 Investigación, amenazas, qué poner en Cloudflare y guion de pruebas: ``docs/TILOPAY.md``.
 """,
-    'version': '19.0.1.0.0',
+    'version': '19.0.1.1.0',
     'category': 'Accounting/Payment Providers',
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',

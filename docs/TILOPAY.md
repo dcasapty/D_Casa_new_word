@@ -413,6 +413,27 @@ personas del equipo con sesión iniciada**: un visitante no puede abrirlo (§3, 
 - **Brian** (`docs/BRIAN.md`): una herramienta de solo lectura «¿Tilopay está encendido y conectado?» (como `estado_de_meta`) no se
   hizo; la activación es del administrador por pantalla y no hay nada que Brian deba poder cambiar.
 
+### 9.1 Antes de cobrar de verdad (lista de salida, de la tercera vuelta del revisor)
+
+Staging y producción en «Modo de prueba» (proveedor sin publicar) ya están cubiertos. **Para cobrar dinero real** hay además que
+dejar escrito y hecho esto, en este orden:
+
+1. **Registrar el aviso (webhook) con Soporte de Tilopay** (§6.3): `https://dcasapty.com/payment/tilopay/webhook`. Es el arreglo
+   de fondo: con el aviso, el cliente deja señal aunque cierre la pestaña. No es una mejora, es requisito de salida.
+2. **Preguntar a Soporte cuánto dura la página de pago** (§8, punto 7). Si es corta, el caso del punto 3 desaparece.
+3. **Un pago que se hace 24 horas o más después de abrir la página, sin retorno y sin aviso, nunca se confirma solo.** «Lo que
+   Tilopay nunca vio deja de preguntarse al día» tiene esa consecuencia: pasado ese tiempo la transacción vence y el sistema deja de
+   preguntar. Si el cliente igual pagó, el dinero está en Tilopay y no en Odoo.
+4. **Conciliación a diario, a mano, mientras no exista la automática:** abrir el panel de Tilopay y comparar lo cobrado con lo
+   pagado en Odoo (diario «Tilopay»). Lo cobrado que no esté pagado en Odoo se resuelve con el cliente. Para la v2: una tarea con
+   `consultTransactions` (`onlyAproved=1`) que avise a Gerencia de lo aprobado en Tilopay y no pagado en Odoo.
+5. **Las verificaciones de siempre con Tilopay** (§8): `environment` real de producción, formato del monto, códigos de Yappy, la
+   llave API y cómo sale un reembolso en `consult`.
+
+Dos avisos al equipo, para que no sorprendan: el aviso de «estado que no se entiende» sale **una sola vez** por transacción (queda
+marcada aunque Gerencia dé la actividad por hecha), y un cobro que no cuadra con el pedido se resuelve **sin tocar la transacción
+de Tilopay**: se confirma y se factura el pedido, y el pago se registra a mano en el diario Tilopay.
+
 ## 10. Cómo se probó
 
 Todo con un **Tilopay simulado**, sin red real ni dinero: `tests/common.py` trae `SimuladorTilopay`, que sustituye a
@@ -431,6 +452,8 @@ registros y pantallas.
 | `tests/test_correcciones.py` | Lo que esas correcciones piden además: nota y actividad para Gerencia (sin repetirse), el total que vuelve a coincidir, la última comprobación antes de confirmar, lo rechazado o cancelado cada 3 horas y solo 3 días, estado intermedio que queda pendiente, ritmo de la tarea (8 min / 1 h), orden por antigüedad, lotes, paro tras 3 fallas, presupuesto de tiempo, tope de 300 páginas por hora, montos de más de mil dólares y apartado |
 | `tests/test_segunda_vuelta.py` | La segunda vuelta del revisor: total del pedido a fondo (dos transacciones, cambiar y volver a cambiar, HTML en el nombre, quién recibe la actividad), tope global, ráfagas simuladas (con y sin señal de vida), estado raro, montos y códigos raros, `DCASA_ENTORNO` con valores raros, «Publicado» en modo de prueba en producción. Las que dependen de una decisión (N-6) o de un modelo imposible de cumplir (la ráfaga sostenida sin señal de vida) están adaptadas y lo dicen en su docstring |
 | `tests/test_segunda_ronda.py` | Lo que piden N-1 a N-6: tope de llamadas a la vez (global, sin esperar, con hilos de verdad, reserva de la tarea), freno de ritmo por conexión, rutas web con lo reciente y la señal de vida, tope por conexión y global por HTTP, estado raro con aviso una sola vez, «Publicado» en modo de prueba en producción y el cobro marcado para revisión |
+| `tests/test_tercera_vuelta.py` | La tercera vuelta del revisor: el freno por conexión con 100 000 conexiones falsas (la memoria tiene tope y Tilopay sigue pasando), el cupo que se suelta con cualquier error, ningún camino paga solo una transacción marcada para revisión (retorno, aviso, reloj y tarea, por HTTP), el aviso de estado raro **una sola vez** aunque Gerencia lo cierre, la huella (no es la dirección, no se registra, cambia con el secreto), lo de prueba que no se le ofrece a un visitante en producción y que la señal de vida falsificada no retrasa al cliente que sí volvió |
+| `edge/test/tilopay_tercera_vuelta.test.ts` | La IP que le llega a Odoo es la que pone Cloudflare: `X-Forwarded-For` y `X-Real-IP` del visitante se pisan con `CF-Connecting-IP`, de punta a punta por la ruta de Tilopay |
 | `edge/test/tilopay.test.ts` | Las variables viajan al contenedor y no impiden el arranque; la ruta pasa a Odoo, sin caché, sin freno de ritmo, sin bloqueo (también con la puerta del equipo en modo obligatorio); un POST cortado no se repite desde el borde; staging fijado en `prueba` |
 | `edge/test/tilopay_revision.test.ts` | De la revisión independiente: variantes raras de la ruta (`.css`, `..`, `%70`, doble barra, con idioma) que nunca se vuelven cacheables ni caen en una ruta bloqueada, una respuesta «public» de Odoo que no se guarda, y claves vacías o con espacios que no inventan nada |
 

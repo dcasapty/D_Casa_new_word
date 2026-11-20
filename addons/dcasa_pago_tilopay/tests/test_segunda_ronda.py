@@ -345,6 +345,22 @@ class TestUnEstadoQueNoSeEntiendeNoPasaEnSilencio(BaseRonda):
         self.assertEqual(len(actividades.filtered(lambda a: a.user_id == self.gerencia)), 1)
         self.assertEqual(len(self.notas(pedido, 'no entiende')), 1)
 
+    def test_al_vencer_no_se_repite_el_aviso_que_ya_se_dio(self):
+        """N-2: el aviso es UNO por transacción. Si ya se dio a la hora y Gerencia lo dio por hecho, al vencer el
+        intento (se cancela) no vuelve a salir otra nota ni otra actividad."""
+        with SimuladorTilopay() as tilopay:
+            pedido, tx = self.con_estado_raro(tilopay, horas=2)
+            self.assertEqual(tx._dcasa_tilopay_confirmar('cron'), api.PENDIENTE)
+            self.assertTrue(tx.dcasa_tilopay_aviso_raro)
+            self.actividades(pedido).action_done()
+            notas = len(self.notas(pedido, 'no entiende'))
+            self.envejecer(tx, hours=26)
+            tx.dcasa_tilopay_consulta = False
+            self.assertEqual(self.cron(), 1)
+        self.assertEqual(tx.state, 'cancel')
+        self.assertFalse(self.actividades(pedido))
+        self.assertEqual(len(self.notas(pedido, 'no entiende')), notas)
+
     def test_con_menos_de_una_hora_todavia_no_es_para_asustar(self):
         with SimuladorTilopay() as tilopay:
             pedido, tx = self.con_estado_raro(tilopay, horas=0)
