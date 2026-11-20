@@ -86,8 +86,10 @@ queda a favor de clientes.
 
 **«Forma de pago» de la factura** (2026-11-19, `dcasa_interfaz/models/forma_pago.py`): el diario de los pagos aplicados, con la misma
 definición de «cobro» del tablero (pagos de clientes en proceso o pagados). **Pregunta abierta para la contadora (no se ha
-decidido):** un cobro conciliado directo con una línea del extracto del banco, sin un pago de Odoo de por medio, hoy no cuenta
-como forma de pago (tampoco en «Cobrado por forma de pago»): esa factura sale sin forma de pago aunque esté pagada.
+decidido):** un cobro conciliado directo con una línea del extracto del banco, sin un pago de Odoo de por medio, no cuenta
+como forma de pago (tampoco en «Cobrado por forma de pago»). Para que esa factura no se confunda con una sin cobrar, la
+columna dice «Sin pago registrado» (pagada, pero sin un pago de Odoo del que sacar el diario; una factura sin cobrar sigue en
+blanco). ¿Debe esa factura contar con el diario del banco del extracto?
 
 La auditoría completa (qué se revisó, qué se encontró y qué le preguntamos a la contadora) está en [AUDITORIA_CONTABLE.md](historico/AUDITORIA_CONTABLE.md).
 

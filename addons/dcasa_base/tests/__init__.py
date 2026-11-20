@@ -20,3 +20,4 @@ from . import test_disponibilidad
 from . import test_red
 from . import test_venta_online
 from . import test_exportar
+from . import test_revision_exportar

@@ -34,3 +34,4 @@ from . import test_mas_datos
 from . import test_modo_oscuro
 from . import test_forma_pago
 from . import test_cobros_navegador_segunda_vuelta
+from . import test_revision_forma_pago

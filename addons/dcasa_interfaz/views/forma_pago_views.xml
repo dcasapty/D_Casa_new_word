@@ -74,4 +74,33 @@
             </filter>
         </field>
     </record>
+
+    <!-- Las búsquedas de facturas de PROVEEDOR (y la de saltos de numeración) son vistas «primary» que heredan de la de
+         clientes: recibían nuestro campo (siempre vacío) y el nombre «del cliente». Aquí se devuelven a como estaban:
+         sin «Forma de pago» y con el «Método de pago» de siempre (el texto en español, como lo traduce Odoo). -->
+    <record id="account_bill_search_dcasa_forma_pago" model="ir.ui.view">
+        <field name="name">account.bill.select.dcasa.forma.pago</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_account_bill_filter"/>
+        <field name="arch" type="xml">
+            <field name="dcasa_forma_pago" position="replace"/>
+            <filter name="dcasa_por_forma_pago" position="replace"/>
+            <filter name="preferred_payment_method_line" position="attributes">
+                <attribute name="string">Método de pago</attribute>
+            </filter>
+        </field>
+    </record>
+
+    <record id="account_move_gaps_search_dcasa_forma_pago" model="ir.ui.view">
+        <field name="name">account.move.with.gaps.in.sequence.filter.dcasa.forma.pago</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_account_move_with_gaps_in_sequence_filter"/>
+        <field name="arch" type="xml">
+            <field name="dcasa_forma_pago" position="replace"/>
+            <filter name="dcasa_por_forma_pago" position="replace"/>
+            <filter name="preferred_payment_method_line" position="attributes">
+                <attribute name="string">Método de pago</attribute>
+            </filter>
+        </field>
+    </record>
 </odoo>

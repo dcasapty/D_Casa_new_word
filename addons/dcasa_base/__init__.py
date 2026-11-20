@@ -1,6 +1,6 @@
 import logging
 
-from . import models
+from . import excel_seguro, models
 
 _logger = logging.getLogger(__name__)
 

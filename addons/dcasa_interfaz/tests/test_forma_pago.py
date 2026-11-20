@@ -156,12 +156,22 @@ class TestFormaPago(FormaPagoCommon):
         self.assertEqual(yappy.state, 'rejected')
         self.assertEqual(self.forma(factura), 'Efectivo forma pago')
 
+    def test_una_factura_con_un_solo_pago_rechazado_dice_sin_pago_registrado(self):
+        factura = self.factura()
+        self.pago(factura, 1000.0, self.yappy).action_reject()
+        self.assertEqual(factura.payment_state, 'paid', 'Odoo la sigue dando por pagada')
+        self.assertEqual(self.forma(factura), 'Sin pago registrado')
+
     def test_un_pago_devuelto_a_borrador_deja_de_contar(self):
+        """Un pago en borrador no es un cobro. Odoo, eso sí, sigue dando la factura por pagada: la columna dice
+        «Sin pago registrado» (pagada, pero sin un pago confirmado), no un diario."""
         factura = self.factura()
         yappy = self.pago(factura, 1000.0, self.yappy)
         yappy.action_draft()
         self.assertEqual(yappy.state, 'draft')
-        self.assertFalse(self.forma(factura))
+        self.assertEqual(factura.payment_state, 'paid')
+        self.assertEqual(self.forma(factura), 'Sin pago registrado')
+        self.assertFalse(factura.dcasa_diario_pago_ids)
 
     def test_un_pago_revertido_deja_de_contar(self):
         factura = self.factura()
@@ -193,6 +203,28 @@ class TestFormaPago(FormaPagoCommon):
         self.pago(factura, 1000.0, self.yappy)
         self.yappy.name = 'Yappy Negocios forma pago'
         self.assertEqual(self.forma(factura), 'Yappy Negocios forma pago')
+
+    def test_el_texto_se_escribe_siempre_en_el_idioma_de_dcasa(self):
+        """El nombre de un diario es traducible: el texto guardado sale en el idioma de D'CASA, lo dispare quien lo
+        dispare (la actualización del módulo corre en inglés o sin idioma)."""
+        self.assertEqual(self.env['account.move']._dcasa_idioma_del_texto(), 'es_419')
+        self.env['res.lang']._activate_lang('es_419')
+        banco = self.env['account.journal'].create({'name': 'Bank forma pago', 'type': 'bank', 'code': 'BAFI'})
+        banco.with_context(lang='es_419').name = 'Banco forma pago'
+        factura = self.factura()
+        self.pago(factura, 1000.0, banco)
+        for lang in ('en_US', 'es_419', None):
+            with self.subTest(lang=lang):
+                otro = factura.with_context(lang=lang)
+                self.env.flush_all()
+                for campo in ('dcasa_forma_pago', 'dcasa_diario_pago_ids'):
+                    self.env.add_to_compute(otro._fields[campo], otro)
+                self.assertEqual(otro.dcasa_forma_pago, 'Banco forma pago')
+
+    def test_una_factura_en_cero_no_dice_sin_pago_registrado(self):
+        factura = self.factura(precio=0.0)
+        self.assertEqual(factura.payment_state, 'paid')
+        self.assertFalse(self.forma(factura))
 
     # --- notas de crédito, proveedores y asientos ------------------------------------------------------------------
     def test_la_nota_de_credito_conciliada_sale_al_final(self):
@@ -456,6 +488,27 @@ class TestFormaPagoPantallas(FormaPagoCommon):
             with self.subTest(xmlid):
                 self.assertNotIn('dcasa_forma_pago', self.arch(xmlid))
 
+    def test_las_busquedas_de_proveedor_y_de_saltos_quedan_como_estaban(self):
+        """Son vistas «primary» que heredan de la búsqueda de facturas de clientes: no reciben «Forma de pago» (siempre
+        vacía en un proveedor) y su «Método de pago» no dice «del cliente»."""
+        for lang in ('en_US', 'es_419'):
+            if lang != 'en_US' and not self.env['res.lang']._lang_get(lang):
+                continue
+            for xmlid in ('account.view_account_bill_filter', 'account.view_account_move_with_gaps_in_sequence_filter'):
+                with self.subTest(xmlid, lang=lang):
+                    arch = self.env['account.move'].with_context(lang=lang).get_view(
+                        self.env.ref(xmlid).id, 'search')['arch']
+                    self.assertNotIn('dcasa_forma_pago', arch)
+                    self.assertNotIn('Forma de pago', arch)
+                    self.assertNotIn('del cliente', arch)
+                    self.assertIn('name="preferred_payment_method_line"', arch, 'el de siempre sigue')
+                    filtro = 'preferred_payment_method_line'
+                    self.assertRegex(arch, rf'<filter[^>]*string="Método de pago"[^>]*name="{filtro}"'
+                                           rf'|<filter[^>]*name="{filtro}"[^>]*string="Método de pago"')
+        # La de clientes sigue con lo nuestro (ver test_el_buscador_la_trae_y_agrupa).
+        clientes = self.arch('account.view_account_invoice_filter', 'search')
+        self.assertIn('name="dcasa_por_forma_pago"', clientes)
+
     def test_la_lista_se_arma_para_cada_rol(self):
         for usuario in (self.vendedora, self.caja, self.gerencia):
             with self.subTest(usuario.login):
@@ -504,8 +557,17 @@ class TestFormaPagoPantallas(FormaPagoCommon):
         self.assertLess(arch.index('name="sale_info_group"'), arch.index('name="dcasa_forma_pago"'))
 
     def test_el_campo_se_puede_exportar(self):
-        campos = self.env['account.move'].fields_get(['dcasa_forma_pago', 'dcasa_diario_pago_ids'],
-                                                     attributes=['string', 'exportable', 'store', 'type'])
+        """Con datos: Gerencia exporta el texto y los diarios, y el diálogo de exportar los ofrece."""
+        factura = self.factura()
+        self.pago(factura, 400.0, self.yappy)
+        self.pago(factura, 600.0, self.efectivo)
+        fila = factura.with_user(self.gerencia).export_data(
+            ['name', 'dcasa_forma_pago', 'dcasa_diario_pago_ids'])['datas'][0]
+        self.assertEqual(fila[0], factura.name)
+        self.assertEqual(fila[1], 'Efectivo forma pago + Yappy forma pago')
+        self.assertCountEqual(fila[2].split(','), ['Efectivo forma pago', 'Yappy forma pago'])
+        campos = factura.with_user(self.gerencia).fields_get(
+            ['dcasa_forma_pago', 'dcasa_diario_pago_ids'], attributes=['string', 'exportable', 'store', 'type'])
         self.assertEqual(campos['dcasa_forma_pago']['string'], 'Forma de pago')
         self.assertEqual(campos['dcasa_forma_pago']['type'], 'char')
         for nombre, campo in campos.items():
