@@ -1007,7 +1007,7 @@ costado), en tres pasos:
   se vendieron). Si un producto estuvo agotado, vendió menos y su ritmo sale más bajo: conviene mirarlo a ojo.
 - **Descargar Excel** (Gerencia y administradores): el servidor arma el archivo (`/dcasa/reponer/excel`) con la hoja
   «Reponer» (lo mismo que la pantalla) y «Por proveedor» (totales). No hace falta abrirle a nadie el «Exportar» general
-  de Odoo.
+  de Odoo (es de los administradores; Gerencia baja con él solo facturas y ventas, desde el 2026-11-20).
 - Brian: `que_reponer(proveedor?, meses?, reserva?)` y `poner_tiempo_llegada(proveedor, dias? / meses?)`.
   Código: `addons/dcasa_interfaz/models/reponer.py`, `controllers/reponer.py`, `static/src/js/reponer.js`.
 

@@ -3890,7 +3890,7 @@
      "destino": null
     }
    ],
-   "nota": "Una factura pagada en parte con dos formas dice las dos («Efectivo + Yappy»). Si se le aplicó una nota de crédito, dice «Nota de crédito». Una factura que todavía no se cobró queda en blanco. El botón «Exportar» sale para Gerencia (y los administradores); si no te sale, pídele el Excel a Gerencia.",
+   "nota": "Una factura pagada en parte con dos formas dice las dos («Efectivo + Yappy»). Si se le aplicó una nota de crédito, dice «Nota de crédito». Una factura que todavía no se cobró queda en blanco; si está pagada pero no hay ningún pago registrado (por ejemplo, se concilió directo con el banco), dice «Sin pago registrado». «Exportar» sale para Gerencia, que baja facturas, pagos y ventas; el resto de las listas las bajan solo los administradores.",
    "palabras": [
     "forma de pago",
     "metodo de pago",
