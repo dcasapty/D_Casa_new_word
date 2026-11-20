@@ -37,8 +37,6 @@ CAMPOS_SITIO = frozenset({
     'dcasa_whatsapp_number', 'shop_ppg', 'shop_default_sort', 'prevent_zero_price_sale',
     'show_line_subtotals_tax_selection', 'domain', 'name', 'company_id', 'social_instagram',
     'social_tiktok', 'social_facebook', 'homepage_url',
-    # Los segundos que dura cada foto del hero de la portada (website_dcasa, portada.py): van en su HTML.
-    'dcasa_hero_segundos',
 })
 
 
@@ -323,6 +321,29 @@ class DcasaPortadaDiapositiva(models.Model):
     def write(self, vals):
         resultado = super().write(vals)
         if {'product_tmpl_id', 'sequence', 'website_id'} & set(vals):
+            _marcar(self.env, [0], 'carrusel de la portada')
+        return resultado
+
+    def unlink(self):
+        resultado = super().unlink()
+        _marcar(self.env, [0], 'carrusel de la portada')
+        return resultado
+
+
+class DcasaPortadaAjustes(models.Model):
+    """Los segundos que dura cada foto del hero (website_dcasa, models/portada.py): van en el HTML de la portada que
+    guarda el borde, así que cambiarlos la regenera (como elegir o reordenar sus productos)."""
+    _inherit = 'dcasa.portada.ajustes'
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        registros = super().create(vals_list)
+        _marcar(self.env, [0], 'carrusel de la portada')
+        return registros
+
+    def write(self, vals):
+        resultado = super().write(vals)
+        if {'segundos', 'website_id'} & set(vals):
             _marcar(self.env, [0], 'carrusel de la portada')
         return resultado
 

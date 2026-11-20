@@ -1142,6 +1142,9 @@ export class ChatBrian {
         if (this.estado.abierto) {
             return;
         }
+        // Si se vuelve a abrir mientras todavía se está cerrando (menos de 340 ms), esa animación se cancela: su final
+        // ya no puede esconder el chat que se acaba de abrir (``cerrar`` lo comprueba también).
+        this.cancelarCierre();
         this.armarPanel();
         if (this.restaurado) {
             this.restaurar(this.restaurado);
@@ -1220,6 +1223,9 @@ export class ChatBrian {
         }
         this.burbuja.hidden = false;
         const terminar = () => {
+            if (this.estado.abierto) {
+                return;   // se volvió a abrir mientras se cerraba: no hay nada que esconder
+            }
             this.panel.hidden = true;
             if (this.estado.ampliado) {
                 this.ampliar(false, true);
@@ -1244,9 +1250,27 @@ export class ChatBrian {
         const fin = () => {
             animVelo.cancel();
             this.burbuja.style.opacity = "";
+            if (this.cierreEnCurso && this.cierreEnCurso.animVelo === animVelo) {
+                this.cierreEnCurso = null;
+            }
             terminar();
         };
-        this.panel.animate([{ clipPath: `circle(${g.R}px at ${g.cx}px ${g.cy}px)` }, { clipPath: `circle(${g.r0}px at ${g.cx}px ${g.cy}px)` }], { duration: 340, easing: "cubic-bezier(.5, 0, .75, 0)" }).finished.then(fin, fin);
+        const animCierre = this.panel.animate([{ clipPath: `circle(${g.R}px at ${g.cx}px ${g.cy}px)` }, { clipPath: `circle(${g.r0}px at ${g.cx}px ${g.cy}px)` }], { duration: 340, easing: "cubic-bezier(.5, 0, .75, 0)" });
+        this.cierreEnCurso = { animCierre, animVelo };
+        animCierre.finished.then(fin, fin);
+    }
+
+    /** Cancela la animación de cerrar si sigue en marcha (porque la persona volvió a abrir el chat): se quita el velo, la
+     *  burbuja recupera su opacidad y el final de esa animación (``terminar``) no esconde nada. */
+    cancelarCierre() {
+        const cierre = this.cierreEnCurso;
+        if (!cierre) {
+            return;
+        }
+        this.cierreEnCurso = null;
+        cierre.animVelo.cancel();
+        cierre.animCierre.cancel();
+        this.burbuja.style.opacity = "";
     }
 
     alTeclado(ev) {

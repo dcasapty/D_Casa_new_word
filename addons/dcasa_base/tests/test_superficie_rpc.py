@@ -657,11 +657,18 @@ LISTA_BLANCA = {
         OVERRIDE + ' Comprueba check_access("unlink") antes de anular con sudo los puntos y la comisión de un borrador '
                    'que se borra, y solo después de que Odoo aceptó borrarlo.',
     ('website_dcasa', 'sale.order', 'action_quotation_sent'): OVERRIDE + ' Solo agrega la fecha del apartado.',
-    # Carrusel de la portada (models/portada.py): Gerencia escribe en `website` solo los segundos y la lista.
-    ('website_dcasa', 'website', 'action_abrir_carrusel'): ACCION_VENTANA,
-    ('website_dcasa', 'website', 'write'):
-        OVERRIDE + ' A quien no es administrador ni diseñador del sitio solo le deja cambiar los segundos del carrusel '
-        'y su lista (AccessError con cualquier otro campo); sin sudo: el ACL manda.',
+    # Carrusel de la portada (models/portada.py): los segundos de cada foto viven en dcasa.portada.ajustes (uno por
+    # sitio, ACL de Gerencia y administradores); Gerencia no escribe nada en `website`.
+    ('website_dcasa', 'dcasa.portada.ajustes', 'action_abrir'):
+        'Abre los ajustes del carrusel del sitio actual; si faltan, los crea como el usuario (ACL: Gerencia y '
+        'administradores). ' + SIN_SUDO,
+    ('website_dcasa', 'dcasa.portada.ajustes', 'create'):
+        OVERRIDE + ' Revisa que los segundos sean un número finito de 2 a 15 antes de guardar; sin sudo: el ACL manda.',
+    ('website_dcasa', 'dcasa.portada.ajustes', 'write'):
+        OVERRIDE + ' Revisa que los segundos sean un número finito de 2 a 15 antes de guardar; sin sudo: el ACL manda.',
+    ('website_dcasa', 'dcasa.portada.diapositiva', 'create'):
+        OVERRIDE + ' Si llega el padre (``ajustes_id``) y no el sitio, el sitio es el de esos ajustes; sin sudo salvo '
+        'para leer ese padre.',
     # Campaña del sitio (models/campana.py): el ACL de dcasa.campana es solo de Gerencia y administradores.
     ('website_dcasa', 'dcasa.campana', 'action_abrir'):
         'Abre la campaña del sitio actual; si falta, la crea como el usuario (ACL: Gerencia y administradores). '
@@ -799,6 +806,12 @@ LISTA_BLANCA = {
     ('dcasa_tienda_borde', 'dcasa.campana', 'write'):
         OVERRIDE + ' Marca «regenerar todo» si cambia lo que sale en el sitio y programa la vigilancia.',
     ('dcasa_tienda_borde', 'dcasa.campana', 'unlink'): OVERRIDE + ' Marca «regenerar todo».',
+    ('dcasa_tienda_borde', 'dcasa.portada.ajustes', 'create'):
+        OVERRIDE + ' Marca el carrusel de la portada para regenerar su HTML; sin sudo().',
+    ('dcasa_tienda_borde', 'dcasa.portada.ajustes', 'write'):
+        OVERRIDE + ' Marca el carrusel de la portada para regenerar su HTML; sin sudo().',
+    ('dcasa_tienda_borde', 'dcasa.portada.ajustes', 'unlink'):
+        OVERRIDE + ' Marca el carrusel de la portada para regenerar su HTML; sin sudo().',
     ('dcasa_tienda_borde', 'dcasa.portada.diapositiva', 'create'):
         OVERRIDE + ' Marca el carrusel de la portada para regenerar su HTML; sin sudo().',
     ('dcasa_tienda_borde', 'dcasa.portada.diapositiva', 'write'):

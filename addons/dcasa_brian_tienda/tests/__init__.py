@@ -7,3 +7,5 @@ from . import test_sugerencias
 from . import test_envio_carrito
 from . import test_revision_vendedor
 from . import test_premio_y_envio
+from . import test_vitrina_cache
+from . import test_ampliado_extremos

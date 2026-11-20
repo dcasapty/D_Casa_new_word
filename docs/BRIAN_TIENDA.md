@@ -209,6 +209,14 @@ navegador ──(3) /dcasa/brian/v1/carrito/* (sesión, CSRF) ──────
     **al abrir**, no antes: quien nunca abre el chat no genera ninguna petición. Es la misma llamada que ya hacía el
     modo ampliado (`GET /dcasa/brian/v1/vitrina`, a Odoo, una vez por página); **abrir no es un mensaje** y no llega al
     Worker de IA ni gasta nada.
+  - **«Lo más buscado» se guarda un minuto** (revisión independiente, 2026-11-19): como la pide cada visita que abre el chat
+    (antes solo quien pulsaba «ampliar»), `GET /dcasa/brian/v1/vitrina` tardaba 91 consultas. Las fichas (hasta 12; lo
+    caro, igual para todos) se arman una vez por minuto y por (base, sitio, idioma, tarifa, posición fiscal) en una
+    memoria del proceso (`_CACHE_VITRINA`, `SEGUNDOS_CACHE_VITRINA` en `controllers/main.py`); **lo de cada persona (lo
+    que ya tiene en su carrito) se quita después** sobre una lista nueva y nunca entra a la memoria. Un precio de campaña,
+    la existencia o un producto despublicado pueden verse viejos en la tarjeta hasta un minuto, pero «Agregar» revisa lo
+    vivo (publicado, precio y existencia) y el carrito cobra el precio de ahora (pruebas en `test_vitrina_cache.py`). Las
+    pruebas la vacían en cada `setUp` (`limpiar_cache_vitrina`).
   - **Se recuerda lo que la persona elige**, en ese navegador, con una sola marca en `localStorage`
     (`dcasa.brian.tamano`: `normal` o `ampliado`; nunca nada de la conversación ni de la persona). Solo la cambia el
     botón de la cabecera, y solo en la computadora: «Volver al tamaño normal» deja `normal` y las siguientes aperturas y
@@ -220,6 +228,8 @@ navegador ──(3) /dcasa/brian/v1/carrito/* (sesión, CSRF) ──────
     consultar con la dueña): «Ver» en una tarjeta lleva a la ficha, y un chat de 1100 px encima taparía justo lo que la
     persona fue a mirar. Si ella prefiere que conserve el ampliado al cambiar de página, es una línea en `abrir()`
     (quitar `!sinAnimar`).
+  - **Cerrar y volver a abrir de inmediato** (menos de 340 ms, lo que dura la animación de cerrar): abrir cancela esa
+    animación y su final (`terminar`) no esconde un chat ya abierto (antes quedaban chat y burbuja ocultos).
   - Si la ventana se angosta hasta el celular (< 768 px) con el chat ampliado **por defecto**, vuelve al tamaño normal
     (si no, la vitrina taparía la conversación entera); no toca lo que la persona eligió ni lo que ampliara a mano.
   - Sin cambios: la animación de abrir, el foco al campo, el cierre con foco a la burbuja, no bloquear la página de atrás

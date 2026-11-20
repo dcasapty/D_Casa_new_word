@@ -262,6 +262,13 @@ class TestCarruselPortada(HttpCase):
 
     # ------------------------------------------------------------------ los segundos de cada foto
 
+    def _ajustes(self, sitio=None):
+        """Los ajustes del carrusel del sitio (se crean con el valor de fábrica si faltan)."""
+        return self.env['dcasa.portada.ajustes']._dcasa_del_sitio(sitio or self.website, crear=True)
+
+    def _segundos(self, valor, sitio=None):
+        self._ajustes(sitio).segundos = valor
+
     def _tiempo_de_la_portada(self):
         """Lo que la portada le dice al navegador: el estilo del fondo (``--vitrina-tiempo``)."""
         _texto, arbol = self._portada()
@@ -269,92 +276,152 @@ class TestCarruselPortada(HttpCase):
         return fondo.get('style')
 
     def test_de_fabrica_cada_foto_dura_3_segundos_y_la_plantilla_lo_dice(self):
-        self.assertEqual(self.website.dcasa_hero_segundos, 3.0, 'de fábrica, 3 segundos por foto')
+        self.env['dcasa.portada.ajustes'].sudo().search([]).unlink()
+        self.assertEqual(self.website._dcasa_hero_segundos(), 3.0, 'sin ajustes, 3 segundos por foto')
         self.assertEqual(self.website._dcasa_hero_tiempo(), '3s')
+        self.assertEqual(self._ajustes().segundos, 3.0, 'y los ajustes nuevos nacen con 3')
         self._elegir(*self.camas)
         self.assertEqual(self._tiempo_de_la_portada(), '--vitrina-tiempo: 3s;', 'la plantilla lo escribe en el fondo')
+
+    def test_un_sitio_nuevo_trae_los_3_segundos_de_fabrica_y_los_sitios_no_se_mezclan(self):
+        otro = self.env['website'].create({'name': 'Sitio de prueba del carrusel'})
+        self.assertFalse(self.env['dcasa.portada.ajustes'].sudo().search([('website_id', '=', otro.id)]))
+        self.assertEqual(otro._dcasa_hero_tiempo(), '3s', 'un sitio nuevo, sin ajustes, trae el 3 de fábrica')
+        self._segundos(6)
+        self._segundos(9, otro)
+        self.assertEqual((self.website._dcasa_hero_tiempo(), otro._dcasa_hero_tiempo()), ('6s', '9s'))
+        self.assertNotEqual(self.website._dcasa_hero_firma(), otro._dcasa_hero_firma(), 'cada sitio, su firma')
+        self._segundos(2.5)
+        self.assertEqual((self.website._dcasa_hero_tiempo(), otro._dcasa_hero_tiempo()), ('2.5s', '9s'))
+        with self.assertRaises(IntegrityError), self.cr.savepoint(), mute_logger('odoo.sql_db'):
+            self.env['dcasa.portada.ajustes'].sudo().create({'website_id': otro.id})
 
     def test_la_portada_usa_los_segundos_que_se_eligen(self):
         self._elegir(*self.camas)
         for valor, texto in ((2, '2s'), (2.5, '2.5s'), (7.5, '7.5s'), (15, '15s')):
             with self.subTest(segundos=valor):
-                self.website.dcasa_hero_segundos = valor
+                self._segundos(valor)
                 self.assertEqual(self.website._dcasa_hero_tiempo(), texto)
                 self.assertEqual(self._tiempo_de_la_portada(), f'--vitrina-tiempo: {texto};')
 
     def test_los_segundos_van_de_2_a_15(self):
+        ajustes = self._ajustes()
         for bueno in (2, 3, 2.5, 15):
             with self.subTest(bueno=bueno):
-                self.website.dcasa_hero_segundos = bueno
-                self.assertEqual(self.website.dcasa_hero_segundos, bueno)
+                ajustes.segundos = bueno
+                self.assertEqual(ajustes.segundos, bueno)
         for malo in (0, 1, 1.9, 15.1, 16, 60, -3):
             with self.subTest(malo=malo), self.assertRaises(ValidationError) as error, self.cr.savepoint():
-                self.website.dcasa_hero_segundos = malo
+                ajustes.segundos = malo
             self.assertIn('de 2 a 15', str(error.exception), 'el mensaje dice los límites en palabras sencillas')
-        self.assertEqual(self.website.dcasa_hero_segundos, 15.0, 'un valor fuera de rango no se guarda')
+        self.assertEqual(ajustes.segundos, 15.0, 'un valor fuera de rango no se guarda')
+        with self.assertRaises(ValidationError), self.cr.savepoint():
+            self.env['dcasa.portada.ajustes'].sudo().create({'website_id': self.website.id, 'segundos': 99})
+
+    def test_valores_raros_por_rpc_dan_un_error_claro(self):
+        """Por RPC llega de todo: NaN, infinito, texto, ``None``, listas. Siempre ``ValidationError`` en español."""
+        ajustes = self._ajustes()
+        ajustes.segundos = 4
+        # Con ``write`` y ``create`` (lo que llega por RPC): asignar con ``ajustes.segundos = …`` ya revienta en el ORM
+        # antes de llegar al modelo, y por RPC no se puede.
+        for raro in (float('nan'), float('inf'), float('-inf'), 1e400, 'abc', '', '3,5', None, False, True, [3],
+                     {'a': 1}, '3; background:red', '3s}</style>'):
+            with self.subTest(raro=repr(raro)), self.assertRaises(ValidationError) as error, self.cr.savepoint():
+                ajustes.write({'segundos': raro})
+            self.assertIn('de 2 a 15', str(error.exception))
+            with self.subTest(raro=repr(raro), via='create'), self.assertRaises(ValidationError), self.cr.savepoint():
+                self.env['dcasa.portada.ajustes'].sudo().create({'website_id': self.website.id, 'segundos': raro})
+        self.assertEqual(ajustes.segundos, 4.0, 'ninguno se guardó')
+        for texto, esperado in (('2.5', 2.5), (' 3 ', 3.0), ('1e1', 10.0)):
+            ajustes.write({'segundos': texto})
+            self.assertEqual(ajustes.segundos, esperado, f'el texto numérico {texto!r} se acepta como número')
 
     def test_un_valor_suelto_en_la_base_no_rompe_la_portada(self):
-        """Si alguien dejara en la base un valor fuera de rango (SQL a mano), la portada sigue y lo acota."""
+        """Si alguien dejara en la base un valor que no sirve (SQL a mano: fuera de rango o NaN), la portada sigue y usa
+        los 3 segundos de fábrica."""
         self._elegir(*self.camas)
-        for suelto, esperado in ((0.0, '3s'), (0.2, '2s'), (99.0, '15s')):
+        ajustes = self._ajustes()
+        for suelto in ('0', '0.2', '99', '1000000', "'NaN'"):
             with self.subTest(suelto=suelto):
-                self.cr.execute('UPDATE website SET dcasa_hero_segundos = %s WHERE id = %s', (suelto, self.website.id))
-                self.website.invalidate_recordset()
-                self.assertEqual(self.website._dcasa_hero_tiempo(), esperado)
-                self.assertEqual(self._tiempo_de_la_portada(), f'--vitrina-tiempo: {esperado};')
+                self.cr.execute(f'UPDATE dcasa_portada_ajustes SET segundos = {suelto} WHERE id = %s', (ajustes.id,))
+                ajustes.invalidate_recordset()
+                self.assertEqual(self.website._dcasa_hero_tiempo(), '3s')
+                self.assertEqual(self._tiempo_de_la_portada(), '--vitrina-tiempo: 3s;')
 
     def test_cambiar_los_segundos_cambia_la_firma_y_la_portada_guardada(self):
         """Odoo guarda la portada de los visitantes hasta una hora: los segundos van en la clave de esa memoria."""
         self._elegir(*self.camas)
+        self._segundos(3)
         pedido = SimpleNamespace(website=self.website, lang=SimpleNamespace(code='es_419'),
                                  httprequest=SimpleNamespace(path='/'), session=SimpleNamespace(debug=''))
         Pagina = self.env['website.page']
         firma, clave = self.website._dcasa_hero_firma(), Pagina._get_cache_key(pedido)
         self.assertEqual(self._tiempo_de_la_portada(), '--vitrina-tiempo: 3s;', 'la portada ya quedó guardada')
-        self.website.dcasa_hero_segundos = 6
+        self._segundos(6)
         self.assertNotEqual(self.website._dcasa_hero_firma(), firma, 'los segundos entran en la firma')
         self.assertNotEqual(Pagina._get_cache_key(pedido), clave, 'y en la clave de la portada guardada')
         self.assertEqual(self._tiempo_de_la_portada(), '--vitrina-tiempo: 6s;', 'el cambio se ve sin esperar la hora')
-        self.website.dcasa_hero_segundos = 3
+        self._segundos(3)
         self.assertEqual(self.website._dcasa_hero_firma(), firma, 'y volver al valor de antes, a la misma firma')
 
+    def test_las_diapositivas_quedan_con_los_ajustes_de_su_sitio(self):
+        """La lista de la pantalla cuelga de los ajustes del sitio: quien crea una diapositiva solo con el sitio (la
+        siembra, las pruebas) la deja igual de bien puesta, y la lista de un sitio no trae las del otro."""
+        otro = self.env['website'].create({'name': 'Sitio de prueba del carrusel'})
+        self._elegir(self.camas[0], self.camas[1])
+        propia = self.Diapositiva.create({'website_id': otro.id, 'product_tmpl_id': self.camas[2].id})
+        self.assertEqual(propia.ajustes_id, self._ajustes(otro))
+        self.assertEqual(self._ajustes().diapositiva_ids.product_tmpl_id, self.camas[0] | self.camas[1])
+        self.assertEqual(self._ajustes(otro).diapositiva_ids, propia)
+        # Desde la lista del padre llega el padre y no el sitio: el sitio es el del padre, no el «actual».
+        nueva = self.Diapositiva.create({'ajustes_id': self._ajustes(otro).id, 'product_tmpl_id': self.sin_publicar.id})
+        self.assertEqual(nueva.website_id, otro)
+
     def test_gerencia_cambia_los_segundos_y_la_lista_desde_su_pantalla_y_nada_mas_del_sitio(self):
-        gerente_sitio = self.website.with_user(self.gerente)
-        accion = gerente_sitio.action_abrir_carrusel()
+        accion = self.env['dcasa.portada.ajustes'].with_user(self.gerente).action_abrir()
+        ajustes = self._ajustes()
         self.assertEqual((accion['res_model'], accion['res_id'], accion['view_mode']),
-                         ('website', self.website.id, 'form'), 'abre el sitio actual')
+                         ('dcasa.portada.ajustes', ajustes.id, 'form'), 'abre los ajustes del sitio actual')
         # La pantalla: el campo de los segundos arriba y la lista de productos, como la ve Gerencia.
-        with Form(gerente_sitio, view='website_dcasa.view_website_carrusel_form') as pantalla:
-            self.assertEqual(pantalla.dcasa_hero_segundos, 3.0)
-            pantalla.dcasa_hero_segundos = 2.5
-            with pantalla.dcasa_hero_diapositiva_ids.new() as linea:
+        with Form(ajustes.with_user(self.gerente), view='website_dcasa.view_dcasa_portada_ajustes_form') as pantalla:
+            self.assertEqual(pantalla.segundos, 3.0)
+            pantalla.segundos = 2.5
+            with pantalla.diapositiva_ids.new() as linea:
                 linea.product_tmpl_id = self.camas[0]
-        self.assertEqual(self.website.dcasa_hero_segundos, 2.5)
-        self.assertEqual(self.website.dcasa_hero_diapositiva_ids.product_tmpl_id, self.camas[0])
-        self.assertEqual(self.website.dcasa_hero_diapositiva_ids.website_id, self.website)
-        # Nada más del sitio: ni el nombre, ni el dominio, ni una foto del carrusel de otro sitio.
+        self.assertEqual(ajustes.segundos, 2.5)
+        self.assertEqual(ajustes.diapositiva_ids.product_tmpl_id, self.camas[0])
+        self.assertEqual(ajustes.diapositiva_ids.website_id, self.website)
+        self.assertEqual(self.website._dcasa_hero_tiempo(), '2.5s')
+        # Nada del sitio mismo: Gerencia ya no escribe en `website` (ni siquiera para esto).
+        sitio = self.website.with_user(self.gerente)
+        self.assertEqual([sitio.has_access(op) for op in ('read', 'write', 'create', 'unlink')],
+                         [True, False, False, False])
         for campo, valor in (('name', 'Otro nombre'), ('domain', 'https://otro.example'), ('social_facebook', 'x')):
             with self.subTest(campo=campo), self.assertRaises(AccessError):
-                gerente_sitio.write({campo: valor})
-        with self.assertRaises(AccessError):
-            gerente_sitio.write({'dcasa_hero_segundos': 4, 'name': 'Mezclado'})
-        self.assertEqual(self.website.dcasa_hero_segundos, 2.5, 'lo mezclado no se guarda ni a medias')
+                sitio.write({campo: valor})
         with self.assertRaises(AccessError):
             self.env['website'].with_user(self.gerente).create({'name': 'Sitio nuevo'})
         with self.assertRaises(AccessError):
-            gerente_sitio.unlink()
-        # Los administradores siguen escribiendo todo el sitio.
-        self.website.with_user(self.env.ref('base.user_admin')).write({'dcasa_hero_segundos': 4, 'name': self.website.name})
+            sitio.unlink()
+        # Los ajustes no se borran ni se crean de más: uno por sitio.
+        with self.assertRaises(AccessError):
+            ajustes.with_user(self.gerente).unlink()
+        # Los administradores también cambian los ajustes.
+        ajustes.with_user(self.env.ref('base.user_admin')).segundos = 4
+        self.assertEqual(ajustes.segundos, 4.0)
 
     def test_quien_no_es_gerencia_no_cambia_los_segundos(self):
+        ajustes = self._ajustes()
         for usuario in (self.vendedora, self.interno):
             with self.subTest(usuario=usuario.login):
                 with self.assertRaises(AccessError):
-                    self.website.with_user(usuario).write({'dcasa_hero_segundos': 2})
+                    ajustes.with_user(usuario).write({'segundos': 2})
                 with self.assertRaises(AccessError):
-                    self.website.with_user(usuario).write({'dcasa_hero_diapositiva_ids': [Command.create(
+                    ajustes.with_user(usuario).write({'diapositiva_ids': [Command.create(
                         {'product_tmpl_id': self.camas[0].id})]})
-        self.assertEqual(self.website.dcasa_hero_segundos, 3.0)
+                with self.assertRaises(AccessError):
+                    self.env['dcasa.portada.ajustes'].with_user(usuario).search([])
+        self.assertEqual(ajustes.segundos, 3.0)
         menu = 'website_dcasa.menu_dcasa_portada_diapositiva'
         accion = self.env.ref('website_dcasa.action_dcasa_portada_carrusel')
         self.assertEqual(self.env.ref(menu).action, accion, 'el menú abre la pantalla con los segundos y la lista')
@@ -529,7 +596,7 @@ class TestCarruselPortada(HttpCase):
 
     def _ritmo_en_chrome(self, segundos, espera_ms):
         """Pone los segundos en el sitio, abre la portada en Chrome y mide el ritmo del fondo (PASOS_RITMO)."""
-        self.website.dcasa_hero_segundos = segundos
+        self._segundos(segundos)
         self._elegir(*self.camas)
         return self._en_chrome(PASOS_RITMO.replace('ESPERA_MAX', str(espera_ms)))['ritmo']
 
@@ -560,7 +627,7 @@ class TestCarruselPortada(HttpCase):
 
     def test_con_2_segundos_hay_fundido_y_se_ve_una_sola_foto_al_asentarse(self):
         """A 2 s el fundido (0,7 s) deja pasar a la siguiente foto sin dejar dos a medias para siempre."""
-        self.website.dcasa_hero_segundos = 2
+        self._segundos(2)
         self._elegir(*self.camas)
         r = self._en_chrome(PASOS_ASENTARSE)
         self.assertEqual(r['visiblesAlAsentarse'], 1, 'tras el fundido queda una sola foto a la vista')
@@ -639,7 +706,7 @@ PRUEBA_JS = r"""(async () => {
 })()"""
 
 # El primer cambio ya está programado desde que carga la página, con el tiempo de verdad (los 3 s de fábrica de
-# website.dcasa_hero_segundos): acortar --vitrina-tiempo aquí solo vale de la segunda vez en adelante. Por eso se espera
+# dcasa.portada.ajustes.segundos): acortar --vitrina-tiempo aquí solo vale de la segunda vez en adelante. Por eso se espera
 # hasta 12 s (240 × 50 ms), más que ese primer tiempo.
 PASOS_COMPUTADORA = """
     r.alEmpezar = actual();

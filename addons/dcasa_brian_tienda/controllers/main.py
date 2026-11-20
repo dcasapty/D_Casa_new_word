@@ -64,6 +64,20 @@ _SEMAFORO_PDF = threading.BoundedSemaphore(MAX_PDF_A_LA_VEZ)
 TEXTO_SIN_PDF = 'Por ahora no podemos armar más cotizaciones. Inténtalo en un rato o escríbenos por WhatsApp.'
 TEXTO_PDF_OCUPADO = 'Estamos armando otras cotizaciones. Inténtalo de nuevo en unos segundos.'
 MAX_ID = 2 ** 31
+# «Lo más buscado» de la vitrina es pública y, con el chat ampliado de fábrica en la computadora, la pide cada visita
+# que abre el chat (revisión independiente, 2026-11-19: 91 consultas por llamada). Las fichas, que son lo caro y no
+# dependen de la persona, se arman una vez por minuto y por (base, sitio, idioma, tarifa, posición fiscal); lo de cada
+# quien (lo que ya tiene en su carrito) se aplica después y nunca entra aquí. Un precio de campaña, la existencia o un
+# producto despublicado pueden verse viejos hasta ese tiempo en la tarjeta; el carrito siempre usa lo vivo (``_poner``
+# revisa publicado, precio y existencia cada vez que alguien agrega).
+SEGUNDOS_CACHE_VITRINA = 60
+_CACHE_VITRINA = {}
+MAX_CLAVES_CACHE_VITRINA = 64
+
+
+def limpiar_cache_vitrina():
+    """Vacía las fichas guardadas de «Lo más buscado» (para las pruebas y para quien cambie la tienda a mano)."""
+    _CACHE_VITRINA.clear()
 # Las sugerencias del saludo dicen la categoría con la palabra que escribiría un cliente («Camas», no «Recámaras»).
 NOMBRE_SUGERENCIA = {'recamaras': 'Camas', 'oficina': 'Escritorios'}
 # Lo que la página necesita de cada producto para pintar su tarjeta (lo mismo que valida `productoValido` en el JS).
@@ -256,11 +270,29 @@ class DcasaBrianTiendaAPI(http.Controller):
         Brian (`_j_ficha_corta`): mismo precio, disponibilidad y «Agregar» que cuando él los muestra."""
         orden = request.cart
         en_carrito = set(orden.website_order_line.product_id.product_tmpl_id.ids) if orden else set()
-        herramientas = request.env['brian.herramientas'].sudo()
-        fichas = [herramientas._j_ficha_corta(item['producto'], '')
-                  for item in request.website._dcasa_productos(limit=12) if item['producto'].id not in en_carrito]
+        fichas = [ficha for ficha in self._fichas_de_la_vitrina() if ficha['plantilla_id'] not in en_carrito]
         fichas.sort(key=lambda ficha: ficha.get('disponibilidad') == 'agotado')   # estable: el orden de la portada
         return [{clave: ficha.get(clave) for clave in CAMPOS_TARJETA} for ficha in fichas[:6]]
+
+    def _fichas_de_la_vitrina(self):
+        """Las fichas de lo más buscado de la portada (hasta 12), iguales para todos los visitantes con el mismo sitio,
+        idioma, tarifa y posición fiscal: se guardan ``SEGUNDOS_CACHE_VITRINA``. Lo que depende de la persona (su
+        carrito) NO está aquí: lo aplica ``_sugeridos`` sobre una lista nueva."""
+        sitio = request.website
+        tarifa = getattr(request, 'pricelist', None)
+        posicion = getattr(request, 'fiscal_position', None)
+        clave = (request.env.cr.dbname, sitio.id, request.lang.code, tarifa.id if tarifa else None,
+                 posicion.id if posicion else None)
+        ahora = time.monotonic()
+        guardado = _CACHE_VITRINA.get(clave)
+        if guardado and guardado[0] > ahora:
+            return guardado[1]
+        herramientas = request.env['brian.herramientas'].sudo()
+        fichas = tuple(herramientas._j_ficha_corta(item['producto'], '') for item in sitio._dcasa_productos(limit=12))
+        if len(_CACHE_VITRINA) >= MAX_CLAVES_CACHE_VITRINA:
+            _CACHE_VITRINA.clear()
+        _CACHE_VITRINA[clave] = (ahora + SEGUNDOS_CACHE_VITRINA, fichas)
+        return fichas
 
     def _producto(self, producto_id):
         """``(variante, plantilla)`` publicada en este sitio, buscada como el visitante; ``(None, None)`` si no."""

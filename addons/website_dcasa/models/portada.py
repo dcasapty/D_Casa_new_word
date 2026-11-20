@@ -15,7 +15,7 @@ import logging
 import math
 
 from odoo import api, fields, models
-from odoo.exceptions import AccessError, ValidationError
+from odoo.exceptions import ValidationError
 from odoo.fields import Domain
 from odoo.http import request
 
@@ -44,13 +44,11 @@ _MEMO = '_dcasa_hero_carrusel'
 
 # Cuánto dura cada foto del hero (la dueña, 2026-11-19: «demoran tal vez demasiado, 5 a 6 segundos… de unos 2 a 3
 # segundos, o tal vez poderlo definir yo mismo»). De fábrica 3 s; Gerencia lo cambia en el panel, entre el mínimo y
-# el máximo (más corto que 2 s marea; más largo que 15 s ya no se siente un fondo vivo).
+# el máximo (más corto que 2 s marea; más largo que 15 s ya no se siente un fondo vivo). Se guarda en
+# ``dcasa.portada.ajustes`` (uno por sitio), no en ``website``: así Gerencia no necesita escribir en el sitio.
 SEGUNDOS_HERO_FABRICA = 3.0
 SEGUNDOS_HERO_MINIMO = 2.0
 SEGUNDOS_HERO_MAXIMO = 15.0
-# Lo único del sitio que Gerencia (sin ser administradora) puede escribir: los segundos y la lista del carrusel.
-CAMPOS_HERO_DE_GERENCIA = frozenset({'dcasa_hero_segundos', 'dcasa_hero_diapositiva_ids'})
-
 # Las camas que la dueña aprobó para el carrusel (2026-11-16, con la hoja de fotos de producción a la vista: «sí, están
 # bien»), por su código público («DC-…», el que sale en la ficha), en este orden: Cama Queen Color Black (la «300-300»),
 # Cama King Rosada (la «801»), Cama Queen Black 805, Cama Queen Beige 805, Cama Queen Light Gray 805, Cama Queen Ivory
@@ -70,6 +68,11 @@ class DcasaPortadaDiapositiva(models.Model):
     sequence = fields.Integer('Orden', default=10)
     website_id = fields.Many2one('website', 'Sitio', required=True, ondelete='cascade', index=True,
                                  default=lambda self: self.env['website'].get_current_website())
+    # Los ajustes de su sitio (los segundos de cada foto): es el padre con que la pantalla «Carrusel de la portada»
+    # arma su lista editable. Se deduce del sitio, así que quien crea una diapositiva solo con ``website_id`` (la
+    # siembra, las pruebas) queda igual de bien puesta.
+    ajustes_id = fields.Many2one('dcasa.portada.ajustes', 'Ajustes del sitio', compute='_compute_ajustes_id',
+                                 store=True, readonly=False, ondelete='cascade', index=True)
     product_tmpl_id = fields.Many2one(
         'product.template', 'Producto', required=True, ondelete='cascade', index=True,
         domain="[('sale_ok', '=', True), ('is_published', '=', True)]",
@@ -82,6 +85,29 @@ class DcasaPortadaDiapositiva(models.Model):
         help='Solo salen los productos publicados y a la venta en el sitio, con foto.')
 
     _producto_unico = models.Constraint('unique(website_id, product_tmpl_id)', 'Ese producto ya está en el carrusel.')
+
+    @api.depends('website_id')
+    def _compute_ajustes_id(self):
+        Ajustes = self.env['dcasa.portada.ajustes']
+        for diapositiva in self:
+            sitio = diapositiva.website_id
+            if sitio and diapositiva.ajustes_id.website_id != sitio:
+                diapositiva.ajustes_id = Ajustes._dcasa_del_sitio(sitio, crear=True)
+
+    @api.constrains('ajustes_id', 'website_id')
+    def _check_ajustes_del_sitio(self):
+        for diapositiva in self:
+            if diapositiva.ajustes_id and diapositiva.ajustes_id.website_id != diapositiva.website_id:
+                raise ValidationError(self.env._('La diapositiva tiene que ser del mismo sitio que sus ajustes.'))
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        # Desde la lista de la pantalla del carrusel llega ``ajustes_id`` (su padre) y no el sitio: el sitio es el de
+        # esos ajustes, no el «actual» que pondría el valor por defecto.
+        for vals in vals_list:
+            if vals.get('ajustes_id') and not vals.get('website_id'):
+                vals['website_id'] = self.env['dcasa.portada.ajustes'].sudo().browse(vals['ajustes_id']).website_id.id
+        return super().create(vals_list)
 
     @api.model
     def _dcasa_sembrar(self):
@@ -123,55 +149,111 @@ class DcasaPortadaDiapositiva(models.Model):
                                           and producto.image_128)
 
 
-class Website(models.Model):
-    _inherit = 'website'
+class DcasaPortadaAjustes(models.Model):
+    """Los ajustes del carrusel de la portada de un sitio: por ahora, los segundos que dura cada foto.
 
-    dcasa_hero_segundos = fields.Float(
-        'Segundos que dura cada foto', default=SEGUNDOS_HERO_FABRICA, digits=(4, 1), copy=False,
+    Uno por sitio (``website_id`` único). Gerencia y los administradores lo cambian en «Sitio web › Carrusel de la
+    portada», que es este formulario con la lista de productos debajo. Va en un modelo propio y no en ``website`` a
+    propósito (revisión independiente, 2026-11-19): escribir en el sitio le abría a Gerencia, como superusuario, las
+    acciones de servidor del sitio que Odoo deja sin grupo. Sin registro, o con un valor suelto en la base que no sirva,
+    la portada usa los ``SEGUNDOS_HERO_FABRICA`` (``Website._dcasa_hero_segundos``).
+    """
+    _name = 'dcasa.portada.ajustes'
+    _description = 'Ajustes del carrusel de la portada'
+    _order = 'website_id'
+
+    website_id = fields.Many2one('website', 'Sitio', required=True, ondelete='cascade', index=True,
+                                 default=lambda self: self.env['website'].get_current_website())
+    segundos = fields.Float(
+        'Segundos que dura cada foto', default=SEGUNDOS_HERO_FABRICA, digits=(4, 1), required=True,
         help='Cuánto se queda cada foto de la portada antes de pasar a la siguiente (de 2 a 15 segundos; de fábrica '
              '3). El fundido y el zoom lento se ajustan solos a este tiempo.')
-    dcasa_hero_diapositiva_ids = fields.One2many(
-        'dcasa.portada.diapositiva', 'website_id', 'Productos del carrusel', copy=False,
-        help='Qué productos salen en el fondo de la portada y en qué orden. Vacío = el hero de siempre.')
+    diapositiva_ids = fields.One2many('dcasa.portada.diapositiva', 'ajustes_id', 'Productos del carrusel',
+                                      help='Qué productos salen en el fondo de la portada y en qué orden. Vacío = el '
+                                           'hero de siempre.')
 
-    @api.constrains('dcasa_hero_segundos')
-    def _check_dcasa_hero_segundos(self):
-        for sitio in self:
-            if not SEGUNDOS_HERO_MINIMO <= sitio.dcasa_hero_segundos <= SEGUNDOS_HERO_MAXIMO:
-                raise ValidationError(self.env._(
-                    'Los segundos que dura cada foto van de %(minimo)s a %(maximo)s. Pusiste %(valor)s.',
-                    minimo=f'{SEGUNDOS_HERO_MINIMO:g}', maximo=f'{SEGUNDOS_HERO_MAXIMO:g}',
-                    valor=f'{sitio.dcasa_hero_segundos:g}'))
+    _sitio_unico = models.Constraint('unique(website_id)', 'Cada sitio tiene un solo juego de ajustes del carrusel.')
+
+    @api.model
+    def _dcasa_normalizar_segundos(self, valor):
+        """Los segundos como número entre el mínimo y el máximo, o ``ValidationError`` en palabras sencillas.
+
+        Por RPC llega de todo: texto, ``None``, NaN, infinito, números enormes. Se revisa ANTES de que el ORM intente
+        convertirlo (que daría ``ValueError`` u ``OverflowError``), y con el redondeo a un decimal que ya hace el campo.
+        """
+        error = ValidationError(self.env._(
+            'Los segundos que dura cada foto van de %(minimo)s a %(maximo)s. Escribe un número en ese rango.',
+            minimo=f'{SEGUNDOS_HERO_MINIMO:g}', maximo=f'{SEGUNDOS_HERO_MAXIMO:g}'))
+        if isinstance(valor, bool) or valor is None or isinstance(valor, (list, dict, tuple, set)):
+            raise error
+        try:
+            numero = float(valor)
+        except (TypeError, ValueError, OverflowError):
+            raise error from None
+        if not math.isfinite(numero) or not SEGUNDOS_HERO_MINIMO <= round(numero, 1) <= SEGUNDOS_HERO_MAXIMO:
+            raise error
+        return round(numero, 1)
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            if 'segundos' in vals:
+                vals['segundos'] = self._dcasa_normalizar_segundos(vals['segundos'])
+        return super().create(vals_list)
 
     def write(self, vals):
-        # Gerencia puede cambiar el carrusel (la lista y los segundos) y nada más del sitio: el ACL de ``website`` le
-        # da escritura para esta pantalla, esta guarda la deja en estos dos campos (los administradores y quien edita
-        # el sitio siguen escribiendo lo que siempre). Sin sudo: el ACL y las reglas de registro mandan.
-        if not self.env.su and set(vals) - CAMPOS_HERO_DE_GERENCIA:
-            usuario = self.env.user
-            if not (usuario.has_group('base.group_system') or usuario.has_group('website.group_website_designer')):
-                raise AccessError(self.env._('Solo un administrador cambia los ajustes del sitio. '
-                                             'Tú puedes cambiar el carrusel de la portada.'))
+        if 'segundos' in vals:
+            vals = {**vals, 'segundos': self._dcasa_normalizar_segundos(vals['segundos'])}
         return super().write(vals)
 
-    def action_abrir_carrusel(self):
-        """El menú «Carrusel de la portada»: abre la pantalla del sitio actual (segundos y lista de productos)."""
-        sitio = self.get_current_website()
+    @api.constrains('segundos')
+    def _check_segundos(self):
+        for ajustes in self:
+            valor = ajustes.segundos
+            if not math.isfinite(valor) or not SEGUNDOS_HERO_MINIMO <= valor <= SEGUNDOS_HERO_MAXIMO:
+                raise ValidationError(self.env._(
+                    'Los segundos que dura cada foto van de %(minimo)s a %(maximo)s.',
+                    minimo=f'{SEGUNDOS_HERO_MINIMO:g}', maximo=f'{SEGUNDOS_HERO_MAXIMO:g}'))
+
+    @api.model
+    def _dcasa_del_sitio(self, sitio, crear=False):
+        """Los ajustes de ``sitio`` (vacíos si no hay y no se pide crearlos). Siempre en sudo: lo usa la portada pública
+        y la siembra, y lo que se lee o crea aquí son solo los segundos del sitio que se pide."""
+        Ajustes = self.sudo()
+        ajustes = Ajustes.search([('website_id', '=', sitio.id)], limit=1)
+        if not ajustes and crear:
+            ajustes = Ajustes.create({'website_id': sitio.id})
+        return ajustes
+
+    @api.model
+    def action_abrir(self):
+        """El menú «Carrusel de la portada»: abre los ajustes del sitio actual (los crea con el valor de fábrica si
+        faltan): los segundos arriba y la lista de productos debajo."""
+        sitio = self.env['website'].get_current_website()
+        ajustes = self.search([('website_id', '=', sitio.id)], limit=1) or self.create({'website_id': sitio.id})
         return {
             'type': 'ir.actions.act_window',
             'name': self.env._('Carrusel de la portada'),
-            'res_model': 'website',
-            'res_id': sitio.id,
+            'res_model': self._name,
+            'res_id': ajustes.id,
             'view_mode': 'form',
-            'views': [(self.env.ref('website_dcasa.view_website_carrusel_form').id, 'form')],
+            'views': [(self.env.ref('website_dcasa.view_dcasa_portada_ajustes_form').id, 'form')],
             'target': 'current',
         }
 
+
+class Website(models.Model):
+    _inherit = 'website'
+
     def _dcasa_hero_segundos(self):
-        """Los segundos de cada foto del hero, dentro de los límites (un valor suelto en la base no la rompe)."""
+        """Los segundos de cada foto del hero: los de los ajustes del sitio o, si no hay ajustes o el valor no sirve
+        (no es un número finito, o está fuera de rango: solo cabe en la base por SQL a mano), los de fábrica."""
         self.ensure_one()
-        valor = self.sudo().dcasa_hero_segundos or SEGUNDOS_HERO_FABRICA
-        return min(max(valor, SEGUNDOS_HERO_MINIMO), SEGUNDOS_HERO_MAXIMO)
+        ajustes = self.env['dcasa.portada.ajustes']._dcasa_del_sitio(self)
+        valor = ajustes.segundos if ajustes else SEGUNDOS_HERO_FABRICA
+        if not math.isfinite(valor) or not SEGUNDOS_HERO_MINIMO <= valor <= SEGUNDOS_HERO_MAXIMO:
+            return SEGUNDOS_HERO_FABRICA
+        return valor
 
     def _dcasa_hero_tiempo(self):
         """El tiempo para la plantilla, tal cual lo lee el CSS y el JavaScript (``--vitrina-tiempo: 3s``)."""
