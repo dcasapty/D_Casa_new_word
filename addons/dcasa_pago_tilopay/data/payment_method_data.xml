@@ -2,9 +2,10 @@
 <odoo noupdate="1">
 
     <!-- Una sola opción en la tienda: la API de Tilopay no deja elegir el método, lo escoge el cliente en la página de
-         Tilopay entre los que la cuenta tenga activos. Nace inactivo: se activa solo cuando Gerencia enciende Tilopay. -->
+         Tilopay entre los que la cuenta tenga activos. Se llama «Tarjeta de crédito o débito» (y no «…Yappy…») para
+         no confundirse con la opción «Yappy» de la tienda, que es el pago manual. Nace inactivo: se activa solo cuando Gerencia enciende Tilopay. -->
     <record id="payment_method_tilopay" model="payment.method">
-        <field name="name">Tarjeta, Yappy y más (Tilopay)</field>
+        <field name="name">Tarjeta de crédito o débito</field>
         <field name="code">tilopay</field>
         <field name="sequence">1</field>
         <field name="active" eval="False"/>
