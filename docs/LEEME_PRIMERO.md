@@ -37,6 +37,7 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 | Desplegar a **staging** | **Antes, capturas a la dueña y su visto bueno** (regla del 2026-10-17: capturas → su filtro → pruebas → staging → producción). Capturas con datos de prueba, en computadora y celular, revisadas antes de mandarlas |
 | Crear el PR hacia `main` | Solo cuando lo pide o ya dijo «pásalo a producción» |
 | Unir a `main` y desplegar a **producción** | Permiso general desde el 2026-10-17 («súbelo en cuanto vayas terminando») para lo que pasó pruebas y revisión. **Desde el 2026-11-13 sin esperar su visto bueno a las capturas** («no esperes mi aprobación para pasar a producción. Apruébalo y punto»): se le muestran igual, pero no se espera. La revisión adversarial no se salta |
+| **Cambios de diseño** (cómo se ve el sitio, el pago o el panel: colores, tamaños, tipografía, botones, márgenes, pantallas nuevas o rediseñadas) | **Sí, y viéndolos antes (2026-11-20).** Gerencia dijo: «antes de cualquier cosa o cambio en el diseño me gustaría verlo antes». Se muestran capturas **antes/después** (computadora y celular, con datos de prueba) y **no se sube a producción hasta su «sí» a lo que vio**. Esto **tiene prioridad** sobre «no esperes mi aprobación» (2026-11-13), que sigue valiendo para lo que no cambia cómo se ve (lógica, permisos, rendimiento) |
 | Borrar datos, ramas, respaldos, secretos | Sí, y mirando primero qué se borra |
 | Cifras de dinero, puntos, comisiones, impuestos | Nunca se inventan (ver `CLAUDE.md`: `puntos.json`, reglas de marca) |
 

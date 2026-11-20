@@ -7,6 +7,8 @@ la bitácora de LEEME_PRIMERO (y lo más viejo en [historico/BITACORA_ANTERIOR.m
 Cada cosa nueva pasa por capturas a la dueña, pruebas, staging y, si toca dinero, permisos o Socios, revisión adversarial.
 **Desde el 2026-11-13 la dueña no pide su visto bueno para pasar a producción** («Y no esperes mi aprobación para pasar
 la producción. Apruébalo y punto.»); la revisión adversarial no se salta (reglas en LEEME_PRIMERO §2).
+**Excepción desde el 2026-11-20: todo cambio de diseño se le muestra en capturas antes/después y espera su «sí»** («antes de cualquier cosa o
+cambio en el diseño me gustaría verlo antes»; ver LEEME_PRIMERO §2).
 
 ## Estado al 2026-11-20
 
