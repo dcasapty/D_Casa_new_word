@@ -8,8 +8,6 @@ vivo.
 import logging
 from unittest.mock import patch
 
-import requests
-
 from odoo.addons.dcasa_brian_tienda.controllers import main as controlador
 from odoo.addons.dcasa_brian_tienda.controllers.main import SEGUNDOS_CACHE_VITRINA, limpiar_cache_vitrina
 from odoo.tests import tagged
@@ -62,7 +60,7 @@ class TestVitrinaPublicaPocasConsultas(TiendaCase):
         con_carrito = self._plantillas(self.url_open(VITRINA))
         self.assertNotIn(self.colchon.id, con_carrito)
         # …y a otra persona, que llega después y toma lo guardado, sí.
-        self.opener = requests.Session()
+        self.otra_sesion()
         otra = self._plantillas(self.url_open(VITRINA))
         self.assertEqual(otra, anonima, 'la otra persona ve lo común, sin lo del carrito ajeno')
         self.assertEqual(sum(len(valor[1]) for valor in controlador._CACHE_VITRINA.values()), guardadas,
@@ -84,7 +82,7 @@ class TestVitrinaPublicaPocasConsultas(TiendaCase):
             self.assertEqual(todavia[0]['nombre'], primera[0]['nombre'], 'dentro del minuto se ve lo guardado')
             reloj['t'] += 2
             despues = self.url_open(VITRINA).json()['productos']
-            self.assertEqual(despues[0]['nombre'], 'Zzbt Colchón Queen Renombrado',
+            self.assertEqual(despues[0]['nombre'], 'ZZBT Colchón Queen Renombrado',
                              'pasado el minuto se arma de nuevo con lo vivo')
 
     def test_lo_viejo_de_la_tarjeta_nunca_llega_al_carrito(self):
