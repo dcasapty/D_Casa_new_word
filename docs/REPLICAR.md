@@ -87,6 +87,8 @@ Sacado de cada `addons/*/__manifest__.py` (detalle en [MODULOS.md](MODULOS.md)).
 | | `dcasa_correo` | Correo a clientes por Resend (apagado de fábrica) |
 | | `dcasa_meta_catalogo` | El catálogo por URL para los anuncios de Meta |
 | | `dcasa_meta_eventos` | Píxel de Meta con consentimiento y ventas pagadas a la Conversions API (todo apagado) |
+| | `dcasa_pago_tilopay` | Pago con tarjeta y más por Tilopay desde la tienda (apagado de fábrica; claves solo en Cloudflare) |
+| | `dcasa_pago_yappy` | Pago directo con el Botón de Pago de Yappy Comercial desde la tienda (apagado de fábrica; claves solo en Cloudflare; [YAPPY.md](YAPPY.md)) |
 | Programas | `dcasa_socios` | Socios (puntos y referidos) y programa de vendedores, con libros inmutables |
 | Contabilidad y personal | `dcasa_contabilidad` | Reportes con comparativos, bancos y conciliación, cierre de mes, presupuestos, cheques |
 | | `dcasa_consolidacion` | Estados financieros de varias empresas del grupo en uno |

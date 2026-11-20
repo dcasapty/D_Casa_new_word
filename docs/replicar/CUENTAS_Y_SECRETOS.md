@@ -107,6 +107,10 @@ cambia en el panel llega al contenedor **al reiniciar o en el siguiente desplieg
 | `TILOPAY_API_USER` | Secreto | El «Usuario API» de Tilopay |
 | `TILOPAY_API_PASSWORD` | Secreto | La «Contraseña API» de Tilopay |
 | `TILOPAY_ENTORNO` | Variable | `prueba` (por defecto) o `produccion`. Tiene que coincidir con el «Modo Prueba» del panel de Tilopay. Staging la trae fijada en `prueba` |
+| `YAPPY_ID_COMERCIO` | Secreto | El «ID del comercio» del Botón de Pago, que se crea en Yappy Comercial con un usuario administrador. Sin él (y sin la clave y el dominio), el pago directo con Yappy no aparece en la tienda ([YAPPY.md](../YAPPY.md)) |
+| `YAPPY_CLAVE_SECRETA` | Secreto | La «Clave secreta» del botón: Yappy la muestra **una sola vez**, se pega directo en Cloudflare. Firma los avisos de pago |
+| `YAPPY_DOMINIO` | Variable | El dominio que se escribió al crear el botón en Yappy Comercial, **letra por letra** (con o sin `www`, con o sin `https://`: Yappy lo trata como distinto) |
+| `YAPPY_ENTORNO` | Variable | `prueba` (por defecto) o `produccion`. Decide a qué servidor de Yappy se le habla. Staging la trae fijada en `prueba` |
 | `BRIAN_TELEGRAM_CHATS` | Variable | IDs de los chats de Telegram a los que Brian atiende (coma). Sin ella, cualquiera que encuentre el bot recibe las instrucciones para vincularse ([BRIAN.md › Telegram](../BRIAN.md)) |
 | `DCASA_ALERTA_TELEGRAM_CHAT` | Variable | Chat al que el Worker avisa si el contenedor se cae (con el bot de Brian) |
 | `TURNSTILE_SITE_KEY` | Variable | Clave pública de Turnstile (o en `edge/wrangler.jsonc`, `:90-91`) |

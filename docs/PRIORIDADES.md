@@ -1,6 +1,6 @@
 # Prioridades vigentes
 
-Puesto al día el **2026-11-20** (lo nuevo está en la rama de trabajo, sin subir: ver «Estado al 2026-11-20»). Antes, el **2026-11-18** (**todo está en producción**: el Black Friday desde el 16 —Desplegar 77 y Juan 28—, la portada nueva desde el 17 —CI/CD 377, PR #127— y **la segunda entrega completa desde el 18** —CI/CD 380 y Desplegar Juan 29, squash `d2ba8caf`, PR #128—. Ya no queda nada esperando en la rama de trabajo). Es el orden en que se trabaja: cada sesión lo lee al empezar y lo pone al día al
+Puesto al día el **2026-11-20** (lo nuevo está en la rama de trabajo, sin subir, y Yappy directo aparte, sin unir: ver «Estado al 2026-11-20»). Antes, el **2026-11-18** (**todo está en producción**: el Black Friday desde el 16 —Desplegar 77 y Juan 28—, la portada nueva desde el 17 —CI/CD 377, PR #127— y **la segunda entrega completa desde el 18** —CI/CD 380 y Desplegar Juan 29, squash `d2ba8caf`, PR #128—. Ya no queda nada esperando en la rama de trabajo). Es el orden en que se trabaja: cada sesión lo lee al empezar y lo pone al día al
 terminar (ver [LEEME_PRIMERO.md](LEEME_PRIMERO.md)). Aquí va **un solo estado**, el de hoy; lo que pasó cada día está en
 la bitácora de LEEME_PRIMERO (y lo más viejo en [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md)).
 
@@ -18,6 +18,10 @@ cambio en el diseño me gustaría verlo antes»; ver LEEME_PRIMERO §2).
   mide). Detalle y SHA de cada rama en la bitácora de LEEME_PRIMERO (2026-11-19 y 20).
 - **Falta, en este orden:** segunda revisión independiente de la comisión (en curso), batería completa sobre la rama, subir por la
   receta, y las capturas nuevas de Tilopay para la dueña.
+- **Yappy directo** (`local/yappy`, módulo `dcasa_pago_yappy`, [YAPPY.md](YAPPY.md)): construido y probado con un Yappy simulado, **sin
+  unir a la rama de trabajo ni desplegar**: trae cambios visuales (la fila «Yappy» con su campo y su botón, el bloque «Qué
+  compró» en el pedido) y espera que la dueña vea las capturas antes/después y diga que sí. Nace apagado. Falta: su «sí», la
+  revisión independiente (es dinero), el acceso al programa de pruebas de Yappy y la compra de ensayo.
 
 ## Estado al 2026-11-17
 
@@ -61,6 +65,13 @@ Después, y solo con lo que va aquí:
   dueña en Cloudflare (nunca por el chat) con `TILOPAY_ENTORNO=prueba`; una compra de ensayo; pedirle a Soporte de Tilopay que
   registre `https://dcasapty.com/payment/tilopay/webhook`, la vigencia de la página de pago y los datos de `docs/TILOPAY.md` §8.
   **No cobrar de verdad** hasta cerrar la lista de `docs/TILOPAY.md` §9.1.
+- **Yappy directo** (cuando la dueña diga que sí a las capturas y pase la revisión): cargar en Cloudflare, en staging, `YAPPY_ID_COMERCIO`,
+  `YAPPY_CLAVE_SECRETA` (se ve **una sola vez** en Yappy Comercial; se pega directo, nunca por el chat) y `YAPPY_DOMINIO` (letra por
+  letra como se escribió en Yappy Comercial); pedir a `botondepagoyappy@bgeneral.com` el acceso al programa de pruebas y las
+  preguntas de `docs/YAPPY.md` §8 (validez del token, `Bearer`, `paymentDate`, reintentos del aviso y su código de respuesta,
+  IPs de origen, campo del código de error); una compra de ensayo; conciliar a diario contra el reporte de Yappy Comercial.
+  **No cobrar de verdad** hasta cerrar la lista de `docs/YAPPY.md` §7 y §12. La contadora decide el tratamiento de la comisión de
+  Yappy (no está modelada). Revisar a Juan cuando se encienda (`docs/YAPPY.md` §11).
 - **Comisión web:** Gerencia define porcentaje, tarifa fija, quiénes reciben y las fechas de pago desde Ajustes; la contadora
   documenta el tratamiento (no es salario, sin descuentos de planilla). Decisiones abiertas: limitar el pago por código VEN a vendedores
   externos, y afinar el «caso gris» de Andrés (la vendedora que solo confirma). Ver `docs/COMISION_WEB.md`.

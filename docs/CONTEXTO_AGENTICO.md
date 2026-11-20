@@ -1654,6 +1654,45 @@ Lo que quedó escrito para no repetirlo:
 - **Disco:** cada árbol de trabajo pesa ~1,1 GB (`fuentes/` y `up media/`) y cada base de pruebas ~250 MB. Quitar los árboles de
   revisores terminados (guardando aparte sus pruebas sueltas) antes de lanzar la batería completa.
 
+### Lo que enseñó Yappy directo (2026-11-20, `dcasa_pago_yappy`)
+
+- **`--test-tags /dcasa_pago_yappy` no corre NINGUNA prueba, y nadie se entera.** La expresión regular de Odoo toma una etiqueta
+  que termina en «?py» por la ruta de un archivo `.py` (el punto sin escapar). «0 pruebas, todo bien» es un error. Se usa la etiqueta
+  sin barra (`dcasa_pago_yappy` o `dcasa_pago_yappy:Clase`) y `scripts/test.sh` ya lo hace solo. Mirar siempre el conteo de pruebas.
+- **La tienda de Odoo 19 lista MÉTODOS de pago, no proveedores.** Dos proveedores con el mismo código de método dan una sola fila
+  (la del primer proveedor que la cubra). Y `website_dcasa` reactiva y enlaza al proveedor manual **cualquier** método con código
+  `yappy`. Por eso el directo tiene su propio código (`yappy_directo`, también llamado «Yappy») y retira al manual en
+  `_get_compatible_providers`; así la clienta nunca ve dos «Yappy».
+- **Ya existía un diario «Yappy» (`dcasa_base`, código `YAPPY`).** El proveedor nuevo lo reutiliza (se busca por código, luego por
+  nombre y banco, y solo si no hay se crea): un segundo diario partiría la conciliación en dos.
+- **`assertRaises` deshace el savepoint de lo que hizo la llamada:** lo que el código dejó escrito antes de levantar la excepción
+  desaparece en la prueba. En producción el controlador atrapa el `ValidationError` y hace `commit` (para que el estado quede); en
+  las pruebas, un ayudante (`iniciar_y_fallar`) usa `try/except`.
+- **Un aviso perdido es un pago perdido:** el bloqueo de la fila es de **espera** (`SELECT … FOR UPDATE`), nunca `SKIP LOCKED`; y la
+  orden de Yappy se guarda y se **confirma** (`commit`) antes de llamar a Yappy, para que un corte no deje un cobro sin dueño.
+- **`b64decode` de Python es permisivo** (acepta basura sin quejarse): la clave secreta se valida con una expresión regular antes de
+  decodificarla. Y el `orderId` del aviso no se recorta (`'S0008\n'` es otra orden, no la misma).
+- **Los registros de depuración de Odoo llevan los parámetros del SQL** (un celular, por ejemplo): las pruebas de «no hay datos en el
+  log» usan `assertLogs('odoo', level='INFO')`, no `DEBUG`.
+- **Una base de desarrollo con datos de pruebas a mano rompe pruebas que dependen de «lo que hay»**: «nace apagado» (el proveedor
+  quedó en prueba), el tope global de cobros por hora (había cobros viejos) y la tarea de «sin aviso» (cobros sin aviso de otra
+  sesión). Las cuentas de pruebas se hacen con una **base nueva** (`scripts/test.sh`), y las que cuentan cosas globales parten de lo
+  que ya hay (se corre la tarea una vez en `setUp`, se fija el tope en «lo que ya hay + 2»).
+- **Pruebas de Chrome:** esperar a `is-ready` del `<body>` y a las animaciones antes de medir (una caja que se abre con animación
+  mide 0 de alto un instante); el campo de Yappy se abre **después** de montar el botón. El `<btn-yappy>` de Yappy no se puede
+  correr en las pruebas (carga reCAPTCHA y Firebase): se simula con un elemento personalizado y las capturas lo dicen en la leyenda.
+- **Los guiones de capturas no se corren a la vez:** el de limpieza del uno cancela el pedido en vuelo del otro y la captura del
+  «pagado» salió «Cancelado». Uno por uno.
+- **El CSS `:has()` sirve para esconder la barra pegajosa de «Pagar» solo cuando Yappy está elegido** (su botón vive dentro de la
+  fila): sin eso queda una barra blanca vacía en el celular.
+- **Lo que Yappy no documentó (§8 de `docs/YAPPY.md`)** no se supone: vigencia del token, `Bearer`, `paymentDate` (segundos o
+  milisegundos), reintentos y código de respuesta del aviso, IPs de origen y el campo del código de error. El ejemplo de su
+  documentación trae un anfitrión de CDN que no responde (`bt-cdn.yappycloud.com`); los que sirven son `bt-cdn.yappy.cloud` y
+  `bt-cdn-uat.yappycloud.com`. `confirmationNumber` no va firmado; `E007` (orden ya registrada) no es un fallo.
+- **Dos cambios que tocan a todos:** el aviso de Yappy es un `GET` abierto (no hay cuerpo ni cabecera que firmar): el borde lo deja
+  pasar entero (`/payment/yappy/` en `NEVER_CACHE_PREFIXES`) y, si Odoo no está listo, contesta **503** (nunca 200) para que Yappy pueda
+  reintentar.
+
 ### Cloudflare
 
 - **Un secreto nuevo del panel del Worker `dcasa` no llega a Odoo hasta que el contenedor arranca otra vez**
