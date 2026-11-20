@@ -38,7 +38,8 @@ class TestCalculo(TransactionCase):
 
     def test_todos_los_interruptores_juntos(self):
         self.assertEqual(base(base_itbms='con', base_envio='con', base_descuentos='antes', base_devoluciones='no_resta',
-                              base_pasarela='resta'), 100000 + 5000 + 5000 + 9000 - 3000)
+                              base_pasarela='resta'), 100000 + 5000 + 5000 + 10500 - 3000,
+                         'el ITBMS del precio de lista: 9,000 × 105,000 / 90,000')
 
     def test_antes_de_descuentos_devolver_todo_deja_la_base_en_cero_y_la_mitad_en_la_mitad(self):
         venta = {'productos': 90000, 'descuento_lineas': 10000, 'descuento_negativas': 0, 'envio': 0, 'itbms': 0,

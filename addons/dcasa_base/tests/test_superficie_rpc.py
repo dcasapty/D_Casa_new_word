@@ -1284,7 +1284,15 @@ LISTA_BLANCA = {
         OVERRIDE + ' Solo NIEGA escribir las marcas de origen de la venta online (nació en la web, Andrés, la llevó '
                    'una vendedora): solo se escriben por código, con una llave interna que por RPC nunca llega; sin '
                    'sudo().',
+    ('dcasa_base', 'sale.order', 'default_get'):
+        OVERRIDE + ' Solo QUITA del resultado las marcas de origen de la venta online (un ``default_*`` del contexto '
+                   'llega por RPC y no puede fabricarlas); sin sudo().',
     # --- dcasa_comision_web ----------------------------------------------------------------------------
+    ('dcasa_comision_web', 'dcasa.web.liquidacion', 'default_get'):
+        OVERRIDE + ' Solo deja el estado en «borrador» y vacía quién aprobó, pagó o canceló, aunque el contexto '
+                   'diga otra cosa; sin sudo().',
+    ('dcasa_comision_web', 'dcasa.web.reglas', 'default_get'):
+        OVERRIDE + ' Solo deja la versión sin anular, aunque el contexto diga otra cosa; sin sudo().',
     ('dcasa_comision_web', 'dcasa.web.liquidacion', 'action_armar'): COMISION_WEB_BOTON,
     ('dcasa_comision_web', 'dcasa.web.liquidacion', 'action_aprobar'): COMISION_WEB_BOTON,
     ('dcasa_comision_web', 'dcasa.web.liquidacion', 'action_pagar'): COMISION_WEB_BOTON,

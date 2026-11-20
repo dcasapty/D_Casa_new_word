@@ -58,12 +58,17 @@ class TestReglas(ComisionCommon):
         futura = self.version(10.0, rige_desde=fields.Datetime.now() + timedelta(days=10))
         self.assertEqual(self.env['dcasa.web.reglas']._vigente(self.company), self.env['dcasa.web.reglas'])
         self.assertEqual(futura.estado, 'programada')
-        # Una versión más cercana que otra ya programada se puede guardar (no traba el módulo): rige primero.
+        # Una versión más cercana que otra ya programada se puede guardar (no traba el módulo) y manda desde su fecha en
+        # adelante: la última que se guardó tapa a la que se había guardado antes con una fecha más lejana.
+        Reglas = self.env['dcasa.web.reglas']
         cercana = self.version(8.0, rige_desde=fields.Datetime.now() + timedelta(days=5))
-        self.assertEqual(self.env['dcasa.web.reglas']._vigente(
-            self.company, fields.Datetime.now() + timedelta(days=6)), cercana)
-        self.assertEqual(self.env['dcasa.web.reglas']._vigente(
-            self.company, fields.Datetime.now() + timedelta(days=11)), futura)
+        self.assertEqual(Reglas._vigente(self.company, fields.Datetime.now() + timedelta(days=6)), cercana)
+        self.assertEqual(Reglas._vigente(self.company, fields.Datetime.now() + timedelta(days=11)), cercana,
+                         'la lejana se guardó antes: queda tapada por la última guardada')
+        cercana.with_user(self.u_nomina).write({'motivo_anulacion': 'La lejana era la buena'})
+        cercana.with_user(self.u_nomina).action_anular()
+        self.assertEqual(Reglas._vigente(self.company, fields.Datetime.now() + timedelta(days=11)), futura,
+                         'anulada la que la tapaba, la lejana vuelve a mandar desde su fecha')
 
     def test_la_version_vigente_es_la_mas_reciente_que_ya_empezo(self):
         v1 = self.version(10.0)

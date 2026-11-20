@@ -29,9 +29,11 @@ Las marcas se escriben UNA vez, **solo por código del flujo real** (el carrito:
 ``dcasa_comision_web`` decide «la llevó una vendedora» al confirmar), y nadie las cambia a mano ni con ``sudo()``: solo
 con la llave interna ``ESCRIBIR``, que por RPC nunca llega (el contexto de una llamada es JSON). **Tener ``website_id``
 NO basta** (revisión adversarial, 2026-11-19): ese campo se acepta por RPC, así que quien teclea un pedido de mostrador
-con él no lo vuelve «de la web». Tampoco se escribe a mano el campo calculado ``dcasa_venta_online`` que lee todo el
-sistema. ``dcasa_creada_por_id`` guarda quién abrió el carrito (para que Gerencia vea si alguien del equipo teclea
-pedidos de la página). Los pedidos que ya existían se marcaron una sola vez al instalar (``migrations/19.0.1.10.0``).
+con él no lo vuelve «de la web»; tampoco lo hace un ``default_*`` del contexto (también viaja por RPC y Odoo lo aplica
+después de ``create``: ``default_get`` lo descarta). Tampoco se escribe a mano el campo calculado
+``dcasa_venta_online`` que lee todo el sistema. ``dcasa_creada_por_id`` guarda quién abrió el carrito (para que
+Gerencia vea si alguien del equipo teclea pedidos de la página). Los pedidos que ya existían se marcaron una sola
+vez al instalar (``migrations/19.0.1.10.0``).
 
 **Solo hacia adelante.** La regla «una venta online nunca es de una vendedora» solo rige desde el día en que Gerencia
 pone en vigencia la primera versión de las reglas de la comisión web: ``_dcasa_online_desde()`` devuelve ese día (y
@@ -42,7 +44,8 @@ from datetime import date
 from odoo import api, fields, models
 from odoo.exceptions import UserError
 
-TESTIGOS = ('dcasa_nacio_en_web', 'dcasa_via_andres', 'dcasa_llevada_por_vendedora', 'dcasa_creada_por_id')
+TESTIGOS = ('dcasa_nacio_en_web', 'dcasa_via_andres', 'dcasa_llevada_por_vendedora', 'dcasa_creada_por_id',
+            'dcasa_tocada_por_id')
 # Lo derivado de las marcas: se calcula, y escribirlo a mano se ignora (nunca cambia lo que cuenta).
 DERIVADOS = ('dcasa_venta_online',)
 CLAVE_CONTEXTO = 'dcasa_base_escribir_testigo'
@@ -69,6 +72,12 @@ class SaleOrderOnline(models.Model):
         'res.users', 'Carrito abierto por', readonly=True, copy=False, index='btree_not_null',
         help='Quién abrió el carrito de la página (el visitante o, si es alguien del equipo, quién fue). Sirve para '
              'vigilar si el personal teclea pedidos de la página; no cambia lo que cuenta.')
+    dcasa_tocada_por_id = fields.Many2one(
+        'res.users', 'Lo cambió el equipo', readonly=True, copy=False, index='btree_not_null',
+        help='La última persona del equipo (un usuario interno) que cambió el cliente o las líneas de un pedido que ya '
+             'nació por un flujo digital, o quien tecleó el precio de una línea (la tienda pone los precios sola). '
+             'Nadie lo escribe a mano. Es vigilancia: no cambia lo que cuenta. Cubre el carrito que abre un visitante '
+             'y después arma alguien a mano para cobrarlo como venta del sitio.')
     dcasa_venta_online = fields.Boolean(
         'Venta online', compute='_compute_dcasa_venta_online', store=True, index=True,
         help='La definición única: nació por un flujo digital (la página, Andrés, la cotización de Juan) y no la llevó '
@@ -80,9 +89,21 @@ class SaleOrderOnline(models.Model):
         for orden in self:
             orden.dcasa_venta_online = bool(orden.dcasa_nacio_en_web and not orden.dcasa_llevada_por_vendedora)
 
+    @api.model
+    def default_get(self, fields_list):
+        """Las claves ``default_*`` del contexto llegan por RPC y Odoo las aplica DESPUÉS de que ``create`` limpió los
+        valores: sin esto, ``context={'default_dcasa_nacio_en_web': True}`` fabricaba el origen (segunda revisión,
+        2026-11-19). Solo la llave interna ``ESCRIBIR`` deja pasar una marca."""
+        valores = super().default_get(fields_list)
+        if self.env.context.get(CLAVE_CONTEXTO) is not ESCRIBIR:
+            for clave in TESTIGOS + DERIVADOS:
+                valores.pop(clave, None)
+        return valores
+
     @api.model_create_multi
     def create(self, vals_list):
-        # Nadie fabrica el origen al crear (ni con ``website_id`` ni con ``default_website_id``): lo pone el sitio.
+        # Nadie fabrica el origen al crear (ni con ``website_id``, ni con ``default_website_id``, ni con ningún
+        # ``default_*`` del contexto: ver ``default_get``): lo pone el flujo real.
         vals_list = [{k: v for k, v in vals.items() if k not in TESTIGOS + DERIVADOS} for vals in vals_list]
         return super().create(vals_list)
 
@@ -96,12 +117,26 @@ class SaleOrderOnline(models.Model):
             vals = {k: v for k, v in vals.items() if k not in DERIVADOS}
             if not vals:
                 return True
-        return super().write(vals)
+        resultado = super().write(vals)
+        if ('partner_id' in vals or 'order_line' in vals) and self.env.context.get(CLAVE_CONTEXTO) is not ESCRIBIR:
+            self._dcasa_anotar_quien_toco()
+        return resultado
+
+    def _dcasa_anotar_quien_toco(self):
+        """Si una persona del equipo (un usuario interno, no un visitante ni un cliente) cambia el cliente o las líneas
+        de un pedido que nació por un flujo digital, queda anotado quién: así Gerencia ve el carrito que abrió un
+        visitante y después se armó a mano para cobrarlo como venta del sitio. Solo vigilancia."""
+        usuario = self.env.user
+        if usuario.share:
+            return
+        self.filtered(lambda o: o.dcasa_nacio_en_web and o.dcasa_tocada_por_id != usuario)._dcasa_escribir_marca(
+            dcasa_tocada_por_id=usuario.id)
 
     def _dcasa_escribir_marca(self, **marcas):
         """Único camino para escribir las marcas de origen (solo código del sistema; ver arriba)."""
         pendientes = self.filtered(lambda o: any(
-            (o[clave].id if clave == 'dcasa_creada_por_id' else o[clave]) != valor for clave, valor in marcas.items()))
+            (o[clave].id if o._fields[clave].type == 'many2one' else o[clave]) != valor
+            for clave, valor in marcas.items()))
         if pendientes:
             pendientes.sudo().with_context(**{CLAVE_CONTEXTO: ESCRIBIR}).write(marcas)
         return pendientes
@@ -130,6 +165,38 @@ class SaleOrderOnline(models.Model):
         if not desde:
             return []
         return ['|', ('dcasa_venta_online', '=', False), (campo_dia, '<', fields.Date.to_string(desde))]
+
+
+class SaleOrderLineOnline(models.Model):
+    _inherit = 'sale.order.line'
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        lineas = super().create(vals_list)
+        con_precio = lineas.browse(
+            [linea.id for linea, vals in zip(lineas, vals_list, strict=True) if 'price_unit' in vals])
+        con_precio._dcasa_anotar_precio_a_mano()
+        return lineas
+
+    def write(self, vals):
+        resultado = super().write(vals)
+        if 'price_unit' in vals:
+            self._dcasa_anotar_precio_a_mano()
+        return resultado
+
+    def _dcasa_anotar_precio_a_mano(self):
+        """El carrito, Andrés y las cotizaciones de Juan dejan que el precio de cada línea lo ponga la tienda: quien
+        TECLEA un precio en una línea de producto de un pedido que nació por un flujo digital lo está armando a mano
+        (para cobrarlo como venta del sitio con otro precio), y eso es lo que se vigila: ``dcasa_tocada_por_id``. No
+        cuentan el envío, el anticipo, los premios (precio negativo) ni lo que Odoo recalcula solo."""
+        if self.env.context.get('sale_write_from_compute'):
+            return
+        usuario = self.env.user
+        ordenes = self.filtered(
+            lambda ln: not ln.display_type and not ln.is_downpayment and ln.price_unit > 0
+            and not ('is_delivery' in ln._fields and ln.is_delivery) and ln.order_id.dcasa_nacio_en_web).order_id
+        ordenes.filtered(lambda o: o.dcasa_tocada_por_id != usuario)._dcasa_escribir_marca(
+            dcasa_tocada_por_id=usuario.id)
 
 
 class AccountMoveOnline(models.Model):

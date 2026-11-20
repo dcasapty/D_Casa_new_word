@@ -10,3 +10,6 @@ from . import test_pantallas
 from . import test_revision
 from . import test_endurecimiento
 from . import test_cotizacion_de_juan
+from . import test_revision2_a
+from . import test_revision2_b
+from . import test_revision2_c

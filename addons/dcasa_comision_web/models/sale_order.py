@@ -42,6 +42,7 @@ class SaleOrder(models.Model):
               JOIN dcasa_conversacion c ON c.id = m.conversacion_id
               JOIN res_partner p ON p.id = c.partner_id
              WHERE p.commercial_partner_id = %s AND m.tipo = 'mensaje' AND m.autor IN ('bot', 'vendedora')
+               AND m.estado_envio NOT IN ('programado', 'por_enviar', 'fallido')
                AND m.ts >= %s AND m.ts <= %s""", [cliente.id, fin - timedelta(days=VENTANA_DE_CHAT_DIAS), fin])
         hablo_juan, escribio_vendedora = self.env.cr.fetchone()
         return bool(hablo_juan), bool(escribio_vendedora)
