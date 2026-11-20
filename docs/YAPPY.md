@@ -265,8 +265,48 @@ Solo con el **sí** de la dueña a lo que vio (capturas antes/después del cambi
 - **Una orden de más de 15 caracteres o con guion da `E009`:** por eso el código arma la orden y la valida antes de llamar.
 - **`eventError` antes del primer pago no es un pago fallido.** El botón lo usa para decir que no está disponible; si se
   reconstruyera en cada `eventError` habría un ciclo infinito. Solo se reconstruye después de un intento.
-- **El botón carga cosas de terceros** (reCAPTCHA, Firebase, fuentes de Google). Es del componente de Yappy; no se puede quitar.
-  Si no carga (sin red, bloqueador de anuncios), la clienta ve un mensaje con «Volver a intentarlo» y «Escríbenos por WhatsApp».
+- **El botón carga cosas de terceros.** Con el componente real (script de PRUEBAS de Yappy en Chrome, 2026-11-20) se vio llamar a:
+  al **elegir** la fila «Yappy» (nunca antes: con la tienda y el pago sin elegir no sale ninguna llamada a otro dominio),
+  `bt-cdn-uat.yappycloud.com` (el script y los logos), `fonts.googleapis.com` y `fonts.gstatic.com` (la letra Nunito Sans, de
+  Google) y `api-comecom-uat.yappycloud.com` (`/handshake`: «¿Yappy está disponible?»); al **pulsar** el botón,
+  `identitytoolkit.googleapis.com` (Firebase Auth, `signInWithCustomToken`), más el logo del contador. Deja en el navegador
+  `sessionStorage.timerDuration` y dos bases (`firebase-heartbeat-database`, `firebaseLocalStorageDb`); ninguna cookie de terceros.
+  En producción el código apunta a `bt-cdn.yappy.cloud`, `apipagosbg.bgeneral.cloud` y al proyecto Firebase `yappy-pa` (no se ejecutó
+  contra producción). Con un token válido el componente también escucha el documento del pago en Firestore (Google), y su código
+  nombra reCAPTCHA y `apis.google.com`, que con el token falso de las pruebas no se vieron. Eso es lo que hay que decir en la
+  política de privacidad del sitio. No se puede quitar; si no carga (sin red, bloqueador de anuncios), la clienta ve un mensaje
+  con «Volver a intentarlo» y «Escríbenos por WhatsApp».
+- **La ventana de Yappy dentro de nuestra pantalla (medida con el componente real, 2026-11-20; capturas y guiones en el
+  scratchpad de la sesión, no en el repositorio).** El componente **no usa shadow DOM**: se dibuja en la página, sus estilos se
+  atan a sus propias etiquetas y los nuestros los pueden pisar (ya lo hacemos con el alto y la esquina del botón). La ventana es un
+  `<dialog open>` **no modal** (sin capa superior): `position: fixed; inset: 0; z-index: 10`, puesta **junto** a `<btn-yappy>`
+  dentro de la misma caja, con un fondo `fixed; z-index: 5`. Por eso: no atrapa el foco, Escape y el clic fuera no la cierran, la
+  página de atrás sigue moviéndose con la rueda y el teclado, y mientras espera no tiene botón de cerrar (solo al terminar: error,
+  vencida o pagada); al refrescar o volver atrás se cierra sola y avisa «No refresques el navegador». Lo que se arregló de
+  NUESTRO lado:
+  - La fila elegida crea su propio contexto de apilamiento (`z-index: 1`, `pago.scss`): la ventana quedaba **debajo** del resumen
+    fijo de la derecha (1020) y de la barra de pagar del celular (1030); en la computadora el resumen tapaba la mitad de la ventana
+    y su botón de cerrar. Con una ventana abierta, la fila sube a 1100 (`yappy.scss`).
+  - En un celular acostado (844×390) la ventana (590 px) se cortaba arriba y abajo: ahora tiene alto máximo y se desplaza por dentro.
+  - Tras un fallo, el botón nuevo avisaba «en línea» y **borraba el motivo** que la clienta no había leído: ahora solo borra su
+    propio aviso de «Yappy no está disponible».
+  - El contador de 5 minutos es del componente y, al llegar a cero, abre «Transacción expirada» **sin ningún evento**: al cerrarla
+    el botón quedaba apagado para siempre con el mensaje «tienes 5 minutos». Ahora, al cerrarse la ventana sin evento, se pone un
+    botón nuevo y se dice que venció.
+  - El estado «ventana abierta» es compartido por todos los botones de la página: si la clienta no cerraba «Transacción cancelada» y
+    pulsaba otra vez, la ventana del intento nuevo no abría y veía «cancelada» sobre «confirma el pago». Un intento nuevo cierra antes
+    la ventana vieja; y con un intento vivo (Enter dos veces salta el `pointer-events: none` del botón) no se empieza otro.
+  - Después de `eventSuccess` se usa `location.replace`: con «atrás» no se vuelve a un botón de Yappy listo para pagar otra vez.
+  `eventError` también llega con valores que no son de la lista (`false` si Firebase rechaza el token; un error de red): mensaje
+  general y botón nuevo.
+- **Refrescar o cerrar a mitad, y pagar dos veces (pendiente de decisión, no es un fallo de dinero).** Con un cobro abierto el pedido
+  queda `draft` con la transacción `pending` y Odoo suelta el carrito de la sesión: al refrescar o volver atrás la clienta cae en la
+  tienda con el carrito vacío y «Mis pedidos» no lo lista; el aviso firmado sigue pudiendo pagarlo y `/payment/status` lo muestra.
+  Propuestas: una guarda `beforeunload` mientras el intento está vivo, y mandar a `/payment/status` a quien vuelva a la tienda
+  con un cobro de Yappy de menos de 5 minutos. Si abre dos cobros y paga los dos, los dos entran (`done`), el equipo recibe la
+  actividad «Yappy: pedido pagado dos veces» y devuelve uno: se avisa, no se impide (Yappy no permite cancelar una orden).
+  En «revisión» (llegó una `E` sobre una transacción ya cancelada) la pantalla de estado sigue ofreciendo «Intentar de nuevo»:
+  conviene esconderlo mientras una persona mira el cobro.
 - **La trampa de las etiquetas de prueba de Odoo.** `--test-tags /dcasa_pago_yappy` **no corre ninguna prueba**: la expresión
   regular de Odoo toma un nombre que termina en «py» por la ruta de un archivo `.py` (el punto sin escapar). Se usa la etiqueta
   sin barra (`dcasa_pago_yappy`) y `scripts/test.sh` ya lo hace solo. Un «0 pruebas, todo bien» en este módulo es un error.
