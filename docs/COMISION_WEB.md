@@ -11,7 +11,9 @@ explica **cómo funciona hoy**, en palabras para administración.
 > cambian. Guardar la primera versión es lo que enciende el cobro (y lo que desde ese día quita lo online a las
 > vendedoras): necesita el porcentaje, la tarifa y quiénes reciben, que decide Gerencia, y el tratamiento por escrito de
 > la contadora. Tercera revisión (2026-11-20): el bloqueante que quedaba para activarlo (el enlace factura-pedido) está
-> cerrado y los otros hallazgos también; lo que sigue abierto está en «Por decidir».
+> cerrado y los otros hallazgos también. Cuarta revisión (2026-11-20): quedaba un último camino para fabricar ese enlace
+> (un `default_*` en el contexto de una llamada), ya cerrado, y la pantalla para guardar una versión nueva no tenía
+> botón «Guardar» (ya lo tiene); lo que sigue abierto está en «Por decidir».
 
 ## En una frase
 
@@ -80,16 +82,28 @@ una vendedora una venta de la tienda enlazándola a un pedido online. Ahora **el
 ventas de Odoo** (`dcasa_base/models/enlace_factura.py`): al facturar el pedido, el asistente de anticipos, la nota de
 crédito y «anular y crear una factura nueva». Fuera de esos caminos, crear una línea de factura con ese enlace, cambiarlo
 o escribir el otro lado (`invoice_lines` del pedido) da un error claro, con cualquier usuario y también con `sudo`; la
-llave que lo permite es interna y por RPC nunca llega. Una línea de pedido que ya se facturó tampoco cambia de pedido. **No
-cambia ninguna factura que ya existe**: el enlace que tienen se queda como está (no hay migración ni marca nueva). Límite
-honesto: quien tiene permiso de facturas sigue pudiendo editar el precio de una factura en borrador de un pedido online
-(es contabilidad normal); lo que ya no puede es fabricar el origen.
+llave que lo permite es interna y por RPC nunca llega. **Un `default_sale_line_ids` o un `default_invoice_lines` en el
+contexto de la llamada** (por RPC cualquiera lo manda, y Odoo lo aplica *después* de mirar los valores que llegan a
+`create`) **tampoco lo fabrica**: el sistema lo descarta, y la línea se crea sin el enlace (cuarta revisión, 2026-11-20:
+la tercera revisión había dejado esa puerta abierta y Caja, Nómina y Gerencia, cada uno solo y sin `sudo`, fabricaban una
+venta del sitio de 500.00 con ella). Las líneas ya armadas que traen el enlace adentro (`default_invoice_line_ids`,
+`default_line_ids`, duplicar con valores, importar con `load`, comandos de `link` y `set`) pasan por el mismo gancho de
+`create` y se frenan. Una línea de pedido que ya se facturó tampoco cambia de pedido. **No cambia ninguna factura que ya
+existe**: el enlace que tienen se queda como está (no hay migración ni marca nueva). Límite honesto: quien tiene permiso
+de facturas sigue pudiendo editar el precio de una factura en borrador de un pedido online, o pasar una línea que ya
+estaba enlazada de una factura en borrador a otra (es contabilidad normal); lo que ya no puede es fabricar el origen.
 
 **El pedido que nace por un flujo digital guarda además quién lo tocó**: si una persona del equipo (un usuario interno)
-cambia su cliente o sus líneas (**también por una escritura directa a las líneas: producto, cantidad, precio, descuento,
-crear o borrar una línea**; la llave `sale_write_from_compute` del contexto, que por RPC cualquiera manda, ya no lo
-esquiva), o alguien teclea el precio de una línea (la tienda pone los precios sola), queda anotado
-(`dcasa_tocada_por_id`, que tampoco se escribe a mano). No cuentan los visitantes, el envío, el anticipo ni los premios. Así se ve el carrito que abre un visitante y arma después el equipo
+cambia su cliente, su lista de precios, su posición fiscal o sus líneas (**también por una escritura directa a las
+líneas: producto, cantidad, precio, descuento, crear, borrar o pasar una línea a otro pedido**; la llave
+`sale_write_from_compute` del contexto, que por RPC cualquiera manda, ya no lo esquiva), o alguien teclea el precio de
+una línea (la tienda pone los precios sola), queda anotado (`dcasa_tocada_por_id`, que tampoco se escribe a mano). Si
+una línea sale de un pedido online sin facturar hacia otro pedido (por ejemplo, al de mostrador de una vendedora), **el
+pedido de donde sale también queda anotado** (cuarta revisión: antes quedaba vacío y sin huella). **Lo que recalcula el
+servidor no cuenta**: los precios que Odoo vuelve a poner al cambiar la lista de precios o la posición fiscal (la tienda
+lo hace sola, y quien toca «Actualizar precios» también) y los que pone al día el cron de la campaña no marcan el carrito de un visitante como «del equipo»; lo que
+una persona teclea sí, y cambiar la lista de precios a mano también, para que «cambiar la lista y actualizar» no sea un
+camino sin huella. No cuentan los visitantes, el envío, el anticipo ni los premios. Así se ve el carrito que abre un visitante y arma después el equipo
 para cobrarlo como venta del sitio: sale en *Ventas del sitio* («Abrió o cambió el carrito alguien del equipo») y en
 *Pedidos de la página para revisar*. La cotización que arma Juan guarda a Juan como quien la creó (el asistente no cuenta
 como del equipo).
@@ -153,8 +167,11 @@ vendedora, cuenta igual que hoy.
   abajo).
 * **Tope de un ajuste a mano** (opcional): lo máximo que se puede anotar en un solo ajuste del libro, hacia un lado o hacia
   el otro. **Viene apagado (0 = sin tope)**: el sistema no inventa ninguna cifra; es una decisión de Gerencia (ver «Por
-  decidir»). Aunque no haya tope, un monto que no es un número (`inf`, `nan`) o que no cabe en el libro (más de
-  21,474,836.47) se rechaza con un mensaje claro.
+  decidir»). Aunque no haya tope, un monto que no es un número (`inf`, `nan`, un texto) o que no cabe en el libro (más de
+  21,474,836.47) se rechaza con un mensaje claro. Lo mismo vale para las cifras de una versión (porcentaje, tarifa
+  fija, tope y lo que le toca a cada quien): lo que no es un número, o una tarifa o un tope de más de 21,474,836.47, se
+  rechaza al guardar la versión con un mensaje claro (cuarta revisión: antes un tope de 1e30 se guardaba y rompía después
+  todos los ajustes; si hubiera uno así guardado, los ajustes siguen funcionando).
 * **Cómo se arma la base**, con cinco interruptores en palabras sencillas. Al cambiar uno, el **ejemplo con números de
   mentira** de la pantalla se mueve para que se vea qué entra y qué no:
 
@@ -171,7 +188,11 @@ vendedora, cuenta igual que hoy.
   que sobran van, de uno en uno y siempre en el mismo orden, a las primeras personas de la lista.
 
 **La pantalla de una versión nueva** no muestra «Anular» ni el motivo de anulación (solo una versión ya guardada y que
-todavía no rige los tiene).
+todavía no rige los tiene) y **no se guarda sola**: se guarda solo con el botón **Guardar** (y «Descartar» la tira). Los
+campos de una versión ya guardada salen de solo lectura; lo único que se escribe en ella es el motivo de la anulación.
+(Cuarta revisión, 2026-11-20: la pantalla de la tercera revisión no traía el botón «Guardar», porque el formulario estaba
+marcado como «no editable», y al quitarle también el guardado automático ya no había cómo guardar una versión desde la
+pantalla, ni cómo escribir el motivo para anular; lo cubren pruebas de navegador que guardan, descartan y anulan.)
 
 **Una versión guardada no se edita ni se borra**; un cambio es una versión nueva, y solo rige hacia adelante (no se acepta un
 día que ya pasó; hoy vale, porque «Rige desde» es el inicio de ese día en Panamá). Lo ya anotado en el libro **nunca se
@@ -234,9 +255,13 @@ vendido.
   sitio. Lo ya liquidado o pagado **no se toca**: si lo anterior ya se mandó a pagar, queda un saldo en contra que lo nuevo
   compensa en parte (se paga cero y el saldo sigue para la próxima liquidación). Nada se edita ni se borra.
 * Un pago con **fecha futura** (Caja teclea la fecha) **no escoge una versión programada**: la venta se calcula con la
-  versión de HOY (`min(día de cobro, hoy)`) y queda señalada en *Ventas del sitio* («Cobro con fecha futura»). Límite
-  honesto: si la primera versión está programada para más adelante y alguien registra un pago con una fecha igual o
-  posterior a ella, la venta queda sin dueña hasta que llegue ese día; es un caso muy estrecho y queda señalado.
+  versión de HOY (`min(día de cobro, hoy)`) y queda señalada en *Ventas del sitio* («Cobro con fecha futura»). **Se
+  vuelve a calcular cuando esa versión cambia** (cuarta revisión, 2026-11-20): si llega el día del pago, o antes empieza
+  a regir otra versión, el barrido de la noche y «armar» o aprobar una liquidación la vuelven a escoger, igual que si
+  se cobrara hoy desde cero con la misma fecha (cierra lo anotado con un reverso, anota con la versión nueva y lo ya
+  liquidado no se toca), y la señal de «Cobro con fecha futura» se queda para Gerencia aunque el día ya haya llegado.
+  Límite honesto: si la primera versión está programada para más adelante y alguien registra un pago con una fecha
+  igual o posterior a ella, la venta queda sin dueña hasta que llegue ese día; es un caso muy estrecho y queda señalado.
 * Una **nota de crédito con líneas sin producto** (escritas a mano) no se puede atribuir al envío: se resta de lo vendido y
   la venta queda señalada en *Ventas del sitio* («Una nota trae líneas sin producto») para que alguien la mire.
 * **Armar y aprobar** una liquidación miran, en una sola consulta, si cambió la factura de alguna venta (estado, pago,
@@ -361,3 +386,25 @@ referencia.
 11. **El precio de una factura en borrador de un pedido online** lo puede editar quien tiene permiso de facturas (es
     contabilidad normal). El origen ya no se fabrica, pero la base de la comisión es lo facturado y cobrado: la cubren
     los bloqueos contables, la revisión de la contadora y el aviso de *Ventas del sitio*, no el código.
+12. **Una línea de envío o de anticipo escrita a mano no deja huella (latente, cuarta revisión).** Una persona con
+    permiso para escribir líneas de pedido (Gerencia, Nómina o Caja) puede agregar a un carrito de la página una línea
+    de un mueble con la bandera de «envío» (`is_delivery`) y un precio alto: no se anota como «lo tocó el equipo»,
+    porque las líneas de envío y de anticipo no cuentan para la vigilancia (las pone la tienda y el asistente de
+    anticipos). Hoy no mueve la comisión: esa línea se cuenta como envío y solo entra a la base si Gerencia pone «el
+    envío cuenta» en las reglas (probado con una de 3,000 sobre un mueble de 1,000: comisión de 100.00 con el envío sin
+    contar). Una con la bandera de «anticipo» Odoo la factura como un descuento (resta; probado). **Antes de poner «el
+    envío cuenta»**, Gerencia decide si quiere señalar también el envío que no es el del transportista del pedido. No se
+    cambió: no hay forma segura de distinguir el envío que pone la tienda del que alguien escribe a mano sin inventar
+    reglas de negocio.
+13. **OdooBot (el usuario 1) cuenta como alguien del equipo (decisión de la cuarta revisión: se deja así).** Un usuario
+    interno que cambia las líneas de un carrito queda anotado, y OdooBot lo es. El único proceso automático que se encontró
+    escribiendo precios de carritos como OdooBot era el cron de la campaña (`website_dcasa`, «carritos al día»), y desde esta revisión
+    pone la llave `PRECIO_DEL_SISTEMA` (lo que recalcula el servidor no marca nada), igual que el recálculo de precios de
+    Odoo. Lo que queda es un técnico que cambie líneas desde la consola de Odoo como OdooBot: se deja anotado a propósito
+    (es una persona cambiando un carrito, y Gerencia debe poder verlo). Si algún día hay otro proceso automático que
+    escriba líneas de carritos, tiene que pasar por la misma llave o por un usuario de servicio que no sea interno.
+14. **Costo de vigilar las líneas (medido, sin cambios).** Cambiar la cantidad de muchas líneas de un pedido de la página
+    parecía costar una consulta más por línea (11 contra 318 consultas con 305 líneas). No es trabajo de más: el gancho lee
+    el precio de cada línea y Odoo lo recalcula en ese momento en vez de hacerlo al final; con el vaciado final cuesta lo
+    mismo con y sin gancho (77 consultas sin él y 71 con él en 60 líneas), y lo mismo en un pedido de mostrador. Una prueba
+    cuida que el gancho no agregue trabajo por línea.

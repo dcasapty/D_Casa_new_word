@@ -1654,6 +1654,31 @@ Lo que quedó escrito para no repetirlo:
 - **Disco:** cada árbol de trabajo pesa ~1,1 GB (`fuentes/` y `up media/`) y cada base de pruebas ~250 MB. Quitar los árboles de
   revisores terminados (guardando aparte sus pruebas sueltas) antes de lanzar la batería completa.
 
+### Lo que enseñó la cuarta revisión de la comisión web (2026-11-20)
+
+- **Una guarda de `create` que solo mira `vals` se salta con un `default_*` en el contexto.** Odoo aplica los defaults del
+  contexto DESPUÉS (`_add_missing_default_values` → `default_get`), y por RPC cualquiera manda `context={'default_<campo>': …}`.
+  Cada guarda de integridad que protege un campo (el origen de una venta online, el enlace factura-pedido
+  `sale_line_ids`/`invoice_lines`) necesita su `default_get` que lo descarte sin la llave interna. Se había hecho para las marcas
+  de origen en la 2ª revisión y se olvidó para el enlace en la 3ª: la 4ª lo encontró con Caja, Nómina y Gerencia fabricando una
+  comisión de 500.00. Al cerrar una puerta, buscar **todas** las puertas del mismo campo (`create`, `write`, `default_get`,
+  `copy(default=)`, `load`, comandos anidados) y probar cada una.
+- **Un formulario con `edit="0"` en Odoo 19 no muestra el botón «Guardar» de un registro nuevo** (el `FormStatusIndicator` solo
+  se pinta con `canEdit`) y los campos de uno ya guardado no se pueden escribir. La pantalla de versiones de la comisión quedó
+  sin cómo guardar ni cómo escribir el motivo para anular, y nadie lo vio porque la prueba de navegador nunca guardaba nada. La
+  solución es dejar el formulario editable y poner `readonly="id"` en los campos que no se editan. Toda prueba de pantalla que
+  diga «no se guarda solo» debe **guardar con el botón** en otra prueba y debe **caer sin el parche** (control que registra otra
+  vez la vista normal con `force: true`).
+- **Lo que el servidor recalcula no es «alguien tocó el carrito».** `_recompute_prices` de Odoo, «Actualizar precios» y el
+  cron de la campaña (`website_dcasa`, corre como OdooBot, un usuario interno) escriben `price_unit` y `discount` de carritos
+  de visitantes; con la llave `PRECIO_DEL_SISTEMA` (`dcasa_base.models.venta_online`) no cuentan. Quien teclea el precio, el
+  descuento o la lista de precios, sí. Todo proceso nuevo que reponga precios de carritos va con esa llave.
+- **Un `quantize` de `Decimal` con la precisión normal (28 dígitos) falla con 1e30:** `a_centavos` usa precisión amplia y toda
+  cifra que llega de afuera pasa antes por `calculo.numero_finito` (nan, inf, texto, enteros enormes) y por el límite del
+  libro (21,474,836.47).
+- **El «costo por línea» medido sin vaciar la caché engaña:** una guarda que lee `price_unit` adelanta el recálculo de Odoo,
+  no lo agrega. Medir siempre con `env.flush_all()` dentro de la medición y contra el mismo cambio sin el gancho.
+
 ### Cloudflare
 
 - **Un secreto nuevo del panel del Worker `dcasa` no llega a Odoo hasta que el contenedor arranca otra vez**
