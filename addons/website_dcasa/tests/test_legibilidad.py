@@ -6,6 +6,7 @@ Chrome, con el teléfono emulado, lo que la persona ve:
 * Arreglo 4: en el celular, lo que se toca con el dedo mide 44 px o más (antes de 32 a 40 px).
 * Arreglo 5: el buscador del catálogo dice qué busca (aria-label), su botón dice «Buscar» y su texto de ayuda es corto y
   no se corta en el cajón del celular. (La pista visible de la cámara es de dcasa_buscar_foto y se prueba allá.)
+* Arreglo 6: «Enviar mensaje» del contacto, a todo el ancho y de 48 px o más, como el formulario de /socios.
 """
 import json
 import re
@@ -221,3 +222,35 @@ class TestLegibilidadBuscadorMovil(ChromeMovilCase):
                 self.assertEqual(medida['placeholder'], PLACEHOLDER)
                 self.assertLessEqual(medida['texto'], medida['util'], f'se cortaría: {medida}')
                 self.assertEqual(medida['etiqueta'], 'Buscar en el catálogo')
+
+
+@tagged('post_install', '-at_install')
+class TestLegibilidadContacto(ChromeMovilCase):
+    """Arreglo 6: «Enviar mensaje» a todo el ancho y de 48 px o más, como «Entrar» de /socios."""
+
+    MEDIR_ENVIAR = """
+        (async () => {
+            for (let i = 0; i < 200 && document.body.getAttribute('is-ready') !== 'true'; i++) {
+                await new Promise((ok) => setTimeout(ok, 50));
+            }
+            const boton = document.querySelector('#contactus_form .s_website_form_send');
+            const filas = document.querySelector('#contactus_form .s_website_form_rows');
+            const campo = document.querySelector('#contactus_form input#contact5');   // «Asunto»: de ancho completo
+            const b = boton.getBoundingClientRect(), f = filas.getBoundingClientRect();
+            const c = campo.getBoundingClientRect();
+            return { texto: boton.textContent.trim(), ancho: b.width, alto: b.height, filas: f.width, campo: c.width,
+                     izquierda: b.left - c.left, derecha: c.right - b.right };
+        })()
+    """
+
+    def test_enviar_mensaje_a_todo_el_ancho(self):
+        for ancho in (390, 1440):
+            with self.subTest(ancho=ancho), self._chrome_movil(ancho) as browser:
+                browser.navigate_to(self.base_url() + '/contactus', wait_stop=True)
+                self.assertTrue(browser._wait_ready())
+                m = self._evaluar(browser, self.MEDIR_ENVIAR)
+                self.assertEqual(m['texto'], 'Enviar mensaje', 'el botón dice qué va a pasar')
+                self.assertGreaterEqual(m['alto'], 47.9, 'mínimo 48 px')
+                self.assertAlmostEqual(m['izquierda'], 0, delta=1, msg='empieza donde empiezan los campos')
+                self.assertAlmostEqual(m['derecha'], 0, delta=1, msg='y termina donde terminan los campos')
+                self.assertAlmostEqual(m['ancho'], m['campo'], delta=1)

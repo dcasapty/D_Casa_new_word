@@ -3286,6 +3286,13 @@ html.o_dcasa_navegando::before {
     }
 }
 
+// Lote «legibilidad», arreglo 6: «Enviar mensaje» del contacto como «Entrar» de /socios: a todo el ancho de los campos y de
+// 48 px o más (la plantilla le pone btn-lg w-100).
+.o_dcasa_contacto .s_website_form_send {
+    width: 100%;
+    min-height: 3rem;
+}
+
 // ---------------------------------------------------------------------------
 // Lote 1 de la web (2026-11-13): buscar, carrito vacío y la foto en grande (views/buscador_templates.xml).
 // ---------------------------------------------------------------------------
