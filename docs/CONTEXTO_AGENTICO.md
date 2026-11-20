@@ -1303,8 +1303,14 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
     Va un booleano aparte (`km_medido`); las coordenadas (0, 0) se leen como «sin coordenadas» (es el golfo de Guinea).
   - Leer por SQL algo que el ORM acaba de escribir (p. ej. un `ir.config_parameter` con `set_param`) necesita
     `flush_model()` antes: si no, se lee el valor viejo.
-  - `export_data` (el «Exportar» de las listas) exige `base.group_allow_export` (o administrador): ni Gerencia lo
-    trae. Un campo calculado no guardado sí sale en la exportación.
+  - `export_data` (el «Exportar» de las listas) exige `base.group_allow_export` (o administrador). **Desde la ronda del
+    2026-11-20 Gerencia lo trae**, pero solo baja `account.move`, `account.move.line`, `account.payment`, `sale.order` y
+    `sale.order.line`: el permiso de Odoo es global, así que el límite vive en `_export_rows`
+    (`dcasa_base/models/exportar.py`, `MODELOS_QUE_EXPORTA_GERENCIA`), que también corta las relaciones a `mail.*`,
+    `ir.*`, `hr.*`, `res.users`, `res.partner.bank`, etc. (por una factura se llegaría al mismo volcado). Un campo
+    calculado no guardado sí sale en la exportación. El xlsx del exportador escribe los textos como texto, nunca como
+    fórmula (`dcasa_base/excel_seguro.py`). La ruta `/json/1/…` del núcleo pide el mismo permiso y no pasa por el límite:
+    solo existe con `web.json.enabled` o datos de demostración (confirmar que no está puesto en producción).
   - Portar fórmulas de JavaScript: `round()` de Python redondea los medios al par (`Math.round` hacia arriba),
     `toFixed` mira el valor exacto, `toLocaleString('es-PA')` pone la coma de miles también en 4 cifras, `.length`
     cuenta en UTF-16 (un emoji vale 2) y `sum()` de Python 3.12 compensa los decimales (el CI usa 3.12): sumar con un
@@ -1608,6 +1614,45 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
     (no `TestPanelVisual`). Su script de referencias reescribe las seis: se suben solo las que cambiaron de verdad. La
     pantalla `.o_dcj_p.o_action` lleva a propósito una barra de desplazamiento fina que el `PREPARAR` de la prueba no
     alcanza a esconder: a 390 px sale en Conexiones (en un teléfono real va encima del contenido).
+
+### Lo que enseñó la ronda del 19 al 20 de noviembre (facturas, ventas por día, portada, Tilopay, comisión web)
+
+Seis piezas en paralelo, cada una con su revisor independiente (las pruebas del revisor se copian al módulo y no se debilitan).
+Lo que quedó escrito para no repetirlo:
+
+- **Un permiso chico que Odoo agranda sin avisar.** Darle a Gerencia escritura sobre `website` (para los segundos del
+  carrusel) le abría, con poderes de superusuario, **toda acción de servidor del sitio que no tenga grupo** (p. ej. el correo de
+  carritos abandonados). Quien puede escribir en un modelo puede ejecutar a mano sus acciones sin grupo. Se resolvió con un
+  modelo propio (`dcasa.portada.ajustes`) y **ningún** permiso sobre `website`; una prueba corre todas las acciones del sitio.
+  Regla: antes de dar escritura sobre un modelo ajeno, listar sus `ir.actions.server` sin `groups_id`.
+- **En Odoo 19 `write()` ya no llama a `_write`.** Las guardas de integridad van en `write()` y `create()`; las llaves internas
+  (objetos privados que por RPC no se pueden mandar) son lo que distingue «lo hizo el flujo real» de «lo escribió alguien».
+- **`pg_advisory_xact_lock` no basta con REPEATABLE READ** (la transacción ya tiene su foto): para que dos propuestas o dos
+  liquidaciones no se pisen se escribe una **fila candado** (`dcasa.web.candado`); el segundo recibe un error de
+  serialización que Odoo repite por RPC. Probar con **dos transacciones reales**, no con dos llamadas seguidas.
+- **Cada llamada lenta a un tercero retiene una conexión de la base** (con `workers=0` y `db_maxconn=48`). Tilopay lento más
+  60 hilos llenaba el grupo y la tienda entera daba `PoolError` (71 de 80 sondeos fallaban). Arreglo: tope global de llamadas a
+  la vez (6 + 2 de reserva), las rutas web solo consultan lo reciente (3 h), freno por conexión y por IP. Siempre medir con un
+  Tilopay de mentira lento y un control (mismas peticiones sin llamar al tercero). Detalle: `docs/TILOPAY.md`.
+- **Un campo guardado con un nombre traducible se calcula con idioma fijo** (`DCASA_LANG`), no con el de quien dispara el
+  recálculo; y en el `onchange` un registro nuevo calcula desde `_origin`.
+- **Excel**: lo que escribió un cliente puede empezar con `=`: el xlsx escribe cadenas con `write_string`. Los libros propios
+  (Reponer) apagan `strings_to_formulas` y `strings_to_urls`.
+- **Odoo da por pagada una factura con un pago en borrador o rechazado** (`payment_state`); un campo calculado sobre pagos debe
+  mirar el estado del pago y decir «Sin pago registrado» cuando la factura figura pagada sin pagos detectados.
+- **«Cobro» tiene una sola definición** (`dcasa.tablero._dominio_de_cobros`, solo clientes: `partner_type = customer`); la
+  columna de facturas, «Ventas por día» y la «Caja de hoy» la reutilizan: si se cambia, se cambia ahí.
+- **Corte por fecha de pago, en hora de Panamá.** Una comisión (y el bono y el programa de vendedores) se corta por el día del
+  cobro en Panamá, no por la fecha de la factura ni por UTC; «Rige desde» es el inicio de ese día.
+- **Pruebas del revisor y de Chrome:** `action_done` de una actividad deja su propia nota (contar mensajes después); `t-att-x="null"`
+  de OWL pinta «null»; `\d` de Python acepta cifras no ASCII (usar `[0-9]`); un `ERROR` en el log de una prueba pone en rojo todo
+  `scripts/test.sh` aunque la aserción pase (silenciar con `mute_logger` el error esperado); bajo carga fallan por tiempo, sin
+  culpa del código, `TestOrdenarProductosEnElNavegador`, `TestNotaDeVoz` y las cuatro de `test_actividad`/`test_comparar`/
+  `test_cotizacion_celular`/`test_estadisticas` (repetidas solas pasan).
+- **El límite de uso de 5 horas mata a los ayudantes en pleno trabajo** (pasó dos veces). Cada árbol de trabajo guarda su avance en
+  un commit «WIP» cada pocos pasos y se une a la rama de trabajo, para que otra cuenta pueda seguir. Reanudar con `SendMessage`.
+- **Disco:** cada árbol de trabajo pesa ~1,1 GB (`fuentes/` y `up media/`) y cada base de pruebas ~250 MB. Quitar los árboles de
+  revisores terminados (guardando aparte sus pruebas sueltas) antes de lanzar la batería completa.
 
 ### Cloudflare
 

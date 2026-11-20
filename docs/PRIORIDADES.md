@@ -1,12 +1,21 @@
 # Prioridades vigentes
 
-Puesto al día el **2026-11-18** (**todo está en producción**: el Black Friday desde el 16 —Desplegar 77 y Juan 28—, la portada nueva desde el 17 —CI/CD 377, PR #127— y **la segunda entrega completa desde el 18** —CI/CD 380 y Desplegar Juan 29, squash `d2ba8caf`, PR #128—. Ya no queda nada esperando en la rama de trabajo). Es el orden en que se trabaja: cada sesión lo lee al empezar y lo pone al día al
+Puesto al día el **2026-11-20** (lo nuevo está en la rama de trabajo, sin subir: ver «Estado al 2026-11-20»). Antes, el **2026-11-18** (**todo está en producción**: el Black Friday desde el 16 —Desplegar 77 y Juan 28—, la portada nueva desde el 17 —CI/CD 377, PR #127— y **la segunda entrega completa desde el 18** —CI/CD 380 y Desplegar Juan 29, squash `d2ba8caf`, PR #128—. Ya no queda nada esperando en la rama de trabajo). Es el orden en que se trabaja: cada sesión lo lee al empezar y lo pone al día al
 terminar (ver [LEEME_PRIMERO.md](LEEME_PRIMERO.md)). Aquí va **un solo estado**, el de hoy; lo que pasó cada día está en
 la bitácora de LEEME_PRIMERO (y lo más viejo en [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md)).
 
 Cada cosa nueva pasa por capturas a la dueña, pruebas, staging y, si toca dinero, permisos o Socios, revisión adversarial.
 **Desde el 2026-11-13 la dueña no pide su visto bueno para pasar a producción** («Y no esperes mi aprobación para pasar
 la producción. Apruébalo y punto.»); la revisión adversarial no se salta (reglas en LEEME_PRIMERO §2).
+
+## Estado al 2026-11-20
+
+- **En producción sigue `d2ba8caf`** (la segunda entrega, 2026-11-18). **En la rama de trabajo, probado y sin subir:** «Forma de pago»
+  en facturas y Exportar para Gerencia, ventas por día con selector y cifras animadas, segundos del carrusel configurables y Andrés
+  ampliado en escritorio, **Tilopay** (nace apagado) y la **comisión por ventas del sitio web** (sin versión de reglas: solo
+  mide). Detalle y SHA de cada rama en la bitácora de LEEME_PRIMERO (2026-11-19 y 20).
+- **Falta, en este orden:** segunda revisión independiente de la comisión (en curso), batería completa sobre la rama, subir por la
+  receta, y las capturas nuevas de Tilopay para la dueña.
 
 ## Estado al 2026-11-17
 
@@ -41,6 +50,24 @@ la producción. Apruébalo y punto.»); la revisión adversarial no se salta (re
   («Es esta persona»); tasa de cierre en el Resumen de Juan; Sofía. Detalle en la bitácora.
 
 ## Lo que sigue, en orden
+
+**0. SUBIR LA RAMA UNIDA (2026-11-20).** Facturas con «Forma de pago» y Exportar, ventas por día, carrusel y Andrés ampliado, Tilopay y
+la comisión web están en `claude/merge-rama-to-main-ty3koz` con sus revisiones independientes hechas (la de la comisión, segunda
+vuelta en curso). Subir con la receta de LEEME_PRIMERO §3: Tilopay **apagado** y la comisión **sin versión de reglas**.
+Después, y solo con lo que va aquí:
+- **Tilopay a staging** con las claves de la cuenta de pruebas de Tilopay (`tilopay.com/developers/registro`), cargadas por la
+  dueña en Cloudflare (nunca por el chat) con `TILOPAY_ENTORNO=prueba`; una compra de ensayo; pedirle a Soporte de Tilopay que
+  registre `https://dcasapty.com/payment/tilopay/webhook`, la vigencia de la página de pago y los datos de `docs/TILOPAY.md` §8.
+  **No cobrar de verdad** hasta cerrar la lista de `docs/TILOPAY.md` §9.1.
+- **Comisión web:** Gerencia define porcentaje, tarifa fija, quiénes reciben y las fechas de pago desde Ajustes; la contadora
+  documenta el tratamiento (no es salario, sin descuentos de planilla). Decisiones abiertas: limitar el pago por código VEN a vendedores
+  externos, y afinar el «caso gris» de Andrés (la vendedora que solo confirma). Ver `docs/COMISION_WEB.md`.
+- **Confirmar** que el parámetro `web.json.enabled` no está puesto en producción (la ruta `/json/1/…` del núcleo pide el permiso de
+  exportar pero no el límite por modelo).
+- **La contadora** revisa el diario bancario «Tilopay» (código `TLP`) y su cuenta, que se crean al desplegar aunque el proveedor siga
+  apagado, y decide si un cobro conciliado con el extracto debe contar con el diario del banco en «Forma de pago»
+  (`docs/CONTABILIDAD.md`).
+- **Plan futuro:** factura de emergencia sin conexión, un solo archivo HTML (issue #129).
 
 **LA PORTADA NUEVA YA ESTÁ EN PRODUCCIÓN** (2026-11-17, ejecución 377 de CI/CD a mano desde `main`, squash
 `447d6efe`, PR #127). El hero es un fondo en movimiento: las fotos del catálogo a pantalla completa, en orden al azar,

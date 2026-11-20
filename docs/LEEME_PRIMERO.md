@@ -109,6 +109,51 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 > sigue. Se guardan las diez más recientes; las viejas se resumen en una línea abajo y su texto completo pasa a
 > [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md).
 
+### 2026-11-19 y 2026-11-20: «Forma de pago» en facturas, ventas por día, carrusel y Andrés ampliado, Tilopay y la comisión web. En la rama de trabajo, probado, SIN subir (producción sigue en `d2ba8caf`)
+
+**Nada de esto está en producción todavía.** Todo vive en `claude/merge-rama-to-main-ty3koz` (cada pieza en su rama
+local `local/*`, unidas). Seis piezas hechas en paralelo, cada una con su **revisión adversarial independiente** (tres
+vueltas la de Tilopay) y las pruebas del revisor copiadas al módulo sin debilitarlas. Orden de salida pensado: primero lo que no mueve
+dinero, luego Tilopay (nace **apagado**), y la comisión **sin versión de reglas** (solo mide; nadie cobra nada) hasta que
+Gerencia ponga cifras y la contadora diga cómo se trata.
+
+- **Facturas** (`local/facturas`, `5405fc0a`): columna, filtro y «agrupar por» de **Forma de pago** (el diario de cada cobro;
+  «Nota de crédito»; «Sin pago registrado» si Odoo la da por pagada sin pagos), y **Exportar a Excel** para Gerencia, que
+  baja solo `account.move`, sus líneas, `account.payment`, `sale.order` y sus líneas (los administradores, todo). El xlsx escribe
+  los textos como texto (nunca fórmula). Revisión: 6 hallazgos (idioma del texto guardado, fórmulas en el xlsx, exportar de
+  más, columna ambigua, vistas de proveedor, calidad de pruebas), todos arreglados.
+- **Ventas por día** (`local/ventasdia`, `378d2314`): una tarjeta «Cobrado por forma de pago» con **Día / Semana / Quincena /
+  Mes** sobre la lista, `dcasa.tablero.cobros_del_periodo`, y las cifras **suben animadas** en todas las pantallas (`useCifrasQueSuben`).
+  «Cobro» sigue teniendo una sola definición (`_dominio_de_cobros`, ahora solo clientes).
+- **Portada y Andrés** (`local/retoques`, `58122eb1`): los **segundos del carrusel** los define Gerencia (3 de fábrica, de 2 a 15)
+  en un modelo propio `dcasa.portada.ajustes`, **sin ningún permiso sobre `website`** (la revisión halló que escribir en `website`
+  le abría a Gerencia, como superusuario, las acciones de servidor del sitio sin grupo); la vitrina pública tiene caché de
+  60 s; el chat de **Andrés abre ampliado en escritorio** (≥ 1024×600, sin puntero táctil; la preferencia se recuerda).
+- **Tilopay** (`local/tilopay`, `588c6363`, módulo `dcasa_pago_tilopay`): tarjeta, Yappy y más desde la tienda y el portal.
+  Nace apagado y sin publicar; las claves viven solo en Cloudflare (`TILOPAY_API_KEY`, `TILOPAY_API_USER`,
+  `TILOPAY_API_PASSWORD`; la variable `TILOPAY_ENTORNO`, «prueba» primero). 241 pruebas de Odoo, 299 del borde. Tres vueltas del
+  revisor: tope global de llamadas a la vez (la tienda ya no se cae si Tilopay tarda), cobro que no cuadra con el pedido → revisión
+  humana (nunca se paga sola), «Modo de prueba» en producción solo para el equipo. **Antes de cobrar de verdad** (lista en
+  `docs/TILOPAY.md` §9.1): registrar el aviso `https://dcasapty.com/payment/tilopay/webhook` con Soporte, preguntar la vigencia de
+  la página de pago, conciliar a diario contra el panel de Tilopay y las verificaciones de siempre. Todo se probó con un
+  Tilopay simulado: **falta una compra de ensayo con la cuenta de pruebas de Tilopay**.
+- **Comisión por ventas del sitio web** (`local/comision`, `766ee8b8`, módulo `dcasa_comision_web`): % fijo sobre las ventas del
+  sitio (sin meta) y tarifa fija aparte, a empleados de Nómina elegidos por Gerencia, libro inmutable, reglas con versión
+  hacia adelante, liquidación de periodo libre (quien cobra no aprueba lo suyo), no es salario. Gerencia respondió ocho preguntas y
+  cuatro casos (2026-11-19 y 20; están en `docs/PLAN_COMISION_WEB.md`): VEN paga al dueño del enlace **y** cuenta para el sitio; la
+  cotización armada por Juan cuenta; Andrés ya no cuenta siempre (si una vendedora atendió el chat de Juan en 30 días, no cuenta);
+  las vendedoras nunca reciben nada por lo online. Primera revisión: 4 bloqueantes (origen forjable, aprobar lo propio editando la
+  ficha, doble pago por concurrencia, dos cortes de fecha), 4 importantes y menores; todos arreglados. **Segunda revisión: en curso.**
+- **Anotado, no hecho:** factura de emergencia sin conexión (un solo archivo HTML) en el issue
+  [#129](https://github.com/dcasapty/D_Casa_new_word/issues/129).
+
+**Lo que decidí yo (y se le dijo):** el permiso de exportar de Gerencia se limita por modelo (no «todo»); los segundos del carrusel
+van en un modelo aparte; Tilopay nace apagado; la comisión sale sin cifras.
+
+**Sigue:** batería completa sobre la rama, segunda revisión de la comisión, y subir por la receta (§3); Tilopay a staging con
+claves de la cuenta de pruebas de Tilopay (no pasan por el chat); la contadora decide cómo se trata la comisión y el diario
+«Tilopay» (se crea al desplegar aunque el proveedor siga apagado); confirmar que `web.json.enabled` no está puesto en producción.
+
 ### 2026-11-17 (3) y 2026-11-18: la segunda entrega completa en producción (CI/CD 380 y Juan 29)
 
 **En producción desde el 2026-11-18, 00:5x UTC:** la segunda entrega entera (PR #128, squash `d2ba8caf`,
@@ -388,64 +433,9 @@ pedido de la dueña: «sube la rama lo que tengas y añade todo lo que avanzamos
   con la prueba barata, o (c) dejarlo como está. Meta también lanzó su propio «Business Agent» (junio 2026; gratis según
   unas fuentes, con cobro por token según otras; no verificado en Meta): compite con Juan y no usa Odoo, no se recomienda.
 
-### 2026-11-13 (2) y 2026-11-14: avisos de Telegram ordenados, lote 1 de la web, «Busca con una foto», ícono de Brian y horario de la tienda (Desplegar 71 y Juan 25); Brian de la tienda y lote 2 de la web (Desplegar 72 y Juan 26) y la burbuja que cambia con el scroll (Desplegar 73), en producción; el 2026-11-15, Brian siempre activo de noche (Juan 27 y Desplegar 74)
-
-**Y desde el 2026-11-15, 04:02 UTC (salud sana: `{"ok": true, "version": "d52a72b7dd9d", "base_al_dia": true, "humo": "ok"}`):** **Desplegar Juan 27** (run 43673722798, 03:44–03:47 UTC; `/salud` con `3cd053bcb0e86146385c2a3c7e4d74f6dae23c8f`) y **Desplegar 74** (run 43673907302, 03:47–04:02 UTC) con la imagen `sha256:a224f8c215c6cf78739fb3f5672fc5750e6592889519a9173307d670bbddc127` y `app_version` `d52a72b7dd9d3de8ab63ab0a7d7a1ca2892e00ec` (PR #120, squash `3cd053b`; CI 359 con staging, run 43668175433), con respaldo previo. La dueña probó a Brian de noche: «lo primero que dice es que no hay vendedoras… prefiero que él siempre esté activo… solo lo quiero configurar». Dos interruptores en Sitio web › Brian de la tienda: «Fuera del horario, avisar que la tienda está cerrada» (`avisar_cerrado`, apagado) y «De noche, el robot de la burbuja duerme» (`dormir_de_noche`, encendido: antes dijo que el robot dormido le gustaba). Comprobado en dcasapty.com a las 11 p. m.: saluda «Hola, soy Brian. ¿Qué buscas hoy?» sin «cerrada»; al pedir una vendedora da el horario y «te escriben mañana desde las 9:00 a. m.»; la burbuja dormida; sin «a. m..». **Por confirmar con la dueña:** Brian dijo «Comedores no los manejamos» (en el catálogo publicado no hay comedores; si sí los venden, hay que publicarlos o decírselo a Juan en el Conocimiento).
-
-**Y desde el 2026-11-14, 17:54 UTC (salud sana: `{"ok": true, "version": "17f0c8295bf8", "base_al_dia": true, "humo": "ok"}`):** **Desplegar 73** (run 43622302488, 17:39–17:54 UTC) con la imagen `sha256:b97f72d07a908705d881d237fae3c2799e387fb07a92f73abffe5daf1b0cc133` y `app_version` `17f0c8295bf842c854c71c4c8222afb146a5aeac` (PR #119, squash `77702bb`; CI 357 con staging, run 43615430952), con respaldo previo; solo Odoo (Juan no cambió). La burbuja cerrada de Brian cambia de robot según la sección en pantalla. La dueña: «lo que yo quería también es que el ícono fuera cambiando con el scroll» y «por cada sección y a medida que hay scroll quiero que todos los iconos se usen en la burbuja del chat»; «No me tienes que hacer un video, solo hazlo y mándalo a producción». Antes preguntó por qué en el celular no se movía: era de noche (Brian duerme de 6 p. m. a 9 a. m.; le gustó así) y de día sí cambia al navegar. También: «felicidades por esas animaciones me gustaron mucho y las transiciones». Comprobado en dcasapty.com a 390 px: bajando por el Inicio, 12 poses distintas y sin errores.
-
-**Y desde el 2026-11-14, 07:46 UTC (salud sana: `{"ok": true, "version": "f461cad33626", "base_al_dia": true, "humo": "ok"}`):** otra vez **Juan antes que Odoo** (el Durable Object `TiendaSesion` es la migración v2 del Worker): **Desplegar Juan 26** (run 43571228282, 07:28–07:30 UTC; `/salud` con `ea3bd96d6a74358dc633a8a62b4f7f797c6772af`, `tienda` lista y encendida con los ajustes de Odoo) y **Desplegar 72** (run 43571429646, 07:30–07:46 UTC) con la imagen `sha256:cff08b93711395b7ac1ef8030c6d4230008eda2a6f9e27d972288e0667d774a3` y `app_version` `f461cad33626b07adc2d5a70ca1971aaae595015` (PR #118, squash `ea3bd96`; CI 355 con staging, run 43564565700), con respaldo previo. Comprobado en dcasapty.com a 390 px: la burbuja de Brian en lugar de la de WhatsApp, una respuesta en 5,7 s con 5 tarjetas de colchones de verdad, el horario en el pie, `/privacidad` del 14 de noviembre y el mapa de Visítanos sin cargar hasta el permiso; sin errores en la consola.
-
-**En producción desde el 2026-11-14, 00:35 UTC (salud sana: `{"ok": true, "version": "2bcc23e70c14", "base_al_dia": true, "humo": "ok"}`):** **Juan antes que Odoo** (lo pide `sin_leer`): **Desplegar Juan 25** (run 43533101840, 00:18 UTC; `/salud` con `894959be9830a65d0f581199f8911b088b42dcfd`; los mismos 5 avisos de siempre) y **Desplegar 71** (run 43533399099) con la imagen `sha256:99d1039a03df35dce88615e55b3bb9fb7891525bfb73bae4b6fab1ede39ea259` y `app_version` `2bcc23e70c1437d93c4fab310602ef2a71f9b747` (PR #117, squash `894959b`; CI 349 con staging, run 43524742607), con respaldo previo. **Es lo último en producción.**
-
-- **Autorización nueva de la dueña (2026-11-13):** «no esperes mi aprobación para pasar a producción. Apruébalo y punto»
-  y «vamos a subirlo lo antes posible». Esta entrega subió sin su visto bueno a las capturas; las revisiones adversariales
-  se hicieron igual (son las que cuidan el dinero y los datos).
-- **Avisos de Telegram** (pedido: «son muchos o muy repetidos… a la 1 de la mañana veo vendedoras activas»; eligió «A (que
-  se pueda activar o desactivar) B. E.», no C ni D; «sigamos con Telegram»): de noche nadie recibe clientes (interruptor en
-  Ajustes de Juan, encendido; lista por vendedora al abrir), solo avisan los pagos hechos, las cédulas y lo que Juan no
-  pudo leer (`sin_leer` con su motivo; las capturas de Instagram con precio ya no son comprobantes), y textos en una sola
-  forma. Detalle en [JUAN_ODOO.md](JUAN_ODOO.md) (reparto y «Avisos en paralelo»). Tres vueltas de revisión adversarial.
-- **Horario de la tienda** (lo dio la dueña): lunes a sábado 9:00 a. m.–6:00 p. m., domingo 9:00 a. m.–5:00 p. m. La
-  migración `post-horario.py` lo puso en Ajustes de Juan solo si seguía el de fábrica (8 a 17). Es configurable ahí mismo
-  (la dueña preguntó; se le dijo dónde).
-- **Informe externo D'CASA contra Carbone** (agente de Chrome de la dueña, 65 capturas): **2 de 3 «errores críticos» eran
-  falsos** (la búsqueda con Enter y el carrito sí funcionan; el robot del informe fue más rápido que la página); se comprobó
-  todo en producción antes de tocar nada. Lo real entró en el **lote 1 de la web**. Google mostraba `/web/login` con el
-  texto de la web vieja y sin logo: ahora `noindex`; falta el trámite de **Search Console** (la dueña: «luego»).
-- **«Busca con una foto»** (la dueña: «me gustó mucho el buscador de imagen de Carbone»), módulo `dcasa_buscar_foto`, con
-  revisión adversarial (el bloqueante: los topes no aguantaban pedidos simultáneos). El texto de `/privacidad` quedó
-  aprobado por la autorización general.
-- **Ícono de Brian en el panel:** el robot pensativo con guiño que mandó la dueña (su archivo
-  `web_pensativo_oficina_busto_ojosorig_cut.png`).
-- **Brian de la tienda** (chat de ventas en la web). Decisiones de la dueña: se llama Brian y se presenta una vez; tope
-  de IA propio de 30 USD al mes (Juan atiende 300–400 clientes al día con ~1,30 USD diarios); la burbuja sin texto
-  reemplaza la de WhatsApp (WhatsApp va dentro del chat); muy educado, como Juan; la cotización del visitante es el carrito
-  armado con su PDF; usar **los 16 robots** que mandó (`scratchpad`, zip `icon_15_bolsita_cutout`) con pose y transición
-  distintas por página y estado; ubicación para el envío («si ya aprobé los precios de envío»); estrellas, sí; ampliar el
-  chat, sí. Prototipo v2 aprobado (~80 % y los cambios). Construido en dos partes (Worker y Odoo, contrato escrito).
-  **Tres vueltas de revisión adversarial**: la primera con dos bloqueantes (el tope de 30 USD no anotaba los turnos que
-  cortaba el plazo; el PDF podía agotar las conexiones de la base), la segunda con cuatro menores del Worker y la tercera
-  con un hueco de permisos (un usuario interno podía esconder sus consultas de la auditoría poniendo una marca en el
-  contexto). Todo cerrado salvo «Por pagar a Meta» en el cambio de mes (pendiente antes del 1 de diciembre, en
-  PRIORIDADES). El CI con todos los módulos encontró dos más (la fecha de `/privacidad` y que el pie no se podía guardar
-  con el constructor por `pie_mi_cuenta`). Prueba de punta a punta en staging con el Worker de verdad antes de subir.
-- **Lote 2 de la web:** horario en Visítanos y el pie (de Ajustes de Juan), mapa de Google solo con permiso de cookies,
-  opiniones solo de quien compró y pagó, aprobadas por Gerencia, con invitación en el correo de la factura pagada. Va con
-  Brian de la tienda.
-- **«Tu compra lista»** (del chat al carrito con un código): diseño en borrador, sin aprobar; el carrito real de Brian de
-  la tienda cubre la primera parte.
-- **Incidencias de la sesión:** dos pausas por el límite de uso de 5 horas (los ayudantes se pararon cerca de una hora
-  cada vez) y dos reinicios del contenedor (se pierden PostgreSQL y las corridas en segundo plano; los árboles y los
-  commits quedan). Se reanudó cada ayudante desde donde quedó.
-- **Sigue:** **Tilopay** la otra semana (Odoo no lo trae: hay que conectarlo; métodos: los que tenga activos); Search
-  Console; «Por pagar a Meta» en el cambio de mes (antes del 1 de diciembre); Turnstile en el chat antes de anunciarlo
-  en grande; herramientas del Brian del panel para la tienda y las opiniones; y un detalle de texto: Brian dice «a
-  partir de las 9:00 a. m..» con dos puntos (`juan/src/tienda/motor.ts`, el aviso de tienda cerrada). El mapa no
-  necesita regla nueva: el borde no manda `frame-src` (OPERACION).
-
 ### Entradas anteriores (una línea cada una; el texto completo en [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md))
 
+- **2026-11-13 (2) y 2026-11-14:** avisos de Telegram ordenados, lote 1 de la web, «Busca con una foto», ícono de Brian y horario (Desplegar 71 y Juan 25); Brian de la tienda y lote 2 de la web (Desplegar 72 y Juan 26); la burbuja que cambia con el scroll (Desplegar 73); el 15, Brian siempre activo de noche (Juan 27 y Desplegar 74), en producción
 - **2026-11-13:** Juan ya no dice «no lo manejamos» de lo que no está publicado (Desplegar 69 y Juan 23) y
   responde comentarios de Instagram y Facebook, apagado (Desplegar 70 y Juan 24), en producción
 - **2026-11-12:** Juan cotiza envíos con la promoción, reparto justo de chats y Costos de IA con «Pagar», en
