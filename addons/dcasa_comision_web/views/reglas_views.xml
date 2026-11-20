@@ -29,7 +29,7 @@
         <field name="name">dcasa.web.reglas.form</field>
         <field name="model">dcasa.web.reglas</field>
         <field name="arch" type="xml">
-            <form string="Reglas de la comisión del sitio web" delete="0" js_class="dcasa_reglas_form">
+            <form string="Reglas de la comisión del sitio web" delete="0" duplicate="0" js_class="dcasa_reglas_form">
                 <header>
                     <button name="action_anular" type="object" string="Anular esta versión"
                             invisible="not id or estado not in ('programada', 'tapada')"
@@ -87,8 +87,14 @@
                         <field name="ejemplo_html" nolabel="1" colspan="2"/>
                     </group>
                     <group string="Quiénes reciben (empleados de Nómina) · lo que le toca a cada quien suma 100 %">
+                        <!-- edit="1" es lo que deja agregar y cambiar a las personas de una versión NUEVA: sin él, Odoo
+                             marca la sublista como no editable porque nadie tiene permiso de escribir en el reparto (a
+                             propósito: una versión guardada no se edita) y «Agregar una línea» abre un diálogo con
+                             «Reglas» obligatorio que no se puede llenar. Es solo la pantalla: el servidor sigue negando
+                             editar o borrar un reparto (ver ``DcasaWebReparto.write`` y los permisos), y en una versión
+                             guardada el campo es de solo lectura (``readonly="id"``). -->
                         <field name="reparto_ids" nolabel="1" colspan="2" readonly="id">
-                            <list editable="bottom">
+                            <list editable="bottom" edit="1">
                                 <field name="sequence" widget="handle"/>
                                 <field name="empleado_id" options="{'no_create': True}"/>
                                 <field name="porcentaje" sum="Total"/>

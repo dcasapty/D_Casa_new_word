@@ -16,7 +16,7 @@ que lo mismo no puede entrar en otra liquidación, ni aunque los periodos se sol
 Los dos conceptos (porcentaje de las ventas y tarifa fija) salen por separado y **ninguno es salario**: se pagan sin
 descuentos de planilla (decisión de Gerencia). Conviene que la contadora deje por escrito su tratamiento.
 """
-from datetime import timedelta
+from datetime import date, timedelta
 
 from dateutil.relativedelta import relativedelta
 
@@ -151,7 +151,25 @@ class DcasaWebLiquidacion(models.Model):
     # Lo aprobado no se edita
     # ------------------------------------------------------------------
 
+    @api.model
+    def _validar_fechas_crudas(self, vals):
+        """Las fechas del periodo que llegan de afuera (por RPC cualquiera manda un texto cualquiera o un número) se
+        rechazan con un mensaje claro en vez de un error de Python sin traducir (quinta revisión adversarial,
+        2026-11-20). Los extremos (año 1, año 9999) sí se aceptan: ``_armar`` los aguanta."""
+        for campo in ('fecha_desde', 'fecha_hasta'):
+            valor = vals.get(campo)
+            if not valor:
+                continue
+            try:
+                dia = fields.Date.to_date(valor)
+            except (ValueError, TypeError, OverflowError, AttributeError):
+                dia = None
+            if not isinstance(dia, date):
+                raise UserError(self.env._(
+                    '«%s» no es una fecha válida: escribe un día, por ejemplo 2030-03-04.', self._fields[campo].string))
+
     def write(self, vals):
+        self._validar_fechas_crudas(vals)
         if self.env.context.get(CLAVE_ESCRIBIR) is not ESCRIBIR:
             for liquidacion in self:
                 permitidos = EDITABLES_EN_BORRADOR if liquidacion.estado == 'borrador' else (
@@ -184,6 +202,7 @@ class DcasaWebLiquidacion(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
+            self._validar_fechas_crudas(vals)
             for clave in CAMPOS_DEL_SISTEMA:
                 vals.pop(clave, None)
             vals['estado'] = 'borrador'
@@ -269,6 +288,8 @@ class DcasaWebLiquidacion(models.Model):
         """Centavos por pagar que se anotaron antes de «desde» (solo lo positivo): una liquidación toma todo lo no
         liquidado hasta «hasta», así que se avisa cuando arrastra algo de antes del periodo."""
         self.ensure_one()
+        if self.fecha_desde <= date.min:
+            return 0          # no se anota nada antes del año 1 (y restarle un día desbordaría)
         Libro = self.env['dcasa.web.movimiento'].sudo()
         antes = self.fecha_desde - timedelta(days=1)
         empleados = Libro.search([('company_id', '=', self.company_id.id)]).empleado_id
