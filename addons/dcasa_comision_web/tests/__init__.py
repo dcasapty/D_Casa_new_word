@@ -22,3 +22,11 @@ from . import test_revision4_carrito
 from . import test_revision4_cobro
 from . import test_revision4_valores
 from . import test_version_nueva_navegador
+from . import test_revision5_versiones
+from . import test_revision5_valores
+from . import test_revision5_navegador
+from . import test_revision5_facturado
+from . import test_revision5_enlace
+from . import test_revision5_carrito
+from . import test_revision5_cobro
+from . import test_revision5_fuzz

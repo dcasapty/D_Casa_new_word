@@ -1679,6 +1679,37 @@ Lo que quedó escrito para no repetirlo:
 - **El «costo por línea» medido sin vaciar la caché engaña:** una guarda que lee `price_unit` adelanta el recálculo de Odoo,
   no lo agrega. Medir siempre con `env.flush_all()` dentro de la medición y contra el mismo cambio sin el gancho.
 
+### Lo que enseñó la quinta revisión de la comisión web (2026-11-20)
+
+- **Odoo marca una sublista de x2many como no editable si el usuario no puede escribir el modelo hijo, aunque el padre sea
+  editable.** `ir.ui.view._postprocess_access_rights` pone `edit="False"` en el `<list>` cuando no tiene `edit` escrito y el
+  usuario no tiene `write` sobre el comodelo (`dcasa.web.reparto` tiene `write=0` a propósito: una versión guardada no se
+  edita). «Agregar una línea» abre entonces un diálogo con el campo del padre (`Reglas`) obligatorio y sin poder llenarlo. Si
+  el hijo solo se crea desde el padre (comandos `create` al guardar), la sublista lleva `edit="1"` (solo pantalla; el servidor
+  sigue negando todo por `write()`/`unlink()` y la ACL). **Toda prueba de pantalla debe recorrer el camino que enciende la
+  función de verdad** (guardar una versión con porcentaje y dos personas, con clics), no el camino vacío (una versión en
+  pausa): las rondas 3 y 4 solo guardaban una pausa y la primera versión con cobro era imposible desde la pantalla. Un tour de
+  Odoo 19 va en `static/tests/tours/*.js` con `'web.assets_tests': [...]` en el manifiesto y se corre con `HttpCase.start_tour`.
+  Control para que la prueba caiga sin el arreglo: una vista heredada que quita el atributo (`<attribute name="edit"/>`) y un
+  `browser_js` que comprueba que «Agregar una línea» abre un diálogo en vez de una fila.
+- **Un documento que dice «lo cubre el aviso de X» se verifica con una prueba que el aviso existe.** El límite de que lo
+  facturado de un pedido online se puede editar (precio, cantidad o un anticipo fijo mayor que el pedido) estaba escrito como
+  «cubierto por el aviso de Ventas del sitio» y ese aviso no existía para ese caso. Ahora es el campo `facturado_distinto`
+  (`venta.py::_facturado_distinto`): compara precio y descuento de la línea de la factura con los de su línea de pedido, la
+  cantidad facturada en firme (`qty_invoiced_posted`, que Odoo no guarda y ya trae las notas de crédito restadas) con lo
+  pedido o entregado, y los anticipos (`price_subtotal` de las líneas `is_downpayment`: la factura de anticipo es positiva y
+  la deducción en la final, negativa; las notas de crédito restan) con lo que vale el pedido. Es una señal, no un freno; si
+  Gerencia decide el freno, la comisión se calcula sobre el menor entre pedido y factura (`_componentes`).
+- **`float_round` desborda con 1.8e308 y `fields.Datetime.to_datetime`/`Date.to_date` dan `ValueError`/`TypeError` con lo que
+  no es fecha.** Todo valor que llega por RPC se valida antes de que Odoo lo convierta (`reglas._fecha_hora_cruda`,
+  `liquidacion._validar_fechas_crudas`, opciones de los `Selection` en `_validar_cifras_crudas`, el reparto en
+  `DcasaWebReparto.create`): mensaje claro y traducible, nunca un error de Python. Los extremos válidos (año 1, año 9999) se
+  aceptan y se aguantan (`date.min - 1 día` desbordaba al armar).
+- **`create` que usa un contexto interno como llave debe devolver los registros con el entorno de quien llamó**
+  (`versiones.with_env(self.env)`): si no, lo que devuelve arrastra la llave y deja pasar las guardas de lo creado.
+- **El puerto de pruebas se comparte:** dos sesiones usaron el 8652 a la vez (`Address already in use`). No matar lo ajeno:
+  esperar a que se libere (`while fuser 8652/tcp; do sleep 5; done`) o usar otro puerto.
+
 ### Cloudflare
 
 - **Un secreto nuevo del panel del Worker `dcasa` no llega a Odoo hasta que el contenedor arranca otra vez**

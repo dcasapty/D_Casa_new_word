@@ -312,6 +312,14 @@ class DcasaWebReglas(models.Model):
         """Las cifras que llegan de afuera (por RPC cualquiera manda ``nan``, ``inf``, un texto o un 1e30) se rechazan
         con un mensaje claro ANTES de que Odoo intente redondearlas y falle con un error de Python sin traducir (cuarta
         revisión adversarial, 2026-11-20). Un tope de 1e30 se guardaba y rompía después todos los ajustes."""
+        for campo in ('tarifa_periodo', 'base_itbms', 'base_envio', 'base_descuentos', 'base_devoluciones',
+                      'base_pasarela'):
+            # Una opción que no existe daba un ``ValueError`` de Python sin traducir.
+            if vals.get(campo) not in (None, False) and vals[campo] not in [
+                    clave for clave, _texto in self._fields[campo].selection]:
+                raise UserError(self.env._(
+                    '«%s» no es una de las opciones que da la pantalla: escoge una de la lista.',
+                    self._fields[campo].string))
         for campo in ('porcentaje', 'tarifa_fija', 'tope_ajuste'):
             if campo not in vals:
                 continue
@@ -328,6 +336,18 @@ class DcasaWebReglas(models.Model):
                     '«%(campo)s» es demasiado grande para el libro (llega hasta %(maximo)s). Revisa los ceros.',
                     campo=etiqueta, maximo=f'{LIMITE_DE_DINERO:,.2f}'))
 
+    @api.model
+    def _fecha_hora_cruda(self, valor):
+        """El ``datetime`` de un «Rige desde» que llega de afuera (vacío es ahora mismo). Un texto que no es fecha, un
+        número o una lista daban un error de Python sin traducir (quinta revisión adversarial, 2026-11-20)."""
+        if not valor:
+            return None
+        try:
+            return fields.Datetime.to_datetime(valor)
+        except (ValueError, TypeError, OverflowError, AttributeError):
+            raise UserError(self.env._(
+                '«Rige desde» no es una fecha válida: escribe un día, por ejemplo 2030-03-04.')) from None
+
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
@@ -340,7 +360,7 @@ class DcasaWebReglas(models.Model):
         for vals in vals_list:
             for clave in CAMPOS_DEL_SISTEMA:
                 vals.pop(clave, None)
-            desde = fields.Datetime.to_datetime(vals.get('rige_desde')) or ahora
+            desde = self._fecha_hora_cruda(vals.get('rige_desde')) or ahora
             # Rige desde el INICIO de ese día de Panamá: hoy vale (aunque el formulario se haya abierto hace rato).
             if dia_de_panama(desde) < dia_de_panama(ahora):
                 raise UserError(self.env._(
@@ -349,6 +369,9 @@ class DcasaWebReglas(models.Model):
             vals.update(numero=ultimo_numero, rige_desde=desde, autor=self.env.user.name)
         # Los renglones del reparto solo se crean aquí, junto con su versión.
         versiones = super(DcasaWebReglas, self.with_context(**{CLAVE_CREANDO: CREANDO_VERSION})).create(vals_list)
+        # Se devuelven con el entorno de quien llamó: la llave interna del reparto no sale de aquí (una versión recién
+        # creada dejaba escribir ``usuario_ids`` de su reparto a quien la recibía).
+        versiones = versiones.with_env(self.env)
         # Lo cobrado HOY antes de guardar esta versión también es del sitio (rige desde el inicio del día): no se queda
         # sin dueño ni con la vendedora (el corte es el mismo para las dos).
         self.env['dcasa.web.venta']._atribuir_a_las_reglas()
@@ -500,9 +523,14 @@ class DcasaWebReparto(models.Model):
             raise UserError(self.env._(
                 'El reparto no se agrega a una versión ya guardada: guarda una versión nueva con el reparto nuevo.'))
         for vals in vals_list:
-            if 'porcentaje' in vals and calculo.numero_finito(vals['porcentaje']) is None:
-                raise UserError(self.env._(
-                    'Lo que le toca a cada persona no es un número válido: escribe una cifra, por ejemplo 60.'))
+            if 'porcentaje' in vals:
+                numero = calculo.numero_finito(vals['porcentaje'])
+                if numero is None:
+                    raise UserError(self.env._(
+                        'Lo que le toca a cada persona no es un número válido: escribe una cifra, por ejemplo 60.'))
+                if abs(numero) > 100:
+                    # Un 1.8e308 desbordaba al redondear (error de Python sin traducir): el mismo mensaje de la regla.
+                    raise ValidationError(self.env._('A cada persona le toca más de 0 y hasta 100 %.'))
         lineas = super().create(vals_list)
         for linea in lineas:
             # Se congelan los usuarios ligados HOY a la ficha (no se editan: ver ``write``).

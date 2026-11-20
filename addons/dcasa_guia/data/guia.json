@@ -4282,7 +4282,7 @@
    "destino": {
     "menu": "dcasa_comision_web.menu_ventas_sitio"
    },
-   "nota": "Se mide siempre, aunque todavía no haya porcentaje de comisión. Una venta que lleva una vendedora no cuenta como del sitio. Salen señaladas las ventas con una fecha de pago futura y las que tienen una nota de crédito con líneas sin producto (filtros «Cobro con fecha futura» y «Una nota trae líneas sin producto»): conviene mirarlas. Una venta con fecha de pago futura se calcula con las reglas de hoy y se vuelve a calcular sola cuando esas reglas cambian (por ejemplo, al llegar el día del pago); la señal se queda.",
+   "nota": "Se mide siempre, aunque todavía no haya porcentaje de comisión. Una venta que lleva una vendedora no cuenta como del sitio. Salen señaladas las ventas con una fecha de pago futura, las que tienen una nota de crédito con líneas sin producto y las que se facturaron distinto de lo que dice el pedido, por ejemplo con otro precio o con más cantidad (filtros «Cobro con fecha futura», «Una nota trae líneas sin producto» y «Facturado distinto del pedido»): conviene mirarlas. Es solo una señal: no cambia lo que se paga. Una venta con fecha de pago futura se calcula con las reglas de hoy y se vuelve a calcular sola cuando esas reglas cambian (por ejemplo, al llegar el día del pago); la señal se queda.",
    "palabras": [
     "ventas del sitio",
     "ventas por internet",

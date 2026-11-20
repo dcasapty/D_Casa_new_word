@@ -13,7 +13,11 @@ explica **cómo funciona hoy**, en palabras para administración.
 > la contadora. Tercera revisión (2026-11-20): el bloqueante que quedaba para activarlo (el enlace factura-pedido) está
 > cerrado y los otros hallazgos también. Cuarta revisión (2026-11-20): quedaba un último camino para fabricar ese enlace
 > (un `default_*` en el contexto de una llamada), ya cerrado, y la pantalla para guardar una versión nueva no tenía
-> botón «Guardar» (ya lo tiene); lo que sigue abierto está en «Por decidir».
+> botón «Guardar» (ya lo tiene); lo que sigue abierto está en «Por decidir». Quinta revisión (2026-11-20): desde la
+> pantalla no se podía guardar una versión con porcentaje o tarifa (no se podía agregar a nadie a «Quiénes reciben»; ya
+> se puede, con prueba de navegador que guarda de verdad la versión), y editar lo facturado de un pedido de la página
+> (el precio o la cantidad en el borrador de la factura, o un anticipo mayor que el pedido) ahora sale señalado en
+> *Ventas del sitio* («Facturado distinto del pedido»): es una señal, no un freno, y lo que se paga no cambia.
 
 ## En una frase
 
@@ -28,7 +32,7 @@ la vendedora, Caja y Marketing no lo ven ni por enlace):
 
 | Pantalla | Para qué |
 |---|---|
-| **Ventas del sitio** | Una fila por factura del sitio pagada por completo: cómo llegó, cómo pagó, lo vendido, envío, devoluciones, base y comisión. Lista, **gráfico y tabla por mes** (para medir el sitio como una sucursal) y **Excel** con «Exportar». |
+| **Ventas del sitio** | Una fila por factura del sitio pagada por completo: cómo llegó, cómo pagó, lo vendido, envío, devoluciones, base y comisión, y las **señales** para revisar (carrito del equipo, cobro con fecha atrasada o futura, nota sin producto, facturado distinto del pedido). Lista, **gráfico y tabla por mes** (para medir el sitio como una sucursal) y **Excel** con «Exportar». |
 | **Liquidaciones** | Armar, aprobar y marcar como pagada la comisión de un periodo. |
 | **Quiénes reciben** | La lista de la versión que rige hoy, con el reparto y lo que se le debe a cada quien. Desde aquí se cambia la lista. |
 | **Libro** | Todo lo que se ha anotado, por persona. No se edita ni se borra. |
@@ -90,8 +94,11 @@ venta del sitio de 500.00 con ella). Las líneas ya armadas que traen el enlace 
 `default_line_ids`, duplicar con valores, importar con `load`, comandos de `link` y `set`) pasan por el mismo gancho de
 `create` y se frenan. Una línea de pedido que ya se facturó tampoco cambia de pedido. **No cambia ninguna factura que ya
 existe**: el enlace que tienen se queda como está (no hay migración ni marca nueva). Límite honesto: quien tiene permiso
-de facturas sigue pudiendo editar el precio de una factura en borrador de un pedido online, o pasar una línea que ya
-estaba enlazada de una factura en borrador a otra (es contabilidad normal); lo que ya no puede es fabricar el origen.
+de facturas (Caja, Gerencia y hasta la vendedora, por el asistente de facturar) sigue pudiendo editar el precio, el
+descuento o la cantidad de una factura en borrador de un pedido online, o pasar una línea que ya estaba enlazada de una
+factura en borrador a otra (es contabilidad normal); lo que ya no puede es fabricar el origen. **Editar lo facturado
+queda señalado** (quinta revisión): la venta sale como **«Facturado distinto del pedido»** en *Ventas del sitio* (ver
+abajo); no hay freno, y lo que se paga no cambia (pregunta abierta para Gerencia en «Por decidir» 11).
 
 **El pedido que nace por un flujo digital guarda además quién lo tocó**: si una persona del equipo (un usuario interno)
 cambia su cliente, su lista de precios, su posición fiscal o sus líneas (**también por una escritura directa a las
@@ -187,6 +194,19 @@ vendedora, cuenta igual que hoy.
   departamento, esto no cambia) y a cada quien le toca un porcentaje del reparto; **tiene que sumar 100 %**. Los centavos
   que sobran van, de uno en uno y siempre en el mismo orden, a las primeras personas de la lista.
 
+**La pantalla de una versión nueva deja agregar y cambiar a quienes reciben** (quinta revisión, 2026-11-20). Antes
+«Agregar una línea» en «Quiénes reciben» no hacía nada útil (abría un diálogo con «Reglas» obligatorio que no se podía
+llenar) y las personas precargadas de «Cambiar quiénes reciben» no se podían tocar, así que **desde la pantalla no se
+podía guardar ninguna versión con porcentaje o tarifa** (sin reparto el servidor no la guarda): la primera versión, la
+que enciende el cobro, solo se podía crear por código. Pasaba porque nadie tiene permiso de escribir el reparto (a
+propósito: una versión guardada no se edita) y Odoo marcaba la sublista como no editable; la sublista dice
+`edit="1"` (solo pantalla). **No abre ninguna puerta en el servidor**: el reparto sigue sin permiso de escribir ni de
+borrar para nadie, el servidor niega editar, borrar o agregar al reparto de una versión guardada con los 5 roles
+(también con `sudo()`), y en una versión guardada el campo es de solo lectura. Lo cubren pruebas de navegador que
+guardan de verdad una versión con 12 % y dos personas (60 / 40) como Nómina y como Gerencia, y que cambian quiénes
+reciben de una versión nueva. El formulario de una versión ya no ofrece «Duplicar» (el reparto no se copia y daba el
+error «Elige quiénes reciben…»).
+
 **La pantalla de una versión nueva** no muestra «Anular» ni el motivo de anulación (solo una versión ya guardada y que
 todavía no rige los tiene) y **no se guarda sola**: se guarda solo con el botón **Guardar** (y «Descartar» la tira). Los
 campos de una versión ya guardada salen de solo lectura; lo único que se escribe en ella es el motivo de la anulación.
@@ -264,6 +284,24 @@ vendido.
   igual o posterior a ella, la venta queda sin dueña hasta que llegue ese día; es un caso muy estrecho y queda señalado.
 * Una **nota de crédito con líneas sin producto** (escritas a mano) no se puede atribuir al envío: se resta de lo vendido y
   la venta queda señalada en *Ventas del sitio* («Una nota trae líneas sin producto») para que alguien la mire.
+* **Facturado distinto del pedido** (quinta revisión, 2026-11-20). La base de la comisión es lo **facturado y cobrado**,
+  y quien tiene permiso de facturas puede editar el precio, el descuento o la cantidad de la factura en borrador de un
+  pedido de la página antes de publicarla y cobrarla (con un pedido de 1,000.00 al 10 %: una base de 5,000.00 y una
+  comisión de 500.00 donde lo normal era 100.00; lo pudieron hacer Caja, Gerencia y la vendedora por el asistente de
+  facturar), o cobrar un anticipo de monto fijo mayor que el pedido (Odoo no le pone tope). Eso no dejaba **ninguna**
+  señal (el documento anterior decía que lo cubría «el aviso de *Ventas del sitio*», y ese aviso no existía para este
+  caso). Ahora la venta sale señalada: columna «Distinto del pedido», aviso en el formulario y filtro «Facturado
+  distinto del pedido». Se señala cuando, en alguna línea de producto que viene de un pedido de la página, **el precio
+  o el descuento de la factura no son los del pedido**, o **lo facturado en firme** (facturas publicadas menos notas de
+  crédito) **pasa de lo pedido** (o de lo entregado), o **los anticipos cobrados, netos de lo devuelto, pasan de lo que
+  vale el pedido**. Se compara con la tolerancia de los decimales que Odoo guarda (el centavo). **No la dispara** una
+  venta normal: un descuento en la línea del pedido, el envío, un premio, un anticipo y su factura final, una nota de
+  crédito parcial o total, ni una factura parcial seguida de la que completa el pedido. Los impuestos no se comparan
+  (cambiarlos en un borrador es contabilidad normal). Se calcula al anotar la venta y cada vez que se la compara con la
+  factura (como «Una nota trae líneas sin producto»), con lo que dice la factura hoy. **Es una señal, no un freno: no
+  cambia lo que se paga** (probado con las cifras del caso: base 5,000.00 y comisión 500.00 siguen saliendo; la
+  decisión de agregar un freno es de Gerencia: «Por decidir» 11). A veces es normal (un descuento que se dio en caja):
+  es lo primero que conviene mirar, junto con quién editó la factura (el chatter de la factura lo dice).
 * **Armar y aprobar** una liquidación miran, en una sola consulta, si cambió la factura de alguna venta (estado, pago,
   notas con el producto de cada línea, conciliaciones y lo que cobró la pasarela) y solo recomponen las que cambiaron; el barrido de cada noche las compara todas. Si otra operación
   choca con la misma venta, el sistema repite la operación con una foto nueva de la base (no sigue con datos viejos).
@@ -383,9 +421,18 @@ referencia.
     moneda, la nota de crédito se convierte a su propio tipo de cambio y la base baja más (o menos) de lo proporcional
     (400 EUR devueltos de 1,000 EUR a otro cambio). No se corrigió: no hay forma simple y segura sin decidir qué tipo de
     cambio manda; queda documentado.
-11. **El precio de una factura en borrador de un pedido online** lo puede editar quien tiene permiso de facturas (es
-    contabilidad normal). El origen ya no se fabrica, pero la base de la comisión es lo facturado y cobrado: la cubren
-    los bloqueos contables, la revisión de la contadora y el aviso de *Ventas del sitio*, no el código.
+11. **Lo facturado de un pedido online se puede editar (quinta revisión).** Quien tiene permiso de facturas (Caja,
+    Gerencia y hasta la vendedora, por el asistente de facturar) puede cambiar el precio, el descuento o la cantidad de la
+    factura en borrador y cobrarla, o cobrar un anticipo de monto fijo mayor que el pedido, y la base de la comisión es lo
+    facturado y cobrado: con un pedido de 1,000.00 al 10 %, base 5,000.00 y comisión 500.00 (lo normal, 100.00). Hoy eso
+    **sale señalado** en *Ventas del sitio* («Facturado distinto del pedido») pero **no se frena**: la comisión se paga
+    sobre lo facturado. Antes el documento decía que lo cubría «el aviso de *Ventas del sitio*» y ese aviso no existía.
+    **Pregunta para Gerencia, sin decidir por ella:** (A) dejar **solo la señal** (alguien la revisa y, si hace falta, se
+    corrige con un ajuste con motivo: una revisión por persona), o (B) además un **freno**: la comisión se calcula sobre
+    **el menor entre lo que dice el pedido y lo que dice la factura** (nadie gana de más por editar una factura; el costo
+    es que un descuento o una cantidad menor dados en caja bajan la comisión aunque sean legítimos, y que un precio más
+    alto legítimo, por ejemplo un servicio agregado a la factura, no la sube). El código no cambió ninguna cifra ni apagó
+    nada: es una decisión de política.
 12. **Una línea de envío o de anticipo escrita a mano no deja huella (latente, cuarta revisión).** Una persona con
     permiso para escribir líneas de pedido (Gerencia, Nómina o Caja) puede agregar a un carrito de la página una línea
     de un mueble con la bandera de «envío» (`is_delivery`) y un precio alto: no se anota como «lo tocó el equipo»,
@@ -408,3 +455,23 @@ referencia.
     el precio de cada línea y Odoo lo recalcula en ese momento en vez de hacerlo al final; con el vaciado final cuesta lo
     mismo con y sin gancho (77 consultas sin él y 71 con él en 60 líneas), y lo mismo en un pedido de mostrador. Una prueba
     cuida que el gancho no agregue trabajo por línea.
+15. **Una versión guardada «desde hoy» no se aplica a lo ya cobrado hoy (quinta revisión).** Una venta cobrada hoy a las
+    10 de la mañana con la versión A se queda con A; la misma venta cobrada **después** de guardar la versión B «desde
+    hoy» (que rige desde el inicio del día) sale con B (por ejemplo 10,000 contra 5,000 centavos de comisión). Es
+    coherente con «solo hacia adelante» y con «lo ya anotado nunca se recalcula», y el barrido de la noche no la mueve
+    (probado); solo los pagos con fecha futura se vuelven a escoger. **Pregunta de política para Gerencia:** ¿se deja así
+    (la versión que regía al anotar la venta) o se quiere que guardar una versión «desde hoy» también cuente para lo
+    cobrado hoy antes de guardarla? No se recalculó nada.
+16. **Latentes de la quinta revisión (solo documentados).** (a) Quien tiene permiso de precios (Gerencia) puede cambiar el
+    precio de lista de un producto o crear una regla de la lista de precios y tocar «Actualizar precios» en el carrito de
+    un visitante: ya no deja la marca de «lo tocó el equipo» (antes sí): lo recalcula el servidor con la llave, que es
+    justo lo que se buscó con «lo que recalcula el servidor no cuenta»; Nómina y Caja no pueden cambiar precios y el
+    cambio queda en el chatter del producto. (b) `_adelantado_por_revisar` hace una consulta por cada venta con fecha
+    futura cada vez que se arma, aprueba o barre, para siempre (la señal «Cobro con fecha futura» se queda): 100
+    comprobaciones son 100 consultas. Sin impacto hoy; si algún día hubiera miles de ventas con fecha futura, se agrega
+    una marca de «ya revisada».
+17. **Errores de Python sin traducir por RPC (cerrado en la quinta revisión).** Un «Rige desde» con texto, número o lista,
+    una opción que no existe en «La tarifa se anota» o en los interruptores, las fechas de una liquidación («abc», un
+    número) y lo que le toca a una persona del reparto con 1.8e308 daban un error de Python sin traducir (no guardaban
+    nada ni movían dinero). Ahora son un mensaje claro y traducible; y armar una liquidación «desde» el año 1 ya no
+    desborda.

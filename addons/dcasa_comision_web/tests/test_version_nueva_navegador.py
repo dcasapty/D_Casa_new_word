@@ -124,6 +124,10 @@ const leer = async () => {
 if ((await leer()).anulada) { throw new Error('La versión ya estaba anulada'); }
 const campo = document.querySelector('.o_form_view [name=porcentaje] input');
 if (campo) { throw new Error('Una versión guardada no se edita: el porcentaje no se debe poder escribir'); }
+// El edit="1" de la sublista «Quiénes reciben» es solo para una versión nueva: en una guardada no se agrega a nadie.
+if (document.querySelector('.o_form_view [name=reparto_ids] .o_field_x2many_list_row_add a')) {
+    throw new Error('Una versión guardada no se edita: no se debe poder agregar a nadie a «Quiénes reciben»');
+}
 await escribir('motivo_anulacion', 'se puso con el año equivocado', true);
 (await esperar(() => document.querySelector('button[name=action_anular]'), 'el botón Anular')).click();
 (await esperar(() => document.querySelector('.modal-footer .btn-primary'), 'la confirmación')).click();

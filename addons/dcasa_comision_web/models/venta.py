@@ -23,6 +23,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from odoo import SUPERUSER_ID, api, fields, models, modules, tools
 from odoo.exceptions import ConcurrencyError, UserError
 from odoo.service.model import PG_CONCURRENCY_EXCEPTIONS_TO_RETRY
+from odoo.tools import float_compare
 
 from . import calculo
 from .movimiento import dia_de_panama
@@ -84,6 +85,13 @@ class DcasaWebVenta(models.Model):
         help='Una nota de crédito de esta factura trae líneas sin producto (escritas a mano): no se puede saber si '
              'devuelven un mueble o el envío, así que se restan de lo vendido. Revísala: si devolvía solo el envío, la '
              'base queda más baja de lo que debería.')
+    facturado_distinto = fields.Boolean(
+        'Facturado distinto del pedido', readonly=True, index=True,
+        help='Lo que dice la factura no coincide con el pedido de la página: el precio, el descuento o la cantidad de '
+             'alguna línea es distinto del de su línea del pedido, o los anticipos cobrados pasan de lo que vale el '
+             'pedido. A veces es normal (un descuento que se dio en caja), pero es lo primero que conviene mirar: la '
+             'base de la comisión es lo facturado y cobrado, y quien tiene permiso de facturas puede editar el precio '
+             'o la cantidad de una factura en borrador. Es una señal para Gerencia: NO cambia lo que se paga.')
     atendida_por_vendedora = fields.Boolean(
         'Una vendedora la atendió', readonly=True,
         help='El pedido tiene vendedora asignada (por ejemplo la que lo confirmó). Sigue siendo venta online.')
@@ -263,6 +271,63 @@ class DcasaWebVenta(models.Model):
                    for nota in self._notas_de(move) for ln in nota.line_ids)
 
     @api.model
+    def _facturado_distinto(self, move):
+        """¿Lo que dice esta factura es distinto de lo que dice el pedido online del que salió? Es una SEÑAL para
+        Gerencia (quinta revisión adversarial, 2026-11-20): no frena ni cambia lo que se paga.
+
+        La base de la comisión es el importe de la factura (``_componentes``), y quien tiene permiso de facturas puede
+        editar el precio o la cantidad de una factura en borrador antes de publicarla y cobrarla. Se compara, línea por
+        línea de producto que viene de un pedido online, con la línea de ese pedido (de donde Odoo copia el precio, el
+        descuento y la cantidad al facturar), con la tolerancia de los decimales que Odoo guarda (el centavo):
+
+        * el precio o el descuento de la línea de la factura no son los de la línea del pedido;
+        * lo facturado en firme de esa línea (facturas publicadas menos notas de crédito) pasa de lo pedido (o de lo
+          entregado, si se factura lo entregado);
+        * los anticipos cobrados (neto de lo devuelto) pasan de lo que vale el pedido (``_anticipos_pasan_del_pedido``).
+
+        Una venta normal (con descuento en la línea, con envío, con un anticipo y su factura final, con una nota de
+        crédito parcial) no la dispara: todo eso sale igual del pedido. Los impuestos no se comparan (cambiarlos en un
+        borrador es contabilidad normal y la base no los cuenta salvo que Gerencia lo pida)."""
+        move = move.sudo()
+        Precision = self.env['decimal.precision']
+        digitos_precio = Precision.precision_get('Product Price')
+        digitos_descuento = Precision.precision_get('Discount')
+        con_anticipo = self.env['sale.order']
+        for linea in move.line_ids.filtered(lambda ln: ln.display_type == 'product'):
+            for pedido in linea.sale_line_ids.filtered(lambda sl: sl.order_id.dcasa_venta_online):
+                if pedido.is_downpayment:
+                    con_anticipo |= pedido.order_id
+                    continue
+                if (float_compare(linea.price_unit, pedido.price_unit, precision_digits=digitos_precio)
+                        or float_compare(linea.discount, pedido.discount, precision_digits=digitos_descuento)):
+                    return True
+                tope = max(pedido.product_uom_qty, pedido.qty_delivered)
+                if float_compare(pedido.qty_invoiced_posted, tope,
+                                 precision_rounding=pedido.product_uom_id.rounding) > 0:
+                    return True
+        return any(self._anticipos_pasan_del_pedido(orden) for orden in con_anticipo)
+
+    @api.model
+    def _anticipos_pasan_del_pedido(self, orden):
+        """¿Los anticipos publicados de este pedido, netos de lo que se devolvió, suman más que el pedido (sin
+        impuestos, ya con sus descuentos y su envío)? Odoo no le pone tope a un anticipo de monto fijo: uno de 5,000
+        sobre un pedido de 1,000 se factura y se cobra. La deducción del anticipo en la factura final (importe en
+        contra) no cuenta como un cobro. Con la tolerancia de un centavo por anticipo (los porcentajes se redondean)."""
+        orden = orden.sudo()
+        pedido = sum(orden.order_line.filtered(lambda sl: not sl.display_type and not sl.is_downpayment).mapped(
+            'price_subtotal'))
+        lineas = orden.order_line.filtered('is_downpayment').invoice_lines.filtered(
+            lambda ln: ln.parent_state == 'posted' and ln.display_type == 'product')
+        anticipado = 0.0
+        for ln in lineas:
+            if ln.move_id.move_type == 'out_invoice' and ln.price_subtotal > 0:
+                anticipado += ln.price_subtotal
+            elif ln.move_id.move_type == 'out_refund' and ln.price_subtotal > 0:
+                anticipado -= ln.price_subtotal
+        margen = orden.currency_id.rounding * (1 + len(lineas))
+        return anticipado - pedido > margen
+
+    @api.model
     def _dia_de_cobro(self, move):
         dias, _notas = self.env['dcasa.nomina.meta.bono']._dias_de_cobro(move)
         return dias.get(move.id) or move.invoice_date or fields.Date.context_today(self)
@@ -345,6 +410,7 @@ class DcasaWebVenta(models.Model):
             'atendida_por_vendedora': self._atendida_por_vendedora(ordenes),
             'cobro_atrasado': (self._hoy() - dia).days >= 2, 'cobro_adelantado': dia > self._hoy(),
             'nota_sin_producto': self._hay_nota_sin_producto(move),
+            'facturado_distinto': self._facturado_distinto(move),
             'creado_por_id': ordenes[:1].dcasa_creada_por_id.id or False,
             'tocada_por_id': ordenes.dcasa_tocada_por_id[:1].id or False,
             'creado_por_personal': self._es_del_equipo(ordenes),
@@ -377,7 +443,8 @@ class DcasaWebVenta(models.Model):
                 c, _ordenes = self._componentes(move)
                 self._escribir_si_cambio(venta, {**self._valores_de_componentes(c), 'cobrada': pagada,
                                                  'huella': huellas.get(venta.id),
-                                                 'nota_sin_producto': self._hay_nota_sin_producto(move)})
+                                                 'nota_sin_producto': self._hay_nota_sin_producto(move),
+                                                 'facturado_distinto': self._facturado_distinto(move)})
             else:
                 c = {clave: venta[f'{clave}_centavos'] for clave in calculo.COMPONENTES}
                 self._escribir_si_cambio(venta, {'cobrada': False, 'huella': huellas.get(venta.id)})
