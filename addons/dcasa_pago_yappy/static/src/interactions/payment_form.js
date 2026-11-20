@@ -156,6 +156,7 @@ patch(PaymentForm.prototype, {
         if (!contenedor) {
             return;
         }
+        estado.vigia?.disconnect();
         contenedor.replaceChildren();
         const boton = document.createElement(ELEMENTO);
         boton.setAttribute('theme', TEMA);
@@ -214,29 +215,37 @@ patch(PaymentForm.prototype, {
 
     async _yappyAlPulsar(boton) {
         const estado = this._yappyEstado();
-        if (boton !== estado.boton || estado.enMarcha) {
+        // Con un intento ya en marcha no se empieza otro: el teclado salta el «pointer-events: none» con que el botón se
+        // apaga solo (Enter dos veces pulsa dos veces), y cerrar «la ventana vieja» aquí cerraría la del intento vivo.
+        if (boton !== estado.boton || estado.enMarcha || estado.enviado || estado.pulsado) {
             return;
         }
-        this._yappyMensaje('');
-        const campo = estado.caja.querySelector('input[name="o_dcasa_yappy_celular"]');
-        const celular = celularDeYappy(campo.value);
-        if (!celular) {
-            this._yappyMensaje(MENSAJES.celular);
-            campo.focus();
-            this._yappyRehacer();
-            return;
-        }
-        estado.celular = celular;
-        estado.enMarcha = false;
+        estado.pulsado = true;
         try {
-            // La maquinaria de Odoo crea la transacción (con el monto del pedido, en el servidor) y llama a
-            // `_processDirectFlow`; allí se abre el cobro en Yappy.
-            await this.submitForm({stopPropagation() {}, preventDefault() {}});
-        } catch {
-            // Odoo ya enseñó su diálogo de error.
-        }
-        if (!estado.enMarcha) {
-            this._yappyRehacer();       // la transacción no llegó a abrirse: otro intento con un botón limpio
+            this._yappyMensaje('');
+            this._yappyCerrarVentanaVieja();
+            const campo = estado.caja.querySelector('input[name="o_dcasa_yappy_celular"]');
+            const celular = celularDeYappy(campo.value);
+            if (!celular) {
+                this._yappyMensaje(MENSAJES.celular);
+                campo.focus();
+                this._yappyRehacer();
+                return;
+            }
+            estado.celular = celular;
+            estado.enMarcha = false;
+            try {
+                // La maquinaria de Odoo crea la transacción (con el monto del pedido, en el servidor) y llama a
+                // `_processDirectFlow`; allí se abre el cobro en Yappy.
+                await this.submitForm({stopPropagation() {}, preventDefault() {}});
+            } catch {
+                // Odoo ya enseñó su diálogo de error.
+            }
+            if (!estado.enMarcha) {
+                this._yappyRehacer();       // la transacción no llegó a abrirse: otro intento con un botón limpio
+            }
+        } finally {
+            estado.pulsado = false;
         }
     },
 
@@ -269,11 +278,48 @@ patch(PaymentForm.prototype, {
                 token: datos.token,
             });
             this._yappyMensaje(MENSAJES.esperando, 'info');
+            this._yappyVigilarVentana(boton);
         } catch {
             this._yappyFallo(MENSAJES.generico);
         } finally {
             estado.enMarcha = false;
         }
+    },
+
+    /**
+     * Si queda abierta la ventana de un intento anterior (su «Transacción cancelada», con su X), se cierra con SU botón de
+     * cerrar antes de empezar otro: mientras siga abierta el componente no abre la ventana del intento nuevo y la clienta
+     * veía «cancelada» encima de «confirma el pago» (medido con el componente real).
+     */
+    _yappyCerrarVentanaVieja() {
+        const cerrar = this._yappyEstado().caja?.querySelector('dialog[open] .close-icon');
+        cerrar?.dispatchEvent(new MouseEvent('click', {bubbles: true}));
+    },
+
+    /**
+     * La ventana de Yappy se puede cerrar SIN que el componente avise con ningún evento: pasa cuando su contador de 5
+     * minutos llega a cero (dice «Transacción expirada», la clienta la cierra y no hay `eventError`). Sin esto el botón se
+     * quedaba apagado para siempre y el mensaje seguía diciendo «tienes 5 minutos». Al cerrarse la ventana sin que haya
+     * llegado ningún evento, se pone un botón nuevo y se dice por qué.
+     */
+    _yappyVigilarVentana(boton) {
+        const estado = this._yappyEstado();
+        estado.vigia?.disconnect();
+        const contenedor = estado.caja?.querySelector('.o_dcasa_yappy_boton');
+        if (!contenedor || typeof MutationObserver === 'undefined') {
+            return;
+        }
+        let estuvoAbierta = !!contenedor.querySelector('dialog')?.open;
+        const vigia = new MutationObserver(() => {
+            if (contenedor.querySelector('dialog')?.open) {
+                estuvoAbierta = true;
+            } else if (estuvoAbierta && boton === estado.boton && estado.enviado) {
+                vigia.disconnect();
+                this._yappyFallo(MENSAJES.EXPIRED);
+            }
+        });
+        vigia.observe(contenedor, {subtree: true, attributes: true, attributeFilter: ['open']});
+        estado.vigia = vigia;
     },
 
     _yappyFallo(mensaje) {
@@ -287,7 +333,9 @@ patch(PaymentForm.prototype, {
             return;
         }
         this._yappyMensaje(MENSAJES.termino, 'info');
-        window.location.assign('/payment/status');
+        // `replace`, no `assign`: la página de pago no queda en el historial. Con «atrás» la clienta volvía a un botón de
+        // Yappy listo para pagar OTRA VEZ un pedido que ya tiene un cobro en espera.
+        window.location.replace('/payment/status');
     },
 
     _yappyAlFallar(boton, detalle) {
@@ -312,6 +360,7 @@ patch(PaymentForm.prototype, {
         estado.enLinea = enLinea;
         const sinScript = estado.caja?.querySelector('.o_dcasa_yappy_sin_script');
         if (!enLinea) {
+            estado.mensajeSinLinea = true;
             this._yappyMensaje(MENSAJES.sinLinea);
             if (sinScript) {
                 // Con Yappy fuera de línea: el camino alterno (WhatsApp) a la vista, sin esconder el motivo.
@@ -321,7 +370,13 @@ patch(PaymentForm.prototype, {
             }
         } else if (sinScript) {
             sinScript.hidden = true;
-            this._yappyMensaje('');
+            // El botón nuevo que se pone tras un fallo avisa «en línea» a los pocos milisegundos (el componente real hace
+            // su comprobación al nacer): eso solo borra el aviso de «Yappy no está disponible», nunca el motivo de un
+            // fallo que la clienta aún no leyó.
+            if (estado.mensajeSinLinea) {
+                estado.mensajeSinLinea = false;
+                this._yappyMensaje('');
+            }
         }
     },
 });
