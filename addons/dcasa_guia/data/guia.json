@@ -4264,6 +4264,49 @@
    "grupos": [
     "dcasa_nomina.group_nomina"
    ]
+  },
+  {
+   "id": "comision-web-ajuste",
+   "categoria": "personal",
+   "grupo": "Comisión del sitio web",
+   "titulo": "Corregir un saldo de la comisión del sitio con un ajuste",
+   "logras": "Anotas en el libro un monto (a favor o en contra) para una persona, con su motivo: sirve para corregir algo que se pagó de más, una tarifa de medio periodo o cualquier error que el sistema no pueda ver solo.",
+   "destino": {
+    "menu": "dcasa_comision_web.menu_libro_web"
+   },
+   "nota": "En el Libro toca «Anotar un ajuste». El motivo es obligatorio y queda con tu nombre. Una fila del libro nunca se edita ni se borra: se corrige con otra.",
+   "palabras": [
+    "ajuste de comision",
+    "corregir saldo",
+    "pague de mas",
+    "corregir libro",
+    "ajustar comision",
+    "saldo en contra"
+   ],
+   "grupos": [
+    "dcasa_nomina.group_nomina"
+   ]
+  },
+  {
+   "id": "comision-web-revisar",
+   "categoria": "tienda",
+   "grupo": "Medir el sitio",
+   "titulo": "Revisar los pedidos de la página que una vendedora llevó o que abrió alguien del equipo",
+   "logras": "Ves los pedidos que nacieron en la página y que una vendedora atendió por el chat de Juan (aunque sea con un mensaje) o que armó alguien del equipo, para confirmar que a nadie se le está yendo de más la comisión del sitio.",
+   "destino": {
+    "menu": "dcasa_comision_web.menu_pedidos_vigilados"
+   },
+   "nota": "Es solo para mirar: no frena ninguna venta. Cotizar en la página y pagar en la tienda sí cuenta como venta del sitio.",
+   "palabras": [
+    "pedidos de la pagina para revisar",
+    "vigilar comision",
+    "quien abrio el carrito",
+    "venta de la pagina que llevo una vendedora",
+    "revisar ventas online"
+   ],
+   "grupos": [
+    "dcasa_base.group_gerencia"
+   ]
   }
  ],
  "$empezar": "Las tareas de «Empieza por aquí», en este orden (solo salen las que la persona puede abrir)."

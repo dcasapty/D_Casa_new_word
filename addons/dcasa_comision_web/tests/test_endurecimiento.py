@@ -437,6 +437,31 @@ class TestAntesDeDescuentosConDevoluciones(ComisionReloj):
         venta = self.venta(factura)
         self.assertEqual((venta.base_centavos, venta.comision_centavos), (45000, 4500))
 
+    def test_la_base_con_cada_interruptor_a_mano(self):
+        """Venta de 1,000 con descuento de línea 10 % (900), premio de 100, envío 50, ITBMS 7 %; nota de 200 sin ITBMS.
+        Cuentas hechas a mano, en centavos: productos 90,000; descuento de línea 10,000; premio 10,000; envío 5,000."""
+        lineas = [(self.mueble, 1000.0, 1, {'discount': 10.0}), (self.premio, -100.0, 1, {}),
+                  (self.envio, 50.0, 1, {'is_delivery': True})]
+        itbms = self.itbms.amount / 100
+        esperados = [
+            ({}, 90000 - 10000 - 20000),                                    # sin ITBMS, sin envío, con descuentos
+            ({'base_envio': 'con'}, 90000 - 10000 + 5000 - 20000),
+            # Precio de lista (100,000) y lo devuelto TAMBIÉN a precio de lista: 20,000 de lo cobrado (80,000) son la
+            # cuarta parte de la venta, es decir 25,000 de la lista.
+            ({'base_descuentos': 'antes'}, 100000 - 25000),
+            ({'base_devoluciones': 'no_resta'}, 90000 - 10000),
+            ({'base_itbms': 'con', 'base_envio': 'con'},
+             90000 - 10000 + 5000 + round(80000 * itbms) - 20000 - round(20000 * itbms)),
+        ]
+        for i, (opciones, base) in enumerate(esperados):
+            with self.subTest(opciones=opciones):
+                self.avanzar(f'2030-03-{10 + i} 15:00:00')
+                self.version(10.0, **opciones)
+                factura = self.facturar(self.orden(lineas=lineas), f'2030-03-{10 + i}')
+                self.pagar(factura, f'2030-03-{10 + i}')
+                self.nota(factura, 200.0, fecha=f'2030-03-{10 + i}')
+                self.assertEqual(self.venta(factura).base_centavos, base)
+
     def test_la_misma_venta_devuelta_dos_veces_nunca_deja_base_negativa(self):
         factura = self.vender(base_descuentos='antes')
         self.nota(factura, 450.0)
