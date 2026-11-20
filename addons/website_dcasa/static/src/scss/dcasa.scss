@@ -2024,6 +2024,22 @@ $dcasa-foto-fondo: #EEEDEA;
     color: $dcasa-gris !important;
 }
 
+// Y sin la mitad de opacidad con que Odoo apaga los pasos que aún no tocan («Dirección», «Pago»;
+// web/static/src/scss/ui.scss, .o_disabled): con ella el gris de arriba se veía #A5A8B1 sobre blanco, 2,38:1. Con el
+// gris de la marca a opacidad plena son 7,93:1; el paso actual se sigue distinguiendo por la negrilla.
+#wrapwrap .o_wizard .o_disabled {
+    opacity: 1;
+}
+
+// Marcas de relleno (placeholder) con el gris de la marca. Eran el gris por defecto de Odoo: «Escribe lo que buscas» de
+// la búsqueda del catálogo (cabecera, cajón del celular y /shop) medía 2,86:1 sobre el hueso y el «6000-0000» de Socios
+// 3,12:1 sobre blanco. El gris de la marca da 7,27:1 sobre el hueso y 7,93:1 sobre blanco. Solo estos dos lugares.
+.oe_search_box::placeholder,
+.o_dcasa_socios_form .form-control::placeholder {
+    color: $dcasa-gris;
+    opacity: 1;
+}
+
 .o_dcasa_sellos {
     list-style: none;
     padding: 1.25rem;

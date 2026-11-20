@@ -38,6 +38,8 @@ from odoo.addons.website_dcasa.models.black_weekend import PARAM_ACTIVO, PARAM_F
 from odoo.tests import HttpCase, tagged
 from odoo.tests.common import ChromeBrowser, save_test_file
 
+from .contraste import contraste as _contraste
+
 _logger = logging.getLogger(__name__)
 
 REFERENCIAS = pathlib.Path(__file__).parent / 'referencia'
@@ -291,21 +293,6 @@ def _rgba(color):
     if len(numeros) == 4:
         return (*(int(float(n)) for n in numeros[:3]), float(numeros[3]))
     return None
-
-
-def _luminancia(rgb):
-    """Luminancia relativa WCAG de (r, g, b) en 0-255."""
-    def canal(c):
-        c /= 255
-        return c / 12.92 if c <= .03928 else ((c + .055) / 1.055) ** 2.4
-    r, g, b = (canal(c) for c in rgb)
-    return .2126 * r + .7152 * g + .0722 * b
-
-
-def _contraste(a, b):
-    """Razón de contraste WCAG (1 a 21) entre dos colores (r, g, b)."""
-    claro, oscuro = sorted((_luminancia(a), _luminancia(b)), reverse=True)
-    return (claro + .05) / (oscuro + .05)
 
 
 def _comparar(referencia, actual, umbral=UMBRAL_PIXEL):

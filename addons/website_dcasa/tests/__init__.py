@@ -27,3 +27,4 @@ from . import test_portada_carrusel
 from . import test_portada_permisos
 from . import test_origen_carrito
 from . import test_ajustes_segunda_vuelta
+from . import test_legibilidad
