@@ -3240,6 +3240,50 @@ html.o_dcasa_navegando::before {
     .o_wsale_products_searchbar_form .oe_search_button {
         min-height: 2.75rem;
     }
+
+    // Lote «legibilidad», arreglo 4 (medidos en el celular de 390 px: de 32 a 40 px): la hamburguesa (40 × 42), «Ordenar
+    // por» y «Filtros» de la tienda (38), la X y «Mi cuenta» del cajón del menú (32 y 37), la X y «Eliminar filtros» del
+    // cajón de los filtros (32 y 34) y los campos y «Enviar» del contacto (38). Mismo tamaño visible: solo crece el área
+    // que toca el dedo.
+    #wrapwrap > header#top .o_header_mobile [data-bs-target="#top_menu_collapse_mobile"] {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 2.75rem;
+        min-height: 2.75rem;
+    }
+
+    .o_sortby_dropdown .dropdown-toggle,
+    [data-bs-target="#o_wsale_offcanvas"] {
+        display: inline-flex;
+        align-items: center;
+        min-height: 2.75rem;
+    }
+
+    // La X de los cajones: el relleno crece y el margen negativo lo compensa, así la X queda donde estaba.
+    .offcanvas-header .btn-close {
+        padding: .875rem;
+        margin: -.875rem -.875rem -.875rem auto;
+    }
+
+    #top_menu_collapse_mobile .o_nav_link_btn,
+    #o_wsale_offcanvas .offcanvas-body a.btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 2.75rem;
+    }
+
+    .o_dcasa_contacto .s_website_form_input:not(textarea),
+    .o_dcasa_contacto .s_website_form_send {
+        min-height: 2.75rem;
+    }
+
+    .o_dcasa_contacto .s_website_form_send {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
 }
 
 // ---------------------------------------------------------------------------

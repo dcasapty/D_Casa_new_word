@@ -3,6 +3,7 @@ Chrome, con el teléfono emulado, lo que la persona ve:
 
 * Arreglo 3: las marcas de relleno (placeholder) del buscador del catálogo y de Socios y los pasos del carrito que aún
   no tocan se leen con 4,5:1 o más (antes 2,86, 3,12 y 2,38:1).
+* Arreglo 4: en el celular, lo que se toca con el dedo mide 44 px o más (antes de 32 a 40 px).
 """
 import json
 
@@ -82,3 +83,67 @@ class TestLegibilidadColor(ChromeMovilCase):
             razon = razon_del_texto(medida)
             self.assertGreaterEqual(razon, MINIMO, f'pasos del carrito: {razon:.2f}:1 sobre {medida["fondo"]}')
             json.dumps(medida)
+
+
+# Mide cada selector (los visibles) y devuelve [selector, ancho, alto] de cada uno.
+TAMANOS = """
+    ((selectores) => selectores.flatMap((sel) => [...document.querySelectorAll(sel)].map((e) => {
+        const r = e.getBoundingClientRect();
+        return [sel, r.width, r.height];
+    }).filter(([, w, h]) => w > 0 && h > 0)))
+"""
+ZONA_TACTIL = 44     # px (guía de Apple y WCAG 2.5.5)
+
+
+@tagged('post_install', '-at_install')
+class TestLegibilidadZonasTactiles(ChromeMovilCase):
+    """Arreglo 4: en el celular (puntero táctil) ninguno de estos controles mide menos de 44 px por lado."""
+
+    def _abrir(self, browser, ruta):
+        browser.navigate_to(self.base_url() + ruta, wait_stop=True)
+        self.assertTrue(browser._wait_ready(), f'{ruta} no terminó de cargar')
+        self._evaluar(browser, LISTO)
+
+    def _revisar(self, browser, donde, selectores):
+        medidas = self._evaluar(browser, f'{TAMANOS}({json.dumps(selectores)})')
+        encontrados = {m[0] for m in medidas}
+        self.assertEqual(set(selectores) - encontrados, set(), f'{donde}: no se encontró alguno de los controles')
+        for selector, ancho, alto in medidas:
+            self.assertGreaterEqual(ancho, ZONA_TACTIL - .1, f'{donde}: {selector} mide {ancho:.1f} px de ancho')
+            self.assertGreaterEqual(alto, ZONA_TACTIL - .1, f'{donde}: {selector} mide {alto:.1f} px de alto')
+
+    def test_controles_de_la_tienda_el_cajon_los_filtros_y_el_contacto_miden_44(self):
+        with self._chrome_movil(390) as browser:
+            self.assertTrue(self._evaluar(browser, "matchMedia('(pointer: coarse)').matches"),
+                            'el teléfono emulado tiene puntero táctil')
+            self._abrir(browser, '/shop')
+            self._revisar(browser, 'cabecera y barra de la tienda', [
+                'header#top [data-bs-target="#top_menu_collapse_mobile"]',    # hamburguesa
+                '.o_sortby_dropdown .dropdown-toggle',                         # «Ordenar por»
+                '[data-bs-target="#o_wsale_offcanvas"]'])                      # «Filtros»
+            # El cajón del menú: la X y «Mi cuenta».
+            self._evaluar(browser, """(async () => {
+                document.querySelector('header#top [data-bs-target="#top_menu_collapse_mobile"]').click();
+                for (let i = 0; i < 60 && !document.querySelector('#top_menu_collapse_mobile.show'); i++) {
+                    await new Promise((ok) => setTimeout(ok, 50));
+                }
+                await new Promise((ok) => setTimeout(ok, 500));
+            })()""")
+            self._revisar(browser, 'cajón del menú', [
+                '#top_menu_collapse_mobile .btn-close', '#top_menu_collapse_mobile .o_nav_link_btn'])
+            # El cajón de los filtros: la X y «Eliminar filtros».
+            self._abrir(browser, '/shop')
+            self._evaluar(browser, """(async () => {
+                document.querySelector('[data-bs-target="#o_wsale_offcanvas"]').click();
+                for (let i = 0; i < 60 && !document.querySelector('#o_wsale_offcanvas.show'); i++) {
+                    await new Promise((ok) => setTimeout(ok, 50));
+                }
+                await new Promise((ok) => setTimeout(ok, 500));
+            })()""")
+            self._revisar(browser, 'cajón de los filtros', [
+                '#o_wsale_offcanvas .btn-close', '#o_wsale_offcanvas .offcanvas-body a.btn.d-flex'])
+            # El contacto: los campos (de una línea) y «Enviar».
+            self._abrir(browser, '/contactus')
+            self._revisar(browser, 'contacto', [
+                '#contactus_form input.s_website_form_input:not([type=hidden])',
+                '#contactus_form .s_website_form_send'])
