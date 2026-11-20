@@ -97,8 +97,19 @@ export function isBlockedPath(pathname: string): boolean {
  *   resultado de un pago: jamás se guardan. Son públicas a propósito (las manda Tilopay, sin cookies, y el navegador del
  *   cliente al volver), no están en las rutas bloqueadas ni en los frenos de ritmo, y Odoo no se fía de lo que traen: le
  *   pregunta a Tilopay (docs/TILOPAY.md).
+ * - `/payment/yappy/`: el arranque del pago (`/iniciar`, JSON-RPC del navegador) y el aviso del servidor de Yappy
+ *   (`/ipn`, un GET abierto con la orden, el estado y la firma; addons/dcasa_pago_yappy). Llevan el resultado de un pago:
+ *   jamás se guardan, ni el GET del aviso ni la respuesta del arranque (que trae un token de un solo pago). Son públicas a
+ *   propósito (las manda Yappy, sin cookies), no están en las rutas bloqueadas ni en los frenos de ritmo, y Odoo no se fía
+ *   del navegador: solo la firma HMAC del aviso marca un pago (docs/YAPPY.md).
  */
-const NEVER_CACHE_PREFIXES = ["/brian/", "/envios/choferes/", "/dcasa/brian/", "/payment/tilopay/"];
+const NEVER_CACHE_PREFIXES = [
+  "/brian/",
+  "/envios/choferes/",
+  "/dcasa/brian/",
+  "/payment/tilopay/",
+  "/payment/yappy/",
+];
 
 /**
  * Recursos estáticos o versionados que se pueden guardar en la caché del borde. Que la

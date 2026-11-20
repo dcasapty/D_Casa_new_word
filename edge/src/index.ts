@@ -93,6 +93,17 @@ export interface Env {
   TILOPAY_API_PASSWORD?: string;
   /** Variable (no secreta): «prueba» (por defecto) o «produccion». Tiene que coincidir con el «Modo Prueba» del panel de Tilopay. */
   TILOPAY_ENTORNO?: string;
+  // Yappy directo, el Botón de Pago de Yappy Comercial (addons/dcasa_pago_yappy, docs/YAPPY.md). Opcionales: se pegan en el
+  // panel de Cloudflare de cada Worker, nunca en el repositorio ni en GitHub. Sin el id y la clave Yappy directo no aparece
+  // en la tienda y nada más cambia; Odoo arranca igual.
+  /** Secreto: el «ID del comercio» (Merchant ID) del Botón de Pago creado en Yappy Comercial. */
+  YAPPY_ID_COMERCIO?: string;
+  /** Secreto: la «Clave secreta» del botón (Yappy la muestra una sola vez). Firma los avisos de pago. */
+  YAPPY_CLAVE_SECRETA?: string;
+  /** Variable (no secreta): el dominio que se registró en el botón, letra por letra (ej. «dcasapty.com»). */
+  YAPPY_DOMINIO?: string;
+  /** Variable (no secreta): «prueba» (por defecto) o «produccion». Decide a qué servidor de Yappy se le habla. */
+  YAPPY_ENTORNO?: string;
   /** Ids de los chats de Telegram a los que Brian atiende (coma); sin ella atiende a cualquier chat vinculado. */
   BRIAN_TELEGRAM_CHATS?: string;
   // Juan, el asistente de clientes (addons/dcasa_conversaciones, docs/JUAN_ODOO.md). Opcionales: se cargan en
