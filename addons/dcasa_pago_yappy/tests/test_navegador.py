@@ -12,6 +12,7 @@ apaga solo y dispara ``eventClick``; el método ``eventPayment``; los eventos ``
 * ``eventSuccess`` NO marca nada: la transacción sigue esperando el aviso firmado;
 * si el script no carga, mensaje claro con «Escríbenos por WhatsApp».
 """
+import json
 import time
 
 from odoo.addons.website_dcasa.tests.chrome_movil import ALTO, ChromeMovilCase
@@ -226,6 +227,98 @@ class TestElBotonDeYappyEnElNavegador(PagoVisualDatos, ChromeMovilCase):
         self.assertEqual(txs.state, 'pending', 'solo el aviso firmado de Yappy paga un pedido')
         self.assertFalse(txs.payment_id)
         self.assertNotEqual(orden.state, 'sale')
+
+    def test_eventSuccess_lleva_a_la_pagina_de_estado_y_a_ninguna_otra(self):
+        """RV6-J1: cambiar el destino de ``eventSuccess`` a ``/shop/confirmation`` no hacía caer ninguna prueba (solo se
+        miraba la base): la pantalla podía decir «pedido confirmado» con el pago todavía pendiente."""
+        with self._chrome_movil(390) as browser, YappyFalso():
+            self._hasta_el_pago(browser)
+            self._elegir(browser)
+            self._pulsar(browser)
+            self._correr(browser, """
+                document.querySelector('btn-yappy').dispatchEvent(
+                    new CustomEvent('eventSuccess', {detail: 'TX-DEL-NAVEGADOR'}));
+                return 'ok';""")
+            ruta = None
+            for _vez in range(60):          # la navegación tarda un momento; se espera a que cambie la página
+                time.sleep(0.25)
+                ruta = self._evaluar(browser, 'location.pathname')
+                if ruta != '/shop/payment':
+                    break
+            time.sleep(1.5)                 # y a que no la sigan redirigiendo a otra parte
+            final = self._evaluar(browser, 'location.pathname')
+        self.assertEqual(ruta, '/payment/status', 'el botón de Yappy solo lleva a la página de estado')
+        self.assertEqual(final, '/payment/status')
+        self.assertNotIn('confirmation', final)
+
+    def test_el_script_de_produccion_y_el_de_pruebas_son_los_unicos_que_el_navegador_acepta(self):
+        """RV6-J2: las de navegador corren en «Modo de prueba» (host UAT): el host de PRODUCCIÓN de la lista del
+        JavaScript podía estar roto y todo seguía en verde. Aquí se le pregunta al JavaScript por los dos y por los
+        que no valen."""
+        from odoo.addons.dcasa_pago_yappy.models import yappy_api as api  # noqa: PLC0415
+        casos = {
+            'https://bt-cdn.yappy.cloud/v1/cdn/web-component-btn-yappy.js': True,             # producción
+            'https://bt-cdn-uat.yappycloud.com/v1/cdn/web-component-btn-yappy.js': True,      # pruebas
+            # el host del EJEMPLO de la documentación: no responde
+            'https://bt-cdn.yappycloud.com/v1/cdn/web-component-btn-yappy.js': False,
+            'http://bt-cdn.yappy.cloud/v1/cdn/web-component-btn-yappy.js': False,
+            'https://bt-cdn.yappy.cloud/v1/cdn/otro.js': False,
+            'https://bt-cdn.yappy.cloud.evil.com/v1/cdn/web-component-btn-yappy.js': False,
+            'https://evil.com/v1/cdn/web-component-btn-yappy.js': False,
+            'https://evil.com/?https://bt-cdn.yappy.cloud/v1/cdn/web-component-btn-yappy.js': False,
+            'bt-cdn.yappy.cloud/v1/cdn/web-component-btn-yappy.js': False,
+            '': False,
+        }
+        with self._chrome_movil(390) as browser:
+            self._hasta_el_pago(browser)
+            desde_js = self._evaluar(browser, """
+                (async () => {
+                    const modulo = odoo.loader.modules.get('@dcasa_pago_yappy/interactions/payment_form');
+                    return __CASOS__.map((c) => modulo.scriptPermitido(c));
+                })()""".replace('__CASOS__', json.dumps(list(casos))))
+        self.assertEqual(desde_js, list(casos.values()))
+        self.assertEqual(desde_js, [api.anfitrion_del_cdn_permitido(url) for url in casos],
+                         'el navegador y el servidor aceptan exactamente lo mismo')
+
+    def test_varios_clics_seguidos_abren_un_solo_cobro(self):
+        """H7: ``enMarcha`` se levantaba recién cuando la transacción ya existía; hasta entonces cada clic (o la tecla
+        Enter mantenida) creaba otra transacción."""
+        with self._chrome_movil(390) as browser, YappyFalso() as yappy:
+            orden = self._hasta_el_pago(browser)
+            self._elegir(browser)
+            resultado = self._correr(browser, ESPERAR + """
+                return (async () => {
+                    const dentro = document.querySelector('btn-yappy .yappy-button');
+                    dentro.click(); dentro.click(); dentro.click();
+                    await hasta(() => window.__yappy.pagos.length > 0, 120);
+                    await esperar(1200);
+                    return {pagos: window.__yappy.pagos.length, elementos: window.__yappy.elementos.length};
+                })();""")
+        self.assertEqual(resultado['pagos'], 1)
+        self.assertEqual(len(self._transacciones(orden)), 1, 'una sola transacción por tres clics')
+        self.assertEqual(len(yappy.llamadas), 2, 'y una sola orden en Yappy (validar + crear)')
+
+    def test_la_tecla_enter_mantenida_pulsa_el_boton_una_sola_vez(self):
+        with self._chrome_movil(390) as browser, YappyFalso():
+            orden = self._hasta_el_pago(browser)
+            self._elegir(browser)
+            resultado = self._correr(browser, ESPERAR + """
+                return (async () => {
+                    const caja = document.querySelector('.o_dcasa_yappy_boton');
+                    const dentro = caja.querySelector('.yappy-button');
+                    let clics = 0;
+                    dentro.addEventListener('click', () => { clics += 1; });
+                    const tecla = (repeticion) => caja.dispatchEvent(new KeyboardEvent('keydown', {
+                        key: 'Enter', repeat: repeticion, bubbles: true, cancelable: true}));
+                    tecla(false);
+                    for (let i = 0; i < 6; i++) { tecla(true); }       // la tecla mantenida repite el evento
+                    await hasta(() => window.__yappy.pagos.length > 0, 120);
+                    await esperar(800);
+                    return {clics, pagos: window.__yappy.pagos.length};
+                })();""")
+        self.assertEqual(resultado['clics'], 1, 'los eventos repetidos de una tecla mantenida no son otros clics')
+        self.assertEqual(resultado['pagos'], 1)
+        self.assertEqual(len(self._transacciones(orden)), 1)
 
     def test_si_algo_falla_el_boton_se_tira_y_se_puede_reintentar(self):
         with self._chrome_movil(390) as browser, YappyFalso() as yappy:

@@ -173,7 +173,8 @@ patch(PaymentForm.prototype, {
         contenedor.setAttribute('tabindex', '0');
         contenedor.setAttribute('aria-label', 'Pagar con Yappy');
         contenedor.onkeydown = (ev) => {
-            if (ev.key !== 'Enter' && ev.key !== ' ') {
+            // Una tecla mantenida repite el evento: un solo clic por pulsación (los repetidos no abren más cobros).
+            if ((ev.key !== 'Enter' && ev.key !== ' ') || ev.repeat) {
                 return;
             }
             const dentro = contenedor.querySelector('.yappy-button');
