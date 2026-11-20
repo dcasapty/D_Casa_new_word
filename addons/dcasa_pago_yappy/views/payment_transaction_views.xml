@@ -52,7 +52,7 @@
                             <field name="product_uom_qty" string="Cantidad"/>
                             <field name="price_unit" string="Precio"/>
                             <field name="discount" string="Desc. %"/>
-                            <field name="price_total" string="Total"/>
+                            <field name="price_total" string="Total con ITBMS"/>
                             <field name="linked_line_id" string="Pieza de" optional="show"/>
                         </list>
                     </field>
