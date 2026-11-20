@@ -153,11 +153,13 @@ def nota_de_pago(entorno, transaccion, pedido):
     celular = celular_del_cliente(pedido)
     elementos.append(Markup('<li><b>Cliente:</b> %s%s</li>') % (
         pedido.partner_id.name or '—', f' · {celular}' if celular else ''))
-    if transaccion.dcasa_yappy_celular:
-        elementos.append(Markup('<li><b>Celular de Yappy:</b> %s</li>') % transaccion.dcasa_yappy_celular)
     texto_entrega = entrega(pedido)
     if texto_entrega:
         elementos.append(Markup('<li><b>Entrega:</b> %s</li>') % texto_entrega)
     elementos.append(Markup('<li><b>Origen:</b> %s</li>') % origen(pedido))
-    return Markup('<p>%s</p><ul>%s</ul>') % (escape('Yappy confirmó el pago de este '
-                                                    'pedido.'), Markup('').join(elementos))
+    # El celular de Yappy de quien paga NO va en esta nota: el pedido lo lee también la vendedora, y ese dato es de
+    # Caja y superiores (se ve en «Pagos con Yappy»). Aquí sale el celular del cliente, que ya figura en el pedido.
+    quien = transaccion.dcasa_yappy_confirmada_por
+    titulo = (f'{quien.name} confirmó a mano, mirando Yappy Comercial, que el dinero de este pedido entró.' if quien
+              else 'Yappy confirmó el pago de este pedido.')
+    return Markup('<p>%s</p><ul>%s</ul>') % (escape(titulo), Markup('').join(elementos))

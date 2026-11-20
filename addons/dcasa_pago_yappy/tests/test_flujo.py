@@ -63,6 +63,38 @@ class TestAbrirElCobro(BaseYappy):
         self.assertEqual(cuerpo['aliasYappy'], CELULAR_LIMPIO)
         self.assertEqual(cuerpo['merchantId'], ID_COMERCIO)
 
+    def test_la_ipnUrl_sale_de_YAPPY_URL_BASE_cuando_esta_y_la_pantalla_la_muestra(self):
+        """H1: en staging, ``web.base.url`` es el dominio propio de staging, que todavía no apunta al Worker. La
+        dirección que se le manda a Yappy sale de ``YAPPY_URL_BASE`` (no secreta) y el proveedor la enseña tal cual."""
+        propia = 'https://dcasa-staging.ejemplo-de-prueba.workers.dev'
+        pedido = self.pedido()
+        tx = self.transaccion(pedido)
+        with entorno(YAPPY_URL_BASE=propia), YappyFalso() as yappy:
+            tx._get_processing_values()
+            tx._dcasa_yappy_iniciar(CELULAR)
+            self.assertEqual(yappy.ultima_orden()['ipnUrl'], propia + '/payment/yappy/ipn')
+            self.assertNotEqual(yappy.ultima_orden()['ipnUrl'], self.proveedor.get_base_url() + '/payment/yappy/ipn')
+            self.proveedor.invalidate_recordset(['dcasa_yappy_url_del_aviso'])
+            self.assertEqual(self.proveedor.dcasa_yappy_url_del_aviso, propia + '/payment/yappy/ipn')
+        self.proveedor.invalidate_recordset(['dcasa_yappy_url_del_aviso'])
+        self.assertEqual(self.proveedor.dcasa_yappy_url_del_aviso, self.proveedor.get_base_url() + '/payment/yappy/ipn')
+
+    def test_la_ipnUrl_ignora_YAPPY_URL_BASE_en_produccion_o_si_viene_rara(self):
+        for cambios in ({'YAPPY_URL_BASE': 'https://x.example.workers.dev', 'DCASA_ENTORNO': 'produccion'},
+                        {'YAPPY_URL_BASE': 'http://x.example.workers.dev'},
+                        {'YAPPY_URL_BASE': 'https://x.example.workers.dev/otra'}):
+            with self.subTest(cambios=cambios):
+                tx = self.transaccion(self.pedido())
+                with entorno(**cambios), YappyFalso() as yappy:
+                    tx._get_processing_values()
+                    tx._dcasa_yappy_iniciar(CELULAR)
+                    self.assertEqual(
+                        yappy.ultima_orden()['ipnUrl'], self.proveedor.get_base_url() + '/payment/yappy/ipn')
+
+    def test_la_vista_del_proveedor_muestra_la_direccion_del_aviso(self):
+        vista = self.env['payment.provider'].get_view(self.env.ref('payment.payment_provider_form').id)['arch']
+        self.assertIn('dcasa_yappy_url_del_aviso', vista)
+
     def test_una_transaccion_abre_una_sola_orden(self):
         with YappyFalso() as yappy:
             tx, _orden, _datos = self.abrir(yappy)
@@ -204,6 +236,27 @@ class TestAbrirElCobro(BaseYappy):
                 tx._dcasa_yappy_iniciar(CELULAR)
             self.assertIn('varios intentos', ctx.exception.args[0])
             self.assertEqual(len(yappy.llamadas), llamadas, 'pasado el tope no se llama a Yappy')
+
+    def test_el_tope_por_pedido_toca_la_fila_del_pedido_antes_de_contar(self):
+        """H7: con peticiones en paralelo el tope de 5 no era estricto (12 conexiones abrieron 6): ahora, antes de
+        contar, se «toca» la fila del pedido para que la petición que llegue después espere y cuente con datos nuevos
+        (la prueba con conexiones de verdad es ``test_concurrencia_real.TestTopePorPedidoAlMismoTiempo``, opt-in)."""
+        from unittest.mock import patch  # noqa: PLC0415
+        pedido = self.pedido()
+        tx = self.transaccion(pedido)
+        original = self.env.cr.execute
+        consultas = []
+
+        def espiar(consulta, *args, **kwargs):
+            consultas.append(str(consulta))
+            return original(consulta, *args, **kwargs)
+        with patch.object(self.env.cr, 'execute', side_effect=espiar):
+            tx._dcasa_yappy_exigir_topes()
+        toque = [i for i, c in enumerate(consultas) if 'UPDATE sale_order SET write_date = write_date' in c]
+        conteo = [i for i, c in enumerate(consultas) if 'SELECT' in c and 'payment_transaction' in c]
+        self.assertTrue(toque, 'se toca la fila del pedido')
+        self.assertTrue(conteo)
+        self.assertLess(toque[0], conteo[0], 'y se toca ANTES de contar')
 
     def test_hay_un_tope_global_de_ordenes_por_hora(self):
         from unittest.mock import patch  # noqa: PLC0415
@@ -492,28 +545,8 @@ class TestElPedidoYElEntorno(BaseYappy):
         self.aviso(tx, 'E')
         self.assertIn('modo de PRUEBA', self.notas(pedido))
 
-    def test_pedido_cancelado_cuando_llega_el_pago_el_dinero_entro_y_alguien_se_entera(self):
-        pedido = self.pedido()
-        with YappyFalso() as yappy:
-            tx, _o, _d = self.abrir(yappy, pedido)
-        pedido._action_cancel()
-        self.aviso(tx, 'E')
-        self.assertEqual(tx.state, 'done', 'el cobro es real: queda registrado')
-        tx._post_process()
-        self.assertEqual(pedido.state, 'cancel', 'el pedido cancelado no se confirma solo')
-        self.assertTrue(self.actividades(pedido, 'ya no está vivo'))
-
-    def test_pedido_pagado_por_otra_via_y_llega_otro_cobro_se_pide_devolver_uno(self):
-        pedido = self.pedido()
-        with YappyFalso() as yappy:
-            primera, _o, _d = self.abrir(yappy, pedido)
-            segunda, _o2, _d2 = self.abrir(yappy, pedido)
-        self.aviso(primera, 'E')
-        self.aviso(segunda, 'E')
-        self.assertEqual(primera.state, 'done')
-        self.assertEqual(segunda.state, 'done')
-        self.assertTrue(self.actividades(pedido, 'pagado dos veces'))
-        self.assertIn('hay que devolverle uno', self.notas(pedido))
+    # Un aviso E sobre un pedido CANCELADO, o sobre un pedido que YA estaba pagado por otra vía (otro cobro, o un
+    # cobro a mano de Caja), va a revisión humana y nunca crea un cobro: ver ``test_dinero_revision.py`` (H2, H3).
 
     def test_pagar_un_apartado_lo_suelta_del_vencimiento(self):
         pedido = self.pedido()

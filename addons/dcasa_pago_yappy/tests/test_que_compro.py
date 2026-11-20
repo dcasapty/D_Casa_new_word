@@ -158,9 +158,11 @@ class TestPedidoPagadoConVariantes(BaseCompra):
         for esperado in ('Sofá Roma de prueba', 'Gris humo', 'Queen', 'Azul noche', 'King', '2 ×', '−10 %',
                          '$250.00 c/u', 'Sofá de prueba (Yappy)'.upper(), '3 ×', 'Total del pedido',
                          f'${pedido.amount_total:.2f}', 'Ana Prueba Yappy', '+507 6000-0101',
-                         'Celular de Yappy: 61234567', 'Calle de prueba 1', 'Origen: Página web', orden, 'CONF-777',
-                         'solo informativa'):
+                         'Calle de prueba 1', 'Origen: Página web', orden, 'CONF-777', 'solo informativa'):
             self.assertIn(esperado.lower(), cuerpo.lower(), esperado)
+        # H5: el celular de Yappy de quien paga es de Caja y superiores; la nota la lee también la vendedora
+        self.assertNotIn('61234567', cuerpo)
+        self.assertNotIn('Celular de Yappy', cuerpo)
         if self.entrega:
             self.assertIn('retiro en tienda', cuerpo.lower())
         self.aviso(tx, 'E')

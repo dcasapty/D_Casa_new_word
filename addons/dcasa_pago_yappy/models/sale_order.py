@@ -5,6 +5,7 @@ solo bloque (``models/resumen.py``)."""
 from odoo import api, fields, models
 
 from . import resumen
+from .payment_transaction import ESPERA_DEL_AVISO
 
 
 class SaleOrder(models.Model):
@@ -26,3 +27,15 @@ class SaleOrder(models.Model):
             pedido.dcasa_pago_texto = '\n'.join(resumen.pago(self.env, tx) for tx in pagos) or False
             pedido.dcasa_entrega_texto = resumen.entrega(pedido) or False
             pedido.dcasa_origen_texto = resumen.origen(pedido) or False
+
+    def _dcasa_apartado_reclamado(self):
+        """Un cobro de Yappy abierto (mandado a Yappy hace menos de 15 minutos y sin aviso todavía) cuenta como pedido
+        reclamado: el apartado que vence por la noche no lo anula mientras la clienta está aprobando en su app. Sin
+        esto la anulación podía cruzarse con el pago y el dinero entraba a un pedido anulado (que ahora va a revisión,
+        pero lo mejor es no llegar ahí)."""
+        if super()._dcasa_apartado_reclamado():
+            return True
+        desde = fields.Datetime.now() - ESPERA_DEL_AVISO
+        return bool(self.sudo().transaction_ids.filtered(
+            lambda tx: tx.provider_code == 'yappy' and tx.state in ('draft', 'pending') and tx.dcasa_yappy_orden
+            and tx.dcasa_yappy_iniciada and tx.dcasa_yappy_iniciada >= desde))

@@ -1,6 +1,7 @@
 from . import (
     test_api,
     test_concurrencia_real,
+    test_dinero_revision,
     test_flujo,
     test_navegador,
     test_proveedor,

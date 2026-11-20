@@ -3112,7 +3112,7 @@
    "categoria": "vender",
    "grupo": "Cobros",
    "titulo": "Ver qué compró quien pagó con Yappy",
-   "logras": "Ves, por cada pago con Yappy, qué pedido es, qué compró la persona (producto, modelo, cantidad, precio y descuento), cómo recibe su pedido, su celular y cuándo y cómo pagó, para coordinar la entrega sin buscar nada. También ves los pagos que Yappy todavía no confirmó y los que alguien debe revisar.",
+   "logras": "Ves, por cada pago con Yappy, qué pedido es, qué compró la persona (producto, modelo, cantidad, precio y descuento), cómo recibe su pedido, su celular y cuándo y cómo pagó, para coordinar la entrega sin buscar nada. También ves los pagos que Yappy todavía no confirmó (y los confirmas tú, mirando Yappy Comercial) y los que alguien debe revisar.",
    "destino": {
     "menu": "dcasa_pago_yappy.menu_pagos_yappy"
    },
@@ -3128,11 +3128,11 @@
      "destino": null
     },
     {
-     "texto": "Si Yappy no avisó pasados unos minutos, te queda un pendiente en el pedido. No lo marques pagado a mano: abre el reporte de Yappy Comercial y confirma ahí que el dinero entró.",
+     "texto": "Si Yappy no avisó pasados unos minutos, te queda un pendiente en el pedido. Abre el reporte de Yappy Comercial y mira si el dinero entró. Si entró, abre ese pago en «Pagos con Yappy» y pulsa «Confirmar que el dinero entró»: queda pagado una sola vez y anotado que lo confirmaste tú. No lo registres además a mano en el diario: se cobraría dos veces. Si el dinero no entró, no hagas nada: el pedido sigue guardado.",
      "destino": null
     }
    ],
-   "nota": "El número de confirmación que a veces trae Yappy es solo informativo: nunca decide si un pedido está pagado. Un pedido solo queda pagado cuando Yappy avisa con su firma.",
+   "nota": "El número de confirmación que a veces trae Yappy es solo informativo: nunca decide si un pedido está pagado. Un pedido solo queda pagado cuando Yappy avisa con su firma o cuando Caja confirma, mirando Yappy Comercial, que el dinero entró. Si el pedido ya estaba pagado por otro lado y llega el aviso de Yappy, no se cobra otra vez: queda una alerta para revisarlo.",
    "palabras": [
     "yappy",
     "que compro",

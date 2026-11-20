@@ -1281,6 +1281,13 @@ LISTA_BLANCA = {
         'de nada; solo le pide a Yappy que valide el ID de comercio y el dominio de las variables del entorno (el '
         'token se tira; nunca muestra, guarda ni registra una clave); lo único que escribe, con sudo ya comprobado el '
         'grupo, es la fecha y el resultado de la prueba.',
+    ('dcasa_pago_yappy', 'payment.transaction', 'action_dcasa_yappy_confirmar_cobro'):
+        'Botón «Confirmar que el dinero entró» (la persona de Caja ya miró la orden en Yappy Comercial): exige Caja, '
+        'Gerencia, contabilidad o administrador en el servidor (_dcasa_yappy_exigir_caja) ANTES de nada; solo sirve '
+        'con el cobro de Yappy directo abierto (borrador o pendiente) y pasa por el MISMO camino que el aviso firmado '
+        '(_process → _apply_updates, con sus comprobaciones de entorno, pedido vivo, pedido sin pagar por otra vía y '
+        'total): un solo cobro, queda quién y cuándo, y el aviso tardío no hace nada. Una transacción cerrada o en '
+        'revisión se rechaza; el sudo es después de comprobar el grupo.',
     ('dcasa_brian_tienda', 'sale.order.line', 'write'):
         OVERRIDE + ' Solo NIEGA: con el centinela interno de la tienda (CONSERVAR_ENVIO, que no se puede mandar por '
                    'RPC) deja fuera las líneas de envío del sistema para que la tienda no las vuelva $0. Sin el '

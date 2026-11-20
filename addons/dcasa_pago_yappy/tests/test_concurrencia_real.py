@@ -18,6 +18,7 @@ from psycopg2 import OperationalError
 
 from odoo import SUPERUSER_ID, Command, api
 from odoo.addons.dcasa_pago_yappy.models import yappy_api as api_yappy
+from odoo.exceptions import ValidationError
 from odoo.modules.registry import Registry
 from odoo.service.model import PG_CONCURRENCY_EXCEPTIONS_TO_RETRY
 from odoo.tests import tagged
@@ -192,3 +193,118 @@ class TestAvisosAlMismoTiempo(BaseCase):
         self.assertNotEqual(visto['estado'], 'done')
         self.assertTrue(visto['revision'])
         self.assertEqual(visto['notas'], 0, 'no hubo nota de pago')
+
+
+@unittest.skipUnless(ACTIVA, 'Opt-in: escribe datos de verdad. Se corre con DCASA_PRUEBA_CONCURRENCIA=1')
+@tagged('post_install', '-at_install')
+class TestTopePorPedidoAlMismoTiempo(BaseCase):
+    """H7. El tope «5 cobros abiertos por pedido» no era estricto con peticiones a la vez: cada una contaba con la
+    foto de la base de ANTES de que las otras escribieran su orden (12 conexiones sobre el mismo pedido abrieron 6).
+    Ahora, antes de contar, se «toca» la fila del pedido: quien llega después espera y recibe «no pude serializar»,
+    Odoo repite la petición entera con una foto nueva (aquí lo hace ``_abrir`` con una conexión nueva por intento) y
+    cuenta bien."""
+
+    CONEXIONES = 8          # más que el tope de 5 (con 12 no cabrían las conexiones prestadas de la base de pruebas)
+    INTENTOS = 6            # los reintentos que Odoo le da a una petición que choca (5) y uno más
+
+    def setUp(self):
+        super().setUp()
+        self.registry = Registry(get_db_name())
+        self.addCleanup(entorno().start().stop)
+        self.addCleanup(self._limpiar)
+        with self.registry.cursor() as cr:
+            env = api.Environment(cr, SUPERUSER_ID, {})
+            proveedor = env.ref('dcasa_pago_yappy.payment_provider_yappy')
+            metodo = env.ref('dcasa_pago_yappy.payment_method_yappy')
+            self.cliente_id = env['res.partner'].create({
+                'name': 'Ana Tope Yappy', 'email': 'ana.tope@example.com', 'phone': '+507 6000-0101'}).id
+            self.producto_id = env['product.product'].create({
+                'name': 'Sofá del tope (Yappy)', 'type': 'consu', 'list_price': 100.0}).id
+            pedido = env['sale.order'].create({
+                'partner_id': self.cliente_id, 'website_id': env.ref('website.default_website').id,
+                'order_line': [Command.create({'product_id': self.producto_id, 'product_uom_qty': 1})]})
+            self.pedido_id = pedido.id
+            self.txs = [env['payment.transaction'].create({
+                'provider_id': proveedor.id, 'payment_method_id': metodo.id, 'amount': pedido.amount_total,
+                'currency_id': pedido.currency_id.id, 'partner_id': pedido.partner_invoice_id.id,
+                'operation': 'online_direct', 'sale_order_ids': [Command.set(pedido.ids)]}).id
+                for _i in range(self.CONEXIONES)]
+            self.estado_previo = (proveedor.state, proveedor.is_published)
+            proveedor.write({'state': 'test', 'is_published': True})
+
+    def _limpiar(self):
+        with self.registry.cursor() as cr:
+            env = api.Environment(cr, SUPERUSER_ID, {})
+            proveedor = env.ref('dcasa_pago_yappy.payment_provider_yappy')
+            proveedor.write({'state': self.estado_previo[0], 'is_published': self.estado_previo[1]})
+            cr.execute("UPDATE payment_transaction SET state = 'draft' WHERE id IN %s", [tuple(self.txs)])
+            for modelo, ids in (('payment.transaction', self.txs), ('sale.order', [self.pedido_id]),
+                                ('product.product', [self.producto_id]), ('res.partner', [self.cliente_id])):
+                try:
+                    with cr.savepoint():
+                        registros = env[modelo].browse(ids).exists()
+                        if modelo == 'sale.order':
+                            registros.action_cancel()
+                        registros.unlink()
+                except Exception:  # noqa: BLE001 - limpiar es de mejor esfuerzo
+                    pass
+
+    def _abrir(self, tx_id, entornos, listos):
+        """Lo que hace ``/payment/yappy/iniciar``: abre el cobro, con los reintentos de Odoo (una conexión nueva por
+        intento). El primer intento de cada conexión espera a que TODAS tengan su foto de la base (así se cruzan, que es
+        el caso que falla sin el arreglo)."""
+        for intento, env in enumerate(entornos):
+            try:
+                env.cr.execute('SELECT 1')              # la foto de la base de este intento se toma aquí
+                if intento == 0:
+                    listos.wait(ESPERA_MAXIMA)
+                env['payment.transaction'].browse(tx_id)._dcasa_yappy_iniciar('6000 0101')
+                env.cr.commit()
+                return 'abrio'
+            except OperationalError as error:
+                if not isinstance(error, PG_CONCURRENCY_EXCEPTIONS_TO_RETRY):
+                    raise
+                env.cr.rollback()
+            except ValidationError as error:
+                env.cr.rollback()
+                return 'tope' if 'varios intentos' in error.args[0] else error.args[0]
+            finally:
+                env.cr.close()
+        return 'agoto_los_reintentos'
+
+    def test_con_varias_conexiones_a_la_vez_nunca_se_abren_mas_cobros_que_el_tope(self):
+        from odoo.addons.dcasa_pago_yappy.models import payment_transaction as modelo_tx  # noqa: PLC0415
+
+        from .common import YappyFalso  # noqa: PLC0415
+        listos = threading.Barrier(self.CONEXIONES)
+        todos = [[api.Environment(self.registry.cursor(), SUPERUSER_ID, {}) for _i in range(self.INTENTOS)]
+                 for _tx in self.txs]
+        resultados, errores = {}, []
+
+        def una(tx_id, entornos):
+            try:
+                resultados[tx_id] = self._abrir(tx_id, entornos, listos)
+            except Exception as error:  # noqa: BLE001
+                errores.append(error)
+                listos.abort()
+        with YappyFalso(), mute_logger('odoo.sql_db'):
+            hilos = [threading.Thread(target=una, args=(tx_id, entornos))
+                     for tx_id, entornos in zip(self.txs, todos, strict=True)]
+            for hilo in hilos:
+                hilo.start()
+            for hilo in hilos:
+                hilo.join(ESPERA_MAXIMA * 6)
+        for entornos in todos:
+            for env in entornos:
+                env.cr.close()
+        self.assertEqual(errores, [])
+        with self.registry.cursor() as cr:
+            cr.execute(
+                'SELECT count(*) FROM payment_transaction WHERE id IN %s AND dcasa_yappy_orden IS NOT NULL',
+                [tuple(self.txs)])
+            abiertos = cr.fetchone()[0]
+        self.assertLessEqual(
+            abiertos, modelo_tx.INTENTOS_EN_CURSO,
+            f'abrieron {abiertos} cobros del mismo pedido con el tope en {modelo_tx.INTENTOS_EN_CURSO}: {resultados}')
+        self.assertEqual(list(resultados.values()).count('abrio'), abiertos)
+        self.assertGreaterEqual(abiertos, 1)

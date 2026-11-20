@@ -12,8 +12,12 @@ Qué cuenta como «pagado» (docs/YAPPY.md §3):
   cancelado, cada uno con su mensaje. Idempotente: el mismo aviso dos veces no duplica nada; un pago ya hecho no se
   deshace con un aviso contrario; un cobro que llega a una transacción ya cerrada NO se paga solo: lo revisa una
   persona.
-* Si el aviso se pierde (Yappy no tiene consulta de estado): una tarea deja un pendiente a Caja pasados 15 minutos. No
-  paga ni cancela por su cuenta.
+* Si el aviso se pierde (Yappy no documenta una consulta de estado): una tarea deja un pendiente a Caja pasados 15
+  minutos. No paga ni cancela por su cuenta. Caja confirma el cobro, después de mirarlo en Yappy Comercial, con el
+  botón «Confirmar que el dinero entró» (``action_dcasa_yappy_confirmar_cobro``): pasa por el MISMO camino que el
+  aviso (un solo cobro, queda quién y cuándo) y el aviso tardío que llegue después no hace nada. NUNCA se registra a
+  mano el cobro de una orden que sigue abierta: si ya había dinero registrado por otra vía, el aviso va a revisión
+  (nunca un segundo cobro).
 * El dinero que entra y no cuadra con el pedido nunca pasa en silencio: nota en el pedido y, cuando hay que actuar,
   una actividad.
 """
@@ -28,11 +32,10 @@ from markupsafe import Markup
 from odoo import SUPERUSER_ID, api, fields, models, modules
 from odoo.addons.dcasa_base import DCASA_TZ
 from odoo.addons.dcasa_base.red import llave_ip
-from odoo.exceptions import ValidationError
+from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.http import request
 from odoo.tools import float_repr, float_round
 from odoo.tools.misc import format_datetime
-from odoo.tools.urls import urljoin
 
 from . import resumen
 from . import yappy_api as api_yappy
@@ -40,8 +43,8 @@ from . import yappy_api as api_yappy
 _logger = logging.getLogger(__name__)
 
 CODIGO = 'yappy'
-RUTA_AVISO = '/payment/yappy/ipn'
 
+TOPE_DE_RECHAZOS = 5                           # avisos rechazados que se anotan por transacción (más son ruido)
 INTENTOS_EN_CURSO = 5                          # cobros abiertos sin terminar por pedido…
 VENTANA_DE_INTENTOS = timedelta(minutes=15)    # …en este rato
 # Cada orden creada es una llamada a la cuenta de Yappy: un tope global por hora y otro por conexión (límites técnicos,
@@ -67,11 +70,16 @@ MENSAJE_ERROR_TOTAL = (
 MENSAJE_REVISION = (
     'Yappy nos avisó de un cobro de este pedido que no pudimos tomar como pago solo. Nuestro equipo lo revisa y te '
     'escribe; también puedes escribirnos por WhatsApp.')
+MENSAJE_PEDIDO_ANULADO = (
+    'Tu pedido ya no estaba vigente cuando Yappy confirmó tu pago. Nuestro equipo lo revisa y te escribe; también '
+    'puedes escribirnos por WhatsApp.')
+MENSAJE_YA_PAGADO = (
+    'Tu pedido ya figuraba como pagado y Yappy nos avisó de otro cobro. Nuestro equipo lo revisa y te escribe; también '
+    'puedes escribirnos por WhatsApp.')
 MENSAJES_FINALES = {api_yappy.RECHAZADO: MENSAJE_NO_CONFIRMO, api_yappy.CANCELADO: MENSAJE_CANCELO,
                     api_yappy.EXPIRADO: MENSAJE_VENCIO}
 NOMBRES_DE_ESTADO = {api_yappy.EJECUTADO: 'ejecutado (pagó)', api_yappy.RECHAZADO: 'rechazado (no confirmó a tiempo)',
                      api_yappy.CANCELADO: 'cancelado (en la app)', api_yappy.EXPIRADO: 'expirado (nunca empezó)'}
-ESTADOS_DEL_PEDIDO = {'cancel': 'cancelado', 'draft': 'cotización', 'sent': 'cotización enviada', 'sale': 'confirmado'}
 
 # Lo que se le dice a la clienta cuando Yappy rechaza el cobro (por código; los demás, algo genérico y claro).
 MENSAJE_GENERICO = (
@@ -86,10 +94,14 @@ MENSAJE_YA_ESTABA = (
 MENSAJE_OCUPADO = (
     'Hay muchos pagos en curso en este momento. Intenta de nuevo en unos minutos o elige otra forma de pago.')
 
-AvisoVerificado = namedtuple('AvisoVerificado', 'orden estado confirmacion')
+AvisoVerificado = namedtuple('AvisoVerificado', 'orden estado confirmacion manual', defaults=(None,))
 AvisoVerificado.__doc__ = (
     'Lo que le entrega el controlador a ``_apply_updates``: un aviso que ya pasó ``verificar_aviso``. Los parámetros '
-    'del navegador son texto: nunca pueden ser esta clase (``_apply_updates`` la exige).')
+    'del navegador son texto: nunca pueden ser esta clase (``_apply_updates`` la exige). ``manual`` es el usuario '
+    '(``res.users``) de Caja que confirmó el cobro mirando Yappy Comercial (``action_dcasa_yappy_confirmar_cobro``) y '
+    'es ``None`` en un aviso de Yappy.')
+GRUPOS_DE_CAJA = 'dcasa_base.group_caja,account.group_account_user,base.group_system'
+
 
 
 class PaymentTransaction(models.Model):
@@ -101,11 +113,14 @@ class PaymentTransaction(models.Model):
              'termina con cinco letras o números al azar, para que cada intento sea único. Es lo que se ve en el '
              'reporte de Yappy Comercial. Se guarda ANTES de llamar a Yappy y es la única orden con la que se busca '
              'un aviso.')
+    # Los datos de la persona que paga (su celular de Yappy) y los identificadores de la conexión y de Yappy son de
+    # Caja y superiores A NIVEL DE CAMPO (``groups``): la vendedora tiene permiso de leer transacciones (Facturación)
+    # y sin esto los leía por RPC de todas las clientas, aunque el menú no se le mostrara.
     dcasa_yappy_id = fields.Char(
-        'Transacción de Yappy', readonly=True, copy=False,
+        'Transacción de Yappy', readonly=True, copy=False, groups=GRUPOS_DE_CAJA,
         help='El identificador que dio Yappy al crear la orden (solo informativo).')
     dcasa_yappy_celular = fields.Char(
-        'Celular de Yappy', readonly=True, copy=False,
+        'Celular de Yappy', readonly=True, copy=False, groups=GRUPOS_DE_CAJA,
         help='El celular (8 números, sin +507) de la app de Yappy de quien paga: a ese número le llega la solicitud. '
              'Es un dato de la clienta y vive solo aquí.')
     dcasa_yappy_iniciada = fields.Datetime(
@@ -128,7 +143,8 @@ class PaymentTransaction(models.Model):
         'Último código de error de Yappy', readonly=True, copy=False,
         help='El código con el que Yappy rechazó abrir el cobro (E005 número no registrado, E010 montos, E011 '
              'direcciones…). Ayuda a entender por qué el cliente no pudo pagar.')
-    dcasa_yappy_huella = fields.Char('Conexión de Yappy (huella)', readonly=True, copy=False, index='btree_not_null')
+    dcasa_yappy_huella = fields.Char(
+        'Conexión de Yappy (huella)', readonly=True, copy=False, index='btree_not_null', groups=GRUPOS_DE_CAJA)
     dcasa_yappy_revision = fields.Boolean(
         'Cobro de Yappy: lo revisa una persona', readonly=True, copy=False, index='btree_not_null',
         help='Yappy avisó de un cobro que no se pudo tomar como pago solo (el pedido cambió, la transacción ya estaba '
@@ -136,6 +152,24 @@ class PaymentTransaction(models.Model):
     dcasa_yappy_sin_aviso = fields.Boolean(
         'Ya se avisó que Yappy no avisó', readonly=True, copy=False, index='btree_not_null',
         help='La tarea ya le dejó a Caja el pendiente de mirar esta orden en Yappy Comercial (una sola vez).')
+    dcasa_yappy_confirmada_por = fields.Many2one(
+        'res.users', 'Cobro confirmado a mano por', readonly=True, copy=False, ondelete='set null',
+        groups=GRUPOS_DE_CAJA,
+        help='Quién de Caja confirmó, mirando Yappy Comercial, que el dinero de esta orden entró (botón «Confirmar '
+             'que el '
+             'dinero entró»). Vacío si pagó el aviso de Yappy.')
+    dcasa_yappy_confirmada_fecha = fields.Datetime(
+        'Cobro confirmado a mano el', readonly=True, copy=False, groups=GRUPOS_DE_CAJA)
+    dcasa_yappy_rechazos = fields.Integer(
+        'Avisos rechazados', readonly=True, copy=False,
+        help='Cuántas veces llamaron a la dirección del aviso con esta orden y NO se aceptó (dominio escrito '
+             'distinto, firma '
+             'que no cuadra o claves que faltan). Si Yappy sí avisó y se rechazó, el cobro no se paga solo. Tope: 5.')
+    dcasa_yappy_rechazo = fields.Char(
+        'Último aviso rechazado', readonly=True, copy=False,
+        help='Por qué se rechazó el último aviso de esta orden (si fue por el dominio, cuál llegó y cuál está '
+             'declarado). '
+             'Nunca lleva la firma ni una clave.')
 
     dcasa_pedido_id = fields.Many2one(
         'sale.order', string='Pedido', compute='_compute_dcasa_pedido', help='El pedido de venta que se paga.')
@@ -204,6 +238,7 @@ class PaymentTransaction(models.Model):
         """Los topes de cobros abiertos: por pedido, por conexión y en total por hora. Se miran ANTES de llamar a
         Yappy."""
         self.ensure_one()
+        self._dcasa_yappy_bloquear_pedidos()
         pedidos = self.sale_order_ids
         interno = self.env.user._is_internal()
         recientes = self.sudo().search_count([
@@ -229,6 +264,17 @@ class PaymentTransaction(models.Model):
         if en_la_hora >= TOPE_ORDENES_POR_HORA:
             _logger.warning('Yappy: tope de %s órdenes por hora alcanzado.', TOPE_ORDENES_POR_HORA)
             raise ValidationError(MENSAJE_OCUPADO)
+
+    def _dcasa_yappy_bloquear_pedidos(self):
+        """Hace que el tope de cobros abiertos por pedido sea ESTRICTO aunque lleguen varios a la vez. Antes de
+        contar, se «toca» la fila del pedido (un ``UPDATE`` que no cambia nada): quien llegue después espera a que
+        termine el primero y, como PostgreSQL trabaja con una foto de la base tomada al empezar, en vez de contar con
+        datos viejos recibe «no pude serializar» y Odoo repite la petición ENTERA con una foto nueva (la misma salida
+        que ya usa el aviso). Sin esto, 12 conexiones sobre el mismo pedido abrían 6 cobros en vez de 5."""
+        self.ensure_one()
+        pedidos = self.sudo().sale_order_ids
+        if pedidos:
+            self.env.cr.execute('UPDATE sale_order SET write_date = write_date WHERE id IN %s', [tuple(pedidos.ids)])
 
     @api.model
     def _dcasa_yappy_huella_de_la_conexion(self):
@@ -296,7 +342,7 @@ class PaymentTransaction(models.Model):
             # esa orden se reconoce (si no, sería un cobro sin dueño).
             self.env.cr.commit()
         monto = api_yappy.importe(float_round(tx.amount, precision_digits=2))
-        url_del_aviso = urljoin(tx.provider_id.get_base_url(), RUTA_AVISO)
+        url_del_aviso = tx.provider_id._dcasa_yappy_url_del_aviso()
         try:
             datos = tx.provider_id._dcasa_yappy_cliente().crear_orden(orden, celular_limpio, monto, url_del_aviso)
         except api_yappy.ErrorYappy as error:
@@ -353,6 +399,64 @@ class PaymentTransaction(models.Model):
         tx._process(CODIGO, verificado)
         return tx.state
 
+    def _dcasa_yappy_anotar_rechazo(self, detalle):
+        """Un aviso de esta orden se rechazó (dominio escrito distinto, firma que no cuadra, claves que faltan): queda
+        anotado en la transacción (con tope: son rastros, no una bitácora que un atacante pueda llenar) para que el
+        pendiente de Caja no diga «Yappy no avisó» cuando sí avisó y no lo pudimos aceptar. No paga, no cancela, no
+        cambia el estado. Devuelve ``True`` si lo anotó."""
+        self.ensure_one()
+        tx = self.sudo()
+        if tx.provider_code != CODIGO or tx.state not in ('draft', 'pending') \
+                or tx.dcasa_yappy_rechazos >= TOPE_DE_RECHAZOS:
+            return False
+        tx.write({'dcasa_yappy_rechazos': tx.dcasa_yappy_rechazos + 1, 'dcasa_yappy_rechazo': detalle[:200]})
+        return True
+
+    # ------------------------------------------------------------------ Caja confirma el cobro (en Yappy Comercial)
+
+    def _dcasa_yappy_exigir_caja(self):
+        if not self.env.su and not any(self.env.user.has_group(grupo) for grupo in GRUPOS_DE_CAJA.split(',')):
+            raise AccessError(self.env._('Solo Caja, Gerencia y contabilidad confirman un cobro de Yappy.'))
+
+    def action_dcasa_yappy_confirmar_cobro(self):
+        """Botón «Confirmar que el dinero entró» (Caja, Gerencia, contabilidad): para el cobro cuyo aviso no llegó. La
+        persona abrió Yappy Comercial, vio la orden con su dinero, y lo confirma aquí. Pasa por el MISMO camino que el
+        aviso de Yappy (``_process`` → ``_apply_updates``): las mismas comprobaciones (entorno, pedido vivo, pedido no
+        pagado ya por otra vía, total), UN solo cobro, y queda anotado quién y cuándo. El aviso que llegue tarde
+        después no hace nada. Solo sirve con la transacción abierta: una ya cerrada o marcada para revisar se resuelve
+        con su pendiente. Esto NO es registrar el cobro a mano en el diario (eso duplicaría el cobro si el aviso
+        llegara después)."""
+        self.ensure_one()
+        self._dcasa_yappy_exigir_caja()
+        quien = self.env.user.sudo()
+        tx = self.sudo()
+        if tx.provider_code != CODIGO or not tx.dcasa_yappy_orden:
+            raise UserError(self.env._('Este botón es solo de un cobro de Yappy directo con su orden.'))
+        tx._dcasa_yappy_bloquear()
+        if tx.state == 'done':
+            return self._dcasa_yappy_notificar(
+                self.env._('Esta orden ya figura como pagada: no hay nada más que confirmar.'), 'info')
+        if tx.state not in ('draft', 'pending'):
+            raise UserError(self.env._(
+                'Esta transacción ya está cerrada («%s»). Si Yappy cobró, ya tiene su pendiente para revisarlo: '
+                'míralo en '
+                'el pedido.', tx.state))
+        tx._process(CODIGO, AvisoVerificado(tx.dcasa_yappy_orden, api_yappy.EJECUTADO, '', quien))
+        if tx.state == 'done':
+            return self._dcasa_yappy_notificar(self.env._(
+                'Listo: el cobro de la orden %s quedó confirmado a tu nombre. El pedido se confirma y el pago cae en '
+                'el '
+                'diario Yappy en un momento. Si el aviso de Yappy llega después, no hace nada.', tx.dcasa_yappy_orden),
+                'success')
+        return self._dcasa_yappy_notificar(self.env._(
+            'No se pudo tomar como pago solo y quedó para revisar: %s. Mira la alerta en el pedido.',
+            tx.state_message or '—'), 'warning', pegajoso=True)
+
+    def _dcasa_yappy_notificar(self, mensaje, tipo, pegajoso=False):
+        return {'type': 'ir.actions.client', 'tag': 'display_notification',
+                'params': {'title': self.env._('Cobro de Yappy'), 'message': mensaje, 'type': tipo, 'sticky': pegajoso,
+                           'next': {'type': 'ir.actions.client', 'tag': 'soft_reload'}}}
+
     @api.model
     def _extract_reference(self, provider_code, payment_data):
         if provider_code != CODIGO:
@@ -375,38 +479,70 @@ class PaymentTransaction(models.Model):
             return
         estado = payment_data.estado
         nuevo = self._dcasa_yappy_registrar_aviso(payment_data)
+        self._dcasa_yappy_cerrar_el_pendiente_sin_aviso(payment_data)
         if self.state == 'done':
             if estado != api_yappy.EJECUTADO and nuevo:
                 self._dcasa_yappy_alertar_contradiccion(estado)
-            return      # el mismo aviso otra vez, o uno contrario a un pago ya hecho: no se toca nada
+            # el mismo aviso otra vez (o el aviso tardío de un cobro ya confirmado a mano), o uno contrario a un pago ya
+            # hecho: no se toca nada
+            return
         if estado == api_yappy.EJECUTADO:
-            self._dcasa_yappy_aplicar_ejecutado()
+            self._dcasa_yappy_aplicar_ejecutado(payment_data.manual)
         elif self.state in ('draft', 'pending', 'authorized'):
             self._set_canceled(MENSAJES_FINALES[estado])
         elif self.state == 'cancel' and nuevo:
             _logger.info('Yappy: aviso %s de %s, que ya estaba cancelada.', estado, self.reference)
 
     def _dcasa_yappy_registrar_aviso(self, aviso):
-        """Deja anotado el aviso (la bitácora, el último estado y la confirmación informativa). Devuelve ``True`` si es
-        la primera vez que llega ese estado (un aviso repetido no escribe nada)."""
+        """Deja anotado el aviso (la bitácora, el último estado y la confirmación informativa). Devuelve ``True`` si
+        es la primera vez que llega ese estado (un aviso repetido no escribe nada). Una confirmación a mano de Caja se
+        anota con su propia letra («M»), así un aviso «E» tardío todavía se anota después como lo que es."""
         lineas = (self.dcasa_yappy_avisos or '').splitlines()
-        if any(linea.startswith(f'{aviso.estado} ') for linea in lineas):
+        letra = 'M' if aviso.manual else aviso.estado
+        if any(linea.startswith(f'{letra} ') for linea in lineas):
             return False
         ahora = fields.Datetime.now()
-        lineas.append(f"{aviso.estado} · {NOMBRES_DE_ESTADO[aviso.estado]} · "
-                      f"{format_datetime(self.env, ahora, tz=DCASA_TZ, dt_format='medium')}")
-        valores = {'dcasa_yappy_avisos': '\n'.join(lineas[-MAX_LINEAS_DE_AVISOS:]), 'dcasa_yappy_estado': aviso.estado,
-                   'dcasa_yappy_aviso_fecha': ahora}
-        if aviso.confirmacion:
-            valores['dcasa_yappy_confirmacion'] = aviso.confirmacion
+        cuando = format_datetime(self.env, ahora, tz=DCASA_TZ, dt_format='medium')
+        if aviso.manual:
+            lineas.append(f"M · cobro confirmado a mano por {aviso.manual.name} (mirando Yappy Comercial) · {cuando}")
+            valores = {'dcasa_yappy_avisos': '\n'.join(lineas[-MAX_LINEAS_DE_AVISOS:])}
+        else:
+            lineas.append(f"{aviso.estado} · {NOMBRES_DE_ESTADO[aviso.estado]} · {cuando}")
+            valores = {'dcasa_yappy_avisos': '\n'.join(lineas[-MAX_LINEAS_DE_AVISOS:]),
+                       'dcasa_yappy_estado': aviso.estado, 'dcasa_yappy_aviso_fecha': ahora}
+            if aviso.confirmacion:
+                valores['dcasa_yappy_confirmacion'] = aviso.confirmacion
         self.write(valores)
         return True
 
-    def _dcasa_yappy_aplicar_ejecutado(self):
-        """Un aviso «E» firmado: el dinero entró. Se paga SOLO si la transacción sigue abierta y todo cuadra; si no, el
-        dinero entró pero lo resuelve una persona (nunca se paga solo)."""
+    def _dcasa_yappy_cerrar_el_pendiente_sin_aviso(self, aviso):
+        """Llegó el aviso (el que sea: pagó, rechazó, canceló, expiró) o Caja confirmó el cobro: el pendiente «sin
+        aviso de pago» de esta orden ya no tiene razón de ser y se cierra solo, con una nota de qué lo cerró. Si
+        quedara abierto diría «Yappy no avisó nada» de una orden que ya tiene su aviso (y empujaría a registrar el
+        cobro a mano otra vez). Nunca hace fallar un pago."""
+        try:
+            with self.env.cr.savepoint():
+                resumen_del_pendiente = self.env._('Yappy: sin aviso de pago (%s)', self.dcasa_yappy_orden)
+                pendientes = self.env['mail.activity'].sudo().search([
+                    ('res_model', '=', 'sale.order'), ('res_id', 'in', self.sudo().sale_order_ids.ids),
+                    ('summary', '=', resumen_del_pendiente)])
+                if pendientes:
+                    que_paso = (self.env._('Caja confirmó el cobro a mano') if aviso.manual else
+                                self.env._('Llegó el aviso de Yappy: %s', NOMBRES_DE_ESTADO[aviso.estado]))
+                    pendientes.with_user(SUPERUSER_ID).action_feedback(
+                        feedback=self.env._('%(que)s (orden %(orden)s). Ya no hace falta mirar si Yappy avisó.',
+                                            que=que_paso, orden=self.dcasa_yappy_orden))
+        except Exception:  # noqa: BLE001 - cerrar un pendiente no debe tumbar el pago
+            _logger.exception('Yappy: no se pudo cerrar el pendiente de %s.', self.reference)
+
+    def _dcasa_yappy_aplicar_ejecutado(self, manual=None):
+        """Un aviso «E» firmado (o el cobro que Caja confirmó mirando Yappy Comercial): el dinero entró. Se paga SOLO
+        si la transacción sigue abierta y todo cuadra; si no, el dinero entró pero lo resuelve una persona (nunca se
+        paga solo). Lo que NUNCA hace es registrar un segundo cobro de un pedido que ya está pagado por otra vía."""
         if self.dcasa_yappy_revision:
             return      # ya la tiene una persona
+        como = (self.env._('el aviso de Yappy') if not manual else
+                self.env._('la confirmación a mano de %s', manual.name))
         if self.state not in ('draft', 'pending', 'authorized'):
             # Cancelada o con error y llega un cobro: el dinero pudo entrar a pesar de lo que se le dijo a la clienta.
             self._dcasa_yappy_pedir_revision(
@@ -421,9 +557,40 @@ class PaymentTransaction(models.Model):
         if bool(self.is_live) != entorno_actual:
             self._dcasa_yappy_pedir_revision(
                 self.env._(
-                    'Yappy avisó un pago de la orden %(orden)s, pero esta transacción se abrió en otro entorno '
-                    '(prueba o real) que el de ahora. NO se tomó como pago solo.', orden=self.dcasa_yappy_orden),
+                    'Llegó un pago de la orden %(orden)s (%(como)s), pero esta transacción se abrió en otro entorno '
+                    '(prueba o real) que el de ahora. NO se tomó como pago solo.', orden=self.dcasa_yappy_orden,
+                    como=como),
                 MENSAJE_REVISION)
+            return
+        pedidos = self.sudo().sale_order_ids
+        anulados = pedidos.filtered(lambda pedido: pedido.state == 'cancel')
+        if anulados:
+            # El pedido se anuló (una vendedora, o el apartado que vence por la noche) mientras la clienta aprobaba en
+            # su app. El dinero entró; el pedido no existe. Nunca se «cobra» un pedido anulado ni se le dice
+            # «Confirmamos tu pedido»: lo resuelve una persona (se devuelve el cobro, o se reabre el pedido).
+            self._dcasa_yappy_pedir_revision(
+                self.env._(
+                    'Llegó un pago de la orden %(orden)s (%(como)s) de %(monto)s %(moneda)s, pero el pedido %(pedido)s '
+                    'está CANCELADO. El dinero entró y NO se tomó como pago de ningún pedido. Habla con el cliente: '
+                    'o se '
+                    'devuelve el cobro desde Yappy Comercial, o reabres el pedido, lo confirmas y registras a mano '
+                    'el pago '
+                    'en el diario Yappy.', orden=self.dcasa_yappy_orden, como=como, monto=float_repr(self.amount, 2),
+                    moneda=self.currency_id.name, pedido=', '.join(anulados.mapped('name'))),
+                MENSAJE_PEDIDO_ANULADO, titulo=self.env._('Yappy: cobro de un pedido que ya no está vivo'))
+            return
+        dinero_antes = self._dcasa_yappy_dinero_de_otra_via()
+        if dinero_antes:
+            self._dcasa_yappy_pedir_revision(
+                self.env._(
+                    'Llegó un pago de la orden %(orden)s (%(como)s), pero este pedido YA TENÍA dinero registrado por '
+                    'otra '
+                    'vía: %(detalle)s. NO se registró otro cobro. Si es el mismo dinero (lo normal cuando Caja '
+                    'registró el '
+                    'cobro a mano porque el aviso tardaba), no hay nada más que hacer: cierra este pendiente. Si el '
+                    'cliente pagó dos veces, hay que devolverle uno desde Yappy Comercial.',
+                    orden=self.dcasa_yappy_orden, como=como, detalle=dinero_antes),
+                MENSAJE_YA_PAGADO, titulo=self.env._('Yappy: el pedido ya estaba pagado (%s)', self.dcasa_yappy_orden))
             return
         coincide, detalle = self._dcasa_yappy_total_del_pedido()
         if not coincide:
@@ -438,10 +605,29 @@ class PaymentTransaction(models.Model):
                 MENSAJE_ERROR_TOTAL, titulo=self.env._('Yappy: cobro que no cuadra con el pedido'))
             return
         self._set_done()
+        if manual:
+            self.write({'dcasa_yappy_confirmada_por': manual.id, 'dcasa_yappy_confirmada_fecha': fields.Datetime.now()})
         self._dcasa_yappy_anotar_el_pago()
         self._dcasa_yappy_avisos_tras_el_pago()
-        self._dcasa_yappy_avisar_si_ya_estaba_pagado()
         self._dcasa_yappy_adelantar_el_cierre()
+
+    def _dcasa_yappy_dinero_de_otra_via(self):
+        """Una frase de cuál es el dinero que este pedido YA tenía antes de que se pagara esta transacción (otro cobro
+        en línea hecho, o una factura con pagos registrados, que es lo que deja un cobro a mano de Caja); vacía si no
+        había ninguno. Mientras esta transacción siga abierta, todo pago que figure es de otra vía."""
+        self.ensure_one()
+        partes = []
+        for pedido in self.sudo().sale_order_ids:
+            otras = pedido.transaction_ids.filtered(lambda t: t != self and t.state in ('authorized', 'done'))
+            if otras:
+                partes.append(self.env._('otro cobro en línea (%s)', ', '.join(otras.mapped('reference'))))
+            facturas = pedido.invoice_ids.filtered(
+                lambda f: f.move_type == 'out_invoice' and f.state == 'posted'
+                and f.payment_state in ('paid', 'in_payment', 'partial'))
+            if facturas:
+                partes.append(self.env._(
+                    'la factura %s ya tiene pagos registrados', ', '.join(facturas.mapped('name'))))
+        return '; '.join(partes)
 
     def _dcasa_yappy_pedir_revision(self, texto, mensaje_al_cliente, titulo=None, extra_allowed_states=()):
         """Marca la transacción para que la resuelva una persona: nunca se paga sola. El cliente ve un mensaje claro y
@@ -497,6 +683,19 @@ class PaymentTransaction(models.Model):
                         monto=float_repr(tx.amount, 2), moneda=tx.currency_id.name, orden=tx.dcasa_yappy_orden,
                         detalle=detalle),
                     self.env._('Yappy: cobro que no cuadra con el pedido'))
+        for tx in yappy - distintas:
+            anulados = tx.sudo().sale_order_ids.filtered(lambda pedido: pedido.state == 'cancel')
+            if anulados:
+                # Se anuló entre el aviso y esta tarea (el aviso mismo ya manda a revisión lo que llega con el pedido
+                # anulado).
+                tx._dcasa_yappy_alertar(
+                    self.env._(
+                        'Yappy cobró %(monto)s %(moneda)s (orden %(orden)s) de un pedido que se canceló justo después: '
+                        '%(pedido)s. El dinero entró y el pedido no se va a confirmar solo. O se devuelve el cobro '
+                        'desde Yappy Comercial, o se reabre el pedido.', monto=float_repr(tx.amount, 2),
+                        moneda=tx.currency_id.name, orden=tx.dcasa_yappy_orden,
+                        pedido=', '.join(anulados.mapped('name'))),
+                    self.env._('Yappy: cobro de un pedido que ya no está vivo'), una_vez=True)
         confirmados = super(PaymentTransaction, self - distintas)._check_amount_and_confirm_order()
         for tx in yappy - distintas:
             tx._dcasa_yappy_soltar_el_apartado()
@@ -528,19 +727,10 @@ class PaymentTransaction(models.Model):
             _logger.exception('Yappy: no se pudo dejar la nota de la compra en el pedido de %s.', self.reference)
 
     def _dcasa_yappy_avisos_tras_el_pago(self):
-        """Lo que el equipo tiene que saber de un pago, además de que entró: si el pedido ya no está vivo, o si fue una
-        prueba (el pedido se confirma igual y quien prepara la entrega no lo puede adivinar)."""
+        """Lo que el equipo tiene que saber de un pago, además de que entró: si fue una prueba (el pedido se confirma
+        igual y quien prepara la entrega no lo puede adivinar). Un pedido anulado ya no llega hasta aquí: va a
+        revisión."""
         self.ensure_one()
-        for pedido in self.sudo().sale_order_ids:
-            if pedido.state not in ('draft', 'sent', 'sale'):
-                self._dcasa_yappy_alertar(
-                    self.env._(
-                        'Yappy cobró %(monto)s %(moneda)s (orden %(orden)s) de un pedido que está «%(estado)s»: el '
-                        'dinero entró y el pedido no se va a confirmar solo. O se devuelve el cobro desde Yappy '
-                        'Comercial, o se reabre el pedido.', monto=float_repr(self.amount, 2),
-                        moneda=self.currency_id.name, orden=self.dcasa_yappy_orden,
-                        estado=ESTADOS_DEL_PEDIDO.get(pedido.state, pedido.state)),
-                    self.env._('Yappy: cobro de un pedido que ya no está vivo'))
         if not self.is_live:
             self._dcasa_yappy_anotar(self.env._(
                 'Pagado en el modo de PRUEBA de Yappy: no entró dinero real, aunque el pedido se confirmó. Revísalo '
@@ -556,20 +746,6 @@ class PaymentTransaction(models.Model):
                     cron.sudo()._trigger()
         except Exception:  # noqa: BLE001
             _logger.warning('Yappy: no se pudo adelantar el cierre de %s (corre a su hora).', self.reference)
-
-    def _dcasa_yappy_avisar_si_ya_estaba_pagado(self):
-        """Si el cliente abrió dos cobros y pagó los dos, los dos son dinero real; a uno hay que devolverle el
-        dinero."""
-        for pedido in self.sudo().sale_order_ids:
-            otros = pedido.transaction_ids.filtered(lambda t: t != self and t.state == 'done')
-            ya_pagado = sum(otros.mapped('amount'))
-            if otros and pedido.currency_id.compare_amounts(ya_pagado, pedido.amount_total) >= 0:
-                self._dcasa_yappy_alertar(
-                    self.env._(
-                        'Este pedido ya estaba pagado y Yappy confirmó otro pago completo (orden %(orden)s): hay que '
-                        'devolverle uno al cliente desde Yappy Comercial.', orden=self.dcasa_yappy_orden),
-                    self.env._('Yappy: pedido pagado dos veces'))
-                return
 
     # ------------------------------------------------------------------ notas y actividades
 
@@ -657,16 +833,28 @@ class PaymentTransaction(models.Model):
         pedido = self.sale_order_ids[:1]
         destinos = self.env['sale.order']._dcasa_atienden_lo_sin_vendedora() or self._dcasa_yappy_destinatarios()
         detalle = '; '.join(resumen.frase_de_linea(pedido, fila) for fila in resumen.lineas(pedido)) if pedido else ''
+        # Si llegó un aviso y se RECHAZÓ, no es verdad que «Yappy no avisó nada»: es muy probable que sí avisó y que la
+        # diferencia esté en nuestra configuración (el dominio, la clave). Se dice tal cual, con lo que se anotó.
+        if self.dcasa_yappy_rechazos:
+            que_paso = self.env._(
+                'y NO hay ningún aviso que se pudiera aceptar. Sí llegó %(cuantos)s aviso(s) de esta orden y se '
+                'RECHAZÓ (%(motivo)s). Es probable que Yappy sí avisó y que la diferencia esté en lo que está '
+                'configurado: avisa a quien programa con esta frase.', cuantos=self.dcasa_yappy_rechazos,
+                motivo=self.dcasa_yappy_rechazo or '—')
+        else:
+            que_paso = self.env._('y Yappy no avisó nada.')
         self._dcasa_yappy_alertar(
             self.env._(
                 'Pasaron más de 15 minutos desde que se le mandó a Yappy la orden %(orden)s (pedido %(pedido)s, '
-                '%(monto)s %(moneda)s, cliente %(cliente)s) y Yappy no avisó nada. Yappy cierra la solicitud a los '
+                '%(monto)s %(moneda)s, cliente %(cliente)s) %(que_paso)s Yappy cierra la solicitud a los '
                 '5 minutos. Abre el reporte de Yappy Comercial y busca la orden %(orden)s (empieza con el número del '
-                'pedido): si el cobro entró, registra el pago a mano en el diario Yappy; si no, el pedido sigue '
-                'guardado para retomarlo con el cliente. El sistema no pagó ni canceló nada solo. Compró: %(detalle)s',
+                'pedido): si el cobro entró, abre esta transacción (Facturación › Clientes › Pagos con Yappy) y pulsa '
+                '«Confirmar que el dinero entró»; NO registres el cobro a mano en el diario: si el aviso llegara '
+                'tarde, el cobro quedaría doble. Si no entró, el pedido sigue guardado para retomarlo con el '
+                'cliente. El sistema no pagó ni canceló nada solo. Compró: %(detalle)s',
                 orden=self.dcasa_yappy_orden, pedido=pedido.name or '—', monto=float_repr(self.amount, 2),
                 moneda=self.currency_id.name,
                 cliente=(f"{pedido.partner_id.name or '—'} {resumen.celular_del_cliente(pedido)}".strip()
                          if pedido else '—'),
-                detalle=detalle or '—'),
+                que_paso=que_paso, detalle=detalle or '—'),
             self.env._('Yappy: sin aviso de pago (%s)', self.dcasa_yappy_orden), destinos=destinos)
