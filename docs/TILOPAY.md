@@ -105,6 +105,22 @@ oficial se marca **NO VERIFICADO** y **no se adivina**.
 13. **`TILOPAY_ENTORNO=produccion` solo vale en el servidor de producción** (`DCASA_ENTORNO=produccion`, que el Worker fija solo
     en `dcasa`): la misma regla de correos y de Meta. En staging o en una copia local, aunque alguien pegue «produccion», Tilopay
     solo cobra en prueba.
+14. **Cada llamada a Tilopay retiene una conexión de la base** hasta 15 s si Tilopay está lento, y con `workers = 0` el grupo de
+    conexiones (48) es de **toda** la tienda: un visitante que martillaba `/payment/tilopay/return?order=…` con sus propias
+    órdenes podía agotarlo y dejar la tienda entera en error 500 (reproducido: §10). Se frena en capas: un **tope global de 6
+    llamadas a Tilopay a la vez** (más 2 de reserva para la tarea programada; si está lleno, la consulta responde «saturada»
+    al instante y no espera), las rutas web **solo consultan transacciones recientes** (3 h; lo viejo lo atiende la tarea,
+    que pregunta primero por lo que recibió un retorno o un aviso), y un **freno de 120 peticiones por minuto por conexión** en el
+    retorno y el aviso (la misma llave de conexión que «Busca con una foto»; el borde pone `X-Forwarded-For` con la IP real de
+    Cloudflare, no la del visitante). El tope de llamadas también cubre abrir la página de pago.
+15. **Un estado que el código no entiende no pasa en silencio.** Un `code` que no es numérico (o un estado intermedio de Yappy)
+    deja la transacción pendiente; si sigue así pasada una hora, o al vencer a las 24 horas, Gerencia recibe una nota y una
+    actividad (una sola por transacción): si ese estado resultara ser un pago aprobado, el dinero entró y nadie lo sabría.
+16. **Un cobro que no cuadra con el pedido no se paga solo, nunca.** Después de «cobrado X, el pedido ahora vale Y» la
+    transacción queda marcada para una persona (`dcasa_tilopay_revision`): aunque el pedido vuelva a valer lo cobrado, ni una
+    consulta posterior ni la tarea la dan por pagada (el equipo pudo haber devuelto el cobro en el panel de Tilopay y que
+    `consult` no lo muestre como fila aparte). Se resuelve a mano: devolver el cobro, o quedarse con él, ajustar el pedido y
+    registrarlo como pago en el diario Tilopay.
 
 ## 4. Modelo de amenazas
 
@@ -117,10 +133,12 @@ oficial se marca **NO VERIFICADO** y **no se adivina**.
 | Pagar con la orden de otro (referencia de otra transacción, otro proveedor u otra empresa) | La búsqueda es por la orden **que guardamos nosotros** (`dcasa_tilopay_orden`, única, aleatoria), filtrada por proveedor `tilopay`; la consulta se hace con **nuestra** orden guardada, nunca con la del navegador; la respuesta debe traer esa misma orden |
 | Usar un pago de prueba en producción (o al revés) | Se compara `environment` de la respuesta con `TILOPAY_ENTORNO`; además, el proveedor solo se ofrece si el interruptor de Odoo (Habilitado/Modo de prueba) **coincide** con ese entorno |
 | Repetir un aviso viejo (replay) o repetirlo muchas veces | Es idempotente: una transacción ya pagada no se vuelve a procesar ni duplica el cobro, el asiento ni los puntos. Cada transacción se consulta como mucho **una vez cada 5 segundos**, así que repetir no gasta llamadas a Tilopay |
+| Tumbar TODA la tienda martillando el retorno con órdenes propias mientras Tilopay está lento (cada consulta retiene una conexión de la base) | Tope global de 6 llamadas a Tilopay a la vez (sin esperar: lo que sobra responde «saturada»), solo lo reciente se consulta desde la web, freno de 120 por minuto por conexión (§3, punto 14). La tarea programada tiene 2 lugares de reserva y presupuesto de 40 s |
 | Mandar miles de avisos para gastar llamadas al API de Tilopay | **Nada se consulta antes de validar**: tamaño del cuerpo (tope 16 KB), forma de la orden (letras, números y guion, tope de largo), y que **exista** una transacción de Tilopay pendiente con esa orden (búsqueda por igualdad, sin SQL armado con texto). Orden inventada = no pasa nada y **no** se llama a Tilopay |
 | Averiguar qué órdenes existen (enumerar) | La ruta contesta **lo mismo** exista o no (el aviso: `200 {"estado":"ok"}`; el retorno: la misma redirección a `/payment/status`). Sin trazas de error hacia afuera |
-| Crear cientos de intentos de pago para saturar a Tilopay (cada página es una llamada a `processPayment` en la cuenta) | Máximo 5 intentos sin terminar por pedido en 15 minutos, **y un tope global de 300 páginas por hora** (`TOPE_PAGINAS_POR_HORA`; la tienda vende muy por debajo). Pasado el tope el cliente ve «Hay muchos pagos en curso…» y se le ofrece otra forma de pago. Además el borde limita los POST de `/shop/payment` por IP |
-| Dejar sin servicio la tarea que rescata pagos con una ráfaga de intentos basura | La tarea ordena por `coalesce(última consulta, creación)`: lo que lleva más tiempo esperando va primero y lo nuevo no se cuela. Lo reciente se pregunta cada 8 minutos, lo viejo cada hora, lo rechazado o cancelado cada 3 horas; trabaja por lotes hasta gastar 100 segundos; si Tilopay no contesta 3 veces seguidas, para |
+| Crear cientos de intentos de pago para saturar a Tilopay (cada página es una llamada a `processPayment` en la cuenta) | Máximo 5 intentos sin terminar por pedido en 15 minutos, **y un tope global de 300 páginas por hora** (`TOPE_PAGINAS_POR_HORA`; la tienda vende muy por debajo). Una sola conexión se topa antes, con **30 páginas por hora** (`TOPE_PAGINAS_POR_CONEXION_HORA`, por huella HMAC de la conexión, no la dirección; no cuenta al equipo), y el global no cuenta las páginas que ya se pagaron. Pasado el tope el cliente ve «Hay muchos pagos en curso…» y se le ofrece otra forma de pago. Además el borde limita los POST de `/shop/payment` por IP |
+| Dejar sin servicio la tarea que rescata pagos con una ráfaga de intentos basura | La tarea pregunta primero por lo que recibió un retorno o un aviso (**señal de vida**), y luego por `coalesce(última consulta, creación)`: lo que lleva más tiempo esperando va primero y lo nuevo no se cuela. Lo reciente se pregunta cada 8 minutos; lo viejo cada hora si Tilopay ya tiene una fila de esa orden y cada 3 horas si nunca vio nada; lo rechazado o cancelado cada 3 horas; **lo que Tilopay nunca vio deja de preguntarse al día** (si luego llega un retorno o un aviso, vuelve a preguntarse). Trabaja por lotes hasta gastar 40 segundos; si Tilopay no contesta 3 veces seguidas, para |
+| «Publicado» + «Modo de prueba» por error en el servidor de PRODUCCIÓN (cualquier visitante pagaría con la tarjeta de prueba pública) | En el servidor de producción (`DCASA_ENTORNO=produccion`) el «Modo de prueba» solo lo abre una persona del equipo, aunque esté publicado |
 | Abrir a mano el proveedor de pruebas sin publicar (mandar `provider_id` a `/my/orders/…/transaction`) y pagar un pedido real con la tarjeta de prueba | Un proveedor sin publicar solo lo abre una persona del equipo con sesión (§3, punto 10). Aunque lo hiciera ella, el pedido queda con una nota «Pagado con una tarjeta de PRUEBA» |
 | Cambiar el pedido mientras el cliente paga (pagar 107 y quedarse con un pedido de 535, o al revés) | Se compara lo cobrado con el total **actual** del pedido antes de dar el pago por bueno y otra vez antes de confirmarlo (§3, punto 11); si no coinciden, no se paga solo y Gerencia recibe nota y actividad |
 | Pagar un pedido que ya se canceló | No se abre la página para un pedido cancelado; si se cancela mientras el cliente paga, el dinero entra y Gerencia recibe nota y actividad para devolverlo o reabrir el pedido |
@@ -168,7 +186,14 @@ para no pagar nada falso, y la tarea programada suple al aviso si no llega.
   también pregunta mientras la transacción esté en `error`. A las 24 horas sin pago, lo que sigue sin confirmar se marca vencido.
 - **Un estado que no es un rechazo claro no se da por rechazado.** Un rechazo del emisor trae un código **numérico** distinto de
   «1». Cualquier otra cosa (vacío, texto, un estado intermedio como el de un Yappy que aún no responde) queda **pendiente**, sin
-  nota ni error, y la tarea vuelve a preguntar (§8, punto 11).
+  error, y la tarea vuelve a preguntar (§8, punto 11). Pasada una hora, o al vencer, deja nota y actividad para Gerencia.
+- **Quién pregunta y cuándo.** El retorno del cliente, el aviso y el reloj de «Estado del pago» consultan solo transacciones de las
+  últimas 3 horas; si llega uno de una más vieja, solo dejan la **señal de vida** y la tarea programada la atiende primero en su
+  siguiente vuelta (cada 10 minutos). Si ya hay 6 llamadas a Tilopay en curso, la consulta se salta («saturada») sin gastar el
+  turno de 5 segundos de esa transacción.
+- **Presupuesto de la tarea: 40 segundos por vuelta** (antes 100). La tarea comparte el único hilo de tareas (`max_cron_threads = 1`)
+  con otras, entre ellas la que termina los pagos de Odoo (`payment.cron_post_process_payment_tx`): 100 s más una consulta de
+  15 s la retrasaban. Con ~0,5 s por consulta alcanza para ~80 preguntas por vuelta.
 - **Los montos de $1,000 o más** pueden llegar como «1,250.00». Se acepta esa forma (coma de miles y siempre dos decimales) y la
   normal («1250.00»); cualquier otra forma rara no paga (queda como «monto distinto» con aviso al equipo). El monto que mandamos a
   Tilopay va siempre sin coma.
@@ -194,6 +219,10 @@ para no pagar nada falso, y la tarea programada suple al aviso si no llega.
 | El pago fue de prueba (`is_live` falso) y el pedido se confirmó | El pedido lleva la nota «Pagado con una tarjeta de PRUEBA…» (quien prepara la entrega lo ve) |
 | El pedido pagado era un «apartado por página web» | Al confirmarse pagado completo deja de ser apartado (sin fecha de vencimiento) |
 | Un código de estado raro o intermedio en `consult` | Pendiente, sin error ni nota; se vuelve a preguntar |
+| Retorno o aviso de una transacción de más de 3 horas | No se consulta desde la web: queda la señal de vida y la tarea la atiende primero en su siguiente vuelta |
+| Ya hay 6 llamadas a Tilopay en curso | La consulta responde «saturada» al instante (la tarea o el siguiente reloj la atienden); abrir una página de pago dice «Hay muchos pagos en curso…» |
+| Una conexión manda más de 120 peticiones por minuto al retorno o al aviso | Lo de más no se procesa; la respuesta es la de siempre |
+| Un cobro marcado para revisión (el pedido cambió) y el pedido vuelve a valer lo cobrado | NO se paga solo; la tarea ya no la pregunta; una persona la resuelve (§3, punto 16) |
 | Orden desconocida, de otro proveedor, de otra empresa | No pasa nada y la respuesta es idéntica |
 | Credenciales ausentes | Tilopay **no aparece** en la tienda; Odoo y el sitio siguen normales; el arranque no se entera |
 | Proveedor apagado | Nada cambia: ni se ofrece ni responde a avisos con datos |
@@ -335,6 +364,12 @@ personas del equipo con sesión iniciada**: un visitante no puede abrirlo (§3, 
 16. **Cloudflare:** que una variable fijada en `wrangler.jsonc` gane sobre la del panel con `--keep-vars` (el staging confía en eso
     para quedar fijo en `prueba`). Se comprueba una vez en el panel tras el primer despliegue; la regla de que `produccion` exige
     `DCASA_ENTORNO=produccion` ya reduce el riesgo si no fuera así.
+17. **Cómo aparece un reembolso en `consult`**: si como otra fila (tipo «Refund» u otro) o cambiando la fila del pago. El código
+    trata cualquier fila que no sea un pago como «ambiguo» y no paga, pero un cobro ya marcado para revisión no depende de
+    eso: nunca se paga solo (§3, punto 16).
+18. **Con qué IP llegan los avisos de Tilopay** y cuántos por minuto como máximo (el freno de 120 por minuto por conexión del
+    retorno y el aviso es generoso, pero si Tilopay mandara los avisos de muchas compras juntas desde una sola dirección habría
+    que subirlo). El borde pone `X-Forwarded-For` con la IP real de Cloudflare (`edge/src/routing.ts`): ahí se apoya el freno.
 
 ## 9. Pendientes y siguiente paso
 
@@ -364,8 +399,17 @@ personas del equipo con sesión iniciada**: un visitante no puede abrirlo (§3, 
   llama Tilopay podría frenar sus avisos. Hoy se protege con lo que hay en Odoo: tamaño de cuerpo, forma de la orden, ninguna
   llamada a Tilopay con una orden inventada y las consultas de 5 s por transacción. Si el aviso llegara a abusarse, se revisa con
   los números reales de *Seguridad › Eventos*.
-- **El tope de 300 páginas de pago por hora** es un límite técnico (no una cifra del negocio); se cambia en `TOPE_PAGINAS_POR_HORA`
-  (`models/payment_transaction.py`). Pasado ese tope, otros clientes tampoco pueden abrir Tilopay esa hora (ven otra forma de pago).
+- **Los topes de páginas de pago** (300 por hora en total, 30 por hora por conexión; `TOPE_PAGINAS_POR_HORA` y
+  `TOPE_PAGINAS_POR_CONEXION_HORA` en `models/payment_transaction.py`) son límites técnicos, no cifras del negocio. Una sola conexión
+  se topa con el suyo antes de gastar el global, y el global no cuenta lo ya pagado; pero quien junte varias conexiones y llegue a
+  300 en una hora cierra Tilopay para todos hasta que pase la hora (los clientes ven «Hay muchos pagos en curso…» y las demás
+  formas de pago siguen abiertas). Se acepta para la v1.
+- **Una ráfaga sostenida de basura sí retrasa la confirmación de quien pagó sin dejar señal.** La tarea tiene 40 s por vuelta; con
+  ~0,5 s por consulta son ~80 preguntas. Si alguien sostiene ~270 páginas nuevas por hora (necesita al menos 9 conexiones por el tope
+  por conexión) un cliente que pagó, cerró la pestaña y cuyo aviso no llegó espera su turno (medido en simulación: 7 vueltas de
+  la tarea, ~70 minutos, con ráfaga de 45 intentos por vuelta; con la señal de vida de su retorno o del aviso, una vuelta). Lo que
+  Tilopay nunca vio deja de preguntarse al día para que la basura no se acumule. El arreglo de fondo es que el aviso de Tilopay esté
+  registrado (§6.3): con el aviso, el cliente deja señal aunque haya cerrado la pestaña.
 - **Brian** (`docs/BRIAN.md`): una herramienta de solo lectura «¿Tilopay está encendido y conectado?» (como `estado_de_meta`) no se
   hizo; la activación es del administrador por pantalla y no hay nada que Brian deba poder cambiar.
 
@@ -385,13 +429,34 @@ registros y pantallas.
 | `tests/test_rutas.py` | Por HTTP de verdad: el aviso responde igual exista o no la orden y no llama a nadie con una orden inventada; solo POST; tope de 16 KB; JSON con cualquier tipo de contenido; el retorno inventado no paga; el retorno usa `returnData`; pagar desde `/my/orders` y esperar en «Estado del pago»; ningún registro con claves en todo el recorrido |
 | `tests/test_revision.py` | Las pruebas de la **revisión independiente** (2026-11-19), tal cual las escribió quien intentó romperlo: proveedor sin publicar abierto por un visitante, total del pedido que cambia mientras se paga (sube y baja), tarea programada saturada con intentos basura, pago de un pedido cancelado, rechazo o cancelación seguidos de un pago aprobado, apartado, diario borrado, `evaluar_consulta` con formas raras, rutas con la orden de otro, servidor que no es de producción, pago de prueba sin marca y «Probar conexión» |
 | `tests/test_correcciones.py` | Lo que esas correcciones piden además: nota y actividad para Gerencia (sin repetirse), el total que vuelve a coincidir, la última comprobación antes de confirmar, lo rechazado o cancelado cada 3 horas y solo 3 días, estado intermedio que queda pendiente, ritmo de la tarea (8 min / 1 h), orden por antigüedad, lotes, paro tras 3 fallas, presupuesto de tiempo, tope de 300 páginas por hora, montos de más de mil dólares y apartado |
+| `tests/test_segunda_vuelta.py` | La segunda vuelta del revisor: total del pedido a fondo (dos transacciones, cambiar y volver a cambiar, HTML en el nombre, quién recibe la actividad), tope global, ráfagas simuladas (con y sin señal de vida), estado raro, montos y códigos raros, `DCASA_ENTORNO` con valores raros, «Publicado» en modo de prueba en producción. Las que dependen de una decisión (N-6) o de un modelo imposible de cumplir (la ráfaga sostenida sin señal de vida) están adaptadas y lo dicen en su docstring |
+| `tests/test_segunda_ronda.py` | Lo que piden N-1 a N-6: tope de llamadas a la vez (global, sin esperar, con hilos de verdad, reserva de la tarea), freno de ritmo por conexión, rutas web con lo reciente y la señal de vida, tope por conexión y global por HTTP, estado raro con aviso una sola vez, «Publicado» en modo de prueba en producción y el cobro marcado para revisión |
 | `edge/test/tilopay.test.ts` | Las variables viajan al contenedor y no impiden el arranque; la ruta pasa a Odoo, sin caché, sin freno de ritmo, sin bloqueo (también con la puerta del equipo en modo obligatorio); un POST cortado no se repite desde el borde; staging fijado en `prueba` |
 | `edge/test/tilopay_revision.test.ts` | De la revisión independiente: variantes raras de la ruta (`.css`, `..`, `%70`, doble barra, con idioma) que nunca se vuelven cacheables ni caen en una ruta bloqueada, una respuesta «public» de Odoo que no se guarda, y claves vacías o con espacios que no inventan nada |
 
 
+**Experimento de carga** (la tienda con la configuración de producción: `workers = 0`, `db_maxconn = 48`; un Tilopay de mentira
+que tarda 4 s en contestar; 60 hilos martillando `/payment/tilopay/return` con órdenes REALES durante 45 s mientras una sonda pide
+`/web/login` cada medio segundo; antes de medir se calienta el sitio —la primera vez Odoo compila los paquetes de CSS y JS y eso
+solo, sin Tilopay, ya agota el grupo—; el control son las mismas 60 peticiones con órdenes que no existen, que no consultan a
+Tilopay). La máquina estaba cargada por otras corridas (carga 9 a 11), así que se mide siempre el control:
+
+| | Antes (`43e2569`) | Después, solo tope de llamadas y rutas web con lo reciente | Después, con el freno por conexión |
+|---|---|---|---|
+| Sondeos a `/web/login` que fallan | **71 de 80** | 0 de 35 | 0 de 33 |
+| Errores `PoolError` durante el ataque | **38 012** | 0 | 0 |
+| Llamadas a Tilopay a la vez (máximo) | **48** | 6 | 6 |
+| Llamadas a Tilopay en los 45 s | 515 | 72 | 6 |
+| Peticiones del ataque que dan error | 18 935 de 19 172 | 0 de 1 650 | 0 de 1 759 |
+| Control: sondeos que fallan / `PoolError` | 0 de 33 / 0 | 0 de 34 / 12 | 0 de 34 / 10 |
+
+Los 10 a 12 `PoolError` del control son de la propia carga de la máquina (60 hilos sin consultas a Tilopay, con otras corridas
+encima), no de Tilopay; no crecen durante el ataque. Los scripts (`fake_tilopay.py`, `crear_txs.py`, `atacar.py`) son los del
+revisor; el experimento solo les añade un servidor con el freno por conexión apagado para ver qué hace cada capa por separado.
+
 **Resultado de la última corrida completa** (instalando todos los módulos del `Makefile` y corriendo `dcasa_pago_tilopay`, la lista de
 llamadas permitidas de `dcasa_base`, `dcasa_guia`, la tienda configurada de `website_dcasa` y `dcasa_socios`), después de la revisión
-independiente: **690 pruebas, 0 fallan, 0 con error**; de ellas **176 son de Tilopay**. En el Worker: `npx vitest run` **296 pruebas
+independiente (dos vueltas): **738 pruebas, 0 fallan, 0 con error**; de ellas **224 son de Tilopay**. En el Worker: `npx vitest run` **296 pruebas
 pasan** (14 son de Tilopay) y `tsc --noEmit` sin errores. `ruff check addons` limpio.
 
 **Capturas** (Odoo con un Tilopay simulado y datos inventados; la dueña las ve antes de producción): la pantalla del proveedor y
