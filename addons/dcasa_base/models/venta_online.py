@@ -48,6 +48,13 @@ TESTIGOS = ('dcasa_nacio_en_web', 'dcasa_via_andres', 'dcasa_llevada_por_vendedo
             'dcasa_tocada_por_id')
 # Lo derivado de las marcas: se calcula, y escribirlo a mano se ignora (nunca cambia lo que cuenta).
 DERIVADOS = ('dcasa_venta_online',)
+# Lo que, al cambiarlo en una línea de pedido, deja anotado quién lo hizo.
+CAMPOS_VIGILADOS = ('product_id', 'product_uom_qty', 'price_unit', 'discount', 'product_uom_id', 'tax_ids', 'order_id')
+PRECIO_SOLO = frozenset({'price_unit', 'technical_price_unit'})
+CLAVE_PRECIO = 'dcasa_base_precio_del_sistema'
+# Un objeto, no ``True``: el contexto que llega por RPC es JSON y nunca puede traerlo. Solo lo pone el código del
+# servidor que repone el precio de una línea (el combo armable); ``sale_write_from_compute`` NO basta.
+PRECIO_DEL_SISTEMA = object()
 CLAVE_CONTEXTO = 'dcasa_base_escribir_testigo'
 # Un objeto, no ``True``: el contexto que llega por RPC es JSON y nunca puede traerlo.
 ESCRIBIR = object()
@@ -132,6 +139,16 @@ class SaleOrderOnline(models.Model):
         self.filtered(lambda o: o.dcasa_nacio_en_web and o.dcasa_tocada_por_id != usuario)._dcasa_escribir_marca(
             dcasa_tocada_por_id=usuario.id)
 
+    def _dcasa_anotar_quien_toco_lineas(self, todos=False):
+        """Anota a quien cambia las líneas (si es un usuario interno, o quien sea con ``todos``): ver
+        ``SaleOrderLineOnline``."""
+        usuario = self.env.user
+        if usuario.share and not todos:
+            return
+        self.exists().filtered(
+            lambda o: o.dcasa_nacio_en_web and o.dcasa_tocada_por_id != usuario)._dcasa_escribir_marca(
+            dcasa_tocada_por_id=usuario.id)
+
     def _dcasa_escribir_marca(self, **marcas):
         """Único camino para escribir las marcas de origen (solo código del sistema; ver arriba)."""
         pendientes = self.filtered(lambda o: any(
@@ -173,30 +190,45 @@ class SaleOrderLineOnline(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         lineas = super().create(vals_list)
+        lineas._dcasa_anotar_cambio_de_lineas()
         con_precio = lineas.browse(
             [linea.id for linea, vals in zip(lineas, vals_list, strict=True) if 'price_unit' in vals])
-        con_precio._dcasa_anotar_precio_a_mano()
+        con_precio._dcasa_anotar_cambio_de_lineas(precio_a_mano=True)
         return lineas
 
     def write(self, vals):
         resultado = super().write(vals)
+        if self.env.context.get(CLAVE_PRECIO) is PRECIO_DEL_SISTEMA and set(vals) <= PRECIO_SOLO:
+            return resultado        # el precio que repone el propio servidor (el combo armable): nadie lo tecleó
         if 'price_unit' in vals:
-            self._dcasa_anotar_precio_a_mano()
+            self._dcasa_anotar_cambio_de_lineas(precio_a_mano=True)
+        elif any(campo in vals for campo in CAMPOS_VIGILADOS):
+            self._dcasa_anotar_cambio_de_lineas()
         return resultado
 
-    def _dcasa_anotar_precio_a_mano(self):
-        """El carrito, Andrés y las cotizaciones de Juan dejan que el precio de cada línea lo ponga la tienda: quien
-        TECLEA un precio en una línea de producto de un pedido que nació por un flujo digital lo está armando a mano
-        (para cobrarlo como venta del sitio con otro precio), y eso es lo que se vigila: ``dcasa_tocada_por_id``. No
-        cuentan el envío, el anticipo, los premios (precio negativo) ni lo que Odoo recalcula solo."""
-        if self.env.context.get('sale_write_from_compute'):
-            return
-        usuario = self.env.user
-        ordenes = self.filtered(
-            lambda ln: not ln.display_type and not ln.is_downpayment and ln.price_unit > 0
-            and not ('is_delivery' in ln._fields and ln.is_delivery) and ln.order_id.dcasa_nacio_en_web).order_id
-        ordenes.filtered(lambda o: o.dcasa_tocada_por_id != usuario)._dcasa_escribir_marca(
-            dcasa_tocada_por_id=usuario.id)
+    def unlink(self):
+        ordenes = self._dcasa_lineas_que_cuentan().order_id
+        resultado = super().unlink()
+        ordenes._dcasa_anotar_quien_toco_lineas()
+        return resultado
+
+    def _dcasa_lineas_que_cuentan(self):
+        """Las líneas de producto de un pedido que nació por un flujo digital. No cuentan las secciones y notas, el
+        anticipo, el envío (lo pone la tienda) ni los premios y descuentos (precio negativo)."""
+        # ``exists()``: otro módulo puede haber borrado la línea al crearla (la promoción de envío repone la suya).
+        return self.exists().filtered(
+            lambda ln: not ln.display_type and not ln.is_downpayment and ln.price_unit >= 0
+            and not ('is_delivery' in ln._fields and ln.is_delivery) and ln.order_id.dcasa_nacio_en_web)
+
+    def _dcasa_anotar_cambio_de_lineas(self, precio_a_mano=False):
+        """Una persona del equipo (un usuario interno) que crea, cambia (producto, cantidad, precio, descuento) o borra
+        una línea de un pedido que nació por un flujo digital lo está armando a mano (para cobrarlo como venta del
+        sitio con otras cosas), y eso se vigila: ``dcasa_tocada_por_id``. Se anota el cambio escrito DIRECTO en la
+        línea (por RPC, sin pasar por el pedido): la llave ``sale_write_from_compute`` del contexto, que por RPC
+        cualquiera manda, ya no lo esquiva; solo vale el precio que repone el propio servidor
+        (``PRECIO_DEL_SISTEMA``). Un precio TECLEADO (``precio_a_mano``) se anota quien lo teclee, también el
+        visitante o quien abrió el carrito: la tienda pone los precios sola."""
+        self._dcasa_lineas_que_cuentan().order_id._dcasa_anotar_quien_toco_lineas(todos=precio_a_mano)
 
 
 class AccountMoveOnline(models.Model):
