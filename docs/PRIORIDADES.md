@@ -18,10 +18,12 @@ cambio en el diseño me gustaría verlo antes»; ver LEEME_PRIMERO §2).
   mide). Detalle y SHA de cada rama en la bitácora de LEEME_PRIMERO (2026-11-19 y 20).
 - **Falta, en este orden:** segunda revisión independiente de la comisión (en curso), batería completa sobre la rama, subir por la
   receta, y las capturas nuevas de Tilopay para la dueña.
-- **Yappy directo** (`local/yappy`, módulo `dcasa_pago_yappy`, [YAPPY.md](YAPPY.md)): construido y probado con un Yappy simulado, **sin
-  unir a la rama de trabajo ni desplegar**: trae cambios visuales (la fila «Yappy» con su campo y su botón, el bloque «Qué
-  compró» en el pedido) y espera que la dueña vea las capturas antes/después y diga que sí. Nace apagado. Falta: su «sí», la
-  revisión independiente (es dinero), el acceso al programa de pruebas de Yappy y la compra de ensayo.
+- **Yappy directo** (`local/yappy-fix` sobre `local/yappy`, módulo `dcasa_pago_yappy`, [YAPPY.md](YAPPY.md)): construido y probado con un Yappy
+  simulado y con el componente real en Chrome, **sin unir a la rama de trabajo ni desplegar**: trae cambios visuales (la fila «Yappy» con su campo y
+  su botón, el bloque «Qué compró» en el pedido) y espera que la dueña vea las capturas antes/después y diga que sí. Nace apagado. **La segunda
+  revisión independiente (RV6) ya está atendida** (H1–H10, YAPPY.md §14). Falta: su «sí»; el acceso al programa de pruebas de Yappy y la compra
+  de ensayo; las respuestas de Yappy y Cloudflare (§15); que la dueña decida la política de privacidad (§16); comprobar desde afuera la dirección
+  del aviso de staging (§7 B) antes de la prueba.
 
 ## Estado al 2026-11-17
 

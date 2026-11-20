@@ -275,6 +275,19 @@ class TestVerificarAviso(BaseCase):
             with self.subTest(malo=malo):
                 self.assertIsNone(api.normalizar_dominio(malo))
 
+    def test_una_letra_de_otro_alfabeto_no_se_hace_pasar_por_una_nuestra(self):
+        """El signo Kelvin (U+212A) vuelve «k» con ``.lower()`` y, sin ``re.ASCII``, la expresión regular lo tomaba por
+        una «k»: un dominio con esa letra se normalizaba a uno nuestro. Con ``re.ASCII`` no entra."""
+        creds = api.Credenciales(ID_COMERCIO, CLAVE_BASE64, 'kiosko.com')
+        for ajeno in ('\u212aiosko.com', 'https://www.\u212aiosko.com/', 'kiosko.com\u212a', 'kiosco.com'):
+            with self.subTest(ajeno=ajeno):
+                self.assertFalse(api.dominio_nuestro('kiosko.com', ajeno))
+                aviso, motivo = api.verificar_aviso(
+                    creds, aviso_de(ORDEN, 'E', domain=ajeno, hash=firmar(ORDEN, 'E', ajeno)))
+                self.assertIsNone(aviso)
+                self.assertEqual(motivo, api.RECHAZO_DOMINIO)
+        self.assertTrue(api.dominio_nuestro('kiosko.com', 'KIOSKO.COM'), 'la «K» de verdad sí')
+
     def test_describir_el_rechazo_no_lleva_la_firma_ni_claves_ni_saltos_de_linea(self):
         creds = credenciales()
         largo = 'sitio-que-no-es-el-nuestro-y-es-largo-de-verdad.example.com'
