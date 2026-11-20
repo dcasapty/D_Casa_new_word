@@ -120,8 +120,10 @@ class TestExportar(TransactionCase):
             if modelo not in self.env:
                 continue
             probados += 1
+            # (El chatter ya lo negaba Odoo mismo: «Solo los administradores pueden exportar mensajes de correo».)
             for campos in (['display_name'], ['id'], ['.id']):
-                with self.subTest(modelo, campos=campos), self.assertRaisesRegex(AccessError, MENSAJE):
+                with self.subTest(modelo, campos=campos), self.assertRaisesRegex(
+                        AccessError, f'{MENSAJE}|Solo los administradores pueden exportar mensajes'):
                     self.env[modelo].with_user(self.gerencia).browse().export_data(campos)
         self.assertGreaterEqual(probados, 12, 'la prueba tiene que haber mirado la mayoría de las listas')
 
@@ -325,7 +327,9 @@ class TestExcelSinFormulas(TransactionCase):
             ExportXlsxWriter.write(escritor, fila, 0, valor)
         libro.close()
         with zipfile.ZipFile(io.BytesIO(salida.getvalue())) as archivo:
-            return archivo.read('xl/worksheets/sheet1.xml').decode(), archivo.read('xl/sharedStrings.xml').decode()
+            hay_textos = 'xl/sharedStrings.xml' in archivo.namelist()       # sin textos, no hay ese archivo
+            textos = archivo.read('xl/sharedStrings.xml').decode() if hay_textos else ''
+            return archivo.read('xl/worksheets/sheet1.xml').decode(), textos
 
     def test_el_exportador_del_nucleo_usa_la_escritura_segura(self):
         self.assertIs(ExportXlsxWriter.write, excel_seguro.escribir_sin_formulas)

@@ -156,12 +156,22 @@ class TestFormaPago(FormaPagoCommon):
         self.assertEqual(yappy.state, 'rejected')
         self.assertEqual(self.forma(factura), 'Efectivo forma pago')
 
+    def test_una_factura_con_un_solo_pago_rechazado_dice_sin_pago_registrado(self):
+        factura = self.factura()
+        self.pago(factura, 1000.0, self.yappy).action_reject()
+        self.assertEqual(factura.payment_state, 'paid', 'Odoo la sigue dando por pagada')
+        self.assertEqual(self.forma(factura), 'Sin pago registrado')
+
     def test_un_pago_devuelto_a_borrador_deja_de_contar(self):
+        """Un pago en borrador no es un cobro. Odoo, eso sí, sigue dando la factura por pagada: la columna dice
+        «Sin pago registrado» (pagada, pero sin un pago confirmado), no un diario."""
         factura = self.factura()
         yappy = self.pago(factura, 1000.0, self.yappy)
         yappy.action_draft()
         self.assertEqual(yappy.state, 'draft')
-        self.assertFalse(self.forma(factura))
+        self.assertEqual(factura.payment_state, 'paid')
+        self.assertEqual(self.forma(factura), 'Sin pago registrado')
+        self.assertFalse(factura.dcasa_diario_pago_ids)
 
     def test_un_pago_revertido_deja_de_contar(self):
         factura = self.factura()

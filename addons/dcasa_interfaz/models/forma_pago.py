@@ -90,7 +90,9 @@ class AccountMoveFormaPago(models.Model):
                  'line_ids.matched_credit_ids', 'reconciled_payment_ids.state', 'reconciled_payment_ids.payment_type',
                  'reconciled_payment_ids.journal_id.name', 'reconciled_payment_ids.journal_id.currency_id')
     def _compute_dcasa_forma_pago(self):
-        con_forma = self.filtered(lambda factura: factura.id and factura.move_type in TIPOS_CON_FORMA_DE_PAGO)
+        # En un «onchange» del formulario la factura es un registro nuevo con su ``_origin`` (la de la base): el valor
+        # sale de lo que hay guardado, no vacío. Uno nuevo de verdad (sin origen) no tiene pagos.
+        con_forma = self.filtered(lambda factura: factura._origin.id and factura.move_type in TIPOS_CON_FORMA_DE_PAGO)
         sin_forma = self - con_forma
         sin_forma.dcasa_forma_pago = False
         sin_forma.dcasa_diario_pago_ids = False
@@ -106,10 +108,10 @@ class AccountMoveFormaPago(models.Model):
         por_diarios, por_texto = defaultdict(self.browse), defaultdict(self.browse)
         idioma = self._dcasa_idioma_del_texto()
         for factura in con_forma:
-            diarios = (Pago.browse(pagos_de.get(factura.id, ())) & cuentan).journal_id.with_context(lang=idioma)
+            diarios = (Pago.browse(pagos_de.get(factura._origin.id, ())) & cuentan).journal_id.with_context(lang=idioma)
             diarios = diarios.sorted(lambda diario: (diario.display_name.casefold(), diario.id))
             nombres = list(dict.fromkeys(diarios.mapped('display_name')))
-            if factura.id in con_nota:
+            if factura._origin.id in con_nota:
                 nombres.append(NOTA_DE_CREDITO)
             if not nombres and factura.payment_state in ('paid', 'in_payment') \
                     and not factura.currency_id.is_zero(factura.amount_total):
@@ -141,7 +143,7 @@ class AccountMoveFormaPago(models.Model):
         (cuenta por cobrar): el otro lado de cada conciliación es un pago, una nota de crédito u otra cosa (una
         diferencia de cambio, un extracto del banco) que aquí no cuenta. Los pagos que Odoo ata a la factura sin
         asiento (``matched_payment_ids`` sin ``move_id``, lo que usa para decir «en pago») también se suman."""
-        ids = tuple(self.ids)
+        ids = tuple(factura._origin.id for factura in self)
         self.env['account.move'].flush_model(['move_type'])
         self.env['account.move.line'].flush_model(['move_id', 'account_id'])
         self.env['account.partial.reconcile'].flush_model(['debit_move_id', 'credit_move_id'])
@@ -168,5 +170,6 @@ class AccountMoveFormaPago(models.Model):
             elif fila['tipo'] == 'out_refund':
                 con_nota.add(fila['factura'])
         for factura in self:
-            pagos_de[factura.id].update(factura.matched_payment_ids.filtered(lambda pago: not pago.move_id).ids)
+            origen = factura._origin
+            pagos_de[origen.id].update(origen.matched_payment_ids.filtered(lambda pago: not pago.move_id).ids)
         return pagos_de, con_nota
