@@ -146,8 +146,9 @@ class TestRv3SegundaVuelta(BaseSegunda):
     def test_caracterizacion_una_sola_fuente_llena_el_tope_y_cierra_tilopay_para_todos(self):
         """CARACTERIZACIÓN (pasa hoy; decisión del autor). 60 pedidos × 5 páginas (el tope por pedido) llenan las 300
         de la hora: el siguiente cliente, de otro pedido, ve «Hay muchos pagos en curso» y debe usar otra forma de
-        pago. Las demás formas de pago siguen abriendo. El tope no distingue de dónde vienen los intentos (no hay
-        límite por conexión como el de «Busca con una foto»)."""
+        pago. Las demás formas de pago siguen abriendo. Esta prueba no tiene petición web, así que mide solo el tope
+        global (se acepta para la v1; ver docs/TILOPAY.md §9). Desde N-4 hay además un límite por conexión (30 por
+        hora) para que UNA sola fuente no llegue aquí: su prueba por HTTP está en ``test_segunda_ronda.py``."""
         with SimuladorTilopay() as tilopay:
             for _pedido in range(60):
                 pedido = self.pedido()
