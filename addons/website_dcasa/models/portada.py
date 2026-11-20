@@ -104,6 +104,9 @@ class DcasaPortadaDiapositiva(models.Model):
     def create(self, vals_list):
         # Desde la lista de la pantalla del carrusel llega ``ajustes_id`` (su padre) y no el sitio: el sitio es el de
         # esos ajustes, no el «actual» que pondría el valor por defecto.
+        if any(vals.get('ajustes_id') and not vals.get('website_id') for vals in vals_list):
+            # Antes de mirar los ajustes con sudo: quien no puede crear no debe poder distinguir si un id existe.
+            self.check_access('create')
         for vals in vals_list:
             if vals.get('ajustes_id') and not vals.get('website_id'):
                 vals['website_id'] = self.env['dcasa.portada.ajustes'].sudo().browse(vals['ajustes_id']).website_id.id
@@ -202,6 +205,11 @@ class DcasaPortadaAjustes(models.Model):
         return super().create(vals_list)
 
     def write(self, vals):
+        if 'website_id' in vals and any(ajustes.website_id.id != vals['website_id'] for ajustes in self):
+            # Las diapositivas cuelgan de sus ajustes y deben ser del mismo sitio: mover los ajustes de sitio dejaría
+            # diapositivas de un sitio colgando de los ajustes de otro. Para otro sitio se crean ajustes nuevos.
+            raise ValidationError(self.env._(
+                'Los ajustes del carrusel no se pasan a otro sitio: cada sitio tiene los suyos.'))
         if 'segundos' in vals:
             vals = {**vals, 'segundos': self._dcasa_normalizar_segundos(vals['segundos'])}
         return super().write(vals)
