@@ -60,8 +60,9 @@ class DcasaWebReglas(models.Model):
     rige_desde = fields.Datetime(
         'Rige desde', required=True, default=fields.Datetime.now, index=True,
         help='Rige desde el INICIO de ese día (hora de Panamá), y solo desde entonces: lo cobrado ese día ya cuenta '
-             'para el sitio y deja de ser de las vendedoras. No se acepta un día que ya pasó ni anterior a otra '
-             'versión ya programada. Lo ya anotado no se recalcula.')
+             'para el sitio y deja de ser de las vendedoras. No se acepta un día que ya pasó. Una versión nueva manda '
+             'desde su fecha en adelante sobre todas las anteriores (la última que se guardó): si otra ya '
+             'programada tiene una fecha más lejana, queda tapada hasta que se anule. Lo ya anotado no se recalcula.')
     estado = fields.Selection([('programada', 'Programada'), ('vigente', 'Rige ahora'), ('anterior', 'Reemplazada'),
                                ('anulada', 'Anulada')], compute='_compute_estado')
     anulada = fields.Boolean('Anulada', readonly=True, copy=False, index=True,
@@ -227,7 +228,6 @@ class DcasaWebReglas(models.Model):
                 'anulada': True, 'anulada_por': self.env.user.id, 'anulada_el': fields.Datetime.now()})
         return True
 
-    @api.model_create_multi
     @api.model
     def default_get(self, fields_list):
         """Una versión nunca nace anulada: ni un valor ni un ``default_*`` del contexto (que llega por RPC)."""
@@ -237,6 +237,7 @@ class DcasaWebReglas(models.Model):
                 valores[clave] = False
         return valores
 
+    @api.model_create_multi
     def create(self, vals_list):
         ahora = fields.Datetime.now()
         # Quien guarda escribe el candado: dos versiones a la vez no sacan el mismo número (REPEATABLE READ).
@@ -244,9 +245,9 @@ class DcasaWebReglas(models.Model):
         self.env.cr.execute('SELECT COALESCE(MAX(numero), 0) FROM dcasa_web_reglas')
         ultimo_numero = self.env.cr.fetchone()[0]
         for vals in vals_list:
-            desde = fields.Datetime.to_datetime(vals.get('rige_desde')) or ahora
             for clave in CAMPOS_DEL_SISTEMA:
                 vals.pop(clave, None)
+            desde = fields.Datetime.to_datetime(vals.get('rige_desde')) or ahora
             # Rige desde el INICIO de ese día de Panamá: hoy vale (aunque el formulario se haya abierto hace rato).
             if dia_de_panama(desde) < dia_de_panama(ahora):
                 raise UserError(self.env._(
@@ -270,17 +271,23 @@ class DcasaWebReglas(models.Model):
         ahora = ahora or fields.Datetime.now()
         return self._vigente_el(company, dia_de_panama(ahora))
 
-    @api.model
-    def _vigente_el(self, company, dia):
-        """La versión que regía el día ``dia`` (fecha de Panamá): la más reciente (no anulada) cuyo «Rige desde» cae ese
-        día o antes. **Una sola regla de corte, por día de cobro, para todos** (decisión del 2026-11-19): el día en que
-        rige, todo lo cobrado ese día cuenta para el sitio y para nadie de las vendedoras; lo cobrado un día antes sigue
-        como siempre para las vendedoras y nunca para el sitio."""
-        for version in self.sudo().search([('company_id', '=', company.id), ('anulada', '=', False)],
-                                          order='rige_desde desc, numero desc'):
-            if dia_de_panama(version.rige_desde) <= dia:
+    def _de_este_dia(self, dia):
+        """De estas versiones, la que rige el día ``dia`` (fecha de Panamá): **la última que se guardó** (no anulada)
+        entre las que ya empezaron ese día o antes. Una versión nueva manda desde su fecha en adelante sobre todas las
+        anteriores, aunque alguna se haya guardado antes con una fecha más lejana (esa queda tapada hasta que se
+        anule) y aunque dos caigan el mismo día (gana la última guardada, no la de la hora más tardía)."""
+        for version in self.sorted('numero', reverse=True):
+            if not version.anulada and dia_de_panama(version.rige_desde) <= dia:
                 return version
         return self.browse()
+
+    @api.model
+    def _vigente_el(self, company, dia):
+        """La versión que regía el día ``dia`` (fecha de Panamá), según ``_de_este_dia``. **Una sola regla de corte, por
+        día de cobro, para todos** (decisión del 2026-11-19): el día en que rige, todo lo cobrado ese día cuenta para el
+        sitio y para nadie de las vendedoras; lo cobrado un día antes sigue como siempre para las vendedoras y nunca
+        para el sitio."""
+        return self.sudo().search([('company_id', '=', company.id), ('anulada', '=', False)])._de_este_dia(dia)
 
     @api.model
     def _primera(self, company):
