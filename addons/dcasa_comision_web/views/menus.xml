@@ -13,6 +13,9 @@
               action="accion_pedidos_vigilados" sequence="45" groups="dcasa_base.group_gerencia"/>
     <menuitem id="menu_libro_web" name="Libro" parent="menu_comision_web" action="accion_libro" sequence="40"
               groups="dcasa_nomina.group_nomina"/>
+    <!-- El mismo ajuste que el botón del Libro: en el celular el botón de la lista no se ve, el menú sí. -->
+    <menuitem id="menu_anotar_ajuste" name="Anotar un ajuste" parent="menu_comision_web" action="accion_ajuste"
+              sequence="42" groups="dcasa_nomina.group_nomina"/>
     <menuitem id="menu_reglas_web" name="Reglas" parent="menu_comision_web" action="accion_reglas" sequence="50"
               groups="dcasa_nomina.group_nomina"/>
 </odoo>
