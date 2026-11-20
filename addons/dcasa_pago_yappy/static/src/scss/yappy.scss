@@ -18,6 +18,9 @@ $yappy-borde-campo: #8C93A6;
 $yappy-suave: #F2F5FC;
 $yappy-error: #B42318;
 $yappy-radio: 12px;
+// El gris del botón `dark` de Yappy (#444c5e en reposo) con el ratón encima y al pulsar; contraste del texto blanco 6.48 y 5.41.
+$yappy-dark-encima: #565e72;
+$yappy-dark-pulsado: #626a7e;
 
 #wrapwrap .o_dcasa_yappy {
     margin: .75rem 0 .25rem;
@@ -65,6 +68,17 @@ $yappy-radio: 12px;
         .yappy-button.ecommerce {
             height: 52px !important;
             border-radius: $yappy-radio !important;
+        }
+        // El gris `dark` (el tema que eligió la dueña) con el ratón encima: la regla `:hover` del propio componente lo pinta
+        // de #9fa6b7 y el texto blanco baja a 2.44:1 (ilegible; solo en computadora). Aquí se mantiene OSCURO: un poco más claro
+        // al pasar el ratón y al pulsar (así se nota que responde), siempre con el texto blanco por encima de 4.5:1 (WCAG 2.x
+        // sobre los colores de abajo: reposo #444c5e 8.60:1 · encima #565e72 6.48:1 · pulsado #626a7e 5.41:1). Va atado a
+        // nuestra caja (`#wrapwrap .o_dcasa_yappy …`), que pesa más que la regla del componente aunque ella lleve `!important`.
+        .yappy-button.ecommerce.dark {
+            &:hover,
+            &:focus,
+            &:focus-visible { background: $yappy-dark-encima !important; }
+            &:active { background: $yappy-dark-pulsado !important; }
         }
     }
 

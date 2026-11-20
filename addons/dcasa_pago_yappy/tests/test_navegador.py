@@ -331,6 +331,101 @@ class TestElBotonDeYappyEnElNavegador(PagoVisualDatos, ChromeMovilCase):
         self.assertEqual(resultado['pagos'], 1)
         self.assertEqual(len(self._transacciones(orden)), 1)
 
+    def test_el_gris_dark_se_mantiene_oscuro_con_el_raton_encima_y_al_pulsar(self):
+        """El tema `dark` (el que eligió la dueña): la regla `:hover` del propio componente lo pinta de #9fa6b7 y el
+        texto blanco queda en 2.44:1 con el ratón encima (solo escritorio). La regla nuestra de ``yappy.scss`` lo
+        mantiene oscuro con el texto por encima de 4.5:1. Aquí se ponen las reglas del componente REAL (las del script
+        de Yappy, con su atributo de Angular, que pesa menos que la nuestra) y se mide el contraste con el ratón de
+        verdad (CDP)."""
+        centro = """
+            const estilo = document.createElement('style');
+            estilo.textContent = '.yappy-button.ecommerce.dark[_ngcontent-c1]{color:#ffffff!important;' +
+                'background:#444c5e!important}.yappy-button.ecommerce.dark[_ngcontent-c1]:hover{' +
+                'background:#9fa6b7!important}.yappy-button.ecommerce.dark[_ngcontent-c1]:active{' +
+                'background:#6f7583!important}';
+            document.head.appendChild(estilo);
+            const boton = document.querySelector('btn-yappy .yappy-button');
+            boton.classList.add('dark');
+            boton.setAttribute('_ngcontent-c1', '');
+            boton.scrollIntoView({block: 'center'});
+            const r = boton.getBoundingClientRect();
+            return {x: r.left + r.width / 2, y: r.top + r.height / 2};"""
+        contraste = ESPERAR + """
+            return (async () => {
+                await esperar(150);
+                const boton = document.querySelector('btn-yappy .yappy-button');
+                const luz = (c) => {
+                    const v = c / 255;
+                    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+                };
+                const brillo = (rgb) => 0.2126 * luz(rgb[0]) + 0.7152 * luz(rgb[1]) + 0.0722 * luz(rgb[2]);
+                const numeros = (texto) => texto.match(/[0-9.]+/g).slice(0, 3).map(Number);
+                const estilo = getComputedStyle(boton);
+                const par = [brillo(numeros(estilo.backgroundColor)), brillo(numeros(estilo.color))].sort(
+                    (a, b) => b - a);
+                return {fondo: estilo.backgroundColor, texto: estilo.color, ratio: (par[0] + 0.05) / (par[1] + 0.05),
+                        encima: boton.matches(':hover'), pulsado: boton.matches(':active')};
+            })();"""
+
+        def raton(browser, tipo, x, y, **extra):
+            browser._websocket_request('Input.dispatchMouseEvent', params={
+                'type': tipo, 'x': x, 'y': y, 'button': 'left', 'clickCount': 1, **extra})
+        with self._chrome_movil(1280) as browser, YappyFalso():
+            self._hasta_el_pago(browser)
+            self._elegir(browser)
+            punto = self._correr(browser, centro)
+            raton(browser, 'mouseMoved', 2, 2)
+            en_reposo = self._correr(browser, contraste)
+            raton(browser, 'mouseMoved', punto['x'], punto['y'], button='none')
+            con_el_raton_encima = self._correr(browser, contraste)
+            raton(browser, 'mousePressed', punto['x'], punto['y'], buttons=1)
+            pulsado = self._correr(browser, contraste)
+            raton(browser, 'mouseMoved', 2, 2, buttons=1)           # se suelta fuera del botón: no cuenta como clic
+            raton(browser, 'mouseReleased', 2, 2)
+        self.assertGreaterEqual(en_reposo['ratio'], 7, f'en reposo: {en_reposo}')
+        self.assertTrue(con_el_raton_encima['encima'], f'el ratón tiene que estar encima: {con_el_raton_encima}')
+        self.assertGreaterEqual(con_el_raton_encima['ratio'], 4.5, f'con el ratón encima: {con_el_raton_encima}')
+        self.assertNotEqual(con_el_raton_encima['fondo'], 'rgb(159, 166, 183)', 'el gris claro del componente no se ve')
+        self.assertNotEqual(con_el_raton_encima['fondo'], en_reposo['fondo'], 'pero se nota que responde')
+        self.assertTrue(pulsado['pulsado'], f'la prueba tiene que mantener pulsado el botón: {pulsado}')
+        self.assertGreaterEqual(pulsado['ratio'], 4.5, f'pulsado: {pulsado}')
+
+    def test_con_un_cobro_en_marcha_el_navegador_pregunta_antes_de_cerrar_y_sin_cobro_no_molesta(self):
+        """H: mientras el intento está vivo (la solicitud ya salió hacia la app de Yappy) cerrar o refrescar la
+        pestaña pregunta «¿Salir del sitio?»; sin intento, o con el intento terminado, no molesta; y al ir nosotros a
+        la página de estado (``eventSuccess``) tampoco pregunta."""
+        pregunta = """(() => { const ev = new Event('beforeunload', {cancelable: true}); window.dispatchEvent(ev);
+                              return ev.defaultPrevented; })()"""
+        with self._chrome_movil(390) as browser, YappyFalso():
+            self._hasta_el_pago(browser)
+            sin_intento = self._evaluar(browser, pregunta)
+            self._elegir(browser)
+            con_el_boton_nuevo = self._evaluar(browser, pregunta)
+            self._pulsar(browser)
+            con_el_intento_vivo = self._evaluar(browser, pregunta)
+            terminado = self._correr(browser, ESPERAR + """
+                return (async () => {
+                    const boton = document.querySelector('btn-yappy');
+                    boton.dispatchEvent(new CustomEvent('eventError', {detail: 'CANCELLED'}));
+                    await esperar(300);
+                    const ev = new Event('beforeunload', {cancelable: true});
+                    window.dispatchEvent(ev);
+                    return ev.defaultPrevented;
+                })();""")
+            otra_vez = self._correr(browser, ESPERAR + """
+                return (async () => {
+                    document.querySelector('btn-yappy .yappy-button').click();
+                    await esperar(1500);
+                    const ev = new Event('beforeunload', {cancelable: true});
+                    window.dispatchEvent(ev);
+                    return ev.defaultPrevented;
+                })();""")
+        self.assertFalse(sin_intento, 'sin intento no molesta')
+        self.assertFalse(con_el_boton_nuevo, 'ni con el botón puesto y sin pulsar')
+        self.assertTrue(con_el_intento_vivo, 'con el cobro en marcha, el navegador pregunta antes de salir')
+        self.assertFalse(terminado, 'terminado el intento (error), deja de preguntar')
+        self.assertTrue(otra_vez, 'y un intento nuevo vuelve a cuidarse')
+
     def test_si_algo_falla_el_boton_se_tira_y_se_puede_reintentar(self):
         with self._chrome_movil(390) as browser, YappyFalso() as yappy:
             orden = self._hasta_el_pago(browser)

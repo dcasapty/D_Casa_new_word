@@ -30,4 +30,22 @@
         </div>
     </template>
 
+    <!-- Cuando una persona está revisando el cobro (llegó un aviso de Yappy sobre una transacción cancelada, un pedido
+         anulado, un pedido que ya estaba pagado…), la pantalla de estado NO ofrece «Intentar de nuevo»: la clienta ya pagó
+         (o puede haber pagado) y otro intento sería pagar dos veces. El único camino es «Escríbenos por WhatsApp», que pasa
+         a ser el botón lleno. -->
+    <template id="pago_confirmacion_estado_en_revision" inherit_id="website_dcasa.pago_confirmacion_estado"
+              name="D'CASA Yappy: sin «Intentar de nuevo» mientras Caja revisa el cobro">
+        <xpath expr="//p[hasclass('o_dcasa_pago_reintentar')]" position="attributes">
+            <attribute name="t-if">tx_sudo and tx_sudo.state in ('cancel', 'error') and not (tx_sudo.provider_code == 'yappy' and tx_sudo.dcasa_yappy_revision)</attribute>
+        </xpath>
+    </template>
+
+    <template id="pago_confirmacion_en_revision" inherit_id="website_dcasa.pago_confirmacion"
+              name="D'CASA Yappy: WhatsApp como botón principal mientras Caja revisa el cobro">
+        <xpath expr="//a[contains(@t-attf-class, 'o_dcasa_pago_wa')]" position="attributes">
+            <attribute name="t-attf-class">btn #{'btn-outline-primary' if tx_sudo and tx_sudo.state in ('cancel', 'error') and not (tx_sudo.provider_code == 'yappy' and tx_sudo.dcasa_yappy_revision) else 'btn-primary'} o_dcasa_pago_wa</attribute>
+        </xpath>
+    </template>
+
 </odoo>

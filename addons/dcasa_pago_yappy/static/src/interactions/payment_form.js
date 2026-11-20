@@ -157,6 +157,7 @@ patch(PaymentForm.prototype, {
             return;
         }
         estado.vigia?.disconnect();
+        this._yappyGuardarLaSalida(false);      // un botón nuevo es un intento nuevo: el anterior ya terminó
         contenedor.replaceChildren();
         const boton = document.createElement(ELEMENTO);
         boton.setAttribute('theme', TEMA);
@@ -272,6 +273,7 @@ patch(PaymentForm.prototype, {
                 return;
             }
             estado.enviado = true;
+            this._yappyGuardarLaSalida(true);
             boton.eventPayment({
                 transactionId: datos.transactionId,
                 documentName: datos.documentName,
@@ -322,6 +324,24 @@ patch(PaymentForm.prototype, {
         estado.vigia = vigia;
     },
 
+    /**
+     * Con un cobro en marcha (la solicitud ya salió hacia la app de Yappy), cerrar o refrescar la pestaña deja a la clienta
+     * sin saber qué pasó con su pedido: el navegador pregunta antes («¿Salir del sitio?»). Solo mientras el intento está
+     * vivo: sin intento, o con el intento terminado, no molesta. El texto del aviso es del navegador (no se puede cambiar).
+     */
+    _yappyGuardarLaSalida(vivo) {
+        const estado = this._yappyEstado();
+        if (vivo && !estado.quitarGuardaDeSalida) {
+            estado.quitarGuardaDeSalida = this.addListener(window, 'beforeunload', (ev) => {
+                ev.preventDefault();
+                ev.returnValue = '';
+            });
+        } else if (!vivo && estado.quitarGuardaDeSalida) {
+            estado.quitarGuardaDeSalida();
+            estado.quitarGuardaDeSalida = null;
+        }
+    },
+
     _yappyFallo(mensaje) {
         this._yappyMensaje(mensaje);
         this._yappyRehacer();
@@ -333,6 +353,7 @@ patch(PaymentForm.prototype, {
             return;
         }
         this._yappyMensaje(MENSAJES.termino, 'info');
+        this._yappyGuardarLaSalida(false);      // vamos nosotros a la página de estado: sin aviso del navegador
         // `replace`, no `assign`: la página de pago no queda en el historial. Con «atrás» la clienta volvía a un botón de
         // Yappy listo para pagar OTRA VEZ un pedido que ya tiene un cobro en espera.
         window.location.replace('/payment/status');

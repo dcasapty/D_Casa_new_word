@@ -579,6 +579,121 @@ class TestAviso(BaseHttp):
 
 
 @tagged('post_install', '-at_install')
+class TestVolverALaTiendaConUnCobroEnMarcha(BaseHttp):
+    """Retoque (prueba con el componente real): con un cobro de Yappy abierto Odoo suelta el carrito de la sesión y la
+    clienta que refresca o vuelve caía en la tienda con el carrito vacío. Ahora ve la pantalla de estado de SU cobro."""
+
+    def en_marcha(self):
+        sesion = self.authenticate(None, None)
+        with YappyFalso():
+            pedido, valores = self.crear_transaccion()
+            self.assertTrue(self.iniciar(valores['reference'])['ok'])
+        self.releer()
+        tx = self.env['payment.transaction'].search([('reference', '=', valores['reference'])])
+        self.assertEqual(tx.state, 'pending')
+        return sesion, pedido, tx
+
+    def visitar(self, ruta):
+        self.env.flush_all()
+        return self.url_open(ruta, allow_redirects=False)
+
+    def a_estado(self, respuesta):
+        return respuesta.status_code in (301, 302, 303) and respuesta.headers.get('Location', '').endswith(
+            '/payment/status')
+
+    def test_el_carrito_y_el_pago_mandan_a_la_pantalla_de_estado_del_cobro_en_marcha(self):
+        _sesion, _pedido, _tx = self.en_marcha()
+        for ruta in ('/shop/cart', '/shop/payment'):
+            with self.subTest(ruta=ruta):
+                respuesta = self.visitar(ruta)
+                self.assertTrue(self.a_estado(respuesta), (ruta, respuesta.status_code, respuesta.headers))
+        # y esa pantalla sí muestra su cobro
+        estado = self.url_open('/payment/status')
+        self.assertEqual(estado.status_code, 200)
+
+    def test_pasados_los_5_minutos_de_la_solicitud_ya_no_se_redirige(self):
+        _sesion, _pedido, tx = self.en_marcha()
+        self.envejecer(tx, minutes=6)
+        self.assertFalse(self.a_estado(self.visitar('/shop/cart')))
+        self.assertFalse(self.a_estado(self.visitar('/shop/payment')))
+
+    def test_cobro_que_ya_termino_no_redirige(self):
+        for estado in ('E', 'R'):
+            with self.subTest(estado=estado):
+                _sesion, _pedido, tx = self.en_marcha()
+                self.assertEqual(self.ipn(aviso_de(tx.dcasa_yappy_orden, estado)).status_code, 200)
+                self.releer(tx)
+                self.assertNotEqual(tx.state, 'pending')
+                self.assertFalse(self.a_estado(self.visitar('/shop/cart')))
+
+    def test_otra_sesion_nunca_ve_el_cobro_de_la_primera(self):
+        self.en_marcha()
+        self.authenticate(None, None)          # otra persona, otra sesión: no tiene ningún cobro
+        for ruta in ('/shop/cart', '/shop/payment'):
+            with self.subTest(ruta=ruta):
+                self.assertFalse(self.a_estado(self.visitar(ruta)))
+
+    def test_quien_ya_sigue_comprando_otra_cosa_no_se_redirige(self):
+        _sesion, _pedido, _tx = self.en_marcha()
+        self.producto.write({'is_published': True, 'sale_ok': True})
+        self.env.flush_all()
+        self.make_jsonrpc_request('/shop/cart/add', {
+            'product_template_id': self.producto.product_tmpl_id.id, 'product_id': self.producto.id, 'quantity': 1})
+        respuesta = self.visitar('/shop/cart')
+        self.assertFalse(self.a_estado(respuesta), 'con un carrito con cosas, la tienda es la tienda')
+        self.assertEqual(respuesta.status_code, 200)
+
+    def test_sin_ningun_cobro_la_tienda_no_cambia(self):
+        self.authenticate(None, None)
+        self.assertEqual(self.visitar('/shop/cart').status_code, 200)
+
+
+@tagged('post_install', '-at_install')
+class TestLaConfirmacionEnRevision(BaseHttp):
+    """Retoque: en «revisión» (llegó un aviso sobre una transacción cancelada o un pedido anulado) la pantalla no
+    ofrece «Intentar de nuevo»: la clienta ya pagó (o pudo pagar) y otro intento sería pagar dos veces."""
+
+    def confirmacion(self, estado_final):
+        import odoo  # noqa: PLC0415
+        sesion = self.authenticate(None, None)
+        with YappyFalso():
+            pedido, valores = self.crear_transaccion()
+            self.assertTrue(self.iniciar(valores['reference'])['ok'])
+        self.releer()
+        tx = self.env['payment.transaction'].search([('reference', '=', valores['reference'])])
+        if estado_final == 'revision':
+            self.assertEqual(self.ipn(aviso_de(tx.dcasa_yappy_orden, 'R')).status_code, 200)
+            self.assertEqual(self.ipn(aviso_de(tx.dcasa_yappy_orden, 'E')).status_code, 200)
+            self.releer(tx)
+            self.assertTrue(tx.dcasa_yappy_revision)
+        else:
+            self.assertEqual(self.ipn(aviso_de(tx.dcasa_yappy_orden, 'R')).status_code, 200)
+            self.releer(tx)
+            self.assertEqual(tx.state, 'cancel')
+        sesion['sale_last_order_id'] = pedido.id
+        odoo.http.root.session_store.save(sesion)
+        self.env.flush_all()
+        respuesta = self.url_open('/shop/confirmation')
+        self.assertEqual(respuesta.status_code, 200)
+        return respuesta.text, tx
+
+    def test_en_revision_no_se_ofrece_intentar_de_nuevo_y_whatsapp_es_el_boton_lleno(self):
+        html, tx = self.confirmacion('revision')
+        self.assertIn('Nuestro equipo lo revisa', html)
+        self.assertNotIn('o_dcasa_pago_reintentar', html)
+        self.assertNotIn('Intentar de nuevo', html)
+        self.assertRegex(html, r'class="btn btn-primary o_dcasa_pago_wa"')
+
+    def test_un_cobro_cancelado_de_verdad_si_sigue_ofreciendo_intentar_de_nuevo(self):
+        """Lo contrario: sin revisión, la pantalla es la de siempre (mata un arreglo que escondiera todo)."""
+        html, tx = self.confirmacion('cancelado')
+        self.assertFalse(tx.dcasa_yappy_revision)
+        self.assertIn('o_dcasa_pago_reintentar', html)
+        self.assertIn('Intentar de nuevo', html)
+        self.assertRegex(html, r'class="btn btn-outline-primary o_dcasa_pago_wa"')
+
+
+@tagged('post_install', '-at_install')
 class TestLaPaginaDePago(BaseHttp):
     """El paso de pago de la tienda con Yappy directo: una sola fila «Yappy», con su número y su CDN."""
 
