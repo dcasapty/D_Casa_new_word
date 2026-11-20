@@ -119,7 +119,7 @@ Cada fila es una prueba automática (`tests/test_flujo.py`).
 | `E` | el entorno del cobro no es el de hoy (prueba/real) | **Revisión humana**: un pago de prueba no paga un pedido real |
 | `E` | el pedido fue **cancelado** (una vendedora, o el apartado que vence por la noche) y la transacción seguía abierta | **Revisión humana**: la transacción nunca queda «hecha», no se crea ningún cobro contable y a la clienta no se le dice «Confirmamos tu pedido» sino que el pedido ya no estaba vigente y el equipo le escribe |
 | (Caja) botón «Confirmar que el dinero entró» | abierta (borrador o pendiente) | Pasa por **el mismo camino que el aviso** (mismas comprobaciones, **un solo cobro**), queda quién y cuándo, y el aviso tardío que llegue después **no hace nada** (§3.4) |
-| firma o dominio malos, forma rara | cualquiera | **403** «no autorizado» (el mismo texto para todo motivo). Nada cambia. Si trae una orden nuestra que sigue abierta, queda anotado en su transacción (con tope de 5) y en el registro, **con el dominio que llegó** (nunca con la firma): puede ser un aviso real que no se pudo aceptar |
+| firma o dominio malos, forma rara | cualquiera | **403** «no autorizado» (el mismo texto para todo motivo). Nada cambia. Si trae una orden nuestra que sigue abierta, queda anotado en su transacción (con tope de 5) **solo con el motivo en palabras fijas** («el dominio del aviso no coincide…», «la firma no coincide…»): nada de lo que llegó en la petición entra a la transacción ni al pendiente de Caja (R7-3). El dominio que llegó queda **solo en el registro del servidor** (nunca la firma). Pudo ser un aviso real que no se pudo aceptar, o alguien probando la dirección |
 | firma buena, orden desconocida | — | **200** «ok» y un aviso en el registro (no tiene sentido que Yappy reintente) |
 | error nuestro (base caída, etc.) | cualquiera | **500** «error» para que Yappy pueda reintentar (si reintenta: §8) |
 
@@ -133,8 +133,10 @@ Detalles que importan:
   subir para que Odoo repita la petición entera (hasta 5 veces) con una foto nueva de la base, y el segundo aviso ve lo que hizo
   el primero. Atraparlo daba un `500` y un aviso que no se aplicaba (lo encontró escribir la prueba de concurrencia de §13).
 - **La respuesta de rechazo no dice por qué** (firma, dominio o forma): el mismo `403` y el mismo texto; así no se le enseña a un
-  atacante cuál de las dos comprobaciones falló. El motivo real queda en el registro, sin la firma recibida y, si fue el
-  dominio, con el que llegó y el declarado (`dominio: llegó «http://…» y el declarado en YAPPY_DOMINIO es «…»`).
+  atacante cuál de las dos comprobaciones falló. El motivo real queda en el registro **del servidor**, sin la firma recibida y, si
+  fue el dominio, con el que llegó y el declarado (`dominio: llegó «http://…» y el declarado en YAPPY_DOMINIO es «…»`). A la
+  transacción y al pendiente de Caja **no** va lo que llegó (lo escribe quien llama a una dirección abierta): solo el motivo en
+  palabras fijas (R7-3).
 - **La firma nunca se «calcula» en el navegador ni se guarda.** Ni la clave, ni la llave derivada, ni el hash recibido salen de
   la comprobación.
 
@@ -142,9 +144,11 @@ Detalles que importan:
 
 Yappy no documenta una consulta de estado (§8). Pasados **15 minutos** sin aviso, una tarea (`Yappy: cobros sin aviso`, cada 10
 minutos) deja **un solo pendiente** en el pedido para Caja (si no hay quien atienda, para Gerencia) con el detalle de lo que
-compró y la orden de Yappy. **No paga ni cancela por sí sola.** Si sí llegó un aviso y se **rechazó** (el dominio escrito
-distinto, la clave mal pegada, las claves que faltan), el pendiente lo dice («llegó un aviso y se rechazó: …») en vez de
-«Yappy no avisó nada».
+compró y la orden de Yappy. **No paga ni cancela por sí sola.** Si llegó una llamada a la dirección del aviso y se **rechazó** (el
+dominio escrito distinto, la clave mal pegada, las claves que faltan), el pendiente dice **«no se pudo aceptar ningún aviso»** y manda
+a mirar Yappy Comercial, en vez de «Yappy no avisó nada»: no afirma que Yappy sí avisó (pudo ser un aviso real o alguien probando la
+dirección) y **no copia ningún texto recibido** (antes copiaba hasta 100 caracteres del `domain` que mandó quien llamó, y decía «es
+probable que Yappy sí avisó»: servía para empujar a Caja a confirmar sin mirar; RV7, R7-3).
 
 **Qué hace Caja (esto es lo que dicen el pendiente, la Guía y este documento; los tres iguales):**
 
@@ -157,7 +161,23 @@ distinto, la clave mal pegada, las claves que faltan), el pendiente lo dice («l
 4. **No se registra el cobro a mano en el diario Yappy** para una orden que sigue abierta: si el aviso llegara después se
    registraría el mismo dinero dos veces. (Si por error se hizo, el sistema **no** crea el segundo cobro: manda el aviso tardío a
    revisión humana con una alerta clara —«el pedido ya estaba pagado… si es el mismo dinero, no hay nada más que hacer»— y el
-   pendiente «sin aviso» se cierra solo cuando llega el aviso, el que sea.)
+   pendiente «sin aviso» se cierra solo cuando llega el aviso, el que sea. Vale también para un **cobro suelto** —un cobro sin
+   factura, registrado desde Pagos en el diario Yappy para ese cliente **después** de abrirse el cobro—: cuenta como dinero de otra
+   vía (RV7, R7-5). La regla es gruesa a propósito: si el mismo cliente tiene otro cobro suelto en esa ventana, el aviso también va a
+   revisión —una persona mira— y nunca se paga de más.)
+
+**Quién puede pulsar el botón:** Caja, Gerencia, contabilidad y el administrador técnico. **Quien «Administra la nómina» también**:
+ese rol incluye contabilidad (en `dcasa_nomina`, `group_nomina` implica `account.group_account_user`), así que puede pulsar el botón y
+leer el celular de Yappy (un campo de Caja y superiores). No es un poder nuevo —contabilidad ya registra cobros por la regla A5— y
+**no se cambió el permiso** (RV7, R7-4): si la dueña no quiere que Nómina confirme cobros, hay que decidirlo y cambiar el chequeo; una
+prueba (`test_rv7.TestR74NominaEntraPorContabilidad`) fija la política de hoy y avisa si la implicación cambia. La vendedora, el
+usuario interno sin rol y el portal no pueden; y **ninguna vendedora puede dejar «hecha» una transacción por otro camino** (antes un
+`write` directo a `payment.transaction` lo permitía: R7-1, §14).
+
+**Qué acepta el botón:** una transacción **que Yappy recibió** (pendiente, o con el identificador que Yappy da al crear la orden). Un
+borrador con orden y **sin ese identificador** es un cobro que se cortó a mitad de abrirse (o los segundos en que se está llamando a
+Yappy): el botón se niega, y el pendiente de 15 minutos de ese caso no manda a pulsarlo sino a mirar Yappy Comercial y avisar a quien
+programa (RV7, R7-6). El botón sigue visible en el borrador (no se tocó nada visual); lo que cambia es la respuesta.
 
 *Por qué esta política y no «registra el pago a mano»:* era la instrucción que dejaba el cobro doble (a mano + aviso tardío) sin
 ninguna alerta y con el pendiente todavía abierto invitando a repetirlo (revisión RV6, H2). El botón es simple y seguro porque
@@ -203,7 +223,8 @@ y se junta con el pago en un solo lugar. No hay canal nuevo ni datos del cliente
   «Pagados con Yappy» y «Yappy sin completar (para retomar)» están en la búsqueda de pedidos.
 - **El equipo se entera donde ya se entera de los pedidos de la web**: las notas internas del pedido y la tarjeta
   «Compraron en la web y aún no se entregan». No hay canal nuevo ni correo; las claves nunca están en estas pantallas.
-- **Permisos:** «Pagos con Yappy» es de **Caja, Gerencia y contabilidad**; la vendedora **no** lo ve (igual que «Cobros de hoy
+- **Permisos:** «Pagos con Yappy» es de **Caja, Gerencia y contabilidad** (y, como su rol incluye contabilidad, quien **administra la
+  nómina**: §3.4); la vendedora **no** lo ve (igual que «Cobros de hoy
   (caja)»: es la lista de los pagos de toda la tienda), pero sí el bloque «Pago, entrega y origen» en sus pedidos, que ya veía.
   **El celular de Yappy de quien paga (y el identificador de Yappy y la huella de la conexión) son de Caja y superiores a nivel
   de CAMPO**, no solo de menú: la vendedora tiene permiso de leer transacciones por Facturación y antes lo leía por RPC de
@@ -309,6 +330,7 @@ Solo con el **sí** de la dueña a lo que vio (capturas antes/después del cambi
 | 14 | ¿Hay una **consulta de estado o de movimientos** por API (la de «Integraciones» de Yappy Comercial) para recuperar un aviso perdido? | No se usa ninguna: el aviso perdido lo cubre el pendiente de §3.4 con el botón de Caja |
 | 15 | ¿Yappy acepta una `ipnUrl` con un anfitrión distinto al de `YAPPY_DOMINIO`? (staging usa `workers.dev`, §7 B) | Si contestara `E011`, el cobro no abre y el mensaje a la clienta es el general; la salida es apuntar `staging.dcasapty.com` al Worker |
 | 16 | **Cloudflare:** ¿alguna regla (WAF, Bot Fight Mode, Browser Integrity Check) bloquea el `GET` del aviso desde los servidores de Yappy? | No se sabe hasta probarlo desde afuera (§7 B); *Seguridad › Eventos* lo muestra. Es lo que Tilopay ya tiene escrito |
+| 17 | **Qué dominio se firma en el aviso** (RV7, R7-9): ¿el `hash` se calcula con el dominio que **declaramos** al crear el botón o con el **ya normalizado** que Yappy manda en `domain`? | Se firma el dominio **tal como llegó** (así lo hacen los cuatro ejemplos oficiales). **Supuesto a comprobar en la compra de ensayo:** si Yappy firma el dominio declarado y manda otro normalizado (o al revés), se rechazarían **todos** los avisos reales (quedan anotados y el pendiente lo dice con «no se pudo aceptar»). La compra de ensayo lo confirma. **No se afloja la verificación** (no se acepta un hash válido «para cualquiera de las dos cadenas»): si resultara ser así, se cambia qué cadena se firma, con la respuesta de Yappy por escrito (§15, pregunta 1) y sin quitar la comprobación del dominio antes del hash |
 
 ## 9. Trampas que ya se conocen
 
@@ -422,7 +444,9 @@ Juan no cambió. Cuando Yappy directo se encienda, quien lleve a Juan debería r
 5. Conciliación diaria contra Yappy Comercial (§10) desde el primer cobro real.
 6. Revisión independiente (dinero): ver qué atacar abajo. **Hecha la segunda vuelta (RV6)** sobre `96bbd48`: sus hallazgos
    H1–H10 están arreglados o documentados (§14); lo que queda para cobrar de verdad es lo que solo Yappy y Cloudflare pueden
-   confirmar (§15) y la decisión de la política de privacidad (§16).
+   confirmar (§15) y la decisión de la política de privacidad (§16). **Hecha la tercera vuelta (RV7)** sobre `9154bb2`: R7-1 a R7-6, R7-8
+   y R7-10 arreglados o documentados; **R7-7 (el botón de Caja: aviso a Gerencia, filtro, motivo, orden y monto en el cuadro) es una
+   decisión de la dueña y quedó sin construir** (§14).
 
 ### Qué debería atacar un revisor independiente
 
@@ -473,8 +497,19 @@ exactos de la última corrida están en la bitácora
   que vuelvan (sin claves no se ofrece nada y no se llama a nadie). Si pasara con cobros abiertos, el aviso rechazado queda anotado
   en su transacción y los pendientes salen cuando las claves regresan.
 - **Mientras no haya compra de ensayo contra el Yappy real, todo lo de §8 son supuestos del código** (token, `Bearer`, unidad de
-  `paymentDate`, reintentos y código de respuesta del aviso, IPs, campo del error, cuadre de importes). El diseño falla del lado
-  seguro (nunca paga solo con algo dudoso), pero «cobrar de verdad» necesita confirmarlos (§15).
+  `paymentDate`, reintentos y código de respuesta del aviso, IPs, campo del error, cuadre de importes y **qué dominio se firma**,
+  §8 fila 17). El diseño falla del lado seguro (nunca paga solo con algo dudoso), pero «cobrar de verdad» necesita confirmarlos (§15).
+- **El botón «Confirmar que el dinero entró» es un acto de confianza** (RV7, R7-7, **decisión de la dueña, sin construir**): queda
+  quién y cuándo (en la transacción, en la línea «M» del registro de avisos y en una nota del pedido). **No queda:** una alerta ni un
+  aviso a Gerencia, un filtro «Confirmados a mano» en Pagos con Yappy, un motivo o número de confirmación de Yappy Comercial, ni el
+  **monto y la orden dentro del cuadro de confirmar** (hoy el cuadro pregunta «¿ya miraste en Yappy Comercial que el dinero de esta
+  orden entró?» sin decirlos). Lo que bajaría el riesgo casi sin costo: (a) una nota o actividad «Caja confirmó a mano» para
+  Gerencia, (b) ese filtro, (c) que el cuadro diga la orden y el monto («¿ya viste $107.00 en la orden S00417…?», un cambio visual:
+  capturas antes/después), (d) pedir el número de confirmación. Cada una la decide la dueña; **no se construyó ninguna**. Con el
+  hueco de R7-1 cerrado, estos controles ya no se saltan con un `write`.
+- **Un cobro suelto de otro pedido del mismo cliente** (RV7, R7-5): la regla que cuenta un cobro sin factura en el diario Yappy como
+  «dinero de otra vía» mira al **cliente**, no al pedido (un cobro suelto no dice a cuál pedido pertenece). Si el mismo cliente tiene
+  otro cobro suelto en la ventana, el aviso va a revisión: una persona mira. Falla del lado seguro (nunca un segundo cobro).
 
 **Qué arregló la segunda revisión (RV6, sobre `96bbd48`)** — cada punto con su prueba, y la prueba cae sin el arreglo:
 
@@ -482,7 +517,7 @@ exactos de la última corrida están en la bitácora
 |---|---|---|
 | H1 | El aviso de Yappy no llegaba a staging (`ipnUrl` = `staging.dcasapty.com`, sin ruta al Worker) | `YAPPY_URL_BASE` (§6, §7 B); el proveedor muestra la dirección del aviso |
 | H2 | Cobro a mano + aviso tardío = dos cobros del mismo dinero, sin alerta; el pendiente seguía abierto; tres textos que se contradecían | Una política (§3.4): botón «Confirmar que el dinero entró»; un aviso sobre un pedido ya pagado por otra vía va a revisión y **nunca** crea otro cobro; el pendiente se cierra solo al llegar el aviso |
-| H3 | Pedido cancelado con el cobro abierto + aviso `E` = transacción «hecha», cobro contable sobre un pedido anulado y «Confirmamos tu pedido» | Revisión humana con el mensaje correcto; el apartado que vence ya no anula un pedido con un cobro de Yappy abierto de menos de 15 minutos |
+| H3 | Pedido cancelado con el cobro abierto + aviso `E` = transacción «hecha», cobro contable sobre un pedido anulado y «Confirmamos tu pedido» | Revisión humana con el mensaje correcto; el apartado que vence esta noche **salta** un pedido con un cobro de Yappy abierto de menos de 15 minutos (ya no lo anula) **y su fecha de vencimiento ya no se borra** (RV7, R7-2: antes sí se borraba y el pedido quedaba apartado para siempre) |
 | H5 | La vendedora leía por RPC el celular de Yappy de todas las clientas | El campo es de Caja y superiores a nivel de modelo; el pedido y su nota no lo llevan |
 | H6 | Un aviso real con el dominio escrito de otra forma (`http://`, mayúsculas, `:443`) se rechazaba y el pendiente decía «Yappy no avisó» | Normalización segura (§9), el registro dice qué dominio llegó, el pendiente dice «llegó un aviso y se rechazó» |
 | H7 | El tope de 5 cobros por pedido no era estricto en paralelo (12 conexiones abrieron 6); Enter mantenida repetía el clic | El tope es estricto (§4); el botón no admite un segundo clic mientras hay uno en curso |
@@ -490,6 +525,22 @@ exactos de la última corrida están en la bitácora
 | H9 | Documentación: «16 maneras», «(429)», «no tiene consulta de estado», faltaban preguntas | Corregido (§2, §4, §8, §9) y la lista para la dueña en §15 |
 | H4 | El botón mete terceros que la política de privacidad no menciona | Documentado en §16 para que la dueña decida; **el texto legal no se tocó** |
 | H10 | Se compara el total, no las líneas; «Qué compró» vive en este módulo | Documentado arriba como límite conocido |
+
+**Qué arregló la tercera vuelta (RV7, revisión independiente sobre `9154bb2`)** — cada punto de dinero o permisos con su prueba, y la
+prueba cae sin el arreglo (mutación hecha a propósito):
+
+| | Qué era | Qué se hizo |
+|---|---|---|
+| R7-1 | **Dinero.** La vendedora (por Facturación) podía escribir `state='done'`, `amount`, `is_live` y `dcasa_yappy_*` en una `payment.transaction`: el cron confirmaba el pedido y creaba el cobro sin dinero y sin pasar por Caja | `dcasa_base` (`models/cobros.py`, un módulo que **siempre está en el despliegue**: no hace falta instalar nada): quien no cobra (Caja, Gerencia, contabilidad y administrador sí) no escribe el estado, el monto, el entorno, el proveedor, el cobro, los pedidos y facturas ligados ni ningún campo `dcasa_*` de la transacción, **de cualquier proveedor**. Lo del sistema (pasarela, aviso, cron) corre con `sudo` y no cambia. Crear ya estaba cerrado (permisos del proveedor) y se fijó con una prueba |
+| R7-2 | El apartado nocturno **borraba la fecha de vencimiento** de un pedido con un cobro de Yappy abierto: si la clienta nunca aprobaba, el pedido quedaba apartado para siempre | Un gancho nuevo, `_dcasa_apartado_en_pausa` (`website_dcasa`; lo usa Yappy): el barrido **salta** el pedido esta noche **sin borrar la fecha**. `_dcasa_apartado_reclamado` queda solo para dinero, factura o entrega de verdad |
+| R7-3 | Un aviso falso con texto en `domain` dejaba hasta 100 caracteres de quien llamó en el pendiente de Caja, dentro de un «es probable que Yappy sí avisó» | A la transacción va solo el motivo en palabras fijas (`motivo_para_caja`); el texto recibido queda solo en el registro del servidor; el pendiente dice «no se pudo aceptar ningún aviso… Mira Yappy Comercial» |
+| R7-4 | «Administra la nómina» puede pulsar el botón y leer el celular de Yappy (su rol incluye contabilidad) | **Solo documentado** (§3.4, §5, la Guía y PERMISOS.md): no es un poder nuevo y no se cambió el permiso; una prueba fija la política de hoy |
+| R7-5 | Un cobro suelto (sin factura) en el diario Yappy no contaba como dinero de otra vía: el aviso `E` lo pagaba otra vez | Cuenta (mismo cliente, entrante, no ligado a una transacción ni a una factura, creado después de abrirse el cobro): el aviso y el botón van a revisión. Límite: mira al cliente, no al pedido (arriba) |
+| R7-6 | El botón confirmaba un borrador con orden pero que Yappy nunca recibió | Exige `pending` o el identificador de Yappy; el pendiente de ese caso no manda a pulsarlo |
+| R7-7 | El rastro del botón de Caja (sin aviso a Gerencia, sin filtro, sin motivo, sin orden ni monto en el cuadro) | **Decisión de la dueña: no se construyó** (arriba, «Límites conocidos») |
+| R7-8 | La guarda `beforeunload` seguía puesta si la clienta cambiaba a otro método con una solicitud viva | Se quita al elegir otro método (`payment_form.js`) |
+| R7-9 | Qué dominio firma Yappy (declarado o normalizado) | **Solo documentado** como supuesto a comprobar en la compra de ensayo (§8 fila 17); no se aflojó la verificación |
+| R7-10 | Textos que no decían lo que pasaba: «ya no anula» (omitía que la fecha se borraba), «Caja, Gerencia y contabilidad» (sin Nómina), cuadro del botón sin orden ni monto | Corregidos (§3.3, §3.4, §5, §14 y la bitácora); las pruebas viejas `test_c1` y `test_c7` de `TestRv6Dinero` (del revisor) se actualizaron a la política vigente, y el repo ya tenía sus equivalentes adaptados en `test_dinero_revision.py` |
 
 ## 15. Preguntas para Yappy y Cloudflare (lista para la dueña)
 

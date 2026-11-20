@@ -164,12 +164,12 @@ class PaymentTransaction(models.Model):
         'Avisos rechazados', readonly=True, copy=False,
         help='Cuántas veces llamaron a la dirección del aviso con esta orden y NO se aceptó (dominio escrito '
              'distinto, firma '
-             'que no cuadra o claves que faltan). Si Yappy sí avisó y se rechazó, el cobro no se paga solo. Tope: 5.')
+             'que no cuadra o claves que faltan). Pudo ser un aviso real de Yappy o alguien probando la dirección: el '
+             'cobro no se paga solo. Tope: 5.')
     dcasa_yappy_rechazo = fields.Char(
         'Último aviso rechazado', readonly=True, copy=False,
-        help='Por qué se rechazó el último aviso de esta orden (si fue por el dominio, cuál llegó y cuál está '
-             'declarado). '
-             'Nunca lleva la firma ni una clave.')
+        help='Por qué no se aceptó el último aviso de esta orden, en palabras fijas. Nunca lleva texto que haya '
+             'llegado en la petición, ni la firma ni una clave: lo que llegó queda solo en el registro del servidor.')
 
     dcasa_pedido_id = fields.Many2one(
         'sale.order', string='Pedido', compute='_compute_dcasa_pedido', help='El pedido de venta que se paga.')
@@ -399,17 +399,22 @@ class PaymentTransaction(models.Model):
         tx._process(CODIGO, verificado)
         return tx.state
 
-    def _dcasa_yappy_anotar_rechazo(self, detalle):
+    def _dcasa_yappy_anotar_rechazo(self, motivo):
         """Un aviso de esta orden se rechazó (dominio escrito distinto, firma que no cuadra, claves que faltan): queda
         anotado en la transacción (con tope: son rastros, no una bitácora que un atacante pueda llenar) para que el
-        pendiente de Caja no diga «Yappy no avisó» cuando sí avisó y no lo pudimos aceptar. No paga, no cancela, no
-        cambia el estado. Devuelve ``True`` si lo anotó."""
+        pendiente de Caja no diga «Yappy no avisó» cuando sí llegó algo y no lo pudimos aceptar. No paga, no cancela, no
+        cambia el estado. Devuelve ``True`` si lo anotó.
+
+        ``motivo`` es el CÓDIGO del rechazo (``yappy_api.RECHAZO_*``), no un texto: lo que se guarda es la frase fija de
+        ``motivo_para_caja``. Nada de lo que llegó en la petición (el ``domain``, por ejemplo, que escribe quien llama)
+        entra a la transacción ni al pendiente de Caja (RV7, R7-3)."""
         self.ensure_one()
         tx = self.sudo()
         if tx.provider_code != CODIGO or tx.state not in ('draft', 'pending') \
                 or tx.dcasa_yappy_rechazos >= TOPE_DE_RECHAZOS:
             return False
-        tx.write({'dcasa_yappy_rechazos': tx.dcasa_yappy_rechazos + 1, 'dcasa_yappy_rechazo': detalle[:200]})
+        tx.write({'dcasa_yappy_rechazos': tx.dcasa_yappy_rechazos + 1,
+                  'dcasa_yappy_rechazo': api_yappy.motivo_para_caja(motivo)})
         return True
 
     # ------------------------------------------------------------------ Caja confirma el cobro (en Yappy Comercial)
@@ -441,6 +446,13 @@ class PaymentTransaction(models.Model):
                 'Esta transacción ya está cerrada («%s»). Si Yappy cobró, ya tiene su pendiente para revisarlo: '
                 'míralo en '
                 'el pedido.', tx.state))
+        if not tx._dcasa_yappy_la_recibio_yappy():
+            # Un borrador con su orden pero sin el identificador que da Yappy al crearla: la orden nunca llegó a Yappy
+            # (un corte a mitad de /iniciar, o los segundos en que se está llamando). Nadie vio ese dinero (RV7, R7-6).
+            raise UserError(self.env._(
+                'Yappy todavía no recibió esta orden (el cobro se quedó a medio abrir), así que no hay nada que '
+                'confirmar. Si la clienta quiere pagar, que pulse el botón de Yappy otra vez; si Yappy sí cobró, el '
+                'aviso firmado de Yappy es lo que deja el pedido pagado.'))
         tx._process(CODIGO, AvisoVerificado(tx.dcasa_yappy_orden, api_yappy.EJECUTADO, '', quien))
         if tx.state == 'done':
             return self._dcasa_yappy_notificar(self.env._(
@@ -451,6 +463,14 @@ class PaymentTransaction(models.Model):
         return self._dcasa_yappy_notificar(self.env._(
             'No se pudo tomar como pago solo y quedó para revisar: %s. Mira la alerta en el pedido.',
             tx.state_message or '—'), 'warning', pegajoso=True)
+
+    def _dcasa_yappy_la_recibio_yappy(self):
+        """¿Yappy llegó a recibir esta orden? Sí si la transacción ya está ``pending`` (se marca al recibir la
+        respuesta de Yappy, y también cuando la llamada se cortó a medias y la orden pudo haberse creado) o si Yappy ya
+        devolvió su identificador. Un borrador con orden y sin identificador es una orden que se guardó ANTES de llamar
+        y a la que Yappy nunca contestó."""
+        self.ensure_one()
+        return self.state != 'draft' or bool(self.sudo().dcasa_yappy_id)
 
     def _dcasa_yappy_notificar(self, mensaje, tipo, pegajoso=False):
         return {'type': 'ir.actions.client', 'tag': 'display_notification',
@@ -611,12 +631,41 @@ class PaymentTransaction(models.Model):
         self._dcasa_yappy_avisos_tras_el_pago()
         self._dcasa_yappy_adelantar_el_cierre()
 
+    def _dcasa_yappy_cobros_sueltos(self):
+        """Los cobros «sueltos» que Caja registró a mano en el diario de Yappy para este cliente DESPUÉS de abrirse este
+        cobro: un ``account.payment`` de cliente, entrante, en el diario de Yappy, sin transacción en línea y sin
+        factura a la que esté aplicado (así lo deja el cobro suelto de Pagos, sin pasar por una factura). Las facturas
+        con pagos ya las cuenta ``_dcasa_yappy_dinero_de_otra_via``. Es una regla gruesa a propósito: si el mismo
+        cliente tiene otro cobro suelto en esa ventana, el aviso va a revisión (una persona mira) y nunca se paga de
+        más (RV7, R7-5)."""
+        self.ensure_one()
+        tx = self.sudo()
+        diario = tx.provider_id.journal_id
+        pedidos = tx.sale_order_ids
+        if not diario or not pedidos or not tx.create_date:
+            return self.env['account.payment']
+        # El sudo() mira solo pagos de CLIENTE entrantes (para un pago, el equivalente de filtrar las facturas por
+        # out_invoice/out_refund: nunca pagos de proveedor ni salientes). El resultado no se le devuelve a nadie que no
+        # cobre: solo cuenta el dinero y nombra el cobro en la alerta para Caja o Gerencia.
+        clientes = pedidos.partner_id | pedidos.partner_invoice_id | tx.partner_id
+        clientes |= clientes.commercial_partner_id
+        sueltos = self.env['account.payment'].sudo().search([
+            ('journal_id', '=', diario.id), ('payment_type', '=', 'inbound'), ('partner_type', '=', 'customer'),
+            ('partner_id', 'in', clientes.ids), ('state', 'not in', ('draft', 'canceled', 'rejected')),
+            ('payment_transaction_id', '=', False), ('create_date', '>=', tx.create_date)])
+        return sueltos.filtered(lambda pago: not pago.reconciled_invoice_ids)
+
     def _dcasa_yappy_dinero_de_otra_via(self):
         """Una frase de cuál es el dinero que este pedido YA tenía antes de que se pagara esta transacción (otro cobro
-        en línea hecho, o una factura con pagos registrados, que es lo que deja un cobro a mano de Caja); vacía si no
-        había ninguno. Mientras esta transacción siga abierta, todo pago que figure es de otra vía."""
+        en línea hecho, una factura con pagos registrados, o un cobro suelto de Caja en el diario de Yappy, que es lo
+        que deja un cobro a mano); vacía si no había ninguno. Mientras esta transacción siga abierta, todo pago que
+        figure es de otra vía."""
         self.ensure_one()
         partes = []
+        sueltos = self._dcasa_yappy_cobros_sueltos()
+        if sueltos:
+            partes.append(self.env._(
+                'un cobro suelto registrado a mano en el diario Yappy (%s)', ', '.join(sueltos.mapped('name'))))
         for pedido in self.sudo().sale_order_ids:
             otras = pedido.transaction_ids.filtered(lambda t: t != self and t.state in ('authorized', 'done'))
             if otras:
@@ -833,28 +882,42 @@ class PaymentTransaction(models.Model):
         pedido = self.sale_order_ids[:1]
         destinos = self.env['sale.order']._dcasa_atienden_lo_sin_vendedora() or self._dcasa_yappy_destinatarios()
         detalle = '; '.join(resumen.frase_de_linea(pedido, fila) for fila in resumen.lineas(pedido)) if pedido else ''
-        # Si llegó un aviso y se RECHAZÓ, no es verdad que «Yappy no avisó nada»: es muy probable que sí avisó y que la
-        # diferencia esté en nuestra configuración (el dominio, la clave). Se dice tal cual, con lo que se anotó.
+        # Si llegó una llamada a la dirección del aviso y se RECHAZÓ, no es verdad que «Yappy no avisó nada»; pero
+        # tampoco se sabe que Yappy avisó: pudo ser un aviso real o alguien probando la dirección. Se dice lo que se
+        # sabe, con el motivo en palabras fijas (nunca texto de quien llamó: eso empujaría a Caja a confirmar sin mirar
+        # Yappy Comercial; RV7, R7-3).
         if self.dcasa_yappy_rechazos:
             que_paso = self.env._(
-                'y NO hay ningún aviso que se pudiera aceptar. Sí llegó %(cuantos)s aviso(s) de esta orden y se '
-                'RECHAZÓ (%(motivo)s). Es probable que Yappy sí avisó y que la diferencia esté en lo que está '
-                'configurado: avisa a quien programa con esta frase.', cuantos=self.dcasa_yappy_rechazos,
-                motivo=self.dcasa_yappy_rechazo or '—')
+                'y NO se pudo aceptar ningún aviso. A nuestra dirección de avisos llegaron %(cuantos)s llamada(s) con '
+                'esta orden y ninguna se pudo aceptar (%(motivo)s). Pudo ser un aviso real de Yappy o alguien probando '
+                'la dirección: por eso no se sabe si el dinero entró. Mira Yappy Comercial.',
+                cuantos=self.dcasa_yappy_rechazos, motivo=self.dcasa_yappy_rechazo or '—')
         else:
             que_paso = self.env._('y Yappy no avisó nada.')
+        if self._dcasa_yappy_la_recibio_yappy():
+            que_hacer = self.env._(
+                'si el cobro entró, abre esta transacción (Facturación › Clientes › Pagos con Yappy) y pulsa '
+                '«Confirmar que el dinero entró»; NO registres el cobro a mano en el diario: si el aviso llegara '
+                'tarde, el cobro quedaría doble. Si no entró, el pedido sigue guardado para retomarlo con el '
+                'cliente.')
+        else:
+            # Un borrador con orden y sin el identificador de Yappy (un corte a mitad de /iniciar): el botón de Caja no
+            # la acepta (RV7, R7-6), así que el pendiente no puede mandar a pulsarlo.
+            que_hacer = self.env._(
+                'esta orden se quedó a medio abrir (Yappy nunca devolvió su identificador), así que el botón '
+                '«Confirmar que el dinero entró» NO la acepta. Si la orden no aparece en el reporte, no pasó nada y el '
+                'pedido sigue guardado para retomarlo con el cliente. Si aparece con el dinero, es un caso raro: NO '
+                'registres el cobro a mano en el diario (si el aviso llegara tarde, el cobro quedaría doble) y avisa a '
+                'quien programa con esta frase.')
         self._dcasa_yappy_alertar(
             self.env._(
                 'Pasaron más de 15 minutos desde que se le mandó a Yappy la orden %(orden)s (pedido %(pedido)s, '
                 '%(monto)s %(moneda)s, cliente %(cliente)s) %(que_paso)s Yappy cierra la solicitud a los '
                 '5 minutos. Abre el reporte de Yappy Comercial y busca la orden %(orden)s (empieza con el número del '
-                'pedido): si el cobro entró, abre esta transacción (Facturación › Clientes › Pagos con Yappy) y pulsa '
-                '«Confirmar que el dinero entró»; NO registres el cobro a mano en el diario: si el aviso llegara '
-                'tarde, el cobro quedaría doble. Si no entró, el pedido sigue guardado para retomarlo con el '
-                'cliente. El sistema no pagó ni canceló nada solo. Compró: %(detalle)s',
+                'pedido): %(que_hacer)s El sistema no pagó ni canceló nada solo. Compró: %(detalle)s',
                 orden=self.dcasa_yappy_orden, pedido=pedido.name or '—', monto=float_repr(self.amount, 2),
                 moneda=self.currency_id.name,
                 cliente=(f"{pedido.partner_id.name or '—'} {resumen.celular_del_cliente(pedido)}".strip()
                          if pedido else '—'),
-                que_paso=que_paso, detalle=detalle or '—'),
+                que_paso=que_paso, que_hacer=que_hacer, detalle=detalle or '—'),
             self.env._('Yappy: sin aviso de pago (%s)', self.dcasa_yappy_orden), destinos=destinos)

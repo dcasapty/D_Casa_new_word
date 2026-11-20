@@ -110,6 +110,11 @@ patch(PaymentForm.prototype, {
 
     async _prepareInlineForm(providerId, providerCode, paymentOptionId, paymentMethodCode, flow) {
         if (providerCode !== 'yappy') {
+            // Cambió a OTRO método con un cobro de Yappy vivo: se va a pagar con ese, y el aviso de «¿Salir del sitio?»
+            // del navegador no tiene sentido (RV7, R7-8). Si vuelve a Yappy, el botón nuevo es un intento nuevo.
+            if (this._yappy?.quitarGuardaDeSalida) {
+                this._yappyGuardarLaSalida(false);
+            }
             await super._prepareInlineForm(...arguments);
             return;
         }

@@ -1780,6 +1780,39 @@ Lo que quedó escrito para no repetirlo:
   despachando el evento y mirando `defaultPrevented`. La prueba de 360 y 390 px de la fila (`test_en_el_celular_la_fila…`) es
   intermitente en esta máquina con otras sesiones corriendo: repetirla sola antes de culpar al código.
 
+### Lo que enseñó la tercera revisión de Yappy (RV7, 2026-11-20, `local/rv7-arreglos`)
+
+- **Un permiso de fábrica de Odoo puede abrir una puerta que ningún menú muestra.** `account_payment` deja a Facturación (que la Vendedora
+  trae implícita) leer, escribir y crear `payment.transaction`; con un `write(state='done')` el cron confirmaba el pedido y creaba el
+  cobro sin dinero. La regla va en `dcasa_base/models/cobros.py` (siempre desplegado, y `payment` ya está debajo de `sale`): quien no
+  cobra no escribe estado, monto, entorno, proveedor, cobro, pedidos/facturas ligados ni `dcasa_*`; **lo del sistema pasa porque corre
+  con `sudo`** (`env.su`). La prueba de que `sudo` no se rompe son los flujos HTTP del aviso (el usuario es el público, con `sudo`): la
+  mutación «la regla también mira a `sudo`» tumbó 34 pruebas de ellos de un golpe. Un método público nuevo en `dcasa_base` tiene que
+  entrar a `LISTA_BLANCA` de `test_superficie_rpc.py` (hasta un `write`).
+- **Hay una prueba de `dcasa_base` que busca `env['account.payment'].sudo()` en todo el código** y exige `out_invoice`/`out_refund` cerca
+  (`test_el_codigo_propio_no_se_cuela_por_sudo`). Un `sudo()` sobre pagos que solo cuenta dinero y nombra un cobro en una alerta es
+  legítimo, pero la prueba lee el texto: se dejó un comentario que dice, de verdad, por qué ese `sudo` solo mira pagos de cliente entrantes.
+- **«Reclamado» y «en pausa» no son lo mismo.** `_dcasa_apartado_reclamado` (dinero, factura, entrega) borra la fecha de vencimiento del
+  apartado y deja de vigilarlo; un cobro de Yappy abierto no es eso: solo hay que **saltar** el pedido esta noche. Gancho nuevo
+  `_dcasa_apartado_en_pausa` (`website_dcasa`). Antes, un solo cobro abierto a las 2 a. m. dejaba el pedido apartado para siempre.
+- **Nunca copiar a una actividad (ni a un campo que lee Caja) texto que mandó quien llama a una dirección abierta.** El aviso falso con
+  texto en `domain` dejaba hasta 100 caracteres del cliente en el pendiente de Caja. Ahora `_dcasa_yappy_anotar_rechazo` recibe el
+  **código** del motivo y guarda una frase fija (`motivo_para_caja`); el texto recibido queda solo en el registro del servidor. Y el
+  pendiente no afirma «Yappy sí avisó»: dice «no se pudo aceptar ningún aviso… Mira Yappy Comercial».
+- **Un botón de confirmación tiene que coincidir con lo que dice el pendiente.** Al exigir que Yappy haya recibido la orden (R7-6), el
+  pendiente de un borrador sin identificador de Yappy ya no puede mandar a pulsar un botón que se va a negar: tiene su propio texto.
+- **Un cobro suelto (un `account.payment` sin factura) no dice a qué pedido pertenece:** se cuenta por cliente, en el diario Yappy y
+  creado después de abrirse el cobro. Es una regla gruesa a propósito (falla hacia la revisión humana, nunca hacia un segundo cobro).
+- **`_post_process` sobre una transacción PENDIENTE no es inocuo:** manda la cotización (`action_quotation_sent`: el pedido pasa a
+  «enviado») y arma el correo. En una prueba de un proveedor genérico, no se llama sobre pendientes.
+- **Si una prueba escribe con el ORM y después cambia fechas con SQL (`envejecer`), hay que vaciar antes (`flush_recordset`):** si no, la
+  caché pisa la fecha vieja al vaciarse y el cron «no encuentra nada».
+- **`crear_usuario(…, 'base.group_portal')` de `dcasa_base/tests/test_roles.py` revienta** (suma `base.group_user` y choca con portal):
+  para un portal en las pruebas, `new_test_user(env, login=…, groups='base.group_portal')`.
+- **Máquina compartida:** instalar los 32 módulos en una base nueva, sin pruebas, tardó unos 4 minutos; después, `-u` de los módulos tocados con
+  `--test-tags` de clases sueltas son ~2 minutos. Las mutaciones se hacen sobre una **copia** de `addons/` (carpeta aparte en el
+  `--addons-path`), nunca en el árbol de trabajo.
+
 ### Lo que enseñó contrastar el informe de ChatGPT con el código y hacer el audio y el video (2026-11-20)
 
 - **Quién produce cada cifra del informe.** Las respuestas de Brian (el asistente del sistema, herramientas de solo lectura) alimentaron la auditoría.

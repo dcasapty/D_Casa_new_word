@@ -7,4 +7,5 @@ from . import (
     test_proveedor,
     test_que_compro,
     test_rutas,
+    test_rv7,
 )

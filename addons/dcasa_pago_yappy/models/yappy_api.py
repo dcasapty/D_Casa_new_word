@@ -414,9 +414,10 @@ def _dominio_para_el_registro(valor, secretos=()):
 
 
 def describir_rechazo(creds, parametros, motivo):
-    """Una frase corta y LIMPIA (sin claves, sin la firma recibida) de por qué se rechazó un aviso, para el registro del
-    servidor y para la transacción de esa orden. Si fue por el dominio, dice cuál llegó y cuál está declarado, para que
-    quien opera vea la diferencia (por ejemplo ``http://`` o una letra) sin adivinar."""
+    """Una frase corta y LIMPIA (sin claves, sin la firma recibida) de por qué se rechazó un aviso, **solo para el
+    registro del servidor** (lo lee quien programa). Si fue por el dominio, dice cuál llegó y cuál está declarado,
+    para que quien opera vea la diferencia (por ejemplo ``http://`` o una letra) sin adivinar. NO va a la transacción
+    ni al pendiente de Caja: lo que llegó lo escribe quien llama, y para eso está ``motivo_para_caja`` (RV7, R7-3)."""
     secretos = creds.secretos() if creds is not None else ()
     if motivo == RECHAZO_DOMINIO:
         llego = _dominio_para_el_registro(parametros.get('domain') if isinstance(parametros, dict) else '', secretos)
@@ -427,6 +428,19 @@ def describir_rechazo(creds, parametros, motivo):
     if motivo == RECHAZO_SIN_CLAVES:
         return 'faltan las claves de Yappy en el servidor'
     return motivo
+
+
+def motivo_para_caja(motivo):
+    """El motivo de un rechazo en palabras FIJAS, lo único que va a la transacción y al pendiente que lee Caja. A
+    propósito **no lleva nada de lo que llegó en la petición** (el ``domain`` ni nada): lo escribe quien llama a la
+    dirección del aviso, y un texto suyo en el pendiente de Caja (con un «es probable que Yappy sí avisó») es una forma
+    de empujarla a confirmar sin mirar Yappy Comercial (RV7, R7-3). Lo que llegó va solo al registro del servidor
+    (``describir_rechazo``). Un motivo que no se conoce da una frase general."""
+    return {
+        RECHAZO_DOMINIO: 'el dominio del aviso no coincide con el declarado en YAPPY_DOMINIO',
+        RECHAZO_FIRMA: 'la firma del aviso no coincide',
+        RECHAZO_SIN_CLAVES: 'faltan las claves de Yappy en el servidor',
+    }.get(motivo, 'el aviso no se pudo aceptar')
 
 
 # ------------------------------------------------------------------ el tope de llamadas a la vez

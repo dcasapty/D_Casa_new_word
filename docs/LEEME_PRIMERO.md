@@ -110,6 +110,33 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 > sigue. Se guardan las diez más recientes; las viejas se resumen en una línea abajo y su texto completo pasa a
 > [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md).
 
+### 2026-11-20 (noche): Yappy directo, tercera vuelta (RV7): los hallazgos R7-1 a R7-10 arreglados o documentados. En `local/rv7-arreglos` (sobre `a3bffac`), SIN subir y SIN desplegar
+
+El segundo revisor independiente (RV7, sobre `9154bb2`) dijo: staging apagado, sí; encender en prueba, sí; cobrar de verdad, todavía no. Esto es lo que
+se arregló (detalle y tabla en [YAPPY.md](YAPPY.md) §14), cada pieza de dinero o permisos con su prueba **y rompiendo el arreglo a propósito** (la prueba
+cae):
+
+- **R7-1 (dinero):** la vendedora (por Facturación) ya no puede escribir el estado, el monto, el entorno, el proveedor, el cobro, los pedidos y facturas
+  ligados ni ningún `dcasa_*` de una `payment.transaction`; antes un `write(state='done')` dejaba un pedido pagado sin dinero. Vive en
+  `dcasa_base/models/cobros.py` (módulo que ya está en el despliegue, sin dependencias nuevas; sirve a cualquier proveedor); lo del sistema corre con
+  `sudo` y no cambia. **R7-2:** gancho `_dcasa_apartado_en_pausa`: el barrido nocturno salta el pedido con un cobro de Yappy abierto **sin borrarle la
+  fecha**. **R7-3:** el texto que manda quien llama al aviso ya no llega a la transacción ni al pendiente de Caja (frase fija; el pendiente dice «no se
+  pudo aceptar ningún aviso… Mira Yappy Comercial»). **R7-5:** un cobro suelto de Caja en el diario Yappy cuenta como dinero de otra vía (por cliente:
+  regla gruesa, falla hacia la revisión). **R7-6:** el botón de Caja exige que Yappy haya recibido la orden (pendiente o con su identificador). **R7-8:**
+  la guarda `beforeunload` se quita al cambiar a otro método.
+- **Solo documentado:** R7-4 («Administra la nómina» entra por contabilidad: puede confirmar y leer el celular; no se cambió el permiso; YAPPY.md, la
+  Guía y PERMISOS.md), R7-9 (qué dominio firma Yappy: supuesto a comprobar en la compra de ensayo, YAPPY.md §8 fila 17; no se aflojó la verificación) y R7-10
+  (los textos que no decían lo que pasaba).
+- **No se construyó (decisión de la dueña): R7-7**, el rastro del botón de Caja (aviso a Gerencia, filtro «confirmados a mano», motivo, y orden y monto
+  en el cuadro de confirmar, que sería un cambio visual): YAPPY.md §14.
+- **Pruebas** (base nueva con los 32 módulos, `-u` de los módulos tocados): las 126 de los hallazgos y las que las rodean, en verde; corrida completa de
+  `dcasa_base`, `website_dcasa`, `dcasa_pago_tilopay`, `dcasa_pago_yappy`, `dcasa_guia` y `dcasa_comision_web` (1,835 en la primera pasada; las 2 rojas
+  eran guardias de `dcasa_base` —la lista blanca de métodos públicos y la búsqueda de `sudo()` sobre pagos— que se arreglaron y se repitieron en verde);
+  `ruff check addons` limpio. Mutaciones: 10, todas caen (a propósito). No se tocó `edge/`. **No hace falta `-u` de ningún módulo nuevo** al desplegar
+  (`dcasa_base` ya estaba; no hay campos ni datos nuevos; el texto de ayuda de dos campos de Yappy se refresca con `-u dcasa_pago_yappy`).
+- **Falta:** una revisión independiente de estos arreglos (la pide la jefa del proyecto), unirlo a la rama de trabajo, y todo lo de siempre antes de cobrar de
+  verdad (compra de ensayo, respuestas de Yappy, política de privacidad, conciliación diaria, la decisión de R7-7).
+
 ### 2026-11-20 (tarde): la rama de trabajo unida con todo lo pendiente (`960bf34`), el informe de ChatGPT contrastado con el código, y un audio y un video de 38 minutos para los jefes. SIN subir a producción (sigue `d2ba8caf`)
 
 - **Rama unida y subida a `claude/merge-rama-to-main-ty3koz` (`960bf34`, igual que `origin`; subirla no despliega nada):** «Forma de pago» en facturas,
@@ -145,8 +172,8 @@ propósito** (mutaciones en `scratchpad`).
   línea) o que está **cancelado** va a revisión humana, con su alerta y un mensaje honesto a la clienta (no «Confirmamos tu pedido»). El
   pendiente «sin aviso» se cierra solo cuando llega el aviso. **Política única para Caja:** abrir Yappy Comercial y, si el dinero entró,
   pulsar **«Confirmar que el dinero entró»** en «Pagos con Yappy» (mismo camino que el aviso, un solo cobro, queda quién y cuándo); **no** registrar el
-  cobro a mano. El pendiente, la Guía y YAPPY.md §3.4 dicen lo mismo. El apartado que vence por la noche ya no anula un pedido con un cobro de
-  Yappy abierto de menos de 15 minutos.
+  cobro a mano. El pendiente, la Guía y YAPPY.md §3.4 dicen lo mismo. El apartado que vence por la noche **salta** (no anula) un pedido con un cobro de
+  Yappy abierto de menos de 15 minutos, y **su fecha de vencimiento ya no se borra** (la tercera vuelta, RV7, R7-2: antes sí se borraba).
 - **Privacidad (H5):** el celular de Yappy, el id de Yappy y la huella son de Caja y superiores **a nivel de campo**; la nota del pedido ya no lleva
   el celular de Yappy. **H4:** la lista exacta de dominios que carga el botón y un borrador de párrafo **sin aplicar** están en YAPPY.md §16 para que la
   dueña decida; el texto legal no se tocó.

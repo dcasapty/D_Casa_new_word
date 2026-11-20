@@ -17,8 +17,9 @@ cambio en el diseño me gustaría verlo antes»; ver LEEME_PRIMERO §2).
   de la pasarela y el lote «legibilidad», **Tilopay** (nace apagado), la **comisión por ventas del sitio web** (sin versión de reglas: solo mide) y
   **Yappy directo** (`dcasa_pago_yappy`, [YAPPY.md](YAPPY.md), nace apagado). La dueña vio las capturas antes/después y dijo «Me gustó todo el
   trabajo» (queda aprobado lo visual) y eligió el botón gris de Yappy. Detalle y SHA de cada rama en la bitácora de LEEME_PRIMERO.
-- **Falta, en este orden:** (1) la batería completa de Odoo sobre `960bf34` y la segunda revisión independiente de Yappy (RV7), ambas en curso, y
-  arreglar lo que salga; (2) subir por la receta (LEEME_PRIMERO §3): staging con todo apagado, verificar, producción; (3) lo que depende de otros: las
+- **Falta, en este orden:** (1) la batería completa de Odoo sobre `960bf34` (en curso) y la **revisión independiente de los arreglos de RV7** (R7-1 a
+  R7-10, ya hechos en `local/rv7-arreglos`, sobre `a3bffac`, sin unir ni desplegar; ver la bitácora de LEEME_PRIMERO; **R7-7, el rastro del botón de Caja, es
+  decisión de la dueña**); (2) subir por la receta (LEEME_PRIMERO §3): staging con todo apagado, verificar, producción; (3) lo que depende de otros: las
   claves de Tilopay y Yappy en Cloudflare (nunca por el chat), el programa de pruebas de Yappy y la compra de ensayo, las respuestas de Yappy y Cloudflare
   (YAPPY.md §15), la política de privacidad (§16), las cifras de la comisión web y su tratamiento contable.
 - **Para los jefes:** el informe de ChatGPT quedó contrastado con el código (CONTEXTO_AGENTICO) y hay un tablero y un audio/video de 38 minutos con voz

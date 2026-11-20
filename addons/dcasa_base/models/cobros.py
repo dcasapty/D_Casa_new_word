@@ -12,6 +12,13 @@ Ver docs/DECISIONES_CONTABLES.md (A5, A6 y A7) y docs/PERMISOS.md.
 * **A7 · Notas de crédito** de clientes, **devolverle dinero** a un cliente (cobro saliente) y **dejarle saldo a favor**
   (cobrar de más y dejarlo abierto) o dar una factura por pagada con una diferencia: solo **Gerencia** y los
   administradores.
+* **A5 también para el pago en línea (R7-1, revisión RV7).** La transacción de un pago en línea
+  (``payment.transaction``, de cualquier proveedor: Yappy, Tilopay…) es lo que el cron convierte en cobro y en pedido
+  confirmado. Facturación (que la Vendedora trae implícita) puede *escribir* en ella por el permiso de fábrica de Odoo;
+  con un ``write(state='done')`` dejaba un pedido pagado sin dinero y sin pasar por Caja. Ahora, quien no cobra no
+  puede escribir el estado, el monto, el entorno (prueba/real), el proveedor, el cobro ni los pedidos y facturas
+  ligados, ni ningún campo ``dcasa_*`` de la transacción. Lo que escribe el propio sistema (la pasarela, el aviso del
+  proveedor, el cron) corre con ``sudo`` y no cambia.
 
 Todo se comprueba aquí, en el servidor (esconder un botón no basta): asistente, Brian, Inicio, Conversaciones o RPC
 llegan a los mismos métodos. El superusuario y lo que corre con ``sudo`` (la tienda web, Juan, el cron, la carga del
@@ -32,6 +39,12 @@ CAMPOS_DEL_COBRO = {
     'amount', 'payment_type', 'partner_type', 'partner_id', 'journal_id', 'date', 'currency_id',
     'payment_method_line_id', 'destination_account_id', 'state', 'partner_bank_id', 'outstanding_account_id',
 }
+# Lo que, en una transacción de pago en línea, mueve el dinero o decide a qué pedido va (R7-1). Quien no cobra no lo
+# escribe; además, ningún campo ``dcasa_*`` (los de Yappy, Tilopay y los que vengan: son del sistema).
+CAMPOS_DEL_DINERO_DE_UNA_TRANSACCION = frozenset({
+    'state', 'amount', 'currency_id', 'is_live', 'provider_id', 'provider_reference', 'reference', 'operation',
+    'payment_id', 'is_post_processed', 'sale_order_ids', 'invoice_ids', 'source_transaction_id',
+})
 
 
 def mensaje_cobro(env):
@@ -409,3 +422,21 @@ class AccountPaymentRegister(models.TransientModel):
     def _create_payments(self):
         self._dcasa_exigir_permiso()
         return super()._create_payments()
+
+
+class PaymentTransaction(models.Model):
+    _inherit = 'payment.transaction'
+
+    def write(self, vals):
+        """R7-1: quien no cobra (la Vendedora, que por Facturación puede escribir en la transacción) no toca el estado,
+        el monto ni lo demás que decide un cobro. Sin esto, un ``write(state='done')`` hacía que el cron confirmara el
+        pedido y creara el cobro sin dinero y sin pasar por Caja. La pasarela, el aviso del proveedor y el cron escriben
+        con ``sudo`` (o como superusuario) y no pasan por aquí."""
+        if not self.env.su and not self.env.user._dcasa_puede_cobrar():
+            tocados = sorted(
+                campo for campo in vals if campo in CAMPOS_DEL_DINERO_DE_UNA_TRANSACCION or campo.startswith('dcasa_'))
+            if tocados:
+                raise AccessError(self.env._(
+                    'El estado, el monto y los datos de un pago en línea los mueve el sistema, con el aviso de la '
+                    'pasarela, o Caja, Gerencia y contabilidad. No se puede cambiar: %s.', ', '.join(tocados)))
+        return super().write(vals)

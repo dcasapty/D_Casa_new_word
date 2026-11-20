@@ -3132,7 +3132,7 @@
      "destino": null
     }
    ],
-   "nota": "El número de confirmación que a veces trae Yappy es solo informativo: nunca decide si un pedido está pagado. Un pedido solo queda pagado cuando Yappy avisa con su firma o cuando Caja confirma, mirando Yappy Comercial, que el dinero entró. Si el pedido ya estaba pagado por otro lado y llega el aviso de Yappy, no se cobra otra vez: queda una alerta para revisarlo.",
+   "nota": "El número de confirmación que a veces trae Yappy es solo informativo: nunca decide si un pedido está pagado. Un pedido solo queda pagado cuando Yappy avisa con su firma o cuando Caja confirma, mirando Yappy Comercial, que el dinero entró. Si el pedido ya estaba pagado por otro lado y llega el aviso de Yappy, no se cobra otra vez: queda una alerta para revisarlo. Pueden confirmar este pago Caja, Gerencia, contabilidad y quien tiene el rol «Administra la nómina» (ese rol incluye contabilidad). Si el cobro se quedó a medio abrir y Yappy nunca lo recibió, el botón no lo acepta.",
    "palabras": [
     "yappy",
     "que compro",

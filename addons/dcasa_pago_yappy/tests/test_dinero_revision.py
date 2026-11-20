@@ -12,6 +12,7 @@ from datetime import timedelta
 
 from odoo import Command, fields
 from odoo.addons.dcasa_pago_yappy.models import payment_transaction as modelo_tx
+from odoo.addons.dcasa_pago_yappy.models import yappy_api as modelo_api
 from odoo.exceptions import AccessError, UserError
 from odoo.tests import TransactionCase, new_test_user, tagged
 
@@ -390,22 +391,26 @@ class TestCobroAManoYAvisoTardio(BaseDinero):
         pedido = self.pedido()
         with YappyFalso() as yappy:
             tx, _o, _d = self.abrir(yappy, pedido)
-        self.assertTrue(tx._dcasa_yappy_anotar_rechazo('dominio: llegó «http://otro.example» y el declarado es «x»'))
+        self.assertTrue(tx._dcasa_yappy_anotar_rechazo(modelo_api.RECHAZO_DOMINIO))
         self.sin_aviso(tx)
         nota = re.sub(r'<[^>]+>', ' ', self.actividades(pedido, 'sin aviso')[0].note)
-        self.assertIn('se RECHAZÓ', nota)
-        self.assertIn('http://otro.example', nota, 'se ve la diferencia')
+        self.assertIn('NO se pudo aceptar ningún aviso', nota)
+        self.assertIn('el dominio del aviso no coincide', nota, 'dice el motivo, en palabras fijas (RV7, R7-3)')
+        self.assertIn('Mira Yappy Comercial', nota)
         self.assertNotIn('Yappy no avisó nada', nota)
+        self.assertNotIn('Es probable que Yappy sí avisó', nota)
         self.assertIn('Confirmar que el dinero entró', nota)
 
     def test_el_rastro_de_rechazos_tiene_tope_y_solo_de_cobros_abiertos(self):
         with YappyFalso() as yappy:
             tx, _o, _d = self.abrir(yappy)
-        anotados = [tx._dcasa_yappy_anotar_rechazo(f'firma {i}') for i in range(modelo_tx.TOPE_DE_RECHAZOS + 3)]
+        anotados = [tx._dcasa_yappy_anotar_rechazo(modelo_api.RECHAZO_FIRMA)
+                    for _i in range(modelo_tx.TOPE_DE_RECHAZOS + 3)]
         self.assertEqual(anotados.count(True), modelo_tx.TOPE_DE_RECHAZOS)
         self.assertEqual(tx.dcasa_yappy_rechazos, modelo_tx.TOPE_DE_RECHAZOS)
         self.aviso(tx, 'E')
-        self.assertFalse(tx._dcasa_yappy_anotar_rechazo('otro'), 'una transacción cerrada ya no espera aviso')
+        self.assertFalse(tx._dcasa_yappy_anotar_rechazo(modelo_api.RECHAZO_FIRMA),
+                         'una transacción cerrada ya no espera aviso')
 
 
 # ======================================================================================================================
@@ -485,7 +490,8 @@ class TestPedidoCanceladoYAvisoE(BaseDinero):
         self.assertTrue(self.actividades(pedido, 'ya no está vivo'))
 
     def test_c3f_el_apartado_que_vence_no_anula_un_pedido_con_un_cobro_de_yappy_abierto(self):
-        """La causa: el barrido de la noche no contaba un cobro de Yappy abierto como «reclamado»."""
+        """El barrido de la noche salta un pedido con un cobro de Yappy abierto (``_dcasa_apartado_en_pausa``). Es una
+        PAUSA: no borra la fecha de vencimiento (RV7, R7-2; ver ``test_rv7_apartado``)."""
         pedido = self.pedido()
         if 'dcasa_apartado_vence' not in pedido._fields:
             self.skipTest('sin website_dcasa')
@@ -493,12 +499,13 @@ class TestPedidoCanceladoYAvisoE(BaseDinero):
         with YappyFalso() as yappy:
             tx, _o, _d = self.abrir(yappy, pedido)
         pedido.dcasa_apartado_vence = fields.Date.context_today(pedido) - timedelta(days=2)
-        self.assertTrue(pedido._dcasa_apartado_reclamado(), 'cobro de Yappy abierto hace un momento')
+        self.assertTrue(pedido._dcasa_apartado_en_pausa(), 'cobro de Yappy abierto hace un momento')
+        self.assertFalse(pedido._dcasa_apartado_reclamado(), 'una pausa no es «ya hay dinero»')
         self.env['sale.order']._dcasa_cron_vencer_apartados()
         self.assertEqual(pedido.state, 'sale', 'el barrido no lo anuló')
         # pasados los 15 minutos de espera sin aviso, ya no protege (para eso está el pendiente a Caja)
         self.envejecer(tx, minutes=30)
-        self.assertFalse(pedido._dcasa_apartado_reclamado())
+        self.assertFalse(pedido._dcasa_apartado_en_pausa())
 
     def test_c3g_un_cobro_de_yappy_ya_cerrado_no_protege_el_apartado(self):
         pedido = self.pedido()
@@ -508,7 +515,7 @@ class TestPedidoCanceladoYAvisoE(BaseDinero):
         with YappyFalso() as yappy:
             tx, _o, _d = self.abrir(yappy, pedido)
         self.aviso(tx, 'R')
-        self.assertFalse(pedido._dcasa_apartado_reclamado())
+        self.assertFalse(pedido._dcasa_apartado_en_pausa())
 
 
 # ======================================================================================================================

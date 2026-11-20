@@ -28,12 +28,14 @@ class SaleOrder(models.Model):
             pedido.dcasa_entrega_texto = resumen.entrega(pedido) or False
             pedido.dcasa_origen_texto = resumen.origen(pedido) or False
 
-    def _dcasa_apartado_reclamado(self):
-        """Un cobro de Yappy abierto (mandado a Yappy hace menos de 15 minutos y sin aviso todavía) cuenta como pedido
-        reclamado: el apartado que vence por la noche no lo anula mientras la clienta está aprobando en su app. Sin
-        esto la anulación podía cruzarse con el pago y el dinero entraba a un pedido anulado (que ahora va a revisión,
-        pero lo mejor es no llegar ahí)."""
-        if super()._dcasa_apartado_reclamado():
+    def _dcasa_apartado_en_pausa(self):
+        """Un cobro de Yappy abierto (mandado a Yappy hace menos de 15 minutos y sin aviso todavía) pone el pedido en
+        pausa: el apartado que vence por la noche no lo anula mientras la clienta está aprobando en su app. Sin esto la
+        anulación podía cruzarse con el pago y el dinero entraba a un pedido anulado (que ahora va a revisión, pero lo
+        mejor es no llegar ahí). Es una PAUSA, no «ya hay dinero»: el barrido salta el pedido esta noche **sin borrar la
+        fecha de vencimiento** (``website_dcasa``); si la clienta nunca aprueba, el apartado vuelve a vencer su día
+        (RV7, R7-2; antes contaba como «reclamado» y le borraba la fecha para siempre)."""
+        if super()._dcasa_apartado_en_pausa():
             return True
         desde = fields.Datetime.now() - ESPERA_DEL_AVISO
         return bool(self.sudo().transaction_ids.filtered(

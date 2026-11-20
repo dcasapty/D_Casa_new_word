@@ -427,6 +427,29 @@ class TestElBotonDeYappyEnElNavegador(PagoVisualDatos, ChromeMovilCase):
         self.assertFalse(terminado, 'terminado el intento (error), deja de preguntar')
         self.assertTrue(otra_vez, 'y un intento nuevo vuelve a cuidarse')
 
+    def test_con_un_intento_vivo_y_otro_metodo_elegido_el_navegador_ya_no_pregunta(self):
+        """RV7, R7-8: la clienta pulsa Yappy (solicitud viva en su app), cambia a OTRO método y se va a pagar con
+        ese: la guarda de salida se quita al cambiar (antes seguía puesta y el navegador preguntaba «¿Salir del
+        sitio?» al ir a pagar con el otro)."""
+        pregunta = """(() => { const ev = new Event('beforeunload', {cancelable: true}); window.dispatchEvent(ev);
+                              return ev.defaultPrevented; })()"""
+        with self._chrome_movil(390) as browser, YappyFalso():
+            self._hasta_el_pago(browser)
+            self._elegir(browser)
+            self._pulsar(browser)
+            vivo = self._evaluar(browser, pregunta)
+            self._correr(browser, ESPERAR + """
+                return (async () => {
+                    const otro = [...document.querySelectorAll('input[name="o_payment_radio"]')]
+                        .find((r) => r.dataset.providerCode !== 'yappy');
+                    otro.click();
+                    await esperar(500);
+                    return 1;
+                })();""")
+            con_otro_metodo = self._evaluar(browser, pregunta)
+        self.assertTrue(vivo, 'con el cobro en marcha, el navegador pregunta antes de salir')
+        self.assertFalse(con_otro_metodo, 'con otro método elegido ya no pregunta')
+
     def test_si_algo_falla_el_boton_se_tira_y_se_puede_reintentar(self):
         with self._chrome_movil(390) as browser, YappyFalso() as yappy:
             orden = self._hasta_el_pago(browser)

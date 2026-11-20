@@ -127,6 +127,14 @@ class SaleOrder(models.Model):
             return True
         return bool(self.picking_ids.filtered(lambda p: p.state == 'done'))
 
+    def _dcasa_apartado_en_pausa(self):
+        """¿Algo está en marcha ahora mismo y este pedido no debe anularse ESTA noche? Un gancho para otros módulos
+        (hoy: un cobro de Yappy abierto, ``dcasa_pago_yappy``). A diferencia de ``_dcasa_apartado_reclamado``, **no**
+        borra la fecha de vencimiento: el barrido solo salta el pedido esta noche y, si lo que estaba en marcha termina
+        sin pago, el apartado vuelve a vencer en su día (RV7, R7-2). Aquí no hay nada en marcha."""
+        self.ensure_one()
+        return False
+
     @api.model
     def _dcasa_cron_vencer_apartados(self):
         """Cada noche: anula los apartados cuya fecha pasó y que nadie reclamó, y avisa a la vendedora de los que
@@ -142,6 +150,8 @@ class SaleOrder(models.Model):
                     if orden._dcasa_apartado_reclamado():
                         orden.dcasa_apartado_vence = False   # ya hay cobro o entrega: deja de vigilarse
                         continue
+                    if orden._dcasa_apartado_en_pausa():
+                        continue    # algo en marcha (un cobro abierto): esta noche no se anula, y la fecha se queda
                     fecha = orden.dcasa_apartado_vence
                     orden._action_cancel()
                     orden.message_post(

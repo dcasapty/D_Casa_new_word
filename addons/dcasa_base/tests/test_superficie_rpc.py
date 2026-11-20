@@ -151,6 +151,10 @@ LISTA_BLANCA = {
         OVERRIDE + ' Una conciliación con lo que debe un cliente exige Caja, Gerencia o contabilidad (A5); sin sudo().',
     ('dcasa_base', 'account.partial.reconcile', 'unlink'):
         OVERRIDE + ' Deshacer una conciliación de un cliente exige Caja, Gerencia o contabilidad (A5); sin sudo().',
+    ('dcasa_base', 'payment.transaction', 'write'):
+        OVERRIDE + ' Solo NIEGA (AccessError) escribir el estado, el monto y lo demás que mueve el dinero de un pago '
+                   'en línea a quien no es Caja, Gerencia, contabilidad o administrador (A5, RV7 R7-1); lo del '
+                   'sistema (sudo) pasa; no escribe nada propio.',
     ('dcasa_base', 'account.payment', 'create'):
         OVERRIDE + ' Un cobro de cliente exige Caja, Gerencia o contabilidad (A5); devolverle dinero, Gerencia (A7).',
     ('dcasa_base', 'account.payment', 'write'):

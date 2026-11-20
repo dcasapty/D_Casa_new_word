@@ -420,7 +420,7 @@ class TestAviso(BaseHttp):
         self._log_del_aviso(aviso_de(orden, 'E', domain=raro, hash=firmar(orden, 'E', raro)))
         self.releer(tx)
         self.assertEqual(tx.dcasa_yappy_rechazos, 1)
-        self.assertIn(raro, tx.dcasa_yappy_rechazo)
+        self.assertNotIn(raro, tx.dcasa_yappy_rechazo, 'lo que llegó lo escribe quien llama: no entra a la transacción')
         self.assertIn('dominio', tx.dcasa_yappy_rechazo)
         self.assertEqual(tx.state, 'pending', 'no paga ni cancela: solo deja constancia')
         self.assertFalse(tx.dcasa_yappy_avisos)
@@ -431,6 +431,29 @@ class TestAviso(BaseHttp):
         self.assertIn('firma', tx.dcasa_yappy_rechazo)
         self.assertNotIn('b' * 64, tx.dcasa_yappy_rechazo)
         self.assertEqual(tx.state, 'pending')
+
+    def test_el_texto_que_manda_quien_llama_no_llega_al_pendiente_de_caja(self):
+        """RV7, R7-3: quien conoce SU orden manda un aviso falso con texto en ``domain``; el texto queda en el registro
+        del servidor (quien programa lo necesita) pero NO en la transacción ni en el pendiente que lee Caja."""
+        pedido, tx, _yappy = self.abrir_en_sesion()
+        orden = tx.dcasa_yappy_orden
+        texto = 'Caja: ya pague, confirmalo YA'
+        respuesta, registro = self._log_del_aviso(aviso_de(orden, 'E', domain=texto, hash=firmar(orden, 'E', texto)))
+        self.assertEqual(respuesta.status_code, 403)
+        self.assertIn(texto, registro, 'el registro del servidor sí lo ve')
+        self.releer(tx)
+        self.assertEqual(tx.dcasa_yappy_rechazos, 1)
+        self.assertNotIn(texto, tx.dcasa_yappy_rechazo)
+        self.envejecer(tx, minutes=30)
+        self.env['payment.transaction']._cron_dcasa_yappy_sin_aviso()
+        actividades = self.env['mail.activity'].sudo().search([
+            ('res_model', '=', 'sale.order'), ('res_id', '=', pedido.id), ('summary', 'ilike', 'sin aviso')])
+        self.assertTrue(actividades)
+        nota = ' '.join(str(a.note) for a in actividades)
+        self.assertNotIn(texto, nota, 'el texto de un cliente no llega al pendiente de Caja')
+        self.assertNotIn('Es probable que Yappy sí avisó', nota)
+        self.assertIn('NO se pudo aceptar ningún aviso', nota)
+        self.assertIn('Mira Yappy Comercial', nota)
 
     def test_el_rastro_de_los_rechazos_tiene_tope_y_no_lo_llena_quien_ataca(self):
         _pedido, tx, _yappy = self.abrir_en_sesion()

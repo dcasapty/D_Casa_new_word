@@ -79,7 +79,9 @@ class YappyController(http.Controller):
     def _dejar_rastro_del_rechazo(self, parametros, motivo, detalle):
         """Si el aviso rechazado trae una orden NUESTRA que sigue abierta, se anota en su transacción (con tope) y se
         registra en nivel ERROR: es la señal de que un aviso real puede estar llegando y no se acepta. Devuelve
-        ``True`` si lo anotó. Nunca hace fallar la respuesta (el 403 sale igual)."""
+        ``True`` si lo anotó. Nunca hace fallar la respuesta (el 403 sale igual). A la transacción (y de ahí al
+        pendiente de Caja) va solo el MOTIVO en palabras fijas: nada de lo que llegó en la petición (RV7, R7-3); el
+        ``detalle`` con el dominio que llegó queda solo en el registro del servidor."""
         if motivo not in api_yappy.RECHAZOS_CON_RASTRO:
             return False
         orden = api_yappy.orden_valida(parametros.get('orderId')) if isinstance(parametros, dict) else None
@@ -88,7 +90,7 @@ class YappyController(http.Controller):
         try:
             with request.env.cr.savepoint():
                 tx = request.env['payment.transaction']._dcasa_yappy_buscar(orden)
-                if not tx or not tx._dcasa_yappy_anotar_rechazo(detalle):
+                if not tx or not tx._dcasa_yappy_anotar_rechazo(motivo):
                     return False
         except CHOQUES_DE_CONCURRENCIA:
             raise
