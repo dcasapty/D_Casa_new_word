@@ -22,6 +22,11 @@ prueba compara las dos pantallas para que nunca discrepen.
 * *Orden:* alfabético por el nombre del diario (sin importar mayúsculas), no el cronológico. Así el mismo conjunto de
   diarios da siempre el mismo texto y «Agrupar por Forma de pago» no parte en dos «Efectivo + Yappy» y
   «Yappy + Efectivo». Un diario repetido (dos abonos en efectivo) sale una sola vez.
+* *Idioma:* el nombre de un diario es traducible («Bank» / «Banco» en los diarios del plan contable) y el texto se
+  guarda en la base. Se lee SIEMPRE en el idioma de D'CASA (``DCASA_LANG``, ``es_419``), tanto para el texto como para
+  el orden, sin importar quién dispare el cálculo: la actualización del módulo y un cron corren sin idioma o en inglés,
+  una usuaria en español; si el texto dependiera de eso, el mismo diario quedaría escrito de dos maneras, «Agrupar» lo
+  partiría en dos y buscar «Banco» no encontraría las facturas guardadas como «Bank».
 * *Pago anulado, rechazado, en borrador, desconciliado o devuelto:* deja de contar y el campo se pone al día solo
   (depende de lo mismo que el estado de pago de Odoo: ``_compute_payment_state``). Se mira la conciliación de verdad
   (``account.partial.reconcile``), no ``matched_payment_ids``, que Odoo deja puesto aunque el pago se desconcilie.
@@ -31,11 +36,17 @@ prueba compara las dos pantallas para que nunca discrepen.
   guarda en la base y no puede cambiar con el idioma de quien dispara el cálculo.
 * *Factura sin cobrar* (borrador, publicada sin pagos, anulada): vacío. «Sin pagar» ya lo dice el Estado, y un vacío
   deja la columna limpia; al agrupar, esas facturas salen juntas en «Ninguno».
+* *Factura PAGADA sin ningún pago ni nota de crédito detectados* (``payment_state`` en pagada o en pago): dice
+  «Sin pago registrado». Es lo que pasa con un cobro conciliado directo contra una línea del extracto del banco o con un
+  asiento manual: Odoo la da por pagada, pero no hay un pago de Odoo del que sacar el diario, y dejarla en blanco se
+  confundiría con «sin cobrar». No inventa un diario: dice lo que falta. Una factura en cero no entra (queda en blanco).
+  Sin decidir por la contadora: ver la pregunta abierta en ``docs/CONTABILIDAD.md``.
 * *Qué documentos:* facturas y recibos de clientes (``out_invoice``, ``out_receipt``). Las notas de crédito de
   clientes (``out_refund``) quedan vacías: no son un cobro, y la factura a la que se aplicaron ya lo dice. Las de
   proveedores y los asientos no llevan la columna.
 * *Un cobro conciliado directo con una línea del extracto del banco* (sin un pago de por medio) no es un pago de Odoo y
-  no cuenta: tampoco entra en el «Cobrado por forma de pago» del tablero.
+  no cuenta como diario (tampoco entra en el «Cobrado por forma de pago» del tablero): la factura sale con
+  «Sin pago registrado».
 
 **Rendimiento.** El campo se calcula en lote: una sola consulta SQL para toda la tanda de facturas y una lectura
 agrupada de los pagos y los diarios, sin una consulta por factura (al actualizar el módulo en producción se calcula para
@@ -44,9 +55,11 @@ todas las facturas que ya existen, de a 1000; ``tests/test_forma_pago.py`` cuent
 from collections import defaultdict
 
 from odoo import api, fields, models
+from odoo.addons.dcasa_base import DCASA_LANG
 from odoo.tools import SQL
 
 NOTA_DE_CREDITO = 'Nota de crédito'
+SIN_PAGO_REGISTRADO = 'Sin pago registrado'
 SEPARADOR = ' + '
 # Los documentos de cliente que se cobran. Las notas de crédito (out_refund) no son un cobro.
 TIPOS_CON_FORMA_DE_PAGO = ('out_invoice', 'out_receipt')
@@ -63,12 +76,18 @@ class AccountMoveFormaPago(models.Model):
     dcasa_forma_pago = fields.Char(
         'Forma de pago', compute='_compute_dcasa_forma_pago', store=True, copy=False, readonly=True,
         help='Con qué se cobró la factura: los diarios de sus pagos unidos con « + » (Efectivo + Yappy). '
-             'Con una nota de crédito aplicada, sale «Nota de crédito». Vacío si todavía no se cobró nada.')
+             'Con una nota de crédito aplicada, sale «Nota de crédito». Vacío si todavía no se cobró nada. Si la '
+             'factura está pagada pero no hay ningún pago de Odoo (por ejemplo, se concilió directo con el extracto '
+             'del banco), dice «Sin pago registrado».')
 
     # Las mismas dependencias del estado de pago de Odoo (``_compute_payment_state``): cambia la conciliación o cambia
     # el estado del pago. Más lo que cambia el texto: el tipo del pago, el diario y su nombre.
-    @api.depends('move_type', 'matched_payment_ids', 'line_ids.matched_debit_ids', 'line_ids.matched_credit_ids',
-                 'reconciled_payment_ids.state', 'reconciled_payment_ids.payment_type',
+    # (``line_ids.matched_*`` y ``matched_payment_ids`` se parecen a ``reconciled_payment_ids`` y no sobran: el cálculo
+    # parte de la conciliación de verdad y de las notas de crédito, que no son pagos y ``reconciled_payment_ids`` no
+    # trae, y ``reconciled_payment_ids`` también incluye lo que Odoo deja atado aunque se desconcilie. ``payment_state``
+    # y ``amount_total`` son para «Sin pago registrado».)
+    @api.depends('move_type', 'payment_state', 'amount_total', 'matched_payment_ids', 'line_ids.matched_debit_ids',
+                 'line_ids.matched_credit_ids', 'reconciled_payment_ids.state', 'reconciled_payment_ids.payment_type',
                  'reconciled_payment_ids.journal_id.name', 'reconciled_payment_ids.journal_id.currency_id')
     def _compute_dcasa_forma_pago(self):
         con_forma = self.filtered(lambda factura: factura.id and factura.move_type in TIPOS_CON_FORMA_DE_PAGO)
@@ -85,18 +104,28 @@ class AccountMoveFormaPago(models.Model):
         # Se arma todo primero y se asigna por grupos: las facturas que comparten diarios (o texto) se escriben juntas,
         # así lo que cuesta escribir depende de cuántas combinaciones de diarios hay, no de cuántas facturas.
         por_diarios, por_texto = defaultdict(self.browse), defaultdict(self.browse)
+        idioma = self._dcasa_idioma_del_texto()
         for factura in con_forma:
-            diarios = (Pago.browse(pagos_de.get(factura.id, ())) & cuentan).journal_id
+            diarios = (Pago.browse(pagos_de.get(factura.id, ())) & cuentan).journal_id.with_context(lang=idioma)
             diarios = diarios.sorted(lambda diario: (diario.display_name.casefold(), diario.id))
             nombres = list(dict.fromkeys(diarios.mapped('display_name')))
             if factura.id in con_nota:
                 nombres.append(NOTA_DE_CREDITO)
+            if not nombres and factura.payment_state in ('paid', 'in_payment') \
+                    and not factura.currency_id.is_zero(factura.amount_total):
+                nombres.append(SIN_PAGO_REGISTRADO)
             por_diarios[tuple(diarios.ids)] |= factura
             por_texto[SEPARADOR.join(nombres) or False] |= factura
         for ids, facturas in por_diarios.items():
             facturas.dcasa_diario_pago_ids = self.env['account.journal'].browse(ids)
         for texto, facturas in por_texto.items():
             facturas.dcasa_forma_pago = texto
+
+    @api.model
+    def _dcasa_idioma_del_texto(self):
+        """El idioma con que se escribe el texto guardado: el de D'CASA, siempre el mismo (no el de quien dispara el
+        cálculo). Si ese idioma no está activo (una base sin ``dcasa_base`` al día), inglés, también fijo."""
+        return self.env['res.lang']._get_code(DCASA_LANG) or 'en_US'
 
     @api.model
     def _dcasa_dominio_de_pago_que_cuenta(self):
