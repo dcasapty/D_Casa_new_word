@@ -486,8 +486,8 @@ además como módulo de todo el servidor (`server_wide_modules = base,web,dcasa_
 - **La definición de «venta online» vive en `dcasa_base`** (`models/venta_online.py`: `dcasa_nacio_en_web`,
   `dcasa_via_andres`, `dcasa_llevada_por_vendedora`, `dcasa_creada_por_id`, `dcasa_venta_online`, y
   `account.move._dcasa_factor_online` / `_dcasa_dias_de_cobro_de`), no aquí. Las marcas solo las escribe el código del
-  sitio con una llave interna (`website._create_cart` en `website_dcasa`; Andrés marca el suyo); tener `website_id` no
-  basta y el campo calculado tampoco se escribe a mano: el bono por meta (`dcasa_nomina`), el Inicio (`dcasa_interfaz`) y el programa de vendedores (`dcasa_socios`) la
+  sitio con una llave interna (`website._create_cart` en `website_dcasa`; la herramienta de cotizar de Juan en
+  `dcasa_conversaciones`; Andrés marca el suyo, que solo dice por dónde llegó); tener `website_id` no basta y el campo calculado tampoco se escribe a mano: el bono por meta (`dcasa_nomina`), el Inicio (`dcasa_interfaz`) y el programa de vendedores (`dcasa_socios`) la
   usan sin depender de este módulo. Este módulo da el día desde el que rige para las vendedoras
   (`sale.order._dcasa_online_desde`: el «Rige desde» de su primera versión) y decide, al confirmar un pedido de la web, si
   una vendedora lo llevó por el chat de Juan.
