@@ -1,6 +1,6 @@
-"""Toda venta de Andrés es venta online (definición única en ``dcasa_base``): el carrito que arma el chat de la tienda
-nace en la web, queda marcado «pasó por Andrés» y anota quién lo abrió. Prueba de punta a punta, por las rutas de
-verdad."""
+"""Lo que Andrés vende y el cliente paga sin más intervención es venta online (definición única en ``dcasa_base``; desde
+el 2026-11-20 si una vendedora atiende y cierra, es de ella): el carrito que arma el chat de la tienda nace en la web,
+queda marcado «pasó por Andrés» y anota quién lo abrió. Prueba de punta a punta, por las rutas de verdad."""
 from odoo.tests import new_test_user, tagged
 
 from .common import RAIZ, TiendaCase
@@ -38,4 +38,5 @@ class TestOrigenVentaOnline(TiendaCase):
         pedido.sudo()._dcasa_escribir_marca(dcasa_via_andres=False)
         self.assertFalse(pedido.dcasa_via_andres)
         self.post('carrito/cantidad', {'producto_id': self.colchon.product_variant_id.id, 'cantidad': 3})
-        self.assertTrue(pedido.dcasa_via_andres and pedido.dcasa_venta_online, f'{RAIZ}: toda venta de Andrés cuenta')
+        self.assertTrue(pedido.dcasa_via_andres and pedido.dcasa_venta_online,
+                        f'{RAIZ}: queda marcado y sigue siendo online')

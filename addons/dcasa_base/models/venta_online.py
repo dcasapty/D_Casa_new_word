@@ -1,32 +1,37 @@
-"""Qué es una «venta online»: UNA sola definición para todo el sistema (decisión de Gerencia, 2026-11-19).
+"""Qué es una «venta online»: UNA sola definición para todo el sistema (decisión de Gerencia, 2026-11-19, afinada el
+2026-11-20).
 
 La usan tres cosas que NO se parecen: el bono por meta de las vendedoras (``dcasa_nomina``), el avance que ellas ven en
 su Inicio (``dcasa_interfaz``) y la comisión del programa de vendedores (``dcasa_socios``), y además la comisión del
 sitio web (``dcasa_comision_web``). Por eso vive aquí, en la base: ninguna de ellas depende de las otras.
 
-**Cuenta como venta online** (``sale.order.dcasa_venta_online``), y por lo tanto nunca es de una vendedora:
+**Es venta online** (``sale.order.dcasa_venta_online``) un pedido que **nació por un flujo digital real**
+(``dcasa_nacio_en_web``) **y** al que **ninguna vendedora llevó** (``dcasa_llevada_por_vendedora``). Los flujos
+digitales reales son dos:
 
-1. alguien compra en la página web  → el pedido nació en la tienda en línea (``dcasa_nacio_en_web``);
-2. alguien cotiza en la página web y llega a la tienda con esa cotización («Pago en la tienda», apartado) → es el mismo
-   pedido, nació en la web;
-3. todas las ventas de Andrés, el chat de la tienda (``dcasa_via_andres``): Andrés trabaja sobre el carrito real de la
-   tienda; cuentan aunque después las cierre una vendedora;
-4. alguien entra al chat de Juan (WhatsApp, etc.), Juan lo manda a la página o al catálogo y la persona decide comprar
-   sola por ahí → es un pedido que nació en la web y ninguna vendedora lo llevó.
+1. el carrito de la página web (``website._create_cart``): la compra normal, la cotización hecha en la página y
+   llevada a la tienda («Pago en la tienda», apartado: es el mismo pedido) y el carrito de **Andrés**, el chat de la
+   tienda, que trabaja sobre el carrito real;
+2. la cotización que arma **Juan** (la herramienta de cotizar del chat de WhatsApp) y el cliente paga.
 
-**NO cuenta**: alguien entra al chat de Juan y lo atiende una vendedora (``dcasa_llevada_por_vendedora``, lo decide
-``dcasa_comision_web`` al confirmar el pedido mirando la conversación), aunque después ella le mande el enlace de la
-tienda; ni lo que se arma en la tienda física, en Ventas o en el Punto de Venta, ni la cotización que arma Juan (esa no
-nació en la web).
+**Una vendedora llevó el pedido** cuando, en los 30 días anteriores a confirmarlo, le escribió al cliente por el chat de
+Juan (aunque sea un mensaje: ``dcasa_comision_web`` lo comprueba al confirmar). Entonces es de ella y no es online,
+venga del flujo que venga: Andrés que pasa al cliente a una persona que lo atiende y cierra, o la cotización de Juan que
+una vendedora retoma. **Que la vendedora solo confirme el pedido, sin haberle escrito por el chat de Juan, no cuenta**
+(caso gris que Gerencia puede afinar). ``dcasa_via_andres`` solo dice por dónde llegó la venta: **ya no fuerza** que
+sea online.
 
-Las marcas se escriben UNA vez, **solo por código del sitio** (el carrito real: ``website._create_cart``, en
-``website_dcasa``; Andrés marca el suyo; ``dcasa_comision_web`` decide «la llevó una vendedora» al confirmar), y nadie
-las cambia a mano ni con ``sudo()``: solo con la llave interna ``ESCRIBIR``, que por RPC nunca llega (el contexto de una
-llamada es JSON). **Tener ``website_id`` NO basta** (revisión adversarial, 2026-11-19): ese campo se acepta por RPC, así
-que quien teclea un pedido de mostrador con ``website_id`` no lo vuelve «de la web». Tampoco se escribe a mano el campo
-calculado ``dcasa_venta_online`` que lee todo el sistema. ``dcasa_creada_por_id`` guarda quién abrió el carrito (para
-que Gerencia vea si alguien del equipo teclea pedidos de la página). Los pedidos que ya existían se marcaron una sola
-vez al instalar (``migrations/19.0.1.10.0``).
+**NO es venta online**: lo que se arma en la tienda física, en Ventas o en el Punto de Venta (un pedido tecleado por una
+persona), ni lo que una vendedora atendió.
+
+Las marcas se escriben UNA vez, **solo por código del flujo real** (el carrito: ``website._create_cart``, en
+``website_dcasa``; la herramienta de cotizar de Juan, en ``dcasa_conversaciones``; Andrés marca el suyo;
+``dcasa_comision_web`` decide «la llevó una vendedora» al confirmar), y nadie las cambia a mano ni con ``sudo()``: solo
+con la llave interna ``ESCRIBIR``, que por RPC nunca llega (el contexto de una llamada es JSON). **Tener ``website_id``
+NO basta** (revisión adversarial, 2026-11-19): ese campo se acepta por RPC, así que quien teclea un pedido de mostrador
+con él no lo vuelve «de la web». Tampoco se escribe a mano el campo calculado ``dcasa_venta_online`` que lee todo el
+sistema. ``dcasa_creada_por_id`` guarda quién abrió el carrito (para que Gerencia vea si alguien del equipo teclea
+pedidos de la página). Los pedidos que ya existían se marcaron una sola vez al instalar (``migrations/19.0.1.10.0``).
 
 **Solo hacia adelante.** La regla «una venta online nunca es de una vendedora» solo rige desde el día en que Gerencia
 pone en vigencia la primera versión de las reglas de la comisión web: ``_dcasa_online_desde()`` devuelve ese día (y
@@ -49,12 +54,13 @@ class SaleOrderOnline(models.Model):
     _inherit = 'sale.order'
 
     dcasa_nacio_en_web = fields.Boolean(
-        'Nació en la tienda en línea', readonly=True, copy=False, index=True,
-        help='Se escribe una sola vez al crear el pedido: si nació en la página web. Nadie lo cambia a mano.')
+        'Nació por un flujo digital', readonly=True, copy=False, index=True,
+        help='Se escribe una sola vez al crear el pedido, desde el flujo real: el carrito de la página (también el de '
+             'Andrés) o la cotización que arma Juan. Nadie lo cambia a mano.')
     dcasa_via_andres = fields.Boolean(
         'Pasó por Andrés', readonly=True, copy=False,
-        help='El carrito de este pedido lo armó o lo tocó Andrés, el chat de la tienda. Toda venta de Andrés cuenta '
-             'como venta online.')
+        help='El carrito de este pedido lo armó o lo tocó Andrés, el chat de la tienda. Solo dice por dónde llegó la '
+             'venta: si es online lo decide si una vendedora la atendió.')
     dcasa_llevada_por_vendedora = fields.Boolean(
         'La llevó una vendedora', readonly=True, copy=False,
         help='Una vendedora atendió al cliente en el chat de Juan antes de confirmar el pedido: aunque el pedido salga '
@@ -65,14 +71,14 @@ class SaleOrderOnline(models.Model):
              'vigilar si el personal teclea pedidos de la página; no cambia lo que cuenta.')
     dcasa_venta_online = fields.Boolean(
         'Venta online', compute='_compute_dcasa_venta_online', store=True, index=True,
-        help='La definición única: nació en la web y no la llevó una vendedora, o pasó por Andrés. Una venta online '
-             'jamás se atribuye a una vendedora (bono por meta, Inicio ni programa de vendedores).')
+        help='La definición única: nació por un flujo digital (la página, Andrés, la cotización de Juan) y no la llevó '
+             'una vendedora. Una venta online jamás se atribuye a una vendedora (bono por meta e Inicio; el programa '
+             'de vendedores solo paga la compra con un código VEN).')
 
-    @api.depends('dcasa_nacio_en_web', 'dcasa_via_andres', 'dcasa_llevada_por_vendedora')
+    @api.depends('dcasa_nacio_en_web', 'dcasa_llevada_por_vendedora')
     def _compute_dcasa_venta_online(self):
         for orden in self:
-            orden.dcasa_venta_online = bool(
-                orden.dcasa_via_andres or (orden.dcasa_nacio_en_web and not orden.dcasa_llevada_por_vendedora))
+            orden.dcasa_venta_online = bool(orden.dcasa_nacio_en_web and not orden.dcasa_llevada_por_vendedora)
 
     @api.model_create_multi
     def create(self, vals_list):

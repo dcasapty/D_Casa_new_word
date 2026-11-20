@@ -339,7 +339,8 @@ class DcasaBrianTiendaAPI(http.Controller):
             orden._cart_update_line_quantity(line_id=linea.id, quantity=nueva)
         elif sumar:
             orden._cart_add(product_id=producto_id, quantity=cantidad)
-        # Toda venta de Andrés es venta online (dcasa_base.models.venta_online): el carrito queda marcado.
+        # El carrito queda marcado «pasó por Andrés» (cómo llegó la venta). Es venta online salvo que una vendedora la
+        # atienda (dcasa_base.models.venta_online): eso lo decide la comprobación del chat de Juan al confirmar.
         orden.sudo()._dcasa_escribir_marca(dcasa_via_andres=True)
         return _json({'ok': True, 'carrito': self._carrito()})
 
@@ -400,7 +401,7 @@ class DcasaBrianTiendaAPI(http.Controller):
         puesto = orden._dcasa_envio_poner(lugar, tarjeta['total'])
         if not puesto['puesto']:
             return _json({'ok': False, 'motivo': MOTIVO_DEL_ENVIO.get(puesto['motivo'], 'fallo')})
-        orden._dcasa_escribir_marca(dcasa_via_andres=True)   # toda venta de Andrés es venta online
+        orden._dcasa_escribir_marca(dcasa_via_andres=True)   # cómo llegó (no decide si es venta online)
         return _json({'ok': True, 'ya_estaba': bool(puesto.get('ya_estaba')), 'carrito': self._carrito()})
 
     # ------------------------------------------------------------------

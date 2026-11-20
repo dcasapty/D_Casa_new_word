@@ -501,18 +501,25 @@ además como módulo de todo el servidor (`server_wide_modules = base,web,dcasa_
   ([COMISION_WEB.md](COMISION_WEB.md); diseño y decisiones en [PLAN_COMISION_WEB.md](PLAN_COMISION_WEB.md)).
 - **Depende de:** `dcasa_base`, `dcasa_nomina`, `dcasa_invoice`, `dcasa_conversaciones`, `website_sale`, `delivery`.
 - **La definición de «venta online» vive en `dcasa_base`** (`models/venta_online.py`: `dcasa_nacio_en_web`,
-  `dcasa_via_andres`, `dcasa_llevada_por_vendedora`, `dcasa_venta_online`, y `account.move._dcasa_factor_online`), no
-  aquí: el bono por meta (`dcasa_nomina`), el Inicio (`dcasa_interfaz`) y el programa de vendedores (`dcasa_socios`) la
+  `dcasa_via_andres`, `dcasa_llevada_por_vendedora`, `dcasa_creada_por_id`, `dcasa_venta_online`, y
+  `account.move._dcasa_factor_online` / `_dcasa_dias_de_cobro_de`), no aquí. Las marcas solo las escribe el código del
+  sitio con una llave interna (`website._create_cart` en `website_dcasa`; la herramienta de cotizar de Juan en
+  `dcasa_conversaciones`; Andrés marca el suyo, que solo dice por dónde llegó); tener `website_id` no basta y el campo calculado tampoco se escribe a mano: el bono por meta (`dcasa_nomina`), el Inicio (`dcasa_interfaz`) y el programa de vendedores (`dcasa_socios`) la
   usan sin depender de este módulo. Este módulo da el día desde el que rige para las vendedoras
   (`sale.order._dcasa_online_desde`: el «Rige desde» de su primera versión) y decide, al confirmar un pedido de la web, si
   una vendedora lo llevó por el chat de Juan.
 - **Modelos:** `dcasa.web.reglas` + `dcasa.web.reparto` (versiones, no se editan ni se borran), `dcasa.web.venta` (una
-  fila por factura), `dcasa.web.movimiento` (el libro, en centavos), `dcasa.web.liquidacion` + `…linea`. Hereda
-  `sale.order`, `account.move` (ganchos de pago y de notas de crédito, con savepoint) y `payment.transaction`
-  (`dcasa_comision_pasarela`).
+  fila por factura), `dcasa.web.movimiento` (el libro, en centavos), `dcasa.web.liquidacion` + `…linea`,
+  `dcasa.web.ajuste` (asistente para anotar un ajuste con motivo) y `dcasa.web.candado` (dos filas que se escriben para
+  serializar la numeración de versiones y la aprobación de liquidaciones; sin acceso para nadie). Hereda `sale.order`,
+  `account.move` (ganchos de pago, de notas de crédito, de volver a borrador, anular y borrar, con savepoint),
+  `hr.employee` (el usuario y el contacto de la ficha quedan en el chatter) y `payment.transaction`
+  (`dcasa_comision_pasarela`). El corte entre el sitio y las vendedoras es **por día de cobro** (hora de Panamá):
+  `dcasa.web.reglas._vigente_el`.
 - **Crons:** «Comisión web: anotar lo que falte, comparar el libro con la verdad y anotar la tarifa» (diario).
 - **Menús:** Nómina › Comisión del sitio web (Ventas del sitio, Liquidaciones, Quiénes reciben, Libro, Reglas), solo
-  para «Administra la nómina» (Gerencia lo incluye).
+  para «Administra la nómina» (Gerencia lo incluye); y **Pedidos de la página para revisar**, solo para Gerencia (la
+  vigilancia de los pedidos que una vendedora llevó o que abrió alguien del equipo).
 - **Apagado de fábrica:** nace sin versión de reglas, sin porcentaje y sin tarifa: solo mide.
 
 ## `dcasa_camila` — Camila, la asistente del mail marketing

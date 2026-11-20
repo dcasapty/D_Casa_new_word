@@ -1,8 +1,10 @@
 """Qué cuenta como venta online (la definición única de ``dcasa_base``) y cómo se mide cada caso.
 
-Los casos de Gerencia (2026-11-19): compra en la página → cuenta; cotiza en la página y paga en la tienda → cuenta; toda
-venta de Andrés → cuenta; Juan lo manda a la página y compra solo → cuenta; lo atiende una vendedora por Juan → NO
-cuenta (aunque ella mande el enlace). Y lo de la tienda, nunca."""
+Los casos de Gerencia (2026-11-19 y 2026-11-20): compra en la página → cuenta; cotiza en la página y paga en la tienda
+→ cuenta; lo que Andrés vende y el cliente paga sin más intervención → cuenta; la cotización que arma Juan y el cliente
+paga → cuenta; Juan lo manda a la página y compra solo → cuenta; si una vendedora le escribió al cliente por el chat de
+Juan en los 30 días anteriores (aunque sea para mandar el enlace, o porque Andrés pasó al cliente a una persona) → NO
+cuenta. Y lo de la tienda, nunca."""
 from odoo.exceptions import UserError
 from odoo.tests import tagged
 
@@ -46,23 +48,47 @@ class TestVentaOnline(ComisionCommon):
         venta = self.venta(factura)
         self.assertEqual((venta.forma_pago, venta.como_llego), ('en_tienda', 'tienda'))
 
-    def test_toda_venta_de_andres_cuenta_aunque_la_cierre_una_vendedora(self):
-        orden = self.orden(vendedora=self.u_vendedora)
+    def test_lo_que_vende_andres_y_el_cliente_paga_sin_mas_intervencion_cuenta(self):
+        orden = self.orden()
         orden._dcasa_escribir_marca(dcasa_via_andres=True)
         self.assertTrue(orden.dcasa_venta_online)
         factura = self.facturar(orden)
         self.pagar(factura)
         venta = self.venta(factura)
         self.assertEqual(venta.como_llego, 'andres')
-        self.assertTrue(venta.atendida_por_vendedora, 'se mide cuántas pasan por una vendedora')
+        self.assertFalse(venta.atendida_por_vendedora)
 
-    def test_andres_manda_sobre_la_vendedora_que_hablo_con_el_cliente(self):
+    def test_andres_pasa_al_cliente_a_una_vendedora_que_escribe_y_cierra_no_es_online(self):
+        """Decisión del 2026-11-20: ya no manda Andrés. Si una vendedora le escribió al cliente por el chat de Juan en
+        los 30 días anteriores y cerró la venta, es de ella (como hoy en su bono)."""
         self.hablar(self.cliente, 'vendedora', hace_dias=2)
-        orden = self.orden(confirmar=False)
+        orden = self.orden(confirmar=False, vendedora=self.u_vendedora)
         orden._dcasa_escribir_marca(dcasa_via_andres=True)
         orden.action_confirm()
-        self.assertFalse(orden.dcasa_llevada_por_vendedora, 'ni se mira: la venta es de Andrés')
+        self.assertTrue(orden.dcasa_via_andres and orden.dcasa_nacio_en_web)
+        self.assertTrue(orden.dcasa_llevada_por_vendedora, 'la comprobación también mira los pedidos de Andrés')
+        self.assertFalse(orden.dcasa_venta_online)
+        factura = self.facturar(orden)
+        self.pagar(factura)
+        self.assertFalse(self.venta(factura), 'no se mide como del sitio')
+
+    def test_el_carrito_de_andres_que_la_vendedora_solo_confirma_sin_escribir_por_juan_es_online(self):
+        """El caso gris que Gerencia puede afinar: sin mensaje suyo por el chat de Juan en 30 días, confirmar el pedido
+        no basta para que la venta sea de ella (se mide cuántas pasan por una vendedora)."""
+        orden = self.orden(confirmar=False, vendedora=self.u_vendedora)
+        orden._dcasa_escribir_marca(dcasa_via_andres=True)
+        orden.action_confirm()
+        self.assertFalse(orden.dcasa_llevada_por_vendedora)
         self.assertTrue(orden.dcasa_venta_online)
+        factura = self.facturar(orden)
+        self.pagar(factura)
+        self.assertTrue(self.venta(factura).atendida_por_vendedora)
+
+    def test_pasar_por_andres_no_vuelve_online_un_pedido_que_no_nacio_por_un_flujo_digital(self):
+        tienda = self.orden(web=False)
+        tienda._dcasa_escribir_marca(dcasa_via_andres=True)
+        self.assertTrue(tienda.dcasa_via_andres)
+        self.assertFalse(tienda.dcasa_venta_online, 'la marca de Andrés ya no fuerza nada')
 
     def test_juan_lo_manda_a_la_pagina_y_la_persona_compra_sola_cuenta(self):
         self.hablar(self.cliente, 'bot', hace_dias=1)

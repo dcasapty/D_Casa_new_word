@@ -1,8 +1,9 @@
-"""Marca, una sola vez, los pedidos que ya existían y nacieron en la tienda en línea (``dcasa_nacio_en_web``).
+"""Marca, una sola vez, los pedidos que ya existían y nacieron por un flujo digital (``dcasa_nacio_en_web``).
 
-Es el testigo de origen de la venta online (``models/venta_online.py``). Desde aquí solo lo escribe el carrito real del
-sitio (``website._create_cart``); a lo que ya existe se le pone UNA vez por tener ``website_id`` hoy (antes de esta
-versión nadie podía haberlo fabricado, porque el origen no se medía). Además, a los pedidos de la página ya
+Es el testigo de origen de la venta online (``models/venta_online.py``). Desde aquí solo lo escribe el flujo real (el
+carrito del sitio, ``website._create_cart``, y la herramienta de cotizar de Juan); a lo que ya existe se le pone UNA vez
+por tener ``website_id`` hoy o por haberlo creado el usuario del asistente Juan (antes de esta versión nadie podía
+haberlo fabricado, porque el origen no se medía). Además, a los pedidos de la página ya
 confirmados y que todavía no están pagados por completo se les mira el chat de Juan UNA vez (una vendedora que le
 escribió al cliente en los 30 días anteriores a la confirmación): sin eso, un pedido atendido por una vendedora antes
 del despliegue y cobrado después contaría como online.
@@ -24,6 +25,12 @@ def migrate(cr, version):
     cr.execute("""
         UPDATE sale_order SET dcasa_nacio_en_web = TRUE
          WHERE website_id IS NOT NULL AND dcasa_nacio_en_web IS NOT TRUE""")
+    # Las cotizaciones que armó Juan (la herramienta de cotizar corre con el usuario del asistente).
+    cr.execute("""
+        UPDATE sale_order o SET dcasa_nacio_en_web = TRUE
+          FROM ir_model_data d
+         WHERE d.module = 'dcasa_conversaciones' AND d.name = 'user_juan' AND d.model = 'res.users'
+           AND o.create_uid = d.res_id AND o.dcasa_nacio_en_web IS NOT TRUE""")
     if _existe(cr, 'dcasa_mensaje') and _existe(cr, 'dcasa_conversacion'):
         cr.execute("""
             UPDATE sale_order o SET dcasa_llevada_por_vendedora = TRUE
@@ -45,9 +52,7 @@ def migrate(cr, version):
                        AND b.ts >= COALESCE(o.date_order, now()) - interval '30 days')""")
     cr.execute("""
         UPDATE sale_order
-           SET dcasa_venta_online = (COALESCE(dcasa_nacio_en_web, FALSE)
-                                     AND NOT COALESCE(dcasa_llevada_por_vendedora, FALSE))
-                                    OR COALESCE(dcasa_via_andres, FALSE)
-         WHERE dcasa_venta_online IS DISTINCT FROM ((COALESCE(dcasa_nacio_en_web, FALSE)
-                                     AND NOT COALESCE(dcasa_llevada_por_vendedora, FALSE))
-                                    OR COALESCE(dcasa_via_andres, FALSE))""")
+           SET dcasa_venta_online = COALESCE(dcasa_nacio_en_web, FALSE)
+                                    AND NOT COALESCE(dcasa_llevada_por_vendedora, FALSE)
+         WHERE dcasa_venta_online IS DISTINCT FROM (COALESCE(dcasa_nacio_en_web, FALSE)
+                                    AND NOT COALESCE(dcasa_llevada_por_vendedora, FALSE))""")

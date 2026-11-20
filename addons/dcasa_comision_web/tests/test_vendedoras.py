@@ -87,7 +87,20 @@ class TestBonoPorMeta(VendedoraCommon):
         self.assertEqual(self.bono().cobrado, 1000.0, 'la llevó ella: sigue siendo de la vendedora')
         self.assertFalse(self.venta(factura), 'y no es venta online del sitio')
 
-    def test_andres_nunca_es_de_una_vendedora_aunque_ella_lo_cierre(self):
+    def test_andres_que_pasa_al_cliente_a_la_vendedora_que_escribe_y_cierra_es_de_ella(self):
+        """Decisión del 2026-11-20: si la vendedora atiende (le escribió por el chat de Juan) y cierra, lo recibe ella
+        como hoy en su bono; ya no manda Andrés."""
+        self.version(10.0)
+        self.hablar(self.cliente, 'vendedora', hace_dias=1)
+        orden = self.orden(web=True, vendedora=self.u_vendedora, confirmar=False)
+        orden._dcasa_escribir_marca(dcasa_via_andres=True)
+        orden.action_confirm()
+        factura = self.facturar(orden, '2030-03-05')
+        self.pagar(factura, '2030-03-05')
+        self.assertEqual(self.bono().cobrado, 1000.0)
+
+    def test_el_carrito_de_andres_que_ella_solo_confirma_sin_escribir_por_juan_no_le_suma(self):
+        """El caso gris (documentado): sin mensaje suyo por el chat de Juan, confirmar no basta para que sea de ella."""
         self.version(10.0)
         orden = self.orden(web=True, vendedora=self.u_vendedora, confirmar=False)
         orden._dcasa_escribir_marca(dcasa_via_andres=True)
@@ -163,7 +176,8 @@ class TestInicioDeLaVendedora(VendedoraCommon):
 
 @tagged('post_install', '-at_install')
 class TestProgramaDeVendedores(ComisionReloj):
-    """Una venta online no da comisión de vendedor; la de la tienda sí, y lo cobrado antes de la regla, también."""
+    """La compra con código VEN da la comisión de vendedor de siempre aunque sea online (decisión del 2026-11-20); una
+    venta online SIN código no la da; la de la tienda sí, y lo cobrado antes de la regla, también."""
 
     activar_vendedores = SociosCommon.activar_vendedores
     vendedor = SociosCommon.vendedor
@@ -179,22 +193,51 @@ class TestProgramaDeVendedores(ComisionReloj):
     def comision(self, factura):
         return self.env['dcasa.vend.comision'].search([('move_id', '=', factura.id), ('tipo', '=', 'directa')])
 
-    def con_codigo(self, web, pago):
-        factura = self.facturar(self.orden(web=web, dcasa_vendedor_id=self.codigo.id), pago)
+    def con_codigo(self, web, pago, cliente=None):
+        factura = self.facturar(self.orden(web=web, cliente=cliente, dcasa_vendedor_id=self.codigo.id), pago)
         self.pagar(factura, pago)
         return factura
+
+    def sin_codigo(self, web, pago, cliente=None):
+        factura = self.facturar(self.orden(web=web, cliente=cliente), pago)
+        self.pagar(factura, pago)
+        return factura
+
+    def ligar_al_cliente(self):
+        """El cliente queda ligado al vendedor con una compra de la tienda con su código (así sus compras sin código
+        también serían de él, si no fueran online)."""
+        self.reglas['vendedores']['vinculacion']['meses'] = 12
+        antes = self.con_codigo(web=False, pago='2030-03-01')
+        self.assertEqual(self.cliente.dcasa_vendedor_ligado_id, self.codigo)
+        return antes
 
     def test_sin_las_reglas_de_la_comision_web_se_paga_como_siempre(self):
         factura = self.con_codigo(web=True, pago='2030-03-04')
         self.assertEqual((self.comision(factura).resultado, bool(self.comision(factura).puntos)), ('pagada', True))
 
-    def test_una_venta_online_no_da_comision_de_vendedor_desde_la_primera_version(self):
+    def test_una_venta_online_con_codigo_ven_paga_igual_que_antes_y_ademas_cuenta_para_el_sitio(self):
         self.version(10.0)
+        otro = self.env['res.partner'].create({'name': 'Otro cliente VEN', 'phone': '+507 6555-0398',
+                                               'email': 'otro.ven@example.com'})
+        tienda = self.comision(self.con_codigo(web=False, pago='2030-03-04', cliente=otro))
         online = self.con_codigo(web=True, pago='2030-03-04')
+        comision = self.comision(online)
+        self.assertEqual((comision.resultado, comision.puntos), ('pagada', tienda.puntos))
+        self.assertGreater(comision.puntos, 0, 'lo mismo que da la tienda')
+        self.assertTrue(self.env['dcasa.vend.movimiento'].search([('partner_id', '=', self.codigo.id)]))
+        venta = self.env['dcasa.web.venta'].search([('move_id', '=', online.id)])
+        self.assertEqual(venta.comision_centavos, 10000, 'y además la comisión del sitio: la empresa paga las dos')
+
+    def test_una_venta_online_sin_codigo_no_paga_a_ninguna_vendedora(self):
+        """El cliente está ligado a un vendedor de antes, compra por la página SIN código: no da comisión a nadie."""
+        self.ligar_al_cliente()
+        self.version(10.0)
+        online = self.sin_codigo(web=True, pago='2030-03-04')
         comision = self.comision(online)
         self.assertEqual((comision.resultado, comision.puntos), ('venta-online', 0))
         self.assertIn('venta del sitio web', dict(comision._fields['resultado'].selection)['venta-online'])
-        self.assertFalse(self.env['dcasa.vend.movimiento'].search([('partner_id', '=', self.codigo.id)]))
+        recompra_en_tienda = self.sin_codigo(web=False, pago='2030-03-04')
+        self.assertEqual(self.comision(recompra_en_tienda).resultado, 'pagada', 'la de la tienda sigue igual')
 
     def test_la_venta_de_la_tienda_con_codigo_si_da_comision(self):
         self.version(10.0)
@@ -208,16 +251,26 @@ class TestProgramaDeVendedores(ComisionReloj):
         self.version(10.0)
         self.assertEqual(self.comision(antes).resultado, 'pagada', 'ya estaba pagada: nada es retroactivo')
         despues = self.con_codigo(web=True, pago='2030-03-04')
-        self.assertEqual(self.comision(despues).resultado, 'venta-online')
+        self.assertEqual(self.comision(despues).resultado, 'pagada', 'con código sigue pagando también online')
 
-    def test_una_factura_mixta_comisiona_solo_la_parte_de_la_tienda(self):
-        self.version(10.0)
-        web = self.orden(web=True, dcasa_vendedor_id=self.codigo.id, lineas=[(self.mueble, 1000.0, 1, {})])
-        tienda = self.orden(web=False, dcasa_vendedor_id=self.codigo.id, lineas=[(self.mueble, 500.0, 1, {})])
+    def factura_mixta(self, **extra):
+        web = self.orden(web=True, lineas=[(self.mueble, 1000.0, 1, {})], **extra)
+        tienda = self.orden(web=False, lineas=[(self.mueble, 500.0, 1, {})], **extra)
         factura = (web | tienda)._create_invoices()
         factura.invoice_date = '2030-03-04'
         factura.action_post()
         self.pagar(factura, '2030-03-04')
-        comision = self.comision(factura)
+        return factura
+
+    def test_una_factura_mixta_con_codigo_comisiona_todo(self):
+        self.version(10.0)
+        comision = self.comision(self.factura_mixta(dcasa_vendedor_id=self.codigo.id))
+        self.assertEqual(comision.resultado, 'pagada')
+        self.assertEqual(comision.neto_centavos, 150000, 'con el código, la parte online también cuenta')
+
+    def test_una_factura_mixta_sin_codigo_comisiona_solo_la_parte_de_la_tienda(self):
+        self.ligar_al_cliente()
+        self.version(10.0)
+        comision = self.comision(self.factura_mixta())
         self.assertEqual(comision.resultado, 'pagada')
         self.assertEqual(comision.neto_centavos, 50000, 'solo los 500 de la tienda')

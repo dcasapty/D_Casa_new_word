@@ -12,12 +12,14 @@ altos**, cuando alguien compra con su código. Los puntos de vendedor se cambian
 
 ## Las ventas del sitio web no dan comisión de vendedor
 
-Decisión de Gerencia (2026-11-19): **una venta online nunca da comisión de vendedor** (la que nace en la página web, la de
-Andrés o la de alguien que compró solo después de hablar con Juan). La comisión queda escrita con el motivo «venta del
-sitio web» y cero puntos. Rige **hacia adelante**, desde el día en que Gerencia pone en vigencia la primera versión de las
-reglas de la comisión web ([COMISION_WEB.md](COMISION_WEB.md)); lo ya pagado no se toca y, sin esas reglas, nada cambia.
-**Por confirmar con Gerencia:** el enlace `dcasapty.com/v/VEN…` lleva a la tienda web, así que con esta regla esas compras ya
-no dan puntos de vendedor.
+Decisión de Gerencia (2026-11-19, afinada el 2026-11-20): **una venta online sin código de vendedor no da comisión de
+vendedor** (la que nace en la página web, la de Andrés o la cotización de Juan, sin que una vendedora la atienda); queda
+escrita con el motivo «venta del sitio web» y cero puntos. **La compra por un enlace `VEN…` sigue dando al dueño del enlace
+lo de siempre aunque sea online, y además cuenta para la comisión del sitio** (la empresa paga las dos cosas): si una
+vendedora de la tienda usa su propio enlace, también gana por esa venta; se podría limitar a vendedores externos. Lo de
+la venta online sin código rige **hacia adelante**, desde el día en que Gerencia pone en vigencia la primera versión de las
+reglas de la comisión web ([COMISION_WEB.md](COMISION_WEB.md)); el corte es **por el día en que se cobró** la venta (hora
+de Panamá), el mismo del bono por meta y de la comisión del sitio. Lo ya pagado no se toca y, sin esas reglas, nada cambia.
 
 ## En una frase
 

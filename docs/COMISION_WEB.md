@@ -32,24 +32,30 @@ medio periodo): monto con signo y **motivo obligatorio**; queda una fila nueva c
 ## Qué es una «venta online»
 
 Hay **una sola definición** en todo el sistema (`dcasa_base/models/venta_online.py`). La usan la comisión del sitio, el bono
-por meta, el Inicio de la vendedora y el programa de vendedores.
+por meta, el Inicio de la vendedora y el programa de vendedores. En una línea (decisión del 2026-11-20): **un pedido que
+nació por un flujo digital real (el carrito de la página, Andrés o la cotización de Juan) y al que ninguna vendedora llevó
+(no le escribió al cliente por el chat de Juan en los 30 días anteriores)**. Todo lo demás (mostrador, pedido tecleado,
+lo que una vendedora atendió) no es venta online.
 
 | Caso | ¿Es venta online? | Cómo se sabe |
 |---|---|---|
 | Alguien compra en la página web | **Sí** | El pedido nació en la tienda en línea: lo marca **el carrito real de la tienda** (`website._create_cart`), una sola vez (`dcasa_nacio_en_web`), y anota quién lo abrió (`dcasa_creada_por_id`). |
 | Alguien cotiza en la página y llega a la tienda con esa cotización («Pago en la tienda», apartado) | **Sí** | Es el mismo pedido: nació en la página. |
-| Todas las ventas de **Andrés** (el chat de la tienda) | **Sí** | Andrés trabaja sobre el carrito real: cada vez que toca el carrito lo marca (`dcasa_via_andres`). Cuenta aunque después la cierre una vendedora. |
+| Lo que **Andrés** (el chat de la tienda) vende y el cliente paga **sin más intervención** | **Sí** | El carrito de Andrés es el carrito real (nace por `website._create_cart`); `dcasa_via_andres` solo dice por dónde llegó la venta, **ya no fuerza** que sea online. |
+| Andrés pasa al cliente a una persona (WhatsApp) y **la vendedora lo atiende y cierra** | **No** | Se comprueba lo de siempre al confirmar: si una vendedora le escribió al cliente por el chat de Juan en los 30 días anteriores, la llevó ella y lo recibe como hoy en su bono. |
+| Un carrito de Andrés que la vendedora **solo confirma**, sin haberle escrito por el chat de Juan en 30 días | **Sí** (caso gris) | Confirmar el pedido no basta para que sea de ella. Gerencia puede afinarlo (por ejemplo, contar también al que confirma). |
+| La cotización que arma **Juan** y el cliente paga | **Sí**, mientras ninguna vendedora haya intervenido | La herramienta de cotizar de Juan marca el pedido (`dcasa_nacio_en_web`) desde su propio flujo; al confirmar se hace la misma comprobación de los 30 días. |
 | Entra al chat de **Juan**, Juan lo manda a la página o al catálogo y **compra solo** | **Sí** | Nació en la página y, en los 30 días antes de confirmar, ninguna vendedora le escribió por el chat de Juan. |
 | Entra al chat de **Juan** y lo **atiende una vendedora** (aunque ella le mande el enlace después) | **No** | Al confirmar el pedido se mira el chat de Juan: si una vendedora le escribió al cliente en los 30 días anteriores, la venta la llevó ella (`dcasa_llevada_por_vendedora`). |
-| Lo que se arma en la tienda física, en Ventas o en el Punto de Venta | **No** | No nació en la página. |
-| La cotización que arma **Juan** y el cliente paga | **No** (por ahora) | No nació en la página. Ver «Por decidir» más abajo. |
+| Lo que se arma en la tienda física, en Ventas o en el Punto de Venta (un pedido tecleado por una persona) | **No** | No nació por un flujo digital: nadie lo marca. |
 
 Las marcas se escriben **una vez, por código del sitio**, y nadie las cambia a mano (ni con `sudo()`, ni por RPC; tampoco
 el campo calculado «venta online», que se calcula solo). **Tener `website_id` no basta**: ese campo se acepta por RPC y
-cualquiera que teclee un pedido de mostrador podría ponérselo. Hay un solo camino que marca el origen: el carrito real
-(`website._create_cart`). Por ahí nace todo lo que es de la página: la compra normal, la recompra, el carrito de **Andrés**
-(que además marca `dcasa_via_andres`), la cotización de la página y «Pago en la tienda»; la cotización de Juan y lo que se
-arma en Ventas o en el Punto de Venta **no** pasan por ahí. Los pedidos que ya existían se marcaron una sola vez al
+cualquiera que teclee un pedido de mostrador podría ponérselo. Solo dos flujos reales marcan el origen: el carrito real
+(`website._create_cart`) y la herramienta de cotizar de Juan (la API que usa el Worker, con su autenticación). Por
+`_create_cart` nace todo lo que es de la página: la compra normal, la recompra, el carrito de **Andrés** (que además marca
+`dcasa_via_andres`), la cotización de la página y «Pago en la tienda»; lo que se arma en Ventas o en el Punto de Venta, y
+la cotización que arma una vendedora desde el panel de conversaciones, **no** pasan por ahí. Los pedidos que ya existían se marcaron una sola vez al
 instalar (a los de la página ya confirmados y todavía sin pagar por completo también se les miró el chat de Juan, para que
 uno atendido por una vendedora antes del despliegue no cuente como online). Si una factura junta un pedido online con otro
 de la tienda, solo cuentan como online las líneas del pedido online.
@@ -73,7 +79,11 @@ versión de las reglas (el «Rige desde» de esa versión), una venta online:
 * **no cuenta para el bono por meta** de la vendedora que la confirmó o facturó, ni su nota de crédito resta;
 * **no suma al avance** que ella ve en su Inicio («Tu meta del mes» y «Vendido hoy»), y en el Inicio de Gerencia se atribuye
   a «Sin vendedora» en vez de a la vendedora del pedido;
-* **no da comisión del programa de vendedores** (queda escrita con el motivo «venta del sitio web» y cero puntos).
+* **no da comisión del programa de vendedores si no lleva código VEN** (queda escrita con el motivo «venta del sitio web» y
+  cero puntos). **La compra por un enlace `VEN…` sigue dando al dueño del enlace lo de siempre, aunque sea online, y además
+  cuenta para la comisión del sitio** (decisión del 2026-11-20: la empresa paga las dos cosas). Consecuencia: si una
+  vendedora de la tienda usa su propio enlace VEN, también gana por esa venta; se podría limitar a vendedores externos más
+  adelante.
 
 **Nada es retroactivo, y el corte es uno solo.** «Rige desde» es el **inicio de ese día en Panamá**, y lo que decide a quién
 le toca una venta online es **el día en que se cobró** (el día del pago, no el de hoy ni el de la factura; el Inicio de
@@ -234,16 +244,17 @@ referencia.
 
 ## Por decidir o verificar con Gerencia y la contadora
 
-1. **Programa de vendedores (códigos VEN).** El enlace `dcasapty.com/v/VEN…` lleva a la tienda web. Con esta regla, esas
-   compras ya no dan puntos de vendedor (ni a empleados ni a gente de afuera). ¿Es lo que se quiere, o solo las vendedoras de
-   la tienda?
-2. **Juan arma la cotización y el cliente paga.** Hoy no cuenta como venta online (no nació en la página). ¿Debe contar?
-3. **Cuántos días hacia atrás se mira el chat de Juan** para saber si una vendedora llevó la venta: hoy 30, los mismos con que
-   el panel de Juan atribuye ventas.
-4. **Andrés pasa al cliente a una vendedora por WhatsApp y ella cierra:** hoy cuenta como venta de Andrés (online).
-5. **La contadora**: tratamiento por escrito de la comisión y de la tarifa fija (no son salario) y de las devoluciones
+1. **Cuántos días hacia atrás se mira el chat de Juan** para saber si una vendedora llevó la venta: 30, los mismos con que
+   el panel de Juan atribuye ventas (Gerencia, 2026-11-20: se queda).
+2. **El caso gris:** un carrito de Andrés, una cotización de la página llevada a la tienda o una cotización de Juan que la
+   vendedora **solo confirma**, sin haberle escrito por el chat de Juan, cuenta como online. Gerencia no quiere
+   trazabilidad extra, pero lo puede afinar. Andrés, por sí solo, no deja un registro de que pasó al cliente a una persona:
+   lo único fiable es el mensaje de la vendedora en el chat de Juan.
+3. **Códigos VEN y vendedoras de la tienda:** hoy una vendedora que usa su propio enlace también gana por esa venta
+   online; se podría limitar a vendedores externos.
+4. **La contadora**: tratamiento por escrito de la comisión y de la tarifa fija (no son salario) y de las devoluciones
    posteriores a un pago.
-6. **Compras de quienes reciben:** el diseño las excluía; con «una sola protección» hoy no se excluyen.
-7. **Un «hola» de una vendedora** basta para que la venta sea de ella y no del sitio (30 días, un solo mensaje). ¿Se deja así o
+5. **Compras de quienes reciben:** el diseño las excluía; con «una sola protección» hoy no se excluyen.
+6. **Un «hola» de una vendedora** basta para que la venta sea de ella y no del sitio (30 días, un solo mensaje). ¿Se deja así o
    se pide más (varios mensajes, o que ella haya cotizado)? Hoy se vigila en *Pedidos de la página para revisar*.
-8. **Primera tarifa:** se anota el primer día del periodo siguiente a que rige la versión; si hace falta una parcial, es un ajuste.
+7. **Primera tarifa:** se anota el primer día del periodo siguiente a que rige la versión; si hace falta una parcial, es un ajuste.
