@@ -7,7 +7,7 @@ from lxml import html as lxml_html
 
 from odoo.tests import HttpCase, tagged
 
-from .common import ComunTilopay
+from .common import ComunTilopay, SimuladorTilopay
 
 LINEA_DE_SEGURIDAD = "Pagas en la página segura de Tilopay; D'CASA nunca ve los datos de tu tarjeta."
 
@@ -74,12 +74,14 @@ class TestTilopayEnElPagoRedisenado(ComunTilopay, HttpCase):
             self.skipTest('website_dcasa no está instalado')
         pedido = self.pedido()
         self.authenticate(None, None)
-        valores = self.make_jsonrpc_request(f'/my/orders/{pedido.id}/transaction', {
-            'access_token': pedido._portal_ensure_token(), 'provider_id': self.proveedor.id,
-            'payment_method_id': self.metodo.id, 'token_id': None, 'amount': pedido.amount_total, 'flow': 'redirect',
-            'tokenization_requested': False, 'landing_route': pedido.get_portal_url(), 'is_validation': False})
-        self.assertTrue(valores)
-        respuesta = self.url_open('/payment/status')
+        with SimuladorTilopay():
+            valores = self.make_jsonrpc_request(f'/my/orders/{pedido.id}/transaction', {
+                'access_token': pedido._portal_ensure_token(), 'provider_id': self.proveedor.id,
+                'payment_method_id': self.metodo.id, 'token_id': None, 'amount': pedido.amount_total,
+                'flow': 'redirect', 'tokenization_requested': False, 'landing_route': pedido.get_portal_url(),
+                'is_validation': False})
+            self.assertTrue(valores)
+            respuesta = self.url_open('/payment/status')
         self.assertEqual(respuesta.status_code, 200)
         arbol = lxml_html.fromstring(respuesta.text)
         self.assertTrue(arbol.xpath('//div[contains(@class, "o_dcasa_pago_cabecera")]'))

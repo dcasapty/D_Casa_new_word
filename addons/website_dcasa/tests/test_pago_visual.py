@@ -249,8 +249,11 @@ class TestVentanaDelPortalYEstados(PagoVisualComun):
         self.make_jsonrpc_request(f'/shop/payment/transaction/{orden.id}', {
             'access_token': orden._portal_ensure_token(), 'provider_id': proveedor.id,
             'payment_method_id': proveedor.payment_method_ids[:1].id, 'token_id': None,
-            'flow': 'direct', 'tokenization_requested': False, 'landing_route': '/shop/payment/validate',
+            'flow': 'redirect', 'tokenization_requested': False, 'landing_route': '/shop/payment/validate',
             'is_validation': False})
+        # Lo que hace «/payment/custom/process» al llegar el cliente: la transacción manual queda pendiente.
+        self.env['payment.transaction'].search([('sale_order_ids', 'in', orden.ids)], order='id desc', limit=1) \
+            ._set_pending()
         return orden
 
     def test_estado_del_pago_es_la_misma_pantalla_sin_menu_ni_pie(self):
@@ -285,6 +288,7 @@ class TestVentanaDelPortalYEstados(PagoVisualComun):
         self._pagar_con_yappy_en_la_tienda()
         transaccion = self.env['payment.transaction'].search([], order='id desc', limit=1)
         transaccion._set_canceled()
+        self.assertEqual(transaccion.state, 'cancel')
         url, texto, arbol = self.pagina('/shop/payment/validate')
         self.assertIn('/shop/confirmation', url)
         estado = arbol.xpath('//p[contains(@class, "o_dcasa_pago_estado_titulo")]')

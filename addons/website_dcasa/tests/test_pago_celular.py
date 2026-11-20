@@ -111,11 +111,13 @@ class TestPagoEnElCelular(PagoVisualDatos, ChromeMovilCase):
             'plantilla': self.producto.product_tmpl_id.id, 'producto': self.producto.id}), 'ok')
         browser.navigate_to(self.base_url() + '/shop/payment', wait_stop=True)
         self.assertTrue(browser._wait_ready(), '/shop/payment no terminó de cargar')
+        return self.env['sale.order'].search(
+            [('partner_id', '=', self.cliente.id), ('website_id', '=', self.website.id)], order='id desc', limit=1)
 
     def test_el_boton_de_pagar_se_ve_sin_deslizar_y_cae_en_la_zona_del_pulgar(self):
         for ancho in ANCHOS:
             with self.subTest(ancho=ancho), self._chrome_movil(ancho) as browser:
-                self._hasta_el_pago(browser)
+                orden = self._hasta_el_pago(browser)
                 medidas = self._evaluar(browser, MEDIR)
                 self.assertEqual(medidas['ancho'], ancho)
                 self.assertLessEqual(medidas['desplazable'], ancho + 1,
@@ -139,7 +141,7 @@ class TestPagoEnElCelular(PagoVisualDatos, ChromeMovilCase):
                 self.assertIsNotNone(resumen)
                 self.assertLess(resumen['arriba'], ALTO / 2, 'el resumen va arriba')
                 self.assertIn('Ver resumen del pedido', resumen['texto'])
-                self.assertIn(f'{self.producto.list_price:.2f}', resumen['texto'].replace(',', ''))
+                self.assertIn(f'{orden.amount_total:.2f}', resumen['texto'].replace(',', ''))
                 self.assertGreaterEqual(resumen['alto'], 44, 'área táctil de 44 px o más')
 
     def test_al_elegir_un_metodo_el_boton_se_enciende_y_la_fila_se_resalta(self):

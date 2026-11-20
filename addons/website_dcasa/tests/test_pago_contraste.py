@@ -103,6 +103,6 @@ class TestContrasteDelPago(TransactionCase):
             self.assertNotIn('text-shadow', sin_comentarios)
             self.assertNotIn('drop-shadow', sin_comentarios)
             for sombra in re.findall(r'box-shadow:\s*([^;]+);', sin_comentarios):
-                self.assertTrue(sombra.strip() == 'none' or re.fullmatch(r'inset 0 0 0 \d+px [^,]+', sombra.strip())
-                                or re.fullmatch(r'0 0 0 \d+px [^,]+', sombra.strip()),
+                valor = sombra.replace('!important', '').strip()
+                self.assertTrue(valor == 'none' or re.fullmatch(r'(inset )?0 0 0 \d+px [^,]+', valor),
                                 f'solo anillos planos (sin desenfoque): {sombra}')

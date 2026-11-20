@@ -287,4 +287,16 @@
             </p>
         </xpath>
     </template>
+
+    <!-- El código de descuento: la etiqueta SIEMPRE visible arriba del campo (el texto de ejemplo no es etiqueta). Solo en
+         la pantalla de pago; en el carrito queda como estaba. -->
+    <template id="pago_codigo" inherit_id="website_sale.coupon_form" name="D'CASA: etiqueta del código de descuento">
+        <xpath expr="//div[hasclass('input-group')]" position="before">
+            <label t-if="dcasa_pago" for="o_dcasa_pago_codigo" class="o_dcasa_pago_etiqueta">Código de descuento</label>
+        </xpath>
+        <xpath expr="//input[@name='promo']" position="attributes">
+            <attribute name="t-att-id">dcasa_pago and 'o_dcasa_pago_codigo' or None</attribute>
+            <attribute name="autocomplete">off</attribute>
+        </xpath>
+    </template>
 </odoo>

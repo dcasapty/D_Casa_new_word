@@ -21,7 +21,7 @@ $pago-navy: $dcasa-navy;                   // #0E2A6B
 $pago-tinta: $dcasa-tinta;                 // #1B2233
 $pago-gris: $dcasa-gris;                   // #4A5163 (7.9:1 sobre blanco)
 $pago-borde: #D9DDE6;                      // filos de filas y paneles (el control se reconoce por su radio y su texto)
-$pago-borde-campo: #8C93A6;                // borde de un campo de texto: 3.2:1 sobre blanco (WCAG 1.4.11)
+$pago-borde-campo: #8C93A6;                // borde de un campo de texto: 3.07:1 sobre blanco (WCAG 1.4.11, mínimo 3:1)
 $pago-suave: #F2F5FC;                      // fila elegida: azul al 4 %, casi blanco
 $pago-panel: $dcasa-hueso;                 // panel del resumen
 $pago-radio: 12px;                         // una sola esquina para filas, botones y campos (el panel va a 16 como las tarjetas)
@@ -490,9 +490,10 @@ $pago-error: #B42318;                      // solo para «no se completó» (jun
     }
     .o_cart_total.border-top { border-color: $pago-borde !important; }
 
-    // Código de descuento: campo de 48 px con su etiqueta
+    // Código de descuento: campo de 48 px con su etiqueta arriba
     .coupon_form {
         margin-block: 1rem;
+        .o_dcasa_pago_etiqueta { display: block; margin-bottom: .375rem; font-size: .875rem; font-weight: 600; color: $pago-tinta; text-align: left; }
         .input-group { flex-wrap: nowrap; }
         input.form-control {
             min-height: $pago-alto-campo;
