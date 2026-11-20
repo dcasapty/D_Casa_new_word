@@ -574,6 +574,9 @@ export const VARIABLES_DEL_CONTENEDOR = [
   "YAPPY_CLAVE_SECRETA",
   "YAPPY_DOMINIO",
   "YAPPY_ENTORNO",
+  // YAPPY_URL_BASE (no secreta, opcional): la dirección pública a la que Yappy avisa; manda sobre web.base.url al armar la
+  // ipnUrl. Solo staging la fija (su dominio propio todavía no apunta al Worker); Odoo la ignora en producción.
+  "YAPPY_URL_BASE",
   // Juan, el asistente de clientes (addons/dcasa_conversaciones; docs/JUAN_ODOO.md). Opcionales: la dueña
   // los pega en el panel de Cloudflare del Worker (no pasan por GitHub). Sin ellos Odoo arranca igual y la
   // API de Juan responde 503. JUAN_URL es la dirección (no secreta) del Worker «juan» para que Odoo lo llame.

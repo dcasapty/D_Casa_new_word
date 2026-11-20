@@ -104,6 +104,12 @@ export interface Env {
   YAPPY_DOMINIO?: string;
   /** Variable (no secreta): «prueba» (por defecto) o «produccion». Decide a qué servidor de Yappy se le habla. */
   YAPPY_ENTORNO?: string;
+  /**
+   * Variable (no secreta, opcional): dirección pública (`https://anfitrion`, sin ruta) a la que Yappy avisa de cada pago.
+   * Manda sobre `web.base.url` al armar la `ipnUrl`. Existe para staging, cuyo dominio propio aún no apunta al Worker
+   * (`routes: []`): ahí va la dirección `workers.dev` del Worker de staging. En producción Odoo la ignora.
+   */
+  YAPPY_URL_BASE?: string;
   /** Ids de los chats de Telegram a los que Brian atiende (coma); sin ella atiende a cualquier chat vinculado. */
   BRIAN_TELEGRAM_CHATS?: string;
   // Juan, el asistente de clientes (addons/dcasa_conversaciones, docs/JUAN_ODOO.md). Opcionales: se cargan en

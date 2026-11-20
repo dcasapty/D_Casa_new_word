@@ -20,7 +20,13 @@ import routingTs from "../src/routing.ts?raw";
 
 const ID = "ID-COMERCIO-DE-PRUEBA-0001-NO-ES-REAL";
 const CLAVE = "Y2xhdmUtaW52ZW50YWRhLnNlZ3VuZG8udGVyY2Vy";
-const YAPPY = { YAPPY_ID_COMERCIO: ID, YAPPY_CLAVE_SECRETA: CLAVE, YAPPY_DOMINIO: "dcasapty.com", YAPPY_ENTORNO: "prueba" };
+const YAPPY = {
+  YAPPY_ID_COMERCIO: ID,
+  YAPPY_CLAVE_SECRETA: CLAVE,
+  YAPPY_DOMINIO: "dcasapty.com",
+  YAPPY_ENTORNO: "prueba",
+  YAPPY_URL_BASE: "https://dcasa-staging.dcasapty.workers.dev",
+};
 const SECRETOS = {
   ADMIN_PASSWORD: "clave-admin",
   R2_ENDPOINT: "https://cuenta.r2.cloudflarestorage.com",
@@ -29,7 +35,7 @@ const SECRETOS = {
   R2_SECRET_ACCESS_KEY: "secreto",
   PGBACKREST_CIPHER_PASS: "cifrado",
 };
-const NOMBRES = ["YAPPY_ID_COMERCIO", "YAPPY_CLAVE_SECRETA", "YAPPY_DOMINIO", "YAPPY_ENTORNO"];
+const NOMBRES = ["YAPPY_ID_COMERCIO", "YAPPY_CLAVE_SECRETA", "YAPPY_DOMINIO", "YAPPY_ENTORNO", "YAPPY_URL_BASE"];
 const AVISO = "orderId=S0012X7KQ2&status=E&domain=dcasapty.com&hash=b02927cb4f0a9c1d&confirmationNumber=CONF-123";
 
 describe("variables de Yappy directo (docs/YAPPY.md)", () => {
@@ -75,6 +81,39 @@ describe("variables de Yappy directo (docs/YAPPY.md)", () => {
       }
       for (const nombre of NOMBRES) expect(texto).not.toContain(nombre);
     }
+  });
+
+  it("YAPPY_URL_BASE (la dirección a la que Yappy avisa) cruza al contenedor, tal cual, y no es secreta ni obligatoria", () => {
+    expect(VARIABLES_DEL_CONTENEDOR).toContain("YAPPY_URL_BASE");
+    expect(SECRETOS_PARA_ARRANCAR).not.toContain("YAPPY_URL_BASE");
+    expect(variablesDelContenedor({ ...SECRETOS, YAPPY_URL_BASE: "https://dcasa-staging.dcasapty.workers.dev" })).toMatchObject({
+      YAPPY_URL_BASE: "https://dcasa-staging.dcasapty.workers.dev",
+    });
+    expect(variablesDelContenedor({ ...SECRETOS, YAPPY_URL_BASE: "" })).not.toHaveProperty("YAPPY_URL_BASE");
+    expect(variablesDelContenedor(SECRETOS)).not.toHaveProperty("YAPPY_URL_BASE");
+    expect(secretosFaltantes(SECRETOS)).toEqual([]);
+  });
+
+  it("staging fija YAPPY_URL_BASE con SU dirección workers.dev (la de TIENDA_AVISO_URL, https y sin ruta); producción no la fija", () => {
+    const sinComentarios = wranglerJsonc
+      .split("\n")
+      .filter((linea: string) => !linea.trim().startsWith("//"))
+      .join("\n");
+    const config = JSON.parse(sinComentarios) as {
+      vars: Record<string, string>;
+      workers_dev?: boolean;
+      env: { staging: { name: string; vars: Record<string, string>; routes: unknown[] } };
+    };
+    const url = config.env.staging.vars.YAPPY_URL_BASE;
+    expect(url).toMatch(/^https:\/\/[a-z0-9.-]+$/);
+    // el Worker de staging: su nombre + el subdominio de la cuenta; la misma dirección que ya usa el aviso de la caché de páginas
+    expect(new URL(config.env.staging.vars.TIENDA_AVISO_URL).origin).toBe(url);
+    expect(new URL(url).hostname.startsWith(`${config.env.staging.name}.`)).toBe(true);
+    expect(new URL(url).hostname.endsWith(".workers.dev")).toBe(true);
+    // y esa dirección existe de verdad: staging no tiene dominio propio (routes vacío) y workers.dev sigue respondiendo
+    expect(config.env.staging.routes).toEqual([]);
+    expect(config.workers_dev).toBe(true);
+    expect(config.vars).not.toHaveProperty("YAPPY_URL_BASE");
   });
 
   it("producción no fija YAPPY_ENTORNO en el código (la dueña lo cambia en el panel); staging sí, en «prueba»", () => {
