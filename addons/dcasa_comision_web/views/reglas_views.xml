@@ -29,7 +29,7 @@
         <field name="name">dcasa.web.reglas.form</field>
         <field name="model">dcasa.web.reglas</field>
         <field name="arch" type="xml">
-            <form string="Reglas de la comisión del sitio web" delete="0" edit="0" js_class="dcasa_reglas_form">
+            <form string="Reglas de la comisión del sitio web" delete="0" js_class="dcasa_reglas_form">
                 <header>
                     <button name="action_anular" type="object" string="Anular esta versión"
                             invisible="not id or estado not in ('programada', 'tapada')"
@@ -65,29 +65,29 @@
                     <field name="tapa_a_ids" invisible="1"/>
                     <group string="Cuánto y desde cuándo">
                         <field name="numero" invisible="not id"/>
-                        <field name="rige_desde"/>
-                        <field name="porcentaje"/>
-                        <field name="tarifa_fija"/>
-                        <field name="tarifa_periodo"/>
-                        <field name="tope_ajuste"/>
-                        <field name="motivo"/>
+                        <field name="rige_desde" readonly="id"/>
+                        <field name="porcentaje" readonly="id"/>
+                        <field name="tarifa_fija" readonly="id"/>
+                        <field name="tarifa_periodo" readonly="id"/>
+                        <field name="tope_ajuste" readonly="id"/>
+                        <field name="motivo" readonly="id"/>
                         <field name="autor" invisible="not id"/>
                         <field name="motivo_anulacion"
                                invisible="not id or estado not in ('programada', 'tapada', 'anulada')"
                                readonly="estado == 'anulada'"/>
                     </group>
                     <group string="¿Sobre qué se calcula el porcentaje?">
-                        <field name="base_itbms"/>
-                        <field name="base_envio"/>
-                        <field name="base_descuentos"/>
-                        <field name="base_devoluciones"/>
-                        <field name="base_pasarela"/>
+                        <field name="base_itbms" readonly="id"/>
+                        <field name="base_envio" readonly="id"/>
+                        <field name="base_descuentos" readonly="id"/>
+                        <field name="base_devoluciones" readonly="id"/>
+                        <field name="base_pasarela" readonly="id"/>
                     </group>
                     <group string="Cómo se ve con tus interruptores">
                         <field name="ejemplo_html" nolabel="1" colspan="2"/>
                     </group>
                     <group string="Quiénes reciben (empleados de Nómina) · lo que le toca a cada quien suma 100 %">
-                        <field name="reparto_ids" nolabel="1" colspan="2">
+                        <field name="reparto_ids" nolabel="1" colspan="2" readonly="id">
                             <list editable="bottom">
                                 <field name="sequence" widget="handle"/>
                                 <field name="empleado_id" options="{'no_create': True}"/>
