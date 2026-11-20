@@ -125,6 +125,23 @@ $yappy-radio: 12px;
     }
 }
 
+// LA VENTANA DE YAPPY (medida con el componente real, 2026-11-20). Yappy la dibuja con `<dialog open>` (no modal: sin capa
+// superior ni bloqueo) y `position: fixed; z-index: 10`, justo al lado de su botón: o sea DENTRO de la fila elegida. Esa fila
+// crea su propio contexto de apilamiento (`z-index: 1`, pago.scss), así que la ventana y su fondo quedaban POR DEBAJO del
+// resumen fijo de la derecha (`.sticky-top`, 1020) y de la barra de pagar del celular (1030): en la computadora el resumen tapaba
+// la mitad de la ventana y su botón de cerrar. Mientras haya una ventana de Yappy abierta, la fila sube por encima de todo
+// (el fondo y la ventana siguen siendo de Yappy; solo cambia en qué lugar de la pila están).
+body #wrapwrap #o_payment_form [name="o_payment_option"].list-group-item:has(.o_dcasa_yappy_boton dialog[open]) {
+    z-index: 1100;
+}
+// Y en un celular acostado (844×390) la ventana (590 px de alto) no cabe: quedaba cortada arriba y abajo, con su botón de
+// cerrar fuera de la pantalla y sin poder moverla. Con un alto máximo, se desplaza por dentro.
+#wrapwrap .o_dcasa_yappy .o_dcasa_yappy_boton dialog {
+    max-height: calc(100vh - 1rem);
+    max-height: calc(100dvh - 1rem);
+    overflow-y: auto;
+}
+
 // Con «Yappy» elegido paga el botón de Yappy, no el de Odoo (que el JavaScript esconde). La barra pegada abajo que lo
 // llevaba (la del celular en la tienda y la de la ventana del portal) quedaría vacía, con su borde y su fondo blanco
 // tapando la parte de abajo de la lista: se esconde también.

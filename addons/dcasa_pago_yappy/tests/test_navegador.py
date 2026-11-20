@@ -386,3 +386,57 @@ class TestElBotonDeYappyEnElNavegador(PagoVisualDatos, ChromeMovilCase):
                     self.assertGreaterEqual(medidas['campoAlto'], 47.5, f'campo de 48 px: {medidas}')
                     self.assertGreaterEqual(medidas['tamanoLetra'], 16, 'con 16 px el celular no hace zoom al escribir')
         self.assertGreater(ALTO, 0)
+
+    # --------------------------------------------------------------------------------------------------------------
+    # La ventana de Yappy y lo que pasa a su alrededor (medido con el componente REAL el 2026-11-20; aquí, con una
+    # ventana simulada que tiene la misma estructura y las mismas reglas de posición: un ``<dialog open>`` con
+    # ``position: fixed; z-index: 10`` junto al botón, dentro de la misma caja, y un fondo ``fixed; z-index: 5``).
+    # --------------------------------------------------------------------------------------------------------------
+
+    def test_la_ventana_de_yappy_queda_por_encima_del_resumen_fijo_y_cabe_en_un_celular_acostado(self):
+        with self._chrome_movil(1280) as browser:
+            self._hasta_el_pago(browser)
+            self._elegir(browser)
+            self._correr(browser, """
+                const estilo = document.createElement('style');
+                estilo.textContent = '.yp-dialogo{width:min(90%,580px);height:590px;padding:0;border:0;' +
+                    'position:fixed;inset:0;z-index:10;background:#f9fdff}' +
+                    '.yp-fondo{width:100vw;height:100vh;background:#000;opacity:.3;z-index:5;position:fixed;inset:0}';
+                document.head.appendChild(estilo);
+                document.querySelector('btn-yappy').insertAdjacentHTML('afterbegin',
+                    '<div class="yappy-backdrop yp-fondo"></div>');
+                document.querySelector('.o_dcasa_yappy_boton').insertAdjacentHTML('beforeend',
+                    '<app-dialog><dialog class="yp-dialogo" open><div class="close-icon">x</div>' +
+                    'Completa el pago en Yappy</dialog></app-dialog>');
+                return 1;""")
+            en_la_computadora = self._correr(browser, ESPERAR + """
+                return (async () => {
+                    await esperar(300);
+                    const d = document.querySelector('dialog').getBoundingClientRect();
+                    const p = document.querySelector('.o_total_card').getBoundingClientRect();
+                    const x1 = Math.max(d.left, p.left), x2 = Math.min(d.right, p.right);
+                    const y1 = Math.max(d.top, p.top), y2 = Math.min(d.bottom, p.bottom);
+                    const dueño = (x, y) => { const e = document.elementFromPoint(x, y);
+                        return !!(e && (e.closest('app-dialog') || e.classList.contains('yappy-backdrop'))); };
+                    return {cruce: [x2 - x1, y2 - y1], enElCruce: dueño((x1 + x2) / 2, (y1 + y2) / 2),
+                            esquinaDeCerrar: dueño(d.right - 30, d.top + 30),
+                            cabecera: dueño(100, 20), ancho: innerWidth};
+                })();""")
+            browser._websocket_request('Emulation.setDeviceMetricsOverride', params={
+                'width': 844, 'height': 390, 'deviceScaleFactor': 2, 'mobile': True})
+            acostado = self._correr(browser, ESPERAR + """
+                return (async () => {
+                    await esperar(400);
+                    const d = document.querySelector('dialog').getBoundingClientRect();
+                    return {arriba: d.top, abajo: d.bottom, alto: innerHeight};
+                })();""")
+        self.assertEqual(en_la_computadora['ancho'], 1280)
+        self.assertGreater(en_la_computadora['cruce'][0], 20,
+                           f'la prueba necesita que el resumen cruce la ventana: {en_la_computadora}')
+        self.assertTrue(en_la_computadora['enElCruce'],
+                        'el resumen fijo de la derecha NO puede tapar la ventana de Yappy')
+        self.assertTrue(en_la_computadora['esquinaDeCerrar'],
+                        'la esquina del botón de cerrar de Yappy tiene que poder pulsarse')
+        self.assertTrue(en_la_computadora['cabecera'], 'ni la cabecera de la tienda queda sin oscurecer')
+        self.assertGreaterEqual(acostado['arriba'], 0, 'en un celular acostado la ventana no se corta por arriba')
+        self.assertLessEqual(acostado['abajo'], acostado['alto'], 'ni por abajo')
