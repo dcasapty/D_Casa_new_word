@@ -108,6 +108,11 @@ class PaymentTransaction(models.Model):
         help='Tilopay cobró y el pedido ya no valía eso: NO se paga sola ni aunque el pedido vuelva a valer lo cobrado '
              '(puede que el equipo ya haya devuelto el cobro en el panel de Tilopay). Se resuelve a mano.')
 
+    dcasa_tilopay_aviso_raro = fields.Boolean(
+        'Ya se avisó de un estado que no se entiende', readonly=True, copy=False,
+        help='Marca que ya se dejó la nota y la actividad de «estado que no se entiende» para esta transacción. Sirve '
+             'para avisar UNA sola vez aunque Gerencia dé por hecha la actividad (la tarea pregunta cada hora).')
+
     _dcasa_tilopay_orden_uniq = models.Constraint(
         'unique(dcasa_tilopay_orden)', 'La orden de Tilopay debe ser única.')
 
@@ -144,9 +149,7 @@ class PaymentTransaction(models.Model):
             raise ValidationError(self.env._(
                 'Tilopay no está disponible ahora. Elige otra forma de pago o escríbenos por WhatsApp.'))
         interno = self.env.user._is_internal()
-        solo_para_el_equipo = not proveedor.is_published or (
-            proveedor.state == 'test' and api_tilopay.servidor_es_produccion())
-        if solo_para_el_equipo and not interno:
+        if proveedor._dcasa_tilopay_solo_para_el_equipo() and not interno:
             # Lo mismo que hace Odoo al MOSTRAR los proveedores: uno sin publicar (p. ej. en «Modo de prueba», para que
             # lo pruebe el equipo) es solo de personas internas. Sin esto, un visitante lo abre mandando el número del
             # proveedor a mano y paga un pedido real con una tarjeta de prueba. Y en el servidor de PRODUCCIÓN el «Modo
@@ -343,15 +346,21 @@ class PaymentTransaction(models.Model):
                     'Tilopay cobró %(monto)s %(moneda)s (%(ref)s) y el pedido cambió mientras el cliente pagaba: '
                     '%(detalle)s. El dinero entró y NO se tomó como pago del pedido, y no se va a pagar solo aunque '
                     'el pedido vuelva a valer lo cobrado. Habla con el cliente: o se devuelve el cobro desde el panel '
-                    'de Tilopay, o, si te quedas con el pago, ajustas el pedido al monto cobrado y lo registras a '
-                    'mano como pago en el diario Tilopay.', monto=float_repr(self.amount, 2),
+                    'de Tilopay, o, si te quedas con el pago, ajustas el pedido al monto cobrado, lo confirmas y lo '
+                    'facturas, y registras a mano el pago en el diario Tilopay (esta transacción de Tilopay no se '
+                    'toca: queda marcada para que nada la pague sola).', monto=float_repr(self.amount, 2),
                     moneda=self.currency_id.name, ref=self.reference, detalle=detalle),
                 self.env._('Tilopay: cobro que no cuadra con el pedido'))
 
     def _dcasa_tilopay_alertar_estado_raro(self, detalle):
         """Una fila de Tilopay con un estado que el código no entiende y que no se resuelve: si ese estado resultara ser
-        el de un pago aprobado, el dinero entró y nadie se enteraría. Nota y actividad para Gerencia, una sola vez por
-        transacción (el resumen lleva la referencia)."""
+        el de un pago aprobado, el dinero entró y nadie se enteraría. Nota y actividad para Gerencia, UNA sola vez por
+        transacción: la marca ``dcasa_tilopay_aviso_raro`` queda aunque Gerencia dé la actividad por hecha (la tarea
+        vuelve a preguntar cada hora y no debe repetir el aviso)."""
+        tx = self.sudo()
+        if tx.dcasa_tilopay_aviso_raro:
+            return
+        tx.dcasa_tilopay_aviso_raro = True
         self._dcasa_tilopay_alertar(
             self.env._(
                 'Tilopay tiene un movimiento de la transacción %(ref)s con un estado que el sistema no entiende '

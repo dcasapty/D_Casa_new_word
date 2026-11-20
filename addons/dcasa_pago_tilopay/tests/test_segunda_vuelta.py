@@ -189,7 +189,8 @@ class TestRv3SegundaVuelta(BaseSegunda):
         retraso = self.simular(latencia=0.5, por_vuelta=45)
         logging.getLogger('rv2.sim').warning('RVSIM 45 por vuelta, 0,5 s, sin señal: %s vueltas', retraso)
         self.assertIsNotNone(retraso, 'nunca se queda sin confirmar')
-        self.assertLessEqual(retraso, 18)
+        # Mide 7 vueltas (~70 min); la cota es la medida con un poco de aire, no el techo teórico de 18.
+        self.assertLessEqual(retraso, 9)
 
     def test_rafaga_sostenida_un_dia_con_senal_de_vida_se_atiende_primero(self):
         """Del revisor, con una decisión (N-3): el mismo modelo a escala 1:10 (5 s por consulta, 5 intentos nuevos por
@@ -207,6 +208,8 @@ class TestRv3SegundaVuelta(BaseSegunda):
         retraso = self.simular(latencia=5.0, por_vuelta=5, vueltas_antes=140, vueltas_maximas=60)
         logging.getLogger('rv2.sim').warning('RVSIM escala 1:10 sostenida 23 h, sin señal: %s vueltas', retraso)
         self.assertIsNotNone(retraso, 'nunca se queda sin confirmar')
+        # Mide 27 vueltas (~4,5 h a escala): sin señal de vida y en una ráfaga sostenida espera su turno, pero acotado.
+        self.assertLessEqual(retraso, 36)
 
     def test_hay_un_tope_de_consultas_a_tilopay_al_mismo_tiempo(self):
         """Hallazgo del revisor, ya corregido.

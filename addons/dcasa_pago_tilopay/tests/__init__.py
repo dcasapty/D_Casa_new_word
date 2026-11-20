@@ -7,4 +7,5 @@ from . import (
     test_rutas,
     test_segunda_ronda,
     test_segunda_vuelta,
+    test_tercera_vuelta,
 )

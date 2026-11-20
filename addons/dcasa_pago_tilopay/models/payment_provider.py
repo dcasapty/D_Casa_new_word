@@ -121,6 +121,14 @@ class PaymentProvider(models.Model):
         self.ensure_one()
         return self.code == CODIGO and self._dcasa_tilopay_problema() is None
 
+    def _dcasa_tilopay_solo_para_el_equipo(self):
+        """Verdadero si este proveedor no es para el público: sin publicar (p. ej. en «Modo de prueba», para que lo
+        pruebe el equipo), o en «Modo de prueba» en el servidor de PRODUCCIÓN aunque se pulse «Publicado» por error.
+        Lo usan igual el cobro (``_dcasa_tilopay_exigir_listo``) y la lista de formas de pago, para que lo que no se
+        puede pagar tampoco se le ofrezca a un visitante."""
+        self.ensure_one()
+        return not self.is_published or (self.state == 'test' and api_tilopay.servidor_es_produccion())
+
     # ------------------------------------------------------------------ cuándo se ofrece
 
     def _get_supported_currencies(self):
@@ -149,7 +157,10 @@ class PaymentProvider(models.Model):
         tilopay = proveedores.filtered(lambda p: p.code == CODIGO)
         if not tilopay:
             return proveedores
-        fuera = tilopay.filtered(lambda p: not kwargs.get('sale_order_id') or not p._dcasa_tilopay_ofrecible())
+        interno = self.env.user._is_internal()
+        fuera = tilopay.filtered(
+            lambda p: not kwargs.get('sale_order_id') or not p._dcasa_tilopay_ofrecible()
+            or (not interno and p._dcasa_tilopay_solo_para_el_equipo()))
         if fuera:
             payment_utils.add_to_report(report, fuera, available=False, reason=self.env._('Tilopay no está listo'))
         return proveedores - fuera
