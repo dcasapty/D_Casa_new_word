@@ -36,6 +36,7 @@
 | Saber qué ve y qué no ve cada rol (vendedora, Caja, Gerencia, Marketing, contador), los interruptores y dónde viven las políticas del sitio | [PERMISOS.md](PERMISOS.md) |
 | Las reglas contables que decidió la gerencia | [DECISIONES_CONTABLES.md](DECISIONES_CONTABLES.md) |
 | Copiar el sistema para otra empresa | [REPLICAR.md](REPLICAR.md) |
+| Diseñar o revisar pantallas con criterio (qué enseña Feuxui, cómo está D'CASA contra cada regla y qué decidir) | [REFERENCIA_FEUXUI.md](REFERENCIA_FEUXUI.md) |
 
 ## Por módulo (`addons/`)
 
