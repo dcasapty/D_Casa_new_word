@@ -157,8 +157,20 @@ class TestValoresRaros(ComisionReloj):
 
     def test_las_fechas_de_una_liquidacion_que_no_son_fecha_se_rechazan_con_un_mensaje_claro(self):
         Liquidacion = self.env['dcasa.web.liquidacion'].with_user(self.u_nomina)
+
+        class FallaConKeyError:
+            """Se comporta igual en cualquier Python: ``valor[:10]`` falla con KeyError (un dict da TypeError en 3.11 y
+            KeyError en 3.12+; CI y la imagen usan 3.12, esta máquina 3.11)."""
+            def __getitem__(self, _clave):
+                raise KeyError('no se puede recortar')
+
+        class FallaConIndexError:
+            def __getitem__(self, _clave):
+                raise IndexError('no se puede recortar')
+
         for campo in ('fecha_desde', 'fecha_hasta'):
-            for nombre, valor in (('texto', 'abc'), ('entero', 12345), ('lista', [1]), ('dict', {'a': 1}), ('mes 13', '2030-13-01')):
+            for nombre, valor in (('texto', 'abc'), ('entero', 12345), ('lista', [1]), ('dict', {'a': 1}), ('mes 13', '2030-13-01'),
+                                  ('KeyError', FallaConKeyError()), ('IndexError', FallaConIndexError())):
                 with self.subTest(campo=campo, valor=nombre), self.assertRaisesRegex(UserError, 'no es una fecha válida'):
                     Liquidacion.create({'fecha_desde': '2030-03-01', 'fecha_hasta': '2030-03-31', campo: valor})
         borrador = Liquidacion.create({'fecha_desde': '2030-03-01', 'fecha_hasta': '2030-03-31'})

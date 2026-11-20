@@ -162,7 +162,9 @@ class DcasaWebLiquidacion(models.Model):
                 continue
             try:
                 dia = fields.Date.to_date(valor)
-            except (ValueError, TypeError, OverflowError, AttributeError):
+            except (ValueError, TypeError, OverflowError, AttributeError, KeyError, IndexError):
+                # ``KeyError``: un dict recortado con ``[:10]`` da TypeError en Python 3.11 pero KeyError en 3.12+ (el de la
+                # imagen y el de CI); lo mismo un objeto cuyo ``__getitem__`` falla con ``IndexError``.
                 dia = None
             if not isinstance(dia, date):
                 raise UserError(self.env._(
