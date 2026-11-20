@@ -13,6 +13,7 @@ from odoo import api, fields, models
 from odoo.addons.dcasa_base import _nombrar
 from odoo.addons.payment import utils as payment_utils
 from odoo.exceptions import AccessError, UserError
+from odoo.tools.misc import format_datetime
 
 from . import tilopay_api as api_tilopay
 
@@ -20,14 +21,14 @@ _logger = logging.getLogger(__name__)
 
 CODIGO = 'tilopay'
 NOMBRE = 'Tilopay'
-NOMBRE_DEL_METODO = 'Tarjeta, Yappy y más (Tilopay)'
+NOMBRE_DEL_METODO = 'Tarjeta de crédito o débito'
 CODIGO_DIARIO = 'TLP'
 NOMBRE_DIARIO = 'Tilopay'
 
 # Lo que lee el cliente (voz de D'CASA: de tú, sin gritos).
 MENSAJES = {
-    'pre_msg': 'Pagar con tarjeta o Yappy: te llevamos a la página segura de Tilopay, pagas ahí y regresas a la '
-               'tienda. Tu pedido se confirma apenas Tilopay nos avisa.',
+    'pre_msg': 'Pago seguro con tarjeta: te llevamos a la página de Tilopay, pagas ahí y regresas a la tienda. Tu '
+               'pedido se confirma apenas Tilopay nos avisa.',
     'pending_msg': 'Estamos esperando que Tilopay confirme tu pago. Toma unos segundos; no cierres esta página.',
     'done_msg': '¡Pago recibido! Confirmamos tu pedido y te escribimos para coordinar la entrega.',
     'cancel_msg': 'El pago no se completó. Tu pedido sigue guardado: puedes intentarlo de nuevo o elegir otra forma '
@@ -72,7 +73,7 @@ class PaymentProvider(models.Model):
                     '%(resultado)s (%(fecha)s)',
                     resultado=(self.env._('sesión abierta (la llave se comprueba en el primer cobro de prueba)')
                                if proveedor.dcasa_tilopay_prueba_ok else self.env._('falló')),
-                    fecha=fields.Datetime.to_string(proveedor.dcasa_tilopay_prueba_fecha))
+                    fecha=format_datetime(self.env, proveedor.dcasa_tilopay_prueba_fecha, dt_format='medium'))
             else:
                 proveedor.dcasa_tilopay_prueba_texto = self.env._('todavía no se ha probado')
 
@@ -189,9 +190,8 @@ class PaymentProvider(models.Model):
             try:
                 api_tilopay.Cliente(credenciales).probar()
                 bien, texto = True, self.env._(
-                    'Tilopay aceptó el usuario y la contraseña. La «Llave API» no se puede comprobar aquí: se '
-                    'comprueba en el primer cobro de prueba (si estuviera mal, la tienda diría «No pudimos abrir la '
-                    'página de pago»).')
+                    'Tilopay aceptó el usuario y la contraseña. La llave API se comprueba en el primer cobro de '
+                    'prueba.')
             except api_tilopay.ErrorTilopay as error:
                 _logger.warning('Tilopay: la prueba de conexión falló (%s).', error.tipo)
                 texto = {
@@ -204,8 +204,10 @@ class PaymentProvider(models.Model):
         return {
             'type': 'ir.actions.client', 'tag': 'display_notification',
             'params': {'title': self.env._('Conexión con Tilopay'), 'message': texto,
-                       # Ni «bien» a secas: la llave no se comprobó, y quien lo lee tiene que saberlo.
-                       'type': 'warning' if bien else 'danger', 'sticky': True,
+                       # Ni «bien» a secas: la llave no se comprobó, y quien lo lee tiene que saberlo (RV-10). Lo que
+                       # salió bien se va solo y no tapa la pantalla («Última prueba» deja escrito lo mismo); lo que
+                       # falló se queda hasta que alguien lo lea.
+                       'type': 'warning' if bien else 'danger', 'sticky': not bien,
                        # Que «Última prueba» se actualice en la pantalla sin que haya que recargarla.
                        'next': {'type': 'ir.actions.client', 'tag': 'soft_reload'}},
         }

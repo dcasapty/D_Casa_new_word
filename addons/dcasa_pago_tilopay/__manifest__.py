@@ -1,7 +1,7 @@
 {
     'name': "D'CASA Panamá — Pagos con Tilopay",
-    'summary': 'Tarjeta, Yappy y más con la página segura de Tilopay: el pago se confirma preguntándole a Tilopay, '
-               'nunca por lo que diga el navegador. Nace apagado.',
+    'summary': 'Tarjeta (y lo que tenga activo la cuenta) en la página segura de Tilopay: el pago se confirma '
+               'preguntándole a Tilopay, nunca por lo que diga el navegador. Nace apagado.',
     'description': """
 Pagos con Tilopay
 =================
@@ -32,6 +32,7 @@ Investigación, amenazas, qué poner en Cloudflare y guion de pruebas: ``docs/TI
         'data/payment_provider_data.xml',
         'data/ir_cron.xml',
         'views/payment_provider_views.xml',
+        'views/payment_transaction_views.xml',
     ],
     'post_init_hook': 'post_init_hook',
     'uninstall_hook': 'uninstall_hook',

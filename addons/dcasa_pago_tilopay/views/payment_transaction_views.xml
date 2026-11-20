@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- En la transacción de pago de Tilopay se ve lo que hace falta para seguirla sin buscar en otro lado: la orden que
+         se mandó a Tilopay, lo último que respondió y si necesita que una persona la revise. Nunca una clave. -->
+    <record id="payment_transaction_form_tilopay" model="ir.ui.view">
+        <field name="name">payment.transaction.form.tilopay</field>
+        <field name="model">payment.transaction</field>
+        <field name="inherit_id" ref="payment.payment_transaction_form"/>
+        <field name="arch" type="xml">
+            <field name="provider_reference" position="after">
+                <field name="dcasa_tilopay_orden" invisible="provider_code != 'tilopay'"/>
+                <field name="dcasa_tilopay_veredicto" invisible="provider_code != 'tilopay'"/>
+                <field name="dcasa_tilopay_consulta" invisible="provider_code != 'tilopay'"/>
+                <field name="dcasa_tilopay_senal" invisible="provider_code != 'tilopay'"/>
+                <field name="dcasa_tilopay_revision" invisible="provider_code != 'tilopay' or not dcasa_tilopay_revision"/>
+            </field>
+        </field>
+    </record>
+
+</odoo>

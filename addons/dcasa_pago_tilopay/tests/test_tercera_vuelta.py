@@ -226,7 +226,7 @@ class TestRv3EstadoRaroYHuella(Base):
 
     def test_publicado_en_modo_de_prueba_en_produccion_no_se_le_ofrece_al_visitante(self):
         """N-5 (menor, UX). El pago de un visitante ya fallaba en producción con «Modo de prueba» aunque se pulsara
-        «Publicado»; pero la lista seguía mostrando la opción «Tarjeta, Yappy y más (Tilopay)» y el visitante recibía el
+        «Publicado»; pero la lista seguía mostrando la opción «Tarjeta de crédito o débito» y el visitante recibía el
         error en el último paso. Ahora ni sale (y al equipo interno sí le sale, para que lo pruebe)."""
         self.proveedor.write({'state': 'test', 'is_published': True})
         publico = self.env.ref('base.public_user')

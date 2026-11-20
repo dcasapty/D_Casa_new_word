@@ -28,9 +28,9 @@ class TestNaceApagado(PreparaPedido, TransactionCase):
     def test_el_metodo_y_el_nombre_estan_en_espanol(self):
         proveedor = self.env.ref('dcasa_pago_tilopay.payment_provider_tilopay')
         self.assertEqual(proveedor.with_context(active_test=False).payment_method_ids.name,
-                         'Tarjeta, Yappy y más (Tilopay)')
+                         'Tarjeta de crédito o débito')
         mensaje = str(proveedor.with_context(lang='es_419').pre_msg)
-        self.assertIn('Pagar con tarjeta o Yappy', mensaje)
+        self.assertIn('Pago seguro con tarjeta', mensaje)
         self.assertIn('Tilopay', mensaje)
         for campo in ('pre_msg', 'pending_msg', 'done_msg', 'cancel_msg'):
             texto = str(proveedor.with_context(lang='es_419')[campo])
@@ -116,7 +116,7 @@ class TestCuandoSeOfrece(PreparaPedido, TransactionCase):
             self.assertTrue(self.ofrecidos())
             self.assertIn('Listo', self.proveedor.dcasa_tilopay_aviso)
             # El aviso nombra la opción tal como la ve el cliente en la tienda, no otra palabra.
-            self.assertIn('«Tarjeta, Yappy y más (Tilopay)»', self.proveedor.dcasa_tilopay_aviso)
+            self.assertIn('«Tarjeta de crédito o débito»', self.proveedor.dcasa_tilopay_aviso)
 
     def test_en_produccion_hacen_falta_las_dos_llaves(self):
         """«Habilitado» en Odoo y TILOPAY_ENTORNO=produccion en Cloudflare: si uno solo dice «real», no se ofrece."""
@@ -155,7 +155,7 @@ class TestCuandoSeOfrece(PreparaPedido, TransactionCase):
         self.assertNotIn(self.proveedor, proveedores)
 
     def test_el_metodo_aparece_en_el_checkout_solo_cuando_el_proveedor_esta_listo(self):
-        """La tienda muestra MÉTODOS: «Tarjeta, Yappy y más (Tilopay)» sale con el proveedor listo y no sale si no."""
+        """La tienda muestra MÉTODOS: «Tarjeta de crédito o débito» sale con el proveedor listo y no sale si no."""
         pedido = self.pedido()
 
         def metodos():
@@ -171,7 +171,7 @@ class TestCuandoSeOfrece(PreparaPedido, TransactionCase):
         self.proveedor.state = 'test'
         self.assertTrue(self.metodo.active, 'al encender el proveedor se activa su método')
         self.assertIn(self.metodo, metodos())
-        self.assertEqual(self.metodo.name, 'Tarjeta, Yappy y más (Tilopay)')
+        self.assertEqual(self.metodo.name, 'Tarjeta de crédito o débito')
         self.proveedor.state = 'disabled'
         self.assertFalse(self.metodo.active, 'y al apagarlo se desactiva')
         self.assertNotIn(self.metodo, metodos())

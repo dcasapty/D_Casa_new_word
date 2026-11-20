@@ -160,7 +160,7 @@ para no pagar nada falso, y la tarea programada suple al aviso si no llega.
 
 ### 5.1 El camino feliz
 
-1. El cliente elige **«Tarjeta, Yappy y más (Tilopay)»** (solo sale si Tilopay está activo, con las claves cargadas y coherente).
+1. El cliente elige **«Tarjeta de crédito o débito»** (solo sale si Tilopay está activo, con las claves cargadas y coherente).
 2. Odoo crea la transacción (monto y moneda del **pedido**, no del navegador) y le da un `orderNumber` propio:
    `<referencia>-<8 letras y números al azar>`. Se guarda en `dcasa_tilopay_orden` **antes** de llamar a Tilopay.
 3. Odoo llama a `login` (token en memoria, se renueva solo) y a `processPayment`; Tilopay devuelve la dirección de su página.
@@ -176,7 +176,7 @@ para no pagar nada falso, y la tarea programada suple al aviso si no llega.
 
 ### 5.2 Decisiones
 
-- **Una sola opción de pago en la tienda** («Tarjeta, Yappy y más (Tilopay)»), porque el API no deja elegir el método: lo escoge
+- **Una sola opción de pago en la tienda** («Tarjeta de crédito o débito»), porque el API no deja elegir el método: lo escoge
   el cliente en la página de Tilopay. Qué métodos aparecen se maneja en el panel de Tilopay (§6.4).
 - **`orderNumber` propio, aleatorio y único**: Tilopay lo exige único para siempre, y así la orden de staging no choca con la de
   producción ni se puede adivinar contando.
@@ -307,7 +307,7 @@ personas del equipo con sesión iniciada**: un visitante no puede abrirlo (§3, 
    equipo que tiene sesión (entra con tu usuario de administrador para probar). **En staging**, si quieres que también lo vea
    un visitante, pulsa **Publicado**. **En producción no pulses «Publicado» hasta el final**: así los clientes no ven una
    opción de pruebas y nadie puede abrirla a mano.
-3. En la tienda: agrega un mueble barato, ve a pagar. Debe salir **«Tarjeta, Yappy y más (Tilopay)»**. Con Tilopay apagado en Odoo no debe salir.
+3. En la tienda: agrega un mueble barato, ve a pagar. Debe salir **«Tarjeta de crédito o débito»**. Con Tilopay apagado en Odoo no debe salir.
 4. **Pago aprobado:** elige Tilopay. Se abre la página de Tilopay. Tarjeta `4111111111111111`, vencimiento futuro, CVV cualquiera.
    Debe volver a la tienda y mostrar «¡Pago recibido!» y el pedido **confirmado**. En Odoo: la transacción en **Confirmado**, un cobro
    en el diario **Tilopay**, el pedido en «Pedido de venta». Anota qué trae `order` en la dirección de retorno.
@@ -484,6 +484,6 @@ pasan** (14 son de Tilopay) y `tsc --noEmit` sin errores. `ruff check addons` li
 
 **Capturas** (Odoo con un Tilopay simulado y datos inventados; la dueña las ve antes de producción): la pantalla del proveedor y
 «Probar conexión», y la opción en el pago real de la tienda, sin elegir y elegida, a 1440 px y a 390 px. Al mirarlas salieron dos
-fallas reales que ya se corrigieron: el aviso decía «Pagar con tarjeta o Yappy» cuando la tienda dice «Tarjeta, Yappy y más (Tilopay)», y
+fallas reales que ya se corrigieron: el aviso decía otro nombre que la tienda; hoy los dos dicen «Tarjeta de crédito o débito», y
 «Última prueba» no se actualizaba tras «Probar conexión». El triángulo amarillo junto al nombre del método en la tienda es el aviso de
 Odoo mientras el proveedor está en **Modo de prueba**; desaparece al pasarlo a **Habilitado**.

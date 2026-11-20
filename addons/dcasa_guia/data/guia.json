@@ -3024,7 +3024,7 @@
    "id": "tilopay-pagos",
    "categoria": "tienda",
    "grupo": "Tienda en línea",
-   "titulo": "Encender el pago con tarjeta o Yappy (Tilopay) y probar la conexión",
+   "titulo": "Encender el pago con tarjeta (Tilopay) y probar la conexión",
    "logras": "Ves si las claves de Tilopay ya están cargadas, en qué entorno está (prueba o producción), si Tilopay aparece en la tienda y por qué no, y pulsas «Probar conexión» para confirmar que Tilopay acepta el usuario y la contraseña (la llave se comprueba en el primer cobro de prueba). Cuando todo está bien, lo enciendes: el cliente paga en la página segura de Tilopay y el pedido queda pagado solo.",
    "destino": {
     "menu": "account_payment.payment_provider_menu"
