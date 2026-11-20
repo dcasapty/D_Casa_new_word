@@ -134,6 +134,12 @@ LISTA_BLANCA = {
     ('dcasa_base', 'account.move.line', 'write'):
         OVERRIDE + ' Solo niega escribir el enlace con un pedido (sale_line_ids) fuera de los caminos de ventas '
                    '(models/enlace_factura.py); sin sudo().',
+    ('dcasa_base', 'account.move.line', 'default_get'):
+        OVERRIDE + ' Solo QUITA del resultado el enlace con un pedido (sale_line_ids): un ``default_*`` del contexto '
+                   'llega por RPC y no puede fabricarlo (models/enlace_factura.py); sin sudo().',
+    ('dcasa_base', 'sale.order.line', 'default_get'):
+        OVERRIDE + ' Solo QUITA del resultado el enlace con una factura (invoice_lines): un ``default_*`` del contexto '
+                   'llega por RPC y no puede fabricarlo (models/enlace_factura.py); sin sudo().',
     ('dcasa_base', 'account.move.reversal', 'reverse_moves'):
         OVERRIDE + ' Solo pone la llave interna con que la nota de crédito copia el enlace con el pedido '
                    '(models/enlace_factura.py); el asistente exige su ACL como siempre; sin sudo().',

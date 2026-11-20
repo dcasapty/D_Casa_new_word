@@ -17,4 +17,6 @@ from . import test_revision3_origen
 from . import test_revision3_huella
 from . import test_revision3_versiones
 from . import test_revision3_ajustes
+from . import test_revision4_enlace
+from . import test_revision4_carrito
 from . import test_version_nueva_navegador

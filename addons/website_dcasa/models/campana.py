@@ -42,6 +42,7 @@ import pytz
 
 from odoo import api, fields, models
 from odoo.addons.dcasa_base.models.product import _puede_cambiar_precios
+from odoo.addons.dcasa_base.models.venta_online import CLAVE_PRECIO, PRECIO_DEL_SISTEMA
 from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.tools import float_compare, float_round
 
@@ -662,6 +663,9 @@ class SaleOrder(models.Model):
                 principales = lineas
                 lineas |= orden.order_line.filtered(
                     lambda linea, principales=principales: linea.combo_item_id and linea.linked_line_id in principales)
+            # Los precios los pone el servidor, no una persona: sin esta llave el cron (que corre como OdooBot) y el
+            # pago del visitante dejaban el carrito marcado como «tocado por el equipo» (cuarta revisión, 2026-11-20).
+            lineas = lineas.with_context(**{CLAVE_PRECIO: PRECIO_DEL_SISTEMA})
             lineas.invalidate_recordset(['pricelist_item_id'])
             lineas.with_context(force_price_recomputation=True)._compute_price_unit()
             lineas.discount = 0.0

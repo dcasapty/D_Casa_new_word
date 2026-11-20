@@ -6,12 +6,13 @@ del sitio. Aquí se prueba, sin depender de ningún módulo que lea el enlace: (
 pedido, el anticipo, la nota de crédito, anular y crear de nuevo) y (2) que a mano no se puede, con ningún usuario y
 tampoco con ``sudo``. Datos inventados."""
 from odoo import Command
+from odoo.addons.dcasa_base.models.enlace_factura import CLAVE_ENLACE, ENLACE
 from odoo.exceptions import UserError
 from odoo.tests import TransactionCase, new_test_user, tagged
 
 
-@tagged('post_install', '-at_install')
-class TestEnlaceFacturaPedido(TransactionCase):
+class EnlaceBase(TransactionCase):
+    """Los datos y ayudas que comparten las pruebas del enlace (no tiene pruebas propias)."""
 
     @classmethod
     def setUpClass(cls):
@@ -49,6 +50,10 @@ class TestEnlaceFacturaPedido(TransactionCase):
             'invoice_line_ids': [Command.create({
                 'name': 'Mueble de mostrador', 'quantity': 1, 'price_unit': 5000.0,
                 'sale_line_ids': [Command.set(orden.order_line.ids)] if comando is None else comando})]})
+
+
+@tagged('post_install', '-at_install')
+class TestEnlaceFacturaPedido(EnlaceBase):
 
     # ------------------------------------------------------------------ por dónde SÍ se enlaza
 
@@ -197,3 +202,120 @@ class TestEnlaceFacturaPedido(TransactionCase):
         self.assertEqual(orden.order_line.order_id, orden)
         sin_facturar = otra.order_line
         sin_facturar.write({'order_id': otra.id})      # lo que no cambia de pedido no se frena
+
+
+@tagged('post_install', '-at_install')
+class TestEnlaceFacturaPorDefectoDelContexto(EnlaceBase):
+    """Cuarta revisión adversarial (2026-11-20): el gancho de ``create`` solo miraba ``vals``, pero Odoo aplica los
+    ``default_<campo>`` del contexto DESPUÉS, y por RPC cualquiera los manda: Caja, Nómina y Gerencia enlazaban una
+    línea de 5,000 a la línea de un pedido de 1,000 con ``context={'default_sale_line_ids': ...}``."""
+
+    def factura_sin_enlace(self, usuario=None):
+        """Una factura de mostrador en borrador con una línea sin enlace."""
+        return self.enlace_a_mano(self.pedido(), usuario, comando=[])
+
+    def linea_con_default(self, usuario, borrador, **contexto):
+        Linea = self.env['account.move.line']
+        if usuario:
+            Linea = Linea.with_user(usuario)
+        return Linea.with_context(**contexto).create({
+            'move_id': borrador.id, 'name': 'Otra línea de mostrador', 'quantity': 1, 'price_unit': 5000.0,
+            'display_type': 'product'})
+
+    def test_un_default_sale_line_ids_del_contexto_no_enlaza_la_linea_nueva_de_la_factura(self):
+        orden = self.pedido()
+        for usuario in (self.caja, self.gerencia, self.contador, None):
+            with self.subTest(usuario=usuario.login if usuario else 'sudo'):
+                borrador = self.factura_sin_enlace()
+                self.linea_con_default(usuario, borrador, default_sale_line_ids=[[6, 0, orden.order_line.ids]])
+                self.assertEqual(len(borrador.invoice_line_ids), 2, 'la línea se creó: solo falta el enlace')
+                self.assertFalse(borrador.invoice_line_ids.sale_line_ids)
+                self.assertFalse(orden.order_line.invoice_lines)
+
+    def test_un_default_invoice_lines_del_contexto_no_enlaza_la_linea_nueva_del_pedido(self):
+        orden = self.pedido()
+        for usuario in (self.gerencia, None):
+            with self.subTest(usuario=usuario.login if usuario else 'sudo'):
+                borrador = self.factura_sin_enlace()
+                Linea = self.env['sale.order.line']
+                if usuario:
+                    Linea = Linea.with_user(usuario)
+                nueva = Linea.with_context(default_invoice_lines=[[6, 0, borrador.invoice_line_ids.ids]]).create({
+                    'order_id': orden.id, 'product_id': self.producto.id, 'product_uom_qty': 1, 'price_unit': 1.0})
+                self.assertTrue(nueva)
+                self.assertFalse(borrador.invoice_line_ids.sale_line_ids)
+                self.assertFalse(nueva.invoice_lines)
+
+    def test_default_get_de_las_dos_lineas_descarta_el_enlace_salvo_con_la_llave_interna(self):
+        orden = self.pedido()
+        borrador = self.factura_sin_enlace()
+        LineaFactura = self.env['account.move.line']
+        LineaPedido = self.env['sale.order.line']
+        de_factura = {'default_sale_line_ids': [[6, 0, orden.order_line.ids]]}
+        de_pedido = {'default_invoice_lines': [[6, 0, borrador.invoice_line_ids.ids]]}
+        self.assertNotIn('sale_line_ids', LineaFactura.with_context(**de_factura).default_get(['sale_line_ids']))
+        self.assertNotIn('invoice_lines', LineaPedido.with_context(**de_pedido).default_get(['invoice_lines']))
+        # el código que de verdad factura sí puede (y lo demás de ``default_get`` no cambia)
+        self.assertIn('sale_line_ids', LineaFactura._dcasa_con_enlace_de_pedido().with_context(
+            **de_factura).default_get(['sale_line_ids']))
+        self.assertIn('invoice_lines', LineaPedido.with_context(**{CLAVE_ENLACE: ENLACE}, **de_pedido).default_get(
+            ['invoice_lines']))
+        self.assertEqual(LineaFactura.with_context(default_name='texto').default_get(['name']), {'name': 'texto'})
+
+    def test_la_llave_en_el_contexto_como_texto_o_true_no_abre_la_puerta_de_los_defaults(self):
+        orden = self.pedido()
+        borrador = self.factura_sin_enlace()
+        for llave in (True, 'True', 1, {}):
+            with self.subTest(llave=llave):
+                self.linea_con_default(self.gerencia, borrador, default_sale_line_ids=[[6, 0, orden.order_line.ids]],
+                                       dcasa_base_enlace_de_factura=llave)
+        self.assertFalse(borrador.invoice_line_ids.sale_line_ids)
+
+    def test_un_default_de_las_lineas_de_la_factura_con_el_enlace_adentro_se_frena(self):
+        """``default_invoice_line_ids`` / ``default_line_ids`` traen las líneas ya armadas: cada una pasa por el gancho
+        de ``create`` de la línea, que mira sus valores."""
+        orden = self.pedido()
+        linea = {'name': 'X', 'quantity': 1, 'price_unit': 5000.0, 'sale_line_ids': [Command.set(orden.order_line.ids)]}
+        for usuario in (self.caja, self.gerencia, None):
+            for clave in ('default_invoice_line_ids', 'default_line_ids'):
+                with self.subTest(usuario=usuario.login if usuario else 'sudo', clave=clave):
+                    Move = self.env['account.move']
+                    if usuario:
+                        Move = Move.with_user(usuario)
+                    with self.assertRaisesRegex(UserError, 'lo pone el sistema'), self.env.cr.savepoint():
+                        Move.with_context(**{clave: [Command.create(linea)]}).create({
+                            'move_type': 'out_invoice', 'partner_id': self.cliente.id})
+
+    def test_duplicar_una_factura_o_una_linea_con_valores_que_traen_el_enlace_se_frena(self):
+        orden = self.pedido()
+        borrador = self.factura_sin_enlace()
+        enlace = {'sale_line_ids': [Command.set(orden.order_line.ids)]}
+        for usuario in (self.caja, self.gerencia, None):
+            with self.subTest(usuario=usuario.login if usuario else 'sudo'):
+                factura = borrador.with_user(usuario) if usuario else borrador
+                with self.assertRaisesRegex(UserError, 'lo pone el sistema'), self.env.cr.savepoint():
+                    factura.copy(default={'invoice_line_ids': [Command.create(
+                        {'name': 'X', 'quantity': 1, 'price_unit': 5000.0, **enlace})]})
+                lineas = borrador.invoice_line_ids.with_user(usuario) if usuario else borrador.invoice_line_ids
+                with self.assertRaisesRegex(UserError, 'lo pone el sistema'), self.env.cr.savepoint():
+                    lineas.copy(default=enlace)
+        self.assertFalse(orden.order_line.invoice_lines)
+
+    def test_importar_una_factura_con_el_enlace_no_lo_deja_pasar(self):
+        """La importación (``load``) arma los valores y llama a ``create``: el enlace no se escribe."""
+        orden = self.pedido()
+        for usuario in (self.caja, self.gerencia, None):
+            with self.subTest(usuario=usuario.login if usuario else 'sudo'):
+                Move = self.env['account.move']
+                if usuario:
+                    Move = Move.with_user(usuario)
+                with self.env.cr.savepoint():
+                    resultado = Move.load(
+                        ['move_type', 'partner_id/.id', 'invoice_date', 'invoice_line_ids/name',
+                         'invoice_line_ids/quantity', 'invoice_line_ids/price_unit',
+                         'invoice_line_ids/sale_line_ids/.id'],
+                        [['out_invoice', str(self.cliente.id), '2030-03-04', 'X', '1', '5000',
+                          str(orden.order_line.id)]])
+                    creadas = Move.browse(resultado.get('ids') or [])
+                    self.assertFalse(creadas.invoice_line_ids.sale_line_ids)
+                self.assertFalse(orden.order_line.invoice_lines)

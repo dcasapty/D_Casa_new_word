@@ -467,6 +467,27 @@ class TestCampanaCarritos(_Base, TransactionCase):
         self.env['dcasa.campana']._dcasa_campana_carritos_al_dia()
         self.assertEqual(carrito.order_line.price_unit, 200.0)
 
+    def test_poner_al_dia_los_precios_no_marca_el_carrito_como_tocado_por_el_equipo(self):
+        """Cuarta revisión: el cron (que corre como OdooBot, un usuario interno) y el pago del visitante recalculan el
+        precio de las líneas; eso lo hace el servidor y no debe dejar el carrito como «tocado por el equipo» (la venta
+        saldría señalada como del equipo en toda la campaña)."""
+        param = self.env['ir.config_parameter'].sudo()
+        param.set_param(PARAM_FIRMA_CARRITOS, '')
+        publico = self.env.ref('base.public_user')
+        por_cron, por_pago = self._pedido(), self._pedido()
+        for carrito in (por_cron, por_pago):
+            carrito._dcasa_escribir_marca(dcasa_nacio_en_web=True, dcasa_creada_por_id=publico.id)
+        hoy = fields.Date.context_today(self.campana)
+        self.campana.write({'fecha_inicio': hoy - timedelta(days=1), 'fecha_fin': hoy + timedelta(days=1)})
+        self.cama.write({'dcasa_black_weekend': True, 'dcasa_campana_precio': 150.0})
+        self.assertFalse(self.env.user.share, 'el cron corre como un usuario interno (OdooBot)')
+        self.assertGreaterEqual(self.env['dcasa.campana']._dcasa_campana_carritos_al_dia(), 1)
+        self.assertEqual(por_cron.order_line.price_unit, 150.0)
+        self.assertFalse(por_cron.dcasa_tocada_por_id)
+        por_pago.with_user(publico).sudo()._dcasa_campana_al_dia()      # lo que hace el pago del visitante
+        self.assertEqual(por_pago.order_line.price_unit, 150.0)
+        self.assertFalse(por_pago.dcasa_tocada_por_id)
+
     def test_la_primera_vez_solo_anota(self):
         param = self.env['ir.config_parameter'].sudo()
         param.search([('key', '=', PARAM_FIRMA_CARRITOS)]).unlink()

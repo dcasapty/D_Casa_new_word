@@ -21,6 +21,15 @@ Fuera de esos caminos, crear una línea de factura con ``sale_line_ids`` (o escr
 que ya se facturó tampoco cambia de pedido: si no, se podría mover la línea facturada de una venta de mostrador a un
 pedido online.
 
+**Un ``default_*`` del contexto tampoco lo fabrica** (cuarta revisión adversarial, 2026-11-20). Odoo aplica los
+``default_<campo>`` del contexto DESPUÉS de mirar los valores que llegan a ``create``, y por RPC cualquiera los manda:
+``account.move.line.create`` con ``context={'default_sale_line_ids': [[6, 0, [ids]]]}`` enlazaba una línea de 5,000 a
+la línea de un pedido online de 1,000 sin pasar por el gancho de ``create`` (que solo miraba ``vals``). Caja, Nómina y
+Gerencia, cada uno solo y sin ``sudo``, la publicaban, la cobraban y la comisión del sitio la contaba como venta del
+sitio (500.00). Por eso ``default_get`` de las dos líneas descarta el enlace cuando no está la llave interna (igual que
+``venta_online.default_get`` con las marcas de origen). Una factura o un pedido con líneas anidadas ya pasaba por el
+gancho de ``create`` de la línea, así que ``default_invoice_line_ids`` y compañía quedan cubiertos.
+
 No cambia ninguna factura que ya existe: el enlace que tienen se queda como está (no hay migración), y lo que se
 escribe por los caminos de arriba no se toca. Duplicar una factura (``copy``) no copia el enlace (``copy=False``);
 solo lo copian las notas de crédito, por el camino de arriba. Si algún día se instala ``account_debit_note``, su
@@ -83,6 +92,15 @@ class AccountMoveLineEnlace(models.Model):
     def _dcasa_enlace_permitido(self):
         return self.env.context.get(CLAVE_ENLACE) is ENLACE
 
+    @api.model
+    def default_get(self, fields):
+        """Un ``default_sale_line_ids`` del contexto (por RPC cualquiera lo manda) no fabrica el enlace: Odoo lo aplica
+        después de ``create``, fuera del alcance del gancho que mira ``vals``. Solo la llave interna lo deja pasar."""
+        valores = super().default_get(fields)
+        if self.env.context.get(CLAVE_ENLACE) is not ENLACE:
+            valores.pop('sale_line_ids', None)
+        return valores
+
     @api.model_create_multi
     def create(self, vals_list):
         if not self._dcasa_enlace_permitido() and any(
@@ -99,6 +117,15 @@ class AccountMoveLineEnlace(models.Model):
 
 class SaleOrderLineEnlace(models.Model):
     _inherit = 'sale.order.line'
+
+    @api.model
+    def default_get(self, fields):
+        """El otro lado del enlace: un ``default_invoice_lines`` del contexto tampoco lo fabrica (ver la línea de
+        factura)."""
+        valores = super().default_get(fields)
+        if self.env.context.get(CLAVE_ENLACE) is not ENLACE:
+            valores.pop('invoice_lines', None)
+        return valores
 
     @api.model_create_multi
     def create(self, vals_list):
