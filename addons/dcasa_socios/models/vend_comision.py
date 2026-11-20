@@ -29,7 +29,8 @@ RESULTADOS = [
     ('patrocinador-sin-ventas', 'No se paga el patrocinio: el patrocinador no tiene ventas propias este mes.'),
     ('freno-global', 'No se paga: el programa llegó al freno global de este mes.'),
     ('sin-configurar', 'No se paga: falta una cifra del programa.'),
-    ('venta-online', 'No se paga: es una venta del sitio web (las ventas online no dan comisión de vendedor).'),
+    ('venta-online', 'No se paga: es una venta del sitio web sin código de vendedor (solo la compra con el código '
+                    'de un vendedor da comisión).'),
 ]
 PAGADOS = ('pagada', 'recortada')
 
@@ -219,12 +220,14 @@ class DcasaVendComision(models.Model):
 
     @api.model
     def _parte_de_la_tienda(self, move):
-        """Qué fracción (de 0 a 1) de la factura puede dar comisión de vendedor. Una venta online nunca la da (decisión
-        de Gerencia, 2026-11-19; ``dcasa_base.models.venta_online``). Solo hacia adelante: desde que rige la primera
+        """Qué fracción (de 0 a 1) de la factura puede dar comisión de vendedor. Una venta online sin código de vendedor
+        no la da (decisión de Gerencia, 2026-11-19; ``dcasa_base.models.venta_online``): **la compra por un enlace
+        ``/v/VEN…`` (la factura lleva el código) sigue dando lo de siempre aunque sea online** (decisión del 2026-11-20:
+        la empresa paga las dos cosas, la del programa y la del sitio). Solo hacia adelante: desde que rige la primera
         versión de las reglas de la comisión web; antes, y sin ellas, es 1 (como siempre). Si la factura junta un
         pedido online con otro de la tienda, cuenta solo la parte de la tienda."""
         desde = move._dcasa_online_desde()
-        if not desde:
+        if not desde or move.dcasa_vendedor_id:
             return 1.0
         # El corte lo decide el DÍA DE COBRO (hora de Panamá), no el de hoy: el mismo del bono por meta y de la comisión
         # web. Un pago con fecha anterior que se registra después sigue siendo de antes (decisión del 2026-11-19).

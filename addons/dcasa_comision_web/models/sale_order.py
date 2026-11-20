@@ -2,13 +2,12 @@
 ``dcasa_base.models.venta_online``).
 
 * **Desde cuándo** una venta online deja de ser de una vendedora: el día de la primera versión de las reglas.
-* **Si la llevó una vendedora**: al confirmar un pedido que nació en la web, se mira el chat de Juan. Si una
-  vendedora le
-  escribió al cliente en los 30 días anteriores (la misma ventana con que el panel de Juan atribuye las ventas), la
-  venta
-  fue de ella, aunque el pedido salga de la página: no es venta online. Si solo contestó el asistente, o nadie, la
-  persona
-  compró sola: es venta online. Andrés manda sobre esto: toda venta de Andrés cuenta.
+* **Si la llevó una vendedora**: al confirmar un pedido que nació por un flujo digital (la página, Andrés o la
+  cotización de Juan), se mira el chat de Juan. Si una vendedora le escribió al cliente en los 30 días anteriores
+  (la misma ventana con que el panel de Juan atribuye las ventas), la venta fue de ella: no es venta online. Si solo
+  contestó el asistente, o nadie, la persona compró sola: es venta online. Con Andrés vale lo mismo (decisión del
+  2026-11-20): si pasa al cliente a una persona y una vendedora lo atiende y cierra, es de ella; que solo confirme el
+  pedido, sin haberle escrito por el chat de Juan, no cuenta.
 """
 import logging
 from datetime import timedelta
@@ -49,7 +48,7 @@ class SaleOrder(models.Model):
 
     def _action_confirm(self):
         resultado = super()._action_confirm()
-        for orden in self.filtered(lambda o: o.dcasa_nacio_en_web and not o.dcasa_via_andres):
+        for orden in self.filtered('dcasa_nacio_en_web'):
             try:
                 with self.env.cr.savepoint():
                     if orden._dcasa_chat_antes_de_comprar()[1]:

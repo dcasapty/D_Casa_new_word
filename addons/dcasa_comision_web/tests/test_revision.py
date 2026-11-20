@@ -471,10 +471,3 @@ class TestRevisionVendedoresConCodigo(ComisionReloj):
         despues = self.comision(self.venta_con_codigo(False, '2030-03-04', self.cliente_nuevo(2)))
         self.assertEqual((antes.resultado, antes.puntos), (despues.resultado, despues.puntos))
         self.assertGreater(despues.puntos, 0)
-
-    def test_revision_52_la_venta_web_con_codigo_ya_no_da_puntos_desde_la_primera_version(self):
-        """CONFIRMA: el enlace ``/v/VEN…`` lleva a la tienda web; esa compra es «online» y desde «Rige desde» da cero
-        puntos y queda escrita con el motivo ``venta-online`` (decisión pendiente de Gerencia, punto 1 de la lista)."""
-        self.version(10.0)
-        web = self.comision(self.venta_con_codigo(True, '2030-03-04', self.cliente_nuevo(3)))
-        self.assertEqual((web.resultado, web.puntos), ('venta-online', 0))

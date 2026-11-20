@@ -9,3 +9,4 @@ from . import test_permisos
 from . import test_pantallas
 from . import test_revision
 from . import test_endurecimiento
+from . import test_cotizacion_de_juan

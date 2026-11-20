@@ -235,6 +235,8 @@ class TestCortePorDiaDeCobro(VendedoraCommon):
 
 @tagged('post_install', '-at_install')
 class TestCorteDelProgramaDeVendedores(ComisionReloj):
+    """El programa de vendedores corta por el día del cobro, igual que el bono y el sitio. Desde el 2026-11-20 solo
+    importa para lo que no lleva código VEN (la compra con código paga siempre)."""
 
     activar_vendedores = SociosCommon.activar_vendedores
     vendedor = SociosCommon.vendedor
@@ -245,27 +247,40 @@ class TestCorteDelProgramaDeVendedores(ComisionReloj):
         entorno.start()
         self.addCleanup(entorno.stop)
         self.activar_vendedores()
+        self.reglas['vendedores']['vinculacion']['meses'] = 12
         self.codigo = self.vendedor('Vendedor Corte', '8-905-678', '6100-0905')
 
     def comision(self, factura):
         return self.env['dcasa.vend.comision'].search([('move_id', '=', factura.id), ('tipo', '=', 'directa')])
 
-    def con_codigo(self, pago):
-        factura = self.facturar(self.orden(dcasa_vendedor_id=self.codigo.id), pago)
+    def comprar(self, pago, con_codigo=False):
+        extra = {'dcasa_vendedor_id': self.codigo.id} if con_codigo else {}
+        factura = self.facturar(self.orden(**extra), pago)
         self.pagar(factura, pago)
         return factura
 
+    def venta(self, factura):
+        return self.env['dcasa.web.venta'].search([('move_id', '=', factura.id)])
+
     def test_el_corte_del_programa_de_vendedores_es_el_dia_del_cobro_y_no_el_de_hoy(self):
+        # El cliente queda ligado al vendedor con una compra de la tienda con su código (antes de todo).
+        liga = self.facturar(self.orden(web=False, dcasa_vendedor_id=self.codigo.id), '2030-03-01')
+        self.pagar(liga, '2030-03-01')
+        self.assertEqual(self.cliente.dcasa_vendedor_ligado_id, self.codigo)
         self.version(10.0)                                  # rige el 4 de marzo; hoy también es 4
-        antes, ese_dia = self.con_codigo('2030-03-03'), self.con_codigo('2030-03-04')
-        self.assertEqual(self.comision(antes).resultado, 'pagada')
+        antes, ese_dia = self.comprar('2030-03-03'), self.comprar('2030-03-04')
+        self.assertIn(self.comision(antes).resultado, ('pagada', 'recortada'))
         self.assertTrue(self.comision(antes).puntos, 'cobrada el día 3: sigue como siempre para el vendedor')
         self.assertEqual((self.comision(ese_dia).resultado, self.comision(ese_dia).puntos), ('venta-online', 0))
         self.assertFalse(self.venta(antes).reglas_id, 'y el sitio no la cobra: un solo corte para los dos')
         self.assertTrue(self.venta(ese_dia).reglas_id)
 
-    def venta(self, factura):
-        return self.env['dcasa.web.venta'].search([('move_id', '=', factura.id)])
+    def test_con_codigo_ven_el_corte_no_importa_paga_el_programa_y_el_sitio(self):
+        self.version(10.0)
+        ese_dia = self.comprar('2030-03-04', con_codigo=True)
+        self.assertEqual(self.comision(ese_dia).resultado, 'pagada')
+        self.assertTrue(self.comision(ese_dia).puntos)
+        self.assertTrue(self.venta(ese_dia).reglas_id)
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -645,6 +660,26 @@ class TestMenores(Liquida):
         self.assertTrue(sola.dcasa_nacio_en_web and sola.dcasa_venta_online)
         self.assertFalse(pagada.invoice_line_ids.sale_line_ids.order_id.dcasa_llevada_por_vendedora,
                          'ya pagado por completo: no se toca lo que ya pasó')
+
+    def test_la_migracion_marca_las_cotizaciones_que_ya_armo_juan_y_respeta_a_la_vendedora(self):
+        juan = self.env.ref('dcasa_conversaciones.user_juan')
+        de_juan = self.orden(web=False)
+        de_una_persona = self.orden(web=False)
+        atendida = self.orden(web=False, cliente=self.env['res.partner'].create({
+            'name': 'Cliente de Juan atendida', 'phone': '+507 6555-0397'}))
+        self.env.cr.execute('UPDATE sale_order SET create_uid = %s WHERE id IN %s',
+                            [juan.id, (de_juan.id, atendida.id)])
+        self.hablar(atendida.partner_id, 'vendedora', hace_dias=2, id_externo='50761999007')
+        (de_juan | de_una_persona | atendida).invalidate_recordset()
+        especificacion = importlib.util.spec_from_file_location('migracion_online_juan', MIGRACION)
+        modulo = importlib.util.module_from_spec(especificacion)
+        especificacion.loader.exec_module(modulo)
+        modulo.migrate(self.env.cr, '19.0.1.9.0')
+        (de_juan | de_una_persona | atendida).invalidate_recordset()
+        self.assertTrue(de_juan.dcasa_nacio_en_web and de_juan.dcasa_venta_online, 'la armó Juan: nació digital')
+        self.assertFalse(de_una_persona.dcasa_nacio_en_web, 'la tecleó una persona: no')
+        self.assertTrue(atendida.dcasa_nacio_en_web and atendida.dcasa_llevada_por_vendedora)
+        self.assertFalse(atendida.dcasa_venta_online, 'de Juan pero una vendedora le escribió: es de ella')
 
     def test_un_hola_basta_para_que_la_venta_sea_de_la_vendedora_y_queda_para_revisar(self):
         """Decisión que se deja como está (y se vigila): un solo mensaje de una vendedora en los 30 días anteriores."""

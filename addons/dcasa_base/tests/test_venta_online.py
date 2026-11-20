@@ -62,8 +62,9 @@ class TestVentaOnline(TransactionCase):
 
     def test_la_definicion_es_la_tabla_de_verdad_de_las_tres_marcas(self):
         orden = self.orden(False)
+        # (nació por un flujo digital, pasó por Andrés, la llevó una vendedora, ¿es online?): Andrés ya no fuerza nada.
         casos = [(False, False, False, False), (True, False, False, True), (True, False, True, False),
-                 (True, True, True, True), (False, True, False, True)]
+                 (True, True, True, False), (True, True, False, True), (False, True, False, False)]
         for nacio, andres, vendedora, esperado in casos:
             with self.subTest(nacio=nacio, andres=andres, vendedora=vendedora):
                 orden.invalidate_recordset()
@@ -80,7 +81,8 @@ class TestVentaOnline(TransactionCase):
         with self.assertRaisesRegex(UserError, 'lo pone el sistema'):
             orden.sudo().write({'dcasa_nacio_en_web': True})
         orden._dcasa_escribir_marca(dcasa_via_andres=True)
-        self.assertTrue(orden.dcasa_via_andres and orden.dcasa_venta_online)
+        self.assertTrue(orden.dcasa_via_andres)
+        self.assertFalse(orden.dcasa_venta_online, 'pasar por Andrés dice por dónde llegó, no que sea online')
 
     def test_sin_reglas_de_la_comision_web_la_regla_para_las_vendedoras_no_rige(self):
         Orden = self.env['sale.order']
