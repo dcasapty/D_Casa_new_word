@@ -25,9 +25,9 @@ y pasos del carrito con poco contraste, y bordes de alineación que no coinciden
 
 1. **Botón «Escríbenos por WhatsApp» del hero:** hoy es solo contorno y en escritorio da **1,6 a 2,3:1 sobre las 7 fotos** (debe ser ≥ 4,5:1);
    es el único CTA de la marca. Relleno plano azul noche: pasa de 8:1. *(C1; sin choque con la marca)*
-2. **Texto del hero sobre las fotos** (subtítulo: peor píxel 2,13:1; antetítulo en celular 2,09:1): una capa de azul de marca solo donde va el
-   texto lo sube a 4,54 y 4,94:1 (valores en A, concepto 8). Un velo plano no alcanza (2,3-2,5:1). ⚠ **Decide Gerencia** (ver abajo).
-3. **Fondo base del hero en azul noche** (hoy hueso, y sin fotos cargadas el texto blanco casi no se lee). *(A2)*
+2. ~~**Texto del hero sobre las fotos**~~ **(descartado por Gerencia el 2026-11-20: el hero se queda como está; ver «Decisiones»).** Era una capa de azul de
+   marca solo donde va el texto (subtítulo de 2,13 a 4,54:1; valores en A, concepto 8).
+3. ~~**Fondo base del hero en azul noche**~~ (descartado con el punto 2). *(A2)*
 4. **Placeholders** de búsqueda y de Socios con el gris de la marca (de 2,86 y 3,12:1 a 7,27:1). *(A3)*
 5. **Pasos del carrito** legibles: `opacity: 1` (de 2,38 a 7,93:1; el arreglo de `dcasa.scss:2006` lo anula la opacidad 50 % de Odoo). *(A4)*
 6. **Zonas táctiles de 44 px o más** en celular: hamburguesa (40×42), «Ordenar por» y «Filtros» (38), la X del cajón (32), «Mi cuenta» (37),
@@ -50,8 +50,8 @@ y pasos del carrito con poco contraste, y bordes de alineación que no coinciden
 
 | Tema | Qué dice Feuxui | Lo que choca | Recomendación de los informes |
 |---|---|---|---|
-| Degradado azul en el hero | una capa de color solo donde va el texto | regla 3 «sin degradados»; ya se aprobó el 2026-11-17 pero la regla escrita no lo dice | **reformular la regla 3** para dejar escrita la excepción; un velo plano no alcanza |
-| Oscurecer la zona del texto | contraste mínimo 4,5:1 | se pidió «el fondo no lo quiero oscuro» | mostrar capturas antes/después (hay una lista en A) |
+| Degradado azul en el hero | una capa de color solo donde va el texto | regla 3 «sin degradados»; ya se aprobó el 2026-11-17 pero la regla escrita no lo dice | el degradado de hoy se queda **tal cual** (no se agranda ni se cambia); sigue pendiente dejar escrita la excepción en la regla 3 |
+| Oscurecer la zona del texto del hero | contraste mínimo 4,5:1 | se pidió «el fondo no lo quiero oscuro» | **DECIDIDO 2026-11-20: no se aplica.** Gerencia vio el antes/después a pantalla completa y prefiere el aspecto de hoy. El texto del hero queda como está (subtítulo con el peor píxel en 2,13:1 sobre las partes claras de algunas fotos); la salida sin tocar el diseño es elegir para el carrusel fotos con la parte izquierda calmada u oscura (Sitio web › Carrusel de la portada) |
 | Botón principal del hero | un solo primario por pantalla | regla 5 (CTA único: WhatsApp) frente a «Ver el catálogo» amarillo hoy | decidir si la regla 5 manda también en la portada |
 | Fondo en movimiento sin mandos | nada se mueve solo; WCAG 2.2.2 | pedido de «sin control» | que se detenga solo tras una vuelta (~45 s) o una pausa mínima |
 | Cabecera de vidrio y zoom del hero | un efecto por diseño | regla 3 (plano) | quitar solo la refracción animada y el reflejo |
