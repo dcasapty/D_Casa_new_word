@@ -1,0 +1,791 @@
+// D'CASA — el pago como un checkout moderno (rediseño visual, 2026-11-20).
+//
+// Referencias de estructura (sin copiar marcas): Stripe Checkout, Shopify y WooCommerce moderno.
+//   · pantalla sin distracciones: cabecera mínima (logo, «Pago seguro», volver) y sin burbujas encima del botón;
+//   · dos columnas en escritorio (métodos a la izquierda, resumen fijo a la derecha) y una en celular, con el
+//     resumen plegable arriba y el botón de pagar pegado abajo;
+//   · métodos como filas de UN solo contenedor: radio + nombre + íconos; la fila elegida se resalta (borde azul,
+//     fondo muy suave) y enseña su ayuda adentro;
+//   · UN botón primario de ancho completo, alto 52 px, con el monto.
+//
+// Marca (CLAUDE.md): azul #1340B1, amarillo #FED00F que NUNCA toca el blanco (aquí no se usa amarillo), Anton para
+// la cifra grande y los titulares, Oswald para subtítulos, Inter para el cuerpo; sistema plano: bordes de 1 px y
+// fondos suaves, ninguna sombra ni degradado. Contraste ≥ 4.5:1 en todo texto (lo mide test_pago_contraste.py).
+//
+// Nada de esto toca el JavaScript del formulario de pago de Odoo: solo estilos sobre sus propios nombres
+// (#o_payment_form, [name=o_payment_option], input[name=o_payment_radio], button[name=o_payment_submit_button]).
+
+$pago-azul: $dcasa-azul;                   // #1340B1
+$pago-azul-osc: $dcasa-azul-osc;           // #0F3591
+$pago-navy: $dcasa-navy;                   // #0E2A6B
+$pago-tinta: $dcasa-tinta;                 // #1B2233
+$pago-gris: $dcasa-gris;                   // #4A5163 (7.9:1 sobre blanco)
+$pago-borde: #D9DDE6;                      // filos de filas y paneles (el control se reconoce por su radio y su texto)
+$pago-borde-campo: #8C93A6;                // borde de un campo de texto: 3.2:1 sobre blanco (WCAG 1.4.11)
+$pago-suave: #F2F5FC;                      // fila elegida: azul al 4 %, casi blanco
+$pago-panel: $dcasa-hueso;                 // panel del resumen
+$pago-radio: 12px;                         // una sola esquina para filas, botones y campos (el panel va a 16 como las tarjetas)
+$pago-radio-panel: 16px;
+$pago-alto-boton: 52px;
+$pago-alto-campo: 48px;
+$pago-error: #B42318;                      // solo para «no se completó» (junto a un ícono y texto: nunca solo color)
+
+// ---------------------------------------------------------------------------
+// A. La lista de métodos (tienda, ventana del portal y cualquier otra pantalla con el formulario de Odoo)
+// ---------------------------------------------------------------------------
+
+#wrapwrap #o_payment_form {
+    font-family: 'Inter', sans-serif;
+    color: $pago-tinta;
+
+    // Título de la lista
+    #o_payment_methods > p,
+    #o_payment_tokens_heading {
+        font-family: 'Oswald', sans-serif;
+        font-weight: 600;
+        font-size: 1.25rem;
+        line-height: 1.2;
+        color: $pago-tinta;
+        margin-bottom: .75rem !important;
+    }
+
+    // Un solo contenedor con filas
+    .list-group {
+        border: 1px solid $pago-borde;
+        border-radius: $pago-radio;
+        overflow: hidden;
+        background: #fff;
+        gap: 0;
+    }
+
+    [name="o_payment_option"].list-group-item {
+        position: relative;
+        border: 0;
+        border-radius: 0;
+        border-top: 1px solid $pago-borde;
+        padding: 1rem 1rem;
+        background: #fff;
+        gap: 0 !important;
+        transition: background-color $dcasa-t-rapida;
+        &:first-child { border-top: 0; }
+        &:hover { background: #F7F8FB; }
+
+        // La fila entera es el botón del radio (Odoo ya estira el área de la etiqueta; aquí solo el cursor)
+        .o_payment_option_label {
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: 1rem;
+            line-height: 1.4;
+            color: $pago-tinta;
+        }
+
+        // Radio: 20 px, azul al elegirlo
+        .form-check-input {
+            width: 1.25rem;
+            height: 1.25rem;
+            margin-top: .1rem;
+            border: 1px solid $pago-borde-campo;
+            background-color: #fff;
+            &:checked {
+                background-color: $pago-azul;
+                border-color: $pago-azul;
+            }
+            &:focus-visible {
+                outline: 3px solid $pago-azul;
+                outline-offset: 2px;
+                box-shadow: none;
+            }
+        }
+
+        // Íconos de la derecha
+        .o_dcasa_pago_iconos {
+            gap: .25rem;
+            flex-shrink: 0;
+            border: 0;
+            box-shadow: none;
+            border-radius: 4px;
+            img {
+                display: block;
+                height: 1.5rem;
+                width: auto;
+                border-radius: 4px;
+            }
+            // Los íconos de Odoo (campo imagen) llevan su propio recuadro
+            &.d-block img { border: 1px solid $pago-borde; }
+        }
+        .shadow-sm { box-shadow: none !important; }
+
+        // La ayuda de cada método vive dentro de su fila y solo se ve en la elegida
+        .o_dcasa_pago_ayuda {
+            margin: .5rem 0 0 !important;
+            padding-left: 2rem;
+            font-size: .875rem;
+            line-height: 1.5;
+            color: $pago-gris !important;
+        }
+        .o_dcasa_pago_ayuda p { margin: 0; }
+        // Aviso de la etiqueta de «secured by»: lo dice la línea de debajo del botón
+        [name="o_payment_secured_by"] { display: none; }
+        .form-check { padding-left: 0; }
+        .form-check-input.position-absolute { position: static !important; flex: 0 0 auto; margin-right: 0; margin-left: 0; float: none; }
+        // radio | nombre | íconos en una sola línea; si falta lugar se parte el nombre, nunca los íconos
+        .form-check > .d-flex.w-100 {
+            flex-wrap: nowrap !important;
+            align-items: flex-start !important;
+            gap: .75rem !important;
+        }
+        .form-check > .d-flex.w-100 > .d-flex.flex-grow-1 {
+            flex-wrap: wrap;
+            align-items: center;
+            min-width: 0;
+            gap: .25rem .5rem !important;
+            margin-right: 0 !important;
+        }
+        .form-check > .d-flex.w-100 > .d-flex.flex-grow-1 > .d-flex { margin-top: 0 !important; }
+        .form-check > .d-flex.w-100 > .d-flex:last-child { flex: 0 0 auto; align-self: center; flex-wrap: nowrap !important; }
+        .o_payment_option_label { margin: 0; align-self: center; }
+    }
+
+    // Fila elegida: borde azul y fondo muy suave. Sin `:has()` (navegadores viejos) la lista queda con el radio azul y todas las ayudas visibles.
+    [name="o_payment_option"].list-group-item:has(input[name="o_payment_radio"]:checked) {
+        background: $pago-suave;
+        box-shadow: inset 0 0 0 2px $pago-azul;
+        border-top-color: transparent;
+        z-index: 1;
+        + [name="o_payment_option"].list-group-item { border-top-color: transparent; }
+    }
+    [name="o_payment_option"].list-group-item:not(:has(input[name="o_payment_radio"]:checked)) .o_dcasa_pago_ayuda {
+        display: none;
+    }
+
+    // «Modo de prueba» / «No publicado» (solo el equipo lo ve): etiqueta con palabras
+    .o_dcasa_pago_aviso {
+        display: inline-flex;
+        align-items: center;
+        gap: .35rem;
+        margin-left: 0;
+        padding: .1rem .5rem;
+        border: 1px solid $pago-navy;
+        border-radius: 999px;
+        font-size: .75rem;
+        font-weight: 600;
+        line-height: 1.4;
+        color: $pago-navy;
+        background: #fff;
+        white-space: nowrap;
+    }
+
+    // El área del botón: columna, ancho completo
+    > .d-flex.justify-content-end {
+        flex-direction: column !important;
+        align-items: stretch;
+        margin-top: 1rem !important;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// B. El botón de pagar (el mismo en la tienda, en la ventana del portal y en el celular)
+// ---------------------------------------------------------------------------
+
+#wrapwrap button[name="o_payment_submit_button"] {
+    display: block;
+    width: 100%;
+    min-height: $pago-alto-boton;
+    margin: 0 !important;
+    padding: .75rem 1.5rem !important;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 1.0625rem;
+    line-height: 1.3;
+    letter-spacing: 0;
+    text-transform: none;
+    color: #fff;
+    background: $pago-azul;
+    border: 0;
+    border-radius: $pago-radio;
+    box-shadow: none;
+    transition: background-color $dcasa-t-rapida;
+    &:hover:not(:disabled):not([disabled]), &:active:not(:disabled):not([disabled]) { background: $pago-azul-osc; color: #fff; }
+    &:focus-visible { outline: 3px solid $pago-azul; outline-offset: 2px; box-shadow: none; }
+    // Sin método elegido: un gris claro firme (no el azul lavado a medias de Odoo)
+    &:disabled, &[disabled] {
+        opacity: 1;
+        color: #566074;
+        background: #E4E7EE;
+        cursor: not-allowed;
+    }
+    .oe_currency_value { color: inherit; font-family: inherit; font-weight: 700; }
+}
+
+// Línea pequeña con candado bajo el botón (solo con Tilopay elegido: dcasa_pago_tilopay la muestra)
+.o_dcasa_pago_nota {
+    display: none;
+    margin: .75rem 0 0;
+    font-size: .8125rem;
+    line-height: 1.45;
+    color: $pago-gris;
+    text-align: center;
+    .fa { margin-right: .35rem; }
+}
+
+// «¿Dudas? Escríbenos por WhatsApp»
+.o_dcasa_pago_ayuda_wa {
+    margin: 1.25rem 0 0;
+    font-size: .9375rem;
+    color: $pago-gris;
+    span:first-child { margin-right: .35rem; }
+    a {
+        color: $pago-azul;
+        font-weight: 600;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        &:hover { color: $pago-azul-osc; }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// C. La ventana «Pagar tu pedido» del portal (/my/orders/<id>)
+// ---------------------------------------------------------------------------
+
+#wrapwrap #modalaccept .modal-content {
+    border: 0;
+    border-radius: $pago-radio-panel;
+    box-shadow: none;
+    font-family: 'Inter', sans-serif;
+    color: $pago-tinta;
+
+    .modal-header {
+        padding: 1.25rem 1.5rem 1rem;
+        border-bottom: 1px solid $pago-borde;
+        .modal-title {
+            font-family: 'Oswald', sans-serif;
+            font-weight: 600;
+            font-size: 1.375rem;
+            line-height: 1.2;
+            color: $pago-tinta;
+        }
+        .o_dcasa_pago_ventana_ref { font-weight: 400; color: $pago-gris; margin-left: .35rem; }
+        .btn-close { opacity: 1; width: 2.75rem; height: 2.75rem; margin: -.5rem -.5rem -.5rem auto; background-size: .875rem; }
+    }
+    .modal-body { padding: 1.25rem 1.5rem 1.5rem; }
+    // El total, grande y arriba: Anton en la cifra (titulares y cifras grandes)
+    .o_dcasa_pago_total_ventana {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1rem;
+        padding: 1rem 1.25rem;
+        background: $pago-panel;
+        border: 1px solid $pago-borde;
+        border-radius: $pago-radio-panel;
+    }
+    .o_dcasa_pago_total_texto { font-family: 'Oswald', sans-serif; font-weight: 600; font-size: 1.0625rem; color: $pago-tinta; }
+    .o_dcasa_pago_total_monto { font-family: 'Anton', 'Oswald', sans-serif; font-weight: 400; font-size: 2rem; line-height: 1.1; letter-spacing: -.01em; color: $pago-navy; white-space: nowrap; .oe_currency_value { font-family: inherit; font-weight: inherit; color: inherit; } }
+    // La frase de aceptación de Odoo: más chica, legible
+    #sign-dialog > .mb-3 { font-size: .875rem; line-height: 1.5; color: $pago-gris; margin-bottom: 1.25rem !important; b { color: $pago-tinta; } }
+    // Abono / total (apartados y pagos parciales)
+    .btn-group .btn { border-radius: $pago-radio; border: 1px solid $pago-borde; min-height: 3rem; font-family: 'Inter', sans-serif; text-transform: none; color: $pago-tinta; background: #fff; &.active { border-color: $pago-azul; box-shadow: inset 0 0 0 1px $pago-azul; background: $pago-suave; } }
+}
+
+@media (max-width: 575.98px) {
+    // En el celular la ventana ocupa la pantalla y el botón queda pegado abajo
+    #wrapwrap #modalaccept .modal-dialog { margin: 0; max-width: none; min-height: 100%; }
+    #wrapwrap #modalaccept .modal-content { min-height: 100dvh; border-radius: 0; }
+    #wrapwrap #modalaccept .modal-body { display: flex; flex-direction: column; flex: 1 1 auto; padding-bottom: 0; }
+    #wrapwrap #modalaccept #payment_method { display: flex; flex-direction: column; flex: 1 1 auto; }
+    #wrapwrap #modalaccept #o_payment_form { display: flex; flex-direction: column; flex: 1 1 auto; }
+    #wrapwrap #modalaccept #o_payment_form_options { flex: 1 1 auto; }
+    #wrapwrap #modalaccept #o_payment_form > .d-flex.justify-content-end {
+        position: sticky;
+        bottom: 0;
+        z-index: 2;
+        margin: 1rem -1.5rem 0 !important;
+        padding: .75rem 1.5rem calc(.75rem + env(safe-area-inset-bottom));
+        background: #fff;
+        border-top: 1px solid $pago-borde;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// D. La página /shop/payment: cabecera mínima, dos columnas, resumen fijo
+// ---------------------------------------------------------------------------
+
+.o_dcasa_pago_cabecera {
+    background: #fff;
+    border-bottom: 1px solid $pago-borde;
+    font-family: 'Inter', sans-serif;
+}
+.o_dcasa_pago_cabecera_in {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    max-width: 1120px;
+    min-height: 4rem;
+    margin-inline: auto;
+    padding: .5rem $dcasa-gutter;
+}
+.o_dcasa_pago_logo {
+    display: inline-flex;
+    flex: 0 0 auto;
+    img { display: block; height: 2.5rem; width: auto; }
+}
+.o_dcasa_pago_seguro {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    font-size: .875rem;
+    font-weight: 600;
+    color: $pago-tinta;
+    .fa { color: $pago-azul; font-size: 1rem; }
+}
+.o_dcasa_pago_volver {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    min-height: 2.75rem;
+    font-size: .9375rem;
+    font-weight: 600;
+    color: $pago-azul;
+    text-decoration: none;
+    &:hover { color: $pago-azul-osc; text-decoration: underline; text-underline-offset: 2px; }
+    .fa { font-size: 1.25rem; }
+}
+
+.o_dcasa_pago #wrapwrap {
+    // El contenido de la página: ancho de checkout
+    .o_website_sale_checkout_container.container { max-width: 1120px; padding-inline: $dcasa-gutter; }
+    #wrap { font-family: 'Inter', sans-serif; color: $pago-tinta; }
+
+    // Los pasos «Orden › Dirección › Pago»: chicos y sin pelear con el título
+    .o_wizard {
+        margin: 1.25rem 0 1rem !important;
+        font-size: .875rem;
+        .fa-angle-right { margin-inline: .5rem !important; font-size: 1rem !important; }
+        a { color: $pago-azul; text-decoration: none; &:hover { text-decoration: underline; } }
+        .fw-bold { color: $pago-tinta; }
+    }
+
+    // La entrega: un recuadro de resumen, no una tarjeta con insignia
+    #address_on_payment, .oe_cart > div.mt-3 {
+        margin-bottom: 1.5rem;
+        .card { border: 1px solid $pago-borde; border-radius: $pago-radio; background: #fff; box-shadow: none; }
+        .card-body { padding: 1rem 1.25rem; font-size: .9375rem; line-height: 1.5; }
+        .badge {
+            display: block;
+            margin: 0 0 .35rem !important;
+            padding: 0;
+            background: transparent !important;
+            border: 0 !important;
+            border-radius: 0;
+            text-align: left;
+            font-family: 'Oswald', sans-serif;
+            font-weight: 500;
+            font-size: .8125rem;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            color: $pago-gris !important;
+        }
+        a.float-end { font-weight: 600; font-size: .9375rem; color: $pago-azul; text-decoration: none; &:hover { text-decoration: underline; } }
+    }
+
+    // Resumen: panel de fondo suave, fijo al bajar
+    .o_total_card {
+        background: $pago-panel;
+        border: 1px solid $pago-borde;
+        border-radius: $pago-radio-panel;
+        box-shadow: none;
+        .card-body { padding: 1.5rem !important; }
+    }
+    .o_dcasa_pago_panel_titulo {
+        margin: 0 0 .5rem;
+        font-family: 'Oswald', sans-serif;
+        font-weight: 600;
+        font-size: 1.125rem;
+        color: $pago-tinta;
+    }
+
+    // Líneas: miniatura con la cantidad en una insignia azul (el amarillo de Odoo tocaba la foto blanca)
+    .o_cart_products_table {
+        --bs-table-bg: transparent;
+        margin: 0;
+        td, tr { border-color: $pago-borde; }
+        tr { border-bottom: 0; }
+        td { padding-block: .625rem !important; vertical-align: middle; background: transparent; }
+        .td-img { padding-inline: 0 .75rem !important; width: 3.5rem; }
+        .o_cart_product_image {
+            width: 3.5rem;
+            img, .img { display: block; width: 3.5rem; height: 3.5rem; object-fit: cover; border-radius: 8px; border: 1px solid $pago-borde; background: #fff; }
+        }
+        .o_cart_item_count.badge {
+            top: 0 !important;
+            left: 100% !important;
+            min-width: 1.375rem;
+            height: 1.375rem;
+            padding: 0 .35rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: $pago-azul !important;
+            color: #fff !important;
+            font-family: 'Inter', sans-serif;
+            font-size: .75rem;
+            font-weight: 600;
+            border-radius: 999px;
+        }
+        .td-product_name { font-size: .9375rem; font-weight: 500; line-height: 1.35; padding-inline: 0 !important; }
+        .td-price { font-size: .9375rem; font-weight: 600; white-space: nowrap; padding-inline: .75rem 0 !important; .oe_currency_value { font-family: 'Inter', sans-serif; font-weight: 600; color: inherit; } }
+        .text-muted { color: $pago-gris !important; }
+        // El premio de Socios es un descuento: el monto en azul con su signo, sin foto genérica
+        tr.o_dcasa_pago_premio .td-price { color: $pago-azul; }
+        // Sin foto genérica: un regalo en un recuadro del mismo tamaño que las miniaturas
+        tr.o_dcasa_pago_premio .o_cart_product_image {
+            img, .img { display: none; }
+            &::before {
+                content: '\f06b';
+                font-family: 'FontAwesome';
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 3.5rem;
+                height: 3.5rem;
+                border-radius: 8px;
+                border: 1px solid $pago-borde;
+                background: #fff;
+                color: $pago-azul;
+                font-size: 1.375rem;
+            }
+        }
+    }
+
+    // Totales
+    .o_cart_total {
+        table { margin: 0; }
+        td { font-size: .9375rem; color: $pago-gris; border: 0; }
+        .monetary_field, .oe_currency_value { color: $pago-tinta; font-family: 'Inter', sans-serif; font-weight: 600; }
+        tr[name="o_order_total"] {
+            border-top: 1px solid $pago-borde;
+            td { padding-top: 1rem !important; color: $pago-tinta; }
+            td:first-child strong { font-family: 'Oswald', sans-serif; font-weight: 600; font-size: 1.125rem; }
+            .monetary_field, .oe_currency_value { font-family: 'Anton', 'Oswald', sans-serif; font-weight: 400 !important; color: $pago-navy; }
+            .monetary_field { font-size: 2.125rem; line-height: 1; letter-spacing: -.01em; }
+        }
+    }
+    .o_cart_total.border-top { border-color: $pago-borde !important; }
+
+    // Código de descuento: campo de 48 px con su etiqueta
+    .coupon_form {
+        margin-block: 1rem;
+        .input-group { flex-wrap: nowrap; }
+        input.form-control {
+            min-height: $pago-alto-campo;
+            border: 1px solid $pago-borde-campo;
+            border-radius: $pago-radio 0 0 $pago-radio;
+            background: #fff;
+            font-family: 'Inter', sans-serif;
+            font-size: .9375rem;
+            &:focus { border-color: $pago-azul; box-shadow: 0 0 0 1px $pago-azul; outline: 0; }
+        }
+        .btn {
+            min-height: $pago-alto-campo;
+            padding-inline: 1.25rem;
+            border: 1px solid $pago-borde-campo;
+            border-left: 0;
+            border-radius: 0 $pago-radio $pago-radio 0;
+            background: #fff;
+            color: $pago-azul;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            text-transform: none;
+            &:hover { background: $pago-suave; }
+        }
+    }
+
+    // Navegación: el botón principal, y un enlace de texto debajo
+    .o_cta_navigation_container {
+        margin-top: 1rem;
+        > div { gap: 0 !important; }
+        .position-relative.d-none.d-lg-flex { display: none !important; }   // el «o» de Odoo
+        a:not(.btn) {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            align-self: center;
+            gap: .4rem;
+            min-height: 2.75rem;
+            margin-top: .5rem !important;
+            font-size: .9375rem;
+            font-weight: 600;
+            color: $pago-azul;
+            text-decoration: none;
+            &:hover { color: $pago-azul-osc; text-decoration: underline; text-underline-offset: 2px; }
+        }
+    }
+}
+
+// Escritorio: dos columnas (métodos | resumen fijo)
+@media (min-width: 992px) {
+    .o_dcasa_pago #wrapwrap .o_website_sale_checkout_container > .row {
+        --bs-gutter-x: 0;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 24rem;
+        column-gap: 3.5rem;
+        align-items: start;
+        margin-inline: 0;
+        > * { width: auto; max-width: none; margin: 0; padding-inline: 0; }
+        > .col-12:not(.oe_cart):not([class*="offset-xxl-1"]) { grid-column: 1 / -1; }
+        > .oe_cart { grid-column: 1; }
+        > div[class*="offset-xxl-1"] { grid-column: 2; }
+    }
+    .o_dcasa_pago #wrapwrap .o_total_card { position: sticky; top: 1.5rem; }
+    .o_dcasa_pago #wrapwrap .o_dcasa_pago_resumen_movil { display: none !important; }
+}
+
+// Celular: resumen plegable arriba, botón de pagar pegado abajo
+@media (max-width: 991.98px) {
+    .o_dcasa_pago #wrapwrap {
+        .o_dcasa_pago_resumen_movil { margin-bottom: 1rem; }
+        .o_dcasa_pago_resumen_toggle {
+            display: flex;
+            width: 100%;
+            min-height: 3.25rem;
+            align-items: center;
+            justify-content: space-between;
+            gap: .75rem;
+            padding: .5rem 1rem;
+            background: $pago-panel;
+            border: 1px solid $pago-borde;
+            border-radius: $pago-radio;
+            font-family: 'Inter', sans-serif;
+            font-size: .9375rem;
+            font-weight: 600;
+            color: $pago-azul;
+            text-align: left;
+            .fa-shopping-bag { margin-right: .5rem; }
+            .o_dcasa_pago_resumen_flecha { margin-left: .5rem; font-size: 1.125rem; vertical-align: -1px; transition: transform $dcasa-t-rapida; }
+            &:not(.collapsed) .o_dcasa_pago_resumen_flecha { transform: rotate(180deg); }
+            &:focus-visible { outline: 3px solid $pago-azul; outline-offset: 2px; }
+        }
+        .o_dcasa_pago_resumen_total { font-family: 'Anton', 'Oswald', sans-serif; font-weight: 400; font-size: 1.375rem; letter-spacing: -.01em; color: $pago-navy; }
+        #o_dcasa_pago_resumen {
+            margin-top: .5rem;
+            padding: .5rem 1rem 1rem;
+            background: $pago-panel;
+            border: 1px solid $pago-borde;
+            border-radius: $pago-radio;
+        }
+        #o_dcasa_pago_resumen .o_cart_total tr[name="o_order_total"] .monetary_field { font-size: 1.75rem; }
+        .o_dcasa_pago_resumen_total .oe_currency_value { font-family: inherit; font-weight: inherit; color: inherit; }
+
+        // La barra de abajo: solo el botón (y su línea de seguridad); «Orden $…» y volver se van (el resumen está arriba)
+        .o_mobile_summary {
+            margin-inline: calc(#{$dcasa-gutter} * -1);
+            padding: .75rem $dcasa-gutter calc(.75rem + env(safe-area-inset-bottom));
+            background: #fff;
+            border-top: 1px solid $pago-borde;
+            box-shadow: none;
+            z-index: 1030;
+            > .btn { display: none !important; }
+            .d-flex.flex-column.gap-2 { gap: 0 !important; }
+            a:not(.btn) { display: none; }
+            .o_dcasa_pago_nota { margin-top: .5rem; }
+        }
+        #wrap { padding-bottom: .5rem; }
+    }
+}
+// Quien prefiere menos movimiento
+@media (prefers-reduced-motion: reduce) {
+    .o_dcasa_pago #wrapwrap .o_dcasa_pago_resumen_flecha,
+    #wrapwrap [name="o_payment_option"].list-group-item,
+    #wrapwrap button[name="o_payment_submit_button"] { transition: none; }
+}
+
+// ---------------------------------------------------------------------------
+// E. «Estado del pago» (/payment/status): esperando, con la misma cabecera y la misma familia visual
+// ---------------------------------------------------------------------------
+
+.o_dcasa_pago_pagina_estado #wrapwrap {
+    .wrap > .container { max-width: 38rem; padding: 2.5rem $dcasa-gutter 3rem; }
+    .wrap > .container > .row > .col-12 { max-width: none; flex: 0 0 100%; }
+    [name="o_payment_status"] { font-family: 'Inter', sans-serif; color: $pago-tinta; }
+    h1.mb-3 { font-family: 'Anton', 'Oswald', sans-serif; font-weight: 400; text-transform: uppercase; font-size: 2rem; color: $pago-navy; }
+    // La referencia y el monto: un panel suave
+    .text-bg-light {
+        margin-top: 1rem;
+        padding: .75rem 1rem !important;
+        background: $pago-panel !important;
+        color: $pago-tinta !important;
+        border: 1px solid $pago-borde;
+        border-radius: $pago-radio;
+        label { font-size: .8125rem; color: $pago-gris; }
+        span { font-weight: 600; }
+        .oe_currency_value { font-family: inherit; color: inherit; font-weight: 600; }
+    }
+}
+
+// La tarjeta del estado (también en el pedido del portal): ícono grande, título corto, mensaje, y un enlace de texto
+.o_dcasa_pago [name="o_payment_status_alert"] {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .75rem !important;
+    padding: 2rem 1.5rem;
+    background: #fff;
+    border: 1px solid $pago-borde;
+    border-radius: $pago-radio-panel;
+    text-align: center;
+    color: $pago-tinta;
+    box-shadow: none;
+    #o_payment_status_icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 4rem;
+        height: 4rem;
+        border-radius: 50%;
+        background: $pago-suave;
+        color: $pago-azul;
+        font-size: 1.75rem;
+    }
+    #o_payment_status_message { width: 100%; font-size: 1rem; line-height: 1.55; color: $pago-gris; }
+    #o_payment_status_message p { margin: 0; }
+    .alert-heading, .alert-heading p {
+        margin: 0 0 .5rem !important;
+        font-family: 'Anton', 'Oswald', sans-serif;
+        font-weight: 400;
+        font-size: 1.75rem;
+        line-height: 1.1;
+        text-transform: uppercase;
+        letter-spacing: -.005em;
+        color: $pago-navy;
+    }
+    .o_dcasa_pago_omitir {
+        min-height: 2.75rem;
+        display: inline-flex;
+        align-items: center;
+        font-weight: 600;
+        color: $pago-azul;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        margin: .25rem 0 0 !important;
+    }
+    &.alert-danger #o_payment_status_icon { background: #FDECEA; color: $pago-error; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .o_dcasa_pago .fa-spin { animation: none; }
+}
+
+// ---------------------------------------------------------------------------
+// F. «Gracias por tu compra» (/shop/confirmation): mensaje grande, estado del pago y qué sigue
+// ---------------------------------------------------------------------------
+
+.o_dcasa_pago #wrapwrap {
+    #wrap h3 {
+        margin: 1.25rem 0 .25rem;
+        font-family: 'Anton', 'Oswald', sans-serif;
+        font-weight: 400;
+        font-size: clamp(2rem, 7vw, 2.875rem);
+        line-height: 1.08;
+        text-transform: uppercase;
+        letter-spacing: -.01em;
+        color: $pago-navy;
+    }
+    #order_name { margin-bottom: 1.25rem !important; h5 { font-family: 'Oswald', sans-serif; font-weight: 500; font-size: 1.125rem; color: $pago-gris; margin: 0; } }
+    a[href="/shop/print"] {
+        min-height: 2.75rem;
+        padding-inline: 1rem;
+        background: #fff;
+        color: $pago-azul;
+        font-family: 'Inter', sans-serif;
+        font-weight: 600;
+        text-transform: none;
+        border: 1px solid $pago-borde-campo;
+        border-radius: $pago-radio;
+        &:hover { background: $pago-suave; }
+    }
+    // El estado del pago: una tarjeta con su ícono y su título (no un recuadro de color de Odoo)
+    [name="order_confirmation"] {
+        margin-top: 0 !important;
+        .alert {
+            padding: 1.25rem 1.5rem !important;
+            background: #fff;
+            color: $pago-tinta;
+            border: 1px solid $pago-borde;
+            border-left: 4px solid $pago-azul;
+            border-radius: $pago-radio;
+            font-size: 1rem;
+            line-height: 1.55;
+            &.alert-info { border-left-color: $pago-navy; }
+            &.alert-warning { border-left-color: $pago-navy; }
+            &.alert-danger { border-left-color: $pago-error; }
+            p { margin: 0 0 .5rem; }
+            b { color: $pago-tinta; }
+            .btn-link { display: none; }
+        }
+        .o_dcasa_pago_estado_titulo {
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+            margin: 0 0 .5rem !important;
+            font-family: 'Oswald', sans-serif;
+            font-weight: 600;
+            font-size: 1.375rem;
+            line-height: 1.2;
+            color: $pago-tinta;
+            .fa { font-size: 1.5rem; color: $pago-azul; }
+        }
+        .alert-danger .o_dcasa_pago_estado_titulo .fa { color: $pago-error; }
+        .o_dcasa_pago_reintentar { margin: 1rem 0 0; }
+        .o_dcasa_pago_reintentar .btn { width: 100%; }
+    }
+    .o_dcasa_pago_acciones {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: .5rem;
+        margin-top: 1.5rem;
+        .o_dcasa_pago_wa {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: .5rem;
+            min-height: $pago-alto-boton;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: 1.0625rem;
+            text-transform: none;
+            border-radius: $pago-radio;
+            &.btn-primary { background: $pago-azul; border-color: $pago-azul; color: #fff; &:hover { background: $pago-azul-osc; border-color: $pago-azul-osc; } }
+            &.btn-outline-primary { background: #fff; color: $pago-azul; border: 1px solid $pago-azul; &:hover { background: $pago-suave; } }
+        }
+        .o_dcasa_pago_seguir {
+            align-self: center;
+            display: inline-flex;
+            align-items: center;
+            min-height: 2.75rem;
+            font-weight: 600;
+            color: $pago-azul;
+            text-decoration: none;
+            &:hover { text-decoration: underline; text-underline-offset: 2px; }
+        }
+    }
+    // «Intentar de nuevo» y los demás botones de la confirmación: una sola forma
+    [name="order_confirmation"] .btn-primary {
+        min-height: $pago-alto-boton;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Inter', sans-serif;
+        font-weight: 600;
+        font-size: 1.0625rem;
+        text-transform: none;
+        background: $pago-azul;
+        border-color: $pago-azul;
+        border-radius: $pago-radio;
+        color: #fff;
+    }
+}
+@media (min-width: 992px) {
+    .o_dcasa_pago_acciones { flex-direction: row; align-items: center; .o_dcasa_pago_wa { min-width: 17rem; } .o_dcasa_pago_seguir { margin-left: 1rem; } }
+}

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="45" height="30" viewBox="0 0 45 30" role="img" aria-label="Pago en la tienda">
+  <rect x=".5" y=".5" width="44" height="29" rx="4" fill="#fff" stroke="#D9DDE6"/>
+  <path d="M12 11.2l2-5h16.4l2 5c0 1.8-1.5 3-3.1 3s-3-1.2-3-3c0 1.8-1.5 3-3.1 3s-3.1-1.2-3.1-3c0 1.8-1.4 3-3 3S12 13 12 11.2z" fill="none" stroke="#1340B1" stroke-width="1.6" stroke-linejoin="round"/>
+  <path d="M13.8 14.6v9h17.4v-9M19.6 23.6v-5h5.8v5" fill="none" stroke="#1340B1" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>
+</svg>

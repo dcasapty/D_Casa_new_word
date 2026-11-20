@@ -309,7 +309,7 @@ personas del equipo con sesión iniciada**: un visitante no puede abrirlo (§3, 
    opción de pruebas y nadie puede abrirla a mano.
 3. En la tienda: agrega un mueble barato, ve a pagar. Debe salir **«Tarjeta de crédito o débito»**. Con Tilopay apagado en Odoo no debe salir.
 4. **Pago aprobado:** elige Tilopay. Se abre la página de Tilopay. Tarjeta `4111111111111111`, vencimiento futuro, CVV cualquiera.
-   Debe volver a la tienda y mostrar «¡Pago recibido!» y el pedido **confirmado**. En Odoo: la transacción en **Confirmado**, un cobro
+   Debe volver a la tienda y mostrar «Pago recibido» y el pedido **confirmado**. En Odoo: la transacción en **Confirmado**, un cobro
    en el diario **Tilopay**, el pedido en «Pedido de venta». Anota qué trae `order` en la dirección de retorno.
 5. **3DS:** tarjeta `4012000000020071`; en el desafío escribe `3ds2`. Debe quedar pagado igual.
 6. **Fondos insuficientes:** `4112613451591116` (con desafío `3ds2`). No debe quedar pagado; el cliente ve un mensaje amable y puede reintentar.

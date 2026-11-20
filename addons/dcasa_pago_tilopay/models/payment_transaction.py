@@ -77,8 +77,7 @@ MENSAJE_ERROR_RECHAZO = ('Tilopay no pudo aprobar este pago. Puedes intentarlo d
                          'forma de pago.')
 MENSAJE_ERROR_DISTINTO = ('Tilopay reportó un cobro distinto al de tu pedido, así que no lo tomamos como pago. Nuestro '
                           'equipo lo revisa; escríbenos por WhatsApp si necesitas ayuda.')
-MENSAJE_CANCELADO = ('El pago no se completó. Tu pedido sigue guardado: puedes intentarlo de nuevo o elegir otra forma '
-                     'de pago.')
+MENSAJE_CANCELADO = 'Tu pedido sigue guardado: puedes intentarlo de nuevo o elegir otra forma de pago.'
 MENSAJE_VENCIDO = 'Este intento de pago venció sin recibirse el pago. Puedes intentarlo de nuevo.'
 ESTADOS_DEL_PEDIDO = {'cancel': 'cancelado', 'draft': 'cotización', 'sent': 'cotización enviada', 'sale': 'confirmado'}
 MENSAJE_ERROR_TOTAL = ('Tu pedido cambió mientras pagabas, así que no tomamos ese cobro como el pago. Nuestro equipo '
