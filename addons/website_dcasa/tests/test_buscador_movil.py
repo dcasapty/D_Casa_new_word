@@ -163,7 +163,7 @@ class TestBuscarYFotoEnElCelular(ChromeMovilCase):
                 self.assertLessEqual(m['pagina'], m['pantalla'])
                 self.assertGreaterEqual(m['formulario']['ancho'], m['barra']['ancho'] - 2, 'la caja, a lo ancho')
                 self.assertGreater(m['campo']['ancho'], ancho * .6, 'el campo se lee entero')
-                self.assertEqual(m['ayuda'], 'Escribe lo que buscas')
+                self.assertEqual(m['ayuda'], 'Busca un mueble')
                 for nombre in ('orden', 'filtros'):
                     self.assertTrue(m[nombre] and m[nombre]['ancho'] > 0, f'{nombre} visible')
                     self.assertGreaterEqual(m[nombre]['y'], m['formulario']['y'] + m['formulario']['alto'] - 1,

@@ -35,6 +35,18 @@
         </xpath>
     </template>
 
+    <!-- Lote «legibilidad», arreglo 5: la cámara va sola, sin palabra (el texto está oculto a propósito: la caja es
+         angosta), y era la función menos conocida del buscador. Una pista corta y visible debajo de la caja, en las
+         mismas cajas que llevan la cámara. Es solo texto (aria-hidden: el lector de pantalla ya oye «Busca con una foto»
+         en el botón de la cámara). -->
+    <template id="pista_de_la_camara" inherit_id="website.website_search_box_input" name="D'CASA: pista de Busca con una foto">
+        <xpath expr="//input[@name='order']" position="after">
+            <p t-if="search_type == 'products' and website and website._dcasa_buscar_foto_activa()"
+               class="o_dcasa_foto_pista" aria-hidden="true">
+                <i class="fa fa-camera" aria-hidden="true"/>Busca con una foto</p>
+        </xpath>
+    </template>
+
     <!-- /shop/foto: para empezar, los resultados («Esto se parece a tu foto») o un mensaje. -->
     <template id="pagina" name="D'CASA: Busca con una foto">
         <t t-call="website.layout">

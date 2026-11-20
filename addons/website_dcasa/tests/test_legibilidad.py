@@ -4,10 +4,13 @@ Chrome, con el teléfono emulado, lo que la persona ve:
 * Arreglo 3: las marcas de relleno (placeholder) del buscador del catálogo y de Socios y los pasos del carrito que aún
   no tocan se leen con 4,5:1 o más (antes 2,86, 3,12 y 2,38:1).
 * Arreglo 4: en el celular, lo que se toca con el dedo mide 44 px o más (antes de 32 a 40 px).
+* Arreglo 5: el buscador del catálogo dice qué busca (aria-label), su botón dice «Buscar» y su texto de ayuda es corto y
+  no se corta en el cajón del celular. (La pista visible de la cámara es de dcasa_buscar_foto y se prueba allá.)
 """
 import json
+import re
 
-from odoo.tests import tagged
+from odoo.tests import HttpCase, tagged
 
 from .chrome_movil import ChromeMovilCase
 from .contraste import razon_del_texto, sonda
@@ -147,3 +150,74 @@ class TestLegibilidadZonasTactiles(ChromeMovilCase):
             self._revisar(browser, 'contacto', [
                 '#contactus_form input.s_website_form_input:not([type=hidden])',
                 '#contactus_form .s_website_form_send'])
+
+
+PLACEHOLDER = 'Busca un mueble'
+
+
+@tagged('post_install', '-at_install')
+class TestLegibilidadBuscador(HttpCase):
+    """Arreglo 5, por HTTP: lo que el lector de pantalla y el navegador reciben de cada caja de búsqueda."""
+
+    def _cajas(self, ruta):
+        html = self.url_open(ruta).text
+        cajas = re.findall(r'<input[^>]*type="search"[^>]*>', html)
+        botones = re.findall(r'<button[^>]*oe_search_button[^>]*>', html)
+        self.assertGreaterEqual(len(cajas), 2, f'{ruta}: la cabecera y la tienda traen caja de búsqueda')
+        return cajas, botones
+
+    def test_el_campo_dice_que_busca_y_el_boton_dice_buscar(self):
+        for ruta in ('/', '/shop'):
+            with self.subTest(ruta=ruta):
+                cajas, botones = self._cajas(ruta)
+                for caja in cajas:
+                    self.assertIn('aria-label="Buscar en el catálogo"', caja,
+                                  'el campo se llamaba solo por su placeholder')
+                    ayuda = re.search(r'placeholder="([^"]*)"', caja).group(1)
+                    self.assertLessEqual(len(ayuda), 16, f'texto de ayuda largo: «{ayuda}»')
+                propias = [c for c in cajas if f'placeholder="{PLACEHOLDER}"' in c]
+                self.assertGreaterEqual(len(propias), 2, 'la cabecera y la barra de la tienda dicen «Busca un mueble»')
+                for boton in botones:
+                    self.assertIn('aria-label="Buscar"', boton, 'el botón era «Búsqueda», un sustantivo')
+                    self.assertIn('title="Buscar"', boton)
+                    self.assertNotIn('Búsqueda', boton)
+
+    def test_el_texto_de_ayuda_es_corto(self):
+        # Cabe en el campo del cajón del celular (≈ 100 px de texto): unas 16 letras como mucho.
+        self.assertLessEqual(len(PLACEHOLDER), 16)
+
+
+@tagged('post_install', '-at_install')
+class TestLegibilidadBuscadorMovil(ChromeMovilCase):
+    """Arreglo 5, en Chrome con el teléfono emulado: el texto de ayuda cabe entero en el cajón del menú."""
+
+    MEDIR_PLACEHOLDER = """
+        (async () => {
+            const esperar = (ms) => new Promise((ok) => setTimeout(ok, ms));
+            for (let i = 0; i < 200 && document.body.getAttribute('is-ready') !== 'true'; i++) {
+                await esperar(50);
+            }
+            document.querySelector('header#top [data-bs-target="#top_menu_collapse_mobile"]').click();
+            for (let i = 0; i < 60 && !document.querySelector('#top_menu_collapse_mobile.show'); i++) {
+                await esperar(50);
+            }
+            await esperar(500);
+            const campo = document.querySelector('#top_menu_collapse_mobile input.oe_search_box');
+            const cs = getComputedStyle(campo);
+            const lienzo = document.createElement('canvas').getContext('2d');
+            lienzo.font = cs.fontStyle + ' ' + cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
+            const texto = lienzo.measureText(campo.placeholder).width;
+            const util = campo.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+            return { placeholder: campo.placeholder, texto, util, etiqueta: campo.getAttribute('aria-label') };
+        })()
+    """
+
+    def test_el_texto_de_ayuda_no_se_corta_en_el_cajon(self):
+        for ancho in (360, 390):
+            with self.subTest(ancho=ancho), self._chrome_movil(ancho) as browser:
+                browser.navigate_to(self.base_url() + '/shop', wait_stop=True)
+                self.assertTrue(browser._wait_ready())
+                medida = self._evaluar(browser, self.MEDIR_PLACEHOLDER)
+                self.assertEqual(medida['placeholder'], PLACEHOLDER)
+                self.assertLessEqual(medida['texto'], medida['util'], f'se cortaría: {medida}')
+                self.assertEqual(medida['etiqueta'], 'Buscar en el catálogo')
