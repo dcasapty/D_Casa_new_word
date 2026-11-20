@@ -175,18 +175,3 @@ class TestRevision2Anticipos(ComisionReloj):
         anticipo, final = self._con_anticipo(base_descuentos='antes')
         base = self.venta(anticipo).base_centavos + self.venta(final).base_centavos
         self.assertEqual(base, 100000, 'la venta es de 1,000 y no puede comisionar mas de 1,000 (hoy: %s)' % base)
-
-
-@tagged('post_install', '-at_install')
-class TestRevision2NotaDeEnvio(ComisionReloj):
-
-    def test_revision2_08_una_nota_que_solo_devuelve_el_envio_no_debe_bajar_la_base_si_el_envio_no_cuenta(self):
-        """HALLAZGO (menor, paga de menos): factura 1,000 + envio 50. La base sin envio es 1,000. Se le devuelve al
-        cliente solo el envio (50): la base queda en 950 en vez de 1,000 (resta lo que nunca entro en la base)."""
-        self.version(10.0)
-        lineas = [(self.mueble, 1000.0, 1, {}), (self.envio, 50.0, 1, {'is_delivery': True})]
-        factura = self.venta_web(lineas=lineas)
-        self.assertEqual(self.venta(factura).base_centavos, 100000)
-        self.nota(factura, 50.0)
-        self.assertEqual(self.venta(factura).base_centavos, 100000,
-                         'devolver el envio (que no estaba en la base) no debe restar comision')

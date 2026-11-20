@@ -1,7 +1,6 @@
 """Segunda revision adversarial, parte C: limites de la proteccion de «quien cobra no aprueba», la
 tarifa del primer dia y el chatter de la ficha. Cifras y personas de PRUEBA."""
 # ruff: noqa: E501, UP031, B007, B023, F841, PLW0108, RUF012  (pruebas de la segunda revision: se conservan tal como se escribieron)
-from datetime import date
 
 from odoo import Command
 from odoo.tests import tagged
@@ -54,14 +53,6 @@ class TestRevision2Proteccion(Liquida):
 
 @tagged('post_install', '-at_install')
 class TestRevision2TarifaYChatter(ComisionReloj):
-
-    def test_revision2_91_una_version_que_rige_el_dia_que_empieza_el_periodo_anota_la_tarifa_de_ese_periodo(self):
-        """HALLAZGO (menor): la ayuda dice que «Rige desde» es el INICIO del dia (las ventas y las vendedoras lo usan
-        asi), pero la tarifa compara la hora tecleada: una version guardada el lunes (periodo semanal) con la hora de
-        ahora no anota la tarifa de ESE lunes, y una guardada con las 00:00 si."""
-        self.version(0.0, tarifa=10.0, tarifa_periodo='semanal')           # lunes 4, con la hora de ahora
-        anotadas = self.env['dcasa.web.movimiento']._cron_tarifa(hoy=date(2030, 3, 4))
-        self.assertEqual(anotadas, 2, 'rige desde el inicio del lunes: la semana que empieza hoy ya cuenta')
 
     def test_revision2_92_el_cambio_de_usuario_de_la_ficha_deja_un_mensaje_real_en_el_chatter(self):
         """Los usuarios ligados son la base de «quien cobra no aprueba»: el cambio tiene que dejar rastro de verdad

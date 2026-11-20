@@ -1,7 +1,8 @@
 import logging
 
 from odoo import fields, models
-from odoo.exceptions import UserError
+from odoo.exceptions import ConcurrencyError, UserError
+from odoo.service.model import PG_CONCURRENCY_EXCEPTIONS_TO_RETRY
 
 from . import reglas as R
 
@@ -36,12 +37,17 @@ class AccountMove(models.Model):
     def _invoice_paid_hook(self):
         res = super()._invoice_paid_hook()
         Comision = self.env['dcasa.vend.comision'].sudo()
+        # Lo pendiente de OTROS se escribe aquí, fuera del ``try``: ``savepoint()`` lo vacía antes de abrirse y, si
+        # chocara dentro, el gancho se tragaría un error que no es suyo y dejaría rota la transacción del cobro.
+        self.env.flush_all()
         for move in self.filtered(lambda m: m.move_type == 'out_invoice' and not m.dcasa_historica
                                   and m.payment_state in ('paid', 'in_payment')):
             try:
                 # El programa nunca hace fallar un cobro: si algo se tuerce, el error queda en el registro.
                 with self.env.cr.savepoint():
                     Comision._registrar_desde_factura(move)
+            except (ConcurrencyError, *PG_CONCURRENCY_EXCEPTIONS_TO_RETRY):
+                raise      # Odoo repite el cobro con una foto nueva de la base
             except Exception:
                 _logger.exception('No se pudo registrar la comisión de vendedor de la factura %s', move.name)
         return res

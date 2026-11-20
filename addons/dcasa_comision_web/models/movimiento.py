@@ -33,8 +33,12 @@ CONCEPTO_DE = {'venta': 'comision', 'devolucion': 'comision', 'tarifa': 'tarifa'
 
 
 def dia_de_panama(momento):
-    """El día (hora de Panamá) de un instante en UTC sin zona."""
-    return pytz.utc.localize(momento).astimezone(pytz.timezone(ZONA)).date()
+    """El día (hora de Panamá) de un instante en UTC sin zona. Un año extremo (0001, 9999) no se puede pasar de zona sin
+    desbordar: ahí se devuelve el día tal cual (nunca un error de Python sin traducir)."""
+    try:
+        return pytz.utc.localize(momento).astimezone(pytz.timezone(ZONA)).date()
+    except (OverflowError, ValueError):
+        return momento.date()
 
 
 def mes_de_panama(momento):
@@ -168,9 +172,10 @@ class DcasaWebMovimiento(models.Model):
     @api.model
     def _cron_tarifa(self, hoy=None):
         """Anota la tarifa fija de cada periodo que ya empezó y todavía no está en el libro, repartida entre quienes
-        reciben. Se anota el primer día del periodo (mes, quincena o semana) con la versión que regía a las 00:00 de ese
-        día: un cambio de tarifa rige hacia adelante y la primera tarifa de una versión es la del primer periodo que
-        empieza cuando ya rige. Idempotente (un índice único por persona y periodo); nunca paga: solo anota."""
+        reciben. Se anota el primer día del periodo (mes, quincena o semana) con la versión que regía el día anterior:
+        un cambio de tarifa rige hacia adelante y la primera tarifa de una versión es la del primer periodo que
+        empieza DESPUÉS del día en que rige (con el día, no con la hora que se tecleó). Idempotente (un índice único por
+        persona y periodo); nunca paga: solo anota."""
         from . import calculo
         hoy = hoy or fields.Date.context_today(self.with_context(tz=ZONA))
         Reglas = self.env['dcasa.web.reglas'].sudo()
@@ -183,8 +188,9 @@ class DcasaWebMovimiento(models.Model):
                 ('company_id', '=', company.id), ('tipo', '=', 'tarifa')])}
             dia = dia_de_panama(versiones[0].rige_desde)
             while dia <= hoy:
-                inicio = inicio_del_dia_en_utc(dia)
-                rige = next((v for v in reversed(versiones) if v.rige_desde <= inicio), None)
+                # La tarifa de un periodo es de la versión que ya regía el día ANTERIOR: la primera tarifa de una
+                # versión es la del primer periodo que empieza DESPUÉS de su día (no depende de la hora tecleada).
+                rige = versiones._de_este_dia(dia - timedelta(days=1))
                 if rige and rige.tarifa_fija and empieza_periodo(rige.tarifa_periodo, dia):
                     partes = calculo.repartir(calculo.a_centavos(rige.tarifa_fija),
                                               [(r.empleado_id.id, r.porcentaje) for r in rige.reparto_ids])

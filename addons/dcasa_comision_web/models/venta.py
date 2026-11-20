@@ -68,6 +68,11 @@ class DcasaWebVenta(models.Model):
         help='Una persona del equipo (un usuario interno, no un visitante ni el asistente Juan) abrió el carrito o '
              'cambió su cliente o sus líneas. Cotizar en la página y pagar en la tienda SÍ cuenta (decisión de '
              'Gerencia): esto es la vigilancia para ver quién lo hace.')
+    cobro_atrasado = fields.Boolean(
+        'Cobro con fecha atrasada', readonly=True, index=True,
+        help='La fecha del pago es de dos días o más antes del día en que se anotó la venta. El día de cobro lo '
+             'teclea quien registra el pago y decide si la venta es del sitio o de una vendedora: esto es la '
+             'vigilancia para verlo (los bloqueos contables del periodo lo frenan, si existen).')
     atendida_por_vendedora = fields.Boolean(
         'Una vendedora la atendió', readonly=True,
         help='El pedido tiene vendedora asignada (por ejemplo la que lo confirmó). Sigue siendo venta online.')
@@ -81,6 +86,7 @@ class DcasaWebVenta(models.Model):
     envio_centavos = fields.Integer(readonly=True)
     itbms_centavos = fields.Integer(readonly=True)
     devuelto_centavos = fields.Integer(readonly=True)
+    devuelto_envio_centavos = fields.Integer(readonly=True)
     devuelto_itbms_centavos = fields.Integer(readonly=True)
     pasarela_centavos = fields.Integer(readonly=True)
     productos = fields.Monetary('Lo vendido', compute='_compute_montos', store=True,
@@ -170,6 +176,7 @@ class DcasaWebVenta(models.Model):
         lineas = move.line_ids.filtered(lambda ln: ln.display_type == 'product')
         fletes = productos_de_flete(lineas.product_id)
         ordenes = self.env['sale.order']
+        productos_de_envio = self.env['product.product']      # los que esta factura cobró como envío
         for linea in lineas:
             en_linea = linea.sale_line_ids.filtered(lambda sl: sl.order_id.dcasa_venta_online)
             if not en_linea:
@@ -178,6 +185,11 @@ class DcasaWebVenta(models.Model):
             importe = calculo.a_centavos(-linea.balance)
             if any(sl.is_delivery for sl in en_linea) or linea.product_id in fletes:
                 c['envio'] += importe
+                productos_de_envio |= linea.product_id
+            elif importe < 0 and any(sl.is_downpayment for sl in en_linea):
+                # El anticipo que se resta en la factura final ya se contó en la factura del anticipo: resta de lo
+                # vendido en las dos posiciones del interruptor de descuentos (no es un descuento de precio).
+                c['productos'] += importe
             elif importe < 0:
                 c['descuento_negativas'] += -importe
             else:
@@ -190,7 +202,19 @@ class DcasaWebVenta(models.Model):
         factor = move._dcasa_factor_online().get(move.id, 0.0)
         c['itbms'] = calculo.a_centavos(move.amount_tax_signed * factor)
         notas = self._notas_de(move)
-        c['devuelto'] = calculo.a_centavos(sum(abs(n.amount_untaxed_signed) * fr for n, fr in notas.items()) * factor)
+        lineas_de_notas = self.env['account.move.line'].browse()
+        for nota in notas:
+            lineas_de_notas |= nota.line_ids.filtered(lambda ln: ln.display_type == 'product')
+        # Una línea de la nota es de envío si su producto es flete o es el mismo con que la factura cobró el envío.
+        fletes_devueltos = productos_de_flete(lineas_de_notas.product_id) | productos_de_envio
+        devuelto = devuelto_envio = 0.0
+        for nota, fraccion in notas.items():
+            de_envio = sum(abs(ln.balance) for ln in nota.line_ids
+                           if ln.display_type == 'product' and ln.product_id in fletes_devueltos)
+            devuelto += (abs(nota.amount_untaxed_signed) - de_envio) * fraccion
+            devuelto_envio += de_envio * fraccion
+        c['devuelto'] = calculo.a_centavos(devuelto * factor)
+        c['devuelto_envio'] = calculo.a_centavos(devuelto_envio * factor)
         c['devuelto_itbms'] = calculo.a_centavos(sum(abs(n.amount_tax_signed) * fr for n, fr in notas.items()) * factor)
         primera = ordenes.invoice_ids.filtered(
             lambda f: f.state == 'posted' and f.move_type == 'out_invoice').sorted('id')[:1]
@@ -295,6 +319,7 @@ class DcasaWebVenta(models.Model):
             'fecha_cobro': dia, 'mes': dia.replace(day=1), 'cobrada': True, 'forma_pago': forma,
             'como_llego': self._como_llego(ordenes, forma),
             'atendida_por_vendedora': self._atendida_por_vendedora(ordenes),
+            'cobro_atrasado': (fields.Date.context_today(self.with_context(tz='America/Panama')) - dia).days >= 2,
             'creado_por_id': ordenes[:1].dcasa_creada_por_id.id or False,
             'tocada_por_id': ordenes.dcasa_tocada_por_id[:1].id or False,
             'creado_por_personal': self._es_del_equipo(ordenes),

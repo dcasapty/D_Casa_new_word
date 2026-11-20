@@ -10,13 +10,15 @@ Los componentes de una venta (``c``), todos en centavos enteros y sin signo, de 
 * ``descuento_negativas``: las líneas que restan (premio de Socios, cupón...) en positivo;
 * ``envio``: el cobro de envío o flete;
 * ``itbms``: el ITBMS de la parte online;
-* ``devuelto`` y ``devuelto_itbms``: lo que las notas de crédito devolvieron, sin y con su ITBMS;
+* ``devuelto``: lo que las notas de crédito devolvieron de lo vendido (sin el envío ni el ITBMS);
+* ``devuelto_envio``: lo que las notas devolvieron del cobro de envío (solo resta cuando el envío cuenta);
+* ``devuelto_itbms``: el ITBMS de lo que devolvieron las notas;
 * ``pasarela``: lo que cobró la pasarela de pago, si el pago lo guardó.
 """
 from decimal import ROUND_FLOOR, ROUND_HALF_UP, Decimal
 
 COMPONENTES = ('productos', 'descuento_lineas', 'descuento_negativas', 'envio', 'itbms', 'devuelto',
-               'devuelto_itbms', 'pasarela')
+               'devuelto_envio', 'devuelto_itbms', 'pasarela')
 
 # Los interruptores de la base y sus dos posiciones (la primera es la recomendada de fábrica).
 OPCIONES = {
@@ -33,21 +35,29 @@ def a_centavos(monto):
     return int((Decimal(str(round(float(monto or 0.0), 2))) * 100).quantize(Decimal(1), rounding=ROUND_HALF_UP))
 
 
+def a_precio_de_lista(c, opciones, centavos):
+    """Lleva a precio de lista (en la misma proporción lista/cobrado) un monto que viene a precio cobrado: lo devuelto
+    y el ITBMS, cuando el interruptor de descuentos está en «antes». Con «después» no cambia nada."""
+    if opciones['base_descuentos'] != 'antes':
+        return centavos
+    cobrado = c['productos'] - c['descuento_negativas']
+    lista = c['productos'] + c['descuento_lineas']
+    if cobrado > 0 and lista > cobrado:
+        return int((Decimal(centavos) * Decimal(lista) / Decimal(cobrado)).quantize(Decimal(1), rounding=ROUND_HALF_UP))
+    return centavos
+
+
 def devuelto_en_la_base(c, opciones):
     """Lo que se resta por devoluciones (centavos), **en la misma base de la venta**. Las notas de crédito vienen a
     precio cobrado; con «Antes de los descuentos» la base es el precio de lista, así que lo devuelto se lleva a precio
     de lista en la misma proporción (devolver todo deja la base en cero y devolver la mitad, en la mitad)."""
     if opciones['base_devoluciones'] != 'resta':
         return 0
-    devuelto = c['devuelto']
-    if opciones['base_descuentos'] == 'antes':
-        cobrado = c['productos'] - c['descuento_negativas']
-        lista = c['productos'] + c['descuento_lineas']
-        if cobrado > 0 and lista > cobrado:
-            devuelto = int((Decimal(devuelto) * Decimal(lista) / Decimal(cobrado)).quantize(
-                Decimal(1), rounding=ROUND_HALF_UP))
+    devuelto = a_precio_de_lista(c, opciones, c['devuelto'])
+    if opciones['base_envio'] == 'con':
+        devuelto += c.get('devuelto_envio', 0)          # devolver el envío solo resta si el envío cuenta
     if opciones['base_itbms'] == 'con':
-        devuelto += c['devuelto_itbms']
+        devuelto += a_precio_de_lista(c, opciones, c['devuelto_itbms'])
     return devuelto
 
 
@@ -71,7 +81,7 @@ def base_de_la_venta(c, opciones):
     if opciones['base_envio'] == 'con':
         base += c['envio']
     if opciones['base_itbms'] == 'con':
-        base += c['itbms']
+        base += a_precio_de_lista(c, opciones, c['itbms'])      # con «antes», el ITBMS del precio de lista
     base -= devuelto_en_la_base(c, opciones)
     if opciones['base_pasarela'] == 'resta':
         base -= c['pasarela']

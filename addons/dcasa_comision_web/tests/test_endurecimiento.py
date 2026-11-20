@@ -7,9 +7,11 @@ fecha equivocada se anula.
 Cifras de PRUEBA."""
 import importlib.util
 import os
-from datetime import timedelta
+from datetime import date, timedelta
 from pathlib import Path
 from unittest.mock import patch
+
+from psycopg2 import errors as pg_errors
 
 from odoo import Command, fields
 from odoo.addons.dcasa_socios.tests.common import SociosCommon
@@ -92,8 +94,6 @@ class TestOrigenYVigilancia(ComisionReloj):
                                  'solo Gerencia ve el reporte')
 
 
-# ----------------------------------------------------------------------------------------------------------------------
-# B2: quien cobra no aprueba lo suyo, aunque cambie su ficha
 @tagged('post_install', '-at_install')
 class TestVigilanciaDelPuntoCiego(ComisionReloj):
     """Un carrito que abre un visitante y luego arma a mano alguien del equipo: queda señalado (segunda revisión)."""
@@ -171,6 +171,8 @@ class TestVigilanciaDelPuntoCiego(ComisionReloj):
 
 
 # ----------------------------------------------------------------------------------------------------------------------
+# B2: quien cobra no aprueba lo suyo, aunque cambie su ficha
+# ----------------------------------------------------------------------------------------------------------------------
 
 @tagged('post_install', '-at_install')
 class TestQuienCobraNoAprueba(Liquida):
@@ -214,10 +216,6 @@ class TestQuienCobraNoAprueba(Liquida):
         for valores in ({'usuario_ids': [Command.clear()]}, {'porcentaje': 1.0}):
             with self.subTest(valores=valores), self.assertRaises(UserError):
                 reparto.sudo().write(valores)
-
-    def test_cambiar_el_usuario_o_el_contacto_de_la_ficha_queda_en_el_chatter(self):
-        campos = self.env['hr.employee']._fields
-        self.assertTrue(campos['user_id'].tracking and campos['work_contact_id'].tracking)
 
     def test_nadie_aprueba_con_la_llave_de_otro_ni_el_superusuario(self):
         liq = self.liquidar()
@@ -642,6 +640,153 @@ class TestAnularYFechas(ComisionReloj):
 # ----------------------------------------------------------------------------------------------------------------------
 # Menores
 # ----------------------------------------------------------------------------------------------------------------------
+
+@tagged('post_install', '-at_install')
+class TestMenoresDeLaSegundaRevision(ComisionReloj):
+
+    def nota_con_producto(self, factura, producto, monto):
+        """Una nota de crédito (como la que hace el asistente de «Nota de crédito») con una línea de ``producto``."""
+        nota = self.env['account.move'].create({
+            'move_type': 'out_refund', 'partner_id': factura.partner_id.id, 'invoice_date': '2030-03-04',
+            'reversed_entry_id': factura.id,
+            'invoice_line_ids': [Command.create({
+                'product_id': producto.id, 'name': producto.name, 'quantity': 1, 'price_unit': monto,
+                'tax_ids': [Command.set(producto.taxes_id.ids)]})]})
+        nota.action_post()
+        return nota
+
+    def test_devolver_solo_el_envio_resta_solo_si_el_envio_cuenta(self):
+        lineas = [(self.mueble, 1000.0, 1, {}), (self.envio, 50.0, 1, {'is_delivery': True})]
+        self.version(10.0)
+        sin = self.venta_web(lineas=lineas)
+        self.nota_con_producto(sin, self.envio, 50.0)
+        self.assertEqual(self.venta(sin).base_centavos, 100000, 'el envío no cuenta: devolverlo no resta comisión')
+        self.avanzar('2030-03-05 15:00:00')
+        self.version(10.0, base_envio='con')
+        con = self.venta_web(lineas=lineas, fecha='2030-03-05')
+        self.nota_con_producto(con, self.envio, 50.0)
+        self.assertEqual(self.venta(con).base_centavos, 100000, 'cuenta el envío (1,050) y se devolvieron los 50')
+
+    def test_devolver_un_mueble_sigue_restando_aunque_vaya_con_el_envio_en_la_misma_nota(self):
+        lineas = [(self.mueble, 1000.0, 1, {}), (self.envio, 50.0, 1, {'is_delivery': True})]
+        self.version(10.0)
+        factura = self.venta_web(lineas=lineas)
+        nota = self.env['account.move'].create({
+            'move_type': 'out_refund', 'partner_id': factura.partner_id.id, 'invoice_date': '2030-03-04',
+            'reversed_entry_id': factura.id,
+            'invoice_line_ids': [
+                Command.create({'product_id': self.mueble.id, 'name': 'Mueble', 'quantity': 1, 'price_unit': 400.0,
+                                'tax_ids': [Command.set(self.itbms.ids)]}),
+                Command.create({'product_id': self.envio.id, 'name': 'Envio', 'quantity': 1, 'price_unit': 50.0})]})
+        nota.action_post()
+        venta = self.venta(factura)
+        self.assertEqual((venta.devuelto_centavos, venta.devuelto_envio_centavos), (40000, 5000))
+        self.assertEqual(venta.base_centavos, 60000)
+
+    def test_antes_de_descuentos_y_con_itbms_usa_el_impuesto_del_precio_de_lista(self):
+        lineas = [(self.mueble, 1000.0, 1, {'discount': 10.0})]
+        self.version(10.0, base_descuentos='antes', base_itbms='con')
+        factura = self.venta_web(lineas=lineas)
+        self.assertEqual(self.venta(factura).base_centavos, 100000 + 7000, 'lista 1,000 y su ITBMS (70), no el de 900')
+
+    def test_el_anticipo_se_resta_de_lo_vendido_con_cualquier_posicion_de_los_descuentos(self):
+        for dia, opcion in (('2030-03-04', 'despues'), ('2030-03-05', 'antes')):
+            with self.subTest(base_descuentos=opcion):
+                self.avanzar(f'{dia} 15:00:00')
+                self.version(10.0, base_descuentos=opcion)
+                orden = self.orden(lineas=[(self.mueble, 1000.0, 1, {})])
+                asistente = self.env['sale.advance.payment.inv'].with_context(
+                    active_model='sale.order', active_ids=orden.ids).create({
+                        'advance_payment_method': 'fixed', 'fixed_amount': 300.0})
+                asistente.create_invoices()
+                anticipo = orden.invoice_ids.filtered(lambda f: f.state == 'draft')
+                anticipo.invoice_date = dia
+                anticipo.action_post()
+                self.pagar(anticipo, anticipo.invoice_date.isoformat())
+                final = orden._create_invoices(final=True)
+                final.invoice_date = anticipo.invoice_date
+                final.action_post()
+                self.pagar(final, anticipo.invoice_date.isoformat())
+                self.assertEqual(self.venta(anticipo).base_centavos + self.venta(final).base_centavos, 100000)
+
+    def test_un_mensaje_de_vendedora_que_nunca_salio_no_le_quita_la_venta_al_sitio(self):
+        for estado in ('fallido', 'por_enviar', 'programado'):
+            with self.subTest(estado=estado):
+                conv = self.hablar(self.cliente, 'vendedora', hace_dias=2, id_externo=f'507619990{len(estado)}')
+                self.env.cr.execute("UPDATE dcasa_mensaje SET estado_envio = %s WHERE conversacion_id = %s",
+                                    [estado, conv.id])
+                self.env.invalidate_all()
+                self.assertTrue(self.orden().dcasa_venta_online)
+        self.hablar(self.cliente, 'vendedora', hace_dias=1, id_externo='50761999099')
+        self.assertFalse(self.orden().dcasa_venta_online, 'uno que sí salió, sí cuenta')
+
+    def test_el_pago_de_una_pasarela_lleva_la_fecha_de_panama(self):
+        """A las 9 de la noche del 4 en Panamá ya es 5 en UTC: el pago no puede salir con fecha del 5."""
+        self.avanzar('2030-03-05 02:00:00')
+        transaccion = self.transaccion(self.orden(pago='pasarela'), 'pasarela')
+        with patch('odoo.addons.account_payment.models.payment_transaction.PaymentTransaction._create_payment',
+                   autospec=True) as crear:
+            transaccion._create_payment()
+        self.assertEqual(crear.call_args.kwargs['date'].isoformat(), '2030-03-04')
+        with patch('odoo.addons.account_payment.models.payment_transaction.PaymentTransaction._create_payment',
+                   autospec=True) as crear:
+            transaccion._create_payment(date='2030-01-01')
+        self.assertEqual(crear.call_args.kwargs['date'], '2030-01-01', 'una fecha que se pide expresamente se respeta')
+
+    def test_un_cobro_con_fecha_de_dos_dias_antes_o_mas_queda_senalado(self):
+        self.version(10.0)
+        hoy = self.venta_web(fecha='2030-03-04')
+        ayer = self.venta_web(fecha='2030-03-03')
+        atrasado = self.venta_web(fecha='2030-03-01')
+        self.assertEqual([self.venta(f).cobro_atrasado for f in (hoy, ayer, atrasado)], [False, False, True])
+        buscadas = self.env['dcasa.web.venta'].with_user(self.u_nomina).search([('cobro_atrasado', '=', True)])
+        self.assertEqual(buscadas, self.venta(atrasado))
+
+    def test_la_tarifa_de_una_version_empieza_en_el_primer_periodo_despues_de_su_dia_sin_importar_la_hora(self):
+        Libro = self.env['dcasa.web.movimiento']
+        self.version(0.0, tarifa=10.0, tarifa_periodo='semanal', rige_desde='2030-03-04 05:00:00')   # lunes 00:00
+        self.assertEqual(Libro._cron_tarifa(hoy=date(2030, 3, 4)), 0, 'el lunes en que rige no cuenta')
+        self.assertEqual(Libro._cron_tarifa(hoy=date(2030, 3, 11)), 2, 'el siguiente lunes sí')
+        otra = self.env['dcasa.web.reglas'].search([]).filtered(lambda v: v.tarifa_fija == 10.0)
+        self.assertTrue(otra)
+
+    def test_los_ganchos_dejan_pasar_un_choque_de_concurrencia_para_que_odoo_repita_el_cobro(self):
+        self.version(10.0)
+        factura = self.venta_web()      # pagada: el gancho de vendedores solo mira facturas pagadas
+        choque = pg_errors.SerializationFailure('could not serialize access due to concurrent update')
+        with patch.object(type(self.env['dcasa.web.venta']), '_registrar', side_effect=choque), \
+                self.assertRaises(pg_errors.SerializationFailure):
+            factura._invoice_paid_hook()
+        with patch.object(type(self.env['dcasa.vend.comision']), '_registrar_desde_factura', side_effect=choque), \
+                self.assertRaises(pg_errors.SerializationFailure):
+            factura._invoice_paid_hook()
+
+    def test_armar_vuelve_a_lanzar_un_choque_de_concurrencia_en_vez_de_seguir_con_datos_viejos(self):
+        self.version(10.0)
+        factura = self.venta_web()
+        self.env.cr.execute('UPDATE dcasa_web_venta SET huella = NULL')       # fuerza que se recomponga
+        self.env['dcasa.web.venta'].invalidate_model()
+        choque = pg_errors.SerializationFailure('could not serialize access due to concurrent update')
+        with patch.object(type(self.env['dcasa.web.venta']), '_reconciliar', side_effect=choque), \
+                self.assertRaises(pg_errors.SerializationFailure):
+            self.env['dcasa.web.venta']._poner_al_dia()
+        self.assertTrue(factura)
+
+    def test_poner_al_dia_solo_recompone_lo_que_cambio(self):
+        self.version(10.0)
+        cambiada, intacta = self.venta_web(), self.venta_web()
+        Venta = self.env['dcasa.web.venta']
+        original = type(Venta)._reconciliar
+        with patch.object(type(Venta), '_reconciliar', autospec=True, side_effect=original) as recompone:
+            self.assertEqual(Venta._poner_al_dia(), 2, 'se miraron las dos')
+            self.assertFalse(recompone.called, 'ninguna cambió: no se recompone ninguna')
+        cambiada.line_ids.filtered(lambda ln: ln.account_id.account_type == 'asset_receivable').remove_move_reconcile()
+        with patch.object(type(Venta), '_reconciliar', autospec=True, side_effect=original) as recompone:
+            Venta._poner_al_dia()
+        self.assertEqual(recompone.call_count, 1, 'solo la que cambió')
+        self.assertEqual(recompone.call_args.args[0], self.venta(cambiada))
+        self.assertEqual((self.venta(cambiada).estado, self.venta(intacta).estado), ('revertida', 'comisionada'))
+
 
 @tagged('post_install', '-at_install')
 class TestMenores(Liquida):

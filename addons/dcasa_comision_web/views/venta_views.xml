@@ -51,6 +51,7 @@
                             <field name="atendida_por_vendedora"/>
                             <field name="creado_por_id"/>
                             <field name="tocada_por_id"/>
+                            <field name="cobro_atrasado"/>
                         </group>
                         <group string="Los montos (sin ITBMS)">
                             <field name="productos"/>
@@ -96,6 +97,8 @@
                         domain="[('fecha_cobro', '&gt;=', (context_today().replace(day=1)).strftime('%Y-%m-%d'))]"/>
                 <filter name="con_vendedora" string="Atendió una vendedora" domain="[('atendida_por_vendedora', '=', True)]"/>
                 <filter name="sin_vendedora" string="Sin vendedora" domain="[('atendida_por_vendedora', '=', False)]"/>
+                <filter name="cobro_atrasado" string="Cobro con fecha atrasada (2 días o más)"
+                        domain="[('cobro_atrasado', '=', True)]"/>
                 <filter name="carrito_del_equipo" string="Abrió o cambió el carrito alguien del equipo"
                         domain="[('creado_por_personal', '=', True)]"/>
                 <separator/>

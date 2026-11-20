@@ -49,7 +49,8 @@ def migrate(cr, version):
                       JOIN res_partner p ON p.id = c.partner_id
                       JOIN res_partner pc ON pc.id = o.partner_id
                      WHERE p.commercial_partner_id = pc.commercial_partner_id AND b.tipo = 'mensaje'
-                       AND b.autor = 'vendedora' AND b.ts <= COALESCE(o.date_order, now())
+                       AND b.autor = 'vendedora' AND b.estado_envio NOT IN ('programado', 'por_enviar', 'fallido')
+                       AND b.ts <= COALESCE(o.date_order, now())
                        AND b.ts >= COALESCE(o.date_order, now()) - interval '30 days')""")
     cr.execute("""
         UPDATE sale_order
