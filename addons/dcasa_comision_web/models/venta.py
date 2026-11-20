@@ -16,16 +16,20 @@ bono por meta: ``dcasa.nomina.meta.bono._dias_de_cobro``; «en proceso de pago»
 un barrido anota lo que el gancho no alcanzó y **compara el libro con la verdad** de cada venta (devoluciones, notas
 aplicadas sueltas, pago revertido, factura cancelada o vuelta a borrador) asentando la diferencia como fila contraria.
 """
+import hashlib
 import logging
 from decimal import ROUND_HALF_UP, Decimal
 
 from odoo import SUPERUSER_ID, api, fields, models, modules, tools
-from odoo.exceptions import UserError
+from odoo.exceptions import ConcurrencyError, UserError
+from odoo.service.model import PG_CONCURRENCY_EXCEPTIONS_TO_RETRY
 
 from . import calculo
 from .movimiento import dia_de_panama
 
 _logger = logging.getLogger(__name__)
+# Choques de concurrencia que Odoo repite solo (con una foto nueva de la base): nunca se tragan.
+CONCURRENCIA = (ConcurrencyError, *PG_CONCURRENCY_EXCEPTIONS_TO_RETRY)
 
 PAGADA = ('paid', 'in_payment')
 LLAVE_DE_VENTA = 731_900_102          # una sola llave por venta (reconciliar)
@@ -87,6 +91,10 @@ class DcasaWebVenta(models.Model):
     comision_centavos = fields.Integer('Comisión (centavos)', compute='_compute_comision', store=True)
     comision = fields.Monetary('Comisión', compute='_compute_comision', store=True)
     movimiento_ids = fields.One2many('dcasa.web.movimiento', 'venta_id', 'Libro', readonly=True)
+    huella = fields.Char('Huella de la factura', readonly=True, copy=False,
+                         help='Resumen de lo que la factura era la última vez que se comparó con el libro (estado, '
+                              'pago, notas de crédito y conciliaciones): armar y aprobar solo recomponen las ventas '
+                              'cuya huella cambió. Interna.')
     estado = fields.Selection(
         [('medida', 'Solo medida'), ('comisionada', 'Con comisión'), ('revertida', 'Revertida')],
         compute='_compute_estado', search='_search_estado')
@@ -293,6 +301,7 @@ class DcasaWebVenta(models.Model):
         Idempotente: dos llamadas seguidas no asientan nada la segunda vez. Solo las ventas anotadas con una versión
         de las reglas mueven el libro; las que solo se midieron no cobran nunca."""
         Libro = self.env['dcasa.web.movimiento']
+        huellas = self.sudo()._huellas()
         for venta in self.sudo():
             move = venta.move_id
             self.env.cr.execute('SELECT pg_advisory_xact_lock(%s, %s)', [LLAVE_DE_VENTA, venta.id])
@@ -300,15 +309,16 @@ class DcasaWebVenta(models.Model):
             antes_devuelto, antes_cobrada = venta.devuelto_centavos, venta.cobrada
             if move and move.state == 'posted':
                 c, _ordenes = self._componentes(move)
-                venta.write({**self._valores_de_componentes(c), 'cobrada': pagada})
+                self._escribir_si_cambio(venta, {**self._valores_de_componentes(c), 'cobrada': pagada,
+                                                 'huella': huellas.get(venta.id)})
             else:
                 c = {clave: venta[f'{clave}_centavos'] for clave in calculo.COMPONENTES}
-                venta.write({'cobrada': False})
+                self._escribir_si_cambio(venta, {'cobrada': False, 'huella': huellas.get(venta.id)})
             reglas = venta.reglas_id
             if not reglas:
                 continue
             base = calculo.base_de_la_venta(c, reglas._opciones())
-            venta.write({'base_centavos': base})
+            self._escribir_si_cambio(venta, {'base_centavos': base})
             debe = calculo.porcentaje_de(base, reglas.porcentaje) if pagada else 0
             partes = calculo.repartir(debe, [(r.empleado_id.id, r.porcentaje) for r in reglas.reparto_ids])
             filas = Libro.sudo().search([('venta_id', '=', venta.id),
@@ -324,6 +334,35 @@ class DcasaWebVenta(models.Model):
                                                    antes_cobrada)
                 Libro._asentar(self.env['hr.employee'].sudo().browse(empleado_id), tipo, diferencia, venta.company_id,
                                venta_id=venta.id, reglas_id=reglas.id, motivo=motivo)
+
+    @api.model
+    def _escribir_si_cambio(self, venta, valores):
+        """Escribe solo lo que cambió (no un UPDATE a cada fila cada vez que se compara)."""
+        cambios = {clave: valor for clave, valor in valores.items() if venta[clave] != valor}
+        if cambios:
+            venta.write(cambios)
+
+    def _huellas(self):
+        """``{id de venta: huella}`` de lo que de verdad pasa hoy con cada factura (estado, estado de pago, notas de
+        crédito y conciliaciones), en UNA consulta para todas. Dos huellas iguales quieren decir que la factura no
+        cambió desde la última comparación con el libro."""
+        if not self.ids:
+            return {}
+        self.env.flush_all()
+        self.env.cr.execute("""
+            SELECT v.id, COALESCE(m.state, ''), COALESCE(m.payment_state, ''),
+                   COALESCE((SELECT string_agg(n.id::text || ':' || n.state || ':' || n.amount_untaxed_signed::text
+                                               || ':' || n.amount_tax_signed::text, ',' ORDER BY n.id)
+                               FROM account_move n
+                              WHERE n.reversed_entry_id = m.id AND n.move_type = 'out_refund'), ''),
+                   COALESCE((SELECT string_agg(p.id::text || ':' || p.amount::text, ',' ORDER BY p.id)
+                               FROM account_move_line l
+                               JOIN account_partial_reconcile p ON p.debit_move_id = l.id OR p.credit_move_id = l.id
+                              WHERE l.move_id = m.id), '')
+              FROM dcasa_web_venta v
+              LEFT JOIN account_move m ON m.id = v.move_id
+             WHERE v.id IN %s""", [tuple(self.ids)])
+        return {fila[0]: hashlib.md5('|'.join(fila[1:]).encode()).hexdigest() for fila in self.env.cr.fetchall()}
 
     def _tipo_y_motivo(self, venta, move, diferencia, hay_filas, pagada, antes_devuelto, antes_cobrada):
         """Qué tipo de fila es la diferencia y qué motivo lleva (se lo enseña al que recibe tal cual)."""
@@ -373,25 +412,34 @@ class DcasaWebVenta(models.Model):
                         venta.write({'reglas_id': reglas.id, 'porcentaje': reglas.porcentaje})
                         venta._reconciliar()
                         atribuidas += 1
+                except CONCURRENCIA:
+                    raise
                 except Exception:  # noqa: BLE001 — una venta rara no detiene a las demás
                     _logger.exception('Comisión web: no se pudo atribuir la venta %s a las reglas', venta.factura)
         return atribuidas
 
     @api.model
     def _poner_al_dia(self):
-        """Compara con la verdad TODAS las ventas con comisión que siguen cobradas (un pago revertido, una factura
-        anulada, borrada o con una nota de crédito nueva): lo usan el barrido y, antes de sumar un centavo, cada
-        liquidación al armarse o aprobarse."""
+        """Compara con la verdad las ventas con comisión que siguen cobradas cuya factura CAMBIÓ desde la última vez (un
+        pago revertido, una factura anulada, borrada o con una nota de crédito nueva): lo usan, antes de sumar un
+        centavo, cada liquidación al armarse o aprobarse. Mirar si algo cambió cuesta una sola consulta para todas
+        (``_huellas``); solo se recomponen las que cambiaron. Devuelve cuántas se miraron. El barrido de cada noche
+        sigue comparando todas.
+
+        Un choque de concurrencia (otra transacción tocó lo mismo) se vuelve a lanzar: Odoo repite la operación con una
+        foto nueva de la base. Tragárselo dejaba armar y aprobar con datos viejos."""
         self._atribuir_a_las_reglas()
-        revisadas = 0
-        for venta in self.sudo().search([('reglas_id', '!=', False), ('cobrada', '=', True)]):
+        ventas = self.sudo().search([('reglas_id', '!=', False), ('cobrada', '=', True)])
+        actuales = ventas._huellas()
+        for venta in ventas.filtered(lambda v: v.huella != actuales.get(v.id)):
             try:
                 with self.env.cr.savepoint():
                     venta._reconciliar()
-                    revisadas += 1
+            except CONCURRENCIA:
+                raise
             except Exception:  # noqa: BLE001
                 _logger.exception('Comisión web: no se pudo comparar la venta %s con el libro', venta.factura)
-        return revisadas
+        return len(ventas)
 
     @api.model
     def _barrido(self):
@@ -412,6 +460,8 @@ class DcasaWebVenta(models.Model):
                 try:
                     with self.env.cr.savepoint():
                         hechas += bool(self._registrar(move))
+                except CONCURRENCIA:
+                    raise
                 except Exception:  # noqa: BLE001 — una factura rara no detiene a las demás
                     _logger.exception('Comisión web: no se pudo anotar la factura %s en el barrido', move.name)
             nuevas += hechas
@@ -428,6 +478,8 @@ class DcasaWebVenta(models.Model):
                     with self.env.cr.savepoint():
                         venta._reconciliar()
                         revisadas += 1
+                except CONCURRENCIA:
+                    raise
                 except Exception:  # noqa: BLE001
                     _logger.exception('Comisión web: no se pudo comparar la venta %s con el libro', venta.factura)
             self._confirmar_lote()
