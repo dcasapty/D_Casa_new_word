@@ -130,16 +130,18 @@ class TestElPedidoCambioMientrasPagaba(BaseCorreccion):
         propias = self.actividades(pedido, RESUMEN_TOTAL).filtered(lambda a: a.user_id == self.gerencia)
         self.assertEqual(len(propias), 1, 'una sola actividad por persona, por más consultas que haya')
 
-    def test_si_el_pedido_vuelve_a_valer_lo_cobrado_una_consulta_posterior_lo_paga(self):
+    def test_si_el_pedido_vuelve_a_valer_lo_cobrado_no_se_paga_solo(self):
+        """N-6: el equipo pudo devolver el cobro en el panel de Tilopay; dar por pagado un cobro ya devuelto es peor que
+        esperar. Queda marcado para que lo resuelva una persona."""
         pedido, tx, _orden, tilopay, _cobrado, _veredicto = self.cobrar_con_el_pedido_cambiado(5)
+        self.assertTrue(tx.dcasa_tilopay_revision)
         pedido.order_line.product_uom_qty = 1
         with tilopay:
             tx.dcasa_tilopay_consulta = False
-            self.assertEqual(tx._dcasa_tilopay_confirmar('cron'), api.APROBADO)
-        self.assertEqual(tx.state, 'done')
-        self.assertTrue(self.notas(pedido, 'llegó después de marcarse «error»'))
+            self.assertEqual(tx._dcasa_tilopay_confirmar('cron'), api.TOTAL_PEDIDO)
+        self.assertEqual(tx.state, 'error')
         tx._post_process()
-        self.assertEqual(pedido.state, 'sale')
+        self.assertNotEqual(pedido.state, 'sale')
 
     def test_la_ultima_puerta_si_cambia_entre_el_pago_y_la_tarea_del_cierre(self):
         """El total coincidía al consultar (la transacción quedó pagada) pero cambia antes de que Odoo termine el
@@ -215,6 +217,7 @@ class TestLoCerradoSeRevisaDeNuevo(BaseCorreccion):
         else:
             tx._dcasa_tilopay_confirmar('retorno', navegador_cancelo=True)
         self.assertEqual(tx.state, estado)
+        tx.dcasa_tilopay_senal = False           # el retorno que la cerró ya se atendió: sin señal pendiente
         self.envejecer(tx, **delta)
         return pedido, tx, orden
 
@@ -271,19 +274,26 @@ class TestLoCerradoSeRevisaDeNuevo(BaseCorreccion):
 class TestRitmoYTopesDeLaTarea(BaseCorreccion):
     """RV-3: la tarea que rescata pagos no se deja sin servicio y no gasta de más la cuenta de Tilopay."""
 
-    def test_lo_reciente_cada_8_minutos_lo_viejo_cada_hora(self):
+    def test_lo_reciente_cada_8_minutos_lo_viejo_cada_hora_o_cada_3_si_tilopay_nunca_lo_vio(self):
         with SimuladorTilopay() as tilopay:
             reciente, _o1 = self.abrir(tilopay)
             viejo, _o2 = self.abrir(tilopay)
+            abandonado, _o3 = self.abrir(tilopay)
             self.envejecer(reciente, minutes=10)
             self.envejecer(viejo, hours=2)
+            self.envejecer(abandonado, hours=2)
             ahora = fields.Datetime.now()
+            viejo.dcasa_tilopay_veredicto = api.PENDIENTE            # Tilopay ya tiene una fila de esa orden
+            abandonado.dcasa_tilopay_veredicto = api.SIN_REGISTRO   # Tilopay nunca ha visto nada
             reciente.dcasa_tilopay_consulta = ahora - timedelta(minutes=5)
             viejo.dcasa_tilopay_consulta = ahora - timedelta(minutes=30)
+            abandonado.dcasa_tilopay_consulta = ahora - timedelta(minutes=90)
             self.assertEqual(self.cron(), 0)
             reciente.dcasa_tilopay_consulta = ahora - timedelta(minutes=9)
             self.assertEqual(self.cron(), 1)
             viejo.dcasa_tilopay_consulta = ahora - timedelta(minutes=61)
+            self.assertEqual(self.cron(), 1)
+            abandonado.dcasa_tilopay_consulta = ahora - timedelta(minutes=181)
             self.assertEqual(self.cron(), 1)
 
     def test_la_que_lleva_mas_tiempo_esperando_va_primero_aunque_haya_nuevas(self):

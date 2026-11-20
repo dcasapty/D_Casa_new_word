@@ -81,11 +81,13 @@ class PaymentProvider(models.Model):
         conexión»)."""
         return api_tilopay.credenciales() is not None
 
-    def _dcasa_tilopay_cliente(self):
+    def _dcasa_tilopay_cliente(self, prioritario=False):
+        """El cliente de la API. ``prioritario``: la tarea programada, que tiene una reserva en el tope de llamadas a la
+        vez (si la web lo llena, ella igual puede preguntar)."""
         credenciales = api_tilopay.credenciales()
         if credenciales is None:
             raise api_tilopay.ErrorTilopay('claves', 'faltan las claves en el servidor')
-        return api_tilopay.Cliente(credenciales)
+        return api_tilopay.Cliente(credenciales, prioritario=prioritario)
 
     def _dcasa_tilopay_entorno(self):
         return api_tilopay.entorno_esperado()

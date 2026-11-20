@@ -9,20 +9,37 @@ pregunte a Tilopay. Nada de lo que llegue aquí decide un pago. Reglas (docs/TIL
   ``/payment/status``). Sin trazas hacia afuera: un error se registra en el servidor y la respuesta no cambia.
 * ``csrf=False`` porque las manda Tilopay (sin cookies); ``save_session=False`` para no darle una sesión nueva a nadie.
 * En la ruta no viaja ningún secreto (Odoo registra la ruta de cada visita).
+* Un freno de ritmo por conexión (120 por minuto, ``models/tilopay_ritmo.py``): generoso para no estorbar a los
+  avisos de Tilopay (vienen de pocas direcciones), pero corta a quien martilla. Pasado el freno, la respuesta es la de
+  siempre y no se procesa nada. El borde no frena estas rutas y su contador es aproximado: por eso va aquí.
 """
 import json
 import logging
 
 from odoo import http
+from odoo.addons.dcasa_base.red import llave_ip
 from odoo.addons.payment.controllers.post_processing import PaymentPostProcessing
 from odoo.http import request
 
 from ..models import tilopay_api as api_tilopay
+from ..models.tilopay_ritmo import LimiteDeRitmo
 
 _logger = logging.getLogger(__name__)
 
 MAX_CUERPO = 16 * 1024
 MAX_PARAMETROS = 50
+PETICIONES_POR_MINUTO_Y_CONEXION = 120
+RITMO = LimiteDeRitmo(maximo=PETICIONES_POR_MINUTO_Y_CONEXION, ventana=60)
+
+
+def _dentro_del_ritmo():
+    """¿Esta conexión sigue dentro de su ritmo? La llave es la de «Busca con una foto» (IPv4; IPv6 por red /64)."""
+    llave = llave_ip(request.httprequest.remote_addr or '')
+    if RITMO.permitir(llave):
+        return True
+    _logger.debug('Tilopay: una conexión pasó de %s peticiones por minuto; no se procesa.',
+                  PETICIONES_POR_MINUTO_Y_CONEXION)
+    return False
 FORMULARIOS = ('application/x-www-form-urlencoded', 'multipart/form-data')
 
 
@@ -35,8 +52,9 @@ class TilopayController(http.Controller):
     def tilopay_retorno(self, **datos):
         """El cliente vuelve de la página de Tilopay. ``code`` y lo demás son solo pistas: se consulta a Tilopay."""
         try:
-            with request.env.cr.savepoint():
-                self._procesar_retorno(datos)
+            if _dentro_del_ritmo():
+                with request.env.cr.savepoint():
+                    self._procesar_retorno(datos)
         except Exception:  # noqa: BLE001 - el cliente siempre vuelve a la página de estado; el detalle queda en el servidor
             _logger.exception('Tilopay: error al procesar el retorno del cliente.')
         return request.redirect('/payment/status')
@@ -47,8 +65,9 @@ class TilopayController(http.Controller):
         """El aviso de Tilopay (su forma exacta no es pública: docs/TILOPAY.md §8). Solo se usa para saber qué orden
         revisar; siempre responde igual."""
         try:
-            with request.env.cr.savepoint():
-                self._procesar_aviso(datos)
+            if _dentro_del_ritmo():
+                with request.env.cr.savepoint():
+                    self._procesar_aviso(datos)
         except Exception:  # noqa: BLE001
             _logger.exception('Tilopay: error al procesar un aviso.')
         return request.make_json_response({'estado': 'ok'})
