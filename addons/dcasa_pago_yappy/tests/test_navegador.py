@@ -126,6 +126,17 @@ PULSAR = ESPERAR + """
 """
 
 
+# Pulsa el botón (nuestra ruta responde con el Yappy falso) y espera a que se mande ``eventPayment``; continúa en el
+# mismo bloque asíncrono (lo que sigue debe terminar con «})();»).
+PULSAR_Y_ESPERAR_EL_MODAL = ESPERAR + """
+    return (async () => {
+        const antes = window.__yappy.pagos.length;
+        document.querySelector('btn-yappy').querySelector('.yappy-button').click();
+        await hasta(() => window.__yappy.pagos.length > antes, 120);
+        await esperar(200);
+"""
+
+
 @tagged('post_install', '-at_install')
 class TestElBotonDeYappyEnElNavegador(PagoVisualDatos, ChromeMovilCase):
 
@@ -440,3 +451,125 @@ class TestElBotonDeYappyEnElNavegador(PagoVisualDatos, ChromeMovilCase):
         self.assertTrue(en_la_computadora['cabecera'], 'ni la cabecera de la tienda queda sin oscurecer')
         self.assertGreaterEqual(acostado['arriba'], 0, 'en un celular acostado la ventana no se corta por arriba')
         self.assertLessEqual(acostado['abajo'], acostado['alto'], 'ni por abajo')
+
+    def test_el_aviso_en_linea_del_boton_nuevo_no_borra_el_motivo_del_fallo(self):
+        """El componente real avisa «en línea» a los pocos milisegundos de nacer: tras un fallo, el botón nuevo borraba
+        con eso el motivo que la clienta aún no había leído."""
+        with self._chrome_movil(390) as browser, YappyFalso():
+            self._hasta_el_pago(browser)
+            self._elegir(browser)
+            self._pulsar(browser)
+            estado = self._correr(browser, ESPERAR + """
+                return (async () => {
+                    document.querySelector('btn-yappy').dispatchEvent(
+                        new CustomEvent('eventError', {detail: 'DENIED'}));
+                    await esperar(200);
+                    const nuevo = document.querySelector('btn-yappy');
+                    nuevo.dispatchEvent(new CustomEvent('isYappyOnline', {detail: true}));
+                    await esperar(300);
+                    const mensaje = document.querySelector('.o_dcasa_yappy_mensaje');
+                    const tras_el_fallo = mensaje.hidden ? '' : mensaje.textContent.trim();
+                    // «Yappy no está disponible» sí se quita solo cuando Yappy vuelve
+                    nuevo.dispatchEvent(new CustomEvent('isYappyOnline', {detail: false}));
+                    await esperar(200);
+                    const sin_linea = mensaje.hidden ? '' : mensaje.textContent.trim();
+                    nuevo.dispatchEvent(new CustomEvent('isYappyOnline', {detail: true}));
+                    await esperar(200);
+                    return {tras_el_fallo, sin_linea, despues: mensaje.hidden ? '' : mensaje.textContent.trim()};
+                })();""")
+        self.assertIn('Yappy no aprobó el pago', estado['tras_el_fallo'])
+        self.assertIn('Yappy no está disponible', estado['sin_linea'])
+        self.assertEqual(estado['despues'], '', 'el aviso de «no disponible» se quita cuando Yappy vuelve')
+
+    def test_si_la_ventana_se_cierra_sin_ningun_evento_se_pone_un_boton_nuevo_y_se_dice_por_que(self):
+        """El contador de 5 minutos del componente abre «Transacción expirada» sin emitir ningún evento: al cerrarla, el
+        botón se quedaba apagado para siempre y el mensaje seguía diciendo «tienes 5 minutos»."""
+        with self._chrome_movil(390) as browser, YappyFalso():
+            self._hasta_el_pago(browser)
+            self._elegir(browser)
+            self._correr(browser, """
+                document.querySelector('.o_dcasa_yappy_boton').insertAdjacentHTML('beforeend',
+                    '<app-dialog><dialog id="yp-vieja"></dialog></app-dialog>');
+                return 1;""")
+            estado = self._correr(browser, PULSAR_Y_ESPERAR_EL_MODAL + """
+                const viejo = document.querySelector('btn-yappy');
+                const ventana = document.getElementById('yp-vieja');
+                ventana.open = true;
+                await esperar(150);
+                const mientras = document.querySelector('.o_dcasa_yappy_mensaje').textContent.trim();
+                ventana.open = false;
+                await esperar(300);
+                const mensaje = document.querySelector('.o_dcasa_yappy_mensaje');
+                const nuevo = document.querySelector('btn-yappy');
+                return {mientras, mensaje: mensaje.textContent.trim(), nuevo: nuevo !== viejo,
+                        apagado: nuevo.querySelector('.yappy-button').classList.contains('disable-btn')};
+                })();""")
+        self.assertIn('Abre tu app de Yappy', estado['mientras'])
+        self.assertIn('La solicitud de Yappy venció', estado['mensaje'])
+        self.assertTrue(estado['nuevo'], 'botón nuevo')
+        self.assertFalse(estado['apagado'], 'y listo para pulsar')
+
+    def test_un_intento_nuevo_cierra_la_ventana_vieja_de_yappy(self):
+        """Si la clienta no cierra «Transacción cancelada» y pulsa el botón otra vez, el componente no abre la ventana
+        del intento nuevo mientras la vieja siga abierta: se cierra con su propio botón de cerrar antes de empezar."""
+        with self._chrome_movil(390) as browser, YappyFalso():
+            self._hasta_el_pago(browser)
+            self._elegir(browser)
+            estado = self._correr(browser, ESPERAR + """
+                return (async () => {
+                    const caja = document.querySelector('.o_dcasa_yappy_boton');
+                    caja.insertAdjacentHTML('beforeend', '<app-dialog><dialog id="yp-vieja" open>' +
+                        '<svg-icon class="close-icon"></svg-icon></dialog></app-dialog>');
+                    window.__cerrada = false;
+                    caja.querySelector('.close-icon').addEventListener('click', () => {
+                        window.__cerrada = true; document.getElementById('yp-vieja').open = false; });
+                    document.querySelector('btn-yappy').dispatchEvent(new CustomEvent('eventClick'));
+                    await esperar(300);
+                    return {cerrada: window.__cerrada};
+                })();""")
+        self.assertTrue(estado['cerrada'], 'antes de otro intento se cierra la ventana que quedó abierta')
+
+    def test_con_un_intento_vivo_otro_clic_no_cierra_su_ventana(self):
+        """El teclado salta el «pointer-events: none» con que el botón se apaga solo (Enter dos veces pulsa dos
+        veces): con un intento ya en marcha, el segundo clic no empieza otro ni cierra la ventana del que está vivo."""
+        with self._chrome_movil(390) as browser, YappyFalso() as yappy:
+            self._hasta_el_pago(browser)
+            self._elegir(browser)
+            self._correr(browser, """
+                document.querySelector('.o_dcasa_yappy_boton').insertAdjacentHTML('beforeend',
+                    '<app-dialog><dialog id="yp-viva"><svg-icon class="close-icon"></svg-icon></dialog></app-dialog>');
+                window.__cerrada = false;
+                document.querySelector('.close-icon').addEventListener('click', () => { window.__cerrada = true; });
+                return 1;""")
+            estado = self._correr(browser, PULSAR_Y_ESPERAR_EL_MODAL + """
+                document.getElementById('yp-viva').open = true;
+                const llamadas = window.__yappy.pagos.length;
+                document.querySelector('btn-yappy').dispatchEvent(new CustomEvent('eventClick'));
+                document.querySelector('btn-yappy').dispatchEvent(new CustomEvent('eventClick'));
+                await esperar(400);
+                return {cerrada: window.__cerrada, pagos: window.__yappy.pagos.length - llamadas,
+                        mismo: window.__yappy.elementos.length};
+                })();""")
+        self.assertFalse(estado['cerrada'], 'la ventana del intento vivo no se cierra')
+        self.assertEqual(estado['pagos'], 0, 'y no se manda otro eventPayment')
+        self.assertEqual(estado['mismo'], 1, 'ni se rehace el botón')
+        self.assertEqual(len(yappy.llamadas), 2, 'una sola vuelta a Yappy (validar + crear la orden)')
+
+    def test_despues_de_eventSuccess_atras_no_vuelve_a_un_boton_de_yappy_listo_para_pagar_otra_vez(self):
+        with self._chrome_movil(390) as browser, YappyFalso():
+            self._hasta_el_pago(browser)
+            self._elegir(browser)
+            self._pulsar(browser)
+            self._correr(browser, """
+                document.querySelector('btn-yappy').dispatchEvent(new CustomEvent('eventSuccess', {detail: 'TX-1'}));
+                return 1;""")
+            historial = {}
+            for _ in range(100):
+                historial = browser._websocket_request('Page.getNavigationHistory')
+                if historial['entries'][historial['currentIndex']]['url'].endswith('/payment/status'):
+                    break
+                time.sleep(0.1)
+        direcciones = [entrada['url'].split('?')[0] for entrada in historial['entries']]
+        self.assertTrue(direcciones[historial['currentIndex']].endswith('/payment/status'), direcciones)
+        self.assertFalse([d for d in direcciones if d.endswith('/shop/payment')],
+                         f'la página de pago no puede quedar en el historial: {direcciones}')
