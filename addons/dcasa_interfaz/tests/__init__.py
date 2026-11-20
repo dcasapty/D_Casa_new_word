@@ -33,3 +33,4 @@ from . import test_celular_arranque_y_menu
 from . import test_mas_datos
 from . import test_modo_oscuro
 from . import test_forma_pago
+from . import test_cobros_navegador_segunda_vuelta
