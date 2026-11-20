@@ -1,0 +1,10 @@
+// La línea «Pagas en la página segura de Tilopay; D'CASA nunca ve los datos de tu tarjeta» solo se ve cuando la opción
+// elegida es la de Tilopay (el radio lleva data-provider-code="tilopay"). Sin :has() (navegadores viejos) queda oculta:
+// el texto de ayuda de la propia fila ya cuenta que se paga en la página de Tilopay.
+.o_dcasa_pago_nota[data-dcasa-proveedor="tilopay"] {
+    display: none;
+}
+
+body:has(#o_payment_form input[name="o_payment_radio"][data-provider-code="tilopay"]:checked) .o_dcasa_pago_nota[data-dcasa-proveedor="tilopay"] {
+    display: block;
+}

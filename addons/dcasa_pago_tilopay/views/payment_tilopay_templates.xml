@@ -11,4 +11,14 @@
         </form>
     </template>
 
+
+    <!-- Bajo el botón de pagar, con Tilopay elegido: lo que pasa con los datos de la tarjeta. Es una línea fija (siempre
+         en la página, en la tienda y en la ventana del portal); los estilos la muestran solo cuando la opción elegida
+         es la de Tilopay (static/src/scss/tilopay.scss). -->
+    <template id="submit_button_nota" inherit_id="payment.submit_button" name="D'CASA Tilopay: línea de seguridad bajo el botón">
+        <xpath expr="//button[@name='o_payment_submit_button']" position="after">
+            <p class="o_dcasa_pago_nota" data-dcasa-proveedor="tilopay"><i class="fa fa-lock" aria-hidden="true"/>Pagas en la página segura de Tilopay; D'CASA nunca ve los datos de tu tarjeta.</p>
+        </xpath>
+    </template>
+
 </odoo>

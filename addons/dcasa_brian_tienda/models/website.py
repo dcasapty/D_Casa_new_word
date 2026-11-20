@@ -8,7 +8,8 @@ RUTA_POSES = '/dcasa_brian_tienda/static/src/img/poses/'
 # Sin burbuja de Brian (vuelve la de WhatsApp, o ninguna): el pago, el panel, el portal de Odoo y Mi cuenta (su barra
 # de secciones va fija abajo en el celular y esconde la flotante de WhatsApp: la de Brian la taparía).
 RUTAS_SIN_BURBUJA = ('/shop/checkout', '/shop/address', '/shop/payment', '/shop/confirm', '/shop/extra_info',
-                     '/shop/confirmation', '/web', '/odoo', '/my', '/mi-cuenta', '/brian', '/envios/choferes')
+                     '/shop/confirmation', '/payment/status', '/web', '/odoo', '/my', '/mi-cuenta', '/brian',
+                     '/envios/choferes')
 RE_WA = re.compile(r'^https://wa\.me/(\d{8,15})\?')
 
 

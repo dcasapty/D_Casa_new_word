@@ -25,14 +25,14 @@ NOMBRE_DEL_METODO = 'Tarjeta de crédito o débito'
 CODIGO_DIARIO = 'TLP'
 NOMBRE_DIARIO = 'Tilopay'
 
-# Lo que lee el cliente (voz de D'CASA: de tú, sin gritos).
+# Lo que lee el cliente (voz de D'CASA: de tú, sin gritos). El título del estado («Pago recibido», «El pago no se
+# completó») lo pone la pantalla (website_dcasa, pago_templates.xml): aquí va lo que sigue.
 MENSAJES = {
     'pre_msg': 'Pago seguro con tarjeta: te llevamos a la página de Tilopay, pagas ahí y regresas a la tienda. Tu '
                'pedido se confirma apenas Tilopay nos avisa.',
     'pending_msg': 'Estamos esperando que Tilopay confirme tu pago. Toma unos segundos; no cierres esta página.',
-    'done_msg': '¡Pago recibido! Confirmamos tu pedido y te escribimos para coordinar la entrega.',
-    'cancel_msg': 'El pago no se completó. Tu pedido sigue guardado: puedes intentarlo de nuevo o elegir otra forma '
-                  'de pago.',
+    'done_msg': 'Confirmamos tu pedido y te escribimos para coordinar la entrega.',
+    'cancel_msg': 'Tu pedido sigue guardado: puedes intentarlo de nuevo o elegir otra forma de pago.',
 }
 
 

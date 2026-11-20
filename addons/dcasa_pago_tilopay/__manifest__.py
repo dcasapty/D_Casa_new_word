@@ -34,6 +34,9 @@ Investigación, amenazas, qué poner en Cloudflare y guion de pruebas: ``docs/TI
         'views/payment_provider_views.xml',
         'views/payment_transaction_views.xml',
     ],
+    'assets': {
+        'web.assets_frontend': ['dcasa_pago_tilopay/static/src/scss/tilopay.scss'],
+    },
     'post_init_hook': 'post_init_hook',
     'uninstall_hook': 'uninstall_hook',
     'installable': True,

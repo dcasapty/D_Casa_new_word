@@ -2,6 +2,7 @@ from . import (
     test_api,
     test_correcciones,
     test_flujo,
+    test_pago_visual,
     test_proveedor,
     test_revision,
     test_rutas,

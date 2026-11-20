@@ -1,0 +1,307 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- EL PAGO COMO UN CHECKOUT MODERNO (rediseño visual, 2026-11-20).
+         Todo es herencia de plantillas de Odoo + estilos (static/src/scss/pago.scss): el JavaScript del formulario de pago
+         (`payment_form`) no se toca y conserva sus nombres: #o_payment_form, [name=o_payment_option],
+         input[name=o_payment_radio] con sus data-payment-option-*, .o_payment_option_label y
+         button[name=o_payment_submit_button]. Lo que se agrega solo suma clases (o_dcasa_pago_*), nunca quita las de Odoo. -->
+
+    <!-- ========================================================================================================
+         1. Cabecera mínima: logo, «Pago seguro» y volver. Sin menú de la tienda ni barra de avisos (van dentro del
+         <header> de Odoo, que aquí se apaga con `no_header`).
+         ======================================================================================================== -->
+    <template id="pago_cabecera" name="D'CASA: cabecera mínima del pago">
+        <!-- Parámetros: volver_href / volver_texto (opcional: «Volver al carrito»). -->
+        <div class="o_dcasa_pago_cabecera" role="banner">
+            <div class="o_dcasa_pago_cabecera_in">
+                <!-- Igual que la cabecera de la tienda: mientras el logo sea el de fábrica, su copia en WebP (3-7 KB); si se
+                     cambia desde el editor, el campo de Odoo de siempre. -->
+                <a href="/" class="o_dcasa_pago_logo" aria-label="D'CASA Panamá, ir al inicio">
+                    <img t-if="website._dcasa_logo_de_fabrica()" src="/website_dcasa/static/src/img/logo-200.webp"
+                         srcset="/website_dcasa/static/src/img/logo-200.webp 1x, /website_dcasa/static/src/img/logo-400.webp 2x"
+                         width="88" height="40" alt="D'CASA Panamá"/>
+                    <img t-else="" t-att-src="website.image_url(website, 'logo')" height="40" t-att-alt="website.name"/>
+                </a>
+                <span class="o_dcasa_pago_seguro"><i class="fa fa-lock" aria-hidden="true"/>Pago seguro</span>
+                <a t-if="volver_href" t-att-href="volver_href" class="o_dcasa_pago_volver">
+                    <i class="fa fa-angle-left" aria-hidden="true"/><span t-out="volver_texto"/>
+                </a>
+            </div>
+        </div>
+    </template>
+
+    <!-- «¿Dudas? Escríbenos por WhatsApp»: el CTA único de la marca, con el número configurable del sitio. -->
+    <template id="pago_ayuda" name="D'CASA: ayuda por WhatsApp en el pago">
+        <p class="o_dcasa_pago_ayuda_wa">
+            <span>¿Dudas?</span>
+            <a t-att-href="website._dcasa_whatsapp_url('Hola D\'CASA, tengo una duda para pagar mi pedido')"
+               target="_blank" rel="noopener">Escríbenos por WhatsApp<span class="visually-hidden"> (se abre en una pestaña nueva)</span></a>
+        </p>
+    </template>
+
+    <!-- ========================================================================================================
+         2. La página /shop/payment: la marca para que el diseño la reconozca, y la entrega (con «Editar») ANTES de
+         elegir cómo pagar, como el resumen de «contacto y envío» de los checkouts modernos.
+         ======================================================================================================== -->
+    <template id="pago_pagina" inherit_id="website_sale.payment" name="D'CASA: pantalla de pago">
+        <xpath expr="//t[@t-call='website_sale.checkout_layout']" position="inside">
+            <t t-set="dcasa_pago" t-value="True"/>
+            <t t-set="dcasa_volver_href" t-value="'/shop/cart'"/>
+            <t t-set="dcasa_volver_texto">Volver al carrito</t>
+        </xpath>
+        <xpath expr="//div[@name='website_sale_non_free_cart']" position="before">
+            <xpath expr="//div[@id='address_on_payment']" position="move"/>
+        </xpath>
+        <!-- Después del bloque «t-if / t-else» (el pedido en cero lleva «Confirmar pedido» en el t-else). -->
+        <xpath expr="//h4[@t-else]" position="after">
+            <t t-call="website_dcasa.pago_ayuda"/>
+        </xpath>
+    </template>
+
+    <template id="pago_layout" inherit_id="website_sale.checkout_layout" name="D'CASA: pago sin distracciones">
+        <!-- Sin <header> de Odoo (menú, buscador y la barra de avisos que D'CASA le pone adentro). -->
+        <xpath expr="//t[@t-set='no_footer']" position="after">
+            <t t-set="no_header" t-value="bool(dcasa_pago)"/>
+        </xpath>
+        <xpath expr="//t[@t-set='body_classname']" position="attributes">
+            <attribute name="t-value">'o_website_sale_checkout' + (' o_dcasa_pago' if dcasa_pago else '')</attribute>
+        </xpath>
+        <xpath expr="//div[@id='wrap']" position="before">
+            <t t-if="dcasa_pago" t-call="website_dcasa.pago_cabecera">
+                <t t-set="volver_href" t-value="dcasa_volver_href"/>
+                <t t-set="volver_texto" t-value="dcasa_volver_texto"/>
+            </t>
+        </xpath>
+        <!-- Celular: el resumen del pedido va PLEGABLE arriba («Ver resumen del pedido · $ 64.19»); el botón de pagar
+             queda pegado abajo. El botón «Orden $…» de Odoo (abajo) se esconde con estilos. -->
+        <xpath expr="//div[@t-if='show_wizard_checkout']" position="after">
+            <div t-if="dcasa_pago and show_mobile_cart_summary and website_sale_order and website_sale_order.website_order_line"
+                 class="col-12 d-lg-none o_dcasa_pago_resumen_movil">
+                <button type="button" class="o_dcasa_pago_resumen_toggle collapsed" data-bs-toggle="collapse"
+                        data-bs-target="#o_dcasa_pago_resumen" aria-expanded="false" aria-controls="o_dcasa_pago_resumen">
+                    <span class="o_dcasa_pago_resumen_texto"><i class="fa fa-shopping-bag" aria-hidden="true"/>
+                        Ver resumen del pedido<i class="fa fa-angle-down o_dcasa_pago_resumen_flecha" aria-hidden="true"/></span>
+                    <strong class="o_dcasa_pago_resumen_total"
+                            t-out="website_sale_order.amount_total"
+                            t-options="{'widget': 'monetary', 'display_currency': website_sale_order.currency_id}"/>
+                </button>
+                <div id="o_dcasa_pago_resumen" class="collapse">
+                    <t t-call="website_sale.cart_summary_content"/>
+                    <t t-call="website_sale.total">
+                        <t t-set="hide_promotions" t-value="True"/>
+                        <t t-set="_cart_total_classes" t-valuef="border-top pt-2"/>
+                    </t>
+                </div>
+            </div>
+        </xpath>
+        <!-- Escritorio: el panel de la derecha lleva su título. -->
+        <xpath expr="//div[hasclass('o_total_card')]/div[hasclass('card-body')]/div[hasclass('d-none')][1]" position="before">
+            <p t-if="dcasa_pago" class="o_dcasa_pago_panel_titulo d-none d-lg-block">Resumen del pedido</p>
+        </xpath>
+    </template>
+
+    <!-- El botón de pagar dice cuánto: «Pagar $ 64.19». El monto sale del mismo lugar que el formulario (`amount`, que se
+         vuelve a calcular al cambiar entre «abono» y «total»); si no hay monto (pedido en cero o guardar un método de
+         pago) queda el texto de Odoo. Si un método se paga luego (p. ej. «Pago en la tienda») el JavaScript de Odoo
+         lo cambia a «Confirmar», como siempre. -->
+    <template id="pago_boton" inherit_id="payment.submit_button" name="D'CASA: «Pagar $ monto»">
+        <xpath expr="//button[@name='o_payment_submit_button']" position="before">
+            <t t-set="dcasa_monto" t-value="amount or (website_sale_order and website_sale_order.amount_total) or 0"/>
+            <t t-set="dcasa_moneda" t-value="currency or (website_sale_order and website_sale_order.currency_id) or False"/>
+            <t t-set="dcasa_etiqueta"><t t-if="dcasa_monto and dcasa_moneda and (mode or 'payment') != 'validation' and not dcasa_sin_monto">Pagar <span t-out="dcasa_monto" t-options="{'widget': 'monetary', 'display_currency': dcasa_moneda}"/></t><t t-else="" t-out="submit_button_label"/></t>
+        </xpath>
+        <xpath expr="//button[@name='o_payment_submit_button']" position="attributes">
+            <attribute name="t-out">dcasa_etiqueta</attribute>
+        </xpath>
+    </template>
+
+    <!-- ========================================================================================================
+         3. La lista de métodos (la misma en la tienda y en la ventana del portal): filas en un solo contenedor.
+         ======================================================================================================== -->
+    <template id="pago_formulario" inherit_id="payment.form" name="D'CASA: lista de métodos de pago">
+        <xpath expr="//div[@id='o_payment_methods']/p/t[1]" position="replace">
+            <t t-if="not collapse_payment_methods">¿Cómo quieres pagar?</t>
+        </xpath>
+    </template>
+
+    <template id="pago_metodo" inherit_id="payment.method_form" name="D'CASA: fila de método de pago">
+        <!-- El texto de ayuda vive DENTRO de la fila y solo se ve cuando esa fila está elegida (estilos). -->
+        <xpath expr="//div[@t-if='not is_html_empty(provider_sudo.pre_msg)']" position="attributes">
+            <attribute name="class" add="o_dcasa_pago_ayuda" separator=" "/>
+        </xpath>
+    </template>
+
+    <!-- Íconos de cada método. Tarjeta (Tilopay): Visa y Mastercard, que son las que propone docs/TILOPAY.md; Yappy,
+         transferencia y pago en la tienda: íconos propios y DISTINTOS (nunca el logo de Yappy). Las imágenes de las
+         tarjetas son las que trae Odoo (payment/static/img), sin tocarlas. -->
+    <template id="pago_logo" inherit_id="payment.form_logo" name="D'CASA: íconos de los métodos">
+        <xpath expr="//span[@t-field='logo_pm_sudo.image_payment_form']" position="replace">
+            <t t-set="dcasa_icono" t-value="{'yappy': 'yappy', 'wire_transfer': 'transferencia', 'cash_on_delivery': 'tienda'}.get(logo_pm_sudo.code)"/>
+            <span t-if="logo_pm_sudo.code == 'tilopay'"
+                  class="o_dcasa_pago_iconos position-relative d-flex z-1"
+                  t-att-title="logo_pm_sudo.name">
+                <img src="/payment/static/img/visa.png" alt="Visa" width="45" height="30"/>
+                <img src="/payment/static/img/mastercard.png" alt="Mastercard" width="45" height="30"/>
+            </span>
+            <span t-elif="dcasa_icono"
+                  class="o_dcasa_pago_iconos position-relative d-flex z-1"
+                  t-att-title="logo_pm_sudo.name">
+                <img t-attf-src="/website_dcasa/static/src/img/pago/#{dcasa_icono}.svg" t-att-alt="logo_pm_sudo.name" width="45" height="30"/>
+            </span>
+            <span t-else="" t-field="logo_pm_sudo.image_payment_form"
+                  t-options="{'widget': 'image', 'alt-field': 'name'}"
+                  class="o_dcasa_pago_iconos position-relative d-block rounded overflow-hidden z-1"
+                  t-att-title="logo_pm_sudo.name"
+                  data-bs-toggle="tooltip"
+                  data-bs-placement="top"
+                  data-bs-delay="0"/>
+        </xpath>
+    </template>
+
+    <!-- «Modo de prueba» / «No publicado» (solo los ve el equipo): una etiqueta con palabras en vez de un triángulo
+         amarillo suelto. Conserva el aviso al pasar el mouse. -->
+    <template id="pago_aviso" inherit_id="payment.form_icon" name="D'CASA: avisos del método con palabras">
+        <xpath expr="//i" position="replace">
+            <span class="o_dcasa_pago_aviso position-relative z-1"
+                  t-att-title="title"
+                  data-bs-toggle="tooltip"
+                  data-bs-placement="top"
+                  data-bs-delay="0"><i t-attf-class="fa fa-{{icon_name}}" aria-hidden="true"/><t t-out="title"/></span>
+        </xpath>
+    </template>
+
+    <!-- ========================================================================================================
+         4. La ventana «Pagar orden» del portal del pedido (/my/orders/<id>): el mismo componente, una ventana limpia.
+         ======================================================================================================== -->
+    <template id="pago_ventana" inherit_id="sale.sale_order_portal_pay_modal" name="D'CASA: ventana de pago del pedido">
+        <xpath expr="//h4[hasclass('modal-title')]" position="replace">
+            <h4 class="modal-title">Pagar tu pedido <span class="o_dcasa_pago_ventana_ref" t-out="sale_order.name"/></h4>
+        </xpath>
+        <xpath expr="//main[@id='sign-dialog']" position="inside">
+            <t t-call="website_dcasa.pago_ayuda"/>
+        </xpath>
+        <xpath expr="//main[@id='sign-dialog']/t[1]" position="before">
+            <!-- El total, grande, arriba; la frase de aceptación de Odoo queda debajo, más chica. -->
+            <div class="o_dcasa_pago_total_ventana" t-if="amount">
+                <span class="o_dcasa_pago_total_texto">Total a pagar</span>
+                <strong class="o_dcasa_pago_total_monto" t-out="amount"
+                        t-options="{'widget': 'monetary', 'display_currency': sale_order.currency_id}"/>
+            </div>
+        </xpath>
+    </template>
+
+    <!-- ========================================================================================================
+         5. El resumen: ITBMS con su nombre (la tienda solo cobra ITBMS), subtotal → entrega → ITBMS → total, y el
+         premio de Socios como lo que es (un descuento con su código).
+         ======================================================================================================== -->
+    <template id="pago_resumen_lineas" inherit_id="website_sale.cart_summary_content" name="D'CASA: líneas del resumen">
+        <xpath expr="//tr[@t-foreach='website_sale_order.website_order_line']" position="attributes">
+            <attribute name="t-att-class">(line_last and 'border-transparent' or '') + (' o_dcasa_pago_premio' if line.dcasa_canje_id else '')</attribute>
+        </xpath>
+        <xpath expr="//span[@t-out='line._get_line_header()']" position="attributes">
+            <attribute name="t-out">line.name if line.dcasa_canje_id else line._get_line_header()</attribute>
+        </xpath>
+    </template>
+
+    <template id="pago_resumen_totales" inherit_id="website_sale.total" name="D'CASA: totales del resumen">
+        <xpath expr="//tr[@name='o_order_total_untaxed']" position="after">
+            <xpath expr="//tr[@name='o_order_delivery']" position="move"/>
+        </xpath>
+        <xpath expr="//tr[@name='o_order_total_taxes']/td[1]" position="replace">
+            <td colspan="2" class="text-muted border-0 p-0 pe-3 pb-2">ITBMS</td>
+        </xpath>
+    </template>
+
+    <!-- ========================================================================================================
+         6. «Estado del pago» (esperando / pago recibido / no se completó): la misma cabecera y familia visual.
+         ======================================================================================================== -->
+    <template id="pago_estado" inherit_id="payment.payment_status" name="D'CASA: estado del pago">
+        <xpath expr="//t[@t-call='portal.frontend_layout']" position="inside">
+            <t t-set="no_header" t-value="True"/>
+            <t t-set="no_footer" t-value="True"/>
+            <t t-set="body_classname" t-value="'o_dcasa_pago o_dcasa_pago_pagina_estado'"/>
+        </xpath>
+        <xpath expr="//div[hasclass('wrap')]" position="before">
+            <t t-call="website_dcasa.pago_cabecera"/>
+        </xpath>
+        <xpath expr="//t[@t-call='payment.portal_breadcrumb']" position="replace"/>
+        <xpath expr="//div[@name='o_payment_status']" position="after">
+            <t t-call="website_dcasa.pago_ayuda"/>
+        </xpath>
+    </template>
+
+    <!-- «Omitir» no dice nada: «Seguir sin esperar». Y la espera se llama como lo que es. -->
+    <template id="pago_estado_cabecera" inherit_id="payment.state_header" name="D'CASA: textos del estado del pago">
+        <!-- Cada estado dice qué es con un título (la pantalla lo pone; el mensaje de abajo dice qué sigue). -->
+        <xpath expr="//t[@t-elif=&quot;tx.state == 'done'&quot;]/t[@t-set='alert_style']" position="after">
+            <t t-set="status_heading"><p>Pago recibido</p></t>
+        </xpath>
+        <xpath expr="//t[@t-elif=&quot;tx.state == 'done'&quot;]/t[@t-if='not is_processing']" position="replace"/>
+        <xpath expr="//t[@t-elif=&quot;tx.state == 'cancel'&quot;]/t[@t-set='alert_style']" position="after">
+            <t t-set="status_heading"><p>El pago no se completó</p></t>
+        </xpath>
+        <xpath expr="//t[@t-elif=&quot;tx.state == 'error'&quot;]/t[@t-set='alert_style']" position="after">
+            <t t-set="status_heading"><p>El pago no se completó</p></t>
+        </xpath>
+        <xpath expr="//t[@t-set='waiting_heading']" position="replace">
+            <t t-set="waiting_heading"><p>Estamos confirmando tu pago</p></t>
+        </xpath>
+        <xpath expr="//a[@t-if='is_processing']" position="replace">
+            <a t-if="is_processing" t-att-href="tx.landing_route" class="alert-link o_dcasa_pago_omitir">Seguir sin esperar</a>
+        </xpath>
+    </template>
+
+    <!-- ========================================================================================================
+         7. «Gracias por tu compra» (/shop/confirmation): un mensaje grande y claro con el estado del pago y qué sigue.
+         ======================================================================================================== -->
+    <template id="pago_confirmacion" inherit_id="website_sale.confirmation" name="D'CASA: confirmación del pedido">
+        <xpath expr="//t[@t-call='website_sale.checkout_layout']" position="inside">
+            <t t-set="dcasa_pago" t-value="True"/>
+            <t t-set="dcasa_volver_href" t-value="'/shop'"/>
+            <t t-set="dcasa_volver_texto">Seguir comprando</t>
+        </xpath>
+        <!-- Qué sigue: el CTA de la marca (WhatsApp) y volver a mirar muebles como enlace. Si el pago no se completó,
+             el botón principal es «Intentar de nuevo» (ver abajo) y WhatsApp baja a contorno. -->
+        <!-- «Pedido S00008» (Odoo dice «Orden»; en D'CASA es el pedido). -->
+        <xpath expr="//div[@id='order_name']/h5/span[1]" position="replace"><span>Pedido&#160;</span></xpath>
+        <xpath expr="//t[@t-call='website_sale.address_on_checkout']/.." position="after">
+            <div class="o_dcasa_pago_acciones">
+                <a t-att-href="website._dcasa_whatsapp_url('Hola D\'CASA, quiero coordinar mi pedido ' + (order.name or ''))"
+                   target="_blank" rel="noopener"
+                   t-attf-class="btn #{'btn-outline-primary' if tx_sudo and tx_sudo.state in ('cancel', 'error') else 'btn-primary'} o_dcasa_pago_wa"><i class="fa fa-whatsapp" aria-hidden="true"/>Escríbenos por WhatsApp<span class="visually-hidden"> (se abre en una pestaña nueva)</span></a>
+                <a href="/shop" class="o_dcasa_pago_seguir">Seguir viendo muebles</a>
+            </div>
+        </xpath>
+    </template>
+
+    <template id="pago_confirmacion_estado" inherit_id="website_sale.payment_confirmation_status" name="D'CASA: estado del pago en la confirmación">
+        <!-- Título del estado, con su ícono: nunca solo color. -->
+        <xpath expr="//div[@name='order_confirmation']/div[1]/div[1]" position="before">
+            <p class="o_dcasa_pago_estado_titulo">
+                <t t-if="tx_sudo.state == 'done' and order.amount_total == tx_sudo.amount"><i class="fa fa-check-circle" aria-hidden="true"/>Pago recibido</t>
+                <t t-elif="tx_sudo.state == 'authorized'"><i class="fa fa-check-circle" aria-hidden="true"/>Pago autorizado</t>
+                <t t-elif="tx_sudo.state == 'pending'"><i class="fa fa-clock-o" aria-hidden="true"/>Esperando tu pago</t>
+                <t t-elif="tx_sudo.state == 'done'"><i class="fa fa-info-circle" aria-hidden="true"/>Estamos revisando tu pago</t>
+                <t t-else=""><i class="fa fa-exclamation-circle" aria-hidden="true"/>El pago no se completó</t>
+            </p>
+        </xpath>
+        <!-- Si no se completó: el camino de vuelta, sin buscar. -->
+        <xpath expr="//div[@name='order_confirmation']" position="inside">
+            <p t-if="tx_sudo and tx_sudo.state in ('cancel', 'error')" class="o_dcasa_pago_reintentar">
+                <a href="/shop/payment" class="btn btn-primary">Intentar de nuevo</a>
+            </p>
+        </xpath>
+    </template>
+
+    <!-- El código de descuento: la etiqueta SIEMPRE visible arriba del campo (el texto de ejemplo no es etiqueta). Solo en
+         la pantalla de pago; en el carrito queda como estaba. -->
+    <template id="pago_codigo" inherit_id="website_sale.coupon_form" name="D'CASA: etiqueta del código de descuento">
+        <xpath expr="//div[hasclass('input-group')]" position="before">
+            <label t-if="dcasa_pago" for="o_dcasa_pago_codigo" class="o_dcasa_pago_etiqueta">Código de descuento</label>
+        </xpath>
+        <xpath expr="//input[@name='promo']" position="attributes">
+            <attribute name="t-att-id">dcasa_pago and 'o_dcasa_pago_codigo' or None</attribute>
+            <attribute name="autocomplete">off</attribute>
+        </xpath>
+    </template>
+</odoo>
