@@ -131,9 +131,9 @@ class TestCotizar(EnviosComun):
                          (15.0, '$15', 15.0, False))
         self.assertEqual((lejano.precio_envio, lejano.precio_envio_txt, lejano.cotizar_aparte),
                          (0.0, 'Cotizar aparte', True))
-        # Exportar es de Gerencia y los administradores: el rol de Gerencia trae el permiso «Exportar» de Odoo.
-        filas = (villa | lejano).with_user(self.gerencia).export_data(['name', 'km', 'precio_envio',
-                                                                       'precio_envio_txt'])['datas']
+        # Exportar cualquier lista es de los administradores (con ``sudo`` como el sistema); Gerencia baja solo
+        # finanzas y ventas (dcasa_base/models/exportar.py).
+        filas = (villa | lejano).sudo().export_data(['name', 'km', 'precio_envio', 'precio_envio_txt'])['datas']
         self.assertEqual(filas, [['Villa Prueba', 1.2, 15.0, '$15'], ['Pueblo Lejano', 305.0, 0.0, 'Cotizar aparte']])
 
     def test_brian_cotiza_y_dice_si_la_tarifa_esta_en_revision(self):
