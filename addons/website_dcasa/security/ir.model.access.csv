@@ -8,4 +8,5 @@ access_dcasa_campana_descuento_gerencia,dcasa.campana.descuento gerencia,model_d
 access_dcasa_campana_descuento_admin,dcasa.campana.descuento admin,model_dcasa_campana_descuento,base.group_system,1,1,1,0
 access_dcasa_portada_diapositiva_gerencia,dcasa.portada.diapositiva gerencia,model_dcasa_portada_diapositiva,dcasa_base.group_gerencia,1,1,1,1
 access_dcasa_portada_diapositiva_admin,dcasa.portada.diapositiva admin,model_dcasa_portada_diapositiva,base.group_system,1,1,1,1
-access_website_dcasa_gerencia,website gerencia (solo el carrusel de la portada),website.model_website,dcasa_base.group_gerencia,1,1,0,0
+access_dcasa_portada_ajustes_gerencia,dcasa.portada.ajustes gerencia,model_dcasa_portada_ajustes,dcasa_base.group_gerencia,1,1,1,0
+access_dcasa_portada_ajustes_admin,dcasa.portada.ajustes admin,model_dcasa_portada_ajustes,base.group_system,1,1,1,1

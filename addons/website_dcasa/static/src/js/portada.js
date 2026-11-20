@@ -47,6 +47,8 @@ export class DcasaVitrina extends Interaction {
             this.mirador.disconnect();
             raiz.classList.remove("o_dcasa_vitrina_a_la_vista");
         });
+        // La limpieza se registra UNA vez (no con cada cambio de foto: a 2 s por foto serían unas 1800 por hora).
+        this.registerCleanup(() => this.parar());
         if (this.total > 1 && !reducido()) {
             this.programar();
         }
@@ -68,7 +70,6 @@ export class DcasaVitrina extends Interaction {
         this.parar();
         const ms = tiempoDeLaVitrina(this.el);
         this.temporizador = setTimeout(() => this.siguiente(), ms);
-        this.registerCleanup(() => this.parar());
     }
 
     siguiente() {

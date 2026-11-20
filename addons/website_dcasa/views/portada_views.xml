@@ -3,12 +3,11 @@
     <!-- Carrusel de la portada (models/portada.py): Sitio web › Carrusel de la portada, para Gerencia y administradores.
          Una sola pantalla con lo que cambia el fondo de la portada: arriba los segundos que dura cada foto y abajo la
          lista de productos, que se ordena arrastrando (el de arriba sale primero). Lista vacía = el hero de siempre.
-         Es el formulario del sitio actual (``website``) con solo estos dos campos: Gerencia no ve ni cambia nada más del
-         sitio (models/portada.py, ``Website.write``). -->
-    <record id="view_website_carrusel_form" model="ir.ui.view">
-        <field name="name">website.form.dcasa.carrusel</field>
-        <field name="model">website</field>
-        <field name="priority">90</field>
+         Es el formulario de los ajustes del carrusel del sitio actual (``dcasa.portada.ajustes``, uno por sitio): Gerencia
+         no escribe nada del sitio mismo (``website``), solo estos ajustes y la lista (models/portada.py). -->
+    <record id="view_dcasa_portada_ajustes_form" model="ir.ui.view">
+        <field name="name">dcasa.portada.ajustes.form</field>
+        <field name="model">dcasa.portada.ajustes</field>
         <field name="arch" type="xml">
             <form string="Carrusel de la portada" create="false" delete="false" duplicate="false">
                 <sheet>
@@ -16,7 +15,7 @@
                         <h1>Carrusel de la portada</h1>
                     </div>
                     <group name="velocidad" string="Velocidad">
-                        <field name="dcasa_hero_segundos" class="o_dcasa_hero_segundos" widget="float"
+                        <field name="segundos" class="o_dcasa_hero_segundos" widget="float"
                                options="{'step': 0.5}"/>
                         <div colspan="2" class="text-muted o_dcasa_hero_segundos_ayuda">
                             De 2 a 15 segundos; de fábrica 3. El paso de una foto a la otra y el zoom lento se
@@ -25,7 +24,7 @@
                         </div>
                     </group>
                     <group name="productos" string="Productos de la portada">
-                        <field name="dcasa_hero_diapositiva_ids" nolabel="1" colspan="2">
+                        <field name="diapositiva_ids" nolabel="1" colspan="2">
                             <list editable="bottom" decoration-muted="not en_portada">
                                 <field name="sequence" widget="handle"/>
                                 <field name="imagen" widget="image" options="{'size': [48, 48]}" string=""/>
@@ -50,9 +49,9 @@
 
     <record id="action_dcasa_portada_carrusel" model="ir.actions.server">
         <field name="name">Carrusel de la portada</field>
-        <field name="model_id" ref="website.model_website"/>
+        <field name="model_id" ref="model_dcasa_portada_ajustes"/>
         <field name="state">code</field>
-        <field name="code">action = model.action_abrir_carrusel()</field>
+        <field name="code">action = model.action_abrir()</field>
         <field name="group_ids" eval="[Command.set([ref('dcasa_base.group_gerencia'), ref('base.group_system')])]"/>
     </record>
 
