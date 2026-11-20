@@ -15,6 +15,7 @@ from odoo.addons.dcasa_base import _nombrar
 from odoo.addons.payment import utils as payment_utils
 from odoo.exceptions import AccessError, UserError
 from odoo.tools.misc import format_datetime
+from odoo.tools.urls import urljoin
 
 from . import yappy_api as api_yappy
 
@@ -57,6 +58,14 @@ class PaymentProvider(models.Model):
         help='Lo que dice YAPPY_DOMINIO. Tiene que ser, letra por letra, lo que se escribió en Yappy Comercial al '
              'crear el botón: viaja en cada cobro y entra en la firma del aviso. No es un secreto (es la dirección '
              'del sitio).')
+    dcasa_yappy_url_del_aviso = fields.Char(
+        string='Dirección del aviso (ipnUrl)', compute='_compute_dcasa_yappy',
+        help='La dirección a la que Yappy avisa de cada pago: es la «ipnUrl» que se le manda al abrir un cobro. Sale '
+             'de la '
+             'dirección del sitio (web.base.url) o, solo fuera de producción, de YAPPY_URL_BASE. Tiene que abrirse '
+             'desde '
+             'internet, sin sesión y sin que ninguna regla de Cloudflare la bloquee: sin eso Yappy no puede avisar y '
+             'ningún pago queda pagado. Se comprueba con «curl -i» desde fuera (docs/YAPPY.md §7).')
     dcasa_yappy_aviso = fields.Text(string='Yappy en la tienda', compute='_compute_dcasa_yappy')
     dcasa_yappy_prueba_fecha = fields.Datetime('Última prueba de conexión con Yappy', readonly=True, copy=False)
     dcasa_yappy_prueba_ok = fields.Boolean('La última prueba con Yappy salió bien', readonly=True, copy=False)
@@ -71,12 +80,14 @@ class PaymentProvider(models.Model):
                 proveedor.dcasa_yappy_conectado = False
                 proveedor.dcasa_yappy_entorno = False
                 proveedor.dcasa_yappy_dominio = False
+                proveedor.dcasa_yappy_url_del_aviso = False
                 proveedor.dcasa_yappy_aviso = False
                 proveedor.dcasa_yappy_prueba_texto = False
                 continue
             proveedor.dcasa_yappy_conectado = 'si' if proveedor._dcasa_yappy_conectado() else 'no'
             proveedor.dcasa_yappy_entorno = api_yappy.entorno_esperado()
             proveedor.dcasa_yappy_dominio = api_yappy._variable(api_yappy.VARIABLE_DOMINIO) or False
+            proveedor.dcasa_yappy_url_del_aviso = proveedor._dcasa_yappy_url_del_aviso() or False
             problema = proveedor._dcasa_yappy_problema()
             proveedor.dcasa_yappy_aviso = problema or self.env._(
                 'Listo: Yappy aparece en la tienda como «%s» y reemplaza al «Yappy» de siempre.', NOMBRE_DEL_METODO)
@@ -102,6 +113,13 @@ class PaymentProvider(models.Model):
 
     def _dcasa_yappy_entorno(self):
         return api_yappy.entorno_esperado()
+
+    def _dcasa_yappy_url_del_aviso(self):
+        """La ``ipnUrl`` completa que se le manda a Yappy: la dirección pública del sitio (o ``YAPPY_URL_BASE`` fuera de
+        producción) más la ruta del aviso."""
+        self.ensure_one()
+        base = api_yappy.url_base_del_aviso(self.get_base_url())
+        return urljoin(base, api_yappy.RUTA_AVISO) if base else ''
 
     def _should_build_inline_form(self, is_validation=False):
         if self.code != CODIGO:

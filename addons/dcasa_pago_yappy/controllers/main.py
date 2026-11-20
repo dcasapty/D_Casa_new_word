@@ -76,17 +76,46 @@ class YappyController(http.Controller):
         return {'ok': True, 'transactionId': datos['transactionId'], 'token': datos['token'],
                 'documentName': datos['documentName']}
 
+    def _dejar_rastro_del_rechazo(self, parametros, motivo, detalle):
+        """Si el aviso rechazado trae una orden NUESTRA que sigue abierta, se anota en su transacción (con tope) y se
+        registra en nivel ERROR: es la señal de que un aviso real puede estar llegando y no se acepta. Devuelve
+        ``True`` si lo anotó. Nunca hace fallar la respuesta (el 403 sale igual)."""
+        if motivo not in api_yappy.RECHAZOS_CON_RASTRO:
+            return False
+        orden = api_yappy.orden_valida(parametros.get('orderId')) if isinstance(parametros, dict) else None
+        if not orden:
+            return False
+        try:
+            with request.env.cr.savepoint():
+                tx = request.env['payment.transaction']._dcasa_yappy_buscar(orden)
+                if not tx or not tx._dcasa_yappy_anotar_rechazo(detalle):
+                    return False
+        except CHOQUES_DE_CONCURRENCIA:
+            raise
+        except Exception:  # noqa: BLE001 - un rastro que no se puede anotar no cambia la respuesta
+            _logger.exception('Yappy: no se pudo anotar el aviso rechazado de la orden %s.', orden)
+            return False
+        _logger.error('Yappy: aviso rechazado de la orden %s, que existe y sigue abierta (%s). Si Yappy sí avisó, el '
+                      'cobro NO se paga solo: revisa YAPPY_DOMINIO y YAPPY_CLAVE_SECRETA.', orden, detalle)
+        return True
+
     @http.route(_aviso_url, type='http', auth='public', methods=['GET'], csrf=False, save_session=False)
     def yappy_aviso(self, **_datos):
         """El aviso de Yappy (IPN). Solo un aviso bien firmado, con un dominio nuestro, mueve algo."""
         if not _dentro_del_ritmo(RITMO_DEL_AVISO):
             return _respuesta('demasiadas peticiones', 429)
         parametros = {nombre: valor for nombre, valor in list(request.httprequest.args.items())[:MAX_PARAMETROS]}
-        aviso, motivo = api_yappy.verificar_aviso(api_yappy.credenciales(), parametros)
+        credenciales = api_yappy.credenciales()
+        aviso, motivo = api_yappy.verificar_aviso(credenciales, parametros)
         if aviso is None:
-            # Sin decir por qué: ni a quien llama ni en el cuerpo. El motivo solo va al registro del servidor (sin
-            # valores).
-            _logger.warning('Yappy: aviso rechazado (%s).', motivo)
+            # Sin decir por qué a quien llama (ni en el cuerpo ni en las cabeceras). El motivo va al registro del
+            # servidor CON lo que sirve para entender la diferencia (si fue por el dominio, cuál llegó y cuál está
+            # declarado) y nunca con la firma recibida ni con una clave. Si es de una orden nuestra, además queda
+            # anotado en su transacción: puede ser un aviso REAL de Yappy que no se pudo aceptar, y el pendiente de
+            # Caja no debe decir «no avisó».
+            detalle = api_yappy.describir_rechazo(credenciales, parametros, motivo)
+            if not self._dejar_rastro_del_rechazo(parametros, motivo, detalle):
+                _logger.warning('Yappy: aviso rechazado (%s).', detalle)
             return _respuesta('no autorizado', 403)
         try:
             with request.env.cr.savepoint():

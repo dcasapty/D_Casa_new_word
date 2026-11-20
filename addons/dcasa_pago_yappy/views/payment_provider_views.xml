@@ -27,6 +27,7 @@
                     <field name="dcasa_yappy_entorno"
                            help="Lo que dice Cloudflare (YAPPY_ENTORNO). «Modo de prueba» usa el servidor de pruebas de Yappy; «Habilitado», el real."/>
                     <field name="dcasa_yappy_dominio"/>
+                    <field name="dcasa_yappy_url_del_aviso" widget="CopyClipboardChar"/>
                     <field name="dcasa_yappy_aviso" colspan="2" nolabel="0"/>
                     <field name="dcasa_yappy_prueba_texto"/>
                     <div colspan="2">

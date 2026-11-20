@@ -373,7 +373,16 @@ class TestAviso(BaseHttp):
                                 ('con www', {'domain': lambda o: 'www.' + DOMINIO,
                                              'hash': lambda o: firmar(o, 'E', 'www.' + DOMINIO)}),
                                 ('con https y barra', {'domain': lambda o: f'https://{DOMINIO}/',
-                                                       'hash': lambda o: firmar(o, 'E', f'https://{DOMINIO}/')})):
+                                                       'hash': lambda o: firmar(o, 'E', f'https://{DOMINIO}/')}),
+                                # H6: las formas que antes daban 403 y podían ser las reales
+                                ('con http', {'domain': lambda o: f'http://{DOMINIO}',
+                                              'hash': lambda o: firmar(o, 'E', f'http://{DOMINIO}')}),
+                                ('en mayúsculas', {'domain': lambda o: DOMINIO.upper(),
+                                                   'hash': lambda o: firmar(o, 'E', DOMINIO.upper())}),
+                                ('con el puerto por defecto', {'domain': lambda o: f'{DOMINIO}:443',
+                                                               'hash': lambda o: firmar(o, 'E', f'{DOMINIO}:443')}),
+                                ('con doble barra', {'domain': lambda o: f'https://{DOMINIO}//',
+                                                     'hash': lambda o: firmar(o, 'E', f'https://{DOMINIO}//')})):
             with self.subTest(nombre):
                 _pedido, tx, _yappy = self.abrir_en_sesion()
                 orden = tx.dcasa_yappy_orden
@@ -381,6 +390,80 @@ class TestAviso(BaseHttp):
                 self.assertEqual(self.ipn(parametros).status_code, 200)
                 self.releer(tx)
                 self.assertEqual(tx.state, 'done')
+
+    # ------------------------------------------------------------------ H6: un aviso rechazado deja rastro claro
+
+    def _log_del_aviso(self, parametros):
+        with self.assertLogs('odoo.addons.dcasa_pago_yappy.controllers.main', level='WARNING') as registro:
+            respuesta = self.ipn(parametros)
+        return respuesta, '\n'.join(registro.output)
+
+    def test_un_aviso_rechazado_por_el_dominio_deja_en_el_registro_cual_llego_y_cual_esta_declarado(self):
+        _pedido, tx, _yappy = self.abrir_en_sesion()
+        orden = tx.dcasa_yappy_orden
+        raro = 'sitio-que-no-es-el-nuestro.example'
+        parametros = aviso_de(orden, 'E', domain=raro, hash=firmar(orden, 'E', raro))
+        respuesta, texto = self._log_del_aviso(parametros)
+        self.assertEqual((respuesta.status_code, respuesta.text), (403, 'no autorizado'), 'a quien llama, lo mismo')
+        self.assertNotIn('Set-Cookie', respuesta.headers)
+        self.assertIn(raro, texto, 'quien opera ve el dominio que llegó')
+        self.assertIn(DOMINIO, texto, 'y el que está declarado')
+        self.assertIn(orden, texto)
+        self.assertNotIn(parametros['hash'], texto, 'nunca la firma recibida')
+        for secreto in SECRETOS:
+            self.assertNotIn(secreto, texto)
+
+    def test_un_aviso_rechazado_de_una_orden_nuestra_queda_anotado_en_su_transaccion(self):
+        _pedido, tx, _yappy = self.abrir_en_sesion()
+        orden = tx.dcasa_yappy_orden
+        raro = 'http://otro-sitio.example'
+        self._log_del_aviso(aviso_de(orden, 'E', domain=raro, hash=firmar(orden, 'E', raro)))
+        self.releer(tx)
+        self.assertEqual(tx.dcasa_yappy_rechazos, 1)
+        self.assertIn(raro, tx.dcasa_yappy_rechazo)
+        self.assertIn('dominio', tx.dcasa_yappy_rechazo)
+        self.assertEqual(tx.state, 'pending', 'no paga ni cancela: solo deja constancia')
+        self.assertFalse(tx.dcasa_yappy_avisos)
+        # la firma mala de una orden nuestra también: puede ser la clave mal pegada
+        self._log_del_aviso(aviso_de(orden, 'E', hash='b' * 64))
+        self.releer(tx)
+        self.assertEqual(tx.dcasa_yappy_rechazos, 2)
+        self.assertIn('firma', tx.dcasa_yappy_rechazo)
+        self.assertNotIn('b' * 64, tx.dcasa_yappy_rechazo)
+        self.assertEqual(tx.state, 'pending')
+
+    def test_el_rastro_de_los_rechazos_tiene_tope_y_no_lo_llena_quien_ataca(self):
+        _pedido, tx, _yappy = self.abrir_en_sesion()
+        for _vez in range(9):
+            self._log_del_aviso(aviso_de(tx.dcasa_yappy_orden, 'E', hash='c' * 64))
+        self.releer(tx)
+        self.assertEqual(tx.dcasa_yappy_rechazos, 5)
+
+    def test_sin_rastro_si_la_orden_no_es_nuestra_o_el_aviso_ni_tiene_la_forma(self):
+        _pedido, tx, _yappy = self.abrir_en_sesion()
+        orden = tx.dcasa_yappy_orden
+        self._log_del_aviso(aviso_de('S99999ZZZZZ', 'E', hash='d' * 64))           # una orden que no existe
+        self._log_del_aviso(aviso_de(orden, 'Z', hash=firmar(orden, 'Z')))          # estado que no existe
+        self._log_del_aviso({'orderId': orden})                                      # sin el resto
+        self._log_del_aviso(aviso_de(orden + '-', 'E'))                              # orden con símbolos
+        self.releer(tx)
+        self.assertEqual(tx.dcasa_yappy_rechazos, 0)
+
+    def test_un_rechazo_sobre_un_cobro_ya_cerrado_no_escribe_nada(self):
+        _pedido, tx, _yappy = self.abrir_en_sesion()
+        self.assertEqual(self.ipn(aviso_de(tx.dcasa_yappy_orden, 'R')).status_code, 200)
+        self._log_del_aviso(aviso_de(tx.dcasa_yappy_orden, 'E', hash='e' * 64))
+        self.releer(tx)
+        self.assertEqual(tx.dcasa_yappy_rechazos, 0)
+
+    def test_sin_las_claves_en_el_servidor_el_aviso_de_una_orden_nuestra_queda_anotado(self):
+        _pedido, tx, _yappy = self.abrir_en_sesion()
+        with entorno(YAPPY_CLAVE_SECRETA=None):
+            respuesta, texto = self._log_del_aviso(aviso_de(tx.dcasa_yappy_orden, 'E'))
+        self.assertEqual(respuesta.status_code, 403)
+        self.assertIn('faltan las claves', texto)
+        self.releer(tx)
+        self.assertEqual(tx.dcasa_yappy_rechazos, 1)
 
     def test_solo_get_y_los_datos_van_en_la_direccion_no_en_el_cuerpo(self):
         _pedido, tx, _yappy = self.abrir_en_sesion()

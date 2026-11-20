@@ -190,18 +190,172 @@ class TestVerificarAviso(BaseCase):
 
     def test_un_subdominio_o_un_dominio_parecido_tampoco_pasa(self):
         for dominio in ('evil.dcasapty.com', 'dcasapty.com.evil.com', 'xdcasapty.com', 'dcasapty.co',
-                        'dcasapty.com:8080', ' dcasapty.com', 'dcasapty.com ', 'DCASAPTY.COM',
-                        'dcasapty.com\x00.evil.com', 'http://dcasapty.com', 'dcasapty.com/otra/ruta', ''):
+                        'dcasapty.com:8080', ' dcasapty.com', 'dcasapty.com ', 'dcasapty.com.',
+                        'dcasapty.com\x00.evil.com', 'dcasapty.com/otra/ruta', 'dcasapty.com@evil.com',
+                        'https://dcasapty.com@evil.com', 'https://evil.com/dcasapty.com', 'dcasapty.com?x=1',
+                        'dcasapty.com#x', 'dcasapty.com%2f', 'https://dcasapty.com:80', 'http://dcasapty.com:443',
+                        'www.www.dcasapty.com', '//dcasapty.com', 'https:/dcasapty.com', 'dcasapty。com', ''):
             with self.subTest(dominio=dominio):
                 aviso, motivo = self.verificar(aviso_de(ORDEN, 'E', domain=dominio, hash=firmar(ORDEN, 'E', dominio)))
                 self.assertIsNone(aviso)
                 self.assertEqual(motivo, api.RECHAZO_DOMINIO)
 
-    def test_el_dominio_se_firma_con_nuestra_copia_no_con_la_que_vino(self):
-        """La firma se hace con la cadena nuestra: con un dominio nuestro y la firma de otro, no cuadra."""
+    def test_el_dominio_se_firma_tal_como_llego_y_la_firma_de_otra_escritura_no_cuadra(self):
+        """Se firma el dominio como llegó (así lo hacen los ejemplos oficiales): con ``www.`` en la dirección y la firma
+        del dominio pelado, no cuadra."""
         aviso, motivo = self.verificar(aviso_de(ORDEN, 'E', domain='www.dcasapty.com', hash=VECTORES['E']))
         self.assertIsNone(aviso)
         self.assertEqual(motivo, api.RECHAZO_FIRMA)
+
+    # ------------------------------------------------------------------ H6: el dominio escrito de otra forma
+
+    VARIANTES_REALES = (
+        'dcasapty.com', 'www.dcasapty.com', 'https://dcasapty.com', 'https://www.dcasapty.com/', 'dcasapty.com/',
+        # las que el revisor probó que se rechazaban (403) y podían ser las reales:
+        'http://dcasapty.com', 'http://www.dcasapty.com', 'DCASAPTY.COM', 'dcasapty.com:443', 'https://dcasapty.com//',
+        'HTTPS://WWW.DCASAPTY.COM/', 'Dcasapty.Com', 'https://dcasapty.com:443', 'http://dcasapty.com:80/',
+        'WWW.dcasapty.com', 'dcasapty.com:80')
+
+    def test_las_maneras_en_que_yappy_podria_devolver_nuestro_dominio_pasan(self):
+        """Si el aviso REAL llegara con ``http://``, en mayúsculas o con ``:443`` y se rechazara, TODOS los pagos reales
+        darían 403 y el pendiente diría «Yappy no avisó» (falso)."""
+        for dominio in self.VARIANTES_REALES:
+            with self.subTest(dominio=dominio):
+                aviso, motivo = self.verificar(aviso_de(ORDEN, 'E', domain=dominio, hash=firmar(ORDEN, 'E', dominio)))
+                self.assertIsNotNone(aviso, motivo)
+                self.assertEqual((aviso.orden, aviso.estado), (ORDEN, 'E'))
+
+    def test_un_dominio_declarado_en_mayusculas_o_con_esquema_acepta_las_mismas_variantes(self):
+        for declarado in ('DCASAPTY.com', 'https://www.dcasapty.com/', 'http://dcasapty.com',
+                          'www.dcasapty.com/tienda'):
+            creds = api.Credenciales(ID_COMERCIO, CLAVE_BASE64, declarado)
+            for recibido in ('dcasapty.com', 'https://DCASAPTY.COM/', 'www.dcasapty.com:443', declarado):
+                with self.subTest(declarado=declarado, recibido=recibido):
+                    aviso, motivo = api.verificar_aviso(
+                        creds, aviso_de(ORDEN, 'E', domain=recibido, hash=firmar(ORDEN, 'E', recibido)))
+                    self.assertIsNotNone(aviso, motivo)
+            for ajeno in ('evil.com', 'dcasapty.com.evil.com', 'otro-sitio.com'):
+                with self.subTest(declarado=declarado, ajeno=ajeno):
+                    self.assertEqual(api.verificar_aviso(
+                        creds, aviso_de(ORDEN, 'E', domain=ajeno, hash=firmar(ORDEN, 'E', ajeno))),
+                        (None, api.RECHAZO_DOMINIO))
+
+    def test_un_dominio_declarado_con_un_puerto_raro_solo_acepta_ese_puerto(self):
+        creds = api.Credenciales(ID_COMERCIO, CLAVE_BASE64, 'dcasapty.com:8443')
+        for recibido, pasa in (('dcasapty.com:8443', True), ('https://DCASAPTY.com:8443/', True),
+                               ('dcasapty.com', False), ('dcasapty.com:8444', False)):
+            with self.subTest(recibido=recibido):
+                aviso, _m = api.verificar_aviso(
+                    creds, aviso_de(ORDEN, 'E', domain=recibido, hash=firmar(ORDEN, 'E', recibido)))
+                self.assertEqual(aviso is not None, pasa)
+
+    def test_un_dominio_declarado_vacio_o_raro_no_acepta_nada(self):
+        for declarado in ('', '  ', '/', 'https://', 'www.', '???'):
+            creds = api.Credenciales(ID_COMERCIO, CLAVE_BASE64, declarado)
+            for recibido in ('', 'evil.com', declarado, 'dcasapty.com'):
+                with self.subTest(declarado=declarado, recibido=recibido):
+                    aviso, _m = api.verificar_aviso(
+                        creds, aviso_de(ORDEN, 'E', domain=recibido, hash=firmar(ORDEN, 'E', recibido)))
+                    self.assertIsNone(aviso)
+
+    def test_normalizar_dominio(self):
+        for escrito, canonico in (('dcasapty.com', 'dcasapty.com'), ('HTTP://WWW.DcasaPTY.com/', 'dcasapty.com'),
+                                  ('dcasapty.com:443', 'dcasapty.com'), ('https://dcasapty.com:443//', 'dcasapty.com'),
+                                  ('http://dcasapty.com:80', 'dcasapty.com'), ('dcasapty.com:80', 'dcasapty.com'),
+                                  ('https://dcasapty.com:80', 'dcasapty.com:80'),
+                                  ('dcasapty.com:8443', 'dcasapty.com:8443'),
+                                  ('sub.dcasapty.com', 'sub.dcasapty.com'),
+                                  ('www.www.dcasapty.com', 'www.dcasapty.com')):
+            with self.subTest(escrito=escrito):
+                self.assertEqual(api.normalizar_dominio(escrito), canonico)
+        for malo in (None, 5, '', ' dcasapty.com', 'dcasapty.com\n', 'dcasapty.com.', 'dcasapty.com@evil.com',
+                     'dcasapty.com/x', 'dcasapty.com?x', 'dcasapty.com#x', 'dcasapty.com:0443', 'dcasapty.com:99999999',
+                     '-dcasapty.com', 'dcasapty-.com', 'dcasapty..com', '.dcasapty.com', 'dcasapty.com:',
+                     'ｄcasapty.com', 'dcasaрty.com', 'a' * 254):
+            with self.subTest(malo=malo):
+                self.assertIsNone(api.normalizar_dominio(malo))
+
+    def test_describir_el_rechazo_no_lleva_la_firma_ni_claves_ni_saltos_de_linea(self):
+        creds = credenciales()
+        largo = 'sitio-que-no-es-el-nuestro-y-es-largo-de-verdad.example.com'
+        texto = api.describir_rechazo(creds, {'domain': largo, 'hash': 'a' * 64}, api.RECHAZO_DOMINIO)
+        self.assertIn(largo, texto, 'un dominio largo se ve completo (no se tapa como si fuera un token)')
+        self.assertIn(DOMINIO, texto)
+        self.assertNotIn('a' * 64, texto)
+        sucio = {'domain': f'x\nINYECTADO {CLAVE_BASE64}\t{ID_COMERCIO}'}
+        raro = api.describir_rechazo(creds, sucio, api.RECHAZO_DOMINIO)
+        self.assertNotIn('\n', raro)
+        self.assertNotIn('\t', raro)
+        for secreto in SECRETOS:
+            self.assertNotIn(secreto, raro)
+        self.assertLessEqual(len(api.describir_rechazo(creds, {'domain': 'a' * 250}, api.RECHAZO_DOMINIO)), 300)
+        self.assertIn('firma', api.describir_rechazo(creds, {}, api.RECHAZO_FIRMA))
+        self.assertIn('faltan las claves', api.describir_rechazo(None, {}, api.RECHAZO_SIN_CLAVES))
+
+    def test_la_comparacion_del_dominio_va_en_tiempo_constante(self):
+        with patch.object(api.hmac, 'compare_digest', wraps=api.hmac.compare_digest) as comparar:
+            self.assertTrue(api.dominio_nuestro('dcasapty.com', 'HTTP://dcasapty.com/'))
+            self.assertFalse(api.dominio_nuestro('dcasapty.com', 'evil.com'))
+        usadas = [llamada.args for llamada in comparar.call_args_list]
+        self.assertIn((b'dcasapty.com', b'dcasapty.com'), usadas, 'el anfitrión se compara con compare_digest')
+        for a, b in usadas:
+            self.assertIsInstance(a, bytes)
+            self.assertIsInstance(b, bytes)
+        import inspect  # noqa: PLC0415
+        fuente = inspect.getsource(api.dominio_nuestro)
+        self.assertIn('compare_digest', fuente)
+        for tonto in ('propio ==', '== propio', 'normalizado ==', '== normalizado', 'recibido ==', '== recibido',
+                      'declarado ==', '== declarado', ' in '):
+            self.assertNotIn(tonto, fuente, 'ninguna igualdad simple con el dominio')
+
+    def test_bateria_hostil_ningun_dominio_ajeno_pasa(self):
+        """Prefijos y sufijos raros alrededor de nuestro dominio: lo que pasa tiene que ser, por un análisis hecho
+        aparte (``urllib``), nuestro anfitrión y nada más (sin usuario, sin ruta, sin consulta), y coincidir con un
+        juez escrito a mano para ``dcasapty.com``. La batería completa (813,375 candidatos) corrió aparte; esta es la
+        versión corta."""
+        from itertools import product  # noqa: PLC0415
+        from urllib.parse import urlsplit  # noqa: PLC0415
+        alfabeto = ['http://', 'https://', 'www.', 'WWW.', '', '/', ':443', ':80', '.', '@evil.com', '?x=1', '#', ' ',
+                    '\t', '%2f', 'evil.com/', '\n']
+        creds = credenciales()
+
+        def juez(texto):
+            """Escrito a mano, aparte del código: [http(s)://][www.]dcasapty.com[:puerto por defecto][/…] sin
+            mayúsculas."""
+            resto = texto.lower()
+            esquema = ''
+            for candidato in ('https://', 'http://'):
+                if resto.startswith(candidato):
+                    esquema, resto = candidato, resto[len(candidato):]
+                    break
+            if resto.startswith('www.'):
+                resto = resto[4:]
+            if not resto.startswith('dcasapty.com'):
+                return False
+            resto = resto[len('dcasapty.com'):]
+            puertos = {'https://': (':443',), 'http://': (':80',), '': (':443', ':80')}[esquema]
+            for puerto in puertos:
+                if resto.startswith(puerto):
+                    resto = resto[len(puerto):]
+                    break
+            return resto.strip('/') == '' and set(resto) <= {'/'}
+
+        revisados = pasaron = 0
+        for pre in product(alfabeto, repeat=2):
+            for suf in product(alfabeto, repeat=2):
+                candidato = ''.join(pre) + 'dcasapty.com' + ''.join(suf)
+                revisados += 1
+                acepta = api.dominio_nuestro(creds.dominio, candidato)
+                if acepta:
+                    pasaron += 1
+                    partes = urlsplit(candidato if '://' in candidato else '//' + candidato)
+                    self.assertIn(partes.hostname, ('dcasapty.com', 'www.dcasapty.com'), candidato)
+                    self.assertIsNone(partes.username, candidato)
+                    self.assertEqual((partes.query, partes.fragment), ('', ''), candidato)
+                    self.assertEqual(partes.path.strip('/'), '', candidato)
+                self.assertEqual(acepta, juez(candidato), repr(candidato))
+        self.assertGreater(revisados, 80000)
+        self.assertGreater(pasaron, 100, 'la batería también tiene que incluir los que SÍ pasan')
 
     def test_sin_claves_no_se_acepta_nada(self):
         self.assertEqual(api.verificar_aviso(None, aviso_de(ORDEN, 'E')), (None, api.RECHAZO_SIN_CLAVES))
@@ -294,20 +448,6 @@ class TestPiezas(BaseCase):
         self.assertEqual(api.importe(5), '5.00')
         self.assertEqual(api.importe(0.1 + 0.2 - 0.3 + 107), '107.00')
 
-    def test_los_dominios_aceptados_son_solo_nuestros(self):
-        aceptados = api.dominios_aceptados('dcasapty.com')
-        for forma in ('dcasapty.com', 'www.dcasapty.com', 'https://dcasapty.com', 'https://www.dcasapty.com/'):
-            self.assertIn(forma, aceptados)
-        for forma in aceptados:
-            self.assertIn('dcasapty.com', forma)
-            self.assertTrue(forma.replace('https://', '').replace('www.', '').rstrip('/') == 'dcasapty.com', forma)
-        # Si se declaró con https y barra, se acepta tal cual y también sin ellas.
-        declarado = api.dominios_aceptados('https://Mi-Sitio.com/')
-        self.assertIn('https://Mi-Sitio.com/', declarado)
-        self.assertIn('mi-sitio.com', declarado)
-        self.assertEqual(api.dominios_aceptados(''), ())
-        self.assertEqual(api.dominios_aceptados(None), ())
-
     def test_el_script_de_yappy_solo_puede_ser_el_de_su_cdn_por_https(self):
         self.assertTrue(api.anfitrion_del_cdn_permitido(api.cdn(api.PRODUCCION)))
         self.assertTrue(api.anfitrion_del_cdn_permitido(api.cdn(api.PRUEBA)))
@@ -321,9 +461,57 @@ class TestPiezas(BaseCase):
                      'https://bt-cdn.yappy.cloud/otro.js', '', None):
             self.assertFalse(api.anfitrion_del_cdn_permitido(malo), malo)
 
+    def test_la_lista_de_anfitriones_del_javascript_es_la_misma_del_servidor(self):
+        """RV6-J2: cambiar el host de PRODUCCIÓN en ``payment_form.js`` por el del ejemplo roto no hacía caer ninguna
+        prueba (las de navegador corren en modo de prueba, con el host UAT), y en producción el botón no cargaría.
+        Aquí se lee el archivo y se compara, anfitrión por anfitrión, con lo que carga el servidor."""
+        import re  # noqa: PLC0415
+        from urllib.parse import urlsplit  # noqa: PLC0415
+
+        from odoo.tools import file_open  # noqa: PLC0415
+        with file_open('dcasa_pago_yappy/static/src/interactions/payment_form.js') as archivo:
+            fuente = archivo.read()
+        bloque = re.search(r'const SCRIPTS_PERMITIDOS = new Map\(\[(.*?)\]\);', fuente, re.S)
+        self.assertIsNotNone(bloque, 'no se encontró SCRIPTS_PERMITIDOS en el JavaScript')
+        del_javascript = dict(re.findall(r"\['([^']+)', '([^']+)'\]", bloque.group(1)))
+        del_servidor = {urlsplit(url).hostname: urlsplit(url).path for url in api.CDNS.values()}
+        self.assertEqual(del_javascript, del_servidor)
+        # y por si alguien cambiara los dos a la vez: lo que Yappy documenta, escrito a mano
+        self.assertEqual(del_javascript, {'bt-cdn.yappy.cloud': '/v1/cdn/web-component-btn-yappy.js',
+                                          'bt-cdn-uat.yappycloud.com': '/v1/cdn/web-component-btn-yappy.js'})
+        self.assertNotIn('bt-cdn.yappycloud.com', fuente.split('SCRIPTS_PERMITIDOS')[1].split(']);')[0])
+
     def test_los_servidores_son_los_de_la_documentacion(self):
         self.assertEqual(api.HOSTS[api.PRODUCCION], 'https://apipagosbg.bgeneral.cloud')
         self.assertEqual(api.HOSTS[api.PRUEBA], 'https://api-comecom-uat.yappycloud.com')
+
+    def test_la_direccion_del_aviso_sale_de_YAPPY_URL_BASE_solo_si_es_una_direccion_https_limpia(self):
+        """H1: staging tiene ``web.base.url`` = su dominio propio, que todavía no apunta al Worker: Yappy no podría
+        avisar. ``YAPPY_URL_BASE`` (no secreta) manda sobre ``web.base.url`` al armar la ``ipnUrl``."""
+        base = 'https://staging.ejemplo-de-prueba.com'
+        self.assertEqual(api.url_base_del_aviso(base), base, 'sin la variable, la de siempre')
+        for puesta, resultado in (
+                ('https://dcasa-staging.dcasapty.workers.dev', 'https://dcasa-staging.dcasapty.workers.dev'),
+                ('https://dcasa-staging.dcasapty.workers.dev/', 'https://dcasa-staging.dcasapty.workers.dev'),
+                ('HTTPS://Dcasa-Staging.DCASAPTY.workers.dev', 'https://dcasa-staging.dcasapty.workers.dev'),
+                ('https://a.example.com:443', 'https://a.example.com'),
+                ('https://a.example.com:8443', 'https://a.example.com:8443'),
+                ('  https://a.example.com  ', 'https://a.example.com')):
+            with self.subTest(puesta=puesta), entorno(YAPPY_URL_BASE=puesta):
+                self.assertEqual(api.url_base_del_aviso(base), resultado)
+        for mala in ('http://a.example.com', 'a.example.com', 'https://', 'https://a.example.com/ruta',
+                     'https://usuario@a.example.com', 'https://a.example.com?x=1', 'https://a.example.com#x',
+                     'https://localhost', 'https://a.example.com:0', 'https://a b.example.com', 'ftp://a.example.com',
+                     'https://a.example.com:99999999', 'https://-a.example.com', 'https://a.example.com.evil.com/x'):
+            with self.subTest(mala=mala), entorno(YAPPY_URL_BASE=mala):
+                self.assertEqual(api.url_base_del_aviso(base), base, 'una dirección rara se ignora')
+
+    def test_en_el_servidor_de_produccion_YAPPY_URL_BASE_se_ignora(self):
+        base = 'https://dcasapty.com'
+        with entorno(YAPPY_URL_BASE='https://dcasa.dcasapty.workers.dev', DCASA_ENTORNO='produccion'):
+            self.assertEqual(api.url_base_del_aviso(base), base)
+        with entorno(YAPPY_URL_BASE='https://dcasa.dcasapty.workers.dev', DCASA_ENTORNO='staging'):
+            self.assertEqual(api.url_base_del_aviso(base), 'https://dcasa.dcasapty.workers.dev')
 
     def test_las_claves_no_salen_ni_imprimiendo_el_objeto(self):
         creds = credenciales()

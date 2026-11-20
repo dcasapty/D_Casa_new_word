@@ -38,6 +38,7 @@ VARIABLE_ID = 'YAPPY_ID_COMERCIO'
 VARIABLE_CLAVE = 'YAPPY_CLAVE_SECRETA'
 VARIABLE_DOMINIO = 'YAPPY_DOMINIO'
 VARIABLE_ENTORNO = 'YAPPY_ENTORNO'
+VARIABLE_URL_BASE = 'YAPPY_URL_BASE'    # opcional, NO secreta: dirección pública del aviso (solo fuera de producción)
 VARIABLE_SERVIDOR = 'DCASA_ENTORNO'     # lo fija el Worker: «produccion» o «staging» (sin ella: una máquina cualquiera)
 
 PRUEBA = 'prueba'
@@ -51,6 +52,7 @@ CDNS = {
     PRODUCCION: 'https://bt-cdn.yappy.cloud/v1/cdn/web-component-btn-yappy.js',
     PRUEBA: 'https://bt-cdn-uat.yappycloud.com/v1/cdn/web-component-btn-yappy.js',
 }
+RUTA_AVISO = '/payment/yappy/ipn'     # nuestra ruta del aviso (IPN): la ``ipnUrl`` que se le manda a Yappy
 RUTA_VALIDAR = '/payments/validate/merchant'
 RUTA_ORDEN = '/payments/payment-wc'
 
@@ -175,10 +177,58 @@ def anfitrion_del_cdn_permitido(url):
     return partes.scheme == 'https' and f'https://{partes.hostname}{partes.path}' in CDNS.values()
 
 
+# ------------------------------------------------------------------ a dónde avisa Yappy
+
+# Una etiqueta de dominio (letras, números y guiones, sin empezar ni acabar en guion) y el anfitrión que las junta con
+# puntos.
+_RE_ETIQUETA = r'[a-z0-9](?:[a-z0-9-]*[a-z0-9])?'
+RE_URL_BASE = re.compile(
+    rf'https://(?P<anfitrion>{_RE_ETIQUETA}(?:\.{_RE_ETIQUETA})+)(?::(?P<puerto>[1-9][0-9]{{0,4}}))?/?',
+    re.IGNORECASE | re.ASCII)
+
+
+def url_base_del_aviso(base_web):
+    """La dirección pública (``https://anfitrion``) con la que se arma la ``ipnUrl``: la de ``YAPPY_URL_BASE`` si está
+    y es una dirección https limpia (anfitrión y puerto, sin usuario, ruta, consulta ni espacios), y si no,
+    ``base_web`` (el ``web.base.url`` de Odoo). Existe para staging: su dominio propio todavía no apunta al Worker, y
+    a Yappy se le puede dar la dirección ``workers.dev`` del Worker de staging. En el servidor de PRODUCCIÓN se ignora
+    siempre: allí el aviso va a la dirección canónica del sitio (un valor mal puesto dejaría a Yappy avisando a otro
+    lado)."""
+    propia = _variable(VARIABLE_URL_BASE)
+    if not propia:
+        return base_web
+    if servidor_es_produccion():
+        _logger.warning('Yappy: %s se ignora en el servidor de producción (el aviso va a la dirección canónica).',
+                        VARIABLE_URL_BASE)
+        return base_web
+    partes = RE_URL_BASE.fullmatch(propia)
+    if partes is None:
+        _logger.warning('Yappy: %s no es una dirección https limpia (solo anfitrión y puerto): se ignora.',
+                        VARIABLE_URL_BASE)
+        return base_web
+    puerto = partes.group('puerto')
+    return f"https://{partes.group('anfitrion').lower()}{f':{puerto}' if puerto and puerto != '443' else ''}"
+
+
 # ------------------------------------------------------------------ el dominio
 
+# Una manera de escribir un dominio que Yappy podría devolver: ``[http://|https://][www.]anfitrion[:puerto][/…]``, sin
+# distinguir mayúsculas de minúsculas (solo ASCII: ``re.ASCII`` evita que letras raras como la «K» del signo Kelvin
+# pasen por una «k»). Lo que NO cabe aquí no es de ninguno de los dos: espacios, tabuladores, saltos de línea, ``@``
+# (usuario antes del anfitrión), ``?``, ``#``, ``%``, un trozo de ruta con letras, ``..`` o un subdominio que no sea
+# ``www``.
+_RE_ANFITRION = rf'{_RE_ETIQUETA}(?:\.{_RE_ETIQUETA})*'
+RE_DOMINIO = re.compile(
+    rf'(?P<esquema>https?://)?(?P<www>www\.)?(?P<anfitrion>{_RE_ANFITRION})(?::(?P<puerto>[1-9][0-9]{{0,4}}))?/*',
+    re.IGNORECASE | re.ASCII)
+# El puerto que se puede omitir: el de https (443) o el de http (80); sin esquema, cualquiera de los dos.
+PUERTOS_POR_DEFECTO = {'http://': ('80',), 'https://': ('443',), '': ('443', '80')}
+
+
 def _anfitrion(dominio):
-    """``https://www.dcasapty.com/`` → ``dcasapty.com`` (sin esquema, sin ``www``, sin barras)."""
+    """``https://www.dcasapty.com/tienda`` → ``dcasapty.com`` (sin esquema, sin ``www``, sin ruta). Lo que se declaró en
+    Yappy Comercial, reducido al anfitrión; solo para el dominio DECLARADO por nosotros (el que llega se normaliza con
+    ``normalizar_dominio``, que no perdona nada raro)."""
     texto = (dominio or '').strip()
     texto = re.sub(r'^[A-Za-z][A-Za-z0-9+.-]*://', '', texto)
     texto = texto.split('/')[0].split('?')[0].split('#')[0]
@@ -187,23 +237,40 @@ def _anfitrion(dominio):
     return texto
 
 
-def dominios_aceptados(declarado):
-    """Las maneras de escribir NUESTRO sitio que se aceptan en un aviso de vuelta: con y sin ``https://``, con y sin
-    ``www`` y con y sin barra final, más el declarado tal cual. Quien firma el aviso es Yappy, y su documentación no
-    dice si devuelve el dominio como se declaró o normalizado: averiguarlo a base de pagos perdidos sale caro.
-    Aceptarlos todos no afloja nada (siguen siendo dominios nuestros y la firma se comprueba igual con la clave
-    secreta); un dominio de otro sitio no entra nunca."""
-    base = _anfitrion(declarado)
-    if not base:
-        return ()
-    formas = []
-    for original in (base, base.lower()):
-        for www in ('', 'www.'):
-            for esquema in ('', 'https://'):
-                for barra in ('', '/'):
-                    formas.append(f'{esquema}{www}{original}{barra}')
-    formas.append((declarado or '').strip())
-    return tuple(dict.fromkeys(forma for forma in formas if forma))
+def normalizar_dominio(texto):
+    """La forma canónica de un dominio (``dcasapty.com``), o ``None`` si lo que llegó no es un dominio escrito de una de
+    las maneras conocidas: con o sin ``http://`` o ``https://``, con o sin ``www.``, en mayúsculas o minúsculas, con el
+    puerto por defecto (``:443``, o ``:80`` con ``http://``) y con barras al final. Cualquier otra cosa (un usuario
+    antes del ``@``, un subdominio, una ruta, un espacio, otra letra) da ``None``: no se adivina."""
+    if not isinstance(texto, str) or not texto or len(texto) > 253:
+        return None
+    partes = RE_DOMINIO.fullmatch(texto)
+    if partes is None:
+        return None
+    esquema = (partes.group('esquema') or '').lower()
+    anfitrion = partes.group('anfitrion').lower()
+    puerto = partes.group('puerto')
+    if puerto is not None and puerto not in PUERTOS_POR_DEFECTO[esquema]:
+        return f'{anfitrion}:{puerto}'
+    return anfitrion
+
+
+def dominio_nuestro(declarado, recibido):
+    """¿El dominio que llegó en el aviso es el NUESTRO (el declarado en Yappy Comercial)? Sí si es EXACTAMENTE el
+    declarado (tal cual) o si, escrito de cualquiera de las maneras que acepta ``normalizar_dominio``, es el mismo
+    anfitrión. Un dominio ajeno no entra nunca: la comparación es de igualdad, en tiempo constante. Quien firma el aviso
+    es Yappy y su documentación no dice si devuelve el dominio como se declaró o normalizado."""
+    if not isinstance(recibido, str):
+        return False
+    declarado = (declarado or '').strip()
+    propio = normalizar_dominio(_anfitrion(declarado))
+    if not propio:
+        return False
+    iguales = hmac.compare_digest(declarado.encode('utf-8'), recibido.encode('utf-8', errors='replace'))
+    normalizado = normalizar_dominio(recibido)
+    if normalizado is None:
+        return iguales
+    return hmac.compare_digest(normalizado.encode('ascii'), propio.encode('ascii')) or iguales
 
 
 # ------------------------------------------------------------------ la orden de Yappy (1 a 15 letras y números)
@@ -285,6 +352,9 @@ RECHAZO_ESTADO = 'estado'
 RECHAZO_DOMINIO = 'dominio'
 RECHAZO_FIRMA = 'firma'
 RECHAZO_SIN_CLAVES = 'sin_claves'
+# Los que dejan rastro en la transacción de esa orden (si existe): puede ser un aviso REAL que no se pudo aceptar (el
+# dominio escrito de otra forma, la clave mal pegada, las claves que faltan) y a quien opera le tiene que constar.
+RECHAZOS_CON_RASTRO = (RECHAZO_DOMINIO, RECHAZO_FIRMA, RECHAZO_SIN_CLAVES)
 
 
 def verificar_aviso(creds, parametros):
@@ -294,11 +364,13 @@ def verificar_aviso(creds, parametros):
 
     1. La forma: ``orderId`` (1 a 15 letras y números), ``status``, ``domain`` y ``hash`` son texto.
     2. El estado es uno de E, R, C, X (se acepta en minúscula y con espacios).
-    3. El dominio es UNO DE LOS NUESTROS, y va ANTES del hash: el hash se calcula sobre el dominio que venga en la
-       dirección, así que sin esto bastaría firmar un aviso para otro dominio y la firma cuadraría consigo misma. Lo que
-       se firma después es NUESTRA copia de la cadena, no la que vino.
-    4. La firma, en TIEMPO CONSTANTE (``hmac.compare_digest``): un ``==`` filtra, por lo que tarda, cuánto del hash
-       acertó quien lo intenta. El hash se acepta en mayúsculas y con espacios alrededor.
+    3. El dominio es EL NUESTRO (``dominio_nuestro``: el declarado tal cual, o el mismo anfitrión escrito con o sin
+       ``http://``/``https://``, con o sin ``www.``, en mayúsculas o minúsculas, con el puerto por defecto y con
+       barras al final), y va ANTES del hash: el hash se calcula sobre el dominio que venga en la dirección, así que
+       sin esto bastaría firmar un aviso para otro dominio y la firma cuadraría consigo misma. Lo que se firma después
+       es el dominio como llegó, ya comprobado. 4. La firma, en TIEMPO CONSTANTE (``hmac.compare_digest``): un ``==``
+       filtra, por lo que tarda, cuánto del hash acertó quien lo intenta. El hash se acepta en mayúsculas y con
+       espacios alrededor.
 
     ``confirmationNumber`` no es un parámetro documentado y **no está firmado**: se devuelve limpio y solo sirve para
     mirarlo, nunca para decidir.
@@ -316,16 +388,45 @@ def verificar_aviso(creds, parametros):
     estado = estado.strip().upper()
     if estado not in ESTADOS:
         return None, RECHAZO_ESTADO
-    suyo = next((forma for forma in dominios_aceptados(creds.dominio) if hmac.compare_digest(
-        forma.encode('utf-8'), dominio.encode('utf-8', errors='replace'))), None)
-    if suyo is None:
+    if not dominio_nuestro(creds.dominio, dominio):
         return None, RECHAZO_DOMINIO
-    esperada = firma_del_aviso(creds.clave, orden, estado, suyo)
+    # Se firma el dominio TAL COMO LLEGÓ (así lo hacen los cuatro ejemplos oficiales): ya se comprobó que es el
+    # nuestro y que tiene una forma acotada (solo letras, números, puntos, guiones, el esquema, el puerto por defecto
+    # y barras).
+    esperada = firma_del_aviso(creds.clave, orden, estado, dominio)
     recibida = hash_recibido.strip().lower()
     if not RE_HASH.fullmatch(recibida) or not hmac.compare_digest(recibida.encode('ascii'), esperada.encode('ascii')):
         return None, RECHAZO_FIRMA
     confirmacion = parametros.get('confirmationNumber')
     return Aviso(orden, estado, limpiar(confirmacion) if isinstance(confirmacion, (str, int)) else ''), None
+
+
+def _dominio_para_el_registro(valor, secretos=()):
+    """Un dominio (que llegó o que se declaró) listo para un registro: se ve COMPLETO (``limpiar`` taparía uno largo
+    como si fuera un token y es justo lo que hace falta ver), sin caracteres de control ni claves conocidas y
+    recortado."""
+    texto = '' if valor is None else str(valor)
+    for secreto in secretos:
+        if secreto and len(secreto) >= 4:
+            texto = texto.replace(secreto, '***')
+    texto = ''.join(letra if letra.isprintable() else '?' for letra in texto)
+    return texto[:100]
+
+
+def describir_rechazo(creds, parametros, motivo):
+    """Una frase corta y LIMPIA (sin claves, sin la firma recibida) de por qué se rechazó un aviso, para el registro del
+    servidor y para la transacción de esa orden. Si fue por el dominio, dice cuál llegó y cuál está declarado, para que
+    quien opera vea la diferencia (por ejemplo ``http://`` o una letra) sin adivinar."""
+    secretos = creds.secretos() if creds is not None else ()
+    if motivo == RECHAZO_DOMINIO:
+        llego = _dominio_para_el_registro(parametros.get('domain') if isinstance(parametros, dict) else '', secretos)
+        declarado = _dominio_para_el_registro(creds.dominio if creds is not None else '', secretos)
+        return f'dominio: llegó «{llego}» y el declarado en YAPPY_DOMINIO es «{declarado}»'
+    if motivo == RECHAZO_FIRMA:
+        return 'firma: no coincide (revisa que YAPPY_CLAVE_SECRETA sea la de este botón)'
+    if motivo == RECHAZO_SIN_CLAVES:
+        return 'faltan las claves de Yappy en el servidor'
+    return motivo
 
 
 # ------------------------------------------------------------------ el tope de llamadas a la vez
