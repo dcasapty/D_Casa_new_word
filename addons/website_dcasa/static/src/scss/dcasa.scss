@@ -844,6 +844,22 @@ $dcasa-vitrina-panel: 42%;     // ancho del bloque azul en la computadora
     }
 }
 
+// «Escríbenos por WhatsApp» del hero: relleno plano azul noche con letra blanca (13,44:1), sin degradado ni sombra.
+// Era solo un contorno transparente: sobre las fotos claras (la sábana blanca) medía de 1,6 a 2,3:1 en la computadora,
+// y es el único CTA de la marca. Con el fondo opaco el contraste no depende de la foto que toque. «Ver el catálogo»
+// (amarillo sobre azul) no cambia. Solo dentro de este hero: el contorno de las otras secciones queda como estaba.
+.o_dcasa_hero_vitrina .o_dcasa_btn_linea {
+    background: $dcasa-navy;
+    border-color: rgba(#FFFFFF, .9);
+    color: #FFFFFF;
+
+    &:hover,
+    &:focus-visible {
+        background: #FFFFFF;
+        color: $dcasa-azul;
+    }
+}
+
 // Con el carrusel a la vista, el botón flotante de WhatsApp espera fuera (el bloque ya trae el suyo).
 html.o_dcasa_vitrina_a_la_vista .o_dcasa_wa_float {
     opacity: 0;
