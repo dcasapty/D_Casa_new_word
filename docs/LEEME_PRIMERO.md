@@ -110,6 +110,76 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 > sigue. Se guardan las diez más recientes; las viejas se resumen en una línea abajo y su texto completo pasa a
 > [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md).
 
+### 2026-11-20 (Yappy directo, segunda revisión independiente RV6): sus hallazgos H1–H10 arreglados o documentados, más cuatro retoques que salieron de probar el botón real. En `local/yappy-fix` (sobre `local/yappy`), SIN unir a la rama de trabajo y SIN desplegar
+
+El revisor independiente atacó `96bbd48` y dijo: unir y subir a staging apagado, sí; encender en prueba, sí con una condición (H1); cobrar de verdad, no
+todavía (H2, H3, H5, H6). Todo eso está hecho (detalle y tabla en [YAPPY.md](YAPPY.md) §14), y se sumó lo que salió de probar el componente
+**real** de Yappy en Chrome (rama `local/yappy`, ya unida aquí). Cada arreglo con su prueba, y **cada prueba se comprobó rompiendo el arreglo a
+propósito** (mutaciones en `scratchpad`).
+
+- **Dinero (H2, H3):** nunca un segundo cobro. Un aviso `E` sobre un pedido que ya tiene dinero por otra vía (cobro a mano de Caja, otro cobro en
+  línea) o que está **cancelado** va a revisión humana, con su alerta y un mensaje honesto a la clienta (no «Confirmamos tu pedido»). El
+  pendiente «sin aviso» se cierra solo cuando llega el aviso. **Política única para Caja:** abrir Yappy Comercial y, si el dinero entró,
+  pulsar **«Confirmar que el dinero entró»** en «Pagos con Yappy» (mismo camino que el aviso, un solo cobro, queda quién y cuándo); **no** registrar el
+  cobro a mano. El pendiente, la Guía y YAPPY.md §3.4 dicen lo mismo. El apartado que vence por la noche ya no anula un pedido con un cobro de
+  Yappy abierto de menos de 15 minutos.
+- **Privacidad (H5):** el celular de Yappy, el id de Yappy y la huella son de Caja y superiores **a nivel de campo**; la nota del pedido ya no lleva
+  el celular de Yappy. **H4:** la lista exacta de dominios que carga el botón y un borrador de párrafo **sin aplicar** están en YAPPY.md §16 para que la
+  dueña decida; el texto legal no se tocó.
+- **Aviso (H6) y staging (H1):** el dominio del aviso se normaliza (`http://`, mayúsculas, `:443`, barras) sin dejar pasar uno ajeno (batería de
+  813,375 candidatos: 503 aceptados, 0 ajenos); un aviso rechazado deja en el registro el dominio que llegó y el declarado, y el pendiente ya no dice
+  «Yappy no avisó» si sí avisó. `YAPPY_URL_BASE` (staging la fija en `edge/wrangler.jsonc` con `https://dcasa-staging.dcasapty.workers.dev`; Odoo la
+  ignora en producción) hace que el aviso llegue a staging: **comprobar con el `curl` de YAPPY.md §7 B** y ver si Yappy acepta esa `ipnUrl`.
+- **Topes y botón (H7, H8):** el tope de 5 cobros por pedido es estricto en paralelo; Enter mantenida y varios clics no abren más cobros; pruebas que
+  matan las dos mutaciones que sobrevivían (`eventSuccess` a otra página y el host de producción roto en el JavaScript).
+- **Retoques del botón real:** el gris `dark` se mantiene oscuro con el ratón encima (contraste 6.48:1 y 5.41:1 al pulsar, antes 2.44:1); en «revisión»
+  la pantalla de estado no ofrece «Intentar de nuevo»; con un cobro pendiente de menos de 5 minutos de la propia sesión, `/shop/cart` y `/shop/payment`
+  mandan a `/payment/status`; aviso del navegador (`beforeunload`) solo mientras hay un intento vivo.
+- **Pruebas (conteos exactos, base nueva con los 32 módulos, `scripts/test.sh`):** 1,730 pruebas (Odoo cuenta subpruebas): `dcasa_pago_yappy` 339,
+  `website_dcasa` 496, `dcasa_pago_tilopay` 347, `dcasa_contabilidad` 187, `dcasa_guia` 97, `dcasa_base` 389, `dcasa_comision_web` 379; 0 rojas y 2
+  errores de Chrome que pasaron al repetirlas solas (`website_dcasa test_pago_celular`, intermitente con y sin Yappy, y la de «atrás» de Yappy, que
+  ahora aguanta el instante en que la página cambia: las 23 de navegador de Yappy en verde). Las de concurrencia real (opt-in): 4 de 4. Borde: **319**
+  (317 + 2) y `typecheck` limpios; `ruff check addons` limpio.
+- **Falta (no es de código):** compra de ensayo contra el Yappy real y las respuestas por escrito de §15; que la dueña decida la política de privacidad
+  (§16); su «sí» a las capturas (cambio visual); conciliar a diario desde el primer cobro y la comisión (contadora); revisar a Juan (§11).
+
+### 2026-11-20 (Yappy directo): el Botón de Pago de Yappy Comercial en la tienda, y «qué compró cada persona». En su propia rama (`local/yappy`), SIN unir a la rama de trabajo y SIN desplegar: espera el «sí» de la dueña a las capturas
+
+**Nada de esto está en producción ni en la rama de trabajo.** Es un módulo nuevo, `dcasa_pago_yappy` (ver [YAPPY.md](YAPPY.md)), hermano
+de Tilopay, que cobra con el **Botón de Pago de Yappy Comercial** sin sacar a la clienta de la tienda. Trae un cambio visual (la fila
+«Yappy» del pago con su campo de celular y el botón de Yappy, y el bloque «Qué compró» en el pedido), así que por la regla del
+2026-11-20 se hicieron capturas antes/después (computadora 1440×900 y celular 390, datos inventados, el botón de Yappy es un
+**sustituto** con su aspecto documentado) y **no se une ni se despliega hasta su «sí»**.
+
+- **Qué hace:** la clienta escribe su número de Yappy, toca el botón y aprueba en su app. **Solo el aviso firmado de Yappy** (HMAC-SHA256
+  en tiempo constante, y el dominio nuestro comprobado **antes** del hash) paga el pedido; lo que diga el navegador no decide nada. Cada caso
+  raro (aviso repetido, `R` tras `E`, pago a un cobro ya cancelado, pedido que cambió de total, entorno distinto) termina en un estado
+  explicado y, si entró dinero que no cuadra, en **revisión humana** (nunca se paga solo). Si el aviso no llega, a los 15 minutos
+  queda un pendiente para Caja (Yappy no tiene consulta de estado).
+- **Nace apagado y sin publicar;** las claves solo en Cloudflare (`YAPPY_ID_COMERCIO` y `YAPPY_CLAVE_SECRETA` secretos; `YAPPY_DOMINIO` y
+  `YAPPY_ENTORNO` normales; staging fijado en `prueba`). Cuando se ofrece, **reemplaza al «Yappy» manual** de siempre (la tienda lista
+  métodos, no proveedores: método propio `yappy_directo`, también llamado «Yappy»), y el cobro cae en el mismo diario «Yappy».
+- **Lo que pidió la dueña, «que el equipo vea con claridad qué compró cada persona»:** un bloque «Pago, entrega y origen» arriba de las
+  líneas del pedido; una pantalla «Pagos con Yappy» con la tabla de lo que compró (producto y modelo, cantidad, precio, descuento); una
+  nota interna en el pedido al entrar el pago; y un pendiente para Caja con el mismo detalle si el aviso no llega. La orden de Yappy empieza
+  con el número del pedido, así que el reporte de Yappy Comercial lleva directo al pedido. Sin canal nuevo ni datos del cliente fuera de Odoo.
+- **Pruebas (conteos exactos, `scripts/test.sh` en base nueva):** `dcasa_pago_yappy` **208 pruebas, 0 rojas**, con todos los módulos
+  instalados (205 corren siempre; 3 de concurrencia real son opt-in con `DCASA_PRUEBA_CONCURRENCIA=1` y, con la variable, pasan);
+  `website_dcasa` 382, `dcasa_pago_tilopay` 241, `dcasa_contabilidad` 145 (en verde; 3 de `website_dcasa` piden `dcasa_tienda_borde`
+  y pasan con todos los módulos), `dcasa_guia` 81 y `dcasa_base:TestPermisosVendedora` 9 en verde; borde **317** (299 + 18 nuevas) y
+  `typecheck` limpios; `ruff check addons` limpio. Las pruebas encontraron dos cosas reales: el menú de «Pagos con Yappy» lo veía la
+  vendedora (lo atrapó una guardia de `dcasa_base`) y el controlador del aviso se tragaba el error de concurrencia de PostgreSQL
+  (daba 500 en vez de dejar que Odoo repita la petición).
+- **Lo que decidí yo (y va en el informe):** método propio `yappy_directo` y retirar al manual en vez de dos filas «Yappy»; reutilizar el
+  diario «Yappy» que ya existía; bloqueo de espera (no `SKIP LOCKED`) para no perder un aviso; guardar la orden de Yappy y confirmarla antes
+  de llamar a Yappy; 403 sin motivo para un aviso que no cuadra y 500 para un fallo nuestro; aceptar 16 maneras de escribir nuestro
+  dominio (Yappy no documenta cómo lo devuelve) en vez de «sin https ni www ni barra»; los ayudantes de Tilopay copiados, no compartidos.
+- **Trampa nueva, importante:** `--test-tags /dcasa_pago_yappy` **no corre ninguna prueba** (la expresión regular de Odoo toma «py» por un
+  archivo). `scripts/test.sh` ya lo corrige; mirar siempre el conteo de pruebas (CONTEXTO_AGENTICO).
+- **Falta:** el «sí» de la dueña a las capturas; la revisión independiente (es dinero); el acceso al programa de pruebas de Yappy
+  (`botondepagoyappy@bgeneral.com`) y las preguntas de [YAPPY.md](YAPPY.md) §8; una compra de ensayo; conciliar a diario contra Yappy Comercial;
+  la contadora decide la comisión de Yappy (no está modelada); revisar a Juan al encender (YAPPY.md §11, no se tocó).
+
 ### 2026-11-19 y 2026-11-20: «Forma de pago» en facturas, ventas por día, carrusel y Andrés ampliado, Tilopay y la comisión web. En la rama de trabajo, probado, SIN subir (producción sigue en `d2ba8caf`)
 
 **Nada de esto está en producción todavía.** Todo vive en `claude/merge-rama-to-main-ty3koz` (cada pieza en su rama

@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- LA TRANSACCIÓN: «Qué compró» arriba (la API de Yappy no manda detalle: vive en el pedido), con el enlace al pedido,
+         y abajo lo que Yappy dijo. Nunca una clave. -->
+    <record id="payment_transaction_form_yappy" model="ir.ui.view">
+        <field name="name">payment.transaction.form.yappy</field>
+        <field name="model">payment.transaction</field>
+        <field name="inherit_id" ref="payment.payment_transaction_form"/>
+        <field name="arch" type="xml">
+            <!-- El botón de Caja para el cobro cuyo aviso no llegó (docs/YAPPY.md §3.4): mismo camino que el aviso, un solo
+                 cobro, queda quién y cuándo. El servidor vuelve a exigir el grupo: esto solo lo esconde. -->
+            <xpath expr="//header/button[@name='action_capture']" position="before">
+                <button type="object" name="action_dcasa_yappy_confirmar_cobro" class="oe_highlight"
+                        string="Confirmar que el dinero entró"
+                        invisible="provider_code != 'yappy' or state not in ('draft', 'pending') or not dcasa_yappy_orden"
+                        groups="dcasa_base.group_caja,account.group_account_user,base.group_system"
+                        confirm="¿Ya miraste en Yappy Comercial que el dinero de esta orden entró? Esto deja el pedido pagado y queda anotado que lo confirmaste tú. Si el dinero no está, no lo confirmes. No registres además el cobro a mano en el diario: se cobraría dos veces."/>
+            </xpath>
+            <field name="provider_reference" position="after">
+                <field name="dcasa_yappy_orden" invisible="provider_code != 'yappy'"/>
+                <field name="dcasa_yappy_id" invisible="provider_code != 'yappy'"
+                       groups="dcasa_base.group_caja,account.group_account_user,base.group_system"/>
+                <field name="dcasa_yappy_celular" invisible="provider_code != 'yappy'"
+                       groups="dcasa_base.group_caja,account.group_account_user,base.group_system"/>
+                <field name="dcasa_yappy_estado" invisible="provider_code != 'yappy'"/>
+                <field name="dcasa_yappy_aviso_fecha" invisible="provider_code != 'yappy'"/>
+                <field name="dcasa_yappy_confirmacion" invisible="provider_code != 'yappy' or not dcasa_yappy_confirmacion"/>
+                <field name="dcasa_yappy_codigo" invisible="provider_code != 'yappy' or not dcasa_yappy_codigo"/>
+                <field name="dcasa_yappy_confirmada_por" invisible="provider_code != 'yappy' or not dcasa_yappy_confirmada_por"
+                       groups="dcasa_base.group_caja,account.group_account_user,base.group_system"/>
+                <field name="dcasa_yappy_confirmada_fecha" invisible="provider_code != 'yappy' or not dcasa_yappy_confirmada_fecha"
+                       groups="dcasa_base.group_caja,account.group_account_user,base.group_system"/>
+                <field name="dcasa_yappy_rechazos" invisible="provider_code != 'yappy' or not dcasa_yappy_rechazos"/>
+                <field name="dcasa_yappy_rechazo" invisible="provider_code != 'yappy' or not dcasa_yappy_rechazo"/>
+                <field name="dcasa_yappy_revision" invisible="provider_code != 'yappy' or not dcasa_yappy_revision"/>
+            </field>
+            <xpath expr="//sheet/group" position="before">
+                <group name="dcasa_compra" invisible="not dcasa_pedido_id">
+                    <group name="dcasa_compra_pedido">
+                        <field name="dcasa_pedido_id" string="Pedido"/>
+                        <field name="dcasa_origen_texto"/>
+                    </group>
+                    <group name="dcasa_compra_cliente">
+                        <field name="dcasa_cliente_celular"/>
+                        <field name="dcasa_entrega_texto"/>
+                    </group>
+                    <separator string="Qué compró" colspan="2"/>
+                    <field name="dcasa_lineas_ids" nolabel="1" colspan="2" readonly="1">
+                        <list>
+                            <field name="name" string="Producto y modelo"/>
+                            <field name="product_uom_qty" string="Cantidad"/>
+                            <field name="price_unit" string="Precio"/>
+                            <field name="discount" string="Desc. %"/>
+                            <field name="price_total" string="Total"/>
+                            <field name="linked_line_id" string="Pieza de" optional="show"/>
+                        </list>
+                    </field>
+                </group>
+            </xpath>
+            <xpath expr="//group[@name='transaction_details']" position="after">
+                <group name="dcasa_yappy_avisos_grupo" string="Avisos de Yappy" colspan="2"
+                       invisible="provider_code != 'yappy' or not dcasa_yappy_avisos">
+                    <field name="dcasa_yappy_avisos" nolabel="1" colspan="2"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="payment_transaction_list_yappy" model="ir.ui.view">
+        <field name="name">payment.transaction.list.yappy</field>
+        <field name="model">payment.transaction</field>
+        <field name="inherit_id" ref="payment.payment_transaction_list"/>
+        <field name="arch" type="xml">
+            <field name="reference" position="after">
+                <field name="dcasa_pedido_id" string="Pedido" optional="show"/>
+            </field>
+            <field name="partner_name" position="after">
+                <field name="dcasa_cliente_celular" string="Celular" optional="show"/>
+                <field name="dcasa_yappy_orden" optional="show"/>
+            </field>
+        </field>
+    </record>
+
+    <record id="payment_transaction_search_yappy" model="ir.ui.view">
+        <field name="name">payment.transaction.search.yappy</field>
+        <field name="model">payment.transaction</field>
+        <field name="inherit_id" ref="payment.payment_transaction_search"/>
+        <field name="arch" type="xml">
+            <field name="reference" position="after">
+                <field name="dcasa_yappy_orden"/>
+                <field name="dcasa_pedido_id" filter_domain="[('sale_order_ids', 'ilike', self)]"/>
+            </field>
+            <filter name="live_transactions" position="before">
+                <filter name="dcasa_yappy" string="Yappy" domain="[('provider_code', '=', 'yappy')]"/>
+                <filter name="dcasa_yappy_revision" string="Para revisar" domain="[('dcasa_yappy_revision', '=', True)]"/>
+                <filter name="dcasa_yappy_esperando" string="Esperando el aviso de Yappy"
+                        domain="[('provider_code', '=', 'yappy'), ('state', '=', 'pending')]"/>
+                <separator/>
+            </filter>
+        </field>
+    </record>
+
+    <!-- «Pagos con Yappy»: lo que el equipo mira para saber qué se pagó, cuándo y de qué pedido (la lista normal de
+         transacciones de Odoo solo aparece en modo desarrollador). -->
+    <record id="action_pagos_yappy" model="ir.actions.act_window">
+        <field name="name">Pagos con Yappy</field>
+        <field name="res_model">payment.transaction</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('provider_code', '=', 'yappy')]</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_neutral_face">Todavía no hay pagos con Yappy</p>
+            <p>Cuando alguien pague con Yappy, aquí ves el pedido, el cliente, el monto, el estado y la orden que sale en el
+               reporte de Yappy Comercial. Abre uno para ver qué compró.</p>
+        </field>
+    </record>
+
+    <!-- Caja y arriba (Gerencia la incluye) y contabilidad. La vendedora NO la ve, igual que «Cobros de hoy (caja)»: la lista
+         es de los pagos de TODA la tienda; ella ve el bloque «Pago, entrega y origen» en sus pedidos. -->
+    <menuitem id="menu_pagos_yappy" name="Pagos con Yappy" action="action_pagos_yappy"
+              parent="account.menu_finance_receivables" sequence="95"
+              groups="dcasa_base.group_caja,account.group_account_user"/>
+
+</odoo>

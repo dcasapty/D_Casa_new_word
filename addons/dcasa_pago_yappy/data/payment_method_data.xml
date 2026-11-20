@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+
+    <!-- «Yappy» en la tienda cuando el pago directo con Yappy está encendido. Su código es DISTINTO del «Yappy» manual de
+         siempre (código «yappy», el que te escribe por WhatsApp): así los dos nunca se mezclan en una sola fila y, cuando
+         el directo se ofrece, el manual se retira (models/payment_provider.py, _get_compatible_providers). Nace inactivo:
+         se activa solo cuando Gerencia enciende el proveedor. -->
+    <record id="payment_method_yappy" model="payment.method">
+        <field name="name">Yappy</field>
+        <field name="code">yappy_directo</field>
+        <field name="sequence">2</field>
+        <field name="active" eval="False"/>
+        <field name="image" type="base64" file="payment/static/img/card.png"/>
+        <field name="support_tokenization" eval="False"/>
+        <field name="support_express_checkout" eval="False"/>
+        <field name="support_manual_capture">none</field>
+        <field name="support_refund">none</field>
+        <field name="supported_currency_ids" eval="[Command.set([ref('base.USD')])]"/>
+    </record>
+
+</odoo>

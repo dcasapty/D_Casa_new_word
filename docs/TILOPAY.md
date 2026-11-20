@@ -19,6 +19,13 @@ programar y se pone al día al terminar.
 | Comisiones de Tilopay en la contabilidad | **No**: lo decide la contadora (§9). Aquí no hay ninguna cifra de comisión |
 | Factura automática al pagar | **No** se enciende: es un acto fiscal que decide la dueña con la contadora (§9) |
 
+> **Sobre Yappy (2026-11-20).** En la cuenta de Tilopay **Yappy no está activado** (lo activa Gerencia en el panel de Tilopay,
+> «Métodos de Pago › + Agregar Método de Pago»). Y la opción
+> **«Yappy» de la tienda es el pago directo** con el Botón de Pago de Yappy Comercial ([YAPPY.md](YAPPY.md)), no este módulo:
+> cuando el directo está encendido, la tienda muestra un solo «Yappy» y es ese. Tilopay no lo reemplaza ni se pisa con él. Si algún
+> día se activa Yappy dentro de Tilopay, la clienta lo vería en la página de Tilopay, **después** de elegir «Tarjeta de crédito o
+> débito» en la tienda, así que conviene decidir con la dueña cuál de los dos se deja a la vista antes de activarlo.
+
 ## 2. Lo que se leyó (fuentes oficiales, leídas el 2026-11-19)
 
 Todo salió de `tilopay.com/developers` y de su especificación OpenAPI 3.1 (`/developers/openapi.json`), que el propio
@@ -289,7 +296,7 @@ Sin el aviso el sistema funciona igual (retorno + tarea programada que pregunta 
 
 En **Métodos de Pago** del panel: **activa solo lo que D'CASA quiere ofrecer** y apaga el resto, porque la página de pago muestra
 lo que esté activo. Propuesta: **tarjetas Visa y Mastercard** y **Yappy**. (Amex, Tafi, Crediviva y Tasa Cero BAC: solo si la
-dueña y la contadora quieren ofrecerlos y entienden sus costos). Yappy exige agregarlo en «+ Agregar Método de Pago» y **activarlo**.
+dueña y la contadora quieren ofrecerlos y entienden sus costos). Yappy exige agregarlo en «+ Agregar Método de Pago» y **activarlo**. **Hoy Yappy no está activado en la cuenta y no hace falta:** la tienda ofrece Yappy por su cuenta, directo ([YAPPY.md](YAPPY.md)).
 Las comisiones de cada método están en <https://tilopay.com/tarifas>: no se copian aquí; la contadora las toma de la fuente.
 
 ## 7. Guion de prueba (sandbox, con dinero de mentiras)
@@ -318,7 +325,7 @@ personas del equipo con sesión iniciada**: un visitante no puede abrirlo (§3, 
    transacción pasa de error a confirmado).
 9. **Cerrar la pestaña después de pagar** (sin volver a la tienda): en pocos minutos la tarea programada debe dejar el pedido pagado
    (o el aviso, si Tilopay ya lo registró).
-10. **Yappy** (si está activo): elige Yappy en la página de Tilopay y completa la prueba. Mira si queda pagado. Sin respuesta en 7 min, expira.
+10. **Yappy** (solo si Gerencia lo activó en el panel de Tilopay; hoy no lo está, ver el aviso del §1): elige Yappy en la página de Tilopay y completa la prueba. Mira si queda pagado. Sin respuesta en 7 min, expira.
 11. **Mirar el entorno:** abre el pedido pagado y la transacción: debe decir que Tilopay respondió «prueba». Cambia `TILOPAY_ENTORNO` a
     `produccion` (con el «Modo Prueba» aún encendido): un pago nuevo **no debe** quedar pagado (se anota que Tilopay respondió «prueba»).
     Vuelve a `prueba`.

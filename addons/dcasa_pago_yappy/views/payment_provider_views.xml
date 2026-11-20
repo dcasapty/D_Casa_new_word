@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- En Facturación › Configuración › Proveedores de pago › Yappy directo. Nunca muestra una clave: solo qué falta (por
+         el nombre de la variable), el entorno que dice Cloudflare y el dominio declarado (no es secreto). -->
+    <record id="payment_provider_form_yappy" model="ir.ui.view">
+        <field name="name">payment.provider.form.yappy</field>
+        <field name="model">payment.provider</field>
+        <field name="inherit_id" ref="payment.payment_provider_form"/>
+        <field name="arch" type="xml">
+            <group name="provider_credentials" position="inside">
+                <group name="dcasa_yappy" invisible="code != 'yappy'" colspan="2">
+                    <div colspan="2" class="alert alert-info" role="alert">
+                        <p>Los clientes pagan con el botón de Yappy: reciben la solicitud en su app y la confirman. Es el
+                        <strong>Botón de Pago de Yappy Comercial</strong>, directo con el banco (no pasa por Tilopay). Las
+                        claves <strong>no se escriben aquí</strong>: viven como variables del Worker de Cloudflare
+                        (<code>YAPPY_ID_COMERCIO</code> y <code>YAPPY_CLAVE_SECRETA</code>, secretas; <code>YAPPY_DOMINIO</code>
+                        y <code>YAPPY_ENTORNO</code>, normales). El paso a paso está en <code>docs/YAPPY.md</code>.</p>
+                        <p>Cuando está listo, <strong>reemplaza al «Yappy» de siempre</strong> (el que te escribe por WhatsApp):
+                        nunca se ven dos «Yappy» en la tienda. Si se apaga o le falta algo, vuelve el de siempre.</p>
+                        <p><strong>Cómo reconocer un cobro en Yappy Comercial:</strong> el número de orden que ves allí empieza con
+                        el número del pedido de Odoo (por ejemplo <code>S00008…</code>); las últimas cinco letras o números son
+                        solo para que cada intento sea único. Con ese número abres el pedido y ves qué compró.</p>
+                    </div>
+                    <field name="dcasa_yappy_conectado"
+                           help="Sí = las dos claves y el dominio están cargados en Cloudflare. No dice que Yappy los acepte: «Probar conexión» comprueba el ID de comercio y el dominio, y la clave secreta se comprueba en el primer cobro de prueba."/>
+                    <field name="dcasa_yappy_entorno"
+                           help="Lo que dice Cloudflare (YAPPY_ENTORNO). «Modo de prueba» usa el servidor de pruebas de Yappy; «Habilitado», el real."/>
+                    <field name="dcasa_yappy_dominio"/>
+                    <field name="dcasa_yappy_url_del_aviso" widget="CopyClipboardChar"/>
+                    <field name="dcasa_yappy_aviso" colspan="2" nolabel="0"/>
+                    <field name="dcasa_yappy_prueba_texto"/>
+                    <div colspan="2">
+                        <button name="action_dcasa_yappy_probar" type="object" class="btn btn-secondary"
+                                string="Probar conexión"
+                                groups="dcasa_base.group_gerencia,base.group_system"/>
+                    </div>
+                </group>
+            </group>
+        </field>
+    </record>
+
+</odoo>

@@ -3062,6 +3062,96 @@
    ]
   },
   {
+   "id": "yappy-pagos",
+   "categoria": "tienda",
+   "grupo": "Tienda en línea",
+   "titulo": "Encender el pago con Yappy en la tienda y ver por qué no aparece",
+   "logras": "Ves si las claves de Yappy ya están cargadas en el servidor, en qué entorno está (prueba o producción), si «Yappy» aparece en la tienda y, si no aparece, por qué. Pulsas «Probar conexión» para confirmar que Yappy reconoce al comercio y al dominio. Cuando todo está bien, lo enciendes: el cliente paga desde su app de Yappy sin salir de la tienda y el pedido queda pagado cuando Yappy avisa.",
+   "destino": {
+    "menu": "account_payment.payment_provider_menu"
+   },
+   "pasos": [
+    {
+     "texto": "Las claves no se escriben aquí ni se mandan por el chat: se pegan en el panel de Cloudflare (el paso a paso está en docs/YAPPY.md). Yappy muestra la clave secreta una sola vez, así que se pega directo.",
+     "destino": null
+    },
+    {
+     "texto": "Abre «Yappy directo» en la lista, mira «Claves de Yappy cargadas» y «Entorno de Yappy» y pulsa «Probar conexión».",
+     "destino": {
+      "menu": "account_payment.payment_provider_menu"
+     }
+    },
+    {
+     "texto": "El dominio que sale ahí tiene que ser, letra por letra, el que se escribió en Yappy Comercial al crear el botón. Si no coincide, Yappy no deja cobrar.",
+     "destino": null
+    },
+    {
+     "texto": "Para probar con dinero de mentira, ponlo en «Modo de prueba» y déjalo sin publicar: así solo lo ven y lo usan las personas del equipo con sesión, nunca un visitante. Para cobrar de verdad, «Habilitado» (y que Cloudflare diga «produccion»).",
+     "destino": null
+    }
+   ],
+   "nota": "Viene apagado. Cuando se enciende, reemplaza al «Yappy» de siempre (el que te escribe por WhatsApp): el cliente nunca ve dos. Si algo no coincide (claves, entorno o el interruptor), el Yappy de siempre sigue funcionando y la pantalla dice por qué. Esta pantalla es del administrador.",
+   "palabras": [
+    "yappy",
+    "yappy directo",
+    "boton de pago",
+    "pago con yappy",
+    "cobrar con yappy",
+    "probar conexion",
+    "claves de yappy",
+    "yappy comercial",
+    "pago en linea",
+    "pasarela"
+   ],
+   "grupos": [
+    "base.group_system"
+   ]
+  },
+  {
+   "id": "yappy-que-compro",
+   "categoria": "vender",
+   "grupo": "Cobros",
+   "titulo": "Ver qué compró quien pagó con Yappy",
+   "logras": "Ves, por cada pago con Yappy, qué pedido es, qué compró la persona (producto, modelo, cantidad, precio y descuento), cómo recibe su pedido, su celular y cuándo y cómo pagó, para coordinar la entrega sin buscar nada. También ves los pagos que Yappy todavía no confirmó (y los confirmas tú, mirando Yappy Comercial) y los que alguien debe revisar.",
+   "destino": {
+    "menu": "dcasa_pago_yappy.menu_pagos_yappy"
+   },
+   "pasos": [
+    {
+     "texto": "Abre «Pagos con Yappy»: cada fila trae el pedido, el celular y la orden que se ve en el reporte de Yappy Comercial.",
+     "destino": {
+      "menu": "dcasa_pago_yappy.menu_pagos_yappy"
+     }
+    },
+    {
+     "texto": "Abre uno: arriba dice el pedido, la entrega y de dónde llegó la compra; abajo, la lista de lo que compró.",
+     "destino": null
+    },
+    {
+     "texto": "Si Yappy no avisó pasados unos minutos, te queda un pendiente en el pedido. Abre el reporte de Yappy Comercial y mira si el dinero entró. Si entró, abre ese pago en «Pagos con Yappy» y pulsa «Confirmar que el dinero entró»: queda pagado una sola vez y anotado que lo confirmaste tú. No lo registres además a mano en el diario: se cobraría dos veces. Si el dinero no entró, no hagas nada: el pedido sigue guardado.",
+     "destino": null
+    }
+   ],
+   "nota": "El número de confirmación que a veces trae Yappy es solo informativo: nunca decide si un pedido está pagado. Un pedido solo queda pagado cuando Yappy avisa con su firma o cuando Caja confirma, mirando Yappy Comercial, que el dinero entró. Si el pedido ya estaba pagado por otro lado y llega el aviso de Yappy, no se cobra otra vez: queda una alerta para revisarlo.",
+   "palabras": [
+    "yappy",
+    "que compro",
+    "pedido pagado",
+    "pagos con yappy",
+    "lo que compro",
+    "detalle del pedido",
+    "pago en linea",
+    "coordinar la entrega",
+    "pagado con yappy"
+   ],
+   "grupos": [
+    "dcasa_base.group_caja",
+    "dcasa_base.group_gerencia",
+    "account.group_account_user",
+    "base.group_system"
+   ]
+  },
+  {
    "id": "usuario-nuevo",
    "categoria": "administrar",
    "grupo": "Accesos",

@@ -1,0 +1,165 @@
+// Yappy directo: el número de Yappy, el botón de Yappy y los mensajes dentro de la fila «Yappy» del pago (2026-11-20).
+// Se ve como el pago rediseñado (website_dcasa/static/src/scss/pago.scss): sistema plano (bordes de 1 px, ninguna sombra ni
+// degradado), azul #1340B1, Inter para el cuerpo, una sola esquina de 12 px para campos y botones, campo de 48 px y botón de
+// 52 px. El amarillo no se usa (nunca toca el blanco). Contraste ≥ 4.5:1 en todo texto.
+//
+// El botón de Yappy lo dibuja su propio paquete. Se usa su tema `dark` (el ÚNICO de los seis que cumple AA con margen:
+// blanco sobre #444c5e = 8.60:1) y aquí solo se le iguala la altura y la esquina a los botones del sitio. Esos ajustes usan
+// nombres de clases del paquete de Yappy: si algún día las renombran, simplemente no se aplican y el botón sigue siendo el
+// de Yappy, usable.
+
+$yappy-azul: #1340B1;
+$yappy-azul-osc: #0F3591;
+$yappy-navy: #0E2A6B;
+$yappy-tinta: #1B2233;
+$yappy-gris: #4A5163;
+$yappy-borde: #D9DDE6;
+$yappy-borde-campo: #8C93A6;
+$yappy-suave: #F2F5FC;
+$yappy-error: #B42318;
+$yappy-radio: 12px;
+// El gris del botón `dark` de Yappy (#444c5e en reposo) con el ratón encima y al pulsar; contraste del texto blanco 6.48 y 5.41.
+$yappy-dark-encima: #565e72;
+$yappy-dark-pulsado: #626a7e;
+
+#wrapwrap .o_dcasa_yappy {
+    margin: .75rem 0 .25rem;
+    padding-left: 2rem;
+    font-family: 'Inter', sans-serif;
+    color: $yappy-tinta;
+
+    .o_dcasa_yappy_etiqueta {
+        display: block;
+        margin-bottom: .375rem;
+        font-size: .875rem;
+        font-weight: 600;
+        color: $yappy-tinta;
+    }
+
+    .o_dcasa_yappy_campo {
+        width: 100%;
+        max-width: 22rem;
+        min-height: 48px;
+        padding: .5rem .875rem;
+        border: 1px solid $yappy-borde-campo;
+        border-radius: $yappy-radio;
+        background: #fff;
+        font-family: 'Inter', sans-serif;
+        font-size: 1rem;          // 16 px: el celular no hace zoom al escribir
+        letter-spacing: .02em;
+        color: $yappy-tinta;
+        box-shadow: none;
+        &:focus { border-color: $yappy-azul; box-shadow: 0 0 0 1px $yappy-azul; outline: 0; }
+    }
+
+    .o_dcasa_yappy_ayuda {
+        margin: .5rem 0 0;
+        font-size: .875rem;
+        line-height: 1.5;
+        color: $yappy-gris;
+    }
+
+    // El botón de Yappy (lo pone el JavaScript).
+    .o_dcasa_yappy_boton {
+        margin-top: 1rem;
+        border-radius: $yappy-radio + 2px;
+        &:focus-visible { outline: 3px solid $yappy-azul; outline-offset: 2px; }
+        btn-yappy { display: block; width: 100%; }
+        .yappy-button.ecommerce {
+            height: 52px !important;
+            border-radius: $yappy-radio !important;
+        }
+        // El gris `dark` (el tema que eligió la dueña) con el ratón encima: la regla `:hover` del propio componente lo pinta
+        // de #9fa6b7 y el texto blanco baja a 2.44:1 (ilegible; solo en computadora). Aquí se mantiene OSCURO: un poco más claro
+        // al pasar el ratón y al pulsar (así se nota que responde), siempre con el texto blanco por encima de 4.5:1 (WCAG 2.x
+        // sobre los colores de abajo: reposo #444c5e 8.60:1 · encima #565e72 6.48:1 · pulsado #626a7e 5.41:1). Va atado a
+        // nuestra caja (`#wrapwrap .o_dcasa_yappy …`), que pesa más que la regla del componente aunque ella lleve `!important`.
+        .yappy-button.ecommerce.dark {
+            &:hover,
+            &:focus,
+            &:focus-visible { background: $yappy-dark-encima !important; }
+            &:active { background: $yappy-dark-pulsado !important; }
+        }
+    }
+
+    .o_dcasa_yappy_mensaje {
+        display: flex;
+        align-items: flex-start;
+        gap: .5rem;
+        margin: .75rem 0 0;
+        padding: .625rem .875rem;
+        border: 1px solid $yappy-borde;
+        border-radius: $yappy-radio;
+        font-size: .9375rem;
+        line-height: 1.45;
+        background: #fff;
+        &[hidden] { display: none; }
+        .fa { margin-top: .2rem; }
+        &[data-tipo="error"] { color: $yappy-error; border-color: $yappy-error; }
+        &[data-tipo="info"] { color: $yappy-navy; border-color: $yappy-azul; background: $yappy-suave; }
+    }
+
+    // Si el botón no carga o Yappy no está en línea: qué hacer, con «Escríbenos por WhatsApp» (el CTA de la marca).
+    .o_dcasa_yappy_sin_script {
+        margin-top: .75rem;
+        padding: .875rem 1rem;
+        border: 1px solid $yappy-borde;
+        border-radius: $yappy-radio;
+        background: #fff;
+        &[hidden] { display: none; }
+        p { margin: 0; font-size: .9375rem; line-height: 1.45; color: $yappy-tinta; }
+        p .fa { margin-right: .5rem; color: $yappy-error; }
+        .o_dcasa_yappy_acciones { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .75rem; }
+        .o_dcasa_yappy_reintentar,
+        .o_dcasa_yappy_whatsapp {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 44px;
+            padding: .5rem 1.25rem;
+            border: 1px solid $yappy-azul;
+            border-radius: $yappy-radio;
+            background: #fff;
+            color: $yappy-azul;
+            font-family: 'Inter', sans-serif;
+            font-size: .9375rem;
+            font-weight: 600;
+            text-decoration: none;
+            &:hover { background: $yappy-suave; color: $yappy-azul-osc; }
+            &:focus-visible { outline: 3px solid $yappy-azul; outline-offset: 2px; }
+        }
+    }
+}
+
+@media (max-width: 575.98px) {
+    #wrapwrap .o_dcasa_yappy {
+        padding-left: 0;
+        .o_dcasa_yappy_campo { max-width: none; }
+        .o_dcasa_yappy_sin_script .o_dcasa_yappy_acciones > * { flex: 1 1 100%; }
+    }
+}
+
+// LA VENTANA DE YAPPY (medida con el componente real, 2026-11-20). Yappy la dibuja con `<dialog open>` (no modal: sin capa
+// superior ni bloqueo) y `position: fixed; z-index: 10`, justo al lado de su botón: o sea DENTRO de la fila elegida. Esa fila
+// crea su propio contexto de apilamiento (`z-index: 1`, pago.scss), así que la ventana y su fondo quedaban POR DEBAJO del
+// resumen fijo de la derecha (`.sticky-top`, 1020) y de la barra de pagar del celular (1030): en la computadora el resumen tapaba
+// la mitad de la ventana y su botón de cerrar. Mientras haya una ventana de Yappy abierta, la fila sube por encima de todo
+// (el fondo y la ventana siguen siendo de Yappy; solo cambia en qué lugar de la pila están).
+body #wrapwrap #o_payment_form [name="o_payment_option"].list-group-item:has(.o_dcasa_yappy_boton dialog[open]) {
+    z-index: 1100;
+}
+// Y en un celular acostado (844×390) la ventana (590 px de alto) no cabe: quedaba cortada arriba y abajo, con su botón de
+// cerrar fuera de la pantalla y sin poder moverla. Con un alto máximo, se desplaza por dentro.
+#wrapwrap .o_dcasa_yappy .o_dcasa_yappy_boton dialog {
+    max-height: calc(100vh - 1rem);
+    max-height: calc(100dvh - 1rem);
+    overflow-y: auto;
+}
+
+// Con «Yappy» elegido paga el botón de Yappy, no el de Odoo (que el JavaScript esconde). La barra pegada abajo que lo
+// llevaba (la del celular en la tienda y la de la ventana del portal) quedaría vacía, con su borde y su fondo blanco
+// tapando la parte de abajo de la lista: se esconde también.
+body:has(#o_payment_form input[name="o_payment_radio"][data-provider-code="yappy"]:checked) {
+    .o_mobile_summary { display: none !important; }
+    #modalaccept #o_payment_form > .d-flex.justify-content-end { display: none !important; }
+}

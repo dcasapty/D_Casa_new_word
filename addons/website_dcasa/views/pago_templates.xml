@@ -131,12 +131,13 @@
         </xpath>
     </template>
 
-    <!-- Íconos de cada método. Tarjeta (Tilopay): Visa y Mastercard, que son las que propone docs/TILOPAY.md; Yappy,
+    <!-- Íconos de cada método. Tarjeta (Tilopay): Visa y Mastercard, que son las que propone docs/TILOPAY.md; Yappy (el de siempre
+         y el directo, dcasa_pago_yappy, que comparten el mismo ícono porque nunca se ofrecen a la vez),
          transferencia y pago en la tienda: íconos propios y DISTINTOS (nunca el logo de Yappy). Las imágenes de las
          tarjetas son las que trae Odoo (payment/static/img), sin tocarlas. -->
     <template id="pago_logo" inherit_id="payment.form_logo" name="D'CASA: íconos de los métodos">
         <xpath expr="//span[@t-field='logo_pm_sudo.image_payment_form']" position="replace">
-            <t t-set="dcasa_icono" t-value="{'yappy': 'yappy', 'wire_transfer': 'transferencia', 'cash_on_delivery': 'tienda'}.get(logo_pm_sudo.code)"/>
+            <t t-set="dcasa_icono" t-value="{'yappy': 'yappy', 'yappy_directo': 'yappy', 'wire_transfer': 'transferencia', 'cash_on_delivery': 'tienda'}.get(logo_pm_sudo.code)"/>
             <span t-if="logo_pm_sudo.code == 'tilopay'"
                   class="o_dcasa_pago_iconos position-relative d-flex z-1"
                   t-att-title="logo_pm_sudo.name">

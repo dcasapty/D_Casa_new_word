@@ -1710,6 +1710,76 @@ Lo que quedó escrito para no repetirlo:
 - **El puerto de pruebas se comparte:** dos sesiones usaron el 8652 a la vez (`Address already in use`). No matar lo ajeno:
   esperar a que se libere (`while fuser 8652/tcp; do sleep 5; done`) o usar otro puerto.
 
+### Lo que enseñó Yappy directo (2026-11-20, `dcasa_pago_yappy`)
+
+- **`--test-tags /dcasa_pago_yappy` no corre NINGUNA prueba, y nadie se entera.** La expresión regular de Odoo toma una etiqueta
+  que termina en «?py» por la ruta de un archivo `.py` (el punto sin escapar). «0 pruebas, todo bien» es un error. Se usa la etiqueta
+  sin barra (`dcasa_pago_yappy` o `dcasa_pago_yappy:Clase`) y `scripts/test.sh` ya lo hace solo. Mirar siempre el conteo de pruebas.
+- **La tienda de Odoo 19 lista MÉTODOS de pago, no proveedores.** Dos proveedores con el mismo código de método dan una sola fila
+  (la del primer proveedor que la cubra). Y `website_dcasa` reactiva y enlaza al proveedor manual **cualquier** método con código
+  `yappy`. Por eso el directo tiene su propio código (`yappy_directo`, también llamado «Yappy») y retira al manual en
+  `_get_compatible_providers`; así la clienta nunca ve dos «Yappy».
+- **Ya existía un diario «Yappy» (`dcasa_base`, código `YAPPY`).** El proveedor nuevo lo reutiliza (se busca por código, luego por
+  nombre y banco, y solo si no hay se crea): un segundo diario partiría la conciliación en dos.
+- **`assertRaises` deshace el savepoint de lo que hizo la llamada:** lo que el código dejó escrito antes de levantar la excepción
+  desaparece en la prueba. En producción el controlador atrapa el `ValidationError` y hace `commit` (para que el estado quede); en
+  las pruebas, un ayudante (`iniciar_y_fallar`) usa `try/except`.
+- **Un aviso perdido es un pago perdido:** el bloqueo de la fila es de **espera** (`SELECT … FOR UPDATE`), nunca `SKIP LOCKED`; y la
+  orden de Yappy se guarda y se **confirma** (`commit`) antes de llamar a Yappy, para que un corte no deje un cobro sin dueño.
+- **`b64decode` de Python es permisivo** (acepta basura sin quejarse): la clave secreta se valida con una expresión regular antes de
+  decodificarla. Y el `orderId` del aviso no se recorta (`'S0008\n'` es otra orden, no la misma).
+- **Los registros de depuración de Odoo llevan los parámetros del SQL** (un celular, por ejemplo): las pruebas de «no hay datos en el
+  log» usan `assertLogs('odoo', level='INFO')`, no `DEBUG`.
+- **Una base de desarrollo con datos de pruebas a mano rompe pruebas que dependen de «lo que hay»**: «nace apagado» (el proveedor
+  quedó en prueba), el tope global de cobros por hora (había cobros viejos) y la tarea de «sin aviso» (cobros sin aviso de otra
+  sesión). Las cuentas de pruebas se hacen con una **base nueva** (`scripts/test.sh`), y las que cuentan cosas globales parten de lo
+  que ya hay (se corre la tarea una vez en `setUp`, se fija el tope en «lo que ya hay + 2»).
+- **Pruebas de Chrome:** esperar a `is-ready` del `<body>` y a las animaciones antes de medir (una caja que se abre con animación
+  mide 0 de alto un instante); el campo de Yappy se abre **después** de montar el botón. El `<btn-yappy>` de Yappy no se puede
+  correr en las pruebas (carga reCAPTCHA y Firebase): se simula con un elemento personalizado y las capturas lo dicen en la leyenda.
+- **Los guiones de capturas no se corren a la vez:** el de limpieza del uno cancela el pedido en vuelo del otro y la captura del
+  «pagado» salió «Cancelado». Uno por uno.
+- **El CSS `:has()` sirve para esconder la barra pegajosa de «Pagar» solo cuando Yappy está elegido** (su botón vive dentro de la
+  fila): sin eso queda una barra blanca vacía en el celular.
+- **Lo que Yappy no documentó (§8 de `docs/YAPPY.md`)** no se supone: vigencia del token, `Bearer`, `paymentDate` (segundos o
+  milisegundos), reintentos y código de respuesta del aviso, IPs de origen y el campo del código de error. El ejemplo de su
+  documentación trae un anfitrión de CDN que no responde (`bt-cdn.yappycloud.com`); los que sirven son `bt-cdn.yappy.cloud` y
+  `bt-cdn-uat.yappycloud.com`. `confirmationNumber` no va firmado; `E007` (orden ya registrada) no es un fallo.
+- **Dos cambios que tocan a todos:** el aviso de Yappy es un `GET` abierto (no hay cuerpo ni cabecera que firmar): el borde lo deja
+  pasar entero (`/payment/yappy/` en `NEVER_CACHE_PREFIXES`) y, si Odoo no está listo, contesta **503** (nunca 200) para que Yappy pueda
+  reintentar.
+
+### Lo que enseñó la segunda revisión de Yappy (RV6, 2026-11-20, `local/yappy-fix`)
+
+- **Registrar el cobro a mano Y recibir el aviso tardío cobra el mismo dinero dos veces**, y la actividad «sin aviso» seguía abierta
+  invitando a repetirlo. Ahora hay UNA instrucción para Caja (el botón «Confirmar que el dinero entró», que reutiliza el camino del
+  aviso: `_process` → `_apply_updates`) y un aviso `E` sobre un pedido que ya tiene dinero por otra vía (factura con pagos, otro cobro
+  en línea) o que está cancelado va a **revisión humana**: nunca crea un segundo cobro ni dice «Confirmamos tu pedido». Si se cambia la
+  política de Caja, se cambian a la vez la actividad, `docs/YAPPY.md` §3.4 y la Guía (decían tres cosas distintas).
+- **Un menú escondido no protege un dato.** La vendedora tiene permiso de leer `payment.transaction` (por `account.group_account_invoice`) y leía
+  por RPC el celular de Yappy de todas las clientas: la restricción va en el CAMPO (`groups=`), y también hay que revisar lo que se
+  copia en otros sitios (la nota «Qué compró» del chatter lo llevaba). Un campo con `groups` se escribe con `sudo` sin problema.
+- **`_post_process` de Odoo no es idempotente:** llamarlo dos veces sobre una transacción hecha vuelve a dejar el mensaje «el pago ha sido
+  registrado» (la tarea de Odoo solo toma las que tienen `is_post_processed=False`). En una prueba, una sola vez.
+- **Un tope «cuenta y escribe» no es estricto bajo `REPEATABLE READ`:** cada petición cuenta con la foto de antes de que las otras
+  escribieran. Se arregló «tocando» la fila del pedido (`UPDATE … SET write_date = write_date`) antes de contar: la que llega después
+  espera y recibe «no pude serializar», y Odoo repite la petición con una foto nueva. La prueba con conexiones de verdad es opt-in
+  (`DCASA_PRUEBA_CONCURRENCIA=1`).
+- **`limpiar` tapa como si fuera un token cualquier cadena de 32 letras, números y puntos** (un dominio de 34 caracteres salió «[…]» en el
+  registro, justo lo que había que ver): los dominios que se muestran usan `_dominio_para_el_registro`.
+- **Normalizar un dominio sin abrir la puerta:** la lista de «las 16 maneras» eran 8 y no cubría `http://`, las mayúsculas ni `:443`.
+  Ahora se normaliza lo que llega con una expresión regular **acotada** (`re.ASCII`: sin la «K» del signo Kelvin) y se compara en tiempo
+  constante; la batería hostil del revisor (813,375 candidatos) se corre con un juez escrito aparte y con `urllib`.
+- **Reflujar líneas largas con un guion de texto es peligroso:** rompió el JavaScript que vive dentro de cadenas de Python en una prueba.
+  Después de cualquier reflujo automático, mirar el diff y correr `ruff`.
+- **El borde en un árbol nuevo (`git worktree`) no trae `node_modules`:** se enlaza el del árbol principal (`ln -s …/edge/node_modules`);
+  `npm ci` en el árbol principal no hace falta repetirlo.
+- **Staging sin dominio propio:** `web.base.url` (`staging.dcasapty.com`) no llega al Worker, así que lo que Odoo manda a un tercero
+  como dirección de retorno (el aviso de Yappy) no llega. `YAPPY_URL_BASE` (no secreta, solo staging, ignorada en producción) lo cubre.
+- **Chrome:** `Input.dispatchMouseEvent` mueve el ratón de verdad (sirve para medir `:hover` y `:active`); `beforeunload` se prueba
+  despachando el evento y mirando `defaultPrevented`. La prueba de 360 y 390 px de la fila (`test_en_el_celular_la_fila…`) es
+  intermitente en esta máquina con otras sesiones corriendo: repetirla sola antes de culpar al código.
+
 ### Cloudflare
 
 - **Un secreto nuevo del panel del Worker `dcasa` no llega a Odoo hasta que el contenedor arranca otra vez**
