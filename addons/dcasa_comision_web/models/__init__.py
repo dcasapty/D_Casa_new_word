@@ -5,3 +5,5 @@ from . import liquidacion
 from . import sale_order
 from . import account_move
 from . import payment_transaction
+from . import hr_employee
+from . import ajuste

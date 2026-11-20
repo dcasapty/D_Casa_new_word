@@ -156,7 +156,7 @@ class DcasaWebMovimiento(models.Model):
     @api.model
     def _hasta_el_dia(self, hasta):
         """El dominio «anotado hasta ese día (incluido, hora de Panamá)»."""
-        if not hasta:
+        if not hasta or hasta.year > 2200:
             return []
         fin = pytz.timezone(ZONA).localize(datetime.combine(hasta, time.min) + timedelta(days=1))
         return [('ocurrido_en', '<', fin.astimezone(pytz.utc).replace(tzinfo=None))]
@@ -197,3 +197,34 @@ class DcasaWebMovimiento(models.Model):
                             anotadas += 1
                 dia += timedelta(days=1)
         return anotadas
+
+
+CANDADO_NUMERACION = 1
+CANDADO_LIQUIDACIONES = 2
+
+
+class DcasaWebCandado(models.Model):
+    """Una fila por cosa que no se puede hacer dos veces a la vez (aprobar una liquidación, numerar una versión).
+
+    Odoo corre en REPEATABLE READ: un candado de aviso (``pg_advisory_xact_lock``) no basta, porque quien espera ya
+    tiene su «foto» de la base de antes y, al soltarse el candado, decide con datos viejos (dos liquidaciones
+    sobre el mismo
+    saldo se aprobaban a la vez y el saldo quedaba en negativo). Aquí quien entra **escribe** la fila: si otra
+    transacción la cambió después de su foto, PostgreSQL le da un error de serialización y Odoo repite la operación con
+    una foto nueva; si no, ya ve todo lo que alguien confirmó antes."""
+    _name = 'dcasa.web.candado'
+    _description = 'Candado de la comisión web'
+    _log_access = False
+
+    clave = fields.Integer(required=True, index=True)
+    vueltas = fields.Integer(default=0)
+
+    _clave_unica = models.Constraint('UNIQUE(clave)', 'Cada candado tiene una sola fila.')
+
+    @api.model
+    def _tomar(self, clave):
+        """Toma el candado ``clave`` hasta el final de la transacción (y la obliga a repetirse si se adelantaron)."""
+        self.env.cr.execute('UPDATE dcasa_web_candado SET vueltas = vueltas + 1 WHERE clave = %s', [clave])
+        if not self.env.cr.rowcount:       # no debería pasar: los datos del módulo ya traen las dos filas
+            self.env.cr.execute('INSERT INTO dcasa_web_candado (clave, vueltas) VALUES (%s, 1) ON CONFLICT DO NOTHING',
+                                [clave])

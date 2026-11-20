@@ -24,3 +24,4 @@ from . import test_resenas
 from . import test_portada_v3
 from . import test_campana
 from . import test_portada_carrusel
+from . import test_origen_carrito

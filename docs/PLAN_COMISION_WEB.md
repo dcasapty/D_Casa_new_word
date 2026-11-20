@@ -23,6 +23,39 @@ Las contestó la dueña (reenviando lo del jefe), con sus propias palabras. Resu
 | 7 | **Administración y Gerencia pueden verlo todo.** Sin sello mensual por correo y sin huella encadenada (anotado como futuro). **Una sola protección**, automática y sin molestar: quien figura entre quienes reciben no puede aprobar una liquidación donde ella cobra. Libro sin edición ni borrado y liquidación aprobada que no se edita. | Se quitan: sellos, huella, «Verificar», segunda llave («Aprueba la comisión web»), alertas del estado y el estado por persona. Se mantiene: libro inmutable, versiones que no se editan y la regla de que quien cobra no aprueba. |
 | 8 | **La comisión NO cuenta como salario.** Dos conceptos, definidos por Gerencia/administración en pantalla: (a) el **porcentaje** por cada venta online y (b) una **tarifa fija** por mantener la plataforma (monto fijo periódico, que sale siempre de la empresa). Se pagan **sin descuentos de planilla** (como los reembolsos). | El diseño dejaba pendiente el tratamiento (salario / sin descuentos / fuera de planilla) hasta el dictamen. Ahora es «sin descuentos». **Ninguna cifra de fábrica** (ni la de ejemplo de la dueña). Conviene que la contadora deje por escrito el tratamiento (una línea, no bloquea nada). |
 
+**Después de la revisión adversarial (2026-11-19, segunda ronda de construcción).** Un revisor independiente atacó la
+primera entrega y se cerró todo lo que encontró; esto es lo que **cambió frente a lo de arriba**:
+
+* **Un solo corte, por el día de cobro, para el sitio y para las vendedoras** (decisión 4 afinada). «Rige desde» es el
+  **inicio de ese día en Panamá**; el día en que se cobró una venta online decide de quién es: ese día y después, del sitio
+  (y de ninguna vendedora); antes, de las vendedoras como siempre (y nunca del sitio). Antes el gancho de pago usaba «ahora» y
+  el programa de vendedores «hoy», y un pago con fecha atrasada pagaba a las dos partes. Un cobro del mismo día, horas antes
+  de guardar la versión, se atribuye al sitio al guardarla (`dcasa.web.venta._atribuir_a_las_reglas`).
+* **El origen de una venta online no se fabrica** (decisión 3 afinada). `website_id` no marca nada (se acepta por RPC); solo
+  lo marca el carrito real (`website._create_cart`, que es también el de Andrés) con una llave interna que por RPC nunca
+  llega, y anota quién abrió el carrito (`dcasa_creada_por_id`). El campo calculado `dcasa_venta_online` tampoco se escribe a
+  mano. **Cotizar en la página y pagar en la tienda sigue contando**; se vigila con el reporte *Pedidos de la página para
+  revisar* (solo Gerencia) y con «Carrito de alguien del equipo» en *Ventas del sitio*. «Un hola basta» para que la venta
+  sea de una vendedora: se deja y se vigila.
+* **«Quien cobra no aprueba» (decisión 7) ya no se esquiva editando la propia ficha**: los usuarios ligados a cada persona
+  quedan **fijos en cada versión del reparto**, el cambio de usuario o contacto de una ficha queda en su chatter, y guardar
+  una versión exige que quede al menos una persona de Gerencia o de Nómina que no cobre. Límite que no se puede cerrar con
+  código: un **segundo usuario** que la persona maneje y que nunca estuvo ligado a su ficha.
+* **Sin doble pago ni doble número**: la numeración de versiones y la aprobación de liquidaciones **escriben** una fila
+  candado (`dcasa.web.candado`); con el aislamiento REPEATABLE READ un candado de aviso (`pg_advisory_xact_lock`) no basta,
+  porque el que espera sigue viendo la foto vieja. El segundo choca (`SerializationFailure`) y Odoo lo repite con una foto
+  nueva. Una sola llave por venta en el gancho y en la comparación.
+* **Pantalla para cancelar una aprobada** (el motivo se escribe en el formulario) y **asistente de ajustes** en el Libro
+  (motivo obligatorio, por la puerta única del libro).
+* **Lo anulado se reversa en el acto** (volver a borrador, anular y borrar una factura) y armar/aprobar comparan antes con la
+  verdad.
+* **«Antes de descuentos» con devoluciones**: lo devuelto se resta a precio de lista, en proporción (si no, se pagaba
+  comisión sobre mercadería devuelta).
+* **Una versión puesta con la fecha equivocada se anula** (con motivo; no se borra), y «hoy» vale todo el día.
+* Menores: una nota aplicada a dos facturas se reparte por lo que se aplicó a cada una; el barrido va por lotes de 200 con
+  confirmación por lote; el periodo de una liquidación admite fechas extremas; la migración 19.0.1.10.0 también mira el chat
+  de Juan en los pedidos de la página ya confirmados y todavía sin pagar por completo.
+
 **Lo que sigue valiendo del diseño:** la definición de «venta pagada por completo» (la misma del bono por meta y del Inicio),
 el libro en centavos con saldo = suma, los reversos por devolución y pago revertido, el savepoint que nunca frena un
 cobro, el barrido nocturno que compara el libro con la verdad, el mes de Panamá fijo en cada fila y el módulo sin cifras de
@@ -504,6 +537,17 @@ Con revisor independiente y con la lista de ataques: **aprobar la propia comisi�
 redondeos que no cuadran; el borde del mes y de la hora; llamar los métodos por RPC o con `sudo`; ver lo de otra
 persona; un error tragado en el savepoint que esconda ventas (por eso las alertas); cambiar un mes sellado por SQL;
 carreras entre el barrido y el gancho (un candado, como el de numeración de `dcasa.vend.reglas`, A3).
+
+**Resultado (2026-11-19):** el revisor independiente probó la primera entrega con 42 pruebas propias y con dos guiones de
+concurrencia real (tres conexiones). Encontró 4 bloqueantes (origen fabricable, aprobar lo propio editando la ficha, doble
+pago y doble número con dos aprobaciones a la vez, y dos cortes distintos para el sitio y las vendedoras), 4 importantes
+(cancelar una aprobada desde la pantalla, reversos que esperaban a la noche, «antes de descuentos» con devoluciones y una
+versión futura que trababa el módulo) y varios menores; todo está cerrado y cada punto tiene su prueba
+(`tests/test_endurecimiento.py` y las del revisor en `tests/test_revision.py`). Dos de las pruebas del revisor no se pueden
+cumplir tal como están escritas y se dejaron fuera con su razón: la que pide impedir que **otro usuario sin ligar** apruebe
+(límite honesto, ver arriba) y la que pide atribuir una devolución **por línea** en una factura mezclada (la nota de crédito no
+dice de qué línea es; se reparte en proporción). La tercera, la de «antes de descuentos», se reemplazó por la regla
+proporcional de arriba.
 
 ### 9.8 Pasos, en orden
 

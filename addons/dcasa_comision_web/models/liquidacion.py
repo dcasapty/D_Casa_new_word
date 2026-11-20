@@ -23,10 +23,9 @@ from dateutil.relativedelta import relativedelta
 from odoo import SUPERUSER_ID, api, fields, models
 from odoo.exceptions import AccessError, UserError
 
-from .movimiento import CONCEPTOS
+from .movimiento import CANDADO_LIQUIDACIONES, CONCEPTOS
 
 GRUPO = 'dcasa_nomina.group_nomina'
-LLAVE_DE_LIQUIDACION = 731_900_103
 # Una llave interna para escribir en una liquidación ya aprobada (solo los botones; por RPC nunca llega).
 ESCRIBIR = object()
 CLAVE_ESCRIBIR = 'dcasa_comision_web_liquidacion'
@@ -38,7 +37,7 @@ ATAJOS = [
     ('esta_semana', 'Esta semana'), ('semana_pasada', 'La semana pasada'),
 ]
 EDITABLES_EN_BORRADOR = frozenset({'atajo', 'fecha_desde', 'fecha_hasta', 'notas'})
-EDITABLES_DEL_PAGO = frozenset({'fecha_pago', 'referencia_pago'})
+EDITABLES_DEL_PAGO = frozenset({'fecha_pago', 'referencia_pago', 'motivo_cancelacion'})
 
 
 def rango_del_atajo(atajo, hoy):
@@ -78,7 +77,10 @@ class DcasaWebLiquidacion(models.Model):
                                ('cancelada', 'Cancelada')], required=True, readonly=True, default='borrador',
                               copy=False, index=True)
     atajo = fields.Selection(ATAJOS, 'Atajo del periodo')
-    fecha_desde = fields.Date('Periodo: desde', required=True, default=lambda self: self._hoy().replace(day=1))
+    fecha_desde = fields.Date(
+        'Periodo: desde', required=True, default=lambda self: self._hoy().replace(day=1),
+        help='El periodo que se quiere pagar. El monto sale de TODO lo que se debe hasta la fecha «hasta» y todavía no '
+             'se había liquidado: si hay algo anotado antes de este día, se avisa para que no sorprenda.')
     fecha_hasta = fields.Date('Periodo: hasta', required=True, default=lambda self: self._hoy(),
                               help='Se liquida todo lo que se anotó hasta este día y todavía no se había liquidado.')
     linea_ids = fields.One2many('dcasa.web.liquidacion.linea', 'liquidacion_id', 'Por persona y concepto',
@@ -110,10 +112,16 @@ class DcasaWebLiquidacion(models.Model):
     @api.depends('linea_ids.empleado_id')
     @api.depends_context('uid')
     def _compute_quien_cobra(self):
-        propios = self._empleados_del_usuario()
         for liquidacion in self:
             liquidacion.quien_cobra = liquidacion.linea_ids.empleado_id
-            liquidacion.tu_cobras = bool(liquidacion.linea_ids.empleado_id & propios)
+            liquidacion.tu_cobras = liquidacion._cobra_el_usuario(self.env.user)
+
+    def _cobra_el_usuario(self, usuario):
+        """¿Este usuario es una de las personas que cobran en esta liquidación? Se mira lo que la ficha de cada persona
+        dice hoy (usuario y contacto de trabajo) y los usuarios que tenía ligados cuando se guardó la versión del
+        reparto donde figura: cambiar la ficha después no deja a quien cobra aprobar lo suyo."""
+        empleados = self.sudo().linea_ids.empleado_id
+        return bool(empleados) and usuario.id in self.env['dcasa.web.reparto']._usuarios_de(empleados)
 
     @api.onchange('atajo')
     def _onchange_atajo(self):
@@ -174,16 +182,30 @@ class DcasaWebLiquidacion(models.Model):
 
     def _pendientes(self):
         """``({(empleado_id, concepto): centavos}, avisos)`` de lo que se debe hasta la fecha del periodo. Solo lo
-        positivo se paga; un saldo negativo (devoluciones que superaron lo ganado) se avisa y sigue al siguiente."""
+        positivo se paga; un saldo negativo (devoluciones que superaron lo ganado) se avisa y sigue al siguiente.
+
+        **Nunca se paga más de lo que de verdad se debe hoy**: una devolución o un pago revertido se anota con la fecha
+        de hoy, que casi siempre cae DESPUÉS del periodo que se liquida (el del mes pasado). Si solo se mirara hasta el
+        fin del periodo, se pagaría una venta que ya se reversó. Por eso a cada persona se le paga lo menor entre lo
+        que se debe hasta «hasta» y lo que se debe con todo lo anotado hasta hoy."""
         self.ensure_one()
         Libro = self.env['dcasa.web.movimiento'].sudo()
         empleados = Libro.search([('company_id', '=', self.company_id.id)]).empleado_id
         saldos = Libro._saldos(empleados, hasta=self.fecha_hasta, company=self.company_id)
+        actuales = Libro._saldos(empleados, company=self.company_id)
         nombres = {e.id: e.name for e in empleados}
         pagar, avisos = {}, []
         for (empleado_id, concepto), centavos in sorted(saldos.items()):
             if centavos > 0:
-                pagar[(empleado_id, concepto)] = centavos
+                tope = max(actuales.get((empleado_id, concepto), 0), 0)
+                if tope:
+                    pagar[(empleado_id, concepto)] = min(centavos, tope)
+                if tope < centavos:
+                    avisos.append(self.env._(
+                        'A %(persona)s se le paga %(pago)s en vez de %(monto)s por «%(concepto)s»: después del periodo '
+                        'se anotó una devolución o un reverso (por ejemplo, un pago revertido) que ya lo cubre.',
+                        persona=nombres.get(empleado_id, '?'), pago=f'{min(centavos, tope) / 100:,.2f}',
+                        monto=f'{centavos / 100:,.2f}', concepto=dict(CONCEPTOS)[concepto]))
             elif centavos < 0:
                 avisos.append(self.env._(
                     '%(persona)s tiene un saldo en contra de %(monto)s por «%(concepto)s» (devoluciones que superaron '
@@ -192,13 +214,29 @@ class DcasaWebLiquidacion(models.Model):
                     concepto=dict(CONCEPTOS)[concepto]))
         return pagar, avisos
 
+    def _saldo_anterior_al_periodo(self):
+        """Centavos por pagar que se anotaron antes de «desde» (solo lo positivo): una liquidación toma todo lo no
+        liquidado hasta «hasta», así que se avisa cuando arrastra algo de antes del periodo."""
+        self.ensure_one()
+        Libro = self.env['dcasa.web.movimiento'].sudo()
+        antes = self.fecha_desde - timedelta(days=1)
+        empleados = Libro.search([('company_id', '=', self.company_id.id)]).empleado_id
+        saldos = Libro._saldos(empleados, hasta=antes, company=self.company_id)
+        return sum(centavos for centavos in saldos.values() if centavos > 0)
+
     def _armar(self):
         self.ensure_one()
         if self.estado != 'borrador':
             raise UserError(self.env._('Solo se arma una propuesta en borrador.'))
         if self.fecha_hasta < self.fecha_desde:
             raise UserError(self.env._('El periodo termina antes de empezar.'))
+        self.env['dcasa.web.venta']._poner_al_dia()
         pagar, avisos = self._pendientes()
+        anterior = self._saldo_anterior_al_periodo()
+        if anterior:
+            avisos.append(self.env._(
+                'Incluye %(monto)s anotados antes del %(desde)s que todavía no se habían liquidado.',
+                monto=f'{anterior / 100:,.2f}', desde=self.fecha_desde.strftime('%d/%m/%Y')))
         self.linea_ids.sudo().unlink()
         self.env['dcasa.web.liquidacion.linea'].sudo().create([
             {'liquidacion_id': self.id, 'empleado_id': empleado_id, 'concepto': concepto, 'centavos': centavos}
@@ -221,16 +259,17 @@ class DcasaWebLiquidacion(models.Model):
             raise UserError(self.env._('Una liquidación solo la aprueba una persona, con su propio usuario.'))
         self.check_access('write')
         self._exigir_nomina()
-        propios = self._empleados_del_usuario()
         for liquidacion in self:
             if liquidacion.estado != 'borrador':
                 raise UserError(self.env._('Solo se aprueba una propuesta en borrador.'))
-            if liquidacion.sudo().linea_ids.empleado_id & propios:
+            if liquidacion._cobra_el_usuario(self.env.user):
                 raise UserError(self.env._(
                     'Tú figuras entre quienes cobran en esta liquidación, así que la aprueba otra persona de '
                     'Gerencia o de Nómina. Pídele que la revise y la apruebe: así todos quedamos tranquilos.'))
-            self.env.cr.execute('SELECT pg_advisory_xact_lock(%s, %s)',
-                                [LLAVE_DE_LIQUIDACION, liquidacion.company_id.id])
+            # El candado se ESCRIBE (no basta avisar): dos aprobaciones a la vez chocan y la segunda se repite con una
+            # foto nueva de la base, donde ya ve lo que la primera liquidó (REPEATABLE READ).
+            self.env['dcasa.web.candado']._tomar(CANDADO_LIQUIDACIONES)
+            self.env['dcasa.web.venta']._poner_al_dia()
             lineas = liquidacion.sudo().linea_ids
             if not lineas:
                 raise UserError(self.env._('No hay nada que liquidar en esta propuesta. Toca «Armar» para calcularla.'))
@@ -263,6 +302,7 @@ class DcasaWebLiquidacion(models.Model):
     def action_cancelar(self):
         self.check_access('write')
         self._exigir_nomina()
+        self.env['dcasa.web.candado']._tomar(CANDADO_LIQUIDACIONES)
         for liquidacion in self:
             if liquidacion.estado == 'pagada':
                 raise UserError(self.env._('Una liquidación ya pagada no se cancela: se corrige con un ajuste.'))

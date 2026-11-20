@@ -1,7 +1,9 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-acceso_reglas,dcasa.web.reglas,model_dcasa_web_reglas,dcasa_nomina.group_nomina,1,0,1,0
+acceso_reglas,dcasa.web.reglas,model_dcasa_web_reglas,dcasa_nomina.group_nomina,1,1,1,0
 acceso_reparto,dcasa.web.reparto,model_dcasa_web_reparto,dcasa_nomina.group_nomina,1,0,1,0
 acceso_venta,dcasa.web.venta,model_dcasa_web_venta,dcasa_nomina.group_nomina,1,0,0,0
 acceso_movimiento,dcasa.web.movimiento,model_dcasa_web_movimiento,dcasa_nomina.group_nomina,1,0,0,0
 acceso_liquidacion,dcasa.web.liquidacion,model_dcasa_web_liquidacion,dcasa_nomina.group_nomina,1,1,1,1
 acceso_liquidacion_linea,dcasa.web.liquidacion.linea,model_dcasa_web_liquidacion_linea,dcasa_nomina.group_nomina,1,0,0,0
+acceso_ajuste,dcasa.web.ajuste,model_dcasa_web_ajuste,dcasa_nomina.group_nomina,1,1,1,1
+acceso_candado,dcasa.web.candado,model_dcasa_web_candado,base.group_system,0,0,0,0

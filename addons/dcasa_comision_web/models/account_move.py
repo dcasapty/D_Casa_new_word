@@ -32,3 +32,39 @@ class AccountMove(models.Model):
             except Exception:  # noqa: BLE001 — publicar una nota nunca falla por la comisión
                 _logger.exception('Comisión web: no se pudo restar la nota %s', nota.name)
         return publicados
+
+    def _dcasa_comision_al_dia(self, ventas=None):
+        """Compara con la verdad las ventas del sitio de estas facturas (una factura vuelta a borrador, anulada o
+        borrada ya no está cobrada: se reversa en el acto, sin esperar el barrido de la noche). Nunca falla."""
+        ventas = self.env['dcasa.web.venta'].sudo().search([('move_id', 'in', self.ids)]) if ventas is None else ventas
+        if not ventas:
+            return
+        try:
+            with self.env.cr.savepoint():
+                ventas.invalidate_recordset()
+                ventas._reconciliar()
+        except Exception:  # noqa: BLE001 — pasar una factura a borrador o anularla nunca falla por la comisión
+            _logger.exception('Comisión web: no se pudo reversar lo anotado de %s', self.mapped('name'))
+
+    def button_draft(self):
+        resultado = super().button_draft()
+        self._dcasa_comision_al_dia()
+        return resultado
+
+    def button_cancel(self):
+        resultado = super().button_cancel()
+        self._dcasa_comision_al_dia()
+        return resultado
+
+    def unlink(self):
+        ventas = self.env['dcasa.web.venta'].sudo().search([('move_id', 'in', self.ids)])
+        nombres = self.mapped('name')
+        resultado = super().unlink()
+        if ventas:
+            try:
+                with self.env.cr.savepoint():
+                    ventas.invalidate_recordset()
+                    ventas._reconciliar()
+            except Exception:  # noqa: BLE001
+                _logger.exception('Comisión web: no se pudo reversar lo anotado de las facturas borradas %s', nombres)
+        return resultado

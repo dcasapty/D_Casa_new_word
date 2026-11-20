@@ -30,7 +30,11 @@
         <field name="arch" type="xml">
             <form string="Reglas de la comisión del sitio web" delete="0" edit="0">
                 <header>
-                    <field name="estado" widget="statusbar" invisible="not id"/>
+                    <button name="action_anular" type="object" string="Anular esta versión"
+                            invisible="estado != 'programada'"
+                            confirm="Una versión anulada no rige nunca y no se puede deshacer. ¿Anularla?"/>
+                    <field name="estado" widget="statusbar" invisible="not id"
+                           statusbar_visible="programada,vigente,anterior"/>
                 </header>
                 <sheet>
                     <field name="currency_id" invisible="1"/>
@@ -41,8 +45,12 @@
                         adelante</strong>: lo que ya se anotó no se recalcula. Desde el día de la primera versión, una
                         venta del sitio deja de contar para las vendedoras.
                     </div>
-                    <div class="alert alert-warning" role="alert" invisible="not id">
+                    <div class="alert alert-warning" role="alert" invisible="not id or estado == 'programada'">
                         Esta versión ya está guardada y no se edita. Para cambiar algo, usa «Nueva versión».
+                    </div>
+                    <div class="alert alert-warning" role="alert" invisible="estado != 'programada'">
+                        Esta versión todavía no rige. Si se puso mal (por ejemplo, con el año equivocado), escribe el
+                        motivo y anúlala: no se borra, pero deja de contar y se puede guardar una nueva.
                     </div>
                     <group string="Cuánto y desde cuándo">
                         <field name="numero" invisible="not id"/>
@@ -52,6 +60,8 @@
                         <field name="tarifa_periodo"/>
                         <field name="motivo"/>
                         <field name="autor" invisible="not id"/>
+                        <field name="motivo_anulacion" invisible="estado not in ('programada', 'anulada')"
+                               readonly="estado == 'anulada'"/>
                     </group>
                     <group string="¿Sobre qué se calcula el porcentaje?">
                         <field name="base_itbms"/>

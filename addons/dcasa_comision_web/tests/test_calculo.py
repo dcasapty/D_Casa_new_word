@@ -31,13 +31,26 @@ class TestCalculo(TransactionCase):
     def test_cada_interruptor_cambia_la_base_en_lo_que_dice(self):
         self.assertEqual(base(base_itbms='con'), 70000 + 9000 - 1800, 'con ITBMS: suma el suyo, resta el devuelto')
         self.assertEqual(base(base_envio='con'), 70000 + 5000)
-        self.assertEqual(base(base_descuentos='antes'), 100000 + 5000 - 20000, 'precio de lista: sin premio ni dto.')
+        self.assertEqual(base(base_descuentos='antes'), 105000 - 23333,
+                         'lista, y lo devuelto también a precio de lista')
         self.assertEqual(base(base_devoluciones='no_resta'), 90000)
         self.assertEqual(base(base_pasarela='resta'), 70000 - 3000)
 
     def test_todos_los_interruptores_juntos(self):
         self.assertEqual(base(base_itbms='con', base_envio='con', base_descuentos='antes', base_devoluciones='no_resta',
                               base_pasarela='resta'), 100000 + 5000 + 5000 + 9000 - 3000)
+
+    def test_antes_de_descuentos_devolver_todo_deja_la_base_en_cero_y_la_mitad_en_la_mitad(self):
+        venta = {'productos': 90000, 'descuento_lineas': 10000, 'descuento_negativas': 0, 'envio': 0, 'itbms': 0,
+                 'devuelto': 90000, 'devuelto_itbms': 0, 'pasarela': 0}
+        antes = {**RECOMENDADO, 'base_descuentos': 'antes'}
+        self.assertEqual(C.base_de_la_venta(venta, antes), 0, 'se devolvió todo lo cobrado')
+        self.assertEqual(C.base_de_la_venta({**venta, 'devuelto': 45000}, antes), 50000,
+                         'la mitad: la mitad de la lista')
+        con_premio = {**venta, 'descuento_lineas': 0, 'productos': 100000, 'descuento_negativas': 10000,
+                      'devuelto': 90000}
+        self.assertEqual(C.base_de_la_venta(con_premio, antes), 0)
+        self.assertEqual(C.devuelto_en_la_base({**con_premio, 'devuelto': 0}, antes), 0)
 
     def test_la_base_nunca_es_negativa(self):
         self.assertEqual(C.base_de_la_venta({**VENTA, 'devuelto': 500000}, RECOMENDADO), 0)

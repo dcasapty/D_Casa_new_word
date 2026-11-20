@@ -19,19 +19,27 @@ sitio web (``dcasa_comision_web``). Por eso vive aquí, en la base: ninguna de e
 tienda; ni lo que se arma en la tienda física, en Ventas o en el Punto de Venta, ni la cotización que arma Juan (esa no
 nació en la web).
 
-Las tres marcas se escriben UNA vez, por código, y nadie las cambia a mano ni con ``sudo()`` (solo con la llave interna
-``ESCRIBIR``, que por RPC nunca llega: el contexto de una llamada es JSON). ``website_id`` sí se puede cambiar después;
-por eso la marca de origen se guarda aparte al crear el pedido. Los pedidos que ya existían se marcaron una sola vez al
-instalar (``migrations/19.0.1.10.0``).
+Las marcas se escriben UNA vez, **solo por código del sitio** (el carrito real: ``website._create_cart``, en
+``website_dcasa``; Andrés marca el suyo; ``dcasa_comision_web`` decide «la llevó una vendedora» al confirmar), y nadie
+las cambia a mano ni con ``sudo()``: solo con la llave interna ``ESCRIBIR``, que por RPC nunca llega (el contexto de una
+llamada es JSON). **Tener ``website_id`` NO basta** (revisión adversarial, 2026-11-19): ese campo se acepta por RPC, así
+que quien teclea un pedido de mostrador con ``website_id`` no lo vuelve «de la web». Tampoco se escribe a mano el campo
+calculado ``dcasa_venta_online`` que lee todo el sistema. ``dcasa_creada_por_id`` guarda quién abrió el carrito (para
+que Gerencia vea si alguien del equipo teclea pedidos de la página). Los pedidos que ya existían se marcaron una sola
+vez al instalar (``migrations/19.0.1.10.0``).
 
 **Solo hacia adelante.** La regla «una venta online nunca es de una vendedora» solo rige desde el día en que Gerencia
 pone en vigencia la primera versión de las reglas de la comisión web: ``_dcasa_online_desde()`` devuelve ese día (y
 ``False`` mientras no exista, que es como se comporta el sistema hoy). Lo ya calculado y pagado no se toca.
 """
+from datetime import date
+
 from odoo import api, fields, models
 from odoo.exceptions import UserError
 
-TESTIGOS = ('dcasa_nacio_en_web', 'dcasa_via_andres', 'dcasa_llevada_por_vendedora')
+TESTIGOS = ('dcasa_nacio_en_web', 'dcasa_via_andres', 'dcasa_llevada_por_vendedora', 'dcasa_creada_por_id')
+# Lo derivado de las marcas: se calcula, y escribirlo a mano se ignora (nunca cambia lo que cuenta).
+DERIVADOS = ('dcasa_venta_online',)
 CLAVE_CONTEXTO = 'dcasa_base_escribir_testigo'
 # Un objeto, no ``True``: el contexto que llega por RPC es JSON y nunca puede traerlo.
 ESCRIBIR = object()
@@ -51,6 +59,10 @@ class SaleOrderOnline(models.Model):
         'La llevó una vendedora', readonly=True, copy=False,
         help='Una vendedora atendió al cliente en el chat de Juan antes de confirmar el pedido: aunque el pedido salga '
              'de la página web, la venta fue de ella y no es venta online.')
+    dcasa_creada_por_id = fields.Many2one(
+        'res.users', 'Carrito abierto por', readonly=True, copy=False, index='btree_not_null',
+        help='Quién abrió el carrito de la página (el visitante o, si es alguien del equipo, quién fue). Sirve para '
+             'vigilar si el personal teclea pedidos de la página; no cambia lo que cuenta.')
     dcasa_venta_online = fields.Boolean(
         'Venta online', compute='_compute_dcasa_venta_online', store=True, index=True,
         help='La definición única: nació en la web y no la llevó una vendedora, o pasó por Andrés. Una venta online '
@@ -64,25 +76,26 @@ class SaleOrderOnline(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
-        # Nadie fabrica el origen al crear: las marcas las pone el sistema.
-        vals_list = [{k: v for k, v in vals.items() if k not in TESTIGOS} for vals in vals_list]
-        ordenes = super().create(vals_list)
-        if 'website_id' in self._fields:
-            nacidas = ordenes.filtered(lambda o: o.website_id)
-            if nacidas:
-                nacidas._dcasa_escribir_marca(dcasa_nacio_en_web=True)
-        return ordenes
+        # Nadie fabrica el origen al crear (ni con ``website_id`` ni con ``default_website_id``): lo pone el sitio.
+        vals_list = [{k: v for k, v in vals.items() if k not in TESTIGOS + DERIVADOS} for vals in vals_list]
+        return super().create(vals_list)
 
     def write(self, vals):
         if any(clave in vals for clave in TESTIGOS) and self.env.context.get(CLAVE_CONTEXTO) is not ESCRIBIR:
             raise UserError(self.env._(
                 'El origen de la venta (si nació en la web, si pasó por Andrés o si la llevó una vendedora) lo pone '
                 'el sistema una sola vez: no se cambia a mano.'))
+        if any(clave in vals for clave in DERIVADOS):
+            # «Venta online» se calcula de las marcas: escribirla a mano no cambia nada (en ningún sentido).
+            vals = {k: v for k, v in vals.items() if k not in DERIVADOS}
+            if not vals:
+                return True
         return super().write(vals)
 
     def _dcasa_escribir_marca(self, **marcas):
         """Único camino para escribir las marcas de origen (solo código del sistema; ver arriba)."""
-        pendientes = self.filtered(lambda o: any(o[clave] != valor for clave, valor in marcas.items()))
+        pendientes = self.filtered(lambda o: any(
+            (o[clave].id if clave == 'dcasa_creada_por_id' else o[clave]) != valor for clave, valor in marcas.items()))
         if pendientes:
             pendientes.sudo().with_context(**{CLAVE_CONTEXTO: ESCRIBIR}).write(marcas)
         return pendientes
@@ -148,3 +161,30 @@ class AccountMoveOnline(models.Model):
             for nota in notas:
                 factores[nota.id] = fraccion.get(nota.reversed_entry_id.id, 0.0)
         return factores
+
+
+    @api.model
+    def _dcasa_dias_de_cobro_de(self, facturas):
+        """``({factura_id: día}, {nota_id: {factura_id}})``: el día en que cada factura quedó pagada completa (su última
+        conciliación, pago o nota de crédito, nunca antes de la factura); las que todavía deben algo no salen. Y las
+        notas de crédito que se aplicaron a cada una. Una sola definición para el bono por meta, el programa de
+        vendedores y la comisión web (sale de una sola lectura de las conciliaciones)."""
+        pagadas = facturas.filtered(lambda f: f.payment_state in ('paid', 'in_payment'))
+        if not pagadas:
+            return {}, {}
+        parciales = self.env['account.partial.reconcile'].sudo().search_fetch(
+            ['|', ('debit_move_id.move_id', 'in', pagadas.ids), ('credit_move_id.move_id', 'in', pagadas.ids)],
+            ['debit_move_id', 'credit_move_id', 'max_date', 'exchange_move_id'])
+        diferencias_de_cambio = parciales.exchange_move_id
+        dias, notas = {}, {}
+        for parcial in parciales:
+            for propia, otra in ((parcial.debit_move_id, parcial.credit_move_id),
+                                 (parcial.credit_move_id, parcial.debit_move_id)):
+                factura, contraparte = propia.move_id, otra.move_id
+                if factura not in pagadas or contraparte in diferencias_de_cambio:
+                    continue
+                dia = max(parcial.max_date, factura.invoice_date or date.min)
+                dias[factura.id] = max(dias.get(factura.id, date.min), dia)
+                if contraparte.move_type == 'out_refund':
+                    notas.setdefault(contraparte.id, set()).add(factura.id)
+        return dias, notas

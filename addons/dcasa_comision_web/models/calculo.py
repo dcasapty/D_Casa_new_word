@@ -33,6 +33,24 @@ def a_centavos(monto):
     return int((Decimal(str(round(float(monto or 0.0), 2))) * 100).quantize(Decimal(1), rounding=ROUND_HALF_UP))
 
 
+def devuelto_en_la_base(c, opciones):
+    """Lo que se resta por devoluciones (centavos), **en la misma base de la venta**. Las notas de crédito vienen a
+    precio cobrado; con «Antes de los descuentos» la base es el precio de lista, así que lo devuelto se lleva a precio
+    de lista en la misma proporción (devolver todo deja la base en cero y devolver la mitad, en la mitad)."""
+    if opciones['base_devoluciones'] != 'resta':
+        return 0
+    devuelto = c['devuelto']
+    if opciones['base_descuentos'] == 'antes':
+        cobrado = c['productos'] - c['descuento_negativas']
+        lista = c['productos'] + c['descuento_lineas']
+        if cobrado > 0 and lista > cobrado:
+            devuelto = int((Decimal(devuelto) * Decimal(lista) / Decimal(cobrado)).quantize(
+                Decimal(1), rounding=ROUND_HALF_UP))
+    if opciones['base_itbms'] == 'con':
+        devuelto += c['devuelto_itbms']
+    return devuelto
+
+
 def base_de_la_venta(c, opciones):
     """La base (centavos) sobre la que se calcula el porcentaje, según los interruptores de ``opciones``. Nunca es
     negativa. Cada interruptor es «antes o después» de una cosa:
@@ -41,7 +59,8 @@ def base_de_la_venta(c, opciones):
     * envío: ``sin`` (recomendado) no lo suma; ``con`` suma el cobro de envío;
     * descuentos: ``despues`` (recomendado) usa el precio que de verdad se cobró (con el descuento de cada línea y con
       los premios y cupones ya restados); ``antes`` usa el precio de lista (sin ninguno de los dos);
-    * devoluciones: ``resta`` (recomendado) quita lo que el cliente devuelve; ``no_resta`` lo deja;
+    * devoluciones: ``resta`` (recomendado) quita lo que el cliente devuelve (en la misma base: ver
+      ``devuelto_en_la_base``); ``no_resta`` lo deja;
     * pasarela: ``no_resta`` (recomendado) deja lo que cobra la pasarela; ``resta`` lo quita.
     """
     base = c['productos']
@@ -53,10 +72,7 @@ def base_de_la_venta(c, opciones):
         base += c['envio']
     if opciones['base_itbms'] == 'con':
         base += c['itbms']
-    if opciones['base_devoluciones'] == 'resta':
-        base -= c['devuelto']
-        if opciones['base_itbms'] == 'con':
-            base -= c['devuelto_itbms']
+    base -= devuelto_en_la_base(c, opciones)
     if opciones['base_pasarela'] == 'resta':
         base -= c['pasarela']
     return max(base, 0)

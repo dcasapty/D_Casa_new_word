@@ -28,12 +28,37 @@ class TestVentaOnline(TransactionCase):
             valores['website_id'] = self.website.id
         return self.env['sale.order'].create(valores)
 
-    def test_el_testigo_se_escribe_al_crear_un_pedido_de_la_web(self):
+    def test_tener_website_id_no_basta_para_nacer_en_la_web(self):
+        """Revisión adversarial (2026-11-19): ``website_id`` se acepta por RPC, así que quien teclea un pedido de
+        mostrador con él no lo vuelve «de la web». El origen lo escribe solo el código del carrito del sitio."""
         if not self.website:
             self.skipTest('Sin tienda en línea instalada')
-        web, tienda = self.orden(True), self.orden(False)
+        con_sitio = self.orden(True)
+        self.assertFalse(con_sitio.dcasa_nacio_en_web or con_sitio.dcasa_venta_online)
+        con_contexto = self.env['sale.order'].with_context(default_website_id=self.website.id).create({
+            'partner_id': self.cliente.id})
+        self.assertFalse(con_contexto.dcasa_nacio_en_web or con_contexto.dcasa_venta_online)
+
+    def test_el_origen_se_escribe_con_la_llave_interna_y_vale_la_definicion(self):
+        web, tienda = self.orden(False), self.orden(False)
+        web._dcasa_escribir_marca(dcasa_nacio_en_web=True, dcasa_creada_por_id=self.env.user.id)
         self.assertTrue(web.dcasa_nacio_en_web and web.dcasa_venta_online)
+        self.assertEqual(web.dcasa_creada_por_id, self.env.user)
         self.assertFalse(tienda.dcasa_nacio_en_web or tienda.dcasa_venta_online)
+
+    def test_el_campo_calculado_tampoco_se_escribe_a_mano(self):
+        """Escribir ``dcasa_venta_online`` (el campo que lee todo el sistema) no cambia nada, ni al crear ni al
+        escribir, ni con ``sudo()``."""
+        creada = self.orden(False, dcasa_venta_online=True)
+        self.assertFalse(creada.dcasa_venta_online, 'al crear se descarta')
+        creada.sudo().write({'dcasa_venta_online': True})
+        creada.invalidate_recordset()
+        self.assertFalse(creada.dcasa_venta_online, 'escribirlo no lo cambia')
+        creada._dcasa_escribir_marca(dcasa_nacio_en_web=True)
+        creada.sudo().write({'dcasa_venta_online': False, 'origin': 'otra cosa'})
+        creada.invalidate_recordset()
+        self.assertTrue(creada.dcasa_venta_online, 'ni lo apaga')
+        self.assertEqual(creada.origin, 'otra cosa', 'lo demás del write sí pasa')
 
     def test_la_definicion_es_la_tabla_de_verdad_de_las_tres_marcas(self):
         orden = self.orden(False)
@@ -46,7 +71,7 @@ class TestVentaOnline(TransactionCase):
                     'UPDATE sale_order SET dcasa_nacio_en_web = %s, dcasa_via_andres = %s, '
                     'dcasa_llevada_por_vendedora = %s WHERE id = %s', [nacio, andres, vendedora, orden.id])
                 orden.invalidate_recordset()
-                orden._compute_dcasa_venta_online()
+                self.env.add_to_compute(orden._fields['dcasa_venta_online'], orden)
                 self.assertEqual(orden.dcasa_venta_online, esperado)
 
     def test_nadie_forja_ni_cambia_las_marcas_ni_con_sudo(self):

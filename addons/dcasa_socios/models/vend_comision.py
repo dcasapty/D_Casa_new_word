@@ -224,7 +224,12 @@ class DcasaVendComision(models.Model):
         versión de las reglas de la comisión web; antes, y sin ellas, es 1 (como siempre). Si la factura junta un
         pedido online con otro de la tienda, cuenta solo la parte de la tienda."""
         desde = move._dcasa_online_desde()
-        if not desde or fields.Date.context_today(self) < desde:
+        if not desde:
+            return 1.0
+        # El corte lo decide el DÍA DE COBRO (hora de Panamá), no el de hoy: el mismo del bono por meta y de la comisión
+        # web. Un pago con fecha anterior que se registra después sigue siendo de antes (decisión del 2026-11-19).
+        dia = self.env['account.move']._dcasa_dias_de_cobro_de(move)[0].get(move.id) or fields.Date.context_today(self)
+        if dia < desde:
             return 1.0
         return 1.0 - move._dcasa_factor_online().get(move.id, 0.0)
 

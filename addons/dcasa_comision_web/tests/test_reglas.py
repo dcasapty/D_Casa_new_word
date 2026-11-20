@@ -56,10 +56,14 @@ class TestReglas(ComisionCommon):
         with self.assertRaisesRegex(UserError, 'fecha que ya pasó'):
             self.version(10.0, rige_desde=fields.Datetime.now() - timedelta(days=1))
         futura = self.version(10.0, rige_desde=fields.Datetime.now() + timedelta(days=10))
-        with self.assertRaisesRegex(UserError, 'programada para más adelante'):
-            self.version(8.0, rige_desde=fields.Datetime.now() + timedelta(days=5))
         self.assertEqual(self.env['dcasa.web.reglas']._vigente(self.company), self.env['dcasa.web.reglas'])
         self.assertEqual(futura.estado, 'programada')
+        # Una versión más cercana que otra ya programada se puede guardar (no traba el módulo): rige primero.
+        cercana = self.version(8.0, rige_desde=fields.Datetime.now() + timedelta(days=5))
+        self.assertEqual(self.env['dcasa.web.reglas']._vigente(
+            self.company, fields.Datetime.now() + timedelta(days=6)), cercana)
+        self.assertEqual(self.env['dcasa.web.reglas']._vigente(
+            self.company, fields.Datetime.now() + timedelta(days=11)), futura)
 
     def test_la_version_vigente_es_la_mas_reciente_que_ya_empezo(self):
         v1 = self.version(10.0)
@@ -165,7 +169,7 @@ class TestReglas(ComisionCommon):
         self.assertEqual(base(), '$700.00')
         self.assertEqual(base(base_itbms='con'), '$772.00', '+90 de ITBMS −18 del devuelto')
         self.assertEqual(base(base_envio='con'), '$750.00')
-        self.assertEqual(base(base_descuentos='antes'), '$800.00', 'sin el premio de 100')
+        self.assertEqual(base(base_descuentos='antes'), '$777.78', 'precio de lista; lo devuelto también a lista')
         self.assertEqual(base(base_devoluciones='no_resta'), '$900.00')
         self.assertEqual(base(base_pasarela='resta'), '$670.00')
 

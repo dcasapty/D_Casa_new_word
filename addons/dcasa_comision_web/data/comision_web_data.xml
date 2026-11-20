@@ -10,6 +10,14 @@
         <field name="company_id" eval="False"/>
     </record>
 
+    <!-- Los candados de la comisión web (ver dcasa.web.candado): una fila por cosa que no se hace dos veces a la vez. -->
+    <record id="candado_numeracion" model="dcasa.web.candado">
+        <field name="clave">1</field>
+    </record>
+    <record id="candado_liquidaciones" model="dcasa.web.candado">
+        <field name="clave">2</field>
+    </record>
+
     <record id="cron_barrido" model="ir.cron">
         <field name="name">Comisión web: anotar lo que falte, comparar el libro con la verdad y anotar la tarifa</field>
         <field name="model_id" ref="model_dcasa_web_venta"/>

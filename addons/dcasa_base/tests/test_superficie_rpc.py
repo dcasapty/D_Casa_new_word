@@ -1275,6 +1275,18 @@ LISTA_BLANCA = {
         OVERRIDE + ' Numera la versión, comprueba que solo rige hacia adelante y pone el autor; el ACL del grupo '
                    '«Administra la nómina» manda; sin sudo().',
     ('dcasa_comision_web', 'dcasa.web.reglas', 'action_nueva_version'): COMISION_WEB_ACCION,
+    ('dcasa_comision_web', 'dcasa.web.reglas', 'action_anular'): COMISION_WEB_BOTON,
+    ('dcasa_comision_web', 'dcasa.web.ajuste', 'action_anotar'): COMISION_WEB_BOTON,
+    ('dcasa_comision_web', 'account.move', 'button_draft'):
+        OVERRIDE + ' Solo DESPUÉS de pasar la factura a borrador compara con la verdad lo anotado en la comisión web '
+                   '(reversa lo que ya no está cobrado), dentro de un savepoint que nunca falla; sin sudo() para '
+                   'escribir en la factura.',
+    ('dcasa_comision_web', 'account.move', 'button_cancel'):
+        OVERRIDE + ' Solo DESPUÉS de anular la factura compara con la verdad lo anotado en la comisión web, dentro de '
+                   'un savepoint que nunca falla; sin sudo() para escribir en la factura.',
+    ('dcasa_comision_web', 'account.move', 'unlink'):
+        OVERRIDE + ' Solo DESPUÉS de borrar la factura reversa lo anotado en la comisión web, dentro de un savepoint '
+                   'que nunca falla.',
     ('dcasa_comision_web', 'dcasa.web.reparto', 'write'): COMISION_WEB_BLOQUEO,
     ('dcasa_comision_web', 'dcasa.web.reparto', 'create'):
         OVERRIDE + ' Solo deja crear renglones junto con su versión (llave interna que por RPC nunca llega); sin '

@@ -72,9 +72,11 @@ class ComisionCommon(NominaCommon):
     # Pedidos, facturas y pagos
     # ------------------------------------------------------------------
 
-    def orden(self, web=True, lineas=None, cliente=None, vendedora=None, confirmar=True, pago='a_mano', **extra):
+    def orden(self, web=True, lineas=None, cliente=None, vendedora=None, confirmar=True, pago='a_mano', creado_por=None,
+              **extra):
         """Un pedido confirmado. ``lineas``: [(producto, precio, cantidad, extras)]; por defecto un mueble de 1,000.
-        ``web=True`` lo hace nacer en la tienda en línea."""
+        ``web=True`` lo hace nacer en la tienda en línea; ``creado_por``: el usuario que abrió el carrito (por defecto,
+        quien corre la prueba)."""
         lineas = lineas or [(self.mueble, 1000.0, 1, {})]
         valores = {
             'partner_id': (cliente or self.cliente).id, 'company_id': self.company.id,
@@ -85,6 +87,10 @@ class ComisionCommon(NominaCommon):
         if vendedora:
             valores['user_id'] = vendedora.id
         orden = self.env['sale.order'].with_context(mail_notrack=True).create(valores)
+        if web:
+            # Como lo hace el carrito real del sitio (website._create_cart): ``website_id`` solo NO marca el origen.
+            orden._dcasa_escribir_marca(dcasa_nacio_en_web=True,
+                                        dcasa_creada_por_id=(creado_por or self.env.user).id)
         if web and pago == 'a_mano':
             self.transaccion(orden, 'a_mano')
         if confirmar:

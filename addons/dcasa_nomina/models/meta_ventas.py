@@ -26,7 +26,6 @@ La regla, en palabras del jefe:
 Las cifras (meta, porcentaje y el ritmo diario de guía) viven en «Meta de ventas» (Nómina › Configuración), con
 vigencia por mes: se cambian desde un mes en adelante, y un mes ya pagado no cambia.
 """
-from datetime import date
 
 from babel.dates import format_date
 from dateutil.relativedelta import relativedelta
@@ -212,25 +211,7 @@ class DcasaNominaMetaBono(models.Model):
         El día en que cada factura quedó pagada completa: su última conciliación (pago o nota de crédito), nunca antes
         de la factura; las que todavía deben algo no salen. Y las notas de crédito que se aplicaron a cada una. Sale de
         una sola lectura de las conciliaciones (no del cuadro de pagos factura por factura)."""
-        pagadas = facturas.filtered(lambda f: f.payment_state in ('paid', 'in_payment'))
-        if not pagadas:
-            return {}, {}
-        parciales = self.env['account.partial.reconcile'].sudo().search_fetch(
-            ['|', ('debit_move_id.move_id', 'in', pagadas.ids), ('credit_move_id.move_id', 'in', pagadas.ids)],
-            ['debit_move_id', 'credit_move_id', 'max_date', 'exchange_move_id'])
-        diferencias_de_cambio = parciales.exchange_move_id
-        dias, notas = {}, {}
-        for parcial in parciales:
-            for propia, otra in ((parcial.debit_move_id, parcial.credit_move_id),
-                                 (parcial.credit_move_id, parcial.debit_move_id)):
-                factura, contraparte = propia.move_id, otra.move_id
-                if factura not in pagadas or contraparte in diferencias_de_cambio:
-                    continue
-                dia = max(parcial.max_date, factura.invoice_date or date.min)
-                dias[factura.id] = max(dias.get(factura.id, date.min), dia)
-                if contraparte.move_type == 'out_refund':
-                    notas.setdefault(contraparte.id, set()).add(factura.id)
-        return dias, notas
+        return self.env['account.move']._dcasa_dias_de_cobro_de(facturas)
 
     @api.model
     def _lo_que_cuenta(self, user, company, hasta):
