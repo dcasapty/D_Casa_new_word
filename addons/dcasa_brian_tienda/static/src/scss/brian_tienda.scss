@@ -175,6 +175,15 @@
     }
 }
 
+// Lote «legibilidad», arreglo 7: con el cajón del menú del celular abierto la burbuja cubría el extremo derecho de «Mi
+// cuenta» (68 de 310 px) y quedaba por encima del cajón. Se quita mientras está abierto (solo CSS: la lógica del chat no
+// cambia) y vuelve al cerrarlo.
+html:has(#top_menu_collapse_mobile:is(.show, .showing)) .o_dcbt_burbuja {
+    opacity: 0;
+    transform: translateX(24px) scale(.8);
+    pointer-events: none;
+}
+
 @media (max-width: 767.98px) {
     .o_dcbt {
         --o-dcbt-abajo: 16px;

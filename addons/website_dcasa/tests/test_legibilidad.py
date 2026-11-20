@@ -7,6 +7,8 @@ Chrome, con el teléfono emulado, lo que la persona ve:
 * Arreglo 5: el buscador del catálogo dice qué busca (aria-label), su botón dice «Buscar» y su texto de ayuda es corto y
   no se corta en el cajón del celular. (La pista visible de la cámara es de dcasa_buscar_foto y se prueba allá.)
 * Arreglo 6: «Enviar mensaje» del contacto, a todo el ancho y de 48 px o más, como el formulario de /socios.
+* Arreglo 7: el botón de WhatsApp del hero no queda pegado a la burbuja de Andrés en el celular, y los botones de
+  categoría de «no encontramos» se apartan de la burbuja con el gancho que el chat ya tiene.
 """
 import json
 import re
@@ -15,6 +17,7 @@ from odoo.tests import HttpCase, tagged
 
 from .chrome_movil import ChromeMovilCase
 from .contraste import razon_del_texto, sonda
+from .test_contrato_visual import _cama_de_estudio
 
 MINIMO = 4.5     # texto normal (WCAG 1.4.3)
 
@@ -254,3 +257,54 @@ class TestLegibilidadContacto(ChromeMovilCase):
                 self.assertAlmostEqual(m['izquierda'], 0, delta=1, msg='empieza donde empiezan los campos')
                 self.assertAlmostEqual(m['derecha'], 0, delta=1, msg='y termina donde terminan los campos')
                 self.assertAlmostEqual(m['ancho'], m['campo'], delta=1)
+
+
+@tagged('post_install', '-at_install')
+class TestLegibilidadBurbuja(ChromeMovilCase):
+    """Arreglo 7 (la parte de CSS y de plantilla; el chat no se toca): en el celular el botón de WhatsApp del hero deja
+    al menos 16 px de aire a la burbuja de Andrés (68 px de ancho y 16 px del borde derecho), y los botones de
+    categoría de «no encontramos» llevan el gancho `o_dcasa_brian_no_tapar` con el que el chat se aparta de ellos."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        recamaras = cls.env.ref('website_dcasa.public_category_recamaras')
+        cls.diapositivas = cls.env['dcasa.portada.diapositiva']
+        cls.diapositivas.search([]).unlink()
+        cls.camas = cls.env['product.template']
+        for n in range(1, 3):
+            # El carrusel solo toma productos con foto: una cama «de estudio» dibujada, como la del contrato visual.
+            cama = cls.env['product.template'].create({
+                'name': f'Cama del test de la burbuja {n}', 'list_price': 99.99 + n, 'is_published': True,
+                'public_categ_ids': [(6, 0, recamaras.ids)], 'image_1920': _cama_de_estudio((28, 28, 30))})
+            cls.diapositivas.create({'product_tmpl_id': cama.id, 'sequence': n})
+
+    MEDIR_BOTON = """
+        (async () => {
+            for (let i = 0; i < 200 && document.body.getAttribute('is-ready') !== 'true'; i++) {
+                await new Promise((ok) => setTimeout(ok, 50));
+            }
+            const b = document.querySelector('.o_dcasa_hero_vitrina .o_dcasa_btn_linea').getBoundingClientRect();
+            return { derecha: b.right, pantalla: document.documentElement.clientWidth, texto_partido: b.height > 70 };
+        })()
+    """
+
+    def test_el_boton_de_whatsapp_del_hero_no_pega_con_la_burbuja(self):
+        for ancho in (390, 430):
+            with self.subTest(ancho=ancho), self._chrome_movil(ancho) as browser:
+                browser.navigate_to(self.base_url() + '/', wait_stop=True)
+                self.assertTrue(browser._wait_ready())
+                m = self._evaluar(browser, self.MEDIR_BOTON)
+                izquierda_de_la_burbuja = m['pantalla'] - 16 - 68
+                self.assertLessEqual(m['derecha'], izquierda_de_la_burbuja - 16,
+                                     f'a menos de 16 px de la burbuja: {m}')
+                self.assertFalse(m['texto_partido'], 'el texto del botón sigue en una línea')
+
+    def test_los_botones_de_categoria_de_no_encontramos_se_apartan_de_la_burbuja(self):
+        html = self.url_open('/shop?search=zzqqxxnoexiste').text
+        categorias = re.search(r'<ul[^>]*o_dcasa_sin_resultados_categorias.*?</ul>', html, re.S)
+        self.assertTrue(categorias, 'sin resultados salen las categorías con productos')
+        enlaces = re.findall(r'<a[^>]*o_dcasa_btn_contorno[^>]*>', categorias.group(0))
+        self.assertGreaterEqual(len(enlaces), 1)
+        for enlace in enlaces:
+            self.assertIn('o_dcasa_brian_no_tapar', enlace)

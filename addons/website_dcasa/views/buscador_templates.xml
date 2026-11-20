@@ -101,6 +101,8 @@
         </xpath>
     </template>
 
+    <!-- Lote «legibilidad», arreglo 7: los botones de categoría llevan la clase o_dcasa_brian_no_tapar, el gancho que el
+         chat de Andrés ya tiene (brian_tienda.js, NO_TAPAR): la burbuja se aparta mientras quedaría sobre uno de ellos. -->
     <template id="busqueda_sin_resultados" name="D'CASA: búsqueda sin resultados">
         <div class="o_dcasa_sin_resultados" role="status">
             <div class="mb-3"><t t-call="website.empty_search_svg"/></div>
@@ -109,7 +111,7 @@
             <t t-set="dcasa_categorias" t-value="website._dcasa_categorias_para_buscar()"/>
             <ul t-if="dcasa_categorias" class="o_dcasa_sin_resultados_categorias list-unstyled" aria-label="Categorías del catálogo">
                 <li t-foreach="dcasa_categorias" t-as="dcasa_categoria">
-                    <a t-att-href="dcasa_categoria['url']" class="btn o_dcasa_btn_contorno" t-out="dcasa_categoria['nombre']"/>
+                    <a t-att-href="dcasa_categoria['url']" class="btn o_dcasa_btn_contorno o_dcasa_brian_no_tapar" t-out="dcasa_categoria['nombre']"/>
                 </li>
             </ul>
             <a class="btn btn-primary btn-lg o_dcasa_sin_resultados_wa" target="_blank" rel="noopener"

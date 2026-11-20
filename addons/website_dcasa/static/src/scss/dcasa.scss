@@ -860,6 +860,16 @@ $dcasa-vitrina-panel: 42%;     // ancho del bloque azul en la computadora
     }
 }
 
+// Lote «legibilidad», arreglo 7: en el celular el botón de WhatsApp del hero terminaba a 8 px de la burbuja de Andrés (el
+// botón en x = 298 y la burbuja desde x = 306, a 390 px de ancho). Con 1,6 rem de relleno a los lados (eran 2 rem) mide
+// unos 13 px menos y queda a 16 px o más (la burbuja mide 68 px y va a 16 px del borde derecho). En pantallas más
+// angostas el chat se aparta solo (el botón es de los que la burbuja respeta).
+@media (max-width: 575.98px) {
+    .o_dcasa_hero_vitrina .o_dcasa_btn_linea {
+        padding-inline: 1.6rem;
+    }
+}
+
 // Con el carrusel a la vista, el botón flotante de WhatsApp espera fuera (el bloque ya trae el suyo).
 html.o_dcasa_vitrina_a_la_vista .o_dcasa_wa_float {
     opacity: 0;
