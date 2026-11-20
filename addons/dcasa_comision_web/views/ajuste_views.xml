@@ -13,6 +13,7 @@
                     tarifa de medio periodo). Queda en el libro con tu nombre y el motivo; no se edita ni se borra.
                 </div>
                 <group>
+                    <field name="permitidos_ids" invisible="1"/>
                     <field name="empleado_id" options="{'no_create': True}"/>
                     <field name="concepto"/>
                     <field name="monto"/>

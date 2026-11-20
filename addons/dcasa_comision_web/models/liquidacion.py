@@ -228,6 +228,43 @@ class DcasaWebLiquidacion(models.Model):
                     concepto=dict(CONCEPTOS)[concepto]))
         return pagar, avisos
 
+    def _avisos_de_ajustes(self, pagar):
+        """Los ajustes a mano que entran en lo que se va a pagar (anotados después de la última liquidación vigente de
+        esa persona y concepto, y hasta el fin del periodo): quién los anotó, por qué y de cuánto. Los que anotó la
+        misma persona que cobra se marcan, para que quien aprueba los mire con cuidado."""
+        self.ensure_one()
+        Libro = self.env['dcasa.web.movimiento'].sudo()
+        llaves = set(pagar)
+        if not llaves:
+            return []
+        empleados = self.env['hr.employee'].sudo().browse({empleado_id for empleado_id, _concepto in llaves})
+        dominio = [('company_id', '=', self.company_id.id), ('empleado_id', 'in', empleados.ids)]
+        liquidadas = Libro.search(dominio + [('tipo', '=', 'liquidacion')])
+        anuladas = set(liquidadas.reversa_id.ids)
+        ultima = {}
+        for fila in liquidadas.filtered(lambda f: f.centavos < 0 and f.id not in anuladas):
+            clave = (fila.empleado_id.id, fila.concepto)
+            ultima[clave] = max(ultima.get(clave, fila.ocurrido_en), fila.ocurrido_en)
+        origen = fields.Datetime.to_datetime('1900-01-01 00:00:00')
+        ajustes = Libro.search(dominio + [('tipo', '=', 'ajuste')] + Libro._hasta_el_dia(self.fecha_hasta),
+                               order='ocurrido_en, id').filtered(
+            lambda a: (a.empleado_id.id, a.concepto) in llaves
+            and a.ocurrido_en > ultima.get((a.empleado_id.id, a.concepto), origen))
+        autores = {u.login: u.id for u in self.env['res.users'].sudo().with_context(active_test=False).search(
+            [('login', 'in', ajustes.mapped('autor'))])}
+        Reparto = self.env['dcasa.web.reparto']
+        avisos = []
+        for ajuste in ajustes:
+            propio = autores.get(ajuste.autor) in Reparto._usuarios_de(ajuste.empleado_id)
+            avisos.append(self.env._(
+                'Incluye un ajuste a mano de %(monto)s para %(persona)s por «%(concepto)s» (%(motivo)s), anotado por '
+                '%(autor)s el %(fecha)s%(propio)s.',
+                monto=f'{ajuste.centavos / 100:+,.2f}', persona=ajuste.empleado_id.name,
+                concepto=dict(CONCEPTOS)[ajuste.concepto], motivo=ajuste.motivo or '', autor=ajuste.autor,
+                fecha=ajuste.ocurrido_en.strftime('%d/%m/%Y'),
+                propio=self.env._(': LO ANOTÓ LA MISMA PERSONA QUE COBRA, revísalo con cuidado') if propio else ''))
+        return avisos
+
     def _saldo_anterior_al_periodo(self):
         """Centavos por pagar que se anotaron antes de «desde» (solo lo positivo): una liquidación toma todo lo no
         liquidado hasta «hasta», así que se avisa cuando arrastra algo de antes del periodo."""
@@ -246,6 +283,7 @@ class DcasaWebLiquidacion(models.Model):
             raise UserError(self.env._('El periodo termina antes de empezar.'))
         self.env['dcasa.web.venta']._poner_al_dia()
         pagar, avisos = self._pendientes()
+        avisos += self._avisos_de_ajustes(pagar)
         anterior = self._saldo_anterior_al_periodo()
         if anterior:
             avisos.append(self.env._(
