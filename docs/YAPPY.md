@@ -72,11 +72,29 @@ Lo que Yappy **no tiene** (según lo leído): consulta del estado de un cobro y 
 - **La orden de Yappy empieza con el número del pedido.** `orderId` es de 1 a 15 letras y números, sin guiones: el número del
   pedido (hasta 10) + 5 caracteres al azar (sin 0/O/1/I confusos), en mayúsculas. Quien mire el reporte de Yappy Comercial
   ve «S00417…» y va directo al pedido. Los 5 caracteres hacen la orden única: un reintento no choca con el anterior.
-- **El botón de Yappy es de Yappy.** Se carga solo cuando la clienta elige la fila «Yappy» (son ~545 KB de un tercero). De sus
-  seis temas se usa `dark` (blanco sobre `#444c5e`, contraste 8,6:1; los otros cinco quedan entre 2,2 y 4,5:1), medido leyendo el
-  paquete real, sin ejecutarlo. El componente se apaga solo al pulsarlo (`disable-btn`): después de un fallo la página **tira el botón
-  y pone uno nuevo**. Para el teclado, la caja del botón reenvía Enter y Espacio. Las capturas usan un **sustituto** con ese aspecto
-  documentado (el original carga reCAPTCHA y Firebase y no corre sin conexión ni sin sus claves): así se dice en cada captura.
+- **El botón de Yappy es de Yappy.** Se carga solo cuando la clienta elige la fila «Yappy» (son ~545 KB de un tercero que además
+  habla con Google y con el Firebase de Yappy). El componente se apaga solo al pulsarlo (`disable-btn`): después de un fallo antes
+  de cobrar, la página **tira el botón y pone uno nuevo**. Para el teclado, la caja del botón reenvía Enter y Espacio.
+- **Tema: `dark`, elegido por la dueña el 2026-11-20 viendo el componente real en nuestra pantalla.** Blanco sobre `#444c5e`, texto de
+  16 px en negrita (no es «texto grande»: pide 4,5:1) con **8,60:1** en reposo, el mejor de los seis. Medidas de los seis con el
+  componente **real** (script de pruebas de Yappy ejecutado en Chrome dentro de esta pantalla; WCAG 2.x sobre los colores que
+  pinta el propio componente; el botón contra el fondo de la fila elegida, `#F2F5FC`):
+
+  | Tema | Texto/fondo en reposo | Con el ratón encima | Presionado | Botón contra la fila |
+  |---|---|---|---|---|
+  | `blue` (blanco sobre `#1eb2f5`) | 2,40 | 2,40 | 4,50 | 2,2 |
+  | `darkBlue` (blanco sobre `#1677d8`) | 4,50 | 8,47 | 4,56 | 4,1 |
+  | `orange` (blanco sobre `#ff973c`) | 2,16 | 2,16 | 3,75 | 2,0 |
+  | **`dark`** (blanco sobre `#444c5e`) | **8,60** | **2,44** | 4,62 | 7,9 |
+  | `sky` (`#1677d8` sobre `#f4faff`) | 4,28 | 4,40 | 3,97 | 1,0 |
+  | `light` (`#1677d8` sobre blanco) | 4,50 | 4,28 | 3,97 | 1,1 |
+
+  **Punto débil conocido de `dark`:** la regla `:hover` del propio componente lo pinta de `#9fa6b7`, y el texto blanco queda en
+  2,44:1 mientras el ratón está encima (solo escritorio; en el celular no hay «encima»). No es nuestro código. Si se quiere
+  cerrar, la mitigación es una regla nuestra en `yappy.scss` que mantenga el fondo oscuro también con el ratón encima (el
+  componente no usa shadow DOM: sus clases se pueden pisar) y, de paso, una prueba del contraste en ese estado. **Está propuesta,
+  no hecha.** `rounded="true"` no tiene efecto aquí (nuestra esquina de 12 px la pisa a propósito), y en pantallas de hasta 823 px
+  el componente impone su propio relleno y el botón mide 56 px en vez de nuestros 52.
 - **Tres llaves para que se ofrezca** (la misma regla de Tilopay): claves cargadas y con la forma correcta, entorno
   coherente con el interruptor (`prueba` ↔ «Modo de prueba»; `produccion` ↔ «Habilitado»), y que Gerencia lo encienda.
   `produccion` solo se obedece en el servidor de producción (`DCASA_ENTORNO=produccion`). Sin publicar o en modo de prueba
