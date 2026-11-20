@@ -6,7 +6,7 @@
         <field name="model">dcasa.web.venta</field>
         <field name="arch" type="xml">
             <list string="Ventas del sitio" create="0" delete="0" edit="0" decoration-muted="not cobrada"
-                  decoration-warning="cobro_adelantado or nota_sin_producto">
+                  decoration-warning="cobro_adelantado or nota_sin_producto or facturado_distinto">
                 <field name="fecha_cobro"/>
                 <field name="factura"/>
                 <field name="como_llego" widget="badge"/>
@@ -22,6 +22,7 @@
                        decoration-danger="estado == 'revertida'"/>
                 <field name="cobro_adelantado" string="Fecha futura" optional="show"/>
                 <field name="nota_sin_producto" string="Nota sin producto" optional="show"/>
+                <field name="facturado_distinto" string="Distinto del pedido" optional="show"/>
                 <field name="cobrada" column_invisible="1"/>
                 <field name="currency_id" column_invisible="1"/>
             </list>
@@ -52,6 +53,13 @@
                         el envío, así que se restan de lo vendido. Si devolvía solo el envío, la base queda más baja de lo
                         que debería: revísala y, si hace falta, anota un ajuste con motivo.
                     </div>
+                    <div class="alert alert-warning" role="alert" invisible="not facturado_distinto">
+                        Lo que dice la factura no coincide con el pedido de la página: el precio, el descuento o la
+                        cantidad de alguna línea es distinto del de su línea del pedido, o los anticipos cobrados pasan
+                        de lo que vale el pedido. A veces es normal (por ejemplo, un descuento que se dio en caja), pero
+                        conviene mirarlo: la comisión se calcula sobre lo facturado y cobrado. Esto es solo una señal:
+                        no cambia lo que se paga.
+                    </div>
                     <group>
                         <group string="La venta">
                             <field name="factura"/>
@@ -66,6 +74,7 @@
                             <field name="cobro_atrasado"/>
                             <field name="cobro_adelantado"/>
                             <field name="nota_sin_producto"/>
+                            <field name="facturado_distinto"/>
                         </group>
                         <group string="Los montos (sin ITBMS)">
                             <field name="productos"/>
@@ -117,6 +126,8 @@
                         domain="[('cobro_adelantado', '=', True)]"/>
                 <filter name="nota_sin_producto" string="Una nota trae líneas sin producto"
                         domain="[('nota_sin_producto', '=', True)]"/>
+                <filter name="facturado_distinto" string="Facturado distinto del pedido"
+                        domain="[('facturado_distinto', '=', True)]"/>
                 <filter name="carrito_del_equipo" string="Abrió o cambió el carrito alguien del equipo"
                         domain="[('creado_por_personal', '=', True)]"/>
                 <separator/>

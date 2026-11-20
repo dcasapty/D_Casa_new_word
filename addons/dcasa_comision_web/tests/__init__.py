@@ -25,3 +25,4 @@ from . import test_version_nueva_navegador
 from . import test_revision5_versiones
 from . import test_revision5_valores
 from . import test_revision5_navegador
+from . import test_revision5_facturado
