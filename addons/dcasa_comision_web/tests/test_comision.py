@@ -76,7 +76,7 @@ class TestMedirYComisionar(ComisionReloj):
         lineas = [(self.mueble, 1000.0, 1, {}), (self.premio, -100.0, 1, {}),
                   (self.envio, 50.0, 1, {'is_delivery': True})]
         casos = [({}, 90000 - 20000), ({'base_envio': 'con'}, 90000 + 5000 - 20000),
-                 ({'base_descuentos': 'antes'}, 100000 - 20000), ({'base_devoluciones': 'no_resta'}, 90000)]
+                 ({'base_descuentos': 'antes'}, 100000 - 22222), ({'base_devoluciones': 'no_resta'}, 90000)]
         for i, (opciones, base) in enumerate(casos):
             with self.subTest(opciones=opciones):
                 self.avanzar(f'2030-03-{10 + i} 15:00:00')
@@ -85,7 +85,7 @@ class TestMedirYComisionar(ComisionReloj):
                 self.pagar(factura, f'2030-03-{10 + i}')
                 self.nota(factura, 200.0, fecha=f'2030-03-{10 + i}')
                 self.assertEqual(self.venta(factura).base_centavos, base)
-                self.assertEqual(self.venta(factura).comision_centavos, base // 10)
+                self.assertEqual(self.venta(factura).comision_centavos, round(base / 10))
 
     def test_con_itbms_la_base_suma_el_impuesto_de_la_venta_y_resta_el_de_la_devolucion(self):
         self.version(10.0, base_itbms='con')

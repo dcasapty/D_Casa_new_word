@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- El ajuste a mano en el libro: siempre con motivo; nunca se edita ni se borra una fila, se anota otra. -->
+    <record id="ajuste_form" model="ir.ui.view">
+        <field name="name">dcasa.web.ajuste.form</field>
+        <field name="model">dcasa.web.ajuste</field>
+        <field name="arch" type="xml">
+            <form string="Anotar un ajuste">
+                <field name="currency_id" invisible="1"/>
+                <field name="company_id" invisible="1"/>
+                <div class="alert alert-info" role="alert">
+                    Un ajuste corrige lo que el sistema no puede ver solo (por ejemplo, algo que ya se pagó de más o una
+                    tarifa de medio periodo). Queda en el libro con tu nombre y el motivo; no se edita ni se borra.
+                </div>
+                <group>
+                    <field name="empleado_id" options="{'no_create': True}"/>
+                    <field name="concepto"/>
+                    <field name="monto"/>
+                    <field name="motivo"/>
+                </group>
+                <footer>
+                    <button name="action_anotar" type="object" string="Anotar el ajuste" class="btn-primary"/>
+                    <button string="Cancelar" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="accion_ajuste" model="ir.actions.act_window">
+        <field name="name">Anotar un ajuste</field>
+        <field name="res_model">dcasa.web.ajuste</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <!-- Vigilancia (solo Gerencia): pedidos de la página que llevó una vendedora o que abrió alguien del equipo. -->
+    <record id="pedidos_vigilados_list" model="ir.ui.view">
+        <field name="name">sale.order.list.dcasa.comision.vigilados</field>
+        <field name="model">sale.order</field>
+        <field name="arch" type="xml">
+            <list string="Pedidos de la página para revisar" create="0" delete="0" edit="0">
+                <field name="name"/>
+                <field name="date_order"/>
+                <field name="partner_id"/>
+                <field name="user_id" string="Vendedora"/>
+                <field name="dcasa_creada_por_id" string="Carrito abierto por"/>
+                <field name="dcasa_llevada_por_vendedora" string="La llevó una vendedora"/>
+                <field name="amount_untaxed" sum="Sin ITBMS"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="pedidos_vigilados_search" model="ir.ui.view">
+        <field name="name">sale.order.search.dcasa.comision.vigilados</field>
+        <field name="model">sale.order</field>
+        <field name="arch" type="xml">
+            <search string="Pedidos de la página para revisar">
+                <field name="name"/>
+                <field name="dcasa_creada_por_id"/>
+                <filter name="llevada" string="La llevó una vendedora (aunque sea un mensaje)"
+                        domain="[('dcasa_llevada_por_vendedora', '=', True)]"/>
+                <filter name="del_equipo" string="Carrito abierto por alguien del equipo"
+                        domain="[('dcasa_creada_por_id.share', '=', False)]"/>
+                <separator/>
+                <filter name="por_creador" string="Quién abrió el carrito"
+                        context="{'group_by': 'dcasa_creada_por_id'}"/>
+                <filter name="por_vendedora" string="Vendedora" context="{'group_by': 'user_id'}"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="accion_pedidos_vigilados" model="ir.actions.act_window">
+        <field name="name">Pedidos de la página para revisar</field>
+        <field name="res_model">sale.order</field>
+        <field name="view_mode">list</field>
+        <field name="domain">[('dcasa_nacio_en_web', '=', True)]</field>
+        <field name="search_view_id" ref="pedidos_vigilados_search"/>
+        <field name="context">{'search_default_llevada': 1}</field>
+        <field name="view_ids" eval="[(5, 0, 0), (0, 0, {'view_mode': 'list', 'view_id': ref('pedidos_vigilados_list')})]"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No hay pedidos de la página para revisar.</p>
+            <p>Aquí salen los pedidos que nacieron en la página y que una vendedora llevó (le escribió al cliente por el
+               chat de Juan en los 30 días anteriores, aunque sea un solo mensaje: no cuentan como venta online), y los
+               carritos que abrió alguien del equipo.</p>
+        </field>
+    </record>
+</odoo>

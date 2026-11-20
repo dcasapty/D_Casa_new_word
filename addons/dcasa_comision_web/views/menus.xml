@@ -9,6 +9,8 @@
               action="accion_liquidaciones" sequence="20" groups="dcasa_nomina.group_nomina"/>
     <menuitem id="menu_quienes_reciben" name="Quiénes reciben" parent="menu_comision_web"
               action="accion_quienes_reciben" sequence="30" groups="dcasa_nomina.group_nomina"/>
+    <menuitem id="menu_pedidos_vigilados" name="Pedidos de la página para revisar" parent="menu_comision_web"
+              action="accion_pedidos_vigilados" sequence="45" groups="dcasa_base.group_gerencia"/>
     <menuitem id="menu_libro_web" name="Libro" parent="menu_comision_web" action="accion_libro" sequence="40"
               groups="dcasa_nomina.group_nomina"/>
     <menuitem id="menu_reglas_web" name="Reglas" parent="menu_comision_web" action="accion_reglas" sequence="50"

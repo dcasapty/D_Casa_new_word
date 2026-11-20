@@ -19,18 +19,20 @@ aplicadas sueltas, pago revertido, factura cancelada o vuelta a borrador) asenta
 import logging
 from decimal import ROUND_HALF_UP, Decimal
 
-from odoo import SUPERUSER_ID, api, fields, models
+from odoo import SUPERUSER_ID, api, fields, models, modules, tools
 from odoo.exceptions import UserError
 
 from . import calculo
+from .movimiento import dia_de_panama
 
 _logger = logging.getLogger(__name__)
 
 PAGADA = ('paid', 'in_payment')
-LLAVE_DE_VENTA = 731_900_102
+LLAVE_DE_VENTA = 731_900_102          # una sola llave por venta (reconciliar)
+LLAVE_DE_CREACION = 731_900_104       # anotar la venta de una factura por primera vez
 COMO_LLEGO = [('web', 'Página'), ('tienda', 'Pagó en tienda'), ('andres', 'Andrés'), ('juan', 'Juan')]
 FORMAS_DE_PAGO = [('pasarela', 'Pasarela'), ('a_mano', 'Transferencia o Yappy'), ('en_tienda', 'En la tienda')]
-LOTE = 500
+LOTE = 200
 
 
 class DcasaWebVenta(models.Model):
@@ -52,6 +54,12 @@ class DcasaWebVenta(models.Model):
                       help='El primer día del mes (Panamá) en que se cobró: para medir mes a mes.')
     como_llego = fields.Selection(COMO_LLEGO, 'Cómo llegó', readonly=True, index=True)
     forma_pago = fields.Selection(FORMAS_DE_PAGO, 'Cómo pagó', readonly=True, index=True)
+    creado_por_id = fields.Many2one('res.users', 'Carrito abierto por', readonly=True,
+                                    help='Quién abrió el carrito de la página (dcasa_creada_por_id del pedido).')
+    creado_por_personal = fields.Boolean(
+        'Carrito de alguien del equipo', readonly=True, index=True,
+        help='El carrito lo abrió una persona del equipo (un usuario interno), no un visitante. Cotizar en la página y '
+             'pagar en la tienda SÍ cuenta (decisión de Gerencia): esto es la vigilancia para ver quién lo hace.')
     atendida_por_vendedora = fields.Boolean(
         'Una vendedora la atendió', readonly=True,
         help='El pedido tiene vendedora asignada (por ejemplo la que lo confirmó). Sigue siendo venta online.')
@@ -170,8 +178,8 @@ class DcasaWebVenta(models.Model):
         factor = move._dcasa_factor_online().get(move.id, 0.0)
         c['itbms'] = calculo.a_centavos(move.amount_tax_signed * factor)
         notas = self._notas_de(move)
-        c['devuelto'] = calculo.a_centavos(sum(abs(n.amount_untaxed_signed) for n in notas) * factor)
-        c['devuelto_itbms'] = calculo.a_centavos(sum(abs(n.amount_tax_signed) for n in notas) * factor)
+        c['devuelto'] = calculo.a_centavos(sum(abs(n.amount_untaxed_signed) * fr for n, fr in notas.items()) * factor)
+        c['devuelto_itbms'] = calculo.a_centavos(sum(abs(n.amount_tax_signed) * fr for n, fr in notas.items()) * factor)
         primera = ordenes.invoice_ids.filtered(
             lambda f: f.state == 'posted' and f.move_type == 'out_invoice').sorted('id')[:1]
         if primera == move:
@@ -182,17 +190,23 @@ class DcasaWebVenta(models.Model):
 
     @api.model
     def _notas_de(self, move):
-        """Las notas de crédito publicadas que restan de esta factura: la que la revierte y la que se aplicó a ella
-        aunque no esté enlazada (como en el bono por meta)."""
+        """``{nota: fracción}``: las notas de crédito publicadas que restan de esta factura y qué parte de cada una le
+        toca. La que la revierte cuenta entera; la que se aplicó suelta (sin enlazar), solo por lo que de verdad se
+        aplicó a ESTA factura: una nota de 600 repartida entre dos facturas resta 600 en total, no 600 en cada una."""
         Move = self.env['account.move'].sudo()
-        notas = move.reversal_move_ids.filtered(lambda n: n.state == 'posted' and n.move_type == 'out_refund')
+        notas = {n: 1.0 for n in move.reversal_move_ids.filtered(
+            lambda n: n.state == 'posted' and n.move_type == 'out_refund')}
         cuentas = move.line_ids.filtered(lambda ln: ln.account_id.account_type == 'asset_receivable')
-        parciales = cuentas.matched_debit_ids | cuentas.matched_credit_ids
-        for parcial in parciales:
-            for otro in (parcial.debit_move_id.move_id, parcial.credit_move_id.move_id):
-                if otro != move and otro.move_type == 'out_refund' and otro.state == 'posted':
-                    notas |= otro
-        return Move.browse(notas.ids)
+        aplicado = {}
+        for parcial in cuentas.matched_debit_ids | cuentas.matched_credit_ids:
+            otra = parcial.debit_move_id if parcial.credit_move_id in cuentas else parcial.credit_move_id
+            nota = Move.browse(otra.move_id.id)
+            if nota != move and nota.move_type == 'out_refund' and nota.state == 'posted' and nota not in notas:
+                aplicado[nota] = aplicado.get(nota, 0.0) + parcial.amount
+        for nota, monto in aplicado.items():
+            total = abs(nota.amount_total_signed)
+            notas[nota] = min(1.0, monto / total) if total else 0.0
+        return notas
 
     @api.model
     def _dia_de_cobro(self, move):
@@ -234,21 +248,27 @@ class DcasaWebVenta(models.Model):
     # ------------------------------------------------------------------
 
     @api.model
-    def _registrar(self, move, desde_barrido=False):
+    def _registrar(self, move):
         """Anota la fila de una factura del sitio pagada por completo (si todavía no está) y deja el libro al día.
         Idempotente: el gancho de pago puede llamarse más de una vez. Devuelve la fila o vacío."""
         move = move.sudo()
         if not self._es_del_sitio(move) or not self._pagada(move):
             return self.browse()
-        self.env.cr.execute('SELECT pg_advisory_xact_lock(%s, %s)', [LLAVE_DE_VENTA, move.id])
+        existente = self.sudo().search([('move_id', '=', move.id)], limit=1)
+        if existente:
+            existente._reconciliar()
+            return existente
+        # La venta todavía no existe: se cuida que dos cobros a la vez no la creen dos veces (y, por si acaso, la fila
+        # es única por factura). Una vez creada, toda la comparación con el libro usa la llave de la VENTA.
+        self.env.cr.execute('SELECT pg_advisory_xact_lock(%s, %s)', [LLAVE_DE_CREACION, move.id])
         existente = self.sudo().search([('move_id', '=', move.id)], limit=1)
         if existente:
             existente._reconciliar()
             return existente
         company = move.company_id
         dia = self._dia_de_cobro(move)
-        Reglas = self.env['dcasa.web.reglas']
-        reglas = Reglas._vigente_el(company, dia) if desde_barrido else Reglas._vigente(company)
+        # El corte es el DÍA DE COBRO (hora de Panamá), igual que para las vendedoras: ver ``reglas._vigente_el``.
+        reglas = self.env['dcasa.web.reglas']._vigente_el(company, dia)
         c, ordenes = self._componentes(move)
         forma = self._forma_de_pago(ordenes)
         venta = self.sudo().create({
@@ -256,6 +276,9 @@ class DcasaWebVenta(models.Model):
             'fecha_cobro': dia, 'mes': dia.replace(day=1), 'cobrada': True, 'forma_pago': forma,
             'como_llego': self._como_llego(ordenes, forma),
             'atendida_por_vendedora': self._atendida_por_vendedora(ordenes),
+            'creado_por_id': ordenes[:1].dcasa_creada_por_id.id or False,
+            'creado_por_personal': bool(ordenes[:1].dcasa_creada_por_id
+                                        and not ordenes[:1].dcasa_creada_por_id.share),
             'reglas_id': reglas.id or False, 'porcentaje': reglas.porcentaje if reglas else 0.0,
             **self._valores_de_componentes(c),
         })
@@ -271,13 +294,11 @@ class DcasaWebVenta(models.Model):
         de las reglas mueven el libro; las que solo se midieron no cobran nunca."""
         Libro = self.env['dcasa.web.movimiento']
         for venta in self.sudo():
-            self.env.cr.execute('SELECT pg_advisory_xact_lock(%s, %s)', [LLAVE_DE_VENTA, venta.id])
             move = venta.move_id
-            if not move:
-                continue
-            pagada = self._pagada(move)
+            self.env.cr.execute('SELECT pg_advisory_xact_lock(%s, %s)', [LLAVE_DE_VENTA, venta.id])
+            pagada = self._pagada(move) if move else False       # una factura borrada ya no está cobrada
             antes_devuelto, antes_cobrada = venta.devuelto_centavos, venta.cobrada
-            if move.state == 'posted':
+            if move and move.state == 'posted':
                 c, _ordenes = self._componentes(move)
                 venta.write({**self._valores_de_componentes(c), 'cobrada': pagada})
             else:
@@ -323,32 +344,93 @@ class DcasaWebVenta(models.Model):
     # ------------------------------------------------------------------
 
     @api.model
-    def _barrido(self):
-        """Cada noche: (a) anota las facturas del sitio pagadas que no tienen fila (un gancho que falló) y (b)
-        compara el
-        libro con la verdad de cada venta anotada con reglas, asentando la diferencia. Un error en una venta no frena a
-        las demás y queda en el registro."""
-        Move = self.env['account.move'].sudo()
-        anotadas = self.sudo().search([]).move_id.ids
-        pendientes = Move.search([
-            ('move_type', '=', 'out_invoice'), ('state', '=', 'posted'), ('dcasa_historica', '=', False),
-            ('payment_state', 'in', PAGADA), ('id', 'not in', anotadas),
-            ('invoice_line_ids.sale_line_ids.order_id.dcasa_venta_online', '=', True)], limit=LOTE, order='id')
-        nuevas = 0
-        for move in pendientes:
-            try:
-                with self.env.cr.savepoint():
-                    nuevas += bool(self._registrar(move, desde_barrido=True))
-            except Exception:  # noqa: BLE001 — una factura rara no detiene a las demás
-                _logger.exception('Comisión web: no se pudo anotar la factura %s en el barrido', move.name)
+    def _confirmar_lote(self):
+        """Confirma lo hecho hasta aquí (el barrido nocturno suelta así los candados de cada lote en vez de retenerlos
+        todos hasta el final). En las pruebas no confirma nada (una sola transacción)."""
+        if not (tools.config['test_enable'] or modules.module.current_test):
+            self.env.cr.commit()
+
+    @api.model
+    def _atribuir_a_las_reglas(self):
+        """Las ventas que se midieron sin reglas pero cuyo DÍA DE COBRO ya cae en una versión: un cobro de las 8 de la
+        mañana, anotado antes de que Gerencia guardara esa mañana la primera versión, que rige desde el inicio de ese
+        día. Para las vendedoras esa venta ya no cuenta (corte por día de cobro); si aquí no se atribuyera al sitio, no
+        sería de nadie. Idempotente; solo toca lo cobrado el día en que rige una versión o después."""
+        Reglas = self.env['dcasa.web.reglas']
+        atribuidas = 0
+        for company in Reglas.sudo().search([('anulada', '=', False)]).company_id:
+            primera = Reglas._primera(company)
+            if not primera:
+                continue
+            for venta in self.sudo().search([
+                    ('company_id', '=', company.id), ('reglas_id', '=', False), ('cobrada', '=', True),
+                    ('fecha_cobro', '>=', dia_de_panama(primera.rige_desde))]):
+                reglas = Reglas._vigente_el(company, venta.fecha_cobro)
+                if not reglas:
+                    continue
+                try:
+                    with self.env.cr.savepoint():
+                        venta.write({'reglas_id': reglas.id, 'porcentaje': reglas.porcentaje})
+                        venta._reconciliar()
+                        atribuidas += 1
+                except Exception:  # noqa: BLE001 — una venta rara no detiene a las demás
+                    _logger.exception('Comisión web: no se pudo atribuir la venta %s a las reglas', venta.factura)
+        return atribuidas
+
+    @api.model
+    def _poner_al_dia(self):
+        """Compara con la verdad TODAS las ventas con comisión que siguen cobradas (un pago revertido, una factura
+        anulada, borrada o con una nota de crédito nueva): lo usan el barrido y, antes de sumar un centavo, cada
+        liquidación al armarse o aprobarse."""
+        self._atribuir_a_las_reglas()
         revisadas = 0
-        for venta in self.sudo().search([('reglas_id', '!=', False)]):
+        for venta in self.sudo().search([('reglas_id', '!=', False), ('cobrada', '=', True)]):
             try:
                 with self.env.cr.savepoint():
                     venta._reconciliar()
                     revisadas += 1
             except Exception:  # noqa: BLE001
                 _logger.exception('Comisión web: no se pudo comparar la venta %s con el libro', venta.factura)
+        return revisadas
+
+    @api.model
+    def _barrido(self):
+        """Cada noche: (a) anota las facturas del sitio pagadas que no tienen fila (un gancho que falló) y (b) compara
+        el libro con la verdad de cada venta anotada con reglas, asentando la diferencia. Un error en una venta no
+        frena a las demás y queda en el registro. Va por lotes (``LOTE`` ventas) y confirma cada uno."""
+        Move = self.env['account.move'].sudo()
+        nuevas, intentadas = 0, set()
+        while True:
+            anotadas = self.sudo().search([]).move_id.ids
+            pendientes = Move.search([
+                ('move_type', '=', 'out_invoice'), ('state', '=', 'posted'), ('dcasa_historica', '=', False),
+                ('payment_state', 'in', PAGADA), ('id', 'not in', list(set(anotadas) | intentadas)),
+                ('invoice_line_ids.sale_line_ids.order_id.dcasa_venta_online', '=', True)], limit=LOTE, order='id')
+            hechas = 0
+            intentadas |= set(pendientes.ids)
+            for move in pendientes:
+                try:
+                    with self.env.cr.savepoint():
+                        hechas += bool(self._registrar(move))
+                except Exception:  # noqa: BLE001 — una factura rara no detiene a las demás
+                    _logger.exception('Comisión web: no se pudo anotar la factura %s en el barrido', move.name)
+            nuevas += hechas
+            self._confirmar_lote()
+            if not pendientes:
+                break
+        self._atribuir_a_las_reglas()
+        self._confirmar_lote()
+        revisadas = 0
+        ids = self.sudo().search([('reglas_id', '!=', False)], order='id').ids
+        for desde in range(0, len(ids), LOTE):
+            for venta in self.sudo().browse(ids[desde:desde + LOTE]):
+                try:
+                    with self.env.cr.savepoint():
+                        venta._reconciliar()
+                        revisadas += 1
+                except Exception:  # noqa: BLE001
+                    _logger.exception('Comisión web: no se pudo comparar la venta %s con el libro', venta.factura)
+            self._confirmar_lote()
         _logger.info('Comisión web: el barrido anotó %s ventas nuevas y comparó %s con el libro.', nuevas, revisadas)
         return nuevas, revisadas
 

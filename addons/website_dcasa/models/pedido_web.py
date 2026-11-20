@@ -40,3 +40,16 @@ class SaleOrder(models.Model):
                 orden.user_id = quien
             elif orden.website_id.salesperson_id:
                 orden.user_id = orden.website_id.salesperson_id
+
+
+class Website(models.Model):
+    _inherit = 'website'
+
+    def _create_cart(self):
+        """Único lugar donde nace un carrito de la página (el visitante, Andrés, «volver a comprar»): aquí se escribe,
+        una sola vez, que el pedido **nació en la tienda en línea** y quién abrió el carrito
+        (``dcasa_base.models.venta_online``). Un pedido tecleado a mano con ``website_id`` no pasa por aquí y no queda
+        marcado: el origen no se fabrica."""
+        carrito = super()._create_cart()
+        carrito.sudo()._dcasa_escribir_marca(dcasa_nacio_en_web=True, dcasa_creada_por_id=self.env.user.id)
+        return carrito

@@ -28,6 +28,7 @@ La comisión por las ventas del sitio web (decisión de Gerencia, 2026-11-19; ve
         'security/ir.model.access.csv',
         'data/comision_web_data.xml',
         'views/reglas_views.xml',
+        'views/ajuste_views.xml',
         'views/venta_views.xml',
         'views/liquidacion_views.xml',
         'views/menus.xml',

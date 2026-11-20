@@ -11,21 +11,20 @@ el sistema solo mide las ventas del sitio. Con porcentaje y tarifa vacíos (0) l
 El día de la PRIMERA versión es también el día desde el que una venta online deja de ser de una vendedora (bono por
 meta, Inicio y programa de vendedores): ``sale.order._dcasa_online_desde`` (``models/sale_order.py``).
 """
-from datetime import timedelta
-
 from markupsafe import Markup
 
-from odoo import api, fields, models
+from odoo import SUPERUSER_ID, api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
 from . import calculo
-from .movimiento import dia_de_panama
+from .movimiento import CANDADO_NUMERACION, dia_de_panama
 
-# Candado para que dos personas que guardan a la vez no saquen el mismo número de versión.
-LLAVE_DE_NUMERACION = 731_900_101
+GRUPO = 'dcasa_nomina.group_nomina'
 # Un objeto, no ``True``: el contexto que llega por RPC es JSON y nunca puede traerlo.
 CREANDO_VERSION = object()
 CLAVE_CREANDO = 'dcasa_comision_web_creando_version'
+CLAVE_ANULANDO = 'dcasa_comision_web_anulando_version'
+ANULANDO = object()
 
 PERIODOS = [('mensual', 'Cada mes'), ('quincenal', 'Cada quincena'), ('semanal', 'Cada semana')]
 
@@ -58,10 +57,17 @@ class DcasaWebReglas(models.Model):
     nombre = fields.Char(compute='_compute_nombre')
     rige_desde = fields.Datetime(
         'Rige desde', required=True, default=fields.Datetime.now, index=True,
-        help='Desde este momento, y solo desde entonces, se calcula con estas reglas. No se acepta una fecha que ya '
-             'pasó ni anterior a otra versión ya programada. Lo ya anotado no se recalcula.')
-    estado = fields.Selection([('programada', 'Programada'), ('vigente', 'Rige ahora'), ('anterior', 'Reemplazada')],
-                              compute='_compute_estado')
+        help='Rige desde el INICIO de ese día (hora de Panamá), y solo desde entonces: lo cobrado ese día ya cuenta '
+             'para el sitio y deja de ser de las vendedoras. No se acepta un día que ya pasó ni anterior a otra '
+             'versión ya programada. Lo ya anotado no se recalcula.')
+    estado = fields.Selection([('programada', 'Programada'), ('vigente', 'Rige ahora'), ('anterior', 'Reemplazada'),
+                               ('anulada', 'Anulada')], compute='_compute_estado')
+    anulada = fields.Boolean('Anulada', readonly=True, copy=False, index=True,
+                             help='Una versión que todavía no rige se puede anular (con motivo) si se puso mal; nunca '
+                                  'se borra. Una anulada no rige nunca.')
+    motivo_anulacion = fields.Char('Motivo de la anulación', copy=False)
+    anulada_por = fields.Many2one('res.users', 'Anulada por', readonly=True, copy=False)
+    anulada_el = fields.Datetime('Anulada el', readonly=True, copy=False)
     porcentaje = fields.Float(
         'Porcentaje de cada venta del sitio', digits=(6, 3),
         help='El porcentaje fijo de lo vendido por internet. No es un bono por meta: se paga aunque no se llegue a '
@@ -91,14 +97,14 @@ class DcasaWebReglas(models.Model):
         for version in self:
             version.nombre = self.env._('Versión %s', version.numero) if version.numero else self.env._('Versión nueva')
 
-    @api.depends('rige_desde', 'company_id')
+    @api.depends('rige_desde', 'company_id', 'anulada')
     def _compute_estado(self):
         ahora = fields.Datetime.now()
         for version in self:
             vigente = self._vigente(version.company_id, ahora) if version.id else self.browse()
-            if not version.id or not version.rige_desde:
-                version.estado = 'programada'
-            elif version.rige_desde > ahora:
+            if version.anulada:
+                version.estado = 'anulada'
+            elif not version.id or not version.rige_desde or dia_de_panama(version.rige_desde) > dia_de_panama(ahora):
                 version.estado = 'programada'
             else:
                 version.estado = 'vigente' if version == vigente else 'anterior'
@@ -122,7 +128,7 @@ class DcasaWebReglas(models.Model):
                 ('Cobro de envío', c['envio'], '+', op['base_envio'] == 'con', 'Se suma solo si cuenta el envío.'),
                 ('ITBMS (el impuesto)', c['itbms'], '+', op['base_itbms'] == 'con',
                  'Se suma solo si el porcentaje se calcula con el ITBMS.'),
-                ('El cliente devolvió', c['devuelto'] + (c['devuelto_itbms'] if op['base_itbms'] == 'con' else 0),
+                ('El cliente devolvió', calculo.devuelto_en_la_base(c, {**op, 'base_devoluciones': 'resta'}),
                  '−', op['base_devoluciones'] == 'resta', 'Se resta si las devoluciones restan.'),
                 ('La pasarela cobró', c['pasarela'], '−', op['base_pasarela'] == 'resta',
                  'Se resta solo si se resta lo que cobra la pasarela.'),
@@ -168,39 +174,78 @@ class DcasaWebReglas(models.Model):
                     f'{total:g}'))
             if len(reparto.empleado_id) != len(reparto):
                 raise ValidationError(self.env._('Una persona sale una sola vez en el reparto.'))
+            if reparto and not version._hay_quien_apruebe():
+                raise ValidationError(self.env._(
+                    'Para poder aprobar las liquidaciones tiene que haber al menos una persona de Gerencia o de Nómina '
+                    'que NO figure entre quienes reciben (quien cobra no aprueba lo suyo). Crea el usuario de quien '
+                    'va a aprobar (por ejemplo Gerencia general) antes de guardar esta versión.'))
+
+    def _hay_quien_apruebe(self):
+        """¿Queda al menos un usuario de Gerencia o de Nómina, de verdad una persona, que no cobre en esta versión?"""
+        self.ensure_one()
+        receptores = self.reparto_ids.empleado_id
+        ligados = self.env['dcasa.web.reparto']._usuarios_de(receptores)
+        candidatos = self.env['res.users'].sudo().search([('share', '=', False), ('id', '!=', SUPERUSER_ID)])
+        return any(u.has_group(GRUPO) and u.id not in ligados for u in candidatos)
 
     # ------------------------------------------------------------------
     # La versión no se edita ni se borra; solo rige hacia adelante
     # ------------------------------------------------------------------
 
     def write(self, vals):
+        anulando = self.env.context.get(CLAVE_ANULANDO)
+        if anulando is not None and anulando is ANULANDO:
+            return super().write(vals)
+        if set(vals) <= {'motivo_anulacion'} and all(v.estado == 'programada' and not v.anulada for v in self):
+            return super().write(vals)
         raise UserError(self.env._(
-            'Una versión de las reglas no se edita: un cambio se hace guardando una versión nueva.'))
+            'Una versión de las reglas no se edita: un cambio se hace guardando una versión nueva. Si todavía no rige '
+            'y se puso mal, se puede anular.'))
 
     @api.ondelete(at_uninstall=False)
     def _no_borrar(self):
         raise UserError(self.env._(
-            'Una versión de las reglas no se borra: un error se corrige guardando una versión nueva.'))
+            'Una versión de las reglas no se borra: un error se corrige guardando una versión nueva (o anulando la '
+            'que todavía no rige).'))
+
+    def action_anular(self):
+        """Anula una versión que TODAVÍA NO RIGE (se puso con el año o el día equivocado): no se borra, queda con su
+        motivo y quién la anuló, y deja de contar. Una que ya rige no se anula: se guarda una nueva."""
+        self.check_access('write')
+        if not self.env.user.has_group(GRUPO):
+            raise UserError(self.env._('Solo Gerencia y quien administra la nómina anulan una versión.'))
+        for version in self:
+            if version.anulada or version.estado != 'programada':
+                raise UserError(self.env._('Solo se anula una versión que todavía no rige.'))
+            if not (version.motivo_anulacion or '').strip():
+                raise UserError(self.env._('Escribe el motivo de la anulación.'))
+            if self.env['dcasa.web.venta'].sudo().search_count([('reglas_id', '=', version.id)], limit=1):
+                raise UserError(self.env._('Esta versión ya se usó para calcular una venta: no se puede anular.'))
+            version.sudo().with_context(**{CLAVE_ANULANDO: ANULANDO}).write({
+                'anulada': True, 'anulada_por': self.env.user.id, 'anulada_el': fields.Datetime.now()})
+        return True
 
     @api.model_create_multi
     def create(self, vals_list):
         ahora = fields.Datetime.now()
-        self.env.cr.execute('SELECT pg_advisory_xact_lock(%s)', [LLAVE_DE_NUMERACION])
-        self.env.cr.execute('SELECT COALESCE(MAX(numero), 0), MAX(rige_desde) FROM dcasa_web_reglas')
-        ultimo_numero, ultima_vigencia = self.env.cr.fetchone()
+        # Quien guarda escribe el candado: dos versiones a la vez no sacan el mismo número (REPEATABLE READ).
+        self.env['dcasa.web.candado']._tomar(CANDADO_NUMERACION)
+        self.env.cr.execute('SELECT COALESCE(MAX(numero), 0) FROM dcasa_web_reglas')
+        ultimo_numero = self.env.cr.fetchone()[0]
         for vals in vals_list:
             desde = fields.Datetime.to_datetime(vals.get('rige_desde')) or ahora
-            if desde < ahora - timedelta(minutes=1):
+            # Rige desde el INICIO de ese día de Panamá: hoy vale (aunque el formulario se haya abierto hace rato).
+            if dia_de_panama(desde) < dia_de_panama(ahora):
                 raise UserError(self.env._(
                     'Un cambio solo rige hacia adelante: no se puede poner una fecha que ya pasó.'))
-            if ultima_vigencia and desde < ultima_vigencia:
-                raise UserError(self.env._(
-                    'Ya hay una versión programada para más adelante. No se puede guardar una que empiece antes.'))
             ultimo_numero += 1
             vals.update(numero=ultimo_numero, rige_desde=desde, autor=self.env.user.name)
-            ultima_vigencia = desde
         # Los renglones del reparto solo se crean aquí, junto con su versión.
-        return super(DcasaWebReglas, self.with_context(**{CLAVE_CREANDO: CREANDO_VERSION})).create(vals_list)
+        versiones = super(DcasaWebReglas, self.with_context(**{CLAVE_CREANDO: CREANDO_VERSION})).create(vals_list)
+        # Lo cobrado HOY antes de guardar esta versión también es del sitio (rige desde el inicio del día): no se queda
+        # sin dueño ni con la vendedora (el corte es el mismo para las dos).
+        self.env['dcasa.web.venta']._atribuir_a_las_reglas()
+        return versiones
 
     # ------------------------------------------------------------------
     # Qué versión rige
@@ -210,15 +255,15 @@ class DcasaWebReglas(models.Model):
     def _vigente(self, company, ahora=None):
         """La versión que rige en ``ahora`` (o ahora mismo) para ``company``; vacío si todavía no hay ninguna."""
         ahora = ahora or fields.Datetime.now()
-        return self.sudo().search([('company_id', '=', company.id), ('rige_desde', '<=', ahora)],
-                                  order='rige_desde desc, numero desc', limit=1)
+        return self._vigente_el(company, dia_de_panama(ahora))
 
     @api.model
     def _vigente_el(self, company, dia):
-        """La versión que regía el día ``dia`` (fecha de Panamá): la más reciente que ya empezó ese día o antes. Para
-        anotar con calma una venta cobrada hace unos días (el barrido), no una de ahora mismo."""
-        ahora = fields.Datetime.now()
-        for version in self.sudo().search([('company_id', '=', company.id), ('rige_desde', '<=', ahora)],
+        """La versión que regía el día ``dia`` (fecha de Panamá): la más reciente (no anulada) cuyo «Rige desde» cae ese
+        día o antes. **Una sola regla de corte, por día de cobro, para todos** (decisión del 2026-11-19): el día en que
+        rige, todo lo cobrado ese día cuenta para el sitio y para nadie de las vendedoras; lo cobrado un día antes sigue
+        como siempre para las vendedoras y nunca para el sitio."""
+        for version in self.sudo().search([('company_id', '=', company.id), ('anulada', '=', False)],
                                           order='rige_desde desc, numero desc'):
             if dia_de_panama(version.rige_desde) <= dia:
                 return version
@@ -228,11 +273,13 @@ class DcasaWebReglas(models.Model):
     def _primera(self, company):
         """La primera versión que se guardó (rija ya o no): marca desde cuándo una venta online deja de ser de las
         vendedoras."""
-        return self.sudo().search([('company_id', '=', company.id)], order='rige_desde, numero', limit=1)
+        return self.sudo().search([('company_id', '=', company.id), ('anulada', '=', False)],
+                                  order='rige_desde, numero', limit=1)
 
     @api.model
     def _versiones_desde(self, company):
-        return self.sudo().search([('company_id', '=', company.id)], order='rige_desde, numero')
+        return self.sudo().search([('company_id', '=', company.id), ('anulada', '=', False)],
+                                  order='rige_desde, numero')
 
     def action_nueva_version(self):
         """El botón «Nueva versión»: abre el formulario con lo que rige hoy ya escrito (la cabecera de una lista llama
@@ -269,6 +316,11 @@ class DcasaWebReparto(models.Model):
                                   help='Empleados que están en Nómina. La lista no depende del departamento.')
     porcentaje = fields.Float('Le toca (%)', required=True, digits=(5, 2))
     company_id = fields.Many2one(related='reglas_id.company_id', store=True, index=True)
+    usuario_ids = fields.Many2many(
+        'res.users', 'dcasa_web_reparto_usuario_rel', 'reparto_id', 'usuario_id', 'Usuarios de esta persona',
+        readonly=True, copy=False,
+        help='Los usuarios ligados a la ficha de la persona el día en que se guardó esta versión. Quedan fijos: '
+             'cambiar la ficha después no deja a quien cobra aprobar su propia liquidación.')
     currency_id = fields.Many2one(related='company_id.currency_id')
     por_pagar_comision = fields.Monetary(
         'Por pagar: porcentaje', compute='_compute_saldos',
@@ -296,6 +348,19 @@ class DcasaWebReparto(models.Model):
             linea.por_pagar_tarifa = saldos.get((linea.empleado_id.id, 'tarifa'), 0) / 100.0
 
     @api.model
+    def _usuarios_de(self, empleados):
+        """``{id de usuario}`` de las personas de ``empleados``: los que su ficha nombra hoy (usuario o contacto de
+        trabajo) y los que tenía ligados cuando se guardó cualquier versión del reparto donde figuró."""
+        empleados = empleados.sudo().with_context(active_test=False)
+        usuarios = set(empleados.user_id.ids)
+        contactos = empleados.work_contact_id
+        if contactos:
+            usuarios |= set(self.env['res.users'].sudo().with_context(active_test=False).search(
+                [('partner_id', 'in', contactos.ids)]).ids)
+        usuarios |= set(self.sudo().search([('empleado_id', 'in', empleados.ids)]).usuario_ids.ids)
+        return usuarios
+
+    @api.model
     def _accion_quienes_reciben(self):
         """Nómina › Comisión del sitio web › Quiénes reciben: la lista de la versión que rige hoy."""
         vigente = self.env['dcasa.web.reglas']._vigente(self.env.company)
@@ -312,9 +377,16 @@ class DcasaWebReparto(models.Model):
         if self.env.context.get(CLAVE_CREANDO) is not CREANDO_VERSION:
             raise UserError(self.env._(
                 'El reparto no se agrega a una versión ya guardada: guarda una versión nueva con el reparto nuevo.'))
-        return super().create(vals_list)
+        lineas = super().create(vals_list)
+        for linea in lineas:
+            # Se congelan los usuarios ligados HOY a la ficha (no se editan: ver ``write``).
+            linea.sudo().with_context(**{CLAVE_CREANDO: CREANDO_VERSION}).usuario_ids = [
+                fields.Command.set(sorted(self._usuarios_de(linea.empleado_id)))]
+        return lineas
 
     def write(self, vals):
+        if self.env.context.get(CLAVE_CREANDO) is CREANDO_VERSION and set(vals) == {'usuario_ids'}:
+            return super().write(vals)
         raise UserError(self.env._('El reparto de una versión no se edita: guarda una versión nueva.'))
 
     @api.ondelete(at_uninstall=False)

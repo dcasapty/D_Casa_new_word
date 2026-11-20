@@ -7,3 +7,5 @@ from . import test_liquidacion
 from . import test_vendedoras
 from . import test_permisos
 from . import test_pantallas
+from . import test_revision
+from . import test_endurecimiento
