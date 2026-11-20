@@ -18,6 +18,7 @@ import time
 from odoo.addons.website_dcasa.tests.chrome_movil import ALTO, ChromeMovilCase
 from odoo.addons.website_dcasa.tests.test_pago_visual import CLAVE, CORREO, PagoVisualDatos
 from odoo.tests import tagged
+from odoo.tests.common import ChromeBrowserException
 
 from .common import YappyFalso, entorno
 
@@ -753,7 +754,11 @@ class TestElBotonDeYappyEnElNavegador(PagoVisualDatos, ChromeMovilCase):
                 return 1;""")
             historial = {}
             for _ in range(100):
-                historial = browser._websocket_request('Page.getNavigationHistory')
+                try:
+                    historial = browser._websocket_request('Page.getNavigationHistory')
+                except ChromeBrowserException:      # un instante, mientras la página cambia, no hay página «activa»
+                    time.sleep(0.1)
+                    continue
                 if historial['entries'][historial['currentIndex']]['url'].endswith('/payment/status'):
                     break
                 time.sleep(0.1)
