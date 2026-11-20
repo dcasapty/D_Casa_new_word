@@ -62,6 +62,7 @@ class PagoVisualComun(PagoVisualDatos, HttpCase):
         cls.preparar_pago()
 
     def pagina(self, ruta):
+        self.env.flush_all()          # lo escrito con el ORM tiene que estar en la base antes de que lo lea la petición
         respuesta = self.url_open(ruta)
         self.assertEqual(respuesta.status_code, 200, ruta)
         return respuesta.url, respuesta.text, lxml_html.fromstring(respuesta.text)
@@ -69,6 +70,11 @@ class PagoVisualComun(PagoVisualDatos, HttpCase):
     @staticmethod
     def texto(nodo):
         return re.sub(r'\s+', ' ', nodo.text_content()).strip()
+
+    @staticmethod
+    def con_clase(clase, etiqueta='*'):
+        """XPath de «tiene EXACTAMENTE esta clase» (``contains(@class, …)`` también cazaría ``…_in`` y ``…_texto``)."""
+        return f'//{etiqueta}[contains(concat(" ", normalize-space(@class), " "), " {clase} ")]'
 
 
 @tagged('post_install', '-at_install')
@@ -82,7 +88,7 @@ class TestPaginaDePago(PagoVisualComun):
         url, texto, arbol = self.pagina('/shop/payment')
         self.assertIn('/shop/payment', url)
         # Cabecera mínima: logo, «Pago seguro» y volver al carrito.
-        cabecera = arbol.xpath('//div[contains(@class, "o_dcasa_pago_cabecera")]')
+        cabecera = arbol.xpath(self.con_clase('o_dcasa_pago_cabecera', 'div'))
         self.assertEqual(len(cabecera), 1)
         self.assertIn('Pago seguro', self.texto(cabecera[0]))
         volver = cabecera[0].xpath('.//a[contains(@class, "o_dcasa_pago_volver")]')
@@ -141,7 +147,7 @@ class TestPaginaDePago(PagoVisualComun):
         self.assertTrue(panel)
         self.assertIn('Resumen del pedido', self.texto(panel[0]))
         filas = [self.texto(fila) for fila in panel[0].xpath('.//table[contains(@class, "o_cart_products_table")]//tr')]
-        self.assertTrue(any('SERVICIO DE PRUEBA DEL PAGO' in fila for fila in filas), 'la línea del pedido')
+        self.assertTrue(any('SERVICIO DE PRUEBA DEL PAGO' in fila.upper() for fila in filas), 'la línea del pedido')
         etiquetas = [self.texto(td) for td in panel[0].xpath('.//div[contains(@class, "o_cart_total")]//tr/td[1]')]
         orden_de_filas = [e for e in etiquetas if e in ('Subtotal', 'ITBMS', 'Total')]
         self.assertEqual(orden_de_filas, ['Subtotal', 'ITBMS', 'Total'], 'el impuesto se llama ITBMS')
@@ -204,7 +210,8 @@ class TestPaginaDePago(PagoVisualComun):
         filas = arbol.xpath('//div[contains(@class, "o_total_card")]//tr[contains(@class, "o_dcasa_pago_premio")]')
         self.assertEqual(len(filas), 1, 'la línea del premio lleva su clase para verse como un descuento')
         self.assertIn(f'Premio {canje.codigo}', self.texto(filas[0]))
-        self.assertIn('-9.35', self.texto(filas[0]).replace(' ', '').replace('\xa0', ''))
+        precio = self.texto(filas[0]).replace(' ', '').replace('\xa0', '').replace('\ufeff', '')
+        self.assertIn('-9.35', precio)
 
 
 @tagged('post_install', '-at_install')
@@ -244,6 +251,10 @@ class TestVentanaDelPortalYEstados(PagoVisualComun):
 
     def _pagar_con_yappy_en_la_tienda(self):
         orden = self.entrar_y_llenar_el_carrito()
+        # El paso «Dirección» de la tienda guarda en la sesión cuál fue el último pedido: sin él, al volver de pagar la
+        # tienda no sabe cuál confirmar. Se pasa por ahí como lo haría el cliente.
+        self.env.flush_all()
+        self.url_open('/shop/checkout')
         proveedor = self.env['payment.provider'].search([('name', '=', 'Yappy'), ('code', '=', 'custom')], limit=1)
         self.assertTrue(proveedor, 'Yappy lo deja la configuración de la tienda')
         self.make_jsonrpc_request(f'/shop/payment/transaction/{orden.id}', {
@@ -251,15 +262,22 @@ class TestVentanaDelPortalYEstados(PagoVisualComun):
             'payment_method_id': proveedor.payment_method_ids[:1].id, 'token_id': None,
             'flow': 'redirect', 'tokenization_requested': False, 'landing_route': '/shop/payment/validate',
             'is_validation': False})
-        # Lo que hace «/payment/custom/process» al llegar el cliente: la transacción manual queda pendiente.
-        self.env['payment.transaction'].search([('sale_order_ids', 'in', orden.ids)], order='id desc', limit=1) \
-            ._set_pending()
+        # Lo que hace el formulario de redirección de Odoo al llegar el cliente: avisar a «/payment/custom/process», que
+        # deja la transacción manual pendiente y lo manda a «Estado del pago».
+        transaccion = self.env['payment.transaction'].search(
+            [('sale_order_ids', 'in', orden.ids)], order='id desc', limit=1)
+        self.env.flush_all()
+        respuesta = self.url_open('/payment/custom/process', data={'reference': transaccion.reference},
+                                  allow_redirects=False)
+        self.assertEqual(respuesta.status_code, 303)
+        self.env.invalidate_all()
+        self.assertEqual(transaccion.state, 'pending')
         return orden
 
     def test_estado_del_pago_es_la_misma_pantalla_sin_menu_ni_pie(self):
         self._pagar_con_yappy_en_la_tienda()
         _url, texto, arbol = self.pagina('/payment/status')
-        self.assertTrue(arbol.xpath('//div[contains(@class, "o_dcasa_pago_cabecera")]'))
+        self.assertTrue(arbol.xpath(self.con_clase('o_dcasa_pago_cabecera', 'div')))
         self.assertNotIn('o_dcasa_anuncios', texto)
         self.assertFalse(arbol.xpath('//footer'), 'sin el pie de la tienda')
         self.assertFalse(arbol.xpath('//header[@id="top"]'))
@@ -288,6 +306,7 @@ class TestVentanaDelPortalYEstados(PagoVisualComun):
         self._pagar_con_yappy_en_la_tienda()
         transaccion = self.env['payment.transaction'].search([], order='id desc', limit=1)
         transaccion._set_canceled()
+        self.env.flush_all()
         self.assertEqual(transaccion.state, 'cancel')
         url, texto, arbol = self.pagina('/shop/payment/validate')
         self.assertIn('/shop/confirmation', url)

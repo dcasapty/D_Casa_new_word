@@ -14,8 +14,13 @@
         <!-- Parámetros: volver_href / volver_texto (opcional: «Volver al carrito»). -->
         <div class="o_dcasa_pago_cabecera" role="banner">
             <div class="o_dcasa_pago_cabecera_in">
+                <!-- Igual que la cabecera de la tienda: mientras el logo sea el de fábrica, su copia en WebP (3-7 KB); si se
+                     cambia desde el editor, el campo de Odoo de siempre. -->
                 <a href="/" class="o_dcasa_pago_logo" aria-label="D'CASA Panamá, ir al inicio">
-                    <img t-att-src="website.image_url(website, 'logo')" alt="D'CASA Panamá" height="40"/>
+                    <img t-if="website._dcasa_logo_de_fabrica()" src="/website_dcasa/static/src/img/logo-200.webp"
+                         srcset="/website_dcasa/static/src/img/logo-200.webp 1x, /website_dcasa/static/src/img/logo-400.webp 2x"
+                         width="88" height="40" alt="D'CASA Panamá"/>
+                    <img t-else="" t-att-src="website.image_url(website, 'logo')" height="40" t-att-alt="website.name"/>
                 </a>
                 <span class="o_dcasa_pago_seguro"><i class="fa fa-lock" aria-hidden="true"/>Pago seguro</span>
                 <a t-if="volver_href" t-att-href="volver_href" class="o_dcasa_pago_volver">

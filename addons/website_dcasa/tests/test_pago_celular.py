@@ -56,10 +56,11 @@ ELEGIR_UN_METODO = """
         const esperar = (ms) => new Promise((ok) => setTimeout(ok, ms));
         const radio = document.querySelector('input[name="o_payment_radio"]');
         radio.click();
-        await esperar(700);
-        const fila = radio.closest('[name="o_payment_option"]');
         const boton = [...document.querySelectorAll('button[name="o_payment_submit_button"]')]
             .find((b) => b.getClientRects().length);
+        for (let i = 0; i < 50 && boton.disabled; i++) { await esperar(100); }   // el JavaScript de Odoo lo enciende
+        await esperar(300);
+        const fila = radio.closest('[name="o_payment_option"]');
         const r = boton.getBoundingClientRect();
         const ayuda = fila.querySelector('.o_dcasa_pago_ayuda');
         return {
