@@ -91,11 +91,12 @@ persona (§3.4).
   | `sky` (`#1677d8` sobre `#f4faff`) | 4,28 | 4,40 | 3,97 | 1,0 |
   | `light` (`#1677d8` sobre blanco) | 4,50 | 4,28 | 3,97 | 1,1 |
 
-  **Punto débil conocido de `dark`:** la regla `:hover` del propio componente lo pinta de `#9fa6b7`, y el texto blanco queda en
-  2,44:1 mientras el ratón está encima (solo escritorio; en el celular no hay «encima»). No es nuestro código. Si se quiere
-  cerrar, la mitigación es una regla nuestra en `yappy.scss` que mantenga el fondo oscuro también con el ratón encima (el
-  componente no usa shadow DOM: sus clases se pueden pisar) y, de paso, una prueba del contraste en ese estado. **Está propuesta,
-  no hecha.** `rounded="true"` no tiene efecto aquí (nuestra esquina de 12 px la pisa a propósito), y en pantallas de hasta 823 px
+  **Punto débil de `dark` (arreglado de nuestro lado):** la regla `:hover` del propio componente lo pinta de `#9fa6b7`, y el texto
+  blanco quedaba en 2,44:1 mientras el ratón estaba encima (solo escritorio; en el celular no hay «encima»). Ahora una regla
+  nuestra en `yappy.scss`, atada a nuestra caja (pesa más que la del componente aunque ella lleve `!important`; el componente no
+  usa shadow DOM), lo mantiene oscuro: reposo `#444c5e` **8,60:1**, con el ratón encima `#565e72` **6,48:1**, pulsado `#626a7e`
+  **5,41:1** (la dueña ya eligió el gris; esto solo evita que se vea ilegible al pasar el ratón). Una prueba de navegador lo mide con
+  el ratón de verdad y las reglas del componente real. `rounded="true"` no tiene efecto aquí (nuestra esquina de 12 px la pisa a propósito), y en pantallas de hasta 823 px
   el componente impone su propio relleno y el botón mide 56 px en vez de nuestros 52.
 - **Tres llaves para que se ofrezca** (la misma regla de Tilopay): claves cargadas y con la forma correcta, entorno
   coherente con el interruptor (`prueba` ↔ «Modo de prueba»; `produccion` ↔ «Habilitado»), y que Gerencia lo encienda.
@@ -366,14 +367,20 @@ Solo con el **sí** de la dueña a lo que vio (capturas antes/después del cambi
   - Después de `eventSuccess` se usa `location.replace`: con «atrás» no se vuelve a un botón de Yappy listo para pagar otra vez.
   `eventError` también llega con valores que no son de la lista (`false` si Firebase rechaza el token; un error de red): mensaje
   general y botón nuevo.
-- **Refrescar o cerrar a mitad, y pagar dos veces (pendiente de decisión, no es un fallo de dinero).** Con un cobro abierto el pedido
-  queda `draft` con la transacción `pending` y Odoo suelta el carrito de la sesión: al refrescar o volver atrás la clienta cae en la
-  tienda con el carrito vacío y «Mis pedidos» no lo lista; el aviso firmado sigue pudiendo pagarlo y `/payment/status` lo muestra.
-  Propuestas: una guarda `beforeunload` mientras el intento está vivo, y mandar a `/payment/status` a quien vuelva a la tienda
-  con un cobro de Yappy de menos de 5 minutos. Si abre dos cobros y paga los dos, los dos entran (`done`), el equipo recibe la
-  actividad «Yappy: pedido pagado dos veces» y devuelve uno: se avisa, no se impide (Yappy no permite cancelar una orden).
-  En «revisión» (llegó una `E` sobre una transacción ya cancelada) la pantalla de estado sigue ofreciendo «Intentar de nuevo»:
-  conviene esconderlo mientras una persona mira el cobro.
+- **Refrescar o cerrar a mitad de un cobro, y pagar dos veces (resuelto en la segunda revisión).** Con un cobro abierto el pedido
+  queda `draft` con la transacción `pending` y Odoo suelta el carrito de la sesión: al refrescar o volver atrás la clienta caía
+  en la tienda con el carrito vacío y «Mis pedidos» no lo lista (el aviso firmado sigue pudiendo pagarlo). Ahora:
+  - **Vuelve a SU cobro:** `/shop/cart` y `/shop/payment` mandan a `/payment/status` **solo** si la transacción que esa sesión viene
+    pagando (la que guarda Odoo al crearla; nunca la de otra sesión) es de Yappy, sigue `pending`, se mandó a Yappy hace menos de 5
+    minutos (lo que dura la solicitud) y la sesión no tiene un carrito con cosas (quien ya sigue comprando otra cosa no se redirige).
+  - **Aviso del navegador al cerrar o refrescar** (`beforeunload`) **solo mientras hay un intento vivo** (la solicitud ya salió hacia
+    la app); sin intento, con el intento terminado, o cuando vamos nosotros a la página de estado, no molesta.
+  - **Pagar dos veces:** si abre dos cobros y paga los dos, el primer aviso paga y el segundo va a **revisión humana** con la alerta
+    «el pedido ya estaba pagado»: **no se registra un segundo cobro** (el equipo devuelve uno desde Yappy Comercial si de verdad
+    entró dos veces; Yappy no permite cancelar una orden).
+  - **«Intentar de nuevo» ya no se ofrece en «revisión»** (llegó una `E` sobre una transacción cancelada, un pedido anulado, un
+    pedido que ya estaba pagado…): la clienta ya pagó o pudo pagar y otro intento sería pagar dos veces; queda «Escríbenos por
+    WhatsApp» como botón principal.
 - **La trampa de las etiquetas de prueba de Odoo.** `--test-tags /dcasa_pago_yappy` **no corre ninguna prueba**: la expresión
   regular de Odoo toma un nombre que termina en «py» por la ruta de un archivo `.py` (el punto sin escapar). Se usa la etiqueta
   sin barra (`dcasa_pago_yappy`) y `scripts/test.sh` ya lo hace solo. Un «0 pruebas, todo bien» en este módulo es un error.
