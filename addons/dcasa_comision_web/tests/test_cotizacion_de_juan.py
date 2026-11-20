@@ -48,6 +48,7 @@ class TestCotizacionDeJuan(CotizarCase):
 
     def test_una_cotizacion_que_arma_una_persona_en_ventas_no_es_online(self):
         """Un pedido tecleado por una persona, aunque diga que viene de la conversación y traiga ``website_id``."""
+        self.conv.partner_id.sudo().email = 'karen.comision@example.com'    # para poder confirmar como vendedora
         sitio = self.env['website'].search([], limit=1)
         orden = self.env['sale.order'].with_user(self.vendedora).create({
             'partner_id': self.conv.partner_id.id, 'origin': 'Conversación Karen', 'website_id': sitio.id,
