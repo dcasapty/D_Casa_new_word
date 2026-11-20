@@ -111,7 +111,7 @@ class PaymentTransaction(models.Model):
     dcasa_tilopay_aviso_raro = fields.Boolean(
         'Ya se avisó de un estado que no se entiende', readonly=True, copy=False,
         help='Marca que ya se dejó la nota y la actividad de «estado que no se entiende» para esta transacción. Sirve '
-             'para avisar UNA sola vez aunque Gerencia dé por hecha la actividad (la tarea vuelve a preguntar cada hora).')
+             'para avisar UNA sola vez aunque Gerencia dé por hecha la actividad (la tarea pregunta cada hora).')
 
     _dcasa_tilopay_orden_uniq = models.Constraint(
         'unique(dcasa_tilopay_orden)', 'La orden de Tilopay debe ser única.')

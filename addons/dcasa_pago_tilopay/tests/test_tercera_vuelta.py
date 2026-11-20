@@ -189,7 +189,7 @@ class TestRv3EstadoRaroYHuella(Base):
             resumen = self.env._('Tilopay: estado que no se entiende (%s)', tx.reference)
             primeras = self.actividades(pedido, resumen)
             self.assertTrue(primeras)
-            primeras.action_done()                                      # Gerencia la da por atendida (Odoo deja su propia nota)
+            primeras.action_done()   # Gerencia la da por atendida (Odoo deja su propia nota)
             self.assertFalse(self.actividades(pedido, resumen))
             notas_antes = len(pedido.message_ids)
             tx.dcasa_tilopay_consulta = fields.Datetime.now() - timedelta(hours=2)
@@ -298,9 +298,10 @@ class TestRv3SenalForjada(Base):
         self.assertLessEqual(retraso, 1)
 
     def test_la_senal_falsa_de_la_basura_no_retrasa_al_cliente_que_si_volvio(self):
-        """Pasa (la cola es por antigüedad de la consulta y ese cliente es de los más antiguos). ``dcasa_tilopay_senal`` la escribe cualquier retorno o aviso con una orden VÁLIDA: quien
-        abrió páginas de pago conoce sus propias órdenes y puede darle «señal de vida» a toda su basura. Todas pasan al
-        frente de la cola y compiten con la del cliente real. Se mide a escala 1:10 (23 h de ráfaga)."""
+        """Pasa: la cola es por antigüedad de la consulta y ese cliente es de los más antiguos. ``dcasa_tilopay_senal``
+        la escribe cualquier retorno o aviso con una orden VÁLIDA: quien abrió páginas de pago conoce sus propias
+        órdenes y puede darle «señal de vida» a toda su basura, que pasa al frente de la cola y compite con la del
+        cliente real. Se mide a escala 1:10 (23 h de ráfaga)."""
         retraso = self.simular(forjar=True)
         logging.getLogger('rv3.sim').warning('RVSIM3 con senal falsa: %s vueltas', retraso)
         self.assertIsNotNone(retraso)
