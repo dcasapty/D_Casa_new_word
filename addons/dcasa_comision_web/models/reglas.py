@@ -25,6 +25,8 @@ CREANDO_VERSION = object()
 CLAVE_CREANDO = 'dcasa_comision_web_creando_version'
 CLAVE_ANULANDO = 'dcasa_comision_web_anulando_version'
 ANULANDO = object()
+# Lo que solo escribe el botón «Anular»: ni al crear ni por el contexto.
+CAMPOS_DEL_SISTEMA = ('anulada', 'anulada_por', 'anulada_el')
 
 PERIODOS = [('mensual', 'Cada mes'), ('quincenal', 'Cada quincena'), ('semanal', 'Cada semana')]
 
@@ -226,6 +228,15 @@ class DcasaWebReglas(models.Model):
         return True
 
     @api.model_create_multi
+    @api.model
+    def default_get(self, fields_list):
+        """Una versión nunca nace anulada: ni un valor ni un ``default_*`` del contexto (que llega por RPC)."""
+        valores = super().default_get(fields_list)
+        for clave in CAMPOS_DEL_SISTEMA:
+            if clave in valores:
+                valores[clave] = False
+        return valores
+
     def create(self, vals_list):
         ahora = fields.Datetime.now()
         # Quien guarda escribe el candado: dos versiones a la vez no sacan el mismo número (REPEATABLE READ).
@@ -234,6 +245,8 @@ class DcasaWebReglas(models.Model):
         ultimo_numero = self.env.cr.fetchone()[0]
         for vals in vals_list:
             desde = fields.Datetime.to_datetime(vals.get('rige_desde')) or ahora
+            for clave in CAMPOS_DEL_SISTEMA:
+                vals.pop(clave, None)
             # Rige desde el INICIO de ese día de Panamá: hoy vale (aunque el formulario se haya abierto hace rato).
             if dia_de_panama(desde) < dia_de_panama(ahora):
                 raise UserError(self.env._(

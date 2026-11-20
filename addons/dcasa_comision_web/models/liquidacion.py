@@ -36,6 +36,8 @@ ATAJOS = [
     ('quincena_1_pasada', 'Primera quincena del mes pasado (1 al 15)'),
     ('esta_semana', 'Esta semana'), ('semana_pasada', 'La semana pasada'),
 ]
+# Lo que solo escribe el sistema con los botones: ni al crear ni por el contexto.
+CAMPOS_DEL_SISTEMA = ('estado', 'aprobada_por', 'aprobada_el', 'pagada_por', 'cancelada_por', 'cancelada_el', 'avisos')
 EDITABLES_EN_BORRADOR = frozenset({'atajo', 'fecha_desde', 'fecha_hasta', 'notas'})
 EDITABLES_DEL_PAGO = frozenset({'fecha_pago', 'referencia_pago', 'motivo_cancelacion'})
 
@@ -169,10 +171,22 @@ class DcasaWebLiquidacion(models.Model):
         """Único camino para cambiar el estado: lo usan los botones, después de comprobar el permiso."""
         return self.sudo().with_context(**{CLAVE_ESCRIBIR: ESCRIBIR}).write(valores)
 
+    @api.model
+    def default_get(self, fields_list):
+        """Una liquidación nace siempre propuesta: ni un valor ni un ``default_*`` del contexto (que llega por RPC y
+        Odoo aplica después de ``create``) la crea ya aprobada, pagada o cancelada."""
+        valores = super().default_get(fields_list)
+        for clave in CAMPOS_DEL_SISTEMA:
+            if clave in valores:
+                valores[clave] = 'borrador' if clave == 'estado' else False
+        return valores
+
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
-            vals.pop('estado', None)
+            for clave in CAMPOS_DEL_SISTEMA:
+                vals.pop(clave, None)
+            vals['estado'] = 'borrador'
             vals['name'] = self.env['ir.sequence'].next_by_code('dcasa.web.liquidacion') or 'Nueva'
         return super().create(vals_list)
 

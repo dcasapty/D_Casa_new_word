@@ -29,9 +29,11 @@ Las marcas se escriben UNA vez, **solo por código del flujo real** (el carrito:
 ``dcasa_comision_web`` decide «la llevó una vendedora» al confirmar), y nadie las cambia a mano ni con ``sudo()``: solo
 con la llave interna ``ESCRIBIR``, que por RPC nunca llega (el contexto de una llamada es JSON). **Tener ``website_id``
 NO basta** (revisión adversarial, 2026-11-19): ese campo se acepta por RPC, así que quien teclea un pedido de mostrador
-con él no lo vuelve «de la web». Tampoco se escribe a mano el campo calculado ``dcasa_venta_online`` que lee todo el
-sistema. ``dcasa_creada_por_id`` guarda quién abrió el carrito (para que Gerencia vea si alguien del equipo teclea
-pedidos de la página). Los pedidos que ya existían se marcaron una sola vez al instalar (``migrations/19.0.1.10.0``).
+con él no lo vuelve «de la web»; tampoco lo hace un ``default_*`` del contexto (también viaja por RPC y Odoo lo aplica
+después de ``create``: ``default_get`` lo descarta). Tampoco se escribe a mano el campo calculado
+``dcasa_venta_online`` que lee todo el sistema. ``dcasa_creada_por_id`` guarda quién abrió el carrito (para que
+Gerencia vea si alguien del equipo teclea pedidos de la página). Los pedidos que ya existían se marcaron una sola
+vez al instalar (``migrations/19.0.1.10.0``).
 
 **Solo hacia adelante.** La regla «una venta online nunca es de una vendedora» solo rige desde el día en que Gerencia
 pone en vigencia la primera versión de las reglas de la comisión web: ``_dcasa_online_desde()`` devuelve ese día (y
@@ -80,9 +82,21 @@ class SaleOrderOnline(models.Model):
         for orden in self:
             orden.dcasa_venta_online = bool(orden.dcasa_nacio_en_web and not orden.dcasa_llevada_por_vendedora)
 
+    @api.model
+    def default_get(self, fields_list):
+        """Las claves ``default_*`` del contexto llegan por RPC y Odoo las aplica DESPUÉS de que ``create`` limpió los
+        valores: sin esto, ``context={'default_dcasa_nacio_en_web': True}`` fabricaba el origen (segunda revisión,
+        2026-11-19). Solo la llave interna ``ESCRIBIR`` deja pasar una marca."""
+        valores = super().default_get(fields_list)
+        if self.env.context.get(CLAVE_CONTEXTO) is not ESCRIBIR:
+            for clave in TESTIGOS + DERIVADOS:
+                valores.pop(clave, None)
+        return valores
+
     @api.model_create_multi
     def create(self, vals_list):
-        # Nadie fabrica el origen al crear (ni con ``website_id`` ni con ``default_website_id``): lo pone el sitio.
+        # Nadie fabrica el origen al crear (ni con ``website_id``, ni con ``default_website_id``, ni con ningún
+        # ``default_*`` del contexto: ver ``default_get``): lo pone el flujo real.
         vals_list = [{k: v for k, v in vals.items() if k not in TESTIGOS + DERIVADOS} for vals in vals_list]
         return super().create(vals_list)
 
