@@ -36,8 +36,9 @@ class CrmCase(CotizarCase):
         return [(m.body or '') for m in lead.message_ids]
 
     def factura_pagada(self, orden):
-        """Una factura del cliente, ligada a las líneas de la cotización y pagada."""
-        factura = self.env['account.move'].create({
+        """Una factura del cliente, ligada a las líneas de la cotización y pagada (el enlace con el pedido solo lo
+        escribe el código de ventas: la prueba lo arma con la llave interna de dcasa_base)."""
+        factura = self.env['account.move']._dcasa_con_enlace_de_pedido().create({
             'move_type': 'out_invoice', 'partner_id': orden.partner_id.id, 'invoice_date': fields.Date.today(),
             'invoice_line_ids': [Command.create({
                 'name': 'Cama', 'quantity': 1, 'price_unit': 100.0, 'tax_ids': [Command.clear()],

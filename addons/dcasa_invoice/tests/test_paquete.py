@@ -193,8 +193,9 @@ class TestPaquetePdf(PaqueteComun):
 
     def test_dos_facturas_del_mismo_pedido_no_repiten_la_entrega(self):
         pedido, factura = self._venta(cantidad=2)
-        # Una segunda factura del mismo pedido (como un anticipo): cuelga de las mismas líneas de venta.
-        segunda = self.env['account.move'].create({
+        # Una segunda factura del mismo pedido (como un anticipo): cuelga de las mismas líneas de venta. El enlace con
+        # el pedido solo lo escribe el código de ventas: la prueba lo arma con la llave interna (dcasa_base).
+        segunda = self.env['account.move']._dcasa_con_enlace_de_pedido().create({
             'move_type': 'out_invoice', 'partner_id': self.cliente.id, 'invoice_date': fields.Date.today(),
             'invoice_line_ids': [Command.create({
                 'product_id': self.mueble.id, 'quantity': 1, 'price_unit': 10.0,

@@ -4282,7 +4282,7 @@
    "destino": {
     "menu": "dcasa_comision_web.menu_ventas_sitio"
    },
-   "nota": "Se mide siempre, aunque todavía no haya porcentaje de comisión. Una venta que lleva una vendedora no cuenta como del sitio.",
+   "nota": "Se mide siempre, aunque todavía no haya porcentaje de comisión. Una venta que lleva una vendedora no cuenta como del sitio. Salen señaladas las ventas con una fecha de pago futura y las que tienen una nota de crédito con líneas sin producto (filtros «Cobro con fecha futura» y «Una nota trae líneas sin producto»): conviene mirarlas. Una venta con fecha de pago futura se calcula con las reglas de hoy y se vuelve a calcular sola cuando esas reglas cambian (por ejemplo, al llegar el día del pago); la señal se queda.",
    "palabras": [
     "ventas del sitio",
     "ventas por internet",
@@ -4308,7 +4308,7 @@
    "destino": {
     "menu": "dcasa_comision_web.menu_reglas_web"
    },
-   "nota": "Una versión guardada no se edita: un cambio es una versión nueva y solo rige hacia adelante. Conviene que la contadora deje por escrito cómo se trata esta comisión.",
+   "nota": "Una versión nueva no se guarda sola: toca «Guardar» cuando esté lista (si sales sin guardar, se descarta). Una versión guardada no se edita (solo se escribe el motivo cuando se anula): un cambio es una versión nueva y solo rige hacia adelante. Si una versión guardada después rige desde el mismo día o antes que otra ya programada, la programada sale como «Tapada» y no va a regir a menos que anules la otra. Ahí mismo puedes poner un tope a los ajustes a mano (viene apagado). La tarifa y el tope no pueden pasar de 21,474,836.47, y lo que no sea un número se rechaza con un aviso. Conviene que la contadora deje por escrito cómo se trata esta comisión.",
    "palabras": [
     "porcentaje de comision",
     "comision web",
@@ -4374,13 +4374,14 @@
    "destino": {
     "menu": "dcasa_comision_web.menu_libro_web"
    },
-   "nota": "En el Libro toca «Anotar un ajuste». El motivo es obligatorio y queda con tu nombre. Una fila del libro nunca se edita ni se borra: se corrige con otra.",
+   "nota": "En el Libro toca «Anotar un ajuste» (en el celular está en el menú de los tres puntos de la lista, y también en el menú «Anotar un ajuste» de la misma sección). El motivo es obligatorio y queda con tu nombre. Si Gerencia puso un tope en las reglas, un ajuste no puede pasar de ese monto. Una fila del libro nunca se edita ni se borra: se corrige con otra.",
    "palabras": [
     "ajuste de comision",
     "corregir saldo",
     "pague de mas",
     "corregir libro",
     "ajustar comision",
+    "tope de ajuste",
     "saldo en contra"
    ],
    "grupos": [

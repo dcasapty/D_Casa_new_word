@@ -5,7 +5,8 @@
         <field name="name">dcasa.web.venta.list</field>
         <field name="model">dcasa.web.venta</field>
         <field name="arch" type="xml">
-            <list string="Ventas del sitio" create="0" delete="0" edit="0" decoration-muted="not cobrada">
+            <list string="Ventas del sitio" create="0" delete="0" edit="0" decoration-muted="not cobrada"
+                  decoration-warning="cobro_adelantado or nota_sin_producto">
                 <field name="fecha_cobro"/>
                 <field name="factura"/>
                 <field name="como_llego" widget="badge"/>
@@ -19,6 +20,8 @@
                 <field name="comision" sum="Comisión"/>
                 <field name="estado" widget="badge" decoration-success="estado == 'comisionada'"
                        decoration-danger="estado == 'revertida'"/>
+                <field name="cobro_adelantado" string="Fecha futura" optional="show"/>
+                <field name="nota_sin_producto" string="Nota sin producto" optional="show"/>
                 <field name="cobrada" column_invisible="1"/>
                 <field name="currency_id" column_invisible="1"/>
             </list>
@@ -40,6 +43,15 @@
                         Esta factura ya no está pagada por completo (pago revertido, anulada o vuelta a borrador): lo que
                         se había anotado se reversó en el libro.
                     </div>
+                    <div class="alert alert-warning" role="alert" invisible="not cobro_adelantado">
+                        El pago de esta factura lleva una fecha futura. Una fecha futura no escoge una versión de las
+                        reglas que todavía no rige: la venta se calculó con la versión de hoy. Revisa la fecha del pago.
+                    </div>
+                    <div class="alert alert-warning" role="alert" invisible="not nota_sin_producto">
+                        Una nota de crédito de esta factura trae líneas sin producto: no se sabe si devuelven un mueble o
+                        el envío, así que se restan de lo vendido. Si devolvía solo el envío, la base queda más baja de lo
+                        que debería: revísala y, si hace falta, anota un ajuste con motivo.
+                    </div>
                     <group>
                         <group string="La venta">
                             <field name="factura"/>
@@ -52,6 +64,8 @@
                             <field name="creado_por_id"/>
                             <field name="tocada_por_id"/>
                             <field name="cobro_atrasado"/>
+                            <field name="cobro_adelantado"/>
+                            <field name="nota_sin_producto"/>
                         </group>
                         <group string="Los montos (sin ITBMS)">
                             <field name="productos"/>
@@ -99,6 +113,10 @@
                 <filter name="sin_vendedora" string="Sin vendedora" domain="[('atendida_por_vendedora', '=', False)]"/>
                 <filter name="cobro_atrasado" string="Cobro con fecha atrasada (2 días o más)"
                         domain="[('cobro_atrasado', '=', True)]"/>
+                <filter name="cobro_adelantado" string="Cobro con fecha futura"
+                        domain="[('cobro_adelantado', '=', True)]"/>
+                <filter name="nota_sin_producto" string="Una nota trae líneas sin producto"
+                        domain="[('nota_sin_producto', '=', True)]"/>
                 <filter name="carrito_del_equipo" string="Abrió o cambió el carrito alguien del equipo"
                         domain="[('creado_por_personal', '=', True)]"/>
                 <separator/>
@@ -162,7 +180,7 @@
             <list string="Libro de la comisión del sitio web" create="0" delete="0" edit="0">
                 <header>
                     <button name="%(dcasa_comision_web.accion_ajuste)d" type="action" string="Anotar un ajuste"
-                            class="btn-primary"/>
+                            class="btn-primary" display="always"/>
                 </header>
                 <field name="ocurrido_en"/>
                 <field name="empleado_id"/>

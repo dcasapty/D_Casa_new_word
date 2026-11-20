@@ -30,6 +30,8 @@ TIPOS = [('venta', 'Venta'), ('devolucion', 'Devolución'), ('reverso', 'Reverso
          ('ajuste', 'Ajuste'), ('liquidacion', 'Liquidación')]
 CONCEPTOS = [('comision', 'Porcentaje de las ventas'), ('tarifa', 'Tarifa fija')]
 CONCEPTO_DE = {'venta': 'comision', 'devolucion': 'comision', 'tarifa': 'tarifa'}
+# Lo máximo que cabe en una fila del libro (centavos, entero de 32 bits): más que eso no se puede anotar.
+MAXIMO_CENTAVOS = 2_147_483_647
 
 
 def dia_de_panama(momento):
@@ -119,6 +121,10 @@ class DcasaWebMovimiento(models.Model):
     @api.model
     def _asentar(self, empleado, tipo, centavos, company, autor='sistema', **extra):
         """Escribe una fila. ÚNICO camino de entrada al libro."""
+        if abs(centavos) > MAXIMO_CENTAVOS:
+            raise UserError(self.env._(
+                'Esa cifra es demasiado grande para anotarla en el libro (llega hasta %s).',
+                f'{MAXIMO_CENTAVOS / 100:,.2f}'))
         ocurrido = extra.pop('ocurrido_en', None) or fields.Datetime.now()
         concepto = extra.pop('concepto', None) or CONCEPTO_DE.get(tipo) or 'comision'
         return self.sudo().create({

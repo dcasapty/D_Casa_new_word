@@ -128,6 +128,21 @@ LISTA_BLANCA = {
         OVERRIDE + ' Aplicar un cobro a la factura de un cliente exige Caja, Gerencia o contabilidad (A5); sin sudo().',
     ('dcasa_base', 'account.move', 'js_remove_outstanding_partial'):
         OVERRIDE + ' Quitar un cobro de la factura de un cliente exige Caja, Gerencia o contabilidad (A5); sin sudo().',
+    ('dcasa_base', 'account.move.line', 'create'):
+        OVERRIDE + ' Solo niega escribir el enlace con un pedido (sale_line_ids) fuera de los caminos de ventas '
+                   '(models/enlace_factura.py); sin sudo().',
+    ('dcasa_base', 'account.move.line', 'write'):
+        OVERRIDE + ' Solo niega escribir el enlace con un pedido (sale_line_ids) fuera de los caminos de ventas '
+                   '(models/enlace_factura.py); sin sudo().',
+    ('dcasa_base', 'account.move.line', 'default_get'):
+        OVERRIDE + ' Solo QUITA del resultado el enlace con un pedido (sale_line_ids): un ``default_*`` del contexto '
+                   'llega por RPC y no puede fabricarlo (models/enlace_factura.py); sin sudo().',
+    ('dcasa_base', 'sale.order.line', 'default_get'):
+        OVERRIDE + ' Solo QUITA del resultado el enlace con una factura (invoice_lines): un ``default_*`` del contexto '
+                   'llega por RPC y no puede fabricarlo (models/enlace_factura.py); sin sudo().',
+    ('dcasa_base', 'account.move.reversal', 'reverse_moves'):
+        OVERRIDE + ' Solo pone la llave interna con que la nota de crédito copia el enlace con el pedido '
+                   '(models/enlace_factura.py); el asistente exige su ACL como siempre; sin sudo().',
     ('dcasa_base', 'account.move.line', 'action_register_payment'):
         OVERRIDE + ' El botón «Pagar» de un cliente exige Caja, Gerencia o contabilidad (A5); solo devuelve la acción.',
     ('dcasa_base', 'account.move.line', 'reconcile'):
@@ -1314,6 +1329,12 @@ LISTA_BLANCA = {
     ('dcasa_comision_web', 'dcasa.web.reglas', 'action_nueva_version'): COMISION_WEB_ACCION,
     ('dcasa_comision_web', 'dcasa.web.reglas', 'action_anular'): COMISION_WEB_BOTON,
     ('dcasa_comision_web', 'dcasa.web.ajuste', 'action_anotar'): COMISION_WEB_BOTON,
+    ('dcasa_comision_web', 'dcasa.web.ajuste', 'create'):
+        OVERRIDE + ' Solo rechaza un monto que no es un número (inf, nan) con un mensaje claro; el ACL del grupo '
+                   '«Administra la nómina» manda; sin sudo().',
+    ('dcasa_comision_web', 'dcasa.web.ajuste', 'write'):
+        OVERRIDE + ' Solo rechaza un monto que no es un número (inf, nan) con un mensaje claro; el ACL del grupo '
+                   '«Administra la nómina» manda; sin sudo().',
     ('dcasa_comision_web', 'account.move', 'button_draft'):
         OVERRIDE + ' Solo DESPUÉS de pasar la factura a borrador compara con la verdad lo anotado en la comisión web '
                    '(reversa lo que ya no está cobrado), dentro de un savepoint que nunca falla; sin sudo() para '

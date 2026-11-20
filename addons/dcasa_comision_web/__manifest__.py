@@ -33,6 +33,11 @@ La comisión por las ventas del sitio web (decisión de Gerencia, 2026-11-19; ve
         'views/liquidacion_views.xml',
         'views/menus.xml',
     ],
+    'assets': {
+        'web.assets_backend': [
+            'dcasa_comision_web/static/src/js/version_sin_guardado_solo.js',
+        ],
+    },
     'installable': True,
     'application': False,
 }
