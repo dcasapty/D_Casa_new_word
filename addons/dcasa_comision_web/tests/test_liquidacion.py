@@ -6,7 +6,7 @@ from datetime import date
 
 from odoo import SUPERUSER_ID
 from odoo.exceptions import AccessError, UserError
-from odoo.tests import tagged
+from odoo.tests import Form, tagged
 
 from .test_comision import ComisionReloj
 
@@ -194,8 +194,9 @@ class TestLiquidacion(ComisionReloj):
         liq.action_aprobar()
         with self.assertRaisesRegex(UserError, 'motivo'):
             liq.action_cancelar()
-        liq._escribir({'motivo_cancelacion': 'Se calculó mal el periodo'})
-        liq.action_cancelar()
+        with Form(liq.with_user(self.u_nomina)) as formulario:      # como se escribe en la pantalla (web_save)
+            formulario.motivo_cancelacion = 'Se calculó mal el periodo'
+        liq.with_user(self.u_nomina).action_cancelar()
         self.assertEqual(liq.estado, 'cancelada')
         self.assertEqual((self.saldo(self.ana), self.saldo(self.beto)), (12000, 8000), 'la plata vuelve al saldo')
         contrarias = self.libro(tipo='liquidacion').filtered('reversa_id')

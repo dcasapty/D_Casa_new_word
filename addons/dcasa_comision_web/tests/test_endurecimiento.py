@@ -171,7 +171,7 @@ class TestCandados(Liquida):
         liq = self.liquidar()
         liq.action_aprobar()
         self.assertEqual(self.vueltas(CANDADO_LIQUIDACIONES), antes + 1)
-        liq._escribir({'motivo_cancelacion': 'Prueba'})
+        liq.with_user(self.u_nomina).write({'motivo_cancelacion': 'Prueba'})
         liq.action_cancelar()
         self.assertEqual(self.vueltas(CANDADO_LIQUIDACIONES), antes + 2)
 
