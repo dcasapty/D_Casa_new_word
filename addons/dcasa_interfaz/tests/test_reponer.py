@@ -362,6 +362,22 @@ class TestReponer(ReponerDatos, FacturadoCommon):
         self.assertEqual([celda.value for celda in resumen[2]], [self.prov_a.name, '3 meses', 2, 1, 15, 3, 10, 0, 8])
         self.assertEqual((resumen['A3'].value, resumen['I3'].value), ('Total', '=SUM(I2:I2)'))
 
+    def test_el_excel_no_vuelve_formula_un_nombre_que_empiece_con_igual(self):
+        """El nombre de un producto o de un proveedor lo escribe la gente: «=2+2» o «=HYPERLINK(…)» sale como texto. La
+        única fórmula del libro es el total de «Por proveedor» (explícita)."""
+        hoy = self.env['dcasa.reponer'].with_user(self.gerencia)._ventana(5)[1]
+        self.sofa.product_tmpl_id.name = '=2+2 SOFÁ REPONER'
+        self.prov_a.name = '=HYPERLINK("http://ejemplo.invalid/","proveedor")'
+        self.venta_facturada(hoy - timedelta(days=5), self.sofa, 10)
+        _nombre, contenido = self.env['dcasa.reponer'].with_user(self.gerencia)._excel(5, 1, self.prov_a.id)
+        libro = openpyxl.load_workbook(io.BytesIO(contenido))
+        formulas = [(hoja.title, celda.coordinate, celda.value) for hoja in libro for fila in hoja.iter_rows()
+                    for celda in fila if celda.data_type == 'f']
+        self.assertEqual([(hoja, coordenada) for hoja, coordenada, _valor in formulas], [('Por proveedor', 'I3')])
+        textos = {celda.value for hoja in libro for fila in hoja.iter_rows() for celda in fila}
+        self.assertIn('=2+2 SOFÁ REPONER', textos)
+        self.assertIn(self.prov_a.name, textos)
+
 
 @tagged('post_install', '-at_install')
 class TestReponerEnElNavegador(ReponerDatos, VentasMixin, HttpCase):
