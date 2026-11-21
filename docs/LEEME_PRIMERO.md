@@ -160,6 +160,31 @@ cae):
 - **Falta:** una revisión independiente de estos arreglos (la pide la jefa del proyecto), unirlo a la rama de trabajo, y todo lo de siempre antes de cobrar de
   verdad (compra de ensayo, respuestas de Yappy, política de privacidad, conciliación diaria, la decisión de R7-7).
 
+### 2026-11-21 (02:24 UTC): la rama de trabajo unida está EN PRODUCCIÓN (`f81d669d4ca4`, PR #130, Desplegar #78), con Tilopay y Yappy apagados y la comisión web sin versión de reglas
+
+- **Camino (receta de DESPLIEGUE.md):** CI/CD #381 y #382 salieron rojos por dos cosas que no eran del código de negocio y se corrigieron:
+  una prueba de fecha de liquidación (un `dict` recortado con `[:10]` da `TypeError` en Python 3.11 —esta máquina— y `KeyError` en
+  3.12 —CI e imagen—) y tres pruebas de avisos rechazados de Yappy que provocan a propósito una línea `ERROR` (el CI cuenta como falla
+  toda línea `ERROR`/`CRITICAL`, aunque Odoo diga «0 failed»; ahora se capturan con `assertLogs`). **CI/CD #383 sobre `f81d669d4ca4`**:
+  7,234 pruebas, 0 fallas, 0 líneas ERROR; borde, Juan, puente, integración, simulacro de restauración e imagen en verde; **staging sano**
+  (`version` `f81d669d4ca4`, `base_al_dia` true, 600 s de vigilancia). Se trajo `main` con `merge -s ours` (mismo árbol `9fb0e975bb0b`).
+- **PR #130** (squash `d3349ed1`, comprobado: el árbol de `main` = el del commit probado). El primer intento de unirlo lo bloqueó el
+  clasificador de permisos hasta que la dueña dijo «sí» (unir y desplegar ahora). **Desplegar #78** a `production` desde `main`:
+  `app_version` `f81d669d4ca4229d03fecda204deb5f843ce0fd2`, `imagen_digest` `sha256:706e79546da200b9cf7be5a2772724de4d0a8ae91abb00046d4e9afe75e5d7f3`,
+  `respaldo_previo` true; terminó **success** a las 02:24 UTC; `https://dcasapty.com/dcasa/salud` con `version` `f81d669d4ca4`, `base_al_dia`
+  true, `humo` ok; `/`, `/shop` y `/contactus` en 200. **No se desplegó Juan** (`juan/` y `puente-wa/` no cambiaron). Se canceló el CI que
+  abrió el PR (corre aunque el título diga `[skip ci]`).
+- **Qué quedó en producción:** «Forma de pago» en facturas y Exportar para Gerencia, ventas por día, segundos del carrusel configurables,
+  Andrés ampliado en escritorio, el rediseño de la pasarela y el lote «legibilidad» (aprobados por la dueña: «Me gustó todo el trabajo»),
+  retoques de la web, Tilopay y Yappy directo **instalados y apagados**, la comisión web **sin versión de reglas** (solo mide) y los candados
+  de permisos del pago en línea de RV7 y RV8.
+- **Revisiones independientes de este tramo:** RV7 y RV8 (Yappy) y RV8b encontraron huecos en los permisos del pago en línea; RV7/RV8 se
+  cerraron antes de subir. **RV8b encontró dos puertas más (R9-1 y R9-2)**, ya arregladas en `local/rv7-arreglos` (`cdd25e11`) y en revisión
+  RV8c; **no están en producción**. Con los pagos apagados no se explotan, pero **hay que cerrarlas antes de encender cualquier pago**.
+- **Sigue:** unir R9 (si RV8c lo aprueba) → CI → staging → producción; luego lo que depende de otros (claves de Tilopay y Yappy en Cloudflare,
+  programa de pruebas de Yappy, privacidad, cifras de la comisión web, contadora). La tabla «Historial de despliegues» de CONTEXTO_AGENTICO
+  se quedó en Desplegar 15: el historial real vive en esta bitácora.
+
 ### 2026-11-20 (tarde): la rama de trabajo unida con todo lo pendiente (`960bf34`), el informe de ChatGPT contrastado con el código, y un audio y un video de 38 minutos para los jefes. SIN subir a producción (sigue `d2ba8caf`)
 
 - **Rama unida y subida a `claude/merge-rama-to-main-ty3koz` (`960bf34`, igual que `origin`; subirla no despliega nada):** «Forma de pago» en facturas,
