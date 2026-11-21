@@ -110,6 +110,29 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 > sigue. Se guardan las diez más recientes; las viejas se resumen en una línea abajo y su texto completo pasa a
 > [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md).
 
+### 2026-11-20 (noche, segunda ronda): Yappy directo, cuarta vuelta (RV8): R8-1 a R8-7 arreglados o documentados. En `local/rv7-arreglos` (sobre `2e23d3a`), SIN subir y SIN desplegar
+
+El revisor independiente RV8 atacó `2e23d3a` y dijo: staging apagado, sí; encender en prueba, sí; cobrar de verdad, todavía no. Sin ninguna regresión (ningún
+flujo legítimo de ningún rol dio `AccessError`). Lo que encontró y se hizo (detalle y tabla en [YAPPY.md](YAPPY.md) §14), cada pieza con su prueba y rompiendo el
+arreglo a propósito:
+
+- **R8-1 (la importante):** R7-1 había cerrado la transacción pero no **la otra mitad de la misma relación**: la vendedora escribía `sale.order.transaction_ids` y
+  `account.move.transaction_ids` y ligaba un cobro ajeno a un pedido (Bodega lo veía pagado y soltaba la mercancía), lo aplicaba a la factura de otro cliente o escondía
+  un pago. Ahora `transaction_ids` se niega a quien no cobra en `write` de pedido y factura y en `create` de pedido (`dcasa_base/models/cobros.py`). **El `create` de la
+  factura no se tocó a propósito:** `sale._create_invoices` (con los cobros del propio pedido) corre con `sudo`, y crearla a mano con el cobro de otro ya lo cierran
+  otras dos reglas de `dcasa_base`; una prueba fija las tres cosas. **R8-2 y R8-6:** la transacción pasa de lista negra a **lista blanca vacía** (quien no cobra no escribe
+  NADA ni crea; antes escribía `partner_id`, `landing_route` —un `javascript:` en el navegador de la clienta— y `state_message`; y el `create` solo se negaba por casualidad).
+- **R8-3 (solo texto):** cuando el cobro suelto es de OTRO pedido del mismo cliente, el pendiente de Caja dice las dos salidas («confirma ESTE pedido a mano y registra su pago»)
+  y a la clienta ya no se le dice «tu pedido ya figuraba como pagado» si no se sabe. **Se valoró comparar el monto y no se hizo** (no distingue un cobro parcial de este pedido
+  de un anticipo de otro; YAPPY.md §14). **R8-4:** en el pendiente de 15 minutos, lo que escribió la clienta (nombre, celular, valores personalizados de producto) va entre
+  comillas y recortado a 60 caracteres. **R8-5:** aceptable, sin cambio. **R8-7:** textos que prometían de más corregidos (YAPPY.md §3.4 y §14, PERMISOS.md y un texto del pendiente
+  con «esta frase» sin ninguna); la trampa de las pruebas de permisos (bajar la caché) está en CONTEXTO_AGENTICO, con un matiz: `assertRaises(AccessError)` de Odoo ya la limpia sola.
+- **Pruebas** (base nueva con los 32 módulos, `-u` de los módulos tocados): `dcasa_base` 439, `website_dcasa` 499, `dcasa_pago_yappy` 410 (con las de Chrome), `dcasa_pago_tilopay`
+  347, `dcasa_guia` 97 y `dcasa_comision_web` 621 (sin tocarlo) = **1,867, 0 rojas, 0 con error**; `ruff check addons` limpio. 9 mutaciones de esta vuelta, todas caen (y la
+  décima, «la regla también contra `sudo`», tumba 35 pruebas de la tienda y del aviso). No hace falta `-u` de ningún módulo nuevo al desplegar.
+- **Falta:** otra revisión independiente de estos arreglos, unirlo a la rama de trabajo, y lo de siempre antes de cobrar de verdad (compra de ensayo, respuestas de Yappy,
+  política de privacidad, conciliación diaria, decisión R7-7).
+
 ### 2026-11-20 (noche): Yappy directo, tercera vuelta (RV7): los hallazgos R7-1 a R7-10 arreglados o documentados. En `local/rv7-arreglos` (sobre `a3bffac`), SIN subir y SIN desplegar
 
 El segundo revisor independiente (RV7, sobre `9154bb2`) dijo: staging apagado, sí; encender en prueba, sí; cobrar de verdad, todavía no. Esto es lo que

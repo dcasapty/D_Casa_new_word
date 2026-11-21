@@ -171,8 +171,10 @@ ese rol incluye contabilidad (en `dcasa_nomina`, `group_nomina` implica `account
 leer el celular de Yappy (un campo de Caja y superiores). No es un poder nuevo —contabilidad ya registra cobros por la regla A5— y
 **no se cambió el permiso** (RV7, R7-4): si la dueña no quiere que Nómina confirme cobros, hay que decidirlo y cambiar el chequeo; una
 prueba (`test_rv7.TestR74NominaEntraPorContabilidad`) fija la política de hoy y avisa si la implicación cambia. La vendedora, el
-usuario interno sin rol y el portal no pueden; y **ninguna vendedora puede dejar «hecha» una transacción por otro camino** (antes un
-`write` directo a `payment.transaction` lo permitía: R7-1, §14).
+usuario interno sin rol y el portal no pueden. Y la vendedora tampoco puede dejar «hecha» una transacción **escribiéndola
+directo** (R7-1; antes un `write` a `payment.transaction` lo permitía) **ni ligarle un cobro ajeno a un pedido o a una factura** (R8-1: la
+otra mitad de la misma relación, `sale.order.transaction_ids` y `account.move.transaction_ids`, seguía abierta hasta la tercera vuelta de
+revisión, RV8; §14). La transacción es hoy de solo el sistema y Caja: quien no cobra no escribe **nada** ni crea (R8-2, R8-6).
 
 **Qué acepta el botón:** una transacción **que Yappy recibió** (pendiente, o con el identificador que Yappy da al crear la orden). Un
 borrador con orden y **sin ese identificador** es un cobro que se cortó a mitad de abrirse (o los segundos en que se está llamando a
@@ -506,10 +508,20 @@ exactos de la última corrida están en la bitácora
   orden entró?» sin decirlos). Lo que bajaría el riesgo casi sin costo: (a) una nota o actividad «Caja confirmó a mano» para
   Gerencia, (b) ese filtro, (c) que el cuadro diga la orden y el monto («¿ya viste $107.00 en la orden S00417…?», un cambio visual:
   capturas antes/después), (d) pedir el número de confirmación. Cada una la decide la dueña; **no se construyó ninguna**. Con el
-  hueco de R7-1 cerrado, estos controles ya no se saltan con un `write`.
-- **Un cobro suelto de otro pedido del mismo cliente** (RV7, R7-5): la regla que cuenta un cobro sin factura en el diario Yappy como
-  «dinero de otra vía» mira al **cliente**, no al pedido (un cobro suelto no dice a cuál pedido pertenece). Si el mismo cliente tiene
-  otro cobro suelto en la ventana, el aviso va a revisión: una persona mira. Falla del lado seguro (nunca un segundo cobro).
+  hueco de R7-1 **y su otra mitad (R8-1)** cerrados, estos controles ya no se saltan escribiendo la transacción, el pedido o la
+  factura.
+- **Un cobro suelto de otro pedido del mismo cliente** (RV7, R7-5; RV8, R8-3): la regla que cuenta un cobro sin factura en el diario
+  Yappy como «dinero de otra vía» mira al **cliente**, no al pedido (un cobro suelto no dice a cuál pedido pertenece). Si el mismo cliente
+  tiene otro cobro suelto en la ventana, el aviso va a revisión: una persona mira. Falla del lado seguro (nunca un segundo cobro). Lo que
+  se hizo en RV8: **solo texto**. El pendiente dice las dos salidas («si ese cobro es de ESTE pedido, no hay nada más que hacer; si es de
+  OTRO pedido del mismo cliente, el dinero de Yappy sí es de este pedido: confirma ESTE pedido a mano, factúralo y registra su pago en el
+  diario Yappy») y a la clienta ya no se le dice «tu pedido ya figuraba como pagado» (no se sabe: se le dice que se encontró otro pago a
+  su nombre y que el equipo lo revisa); «ya figuraba como pagado» queda solo para lo seguro (una factura del pedido con pagos, o otro cobro
+  en línea hecho). **Se valoró comparar también el monto y NO se hizo:** no distingue un cobro suelto *parcial* de ESTE pedido (que sí sería
+  dinero doble: 50 a mano + 107 de Yappy) de un anticipo de OTRO pedido; comparar «suelto ≥ total» dejaría pagar solo justo el caso que
+  duplica dinero, y arreglarlo bien exigiría que el cobro suelto diga a qué pedido pertenece (un campo nuevo que Caja tendría que llenar).
+  Si el pendiente de revisión no se atiende, el apartado de 7 días anula el pedido aunque la clienta ya pagó: por eso la revisión es un
+  pendiente de Gerencia, no un adorno.
 
 **Qué arregló la segunda revisión (RV6, sobre `96bbd48`)** — cada punto con su prueba, y la prueba cae sin el arreglo:
 
@@ -531,7 +543,7 @@ prueba cae sin el arreglo (mutación hecha a propósito):
 
 | | Qué era | Qué se hizo |
 |---|---|---|
-| R7-1 | **Dinero.** La vendedora (por Facturación) podía escribir `state='done'`, `amount`, `is_live` y `dcasa_yappy_*` en una `payment.transaction`: el cron confirmaba el pedido y creaba el cobro sin dinero y sin pasar por Caja | `dcasa_base` (`models/cobros.py`, un módulo que **siempre está en el despliegue**: no hace falta instalar nada): quien no cobra (Caja, Gerencia, contabilidad y administrador sí) no escribe el estado, el monto, el entorno, el proveedor, el cobro, los pedidos y facturas ligados ni ningún campo `dcasa_*` de la transacción, **de cualquier proveedor**. Lo del sistema (pasarela, aviso, cron) corre con `sudo` y no cambia. Crear ya estaba cerrado (permisos del proveedor) y se fijó con una prueba |
+| R7-1 | **Dinero.** La vendedora (por Facturación) podía escribir `state='done'`, `amount`, `is_live` y `dcasa_yappy_*` en una `payment.transaction`: el cron confirmaba el pedido y creaba el cobro sin dinero y sin pasar por Caja | `dcasa_base` (`models/cobros.py`, un módulo que **siempre está en el despliegue**: no hace falta instalar nada): quien no cobra (Caja, Gerencia, contabilidad y administrador sí) no escribe el estado, el monto, el entorno, el proveedor, el cobro, los pedidos y facturas ligados ni ningún campo `dcasa_*` de la transacción, **de cualquier proveedor**. Lo del sistema (pasarela, aviso, cron) corre con `sudo` y no cambia. **Era una lista negra de campos y solo cerraba la transacción: la tercera vuelta (RV8) la volvió lista blanca vacía y cerró la otra mitad (abajo)** |
 | R7-2 | El apartado nocturno **borraba la fecha de vencimiento** de un pedido con un cobro de Yappy abierto: si la clienta nunca aprobaba, el pedido quedaba apartado para siempre | Un gancho nuevo, `_dcasa_apartado_en_pausa` (`website_dcasa`; lo usa Yappy): el barrido **salta** el pedido esta noche **sin borrar la fecha**. `_dcasa_apartado_reclamado` queda solo para dinero, factura o entrega de verdad |
 | R7-3 | Un aviso falso con texto en `domain` dejaba hasta 100 caracteres de quien llamó en el pendiente de Caja, dentro de un «es probable que Yappy sí avisó» | A la transacción va solo el motivo en palabras fijas (`motivo_para_caja`); el texto recibido queda solo en el registro del servidor; el pendiente dice «no se pudo aceptar ningún aviso… Mira Yappy Comercial» |
 | R7-4 | «Administra la nómina» puede pulsar el botón y leer el celular de Yappy (su rol incluye contabilidad) | **Solo documentado** (§3.4, §5, la Guía y PERMISOS.md): no es un poder nuevo y no se cambió el permiso; una prueba fija la política de hoy |
@@ -541,6 +553,20 @@ prueba cae sin el arreglo (mutación hecha a propósito):
 | R7-8 | La guarda `beforeunload` seguía puesta si la clienta cambiaba a otro método con una solicitud viva | Se quita al elegir otro método (`payment_form.js`) |
 | R7-9 | Qué dominio firma Yappy (declarado o normalizado) | **Solo documentado** como supuesto a comprobar en la compra de ensayo (§8 fila 17); no se aflojó la verificación |
 | R7-10 | Textos que no decían lo que pasaba: «ya no anula» (omitía que la fecha se borraba), «Caja, Gerencia y contabilidad» (sin Nómina), cuadro del botón sin orden ni monto | Corregidos (§3.3, §3.4, §5, §14 y la bitácora); las pruebas viejas `test_c1` y `test_c7` de `TestRv6Dinero` (del revisor) se actualizaron a la política vigente, y el repo ya tenía sus equivalentes adaptados en `test_dinero_revision.py` |
+
+**Qué arregló la cuarta vuelta (RV8, revisión independiente del commit `2e23d3a`)** — cada punto de dinero o permisos con su prueba, y la
+prueba cae sin el arreglo (mutación hecha a propósito). El revisor no encontró ninguna regresión (ningún flujo legítimo de ningún rol da
+`AccessError` por la regla) y dijo: staging apagado, sí; encender en prueba, sí; cobrar de verdad, todavía no.
+
+| | Qué era | Qué se hizo |
+|---|---|---|
+| R8-1 | **Dinero y permisos (la importante).** R7-1 cerró `payment.transaction.write` pero dejó abierta la OTRA mitad de la misma tabla de relación: la vendedora escribía `sale.order.transaction_ids` y `account.move.transaction_ids` y ligaba un cobro ajeno a un pedido (Bodega lo veía «pagado» o «abono» y soltaba la mercancía sin cobrar), lo aplicaba a la factura de otro cliente (cuando Caja la publicaba, quedaba pagada con el dinero de otro) o soltaba el cobro de su propio pedido (el pago se escondía y el apartado nocturno anulaba un pedido pagado) | `dcasa_base/models/cobros.py`: `transaction_ids` en `write` de `sale.order` y `account.move`, y en `create` de `sale.order`, se niega a quien no cobra (`sudo` pasa). **El `create` de la factura no lleva la regla, a propósito:** `sale._create_invoices` (que manda los cobros del propio pedido con `Command.set`) corre con `sudo` y la vendedora sigue creando la factura de un pedido ya cobrado, con su cobro (prueba); y crearla a mano con el cobro de otro ya lo cierran otras dos reglas de `dcasa_base` (quien no cobra no hace facturas sueltas; nadie escribe a mano el enlace con las líneas del pedido), también con prueba |
+| R8-2 | La lista negra no era completa: la vendedora escribía `partner_id` (a quién se le acredita el dinero), `landing_route` (el navegador de la clienta hace `window.location = landing_route`: un `javascript:…` se ejecutaba en su sesión), `state_message` (lo que lee la clienta), `company_id`, `payment_method_id`, `token_id`, `tokenize`, `partner_*`… | **Lista blanca vacía:** quien no cobra no escribe NADA en la transacción (ningún flujo legítimo de quien no cobra lo hace; todo corre con `sudo`: lo confirman las 1,980 pruebas del revisor sobre `2e23d3a` y la corrida completa de esta vuelta, y una mutación —la regla «también contra `sudo`»— tumba 35 pruebas de la tienda y del aviso) |
+| R8-6 | `payment.transaction.create` se negaba por casualidad (leer el proveedor es de administrador; con la caché «tibia» el mismo `create` pasaba) | La propia regla niega el `create` a quien no cobra; prueba con caché tibia y fría |
+| R8-3 | El pendiente del cobro suelto de OTRO pedido decía «no hay nada más que hacer» y a la clienta se le decía «ya figuraba como pagado» sin ser cierto | **Solo texto** (arriba, «Límites conocidos»): las dos salidas, el qué hacer, y un mensaje honesto a la clienta; comparar el monto se valoró y no se hizo |
+| R8-4 | El pendiente de 15 minutos copiaba, sin límite y pegado a la instrucción, el nombre, el celular y los valores personalizados de producto que escribió la clienta | `resumen.cita`: entre comillas, en una línea, sin comillas propias y recortado a 60 caracteres. La nota del pedido (`nota_de_pago`) sigue con el texto completo: ahí es información, no una frase de instrucción |
+| R8-5 | El gancho `_dcasa_apartado_en_pausa` puede sostener un apartado, pero cuesta abrir un cobro cada noche | **Aceptable** (no se hizo nada): una vez por noche, entre las 06:45 y las 07:00 UTC, con los topes de §4 |
+| R8-7 | Textos que prometían de más: §3.4 «ninguna vendedora puede… por otro camino», §14 «estos controles ya no se saltan», PERMISOS.md «los pedidos y facturas ligados», y un comentario del pendiente con «esta frase» sin ninguna | Corregidos (§3.4, §14, PERMISOS.md y el texto del pendiente). La Guía ya coincidía con el código |
 
 ## 15. Preguntas para Yappy y Cloudflare (lista para la dueña)
 

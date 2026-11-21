@@ -275,10 +275,12 @@ class TestR75ElCobroSueltoCuentaComoDineroDeOtraVia(BaseRv7):
         self.assertEqual((tx.state, tx.dcasa_yappy_revision), ('error', True))
         self.assertFalse(tx.payment_id, 'el aviso no cobra otra vez')
         self.assertEqual(len(self.pagos_del_diario(pedido)), antes, 'sigue UN solo cobro')
-        alerta = self.actividades(pedido, 'ya estaba pagado')
+        alerta = self.actividades(pedido, 'otro dinero del cliente')
         self.assertTrue(alerta)
         self.assertIn(suelto.name, alerta[0].note, 'la alerta dice cuál es el cobro suelto')
-        self.assertIn('ya figuraba como pagado', tx.state_message)
+        # RV8, R8-3: un cobro suelto no dice de qué pedido es: a la clienta no se le afirma «ya figuraba como pagado»
+        self.assertNotIn('ya figuraba como pagado', tx.state_message)
+        self.assertIn('encontramos otro pago registrado a tu nombre', tx.state_message)
 
     def test_tambien_el_boton_de_caja_respeta_el_cobro_suelto(self):
         caja = self.usuario('r75_caja', 'dcasa_base.group_caja')
@@ -397,6 +399,9 @@ class TestR76ElBotonNoConfirmaUnBorradorQueYappyNoRecibio(BaseRv7):
         self.assertIn('NO la acepta', nota)
         self.assertNotIn('pulsa «Confirmar que el dinero entró»', nota)
         self.assertIn('NO registres el cobro a mano', nota)
+        # RV8, R8-7: antes decía «avisa a quien programa con esta frase» sin citar ninguna frase
+        self.assertNotIn('esta frase', nota)
+        self.assertIn('avisa a quien programa, con el número de la orden', nota)
 
     def test_el_pendiente_de_una_orden_normal_sigue_mandando_al_boton(self):
         pedido = self.pedido()

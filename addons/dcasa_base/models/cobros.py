@@ -12,13 +12,15 @@ Ver docs/DECISIONES_CONTABLES.md (A5, A6 y A7) y docs/PERMISOS.md.
 * **A7 · Notas de crédito** de clientes, **devolverle dinero** a un cliente (cobro saliente) y **dejarle saldo a favor**
   (cobrar de más y dejarlo abierto) o dar una factura por pagada con una diferencia: solo **Gerencia** y los
   administradores.
-* **A5 también para el pago en línea (R7-1, revisión RV7).** La transacción de un pago en línea
-  (``payment.transaction``, de cualquier proveedor: Yappy, Tilopay…) es lo que el cron convierte en cobro y en pedido
-  confirmado. Facturación (que la Vendedora trae implícita) puede *escribir* en ella por el permiso de fábrica de Odoo;
-  con un ``write(state='done')`` dejaba un pedido pagado sin dinero y sin pasar por Caja. Ahora, quien no cobra no
-  puede escribir el estado, el monto, el entorno (prueba/real), el proveedor, el cobro ni los pedidos y facturas
-  ligados, ni ningún campo ``dcasa_*`` de la transacción. Lo que escribe el propio sistema (la pasarela, el aviso del
-  proveedor, el cron) corre con ``sudo`` y no cambia.
+* **A5 también para el pago en línea (R7-1 y R8-1, R8-2, R8-6; revisiones RV7 y RV8).** La transacción de un pago en
+  línea (``payment.transaction``, de cualquier proveedor: Yappy, Tilopay…) es lo que el cron convierte en cobro y en
+  pedido confirmado. Facturación (que la Vendedora trae implícita) puede escribir y crear en ella por el permiso de
+  fábrica de Odoo; con un ``write(state='done')`` dejaba un pedido pagado sin dinero y sin pasar por Caja. Ahora, quien
+  no cobra **no escribe NADA ni crea** en la transacción (lista blanca vacía: ningún flujo legítimo lo hace; todo lo del
+  sistema corre con ``sudo``). Y la otra mitad de la misma relación, ``sale.order.transaction_ids`` (``write`` y
+  ``create``) y ``account.move.transaction_ids`` (``write``), tampoco: ligar un cobro ajeno a un pedido o a una factura
+  soltaba mercancía sin cobrar o aplicaba el dinero de un cliente a la factura de otro. Lo que escribe el propio sistema
+  (la pasarela, el aviso del proveedor, el cron, ``sale._create_invoices``) corre con ``sudo`` y no cambia.
 
 Todo se comprueba aquí, en el servidor (esconder un botón no basta): asistente, Brian, Inicio, Conversaciones o RPC
 llegan a los mismos métodos. El superusuario y lo que corre con ``sudo`` (la tienda web, Juan, el cron, la carga del
@@ -39,16 +41,22 @@ CAMPOS_DEL_COBRO = {
     'amount', 'payment_type', 'partner_type', 'partner_id', 'journal_id', 'date', 'currency_id',
     'payment_method_line_id', 'destination_account_id', 'state', 'partner_bank_id', 'outstanding_account_id',
 }
-# Lo que, en una transacción de pago en línea, mueve el dinero o decide a qué pedido va (R7-1). Quien no cobra no lo
-# escribe; además, ningún campo ``dcasa_*`` (los de Yappy, Tilopay y los que vengan: son del sistema).
-CAMPOS_DEL_DINERO_DE_UNA_TRANSACCION = frozenset({
-    'state', 'amount', 'currency_id', 'is_live', 'provider_id', 'provider_reference', 'reference', 'operation',
-    'payment_id', 'is_post_processed', 'sale_order_ids', 'invoice_ids', 'source_transaction_id',
-})
 
 
 def mensaje_cobro(env):
     return env._('Los cobros los registra Caja. Pídele a Caja (o a Gerencia) que cobre esta factura.')
+
+
+def mensaje_cobros_ligados(env):
+    return env._('Los cobros ligados a un pedido o a una factura los mueve el sistema o Caja (Caja, Gerencia, '
+                 'contabilidad). No se puede cambiar desde aquí.')
+
+
+def exigir_que_ligue_cobros(env):
+    """R8-1: quien no cobra (la Vendedora, Facturación) no escribe ``transaction_ids`` de un pedido ni de una factura
+    (``sudo`` pasa)."""
+    if not env.su and not env.user._dcasa_puede_cobrar():
+        raise AccessError(mensaje_cobros_ligados(env))
 
 
 def mensaje_reembolso(env):
@@ -146,6 +154,10 @@ class AccountMove(models.Model):
     # --- A7: notas de crédito ----------------------------------------------------------------------------------
     @api.model_create_multi
     def create(self, vals_list):
+        # El ``create`` de la factura NO lleva la regla de ``transaction_ids`` a propósito (R8-1): una factura nace con
+        # los cobros de su propio pedido por ``sale._create_invoices`` (corre con ``sudo``), y crearla a mano con cobros
+        # ligados ya lo cierran otras dos reglas: quien no cobra no hace facturas sueltas (más abajo) y nadie escribe
+        # a mano el enlace con las líneas del pedido (``enlace_factura.py``). Lo fija una prueba.
         if not self.env.su:
             por_defecto = self.env.context.get('default_move_type')
             if any(vals.get('move_type', por_defecto) == 'out_refund' for vals in vals_list):
@@ -204,6 +216,8 @@ class AccountMove(models.Model):
         return super().button_cancel()
 
     def write(self, vals):
+        if 'transaction_ids' in vals:
+            exigir_que_ligue_cobros(self.env)     # R8-1: la otra mitad de ``payment.transaction.invoice_ids``
         # Por RPC alguien podría escribir el estado a mano: la misma regla que los botones.
         if not self.env.su and vals.get('state') in ('draft', 'cancel'):
             self._dcasa_exigir_gerencia_para_deshacer()
@@ -424,19 +438,49 @@ class AccountPaymentRegister(models.TransientModel):
         return super()._create_payments()
 
 
+class SaleOrder(models.Model):
+    _inherit = 'sale.order'
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        if any('transaction_ids' in vals for vals in vals_list):
+            exigir_que_ligue_cobros(self.env)
+        return super().create(vals_list)
+
+    def write(self, vals):
+        """R8-1: ligar o soltar el cobro de un pedido (``transaction_ids``, que la Vendedora puede escribir por
+        Facturación) lo hace el sistema o Caja. Un cobro ajeno ligado hacía que Bodega viera «pagada» una entrega que no
+        se cobró; soltar el propio escondía un pago hecho (y el apartado nocturno anulaba el pedido)."""
+        if 'transaction_ids' in vals:
+            exigir_que_ligue_cobros(self.env)
+        return super().write(vals)
+
+
 class PaymentTransaction(models.Model):
     _inherit = 'payment.transaction'
 
-    def write(self, vals):
-        """R7-1: quien no cobra (la Vendedora, que por Facturación puede escribir en la transacción) no toca el estado,
-        el monto ni lo demás que decide un cobro. Sin esto, un ``write(state='done')`` hacía que el cron confirmara el
-        pedido y creara el cobro sin dinero y sin pasar por Caja. La pasarela, el aviso del proveedor y el cron escriben
-        con ``sudo`` (o como superusuario) y no pasan por aquí."""
+    def _dcasa_exigir_que_la_mueva_el_sistema_o_caja(self, que):
+        """Quien no cobra no escribe ni crea NADA en una transacción de pago en línea. Es una lista BLANCA y está
+        vacía: ningún flujo legítimo de quien no cobra escribe aquí (la pasarela, el aviso del proveedor, el cron y el
+        botón de Caja corren con ``sudo``), y una lista negra de campos dejaba abiertos el cliente al que se acredita el
+        dinero, la ruta a la que se manda el navegador de la clienta y el mensaje que ella lee (RV8, R8-2)."""
         if not self.env.su and not self.env.user._dcasa_puede_cobrar():
-            tocados = sorted(
-                campo for campo in vals if campo in CAMPOS_DEL_DINERO_DE_UNA_TRANSACCION or campo.startswith('dcasa_'))
-            if tocados:
-                raise AccessError(self.env._(
-                    'El estado, el monto y los datos de un pago en línea los mueve el sistema, con el aviso de la '
-                    'pasarela, o Caja, Gerencia y contabilidad. No se puede cambiar: %s.', ', '.join(tocados)))
+            raise AccessError(self.env._(
+                'Los pagos en línea los mueve el sistema, con el aviso de la pasarela, o Caja, Gerencia y '
+                'contabilidad. No se puede cambiar: %s.', que))
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        """R8-6: tampoco se CREA una transacción (antes solo se negaba por casualidad, porque leer el proveedor es de
+        administrador; con la caché «tibia» de un proveedor ya leído el mismo ``create`` pasaba)."""
+        if vals_list:
+            self._dcasa_exigir_que_la_mueva_el_sistema_o_caja(self.env._('crear una transacción'))
+        return super().create(vals_list)
+
+    def write(self, vals):
+        """R7-1 y R8-2: quien no cobra (la Vendedora, que por Facturación puede escribir en la transacción) no
+        escribe nada. Sin esto, un ``write(state='done')`` hacía que el cron confirmara el pedido y creara el cobro sin
+        dinero y sin pasar por Caja."""
+        if vals:
+            self._dcasa_exigir_que_la_mueva_el_sistema_o_caja(', '.join(sorted(vals)))
         return super().write(vals)

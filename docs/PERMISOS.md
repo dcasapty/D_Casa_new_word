@@ -270,11 +270,14 @@ Si lo intenta, Odoo le dice que no tiene permiso, o simplemente no le muestra na
 **Devolver dinero a un cliente** (una nota de crédito pagada en efectivo o por Yappy) y la **nota de crédito** misma
 las hace solo **Gerencia** (o un administrador) desde el 2026-10-17; la vendedora, Caja y el contador ya no.
 
-**El pago en línea (Yappy, Tilopay…) tampoco lo mueve la vendedora** (revisión RV7, R7-1): por Facturación Odoo le deja *escribir* en
-una transacción de pago (`payment.transaction`), y con un `write` podía dejarla «hecha» (el cron confirmaba el pedido y creaba el cobro
-sin dinero). Desde entonces, quien no es Caja, Gerencia, contabilidad o administrador **no escribe** el estado, el monto, el entorno,
-el proveedor, el cobro, los pedidos y facturas ligados ni los campos `dcasa_*` de una transacción; lo que escribe el sistema (la
-pasarela, el aviso del proveedor, el cron) corre con `sudo` y no cambia (`dcasa_base/models/cobros.py`).
+**El pago en línea (Yappy, Tilopay…) tampoco lo mueve la vendedora** (revisiones RV7 y RV8): por Facturación Odoo le deja *escribir* y
+*crear* una transacción de pago (`payment.transaction`), y con un `write` podía dejarla «hecha» (el cron confirmaba el pedido y creaba el
+cobro sin dinero). Desde entonces, quien no es Caja, Gerencia, contabilidad o administrador **no escribe NADA ni crea** en una transacción
+(R7-1, R8-2, R8-6). Y, desde la revisión RV8, tampoco puede **ligar o soltar cobros del pedido ni de la factura** (`transaction_ids`,
+R8-1: es la otra mitad de la misma relación; antes de ese arreglo la transacción estaba cerrada y el pedido y la factura **no**: un cobro
+ajeno ligado hacía que Bodega soltara una entrega sin cobrar y que el dinero de un cliente se aplicara a la factura de otro). Lo que
+escribe el sistema (la pasarela, el aviso del proveedor, el cron, `sale._create_invoices`) corre con `sudo` y no cambia
+(`dcasa_base/models/cobros.py`).
 
 ## Cómo está armado (para quien programa)
 
