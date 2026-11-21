@@ -8,4 +8,5 @@ from . import (
     test_que_compro,
     test_rutas,
     test_rv7,
+    test_rv8,
 )

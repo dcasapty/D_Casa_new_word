@@ -1785,8 +1785,9 @@ Lo que quedó escrito para no repetirlo:
 - **Un permiso de fábrica de Odoo puede abrir una puerta que ningún menú muestra.** `account_payment` deja a Facturación (que la Vendedora
   trae implícita) leer, escribir y crear `payment.transaction`; con un `write(state='done')` el cron confirmaba el pedido y creaba el
   cobro sin dinero. La regla va en `dcasa_base/models/cobros.py` (siempre desplegado, y `payment` ya está debajo de `sale`): quien no
-  cobra no escribe estado, monto, entorno, proveedor, cobro, pedidos/facturas ligados ni `dcasa_*`; **lo del sistema pasa porque corre
-  con `sudo`** (`env.su`). La prueba de que `sudo` no se rompe son los flujos HTTP del aviso (el usuario es el público, con `sudo`): la
+  cobra no escribe estado, monto, entorno, proveedor, cobro, pedidos/facturas ligados ni `dcasa_*` (**ojo: esa primera versión era una lista
+  negra y no bastó; la cuarta revisión la volvió lista blanca vacía y cerró la otra mitad: ver «Lo que enseñó la cuarta revisión»**); **lo
+  del sistema pasa porque corre con `sudo`** (`env.su`). La prueba de que `sudo` no se rompe son los flujos HTTP del aviso (el usuario es el público, con `sudo`): la
   mutación «la regla también mira a `sudo`» tumbó 34 pruebas de ellos de un golpe. Un método público nuevo en `dcasa_base` tiene que
   entrar a `LISTA_BLANCA` de `test_superficie_rpc.py` (hasta un `write`).
 - **Hay una prueba de `dcasa_base` que busca `env['account.payment'].sudo()` en todo el código** y exige `out_invoice`/`out_refund` cerca
@@ -1812,6 +1813,47 @@ Lo que quedó escrito para no repetirlo:
 - **Máquina compartida:** instalar los 32 módulos en una base nueva, sin pruebas, tardó unos 4 minutos; después, `-u` de los módulos tocados con
   `--test-tags` de clases sueltas son ~2 minutos. Las mutaciones se hacen sobre una **copia** de `addons/` (carpeta aparte en el
   `--addons-path`), nunca en el árbol de trabajo.
+
+### Lo que enseñó la cuarta revisión de Yappy (RV8, 2026-11-20, `local/rv7-arreglos`)
+
+- **Una relación muchos-a-muchos tiene DOS lados y el permiso se revisa en cada uno.** R7-1 cerró `payment.transaction.write` (incluso con
+  `sale_order_ids` e `invoice_ids` en la lista), pero la misma tabla de relación se escribe desde `sale.order.transaction_ids`
+  (`groups='account.group_account_invoice'`, que la Vendedora trae) y `account.move.transaction_ids` (sin grupo): ligar un cobro ajeno a un
+  pedido hacía que Bodega viera «pagado» una entrega sin cobrar; ligarlo a una factura hacía que, al publicarla Caja, Odoo la diera por pagada
+  con el dinero de otro cliente; soltar el cobro propio escondía un pago. Regla: al cerrar un campo relacional, buscar el campo espejo en
+  el otro modelo (`grep -rn "relation='...'"`) y cerrarlo también, en `write` Y en `create`.
+- **Lista blanca, no lista negra.** Una lista negra de campos de dinero dejó abiertos `partner_id` (a quién se le acredita), `landing_route`
+  (el navegador de la clienta hace `window.location = landing_route`: un `javascript:` corría en su sesión), `state_message` y otros. Si
+  ningún flujo legítimo de quien no cobra escribe ahí (todo corre con `sudo`), se niega TODO y se acabó la lista. Se comprobó que ninguna
+  prueba legítima se rompe.
+- **No negar el `create` de `account.move` a ciegas: se comprobó que no hacía falta.** `sale._create_invoices` manda los cobros del propio
+  pedido (`Command.set`) y crea la factura **con `sudo`** (comentario del propio Odoo: la vendedora factura sin derechos de facturación),
+  y crearla a mano con el cobro de otro ya lo cierran dos reglas de `dcasa_base` (quien no cobra no hace facturas sueltas, `cobros.py`; nadie
+  escribe a mano `sale_line_ids`, `enlace_factura.py`: una factura con líneas del pedido da `UserError`). Se probó primero un guardia en
+  el `create` y la mutación NO lo distinguía de las otras dos reglas (siempre caía otra antes): se quitó. Quedan pruebas que fijan las
+  tres cosas (la vendedora crea la factura de un pedido cobrado y sale con su cobro; crear a mano con el cobro de otro se niega) y una
+  mutación (la regla «también contra `sudo`») que tumba lo primero.
+- **TRAMPA de las pruebas de permisos: bajar la caché antes de cada intento del usuario sin permiso** (`env.flush_all();
+  env.invalidate_all()`). Con la caché «tibia» (el proveedor ya leído por otro usuario en la misma transacción de la prueba) el ORM no
+  vuelve a revisar el permiso del comodelo y un `create` prohibido PASA; en una petición real la caché está fría. Esto engañó incluso al
+  revisor (falso positivo en el shell) y es por lo que `payment.transaction.create` se negaba «por casualidad». **Matiz que se descubrió al
+  escribir la prueba:** `assertRaises(AccessError)` de Odoo (`tests/common.py`, `_assertRaises`) YA limpia la caché antes de entrar, así que
+  con él la trampa no aparece (y una prueba «con caché tibia» escrita con él no distingue nada: la mutación no caía); aparece con
+  `try/except` o con `assertRaises(UserError)`. Para probar el caso tibio hay que usar `try/except` y exigir el mensaje de la regla, no el
+  del core. Las pruebas de `test_transaccion_de_pago.py` llaman a `self.frio()` y la de `create` mide las dos cachés.
+- **Quien cobra tampoco crea transacciones por su cuenta en el core:** crear una `payment.transaction` lee `payment.provider` (solo
+  administrador). La regla nueva niega el `create` a quien no cobra y no le quita nada a Caja/contabilidad: ya no podían crear.
+- **Comparar el monto para decidir si un cobro suelto es «de este pedido» NO es seguro:** un anticipo de otro pedido y un cobro parcial de
+  este se ven igual, y «suelto ≥ total» dejaría pagar justo el caso que duplica dinero. Quedó como texto (el pendiente dice las dos salidas) y
+  nota en YAPPY.md §14. Arreglarlo de verdad exigiría que el cobro suelto diga a qué pedido pertenece.
+- **A la clienta no se le afirma lo que no se sabe:** «tu pedido ya figuraba como pagado» solo cuando hay una factura del pedido con pagos
+  u otro cobro en línea hecho; con solo un cobro suelto, «encontramos otro pago a tu nombre y el equipo lo revisa». `_dcasa_yappy_dinero_de_otra_via`
+  ahora devuelve `(frase, es_seguro)`.
+- **Todo texto que escribió la clienta y va dentro de una frase de instrucción para Caja** (el nombre, el celular, un valor personalizado de un
+  producto) se cita con `resumen.cita`: entre comillas, una sola línea, sin comillas propias, recortado a 60 caracteres. La nota del pedido
+  (`nota_de_pago`) sigue con el texto completo: ahí es información, no una orden pegada a la frase.
+- **Varias corridas de Odoo a la vez, con la máquina libre:** `createdb -T <base> <copia>` y copiar la carpeta del filestore
+  (`~/.local/share/Odoo/filestore/<base>`) deja una copia lista; cada mutación va en su propia copia de `addons/` y su propia base y puerto.
 
 ### Lo que enseñó contrastar el informe de ChatGPT con el código y hacer el audio y el video (2026-11-20)
 

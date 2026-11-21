@@ -106,7 +106,8 @@ LISTA_BLANCA = {
         ASISTENTE + ' Además, res.users._dcasa_poner_restriccion exige Gerencia o administrador en el servidor antes '
                     'del sudo.',
     ('dcasa_base', 'sale.order', 'create'):
-        OVERRIDE + ' Fija como dueña (vendedora) a quien crea si solo ve lo suyo; sin sudo().',
+        OVERRIDE + ' Fija como dueña (vendedora) a quien crea si solo ve lo suyo; y NIEGA ligar cobros '
+                   '(transaction_ids) a quien no cobra (RV8 R8-1); sin sudo().',
     ('dcasa_base', 'account.move', 'create'):
         OVERRIDE + ' Fija como dueña (vendedora) de la factura de cliente a quien la crea si solo ve lo suyo; '
                    'una nota de crédito de cliente exige Gerencia (models/cobros.py, A7); y quien no cobra no hace '
@@ -114,7 +115,8 @@ LISTA_BLANCA = {
     # Reglas contables de la gerencia (2026-10-17, models/cobros.py): solo AGREGAN una comprobación de grupo antes de
     # llamar a Odoo; ninguna usa sudo() para escribir (solo para leer el tipo y dar el mensaje claro).
     ('dcasa_base', 'account.move', 'write'):
-        OVERRIDE + ' Pasar una factura de cliente publicada a borrador o anulada exige Gerencia (A6); sin sudo().',
+        OVERRIDE + ' Pasar una factura de cliente publicada a borrador o anulada exige Gerencia (A6); y NIEGA ligar '
+                   'cobros (transaction_ids) a quien no cobra (RV8 R8-1); sin sudo().',
     ('dcasa_base', 'account.move', 'get_view'):
         OVERRIDE + ' Solo quita «Nuevo» de las vistas de facturas de cliente a quien no cobra (la Vendedora); no lee '
                    'ni escribe datos, sin sudo().',
@@ -152,9 +154,11 @@ LISTA_BLANCA = {
     ('dcasa_base', 'account.partial.reconcile', 'unlink'):
         OVERRIDE + ' Deshacer una conciliación de un cliente exige Caja, Gerencia o contabilidad (A5); sin sudo().',
     ('dcasa_base', 'payment.transaction', 'write'):
-        OVERRIDE + ' Solo NIEGA (AccessError) escribir el estado, el monto y lo demás que mueve el dinero de un pago '
-                   'en línea a quien no es Caja, Gerencia, contabilidad o administrador (A5, RV7 R7-1); lo del '
-                   'sistema (sudo) pasa; no escribe nada propio.',
+        OVERRIDE + ' Solo NIEGA (AccessError) cualquier escritura a quien no es Caja, Gerencia, contabilidad o '
+                   'administrador (A5, RV7 R7-1, RV8 R8-2); lo del sistema (sudo) pasa; no escribe nada propio.',
+    ('dcasa_base', 'payment.transaction', 'create'):
+        OVERRIDE + ' Solo NIEGA (AccessError) crear una transacción de pago a quien no es Caja, Gerencia, contabilidad '
+                   'o administrador (RV8 R8-6); lo del sistema (sudo) pasa; no escribe nada propio.',
     ('dcasa_base', 'account.payment', 'create'):
         OVERRIDE + ' Un cobro de cliente exige Caja, Gerencia o contabilidad (A5); devolverle dinero, Gerencia (A7).',
     ('dcasa_base', 'account.payment', 'write'):
@@ -1314,8 +1318,8 @@ LISTA_BLANCA = {
     # --- dcasa_base: el origen de la venta online ------------------------------------------------------
     ('dcasa_base', 'sale.order', 'write'):
         OVERRIDE + ' Solo NIEGA escribir las marcas de origen de la venta online (nació en la web, Andrés, la llevó '
-                   'una vendedora): solo se escriben por código, con una llave interna que por RPC nunca llega; sin '
-                   'sudo().',
+                   'una vendedora): solo se escriben por código, con una llave interna que por RPC nunca llega; y '
+                   'ligar o soltar cobros (transaction_ids) a quien no cobra (RV8 R8-1); sin sudo().',
     ('dcasa_base', 'sale.order', 'default_get'):
         OVERRIDE + ' Solo QUITA del resultado las marcas de origen de la venta online (un ``default_*`` del contexto '
                    'llega por RPC y no puede fabricarlas); sin sudo().',
