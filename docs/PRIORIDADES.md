@@ -16,11 +16,13 @@ cambio en el diseño me gustaría verlo antes»; ver LEEME_PRIMERO §2).
   `sha256:706e7954…`): «Forma de pago» en facturas, ventas por día, carrusel configurable, Andrés ampliado, rediseño de la pasarela, legibilidad
   y retoques, que la dueña aprobó. **Tilopay y Yappy directo están instalados y apagados; la comisión web no tiene versión de reglas (solo
   mide).** Antes: `d2ba8caf` (2026-11-18).
-- **Falta, en este orden:** (1) **cerrar R9-1 a R9-5** (las dos puertas que halló RV8b en los permisos del pago en línea): arreglado en
-  `local/rv7-arreglos` (`cdd25e11`), en revisión independiente RV8c → CI → staging → producción. **Obligatorio antes de encender cualquier pago.**
-  (2) Lo que depende de otros: claves de Tilopay y Yappy en Cloudflare (nunca por el chat), el programa de pruebas de Yappy y la compra de ensayo,
-  las respuestas de Yappy y Cloudflare (YAPPY.md §15), la política de privacidad (§16), la decisión del rastro del botón de Caja (R7-7), las cifras
-  de la comisión web y su tratamiento contable.
+- **Falta, en este orden:** (1) **llevar a producción los cierres R9-1 a R9-5** (las dos puertas que halló RV8b en los permisos del pago en
+  línea: `default_transaction_ids` del pedido y la factura creada a mano con el cobro de otro; más `action_refund`/`capture`/`void` y los
+  caracteres invisibles de `cita`). **Ya están unidos a la rama de trabajo y los aprobó la revisión independiente RV8c** (sin hallazgos que
+  bloqueen; solo INFO, ver la bitácora): falta CI → staging → producción, **obligatorio antes de encender cualquier pago**. (2) Lo que depende de
+  otros: claves de Tilopay y Yappy en Cloudflare (nunca por el chat), el programa de pruebas de Yappy y la compra de ensayo, las respuestas de Yappy y
+  Cloudflare (YAPPY.md §15), la política de privacidad (§16), las decisiones **R7-4 (Nómina confirma cobros) y R7-7 (rastro del botón de Caja)**,
+  aceptar el límite R8-3 (un cobro suelto del mismo cliente manda el aviso a revisión humana), las cifras de la comisión web y su tratamiento contable.
 - **Para los jefes:** el informe de ChatGPT quedó contrastado con el código (CONTEXTO_AGENTICO); hay tablero y un audio/video de 38 minutos con
   voz gratis; la voz profesional (≈ US$7.30) espera el «sí» de la dueña. **Por comprobar en vivo:** CRM automático y cotizaciones sin vincular,
   111 frente a 93 cotizaciones, margen de octubre y los $44.96 de IA.

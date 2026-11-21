@@ -106,17 +106,20 @@ LISTA_BLANCA = {
         ASISTENTE + ' Además, res.users._dcasa_poner_restriccion exige Gerencia o administrador en el servidor antes '
                     'del sudo.',
     ('dcasa_base', 'sale.order', 'create'):
-        OVERRIDE + ' Fija como dueña (vendedora) a quien crea si solo ve lo suyo; y NIEGA ligar cobros '
-                   '(transaction_ids) a quien no cobra (RV8 R8-1); sin sudo().',
+        OVERRIDE + ' Fija como dueña (vendedora) a quien crea si solo ve lo suyo; y NIEGA, después de crear, que el '
+                   'pedido traiga cobros (transaction_ids, también por default_ del contexto) si quien lo crea no '
+                   'cobra (RV8 R8-1, RV8b R9-1); sin sudo().',
     ('dcasa_base', 'account.move', 'create'):
         OVERRIDE + ' Fija como dueña (vendedora) de la factura de cliente a quien la crea si solo ve lo suyo; '
                    'una nota de crédito de cliente exige Gerencia (models/cobros.py, A7); y quien no cobra no hace '
-                   'una factura de cliente suelta (cotiza); sin sudo() para escribir.',
+                   'una factura de cliente suelta (cotiza); y NIEGA, después de crear, que el documento traiga cobros '
+                   '(transaction_ids) si quien lo crea no cobra (RV8b R9-2); sin sudo() para escribir.',
     # Reglas contables de la gerencia (2026-10-17, models/cobros.py): solo AGREGAN una comprobación de grupo antes de
     # llamar a Odoo; ninguna usa sudo() para escribir (solo para leer el tipo y dar el mensaje claro).
     ('dcasa_base', 'account.move', 'write'):
-        OVERRIDE + ' Pasar una factura de cliente publicada a borrador o anulada exige Gerencia (A6); y NIEGA ligar '
-                   'cobros (transaction_ids) a quien no cobra (RV8 R8-1); sin sudo().',
+        OVERRIDE + ' Pasar una factura de cliente publicada a borrador o anulada exige Gerencia (A6); NIEGA ligar '
+                   'cobros (transaction_ids) a quien no cobra (RV8 R8-1) y cambiar el tipo de un documento de cliente '
+                   'a quien no es Caja o Gerencia (una nota de crédito, solo Gerencia; RV8b R9-2); sin sudo().',
     ('dcasa_base', 'account.move', 'get_view'):
         OVERRIDE + ' Solo quita «Nuevo» de las vistas de facturas de cliente a quien no cobra (la Vendedora); no lee '
                    'ni escribe datos, sin sudo().',
@@ -156,6 +159,16 @@ LISTA_BLANCA = {
     ('dcasa_base', 'payment.transaction', 'write'):
         OVERRIDE + ' Solo NIEGA (AccessError) cualquier escritura a quien no es Caja, Gerencia, contabilidad o '
                    'administrador (A5, RV7 R7-1, RV8 R8-2); lo del sistema (sudo) pasa; no escribe nada propio.',
+    ('dcasa_base', 'payment.transaction', 'action_refund'):
+        OVERRIDE + ' Solo NIEGA (AccessError) devolver un cobro a quien no es Caja, Gerencia, contabilidad o '
+                   'administrador (RV8b R9-3: el core la corre con sudo tras mirar solo el ACL); no escribe nada '
+                   'propio.',
+    ('dcasa_base', 'payment.transaction', 'action_capture'):
+        OVERRIDE + ' Solo NIEGA (AccessError) capturar un cobro a quien no es Caja, Gerencia, contabilidad o '
+                   'administrador (RV8b R9-3); no escribe nada propio.',
+    ('dcasa_base', 'payment.transaction', 'action_void'):
+        OVERRIDE + ' Solo NIEGA (AccessError) anular un cobro a quien no es Caja, Gerencia, contabilidad o '
+                   'administrador (RV8b R9-3); no escribe nada propio.',
     ('dcasa_base', 'payment.transaction', 'create'):
         OVERRIDE + ' Solo NIEGA (AccessError) crear una transacción de pago a quien no es Caja, Gerencia, contabilidad '
                    'o administrador (RV8 R8-6); lo del sistema (sudo) pasa; no escribe nada propio.',

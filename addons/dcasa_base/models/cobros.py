@@ -12,15 +12,18 @@ Ver docs/DECISIONES_CONTABLES.md (A5, A6 y A7) y docs/PERMISOS.md.
 * **A7 · Notas de crédito** de clientes, **devolverle dinero** a un cliente (cobro saliente) y **dejarle saldo a favor**
   (cobrar de más y dejarlo abierto) o dar una factura por pagada con una diferencia: solo **Gerencia** y los
   administradores.
-* **A5 también para el pago en línea (R7-1 y R8-1, R8-2, R8-6; revisiones RV7 y RV8).** La transacción de un pago en
-  línea (``payment.transaction``, de cualquier proveedor: Yappy, Tilopay…) es lo que el cron convierte en cobro y en
-  pedido confirmado. Facturación (que la Vendedora trae implícita) puede escribir y crear en ella por el permiso de
-  fábrica de Odoo; con un ``write(state='done')`` dejaba un pedido pagado sin dinero y sin pasar por Caja. Ahora, quien
-  no cobra **no escribe NADA ni crea** en la transacción (lista blanca vacía: ningún flujo legítimo lo hace; todo lo del
-  sistema corre con ``sudo``). Y la otra mitad de la misma relación, ``sale.order.transaction_ids`` (``write`` y
-  ``create``) y ``account.move.transaction_ids`` (``write``), tampoco: ligar un cobro ajeno a un pedido o a una factura
-  soltaba mercancía sin cobrar o aplicaba el dinero de un cliente a la factura de otro. Lo que escribe el propio sistema
-  (la pasarela, el aviso del proveedor, el cron, ``sale._create_invoices``) corre con ``sudo`` y no cambia.
+* **A5 también para el pago en línea (R7-1, R8-1, R8-2, R8-6, R9-1 a R9-3; revisiones RV7, RV8 y RV8b).** La
+  transacción de un pago en línea (``payment.transaction``, de cualquier proveedor: Yappy, Tilopay…) es lo que el cron
+  convierte en cobro y en pedido confirmado. Facturación (que la Vendedora trae implícita) puede escribir y crear en
+  ella por el permiso de fábrica de Odoo; con un ``write(state='done')`` dejaba un pedido pagado sin dinero y sin
+  pasar por Caja. Ahora, quien no cobra **no escribe NADA ni crea** en la transacción (lista blanca vacía: ningún flujo
+  legítimo lo hace; todo lo del sistema corre con ``sudo``), ni la devuelve, captura o anula (``action_refund``,
+  ``action_capture`` y ``action_void`` del core corren con ``sudo`` después de mirar solo el ACL). Y la otra mitad de
+  la misma relación, ``sale.order.transaction_ids`` y ``account.move.transaction_ids``, tampoco: ligar un cobro ajeno
+  a un pedido o a una factura soltaba mercancía sin cobrar o aplicaba el dinero de un cliente a la factura de otro.
+  Se niega en ``write`` (mirando ``vals``) y en ``create`` **después de crear**, mirando lo que el documento trae
+  (``default_transaction_ids`` del contexto no pasa por ``vals``). Lo que escribe el propio sistema (la pasarela, el
+  aviso del proveedor, el cron, ``sale._create_invoices``) corre con ``sudo`` y no cambia.
 
 Todo se comprueba aquí, en el servidor (esconder un botón no basta): asistente, Brian, Inicio, Conversaciones o RPC
 llegan a los mismos métodos. El superusuario y lo que corre con ``sudo`` (la tienda web, Juan, el cron, la carga del
@@ -50,6 +53,11 @@ def mensaje_cobro(env):
 def mensaje_cobros_ligados(env):
     return env._('Los cobros ligados a un pedido o a una factura los mueve el sistema o Caja (Caja, Gerencia, '
                  'contabilidad). No se puede cambiar desde aquí.')
+
+
+def mensaje_tipo_de_documento(env):
+    return env._('Cambiar el tipo de un documento de cliente (factura, recibo, nota de crédito) lo hace Caja o '
+                 'Gerencia; una nota de crédito, solo Gerencia.')
 
 
 def exigir_que_ligue_cobros(env):
@@ -154,15 +162,18 @@ class AccountMove(models.Model):
     # --- A7: notas de crédito ----------------------------------------------------------------------------------
     @api.model_create_multi
     def create(self, vals_list):
-        # El ``create`` de la factura NO lleva la regla de ``transaction_ids`` a propósito (R8-1): una factura nace con
-        # los cobros de su propio pedido por ``sale._create_invoices`` (corre con ``sudo``), y crearla a mano con cobros
-        # ligados ya lo cierran otras dos reglas: quien no cobra no hace facturas sueltas (más abajo) y nadie escribe
-        # a mano el enlace con las líneas del pedido (``enlace_factura.py``). Lo fija una prueba.
         if not self.env.su:
             por_defecto = self.env.context.get('default_move_type')
             if any(vals.get('move_type', por_defecto) == 'out_refund' for vals in vals_list):
                 exigir_gerencia(self.env, mensaje_nota(self.env))
         moves = super().create(vals_list)
+        # R8-1 y R9-2: un documento que quien no cobra acaba de crear no nace con cobros ligados. Se mira DESPUÉS de
+        # crear y lo que el documento trae (no ``vals``): ``default_transaction_ids`` del contexto no pasa por
+        # ``vals``. La factura de un pedido ya cobrado nace con el cobro de su propio pedido por
+        # ``sale._create_invoices``, que corre con ``sudo``: no se afecta. La regla «quien no cobra no hace facturas
+        # sueltas» (más abajo) NO basta: solo mira ``out_invoice`` y un recibo de venta (``out_receipt``) se escapaba.
+        if not self.env.su and moves.sudo().transaction_ids:
+            exigir_que_ligue_cobros(self.env)
         moves._dcasa_exigir_que_salga_del_pedido()
         return moves
 
@@ -215,9 +226,25 @@ class AccountMove(models.Model):
         self._dcasa_exigir_gerencia_para_deshacer()
         return super().button_cancel()
 
+    def _dcasa_exigir_quien_cambia_el_tipo(self, nuevo):
+        """R9-2: cambiar el tipo de un documento de cliente (recibo ↔ factura ↔ nota de crédito) es de Caja o Gerencia,
+        y todo lo que toque una nota de crédito, de Gerencia (A7). Sin esto, ``write({'move_type': 'out_invoice'})``
+        volvía factura un recibo y ``'out_refund'`` creaba una nota de crédito en borrador sin Gerencia (el botón
+        «Pasar a factura/nota de crédito» ya está escondido para quien no es Gerencia; esto es el servidor)."""
+        cambian = self.sudo().filtered(lambda m: m.move_type != nuevo)
+        tipos = set(cambian.mapped('move_type')) | {nuevo} if cambian else set()
+        if not tipos & set(CLIENTE):
+            return
+        if 'out_refund' in tipos:
+            exigir_gerencia(self.env, mensaje_nota(self.env))
+        if not self.env.user._dcasa_puede_cobrar():
+            raise AccessError(mensaje_tipo_de_documento(self.env))
+
     def write(self, vals):
         if 'transaction_ids' in vals:
             exigir_que_ligue_cobros(self.env)     # R8-1: la otra mitad de ``payment.transaction.invoice_ids``
+        if 'move_type' in vals and not self.env.su:
+            self._dcasa_exigir_quien_cambia_el_tipo(vals['move_type'])
         # Por RPC alguien podría escribir el estado a mano: la misma regla que los botones.
         if not self.env.su and vals.get('state') in ('draft', 'cancel'):
             self._dcasa_exigir_gerencia_para_deshacer()
@@ -445,7 +472,13 @@ class SaleOrder(models.Model):
     def create(self, vals_list):
         if any('transaction_ids' in vals for vals in vals_list):
             exigir_que_ligue_cobros(self.env)
-        return super().create(vals_list)
+        pedidos = super().create(vals_list)
+        # R9-1: ``default_transaction_ids`` del contexto (por RPC cualquiera lo manda) no pasa por ``vals`` y Odoo lo
+        # aplica al crear: se mira lo que el pedido trae DESPUÉS de crear, como ``enlace_factura.py`` hace con
+        # ``sale_line_ids``. Un pedido que quien no cobra acaba de crear nunca nace con cobros.
+        if not self.env.su and pedidos.sudo().transaction_ids:
+            exigir_que_ligue_cobros(self.env)
+        return pedidos
 
     def write(self, vals):
         """R8-1: ligar o soltar el cobro de un pedido (``transaction_ids``, que la Vendedora puede escribir por
@@ -484,3 +517,17 @@ class PaymentTransaction(models.Model):
         if vals:
             self._dcasa_exigir_que_la_mueva_el_sistema_o_caja(', '.join(sorted(vals)))
         return super().write(vals)
+
+    # R9-3: métodos PÚBLICOS del core que corren con ``sudo`` después de mirar solo el ACL: sin esto, quien no cobra
+    # (Facturación) creaba transacciones hijas de devolución («R-…», -107.00) con ``action_refund``.
+    def action_refund(self, amount_to_refund=None):
+        self._dcasa_exigir_que_la_mueva_el_sistema_o_caja(self.env._('devolver un cobro'))
+        return super().action_refund(amount_to_refund=amount_to_refund)
+
+    def action_capture(self):
+        self._dcasa_exigir_que_la_mueva_el_sistema_o_caja(self.env._('capturar un cobro'))
+        return super().action_capture()
+
+    def action_void(self):
+        self._dcasa_exigir_que_la_mueva_el_sistema_o_caja(self.env._('anular un cobro'))
+        return super().action_void()
