@@ -312,12 +312,12 @@ class TestElOtroLadoDeLaRelacion(BaseTransaccion):
                 factura.with_user(self.usuarios[nombre]).write({'transaction_ids': [Command.link(ajeno.id)]})
         self.assertNotIn(ajeno, factura.sudo().transaction_ids)
 
-    def test_crear_una_factura_a_mano_con_el_cobro_de_otro_ya_esta_cerrado_por_otras_reglas(self):
-        """El ``create`` de la factura no lleva la regla de ``transaction_ids`` (no se niega a ciegas: ``sale`` crea la
-        factura del pedido, con sus cobros, con ``sudo``). Crearla a mano con el cobro de otro ya lo cierran dos reglas
-        de ``dcasa_base`` y esta prueba las fija: una factura suelta (sin líneas del pedido) la niega «quien no cobra
-        cotiza» (``cobros.py``), y una con líneas de SU pedido (``sale_line_ids``) la niega ``enlace_factura.py``
-        (nadie escribe a mano el enlace con el pedido)."""
+    def test_crear_una_factura_a_mano_con_el_cobro_de_otro_se_niega_por_varias_reglas(self):
+        """El ``create`` de la factura SÍ lleva la comprobación posterior de ``transaction_ids`` (R9-2: niega a quien no
+        cobra; ``sale`` crea la factura del pedido, con sus cobros, con ``sudo`` y por eso pasa). Además, dos reglas de
+        ``dcasa_base`` cierran la factura a mano y esta prueba las fija como defensa en profundidad: una factura suelta
+        (sin líneas del pedido) la niega «quien no cobra no hace facturas sueltas» (``cobros.py``), y una con líneas de
+        SU pedido (``sale_line_ids``) la niega ``enlace_factura.py`` (nadie escribe a mano el enlace con el pedido)."""
         ajeno = self.cobro_ajeno()
         pedido = self.pedido_de(vendedora=self.usuarios['vendedora'])
         pedido.action_confirm()
