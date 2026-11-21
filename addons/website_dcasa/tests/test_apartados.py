@@ -154,6 +154,32 @@ class TestApartadosDeLaTienda(TransactionCase):
             self.assertEqual(self.Orden._dcasa_cron_vencer_apartados(), 0)
         self.assertEqual(carrito.state, 'draft')
 
+    # --- Un pedido «en pausa» (RV7, R7-2): se salta esta noche SIN perder su fecha ---------------------------------
+
+    def test_un_pedido_en_pausa_se_salta_esta_noche_y_conserva_su_fecha(self):
+        """El gancho ``_dcasa_apartado_en_pausa`` (hoy lo usa un cobro de Yappy abierto): el barrido no lo anula esa
+        noche y NO le borra ``dcasa_apartado_vence``; al terminar la pausa, el apartado vence su día como siempre. Con
+        ``_dcasa_apartado_reclamado`` (dinero, factura o entrega) la fecha sí se borra, y no es lo mismo."""
+        Modelo = type(self.Orden)
+        with freeze_time(HOY):
+            orden = self.pedido()
+            orden.action_confirm()
+            fecha = orden.dcasa_apartado_vence
+        self.assertTrue(fecha)
+        with self.despues(8), patch.object(Modelo, '_dcasa_apartado_en_pausa', return_value=True):
+            self.assertEqual(self.Orden._dcasa_cron_vencer_apartados(), 0, 'en pausa: esta noche no se anula')
+            self.assertEqual(orden.state, 'sale')
+            self.assertEqual(orden.dcasa_apartado_vence, fecha, 'la pausa NO borra la fecha de vencimiento')
+        with self.despues(9):        # terminó la pausa: el apartado sigue vigilado y vence
+            self.assertEqual(self.Orden._dcasa_cron_vencer_apartados(), 1)
+        self.assertEqual(orden.state, 'cancel')
+
+    def test_sin_nada_en_marcha_el_gancho_de_pausa_dice_que_no(self):
+        with freeze_time(HOY):
+            orden = self.pedido()
+            orden.action_confirm()
+            self.assertFalse(orden._dcasa_apartado_en_pausa())
+
     # --- Lo que ya se reclamó nunca se anula solo ---------------------------------------------------------
 
     def test_con_factura_publicada_no_se_anula(self):

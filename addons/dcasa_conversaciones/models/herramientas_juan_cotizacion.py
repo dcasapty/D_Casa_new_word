@@ -193,6 +193,10 @@ class BrianHerramientasJuanCotizacion(models.AbstractModel):
             'user_id': conv.asignada_a.id or False,
             'origin': origen,
             'order_line': [(0, 0, {'product_id': v.id, 'product_uom_qty': c}) for v, c in pares]})
+        # Una cotización que arma Juan nace por un flujo digital: es venta online mientras ninguna vendedora intervenga
+        # (``dcasa_base.models.venta_online``; la comprobación se hace al confirmar). Solo esta herramienta la marca,
+        # con la llave interna: ni por contexto ni por un campo que alguien pueda mandar.
+        orden._dcasa_escribir_marca(dcasa_nacio_en_web=True, dcasa_creada_por_id=self.env.uid)
         orden.message_post(
             body=self.env._('Cotización armada por Juan (automática) desde la conversación de %s. '
                             'Sin confirmar: una vendedora la revisa.', dict(conv._fields['canal'].selection).get(

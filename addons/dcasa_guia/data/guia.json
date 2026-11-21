@@ -255,7 +255,7 @@
    ],
    "grupo": "Hoy",
    "titulo": "Ver cuánto se vendió cada día del mes",
-   "logras": "El mes como un calendario (en el celular, una lista de días) con lo vendido cada día y cuántas ventas fueron. Tocas un día y ves cada pedido o factura de ese día, con su cliente, su vendedora y su estado; tocas uno y se abre. Arriba, el total del mes y cómo va contra el mes pasado, y lo cobrado en el mes por forma de pago (efectivo, Yappy, tarjeta…); al tocar un día, también lo cobrado ese día por forma de pago. Solo Gerencia.",
+   "logras": "El mes como un calendario (en el celular, una lista de días) con lo vendido cada día y cuántas ventas fueron. Tocas un día y ves cada pedido o factura de ese día, con su cliente, su vendedora y su estado; tocas uno y se abre. Arriba, el total del mes y cómo va contra el mes pasado. A la derecha, justo encima de las facturas del día, una sola tarjeta «Cobrado por forma de pago» (efectivo, Yappy, tarjeta…) que cambia por día, semana, quincena o mes. Todas las cifras suben hasta su valor al abrir y cada vez que cambian. Solo Gerencia.",
    "destino": {
     "menu": "dcasa_interfaz.menu_dcasa_ventas_por_dia"
    },
@@ -269,9 +269,13 @@
     {
      "texto": "Toca un día del calendario: a la derecha (en el celular, debajo del día) sale cada venta de ese día. «Ver en lista» las abre todas en una lista.",
      "destino": null
+    },
+    {
+     "texto": "En la tarjeta «Cobrado por forma de pago», arriba de las facturas del día, elige «Día», «Semana», «Quincena» o «Mes»: el título dice cuál es y cada ficha (efectivo, Yappy, tarjeta…) abre sus cobros. La semana va de lunes a domingo, la quincena es del 1 al 15 o del 16 al fin del mes, y el mes es el que estás viendo. Si el periodo todavía no termina, cuenta hasta hoy. En un mes que ya pasó, sin ningún día elegido, la tarjeta muestra el mes completo hasta que toques un día.",
+     "destino": null
     }
    ],
-   "nota": "Las ventas van sin ITBMS; el total con ITBMS sale aparte. «Contra» compara con los mismos días del mes pasado (el último hasta la misma hora de hoy) o, si el mes ya terminó, con el mes anterior completo, igual que Comparar del Inicio.",
+   "nota": "Las ventas van sin ITBMS; el total con ITBMS sale aparte, y lo cobrado va con ITBMS (es el dinero que entró, la misma cuenta de la Caja de hoy; no cambia con «Vendido», «Facturado» ni con la vendedora). «Contra» compara con los mismos días del mes pasado (el último hasta la misma hora de hoy) o, si el mes ya terminó, con el mes anterior completo, igual que Comparar del Inicio.",
    "brian": "¿Cuánto se vendió el martes?",
    "palabras": [
     "por dia",
@@ -284,7 +288,12 @@
     "vendido",
     "metodo de pago",
     "forma de pago",
-    "cobrado por dia"
+    "cobrado por dia",
+    "cobrado por semana",
+    "cobrado por quincena",
+    "cobrado del mes",
+    "cobros de la semana",
+    "cobros de la quincena"
    ]
   },
   {
@@ -304,7 +313,7 @@
     "cobros del dia",
     "cuadrar"
    ],
-   "nota": "Para los días anteriores y el total de un mes por forma de pago: Ventas por día (toca un día) o Estadísticas."
+   "nota": "Para los días anteriores, la semana, la quincena o el mes por forma de pago: Ventas por día (toca un día y mira la tarjeta «Cobrado por forma de pago») o Estadísticas."
   },
   {
    "id": "cobrar-cliente",
@@ -2789,14 +2798,17 @@
    "id": "carrusel-portada",
    "categoria": "tienda",
    "grupo": "Tienda en línea",
-   "titulo": "Elegir los productos del carrusel de la portada",
-   "logras": "Eliges qué productos salen arriba en la portada, uno tras otro: su foto, su nombre y un botón a su ficha. Con «Nuevo» agregas un producto publicado y arrastrando cambias el orden; el de arriba sale primero. Si dejas la lista vacía, la portada muestra la foto de siempre.",
+   "titulo": "Elegir los productos y la velocidad del carrusel de la portada",
+   "logras": "Eliges qué productos salen de fondo arriba en la portada, una foto tras otra, y cuántos segundos dura cada una (arriba, en «Segundos que dura cada foto»: de 2 a 15, de fábrica 3). Con «Agregar una línea» pones un producto publicado y arrastrando eliges cuál sale primero; las demás van en orden al azar. Si dejas la lista vacía, la portada muestra la foto de siempre.",
    "destino": {
     "menu": "website_dcasa.menu_dcasa_portada_diapositiva"
    },
-   "nota": "Solo salen los productos publicados en la tienda y con foto; la columna «Sale en la portada» dice cuáles. El cambio se ve en la página en unos segundos. Lo ven y lo cambian Gerencia y los administradores.",
+   "nota": "Solo salen los productos publicados en la tienda y con foto; la columna «Sale en la portada» dice cuáles. El cambio, de productos o de segundos, se ve en la página en unos segundos. El paso de una foto a la otra y el zoom lento se ajustan solos al tiempo que pongas. Lo ven y lo cambian Gerencia y los administradores.",
    "palabras": [
     "carrusel",
+    "velocidad de la portada",
+    "segundos de cada foto",
+    "cambiar más rápido las fotos",
     "portada",
     "inicio de la página",
     "foto de la portada",
@@ -2852,7 +2864,7 @@
    "destino": {
     "menu": "dcasa_brian_tienda.menu_dcasa_brian_tienda"
    },
-   "nota": "Viene encendido, saludando igual de día y de noche (fuera del horario no avisa que la tienda está cerrada) y con el robot dormido de noche. No guarda la conversación ni crea contactos; para atención personal ofrece WhatsApp. Si las notas de voz de Juan están encendidas, junto a «Enviar» sale un micrófono: el cliente le habla hasta un minuto y Andrés recibe lo que dijo como texto; el audio no se guarda en ningún lado. Su gasto va en su propio renglón de Costos de IA y no se suma a «Por pagar a Meta». Solo Gerencia y los administradores lo cambian.",
+   "nota": "Viene encendido, saludando igual de día y de noche (fuera del horario no avisa que la tienda está cerrada) y con el robot dormido de noche. No guarda la conversación ni crea contactos; para atención personal ofrece WhatsApp. Si las notas de voz de Juan están encendidas, junto a «Enviar» sale un micrófono: el cliente le habla hasta un minuto y Andrés recibe lo que dijo como texto; el audio no se guarda en ningún lado. En la computadora el chat abre ya ampliado: el chat a la izquierda y, a la derecha, «Lo más buscado» (después, los productos de la conversación); quien lo prefiere lo achica con el botón de la esquina y su navegador lo recuerda. En el celular no cambia. Su gasto va en su propio renglón de Costos de IA y no se suma a «Por pagar a Meta». Solo Gerencia y los administradores lo cambian.",
    "palabras": [
     "chat",
     "chat de la tienda",
@@ -2867,7 +2879,9 @@
     "andrés",
     "andres",
     "micrófono del chat",
-    "nota de voz del cliente"
+    "nota de voz del cliente",
+    "chat ampliado",
+    "tamaño del chat"
    ]
   },
   {
@@ -3004,6 +3018,137 @@
     "token de meta",
     "medir anuncios",
     "cookies"
+   ]
+  },
+  {
+   "id": "tilopay-pagos",
+   "categoria": "tienda",
+   "grupo": "Tienda en línea",
+   "titulo": "Encender el pago con tarjeta (Tilopay) y probar la conexión",
+   "logras": "Ves si las claves de Tilopay ya están cargadas, en qué entorno está (prueba o producción), si Tilopay aparece en la tienda y por qué no, y pulsas «Probar conexión» para confirmar que Tilopay acepta el usuario y la contraseña (la llave se comprueba en el primer cobro de prueba). Cuando todo está bien, lo enciendes: el cliente paga en la página segura de Tilopay y el pedido queda pagado solo.",
+   "destino": {
+    "menu": "account_payment.payment_provider_menu"
+   },
+   "pasos": [
+    {
+     "texto": "Las claves no se escriben aquí ni se mandan por el chat: se pegan en el panel de Cloudflare como secretos (el paso a paso está en docs/TILOPAY.md).",
+     "destino": null
+    },
+    {
+     "texto": "Abre Tilopay en la lista, mira «Claves cargadas» y «Entorno» y pulsa «Probar conexión».",
+     "destino": {
+      "menu": "account_payment.payment_provider_menu"
+     }
+    },
+    {
+     "texto": "Para probar con dinero de mentira, ponlo en «Modo de prueba» y déjalo sin publicar: así solo lo ven y lo usan las personas del equipo con sesión, nunca un visitante. Para cobrar de verdad, «Habilitado» (y que Cloudflare diga «produccion»).",
+     "destino": null
+    }
+   ],
+   "nota": "Viene apagado. Si algo no coincide (entorno, claves o el interruptor), Tilopay simplemente no aparece en la tienda y la pantalla dice por qué. Esta pantalla es del administrador.",
+   "palabras": [
+    "tilopay",
+    "tarjeta",
+    "yappy",
+    "pago en linea",
+    "pasarela",
+    "cobrar con tarjeta",
+    "probar conexion",
+    "claves de tilopay",
+    "pago con tarjeta en la tienda"
+   ],
+   "grupos": [
+    "base.group_system"
+   ]
+  },
+  {
+   "id": "yappy-pagos",
+   "categoria": "tienda",
+   "grupo": "Tienda en línea",
+   "titulo": "Encender el pago con Yappy en la tienda y ver por qué no aparece",
+   "logras": "Ves si las claves de Yappy ya están cargadas en el servidor, en qué entorno está (prueba o producción), si «Yappy» aparece en la tienda y, si no aparece, por qué. Pulsas «Probar conexión» para confirmar que Yappy reconoce al comercio y al dominio. Cuando todo está bien, lo enciendes: el cliente paga desde su app de Yappy sin salir de la tienda y el pedido queda pagado cuando Yappy avisa.",
+   "destino": {
+    "menu": "account_payment.payment_provider_menu"
+   },
+   "pasos": [
+    {
+     "texto": "Las claves no se escriben aquí ni se mandan por el chat: se pegan en el panel de Cloudflare (el paso a paso está en docs/YAPPY.md). Yappy muestra la clave secreta una sola vez, así que se pega directo.",
+     "destino": null
+    },
+    {
+     "texto": "Abre «Yappy directo» en la lista, mira «Claves de Yappy cargadas» y «Entorno de Yappy» y pulsa «Probar conexión».",
+     "destino": {
+      "menu": "account_payment.payment_provider_menu"
+     }
+    },
+    {
+     "texto": "El dominio que sale ahí tiene que ser, letra por letra, el que se escribió en Yappy Comercial al crear el botón. Si no coincide, Yappy no deja cobrar.",
+     "destino": null
+    },
+    {
+     "texto": "Para probar con dinero de mentira, ponlo en «Modo de prueba» y déjalo sin publicar: así solo lo ven y lo usan las personas del equipo con sesión, nunca un visitante. Para cobrar de verdad, «Habilitado» (y que Cloudflare diga «produccion»).",
+     "destino": null
+    }
+   ],
+   "nota": "Viene apagado. Cuando se enciende, reemplaza al «Yappy» de siempre (el que te escribe por WhatsApp): el cliente nunca ve dos. Si algo no coincide (claves, entorno o el interruptor), el Yappy de siempre sigue funcionando y la pantalla dice por qué. Esta pantalla es del administrador.",
+   "palabras": [
+    "yappy",
+    "yappy directo",
+    "boton de pago",
+    "pago con yappy",
+    "cobrar con yappy",
+    "probar conexion",
+    "claves de yappy",
+    "yappy comercial",
+    "pago en linea",
+    "pasarela"
+   ],
+   "grupos": [
+    "base.group_system"
+   ]
+  },
+  {
+   "id": "yappy-que-compro",
+   "categoria": "vender",
+   "grupo": "Cobros",
+   "titulo": "Ver qué compró quien pagó con Yappy",
+   "logras": "Ves, por cada pago con Yappy, qué pedido es, qué compró la persona (producto, modelo, cantidad, precio y descuento), cómo recibe su pedido, su celular y cuándo y cómo pagó, para coordinar la entrega sin buscar nada. También ves los pagos que Yappy todavía no confirmó (y los confirmas tú, mirando Yappy Comercial) y los que alguien debe revisar.",
+   "destino": {
+    "menu": "dcasa_pago_yappy.menu_pagos_yappy"
+   },
+   "pasos": [
+    {
+     "texto": "Abre «Pagos con Yappy»: cada fila trae el pedido, el celular y la orden que se ve en el reporte de Yappy Comercial.",
+     "destino": {
+      "menu": "dcasa_pago_yappy.menu_pagos_yappy"
+     }
+    },
+    {
+     "texto": "Abre uno: arriba dice el pedido, la entrega y de dónde llegó la compra; abajo, la lista de lo que compró.",
+     "destino": null
+    },
+    {
+     "texto": "Si Yappy no avisó pasados unos minutos, te queda un pendiente en el pedido. Abre el reporte de Yappy Comercial y mira si el dinero entró. Si entró, abre ese pago en «Pagos con Yappy» y pulsa «Confirmar que el dinero entró»: queda pagado una sola vez y anotado que lo confirmaste tú. No lo registres además a mano en el diario: se cobraría dos veces. Si el dinero no entró, no hagas nada: el pedido sigue guardado.",
+     "destino": null
+    }
+   ],
+   "nota": "El número de confirmación que a veces trae Yappy es solo informativo: nunca decide si un pedido está pagado. Un pedido solo queda pagado cuando Yappy avisa con su firma o cuando Caja confirma, mirando Yappy Comercial, que el dinero entró. Si el pedido ya estaba pagado por otro lado y llega el aviso de Yappy, no se cobra otra vez: queda una alerta para revisarlo. Pueden confirmar este pago Caja, Gerencia, contabilidad y quien tiene el rol «Administra la nómina» (ese rol incluye contabilidad). Si el cobro se quedó a medio abrir y Yappy nunca lo recibió, el botón no lo acepta.",
+   "palabras": [
+    "yappy",
+    "que compro",
+    "pedido pagado",
+    "pagos con yappy",
+    "lo que compro",
+    "detalle del pedido",
+    "pago en linea",
+    "coordinar la entrega",
+    "pagado con yappy"
+   ],
+   "grupos": [
+    "dcasa_base.group_caja",
+    "dcasa_base.group_gerencia",
+    "account.group_account_user",
+    "base.group_system"
    ]
   },
   {
@@ -3863,6 +4008,51 @@
    ]
   },
   {
+   "id": "forma-de-pago-facturas",
+   "categoria": "facturar",
+   "tambien": [
+    "reportes"
+   ],
+   "grupo": "Facturas de clientes",
+   "titulo": "Ver con qué se pagó cada factura y bajar el Excel",
+   "logras": "En la lista de facturas sale la columna «Forma de pago» (Efectivo, Yappy, Tarjeta…: con lo que se cobró cada una). La buscas por su nombre, las agrupas por forma de pago y bajas el Excel con esa columna.",
+   "destino": {
+    "menu": "dcasa_base.menu_dcasa_ventas_facturas"
+   },
+   "pasos": [
+    {
+     "texto": "Abre Ventas › Facturas. La columna «Forma de pago» sale junto al Estado.",
+     "destino": {
+      "menu": "dcasa_base.menu_dcasa_ventas_facturas"
+     }
+    },
+    {
+     "texto": "Para ver solo las que se pagaron con una forma, escribe su nombre en el buscador (por ejemplo «Yappy») y elige «Forma de pago». Para verlas todas separadas, abre «Agrupar por» y elige «Forma de pago».",
+     "destino": null
+    },
+    {
+     "texto": "Para el Excel: marca las facturas que quieras (o la casilla de arriba para todas), toca «Acción › Exportar», agrega «Forma de pago» a la lista de columnas y toca «Exportar».",
+     "destino": null
+    }
+   ],
+   "nota": "Una factura pagada en parte con dos formas dice las dos («Efectivo + Yappy»). Si se le aplicó una nota de crédito, dice «Nota de crédito». Una factura que todavía no se cobró queda en blanco; si está pagada pero no hay ningún pago registrado (por ejemplo, se concilió directo con el banco), dice «Sin pago registrado». «Exportar» sale para Gerencia, que baja facturas, pagos y ventas; el resto de las listas las bajan solo los administradores.",
+   "palabras": [
+    "forma de pago",
+    "metodo de pago",
+    "con que pago",
+    "como pago",
+    "yappy",
+    "efectivo",
+    "tarjeta",
+    "diario",
+    "excel",
+    "exportar",
+    "descargar excel",
+    "bajar excel",
+    "facturas por forma de pago"
+   ]
+  },
+  {
    "id": "tablero-facturas",
    "categoria": "facturar",
    "grupo": "Facturas de clientes",
@@ -4101,7 +4291,7 @@
    "categoria": "reportes",
    "grupo": "Ventas",
    "titulo": "Ver las estadísticas de ventas en gráficas",
-   "logras": "Gráficas simples de un periodo (esta semana, este mes, el mes pasado, los últimos 3 meses, este año o las fechas que elijas): lo vendido cada día, por tipo de mueble, por vendedora, lo cobrado por forma de pago y los productos que más se venden, cada número con una frase que dice qué es. Tocas una barra y ves ese día. Solo Gerencia.",
+   "logras": "Gráficas simples de un periodo (esta semana, este mes, el mes pasado, los últimos 3 meses, este año o las fechas que elijas): lo vendido cada día, por tipo de mueble, por vendedora, lo cobrado por forma de pago y los productos que más se venden, cada número con una frase que dice qué es. Tocas una barra y ves ese día. Los números suben hasta su valor al abrir y cada vez que cambias de periodo. Solo Gerencia.",
    "destino": {
     "menu": "dcasa_interfaz.menu_estadisticas_resumen"
    },
@@ -4171,6 +4361,142 @@
     "modo claro",
     "brillo",
     "colores de la pantalla"
+   ]
+  },
+  {
+   "id": "comision-web-ventas",
+   "categoria": "tienda",
+   "grupo": "Medir el sitio",
+   "titulo": "Ver cuánto se vende por internet, mes a mes",
+   "logras": "Ves cada venta del sitio web que ya quedó pagada por completo, cómo llegó y cómo pagó, y la comparas mes a mes como si el sitio fuera una sucursal. Puedes bajarla a Excel.",
+   "destino": {
+    "menu": "dcasa_comision_web.menu_ventas_sitio"
+   },
+   "nota": "Se mide siempre, aunque todavía no haya porcentaje de comisión. Una venta que lleva una vendedora no cuenta como del sitio. Salen señaladas las ventas con una fecha de pago futura, las que tienen una nota de crédito con líneas sin producto y las que se facturaron distinto de lo que dice el pedido, por ejemplo con otro precio o con más cantidad (filtros «Cobro con fecha futura», «Una nota trae líneas sin producto» y «Facturado distinto del pedido»): conviene mirarlas. Es solo una señal: no cambia lo que se paga. Una venta con fecha de pago futura se calcula con las reglas de hoy y se vuelve a calcular sola cuando esas reglas cambian (por ejemplo, al llegar el día del pago); la señal se queda.",
+   "palabras": [
+    "ventas del sitio",
+    "ventas por internet",
+    "sucursal web",
+    "tienda en linea",
+    "cuanto vende la pagina",
+    "ventas online",
+    "comision del sitio"
+   ],
+   "tambien": [
+    "personal"
+   ],
+   "grupos": [
+    "dcasa_nomina.group_nomina"
+   ]
+  },
+  {
+   "id": "comision-web-reglas",
+   "categoria": "personal",
+   "grupo": "Comisión del sitio web",
+   "titulo": "Cambiar el porcentaje, la tarifa fija o quiénes reciben la comisión del sitio",
+   "logras": "Guardas una versión nueva de las reglas: el porcentaje de cada venta del sitio, la tarifa fija por mantener la plataforma, cómo se arma la base (con un ejemplo en pantalla) y quiénes reciben.",
+   "destino": {
+    "menu": "dcasa_comision_web.menu_reglas_web"
+   },
+   "nota": "Una versión nueva no se guarda sola: toca «Guardar» cuando esté lista (si sales sin guardar, se descarta). Una versión guardada no se edita (solo se escribe el motivo cuando se anula): un cambio es una versión nueva y solo rige hacia adelante. Si una versión guardada después rige desde el mismo día o antes que otra ya programada, la programada sale como «Tapada» y no va a regir a menos que anules la otra. Ahí mismo puedes poner un tope a los ajustes a mano (viene apagado). La tarifa y el tope no pueden pasar de 21,474,836.47, y lo que no sea un número se rechaza con un aviso. Conviene que la contadora deje por escrito cómo se trata esta comisión.",
+   "palabras": [
+    "porcentaje de comision",
+    "comision web",
+    "tarifa fija",
+    "plataforma",
+    "reglas de la comision",
+    "quienes reciben",
+    "reparto"
+   ],
+   "grupos": [
+    "dcasa_nomina.group_nomina"
+   ]
+  },
+  {
+   "id": "comision-web-quienes",
+   "categoria": "personal",
+   "grupo": "Comisión del sitio web",
+   "titulo": "Ver quién recibe la comisión del sitio y cuánto se le debe",
+   "logras": "Ves la lista de las personas que reciben, lo que le toca a cada una del reparto y lo que se le debe por el porcentaje y por la tarifa fija.",
+   "destino": {
+    "menu": "dcasa_comision_web.menu_quienes_reciben"
+   },
+   "nota": "La lista se elige entre los empleados de Nómina y no depende del departamento.",
+   "palabras": [
+    "quienes reciben",
+    "saldo de comision",
+    "cuanto se le debe",
+    "reparto de la comision",
+    "libro de la comision"
+   ],
+   "grupos": [
+    "dcasa_nomina.group_nomina"
+   ]
+  },
+  {
+   "id": "comision-web-liquidar",
+   "categoria": "personal",
+   "grupo": "Comisión del sitio web",
+   "titulo": "Liquidar la comisión del sitio web de un periodo",
+   "logras": "Eliges el periodo que quieras (una semana, una quincena, un mes), armas la propuesta con lo que todavía no se ha liquidado, otra persona la aprueba y después la marcas como pagada con su referencia.",
+   "destino": {
+    "menu": "dcasa_comision_web.menu_liquidaciones_web"
+   },
+   "nota": "Nada se paga solo. Quien figura entre las personas que cobran en la liquidación no la aprueba: la aprueba otra persona de Gerencia o de Nómina.",
+   "palabras": [
+    "liquidar comision",
+    "pagar comision",
+    "liquidacion",
+    "aprobar comision",
+    "periodo de la comision",
+    "pagar la tarifa"
+   ],
+   "grupos": [
+    "dcasa_nomina.group_nomina"
+   ]
+  },
+  {
+   "id": "comision-web-ajuste",
+   "categoria": "personal",
+   "grupo": "Comisión del sitio web",
+   "titulo": "Corregir un saldo de la comisión del sitio con un ajuste",
+   "logras": "Anotas en el libro un monto (a favor o en contra) para una persona, con su motivo: sirve para corregir algo que se pagó de más, una tarifa de medio periodo o cualquier error que el sistema no pueda ver solo.",
+   "destino": {
+    "menu": "dcasa_comision_web.menu_libro_web"
+   },
+   "nota": "En el Libro toca «Anotar un ajuste» (en el celular está en el menú de los tres puntos de la lista, y también en el menú «Anotar un ajuste» de la misma sección). El motivo es obligatorio y queda con tu nombre. Si Gerencia puso un tope en las reglas, un ajuste no puede pasar de ese monto. Una fila del libro nunca se edita ni se borra: se corrige con otra.",
+   "palabras": [
+    "ajuste de comision",
+    "corregir saldo",
+    "pague de mas",
+    "corregir libro",
+    "ajustar comision",
+    "tope de ajuste",
+    "saldo en contra"
+   ],
+   "grupos": [
+    "dcasa_nomina.group_nomina"
+   ]
+  },
+  {
+   "id": "comision-web-revisar",
+   "categoria": "tienda",
+   "grupo": "Medir el sitio",
+   "titulo": "Revisar los pedidos de la página que una vendedora llevó o que abrió alguien del equipo",
+   "logras": "Ves los pedidos que nacieron en la página y que una vendedora atendió por el chat de Juan (aunque sea con un mensaje) o que armó alguien del equipo, para confirmar que a nadie se le está yendo de más la comisión del sitio.",
+   "destino": {
+    "menu": "dcasa_comision_web.menu_pedidos_vigilados"
+   },
+   "nota": "Es solo para mirar: no frena ninguna venta. Cotizar en la página y pagar en la tienda sí cuenta como venta del sitio.",
+   "palabras": [
+    "pedidos de la pagina para revisar",
+    "vigilar comision",
+    "quien abrio el carrito",
+    "venta de la pagina que llevo una vendedora",
+    "revisar ventas online"
+   ],
+   "grupos": [
+    "dcasa_base.group_gerencia"
    ]
   }
  ],

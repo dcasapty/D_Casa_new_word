@@ -70,6 +70,15 @@ MARKETING_LECTURA = ('Lectura de Marketing: exige Gerencia (ventas administrador
                      'ANTES de leer (_exigir, AccessError); facturas, entregas y adjuntos los suma con sudo ya '
                      'comprobado el grupo; valida periodo, categoría y filtro; no escribe.')
 
+COMISION_WEB_BOTON = ('Botón de la liquidación de la comisión web: exige el grupo «Administra la nómina» en el '
+                      'servidor (_exigir_nomina) ANTES de cualquier sudo(); aprobar rechaza al usuario del sistema y a '
+                      'quien cobra en esa liquidación; el estado solo cambia con la llave interna ``_escribir``, ya '
+                      'comprobado el permiso.')
+COMISION_WEB_BLOQUEO = ('Solo BLOQUEA: lo guardado en la comisión web (versiones de reglas, libro, renglones) no se '
+                        'edita ni se borra, con ningún usuario ni con sudo(); nunca escribe.')
+COMISION_WEB_ACCION = ('Solo devuelve una acción de ventana con lo que rige hoy ya escrito; no lee ni escribe datos '
+                       'delicados: abrirla sin el permiso del modelo no muestra nada (ACL de «Administra la nómina»).')
+
 # (módulo, modelo, método): motivo por el que puede llamarse por RPC.
 LISTA_BLANCA = {
     # --- dcasa_base -------------------------------------------------------------------------
@@ -97,7 +106,8 @@ LISTA_BLANCA = {
         ASISTENTE + ' Además, res.users._dcasa_poner_restriccion exige Gerencia o administrador en el servidor antes '
                     'del sudo.',
     ('dcasa_base', 'sale.order', 'create'):
-        OVERRIDE + ' Fija como dueña (vendedora) a quien crea si solo ve lo suyo; sin sudo().',
+        OVERRIDE + ' Fija como dueña (vendedora) a quien crea si solo ve lo suyo; y NIEGA ligar cobros '
+                   '(transaction_ids) a quien no cobra (RV8 R8-1); sin sudo().',
     ('dcasa_base', 'account.move', 'create'):
         OVERRIDE + ' Fija como dueña (vendedora) de la factura de cliente a quien la crea si solo ve lo suyo; '
                    'una nota de crédito de cliente exige Gerencia (models/cobros.py, A7); y quien no cobra no hace '
@@ -105,7 +115,8 @@ LISTA_BLANCA = {
     # Reglas contables de la gerencia (2026-10-17, models/cobros.py): solo AGREGAN una comprobación de grupo antes de
     # llamar a Odoo; ninguna usa sudo() para escribir (solo para leer el tipo y dar el mensaje claro).
     ('dcasa_base', 'account.move', 'write'):
-        OVERRIDE + ' Pasar una factura de cliente publicada a borrador o anulada exige Gerencia (A6); sin sudo().',
+        OVERRIDE + ' Pasar una factura de cliente publicada a borrador o anulada exige Gerencia (A6); y NIEGA ligar '
+                   'cobros (transaction_ids) a quien no cobra (RV8 R8-1); sin sudo().',
     ('dcasa_base', 'account.move', 'get_view'):
         OVERRIDE + ' Solo quita «Nuevo» de las vistas de facturas de cliente a quien no cobra (la Vendedora); no lee '
                    'ni escribe datos, sin sudo().',
@@ -119,6 +130,21 @@ LISTA_BLANCA = {
         OVERRIDE + ' Aplicar un cobro a la factura de un cliente exige Caja, Gerencia o contabilidad (A5); sin sudo().',
     ('dcasa_base', 'account.move', 'js_remove_outstanding_partial'):
         OVERRIDE + ' Quitar un cobro de la factura de un cliente exige Caja, Gerencia o contabilidad (A5); sin sudo().',
+    ('dcasa_base', 'account.move.line', 'create'):
+        OVERRIDE + ' Solo niega escribir el enlace con un pedido (sale_line_ids) fuera de los caminos de ventas '
+                   '(models/enlace_factura.py); sin sudo().',
+    ('dcasa_base', 'account.move.line', 'write'):
+        OVERRIDE + ' Solo niega escribir el enlace con un pedido (sale_line_ids) fuera de los caminos de ventas '
+                   '(models/enlace_factura.py); sin sudo().',
+    ('dcasa_base', 'account.move.line', 'default_get'):
+        OVERRIDE + ' Solo QUITA del resultado el enlace con un pedido (sale_line_ids): un ``default_*`` del contexto '
+                   'llega por RPC y no puede fabricarlo (models/enlace_factura.py); sin sudo().',
+    ('dcasa_base', 'sale.order.line', 'default_get'):
+        OVERRIDE + ' Solo QUITA del resultado el enlace con una factura (invoice_lines): un ``default_*`` del contexto '
+                   'llega por RPC y no puede fabricarlo (models/enlace_factura.py); sin sudo().',
+    ('dcasa_base', 'account.move.reversal', 'reverse_moves'):
+        OVERRIDE + ' Solo pone la llave interna con que la nota de crédito copia el enlace con el pedido '
+                   '(models/enlace_factura.py); el asistente exige su ACL como siempre; sin sudo().',
     ('dcasa_base', 'account.move.line', 'action_register_payment'):
         OVERRIDE + ' El botón «Pagar» de un cliente exige Caja, Gerencia o contabilidad (A5); solo devuelve la acción.',
     ('dcasa_base', 'account.move.line', 'reconcile'):
@@ -127,6 +153,12 @@ LISTA_BLANCA = {
         OVERRIDE + ' Una conciliación con lo que debe un cliente exige Caja, Gerencia o contabilidad (A5); sin sudo().',
     ('dcasa_base', 'account.partial.reconcile', 'unlink'):
         OVERRIDE + ' Deshacer una conciliación de un cliente exige Caja, Gerencia o contabilidad (A5); sin sudo().',
+    ('dcasa_base', 'payment.transaction', 'write'):
+        OVERRIDE + ' Solo NIEGA (AccessError) cualquier escritura a quien no es Caja, Gerencia, contabilidad o '
+                   'administrador (A5, RV7 R7-1, RV8 R8-2); lo del sistema (sudo) pasa; no escribe nada propio.',
+    ('dcasa_base', 'payment.transaction', 'create'):
+        OVERRIDE + ' Solo NIEGA (AccessError) crear una transacción de pago a quien no es Caja, Gerencia, contabilidad '
+                   'o administrador (RV8 R8-6); lo del sistema (sudo) pasa; no escribe nada propio.',
     ('dcasa_base', 'account.payment', 'create'):
         OVERRIDE + ' Un cobro de cliente exige Caja, Gerencia o contabilidad (A5); devolverle dinero, Gerencia (A7).',
     ('dcasa_base', 'account.payment', 'write'):
@@ -534,6 +566,11 @@ LISTA_BLANCA = {
     ('dcasa_interfaz', 'dcasa.tablero', 'ventas_del_dia'):
         'Lectura de lo que se hizo un día: exige Gerencia o administrador (_exigir_gerencia) ANTES de leer; valida la '
         'base, la vendedora y el día (no futuro, de los últimos 24 meses). No escribe nada.',
+    ('dcasa_interfaz', 'dcasa.tablero', 'cobros_del_periodo'):
+        'Lectura de lo cobrado por forma de pago (con ITBMS) en el día, la semana, la quincena o el mes de un día: '
+        'exige Gerencia o administrador (_exigir_gerencia, AccessError) ANTES de leer; valida el periodo (uno de los '
+        'cuatro) y la fecha (bien escrita, no futura y de los últimos 24 meses), y recorta el periodo en curso a hoy. '
+        'Solo cuenta cobros (los de _dominio_de_cobros) sin sudo y no escribe nada.',
     ('dcasa_interfaz', 'dcasa.tablero', 'estadisticas'):
         'Lectura de las gráficas: exige Gerencia o administrador (_exigir_gerencia) ANTES de leer; valida el periodo '
         '(uno de los botones o un rango de hasta un año, no futuro) y la base. Devuelve solo totales.',
@@ -643,6 +680,18 @@ LISTA_BLANCA = {
         OVERRIDE + ' Comprueba check_access("unlink") antes de anular con sudo los puntos y la comisión de un borrador '
                    'que se borra, y solo después de que Odoo aceptó borrarlo.',
     ('website_dcasa', 'sale.order', 'action_quotation_sent'): OVERRIDE + ' Solo agrega la fecha del apartado.',
+    # Carrusel de la portada (models/portada.py): los segundos de cada foto viven en dcasa.portada.ajustes (uno por
+    # sitio, ACL de Gerencia y administradores); Gerencia no escribe nada en `website`.
+    ('website_dcasa', 'dcasa.portada.ajustes', 'action_abrir'):
+        'Abre los ajustes del carrusel del sitio actual; si faltan, los crea como el usuario (ACL: Gerencia y '
+        'administradores). ' + SIN_SUDO,
+    ('website_dcasa', 'dcasa.portada.ajustes', 'create'):
+        OVERRIDE + ' Revisa que los segundos sean un número finito de 2 a 15 antes de guardar; sin sudo: el ACL manda.',
+    ('website_dcasa', 'dcasa.portada.ajustes', 'write'):
+        OVERRIDE + ' Revisa que los segundos sean un número finito de 2 a 15 antes de guardar; sin sudo: el ACL manda.',
+    ('website_dcasa', 'dcasa.portada.diapositiva', 'create'):
+        OVERRIDE + ' Si llega el padre (``ajustes_id``) y no el sitio, el sitio es el de esos ajustes; sin sudo salvo '
+        'para leer ese padre.',
     # Campaña del sitio (models/campana.py): el ACL de dcasa.campana es solo de Gerencia y administradores.
     ('website_dcasa', 'dcasa.campana', 'action_abrir'):
         'Abre la campaña del sitio actual; si falta, la crea como el usuario (ACL: Gerencia y administradores). '
@@ -780,6 +829,12 @@ LISTA_BLANCA = {
     ('dcasa_tienda_borde', 'dcasa.campana', 'write'):
         OVERRIDE + ' Marca «regenerar todo» si cambia lo que sale en el sitio y programa la vigilancia.',
     ('dcasa_tienda_borde', 'dcasa.campana', 'unlink'): OVERRIDE + ' Marca «regenerar todo».',
+    ('dcasa_tienda_borde', 'dcasa.portada.ajustes', 'create'):
+        OVERRIDE + ' Marca el carrusel de la portada para regenerar su HTML; sin sudo().',
+    ('dcasa_tienda_borde', 'dcasa.portada.ajustes', 'write'):
+        OVERRIDE + ' Marca el carrusel de la portada para regenerar su HTML; sin sudo().',
+    ('dcasa_tienda_borde', 'dcasa.portada.ajustes', 'unlink'):
+        OVERRIDE + ' Marca el carrusel de la portada para regenerar su HTML; sin sudo().',
     ('dcasa_tienda_borde', 'dcasa.portada.diapositiva', 'create'):
         OVERRIDE + ' Marca el carrusel de la portada para regenerar su HTML; sin sudo().',
     ('dcasa_tienda_borde', 'dcasa.portada.diapositiva', 'write'):
@@ -1237,10 +1292,88 @@ LISTA_BLANCA = {
         'Botón «Guardar»: exige Gerencia o administrador en el servidor (_dcasa_exigir) ANTES del sudo con que guarda '
         'el interruptor, el presupuesto y los topes (ir.config_parameter), y valida cada número (0 al máximo).',
     ('dcasa_brian_tienda', 'dcasa.brian.tienda.ajustes', 'cancel'): ACCION_VENTANA,
+    # --- dcasa_pago_tilopay (pagos con tarjeta y Yappy, 2026-11-19) --------------------------------------------------
+    ('dcasa_pago_tilopay', 'payment.provider', 'action_dcasa_tilopay_probar'):
+        'Botón «Probar conexión»: exige Gerencia o administrador en el servidor (_dcasa_tilopay_exigir_gerencia) ANTES '
+        'de nada; solo abre sesión en Tilopay con las claves del entorno y dice sí o no (nunca las muestra, las '
+        'guarda ni las registra); lo único que escribe, con sudo ya comprobado el grupo, es la fecha y el resultado '
+        'de la prueba.',
+    # --- dcasa_pago_yappy (pago directo con Yappy, 2026-11-20) -------------------------------------------------------
+    ('dcasa_pago_yappy', 'payment.provider', 'action_dcasa_yappy_probar'):
+        'Botón «Probar conexión»: exige Gerencia o administrador en el servidor (_dcasa_yappy_exigir_gerencia) ANTES '
+        'de nada; solo le pide a Yappy que valide el ID de comercio y el dominio de las variables del entorno (el '
+        'token se tira; nunca muestra, guarda ni registra una clave); lo único que escribe, con sudo ya comprobado el '
+        'grupo, es la fecha y el resultado de la prueba.',
+    ('dcasa_pago_yappy', 'payment.transaction', 'action_dcasa_yappy_confirmar_cobro'):
+        'Botón «Confirmar que el dinero entró» (la persona de Caja ya miró la orden en Yappy Comercial): exige Caja, '
+        'Gerencia, contabilidad o administrador en el servidor (_dcasa_yappy_exigir_caja) ANTES de nada; solo sirve '
+        'con el cobro de Yappy directo abierto (borrador o pendiente) y pasa por el MISMO camino que el aviso firmado '
+        '(_process → _apply_updates, con sus comprobaciones de entorno, pedido vivo, pedido sin pagar por otra vía y '
+        'total): un solo cobro, queda quién y cuándo, y el aviso tardío no hace nada. Una transacción cerrada o en '
+        'revisión se rechaza; el sudo es después de comprobar el grupo.',
     ('dcasa_brian_tienda', 'sale.order.line', 'write'):
         OVERRIDE + ' Solo NIEGA: con el centinela interno de la tienda (CONSERVAR_ENVIO, que no se puede mandar por '
                    'RPC) deja fuera las líneas de envío del sistema para que la tienda no las vuelva $0. Sin el '
                    'centinela no cambia nada y sigue el super(); sin sudo().',
+    # --- dcasa_base: el origen de la venta online ------------------------------------------------------
+    ('dcasa_base', 'sale.order', 'write'):
+        OVERRIDE + ' Solo NIEGA escribir las marcas de origen de la venta online (nació en la web, Andrés, la llevó '
+                   'una vendedora): solo se escriben por código, con una llave interna que por RPC nunca llega; y '
+                   'ligar o soltar cobros (transaction_ids) a quien no cobra (RV8 R8-1); sin sudo().',
+    ('dcasa_base', 'sale.order', 'default_get'):
+        OVERRIDE + ' Solo QUITA del resultado las marcas de origen de la venta online (un ``default_*`` del contexto '
+                   'llega por RPC y no puede fabricarlas); sin sudo().',
+    # --- dcasa_comision_web ----------------------------------------------------------------------------
+    ('dcasa_comision_web', 'dcasa.web.liquidacion', 'default_get'):
+        OVERRIDE + ' Solo deja el estado en «borrador» y vacía quién aprobó, pagó o canceló, aunque el contexto '
+                   'diga otra cosa; sin sudo().',
+    ('dcasa_comision_web', 'dcasa.web.reglas', 'default_get'):
+        OVERRIDE + ' Solo deja la versión sin anular, aunque el contexto diga otra cosa; sin sudo().',
+    ('dcasa_comision_web', 'dcasa.web.liquidacion', 'action_armar'): COMISION_WEB_BOTON,
+    ('dcasa_comision_web', 'dcasa.web.liquidacion', 'action_aprobar'): COMISION_WEB_BOTON,
+    ('dcasa_comision_web', 'dcasa.web.liquidacion', 'action_pagar'): COMISION_WEB_BOTON,
+    ('dcasa_comision_web', 'dcasa.web.liquidacion', 'action_cancelar'): COMISION_WEB_BOTON,
+    ('dcasa_comision_web', 'dcasa.web.liquidacion', 'create'):
+        OVERRIDE + ' Solo numera la liquidación y descarta el estado que llegue; el ACL del grupo «Administra la '
+                   'nómina» manda; sin sudo().',
+    ('dcasa_comision_web', 'dcasa.web.liquidacion', 'write'):
+        OVERRIDE + ' Solo NIEGA editar lo que ya no es borrador (salvo la fecha y la referencia del pago de una '
+                   'aprobada); sin sudo().',
+    ('dcasa_comision_web', 'dcasa.web.liquidacion.linea', 'write'): COMISION_WEB_BLOQUEO,
+    ('dcasa_comision_web', 'dcasa.web.liquidacion.linea', 'unlink'): COMISION_WEB_BLOQUEO,
+    ('dcasa_comision_web', 'dcasa.web.movimiento', 'write'): COMISION_WEB_BLOQUEO,
+    ('dcasa_comision_web', 'dcasa.web.movimiento', 'unlink'): COMISION_WEB_BLOQUEO,
+    ('dcasa_comision_web', 'dcasa.web.reglas', 'write'): COMISION_WEB_BLOQUEO,
+    ('dcasa_comision_web', 'dcasa.web.reglas', 'create'):
+        OVERRIDE + ' Numera la versión, comprueba que solo rige hacia adelante y pone el autor; el ACL del grupo '
+                   '«Administra la nómina» manda; sin sudo().',
+    ('dcasa_comision_web', 'dcasa.web.reglas', 'action_nueva_version'): COMISION_WEB_ACCION,
+    ('dcasa_comision_web', 'dcasa.web.reglas', 'action_anular'): COMISION_WEB_BOTON,
+    ('dcasa_comision_web', 'dcasa.web.ajuste', 'action_anotar'): COMISION_WEB_BOTON,
+    ('dcasa_comision_web', 'dcasa.web.ajuste', 'create'):
+        OVERRIDE + ' Solo rechaza un monto que no es un número (inf, nan) con un mensaje claro; el ACL del grupo '
+                   '«Administra la nómina» manda; sin sudo().',
+    ('dcasa_comision_web', 'dcasa.web.ajuste', 'write'):
+        OVERRIDE + ' Solo rechaza un monto que no es un número (inf, nan) con un mensaje claro; el ACL del grupo '
+                   '«Administra la nómina» manda; sin sudo().',
+    ('dcasa_comision_web', 'account.move', 'button_draft'):
+        OVERRIDE + ' Solo DESPUÉS de pasar la factura a borrador compara con la verdad lo anotado en la comisión web '
+                   '(reversa lo que ya no está cobrado), dentro de un savepoint que nunca falla; sin sudo() para '
+                   'escribir en la factura.',
+    ('dcasa_comision_web', 'account.move', 'button_cancel'):
+        OVERRIDE + ' Solo DESPUÉS de anular la factura compara con la verdad lo anotado en la comisión web, dentro de '
+                   'un savepoint que nunca falla; sin sudo() para escribir en la factura.',
+    ('dcasa_comision_web', 'account.move', 'unlink'):
+        OVERRIDE + ' Solo DESPUÉS de borrar la factura reversa lo anotado en la comisión web, dentro de un savepoint '
+                   'que nunca falla.',
+    ('dcasa_comision_web', 'dcasa.web.reparto', 'write'): COMISION_WEB_BLOQUEO,
+    ('dcasa_comision_web', 'dcasa.web.reparto', 'create'):
+        OVERRIDE + ' Solo deja crear renglones junto con su versión (llave interna que por RPC nunca llega); sin '
+                   'sudo().',
+    ('dcasa_comision_web', 'dcasa.web.reparto', 'action_cambiar_quienes_reciben'): COMISION_WEB_ACCION,
+    ('dcasa_comision_web', 'dcasa.web.venta', 'write'):
+        OVERRIDE + ' Solo NIEGA escribir a quien no es el sistema (las ventas del sitio las anota el sistema); sin '
+                   'sudo().',
 }
 
 # Modelos abstractos sin ACL: por RPC no se puede llamar NINGÚN método suyo (S-09).

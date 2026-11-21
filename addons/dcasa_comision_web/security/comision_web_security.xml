@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Todo es solo de quien administra la nómina (Gerencia lo incluye). El administrador técnico solo, la vendedora,
+         Caja y Marketing no ven ni el menú ni nada de esto por enlace: sin grupo no hay permiso de ningún modelo. -->
+    <record id="regla_reglas_empresa" model="ir.rule">
+        <field name="name">Comisión web, reglas: empresas permitidas</field>
+        <field name="model_id" ref="model_dcasa_web_reglas"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="regla_reparto_empresa" model="ir.rule">
+        <field name="name">Comisión web, reparto: empresas permitidas</field>
+        <field name="model_id" ref="model_dcasa_web_reparto"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="regla_venta_empresa" model="ir.rule">
+        <field name="name">Comisión web, ventas del sitio: empresas permitidas</field>
+        <field name="model_id" ref="model_dcasa_web_venta"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="regla_movimiento_empresa" model="ir.rule">
+        <field name="name">Comisión web, libro: empresas permitidas</field>
+        <field name="model_id" ref="model_dcasa_web_movimiento"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="regla_liquidacion_empresa" model="ir.rule">
+        <field name="name">Comisión web, liquidaciones: empresas permitidas</field>
+        <field name="model_id" ref="model_dcasa_web_liquidacion"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="regla_liquidacion_linea_empresa" model="ir.rule">
+        <field name="name">Comisión web, renglones de liquidación: empresas permitidas</field>
+        <field name="model_id" ref="model_dcasa_web_liquidacion_linea"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>

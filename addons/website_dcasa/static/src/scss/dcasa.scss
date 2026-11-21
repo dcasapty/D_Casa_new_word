@@ -721,7 +721,13 @@ $dcasa-hero-velo: .45;
 // debajo del texto; en su lado se ve entera. Sin degradados ni sombras; el amarillo, solo sobre el azul noche.
 // ---------------------------------------------------------------------------
 
-$dcasa-vitrina-tiempo: 6.5s;   // lo que dura cada diapositiva (la barra activa tarda eso en llenarse)
+// Lo que dura cada foto de fábrica (la dueña, 2026-11-19: «de unos 2 a 3 segundos»). Gerencia lo cambia en el panel
+// (Sitio web › Carrusel de la portada, de 2 a 15 s) y la plantilla lo escribe en el hero como --vitrina-tiempo; este
+// valor solo vale si esa variable no llega. El fundido y el zoom se calculan con ella: nada de abajo lleva segundos fijos.
+$dcasa-vitrina-tiempo: 3s;
+$dcasa-vitrina-fundido: .35;   // el fundido dura esta parte de lo que dura cada foto (con 3 s: 1,05 s)
+$dcasa-vitrina-fundido-tope: 2.4s;   // y nunca más que esto, aunque cada foto dure 15 s
+$dcasa-vitrina-zoom-vueltas: 6;      // el zoom tarda esto × lo que dura cada foto en ir (y otro tanto en volver)
 $dcasa-vitrina-panel: 42%;     // ancho del bloque azul en la computadora
 
 .o_dcasa_hero_vitrina {
@@ -789,12 +795,15 @@ $dcasa-vitrina-panel: 42%;     // ancho del bloque azul en la computadora
 }
 
 // Apiladas en el mismo sitio; la activa aparece con un fundido largo. Nada de «imagen quieta, salto, imagen quieta»:
-// el fundido dura casi dos segundos y el zoom no para nunca.
+// el fundido dura poco más de la tercera parte del tiempo de cada foto (con el de fábrica, 3 s: un segundo) y el
+// zoom no para nunca. Los dos escalan con --vitrina-tiempo: si Gerencia lo cambia en el panel, el movimiento se ve
+// igual de suave (a 2 s el fundido es de 0,7 s; a 15 s, de 2,4 s).
 .o_dcasa_vitrina_foto {
     position: absolute;
     inset: 0;
     opacity: 0;
-    transition: opacity 1.8s ease-in-out;
+    transition: opacity clamp(.5s, calc(var(--vitrina-tiempo, #{$dcasa-vitrina-tiempo}) * #{$dcasa-vitrina-fundido}),
+        #{$dcasa-vitrina-fundido-tope}) ease-in-out;
 
     &.is-activa {
         opacity: 1;
@@ -806,10 +815,13 @@ $dcasa-vitrina-panel: 42%;     // ancho del bloque azul en la computadora
         height: 100%;
         object-fit: cover;
         object-position: 50% 42%;
-        // El zoom lento y continuo. Cada foto arranca en un punto distinto del recorrido (--i) para que dos seguidas
+        // El zoom lento y continuo. Va a un ritmo fijo POR FOTO (6 veces lo que dura cada una en ir, otro tanto en
+        // volver): lo que se alcanza a ver del zoom mientras una foto está a la vista es siempre el mismo, dure
+        // 2 s o 15 s, sin saltos. Cada foto arranca en un punto distinto del recorrido (--i) para que dos seguidas
         // no se muevan igual.
-        animation: dcasa-vitrina-zoom 38s ease-in-out infinite alternate;
-        animation-delay: calc(var(--i, 0) * -6s);
+        animation: dcasa-vitrina-zoom calc(var(--vitrina-tiempo, #{$dcasa-vitrina-tiempo}) * #{$dcasa-vitrina-zoom-vueltas})
+            ease-in-out infinite alternate;
+        animation-delay: calc(var(--i, 0) * var(--vitrina-tiempo, #{$dcasa-vitrina-tiempo}) * -1);
         will-change: transform;
     }
 }
@@ -829,6 +841,32 @@ $dcasa-vitrina-panel: 42%;     // ancho del bloque azul en la computadora
     @media (min-width: 992px) {
         max-width: 54rem;
         padding: 4rem 3rem 4rem clamp(2rem, 7vw, 6rem);
+    }
+}
+
+// «Escríbenos por WhatsApp» del hero: relleno plano azul noche con letra blanca (13,44:1), sin degradado ni sombra.
+// Era solo un contorno transparente: sobre las fotos claras (la sábana blanca) medía de 1,6 a 2,3:1 en la computadora,
+// y es el único CTA de la marca. Con el fondo opaco el contraste no depende de la foto que toque. «Ver el catálogo»
+// (amarillo sobre azul) no cambia. Solo dentro de este hero: el contorno de las otras secciones queda como estaba.
+.o_dcasa_hero_vitrina .o_dcasa_btn_linea {
+    background: $dcasa-navy;
+    border-color: rgba(#FFFFFF, .9);
+    color: #FFFFFF;
+
+    &:hover,
+    &:focus-visible {
+        background: #FFFFFF;
+        color: $dcasa-azul;
+    }
+}
+
+// Lote «legibilidad», arreglo 7: en el celular el botón de WhatsApp del hero terminaba a 8 px de la burbuja de Andrés (el
+// botón en x = 298 y la burbuja desde x = 306, a 390 px de ancho). Con 1,6 rem de relleno a los lados (eran 2 rem) mide
+// unos 13 px menos y queda a 16 px o más (la burbuja mide 68 px y va a 16 px del borde derecho). En pantallas más
+// angostas el chat se aparta solo (el botón es de los que la burbuja respeta).
+@media (max-width: 575.98px) {
+    .o_dcasa_hero_vitrina .o_dcasa_btn_linea {
+        padding-inline: 1.6rem;
     }
 }
 
@@ -1994,6 +2032,22 @@ $dcasa-foto-fondo: #EEEDEA;
 #wrapwrap .o_wizard .o_disabled .text-muted,
 #wrapwrap .o_wizard .text-muted {
     color: $dcasa-gris !important;
+}
+
+// Y sin la mitad de opacidad con que Odoo apaga los pasos que aún no tocan («Dirección», «Pago»;
+// web/static/src/scss/ui.scss, .o_disabled): con ella el gris de arriba se veía #A5A8B1 sobre blanco, 2,38:1. Con el
+// gris de la marca a opacidad plena son 7,93:1; el paso actual se sigue distinguiendo por la negrilla.
+#wrapwrap .o_wizard .o_disabled {
+    opacity: 1;
+}
+
+// Marcas de relleno (placeholder) con el gris de la marca. Eran el gris por defecto de Odoo: «Escribe lo que buscas» de
+// la búsqueda del catálogo (cabecera, cajón del celular y /shop) medía 2,86:1 sobre el hueso y el «6000-0000» de Socios
+// 3,12:1 sobre blanco. El gris de la marca da 7,27:1 sobre el hueso y 7,93:1 sobre blanco. Solo estos dos lugares.
+.oe_search_box::placeholder,
+.o_dcasa_socios_form .form-control::placeholder {
+    color: $dcasa-gris;
+    opacity: 1;
 }
 
 .o_dcasa_sellos {
@@ -3196,6 +3250,57 @@ html.o_dcasa_navegando::before {
     .o_wsale_products_searchbar_form .oe_search_button {
         min-height: 2.75rem;
     }
+
+    // Lote «legibilidad», arreglo 4 (medidos en el celular de 390 px: de 32 a 40 px): la hamburguesa (40 × 42), «Ordenar
+    // por» y «Filtros» de la tienda (38), la X y «Mi cuenta» del cajón del menú (32 y 37), la X y «Eliminar filtros» del
+    // cajón de los filtros (32 y 34) y los campos y «Enviar» del contacto (38). Mismo tamaño visible: solo crece el área
+    // que toca el dedo.
+    #wrapwrap > header#top .o_header_mobile [data-bs-target="#top_menu_collapse_mobile"] {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 2.75rem;
+        min-height: 2.75rem;
+    }
+
+    .o_sortby_dropdown .dropdown-toggle,
+    [data-bs-target="#o_wsale_offcanvas"] {
+        display: inline-flex;
+        align-items: center;
+        min-height: 2.75rem;
+    }
+
+    // La X de los cajones: el relleno crece y el margen negativo lo compensa, así la X queda donde estaba.
+    .offcanvas-header .btn-close {
+        padding: .875rem;
+        margin: -.875rem -.875rem -.875rem auto;
+    }
+
+    #top_menu_collapse_mobile .o_nav_link_btn,
+    #o_wsale_offcanvas .offcanvas-body a.btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 2.75rem;
+    }
+
+    .o_dcasa_contacto .s_website_form_input:not(textarea),
+    .o_dcasa_contacto .s_website_form_send {
+        min-height: 2.75rem;
+    }
+
+    .o_dcasa_contacto .s_website_form_send {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+}
+
+// Lote «legibilidad», arreglo 6: «Enviar mensaje» del contacto como «Entrar» de /socios: a todo el ancho de los campos y de
+// 48 px o más (la plantilla le pone btn-lg w-100).
+.o_dcasa_contacto .s_website_form_send {
+    width: 100%;
+    min-height: 3rem;
 }
 
 // ---------------------------------------------------------------------------

@@ -29,6 +29,8 @@ RESULTADOS = [
     ('patrocinador-sin-ventas', 'No se paga el patrocinio: el patrocinador no tiene ventas propias este mes.'),
     ('freno-global', 'No se paga: el programa llegó al freno global de este mes.'),
     ('sin-configurar', 'No se paga: falta una cifra del programa.'),
+    ('venta-online', 'No se paga: es una venta del sitio web sin código de vendedor (solo la compra con el código '
+                    'de un vendedor da comisión).'),
 ]
 PAGADOS = ('pagada', 'recortada')
 
@@ -217,6 +219,24 @@ class DcasaVendComision(models.Model):
         return not (move and move.sudo().reversal_move_ids.filtered(lambda nota: nota.state == 'posted'))
 
     @api.model
+    def _parte_de_la_tienda(self, move):
+        """Qué fracción (de 0 a 1) de la factura puede dar comisión de vendedor. Una venta online sin código de vendedor
+        no la da (decisión de Gerencia, 2026-11-19; ``dcasa_base.models.venta_online``): **la compra por un enlace
+        ``/v/VEN…`` (la factura lleva el código) sigue dando lo de siempre aunque sea online** (decisión del 2026-11-20:
+        la empresa paga las dos cosas, la del programa y la del sitio). Solo hacia adelante: desde que rige la primera
+        versión de las reglas de la comisión web; antes, y sin ellas, es 1 (como siempre). Si la factura junta un
+        pedido online con otro de la tienda, cuenta solo la parte de la tienda."""
+        desde = move._dcasa_online_desde()
+        if not desde or move.dcasa_vendedor_id:
+            return 1.0
+        # El corte lo decide el DÍA DE COBRO (hora de Panamá), no el de hoy: el mismo del bono por meta y de la comisión
+        # web. Un pago con fecha anterior que se registra después sigue siendo de antes (decisión del 2026-11-19).
+        dia = self.env['account.move']._dcasa_dias_de_cobro_de(move)[0].get(move.id) or fields.Date.context_today(self)
+        if dia < desde:
+            return 1.0
+        return 1.0 - move._dcasa_factor_online().get(move.id, 0.0)
+
+    @api.model
     def _registrar_desde_factura(self, move):
         """Una factura de cliente pagada con vendedor da sus comisiones. Idempotente. Nunca hace fallar el cobro."""
         # Las reglas que rigen AHORA (la venta ya está pagada): puntos.json más los ajustes de Gerencia vigentes.
@@ -237,6 +257,14 @@ class DcasaVendComision(models.Model):
                 'via': via, 'neto_centavos': neto, 'reglas_version': reglas['version'],
                 'reglas_ajuste': RV.ajuste_aplicado(reglas), 'currency_id': move.company_id.currency_id.id}
         autor = (move.invoice_user_id or self.env.user).login
+        en_la_tienda = self._parte_de_la_tienda(move)
+        if en_la_tienda <= 0:
+            # Queda escrito, con su motivo: el vendedor y Gerencia ven por qué no hubo puntos, y no se vuelve a mirar.
+            return self._crear(base, vendedor, 'directa', {'puntos': 0, 'resultado': 'venta-online'}, 0, None,
+                               reglas, autor)
+        if en_la_tienda < 1.0:
+            neto = int(round(neto * en_la_tienda))
+            base['neto_centavos'] = neto
 
         nuevo = self._es_cliente_nuevo(move)
         directa = self._calcular_directa(vendedor, cliente, neto, reglas, via, nuevo,

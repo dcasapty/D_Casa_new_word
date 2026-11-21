@@ -5,7 +5,7 @@
               customize_show="True">
         <xpath expr="//div[@id='wrapwrap']" position="inside">
             <!-- En carrito y checkout no: taparía el botón de confirmar (la página ya ofrece WhatsApp). -->
-            <aside t-if="website and not request.httprequest.path.startswith(('/shop/cart', '/shop/checkout', '/shop/address', '/shop/payment', '/shop/confirm', '/shop/extra_info'))"
+            <aside t-if="website and not request.httprequest.path.startswith(('/shop/cart', '/shop/checkout', '/shop/address', '/shop/payment', '/shop/confirm', '/shop/extra_info', '/payment/status'))"
                    aria-label="WhatsApp">
                 <a t-att-href="website._dcasa_whatsapp_url()" target="_blank" rel="noopener"
                    class="o_dcasa_wa_float" title="Escríbenos por WhatsApp">

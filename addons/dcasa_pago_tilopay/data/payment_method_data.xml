@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+
+    <!-- Una sola opción en la tienda: la API de Tilopay no deja elegir el método, lo escoge el cliente en la página de
+         Tilopay entre los que la cuenta tenga activos. Se llama «Tarjeta de crédito o débito» (y no «…Yappy…») para
+         no confundirse con la opción «Yappy» de la tienda, que es el pago manual. Nace inactivo: se activa solo cuando Gerencia enciende Tilopay. -->
+    <record id="payment_method_tilopay" model="payment.method">
+        <field name="name">Tarjeta de crédito o débito</field>
+        <field name="code">tilopay</field>
+        <field name="sequence">1</field>
+        <field name="active" eval="False"/>
+        <field name="image" type="base64" file="payment/static/img/card.png"/>
+        <field name="support_tokenization" eval="False"/>
+        <field name="support_express_checkout" eval="False"/>
+        <field name="support_manual_capture">none</field>
+        <field name="support_refund">none</field>
+        <field name="supported_currency_ids" eval="[Command.set([ref('base.USD')])]"/>
+    </record>
+
+</odoo>

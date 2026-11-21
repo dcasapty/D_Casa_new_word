@@ -22,6 +22,7 @@ export class DcasaEstadisticas extends FormatoMixin(Component) {
     static props = ["*"];
 
     setup() {
+        super.setup();
         this.orm = useService("orm");
         this.action = useService("action");
         this.periodos = PERIODOS;

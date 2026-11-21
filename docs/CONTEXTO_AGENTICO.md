@@ -1303,8 +1303,14 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
     Va un booleano aparte (`km_medido`); las coordenadas (0, 0) se leen como «sin coordenadas» (es el golfo de Guinea).
   - Leer por SQL algo que el ORM acaba de escribir (p. ej. un `ir.config_parameter` con `set_param`) necesita
     `flush_model()` antes: si no, se lee el valor viejo.
-  - `export_data` (el «Exportar» de las listas) exige `base.group_allow_export` (o administrador): ni Gerencia lo
-    trae. Un campo calculado no guardado sí sale en la exportación.
+  - `export_data` (el «Exportar» de las listas) exige `base.group_allow_export` (o administrador). **Desde la ronda del
+    2026-11-20 Gerencia lo trae**, pero solo baja `account.move`, `account.move.line`, `account.payment`, `sale.order` y
+    `sale.order.line`: el permiso de Odoo es global, así que el límite vive en `_export_rows`
+    (`dcasa_base/models/exportar.py`, `MODELOS_QUE_EXPORTA_GERENCIA`), que también corta las relaciones a `mail.*`,
+    `ir.*`, `hr.*`, `res.users`, `res.partner.bank`, etc. (por una factura se llegaría al mismo volcado). Un campo
+    calculado no guardado sí sale en la exportación. El xlsx del exportador escribe los textos como texto, nunca como
+    fórmula (`dcasa_base/excel_seguro.py`). La ruta `/json/1/…` del núcleo pide el mismo permiso y no pasa por el límite:
+    solo existe con `web.json.enabled` o datos de demostración (confirmar que no está puesto en producción).
   - Portar fórmulas de JavaScript: `round()` de Python redondea los medios al par (`Math.round` hacia arriba),
     `toFixed` mira el valor exacto, `toLocaleString('es-PA')` pone la coma de miles también en 4 cifras, `.length`
     cuenta en UTF-16 (un emoji vale 2) y `sum()` de Python 3.12 compensa los decimales (el CI usa 3.12): sumar con un
@@ -1608,6 +1614,277 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
     (no `TestPanelVisual`). Su script de referencias reescribe las seis: se suben solo las que cambiaron de verdad. La
     pantalla `.o_dcj_p.o_action` lleva a propósito una barra de desplazamiento fina que el `PREPARAR` de la prueba no
     alcanza a esconder: a 390 px sale en Conexiones (en un teléfono real va encima del contenido).
+
+### Lo que enseñó la ronda del 19 al 20 de noviembre (facturas, ventas por día, portada, Tilopay, comisión web)
+
+Seis piezas en paralelo, cada una con su revisor independiente (las pruebas del revisor se copian al módulo y no se debilitan).
+Lo que quedó escrito para no repetirlo:
+
+- **Un permiso chico que Odoo agranda sin avisar.** Darle a Gerencia escritura sobre `website` (para los segundos del
+  carrusel) le abría, con poderes de superusuario, **toda acción de servidor del sitio que no tenga grupo** (p. ej. el correo de
+  carritos abandonados). Quien puede escribir en un modelo puede ejecutar a mano sus acciones sin grupo. Se resolvió con un
+  modelo propio (`dcasa.portada.ajustes`) y **ningún** permiso sobre `website`; una prueba corre todas las acciones del sitio.
+  Regla: antes de dar escritura sobre un modelo ajeno, listar sus `ir.actions.server` sin `groups_id`.
+- **En Odoo 19 `write()` ya no llama a `_write`.** Las guardas de integridad van en `write()` y `create()`; las llaves internas
+  (objetos privados que por RPC no se pueden mandar) son lo que distingue «lo hizo el flujo real» de «lo escribió alguien».
+- **`pg_advisory_xact_lock` no basta con REPEATABLE READ** (la transacción ya tiene su foto): para que dos propuestas o dos
+  liquidaciones no se pisen se escribe una **fila candado** (`dcasa.web.candado`); el segundo recibe un error de
+  serialización que Odoo repite por RPC. Probar con **dos transacciones reales**, no con dos llamadas seguidas.
+- **Cada llamada lenta a un tercero retiene una conexión de la base** (con `workers=0` y `db_maxconn=48`). Tilopay lento más
+  60 hilos llenaba el grupo y la tienda entera daba `PoolError` (71 de 80 sondeos fallaban). Arreglo: tope global de llamadas a
+  la vez (6 + 2 de reserva), las rutas web solo consultan lo reciente (3 h), freno por conexión y por IP. Siempre medir con un
+  Tilopay de mentira lento y un control (mismas peticiones sin llamar al tercero). Detalle: `docs/TILOPAY.md`.
+- **Un campo guardado con un nombre traducible se calcula con idioma fijo** (`DCASA_LANG`), no con el de quien dispara el
+  recálculo; y en el `onchange` un registro nuevo calcula desde `_origin`.
+- **Excel**: lo que escribió un cliente puede empezar con `=`: el xlsx escribe cadenas con `write_string`. Los libros propios
+  (Reponer) apagan `strings_to_formulas` y `strings_to_urls`.
+- **Odoo da por pagada una factura con un pago en borrador o rechazado** (`payment_state`); un campo calculado sobre pagos debe
+  mirar el estado del pago y decir «Sin pago registrado» cuando la factura figura pagada sin pagos detectados.
+- **«Cobro» tiene una sola definición** (`dcasa.tablero._dominio_de_cobros`, solo clientes: `partner_type = customer`); la
+  columna de facturas, «Ventas por día» y la «Caja de hoy» la reutilizan: si se cambia, se cambia ahí.
+- **Corte por fecha de pago, en hora de Panamá.** Una comisión (y el bono y el programa de vendedores) se corta por el día del
+  cobro en Panamá, no por la fecha de la factura ni por UTC; «Rige desde» es el inicio de ese día.
+- **Pruebas del revisor y de Chrome:** `action_done` de una actividad deja su propia nota (contar mensajes después); `t-att-x="null"`
+  de OWL pinta «null»; `\d` de Python acepta cifras no ASCII (usar `[0-9]`); un `ERROR` en el log de una prueba pone en rojo todo
+  `scripts/test.sh` aunque la aserción pase (silenciar con `mute_logger` el error esperado); bajo carga fallan por tiempo, sin
+  culpa del código, `TestOrdenarProductosEnElNavegador`, `TestNotaDeVoz` y las cuatro de `test_actividad`/`test_comparar`/
+  `test_cotizacion_celular`/`test_estadisticas` (repetidas solas pasan).
+- **El límite de uso de 5 horas mata a los ayudantes en pleno trabajo** (pasó dos veces). Cada árbol de trabajo guarda su avance en
+  un commit «WIP» cada pocos pasos y se une a la rama de trabajo, para que otra cuenta pueda seguir. Reanudar con `SendMessage`.
+- **Disco:** cada árbol de trabajo pesa ~1,1 GB (`fuentes/` y `up media/`) y cada base de pruebas ~250 MB. Quitar los árboles de
+  revisores terminados (guardando aparte sus pruebas sueltas) antes de lanzar la batería completa.
+
+### Lo que enseñó la cuarta revisión de la comisión web (2026-11-20)
+
+- **Una guarda de `create` que solo mira `vals` se salta con un `default_*` en el contexto.** Odoo aplica los defaults del
+  contexto DESPUÉS (`_add_missing_default_values` → `default_get`), y por RPC cualquiera manda `context={'default_<campo>': …}`.
+  Cada guarda de integridad que protege un campo (el origen de una venta online, el enlace factura-pedido
+  `sale_line_ids`/`invoice_lines`) necesita su `default_get` que lo descarte sin la llave interna. Se había hecho para las marcas
+  de origen en la 2ª revisión y se olvidó para el enlace en la 3ª: la 4ª lo encontró con Caja, Nómina y Gerencia fabricando una
+  comisión de 500.00. Al cerrar una puerta, buscar **todas** las puertas del mismo campo (`create`, `write`, `default_get`,
+  `copy(default=)`, `load`, comandos anidados) y probar cada una.
+- **Un formulario con `edit="0"` en Odoo 19 no muestra el botón «Guardar» de un registro nuevo** (el `FormStatusIndicator` solo
+  se pinta con `canEdit`) y los campos de uno ya guardado no se pueden escribir. La pantalla de versiones de la comisión quedó
+  sin cómo guardar ni cómo escribir el motivo para anular, y nadie lo vio porque la prueba de navegador nunca guardaba nada. La
+  solución es dejar el formulario editable y poner `readonly="id"` en los campos que no se editan. Toda prueba de pantalla que
+  diga «no se guarda solo» debe **guardar con el botón** en otra prueba y debe **caer sin el parche** (control que registra otra
+  vez la vista normal con `force: true`).
+- **Lo que el servidor recalcula no es «alguien tocó el carrito».** `_recompute_prices` de Odoo, «Actualizar precios» y el
+  cron de la campaña (`website_dcasa`, corre como OdooBot, un usuario interno) escriben `price_unit` y `discount` de carritos
+  de visitantes; con la llave `PRECIO_DEL_SISTEMA` (`dcasa_base.models.venta_online`) no cuentan. Quien teclea el precio, el
+  descuento o la lista de precios, sí. Todo proceso nuevo que reponga precios de carritos va con esa llave.
+- **Un `quantize` de `Decimal` con la precisión normal (28 dígitos) falla con 1e30:** `a_centavos` usa precisión amplia y toda
+  cifra que llega de afuera pasa antes por `calculo.numero_finito` (nan, inf, texto, enteros enormes) y por el límite del
+  libro (21,474,836.47).
+- **El «costo por línea» medido sin vaciar la caché engaña:** una guarda que lee `price_unit` adelanta el recálculo de Odoo,
+  no lo agrega. Medir siempre con `env.flush_all()` dentro de la medición y contra el mismo cambio sin el gancho.
+
+### Lo que enseñó la quinta revisión de la comisión web (2026-11-20)
+
+- **Odoo marca una sublista de x2many como no editable si el usuario no puede escribir el modelo hijo, aunque el padre sea
+  editable.** `ir.ui.view._postprocess_access_rights` pone `edit="False"` en el `<list>` cuando no tiene `edit` escrito y el
+  usuario no tiene `write` sobre el comodelo (`dcasa.web.reparto` tiene `write=0` a propósito: una versión guardada no se
+  edita). «Agregar una línea» abre entonces un diálogo con el campo del padre (`Reglas`) obligatorio y sin poder llenarlo. Si
+  el hijo solo se crea desde el padre (comandos `create` al guardar), la sublista lleva `edit="1"` (solo pantalla; el servidor
+  sigue negando todo por `write()`/`unlink()` y la ACL). **Toda prueba de pantalla debe recorrer el camino que enciende la
+  función de verdad** (guardar una versión con porcentaje y dos personas, con clics), no el camino vacío (una versión en
+  pausa): las rondas 3 y 4 solo guardaban una pausa y la primera versión con cobro era imposible desde la pantalla. Un tour de
+  Odoo 19 va en `static/tests/tours/*.js` con `'web.assets_tests': [...]` en el manifiesto y se corre con `HttpCase.start_tour`.
+  Control para que la prueba caiga sin el arreglo: una vista heredada que quita el atributo (`<attribute name="edit"/>`) y un
+  `browser_js` que comprueba que «Agregar una línea» abre un diálogo en vez de una fila.
+- **Un documento que dice «lo cubre el aviso de X» se verifica con una prueba que el aviso existe.** El límite de que lo
+  facturado de un pedido online se puede editar (precio, cantidad o un anticipo fijo mayor que el pedido) estaba escrito como
+  «cubierto por el aviso de Ventas del sitio» y ese aviso no existía para ese caso. Ahora es el campo `facturado_distinto`
+  (`venta.py::_facturado_distinto`): compara precio y descuento de la línea de la factura con los de su línea de pedido, la
+  cantidad facturada en firme (`qty_invoiced_posted`, que Odoo no guarda y ya trae las notas de crédito restadas) con lo
+  pedido o entregado, y los anticipos (`price_subtotal` de las líneas `is_downpayment`: la factura de anticipo es positiva y
+  la deducción en la final, negativa; las notas de crédito restan) con lo que vale el pedido. Es una señal, no un freno; si
+  Gerencia decide el freno, la comisión se calcula sobre el menor entre pedido y factura (`_componentes`).
+- **`float_round` desborda con 1.8e308 y `fields.Datetime.to_datetime`/`Date.to_date` dan `ValueError`/`TypeError` con lo que
+  no es fecha.** Todo valor que llega por RPC se valida antes de que Odoo lo convierta (`reglas._fecha_hora_cruda`,
+  `liquidacion._validar_fechas_crudas`, opciones de los `Selection` en `_validar_cifras_crudas`, el reparto en
+  `DcasaWebReparto.create`): mensaje claro y traducible, nunca un error de Python. Los extremos válidos (año 1, año 9999) se
+  aceptan y se aguantan (`date.min - 1 día` desbordaba al armar).
+- **`create` que usa un contexto interno como llave debe devolver los registros con el entorno de quien llamó**
+  (`versiones.with_env(self.env)`): si no, lo que devuelve arrastra la llave y deja pasar las guardas de lo creado.
+- **El puerto de pruebas se comparte:** dos sesiones usaron el 8652 a la vez (`Address already in use`). No matar lo ajeno:
+  esperar a que se libere (`while fuser 8652/tcp; do sleep 5; done`) o usar otro puerto.
+
+### Lo que enseñó Yappy directo (2026-11-20, `dcasa_pago_yappy`)
+
+- **`--test-tags /dcasa_pago_yappy` no corre NINGUNA prueba, y nadie se entera.** La expresión regular de Odoo toma una etiqueta
+  que termina en «?py» por la ruta de un archivo `.py` (el punto sin escapar). «0 pruebas, todo bien» es un error. Se usa la etiqueta
+  sin barra (`dcasa_pago_yappy` o `dcasa_pago_yappy:Clase`) y `scripts/test.sh` ya lo hace solo. Mirar siempre el conteo de pruebas.
+- **La tienda de Odoo 19 lista MÉTODOS de pago, no proveedores.** Dos proveedores con el mismo código de método dan una sola fila
+  (la del primer proveedor que la cubra). Y `website_dcasa` reactiva y enlaza al proveedor manual **cualquier** método con código
+  `yappy`. Por eso el directo tiene su propio código (`yappy_directo`, también llamado «Yappy») y retira al manual en
+  `_get_compatible_providers`; así la clienta nunca ve dos «Yappy».
+- **Ya existía un diario «Yappy» (`dcasa_base`, código `YAPPY`).** El proveedor nuevo lo reutiliza (se busca por código, luego por
+  nombre y banco, y solo si no hay se crea): un segundo diario partiría la conciliación en dos.
+- **`assertRaises` deshace el savepoint de lo que hizo la llamada:** lo que el código dejó escrito antes de levantar la excepción
+  desaparece en la prueba. En producción el controlador atrapa el `ValidationError` y hace `commit` (para que el estado quede); en
+  las pruebas, un ayudante (`iniciar_y_fallar`) usa `try/except`.
+- **Un aviso perdido es un pago perdido:** el bloqueo de la fila es de **espera** (`SELECT … FOR UPDATE`), nunca `SKIP LOCKED`; y la
+  orden de Yappy se guarda y se **confirma** (`commit`) antes de llamar a Yappy, para que un corte no deje un cobro sin dueño.
+- **`b64decode` de Python es permisivo** (acepta basura sin quejarse): la clave secreta se valida con una expresión regular antes de
+  decodificarla. Y el `orderId` del aviso no se recorta (`'S0008\n'` es otra orden, no la misma).
+- **Los registros de depuración de Odoo llevan los parámetros del SQL** (un celular, por ejemplo): las pruebas de «no hay datos en el
+  log» usan `assertLogs('odoo', level='INFO')`, no `DEBUG`.
+- **Una base de desarrollo con datos de pruebas a mano rompe pruebas que dependen de «lo que hay»**: «nace apagado» (el proveedor
+  quedó en prueba), el tope global de cobros por hora (había cobros viejos) y la tarea de «sin aviso» (cobros sin aviso de otra
+  sesión). Las cuentas de pruebas se hacen con una **base nueva** (`scripts/test.sh`), y las que cuentan cosas globales parten de lo
+  que ya hay (se corre la tarea una vez en `setUp`, se fija el tope en «lo que ya hay + 2»).
+- **Pruebas de Chrome:** esperar a `is-ready` del `<body>` y a las animaciones antes de medir (una caja que se abre con animación
+  mide 0 de alto un instante); el campo de Yappy se abre **después** de montar el botón. El `<btn-yappy>` de Yappy no se puede
+  correr en las pruebas (carga reCAPTCHA y Firebase): se simula con un elemento personalizado y las capturas lo dicen en la leyenda.
+- **Los guiones de capturas no se corren a la vez:** el de limpieza del uno cancela el pedido en vuelo del otro y la captura del
+  «pagado» salió «Cancelado». Uno por uno.
+- **El CSS `:has()` sirve para esconder la barra pegajosa de «Pagar» solo cuando Yappy está elegido** (su botón vive dentro de la
+  fila): sin eso queda una barra blanca vacía en el celular.
+- **Lo que Yappy no documentó (§8 de `docs/YAPPY.md`)** no se supone: vigencia del token, `Bearer`, `paymentDate` (segundos o
+  milisegundos), reintentos y código de respuesta del aviso, IPs de origen y el campo del código de error. El ejemplo de su
+  documentación trae un anfitrión de CDN que no responde (`bt-cdn.yappycloud.com`); los que sirven son `bt-cdn.yappy.cloud` y
+  `bt-cdn-uat.yappycloud.com`. `confirmationNumber` no va firmado; `E007` (orden ya registrada) no es un fallo.
+- **Dos cambios que tocan a todos:** el aviso de Yappy es un `GET` abierto (no hay cuerpo ni cabecera que firmar): el borde lo deja
+  pasar entero (`/payment/yappy/` en `NEVER_CACHE_PREFIXES`) y, si Odoo no está listo, contesta **503** (nunca 200) para que Yappy pueda
+  reintentar.
+
+### Lo que enseñó la segunda revisión de Yappy (RV6, 2026-11-20, `local/yappy-fix`)
+
+- **Registrar el cobro a mano Y recibir el aviso tardío cobra el mismo dinero dos veces**, y la actividad «sin aviso» seguía abierta
+  invitando a repetirlo. Ahora hay UNA instrucción para Caja (el botón «Confirmar que el dinero entró», que reutiliza el camino del
+  aviso: `_process` → `_apply_updates`) y un aviso `E` sobre un pedido que ya tiene dinero por otra vía (factura con pagos, otro cobro
+  en línea) o que está cancelado va a **revisión humana**: nunca crea un segundo cobro ni dice «Confirmamos tu pedido». Si se cambia la
+  política de Caja, se cambian a la vez la actividad, `docs/YAPPY.md` §3.4 y la Guía (decían tres cosas distintas).
+- **Un menú escondido no protege un dato.** La vendedora tiene permiso de leer `payment.transaction` (por `account.group_account_invoice`) y leía
+  por RPC el celular de Yappy de todas las clientas: la restricción va en el CAMPO (`groups=`), y también hay que revisar lo que se
+  copia en otros sitios (la nota «Qué compró» del chatter lo llevaba). Un campo con `groups` se escribe con `sudo` sin problema.
+- **`_post_process` de Odoo no es idempotente:** llamarlo dos veces sobre una transacción hecha vuelve a dejar el mensaje «el pago ha sido
+  registrado» (la tarea de Odoo solo toma las que tienen `is_post_processed=False`). En una prueba, una sola vez.
+- **Un tope «cuenta y escribe» no es estricto bajo `REPEATABLE READ`:** cada petición cuenta con la foto de antes de que las otras
+  escribieran. Se arregló «tocando» la fila del pedido (`UPDATE … SET write_date = write_date`) antes de contar: la que llega después
+  espera y recibe «no pude serializar», y Odoo repite la petición con una foto nueva. La prueba con conexiones de verdad es opt-in
+  (`DCASA_PRUEBA_CONCURRENCIA=1`).
+- **`limpiar` tapa como si fuera un token cualquier cadena de 32 letras, números y puntos** (un dominio de 34 caracteres salió «[…]» en el
+  registro, justo lo que había que ver): los dominios que se muestran usan `_dominio_para_el_registro`.
+- **Normalizar un dominio sin abrir la puerta:** la lista de «las 16 maneras» eran 8 y no cubría `http://`, las mayúsculas ni `:443`.
+  Ahora se normaliza lo que llega con una expresión regular **acotada** (`re.ASCII`: sin la «K» del signo Kelvin) y se compara en tiempo
+  constante; la batería hostil del revisor (813,375 candidatos) se corre con un juez escrito aparte y con `urllib`.
+- **Reflujar líneas largas con un guion de texto es peligroso:** rompió el JavaScript que vive dentro de cadenas de Python en una prueba.
+  Después de cualquier reflujo automático, mirar el diff y correr `ruff`.
+- **El borde en un árbol nuevo (`git worktree`) no trae `node_modules`:** se enlaza el del árbol principal (`ln -s …/edge/node_modules`);
+  `npm ci` en el árbol principal no hace falta repetirlo.
+- **Staging sin dominio propio:** `web.base.url` (`staging.dcasapty.com`) no llega al Worker, así que lo que Odoo manda a un tercero
+  como dirección de retorno (el aviso de Yappy) no llega. `YAPPY_URL_BASE` (no secreta, solo staging, ignorada en producción) lo cubre.
+- **Chrome:** `Input.dispatchMouseEvent` mueve el ratón de verdad (sirve para medir `:hover` y `:active`); `beforeunload` se prueba
+  despachando el evento y mirando `defaultPrevented`. La prueba de 360 y 390 px de la fila (`test_en_el_celular_la_fila…`) es
+  intermitente en esta máquina con otras sesiones corriendo: repetirla sola antes de culpar al código.
+
+### Lo que enseñó la tercera revisión de Yappy (RV7, 2026-11-20, `local/rv7-arreglos`)
+
+- **Un permiso de fábrica de Odoo puede abrir una puerta que ningún menú muestra.** `account_payment` deja a Facturación (que la Vendedora
+  trae implícita) leer, escribir y crear `payment.transaction`; con un `write(state='done')` el cron confirmaba el pedido y creaba el
+  cobro sin dinero. La regla va en `dcasa_base/models/cobros.py` (siempre desplegado, y `payment` ya está debajo de `sale`): quien no
+  cobra no escribe estado, monto, entorno, proveedor, cobro, pedidos/facturas ligados ni `dcasa_*` (**ojo: esa primera versión era una lista
+  negra y no bastó; la cuarta revisión la volvió lista blanca vacía y cerró la otra mitad: ver «Lo que enseñó la cuarta revisión»**); **lo
+  del sistema pasa porque corre con `sudo`** (`env.su`). La prueba de que `sudo` no se rompe son los flujos HTTP del aviso (el usuario es el público, con `sudo`): la
+  mutación «la regla también mira a `sudo`» tumbó 34 pruebas de ellos de un golpe. Un método público nuevo en `dcasa_base` tiene que
+  entrar a `LISTA_BLANCA` de `test_superficie_rpc.py` (hasta un `write`).
+- **Hay una prueba de `dcasa_base` que busca `env['account.payment'].sudo()` en todo el código** y exige `out_invoice`/`out_refund` cerca
+  (`test_el_codigo_propio_no_se_cuela_por_sudo`). Un `sudo()` sobre pagos que solo cuenta dinero y nombra un cobro en una alerta es
+  legítimo, pero la prueba lee el texto: se dejó un comentario que dice, de verdad, por qué ese `sudo` solo mira pagos de cliente entrantes.
+- **«Reclamado» y «en pausa» no son lo mismo.** `_dcasa_apartado_reclamado` (dinero, factura, entrega) borra la fecha de vencimiento del
+  apartado y deja de vigilarlo; un cobro de Yappy abierto no es eso: solo hay que **saltar** el pedido esta noche. Gancho nuevo
+  `_dcasa_apartado_en_pausa` (`website_dcasa`). Antes, un solo cobro abierto a las 2 a. m. dejaba el pedido apartado para siempre.
+- **Nunca copiar a una actividad (ni a un campo que lee Caja) texto que mandó quien llama a una dirección abierta.** El aviso falso con
+  texto en `domain` dejaba hasta 100 caracteres del cliente en el pendiente de Caja. Ahora `_dcasa_yappy_anotar_rechazo` recibe el
+  **código** del motivo y guarda una frase fija (`motivo_para_caja`); el texto recibido queda solo en el registro del servidor. Y el
+  pendiente no afirma «Yappy sí avisó»: dice «no se pudo aceptar ningún aviso… Mira Yappy Comercial».
+- **Un botón de confirmación tiene que coincidir con lo que dice el pendiente.** Al exigir que Yappy haya recibido la orden (R7-6), el
+  pendiente de un borrador sin identificador de Yappy ya no puede mandar a pulsar un botón que se va a negar: tiene su propio texto.
+- **Un cobro suelto (un `account.payment` sin factura) no dice a qué pedido pertenece:** se cuenta por cliente, en el diario Yappy y
+  creado después de abrirse el cobro. Es una regla gruesa a propósito (falla hacia la revisión humana, nunca hacia un segundo cobro).
+- **`_post_process` sobre una transacción PENDIENTE no es inocuo:** manda la cotización (`action_quotation_sent`: el pedido pasa a
+  «enviado») y arma el correo. En una prueba de un proveedor genérico, no se llama sobre pendientes.
+- **Si una prueba escribe con el ORM y después cambia fechas con SQL (`envejecer`), hay que vaciar antes (`flush_recordset`):** si no, la
+  caché pisa la fecha vieja al vaciarse y el cron «no encuentra nada».
+- **`crear_usuario(…, 'base.group_portal')` de `dcasa_base/tests/test_roles.py` revienta** (suma `base.group_user` y choca con portal):
+  para un portal en las pruebas, `new_test_user(env, login=…, groups='base.group_portal')`.
+- **Máquina compartida:** instalar los 32 módulos en una base nueva, sin pruebas, tardó unos 4 minutos; después, `-u` de los módulos tocados con
+  `--test-tags` de clases sueltas son ~2 minutos. Las mutaciones se hacen sobre una **copia** de `addons/` (carpeta aparte en el
+  `--addons-path`), nunca en el árbol de trabajo.
+
+### Lo que enseñó la cuarta revisión de Yappy (RV8, 2026-11-20, `local/rv7-arreglos`)
+
+- **Una relación muchos-a-muchos tiene DOS lados y el permiso se revisa en cada uno.** R7-1 cerró `payment.transaction.write` (incluso con
+  `sale_order_ids` e `invoice_ids` en la lista), pero la misma tabla de relación se escribe desde `sale.order.transaction_ids`
+  (`groups='account.group_account_invoice'`, que la Vendedora trae) y `account.move.transaction_ids` (sin grupo): ligar un cobro ajeno a un
+  pedido hacía que Bodega viera «pagado» una entrega sin cobrar; ligarlo a una factura hacía que, al publicarla Caja, Odoo la diera por pagada
+  con el dinero de otro cliente; soltar el cobro propio escondía un pago. Regla: al cerrar un campo relacional, buscar el campo espejo en
+  el otro modelo (`grep -rn "relation='...'"`) y cerrarlo también, en `write` Y en `create`.
+- **Lista blanca, no lista negra.** Una lista negra de campos de dinero dejó abiertos `partner_id` (a quién se le acredita), `landing_route`
+  (el navegador de la clienta hace `window.location = landing_route`: un `javascript:` corría en su sesión), `state_message` y otros. Si
+  ningún flujo legítimo de quien no cobra escribe ahí (todo corre con `sudo`), se niega TODO y se acabó la lista. Se comprobó que ninguna
+  prueba legítima se rompe.
+- **No negar el `create` de `account.move` a ciegas: se comprobó que no hacía falta.** `sale._create_invoices` manda los cobros del propio
+  pedido (`Command.set`) y crea la factura **con `sudo`** (comentario del propio Odoo: la vendedora factura sin derechos de facturación),
+  y crearla a mano con el cobro de otro ya lo cierran dos reglas de `dcasa_base` (quien no cobra no hace facturas sueltas, `cobros.py`; nadie
+  escribe a mano `sale_line_ids`, `enlace_factura.py`: una factura con líneas del pedido da `UserError`). Se probó primero un guardia en
+  el `create` y la mutación NO lo distinguía de las otras dos reglas (siempre caía otra antes): se quitó. Quedan pruebas que fijan las
+  tres cosas (la vendedora crea la factura de un pedido cobrado y sale con su cobro; crear a mano con el cobro de otro se niega) y una
+  mutación (la regla «también contra `sudo`») que tumba lo primero.
+- **TRAMPA de las pruebas de permisos: bajar la caché antes de cada intento del usuario sin permiso** (`env.flush_all();
+  env.invalidate_all()`). Con la caché «tibia» (el proveedor ya leído por otro usuario en la misma transacción de la prueba) el ORM no
+  vuelve a revisar el permiso del comodelo y un `create` prohibido PASA; en una petición real la caché está fría. Esto engañó incluso al
+  revisor (falso positivo en el shell) y es por lo que `payment.transaction.create` se negaba «por casualidad». **Matiz que se descubrió al
+  escribir la prueba:** `assertRaises(AccessError)` de Odoo (`tests/common.py`, `_assertRaises`) YA limpia la caché antes de entrar, así que
+  con él la trampa no aparece (y una prueba «con caché tibia» escrita con él no distingue nada: la mutación no caía); aparece con
+  `try/except` o con `assertRaises(UserError)`. Para probar el caso tibio hay que usar `try/except` y exigir el mensaje de la regla, no el
+  del core. Las pruebas de `test_transaccion_de_pago.py` llaman a `self.frio()` y la de `create` mide las dos cachés.
+- **Quien cobra tampoco crea transacciones por su cuenta en el core:** crear una `payment.transaction` lee `payment.provider` (solo
+  administrador). La regla nueva niega el `create` a quien no cobra y no le quita nada a Caja/contabilidad: ya no podían crear.
+- **Comparar el monto para decidir si un cobro suelto es «de este pedido» NO es seguro:** un anticipo de otro pedido y un cobro parcial de
+  este se ven igual, y «suelto ≥ total» dejaría pagar justo el caso que duplica dinero. Quedó como texto (el pendiente dice las dos salidas) y
+  nota en YAPPY.md §14. Arreglarlo de verdad exigiría que el cobro suelto diga a qué pedido pertenece.
+- **A la clienta no se le afirma lo que no se sabe:** «tu pedido ya figuraba como pagado» solo cuando hay una factura del pedido con pagos
+  u otro cobro en línea hecho; con solo un cobro suelto, «encontramos otro pago a tu nombre y el equipo lo revisa». `_dcasa_yappy_dinero_de_otra_via`
+  ahora devuelve `(frase, es_seguro)`.
+- **Todo texto que escribió la clienta y va dentro de una frase de instrucción para Caja** (el nombre, el celular, un valor personalizado de un
+  producto) se cita con `resumen.cita`: entre comillas, una sola línea, sin comillas propias, recortado a 60 caracteres. La nota del pedido
+  (`nota_de_pago`) sigue con el texto completo: ahí es información, no una orden pegada a la frase.
+- **Varias corridas de Odoo a la vez, con la máquina libre:** `createdb -T <base> <copia>` y copiar la carpeta del filestore
+  (`~/.local/share/Odoo/filestore/<base>`) deja una copia lista; cada mutación va en su propia copia de `addons/` y su propia base y puerto.
+
+### Lo que enseñó contrastar el informe de ChatGPT con el código y hacer el audio y el video (2026-11-20)
+
+- **Quién produce cada cifra del informe.** Las respuestas de Brian (el asistente del sistema, herramientas de solo lectura) alimentaron la auditoría.
+  «Último acceso» de una vendedora = `res.users.login_date` (`dcasa_brian/models/herramientas_usuarios.py`): mide el **inicio de sesión**, no que
+  trabaje; no prueba que no entre. El margen y la ganancia salen de `dcasa_base/models/utilidad.py` (`dcasa_utilidad`, **solo líneas con costo**) y de
+  `dcasa_interfaz/models/ventas_bases.py::_ganancia_de_filas`; el «costo de ventas en cero» del informe es otra cosa (la contabilidad), no se cruzan. Las
+  tasas de conversión (1.95 %, 1.05 %, 2.03 %) son atribuciones a 30 días y por periodos distintos (`dcasa_conversaciones/models/panel_calculos.py`):
+  no se comparan entre sí. Los pedidos de la web entran **sin vendedora** (`website_dcasa/models/pedido_web.py`, desde 2026-10-17) y las cotizaciones del
+  chatbot y de la web se cancelan solas a los 3 días (`cotizacion_dias_abierta`).
+- **«Cero oportunidades ganadas»:** el CRM automático (`dcasa.juan.ajustes.crm_automatico`, por defecto encendido) solo marca «ganada» si la oportunidad
+  tiene una cotización vinculada con factura **pagada** (`crm_lead.py::_dcasa_ganar_si_hay_pago`, cron cada 15 minutos). Si el interruptor está apagado o
+  las cotizaciones no están vinculadas a su oportunidad, da cero aunque se venda. **Hay que mirarlo en el sistema en vivo**, no se deduce del código.
+- **Mi primera lectura fue errónea** (presenté la diferencia de $129.99, el margen de 41.4 % y los «sin acceso» como fallas): se corrigió leyendo la
+  conversación y el código. Antes de decirle a la dueña que un número del informe está mal, rastrear de dónde sale en el código y en lo que contestó Brian.
+- **Audio y video para los jefes, sin pagar** (receta; los archivos y el guion llevan cifras de la empresa y **no** van al repositorio, que es público):
+  `piper-tts` en un `venv` (`pip install piper-tts num2words`), voz `es_MX-claude-high` (Hugging Face `rhasspy/piper-voices`; el proxy de la sesión deja
+  bajarla), 38 minutos de voz se generan en ≈ 5 minutos; una diapositiva por «beat» (voz + imagen), la duración de cada diapositiva = la de su audio; diapositivas
+  en HTML 1920×1080 con la marca (Anton y Oswald salen de `addons/website_dcasa/static/src/fonts/`, Inter es del sistema) capturadas con Playwright; `ffmpeg`
+  `concat` de imágenes + audio normalizado (`loudnorm`), `-tune stillimage -crf 28`: 38 minutos pesan ≈ 30 MB (mp3 a 64 kbps ≈ 18 MB). Trampas: los números
+  hay que decirlos en palabras y **con género** (`mil trescientas sesenta y una propuestas`, `veintiún mil`) y los nombres propios con su pronunciación
+  (`Brian`→«Brayan», `Odoo`→«Odú», `Yappy`→«Yapi», `ChatGPT`→«Chat Yi Pi Ti», `D'CASA`→«De Casa»); para revisar el diseño sin abrir 63 imágenes, planillas de
+  miniaturas con `ffmpeg … -t 9 -vf tile=3x3 -frames:v 1` (sin `-t`, ffmpeg se queja de «más de un archivo»). No se puede **escuchar** desde aquí: la dueña confirma
+  cómo suena.
+- **Voz profesional por la agencia (Calendario_Marketing):** `generar_locucion` suelta admite hasta 5,000 caracteres por llamada y la primera llamada solo
+  cotiza (1,118 caracteres con la voz Emma = US$0.25, ≈ US$7.30 para las 8 tandas del guion); **solo con el «sí» de la dueña** se repite con `confirmado=true`.
+  No está comprobado que el audio se pueda bajar al contenedor para meterlo en el video local; quedaría por la plataforma de la agencia.
+- **El contenedor «reiniciado» no siempre mata lo que corre de fondo:** tras el aviso de reinicio la batería de Odoo (un solo proceso) seguía viva y su `dropdb`
+  de relanzamiento falló con «being accessed by other users» (eso evitó borrar la base en uso). Antes de relanzar algo largo: `pgrep -fa odoo-bin` y mirar la hora
+  de la última línea del log. En cambio un `ffmpeg` largo lanzado en primer plano **sí** murió (código 137, archivo sin `moov`): lanzar lo largo con `nohup` a un
+  archivo temporal y renombrar al terminar.
 
 ### Cloudflare
 

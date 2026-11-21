@@ -149,6 +149,15 @@ tiene correo en su ficha queda nombrado en el aviso. La planilla anota a quién 
 
 ## Bono por meta de ventas
 
+> **Desde la comisión del sitio web (2026-11-19, afinada el 2026-11-20):** una **venta online** (un pedido que nació por la
+> página web, por Andrés o por la cotización de Juan y al que ninguna vendedora llevó: no le escribió al cliente por el chat
+> de Juan en los 30 días anteriores) **nunca cuenta para la meta de una vendedora**, aunque ella la haya confirmado o
+> facturado. Si la vendedora atendió al cliente por el chat de Juan y cerró la venta, es de ella y cuenta como siempre.
+> Rige hacia adelante, desde el día en que Gerencia pone en vigencia la primera versión de las reglas de la comisión web
+> ([COMISION_WEB.md](COMISION_WEB.md)): el corte es **por el día en que se cobró** la venta (hora de Panamá; «Rige desde»
+> es el inicio de ese día), el mismo para el sitio y para las vendedoras; lo cobrado antes de ese día cuenta como siempre y
+> también sus devoluciones; sin esas reglas, nada cambia. Lo de la tienda, y lo de Juan que atiende una vendedora, cuenta igual que hoy.
+
 Decisión del jefe (2026-10-16). Vive en `models/meta_ventas.py`; las cifras, en **Nómina › Configuración › Meta de
 ventas** (con vigencia por mes).
 

@@ -21,6 +21,12 @@ selecciona un día, ese día no sale con qué métodos de pago se facturó»): e
 del cobro (Efectivo, Yappy, Tarjeta…), del mes, del día o del periodo. Es la misma cuenta de la «Caja de hoy» del Inicio
 para esas fechas y no depende de la base ni de la vendedora.
 
+**Cobrado por periodo** (``cobros_del_periodo``, pedido de la dueña del 2026-11-19): una sola tarjeta «Cobrado por
+forma de pago» que se ve arriba del detalle del día, con un selector Día · Semana · Quincena · Mes. El periodo es el que
+contiene el día elegido en el calendario (la semana va de lunes a domingo y, si cruza de mes, se cuenta completa; la
+quincena es del 1 al 15 o del 16 al fin de mes; el mes es el del día elegido). Los días que todavía no llegan no suman:
+el periodo en curso cuenta hasta hoy (hora de Panamá). Es la misma cuenta de la «Caja de hoy» del Inicio.
+
 «Mes anterior» es la misma cuenta que «Comparar › del 1 a hoy» del Inicio cuando el mes está en curso (los mismos días
 del mes pasado, el último hasta la misma hora de Panamá) y el mes anterior completo cuando el mes ya terminó.
 
@@ -56,6 +62,8 @@ DIAS_CORTOS = ('Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom')
 # Estadísticas: los periodos de los botones; hasta DIAS_EN_BARRAS días, una barra por día; más largo, una por mes.
 PERIODOS_ESTADISTICAS = ('semana', 'mes', 'mes_pasado', 'tres_meses', 'anio', 'rango')
 DIAS_EN_BARRAS = 62
+# Lo cobrado por forma de pago: los botones de la tarjeta (el periodo que contiene el día elegido).
+PERIODOS_DE_COBROS = ('dia', 'semana', 'quincena', 'mes')
 TIPOS_A_LA_VISTA = 8
 PRODUCTOS_A_LA_VISTA = 10
 CAMPOS_DEL_PEDIDO = ['name', 'partner_id', 'user_id', 'date_order', 'amount_untaxed', 'amount_tax', 'amount_total',
@@ -88,6 +96,18 @@ def _nombre_del_dia(dia, con_anio=False):
 
 def _nombre_del_mes(primero):
     return f'{MESES[primero.month - 1].capitalize()} {primero.year}'
+
+
+def _del_al(d0, d1, hoy):
+    """«del 16 al 22 de noviembre» · «del 30 de noviembre al 6 de diciembre» · con el año si no es el de hoy (y, si
+    cruza de año, los dos años)."""
+    if d0.year != d1.year:
+        return (f'del {d0.day} de {MESES[d0.month - 1]} de {d0.year} al {d1.day} de {MESES[d1.month - 1]} '
+                f'de {d1.year}')
+    cola = f' de {d1.year}' if d1.year != hoy.year else ''
+    if d0.month == d1.month:
+        return f'del {d0.day} al {d1.day} de {MESES[d1.month - 1]}{cola}'
+    return f'del {d0.day} de {MESES[d0.month - 1]} al {d1.day} de {MESES[d1.month - 1]}{cola}'
 
 
 class DcasaTableroPorDia(models.AbstractModel):
@@ -316,12 +336,17 @@ class DcasaTableroPorDia(models.AbstractModel):
         base = self._base_por_dia(base)
         vendedor = self._vendedor_pedido(vendedor)
         hoy = self._ahora_en_panama().date()
+        return self._del_dia(self._dia_del_detalle(dia, hoy), base, vendedor, hoy)
+
+    @api.model
+    def _dia_del_detalle(self, dia, hoy):
+        """El día que pide la pantalla, ya como fecha: bien escrito, de hoy hacia atrás y de los últimos 24 meses."""
         dia = self._fecha(dia, 'día')
         if dia > hoy:
             raise UserError(self.env._('Ese día todavía no llega: elige uno de hoy hacia atrás.'))
         if dia < hoy.replace(day=1) - relativedelta(months=MESES_PARA_ELEGIR):
             raise UserError(self.env._('Elige un día de este mes o de los últimos 24 meses.'))
-        return self._del_dia(dia, base, vendedor, hoy)
+        return dia
 
     @api.model
     def _del_dia(self, dia, base, vendedor, hoy):
@@ -380,6 +405,71 @@ class DcasaTableroPorDia(models.AbstractModel):
                       'falta_por_cobrar': medida.get('falta_por_cobrar') if base == BASE_CON_ABONOS else None},
             'accion': self._accion_de_lo_contado(titulo, medida),
             'cobros': self._cobros_por_forma(dia, dia, f'Cobrado · {_nombre_del_dia(dia, dia.year != hoy.year)}'),
+        }
+
+    # ------------------------------------------------------------------
+    # Lo cobrado por forma de pago: el día, la semana, la quincena o el mes
+    # ------------------------------------------------------------------
+
+    @api.model
+    def _periodo_de_cobros(self, periodo):
+        if periodo is None or periodo is False or periodo == '':
+            return 'dia'
+        if not isinstance(periodo, str) or periodo not in PERIODOS_DE_COBROS:
+            raise UserError(self.env._('Elige «Día», «Semana», «Quincena» o «Mes».'))
+        return periodo
+
+    @api.model
+    def _rango_de_cobros(self, dia, periodo):
+        """``(desde, hasta)`` del periodo que contiene ``dia``, completo (sin recortar a hoy): el día; la semana de
+        lunes a domingo (cruce de mes o de año incluido); la quincena (del 1 al 15 o del 16 al fin del mes); el mes."""
+        if periodo == 'dia':
+            return dia, dia
+        if periodo == 'semana':
+            lunes = dia - timedelta(days=dia.weekday())
+            return lunes, lunes + timedelta(days=6)
+        if periodo == 'quincena':
+            if dia.day <= 15:
+                return dia.replace(day=1), dia.replace(day=15)
+            return dia.replace(day=16), _fin_de_mes(dia)
+        return dia.replace(day=1), _fin_de_mes(dia)
+
+    @api.model
+    def _nombre_del_periodo_de_cobros(self, periodo, d0, d1, hoy):
+        """Lo que dice el título de la tarjeta: «hoy, jueves 19 de noviembre» · «semana del 16 al 22 de noviembre» ·
+        «quincena del 16 al 30 de noviembre» · «mes de noviembre» (con el año si no es el de hoy)."""
+        if periodo == 'dia':
+            texto = f'{DIAS_LARGOS[d0.weekday()]} {d0.day} de {MESES[d0.month - 1]}'
+            if d0.year != hoy.year:
+                texto += f' de {d0.year}'
+            return f'hoy, {texto}' if d0 == hoy else texto
+        if periodo == 'mes':
+            return f'mes de {MESES[d0.month - 1]}' + (f' de {d0.year}' if d0.year != hoy.year else '')
+        return f'{periodo} {_del_al(d0, d1, hoy)}'
+
+    @api.model
+    def cobros_del_periodo(self, dia, periodo='dia'):
+        """Lo cobrado por forma de pago (con ITBMS) en el día, la semana, la quincena o el mes que contiene ``dia``: la
+        tarjeta «Cobrado por forma de pago» de «Por día». Solo lectura; exige Gerencia o administrador y valida el
+        periodo y el día (bien escrito, no futuro y de los últimos 24 meses) antes de leer."""
+        self._exigir_gerencia()
+        periodo = self._periodo_de_cobros(periodo)
+        hoy = self._ahora_en_panama().date()
+        return self._cobros_del_periodo(self._dia_del_detalle(dia, hoy), periodo, hoy)
+
+    @api.model
+    def _cobros_del_periodo(self, dia, periodo, hoy):
+        d0, fin = self._rango_de_cobros(dia, periodo)
+        # Los días que todavía no llegan no suman nada: el periodo en curso cuenta hasta hoy.
+        hasta = min(fin, hoy)
+        nombre = self._nombre_del_periodo_de_cobros(periodo, d0, fin, hoy)
+        titulo = f'Cobrado · {nombre}'
+        faltan = fin > hoy
+        return {
+            'periodo': periodo, 'dia': str(dia), 'desde': str(d0), 'hasta': str(fin), 'contado_hasta': str(hasta),
+            'etiqueta': nombre, 'titulo': titulo, 'en_curso': faltan,
+            'nota': self.env._('Cuenta hasta hoy, %(hoy)s.', hoy=_nombre_del_dia(hoy).lower()) if faltan else '',
+            'cobros': self._cobros_por_forma(d0, hasta, titulo),
         }
 
     # ------------------------------------------------------------------

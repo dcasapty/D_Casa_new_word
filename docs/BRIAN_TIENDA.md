@@ -195,10 +195,50 @@ navegador ──(3) /dcasa/brian/v1/carrito/* (sesión, CSRF) ──────
 - **La vitrina** (A5): «En tu carrito» (las líneas editables) y un `<details>` por cada respuesta con tarjetas, el más
   reciente primero, con el título que manda el Worker (`titulo` del bloque `productos`) o lo que pidió el visitante; un
   producto sale solo en su grupo más reciente; lo que el visitante abre o cierra se respeta.
+- **El chat abre ya ampliado en la computadora** (pedido de la dueña, 2026-11-19: «por defecto, en la versión de solo
+  escritorio… quiero el modo ampliado… y que, si la persona quiere, pueda achicarlo o cerrarlo»): el chat a la izquierda
+  y, a la derecha, «Lo más buscado» mientras Andrés no haya mostrado nada y después los productos de la conversación
+  (la vitrina de siempre).
+  - **Qué es «computadora»** (`esEscritorio` en el JS): al menos **1024 px** de ancho (el chat de 400 px y una vitrina de
+    unos 570 px caben con holgura; a 768 px la vitrina quedaba en 320), al menos **600 px** de alto (las dos columnas) y
+    **sin puntero táctil** (se excluye `pointer: coarse` en lugar de exigir `pointer: fine`: así un navegador que no
+    declara puntero, como el Chrome sin pantalla de las pruebas, cuenta como computadora y no se queda chico por no
+    saber). Un celular, una tableta (aunque sea ancha, con el dedo) o una ventana angosta **no cambian**: abren el chat
+    normal y «ampliar» sigue siendo, a pedido, ver los productos en cuadrícula.
+  - **Se decide al abrir, antes de medir el panel** (la animación de abrir parte de su tamaño final) y la vitrina se pide
+    **al abrir**, no antes: quien nunca abre el chat no genera ninguna petición. Es la misma llamada que ya hacía el
+    modo ampliado (`GET /dcasa/brian/v1/vitrina`, a Odoo, una vez por página); **abrir no es un mensaje** y no llega al
+    Worker de IA ni gasta nada.
+  - **«Lo más buscado» se guarda un minuto** (revisión independiente, 2026-11-19): como la pide cada visita que abre el chat
+    (antes solo quien pulsaba «ampliar»), `GET /dcasa/brian/v1/vitrina` tardaba 91 consultas. Las fichas (hasta 12; lo
+    caro, igual para todos) se arman una vez por minuto y por (base, sitio, idioma, tarifa, posición fiscal) en una
+    memoria del proceso (`_CACHE_VITRINA`, `SEGUNDOS_CACHE_VITRINA` en `controllers/main.py`); **lo de cada persona (lo
+    que ya tiene en su carrito) se quita después** sobre una lista nueva y nunca entra a la memoria. Un precio de campaña,
+    la existencia o un producto despublicado pueden verse viejos en la tarjeta hasta un minuto, pero «Agregar» revisa lo
+    vivo (publicado, precio y existencia) y el carrito cobra el precio de ahora (pruebas en `test_vitrina_cache.py`). Las
+    pruebas la vacían en cada `setUp` (`limpiar_cache_vitrina`).
+  - **Se recuerda lo que la persona elige**, en ese navegador, con una sola marca en `localStorage`
+    (`dcasa.brian.tamano`: `normal` o `ampliado`; nunca nada de la conversación ni de la persona). Solo la cambia el
+    botón de la cabecera, y solo en la computadora: «Volver al tamaño normal» deja `normal` y las siguientes aperturas y
+    páginas abren normal; «Ampliar el chat» deja `ampliado`. **Cerrar con la X no la cambia, ni Esc** (Esc primero
+    vuelve del tamaño ampliado, como siempre, pero no es elegir un tamaño: la próxima vez abre ampliado otra vez). En el
+    celular nada se recuerda. Sin almacenamiento (ventana privada estricta, bloqueado) todo funciona igual, solo que no
+    recuerda: abre ampliado, que es lo de fábrica (`leerTamano` y `guardarTamano` atrapan el error).
+  - **Al volver de otra página** el chat reabre en tamaño **normal**, como siempre (decisión de quien programó, para
+    consultar con la dueña): «Ver» en una tarjeta lleva a la ficha, y un chat de 1100 px encima taparía justo lo que la
+    persona fue a mirar. Si ella prefiere que conserve el ampliado al cambiar de página, es una línea en `abrir()`
+    (quitar `!sinAnimar`).
+  - **Cerrar y volver a abrir de inmediato** (menos de 340 ms, lo que dura la animación de cerrar): abrir cancela esa
+    animación y su final (`terminar`) no esconde un chat ya abierto (antes quedaban chat y burbuja ocultos).
+  - Si la ventana se angosta hasta el celular (< 768 px) con el chat ampliado **por defecto**, vuelve al tamaño normal
+    (si no, la vitrina taparía la conversación entera); no toca lo que la persona eligió ni lo que ampliara a mano.
+  - Sin cambios: la animación de abrir, el foco al campo, el cierre con foco a la burbuja, no bloquear la página de atrás
+    en la computadora, la barra del carrito, el micrófono, el modo oscuro de noche y `prefers-reduced-motion`.
 - **Al pasar de página** el chat sigue igual: lo conversado se recuerda en ese navegador (`sessionStorage`, se borra al
   cerrar la pestaña o a las 2 horas sin actividad), nunca en Odoo. La ubicación no se guarda ni ahí.
 - **Accesible**: foco al abrir (el campo en la computadora, cerrar en el celular) y de vuelta a la burbuja al cerrar,
-  Esc (primero vuelve del tamaño ampliado, después cierra), `aria-*`, botones de 44 px en pantallas táctiles; con
+  Esc (primero vuelve del tamaño ampliado, sin cambiar la elección guardada; después cierra), `aria-*`, botones de 44 px
+  en pantallas táctiles; con
   movimiento reducido, quieto (ni entradas, ni reposo, ni transiciones de pose).
 
 ## Trampas que ya costaron

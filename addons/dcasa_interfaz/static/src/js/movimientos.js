@@ -3,9 +3,10 @@
  * entró y salió, con lo que quedó después de cada movimiento; sin producto, los últimos movimientos de todos. Las
  * líneas salen de dcasa.movimientos (el servidor exige Gerencia o administrador).
  */
-import { Component, onWillStart, onWillUnmount, useState } from "@odoo/owl";
+import { Component, onWillStart, onWillUnmount, useRef, useState } from "@odoo/owl";
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
+import { useCifrasQueSuben } from "./cifras_que_suben";
 
 const ICONOS = {
     compra: "fa-truck",
@@ -42,6 +43,9 @@ export class DcasaMovimientos extends Component {
             error: "",
         });
         this.espera = null;
+        // «Hay hoy: N» sube hasta su valor al elegir un producto.
+        this.raiz = useRef("raiz");
+        useCifrasQueSuben({ raiz: this.raiz });
         onWillStart(async () => {
             const opciones = await this.orm.call("dcasa.movimientos", "opciones", []);
             this.state.tipos = opciones.tipos;

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="45" height="30" viewBox="0 0 45 30" role="img" aria-label="Transferencia bancaria">
+  <rect x=".5" y=".5" width="44" height="29" rx="4" fill="#fff" stroke="#D9DDE6"/>
+  <path d="M22.5 5.6L33.6 10.6H11.4Z" fill="none" stroke="#1340B1" stroke-width="1.6" stroke-linejoin="round"/>
+  <path d="M15 13.4v7.2M20 13.4v7.2M25 13.4v7.2M30 13.4v7.2M11.6 23.6h21.8" fill="none" stroke="#1340B1" stroke-width="1.6" stroke-linecap="round"/>
+</svg>

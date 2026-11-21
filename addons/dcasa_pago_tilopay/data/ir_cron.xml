@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- El aviso de compras de Tilopay no se reintenta y el cliente puede cerrar la pestaña después de pagar: cada 10
+         minutos se le pregunta a Tilopay por los pagos sin confirmar (con las claves cargadas y el proveedor encendido;
+         si no, no hace nada ni llama a nadie). -->
+    <record id="cron_reconciliar" model="ir.cron">
+        <field name="name">Tilopay: preguntar por los pagos sin confirmar</field>
+        <field name="model_id" ref="payment.model_payment_transaction"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_dcasa_tilopay_reconciliar()</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="interval_number">10</field>
+        <field name="interval_type">minutes</field>
+        <field name="active" eval="True"/>
+    </record>
+
+</odoo>

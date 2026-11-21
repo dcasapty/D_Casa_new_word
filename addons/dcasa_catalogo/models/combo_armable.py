@@ -46,6 +46,7 @@ import math
 
 from odoo import api, fields, models
 from odoo.addons.dcasa_base.models.product import _puede_cambiar_precios
+from odoo.addons.dcasa_base.models.venta_online import CLAVE_PRECIO, PRECIO_DEL_SISTEMA
 from odoo.addons.website_dcasa.models.campana import COMBO_SIN_CAMPANA, INTERNO, con_defaults, es_interno
 from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.tools import float_compare, float_is_zero
@@ -1034,7 +1035,7 @@ class SaleOrderLine(models.Model):
         ``sale_write_from_compute``: si no, Odoo descarta el ``technical_price_unit`` y la línea queda como «precio a
         mano» (ya no se recalcularía nunca más)."""
         for linea in self:
-            linea.with_context(sale_write_from_compute=True)._reset_price_unit()
+            linea.with_context(sale_write_from_compute=True, **{CLAVE_PRECIO: PRECIO_DEL_SISTEMA})._reset_price_unit()
 
     def _dcasa_ahorro_unitario_combo(self):
         """Lo que de verdad ahorra una unidad en el combo, en la misma base que ``price_unit``.

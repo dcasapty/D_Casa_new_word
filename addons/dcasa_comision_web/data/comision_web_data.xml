@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Ninguna versión de reglas, ninguna cifra: el módulo nace sin porcentaje y sin tarifa. Solo la numeración de las
+         liquidaciones y el barrido de cada noche. -->
+    <record id="seq_liquidacion" model="ir.sequence">
+        <field name="name">Liquidaciones de la comisión del sitio web</field>
+        <field name="code">dcasa.web.liquidacion</field>
+        <field name="prefix">LQW-</field>
+        <field name="padding">4</field>
+        <field name="company_id" eval="False"/>
+    </record>
+
+    <!-- Los candados de la comisión web (ver dcasa.web.candado): una fila por cosa que no se hace dos veces a la vez. -->
+    <record id="candado_numeracion" model="dcasa.web.candado">
+        <field name="clave">1</field>
+    </record>
+    <record id="candado_liquidaciones" model="dcasa.web.candado">
+        <field name="clave">2</field>
+    </record>
+
+    <record id="cron_barrido" model="ir.cron">
+        <field name="name">Comisión web: anotar lo que falte, comparar el libro con la verdad y anotar la tarifa</field>
+        <field name="model_id" ref="model_dcasa_web_venta"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_barrido()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="nextcall" eval="(datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d 08:30:00')"/>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>

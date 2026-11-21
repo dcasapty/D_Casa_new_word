@@ -73,6 +73,8 @@ class SaleOrder(models.Model):
             dominio.append(('dcasa_fecha_venta', '<=', fields.Date.to_string(hasta)))
         if vendedor:
             dominio.append(('user_id', '=', getattr(vendedor, 'id', vendedor)))
+            # Una venta online nunca es de una vendedora (dcasa_base.models.venta_online; solo hacia adelante).
+            dominio += self._dcasa_dominio_no_online_desde('dcasa_fecha_venta')
         return dominio
 
     @api.depends('partner_id', 'amount_total', 'date_order', 'state')

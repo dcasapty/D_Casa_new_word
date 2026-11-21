@@ -589,7 +589,7 @@ que llegue por código ya no se ve en ella (las dos versiones chocan y gana la c
 | Entrada | Para qué |
 |---|---|
 | **Vista previa móvil** | el sitio tal como lo ve un visitante, en un marco de teléfono (390×844), tableta (768) o escritorio (1440). Atajos a Inicio, Tienda, Socios y Visítanos, cualquier dirección a mano, «Recargar» y «Abrir aparte». También desde el Inicio: botón **Ver en el celular**. Nunca abre el modo edición |
-| **Carrusel de la portada** | qué productos salen arriba en la portada y en qué orden (arrastrando; el de arriba primero): cada uno con su foto grande de orilla a orilla (a la derecha del bloque azul noche del titular en la computadora, arriba en el celular), su nombre y un botón a su ficha. Vacía = la foto de siempre. Nace una sola vez, con la primera actualización que trae el carrusel, con las ocho camas que aprobó la dueña el 2026-11-16 (buscadas por su código público; las que no existan se saltan); desde ahí la lista es de Gerencia y ninguna actualización la vuelve a llenar, aunque la vacíe (`website_dcasa/models/portada.py`). Solo salen los productos publicados y con foto; el cambio se ve al momento en Odoo y en unos segundos en el borde |
+| **Carrusel de la portada** | una sola pantalla con dos cosas: **los segundos que dura cada foto** (arriba; de 2 a 15, **3 de fábrica**; la dueña pidió «de 2 a 3 segundos, o poderlo definir yo mismo», 2026-11-19) y la lista de productos que salen de fondo en la portada (arrastrando eliges cuál sale primero; las demás van en orden al azar; sin nombres ni mandos). Vacía = la foto de siempre. Nace una sola vez, con la primera actualización que trae el carrusel, con las ocho camas que aprobó la dueña el 2026-11-16 (buscadas por su código público; las que no existan se saltan); desde ahí la lista es de Gerencia y ninguna actualización la vuelve a llenar, aunque la vacíe (`website_dcasa/models/portada.py`). Solo salen los productos publicados y con foto. Los segundos son el campo `segundos` de `dcasa.portada.ajustes` (uno por sitio; sin registro valen los 3 de fábrica, y un valor suelto que no sirva —NaN, fuera de rango— también): la plantilla los escribe en el hero como `--vitrina-tiempo: Ns`, el JavaScript los lee y el fundido (35 % del tiempo, entre 0,5 y 2,4 s) y el zoom (6 veces el tiempo) se calculan con ese valor, así que se ven igual de suaves a 2 s que a 15 s; entran en la clave de la portada guardada (se ven al momento en Odoo) y regeneran la tienda del borde (unos segundos). Gerencia y los administradores cambian estos ajustes y la lista; **Gerencia no escribe nada en el sitio mismo (`website`)**: darle escritura sobre `website` le abría, como superusuario, las acciones de servidor del sitio que Odoo deja sin grupo (revisión independiente, 2026-11-19) |
 | Sitio → Contenido → **Páginas** | ver las páginas y **publicarlas o despublicarlas**; al pulsar una fila se abre en la vista previa móvil. Nombre, dirección y contenido vienen del código; el título y la descripción para Google solo los puede cambiar un administrador (Odoo los guarda en la vista) |
 | Sitio → Contenido → **Productos** y eCommerce → **Productos** | publicar/despublicar productos en la tienda, fotos, descripciones, categorías: esto sí es trabajo del día a día |
 | eCommerce → **Pedidos** | pedidos, carritos abandonados y clientes de la tienda en línea |
@@ -1007,7 +1007,7 @@ costado), en tres pasos:
   se vendieron). Si un producto estuvo agotado, vendió menos y su ritmo sale más bajo: conviene mirarlo a ojo.
 - **Descargar Excel** (Gerencia y administradores): el servidor arma el archivo (`/dcasa/reponer/excel`) con la hoja
   «Reponer» (lo mismo que la pantalla) y «Por proveedor» (totales). No hace falta abrirle a nadie el «Exportar» general
-  de Odoo.
+  de Odoo (es de los administradores; Gerencia baja con él solo facturas y ventas, desde el 2026-11-20).
 - Brian: `que_reponer(proveedor?, meses?, reserva?)` y `poner_tiempo_llegada(proveedor, dias? / meses?)`.
   Código: `addons/dcasa_interfaz/models/reponer.py`, `controllers/reponer.py`, `static/src/js/reponer.js`.
 
@@ -1045,6 +1045,32 @@ desde el botón **Ver por día** del bloque de Ventas del Inicio (con la base y 
   contó), **contra el mes anterior** (si el mes está en curso, los mismos días del mes pasado con el último hasta la
   misma hora de Panamá: la misma cuenta que «Comparar › del 1 a hoy» del Inicio; si el mes ya terminó, el mes anterior
   completo; sin base, «—») y el **mejor día** con el ticket promedio.
+* **Cobrado por forma de pago** (2026-11-19): una sola tarjeta, **arriba del detalle del día** (a la derecha del calendario;
+  en el celular, dentro del día que se abre y arriba de sus facturas; sin ningún día abierto, arriba de la lista de días).
+  Antes eran dos bloques (todo el mes arriba y el del día al final de la lista de facturas, donde no se veía sin bajar).
+  Un selector **Día · Semana · Quincena · Mes** elige el periodo que **contiene el día elegido** en el calendario:
+  Día es el día elegido (lo que abre por defecto); Semana, la de **lunes a domingo** (si cruza de mes o de año, completa);
+  Quincena, del **1 al 15 o del 16 al fin del mes**; Mes, el que se está viendo. El título dice cuál es («Semana del 16
+  al 22 de noviembre») y, si todavía no termina, «Cuenta hasta hoy, …»: **los días que faltan no suman** (el reloj es el de
+  Panamá). Sin día elegido (un mes que ya pasó, o un día cerrado en el celular), Día, Semana y Quincena esperan y la
+  tarjeta muestra el mes; al tocar un día vuelve al periodo que la persona había elegido. Arriba va el **total cobrado**
+  y debajo una ficha por forma de pago (el diario del cobro) con su monto y cuántos cobros; tocar una ficha abre esos
+  cobros de ese periodo. Es **con ITBMS** y la misma cuenta de la «Caja de hoy» (`_dominio_de_cobros`): un abono cuenta el
+  día que se cobró y no cambia con «Vendido»/«Facturado» ni con la vendedora. Solo cuentan los pagos **de clientes**
+  (`partner_type = customer`): lo que un proveedor nos devuelve (un pago que entra, pero de un proveedor) **no** es dinero
+  cobrado y ya no se suma, ni aquí ni en la Caja de hoy ni en Brian (corrección del 2026-11-19 de una cuenta que ya
+  existía). El servidor es
+  `dcasa.tablero.cobros_del_periodo(dia, periodo)` (Gerencia y administradores; periodo desconocido, fecha mal escrita,
+  día futuro o de hace más de 24 meses dan un error claro); `por_dia` y `ventas_del_dia` siguen trayendo su `cobros`
+  (mes y día) porque Brian los lee.
+* **Las cifras suben** (2026-11-19): el total, el mejor día, el ticket, el cambio contra el mes pasado, el detalle del día
+  y todas las fichas de cobros suben hasta su valor al abrir y, al cambiar de periodo, mes, base o vendedora, **desde el
+  valor anterior** (si no cambió, no se mueve). Es la misma animación de las cifras del Inicio (700 ms, misma curva) en un
+  módulo para todas las pantallas (`static/src/js/cifras_que_suben.js`): Estadísticas, Valor del inventario, Reponer
+  (los contadores de arriba) y Movimientos («Hay hoy») también la usan. El texto de cada cifra es siempre el valor final
+  (el número a medias va en `data-sube` y lo pinta el CSS), y con «reducir movimiento» en el aparato no se mueve nada.
+  Una cifra nueva: clase `o_dcasa_sube`, `data-valor`, `data-formato` (`moneda`, `entero`, `unidades` o `decimal`) y
+  `t-ref="raiz"` en la raíz de la pantalla.
 
 ### Estadísticas › Resumen
 

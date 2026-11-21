@@ -103,6 +103,15 @@ cambia en el panel llega al contenedor **al reiniciar o en el siguiente desplieg
 | `JUAN_ODOO_TOKEN` | Secreto | Juan se identifica ante Odoo. **Mismo valor** que en `dcasa-juan` (§6). Sin él, `/dcasa/juan/**` responde 503 |
 | `JUAN_WORKER_TOKEN` | Secreto | Odoo se identifica ante Juan. **Mismo valor** que en `dcasa-juan` |
 | `JUAN_URL` | Variable | Dirección del Worker de Juan (`https://dcasa-juan.<subdominio>.workers.dev`) para que Odoo lo llame. También se puede poner en Odoo, *Ajustes de Juan* (parámetro `dcasa_conversaciones.juan_url`, `addons/dcasa_conversaciones/models/ajustes.py:42-45`) |
+| `TILOPAY_API_KEY` | Secreto | La «Llave API» de Tilopay (panel de Tilopay › Integración con plataformas). Producción: la de la cuenta real; staging: la de la cuenta de pruebas de desarrollador. Sin las tres claves, Tilopay no aparece en la tienda ([TILOPAY.md](../TILOPAY.md)) |
+| `TILOPAY_API_USER` | Secreto | El «Usuario API» de Tilopay |
+| `TILOPAY_API_PASSWORD` | Secreto | La «Contraseña API» de Tilopay |
+| `TILOPAY_ENTORNO` | Variable | `prueba` (por defecto) o `produccion`. Tiene que coincidir con el «Modo Prueba» del panel de Tilopay. Staging la trae fijada en `prueba` |
+| `YAPPY_ID_COMERCIO` | Secreto | El «ID del comercio» del Botón de Pago, que se crea en Yappy Comercial con un usuario administrador. Sin él (y sin la clave y el dominio), el pago directo con Yappy no aparece en la tienda ([YAPPY.md](../YAPPY.md)) |
+| `YAPPY_CLAVE_SECRETA` | Secreto | La «Clave secreta» del botón: Yappy la muestra **una sola vez**, se pega directo en Cloudflare. Firma los avisos de pago |
+| `YAPPY_DOMINIO` | Variable | El dominio que se escribió al crear el botón en Yappy Comercial, **letra por letra** (con o sin `www`, con o sin `https://`: Yappy lo trata como distinto) |
+| `YAPPY_ENTORNO` | Variable | `prueba` (por defecto) o `produccion`. Decide a qué servidor de Yappy se le habla. Staging la trae fijada en `prueba` |
+| `YAPPY_URL_BASE` | Variable (opcional) | La dirección pública `https://…` a la que Yappy avisa, **solo para staging** cuando su dominio propio todavía no apunta al Worker (la `workers.dev` del Worker de staging). Producción no la lleva y Odoo la ignora ahí ([YAPPY.md](../YAPPY.md) §7 B) |
 | `BRIAN_TELEGRAM_CHATS` | Variable | IDs de los chats de Telegram a los que Brian atiende (coma). Sin ella, cualquiera que encuentre el bot recibe las instrucciones para vincularse ([BRIAN.md › Telegram](../BRIAN.md)) |
 | `DCASA_ALERTA_TELEGRAM_CHAT` | Variable | Chat al que el Worker avisa si el contenedor se cae (con el bot de Brian) |
 | `TURNSTILE_SITE_KEY` | Variable | Clave pública de Turnstile (o en `edge/wrangler.jsonc`, `:90-91`) |

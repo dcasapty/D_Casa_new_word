@@ -82,6 +82,34 @@ export interface Env {
   RESEND_CAMPANAS_API_KEY?: string;
   /** Secreto opcional: token de la Conversions API de Meta (addons/dcasa_meta_eventos). Sin él no sale nada a Meta. */
   META_CAPI_TOKEN?: string;
+  // Tilopay, la pasarela de pago (addons/dcasa_pago_tilopay, docs/TILOPAY.md). Opcionales: se pegan en el panel de Cloudflare de
+  // cada Worker (producción con la cuenta real; staging con la cuenta de pruebas), nunca en el repositorio ni en GitHub. Sin
+  // las tres claves Tilopay no aparece en la tienda y nada más cambia; Odoo arranca igual.
+  /** Secreto: la «Llave API» del panel de Tilopay (Integración con plataformas). */
+  TILOPAY_API_KEY?: string;
+  /** Secreto: el «Usuario API» del panel de Tilopay. */
+  TILOPAY_API_USER?: string;
+  /** Secreto: la «Contraseña API» del panel de Tilopay. */
+  TILOPAY_API_PASSWORD?: string;
+  /** Variable (no secreta): «prueba» (por defecto) o «produccion». Tiene que coincidir con el «Modo Prueba» del panel de Tilopay. */
+  TILOPAY_ENTORNO?: string;
+  // Yappy directo, el Botón de Pago de Yappy Comercial (addons/dcasa_pago_yappy, docs/YAPPY.md). Opcionales: se pegan en el
+  // panel de Cloudflare de cada Worker, nunca en el repositorio ni en GitHub. Sin el id y la clave Yappy directo no aparece
+  // en la tienda y nada más cambia; Odoo arranca igual.
+  /** Secreto: el «ID del comercio» (Merchant ID) del Botón de Pago creado en Yappy Comercial. */
+  YAPPY_ID_COMERCIO?: string;
+  /** Secreto: la «Clave secreta» del botón (Yappy la muestra una sola vez). Firma los avisos de pago. */
+  YAPPY_CLAVE_SECRETA?: string;
+  /** Variable (no secreta): el dominio que se registró en el botón, letra por letra (ej. «dcasapty.com»). */
+  YAPPY_DOMINIO?: string;
+  /** Variable (no secreta): «prueba» (por defecto) o «produccion». Decide a qué servidor de Yappy se le habla. */
+  YAPPY_ENTORNO?: string;
+  /**
+   * Variable (no secreta, opcional): dirección pública (`https://anfitrion`, sin ruta) a la que Yappy avisa de cada pago.
+   * Manda sobre `web.base.url` al armar la `ipnUrl`. Existe para staging, cuyo dominio propio aún no apunta al Worker
+   * (`routes: []`): ahí va la dirección `workers.dev` del Worker de staging. En producción Odoo la ignora.
+   */
+  YAPPY_URL_BASE?: string;
   /** Ids de los chats de Telegram a los que Brian atiende (coma); sin ella atiende a cualquier chat vinculado. */
   BRIAN_TELEGRAM_CHATS?: string;
   // Juan, el asistente de clientes (addons/dcasa_conversaciones, docs/JUAN_ODOO.md). Opcionales: se cargan en

@@ -7,6 +7,8 @@ from unittest.mock import patch
 from odoo import Command
 from odoo.tests import HttpCase
 
+from ..controllers.main import limpiar_cache_vitrina
+
 TOKEN_WORKER = 'w' * 40     # JUAN_WORKER_TOKEN de prueba (no es un secreto real)
 TOKEN_ODOO = 'o' * 40       # JUAN_ODOO_TOKEN de prueba
 URL_WORKER = 'http://127.0.0.1:9'   # válida (local) y nadie contesta: las rutas de Odoo no la llaman
@@ -51,6 +53,9 @@ class TiendaCase(HttpCase):
         entorno.start()
         self.addCleanup(entorno.stop)
         self.env['ir.config_parameter'].sudo().set_param('dcasa_brian_tienda.activo', 'True')
+        # «Lo más buscado» se guarda un minuto en el proceso (controllers/main.py): cada prueba arranca sin lo de otra.
+        limpiar_cache_vitrina()
+        self.addCleanup(limpiar_cache_vitrina)
 
     # ------------------------------------------------------------------ peticiones como el navegador
 

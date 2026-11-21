@@ -321,6 +321,8 @@ Cuatro lugares. Ningún valor secreto está en el repositorio.
 | Secret | `TELEGRAM_BOT_TOKEN`, `BRIAN_TELEGRAM_SECRETO` | no | Brian por Telegram (y alertas del Worker) |
 | Secret | `TIENDA_FEED_TOKEN` | no (sí para la caché) | Lo comparten el Worker y Odoo |
 | Secret | `TURNSTILE_SECRET` | no | Turnstile (con `TURNSTILE_SITE_KEY`) |
+| Secret (solo panel) | `TILOPAY_API_KEY`, `TILOPAY_API_USER`, `TILOPAY_API_PASSWORD` | no | Tilopay (pagos con tarjeta y Yappy): no están en GitHub; se pegan en el panel de cada Worker ([TILOPAY.md](TILOPAY.md)) |
+| Variable | `TILOPAY_ENTORNO` | no | `prueba` (por defecto) o `produccion`; en staging fijada en `prueba` |
 | Secret | `DCASA_PUERTA_RUTA`, `DCASA_PUERTA_SECRETO`, `DCASA_ACCESS_EQUIPO`, `DCASA_ACCESS_AUD` | no (las cuatro juntas) | La puerta del equipo |
 | Variable | `URL_SITIO` | sí | Dirección pública del Worker, `https://…` sin `/` final |
 | Variable | `CANONICAL_HOST` | no | Pisa el de `wrangler.jsonc`; vacía = el anfitrión de `URL_SITIO` |

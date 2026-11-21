@@ -32,6 +32,7 @@ Más abajo: [roles y grupos](#roles-y-grupos-mapa-completo) · [interruptores](#
 | Ver el chatbot y las conversaciones, atender clientes | Sí | Sí | Sí | Sí | Sí |
 | En una conversación, cambiar a mano el cliente, quién atiende, las etiquetas, la pausa y su respuesta. El estado, la nota para el asistente y los seguimientos solo cambian con los botones (Atender, Devolver, Cerrar); a mano, solo el administrador del sistema | Sí | Sí | Sí | Sí | Sí |
 | **Conversaciones › Costos de IA**: ver lo que cuesta Juan y tocar «Pagar» (el saldo con Meta vuelve a $0) o «Deshacer» el último pago (2026-11-12; el administrador que no es de Gerencia no ve el menú, pero el servidor lo deja y Brian se lo dice) | No | No | No | Sí | Sí |
+| **Sitio web › Carrusel de la portada** (2026-11-19): elegir los productos del fondo de la portada, su orden y los **segundos que dura cada foto** (de 2 a 15; viven en `dcasa.portada.ajustes`, uno por sitio, ACL de Gerencia y administradores sin borrar). **Gerencia NO escribe en el sitio (`website`)**: darle ese permiso le abría, como superusuario, las acciones de servidor del sitio sin grupo de Odoo (revisión independiente); hay prueba de que no las corre (`website_dcasa/tests/test_portada_permisos.py`) | No | No | No | Sí | Sí |
 | **Sitio web › Busca con una foto** (2026-11-13): encender o apagar la cámara de la búsqueda de la tienda, cambiar los topes (por visitante, por conexión y por día) y el techo del gasto de IA de la foto en el mes, y ver cuántas búsquedas hubo. El servidor exige el grupo antes de guardar | No | No | No | Sí | Sí |
 | **Ajustes de Juan › Comentarios de Instagram y Facebook** (2026-11-13): encender o apagar que Juan responda comentarios, elegir las redes, la frase pública y los topes. Los comentarios atendidos se ven en la conversación de cada persona (solo lectura; los escribe el servidor) | No | No | No | Sí | Sí |
 | Crear y editar clientes | Sí | Sí | Sí | Sí | Sí |
@@ -50,6 +51,7 @@ Más abajo: [roles y grupos](#roles-y-grupos-mapa-completo) · [interruptores](#
 | **Envíos:** editar o archivar lugares (los km y la provincia, solo aquí), **«Marcar revisado»** un lugar, cambiar y **aprobar la tarifa**, cargar el archivo de envíos, y **Envíos › Promoción de envío** (2026-11-12) | No | No | No | Sí | Sí |
 | **Envíos › Tarifa › Enlace para choferes** (2026-11-09): ver, encender, copiar y cambiar el enlace secreto de la calculadora de los choferes (que no tienen usuario) | No | No | No | Sí | Sí |
 | **Ventas › Hoy › Opiniones por aprobar** (lote 2 de la web, 2026-11-13): leer las opiniones que dejaron los clientes y **«Publicar»** o **«No publicar»** cada una. Nadie las crea ni cambia lo que dijo el cliente (estrellas, texto); borrar una, solo el administrador | No | No | No | Sí | Sí |
+| **Exportar listas a Excel** (Acción › Exportar; `base.group_allow_export`): pedido del jefe 2026-11-19, para bajar facturas con su forma de pago. Gerencia trae el permiso por su rol (`dcasa_roles.xml`), pero **solo baja facturas y apuntes contables, pagos y ventas (pedidos y sus líneas)**: la lista corta vive en `dcasa_base/models/exportar.py` (2026-11-20). Cualquier otra lista (clientes, empleados, chatter, adjuntos, usuarios, cuentas bancarias de contactos, conversaciones, productos…) da «Ese Excel solo lo bajan los administradores», también por `/web/export/xlsx` y `/web/export/csv`. Se siguen relaciones de una factura (cliente, vendedor, producto), salvo hacia el chatter, los adjuntos, los empleados y las cuentas bancarias; por una relación no se piden identificadores externos. Además el exportador lee con los permisos de quien exporta: no abre lo que solo ven los administradores (clave del PIN de Socios, datos de Meta, parámetros del sistema). El cierre del costo (`costos_cerrados.py`) no cubre `export_data`; es seguro porque quien exporta ya ve los costos y no se le da el permiso a ningún rol que no los vea. El Excel no vuelve fórmula lo que escribió un cliente (`dcasa_base/excel_seguro.py`). Pruebas: `dcasa_base/tests/test_exportar.py` y `test_revision_exportar.py` | No | No | No | Solo finanzas y ventas | Sí, todas |
 | **Sitio web › Brian de la tienda** (2026-11-13): encender o apagar el chat de la tienda, el presupuesto del mes, los topes de mensajes y ver su gasto y sus calificaciones (número y fecha; nadie las crea ni cambia por la interfaz) | No | No | No | Sí | Sí |
 
 **Opiniones de los productos (cliente, lote 2 de la web).** El cliente opina desde **Mi cuenta › Tus opiniones**
@@ -190,7 +192,7 @@ notas de crédito de cliente; la lista que abre cada cifra la ve cada quien con 
 proveedor es solo de **Gerencia y administradores**. El servidor lo exige en cada llamada (`dcasa.reponer`, también el
 Excel en `/dcasa/reponer/excel` y las herramientas `que_reponer` y `poner_tiempo_llegada` de Brian); la Vendedora no ve
 el menú y, si lo pide por la conexión de datos, se le niega. El Excel lo arma el servidor: el «Exportar» general de Odoo
-sigue siendo solo de administradores.
+es de los administradores; Gerencia lo trae desde 2026-11-19, pero solo baja facturas, pagos y ventas (desde 2026-11-20).
 
 **El costo del producto, el precio del proveedor y el margen, cerrados (etapa 1b(a), 2026-10-22,
 `dcasa_base/models/costos_cerrados.py`):** el campo «Costo» de la ficha del producto (y el costo unitario y el valor
@@ -213,16 +215,16 @@ administradores; «Lo más vendido» solo muestra ventas y unidades, no costos, 
 Facturado por día* y *Estadísticas › Resumen* son de **Gerencia y administradores** (`sales_team.group_sale_manager` o
 `base.group_system`, los mismos de Comparar); *Inventario › Movimientos*, de quien administra Inventario (Gerencia lo
 incluye) y los administradores (`stock.group_stock_manager` o `base.group_system`). Los menús llevan esos grupos y el
-servidor los exige otra vez en cada llamada (`dcasa.tablero.por_dia`, `ventas_del_dia`, `estadisticas`,
-`opciones_por_dia`; `dcasa.movimientos.*`) antes de leer: la Vendedora no los ve ni recibe las cifras por la conexión de
+servidor los exige otra vez en cada llamada (`dcasa.tablero.por_dia`, `ventas_del_dia`, `cobros_del_periodo`,
+`estadisticas`, `opciones_por_dia`; `dcasa.movimientos.*`) antes de leer: la Vendedora no los ve ni recibe las cifras por la conexión de
 datos, y Brian tampoco se las da (`ventas_por_dia`, `movimientos_de_producto`).
 
 **Valor del inventario** (2026-11-02, «solo para gerencia o administración»): *Inventario › Valor del inventario*,
 *Estadísticas › Valor del inventario* y su atajo del Inicio son de **Gerencia y administradores**
 (`sales_team.group_sale_manager` o `base.group_system`, como la ganancia). El servidor lo exige en cada llamada
 (`dcasa.tablero.valor_del_inventario`) y Brian también (`valor_del_inventario`): ni la Vendedora, ni Caja, ni
-contabilidad lo reciben. Lo cobrado por forma de pago de días y meses pasados va dentro de Por día y Estadísticas (los
-mismos permisos); Caja sigue viendo solo la «Caja de hoy» de su Inicio.
+contabilidad lo reciben. Lo cobrado por forma de pago del día, la semana, la quincena o el mes (tarjeta de Por día,
+`cobros_del_periodo`, 2026-11-19) y de periodos pasados en Estadísticas va con los mismos permisos; Caja sigue viendo solo la «Caja de hoy» de su Inicio.
 
 **Tope de descuento (10 % para la Vendedora)** — cerrado en esta revisión: se mide siempre al crear la línea (aunque el precio
 llegue por el contexto de la llamada), al cambiar de producto o de unidad de medida, y al tocar las banderas de anticipo o
@@ -267,6 +269,15 @@ Si lo intenta, Odoo le dice que no tiene permiso, o simplemente no le muestra na
 
 **Devolver dinero a un cliente** (una nota de crédito pagada en efectivo o por Yappy) y la **nota de crédito** misma
 las hace solo **Gerencia** (o un administrador) desde el 2026-10-17; la vendedora, Caja y el contador ya no.
+
+**El pago en línea (Yappy, Tilopay…) tampoco lo mueve la vendedora** (revisiones RV7 y RV8): por Facturación Odoo le deja *escribir* y
+*crear* una transacción de pago (`payment.transaction`), y con un `write` podía dejarla «hecha» (el cron confirmaba el pedido y creaba el
+cobro sin dinero). Desde entonces, quien no es Caja, Gerencia, contabilidad o administrador **no escribe NADA ni crea** en una transacción
+(R7-1, R8-2, R8-6). Y, desde la revisión RV8, tampoco puede **ligar o soltar cobros del pedido ni de la factura** (`transaction_ids`,
+R8-1: es la otra mitad de la misma relación; antes de ese arreglo la transacción estaba cerrada y el pedido y la factura **no**: un cobro
+ajeno ligado hacía que Bodega soltara una entrega sin cobrar y que el dinero de un cliente se aplicara a la factura de otro). Lo que
+escribe el sistema (la pasarela, el aviso del proveedor, el cron, `sale._create_invoices`) corre con `sudo` y no cambia
+(`dcasa_base/models/cobros.py`).
 
 ## Cómo está armado (para quien programa)
 
@@ -487,7 +498,7 @@ Los roles se arman con grupos estándar de Odoo; casi no hay permisos nuevos.
 | **Caja** | `dcasa_base.group_caja` | Vendedora + Ventas «todos los documentos» (`sales_team.group_sale_salesman_all_leads`) | Ve, factura y **cobra** todas las cotizaciones, pedidos, facturas y cobros de clientes. Sin contabilidad ni costos; descuento con tope. Anular, notas de crédito, devoluciones y un primer abono menor a la mitad: Gerencia. No se le asigna a nadie al instalar: lo da un administrador (ver arriba, «Dar el rol Caja»). |
 | **Gerencia** | `dcasa_base.group_gerencia` | Vendedora + gerente de Ventas + contador (`account.group_account_user`) + gerente de Inventario y de Compras + gestor de productos + **Administra la nómina** | Todo lo de la tienda: descuentos sin tope, existencias a mano, fusión de contactos, costos y ganancia, Estadísticas, Comparar ventas, reglas del programa de vendedores. El usuario `admin` nace en Gerencia. No incluye Ajustes técnicos ni gestión de usuarios ni el diseñador del sitio. |
 | **Contabilidad** | `account.group_account_user` / `account.group_account_manager` / `account.group_account_readonly` | Grupos de Odoo | Todo lo contable (reglas «todo» en `dcasa_reglas_contables.xml`); el lector solo lee. Ven el menú Empleados. |
-| **Administra la nómina** | `dcasa_nomina.group_nomina` | Gerente de RR. HH. + contador | Planillas, sueldos, liquidaciones, reembolsos, bono por meta. Gerencia lo incluye. |
+| **Administra la nómina** | `dcasa_nomina.group_nomina` | Gerente de RR. HH. + contador | Planillas, sueldos, liquidaciones, reembolsos, bono por meta y **la comisión del sitio web** (ventas del sitio, reglas, quiénes reciben, libro y liquidaciones; quien cobra en una liquidación no la aprueba, aunque cambie su ficha: los usuarios ligados quedan fijos en cada versión del reparto; también anula versiones que todavía no rigen y anota ajustes con motivo). Gerencia lo incluye, y solo Gerencia ve *Pedidos de la página para revisar*; el administrador técnico solo no ve nada de esto. Como incluye al contador, también **cobra** (A5) y puede **confirmar un cobro de Yappy** con el botón «Confirmar que el dinero entró» y leer el celular de Yappy ([YAPPY.md](YAPPY.md) §3.4; no es un permiso nuevo y no se cambió). |
 | **Marketing** | `dcasa_marketing.group_marketing` (decisión de la dueña, 2026-10-22) | Solo usuario interno (`base.group_user`): ningún grupo de Ventas, Contabilidad ni Inventario | La app **Marketing** completa (stock por categoría, más vendidos, movimiento, quietos, fotos que faltan), cambiar las fotos de cualquier producto, **Camila** (armar y aprobar la campaña de correo, [CAMILA.md](CAMILA.md)) y las herramientas de marketing de Brian. Sus cifras son unidades, no dinero: sin costos, contabilidad ni ventas de otros (de una campaña ve cuántas ventas, no cuánto). |
 | **Administradores** | `base.group_system` | Ajustes técnicos y usuarios | Lo anterior más: Registro de acciones, Consumo y Ajustes de Brian; Accesos al panel; Cargar datos del sistema anterior; Correo a clientes. Su doble factor es obligatorio con `DCASA_2FA_OBLIGATORIO=1`. |
 | **Bodega** | *no hay grupo propio*: `stock.group_stock_user` (usuario) o `stock.group_stock_manager` (gerente) de Odoo | — | Usuario: entregas, recepciones, el panel **Bodega** (despachar y validar entregas; también lo tienen la Vendedora y Gerencia) y **Escáner** (buscar). Gerente: además *Códigos de barras* e *Historial de etiquetas*. Contar existencias y cambiar precios en el Escáner: solo Gerencia. |
@@ -515,6 +526,7 @@ Lo que se enciende o se apaga sin tocar código (o con un cambio de una línea).
 | Canje de vendedores externos / en efectivo | `canje.externosHabilitado` / `efectivoHabilitado` en `puntos.json` | **apagados** | Esperan dictamen del abogado y la contadora; Ajustes los muestra de solo lectura y el servidor los ignora |
 | Correo a clientes | `RESEND_API_KEY` + *Ventas › Configuración › Correo a clientes* (`dcasa_correo.enviar_a_clientes`, `al_pagar`) | **apagado** (en producción, encendido desde el 2026-10-27) | Factura, abono y bienvenida por correo |
 | Campañas de correo (Camila) | `RESEND_CAMPANAS_API_KEY` (secreto del panel de Cloudflare, permiso «Full access») + `DCASA_ENTORNO=produccion` | **apagado** (sin la clave) | Enviar la campaña de cada 15 días a quien dijo que sí ([CAMILA.md](CAMILA.md)); sin la clave se arma y se prueba, pero no sale |
+| Pagos con tarjeta y Yappy (Tilopay) | *Facturación › Configuración › Proveedores de pago › Tilopay* (estado del proveedor: Deshabilitado / Modo de prueba / Habilitado; lo cambia quien tiene **Ajustes técnicos**, hoy el administrador, que además es Gerencia) + `TILOPAY_API_KEY`, `TILOPAY_API_USER`, `TILOPAY_API_PASSWORD` y `TILOPAY_ENTORNO` (panel de Cloudflare) | **apagado** | Se ofrece en la tienda solo con las **tres llaves**: claves cargadas, interruptor de Odoo y `TILOPAY_ENTORNO` de acuerdo (Habilitado ↔ `produccion`, Modo de prueba ↔ `prueba`). «Probar conexión»: Gerencia o administrador. Ver [TILOPAY.md](TILOPAY.md) |
 | Factura electrónica DGI | `l10n_pa_fe_activo` de la empresa (`dcasa_fe_pa`) | **apagada** y el módulo no se instala | Envío al PAC |
 | Constructor visual del sitio | `dcasa_interfaz.sitio_editable` (Ajustes técnicos) | **apagado** | El sitio se edita por código |
 | Black Weekend | `DCASA_BLACK_WEEKEND` y su ventana | producción `0`, staging `1` | Campaña visible |

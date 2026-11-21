@@ -78,12 +78,17 @@
         administrador, y crear productos (product.group_product_manager: el catálogo y la
         importación de Excel de proveedores con Brian). El sitio web (diseñador/editor) lo añade website_dcasa.
         No incluye Ajustes técnicos ni gestión de usuarios (base.group_system / group_erp_manager).
+        Exportar a Excel (base.group_allow_export, «Acción › Exportar» de las listas): solo Gerencia y los
+        administradores, que ya lo tienen. Pedido del jefe (2026-11-19): bajar las facturas con su forma de pago. Ni
+        Caja ni la Vendedora lo traen. El permiso de Odoo es de toda lista, así que quien lo trae sin ser administrador
+        (Gerencia) solo baja facturas, apuntes, pagos y ventas: la lista está en models/exportar.py y las demás listas
+        (clientes, empleados, chatter, adjuntos…) son de los administradores (tests/test_exportar.py).
     -->
     <record id="group_gerencia" model="res.groups">
         <field name="name">Gerencia</field>
         <field name="sequence">20</field>
         <field name="privilege_id" ref="res_groups_privilege_dcasa"/>
-        <field name="comment">Controla la tienda: reportes antifraude, descuentos sin tope, contabilidad, compras e inventario. Anula o pasa a borrador facturas publicadas, hace notas de crédito, devuelve dinero y autoriza un primer abono menor a la mitad.</field>
+        <field name="comment">Controla la tienda: reportes antifraude, descuentos sin tope, contabilidad, compras e inventario. Anula o pasa a borrador facturas publicadas, hace notas de crédito, devuelve dinero y autoriza un primer abono menor a la mitad. Baja a Excel («Acción › Exportar») facturas, pagos y ventas; las demás listas, solo los administradores.</field>
         <field name="implied_ids" eval="[
             (4, ref('group_vendedora')),
             (4, ref('group_caja')),
@@ -92,6 +97,7 @@
             (4, ref('stock.group_stock_manager')),
             (4, ref('purchase.group_purchase_manager')),
             (4, ref('product.group_product_manager')),
+            (4, ref('base.group_allow_export')),
         ]"/>
         <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
     </record>

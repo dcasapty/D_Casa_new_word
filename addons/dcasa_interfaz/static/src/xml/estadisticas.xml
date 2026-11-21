@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
     <!-- «Estadísticas › Resumen»: gráficas planas en azul de la marca; cada número con una frase que dice qué es. Lo que
-         el Inicio ya muestra bien (comparar periodos, la ganancia) se enlaza, no se repite. -->
+         el Inicio ya muestra bien (comparar periodos, la ganancia) se enlaza, no se repite. Las cifras llevan
+         «o_dcasa_sube»: suben hasta su valor (cifras_que_suben.js); el texto de la etiqueta es siempre el valor final. -->
     <t t-name="dcasa_interfaz.Estadisticas">
-        <div class="o_action o_dcasa_inicio o_dcasa_estadisticas">
+        <div class="o_action o_dcasa_inicio o_dcasa_estadisticas" t-ref="raiz">
             <header class="o_dcasa_pantalla_cabeza">
                 <div>
                     <h1>Estadísticas</h1>
@@ -43,16 +44,16 @@
                         <button type="button" class="o_dcasa_panel o_dcasa_es_numero o_dcasa_es_ventas"
                                 t-on-click="() => this.abrirLista(d.accion)">
                             <span class="o_dcasa_pd_etiqueta">Ventas · <t t-out="d.etiqueta"/></span>
-                            <strong class="o_dcasa_pd_valor" t-out="dinero(d.resumen.sin_itbms)"/>
+                            <strong class="o_dcasa_pd_valor o_dcasa_sube" data-formato="moneda" t-att-data-valor="d.resumen.sin_itbms" t-out="dinero(d.resumen.sin_itbms)"/>
                             <span class="o_dcasa_es_frase">
                                 <t t-if="esPedido">Lo que suman los pedidos confirmados del periodo, sin ITBMS.</t>
                                 <t t-else="">Lo que suman las facturas del periodo, sin ITBMS; las notas de crédito restan.</t>
-                                Con ITBMS: <t t-out="dinero(d.resumen.total)"/>.
+                                Con ITBMS: <span class="o_dcasa_sube" data-formato="moneda" t-att-data-valor="d.resumen.total" t-out="dinero(d.resumen.total)"/>.
                             </span>
                         </button>
                         <div class="o_dcasa_panel o_dcasa_es_numero o_dcasa_es_cuantas">
                             <span class="o_dcasa_pd_etiqueta"><t t-out="esPedido ? 'Pedidos' : 'Facturas'"/></span>
-                            <strong class="o_dcasa_pd_valor" t-out="numero(d.resumen.cuantas)"/>
+                            <strong class="o_dcasa_pd_valor o_dcasa_sube" data-formato="entero" t-att-data-valor="d.resumen.cuantas" t-out="numero(d.resumen.cuantas)"/>
                             <span class="o_dcasa_es_frase">
                                 <t t-if="esPedido">Cuántos pedidos se confirmaron.</t>
                                 <t t-else="">Cuántas facturas se hicieron<t t-if="d.resumen.notas"> (y <t t-out="notasTexto(d.resumen.notas)"/> que restan)</t>.</t>
@@ -60,12 +61,12 @@
                         </div>
                         <div class="o_dcasa_panel o_dcasa_es_numero o_dcasa_es_ticket">
                             <span class="o_dcasa_pd_etiqueta">Ticket promedio</span>
-                            <strong class="o_dcasa_pd_valor" t-out="d.resumen.ticket === null ? '—' : dinero(d.resumen.ticket)"/>
+                            <strong class="o_dcasa_pd_valor o_dcasa_sube" data-formato="moneda" t-att-data-valor="d.resumen.ticket" t-out="d.resumen.ticket === null ? '—' : dinero(d.resumen.ticket)"/>
                             <span class="o_dcasa_es_frase">Lo que deja cada venta en promedio, sin ITBMS.</span>
                         </div>
                         <div class="o_dcasa_panel o_dcasa_es_numero o_dcasa_es_unidades">
                             <span class="o_dcasa_pd_etiqueta">Unidades</span>
-                            <strong class="o_dcasa_pd_valor" t-out="unidades(d.resumen.unidades)"/>
+                            <strong class="o_dcasa_pd_valor o_dcasa_sube" data-formato="unidades" t-att-data-valor="d.resumen.unidades" t-out="unidades(d.resumen.unidades)"/>
                             <span class="o_dcasa_es_frase">Muebles y artículos que salieron (sin flete ni servicios).</span>
                         </div>
                     </section>
@@ -76,7 +77,7 @@
                             <small class="o_dcasa_sin_itbms">sin ITBMS</small></h2>
                         <p class="o_dcasa_es_frase">
                             Cada barra es lo que se <t t-out="esPedido ? 'vendió' : 'facturó'"/> ese <t t-out="d.barras.por === 'dia' ? 'día' : 'mes'"/>.
-                            <t t-if="mejorBarra">El mejor fue <strong t-out="mejorBarra.detalle"/> con <strong t-out="dinero(mejorBarra.sin_itbms)"/>.</t>
+                            <t t-if="mejorBarra">El mejor fue <strong t-out="mejorBarra.detalle"/> con <strong class="o_dcasa_sube" data-formato="moneda" t-att-data-valor="mejorBarra.sin_itbms" t-out="dinero(mejorBarra.sin_itbms)"/>.</t>
                             Toca una barra para ver sus <t t-out="esPedido ? 'pedidos' : 'facturas'"/>.
                         </p>
                         <t t-set="maxBarra" t-value="maximo(d.barras.filas)"/>
@@ -116,7 +117,7 @@
                                 <li t-foreach="d.tipos" t-as="t" t-key="t.nombre" class="o_dcasa_es_hfila">
                                     <span class="o_dcasa_es_nombre" t-out="t.nombre"/>
                                     <span class="o_dcasa_es_hbarra" aria-hidden="true"><span t-attf-style="width: {{ medida(t.sin_itbms, maxTipo) }}%"/></span>
-                                    <span class="o_dcasa_es_valor"><strong t-out="dinero(t.sin_itbms)"/><small><t t-out="unidades(t.unidades)"/> u.</small></span>
+                                    <span class="o_dcasa_es_valor"><strong class="o_dcasa_sube" data-formato="moneda" t-att-data-valor="t.sin_itbms" t-out="dinero(t.sin_itbms)"/><small><span class="o_dcasa_sube" data-formato="unidades" t-att-data-valor="t.unidades" t-out="unidades(t.unidades)"/> u.</small></span>
                                 </li>
                             </ol>
                             <p t-else="" class="o_dcasa_vacio">No hay mercancía vendida en este periodo.</p>
@@ -135,7 +136,7 @@
                                 <li t-foreach="d.vendedoras" t-as="v" t-key="v.vendedor" class="o_dcasa_es_hfila">
                                     <span class="o_dcasa_es_nombre" t-out="v.nombre"/>
                                     <span class="o_dcasa_es_hbarra" aria-hidden="true"><span t-attf-style="width: {{ medida(v.sin_itbms, maxVend) }}%"/></span>
-                                    <span class="o_dcasa_es_valor"><strong t-out="dinero(v.sin_itbms)"/><small t-out="cuantasTexto(v.cuantas, d.base)"/></span>
+                                    <span class="o_dcasa_es_valor"><strong class="o_dcasa_sube" data-formato="moneda" t-att-data-valor="v.sin_itbms" t-out="dinero(v.sin_itbms)"/><small t-out="cuantasTexto(v.cuantas, d.base)"/></span>
                                 </li>
                             </ol>
                             <p t-else="" class="o_dcasa_vacio">No hay ventas en este periodo.</p>
@@ -152,7 +153,7 @@
                                 <button type="button" class="o_dcasa_es_hfila o_dcasa_es_producto" t-on-click="() => this.abrirProducto(p)">
                                     <span class="o_dcasa_es_nombre"><img t-att-src="p.imagen" alt="" loading="lazy"/><t t-out="p.nombre"/></span>
                                     <span class="o_dcasa_es_hbarra" aria-hidden="true"><span t-attf-style="width: {{ medida(p.unidades, maxProd) }}%"/></span>
-                                    <span class="o_dcasa_es_valor"><strong><t t-out="unidades(p.unidades)"/> u.</strong><small t-out="dinero(p.sin_itbms)"/></span>
+                                    <span class="o_dcasa_es_valor"><strong><span class="o_dcasa_sube" data-formato="unidades" t-att-data-valor="p.unidades" t-out="unidades(p.unidades)"/> u.</strong><small class="o_dcasa_sube" data-formato="moneda" t-att-data-valor="p.sin_itbms" t-out="dinero(p.sin_itbms)"/></span>
                                 </button>
                             </li>
                         </ol>

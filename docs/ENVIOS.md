@@ -16,8 +16,9 @@ nuestra propia flota de envíos, el cliente pueda calcular cuánto se le cobrar�
 - Mientras Gerencia no apruebe la tarifa, arriba dice **«Tarifa en revisión: estos precios todavía no se usan con
   clientes»**. Brian dice lo mismo.
 - **Envíos › Lugares** (todo el equipo puede verla; solo Gerencia edita o archiva): la lista completa con el precio de
-  hoy. Se exporta a Excel con «Exportar» de Odoo (columna «Precio del envío»), para quien tiene el permiso «Exportar»
-  de Odoo (hoy los administradores; se le da a una persona en su ficha de usuario).
+  hoy. Se exporta a Excel con «Exportar» de Odoo (columna «Precio del envío») solo los administradores: Gerencia trae el
+  permiso «Exportar», pero desde el 2026-11-20 solo baja facturas y ventas (`dcasa_base/models/exportar.py`), no esta
+  lista.
 - **Envíos › Tarifa** (Gerencia y administradores): el mínimo, los dos precios de referencia («a A km cuesta $X» y «a
   B km cuesta $Y»), el redondeo, «cotizar aparte desde», los **cargos aparte** (viático, honorarios, peaje u otros),
   **subir o bajar todo en %** (±5 % con un toque), **Aprobar la tarifa** (queda quién y cuándo), el historial de cada
@@ -261,7 +262,7 @@ manda solo a choferes de confianza.
 | Editar o archivar un lugar | No | Sí | Sí |
 | Borrar un lugar | No | No (se archiva) | Sí |
 | Ver, cambiar y aprobar la tarifa; cargar el archivo | No | Sí | Sí |
-| Exportar la lista a Excel | Con el permiso «Exportar» de Odoo | Con el permiso «Exportar» | Sí |
+| Exportar la lista a Excel | No | No (Gerencia solo baja facturas y ventas; 2026-11-20) | Sí |
 | Ver, encender, copiar y cambiar el enlace para choferes | No | Sí | Sí |
 
 El servidor lo exige en cada llamada (no solo el menú): `_exigir_gerencia`, los permisos del modelo y, al agregar un
@@ -360,7 +361,8 @@ kilómetros y la provincia de un lugar solo los cambian Gerencia y los administr
   margen sobre Colón. Más allá, la calculadora (y Brian) dicen «Cotizar aparte». Lo cambió la dueña en Envíos › Tarifa;
   como todo cambio de la fórmula, la tarifa vuelve a «en revisión» hasta aprobarla otra vez.
 - **Bajar la lista a Excel:** decidido (2026-11-06): «es innecesario». La lista se ve en Envíos › Lugares; el «Exportar»
-  de Odoo queda solo para quien ya tiene ese permiso (los administradores) y no se agrega un botón propio.
+  de Odoo queda solo para los administradores (Gerencia lo trae desde el 2026-11-19, pero limitado a facturas y ventas:
+  esta lista no) y no se agrega un botón propio.
 - **La web:** encenderla cuando haya flota propia (pasos de arriba), con su «sí».
 - **Enlace para choferes:** hecho (2026-11-09), apagado de fábrica. Falta que Gerencia lo encienda y lo mande a los
   choferes; los precios salen cuando la tarifa esté aprobada.

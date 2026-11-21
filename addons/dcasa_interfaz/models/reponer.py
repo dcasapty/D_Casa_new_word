@@ -515,7 +515,10 @@ class DcasaReponer(models.AbstractModel):
         filas = self._calcular(meses, reserva, proveedor)
         desde, hasta = self._ventana(meses)
         salida = io.BytesIO()
-        libro = xlsxwriter.Workbook(salida, {'in_memory': True})
+        # Los nombres de productos y proveedores los escribe la gente: un nombre que empiece con «=», «+», «-» o «@» no
+        # puede salir como fórmula (ni como vínculo). El total de abajo es una fórmula explícita (write_formula).
+        libro = xlsxwriter.Workbook(salida, {'in_memory': True, 'strings_to_formulas': False,
+                                             'strings_to_urls': False})
         formatos = {
             'titulo': libro.add_format({'bold': True, 'font_size': 14, 'font_color': '#1340B1'}),
             'nota': libro.add_format({'italic': True, 'font_color': '#44506A'}),

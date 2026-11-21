@@ -24,7 +24,8 @@ class TestRoles(TransactionCase):
         for xmlid in ('sales_team.group_sale_salesman_all_leads', 'sales_team.group_sale_manager',
                       'account.group_account_user', 'account.group_account_readonly',
                       'stock.group_stock_manager', 'purchase.group_purchase_user', 'base.group_system',
-                      'base.group_erp_manager', 'dcasa_base.group_gerencia', 'dcasa_base.group_caja'):
+                      'base.group_erp_manager', 'dcasa_base.group_gerencia', 'dcasa_base.group_caja',
+                      'base.group_allow_export'):
             self.assertNotIn(self.env.ref(xmlid), implicados, xmlid)
 
     def test_caja_factura_y_cobra_todo_sin_contabilidad(self):
@@ -37,7 +38,7 @@ class TestRoles(TransactionCase):
             self.assertIn(self.env.ref(xmlid), implicados, xmlid)
         for xmlid in ('sales_team.group_sale_manager', 'account.group_account_user', 'account.group_account_readonly',
                       'account.group_account_manager', 'stock.group_stock_manager', 'purchase.group_purchase_user',
-                      'base.group_system', 'dcasa_base.group_gerencia'):
+                      'base.group_system', 'dcasa_base.group_gerencia', 'base.group_allow_export'):
             self.assertNotIn(self.env.ref(xmlid), implicados, xmlid)
         # No se le asigna a nadie al instalar: lo decide la dueña (Gerencia la incluye, pero no cuenta).
         gerencia = self.env.ref('dcasa_base.group_gerencia')
@@ -60,7 +61,8 @@ class TestRoles(TransactionCase):
         for xmlid in ('dcasa_base.group_vendedora', 'dcasa_base.group_caja', 'sales_team.group_sale_manager',
                       'account.group_account_user',
                       'account.group_account_invoice', 'stock.group_stock_manager',
-                      'purchase.group_purchase_manager', 'product.group_product_manager'):
+                      'purchase.group_purchase_manager', 'product.group_product_manager',
+                      'base.group_allow_export'):
             self.assertIn(self.env.ref(xmlid), implicados, xmlid)
         for xmlid in ('base.group_system', 'base.group_erp_manager', 'account.group_account_manager'):
             self.assertNotIn(self.env.ref(xmlid), implicados, xmlid)

@@ -69,6 +69,7 @@ Todo el contenido de las páginas es editable con el constructor de Odoo
         'views/opiniones_templates.xml',
         'views/buscador_templates.xml',
         'views/nombres_cliente_templates.xml',
+        'views/pago_templates.xml',
         'data/seo_data.xml',
         'data/black_weekend_data.xml',
         'data/ir_cron_data.xml',
@@ -81,6 +82,7 @@ Todo el contenido de las páginas es editable con el constructor de Odoo
         'web.assets_frontend': [
             'website_dcasa/static/src/scss/fuentes.scss',
             'website_dcasa/static/src/scss/dcasa.scss',
+            'website_dcasa/static/src/scss/pago.scss',
             'website_dcasa/static/src/js/animaciones.js',
             'website_dcasa/static/src/js/carrito.js',
             'website_dcasa/static/src/js/carril.js',

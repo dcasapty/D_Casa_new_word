@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- «Reponer» (Compras › Reponer): reponer.js. Las cifras vienen del servidor (dcasa.reponer.obtener). -->
+<!-- «Reponer» (Compras › Reponer): reponer.js. Las cifras vienen del servidor (dcasa.reponer.obtener). Los contadores
+     de arriba llevan «o_dcasa_sube»: suben hasta su valor (cifras_que_suben.js) y, al cambiar de proveedor o de meses,
+     desde el valor anterior. El texto de la etiqueta es siempre el valor final. -->
 <templates xml:space="preserve">
     <t t-name="dcasa_interfaz.Reponer">
-        <div class="o_action o_dcasa_reponer">
+        <div class="o_action o_dcasa_reponer" t-ref="raiz">
             <t t-set="d" t-value="state.datos"/>
             <header class="o_dcasa_reponer_cabeza">
                 <div>
@@ -160,12 +162,12 @@
                         </p>
                         <t t-else="">
                             <div class="o_dcasa_reponer_resumen">
-                                <span class="o_dcasa_reponer_cuenta o_cuenta_ya"><strong t-out="d.resumen.ya"/> para pedir ya</span>
-                                <span t-if="d.resumen.pedir" class="o_dcasa_reponer_cuenta o_cuenta_pedir"><strong t-out="d.resumen.pedir"/> para pedir</span>
-                                <span t-if="d.resumen.falta" class="o_dcasa_reponer_cuenta o_cuenta_falta"><strong t-out="d.resumen.falta"/> sin tiempo de llegada</span>
-                                <span t-if="d.resumen.sin_proveedor" class="o_dcasa_reponer_cuenta o_cuenta_falta"><strong t-out="d.resumen.sin_proveedor"/> sin proveedor</span>
-                                <span t-if="d.resumen.alcanza" class="o_dcasa_reponer_cuenta"><strong t-out="d.resumen.alcanza"/> <t t-out="d.resumen.alcanza === 1 ? 'alcanza' : 'alcanzan'"/></span>
-                                <span class="o_dcasa_reponer_cuenta o_cuenta_total">En total, pedir <strong t-out="numero(d.unidades)"/> unidades</span>
+                                <span class="o_dcasa_reponer_cuenta o_cuenta_ya"><strong class="o_dcasa_sube" data-formato="entero" t-att-data-valor="d.resumen.ya" t-out="numero(d.resumen.ya)"/> para pedir ya</span>
+                                <span t-if="d.resumen.pedir" class="o_dcasa_reponer_cuenta o_cuenta_pedir"><strong class="o_dcasa_sube" data-formato="entero" t-att-data-valor="d.resumen.pedir" t-out="numero(d.resumen.pedir)"/> para pedir</span>
+                                <span t-if="d.resumen.falta" class="o_dcasa_reponer_cuenta o_cuenta_falta"><strong class="o_dcasa_sube" data-formato="entero" t-att-data-valor="d.resumen.falta" t-out="numero(d.resumen.falta)"/> sin tiempo de llegada</span>
+                                <span t-if="d.resumen.sin_proveedor" class="o_dcasa_reponer_cuenta o_cuenta_falta"><strong class="o_dcasa_sube" data-formato="entero" t-att-data-valor="d.resumen.sin_proveedor" t-out="numero(d.resumen.sin_proveedor)"/> sin proveedor</span>
+                                <span t-if="d.resumen.alcanza" class="o_dcasa_reponer_cuenta"><strong class="o_dcasa_sube" data-formato="entero" t-att-data-valor="d.resumen.alcanza" t-out="numero(d.resumen.alcanza)"/> <t t-out="d.resumen.alcanza === 1 ? 'alcanza' : 'alcanzan'"/></span>
+                                <span class="o_dcasa_reponer_cuenta o_cuenta_total">En total, pedir <strong class="o_dcasa_sube" data-formato="unidades" t-att-data-valor="d.unidades" t-out="numero(d.unidades)"/> unidades</span>
                             </div>
                             <div class="o_dcasa_reponer_vista" role="group" aria-label="Cómo ver la lista">
                                 <button type="button" aria-pressed="true" t-if="state.vista === 'urgencia'"

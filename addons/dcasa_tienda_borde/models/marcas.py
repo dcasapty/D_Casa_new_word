@@ -328,3 +328,26 @@ class DcasaPortadaDiapositiva(models.Model):
         resultado = super().unlink()
         _marcar(self.env, [0], 'carrusel de la portada')
         return resultado
+
+
+class DcasaPortadaAjustes(models.Model):
+    """Los segundos que dura cada foto del hero (website_dcasa, models/portada.py): van en el HTML de la portada que
+    guarda el borde, así que cambiarlos la regenera (como elegir o reordenar sus productos)."""
+    _inherit = 'dcasa.portada.ajustes'
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        registros = super().create(vals_list)
+        _marcar(self.env, [0], 'carrusel de la portada')
+        return registros
+
+    def write(self, vals):
+        resultado = super().write(vals)
+        if {'segundos', 'website_id'} & set(vals):
+            _marcar(self.env, [0], 'carrusel de la portada')
+        return resultado
+
+    def unlink(self):
+        resultado = super().unlink()
+        _marcar(self.env, [0], 'carrusel de la portada')
+        return resultado

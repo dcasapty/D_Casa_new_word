@@ -21,7 +21,10 @@ if [[ $# -gt 0 ]]; then
 else
   MODULES="$(find "$ROOT/addons" -mindepth 2 -maxdepth 2 -name __manifest__.py -printf '%h\n' | xargs -n1 basename | sort | paste -sd, -)"
 fi
-TEST_TAGS="${TEST_TAGS:-$(tr ',' '\n' <<<"$MODULES" | sed 's#^#/#' | paste -sd, -)}"
+# La etiqueta «/módulo» de Odoo se confunde con la ruta de un archivo .py cuando el nombre termina en «?py» (su expresión
+# regular deja el punto de «.py» sin escapar): con «/dcasa_pago_yappy» NO corre ninguna prueba y nadie se entera. Para esos
+# módulos se usa la etiqueta simple «módulo» (Odoo también etiqueta cada prueba con el nombre de su módulo).
+TEST_TAGS="${TEST_TAGS:-$(tr ',' '\n' <<<"$MODULES" | awk '{ print ($0 ~ /..py$/ ? $0 : "/" $0) }' | paste -sd, -)}"
 
 export PGPASSWORD="$DB_PASSWORD"
 dropdb --if-exists -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" "$DB_NAME"

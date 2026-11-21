@@ -85,6 +85,23 @@ class TestMarcasDeCambio(TransactionCase):
         diapositiva.unlink()
         self.assertIn(0, self._marcados())
 
+    def test_los_segundos_del_carrusel_de_la_portada_regeneran_todo(self):
+        """Los segundos que dura cada foto del hero van en el HTML de la portada: crear o cambiar los ajustes del
+        carrusel (website_dcasa, models/portada.py) la regenera, y también quitarlos o agregar un producto."""
+        sitio = self.env['website'].search([], limit=1)
+        Ajustes = self.env['dcasa.portada.ajustes']
+        ajustes = Ajustes.create({'website_id': sitio.id, 'segundos': 3})
+        self.assertIn(0, self._marcados(), 'crear los ajustes')
+        self.Pendiente.search([]).unlink()
+        ajustes.segundos = 2
+        self.assertIn(0, self._marcados(), 'cambiar los segundos')
+        self.Pendiente.search([]).unlink()
+        ajustes.write({'diapositiva_ids': [(0, 0, {'product_tmpl_id': self.producto.id})]})
+        self.assertIn(0, self._marcados(), 'y agregar un producto al carrusel desde la pantalla de los ajustes')
+        self.Pendiente.search([]).unlink()
+        ajustes.unlink()
+        self.assertIn(0, self._marcados(), 'quitar los ajustes')
+
     def test_vista_que_no_es_del_sitio_no_marca(self):
         vista = self.env['ir.ui.view'].create({
             'name': 'Vista formulario marcas', 'type': 'form', 'model': 'res.partner',
