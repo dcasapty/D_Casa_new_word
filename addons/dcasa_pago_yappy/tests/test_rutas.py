@@ -27,6 +27,8 @@ from .common import (
     firmar,
 )
 
+LOGGER_DEL_AVISO = 'odoo.addons.dcasa_pago_yappy.controllers.main'
+
 
 class ChoqueDeSerializacion(SerializationFailure):
     """El error de PostgreSQL cuando otra transacción ganó la fila (con su código: es lo que Odoo mira para repetir)."""
@@ -313,7 +315,11 @@ class TestAviso(BaseHttp):
             'sin parámetros': {},
             'firmado con otra clave': aviso_de(orden, 'E', hash=firmar(orden, 'E', clave='otra-clave')),
         }
-        respuestas = {nombre: self.ipn(parametros) for nombre, parametros in casos.items()}
+        # Un aviso rechazado queda en el registro del servidor a nivel ERROR (a propósito: es lo que ve quien opera).
+        # Aquí se comprueba que queda, y así no ensucia el registro (el CI cuenta como falla toda línea ERROR).
+        with self.assertLogs(LOGGER_DEL_AVISO, level='ERROR') as registro:
+            respuestas = {nombre: self.ipn(parametros) for nombre, parametros in casos.items()}
+        self.assertTrue(any('aviso rechazado' in linea for linea in registro.output), registro.output)
         for nombre, respuesta in respuestas.items():
             self.assertEqual(respuesta.status_code, 403, nombre)
         self.assertEqual(
@@ -498,8 +504,9 @@ class TestAviso(BaseHttp):
 
     def test_sin_las_claves_en_el_servidor_nada_se_acepta(self):
         _pedido, tx, _yappy = self.abrir_en_sesion()
-        with entorno(YAPPY_CLAVE_SECRETA=None):
+        with entorno(YAPPY_CLAVE_SECRETA=None), self.assertLogs(LOGGER_DEL_AVISO, level='ERROR') as registro:
             respuesta = self.ipn(aviso_de(tx.dcasa_yappy_orden, 'E'))
+        self.assertTrue(any('faltan las claves' in linea for linea in registro.output), registro.output)
         self.assertEqual(respuesta.status_code, 403)
         self.releer(tx)
         self.assertEqual(tx.state, 'pending')
@@ -513,7 +520,8 @@ class TestAviso(BaseHttp):
 
     def test_el_numero_de_confirmacion_no_decide_nada(self):
         _pedido, tx, _yappy = self.abrir_en_sesion()
-        respuesta = self.ipn(aviso_de(tx.dcasa_yappy_orden, 'E', hash='b' * 64, confirmationNumber='CONF-1'))
+        with self.assertLogs(LOGGER_DEL_AVISO, level='ERROR'):
+            respuesta = self.ipn(aviso_de(tx.dcasa_yappy_orden, 'E', hash='b' * 64, confirmationNumber='CONF-1'))
         self.assertEqual(respuesta.status_code, 403, 'un número de confirmación no reemplaza a la firma')
         respuesta = self.ipn(aviso_de(tx.dcasa_yappy_orden, 'R', confirmationNumber='CONF-2'))
         self.assertEqual(respuesta.status_code, 200)
