@@ -172,9 +172,11 @@ leer el celular de Yappy (un campo de Caja y superiores). No es un poder nuevo �
 **no se cambió el permiso** (RV7, R7-4): si la dueña no quiere que Nómina confirme cobros, hay que decidirlo y cambiar el chequeo; una
 prueba (`test_rv7.TestR74NominaEntraPorContabilidad`) fija la política de hoy y avisa si la implicación cambia. La vendedora, el
 usuario interno sin rol y el portal no pueden. Y la vendedora tampoco puede dejar «hecha» una transacción **escribiéndola
-directo** (R7-1; antes un `write` a `payment.transaction` lo permitía) **ni ligarle un cobro ajeno a un pedido o a una factura** (R8-1: la
-otra mitad de la misma relación, `sale.order.transaction_ids` y `account.move.transaction_ids`, seguía abierta hasta la tercera vuelta de
-revisión, RV8; §14). La transacción es hoy de solo el sistema y Caja: quien no cobra no escribe **nada** ni crea (R8-2, R8-6).
+directo** (R7-1; antes un `write` a `payment.transaction` lo permitía), ni **ligarle un cobro ajeno a un pedido o a una factura** (la otra
+mitad de la misma relación, `sale.order.transaction_ids` y `account.move.transaction_ids`): eso tardó **tres vueltas de revisión** en
+cerrarse del todo (el `write` en R8-1; en R9-1 y R9-2, el `default_transaction_ids` del contexto y el recibo creado a mano con el cobro
+ligado; §14), ni devolverla, capturarla o anularla (R9-3). La transacción es hoy de solo el sistema y Caja: quien no cobra no escribe
+**nada** ni crea (R8-2, R8-6).
 
 **Qué acepta el botón:** una transacción **que Yappy recibió** (pendiente, o con el identificador que Yappy da al crear la orden). Un
 borrador con orden y **sin ese identificador** es un cobro que se cortó a mitad de abrirse (o los segundos en que se está llamando a
@@ -508,8 +510,9 @@ exactos de la última corrida están en la bitácora
   orden entró?» sin decirlos). Lo que bajaría el riesgo casi sin costo: (a) una nota o actividad «Caja confirmó a mano» para
   Gerencia, (b) ese filtro, (c) que el cuadro diga la orden y el monto («¿ya viste $107.00 en la orden S00417…?», un cambio visual:
   capturas antes/después), (d) pedir el número de confirmación. Cada una la decide la dueña; **no se construyó ninguna**. Con el
-  hueco de R7-1 **y su otra mitad (R8-1)** cerrados, estos controles ya no se saltan escribiendo la transacción, el pedido o la
-  factura.
+  hueco de R7-1 y los de su otra mitad (R8-1, R9-1, R9-2) cerrados, estos controles ya no se saltan escribiendo la transacción, el pedido o
+  la factura **por los caminos que se han probado** (la lista de lo intentado está en la tabla RV8 y RV8b); no es una garantía de que no
+  exista otro: la revisión independiente ya encontró dos que faltaban.
 - **Un cobro suelto de otro pedido del mismo cliente** (RV7, R7-5; RV8, R8-3): la regla que cuenta un cobro sin factura en el diario
   Yappy como «dinero de otra vía» mira al **cliente**, no al pedido (un cobro suelto no dice a cuál pedido pertenece). Si el mismo cliente
   tiene otro cobro suelto en la ventana, el aviso va a revisión: una persona mira. Falla del lado seguro (nunca un segundo cobro). Lo que
@@ -560,13 +563,28 @@ prueba cae sin el arreglo (mutación hecha a propósito). El revisor no encontr�
 
 | | Qué era | Qué se hizo |
 |---|---|---|
-| R8-1 | **Dinero y permisos (la importante).** R7-1 cerró `payment.transaction.write` pero dejó abierta la OTRA mitad de la misma tabla de relación: la vendedora escribía `sale.order.transaction_ids` y `account.move.transaction_ids` y ligaba un cobro ajeno a un pedido (Bodega lo veía «pagado» o «abono» y soltaba la mercancía sin cobrar), lo aplicaba a la factura de otro cliente (cuando Caja la publicaba, quedaba pagada con el dinero de otro) o soltaba el cobro de su propio pedido (el pago se escondía y el apartado nocturno anulaba un pedido pagado) | `dcasa_base/models/cobros.py`: `transaction_ids` en `write` de `sale.order` y `account.move`, y en `create` de `sale.order`, se niega a quien no cobra (`sudo` pasa). **El `create` de la factura no lleva la regla, a propósito:** `sale._create_invoices` (que manda los cobros del propio pedido con `Command.set`) corre con `sudo` y la vendedora sigue creando la factura de un pedido ya cobrado, con su cobro (prueba); y crearla a mano con el cobro de otro ya lo cierran otras dos reglas de `dcasa_base` (quien no cobra no hace facturas sueltas; nadie escribe a mano el enlace con las líneas del pedido), también con prueba |
+| R8-1 | **Dinero y permisos (la importante).** R7-1 cerró `payment.transaction.write` pero dejó abierta la OTRA mitad de la misma tabla de relación: la vendedora escribía `sale.order.transaction_ids` y `account.move.transaction_ids` y ligaba un cobro ajeno a un pedido (Bodega lo veía «pagado» o «abono» y soltaba la mercancía sin cobrar), lo aplicaba a la factura de otro cliente (cuando Caja la publicaba, quedaba pagada con el dinero de otro) o soltaba el cobro de su propio pedido (el pago se escondía y el apartado nocturno anulaba un pedido pagado) | `dcasa_base/models/cobros.py`: `transaction_ids` en `write` de `sale.order` y `account.move`, y en `create` de `sale.order` (mirando `vals`), se niega a quien no cobra (`sudo` pasa). **Incompleto:** esta vuelta decidió NO poner guardia en el `create` de la factura, con un argumento que resultó falso (RV8b, R9-2), y el `create` del pedido miraba solo `vals` (R9-1); ver la tabla siguiente |
 | R8-2 | La lista negra no era completa: la vendedora escribía `partner_id` (a quién se le acredita el dinero), `landing_route` (el navegador de la clienta hace `window.location = landing_route`: un `javascript:…` se ejecutaba en su sesión), `state_message` (lo que lee la clienta), `company_id`, `payment_method_id`, `token_id`, `tokenize`, `partner_*`… | **Lista blanca vacía:** quien no cobra no escribe NADA en la transacción (ningún flujo legítimo de quien no cobra lo hace; todo corre con `sudo`: lo confirman las 1,980 pruebas del revisor sobre `2e23d3a` y la corrida completa de esta vuelta, y una mutación —la regla «también contra `sudo`»— tumba 35 pruebas de la tienda y del aviso) |
 | R8-6 | `payment.transaction.create` se negaba por casualidad (leer el proveedor es de administrador; con la caché «tibia» el mismo `create` pasaba) | La propia regla niega el `create` a quien no cobra; prueba con caché tibia y fría |
 | R8-3 | El pendiente del cobro suelto de OTRO pedido decía «no hay nada más que hacer» y a la clienta se le decía «ya figuraba como pagado» sin ser cierto | **Solo texto** (arriba, «Límites conocidos»): las dos salidas, el qué hacer, y un mensaje honesto a la clienta; comparar el monto se valoró y no se hizo |
 | R8-4 | El pendiente de 15 minutos copiaba, sin límite y pegado a la instrucción, el nombre, el celular y los valores personalizados de producto que escribió la clienta | `resumen.cita`: entre comillas, en una línea, sin comillas propias y recortado a 60 caracteres. La nota del pedido (`nota_de_pago`) sigue con el texto completo: ahí es información, no una frase de instrucción |
 | R8-5 | El gancho `_dcasa_apartado_en_pausa` puede sostener un apartado, pero cuesta abrir un cobro cada noche | **Aceptable** (no se hizo nada): una vez por noche, entre las 06:45 y las 07:00 UTC, con los topes de §4 |
 | R8-7 | Textos que prometían de más: §3.4 «ninguna vendedora puede… por otro camino», §14 «estos controles ya no se saltan», PERMISOS.md «los pedidos y facturas ligados», y un comentario del pendiente con «esta frase» sin ninguna | Corregidos (§3.4, §14, PERMISOS.md y el texto del pendiente). La Guía ya coincidía con el código |
+
+**Qué arregló la quinta vuelta (RV8b, revisión independiente del commit `492fe22`)** — cada punto con su prueba y su mutación. El revisor
+confirmó que los 12 hallazgos anteriores quedaron cerrados por el camino que decía el commit y no encontró ninguna regresión, pero halló **dos
+puertas más en R8-1** y tres menores. Lo que se había escrito de «cerrado» en la vuelta anterior era demasiado: esta tabla lo corrige.
+
+| | Qué era | Qué se hizo |
+|---|---|---|
+| R9-1 | **Dinero (media-alta).** El `create` del pedido miraba `vals` pero no `default_transaction_ids` del contexto (por RPC cualquiera manda el contexto; Odoo lo aplica DESPUÉS de mirar lo que llega a `create`). La vendedora creaba un pedido con un cobro ajeno ligado y Bodega lo veía «pagada» y validaba la entrega sin cobrar. Es la misma trampa que `enlace_factura.py` ya documentaba para `sale_line_ids` | Se mira lo que el pedido trae **después de crear**: si quien lo creó no cobra y trae cobros, se niega (`sudo` pasa; la tienda y el sistema no se afectan) |
+| R9-2 | **Dinero (media).** Crear la factura a mano con el cobro ligado SÍ se podía: `AccountMove.create` no tenía guardia y la regla «quien no cobra no hace facturas sueltas» solo mira `out_invoice`, no `out_receipt`; el recibo se volvía factura con `write(move_type='out_invoice')` (sin guardia) y, al publicarla Caja, el cobro de A se conciliaba con la factura suelta de C. También `write(move_type='out_refund')` creaba una nota de crédito en borrador sin Gerencia | La misma comprobación posterior en `AccountMove.create` (documento creado por quien no cobra que trae cobros: se niega; `sale._create_invoices` crea con `sudo` y no se afecta: prueba) y guardia de `write` sobre `move_type`: cambiar el tipo de un documento de cliente es de Caja o Gerencia, y todo lo que toque una nota de crédito, de Gerencia (A7) |
+| R9-3 | `action_refund` (core) corre con `sudo` después de mirar solo el ACL: la vendedora creaba una transacción hija «R-…» de −107.00 (basura visible, no dinero) | `action_refund`, `action_capture` y `action_void` se niegan a quien no cobra (misma regla que el resto de la transacción) |
+| R9-4 | `resumen.cita` dejaba pasar caracteres de formato (U+202E, U+2066, U+200B, U+FEFF): un RLO reordena en pantalla el resto del párrafo del pendiente (deducido de la norma Unicode, no medido en pantalla) | `cita` quita las categorías Unicode `Cf` y `Cc` |
+| R9-5 | Textos que prometían de más (docstring de `cobros.py`, §3.4 y §14 de este documento, PERMISOS.md, la bitácora y una lección de CONTEXTO_AGENTICO que decía que «otras dos reglas» cerraban el `create` de la factura) | Corregidos. La lección decía que «la mutación no distinguía el guardia»: en realidad solo se probó con `out_invoice`; con `out_receipt` el guardia sí se distingue |
+
+**Lo que NO se cambió de esta revisión:** las dos pruebas intermitentes de Chrome de `website_dcasa` (`test_pago_celular`), que ya existían y
+fallan igual sin pagos en línea.
 
 ## 15. Preguntas para Yappy y Cloudflare (lista para la dueña)
 

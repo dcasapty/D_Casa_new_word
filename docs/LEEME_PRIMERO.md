@@ -110,6 +110,26 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 > sigue. Se guardan las diez más recientes; las viejas se resumen en una línea abajo y su texto completo pasa a
 > [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md).
 
+### 2026-11-21 (tercera ronda): Yappy directo, quinta vuelta (RV8b): R9-1 a R9-5 arreglados o documentados. En `local/rv7-arreglos` (sobre `f81d669`), SIN subir y SIN desplegar
+
+El revisor RV8b atacó `492fe22`: los 12 hallazgos de la vuelta anterior quedaron cerrados, sin regresiones, **pero el cierre de R8-1 estaba incompleto** (dos puertas más). Detalle y
+tabla en [YAPPY.md](YAPPY.md) §14; cada punto con su prueba y su mutación:
+
+- **R9-1:** el `create` del pedido miraba `vals` y no `default_transaction_ids` del contexto (Odoo lo aplica después): la vendedora creaba un pedido con un cobro ajeno y Bodega
+  lo veía pagado. Ahora se mira lo que el pedido trae **después de crear**. **R9-2:** crear a mano un recibo (`out_receipt`) con el cobro de otro SÍ se podía (la regla «quien no
+  cobra no hace facturas sueltas» solo mira `out_invoice`) y luego `write(move_type='out_invoice')` lo volvía factura: ahora la misma comprobación posterior en `AccountMove.create`
+  y una guardia sobre `move_type` (cambiar el tipo de un documento de cliente es de Caja o Gerencia; lo que toque una nota de crédito, de Gerencia). **`sale._create_invoices` crea con
+  `sudo` y no se afecta** (la prueba «la vendedora sigue creando la factura de un pedido ya cobrado» sigue en verde). **R9-3:** `action_refund`, `action_capture` y `action_void`
+  (core, corren con `sudo` tras mirar solo el ACL) se niegan a quien no cobra. **R9-4:** `resumen.cita` quita los caracteres de formato y de control (`Cf`, `Cc`). **R9-5:** los
+  textos que prometían de más, corregidos (incluida la lección de CONTEXTO_AGENTICO que decía que «otras dos reglas» cerraban el `create` de la factura: solo se había probado con
+  `out_invoice`).
+- **Dos cosas nuevas que costaron corridas de CI** (anotadas en CONTEXTO_AGENTICO): `scripts/test.sh` cuenta como falla toda línea de registro ERROR/CRITICAL aunque Odoo diga «0
+  failed» (las pruebas que provocan un error a propósito lo capturan con `assertLogs`), y el CI usa Python 3.12 (no 3.11 como esta máquina).
+- **Pruebas** (base nueva con los 32 módulos, `-u` de los módulos tocados): `dcasa_base` 450, `website_dcasa` 499, `dcasa_pago_yappy` 425 (con Chrome), `dcasa_pago_tilopay` 347 y
+  `dcasa_guia` 97: **0 rojas, 0 con error y 0 líneas ERROR/CRITICAL** (contadas con la misma expresión regular que `scripts/test.sh` y el CI) en Python 3.11. Las mismas 1,404 pruebas corridas
+  también con Python 3.12 (el del CI; entorno propio armado con los requisitos de Odoo): 0 rojas, 0 con error, 0 líneas ERROR. `ruff check addons` limpio. 6 mutaciones de esta vuelta, todas caen. No hace falta `-u` de
+  ningún módulo nuevo al desplegar (todo es Python; sin campos ni datos nuevos).
+
 ### 2026-11-20 (noche, segunda ronda): Yappy directo, cuarta vuelta (RV8): R8-1 a R8-7 arreglados o documentados. En `local/rv7-arreglos` (sobre `2e23d3a`), SIN subir y SIN desplegar
 
 El revisor independiente RV8 atacó `2e23d3a` y dijo: staging apagado, sí; encender en prueba, sí; cobrar de verdad, todavía no. Sin ninguna regresión (ningún
@@ -118,9 +138,9 @@ arreglo a propósito:
 
 - **R8-1 (la importante):** R7-1 había cerrado la transacción pero no **la otra mitad de la misma relación**: la vendedora escribía `sale.order.transaction_ids` y
   `account.move.transaction_ids` y ligaba un cobro ajeno a un pedido (Bodega lo veía pagado y soltaba la mercancía), lo aplicaba a la factura de otro cliente o escondía
-  un pago. Ahora `transaction_ids` se niega a quien no cobra en `write` de pedido y factura y en `create` de pedido (`dcasa_base/models/cobros.py`). **El `create` de la
-  factura no se tocó a propósito:** `sale._create_invoices` (con los cobros del propio pedido) corre con `sudo`, y crearla a mano con el cobro de otro ya lo cierran
-  otras dos reglas de `dcasa_base`; una prueba fija las tres cosas. **R8-2 y R8-6:** la transacción pasa de lista negra a **lista blanca vacía** (quien no cobra no escribe
+  un pago. Ahora `transaction_ids` se niega a quien no cobra en `write` de pedido y factura y en `create` de pedido (`dcasa_base/models/cobros.py`).
+  **Incompleto:** el `create` del pedido miraba solo `vals` y el `create` de la factura se había dejado sin guardia con un argumento falso: la vuelta siguiente (RV8b,
+  abajo) cerró las dos puertas que faltaban. **R8-2 y R8-6:** la transacción pasa de lista negra a **lista blanca vacía** (quien no cobra no escribe
   NADA ni crea; antes escribía `partner_id`, `landing_route` —un `javascript:` en el navegador de la clienta— y `state_message`; y el `create` solo se negaba por casualidad).
 - **R8-3 (solo texto):** cuando el cobro suelto es de OTRO pedido del mismo cliente, el pendiente de Caja dice las dos salidas («confirma ESTE pedido a mano y registra su pago»)
   y a la clienta ya no se le dice «tu pedido ya figuraba como pagado» si no se sabe. **Se valoró comparar el monto y no se hizo** (no distingue un cobro parcial de este pedido

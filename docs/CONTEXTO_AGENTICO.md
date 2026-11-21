@@ -1826,13 +1826,27 @@ Lo que quedó escrito para no repetirlo:
   (el navegador de la clienta hace `window.location = landing_route`: un `javascript:` corría en su sesión), `state_message` y otros. Si
   ningún flujo legítimo de quien no cobra escribe ahí (todo corre con `sudo`), se niega TODO y se acabó la lista. Se comprobó que ninguna
   prueba legítima se rompe.
-- **No negar el `create` de `account.move` a ciegas: se comprobó que no hacía falta.** `sale._create_invoices` manda los cobros del propio
-  pedido (`Command.set`) y crea la factura **con `sudo`** (comentario del propio Odoo: la vendedora factura sin derechos de facturación),
-  y crearla a mano con el cobro de otro ya lo cierran dos reglas de `dcasa_base` (quien no cobra no hace facturas sueltas, `cobros.py`; nadie
-  escribe a mano `sale_line_ids`, `enlace_factura.py`: una factura con líneas del pedido da `UserError`). Se probó primero un guardia en
-  el `create` y la mutación NO lo distinguía de las otras dos reglas (siempre caía otra antes): se quitó. Quedan pruebas que fijan las
-  tres cosas (la vendedora crea la factura de un pedido cobrado y sale con su cobro; crear a mano con el cobro de otro se niega) y una
-  mutación (la regla «también contra `sudo`») que tumba lo primero.
+- **El `create` de `account.move` SÍ necesitaba guardia (se corrige un error de la vuelta anterior).** En RV8 se escribió aquí que «crearla a mano con
+  el cobro de otro ya lo cierran dos reglas» y que «la mutación no distinguía el guardia (siempre caía otra antes)»: **solo se había probado con
+  `out_invoice`**. La regla «quien no cobra no hace facturas sueltas» mira solo `out_invoice`; con un recibo de venta (`out_receipt`) y el cobro ligado
+  la creación pasaba, y luego `write(move_type='out_invoice')` (sin guardia) lo volvía factura y, al publicarla Caja, Odoo conciliaba el cobro ajeno
+  con ella (RV8b, R9-2). Lección: **al decidir que una guarda es redundante, probar TODOS los valores del campo que la regla vecina filtra** (aquí
+  `move_type`: `out_invoice`, `out_receipt`, `out_refund`), no solo el caso a mano. El miedo de «romper `sale._create_invoices`» era infundado:
+  crea la factura con `sudo` (comentario del propio Odoo: la vendedora factura sin derechos de facturación) y `sudo` pasa la guarda; lo prueba la
+  prueba «la vendedora crea la factura de un pedido cobrado y sale con su cobro» y la mutación «la guarda también contra `sudo`» la tumba.
+- **Un `default_<campo>` del contexto no pasa por `vals`** (por RPC cualquiera manda el contexto; Odoo lo aplica al crear, después de mirar lo que llega
+  al `create`). Una guarda en `create` que mira `vals` se salta con `with_context(default_transaction_ids=[...])`. `enlace_factura.py` ya lo documentaba
+  para `sale_line_ids`; la guarda de `transaction_ids` del pedido no lo hizo (R9-1). Regla: **comprobar DESPUÉS de crear, mirando lo que el registro
+  trae**, no solo `vals`.
+- **Los métodos PÚBLICOS del core que corren con `sudo` después de mirar solo el ACL** (`payment.transaction.action_refund`, `action_capture`, `action_void`)
+  se saltan una regla de `write`/`create`: hay que sobrescribirlos y negarlos aparte (R9-3), y anotarlos en `LISTA_BLANCA` de `test_superficie_rpc`.
+- **`scripts/test.sh` y el CI cuentan como FALLA toda línea de registro con nivel ERROR o CRITICAL** (regex `^[0-9-]+ [0-9:,]+ [0-9]+ (ERROR|CRITICAL) `),
+  aunque Odoo diga «0 failed». Una prueba que provoca un error a propósito (un aviso rechazado, que el controlador escribe a nivel ERROR) debe
+  capturarlo con `assertLogs` (y comprobar el mensaje). Al terminar, correr los módulos con `odoo-bin` y contar esas líneas con la misma regex: tiene que dar 0.
+- **El CI usa Python 3.12 y esta máquina 3.11** (hay `/usr/bin/python3.12`): una prueba que dependa de QUÉ excepción lanza Python (`dict[:10]` da `TypeError` en 3.11
+  y `KeyError` en 3.12) pasa aquí y falla allá. Evitarlo.
+- **Caracteres invisibles en un archivo de prueba:** escribirlos tal cual, o con `\uXXXX` por una herramienta que decodifica las secuencias, deja caracteres de
+  formato REALES en el archivo (ruff los marca: PLE2502/PLE2515, y no se ven al revisar). Se arman con `chr(0x202E)`.
 - **TRAMPA de las pruebas de permisos: bajar la caché antes de cada intento del usuario sin permiso** (`env.flush_all();
   env.invalidate_all()`). Con la caché «tibia» (el proveedor ya leído por otro usuario en la misma transacción de la prueba) el ORM no
   vuelve a revisar el permiso del comodelo y un `create` prohibido PASA; en una petición real la caché está fría. Esto engañó incluso al

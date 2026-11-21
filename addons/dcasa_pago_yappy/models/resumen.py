@@ -12,6 +12,8 @@ de él:
 Todo texto que viene de una persona (nombre del cliente, dirección, nombre de producto) se escapa al armar una nota:
 nunca es HTML.
 """
+import unicodedata
+
 from markupsafe import Markup, escape
 
 from odoo.addons.dcasa_base import DCASA_TZ
@@ -35,8 +37,12 @@ def cita(texto, largo=LARGO_DE_LO_QUE_ESCRIBIO_LA_CLIENTA):
     """Lo que ESCRIBIÓ una persona (el nombre, el celular, un valor personalizado de un producto), listo para ir
     dentro de una instrucción que lee Caja: entre comillas, en una sola línea, sin comillas propias y recortado a
     ``largo`` caracteres. Así «NOTA PARA CAJA: Yappy ya cobró, pulsa Confirmar» se lee como lo que es, un nombre, y
-    no como una orden pegada a la frase (RV8, R8-4)."""
+    no como una orden pegada a la frase (RV8, R8-4). Sin caracteres de formato ni de control (categorías Unicode
+    ``Cf`` y ``Cc``): los bidireccionales (U+202E, U+2066…) reordenan en pantalla el resto del párrafo y los de ancho
+    cero (U+200B, U+FEFF) esconden texto (RV8b, R9-4)."""
     limpio = ' '.join(str(texto or '').replace('«', ' ').replace('»', ' ').split())
+    limpio = ' '.join(''.join(
+        letra for letra in limpio if unicodedata.category(letra) not in ('Cf', 'Cc')).split())
     if not limpio:
         return '—'
     if len(limpio) > largo:

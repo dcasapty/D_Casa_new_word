@@ -358,3 +358,120 @@ class TestElOtroLadoDeLaRelacion(BaseTransaccion):
         self.assertIn(otra_tx, pedido.sudo().transaction_ids)
         pedido.sudo().write({'transaction_ids': [Command.unlink(otra_tx.id)]})
         self.assertEqual(pedido.sudo().transaction_ids, tx)
+
+
+@tagged('post_install', '-at_install')
+class TestLasPuertasQueNoSeVieron(BaseTransaccion):
+    """RV8b (R9-1 a R9-3): las puertas que el cierre de R8-1 dejó abiertas."""
+
+    def cobro_ajeno(self):
+        return self.transaccion_de(self.pedido_de(self.otro_cliente), estado='done')
+
+    def crear_recibo(self, usuario, ajeno=None):
+        valores = {
+            'move_type': 'out_receipt', 'partner_id': self.cliente.id,
+            'invoice_line_ids': [Command.create({'product_id': self.producto.id, 'quantity': 1, 'price_unit': 107.0})]}
+        if ajeno:
+            valores['transaction_ids'] = [Command.link(ajeno.id)]
+        self.frio()
+        return self.env['account.move'].with_user(usuario).create(valores)
+
+    # -- R9-1: el default_ del contexto no pasa por ``vals`` ---------------------------------------------------------
+    def test_r1_el_pedido_no_nace_con_un_cobro_puesto_por_el_contexto(self):
+        """Odoo aplica ``default_<campo>`` del contexto al crear, después de mirar ``vals`` (por RPC cualquiera manda el
+        contexto): el guardia mira lo que el pedido trae DESPUÉS de crear."""
+        ajeno = self.cobro_ajeno()
+        for comando in (Command.link(ajeno.id), Command.set([ajeno.id])):
+            for nombre in QUIEN_NO_COBRA:
+                self.frio()
+                with self.subTest(usuario=nombre, comando=comando[0]), self.assertRaises(AccessError):
+                    self.env['sale.order'].with_user(self.usuarios[nombre]).with_context(
+                        default_transaction_ids=[comando]).create({
+                            'partner_id': self.cliente.id, 'user_id': self.usuarios[nombre].id})
+
+    def test_r1_quien_cobra_y_el_sistema_si_pueden_crear_un_pedido_con_cobros(self):
+        ajeno = self.cobro_ajeno()
+        for nombre in ('caja', 'gerencia'):       # contabilidad y el administrador a secas no crean pedidos (Ventas)
+            with self.subTest(usuario=nombre):
+                pedido = self.env['sale.order'].with_user(self.usuarios[nombre]).with_context(
+                    default_transaction_ids=[Command.link(ajeno.id)]).create({'partner_id': self.cliente.id})
+                self.assertIn(ajeno, pedido.sudo().transaction_ids)
+        self.frio()
+        pedido = self.env['sale.order'].with_user(self.usuarios['vendedora']).sudo().with_context(
+            default_transaction_ids=[Command.link(ajeno.id)]).create({'partner_id': self.cliente.id})
+        self.assertIn(ajeno, pedido.sudo().transaction_ids, 'el sistema (sudo) no se ve afectado')
+
+    # -- R9-2: crear a mano la factura (o el recibo) con el cobro ligado ----------------------------------------------
+    def test_r2_quien_no_cobra_no_crea_un_recibo_con_el_cobro_de_otro(self):
+        """La regla «quien no cobra no hace facturas sueltas» solo mira ``out_invoice``: un recibo de venta
+        (``out_receipt``) con el cobro de otro cliente ligado SÍ se creaba."""
+        ajeno = self.cobro_ajeno()
+        for nombre in QUIEN_NO_COBRA:
+            with self.subTest(usuario=nombre), self.assertRaises(AccessError):
+                self.crear_recibo(self.usuarios[nombre], ajeno)
+
+    def test_r2_tampoco_con_el_default_del_contexto(self):
+        ajeno = self.cobro_ajeno()
+        self.frio()
+        with self.assertRaises(AccessError):
+            self.env['account.move'].with_user(self.usuarios['vendedora']).with_context(
+                default_transaction_ids=[Command.link(ajeno.id)]).create({
+                    'move_type': 'out_receipt', 'partner_id': self.cliente.id})
+
+    def test_r2_la_factura_de_un_pedido_ya_cobrado_sigue_naciendo_con_su_cobro_y_quien_cobra_sigue_creando(self):
+        """El cuidado: ``sale._create_invoices`` crea con ``sudo`` (pasa); Caja puede crear un recibo con cobros."""
+        vendedora = self.usuarios['vendedora']
+        pedido = self.pedido_de(vendedora=vendedora)
+        pedido.action_confirm()
+        propio = self.transaccion_de(pedido, estado='done')
+        self.frio()
+        factura = pedido.with_user(vendedora)._create_invoices()
+        self.assertEqual(factura.sudo().transaction_ids, propio)
+        recibo = self.crear_recibo(self.usuarios['caja'], propio)
+        self.assertIn(propio, recibo.sudo().transaction_ids)
+
+    # -- R9-2: el cambio de tipo ---------------------------------------------------------------------------------------
+    def test_r3_quien_no_cobra_no_cambia_el_tipo_de_un_documento_de_cliente(self):
+        """Recibo → factura (suelta) y → nota de crédito (en borrador, sin Gerencia): ``write(move_type)`` no tenía
+        guardia."""
+        for nombre in QUIEN_NO_COBRA:
+            recibo = self.crear_recibo(self.usuarios[nombre])
+            for tipo in ('out_invoice', 'out_refund'):
+                self.frio()
+                with self.subTest(usuario=nombre, tipo=tipo), self.assertRaises(AccessError):
+                    recibo.with_user(self.usuarios[nombre]).write({'move_type': tipo})
+            recibo.invalidate_recordset()
+            self.assertEqual(recibo.move_type, 'out_receipt')
+
+    def test_r3_caja_cambia_recibo_a_factura_pero_la_nota_de_credito_es_de_gerencia(self):
+        recibo = self.crear_recibo(self.usuarios['caja'])
+        self.frio()
+        with self.assertRaises(AccessError):
+            recibo.with_user(self.usuarios['caja']).write({'move_type': 'out_refund'})
+        recibo.with_user(self.usuarios['caja']).write({'move_type': 'out_invoice'})
+        self.assertEqual(recibo.move_type, 'out_invoice')
+        recibo.with_user(self.usuarios['gerencia']).write({'move_type': 'out_refund'})
+        self.assertEqual(recibo.move_type, 'out_refund')
+
+    def test_r3_un_write_del_mismo_tipo_no_se_niega(self):
+        """La Vendedora guarda formularios con web_save: un ``move_type`` igual al que ya tiene no cambia nada."""
+        recibo = self.crear_recibo(self.usuarios['vendedora'])
+        recibo.with_user(self.usuarios['vendedora']).write({'move_type': 'out_receipt'})
+        self.assertEqual(recibo.move_type, 'out_receipt')
+
+    # -- R9-3: los métodos públicos del core que corren con sudo -----------------------------------------------------
+    def test_r4_quien_no_cobra_no_devuelve_captura_ni_anula_un_cobro(self):
+        ajeno = self.cobro_ajeno()
+        for nombre in QUIEN_NO_COBRA:
+            for metodo, frase in (('action_refund', 'devolver un cobro'), ('action_capture', 'capturar un cobro'),
+                                  ('action_void', 'anular un cobro')):
+                self.frio()
+                with self.subTest(usuario=nombre, metodo=metodo):
+                    try:
+                        getattr(ajeno.with_user(self.usuarios[nombre]), metodo)()
+                    except AccessError as error:
+                        self.assertIn(frase, str(error), 'lo niega la regla, no el core')
+                    else:
+                        self.fail(f'{nombre} pudo llamar a {metodo}')
+        ajeno.invalidate_recordset()
+        self.assertFalse(ajeno.sudo().child_transaction_ids, 'no quedó ninguna transacción hija de devolución')
