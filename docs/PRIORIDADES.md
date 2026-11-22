@@ -20,6 +20,10 @@ cambio en el diseño me gustaría verlo antes»; ver LEEME_PRIMERO §2).
   antes, el año pasado o fechas): qué subió, bajó, se enfrió o está quieto, con unidades, pedidos, cuántos días alcanza lo que hay, gráfica, Excel y «Crear campaña con los primeros 8» (Camila),
   para decidir qué anunciar en publicidad y redes. **Programada y probada en la rama (`dcasa_marketing`, `dcasa_camila`, `dcasa_guia`), sin subir ni desplegar:** es una pantalla nueva, así que
   **primero las capturas antes/después y el «sí» de la dueña** (LEEME §2), junto con Rotación (van en el mismo lote). Detalle en [MOVIMIENTO.md](MOVIMIENTO.md). Para producción: `-u dcasa_marketing,dcasa_camila,dcasa_interfaz,dcasa_guia`.
+- **Nuevo (pedido del jefe, 2026-11-22): «Margen y rotación» dentro de Rotación.** Cuatro listas que cruzan lo que se vende con lo que deja cada venta (*Estrellas*, *Venden mucho, dejan poco*,
+  *Buen margen, se mueven poco*, *Ni se mueven ni dejan margen*); los cortes son la mediana de la propia tienda y la pantalla los escribe; solo Gerencia y administradores (usa el costo). **Programada y probada en
+  la rama, sin subir ni desplegar; va en el mismo lote** que Rotación y Movimiento (capturas y «sí» de la dueña primero). Detalle en [ROTACION.md](ROTACION.md) (punto 7).
+  **Falta del pedido del jefe:** mejorar las mediciones del Inicio (Dashboard): idea, «Lo más vendido» con su cambio contra los 30 días anteriores y una tarjeta de «parado 90 días o más» que abra Rotación.
 - **Lunes 2026-11-23 (de la dueña):** las claves de Tilopay y de Yappy Comercial en Cloudflare (nunca por el chat) y el «sí» para llevar los cierres R9 a producción. Luego, el informe
   para los jefes de todo lo hecho (con «Forma de pago» y su Excel, y lo más movido y lo más quieto, ya con Rotación).
 - «Operación Sun Tzu» (estrategia frente al competidor, con el plan «Caballo de Troya» por diseñar): documento **privado en Claude Docs**, no va al repositorio.

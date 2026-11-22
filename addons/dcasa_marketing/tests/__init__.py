@@ -6,3 +6,4 @@ from . import test_rotacion_navegador
 from . import test_scroll
 from . import test_movimiento
 from . import test_movimiento_navegador
+from . import test_rotacion_margen

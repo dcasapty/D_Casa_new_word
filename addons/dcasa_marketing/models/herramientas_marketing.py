@@ -110,7 +110,9 @@ class BrianHerramientasMarketing(models.AbstractModel):
         parametros={
             'grupo': {'type': 'string', 'enum': list(VISTAS),
                       'description': 'Qué ver: mas_de_30, mas_de_60, mas_de_90 (por defecto), mas_de_180 (días sin '
-                                     'vender), nunca, nuevo, abierto, ancla o todos.'},
+                                     'vender), nunca, nuevo, abierto, ancla o todos. Solo Gerencia: estrella (se '
+                                     'vende bien y deja buen margen), trafico (vende mucho, deja poco), oportunidad '
+                                     '(buen margen, se mueve poco) o revisar (ni se mueve ni deja margen).'},
             'categoria': {'type': 'string', 'description': 'Solo una categoría, p. ej. «Salas». Opcional.'},
             'orden': {'type': 'string', 'enum': list(ORDENES),
                       'description': 'capital, dias, rotacion, margen, cobertura o nombre. Sin dinero no hay capital '
@@ -129,8 +131,8 @@ class BrianHerramientasMarketing(models.AbstractModel):
         Rotacion = self.env['dcasa.rotacion']
         Rotacion._exigir()
         if grupo not in VISTAS:
-            raise BrianError('«grupo» es mas_de_30, mas_de_60, mas_de_90, mas_de_180, nunca, nuevo, abierto, ancla '
-                             'o todos.')
+            raise BrianError('«grupo» es mas_de_30, mas_de_60, mas_de_90, mas_de_180, nunca, nuevo, abierto, ancla, '
+                             'todos o (solo Gerencia) estrella, trafico, oportunidad o revisar.')
         try:
             limite = max(1, min(int(limite or 10), MAX_FILAS))
         except (TypeError, ValueError):
@@ -158,6 +160,8 @@ class BrianHerramientasMarketing(models.AbstractModel):
         if con_dinero:
             respuesta['capital_en_inventario'] = resumen['capital']
             respuesta['capital_parado_90_dias_o_mas'] = resumen['capital_parado_90']
+            if datos.get('cortes'):
+                respuesta['cortes_de_margen_y_rotacion'] = datos['cortes']['texto']
             respuesta['parte_del_capital_parada'] = resumen['parte_parada_90']
             if resumen['sin_costo']:
                 respuesta['aviso'] = (f"{resumen['sin_costo']} productos con existencias no tienen costo cargado: su "
@@ -184,7 +188,8 @@ class BrianHerramientasMarketing(models.AbstractModel):
             datos['pedido_abierto_unidades'] = c.cantidad(fila['pedido_abierto'])
         if con_dinero:
             datos.update(capital_al_costo=fila['capital'], precio_sin_itbms=fila['precio_unitario'],
-                         margen_porcentaje=fila['margen'])
+                         margen_porcentaje=fila['margen'],
+                         margen_y_rotacion=fila.get('nombre_cuadrante') or 'sin costo o sin precio')
             if 'precio_rebaja' in fila:
                 datos['precio_con_rebaja'] = fila['precio_rebaja']
                 datos['bajo_el_costo'] = fila.get('bajo_costo', False)

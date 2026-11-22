@@ -20,6 +20,12 @@ Qué cuenta cada cifra (todo sale de la base; nada se estima ni se inventa):
 * **Ancla**: los productos que **juntos hacen el 80 % de las unidades vendidas en 90 días** (la regla de Pareto,
   80/20): los que traen a la gente a la tienda. Se calcula sobre toda la tienda, aunque la pantalla esté filtrada a
   una categoría. No se rebajan sin pensarlo: se cuidan.
+* **Margen y rotación** (solo Gerencia y administradores): cada producto con existencias, costo y precio cae en uno de
+  cuatro cuadros, según se venda **bien** (3 unidades o más en 90 días: la mitad de los que sí se vendieron) y deje
+  **buen margen** (la mitad de los productos con mejor margen). *Estrellas* (las dos cosas), *venden mucho y dejan
+  poco*, *buen margen, se mueven poco* (los mejores para anunciar: cada venta extra deja más) y *ni se mueven ni dejan
+  margen* (candidatos a rebajar o a no pedir otra vez). Los dos cortes son las **medianas de la propia tienda**, no
+  cifras puestas a mano, y se dicen en la pantalla.
 * **Cobertura**: días que alcanza lo que hay al ritmo de las ventas de los últimos 90 días (existencias ÷ unidades
   vendidas por día); sin ventas en 90 días no se calcula. Cuánto pedir y cuándo lo calcula Reponer.
 * **Capital parado** (solo Gerencia y administradores): lo que costó la mercancía que hay, con la valuación de Odoo,
@@ -36,6 +42,7 @@ import io
 import re
 from collections import defaultdict
 from datetime import timedelta
+from statistics import median
 
 from odoo import api, fields, models
 from odoo.exceptions import UserError
@@ -76,7 +83,18 @@ NOMBRES_ACUMULADOS = {
     'mas_de_90': '90 días o más sin vender', 'mas_de_180': '180 días o más sin vender',
 }
 CLAVES_DE_GRUPO = tuple(g[0] for g in GRUPOS)
-VISTAS = ('todos', 'ancla') + CLAVES_DE_GRUPO + tuple(ACUMULADOS)
+# Margen y rotación (solo con dinero): (clave, nombre corto, para qué sirve).
+CUADRANTES = (
+    ('estrella', 'Estrellas', 'Se venden bien y dejan buen margen: cuídalos y anúncialos con tranquilidad.'),
+    ('trafico', 'Venden mucho, dejan poco', 'Traen gente a la tienda, pero dejan poco margen: ojo con rebajarlos.'),
+    ('oportunidad', 'Buen margen, se mueven poco',
+     'Cada venta deja mucho: los mejores para anunciar y darles visibilidad.'),
+    ('revisar', 'Ni se mueven ni dejan margen',
+     'Candidatos a rebajar para liberar capital, o a no volver a pedir.'),
+)
+CLAVES_DE_CUADRANTE = tuple(c[0] for c in CUADRANTES)
+NOMBRES_DE_CUADRANTE = {clave: nombre for clave, nombre, _frase in CUADRANTES}
+VISTAS = ('todos', 'ancla') + CLAVES_DE_GRUPO + tuple(ACUMULADOS) + CLAVES_DE_CUADRANTE
 
 
 def _grupo_por_dias(dias):
@@ -123,6 +141,8 @@ class DcasaRotacion(models.AbstractModel):
         if texto is not None and not isinstance(texto, str):
             raise UserError(self.env._('Escribe el nombre o el código del producto.'))
         con_dinero = self._con_dinero()
+        if vista in CLAVES_DE_CUADRANTE and not con_dinero:
+            raise UserError(self.env._('Esa lista usa el margen y es solo de Gerencia y de los administradores.'))
         orden = orden or ('capital' if con_dinero else 'dias')
         if orden not in ORDENES:
             raise UserError(self.env._('Elige cómo ordenar la lista.'))
@@ -267,7 +287,36 @@ class DcasaRotacion(models.AbstractModel):
                 break
             fila['ancla'] = True
             acumulado += fila['u90']
+        # Margen y rotación (solo con dinero): los cortes son las medianas de toda la tienda, como el ancla.
+        cortes = self._cortes(filas.values()) if con_dinero else (None, None)
+        for fila in filas.values():
+            fila['cortes'] = cortes
+            fila['cuadrante'] = self._cuadrante(fila, cortes) if con_dinero else None
         return hoy, con_dinero, filas
+
+    @api.model
+    def _cortes(self, filas):
+        """``(unidades, margen)``: los cortes de «se vende bien» y de «buen margen». Unidades: la mediana de lo
+        vendido en 90 días entre los productos que sí se vendieron (``None`` si ninguno). Margen: la mediana del margen
+        de los productos con existencias, costo y precio (``None`` si ninguno)."""
+        elegibles = [fila for fila in filas if fila['grupo'] is not None and self._margen(fila) is not None]
+        vendidas = [fila['u90'] for fila in elegibles if fila['u90'] > 0]
+        margenes = [self._margen(fila) for fila in elegibles]
+        return (median(vendidas) if vendidas else None, median(margenes) if margenes else None)
+
+    @api.model
+    def _cuadrante(self, fila, cortes):
+        """Uno de ``CLAVES_DE_CUADRANTE``, o ``None`` si el producto no tiene existencias, costo o precio. Se vende bien
+        con tantas unidades como el corte o más (el corte sale de productos que sí se vendieron, así que nunca es 0);
+        buen margen es tanto como el corte o más."""
+        margen = self._margen(fila)
+        if fila['grupo'] is None or margen is None or cortes[1] is None:
+            return None
+        vende_bien = cortes[0] is not None and fila['u90'] >= cortes[0]
+        buen_margen = margen >= cortes[1]
+        if vende_bien:
+            return 'estrella' if buen_margen else 'trafico'
+        return 'oportunidad' if buen_margen else 'revisar'
 
     @api.model
     def _grupo(self, fila, hoy):
@@ -295,6 +344,8 @@ class DcasaRotacion(models.AbstractModel):
             return fila['ancla']
         if vista in ACUMULADOS:
             return fila['grupo'] in ACUMULADOS[vista]
+        if vista in CLAVES_DE_CUADRANTE:
+            return fila.get('cuadrante') == vista
         return fila['grupo'] == vista
 
     @api.model
@@ -342,7 +393,8 @@ class DcasaRotacion(models.AbstractModel):
                 costo_unitario=redondear(fila['costo'] / unidades) if unidades and fila['costo'] > 0 else None,
                 precio_unitario=redondear(fila['venta_total'] / unidades) if unidades and fila['venta_total'] > 0
                 else None,
-                margen=self._margen(fila), sin_costo=fila['stock'] > 0 and fila['costo'] <= 0)
+                margen=self._margen(fila), sin_costo=fila['stock'] > 0 and fila['costo'] <= 0,
+                cuadrante=fila.get('cuadrante'), nombre_cuadrante=NOMBRES_DE_CUADRANTE.get(fila.get('cuadrante'), ''))
             if rebaja and datos['precio_unitario']:
                 con_rebaja = redondear(datos['precio_unitario'] * (1 - rebaja / 100))
                 datos['precio_rebaja'] = con_rebaja
@@ -444,6 +496,8 @@ class DcasaRotacion(models.AbstractModel):
             'categorias': marketing._lista_de_categorias(), 'categoria': tipo,
             'vista': vista, 'texto': texto, 'orden': orden, 'rebaja': rebaja,
             'vistas': self._vistas(todas),
+            'cortes': self._frase_de_cortes(next((fila['cortes'] for fila in todas), (None, None))) if con_dinero
+            else None,
             'resumen': self._resumen(todas, con_dinero, total_capital),
             'tarjetas': self._tarjetas(todas, con_dinero, total_capital),
             'total': len(elegidas), 'mostrando': min(len(elegidas), FILAS),
@@ -464,6 +518,12 @@ class DcasaRotacion(models.AbstractModel):
                   + [{'clave': 'nunca', 'nombre': 'Nunca vendidos'}, {'clave': 'nuevo', 'nombre': 'Llegaron hace poco'},
                      {'clave': 'abierto', 'nombre': 'Con pedido abierto'},
                      {'clave': 'ancla', 'nombre': 'Ancla (los que más venden)'}])
+        for vista in vistas:
+            vista['tipo'] = 'dias'
+        # Margen y rotación: usa el margen, así que solo se ofrece a quien ve el dinero.
+        if self._con_dinero():
+            vistas += [{'clave': clave, 'nombre': nombre, 'tipo': 'margen', 'ayuda': frase}
+                       for clave, nombre, frase in CUADRANTES]
         if filas is not None:
             for vista in vistas:
                 vista['productos'] = sum(1 for fila in filas if self._de_la_vista(fila, vista['clave']))
@@ -480,7 +540,26 @@ class DcasaRotacion(models.AbstractModel):
             'abierto': self.env._('Tiene un pedido confirmado que falta facturar: esa mercancía ya tiene dueño.'),
             'ancla': self.env._('Los productos que juntos hacen el 80 % de las unidades vendidas en 90 días.'),
             'cobertura': self.env._('Días que alcanza lo que hay al ritmo de los últimos 90 días.'),
+            'margen_y_rotacion': self.env._('Solo Gerencia. Cada producto con existencias, costo y precio cae en uno '
+                                            'de cuatro cuadros según se venda bien y deje buen margen. Los cortes son '
+                                            'la mitad de arriba de la propia tienda (la mediana), no cifras puestas a '
+                                            'mano.'),
         }
+
+    @api.model
+    def _frase_de_cortes(self, cortes):
+        """Los dos cortes de «Margen y rotación» dichos en palabras (con sus números), o ``None`` si no hay."""
+        unidades, margen = cortes
+        if margen is None:
+            return None
+        frase = {'margen': margen, 'unidades': unidades}
+        frase['texto'] = (
+            self.env._('Se vende bien: %(u)s unidades o más en 90 días (la mitad de los que sí se vendieron). '
+                       'Buen margen: %(m)s %% o más (la mitad de los productos).', u=f'{unidades:g}', m=f'{margen:g}')
+            if unidades is not None else
+            self.env._('Todavía no hay productos con ventas en 90 días: ninguno cuenta como «se vende bien». '
+                       'Buen margen: %(m)s %% o más (la mitad de los productos).', m=f'{margen:g}'))
+        return frase
 
     # ------------------------------------------------------------------
     # Excel
@@ -543,6 +622,7 @@ class DcasaRotacion(models.AbstractModel):
             if rebaja:
                 columnas += [(self.env._('Precio con %(r)s %% de descuento', r=f'{rebaja:g}'), 14),
                              (self.env._('Margen con descuento %'), 12)]
+            columnas.append((self.env._('Margen y rotación'), 28))
         cabecera = len(encabezado) + 1
         for columna, (nombre, ancho) in enumerate(columnas):
             hoja.write(cabecera, columna, nombre, formatos['cabeza'])
@@ -574,6 +654,8 @@ class DcasaRotacion(models.AbstractModel):
         hoja.write_number(numero, 13, fila['abierto'], formatos['decimal'])
         if con_dinero:
             self._dinero_en_la_fila(hoja, numero, fila, formatos, rebaja)
+            # Siempre la última columna (después de las del descuento, si se pidió).
+            hoja.write(numero, 18 + (2 if rebaja else 0), NOMBRES_DE_CUADRANTE.get(fila.get('cuadrante'), '—'))
 
     @staticmethod
     def _numero_o_raya(hoja, fila, columna, valor, formato):

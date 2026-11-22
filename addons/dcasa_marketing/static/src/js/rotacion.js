@@ -181,6 +181,15 @@ export class DcasaRotacion extends Component {
         return (this.datos?.vistas || []).find((v) => v.clave === this.datos?.vista);
     }
 
+    /** Los botones de días sin vender, y aparte (solo con dinero) los de margen y rotación. */
+    get vistasDeDias() {
+        return (this.datos?.vistas || []).filter((v) => v.tipo !== "margen");
+    }
+
+    get vistasDeMargen() {
+        return (this.datos?.vistas || []).filter((v) => v.tipo === "margen");
+    }
+
     get categoriaElegida() {
         return (this.datos?.categorias || []).find((c) => c.id === this.datos.categoria) || null;
     }

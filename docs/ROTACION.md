@@ -36,6 +36,17 @@ pantalla *Marketing* (también para el rol Marketing) y un acceso directo en el 
 6. **Descargar Excel**: la lista que estás viendo, **completa** (la pantalla muestra los primeros 100), más una hoja
    «Resumen» con los grupos.
 
+7. **«Por margen y rotación»** (solo Gerencia y administradores): cuatro botones más para elegir **qué empujar y qué
+   rebajar**. Cada producto con existencias, costo y precio cae en uno solo:
+   - **Estrellas**: se venden bien y dejan buen margen. Cuídalos y anúncialos con tranquilidad.
+   - **Venden mucho, dejan poco**: traen gente a la tienda, pero dejan poco margen. Ojo con rebajarlos.
+   - **Buen margen, se mueven poco**: cada venta deja mucho. Son los mejores para anunciar y darles visibilidad.
+   - **Ni se mueven ni dejan margen**: candidatos a rebajar para liberar capital, o a no volver a pedir.
+
+   «Se venden bien» y «buen margen» no son cifras puestas a mano: son **la mitad de arriba de la propia tienda** (la
+   mediana), y la pantalla dice los números de hoy («3 unidades o más en 90 días», «38 % o más»). Para elegir qué
+   productos nuevos probar, mira las estrellas y busca parecidos.
+
 **Lo que no se ofrece como candidato a rebajar.** Lo que *llegó de un proveedor hace menos de 30 días* y todavía no se
 vende, lo que tiene un *pedido confirmado sin facturar* (esa mercancía ya tiene dueño) y los *productos ancla*.
 
@@ -54,6 +65,7 @@ Nada se estima ni se inventa; todo sale de la base (`addons/dcasa_marketing/mode
 | Alcanza para (cobertura) | Existencias ÷ (unidades vendidas en 90 días ÷ 90). Sin ventas en 90 días no se calcula. **Cuánto pedir y cuándo** lo calcula *Compras › Reponer*, con el tiempo que tarda en llegar. |
 | Capital parado | Lo que **costó** la mercancía que hay, con la valuación de Odoo: **la misma de «Valor del inventario»**: la suma de todos los grupos es el total de esa pantalla, menos la mercancía de productos archivados o que no están a la venta (aquí no cuentan). Lo negativo no suma. |
 | Margen | (precio de venta sin ITBMS − costo) ÷ precio de venta, como en «Valor del inventario» y «Mejor margen». |
+| Margen y rotación | Solo Gerencia y administradores. **Se vende bien**: vendió al menos una unidad en 90 días y tantas como la **mediana** de lo vendido en 90 días entre los productos que sí se vendieron. **Buen margen**: tanto como la **mediana** del margen de los productos con existencias, costo y precio. Los cuatro cuadros salen de cruzar las dos cosas (justo en el corte cuenta como «de arriba»). Un producto sin costo, sin precio o agotado no tiene cuadro. Las medianas se calculan sobre **toda la tienda**, aunque la pantalla esté filtrada a una categoría. Si ningún producto se vendió en 90 días, nadie «se vende bien». |
 | Simulación | Con X %: precio × (1 − X ÷ 100) por las unidades que hay; ingreso, costo, diferencia, margen y cuántos productos quedarían por debajo del costo. El precio mínimo para no perder es el **costo**. Entre 1 y 95 %. |
 
 **Lo que mide y lo que no.** Mide ventas **facturadas**: una venta confirmada que todavía no se factura no cuenta hasta que
@@ -68,6 +80,8 @@ No se llama «producto muerto» a nada: se dice cuántos días lleva sin venders
 - **El dinero** (costos, capital parado, precio, margen, la simulación y el orden por capital o margen) es **solo de
   Gerencia y administradores** (`dcasa.tablero._ve_utilidad`): al rol Marketing el servidor ni se lo manda (ni en la
   pantalla, ni en el Excel, ni en Brian) y la simulación se ignora aunque la pida a mano.
+- Los cuatro cuadros de margen y rotación (`estrella`, `trafico`, `oportunidad`, `revisar`) son **solo con dinero**: el rol
+  Marketing no los ve ni puede pedirlos (el servidor contesta con un error), y el Excel suyo no trae esa columna.
 - La vendedora, Caja y Bodega no entran (`AccessError`; el Excel contesta 403).
 - Lista blanca RPC: `dcasa.rotacion.datos` en `dcasa_base/tests/test_superficie_rpc.py`. El Excel es la ruta
   `/dcasa/rotacion/excel` (`controllers/rotacion.py`), que exige el mismo permiso antes de leer.
@@ -75,7 +89,7 @@ No se llama «producto muerto» a nada: se dice cuántos días lleva sin venders
 ## Brian
 
 `rotacion_de_inventario(grupo?, categoria?, orden?, rebaja?, limite?)` (lectura; Gerencia, administradores y rol
-Marketing; el dinero solo para los dos primeros). Ver [BRIAN.md](BRIAN.md) › «Marketing y fotos». Ejemplos: «¿qué lleva más
+Marketing; el dinero, y con él los cuadros `estrella`, `trafico`, `oportunidad` y `revisar`, solo para los dos primeros). Ver [BRIAN.md](BRIAN.md) › «Marketing y fotos». Ejemplos: «¿qué lleva más
 de 90 días sin venderse?» → `grupo=mas_de_90`; «¿cuánto tengo parado en Salas?» → `grupo=mas_de_90, categoria=Salas`;
 «¿cuáles son mis productos ancla?» → `grupo=ancla`.
 

@@ -106,12 +106,25 @@
                             <div class="o_dcasa_mk_filtros">
                                 <h2 id="o_dcasa_ro_t_lista" class="o_dcasa_ro_titulo">¿Qué productos quieres ver?</h2>
                                 <div class="o_dcasa_mk_chips" role="group" aria-label="Qué productos ver">
-                                    <button t-foreach="datos.vistas" t-as="v" t-key="v.clave" type="button" class="o_dcasa_mk_chip"
+                                    <button t-foreach="vistasDeDias" t-as="v" t-key="v.clave" type="button" class="o_dcasa_mk_chip"
                                             t-att-aria-pressed="datos.vista === v.clave ? 'true' : 'false'"
                                             t-on-click="() => this.elegirVista(v.clave)">
                                         <t t-esc="v.nombre"/> <small t-esc="numero(v.productos)"/>
                                     </button>
                                 </div>
+                                <!-- Margen y rotación: solo Gerencia y administradores (usa el margen). -->
+                                <t t-if="vistasDeMargen.length">
+                                    <h3 class="o_dcasa_ro_subtitulo">Por margen y rotación</h3>
+                                    <div class="o_dcasa_mk_chips o_dcasa_ro_chips_margen" role="group" aria-label="Margen y rotación">
+                                        <button t-foreach="vistasDeMargen" t-as="v" t-key="v.clave" type="button" class="o_dcasa_mk_chip"
+                                                t-att-data-vista="v.clave" t-att-aria-pressed="datos.vista === v.clave ? 'true' : 'false'"
+                                                t-on-click="() => this.elegirVista(v.clave)">
+                                            <t t-esc="v.nombre"/> <small t-esc="numero(v.productos)"/>
+                                        </button>
+                                    </div>
+                                    <p t-if="vistaActual and vistaActual.ayuda" class="o_dcasa_mk_ayuda o_dcasa_ro_ayuda_margen" t-esc="vistaActual.ayuda"/>
+                                    <p t-if="datos.cortes" class="o_dcasa_mk_ayuda o_dcasa_ro_cortes" t-esc="datos.cortes.texto"/>
+                                </t>
                                 <div class="o_dcasa_mk_categorias" role="group" aria-label="Categoría">
                                     <button type="button" class="o_dcasa_mk_chip" t-att-aria-pressed="state.categoria ? 'false' : 'true'"
                                             t-on-click="() => this.elegirCategoria(null)">Todas las categorías</button>
@@ -205,6 +218,7 @@
                                         <span class="o_dcasa_ro_etiquetas">
                                             <span t-attf-class="o_dcasa_ro_etiqueta o_dcasa_ro_g_{{ fila.grupo }}" t-esc="nombreDeGrupo(fila.grupo)"/>
                                             <span t-if="fila.ancla" class="o_dcasa_ro_etiqueta o_dcasa_ro_etiqueta_ancla">Ancla</span>
+                                            <span t-if="fila.nombre_cuadrante" t-attf-class="o_dcasa_ro_etiqueta o_dcasa_ro_c_{{ fila.cuadrante }}" t-esc="fila.nombre_cuadrante"/>
                                             <span t-if="fila.pedido_abierto" class="o_dcasa_ro_etiqueta">Pedido por facturar: <t t-esc="unidades(fila.pedido_abierto)"/></span>
                                             <span t-if="fila.sin_costo" class="o_dcasa_ro_etiqueta o_dcasa_ro_etiqueta_alerta">Sin costo cargado</span>
                                             <span t-if="fila.bajo_costo" class="o_dcasa_ro_etiqueta o_dcasa_ro_etiqueta_alerta">Bajo el costo</span>
@@ -255,6 +269,7 @@
                                 <li><strong>Pedido abierto:</strong> <t t-esc="datos.como_se_cuenta.abierto"/></li>
                                 <li><strong>Ancla:</strong> <t t-esc="datos.como_se_cuenta.ancla"/></li>
                                 <li><strong>Alcanza para:</strong> <t t-esc="datos.como_se_cuenta.cobertura"/> Cuánto pedir y cuándo está en Compras › Reponer.</li>
+                                <li t-if="datos.con_dinero"><strong>Margen y rotación:</strong> <t t-esc="datos.como_se_cuenta.margen_y_rotacion"/></li>
                             </ul>
                         </details>
                     </div>

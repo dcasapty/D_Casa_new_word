@@ -115,6 +115,16 @@
         text-transform: uppercase;
         color: var(--dc-azul-800, #0E2A6B);
     }
+    .o_dcasa_ro_subtitulo {
+        margin: 6px 0 0;
+        font-family: "Oswald", "Inter", sans-serif;
+        font-weight: 500;
+        font-size: .95rem;
+        text-transform: uppercase;
+        color: var(--dc-tinta-2, #44506A);
+    }
+    .o_dcasa_ro_ayuda_margen { margin: 0; font-weight: 600; }
+    .o_dcasa_ro_cortes { margin: 0; }
     .o_dcasa_ro_controles { display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: flex-end; }
     .o_dcasa_ro_buscar { flex: 1 1 260px; margin: 0; }
     .o_dcasa_ro_campo {
@@ -186,6 +196,11 @@
         &.o_dcasa_ro_g_v180, &.o_dcasa_ro_g_mas180, &.o_dcasa_ro_g_nunca { background: var(--dc-azul-800, #0E2A6B); color: #fff; }
         &.o_dcasa_ro_etiqueta_ancla { background: var(--dc-azul-100, #E4ECFD); color: var(--dc-azul-600, #1340B1); box-shadow: inset 0 0 0 1px var(--dc-azul-600, #1340B1); }
         &.o_dcasa_ro_etiqueta_alerta { background: #FDECEC; color: #8A1C1C; }
+        // Margen y rotación: verde las estrellas, azul claro las de buen margen, ámbar las que venden mucho y dejan poco.
+        &.o_dcasa_ro_c_estrella { background: #DDF3E8; color: #0B5A39; }
+        &.o_dcasa_ro_c_trafico { background: #FFF1D6; color: #7A4F00; }
+        &.o_dcasa_ro_c_oportunidad { background: var(--dc-azul-100, #E4ECFD); color: var(--dc-azul-800, #0E2A6B); }
+        &.o_dcasa_ro_c_revisar { background: #FDECEC; color: #8A1C1C; }
     }
     .o_dcasa_ro_medidas {
         margin: 0;

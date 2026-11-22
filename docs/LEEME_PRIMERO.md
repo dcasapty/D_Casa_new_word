@@ -124,7 +124,10 @@ La dueña pidió seguir con lo de ver los artículos de mayor y menor movimiento
   (390 y 1440 px con Chrome; Gerencia y el rol Marketing sin dinero) y el resto de `dcasa_marketing`, `dcasa_guia`, `dcasa_camila`, `dcasa_brian` y la lista blanca de RPC.
 - **Simulador de márgenes** (un artefacto privado, no está en el repositorio): precio, costo, rebaja, programa de vendedores con código, pasarela de pago (Tilopay o Yappy, % que cobra) y comisión del empleado de la web, en cuatro
   pasos; la dueña lo encontró complicado y se simplificó a «¿nos conviene?». Los precios y porcentajes son de ejemplo. No cambia nada en el sistema.
-- **Falta:** las capturas antes/después de «Movimiento» (con datos de prueba) y el «sí» de la dueña (es una pantalla nueva); luego CI → staging → producción junto con Rotación
+- **«Margen y rotación» en Rotación** (solo Gerencia y administradores; parte del pedido del jefe: «los de mejor rotación o probar SKU que mejoren márgenes»): cuatro botones nuevos (estrellas, venden mucho/dejan poco,
+  buen margen/se mueven poco, ni se mueven ni dejan margen) con cortes que son las **medianas de la propia tienda** (la pantalla dice los números), una etiqueta en cada fila y una columna en el Excel. Brian: `grupo=estrella|trafico|oportunidad|revisar`.
+  Pruebas: `TestRotacionMargen` y `TestRotacionMargenEnElNavegador` (medianas con filas inventadas, el corte exacto, permisos, Excel, 390 y 1440 px).
+- **Falta:** las capturas antes/después de «Movimiento» y de «Margen y rotación» (con datos de prueba) y el «sí» de la dueña (son pantallas nuevas); luego CI → staging → producción junto con Rotación
   (`-u dcasa_marketing,dcasa_camila,dcasa_interfaz,dcasa_guia`).
 
 ### 2026-11-22: «Rotación» del inventario (pedido del jefe) y «Operación Sun Tzu». En `claude/merge-rama-to-main-ty3koz`, SIN subir y SIN desplegar
