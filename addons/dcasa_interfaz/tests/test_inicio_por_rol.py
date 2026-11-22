@@ -600,7 +600,7 @@ class TestInicioEnElNavegador(VentasMixin, HttpCase):
     def test_gerencia_ve_el_panel_completo_con_los_atajos_en_su_orden(self):
         self.probar('gerencia_rol', """
             await esperar(() => document.querySelector('.o_dcasa_inicio .o_dcasa_cifra'), 'las cifras');
-            const orden = ['Productos', 'Facturas', 'Conversaciones', 'Bodega', 'Escáner', 'Marketing',
+            const orden = ['Productos', 'Facturas', 'Conversaciones', 'Bodega', 'Escáner', 'Marketing', 'Rotación',
                            'Valor del inventario', 'Oportunidades', 'Resumen contable'];
             const atajos = textos('.o_dcasa_atajo strong');
             igual(atajos, orden.filter((t) => atajos.includes(t)), 'orden de los atajos');

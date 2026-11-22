@@ -1,0 +1,79 @@
+// MODO OSCURO — Rotación y Movimiento (dcasa_marketing).
+//
+// Las dos pantallas ponen blancos a mano (`#fff`), azules marino como relleno y pastillas de colores claros (verde,
+// ámbar, rojo suave). De noche cada uno pasa a su par: la superficie, el relleno azul con su texto, y los estados
+// (`--dc-bien`, `--dc-falta`, `--dc-mal` con sus fondos). Mismas especificidades que las reglas de día: la hoja oscura
+// se arma después de la clara y gana por orden.
+
+.o_dcasa_mk.o_dcasa_ro {
+    // --- Resumen, escalera, simulación, filas y campos: de blanco a la superficie -----------------------------------
+    .o_dcasa_ro_dato,
+    .o_dcasa_ro_barra,
+    .o_dcasa_ro_simulacion,
+    .o_dcasa_ro_fila { background: var(--dc-blanco); }
+
+    .o_dcasa_ro_campo select,
+    .o_dcasa_ro_campo input { background: var(--dc-blanco); }
+
+    // La tarjeta que se abre al tocarla (azul) y la que avisa (rojo suave).
+    .o_dcasa_ro_dato_alerta {
+        background: var(--dc-relleno);
+        border-color: var(--dc-relleno);
+        .o_dcasa_ro_dato_nombre,
+        small { color: var(--dc-en-relleno-2); }
+        .o_dcasa_ro_dato_cifra { color: var(--dc-en-relleno); }
+        &:hover { border-color: var(--dc-relleno-2); }
+    }
+    .o_dcasa_ro_dato_aviso {
+        background: var(--dc-mal-fondo);
+        border-color: var(--dc-mal-linea);
+        .o_dcasa_ro_dato_cifra { color: var(--dc-mal); }
+    }
+
+    .o_dcasa_ro_negativo,
+    .o_dcasa_ro_simulacion strong.o_dcasa_ro_negativo { color: var(--dc-mal); }
+
+    // --- La escalera: de «se mueve» a «lo más parado», ahora de tenue a brillante ------------------------------------
+    // (De día lo más parado es el azul más oscuro; de noche el oscuro desaparece, así que la escala se da vuelta.)
+    .o_dcasa_ro_barra {
+        &.o_dcasa_ro_g_v30 .o_dcasa_ro_relleno { background: var(--dc-azul-300); }
+        &.o_dcasa_ro_g_v60 .o_dcasa_ro_relleno { background: var(--dc-azul-400); }
+        &.o_dcasa_ro_g_v90 .o_dcasa_ro_relleno { background: var(--dc-azul-500); }
+        &.o_dcasa_ro_g_v180 .o_dcasa_ro_relleno { background: var(--dc-azul-600); }
+        &.o_dcasa_ro_g_mas180 .o_dcasa_ro_relleno,
+        &.o_dcasa_ro_g_nunca .o_dcasa_ro_relleno { background: var(--dc-azul-800); }
+    }
+
+    // --- Las pastillas de cada producto ------------------------------------------------------------------------------
+    .o_dcasa_ro_etiqueta {
+        &.o_dcasa_ro_g_v60 { background: var(--dc-azul-200); color: var(--dc-azul-800); }
+        &.o_dcasa_ro_g_v90 { background: var(--dc-relleno); color: var(--dc-en-relleno); }
+        &.o_dcasa_ro_g_v180,
+        &.o_dcasa_ro_g_mas180,
+        &.o_dcasa_ro_g_nunca { background: var(--dc-relleno-2); color: var(--dc-en-relleno); }
+        &.o_dcasa_ro_etiqueta_alerta,
+        &.o_dcasa_ro_c_revisar { background: var(--dc-mal-fondo); color: var(--dc-mal); }
+        // Margen y rotación
+        &.o_dcasa_ro_c_estrella { background: var(--dc-bien-fondo); color: var(--dc-bien); }
+        &.o_dcasa_ro_c_trafico { background: var(--dc-falta-fondo); color: var(--dc-falta); }
+    }
+}
+
+.o_dcasa_mk.o_dcasa_mv {
+    .o_dcasa_mv_sin_ventas { background: var(--dc-mal-fondo); color: var(--dc-mal); }
+    .o_dcasa_mv_sube { color: var(--dc-bien); }
+    .o_dcasa_mv_baja { color: var(--dc-mal); }
+
+    // El gráfico: su fondo es la superficie y el anillo de cada punto, también (así el punto «recorta» la línea).
+    .o_dcasa_mv_grafico { background: var(--dc-blanco); }
+    .o_dcasa_mv_punto_este,
+    .o_dcasa_mv_punto_otro { stroke: var(--dc-blanco); }
+
+    .o_dcasa_mv_estado {
+        &.o_dcasa_mv_e_subio,
+        &.o_dcasa_mv_e_desperto { background: var(--dc-bien-fondo); color: var(--dc-bien); }
+        &.o_dcasa_mv_e_bajo { background: var(--dc-falta-fondo); color: var(--dc-falta); }
+        &.o_dcasa_mv_e_enfrio { background: var(--dc-mal-fondo); color: var(--dc-mal); }
+        &.o_dcasa_mv_e_quieto { background: var(--dc-relleno); color: var(--dc-en-relleno); }
+    }
+}

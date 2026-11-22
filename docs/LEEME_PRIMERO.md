@@ -127,7 +127,10 @@ La dueña pidió seguir con lo de ver los artículos de mayor y menor movimiento
 - **«Margen y rotación» en Rotación** (solo Gerencia y administradores; parte del pedido del jefe: «los de mejor rotación o probar SKU que mejoren márgenes»): cuatro botones nuevos (estrellas, venden mucho/dejan poco,
   buen margen/se mueven poco, ni se mueven ni dejan margen) con cortes que son las **medianas de la propia tienda** (la pantalla dice los números), una etiqueta en cada fila y una columna en el Excel. Brian: `grupo=estrella|trafico|oportunidad|revisar`.
   Pruebas: `TestRotacionMargen` y `TestRotacionMargenEnElNavegador` (medianas con filas inventadas, el corte exacto, permisos, Excel, 390 y 1440 px).
-- **Falta:** las capturas antes/después de «Movimiento» y de «Margen y rotación» (con datos de prueba) y el «sí» de la dueña (son pantallas nuevas); luego CI → staging → producción junto con Rotación
+- **Capturas y «sí» de la dueña a staging (2026-11-22):** vio las capturas de «Margen y rotación» y dijo «pásalo a staging». El CI #386 (commit `0ef2ba4`, `desplegar_en = staging`) salió en rojo en
+  «Tests de Odoo»: `TestModoOscuroServidor.test_los_rellenos_propios_se_leen_de_noche` (Rotación y Movimiento no tenían colores de noche). Arreglo: `dcasa_interfaz/static/src/oscuro/rotacion.dark.scss`
+  (con captura en modo oscuro) y, de la corrida local de 814 pruebas, la prueba del Inicio que no conocía el atajo «Rotación». Ver CONTEXTO_AGENTICO › «Lo que enseñó «Margen y rotación»».
+- **Falta:** relanzar el CI a staging con el arreglo, verificar staging y avisarle; producción solo con su «sí» después de verlo en staging
   (`-u dcasa_marketing,dcasa_camila,dcasa_interfaz,dcasa_guia`).
 
 ### 2026-11-22: «Rotación» del inventario (pedido del jefe) y «Operación Sun Tzu». En `claude/merge-rama-to-main-ty3koz`, SIN subir y SIN desplegar

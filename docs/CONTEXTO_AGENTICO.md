@@ -2084,3 +2084,18 @@ Lo que quedó escrito para no repetirlo:
 - **Los periodos de comparación hay que decirlos con fechas exactas en la pantalla** («del 23 oct al 21 nov»): «30 días» y «el mes» no dicen cuáles son los extremos, y si los dos periodos no
   tienen el mismo largo (meses de 28 a 31 días) se avisa en vez de normalizar en silencio.
 
+
+## Lo que enseñó «Margen y rotación» y su primer CI a staging (2026-11-22, CI #386)
+
+- **Toda hoja de estilo nueva con blancos o azules a mano necesita su versión de noche.** El modo oscuro vive en `dcasa_interfaz/static/src/oscuro/*.dark.scss` y la prueba
+  `TestModoOscuroServidor.test_los_rellenos_propios_se_leen_de_noche` revisa cada regla propia (menos de 3:1 falla). Rotación y Movimiento (`dcasa_marketing`) la tumbaron en CI porque
+  traían `#fff`, `azul-800` con letra blanca y pastillas de colores claros: se agregó `oscuro/rotacion.dark.scss` (superficie con `--dc-blanco`, relleno con `--dc-relleno` y
+  `--dc-en-relleno`, estados con `--dc-bien/-falta/-mal` y sus fondos; la escalera de barras se da vuelta, de tenue a brillante). Misma especificidad que la regla de día: la hoja
+  oscura se arma después y gana por orden. Se probó que sin el archivo la prueba falla y con él pasa.
+- **Correr en local los módulos que se tocan Y los que los muestran.** Marketing y Guía pasaban, pero la pantalla vive también en el Inicio (`dcasa_interfaz`, atajo «Rotación») y en
+  el modo oscuro. Antes de lanzar un CI de ~80 minutos: `-u dcasa_interfaz,dcasa_marketing,dcasa_camila,dcasa_guia --test-tags=/dcasa_interfaz,/dcasa_marketing,/dcasa_camila,/dcasa_guia,/dcasa_base`
+  en una base que tenga todos (814 pruebas, unos 17 minutos). Esa corrida encontró otra falla que el CI no habría mostrado (el CI no trae `websocket-client`, así que salta las pruebas
+  de navegador): `test_gerencia_ve_el_panel_completo_con_los_atajos_en_su_orden` no conocía el atajo «Rotación».
+- **El registro de un job de GitHub que falla puede venir cortado** (el de #386 terminó 49 minutos antes que el job). `gh run view <run> --job <id> --log` muestra el primer
+  `FAIL:`; si hace falta el resto, correr local con el mismo comando. `scripts/test.sh` cuenta toda línea `ERROR` como falla.
+- **Un CI manual tarda entre 50 y 80 minutos solo en «Tests de Odoo»** (50, 74, 78 y 81 en los últimos cuatro): no es señal de cuelgue.
