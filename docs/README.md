@@ -28,6 +28,7 @@
 | Medir los anuncios de Meta: el píxel, las ventas que se le reportan y el consentimiento del cliente | [META_EVENTOS.md](META_EVENTOS.md) |
 | Las fotos de los productos en grande y la app Marketing | [MARKETING.md](MARKETING.md) |
 | Qué productos no se mueven, cuánto capital hay parado y qué pasaría con una rebaja (Rotación) | [ROTACION.md](ROTACION.md) |
+| Qué productos más y menos se mueven, comparando dos periodos, para decidir qué anunciar (Movimiento) | [MOVIMIENTO.md](MOVIMIENTO.md) |
 | «Busca con una foto» en la tienda: cómo funciona, sus topes, privacidad y dónde se apaga | [CATALOGO.md › Busca con una foto](CATALOGO.md#busca-con-una-foto) |
 | Camila, la asistente del mail marketing: el permiso del cliente, la campaña de cada 15 días (Marketing › Camila) y cómo crear la clave de campañas de Resend | [CAMILA.md](CAMILA.md) |
 | Saber cuánto cuesta un envío (la calculadora), cargar los lugares y la tarifa, aprobarla, y cómo se encendería en la página web | [ENVIOS.md](ENVIOS.md) |
@@ -58,7 +59,7 @@
 | `dcasa_consolidacion` | [CONSOLIDACION.md](CONSOLIDACION.md) |
 | `dcasa_nomina` | [NOMINA.md](NOMINA.md) |
 | `dcasa_guia` | [GUIA.md](GUIA.md) · «¿Qué necesitas hacer hoy?»: atajos en palabras sencillas para quien administra |
-| `dcasa_marketing` | [MARKETING.md](MARKETING.md) · [ROTACION.md](ROTACION.md) |
+| `dcasa_marketing` | [MARKETING.md](MARKETING.md) · [ROTACION.md](ROTACION.md) · [MOVIMIENTO.md](MOVIMIENTO.md) |
 | `dcasa_equipo` | [EQUIPO.md](EQUIPO.md) |
 | `dcasa_migracion` | [MIGRACION.md](MIGRACION.md) |
 | `dcasa_fe_pa` (factura electrónica, apagado y sin instalar) | [FACTURA_ELECTRONICA.md](FACTURA_ELECTRONICA.md) |

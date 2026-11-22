@@ -9,10 +9,15 @@
                         <h1>Rotación</h1>
                         <p>Qué se mueve y qué no: los días que lleva cada producto sin venderse, el capital que está parado y qué conviene hacer con cada grupo.</p>
                     </div>
-                    <!-- El Excel lo arma el servidor (Gerencia, administradores y Marketing; sin dinero para Marketing). -->
-                    <a t-if="datos" class="o_dcasa_mk_boton o_dcasa_ro_excel" t-att-href="urlExcel" download="">
-                        <i class="fa fa-file-excel-o" aria-hidden="true"/> Descargar Excel
-                    </a>
+                    <div class="o_dcasa_mv_cabeza_botones">
+                        <button type="button" class="o_dcasa_mk_enlace o_dcasa_ro_a_movimiento" t-on-click="abrirMovimiento">
+                            Comparar periodos (lo que más y menos se mueve)
+                        </button>
+                        <!-- El Excel lo arma el servidor (Gerencia, administradores y Marketing; sin dinero para Marketing). -->
+                        <a t-if="datos" class="o_dcasa_mk_boton o_dcasa_ro_excel" t-att-href="urlExcel" download="">
+                            <i class="fa fa-file-excel-o" aria-hidden="true"/> Descargar Excel
+                        </a>
+                    </div>
                 </header>
 
                 <p t-if="state.error" class="o_dcasa_mk_error" role="alert" t-esc="state.error"/>

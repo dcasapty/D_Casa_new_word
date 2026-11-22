@@ -1,10 +1,11 @@
 """Brian y Marketing: «¿qué productos están más quietos esta semana?», «¿qué se movió más en el mes?», «¿qué productos
-no tienen foto?» y «¿qué lleva más de 90 días sin venderse y cuánto capital hay parado?».
+no tienen foto?», «¿qué lleva más de 90 días sin venderse y cuánto capital hay parado?» y «¿qué subió o bajó este mes
+frente al anterior?».
 
-Las mismas cifras de las pantallas Marketing y Rotación (``dcasa.marketing``, ``dcasa.rotacion``): nada se calcula con
-el modelo de IA. Solo lectura. ``movimiento_de_productos`` y ``rotacion_de_inventario`` son de Gerencia, administradores
-y el rol Marketing (los mismos de la pantalla; el dinero de la rotación, solo de Gerencia y administradores);
-``fotos_que_faltan`` es de cualquiera que vea productos.
+Las mismas cifras de las pantallas Marketing, Rotación y Movimiento (``dcasa.marketing``, ``dcasa.rotacion``,
+``dcasa.movimiento_productos``): nada se calcula con el modelo de IA. Solo lectura. ``movimiento_de_productos``,
+``rotacion_de_inventario`` y ``comparar_movimiento`` son de Gerencia, administradores y el rol Marketing (los mismos de
+la pantalla; el dinero, solo de Gerencia y administradores); ``fotos_que_faltan`` es de cualquiera que vea productos.
 """
 from odoo import models
 from odoo.addons.dcasa_brian.models import herramientas_comun as c
@@ -12,6 +13,7 @@ from odoo.addons.dcasa_brian.models.registro import BrianError, herramienta, nor
 from odoo.exceptions import UserError
 
 from .marketing import FILTROS_DE_FOTOS, GRUPOS, PERIODOS
+from .movimiento import CLAVES_DE_PERIODO, CLAVES_DE_VISTA
 from .rotacion import ORDENES, VISTAS
 
 INTERNO = ('base.group_user',)
@@ -186,6 +188,88 @@ class BrianHerramientasMarketing(models.AbstractModel):
             if 'precio_rebaja' in fila:
                 datos['precio_con_rebaja'] = fila['precio_rebaja']
                 datos['bajo_el_costo'] = fila.get('bajo_costo', False)
+        return datos
+
+    @herramienta(
+        nombre='comparar_movimiento',
+        descripcion='Compara las ventas de dos periodos por producto: cuáles subieron, bajaron, se enfriaron o están '
+                    'quietos, con unidades, pedidos y cuántos días alcanza lo que hay. Sirve para elegir qué anunciar. '
+                    'Dinero solo para Gerencia.',
+        parametros={
+            'periodo': {'type': 'string', 'enum': [p for p in CLAVES_DE_PERIODO if p != 'fechas'],
+                        'description': '«7», «15», «30» (por defecto), «60» o «90» días, «este_mes» o «mes_pasado».'},
+            'contra': {'type': 'string', 'enum': ['anterior', 'anio'],
+                       'description': 'Con qué compararlo: «anterior» (el tramo de justo antes, por defecto) o «anio» '
+                                      '(el mismo tramo del año pasado).'},
+            'vista': {'type': 'string', 'enum': [v for v in CLAVES_DE_VISTA],
+                      'description': 'venden (por defecto), subieron, bajaron, enfriaron, quietos o todos.'},
+            'categoria': {'type': 'string', 'description': 'Solo una categoría, p. ej. «Salas». Opcional.'},
+            'limite': {'type': 'integer',
+                       'description': f'Cuántos productos listar (1 a {MAX_FILAS}). Por defecto 10.'},
+        },
+        nivel='lectura', categoria='catalogo', grupos=(GRUPOS,),
+        ejemplos=['¿qué subió este mes frente al mes pasado? → periodo=este_mes, vista=subieron',
+                  '¿qué se enfrió en los últimos 30 días? → periodo=30, vista=enfriaron',
+                  '¿qué vendíamos más el año pasado en este tramo? → contra=anio, vista=venden'],
+    )
+    def _h_comparar_movimiento(self, periodo='30', contra='anterior', vista='venden', categoria=None, limite=10):
+        Movimiento = self.env['dcasa.movimiento_productos']
+        Movimiento._exigir()
+        if periodo not in CLAVES_DE_PERIODO or periodo == 'fechas':
+            raise BrianError('«periodo» es 7, 15, 30, 60, 90, este_mes o mes_pasado.')
+        if contra not in ('anterior', 'anio'):
+            raise BrianError('«contra» es anterior o anio.')
+        if vista not in CLAVES_DE_VISTA:
+            raise BrianError('«vista» es venden, subieron, bajaron, enfriaron, quietos o todos.')
+        try:
+            limite = max(1, min(int(limite or 10), MAX_FILAS))
+        except (TypeError, ValueError):
+            limite = 10
+        tipo = self._mk_categoria(categoria)
+        try:
+            datos = Movimiento._datos(periodo, contra, None, None, None, None, vista, tipo['id'] if tipo else None)
+        except UserError as error:
+            raise BrianError(str(error)) from error
+        con_dinero = datos['con_dinero']
+        resumen = datos['resumen']
+        respuesta = {
+            'este_periodo': f"{datos['este']['etiqueta']} ({datos['este']['dias']} días)",
+            'comparado_con': f"{datos['otro']['etiqueta']} ({datos['otro']['dias']} días)",
+            'categoria': tipo['nombre'] if tipo else 'todas',
+            'viendo': next((v['nombre'] for v in datos['vistas'] if v['clave'] == vista), vista),
+            'unidades': {'este_periodo': c.cantidad(resumen['unidades']['a']),
+                         'antes': c.cantidad(resumen['unidades']['b']),
+                         'cambio_porcentaje': resumen['unidades']['pct']},
+            'pedidos': {'este_periodo': resumen['pedidos']['a'], 'antes': resumen['pedidos']['b'],
+                        'cambio_porcentaje': resumen['pedidos']['pct']},
+            'por_lista': {v['nombre']: v['productos'] for v in datos['vistas']},
+            'en_esta_lista': datos['total'],
+            'productos': [self._mk_movimiento_producto(fila, con_dinero) for fila in datos['productos'][:limite]],
+            'como_se_cuenta': ' '.join(datos['como_se_cuenta'].values()),
+        }
+        if con_dinero:
+            respuesta['vendido_sin_itbms'] = {'este_periodo': resumen['monto']['a'], 'antes': resumen['monto']['b'],
+                                              'cambio_porcentaje': resumen['monto']['pct']}
+        if resumen['sin_ventas_de_comparacion']:
+            respuesta['aviso'] = 'En el periodo de comparación no hay ventas registradas: todo aparece como «Despertó».'
+        if not datos['productos']:
+            respuesta['mensaje'] = 'No hay productos con eso.'
+        return respuesta
+
+    @staticmethod
+    def _mk_movimiento_producto(fila, con_dinero):
+        datos = {
+            'producto': fila['nombre'], 'codigo': fila['codigo'], 'categoria': fila['categoria'],
+            'estado': fila['nombre_estado'],
+            'vendidas_este_periodo': c.cantidad(fila['vendidas_este']),
+            'vendidas_antes': c.cantidad(fila['vendidas_otro']),
+            'cambio': c.cantidad(fila['cambio']), 'cambio_porcentaje': fila['cambio_pct'],
+            'pedidos_este_periodo': fila['pedidos_este'], 'pedidos_antes': fila['pedidos_otro'],
+            'existencias': c.cantidad(fila['stock']) if fila['stock'] is not None else None,
+            'alcanza_para_dias': fila['cobertura_dias'], 'ancla': fila['ancla'], 'tiene_foto': fila['con_foto'],
+        }
+        if con_dinero:
+            datos.update(vendido_este_periodo=fila['vendido_este'], vendido_antes=fila['vendido_otro'])
         return datos
 
     @herramienta(

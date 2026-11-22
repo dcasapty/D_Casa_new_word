@@ -1674,6 +1674,67 @@
    "nota": "Lo que llegó hace menos de 30 días y todavía no se vende sale como «Llegó hace poco», y lo que tiene un pedido confirmado sin facturar sale como «Pedido abierto»: ninguno de los dos se ofrece para rebajar. Los productos ancla se cuidan, no se rebajan sin pensarlo. El dinero (costos, capital y márgenes) lo ven solo Gerencia y los administradores; quien tiene el rol Marketing ve unidades y días."
   },
   {
+   "id": "movimiento-productos",
+   "categoria": "productos",
+   "grupo": "Catálogo",
+   "titulo": "Ver qué productos se mueven más o menos y comparar dos periodos (Movimiento)",
+   "logras": "Eliges un periodo (7, 15, 30, 60 o 90 días, este mes, el mes pasado o fechas tuyas) y lo comparas con el de justo antes, con el mismo tramo del año pasado o con fechas tuyas. Ves cuántas unidades y pedidos se vendieron en cada uno y qué productos subieron, bajaron, se enfriaron o están quietos, para decidir qué anunciar en publicidad y redes. Todo se baja a Excel.",
+   "palabras": [
+    "movimiento",
+    "mas vendidos",
+    "menos vendidos",
+    "lo que mas se mueve",
+    "lo que menos se mueve",
+    "comparar periodos",
+    "comparar ventas",
+    "este mes contra el mes pasado",
+    "ano pasado",
+    "subio",
+    "bajo",
+    "se enfrio",
+    "que anunciar",
+    "publicidad",
+    "redes sociales",
+    "campana",
+    "pedidos por producto",
+    "rotacion por tiempo",
+    "excel de movimiento"
+   ],
+   "destino": {
+    "menu": "dcasa_marketing.menu_dcasa_movimiento"
+   },
+   "pasos": [
+    {
+     "texto": "Abre Inventario › Movimiento (también la ves desde Marketing, con el botón «Comparar periodos»).",
+     "destino": {
+      "menu": "dcasa_marketing.menu_dcasa_movimiento"
+     }
+    },
+    {
+     "texto": "En «1 · ¿Qué periodo miras?» toca uno de los botones. En «2 · ¿Contra cuál lo comparas?» elige el periodo de justo antes, el mismo del año pasado o tus propias fechas. Arriba de los resultados te dice las fechas exactas de los dos.",
+     "destino": null
+    },
+    {
+     "texto": "Mira el resumen (cuántas unidades, pedidos y productos se vendieron ahora y antes) y la gráfica: la línea azul es este periodo y la gris el de comparación.",
+     "destino": null
+    },
+    {
+     "texto": "En «3 · ¿Qué productos quieres ver?» elige los que más venden, los que subieron, los que bajaron, los que se enfriaron o los quietos con existencias. Cada producto dice cuánto vendió ahora y antes, cuánto cambió y para cuántos días alcanza lo que hay. Puedes elegir una categoría, buscar por nombre o código y ordenar la lista.",
+     "destino": null
+    },
+    {
+     "texto": "Con la lista que te sirva, toca «Crear campaña con los primeros 8» (Camila arma el correo) o «Ver estos en Productos» para sacar las fotos y publicar en redes. Antes de anunciar un producto mira que no esté agotado y que le alcance lo que hay.",
+     "destino": null
+    },
+    {
+     "texto": "Toca «Descargar Excel» para bajar la lista que estás viendo, completa.",
+     "destino": null
+    }
+   ],
+   "brian": "¿Qué productos subieron este mes frente al mes pasado?",
+   "nota": "Las ventas son las facturas publicadas (las notas de crédito restan), igual que en Marketing y Rotación. Los dos periodos se cuentan con el primer y el último día incluidos. Si en el periodo de comparación no hubo ventas, la pantalla lo avisa. El dinero (lo vendido en $ y el capital parado) lo ven solo Gerencia y los administradores; quien tiene el rol Marketing ve unidades y pedidos."
+  },
+  {
    "id": "camila-campana",
    "categoria": "clientes",
    "tambien": [

@@ -561,4 +561,14 @@
         </xpath>
     </t>
 
+    <!-- «Movimiento» (comparar periodos): «Crear campaña con los primeros 8» de la lista que se está viendo. -->
+    <t t-name="dcasa_camila.MovimientoCrearCampana" t-inherit="dcasa_marketing.Movimiento" t-inherit-mode="extension">
+        <xpath expr="//div[contains(@class, 'o_dcasa_mv_acciones')]" position="inside">
+            <button type="button" class="btn btn-sm btn-secondary o_camila_desde_movimiento"
+                    t-on-click="() => this.crearCampanaCamila(temaDeCamila, paraCampana)">
+                <i class="fa fa-envelope-o me-1" aria-hidden="true"/>Crear campaña con los primeros <t t-esc="paraCampana.length"/>
+            </button>
+        </xpath>
+    </t>
+
 </templates>

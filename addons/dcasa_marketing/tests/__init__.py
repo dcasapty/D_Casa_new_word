@@ -4,3 +4,5 @@ from . import test_navegador
 from . import test_rotacion
 from . import test_rotacion_navegador
 from . import test_scroll
+from . import test_movimiento
+from . import test_movimiento_navegador

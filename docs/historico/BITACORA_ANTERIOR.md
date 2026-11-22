@@ -1,8 +1,53 @@
 # Bitácora anterior (entradas viejas de LEEME_PRIMERO)
 
 > **Archivado el 2026-11-06, el 2026-11-11, el 2026-11-13, el 2026-11-14, el 2026-11-16, el 2026-11-17, el 2026-11-20 y el 2026-11-22.** Texto completo de las entradas de la bitácora de
-> [LEEME_PRIMERO.md](../LEEME_PRIMERO.md) del 2026-10-16 al 2026-11-17, la más nueva arriba. Allí quedan resumidas en una línea
+> [LEEME_PRIMERO.md](../LEEME_PRIMERO.md) del 2026-10-16 al 2026-11-18, la más nueva arriba. Allí quedan resumidas en una línea
 > cada una. Se conservan tal cual (con los nombres de personas quitados), como registro.
+
+### 2026-11-17 (3) y 2026-11-18: la segunda entrega completa en producción (CI/CD 380 y Juan 29)
+
+**En producción desde el 2026-11-18, 00:5x UTC:** la segunda entrega entera (PR #128, squash `d2ba8caf`,
+ejecución 380 de CI/CD a mano desde `main`) y **Desplegar Juan 29** (01:0x UTC, misma versión). Salud del borde
+sana: `{"ok": true, "version": "d2ba8caff071", "base_al_dia": true, "humo": "ok"}`. El `/salud` de Juan responde con
+`d2ba8caf` en `produccion`, la tienda lista y activa; las 4 «cosas por revisar» que lista son claves y canales que
+**ya faltaban** (la `ANTHROPIC_API_KEY` de respaldo y el puente de WhatsApp por QR, que nunca se desplegó), no algo
+que trajera esta subida.
+
+**Lleva:** Andrés como mejor vendedor, las notas de voz (de Andrés y del panel de Brian), el micrófono del chat, la
+pantalla «Armar combo» con los precios de verdad, los tres arreglos de las revisiones (el total negativo del
+mostrador por los dos caminos, la guardia del Worker que se saltaba con «…ok?» y el premio que viajaba al chat) y la
+regla nueva de Socios que va abajo.
+
+**La decisión que la frenaba ya está tomada y programada.** La dueña eligió, entre dos opciones que se le
+presentaron con las cifras: **«avisarle y no dejar canjear»**.
+
+- **El problema** (lo encontró la revisión adversarial de Andrés vendedor): la línea del premio baja la compra medida
+  (decisión M6 de la dueña), así que podía tirarla por debajo del mínimo de la promoción de envío y hacerle perder el
+  envío gratis. Carrito de $205 sin ITBMS, premio de $10 → la compra queda en $195.65 y paga $45 de envío. **Gastaba
+  puntos para pagar más.**
+- **Lo que quedó:** antes de canjear se compara lo que pagaría de envío con lo que le descuenta el premio. Si iguala o
+  pasa, se le avisa con las dos cifras y no se canjea (sus puntos no se mueven: el canje ni se pide). **Decidí yo (y
+  se le dijo):** si el premio descuenta MÁS de lo que perdería, se deja pasar, porque ahí el socio sale ganando y
+  bloquearlo sería quitarle un beneficio real.
+- **Dos fallos míos que encontraron las pruebas y la revisión, los dos de dinero:**
+  1. Yo medía la bajada por el **valor de cara** del premio; la línea rebaja la **base** sin impuesto ($9.35 para un
+     premio de $10). El aviso habría dicho una cifra que no era y el bloqueo saltaba en el borde equivocado. La
+     cuenta del impuesto quedó en un solo sitio para que no se vuelvan a separar.
+  2. Al devolverle los puntos, **la promoción no volvía**: el sincronizador de envíos solo quita esa línea, nunca la
+     repone. El socio quedaba sin el premio Y pagando el envío: peor que el problema original. Ahora, al quitar un
+     premio —lo quite el sistema o el socio— la promoción se vuelve a ofrecer.
+- **Un BLOQUEANTE de la revisión independiente:** la guarda vivía solo en el carrito web, y por «Cobrar premio» del
+  **mostrador** el premio entraba directo: cobrar uno de $25 sobre una venta de $205 con envío gratis le hacía pagar
+  $21.64 más, sin que nadie se lo dijera. Pasó a `_aplicar_en_venta`, por donde van los dos caminos (es la segunda vez
+  que una guarda de dinero de premios se tiene que mover ahí; quedó anotado como regla). En el mostrador el código
+  sigue valiendo para otra compra.
+- **Dos hallazgos más de la revisión, arreglados:** el ahorro de la promoción es una base y el valor del premio va con
+  ITBMS, así que al compararlos ahora el ahorro sube con los impuestos del envío (hoy va sin ellos, pero puede
+  cambiar); y el carrito del chat no corría la limpieza de premios, así que podía seguir mostrando uno que ya no le
+  convenía. También se probó el borde exacto que eligió la dueña («iguala» → no se canjea), que antes pasaba igual
+  con `>` que con `>=`.
+- **Sigue abierto, anotado:** el carrito le ofrece premios que el servidor va a rechazar (el aviso llega después del
+  clic); y si lo que se pierde eran términos ya prometidos de una promoción vencida, esos no vuelven.
 
 ### 2026-11-17 (2): la portada nueva en producción (CI/CD 377), el hero como fondo en movimiento
 

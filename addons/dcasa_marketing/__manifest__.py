@@ -1,7 +1,8 @@
 {
     'name': "D'CASA Panamá — Marketing y fotos de productos",
     'summary': "Ver las fotos en grande, subir varias, ordenarlas y recortarlas; y «Marketing»: lo que se vende, "
-               "lo quieto, la rotación del inventario, el stock por categoría y las fotos que faltan",
+               "lo quieto, la rotación del inventario, comparar periodos, el stock por categoría y las fotos que "
+               "faltan",
     'description': """
 Pedido de la dueña (2026-10-22): «ver la foto de un producto es un problema terrible» y «créame un botón de Marketing».
 
@@ -18,7 +19,11 @@ Pedido de la dueña (2026-10-22): «ver la foto de un producto es un problema te
   subirle sus fotos ahí mismo, con los que no tienen foto o tienen una sola marcados.
 * **Rotación** (pedido de Gerencia, 2026-11-22): qué productos no se mueven, por días sin vender (30, 60, 90, 180),
   cuánto capital hay parado en ellos, los productos ancla, la cobertura y una simulación de rebaja, con Excel.
-* Brian: ``movimiento_de_productos``, ``rotacion_de_inventario`` y ``fotos_que_faltan``.
+* **Movimiento** (pedido de la dueña, 2026-11-22): lo que más y lo que menos se mueve comparando dos periodos (7 a 90
+  días, este mes, el mes pasado o fechas; contra el de justo antes, el año pasado o fechas): qué subió, bajó, se
+  enfrió o está quieto, con unidades, pedidos, cuántos días alcanza lo que hay, gráfica y Excel, para decidir qué
+  anunciar.
+* Brian: ``movimiento_de_productos``, ``rotacion_de_inventario``, ``comparar_movimiento`` y ``fotos_que_faltan``.
 
 Ver docs/MARKETING.md.
 """,
@@ -32,6 +37,7 @@ Ver docs/MARKETING.md.
         'security/marketing_security.xml',
         'views/marketing_views.xml',
         'views/rotacion_views.xml',
+        'views/movimiento_views.xml',
         'views/product_views.xml',
     ],
     'assets': {

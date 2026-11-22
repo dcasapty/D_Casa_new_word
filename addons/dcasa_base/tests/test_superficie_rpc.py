@@ -521,6 +521,11 @@ LISTA_BLANCA = {
         'Lectura: exige Gerencia (ventas administrador), administrador o el rol Marketing en el servidor (_exigir, '
         'AccessError) ANTES de leer; las ventas, llegadas y pedidos se leen con sudo solo después de eso; el dinero '
         '(costos, capital, márgenes y la simulación de rebaja) solo sale para Gerencia y administradores; no escribe.',
+    ('dcasa_marketing', 'dcasa.movimiento_productos', 'datos'):
+        'Lectura: exige Gerencia (ventas administrador), administrador o el rol Marketing en el servidor (_exigir, '
+        'AccessError) ANTES de leer; las ventas se leen con sudo solo después de eso; el dinero (lo vendido en $ y el '
+        'capital parado) solo sale para Gerencia y administradores; las fechas se validan (sin futuro, sin cruzarse, '
+        'máximo 366 días); no escribe.',
     ('dcasa_marketing', 'dcasa.marketing', 'accion_productos'):
         'Exige Gerencia (ventas administrador), administrador o el rol Marketing en el servidor (_exigir, '
         'AccessError); valida los ids y solo devuelve la acción de ventana de Productos con ese filtro; no lee ni '

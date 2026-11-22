@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <t t-name="dcasa_marketing.Movimiento">
+        <div class="o_action o_dcasa_mk o_dcasa_ro o_dcasa_mv" t-ref="raiz">
+            <div class="o_dcasa_mk_contenido">
+                <header class="o_dcasa_mk_cabeza">
+                    <div>
+                        <h1>Movimiento</h1>
+                        <p>Qué se mueve más y qué menos, comparando dos periodos. Para decidir qué anunciar en publicidad y redes.</p>
+                    </div>
+                    <div class="o_dcasa_mv_cabeza_botones">
+                        <button type="button" class="o_dcasa_mk_enlace o_dcasa_mv_a_rotacion" t-on-click="abrirRotacion">
+                            Ver Rotación (días sin vender y capital parado)
+                        </button>
+                        <!-- El Excel lo arma el servidor (Gerencia, administradores y Marketing; sin dinero para Marketing). -->
+                        <a t-if="datos" class="o_dcasa_mk_boton o_dcasa_ro_excel o_dcasa_mv_excel" t-att-href="urlExcel" download="">
+                            <i class="fa fa-file-excel-o" aria-hidden="true"/> Descargar Excel
+                        </a>
+                    </div>
+                </header>
+
+                <!-- Los dos periodos -->
+                <section class="o_dcasa_mk_seccion o_dcasa_mv_periodos" aria-label="Periodos">
+                    <div class="o_dcasa_mv_bloque">
+                        <h2 class="o_dcasa_ro_titulo">1 · ¿Qué periodo miras?</h2>
+                        <div class="o_dcasa_mk_chips o_dcasa_mv_periodo" role="group" aria-label="Periodo">
+                            <button t-foreach="datos ? datos.periodos : periodosIniciales" t-as="p" t-key="p.clave" type="button"
+                                    class="o_dcasa_mk_chip" t-att-aria-pressed="state.periodo === p.clave ? 'true' : 'false'"
+                                    t-on-click="() => this.elegirPeriodo(p.clave)">
+                                <t t-esc="p.nombre"/>
+                            </button>
+                        </div>
+                        <div t-if="state.periodo === 'fechas'" class="o_dcasa_mv_fechas">
+                            <label class="o_dcasa_ro_campo"><span>Desde</span>
+                                <input type="date" class="o_dcasa_mv_desde" t-att-value="state.desde" t-att-max="datos ? datos.hoy : null"
+                                       t-on-change="(ev) => this.cambiarFecha('desde', ev)"/></label>
+                            <label class="o_dcasa_ro_campo"><span>Hasta</span>
+                                <input type="date" class="o_dcasa_mv_hasta" t-att-value="state.hasta" t-att-max="datos ? datos.hoy : null"
+                                       t-on-change="(ev) => this.cambiarFecha('hasta', ev)"/></label>
+                        </div>
+                    </div>
+                    <div class="o_dcasa_mv_bloque">
+                        <h2 class="o_dcasa_ro_titulo">2 · ¿Contra cuál lo comparas?</h2>
+                        <div class="o_dcasa_mk_chips o_dcasa_mv_contra" role="group" aria-label="Comparar con">
+                            <button t-foreach="datos ? datos.contras : contrasIniciales" t-as="c" t-key="c.clave" type="button"
+                                    class="o_dcasa_mk_chip" t-att-aria-pressed="state.contra === c.clave ? 'true' : 'false'"
+                                    t-on-click="() => this.elegirContra(c.clave)">
+                                <t t-esc="c.nombre"/>
+                            </button>
+                        </div>
+                        <div t-if="state.contra === 'fechas'" class="o_dcasa_mv_fechas">
+                            <label class="o_dcasa_ro_campo"><span>Desde</span>
+                                <input type="date" class="o_dcasa_mv_contra_desde" t-att-value="state.contraDesde" t-att-max="datos ? datos.hoy : null"
+                                       t-on-change="(ev) => this.cambiarFecha('contraDesde', ev)"/></label>
+                            <label class="o_dcasa_ro_campo"><span>Hasta</span>
+                                <input type="date" class="o_dcasa_mv_contra_hasta" t-att-value="state.contraHasta" t-att-max="datos ? datos.hoy : null"
+                                       t-on-change="(ev) => this.cambiarFecha('contraHasta', ev)"/></label>
+                        </div>
+                    </div>
+                </section>
+
+                <p t-if="faltanFechas" class="o_dcasa_mk_ayuda o_dcasa_mv_faltan" role="status">Elige las dos fechas de cada periodo para ver el resultado.</p>
+                <p t-if="state.error" class="o_dcasa_mk_error" role="alert" t-esc="state.error"/>
+                <div t-if="state.cargando and !datos" class="o_dcasa_mk_cargando">
+                    <i class="fa fa-circle-o-notch fa-spin" aria-hidden="true"/> Cargando…
+                </div>
+
+                <t t-if="datos">
+                    <div class="o_dcasa_ro_cuerpo" t-att-aria-busy="state.cargando ? 'true' : 'false'"
+                         t-att-class="{ o_dcasa_mk_actualizando: state.cargando }">
+
+                        <p class="o_dcasa_mv_rango" role="status">
+                            <span class="o_dcasa_mv_leyenda o_dcasa_mv_leyenda_este"><strong>Este periodo:</strong> <t t-esc="datos.este.etiqueta"/> (<t t-esc="datos.este.dias"/> días)</span>
+                            <span class="o_dcasa_mv_leyenda o_dcasa_mv_leyenda_otro"><strong>Comparado con:</strong> <t t-esc="datos.otro.etiqueta"/> (<t t-esc="datos.otro.dias"/> días)</span>
+                        </p>
+                        <p t-if="datos.este.dias !== datos.otro.dias" class="o_dcasa_mk_ayuda o_dcasa_mv_aviso">
+                            Los dos periodos no tienen el mismo largo (<t t-esc="datos.este.dias"/> y <t t-esc="datos.otro.dias"/> días): compara con cuidado.
+                        </p>
+                        <p t-if="datos.resumen.sin_ventas_de_comparacion" class="o_dcasa_mv_sin_ventas" role="alert">
+                            En el periodo con el que comparas no hay ventas registradas. Por eso todo lo que se vendió ahora aparece como «Despertó».
+                        </p>
+
+                        <!-- El resumen: cuánto se vendió, antes y ahora -->
+                        <section class="o_dcasa_ro_resumen o_dcasa_mv_resumen" aria-label="Resumen">
+                            <div t-foreach="lineasDeResumen" t-as="l" t-key="l.clave" t-attf-class="o_dcasa_ro_dato o_dcasa_mv_dato o_dcasa_mv_dato_{{ l.clave }}">
+                                <span class="o_dcasa_ro_dato_nombre"><t t-esc="l.nombre"/><t t-if="hayCategoria"> · <t t-esc="categoriaElegida ? categoriaElegida.nombre : ''"/></t></span>
+                                <strong class="o_dcasa_ro_dato_cifra" t-esc="l.formato(l.dato.a)"/>
+                                <small>
+                                    Antes: <t t-esc="l.formato(l.dato.b)"/> ·
+                                    <span t-att-class="claseDeCambio(l.dato.cambio)"><t t-esc="porcentaje(l.dato.pct)"/></span>
+                                </small>
+                            </div>
+                        </section>
+
+                        <!-- El gráfico: una línea por periodo -->
+                        <section t-if="grafico" class="o_dcasa_mk_seccion o_dcasa_mv_grafico" aria-labelledby="o_dcasa_mv_t_grafico">
+                            <h2 id="o_dcasa_mv_t_grafico">Unidades vendidas <t t-esc="grafico.porSemana ? 'por semana' : 'por día'"/><t t-if="categoriaElegida"> · <t t-esc="categoriaElegida.nombre"/></t></h2>
+                            <p class="o_dcasa_mk_ayuda">La línea azul es este periodo; la gris, el de comparación. Cada punto es el mismo día (o la misma semana) de cada uno.</p>
+                            <svg class="o_dcasa_mv_svg" t-att-viewBox="'0 0 ' + grafico.ancho + ' ' + grafico.alto" role="img"
+                                 aria-label="Unidades vendidas en este periodo y en el de comparación">
+                                <line class="o_dcasa_mv_eje" t-att-x1="grafico.izq" t-att-x2="grafico.ancho - grafico.der" t-att-y1="grafico.cero" t-att-y2="grafico.cero"/>
+                                <line class="o_dcasa_mv_guia" t-att-x1="grafico.izq" t-att-x2="grafico.ancho - grafico.der" t-att-y1="grafico.arriba" t-att-y2="grafico.arriba"/>
+                                <text class="o_dcasa_mv_texto" t-att-x="grafico.izq - 6" t-att-y="grafico.cero + 4" text-anchor="end">0</text>
+                                <text class="o_dcasa_mv_texto" t-att-x="grafico.izq - 6" t-att-y="grafico.arriba + 4" text-anchor="end" t-esc="unidades(grafico.maximo)"/>
+                                <path class="o_dcasa_mv_linea_otro" t-att-d="grafico.otro"/>
+                                <path class="o_dcasa_mv_linea_este" t-att-d="grafico.este"/>
+                                <circle t-foreach="grafico.puntosOtro" t-as="p" t-key="p_index" class="o_dcasa_mv_punto_otro" t-att-cx="p.x" t-att-cy="p.y" r="3">
+                                    <title><t t-esc="diaCorto(p.fecha)"/>: <t t-esc="unidades(p.v)"/> (comparación)</title>
+                                </circle>
+                                <circle t-foreach="grafico.puntosEste" t-as="p" t-key="p_index" class="o_dcasa_mv_punto_este" t-att-cx="p.x" t-att-cy="p.y" r="3.5">
+                                    <title><t t-esc="diaCorto(p.fecha)"/>: <t t-esc="unidades(p.v)"/> (este periodo)</title>
+                                </circle>
+                                <text t-foreach="grafico.marcas" t-as="m" t-key="m_index" class="o_dcasa_mv_texto" t-att-x="m.x" t-att-y="grafico.alto - 8"
+                                      text-anchor="middle" t-esc="diaCorto(m.fecha)"/>
+                            </svg>
+                        </section>
+
+                        <!-- Qué ver, buscar y ordenar -->
+                        <section class="o_dcasa_ro_lista" data-seccion="lista" aria-labelledby="o_dcasa_mv_t_lista">
+                            <div class="o_dcasa_mk_filtros">
+                                <h2 id="o_dcasa_mv_t_lista" class="o_dcasa_ro_titulo">3 · ¿Qué productos quieres ver?</h2>
+                                <div class="o_dcasa_mk_chips o_dcasa_mv_vistas" role="group" aria-label="Qué productos ver">
+                                    <button t-foreach="datos.vistas" t-as="v" t-key="v.clave" type="button" class="o_dcasa_mk_chip"
+                                            t-att-data-vista="v.clave" t-att-aria-pressed="datos.vista === v.clave ? 'true' : 'false'"
+                                            t-on-click="() => this.elegirVista(v.clave)">
+                                        <t t-esc="v.nombre"/> <small t-esc="numero(v.productos)"/>
+                                    </button>
+                                </div>
+                                <p class="o_dcasa_mk_ayuda o_dcasa_mv_sirve" t-esc="paraQueSirve"/>
+                                <div class="o_dcasa_mk_categorias" role="group" aria-label="Categoría">
+                                    <button type="button" class="o_dcasa_mk_chip" t-att-aria-pressed="state.categoria ? 'false' : 'true'"
+                                            t-on-click="() => this.elegirCategoria(null)">Todas las categorías</button>
+                                    <button t-foreach="datos.categorias" t-as="c" t-key="c.id" type="button" class="o_dcasa_mk_chip"
+                                            t-att-aria-pressed="state.categoria === c.id ? 'true' : 'false'" t-on-click="() => this.elegirCategoria(c.id)">
+                                        <t t-esc="c.nombre"/> <small t-esc="c.productos"/>
+                                    </button>
+                                </div>
+                                <div class="o_dcasa_ro_controles">
+                                    <label class="o_dcasa_mk_buscar o_dcasa_ro_buscar">
+                                        <i class="fa fa-search" aria-hidden="true"/>
+                                        <span class="visually-hidden">Buscar producto</span>
+                                        <input type="search" class="o_dcasa_mk_buscar_texto o_dcasa_ro_buscar_texto" autocomplete="off"
+                                               placeholder="Nombre o código" t-att-value="state.texto" t-on-input="alBuscar"/>
+                                    </label>
+                                    <label class="o_dcasa_ro_campo">
+                                        <span>Ordenar por</span>
+                                        <select class="o_dcasa_ro_orden" t-on-change="elegirOrden">
+                                            <option t-foreach="ordenes" t-as="o" t-key="o.clave" t-att-value="o.clave"
+                                                    t-att-selected="datos.orden === o.clave" t-esc="o.nombre"/>
+                                        </select>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <p class="o_dcasa_mk_ayuda o_dcasa_ro_conteo">
+                                <strong t-esc="vistaActual ? vistaActual.nombre : ''"/> ·
+                                <t t-esc="productosTexto(datos.total)"/>
+                                <t t-if="datos.total > datos.mostrando"> (mostrando los primeros <t t-esc="datos.mostrando"/>; el Excel trae todos)</t>
+                            </p>
+                            <div t-if="datos.total > 0" class="o_dcasa_mv_acciones">
+                                <button type="button" class="o_dcasa_mk_enlace o_dcasa_mv_en_productos" t-on-click="abrirEnProductos">
+                                    Ver estos <t t-esc="numero(datos.total)"/> en Productos
+                                </button>
+                            </div>
+
+                            <ul class="o_dcasa_ro_filas">
+                                <li t-foreach="datos.productos" t-as="fila" t-key="fila.id" class="o_dcasa_ro_fila o_dcasa_mv_fila">
+                                    <button type="button" class="o_dcasa_mk_foto o_dcasa_ro_foto"
+                                            t-att-aria-label="(fila.con_foto ? 'Ver las fotos de ' : 'Subir fotos a ') + fila.nombre"
+                                            t-on-click="() => this.verFotos(fila)">
+                                        <img t-if="fila.con_foto" t-att-src="fila.imagen" alt="" loading="lazy"/>
+                                        <span t-else="" class="o_dcasa_mk_sin_foto" aria-hidden="true"><i class="fa fa-camera"/></span>
+                                    </button>
+                                    <div class="o_dcasa_ro_producto">
+                                        <button type="button" class="o_dcasa_mk_nombre" t-on-click="() => this.abrirProducto(fila)">
+                                            <strong t-esc="fila.nombre"/>
+                                            <small><t t-if="fila.codigo"><t t-esc="fila.codigo"/> · </t><t t-esc="fila.categoria"/></small>
+                                        </button>
+                                        <span class="o_dcasa_ro_etiquetas">
+                                            <span t-attf-class="o_dcasa_ro_etiqueta o_dcasa_mv_estado o_dcasa_mv_e_{{ fila.estado }}" t-esc="fila.nombre_estado"/>
+                                            <span t-if="fila.ancla" class="o_dcasa_ro_etiqueta o_dcasa_ro_etiqueta_ancla">Ancla</span>
+                                            <span t-if="fila.stock !== null and fila.stock &lt;= 0" class="o_dcasa_ro_etiqueta o_dcasa_ro_etiqueta_alerta">Agotado</span>
+                                            <span t-if="!fila.con_foto" class="o_dcasa_ro_etiqueta o_dcasa_ro_etiqueta_alerta">Sin foto</span>
+                                        </span>
+                                    </div>
+                                    <dl class="o_dcasa_ro_medidas">
+                                        <div><dt>Este periodo</dt><dd><t t-esc="unidades(fila.vendidas_este)"/> u. · <t t-esc="numero(fila.pedidos_este)"/> ped.</dd></div>
+                                        <div><dt>Antes</dt><dd><t t-esc="unidades(fila.vendidas_otro)"/> u. · <t t-esc="numero(fila.pedidos_otro)"/> ped.</dd></div>
+                                        <div><dt>Cambio</dt><dd t-att-class="claseDeCambio(fila.cambio)"><t t-esc="cambio(fila.cambio)"/> u. · <t t-esc="porcentaje(fila.cambio_pct)"/></dd></div>
+                                        <div><dt>Existencias</dt><dd t-esc="fila.stock === null ? '—' : numero(fila.stock)"/></div>
+                                        <div><dt>Alcanza para</dt><dd t-esc="cobertura(fila)"/></div>
+                                        <div><dt>Última venta</dt><dd t-esc="diasTexto(fila.dias_sin_vender)"/></div>
+                                        <t t-if="datos.con_dinero">
+                                            <div><dt>Vendido este periodo</dt><dd t-esc="dinero(fila.vendido_este)"/></div>
+                                            <div><dt>Vendido antes</dt><dd t-esc="dinero(fila.vendido_otro)"/></div>
+                                            <div t-if="fila.estado === 'quieto' or fila.estado === 'enfrio'"><dt>Capital parado</dt><dd t-esc="dinero(fila.capital)"/></div>
+                                        </t>
+                                    </dl>
+                                </li>
+                            </ul>
+                            <p t-if="!datos.productos.length" class="o_dcasa_mk_vacio">
+                                <t t-if="state.texto">No encontré productos con «<t t-esc="state.texto"/>» en esta lista.</t>
+                                <t t-else="">No hay productos en esta lista. Elige otra arriba.</t>
+                            </p>
+                        </section>
+
+                        <!-- Cómo se cuenta -->
+                        <details class="o_dcasa_mk_seccion o_dcasa_ro_como">
+                            <summary>¿Cómo se calcula cada cosa?</summary>
+                            <ul>
+                                <li><strong>Ventas:</strong> <t t-esc="datos.como_se_cuenta.ventas"/></li>
+                                <li><strong>Periodos:</strong> <t t-esc="datos.como_se_cuenta.periodos"/></li>
+                                <li><strong>Pedidos:</strong> <t t-esc="datos.como_se_cuenta.pedidos"/></li>
+                                <li><strong>Estado:</strong> <t t-esc="datos.como_se_cuenta.estado"/></li>
+                                <li><strong>Alcanza para:</strong> <t t-esc="datos.como_se_cuenta.alcanza"/></li>
+                            </ul>
+                        </details>
+                    </div>
+                </t>
+            </div>
+        </div>
+    </t>
+
+</templates>

@@ -2066,3 +2066,21 @@ Lo que quedó escrito para no repetirlo:
   la bitácora del 2026-11-22.
 - **El inicio de sesión de `/web/login` con el sitio instalado** tiene varios `button[type=submit]` (la lupa del buscador es el primero): para las capturas se escribe la clave y se pulsa Enter.
 
+## Lo que enseñó «Movimiento» (2026-11-22)
+
+- **Antes de poner un `_name`, buscar que no exista:** `grep -rn "_name = 'el.nombre'" addons`. `dcasa.movimiento` ya es el libro de puntos de Socios (`dcasa_socios`); un `AbstractModel`
+  con el mismo nombre se mezcla con él y la base ni carga: `KeyError: 'partner_id'` en `setup_inverses` (un One2many cuyo inverso ya no existe en el modelo mezclado). El error sale lejos de
+  la causa (al cargar el módulo, no al definir el modelo). El de comparar periodos se llama `dcasa.movimiento_productos`. Para saber si el fallo es de los cambios o del entorno: `git stash -u`,
+  correr la actualización sin ellos y `git stash pop`.
+- **Una prueba que no está en `tests/__init__.py` no corre y el resultado dice «0 failed, 0 error(s) of 0 tests»**, que parece verde. Siempre mirar el «of N tests».
+- **`--test-tags=/modulo:Clase` es la clase exacta.** `TestMovimiento` no incluye `TestMovimientoEnElNavegador`: se corren las dos etiquetas.
+- **En las pruebas de navegador, el clic cambia el estado al instante pero el DOM se pinta después.** Esperar a algo que SÍ cambie con el clic (`aria-pressed`, el `href` nuevo), no a un
+  elemento que ya estaba (el aviso «sin ventas» estaba antes del clic y la prueba leyó el enlace viejo).
+- **El signo del dinero en las líneas de factura:** `balance` de una factura de cliente es negativo (crédito) y el de una nota de crédito positivo. Las ventas de un producto son
+  `-sum(balance)` sumando facturas y notas, sin firmar por tipo; las unidades (`quantity`) sí se firman por tipo (una `_read_group` por tipo, como en Rotación).
+- **El «hoy» de una prueba tiene que salir de quien la mira** (`context_today` con el usuario de tz Panamá), no del usuario del entorno: entre las 19:00 y la medianoche de Panamá la fecha
+  UTC ya es la de mañana y una venta «de hoy» cae fuera de «los últimos 30 días».
+- **Un número esperado que cae en `.5` es una trampa** (`round(17.5)` es 18 por el redondeo al par, pero `5 / (2 / 7)` puede dar `17.499999…`). Las pruebas usan casos que no caen en el medio.
+- **Los periodos de comparación hay que decirlos con fechas exactas en la pantalla** («del 23 oct al 21 nov»): «30 días» y «el mes» no dicen cuáles son los extremos, y si los dos periodos no
+  tienen el mismo largo (meses de 28 a 31 días) se avisa en vez de normalizar en silencio.
+

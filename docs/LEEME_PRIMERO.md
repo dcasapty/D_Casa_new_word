@@ -110,6 +110,23 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 > sigue. Se guardan las diez más recientes; las viejas se resumen en una línea abajo y su texto completo pasa a
 > [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md).
 
+### 2026-11-22 (tarde): «Movimiento» (comparar periodos) y un simulador de márgenes. En `claude/merge-rama-to-main-ty3koz`, SIN desplegar
+
+La dueña pidió seguir con lo de ver los artículos de mayor y menor movimiento y rotación **por tiempos y comparando periodos**, para hacer campañas de publicidad y de redes más fácil. Detalle en [MOVIMIENTO.md](MOVIMIENTO.md):
+
+- **Pantalla «Movimiento»** (`dcasa_marketing`: `models/movimiento.py`, `static/src/{js,xml,scss}/movimiento.*`, `controllers/movimiento.py`, `views/movimiento_views.xml`): se elige el periodo (7, 15, 30, 60, 90 días, este mes, el mes
+  pasado o fechas) y contra qué se compara (el de justo antes, el mismo del año pasado o fechas). Muestra el resumen (unidades, pedidos y productos, ahora y antes; el dinero solo para Gerencia y administradores),
+  una gráfica por día o semana y la lista con el estado de cada producto (subió, despertó, igual, bajó, se enfrió, quieto), lo vendido ahora y antes (unidades y pedidos), el cambio %, para cuántos días alcanza lo que hay,
+  ancla, agotado y sin foto. «Crear campaña con los primeros 8» (Camila, en `dcasa_camila`), «Ver estos en Productos» y Excel. Entradas: Inventario › Movimiento, el botón «Comparar periodos» de Marketing y un enlace en Rotación.
+  Brian: `comparar_movimiento`. Guía: `movimiento-productos`.
+- **El modelo se llama `dcasa.movimiento_productos`**: `dcasa.movimiento` ya es el libro de puntos de Socios y chocó (la base no cargaba, `KeyError: 'partner_id'`). Ver CONTEXTO_AGENTICO.
+- **Pruebas:** `TestMovimiento` 26 en verde (extremos exactos de los periodos, estados, cambio %, nota de crédito, pedidos, cobertura, listas y orden, resumen, gráfico, permisos, Excel), `TestMovimientoEnElNavegador` 3 en verde
+  (390 y 1440 px con Chrome; Gerencia y el rol Marketing sin dinero) y el resto de `dcasa_marketing`, `dcasa_guia`, `dcasa_camila`, `dcasa_brian` y la lista blanca de RPC.
+- **Simulador de márgenes** (un artefacto privado, no está en el repositorio): precio, costo, rebaja, programa de vendedores con código, pasarela de pago (Tilopay o Yappy, % que cobra) y comisión del empleado de la web, en cuatro
+  pasos; la dueña lo encontró complicado y se simplificó a «¿nos conviene?». Los precios y porcentajes son de ejemplo. No cambia nada en el sistema.
+- **Falta:** las capturas antes/después de «Movimiento» (con datos de prueba) y el «sí» de la dueña (es una pantalla nueva); luego CI → staging → producción junto con Rotación
+  (`-u dcasa_marketing,dcasa_camila,dcasa_interfaz,dcasa_guia`).
+
 ### 2026-11-22: «Rotación» del inventario (pedido del jefe) y «Operación Sun Tzu». En `claude/merge-rama-to-main-ty3koz`, SIN subir y SIN desplegar
 
 El jefe pidió (por la dueña) saber qué productos no rotan, en 30, 60, 90 días…, para rebajarlos y recuperar capital de trabajo, enfocarse en lo que mejor rota y en los
@@ -368,53 +385,9 @@ van en un modelo aparte; Tilopay nace apagado; la comisión sale sin cifras.
 claves de la cuenta de pruebas de Tilopay (no pasan por el chat); la contadora decide cómo se trata la comisión y el diario
 «Tilopay» (se crea al desplegar aunque el proveedor siga apagado); confirmar que `web.json.enabled` no está puesto en producción.
 
-### 2026-11-17 (3) y 2026-11-18: la segunda entrega completa en producción (CI/CD 380 y Juan 29)
-
-**En producción desde el 2026-11-18, 00:5x UTC:** la segunda entrega entera (PR #128, squash `d2ba8caf`,
-ejecución 380 de CI/CD a mano desde `main`) y **Desplegar Juan 29** (01:0x UTC, misma versión). Salud del borde
-sana: `{"ok": true, "version": "d2ba8caff071", "base_al_dia": true, "humo": "ok"}`. El `/salud` de Juan responde con
-`d2ba8caf` en `produccion`, la tienda lista y activa; las 4 «cosas por revisar» que lista son claves y canales que
-**ya faltaban** (la `ANTHROPIC_API_KEY` de respaldo y el puente de WhatsApp por QR, que nunca se desplegó), no algo
-que trajera esta subida.
-
-**Lleva:** Andrés como mejor vendedor, las notas de voz (de Andrés y del panel de Brian), el micrófono del chat, la
-pantalla «Armar combo» con los precios de verdad, los tres arreglos de las revisiones (el total negativo del
-mostrador por los dos caminos, la guardia del Worker que se saltaba con «…ok?» y el premio que viajaba al chat) y la
-regla nueva de Socios que va abajo.
-
-**La decisión que la frenaba ya está tomada y programada.** La dueña eligió, entre dos opciones que se le
-presentaron con las cifras: **«avisarle y no dejar canjear»**.
-
-- **El problema** (lo encontró la revisión adversarial de Andrés vendedor): la línea del premio baja la compra medida
-  (decisión M6 de la dueña), así que podía tirarla por debajo del mínimo de la promoción de envío y hacerle perder el
-  envío gratis. Carrito de $205 sin ITBMS, premio de $10 → la compra queda en $195.65 y paga $45 de envío. **Gastaba
-  puntos para pagar más.**
-- **Lo que quedó:** antes de canjear se compara lo que pagaría de envío con lo que le descuenta el premio. Si iguala o
-  pasa, se le avisa con las dos cifras y no se canjea (sus puntos no se mueven: el canje ni se pide). **Decidí yo (y
-  se le dijo):** si el premio descuenta MÁS de lo que perdería, se deja pasar, porque ahí el socio sale ganando y
-  bloquearlo sería quitarle un beneficio real.
-- **Dos fallos míos que encontraron las pruebas y la revisión, los dos de dinero:**
-  1. Yo medía la bajada por el **valor de cara** del premio; la línea rebaja la **base** sin impuesto ($9.35 para un
-     premio de $10). El aviso habría dicho una cifra que no era y el bloqueo saltaba en el borde equivocado. La
-     cuenta del impuesto quedó en un solo sitio para que no se vuelvan a separar.
-  2. Al devolverle los puntos, **la promoción no volvía**: el sincronizador de envíos solo quita esa línea, nunca la
-     repone. El socio quedaba sin el premio Y pagando el envío: peor que el problema original. Ahora, al quitar un
-     premio —lo quite el sistema o el socio— la promoción se vuelve a ofrecer.
-- **Un BLOQUEANTE de la revisión independiente:** la guarda vivía solo en el carrito web, y por «Cobrar premio» del
-  **mostrador** el premio entraba directo: cobrar uno de $25 sobre una venta de $205 con envío gratis le hacía pagar
-  $21.64 más, sin que nadie se lo dijera. Pasó a `_aplicar_en_venta`, por donde van los dos caminos (es la segunda vez
-  que una guarda de dinero de premios se tiene que mover ahí; quedó anotado como regla). En el mostrador el código
-  sigue valiendo para otra compra.
-- **Dos hallazgos más de la revisión, arreglados:** el ahorro de la promoción es una base y el valor del premio va con
-  ITBMS, así que al compararlos ahora el ahorro sube con los impuestos del envío (hoy va sin ellos, pero puede
-  cambiar); y el carrito del chat no corría la limpieza de premios, así que podía seguir mostrando uno que ya no le
-  convenía. También se probó el borde exacto que eligió la dueña («iguala» → no se canjea), que antes pasaba igual
-  con `>` que con `>=`.
-- **Sigue abierto, anotado:** el carrito le ofrece premios que el servidor va a rechazar (el aviso llega después del
-  clic); y si lo que se pierde eran términos ya prometidos de una promoción vencida, esos no vuelven.
-
 ### Entradas anteriores (una línea cada una; el texto completo en [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md))
 
+- **2026-11-17 (3) y 2026-11-18:** la segunda entrega completa en producción (CI/CD 380 y Juan 29)
 - **2026-11-17 (2):** la portada nueva en producción (CI/CD 377), el hero como fondo en movimiento
 - **2026-11-17:** la pantalla «Armar combo», tres arreglos de Socios y del chat, y los parches de IA de Juan
 - **2026-11-16 (3):** el Black Friday en producción (Desplegar 77 y Juan 28)

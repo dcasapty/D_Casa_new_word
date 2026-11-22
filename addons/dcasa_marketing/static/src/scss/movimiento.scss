@@ -1,0 +1,81 @@
+// Movimiento: la misma piel de Rotación y Marketing (plano, azul de la marca; el amarillo no se usa porque nunca toca
+// el blanco). Aquí solo lo propio: los dos periodos, el gráfico de dos líneas y los estados (subió, bajó…).
+
+// Los botones de arriba (también los usa Rotación para enlazar con esta pantalla).
+.o_dcasa_mk .o_dcasa_mv_cabeza_botones { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: flex-end; }
+@media (max-width: 767.98px) {
+    .o_dcasa_mk .o_dcasa_mv_cabeza_botones { justify-content: stretch; width: 100%; }
+}
+
+.o_dcasa_mk.o_dcasa_mv {
+    // --- Los dos periodos ----------------------------------------------------------------------------------------
+    .o_dcasa_mv_periodos { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px 24px; }
+    .o_dcasa_mv_bloque { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+    .o_dcasa_mv_fechas { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 4px; }
+    .o_dcasa_mv_fechas .o_dcasa_ro_campo { flex: 1 1 150px; }
+    .o_dcasa_mv_rango { display: flex; flex-wrap: wrap; gap: 6px 24px; margin: 0; color: var(--dc-tinta-2, #44506A); }
+    .o_dcasa_mv_leyenda::before {
+        content: "";
+        display: inline-block;
+        width: 22px;
+        height: 4px;
+        border-radius: 2px;
+        margin-right: 8px;
+        vertical-align: middle;
+    }
+    .o_dcasa_mv_leyenda_este::before { background: var(--dc-azul-600, #1340B1); }
+    .o_dcasa_mv_leyenda_otro::before { background: #8A94AB; }
+    .o_dcasa_mv_aviso { margin: 0; }
+    .o_dcasa_mv_sin_ventas {
+        margin: 0;
+        padding: 10px 14px;
+        border-radius: 12px;
+        background: #FDECEC;
+        color: #8A1C1C;
+        font-weight: 600;
+    }
+
+    // --- Resumen: cuánto se vendió ahora y antes -----------------------------------------------------------------
+    // (Con las dos clases: Rotación define .o_dcasa_ro_resumen más abajo en el mismo paquete y ganaría por orden.)
+    .o_dcasa_ro_resumen.o_dcasa_mv_resumen { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+    .o_dcasa_mv_sube { color: #0F7B4D; font-weight: 700; }
+    .o_dcasa_mv_baja { color: #8A1C1C; font-weight: 700; }
+    .o_dcasa_mv_dato small .o_dcasa_mv_sube, .o_dcasa_mv_dato small .o_dcasa_mv_baja { font-size: inherit; }
+
+    // --- El gráfico ----------------------------------------------------------------------------------------------
+    .o_dcasa_mv_grafico {
+        background: #fff;
+        border: 1px solid var(--dc-linea, #E2E7F0);
+        border-radius: 16px;
+        padding: 14px 18px;
+    }
+    .o_dcasa_mv_svg { width: 100%; height: auto; display: block; }
+    .o_dcasa_mv_eje { stroke: #8A94AB; stroke-width: 1; }
+    .o_dcasa_mv_guia { stroke: var(--dc-linea, #E2E7F0); stroke-width: 1; stroke-dasharray: 4 4; }
+    .o_dcasa_mv_texto { fill: var(--dc-tinta-2, #44506A); font-size: 11px; font-family: "Inter", sans-serif; }
+    .o_dcasa_mv_linea_este { fill: none; stroke: var(--dc-azul-600, #1340B1); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+    .o_dcasa_mv_linea_otro { fill: none; stroke: #8A94AB; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+    .o_dcasa_mv_punto_este { fill: var(--dc-azul-600, #1340B1); stroke: #fff; stroke-width: 1.5; }
+    .o_dcasa_mv_punto_otro { fill: #8A94AB; stroke: #fff; stroke-width: 1.5; }
+
+    // --- Las listas ----------------------------------------------------------------------------------------------
+    .o_dcasa_mv_sirve { margin: 0; }
+    .o_dcasa_mv_acciones { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 4px 0 8px; align-items: center; }
+    .o_dcasa_mv_estado {
+        &.o_dcasa_mv_e_subio, &.o_dcasa_mv_e_desperto { background: #DDF3E8; color: #0B5A39; }
+        &.o_dcasa_mv_e_igual { background: var(--dc-niebla, #F4F6FA); color: var(--dc-tinta-2, #44506A); }
+        &.o_dcasa_mv_e_bajo { background: #FFF1D6; color: #7A4F00; }
+        &.o_dcasa_mv_e_enfrio { background: #FDECEC; color: #8A1C1C; }
+        &.o_dcasa_mv_e_quieto { background: var(--dc-azul-800, #0E2A6B); color: #fff; }
+    }
+    .o_dcasa_mv_fila .o_dcasa_ro_medidas { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
+
+    @media (max-width: 767.98px) {
+        .o_dcasa_mv_excel { width: 100%; justify-content: center; }
+        .o_dcasa_mv_periodos { grid-template-columns: minmax(0, 1fr); }
+        // Cuatro tarjetas en dos columnas (no una torre de cuatro pisos) con la cifra un poco más chica.
+        .o_dcasa_ro_resumen.o_dcasa_mv_resumen { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+        .o_dcasa_mv_resumen .o_dcasa_ro_dato { padding: 10px 12px; }
+        .o_dcasa_mv_resumen .o_dcasa_ro_dato .o_dcasa_ro_dato_cifra { font-size: 1.3rem; white-space: nowrap; }
+    }
+}

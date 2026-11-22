@@ -115,6 +115,10 @@ export class DcasaRotacion extends Component {
         this.cargarPronto();
     }
 
+    abrirMovimiento() {
+        this.action.doAction("dcasa_marketing.accion_movimiento");
+    }
+
     quitarRebaja() {
         this.state.rebaja = "";
         this.cargar();

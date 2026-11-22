@@ -30,6 +30,9 @@
                         <p>Qué empujar en tu próxima campaña: lo que se vende, lo quieto, el stock y las fotos que faltan.</p>
                     </div>
                     <div class="o_dcasa_mk_botones">
+                        <button type="button" class="o_dcasa_mk_boton o_dcasa_mk_boton_movimiento" t-on-click="abrirMovimiento">
+                            <i class="fa fa-line-chart" aria-hidden="true"/> Comparar periodos
+                        </button>
                         <button type="button" class="o_dcasa_mk_boton o_dcasa_mk_boton_rotacion" t-on-click="abrirRotacion">
                             <i class="fa fa-refresh" aria-hidden="true"/> Rotación del inventario
                         </button>
