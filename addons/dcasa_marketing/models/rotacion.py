@@ -110,6 +110,22 @@ def _grupo_por_dias(dias):
     return 'mas180'
 
 
+def hoja_de_solo_texto(hoja):
+    """La hoja de xlsxwriter pero con todo texto escrito como texto. ``strings_to_formulas=False`` no cubre las fórmulas
+    de matriz («{=1+1}»): un nombre de producto así saldría como fórmula y correría en la computadora de quien abre el
+    Excel. ``write_string`` nunca interpreta nada; los números y las fechas siguen yendo por ``write``."""
+    escribir = hoja.write
+
+    def write(fila, columna, valor='', *resto):
+        if isinstance(valor, str):
+            if not valor:
+                return hoja.write_blank(fila, columna, None, *resto)
+            return hoja.write_string(fila, columna, valor, *resto)
+        return escribir(fila, columna, valor, *resto)
+    hoja.write = write
+    return hoja
+
+
 class DcasaRotacion(models.AbstractModel):
     _name = 'dcasa.rotacion'
     _description = "Rotación del inventario de D'CASA: qué se mueve, qué no y cuánto capital hay parado"
@@ -306,13 +322,16 @@ class DcasaRotacion(models.AbstractModel):
 
     @api.model
     def _cuadrante(self, fila, cortes):
-        """Uno de ``CLAVES_DE_CUADRANTE``, o ``None`` si el producto no tiene existencias, costo o precio. Se vende bien
-        con tantas unidades como el corte o más (el corte sale de productos que sí se vendieron, así que nunca es 0);
-        buen margen es tanto como el corte o más."""
+        """Uno de ``CLAVES_DE_CUADRANTE``, o ``None`` si el producto no tiene existencias, costo o precio, o si todavía
+        no se puede juzgar su rotación: lo que llegó hace menos de 30 días y lo que ya tiene un pedido confirmado «ya
+        tienen dueño» y no se ofrecen como candidatos a rebajar (igual que en las listas de días). Se vende bien con
+        tantas unidades como el corte o más (el corte sale de productos que sí se vendieron, así que nunca es 0) o si es
+        ancla (los que juntos hacen el 80 % de lo vendido: no pueden quedar como «se mueven poco»); buen margen es tanto
+        como el corte o más."""
         margen = self._margen(fila)
-        if fila['grupo'] is None or margen is None or cortes[1] is None:
+        if fila['grupo'] in (None, 'nuevo', 'abierto') or margen is None or cortes[1] is None:
             return None
-        vende_bien = cortes[0] is not None and fila['u90'] >= cortes[0]
+        vende_bien = fila['ancla'] or (cortes[0] is not None and fila['u90'] >= cortes[0])
         buen_margen = margen >= cortes[1]
         if vende_bien:
             return 'estrella' if buen_margen else 'trafico'
@@ -472,7 +491,8 @@ class DcasaRotacion(models.AbstractModel):
         base = marketing._dominio_base() + [('is_storable', '=', True)]
         _tipo, filtro = marketing._categoria_pedida(categoria)
         if filtro:
-            de_la_categoria = [f for pid, f in filas.items() if pid in set(Plantilla.search(base + filtro).ids)]
+            de_esa_categoria = set(Plantilla.search(base + filtro).ids)      # una sola búsqueda, no una por producto
+            de_la_categoria = [f for pid, f in filas.items() if pid in de_esa_categoria]
         else:
             de_la_categoria = list(filas.values())
         candidatas = de_la_categoria
@@ -543,7 +563,9 @@ class DcasaRotacion(models.AbstractModel):
             'margen_y_rotacion': self.env._('Solo Gerencia. Cada producto con existencias, costo y precio cae en uno '
                                             'de cuatro cuadros según se venda bien y deje buen margen. Los cortes son '
                                             'la mitad de arriba de la propia tienda (la mediana), no cifras puestas a '
-                                            'mano.'),
+                                            'mano. Los que llegaron hace menos de 30 días o ya tienen un pedido '
+                                            'confirmado no entran a ningún cuadro (todavía no se pueden juzgar) y los '
+                                            'ancla cuentan como que se venden bien.'),
         }
 
     @api.model
@@ -598,11 +620,10 @@ class DcasaRotacion(models.AbstractModel):
             (self.env._('Ancla = los productos que juntos hacen el 80 % de las unidades de 90 días. Cobertura = días '
                         'que alcanza lo que hay al ritmo de los últimos 90 días.'), formatos['nota']),
         ]
-        self._hoja_rotacion(libro.add_worksheet(self.env._('Rotación')), formatos, encabezado, elegidas, con_dinero,
-                            rebaja, hoy)
-        self._hoja_resumen(libro.add_worksheet(self.env._('Resumen')), formatos, self._tarjetas(todas, con_dinero,
-                                                                                               total_capital),
-                           con_dinero)
+        self._hoja_rotacion(hoja_de_solo_texto(libro.add_worksheet(self.env._('Rotación'))), formatos, encabezado,
+                            elegidas, con_dinero, rebaja, hoy)
+        self._hoja_resumen(hoja_de_solo_texto(libro.add_worksheet(self.env._('Resumen'))), formatos,
+                           self._tarjetas(todas, con_dinero, total_capital), con_dinero)
         libro.close()
         sufijo = re.sub(r'[^a-z0-9_]+', '-', vista.lower()).strip('-')
         return f'rotacion_{sufijo}_{hoy.isoformat()}.xlsx', salida.getvalue()

@@ -50,10 +50,10 @@ Nada se estima ni se inventa; todo sale de la base (`addons/dcasa_marketing/mode
 | Un periodo | Días corridos con el **primer y el último día incluidos** (hora de Panamá). «30 días» son hoy y los 29 de antes. |
 | El de comparación | **Anterior**: el mismo largo, justo antes (si este va de 23 oct a 21 nov, el otro va de 23 sep a 22 oct). **Año pasado**: el mismo tramo un año antes (un 29 de febrero se cuenta como 28). **Fechas**: las que escribas (no pueden cruzarse con este periodo). |
 | Este mes / Mes pasado | *Este mes* va del día 1 a hoy y se compara con **el mismo tramo del mes pasado** (si el mes pasado fue más corto, hasta su último día). *Mes pasado* es el mes completo y se compara con el mes anterior a ese. Si los dos periodos no tienen el mismo largo, la pantalla lo avisa. |
-| Límites | Hasta 366 días por periodo; nada del futuro. |
+| Límites | Hasta 366 días por periodo; nada del futuro ni de antes del año 2000. Los dos periodos no pueden cruzarse (con «el año pasado» pasaría si el periodo es de 366 días: se avisa). |
 | Pedidos | En cuántas facturas salió el producto: muestra si se mueve seguido o si fue una sola venta grande. Si un producto con más de un color o medida sale en la misma factura, cuenta una vez por variante. El total del resumen cuenta cada factura una sola vez. |
 | Estado | Uno por producto: **Subió** (más unidades que antes), **Despertó** (antes no se vendía), **Igual**, **Bajó** (se vende, pero menos), **Se enfrió** (antes se vendía y ahora no) y **Quieto** (con existencias y sin ventas en ninguno de los dos). Sin ventas y sin existencias no sale. Si las devoluciones superan las ventas, cuenta como 0. |
-| Cambio % | (ahora − antes) ÷ antes. Si antes no se vendió nada, no hay porcentaje (nunca se divide entre cero). |
+| Cambio % | (ahora − antes) ÷ antes. Si antes no se vendió nada, no hay porcentaje (nunca se divide entre cero). Si las devoluciones superan las ventas de ahora, «ahora» cuenta como 0: nunca baja de −100 %. |
 | Alcanza para | Existencias ÷ (unidades de este periodo ÷ días del periodo). Sin ventas en este periodo no se calcula. Cuánto pedir y cuándo lo calcula *Compras › Reponer*. |
 | Ancla, días sin vender, capital | Los de [Rotación](ROTACION.md). |
 | Sin ventas en la comparación | Si en el periodo de comparación no hay ninguna venta (por ejemplo, el año pasado, antes de usar Odoo), la pantalla lo dice: todo aparece como «Despertó» y no es una subida real. |

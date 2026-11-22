@@ -151,6 +151,16 @@ class TestMovimiento(MovimientoDatos):
         for mala in malas:
             with self.subTest(mala=mala), self.assertRaises(UserError):
                 self.datos(**mala)
+        # Un <input type=date> deja escribir el año 0001: antes daba un error 500; ahora un mensaje.
+        for absurda in (dict(periodo='fechas', desde='0001-01-01', hasta='0001-01-05'),
+                        dict(periodo='fechas', desde='1999-12-31', hasta='2000-01-05'),
+                        dict(contra='fechas', contra_desde='0001-01-01', contra_hasta='0001-01-05')):
+            with self.subTest(absurda=absurda), self.assertRaises(UserError):
+                self.datos(**absurda)
+        # Con «año pasado», un periodo de 366 días se cruzaría con su comparación: se avisa.
+        with self.assertRaises(UserError):
+            self.datos(periodo='fechas', desde=str(self.hoy - timedelta(days=365)), hasta=str(self.hoy),
+                       contra='anio')
         # Un periodo de justo un año sí vale.
         self.assertEqual(self.datos(periodo='fechas', desde=str(self.hoy - timedelta(days=365)),
                                     hasta=str(self.hoy))['este']['dias'], 366)
@@ -188,6 +198,10 @@ class TestMovimiento(MovimientoDatos):
         self.assertEqual(fila['vendidas_este'], -2.0)
         self.assertEqual(fila['estado'], 'quieto',
                          'con devoluciones de sobra cuenta como sin ventas, y tiene existencias')
+        # Y el porcentaje nunca baja de -100 % (antes decía -166.7 % de lo que ya no se vendía).
+        self.facturar(self.enfria, 5, dias_atras=2, nota=True)
+        fila = self.ver()['ZZMV ENFRIA']
+        self.assertEqual((fila['estado'], fila['cambio_pct']), ('enfrio', -100.0))
 
     def test_los_pedidos_son_facturas_distintas(self):
         """Salir en dos facturas mueve más que salir en una sola con las mismas unidades."""
@@ -318,6 +332,24 @@ class TestMovimiento(MovimientoDatos):
         self.assertEqual(sum(self.datos()['grafico']['este']), 12.0)
         self.assertEqual(sum(self.datos(categoria=self.otra_categoria.id)['grafico']['este']), 9.0)
 
+    def test_lo_archivado_no_entra_ni_en_pedidos_ni_en_el_grafico(self):
+        """Las ventas de un producto archivado o que ya no está a la venta no entran: ni en las unidades (que salen de
+        los productos de la lista) ni en los pedidos y la gráfica (que salen de las facturas). Antes solo las
+        unidades lo respetaban (revisión independiente del 2026-11-22)."""
+        archivado = self.articulo('ZZMV ARCHIVADO', 3)
+        self.facturar(archivado, 5, dias_atras=2)
+        self.assertEqual(self.datos()['resumen']['pedidos']['a'], 6)
+        archivado.active = False
+        datos = self.datos()
+        self.assertEqual(datos['resumen']['pedidos']['a'], 5, 'la factura del archivado ya no cuenta como pedido')
+        self.assertEqual(datos['resumen']['unidades']['a'], 12.0)
+        self.assertEqual(sum(datos['grafico']['este']), 12.0)
+        fuera = self.articulo('ZZMV FUERA DE VENTA', 3)
+        self.facturar(fuera, 4, dias_atras=2)
+        fuera.sale_ok = False
+        self.assertEqual(self.datos()['resumen']['pedidos']['a'], 5)
+        self.assertEqual(sum(self.datos()['grafico']['este']), 12.0)
+
     # --- Permisos --------------------------------------------------------------------------------------------------
 
     def test_marketing_ve_unidades_pero_no_dinero(self):
@@ -390,3 +422,12 @@ class TestMovimiento(MovimientoDatos):
         celda = next(c for fila in libro['Comparación'].iter_rows(min_row=6) for c in fila
                      if c.value and 'ZZMV FORMULA' in str(c.value))
         self.assertEqual(celda.data_type, 's')
+
+    def test_un_nombre_con_formula_de_matriz_tambien_sale_como_texto(self):
+        """``strings_to_formulas=False`` de xlsxwriter no cubre «{=...}» (revisión independiente del 2026-11-22)."""
+        # Solo es fórmula de matriz si TODA la celda es «{=...}»: el nombre es justo eso.
+        self.facturar(self.articulo('{=1+1}', 2), 1, dias_atras=2)
+        _nombre, libro = self.leer_excel(vista='todos')
+        celdas = [c for fila in libro['Comparación'].iter_rows(min_row=6) for c in fila if c.value == '{=1+1}']
+        self.assertEqual(len(celdas), 1)
+        self.assertEqual(celdas[0].data_type, 's', 'texto, no fórmula de matriz')

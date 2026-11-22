@@ -394,3 +394,31 @@ class TestRotacion(RotacionDatos):
                      if c.value and 'ZZRO FORMULA' in str(c.value))
         self.assertEqual(celda.data_type, 's')
         self.assertTrue(raro.dcasa_stock)
+
+    def test_un_nombre_con_formula_de_matriz_tambien_sale_como_texto(self):
+        """``strings_to_formulas=False`` de xlsxwriter no cubre «{=...}»: salía como fórmula de matriz y correría en la
+        computadora de quien abre el Excel (revisión independiente del 2026-11-22)."""
+        # Solo es fórmula de matriz si TODA la celda es «{=...}»: el nombre es justo eso.
+        self.con_costo('{=1+1}', 1)
+        _nombre, libro = self.leer_excel(vista='todos', texto='{=1+1}')
+        celdas = [c for fila in libro['Rotación'].iter_rows(min_row=6) for c in fila if c.value == '{=1+1}']
+        self.assertEqual(len(celdas), 1)
+        self.assertEqual(celdas[0].data_type, 's', 'texto, no fórmula de matriz')
+
+    def test_elegir_una_categoria_no_hace_una_busqueda_por_producto(self):
+        """Con una categoría elegida, la pantalla buscaba las plantillas de la categoría UNA VEZ POR PRODUCTO (crecía
+        al cuadrado: 2,600 productos tardaban 8 segundos). Ahora las consultas no crecen con los productos."""
+        categoria = self.env['product.category'].create({'name': 'ZZRO Categoría de rendimiento'})
+
+        def consultas():
+            self.env.invalidate_all()
+            antes = self.env.cr.sql_log_count
+            self.datos(vista='todos', categoria=categoria.id)
+            return self.env.cr.sql_log_count - antes
+        for i in range(3):
+            self.con_costo(f'ZZRO RENDIMIENTO A{i}', 1, categoria=categoria)
+        con_pocos = consultas()
+        for i in range(25):
+            self.con_costo(f'ZZRO RENDIMIENTO B{i}', 1, categoria=categoria)
+        con_muchos = consultas()
+        self.assertLess(con_muchos - con_pocos, 10, (con_pocos, con_muchos))

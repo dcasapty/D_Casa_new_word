@@ -38,6 +38,8 @@ from babel.dates import format_date
 from odoo import api, fields, models
 from odoo.exceptions import UserError
 
+from .rotacion import hoja_de_solo_texto
+
 # (clave, nombre del botón, días corridos). Los meses son especiales (ver ``_periodo``).
 PERIODOS = (
     ('7', 'Últimos 7 días', 7), ('15', 'Últimos 15 días', 15), ('30', 'Últimos 30 días', 30),
@@ -52,6 +54,7 @@ CONTRAS = (
 )
 CLAVES_DE_CONTRA = tuple(c[0] for c in CONTRAS)
 DIAS_MAXIMOS = 366
+ANIO_MINIMO = 2000      # un <input type=date> deja escribir el año 0001: ahí la resta de fechas se desborda
 PERIODO_POR_DEFECTO = '30'
 FILAS = 100
 FILAS_MAXIMAS = 100000
@@ -189,8 +192,6 @@ class DcasaMovimiento(models.AbstractModel):
             c0 = self._fecha(contra_desde, self.env._('«desde» de la comparación'))
             c1 = self._fecha(contra_hasta, self.env._('«hasta» de la comparación'))
             self._revisar_tramo(c0, c1, hoy, self.env._('El periodo de comparación'))
-            if c0 <= d1 and d0 <= c1:
-                raise UserError(self.env._('Los dos periodos no pueden cruzarse: elige fechas distintas.'))
         elif contra == 'anio':
             c0, c1 = self._hace_un_anio(d0), self._hace_un_anio(d1)
         elif periodo == 'este_mes':
@@ -201,11 +202,16 @@ class DcasaMovimiento(models.AbstractModel):
             c0, c1 = self._mes(hoy, 2)
         else:
             c0, c1 = d0 - timedelta(days=largo), d0 - timedelta(days=1)
+        if c0 <= d1 and d0 <= c1:       # con «año pasado» pasa si el periodo es de 366 días
+            raise UserError(self.env._('Los dos periodos no pueden cruzarse: acorta el periodo o elige otras fechas.'))
         siempre_anio = contra == 'anio'
         return self._tramo(d0, d1, hoy, siempre_anio), self._tramo(c0, c1, hoy, siempre_anio)
 
     @api.model
     def _revisar_tramo(self, d0, d1, hoy, nombre):
+        if d0.year < ANIO_MINIMO:
+            raise UserError(self.env._('%(nombre)s no puede empezar antes del año %(anio)s.', nombre=nombre,
+                                       anio=ANIO_MINIMO))
         if d0 > d1:
             raise UserError(self.env._('%s empieza después de terminar: cambia las fechas.', nombre))
         if d1 > hoy:
@@ -320,7 +326,9 @@ class DcasaMovimiento(models.AbstractModel):
             fila = {
                 'plantilla': plantilla, 'stock': stock, 'estado': estado,
                 'ua': ua, 'ub': ub, 'pa': a['pedidos'], 'pb': b['pedidos'],
-                'delta': ua - ub, 'pct': round((ua - ub) / ub * 100, 1) if ub > 0 else None,
+                'delta': ua - ub,
+                # Si las devoluciones superan las ventas, «ahora» cuenta como 0: nunca baja de -100 %.
+                'pct': round((max(ua, 0.0) - ub) / ub * 100, 1) if ub > 0 else None,
                 'cobertura': round(stock / (ua / este['dias'])) if ua > 0 and stock and stock > 0 else None,
                 'ultima': rot.get('ultima'), 'dias': rot.get('dias'), 'grupo': rot.get('grupo'),
                 'ancla': bool(rot.get('ancla')),
@@ -422,7 +430,8 @@ class DcasaMovimiento(models.AbstractModel):
         if orden == 'capital' and not con_dinero:
             orden = ORDEN_POR_VISTA[vista]
         elegidas = self._ordenar([f for f in candidatas if self._de_la_vista(f, vista)], orden, con_dinero)
-        return hoy, este, otro, con_dinero, de_la_categoria, elegidas, self._filtro_de_lineas(filtro), orden
+        return (hoy, este, otro, con_dinero, de_la_categoria, elegidas,
+                self._filtro_de_lineas(marketing._dominio_base() + filtro), orden)
 
     @api.model
     def _datos(self, periodo=None, contra=None, desde=None, hasta=None, contra_desde=None, contra_hasta=None,
@@ -511,9 +520,9 @@ class DcasaMovimiento(models.AbstractModel):
             (self.env._('Ventas = facturas de cliente publicadas (las notas de crédito restan). Pedidos = en cuántas '
                         'facturas salió el producto. Al %(dia)s.', dia=hoy.strftime('%d/%m/%Y')), formatos['nota']),
         ]
-        self._hoja_comparacion(libro.add_worksheet(self.env._('Comparación')), formatos, encabezado, elegidas,
-                               con_dinero, este['dias'])
-        self._hoja_resumen(libro.add_worksheet(self.env._('Resumen')), formatos,
+        self._hoja_comparacion(hoja_de_solo_texto(libro.add_worksheet(self.env._('Comparación'))), formatos,
+                               encabezado, elegidas, con_dinero, este['dias'])
+        self._hoja_resumen(hoja_de_solo_texto(libro.add_worksheet(self.env._('Resumen'))), formatos,
                            self._resumen(todas, este, otro, con_dinero, filtro_de_lineas), este, otro, con_dinero)
         libro.close()
         sufijo = re.sub(r'[^a-z0-9_]+', '-', vista.lower()).strip('-')

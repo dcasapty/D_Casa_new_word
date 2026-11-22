@@ -90,8 +90,8 @@ class TestRotacionMargen(MargenDatos):
 
     # --- Las medianas y el cuadro, con filas inventadas -------------------------------------------------------------
 
-    def fila(self, u90, costo, precio=100.0, grupo='v30'):
-        return {'grupo': grupo, 'u90': u90, 'costo': costo, 'venta_total': precio, 'stock': 1}
+    def fila(self, u90, costo, precio=100.0, grupo='v30', ancla=False):
+        return {'grupo': grupo, 'u90': u90, 'costo': costo, 'venta_total': precio, 'stock': 1, 'ancla': ancla}
 
     def test_los_cortes_son_las_medianas_de_la_tienda(self):
         rot = self.env['dcasa.rotacion']
@@ -125,6 +125,38 @@ class TestRotacionMargen(MargenDatos):
         self.assertEqual(rot._cuadrante(self.fila(4, 51), cortes), 'trafico', 'un punto menos de margen: deja poco')
         self.assertEqual(rot._cuadrante(self.fila(3, 51), cortes), 'revisar')
         self.assertIsNone(rot._cuadrante(self.fila(4, 50, grupo=None), cortes), 'un agotado no tiene cuadro')
+
+    def test_lo_nuevo_y_lo_que_tiene_pedido_abierto_no_se_juzga(self):
+        """Lo que llegó hace menos de 30 días y lo que ya tiene un pedido confirmado «ya tienen dueño»: no se ofrecen
+        como «ni se mueven ni dejan margen» (candidatos a rebajar), igual que en las listas de días (revisión
+        independiente del 2026-11-22)."""
+        rot = self.env['dcasa.rotacion']
+        cortes = (4, 50.0)
+        for grupo in ('nuevo', 'abierto'):
+            for u90, costo in ((0, 90), (0, 10), (9, 90), (9, 10)):
+                with self.subTest(grupo=grupo, u90=u90, costo=costo):
+                    self.assertIsNone(rot._cuadrante(self.fila(u90, costo, grupo=grupo), cortes))
+        self.assertEqual(rot._cuadrante(self.fila(0, 90, grupo='mas180'), cortes), 'revisar', 'los demás sí')
+
+    def test_un_producto_nuevo_de_verdad_no_cae_en_revisar(self):
+        """Con la base: uno recién llegado, de margen bajo y sin ventas, queda fuera de los cuatro cuadros."""
+        nuevo = self.articulo('ZZRM NUEVO', costo=990.0, vendidas=0)
+        grupo = next(f['grupo'] for f in self.datos(vista='todos')['productos'] if f['nombre'] == 'ZZRM NUEVO')
+        if grupo != 'nuevo':
+            self.skipTest('la mercancía de la prueba no cuenta como recién llegada en esta base')
+        self.assertIsNone(self.cuadros()['ZZRM NUEVO'])
+        self.assertNotIn(nuevo.id, [f['id'] for f in self.datos(vista='revisar')['productos']])
+
+    def test_el_ancla_cuenta_como_que_se_vende_bien(self):
+        """Un ancla (de los que juntos hacen el 80 % de lo vendido) puede quedar justo bajo la mediana de unidades: no
+        puede salir como «se mueve poco»."""
+        rot = self.env['dcasa.rotacion']
+        cortes = (5.5, 50.0)
+        # Costo 40 sobre precio 100 = margen 60 % (buen margen); costo 60 = margen 40 % (poco).
+        self.assertEqual(rot._cuadrante(self.fila(5, 40, ancla=True), cortes), 'estrella')
+        self.assertEqual(rot._cuadrante(self.fila(5, 60, ancla=True), cortes), 'trafico')
+        self.assertEqual(rot._cuadrante(self.fila(5, 40), cortes), 'oportunidad', 'sin ser ancla, se mueve poco')
+        self.assertEqual(rot._cuadrante(self.fila(5, 60), cortes), 'revisar')
 
     # --- Permisos --------------------------------------------------------------------------------------------------
 

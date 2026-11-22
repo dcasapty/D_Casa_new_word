@@ -1621,7 +1621,7 @@
    "categoria": "productos",
    "grupo": "Catálogo",
    "titulo": "Ver qué productos no se mueven y cuánto dinero hay parado (Rotación)",
-   "logras": "Ves cuántos días lleva cada producto sin venderse (menos de 30, de 30 a 59, de 60 a 89, de 90 a 179 y 180 o más), cuánto dinero hay parado en los que no se mueven, cuáles son los productos ancla (los que más venden) qué pasaría si rebajas un porcentaje que tú escribes y, para decidir qué empujar y qué rebajar, cuáles son las estrellas (se venden bien y dejan buen margen) y cuáles ni se mueven ni dejan margen. Todo se baja a Excel.",
+   "logras": "Ves cuántos días lleva cada producto sin venderse (menos de 30, de 30 a 59, de 60 a 89, de 90 a 179 y 180 o más), cuánto dinero hay parado en los que no se mueven, cuáles son los productos ancla (los que más venden), qué pasaría si rebajas un porcentaje que tú escribes y, para decidir qué empujar y qué rebajar, cuáles son las estrellas (se venden bien y dejan buen margen) y cuáles ni se mueven ni dejan margen. Todo se baja a Excel.",
    "palabras": [
     "rotacion",
     "inventario",
@@ -1668,7 +1668,7 @@
      "destino": null
     },
     {
-     "texto": "Debajo, en «Por margen y rotación», eliges Estrellas, los que venden mucho y dejan poco, los de buen margen que se mueven poco, o los que ni se mueven ni dejan margen. Los cortes son la mitad de arriba de tu tienda y la pantalla dice los números. Es solo para Gerencia y los administradores.",
+     "texto": "Debajo, en «Por margen y rotación», eliges Estrellas, los que venden mucho y dejan poco, los de buen margen que se mueven poco, o los que ni se mueven ni dejan margen. Los cortes son la mitad de arriba de tu tienda y la pantalla dice los números. Lo que llegó hace poco o ya tiene un pedido confirmado no entra en ningún cuadro, porque todavía no se puede juzgar. Es solo para Gerencia y los administradores.",
      "destino": null
     },
     {

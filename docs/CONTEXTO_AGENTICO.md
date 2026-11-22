@@ -2099,3 +2099,20 @@ Lo que quedó escrito para no repetirlo:
 - **El registro de un job de GitHub que falla puede venir cortado** (el de #386 terminó 49 minutos antes que el job). `gh run view <run> --job <id> --log` muestra el primer
   `FAIL:`; si hace falta el resto, correr local con el mismo comando. `scripts/test.sh` cuenta toda línea `ERROR` como falla.
 - **Un CI manual tarda entre 50 y 80 minutos solo en «Tests de Odoo»** (50, 74, 78 y 81 en los últimos cuatro): no es señal de cuelgue.
+
+## Lo que enseñó la revisión independiente de Rotación, Movimiento y Margen (2026-11-22)
+
+Un revisor sin mi contexto (con acceso de lectura y bases de prueba) encontró cuatro cosas importantes que ni mis pruebas ni mis mutaciones habían visto. Ninguna fuga de dinero.
+
+- **`strings_to_formulas=False` de xlsxwriter NO cubre las fórmulas de matriz `{=...}`** (xlsxwriter 3.1.9 revisa `{=` y `}` aparte, sin mirar la opción). Una celda cuyo texto entero es `{=1+1}` sale como `<f t="array">`. Todo Excel armado a mano debe escribir texto con `write_string` (o con `hoja_de_solo_texto`
+  de `dcasa_marketing/models/rotacion.py`, que cambia `hoja.write` de esa hoja). El nombre de prueba tiene que ser **exactamente** `{=1+1}`: con `{=1+1} algo` no es fórmula y la prueba pasa sin probar nada
+  (así falló mi primera versión; ya se comprobó que sin el arreglo las dos pruebas fallan). La misma debilidad sigue en `dcasa_interfaz/models/reponer.py` (fuera de esta entrega, anotada).
+- **Un `set(...)` dentro de la condición de una comprensión se vuelve a calcular en cada vuelta** (`[f for ... if pid in set(Plantilla.search(...).ids)]` hacía una búsqueda por producto: 2,600 productos tardaban 8 segundos).
+  Se calcula una vez antes. Una prueba de «las consultas no crecen con los productos» (`env.cr.sql_log_count` con 3 y con 28 productos) lo atrapa.
+- **Lo que la documentación promete como «no se ofrece como candidato a rebajar» tiene que cumplirse en TODAS las listas**, no solo en las de días: «Margen y rotación» dejaba productos recién llegados y con pedido abierto en «Ni se mueven ni dejan margen».
+  Ahora esos dos grupos no tienen cuadro y el ancla cuenta como «se vende bien».
+- **Cada herramienta de Brian necesita su prueba, sobre todo si promete no dar dinero a un rol.** `rotacion_de_inventario` y `comparar_movimiento` no tenían ninguna: ahora `test_brian_rotacion_movimiento.py` recorre las claves de la respuesta de Marketing y
+  busca dinero, y comprueba que los cuadros de margen y la rebaja se le nieguen.
+- **Una factura se cuenta con la misma base que la lista.** Las unidades salían de los productos activos y a la venta, pero los pedidos y la gráfica salían de todas las facturas: con un producto archivado, el resumen no cuadraba. Los tres usan ahora el mismo dominio.
+- Menores arreglados: fechas del año 0001 daban error 500 (ahora un mensaje; no antes del 2000), «año pasado» con un periodo de 366 días se cruzaba un día, y el cambio % de un producto con devoluciones de sobra llegaba a −166 % (ahora −100 %).
+- **Cuándo pedir la revisión:** en paralelo al CI largo (80 minutos), no después. Esta llegó antes de que terminara el CI y costó cancelarlo y relanzar; si hubiera llegado después, habría costado un ciclo entero más.
