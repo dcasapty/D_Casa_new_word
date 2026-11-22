@@ -520,11 +520,14 @@ Las mismas cifras de la app **Marketing** ([MARKETING.md](MARKETING.md)); nada l
 | Herramienta | Qué hace | Nivel | Quién |
 |---|---|---|---|
 | `movimiento_de_productos(periodo?, que?, categoria?, limite?)` | `periodo` = `semana` (7 días corridos, por defecto), `15_dias` o `mes` (30 días); `que` = `mas_movimiento` (lo vendido o entregado; una venta facturada y entregada cuenta una vez), `quietos` (con stock y sin ventas ni entregas; primero los que nunca se vendieron, con la última venta y los días sin vender), `mas_vendidos` (unidades facturadas, las notas de crédito restan, la base del Inicio) o `todo`; `categoria` = el tipo (p. ej. «Salas»). Responde cómo se cuenta (`como_se_cuenta`) | lectura | Gerencia, administradores y el rol Marketing |
+| `rotacion_de_inventario(grupo?, categoria?, orden?, rebaja?, limite?)` | Como la pantalla Rotación ([ROTACION.md](ROTACION.md)): `grupo` = `mas_de_30`, `mas_de_60`, `mas_de_90` (por defecto), `mas_de_180` (días sin vender), `nunca`, `nuevo`, `abierto`, `ancla` o `todos`; `orden` = `capital`, `dias`, `rotacion`, `margen`, `cobertura` o `nombre`; `rebaja` = un descuento en % (1 a 95) para **simular** (no cambia ningún precio). Devuelve el resumen, los grupos, los productos (días sin vender, vendidas en 30 · 60 · 90 días, cuántos días alcanza lo que hay) y cómo se cuenta. **El dinero** (capital al costo, precio, margen y la simulación) solo sale para Gerencia y administradores; el rol Marketing recibe unidades y días | lectura | Gerencia, administradores y el rol Marketing |
 | `fotos_que_faltan(estado?, texto?, categoria?, limite?)` | Productos a la venta sin foto (`sin_foto`), con una sola (`una_foto`) o los dos (`faltan`, por defecto); con cuántas tiene cada uno, los conteos y dónde subirlas (Marketing › Fotos o tocando la foto del producto) | lectura | Interno |
 
 Ejemplos: «¿qué productos están más quietos esta semana?» → `movimiento_de_productos(que=quietos)`; «¿qué se movió más
 este mes en Salas?» → `movimiento_de_productos(periodo=mes, que=mas_movimiento, categoria=Salas)`; «¿a qué colchones les
-faltan fotos?» → `fotos_que_faltan(categoria=Colchones)`. Brian no sube ni cambia fotos (eso se hace en la pantalla).
+faltan fotos?» → `fotos_que_faltan(categoria=Colchones)`; «¿qué lleva más de 90 días sin venderse?» →
+`rotacion_de_inventario(grupo=mas_de_90)`; «si rebajo 20 % lo que lleva 60 días sin venderse, ¿cuánto entra?» →
+`rotacion_de_inventario(grupo=mas_de_60, rebaja=20)`. Brian no sube ni cambia fotos (eso se hace en la pantalla).
 
 ## Roles y «Cada vendedora ve solo sus documentos» (2026-10-17)
 

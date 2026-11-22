@@ -37,6 +37,7 @@
         }
         p { margin: 4px 0 0; color: var(--dc-tinta-2, #44506A); max-width: 640px; }
     }
+    .o_dcasa_mk_botones { display: flex; flex-wrap: wrap; gap: 8px; }
     .o_dcasa_mk_boton {
         min-height: 48px;
         padding: 0 18px;
@@ -262,7 +263,8 @@
     @media (max-width: 767.98px) {
         .o_dcasa_mk_contenido { padding: 16px; }
         .o_dcasa_mk_cabeza h1 { font-size: 1.6rem; }
-        .o_dcasa_mk_cabeza .o_dcasa_mk_boton { width: 100%; }
+        .o_dcasa_mk_cabeza .o_dcasa_mk_boton,
+        .o_dcasa_mk_cabeza .o_dcasa_mk_botones { width: 100%; }
         .o_dcasa_mk_rejilla { grid-template-columns: minmax(0, 1fr); }
         .o_dcasa_mk_dos { grid-template-columns: minmax(0, 1fr); }
         .o_dcasa_mk_seccion { padding: 14px 14px; }

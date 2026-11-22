@@ -1,0 +1,226 @@
+// Rotación: la misma piel de Marketing (plano, azul de la marca, blancos fríos; el amarillo no se usa porque nunca toca
+// el blanco). Aquí solo lo propio de esta pantalla: el resumen, la escalera de barras, la simulación y las filas.
+
+.o_dcasa_mk.o_dcasa_ro {
+    .o_dcasa_ro_cuerpo { display: flex; flex-direction: column; gap: 16px; transition: opacity 150ms; }
+    .o_dcasa_ro_cuerpo.o_dcasa_mk_actualizando { opacity: .6; }
+
+    .o_dcasa_ro_excel {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+        &:hover { color: #fff; filter: brightness(1.08); }
+    }
+
+    // --- Resumen -------------------------------------------------------------------------------------------------
+    .o_dcasa_ro_resumen {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+        gap: 12px;
+    }
+    .o_dcasa_ro_dato {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+        padding: 14px 18px;
+        text-align: left;
+        background: #fff;
+        border: 1px solid var(--dc-linea, #E2E7F0);
+        border-radius: 16px;
+        color: var(--dc-tinta, #0E1A33);
+        min-width: 0;
+        &:is(button) { cursor: pointer; }
+        &:is(button):hover { border-color: var(--dc-azul-600, #1340B1); }
+        .o_dcasa_ro_dato_nombre {
+            font-family: "Oswald", "Inter", sans-serif;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: .03em;
+            font-size: .85rem;
+            color: var(--dc-tinta-2, #44506A);
+        }
+        .o_dcasa_ro_dato_cifra {
+            font-family: "Oswald", "Inter", sans-serif;
+            font-weight: 500;
+            font-size: 1.9rem;
+            line-height: 1.15;
+            color: var(--dc-azul-800, #0E2A6B);
+        }
+        small { color: var(--dc-tinta-3, #6B7690); overflow-wrap: anywhere; }
+    }
+    .o_dcasa_ro_dato_alerta {
+        background: var(--dc-azul-600, #1340B1);
+        border-color: var(--dc-azul-600, #1340B1);
+        .o_dcasa_ro_dato_nombre, small { color: var(--dc-azul-100, #E4ECFD); }
+        .o_dcasa_ro_dato_cifra { color: #fff; }
+        &:hover { border-color: var(--dc-azul-800, #0E2A6B); filter: brightness(1.08); }
+    }
+    .o_dcasa_ro_dato_aviso {
+        background: #FDECEC;
+        border-color: #F2C4C4;
+        .o_dcasa_ro_dato_cifra { color: #8A1C1C; }
+    }
+
+    // --- La escalera por días sin vender -------------------------------------------------------------------------
+    .o_dcasa_ro_barras { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+    .o_dcasa_ro_barra {
+        width: 100%;
+        display: grid;
+        grid-template-columns: minmax(150px, 1.1fr) minmax(120px, 2fr) minmax(150px, 1fr);
+        align-items: center;
+        gap: 12px;
+        min-height: 56px;
+        padding: 8px 12px;
+        text-align: left;
+        color: inherit;
+        background: #fff;
+        border: 1px solid var(--dc-linea, #E2E7F0);
+        border-radius: 12px;
+        &:hover { border-color: var(--dc-azul-600, #1340B1); }
+        &[aria-pressed="true"] {
+            border-color: var(--dc-azul-600, #1340B1);
+            box-shadow: inset 0 0 0 1px var(--dc-azul-600, #1340B1);
+            background: var(--dc-azul-100, #E4ECFD);
+        }
+        .o_dcasa_ro_barra_nombre { display: flex; flex-direction: column; min-width: 0; strong { font-weight: 600; } }
+        small { color: var(--dc-tinta-3, #6B7690); overflow-wrap: anywhere; }
+        .o_dcasa_ro_pista {
+            display: block;
+            height: 14px;
+            border-radius: 7px;
+            background: var(--dc-perla, #ECF0F6);
+            overflow: hidden;
+        }
+        .o_dcasa_ro_relleno { display: block; height: 100%; border-radius: 7px; background: var(--dc-azul-600, #1340B1); }
+        .o_dcasa_ro_cifras { display: flex; flex-direction: column; align-items: flex-end; text-align: right; strong { font-weight: 600; } }
+        // De «se mueve» (azul claro) a «lo más parado» (azul noche); los nuevos y los de pedido abierto, en gris.
+        &.o_dcasa_ro_g_v30 .o_dcasa_ro_relleno { background: #8FB0F2; }
+        &.o_dcasa_ro_g_v60 .o_dcasa_ro_relleno { background: #5A86E4; }
+        &.o_dcasa_ro_g_v90 .o_dcasa_ro_relleno { background: #1340B1; }
+        &.o_dcasa_ro_g_v180 .o_dcasa_ro_relleno { background: #0E2A6B; }
+        &.o_dcasa_ro_g_mas180 .o_dcasa_ro_relleno,
+        &.o_dcasa_ro_g_nunca .o_dcasa_ro_relleno { background: #0A1B47; }
+        &.o_dcasa_ro_g_nuevo .o_dcasa_ro_relleno,
+        &.o_dcasa_ro_g_abierto .o_dcasa_ro_relleno { background: #8A94AB; }
+    }
+
+    // --- Filtros y controles -------------------------------------------------------------------------------------
+    .o_dcasa_ro_titulo {
+        margin: 0;
+        font-family: "Oswald", "Inter", sans-serif;
+        font-weight: 500;
+        font-size: 1.1rem;
+        text-transform: uppercase;
+        color: var(--dc-azul-800, #0E2A6B);
+    }
+    .o_dcasa_ro_controles { display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: flex-end; }
+    .o_dcasa_ro_buscar { flex: 1 1 260px; margin: 0; }
+    .o_dcasa_ro_campo {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        margin: 0;
+        font-weight: 600;
+        color: var(--dc-tinta-2, #44506A);
+        font-size: .85rem;
+        select,
+        input {
+            min-height: 48px;
+            border: 1px solid var(--dc-linea-fuerte, #CBD3E1);
+            border-radius: 12px;
+            padding: 0 12px;
+            font-size: 1rem;
+            font-weight: 400;
+            background: #fff;
+            color: var(--dc-tinta, #0E1A33);
+        }
+        .o_dcasa_ro_entrada { display: flex; align-items: center; gap: 6px; font-size: 1rem; }
+        .o_dcasa_ro_rebaja { width: 110px; }
+    }
+
+    // --- Simulación ----------------------------------------------------------------------------------------------
+    .o_dcasa_ro_simulacion {
+        background: #fff;
+        border: 1px solid var(--dc-azul-600, #1340B1);
+        border-radius: 16px;
+        padding: 14px 18px;
+        margin-top: 12px;
+        h3 { margin: 0 0 8px; font-family: "Oswald", "Inter", sans-serif; font-weight: 500; font-size: 1.05rem; color: var(--dc-azul-800, #0E2A6B); }
+        .o_dcasa_ro_simulacion_cifras { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+        .o_dcasa_ro_simulacion_cifras > div { display: flex; flex-direction: column; min-width: 0; }
+        span { color: var(--dc-tinta-2, #44506A); font-size: .85rem; font-weight: 600; }
+        strong { font-family: "Oswald", "Inter", sans-serif; font-weight: 500; font-size: 1.5rem; color: var(--dc-azul-800, #0E2A6B); }
+        small { color: var(--dc-tinta-3, #6B7690); }
+    }
+    .o_dcasa_ro_negativo, .o_dcasa_ro_simulacion strong.o_dcasa_ro_negativo { color: #8A1C1C; }
+
+    // --- La lista ------------------------------------------------------------------------------------------------
+    .o_dcasa_ro_conteo { margin: 12px 0 4px; }
+    .o_dcasa_ro_filas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+    .o_dcasa_ro_fila {
+        display: grid;
+        grid-template-columns: 64px minmax(200px, 1.1fr) minmax(0, 2.4fr);
+        align-items: center;
+        gap: 6px 16px;
+        padding: 12px 16px;
+        background: #fff;
+        border: 1px solid var(--dc-linea, #E2E7F0);
+        border-radius: 14px;
+    }
+    .o_dcasa_ro_foto { width: 64px; height: 64px; }
+    .o_dcasa_ro_producto { display: flex; flex-direction: column; gap: 6px; min-width: 0; align-items: flex-start; }
+    .o_dcasa_ro_etiquetas { display: flex; flex-wrap: wrap; gap: 6px; }
+    .o_dcasa_ro_etiqueta {
+        display: inline-block;
+        border-radius: 999px;
+        padding: 2px 10px;
+        font-size: .8rem;
+        font-weight: 600;
+        background: var(--dc-niebla, #F4F6FA);
+        color: var(--dc-tinta-2, #44506A);
+        &.o_dcasa_ro_g_v30 { background: var(--dc-azul-100, #E4ECFD); color: var(--dc-azul-800, #0E2A6B); }
+        &.o_dcasa_ro_g_v60 { background: #D5E2FB; color: var(--dc-azul-800, #0E2A6B); }
+        &.o_dcasa_ro_g_v90 { background: var(--dc-azul-600, #1340B1); color: #fff; }
+        &.o_dcasa_ro_g_v180, &.o_dcasa_ro_g_mas180, &.o_dcasa_ro_g_nunca { background: var(--dc-azul-800, #0E2A6B); color: #fff; }
+        &.o_dcasa_ro_etiqueta_ancla { background: var(--dc-azul-100, #E4ECFD); color: var(--dc-azul-600, #1340B1); box-shadow: inset 0 0 0 1px var(--dc-azul-600, #1340B1); }
+        &.o_dcasa_ro_etiqueta_alerta { background: #FDECEC; color: #8A1C1C; }
+    }
+    .o_dcasa_ro_medidas {
+        margin: 0;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 6px 14px;
+        min-width: 0;
+        > div { min-width: 0; }
+        dt { font-size: .75rem; font-weight: 600; color: var(--dc-tinta-3, #6B7690); text-transform: uppercase; letter-spacing: .02em; }
+        dd { margin: 0; font-weight: 600; color: var(--dc-tinta, #0E1A33); overflow-wrap: anywhere; }
+    }
+
+    // --- Cómo se calcula -----------------------------------------------------------------------------------------
+    .o_dcasa_ro_como {
+        summary { cursor: pointer; font-weight: 600; color: var(--dc-azul-600, #1340B1); min-height: 32px; }
+        ul { margin: 8px 0 0; padding-left: 20px; color: var(--dc-tinta-2, #44506A); }
+        li { margin-bottom: 4px; }
+    }
+
+    @media (max-width: 767.98px) {
+        .o_dcasa_ro_barra {
+            grid-template-columns: minmax(0, 1fr) auto;
+            grid-template-areas: "nombre cifras" "pista pista";
+            .o_dcasa_ro_barra_nombre { grid-area: nombre; }
+            .o_dcasa_ro_pista { grid-area: pista; }
+            .o_dcasa_ro_cifras { grid-area: cifras; }
+        }
+        .o_dcasa_ro_fila {
+            grid-template-columns: 56px minmax(0, 1fr);
+            .o_dcasa_ro_foto { width: 56px; height: 56px; }
+            .o_dcasa_ro_medidas { grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        .o_dcasa_ro_campo { flex: 1 1 100%; select, input { width: 100%; } }
+        .o_dcasa_ro_campo_rebaja .o_dcasa_ro_entrada { width: 100%; }
+        .o_dcasa_ro_campo_rebaja .o_dcasa_ro_rebaja { flex: 1; width: auto; }
+        .o_dcasa_ro_excel { width: 100%; justify-content: center; }
+    }
+}

@@ -1617,6 +1617,63 @@
    "nota": "También la tienes como acceso directo «Marketing» en el Inicio. Es de Gerencia y de quien tiene el rol Marketing."
   },
   {
+   "id": "rotacion-inventario",
+   "categoria": "productos",
+   "grupo": "Catálogo",
+   "titulo": "Ver qué productos no se mueven y cuánto dinero hay parado (Rotación)",
+   "logras": "Ves cuántos días lleva cada producto sin venderse (menos de 30, de 30 a 59, de 60 a 89, de 90 a 179 y 180 o más), cuánto dinero hay parado en los que no se mueven, cuáles son los productos ancla (los que más venden) y qué pasaría si rebajas un porcentaje que tú escribes. Todo se baja a Excel.",
+   "palabras": [
+    "rotacion",
+    "inventario",
+    "no se mueve",
+    "quieto",
+    "parado",
+    "capital",
+    "dinero parado",
+    "sin vender",
+    "dias sin vender",
+    "30 60 90 dias",
+    "rebajar",
+    "bajar precio",
+    "liquidar",
+    "producto ancla",
+    "ancla",
+    "margen",
+    "cobertura",
+    "sin rotacion",
+    "excel de rotacion"
+   ],
+   "destino": {
+    "menu": "dcasa_marketing.menu_dcasa_rotacion"
+   },
+   "pasos": [
+    {
+     "texto": "Abre Inventario › Rotación (también la ves desde Marketing, con el botón «Rotación del inventario»).",
+     "destino": {
+      "menu": "dcasa_marketing.menu_dcasa_rotacion"
+     }
+    },
+    {
+     "texto": "Arriba ves el dinero que costó la mercancía que hay y cuánto de eso lleva 90 días o más sin venderse. Debajo, una barra por cada grupo de días sin vender: toca una para ver sus productos.",
+     "destino": null
+    },
+    {
+     "texto": "En «¿Qué productos quieres ver?» eliges 30, 60, 90 o 180 días o más sin vender, los que nunca se han vendido, los que llegaron hace poco, los que tienen un pedido abierto o los ancla. También puedes elegir una categoría, buscar por nombre o código y ordenar la lista.",
+     "destino": null
+    },
+    {
+     "texto": "Para ver qué pasaría con una rebaja, escribe el porcentaje en «Si se rebaja». Te dice cuánto entraría a caja, cuánto queda sobre el costo y cuántos productos quedarían por debajo del costo. Es solo una cuenta: no cambia ningún precio.",
+     "destino": null
+    },
+    {
+     "texto": "Toca «Descargar Excel» para bajar la lista que estás viendo, completa, con todas sus columnas.",
+     "destino": null
+    }
+   ],
+   "brian": "¿Qué productos llevan más de 90 días sin venderse y cuánto dinero tengo parado en ellos?",
+   "nota": "Lo que llegó hace menos de 30 días y todavía no se vende sale como «Llegó hace poco», y lo que tiene un pedido confirmado sin facturar sale como «Pedido abierto»: ninguno de los dos se ofrece para rebajar. Los productos ancla se cuidan, no se rebajan sin pensarlo. El dinero (costos, capital y márgenes) lo ven solo Gerencia y los administradores; quien tiene el rol Marketing ve unidades y días."
+  },
+  {
    "id": "camila-campana",
    "categoria": "clientes",
    "tambien": [

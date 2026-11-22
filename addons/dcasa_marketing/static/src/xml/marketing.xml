@@ -29,9 +29,14 @@
                         <h1>Marketing</h1>
                         <p>Qué empujar en tu próxima campaña: lo que se vende, lo quieto, el stock y las fotos que faltan.</p>
                     </div>
-                    <button type="button" class="o_dcasa_mk_boton" t-on-click="abrirCampanas">
-                        <i class="fa fa-list" aria-hidden="true"/> Lista para campañas
-                    </button>
+                    <div class="o_dcasa_mk_botones">
+                        <button type="button" class="o_dcasa_mk_boton o_dcasa_mk_boton_rotacion" t-on-click="abrirRotacion">
+                            <i class="fa fa-refresh" aria-hidden="true"/> Rotación del inventario
+                        </button>
+                        <button type="button" class="o_dcasa_mk_boton" t-on-click="abrirCampanas">
+                            <i class="fa fa-list" aria-hidden="true"/> Lista para campañas
+                        </button>
+                    </div>
                 </header>
 
                 <div class="o_dcasa_mk_filtros">
@@ -157,6 +162,9 @@
                             </t>
                         </ul>
                         <p t-if="!datos.quietos.length" class="o_dcasa_mk_vacio">Todo lo que tiene stock se movió en este periodo.</p>
+                        <button type="button" class="o_dcasa_mk_enlace o_dcasa_mk_enlace_rotacion" t-on-click="abrirRotacion">
+                            Ver la rotación completa: días sin vender, capital parado y productos ancla
+                        </button>
                         <button t-if="datos.quietos_total > datos.quietos.length" type="button" class="o_dcasa_mk_enlace"
                                 t-on-click="() => this.abrirLista(datos.quietos_ids, 'Más quietos · ' + datos.periodo.etiqueta)">
                             Ver los <t t-esc="datos.quietos_total"/> en Productos

@@ -1,4 +1,6 @@
 from . import test_fotos
 from . import test_marketing
 from . import test_navegador
+from . import test_rotacion
+from . import test_rotacion_navegador
 from . import test_scroll

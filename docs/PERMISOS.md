@@ -40,6 +40,7 @@ Más abajo: [roles y grupos](#roles-y-grupos-mapa-completo) · [interruptores](#
 | Ver las fotos de un producto en grande (tocar la foto: ficha, lista, tarjetas, Escáner) y descargarlas | Sí | Sí | Sí | Sí | Sí |
 | **Cambiar las fotos** de un producto: subir varias, reemplazar, recortar, girar, ordenar, elegir la principal, quitar (2026-10-22; las «Imágenes extra» de la tienda incluidas) | Sí (decisión de la dueña, 2026-10-22) | Sí | (si edita productos) | Sí | Sí |
 | La app **Marketing** (stock por categoría, más vendidos, movimiento, quietos, fotos que faltan) y su acceso en el Inicio | No | No | No | Sí | Sí |
+| **Rotación del inventario** (2026-11-22; días sin vender, ancla, cobertura, Excel): lo ven Gerencia, administradores y el rol Marketing; **el dinero** (costos, capital parado, margen y la simulación de rebaja) solo Gerencia y administradores | No | No | No | Sí | Sí |
 | **Marketing › Camila** (2026-11-06): armar, editar, mandarse la prueba y **aprobar el envío** de la campaña de correo (también el rol «Marketing») | No | No | No | Sí | Sí |
 | **Camila, etapa 2** (2026-11-06): varias campañas a la vez, «Escribir con IA», elegir a quién va con los chips del CRM (ve cuántos, nunca nombres ni correos), los botones del correo y «Crear campaña con estos» desde el tablero de Marketing (también el rol «Marketing») | No | No | No | Sí | Sí |
 | Ver **cuánto dinero** vendieron los clientes que llegaron por una campaña de correo, por el chat o en la web (cuántos chats y ventas lo ve también el rol Marketing) | No | No | No | Sí | Sí |

@@ -138,6 +138,10 @@ export class DcasaMarketing extends Component {
         this.action.doAction("sale.product_template_action", { viewType: "list" });
     }
 
+    abrirRotacion() {
+        this.action.doAction("dcasa_marketing.accion_rotacion");
+    }
+
     detalleQuieto(fila) {
         if (!fila.ultima_venta) {
             return "Sin ventas registradas";

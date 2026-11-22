@@ -2047,3 +2047,22 @@ Lo que quedó escrito para no repetirlo:
   jobs`). Lo que escribe en GitHub (PR, unir, lanzar flujos, comentar) va por `mcp__github__*`. Un log muy largo se
   guarda en archivo y se busca con un script.
 - Los avisos «Node.js 20 is deprecated» y el log del PostgreSQL de servicio son ruido, no la falla.
+
+## Lo que enseñó «Rotación» (2026-11-22)
+
+- **`stock.location_inventory` no existe** como xmlid en Odoo 19: la ubicación virtual de los ajustes de inventario es por empresa y producto (`producto.property_stock_inventory`). Una
+  prueba que la pedía por xmlid daba `ValueError` y, peor, no probaba lo que decía (la mutación «un ajuste cuenta como llegada» sobrevivía porque la prueba moría antes).
+- **`_read_group` no agrupa por un campo relacionado no guardado.** `account.move.line.move_type` es `related='move_id.move_type'` **sin** `store`: no se puede en `groupby`. Se hace un
+  `_read_group` por tipo (`move_id.move_type = out_invoice` y `out_refund`) y se firman las unidades. `move_id:count_distinct` sí funciona como agregado.
+- **Un 0 dentro de `(None, False, '')` es «vacío».** `0 in (None, False, '')` es `True` (porque `0 == False`): un descuento de 0 % se trata como «sin simulación». Si se quiere distinguir, comparar
+  con `is`.
+- **`self.env._(texto)` con `%%`:** el doble porcentaje solo vale cuando se pasan argumentos; sin argumentos sale tal cual con los dos signos.
+- **Una mutación que sobrevive no siempre es una prueba mala.** La simulación de rebaja para quien no ve dinero tiene dos guardias (`_validar` y `_datos`/`_fila_para_la_pantalla`); quitar una
+  no hace caer nada porque la otra cubre. Se dejó así (defensa en profundidad) y se anotó en la bitácora. Lo que sí hay que mirar es que el `ORIGINAL` de la batería dé 0 errores: una
+  prueba que falla en el original hace parecer «atrapadas» a todas las mutaciones.
+- **Una prueba de reparto por porcentaje necesita una cola que cruce el corte.** Con ventas de fábrica de 1, 1 y 1 unidades, el corte de 80 % y el de 99 % dan lo mismo; con 1000, 300, 150 y 50
+  se distinguen (el acumulado pasa de 66 % a 86 % y a 96 %).
+- **El entorno local (`.venv`) se arma sin `psycopg2` ni `python-ldap`** (compilan y fallan por falta de cabeceras): `psycopg2-binary` y el resto de `vendor/odoo/requirements.txt`. Receta en
+  la bitácora del 2026-11-22.
+- **El inicio de sesión de `/web/login` con el sitio instalado** tiene varios `button[type=submit]` (la lupa del buscador es el primero): para las capturas se escribe la clave y se pulsa Enter.
+

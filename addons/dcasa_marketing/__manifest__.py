@@ -1,7 +1,7 @@
 {
     'name': "D'CASA Panamá — Marketing y fotos de productos",
     'summary': "Ver las fotos en grande, subir varias, ordenarlas y recortarlas; y «Marketing»: lo que se vende, "
-               "lo quieto, el stock por categoría y las fotos que faltan",
+               "lo quieto, la rotación del inventario, el stock por categoría y las fotos que faltan",
     'description': """
 Pedido de la dueña (2026-10-22): «ver la foto de un producto es un problema terrible» y «créame un botón de Marketing».
 
@@ -16,7 +16,9 @@ Pedido de la dueña (2026-10-22): «ver la foto de un producto es un problema te
   y menos stock; los más vendidos (unidades, con la misma base del Inicio: facturas publicadas); lo que más se movió
   y lo más quieto en Semana / 15 días / Mes; y «Fotos»: buscar un producto por nombre, código o código de barras y
   subirle sus fotos ahí mismo, con los que no tienen foto o tienen una sola marcados.
-* Brian: ``movimiento_de_productos`` y ``fotos_que_faltan``.
+* **Rotación** (pedido de Gerencia, 2026-11-22): qué productos no se mueven, por días sin vender (30, 60, 90, 180),
+  cuánto capital hay parado en ellos, los productos ancla, la cobertura y una simulación de rebaja, con Excel.
+* Brian: ``movimiento_de_productos``, ``rotacion_de_inventario`` y ``fotos_que_faltan``.
 
 Ver docs/MARKETING.md.
 """,
@@ -29,6 +31,7 @@ Ver docs/MARKETING.md.
     'data': [
         'security/marketing_security.xml',
         'views/marketing_views.xml',
+        'views/rotacion_views.xml',
         'views/product_views.xml',
     ],
     'assets': {

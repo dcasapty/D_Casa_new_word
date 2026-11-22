@@ -1,6 +1,6 @@
 # Prioridades vigentes
 
-Puesto al día el **2026-11-20** (todo lo nuevo, Yappy directo incluido, está unido en la rama de trabajo, sin desplegar: ver «Estado al 2026-11-20»). Antes, el **2026-11-18** (**todo está en producción**: el Black Friday desde el 16 —Desplegar 77 y Juan 28—, la portada nueva desde el 17 —CI/CD 377, PR #127— y **la segunda entrega completa desde el 18** —CI/CD 380 y Desplegar Juan 29, squash `d2ba8caf`, PR #128—. Ya no queda nada esperando en la rama de trabajo). Es el orden en que se trabaja: cada sesión lo lee al empezar y lo pone al día al
+Puesto al día el **2026-11-22** (Rotación; ver «Estado al 2026-11-22»). Antes, el **2026-11-20** (todo lo nuevo, Yappy directo incluido, está unido en la rama de trabajo, sin desplegar: ver «Estado al 2026-11-20»). Antes, el **2026-11-18** (**todo está en producción**: el Black Friday desde el 16 —Desplegar 77 y Juan 28—, la portada nueva desde el 17 —CI/CD 377, PR #127— y **la segunda entrega completa desde el 18** —CI/CD 380 y Desplegar Juan 29, squash `d2ba8caf`, PR #128—. Ya no queda nada esperando en la rama de trabajo). Es el orden en que se trabaja: cada sesión lo lee al empezar y lo pone al día al
 terminar (ver [LEEME_PRIMERO.md](LEEME_PRIMERO.md)). Aquí va **un solo estado**, el de hoy; lo que pasó cada día está en
 la bitácora de LEEME_PRIMERO (y lo más viejo en [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md)).
 
@@ -9,6 +9,16 @@ Cada cosa nueva pasa por capturas a la dueña, pruebas, staging y, si toca diner
 la producción. Apruébalo y punto.»); la revisión adversarial no se salta (reglas en LEEME_PRIMERO §2).
 **Excepción desde el 2026-11-20: todo cambio de diseño se le muestra en capturas antes/después y espera su «sí»** («antes de cualquier cosa o
 cambio en el diseño me gustaría verlo antes»; ver LEEME_PRIMERO §2).
+
+## Estado al 2026-11-22
+
+- **Nuevo (pedido del jefe, 2026-11-22): «Rotación» del inventario.** Qué productos no se mueven (30, 60, 90, 180 días o más sin vender), cuánto capital hay parado,
+  ancla, cobertura, simulación de rebaja y Excel. **Programada y probada en la rama (`dcasa_marketing`), sin subir ni desplegar:** es una pantalla nueva, así que
+  **primero las capturas antes/después y el «sí» de la dueña** (LEEME §2); después, CI → staging → producción. Detalle en [ROTACION.md](ROTACION.md). Pendiente de respuesta: los
+  cortes (30, 60, 90, 180), el «llegó hace poco» (30 días, con pedidos que tardan 3 a 4 meses) y qué hacer con lo parado (rebaja, combo o dejarlo).
+- **Lunes 2026-11-23 (de la dueña):** las claves de Tilopay y de Yappy Comercial en Cloudflare (nunca por el chat) y el «sí» para llevar los cierres R9 a producción. Luego, el informe
+  para los jefes de todo lo hecho (con «Forma de pago» y su Excel, y lo más movido y lo más quieto, ya con Rotación).
+- «Operación Sun Tzu» (estrategia frente al competidor, con el plan «Caballo de Troya» por diseñar): documento **privado en Claude Docs**, no va al repositorio.
 
 ## Estado al 2026-11-21
 

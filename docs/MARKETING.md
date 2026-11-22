@@ -41,6 +41,9 @@ quieres, una **categoría**; todo se filtra con eso:
 - **Fotos**: busca el producto por nombre, código o código de barras (el lector también sirve: si sale uno solo, se abre
   solo) y súbele sus fotos ahí mismo. Se marcan los que no tienen foto y los que tienen una sola.
 - **Lista para campañas**: abre la lista de Productos que ya ordena por stock, precio y categoría.
+- **Rotación del inventario** (2026-11-22; botón arriba y enlace en «Más quietos»): los días que lleva cada producto sin
+  venderse (30, 60, 90, 180), el capital parado, los productos ancla y una simulación de rebaja, con Excel. Ver
+  [ROTACION.md](ROTACION.md).
 
 ## Cómo se cuenta cada cifra
 
@@ -110,6 +113,7 @@ pantalla. Detalle y ejemplos en [BRIAN.md](BRIAN.md) › «Marketing y fotos».
 - `tests/test_fotos.py`: subir varias (la primera es la principal), reemplazar, ordenar (con y sin cambio de principal),
   principal, quitar, girar y recortar en el servidor (también con la orientación EXIF del celular), formatos y tamaños,
   videos al final, claves de otro producto, y quién puede cambiar las fotos (Vendedora sí; bodega solo ve; portal nada).
+- `tests/test_rotacion.py` y `tests/test_rotacion_navegador.py`: la pantalla Rotación ([ROTACION.md](ROTACION.md)).
 - `tests/test_marketing.py`: periodos, más vendidos (con nota de crédito), movimiento (vendido y entregado cuentan una
   vez; devoluciones), quietos (orden por última venta), stock por categoría (sin agotados), subcategorías como tipos,
   «Sin categoría», fotos que faltan y búsqueda (nombre, código, código de barras, código público), permisos, el acceso

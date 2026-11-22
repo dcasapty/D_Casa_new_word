@@ -1,15 +1,18 @@
-"""Brian y Marketing: «¿qué productos están más quietos esta semana?», «¿qué se movió más en el mes?» y «¿qué productos
-no tienen foto?».
+"""Brian y Marketing: «¿qué productos están más quietos esta semana?», «¿qué se movió más en el mes?», «¿qué productos
+no tienen foto?» y «¿qué lleva más de 90 días sin venderse y cuánto capital hay parado?».
 
-Las mismas cifras de la pantalla Marketing (``dcasa.marketing``): nada se calcula con el modelo de IA. Solo lectura.
-``movimiento_de_productos`` es de Gerencia, administradores y el rol Marketing (los mismos de la pantalla);
+Las mismas cifras de las pantallas Marketing y Rotación (``dcasa.marketing``, ``dcasa.rotacion``): nada se calcula con
+el modelo de IA. Solo lectura. ``movimiento_de_productos`` y ``rotacion_de_inventario`` son de Gerencia, administradores
+y el rol Marketing (los mismos de la pantalla; el dinero de la rotación, solo de Gerencia y administradores);
 ``fotos_que_faltan`` es de cualquiera que vea productos.
 """
 from odoo import models
 from odoo.addons.dcasa_brian.models import herramientas_comun as c
 from odoo.addons.dcasa_brian.models.registro import BrianError, herramienta, normalizar
+from odoo.exceptions import UserError
 
 from .marketing import FILTROS_DE_FOTOS, GRUPOS, PERIODOS
+from .rotacion import ORDENES, VISTAS
 
 INTERNO = ('base.group_user',)
 QUE_VER = ('mas_movimiento', 'quietos', 'mas_vendidos', 'todo')
@@ -96,6 +99,94 @@ class BrianHerramientasMarketing(models.AbstractModel):
         if not any(respuesta.get(clave) for clave in ('mas_movimiento', 'mas_vendidos', 'quietos')):
             respuesta['mensaje'] = 'No hay productos que mostrar con eso en este periodo.'
         return respuesta
+
+    @herramienta(
+        nombre='rotacion_de_inventario',
+        descripcion='Rotación del inventario: productos con 30, 60, 90 o 180 días o más sin venderse, nunca '
+                    'vendidos, nuevos, con pedido abierto o ancla, con sus ventas y cuántos días alcanza lo que hay. '
+                    'Gerencia ve el capital parado y simula rebajas.',
+        parametros={
+            'grupo': {'type': 'string', 'enum': list(VISTAS),
+                      'description': 'Qué ver: mas_de_30, mas_de_60, mas_de_90 (por defecto), mas_de_180 (días sin '
+                                     'vender), nunca, nuevo, abierto, ancla o todos.'},
+            'categoria': {'type': 'string', 'description': 'Solo una categoría, p. ej. «Salas». Opcional.'},
+            'orden': {'type': 'string', 'enum': list(ORDENES),
+                      'description': 'capital, dias, rotacion, margen, cobertura o nombre. Sin dinero no hay capital '
+                                     'ni margen. Por defecto, el que más capital tiene parado.'},
+            'rebaja': {'type': 'number', 'description': 'Un descuento en % (1 a 95) para simular. Solo Gerencia.'},
+            'limite': {'type': 'integer',
+                       'description': f'Cuántos productos listar (1 a {MAX_FILAS}). Por defecto 10.'},
+        },
+        nivel='lectura', categoria='catalogo', grupos=(GRUPOS,),
+        ejemplos=['¿qué lleva más de 90 días sin venderse? → grupo=mas_de_90',
+                  '¿cuánto capital tengo parado en salas? → grupo=mas_de_90, categoria=Salas',
+                  '¿cuáles son mis productos ancla? → grupo=ancla',
+                  'si rebajo 20 % lo que lleva 60 días sin venderse, ¿cuánto entra? → grupo=mas_de_60, rebaja=20'],
+    )
+    def _h_rotacion_de_inventario(self, grupo='mas_de_90', categoria=None, orden=None, rebaja=None, limite=10):
+        Rotacion = self.env['dcasa.rotacion']
+        Rotacion._exigir()
+        if grupo not in VISTAS:
+            raise BrianError('«grupo» es mas_de_30, mas_de_60, mas_de_90, mas_de_180, nunca, nuevo, abierto, ancla '
+                             'o todos.')
+        try:
+            limite = max(1, min(int(limite or 10), MAX_FILAS))
+        except (TypeError, ValueError):
+            limite = 10
+        tipo = self._mk_categoria(categoria)
+        try:
+            datos = Rotacion._datos(grupo, tipo['id'] if tipo else None, '', orden, rebaja)
+        except UserError as error:
+            raise BrianError(str(error)) from error
+        con_dinero = datos['con_dinero']
+        resumen = datos['resumen']
+        respuesta = {
+            'al_dia': datos['hoy'],
+            'categoria': tipo['nombre'] if tipo else 'todas',
+            'viendo': next((v['nombre'] for v in datos['vistas'] if v['clave'] == grupo), grupo),
+            'productos_con_existencias': resumen['productos'],
+            'parados_90_dias_o_mas': resumen['parados_90'],
+            'productos_ancla': resumen['ancla'],
+            'por_grupo': [{'grupo': t['nombre'], 'productos': t['productos'], 'unidades': c.cantidad(t['unidades']),
+                           **({'capital_al_costo': t['capital']} if con_dinero else {})} for t in datos['tarjetas']],
+            'en_esta_lista': datos['total'],
+            'productos': [self._mk_rotacion_producto(fila, con_dinero) for fila in datos['productos'][:limite]],
+            'como_se_cuenta': ' '.join(datos['como_se_cuenta'].values()),
+        }
+        if con_dinero:
+            respuesta['capital_en_inventario'] = resumen['capital']
+            respuesta['capital_parado_90_dias_o_mas'] = resumen['capital_parado_90']
+            respuesta['parte_del_capital_parada'] = resumen['parte_parada_90']
+            if resumen['sin_costo']:
+                respuesta['aviso'] = (f"{resumen['sin_costo']} productos con existencias no tienen costo cargado: su "
+                                      f"capital no suma.")
+        if datos.get('simulacion'):
+            respuesta['simulacion_de_rebaja'] = datos['simulacion']
+        if not datos['productos']:
+            respuesta['mensaje'] = 'No hay productos con eso.'
+        return respuesta
+
+    @staticmethod
+    def _mk_rotacion_producto(fila, con_dinero):
+        datos = {
+            'producto': fila['nombre'], 'codigo': fila['codigo'], 'categoria': fila['categoria'],
+            'existencias': c.cantidad(fila['stock']),
+            'ultima_venta': (c.fecha(fila['ultima_venta']) if fila['ultima_venta']
+                             else 'nunca (en las facturas de Odoo)'),
+            'dias_sin_vender': fila['dias_sin_vender'],
+            'vendidas_30_60_90_dias': [c.cantidad(fila['vendidas_30']), c.cantidad(fila['vendidas_60']),
+                                       c.cantidad(fila['vendidas_90'])],
+            'alcanza_para_dias': fila['cobertura_dias'], 'ancla': fila['ancla'],
+        }
+        if fila['pedido_abierto']:
+            datos['pedido_abierto_unidades'] = c.cantidad(fila['pedido_abierto'])
+        if con_dinero:
+            datos.update(capital_al_costo=fila['capital'], precio_sin_itbms=fila['precio_unitario'],
+                         margen_porcentaje=fila['margen'])
+            if 'precio_rebaja' in fila:
+                datos['precio_con_rebaja'] = fila['precio_rebaja']
+                datos['bajo_el_costo'] = fila.get('bajo_costo', False)
+        return datos
 
     @herramienta(
         nombre='fotos_que_faltan',

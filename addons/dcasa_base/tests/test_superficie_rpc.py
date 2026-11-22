@@ -517,6 +517,10 @@ LISTA_BLANCA = {
     ('dcasa_marketing', 'product.template', 'dcasa_fotos_recortar'): FOTOS_EDITAR,
     ('dcasa_marketing', 'dcasa.marketing', 'datos'): MARKETING_LECTURA,
     ('dcasa_marketing', 'dcasa.marketing', 'buscar_fotos'): MARKETING_LECTURA,
+    ('dcasa_marketing', 'dcasa.rotacion', 'datos'):
+        'Lectura: exige Gerencia (ventas administrador), administrador o el rol Marketing en el servidor (_exigir, '
+        'AccessError) ANTES de leer; las ventas, llegadas y pedidos se leen con sudo solo después de eso; el dinero '
+        '(costos, capital, márgenes y la simulación de rebaja) solo sale para Gerencia y administradores; no escribe.',
     ('dcasa_marketing', 'dcasa.marketing', 'accion_productos'):
         'Exige Gerencia (ventas administrador), administrador o el rol Marketing en el servidor (_exigir, '
         'AccessError); valida los ids y solo devuelve la acción de ventana de Productos con ese filtro; no lee ni '
