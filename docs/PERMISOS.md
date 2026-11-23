@@ -40,6 +40,8 @@ Más abajo: [roles y grupos](#roles-y-grupos-mapa-completo) · [interruptores](#
 | Ver las fotos de un producto en grande (tocar la foto: ficha, lista, tarjetas, Escáner) y descargarlas | Sí | Sí | Sí | Sí | Sí |
 | **Cambiar las fotos** de un producto: subir varias, reemplazar, recortar, girar, ordenar, elegir la principal, quitar (2026-10-22; las «Imágenes extra» de la tienda incluidas) | Sí (decisión de la dueña, 2026-10-22) | Sí | (si edita productos) | Sí | Sí |
 | La app **Marketing** (stock por categoría, más vendidos, movimiento, quietos, fotos que faltan) y su acceso en el Inicio | No | No | No | Sí | Sí |
+| **Rotación del inventario** (2026-11-22; días sin vender, ancla, cobertura, Excel): lo ven Gerencia, administradores y el rol Marketing; **el dinero** (costos, capital parado, margen y la simulación de rebaja) solo Gerencia y administradores | No | No | No | Sí | Sí |
+| **Movimiento** (2026-11-22; comparar dos periodos, qué subió y qué bajó, Excel): lo ven Gerencia, administradores y el rol Marketing; **el dinero** (lo vendido en $ y el capital parado) solo Gerencia y administradores | No | No | No | Sí | Sí |
 | **Marketing › Camila** (2026-11-06): armar, editar, mandarse la prueba y **aprobar el envío** de la campaña de correo (también el rol «Marketing») | No | No | No | Sí | Sí |
 | **Camila, etapa 2** (2026-11-06): varias campañas a la vez, «Escribir con IA», elegir a quién va con los chips del CRM (ve cuántos, nunca nombres ni correos), los botones del correo y «Crear campaña con estos» desde el tablero de Marketing (también el rol «Marketing») | No | No | No | Sí | Sí |
 | Ver **cuánto dinero** vendieron los clientes que llegaron por una campaña de correo, por el chat o en la web (cuántos chats y ventas lo ve también el rol Marketing) | No | No | No | Sí | Sí |
@@ -270,14 +272,15 @@ Si lo intenta, Odoo le dice que no tiene permiso, o simplemente no le muestra na
 **Devolver dinero a un cliente** (una nota de crédito pagada en efectivo o por Yappy) y la **nota de crédito** misma
 las hace solo **Gerencia** (o un administrador) desde el 2026-10-17; la vendedora, Caja y el contador ya no.
 
-**El pago en línea (Yappy, Tilopay…) tampoco lo mueve la vendedora** (revisiones RV7 y RV8): por Facturación Odoo le deja *escribir* y
-*crear* una transacción de pago (`payment.transaction`), y con un `write` podía dejarla «hecha» (el cron confirmaba el pedido y creaba el
-cobro sin dinero). Desde entonces, quien no es Caja, Gerencia, contabilidad o administrador **no escribe NADA ni crea** en una transacción
-(R7-1, R8-2, R8-6). Y, desde la revisión RV8, tampoco puede **ligar o soltar cobros del pedido ni de la factura** (`transaction_ids`,
-R8-1: es la otra mitad de la misma relación; antes de ese arreglo la transacción estaba cerrada y el pedido y la factura **no**: un cobro
-ajeno ligado hacía que Bodega soltara una entrega sin cobrar y que el dinero de un cliente se aplicara a la factura de otro). Lo que
-escribe el sistema (la pasarela, el aviso del proveedor, el cron, `sale._create_invoices`) corre con `sudo` y no cambia
-(`dcasa_base/models/cobros.py`).
+**El pago en línea (Yappy, Tilopay…) tampoco lo mueve la vendedora** (revisiones RV7, RV8 y RV8b): por Facturación Odoo le deja *escribir*
+y *crear* una transacción de pago (`payment.transaction`), y con un `write` podía dejarla «hecha» (el cron confirmaba el pedido y creaba el
+cobro sin dinero). Desde entonces, quien no es Caja, Gerencia, contabilidad o administrador **no escribe NADA ni crea** en una transacción,
+ni la devuelve, captura o anula (R7-1, R8-2, R8-6, R9-3). Tampoco puede **ligar o soltar cobros del pedido ni de la factura**
+(`transaction_ids`: es la otra mitad de la misma relación; un cobro ajeno ligado hacía que Bodega soltara una entrega sin cobrar y que el
+dinero de un cliente se aplicara a la factura de otro): **cerrado en tres pasos**: el `write` (R8-1), y en R9-1 y R9-2 el pedido o la
+factura que *nacen* ya con el cobro (por `default_transaction_ids` del contexto, o un recibo creado a mano) y el cambio de tipo de un
+documento de cliente (`move_type`; una nota de crédito, solo Gerencia). Lo que escribe el sistema (la pasarela, el aviso del proveedor, el
+cron, `sale._create_invoices`) corre con `sudo` y no cambia (`dcasa_base/models/cobros.py`).
 
 ## Cómo está armado (para quien programa)
 

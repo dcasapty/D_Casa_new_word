@@ -1,0 +1,281 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <t t-name="dcasa_marketing.Rotacion">
+        <div class="o_action o_dcasa_mk o_dcasa_ro" t-ref="raiz">
+            <div class="o_dcasa_mk_contenido">
+                <header class="o_dcasa_mk_cabeza">
+                    <div>
+                        <h1>Rotación</h1>
+                        <p>Qué se mueve y qué no: los días que lleva cada producto sin venderse, el capital que está parado y qué conviene hacer con cada grupo.</p>
+                    </div>
+                    <div class="o_dcasa_mv_cabeza_botones">
+                        <button type="button" class="o_dcasa_mk_enlace o_dcasa_ro_a_movimiento" t-on-click="abrirMovimiento">
+                            Comparar periodos (lo que más y menos se mueve)
+                        </button>
+                        <!-- El Excel lo arma el servidor (Gerencia, administradores y Marketing; sin dinero para Marketing). -->
+                        <a t-if="datos" class="o_dcasa_mk_boton o_dcasa_ro_excel" t-att-href="urlExcel" download="">
+                            <i class="fa fa-file-excel-o" aria-hidden="true"/> Descargar Excel
+                        </a>
+                    </div>
+                </header>
+
+                <p t-if="state.error" class="o_dcasa_mk_error" role="alert" t-esc="state.error"/>
+                <div t-if="state.cargando and !datos" class="o_dcasa_mk_cargando">
+                    <i class="fa fa-circle-o-notch fa-spin" aria-hidden="true"/> Cargando…
+                </div>
+
+                <t t-if="datos">
+                    <div class="o_dcasa_ro_cuerpo" t-att-aria-busy="state.cargando ? 'true' : 'false'"
+                         t-att-class="{ o_dcasa_mk_actualizando: state.cargando }">
+
+                        <!-- El resumen -->
+                        <section class="o_dcasa_ro_resumen" aria-label="Resumen">
+                            <t t-if="datos.con_dinero">
+                                <div class="o_dcasa_ro_dato">
+                                    <span class="o_dcasa_ro_dato_nombre">Capital en inventario</span>
+                                    <strong class="o_dcasa_ro_dato_cifra" t-esc="dinero(datos.resumen.capital)"/>
+                                    <small>Lo que costó la mercancía que hay: <t t-esc="productosTexto(datos.resumen.productos)"/>.</small>
+                                </div>
+                                <button type="button" class="o_dcasa_ro_dato o_dcasa_ro_dato_alerta" t-on-click="() => this.elegirVistaYBajar('mas_de_90')">
+                                    <span class="o_dcasa_ro_dato_nombre">Parado 90 días o más</span>
+                                    <strong class="o_dcasa_ro_dato_cifra" t-esc="dinero(datos.resumen.capital_parado_90)"/>
+                                    <small>
+                                        <t t-if="datos.resumen.parte_parada_90 !== null"><t t-esc="datos.resumen.parte_parada_90"/> % del capital · </t>
+                                        <t t-esc="productosTexto(datos.resumen.parados_90)"/>
+                                    </small>
+                                </button>
+                            </t>
+                            <t t-else="">
+                                <div class="o_dcasa_ro_dato">
+                                    <span class="o_dcasa_ro_dato_nombre">Con existencias</span>
+                                    <strong class="o_dcasa_ro_dato_cifra" t-esc="numero(datos.resumen.productos)"/>
+                                    <small><t t-esc="unidades(datos.resumen.unidades)"/> unidades en total.</small>
+                                </div>
+                                <button type="button" class="o_dcasa_ro_dato o_dcasa_ro_dato_alerta" t-on-click="() => this.elegirVistaYBajar('mas_de_90')">
+                                    <span class="o_dcasa_ro_dato_nombre">Sin vender 90 días o más</span>
+                                    <strong class="o_dcasa_ro_dato_cifra" t-esc="numero(datos.resumen.parados_90)"/>
+                                    <small>productos con existencias que llevan 90 días o más sin venderse.</small>
+                                </button>
+                            </t>
+                            <button type="button" class="o_dcasa_ro_dato" t-on-click="() => this.elegirVistaYBajar('ancla')">
+                                <span class="o_dcasa_ro_dato_nombre">Productos ancla</span>
+                                <strong class="o_dcasa_ro_dato_cifra" t-esc="numero(datos.resumen.ancla)"/>
+                                <small>Los que juntos hacen el 80 % de lo que se vende. Se cuidan, no se rebajan sin pensarlo.</small>
+                            </button>
+                            <div t-if="datos.con_dinero and datos.resumen.sin_costo" class="o_dcasa_ro_dato o_dcasa_ro_dato_aviso">
+                                <span class="o_dcasa_ro_dato_nombre">Falta cargar el costo</span>
+                                <strong class="o_dcasa_ro_dato_cifra" t-esc="numero(datos.resumen.sin_costo)"/>
+                                <small>productos con existencias y sin costo: su capital no suma.</small>
+                            </div>
+                        </section>
+
+                        <!-- La escalera por días sin vender -->
+                        <section class="o_dcasa_mk_seccion o_dcasa_ro_escalera" data-seccion="escalera" aria-labelledby="o_dcasa_ro_t_escalera">
+                            <h2 id="o_dcasa_ro_t_escalera">Por días sin vender<t t-if="categoriaElegida"> · <t t-esc="categoriaElegida.nombre"/></t></h2>
+                            <p class="o_dcasa_mk_ayuda">
+                                Cada producto con existencias está en un solo grupo, según los días desde su última factura. Toca uno para ver sus productos.
+                            </p>
+                            <ul class="o_dcasa_ro_barras">
+                                <li t-foreach="datos.tarjetas" t-as="t" t-key="t.clave">
+                                    <button type="button" t-attf-class="o_dcasa_ro_barra o_dcasa_ro_g_{{ t.clave }}"
+                                            t-att-aria-pressed="datos.vista === t.clave ? 'true' : 'false'"
+                                            t-on-click="() => this.elegirVistaYBajar(t.clave)">
+                                        <span class="o_dcasa_ro_barra_nombre">
+                                            <strong t-esc="t.nombre"/>
+                                            <small t-esc="t.frase"/>
+                                        </span>
+                                        <span class="o_dcasa_ro_pista" aria-hidden="true">
+                                            <span class="o_dcasa_ro_relleno" t-att-style="'width:' + ancho(t) + '%'"/>
+                                        </span>
+                                        <span class="o_dcasa_ro_cifras">
+                                            <strong t-if="datos.con_dinero" t-esc="dinero(t.capital)"/>
+                                            <strong t-else="" t-esc="productosTexto(t.productos)"/>
+                                            <small>
+                                                <t t-if="datos.con_dinero"><t t-esc="productosTexto(t.productos)"/> · </t>
+                                                <t t-esc="unidades(t.unidades)"/> u.<t t-if="datos.con_dinero and t.parte !== null"> · <t t-esc="t.parte"/> %</t>
+                                            </small>
+                                        </span>
+                                    </button>
+                                </li>
+                            </ul>
+                        </section>
+
+                        <!-- Qué ver, buscar y ordenar -->
+                        <section class="o_dcasa_ro_lista" data-seccion="lista" aria-labelledby="o_dcasa_ro_t_lista">
+                            <div class="o_dcasa_mk_filtros">
+                                <h2 id="o_dcasa_ro_t_lista" class="o_dcasa_ro_titulo">¿Qué productos quieres ver?</h2>
+                                <div class="o_dcasa_mk_chips" role="group" aria-label="Qué productos ver">
+                                    <button t-foreach="vistasDeDias" t-as="v" t-key="v.clave" type="button" class="o_dcasa_mk_chip"
+                                            t-att-aria-pressed="datos.vista === v.clave ? 'true' : 'false'"
+                                            t-on-click="() => this.elegirVista(v.clave)">
+                                        <t t-esc="v.nombre"/> <small t-esc="numero(v.productos)"/>
+                                    </button>
+                                </div>
+                                <!-- Margen y rotación: solo Gerencia y administradores (usa el margen). -->
+                                <t t-if="vistasDeMargen.length">
+                                    <h3 class="o_dcasa_ro_subtitulo">Por margen y rotación</h3>
+                                    <div class="o_dcasa_mk_chips o_dcasa_ro_chips_margen" role="group" aria-label="Margen y rotación">
+                                        <button t-foreach="vistasDeMargen" t-as="v" t-key="v.clave" type="button" class="o_dcasa_mk_chip"
+                                                t-att-data-vista="v.clave" t-att-aria-pressed="datos.vista === v.clave ? 'true' : 'false'"
+                                                t-on-click="() => this.elegirVista(v.clave)">
+                                            <t t-esc="v.nombre"/> <small t-esc="numero(v.productos)"/>
+                                        </button>
+                                    </div>
+                                    <p t-if="vistaActual and vistaActual.ayuda" class="o_dcasa_mk_ayuda o_dcasa_ro_ayuda_margen" t-esc="vistaActual.ayuda"/>
+                                    <p t-if="datos.cortes" class="o_dcasa_mk_ayuda o_dcasa_ro_cortes" t-esc="datos.cortes.texto"/>
+                                </t>
+                                <div class="o_dcasa_mk_categorias" role="group" aria-label="Categoría">
+                                    <button type="button" class="o_dcasa_mk_chip" t-att-aria-pressed="state.categoria ? 'false' : 'true'"
+                                            t-on-click="() => this.elegirCategoria(null)">Todas las categorías</button>
+                                    <button t-foreach="datos.categorias" t-as="c" t-key="c.id" type="button" class="o_dcasa_mk_chip"
+                                            t-att-aria-pressed="state.categoria === c.id ? 'true' : 'false'" t-on-click="() => this.elegirCategoria(c.id)">
+                                        <t t-esc="c.nombre"/> <small t-esc="c.productos"/>
+                                    </button>
+                                </div>
+                                <div class="o_dcasa_ro_controles">
+                                    <label class="o_dcasa_mk_buscar o_dcasa_ro_buscar">
+                                        <i class="fa fa-search" aria-hidden="true"/>
+                                        <span class="visually-hidden">Buscar producto</span>
+                                        <input type="search" class="o_dcasa_mk_buscar_texto o_dcasa_ro_buscar_texto" autocomplete="off"
+                                               placeholder="Nombre o código" t-att-value="state.texto" t-on-input="alBuscar"/>
+                                    </label>
+                                    <label class="o_dcasa_ro_campo">
+                                        <span>Ordenar por</span>
+                                        <select class="o_dcasa_ro_orden" t-on-change="elegirOrden">
+                                            <option t-foreach="ordenes" t-as="o" t-key="o.clave" t-att-value="o.clave"
+                                                    t-att-selected="datos.orden === o.clave" t-esc="o.nombre"/>
+                                        </select>
+                                    </label>
+                                    <label t-if="datos.con_dinero" class="o_dcasa_ro_campo o_dcasa_ro_campo_rebaja">
+                                        <span>Si se rebaja (simulación)</span>
+                                        <span class="o_dcasa_ro_entrada">
+                                            <input type="number" min="1" max="95" step="any" inputmode="decimal" class="o_dcasa_ro_rebaja"
+                                                   placeholder="Ej. 20" t-att-value="state.rebaja" t-on-input="alRebajar"/>
+                                            <span aria-hidden="true">%</span>
+                                        </span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- La simulación de rebaja: solo cuentas; no cambia ningún precio -->
+                            <div t-if="datos.simulacion" class="o_dcasa_ro_simulacion" role="status">
+                                <h3>
+                                    Si estos <t t-esc="productosTexto(datos.simulacion.productos - datos.simulacion.sin_precio)"/> se vendieran con
+                                    <t t-esc="datos.simulacion.rebaja"/> % de descuento
+                                </h3>
+                                <div class="o_dcasa_ro_simulacion_cifras">
+                                    <div>
+                                        <span>Entrarían a caja</span>
+                                        <strong t-esc="dinero(datos.simulacion.ingreso)"/>
+                                        <small>precio rebajado, sin ITBMS</small>
+                                    </div>
+                                    <div>
+                                        <span>Lo que costaron</span>
+                                        <strong t-esc="dinero(datos.simulacion.capital)"/>
+                                        <small>capital que se libera</small>
+                                    </div>
+                                    <div>
+                                        <span>Quedaría sobre el costo</span>
+                                        <strong t-att-class="datos.simulacion.ganancia &lt; 0 ? 'o_dcasa_ro_negativo' : ''" t-esc="dinero(datos.simulacion.ganancia)"/>
+                                        <small t-if="datos.simulacion.margen !== null">margen de <t t-esc="datos.simulacion.margen"/> %</small>
+                                    </div>
+                                    <div>
+                                        <span>Bajo el costo</span>
+                                        <strong t-att-class="datos.simulacion.bajo_costo ? 'o_dcasa_ro_negativo' : ''" t-esc="numero(datos.simulacion.bajo_costo)"/>
+                                        <small>
+                                            <t t-if="datos.simulacion.bajo_costo">productos (<t t-esc="unidades(datos.simulacion.unidades_bajo_costo)"/> u.) se venderían perdiendo dinero</t>
+                                            <t t-else="">ninguno se vendería perdiendo dinero</t>
+                                        </small>
+                                    </div>
+                                </div>
+                                <p class="o_dcasa_mk_ayuda">
+                                    Es solo una cuenta: no cambia ningún precio. El precio mínimo para no perder es el costo.
+                                    <t t-if="datos.simulacion.sin_precio">Hay <t t-esc="productosTexto(datos.simulacion.sin_precio)"/> sin precio cargado que no entran en la cuenta.</t>
+                                </p>
+                                <button type="button" class="o_dcasa_mk_enlace" t-on-click="quitarRebaja">Quitar la simulación</button>
+                            </div>
+
+                            <p class="o_dcasa_mk_ayuda o_dcasa_ro_conteo">
+                                <strong t-esc="vistaActual ? vistaActual.nombre : ''"/> ·
+                                <t t-esc="productosTexto(datos.total)"/>
+                                <t t-if="datos.total > datos.mostrando"> (mostrando los primeros <t t-esc="datos.mostrando"/>; el Excel trae todos)</t>
+                            </p>
+
+                            <ul class="o_dcasa_ro_filas">
+                                <li t-foreach="datos.productos" t-as="fila" t-key="fila.id" class="o_dcasa_ro_fila">
+                                    <button type="button" class="o_dcasa_mk_foto o_dcasa_ro_foto"
+                                            t-att-aria-label="(fila.con_foto ? 'Ver las fotos de ' : 'Subir fotos a ') + fila.nombre"
+                                            t-on-click="() => this.verFotos(fila)">
+                                        <img t-if="fila.con_foto" t-att-src="fila.imagen" alt="" loading="lazy"/>
+                                        <span t-else="" class="o_dcasa_mk_sin_foto" aria-hidden="true"><i class="fa fa-camera"/></span>
+                                    </button>
+                                    <div class="o_dcasa_ro_producto">
+                                        <button type="button" class="o_dcasa_mk_nombre" t-on-click="() => this.abrirProducto(fila)">
+                                            <strong t-esc="fila.nombre"/>
+                                            <small><t t-if="fila.codigo"><t t-esc="fila.codigo"/> · </t><t t-esc="fila.categoria"/></small>
+                                        </button>
+                                        <span class="o_dcasa_ro_etiquetas">
+                                            <span t-attf-class="o_dcasa_ro_etiqueta o_dcasa_ro_g_{{ fila.grupo }}" t-esc="nombreDeGrupo(fila.grupo)"/>
+                                            <span t-if="fila.ancla" class="o_dcasa_ro_etiqueta o_dcasa_ro_etiqueta_ancla">Ancla</span>
+                                            <span t-if="fila.nombre_cuadrante" t-attf-class="o_dcasa_ro_etiqueta o_dcasa_ro_c_{{ fila.cuadrante }}" t-esc="fila.nombre_cuadrante"/>
+                                            <span t-if="fila.pedido_abierto" class="o_dcasa_ro_etiqueta">Pedido por facturar: <t t-esc="unidades(fila.pedido_abierto)"/></span>
+                                            <span t-if="fila.sin_costo" class="o_dcasa_ro_etiqueta o_dcasa_ro_etiqueta_alerta">Sin costo cargado</span>
+                                            <span t-if="fila.bajo_costo" class="o_dcasa_ro_etiqueta o_dcasa_ro_etiqueta_alerta">Bajo el costo</span>
+                                        </span>
+                                    </div>
+                                    <dl class="o_dcasa_ro_medidas">
+                                        <div><dt>Existencias</dt><dd t-esc="numero(fila.stock)"/></div>
+                                        <div><dt>Última venta</dt><dd t-esc="diasTexto(fila.dias_sin_vender)"/></div>
+                                        <div><dt>Vendidas 30 · 60 · 90 días</dt><dd t-esc="ritmo(fila)"/></div>
+                                        <div><dt>Alcanza para</dt><dd t-esc="cobertura(fila)"/></div>
+                                        <t t-if="datos.con_dinero">
+                                            <div><dt>Capital parado</dt><dd t-esc="dinero(fila.capital)"/></div>
+                                            <div>
+                                                <dt>Precio · margen</dt>
+                                                <dd>
+                                                    <t t-if="fila.precio_unitario !== null"><t t-esc="dinero(fila.precio_unitario)"/></t>
+                                                    <t t-else="">—</t>
+                                                    · <t t-if="fila.margen !== null"><t t-esc="fila.margen"/> %</t><t t-else="">—</t>
+                                                </dd>
+                                            </div>
+                                            <div t-if="fila.precio_rebaja !== undefined" t-att-class="fila.bajo_costo ? 'o_dcasa_ro_negativo' : ''">
+                                                <dt>Con <t t-esc="datos.rebaja"/> %</dt>
+                                                <dd>
+                                                    <t t-esc="dinero(fila.precio_rebaja)"/>
+                                                    <t t-if="fila.margen_rebaja !== undefined and fila.margen_rebaja !== null"> · <t t-esc="fila.margen_rebaja"/> %</t>
+                                                </dd>
+                                            </div>
+                                        </t>
+                                    </dl>
+                                </li>
+                            </ul>
+                            <p t-if="!datos.productos.length" class="o_dcasa_mk_vacio">
+                                <t t-if="state.texto">No encontré productos con «<t t-esc="state.texto"/>» en esta lista.</t>
+                                <t t-else="">No hay productos en esta lista. Elige otra arriba.</t>
+                            </p>
+                            <button t-if="datos.total > 0" type="button" class="o_dcasa_mk_enlace" t-on-click="abrirEnProductos">
+                                Ver estos <t t-esc="numero(datos.total)"/> en Productos
+                            </button>
+                        </section>
+
+                        <!-- Cómo se cuenta -->
+                        <details class="o_dcasa_mk_seccion o_dcasa_ro_como">
+                            <summary>¿Cómo se calcula cada cosa?</summary>
+                            <ul>
+                                <li><strong>Ventas:</strong> <t t-esc="datos.como_se_cuenta.ventas"/></li>
+                                <li><strong>Días sin vender:</strong> <t t-esc="datos.como_se_cuenta.dias"/></li>
+                                <li><strong>Llegó hace poco:</strong> <t t-esc="datos.como_se_cuenta.nuevo"/></li>
+                                <li><strong>Pedido abierto:</strong> <t t-esc="datos.como_se_cuenta.abierto"/></li>
+                                <li><strong>Ancla:</strong> <t t-esc="datos.como_se_cuenta.ancla"/></li>
+                                <li><strong>Alcanza para:</strong> <t t-esc="datos.como_se_cuenta.cobertura"/> Cuánto pedir y cuándo está en Compras › Reponer.</li>
+                                <li t-if="datos.con_dinero"><strong>Margen y rotación:</strong> <t t-esc="datos.como_se_cuenta.margen_y_rotacion"/></li>
+                            </ul>
+                        </details>
+                    </div>
+                </t>
+            </div>
+        </div>
+    </t>
+
+</templates>

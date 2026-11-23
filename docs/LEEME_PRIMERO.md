@@ -110,6 +110,73 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 > sigue. Se guardan las diez más recientes; las viejas se resumen en una línea abajo y su texto completo pasa a
 > [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md).
 
+### 2026-11-22 (tarde): «Movimiento» (comparar periodos) y un simulador de márgenes. En `claude/merge-rama-to-main-ty3koz`, SIN desplegar
+
+La dueña pidió seguir con lo de ver los artículos de mayor y menor movimiento y rotación **por tiempos y comparando periodos**, para hacer campañas de publicidad y de redes más fácil. Detalle en [MOVIMIENTO.md](MOVIMIENTO.md):
+
+- **Pantalla «Movimiento»** (`dcasa_marketing`: `models/movimiento.py`, `static/src/{js,xml,scss}/movimiento.*`, `controllers/movimiento.py`, `views/movimiento_views.xml`): se elige el periodo (7, 15, 30, 60, 90 días, este mes, el mes
+  pasado o fechas) y contra qué se compara (el de justo antes, el mismo del año pasado o fechas). Muestra el resumen (unidades, pedidos y productos, ahora y antes; el dinero solo para Gerencia y administradores),
+  una gráfica por día o semana y la lista con el estado de cada producto (subió, despertó, igual, bajó, se enfrió, quieto), lo vendido ahora y antes (unidades y pedidos), el cambio %, para cuántos días alcanza lo que hay,
+  ancla, agotado y sin foto. «Crear campaña con los primeros 8» (Camila, en `dcasa_camila`), «Ver estos en Productos» y Excel. Entradas: Inventario › Movimiento, el botón «Comparar periodos» de Marketing y un enlace en Rotación.
+  Brian: `comparar_movimiento`. Guía: `movimiento-productos`.
+- **El modelo se llama `dcasa.movimiento_productos`**: `dcasa.movimiento` ya es el libro de puntos de Socios y chocó (la base no cargaba, `KeyError: 'partner_id'`). Ver CONTEXTO_AGENTICO.
+- **Pruebas:** `TestMovimiento` 26 en verde (extremos exactos de los periodos, estados, cambio %, nota de crédito, pedidos, cobertura, listas y orden, resumen, gráfico, permisos, Excel), `TestMovimientoEnElNavegador` 3 en verde
+  (390 y 1440 px con Chrome; Gerencia y el rol Marketing sin dinero) y el resto de `dcasa_marketing`, `dcasa_guia`, `dcasa_camila`, `dcasa_brian` y la lista blanca de RPC.
+- **Simulador de márgenes** (un artefacto privado, no está en el repositorio): precio, costo, rebaja, programa de vendedores con código, pasarela de pago (Tilopay o Yappy, % que cobra) y comisión del empleado de la web, en cuatro
+  pasos; la dueña lo encontró complicado y se simplificó a «¿nos conviene?». Los precios y porcentajes son de ejemplo. No cambia nada en el sistema.
+- **«Margen y rotación» en Rotación** (solo Gerencia y administradores; parte del pedido del jefe: «los de mejor rotación o probar SKU que mejoren márgenes»): cuatro botones nuevos (estrellas, venden mucho/dejan poco,
+  buen margen/se mueven poco, ni se mueven ni dejan margen) con cortes que son las **medianas de la propia tienda** (la pantalla dice los números), una etiqueta en cada fila y una columna en el Excel. Brian: `grupo=estrella|trafico|oportunidad|revisar`.
+  Pruebas: `TestRotacionMargen` y `TestRotacionMargenEnElNavegador` (medianas con filas inventadas, el corte exacto, permisos, Excel, 390 y 1440 px).
+- **Capturas y «sí» de la dueña a staging (2026-11-22):** vio las capturas de «Margen y rotación» y dijo «pásalo a staging». El CI #386 (commit `0ef2ba4`, `desplegar_en = staging`) salió en rojo en
+  «Tests de Odoo»: `TestModoOscuroServidor.test_los_rellenos_propios_se_leen_de_noche` (Rotación y Movimiento no tenían colores de noche). Arreglo: `dcasa_interfaz/static/src/oscuro/rotacion.dark.scss`
+  (con captura en modo oscuro) y, de la corrida local de 814 pruebas, la prueba del Inicio que no conocía el atajo «Rotación». Ver CONTEXTO_AGENTICO › «Lo que enseñó «Margen y rotación»».
+- **Falta:** relanzar el CI a staging con el arreglo, verificar staging y avisarle; producción solo con su «sí» después de verlo en staging
+  (`-u dcasa_marketing,dcasa_camila,dcasa_interfaz,dcasa_guia`).
+
+### 2026-11-22: «Rotación» del inventario (pedido del jefe) y «Operación Sun Tzu». En `claude/merge-rama-to-main-ty3koz`, SIN subir y SIN desplegar
+
+El jefe pidió (por la dueña) saber qué productos no rotan, en 30, 60, 90 días…, para rebajarlos y recuperar capital de trabajo, enfocarse en lo que mejor rota y en los
+productos ancla, y mejorar las mediciones de Marketing y del Inicio. Detalle completo en [ROTACION.md](ROTACION.md):
+
+- **Pantalla «Rotación»** (`dcasa_marketing`: `models/rotacion.py`, `static/src/{js,xml,scss}/rotacion.*`, `controllers/rotacion.py`, `views/rotacion_views.xml`): una barra por grupo de
+  **días sin vender** (menos de 30, 30 a 59, 60 a 89, 90 a 179, 180 o más, nunca vendido, llegó hace poco, pedido abierto), los botones «30 / 60 / 90 / 180 días o más sin vender», la lista
+  por producto (existencias, última venta, vendidas en 30·60·90 días, cuántos días alcanza, capital parado, precio y margen), **ancla** (los que juntos hacen el 80 % de las unidades de
+  90 días), una **simulación de rebaja** (solo una cuenta: cuánto entra, cuánto queda sobre el costo y cuántos quedarían bajo el costo) y **Excel**. El capital es la valuación de «Valor
+  del inventario». **El dinero es solo de Gerencia y administradores**; el rol Marketing ve unidades y días. Entradas: Inventario › Rotación, el botón de la pantalla Marketing y un
+  acceso en el Inicio (`rotacion`). Brian: `rotacion_de_inventario`. Guía: `rotacion-inventario`.
+- **Pruebas** (base nueva con el módulo, Python 3.12): `dcasa_marketing` 67 en verde (27 de Rotación, 3 de navegador a 390 y 1440 px con Chrome, y el resto de siempre); 10 mutaciones de
+  Rotación (el dinero a todos, un corte movido, sin pedido abierto, un ajuste como llegada, el 80 % cambiado, el orden, el «bajo el costo», la nota de crédito, el tope de 100…): todas
+  caen salvo una a propósito (la simulación tiene dos guardias para quien no ve dinero y se quitó una). `ruff check addons` limpio.
+- **Falta, en este orden:** (1) las capturas antes/después con datos de prueba para la dueña (es una **pantalla nueva = cambio de diseño**: su «sí» antes de producción, LEEME §2); (2) lo que
+  conteste sobre los cortes (30, 60, 90, 180), el «llegó hace poco» (30 días; los pedidos tardan 3 a 4 meses) y qué hacer con lo parado; (3) CI → staging → producción. No hace falta `-u` de
+  otros módulos; sí `-u dcasa_marketing,dcasa_interfaz,dcasa_guia` (vista y acción nuevas, atajo del Inicio y entrada de la Guía).
+- **«Operación Sun Tzu»** (estrategia contra el competidor, con el plan «Caballo de Troya» por diseñar): es un documento **privado en Claude Docs, no en el repositorio** (es público y habla de la
+  competencia de la empresa). Quien lo retome lo pide a la dueña.
+- **Lunes (pendiente de la dueña):** poner las claves de Tilopay y de Yappy Comercial en Cloudflare (**nunca por el chat**), y los cierres R9 a producción (siguen esperando su «sí»).
+- **Entorno local:** el `.venv` no existía y el sistema no trae `babel`. Receta que funcionó: `python3.12 -m venv`, `pip install psycopg2-binary` y los requisitos de Odoo **sin** `psycopg2` ni
+  `python-ldap` (necesitan compilar), más `docker/requirements-dcasa.txt`, `ruff` y `websocket-client`; PostgreSQL con `pg_ctlcluster 16 main start`. Las pruebas de Chrome corren con el
+  `google-chrome` de `/usr/bin`.
+
+### 2026-11-21 (tercera ronda): Yappy directo, quinta vuelta (RV8b): R9-1 a R9-5 arreglados o documentados. En `local/rv7-arreglos` (sobre `f81d669`), SIN subir y SIN desplegar
+
+El revisor RV8b atacó `492fe22`: los 12 hallazgos de la vuelta anterior quedaron cerrados, sin regresiones, **pero el cierre de R8-1 estaba incompleto** (dos puertas más). Detalle y
+tabla en [YAPPY.md](YAPPY.md) §14; cada punto con su prueba y su mutación:
+
+- **R9-1:** el `create` del pedido miraba `vals` y no `default_transaction_ids` del contexto (Odoo lo aplica después): la vendedora creaba un pedido con un cobro ajeno y Bodega
+  lo veía pagado. Ahora se mira lo que el pedido trae **después de crear**. **R9-2:** crear a mano un recibo (`out_receipt`) con el cobro de otro SÍ se podía (la regla «quien no
+  cobra no hace facturas sueltas» solo mira `out_invoice`) y luego `write(move_type='out_invoice')` lo volvía factura: ahora la misma comprobación posterior en `AccountMove.create`
+  y una guardia sobre `move_type` (cambiar el tipo de un documento de cliente es de Caja o Gerencia; lo que toque una nota de crédito, de Gerencia). **`sale._create_invoices` crea con
+  `sudo` y no se afecta** (la prueba «la vendedora sigue creando la factura de un pedido ya cobrado» sigue en verde). **R9-3:** `action_refund`, `action_capture` y `action_void`
+  (core, corren con `sudo` tras mirar solo el ACL) se niegan a quien no cobra. **R9-4:** `resumen.cita` quita los caracteres de formato y de control (`Cf`, `Cc`). **R9-5:** los
+  textos que prometían de más, corregidos (incluida la lección de CONTEXTO_AGENTICO que decía que «otras dos reglas» cerraban el `create` de la factura: solo se había probado con
+  `out_invoice`).
+- **Dos cosas nuevas que costaron corridas de CI** (anotadas en CONTEXTO_AGENTICO): `scripts/test.sh` cuenta como falla toda línea de registro ERROR/CRITICAL aunque Odoo diga «0
+  failed» (las pruebas que provocan un error a propósito lo capturan con `assertLogs`), y el CI usa Python 3.12 (no 3.11 como esta máquina).
+- **Pruebas** (base nueva con los 32 módulos, `-u` de los módulos tocados): `dcasa_base` 450, `website_dcasa` 499, `dcasa_pago_yappy` 425 (con Chrome), `dcasa_pago_tilopay` 347 y
+  `dcasa_guia` 97: **0 rojas, 0 con error y 0 líneas ERROR/CRITICAL** (contadas con la misma expresión regular que `scripts/test.sh` y el CI) en Python 3.11. Las mismas 1,404 pruebas corridas
+  también con Python 3.12 (el del CI; entorno propio armado con los requisitos de Odoo): 0 rojas, 0 con error, 0 líneas ERROR. `ruff check addons` limpio. 6 mutaciones de esta vuelta, todas caen. No hace falta `-u` de
+  ningún módulo nuevo al desplegar (todo es Python; sin campos ni datos nuevos).
+
 ### 2026-11-20 (noche, segunda ronda): Yappy directo, cuarta vuelta (RV8): R8-1 a R8-7 arreglados o documentados. En `local/rv7-arreglos` (sobre `2e23d3a`), SIN subir y SIN desplegar
 
 El revisor independiente RV8 atacó `2e23d3a` y dijo: staging apagado, sí; encender en prueba, sí; cobrar de verdad, todavía no. Sin ninguna regresión (ningún
@@ -118,9 +185,9 @@ arreglo a propósito:
 
 - **R8-1 (la importante):** R7-1 había cerrado la transacción pero no **la otra mitad de la misma relación**: la vendedora escribía `sale.order.transaction_ids` y
   `account.move.transaction_ids` y ligaba un cobro ajeno a un pedido (Bodega lo veía pagado y soltaba la mercancía), lo aplicaba a la factura de otro cliente o escondía
-  un pago. Ahora `transaction_ids` se niega a quien no cobra en `write` de pedido y factura y en `create` de pedido (`dcasa_base/models/cobros.py`). **El `create` de la
-  factura no se tocó a propósito:** `sale._create_invoices` (con los cobros del propio pedido) corre con `sudo`, y crearla a mano con el cobro de otro ya lo cierran
-  otras dos reglas de `dcasa_base`; una prueba fija las tres cosas. **R8-2 y R8-6:** la transacción pasa de lista negra a **lista blanca vacía** (quien no cobra no escribe
+  un pago. Ahora `transaction_ids` se niega a quien no cobra en `write` de pedido y factura y en `create` de pedido (`dcasa_base/models/cobros.py`).
+  **Incompleto:** el `create` del pedido miraba solo `vals` y el `create` de la factura se había dejado sin guardia con un argumento falso: la vuelta siguiente (RV8b,
+  abajo) cerró las dos puertas que faltaban. **R8-2 y R8-6:** la transacción pasa de lista negra a **lista blanca vacía** (quien no cobra no escribe
   NADA ni crea; antes escribía `partner_id`, `landing_route` —un `javascript:` en el navegador de la clienta— y `state_message`; y el `create` solo se negaba por casualidad).
 - **R8-3 (solo texto):** cuando el cobro suelto es de OTRO pedido del mismo cliente, el pendiente de Caja dice las dos salidas («confirma ESTE pedido a mano y registra su pago»)
   y a la clienta ya no se le dice «tu pedido ya figuraba como pagado» si no se sabe. **Se valoró comparar el monto y no se hizo** (no distingue un cobro parcial de este pedido
@@ -159,6 +226,31 @@ cae):
   (`dcasa_base` ya estaba; no hay campos ni datos nuevos; el texto de ayuda de dos campos de Yappy se refresca con `-u dcasa_pago_yappy`).
 - **Falta:** una revisión independiente de estos arreglos (la pide la jefa del proyecto), unirlo a la rama de trabajo, y todo lo de siempre antes de cobrar de
   verdad (compra de ensayo, respuestas de Yappy, política de privacidad, conciliación diaria, la decisión de R7-7).
+
+### 2026-11-21 (02:24 UTC): la rama de trabajo unida está EN PRODUCCIÓN (`f81d669d4ca4`, PR #130, Desplegar #78), con Tilopay y Yappy apagados y la comisión web sin versión de reglas
+
+- **Camino (receta de DESPLIEGUE.md):** CI/CD #381 y #382 salieron rojos por dos cosas que no eran del código de negocio y se corrigieron:
+  una prueba de fecha de liquidación (un `dict` recortado con `[:10]` da `TypeError` en Python 3.11 —esta máquina— y `KeyError` en
+  3.12 —CI e imagen—) y tres pruebas de avisos rechazados de Yappy que provocan a propósito una línea `ERROR` (el CI cuenta como falla
+  toda línea `ERROR`/`CRITICAL`, aunque Odoo diga «0 failed»; ahora se capturan con `assertLogs`). **CI/CD #383 sobre `f81d669d4ca4`**:
+  7,234 pruebas, 0 fallas, 0 líneas ERROR; borde, Juan, puente, integración, simulacro de restauración e imagen en verde; **staging sano**
+  (`version` `f81d669d4ca4`, `base_al_dia` true, 600 s de vigilancia). Se trajo `main` con `merge -s ours` (mismo árbol `9fb0e975bb0b`).
+- **PR #130** (squash `d3349ed1`, comprobado: el árbol de `main` = el del commit probado). El primer intento de unirlo lo bloqueó el
+  clasificador de permisos hasta que la dueña dijo «sí» (unir y desplegar ahora). **Desplegar #78** a `production` desde `main`:
+  `app_version` `f81d669d4ca4229d03fecda204deb5f843ce0fd2`, `imagen_digest` `sha256:706e79546da200b9cf7be5a2772724de4d0a8ae91abb00046d4e9afe75e5d7f3`,
+  `respaldo_previo` true; terminó **success** a las 02:24 UTC; `https://dcasapty.com/dcasa/salud` con `version` `f81d669d4ca4`, `base_al_dia`
+  true, `humo` ok; `/`, `/shop` y `/contactus` en 200. **No se desplegó Juan** (`juan/` y `puente-wa/` no cambiaron). Se canceló el CI que
+  abrió el PR (corre aunque el título diga `[skip ci]`).
+- **Qué quedó en producción:** «Forma de pago» en facturas y Exportar para Gerencia, ventas por día, segundos del carrusel configurables,
+  Andrés ampliado en escritorio, el rediseño de la pasarela y el lote «legibilidad» (aprobados por la dueña: «Me gustó todo el trabajo»),
+  retoques de la web, Tilopay y Yappy directo **instalados y apagados**, la comisión web **sin versión de reglas** (solo mide) y los candados
+  de permisos del pago en línea de RV7 y RV8.
+- **Revisiones independientes de este tramo:** RV7 y RV8 (Yappy) y RV8b encontraron huecos en los permisos del pago en línea; RV7/RV8 se
+  cerraron antes de subir. **RV8b encontró dos puertas más (R9-1 y R9-2)**, ya arregladas en `local/rv7-arreglos` (`cdd25e11`) y en revisión
+  RV8c; **no están en producción**. Con los pagos apagados no se explotan, pero **hay que cerrarlas antes de encender cualquier pago**.
+- **Sigue:** unir R9 (si RV8c lo aprueba) → CI → staging → producción; luego lo que depende de otros (claves de Tilopay y Yappy en Cloudflare,
+  programa de pruebas de Yappy, privacidad, cifras de la comisión web, contadora). La tabla «Historial de despliegues» de CONTEXTO_AGENTICO
+  se quedó en Desplegar 15: el historial real vive en esta bitácora.
 
 ### 2026-11-20 (tarde): la rama de trabajo unida con todo lo pendiente (`960bf34`), el informe de ChatGPT contrastado con el código, y un audio y un video de 38 minutos para los jefes. SIN subir a producción (sigue `d2ba8caf`)
 
@@ -299,196 +391,14 @@ van en un modelo aparte; Tilopay nace apagado; la comisión sale sin cifras.
 claves de la cuenta de pruebas de Tilopay (no pasan por el chat); la contadora decide cómo se trata la comisión y el diario
 «Tilopay» (se crea al desplegar aunque el proveedor siga apagado); confirmar que `web.json.enabled` no está puesto en producción.
 
-### 2026-11-17 (3) y 2026-11-18: la segunda entrega completa en producción (CI/CD 380 y Juan 29)
-
-**En producción desde el 2026-11-18, 00:5x UTC:** la segunda entrega entera (PR #128, squash `d2ba8caf`,
-ejecución 380 de CI/CD a mano desde `main`) y **Desplegar Juan 29** (01:0x UTC, misma versión). Salud del borde
-sana: `{"ok": true, "version": "d2ba8caff071", "base_al_dia": true, "humo": "ok"}`. El `/salud` de Juan responde con
-`d2ba8caf` en `produccion`, la tienda lista y activa; las 4 «cosas por revisar» que lista son claves y canales que
-**ya faltaban** (la `ANTHROPIC_API_KEY` de respaldo y el puente de WhatsApp por QR, que nunca se desplegó), no algo
-que trajera esta subida.
-
-**Lleva:** Andrés como mejor vendedor, las notas de voz (de Andrés y del panel de Brian), el micrófono del chat, la
-pantalla «Armar combo» con los precios de verdad, los tres arreglos de las revisiones (el total negativo del
-mostrador por los dos caminos, la guardia del Worker que se saltaba con «…ok?» y el premio que viajaba al chat) y la
-regla nueva de Socios que va abajo.
-
-**La decisión que la frenaba ya está tomada y programada.** La dueña eligió, entre dos opciones que se le
-presentaron con las cifras: **«avisarle y no dejar canjear»**.
-
-- **El problema** (lo encontró la revisión adversarial de Andrés vendedor): la línea del premio baja la compra medida
-  (decisión M6 de la dueña), así que podía tirarla por debajo del mínimo de la promoción de envío y hacerle perder el
-  envío gratis. Carrito de $205 sin ITBMS, premio de $10 → la compra queda en $195.65 y paga $45 de envío. **Gastaba
-  puntos para pagar más.**
-- **Lo que quedó:** antes de canjear se compara lo que pagaría de envío con lo que le descuenta el premio. Si iguala o
-  pasa, se le avisa con las dos cifras y no se canjea (sus puntos no se mueven: el canje ni se pide). **Decidí yo (y
-  se le dijo):** si el premio descuenta MÁS de lo que perdería, se deja pasar, porque ahí el socio sale ganando y
-  bloquearlo sería quitarle un beneficio real.
-- **Dos fallos míos que encontraron las pruebas y la revisión, los dos de dinero:**
-  1. Yo medía la bajada por el **valor de cara** del premio; la línea rebaja la **base** sin impuesto ($9.35 para un
-     premio de $10). El aviso habría dicho una cifra que no era y el bloqueo saltaba en el borde equivocado. La
-     cuenta del impuesto quedó en un solo sitio para que no se vuelvan a separar.
-  2. Al devolverle los puntos, **la promoción no volvía**: el sincronizador de envíos solo quita esa línea, nunca la
-     repone. El socio quedaba sin el premio Y pagando el envío: peor que el problema original. Ahora, al quitar un
-     premio —lo quite el sistema o el socio— la promoción se vuelve a ofrecer.
-- **Un BLOQUEANTE de la revisión independiente:** la guarda vivía solo en el carrito web, y por «Cobrar premio» del
-  **mostrador** el premio entraba directo: cobrar uno de $25 sobre una venta de $205 con envío gratis le hacía pagar
-  $21.64 más, sin que nadie se lo dijera. Pasó a `_aplicar_en_venta`, por donde van los dos caminos (es la segunda vez
-  que una guarda de dinero de premios se tiene que mover ahí; quedó anotado como regla). En el mostrador el código
-  sigue valiendo para otra compra.
-- **Dos hallazgos más de la revisión, arreglados:** el ahorro de la promoción es una base y el valor del premio va con
-  ITBMS, así que al compararlos ahora el ahorro sube con los impuestos del envío (hoy va sin ellos, pero puede
-  cambiar); y el carrito del chat no corría la limpieza de premios, así que podía seguir mostrando uno que ya no le
-  convenía. También se probó el borde exacto que eligió la dueña («iguala» → no se canjea), que antes pasaba igual
-  con `>` que con `>=`.
-- **Sigue abierto, anotado:** el carrito le ofrece premios que el servidor va a rechazar (el aviso llega después del
-  clic); y si lo que se pierde eran términos ya prometidos de una promoción vencida, esos no vuelven.
-
-### 2026-11-17 (2): la portada nueva en producción (CI/CD 377), el hero como fondo en movimiento
-
-**En producción: la portada nueva** (ejecución 377 de CI/CD a mano desde `main`, squash `447d6efe`, PR #127; Juan
-sigue en 28). El resto de la segunda entrega —Andrés vendedor, notas de voz y micrófono— **sigue sin subir**, a la
-espera de la decisión de la dueña sobre Socios y el envío gratis.
-
-- **Lo que pidió la dueña:** «como si fuese un video corrido… imágenes con un tipo suave zoom», «no quiero ni
-  siquiera que el usuario tenga control», «ni siquiera tiene que tener el nombre del producto» y, sobre el
-  contraste, «el fondo no lo quiero oscuro». Se le mostraron **cinco opciones** de contraste en azul de marca, en
-  computadora y en celular; eligió la quinta («me gusta mucho la última imagen y cómo se ve en celular»).
-- **Qué quedó:** el hero dejó de ser un carrusel con mandos y pasó a ser un fondo. Las fotos de los productos que
-  Gerencia elige en Sitio web › Carrusel de la portada cubren la pantalla entera, se funden unas en otras en orden al
-  azar y llevan un zoom lento que no para. Encima va solo el texto de siempre: sin nombres, sin enlaces, sin flechas,
-  sin barras y sin pausa. Sin productos elegidos queda el hero de antes, igual que antes.
-- **El contraste se resuelve en azul de marca, nunca oscureciendo la foto:** un degradado diagonal (navy → azul →
-  transparente) en `::after`, sin bordes ni franjas; en el celular va de abajo hacia arriba. El amarillo sigue
-  cayendo siempre sobre azul.
-- **Accesibilidad:** el fondo es decorativo (`aria-hidden`, `alt` vacío), así que el lector de pantalla lee el texto y
-  no una lista de camas; con «movimiento reducido» no cambia de foto ni hace zoom. La primera foto sigue siendo la
-  imagen LCP.
-- **El contrato visual ahora exige dos cosas más** que antes no se miraban: que la **foto misma** cubra el hero de
-  orilla a orilla, y que la capa de contraste sea de marca y **nunca negra**. Referencias regeneradas en el mismo
-  commit.
-- **Rama aparte, como con el Black Friday:** `claude/portada-solo`, sacada de `main`, 21 archivos, todos dentro de
-  `addons/website_dcasa/`. No toca Socios, ni el chat, ni nada que mueva dinero. Así la portada pudo subir hoy sin
-  arrastrar la segunda entrega.
-- **Comprobado en producción** (en computadora y en celular, con el navegador de verdad): hero a pantalla completa,
-  7 fotos, la foto cubre el hero, el zoom corriendo, la capa en navy y azul **sin nada de negro**, cero mandos y
-  `aria-hidden` puesto. Salud del borde sana: `{"ok": true, "version": "447d6efe6c74", "base_al_dia": true,
-  "humo": "ok"}`.
-- **Pendiente anotado:** el contrato visual del panel de Juan falla a 390 px (`panel-lista-390` 7,7 % y
-  `panel-conexiones-390` 13,7 % de píxeles distintos). **Viene de `main`, no de la portada** (esta rama no toca nada
-  de Juan). Hay que mirarlo aparte: o es un cambio a propósito al que le faltó regenerar sus referencias, o es una
-  falla de verdad en el celular.
-
-### 2026-11-17: la pantalla «Armar combo», tres arreglos de Socios y del chat, y los parches de IA de Juan
-
-**Nada nuevo en producción** (sigue Desplegar 77 y Juan 28). Todo en la rama de trabajo, a la espera de la decisión
-de la dueña sobre Socios y el envío gratis (ver [PRIORIDADES.md](PRIORIDADES.md)).
-
-- **«Armar combo»** (lo que pidió la dueña después del Black Friday): su columna «precio» salía sin la campaña, así
-  que durante una oferta le mostraba a la vendedora un precio que ese día no se practicaba —la web decía otro— y un
-  ahorro que no existía. Ahora «precio» es lo que la pieza cuesta SUELTA ESE DÍA y «precio_linea» lo que se cobra en
-  el combo. 238 pruebas en verde.
-- **El total negativo en el mostrador:** la guarda «el premio no pasa del carrito» vivía solo en la tienda web. Pasó
-  a `_aplicar_en_venta` (por donde van los dos caminos) y `action_confirm` quedó con una última red.
-- **La guardia del Worker:** se saltaba con una oración que terminara en «?» sin «¿» («ya te lo quité…, ok?») y con
-  una pregunta en medio. Ahora se quitan las cláusulas interrogativas enteras y se revisa todo lo demás.
-- **El premio de Socios ya no viaja al chat entre los productos:** le contaba al modelo que el visitante es socio y
-  tiene un premio puesto, Andrés podía proponer quitarlo (eso cancela el canje) y reaccionaba ofreciendo «algo más
-  económico» por el premio del propio cliente. Va en «extras», con el envío.
-- **PR de Dependabot #98 unido a main** (parches de `@ai-sdk/*` y `ai` en `juan/`), con el CI completo en verde y
-  revisado que los cambios de comportamiento del registro tocan APIs que Juan no usa. Juan: 1924 pruebas en verde con
-  las librerías nuevas. **No cambia producción hasta el próximo «Desplegar Juan».**
-
-### 2026-11-16 (3): el Black Friday en producción (Desplegar 77 y Juan 28)
-
-**Nada nuevo en producción todavía** (sigue Desplegar 76). La sesión tomó el traspaso y cerró el **paso 0**.
-
-- **Los dos puntos por verificar del traspaso estaban bien**: un colchón cuyo precio en combo ya no es menor no le
-  quita la campaña a la cama, y el interruptor se lee de la campaña en `_get_applicable_rules_domain` sin reescribir
-  reglas ni regenerar la tienda.
-- **Dos revisiones adversariales independientes** (toca dinero). La primera encontró 1 bloqueante y 14 hallazgos más;
-  la segunda, hecha sobre el arreglo de la primera, encontró que ese arreglo **se quedaba corto** y 2 bloqueantes
-  más. Todo lo de dinero está arreglado y probado; lo de rendimiento quedó anotado.
-- **Decisión de la dueña (la regla del par):** se compara el total del par. Si el combo (cama a precio normal y
-  colchón a precio en combo) sale igual o más barato que comprar las dos piezas sueltas con su precio de Black
-  Friday, el combo se queda; si sale más caro, el combo se deshace y cada pieza va a su precio de oferta. «Comprar
-  juntos nunca puede salir más caro que comprar por separado.»
-- **Rama de la subida: `claude/black-friday-solo`** (sale de `62868d5`, que ya trae el nombre «Andrés» de `1937f89`).
-  Solo Black Friday: ni Andrés vendedor, ni voz, ni micrófono, ni portada. **Batería del paso 0: 1543 pruebas, 0
-  fallas.**
-- **En producción: Desplegar 77** (PR #126, squash `a904ec65`, `app_version` `26b357d3bd51…`, imagen
-  `sha256:ebc046c9…`, CI 371 con staging) y **Juan 28** (Juan primero, porque el nombre «Andrés» vive en
-  `juan/src/tienda`). Con respaldo previo. Comprobado en producción: `/dcasa/salud` sano con la versión nueva, la
-  portada responde, `/promociones` da 404 y el menú no lo muestra (todavía no hay campaña), y el chat abre diciendo
-  **«Hola, soy Andrés»**.
-- **Susto del camino:** el servidor de GitHub de la sesión estuvo una hora contestando «invalid session» justo
-  después de reconectar la cuenta. `git push` seguía funcionando. Volvió solo al reiniciarse el proceso de la
-  sesión; está anotado en CONTEXTO_AGENTICO.
-- En la rama de trabajo quedó además el último pendiente de las notas de voz (el micrófono que quedaba encendido si
-  la pantalla se cerraba mientras pedía permiso) y las dos pruebas del carrusel arregladas.
-- **La segunda entrega NO subió** (Andrés vendedor, voz, micrófono y portada): su revisión adversarial independiente
-  encontró un **bloqueante que necesita decisión de la dueña** (ver PRIORIDADES).
-
-### 2026-11-16 (2): todo el plan Andrés, voz y portada subido a la rama, incluso lo que quedó a medias (traspaso a otra cuenta)
-
-**Nada nuevo en producción** (sigue Desplegar 76). La sesión trabajó el plan con ayudantes en paralelo, cada uno en su
-rama local: combos inamovibles, Andrés vendedor (A1–A5), notas de voz, micrófono en el chat y la portada en carrusel a
-pantalla completa sin fondo negro (lo pidió la dueña al ver las capturas). Hubo tres revisiones adversariales: Andrés
-quedó arreglado; combos y voz quedaron con los arreglos a medias. Todos los ayudantes se cortaron por el límite de uso
-de 5 horas y la dueña pidió: «sube incluso lo incompleto con el avance actual y lo que falta». Las cinco ramas se
-unieron sin conflictos en `claude/merge-rama-to-main-ty3koz`. Sobre la unión pasan ruff y las 1921 pruebas y el
-typecheck del Worker; **las de Odoo no se corrieron**. Qué falta en cada parte, con sus commits: **[PLAN_ANDRES_VOZ_PORTADA.md
-› Traspaso del 2026-11-16](PLAN_ANDRES_VOZ_PORTADA.md#traspaso-del-2026-11-16-madrugada-dónde-quedó-cada-parte)**.
-Lección: con varios ayudantes a la vez, el límite de 5 horas llega para todos juntos; subir a la rama de trabajo
-cada avance que pase las pruebas rápidas, no al final.
-
-### 2026-11-16: Black Friday y «Andrés» listos en la rama sin subir (pausa por límite de uso); plan de la ronda siguiente
-
-**Nada nuevo en producción** (sigue Desplegar 76, `754aceaf18e7`). La sesión se pausó por el límite de uso de la cuenta, a
-pedido de la dueña: «sube la rama lo que tengas y añade todo lo que avanzamos para que otro Claude finalice».
-
-- **Listo en la rama:** el código está en `cae5e57`.
-  - **Campaña del sitio:** Black Friday desde el panel, con pruebas en `website_dcasa/tests/test_campana.py` y
-    `dcasa_conversaciones/tests/test_precio_campana.py`.
-  - **Revisión adversarial:** tres vueltas, sin bloqueantes. Se arreglaron:
-    - permisos: solo Gerencia y los que cambian precios;
-    - solo las tarifas del sitio, sin pisar las reglas propias;
-    - el piso de variantes;
-    - los disparos exactos del cron;
-    - la revisión de los carritos viejos y en el pago;
-    - el bloqueo de `date_order`;
-    - las reglas que se guardan 30 días;
-    - los combos;
-    - la huella del catálogo de Meta.
-  - **«Andrés»:** el chat de la tienda tiene nombre nuevo, en Odoo y en `juan/src/tienda`.
-- **La dueña ya autorizó la subida** («lleva ya todo a producción»). Falta:
-  - repetir las pruebas locales con el código final: la vuelta con `11f9822` dio 827 de 827 en verde;
-  - CI con staging, PR, squash, Desplegar y **Desplegar Juan**;
-  - explicarle los pasos del panel.
-
-  Todo eso está en el **paso 0** de [PLAN_ANDRES_VOZ_PORTADA.md](PLAN_ANDRES_VOZ_PORTADA.md). El Black Friday es el
-  viernes 27: hay que subirlo con días de margen.
-- **Pedidos nuevos (2026-11-16, con capturas del chat):** quedan como plan, en el mismo documento.
-  - Andrés como buen vendedor:
-    - el carrito y la cotización no se pierden al subir en el chat;
-    - ofrece sumar el envío a la cotización;
-    - reacciona una vez cuando el cliente quita o vacía el carrito;
-    - cambia cantidades conversando;
-    - la vitrina va ordenada por pedido.
-  - Notas de voz para Andrés y Brian, sin guardar el audio, para que nadie pueda clonar voces.
-  - El hero en carrusel con camas propias («805, 801 y la negra 300-300»: confirmarlas con fotos).
-  - Una sección «de cine» tipo panaclaw.com/proyectos con un botón al catálogo.
-- **Preguntas abiertas a la dueña:**
-  - **I6.** ¿El precio de campaña vale también en la tienda física, o solo en la web? Hoy vale en todos lados.
-  - **Ya contestó, y es una regla:** «no quiero tocar en absoluto los combos. Los combos son inamovibles aunque
-    hayan estrategias o ofertas… debería poderse, pero no quiero». Una campaña nunca rebaja un combo armado. Hay que
-    programarlo antes de subir (paso 1 del plan) y dejar un interruptor apagado.
-  - **Ya contestó:** «los combos son intocables. Esa es una promoción permanente de la empresa». La línea «Combo con
-    colchón $X» vuelve a salir con precio de campaña, en la página, con Juan y con Andrés.
-- **Esta máquina:** se reinició cuatro veces entre el 15 y el 16. Lo que no está en la rama se pierde.
-
 ### Entradas anteriores (una línea cada una; el texto completo en [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md))
 
+- **2026-11-17 (3) y 2026-11-18:** la segunda entrega completa en producción (CI/CD 380 y Juan 29)
+- **2026-11-17 (2):** la portada nueva en producción (CI/CD 377), el hero como fondo en movimiento
+- **2026-11-17:** la pantalla «Armar combo», tres arreglos de Socios y del chat, y los parches de IA de Juan
+- **2026-11-16 (3):** el Black Friday en producción (Desplegar 77 y Juan 28)
+- **2026-11-16 (2):** todo el plan Andrés, voz y portada subido a la rama, incluso lo que quedó a medias (traspaso a otra cuenta)
+- **2026-11-16:** Black Friday y «Andrés» listos en la rama sin subir (pausa por límite de uso); plan de la ronda siguiente
 - **2026-11-15 (3):** bandas en azul noche y pie claro, menú sin «Escríbenos», contacto y el carrito en el chat, en producción (Desplegar 76); Black Friday y «Andrés» en la rama
 - **2026-11-15 (2):** portada v3 (paleta, espaciado, categorías y carriles en una fila, carrito como ícono, chat de vidrio), en producción (Desplegar 75)
 - **2026-11-15:** alternativas para Messenger e Instagram sin la revisión de Meta (OpenReply y 14 repos más); solo investigación, ningún cambio

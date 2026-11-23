@@ -1826,13 +1826,27 @@ Lo que quedó escrito para no repetirlo:
   (el navegador de la clienta hace `window.location = landing_route`: un `javascript:` corría en su sesión), `state_message` y otros. Si
   ningún flujo legítimo de quien no cobra escribe ahí (todo corre con `sudo`), se niega TODO y se acabó la lista. Se comprobó que ninguna
   prueba legítima se rompe.
-- **No negar el `create` de `account.move` a ciegas: se comprobó que no hacía falta.** `sale._create_invoices` manda los cobros del propio
-  pedido (`Command.set`) y crea la factura **con `sudo`** (comentario del propio Odoo: la vendedora factura sin derechos de facturación),
-  y crearla a mano con el cobro de otro ya lo cierran dos reglas de `dcasa_base` (quien no cobra no hace facturas sueltas, `cobros.py`; nadie
-  escribe a mano `sale_line_ids`, `enlace_factura.py`: una factura con líneas del pedido da `UserError`). Se probó primero un guardia en
-  el `create` y la mutación NO lo distinguía de las otras dos reglas (siempre caía otra antes): se quitó. Quedan pruebas que fijan las
-  tres cosas (la vendedora crea la factura de un pedido cobrado y sale con su cobro; crear a mano con el cobro de otro se niega) y una
-  mutación (la regla «también contra `sudo`») que tumba lo primero.
+- **El `create` de `account.move` SÍ necesitaba guardia (se corrige un error de la vuelta anterior).** En RV8 se escribió aquí que «crearla a mano con
+  el cobro de otro ya lo cierran dos reglas» y que «la mutación no distinguía el guardia (siempre caía otra antes)»: **solo se había probado con
+  `out_invoice`**. La regla «quien no cobra no hace facturas sueltas» mira solo `out_invoice`; con un recibo de venta (`out_receipt`) y el cobro ligado
+  la creación pasaba, y luego `write(move_type='out_invoice')` (sin guardia) lo volvía factura y, al publicarla Caja, Odoo conciliaba el cobro ajeno
+  con ella (RV8b, R9-2). Lección: **al decidir que una guarda es redundante, probar TODOS los valores del campo que la regla vecina filtra** (aquí
+  `move_type`: `out_invoice`, `out_receipt`, `out_refund`), no solo el caso a mano. El miedo de «romper `sale._create_invoices`» era infundado:
+  crea la factura con `sudo` (comentario del propio Odoo: la vendedora factura sin derechos de facturación) y `sudo` pasa la guarda; lo prueba la
+  prueba «la vendedora crea la factura de un pedido cobrado y sale con su cobro» y la mutación «la guarda también contra `sudo`» la tumba.
+- **Un `default_<campo>` del contexto no pasa por `vals`** (por RPC cualquiera manda el contexto; Odoo lo aplica al crear, después de mirar lo que llega
+  al `create`). Una guarda en `create` que mira `vals` se salta con `with_context(default_transaction_ids=[...])`. `enlace_factura.py` ya lo documentaba
+  para `sale_line_ids`; la guarda de `transaction_ids` del pedido no lo hizo (R9-1). Regla: **comprobar DESPUÉS de crear, mirando lo que el registro
+  trae**, no solo `vals`.
+- **Los métodos PÚBLICOS del core que corren con `sudo` después de mirar solo el ACL** (`payment.transaction.action_refund`, `action_capture`, `action_void`)
+  se saltan una regla de `write`/`create`: hay que sobrescribirlos y negarlos aparte (R9-3), y anotarlos en `LISTA_BLANCA` de `test_superficie_rpc`.
+- **`scripts/test.sh` y el CI cuentan como FALLA toda línea de registro con nivel ERROR o CRITICAL** (regex `^[0-9-]+ [0-9:,]+ [0-9]+ (ERROR|CRITICAL) `),
+  aunque Odoo diga «0 failed». Una prueba que provoca un error a propósito (un aviso rechazado, que el controlador escribe a nivel ERROR) debe
+  capturarlo con `assertLogs` (y comprobar el mensaje). Al terminar, correr los módulos con `odoo-bin` y contar esas líneas con la misma regex: tiene que dar 0.
+- **El CI usa Python 3.12 y esta máquina 3.11** (hay `/usr/bin/python3.12`): una prueba que dependa de QUÉ excepción lanza Python (`dict[:10]` da `TypeError` en 3.11
+  y `KeyError` en 3.12) pasa aquí y falla allá. Evitarlo.
+- **Caracteres invisibles en un archivo de prueba:** escribirlos tal cual, o con `\uXXXX` por una herramienta que decodifica las secuencias, deja caracteres de
+  formato REALES en el archivo (ruff los marca: PLE2502/PLE2515, y no se ven al revisar). Se arman con `chr(0x202E)`.
 - **TRAMPA de las pruebas de permisos: bajar la caché antes de cada intento del usuario sin permiso** (`env.flush_all();
   env.invalidate_all()`). Con la caché «tibia» (el proveedor ya leído por otro usuario en la misma transacción de la prueba) el ORM no
   vuelve a revisar el permiso del comodelo y un `create` prohibido PASA; en una petición real la caché está fría. Esto engañó incluso al
@@ -2033,3 +2047,72 @@ Lo que quedó escrito para no repetirlo:
   jobs`). Lo que escribe en GitHub (PR, unir, lanzar flujos, comentar) va por `mcp__github__*`. Un log muy largo se
   guarda en archivo y se busca con un script.
 - Los avisos «Node.js 20 is deprecated» y el log del PostgreSQL de servicio son ruido, no la falla.
+
+## Lo que enseñó «Rotación» (2026-11-22)
+
+- **`stock.location_inventory` no existe** como xmlid en Odoo 19: la ubicación virtual de los ajustes de inventario es por empresa y producto (`producto.property_stock_inventory`). Una
+  prueba que la pedía por xmlid daba `ValueError` y, peor, no probaba lo que decía (la mutación «un ajuste cuenta como llegada» sobrevivía porque la prueba moría antes).
+- **`_read_group` no agrupa por un campo relacionado no guardado.** `account.move.line.move_type` es `related='move_id.move_type'` **sin** `store`: no se puede en `groupby`. Se hace un
+  `_read_group` por tipo (`move_id.move_type = out_invoice` y `out_refund`) y se firman las unidades. `move_id:count_distinct` sí funciona como agregado.
+- **Un 0 dentro de `(None, False, '')` es «vacío».** `0 in (None, False, '')` es `True` (porque `0 == False`): un descuento de 0 % se trata como «sin simulación». Si se quiere distinguir, comparar
+  con `is`.
+- **`self.env._(texto)` con `%%`:** el doble porcentaje solo vale cuando se pasan argumentos; sin argumentos sale tal cual con los dos signos.
+- **Una mutación que sobrevive no siempre es una prueba mala.** La simulación de rebaja para quien no ve dinero tiene dos guardias (`_validar` y `_datos`/`_fila_para_la_pantalla`); quitar una
+  no hace caer nada porque la otra cubre. Se dejó así (defensa en profundidad) y se anotó en la bitácora. Lo que sí hay que mirar es que el `ORIGINAL` de la batería dé 0 errores: una
+  prueba que falla en el original hace parecer «atrapadas» a todas las mutaciones.
+- **Una prueba de reparto por porcentaje necesita una cola que cruce el corte.** Con ventas de fábrica de 1, 1 y 1 unidades, el corte de 80 % y el de 99 % dan lo mismo; con 1000, 300, 150 y 50
+  se distinguen (el acumulado pasa de 66 % a 86 % y a 96 %).
+- **El entorno local (`.venv`) se arma sin `psycopg2` ni `python-ldap`** (compilan y fallan por falta de cabeceras): `psycopg2-binary` y el resto de `vendor/odoo/requirements.txt`. Receta en
+  la bitácora del 2026-11-22.
+- **El inicio de sesión de `/web/login` con el sitio instalado** tiene varios `button[type=submit]` (la lupa del buscador es el primero): para las capturas se escribe la clave y se pulsa Enter.
+
+## Lo que enseñó «Movimiento» (2026-11-22)
+
+- **Antes de poner un `_name`, buscar que no exista:** `grep -rn "_name = 'el.nombre'" addons`. `dcasa.movimiento` ya es el libro de puntos de Socios (`dcasa_socios`); un `AbstractModel`
+  con el mismo nombre se mezcla con él y la base ni carga: `KeyError: 'partner_id'` en `setup_inverses` (un One2many cuyo inverso ya no existe en el modelo mezclado). El error sale lejos de
+  la causa (al cargar el módulo, no al definir el modelo). El de comparar periodos se llama `dcasa.movimiento_productos`. Para saber si el fallo es de los cambios o del entorno: `git stash -u`,
+  correr la actualización sin ellos y `git stash pop`.
+- **Una prueba que no está en `tests/__init__.py` no corre y el resultado dice «0 failed, 0 error(s) of 0 tests»**, que parece verde. Siempre mirar el «of N tests».
+- **`--test-tags=/modulo:Clase` es la clase exacta.** `TestMovimiento` no incluye `TestMovimientoEnElNavegador`: se corren las dos etiquetas.
+- **En las pruebas de navegador, el clic cambia el estado al instante pero el DOM se pinta después.** Esperar a algo que SÍ cambie con el clic (`aria-pressed`, el `href` nuevo), no a un
+  elemento que ya estaba (el aviso «sin ventas» estaba antes del clic y la prueba leyó el enlace viejo).
+- **El signo del dinero en las líneas de factura:** `balance` de una factura de cliente es negativo (crédito) y el de una nota de crédito positivo. Las ventas de un producto son
+  `-sum(balance)` sumando facturas y notas, sin firmar por tipo; las unidades (`quantity`) sí se firman por tipo (una `_read_group` por tipo, como en Rotación).
+- **El «hoy» de una prueba tiene que salir de quien la mira** (`context_today` con el usuario de tz Panamá), no del usuario del entorno: entre las 19:00 y la medianoche de Panamá la fecha
+  UTC ya es la de mañana y una venta «de hoy» cae fuera de «los últimos 30 días».
+- **Un número esperado que cae en `.5` es una trampa** (`round(17.5)` es 18 por el redondeo al par, pero `5 / (2 / 7)` puede dar `17.499999…`). Las pruebas usan casos que no caen en el medio.
+- **Los periodos de comparación hay que decirlos con fechas exactas en la pantalla** («del 23 oct al 21 nov»): «30 días» y «el mes» no dicen cuáles son los extremos, y si los dos periodos no
+  tienen el mismo largo (meses de 28 a 31 días) se avisa en vez de normalizar en silencio.
+
+
+## Lo que enseñó «Margen y rotación» y su primer CI a staging (2026-11-22, CI #386)
+
+- **Toda hoja de estilo nueva con blancos o azules a mano necesita su versión de noche.** El modo oscuro vive en `dcasa_interfaz/static/src/oscuro/*.dark.scss` y la prueba
+  `TestModoOscuroServidor.test_los_rellenos_propios_se_leen_de_noche` revisa cada regla propia (menos de 3:1 falla). Rotación y Movimiento (`dcasa_marketing`) la tumbaron en CI porque
+  traían `#fff`, `azul-800` con letra blanca y pastillas de colores claros: se agregó `oscuro/rotacion.dark.scss` (superficie con `--dc-blanco`, relleno con `--dc-relleno` y
+  `--dc-en-relleno`, estados con `--dc-bien/-falta/-mal` y sus fondos; la escalera de barras se da vuelta, de tenue a brillante). Misma especificidad que la regla de día: la hoja
+  oscura se arma después y gana por orden. Se probó que sin el archivo la prueba falla y con él pasa.
+- **Correr en local los módulos que se tocan Y los que los muestran.** Marketing y Guía pasaban, pero la pantalla vive también en el Inicio (`dcasa_interfaz`, atajo «Rotación») y en
+  el modo oscuro. Antes de lanzar un CI de ~80 minutos: `-u dcasa_interfaz,dcasa_marketing,dcasa_camila,dcasa_guia --test-tags=/dcasa_interfaz,/dcasa_marketing,/dcasa_camila,/dcasa_guia,/dcasa_base`
+  en una base que tenga todos (814 pruebas, unos 17 minutos). Esa corrida encontró otra falla que el CI no habría mostrado (el CI no trae `websocket-client`, así que salta las pruebas
+  de navegador): `test_gerencia_ve_el_panel_completo_con_los_atajos_en_su_orden` no conocía el atajo «Rotación».
+- **El registro de un job de GitHub que falla puede venir cortado** (el de #386 terminó 49 minutos antes que el job). `gh run view <run> --job <id> --log` muestra el primer
+  `FAIL:`; si hace falta el resto, correr local con el mismo comando. `scripts/test.sh` cuenta toda línea `ERROR` como falla.
+- **Un CI manual tarda entre 50 y 80 minutos solo en «Tests de Odoo»** (50, 74, 78 y 81 en los últimos cuatro): no es señal de cuelgue.
+
+## Lo que enseñó la revisión independiente de Rotación, Movimiento y Margen (2026-11-22)
+
+Un revisor sin mi contexto (con acceso de lectura y bases de prueba) encontró cuatro cosas importantes que ni mis pruebas ni mis mutaciones habían visto. Ninguna fuga de dinero.
+
+- **`strings_to_formulas=False` de xlsxwriter NO cubre las fórmulas de matriz `{=...}`** (xlsxwriter 3.1.9 revisa `{=` y `}` aparte, sin mirar la opción). Una celda cuyo texto entero es `{=1+1}` sale como `<f t="array">`. Todo Excel armado a mano debe escribir texto con `write_string` (o con `hoja_de_solo_texto`
+  de `dcasa_marketing/models/rotacion.py`, que cambia `hoja.write` de esa hoja). El nombre de prueba tiene que ser **exactamente** `{=1+1}`: con `{=1+1} algo` no es fórmula y la prueba pasa sin probar nada
+  (así falló mi primera versión; ya se comprobó que sin el arreglo las dos pruebas fallan). La misma debilidad sigue en `dcasa_interfaz/models/reponer.py` (fuera de esta entrega, anotada).
+- **Un `set(...)` dentro de la condición de una comprensión se vuelve a calcular en cada vuelta** (`[f for ... if pid in set(Plantilla.search(...).ids)]` hacía una búsqueda por producto: 2,600 productos tardaban 8 segundos).
+  Se calcula una vez antes. Una prueba de «las consultas no crecen con los productos» (`env.cr.sql_log_count` con 3 y con 28 productos) lo atrapa.
+- **Lo que la documentación promete como «no se ofrece como candidato a rebajar» tiene que cumplirse en TODAS las listas**, no solo en las de días: «Margen y rotación» dejaba productos recién llegados y con pedido abierto en «Ni se mueven ni dejan margen».
+  Ahora esos dos grupos no tienen cuadro y el ancla cuenta como «se vende bien».
+- **Cada herramienta de Brian necesita su prueba, sobre todo si promete no dar dinero a un rol.** `rotacion_de_inventario` y `comparar_movimiento` no tenían ninguna: ahora `test_brian_rotacion_movimiento.py` recorre las claves de la respuesta de Marketing y
+  busca dinero, y comprueba que los cuadros de margen y la rebaja se le nieguen.
+- **Una factura se cuenta con la misma base que la lista.** Las unidades salían de los productos activos y a la venta, pero los pedidos y la gráfica salían de todas las facturas: con un producto archivado, el resumen no cuadraba. Los tres usan ahora el mismo dominio.
+- Menores arreglados: fechas del año 0001 daban error 500 (ahora un mensaje; no antes del 2000), «año pasado» con un periodo de 366 días se cruzaba un día, y el cambio % de un producto con devoluciones de sobra llegaba a −166 % (ahora −100 %).
+- **Cuándo pedir la revisión:** en paralelo al CI largo (80 minutos), no después. Esta llegó antes de que terminara el CI y costó cancelarlo y relanzar; si hubiera llegado después, habría costado un ciclo entero más.

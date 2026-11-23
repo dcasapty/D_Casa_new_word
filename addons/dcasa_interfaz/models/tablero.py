@@ -174,6 +174,13 @@ class DcasaTablero(models.AbstractModel):
             atajos.append({
                 'clave': 'marketing', 'titulo': 'Marketing', 'detalle': 'Lo que se mueve, lo quieto y las fotos',
                 'icono': 'fa-bullhorn', 'accion': 'dcasa_marketing.accion_marketing', 'vista': None})
+        # Rotación (dcasa_marketing, pedido de Gerencia del 2026-11-22): qué se mueve y qué no, con el capital parado.
+        # El mismo permiso que Marketing; el dinero lo decide la pantalla (solo Gerencia y administradores).
+        if self.env.get('dcasa.rotacion') is not None and marketing._es_de_marketing() \
+                and self.env.ref('dcasa_marketing.accion_rotacion', raise_if_not_found=False):
+            atajos.append({
+                'clave': 'rotacion', 'titulo': 'Rotación', 'detalle': 'Qué se mueve, qué no y cuánto está parado',
+                'icono': 'fa-refresh', 'accion': 'dcasa_marketing.accion_rotacion', 'vista': None})
         if not permisos['completo']:
             return atajos
         # Valor del inventario (pedido de la dueña, 2026-11-02): «solo para gerencia o administración», como la

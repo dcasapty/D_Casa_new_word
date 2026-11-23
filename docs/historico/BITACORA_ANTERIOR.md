@@ -1,8 +1,196 @@
 # Bitácora anterior (entradas viejas de LEEME_PRIMERO)
 
-> **Archivado el 2026-11-06, el 2026-11-11, el 2026-11-13, el 2026-11-14, el 2026-11-16, el 2026-11-17 y el 2026-11-20.** Texto completo de las entradas de la bitácora de
-> [LEEME_PRIMERO.md](../LEEME_PRIMERO.md) del 2026-10-16 al 2026-11-15, la más nueva arriba. Allí quedan resumidas en una línea
+> **Archivado el 2026-11-06, el 2026-11-11, el 2026-11-13, el 2026-11-14, el 2026-11-16, el 2026-11-17, el 2026-11-20 y el 2026-11-22.** Texto completo de las entradas de la bitácora de
+> [LEEME_PRIMERO.md](../LEEME_PRIMERO.md) del 2026-10-16 al 2026-11-18, la más nueva arriba. Allí quedan resumidas en una línea
 > cada una. Se conservan tal cual (con los nombres de personas quitados), como registro.
+
+### 2026-11-17 (3) y 2026-11-18: la segunda entrega completa en producción (CI/CD 380 y Juan 29)
+
+**En producción desde el 2026-11-18, 00:5x UTC:** la segunda entrega entera (PR #128, squash `d2ba8caf`,
+ejecución 380 de CI/CD a mano desde `main`) y **Desplegar Juan 29** (01:0x UTC, misma versión). Salud del borde
+sana: `{"ok": true, "version": "d2ba8caff071", "base_al_dia": true, "humo": "ok"}`. El `/salud` de Juan responde con
+`d2ba8caf` en `produccion`, la tienda lista y activa; las 4 «cosas por revisar» que lista son claves y canales que
+**ya faltaban** (la `ANTHROPIC_API_KEY` de respaldo y el puente de WhatsApp por QR, que nunca se desplegó), no algo
+que trajera esta subida.
+
+**Lleva:** Andrés como mejor vendedor, las notas de voz (de Andrés y del panel de Brian), el micrófono del chat, la
+pantalla «Armar combo» con los precios de verdad, los tres arreglos de las revisiones (el total negativo del
+mostrador por los dos caminos, la guardia del Worker que se saltaba con «…ok?» y el premio que viajaba al chat) y la
+regla nueva de Socios que va abajo.
+
+**La decisión que la frenaba ya está tomada y programada.** La dueña eligió, entre dos opciones que se le
+presentaron con las cifras: **«avisarle y no dejar canjear»**.
+
+- **El problema** (lo encontró la revisión adversarial de Andrés vendedor): la línea del premio baja la compra medida
+  (decisión M6 de la dueña), así que podía tirarla por debajo del mínimo de la promoción de envío y hacerle perder el
+  envío gratis. Carrito de $205 sin ITBMS, premio de $10 → la compra queda en $195.65 y paga $45 de envío. **Gastaba
+  puntos para pagar más.**
+- **Lo que quedó:** antes de canjear se compara lo que pagaría de envío con lo que le descuenta el premio. Si iguala o
+  pasa, se le avisa con las dos cifras y no se canjea (sus puntos no se mueven: el canje ni se pide). **Decidí yo (y
+  se le dijo):** si el premio descuenta MÁS de lo que perdería, se deja pasar, porque ahí el socio sale ganando y
+  bloquearlo sería quitarle un beneficio real.
+- **Dos fallos míos que encontraron las pruebas y la revisión, los dos de dinero:**
+  1. Yo medía la bajada por el **valor de cara** del premio; la línea rebaja la **base** sin impuesto ($9.35 para un
+     premio de $10). El aviso habría dicho una cifra que no era y el bloqueo saltaba en el borde equivocado. La
+     cuenta del impuesto quedó en un solo sitio para que no se vuelvan a separar.
+  2. Al devolverle los puntos, **la promoción no volvía**: el sincronizador de envíos solo quita esa línea, nunca la
+     repone. El socio quedaba sin el premio Y pagando el envío: peor que el problema original. Ahora, al quitar un
+     premio —lo quite el sistema o el socio— la promoción se vuelve a ofrecer.
+- **Un BLOQUEANTE de la revisión independiente:** la guarda vivía solo en el carrito web, y por «Cobrar premio» del
+  **mostrador** el premio entraba directo: cobrar uno de $25 sobre una venta de $205 con envío gratis le hacía pagar
+  $21.64 más, sin que nadie se lo dijera. Pasó a `_aplicar_en_venta`, por donde van los dos caminos (es la segunda vez
+  que una guarda de dinero de premios se tiene que mover ahí; quedó anotado como regla). En el mostrador el código
+  sigue valiendo para otra compra.
+- **Dos hallazgos más de la revisión, arreglados:** el ahorro de la promoción es una base y el valor del premio va con
+  ITBMS, así que al compararlos ahora el ahorro sube con los impuestos del envío (hoy va sin ellos, pero puede
+  cambiar); y el carrito del chat no corría la limpieza de premios, así que podía seguir mostrando uno que ya no le
+  convenía. También se probó el borde exacto que eligió la dueña («iguala» → no se canjea), que antes pasaba igual
+  con `>` que con `>=`.
+- **Sigue abierto, anotado:** el carrito le ofrece premios que el servidor va a rechazar (el aviso llega después del
+  clic); y si lo que se pierde eran términos ya prometidos de una promoción vencida, esos no vuelven.
+
+### 2026-11-17 (2): la portada nueva en producción (CI/CD 377), el hero como fondo en movimiento
+
+**En producción: la portada nueva** (ejecución 377 de CI/CD a mano desde `main`, squash `447d6efe`, PR #127; Juan
+sigue en 28). El resto de la segunda entrega —Andrés vendedor, notas de voz y micrófono— **sigue sin subir**, a la
+espera de la decisión de la dueña sobre Socios y el envío gratis.
+
+- **Lo que pidió la dueña:** «como si fuese un video corrido… imágenes con un tipo suave zoom», «no quiero ni
+  siquiera que el usuario tenga control», «ni siquiera tiene que tener el nombre del producto» y, sobre el
+  contraste, «el fondo no lo quiero oscuro». Se le mostraron **cinco opciones** de contraste en azul de marca, en
+  computadora y en celular; eligió la quinta («me gusta mucho la última imagen y cómo se ve en celular»).
+- **Qué quedó:** el hero dejó de ser un carrusel con mandos y pasó a ser un fondo. Las fotos de los productos que
+  Gerencia elige en Sitio web › Carrusel de la portada cubren la pantalla entera, se funden unas en otras en orden al
+  azar y llevan un zoom lento que no para. Encima va solo el texto de siempre: sin nombres, sin enlaces, sin flechas,
+  sin barras y sin pausa. Sin productos elegidos queda el hero de antes, igual que antes.
+- **El contraste se resuelve en azul de marca, nunca oscureciendo la foto:** un degradado diagonal (navy → azul →
+  transparente) en `::after`, sin bordes ni franjas; en el celular va de abajo hacia arriba. El amarillo sigue
+  cayendo siempre sobre azul.
+- **Accesibilidad:** el fondo es decorativo (`aria-hidden`, `alt` vacío), así que el lector de pantalla lee el texto y
+  no una lista de camas; con «movimiento reducido» no cambia de foto ni hace zoom. La primera foto sigue siendo la
+  imagen LCP.
+- **El contrato visual ahora exige dos cosas más** que antes no se miraban: que la **foto misma** cubra el hero de
+  orilla a orilla, y que la capa de contraste sea de marca y **nunca negra**. Referencias regeneradas en el mismo
+  commit.
+- **Rama aparte, como con el Black Friday:** `claude/portada-solo`, sacada de `main`, 21 archivos, todos dentro de
+  `addons/website_dcasa/`. No toca Socios, ni el chat, ni nada que mueva dinero. Así la portada pudo subir hoy sin
+  arrastrar la segunda entrega.
+- **Comprobado en producción** (en computadora y en celular, con el navegador de verdad): hero a pantalla completa,
+  7 fotos, la foto cubre el hero, el zoom corriendo, la capa en navy y azul **sin nada de negro**, cero mandos y
+  `aria-hidden` puesto. Salud del borde sana: `{"ok": true, "version": "447d6efe6c74", "base_al_dia": true,
+  "humo": "ok"}`.
+- **Pendiente anotado:** el contrato visual del panel de Juan falla a 390 px (`panel-lista-390` 7,7 % y
+  `panel-conexiones-390` 13,7 % de píxeles distintos). **Viene de `main`, no de la portada** (esta rama no toca nada
+  de Juan). Hay que mirarlo aparte: o es un cambio a propósito al que le faltó regenerar sus referencias, o es una
+  falla de verdad en el celular.
+
+### 2026-11-17: la pantalla «Armar combo», tres arreglos de Socios y del chat, y los parches de IA de Juan
+
+**Nada nuevo en producción** (sigue Desplegar 77 y Juan 28). Todo en la rama de trabajo, a la espera de la decisión
+de la dueña sobre Socios y el envío gratis (ver [PRIORIDADES.md](PRIORIDADES.md)).
+
+- **«Armar combo»** (lo que pidió la dueña después del Black Friday): su columna «precio» salía sin la campaña, así
+  que durante una oferta le mostraba a la vendedora un precio que ese día no se practicaba —la web decía otro— y un
+  ahorro que no existía. Ahora «precio» es lo que la pieza cuesta SUELTA ESE DÍA y «precio_linea» lo que se cobra en
+  el combo. 238 pruebas en verde.
+- **El total negativo en el mostrador:** la guarda «el premio no pasa del carrito» vivía solo en la tienda web. Pasó
+  a `_aplicar_en_venta` (por donde van los dos caminos) y `action_confirm` quedó con una última red.
+- **La guardia del Worker:** se saltaba con una oración que terminara en «?» sin «¿» («ya te lo quité…, ok?») y con
+  una pregunta en medio. Ahora se quitan las cláusulas interrogativas enteras y se revisa todo lo demás.
+- **El premio de Socios ya no viaja al chat entre los productos:** le contaba al modelo que el visitante es socio y
+  tiene un premio puesto, Andrés podía proponer quitarlo (eso cancela el canje) y reaccionaba ofreciendo «algo más
+  económico» por el premio del propio cliente. Va en «extras», con el envío.
+- **PR de Dependabot #98 unido a main** (parches de `@ai-sdk/*` y `ai` en `juan/`), con el CI completo en verde y
+  revisado que los cambios de comportamiento del registro tocan APIs que Juan no usa. Juan: 1924 pruebas en verde con
+  las librerías nuevas. **No cambia producción hasta el próximo «Desplegar Juan».**
+
+### 2026-11-16 (3): el Black Friday en producción (Desplegar 77 y Juan 28)
+
+**Nada nuevo en producción todavía** (sigue Desplegar 76). La sesión tomó el traspaso y cerró el **paso 0**.
+
+- **Los dos puntos por verificar del traspaso estaban bien**: un colchón cuyo precio en combo ya no es menor no le
+  quita la campaña a la cama, y el interruptor se lee de la campaña en `_get_applicable_rules_domain` sin reescribir
+  reglas ni regenerar la tienda.
+- **Dos revisiones adversariales independientes** (toca dinero). La primera encontró 1 bloqueante y 14 hallazgos más;
+  la segunda, hecha sobre el arreglo de la primera, encontró que ese arreglo **se quedaba corto** y 2 bloqueantes
+  más. Todo lo de dinero está arreglado y probado; lo de rendimiento quedó anotado.
+- **Decisión de la dueña (la regla del par):** se compara el total del par. Si el combo (cama a precio normal y
+  colchón a precio en combo) sale igual o más barato que comprar las dos piezas sueltas con su precio de Black
+  Friday, el combo se queda; si sale más caro, el combo se deshace y cada pieza va a su precio de oferta. «Comprar
+  juntos nunca puede salir más caro que comprar por separado.»
+- **Rama de la subida: `claude/black-friday-solo`** (sale de `62868d5`, que ya trae el nombre «Andrés» de `1937f89`).
+  Solo Black Friday: ni Andrés vendedor, ni voz, ni micrófono, ni portada. **Batería del paso 0: 1543 pruebas, 0
+  fallas.**
+- **En producción: Desplegar 77** (PR #126, squash `a904ec65`, `app_version` `26b357d3bd51…`, imagen
+  `sha256:ebc046c9…`, CI 371 con staging) y **Juan 28** (Juan primero, porque el nombre «Andrés» vive en
+  `juan/src/tienda`). Con respaldo previo. Comprobado en producción: `/dcasa/salud` sano con la versión nueva, la
+  portada responde, `/promociones` da 404 y el menú no lo muestra (todavía no hay campaña), y el chat abre diciendo
+  **«Hola, soy Andrés»**.
+- **Susto del camino:** el servidor de GitHub de la sesión estuvo una hora contestando «invalid session» justo
+  después de reconectar la cuenta. `git push` seguía funcionando. Volvió solo al reiniciarse el proceso de la
+  sesión; está anotado en CONTEXTO_AGENTICO.
+- En la rama de trabajo quedó además el último pendiente de las notas de voz (el micrófono que quedaba encendido si
+  la pantalla se cerraba mientras pedía permiso) y las dos pruebas del carrusel arregladas.
+- **La segunda entrega NO subió** (Andrés vendedor, voz, micrófono y portada): su revisión adversarial independiente
+  encontró un **bloqueante que necesita decisión de la dueña** (ver PRIORIDADES).
+
+### 2026-11-16 (2): todo el plan Andrés, voz y portada subido a la rama, incluso lo que quedó a medias (traspaso a otra cuenta)
+
+**Nada nuevo en producción** (sigue Desplegar 76). La sesión trabajó el plan con ayudantes en paralelo, cada uno en su
+rama local: combos inamovibles, Andrés vendedor (A1–A5), notas de voz, micrófono en el chat y la portada en carrusel a
+pantalla completa sin fondo negro (lo pidió la dueña al ver las capturas). Hubo tres revisiones adversariales: Andrés
+quedó arreglado; combos y voz quedaron con los arreglos a medias. Todos los ayudantes se cortaron por el límite de uso
+de 5 horas y la dueña pidió: «sube incluso lo incompleto con el avance actual y lo que falta». Las cinco ramas se
+unieron sin conflictos en `claude/merge-rama-to-main-ty3koz`. Sobre la unión pasan ruff y las 1921 pruebas y el
+typecheck del Worker; **las de Odoo no se corrieron**. Qué falta en cada parte, con sus commits: **[PLAN_ANDRES_VOZ_PORTADA.md
+› Traspaso del 2026-11-16](PLAN_ANDRES_VOZ_PORTADA.md#traspaso-del-2026-11-16-madrugada-dónde-quedó-cada-parte)**.
+Lección: con varios ayudantes a la vez, el límite de 5 horas llega para todos juntos; subir a la rama de trabajo
+cada avance que pase las pruebas rápidas, no al final.
+
+### 2026-11-16: Black Friday y «Andrés» listos en la rama sin subir (pausa por límite de uso); plan de la ronda siguiente
+
+**Nada nuevo en producción** (sigue Desplegar 76, `754aceaf18e7`). La sesión se pausó por el límite de uso de la cuenta, a
+pedido de la dueña: «sube la rama lo que tengas y añade todo lo que avanzamos para que otro Claude finalice».
+
+- **Listo en la rama:** el código está en `cae5e57`.
+  - **Campaña del sitio:** Black Friday desde el panel, con pruebas en `website_dcasa/tests/test_campana.py` y
+    `dcasa_conversaciones/tests/test_precio_campana.py`.
+  - **Revisión adversarial:** tres vueltas, sin bloqueantes. Se arreglaron:
+    - permisos: solo Gerencia y los que cambian precios;
+    - solo las tarifas del sitio, sin pisar las reglas propias;
+    - el piso de variantes;
+    - los disparos exactos del cron;
+    - la revisión de los carritos viejos y en el pago;
+    - el bloqueo de `date_order`;
+    - las reglas que se guardan 30 días;
+    - los combos;
+    - la huella del catálogo de Meta.
+  - **«Andrés»:** el chat de la tienda tiene nombre nuevo, en Odoo y en `juan/src/tienda`.
+- **La dueña ya autorizó la subida** («lleva ya todo a producción»). Falta:
+  - repetir las pruebas locales con el código final: la vuelta con `11f9822` dio 827 de 827 en verde;
+  - CI con staging, PR, squash, Desplegar y **Desplegar Juan**;
+  - explicarle los pasos del panel.
+
+  Todo eso está en el **paso 0** de [PLAN_ANDRES_VOZ_PORTADA.md](PLAN_ANDRES_VOZ_PORTADA.md). El Black Friday es el
+  viernes 27: hay que subirlo con días de margen.
+- **Pedidos nuevos (2026-11-16, con capturas del chat):** quedan como plan, en el mismo documento.
+  - Andrés como buen vendedor:
+    - el carrito y la cotización no se pierden al subir en el chat;
+    - ofrece sumar el envío a la cotización;
+    - reacciona una vez cuando el cliente quita o vacía el carrito;
+    - cambia cantidades conversando;
+    - la vitrina va ordenada por pedido.
+  - Notas de voz para Andrés y Brian, sin guardar el audio, para que nadie pueda clonar voces.
+  - El hero en carrusel con camas propias («805, 801 y la negra 300-300»: confirmarlas con fotos).
+  - Una sección «de cine» tipo panaclaw.com/proyectos con un botón al catálogo.
+- **Preguntas abiertas a la dueña:**
+  - **I6.** ¿El precio de campaña vale también en la tienda física, o solo en la web? Hoy vale en todos lados.
+  - **Ya contestó, y es una regla:** «no quiero tocar en absoluto los combos. Los combos son inamovibles aunque
+    hayan estrategias o ofertas… debería poderse, pero no quiero». Una campaña nunca rebaja un combo armado. Hay que
+    programarlo antes de subir (paso 1 del plan) y dejar un interruptor apagado.
+  - **Ya contestó:** «los combos son intocables. Esa es una promoción permanente de la empresa». La línea «Combo con
+    colchón $X» vuelve a salir con precio de campaña, en la página, con Juan y con Andrés.
+- **Esta máquina:** se reinició cuatro veces entre el 15 y el 16. Lo que no está en la rama se pierde.
 
 ### 2026-11-15 (3): bandas en azul noche y pie claro, menú sin «Escríbenos», contacto y el carrito en el chat, en producción (Desplegar 76); Black Friday y «Andrés» en la rama
 

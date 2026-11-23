@@ -44,6 +44,8 @@ TITULOS = {
     # dcasa_marketing
     'movimiento_de_productos': 'Revisando qué se mueve y qué está quieto',
     'fotos_que_faltan': 'Buscando productos sin fotos',
+    'rotacion_de_inventario': 'Revisando la rotación del inventario',
+    'comparar_movimiento': 'Comparando qué se mueve entre dos periodos',
     # dcasa_envios
     'cotizar_envio': 'Calculando el precio del envío',
 }

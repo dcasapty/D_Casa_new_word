@@ -9,4 +9,5 @@ from . import (
     test_rutas,
     test_rv7,
     test_rv8,
+    test_rv9,
 )

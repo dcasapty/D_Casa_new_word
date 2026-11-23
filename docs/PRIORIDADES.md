@@ -1,6 +1,6 @@
 # Prioridades vigentes
 
-Puesto al día el **2026-11-20** (todo lo nuevo, Yappy directo incluido, está unido en la rama de trabajo, sin desplegar: ver «Estado al 2026-11-20»). Antes, el **2026-11-18** (**todo está en producción**: el Black Friday desde el 16 —Desplegar 77 y Juan 28—, la portada nueva desde el 17 —CI/CD 377, PR #127— y **la segunda entrega completa desde el 18** —CI/CD 380 y Desplegar Juan 29, squash `d2ba8caf`, PR #128—. Ya no queda nada esperando en la rama de trabajo). Es el orden en que se trabaja: cada sesión lo lee al empezar y lo pone al día al
+Puesto al día el **2026-11-22** (Rotación; ver «Estado al 2026-11-22»). Antes, el **2026-11-20** (todo lo nuevo, Yappy directo incluido, está unido en la rama de trabajo, sin desplegar: ver «Estado al 2026-11-20»). Antes, el **2026-11-18** (**todo está en producción**: el Black Friday desde el 16 —Desplegar 77 y Juan 28—, la portada nueva desde el 17 —CI/CD 377, PR #127— y **la segunda entrega completa desde el 18** —CI/CD 380 y Desplegar Juan 29, squash `d2ba8caf`, PR #128—. Ya no queda nada esperando en la rama de trabajo). Es el orden en que se trabaja: cada sesión lo lee al empezar y lo pone al día al
 terminar (ver [LEEME_PRIMERO.md](LEEME_PRIMERO.md)). Aquí va **un solo estado**, el de hoy; lo que pasó cada día está en
 la bitácora de LEEME_PRIMERO (y lo más viejo en [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md)).
 
@@ -10,21 +10,40 @@ la producción. Apruébalo y punto.»); la revisión adversarial no se salta (re
 **Excepción desde el 2026-11-20: todo cambio de diseño se le muestra en capturas antes/después y espera su «sí»** («antes de cualquier cosa o
 cambio en el diseño me gustaría verlo antes»; ver LEEME_PRIMERO §2).
 
-## Estado al 2026-11-20
+## Estado al 2026-11-22
 
-- **En producción sigue `d2ba8caf`** (la segunda entrega, 2026-11-18). **La rama de trabajo (`960bf34`, subida, sin desplegar) ya trae todo lo
-  pendiente:** «Forma de pago» en facturas y Exportar para Gerencia, ventas por día, carrusel configurable, Andrés ampliado, retoques de la web, el rediseño
-  de la pasarela y el lote «legibilidad», **Tilopay** (nace apagado), la **comisión por ventas del sitio web** (sin versión de reglas: solo mide) y
-  **Yappy directo** (`dcasa_pago_yappy`, [YAPPY.md](YAPPY.md), nace apagado). La dueña vio las capturas antes/después y dijo «Me gustó todo el
-  trabajo» (queda aprobado lo visual) y eligió el botón gris de Yappy. Detalle y SHA de cada rama en la bitácora de LEEME_PRIMERO.
-- **Falta, en este orden:** (1) la batería completa de Odoo sobre `960bf34` (en curso) y la **revisión independiente de los arreglos de RV7 y RV8** (R7-1 a
-  R7-10 y R8-1 a R8-7, ya hechos en `local/rv7-arreglos`, sobre `a3bffac`, sin unir ni desplegar; ver la bitácora de LEEME_PRIMERO; **R7-7, el rastro del botón de Caja, es
-  decisión de la dueña**); (2) subir por la receta (LEEME_PRIMERO §3): staging con todo apagado, verificar, producción; (3) lo que depende de otros: las
-  claves de Tilopay y Yappy en Cloudflare (nunca por el chat), el programa de pruebas de Yappy y la compra de ensayo, las respuestas de Yappy y Cloudflare
-  (YAPPY.md §15), la política de privacidad (§16), las cifras de la comisión web y su tratamiento contable.
-- **Para los jefes:** el informe de ChatGPT quedó contrastado con el código (CONTEXTO_AGENTICO) y hay un tablero y un audio/video de 38 minutos con voz
-  gratis; la voz profesional (≈ US$7.30) espera el «sí» de la dueña. **Por comprobar en vivo:** CRM automático y cotizaciones sin vincular, 111 frente a
-  93 cotizaciones, margen de octubre y los $44.96 de IA.
+- **Nuevo (pedido del jefe, 2026-11-22): «Rotación» del inventario.** Qué productos no se mueven (30, 60, 90, 180 días o más sin vender), cuánto capital hay parado,
+  ancla, cobertura, simulación de rebaja y Excel. **Programada y probada en la rama (`dcasa_marketing`), sin subir ni desplegar:** es una pantalla nueva, así que
+  **primero las capturas antes/después y el «sí» de la dueña** (LEEME §2); después, CI → staging → producción. Detalle en [ROTACION.md](ROTACION.md). Pendiente de respuesta: los
+  cortes (30, 60, 90, 180), el «llegó hace poco» (30 días, con pedidos que tardan 3 a 4 meses) y qué hacer con lo parado (rebaja, combo o dejarlo).
+- **Nuevo (2026-11-22, de la dueña): «Movimiento» (comparar periodos).** Lo que más y lo que menos se mueve, comparando dos periodos (7 a 90 días, este mes, el mes pasado o fechas; contra el de justo
+  antes, el año pasado o fechas): qué subió, bajó, se enfrió o está quieto, con unidades, pedidos, cuántos días alcanza lo que hay, gráfica, Excel y «Crear campaña con los primeros 8» (Camila),
+  para decidir qué anunciar en publicidad y redes. **Programada y probada en la rama (`dcasa_marketing`, `dcasa_camila`, `dcasa_guia`), sin subir ni desplegar:** es una pantalla nueva, así que
+  **primero las capturas antes/después y el «sí» de la dueña** (LEEME §2), junto con Rotación (van en el mismo lote). Detalle en [MOVIMIENTO.md](MOVIMIENTO.md). Para producción: `-u dcasa_marketing,dcasa_camila,dcasa_interfaz,dcasa_guia`.
+- **Nuevo (pedido del jefe, 2026-11-22): «Margen y rotación» dentro de Rotación.** Cuatro listas que cruzan lo que se vende con lo que deja cada venta (*Estrellas*, *Venden mucho, dejan poco*,
+  *Buen margen, se mueven poco*, *Ni se mueven ni dejan margen*); los cortes son la mediana de la propia tienda y la pantalla los escribe; solo Gerencia y administradores (usa el costo). **Programada y probada en
+  la rama, sin subir ni desplegar; va en el mismo lote** que Rotación y Movimiento (capturas y «sí» de la dueña primero). Detalle en [ROTACION.md](ROTACION.md) (punto 7).
+  **Falta del pedido del jefe:** mejorar las mediciones del Inicio (Dashboard): idea, «Lo más vendido» con su cambio contra los 30 días anteriores y una tarjeta de «parado 90 días o más» que abra Rotación.
+- **Lunes 2026-11-23 (de la dueña):** las claves de Tilopay y de Yappy Comercial en Cloudflare (nunca por el chat) y el «sí» para llevar los cierres R9 a producción. Luego, el informe
+  para los jefes de todo lo hecho (con «Forma de pago» y su Excel, y lo más movido y lo más quieto, ya con Rotación).
+- «Operación Sun Tzu» (estrategia frente al competidor, con el plan «Caballo de Troya» por diseñar): documento **privado en Claude Docs**, no va al repositorio.
+
+## Estado al 2026-11-21
+
+- **En producción desde el 2026-11-21 02:24 UTC: `f81d669d4ca4`** (PR #130, squash `d3349ed1`, CI/CD #383, Desplegar #78, digest
+  `sha256:706e7954…`): «Forma de pago» en facturas, ventas por día, carrusel configurable, Andrés ampliado, rediseño de la pasarela, legibilidad
+  y retoques, que la dueña aprobó. **Tilopay y Yappy directo están instalados y apagados; la comisión web no tiene versión de reglas (solo
+  mide).** Antes: `d2ba8caf` (2026-11-18).
+- **Falta, en este orden:** (1) **llevar a producción los cierres R9-1 a R9-5** (las dos puertas que halló RV8b en los permisos del pago en
+  línea: `default_transaction_ids` del pedido y la factura creada a mano con el cobro de otro; más `action_refund`/`capture`/`void` y los
+  caracteres invisibles de `cita`). **Ya están unidos a la rama de trabajo y los aprobó la revisión independiente RV8c** (sin hallazgos que
+  bloqueen; solo INFO, ver la bitácora): falta CI → staging → producción, **obligatorio antes de encender cualquier pago**. (2) Lo que depende de
+  otros: claves de Tilopay y Yappy en Cloudflare (nunca por el chat), el programa de pruebas de Yappy y la compra de ensayo, las respuestas de Yappy y
+  Cloudflare (YAPPY.md §15), la política de privacidad (§16), las decisiones **R7-4 (Nómina confirma cobros) y R7-7 (rastro del botón de Caja)**,
+  aceptar el límite R8-3 (un cobro suelto del mismo cliente manda el aviso a revisión humana), las cifras de la comisión web y su tratamiento contable.
+- **Para los jefes:** el informe de ChatGPT quedó contrastado con el código (CONTEXTO_AGENTICO); hay tablero y un audio/video de 38 minutos con
+  voz gratis; la voz profesional (≈ US$7.30) espera el «sí» de la dueña. **Por comprobar en vivo:** CRM automático y cotizaciones sin vincular,
+  111 frente a 93 cotizaciones, margen de octubre y los $44.96 de IA.
 
 ## Estado al 2026-11-17
 
