@@ -24,6 +24,12 @@ cambio en el diseño me gustaría verlo antes»; ver LEEME_PRIMERO §2).
   **Falta del pedido del jefe:** mejorar las mediciones del Inicio (Dashboard): idea, «Lo más vendido» con su cambio contra los 30 días anteriores y una tarjeta de «parado 90 días o más» que abra Rotación.
 - **Lunes 2026-11-23 (de la dueña):** las claves de Tilopay y de Yappy Comercial en Cloudflare (nunca por el chat). (El «sí» de los cierres R9 ya lo dio el 2026-11-23 y viajaron en el mismo lote.) Luego, el informe
   para los jefes de todo lo hecho (con «Forma de pago» y su Excel, y lo más movido y lo más quieto, ya con Rotación).
+- **Programa de vendedores: rediseño PENDIENTE de las respuestas de la dueña (no olvidar; ella lo pidió el 2026-11-22).** Su idea: que el cliente que usa un código de vendedor reciba un descuento (para que tenga razón de usarlo),
+  un **descuento por vendedor** que Gerencia fija (o ninguno), una **casilla en cada producto** «Entra al programa de vendedores» (si no tiene costo y precio, no entra; solo Gerencia ve el margen que quedaría) y que los productos ya
+  con descuento no entren. Preguntas abiertas: (1) ¿tasa completa a los clientes que repiten? (propuesta: un interruptor para Gerencia «tasa completa a clientes que ya compraron: sí/no»); (2) ¿se mantiene el vínculo de 12 meses o solo
+  cuenta la venta donde ponen el código?; (3) ¿qué descuento máximo no debe dejar pasar el sistema?; (4) ¿tratar como «con descuento» cualquier línea que ya traiga otro descuento (la promoción la da la caja a mano)? Y: ¿se empieza por la
+  cotización de la tienda y el enlace de la web después? **Se construye solo con su «sí» y con capturas antes de producción** (toca dinero y la ficha del producto). El simulador privado («¿Nos conviene?») sirve para decidir. Hoy rige lo de
+  [VENDEDORES.md](VENDEDORES.md): el código no da descuento; el canje de externos y el efectivo siguen apagados hasta el dictamen del abogado y la contadora.
 - «Operación Sun Tzu» (estrategia frente al competidor, con el plan «Caballo de Troya» por diseñar): documento **privado en Claude Docs**, no va al repositorio.
 
 ## Estado al 2026-11-23
