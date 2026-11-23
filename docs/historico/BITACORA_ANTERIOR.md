@@ -1,8 +1,53 @@
 # Bitácora anterior (entradas viejas de LEEME_PRIMERO)
 
-> **Archivado el 2026-11-06, el 2026-11-11, el 2026-11-13, el 2026-11-14, el 2026-11-16, el 2026-11-17, el 2026-11-20 y el 2026-11-22.** Texto completo de las entradas de la bitácora de
-> [LEEME_PRIMERO.md](../LEEME_PRIMERO.md) del 2026-10-16 al 2026-11-18, la más nueva arriba. Allí quedan resumidas en una línea
+> **Archivado el 2026-11-06, el 2026-11-11, el 2026-11-13, el 2026-11-14, el 2026-11-16, el 2026-11-17, el 2026-11-20, el 2026-11-22 y el 2026-11-23.** Texto completo de las entradas de la bitácora de
+> [LEEME_PRIMERO.md](../LEEME_PRIMERO.md) del 2026-10-16 al 2026-11-20, la más nueva arriba. Allí quedan resumidas en una línea
 > cada una. Se conservan tal cual (con los nombres de personas quitados), como registro.
+
+### 2026-11-19 y 2026-11-20: «Forma de pago» en facturas, ventas por día, carrusel y Andrés ampliado, Tilopay y la comisión web. En la rama de trabajo, probado, SIN subir (producción sigue en `d2ba8caf`)
+
+**Nada de esto está en producción todavía.** Todo vive en `claude/merge-rama-to-main-ty3koz` (cada pieza en su rama
+local `local/*`, unidas). Seis piezas hechas en paralelo, cada una con su **revisión adversarial independiente** (tres
+vueltas la de Tilopay) y las pruebas del revisor copiadas al módulo sin debilitarlas. Orden de salida pensado: primero lo que no mueve
+dinero, luego Tilopay (nace **apagado**), y la comisión **sin versión de reglas** (solo mide; nadie cobra nada) hasta que
+Gerencia ponga cifras y la contadora diga cómo se trata.
+
+- **Facturas** (`local/facturas`, `5405fc0a`): columna, filtro y «agrupar por» de **Forma de pago** (el diario de cada cobro;
+  «Nota de crédito»; «Sin pago registrado» si Odoo la da por pagada sin pagos), y **Exportar a Excel** para Gerencia, que
+  baja solo `account.move`, sus líneas, `account.payment`, `sale.order` y sus líneas (los administradores, todo). El xlsx escribe
+  los textos como texto (nunca fórmula). Revisión: 6 hallazgos (idioma del texto guardado, fórmulas en el xlsx, exportar de
+  más, columna ambigua, vistas de proveedor, calidad de pruebas), todos arreglados.
+- **Ventas por día** (`local/ventasdia`, `378d2314`): una tarjeta «Cobrado por forma de pago» con **Día / Semana / Quincena /
+  Mes** sobre la lista, `dcasa.tablero.cobros_del_periodo`, y las cifras **suben animadas** en todas las pantallas (`useCifrasQueSuben`).
+  «Cobro» sigue teniendo una sola definición (`_dominio_de_cobros`, ahora solo clientes).
+- **Portada y Andrés** (`local/retoques`, `58122eb1`): los **segundos del carrusel** los define Gerencia (3 de fábrica, de 2 a 15)
+  en un modelo propio `dcasa.portada.ajustes`, **sin ningún permiso sobre `website`** (la revisión halló que escribir en `website`
+  le abría a Gerencia, como superusuario, las acciones de servidor del sitio sin grupo); la vitrina pública tiene caché de
+  60 s; el chat de **Andrés abre ampliado en escritorio** (≥ 1024×600, sin puntero táctil; la preferencia se recuerda).
+- **Tilopay** (`local/tilopay`, `588c6363`, módulo `dcasa_pago_tilopay`): tarjeta, Yappy y más desde la tienda y el portal.
+  Nace apagado y sin publicar; las claves viven solo en Cloudflare (`TILOPAY_API_KEY`, `TILOPAY_API_USER`,
+  `TILOPAY_API_PASSWORD`; la variable `TILOPAY_ENTORNO`, «prueba» primero). 241 pruebas de Odoo, 299 del borde. Tres vueltas del
+  revisor: tope global de llamadas a la vez (la tienda ya no se cae si Tilopay tarda), cobro que no cuadra con el pedido → revisión
+  humana (nunca se paga sola), «Modo de prueba» en producción solo para el equipo. **Antes de cobrar de verdad** (lista en
+  `docs/TILOPAY.md` §9.1): registrar el aviso `https://dcasapty.com/payment/tilopay/webhook` con Soporte, preguntar la vigencia de
+  la página de pago, conciliar a diario contra el panel de Tilopay y las verificaciones de siempre. Todo se probó con un
+  Tilopay simulado: **falta una compra de ensayo con la cuenta de pruebas de Tilopay**.
+- **Comisión por ventas del sitio web** (`local/comision`, `766ee8b8`, módulo `dcasa_comision_web`): % fijo sobre las ventas del
+  sitio (sin meta) y tarifa fija aparte, a empleados de Nómina elegidos por Gerencia, libro inmutable, reglas con versión
+  hacia adelante, liquidación de periodo libre (quien cobra no aprueba lo suyo), no es salario. Gerencia respondió ocho preguntas y
+  cuatro casos (2026-11-19 y 20; están en `docs/PLAN_COMISION_WEB.md`): VEN paga al dueño del enlace **y** cuenta para el sitio; la
+  cotización armada por Juan cuenta; Andrés ya no cuenta siempre (si una vendedora atendió el chat de Juan en 30 días, no cuenta);
+  las vendedoras nunca reciben nada por lo online. Primera revisión: 4 bloqueantes (origen forjable, aprobar lo propio editando la
+  ficha, doble pago por concurrencia, dos cortes de fecha), 4 importantes y menores; todos arreglados. **Segunda revisión: en curso.**
+- **Anotado, no hecho:** factura de emergencia sin conexión (un solo archivo HTML) en el issue
+  [#129](https://github.com/dcasapty/D_Casa_new_word/issues/129).
+
+**Lo que decidí yo (y se le dijo):** el permiso de exportar de Gerencia se limita por modelo (no «todo»); los segundos del carrusel
+van en un modelo aparte; Tilopay nace apagado; la comisión sale sin cifras.
+
+**Sigue:** batería completa sobre la rama, segunda revisión de la comisión, y subir por la receta (§3); Tilopay a staging con
+claves de la cuenta de pruebas de Tilopay (no pasan por el chat); la contadora decide cómo se trata la comisión y el diario
+«Tilopay» (se crea al desplegar aunque el proveedor siga apagado); confirmar que `web.json.enabled` no está puesto en producción.
 
 ### 2026-11-17 (3) y 2026-11-18: la segunda entrega completa en producción (CI/CD 380 y Juan 29)
 

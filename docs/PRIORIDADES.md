@@ -13,31 +13,30 @@ cambio en el diseño me gustaría verlo antes»; ver LEEME_PRIMERO §2).
 ## Estado al 2026-11-22
 
 - **Nuevo (pedido del jefe, 2026-11-22): «Rotación» del inventario.** Qué productos no se mueven (30, 60, 90, 180 días o más sin vender), cuánto capital hay parado,
-  ancla, cobertura, simulación de rebaja y Excel. **Programada y probada en la rama (`dcasa_marketing`), sin subir ni desplegar:** es una pantalla nueva, así que
-  **primero las capturas antes/después y el «sí» de la dueña** (LEEME §2); después, CI → staging → producción. Detalle en [ROTACION.md](ROTACION.md). Pendiente de respuesta: los
+  ancla, cobertura, simulación de rebaja y Excel. **EN PRODUCCIÓN desde el 2026-11-23 00:28 UTC (`39ae8f26b178`, PR #131).** Detalle en [ROTACION.md](ROTACION.md). Pendiente de respuesta: los
   cortes (30, 60, 90, 180), el «llegó hace poco» (30 días, con pedidos que tardan 3 a 4 meses) y qué hacer con lo parado (rebaja, combo o dejarlo).
 - **Nuevo (2026-11-22, de la dueña): «Movimiento» (comparar periodos).** Lo que más y lo que menos se mueve, comparando dos periodos (7 a 90 días, este mes, el mes pasado o fechas; contra el de justo
   antes, el año pasado o fechas): qué subió, bajó, se enfrió o está quieto, con unidades, pedidos, cuántos días alcanza lo que hay, gráfica, Excel y «Crear campaña con los primeros 8» (Camila),
-  para decidir qué anunciar en publicidad y redes. **Programada y probada en la rama (`dcasa_marketing`, `dcasa_camila`, `dcasa_guia`), sin subir ni desplegar:** es una pantalla nueva, así que
-  **primero las capturas antes/después y el «sí» de la dueña** (LEEME §2), junto con Rotación (van en el mismo lote). Detalle en [MOVIMIENTO.md](MOVIMIENTO.md). Para producción: `-u dcasa_marketing,dcasa_camila,dcasa_interfaz,dcasa_guia`.
+  para decidir qué anunciar en publicidad y redes. **EN PRODUCCIÓN desde el 2026-11-23 00:28 UTC (`39ae8f26b178`, PR #131), en el mismo lote que Rotación.** Detalle en [MOVIMIENTO.md](MOVIMIENTO.md).
 - **Nuevo (pedido del jefe, 2026-11-22): «Margen y rotación» dentro de Rotación.** Cuatro listas que cruzan lo que se vende con lo que deja cada venta (*Estrellas*, *Venden mucho, dejan poco*,
-  *Buen margen, se mueven poco*, *Ni se mueven ni dejan margen*); los cortes son la mediana de la propia tienda y la pantalla los escribe; solo Gerencia y administradores (usa el costo). **Programada y probada en
-  la rama, sin subir ni desplegar; va en el mismo lote** que Rotación y Movimiento (capturas y «sí» de la dueña primero). Detalle en [ROTACION.md](ROTACION.md) (punto 7).
+  *Buen margen, se mueven poco*, *Ni se mueven ni dejan margen*); los cortes son la mediana de la propia tienda y la pantalla los escribe; solo Gerencia y administradores (usa el costo). **EN PRODUCCIÓN
+  desde el 2026-11-23 00:28 UTC, en el mismo lote** que Rotación y Movimiento (la dueña vio las capturas y dijo «pásalo a staging» y «si pasa staging, pásalo a producción»). Detalle en [ROTACION.md](ROTACION.md) (punto 7).
   **Falta del pedido del jefe:** mejorar las mediciones del Inicio (Dashboard): idea, «Lo más vendido» con su cambio contra los 30 días anteriores y una tarjeta de «parado 90 días o más» que abra Rotación.
-- **Lunes 2026-11-23 (de la dueña):** las claves de Tilopay y de Yappy Comercial en Cloudflare (nunca por el chat) y el «sí» para llevar los cierres R9 a producción. Luego, el informe
+- **Lunes 2026-11-23 (de la dueña):** las claves de Tilopay y de Yappy Comercial en Cloudflare (nunca por el chat). (El «sí» de los cierres R9 ya lo dio el 2026-11-23 y viajaron en el mismo lote.) Luego, el informe
   para los jefes de todo lo hecho (con «Forma de pago» y su Excel, y lo más movido y lo más quieto, ya con Rotación).
 - «Operación Sun Tzu» (estrategia frente al competidor, con el plan «Caballo de Troya» por diseñar): documento **privado en Claude Docs**, no va al repositorio.
 
-## Estado al 2026-11-21
+## Estado al 2026-11-23
 
-- **En producción desde el 2026-11-21 02:24 UTC: `f81d669d4ca4`** (PR #130, squash `d3349ed1`, CI/CD #383, Desplegar #78, digest
+- **En producción desde el 2026-11-23 00:28 UTC: `39ae8f26b178`** (PR #131, squash `9e6b76df`, CI/CD #3 de la tanda — run 45078483833, Desplegar a `production` run 45087461624, digest
+  `sha256:a86b76f9…e6338`): **Rotación, Movimiento y Margen y rotación** (pantallas nuevas de Inventario, atajo «Rotación» en el Inicio, modo oscuro, Guía y herramientas de Brian
+  `rotacion_de_inventario` y `comparar_movimiento`) **y los cierres R9-1 a R9-5 de los permisos del pago en línea** (Tilopay y Yappy siguen apagados). Salud: `{"ok": true, "version": "39ae8f26b178",
+  "base_al_dia": true, "humo": "ok"}`. Revisión independiente previa: sin fuga de dinero; cuatro importantes arreglados antes de subir (ver CONTEXTO_AGENTICO).
+- Antes: **`f81d669d4ca4`** el 2026-11-21 02:24 UTC (PR #130, squash `d3349ed1`, CI/CD #383, Desplegar #78, digest
   `sha256:706e7954…`): «Forma de pago» en facturas, ventas por día, carrusel configurable, Andrés ampliado, rediseño de la pasarela, legibilidad
   y retoques, que la dueña aprobó. **Tilopay y Yappy directo están instalados y apagados; la comisión web no tiene versión de reglas (solo
   mide).** Antes: `d2ba8caf` (2026-11-18).
-- **Falta, en este orden:** (1) **llevar a producción los cierres R9-1 a R9-5** (las dos puertas que halló RV8b en los permisos del pago en
-  línea: `default_transaction_ids` del pedido y la factura creada a mano con el cobro de otro; más `action_refund`/`capture`/`void` y los
-  caracteres invisibles de `cita`). **Ya están unidos a la rama de trabajo y los aprobó la revisión independiente RV8c** (sin hallazgos que
-  bloqueen; solo INFO, ver la bitácora): falta CI → staging → producción, **obligatorio antes de encender cualquier pago**. (2) Lo que depende de
+- **Falta, en este orden:** (1) ~~llevar a producción los cierres R9-1 a R9-5~~ **hecho el 2026-11-23** (cuentan como requisito cumplido antes de encender cualquier pago). (2) Lo que depende de
   otros: claves de Tilopay y Yappy en Cloudflare (nunca por el chat), el programa de pruebas de Yappy y la compra de ensayo, las respuestas de Yappy y
   Cloudflare (YAPPY.md §15), la política de privacidad (§16), las decisiones **R7-4 (Nómina confirma cobros) y R7-7 (rastro del botón de Caja)**,
   aceptar el límite R8-3 (un cobro suelto del mismo cliente manda el aviso a revisión humana), las cifras de la comisión web y su tratamiento contable.
