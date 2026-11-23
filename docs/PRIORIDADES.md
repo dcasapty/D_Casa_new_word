@@ -47,7 +47,7 @@ cambio en el diseño me gustaría verlo antes»; ver LEEME_PRIMERO §2).
   Cloudflare (YAPPY.md §15), la política de privacidad (§16), las decisiones **R7-4 (Nómina confirma cobros) y R7-7 (rastro del botón de Caja)**,
   aceptar el límite R8-3 (un cobro suelto del mismo cliente manda el aviso a revisión humana), las cifras de la comisión web y su tratamiento contable.
 - **Para los jefes:** el informe de ChatGPT quedó contrastado con el código (CONTEXTO_AGENTICO); hay tablero y un audio/video de 38 minutos con
-  voz gratis; la voz profesional (≈ US$7.30) espera el «sí» de la dueña. **Por comprobar en vivo:** CRM automático y cotizaciones sin vincular,
+  voz gratis. **La dueña ya se lo envió a los jefes con la voz gratuita (2026-11-23): la voz profesional queda descartada; no se genera.** **Por comprobar en vivo:** CRM automático y cotizaciones sin vincular,
   111 frente a 93 cotizaciones, margen de octubre y los $44.96 de IA.
 
 ## Estado al 2026-11-17

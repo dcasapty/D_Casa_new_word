@@ -286,12 +286,12 @@ cae):
   35.9 %) y si los $44.96 de IA ya están dentro de los $111.93.
 - **Para los jefes, sin PDF:** un tablero (Artifact «Data», privado) con las cifras claras, y **un audio y un video de 38 minutos** que narran el informe
   completo y resumen cada cuadro (63 diapositivas con la marca), hechos con una **voz local gratis**. La voz profesional (Emma, ElevenLabs, la de la
-  marca) costaría ≈ US$7.30 en total y **espera el «sí» de la dueña**. Cómo se hizo y qué trampas tuvo, en CONTEXTO_AGENTICO. Los archivos y el guion
+  marca) costaría ≈ US$7.30 en total: **descartada el 2026-11-23, la dueña ya envió el video a los jefes con la voz gratuita**. Cómo se hizo y qué trampas tuvo, en CONTEXTO_AGENTICO. Los archivos y el guion
   llevan cifras de la empresa: **no** van al repositorio (es público).
 - **Falta, en este orden:** el resultado de la batería y de RV7 (arreglar lo que salga) → subir por la receta (§3): staging con todo apagado, verificar,
   producción (Tilopay y Yappy apagados, comisión web **sin** versión de reglas, `-u dcasa_base,dcasa_comision_web,website_dcasa,dcasa_guia` y los módulos
   de pago). Lo que depende de otros: las claves de Tilopay y Yappy en Cloudflare (**nunca por el chat**), el programa de pruebas de Yappy y la compra de
-  ensayo, la política de privacidad (Google/Yappy), las cifras de la comisión web, el tratamiento contable y el «sí» a la voz profesional.
+  ensayo, la política de privacidad (Google/Yappy), las cifras de la comisión web y el tratamiento contable (la voz profesional se descartó el 2026-11-23).
 - **Resultado de la batería y de RV7:** (se anota abajo al terminar).
 
 ### 2026-11-20 (Yappy directo, segunda revisión independiente RV6): sus hallazgos H1–H10 arreglados o documentados, más cuatro retoques que salieron de probar el botón real. En `local/yappy-fix` (sobre `local/yappy`), SIN unir a la rama de trabajo y SIN desplegar
