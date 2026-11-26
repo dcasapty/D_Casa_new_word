@@ -272,8 +272,12 @@ Reglas:
 5. Tipo: **Secreto** · Nombre: `TILOPAY_API_KEY` · Valor: la «Llave API» **de la cuenta de pruebas**. Guardar.
 6. Repite el paso 5 para `TILOPAY_API_USER` («Usuario API») y `TILOPAY_API_PASSWORD` («Contraseña API»).
 7. Staging **no necesita** `TILOPAY_ENTORNO`: ya viene fijada en `prueba` en el código. (En producción sí se pega, en el paso 10.)
-8. Pulsa **Implementar** (*Deploy*) si Cloudflare te lo pide. **Los cambios llegan a Odoo al reiniciar o en el siguiente despliegue**:
-   avisa y se reinicia/despliega.
+8. Pulsa **Implementar** (*Deploy*) si Cloudflare te lo pide. **Guardar los secretos no basta, y volver a desplegar la misma
+   imagen tampoco** (el contenedor queda «no changes»): Odoo solo los lee cuando el contenedor **arranca con una imagen
+   nueva** (`edge/src/index.ts` arma `envVars` en el constructor; [CONTEXTO_AGENTICO › Cloudflare](CONTEXTO_AGENTICO.md)).
+   Avisa: se prepara un lanzamiento normal con un cambio mínimo (p. ej. subir la versión del módulo), CI/CD con staging,
+   y luego **Desplegar** a producción (la tienda cae unos 2 a 3 minutos). Se comprueba en la ficha del proveedor:
+   «Claves cargadas: Sí».
 9. En Odoo de staging: *Facturación › Configuración › Proveedores de pago › Tilopay*. Debe decir «Claves cargadas: Sí» y
    «Entorno: Prueba». Pulsa **Probar conexión**: te dice si Tilopay aceptó el usuario y la contraseña, y avisa que la «Llave API» no
    se puede comprobar ahí (se comprueba en el primer cobro de prueba). (Hoy el dominio `staging.dcasapty.com` aún no apunta al Worker de staging, ver
