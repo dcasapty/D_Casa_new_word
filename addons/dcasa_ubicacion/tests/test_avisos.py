@@ -95,7 +95,7 @@ class TestPedirUbicacionAlComprar(AvisosCase):
                         accion['url'])
         texto = unquote(accion['url'].split('text=', 1)[1])
         self.assertTrue(texto.startswith('🛍️ ¡Gracias por tu compra!\n📍 Para que el chofer llegue directo a tu '
-                                         'casa, márquela aquí: '), texto)
+                                         'casa, márcala aquí: '), texto)
         enlace = self.Enlace.search([('orden_id', '=', orden.id)])
         self.assertEqual((len(enlace), enlace.creado_por, enlace.partner_id), (1, 'aviso', orden.partner_shipping_id))
         self.assertIn('/u/', texto)
