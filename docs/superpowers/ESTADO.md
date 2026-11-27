@@ -1,31 +1,28 @@
 # Estado del trabajo: ubicación exacta en D'CASA
 
-Rama `claude/ubicacion-dcasa` (desde `main` `d928a82`). Sin PR, sin unir, sin flujos, sin desplegar. Actualizado: 2026-11-27 (madrugada).
+Rama `claude/ubicacion-dcasa` (desde `main` `d928a82`). Sin PR, sin unir, sin flujos, sin desplegar. Actualizado: 2026-11-27.
 
 ## Hecho
-- Diseño aprobado y plan: `specs/2026-11-26-ubicacion-dcasa-diseno.md`, `plans/2026-11-26-ubicacion-dcasa-plan.md`.
-- Módulo `addons/dcasa_ubicacion` y cambios asociados copiados de Baby Caleb (sin `dcasa_correo`, sin `dcasa_envios`, sin dominios ni marca de Baby Caleb).
-  `dcasa_ubicacion` no necesita el punto de salida propio ni el límite de km de `dcasa_envios` (solo usa lugares, tarifa, promoción, buscador y límite por IP, que D'CASA ya tiene).
-- «chofer» en vez de «motorizado», sin ícono de moto; «cliente» en vez de «clienta»; enlaces de WhatsApp `api.whatsapp.com/send`.
-- Retiro en tienda: al marcar la casa en el mapa se elige sola la entrega a domicilio (`_dcasa_ubic_elegir_domicilio`), con prueba.
-- Privacidad (línea en la política), Guía (6 entradas, una de «Ruta sin corredores»), `docker/entrypoint.sh`.
-- Juan: la guardia sin emojis conserva los íconos de las frases escritas por Odoo (con pruebas).
-- Borde y puente: sin errores de tipos; pruebas verdes tras copiar (borde 321, puente 678).
-
-## En curso
-- Dos ayudantes pasan los textos de usted a tú (Odoo: `addons/dcasa_ubicacion`; Juan/puente/borde) y agregan «Ruta sin corredores» en la página del chofer.
+- Diseño y plan (`specs/`, `plans/`); módulo `dcasa_ubicacion` y cambios asociados adaptados a D'CASA (chofer, tuteo, marca, sin corredores, retiro en tienda, privacidad, Guía, borde, Juan, puente).
+- Documentos: `docs/UBICACION.md`, prioridades, bitácora, contexto agéntico, Brian, Juan, índice. Capturas antes/después en `docs/capturas/ubicacion/` (celular 390 px y computadora, datos de prueba).
+- Revisión adversarial independiente hecha y sus 3 hallazgos útiles arreglados con pruebas.
 
 ## Probado (resultado real)
-- `juan`: salvaguardas 132/132; `puente-wa` 678/678 y tsc limpio; `edge` 321/321 y tsc limpio (antes del paso de voz).
-- Odoo: aún no corrido (entorno listo: Python 3.12 venv, PostgreSQL, Odoo 19 submódulo).
+- Odoo (`scripts/test.sh`, todos los módulos, etiquetas §5.4): 3.410 pruebas, 2 fallos, ambos de `website_dcasa` y ambos también en `main` (portada a 390 px; texto de ayuda del buscador a 360 px). Todo lo de `dcasa_ubicacion` pasa, con navegador.
+- `ruff check addons` limpio. `edge` 321/321, `juan` 2.091 pasan (40 saltadas de origen), `puente-wa` 678/678; typecheck limpio en los tres.
+- Compra de ensayo local a 390 y 1280 px.
 
-## No probado / pendiente
-- Mapa real de Google y claves (`GOOGLE_MAPS_CLAVE_NAVEGADOR`, `GOOGLE_MAPS_CLAVE_SERVIDOR`): se crean después; PENDIENTE.
-- Volver a medir los km sin corredores (necesita `envios-dcasa.html` de Gerencia y clave temporal de Routes API): PENDIENTE, fuera del encargo.
-- Capturas antes/después, compra de ensayo a 390 px, `scripts/test.sh` completo, `ruff`, revisión adversarial.
+## No probado
+- El mapa real de Google (claves sin crear), la restricción de la clave a las cinco direcciones, staging y producción.
+- Las dos pruebas visuales de `website_dcasa` quedan rojas por un problema que ya estaba en `main`.
+
+## Pendiente (no se puede avanzar sin la persona o Gerencia)
+- Claves de Google en `dcasa-staging` y luego `dcasa` (nunca por el chat). El «sí» de Gerencia a las capturas. CI a staging (con «sí» explícito) y comprar en staging.
+- Volver a medir los km sin corredores (necesita `envios-dcasa.html` y una clave temporal de Routes API): fuera del encargo, anotado en prioridades.
+- Decisiones elegidas por mí, reversibles: avisos encendidos como se aprobó; el cambio automático a domicilio no ocurre con un pago abierto; la guardia de Juan deja pasar las frases fijas con ícono.
 
 ## Bloqueos
-- Ninguno. Mensajes a la otra sesión no salen (sin permiso de esta sesión para escribirle).
+- Ninguno técnico. Esta sesión no puede escribirle a la sesión orquestadora (permiso): este archivo es el canal.
 
 ## Siguiente paso
-Pruebas completas de Odoo (todos los módulos y etiquetas de la guía §5.4), ruff, compra de ensayo, capturas, documentos y bitácora, revisión adversarial.
+Con el «sí» de la persona: PR (no se abrió) y CI a staging; comprar en staging con las claves puestas.
