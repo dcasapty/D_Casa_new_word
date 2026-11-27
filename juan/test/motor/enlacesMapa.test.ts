@@ -402,3 +402,21 @@ describe("crudoDe: la copia de rescate nunca guarda un punto", () => {
     expect(c).not.toHaveProperty("ubicacion_omitida");
   });
 });
+
+describe("«Cómo llegar» y otras formas de enlace (revisión adversarial 2026-11-27): ninguna deja el punto en el texto", () => {
+  const ENLACES = [
+    "https://www.google.com/maps/dir/?api=1&destination=8.9012,-79.8013",
+    "https://www.google.com/maps/dir//8.9012,-79.8013/",
+    "https://maps.google.com/?daddr=8.9012,-79.8013",
+    "https://maps.apple.com/?daddr=8.9012,-79.8013",
+    "https://waze.com/live-map/directions?to=ll.8.9012%2C-79.8013",
+  ];
+  for (const enlace of ENLACES) {
+    it(enlace, () => {
+      expect(coordenadasDeEnlace(enlace)).toEqual({ lat: 8.9012, lon: -79.8013 });
+      const r = quitarCoordenadasDelTexto(`mi casa es aquí ${enlace} gracias`);
+      expect(r.texto).not.toMatch(/8\.9012|79\.8013/);
+      expect(r.coordenadas).toEqual({ lat: 8.9012, lon: -79.8013 });
+    });
+  }
+});

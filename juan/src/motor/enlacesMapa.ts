@@ -70,7 +70,7 @@ export function esEnlaceDeMapa(href: string): boolean {
   const u = aUrl(href);
   if (!u) return false;
   const host = u.hostname.toLowerCase();
-  return esCortoDeGoogle(u) || esDeGoogleMaps(u) || (HOST_WAZE.test(host) && /^\/ul(?:\/|$)/.test(u.pathname)) || HOST_APPLE.test(host);
+  return esCortoDeGoogle(u) || esDeGoogleMaps(u) || (HOST_WAZE.test(host) && /^\/(?:ul|live-map)(?:\/|$)/.test(u.pathname)) || HOST_APPLE.test(host);
 }
 
 function deGoogle(u: URL): Coordenadas | null {
@@ -79,9 +79,15 @@ function deGoogle(u: URL): Coordenadas | null {
   const pines = [...ruta.matchAll(new RegExp(String.raw`!3d(${NUM})!4d(${NUM})`, "g"))];
   const pin = pines.length ? coordenadasValidas(pines[pines.length - 1][1], pines[pines.length - 1][2]) : null;
   if (pin) return pin;
-  for (const clave of ["q", "query", "ll"]) {
+  for (const clave of ["q", "query", "ll", "destination", "daddr", "center"]) {
     const c = par(u.searchParams.get(clave));
     if (c) return c;
+  }
+  // «Cómo llegar»: `…/maps/dir//8.9012,-79.8013/` o `…/maps/dir/Origen/8.9012,-79.8013/` (el destino es el último par).
+  const dir = [...ruta.matchAll(new RegExp(String.raw`/(?:\+?)(${NUM})\s*,\s*\+?(${NUM})(?=/|$)`, "g"))];
+  if (/\/maps\/dir\//.test(ruta) && dir.length) {
+    const d = coordenadasValidas(dir[dir.length - 1][1], dir[dir.length - 1][2]);
+    if (d) return d;
   }
   const buscado = new RegExp(String.raw`/maps/(?:search|place)/\s*\+?(${NUM})\s*,\s*\+?(${NUM})`).exec(ruta);
   if (buscado) return coordenadasValidas(buscado[1], buscado[2]);
@@ -111,15 +117,15 @@ export function decodificarGeohash(h: string): Coordenadas | null {
 }
 
 function deWaze(u: URL): Coordenadas | null {
-  if (!/^\/ul(?:\/|$)/.test(u.pathname)) return null;
-  const c = par(u.searchParams.get("ll"));
+  if (!/^\/(?:ul|live-map)(?:\/|$)/.test(u.pathname)) return null;
+  const c = par(u.searchParams.get("ll")) ?? par((u.searchParams.get("to") ?? "").replace(/^ll\./, "")) ?? par((u.searchParams.get("navigate") ?? "").replace(/^ll\./, ""));
   if (c) return c;
   const g = /^\/ul\/h([0-9b-hjkmnp-z]{8,12})\/?$/i.exec(u.pathname);
   return g ? decodificarGeohash(g[1]) : null;
 }
 
 function deApple(u: URL): Coordenadas | null {
-  for (const clave of ["ll", "coordinate", "q"]) {
+  for (const clave of ["ll", "coordinate", "q", "sll", "daddr"]) {
     const c = par(u.searchParams.get(clave));
     if (c) return c;
   }

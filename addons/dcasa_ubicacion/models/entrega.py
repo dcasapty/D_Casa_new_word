@@ -7,6 +7,7 @@ nada** (no marca «entregado»): quien encuentre el papel no puede tocar el pedi
 guarda en un campo que solo lee el equipo de ventas.
 """
 import base64
+import logging
 from datetime import timedelta
 
 import psycopg2
@@ -14,6 +15,8 @@ import psycopg2
 from odoo import api, fields, models
 
 from ..motor import casa, geo
+
+_logger = logging.getLogger(__name__)
 
 DIAS_VIGENCIA = 30
 DIAS_TRAS_ENTREGAR = 3     # después de entregado, la página se cierra a los 3 días
@@ -212,8 +215,17 @@ class SaleOrder(models.Model):
     def action_confirm(self):
         resultado = super().action_confirm()
         for orden in self:
-            orden._dcasa_entrega_chofer()
+            orden._dcasa_entrega_chofer_sin_fallar()
         return resultado
+
+    def _dcasa_entrega_chofer_sin_fallar(self):
+        """Arma la entrega del chofer sin que un error haga fallar la venta ni la factura (regla del programa: el QR es
+        un extra; si algo falla, se registra y la entrega se arma después, al imprimir o abrir la ruta)."""
+        try:
+            with self.env.cr.savepoint():
+                self._dcasa_entrega_chofer()
+        except Exception:
+            _logger.exception('Ubicación: no se pudo armar la entrega del chofer de %s', self.sudo().name)
 
     def action_dcasa_abrir_entrega(self):
         """Panel: abre la página del chofer (la misma del QR) en otra pestaña."""
@@ -245,7 +257,7 @@ class AccountMove(models.Model):
         publicados = super()._post(soft=soft)
         for factura in publicados.filtered(lambda m: m.move_type == 'out_invoice'):
             for orden in factura.sudo().invoice_line_ids.sale_line_ids.order_id:
-                orden._dcasa_entrega_chofer()
+                orden._dcasa_entrega_chofer_sin_fallar()
         return publicados
 
 

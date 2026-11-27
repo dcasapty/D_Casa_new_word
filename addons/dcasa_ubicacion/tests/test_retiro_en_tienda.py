@@ -67,3 +67,20 @@ class TestRetiroEnTienda(UbicacionCase):
         with patch.object(type(orden), '_dcasa_ubic_no_recalcular', return_value='pago'):
             self.assertFalse(orden._dcasa_ubic_elegir_domicilio())
         self.assertEqual(orden.carrier_id, self.retiro)
+
+
+@tagged('post_install', '-at_install')
+class TestUnErrorDelQrNoTumbaLaVenta(UbicacionCase):
+
+    def test_si_armar_la_entrega_falla_la_venta_se_confirma_igual(self):
+        self.env['website']._dcasa_entregas()
+        domicilio = self.env['delivery.carrier'].sudo().search([('dcasa_por_cotizar', '=', True)], limit=1)
+        producto = self.env['product.product'].create({'name': 'Mueble de prueba 2', 'type': 'consu', 'list_price': 100})
+        orden = self.env['sale.order'].create({
+            'partner_id': self.cliente.id,
+            'order_line': [(0, 0, {'product_id': producto.id, 'product_uom_qty': 1})],
+        })
+        orden._set_delivery_method(domicilio)
+        with patch.object(type(orden), '_dcasa_entrega_chofer', side_effect=ValueError('prueba')):
+            orden.action_confirm()
+        self.assertEqual(orden.state, 'sale', 'un error del QR nunca hace fallar la venta')
