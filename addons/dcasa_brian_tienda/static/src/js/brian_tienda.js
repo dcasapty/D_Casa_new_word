@@ -1399,7 +1399,7 @@ export class ChatBrian {
     }
 
     lineaPrivacidad() {
-        this.lista.append(el("p", { class: "o_dcbt_privacidad o_dcbt_entra" }, ico("escudo"), el("span", { text: "Su ubicación se usa para el envío; solo se guarda si nos da el número de casa para entregarle." })));
+        this.lista.append(el("p", { class: "o_dcbt_privacidad o_dcbt_entra" }, ico("escudo"), el("span", { text: "Tu ubicación se usa para el envío; solo se guarda si nos das el número de casa para entregarte." })));
         this.alFinal();
     }
 
@@ -1683,7 +1683,7 @@ export class ChatBrian {
             } else if (r && r.motivo === "impreciso") {
                 const metros = Number.isFinite(r.precision) ? ` (±${r.precision} m)` : "";
                 // La casa que escribió sí quedó (dcasa_ubicacion, auditoría 2): no tiene que volver a escribirla.
-                const casa = r.casa_guardada ? " 🏠 Su casa ya quedó anotada." : "";
+                const casa = r.casa_guardada ? " 🏠 Tu casa ya quedó anotada." : "";
                 estado.textContent = `📍 Su teléfono no da la ubicación exacta${metros}. Párese en su puerta, active la ubicación precisa y toque «Probar otra vez».${casa}`;
                 otraVez.hidden = false;
             } else {
@@ -1696,7 +1696,7 @@ export class ChatBrian {
             const nueva = await this.pedirUbicacion(true);
             otraVez.disabled = false;
             if (!nueva) {
-                estado.textContent = "No pude leer su ubicación. Al pagar, márquela en el mapa 📍";
+                estado.textContent = "No pude leer tu ubicación. Al pagar, márcala en el mapa 📍";
                 return;
             }
             this.ultimaUbicacion = nueva;
