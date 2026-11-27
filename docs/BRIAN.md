@@ -501,6 +501,26 @@ usan con clientes» y Brian tiene que decirlo.
 Ejemplos: «¿cuánto cuesta el envío a Villa Lucre?» → `cotizar_envio(lugar=Villa Lucre)`; «¿y a 34 km con peaje?» →
 `cotizar_envio(km=34, peaje=true)`.
 
+### La ubicación exacta de la entrega (2026-11-25, módulo `dcasa_ubicacion`)
+
+Detalle en [UBICACION.md](UBICACION.md). Todas van marcadas `privado=True`: la auditoría (`brian.accion`) guarda sin
+coordenadas, sin secretos de enlaces, sin teléfonos y sin lo que el cliente escribió de su casa. Ninguna le da al
+modelo las coordenadas: para la ruta, el botón «abrir» lleva a la venta («Ruta del chofer») o a la ficha («Abrir en
+Waze / Google Maps»).
+
+| Herramienta | Qué hace | Nivel | Quién |
+|---|---|---|---|
+| `ubicacion_de_entrega(venta)` | La zona, la dirección, la referencia, quién recibe, el teléfono de respaldo, si hay foto, de dónde salió el punto y si es confiable; «abrir» a la venta | lectura | Interno |
+| `enlace_de_ubicacion_para_cliente(cliente)` | Crea el enlace de un solo uso (24 horas) para que el cliente marque su casa; devuelve el texto para mandarlo a mano | construcción | Interno |
+| `poner_ubicacion_de_entrega(cliente, enlace_mapa? \| latitud + longitud, referencia?)` | Guarda el punto que el cliente mandó por otro lado (un enlace de Google Maps, Waze o Apple) | construcción | Interno |
+| `poner_quien_recibe(cliente, nombre?, telefono?)` | Quién recibe y un teléfono de respaldo de Panamá | construcción | Interno |
+| `quitar_foto_de_fachada(cliente)` | Quita la foto de la casa de la ficha | construcción | Interno |
+| `pedir_ubicacion_al_cliente(venta)` | Le pide al cliente que marque su casa (por el chat si se puede; si no, devuelve el WhatsApp listo para abrir) | construcción | Ventas |
+| `avisar_que_sale_hoy(venta)` | «🚚 Hoy te llega tu pedido… ¿habrá alguien en casa?» (una vez por venta y por día) | construcción | Ventas |
+
+Juan (el asistente de los clientes) tiene además `enlace_de_ubicacion(para_otra_casa?)`, `guardar_indicaciones(texto)`
+y `guardar_quien_recibe(nombre?, telefono?)` ([JUAN.md](JUAN.md)).
+
 ## Camila, el correo de novedades (2026-11-06, módulo `dcasa_camila`)
 
 Las mismas cifras de la pantalla **Marketing › Camila** ([CAMILA.md](CAMILA.md)); nada lo calcula el modelo de IA. Brian

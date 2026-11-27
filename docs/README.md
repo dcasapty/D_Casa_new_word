@@ -32,6 +32,8 @@
 | «Busca con una foto» en la tienda: cómo funciona, sus topes, privacidad y dónde se apaga | [CATALOGO.md › Busca con una foto](CATALOGO.md#busca-con-una-foto) |
 | Camila, la asistente del mail marketing: el permiso del cliente, la campaña de cada 15 días (Marketing › Camila) y cómo crear la clave de campañas de Resend | [CAMILA.md](CAMILA.md) |
 | Saber cuánto cuesta un envío (la calculadora), cargar los lugares y la tarifa, aprobarla, y cómo se encendería en la página web | [ENVIOS.md](ENVIOS.md) |
+| La ubicación exacta de la entrega: el mapa del checkout, el enlace por el chat, el QR y la página del chofer, «Sale hoy» y la privacidad | [UBICACION.md](UBICACION.md) |
+| Cómo se trajo la ubicación a D'CASA: diseño aprobado y plan de trabajo | [superpowers/specs/2026-11-26-ubicacion-dcasa-diseno.md](superpowers/specs/2026-11-26-ubicacion-dcasa-diseno.md) · [superpowers/plans/2026-11-26-ubicacion-dcasa-plan.md](superpowers/plans/2026-11-26-ubicacion-dcasa-plan.md) |
 | Brian, el chat de ventas de la tienda web: qué hace, cómo se enciende, su presupuesto y qué no guarda | [BRIAN_TIENDA.md](BRIAN_TIENDA.md) |
 | Saber qué ve un cliente en «Mi cuenta» (sus compras, cuánto le falta de un abono, sus puntos) | [SOCIOS.md › Mi cuenta](SOCIOS.md#mi-cuenta) |
 | Crear o ubicar al equipo en Odoo (sin invitaciones por error) | [EQUIPO.md](EQUIPO.md) |
@@ -74,6 +76,7 @@
 | `dcasa_brian_tienda` (el chat de la tienda, encendido) | [BRIAN_TIENDA.md](BRIAN_TIENDA.md) |
 | `dcasa_sofia` (Sofía, la asistente del CRM) | [SOFIA.md](SOFIA.md) |
 | `dcasa_envios` (calculadora de envíos; los datos los carga Gerencia, no están en el repositorio) | [ENVIOS.md](ENVIOS.md) |
+| `dcasa_ubicacion` (punto de entrega, QR del chofer, avisos) | [UBICACION.md](UBICACION.md) |
 | `dcasa_camila` (Camila, la asistente del mail marketing; las campañas salen por Resend con su propia clave) | [CAMILA.md](CAMILA.md) |
 | `dcasa_comision_web` (comisión por las ventas del sitio web: mide el sitio como una sucursal, libro, liquidaciones; sin cifras de fábrica) | [COMISION_WEB.md](COMISION_WEB.md) · el diseño y las decisiones de Gerencia: [PLAN_COMISION_WEB.md](PLAN_COMISION_WEB.md) |
 | `puente-wa/` (WhatsApp por QR, nunca desplegado) | [JUAN_PUENTE.md](JUAN_PUENTE.md) · [JUAN_CANALES.md](JUAN_CANALES.md#4-el-puente-de-whatsapp-por-qr-no-se-usa-en-producción) |
