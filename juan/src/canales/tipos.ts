@@ -92,9 +92,9 @@ export interface Entrante {
   /** No es un mensaje: es un comentario público en una publicación (ver `ComentarioEntrante`). `texto` es lo que comentó. */
   comentario?: ComentarioEntrante;
   /**
-   * La ubicación de entrega que compartió la clienta (canales/ubicacion.ts): por el chat o con un enlace de mapa en el texto. Las
+   * La ubicación de entrega que compartió el cliente (canales/ubicacion.ts): por el chat o con un enlace de mapa en el texto. Las
    * coordenadas van SOLO a Odoo (`POST /ubicacion`): nunca al modelo, al texto de la conversación, a lo que guarda el Durable Object ni al
-   * registro. Solo en mensajes de la clienta (nunca en uno `propio`).
+   * registro. Solo en mensajes del cliente (nunca en uno `propio`).
    */
   ubicacion?: UbicacionEntrante;
   /**
@@ -219,7 +219,7 @@ export interface Capacidades {
   maxBytesTexto?: number;
   /** El canal deja mandar un texto junto a la foto o el documento, en el mismo mensaje (pie de foto). */
   pie?: boolean;
-  /** El canal tiene un botón nativo para que la clienta comparta su ubicación con un toque (`Saliente.pedirUbicacion`). */
+  /** El canal tiene un botón nativo para que el cliente comparta su ubicación con un toque (`Saliente.pedirUbicacion`). */
   pedirUbicacion?: boolean;
 }
 

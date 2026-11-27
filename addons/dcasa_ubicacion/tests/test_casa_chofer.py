@@ -1,5 +1,5 @@
 """Para que el pedido no vuelva (el dueño, 2026-11-25: «el dolor número uno son los pedidos devueltos»): quién recibe,
-el teléfono de respaldo, la foto de la fachada (sin EXIF), «Avisar que llegué» en la página del motorizado y la tarjeta
+el teléfono de respaldo, la foto de la fachada (sin EXIF), «Avisar que llegué» en la página del chofer y la tarjeta
 «Marcar mi casa en el mapa» al terminar de pagar.
 
 Las fotos de prueba se hacen con PIL en memoria, con un GPS y una marca de teléfono inventados en su EXIF (el
@@ -72,7 +72,7 @@ class TestMotorCasa(BaseCase):
         self.assertTrue(casa.mismo_telefono('+507 6123-4567', '61234567'))
         self.assertFalse(casa.mismo_telefono('6123-4567', '6999-8888'))
 
-    def test_el_whatsapp_del_motorizado(self):
+    def test_el_whatsapp_del_chofer(self):
         self.assertEqual(casa.numero_whatsapp('+507 6123-4567'), '50761234567')
         self.assertEqual(casa.numero_whatsapp('6123-4567'), '50761234567')
         self.assertEqual(casa.numero_whatsapp('+1 305 555 1234'), '13055551234')
@@ -111,7 +111,7 @@ class TestMotorCasa(BaseCase):
                 with self.assertRaises(casa.FotoInvalida) as error:
                     casa.procesar_foto(datos)
                 self.assertEqual(error.exception.motivo, motivo)
-                self.assertIn('📷', str(error.exception.args[0]), 'un mensaje corto para la clienta')
+                self.assertIn('📷', str(error.exception.args[0]), 'un mensaje corto para el cliente')
 
     def test_lo_opcional_del_checkout(self):
         self.assertEqual(quien_recibe_del_formulario({}), (None, None, None), 'un formulario viejo no toca la ficha')
@@ -136,7 +136,7 @@ class TestQuienRecibeYFoto(UbicacionCase):
 
     def venta(self, con_envio=True):
         orden = self.env['sale.order'].create({
-            'partner_id': self.clienta.id, 'order_line': [(0, 0, {'product_id': self.producto.id})]})
+            'partner_id': self.cliente.id, 'order_line': [(0, 0, {'product_id': self.producto.id})]})
         if con_envio:
             orden.carrier_id = self.domicilio
         return orden
@@ -146,7 +146,7 @@ class TestQuienRecibeYFoto(UbicacionCase):
                                                         order='id desc', limit=1)
 
     def test_la_ficha_guarda_quien_recibe_y_el_telefono_bien_escrito(self):
-        c = self.clienta
+        c = self.cliente
         c._dcasa_poner_quien_recibe(recibe='  Rosa,   su mamá ', telefono='6999 8888')
         self.assertEqual((c.dcasa_recibe, c.dcasa_tel_respaldo), ('Rosa, su mamá', '+507 6999-8888'))
         c._dcasa_poner_quien_recibe()
@@ -168,8 +168,8 @@ class TestQuienRecibeYFoto(UbicacionCase):
         with self.assertRaises(ValidationError):
             c.write({'dcasa_tel_respaldo': 'no sé'})
 
-    def test_la_foto_de_la_casa_es_una_por_clienta(self):
-        c = self.clienta
+    def test_la_foto_de_la_casa_es_una_por_cliente(self):
+        c = self.cliente
         c._dcasa_poner_fachada(foto_de_prueba(orientacion=6))
         self.assertTrue(c.dcasa_fachada_fecha)
         self.assertEqual(sin_datos_ocultos(self, c._dcasa_fachada_jpeg()).size, (960, 1280))
@@ -186,7 +186,7 @@ class TestQuienRecibeYFoto(UbicacionCase):
         with self.assertRaises(casa.FotoInvalida):
             c._dcasa_poner_fachada(b'no soy una foto')
         self.assertEqual(Image.open(io.BytesIO(c._dcasa_fachada_jpeg())).size, (300, 200), 'la buena sigue')
-        # Quitarla: la clienta del portal no puede; el equipo sí.
+        # Quitarla: el cliente del portal no puede; el equipo sí.
         portal = new_test_user(self.env, login='portal_casa', name='Portal Casa', groups='base.group_portal')
         with self.assertRaises(AccessError):
             c.with_user(portal).action_dcasa_quitar_fachada()
@@ -194,52 +194,52 @@ class TestQuienRecibeYFoto(UbicacionCase):
         self.assertFalse(c.dcasa_fachada_fecha or c._dcasa_fachada_jpeg())
         self.assertFalse(c._dcasa_quitar_fachada(), 'ya no había')
 
-    def test_el_motorizado_avisa_que_llego_y_tiene_el_respaldo(self):
-        self.clienta._dcasa_poner_ubicacion(*CERCA, 'pin', referencia='Portón negro')
-        self.clienta._dcasa_poner_quien_recibe(recibe='Rosa, su mamá', telefono='6999-8888')
+    def test_el_chofer_avisa_que_llego_y_tiene_el_respaldo(self):
+        self.cliente._dcasa_poner_ubicacion(*CERCA, 'pin', referencia='Portón negro')
+        self.cliente._dcasa_poner_quien_recibe(recibe='Rosa, su mamá', telefono='6999-8888')
         orden = self.venta()
         orden.action_confirm()
         entrega = self.env['dcasa.ubicacion.entrega']._de_la_venta(orden, crear=False)
         tienda = entrega._nombre_de_la_tienda()
         self.assertTrue(tienda, 'el nombre sale del sitio o de la compañía, no escrito a mano')
-        datos = entrega._para_el_motorizado()
+        datos = entrega._para_el_chofer()
         self.assertTrue(datos['avisar_llegue'].startswith('https://api.whatsapp.com/send?phone=50761234567&text='))
         self.assertEqual(unquote(datos['avisar_llegue'].split('&text=', 1)[1]),
-                         f'Hola Ana, soy el motorizado de {tienda} 🛵. Ya llegué con su pedido {orden.name} 📦')
+                         f'Hola Ana, soy el chofer de {tienda}. Ya llegué con su pedido {orden.name} 📦')
         self.assertEqual((datos['recibe'], datos['respaldo'], datos['respaldo_tel']),
                          ('Rosa, su mamá', '+507 6999-8888', '+50769998888'))
         self.assertTrue(datos['respaldo_whatsapp'].startswith('https://api.whatsapp.com/send?phone=50769998888&text='))
         self.assertEqual(unquote(datos['respaldo_whatsapp'].split('&text=', 1)[1]),
-                         f'Hola, soy el motorizado de {tienda} 🛵. Ya llegué con el pedido {orden.name} de Ana 📦',
+                         f'Hola, soy el chofer de {tienda}. Ya llegué con el pedido {orden.name} de Ana 📦',
                          'al respaldo le escribe a otra persona: el pedido es «de Ana»')
         self.assertFalse(datos['fachada_url'])
         self.assertEqual(orden.dcasa_recibe_entrega, 'Rosa, su mamá', 'la venta también lo muestra')
-        # Un fijo se llama, sin WhatsApp; el mismo celular de la clienta no se repite como respaldo.
-        self.clienta._dcasa_poner_quien_recibe(telefono='234-5678')
-        datos = entrega._para_el_motorizado()
+        # Un fijo se llama, sin WhatsApp; el mismo celular del cliente no se repite como respaldo.
+        self.cliente._dcasa_poner_quien_recibe(telefono='234-5678')
+        datos = entrega._para_el_chofer()
         self.assertEqual((datos['respaldo_tel'], datos['respaldo_whatsapp']), ('+5072345678', ''))
-        self.clienta._dcasa_poner_quien_recibe(telefono='6123-4567')
-        self.assertFalse(entrega._para_el_motorizado()['respaldo'])
+        self.cliente._dcasa_poner_quien_recibe(telefono='6123-4567')
+        self.assertFalse(entrega._para_el_chofer()['respaldo'])
         # La foto, por su ruta con el mismo secreto de la página.
-        self.clienta._dcasa_poner_fachada(foto_de_prueba(400, 300))
-        self.assertEqual(entrega._para_el_motorizado()['fachada_url'], f'/entrega/{entrega.sudo().token}/fachada')
+        self.cliente._dcasa_poner_fachada(foto_de_prueba(400, 300))
+        self.assertEqual(entrega._para_el_chofer()['fachada_url'], f'/entrega/{entrega.sudo().token}/fachada')
         # Sin celular, no hay «Avisar que llegué» (ni «Llamar»): el respaldo sigue ahí.
-        self.clienta.phone = False
-        datos = entrega._para_el_motorizado()
+        self.cliente.phone = False
+        datos = entrega._para_el_chofer()
         self.assertFalse(datos['avisar_llegue'] or datos['telefono_tel'])
 
     def test_el_comprobante_dice_quien_recibe_sin_crear_nada(self):
-        self.clienta._dcasa_poner_ubicacion(*CERCA, 'pin', referencia='Casa 8')
-        self.clienta._dcasa_poner_quien_recibe(recibe='Rosa, su mamá', telefono='6999-8888')
-        self.clienta._dcasa_poner_fachada(foto_de_prueba(400, 300))
+        self.cliente._dcasa_poner_ubicacion(*CERCA, 'pin', referencia='Casa 8')
+        self.cliente._dcasa_poner_quien_recibe(recibe='Rosa, su mamá', telefono='6999-8888')
+        self.cliente._dcasa_poner_fachada(foto_de_prueba(400, 300))
         orden = self.venta()
         orden.action_confirm()
         factura = orden._create_invoices()
         factura.action_post()
         with patch.object(type(self.env['dcasa.ubicacion.entrega']), 'create',
                           side_effect=AssertionError('el PDF no crea nada')):
-            html = str(self.env['ir.qweb']._render('dcasa_ubicacion.bloque_motorizado', {'registro': factura}))
-        for texto in ('Para el motorizado', 'Recibe: Rosa, su mamá', 'Si no contesta: +507 6999-8888',
+            html = str(self.env['ir.qweb']._render('dcasa_ubicacion.bloque_chofer', {'registro': factura}))
+        for texto in ('Para el chofer', 'Recibe: Rosa, su mamá', 'Si no contesta: +507 6999-8888',
                       'Con foto de la casa'):
             self.assertIn(texto, html)
 
@@ -262,7 +262,7 @@ class TestQuienRecibeYFoto(UbicacionCase):
         otro._confirmar(*CERCA, 'pin', referencia='Casa 3', recibe='', telefono='')
         self.assertEqual(partner.dcasa_recibe, 'Rosa')
 
-    def test_juan_guarda_quien_recibe_solo_si_la_clienta_lo_dijo(self):
+    def test_juan_guarda_quien_recibe_solo_si_la_cliente_lo_dijo(self):
         conv = self.conversacion('Lo recibe mi mamá Rosa. Si no contesto, llamen al 6999-8888',
                                  id_externo='50761230020')
         Juan = self.env['brian.herramientas'].with_context(juan_conversacion_id=conv.id)
@@ -295,9 +295,9 @@ class TestQuienRecibeYFoto(UbicacionCase):
             Brian._brian_poner_quien_recibe(cliente='Ana Prueba', telefono='123')
         with self.assertRaises(BrianError):
             Brian._brian_poner_quien_recibe(cliente='Ana Prueba')
-        self.clienta._dcasa_poner_ubicacion(*CERCA, 'pin', referencia='Casa azul')
-        self.clienta._dcasa_poner_fachada(foto_de_prueba(400, 300))
-        orden = self.env['sale.order'].create({'partner_id': self.clienta.id, 'user_id': vendedora.id})
+        self.cliente._dcasa_poner_ubicacion(*CERCA, 'pin', referencia='Casa azul')
+        self.cliente._dcasa_poner_fachada(foto_de_prueba(400, 300))
+        orden = self.env['sale.order'].create({'partner_id': self.cliente.id, 'user_id': vendedora.id})
         leido = Brian._brian_ubicacion_de_entrega(venta=orden.name)
         self.assertEqual((leido['recibe'], leido['telefono_respaldo'], leido['tiene_foto_fachada']),
                          ('Rosa', '+507 6999-8888', True))
@@ -317,9 +317,9 @@ class TestQuienRecibeYFoto(UbicacionCase):
         url = orden._dcasa_ubic_url_para_marcar()
         self.assertEqual(url, f'/u/pedido/{orden.id}?access_token={orden.access_token}')
         self.assertTrue(orden.access_token)
-        self.clienta._dcasa_poner_ubicacion(*CERCA, 'busqueda', referencia='Casa 4')
+        self.cliente._dcasa_poner_ubicacion(*CERCA, 'busqueda', referencia='Casa 4')
         self.assertTrue(orden._dcasa_ubic_url_para_marcar(), 'un punto solo buscado no es confiable')
-        self.clienta._dcasa_poner_ubicacion(*CERCA, 'gps', precision=9, referencia='Casa 4')
+        self.cliente._dcasa_poner_ubicacion(*CERCA, 'gps', precision=9, referencia='Casa 4')
         self.assertEqual(orden._dcasa_ubic_url_para_marcar(), '')
         self.assertEqual(self.venta(con_envio=False)._dcasa_ubic_url_para_marcar(), '', 'sin domicilio, nada')
 
@@ -334,7 +334,7 @@ class TestRutasDeLaCasa(HttpCase):
                                  groups='base.group_user,dcasa_base.group_gerencia')
         importar(cls.env, gerencia)
         cls.env['dcasa.envio.tarifa'].search([], limit=1).with_user(gerencia).action_aprobar()
-        cls.clienta = cls.env['res.partner'].create({'name': 'Carla Prueba', 'phone': '+507 6555-0101'})
+        cls.cliente = cls.env['res.partner'].create({'name': 'Carla Prueba', 'phone': '+507 6555-0101'})
         cls.domicilio = cls.env['delivery.carrier'].sudo().search([('dcasa_por_cotizar', '=', True)], limit=1)
         cls.producto = cls.env['product.product'].create({'name': 'Caja de la ruta', 'list_price': 20,
                                                           'type': 'consu', 'sale_ok': True})
@@ -348,7 +348,7 @@ class TestRutasDeLaCasa(HttpCase):
         self.addCleanup(entorno.stop)
 
     def enlace(self):
-        enlace, url = self.env['dcasa.ubicacion.enlace']._crear(self.clienta)
+        enlace, url = self.env['dcasa.ubicacion.enlace']._crear(self.cliente)
         return enlace, '/u/' + url.rsplit('/u/', 1)[1]
 
     def post_json(self, ruta, cuerpo):
@@ -358,7 +358,7 @@ class TestRutasDeLaCasa(HttpCase):
         return self.url_open(ruta, data=datos, headers={'Content-Type': 'image/jpeg'})
 
     def venta_confirmada(self):
-        orden = self.env['sale.order'].create({'partner_id': self.clienta.id, 'carrier_id': self.domicilio.id,
+        orden = self.env['sale.order'].create({'partner_id': self.cliente.id, 'carrier_id': self.domicilio.id,
                                                'order_line': [(0, 0, {'product_id': self.producto.id})]})
         orden.action_confirm()
         return orden
@@ -366,7 +366,7 @@ class TestRutasDeLaCasa(HttpCase):
     def test_la_pagina_del_enlace_pide_lo_opcional_y_lo_guarda(self):
         enlace, base = self.enlace()
         pagina = self.url_open(base)
-        for texto in ('¿Quién recibe? (opcional)', 'Otro teléfono (opcional)', 'Foto de su casa (opcional)',
+        for texto in ('¿Quién recibe? (opcional)', 'Otro teléfono (opcional)', 'Foto de tu casa (opcional)',
                       'accept="image/*"'):
             self.assertIn(texto, pagina.text)
         self.assertNotIn('capture=', pagina.text, 'cámara o galería: puede no estar en su casa al comprar')
@@ -377,8 +377,8 @@ class TestRutasDeLaCasa(HttpCase):
         self.assertEqual(enlace.estado, 'vigente', 'con el teléfono malo no se usa el enlace')
         bien = self.post_json(base + '/guardar', dict(punto, recibe='Rosa, su mamá', telefono='6999 8888'))
         self.assertEqual(bien.status_code, 200, bien.text)
-        self.clienta.invalidate_recordset()
-        self.assertEqual((self.clienta.dcasa_recibe, self.clienta.dcasa_tel_respaldo),
+        self.cliente.invalidate_recordset()
+        self.assertEqual((self.cliente.dcasa_recibe, self.cliente.dcasa_tel_respaldo),
                          ('Rosa, su mamá', '+507 6999-8888'))
 
     def test_la_foto_de_la_casa_sube_sin_exif(self):
@@ -386,8 +386,8 @@ class TestRutasDeLaCasa(HttpCase):
         respuesta = self.post_foto(base + '/foto', foto_de_prueba(orientacion=6))
         self.assertEqual(respuesta.status_code, 200, respuesta.text)
         self.assertEqual(respuesta.headers['Cache-Control'], 'no-store')
-        self.clienta.invalidate_recordset()
-        self.assertEqual(sin_datos_ocultos(self, self.clienta._dcasa_fachada_jpeg()).size, (960, 1280))
+        self.cliente.invalidate_recordset()
+        self.assertEqual(sin_datos_ocultos(self, self.cliente._dcasa_fachada_jpeg()).size, (960, 1280))
         basura = self.post_foto(base + '/foto', b'%PDF-1.4 no soy una foto')
         self.assertEqual((basura.status_code, basura.json()['motivo']), (422, 'formato'))
         self.assertEqual(self.post_foto(base + '/foto', b'x' * (casa.MAX_FOTO_BYTES + 1)).status_code, 413)
@@ -397,16 +397,16 @@ class TestRutasDeLaCasa(HttpCase):
         enlace.sudo().usado_el = fields.Datetime.now() - timedelta(hours=2)
         self.assertEqual(self.post_foto(base + '/foto', foto_de_prueba(300, 200)).status_code, 404)
         self.assertEqual(self.post_foto('/u/' + 'z' * 22 + '/foto', foto_de_prueba(300, 200)).status_code, 404)
-        self.clienta.invalidate_recordset()
-        self.assertEqual(Image.open(io.BytesIO(self.clienta._dcasa_fachada_jpeg())).size, (300, 200))
+        self.cliente.invalidate_recordset()
+        self.assertEqual(Image.open(io.BytesIO(self.cliente._dcasa_fachada_jpeg())).size, (300, 200))
 
-    def test_el_motorizado_ve_la_foto_y_avisa_que_llego(self):
-        self.clienta._dcasa_poner_ubicacion(*CERCA, 'pin', referencia='Portón negro')
-        self.clienta._dcasa_poner_quien_recibe(recibe='Rosa, su mamá', telefono='6999-8888')
+    def test_el_chofer_ve_la_foto_y_avisa_que_llego(self):
+        self.cliente._dcasa_poner_ubicacion(*CERCA, 'pin', referencia='Portón negro')
+        self.cliente._dcasa_poner_quien_recibe(recibe='Rosa, su mamá', telefono='6999-8888')
         entrega = self.env['dcasa.ubicacion.entrega']._de_la_venta(self.venta_confirmada(), crear=False)
         token = entrega.sudo().token
         self.assertEqual(self.url_open(f'/entrega/{token}/fachada').status_code, 404, 'sin foto todavía')
-        self.clienta._dcasa_poner_fachada(foto_de_prueba(orientacion=6))
+        self.cliente._dcasa_poner_fachada(foto_de_prueba(orientacion=6))
         pagina = self.url_open(f'/entrega/{token}')
         self.assertEqual(pagina.status_code, 200)
         for texto in ('Avisar que llegué', 'https://api.whatsapp.com/send?phone=50765550101&amp;text=', 'Rosa, su mamá',
@@ -428,7 +428,7 @@ class TestRutasDeLaCasa(HttpCase):
 
     def test_al_pagar_sale_la_tarjeta_para_marcar_la_casa(self):
         sesion = self.authenticate(None, None)
-        orden = self.env['sale.order'].create({'partner_id': self.clienta.id, 'carrier_id': self.domicilio.id,
+        orden = self.env['sale.order'].create({'partner_id': self.cliente.id, 'carrier_id': self.domicilio.id,
                                                'order_line': [(0, 0, {'product_id': self.producto.id})]})
         sesion['sale_last_order_id'] = orden.id
         odoo.http.root.session_store.save(sesion)
@@ -438,5 +438,5 @@ class TestRutasDeLaCasa(HttpCase):
         self.assertIn('Marcar mi casa en el mapa', pagina.text)
         orden.invalidate_recordset()
         self.assertIn(f'/u/pedido/{orden.id}?access_token={orden.access_token}', pagina.text)
-        self.clienta._dcasa_poner_ubicacion(*CERCA, 'gps', precision=9, referencia='Casa 4')
+        self.cliente._dcasa_poner_ubicacion(*CERCA, 'gps', precision=9, referencia='Casa 4')
         self.assertNotIn('Marcar mi casa en el mapa', self.url_open('/shop/confirmation').text)

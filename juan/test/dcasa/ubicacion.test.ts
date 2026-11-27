@@ -1,7 +1,7 @@
 /**
  * La ubicación de entrega en el motor de los canales (docs/UBICACION.md, «Contrato entre Odoo y el Worker de Juan»):
  *
- *   · cuando la clienta la comparte, el Worker llama `POST /ubicacion` ANTES de llamar al modelo (y aunque el bot no conteste);
+ *   · cuando el cliente la comparte, el Worker llama `POST /ubicacion` ANTES de llamar al modelo (y aunque el bot no conteste);
  *   · si quedó guardada, el modelo ve el envío ya cotizado como consulta previa de `cotizar_envio` y una nota con la zona; si no es de
  *     Panamá, que pida otra; si Odoo no contestó, que pida el barrio;
  *   · las coordenadas NUNCA llegan al modelo, ni a lo que guarda el Durable Object, ni al registro, ni al texto que va a Odoo.
@@ -29,10 +29,10 @@ function todoLoDemas(m: Mundo): string {
   return JSON.stringify([m.modelo.prompts(), m.registros, m.odoo.mensajes, m.odoo.llamadas, m.canal.salidas]);
 }
 
-/** La clienta comparte su ubicación por el chat (y no escribe nada más). */
+/** El cliente comparte su ubicación por el chat (y no escribe nada más). */
 const compartir = (m: Mundo, u: UbicacionEntrante = PUNTO) => m.conversar(TEXTO_UBICACION_COMPARTIDA, { ubicacion: u });
 
-describe("la clienta comparte su ubicación por el chat", () => {
+describe("el cliente comparte su ubicación por el chat", () => {
   it("va a Odoo (POST /ubicacion) una sola vez, con la conversación, ANTES de llamar al modelo", async () => {
     const m = crearMundo();
     let guardadasAlPensar = -1;
@@ -103,7 +103,7 @@ describe("la clienta comparte su ubicación por el chat", () => {
   it("si el punto no es de Panamá, no hay envío y el modelo sabe que tiene que pedir otro", async () => {
     const m = crearMundo();
     m.odoo.respuestaUbicacion = () => ({ ok: false, error: "Odoo contestó 422", motivo: "fuera_de_panama", estado: 422 });
-    const g = m.guion([{ texto: "Esa ubicación no es de Panamá. ¿Me comparte la de entrega?" }]);
+    const g = m.guion([{ texto: "Esa ubicación no es de Panamá. ¿Me compartes la de entrega?" }]);
     await compartir(m);
     const prompt = g.prompts()[0];
     expect(prompt).toContain("no es de Panamá");
@@ -115,7 +115,7 @@ describe("la clienta comparte su ubicación por el chat", () => {
   it("si Odoo dice que las coordenadas no sirven, que la comparta otra vez", async () => {
     const m = crearMundo();
     m.odoo.respuestaUbicacion = () => ({ ok: false, error: "Odoo contestó 422", motivo: "coordenadas", estado: 422 });
-    const g = m.guion([{ texto: "¿Me la comparte otra vez?" }]);
+    const g = m.guion([{ texto: "¿Me la compartes otra vez?" }]);
     await compartir(m);
     expect(g.prompts()[0]).toContain("no se pudo usar");
   });
@@ -123,10 +123,10 @@ describe("la clienta comparte su ubicación por el chat", () => {
   it("si Odoo no responde: el modelo sabe que no se guardó y pide el barrio; no se reintenta solo", async () => {
     const m = crearMundo();
     m.odoo.respuestaUbicacion = () => ({ ok: false, error: "Odoo contestó 503", estado: 503 });
-    const g = m.guion([{ texto: "¿Me indica el barrio?" }]);
+    const g = m.guion([{ texto: "¿Me dices el barrio?" }]);
     await compartir(m);
     await m.pasar(30 * 60_000);
-    expect(g.prompts()[0]).toContain("no se pudo guardar ahora: pídale el barrio");
+    expect(g.prompts()[0]).toContain("no se pudo guardar ahora: pídele el barrio");
     expect(g.prompts()[0]).not.toContain("<envio_por_ubicacion>");
     expect(m.odoo.ubicaciones).toHaveLength(1);
     // Al registro solo va el estado, nunca el punto.
@@ -136,7 +136,7 @@ describe("la clienta comparte su ubicación por el chat", () => {
 
   it("con Odoo caído hasta la ráfaga, el punto no se guarda a ciegas: queda «no guardada» y se pide el barrio", async () => {
     const m = crearMundo();
-    m.guion([{ texto: "¿Me indica el barrio?" }]);
+    m.guion([{ texto: "¿Me dices el barrio?" }]);
     m.odoo.caido = true;
     await m.escribir(TEXTO_UBICACION_COMPARTIDA, { ubicacion: PUNTO });
     await m.pasar(16_000);
@@ -144,14 +144,14 @@ describe("la clienta comparte su ubicación por el chat", () => {
     expect(JSON.parse(m.motor.mensajes.buscar("wamid-1")!.contexto!).ubicacion).toEqual({ origen: "whatsapp", estado: "no_guardada" });
     m.odoo.caido = false;
     await m.pasar(30 * 60_000);
-    // Lo que no se guardó a tiempo no se manda después: la clienta ya recibió la pregunta por el barrio.
+    // Lo que no se guardó a tiempo no se manda después: el cliente ya recibió la pregunta por el barrio.
     expect(m.odoo.ubicaciones).toEqual([]);
     expect(todoLoGuardado(m)).not.toMatch(RASTROS);
   });
 
   it("si el objeto se reinicia antes de mandarlo, el punto se perdió (no estaba guardado): se le pide otra vez", async () => {
     const m = crearMundo();
-    const g = m.guion([{ texto: "¿Me la comparte otra vez?" }]);
+    const g = m.guion([{ texto: "¿Me la compartes otra vez?" }]);
     // Odoo no contesta justo cuando llega el mensaje (el punto espera en la memoria)…
     m.odoo.caido = true;
     await m.escribir(TEXTO_UBICACION_COMPARTIDA, { ubicacion: PUNTO });
@@ -185,7 +185,7 @@ describe("la clienta comparte su ubicación por el chat", () => {
 
   it("`ubicacion_omitida` (la copia de rescate o la cola del puente no guardan el punto): el modelo pide la ubicación otra vez", async () => {
     const m = crearMundo();
-    const g = m.guion([{ texto: "¿Me la comparte otra vez?" }]);
+    const g = m.guion([{ texto: "¿Me la compartes otra vez?" }]);
     await m.conversar(TEXTO_UBICACION_COMPARTIDA, { ubicacion_omitida: "whatsapp" });
     expect(m.odoo.ubicaciones).toEqual([]);
     expect(g.prompts()[0]).toContain("no se pudo guardar ahora");
@@ -194,7 +194,7 @@ describe("la clienta comparte su ubicación por el chat", () => {
   it("un Odoo sin la ruta (un cliente sin `guardarUbicacion`): no se guarda y se pide el barrio", async () => {
     const m = crearMundo();
     (m.odoo as { guardarUbicacion?: unknown }).guardarUbicacion = undefined;
-    const g = m.guion([{ texto: "¿Me indica el barrio?" }]);
+    const g = m.guion([{ texto: "¿Me dices el barrio?" }]);
     await compartir(m);
     expect(g.prompts()[0]).toContain("no se pudo guardar ahora");
   });

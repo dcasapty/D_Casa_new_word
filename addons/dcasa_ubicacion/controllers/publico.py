@@ -1,14 +1,14 @@
 """Las rutas públicas de la ubicación (docs/UBICACION.md). Van estrictas, como el enlace de los choferes:
 
-* ``GET /u/<secreto>``: la página donde la clienta marca su punto (el enlace de un solo uso que le manda Juan).
+* ``GET /u/<secreto>``: la página donde el cliente marca su punto (el enlace de un solo uso que le manda Juan).
   ``POST …/zona`` ({lat, lon}) dice qué zona y qué precio salen del punto, sin guardar nada; ``POST …/guardar``
   ({lat, lon, origen, precision, referencia, recibe?, telefono?}) lo guarda. ``POST …/foto`` (el cuerpo es la foto,
   de a lo sumo 8 MB) guarda la foto de la fachada, sin EXIF (``motor/casa.py``), apenas la toma (y hasta una hora
   después de usar el enlace). El secreto autentica: sin sesión ni cookie (``save_session=False``), sin CSRF.
   Vencido o inventado: la misma página de «este enlace ya no sirve», con «Pedir otro enlace por WhatsApp»; usado,
   «Ya la tenemos» con «Cambiar» (también por WhatsApp). Con la venta ya confirmada, ``…/zona`` no da precio.
-* ``GET /entrega/<secreto>``: la página del motorizado (el QR del comprobante). Solo lee; vence a los 30 días. Sin
-  punto, primero «Llamar» y «Buscar la dirección en Google Maps» (con lo que escribió la clienta).
+* ``GET /entrega/<secreto>``: la página del chofer (el QR del comprobante). Solo lee; vence a los 30 días. Sin
+  punto, primero «Llamar» y «Buscar la dirección en Google Maps» (con lo que escribió el cliente).
   ``GET …/fachada``: la foto de la casa, con el mismo secreto (nunca por ``/web/content``).
 * ``POST /tienda/ubicacion/zona`` (JSON-RPC del sitio): la vista previa del checkout (zona, precio y el aviso si lo
   escrito nombra otro distrito). No guarda nada.
@@ -72,7 +72,7 @@ def _json(datos, status=200):
     return request.make_json_response(datos, headers=_cabeceras(), status=status)
 
 
-TEXTO_TOPE = 'Muchos intentos seguidos: espere un minuto y vuelva a intentar.'
+TEXTO_TOPE = 'Muchos intentos seguidos: espera un minuto y vuelve a intentar.'
 
 
 def _demasiado(en_json=True):
@@ -90,7 +90,7 @@ def _aqui():
 
 def _tope_en_pagina(plantilla, valores):
     """Pasado el tope de una página que abre una persona: la misma plantilla con «⏳ Un momento», «Reintentar» y, en la
-    de la clienta, «Escríbanos por WhatsApp» (auditoría 2: era un texto plano sin estilos)."""
+    del cliente, «Escríbenos por WhatsApp» (auditoría 2: era un texto plano sin estilos)."""
     empresa = request.env.company.sudo()
     valores = dict(valores, empresa=empresa.name, estado='tope', reintentar=_aqui())
     respuesta = _pagina(plantilla, valores, status=429)
@@ -127,7 +127,7 @@ def _pagina(plantilla, valores, con_mapa=False, status=200):
 
 def vista_previa(env, lat, lon, texto='', con_mapa=True):
     """Lo que la página muestra antes de confirmar: la zona, el precio (o «se lo confirmamos») y, si lo escrito nombra
-    otro distrito, el aviso (sin mapa no dice «mueva el mapa»). ``UbicacionInvalida`` si el punto no sirve. No guarda
+    otro distrito, el aviso (sin mapa no dice «mueve el mapa»). ``UbicacionInvalida`` si el punto no sirve. No guarda
     nada."""
     Ubicacion = env['dcasa.ubicacion']
     _lat, _lon, zona = Ubicacion._validar(lat, lon)
@@ -154,13 +154,13 @@ def _whatsapp_de_la_tienda(texto):
 
 def _pedido_ya_cobrado(enlace):
     """¿El enlace va ligado a una venta ya confirmada? Entonces la página no habla de precio: lo cobrado no se cambia
-    (como el «listo» de ``_texto_para_la_clienta``)."""
+    (como el «listo» de ``_texto_para_la_cliente``)."""
     orden = enlace.sudo().orden_id
     return bool(orden) and orden.state not in ('draft', 'sent')
 
 
 def buscar_en_google_maps(datos):
-    """Para el motorizado sin punto: buscar en Google Maps lo que escribió la clienta (la dirección; si no hay, la
+    """Para el chofer sin punto: buscar en Google Maps lo que escribió el cliente (la dirección; si no hay, la
     zona), o ``''``."""
     texto = datos.get('direccion') or (datos.get('zona') or '').replace(' · ', ', ')
     if not texto:
@@ -201,7 +201,7 @@ class UbicacionPublica(http.Controller):
     @http.route('/u/<string:token>', type='http', auth='public', methods=['GET'], csrf=False, save_session=False)
     def enlace_pagina(self, token, **_parametros):
         if _limite():
-            return self._tope_de_la_clienta()
+            return self._tope_de_la_cliente()
         enlace = self._enlace(token)
         empresa = request.env.company.sudo()
         base = (request.env['ir.config_parameter'].sudo().get_param('web.base.url') or '').rstrip('/')
@@ -216,7 +216,7 @@ class UbicacionPublica(http.Controller):
         # de quién ni de qué pedido); ya usado, «📍 Cambiar» pide otro por WhatsApp.
         if not enlace:
             valores['wa_otro'] = _whatsapp_de_la_tienda(
-                'Hola 👋 El enlace para marcar mi casa ya no sirve. ¿Me manda otro? 📍')
+                'Hola 👋 El enlace para marcar mi casa ya no sirve. ¿Me mandan otro? 📍')
         elif enlace.estado == 'usado':
             valores.update(estado='usado', zona=enlace.zona or '',
                            wa_otro=_whatsapp_de_la_tienda('Hola 👋 Quiero cambiar mi ubicación de entrega 📍'))
@@ -230,7 +230,7 @@ class UbicacionPublica(http.Controller):
             return _pagina('dcasa_ubicacion.enlace_pagina', valores, con_mapa=bool(clave))
         return _pagina('dcasa_ubicacion.enlace_pagina', valores, status=200 if enlace else 404)
 
-    def _tope_de_la_clienta(self):
+    def _tope_de_la_cliente(self):
         return _tope_en_pagina('dcasa_ubicacion.enlace_pagina', {
             'token': '', 'zona': '', 'imagen': '',
             'wa_otro': _whatsapp_de_la_tienda('Hola 👋 No me abre la página para marcar mi casa. ¿Me ayudan? 📍')})
@@ -239,9 +239,9 @@ class UbicacionPublica(http.Controller):
                 save_session=False)
     def enlace_del_pedido(self, orden_id, access_token=None, **_parametros):
         """El botón «Marcar mi casa en el mapa» de la página del pedido (el link de pago): con el permiso del pedido
-        (su token o la sesión de la clienta) arma un enlace de un solo uso para su dirección de entrega y lleva ahí."""
+        (su token o la sesión del cliente) arma un enlace de un solo uso para su dirección de entrega y lleva ahí."""
         if _limite():
-            return self._tope_de_la_clienta()
+            return self._tope_de_la_cliente()
         try:
             orden = CustomerPortal()._document_check_access('sale.order', orden_id, access_token=access_token)
         except (AccessError, MissingError):
@@ -292,10 +292,10 @@ class UbicacionPublica(http.Controller):
         cuerpo = _cuerpo() or {}
         origen = cuerpo.get('origen')
         if origen not in ('gps', 'pin', 'busqueda'):
-            return _json({'error': 'No sabemos cómo marcó el punto: vuelva a intentarlo.'}, 400)
+            return _json({'error': 'No sabemos cómo marcaste el punto: vuelve a intentarlo.'}, 400)
         referencia = geo.texto_corto(cuerpo.get('referencia'), geo.MAX_REFERENCIA)
         if not referencia:
-            return _json({'error': 'Cuéntenos cómo reconocer el sitio (color de la casa, portón, un punto de '
+            return _json({'error': 'Cuéntanos cómo reconocer el sitio (color de la casa, portón, un punto de '
                                    'referencia).', 'campo': 'referencia'}, 400)
         # Opcionales (que no estorben): quién recibe y otro teléfono de Panamá por si no contesta.
         recibe = casa.recibe_limpio(cuerpo.get('recibe'))
@@ -327,7 +327,7 @@ class UbicacionPublica(http.Controller):
         # A lo sumo dos fotos a la vez por proceso (abrir una cuesta memoria): la tercera espera su turno en el
         # navegador en vez de tumbar Odoo (auditoría 1).
         if not _FOTOS_A_LA_VEZ.acquire(blocking=False):
-            return _json({'error': 'Estamos ocupados: intente otra vez en un momento.', 'motivo': 'ocupado'}, 503)
+            return _json({'error': 'Estamos ocupados: intenta otra vez en un momento.', 'motivo': 'ocupado'}, 503)
         try:
             # get_data() con caché: si la base reintenta la petición, el cuerpo sigue ahí (sin caché llegaba vacío).
             datos = request.httprequest.get_data()
@@ -339,7 +339,7 @@ class UbicacionPublica(http.Controller):
             _FOTOS_A_LA_VEZ.release()
         return _json({'ok': True})
 
-    # --- La página del motorizado (QR) -----------------------------------------------------------------------------
+    # --- La página del chofer (QR) -----------------------------------------------------------------------------
 
     @http.route('/entrega/<string:token>', type='http', auth='public', methods=['GET'], csrf=False,
                 save_session=False)
@@ -350,7 +350,7 @@ class UbicacionPublica(http.Controller):
         empresa = request.env.company.sudo()
         if not entrega:
             return _pagina('dcasa_ubicacion.entrega_pagina', {'empresa': empresa.name, 'datos': None}, status=404)
-        datos = entrega._para_el_motorizado()
+        datos = entrega._para_el_chofer()
         if not datos['tiene_punto']:
             datos['buscar_en_maps'] = buscar_en_google_maps(datos)
         return _pagina('dcasa_ubicacion.entrega_pagina', {'empresa': empresa.name, 'datos': datos})
@@ -358,7 +358,7 @@ class UbicacionPublica(http.Controller):
     @http.route('/entrega/<string:token>/fachada', type='http', auth='public', methods=['GET'], csrf=False,
                 save_session=False)
     def entrega_fachada(self, token, **_parametros):
-        """La foto de la casa para el motorizado: con el secreto de su página (vence con ella), sin caché y sin que la
+        """La foto de la casa para el chofer: con el secreto de su página (vence con ella), sin caché y sin que la
         indexe nadie. Sin foto, vencida o inventada: 404."""
         if _limite():
             return _demasiado(en_json=False)
@@ -378,7 +378,7 @@ class UbicacionPublica(http.Controller):
     def tienda_zona(self, lat=None, lon=None, texto=None, con_mapa=True, **_parametros):
         # ``motivo: 'tope'``: no es que el punto no sirva; la página lo deja reintentar (auditoría 2).
         if _limite():
-            return {'error': 'Muchos intentos seguidos: espere un minuto.', 'motivo': 'tope'}
+            return {'error': 'Muchos intentos seguidos: espera un minuto.', 'motivo': 'tope'}
         try:
             return vista_previa(request.env, lat, lon, geo.texto_corto(texto, 300), con_mapa=con_mapa is not False)
         except UbicacionInvalida as error:
@@ -387,5 +387,5 @@ class UbicacionPublica(http.Controller):
     @http.route('/tienda/ubicacion/buscar', type='jsonrpc', auth='public', website=True, methods=['POST'])
     def tienda_buscar(self, texto=None, **_parametros):
         if _limite():
-            return {'error': 'Muchos intentos seguidos: espere un minuto.', 'motivo': 'tope'}
+            return {'error': 'Muchos intentos seguidos: espera un minuto.', 'motivo': 'tope'}
         return {'lugares': buscar_lugares(request.env, texto)}

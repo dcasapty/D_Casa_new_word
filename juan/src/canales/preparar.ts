@@ -1,7 +1,7 @@
 // Un mensaje entrante antes de pasar a la conversación. Lo usan el Worker (rutas.ts, al atender un webhook) y el Durable Object
 // (al rescatar un mensaje que se guardó crudo con `guardarAntes` y que el Worker no alcanzó a atender). Sin Cloudflare.
 //
-// Ubicación (2026-11-25, docs/UBICACION.md): un enlace de mapa con coordenadas en el texto de la clienta se vuelve su `ubicacion`
+// Ubicación (2026-11-25, docs/UBICACION.md): un enlace de mapa con coordenadas en el texto del cliente se vuelve su `ubicacion`
 // (origen «enlace») y en el texto queda una frase sin coordenadas. La copia de rescate (`crudoDe`) nunca guarda un punto.
 
 import { quitarCoordenadasDelTexto, ubicacionDelTexto } from "../motor/enlacesMapa";
@@ -11,17 +11,17 @@ import { crearUbicacion } from "./ubicacion";
 export const MAX_ADJUNTO_BYTES = 12 * 1024 * 1024;
 const PLAZO_DESCARGA_MS = 15_000;
 
-/** Los mensajes de la clienta (no lo que escribe la tienda, ni un comentario público) son los que pueden traer su punto de entrega. */
-const esDeLaClienta = (e: Entrante) => !e.propio && !e.comentario;
+/** Los mensajes del cliente (no lo que escribe la tienda, ni un comentario público) son los que pueden traer su punto de entrega. */
+const esDelCliente = (e: Entrante) => !e.propio && !e.comentario;
 
 /**
- * Resuelve las descargas pendientes (Telegram, Cloud API) y deja el mensaje como datos planos. Si el texto de la clienta trae un enlace
+ * Resuelve las descargas pendientes (Telegram, Cloud API) y deja el mensaje como datos planos. Si el texto del cliente trae un enlace
  * de mapa con su punto (motor/enlacesMapa.ts; los cortos de Google se siguen con `fetch`), el punto sale como `ubicacion` (si el canal
  * no trajo ya una) y el enlace se cambia en el texto por una frase sin coordenadas: el modelo nunca las ve.
  */
 export async function prepararEntrante(e: Entrante, op: { fetch?: typeof fetch } = {}): Promise<Entrante> {
   // El enlace se sigue mientras bajan los archivos (los dos tienen su propio plazo).
-  const delTextoP = esDeLaClienta(e) && e.texto ? ubicacionDelTexto(e.texto, { fetch: op.fetch }) : Promise.resolve(null);
+  const delTextoP = esDelCliente(e) && e.texto ? ubicacionDelTexto(e.texto, { fetch: op.fetch }) : Promise.resolve(null);
   const adjuntos = await Promise.all(
     e.adjuntos.map(async (a) => {
       const limpio = { tipo: a.tipo, mime: a.mime, nombre: a.nombre, url: a.url, bytes: a.bytes, ...(a.sticker ? { sticker: true } : {}) };
@@ -54,10 +54,10 @@ export async function prepararEntrante(e: Entrante, op: { fetch?: typeof fetch }
  *
  * SIN el punto de entrega: las coordenadas nunca se guardan en el Durable Object. La ubicación del canal queda como `ubicacion_omitida`
  * y un enlace de mapa con coordenadas escritas se cambia por la frase (uno corto queda: no las trae y el rescate lo vuelve a seguir). Si
- * el mensaje se atiende desde ahí (el Worker se cayó antes), el modelo sabe que la clienta la compartió y se la pide otra vez.
+ * el mensaje se atiende desde ahí (el Worker se cayó antes), el modelo sabe que el cliente la compartió y se la pide otra vez.
  */
 export function crudoDe(e: Entrante): Entrante {
-  const delTexto = esDeLaClienta(e) && e.texto !== undefined ? quitarCoordenadasDelTexto(e.texto) : null;
+  const delTexto = esDelCliente(e) && e.texto !== undefined ? quitarCoordenadasDelTexto(e.texto) : null;
   const omitida = e.ubicacion?.origen ?? e.ubicacion_omitida ?? (delTexto?.coordenadas ? "enlace" : undefined);
   return {
     canal: e.canal,
@@ -82,7 +82,7 @@ export function crudoDe(e: Entrante): Entrante {
     ...(e.reenviado ? { reenviado: e.reenviado } : {}),
     // Un comentario de una publicación (Facebook o Instagram): sus datos son texto plano, se guardan tal cual.
     ...(e.comentario ? { comentario: { ...e.comentario } } : {}),
-    ...(omitida && esDeLaClienta(e) ? { ubicacion_omitida: omitida } : {}),
+    ...(omitida && esDelCliente(e) ? { ubicacion_omitida: omitida } : {}),
   };
 }
 

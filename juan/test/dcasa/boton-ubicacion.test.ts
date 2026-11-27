@@ -44,7 +44,7 @@ describe("el botón «Enviar ubicación» después del enlace", () => {
     // El texto con el enlace salió entero, con sus pasos y sus íconos (los escribió Odoo, no el modelo).
     const texto = salida.burbujas.join("\n");
     expect(texto).toContain(ENLACE_DE_UBICACION);
-    for (const paso of ["1️⃣ Abra el enlace", "2️⃣ Toque «Mi ubicación» y permita", "3️⃣ Escriba su número de casa"]) expect(texto).toContain(paso);
+    for (const paso of ["1️⃣ Abre el enlace", "2️⃣ Toca «Mi ubicación» y permite", "3️⃣ Escribe tu número de casa"]) expect(texto).toContain(paso);
     // La señal es para el Worker: el modelo nunca la ve.
     expect(g.prompts().join("\n")).not.toContain("boton_whatsapp");
   });
@@ -85,13 +85,13 @@ describe("el botón «Enviar ubicación» después del enlace", () => {
     m.odoo.defs = [...HERRAMIENTAS_DE_PRUEBA, DEF_ENLACE_DE_UBICACION];
     m.odoo.botonWhatsapp = true;
     m.canal.cap = adaptadorDe("whatsapp_cloud", ADAPTADORES)!.capacidades("whatsapp_cloud");
-    m.guion([{ texto: "Con gusto le ayudo. ¿Qué talla busca?" }]);
+    m.guion([{ texto: "Con gusto te ayudo. ¿Qué mueble buscas?" }]);
     await m.conversar("hola");
     expect(m.canal.ultimaSalida!.pedirUbicacion).toBeUndefined();
   });
 
   it("si la respuesta se descarta (deja ver algo interno), el botón no la acompaña", async () => {
-    const { m } = mundoConEnlace("whatsapp_cloud", true, "Le mando el enlace_de_ubicacion: " + ENLACE_DE_UBICACION);
+    const { m } = mundoConEnlace("whatsapp_cloud", true, "Te mando el enlace_de_ubicacion: " + ENLACE_DE_UBICACION);
     await m.conversar("¿cuánto es el envío a mi casa?");
     expect(m.canal.ultimaSalida!.burbujas.join("\n")).not.toContain("enlace_de_ubicacion");
     expect(m.canal.ultimaSalida!.pedirUbicacion).toBeUndefined();
@@ -112,7 +112,7 @@ describe("el botón «Enviar ubicación» después del enlace", () => {
 });
 
 describe("para otra casa (un regalo, la abuela, el trabajo): el enlace sin botón", () => {
-  const RESPUESTA = `Con gusto. Abra este enlace y busque su barriada, o mueva el mapa hasta su casa: ${ENLACE_DE_UBICACION}`;
+  const RESPUESTA = `Con gusto. Abre este enlace y busca su barriada, o mueve el mapa hasta su casa: ${ENLACE_DE_UBICACION}`;
 
   it("el modelo ve `para_otra_casa` en la herramienta; con true no sale el botón y a Odoo no le llega el parámetro", async () => {
     const { m, g } = mundoConEnlace("whatsapp_cloud", true, RESPUESTA, { para_otra_casa: true });

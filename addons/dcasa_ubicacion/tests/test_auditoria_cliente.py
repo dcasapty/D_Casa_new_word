@@ -1,10 +1,10 @@
-"""Auditoría 1 (lo que vive la clienta en el navegador): cada prueba fija un hallazgo arreglado.
+"""Auditoría 1 (lo que vive el cliente en el navegador): cada prueba fija un hallazgo arreglado.
 
 * El checkout de verdad, por HTTP (``UbicacionCheckout.shop_address_submit`` no tenía ninguna prueba): el camino feliz,
   el punto que vino de WhatsApp (se acepta y conserva su origen; «Escribir» no lo borra), la dirección de facturación
   (sin mapa ni número de casa) y el punto que dio en el chat de la tienda (gana sobre el viejo de la ficha).
 * Las páginas sueltas: sin precio con la venta confirmada, salida por WhatsApp de un enlace vencido o usado, los pasos
-  del chat, el motorizado sin punto (primero «Llamar» y buscar la dirección) y el pedido del portal con el mismo
+  del chat, el chofer sin punto (primero «Llamar» y buscar la dirección) y el pedido del portal con el mismo
   criterio que «¡Gracias!».
 * Andrés no guarda un GPS de ±800 m.
 * En Chrome (el teléfono emulado): el mapa sin la clave buena, lo buscado que hay que mover, el GPS impreciso sin
@@ -29,7 +29,7 @@ WHATSAPP_TIENDA = '+507 6026-1919'
 
 
 def _preparar_tabla(env, login):
-    gerencia = new_test_user(env, login=login, name='Gerencia Auditoría Clienta',
+    gerencia = new_test_user(env, login=login, name='Gerencia Auditoría Cliente',
                              groups='base.group_user,dcasa_base.group_gerencia')
     importar(env, gerencia)
     env['dcasa.envio.tarifa'].search([], limit=1).with_user(gerencia).action_aprobar()
@@ -49,19 +49,19 @@ class _SinClaves:
 
 @tagged('post_install', '-at_install')
 class TestCheckoutHttp(_SinClaves, HttpCase):
-    """El checkout de verdad, por HTTP, con una clienta con cuenta (portal)."""
+    """El checkout de verdad, por HTTP, con un cliente con cuenta (portal)."""
 
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        _preparar_tabla(cls.env, 'ger_aud_clienta_ck')
+        _preparar_tabla(cls.env, 'ger_aud_cliente_ck')
         cls.domicilio = cls.env['delivery.carrier'].sudo().search([('dcasa_por_cotizar', '=', True)], limit=1)
         cls.domicilio.website_published = True
         cls.website = cls.env['website'].search([], limit=1)
         cls.producto = cls.env['product.product'].create({'name': 'Chupón web', 'list_price': 20, 'type': 'consu',
                                                           'sale_ok': True, 'is_published': True})
-        cls.usuario = new_test_user(cls.env, login='aud_clienta_ck', name='Ana Checkout', groups='base.group_portal',
-                                    email='ana.checkout.clienta@example.com')
+        cls.usuario = new_test_user(cls.env, login='aud_cliente_ck', name='Ana Checkout', groups='base.group_portal',
+                                    email='ana.checkout.cliente@example.com')
         cls.partner = cls.usuario.partner_id
         cls.partner.write({'phone': '+507 6123-4500', 'street': 'Calle 1', 'city': 'La Chorrera',
                            'country_id': cls.env.ref('base.pa').id})
@@ -73,7 +73,7 @@ class TestCheckoutHttp(_SinClaves, HttpCase):
             'partner_id': self.partner.id, 'website_id': self.website.id,
             'order_line': [(0, 0, {'product_id': self.producto.id})]})
         self.orden._set_delivery_method(self.domicilio)
-        self.authenticate('aud_clienta_ck', 'aud_clienta_ck')
+        self.authenticate('aud_cliente_ck', 'aud_cliente_ck')
 
     def formulario(self, url):
         pagina = self.url_open(url)
@@ -81,7 +81,7 @@ class TestCheckoutHttp(_SinClaves, HttpCase):
         return pagina.text, re.search(r'name="csrf_token" value="([^"]+)"', pagina.text).group(1)
 
     def enviar(self, token, **campos):
-        datos = {'csrf_token': token, 'name': 'Ana Checkout', 'email': 'ana.checkout.clienta@example.com',
+        datos = {'csrf_token': token, 'name': 'Ana Checkout', 'email': 'ana.checkout.cliente@example.com',
                  'phone': '+507 6123-4500', 'street': 'Villa Prueba II, casa 1', 'city': 'La Chorrera',
                  'country_id': str(self.env.ref('base.pa').id)}
         datos.update(campos)
@@ -208,16 +208,16 @@ class TestCheckoutHttp(_SinClaves, HttpCase):
 
 
 @tagged('post_install', '-at_install')
-class TestPaginasDeLaClienta(_SinClaves, HttpCase):
+class TestPaginasDelCliente(_SinClaves, HttpCase):
 
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        _preparar_tabla(cls.env, 'ger_aud_clienta_pag')
+        _preparar_tabla(cls.env, 'ger_aud_cliente_pag')
         cls.env['website'].search([]).write({'dcasa_whatsapp_number': WHATSAPP_TIENDA})
-        cls.clienta = cls.env['res.partner'].create({'name': 'Dora Prueba', 'phone': '+507 6555-0202'})
+        cls.cliente = cls.env['res.partner'].create({'name': 'Dora Prueba', 'phone': '+507 6555-0202'})
         cls.domicilio = cls.env['delivery.carrier'].sudo().search([('dcasa_por_cotizar', '=', True)], limit=1)
-        cls.producto = cls.env['product.product'].create({'name': 'Caja de la clienta', 'list_price': 20,
+        cls.producto = cls.env['product.product'].create({'name': 'Caja del cliente', 'list_price': 20,
                                                           'type': 'consu', 'sale_ok': True})
 
     def ruta(self, url):
@@ -227,18 +227,18 @@ class TestPaginasDeLaClienta(_SinClaves, HttpCase):
         return self.url_open(ruta, data=json.dumps(cuerpo), headers={'Content-Type': 'application/json'})
 
     def venta(self, partner=None):
-        return self.env['sale.order'].create({'partner_id': (partner or self.clienta).id,
+        return self.env['sale.order'].create({'partner_id': (partner or self.cliente).id,
                                               'carrier_id': self.domicilio.id,
                                               'order_line': [(0, 0, {'product_id': self.producto.id})]})
 
     def test_con_la_venta_confirmada_no_dice_precio(self):
         """Punto 9: el enlace de una venta ya confirmada mostraba «Envío $15»."""
         orden = self.venta()
-        _enlace, url = self.env['dcasa.ubicacion.enlace']._crear(self.clienta, orden=orden)
+        _enlace, url = self.env['dcasa.ubicacion.enlace']._crear(self.cliente, orden=orden)
         borrador = self.post_json(self.ruta(url) + '/zona', {'lat': CERCA[0], 'lon': CERCA[1]}).json()
         self.assertTrue(borrador['precio'], 'sin confirmar, el precio ayuda a decidir')
         orden.action_confirm()
-        _enlace, url = self.env['dcasa.ubicacion.enlace']._crear(self.clienta, orden=orden, creado_por='aviso')
+        _enlace, url = self.env['dcasa.ubicacion.enlace']._crear(self.cliente, orden=orden, creado_por='aviso')
         datos = self.post_json(self.ruta(url) + '/zona', {'lat': CERCA[0], 'lon': CERCA[1]}).json()
         self.assertIn('Villa Prueba II', datos['zona'])
         self.assertIsNone(datos['precio'])
@@ -246,7 +246,7 @@ class TestPaginasDeLaClienta(_SinClaves, HttpCase):
 
     def test_vencido_y_usado_tienen_salida_por_whatsapp(self):
         """Punto 16: callejones sin salida."""
-        enlace, url = self.env['dcasa.ubicacion.enlace']._crear(self.clienta)
+        enlace, url = self.env['dcasa.ubicacion.enlace']._crear(self.cliente)
         enlace._confirmar(*CERCA, 'pin', referencia='Casa 2')
         usado = self.url_open(self.ruta(url))
         self.assertIn('Ya la tenemos', usado.text)
@@ -262,7 +262,7 @@ class TestPaginasDeLaClienta(_SinClaves, HttpCase):
 
     def test_los_pasos_de_la_pagina_son_los_del_chat(self):
         """Punto 14: el chat dice 1️⃣ abra, 2️⃣ «Mi ubicación», 3️⃣ la casa y «Sí»; la página empezaba en 1."""
-        _enlace, url = self.env['dcasa.ubicacion.enlace']._crear(self.clienta)
+        _enlace, url = self.env['dcasa.ubicacion.enlace']._crear(self.cliente)
         html = self.url_open(self.ruta(url)).text
         pasos = re.findall(r'<span class="paso" aria-hidden="true">(\d)</span>', html)
         self.assertEqual(pasos, ['2', '3'])
@@ -271,7 +271,7 @@ class TestPaginasDeLaClienta(_SinClaves, HttpCase):
         self.assertIn('id="o_dcasa_falta"', html, '«Sí, aquí es» apagado dice qué falta')
         self.assertRegex(html, r'id="o_dcasa_respaldo" hidden', 'el respaldo no sale de entrada')
 
-    def test_el_motorizado_sin_punto_primero_llama_y_busca(self):
+    def test_el_chofer_sin_punto_primero_llama_y_busca(self):
         """Punto 15: sin punto, el botón principal no puede ser «Avisar que llegué»."""
         escrita = self.env['res.partner'].create({'name': 'Pepa Escrita', 'phone': '+507 6444-5555',
                                                   'street': 'Calle 5, Nuevo Arraiján', 'city': 'Arraiján'})
@@ -290,7 +290,7 @@ class TestPaginasDeLaClienta(_SinClaves, HttpCase):
         self.assertIn('https://www.google.com/maps/search/?api=1&amp;query=Calle%205%2C%20Nuevo%20Arraij',
                       clase('o_dcasa_buscar_maps'))
         # Con punto, todo como antes: Waze y Google Maps arriba y «Avisar que llegué» como botón principal.
-        self.clienta._dcasa_poner_ubicacion(*CERCA, 'pin', referencia='Portón negro')
+        self.cliente._dcasa_poner_ubicacion(*CERCA, 'pin', referencia='Portón negro')
         orden = self.venta()
         orden.action_confirm()
         entrega = self.env['dcasa.ubicacion.entrega']._de_la_venta(orden, crear=False)
@@ -324,7 +324,7 @@ class TestAndresUbicacion(TiendaCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        _preparar_tabla(cls.env, 'ger_aud_clienta_andres')
+        _preparar_tabla(cls.env, 'ger_aud_cliente_andres')
 
     def setUp(self):
         super().setUp()
@@ -336,7 +336,7 @@ class TestAndresUbicacion(TiendaCase):
         malo = self.post('carrito/ubicacion', {'lat': CERCA[0], 'lon': CERCA[1], 'precision': 800,
                                                'referencia': 'Casa 24'})
         self.assertEqual((malo.status_code, malo.json()['motivo'], malo.json()['precision']), (422, 'impreciso', 800))
-        # El punto no se guarda; la casa que escribió, sí (auditoría 2, punto 17: test_auditoria_2_clienta.py).
+        # El punto no se guarda; la casa que escribió, sí (auditoría 2, punto 17: test_auditoria_2_cliente.py).
         orden = self.env['sale.order'].sudo().search([('dcasa_ubic_pend_referencia', '=', 'Casa 24')])
         self.assertEqual(len(orden), 1)
         self.assertIsNone(orden._dcasa_ubic_pendiente(), 'sin el punto de ±800 m')
@@ -502,18 +502,18 @@ SIGUE_EN_LA_DIRECCION = """
 
 
 @tagged('post_install', '-at_install')
-class TestNavegadorDeLaClienta(_SinClaves, ChromeMovilCase):
+class TestNavegadorDelCliente(_SinClaves, ChromeMovilCase):
 
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        _preparar_tabla(cls.env, 'ger_aud_clienta_nav')
-        cls.clienta = cls.env['res.partner'].create({'name': 'Eva Navegador', 'phone': '+507 6555-0303'})
+        _preparar_tabla(cls.env, 'ger_aud_cliente_nav')
+        cls.cliente = cls.env['res.partner'].create({'name': 'Eva Navegador', 'phone': '+507 6555-0303'})
         cls.producto = cls.env['product.product'].create({
             'name': 'Caja del navegador', 'list_price': 20, 'type': 'consu', 'sale_ok': True, 'is_published': True})
 
     def abrir_enlace(self, browser):
-        _enlace, url = self.env['dcasa.ubicacion.enlace']._crear(self.clienta)
+        _enlace, url = self.env['dcasa.ubicacion.enlace']._crear(self.cliente)
         browser.navigate_to(self.base_url() + '/u/' + url.rsplit('/u/', 1)[1], wait_stop=True)
         self.assertTrue(browser._wait_ready())
 
@@ -523,7 +523,7 @@ class TestNavegadorDeLaClienta(_SinClaves, ChromeMovilCase):
             self.abrir_enlace(browser)
             r = self._evaluar(browser, PROBAR_EL_MAPA)
         self.assertEqual(r['buscado'][:3], [True, False, 'buscado'])
-        self.assertEqual(r['buscado'][3], '👆 Ahora mueva el mapa hasta su puerta')
+        self.assertEqual(r['buscado'][3], '👆 Ahora mueve el mapa hasta tu puerta')
         self.assertEqual(r['movido'], [True, 'pin'], 'movido el mapa, ya es su puerta')
         self.assertEqual(r['centro_roto'], [False, 'centro', True, 8.9013], 'sin centro: sin mapa y con el GPS')
         self.assertEqual(r['clave_rechazada'][:3], [True, False, 'clave'])
@@ -539,15 +539,15 @@ class TestNavegadorDeLaClienta(_SinClaves, ChromeMovilCase):
         with self._chrome_movil(390) as browser:
             self.abrir_enlace(browser)
             r = self._evaluar(browser, PROBAR_LA_PAGINA)
-        self.assertEqual(r['al_abrir'], '📍 Toque «Mi ubicación» o busque su barriada')
+        self.assertEqual(r['al_abrir'], '📍 Toca «Mi ubicación» o busca tu barriada')
         tarjeta_oculta, falta, apagado, respaldo_oculto, aviso = r['malo']
         self.assertTrue(tarjeta_oculta, 'sin precio con un GPS de ±800 m')
-        self.assertEqual((falta, apagado, respaldo_oculto), ('📍 Falta su ubicación exacta', True, True))
+        self.assertEqual((falta, apagado, respaldo_oculto), ('📍 Falta tu ubicación exacta', True, True))
         self.assertIn('Su teléfono no da la ubicación exacta', aviso)
         tarjeta_oculta, precio, falta, respaldo_oculto = r['bueno']
         self.assertFalse(tarjeta_oculta)
         self.assertTrue(precio.startswith('Envío $'), precio)
-        self.assertEqual(falta, '🏠 Escriba su número de casa')
+        self.assertEqual(falta, '🏠 Escribe tu número de casa')
         self.assertTrue(respaldo_oculto, 'el respaldo sale solo si «guardar» falla o pasa un rato')
         self.assertEqual(r['con_casa'], ['', False])
 
@@ -590,12 +590,12 @@ class TestNavegadorDeLaClienta(_SinClaves, ChromeMovilCase):
         """Punto 3: sin el punto, no se envía; el aviso sale en el bloque, a la vista, y el foco va a «Mi ubicación»."""
         r = self.checkout(False, 'Casa 24', avanza=False)
         self.assertFalse(r['avanzo'])
-        self.assertEqual(r['falta_punto'], [True, '📍 Toque «Mi ubicación» o busque su barriada'])
+        self.assertEqual(r['falta_punto'], [True, '📍 Toca «Mi ubicación» o busca tu barriada'])
         self.assertIn('o_dcasa_ubic_gps', r['foco'])
 
     def test_confirmar_sin_casa_lo_dice_en_el_bloque(self):
         """Punto 3: con el punto pero sin el número de casa, el aviso va junto al campo y el foco también."""
         r = self.checkout(True, '', avanza=False)
         self.assertFalse(r['avanzo'])
-        self.assertEqual(r['falta_casa'], [True, '🏠 Escriba su número de casa'])
+        self.assertEqual(r['falta_casa'], [True, '🏠 Escribe tu número de casa'])
         self.assertEqual(r['foco'], 'dcasa_referencia')

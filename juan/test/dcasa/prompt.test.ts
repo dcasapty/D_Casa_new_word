@@ -386,7 +386,7 @@ describe("el bloque dinámico (no se cachea)", () => {
   });
 });
 
-describe("la ubicación de entrega y las indicaciones para el motorizado (el dueño, 2026-11-25: «que un niño de 5 años pueda comprar»)", () => {
+describe("la ubicación de entrega y las indicaciones para el chofer (el dueño, 2026-11-25: «que un niño de 5 años pueda comprar»)", () => {
   const como = bloque("como_trabajas");
   const base = { ahora: AHORA_INICIAL, presentacionEnviada: false };
   const contexto = (canal: CanalId) => contextoDelChat(cfg, { ...base, canal });
@@ -427,8 +427,8 @@ describe("la ubicación de entrega y las indicaciones para el motorizado (el due
       expect(c, canal).toContain(`«${PREGUNTA_DE_INDICACIONES}»`);
       expect(c, canal).toContain(`«${PREGUNTA_DE_LA_VEZ_PASADA}»`);
     }
-    expect(PREGUNTA_DE_INDICACIONES).toBe("🏠 ¿Número de casa o indicaciones para el motorizado?");
-    expect(PREGUNTA_DE_LA_VEZ_PASADA).toBe("📍 ¿Se lo llevamos a [la zona], como la vez pasada?");
+    expect(PREGUNTA_DE_INDICACIONES).toBe("🏠 ¿Número de casa o indicaciones para el chofer?");
+    expect(PREGUNTA_DE_LA_VEZ_PASADA).toBe("📍 ¿Te lo llevamos a [la zona], como la vez pasada?");
     for (const icono of ["🏠", "📍", "📎"]) expect(prompt, icono).not.toContain(icono);
   });
 
@@ -462,10 +462,10 @@ describe("la ubicación de entrega y las indicaciones para el motorizado (el due
     for (const frase of [
       PREGUNTA_DE_INDICACIONES,
       PREGUNTA_DEL_CLIP,
-      "📍 ¿Se lo llevamos a Brisas del Golf, como la vez pasada?",
+      "📍 ¿Te lo llevamos a Brisas del Golf, como la vez pasada?",
       `El envío a Brisas del Golf cuesta $5. ${PREGUNTA_DE_INDICACIONES}`,
-      "Con gusto. Abra este enlace y busque su barriada, o mueva el mapa hasta su casa: https://babycaleb.com/u/abc",
-      "Listo, ya quedó para el motorizado.",
+      "Con gusto. Abre este enlace y busca su barriada, o mueve el mapa hasta su casa: https://dcasapty.com/u/abc",
+      "Listo, ya quedó para el chofer.",
     ]) {
       expect(detectarFuga(frase, ctxFugas), frase).toBeNull();
     }
@@ -476,7 +476,7 @@ describe("el aviso de entrega del día: «¿habrá alguien en casa?» (el dueño
   const como = bloque("como_trabajas");
   const base = { ahora: AHORA_INICIAL, presentacionEnviada: false };
   // Lo que Odoo le escribe a nombre del asistente con «🚚 Sale hoy: avisarle» (addons/dcasa_ubicacion/models/avisos.py).
-  const AVISO = "🚚 ¡Hoy le llega su pedido S00042 a Villa Lucre!\n¿Habrá alguien en casa para recibirlo?\n✅ Sí / 📍 Cambiar";
+  const AVISO = "🚚 ¡Hoy te llega tu pedido S00042 a Villa Lucre!\n¿Habrá alguien en casa para recibirlo?\n✅ Sí / 📍 Cambiar";
 
   it("lo que conteste después del aviso de la tienda responde a ese aviso", () => {
     expect(como).toMatch(/Aviso de entrega: si en la historia está el mensaje de la tienda que avisa que hoy sale su pedido y pregunta si habrá alguien para recibirlo, lo que conteste responde a ese aviso/);
@@ -508,7 +508,7 @@ describe("el aviso de entrega del día: «¿habrá alguien en casa?» (el dueño
       expect(c, canal).toContain(`si solo dice que quiere cambiar algo, «${PREGUNTA_DEL_CAMBIO_DE_ENTREGA}»`);
     }
     expect(GRACIAS_DEL_AVISO_DE_ENTREGA).toBe("🙌🏻 ¡Perfecto, gracias por confirmar!");
-    expect(PREGUNTA_DEL_CAMBIO_DE_ENTREGA).toBe("¿Qué le cambiamos: 🕐 el día o la hora, o 📍 el lugar?");
+    expect(PREGUNTA_DEL_CAMBIO_DE_ENTREGA).toBe("¿Qué te cambiamos: 🕐 el día o la hora, o 📍 el lugar?");
     expect(prompt).not.toContain(GRACIAS_DEL_AVISO_DE_ENTREGA);
     expect(prompt).not.toContain(PREGUNTA_DEL_CAMBIO_DE_ENTREGA);
     for (const icono of ["🚚", "🕐", "📍"]) expect(prompt, icono).not.toContain(icono);
@@ -521,12 +521,12 @@ describe("el aviso de entrega del día: «¿habrá alguien en casa?» (el dueño
       textoDelPrompt: promptParaFugas(cfg),
       nombresHerramientas: [...HERRAMIENTAS_DEL_CONTRATO],
     };
-    for (const frase of [GRACIAS_DEL_AVISO_DE_ENTREGA, PREGUNTA_DEL_CAMBIO_DE_ENTREGA, "Con gusto. Abra este enlace y mueva el mapa hasta la casa nueva: https://babycaleb.com/u/abc"]) {
+    for (const frase of [GRACIAS_DEL_AVISO_DE_ENTREGA, PREGUNTA_DEL_CAMBIO_DE_ENTREGA, "Con gusto. Abre este enlace y mueve el mapa hasta la casa nueva: https://dcasapty.com/u/abc"]) {
       expect(detectarFuga(frase, revision), frase).toBeNull();
       expect(analizar(frase, revision).graves, frase).toEqual([]);
     }
     // Decir que llega hoy sí sería prometer el plazo (regla 3): por eso la frase del sí solo agradece.
-    expect(detectarPromesas("Gracias, se lo llevamos hoy.")).toContain("plazo de entrega");
+    expect(detectarPromesas("Gracias, te lo llevamos hoy.")).toContain("plazo de entrega");
     // El aviso lo escribe Odoo, no el modelo: no se copia del prompt.
     expect(promptParaFugas(cfg)).not.toContain("¿Habrá alguien en casa para recibirlo?");
     expect(AVISO).toContain("✅ Sí / 📍 Cambiar");

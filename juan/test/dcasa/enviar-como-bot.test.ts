@@ -1,5 +1,5 @@
 /**
- * `POST /odoo/enviar` con `autor: "bot"` (2026-11-25, docs/UBICACION.md): Odoo le escribe a la clienta A NOMBRE DEL ASISTENTE (la zona
+ * `POST /odoo/enviar` con `autor: "bot"` (2026-11-25, docs/UBICACION.md): Odoo le escribe al cliente A NOMBRE DEL ASISTENTE (la zona
  * y el precio del envío cuando confirma su punto con el enlace de un solo uso). A diferencia de una vendedora: no calla a Juan, no corta
  * lo que traiga, y queda en la historia como mensaje del asistente (el modelo lo ve en el siguiente turno). Idempotente con `id_envio`,
  * igual que siempre. La validación de la ruta (cualquier otro valor = vendedora) está en test/rutas.test.ts.
@@ -8,12 +8,12 @@ import { describe, expect, it } from "vitest";
 import { crearMundo } from "../helpers/mundo";
 
 describe("POST /odoo/enviar con autor «bot» (Odoo a nombre del asistente)", () => {
-  const AVISO = "Listo, su punto de entrega quedó guardado. El envío a Brisas del Golf cuesta $5.";
+  const AVISO = "Listo, tu punto de entrega quedó guardado. El envío a Brisas del Golf cuesta $5.";
 
   it("sale por el canal, NO calla a Juan y queda en la historia como mensaje del asistente", async () => {
     const m = crearMundo();
-    const g = m.guion([{ texto: "Con gusto. ¿Me comparte su ubicación?" }, { texto: "Con gusto, se lo sumo." }]);
-    // La clienta ya venía hablando (pidió el enlace para marcar su punto)…
+    const g = m.guion([{ texto: "Con gusto. ¿Me compartes tu ubicación?" }, { texto: "Con gusto, te lo sumo." }]);
+    // El cliente ya venía hablando (pidió el enlace para marcar su punto)…
     await m.conversar("¿cuánto es el envío?");
     const antes = m.canal.textos.length;
     // …y Odoo le escribe a nombre del asistente cuando confirma su punto.
@@ -26,7 +26,7 @@ describe("POST /odoo/enviar con autor «bot» (Odoo a nombre del asistente)", ()
     const escribiendo = [m.canal.escribiendoVeces, m.odoo.escribiendos.length];
     await m.motor.enviarVendedora({ id_envio: "odoo-aviso-1b", texto: "Cualquier duda, aquí estamos.", autor: "bot" });
     expect([m.canal.escribiendoVeces, m.odoo.escribiendos.length]).toEqual(escribiendo);
-    // La clienta contesta y Juan la atiende, viendo el aviso como suyo (no como «[Vendedora]»).
+    // El cliente contesta y Juan la atiende, viendo el aviso como suyo (no como «[Vendedora]»).
     await m.conversar("sí, súmelo");
     expect(g.doGenerateCalls).toHaveLength(2);
     const prompt = g.prompts()[1];

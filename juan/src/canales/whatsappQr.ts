@@ -4,7 +4,7 @@
 //     {id_mensaje, de, nombre, tipo:"texto|imagen|audio|documento|video", texto?,
 //      medio?:{url_temporal|base64, mime, nombre}, ts, propio:false}
 //     `propio:true` = la vendedora escribió desde el teléfono: se registra como `vendedora` y el bot se calla.
-//     Ubicación (2026-11-25, docs/UBICACION.md): `ubicacion?:{lat, lon, nombre?, direccion?}` (la que compartió la clienta) o
+//     Ubicación (2026-11-25, docs/UBICACION.md): `ubicacion?:{lat, lon, nombre?, direccion?}` (la que compartió el cliente) o
 //     `ubicacion_omitida:true` (la traía, pero el puente la guardó para reintentar y ahí nunca guarda coordenadas). Un puente de antes
 //     la manda como texto («Ubicación compartida: lat, lon (lugar)»): se reconoce igual y las coordenadas salen del texto.
 //   Worker → Puente:  POST /api/enviar  {para, chunks:[texto...], medios?:[{tipo, url, nombre?, mime?, pie?}]}
@@ -45,7 +45,7 @@ interface EntranteDelPuente {
   medio_omitido?: { motivo?: string; mime?: string; bytes?: number } | null;
   ts?: number | string;
   propio?: boolean;
-  /** La ubicación que compartió la clienta (📎 › Ubicación, o la de tiempo real). Se valida aquí: el puente puede ser de otra versión. */
+  /** La ubicación que compartió el cliente (📎 › Ubicación, o la de tiempo real). Se valida aquí: el puente puede ser de otra versión. */
   ubicacion?: { lat?: unknown; lon?: unknown; nombre?: unknown; direccion?: unknown } | null;
   /** La traía, pero el puente la guardó en su cola de pendientes sin coordenadas: hay que pedírsela otra vez. */
   ubicacion_omitida?: boolean;
@@ -151,7 +151,7 @@ export function crearWhatsappQr(op: OpcionesWhatsappQr = {}): AdaptadorCanal {
       adjuntos.push(a);
     } else if (tipo && c.medio_omitido) {
       // Un video o una foto demasiado pesada: el puente no la pudo traer pero SÍ llegó un archivo. Sin esto el mensaje se perdía
-      // (ni texto ni adjunto) y la clienta se quedaba sin respuesta; así queda registrado y una vendedora sabe que había un archivo.
+      // (ni texto ni adjunto) y el cliente se quedaba sin respuesta; así queda registrado y una vendedora sabe que había un archivo.
       adjuntos.push({ tipo, mime: c.medio_omitido.mime });
     }
     // El punto de entrega va aparte (a Odoo): el texto que se guarda y que ve el modelo nunca lleva las coordenadas.

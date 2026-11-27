@@ -1,4 +1,4 @@
-// Telegram: el canal de PRUEBAS (clientas de prueba y avisos). El webhook se registra con un
+// Telegram: el canal de PRUEBAS (clientes de prueba y avisos). El webhook se registra con un
 // secreto (`secret_token`) que Telegram devuelve en la cabecera `X-Telegram-Bot-Api-Secret-Token`.
 //
 // Un archivo de Telegram NO se puede abrir con su file_id: hay que pedir `getFile` y bajarlo de una URL

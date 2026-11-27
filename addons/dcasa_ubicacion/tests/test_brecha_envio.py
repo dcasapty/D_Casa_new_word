@@ -83,10 +83,10 @@ class TestEnlaceDelPedido(UbicacionCase):
     def test_al_confirmar_desde_el_pedido_se_recalcula_su_envio(self):
         domicilio = self.env['delivery.carrier'].sudo().search([('dcasa_por_cotizar', '=', True)], limit=1)
         producto = self.env['product.product'].create({'name': 'Caja', 'list_price': 20, 'type': 'consu'})
-        orden = self.env['sale.order'].create({'partner_id': self.clienta.id,
+        orden = self.env['sale.order'].create({'partner_id': self.cliente.id,
                                                'order_line': [(0, 0, {'product_id': producto.id})]})
         orden._set_delivery_method(domicilio)
-        enlace, _url = self.env['dcasa.ubicacion.enlace']._crear(self.clienta, orden=orden)
+        enlace, _url = self.env['dcasa.ubicacion.enlace']._crear(self.cliente, orden=orden)
         enlace._confirmar(*CERCA, 'pin', referencia='Casa 9')
         envio = orden.order_line.filtered(lambda ln: ln.is_delivery and not ln.dcasa_promocion_envio_id)
         self.assertEqual(envio.dcasa_envio_lugar_id, self.villa)
@@ -127,10 +127,10 @@ class TestRutasDeLaBrecha(TiendaCase):
         self.assertNotIn('8.9012', json.dumps(bien.json()), 'las coordenadas no vuelven')
 
     def test_el_link_de_pago_lleva_al_mapa_de_su_pedido(self):
-        clienta = self.env['res.partner'].create({'name': 'Lina Pedido', 'phone': '+507 6999-1111'})
+        cliente = self.env['res.partner'].create({'name': 'Lina Pedido', 'phone': '+507 6999-1111'})
         producto = self.env['product.product'].create({'name': 'Caja', 'list_price': 20, 'type': 'consu'})
         domicilio = self.env['delivery.carrier'].sudo().search([('dcasa_por_cotizar', '=', True)], limit=1)
-        orden = self.env['sale.order'].create({'partner_id': clienta.id, 'carrier_id': domicilio.id,
+        orden = self.env['sale.order'].create({'partner_id': cliente.id, 'carrier_id': domicilio.id,
                                                'order_line': [(0, 0, {'product_id': producto.id})]})
         orden._portal_ensure_token()
         pagina = self.url_open(orden.get_portal_url())

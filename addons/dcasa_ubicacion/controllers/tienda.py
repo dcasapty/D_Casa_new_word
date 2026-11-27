@@ -1,6 +1,6 @@
-"""El chat de la tienda (Andrés): cuando la clienta tocó «Usar mi ubicación actual» y escribió el número de casa y las
+"""El chat de la tienda (Andrés): cuando el cliente tocó «Usar mi ubicación actual» y escribió el número de casa y las
 indicaciones, la página los guarda en SU carrito (``POST /dcasa/brian/v1/carrito/ubicacion``). Al pagar, el checkout
-ya trae ese punto y esas indicaciones: la clienta solo toca «Sí, aquí es» (docs/UBICACION.md).
+ya trae ese punto y esas indicaciones: el cliente solo toca «Sí, aquí es» (docs/UBICACION.md).
 
 Mismas reglas que las demás rutas del carrito del chat (``_post``: CSRF en la cabecera, JSON de a lo sumo 2 KB, el chat
 encendido) y el límite por IP de la ubicación. Las coordenadas no se escriben en el registro. Un GPS de más de 100 m

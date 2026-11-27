@@ -187,7 +187,7 @@ export interface RespuestaComentario {
 }
 
 /**
- * La ubicación de entrega que compartió la clienta (docs/UBICACION.md, «Contrato entre Odoo y el Worker de Juan» §1): `POST /ubicacion`.
+ * La ubicación de entrega que compartió el cliente (docs/UBICACION.md, «Contrato entre Odoo y el Worker de Juan» §1): `POST /ubicacion`.
  * Las coordenadas van solo aquí: nunca al modelo, al historial ni al registro. Odoo tampoco las escribe en su registro ni en la auditoría.
  */
 export interface CuerpoUbicacion {
@@ -347,7 +347,7 @@ export class OdooCliente implements OdooApi {
 
   /**
    * El punto de entrega (docs/UBICACION.md §1). Como `herramienta`: misma autenticación y SIN reintentos (lo que no se guardó se le pide
-   * otra vez a la clienta). Nunca lanza, y el error que devuelve no lleva el cuerpo enviado (ahí van las coordenadas).
+   * otra vez al cliente). Nunca lanza, y el error que devuelve no lleva el cuerpo enviado (ahí van las coordenadas).
    */
   async guardarUbicacion(cuerpo: CuerpoUbicacion): Promise<ResultadoUbicacion> {
     try {

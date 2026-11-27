@@ -1,10 +1,10 @@
-"""Auditoría 2 de lo que vive la clienta en el navegador (2026-11-25): cada prueba fija un hallazgo arreglado, por su
+"""Auditoría 2 de lo que vive el cliente en el navegador (2026-11-25): cada prueba fija un hallazgo arreglado, por su
 número.
 
-* Por HTTP: el servidor exige el «📍 Es aquí» del aviso de cruce (1), la tarjeta «¿Le entregamos ahí?» de
+* Por HTTP: el servidor exige el «📍 Es aquí» del aviso de cruce (1), la tarjeta «¿Te entregamos ahí?» de
   /shop/checkout con el punto del chat (4), WhatsApp sin ``wa.me`` (5), la invitada que vuelve atrás (8), «Marcar mi
   casa» antes de firmar o pagar y «Cambiar» de 48 px (9, 11), Andrés con un GPS impreciso guarda la casa (17), el
-  motorizado con un punto aproximado llama primero y de usted (18, 19) y el tope de visitas con su plantilla (3, 21).
+  chofer con un punto aproximado llama primero y de usted (18, 19) y el tope de visitas con su plantilla (3, 21).
 * En Chrome (el teléfono emulado, con un Google Maps falso cuando hace falta): «Confirmar» no se salta el cruce (1), un
   arrastre sin querer no cambia la casa (2), sin señal y sin permiso (3, 7), «Escribir» (14) y la página /u (3, 6, 7,
   12, 15, 16).
@@ -24,7 +24,7 @@ from odoo.tests import HttpCase, new_test_user, tagged
 from ..controllers import checkout
 from ..motor import casa, geo
 from .common import CERCA
-from .test_auditoria_clienta import LISTO, WHATSAPP_TIENDA, _preparar_tabla, _SinClaves
+from .test_auditoria_cliente import LISTO, WHATSAPP_TIENDA, _preparar_tabla, _SinClaves
 
 NUEVA_FICCION = (8.9314, -79.8314)       # «Barriada Nueva Ficción» del fixture (Arraiján)
 CLAVE_FALSA = 'AIzaSyDePruebaFalsa0123456789'
@@ -32,19 +32,19 @@ CLAVE_FALSA = 'AIzaSyDePruebaFalsa0123456789'
 
 @tagged('post_install', '-at_install')
 class TestAuditoria2Http(_SinClaves, HttpCase):
-    """El checkout y las páginas sueltas por HTTP, con una clienta con cuenta (portal)."""
+    """El checkout y las páginas sueltas por HTTP, con un cliente con cuenta (portal)."""
 
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        _preparar_tabla(cls.env, 'ger_aud2_clienta_http')
+        _preparar_tabla(cls.env, 'ger_aud2_cliente_http')
         cls.domicilio = cls.env['delivery.carrier'].sudo().search([('dcasa_por_cotizar', '=', True)], limit=1)
         cls.domicilio.website_published = True
         cls.website = cls.env['website'].search([], limit=1)
         cls.website.dcasa_whatsapp_number = WHATSAPP_TIENDA
         cls.producto = cls.env['product.product'].create({'name': 'Pañal auditoría 2', 'list_price': 20,
                                                           'type': 'consu', 'sale_ok': True, 'is_published': True})
-        cls.usuario = new_test_user(cls.env, login='aud2_clienta', name='Wanda Auditoría', groups='base.group_portal',
+        cls.usuario = new_test_user(cls.env, login='aud2_cliente', name='Wanda Auditoría', groups='base.group_portal',
                                     email='wanda.aud2@example.com')
         cls.partner = cls.usuario.partner_id
         cls.partner.write({'phone': '+507 6123-4511', 'street': 'Villa Prueba II, casa 1', 'city': 'La Chorrera',
@@ -56,7 +56,7 @@ class TestAuditoria2Http(_SinClaves, HttpCase):
             'partner_id': self.partner.id, 'website_id': self.website.id,
             'order_line': [(0, 0, {'product_id': self.producto.id})]})
         self.orden._set_delivery_method(self.domicilio)
-        self.authenticate('aud2_clienta', 'aud2_clienta')
+        self.authenticate('aud2_cliente', 'aud2_cliente')
 
     def csrf(self, url):
         pagina = self.url_open(url)
@@ -204,9 +204,9 @@ class TestAuditoria2Http(_SinClaves, HttpCase):
         self.assertTrue(cambiar, '«Cambiar» es un botón (48 px), no un enlace de 26')
         self.assertIn('btn btn-outline-primary', cambiar.group(0))
 
-    # --- 18, 19 y 21: el motorizado ----------------------------------------------------------------------------------
+    # --- 18, 19 y 21: el chofer ----------------------------------------------------------------------------------
 
-    def test_18_19_el_motorizado_con_punto_aproximado_llama_primero(self):
+    def test_18_19_el_chofer_con_punto_aproximado_llama_primero(self):
         buscada = self.env['res.partner'].create({'name': 'Bea Aproximada', 'phone': '+507 6777-8812',
                                                   'street': 'Calle 1', 'city': 'La Chorrera'})
         buscada._dcasa_poner_ubicacion(*CERCA, 'busqueda', referencia='Casa 3')
@@ -239,7 +239,7 @@ class TestAuditoria2Http(_SinClaves, HttpCase):
             respuesta = self.url_open(ruta)
             zona = self.url_open(ruta + '/zona', data=json.dumps({'lat': CERCA[0], 'lon': CERCA[1]}),
                                  headers={'Content-Type': 'application/json'})
-            motorizado = self.url_open('/entrega/inventadoXXXXXXXXXXXXXXXX')
+            chofer = self.url_open('/entrega/inventadoXXXXXXXXXXXXXXXX')
         self.assertEqual(respuesta.status_code, 429)
         self.assertEqual(respuesta.headers['Retry-After'], '60')
         self.assertIn('text/html', respuesta.headers['Content-Type'], 'antes: texto plano sin estilos')
@@ -248,8 +248,8 @@ class TestAuditoria2Http(_SinClaves, HttpCase):
         self.assertIn('https://api.whatsapp.com/send?phone=50760261919&amp;text=', respuesta.text)
         self.assertNotIn(' style="', respuesta.text, 'la CSP sin mapa no deja atributos style')
         self.assertEqual((zona.status_code, zona.json()['motivo']), (429, 'tope'))
-        self.assertEqual(motorizado.status_code, 429)
-        self.assertIn('<h1 class="grande">⏳ Un momento</h1>', motorizado.text)
+        self.assertEqual(chofer.status_code, 429)
+        self.assertIn('<h1 class="grande">⏳ Un momento</h1>', chofer.text)
 
 
 @tagged('post_install', '-at_install')
@@ -627,7 +627,7 @@ SIGUE_SOLO = """
 
 
 # Staging, 2026-11-26: un GPS «Fuera de nuestra lista» (lejos de todos los lugares de la tabla, o sin tabla) no llena la
-# barriada ni la ciudad. «Confirmar» no avanzaba y el aviso del navegador salía encima de la barra fija: la clienta no
+# barriada ni la ciudad. «Confirmar» no avanzaba y el aviso del navegador salía encima de la barra fija: el cliente no
 # veía qué faltaba. Ahora la página trae ese campo al centro y le pone el foco.
 CALLE_VACIA = """
 (async () => {
@@ -662,7 +662,7 @@ class TestNavegadorAuditoria2(_SinClaves, ChromeMovilCase):
     def setUpClass(cls):
         super().setUpClass()
         _preparar_tabla(cls.env, 'ger_aud2_nav')
-        cls.clienta = cls.env['res.partner'].create({'name': 'Eva Navegador Dos', 'phone': '+507 6555-0313'})
+        cls.cliente = cls.env['res.partner'].create({'name': 'Eva Navegador Dos', 'phone': '+507 6555-0313'})
         cls.producto = cls.env['product.product'].create({
             'name': 'Caja del navegador dos', 'list_price': 20, 'type': 'consu', 'sale_ok': True,
             'is_published': True})
@@ -693,7 +693,7 @@ class TestNavegadorAuditoria2(_SinClaves, ChromeMovilCase):
             self.assertTrue(self._evaluar(browser, SIGUE_EN_LA_DIRECCION), '«Confirmar» con cruce no siguió')
             self._evaluar(browser, 'confirmarOdoo(), true')
             avanzo = browser._wait_ready("location.pathname === '/shop/checkout'", timeout=15)
-        self.assertEqual(r['mini'], '¿Es para otra casa? Búsquela 👇')
+        self.assertEqual(r['mini'], '¿Es para otra casa? Búscala 👇')
         self.assertGreaterEqual(r['alto_gps'], 56, 'punto 10: «Mi ubicación» de 56 px (no 44)')
         self.assertIn('escribió San Miguelito', r['cruce'])
         self.assertIn('Busque la barriada o corrija la dirección.', r['cruce'], 'sin mapa no dice «mueva el mapa»')
@@ -717,7 +717,7 @@ class TestNavegadorAuditoria2(_SinClaves, ChromeMovilCase):
             avanzo = browser._wait_ready("location.pathname === '/shop/checkout'", timeout=15)
         self.assertEqual(r['gesto'], 'cooperative', 'en el teléfono el mapa se mueve con dos dedos')
         self.assertLessEqual(r['alto'], 300, 'mapa más bajo en el teléfono')
-        self.assertEqual(r['pista'], 'Mueva el mapa con dos dedos')
+        self.assertEqual(r['pista'], 'Mueve el mapa con dos dedos')
         self.assertEqual(r['zoom_impreciso'], 16, 'punto 13: GPS impreciso a zoom 16')
         self.assertEqual(r['zoom'], 18)
         centro, tarjeta, barra = r['a_la_vista']
@@ -728,7 +728,7 @@ class TestNavegadorAuditoria2(_SinClaves, ChromeMovilCase):
         self.assertEqual(r['arrastrado'], '')
         confirmada, falta, foco = r['confirmar']
         self.assertEqual(confirmada, '', '«Confirmar» tras un arrastre de 230 m no cuenta como el sí')
-        self.assertEqual(falta, '👆 Movió el pin. ¿Es aquí?')
+        self.assertEqual(falta, '👆 Moviste el pin. ¿Es aquí?')
         self.assertIn('o_dcasa_ubic_si', foco)
         self.assertEqual(r['si'], '1')
         self.assertTrue(avanzo)
@@ -740,15 +740,15 @@ class TestNavegadorAuditoria2(_SinClaves, ChromeMovilCase):
             self.abrir_checkout(browser)
             r = self._evaluar(browser, SENAL_Y_PERMISO)
         falta, foco, aviso, permiso = r['sin_permiso']
-        self.assertEqual(falta, '🔍 Busque su barriada (o toque «Escribir»)')
+        self.assertEqual(falta, '🔍 Busca tu barriada (o toca «Escribir»)')
         self.assertIn('o_dcasa_ubic_buscar', foco, 'el foco va al buscador')
         self.assertIn('Sin permiso de ubicación', aviso)
         self.assertIn('permita la ubicación', permiso)
-        self.assertEqual(r['sin_senal'], [True, '📶 Sin señal. Toque para reintentar', False])
-        self.assertEqual(r['confirmar'], '⏳ Un momento: estamos viendo su zona', '«Confirmar» la vuelve a pedir')
+        self.assertEqual(r['sin_senal'], [True, '📶 Sin señal. Toca para reintentar', False])
+        self.assertEqual(r['confirmar'], '⏳ Un momento: estamos viendo tu zona', '«Confirmar» la vuelve a pedir')
         self.assertIn('Villa Prueba II', r['volvio'][0])
         self.assertEqual(r['volvio'][1:], [False, False])
-        self.assertEqual(r['casa'], '🏠 Escriba su número de casa', 'al llegar la zona, «Confirmar» dice lo que falta')
+        self.assertEqual(r['casa'], '🏠 Escribe tu número de casa', 'al llegar la zona, «Confirmar» dice lo que falta')
 
     def test_confirmar_que_esperaba_la_zona_sigue_solo(self):
         with self._chrome_movil(390) as browser:
@@ -756,7 +756,7 @@ class TestNavegadorAuditoria2(_SinClaves, ChromeMovilCase):
             r = self._evaluar(browser, SIGUE_SOLO)
             avanzo = browser._wait_ready("location.pathname === '/shop/checkout'", timeout=15)
         self.assertEqual(r['sin_si'], '', 'la calle nueva vuelve a mirar la zona')
-        self.assertEqual(r['espera'], '⏳ Un momento: estamos viendo su zona')
+        self.assertEqual(r['espera'], '⏳ Un momento: estamos viendo tu zona')
         self.assertTrue(avanzo, 'al llegar la zona, «Confirmar» siguió solo')
         destino = self.env['res.partner'].search([('email', '=', 'ana.nav2@example.com')], limit=1)
         self.assertEqual((destino.street, destino.dcasa_ubic_origen), ('Villa Prueba II, calle 3', 'gps'))
@@ -790,7 +790,7 @@ class TestNavegadorAuditoria2(_SinClaves, ChromeMovilCase):
         self.assertTrue(r['de_vuelta'])
 
     def abrir_enlace(self, browser):
-        _enlace, url = self.env['dcasa.ubicacion.enlace']._crear(self.clienta)
+        _enlace, url = self.env['dcasa.ubicacion.enlace']._crear(self.cliente)
         browser.navigate_to(self.base_url() + '/u/' + url.rsplit('/u/', 1)[1], wait_stop=True)
         self.assertTrue(browser._wait_ready())
 
@@ -799,7 +799,7 @@ class TestNavegadorAuditoria2(_SinClaves, ChromeMovilCase):
             self.abrir_enlace(browser)
             r = self._evaluar(browser, PAGINA_U)
         falta, foco, permiso, wa_oculto = r['sin_permiso']
-        self.assertEqual(falta, '🔍 Busque su barriada arriba 👆', 'punto 7: sin decir «toque Mi ubicación»')
+        self.assertEqual(falta, '🔍 Busca tu barriada arriba 👆', 'punto 7: sin decir «toque Mi ubicación»')
         self.assertEqual(foco, 'o_dcasa_buscar')
         self.assertIn('permita la ubicación', permiso)
         self.assertFalse(wa_oculto, 'punto 6: hay salida por WhatsApp')
@@ -808,8 +808,8 @@ class TestNavegadorAuditoria2(_SinClaves, ChromeMovilCase):
         self.assertTrue(enlace.startswith('https://api.whatsapp.com/send?phone=50760261919&text='), enlace)
         self.assertIn('📍 Altos de Cerro Azul', enlace)
         self.assertIn('🏠 Casa 14, portón rojo', enlace)
-        self.assertEqual(r['sin_senal'], [False, '📶 Sin señal. Toque para reintentar',
-                                          '📶 Sin señal. Toque para reintentar 👆'],
+        self.assertEqual(r['sin_senal'], [False, '📶 Sin señal. Toca para reintentar',
+                                          '📶 Sin señal. Toca para reintentar 👆'],
                          'punto 3: no «Ese punto no sirve»')
         self.assertEqual(r['volvio'], [True, False, True], 'con «online» vuelve sola; el punto bueno quita la salida')
         self.assertEqual(r['guardando'], '⏳ Guardando…', 'punto 15')

@@ -13,7 +13,7 @@ dirección) y, si Odoo aceptó la dirección, se guardan en la dirección de ent
   Si lo escrito nombra otro distrito que el del punto (el aviso de cruce), hace falta además su «📍 Es aquí»
   (``dcasa_ubic_cruce_ok``): «Confirmar» se lo saltaba y guardaba la casa de La Chorrera para el regalo de San
   Miguelito (auditoría 2). Lo que llenó el mapa (la barriada y el distrito del punto) no cuenta como escrito.
-* «Escribirla»: queda como escrita a mano (el motorizado llama antes) y el envío se cotiza como siempre. Pero si ya
+* «Escribirla»: queda como escrita a mano (el chofer llama antes) y el envío se cotiza como siempre. Pero si ya
   tenía un punto **confiable** (de WhatsApp, por ejemplo), no se borra porque prefirió escribir (auditoría 1), salvo
   que lo escrito nombre otro distrito: entonces ese punto ya no es su casa.
 * Opcionales, debajo del número de casa: **quién recibe** y **otro teléfono** de Panamá (``dcasa_recibe`` y
@@ -46,7 +46,7 @@ ORIGENES_WEB = ('gps', 'pin', 'busqueda')
 ORIGENES_GUARDADOS = ('whatsapp', 'enlace')
 MISMO_PUNTO_GRADOS = 1e-6          # ≈ 10 cm: el mismo punto que está guardado
 FALTA_EL_PUNTO = 'Marque su casa en el mapa y toque «Sí, aquí es» (o elija «Escribir»).'
-FALTAN_INDICACIONES = 'Escriba el número de casa y las indicaciones para el motorizado.'
+FALTAN_INDICACIONES = 'Escriba el número de casa y las indicaciones para el chofer.'
 CAMPOS_CASA = ('dcasa_recibe', 'dcasa_tel_respaldo')
 SIN_PENDIENTE = {'dcasa_ubic_pend_lat': 0.0, 'dcasa_ubic_pend_lon': 0.0, 'dcasa_ubic_pend_precision': 0,
                  'dcasa_ubic_pend_referencia': False}
@@ -126,7 +126,7 @@ def texto_escrito(formulario, zona):
 def cruce_sin_responder(formulario, zona, distritos, con_mapa=True):
     """El aviso de cruce que la página tenía que mostrar con «📍 Es aquí» / «🏠 Es otra casa», o ``''``. Solo si lo dice
     tanto lo escrito entero como lo escrito sin lo que llenó el mapa: la página compara sin lo que llenó ella, y un
-    rechazo que la página no mostró dejaría a la clienta sin salida."""
+    rechazo que la página no mostró dejaría al cliente sin salida."""
     todo = ', '.join(geo.texto_corto(formulario.get(n) or '') for n in ('street', 'street2', 'city'))
     if not geo.aviso_de_cruce(todo, zona, distritos, con_mapa=con_mapa):
         return ''
@@ -142,7 +142,7 @@ def _calle(partner):
 def conservar_punto_al_escribir(destino, formulario, calle_antes=None):
     """«Escribir» con un punto confiable guardado: ¿se queda? Sí, salvo que lo escrito nombre otro distrito que el del
     punto, o que haya escrito OTRA calle (se mudó dentro del mismo distrito: el punto viejo ya no es su casa y el
-    motorizado iría a la vieja; auditoría 2)."""
+    chofer iría a la vieja; auditoría 2)."""
     if not destino._dcasa_ubic_punto() or not geo.es_confiable(destino.dcasa_ubic_origen,
                                                                 destino.dcasa_ubic_precision_m or None):
         return False
@@ -272,6 +272,11 @@ class UbicacionCheckout(DcasaCheckout):
         # Lo que dio en el chat de la tienda ya pasó por aquí: que no le gane a lo que acaba de confirmar.
         if orden.sudo()._dcasa_ubic_hay_pendiente():
             orden.sudo().write(SIN_PENDIENTE)
+        if modo == 'mapa':
+            # D'CASA tiene «Retiro en tienda»: si el cliente marcó su casa en el mapa, se elige sola la entrega a
+            # domicilio (sin esto quedaba «Retiro en tienda — Gratis» marcado y el total salía sin envío). «Retiro en
+            # tienda» sigue disponible: lo puede volver a elegir en el pago.
+            orden.sudo()._dcasa_ubic_elegir_domicilio()
         if orden.carrier_id and orden.carrier_id.dcasa_por_cotizar:
             orden._set_delivery_method(orden.carrier_id)
         return respuesta

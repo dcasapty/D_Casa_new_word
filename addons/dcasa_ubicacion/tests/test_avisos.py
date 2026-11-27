@@ -76,8 +76,8 @@ class AvisosCase(UbicacionCase):
 class TestPedirUbicacionAlComprar(AvisosCase):
 
     def test_sin_chat_queda_un_pendiente_y_el_boton_abre_whatsapp(self):
-        clienta = self.env['res.partner'].create({'name': 'Rosa Sinchat', 'phone': '+507 6123-9001'})
-        orden = self.venta(clienta)
+        cliente = self.env['res.partner'].create({'name': 'Rosa Sinchat', 'phone': '+507 6123-9001'})
+        orden = self.venta(cliente)
         orden.action_confirm()
         self.assertEqual(orden.state, 'sale')
         self.assertTrue(orden.dcasa_ubic_pedida_el)
@@ -94,12 +94,12 @@ class TestPedirUbicacionAlComprar(AvisosCase):
         self.assertTrue(accion['url'].startswith('https://api.whatsapp.com/send?phone=50761239001&text='),
                         accion['url'])
         texto = unquote(accion['url'].split('text=', 1)[1])
-        self.assertTrue(texto.startswith('🛍️ ¡Gracias por su compra!\n📍 Para que el motorizado llegue directo a su '
+        self.assertTrue(texto.startswith('🛍️ ¡Gracias por tu compra!\n📍 Para que el chofer llegue directo a tu '
                                          'casa, márquela aquí: '), texto)
         enlace = self.Enlace.search([('orden_id', '=', orden.id)])
         self.assertEqual((len(enlace), enlace.creado_por, enlace.partner_id), (1, 'aviso', orden.partner_shipping_id))
         self.assertIn('/u/', texto)
-        # Cuando la clienta marca su casa, el pendiente se da por hecho y el botón ya no hace falta.
+        # Cuando el cliente marca su casa, el pendiente se da por hecho y el botón ya no hace falta.
         enlace._confirmar(*CERCA, 'pin', referencia='Casa 7')
         self.assertFalse(self.pendientes(orden))
         orden.invalidate_recordset(['dcasa_falta_punto'])
@@ -114,7 +114,7 @@ class TestPedirUbicacionAlComprar(AvisosCase):
         mensaje = self.del_bot(conv)
         self.assertEqual(len(mensaje), 1)
         self.assertEqual((mensaje.autor, mensaje.direccion, mensaje.estado_envio), ('bot', 'saliente', 'por_enviar'))
-        self.assertTrue(mensaje.texto.startswith('🛍️ ¡Gracias por su compra!\n📍 Para que el motorizado llegue directo'))
+        self.assertTrue(mensaje.texto.startswith('🛍️ ¡Gracias por tu compra!\n📍 Para que el chofer llegue directo'))
         enlace = self.Enlace.search([('orden_id', '=', orden.id)])
         self.assertEqual((enlace.creado_por, enlace.conversacion_id), ('aviso', conv))
         self.assertIn('/u/', mensaje.texto)
@@ -191,9 +191,9 @@ class TestPedirUbicacionAlComprar(AvisosCase):
         self.assertTrue(mensaje.error_envio)
 
     def test_un_error_al_pedirla_no_tumba_la_venta_ni_deja_coordenadas_en_el_registro(self):
-        clienta = self.env['res.partner'].create({'name': 'Eva Error', 'phone': '6123-9003'})
-        clienta._dcasa_poner_ubicacion(*CERCA, 'gps', precision=500, referencia='Casa 2')
-        orden = self.venta(clienta)
+        cliente = self.env['res.partner'].create({'name': 'Eva Error', 'phone': '6123-9003'})
+        cliente._dcasa_poner_ubicacion(*CERCA, 'gps', precision=500, referencia='Casa 2')
+        orden = self.venta(cliente)
         with patch.object(type(self.env['sale.order']), '_dcasa_pedir_ubicacion', side_effect=RuntimeError('falla')), \
                 self.assertLogs('odoo.addons.dcasa_ubicacion.models.avisos', 'ERROR') as registro:
             orden.action_confirm()
@@ -227,7 +227,7 @@ class TestPedirUbicacionAlComprar(AvisosCase):
         enlace._confirmar(*CERCA, 'gps', precision=8, referencia='Casa 24')
         listo = self.del_bot(conv)[-1]
         self.assertEqual(listo.texto, '✅ ¡Listo! Ya tenemos su casa: Villa Prueba II, La Chorrera. 🏠 Casa 24. '
-                                      f'🛵 Su pedido {orden.name} irá a esa dirección.')
+                                      f'Su pedido {orden.name} irá a esa dirección.')
         self.assertEqual(listo.autor, 'bot')
         # Lo cobrado no se toca; el equipo ve en la venta el envío de la tabla.
         self.assertFalse(orden.order_line.filtered('is_delivery'), 'la venta confirmada no se recalcula')
@@ -251,7 +251,7 @@ class TestSaleHoy(AvisosCase):
         venta = orden.with_user(self.vendedora_avisos)
         self.assertEqual(venta.action_dcasa_avisar_sale_hoy()['params']['type'], 'success')
         mensaje = self.del_bot(conv)
-        self.assertEqual(mensaje.texto, f'🚚 ¡Hoy le llega su pedido {orden.name} a Villa Prueba II!\n'
+        self.assertEqual(mensaje.texto, f'🚚 ¡Hoy te llega tu pedido {orden.name} a Villa Prueba II!\n'
                                         '¿Habrá alguien en casa para recibirlo?\n✅ Sí / 📍 Cambiar')
         self.assertEqual((mensaje.autor, mensaje.estado_envio), ('bot', 'por_enviar'))
         self.assertEqual((orden.dcasa_aviso_sale_hoy_el, orden.dcasa_aviso_sale_hoy_por), (hoy_en_panama(), 'chat'))
@@ -271,8 +271,8 @@ class TestSaleHoy(AvisosCase):
         orden.with_user(self.vendedora_avisos).action_dcasa_avisar_sale_hoy()
         aviso = self.del_bot(conv)[-1]
         lineas = aviso.texto.split('\n')
-        self.assertEqual(lineas[0], f'🚚 ¡Hoy le llega su pedido {orden.name}!')
-        self.assertTrue(lineas[1].startswith('📍 Para que el motorizado llegue directo, marque su casa aquí: '))
+        self.assertEqual(lineas[0], f'🚚 ¡Hoy te llega tu pedido {orden.name}!')
+        self.assertTrue(lineas[1].startswith('📍 Para que el chofer llegue directo, marca tu casa aquí: '))
         self.assertIn('/u/', lineas[1])
         # Juan: si quiere cambiar el lugar, su enlace va ligado a esa venta.
         Herramientas = self.env['brian.herramientas'].with_context(juan_conversacion_id=conv.id)
@@ -288,9 +288,9 @@ class TestSaleHoy(AvisosCase):
         self.assertFalse(self.pendientes(orden), 'ya marcó su casa')
 
     def test_sin_chat_abre_whatsapp_y_sin_confirmar_no(self):
-        clienta = self.env['res.partner'].create({'name': 'Luz Sinchat', 'phone': '6123-9002'})
-        clienta._dcasa_poner_ubicacion(*CERCA, 'pin', referencia='Casa 1')
-        orden = self.venta(clienta)
+        cliente = self.env['res.partner'].create({'name': 'Luz Sinchat', 'phone': '6123-9002'})
+        cliente._dcasa_poner_ubicacion(*CERCA, 'pin', referencia='Casa 1')
+        orden = self.venta(cliente)
         venta = orden.with_user(self.vendedora_avisos)
         self.assertEqual(venta.action_dcasa_avisar_sale_hoy()['params']['type'], 'warning', 'sin confirmar')
         orden.action_confirm()

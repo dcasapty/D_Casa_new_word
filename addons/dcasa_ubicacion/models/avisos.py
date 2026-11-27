@@ -1,4 +1,4 @@
-"""Los avisos de la entrega a la clienta (pedido del dueño, 2026-11-25: «el dolor número uno son los pedidos devueltos»;
+"""Los avisos de la entrega al cliente (pedido del dueño, 2026-11-25: «el dolor número uno son los pedidos devueltos»;
 «la gente no lee: íconos y pocas palabras»; «lo que priorizamos es lo más fácil para el cliente»).
 
 A. **Al comprar, pedirle su punto en el mapa.** Al confirmar una venta que va a domicilio y cuya dirección de entrega
@@ -16,7 +16,7 @@ B. **El día de la entrega: «¿hay alguien en casa?».** En el sistema no hay u
 * WhatsApp por QR y Telegram: siempre (no tienen ventana).
 * WhatsApp de la API oficial, Instagram y Messenger: solo dentro de las 24 horas desde su último mensaje (fuera de eso
   Meta pide una plantilla aprobada, que este sistema no tiene: el error 131047). Se deja una hora de margen.
-* Siempre: el canal y el asistente encendidos en Ajustes de Juan, el Worker configurado y la clienta sin «No contactar».
+* Siempre: el canal y el asistente encendidos en Ajustes de Juan, el Worker configurado y el cliente sin «No contactar».
 
 El mensaje se escribe a nombre del asistente (``autor='bot'``): una vendedora callaría a Juan
 (docs/CONTEXTO_AGENTICO.md). Y no sale en esta transacción: queda «por enviar» y se adelanta el cron que manda lo
@@ -45,7 +45,7 @@ from ..motor import geo
 
 _logger = logging.getLogger(__name__)
 
-# Los canales que solo dejan escribir dentro de las 24 h desde el último mensaje de la clienta (juan/src/canales: la
+# Los canales que solo dejan escribir dentro de las 24 h desde el último mensaje del cliente (juan/src/canales: la
 # capacidad ``ventana24h``). Telegram y WhatsApp por QR no tienen ventana.
 CANALES_CON_VENTANA = ('whatsapp_cloud', 'instagram', 'messenger')
 # Una hora de margen: el mensaje sale con el cron (segundos o minutos después) y puede reintentarse.
@@ -99,7 +99,7 @@ class ResPartnerAvisos(models.Model):
     _inherit = 'res.partner'
 
     def _dcasa_ubic_confiable(self):
-        """¿El motorizado puede ir con este punto sin llamar antes? Confirmado por la clienta y de un origen confiable
+        """¿El chofer puede ir con este punto sin llamar antes? Confirmado por el cliente y de un origen confiable
         (GPS de 100 m o menos, el pin, el chat o un enlace de mapa): no escrito a mano ni buscado sin mover el pin."""
         self.ensure_one()
         partner = self.sudo()
@@ -116,7 +116,7 @@ class ResPartnerAvisos(models.Model):
         return resultado
 
     def _dcasa_cerrar_pedidos_de_ubicacion(self):
-        """La clienta ya marcó un punto confiable: el pendiente «📍 Pedirle la ubicación de entrega» de sus ventas se da
+        """El cliente ya marcó un punto confiable: el pendiente «📍 Pedirle la ubicación de entrega» de sus ventas se da
         por hecho (la vendedora no la persigue por algo que ya hizo)."""
         self.ensure_one()
         tipo = self.env.ref(TIPO_PEDIR_UBICACION, raise_if_not_found=False)
@@ -126,7 +126,7 @@ class ResPartnerAvisos(models.Model):
         pendientes = self.env['mail.activity'].sudo().search([
             ('res_model', '=', 'sale.order'), ('res_id', 'in', ordenes.ids), ('activity_type_id', '=', tipo.id)])
         if pendientes:
-            pendientes.action_feedback(feedback=self.env._('La clienta marcó su casa en el mapa.'))
+            pendientes.action_feedback(feedback=self.env._('El cliente marcó su casa en el mapa.'))
 
 
 class UbicacionEnlaceAvisos(models.Model):
@@ -151,7 +151,7 @@ class SaleOrderAvisos(models.Model):
 
     dcasa_ubic_pedida_el = fields.Datetime(
         'Ubicación pedida el', readonly=True, copy=False,
-        help='Cuándo se le pidió a la clienta que marque su casa en el mapa (una sola vez por venta, al confirmarla).')
+        help='Cuándo se le pidió al cliente que marque su casa en el mapa (una sola vez por venta, al confirmarla).')
     dcasa_aviso_sale_hoy_el = fields.Date(
         'Aviso «sale hoy»', readonly=True, copy=False,
         help='El día (en Panamá) en que se le avisó que su pedido sale hoy. Por el chat, una sola vez por día.')
@@ -164,7 +164,7 @@ class SaleOrderAvisos(models.Model):
     dcasa_va_a_domicilio = fields.Boolean('Va a domicilio', compute='_compute_dcasa_avisos')
     dcasa_falta_punto = fields.Boolean(
         'Falta su casa en el mapa', compute='_compute_dcasa_avisos',
-        help='Va a domicilio y la dirección de entrega no tiene un punto confiable: el motorizado tendría que llamar.')
+        help='Va a domicilio y la dirección de entrega no tiene un punto confiable: el chofer tendría que llamar.')
 
     @api.depends('state', 'carrier_id', 'order_line', 'partner_id', 'partner_shipping_id',
                  'partner_shipping_id.dcasa_ubic_origen', 'partner_shipping_id.dcasa_ubic_confirmada',
@@ -185,7 +185,7 @@ class SaleOrderAvisos(models.Model):
         return (self.partner_shipping_id or self.partner_id).sudo()
 
     def _dcasa_personas_de_la_compra(self):
-        """A quién le escriben los avisos: la clienta que compró (y su empresa) y la dirección de entrega solo si es
+        """A quién le escriben los avisos: el cliente que compró (y su empresa) y la dirección de entrega solo si es
         suya (una dirección hija). Si es un regalo para otra persona, a ella no: «¡Gracias por su compra!» le contaría
         la sorpresa (auditoría 1)."""
         self.ensure_one()
@@ -197,7 +197,7 @@ class SaleOrderAvisos(models.Model):
         return personas.exists()
 
     def _dcasa_conversacion_para_avisar(self):
-        """``(conversación, motivo)``: la conversación de la clienta por donde el asistente puede escribirle ya (la de
+        """``(conversación, motivo)``: la conversación del cliente por donde el asistente puede escribirle ya (la de
         su último mensaje) o una vacía con el porqué, en palabras sencillas, para quien lo tenga que mandar a mano."""
         self.ensure_one()
         vacia = self.env['dcasa.conversacion']
@@ -253,12 +253,12 @@ class SaleOrderAvisos(models.Model):
         return self.env.ref('base.user_admin', raise_if_not_found=False) or self.env['res.users']
 
     # ------------------------------------------------------------------
-    # Textos para la clienta: de usted, cortos y con ícono
+    # Textos para el cliente: de usted, cortos y con ícono
     # ------------------------------------------------------------------
 
     def _dcasa_texto_pedir_ubicacion(self, url):
         self.ensure_one()
-        return self.env._('🛍️ ¡Gracias por su compra!\n📍 Para que el motorizado llegue directo a su casa, márquela '
+        return self.env._('🛍️ ¡Gracias por tu compra!\n📍 Para que el chofer llegue directo a tu casa, márcala '
                           'aquí: %s', url)
 
     def _dcasa_zona_corta(self):
@@ -270,10 +270,10 @@ class SaleOrderAvisos(models.Model):
     def _dcasa_texto_sale_hoy(self, url=None):
         self.ensure_one()
         zona = self._dcasa_zona_corta()
-        lineas = [self.env._('🚚 ¡Hoy le llega su pedido %(pedido)s a %(zona)s!', pedido=self.name, zona=zona)
-                  if zona else self.env._('🚚 ¡Hoy le llega su pedido %s!', self.name)]
+        lineas = [self.env._('🚚 ¡Hoy te llega tu pedido %(pedido)s a %(zona)s!', pedido=self.name, zona=zona)
+                  if zona else self.env._('🚚 ¡Hoy te llega tu pedido %s!', self.name)]
         if url:
-            lineas.append(self.env._('📍 Para que el motorizado llegue directo, marque su casa aquí: %s', url))
+            lineas.append(self.env._('📍 Para que el chofer llegue directo, marca tu casa aquí: %s', url))
         lineas.append(self.env._('¿Habrá alguien en casa para recibirlo?'))
         lineas.append(self.env._('✅ Sí / 📍 Cambiar'))
         return '\n'.join(lineas)
@@ -293,7 +293,7 @@ class SaleOrderAvisos(models.Model):
 
     def _action_cancel(self):
         resultado = super()._action_cancel()
-        # La página del motorizado se cierra con un secreto nuevo: si la venta vuelve a borrador, el papel viejo no
+        # La página del chofer se cierra con un secreto nuevo: si la venta vuelve a borrador, el papel viejo no
         # revive (auditoría 2).
         entregas = self.env['dcasa.ubicacion.entrega'].sudo().search([('order_id', 'in', self.ids)])
         for entrega in entregas:
@@ -322,7 +322,7 @@ class SaleOrderAvisos(models.Model):
             _logger.exception('Avisos: no se pudo pedir la ubicación de la venta %s.', self.id)
 
     def _dcasa_pedir_ubicacion(self, automatico=False):
-        """Le pide a la clienta que marque su casa. Devuelve ``{'como', 'canal', 'motivo', 'url_whatsapp'}``:
+        """Le pide al cliente que marque su casa. Devuelve ``{'como', 'canal', 'motivo', 'url_whatsapp'}``:
 
         * ``chat``: el asistente se lo escribe (con el enlace de un solo uso ligado a esta venta y a su chat).
         * ``persona`` (``automatico``): sin un chat donde escribirle, una actividad para la vendedora.
@@ -342,7 +342,7 @@ class SaleOrderAvisos(models.Model):
                 '📍 Se le pidió que marque su casa en el mapa para la venta %s: va a domicilio y la dirección no '
                 'tiene un punto confiable.', orden.name))
             orden._dcasa_avisos_nota(self.env._(
-                '📲 Se le pidió a la clienta que marque su casa en el mapa, por el chat (%s).', canal))
+                '📲 Se le pidió al cliente que marque su casa en el mapa, por el chat (%s).', canal))
             return {'como': 'chat', 'canal': canal, 'motivo': ''}
         if automatico:
             orden.write({'dcasa_ubic_pedida_el': fields.Datetime.now()})
@@ -368,7 +368,7 @@ class SaleOrderAvisos(models.Model):
                 ('res_model', '=', 'sale.order'), ('res_id', '=', orden.id), ('activity_type_id', '=', tipo.id)],
                 limit=1):
             return
-        nota = self.env._('Va a domicilio y la dirección no tiene su casa marcada en el mapa: el motorizado tendría '
+        nota = self.env._('Va a domicilio y la dirección no tiene su casa marcada en el mapa: el chofer tendría '
                           'que llamar. Toca «📲 Pedir ubicación por WhatsApp» en la venta y mándale el mensaje.')
         if motivo:
             nota += ' ' + self.env._('El asistente no se lo pudo escribir: %s.', motivo)
@@ -376,9 +376,9 @@ class SaleOrderAvisos(models.Model):
                                 note=Markup('<p>%s</p>') % escape(nota), user_id=responsable.id)
 
     def _dcasa_nota_del_punto_nuevo(self, zona):
-        """La clienta marcó su casa con la venta ya confirmada: lo cobrado no se toca (ya se cobró), pero si el envío de
+        """El cliente marcó su casa con la venta ya confirmada: lo cobrado no se toca (ya se cobró), pero si el envío de
         la tabla para esa zona es otro, el equipo lo ve en la venta. Y si era el día de la entrega, una actividad para
-        que el motorizado abra otra vez la ruta. Sin coordenadas."""
+        que el chofer abra otra vez la ruta. Sin coordenadas."""
         self.ensure_one()
         orden = self.sudo()
         precio = self.env['dcasa.ubicacion']._precio(zona.get('lugar'))
@@ -387,13 +387,13 @@ class SaleOrderAvisos(models.Model):
         donde = (zona.get('texto') or '').replace(' · ', ', ') or self.env._('sin zona de la tabla')
         if not precio['con_precio']:
             orden._dcasa_avisos_nota(self.env._(
-                '📍 La clienta marcó su casa con la venta ya confirmada: %(zona)s. 🚚 La tabla no da precio para esa '
-                'zona (en la venta, el envío quedó en %(cobrado)s): confírmenlo con ella.', zona=donde,
+                '📍 El cliente marcó su casa con la venta ya confirmada: %(zona)s. 🚚 La tabla no da precio para esa '
+                'zona (en la venta, el envío quedó en %(cobrado)s): confírmalo con el cliente.', zona=donde,
                 cobrado=dinero(cobrado)))
         elif float_compare(cobrado, precio['total'], precision_rounding=orden.currency_id.rounding or 0.01):
             orden._dcasa_avisos_nota(self.env._(
-                '📍 La clienta marcó su casa con la venta ya confirmada: %(zona)s. 🚚 Con la tabla, el envío a esa '
-                'zona es %(tabla)s y en la venta quedó en %(cobrado)s. La venta no se cambió: decidan si se ajusta.',
+                '📍 El cliente marcó su casa con la venta ya confirmada: %(zona)s. 🚚 Con la tabla, el envío a esa '
+                'zona es %(tabla)s y en la venta quedó en %(cobrado)s. La venta no se cambió: decide si se ajusta.',
                 zona=donde, tabla=precio['total_txt'], cobrado=dinero(cobrado)))
         if orden.dcasa_aviso_sale_hoy_el == hoy_en_panama():
             responsable = orden._dcasa_responsable_de_avisos()
@@ -402,7 +402,7 @@ class SaleOrderAvisos(models.Model):
                     'mail.mail_activity_data_todo', user_id=responsable.id,
                     summary=self.env._('📍 Marcó su casa el día de la entrega'),
                     note=Markup('<p>%s</p>') % escape(self.env._(
-                        'La clienta marcó su casa hoy: %s. Que el motorizado abra otra vez «Ruta del motorizado» (o el '
+                        'El cliente marcó su casa hoy: %s. Que el chofer abra otra vez «Ruta del chofer» (o el '
                         'QR) antes de salir.', donde)))
 
     def action_dcasa_pedir_ubicacion_whatsapp(self):
@@ -461,9 +461,9 @@ class SaleOrderAvisos(models.Model):
             canal = ETIQUETA_CANAL.get(conv.canal, conv.canal)
             conv._aviso(self.env._(
                 '🚚 Se le avisó que hoy sale su pedido %s. Si dice que no habrá nadie o quiere cambiar el día o la '
-                'hora, el asistente la pasa a una vendedora.', orden.name))
+                'hora, el asistente lo pasa a una vendedora.', orden.name))
             orden._dcasa_avisos_nota(self.env._(
-                '🚚 Se le avisó a la clienta por el chat (%s) que hoy sale su pedido.', canal))
+                '🚚 Se le avisó al cliente por el chat (%s) que hoy sale su pedido.', canal))
             return {'estado': 'chat', 'canal': canal, 'motivo': ''}
         if solo_chat:
             return {'estado': 'a_mano', 'motivo': motivo}
@@ -487,7 +487,7 @@ class SaleOrderAvisos(models.Model):
 
     def _dcasa_exigir_ventas(self):
         if not self.env.user.has_group(GRUPO_VENTAS):
-            raise AccessError(self.env._('Solo el equipo de ventas le escribe a la clienta.'))
+            raise AccessError(self.env._('Solo el equipo de ventas le escribe al cliente.'))
 
     def action_dcasa_avisar_sale_hoy(self):
         """Botón «🚚 Sale hoy: avisarle» (una venta: si no hay chat, abre WhatsApp) y la acción de la lista (varias:
@@ -544,5 +544,5 @@ class StockPickingAvisos(models.Model):
         self.ensure_one()
         self.check_access('read')
         if self.picking_type_code != 'outgoing' or not self.sale_id:
-            raise UserError(self.env._('Esta entrega no es de una venta a una clienta.'))
+            raise UserError(self.env._('Esta entrega no es de una venta a un cliente.'))
         return self.sale_id.action_dcasa_avisar_sale_hoy()

@@ -311,7 +311,7 @@ export interface SolicitudEnviar {
   /** «Responder» desde Odoo: el id en el canal del mensaje del cliente que se cita. */
   responde_a?: string;
   /**
-   * «bot» (2026-11-25, docs/UBICACION.md): Odoo escribe a nombre del asistente (la zona y el precio del envío cuando la clienta confirma su
+   * «bot» (2026-11-25, docs/UBICACION.md): Odoo escribe a nombre del asistente (la zona y el precio del envío cuando el cliente confirma su
    * punto con el enlace de un solo uso). No calla al bot ni corta lo que traiga, y queda en la historia como del asistente (el modelo lo
    * ve en el siguiente turno). Sin esto, una vendedora.
    */
@@ -1721,7 +1721,7 @@ export class MotorConversacion {
 
   /**
    * Los puntos de entrega que esperan en la memoria del objeto van a Odoo (`POST /ubicacion`, docs/UBICACION.md) apenas se conoce la
-   * conversación: uno por mensaje y UNA sola vez (sin reintentos: lo que no se guardó se le pide otra vez a la clienta). Con el mensaje
+   * conversación: uno por mensaje y UNA sola vez (sin reintentos: lo que no se guardó se le pide otra vez al cliente). Con el mensaje
    * queda solo el resultado, sin coordenadas (`UbicacionLocal`). Si Odoo no contestó en esta pasada o la conversación todavía no está
    * registrada, el punto espera a la siguiente alarma, como mucho `ESPERA_UBICACION_MS`.
    *
@@ -1875,8 +1875,8 @@ export class MotorConversacion {
       await this.alFallarLaIA(cfg, ids, new Error("ningún proveedor de IA tiene clave"), true);
       return;
     }
-    // Lo que la clienta compartió en esta ráfaga se resuelve ANTES de llamar al modelo: guardado (y con el envío cotizado) o no.
-    // Un error aquí nunca deja a la clienta sin respuesta: lo que no se resolvió, el modelo lo ve como «no se pudo guardar».
+    // Lo que el cliente compartió en esta ráfaga se resuelve ANTES de llamar al modelo: guardado (y con el envío cotizado) o no.
+    // Un error aquí nunca deja al cliente sin respuesta: lo que no se resolvió, el modelo lo ve como «no se pudo guardar».
     await this.guardarUbicaciones(pend).catch((e) => this.log("error", "ubicación de entrega", e instanceof Error ? e.name : "error"));
     try {
       await this.turnoDeIA(cfg, pend, ids, epoca0);
@@ -2087,7 +2087,7 @@ export class MotorConversacion {
       sinArchivos: op.sinArchivos,
     });
 
-    // La ubicación que la clienta compartió en este turno (docs/UBICACION.md): el envío que Odoo ya cotizó con su punto entra como
+    // La ubicación que el cliente compartió en este turno (docs/UBICACION.md): el envío que Odoo ya cotizó con su punto entra como
     // consulta previa de cotizar_envio, igual que «Usar mi ubicación» de la tienda. La última, si mandó varias.
     let envioPorUbicacion: unknown;
     for (const f of pend) {

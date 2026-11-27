@@ -82,7 +82,7 @@ export function validarEnviar(cuerpo, { hostsPermitidos = [], maxBurbuja = MAX_B
  * ve WhatsApp, útil cuando `de` es un identificador `@lid` sin teléfono),
  * `medio_omitido` (había un archivo que no se pudo adjuntar, y por qué) y
  * `ubicacion` `{lat, lon, nombre?, direccion?}` (la ubicación de entrega que
- * compartió la clienta: va aparte y nunca en el texto; docs/UBICACION.md). La cola
+ * compartió el cliente: va aparte y nunca en el texto; docs/UBICACION.md). La cola
  * de pendientes la cambia por `ubicacion_omitida: true` (ahí nunca se guarda un punto).
  *
  * @param {{

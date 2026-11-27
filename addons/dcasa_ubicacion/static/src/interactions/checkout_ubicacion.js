@@ -1,5 +1,5 @@
 /**
- * Checkout: «¿Dónde le entregamos?» (views/checkout_templates.xml, docs/UBICACION.md).
+ * Checkout: «¿Dónde te entregamos?» (views/checkout_templates.xml, docs/UBICACION.md).
  *
  * Usa el mismo mapa que la página del enlace del chat (static/src/lib/mapa_entrega.js, que va en el paquete del sitio):
  * pin fijo, «Usar mi ubicación», buscador de barriadas y lugares de la tienda. Cuando el punto cambia (y es bueno), el
@@ -11,10 +11,10 @@
  * bien. NO cuenta (auditoría 2) y en su lugar baja hasta la tarjeta del punto:
  *   - con el aviso de cruce (escribió San Miguelito y el punto está en La Chorrera): «📍 Es aquí» / «🏠 Es otra casa».
  *     Solo ese «sí» manda ``dcasa_ubic_cruce_ok`` (y el servidor lo exige: controllers/checkout.py);
- *   - si el pin se movió más de 30 m después de un «Sí» o de un GPS bueno: «👆 Movió el pin. ¿Es aquí?» (un dedo que
+ *   - si el pin se movió más de 30 m después de un «Sí» o de un GPS bueno: «👆 Moviste el pin. ¿Es aquí?» (un dedo que
  *     solo quería bajar la página arrastraba el mapa y cambiaba la casa).
  * Si falta algo, no se envía: la página baja hasta el bloque, dice ahí qué falta y lleva el foco. Sin señal, la zona
- * dice «📶 Sin señal. Toque para reintentar»; «Confirmar» (y volver la conexión) la vuelve a pedir. Si «Confirmar»
+ * dice «📶 Sin señal. Toca para reintentar»; «Confirmar» (y volver la conexión) la vuelve a pedir. Si «Confirmar»
  * solo esperaba la zona («⏳ Un momento»), sigue solo cuando llega. Sin permiso de
  * ubicación, lo que falta es buscar la barriada (o «Escribir») y el foco va al buscador. Si lo que falta es un campo
  * de Odoo (la barriada o calle, la ciudad: el mapa no las llena con un punto «Fuera de nuestra lista»), la página lo
@@ -37,20 +37,20 @@ import { patch } from "@web/core/utils/patch";
 const CASA = "dcasa_referencia";
 const BOTON_DE_ODOO = '[name="website_sale_main_button"]';
 const MOVIDO_M = 30; // más que esto desde el último «sí» (o GPS bueno) ya es otra casa
-const SIN_SENAL = "📶 Sin señal. Toque para reintentar";
-const ESPERA = "⏳ Un momento: estamos viendo su zona";
+const SIN_SENAL = "📶 Sin señal. Toca para reintentar";
+const ESPERA = "⏳ Un momento: estamos viendo tu zona";
 const FALTA_MOTIVO = {
-    lejos: "🔍 Acérquese más en el mapa y ponga el pin en su puerta",
-    buscado: "👆 Ahora mueva el mapa hasta su puerta",
-    impreciso: "👆 Mueva el mapa hasta su puerta",
+    lejos: "🔍 Acércate más en el mapa y pon el pin en tu puerta",
+    buscado: "👆 Ahora mueve el mapa hasta tu puerta",
+    impreciso: "👆 Mueve el mapa hasta tu puerta",
 };
 
 const tactil = () => !!window.DcasaMapaEntrega?.tactil();
 
 function faltaImprecisoSinMapa() {
     return tactil()
-        ? "📍 Su ubicación no es exacta: toque «Mi ubicación» en su puerta o busque su barriada"
-        : "📍 La computadora no da la ubicación exacta: busque su barriada o use su celular";
+        ? "📍 Tu ubicación no es exacta: toca «Mi ubicación» en tu puerta o busca tu barriada"
+        : "📍 La computadora no da la ubicación exacta: busca tu barriada o usa tu celular";
 }
 
 /** ¿El elemento (o uno de sus padres) va fijo en la pantalla? Devuelve ese padre o ``null``. */
@@ -309,7 +309,7 @@ export class CheckoutUbicacion extends Interaction {
         this.cruceSi.disabled = !puede;
     }
 
-    /** Lo que escribió la clienta (no lo que llenó el mapa: eso daba un aviso de cruce falso, auditoría 1). */
+    /** Lo que escribió el cliente (no lo que llenó el mapa: eso daba un aviso de cruce falso, auditoría 1). */
     textoEscrito() {
         const valor = (n) =>
             this.llenadoPorElMapa.has(n) ? "" : (this.form?.querySelector(`[name=${n}]`)?.value || "").trim();
@@ -362,7 +362,7 @@ export class CheckoutUbicacion extends Interaction {
             if (this.zonaRed) {
                 this.zonaLinea.classList.add("d-none");
                 this.precioLinea.classList.add("d-none");
-                this.textoRed = r.red ? SIN_SENAL : `⏳ ${r.error} Toque para reintentar`;
+                this.textoRed = r.red ? SIN_SENAL : `⏳ ${r.error} Toca para reintentar`;
                 this.reintentar.querySelector("span").textContent = this.textoRed;
                 this.reintentar.classList.remove("d-none");
             } else {
@@ -376,7 +376,7 @@ export class CheckoutUbicacion extends Interaction {
             }
             this.actualizar();
             if (this.alinearTrasPrevia) {
-                // Que vea «📶 Sin señal. Toque para reintentar» (o por qué no sirve), no la barra de abajo.
+                // Que vea «📶 Sin señal. Toca para reintentar» (o por qué no sirve), no la barra de abajo.
                 this.alinearTrasPrevia = false;
                 this.alinear();
             }
@@ -386,7 +386,7 @@ export class CheckoutUbicacion extends Interaction {
         // De un vistazo: la barriada (o el corregimiento) y el distrito; el precio, grande, con el camión al lado.
         this.zona.textContent = [r.barriada || r.corregimiento, r.distrito].filter(Boolean).join(", ")
             || "Fuera de nuestra lista";
-        this.precio.textContent = r.precio ? `Envío ${r.precio}` : "Envío: se lo confirmamos";
+        this.precio.textContent = r.precio ? `Envío ${r.precio}` : "Envío: te lo confirmamos";
         this.hayCruce = !!r.aviso;
         this.cruce.textContent = r.aviso || "";
         this.llenarSiVacio("city", r.distrito || "");
@@ -460,7 +460,7 @@ export class CheckoutUbicacion extends Interaction {
     /** «🏠 Es otra casa» (un regalo: la dirección de la mamá): a buscar esa barriada, o a «Escribir». */
     esOtraCasa() {
         this.desconfirmar();
-        this.aviso.textContent = "🔍 Busque la barriada de esa casa 👇 (o toque «Escribir»)";
+        this.aviso.textContent = "🔍 Busca la barriada de esa casa 👇 (o toca «Escribir»)";
         this.buscar.scrollIntoView({ block: "center", behavior: "smooth" });
         this.buscar.focus({ preventScroll: true });
     }
@@ -475,16 +475,16 @@ export class CheckoutUbicacion extends Interaction {
         const p = this.ultimo;
         if (!p || p.lat === null) {
             if (this.sinPermiso) {
-                return { donde: this.faltaPunto, texto: "🔍 Busque su barriada (o toque «Escribir»)", foco: this.buscar };
+                return { donde: this.faltaPunto, texto: "🔍 Busca tu barriada (o toca «Escribir»)", foco: this.buscar };
             }
-            return { donde: this.faltaPunto, texto: "📍 Toque «Mi ubicación» o busque su barriada", foco: this.botonGps };
+            return { donde: this.faltaPunto, texto: "📍 Toca «Mi ubicación» o busca tu barriada", foco: this.botonGps };
         }
         if (!p.bueno) {
             if (p.motivo === "impreciso_sin_mapa") {
                 return { donde: this.faltaPunto, texto: faltaImprecisoSinMapa(),
                          foco: tactil() ? this.botonGps : this.buscar };
             }
-            return { donde: this.faltaPunto, texto: FALTA_MOTIVO[p.motivo] || "📍 Falta su ubicación",
+            return { donde: this.faltaPunto, texto: FALTA_MOTIVO[p.motivo] || "📍 Falta tu ubicación",
                      foco: this.faltaPunto };
         }
         if (this.zonaError && this.zonaRed) {
@@ -502,7 +502,7 @@ export class CheckoutUbicacion extends Interaction {
             return { donde: null, texto: "", foco: this.cruceSi, destino: this.tarjeta };
         }
         if (this.movido) {
-            return { donde: this.faltaTarjeta, texto: "👆 Movió el pin. ¿Es aquí?", foco: this.botonSi,
+            return { donde: this.faltaTarjeta, texto: "👆 Moviste el pin. ¿Es aquí?", foco: this.botonSi,
                      destino: this.tarjeta };
         }
         return null;
@@ -516,7 +516,7 @@ export class CheckoutUbicacion extends Interaction {
             this.confirmar(false); // «Confirmar» cuenta como «Sí, aquí es»
         }
         if (!this.referencia.value.trim()) {
-            return { donde: this.faltaCasa, texto: "🏠 Escriba su número de casa", foco: this.referencia };
+            return { donde: this.faltaCasa, texto: "🏠 Escribe tu número de casa", foco: this.referencia };
         }
         const campo = this.campoVacio();
         return campo ? { campo } : null;
@@ -524,7 +524,7 @@ export class CheckoutUbicacion extends Interaction {
 
     /** El primer campo de Odoo que el navegador no deja pasar (la barriada o calle, la ciudad, el nombre…), o ``null``.
      *  Con un punto «Fuera de nuestra lista» (o sin la tabla de lugares) el mapa no llena la calle ni la ciudad, y el
-     *  aviso del navegador salía encima de la barra fija de «Confirmar»: la clienta no veía qué le faltaba (staging,
+     *  aviso del navegador salía encima de la barra fija de «Confirmar»: el cliente no veía qué le faltaba (staging,
      *  2026-11-26). Ahora la página lo trae al centro de la pantalla antes de que el navegador lo diga. */
     campoVacio() {
         if (!this.form) return null;
@@ -640,7 +640,7 @@ export class CheckoutUbicacion extends Interaction {
             if (!lugares.length) {
                 const li = document.createElement("li");
                 li.className = "text-muted";
-                li.textContent = r.red || r.error ? "📶 Sin señal. Pruebe otra vez." : "No lo encontramos. Pruebe otro nombre.";
+                li.textContent = r.red || r.error ? "📶 Sin señal. Prueba otra vez." : "No lo encontramos. Prueba otro nombre.";
                 this.lista.appendChild(li);
                 return;
             }

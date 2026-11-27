@@ -323,7 +323,7 @@ async function odoo(ruta: string, req: Request, env: Env, d: DepsRutas): Promise
   try {
     if (ruta === "/odoo/enviar") {
       // `autor: "bot"` (2026-11-25, docs/UBICACION.md): Odoo escribe A NOMBRE DEL ASISTENTE (la zona y el precio del envío cuando la
-      // clienta confirma su punto con el enlace de un solo uso): el bot no se calla y el mensaje queda en la historia como suyo. Cualquier
+      // cliente confirma su punto con el enlace de un solo uso): el bot no se calla y el mensaje queda en la historia como suyo. Cualquier
       // otro valor, o ninguno, es una vendedora, como siempre.
       const autor = cuerpo.autor === "bot" ? ("bot" as const) : undefined;
       const texto = typeof cuerpo.texto === "string" ? cuerpo.texto : undefined;

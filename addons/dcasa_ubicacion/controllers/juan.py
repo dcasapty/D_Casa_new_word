@@ -1,8 +1,8 @@
-"""``POST /dcasa/juan/v1/ubicacion``: el Worker de Juan guarda la ubicación que la clienta compartió por el chat
+"""``POST /dcasa/juan/v1/ubicacion``: el Worker de Juan guarda la ubicación que el cliente compartió por el chat
 (WhatsApp, Telegram, Messenger) o que venía en un enlace de mapa (docs/UBICACION.md, contrato §1).
 
 Misma autenticación que el resto de la API de Juan. Las coordenadas llegan aquí sin pasar por el modelo de IA, se
-guardan en la ficha de la clienta y **no** se escriben en el registro ni en la auditoría: lo que vuelve es la zona y
+guardan en la ficha del cliente y **no** se escriben en el registro ni en la auditoría: lo que vuelve es la zona y
 el resultado de ``cotizar_envio`` (auditado sin coordenadas), igual que «Usar mi ubicación» del chat de la tienda.
 """
 import logging
@@ -39,7 +39,7 @@ class JuanAPIUbicacion(JuanAPI):
             raise _Error(404, 'No existe esa conversación.')
         if not conv.partner_id:
             raise _Error(409, 'La conversación todavía no tiene ficha de cliente.')
-        # La ficha de la clienta o, si en las últimas 24 horas se pidió el punto de otra dirección (otra casa, la de
+        # La ficha del cliente o, si en las últimas 24 horas se pidió el punto de otra dirección (otra casa, la de
         # entrega de una venta avisada), esa (auditoría 1).
         partner = conv._dcasa_ubic_destino(para_punto=True)
         try:
@@ -50,7 +50,7 @@ class JuanAPIUbicacion(JuanAPI):
             return _respuesta({'ok': False, 'error': str(error.args[0]), 'motivo': error.motivo}, 422)
         conv._aviso(partner._dcasa_ubic_aviso_para_el_equipo())
         # El precio por el mismo camino que una llamada del modelo: auditado (sin coordenadas) en ESTA conversación,
-        # así ``agregar_envio`` reconoce el lugar si la clienta dice «sí, súmelo».
+        # así ``agregar_envio`` reconoce el lugar si el cliente dice «sí, súmelo».
         resultado = entorno['brian.herramientas'].with_context(juan_conversacion_id=conv.id).ejecutar(
             PREFIJO_HERRAMIENTA + 'cotizar_envio', {}, canal='juan', auditar=True)
         envio = resultado.get('datos') if resultado.get('ok') else {

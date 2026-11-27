@@ -48,12 +48,20 @@
                     los datos fiscales (RUC o cédula).</li>
                 <li><strong>Si eres Socio D'CASA</strong>: tu celular (es tu usuario), tu nombre, tus compras y tus
                     puntos. Tu PIN se guarda cifrado: nadie en D'CASA puede leerlo.</li>
+                <li><strong>Tu punto de entrega</strong> (cuando marcas tu casa en el mapa al comprar, en el enlace
+                    que te mandamos o compartiendo tu ubicación por el chat): el punto en el mapa, la zona, el número de
+                    casa y las indicaciones para el chofer y, si nos los das, quién recibe, un teléfono de respaldo
+                    y una foto de la fachada. En el chat de la tienda, si solo preguntas cuánto cuesta el envío, tu
+                    ubicación se usa para calcularlo y no se guarda.</li>
                 <li><strong>Al navegar el sitio</strong>: solo las cookies técnicas descritas abajo.</li>
             </ul>
 
             <h2>Para qué los usamos</h2>
             <ul>
                 <li>Responderte, cotizar, venderte y coordinar la entrega.</li>
+                <li>Llevarte el pedido a la puerta: tu punto de entrega solo se usa para calcular el envío y para que el
+                    chofer llegue. Él lo ve, con tus indicaciones, en una página de solo lectura que se cierra a
+                    los pocos días de entregado el pedido (y nunca dura más de 90 días desde la compra).</li>
                 <li>Emitir facturas y llevar la contabilidad, como exige la ley.</li>
                 <li>Llevar tus puntos del programa Socios D'CASA, si te inscribiste.</li>
             </ul>
@@ -74,6 +82,9 @@
                     conversaciones con Juan como lo que el equipo le pide revisar a Brian.</li>
                 <li>Como respaldo podemos usar <strong>Anthropic</strong> (modelos Claude).</li>
             </ul>
+            <p>Tu ubicación exacta (el punto en el mapa) no pasa por la inteligencia artificial: Juan solo recibe la
+                zona y el precio del envío. Lo que le escribes, como tu número de casa o tus indicaciones, sí pasa,
+                igual que el resto de la conversación.</p>
             <p>Si no quieres que tus datos pasen por inteligencia artificial, escríbenos y lo anotamos: te
                 atendemos sin usarla con tus datos. Tus derechos (más abajo) también aplican aquí.</p>
 
@@ -83,6 +94,8 @@
                     y lee las fotos que nos envías.</li>
                 <li><strong>Meta</strong> y <strong>Anthropic</strong>: inteligencia artificial, como se explica arriba.</li>
                 <li><strong>WhatsApp</strong> (de Meta): cuando nos escribes por ahí.</li>
+                <li><strong>Google</strong> (Google Maps y Waze): muestra el mapa cuando marcas tu casa, le pone el nombre
+                    de la calle a tu punto y le da la ruta al chofer.</li>
                 <li><strong>Autoridades</strong>: la Dirección General de Ingresos (facturación) y quien la ley indique.</li>
             </ul>
             <p>Algunos de estos proveedores guardan o procesan datos fuera de Panamá, por ejemplo en Estados Unidos.</p>

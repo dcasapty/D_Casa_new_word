@@ -36,10 +36,10 @@ export const HERRAMIENTAS_DEL_CONTRATO = [
   // El costo del envío (la calculadora de Envíos) con la promoción vigente, y sumarlo a la cotización si el cliente quiere (2026-11-12, «sí» de la dueña).
   "cotizar_envio",
   "agregar_envio",
-  // El enlace de un solo uso para que la clienta marque su punto de entrega en el mapa (Instagram y Messenger no comparten ubicación;
+  // El enlace de un solo uso para que el cliente marque su punto de entrega en el mapa (Instagram y Messenger no comparten ubicación;
   // 2026-11-25, docs/UBICACION.md). Odoo le escribe después con la zona y el precio del envío.
   "enlace_de_ubicacion",
-  // El número de casa o las indicaciones para el motorizado, en la ficha de la clienta (2026-11-25, pedido del dueño: después de la
+  // El número de casa o las indicaciones para el chofer, en la ficha del cliente (2026-11-25, pedido del dueño: después de la
   // ubicación SIEMPRE se preguntan; el dolor número uno son los pedidos devueltos por direcciones malas).
   "guardar_indicaciones",
 ] as const;
@@ -48,13 +48,13 @@ export const HERRAMIENTAS_DEL_CONTRATO = [
  * Las preguntas cortas de la ubicación (el dueño, 2026-11-25: «todo visual y corto: que un niño de 5 años pueda comprar»). Viven en el
  * bloque dinámico, no en el estable: el modelo las dice tal cual y no se confunden con una copia del prompt.
  */
-export const PREGUNTA_DE_INDICACIONES = "🏠 ¿Número de casa o indicaciones para el motorizado?";
-export const PREGUNTA_DE_LA_VEZ_PASADA = "📍 ¿Se lo llevamos a [la zona], como la vez pasada?";
-export const PREGUNTA_DEL_CLIP = "📍 ¿Me comparte su ubicación? Toque 📎 › Ubicación.";
+export const PREGUNTA_DE_INDICACIONES = "🏠 ¿Número de casa o indicaciones para el chofer?";
+export const PREGUNTA_DE_LA_VEZ_PASADA = "📍 ¿Te lo llevamos a [la zona], como la vez pasada?";
+export const PREGUNTA_DEL_CLIP = "📍 ¿Me compartes tu ubicación? Toca 📎 › Ubicación.";
 
 /**
  * Cómo se pide la ubicación de entrega en cada canal (docs/UBICACION.md). Va en el bloque dinámico, no en el estable: la frase que el
- * modelo le dirá a la clienta no se confunde con una copia del prompt.
+ * modelo le dirá al cliente no se confunde con una copia del prompt.
  */
 const CON_EL_CLIP = `Ubicación de entrega en este canal: pídele en una línea que la comparta con el clip, así: «${PREGUNTA_DEL_CLIP}» (también sirve que pegue un enlace de Google Maps). Si no puede o no sabe, llama a enlace_de_ubicacion y mándale su frase tal cual.`;
 const CON_EL_ENLACE = "Ubicación de entrega en este canal: aquí no se comparte con el clip: llama a enlace_de_ubicacion y mándale su frase tal cual, con el enlace y sus pasos (también sirve que pegue un enlace de Google Maps).";
@@ -62,7 +62,7 @@ const UBICACION_POR_CANAL: Record<CanalId, string> = {
   whatsapp_qr: CON_EL_CLIP,
   // La API oficial tiene el botón nativo «Enviar ubicación»: sale solo, después del mensaje con el enlace (canales/whatsappCloud.ts).
   whatsapp_cloud:
-    "Ubicación de entrega en este canal: llama a enlace_de_ubicacion y mándale su frase tal cual, con el enlace y sus pasos. Después de tu mensaje sale solo un botón «Enviar ubicación»: no lo anuncies ni lo expliques. Si ella prefiere, también sirve que la comparta con el clip (📎 › Ubicación) o que pegue un enlace de Google Maps.",
+    "Ubicación de entrega en este canal: llama a enlace_de_ubicacion y mándale su frase tal cual, con el enlace y sus pasos. Después de tu mensaje sale solo un botón «Enviar ubicación»: no lo anuncies ni lo expliques. Si el cliente prefiere, también sirve que la comparta con el clip (📎 › Ubicación) o que pegue un enlace de Google Maps.",
   telegram: CON_EL_CLIP,
   messenger: CON_EL_ENLACE,
   instagram: CON_EL_ENLACE,
@@ -73,12 +73,12 @@ const PREGUNTAS_DE_LA_UBICACION = `Preguntas de la ubicación (dilas tal cual, c
 
 /**
  * El aviso de entrega del día (2026-11-25, «el dolor número uno son los pedidos devueltos»): Odoo le escribe a nombre del asistente
- * «🚚 ¡Hoy le llega su pedido S00042 a Villa Lucre! ¿Habrá alguien en casa para recibirlo? ✅ Sí / 📍 Cambiar» (el botón «🚚 Sale hoy:
+ * «🚚 ¡Hoy te llega tu pedido S00042 a Villa Lucre! ¿Habrá alguien en casa para recibirlo? ✅ Sí / 📍 Cambiar» (el botón «🚚 Sale hoy:
  * avisarle», addons/dcasa_ubicacion/models/avisos.py) y el mensaje queda en la historia como del asistente. Lo que Juan contesta a eso
  * vive en el bloque dinámico, como las demás frases con ícono: el estable solo dice qué hacer, sin emojis nuevos.
  */
 export const GRACIAS_DEL_AVISO_DE_ENTREGA = "🙌🏻 ¡Perfecto, gracias por confirmar!";
-export const PREGUNTA_DEL_CAMBIO_DE_ENTREGA = "¿Qué le cambiamos: 🕐 el día o la hora, o 📍 el lugar?";
+export const PREGUNTA_DEL_CAMBIO_DE_ENTREGA = "¿Qué te cambiamos: 🕐 el día o la hora, o 📍 el lugar?";
 const FRASES_DEL_AVISO_DE_ENTREGA = `Respuestas al aviso de entrega (dilas tal cual, con su ícono): si confirma que habrá alguien, «${GRACIAS_DEL_AVISO_DE_ENTREGA}»; si solo dice que quiere cambiar algo, «${PREGUNTA_DEL_CAMBIO_DE_ENTREGA}».`;
 
 const CANAL_LEGIBLE: Record<CanalId, string> = {
@@ -220,13 +220,13 @@ Tú (si no la trajo, en WhatsApp por QR o Telegram): [la pregunta del clip]
 Tú (si no la trajo, en el WhatsApp de la API oficial, Instagram o Messenger, después de enlace_de_ubicacion): [frase_para_el_cliente con el enlace]
 
 Cliente: es para mi mamá, que vive en otro lado
-Tú (después de enlace_de_ubicacion con para_otra_casa=true): Con gusto. Abra este enlace y busque su barriada, o mueva el mapa hasta su casa: [el enlace]
+Tú (después de enlace_de_ubicacion con para_otra_casa=true): Con gusto. Abre este enlace y busca su barriada, o mueve el mapa hasta su casa: [el enlace]
 
 Cliente: (comparte su ubicación)
 Tú (con el envío ya cotizado): [frase_para_el_cliente] [la pregunta de las indicaciones]
 
 Cliente: casa [número], portón verde
-Tú (después de guardar_indicaciones): Listo, ya quedó para el motorizado.
+Tú (después de guardar_indicaciones): Listo, ya quedó para el chofer.
 
 Cliente: (contesta al aviso de la tienda de que hoy sale su pedido) sí, aquí estoy
 Tú: [la respuesta al aviso de entrega]

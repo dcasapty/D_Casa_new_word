@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ENTRANTE_VIGENTE_MS, RESPUESTA_VIGENTE_MS, contenidoDe, crearRegistroDeEnvios, decidirUpsert, textoDe, tipoDe } from "../contenedor/lib/propios.mjs";
+import { ENTRANTE_VIGENTE_MS, RESPUESTA_VIGENTE_MS, contenidoDe, crearRegistroDeEnvios, decidirUpsert, puntoDe, textoDe, tipoDe } from "../contenedor/lib/propios.mjs";
 import {
   CLIENTE,
   NEGOCIO,
@@ -170,7 +170,7 @@ describe("decidirUpsert: ¿cliente, vendedora desde el teléfono, eco o nada?", 
       expect(decidirUpsert(viejo, "append", ctx())).toEqual({ accion: "ignorar", motivo: "propio_viejo" });
     });
 
-    it("las notas personales (un chat con uno mismo) no son una clienta", () => {
+    it("las notas personales (un chat con uno mismo) no son un cliente", () => {
       const nota = msgTexto("comprar tornillos", { fromMe: true, de: "50760269999@s.whatsapp.net", ts: s(AHORA) });
       expect(decidirUpsert(nota, "notify", ctx())).toEqual({ accion: "ignorar", motivo: "nota_personal" });
       const notaLid = msgTexto("x", { fromMe: true, de: "999999999999999@lid", ts: s(AHORA) });

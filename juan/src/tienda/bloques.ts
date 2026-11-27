@@ -10,7 +10,7 @@
 //   · `proponer_cambio_carrito` (A4) solo con un producto que YA está en el carrito (lo dice la página), cantidad de 0 a 20 (0 =
 //     quitar), y solo si el visitante pidió el cambio en ese mensaje o dijo que sí a la pregunta. La página lo aplica en Odoo.
 //   · `indicaciones` (2026-11-25) solo en el turno en que llegó la ubicación y `cotizar_envio` dio precio con ella: al final, con el
-//     texto fijo. La página pide ahí el número de casa o las indicaciones para el motorizado.
+//     texto fijo. La página pide ahí el número de casa o las indicaciones para el chofer.
 
 import { PREGUNTA_DE_INDICACIONES } from "../dcasa/prompt";
 import { normalizar, sinAcentos } from "../dcasa/texto";
@@ -40,7 +40,7 @@ export type Bloque =
   | { tipo: "sugerencias"; texto: string; opciones: string[] }
   | { tipo: "ubicacion"; texto: string }
   /**
-   * El número de casa o las indicaciones para el motorizado (el dueño, 2026-11-25): sale al final cuando el visitante acaba de dar su
+   * El número de casa o las indicaciones para el chofer (el dueño, 2026-11-25): sale al final cuando el visitante acaba de dar su
    * ubicación y el envío salió con precio. La página lo pinta con un campo y un botón y se lo manda a Odoo; Andrés no lo pregunta.
    */
   | { tipo: "indicaciones"; texto: string }

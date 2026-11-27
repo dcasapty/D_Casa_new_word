@@ -1,9 +1,9 @@
 """Los avisos de la entrega para Brian (el asistente del equipo, también por MCP): lo mismo que los botones de la venta
 (models/avisos.py).
 
-* ``pedir_ubicacion_al_cliente``: que la clienta marque su casa en el mapa. Si el asistente puede escribirle por el
+* ``pedir_ubicacion_al_cliente``: que el cliente marque su casa en el mapa. Si el asistente puede escribirle por el
   chat, se lo escribe; si no, devuelve el enlace de WhatsApp para que la persona lo mande.
-* ``avisar_que_sale_hoy``: «🚚 ¡Hoy le llega su pedido! ¿Habrá alguien en casa?». Una vez por venta y por día.
+* ``avisar_que_sale_hoy``: «🚚 ¡Hoy te llega tu pedido! ¿Habrá alguien en casa?». Una vez por venta y por día.
 
 Devuelven qué pasó, nunca las coordenadas (el resultado queda en la auditoría de Brian).
 """
@@ -18,11 +18,11 @@ class BrianHerramientasAvisos(models.AbstractModel):
     _inherit = 'brian.herramientas'
 
     def _aviso_venta(self, venta):
-        """La venta (con los permisos de quien pregunta) que va a domicilio, lista para escribirle a la clienta."""
+        """La venta (con los permisos de quien pregunta) que va a domicilio, lista para escribirle al cliente."""
         orden = self._ubic_venta(venta)
         orden.check_access('write')
         if orden.state == 'cancel':
-            raise BrianError(f'{orden.name} está cancelada: no se le escribe a la clienta.')
+            raise BrianError(f'{orden.name} está cancelada: no se le escribe al cliente.')
         if not orden._dcasa_va_a_domicilio():
             raise BrianError(f'{orden.name} no va a domicilio: no hace falta.')
         return orden
@@ -33,7 +33,7 @@ class BrianHerramientasAvisos(models.AbstractModel):
                     'escribirle por el chat, se lo manda solo; si no, devuelve el enlace de WhatsApp para mandarlo.',
         parametros={'venta': PARAM_VENTA}, requeridos=['venta'],
         nivel='construccion', categoria='ventas', grupos=VENDEDORA,
-        ejemplos=['«pídele la ubicación a la clienta de S00042» → pedir_ubicacion_al_cliente(venta=S00042)'],
+        ejemplos=['«pídele la ubicación al cliente de S00042» → pedir_ubicacion_al_cliente(venta=S00042)'],
         privado=True,
     )
     def _brian_pedir_ubicacion_al_cliente(self, venta):
@@ -83,7 +83,7 @@ class BrianHerramientasAvisos(models.AbstractModel):
             return {'venta': orden.name, 'cliente': cliente, 'hecho': 'enviado_por_el_chat',
                     'canal': resultado['canal'],
                     'mensaje': f'Le escribí a {cliente} por el chat ({resultado["canal"]}) que hoy sale {orden.name}. '
-                               'Si contesta que no habrá nadie o quiere cambiar el día, el asistente la pasa a una '
+                               'Si contesta que no habrá nadie o quiere cambiar el día, el asistente lo pasa a una '
                                'vendedora.'}
         if estado == 'sin_celular':
             raise BrianError(f'No le puedo escribir por el chat ({resultado["motivo"]}) y {cliente} no tiene un '

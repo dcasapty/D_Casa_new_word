@@ -62,8 +62,8 @@ class DcasaUbicacion(models.AbstractModel):
                                     'coordenadas')
         zona = self._zona(*valido)
         if not geo.en_cobertura(zona):
-            raise UbicacionInvalida(self.env._('Ese punto no está en Panamá (o está en el mar). Revise el mapa y '
-                                               'marque el lugar de entrega.'), 'fuera_de_panama')
+            raise UbicacionInvalida(self.env._('Ese punto no está en Panamá (o está en el mar). Revisa el mapa y '
+                                               'marca el lugar de entrega.'), 'fuera_de_panama')
         return valido[0], valido[1], zona
 
     @api.model

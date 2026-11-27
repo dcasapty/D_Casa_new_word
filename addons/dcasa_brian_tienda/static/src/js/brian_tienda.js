@@ -1656,7 +1656,7 @@ export class ChatBrian {
             return;
         }
         const texto = typeof bloque.texto === "string" && bloque.texto.trim() ? bloque.texto.trim().slice(0, 200)
-            : "🏠 ¿Número de casa o indicaciones para el motorizado?";
+            : "🏠 ¿Número de casa o indicaciones para el chofer?";
         const campo = el("input", { class: "o_dcbt_ind_campo", type: "text", maxlength: "200", autocomplete: "off",
             placeholder: "Ej.: casa 24, portón negro", "aria-label": "Número de casa e indicaciones" });
         const boton = el("button", { type: "button", class: "o_dcbt_btn o_dcbt_btn_azul" }, ico("check"), el("span", { text: "Guardar" }));

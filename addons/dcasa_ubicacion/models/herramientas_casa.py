@@ -1,15 +1,15 @@
 """Quién recibe, el teléfono de respaldo y la foto de la casa, para Juan (el asistente de clientes) y para Brian (el
-del equipo, también por MCP). Lo que leen ``ubicacion_de_entrega`` (Brian) y la página del motorizado sale de
+del equipo, también por MCP). Lo que leen ``ubicacion_de_entrega`` (Brian) y la página del chofer sale de
 ``res.partner._dcasa_ubic_resumen``.
 
 Juan:
-* ``guardar_quien_recibe``: SOLO si la clienta lo dice por su cuenta («lo recibe mi mamá», «si no contesto, llamen al
+* ``guardar_quien_recibe``: SOLO si el cliente lo dice por su cuenta («lo recibe mi mamá», «si no contesto, llamen al
   6123-4567»). No se pregunta por rutina: cada pregunta de más es fricción (el dueño, 2026-11-25). El teléfono tiene que
   estar en lo que ella escribió (un número inventado o el de la conversación no se guardan) y no vuelve al modelo.
 
 Brian (todo el equipo; por MCP también):
-* ``poner_quien_recibe``: lo mismo, cuando la clienta lo dijo por otro lado.
-* ``quitar_foto_de_fachada``: quita la foto de la casa de una ficha (si la clienta lo pide o la foto no sirve).
+* ``poner_quien_recibe``: lo mismo, cuando el cliente lo dijo por otro lado.
+* ``quitar_foto_de_fachada``: quita la foto de la casa de una ficha (si el cliente lo pide o la foto no sirve).
 """
 from odoo import api, models
 from odoo.addons.dcasa_brian.models.registro import BrianError, herramienta
@@ -50,7 +50,7 @@ class BrianHerramientasCasa(models.AbstractModel):
         if recibe:
             partes.append(self.env._('👤 Recibe: %s.', recibe))
         if numero:
-            partes.append(self.env._('📞 Otro teléfono para el motorizado: %s.', numero['guardar']))
+            partes.append(self.env._('📞 Otro teléfono para el chofer: %s.', numero['guardar']))
         return ' '.join(partes)
 
     # ------------------------------------------------------------------
@@ -60,7 +60,7 @@ class BrianHerramientasCasa(models.AbstractModel):
     @herramienta(
         nombre=PREFIJO + 'guardar_quien_recibe',
         descripcion='Guarda quién recibe el pedido (si no es el cliente) y/o un teléfono de respaldo de Panamá para el '
-                    'motorizado. Úsala SOLO si el cliente lo dice por su cuenta; nunca lo preguntes por rutina.',
+                    'chofer. Úsala SOLO si el cliente lo dice por su cuenta; nunca lo preguntes por rutina.',
         parametros={
             'nombre': {'type': 'string', 'description': 'Quién recibe, como lo dijo (p. ej. «Rosa, mi mamá»), hasta 60 '
                                                         'letras.'},
@@ -92,7 +92,7 @@ class BrianHerramientasCasa(models.AbstractModel):
         aviso = self._casa_aviso(recibe, numero)
         if aviso:
             conv._aviso(aviso)
-        instruccion = 'Confírmale en una línea que quedó anotado para el motorizado (sin repetir el número).'
+        instruccion = 'Confírmale en una línea que quedó anotado para el chofer (sin repetir el número).'
         if mismo:
             instruccion = ('Ese teléfono es el mismo de su ficha: no hace falta como respaldo. ' + instruccion)
         # El teléfono no vuelve al modelo: solo si quedó guardado.
@@ -105,7 +105,7 @@ class BrianHerramientasCasa(models.AbstractModel):
     @herramienta(
         nombre='poner_quien_recibe',
         descripcion='Guarda en la ficha del cliente quién recibe el pedido y/o un teléfono de respaldo de Panamá para '
-                    'el motorizado (salen en la página del QR y en el comprobante). Vacío borra ese dato.',
+                    'el chofer (salen en la página del QR y en el comprobante). Vacío borra ese dato.',
         parametros={
             'cliente': {'type': 'string', 'description': 'Nombre, celular o correo del cliente.'},
             'nombre': {'type': 'string', 'description': 'Quién recibe (hasta 60 letras). Vacío lo borra.'},
@@ -136,7 +136,7 @@ class BrianHerramientasCasa(models.AbstractModel):
 
     @herramienta(
         nombre='quitar_foto_de_fachada',
-        descripcion='Quita la foto de la casa (la fachada para el motorizado) de la ficha de un cliente, si la pide '
+        descripcion='Quita la foto de la casa (la fachada para el chofer) de la ficha de un cliente, si la pide '
                     'borrar o no sirve.',
         parametros={'cliente': {'type': 'string', 'description': 'Nombre, celular o correo del cliente.'}},
         requeridos=['cliente'], nivel='construccion', categoria='clientes', grupos=INTERNO,

@@ -1,14 +1,14 @@
 """La ubicación de entrega para Juan (el asistente de clientes) y para Brian (el del equipo, también por MCP).
 
 Juan:
-* ``enlace_de_ubicacion``: el enlace de un solo uso para que la clienta marque su punto (Instagram, Messenger, o si no
+* ``enlace_de_ubicacion``: el enlace de un solo uso para que el cliente marque su punto (Instagram, Messenger, o si no
   puede compartir su ubicación). Cuando lo confirma, Juan le escribe con la zona y el precio.
-* ``cotizar_envio`` sin lugar: si la clienta ya tiene un punto de entrega confirmado, cotiza con ese punto.
+* ``cotizar_envio`` sin lugar: si el cliente ya tiene un punto de entrega confirmado, cotiza con ese punto.
 
 Brian (todo el equipo; por MCP también):
 * ``ubicacion_de_entrega``: el punto de entrega de una venta (zona, referencia, de dónde salió, Waze y Google Maps).
 * ``enlace_de_ubicacion_para_cliente``: el mismo enlace de un solo uso, para mandarlo a mano.
-* ``poner_ubicacion_de_entrega``: guarda el punto de un enlace de Google Maps o Waze (o coordenadas) que la clienta
+* ``poner_ubicacion_de_entrega``: guarda el punto de un enlace de Google Maps o Waze (o coordenadas) que el cliente
   mandó por otro lado.
 
 Las coordenadas nunca salen en lo que ve el modelo de IA: solo la zona y los botones.
@@ -89,10 +89,10 @@ class BrianHerramientasUbicacion(models.AbstractModel):
         # Tres pasos con íconos (el dueño, 2026-11-25): se entiende sin leer, uno por línea (el Worker conserva así sus
         # íconos). WhatsApp muestra la vista previa con un pin en un mapa (og:image de la página). Para otra casa, «Mi
         # ubicación» marcaría donde está el teléfono: se busca la barriada o se mueve el mapa.
-        paso_2 = '2️⃣ Busque la barriada o mueva el mapa hasta esa casa' if otra_casa \
-            else '2️⃣ Toque «Mi ubicación» y permita'
-        frase = (f'📍 Para llevárselo exacto:\n1️⃣ Abra este enlace: {url}\n{paso_2}\n'
-                 '3️⃣ Escriba el número de casa y toque «Sí, aquí es»')
+        paso_2 = '2️⃣ Busca la barriada o mueve el mapa hasta esa casa' if otra_casa \
+            else '2️⃣ Toca «Mi ubicación» y permite'
+        frase = (f'📍 Para llevártelo exacto:\n1️⃣ Abre este enlace: {url}\n{paso_2}\n'
+                 '3️⃣ Escribe el número de casa y toca «Sí, aquí es»')
         datos = {
             'enlace': url,
             'vence_en_horas': 24,
@@ -108,7 +108,7 @@ class BrianHerramientasUbicacion(models.AbstractModel):
 
     @api.model
     def _ubic_venta_avisada_hoy(self, partner):
-        """La venta confirmada de esta clienta a la que hoy se le avisó por el chat que sale, o un registro vacío."""
+        """La venta confirmada de esta cliente a la que hoy se le avisó por el chat que sale, o un registro vacío."""
         return self.env['sale.order'].sudo().search([
             ('state', '=', 'sale'), ('dcasa_aviso_sale_hoy_el', '=', hoy_en_panama()),
             ('dcasa_aviso_sale_hoy_por', '=', 'chat'),
@@ -120,7 +120,7 @@ class BrianHerramientasUbicacion(models.AbstractModel):
 
     @herramienta(
         nombre=PREFIJO + 'guardar_indicaciones',
-        descripcion='Guarda el número de casa y las indicaciones para el motorizado que dio el cliente («casa 24, '
+        descripcion='Guarda el número de casa y las indicaciones para el chofer que dio el cliente («casa 24, '
                     'portón negro, frente al súper»). Úsala apenas las diga, después de tener su ubicación.',
         parametros={'texto': {'type': 'string', 'description': 'El número de casa y las indicaciones, como las dijo '
                                                               '(hasta 200 letras).'}},
@@ -138,7 +138,7 @@ class BrianHerramientasUbicacion(models.AbstractModel):
             raise BrianError('Pídele al cliente el número de casa y cómo reconocer el sitio.')
         partner.write({'dcasa_referencia': limpio})
         partner._dcasa_ubic_al_dia_en_ventas()
-        conv._aviso(self.env._('🏠 Indicaciones para el motorizado: %s.', limpio))
+        conv._aviso(self.env._('🏠 Indicaciones para el chofer: %s.', limpio))
         return {
             'guardado': True, 'indicaciones': limpio,
             'instruccion': 'Confírmale en una línea que quedó anotado (sin repetir coordenadas ni datos de más).'
@@ -178,7 +178,7 @@ class BrianHerramientasUbicacion(models.AbstractModel):
     @herramienta(
         nombre='ubicacion_de_entrega',
         descripcion='El punto de entrega de una venta: la zona, la dirección, la referencia, de dónde salió el punto '
-                    '(GPS, mapa, chat, enlace o escrita) y un botón para abrir la venta con la ruta del motorizado.',
+                    '(GPS, mapa, chat, enlace o escrita) y un botón para abrir la venta con la ruta del chofer.',
         parametros={'venta': {'type': 'string', 'description': 'El número de la venta (p. ej. S00042).'}},
         requeridos=['venta'], nivel='lectura', categoria='ventas', grupos=INTERNO,
         ejemplos=['«¿a dónde va el pedido S00042?» → ubicacion_de_entrega(venta=S00042)'],
@@ -188,17 +188,17 @@ class BrianHerramientasUbicacion(models.AbstractModel):
         orden = self._ubic_venta(venta)
         destino = orden.partner_shipping_id or orden.partner_id
         resumen = destino._dcasa_ubic_resumen()
-        # Ni las coordenadas (van en los enlaces de Waze y Google Maps) ni el secreto de la página del motorizado van
-        # al modelo de IA (auditoría 1): la persona los abre desde la venta, con el botón «Ruta del motorizado».
+        # Ni las coordenadas (van en los enlaces de Waze y Google Maps) ni el secreto de la página del chofer van
+        # al modelo de IA (auditoría 1): la persona los abre desde la venta, con el botón «Ruta del chofer».
         resumen.pop('enlaces', None)
         resumen['venta'] = orden.name
         resumen['va_a_domicilio'] = orden._dcasa_va_a_domicilio()
         resumen['abrir'] = {'modelo': 'sale.order', 'res_id': orden.id,
-                            'titulo': self.env._('Abrir %s (Ruta del motorizado)', orden.name)}
+                            'titulo': self.env._('Abrir %s (Ruta del chofer)', orden.name)}
         if not resumen['tiene_punto']:
-            resumen['aviso'] = 'Sin punto en el mapa: el motorizado tiene que llamar antes de salir.'
+            resumen['aviso'] = 'Sin punto en el mapa: el chofer tiene que llamar antes de salir.'
         elif not resumen['confiable']:
-            resumen['aviso'] = 'El punto es aproximado: conviene confirmarlo con la clienta.'
+            resumen['aviso'] = 'El punto es aproximado: conviene confirmarlo con el cliente.'
         return resumen
 
     @herramienta(
@@ -216,7 +216,7 @@ class BrianHerramientasUbicacion(models.AbstractModel):
         partner.check_access('write')
         _enlace, url = self.env['dcasa.ubicacion.enlace']._crear(partner.sudo(), creado_por='equipo')
         return {'cliente': partner.name, 'enlace': url, 'vence_en_horas': 24,
-                'texto_para_mandar': f'📍 Toque aquí y marque su casa en el mapa: {url}'}
+                'texto_para_mandar': f'📍 Toca aquí y marca tu casa en el mapa: {url}'}
 
     @herramienta(
         nombre='poner_ubicacion_de_entrega',

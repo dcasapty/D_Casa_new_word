@@ -1,4 +1,4 @@
-"""La entrega de una venta para el motorizado: el QR del comprobante y de la nota de entrega abre ``/entrega/<secreto>``
+"""La entrega de una venta para el chofer: el QR del comprobante y de la nota de entrega abre ``/entrega/<secreto>``
 con «Abrir en Waze», «Abrir en Google Maps», la foto de la casa, la dirección, la referencia, quién recibe, «Avisar que
 llegué» (WhatsApp con el mensaje listo), «Llamar» y el teléfono de respaldo.
 
@@ -24,7 +24,7 @@ QR_PIXELES = 240
 
 class UbicacionEntrega(models.Model):
     _name = 'dcasa.ubicacion.entrega'
-    _description = 'Entrega para el motorizado (QR)'
+    _description = 'Entrega para el chofer (QR)'
     _order = 'id desc'
 
     token = fields.Char(required=True, readonly=True, copy=False, index=True,
@@ -47,7 +47,7 @@ class UbicacionEntrega(models.Model):
         if entrega:
             if not entrega._abierta():
                 # Cerrada (vencida o entregada hace días): el QR viejo NO revive (auditoría 1: quien guardó un papel de
-                # hace meses veía la casa nueva de la clienta). Secreto nuevo; el QR nuevo sale al imprimir otra vez.
+                # hace meses veía la casa nueva del cliente). Secreto nuevo; el QR nuevo sale al imprimir otra vez.
                 entrega.write({'token': geo.token_nuevo(18), 'vence': vence})
             elif entrega.vence < vence - timedelta(days=1):
                 entrega.write({'vence': vence})
@@ -69,7 +69,7 @@ class UbicacionEntrega(models.Model):
         return entrega if entrega and entrega._abierta() else self.sudo().browse()
 
     def _abierta(self):
-        """¿Le sirve todavía la página al motorizado? Mientras la venta tenga una salida sin entregar (un pedido que
+        """¿Le sirve todavía la página al chofer? Mientras la venta tenga una salida sin entregar (un pedido que
         sale a los 40 días no puede imprimir un QR vencido: auditoría 1), pero nunca más de ``DIAS_MAXIMOS`` días
         desde la compra; entregada, hasta ``DIAS_TRAS_ENTREGAR`` días después; cancelada, nunca; sin salidas, hasta
         que vence."""
@@ -97,9 +97,9 @@ class UbicacionEntrega(models.Model):
             base = dominio.rstrip('/')
         return f'{base}{RUTA}{self.sudo().token}'
 
-    def _para_el_motorizado(self):
-        """Lo que ve el motorizado: nombre de pila, teléfono, la dirección y el punto (con sus dos botones), quién
-        recibe, «Avisar que llegué» (WhatsApp al celular de la clienta con el mensaje listo), el teléfono de respaldo
+    def _para_el_chofer(self):
+        """Lo que ve el chofer: nombre de pila, teléfono, la dirección y el punto (con sus dos botones), quién
+        recibe, «Avisar que llegué» (WhatsApp al celular del cliente con el mensaje listo), el teléfono de respaldo
         (llamar y, si es celular, WhatsApp) y la foto de la casa (por su ruta con el mismo secreto). No escribe nada: lo
         lee también el PDF, que se arma en una transacción de solo lectura."""
         self.ensure_one()
@@ -112,7 +112,7 @@ class UbicacionEntrega(models.Model):
         tienda = self._nombre_de_la_tienda()
         respaldo = casa.telefono_de_respaldo(resumen['telefono_respaldo'])
         if respaldo and casa.mismo_telefono(respaldo['guardar'], telefono):
-            respaldo = None     # el mismo celular de la clienta: un botón de más que confunde
+            respaldo = None     # el mismo celular del cliente: un botón de más que confunde
         resumen.update({
             'pedido': orden.name,
             'nombre': pila,
@@ -131,7 +131,7 @@ class UbicacionEntrega(models.Model):
         return resumen
 
     def _nombre_de_la_tienda(self):
-        """El nombre con que el motorizado se presenta: el del sitio de la venta (o el de la compañía)."""
+        """El nombre con que el chofer se presenta: el del sitio de la venta (o el de la compañía)."""
         self.ensure_one()
         orden = self.order_id.sudo()
         website = orden.website_id or self.env['website'].sudo().search([('company_id', '=', orden.company_id.id)],
@@ -139,14 +139,14 @@ class UbicacionEntrega(models.Model):
         return (website.name if website else '') or orden.company_id.name or ''
 
     def _texto_llegue(self, tienda, pedido, nombre='', de=''):
-        """«Hola Ana, soy el motorizado de Baby Caleb 🛵. Ya llegué con su pedido S00042 📦» (de usted, corto). Para el
-        teléfono de respaldo (otra persona): «Hola, soy el motorizado de Baby Caleb 🛵. Ya llegué con el pedido S00042
+        """«Hola Ana, soy el chofer de D'CASA. Ya llegué con tu pedido S00042 📦» (de tú, corto). Para el
+        teléfono de respaldo (otra persona): «Hola, soy el chofer de D'CASA. Ya llegué con el pedido S00042
         de Ana 📦»."""
         saludo = self.env._('Hola %s', nombre) if nombre else self.env._('Hola')
         if de:
-            return self.env._('%(saludo)s, soy el motorizado de %(tienda)s 🛵. Ya llegué con el pedido %(pedido)s de '
+            return self.env._('%(saludo)s, soy el chofer de %(tienda)s. Ya llegué con el pedido %(pedido)s de '
                               '%(de)s 📦', saludo=saludo, tienda=tienda, pedido=pedido, de=de)
-        return self.env._('%(saludo)s, soy el motorizado de %(tienda)s 🛵. Ya llegué con su pedido %(pedido)s 📦',
+        return self.env._('%(saludo)s, soy el chofer de %(tienda)s. Ya llegué con tu pedido %(pedido)s 📦',
                           saludo=saludo, tienda=tienda, pedido=pedido)
 
     def _qr_src(self):
@@ -198,7 +198,7 @@ class SaleOrder(models.Model):
         resumen = (self.sudo().partner_shipping_id or self.sudo().partner_id)._dcasa_ubic_resumen()
         return not (resumen['confiable'] and resumen['referencia'])
 
-    def _dcasa_entrega_motorizado(self, crear=True):
+    def _dcasa_entrega_chofer(self, crear=True):
         """La entrega de esta venta para el QR, o un registro vacío si no va a domicilio o no tiene a dónde. Sin
         ``crear`` no escribe nada (para el PDF)."""
         self.ensure_one()
@@ -212,18 +212,18 @@ class SaleOrder(models.Model):
     def action_confirm(self):
         resultado = super().action_confirm()
         for orden in self:
-            orden._dcasa_entrega_motorizado()
+            orden._dcasa_entrega_chofer()
         return resultado
 
     def action_dcasa_abrir_entrega(self):
-        """Panel: abre la página del motorizado (la misma del QR) en otra pestaña."""
+        """Panel: abre la página del chofer (la misma del QR) en otra pestaña."""
         self.ensure_one()
         self.check_access('read')
-        entrega = self._dcasa_entrega_motorizado()
+        entrega = self._dcasa_entrega_chofer()
         if not entrega:
             return {'type': 'ir.actions.client', 'tag': 'display_notification', 'params': {
                 'type': 'warning', 'title': self.env._('Sin entrega a domicilio'),
-                'message': self.env._('Esta venta no va a domicilio o la clienta todavía no tiene dirección.')}}
+                'message': self.env._('Esta venta no va a domicilio o el cliente todavía no tiene dirección.')}}
         return {'type': 'ir.actions.act_url', 'url': entrega._url(), 'target': 'new'}
 
 
@@ -231,12 +231,12 @@ class AccountMove(models.Model):
     _inherit = 'account.move'
 
     def _dcasa_entrega_para_el_qr(self):
-        """La entrega (para el QR del motorizado) de la venta de este comprobante, o un registro vacío. No escribe."""
+        """La entrega (para el QR del chofer) de la venta de este comprobante, o un registro vacío. No escribe."""
         self.ensure_one()
         if self.move_type != 'out_invoice' or self.state != 'posted':
             return self.env['dcasa.ubicacion.entrega']
         for orden in self.sudo().invoice_line_ids.sale_line_ids.order_id:
-            entrega = orden._dcasa_entrega_motorizado(crear=False)
+            entrega = orden._dcasa_entrega_chofer(crear=False)
             if entrega:
                 return entrega
         return self.env['dcasa.ubicacion.entrega']
@@ -245,7 +245,7 @@ class AccountMove(models.Model):
         publicados = super()._post(soft=soft)
         for factura in publicados.filtered(lambda m: m.move_type == 'out_invoice'):
             for orden in factura.sudo().invoice_line_ids.sale_line_ids.order_id:
-                orden._dcasa_entrega_motorizado()
+                orden._dcasa_entrega_chofer()
         return publicados
 
 
@@ -253,8 +253,8 @@ class StockPicking(models.Model):
     _inherit = 'stock.picking'
 
     def _dcasa_entrega_para_el_qr(self):
-        """La entrega (para el QR del motorizado) de la venta de esta salida, o un registro vacío."""
+        """La entrega (para el QR del chofer) de la venta de esta salida, o un registro vacío."""
         self.ensure_one()
         if self.picking_type_code != 'outgoing' or not self.sale_id:
             return self.env['dcasa.ubicacion.entrega']
-        return self.sale_id._dcasa_entrega_motorizado(crear=False)
+        return self.sale_id._dcasa_entrega_chofer(crear=False)

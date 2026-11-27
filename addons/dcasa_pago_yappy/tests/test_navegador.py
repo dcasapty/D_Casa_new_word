@@ -428,7 +428,7 @@ class TestElBotonDeYappyEnElNavegador(PagoVisualDatos, ChromeMovilCase):
         self.assertTrue(otra_vez, 'y un intento nuevo vuelve a cuidarse')
 
     def test_con_un_intento_vivo_y_otro_metodo_elegido_el_navegador_ya_no_pregunta(self):
-        """RV7, R7-8: la clienta pulsa Yappy (solicitud viva en su app), cambia a OTRO método y se va a pagar con
+        """RV7, R7-8: el cliente pulsa Yappy (solicitud viva en su app), cambia a OTRO método y se va a pagar con
         ese: la guarda de salida se quita al cambiar (antes seguía puesta y el navegador preguntaba «¿Salir del
         sitio?» al ir a pagar con el otro)."""
         pregunta = """(() => { const ev = new Event('beforeunload', {cancelable: true}); window.dispatchEvent(ev);
@@ -666,7 +666,7 @@ class TestElBotonDeYappyEnElNavegador(PagoVisualDatos, ChromeMovilCase):
 
     def test_el_aviso_en_linea_del_boton_nuevo_no_borra_el_motivo_del_fallo(self):
         """El componente real avisa «en línea» a los pocos milisegundos de nacer: tras un fallo, el botón nuevo borraba
-        con eso el motivo que la clienta aún no había leído."""
+        con eso el motivo que el cliente aún no había leído."""
         with self._chrome_movil(390) as browser, YappyFalso():
             self._hasta_el_pago(browser)
             self._elegir(browser)
@@ -722,7 +722,7 @@ class TestElBotonDeYappyEnElNavegador(PagoVisualDatos, ChromeMovilCase):
         self.assertFalse(estado['apagado'], 'y listo para pulsar')
 
     def test_un_intento_nuevo_cierra_la_ventana_vieja_de_yappy(self):
-        """Si la clienta no cierra «Transacción cancelada» y pulsa el botón otra vez, el componente no abre la ventana
+        """Si el cliente no cierra «Transacción cancelada» y pulsa el botón otra vez, el componente no abre la ventana
         del intento nuevo mientras la vieja siga abierta: se cierra con su propio botón de cerrar antes de empezar."""
         with self._chrome_movil(390) as browser, YappyFalso():
             self._hasta_el_pago(browser)

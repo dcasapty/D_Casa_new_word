@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- «Para el motorizado»: el QR que abre /entrega/<secreto> (Waze, Google Maps, la dirección, la referencia y
-         «Llamar»). Va en el comprobante y en la nota de entrega cuando la venta va a domicilio y la clienta tiene
+    <!-- «Para el chofer»: el QR que abre /entrega/<secreto> (Waze, Google Maps, la dirección, la referencia y
+         «Llamar»). Va en el comprobante y en la nota de entrega cuando la venta va a domicilio y el cliente tiene
          dirección. El PDF se arma en una transacción de solo lectura: aquí solo se LEE la entrega (la arman la
-         confirmación de la venta, la publicación del comprobante o el punto nuevo de la clienta).
+         confirmación de la venta, la publicación del comprobante o el punto nuevo del cliente).
          Variable: registro (el comprobante o la salida de bodega). Estilos en línea (wkhtmltopdf). -->
-    <template id="bloque_motorizado" name="Ubicación: QR para el motorizado">
+    <template id="bloque_chofer" name="Ubicación: QR para el chofer">
         <t t-set="dcasa_entrega" t-value="registro._dcasa_entrega_para_el_qr()"/>
         <t t-if="dcasa_entrega">
-            <t t-set="dcasa_datos" t-value="dcasa_entrega._para_el_motorizado()"/>
-            <div class="o_dcasa_motorizado avoid-page-break-inside" name="dcasa_motorizado"
+            <t t-set="dcasa_datos" t-value="dcasa_entrega._para_el_chofer()"/>
+            <div class="o_dcasa_chofer avoid-page-break-inside" name="dcasa_chofer"
                  style="margin: 14px 0 6px; padding: 10px 12px; border: 1px solid #DEDED9; border-radius: 10px;">
                 <table style="width: 100%; border-collapse: collapse;">
                     <tr>
@@ -17,14 +17,14 @@
                             <img t-att-src="dcasa_entrega._qr_src()" alt="Código QR de la entrega" style="width: 28mm; height: 28mm;"/>
                         </td>
                         <td style="vertical-align: top; color: #1B3246; font-size: 12px; line-height: 1.45;">
-                            <strong style="font-size: 13px;">Para el motorizado</strong><br/>
-                            Escanee el código: abre la ruta en Waze o en Google Maps, la dirección y el teléfono.<br/>
+                            <strong style="font-size: 13px;">Para el chofer</strong><br/>
+                            Escanea el código: abre la ruta en Waze o en Google Maps, la dirección y el teléfono.<br/>
                             <t t-if="dcasa_datos['zona']">Zona: <t t-esc="dcasa_datos['zona'].replace(' · ', ', ')"/><br/></t>
                             <t t-if="dcasa_datos['referencia']">Cómo reconocer el sitio: <t t-esc="dcasa_datos['referencia']"/><br/></t>
                             <t t-if="dcasa_datos.get('recibe')">Recibe: <t t-esc="dcasa_datos['recibe']"/><br/></t>
                             <t t-if="dcasa_datos.get('respaldo')">Si no contesta: <t t-esc="dcasa_datos['respaldo']"/><br/></t>
                             <t t-if="dcasa_datos.get('fachada_url')">Con foto de la casa en la página del código.<br/></t>
-                            <t t-if="not dcasa_datos['tiene_punto']"><strong>Sin punto en el mapa: llamar a la clienta antes de salir.</strong></t>
+                            <t t-if="not dcasa_datos['tiene_punto']"><strong>Sin punto en el mapa: llamar al cliente antes de salir.</strong></t>
                         </td>
                     </tr>
                 </table>
@@ -33,18 +33,18 @@
     </template>
 
     <!-- El comprobante: antes de garantía, cambios y términos. -->
-    <template id="comprobante_motorizado" inherit_id="account.report_invoice_document" priority="60"
-              name="Ubicación: QR del motorizado en el comprobante">
+    <template id="comprobante_chofer" inherit_id="account.report_invoice_document" priority="60"
+              name="Ubicación: QR del chofer en el comprobante">
         <xpath expr="//t[@t-call='dcasa_invoice.dcasa_bloques_legales']" position="before">
-            <t t-call="dcasa_ubicacion.bloque_motorizado"><t t-set="registro" t-value="o"/></t>
+            <t t-call="dcasa_ubicacion.bloque_chofer"><t t-set="registro" t-value="o"/></t>
         </xpath>
     </template>
 
-    <!-- La nota de entrega (la que lleva el motorizado): antes del QR de uso interno. -->
-    <template id="nota_entrega_motorizado" inherit_id="stock.report_delivery_document" priority="60"
-              name="Ubicación: QR del motorizado en la nota de entrega">
+    <!-- La nota de entrega (la que lleva el chofer): antes del QR de uso interno. -->
+    <template id="nota_entrega_chofer" inherit_id="stock.report_delivery_document" priority="60"
+              name="Ubicación: QR del chofer en la nota de entrega">
         <xpath expr="//t[@t-call='dcasa_invoice.dcasa_qr_documento']" position="before">
-            <t t-call="dcasa_ubicacion.bloque_motorizado"><t t-set="registro" t-value="o"/></t>
+            <t t-call="dcasa_ubicacion.bloque_chofer"><t t-set="registro" t-value="o"/></t>
         </xpath>
     </template>
 </odoo>

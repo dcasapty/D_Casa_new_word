@@ -15,9 +15,9 @@
 //     delivered, read, failed) NO son mensajes del cliente: salen como `eventos` (rutas.ts los manda a Odoo después del
 //     200) y nunca despiertan al bot. Las reacciones que la tienda deja desde el teléfono (ecos) se ignoran.
 //   · Ubicación (2026-11-25, docs/UBICACION.md): `type: "location"` trae `location: {latitude, longitude, name?, address?}`. Sale como
-//     `Entrante.ubicacion` (origen «whatsapp»), validada; el texto del mensaje es solo «(la clienta compartió su ubicación de entrega)».
+//     `Entrante.ubicacion` (origen «whatsapp»), validada; el texto del mensaje es solo «(el cliente compartió su ubicación de entrega)».
 //   · Botón «Enviar ubicación» (2026-11-25, pedido del dueño: «lo más fácil posible»): `Saliente.pedirUbicacion` sale después de las
-//     burbujas y los archivos como mensaje interactivo `location_request_message` (con `action: {name: "send_location"}`). La clienta
+//     burbujas y los archivos como mensaje interactivo `location_request_message` (con `action: {name: "send_location"}`). El cliente
 //     lo toca y comparte su ubicación sin buscar el clip. Si Meta lo rechaza, queda en el registro y nada más: el texto con el enlace
 //     ya salió y el envío no se da por fallido.
 //   · «Responder» desde Odoo: el primer mensaje que sale lleva `context: {message_id}`; si Meta lo rechaza (un 4xx: el

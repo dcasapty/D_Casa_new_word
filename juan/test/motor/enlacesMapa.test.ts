@@ -1,5 +1,5 @@
 /**
- * Enlaces de mapa en el texto de la clienta (docs/UBICACION.md, «Contrato…» §4): qué formatos dan un punto, cómo se siguen los cortos de
+ * Enlaces de mapa en el texto del cliente (docs/UBICACION.md, «Contrato…» §4): qué formatos dan un punto, cómo se siguen los cortos de
  * Google (a mano, solo a hosts de Google de la lista, como mucho 3 saltos y 5 s, sin leer el cuerpo) y qué queda en el texto (nunca las
  * coordenadas). Un enlace sin coordenadas no se adivina. También `prepararEntrante` y la copia de rescate (`crudoDe`).
  */
@@ -341,7 +341,7 @@ describe("el texto que queda (lo que se guarda y lo que ve el modelo)", () => {
 const base = (extra: Partial<Entrante> = {}): Entrante => ({ canal: "instagram", id_externo: "IG1", id_mensaje: "m1", texto: "hola", adjuntos: [], ts: 1, ...extra });
 const ENLACE = "https://maps.google.com/?q=9.0012345,-79.5123456";
 
-describe("prepararEntrante: el enlace de la clienta se vuelve su ubicación", () => {
+describe("prepararEntrante: el enlace del cliente se vuelve su ubicación", () => {
   it("con un enlace con coordenadas: `ubicacion` con origen «enlace» y el texto sin coordenadas", async () => {
     const e = await prepararEntrante(base({ texto: ENLACE }));
     expect(e.ubicacion).toEqual({ ...PUNTO, origen: "enlace" });
@@ -379,7 +379,7 @@ describe("prepararEntrante: el enlace de la clienta se vuelve su ubicación", ()
 
 describe("crudoDe: la copia de rescate nunca guarda un punto", () => {
   it("la ubicación del canal queda como `ubicacion_omitida`", () => {
-    const c = crudoDe(base({ texto: "(la clienta compartió su ubicación de entrega)", ubicacion: { ...PUNTO, origen: "whatsapp", nombre_lugar: "Casa" } }));
+    const c = crudoDe(base({ texto: "(el cliente compartió su ubicación de entrega)", ubicacion: { ...PUNTO, origen: "whatsapp", nombre_lugar: "Casa" } }));
     expect(c).not.toHaveProperty("ubicacion");
     expect(c.ubicacion_omitida).toBe("whatsapp");
     expect(JSON.stringify(c)).not.toMatch(/9\.0012|79\.5123|Casa/);

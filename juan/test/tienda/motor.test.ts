@@ -502,17 +502,17 @@ describe("después de la ubicación con precio: el número de casa o las indicac
   const RASTROS = /8\.881|79\.783|12\.345/;
 
   it("al final de la respuesta, el bloque «indicaciones» con su texto fijo (la página pinta el campo); la pose es el mapa", async () => {
-    const m = montar({ pasos: [responder({ texto: "Se lo llevamos a Villa Lucre." })] });
+    const m = montar({ pasos: [responder({ texto: "Te lo llevamos a Villa Lucre." })] });
     const r = ok(await m.pedir({ ubicacion: UBICACION }));
     expect(r.bloques.at(-1)).toEqual({ tipo: "indicaciones", texto: TEXTO_DE_INDICACIONES });
-    expect(TEXTO_DE_INDICACIONES).toBe("🏠 ¿Número de casa o indicaciones para el motorizado?");
+    expect(TEXTO_DE_INDICACIONES).toBe("🏠 ¿Número de casa o indicaciones para el chofer?");
     expect(bloquesDe(r, "indicaciones")).toHaveLength(1);
     expect(bloquesDe(r, "envio")).toHaveLength(1);
     expect(r.pose).toBe("mapa");
   });
 
   it("la precisión no va a Odoo, ni al modelo, ni a lo que se guarda (como las coordenadas)", async () => {
-    const m = montar({ pasos: [responder({ texto: "Se lo llevamos a Villa Lucre." })] });
+    const m = montar({ pasos: [responder({ texto: "Te lo llevamos a Villa Lucre." })] });
     await m.pedir({ ubicacion: UBICACION });
     expect(m.odoo.llamadasTienda).toEqual([{ nombre: "cotizar_envio", args: { lat: 8.8812345, lon: -79.7834567 } }]);
     expect(m.guion.prompts().join("\n")).not.toMatch(RASTROS);
@@ -521,12 +521,12 @@ describe("después de la ubicación con precio: el número de casa o las indicac
   });
 
   it("el modelo sabe que no las pregunta él: la página las pide (y en el siguiente turno sabe que ya se pidieron)", async () => {
-    const m = montar({ pasos: [responder({ texto: "Se lo llevamos a Villa Lucre." })] });
+    const m = montar({ pasos: [responder({ texto: "Te lo llevamos a Villa Lucre." })] });
     await m.pedir({ ubicacion: UBICACION });
     const primero = m.guion.prompts()[0];
-    expect(primero).toContain("enseguida la página le pide el número de casa o las indicaciones para el motorizado");
+    expect(primero).toContain("enseguida la página le pide el número de casa o las indicaciones para el chofer");
     await m.pedir({ texto: "gracias" });
-    expect(m.guion.prompts().at(-1)).toContain("[La página le pidió el número de casa o las indicaciones para el motorizado]");
+    expect(m.guion.prompts().at(-1)).toContain("[La página le pidió el número de casa o las indicaciones para el chofer]");
   });
 
   it("solo con la ubicación de ESTE turno: un envío por barrio (sin ubicación) no lo trae", async () => {
@@ -538,7 +538,7 @@ describe("después de la ubicación con precio: el número de casa o las indicac
 
   it("solo si salió con precio: sin un lugar cerca, o si Odoo no contestó, no hay bloque", async () => {
     for (const cotizar of [() => ({ estado: "no_encontrado", parecidos: [], frase_para_el_cliente: "No encontré un lugar cerca.", instruccion: "Pide el barrio." }), () => { throw new Error("Odoo no contesta"); }]) {
-      const m = montar({ pasos: [responder({ texto: "¿Me dice el barrio o un punto de referencia?" })] });
+      const m = montar({ pasos: [responder({ texto: "¿Me dices el barrio o un punto de referencia?" })] });
       m.odoo.manejadores.cotizar_envio = cotizar;
       const r = ok(await m.pedir({ ubicacion: UBICACION }));
       expect(bloquesDe(r, "indicaciones")).toEqual([]);
@@ -866,9 +866,9 @@ describe("arreglos de la revisión adversarial, segunda vuelta (2026-11-14)", ()
     const p = (red: string) => ({ ...base, red, enVueloMax: 4, enVueloRed: 2, reservaUsd: 0.1 });
     expect([1, 2, 3, 4].map((i) => topes.reservar(p("acaparadora"), DIA + i).ok)).toEqual([true, true, true, true]);
     expect(topes.reservar(p("acaparadora"), DIA + 5)).toEqual({ ok: false, motivo: "ocupado" }); // total lleno y ya tiene su parte
-    expect(topes.reservar(p("clienta-1"), DIA + 6).ok).toBe(true); // su parte cuenta 2 de 4: hay lugar
-    expect(topes.reservar(p("clienta-1"), DIA + 7).ok).toBe(true);
-    expect(topes.reservar(p("clienta-2"), DIA + 8)).toEqual({ ok: false, motivo: "ocupado" }); // 2 + 2 partes justas = 4
+    expect(topes.reservar(p("cliente-1"), DIA + 6).ok).toBe(true); // su parte cuenta 2 de 4: hay lugar
+    expect(topes.reservar(p("cliente-1"), DIA + 7).ok).toBe(true);
+    expect(topes.reservar(p("cliente-2"), DIA + 8)).toEqual({ ok: false, motivo: "ocupado" }); // 2 + 2 partes justas = 4
   });
 
   it("si cerrar falla una vez, se reintenta: lo medido se anota (sin estimado)", async () => {

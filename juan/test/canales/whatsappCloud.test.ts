@@ -217,8 +217,8 @@ describe("el envío", () => {
 });
 
 describe("el botón «Enviar ubicación» (location_request_message)", () => {
-  const PEDIDO = "📍 O toque «Enviar ubicación» y listo.";
-  const salida = { para: "50760261919", burbujas: ["📍 Marque su casa en el mapa:", "https://babycaleb.com/u/abc"], medios: [], pedirUbicacion: PEDIDO };
+  const PEDIDO = "📍 O toca «Enviar ubicación» y listo.";
+  const salida = { para: "50760261919", burbujas: ["📍 Marca tu casa en el mapa:", "https://dcasapty.com/u/abc"], medios: [], pedirUbicacion: PEDIDO };
 
   it("sale al final, después de los textos, con la forma de Meta; su id va último y lo dice `ubicacionPedida`", async () => {
     const { llamadas, adaptador } = nubeFalsa();

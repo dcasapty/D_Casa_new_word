@@ -57,7 +57,7 @@ function noAutorizado(request: Request): Response {
 /**
  * Un entrante que no se pudo entregar se guarda para reintentar; si trae un archivo enorme, sin el archivo. Nunca con el punto de
  * entrega (docs/UBICACION.md: las coordenadas no se guardan en ningún almacén): sale como `ubicacion_omitida: true` y Juan le pide la
- * ubicación otra vez a la clienta.
+ * ubicación otra vez al cliente.
  */
 export function prepararPendiente(texto: string, payload: Record<string, any>): string {
   if (payload.ubicacion !== undefined) {

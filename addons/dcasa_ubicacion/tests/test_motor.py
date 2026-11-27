@@ -1,5 +1,5 @@
 """El motor de la ubicación sin base de datos: qué punto vale, la zona con la tabla, el aviso de lo escrito contra el
-punto, los botones del motorizado y los enlaces de mapa (incluidos los cortos, con la red simulada)."""
+punto, los botones del chofer y los enlaces de mapa (incluidos los cortos, con la red simulada)."""
 import math
 
 from odoo.tests import BaseCase, tagged
@@ -42,7 +42,7 @@ class TestGeo(BaseCase):
         self.assertEqual(geo.etiqueta('gps', 12), 'Ubicación del teléfono (±12 m)')
         self.assertEqual(geo.etiqueta('escrita'), 'Escrita a mano')
 
-    def test_los_dos_botones_del_motorizado(self):
+    def test_los_dos_botones_del_chofer(self):
         self.assertEqual(geo.enlaces(8.9, -79.8), {
             'waze': 'https://waze.com/ul?ll=8.9000000%2C-79.8000000&navigate=yes',
             'google': 'https://www.google.com/maps/dir/?api=1&destination=8.9000000%2C-79.8000000',

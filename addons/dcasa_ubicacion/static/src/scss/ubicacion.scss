@@ -1,4 +1,4 @@
-// «¿Dónde le entregamos?» en el checkout (views/checkout_templates.xml). Pedido del dueño (2026-11-25): íconos grandes y
+// «¿Dónde te entregamos?» en el checkout (views/checkout_templates.xml). Pedido del dueño (2026-11-25): íconos grandes y
 // pocas palabras («un niño de 5 años pueda comprar»). Marca Baby Caleb (docs/MARCA_BABY_CALEB.md): crema, letra navy, el
 // naranja de relleno con letra navy, pastillas, plano; 48 px o más en lo táctil y 16 px en los campos.
 $dcasa-ubic-navy: #1B3246;
@@ -124,7 +124,7 @@ $dcasa-ubic-salvia: #4F6B58;
         }
     }
 
-    // «¿Es para otra casa? Búsquela 👇» bajo «Mi ubicación» (como en /u) y cómo permitir la ubicación.
+    // «¿Es para otra casa? Búscala 👇» bajo «Mi ubicación» (como en /u) y cómo permitir la ubicación.
     .o_dcasa_ubic_mini,
     .o_dcasa_ubic_permiso {
         margin: 6px 0 0;
@@ -254,7 +254,7 @@ $dcasa-ubic-salvia: #4F6B58;
         font-weight: 700;
     }
 
-    // Con el aviso de cruce: «📍 Es aquí» / «🏠 Es otra casa». Sin señal: «📶 Sin señal. Toque para reintentar».
+    // Con el aviso de cruce: «📍 Es aquí» / «🏠 Es otra casa». Sin señal: «📶 Sin señal. Toca para reintentar».
     .o_dcasa_ubic_cruce_botones,
     .o_dcasa_chat_botones {
         display: flex;
@@ -357,7 +357,7 @@ $dcasa-ubic-salvia: #4F6B58;
     }
 }
 
-// /shop/checkout: «¿Le entregamos ahí?» con lo que dio en el chat de la tienda (auditoría 2).
+// /shop/checkout: «¿Te entregamos ahí?» con lo que dio en el chat de la tienda (auditoría 2).
 .o_dcasa_chat_pendiente {
     padding: 16px;
     border: 2px solid $dcasa-ubic-naranja;
@@ -429,7 +429,7 @@ $dcasa-ubic-salvia: #4F6B58;
     font-weight: 700;
 }
 
-// La página del pedido (el link de pago): la tarjeta «¿Dónde le entregamos?» o la línea con la zona y la casa.
+// La página del pedido (el link de pago): la tarjeta «¿Dónde te entregamos?» o la línea con la zona y la casa.
 .o_dcasa_pedido_ubic {
     padding: 16px;
     border: 2px solid $dcasa-ubic-naranja;

@@ -1402,10 +1402,10 @@ LISTA_BLANCA = {
         'ficha; devuelve la URL para copiarla.',
     ('dcasa_ubicacion', 'sale.order', 'action_dcasa_abrir_entrega'):
         'Botón: exige poder leer la venta (check_access); arma (en sudo) la entrega de ESA venta confirmada y devuelve '
-        'la URL de la página del motorizado.',
+        'la URL de la página del chofer.',
     ('dcasa_ubicacion', 'sale.order', 'action_confirm'):
         OVERRIDE + ' Después de confirmar (con el permiso de Odoo ya revisado) arma, en sudo, la entrega del '
-                   'motorizado de esa venta si va a domicilio y, si su dirección no tiene un punto confiable, le pide '
+                   'chofer de esa venta si va a domicilio y, si su dirección no tiene un punto confiable, le pide '
                    'una vez la ubicación (mensaje «por enviar» del asistente o un pendiente para la vendedora) en un '
                    'savepoint que nunca hace fallar la confirmación (models/avisos.py).',
     ('dcasa_ubicacion', 'sale.order', 'action_dcasa_pedir_ubicacion_whatsapp'):

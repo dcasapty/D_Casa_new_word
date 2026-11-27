@@ -66,13 +66,13 @@ describe("contrato puente → Juan: POST /webhooks/whatsapp-qr", () => {
     expect(validarWebhook(j)).toEqual([]);
   });
 
-  it("la ubicación de la clienta va aparte (`ubicacion`), nunca en el texto", () => {
+  it("la ubicación del cliente va aparte (`ubicacion`), nunca en el texto", () => {
     const j = construirWebhook({
       idMensaje: "ID4",
       de: "50760261919",
       nombre: "K",
       tipo: "texto",
-      texto: "(la clienta compartió su ubicación de entrega)",
+      texto: "(el cliente compartió su ubicación de entrega)",
       ts: TS,
       propio: false,
       ubicacion: { lat: 9.0012345, lon: -79.5123456, nombre: "Super 99" },

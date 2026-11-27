@@ -146,7 +146,7 @@ describe("route", () => {
     }
   });
 
-  it("lleva la ubicación de entrega (enlace de la clienta y página del motorizado) a Odoo, sin caché ni bloqueo", () => {
+  it("lleva la ubicación de entrega (enlace del cliente y página del chofer) a Odoo, sin caché ni bloqueo", () => {
     const secreto = "pQrStUvWxYzAbCdEfGhIjK"; // token_urlsafe puede salir sin dígitos
     const rutas = [`/u/${secreto}`, `/u/${secreto}/zona`, `/u/${secreto}/buscar`, `/u/${secreto}/guardar`,
       `/entrega/${secreto}`, `/es/u/${secreto}`, `/es/entrega/${secreto}`];

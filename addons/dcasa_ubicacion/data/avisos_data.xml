@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- El pendiente de la vendedora cuando el asistente no pudo pedirle a la clienta su casa en el mapa
-         (models/avisos.py). Se da por hecho solo cuando la clienta marca un punto confiable. -->
+    <!-- El pendiente de la vendedora cuando el asistente no pudo pedirle al cliente su casa en el mapa
+         (models/avisos.py). Se da por hecho solo cuando el cliente marca un punto confiable. -->
     <record id="actividad_pedir_ubicacion" model="mail.activity.type">
         <field name="name">Pedir la ubicación de entrega</field>
         <field name="summary">📍 Pedirle la ubicación de entrega</field>

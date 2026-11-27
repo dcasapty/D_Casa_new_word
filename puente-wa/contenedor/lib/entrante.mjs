@@ -14,11 +14,11 @@ import { contenidoDe } from "./propios.mjs";
 const CLASES_CON_ARCHIVO = new Set(["imagen", "audio", "documento", "video"]);
 
 /**
- * Lo que dice el texto cuando la clienta comparte su ubicación: el punto viaja aparte (`ubicacion`). Las mismas frases que usa Juan
+ * Lo que dice el texto cuando el cliente comparte su ubicación: el punto viaja aparte (`ubicacion`). Las mismas frases que usa Juan
  * (juan/src/canales/ubicacion.ts): es lo que se guarda de la conversación y lo único que ve el modelo.
  */
-export const TEXTO_UBICACION_COMPARTIDA = "(la clienta compartió su ubicación de entrega)";
-export const TEXTO_UBICACION_ILEGIBLE = "(la clienta intentó compartir una ubicación, pero no llegó bien)";
+export const TEXTO_UBICACION_COMPARTIDA = "(el cliente compartió su ubicación de entrega)";
+export const TEXTO_UBICACION_ILEGIBLE = "(el cliente intentó compartir una ubicación, pero no llegó bien)";
 /** La tienda la compartió desde el teléfono: no es el punto de entrega de nadie, así que no viaja. */
 export const TEXTO_UBICACION_PROPIA = "Ubicación compartida desde el teléfono";
 

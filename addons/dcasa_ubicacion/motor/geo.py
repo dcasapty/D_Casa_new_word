@@ -1,8 +1,8 @@
 """La ubicación de entrega, en puro Python (sin Odoo): qué punto vale, de dónde salió, qué zona es y los dos botones
-del motorizado. Lo usan los modelos, las páginas públicas y Juan; se prueba sin base de datos (tests/test_geo.py).
+del chofer. Lo usan los modelos, las páginas públicas y Juan; se prueba sin base de datos (tests/test_geo.py).
 
 La zona (barriada, corregimiento, distrito, provincia) sale de la **tabla de lugares de la calculadora de envíos**, la
-misma que pone el precio: así la dirección que ve la clienta y el precio del envío no se contradicen. Google (si hay
+misma que pone el precio: así la dirección que ve el cliente y el precio del envío no se contradicen. Google (si hay
 clave) solo aporta la calle, como ayuda.
 """
 import hashlib
@@ -48,7 +48,7 @@ def precision_m(valor):
 
 
 def es_confiable(origen, precision=None):
-    """¿Se puede mandar al motorizado sin llamar antes? GPS solo si el error es de 100 m o menos."""
+    """¿Se puede mandar al chofer sin llamar antes? GPS solo si el error es de 100 m o menos."""
     if origen not in CONFIABLES:
         return False
     return not (origen == 'gps' and precision is not None and precision > PRECISION_MAX_M)
@@ -70,7 +70,7 @@ def texto_corto(valor, maximo=MAX_TEXTO):
 
 
 def enlaces(lat, lon):
-    """Los dos botones del motorizado: navegar con Waze o con Google Maps hasta el punto."""
+    """Los dos botones del chofer: navegar con Waze o con Google Maps hasta el punto."""
     coordenadas = quote(f'{lat:.7f},{lon:.7f}', safe='')
     return {
         'waze': f'https://waze.com/ul?ll={coordenadas}&navigate=yes',
@@ -151,7 +151,7 @@ def distritos_mencionados(texto, distritos):
 
 
 def aviso_de_cruce(texto_escrito, zona, distritos, con_mapa=True):
-    """Si lo que escribió la clienta nombra otro distrito que el del punto, el aviso para que diga cuál es; si no,
+    """Si lo que escribió el cliente nombra otro distrito que el del punto, el aviso para que diga cuál es; si no,
     ``''``. Solo compara distritos (los nombres de barriadas se repiten en todo el país). Sin mapa (``con_mapa``
     falso: sin clave o no cargó) no hay mapa que mover: que busque la barriada (auditoría 2)."""
     del_punto = (zona.get('distrito') or '').strip()
@@ -160,8 +160,8 @@ def aviso_de_cruce(texto_escrito, zona, distritos, con_mapa=True):
     nombrados = distritos_mencionados(texto_escrito, distritos)
     if not nombrados or any(_normalizado(d) == _normalizado(del_punto) for d in nombrados):
         return ''
-    arreglo = 'Mueva el mapa o corrija la dirección.' if con_mapa else 'Busque la barriada o corrija la dirección.'
-    return (f'Su punto en el mapa está en {del_punto} y en la dirección escribió {nombrados[0]}. '
+    arreglo = 'Mueve el mapa o corrige la dirección.' if con_mapa else 'Busca la barriada o corrige la dirección.'
+    return (f'Tu punto en el mapa está en {del_punto} y en la dirección escribiste {nombrados[0]}. '
             f'¿Cuál es el correcto? {arreglo}')
 
 

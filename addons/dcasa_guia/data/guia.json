@@ -3943,6 +3943,148 @@
    ]
   },
   {
+   "id": "envio-ubicacion-cliente",
+   "categoria": "vender",
+   "tambien": [
+    "tienda"
+   ],
+   "grupo": "Envíos",
+   "titulo": "Mandarle a un cliente el enlace para que marque su ubicación",
+   "logras": "En Contactos abres la ficha del cliente y, en la pestaña «Ubicación de entrega», tocas «Crear enlace para que marque su ubicación». Sale un enlace que sirve una sola vez y vence en 24 horas: se lo mandas por WhatsApp, el cliente marca su punto en el mapa y queda en su ficha con la zona, de dónde salió el punto y cómo reconocer el sitio. En la misma pestaña ves lo que ya marcó.",
+   "nota": "Juan manda este mismo enlace por WhatsApp oficial (con un botón «Enviar ubicación»), Instagram y Messenger, y cuando el pedido es para otra casa. Por WhatsApp con QR y Telegram el cliente también puede compartir su ubicación con el clip. Sin las claves de Google el mapa no sale, pero sigue sirviendo el GPS, la búsqueda de barriadas y la dirección escrita.",
+   "destino": {
+    "menu": "contacts.res_partner_menu_contacts"
+   },
+   "palabras": [
+    "ubicacion del cliente",
+    "enlace de ubicacion",
+    "link de ubicacion",
+    "marcar ubicacion",
+    "direccion exacta",
+    "punto de entrega",
+    "pin de entrega",
+    "google maps del cliente"
+   ]
+  },
+  {
+   "id": "envio-ruta-chofer",
+   "categoria": "vender",
+   "tambien": [
+    "tienda"
+   ],
+   "grupo": "Envíos",
+   "titulo": "Abrir la ruta del chofer de una venta",
+   "logras": "Abres la venta confirmada y tocas «Ruta del chofer»: se abre la misma página que el QR del comprobante y de la nota de entrega, con «Abrir en Waze», «Abrir en Google Maps», la dirección, cómo reconocer el sitio y el botón para llamar. Si el cliente escribió la dirección a mano en vez de marcarla en el mapa, la página avisa que hay que llamarlo antes de salir.",
+   "nota": "La página del QR sirve mientras el pedido no se entregue y se cierra unos días después; no deja cambiar nada del pedido. Si la venta es «Retiro en tienda» no lleva mapa ni QR.",
+   "destino": {
+    "menu": "sale.menu_sale_order"
+   },
+   "palabras": [
+    "ruta del chofer",
+    "qr del chofer",
+    "waze",
+    "google maps",
+    "como llegar",
+    "direccion de entrega",
+    "entrega a domicilio",
+    "chofer"
+   ]
+  },
+  {
+   "id": "envio-sin-corredores",
+   "categoria": "vender",
+   "tambien": [
+    "tienda"
+   ],
+   "grupo": "Envíos",
+   "titulo": "Ruta sin corredores: qué hace el chofer en su teléfono",
+   "logras": "Nuestros choferes no usan corredores (las autopistas de peaje). La página del chofer lo recuerda con «Ruta sin corredores». Antes de salir, cada chofer abre Waze o Google Maps y activa «Evitar peajes» en su teléfono; así la ruta que ve es la que va a manejar.",
+   "nota": "Los botones «Abrir en Waze» y «Abrir en Google Maps» solo abren el destino: no sabemos si evitan peajes por sí solos, por eso se activa en cada teléfono. Los kilómetros de la tabla de envíos se midieron en carro, por los corredores; volver a medirlos sin corredores está pendiente (ver ENVIOS.md y las prioridades).",
+   "destino": {
+    "menu": "sale.menu_sale_order"
+   },
+   "palabras": [
+    "sin corredores",
+    "corredor",
+    "peaje",
+    "peajes",
+    "evitar peajes",
+    "ruta del chofer",
+    "como llega el chofer"
+   ]
+  },
+  {
+   "id": "envio-quien-recibe",
+   "categoria": "vender",
+   "tambien": [
+    "tienda"
+   ],
+   "grupo": "Envíos",
+   "titulo": "Ver o anotar quién recibe, el teléfono de respaldo y la foto de la casa",
+   "logras": "En Contactos abres la ficha del cliente y, en la pestaña «Ubicación de entrega», ves quién recibe el pedido, otro teléfono por si no contesta y la foto de la casa que el cliente subió. Los dos primeros los puedes escribir ahí mismo; la foto la puedes quitar con «Quitar la foto». El chofer ve todo en la página del QR, con el botón «Avisar que llegué» que le abre WhatsApp con el mensaje listo.",
+   "nota": "El cliente los pone, si quiere, al pagar en la tienda o en el enlace para marcar su ubicación. A la foto se le quita la ubicación escondida que traen las fotos del teléfono.",
+   "destino": {
+    "menu": "contacts.res_partner_menu_contacts"
+   },
+   "palabras": [
+    "quien recibe",
+    "telefono de respaldo",
+    "otro telefono",
+    "foto de la casa",
+    "foto de la fachada",
+    "avisar que llegue",
+    "pedido devuelto"
+   ]
+  },
+  {
+   "id": "envio-pedir-ubicacion-venta",
+   "categoria": "vender",
+   "tambien": [
+    "tienda"
+   ],
+   "grupo": "Envíos",
+   "titulo": "Pedirle al cliente que marque su casa en el mapa para su pedido",
+   "logras": "Cuando confirmas una venta a domicilio y la dirección no tiene la casa marcada en el mapa, el asistente se lo pide solo por el chat, con un enlace para marcarla. Si no le puede escribir (no tiene chat, o pasó más de un día desde su último mensaje en WhatsApp oficial, Instagram o Messenger), te queda el pendiente «📍 Pedirle la ubicación de entrega»: abres la venta y tocas «📲 Pedir ubicación por WhatsApp», y se abre WhatsApp con el mensaje y el enlace listos para mandar. Cuando el cliente marca su casa, el pendiente se cierra solo.",
+   "nota": "Si el cliente marca su casa con la venta ya cobrada, el envío no se cambia: si la tabla da otro precio para esa zona, queda una nota en la venta para que decidan. Si marca su casa antes de pagar, se elige solo el envío a domicilio; «Retiro en tienda» sigue disponible.",
+   "destino": {
+    "menu": "sale.menu_sale_order"
+   },
+   "palabras": [
+    "pedir ubicacion",
+    "pedirle la ubicacion",
+    "marcar la casa",
+    "casa en el mapa",
+    "direccion escrita",
+    "pedidos devueltos",
+    "no encuentra la casa",
+    "ubicacion por whatsapp"
+   ]
+  },
+  {
+   "id": "envio-aviso-sale-hoy",
+   "categoria": "vender",
+   "tambien": [
+    "tienda"
+   ],
+   "grupo": "Envíos",
+   "titulo": "Avisarle al cliente que su pedido sale hoy",
+   "logras": "El día que sale el pedido, abres la venta (o su entrega) y tocas «🚚 Sale hoy: avisarle». El asistente le escribe por el chat que hoy le llega y le pregunta si habrá alguien en casa; si dice que no o quiere cambiar el día, lo pasa a una vendedora. Si el asistente no le puede escribir, se abre WhatsApp con el mensaje listo. Para varios a la vez, los marcas en la lista de ventas y eliges en Acciones «🚚 Sale hoy: avisarles».",
+   "nota": "Se le avisa una sola vez por día. Si todavía no tiene su casa en el mapa, el mensaje lleva el enlace para marcarla.",
+   "destino": {
+    "menu": "sale.menu_sale_order"
+   },
+   "palabras": [
+    "sale hoy",
+    "avisar entrega",
+    "avisarle al cliente",
+    "hay alguien en casa",
+    "despacho",
+    "pedido en camino",
+    "chofer sale",
+    "aviso de entrega"
+   ]
+  },
+  {
    "id": "dinero-en-bancos-y-caja",
    "categoria": "reportes",
    "grupo": "Dinero",

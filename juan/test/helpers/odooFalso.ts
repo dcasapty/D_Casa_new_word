@@ -79,7 +79,7 @@ export const ENVIOS = {
 };
 
 /**
- * El envío que Odoo cotiza con el punto que compartió la clienta (`POST /ubicacion` → `resultado.envio`): la misma forma que el resultado
+ * El envío que Odoo cotiza con el punto que compartió el cliente (`POST /ubicacion` → `resultado.envio`): la misma forma que el resultado
  * de `cotizar_envio`, con `por_ubicacion: true` (docs/UBICACION.md, «Contrato…» §1).
  */
 export const ENVIO_POR_UBICACION = {
@@ -102,7 +102,7 @@ export const ZONA_POR_UBICACION = "Brisas del Golf · Rufina Alfaro · San Migue
 
 /**
  * Las herramientas de la ubicación (docs/UBICACION.md): `enlace_de_ubicacion` (el enlace de un solo uso; en el WhatsApp de la API oficial
- * trae `boton_whatsapp: true`) y `guardar_indicaciones` (el número de casa o las indicaciones para el motorizado, en la ficha). No van en
+ * trae `boton_whatsapp: true`) y `guardar_indicaciones` (el número de casa o las indicaciones para el chofer, en la ficha). No van en
  * la lista de siempre: la prueba que las usa las agrega.
  */
 export const DEF_ENLACE_DE_UBICACION: DefHerramienta = {
@@ -112,11 +112,11 @@ export const DEF_ENLACE_DE_UBICACION: DefHerramienta = {
 };
 export const DEF_GUARDAR_INDICACIONES: DefHerramienta = {
   nombre: "guardar_indicaciones",
-  descripcion: "Guarda el número de casa o las indicaciones para el motorizado en la ficha de la clienta.",
-  parametros: objeto({ texto: texto("Número de casa o indicaciones, como las dijo la clienta") }, ["texto"]),
+  descripcion: "Guarda el número de casa o las indicaciones para el chofer en la ficha del cliente.",
+  parametros: objeto({ texto: texto("Número de casa o indicaciones, como las dijo el cliente") }, ["texto"]),
 };
-export const ENLACE_DE_UBICACION = "https://babycaleb.com/u/s3cr3t0-de-un-solo-uso";
-export const FRASE_DEL_ENLACE = `📍 Marque su casa en el mapa:\n${ENLACE_DE_UBICACION}\n1️⃣ Abra el enlace\n2️⃣ Toque «Mi ubicación» y permita\n3️⃣ Escriba su número de casa y toque «Sí, aquí es»`;
+export const ENLACE_DE_UBICACION = "https://dcasapty.com/u/s3cr3t0-de-un-solo-uso";
+export const FRASE_DEL_ENLACE = `📍 Marca tu casa en el mapa:\n${ENLACE_DE_UBICACION}\n1️⃣ Abre el enlace\n2️⃣ Toca «Mi ubicación» y permite\n3️⃣ Escribe tu número de casa y toca «Sí, aquí es»`;
 
 /** La base de conocimiento de prueba: cada entrada responde a ciertas palabras. */
 export const CONOCIMIENTO = [
@@ -249,7 +249,7 @@ const MANEJADORES: Record<string, Manejador> = {
   guardar_indicaciones: (a, odoo) => {
     const t = String(a.texto ?? "").trim().slice(0, 200);
     odoo.indicaciones.push(t);
-    return { guardado: true, indicaciones: t, instruccion: "Confírmale en una línea que ya quedó para el motorizado." };
+    return { guardado: true, indicaciones: t, instruccion: "Confírmale en una línea que ya quedó para el chofer." };
   },
   registrar_pregunta_sin_respuesta: (a, odoo) => {
     odoo.preguntasSinRespuesta.push(a);

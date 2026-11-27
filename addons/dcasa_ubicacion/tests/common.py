@@ -1,5 +1,5 @@
 """Lo común de las pruebas de la ubicación: la tabla de lugares inventados de envíos (su fixture, con precios de
-juguete), la tarifa aprobada y una clienta. Nada de aquí es la tabla ni la tarifa de la tienda."""
+juguete), la tarifa aprobada y un cliente. Nada de aquí es la tabla ni la tarifa de la tienda."""
 from odoo.addons.dcasa_conversaciones.tests.common import JuanCase
 from odoo.addons.dcasa_envios.tests.common import importar
 from odoo.tests import new_test_user
@@ -20,7 +20,7 @@ class UbicacionCase(JuanCase):
         importar(cls.env, cls.gerencia_envios)
         cls.tarifa = cls.env['dcasa.envio.tarifa'].search([], limit=1)
         cls.tarifa.with_user(cls.gerencia_envios).action_aprobar()
-        cls.clienta = cls.env['res.partner'].create({'name': 'Ana Prueba', 'phone': '+507 6123-4567'})
+        cls.cliente = cls.env['res.partner'].create({'name': 'Ana Prueba', 'phone': '+507 6123-4567'})
         cls.villa = cls.env['dcasa.envio.lugar'].search([('name', '=', 'Villa Prueba II')], limit=1)
 
     def precio_de(self, lugar):

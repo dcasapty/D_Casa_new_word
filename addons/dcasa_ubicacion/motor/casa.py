@@ -1,8 +1,8 @@
-"""Lo que ayuda al motorizado a dar con la casa y con quien recibe (el dueño, 2026-11-25: «el dolor número uno son los
+"""Lo que ayuda al chofer a dar con la casa y con quien recibe (el dueño, 2026-11-25: «el dolor número uno son los
 pedidos devueltos»), en puro Python (sin base de datos):
 
-* **Quién recibe** (si no es la clienta) y un **teléfono de respaldo** de Panamá, por si no contesta.
-* **«Avisar que llegué»**: el número de WhatsApp del celular de la clienta.
+* **Quién recibe** (si no es el cliente) y un **teléfono de respaldo** de Panamá, por si no contesta.
+* **«Avisar que llegué»**: el número de WhatsApp del celular del cliente.
 * **La foto de la fachada**: se abre con PIL, se endereza, se le quitan TODOS sus datos ocultos (EXIF, XMP, perfiles:
   la foto de un teléfono lleva el GPS de donde se tomó) y se guarda como un JPEG nuevo de hasta ``LADO_FOTO`` px.
 
@@ -32,12 +32,12 @@ MAX_PIXELES_FOTO = 12_600_000
 CALIDAD_FOTO = 82
 FORMATOS_FOTO = ('JPEG', 'MPO', 'PNG', 'WEBP', 'HEIF', 'HEIC')   # MPO: el JPEG de varias fotos de algunos teléfonos
 
-MENSAJE_TELEFONO = 'Ese teléfono no parece de Panamá. Escríbalo así: 6123-4567.'
+MENSAJE_TELEFONO = 'Ese teléfono no parece de Panamá. Escríbelo así: 6123-4567.'
 MENSAJES_FOTO = {
-    'vacia': 'No nos llegó la foto. Tómela otra vez 📷',
-    'pesada': 'La foto pesa mucho. Tómela otra vez 📷',
-    'formato': 'No pudimos abrir esa foto. Tómela otra vez 📷',
-    'muchas': 'Ya recibimos varias fotos de su casa hoy. Si quiere cambiarla, escríbanos 💬',
+    'vacia': 'No nos llegó la foto. Tómala otra vez 📷',
+    'pesada': 'La foto pesa mucho. Tómala otra vez 📷',
+    'formato': 'No pudimos abrir esa foto. Tómala otra vez 📷',
+    'muchas': 'Ya recibimos varias fotos de tu casa hoy. Si quieres cambiarla, escríbenos 💬',
 }
 MAX_FOTOS_POR_DIA = 10      # por ficha: cambiar de foto unas veces sí; llenar R2 acuñando enlaces nuevos, no
 
@@ -71,7 +71,7 @@ def telefono_de_respaldo(texto):
     * un fijo: ``{'guardar': '+507 234-5678', 'tel': '+5072345678', 'wa': '', 'nacional': '2345678'}`` (un fijo no
       tiene WhatsApp).
 
-    Uno de otro país, dos números juntos, letras o un número corto: ``None`` (el motorizado llama desde Panamá)."""
+    Uno de otro país, dos números juntos, letras o un número corto: ``None`` (el chofer llama desde Panamá)."""
     texto = texto_corto(texto, MAX_TELEFONO)
     if not texto:
         return None
@@ -85,7 +85,7 @@ def telefono_de_respaldo(texto):
 
 
 def mismo_telefono(uno, otro):
-    """¿Es el mismo número? (Para no mostrarle al motorizado el respaldo si es el mismo celular de la clienta.)"""
+    """¿Es el mismo número? (Para no mostrarle al chofer el respaldo si es el mismo celular del cliente.)"""
     a = telefono_de_respaldo(uno)
     b = telefono_de_respaldo(otro)
     return bool(a and b) and a['nacional'] == b['nacional']
@@ -117,7 +117,7 @@ def tel(telefono):
 
 def procesar_foto(datos):
     """Los bytes de un JPEG limpio (enderezado, sin EXIF ni ningún dato oculto, de hasta ``LADO_FOTO`` px de lado) a
-    partir de la foto que mandó la clienta, o ``FotoInvalida``.
+    partir de la foto que mandó el cliente, o ``FotoInvalida``.
 
     Se acepta lo que PIL abra de verdad como JPEG, PNG, WebP (o HEIC, si el servidor tiene con qué abrirlo); el nombre
     y el tipo que diga el navegador no cuentan. La imagen que se guarda es NUEVA (se pinta sobre un lienzo blanco): no

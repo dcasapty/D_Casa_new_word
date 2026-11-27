@@ -1,5 +1,5 @@
 """La ubicación en Odoo: la zona y el precio salen de la tabla, la ficha guarda el punto, el enlace de un solo uso
-amarrado a la conversación, la entrega del motorizado (y su QR), el precio del envío en el carrito y las herramientas de
+amarrado a la conversación, la entrega del chofer (y su QR), el precio del envío en el carrito y las herramientas de
 Juan y de Brian."""
 import json
 from datetime import timedelta
@@ -38,10 +38,10 @@ class TestZonaYFicha(UbicacionCase):
         self.assertEqual(error.exception.motivo, 'coordenadas')
 
     def test_la_ficha_guarda_el_punto_y_su_origen(self):
-        zona = self.clienta._dcasa_poner_ubicacion(*CERCA, 'gps', precision=14.6,
+        zona = self.cliente._dcasa_poner_ubicacion(*CERCA, 'gps', precision=14.6,
                                                    referencia='  Casa verde,  portón negro ')
         self.assertEqual(zona['lugar'], self.villa)
-        c = self.clienta
+        c = self.cliente
         self.assertEqual((c.partner_latitude, c.partner_longitude), CERCA)
         self.assertEqual((c.dcasa_ubic_origen, c.dcasa_ubic_precision_m, c.dcasa_ubic_confirmada), ('gps', 15, True))
         self.assertEqual(c.dcasa_ubic_lugar_id, self.villa)
@@ -60,10 +60,10 @@ class TestZonaYFicha(UbicacionCase):
         self.assertEqual(c.dcasa_ubic_origen, 'escrita')
         self.assertFalse(c._dcasa_ubic_resumen()['tiene_punto'])
 
-    def test_lo_que_escribio_la_clienta_en_la_ciudad_manda(self):
-        self.clienta.city = 'Mi ciudad'
-        self.clienta._dcasa_poner_ubicacion(*CERCA, 'pin')
-        self.assertEqual(self.clienta.city, 'Mi ciudad')
+    def test_lo_que_escribio_la_cliente_en_la_ciudad_manda(self):
+        self.cliente.city = 'Mi ciudad'
+        self.cliente._dcasa_poner_ubicacion(*CERCA, 'pin')
+        self.assertEqual(self.cliente.city, 'Mi ciudad')
 
     def test_la_calle_de_google_solo_con_clave_y_sin_romper_nada(self):
         with patch.dict('os.environ', {'GOOGLE_MAPS_CLAVE_SERVIDOR': ''}):
@@ -81,7 +81,7 @@ class TestZonaYFicha(UbicacionCase):
 class TestEnlaceDelChat(UbicacionCase):
 
     def test_el_enlace_guarda_la_huella_y_no_el_secreto(self):
-        enlace, url = self.env['dcasa.ubicacion.enlace']._crear(self.clienta)
+        enlace, url = self.env['dcasa.ubicacion.enlace']._crear(self.cliente)
         token = url.rsplit('/u/', 1)[1]
         self.assertNotIn(token, enlace.sudo().huella)
         self.assertEqual(self.env['dcasa.ubicacion.enlace']._del_secreto(token), enlace)
@@ -109,7 +109,7 @@ class TestEnlaceDelChat(UbicacionCase):
         self.assertEqual(conv.estado, 'bot', 'no la toma una vendedora')
 
     def test_un_punto_malo_deja_el_enlace_vigente(self):
-        enlace, _url = self.env['dcasa.ubicacion.enlace']._crear(self.clienta)
+        enlace, _url = self.env['dcasa.ubicacion.enlace']._crear(self.cliente)
         with self.assertRaises(UbicacionInvalida):
             enlace._confirmar(*LEJOS, 'pin')
         self.assertEqual(enlace.estado, 'vigente')
@@ -127,21 +127,21 @@ class TestEntregaYCarrito(UbicacionCase):
 
     def venta(self, partner=None, con_envio=True):
         orden = self.env['sale.order'].create({
-            'partner_id': (partner or self.clienta).id,
+            'partner_id': (partner or self.cliente).id,
             'order_line': [(0, 0, {'product_id': self.producto.id, 'product_uom_qty': 1})]})
         if con_envio:
             orden.carrier_id = self.domicilio
         return orden
 
-    def test_al_confirmar_se_arma_la_entrega_del_motorizado(self):
-        self.clienta._dcasa_poner_ubicacion(*CERCA, 'pin', referencia='Portón negro')
+    def test_al_confirmar_se_arma_la_entrega_del_chofer(self):
+        self.cliente._dcasa_poner_ubicacion(*CERCA, 'pin', referencia='Portón negro')
         orden = self.venta()
         orden.action_confirm()
         entrega = self.env['dcasa.ubicacion.entrega']._de_la_venta(orden, crear=False)
         self.assertTrue(entrega)
         token = entrega.sudo().token
         self.assertEqual(self.env['dcasa.ubicacion.entrega']._del_secreto(token), entrega)
-        datos = entrega._para_el_motorizado()
+        datos = entrega._para_el_chofer()
         self.assertEqual((datos['pedido'], datos['nombre'], datos['telefono_tel']), (orden.name, 'Ana', '+50761234567'))
         self.assertEqual(datos['referencia'], 'Portón negro')
         self.assertIn('waze.com', datos['enlaces']['waze'])
@@ -156,17 +156,17 @@ class TestEntregaYCarrito(UbicacionCase):
     def test_sin_domicilio_o_sin_direccion_no_hay_qr(self):
         orden = self.venta(con_envio=False)
         orden.action_confirm()
-        self.assertFalse(orden._dcasa_entrega_motorizado(crear=False))
+        self.assertFalse(orden._dcasa_entrega_chofer(crear=False))
         sin_nada = self.env['res.partner'].create({'name': 'Sin Dirección'})
         otra = self.venta(partner=sin_nada)
         otra.action_confirm()
-        self.assertFalse(otra._dcasa_entrega_motorizado(crear=False))
-        # Cuando la clienta pone su punto, la venta confirmada queda con su entrega.
+        self.assertFalse(otra._dcasa_entrega_chofer(crear=False))
+        # Cuando el cliente pone su punto, la venta confirmada queda con su entrega.
         sin_nada._dcasa_poner_ubicacion(*CERCA, 'whatsapp')
-        self.assertTrue(otra._dcasa_entrega_motorizado(crear=False))
+        self.assertTrue(otra._dcasa_entrega_chofer(crear=False))
 
     def test_el_qr_del_comprobante_solo_lee(self):
-        self.clienta._dcasa_poner_ubicacion(*CERCA, 'pin')
+        self.cliente._dcasa_poner_ubicacion(*CERCA, 'pin')
         orden = self.venta()
         orden.action_confirm()
         factura = orden._create_invoices()
@@ -181,7 +181,7 @@ class TestEntregaYCarrito(UbicacionCase):
     def test_el_carrito_cobra_el_envio_del_punto(self):
         orden = self.venta(con_envio=False)
         sin_punto = self.domicilio.fixed_rate_shipment(orden)
-        self.clienta._dcasa_poner_ubicacion(*CERCA, 'gps', precision=10)
+        self.cliente._dcasa_poner_ubicacion(*CERCA, 'gps', precision=10)
         con_punto = self.domicilio.fixed_rate_shipment(orden)
         total = self.env['dcasa.envio.tarifa'].sudo().cotizar_lugar(self.villa)['total']
         self.assertEqual(con_punto['price'], total)
@@ -193,7 +193,7 @@ class TestEntregaYCarrito(UbicacionCase):
         self.assertIn('Villa Prueba II', envio.name)
 
     def test_escrita_a_mano_sigue_por_cotizar(self):
-        self.clienta._dcasa_poner_escrita()
+        self.cliente._dcasa_poner_escrita()
         orden = self.venta(con_envio=False)
         self.assertIsNone(orden._dcasa_envio_por_ubicacion())
 
@@ -227,8 +227,8 @@ class TestHerramientas(UbicacionCase):
             cliente='Ana Prueba', enlace_mapa='https://maps.google.com/?q=8.9012,-79.8013', referencia='Casa azul')
         self.assertEqual(datos['origen'], 'De un enlace de Google Maps o Waze')
         self.assertIn('Villa Prueba II', datos['zona'])
-        self.assertEqual(self.clienta.dcasa_referencia, 'Casa azul')
-        orden = self.env['sale.order'].create({'partner_id': self.clienta.id, 'user_id': vendedora.id})
+        self.assertEqual(self.cliente.dcasa_referencia, 'Casa azul')
+        orden = self.env['sale.order'].create({'partner_id': self.cliente.id, 'user_id': vendedora.id})
         leido = Brian._brian_ubicacion_de_entrega(venta=orden.name)
         self.assertTrue(leido['tiene_punto'])
         self.assertNotIn('enlaces', leido, 'los botones llevan las coordenadas: no van al modelo')

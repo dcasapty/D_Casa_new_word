@@ -3,7 +3,7 @@
  * enlace de un solo uso (/u/<secreto>) y el checkout de la tienda.
  *
  * Cómo funciona (la idea de Nébula, con lo que le faltaba):
- *   - El pin está FIJO en el centro y la clienta mueve el mapa debajo. El centro, cuando el mapa se detiene, es el
+ *   - El pin está FIJO en el centro y el cliente mueve el mapa debajo. El centro, cuando el mapa se detiene, es el
  *     punto. En el teléfono, con DOS dedos (gestureHandling «cooperative»): con uno baja la página. Con «greedy» un
  *     dedo que solo quería bajar la página arrastraba el mapa y cambiaba la casa sin que ella lo notara (auditoría 2).
  *     En la computadora, con el ratón como siempre. Un «idle» sin movimiento (cambiar a Satélite, el teclado, las
@@ -38,7 +38,7 @@
   var ESPERA_GOOGLE_MS = 15000;
   var ZOOM_CASA = 18;
   var ZOOM_BARRIO = 16; // GPS impreciso con mapa: se ve el barrio para mover el pin hasta la puerta
-  var PERMISO = "🔓 Para usar «Mi ubicación», permita la ubicación en los ajustes de su navegador.";
+  var PERMISO = "🔓 Para usar «Mi ubicación», permite la ubicación en los ajustes de tu navegador.";
   var cargando = null;
   var claveRechazada = false;
   var alRechazarClave = [];
@@ -131,8 +131,8 @@
   function montar(op) {
     var estado = { lat: null, lon: null, origen: null, precision: null, zoom: null };
     var mapa = null;
-    var porCodigo = false; // el próximo «idle» lo provocó el código (GPS, búsqueda), no la clienta
-    var marcado = false; // hasta que haya GPS, búsqueda o la clienta mueva el mapa, no hay punto
+    var porCodigo = false; // el próximo «idle» lo provocó el código (GPS, búsqueda), no el cliente
+    var marcado = false; // hasta que haya GPS, búsqueda o el cliente mueva el mapa, no hay punto
     var vivo = true;
     var sinMapaYa = false;
     var ultimoPuesto = null; // el último punto que dio el GPS o la búsqueda (por si Google no da el centro)
@@ -163,16 +163,16 @@
       if (!vivo) return;
       var p = estadoParaFuera();
       // Avisos cortos y con ícono: la gente no lee párrafos (el dueño, 2026-11-25).
-      if (p.motivo === "lejos") texto(op.aviso, "🔍 Acérquese más y ponga el pin en su puerta");
-      else if (p.motivo === "buscado") texto(op.aviso, "👆 Ahora mueva el mapa hasta su puerta");
-      else if (p.motivo === "impreciso") texto(op.aviso, "👆 Mueva el mapa: ponga el pin en su puerta");
+      if (p.motivo === "lejos") texto(op.aviso, "🔍 Acércate más y pon el pin en tu puerta");
+      else if (p.motivo === "buscado") texto(op.aviso, "👆 Ahora mueve el mapa hasta tu puerta");
+      else if (p.motivo === "impreciso") texto(op.aviso, "👆 Mueve el mapa: pon el pin en tu puerta");
       else if (p.motivo === "impreciso_sin_mapa")
         texto(op.aviso, tactil()
-          ? "📍 Su teléfono no da la ubicación exacta. Active la ubicación precisa y toque «Mi ubicación» en su " +
-            "puerta, o busque su barriada 👇"
-          : "📍 La computadora no da la ubicación exacta: busque su barriada 👇 o use su celular");
+          ? "📍 Tu teléfono no da la ubicación exacta. Activa la ubicación precisa y toca «Mi ubicación» en tu " +
+            "puerta, o busca tu barriada 👇"
+          : "📍 La computadora no da la ubicación exacta: busca tu barriada 👇 o usa tu celular");
       else if (p.aproximado)
-        texto(op.aviso, "📍 Es aproximado (su barriada). En su puerta, toque «Mi ubicación» para que sea exacto");
+        texto(op.aviso, "📍 Es aproximado (tu barriada). En tu puerta, toca «Mi ubicación» para que sea exacto");
       else texto(op.aviso, "");
       avisado = { lat: estado.lat, lon: estado.lon, zoom: estado.zoom, origen: estado.origen };
       if (op.alCambiar) op.alCambiar(p);
@@ -187,7 +187,7 @@
       if (op.mapa) op.mapa.classList.add("o_dcasa_mapa_sin_mapa");
       if (op.alSinMapa) op.alSinMapa(motivo);
       if (estado.lat === null) {
-        texto(op.aviso, "🗺️ El mapa no cargó. Toque «Mi ubicación» o busque su barriada 👇");
+        texto(op.aviso, "🗺️ El mapa no cargó. Toca «Mi ubicación» o busca tu barriada 👇");
         if (op.alCambiar) op.alCambiar(estadoParaFuera());
       } else {
         estado.zoom = null;
@@ -298,7 +298,7 @@
       var nodos = pista.childNodes;
       for (var i = nodos.length - 1; i >= 0; i--) {
         if (nodos[i].nodeType === 3 && nodos[i].textContent.trim()) {
-          nodos[i].textContent = "Mueva el mapa con dos dedos";
+          nodos[i].textContent = "Mueve el mapa con dos dedos";
           break;
         }
       }
@@ -313,7 +313,7 @@
 
     function usarGps() {
       if (!navigator.geolocation) {
-        falloGps(0, "👆 Mueva el mapa hasta su casa", "Busque su barriada aquí abajo 👇");
+        falloGps(0, "👆 Mueve el mapa hasta tu casa", "Busca tu barriada aquí abajo 👇");
         return;
       }
       texto(op.aviso, "📍 Buscando…");
@@ -328,17 +328,17 @@
               "gps", precision);
           } catch (e) {
             // Nunca dejar «Buscando…» colgado.
-            falloGps(2, "No la encontramos: 👆 mueva el mapa o busque su barriada",
-              "No la encontramos: intente otra vez o busque su barriada 👇");
+            falloGps(2, "No la encontramos: 👆 mueve el mapa o busca tu barriada",
+              "No la encontramos: intenta otra vez o busca tu barriada 👇");
           }
         },
         function (error) {
           if (error && error.code === 1) {
-            falloGps(1, "🔒 Sin permiso de ubicación: 👆 mueva el mapa o busque su barriada",
-              "🔒 Sin permiso de ubicación: busque su barriada aquí abajo 👇");
+            falloGps(1, "🔒 Sin permiso de ubicación: 👆 mueve el mapa o busca tu barriada",
+              "🔒 Sin permiso de ubicación: busca tu barriada aquí abajo 👇");
           } else {
-            falloGps((error && error.code) || 2, "No la encontramos: 👆 mueva el mapa o busque su barriada",
-              "No la encontramos: intente otra vez o busque su barriada 👇");
+            falloGps((error && error.code) || 2, "No la encontramos: 👆 mueve el mapa o busca tu barriada",
+              "No la encontramos: intenta otra vez o busca tu barriada 👇");
           }
         },
         { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }

@@ -24,7 +24,7 @@ class TestRutas(HttpCase):
                                  groups='base.group_user,dcasa_base.group_gerencia')
         importar(cls.env, gerencia)
         cls.env['dcasa.envio.tarifa'].search([], limit=1).with_user(gerencia).action_aprobar()
-        cls.clienta = cls.env['res.partner'].create({'name': 'Bea Prueba', 'phone': '+507 6555-0000'})
+        cls.cliente = cls.env['res.partner'].create({'name': 'Bea Prueba', 'phone': '+507 6555-0000'})
 
     def setUp(self):
         super().setUp()
@@ -40,7 +40,7 @@ class TestRutas(HttpCase):
                              headers={'Content-Type': 'application/json', **cabeceras})
 
     def enlace(self):
-        return self.env['dcasa.ubicacion.enlace']._crear(self.clienta)
+        return self.env['dcasa.ubicacion.enlace']._crear(self.cliente)
 
     # --- /u/<secreto> ----------------------------------------------------------------------------------------------
 
@@ -49,7 +49,7 @@ class TestRutas(HttpCase):
         ruta = '/u/' + url.rsplit('/u/', 1)[1]
         respuesta = self.url_open(ruta)
         self.assertEqual(respuesta.status_code, 200)
-        self.assertIn('¿Dónde le entregamos?', respuesta.text)
+        self.assertIn('¿Dónde te entregamos?', respuesta.text)
         self.assertIn('Mi ubicación', respuesta.text)
         self.assertIn('og:image', respuesta.text, 'la vista previa del enlace muestra un pin en un mapa')
         self.assertEqual(respuesta.headers['Cache-Control'], 'no-store')
@@ -86,8 +86,8 @@ class TestRutas(HttpCase):
         bien = self.post_json(base + '/guardar', {'lat': CERCA[0], 'lon': CERCA[1], 'origen': 'gps', 'precision': 9,
                                                   'referencia': 'Casa verde'})
         self.assertEqual(bien.status_code, 200, bien.text)
-        self.clienta.invalidate_recordset()
-        self.assertEqual((self.clienta.dcasa_ubic_origen, self.clienta.dcasa_ubic_precision_m), ('gps', 9))
+        self.cliente.invalidate_recordset()
+        self.assertEqual((self.cliente.dcasa_ubic_origen, self.cliente.dcasa_ubic_precision_m), ('gps', 9))
         # Usado: ya no guarda otra vez y la página lo dice.
         self.assertEqual(self.post_json(base + '/guardar', {'lat': 8.95, 'lon': -79.85, 'origen': 'pin',
                                                             'referencia': 'Otra'}).status_code, 404)
@@ -105,11 +105,11 @@ class TestRutas(HttpCase):
 
     # --- /entrega/<secreto> ----------------------------------------------------------------------------------------
 
-    def test_la_pagina_del_motorizado(self):
-        self.clienta._dcasa_poner_ubicacion(*CERCA, 'pin', referencia='Portón negro')
+    def test_la_pagina_del_chofer(self):
+        self.cliente._dcasa_poner_ubicacion(*CERCA, 'pin', referencia='Portón negro')
         producto = self.env['product.product'].create({'name': 'Caja', 'list_price': 20, 'type': 'consu'})
         orden = self.env['sale.order'].create({
-            'partner_id': self.clienta.id, 'order_line': [(0, 0, {'product_id': producto.id})],
+            'partner_id': self.cliente.id, 'order_line': [(0, 0, {'product_id': producto.id})],
             'carrier_id': self.env['delivery.carrier'].sudo().search([('dcasa_por_cotizar', '=', True)], limit=1).id})
         orden.action_confirm()
         entrega = self.env['dcasa.ubicacion.entrega']._de_la_venta(orden, crear=False)

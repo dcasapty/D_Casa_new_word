@@ -97,9 +97,9 @@ export function isBlockedPath(pathname: string): boolean {
  *   resultado de un pago: jamás se guardan. Son públicas a propósito (las manda Tilopay, sin cookies, y el navegador del
  *   cliente al volver), no están en las rutas bloqueadas ni en los frenos de ritmo, y Odoo no se fía de lo que traen: le
  *   pregunta a Tilopay (docs/TILOPAY.md).
- * - `/u/` y `/entrega/`: el enlace de un solo uso para que la clienta marque su punto de entrega y la página del
- *   motorizado (el QR del comprobante; addons/dcasa_ubicacion, docs/UBICACION.md). El secreto va en la ruta, la página
- *   cambia al usarse o al vencer y lleva datos de la clienta: jamás se guardan. Odoo además responde `no-store`.
+ * - `/u/` y `/entrega/`: el enlace de un solo uso para que el cliente marque su punto de entrega y la página del
+ *   chofer (el QR del comprobante; addons/dcasa_ubicacion, docs/UBICACION.md). El secreto va en la ruta, la página
+ *   cambia al usarse o al vencer y lleva datos del cliente: jamás se guardan. Odoo además responde `no-store`.
  * - `/payment/yappy/`: el arranque del pago (`/iniciar`, JSON-RPC del navegador) y el aviso del servidor de Yappy
  *   (`/ipn`, un GET abierto con la orden, el estado y la firma; addons/dcasa_pago_yappy). Llevan el resultado de un pago:
  *   jamás se guardan, ni el GET del aviso ni la respuesta del arranque (que trae un token de un solo pago). Son públicas a

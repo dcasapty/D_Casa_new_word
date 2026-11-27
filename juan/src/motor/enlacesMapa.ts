@@ -1,5 +1,5 @@
-// Enlaces de mapa en el texto de la clienta (docs/UBICACION.md, «Contrato…» §4): de un enlace de Google Maps, Waze o Apple Maps sale
-// el punto de entrega sin que ella copie nada. Es lógica pura: la red (solo para los enlaces cortos de Google) entra como `fetch`.
+// Enlaces de mapa en el texto del cliente (docs/UBICACION.md, «Contrato…» §4): de un enlace de Google Maps, Waze o Apple Maps sale
+// el punto de entrega sin que el cliente copie nada. Es lógica pura: la red (solo para los enlaces cortos de Google) entra como `fetch`.
 //
 //   · Google:  `google.com/maps/…` y `maps.google.com/…` con `!3dLAT!4dLON` (el pin del lugar), `?q=` / `?query=` / `?ll=` con
 //              «lat,lon», `/maps/search/LAT,LON` o `/maps/place/LAT,LON`, y `/@LAT,LON` (el centro del mapa), en ese orden.
@@ -284,7 +284,7 @@ export function quitarCoordenadasDelTexto(texto: string): UbicacionDelTexto {
 }
 
 /**
- * El punto de entrega que trae el texto de la clienta, si trae un enlace de mapa con coordenadas (escritas o detrás de un enlace corto de
+ * El punto de entrega que trae el texto del cliente, si trae un enlace de mapa con coordenadas (escritas o detrás de un enlace corto de
  * Google), y el texto sin esas coordenadas. Un solo plazo para todo el mensaje. Nunca lanza.
  */
 export async function ubicacionDelTexto(texto: string, op: { fetch?: typeof fetch; plazoMs?: number } = {}): Promise<UbicacionDelTexto> {

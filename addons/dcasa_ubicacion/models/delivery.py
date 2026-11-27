@@ -38,7 +38,7 @@ MAX_LUGAR_TARJETA = 60  # lo que cabe en «No, en …» y en «En el chat nos di
 class SaleOrder(models.Model):
     _inherit = 'sale.order'
 
-    # El punto que la clienta dio en el chat de la tienda (Andrés) antes de pagar: solo para llenar el checkout, donde
+    # El punto que el cliente dio en el chat de la tienda (Andrés) antes de pagar: solo para llenar el checkout, donde
     # lo confirma con «Sí, aquí es» (controllers/tienda.py).
     dcasa_ubic_pend_lat = fields.Float('Latitud (del chat)', digits=(10, 7), readonly=True, copy=False)
     dcasa_ubic_pend_lon = fields.Float('Longitud (del chat)', digits=(10, 7), readonly=True, copy=False)
@@ -124,7 +124,7 @@ class SaleOrder(models.Model):
         self.ensure_one()
         orden = self.sudo()
         # También un pago recién abierto que la pasarela todavía tiene en borrador (Tilopay no pasa a «pendiente»
-        # mientras la clienta está en su página): si el total cambia, paga el viejo y la venta no se confirma
+        # mientras el cliente está en su página): si el total cambia, paga el viejo y la venta no se confirma
         # (auditoría 2). Uno de hace más de 2 horas ya no cuenta.
         reciente = fields.Datetime.now() - timedelta(hours=2)
         if orden.transaction_ids.filtered(lambda t: t.state in ('pending', 'authorized', 'done')
@@ -145,8 +145,25 @@ class SaleOrder(models.Model):
         tabla = (self.env._('con la tabla sería %s', precio['total_txt']) if precio['con_precio']
                  else self.env._('la tabla no da precio para esa zona'))
         self.sudo().message_post(body=Markup('<p>%s</p>') % escape(self.env._(
-            '📍 La clienta marcó su casa: %(zona)s. 🚚 El envío no se cambió porque %(porque)s (%(tabla)s): decidan '
+            '📍 El cliente marcó su casa: %(zona)s. 🚚 El envío no se cambió porque %(porque)s (%(tabla)s): decidan '
             'si se ajusta.', zona=donde, porque=porque, tabla=tabla)), subtype_xmlid='mail.mt_note')
+
+    def _dcasa_ubic_elegir_domicilio(self):
+        """El cliente marcó su casa en el mapa: la entrega pasa a «a domicilio» si estaba en «Retiro en tienda» (o sin
+        elegir). Solo en el carrito (borrador o enviada), con algo que entregar y sin un pago en curso (cambiar el
+        método cambia el total y el pago ya abierto no confirmaría la venta). Devuelve ``True`` si la cambió."""
+        self.ensure_one()
+        orden = self.sudo()
+        if orden.state not in ('draft', 'sent') or orden.locked or not orden._has_deliverable_products():
+            return False
+        if orden.carrier_id.dcasa_por_cotizar or orden._dcasa_ubic_no_recalcular() == 'pago':
+            return False
+        domicilio = self.env['delivery.carrier'].sudo().search(
+            [('dcasa_por_cotizar', '=', True), ('is_published', '=', True)], order='sequence, id', limit=1)
+        if not domicilio:
+            return False
+        orden._set_delivery_method(domicilio)
+        return True
 
     def set_delivery_line(self, carrier, amount):
         # «Agregar envío» / «Actualizar costo» del panel: con el precio del punto, la línea queda como la del sistema

@@ -89,10 +89,10 @@ def argumento_demasiado_largo(argumentos):
     return None
 
 
-# Solo en herramientas ``privado``: lo que escribió la clienta de su casa (número, indicaciones, quién recibe) también
-# se tapa, porque la auditoría no se borra y la clienta puede pedir que se borren sus datos.
+# Solo en herramientas ``privado``: lo que escribió el cliente de su casa (número, indicaciones, quién recibe) también
+# se tapa, porque la auditoría no se borra y el cliente puede pedir que se borren sus datos.
 _CLAVES_PRIVADAS = {'lat', 'lon', 'lng', 'latitud', 'longitud', 'precision', 'telefono', 'telefono_respaldo', 'tel',
-                    'enlace', 'url', 'texto_para_mandar', 'frase_para_el_cliente', 'pagina_del_motorizado', 'texto',
+                    'enlace', 'url', 'texto_para_mandar', 'frase_para_el_cliente', 'pagina_del_chofer', 'texto',
                     'indicaciones', 'referencia', 'recibe', 'nombre', 'direccion', 'direccion_mapa', 'enlace_mapa'}
 # Un par de coordenadas («8.9012,-79.8013», «8.9012%2C-79.8013»), el lugar exacto de Google («!3d8.9012!4d-79.8013») y
 # el punto de Waze en geohash («waze.com/ul/hd1u5…»).
@@ -104,7 +104,7 @@ _SECRETO_EN_RUTA = re.compile(r'/(u|entrega)/(?!pedido/)[A-Za-z0-9_-]{16,}')
 
 def tapar(valor):
     """Lo que se guarda en la auditoría de una herramienta ``privado``: sin coordenadas, sin secretos de enlaces de
-    un solo uso ni de la página del motorizado y sin teléfonos (auditoría 1 de la ubicación: el registro de Brian no
+    un solo uso ni de la página del chofer y sin teléfonos (auditoría 1 de la ubicación: el registro de Brian no
     se edita ni se borra, así que lo que entra ahí se queda para siempre)."""
     if isinstance(valor, dict):
         return {k: ('[oculto]' if str(k).lower() in _CLAVES_PRIVADAS and v not in (None, '', False) else tapar(v))

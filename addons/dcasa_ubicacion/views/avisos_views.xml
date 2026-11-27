@@ -13,11 +13,11 @@
                 <button name="action_dcasa_pedir_ubicacion_whatsapp" type="object" string="📲 Pedir ubicación por WhatsApp"
                         class="btn-primary" groups="sales_team.group_sale_salesman"
                         invisible="state == 'cancel' or not dcasa_falta_punto"
-                        help="Abre WhatsApp con el mensaje y un enlace para que la clienta marque su casa en el mapa."/>
+                        help="Abre WhatsApp con el mensaje y un enlace para que el cliente marque su casa en el mapa."/>
                 <button name="action_dcasa_avisar_sale_hoy" type="object" string="🚚 Sale hoy: avisarle"
                         groups="sales_team.group_sale_salesman"
                         invisible="state != 'sale' or not dcasa_va_a_domicilio"
-                        help="Le avisa a la clienta que hoy le llega su pedido y le pregunta si habrá alguien en casa."/>
+                        help="Le avisa al cliente que hoy le llega su pedido y le pregunta si habrá alguien en casa."/>
             </xpath>
             <xpath expr="//field[@name='partner_shipping_id']" position="after">
                 <field name="dcasa_falta_punto" invisible="1"/>
@@ -38,7 +38,7 @@
                 <button name="action_dcasa_avisar_sale_hoy" type="object" string="🚚 Sale hoy: avisarle"
                         groups="sales_team.group_sale_salesman"
                         invisible="picking_type_code != 'outgoing' or not sale_id or state == 'cancel'"
-                        help="Le avisa a la clienta que hoy le llega su pedido y le pregunta si habrá alguien en casa."/>
+                        help="Le avisa al cliente que hoy le llega su pedido y le pregunta si habrá alguien en casa."/>
             </xpath>
         </field>
     </record>

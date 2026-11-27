@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Checkout: «¿Dónde le entregamos?» antes de la calle (docs/UBICACION.md). Dos maneras: «Marcar en el mapa» (GPS o
+    <!-- Checkout: «¿Dónde te entregamos?» antes de la calle (docs/UBICACION.md). Dos maneras: «Marcar en el mapa» (GPS o
          mover el mapa bajo el pin fijo, con buscador de barriadas y «¿Es aquí?») o «Escribirla». El punto viaja en campos
          ocultos dentro del mismo formulario (Odoo lo manda entero con FormData) y lo guarda
-         controllers/checkout.py. Lo que la clienta escribe en la calle manda: el mapa solo la llena si está vacía.
+         controllers/checkout.py. Lo que el cliente escribe en la calle manda: el mapa solo la llena si está vacía.
          La lógica está en static/src/interactions/checkout_ubicacion.js. -->
-    <template id="checkout_ubicacion" inherit_id="website_sale.address_form_fields" name="Ubicación: ¿dónde le entregamos?">
+    <template id="checkout_ubicacion" inherit_id="website_sale.address_form_fields" name="Ubicación: ¿dónde te entregamos?">
         <xpath expr="//div[@id='div_street']" position="before">
             <t t-set="dcasa_carrito" t-value="website_sale_order or request.cart"/>
             <!-- Solo en la dirección de ENTREGA (o en la que sirve de las dos, o la primera de una invitada): la de
@@ -34,9 +34,9 @@
                 <fieldset class="o_dcasa_ubic_marco">
                     <legend class="o_dcasa_ubic_titulo">
                         <span class="o_dcasa_ubic_burbuja"><t t-call="dcasa_ubicacion.icono"><t t-set="icono" t-value="'pin'"/></t></span>
-                        ¿Dónde le entregamos?
+                        ¿Dónde te entregamos?
                     </legend>
-                    <div class="o_dcasa_ubic_modos" role="radiogroup" aria-label="Cómo quiere darnos la dirección">
+                    <div class="o_dcasa_ubic_modos" role="radiogroup" aria-label="Cómo quieres darnos la dirección">
                         <input type="radio" class="btn-check" name="dcasa_ubic_modo" id="o_dcasa_modo_mapa" value="mapa"
                                t-att-checked="not dcasa_escrita"/>
                         <label class="btn o_dcasa_ubic_modo" for="o_dcasa_modo_mapa">
@@ -54,10 +54,10 @@
                         <button type="button" class="btn btn-primary o_dcasa_ubic_gps">
                             <t t-call="dcasa_ubicacion.icono"><t t-set="icono" t-value="'gps'"/></t>Mi ubicación</button>
                         <!-- Como en /u (auditoría 2): un regalo no es «Mi ubicación». -->
-                        <p class="o_dcasa_ubic_mini">¿Es para otra casa? Búsquela 👇</p>
+                        <p class="o_dcasa_ubic_mini">¿Es para otra casa? Búscala 👇</p>
                         <div class="o_dcasa_ubic_mapa_marco">
-                            <div class="o_dcasa_ubic_mapa" role="application" aria-label="Mapa: muévalo hasta su puerta"/>
-                            <span class="o_dcasa_ubic_pista"><t t-call="dcasa_ubicacion.icono"><t t-set="icono" t-value="'mover'"/></t>Mueva el mapa</span>
+                            <div class="o_dcasa_ubic_mapa" role="application" aria-label="Mapa: muévelo hasta tu puerta"/>
+                            <span class="o_dcasa_ubic_pista"><t t-call="dcasa_ubicacion.icono"><t t-set="icono" t-value="'mover'"/></t>Mueve el mapa</span>
                             <svg class="o_dcasa_ubic_pin" viewBox="0 0 36 48" aria-hidden="true">
                                 <path d="M18 1C8.6 1 1 8.4 1 17.6 1 30 18 47 18 47s17-17 17-29.4C35 8.4 27.4 1 18 1z" fill="#EE924A" stroke="#1B3246" stroke-width="2"/>
                                 <circle cx="18" cy="17" r="6" fill="#1B3246"/>
@@ -75,7 +75,7 @@
                             <p class="o_dcasa_ubic_dato o_dcasa_ubic_dato_zona"><t t-call="dcasa_ubicacion.icono"><t t-set="icono" t-value="'pin'"/></t><span class="o_dcasa_ubic_zona"/></p>
                             <p class="o_dcasa_ubic_dato o_dcasa_ubic_dato_precio"><t t-call="dcasa_ubicacion.icono"><t t-set="icono" t-value="'camion'"/></t><span class="o_dcasa_ubic_precio"/></p>
                             <!-- Sin señal, la zona no es que no sirva (auditoría 2): un toque la vuelve a pedir. -->
-                            <button type="button" class="btn btn-outline-primary o_dcasa_ubic_reintentar d-none"><span>📶 Sin señal. Toque para reintentar</span></button>
+                            <button type="button" class="btn btn-outline-primary o_dcasa_ubic_reintentar d-none"><span>📶 Sin señal. Toca para reintentar</span></button>
                             <p class="o_dcasa_ubic_cruce"/>
                             <!-- Con el aviso de cruce (escribió otro distrito), estas dos en lugar de «Sí, aquí es»: «Confirmar»
                                  no cuenta como el «sí» (auditoría 2). -->
@@ -95,7 +95,7 @@
                     <input type="hidden" name="dcasa_ubic_precision"/>
                     <input type="hidden" name="dcasa_ubic_confirmada" value=""/>
                     <input type="hidden" name="dcasa_ubic_cruce_ok" value=""/>
-                    <!-- Obligatorio siempre, como en PedidosYa (el dueño, 2026-11-25): sin esto el motorizado no encuentra la
+                    <!-- Obligatorio siempre, como en PedidosYa (el dueño, 2026-11-25): sin esto el chofer no encuentra la
                          casa aunque el punto esté bien. Al «Escribir», todo este grupo se va después de la ciudad
                          (checkout_ubicacion.js: ponerCasa). -->
                     <div class="o_dcasa_ubic_casa">
@@ -111,7 +111,7 @@
                         <t t-call="dcasa_ubicacion.icono"><t t-set="icono" t-value="'persona'"/></t>
                         <input type="text" name="dcasa_recibe" class="form-control o_dcasa_ubic_chico" maxlength="60"
                                autocomplete="off" t-att-value="dcasa_destino and dcasa_destino.dcasa_recibe"
-                               placeholder="¿Quién recibe? (opcional)" aria-label="Quién recibe, si no es usted (opcional)"/>
+                               placeholder="¿Quién recibe? (opcional)" aria-label="Quién recibe, si no eres tú (opcional)"/>
                     </div>
                     <div class="o_dcasa_ubic_con_icono o_dcasa_ubic_opcional">
                         <t t-call="dcasa_ubicacion.icono"><t t-set="icono" t-value="'telefono'"/></t>
@@ -133,14 +133,14 @@
         <xpath expr="//div[@id='shop_checkout']" position="before">
             <t t-set="dcasa_chat" t-value="order._dcasa_ubic_chat_distinto()"/>
             <div t-if="dcasa_chat" id="o_dcasa_chat_pendiente" class="o_dcasa_ubicacion o_dcasa_chat_pendiente mb-4" role="region"
-                 aria-label="La ubicación que nos dio en el chat">
+                 aria-label="La ubicación que nos diste en el chat">
                 <p class="o_dcasa_ubic_titulo">
                     <span class="o_dcasa_ubic_burbuja"><t t-call="dcasa_ubicacion.icono"><t t-set="icono" t-value="'chat'"/></t></span>
-                    ¿Le entregamos ahí?
+                    ¿Te entregamos ahí?
                 </p>
                 <p class="o_dcasa_ubic_dato">
                     <t t-call="dcasa_ubicacion.icono"><t t-set="icono" t-value="'pin'"/></t>
-                    <span>En el chat nos dio: <b t-esc="dcasa_chat['donde']"/></span>
+                    <span>En el chat nos diste: <b t-esc="dcasa_chat['donde']"/></span>
                 </p>
                 <div class="o_dcasa_chat_botones">
                     <a class="btn btn-primary o_dcasa_chat_si" t-att-href="dcasa_chat['url_si']">
@@ -176,7 +176,7 @@
     </template>
 
     <!-- La tarjeta de la dirección de entrega del checkout: con el número de casa y las indicaciones debajo (lo que
-         lee el motorizado), para que la clienta vea que quedó (auditoría 1). Solo en la tienda (website_sale). -->
+         lee el chofer), para que el cliente vea que quedó (auditoría 1). Solo en la tienda (website_sale). -->
     <template id="tarjeta_direccion_con_casa" inherit_id="website_sale.address_card" name="Ubicación: la casa en la tarjeta de la dirección">
         <xpath expr="//t[@t-out='contact']" position="replace">
             <div class="o_dcasa_tarjeta_dir">

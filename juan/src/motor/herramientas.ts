@@ -61,7 +61,7 @@ export class RegistroDelTurno {
 
 /**
  * Un parámetro del WORKER (no de Odoo) en `enlace_de_ubicacion`: el pedido va a otra casa (un regalo, la abuela, el trabajo). Entonces no
- * sale el botón «Enviar ubicación» (mandaría la ubicación del teléfono, que no es la de esa casa) y el modelo le dice a la clienta que en la
+ * sale el botón «Enviar ubicación» (mandaría la ubicación del teléfono, que no es la de esa casa) y el modelo le dice al cliente que en la
  * página busque la barriada o mueva el mapa hasta esa casa. El Worker lo agrega al esquema de Odoo y lo quita antes de llamar, salvo que
  * Odoo ya lo declare (entonces le llega tal cual).
  */
@@ -84,7 +84,7 @@ function esquemaConOtraCasa(def: DefHerramienta): unknown {
     type: "object",
     properties: {
       ...propiedades,
-      [PARAMETRO_OTRA_CASA]: { type: "boolean", description: "true si el pedido va a otra persona u otro lugar (un regalo, la abuela, el trabajo), no a donde está ella ahora." },
+      [PARAMETRO_OTRA_CASA]: { type: "boolean", description: "true si el pedido va a otra persona u otro lugar (un regalo, la abuela, el trabajo), no a donde está el cliente ahora." },
     },
   };
 }
@@ -405,7 +405,7 @@ function anotarConsulta(nombre: string, resultado: unknown, reg: RegistroDelTurn
 }
 
 /**
- * Una consulta que hizo el SISTEMA antes de llamar al modelo (el envío que Odoo cotizó con la ubicación que compartió la clienta:
+ * Una consulta que hizo el SISTEMA antes de llamar al modelo (el envío que Odoo cotizó con la ubicación que compartió el cliente:
  * motor/ubicacion.ts). Pasa por el mismo camino que si la hubiera hecho el modelo: el `respaldo_envio` queda en el registro del turno
  * para la guardia de salida (y se quita de lo que ve el modelo) y las cifras quedan anotadas. Devuelve lo que el modelo puede ver.
  */

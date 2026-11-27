@@ -49,13 +49,13 @@ describe("el prompt de Brian de la tienda", () => {
   const p = promptTienda(cfg);
 
   it("el número de casa y las indicaciones sí hacen falta, pero los pide la página (con su campo), no el modelo", () => {
-    expect(p).toContain("El número de casa y las indicaciones para el motorizado SÍ hacen falta, pero no los pides tú: cuando llega su ubicación y el envío sale con precio, la página se los pide con su propio campo.");
+    expect(p).toContain("El número de casa y las indicaciones para el chofer SÍ hacen falta, pero no los pides tú: cuando llega su ubicación y el envío sale con precio, la página se los pide con su propio campo.");
     expect(p).toContain("No pidas nombre, teléfono ni correo, y el número de casa o las indicaciones tampoco (los pide la página)");
     // En el lugar de cotizar_envio sigue sin ir la dirección exacta; lo más fácil es la ubicación.
     expect(p).toContain("Lo más fácil es su ubicación (pedir_ubicacion=true)");
     expect(p).toContain("(en cotizar_envio, nunca la dirección exacta)");
     const conUbicacion = contextoTienda(cfg, { ahora: AHORA, pagina: { tipo: "inicio", producto_id: null, categoria: "" }, carrito: [], envioPorUbicacion: { estado: "precio", lugar: { nombre: "Villa Lucre" } } });
-    expect(conUbicacion).toContain("no hagas otra pregunta: enseguida la página le pide el número de casa o las indicaciones para el motorizado");
+    expect(conUbicacion).toContain("no hagas otra pregunta: enseguida la página le pide el número de casa o las indicaciones para el chofer");
     expect(conUbicacion).not.toContain("o si es otra dirección");
   });
 
