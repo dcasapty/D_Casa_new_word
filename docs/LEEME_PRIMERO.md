@@ -110,6 +110,21 @@ La receta completa, la que se usó en los despliegues 31 a 47, está en un solo 
 > sigue. Se guardan las diez más recientes; las viejas se resumen en una línea abajo y su texto completo pasa a
 > [historico/BITACORA_ANTERIOR.md](historico/BITACORA_ANTERIOR.md).
 
+### 2026-11-27: ubicación exacta de entrega traída de Baby Caleb (en `claude/ubicacion-dcasa`, SIN PR, SIN desplegar)
+
+**Qué entró (solo en la rama):** el módulo `dcasa_ubicacion` y sus cambios asociados, adaptados: el cliente marca su casa en un mapa (checkout, «¡Gracias!», página del pedido, enlace por el chat), el envío sale del punto,
+el comprobante lleva un QR para el chofer (`/entrega/…`, con «Ruta sin corredores»), avisos encendidos (pedir la ubicación al confirmar y «Sale hoy»), Juan y Brian con sus herramientas, el borde sin caché en `/u/` y `/entrega/`,
+enlaces de WhatsApp `api.whatsapp.com/send`, política de privacidad y Guía. Diseño aprobado el 2026-11-26: [superpowers/specs/2026-11-26-ubicacion-dcasa-diseno.md](superpowers/specs/2026-11-26-ubicacion-dcasa-diseno.md);
+plan: [superpowers/plans/2026-11-26-ubicacion-dcasa-plan.md](superpowers/plans/2026-11-26-ubicacion-dcasa-plan.md); detalle y contrato con Juan: [UBICACION.md](UBICACION.md); capturas: `docs/capturas/ubicacion/`.
+- **Decisiones:** se guarda el punto exacto (cambia el issue #25; línea en la política de privacidad; la IA no recibe el punto, Google sí); «chofer», nada de moto; sin corredores (no se afirma que Waze/Google evitan peajes: cada chofer activa «Evitar peajes»);
+  los dos avisos encendidos; al marcar la casa se elige sola la entrega a domicilio, «Retiro en tienda» sigue y no pide mapa ni saca QR.
+- **No se trajo:** `dcasa_correo`, `docker/negocio.env`, dominios y todo `dcasa_envios` de Baby Caleb (punto de salida propio y límite de km; `dcasa_ubicacion` no los necesita).
+- **Probado:** `scripts/test.sh` con todos los módulos y las etiquetas de §5.4: 3.409 pruebas; fallaron 2 de `website_dcasa` que no son de esta rama (`test_03_capturas_de_referencia` de la portada a 390 px falla igual en `main`; `test_el_texto_de_ayuda_no_se_corta_en_el_cajon` a 360 px pasó
+  en `main` y con solo la ubicación instalada: parece intermitente del entorno); `ruff check addons`; `npm test` y typecheck en `edge/`, `juan/`, `puente-wa/`; compra de ensayo local a 390 px (marcar la casa → «Entrega a domicilio» elegida sola).
+- **No probado:** el mapa real de Google (las claves no existen aún), staging, producción.
+- **Falta:** ver `PRIORIDADES.md` («Estado al 2026-11-27»): claves de Google (nunca por el chat; restricción con las cinco direcciones), el «sí» de Gerencia a las capturas, CI a staging (con «sí» explícito) y comprar en staging.
+- **Lo que enseñó:** CONTEXTO_AGENTICO › «Lo que enseñó traer la ubicación desde Baby Caleb».
+
 ### 2026-11-23 (00:28 UTC): Rotación, Movimiento y Margen y rotación EN PRODUCCIÓN (`39ae8f26b178`, PR #131), con los cierres R9 de los pagos
 
 **En producción desde el 2026-11-23 00:28 UTC:** `39ae8f26b178` (PR #131, squash `9e6b76df`, CI/CD de staging run 45078483833, **Desplegar a `production` run 45087461624**, digest `sha256:a86b76f9…e6338`).

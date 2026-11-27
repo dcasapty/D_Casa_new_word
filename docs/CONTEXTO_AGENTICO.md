@@ -2116,3 +2116,16 @@ Un revisor sin mi contexto (con acceso de lectura y bases de prueba) encontró c
 - **Una factura se cuenta con la misma base que la lista.** Las unidades salían de los productos activos y a la venta, pero los pedidos y la gráfica salían de todas las facturas: con un producto archivado, el resumen no cuadraba. Los tres usan ahora el mismo dominio.
 - Menores arreglados: fechas del año 0001 daban error 500 (ahora un mensaje; no antes del 2000), «año pasado» con un periodo de 366 días se cruzaba un día, y el cambio % de un producto con devoluciones de sobra llegaba a −166 % (ahora −100 %).
 - **Cuándo pedir la revisión:** en paralelo al CI largo (80 minutos), no después. Esta llegó antes de que terminara el CI y costó cancelarlo y relanzar; si hubiera llegado después, habría costado un ciclo entero más.
+
+## Lo que enseñó traer la ubicación desde Baby Caleb (2026-11-27)
+
+- **Clasificar antes de copiar.** Cada archivo que cambió Baby Caleb se comparó con su versión de antes del trabajo (`34c81a0^`): igual al de D'CASA → se copia lo que quedó; distinto → solo el diff de la ubicación con `patch` y a mano lo que no entra.
+  Lo que no es de la ubicación (`dcasa_correo`, `dcasa_envios`, dominio, `wrangler.jsonc`) no se trae. Los `.rej` se revisan uno por uno.
+- **La voz es parte del contrato.** Baby Caleb habla de usted y D'CASA de tú: las frases fijas con ícono de Juan (`PREGUNTA_DE_INDICACIONES`…) y las que escribe Odoo tienen que coincidir. La guardia de Juan (`limpiarForma`) quita todos los emojis salvo en las líneas que copió
+  de una frase de Odoo o de `FRASES_FIJAS_CON_ICONO` (también si el modelo la pega al final de la línea del precio; las que llevan «[la zona]» valen con cualquier zona).
+- **Probar con el navegador instalado.** Sin `websocket-client` en el entorno, Odoo **salta** las pruebas con Chrome (287 saltadas) y nadie se entera: instalarlo y volver a correr. Para correr Odoo 19 aquí: Python 3.12, `pip install -r vendor/odoo/requirements.txt` sin `python-ldap` y con `psycopg2-binary`.
+- **Dos campos con la misma etiqueta** (`dcasa_distrito` de la ubicación y `l10n_pa_distrito` de dcasa_fe_pa) dan aviso al cargar: las etiquetas de la ubicación llevan «(de la ubicación)».
+- **Una prueba que falla en `main` también** (`test_03_capturas_de_referencia`, portada a 390 px) no es de esta rama: se comprobó corriéndola sobre `main` en un `git worktree` aparte (enlazando `vendor/odoo`).
+- **Capturas con datos de prueba:** una base local con el archivo de envíos de prueba (`dcasa_envios/tests/datos`), una venta, y Playwright a 390 y 1280 px; correos y celulares únicos por corrida (el sistema rechaza los repetidos).
+- **El mapa real no se probó** (sin claves). Lo que depende de Google queda anotado como pendiente en `PRIORIDADES.md`.
+
