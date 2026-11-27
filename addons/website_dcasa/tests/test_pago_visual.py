@@ -136,7 +136,8 @@ class TestPaginaDePago(PagoVisualComun):
         self.assertEqual(len(ayuda), 1)
         self.assertIn('¿Dudas?', self.texto(ayuda[0]))
         enlace = ayuda[0].xpath('.//a')[0]
-        self.assertTrue(enlace.get('href').startswith('https://wa.me/'), 'el número sale de la configuración del sitio')
+        self.assertTrue(enlace.get('href').startswith('https://api.whatsapp.com/send?phone='),
+                        'el número sale de la configuración del sitio')
         self.assertEqual(enlace.get('target'), '_blank')
         self.assertIn('Escríbenos por WhatsApp', self.texto(enlace))
 
@@ -298,7 +299,7 @@ class TestVentanaDelPortalYEstados(PagoVisualComun):
         self.assertIn('Esperando tu pago', self.texto(estado[0]))
         self.assertIn('Te escribimos por WhatsApp con el número de Yappy', texto)
         self.assertTrue(
-            arbol.xpath('//a[contains(@class, "o_dcasa_pago_wa")][starts-with(@href, "https://wa.me/")]'))
+            arbol.xpath('//a[contains(@class, "o_dcasa_pago_wa")][starts-with(@href, "https://api.whatsapp.com/send?phone=")]'))
         self.assertTrue(arbol.xpath('//a[@class="o_dcasa_pago_seguir"][@href="/shop"]'))
         self.assertFalse(arbol.xpath('//*[contains(@class, "o_dcasa_pago_reintentar")]'), 'no hay nada que reintentar')
 

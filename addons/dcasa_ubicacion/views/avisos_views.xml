@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- La venta: «📲 Pedir ubicación por WhatsApp» (va a domicilio y su casa no está en el mapa) y «🚚 Sale hoy:
+         avisarle» (confirmada y a domicilio). Ver models/avisos.py. -->
+    <record id="view_order_form_avisos" model="ir.ui.view">
+        <field name="name">sale.order.form.dcasa.avisos</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <!-- Primero en la cabecera (auditoría 1): en el teléfono, los últimos quedan escondidos en «⋮», y el
+                 pendiente le dice a la vendedora que toque «📲 Pedir ubicación…». -->
+            <xpath expr="//header/*[1]" position="before">
+                <button name="action_dcasa_pedir_ubicacion_whatsapp" type="object" string="📲 Pedir ubicación por WhatsApp"
+                        class="btn-primary" groups="sales_team.group_sale_salesman"
+                        invisible="state == 'cancel' or not dcasa_falta_punto"
+                        help="Abre WhatsApp con el mensaje y un enlace para que la clienta marque su casa en el mapa."/>
+                <button name="action_dcasa_avisar_sale_hoy" type="object" string="🚚 Sale hoy: avisarle"
+                        groups="sales_team.group_sale_salesman"
+                        invisible="state != 'sale' or not dcasa_va_a_domicilio"
+                        help="Le avisa a la clienta que hoy le llega su pedido y le pregunta si habrá alguien en casa."/>
+            </xpath>
+            <xpath expr="//field[@name='partner_shipping_id']" position="after">
+                <field name="dcasa_falta_punto" invisible="1"/>
+                <field name="dcasa_va_a_domicilio" invisible="1"/>
+                <field name="dcasa_ubic_pedida_el" string="Ubicación pedida" invisible="not dcasa_ubic_pedida_el"/>
+                <field name="dcasa_aviso_sale_hoy_el" string="Aviso «sale hoy»" invisible="not dcasa_aviso_sale_hoy_el"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- La entrega (salida de una venta): el mismo «🚚 Sale hoy: avisarle». -->
+    <record id="view_picking_form_avisos" model="ir.ui.view">
+        <field name="name">stock.picking.form.dcasa.avisos</field>
+        <field name="model">stock.picking</field>
+        <field name="inherit_id" ref="stock.view_picking_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header" position="inside">
+                <button name="action_dcasa_avisar_sale_hoy" type="object" string="🚚 Sale hoy: avisarle"
+                        groups="sales_team.group_sale_salesman"
+                        invisible="picking_type_code != 'outgoing' or not sale_id or state == 'cancel'"
+                        help="Le avisa a la clienta que hoy le llega su pedido y le pregunta si habrá alguien en casa."/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

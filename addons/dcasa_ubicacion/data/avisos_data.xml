@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- El pendiente de la vendedora cuando el asistente no pudo pedirle a la clienta su casa en el mapa
+         (models/avisos.py). Se da por hecho solo cuando la clienta marca un punto confiable. -->
+    <record id="actividad_pedir_ubicacion" model="mail.activity.type">
+        <field name="name">Pedir la ubicación de entrega</field>
+        <field name="summary">📍 Pedirle la ubicación de entrega</field>
+        <field name="res_model">sale.order</field>
+        <field name="icon">fa-map-marker</field>
+        <field name="delay_count">0</field>
+    </record>
+
+    <!-- Ventas › (marcar varias) › Acciones › «🚚 Sale hoy: avisarles». Solo por el chat; las que no tienen un chat
+         abierto se dicen para mandarlas una por una. -->
+    <record id="accion_avisar_sale_hoy" model="ir.actions.server">
+        <field name="name">🚚 Sale hoy: avisarles</field>
+        <field name="model_id" ref="sale.model_sale_order"/>
+        <field name="binding_model_id" ref="sale.model_sale_order"/>
+        <field name="binding_view_types">list</field>
+        <field name="group_ids" eval="[(4, ref('sales_team.group_sale_salesman'))]"/>
+        <field name="state">code</field>
+        <field name="code">action = records.action_dcasa_avisar_sale_hoy()</field>
+    </record>
+</odoo>

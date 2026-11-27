@@ -34,7 +34,7 @@ import {
 } from "../../src/tienda/motor";
 import { validarPeticionTienda } from "../../src/tienda/peticion";
 import { HERRAMIENTAS_DE_LA_TIENDA, promptTienda } from "../../src/tienda/prompt";
-import { pideCambiarCarrito, pideSumarEnvio, pideVerCarrito, tituloDelGrupo } from "../../src/tienda/bloques";
+import { pideCambiarCarrito, pideSumarEnvio, pideVerCarrito, TEXTO_DE_INDICACIONES, tituloDelGrupo } from "../../src/tienda/bloques";
 import { crearSqlNode } from "../helpers/sqlNode";
 import { modeloGuionado, type ModeloGuionado, type PasoDelGuion } from "../helpers/modeloGuionado";
 import { ENVIOS, OdooFalso } from "../helpers/odooFalso";
@@ -494,6 +494,55 @@ describe("la ubicación se usa en el turno y no se guarda", () => {
     const m = montar({ pasos: [responder({ texto: "Con gusto te lo calculo.", pedir_ubicacion: true })] });
     const r = ok(await m.pedir({ texto: "¿cuánto cuesta el envío?" }));
     expect(bloquesDe(r, "ubicacion")).toEqual([{ tipo: "ubicacion", texto: "¿A dónde te lo llevamos?" }]);
+  });
+});
+
+describe("después de la ubicación con precio: el número de casa o las indicaciones (el dueño, 2026-11-25)", () => {
+  const UBICACION = { lat: 8.8812345, lon: -79.7834567, precision: 12.3456 };
+  const RASTROS = /8\.881|79\.783|12\.345/;
+
+  it("al final de la respuesta, el bloque «indicaciones» con su texto fijo (la página pinta el campo); la pose es el mapa", async () => {
+    const m = montar({ pasos: [responder({ texto: "Se lo llevamos a Villa Lucre." })] });
+    const r = ok(await m.pedir({ ubicacion: UBICACION }));
+    expect(r.bloques.at(-1)).toEqual({ tipo: "indicaciones", texto: TEXTO_DE_INDICACIONES });
+    expect(TEXTO_DE_INDICACIONES).toBe("🏠 ¿Número de casa o indicaciones para el motorizado?");
+    expect(bloquesDe(r, "indicaciones")).toHaveLength(1);
+    expect(bloquesDe(r, "envio")).toHaveLength(1);
+    expect(r.pose).toBe("mapa");
+  });
+
+  it("la precisión no va a Odoo, ni al modelo, ni a lo que se guarda (como las coordenadas)", async () => {
+    const m = montar({ pasos: [responder({ texto: "Se lo llevamos a Villa Lucre." })] });
+    await m.pedir({ ubicacion: UBICACION });
+    expect(m.odoo.llamadasTienda).toEqual([{ nombre: "cotizar_envio", args: { lat: 8.8812345, lon: -79.7834567 } }]);
+    expect(m.guion.prompts().join("\n")).not.toMatch(RASTROS);
+    for (const sql of [m.sql, m.sqlGlobal]) expect(todoLoGuardado(sql)).not.toMatch(RASTROS);
+    expect(m.registros.join("\n")).not.toMatch(RASTROS);
+  });
+
+  it("el modelo sabe que no las pregunta él: la página las pide (y en el siguiente turno sabe que ya se pidieron)", async () => {
+    const m = montar({ pasos: [responder({ texto: "Se lo llevamos a Villa Lucre." })] });
+    await m.pedir({ ubicacion: UBICACION });
+    const primero = m.guion.prompts()[0];
+    expect(primero).toContain("enseguida la página le pide el número de casa o las indicaciones para el motorizado");
+    await m.pedir({ texto: "gracias" });
+    expect(m.guion.prompts().at(-1)).toContain("[La página le pidió el número de casa o las indicaciones para el motorizado]");
+  });
+
+  it("solo con la ubicación de ESTE turno: un envío por barrio (sin ubicación) no lo trae", async () => {
+    const m = montar({ pasos: [{ llamadas: [{ nombre: "cotizar_envio", args: { lugar: "Villa Lucre" } }] }, responder({ texto: "Con gusto." })] });
+    const r = ok(await m.pedir({ texto: "¿cuánto es el envío a Villa Lucre?" }));
+    expect(bloquesDe(r, "envio")).toHaveLength(1);
+    expect(bloquesDe(r, "indicaciones")).toEqual([]);
+  });
+
+  it("solo si salió con precio: sin un lugar cerca, o si Odoo no contestó, no hay bloque", async () => {
+    for (const cotizar of [() => ({ estado: "no_encontrado", parecidos: [], frase_para_el_cliente: "No encontré un lugar cerca.", instruccion: "Pide el barrio." }), () => { throw new Error("Odoo no contesta"); }]) {
+      const m = montar({ pasos: [responder({ texto: "¿Me dice el barrio o un punto de referencia?" })] });
+      m.odoo.manejadores.cotizar_envio = cotizar;
+      const r = ok(await m.pedir({ ubicacion: UBICACION }));
+      expect(bloquesDe(r, "indicaciones")).toEqual([]);
+    }
   });
 });
 

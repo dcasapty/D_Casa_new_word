@@ -25,6 +25,7 @@ import { costoDe, sumarUso, usoDelSdk, USO_VACIO, type TablaDePrecios, type Uso 
 import { planDeIntentos, topeDeSalida, type FabricaDeModelos, type ProveedorIa, type SeleccionDeModelo } from "../motor/proveedores";
 import { partirEnBurbujas } from "../motor/burbujas";
 import type { Sql } from "../motor/sql";
+import { sinCoordenadas } from "../motor/ubicacion";
 import { limpiarError } from "../motor/conversacion";
 import type { DefHerramienta, OdooApi, ResultadoHerramienta } from "../odoo/cliente";
 import {
@@ -46,6 +47,7 @@ import {
   productosDelResultado,
   sinPresentacion,
   tarjetaDe,
+  TEXTO_DE_INDICACIONES,
   TEXTO_DE_UBICACION,
   TEXTO_DEL_BOTON_DE_WHATSAPP,
   tituloDelGrupo,
@@ -935,7 +937,7 @@ export class MotorTienda {
       execute: async () => "ok",
     });
 
-    // ── La ubicación: el Worker consulta el envío con ella; el modelo solo ve el resultado, sin coordenadas ──
+    // ── La ubicación: el Worker consulta el envío con ella; el modelo solo ve el resultado, sin coordenadas (ni la precisión) ──
     let envioPorUbicacion: unknown = null;
     const consultasPrevias: ConsultaDelTurno[] = [];
     if (p.ubicacion && odoo.herramientaTienda) {
@@ -1038,6 +1040,7 @@ export class MotorTienda {
       textoDelPrompt: fugas,
       envio: registro.envio,
       haySinPublicar: registro.haySinPublicar,
+      frasesDeLaTienda: registro.frases,
     });
 
     let respuesta = salida.respuesta ?? leerRespuestaDelModelo({ texto: salida.texto });
@@ -1182,6 +1185,9 @@ export class MotorTienda {
       bloques.push({ tipo: "calificar" });
       this.poner("calificar_ofrecido", 1);
     }
+    // Acaba de dar su ubicación y el envío salió con precio: al final, el número de casa o las indicaciones para el motorizado (la
+    // página pinta el campo). Lo decide el resultado de Odoo, no el modelo.
+    if (p.ubicacion && esObjeto(envioPorUbicacion) && envioPorUbicacion.estado === "precio") bloques.push({ tipo: "indicaciones", texto: TEXTO_DE_INDICACIONES });
     return this.salidaDelModelo(bloques, chips, op, p, noche, respuesta, herramientasUsadas, elegidas);
   }
 
@@ -1294,14 +1300,8 @@ export function argumentosLimpios(nombre: string, argumentos: Record<string, unk
   return salida;
 }
 
-/** Quita cualquier coordenada que Odoo devolviera (no tiene por qué, pero no se guarda ni se le muestra al modelo). */
-export function sinCoordenadas(v: unknown): unknown {
-  if (Array.isArray(v)) return v.map(sinCoordenadas);
-  if (!esObjeto(v)) return v;
-  const salida: Record<string, unknown> = {};
-  for (const [k, x] of Object.entries(v)) if (!/^(lat|lon|lng|latitud|longitud|coordenadas)$/i.test(k)) salida[k] = sinCoordenadas(x);
-  return salida;
-}
+/** Quita cualquier coordenada que Odoo devolviera: vive con lo demás de la ubicación (motor/ubicacion.ts), el mismo para los canales. */
+export { sinCoordenadas };
 
 /** El producto y la cantidad de una propuesta del modelo, solo si es de lo visto, agregable y con una cantidad válida (1 a 20). */
 function productoDelCarrito(v: unknown, vistos: Iterable<ProductoVisto>): Oferta | null {
@@ -1394,6 +1394,7 @@ function resumenDeLaRespuesta(bloques: readonly Bloque[]): string {
     else if (b.tipo === "sugerencias") partes.push(`${b.texto} (${b.opciones.join(" / ")})`);
     else if (b.tipo === "envio") partes.push(`[Envío a ${b.lugar || "un lugar"}: ${b.texto}]`);
     else if (b.tipo === "ubicacion") partes.push(`[Pedí a dónde se lleva]`);
+    else if (b.tipo === "indicaciones") partes.push("[La página le pidió el número de casa o las indicaciones para el motorizado]");
     else if (b.tipo === "whatsapp") partes.push("[Ofrecí WhatsApp]");
     else if (b.tipo === "calificar") partes.push("[Ofrecí calificar la atención]");
   }

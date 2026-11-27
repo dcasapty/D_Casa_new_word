@@ -81,7 +81,7 @@ class TestAbonosPorVencer(TransactionCase):
         self._pagar(factura, 100.0, hace_dias=27)
         accion = factura.with_user(self.caja).action_dcasa_abono_whatsapp()
         self.assertEqual(accion['type'], 'ir.actions.act_url')
-        self.assertTrue(accion['url'].startswith('https://wa.me/50760000061?text='))
+        self.assertTrue(accion['url'].startswith('https://api.whatsapp.com/send?phone=50760000061&text='))
         texto = unquote(accion['url'].split('text=', 1)[1])
         self.assertIn('Hola Cliente', texto)
         self.assertIn(factura.name, texto)

@@ -11,6 +11,7 @@ import {
   msgSticker,
   msgTexto,
   msgUbicacion,
+  msgUbicacionEnVivo,
   msgVideo,
 } from "./ayuda/baileys";
 
@@ -95,9 +96,31 @@ describe("armarEntrante: del mensaje de Baileys al JSON del contrato", () => {
     expect(validarWebhook(r!.payload)).toEqual([]);
   });
 
-  it("ubicación de un cliente: texto con las coordenadas", async () => {
+  it("ubicación de una clienta: el punto viaja aparte (para Odoo) y el texto no lleva coordenadas", async () => {
     const r = await armar(msgUbicacion());
-    expect(r!.payload).toMatchObject({ tipo: "texto", texto: "Ubicación compartida: 8.8801, -79.7834 (Casa, La Chorrera)" });
+    expect(r!.payload).toMatchObject({
+      tipo: "texto",
+      texto: "(la clienta compartió su ubicación de entrega)",
+      ubicacion: { lat: 8.8801, lon: -79.7834, nombre: "Casa", direccion: "La Chorrera" },
+    });
+    expect(String(r!.payload.texto)).not.toMatch(/\d/);
+    expect(validarWebhook(r!.payload)).toEqual([]);
+    const enVivo = await armar(msgUbicacionEnVivo());
+    expect(enVivo!.payload).toMatchObject({ texto: "(la clienta compartió su ubicación de entrega)", ubicacion: { lat: 9.0012345, lon: -79.5123456 } });
+  });
+
+  it("una ubicación con números basura no lleva punto: el texto dice que no llegó bien", async () => {
+    const r = await armar(msgUbicacion({ punto: { degreesLatitude: 200, degreesLongitude: -79.5 } }));
+    expect(r!.payload).toMatchObject({ tipo: "texto", texto: "(la clienta intentó compartir una ubicación, pero no llegó bien)" });
+    expect(r!.payload).not.toHaveProperty("ubicacion");
+    expect(validarWebhook(r!.payload)).toEqual([]);
+  });
+
+  it("la ubicación que comparte la tienda desde el teléfono no es el punto de nadie: ni viaja", async () => {
+    const r = await armar(msgUbicacion({ fromMe: true }), { propio: true });
+    expect(r!.payload).toMatchObject({ tipo: "texto", propio: true, texto: "Ubicación compartida desde el teléfono" });
+    expect(r!.payload).not.toHaveProperty("ubicacion");
+    expect(JSON.stringify(r!.payload)).not.toContain("8.8801");
   });
 
   it("un archivo que pasa del tope NO se descarga y se dice por qué", async () => {

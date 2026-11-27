@@ -55,6 +55,9 @@ class BrianAccion(models.Model):
     usuario_id = fields.Many2one('res.users', related='create_uid', string='Usuario', store=True, index=True)
     fecha_cierre = fields.Datetime('Terminó', readonly=True)
     duracion_ms = fields.Integer('Duración (ms)', readonly=True, help='Lo que tardó la herramienta en correr.')
+    privado = fields.Boolean(
+        'Con datos privados', readonly=True,
+        help='Herramienta con coordenadas, enlaces secretos o teléfonos: al cerrarse, la auditoría los guarda tapados.')
     con_adjuntos = fields.Boolean(
         'Turno con adjuntos', readonly=True,
         help='Se pidió en un mensaje que traía archivos o fotos (contenido de terceros).')
@@ -79,6 +82,7 @@ class BrianAccion(models.Model):
             'estado': 'pendiente',
             'conversacion_id': conversacion or False,
             'con_adjuntos': bool(self.env.context.get('brian_turno_con_adjuntos')),
+            'privado': bool(spec.get('privado')),
         }
         # sudo conserva el uid: create_uid queda como el usuario que conversa.
         return self.sudo().with_context(**{_CLAVE_SISTEMA: True}).create(valores).sudo(False)
@@ -97,8 +101,34 @@ class BrianAccion(models.Model):
             valores['resumen'] = resumen
         if estado in ('hecha', 'error', 'bloqueada', 'rechazada'):
             valores['fecha_cierre'] = fields.Datetime.now()
-        self.sudo().with_context(**{_CLAVE_SISTEMA: True}).write(valores)
+        # En sudo, como el resto de la escritura: quien conversa (el usuario técnico de Juan, por ejemplo) no puede
+        # leer la auditoría, y ``privado`` se lee aquí.
+        for accion in self.sudo():
+            propios = dict(valores)
+            if accion.privado:
+                propios.update(accion._tapado(propios, cerrada=estado in ('hecha', 'error', 'bloqueada', 'rechazada')))
+            accion.with_context(**{_CLAVE_SISTEMA: True}).write(propios)
         return True
+
+    def _tapado(self, valores, cerrada):
+        """Lo privado, tapado: el resultado, el error y el resumen siempre; los argumentos al cerrarse (antes hacen
+        falta enteros para correr la acción confirmada)."""
+        from .registro import tapar
+
+        propios = {}
+        if valores.get('resultado'):
+            propios['resultado'] = _json(tapar(json.loads(valores['resultado'])), MAX_RESULTADO) \
+                if valores['resultado'].startswith(('{', '[')) and not valores['resultado'].endswith('[truncado]') \
+                else tapar(valores['resultado'])
+        for campo in ('error', 'resumen'):
+            if valores.get(campo):
+                propios[campo] = tapar(valores[campo])
+        if cerrada and self.argumentos:
+            try:
+                propios['argumentos'] = _json(tapar(json.loads(self.argumentos)))
+            except ValueError:
+                propios['argumentos'] = tapar(self.argumentos)
+        return propios
 
     # ------------------------------------------------------------------
     # Inmutabilidad

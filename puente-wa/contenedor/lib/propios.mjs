@@ -108,14 +108,46 @@ function aNumero(x) {
 }
 
 /**
+ * @typedef {{ lat: number, lon: number, nombre?: string, direccion?: string }} Punto
  * @typedef {{
  *   clase: "texto" | "imagen" | "audio" | "documento" | "video" | "sticker" | "ubicacion" | "contacto" | null,
  *   texto: string | null,
  *   mime: string | null,
  *   nombre: string | null,
  *   tamano: number,
+ *   ubicacion?: Punto | null,
  * }} Contenido
  */
+
+/** Hasta cuántas letras viajan el nombre y la dirección del lugar (el contrato de Juan con Odoo: docs/UBICACION.md). */
+const MAX_NOMBRE_LUGAR = 120;
+const MAX_DIRECCION = 200;
+
+/**
+ * @param {unknown} v
+ * @param {number} max
+ */
+function textoDeLugar(v, max) {
+  if (typeof v !== "string") return undefined;
+  const t = v.replace(/[\p{Cc}\p{Cf}]/gu, " ").replace(/\s+/g, " ").trim().slice(0, max).trim();
+  return t || undefined;
+}
+
+/**
+ * El punto de una ubicación de WhatsApp (`locationMessage` o `liveLocationMessage`), validado: números finitos y dentro de rango. null
+ * si no sirve: nunca se adivina uno.
+ *
+ * @param {any} u
+ * @returns {Punto | null}
+ */
+export function puntoDe(u) {
+  const lat = u?.degreesLatitude;
+  const lon = u?.degreesLongitude;
+  if (typeof lat !== "number" || typeof lon !== "number" || !Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
+  const nombre = textoDeLugar(u.name, MAX_NOMBRE_LUGAR);
+  const direccion = textoDeLugar(u.address, MAX_DIRECCION);
+  return { lat, lon, ...(nombre ? { nombre } : {}), ...(direccion ? { direccion } : {}) };
+}
 
 /**
  * Qué trae el mensaje, en las clases que entiende el contrato con Juan (más tres
@@ -160,11 +192,9 @@ export function contenidoDe(msg) {
 
   const ubicacion = m.locationMessage ?? m.liveLocationMessage;
   if (ubicacion) {
-    const lat = ubicacion.degreesLatitude;
-    const lon = ubicacion.degreesLongitude;
-    const sitio = [ubicacion.name, ubicacion.address].filter(Boolean).join(", ");
-    const coords = typeof lat === "number" && typeof lon === "number" ? `${lat}, ${lon}` : "sin coordenadas";
-    return { ...vacio, clase: "ubicacion", texto: `Ubicación compartida: ${coords}${sitio ? ` (${sitio})` : ""}` };
+    // El punto va APARTE (`ubicacion`), nunca en el texto: el texto es lo que se guarda de la conversación y lo que ve el modelo de IA
+    // (docs/UBICACION.md). El texto final lo pone `armarEntrante` (no es el mismo si lo compartió la tienda desde el teléfono).
+    return { ...vacio, clase: "ubicacion", texto: "Ubicación compartida", ubicacion: puntoDe(ubicacion) };
   }
   if (m.contactMessage || m.contactsArrayMessage) {
     const nombre = m.contactMessage?.displayName ?? m.contactsArrayMessage?.displayName ?? null;

@@ -57,6 +57,11 @@ export interface ContextoRevision {
   envio?: RespaldoDeEnvio;
   /** Una herramienta dijo EN ESTE TURNO que hay productos así que se venden sin estar publicados en la tienda en línea: no se niegan. */
   haySinPublicar?: boolean;
+  /**
+   * Las frases que Odoo escribió para el cliente EN ESTE TURNO (`frase_para_el_cliente` de una herramienta). Una línea que el modelo
+   * copia tal cual conserva sus íconos: los escribió la tienda, no el modelo. Todo lo demás del mensaje sigue sin emojis.
+   */
+  frasesDeLaTienda?: readonly string[];
 }
 
 /**
@@ -785,10 +790,38 @@ function palabraProhibida(texto: string, palabras: readonly string[]): string | 
 
 const EMOJI = /[\p{Extended_Pictographic}\u{1F1E6}-\u{1F1FF}\u{1F3FB}-\u{1F3FF}\u{FE0F}\u{200D}\u{20E3}✓✔✅☑]/gu;
 
-/** Forma: sin emojis, sin signos dobles, sin markdown de documento. WhatsApp usa *un* asterisco. */
-export function limpiarForma(texto: string): string {
-  return texto
-    .replace(EMOJI, "")
+const VISTO = /[✓✔✅☑]\u{FE0F}?/gu;
+
+/** Una línea como se compara con las de una frase de la tienda: sin espacios de más. */
+const lineaComparable = (l: string) => l.replace(/\s+/g, " ").trim();
+
+/**
+ * Quita los emojis del texto del modelo, salvo en las líneas que copió tal cual de una frase que Odoo escribió para el cliente en
+ * este turno (`frasesDeLaTienda`: los pasos «1️⃣ 2️⃣ 3️⃣» del enlace de ubicación, el 📍 de la pregunta). Esas las escribió la tienda,
+ * no el modelo; todo lo demás sigue sin íconos (voz de D'CASA).
+ */
+function sinEmojis(texto: string, frasesDeLaTienda: readonly string[] = []): string {
+  // El «visto» (✓ ✔ ✅ ☑) se quita siempre, también de una frase de Odoo.
+  const sinVisto = texto.replace(VISTO, "");
+  const deLaTienda = new Set(
+    frasesDeLaTienda
+      .flatMap((f) => f.replace(VISTO, "").split("\n"))
+      .map(lineaComparable)
+      .filter((l) => l && new RegExp(EMOJI.source, "u").test(l)),
+  );
+  if (deLaTienda.size === 0) return sinVisto.replace(EMOJI, "");
+  return sinVisto
+    .split("\n")
+    .map((linea) => (deLaTienda.has(lineaComparable(linea)) ? linea : linea.replace(EMOJI, "")))
+    .join("\n");
+}
+
+/**
+ * Forma: sin emojis, sin signos dobles, sin markdown de documento. WhatsApp usa *un* asterisco.
+ * `frasesDeLaTienda`: las líneas que el modelo copia tal cual de una frase de Odoo conservan sus íconos (ver `ContextoRevision`).
+ */
+export function limpiarForma(texto: string, frasesDeLaTienda?: readonly string[]): string {
+  return sinEmojis(texto, frasesDeLaTienda)
     .replace(/^#{1,6}\s+/gm, "")
     .replace(/\*\*([^*\n]+)\*\*/g, "*$1*")
     .replace(/__([^_\n]+)__/g, "_$1_")
@@ -875,7 +908,7 @@ export interface Analisis {
 
 export function analizar(borrador: string, ctx: ContextoRevision): Analisis {
   const graves: Problema[] = [];
-  let limpio = limpiarForma(borrador);
+  let limpio = limpiarForma(borrador, ctx.frasesDeLaTienda);
 
   const f = fuga(limpio, ctx);
   if (f) {

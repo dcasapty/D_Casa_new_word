@@ -66,6 +66,22 @@ describe("contrato puente → Juan: POST /webhooks/whatsapp-qr", () => {
     expect(validarWebhook(j)).toEqual([]);
   });
 
+  it("la ubicación de la clienta va aparte (`ubicacion`), nunca en el texto", () => {
+    const j = construirWebhook({
+      idMensaje: "ID4",
+      de: "50760261919",
+      nombre: "K",
+      tipo: "texto",
+      texto: "(la clienta compartió su ubicación de entrega)",
+      ts: TS,
+      propio: false,
+      ubicacion: { lat: 9.0012345, lon: -79.5123456, nombre: "Super 99" },
+    });
+    expect(j.ubicacion).toEqual({ lat: 9.0012345, lon: -79.5123456, nombre: "Super 99" });
+    expect(validarWebhook(j)).toEqual([]);
+    expect(construirWebhook({ idMensaje: "ID5", de: "507", nombre: null, tipo: "texto", texto: "hola", ts: TS, propio: false, ubicacion: null })).not.toHaveProperty("ubicacion");
+  });
+
   it("el único valor de tipo posible está en el contrato", () => {
     expect([...TIPOS_ENTRANTES]).toEqual(["texto", "imagen", "audio", "documento", "video"]);
   });
@@ -89,6 +105,12 @@ describe("contrato puente → Juan: POST /webhooks/whatsapp-qr", () => {
       ["medio sin mime", (j: any) => (j.medio = { base64: "A", nombre: "x" }), "medio.mime"],
       ["medio sin nombre", (j: any) => (j.medio = { base64: "A", mime: "image/jpeg" }), "medio.nombre"],
       ["medio sin base64 ni url", (j: any) => (j.medio = { mime: "image/jpeg", nombre: "x.jpg" }), "base64 o url_temporal"],
+      ["ubicacion que no es un objeto", (j: any) => (j.ubicacion = "9,-79"), "ubicacion debe ser un objeto"],
+      ["ubicacion con números basura", (j: any) => (j.ubicacion = { lat: "9.0", lon: -79.5 }), "ubicacion necesita lat"],
+      ["ubicacion fuera de rango", (j: any) => (j.ubicacion = { lat: 9, lon: -200 }), "ubicacion necesita lat"],
+      ["ubicacion con nombre raro", (j: any) => (j.ubicacion = { lat: 9, lon: -79.5, nombre: 5 }), "ubicacion.nombre"],
+      ["ubicacion en un mensaje propio", (j: any) => ((j.propio = true), (j.ubicacion = { lat: 9, lon: -79.5 })), "propio no lleva ubicacion"],
+      ["ubicacion_omitida que no es true", (j: any) => (j.ubicacion_omitida = "sí"), "ubicacion_omitida"],
     ])("%s", (_n, rompe, parte) => {
       const j: any = bueno();
       rompe(j);

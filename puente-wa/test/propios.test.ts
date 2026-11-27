@@ -14,6 +14,7 @@ import {
   msgTexto,
   msgTextoLargo,
   msgUbicacion,
+  msgUbicacionEnVivo,
   msgVideo,
 } from "./ayuda/baileys";
 
@@ -50,9 +51,35 @@ describe("contenidoDe: qué trae cada mensaje", () => {
     expect(contenidoDe(m).tamano).toBe(0);
   });
 
-  it("ubicación y contacto viajan como texto descriptivo (datos, no instrucciones)", () => {
-    expect(contenidoDe(msgUbicacion())).toMatchObject({ clase: "ubicacion", texto: "Ubicación compartida: 8.8801, -79.7834 (Casa, La Chorrera)" });
+  it("ubicación y contacto viajan como texto descriptivo (datos, no instrucciones); el punto, aparte y nunca en el texto", () => {
+    expect(contenidoDe(msgUbicacion())).toEqual({
+      clase: "ubicacion",
+      texto: "Ubicación compartida",
+      mime: null,
+      nombre: null,
+      tamano: 0,
+      ubicacion: { lat: 8.8801, lon: -79.7834, nombre: "Casa", direccion: "La Chorrera" },
+    });
+    expect(contenidoDe(msgUbicacion()).texto).not.toMatch(/\d/);
+    expect(contenidoDe(msgUbicacionEnVivo())).toMatchObject({ clase: "ubicacion", ubicacion: { lat: 9.0012345, lon: -79.5123456 } });
     expect(contenidoDe(msgContacto())).toMatchObject({ clase: "contacto", texto: "Contacto compartido: Marisol" });
+  });
+
+  it("el punto se valida: números finitos y dentro de rango; el nombre y la dirección, de una línea y recortados", () => {
+    for (const malo of [
+      { degreesLatitude: "9.0", degreesLongitude: -79.5 },
+      { degreesLatitude: Number.NaN, degreesLongitude: -79.5 },
+      { degreesLatitude: 9, degreesLongitude: Number.POSITIVE_INFINITY },
+      { degreesLatitude: 91, degreesLongitude: -79.5 },
+      { degreesLatitude: 9, degreesLongitude: -181 },
+      { degreesLongitude: -79.5 },
+      {},
+    ]) {
+      expect(puntoDe(malo), JSON.stringify(malo)).toBe(null);
+      expect(contenidoDe(msgUbicacion({ punto: malo }))).toMatchObject({ clase: "ubicacion", ubicacion: null });
+    }
+    expect(puntoDe({ degreesLatitude: 9, degreesLongitude: -79.5, name: " Super\n99\u0000 ", address: "x".repeat(300) })).toEqual({ lat: 9, lon: -79.5, nombre: "Super 99", direccion: "x".repeat(200) });
+    expect(puntoDe({ degreesLatitude: 9, degreesLongitude: -79.5, name: "   ", address: 5 })).toEqual({ lat: 9, lon: -79.5 });
   });
 
   it("reacciones, borrados y avisos del protocolo no son mensajes", () => {

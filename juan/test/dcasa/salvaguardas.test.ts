@@ -251,6 +251,22 @@ describe("regla 11 · voz de la marca", () => {
     expect(limpiarForma("Listo ✅ y 👍🏽 gracias")).toBe("Listo y gracias");
   });
 
+  it("las líneas que el modelo copia tal cual de una frase de Odoo conservan sus íconos (los pasos 1️⃣ 2️⃣ 3️⃣ del enlace de ubicación)", () => {
+    const frase = "📍 Marca tu casa en el mapa:\nhttps://dcasapty.com/u/abc\n1️⃣ Abre el enlace\n2️⃣ Toca «Mi ubicación» y permite\n3️⃣ Escribe tu número de casa";
+    expect(limpiarForma(frase, [frase])).toBe(frase);
+    // Copiada con espacios de más también: se compara sin ellos.
+    expect(limpiarForma("📍 Hola 👼🏻\n3️⃣  Escribe tu número de casa ", [frase])).toBe("Hola\n3️⃣ Escribe tu número de casa");
+    // Sin la frase de Odoo, la regla de D'CASA: ningún emoji.
+    expect(limpiarForma(frase)).not.toMatch(/\p{Extended_Pictographic}|\u20E3/u);
+  });
+
+  it("una línea que el modelo reescribió ya no es de Odoo y pierde sus íconos; el «visto» se quita siempre, también de una frase de Odoo", () => {
+    const frase = "📍 Marca tu casa en el mapa:\n1️⃣ Abre el enlace\n2️⃣ Toca «Mi ubicación»";
+    expect(limpiarForma(`Con gusto 👼🏻\n${frase}\nListo 🙌🏻`, [frase])).toBe(`Con gusto\n${frase}\nListo`);
+    expect(limpiarForma("📍 Marca tu casa en el mapa:\n1️⃣ Abre el enlace ya\n2️⃣ Toca «Mi ubicación»", [frase])).toBe("📍 Marca tu casa en el mapa:\n1 Abre el enlace ya\n2️⃣ Toca «Mi ubicación»");
+    expect(limpiarForma("✅ Listo 📍", ["✅ Listo 📍"])).toBe("Listo 📍");
+  });
+
   it("colapsa los signos dobles", () => {
     expect(limpiarForma("¡¡Hola!! ¿¿Qué buscas??")).toBe("¡Hola! ¿Qué buscas?");
   });

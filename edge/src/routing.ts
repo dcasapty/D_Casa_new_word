@@ -97,6 +97,9 @@ export function isBlockedPath(pathname: string): boolean {
  *   resultado de un pago: jamás se guardan. Son públicas a propósito (las manda Tilopay, sin cookies, y el navegador del
  *   cliente al volver), no están en las rutas bloqueadas ni en los frenos de ritmo, y Odoo no se fía de lo que traen: le
  *   pregunta a Tilopay (docs/TILOPAY.md).
+ * - `/u/` y `/entrega/`: el enlace de un solo uso para que la clienta marque su punto de entrega y la página del
+ *   motorizado (el QR del comprobante; addons/dcasa_ubicacion, docs/UBICACION.md). El secreto va en la ruta, la página
+ *   cambia al usarse o al vencer y lleva datos de la clienta: jamás se guardan. Odoo además responde `no-store`.
  * - `/payment/yappy/`: el arranque del pago (`/iniciar`, JSON-RPC del navegador) y el aviso del servidor de Yappy
  *   (`/ipn`, un GET abierto con la orden, el estado y la firma; addons/dcasa_pago_yappy). Llevan el resultado de un pago:
  *   jamás se guardan, ni el GET del aviso ni la respuesta del arranque (que trae un token de un solo pago). Son públicas a
@@ -109,6 +112,8 @@ const NEVER_CACHE_PREFIXES = [
   "/dcasa/brian/",
   "/payment/tilopay/",
   "/payment/yappy/",
+  "/u/",
+  "/entrega/",
 ];
 
 /**
@@ -436,12 +441,17 @@ const TRAMO_TOKEN = /^(?=[^/]*\d)[A-Za-z0-9_-]{16,}$/;
 
 /** El enlace de los choferes (`/envios/choferes/<secreto>[/buscar|/cerca]`): el secreto nunca va al registro. */
 const ENLACE_CHOFERES = /^\/envios\/choferes\/[^/]+/;
+/** La ubicación de entrega (`/u/<secreto>[/zona|/buscar|/guardar]`, `/entrega/<secreto>`): tampoco. */
+const ENLACE_UBICACION = /^\/u\/[^/]+/;
+const ENLACE_ENTREGA = /^\/entrega\/[^/]+/;
 
 /** La ruta para el registro: entera si es una llamada a Odoo (modelo/método), si no solo el principio, sin tokens. */
 export function rutaParaRegistro(pathname: string): string {
   if (pathname.startsWith("/web/dataset/call_kw/")) return pathname;
   // (Normalizada y sin idioma: `/es/envios/choferes/…` y `/envios/%63hoferes/…` también son el enlace.)
   if (rutasDeOdoo(pathname).some((ruta) => ENLACE_CHOFERES.test(ruta))) return "/envios/choferes/:token";
+  if (rutasDeOdoo(pathname).some((ruta) => ENLACE_UBICACION.test(ruta))) return "/u/:token";
+  if (rutasDeOdoo(pathname).some((ruta) => ENLACE_ENTREGA.test(ruta))) return "/entrega/:token";
   return pathname
     .split("/")
     .slice(0, 4)

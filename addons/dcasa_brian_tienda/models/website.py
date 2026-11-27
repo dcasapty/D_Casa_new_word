@@ -10,7 +10,8 @@ RUTA_POSES = '/dcasa_brian_tienda/static/src/img/poses/'
 RUTAS_SIN_BURBUJA = ('/shop/checkout', '/shop/address', '/shop/payment', '/shop/confirm', '/shop/extra_info',
                      '/shop/confirmation', '/payment/status', '/web', '/odoo', '/my', '/mi-cuenta', '/brian',
                      '/envios/choferes')
-RE_WA = re.compile(r'^https://wa\.me/(\d{8,15})\?')
+# El número del WhatsApp de ventas (con el 507): la burbuja arma ahí su enlace (api.whatsapp.com/send).
+RE_NUMERO = re.compile(r'^\d{8,15}$')
 
 
 class Website(models.Model):
@@ -29,10 +30,10 @@ class Website(models.Model):
         clave pública de Turnstile si el sitio lo tiene; y si el robot duerme de noche (al cambiarlo se rehacen las
         páginas guardadas, como con el interruptor). Nada de la sesión."""
         self.ensure_one()
-        coincide = RE_WA.match(self._dcasa_whatsapp_url('') or '')
+        numero = self._dcasa_whatsapp_numero()
         horario = self.env['dcasa.juan.ajustes'].sudo().obtener().horario()
         return {
-            'whatsapp': coincide.group(1) if coincide else '',
+            'whatsapp': numero if RE_NUMERO.match(numero) else '',
             'horario': json.dumps(horario.como_json(), separators=(',', ':')),
             'poses': RUTA_POSES,
             'turnstile': self.env['dcasa.brian.tienda'].sudo()._turnstile_clave_publica(),

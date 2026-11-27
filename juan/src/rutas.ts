@@ -4,7 +4,7 @@
 //   GET  /salud                       → público: qué NOMBRES de secretos faltan y el estado de cada canal (sin valores)
 //   *    /webhooks/<canal>            → cada adaptador de canales/ verifica su origen y traduce
 //   GET  /media/<conv>/<id>?exp&sig   → archivo temporal del cliente, firmado, para que Odoo lo descargue
-//   POST /odoo/enviar                 → una vendedora escribe desde Odoo
+//   POST /odoo/enviar                 → una vendedora escribe desde Odoo (o Odoo, a nombre del asistente: `autor: "bot"`)
 //   POST /odoo/estado                 → tomar o devolver la conversación
 //   POST /odoo/seguimiento            → redactar y enviar el seguimiento n.º 1 o 2
 //   POST /odoo/olvidar                → borrar la copia de trabajo de una conversación (cuando Odoo la elimina)
@@ -322,7 +322,10 @@ async function odoo(ruta: string, req: Request, env: Env, d: DepsRutas): Promise
 
   try {
     if (ruta === "/odoo/enviar") {
-      if (cuerpo.autor !== undefined && cuerpo.autor !== "vendedora") return error("autor debe ser «vendedora»", 400);
+      // `autor: "bot"` (2026-11-25, docs/UBICACION.md): Odoo escribe A NOMBRE DEL ASISTENTE (la zona y el precio del envío cuando la
+      // clienta confirma su punto con el enlace de un solo uso): el bot no se calla y el mensaje queda en la historia como suyo. Cualquier
+      // otro valor, o ninguno, es una vendedora, como siempre.
+      const autor = cuerpo.autor === "bot" ? ("bot" as const) : undefined;
       const texto = typeof cuerpo.texto === "string" ? cuerpo.texto : undefined;
       const adjuntos = Array.isArray(cuerpo.adjuntos) ? cuerpo.adjuntos.filter(esObjeto) : [];
       if (!texto?.trim() && adjuntos.length === 0) return error("hay que mandar texto o adjuntos", 400);
@@ -337,6 +340,7 @@ async function odoo(ruta: string, req: Request, env: Env, d: DepsRutas): Promise
       return json(
         await conv.enviarVendedora({
           id_envio: idEnvio,
+          ...(autor ? { autor } : {}),
           ...(respondeA ? { responde_a: respondeA } : {}),
           texto,
           adjuntos: adjuntos.map((a) => ({

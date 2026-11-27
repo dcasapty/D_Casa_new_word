@@ -12,16 +12,16 @@
 """
 import re
 from datetime import timedelta
-from urllib.parse import quote
 
 from odoo import api, fields, models
+from odoo.addons.dcasa_base import whatsapp
 
 PARAM_AVISO_DIAS = 'dcasa_abonos.aviso_dias'
 AVISO_DIAS_DEFECTO = 5   # D3: «correo 5 días antes del vencimiento»
 
 
 def whatsapp_de(telefono):
-    """El número para wa.me (solo dígitos, con el 507 de Panamá si son 8), o ``''``."""
+    """El número de WhatsApp (solo dígitos, con el 507 de Panamá si son 8), o ``''``."""
     texto = (telefono or '').strip()
     digitos = re.sub(r'\D', '', texto)
     if texto.startswith('00'):
@@ -128,6 +128,6 @@ class AccountMove(models.Model):
         self.check_access('read')
         cliente = self.partner_id
         numero = whatsapp_de(cliente.phone or cliente.commercial_partner_id.phone)
-        texto = quote(self._dcasa_abono_texto_whatsapp())
-        url = f'https://wa.me/{numero}?text={texto}' if numero else f'https://wa.me/?text={texto}'
+        # api.whatsapp.com y no wa.me: wa.me cambia los emojis por «�» en WhatsApp Web (dcasa_base/whatsapp.py).
+        url = whatsapp.enlace(numero, self._dcasa_abono_texto_whatsapp())
         return {'type': 'ir.actions.act_url', 'url': url, 'target': 'new'}

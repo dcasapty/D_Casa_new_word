@@ -9,8 +9,9 @@
  */
 import { describe, expect, it } from "vitest";
 import { CONFIG_POR_DEFECTO, normalizarConfig } from "../../src/config";
-import { HERRAMIENTAS_DEL_CONTRATO, contextoDelChat, promptEstable, promptParaFugas, promptSeguimiento } from "../../src/dcasa/prompt";
-import { detectarFuga } from "../../src/dcasa/salvaguardas";
+import { GRACIAS_DEL_AVISO_DE_ENTREGA, HERRAMIENTAS_DEL_CONTRATO, PREGUNTA_DE_INDICACIONES, PREGUNTA_DE_LA_VEZ_PASADA, PREGUNTA_DEL_CAMBIO_DE_ENTREGA, PREGUNTA_DEL_CLIP, contextoDelChat, promptEstable, promptParaFugas, promptSeguimiento } from "../../src/dcasa/prompt";
+import { TODOS_LOS_CANALES, type CanalId } from "../../src/canales/tipos";
+import { analizar, detectarFuga, detectarPromesas } from "../../src/dcasa/salvaguardas";
 import { textoPasoAVendedora } from "../../src/dcasa/textos";
 import { AHORA_INICIAL } from "../helpers/mundo";
 
@@ -382,6 +383,153 @@ describe("el bloque dinámico (no se cachea)", () => {
 
   it("avisa cuando el sistema ya mandó la presentación", () => {
     expect(contextoDelChat(cfg, base)).toMatch(/no te vuelvas a presentar/);
+  });
+});
+
+describe("la ubicación de entrega y las indicaciones para el motorizado (el dueño, 2026-11-25: «que un niño de 5 años pueda comprar»)", () => {
+  const como = bloque("como_trabajas");
+  const base = { ahora: AHORA_INICIAL, presentacionEnviada: false };
+  const contexto = (canal: CanalId) => contextoDelChat(cfg, { ...base, canal });
+
+  it("guardar_indicaciones está en el contrato y en el prompt", () => {
+    expect(HERRAMIENTAS_DEL_CONTRATO).toContain("guardar_indicaciones");
+    expect(como).toContain("guardar_indicaciones");
+  });
+
+  it("antes de pedir una ubicación nueva, ofrece el punto de la vez pasada (cotizar_envio sin lugar con ubicacion_guardada)", () => {
+    expect(como).toMatch(/todavía no te dio su ubicación, primero llama a cotizar_envio sin lugar\. Si trae ubicacion_guardada/);
+    expect(como).toMatch(/ofrécele ese con la pregunta de la vez pasada del contexto del chat; si dice que sí, sigue con ese punto \(cotizar_envio sin lugar/);
+    expect(como).toMatch(/si dice que no, pídele la nueva/);
+    // Sin punto guardado, Odoo pide a dónde va: no es un error ni motivo para pasar a una vendedora.
+    expect(como).toMatch(/Si no trae ubicacion_guardada \(o te pide a dónde va el envío\), no es un error: pídele su ubicación como dice el contexto del chat/);
+  });
+
+  it("si el pedido va a otra casa, no pide la ubicación actual: el enlace con para_otra_casa (sin botón) y que busque la barriada o mueva el mapa", () => {
+    expect(como).toMatch(/para otra persona o va a otro lugar \(un regalo, la abuela, el trabajo\), no le pidas su ubicación actual: llama a enlace_de_ubicacion con para_otra_casa=true/);
+    expect(como).toMatch(/busque la barriada o mueva el mapa hasta esa casa/);
+  });
+
+  it("después de la ubicación, UNA vez el número de casa o las indicaciones, y lo que conteste va a guardar_indicaciones", () => {
+    expect(como).toMatch(/después de que llega su ubicación, si todavía no las tienes, pregúntaselas UNA sola vez con la pregunta de las indicaciones del contexto del chat/);
+    expect(como).toMatch(/Cuando conteste, llama a guardar_indicaciones con lo que dijo, tal cual/);
+    expect(como).toMatch(/si no quiere darlas, no las pidas otra vez/);
+    expect(bloque("ultimo_recordatorio")).toMatch(/nunca coordenadas, y después de la ubicación, una sola vez, el número de casa o las indicaciones/);
+  });
+
+  it("nunca pide ni repite coordenadas; el número de casa no va en el lugar de cotizar_envio", () => {
+    expect(como).toMatch(/Nunca pidas, escribas ni repitas coordenadas/);
+    expect(como).toMatch(/nunca la dirección exacta en lugar: el número de casa y las indicaciones van aparte, con guardar_indicaciones/);
+  });
+
+  it("las preguntas con ícono viven en el bloque dinámico (en todos los canales), no en el estable", () => {
+    for (const canal of TODOS_LOS_CANALES) {
+      const c = contexto(canal);
+      expect(c, canal).toContain(`«${PREGUNTA_DE_INDICACIONES}»`);
+      expect(c, canal).toContain(`«${PREGUNTA_DE_LA_VEZ_PASADA}»`);
+    }
+    expect(PREGUNTA_DE_INDICACIONES).toBe("🏠 ¿Número de casa o indicaciones para el motorizado?");
+    expect(PREGUNTA_DE_LA_VEZ_PASADA).toBe("📍 ¿Se lo llevamos a [la zona], como la vez pasada?");
+    for (const icono of ["🏠", "📍", "📎"]) expect(prompt, icono).not.toContain(icono);
+  });
+
+  it("WhatsApp de la API oficial: enlace_de_ubicacion con su frase tal cual; el botón sale solo y no se anuncia", () => {
+    const c = contexto("whatsapp_cloud");
+    expect(c).toMatch(/llama a enlace_de_ubicacion y mándale su frase tal cual, con el enlace y sus pasos/);
+    expect(c).toMatch(/sale solo un botón «Enviar ubicación»: no lo anuncies ni lo expliques/);
+    expect(c).not.toContain(PREGUNTA_DEL_CLIP);
+  });
+
+  it("WhatsApp por QR y Telegram: que la comparta con el clip, en una línea; si no puede, enlace_de_ubicacion", () => {
+    for (const canal of ["whatsapp_qr", "telegram"] as const) {
+      const c = contexto(canal);
+      expect(c, canal).toContain(`pídele en una línea que la comparta con el clip, así: «${PREGUNTA_DEL_CLIP}»`);
+      expect(c, canal).toMatch(/Si no puede o no sabe, llama a enlace_de_ubicacion y mándale su frase tal cual/);
+      expect(c, canal).not.toContain("«Enviar ubicación»");
+    }
+  });
+
+  it("Instagram y Messenger (no comparten ubicación): enlace_de_ubicacion, sin pedir el clip", () => {
+    for (const canal of ["instagram", "messenger"] as const) {
+      const c = contexto(canal);
+      expect(c, canal).toMatch(/aquí no se comparte con el clip: llama a enlace_de_ubicacion y mándale su frase tal cual/);
+      expect(c, canal).not.toContain(PREGUNTA_DEL_CLIP);
+      expect(c, canal).not.toContain("«Enviar ubicación»");
+    }
+  });
+
+  it("lo que Juan le dirá (las preguntas, el precio con la de las indicaciones) no se toma por una copia del prompt", () => {
+    const ctxFugas = { preciosProducto: new Set<number>(), cifrasConocidas: new Set<number>(), textoDelPrompt: promptParaFugas(cfg) };
+    for (const frase of [
+      PREGUNTA_DE_INDICACIONES,
+      PREGUNTA_DEL_CLIP,
+      "📍 ¿Se lo llevamos a Brisas del Golf, como la vez pasada?",
+      `El envío a Brisas del Golf cuesta $5. ${PREGUNTA_DE_INDICACIONES}`,
+      "Con gusto. Abra este enlace y busque su barriada, o mueva el mapa hasta su casa: https://babycaleb.com/u/abc",
+      "Listo, ya quedó para el motorizado.",
+    ]) {
+      expect(detectarFuga(frase, ctxFugas), frase).toBeNull();
+    }
+  });
+});
+
+describe("el aviso de entrega del día: «¿habrá alguien en casa?» (el dueño, 2026-11-25: «el dolor número uno son los pedidos devueltos»)", () => {
+  const como = bloque("como_trabajas");
+  const base = { ahora: AHORA_INICIAL, presentacionEnviada: false };
+  // Lo que Odoo le escribe a nombre del asistente con «🚚 Sale hoy: avisarle» (addons/dcasa_ubicacion/models/avisos.py).
+  const AVISO = "🚚 ¡Hoy le llega su pedido S00042 a Villa Lucre!\n¿Habrá alguien en casa para recibirlo?\n✅ Sí / 📍 Cambiar";
+
+  it("lo que conteste después del aviso de la tienda responde a ese aviso", () => {
+    expect(como).toMatch(/Aviso de entrega: si en la historia está el mensaje de la tienda que avisa que hoy sale su pedido y pregunta si habrá alguien para recibirlo, lo que conteste responde a ese aviso/);
+  });
+
+  it("si dice que sí, agradece con la frase del contexto y nada más, sin prometer hora", () => {
+    expect(como).toMatch(/Si dice que sí \(o que alguien lo recibe\), agradécele con la respuesta al aviso de entrega del contexto del chat y nada más: no prometas una hora ni que ya va en camino/);
+  });
+
+  it("si no hay nadie, quiere otro día u otra hora o cambiar algo: pasa a una vendedora con el motivo (la fecha la confirma siempre una vendedora)", () => {
+    expect(como).toMatch(/Si no habrá nadie, si quiere otro día u otra hora o si quiere cambiar algo del pedido, llama a pasar_a_vendedora con el número del pedido y lo que pide en el motivo, y di su texto: el día y la hora de la entrega los confirma siempre una vendedora/);
+  });
+
+  it("si quiere cambiar el lugar: enlace_de_ubicacion (para_otra_casa si es otra casa); si solo dice «cambiar», pregunta qué", () => {
+    expect(como).toMatch(/Si quiere cambiar el lugar, llama a enlace_de_ubicacion \(con para_otra_casa=true si es otra casa y no donde está ahora\) y mándale su frase tal cual/);
+    expect(como).toMatch(/Si solo dice que quiere cambiar, pregúntale qué con la pregunta del aviso de entrega del contexto del chat/);
+  });
+
+  it("los ejemplos de tono muestran el sí y el no, sin íconos", () => {
+    const ejemplos = bloque("ejemplos_de_tono");
+    expect(ejemplos).toContain("Cliente: (contesta al aviso de la tienda de que hoy sale su pedido) sí, aquí estoy\nTú: [la respuesta al aviso de entrega]");
+    expect(ejemplos).toContain("hoy no hay nadie, ¿puede ser mañana?\nTú (después de pasar_a_vendedora): [el texto que devolvió pasar_a_vendedora]");
+  });
+
+  it("las frases con ícono viven en el bloque dinámico (en todos los canales), no en el estable", () => {
+    for (const canal of TODOS_LOS_CANALES) {
+      const c = contextoDelChat(cfg, { ...base, canal });
+      expect(c, canal).toContain(`si confirma que habrá alguien, «${GRACIAS_DEL_AVISO_DE_ENTREGA}»`);
+      expect(c, canal).toContain(`si solo dice que quiere cambiar algo, «${PREGUNTA_DEL_CAMBIO_DE_ENTREGA}»`);
+    }
+    expect(GRACIAS_DEL_AVISO_DE_ENTREGA).toBe("🙌🏻 ¡Perfecto, gracias por confirmar!");
+    expect(PREGUNTA_DEL_CAMBIO_DE_ENTREGA).toBe("¿Qué le cambiamos: 🕐 el día o la hora, o 📍 el lugar?");
+    expect(prompt).not.toContain(GRACIAS_DEL_AVISO_DE_ENTREGA);
+    expect(prompt).not.toContain(PREGUNTA_DEL_CAMBIO_DE_ENTREGA);
+    for (const icono of ["🚚", "🕐", "📍"]) expect(prompt, icono).not.toContain(icono);
+  });
+
+  it("lo que Juan contesta no es una fuga, ni una promesa de entrega, ni otra cosa que las salvaguardas quiten", () => {
+    const revision = {
+      preciosProducto: new Set<number>(),
+      cifrasConocidas: new Set<number>(),
+      textoDelPrompt: promptParaFugas(cfg),
+      nombresHerramientas: [...HERRAMIENTAS_DEL_CONTRATO],
+    };
+    for (const frase of [GRACIAS_DEL_AVISO_DE_ENTREGA, PREGUNTA_DEL_CAMBIO_DE_ENTREGA, "Con gusto. Abra este enlace y mueva el mapa hasta la casa nueva: https://babycaleb.com/u/abc"]) {
+      expect(detectarFuga(frase, revision), frase).toBeNull();
+      expect(analizar(frase, revision).graves, frase).toEqual([]);
+    }
+    // Decir que llega hoy sí sería prometer el plazo (regla 3): por eso la frase del sí solo agradece.
+    expect(detectarPromesas("Gracias, se lo llevamos hoy.")).toContain("plazo de entrega");
+    // El aviso lo escribe Odoo, no el modelo: no se copia del prompt.
+    expect(promptParaFugas(cfg)).not.toContain("¿Habrá alguien en casa para recibirlo?");
+    expect(AVISO).toContain("✅ Sí / 📍 Cambiar");
   });
 });
 

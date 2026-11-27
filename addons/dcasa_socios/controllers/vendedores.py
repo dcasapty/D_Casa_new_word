@@ -10,6 +10,7 @@ from urllib.parse import quote
 import pytz
 
 from odoo import http
+from odoo.addons.dcasa_base import whatsapp
 from odoo.exceptions import UserError
 from odoo.http import request
 
@@ -105,7 +106,7 @@ class VendedoresDcasa(http.Controller):
             'historial': Canje.search([('partner_id', '=', ficha.id), ('estado', '!=', 'solicitado')], limit=10),
             'directos': ficha.dcasa_vendedor_directo_ids.sudo().filtered('dcasa_vendedor_codigo'),
             'link': link,
-            'whatsapp': f'https://wa.me/?text={quote(texto)}',
+            'whatsapp': whatsapp.enlace(None, texto),
             'qr': f'/report/barcode/?barcode_type=QR&value={quote(link, safe="")}&width=220&height=220',
         })
 

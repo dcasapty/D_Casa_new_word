@@ -1,6 +1,5 @@
-from urllib.parse import quote
-
 from odoo import models
+from odoo.addons.dcasa_base import whatsapp
 from odoo.addons.dcasa_socios.models import reglas
 from odoo.exceptions import UserError
 from odoo.tools.misc import formatLang
@@ -28,7 +27,7 @@ class SaleOrder(models.Model):
             enlace=self.get_base_url() + self.get_portal_url())
         if self.state == 'draft':
             self.action_quotation_sent()
-        return {'type': 'ir.actions.act_url', 'url': f'https://wa.me/507{celular}?text={quote(texto)}', 'target': 'new'}
+        return {'type': 'ir.actions.act_url', 'url': whatsapp.enlace(f'507{celular}', texto), 'target': 'new'}
 
     # ------------------------------------------------------------------
     # Combos (tipo «Combo» de Odoo): la línea del combo y una línea por cada pieza

@@ -14,6 +14,8 @@ export class OdooError extends Error {
     readonly sinCredenciales = false,
     /** El texto que Odoo mandó en `error` (sin el «Odoo POST … → 422» de adelante). Solo si el cuerpo era JSON con `error`. */
     readonly detalle?: string,
+    /** El `motivo` que Odoo mandó junto al error (p. ej. `/ubicacion`: «fuera_de_panama»), si lo mandó. */
+    readonly motivo?: string,
   ) {
     super(mensaje);
     this.name = "OdooError";
@@ -184,6 +186,30 @@ export interface RespuestaComentario {
   repetido?: boolean;
 }
 
+/**
+ * La ubicación de entrega que compartió la clienta (docs/UBICACION.md, «Contrato entre Odoo y el Worker de Juan» §1): `POST /ubicacion`.
+ * Las coordenadas van solo aquí: nunca al modelo, al historial ni al registro. Odoo tampoco las escribe en su registro ni en la auditoría.
+ */
+export interface CuerpoUbicacion {
+  conversacion_id: number;
+  lat: number;
+  lon: number;
+  /** «whatsapp»: compartida en el chat (WhatsApp, Telegram o Messenger). «enlace»: un enlace de Google Maps, Waze o Apple Maps. */
+  origen: "whatsapp" | "enlace";
+  /** Hasta 120 letras: el lugar que eligió en WhatsApp, si eligió uno. */
+  nombre_lugar?: string;
+  /** Hasta 200 letras. */
+  direccion?: string;
+}
+
+/**
+ * Lo que contesta `POST /ubicacion`. `envio` tiene la forma del resultado de `cotizar_envio` (con `por_ubicacion: true`). Con `ok: false`,
+ * `motivo` dice por qué el punto no sirve («fuera_de_panama», «coordenadas»); sin `motivo`, Odoo no contestó o no se pudo guardar.
+ */
+export type ResultadoUbicacion =
+  | { ok: true; resultado: { guardada: boolean; zona: string | null; envio?: unknown } }
+  | { ok: false; error: string; motivo?: string; estado?: number };
+
 /** Lo que el motor necesita de Odoo. En las pruebas se sustituye por un doble. */
 export interface OdooApi {
   mensaje(cuerpo: CuerpoMensaje): Promise<RespuestaMensaje>;
@@ -205,6 +231,8 @@ export interface OdooApi {
    * conversación en Odoo) y con `origen: "tienda"`. La misma ruta y el mismo token que las de Juan.
    */
   herramientaTienda?(nombre: string, argumentos: Record<string, unknown>): Promise<ResultadoHerramienta>;
+  /** Opcional: guardar el punto de entrega de la conversación (`POST /ubicacion`). Nunca lanza. Un Odoo viejo contesta 404. */
+  guardarUbicacion?(cuerpo: CuerpoUbicacion): Promise<ResultadoUbicacion>;
 }
 
 export interface OpcionesCliente {
@@ -256,7 +284,15 @@ export class OdooCliente implements OdooApi {
         if (r.ok) return (json ?? {}) as T;
         const detalle = (json as { error?: string } | null)?.error ?? texto.slice(0, 200);
         const dicho = (json as { error?: unknown } | null)?.error;
-        const e = new OdooError(`Odoo ${metodo} ${ruta} → ${r.status} ${detalle}`, r.status, REINTENTABLES.has(r.status), false, typeof dicho === "string" ? dicho : undefined);
+        const motivo = (json as { motivo?: unknown } | null)?.motivo;
+        const e = new OdooError(
+          `Odoo ${metodo} ${ruta} → ${r.status} ${detalle}`,
+          r.status,
+          REINTENTABLES.has(r.status),
+          false,
+          typeof dicho === "string" ? dicho : undefined,
+          typeof motivo === "string" ? motivo.slice(0, 60) : undefined,
+        );
         if (!e.reintentable) throw e;
         ultimo = e;
       } catch (e) {
@@ -306,6 +342,24 @@ export class OdooCliente implements OdooApi {
     } catch (e) {
       const rechazo = e instanceof OdooError && e.estado === 422 && e.detalle ? e.detalle.slice(0, 400) : undefined;
       return { ok: false, error: e instanceof Error ? e.message : String(e), transitorio: !(e instanceof OdooError) || e.reintentable, ...(rechazo ? { rechazo } : {}) };
+    }
+  }
+
+  /**
+   * El punto de entrega (docs/UBICACION.md §1). Como `herramienta`: misma autenticación y SIN reintentos (lo que no se guardó se le pide
+   * otra vez a la clienta). Nunca lanza, y el error que devuelve no lleva el cuerpo enviado (ahí van las coordenadas).
+   */
+  async guardarUbicacion(cuerpo: CuerpoUbicacion): Promise<ResultadoUbicacion> {
+    try {
+      const r = await this.llamar<{ ok?: boolean; resultado?: unknown; error?: unknown; motivo?: unknown }>("POST", "/ubicacion", cuerpo, 0, 20_000);
+      if (r.ok === false) {
+        return { ok: false, error: typeof r.error === "string" ? r.error.slice(0, 200) : "no se pudo guardar la ubicación", ...(typeof r.motivo === "string" ? { motivo: r.motivo.slice(0, 60) } : {}), estado: 200 };
+      }
+      const res = (r.resultado && typeof r.resultado === "object" ? r.resultado : {}) as { guardada?: unknown; zona?: unknown; envio?: unknown };
+      return { ok: true, resultado: { guardada: res.guardada === true, zona: typeof res.zona === "string" ? res.zona : null, ...(res.envio !== undefined ? { envio: res.envio } : {}) } };
+    } catch (e) {
+      const o = e instanceof OdooError ? e : null;
+      return { ok: false, error: o ? `Odoo contestó ${o.estado || "sin respuesta"}` : "no se pudo hablar con Odoo", ...(o?.motivo ? { motivo: o.motivo } : {}), estado: o?.estado ?? 0 };
     }
   }
 

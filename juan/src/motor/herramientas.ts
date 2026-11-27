@@ -9,6 +9,9 @@
 //   · se recuerdan las fotos que devolvió `ver_producto`, que son las únicas que `enviar_foto_producto` puede enviar;
 //   · de `cotizar_envio` / `agregar_envio` se toma su `respaldo_envio` (cada lugar con sus cifras y su papel, y el total de la
 //     cotización si se sumó el envío): solo eso deja decir el costo del envío en este turno. El modelo no lo ve.
+//   · de `enlace_de_ubicacion` se toma `boton_whatsapp` (Odoo lo pone en el WhatsApp de la API oficial): con él, la respuesta lleva
+//     al final el botón nativo «Enviar ubicación» (`RegistroDelTurno.pedirUbicacion`). Es una señal para el Worker: el modelo no la ve.
+//     Con `para_otra_casa` (un parámetro del Worker: el pedido va a otra persona u otro lugar) no hay botón.
 
 import { jsonSchema, tool, type ToolSet } from "ai";
 import type { DefHerramienta, OdooApi, ResultadoHerramienta } from "../odoo/cliente";
@@ -44,6 +47,58 @@ export class RegistroDelTurno {
   haySinPublicar = false;
   /** Lo que la herramienta de envíos respaldó en este turno: cada lugar con sus cifras y su papel, y el total si sumó el envío. */
   readonly envio: { lugares: LugarDeEnvio[]; total: number | null } = { lugares: [], total: null };
+  /**
+   * `enlace_de_ubicacion` devolvió `boton_whatsapp: true` en este turno: después del texto sale el botón «Enviar ubicación» (si el
+   * canal lo tiene: `Capacidades.pedirUbicacion`).
+   */
+  pedirUbicacion = false;
+  /**
+   * Las `frase_para_el_cliente` que devolvieron las herramientas en este turno: las escribió Odoo para el cliente, así que la guardia de
+   * salida deja sus íconos tal cual cuando el modelo las copia (`ContextoRevision.frasesDeLaTienda`).
+   */
+  readonly frases: string[] = [];
+}
+
+/**
+ * Un parámetro del WORKER (no de Odoo) en `enlace_de_ubicacion`: el pedido va a otra casa (un regalo, la abuela, el trabajo). Entonces no
+ * sale el botón «Enviar ubicación» (mandaría la ubicación del teléfono, que no es la de esa casa) y el modelo le dice a la clienta que en la
+ * página busque la barriada o mueva el mapa hasta esa casa. El Worker lo agrega al esquema de Odoo y lo quita antes de llamar, salvo que
+ * Odoo ya lo declare (entonces le llega tal cual).
+ */
+export const PARAMETRO_OTRA_CASA = "para_otra_casa";
+const INSTRUCCION_OTRA_CASA =
+  "Es para otra casa: no le digas que toque «Mi ubicación» (sería la del teléfono). Dile, corto, que abra el enlace y busque la barriada o mueva el mapa hasta esa casa, y que escriba ahí su número de casa.";
+
+/** ¿Odoo ya declara ese parámetro en la herramienta? */
+function declara(def: DefHerramienta, parametro: string): boolean {
+  return esObjeto(def.parametros) && esObjeto(def.parametros.properties) && parametro in def.parametros.properties;
+}
+
+/** El esquema de `enlace_de_ubicacion` con `para_otra_casa` (si Odoo no lo trae). */
+function esquemaConOtraCasa(def: DefHerramienta): unknown {
+  if (declara(def, PARAMETRO_OTRA_CASA)) return def.parametros;
+  const base = esObjeto(def.parametros) ? def.parametros : {};
+  const propiedades = esObjeto(base.properties) ? base.properties : {};
+  return {
+    ...base,
+    type: "object",
+    properties: {
+      ...propiedades,
+      [PARAMETRO_OTRA_CASA]: { type: "boolean", description: "true si el pedido va a otra persona u otro lugar (un regalo, la abuela, el trabajo), no a donde está ella ahora." },
+    },
+  };
+}
+
+/**
+ * `boton_whatsapp` de `enlace_de_ubicacion`: se anota en el registro del turno y se quita de lo que ve el modelo (el botón lo pone el
+ * Worker; el modelo solo manda el enlace con su frase). Para otra casa no hay botón, y el modelo recibe cómo decírselo.
+ */
+export function tomarBotonDeUbicacion(resultado: unknown, reg: RegistroDelTurno, otraCasa = false): unknown {
+  if (!esObjeto(resultado)) return resultado;
+  const { boton_whatsapp: boton, ...resto } = resultado;
+  if (boton === true && !otraCasa) reg.pedirUbicacion = true;
+  if (!otraCasa) return resto;
+  return { ...resto, instruccion: [typeof resto.instruccion === "string" ? resto.instruccion : "", INSTRUCCION_OTRA_CASA].filter(Boolean).join(" ") };
 }
 
 /** Las herramientas de envíos de Odoo: lo que devuelven respalda el costo del envío en la guardia de salida. */
@@ -331,6 +386,7 @@ export function haySinPublicarEn(nombre: string, resultado: unknown): boolean {
 /** Procesa el resultado para el modelo y anota si la consulta sirvió o salió floja. */
 function anotarConsulta(nombre: string, resultado: unknown, reg: RegistroDelTurno, sitio: string | undefined): unknown {
   if (haySinPublicarEn(nombre, resultado)) reg.haySinPublicar = true;
+  if (esObjeto(resultado) && typeof resultado.frase_para_el_cliente === "string" && resultado.frase_para_el_cliente.trim()) reg.frases.push(resultado.frase_para_el_cliente);
   if (nombre === "buscar_conocimiento" && busquedaFlojaDe(resultado)) {
     reg.busquedasFlojas++;
     // Sin respuesta en la base de conocimiento: el modelo recibe la orden de NO improvisar, junto con lo poco que haya salido.
@@ -346,6 +402,16 @@ function anotarConsulta(nombre: string, resultado: unknown, reg: RegistroDelTurn
   // El costo de un envío que sí se encontró es una respuesta útil (no hace falta anotar la pregunta como «sin respuesta»).
   if (nombre === "cotizar_envio" && esObjeto(resultado) && (resultado.estado === "precio" || resultado.estado === "varios")) reg.consultasUtiles++;
   return procesarResultado(resultado, reg, sitio);
+}
+
+/**
+ * Una consulta que hizo el SISTEMA antes de llamar al modelo (el envío que Odoo cotizó con la ubicación que compartió la clienta:
+ * motor/ubicacion.ts). Pasa por el mismo camino que si la hubiera hecho el modelo: el `respaldo_envio` queda en el registro del turno
+ * para la guardia de salida (y se quita de lo que ve el modelo) y las cifras quedan anotadas. Devuelve lo que el modelo puede ver.
+ */
+export function consultaPrevia(nombre: string, resultado: unknown, reg: RegistroDelTurno, sitio: string | undefined): unknown {
+  const sinRespaldo = HERRAMIENTAS_DE_ENVIO.has(nombre) ? tomarRespaldoDeEnvio(resultado, reg) : resultado;
+  return acotar(anotarConsulta(nombre, sinRespaldo, reg, sitio));
 }
 
 /**
@@ -438,9 +504,12 @@ export function construirHerramientas(op: OpcionesHerramientas): ToolSet {
     if (op.sinArchivos && HERRAMIENTAS_CON_ARCHIVO.has(def.nombre)) continue;
     tools[def.nombre] = tool({
       description: def.descripcion,
-      inputSchema: jsonSchema(def.parametros as never),
+      inputSchema: jsonSchema((def.nombre === "enlace_de_ubicacion" ? esquemaConOtraCasa(def) : def.parametros) as never),
       execute: unaVezPorTurno(def.nombre, async (args: unknown) => {
         const argumentos = esObjeto(args) ? { ...args } : {};
+        // El pedido va a otra casa: sin botón «Enviar ubicación». El parámetro es del Worker: a Odoo no le llega si no lo declara.
+        const otraCasa = def.nombre === "enlace_de_ubicacion" && (argumentos[PARAMETRO_OTRA_CASA] === true || argumentos[PARAMETRO_OTRA_CASA] === "true");
+        if (def.nombre === "enlace_de_ubicacion" && !declara(def, PARAMETRO_OTRA_CASA)) delete argumentos[PARAMETRO_OTRA_CASA];
         // Un cliente (o un mensaje manipulado) no puede pedir el saldo de otro número.
         if (def.nombre === "saldo_puntos" && op.celularDeLaConversacion) argumentos.celular = op.celularDeLaConversacion;
         if (def.nombre === "saldo_puntos" && typeof argumentos.pin === "string") registro.pines.push(argumentos.pin);
@@ -498,6 +567,7 @@ export function construirHerramientas(op: OpcionesHerramientas): ToolSet {
         let resultado = def.nombre === "cotizar" ? tomarDocumentoDeLaCotizacion(r.resultado, registro) : r.resultado;
         if (HERRAMIENTAS_DE_ENVIO.has(def.nombre)) resultado = tomarRespaldoDeEnvio(resultado, registro);
         if (def.nombre === "agregar_envio") resultado = tomarDocumentoDeLaCotizacion(resultado, registro, true);
+        if (def.nombre === "enlace_de_ubicacion") resultado = tomarBotonDeUbicacion(resultado, registro, otraCasa);
         return { ok: true, resultado: acotar(anotarConsulta(def.nombre, resultado, registro, op.sitio)) };
       }),
     });

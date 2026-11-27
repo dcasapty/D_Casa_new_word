@@ -4,6 +4,9 @@
 //     {id_mensaje, de, nombre, tipo:"texto|imagen|audio|documento|video", texto?,
 //      medio?:{url_temporal|base64, mime, nombre}, ts, propio:false}
 //     `propio:true` = la vendedora escribió desde el teléfono: se registra como `vendedora` y el bot se calla.
+//     Ubicación (2026-11-25, docs/UBICACION.md): `ubicacion?:{lat, lon, nombre?, direccion?}` (la que compartió la clienta) o
+//     `ubicacion_omitida:true` (la traía, pero el puente la guardó para reintentar y ahí nunca guarda coordenadas). Un puente de antes
+//     la manda como texto («Ubicación compartida: lat, lon (lugar)»): se reconoce igual y las coordenadas salen del texto.
 //   Worker → Puente:  POST /api/enviar  {para, chunks:[texto...], medios?:[{tipo, url, nombre?, mime?, pie?}]}
 //     (1 s entre burbujas lo pone el puente). GET /api/estado dice si está conectado o pide QR.
 //
@@ -29,6 +32,7 @@ import {
   EnvioParcialError,
   MAX_FOTO_DE_PERFIL_BYTES,
 } from "./tipos";
+import { crearUbicacion, TEXTO_UBICACION_COMPARTIDA, TEXTO_UBICACION_ILEGIBLE, TEXTO_UBICACION_PROPIA, type UbicacionEntrante } from "./ubicacion";
 
 interface EntranteDelPuente {
   id_mensaje?: string;
@@ -41,6 +45,33 @@ interface EntranteDelPuente {
   medio_omitido?: { motivo?: string; mime?: string; bytes?: number } | null;
   ts?: number | string;
   propio?: boolean;
+  /** La ubicación que compartió la clienta (📎 › Ubicación, o la de tiempo real). Se valida aquí: el puente puede ser de otra versión. */
+  ubicacion?: { lat?: unknown; lon?: unknown; nombre?: unknown; direccion?: unknown } | null;
+  /** La traía, pero el puente la guardó en su cola de pendientes sin coordenadas: hay que pedírsela otra vez. */
+  ubicacion_omitida?: boolean;
+}
+
+/** Cómo mandaba la ubicación un puente de antes del 2026-11-25: como texto, CON las coordenadas. */
+const UBICACION_COMO_TEXTO = /^Ubicación compartida: (?:(-?\d+(?:\.\d+)?), (-?\d+(?:\.\d+)?)|sin coordenadas)(?: \(([\s\S]*)\))?$/;
+
+/**
+ * La ubicación de un mensaje del puente y el texto que lo reemplaza (sin coordenadas). `null` = el mensaje no es una ubicación. Uno
+ * `propio` (la tienda compartió una ubicación desde el teléfono) no es el punto de entrega de nadie: solo el texto.
+ */
+export function ubicacionDelPuente(c: Pick<EntranteDelPuente, "ubicacion" | "ubicacion_omitida" | "texto" | "propio">): { texto: string; ubicacion?: UbicacionEntrante; omitida?: true } | null {
+  const propio = c.propio === true;
+  if (c.ubicacion && typeof c.ubicacion === "object") {
+    if (propio) return { texto: TEXTO_UBICACION_PROPIA };
+    const u = crearUbicacion(c.ubicacion.lat, c.ubicacion.lon, "whatsapp", { nombre: c.ubicacion.nombre, direccion: c.ubicacion.direccion });
+    return u ? { texto: TEXTO_UBICACION_COMPARTIDA, ubicacion: u } : { texto: TEXTO_UBICACION_ILEGIBLE };
+  }
+  if (c.ubicacion_omitida === true) return propio ? { texto: TEXTO_UBICACION_PROPIA } : { texto: TEXTO_UBICACION_COMPARTIDA, omitida: true };
+  const viejo = UBICACION_COMO_TEXTO.exec((c.texto ?? "").trim());
+  if (!viejo) return null;
+  if (propio) return { texto: TEXTO_UBICACION_PROPIA };
+  const lugar = (viejo[3] ?? "").split(", ");
+  const u = viejo[1] !== undefined ? crearUbicacion(viejo[1], viejo[2], "whatsapp", { nombre: lugar[0], direccion: lugar.slice(1).join(", ") }) : null;
+  return u ? { texto: TEXTO_UBICACION_COMPARTIDA, ubicacion: u } : { texto: TEXTO_UBICACION_ILEGIBLE };
 }
 
 /**
@@ -79,7 +110,7 @@ const TIPOS: Record<string, TipoAdjunto> = { imagen: "imagen", image: "imagen", 
 
 const SIN_ARCHIVO: Record<string, string> = {
   sticker: "(el cliente mandó un sticker)",
-  ubicacion: "(el cliente mandó una ubicación)",
+  ubicacion: TEXTO_UBICACION_ILEGIBLE,
   contacto: "(el cliente mandó un contacto)",
 };
 
@@ -123,7 +154,9 @@ export function crearWhatsappQr(op: OpcionesWhatsappQr = {}): AdaptadorCanal {
       // (ni texto ni adjunto) y la clienta se quedaba sin respuesta; así queda registrado y una vendedora sabe que había un archivo.
       adjuntos.push({ tipo, mime: c.medio_omitido.mime });
     }
-    let texto = (c.texto ?? "").trim() || undefined;
+    // El punto de entrega va aparte (a Odoo): el texto que se guarda y que ve el modelo nunca lleva las coordenadas.
+    const deUbicacion = ubicacionDelPuente(c);
+    let texto = deUbicacion?.texto ?? ((c.texto ?? "").trim() || undefined);
     if (!texto && adjuntos.length === 0) texto = SIN_ARCHIVO[(c.tipo ?? "").toLowerCase()];
     if (!texto && adjuntos.length === 0) return null; // reacciones, ediciones, borrados: nada que contestar
     return {
@@ -136,6 +169,8 @@ export function crearWhatsappQr(op: OpcionesWhatsappQr = {}): AdaptadorCanal {
       adjuntos,
       ts: aMilisegundos(c.ts, ahora),
       propio: c.propio === true,
+      ...(deUbicacion?.ubicacion ? { ubicacion: deUbicacion.ubicacion } : {}),
+      ...(deUbicacion?.omitida ? { ubicacion_omitida: "whatsapp" as const } : {}),
     };
   }
 

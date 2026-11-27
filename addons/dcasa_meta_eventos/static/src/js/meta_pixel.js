@@ -23,7 +23,7 @@ import { rpc } from "@web/core/network/rpc";
 const COOKIE_AVISO = "website_cookies_bar";
 const URL_FBEVENTS = "https://connect.facebook.net/en_US/fbevents.js";
 const MAX_BUSQUEDA = 100;
-const SELECTOR_WHATSAPP = 'a[href*="wa.me/"], a[href^="/whatsapp"]';
+const SELECTOR_WHATSAPP = 'a[href*="wa.me/"], a[href*="api.whatsapp.com/send"], a[href^="/whatsapp"]';
 const FORMULARIO_AGREGAR = 'form[action="/dcasa/carrito/agregar"][data-dcasa-meta-id]';
 const EVENTOS_DE_PAGINA = ["InitiateCheckout", "AddPaymentInfo"];
 

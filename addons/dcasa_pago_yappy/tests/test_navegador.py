@@ -504,7 +504,7 @@ class TestElBotonDeYappyEnElNavegador(PagoVisualDatos, ChromeMovilCase):
         self.assertEqual(estado['elementos'], 1, 'sin bucle: el botón no se rehizo')
         self.assertTrue(estado['mismo'])
         self.assertTrue(estado['sinVisible'], 'el camino alterno a la vista')
-        self.assertIn('wa.me', estado['whatsapp'])
+        self.assertIn('api.whatsapp.com/send?phone=', estado['whatsapp'])
         self.assertFalse(estado['motivoVisible'], 'no dice «no cargó» si lo que pasa es que Yappy está fuera de línea')
 
     def test_un_error_despues_de_pagar_dice_que_paso_y_deja_reintentar(self):
@@ -539,7 +539,7 @@ class TestElBotonDeYappyEnElNavegador(PagoVisualDatos, ChromeMovilCase):
                 })();""")
         self.assertFalse(estado['montado'], 'sin script no hay botón')
         self.assertTrue(estado['sinScriptVisible'], 'se le dice con palabras que no cargó')
-        self.assertIn('wa.me', estado['whatsapp'], 'y se le ofrece «Escríbenos por WhatsApp»')
+        self.assertIn('api.whatsapp.com/send?phone=', estado['whatsapp'], 'y se le ofrece «Escríbenos por WhatsApp»')
         self.assertTrue(despues['montado'], '«Volver a intentarlo» pide el script otra vez y pone el botón')
         self.assertEqual(despues['scripts'], 2)
         self.assertFalse(despues['sinVisible'])

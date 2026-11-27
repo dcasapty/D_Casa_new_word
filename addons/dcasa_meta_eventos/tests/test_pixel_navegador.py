@@ -150,9 +150,9 @@ class TestPixelNavegador(SitioMetaCase):
             r = self._evaluar(browser, '(async () => {' + ESPERAR_LISTA + """
                 document.querySelector('#cookies-consent-essential').click();
                 await esperar(300);
-                document.querySelector('a[href*="wa.me/"], a[href^="/whatsapp"]')?.addEventListener(
+                document.querySelector('a[href*="api.whatsapp.com/send"], a[href^="/whatsapp"]')?.addEventListener(
                     'click', (ev) => ev.preventDefault(), { once: true });
-                document.querySelector('a[href*="wa.me/"], a[href^="/whatsapp"]')?.click();
+                document.querySelector('a[href*="api.whatsapp.com/send"], a[href^="/whatsapp"]')?.click();
                 await esperar(200);
                 return llamadas();
             })()""")
@@ -173,7 +173,7 @@ class TestPixelNavegador(SitioMetaCase):
                 }, true);
                 forma.querySelector('button[type=submit]').click();
                 await esperar(100);
-                document.querySelector('a[href*="wa.me/"], a[href^="/whatsapp"]').click();
+                document.querySelector('a[href*="api.whatsapp.com/send"], a[href^="/whatsapp"]').click();
                 await esperar(100);
                 return { id: forma.dataset.dcasaMetaId, llamadas: llamadas() };
             })()""")

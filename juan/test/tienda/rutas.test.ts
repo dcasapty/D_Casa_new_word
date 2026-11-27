@@ -205,9 +205,27 @@ describe("el cuerpo", () => {
       { accion: { tipo: "borrar_todo" } },
       { ubicacion: { lat: 200, lon: 0 } },
       { ubicacion: { lat: "8.8", lon: "-79" } },
+      // La precisión, si viene, es un número de metros como lat y lon: ni texto, ni negativa, ni absurda.
+      { ubicacion: { lat: 8.88, lon: -79.78, precision: "12" } },
+      { ubicacion: { lat: 8.88, lon: -79.78, precision: -1 } },
+      { ubicacion: { lat: 8.88, lon: -79.78, precision: 1e7 } },
+      { ubicacion: { lat: 8.88, lon: -79.78, precision: { m: 12 } } },
     ]) {
-      expect((await m.pedir(await mensaje(cuerpo))).status).toBe(400);
+      expect((await m.pedir(await mensaje(cuerpo))).status, JSON.stringify(cuerpo)).toBe(400);
     }
+    expect(m.recibidos).toEqual([]);
+  });
+
+  it("la ubicación con precisión completa (7 decimales) y la precisión en metros llegan al motor; sin precisión, como antes", async () => {
+    const m = montar();
+    await m.pedir(await mensaje({ ubicacion: { lat: 8.8812345, lon: -79.7834567, precision: 12.5 } }));
+    await m.pedir(await mensaje({ ubicacion: { lat: 8.881234567891, lon: -79.78345678912, precision: 0 } }));
+    await m.pedir(await mensaje({ ubicacion: { lat: 8.88, lon: -79.78, precision: null } }));
+    const [conPrecision, largas, sinPrecision] = m.recibidos.map((r) => r.entrada.peticion.ubicacion);
+    expect(conPrecision).toEqual({ lat: 8.8812345, lon: -79.7834567, precision: 12.5 });
+    // Más de siete decimales no dice nada (≈1 cm): se redondea, como en los canales.
+    expect(largas).toEqual({ lat: 8.8812346, lon: -79.7834568, precision: 0 });
+    expect(sinPrecision).toEqual({ lat: 8.88, lon: -79.78 });
   });
 
   it("los topes de la sesión llegan con Retry-After; solo POST", async () => {

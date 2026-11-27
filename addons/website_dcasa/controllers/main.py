@@ -233,7 +233,7 @@ class DcasaTienda(http.Controller):
 
         El editor guarda el HTML tal cual: un ``wa.me/<número>`` escrito en un bloque quedaría
         congelado. ``/whatsapp`` usa siempre el número configurado en el sitio. Solo redirige a
-        wa.me (o a /contactus si no hay número): no es una redirección abierta.
+        WhatsApp (``api.whatsapp.com/send``) o a /contactus si no hay número: no es una redirección abierta.
         """
         url = request.website._dcasa_whatsapp_url((texto or '')[:300])
         return request.redirect(url, code=302, local=url.startswith('/'))

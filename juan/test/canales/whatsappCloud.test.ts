@@ -5,6 +5,7 @@
 import { describe, expect, it } from "vitest";
 import type { Env } from "../../src/env";
 import { crearWhatsappCloud } from "../../src/canales/whatsappCloud";
+import { EnvioParcialError } from "../../src/canales/tipos";
 import { adaptadorDe, adaptadorPorRuta, crearAdaptadores } from "../../src/canales/index";
 import { hmacHex } from "../../src/seguridad";
 
@@ -212,6 +213,74 @@ describe("el envío", () => {
     await expect(adaptador.enviar("whatsapp_cloud", salida, { ...env, WHATSAPP_CLOUD_TOKEN: "" } as Env)).rejects.toThrow(/WHATSAPP_CLOUD_TOKEN/);
     await expect(adaptador.enviar("whatsapp_cloud", salida, { ...env, WHATSAPP_PHONE_NUMBER_ID: "" } as Env)).rejects.toThrow(/WHATSAPP_PHONE_NUMBER_ID/);
     expect(llamadas).toHaveLength(0);
+  });
+});
+
+describe("el botón «Enviar ubicación» (location_request_message)", () => {
+  const PEDIDO = "📍 O toque «Enviar ubicación» y listo.";
+  const salida = { para: "50760261919", burbujas: ["📍 Marque su casa en el mapa:", "https://babycaleb.com/u/abc"], medios: [], pedirUbicacion: PEDIDO };
+
+  it("sale al final, después de los textos, con la forma de Meta; su id va último y lo dice `ubicacionPedida`", async () => {
+    const { llamadas, adaptador } = nubeFalsa();
+    const r = await adaptador.enviar("whatsapp_cloud", salida, env);
+    expect(llamadas.map((l) => l.cuerpo.type)).toEqual(["text", "text", "interactive"]);
+    expect(llamadas[2].url).toMatch(new RegExp(`/${NUMERO}/messages$`));
+    expect(llamadas[2].cuerpo).toEqual({
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: "50760261919",
+      type: "interactive",
+      interactive: { type: "location_request_message", body: { text: PEDIDO }, action: { name: "send_location" } },
+    });
+    expect(r).toEqual({ ids: ["wamid.OUT0", "wamid.OUT1", "wamid.OUT2"], ubicacionPedida: true });
+  });
+
+  it("también después de los archivos, y nunca con la cita de «Responder» (esa va en el primero)", async () => {
+    const { llamadas, adaptador } = nubeFalsa();
+    await adaptador.enviar("whatsapp_cloud", { ...salida, burbujas: ["Hola"], medios: [{ tipo: "imagen", url: "https://sitio/f.jpg" }], responderA: "wamid.CITA" }, env);
+    expect(llamadas.map((l) => l.cuerpo.type)).toEqual(["text", "image", "interactive"]);
+    expect(llamadas[0].cuerpo.context).toEqual({ message_id: "wamid.CITA" });
+    expect(llamadas[2].cuerpo.context).toBeUndefined();
+  });
+
+  it("si Meta lo rechaza, el envío NO falla: los textos ya salieron y no se repiten", async () => {
+    const { llamadas, adaptador } = nubeFalsa((c, n) =>
+      c.cuerpo.type === "interactive" ? Response.json({ error: { message: "(#100) Invalid parameter", code: 100 } }, { status: 400 }) : Response.json({ messages: [{ id: `wamid.OUT${n}` }] }),
+    );
+    const r = await adaptador.enviar("whatsapp_cloud", salida, env);
+    expect(r).toEqual({ ids: ["wamid.OUT0", "wamid.OUT1"] });
+    expect(llamadas.map((l) => l.cuerpo.type)).toEqual(["text", "text", "interactive"]);
+  });
+
+  it("si Meta no contesta (la red se cae), tampoco falla el envío", async () => {
+    const { adaptador } = nubeFalsa((c, n) => {
+      if (c.cuerpo.type === "interactive") throw new TypeError("fetch failed");
+      return Response.json({ messages: [{ id: `wamid.OUT${n}` }] });
+    });
+    expect(await adaptador.enviar("whatsapp_cloud", salida, env)).toEqual({ ids: ["wamid.OUT0", "wamid.OUT1"] });
+  });
+
+  it("si un texto falla, el botón no sale (se reintenta lo que falta, y el botón con eso)", async () => {
+    const { llamadas, adaptador } = nubeFalsa((_c, n) => (n === 1 ? Response.json({ error: { message: "se cayó", code: 1 } }, { status: 500 }) : Response.json({ messages: [{ id: `wamid.OUT${n}` }] })));
+    const err = await adaptador.enviar("whatsapp_cloud", salida, env).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(EnvioParcialError);
+    expect(llamadas.map((l) => l.cuerpo.type)).toEqual(["text", "text"]);
+  });
+
+  it("sin texto para el botón (vacío o en blanco) no sale nada de más", async () => {
+    for (const pedirUbicacion of ["", "   "]) {
+      const { llamadas, adaptador } = nubeFalsa();
+      expect(await adaptador.enviar("whatsapp_cloud", { ...salida, pedirUbicacion }, env)).toEqual({ ids: ["wamid.OUT0", "wamid.OUT1"] });
+      expect(llamadas.map((l) => l.cuerpo.type)).toEqual(["text", "text"]);
+    }
+  });
+
+  it("solo WhatsApp Cloud dice que lo tiene: los demás canales se quedan con el texto y el enlace", () => {
+    expect(nubeFalsa().adaptador.capacidades("whatsapp_cloud").pedirUbicacion).toBe(true);
+    const lista = crearAdaptadores();
+    for (const canal of ["whatsapp_qr", "telegram", "messenger", "instagram"] as const) {
+      expect(adaptadorDe(canal, lista)!.capacidades(canal).pedirUbicacion, canal).toBeFalsy();
+    }
   });
 });
 

@@ -40,6 +40,7 @@ solo las herramientas relevantes para el mensaje (ver ``seleccionar``).
 """
 import json
 import logging
+import re
 import time
 import unicodedata
 
@@ -88,8 +89,35 @@ def argumento_demasiado_largo(argumentos):
     return None
 
 
+# Solo en herramientas ``privado``: lo que escribió la clienta de su casa (número, indicaciones, quién recibe) también
+# se tapa, porque la auditoría no se borra y la clienta puede pedir que se borren sus datos.
+_CLAVES_PRIVADAS = {'lat', 'lon', 'lng', 'latitud', 'longitud', 'precision', 'telefono', 'telefono_respaldo', 'tel',
+                    'enlace', 'url', 'texto_para_mandar', 'frase_para_el_cliente', 'pagina_del_motorizado', 'texto',
+                    'indicaciones', 'referencia', 'recibe', 'nombre', 'direccion', 'direccion_mapa', 'enlace_mapa'}
+# Un par de coordenadas («8.9012,-79.8013», «8.9012%2C-79.8013»), el lugar exacto de Google («!3d8.9012!4d-79.8013») y
+# el punto de Waze en geohash («waze.com/ul/hd1u5…»).
+_PUNTO = re.compile(r'-?\d{1,3}\.\d{3,}\s*(?:,|%2C)\s*-?\d{1,3}\.\d{3,}'
+                    r'|!3d-?\d{1,3}\.\d+!4d-?\d{1,3}\.\d+'
+                    r'|(?<=/ul/)h[0-9a-z]{5,}', re.IGNORECASE)
+_SECRETO_EN_RUTA = re.compile(r'/(u|entrega)/(?!pedido/)[A-Za-z0-9_-]{16,}')
+
+
+def tapar(valor):
+    """Lo que se guarda en la auditoría de una herramienta ``privado``: sin coordenadas, sin secretos de enlaces de
+    un solo uso ni de la página del motorizado y sin teléfonos (auditoría 1 de la ubicación: el registro de Brian no
+    se edita ni se borra, así que lo que entra ahí se queda para siempre)."""
+    if isinstance(valor, dict):
+        return {k: ('[oculto]' if str(k).lower() in _CLAVES_PRIVADAS and v not in (None, '', False) else tapar(v))
+                for k, v in valor.items()}
+    if isinstance(valor, (list, tuple)):
+        return [tapar(v) for v in valor]
+    if isinstance(valor, str):
+        return _SECRETO_EN_RUTA.sub(lambda m: f'/{m.group(1)}/[oculto]', _PUNTO.sub('[punto]', valor))
+    return valor
+
+
 def herramienta(nombre, descripcion, parametros=None, requeridos=(), nivel='lectura', categoria='general',
-                grupos=(), ejemplos=(), segura_con_adjuntos=False, texto_externo=False):
+                grupos=(), ejemplos=(), segura_con_adjuntos=False, texto_externo=False, privado=False):
     """Marca un método de ``brian.herramientas`` como herramienta de Brian.
 
     ``segura_con_adjuntos``: solo para herramientas de construcción que únicamente dejan un
@@ -99,6 +127,11 @@ def herramienta(nombre, descripcion, parametros=None, requeridos=(), nivel='lect
     ``texto_externo``: la herramienta devuelve texto que escribió un tercero (un cliente por WhatsApp, un nombre de
     perfil). Una vez usada en el turno, las herramientas de construcción también piden confirmación, igual que con
     adjuntos: ese texto podría traer instrucciones escondidas.
+
+    ``privado``: sus argumentos, su resultado y su resumen quedan en la auditoría pasados por ``tapar`` (sin
+    coordenadas, secretos de enlaces ni teléfonos) apenas la acción se cierra (``brian.accion.marcar``); mientras espera
+    confirmación los argumentos siguen enteros, porque con ellos se corre. Lo que ve el modelo lo decide la herramienta:
+    que no devuelva lo que no debe ver.
     """
     if nivel not in NIVELES:
         raise ValueError(f'Nivel desconocido: {nivel}')
@@ -117,6 +150,7 @@ def herramienta(nombre, descripcion, parametros=None, requeridos=(), nivel='lect
             'ejemplos': list(ejemplos),
             'segura_con_adjuntos': bool(segura_con_adjuntos),
             'texto_externo': bool(texto_externo),
+            'privado': bool(privado),
             'metodo': metodo.__name__,
         }
         return metodo

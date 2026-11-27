@@ -143,7 +143,7 @@ class TestCatalogo(TransactionCase):
             'order_line': [(0, 0, {'product_id': self.producto(self.catalogo[0]['codigo']).product_variant_id.id})],
         })
         accion = orden.action_dcasa_whatsapp()
-        self.assertTrue(accion['url'].startswith('https://wa.me/50761234567?text='))
+        self.assertTrue(accion['url'].startswith('https://api.whatsapp.com/send?phone=50761234567&text='))
         self.assertIn(orden.name, accion['url'])
         self.assertEqual(orden.state, 'sent')
 

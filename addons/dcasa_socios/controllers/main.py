@@ -14,6 +14,7 @@ invita a activarlo eligiendo un PIN.
 from urllib.parse import quote
 
 from odoo import fields, http
+from odoo.addons.dcasa_base import whatsapp
 from odoo.exceptions import UserError
 from odoo.http import request
 
@@ -368,7 +369,7 @@ class SociosDcasa(http.Controller):
             'historial': Canje.search([('partner_id', '=', socio.id), ('estado', '!=', 'solicitado')], limit=10),
             'ahijados': socio.dcasa_ahijado_ids.sudo().filtered('active'),
             'link': link,
-            'whatsapp': f'https://wa.me/?text={quote(texto)}',
+            'whatsapp': whatsapp.enlace(None, texto),
             'qr': f'/report/barcode/?barcode_type=QR&value={quote(link, safe="")}&width=220&height=220',
         })
 

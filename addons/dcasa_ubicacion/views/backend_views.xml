@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- La ficha del contacto: «Ubicación de entrega» (lo que marcó la clienta, de dónde salió y la referencia) y el
+         botón para crear el enlace de un solo uso y mandárselo a mano. -->
+    <record id="view_partner_form_ubicacion" model="ir.ui.view">
+        <field name="name">res.partner.form.dcasa.ubicacion</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="Ubicación de entrega" name="dcasa_ubicacion">
+                    <group>
+                        <group>
+                            <field name="dcasa_ubic_zona" string="Zona"/>
+                            <field name="dcasa_referencia"/>
+                            <field name="dcasa_ubic_etiqueta" string="El punto"/>
+                            <field name="dcasa_ubic_confirmada" string="Confirmado por la clienta"/>
+                            <field name="dcasa_ubic_fecha" string="Puesto el"/>
+                        </group>
+                        <!-- Salen del punto y de la tabla de lugares: a mano no se cambian (la zona y el precio no se
+                             recalcularían). Para cambiarlos, otro punto (el enlace de abajo). -->
+                        <group>
+                            <field name="dcasa_barriada" readonly="1"/>
+                            <field name="dcasa_corregimiento" readonly="1"/>
+                            <field name="dcasa_distrito" readonly="1"/>
+                            <field name="dcasa_provincia" readonly="1"/>
+                            <field name="dcasa_ubic_direccion_mapa" readonly="1"/>
+                        </group>
+                    </group>
+                    <field name="dcasa_ubic_tiene_punto" invisible="1"/>
+                    <div name="dcasa_ubic_botones" class="d-flex flex-wrap gap-2">
+                        <button name="action_dcasa_abrir_waze" type="object" class="btn-primary" string="Abrir en Waze"
+                                icon="fa-location-arrow" invisible="not dcasa_ubic_tiene_punto"
+                                groups="sales_team.group_sale_salesman"/>
+                        <button name="action_dcasa_abrir_google_maps" type="object" class="btn-primary"
+                                string="Abrir en Google Maps" icon="fa-map" invisible="not dcasa_ubic_tiene_punto"
+                                groups="sales_team.group_sale_salesman"/>
+                        <button name="action_dcasa_enlace_ubicacion" type="object" class="btn-secondary"
+                                string="Crear enlace para que marque su ubicación"
+                                help="Un enlace de un solo uso (24 horas): la clienta marca su punto en un mapa y queda aquí."/>
+                    </div>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- La venta: la zona de entrega a la vista y «Ruta del motorizado» (la misma página del QR). -->
+    <record id="view_order_form_ubicacion" model="ir.ui.view">
+        <field name="name">sale.order.form.dcasa.ubicacion</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header" position="inside">
+                <button name="action_dcasa_abrir_entrega" type="object" string="Ruta del motorizado"
+                        invisible="state != 'sale'"/>
+            </xpath>
+            <xpath expr="//field[@name='partner_shipping_id']" position="after">
+                <field name="dcasa_zona_entrega" string="Zona de entrega" invisible="not dcasa_zona_entrega"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

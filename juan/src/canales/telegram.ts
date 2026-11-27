@@ -9,6 +9,9 @@
 // citado CON su texto; `forward_origin` (o el viejo `forward_date`) dice que es reenviado; `message_reaction` llega solo si el
 // webhook se registró con `allowed_updates` que lo incluya (docs/JUAN_CANALES.md §2) y sale como evento, nunca como mensaje.
 // Telegram no les da a los bots «entregado» ni «leído»: en Telegram no hay palomitas.
+//
+// Ubicación (2026-11-25, docs/UBICACION.md): `message.location` (o `message.venue`, un lugar con nombre y dirección) sale como
+// `Entrante.ubicacion` con `origen: "whatsapp"`, el valor del contrato para «compartida en el chat». El texto no lleva coordenadas.
 
 import type { Env } from "../env";
 import { tokensIguales } from "../seguridad";
@@ -29,6 +32,7 @@ import {
   MAX_FOTO_DE_PERFIL_BYTES,
   sinNegritas,
 } from "./tipos";
+import { crearUbicacion, TEXTO_UBICACION_COMPARTIDA, TEXTO_UBICACION_ILEGIBLE, type UbicacionEntrante } from "./ubicacion";
 
 const API = "https://api.telegram.org";
 
@@ -50,6 +54,10 @@ export interface TgMensaje {
   photo?: (TgArchivo & { width: number; height: number })[];
   document?: TgArchivo;
   video?: TgArchivo;
+  /** Una ubicación compartida (📎 › Ubicación). La «en tiempo real» llega primero así y después como ediciones, que no se atienden. */
+  location?: { latitude?: unknown; longitude?: unknown };
+  /** Un lugar elegido en el mapa: su ubicación, con nombre y dirección. */
+  venue?: { location?: { latitude?: unknown; longitude?: unknown }; title?: unknown; address?: unknown };
   /** El mensaje que el cliente citó (de este mismo chat). */
   reply_to_message?: Omit<TgMensaje, "reply_to_message">;
   /** El pedazo que el cliente eligió del mensaje citado, si eligió uno. */
@@ -82,7 +90,20 @@ function textoDeCitado(m: Omit<TgMensaje, "reply_to_message">, elegido?: string)
   if (m.voice || m.audio) return "Audio";
   if (m.video) return "Video";
   if (m.document) return "Documento";
+  // Nunca las coordenadas: solo que era una ubicación.
+  if (m.location || m.venue) return "Ubicación";
   return undefined;
+}
+
+/**
+ * La ubicación de un mensaje de Telegram (un lugar elegido o la ubicación actual), validada. Usa `origen: "whatsapp"` a propósito: en
+ * el contrato con Odoo (docs/UBICACION.md) ese valor significa «ubicación compartida en el chat», sea WhatsApp, Telegram o Messenger.
+ * `null` = no trae ubicación; `"ilegible"` = la trae pero sin coordenadas que sirvan.
+ */
+export function ubicacionDeTelegram(m: Pick<TgMensaje, "location" | "venue">): UbicacionEntrante | "ilegible" | null {
+  if (m.venue) return crearUbicacion(m.venue.location?.latitude, m.venue.location?.longitude, "whatsapp", { nombre: m.venue.title, direccion: m.venue.address }) ?? "ilegible";
+  if (m.location) return crearUbicacion(m.location.latitude, m.location.longitude, "whatsapp") ?? "ilegible";
+  return null;
 }
 
 /** `tg:<chat>:<id>` → el id del mensaje, si es de ese chat (para citarlo al responder). */
@@ -196,6 +217,10 @@ export function crearTelegram(op: OpcionesTelegram = {}): AdaptadorCanal {
       if (msg.document) adjuntos.push(descargable(token, msg.document, "documento"));
       if (msg.video) adjuntos.push(descargable(token, msg.video, "video"));
 
+      // El punto de entrega (docs/UBICACION.md): las coordenadas van aparte, a Odoo; el texto que ve el modelo no las lleva.
+      const ubicacion = ubicacionDeTelegram(msg);
+      const textoDeUbicacion = ubicacion === "ilegible" ? TEXTO_UBICACION_ILEGIBLE : ubicacion ? TEXTO_UBICACION_COMPARTIDA : undefined;
+
       const citado = msg.reply_to_message;
       const entrante: Entrante = {
         canal: "telegram",
@@ -203,7 +228,8 @@ export function crearTelegram(op: OpcionesTelegram = {}): AdaptadorCanal {
         id_mensaje: `tg:${msg.chat.id}:${msg.message_id}`,
         nombre: msg.from?.first_name,
         // «/start» es el saludo de Telegram: para el bot es un «hola».
-        texto: comando === "/start" ? "Hola" : texto || undefined,
+        texto: comando === "/start" ? "Hola" : texto || textoDeUbicacion,
+        ...(ubicacion && ubicacion !== "ilegible" ? { ubicacion } : {}),
         adjuntos,
         ts: msg.date * 1000,
         ...(citado?.message_id !== undefined

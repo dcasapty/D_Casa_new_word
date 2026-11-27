@@ -204,4 +204,14 @@ describe("qué se puede repetir", () => {
     expect(rutaParaRegistro(`/envios/%63hoferes/${secreto}`)).toBe("/envios/choferes/:token");
     expect(rutaParaRegistro(`/es_419/envios/choferes/${secreto}`)).toBe("/envios/choferes/:token");
   });
+
+  it("el secreto de la ubicación de entrega (/u/ y /entrega/) nunca va al registro", () => {
+    const secreto = "pQrStUvWxYzAbCdEfGhIjK";
+    for (const sufijo of ["", "/zona", "/buscar", "/guardar"]) {
+      expect(rutaParaRegistro(`/u/${secreto}${sufijo}`)).toBe("/u/:token");
+      expect(rutaParaRegistro(`/es/u/${secreto}${sufijo}`)).toBe("/u/:token");
+    }
+    expect(rutaParaRegistro(`/entrega/${secreto}`)).toBe("/entrega/:token");
+    expect(rutaParaRegistro(`/es_419/entrega/${secreto}`)).toBe("/entrega/:token");
+  });
 });

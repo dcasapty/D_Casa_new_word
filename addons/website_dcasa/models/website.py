@@ -3,11 +3,12 @@ import hashlib
 import json
 import math
 import os
-from urllib.parse import quote, urlsplit
+from urllib.parse import urlsplit
 
 from markupsafe import Markup
 
 from odoo import api, fields, models
+from odoo.addons.dcasa_base import whatsapp
 from odoo.addons.dcasa_socios.models import reglas as reglas_socios
 from odoo.exceptions import ValidationError
 from odoo.fields import Domain
@@ -156,15 +157,23 @@ class Website(models.Model):
                 raise ValidationError(self.env._(
                     'El WhatsApp de ventas debe ser un número, como +507 6026-1919 o 6026-1919.'))
 
-    def _dcasa_whatsapp_url(self, message=None):
-        """Link wa.me con mensaje precargado; '/contactus' si no hay número."""
+    def _dcasa_whatsapp_numero(self):
+        """El número de WhatsApp de ventas en dígitos, con el 507 de Panamá si son 8 (``'50760261919'``), o ``''``."""
         self.ensure_one()
         digits = reglas_socios.solo_digitos(self.dcasa_whatsapp_number or self.company_id.phone)
+        if digits and len(digits) == 8:  # número de Panamá sin el código de país
+            digits = f'507{digits}'
+        return digits or ''
+
+    def _dcasa_whatsapp_url(self, message=None):
+        """El enlace de WhatsApp con el mensaje ya escrito (``api.whatsapp.com/send``, no ``wa.me``: en WhatsApp Web
+        y en los navegadores de Instagram y Messenger ``wa.me`` cambia los emojis por «�»; dcasa_base/whatsapp.py),
+        o ``'/contactus'`` si no hay número."""
+        self.ensure_one()
+        digits = self._dcasa_whatsapp_numero()
         if not digits:
             return '/contactus'
-        if len(digits) == 8:  # número de Panamá sin el código de país
-            digits = f'507{digits}'
-        return f'https://wa.me/{digits}?text={quote(message or DEFAULT_WHATSAPP_MESSAGE)}'
+        return whatsapp.enlace(digits, message or DEFAULT_WHATSAPP_MESSAGE)
 
     def _dcasa_logo_de_fabrica(self):
         """¿El logo del sitio sigue siendo el de D'CASA que trae el módulo (dcasa_base)?

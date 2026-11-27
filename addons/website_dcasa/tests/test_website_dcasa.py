@@ -16,13 +16,13 @@ class TestWhatsappLink(TransactionCase):
     def test_whatsapp_url_uses_configured_number(self):
         self.website.dcasa_whatsapp_number = '+507 6026-1919'
         url = self.website._dcasa_whatsapp_url('Hola D\'CASA')
-        self.assertTrue(url.startswith('https://wa.me/50760261919?text='))
+        self.assertTrue(url.startswith('https://api.whatsapp.com/send?phone=50760261919&text='))
         self.assertIn('Hola%20D%27CASA', url)
 
     def test_whatsapp_url_falls_back_to_company_phone(self):
         self.website.dcasa_whatsapp_number = False
         self.website.company_id.phone = '+507 6000-1111'
-        self.assertTrue(self.website._dcasa_whatsapp_url().startswith('https://wa.me/50760001111'))
+        self.assertTrue(self.website._dcasa_whatsapp_url().startswith('https://api.whatsapp.com/send?phone=50760001111&'))
 
     def test_whatsapp_url_without_number_goes_to_contact(self):
         self.website.dcasa_whatsapp_number = False
@@ -45,7 +45,7 @@ class TestWebsitePages(HttpCase):
         self.assertEqual(response.status_code, 200)
         html = response.text
         self.assertIn('Tu casa, bien amueblada.', html)
-        self.assertIn('https://wa.me/50760261919', html)
+        self.assertIn('https://api.whatsapp.com/send?phone=50760261919', html)
         self.assertIn('o_dcasa_wa_float', html)
         self.assertIn(f"/shop/category/{self.env['ir.http']._slug(salas)}", html)
         self.assertIn('info@dcasapty.com', html, 'El pie de página muestra los datos reales')
@@ -58,7 +58,7 @@ class TestWebsitePages(HttpCase):
         self.assertIn('Suma puntos y gana invitando', home)
         response = self.url_open('/socios')
         self.assertEqual(response.status_code, 200)
-        self.assertIn('https://wa.me/50760261919', response.text, 'La app del socio usa el mismo sitio y pie')
+        self.assertIn('https://api.whatsapp.com/send?phone=50760261919', response.text, 'La app del socio usa el mismo sitio y pie')
 
     def test_terminos_de_odoo_llevan_a_los_reales(self):
         """La factura y el portal enlazan /terms: la plantilla de Odoo trae términos inventados en inglés."""
@@ -134,7 +134,7 @@ class TestPortadaDinamica(HttpCase):
         publicados.is_published = False
         sin = tarjeta('Colchones')
         self.assertTrue(sin['whatsapp'])
-        self.assertTrue(sin['url'].startswith('https://wa.me/50760261919?text='), sin['url'])
+        self.assertTrue(sin['url'].startswith('https://api.whatsapp.com/send?phone=50760261919&text='), sin['url'])
         self.assertIn('colchones', sin['url'])
         self.assertFalse(tarjeta('Salas')['whatsapp'], 'las que tienen productos siguen a su página')
         portada = self.url_open('/').text
@@ -254,7 +254,7 @@ class TestPortadaDinamica(HttpCase):
         self.website.dcasa_whatsapp_number = '+507 6026-1919'
         respuesta = self.url_open('/whatsapp?texto=Hola', allow_redirects=False)
         self.assertEqual(respuesta.status_code, 302)
-        self.assertTrue(respuesta.headers['Location'].startswith('https://wa.me/50760261919?text=Hola'))
+        self.assertTrue(respuesta.headers['Location'].startswith('https://api.whatsapp.com/send?phone=50760261919&text=Hola'))
         self.website.dcasa_whatsapp_number = False
         self.website.company_id.phone = False
         respuesta = self.url_open('/whatsapp', allow_redirects=False)

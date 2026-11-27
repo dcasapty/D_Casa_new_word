@@ -272,6 +272,18 @@ describe("POST /odoo/enviar", () => {
     expect((m.conv.enviados[1] as { id_envio?: string }).id_envio).toBeUndefined();
   });
 
+  it("autor «bot» (Odoo a nombre del asistente, docs/UBICACION.md) pasa a la conversación; cualquier otro valor es una vendedora", async () => {
+    const m = montar();
+    expect((await m.pedir(post("/odoo/enviar", { ...base, autor: "bot" }, deOdoo))).status).toBe(200);
+    expect(m.conv.enviados[0]).toEqual({ autor: "bot", texto: "Hola, soy Marisol.", adjuntos: [] });
+    // Ausente, «vendedora» o un valor raro: como siempre (sin `autor`, que la conversación trata como vendedora), nunca un 400.
+    for (const autor of [undefined, "vendedora", "Bot", "BOT", "cliente", "asistente", 5, null, { a: 1 }]) {
+      const res = await m.pedir(post("/odoo/enviar", { ...base, autor }, deOdoo));
+      expect(res.status, JSON.stringify(autor)).toBe(200);
+      expect(m.conv.enviados.at(-1), JSON.stringify(autor)).not.toHaveProperty("autor");
+    }
+  });
+
   it("un id_envio con forma rara → 400 (no se usa de llave de memoria)", async () => {
     const m = montar();
     for (const malo of ["", 5, "con espacios", "x".repeat(121), "a/b", { a: 1 }]) {
@@ -296,7 +308,6 @@ describe("POST /odoo/enviar", () => {
       [{ ...base, canal: undefined }, /canal/],
       [{ ...base, id_externo: "  " }, /id_externo/],
       [{ ...base, id_externo: 5 }, /id_externo/],
-      [{ ...base, autor: "bot" }, /vendedora/],
       [{ ...base, texto: "   " }, /texto o adjuntos/],
       [{ ...base, texto: undefined, adjuntos: [] }, /texto o adjuntos/],
       [{ ...base, adjuntos: [{ tipo: "imagen", url: "http://inseguro/foto.jpg" }] }, /https/],

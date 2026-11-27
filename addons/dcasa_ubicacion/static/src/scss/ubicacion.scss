@@ -1,0 +1,495 @@
+// «¿Dónde le entregamos?» en el checkout (views/checkout_templates.xml). Pedido del dueño (2026-11-25): íconos grandes y
+// pocas palabras («un niño de 5 años pueda comprar»). Marca Baby Caleb (docs/MARCA_BABY_CALEB.md): crema, letra navy, el
+// naranja de relleno con letra navy, pastillas, plano; 48 px o más en lo táctil y 16 px en los campos.
+$dcasa-ubic-navy: #1B3246;
+$dcasa-ubic-naranja: #EE924A;
+$dcasa-ubic-naranja-fuerte: #985D2F;
+$dcasa-ubic-superficie: #F2EFE5;
+$dcasa-ubic-linea: #DEDED9;
+$dcasa-ubic-gris: #5E6D78;
+$dcasa-ubic-salvia: #4F6B58;
+
+.o_dcasa_ubicacion {
+    .o_dcasa_icono {
+        width: 1.4em;
+        height: 1.4em;
+        flex-shrink: 0;
+    }
+
+    .o_dcasa_ubic_marco {
+        padding: 16px;
+        border: 1px solid $dcasa-ubic-linea;
+        border-radius: 18px;
+        background: $dcasa-ubic-superficie;
+    }
+
+    .o_dcasa_ubic_titulo {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 14px;
+        font-weight: 700;
+        font-size: 1.25rem;
+        color: $dcasa-ubic-navy;
+    }
+
+    .o_dcasa_ubic_burbuja {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: $dcasa-ubic-naranja;
+        color: $dcasa-ubic-navy;
+        flex-shrink: 0;
+
+        .o_dcasa_icono {
+            width: 26px;
+            height: 26px;
+        }
+    }
+
+    // Las dos maneras, como baldosas: el ícono grande arriba y una palabra abajo.
+    .o_dcasa_ubic_modos {
+        display: flex;
+        gap: 10px;
+        margin: 0 0 12px;
+    }
+
+    .o_dcasa_ubic_modo {
+        flex: 1 1 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        min-height: 76px;
+        padding: 10px;
+        border-radius: 18px;
+        border: 2px solid $dcasa-ubic-linea;
+        background: #fff;
+        color: $dcasa-ubic-navy;
+        font-weight: 700;
+
+        .o_dcasa_icono {
+            width: 30px;
+            height: 30px;
+        }
+    }
+
+    .btn-check:checked + .o_dcasa_ubic_modo {
+        background: $dcasa-ubic-naranja;
+        border-color: $dcasa-ubic-navy;
+        color: $dcasa-ubic-navy;
+    }
+
+    .o_dcasa_ubic_gps,
+    .o_dcasa_ubic_si {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        width: 100%;
+        min-height: 56px;
+        margin-top: 4px;
+        border-radius: 999px;
+        font-weight: 700;
+        font-size: 1.1rem;
+    }
+
+    .o_dcasa_ubic_mapa_marco {
+        position: relative;
+        margin-top: 12px;
+        border: 1px solid $dcasa-ubic-linea;
+        border-radius: 18px;
+        overflow: hidden;
+        background: #fff;
+
+        &.o_dcasa_sin_mapa {
+            display: none;
+        }
+    }
+
+    .o_dcasa_ubic_mapa {
+        width: 100%;
+        height: 50vh;
+        min-height: 260px;
+        max-height: 460px;
+
+        // En el teléfono, más bajo (auditoría 2): con la barra fija de «Confirmar» (188 px) el centro quedaba tapado y
+        // era una franja grande que se arrastraba sin querer al bajar la página.
+        @media (max-width: 575.98px) {
+            height: #{"min(40vh, 300px)"};
+            min-height: 220px;
+        }
+    }
+
+    // «¿Es para otra casa? Búsquela 👇» bajo «Mi ubicación» (como en /u) y cómo permitir la ubicación.
+    .o_dcasa_ubic_mini,
+    .o_dcasa_ubic_permiso {
+        margin: 6px 0 0;
+        color: $dcasa-ubic-gris;
+        font-size: 15px;
+        text-align: center;
+
+        &:empty {
+            display: none;
+        }
+    }
+
+    .o_dcasa_ubic_permiso {
+        text-align: left;
+    }
+
+    .o_dcasa_ubic_pin {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 40px;
+        height: 54px;
+        margin: -54px 0 0 -20px;
+        pointer-events: none;
+        z-index: 2;
+    }
+
+    .o_dcasa_ubic_pista {
+        position: absolute;
+        left: 50%;
+        top: 12px;
+        transform: translateX(-50%);
+        z-index: 2;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border-radius: 999px;
+        background: rgba(249, 246, 237, .95);
+        border: 1px solid $dcasa-ubic-linea;
+        font-size: 14px;
+        font-weight: 600;
+        pointer-events: none;
+        white-space: nowrap;
+    }
+
+    .o_dcasa_ubic_aviso,
+    .o_dcasa_ubic_cruce {
+        min-height: 1.2em;
+        margin: 8px 0 0;
+        color: $dcasa-ubic-naranja-fuerte;
+        font-weight: 600;
+    }
+
+    .o_dcasa_ubic_con_icono {
+        position: relative;
+        margin-top: 4px;
+
+        > .o_dcasa_icono {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: $dcasa-ubic-gris;
+            pointer-events: none;
+        }
+
+        .o_dcasa_ubic_buscar,
+        .o_dcasa_ubic_chico {
+            padding-left: 48px;
+        }
+    }
+
+    .o_dcasa_ubic_buscar,
+    [name=dcasa_referencia] {
+        min-height: 52px;
+        font-size: 16px;
+    }
+
+    // Quién recibe y otro teléfono (opcionales): más chicos que el número de casa, con su ícono y sin etiqueta grande.
+    .o_dcasa_ubic_opcional {
+        margin-top: 10px;
+    }
+
+    .o_dcasa_ubic_chico {
+        min-height: 48px;
+        font-size: 16px;
+    }
+
+    .o_dcasa_ubic_opcion {
+        display: block;
+        width: 100%;
+        min-height: 48px;
+        margin-top: 6px;
+        padding: 10px 14px;
+        text-align: left;
+        border: 1px solid $dcasa-ubic-linea;
+        border-radius: 14px;
+        background: #fff;
+        color: $dcasa-ubic-navy;
+
+        small {
+            display: block;
+            color: $dcasa-ubic-gris;
+        }
+    }
+
+    .o_dcasa_ubic_tarjeta {
+        margin-top: 12px;
+        padding: 14px 16px;
+        border: 2px solid $dcasa-ubic-naranja;
+        border-radius: 18px;
+        background: #fff;
+    }
+
+    .o_dcasa_ubic_dato {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 4px 0;
+        font-weight: 600;
+        color: $dcasa-ubic-navy;
+    }
+
+    .o_dcasa_ubic_dato_precio {
+        font-size: 1.3rem;
+        font-weight: 700;
+    }
+
+    // Con el aviso de cruce: «📍 Es aquí» / «🏠 Es otra casa». Sin señal: «📶 Sin señal. Toque para reintentar».
+    .o_dcasa_ubic_cruce_botones,
+    .o_dcasa_chat_botones {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 10px;
+
+        > *,
+        form > .btn {
+            flex: 1 1 140px;
+        }
+    }
+
+    .o_dcasa_ubic_cruce_si,
+    .o_dcasa_ubic_cruce_no,
+    .o_dcasa_ubic_reintentar,
+    .o_dcasa_chat_si,
+    .o_dcasa_chat_no {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        width: 100%;
+        min-height: 48px;
+        border-radius: 999px;
+        font-weight: 700;
+    }
+
+    .o_dcasa_ubic_cruce_si,
+    .o_dcasa_ubic_cruce_no {
+        padding: 0 12px;
+        white-space: nowrap;
+    }
+
+    .o_dcasa_ubic_reintentar {
+        margin-top: 6px;
+    }
+
+    .o_dcasa_ubic_falta_tarjeta {
+        margin: 10px 0 0;
+    }
+
+    .o_dcasa_ubic_ok {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        margin: 10px 0 0;
+        font-weight: 700;
+        font-size: 1.1rem;
+        color: $dcasa-ubic-salvia;
+    }
+
+    .o_dcasa_ubic_etiqueta {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 700;
+    }
+
+    // Lo que falta cuando toca «Confirmar» sin el punto o sin el número de casa: en el bloque, a la vista.
+    .o_dcasa_ubic_falta {
+        margin: 0 0 12px;
+        padding: 10px 14px;
+        border: 2px solid $dcasa-ubic-naranja-fuerte;
+        border-radius: 14px;
+        background: #fff;
+        color: $dcasa-ubic-naranja-fuerte;
+        font-weight: 700;
+
+        &:focus {
+            outline: 2px solid $dcasa-ubic-navy;
+            outline-offset: 2px;
+        }
+    }
+
+    .o_dcasa_ubic_falta_casa {
+        margin: 8px 0 0;
+    }
+}
+
+// Al bajar hasta el bloque o el número de casa, que no queden debajo de la cabecera fija del sitio (ni de la barra fija
+// de «Confirmar»: el buscador y la tarjeta del punto, también).
+#div_dcasa_ubicacion {
+    scroll-margin-top: 96px;
+
+    .o_dcasa_ubic_buscar {
+        scroll-margin: 120px 0 200px;
+    }
+}
+
+.o_dcasa_ubic_casa [name=dcasa_referencia] {
+    scroll-margin: 120px 0 200px;
+}
+
+// Al «Escribir», el número de casa va después de la ciudad (fuera del recuadro del mapa).
+.o_dcasa_ubic_casa_fuera {
+    .o_dcasa_ubic_etiqueta {
+        padding-top: 0;
+    }
+}
+
+// /shop/checkout: «¿Le entregamos ahí?» con lo que dio en el chat de la tienda (auditoría 2).
+.o_dcasa_chat_pendiente {
+    padding: 16px;
+    border: 2px solid $dcasa-ubic-naranja;
+    border-radius: 18px;
+    background: $dcasa-ubic-superficie;
+
+    .o_dcasa_chat_no_form {
+        display: flex;
+        flex: 1 1 140px;
+        margin: 0;
+    }
+}
+
+// La tarjeta de la dirección de entrega del checkout: el número de casa debajo de la dirección.
+.o_dcasa_tarjeta_casa {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+    font-weight: 600;
+
+    .o_dcasa_icono {
+        width: 1.3em;
+        height: 1.3em;
+        flex-shrink: 0;
+    }
+}
+
+// El sitio pone 44 px a todo campo con `#wrapwrap .form-control` (pesa un id) y a todo botón del checkout con
+// `.o_website_sale_checkout_container .btn:not(.btn-close)` (website_dcasa/static/src/scss/dcasa.scss): sin repetirlo
+// aquí, los campos y botones del bloque quedaban en 44 px y no en los 48 px (o 52 y 56) del pedido del dueño
+// (auditorías 1 y 2). Se ve en el navegador, no en las pruebas de Python.
+#wrapwrap .o_dcasa_ubicacion {
+    .o_dcasa_ubic_buscar,
+    [name=dcasa_referencia] {
+        min-height: 52px;
+    }
+
+    .o_dcasa_ubic_chico {
+        min-height: 48px;
+    }
+
+    .o_dcasa_ubic_gps,
+    .o_dcasa_ubic_si {
+        min-height: 56px;
+    }
+
+    .o_dcasa_ubic_cruce_si,
+    .o_dcasa_ubic_cruce_no,
+    .o_dcasa_ubic_reintentar,
+    .o_dcasa_ubic_opcion,
+    .o_dcasa_ubic_cambiar,
+    .o_dcasa_chat_si,
+    .o_dcasa_chat_no {
+        min-height: 48px;
+    }
+}
+
+// «Cambiar» de la página del pedido con la casa marcada: un botón de 48 px (era un enlace de 70×26: auditoría 2).
+.o_dcasa_ubic_cambiar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    min-height: 48px;
+    min-width: 48px;
+    padding: 0 18px;
+    border-radius: 999px;
+    font-weight: 700;
+}
+
+// La página del pedido (el link de pago): la tarjeta «¿Dónde le entregamos?» o la línea con la zona y la casa.
+.o_dcasa_pedido_ubic {
+    padding: 16px;
+    border: 2px solid $dcasa-ubic-naranja;
+    border-radius: 18px;
+    background: $dcasa-ubic-superficie;
+}
+
+.o_dcasa_pedido_ubic_lista {
+    padding: 12px 16px;
+    border: 1px solid $dcasa-ubic-linea;
+    border-radius: 18px;
+}
+
+// En el celular el botón flotante de WhatsApp (website_dcasa: 56 px a 24 px del borde) tapaba la punta de «Marcar mi
+// casa en el mapa» (auditoría 1): el botón deja libre esa franja de la derecha.
+@media (max-width: 575.98px) {
+    .o_dcasa_pedido_ubic .o_dcasa_ubic_gps {
+        width: auto;
+        margin-right: 56px;
+    }
+}
+
+// El chat de la tienda (Andrés): «🏠 Número de casa e indicaciones» y «Guardar» (dcasa_brian_tienda, brian_tienda.js).
+.o_dcbt_ind {
+    .o_dcbt_ind_campo {
+        width: 100%;
+        min-height: 48px;
+        margin: 8px 0;
+        padding: 10px 12px;
+        border: 1px solid #7F8A91;
+        border-radius: 12px;
+        background: #fff;
+        color: $dcasa-ubic-navy;
+        font-size: 16px;
+    }
+
+    .o_dcbt_ind_estado {
+        min-height: 1.2em;
+        margin: 6px 0 0;
+        color: $dcasa-ubic-naranja-fuerte;
+        font-weight: 600;
+    }
+
+    // «Guardar» y «Probar otra vez» (GPS impreciso): 48 px como todo lo táctil de la ubicación.
+    .o_dcbt_btn {
+        min-height: 48px;
+        margin-top: 6px;
+    }
+}
+
+// El precio de la entrega (sobre todo el que sale del punto: «$ 15.00»): entero, sin cortarlo con «…» en el celular
+// (Odoo lo limita a 130 px pensando en nombres largos de transportistas). También «Por cotizar» (website_dcasa lo
+// pone con ::after): antes quedaba fuera y salía «Por cotiza» (auditoría 1).
+.o_wsale_delivery_price_badge {
+    flex-shrink: 0;
+    max-width: none;
+    white-space: nowrap;
+
+    &.o_dcasa_por_cotizar {
+        overflow: visible;
+        text-overflow: clip;
+    }
+}

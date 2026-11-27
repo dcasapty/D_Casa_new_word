@@ -18,6 +18,7 @@ from urllib.parse import quote
 import pytz
 
 from odoo import models
+from odoo.addons.dcasa_base import whatsapp
 from odoo.addons.dcasa_base.nombres import nombre_para_cliente
 from odoo.addons.dcasa_invoice.models import lineas as L
 from odoo.addons.dcasa_socios.models import reglas as R
@@ -624,7 +625,7 @@ class DcasaMiCuenta(models.AbstractModel):
                          for ahijado in ficha.dcasa_ahijado_ids.sudo().filtered('active')],
             'movimientos': movimientos,
             'link': link,
-            'invitar': f'https://wa.me/?text={quote(texto)}' if link else '',
+            'invitar': whatsapp.enlace(None, texto) if link else '',
             'qr': f'/report/barcode/?barcode_type=QR&value={quote(link, safe="")}&width=220&height=220' if link else '',
             'al_padrino': R.como_puntos(reglas['referido']['puntosAlPadrino']),
             'horas': reglas['canje']['vigenciaDelCodigoHoras'],

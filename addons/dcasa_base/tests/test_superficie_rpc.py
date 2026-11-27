@@ -293,8 +293,8 @@ LISTA_BLANCA = {
     # --- dcasa_contabilidad --------------------------------------------------------------
     ('dcasa_contabilidad', 'dcasa.importar.extracto', 'action_importar'): ASISTENTE + ' (account.group_account_user)',
     ('dcasa_abonos', 'account.move', 'action_dcasa_abono_whatsapp'):
-        'Botón «WhatsApp» de Abonos por vencer: check_access("read") de la factura y solo devuelve un enlace wa.me con '
-        'el texto; no escribe nada ni usa sudo().',
+        'Botón «WhatsApp» de Abonos por vencer: check_access("read") de la factura y solo devuelve un enlace de '
+        'WhatsApp con el texto; no escribe nada ni usa sudo().',
     ('dcasa_contabilidad', 'dcasa.saldos.centavos', 'action_cerrar'):
         ASISTENTE + ' (account.group_account_user). Además exige Gerencia o contabilidad en el servidor; sin sudo(): '
                     'crea y cruza el asiento de redondeo con los permisos de la persona.',
@@ -1396,6 +1396,45 @@ LISTA_BLANCA = {
     ('dcasa_comision_web', 'dcasa.web.venta', 'write'):
         OVERRIDE + ' Solo NIEGA escribir a quien no es el sistema (las ventas del sitio las anota el sistema); sin '
                    'sudo().',
+    # Ubicación exacta de entrega (docs/UBICACION.md).
+    ('dcasa_ubicacion', 'res.partner', 'action_dcasa_enlace_ubicacion'):
+        'Botón: exige poder escribir en la ficha (check_access) y solo crea, en sudo, el enlace de un solo uso de ESA '
+        'ficha; devuelve la URL para copiarla.',
+    ('dcasa_ubicacion', 'sale.order', 'action_dcasa_abrir_entrega'):
+        'Botón: exige poder leer la venta (check_access); arma (en sudo) la entrega de ESA venta confirmada y devuelve '
+        'la URL de la página del motorizado.',
+    ('dcasa_ubicacion', 'sale.order', 'action_confirm'):
+        OVERRIDE + ' Después de confirmar (con el permiso de Odoo ya revisado) arma, en sudo, la entrega del '
+                   'motorizado de esa venta si va a domicilio y, si su dirección no tiene un punto confiable, le pide '
+                   'una vez la ubicación (mensaje «por enviar» del asistente o un pendiente para la vendedora) en un '
+                   'savepoint que nunca hace fallar la confirmación (models/avisos.py).',
+    ('dcasa_ubicacion', 'sale.order', 'action_dcasa_pedir_ubicacion_whatsapp'):
+        'Botón «📲 Pedir ubicación por WhatsApp»: exige sales_team.group_sale_salesman en el servidor y poder escribir '
+        'en ESA venta (check_access) ANTES del sudo con que crea el enlace de un solo uso de su dirección de entrega; '
+        'devuelve el enlace de WhatsApp con el texto, sin coordenadas.',
+    ('dcasa_ubicacion', 'sale.order', 'action_dcasa_avisar_sale_hoy'):
+        'Botón y acción de la lista «🚚 Sale hoy: avisarle»: exige sales_team.group_sale_salesman en el servidor y '
+        'poder escribir en esas ventas (check_access) ANTES de cualquier sudo; una vez por venta y por día; deja el '
+        'mensaje «por enviar» del asistente (sin coordenadas) o devuelve el enlace de WhatsApp para una persona.',
+    ('dcasa_ubicacion', 'stock.picking', 'action_dcasa_avisar_sale_hoy'):
+        'Botón «🚚 Sale hoy: avisarle» de la entrega: exige poder leer la entrega (check_access) y llama al de su '
+        'venta como el mismo usuario (que exige el grupo de ventas y poder escribir en la venta).',
+    ('dcasa_ubicacion', 'delivery.carrier', 'fixed_rate_shipment'):
+        OVERRIDE + ' Solo para la entrega a domicilio: el precio sale del punto confirmado de la dirección de entrega '
+                   'del pedido (la tabla de envíos aprobada); no escribe nada.',
+    ('dcasa_ubicacion', 'sale.order', 'set_delivery_line'):
+        OVERRIDE + ' Después de poner el envío (con el permiso de Odoo ya revisado), si es la entrega a domicilio y el '
+                   'precio salió del punto, marca esa línea como la del sistema (su lugar y la promoción de hoy), '
+                   'igual que el checkout; solo en borrador o enviada.',
+    ('dcasa_ubicacion', 'res.partner', 'action_dcasa_abrir_waze'):
+        'Botón: exige sales_team.group_sale_salesman y poder leer la ficha (check_access) antes de leer el punto en '
+        'sudo; devuelve la ruta de Waze de ESA ficha (no escribe nada).',
+    ('dcasa_ubicacion', 'res.partner', 'action_dcasa_abrir_google_maps'):
+        'Botón: exige sales_team.group_sale_salesman y poder leer la ficha (check_access) antes de leer el punto en '
+        'sudo; devuelve la ruta de Google Maps de ESA ficha (no escribe nada).',
+    ('dcasa_ubicacion', 'res.partner', 'action_dcasa_quitar_fachada'):
+        'Botón: exige poder escribir en la ficha (check_access) y solo quita, en sudo, la foto de la casa de ESA ficha '
+        '(el objeto de R2 lo recoge su limpieza; nunca se borra al momento).',
 }
 
 # Modelos abstractos sin ACL: por RPC no se puede llamar NINGÚN método suyo (S-09).

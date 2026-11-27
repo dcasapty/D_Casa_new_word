@@ -146,6 +146,19 @@ describe("route", () => {
     }
   });
 
+  it("lleva la ubicación de entrega (enlace de la clienta y página del motorizado) a Odoo, sin caché ni bloqueo", () => {
+    const secreto = "pQrStUvWxYzAbCdEfGhIjK"; // token_urlsafe puede salir sin dígitos
+    const rutas = [`/u/${secreto}`, `/u/${secreto}/zona`, `/u/${secreto}/buscar`, `/u/${secreto}/guardar`,
+      `/entrega/${secreto}`, `/es/u/${secreto}`, `/es/entrega/${secreto}`];
+    for (const path of rutas) {
+      expect(isBlockedPath(path), path).toBe(false);
+      for (const method of ["GET", "HEAD", "POST"]) {
+        expect(route(u(path), method), `${method} ${path}`).toEqual({ kind: "origin", cacheable: false });
+        expect(rutaEstatica(u(path), method), `${method} ${path}`).toBeNull();
+      }
+    }
+  });
+
   it("no redirige otros hosts (p. ej. *.workers.dev)", () => {
     expect(route(u("/", "dcasa.cuenta.workers.dev"), "GET", "dcasapty.com").kind).toBe("origin");
   });

@@ -201,7 +201,7 @@ class TestBuscarComoElCatalogo(HttpCase):
         bloque = re.search(r'class="o_dcasa_sin_resultados".*?</div>\s*</div>', html, re.S).group(0)
         self.assertIn('No encontramos “zzqqxxlampara”', bloque)
         self.assertIn(self.website._dcasa_categoria_url('recamaras'), bloque, 'la categoría con productos')
-        self.assertIn('https://wa.me/', bloque)
+        self.assertIn('https://api.whatsapp.com/send?phone=', bloque)
         self.assertIn('busco%3A%20zzqqxxlampara', bloque, 'WhatsApp con lo que buscó ya escrito')
         self.assertIn('Escríbenos por WhatsApp', bloque)
         self.assertNotIn('o_wsale_price_range_option', html, 'sin el rango de precio de «$ 0.00»')

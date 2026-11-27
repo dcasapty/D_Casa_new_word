@@ -35,7 +35,7 @@
  *   · Accesible: foco, Esc para cerrar, aria-*; con movimiento reducido, quieto.
  *
  * Todo el texto que llega del Worker se pinta con textContent (nunca como HTML) y los enlaces e imágenes solo pueden
- * ser de este mismo sitio (o wa.me para WhatsApp).
+ * ser de este mismo sitio (o api.whatsapp.com para WhatsApp).
  *
  * Ojo: nada de plantillas de texto con comillas invertidas dentro de otra; el minificador de Odoo les come los
  * espacios del borde («abramos(atendemos», «2×Colchón»). Se arma con «+» (lo revisa test_ajustes.py).
@@ -109,7 +109,7 @@ const VOZ_MIN_MS = 600;
 const CLAVE_VOZ_PISTA = "dcasa.brian.voz_pista";
 const RUTA = "/dcasa/brian/v1";
 /** Botones de la página que la burbuja nunca tapa (se hace a un lado mientras estén debajo). */
-const NO_TAPAR = '.o_dcasa_wa_producto, #add_to_cart, a.btn[href*="wa.me"], a.btn[href^="/whatsapp"], [name="website_sale_main_button"], .o_dcasa_brian_no_tapar';
+const NO_TAPAR = '.o_dcasa_wa_producto, #add_to_cart, a.btn[href*="wa.me"], a.btn[href*="api.whatsapp.com/send"], a.btn[href^="/whatsapp"], [name="website_sale_main_button"], .o_dcasa_brian_no_tapar';
 
 const TRAZO = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
 const ICO = {
@@ -1399,7 +1399,7 @@ export class ChatBrian {
     }
 
     lineaPrivacidad() {
-        this.lista.append(el("p", { class: "o_dcbt_privacidad o_dcbt_entra" }, ico("escudo"), el("span", { text: "Tu ubicación solo se usa para calcular el envío y no se guarda." })));
+        this.lista.append(el("p", { class: "o_dcbt_privacidad o_dcbt_entra" }, ico("escudo"), el("span", { text: "Su ubicación se usa para el envío; solo se guarda si nos da el número de casa para entregarle." })));
         this.alFinal();
     }
 
@@ -1648,12 +1648,77 @@ export class ChatBrian {
             el("p", { class: "o_dcbt_osm", text: "Datos de mapas © colaboradores de OpenStreetMap" })));
     }
 
+    /** «🏠 Número de casa e indicaciones»: un campo y «Guardar». Va al carrito con la ubicación de este turno; al pagar,
+     *  el checkout la muestra para confirmarla con un toque (dcasa_ubicacion, docs/UBICACION.md). No promete «ya estará
+     *  marcada»: con cuenta, la confirma en la tarjeta «¿Le entregamos ahí?» de /shop/checkout (auditoría 2). */
+    tarjetaIndicaciones(bloque) {
+        if (!this.ultimaUbicacion) {
+            return;
+        }
+        const texto = typeof bloque.texto === "string" && bloque.texto.trim() ? bloque.texto.trim().slice(0, 200)
+            : "🏠 ¿Número de casa o indicaciones para el motorizado?";
+        const campo = el("input", { class: "o_dcbt_ind_campo", type: "text", maxlength: "200", autocomplete: "off",
+            placeholder: "Ej.: casa 24, portón negro", "aria-label": "Número de casa e indicaciones" });
+        const boton = el("button", { type: "button", class: "o_dcbt_btn o_dcbt_btn_azul" }, ico("check"), el("span", { text: "Guardar" }));
+        const estado = el("p", { class: "o_dcbt_ind_estado", "aria-live": "polite" });
+        // Un GPS de más de 100 m no es su casa (dcasa_ubicacion, auditoría 1): Odoo no lo guarda y aquí se le pide
+        // probar otra vez desde su puerta (GPS nuevo, no el guardado), sin volver a escribir el número de casa.
+        const otraVez = el("button", { type: "button", class: "o_dcbt_btn o_dcbt_btn_borde", hidden: "hidden" }, ico("mira"), el("span", { text: "Probar otra vez" }));
+        const tarjeta = el("div", { class: "o_dcbt_card o_dcbt_ind" }, el("p", { class: "o_dcbt_envio_eti" }, ico("pin"), el("span", { text: texto })), campo, boton, estado, otraVez);
+        const guardar = async () => {
+            const referencia = campo.value.trim();
+            if (!referencia) {
+                estado.textContent = "🏠 Escriba el número de casa.";
+                campo.focus();
+                return;
+            }
+            boton.disabled = true;
+            otraVez.hidden = true;
+            const u = this.ultimaUbicacion;
+            const r = await this.odoo("POST", `${RUTA}/carrito/ubicacion`, { lat: u.lat, lon: u.lon, precision: u.precision, referencia });
+            boton.disabled = false;
+            if (r && r.ok) {
+                tarjeta.replaceChildren(el("p", { class: "o_dcbt_envio_eti" }, ico("check"), el("span", { text: "Guardada. Al pagar, confírmela con un toque 📍" })));
+                this.anotar({ tipo: "cliente", texto: referencia });
+            } else if (r && r.motivo === "impreciso") {
+                const metros = Number.isFinite(r.precision) ? ` (±${r.precision} m)` : "";
+                // La casa que escribió sí quedó (dcasa_ubicacion, auditoría 2): no tiene que volver a escribirla.
+                const casa = r.casa_guardada ? " 🏠 Su casa ya quedó anotada." : "";
+                estado.textContent = `📍 Su teléfono no da la ubicación exacta${metros}. Párese en su puerta, active la ubicación precisa y toque «Probar otra vez».${casa}`;
+                otraVez.hidden = false;
+            } else {
+                estado.textContent = "No se pudo guardar. Al pagar, toque «Mi ubicación» y escríbalo ahí.";
+            }
+        };
+        otraVez.addEventListener("click", async () => {
+            otraVez.disabled = true;
+            estado.textContent = "📍 Buscando…";
+            const nueva = await this.pedirUbicacion(true);
+            otraVez.disabled = false;
+            if (!nueva) {
+                estado.textContent = "No pude leer su ubicación. Al pagar, márquela en el mapa 📍";
+                return;
+            }
+            this.ultimaUbicacion = nueva;
+            guardar();
+        });
+        boton.addEventListener("click", guardar);
+        campo.addEventListener("keydown", (ev) => {
+            if (ev.key === "Enter") {
+                ev.preventDefault();
+                guardar();
+            }
+        });
+        this.filaBrian(tarjeta);
+    }
+
     urlWhatsApp(extra, mensaje) {
         if (!this.whatsapp) {
             return "/whatsapp";
         }
         const texto = typeof mensaje === "string" && mensaje.trim() ? mensaje.trim().slice(0, 600) : mensajeWhatsApp(this.estado.carrito, extra);
-        return `https://wa.me/${this.whatsapp}?text=${encodeURIComponent(texto)}`;
+        // api.whatsapp.com y no wa.me: wa.me cambia los emojis por «�» en WhatsApp Web (dcasa_base/whatsapp.py).
+        return `https://api.whatsapp.com/send?phone=${this.whatsapp}&text=${encodeURIComponent(texto)}`;
     }
 
     tarjetaWA(bloque = {}) {
@@ -2173,6 +2238,8 @@ export class ChatBrian {
                 this.lineaPrivacidad();
             } else if (b.tipo === "envio") {
                 this.tarjetaEnvio(b);
+            } else if (b.tipo === "indicaciones") {
+                this.tarjetaIndicaciones(b);
             } else if (b.tipo === "whatsapp") {
                 this.tarjetaWA(b);
             } else if (b.tipo === "calificar") {
@@ -2339,7 +2406,8 @@ export class ChatBrian {
         }
     }
 
-    pedirUbicacion() {
+    /** El GPS del teléfono. ``fresca``: sin la posición guardada del último minuto (para «Probar otra vez»). */
+    pedirUbicacion(fresca = false) {
         return new Promise((resolver) => {
             if (!navigator.geolocation) {
                 resolver(null);
@@ -2355,10 +2423,15 @@ export class ChatBrian {
             setTimeout(() => fin(null), PLAZO_UBICACION_MS);
             try {
                 navigator.geolocation.getCurrentPosition(
-                    // Con tres decimales (unos 100 m) alcanza para el lugar de entrega más cercano.
-                    (p) => fin({ lat: Math.round(p.coords.latitude * 1000) / 1000, lon: Math.round(p.coords.longitude * 1000) / 1000 }),
+                    // Precisa (dcasa_ubicacion, 2026-11-25): con el número de casa queda lista para entregar; antes, con
+                    // tres decimales (unos 100 m), solo servía para el precio.
+                    (p) => fin({
+                        lat: Math.round(p.coords.latitude * 1e7) / 1e7,
+                        lon: Math.round(p.coords.longitude * 1e7) / 1e7,
+                        precision: Math.round(p.coords.accuracy || 0),
+                    }),
                     () => fin(null),
-                    { enableHighAccuracy: false, timeout: PLAZO_UBICACION_MS - 1000, maximumAge: 300000 });
+                    { enableHighAccuracy: true, timeout: PLAZO_UBICACION_MS - 1000, maximumAge: fresca ? 0 : 60000 });
             } catch {
                 fin(null);
             }
@@ -2377,14 +2450,17 @@ export class ChatBrian {
             this.campo.placeholder = "Barrio, PH o un punto de referencia";
             return;
         }
-        // La ubicación viaja solo en este turno: no se guarda en la página ni en el historial.
+        // La ubicación viaja en este turno y queda solo en la memoria de esta página (nunca en el historial): si el
+        // cliente escribe el número de casa, se guarda con él en su carrito para el pago (bloque «indicaciones»).
+        this.ultimaUbicacion = ubicacion;
         await this.enviar({ ubicacion });
     }
 
     otraDireccion() {
         this.quitarChips();
         this.cliente("Es otra dirección");
-        const frase = "Claro. Escríbeme el barrio, el PH o un punto de referencia que te quede cerca; no necesito la dirección exacta.";
+        // Sin «no necesito la dirección exacta»: la casa sí se pide (al pagar, en el mapa).
+        const frase = "Claro. Escríbeme el barrio o el PH de esa casa y te digo el envío. Al pagar, la marcas en el mapa 📍";
         this.pose("mapa");
         this.globo(frase);
         this.anotar({ tipo: "cliente", texto: "Es otra dirección" }, { tipo: "brian", texto: frase, pose: "mapa" });

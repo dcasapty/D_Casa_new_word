@@ -319,7 +319,7 @@ class TestBuscarFoto(HttpCase):
         self.assertIn('No encontramos algo parecido en la tienda en línea.', respuesta.text)
         self.assertIn('¿No es lo que buscas?', respuesta.text)
         self.assertIn('Escríbenos por WhatsApp', respuesta.text)
-        self.assertIn('wa.me/', respuesta.text)
+        self.assertIn('https://api.whatsapp.com/send?phone=', respuesta.text)
 
     def test_lo_que_no_es_un_mueble_o_no_se_pudo_leer(self):
         for cuerpo in ({'ok': True, 'lectura': lectura(tipo='otra', categoria=None)},

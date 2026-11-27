@@ -411,7 +411,8 @@ class DcasaMensaje(models.Model):
             resultado = Cliente.enviar(
                 conversacion.canal, conversacion.id_externo, texto=mensaje.texto or None,
                 adjuntos=mensaje._datos_adjuntos_para_worker() or None, id_envio=mensaje.id_mensaje,
-                responde_a=mensaje.cita_id._id_canal_para_citar() if mensaje.cita_id else None)
+                responde_a=mensaje.cita_id._id_canal_para_citar() if mensaje.cita_id else None,
+                autor='bot' if mensaje.autor == 'bot' else 'vendedora')
             intentos = mensaje.intentos + 1
             sistema = mensaje.with_context(**{CLAVE_SISTEMA: True})
             if resultado.get('ok'):

@@ -4,6 +4,8 @@ import {
   OdooError,
   type CuerpoComentario,
   type CuerpoMensaje,
+  type CuerpoUbicacion,
+  type ResultadoUbicacion,
   type RespuestaComentario,
   type CuerpoSeguimientoHecho,
   type DefHerramienta,
@@ -75,6 +77,46 @@ export const ENVIOS = {
     },
   },
 };
+
+/**
+ * El envío que Odoo cotiza con el punto que compartió la clienta (`POST /ubicacion` → `resultado.envio`): la misma forma que el resultado
+ * de `cotizar_envio`, con `por_ubicacion: true` (docs/UBICACION.md, «Contrato…» §1).
+ */
+export const ENVIO_POR_UBICACION = {
+  estado: "precio",
+  por_ubicacion: true,
+  lugar: { lugar_id: 91, nombre: "Brisas del Golf", zona: "Zona: Rufina Alfaro · San Miguelito · Panamá" },
+  envio_normal: 5,
+  envio_normal_texto: "$5",
+  envio_lleva_itbms: false,
+  promocion: null,
+  frase_para_el_cliente: "El envío a Brisas del Golf (Rufina Alfaro, San Miguelito) cuesta $5.",
+  cotizacion: null,
+  instruccion: "Dile al cliente la frase tal cual.",
+  respaldo_envio: {
+    lugares: [{ nombres: ["Brisas del Golf", "Rufina Alfaro", "San Miguelito"], normal: 5, final: 5, ahorro: null, gratis: false, condicional: false, minimo: null, compra: null, cargos: [], lleva_itbms: false }],
+    total: null,
+  },
+};
+export const ZONA_POR_UBICACION = "Brisas del Golf · Rufina Alfaro · San Miguelito";
+
+/**
+ * Las herramientas de la ubicación (docs/UBICACION.md): `enlace_de_ubicacion` (el enlace de un solo uso; en el WhatsApp de la API oficial
+ * trae `boton_whatsapp: true`) y `guardar_indicaciones` (el número de casa o las indicaciones para el motorizado, en la ficha). No van en
+ * la lista de siempre: la prueba que las usa las agrega.
+ */
+export const DEF_ENLACE_DE_UBICACION: DefHerramienta = {
+  nombre: "enlace_de_ubicacion",
+  descripcion: "Un enlace de un solo uso para que el cliente marque su punto de entrega en un mapa.",
+  parametros: objeto({}),
+};
+export const DEF_GUARDAR_INDICACIONES: DefHerramienta = {
+  nombre: "guardar_indicaciones",
+  descripcion: "Guarda el número de casa o las indicaciones para el motorizado en la ficha de la clienta.",
+  parametros: objeto({ texto: texto("Número de casa o indicaciones, como las dijo la clienta") }, ["texto"]),
+};
+export const ENLACE_DE_UBICACION = "https://babycaleb.com/u/s3cr3t0-de-un-solo-uso";
+export const FRASE_DEL_ENLACE = `📍 Marque su casa en el mapa:\n${ENLACE_DE_UBICACION}\n1️⃣ Abra el enlace\n2️⃣ Toque «Mi ubicación» y permita\n3️⃣ Escriba su número de casa y toque «Sí, aquí es»`;
 
 /** La base de conocimiento de prueba: cada entrada responde a ciertas palabras. */
 export const CONOCIMIENTO = [
@@ -197,6 +239,18 @@ const MANEJADORES: Record<string, Manejador> = {
       instruccion: "Dile al cliente la frase tal cual y que el PDF va adjunto.",
     };
   },
+  enlace_de_ubicacion: (_a, odoo) => ({
+    enlace: ENLACE_DE_UBICACION,
+    vence_en_horas: 24,
+    frase_para_el_cliente: FRASE_DEL_ENLACE,
+    instruccion: "Mándale el enlace con la frase.",
+    ...(odoo.botonWhatsapp === undefined ? {} : { boton_whatsapp: odoo.botonWhatsapp }),
+  }),
+  guardar_indicaciones: (a, odoo) => {
+    const t = String(a.texto ?? "").trim().slice(0, 200);
+    odoo.indicaciones.push(t);
+    return { guardado: true, indicaciones: t, instruccion: "Confírmale en una línea que ya quedó para el motorizado." };
+  },
   registrar_pregunta_sin_respuesta: (a, odoo) => {
     odoo.preguntasSinRespuesta.push(a);
     return { ok: true, id: odoo.preguntasSinRespuesta.length };
@@ -233,6 +287,10 @@ export class OdooFalso implements OdooApi {
   cotizacionesArmadas = 0;
   /** Lo que `agregar_envio` sumó a una cotización. */
   enviosSumados: Record<string, unknown>[] = [];
+  /** Lo que `enlace_de_ubicacion` devuelve en `boton_whatsapp` (undefined = no lo trae, como un Odoo de antes). */
+  botonWhatsapp: unknown = undefined;
+  /** Lo que `guardar_indicaciones` guardó en la ficha. */
+  indicaciones: string[] = [];
   rawConfig: unknown = { nombre_publico: "el equipo de D'CASA" };
   defs: DefHerramienta[] = HERRAMIENTAS_DE_PRUEBA;
   manejadores: Record<string, Manejador> = { ...MANEJADORES };
@@ -331,6 +389,18 @@ export class OdooFalso implements OdooApi {
     this.comentarios.push(cuerpo);
     this.orden.push(`comentario:${cuerpo.privada}`);
     return { ok: true, conversacion_id: this.conversacionId };
+  }
+
+  /** Los puntos de entrega que el motor le mandó (`POST /ubicacion`), en orden; y lo que contesta (por defecto, guardado con su envío). */
+  ubicaciones: CuerpoUbicacion[] = [];
+  respuestaUbicacion: (c: CuerpoUbicacion) => ResultadoUbicacion = () => ({ ok: true, resultado: { guardada: true, zona: ZONA_POR_UBICACION, envio: ENVIO_POR_UBICACION } });
+
+  async guardarUbicacion(cuerpo: CuerpoUbicacion): Promise<ResultadoUbicacion> {
+    // Como el cliente de verdad: nunca lanza.
+    if (this.caido) return { ok: false, error: "no se pudo hablar con Odoo", estado: 0 };
+    this.ubicaciones.push(cuerpo);
+    this.orden.push("ubicacion");
+    return this.respuestaUbicacion(cuerpo);
   }
 
   /** Brian de la tienda: las herramientas que pidió (sin conversación). También quedan en `llamadas` con `conversacion_id: null`. */

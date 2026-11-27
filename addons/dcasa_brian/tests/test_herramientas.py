@@ -151,7 +151,7 @@ class TestHerramientas(TransactionCase):
         datos = self.ok(self.ejecutar(self.vendedor, 'crear_cotizacion', {
             'cliente': 'Brianzeta Cliente Uno', 'producto': 'BRN-SOF'}))
         datos = self.ok(self.ejecutar(self.vendedor, 'enviar_cotizacion_whatsapp', {'venta': datos['numero']}))
-        self.assertTrue(datos['enlace'].startswith('https://wa.me/50761234501?text='))
+        self.assertTrue(datos['enlace'].startswith('https://api.whatsapp.com/send?phone=50761234501&text='))
         self.assertEqual(datos['abrir']['url'], datos['enlace'])
 
     def test_resolucion_ambigua_da_opciones(self):

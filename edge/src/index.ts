@@ -102,6 +102,9 @@ export interface Env {
   YAPPY_CLAVE_SECRETA?: string;
   /** Variable (no secreta): el dominio que se registró en el botón, letra por letra (ej. «dcasapty.com»). */
   YAPPY_DOMINIO?: string;
+  /** Opcionales: Google Maps para la ubicación de entrega (addons/dcasa_ubicacion, docs/UBICACION.md). */
+  GOOGLE_MAPS_CLAVE_NAVEGADOR?: string;
+  GOOGLE_MAPS_CLAVE_SERVIDOR?: string;
   /** Variable (no secreta): «prueba» (por defecto) o «produccion». Decide a qué servidor de Yappy se le habla. */
   YAPPY_ENTORNO?: string;
   /**

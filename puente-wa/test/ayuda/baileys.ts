@@ -42,8 +42,10 @@ export const msgDocumento = (b: Base & { caption?: string; nombre?: string; tam?
 export const msgVideo = (b: Base & { caption?: string; tam?: number } = {}) =>
   envolver(b, { videoMessage: { caption: b.caption, mimetype: "video/mp4", fileLength: b.tam ?? 900_000 } });
 export const msgSticker = (b: Base = {}) => envolver(b, { stickerMessage: { mimetype: "image/webp" } });
-export const msgUbicacion = (b: Base = {}) =>
-  envolver(b, { locationMessage: { degreesLatitude: 8.8801, degreesLongitude: -79.7834, name: "Casa", address: "La Chorrera" } });
+export const msgUbicacion = (b: Base & { punto?: Record<string, unknown> } = {}) =>
+  envolver(b, { locationMessage: b.punto ?? { degreesLatitude: 8.8801, degreesLongitude: -79.7834, name: "Casa", address: "La Chorrera" } });
+/** La ubicación «en tiempo real» (Baileys: `liveLocationMessage`, sin nombre ni dirección). */
+export const msgUbicacionEnVivo = (b: Base = {}) => envolver(b, { liveLocationMessage: { degreesLatitude: 9.0012345, degreesLongitude: -79.5123456, sequenceNumber: 1 } });
 export const msgContacto = (b: Base = {}) => envolver(b, { contactMessage: { displayName: "Marisol" } });
 export const msgReaccion = (b: Base = {}) => envolver(b, { reactionMessage: { text: "👍", key: { id: "X" } } });
 export const msgProtocolo = (b: Base = {}) => envolver(b, { protocolMessage: { type: 0 } });

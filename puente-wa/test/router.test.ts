@@ -416,6 +416,14 @@ describe("prepararPendiente: una fila de SQLite admite 2 MB", () => {
     expect(prepararPendiente(t, JSON.parse(t))).toBe(t);
   });
 
+  it("el punto de entrega NUNCA se guarda en la cola: sale como ubicacion_omitida y Juan la pide otra vez", () => {
+    const payload = { id_mensaje: "A", de: "507", tipo: "texto", texto: "(la clienta compartió su ubicación de entrega)", ts: "x", propio: false, ubicacion: { lat: 9.0012345, lon: -79.5123456, nombre: "Casa" } };
+    const guardado = prepararPendiente(JSON.stringify(payload), payload);
+    expect(guardado).not.toContain("9.0012345");
+    expect(guardado).not.toContain("-79.5123456");
+    expect(JSON.parse(guardado)).toEqual({ id_mensaje: "A", de: "507", tipo: "texto", texto: "(la clienta compartió su ubicación de entrega)", ts: "x", propio: false, ubicacion_omitida: true });
+  });
+
   it("un archivo enorme se guarda sin el archivo, diciendo que lo hubo", () => {
     const payload = { id_mensaje: "A", de: "507", tipo: "video", ts: "x", propio: false, medio: { base64: "A".repeat(PENDIENTE_MAX_CARACTERES + 1), mime: "video/mp4", nombre: "v.mp4" } };
     const guardado = JSON.parse(prepararPendiente(JSON.stringify(payload), payload));

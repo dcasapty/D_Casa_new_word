@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Checkout: «¿Dónde le entregamos?» antes de la calle (docs/UBICACION.md). Dos maneras: «Marcar en el mapa» (GPS o
+         mover el mapa bajo el pin fijo, con buscador de barriadas y «¿Es aquí?») o «Escribirla». El punto viaja en campos
+         ocultos dentro del mismo formulario (Odoo lo manda entero con FormData) y lo guarda
+         controllers/checkout.py. Lo que la clienta escribe en la calle manda: el mapa solo la llena si está vacía.
+         La lógica está en static/src/interactions/checkout_ubicacion.js. -->
+    <template id="checkout_ubicacion" inherit_id="website_sale.address_form_fields" name="Ubicación: ¿dónde le entregamos?">
+        <xpath expr="//div[@id='div_street']" position="before">
+            <t t-set="dcasa_carrito" t-value="website_sale_order or request.cart"/>
+            <!-- Solo en la dirección de ENTREGA (o en la que sirve de las dos, o la primera de una invitada): la de
+                 facturación no lleva mapa ni número de casa (auditoría 1: los exigía y no los guardaba). El servidor
+                 decide igual (controllers/checkout.py: es_la_de_entrega). -->
+            <t t-set="dcasa_es_entrega" t-value="address_type == 'delivery' or use_delivery_as_billing or is_anonymous_cart
+                                                 or (partner_sudo and dcasa_carrito and partner_sudo == dcasa_carrito.partner_shipping_id)"/>
+            <t t-set="dcasa_destino" t-value="partner_sudo"/>
+            <!-- Lo que dio HOY en el chat de la tienda (Andrés) manda sobre lo viejo de la ficha: es lo último que dijo
+                 (auditoría 1). Solo para su dirección de entrega o la primera de una invitada: no en «Agregar
+                 dirección» de alguien con cuenta (auditoría 2: la de la mamá abría con el punto de su propia casa).
+                 Con un GPS impreciso, Andrés guarda al menos la casa que escribió (dcasa_casa_chat). -->
+            <t t-set="dcasa_chat_vale" t-value="dcasa_es_entrega and dcasa_carrito and ((partner_sudo and partner_sudo == dcasa_carrito.partner_shipping_id)
+                                                or (not partner_sudo and is_anonymous_cart))"/>
+            <t t-set="dcasa_pend" t-value="dcasa_chat_vale and dcasa_carrito._dcasa_ubic_pendiente()"/>
+            <t t-set="dcasa_casa_chat" t-value="dcasa_chat_vale and dcasa_carrito._dcasa_ubic_pend_casa()"/>
+            <t t-set="dcasa_punto" t-value="not dcasa_pend and dcasa_destino and dcasa_destino._dcasa_ubic_punto()"/>
+            <t t-set="dcasa_escrita" t-value="not dcasa_pend and dcasa_destino and dcasa_destino.dcasa_ubic_origen == 'escrita'"/>
+            <div t-if="not only_services and dcasa_es_entrega" id="div_dcasa_ubicacion" class="col-lg-12 mb-3 o_dcasa_ubicacion"
+                 t-att-data-clave="request.env['dcasa.ubicacion'].sudo()._clave_navegador()"
+                 t-att-data-lat="dcasa_pend['lat'] if dcasa_pend else (dcasa_punto and dcasa_punto[0])"
+                 t-att-data-lon="dcasa_pend['lon'] if dcasa_pend else (dcasa_punto and dcasa_punto[1])"
+                 t-att-data-origen="'gps' if dcasa_pend else (dcasa_punto and dcasa_destino.dcasa_ubic_origen)"
+                 t-att-data-precision="dcasa_pend['precision'] if dcasa_pend else (dcasa_punto and dcasa_destino.dcasa_ubic_precision_m or None)"
+                 t-att-data-del-chat="'1' if dcasa_pend and request.params.get('dcasa_chat') else None">
+                <fieldset class="o_dcasa_ubic_marco">
+                    <legend class="o_dcasa_ubic_titulo">
+                        <span class="o_dcasa_ubic_burbuja"><t t-call="dcasa_ubicacion.icono"><t t-set="icono" t-value="'pin'"/></t></span>
+                        ¿Dónde le entregamos?
+                    </legend>
+                    <div class="o_dcasa_ubic_modos" role="radiogroup" aria-label="Cómo quiere darnos la dirección">
+                        <input type="radio" class="btn-check" name="dcasa_ubic_modo" id="o_dcasa_modo_mapa" value="mapa"
+                               t-att-checked="not dcasa_escrita"/>
+                        <label class="btn o_dcasa_ubic_modo" for="o_dcasa_modo_mapa">
+                            <t t-call="dcasa_ubicacion.icono"><t t-set="icono" t-value="'mapa'"/></t>Mapa</label>
+                        <input type="radio" class="btn-check" name="dcasa_ubic_modo" id="o_dcasa_modo_escrita"
+                               value="escrita" t-att-checked="dcasa_escrita"/>
+                        <label class="btn o_dcasa_ubic_modo" for="o_dcasa_modo_escrita">
+                            <t t-call="dcasa_ubicacion.icono"><t t-set="icono" t-value="'lapiz'"/></t>Escribir</label>
+                    </div>
+                    <!-- Lo que falta del punto cuando toca «Confirmar»: arriba del mapa (abajo lo tapa la barra fija).
+                         Después de los modos, no justo tras el «legend»: Bootstrap hace flotar el «legend» y solo el
+                         hermano siguiente lo despeja; oculto, los modos se corrían a la derecha. -->
+                    <p class="o_dcasa_ubic_falta o_dcasa_ubic_falta_punto d-none" role="alert" tabindex="-1"/>
+                    <div class="o_dcasa_ubic_parte_mapa">
+                        <button type="button" class="btn btn-primary o_dcasa_ubic_gps">
+                            <t t-call="dcasa_ubicacion.icono"><t t-set="icono" t-value="'gps'"/></t>Mi ubicación</button>
+                        <!-- Como en /u (auditoría 2): un regalo no es «Mi ubicación». -->
+                        <p class="o_dcasa_ubic_mini">¿Es para otra casa? Búsquela 👇</p>
+                        <div class="o_dcasa_ubic_mapa_marco">
+                            <div class="o_dcasa_ubic_mapa" role="application" aria-label="Mapa: muévalo hasta su puerta"/>
+                            <span class="o_dcasa_ubic_pista"><t t-call="dcasa_ubicacion.icono"><t t-set="icono" t-value="'mover'"/></t>Mueva el mapa</span>
+                            <svg class="o_dcasa_ubic_pin" viewBox="0 0 36 48" aria-hidden="true">
+                                <path d="M18 1C8.6 1 1 8.4 1 17.6 1 30 18 47 18 47s17-17 17-29.4C35 8.4 27.4 1 18 1z" fill="#EE924A" stroke="#1B3246" stroke-width="2"/>
+                                <circle cx="18" cy="17" r="6" fill="#1B3246"/>
+                            </svg>
+                        </div>
+                        <p class="o_dcasa_ubic_aviso" aria-live="polite"/>
+                        <p class="o_dcasa_ubic_permiso"/>
+                        <div class="o_dcasa_ubic_con_icono">
+                            <t t-call="dcasa_ubicacion.icono"><t t-set="icono" t-value="'buscar'"/></t>
+                            <input type="search" class="form-control o_dcasa_ubic_buscar" autocomplete="off" maxlength="60"
+                                   placeholder="Buscar barriada o lugar" aria-label="Buscar barriada, PH o un lugar conocido"/>
+                        </div>
+                        <ul class="o_dcasa_ubic_lista list-unstyled"/>
+                        <div class="o_dcasa_ubic_tarjeta d-none" aria-live="polite">
+                            <p class="o_dcasa_ubic_dato o_dcasa_ubic_dato_zona"><t t-call="dcasa_ubicacion.icono"><t t-set="icono" t-value="'pin'"/></t><span class="o_dcasa_ubic_zona"/></p>
+                            <p class="o_dcasa_ubic_dato o_dcasa_ubic_dato_precio"><t t-call="dcasa_ubicacion.icono"><t t-set="icono" t-value="'camion'"/></t><span class="o_dcasa_ubic_precio"/></p>
+                            <!-- Sin señal, la zona no es que no sirva (auditoría 2): un toque la vuelve a pedir. -->
+                            <button type="button" class="btn btn-outline-primary o_dcasa_ubic_reintentar d-none"><span>📶 Sin señal. Toque para reintentar</span></button>
+                            <p class="o_dcasa_ubic_cruce"/>
+                            <!-- Con el aviso de cruce (escribió otro distrito), estas dos en lugar de «Sí, aquí es»: «Confirmar»
+                                 no cuenta como el «sí» (auditoría 2). -->
+                            <div class="o_dcasa_ubic_cruce_botones d-none">
+                                <button type="button" class="btn btn-primary o_dcasa_ubic_cruce_si" disabled="disabled">📍 Es aquí</button>
+                                <button type="button" class="btn btn-outline-primary o_dcasa_ubic_cruce_no">🏠 Es otra casa</button>
+                            </div>
+                            <p class="o_dcasa_ubic_falta o_dcasa_ubic_falta_tarjeta d-none" role="alert" tabindex="-1"/>
+                            <button type="button" class="btn btn-primary o_dcasa_ubic_si" disabled="disabled">
+                                <t t-call="dcasa_ubicacion.icono"><t t-set="icono" t-value="'listo'"/></t>Sí, aquí es</button>
+                            <p class="o_dcasa_ubic_ok d-none"><t t-call="dcasa_ubicacion.icono"><t t-set="icono" t-value="'listo'"/></t>Listo</p>
+                        </div>
+                    </div>
+                    <input type="hidden" name="dcasa_ubic_lat"/>
+                    <input type="hidden" name="dcasa_ubic_lon"/>
+                    <input type="hidden" name="dcasa_ubic_origen"/>
+                    <input type="hidden" name="dcasa_ubic_precision"/>
+                    <input type="hidden" name="dcasa_ubic_confirmada" value=""/>
+                    <input type="hidden" name="dcasa_ubic_cruce_ok" value=""/>
+                    <!-- Obligatorio siempre, como en PedidosYa (el dueño, 2026-11-25): sin esto el motorizado no encuentra la
+                         casa aunque el punto esté bien. Al «Escribir», todo este grupo se va después de la ciudad
+                         (checkout_ubicacion.js: ponerCasa). -->
+                    <div class="o_dcasa_ubic_casa">
+                    <label class="col-form-label o_dcasa_ubic_etiqueta" for="o_dcasa_referencia">
+                        <t t-call="dcasa_ubicacion.icono"><t t-set="icono" t-value="'casa'"/></t>Número de casa e indicaciones</label>
+                    <input type="text" id="o_dcasa_referencia" name="dcasa_referencia" class="form-control" required="required"
+                           maxlength="200" autocomplete="off" t-att-value="(dcasa_pend and dcasa_pend['referencia']) or dcasa_casa_chat or (dcasa_destino and dcasa_destino.dcasa_referencia)"
+                           placeholder="Ej.: casa 24, portón negro"/>
+                    <p class="o_dcasa_ubic_falta o_dcasa_ubic_falta_casa d-none" role="alert" tabindex="-1"/>
+                    <!-- Opcionales y chicos (que no estorben): quién recibe y otro teléfono de Panamá por si no contesta.
+                         Vienen con lo que ya tiene la ficha; los guarda controllers/checkout.py. -->
+                    <div class="o_dcasa_ubic_con_icono o_dcasa_ubic_opcional">
+                        <t t-call="dcasa_ubicacion.icono"><t t-set="icono" t-value="'persona'"/></t>
+                        <input type="text" name="dcasa_recibe" class="form-control o_dcasa_ubic_chico" maxlength="60"
+                               autocomplete="off" t-att-value="dcasa_destino and dcasa_destino.dcasa_recibe"
+                               placeholder="¿Quién recibe? (opcional)" aria-label="Quién recibe, si no es usted (opcional)"/>
+                    </div>
+                    <div class="o_dcasa_ubic_con_icono o_dcasa_ubic_opcional">
+                        <t t-call="dcasa_ubicacion.icono"><t t-set="icono" t-value="'telefono'"/></t>
+                        <input type="tel" inputmode="tel" name="dcasa_tel_respaldo" class="form-control o_dcasa_ubic_chico"
+                               maxlength="20" autocomplete="off" t-att-value="dcasa_destino and dcasa_destino.dcasa_tel_respaldo"
+                               placeholder="Otro teléfono (opcional)" aria-label="Otro teléfono por si no contesta (opcional)"/>
+                    </div>
+                    </div>
+                </fieldset>
+            </div>
+        </xpath>
+    </template>
+
+    <!-- /shop/checkout de alguien que ya tiene dirección (Odoo no pasa por el formulario): si en el chat de la tienda
+         (Andrés) dio OTRO lugar que la dirección de entrega elegida, se le pregunta arriba (auditoría 2: Andrés decía
+         «Listo» y el punto nunca llegaba). «Sí» abre esa dirección con el punto del chat (lo confirma con un toque);
+         «No» lo olvida. ``sale.order._dcasa_ubic_chat_distinto``. -->
+    <template id="checkout_punto_del_chat" inherit_id="website_sale.checkout" name="Ubicación: el punto que dio en el chat">
+        <xpath expr="//div[@id='shop_checkout']" position="before">
+            <t t-set="dcasa_chat" t-value="order._dcasa_ubic_chat_distinto()"/>
+            <div t-if="dcasa_chat" id="o_dcasa_chat_pendiente" class="o_dcasa_ubicacion o_dcasa_chat_pendiente mb-4" role="region"
+                 aria-label="La ubicación que nos dio en el chat">
+                <p class="o_dcasa_ubic_titulo">
+                    <span class="o_dcasa_ubic_burbuja"><t t-call="dcasa_ubicacion.icono"><t t-set="icono" t-value="'chat'"/></t></span>
+                    ¿Le entregamos ahí?
+                </p>
+                <p class="o_dcasa_ubic_dato">
+                    <t t-call="dcasa_ubicacion.icono"><t t-set="icono" t-value="'pin'"/></t>
+                    <span>En el chat nos dio: <b t-esc="dcasa_chat['donde']"/></span>
+                </p>
+                <div class="o_dcasa_chat_botones">
+                    <a class="btn btn-primary o_dcasa_chat_si" t-att-href="dcasa_chat['url_si']">
+                        <t t-call="dcasa_ubicacion.icono"><t t-set="icono" t-value="'listo'"/></t>Sí</a>
+                    <form method="post" action="/tienda/ubicacion/olvidar-chat" class="o_dcasa_chat_no_form">
+                        <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                        <button type="submit" class="btn btn-outline-primary o_dcasa_chat_no">No<t t-if="dcasa_chat['actual']">, en <t t-esc="dcasa_chat['actual']"/></t></button>
+                    </form>
+                </div>
+            </div>
+        </xpath>
+    </template>
+
+    <!-- La entrega a domicilio con precio del punto: se ve el precio (no «Por cotizar»), el nombre dice a dónde y el
+         resumen ya no dice «por cotizar». Sin punto con precio, todo como siempre (website_dcasa). -->
+    <template id="entrega_con_precio_del_punto" inherit_id="website_sale.delivery_method" priority="60"
+              name="Ubicación: entrega a domicilio con el precio del punto">
+        <xpath expr="//div[hasclass('d-flex')]" position="before">
+            <t t-set="dcasa_orden" t-value="website_sale_order or request.cart"/>
+            <t t-set="dcasa_envio_ubic" t-value="dm.dcasa_por_cotizar and dcasa_orden and dcasa_orden._dcasa_envio_por_ubicacion()"/>
+        </xpath>
+        <xpath expr="//span[@name='o_delivery_method_name']" position="replace">
+            <t t-if="dcasa_envio_ubic">
+                <span name="o_delivery_method_name">Entrega a domicilio</span>
+                <small class="d-block text-muted o_dcasa_entrega_destino"
+                       t-esc="'Hasta ' + dcasa_envio_ubic['lugar'].name + (', ' + dcasa_envio_ubic['lugar'].dist if dcasa_envio_ubic['lugar'].dist else '')"/>
+            </t>
+            <span t-else="" name="o_delivery_method_name" t-field="dm.name"/>
+        </xpath>
+        <xpath expr="//span[hasclass('o_wsale_delivery_price_badge')]" position="attributes">
+            <attribute name="t-attf-class">o_wsale_delivery_price_badge text-muted fw-bold text-end {{'o_dcasa_por_cotizar' if dm.dcasa_por_cotizar and not dcasa_envio_ubic else ''}}</attribute>
+        </xpath>
+    </template>
+
+    <!-- La tarjeta de la dirección de entrega del checkout: con el número de casa y las indicaciones debajo (lo que
+         lee el motorizado), para que la clienta vea que quedó (auditoría 1). Solo en la tienda (website_sale). -->
+    <template id="tarjeta_direccion_con_casa" inherit_id="website_sale.address_card" name="Ubicación: la casa en la tarjeta de la dirección">
+        <xpath expr="//t[@t-out='contact']" position="replace">
+            <div class="o_dcasa_tarjeta_dir">
+                <t>$0</t>
+                <p t-if="address_type == 'delivery' and contact.dcasa_referencia" class="o_dcasa_tarjeta_casa mb-0">
+                    <t t-call="dcasa_ubicacion.icono"><t t-set="icono" t-value="'casa'"/></t><span t-esc="contact.dcasa_referencia"/>
+                </p>
+            </div>
+        </xpath>
+    </template>
+
+    <template id="resumen_con_precio_del_punto" inherit_id="website_dcasa.resumen_entrega_por_cotizar" priority="60"
+              name="Ubicación: resumen sin «por cotizar» cuando el precio sale del punto">
+        <xpath expr="//small[hasclass('text-muted')]" position="attributes">
+            <attribute name="t-if">website_sale_order.carrier_id.dcasa_por_cotizar and not website_sale_order._dcasa_envio_por_ubicacion()</attribute>
+        </xpath>
+    </template>
+</odoo>

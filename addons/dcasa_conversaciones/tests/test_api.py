@@ -22,8 +22,10 @@ PUBLICAS = {'buscar_productos', 'ver_producto', 'listar_categorias', 'reglas_soc
             'saldo_puntos', 'crear_oportunidad', 'anotar_conversacion', 'pasar_a_vendedora',
             'buscar_conocimiento', 'registrar_pregunta_sin_respuesta', 'etiquetar_conversacion', 'cotizar',
             'cotizar_envio', 'agregar_envio'}
-# Las que agregan otros módulos cuando están instalados (dcasa_camila: el correo del cliente y el «no» a las novedades).
-DE_OTROS_MODULOS = {'guardar_correo', 'no_quiere_novedades'}
+# Las que agregan otros módulos cuando están instalados (dcasa_camila: el correo del cliente y el «no» a las novedades;
+# dcasa_ubicacion: el enlace de un solo uso para marcar la ubicación).
+DE_OTROS_MODULOS = {'guardar_correo', 'no_quiere_novedades', 'enlace_de_ubicacion', 'guardar_indicaciones',
+                    'guardar_quien_recibe'}
 # Lo mismo con las claves de la respuesta de /mensaje y /estado (dcasa_camila: las novedades por correo).
 CLAVES_DE_OTROS_MODULOS = {'permiso_correo'}
 RUTAS = (('POST', 'mensaje'), ('GET', 'estado'), ('GET', 'config'), ('GET', 'herramientas'), ('POST', 'herramienta'),

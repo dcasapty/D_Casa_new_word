@@ -34,6 +34,9 @@ export class CanalFalso implements AdaptadorCanal {
   destinatarioPrivada: string | null = null;
   publicacion: { texto?: string; enlace?: string } | null = { texto: "Sofá Roma de 3 puestos, tela gris. Pregunta por el tuyo.", enlace: "https://www.instagram.com/p/C0d1g0/" };
   publicacionesLeidas = 0;
+  /** Los botones «Enviar ubicación» que salieron (su texto), y si el canal los rechaza (como Meta con un error: el resto sí sale). */
+  botonesDeUbicacion: string[] = [];
+  rechazarBotonDeUbicacion = false;
 
   readonly comentarios: RespuestasAComentarios = {
     privada: async (_canal, comentario, texto) => {
@@ -83,7 +86,14 @@ export class CanalFalso implements AdaptadorCanal {
       throw new Error(this.motivoDeFallo);
     }
     this.salidas.push(salida);
-    return { ids: this.idsDevueltos ? salida.burbujas.map(() => `m${++this.n}`) : [] };
+    const ids = this.idsDevueltos ? salida.burbujas.map(() => `m${++this.n}`) : [];
+    // Como WhatsApp Cloud: el botón va al final, solo si el canal lo tiene; si se rechaza, el resto ya salió y no es un error.
+    if (salida.pedirUbicacion && this.cap.pedirUbicacion && !this.rechazarBotonDeUbicacion) {
+      this.botonesDeUbicacion.push(salida.pedirUbicacion);
+      if (this.idsDevueltos) ids.push(`m${++this.n}`);
+      return { ids, ubicacionPedida: true };
+    }
+    return { ids };
   }
   async escribiendo(): Promise<void> {
     this.escribiendoVeces++;

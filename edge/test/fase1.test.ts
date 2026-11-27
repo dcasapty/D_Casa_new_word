@@ -318,6 +318,10 @@ describe("contenedor único con PostgreSQL local", () => {
     // La clave de campañas de Camila (docs/CAMILA.md) es otra: secreto del panel; llega cuando existe, vacía no.
     expect(variablesDelContenedor({ RESEND_CAMPANAS_API_KEY: "re_campanas" }).RESEND_CAMPANAS_API_KEY).toBe("re_campanas");
     expect(variablesDelContenedor({ RESEND_CAMPANAS_API_KEY: "" })).not.toHaveProperty("RESEND_CAMPANAS_API_KEY");
+    // Las claves de Google Maps (ubicación de entrega, docs/UBICACION.md): llegan cuando existen; vacías, no.
+    expect(variablesDelContenedor({ GOOGLE_MAPS_CLAVE_NAVEGADOR: "AIzaNavegador", GOOGLE_MAPS_CLAVE_SERVIDOR: "AIzaServidor" }))
+      .toMatchObject({ GOOGLE_MAPS_CLAVE_NAVEGADOR: "AIzaNavegador", GOOGLE_MAPS_CLAVE_SERVIDOR: "AIzaServidor" });
+    expect(variablesDelContenedor({ GOOGLE_MAPS_CLAVE_SERVIDOR: "" })).not.toHaveProperty("GOOGLE_MAPS_CLAVE_SERVIDOR");
     // Las opciones de Brian documentadas como variables (docs/BRIAN.md) llegan al contenedor.
     expect(variablesDelContenedor({ BRIAN_ESFUERZO: "medium", BRIAN_CACHE: "0" })).toMatchObject({
       BRIAN_ESFUERZO: "medium",

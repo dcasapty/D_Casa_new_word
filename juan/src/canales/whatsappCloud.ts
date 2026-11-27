@@ -14,6 +14,12 @@
 //   · Reacciones (`type: "reaction"`, `reaction: {message_id, emoji}`; sin emoji = la quitó) y recibos (`statuses`: sent,
 //     delivered, read, failed) NO son mensajes del cliente: salen como `eventos` (rutas.ts los manda a Odoo después del
 //     200) y nunca despiertan al bot. Las reacciones que la tienda deja desde el teléfono (ecos) se ignoran.
+//   · Ubicación (2026-11-25, docs/UBICACION.md): `type: "location"` trae `location: {latitude, longitude, name?, address?}`. Sale como
+//     `Entrante.ubicacion` (origen «whatsapp»), validada; el texto del mensaje es solo «(la clienta compartió su ubicación de entrega)».
+//   · Botón «Enviar ubicación» (2026-11-25, pedido del dueño: «lo más fácil posible»): `Saliente.pedirUbicacion` sale después de las
+//     burbujas y los archivos como mensaje interactivo `location_request_message` (con `action: {name: "send_location"}`). La clienta
+//     lo toca y comparte su ubicación sin buscar el clip. Si Meta lo rechaza, queda en el registro y nada más: el texto con el enlace
+//     ya salió y el envío no se da por fallido.
 //   · «Responder» desde Odoo: el primer mensaje que sale lleva `context: {message_id}`; si Meta lo rechaza (un 4xx: el
 //     citado es muy viejo o no existe), sale otra vez sin la cita: nunca se deja de enviar por la cita.
 //   · Quién contesta cada chat lo decide el «Enrutamiento de conversaciones» de Meta (Conversation Routing, desde 2026-09, en
@@ -45,6 +51,7 @@ import {
   type SaludCanal,
   EnvioParcialError,
 } from "./tipos";
+import { crearUbicacion, TEXTO_UBICACION_COMPARTIDA, TEXTO_UBICACION_ILEGIBLE, TEXTO_UBICACION_PROPIA, type UbicacionEntrante } from "./ubicacion";
 
 interface WaMensaje {
   from?: string;
@@ -60,6 +67,8 @@ interface WaMensaje {
   video?: { id?: string; caption?: string; mime_type?: string };
   document?: { id?: string; caption?: string; filename?: string; mime_type?: string };
   sticker?: { id?: string; mime_type?: string; animated?: boolean };
+  /** Una ubicación compartida con el clip: la actual (solo coordenadas) o un lugar elegido (con su nombre y dirección). */
+  location?: { latitude?: unknown; longitude?: unknown; name?: unknown; address?: unknown };
   /** El mensaje citado (`id`) y si es reenviado. */
   context?: { from?: string; id?: string; forwarded?: boolean; frequently_forwarded?: boolean };
   reaction?: { message_id?: string; emoji?: string };
@@ -222,7 +231,10 @@ export interface OpcionesWhatsappCloud {
   ahora?: () => number;
 }
 
-const CAPACIDADES: Capacidades = { imagenes: true, documentos: true, ventana24h: true, maxTexto: 3500, pie: true };
+const CAPACIDADES: Capacidades = { imagenes: true, documentos: true, ventana24h: true, maxTexto: 3500, pie: true, pedirUbicacion: true };
+
+/** El texto de encima del botón «Enviar ubicación»: Meta deja hasta 1024 letras; este va siempre corto. */
+const MAX_TEXTO_PEDIR_UBICACION = 1024;
 
 export function crearWhatsappCloud(op: OpcionesWhatsappCloud = {}): AdaptadorCanal {
   const f: typeof fetch = op.fetch ?? ((...a) => fetch(...a));
@@ -255,6 +267,7 @@ export function crearWhatsappCloud(op: OpcionesWhatsappCloud = {}): AdaptadorCan
     if (!cliente || !m.id) return null;
     const adjuntos: AdjuntoEntrante[] = [];
     let texto: string | undefined;
+    let ubicacion: UbicacionEntrante | null = null;
     switch (m.type) {
       case "text":
         texto = m.text?.body;
@@ -281,7 +294,14 @@ export function crearWhatsappCloud(op: OpcionesWhatsappCloud = {}): AdaptadorCan
         texto = m.document?.caption;
         break;
       case "location":
-        texto = "(el cliente mandó una ubicación)";
+        // El punto de entrega (docs/UBICACION.md): las coordenadas van aparte, a Odoo; el texto (lo que ve el modelo) no las lleva. La
+        // ubicación que comparte una persona de la tienda desde el teléfono (un eco) no es la de nadie: ni se lee.
+        if (propio) {
+          texto = TEXTO_UBICACION_PROPIA;
+        } else {
+          ubicacion = crearUbicacion(m.location?.latitude, m.location?.longitude, "whatsapp", { nombre: m.location?.name, direccion: m.location?.address });
+          texto = ubicacion ? TEXTO_UBICACION_COMPARTIDA : TEXTO_UBICACION_ILEGIBLE;
+        }
         break;
       case "sticker":
         // El equipo lo ve en el chat de Odoo (pedido de la dueña, 2026-11-03); al modelo le basta saber que fue un sticker.
@@ -309,6 +329,7 @@ export function crearWhatsappCloud(op: OpcionesWhatsappCloud = {}): AdaptadorCan
       // `context.from` es el número que mandó el citado: si no es el del cliente, lo mandó la tienda.
       ...(citado && !propio ? { cita: { id: citado, ...(ctx?.from ? { deLaTienda: ctx.from !== cliente } : {}) } } : {}),
       ...(reenviado && !propio ? { reenviado } : {}),
+      ...(ubicacion ? { ubicacion } : {}),
     };
   }
 
@@ -542,6 +563,24 @@ export function crearWhatsappCloud(op: OpcionesWhatsappCloud = {}): AdaptadorCan
         // la primera burbuja).
         if (burbujas + medios > 0) throw new EnvioParcialError(e instanceof Error ? e.message : String(e), { burbujas, medios, ids });
         throw e;
+      }
+      // El botón «Enviar ubicación», al final y solo con todo lo demás ya enviado. Un rechazo de Meta no tumba el envío: lo que importa
+      // (el texto con el enlace para marcar el punto) ya salió.
+      const pedido = salida.pedirUbicacion?.trim();
+      if (pedido) {
+        try {
+          const id = await enviarUno(env, {
+            to: salida.para,
+            type: "interactive",
+            interactive: { type: "location_request_message", body: { text: pedido.slice(0, MAX_TEXTO_PEDIR_UBICACION) }, action: { name: "send_location" } },
+          });
+          if (id) ids.push(id);
+          return { ids, ubicacionPedida: true };
+        } catch (e) {
+          // Lo que dijo Meta ya quedó en el registro (`enviarUno`, sin datos de nadie); aquí, solo qué se dejó de mandar.
+          const motivo = e instanceof ErrorDeEnvio ? `HTTP ${e.estado}, código ${e.codigo ?? "?"}` : e instanceof Error ? e.name : "error";
+          console.warn(`[juan] whatsapp cloud: no salió el botón «Enviar ubicación» (${motivo}); queda el texto con el enlace`);
+        }
       }
       return { ids };
     },

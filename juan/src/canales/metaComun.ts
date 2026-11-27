@@ -22,6 +22,8 @@ import {
   MAX_FOTO_DE_PERFIL_BYTES,
   sinNegritas,
 } from "./tipos";
+import { crearUbicacion, TEXTO_UBICACION_COMPARTIDA, TEXTO_UBICACION_ILEGIBLE, TEXTO_UBICACION_PROPIA, type UbicacionEntrante } from "./ubicacion";
+import { esEnlaceDeMapa } from "../motor/enlacesMapa";
 
 export interface MetaEvento {
   sender?: { id?: string };
@@ -33,7 +35,11 @@ export interface MetaEvento {
     is_echo?: boolean;
     /** Instagram por inicio de sesión de Instagram: un mensaje de prueba a la propia cuenta (no es de un cliente). */
     is_self?: boolean;
-    attachments?: { type?: string; payload?: { url?: string } }[];
+    /**
+     * `location` (Messenger, si llega): `payload.coordinates: {lat, long}`. `fallback`: un enlace compartido (p. ej. desde Google Maps),
+     * con su dirección en `payload.url`.
+     */
+    attachments?: { type?: string; payload?: { url?: string; coordinates?: { lat?: unknown; long?: unknown } } }[];
   };
 }
 
@@ -76,11 +82,23 @@ export function eventosDeMeta(cuerpo: MetaCuerpo, ahora: number): Entrante[] {
       if (!cliente) continue;
       const adjuntos: AdjuntoEntrante[] = [];
       let texto = m.text?.trim() || undefined;
+      let ubicacion: UbicacionEntrante | null = null;
       for (const a of m.attachments ?? []) {
         const tipo = TIPOS_ADJUNTO[a.type ?? ""];
         if (tipo && a.payload?.url) adjuntos.push({ tipo, url: a.payload.url });
-        else if (a.type === "location") texto ??= "(el cliente mandó una ubicación)";
-        else if (a.type === "fallback" && !texto) texto = "(el cliente compartió un enlace)";
+        else if (a.type === "location") {
+          // El punto de entrega (docs/UBICACION.md): `origen: "whatsapp"` es el valor del contrato para «compartida en el chat». Sin
+          // coordenadas que sirvan no se adivina nada. La que comparte la página (un eco) no es la de nadie: ni se lee.
+          if (eco) texto ??= TEXTO_UBICACION_PROPIA;
+          else {
+            ubicacion ??= crearUbicacion(a.payload?.coordinates?.lat, a.payload?.coordinates?.long, "whatsapp");
+            texto ??= ubicacion ? TEXTO_UBICACION_COMPARTIDA : TEXTO_UBICACION_ILEGIBLE;
+          }
+        } else if (a.type === "fallback" && !eco && typeof a.payload?.url === "string" && esEnlaceDeMapa(a.payload.url) && !/https?:\/\//i.test(texto ?? "")) {
+          // Un enlace de mapa compartido desde la app (Google Maps → Messenger): va al texto para que el Worker saque el punto de ahí
+          // (canales/preparar.ts); si no trae coordenadas, queda como un enlace más.
+          texto = texto ? `${texto} ${a.payload.url}` : a.payload.url;
+        } else if (a.type === "fallback" && !texto) texto = "(el cliente compartió un enlace)";
       }
       if (!texto && adjuntos.length === 0) continue;
       salida.push({
@@ -91,6 +109,7 @@ export function eventosDeMeta(cuerpo: MetaCuerpo, ahora: number): Entrante[] {
         adjuntos,
         ts: aMilisegundos(ev.timestamp, ahora),
         propio: eco,
+        ...(ubicacion ? { ubicacion } : {}),
       });
     }
   }

@@ -577,6 +577,12 @@ export const VARIABLES_DEL_CONTENEDOR = [
   // YAPPY_URL_BASE (no secreta, opcional): la dirección pública a la que Yappy avisa; manda sobre web.base.url al armar la
   // ipnUrl. Solo staging la fija (su dominio propio todavía no apunta al Worker); Odoo la ignora en producción.
   "YAPPY_URL_BASE",
+  // Google Maps para la ubicación exacta de entrega (addons/dcasa_ubicacion; docs/UBICACION.md). Opcionales: el dueño las
+  // pega en el panel de Cloudflare de cada Worker (no pasan por GitHub). La del navegador se ve en la página (Google la
+  // limita a los sitios de la tienda); la del servidor es secreta (solo Geocoding) y Odoo nunca la guarda ni la escribe en
+  // un registro. Sin ellas: GPS, la tabla de lugares y la dirección escrita siguen funcionando.
+  "GOOGLE_MAPS_CLAVE_NAVEGADOR",
+  "GOOGLE_MAPS_CLAVE_SERVIDOR",
   // Juan, el asistente de clientes (addons/dcasa_conversaciones; docs/JUAN_ODOO.md). Opcionales: la dueña
   // los pega en el panel de Cloudflare del Worker (no pasan por GitHub). Sin ellos Odoo arranca igual y la
   // API de Juan responde 503. JUAN_URL es la dirección (no secreta) del Worker «juan» para que Odoo lo llame.

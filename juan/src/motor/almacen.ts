@@ -115,12 +115,28 @@ export interface CitaLocal {
   enMemoria?: boolean;
 }
 
-/** Lo que acompaña a un mensaje del cliente y le da sentido («este», un reenviado, un comentario en una publicación). */
+/**
+ * La ubicación de entrega que trajo un mensaje, como se recuerda: SIN coordenadas (esas solo viajan a Odoo; docs/UBICACION.md).
+ * «pendiente»: todavía no se le mandó a Odoo (el punto espera en la memoria del objeto, nunca aquí). «guardada»: Odoo la guardó (con la
+ * zona y el envío cotizado con ese punto, si los dio). «fuera_de_panama» / «invalida»: Odoo dijo que el punto no sirve. «no_guardada»:
+ * Odoo no contestó, o el punto se perdió (la copia de rescate no lo guarda): se le pide otra vez.
+ */
+export interface UbicacionLocal {
+  origen: "whatsapp" | "enlace";
+  estado: "pendiente" | "guardada" | "fuera_de_panama" | "invalida" | "no_guardada";
+  zona?: string;
+  /** El resultado de `cotizar_envio` con ese punto, como lo devolvió Odoo y sin coordenadas. */
+  envio?: unknown;
+}
+
+/** Lo que acompaña a un mensaje del cliente y le da sentido («este», un reenviado, un comentario en una publicación, su ubicación). */
 export interface ContextoLocal {
   cita?: CitaLocal;
   reenviado?: "una" | "muchas";
   /** No lo escribió por mensaje: es un comentario en una publicación (y lo que dice la publicación, si se pudo leer). */
   comentario?: { red: "facebook" | "instagram"; publicacion?: string | null };
+  /** Compartió su ubicación de entrega (o un enlace de mapa): qué pasó con ella, sin coordenadas. */
+  ubicacion?: UbicacionLocal;
 }
 
 /** Valores sueltos de la conversación (identidad, estado, pausas, contadores). */
@@ -170,7 +186,7 @@ export class Mensajes {
       m.ts,
       m.pendiente ? 1 : 0,
       m.modelo ?? null,
-      m.contexto && (m.contexto.cita || m.contexto.reenviado || m.contexto.comentario) ? JSON.stringify(m.contexto) : null,
+      m.contexto && (m.contexto.cita || m.contexto.reenviado || m.contexto.comentario || m.contexto.ubicacion) ? JSON.stringify(m.contexto) : null,
     );
     return this.sql.uno<{ id: number }>("SELECT last_insert_rowid() AS id")!.id;
   }
@@ -192,6 +208,30 @@ export class Mensajes {
     }
     if (!actual.cita || actual.cita.texto || actual.cita.enMemoria || actual.cita.id !== cita.id) return;
     this.sql.correr("UPDATE mensajes SET contexto = ? WHERE id = ?", JSON.stringify({ ...actual, cita }), fila.id);
+  }
+
+  /** Lo que pasó con la ubicación de un mensaje (sin coordenadas). Si el mensaje ya no está («Borrar mis datos»), no hace nada. */
+  ponerUbicacion(idMensaje: string, ubicacion: UbicacionLocal): void {
+    const fila = this.buscar(idMensaje);
+    if (!fila) return;
+    let actual: ContextoLocal = {};
+    try {
+      actual = fila.contexto ? (JSON.parse(fila.contexto) as ContextoLocal) : {};
+    } catch {
+      /* un contexto ilegible se reemplaza */
+    }
+    this.sql.correr("UPDATE mensajes SET contexto = ? WHERE id = ?", JSON.stringify({ ...actual, ubicacion }), fila.id);
+  }
+
+  /** La ubicación de un mensaje como se recuerda, o null. */
+  ubicacionDe(idMensaje: string): UbicacionLocal | null {
+    const fila = this.buscar(idMensaje);
+    if (!fila?.contexto) return null;
+    try {
+      return (JSON.parse(fila.contexto) as ContextoLocal).ubicacion ?? null;
+    } catch {
+      return null;
+    }
   }
 
   pendientes(): FilaMensaje[] {

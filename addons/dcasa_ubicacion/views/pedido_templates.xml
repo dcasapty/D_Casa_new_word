@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- El link de pago (la página del pedido que abre la clienta para pagar): si va a domicilio y todavía no tiene su
+         casa marcada (con un punto confiable) o las indicaciones, una tarjeta grande «📍 Marcar mi casa en el mapa» (el
+         mismo mapa del enlace del chat; al confirmar, el envío del pedido se recalcula y vuelve aquí) ANTES de «Aceptar
+         y firmar» / «Pagar» (auditoría 2: quedaba debajo y se pagaba sin verla). Si ya está, una línea con la zona, la
+         casa y «Cambiar» (un botón de 48 px; era un enlace de 26). Solo en la página (no en el PDF). -->
+    <template id="pedido_ubicacion_marcar" inherit_id="sale.sale_order_portal_template"
+              name="Ubicación: marcar la casa antes de firmar o pagar">
+        <xpath expr="//div[@id='sale_order_sidebar_button']" position="before">
+            <t t-if="report_type == 'html' and sale_order.state != 'cancel' and sale_order._dcasa_va_a_domicilio()
+                     and sale_order._dcasa_ubic_falta_la_casa()">
+                <t t-set="dcasa_url" t-value="'/u/pedido/%s%s' % (sale_order.id, ('?access_token=' + sale_order.access_token) if sale_order.access_token else '')"/>
+                <div class="o_dcasa_pedido_ubic o_dcasa_ubicacion">
+                    <p class="o_dcasa_ubic_titulo">
+                        <span class="o_dcasa_ubic_burbuja"><t t-call="dcasa_ubicacion.icono"><t t-set="icono" t-value="'pin'"/></t></span>
+                        ¿Dónde le entregamos?
+                    </p>
+                    <a class="btn btn-primary o_dcasa_ubic_gps" t-att-href="dcasa_url">
+                        <t t-call="dcasa_ubicacion.icono"><t t-set="icono" t-value="'pin'"/></t>Marcar mi casa en el mapa</a>
+                </div>
+            </t>
+        </xpath>
+    </template>
+
+    <template id="pedido_ubicacion" inherit_id="sale.sale_order_portal_content" name="Ubicación: la casa marcada en el pedido">
+        <xpath expr="//div[@id='informations']" position="before">
+            <!-- El mismo criterio que «¡Gracias!»: un punto CONFIABLE y el número de casa (auditoría 1: aquí bastaba con
+                 «hay punto», y una barriada buscada sin mover el pin pasaba como lista). Sin la casa, la tarjeta va en
+                 la barra de firmar y pagar (pedido_ubicacion_marcar). -->
+            <t t-if="report_type == 'html' and sale_order.state != 'cancel' and sale_order._dcasa_va_a_domicilio()
+                     and not sale_order._dcasa_ubic_falta_la_casa()">
+                <t t-set="dcasa_destino" t-value="(sale_order.partner_shipping_id or sale_order.partner_id).sudo()"/>
+                <t t-set="dcasa_url" t-value="'/u/pedido/%s%s' % (sale_order.id, ('?access_token=' + sale_order.access_token) if sale_order.access_token else '')"/>
+                <div class="o_dcasa_pedido_ubic_lista o_dcasa_ubicacion mb-4">
+                    <p class="o_dcasa_ubic_dato">
+                        <t t-call="dcasa_ubicacion.icono"><t t-set="icono" t-value="'pin'"/></t>
+                        <span t-esc="(dcasa_destino.dcasa_ubic_zona or '').replace(' · ', ', ')"/>
+                    </p>
+                    <p class="o_dcasa_ubic_dato">
+                        <t t-call="dcasa_ubicacion.icono"><t t-set="icono" t-value="'casa'"/></t>
+                        <span t-esc="dcasa_destino.dcasa_referencia"/>
+                        <a class="btn btn-outline-primary ms-auto o_dcasa_ubic_cambiar" t-att-href="dcasa_url">Cambiar</a>
+                    </p>
+                </div>
+            </t>
+        </xpath>
+    </template>
+
+    <!-- «¡Gracias por su compra!» (/shop/confirmation): justo después de pagar es lo más fácil para la clienta. Si va a
+         domicilio y su casa no tiene un punto confiable (o le faltan las indicaciones), la misma tarjeta grande de la
+         página del pedido: «📍 Marcar mi casa en el mapa» (``sale.order._dcasa_ubic_url_para_marcar``). -->
+    <template id="confirmacion_ubicacion" inherit_id="website_sale.confirmation" name="Ubicación: marcar la casa después de pagar">
+        <xpath expr="//div[@id='order_name']" position="after">
+            <t t-set="dcasa_marcar" t-value="order and order._dcasa_ubic_url_para_marcar()"/>
+            <div t-if="dcasa_marcar" class="o_dcasa_pedido_ubic o_dcasa_ubicacion o_dcasa_confirmacion_ubic mb-4">
+                <p class="o_dcasa_ubic_titulo">
+                    <span class="o_dcasa_ubic_burbuja"><t t-call="dcasa_ubicacion.icono"><t t-set="icono" t-value="'pin'"/></t></span>
+                    ¿Dónde le entregamos?
+                </p>
+                <a class="btn btn-primary o_dcasa_ubic_gps" t-att-href="dcasa_marcar">
+                    <t t-call="dcasa_ubicacion.icono"><t t-set="icono" t-value="'pin'"/></t>Marcar mi casa en el mapa</a>
+            </div>
+        </xpath>
+    </template>
+</odoo>

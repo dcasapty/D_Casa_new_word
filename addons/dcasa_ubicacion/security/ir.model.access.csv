@@ -1,0 +1,7 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_dcasa_ubicacion_enlace_ventas,dcasa.ubicacion.enlace ventas,model_dcasa_ubicacion_enlace,sales_team.group_sale_salesman,1,0,0,0
+access_dcasa_ubicacion_enlace_admin,dcasa.ubicacion.enlace admin,model_dcasa_ubicacion_enlace,base.group_system,1,1,1,1
+access_dcasa_ubicacion_entrega_ventas,dcasa.ubicacion.entrega ventas,model_dcasa_ubicacion_entrega,sales_team.group_sale_salesman,1,0,0,0
+access_dcasa_ubicacion_entrega_factura,dcasa.ubicacion.entrega facturas,model_dcasa_ubicacion_entrega,account.group_account_invoice,1,0,0,0
+access_dcasa_ubicacion_entrega_bodega,dcasa.ubicacion.entrega bodega,model_dcasa_ubicacion_entrega,stock.group_stock_user,1,0,0,0
+access_dcasa_ubicacion_entrega_admin,dcasa.ubicacion.entrega admin,model_dcasa_ubicacion_entrega,base.group_system,1,1,1,1

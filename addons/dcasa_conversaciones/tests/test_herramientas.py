@@ -19,7 +19,9 @@ PUBLICAS = {'buscar_productos', 'ver_producto', 'listar_categorias', 'reglas_soc
             'buscar_conocimiento', 'registrar_pregunta_sin_respuesta', 'etiquetar_conversacion', 'cotizar',
             'cotizar_envio', 'agregar_envio'}
 # Las que agregan otros módulos cuando están instalados (dcasa_camila: el correo del cliente y el «no» a las novedades).
-DE_OTROS_MODULOS = {'guardar_correo', 'no_quiere_novedades'}
+# De dcasa_camila (las novedades por correo) y de dcasa_ubicacion (el enlace del mapa y las indicaciones de la casa).
+DE_OTROS_MODULOS = {'guardar_correo', 'no_quiere_novedades', 'enlace_de_ubicacion', 'guardar_indicaciones',
+                    'guardar_quien_recibe'}
 PIN = '482913'
 
 

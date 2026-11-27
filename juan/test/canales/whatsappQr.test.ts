@@ -129,7 +129,9 @@ describe("el webhook del puente", () => {
 
   it("sticker, ubicación y contacto llegan como una nota; reacciones y borrados (sin texto ni archivo) se ignoran", async () => {
     const { env } = puenteFalso();
-    expect((await adaptador.recibir(entrante(mensaje({ tipo: "ubicacion", texto: null })), env)).entrantes[0].texto).toBe("(el cliente mandó una ubicación)");
+    // Una «ubicación» sin el punto (otro puente, o uno roto): se dice que no llegó bien; nada se adivina.
+    expect((await adaptador.recibir(entrante(mensaje({ tipo: "ubicacion", texto: null })), env)).entrantes[0]).toMatchObject({ texto: "(la clienta intentó compartir una ubicación, pero no llegó bien)" });
+    expect((await adaptador.recibir(entrante(mensaje({ tipo: "ubicacion", texto: null })), env)).entrantes[0]).not.toHaveProperty("ubicacion");
     expect((await adaptador.recibir(entrante(mensaje({ tipo: "sticker", texto: null })), env)).entrantes[0].texto).toBe("(el cliente mandó un sticker)");
     expect((await adaptador.recibir(entrante(mensaje({ tipo: "reaccion", texto: null })), env)).entrantes).toEqual([]);
   });

@@ -323,3 +323,58 @@ describe("aMilisegundosOdoo", () => {
     expect(aMilisegundosOdoo("pronto")).toBeNull();
   });
 });
+
+describe("guardarUbicacion: POST /ubicacion (docs/UBICACION.md, «Contrato…» §1)", () => {
+  const cuerpo = { conversacion_id: 123, lat: 9.0012345, lon: -79.5123456, origen: "whatsapp", nombre_lugar: "Super 99 Brisas", direccion: "Vía Domingo Díaz" } as const;
+  const envio = { estado: "precio", por_ubicacion: true, frase_para_el_cliente: "El envío a Brisas del Golf cuesta $3.50." };
+
+  it("con Bearer, el cuerpo del contrato y su respuesta: guardada, zona y envío", async () => {
+    const { cliente, llamadas } = dcasaFalso([ok({ ok: true, resultado: { guardada: true, zona: "Brisas del Golf · Rufina Alfaro · San Miguelito", envio } })]);
+    const r = await cliente.guardarUbicacion(cuerpo);
+    expect(r).toEqual({ ok: true, resultado: { guardada: true, zona: "Brisas del Golf · Rufina Alfaro · San Miguelito", envio } });
+    expect(llamadas[0]).toMatchObject({ metodo: "POST", url: "https://dcasa/dcasa/juan/v1/ubicacion", cuerpo });
+    expect(llamadas[0].cabeceras.authorization).toBe(`Bearer ${TOKEN}`);
+    expect(llamadas[0].tieneSenal).toBe(true);
+  });
+
+  it("422 con motivo (fuera de Panamá, coordenadas): ok false con el motivo, sin reintentar", async () => {
+    for (const motivo of ["fuera_de_panama", "coordenadas"]) {
+      const { cliente, llamadas } = dcasaFalso([falla(422, { ok: false, error: "El punto no sirve.", motivo })]);
+      expect(await cliente.guardarUbicacion(cuerpo)).toEqual({ ok: false, error: "Odoo contestó 422", motivo, estado: 422 });
+      expect(llamadas).toHaveLength(1);
+    }
+  });
+
+  it("sin reintentos automáticos, ni con un 503 ni con la red caída; nunca lanza", async () => {
+    const caido = dcasaFalso([falla(503), ok({ ok: true, resultado: { guardada: true } })]);
+    expect(await caido.cliente.guardarUbicacion(cuerpo)).toMatchObject({ ok: false, estado: 503 });
+    expect(caido.llamadas).toHaveLength(1);
+    expect(caido.esperas).toEqual([]);
+    const sinRed = dcasaFalso([new TypeError("fetch failed"), ok()]);
+    expect(await sinRed.cliente.guardarUbicacion(cuerpo)).toMatchObject({ ok: false, estado: 0 });
+    expect(sinRed.llamadas).toHaveLength(1);
+    const noExiste = dcasaFalso([falla(404, { ok: false, error: "no existe la conversación" })]);
+    expect(await noExiste.cliente.guardarUbicacion(cuerpo)).toMatchObject({ ok: false, estado: 404 });
+  });
+
+  it("el error que devuelve nunca lleva el cuerpo enviado (las coordenadas)", async () => {
+    for (const r of [falla(500, { error: "x" }), falla(422, { ok: false, error: "no", motivo: "coordenadas" }), new Error("se cortó")]) {
+      const { cliente } = dcasaFalso([r]);
+      expect(JSON.stringify(await cliente.guardarUbicacion(cuerpo))).not.toMatch(/9\.0012|79\.5123|Super 99/);
+    }
+  });
+
+  it("200 con `ok: false` y una respuesta rara también se entienden", async () => {
+    const { cliente } = dcasaFalso([ok({ ok: false, error: "envíos apagados", motivo: "fuera_de_panama" })]);
+    expect(await cliente.guardarUbicacion(cuerpo)).toEqual({ ok: false, error: "envíos apagados", motivo: "fuera_de_panama", estado: 200 });
+    const raro = dcasaFalso([ok({ ok: true, resultado: "sí" })]);
+    expect(await raro.cliente.guardarUbicacion(cuerpo)).toEqual({ ok: true, resultado: { guardada: false, zona: null } });
+  });
+
+  it("sin el token de Odoo no sale nada", async () => {
+    const llamadas: unknown[] = [];
+    const cliente = new OdooCliente({ fetch: async () => (llamadas.push(1), ok()) } as never, "");
+    expect(await cliente.guardarUbicacion(cuerpo)).toMatchObject({ ok: false });
+    expect(llamadas).toEqual([]);
+  });
+});

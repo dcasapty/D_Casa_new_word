@@ -79,8 +79,11 @@ export function validarEnviar(cuerpo, { hostsPermitidos = [], maxBurbuja = MAX_B
  *   { id_mensaje, de, nombre, tipo, texto?, medio?, ts, propio }
  *
  * Campos extra, aditivos (el Worker puede ignorarlos): `jid` (el chat tal como lo
- * ve WhatsApp, útil cuando `de` es un identificador `@lid` sin teléfono) y
- * `medio_omitido` (había un archivo que no se pudo adjuntar, y por qué).
+ * ve WhatsApp, útil cuando `de` es un identificador `@lid` sin teléfono),
+ * `medio_omitido` (había un archivo que no se pudo adjuntar, y por qué) y
+ * `ubicacion` `{lat, lon, nombre?, direccion?}` (la ubicación de entrega que
+ * compartió la clienta: va aparte y nunca en el texto; docs/UBICACION.md). La cola
+ * de pendientes la cambia por `ubicacion_omitida: true` (ahí nunca se guarda un punto).
  *
  * @param {{
  *   idMensaje: string, de: string, nombre: string | null, tipo: string,
@@ -88,6 +91,7 @@ export function validarEnviar(cuerpo, { hostsPermitidos = [], maxBurbuja = MAX_B
  *   medio?: { base64: string, mime: string, nombre: string } | null,
  *   medioOmitido?: { motivo: string, mime?: string, bytes?: number } | null,
  *   ts: number, propio: boolean, jid?: string | null,
+ *   ubicacion?: { lat: number, lon: number, nombre?: string, direccion?: string } | null,
  * }} p
  */
 export function construirWebhook(p) {
@@ -104,6 +108,7 @@ export function construirWebhook(p) {
   salida.ts = new Date(p.ts).toISOString();
   salida.propio = p.propio === true;
   if (p.jid) salida.jid = p.jid;
+  if (p.ubicacion) salida.ubicacion = { ...p.ubicacion };
   return salida;
 }
 
@@ -141,6 +146,18 @@ export function validarWebhook(obj) {
       if (typeof mm.nombre !== "string" || !mm.nombre) errores.push("medio.nombre debe ser un texto no vacío");
     }
   }
+  if (o.ubicacion !== undefined) {
+    const u = /** @type {Record<string, unknown> | null} */ (o.ubicacion && typeof o.ubicacion === "object" ? o.ubicacion : null);
+    const coordenada = (/** @type {unknown} */ v, /** @type {number} */ max) => typeof v === "number" && Number.isFinite(v) && Math.abs(v) <= max;
+    if (!u) errores.push("ubicacion debe ser un objeto");
+    else {
+      if (!coordenada(u.lat, 90) || !coordenada(u.lon, 180)) errores.push("ubicacion necesita lat (-90 a 90) y lon (-180 a 180)");
+      if (u.nombre !== undefined && typeof u.nombre !== "string") errores.push("ubicacion.nombre, si viene, debe ser texto");
+      if (u.direccion !== undefined && typeof u.direccion !== "string") errores.push("ubicacion.direccion, si viene, debe ser texto");
+    }
+    if (o.propio === true) errores.push("un mensaje propio no lleva ubicacion");
+  }
+  if (o.ubicacion_omitida !== undefined && o.ubicacion_omitida !== true) errores.push("ubicacion_omitida, si viene, debe ser true");
   if (o.tipo === "texto" && !o.texto && !o.medio) errores.push("un mensaje de texto necesita texto");
   if (o.tipo !== undefined && o.tipo !== "texto" && !o.medio && !o.medio_omitido && !o.texto) {
     errores.push("un mensaje con archivo necesita el medio, el motivo de su omisión o al menos un texto");

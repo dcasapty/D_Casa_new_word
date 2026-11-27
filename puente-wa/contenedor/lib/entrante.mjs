@@ -13,6 +13,15 @@ import { contenidoDe } from "./propios.mjs";
 /** Clases que son un archivo para descargar. */
 const CLASES_CON_ARCHIVO = new Set(["imagen", "audio", "documento", "video"]);
 
+/**
+ * Lo que dice el texto cuando la clienta comparte su ubicación: el punto viaja aparte (`ubicacion`). Las mismas frases que usa Juan
+ * (juan/src/canales/ubicacion.ts): es lo que se guarda de la conversación y lo único que ve el modelo.
+ */
+export const TEXTO_UBICACION_COMPARTIDA = "(la clienta compartió su ubicación de entrega)";
+export const TEXTO_UBICACION_ILEGIBLE = "(la clienta intentó compartir una ubicación, pero no llegó bien)";
+/** La tienda la compartió desde el teléfono: no es el punto de entrega de nadie, así que no viaja. */
+export const TEXTO_UBICACION_PROPIA = "Ubicación compartida desde el teléfono";
+
 /** Nombre por defecto de cada clase de archivo cuando WhatsApp no trae uno. */
 const NOMBRE_BASE = { imagen: "imagen", audio: "nota-de-voz", documento: "documento", video: "video" };
 
@@ -67,6 +76,8 @@ export async function armarEntrante(msg, { propio, candidatos, descargarMedio, a
   let medio = null;
   /** @type {{ motivo: string, mime?: string, bytes?: number } | null} */
   let medioOmitido = null;
+  /** @type {import("./propios.mjs").Punto | null} */
+  let ubicacion = null;
 
   if (CLASES_CON_ARCHIVO.has(contenido.clase)) {
     tipo = contenido.clase;
@@ -93,6 +104,10 @@ export async function armarEntrante(msg, { propio, candidatos, descargarMedio, a
     // SÍ significa que una persona tomó la conversación: se avisa igual.
     tipo = "texto";
     if (contenido.clase === "sticker") texto = "Sticker enviado desde el teléfono";
+    if (contenido.clase === "ubicacion") {
+      ubicacion = propio ? null : (contenido.ubicacion ?? null);
+      texto = propio ? TEXTO_UBICACION_PROPIA : ubicacion ? TEXTO_UBICACION_COMPARTIDA : TEXTO_UBICACION_ILEGIBLE;
+    }
   }
 
   if (tipo === "texto" && !texto) return null;
@@ -110,6 +125,7 @@ export async function armarEntrante(msg, { propio, candidatos, descargarMedio, a
     ts,
     propio,
     jid: destino.jid,
+    ubicacion,
   });
   return { payload, sinMedio: medio === null && CLASES_CON_ARCHIVO.has(contenido.clase) };
 }

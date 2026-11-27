@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- La ficha del contacto › «Ubicación de entrega»: quién recibe, el teléfono de respaldo (los dos se pueden escribir
+         aquí) y la foto de la casa que subió la clienta, con «Quitar la foto». -->
+    <record id="view_partner_form_ubicacion_casa" model="ir.ui.view">
+        <field name="name">res.partner.form.dcasa.ubicacion.casa</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="dcasa_ubicacion.view_partner_form_ubicacion"/>
+        <field name="arch" type="xml">
+            <xpath expr="//page[@name='dcasa_ubicacion']//field[@name='dcasa_referencia']" position="after">
+                <field name="dcasa_recibe" placeholder="Si no es la clienta: «Rosa, su mamá»"/>
+                <field name="dcasa_tel_respaldo" widget="phone" placeholder="6123-4567"/>
+            </xpath>
+            <xpath expr="//page[@name='dcasa_ubicacion']/div[@name='dcasa_ubic_botones']" position="before">
+                <group string="Foto de la casa" name="dcasa_fachada" invisible="not dcasa_fachada_fecha">
+                    <field name="dcasa_fachada" widget="image" nolabel="1" colspan="2" options="{'size': [0, 260]}"/>
+                    <field name="dcasa_fachada_fecha" string="Subida el"/>
+                    <button name="action_dcasa_quitar_fachada" type="object" class="btn-link" string="Quitar la foto"
+                            confirm="¿Quitar la foto de la casa? El motorizado ya no la verá."
+                            help="Quita la foto de esta ficha (si la clienta lo pide o la foto no sirve)."/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- La venta: quién recibe y el teléfono de respaldo de la dirección de entrega, junto a la zona. -->
+    <record id="view_order_form_ubicacion_casa" model="ir.ui.view">
+        <field name="name">sale.order.form.dcasa.ubicacion.casa</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='partner_shipping_id']" position="after">
+                <field name="dcasa_recibe_entrega" invisible="not dcasa_recibe_entrega"/>
+                <field name="dcasa_tel_respaldo_entrega" widget="phone" invisible="not dcasa_tel_respaldo_entrega"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

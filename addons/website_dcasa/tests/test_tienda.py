@@ -110,7 +110,7 @@ class TestTiendaConfigurada(TransactionCase):
         with self.assertRaises(ValidationError):
             self.website.dcasa_whatsapp_number = 'llámame'
         self.website.dcasa_whatsapp_number = '6026-1919'
-        self.assertTrue(self.website._dcasa_whatsapp_url().startswith('https://wa.me/50760261919?'))
+        self.assertTrue(self.website._dcasa_whatsapp_url().startswith('https://api.whatsapp.com/send?phone=50760261919&'))
 
 
 @tagged('post_install', '-at_install')

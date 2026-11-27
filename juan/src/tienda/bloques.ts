@@ -9,7 +9,10 @@
 //     que sí; la página le pide a Odoo que ponga la línea del envío (la de `dcasa_envios`, con su promoción). Andrés no suma nada.
 //   · `proponer_cambio_carrito` (A4) solo con un producto que YA está en el carrito (lo dice la página), cantidad de 0 a 20 (0 =
 //     quitar), y solo si el visitante pidió el cambio en ese mensaje o dijo que sí a la pregunta. La página lo aplica en Odoo.
+//   · `indicaciones` (2026-11-25) solo en el turno en que llegó la ubicación y `cotizar_envio` dio precio con ella: al final, con el
+//     texto fijo. La página pide ahí el número de casa o las indicaciones para el motorizado.
 
+import { PREGUNTA_DE_INDICACIONES } from "../dcasa/prompt";
 import { normalizar, sinAcentos } from "../dcasa/texto";
 import type { LineaDelCarrito, Pose } from "./prompt";
 
@@ -36,6 +39,11 @@ export type Bloque =
   | { tipo: "proponer_cambio_carrito"; producto_id: number; cantidad: number; nombre: string }
   | { tipo: "sugerencias"; texto: string; opciones: string[] }
   | { tipo: "ubicacion"; texto: string }
+  /**
+   * El número de casa o las indicaciones para el motorizado (el dueño, 2026-11-25): sale al final cuando el visitante acaba de dar su
+   * ubicación y el envío salió con precio. La página lo pinta con un campo y un botón y se lo manda a Odoo; Andrés no lo pregunta.
+   */
+  | { tipo: "indicaciones"; texto: string }
   /** `lugar_id`: el lugar de la tabla de envíos que dio `cotizar_envio` (para sumarlo, A2); null si no vino. */
   | { tipo: "envio"; texto: string; lugar: string; lugar_id?: number | null }
   | { tipo: "sumar_envio"; lugar_id: number; lugar: string }
@@ -53,6 +61,8 @@ export interface RespuestaTienda {
 
 export const TEXTO_DEL_BOTON_DE_WHATSAPP = "Escríbenos por WhatsApp";
 export const TEXTO_DE_UBICACION = "¿A dónde te lo llevamos?";
+/** La misma pregunta que hace Juan en los chats (dcasa/prompt.ts): un solo texto para las dos. */
+export const TEXTO_DE_INDICACIONES = PREGUNTA_DE_INDICACIONES;
 export const MAX_TARJETAS = 6;
 export const MAX_CHIPS = 4;
 export const MAX_OPCIONES = 3;
@@ -322,7 +332,7 @@ export function elegirPose(s: SenalesDePose): Pose {
   const hay = (tipo: Bloque["tipo"]) => s.bloques.some((b) => b.tipo === tipo);
   if (hay("calificar")) return "cinco_estrellas";
   if (hay("proponer_carrito") || hay("proponer_cambio_carrito") || hay("sumar_envio") || hay("carrito")) return "bolsita";
-  if (hay("envio") || hay("ubicacion")) return "mapa";
+  if (hay("envio") || hay("ubicacion") || hay("indicaciones")) return "mapa";
   if (hay("whatsapp")) return s.noche ? "durmiendo" : "burbuja_chat";
   if (s.agradecimiento) return "corazon";
   if (s.delModelo) return s.delModelo;

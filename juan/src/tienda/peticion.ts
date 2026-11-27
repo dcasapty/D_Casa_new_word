@@ -1,5 +1,6 @@
 // El cuerpo de `POST /tienda/v1/mensaje` (contrato §2), validado. Todo lo que manda el navegador es DATO del visitante: se recorta,
-// se limpia y nunca llega como orden al modelo. La ubicación se usa solo en el turno en que llega: este objeto no se guarda.
+// se limpia y nunca llega como orden al modelo. La ubicación (y su precisión) se usa solo en el turno en que llega: este objeto no se
+// guarda.
 
 import { TIPOS_DE_PAGINA, type DatosDeLaPagina, type LineaDelCarrito, type TipoDePagina } from "./prompt";
 
@@ -37,7 +38,17 @@ export interface EnvioDelCarrito {
 export interface Ubicacion {
   lat: number;
   lon: number;
+  /**
+   * Cuántos metros de error dice el teléfono (`coords.accuracy`), si la página lo manda. Como las coordenadas: solo vale en este turno y no
+   * se guarda; a Odoo no le llega (cotizar_envio solo recibe el punto).
+   */
+  precision?: number;
 }
+
+/** Más que esto no es una precisión: Panamá entero cabe en mucho menos (la de un computador sin GPS anda en unos kilómetros). */
+export const MAX_PRECISION_M = 1_000_000;
+/** Siete decimales (≈1 cm), como en los canales (canales/ubicacion.ts): más no dice nada. */
+const conSieteDecimales = (n: number) => Math.round(n * 1e7) / 1e7 || 0; // `|| 0`: nunca «-0»
 
 export interface PeticionTienda {
   /** Lo que escribió el visitante (vacío si vino una acción o solo la ubicación). */
@@ -137,10 +148,15 @@ function validarEnvioDelCarrito(v: unknown): EnvioDelCarrito | null {
 function validarUbicacion(v: unknown): Ubicacion | null | "mal" {
   if (v === undefined || v === null) return null;
   if (!esObjeto(v)) return "mal";
-  const { lat, lon } = v;
+  const { lat, lon, precision } = v;
   if (typeof lat !== "number" || typeof lon !== "number" || !Number.isFinite(lat) || !Number.isFinite(lon)) return "mal";
   if (lat < -90 || lat > 90 || lon < -180 || lon > 180) return "mal";
-  return { lat, lon };
+  // La precisión es opcional (una página de antes no la manda); si viene, es un número de metros, como lat y lon: nada de texto.
+  if (precision !== undefined && precision !== null) {
+    if (typeof precision !== "number" || !Number.isFinite(precision) || precision < 0 || precision > MAX_PRECISION_M) return "mal";
+    return { lat: conSieteDecimales(lat), lon: conSieteDecimales(lon), precision };
+  }
+  return { lat: conSieteDecimales(lat), lon: conSieteDecimales(lon) };
 }
 
 /** La petición validada, o el motivo (en palabras) por el que no sirve. */
