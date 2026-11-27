@@ -21,6 +21,10 @@ Rama `claude/ubicacion-dcasa` (desde `main` `d928a82`). Sin PR, sin unir, sin fl
 - Volver a medir los km sin corredores (necesita `envios-dcasa.html` y una clave temporal de Routes API): fuera del encargo, anotado en prioridades.
 - Decisiones elegidas por mí, reversibles: avisos encendidos como se aprobó; el cambio automático a domicilio no ocurre con un pago abierto; la guardia de Juan deja pasar las frases fijas con ícono.
 
+## Claves de Google (2026-11-27)
+- Hechas por la persona con Claude en Chrome: proyecto «DCASA», dos claves restringidas (navegador: cinco direcciones y solo Maps JavaScript API; servidor: solo Geocoding API), presupuesto 20 USD con avisos, secretos `GOOGLE_MAPS_CLAVE_NAVEGADOR` y `GOOGLE_MAPS_CLAVE_SERVIDOR` en `dcasa-staging` (tipo Secret, verificados por nombre, sin ver valores). `dcasa` (producción) sin tocar.
+- Pendiente: límite diario de 500 (Google no lo permite en la prueba gratis). Mapa real aún sin probar: falta el «sí» para staging.
+
 ## Bloqueos
 - Ninguno técnico. Esta sesión no puede escribirle a la sesión orquestadora (permiso): este archivo es el canal.
 
