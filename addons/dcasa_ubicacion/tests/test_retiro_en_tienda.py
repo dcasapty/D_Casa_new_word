@@ -75,7 +75,8 @@ class TestUnErrorDelQrNoTumbaLaVenta(UbicacionCase):
     def test_si_armar_la_entrega_falla_la_venta_se_confirma_igual(self):
         self.env['website']._dcasa_entregas()
         domicilio = self.env['delivery.carrier'].sudo().search([('dcasa_por_cotizar', '=', True)], limit=1)
-        producto = self.env['product.product'].create({'name': 'Mueble de prueba 2', 'type': 'consu', 'list_price': 100})
+        producto = self.env['product.product'].create(
+            {'name': 'Mueble de prueba 2', 'type': 'consu', 'list_price': 100})
         orden = self.env['sale.order'].create({
             'partner_id': self.cliente.id,
             'order_line': [(0, 0, {'product_id': producto.id, 'product_uom_qty': 1})],

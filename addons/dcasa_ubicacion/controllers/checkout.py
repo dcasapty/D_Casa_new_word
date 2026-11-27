@@ -277,8 +277,9 @@ class UbicacionCheckout(DcasaCheckout):
             # domicilio (sin esto quedaba «Retiro en tienda — Gratis» marcado y el total salía sin envío). «Retiro en
             # tienda» sigue disponible: lo puede volver a elegir en el pago.
             orden.sudo()._dcasa_ubic_elegir_domicilio()
-        # Con un pago abierto (o uno recién abierto que la pasarela tiene en borrador) o con un envío que puso una persona NO
-        # se recalcula: cambiar el total haría que el pago ya abierto no confirme la venta (revisión adversarial 2026-11-27).
+        # Con un pago abierto (o uno recién abierto que la pasarela tiene en borrador) o con un envío que puso una
+        # persona NO se recalcula: cambiar el total haría que el pago ya abierto no confirme la venta (revisión
+        # adversarial 2026-11-27).
         if orden.carrier_id and orden.carrier_id.dcasa_por_cotizar and not orden.sudo()._dcasa_ubic_no_recalcular():
             orden._set_delivery_method(orden.carrier_id)
         return respuesta
