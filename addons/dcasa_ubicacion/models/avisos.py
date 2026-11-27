@@ -253,7 +253,7 @@ class SaleOrderAvisos(models.Model):
         return self.env.ref('base.user_admin', raise_if_not_found=False) or self.env['res.users']
 
     # ------------------------------------------------------------------
-    # Textos para el cliente: de usted, cortos y con ícono
+    # Textos para el cliente: de tú, cortos y con ícono
     # ------------------------------------------------------------------
 
     def _dcasa_texto_pedir_ubicacion(self, url):

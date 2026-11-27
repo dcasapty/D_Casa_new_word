@@ -3,83 +3,96 @@
     <!-- Las dos páginas sueltas (sin el sitio ni el panel): /u/<secreto> para el cliente y /entrega/<secreto> para el
          chofer. Pedido del dueño (2026-11-25): «a la gente no le gusta leer… un niño de 5 años pueda comprar»: íconos
          grandes y pocas palabras (un pin, «Mi ubicación», un camión con el precio, una casita, un ✓).
-         Marca de Baby Caleb (docs/MARCA_BABY_CALEB.md): crema, letra navy, el naranja de relleno con letra navy (nunca
-         blanca), Montserrat, plano; 48 px o más en lo táctil, 16 px en los campos y 16 px de margen. Baja con scroll.
-         Sin estilos en línea: la CSP sin mapa no los deja. -->
+         Marca D'CASA (CLAUDE.md; los mismos valores que website_dcasa/static/src/scss/dcasa.scss): azul #1340B1,
+         amarillo #FED00F que NUNCA toca el blanco (solo sobre azul: la cabecera, la burbuja, el paso del botón, el pin),
+         texto sobre blanco en azul o azul noche; Anton para los titulares (caja alta), Oswald para subtítulos y
+         etiquetas, Inter para el cuerpo (las fuentes autoalojadas de website_dcasa: la CSP deja «font-src 'self'»);
+         plano, sin degradados ni sombras. 48 px o más en lo táctil, 16 px en los campos y 16 px de margen. Baja con
+         scroll. Sin estilos en línea: la CSP sin mapa no los deja. -->
     <template id="paginas_estilos" name="Ubicación: estilos de las páginas sueltas">
         <style t-att-nonce="nonce"><![CDATA[
-            @font-face { font-family: 'Montserrat'; font-weight: 100 900; font-display: swap;
-                         src: url('/dcasa_base/static/src/fonts/montserrat-latin-var.woff2') format('woff2'); }
-            :root { --navy: #1B3246; --naranja: #EE924A; --naranja-puntero: #F1A86E; --naranja-fuerte: #985D2F;
-                    --crema: #F9F6ED; --superficie: #F2EFE5; --linea: #DEDED9; --control: #7F8A91; --gris: #5E6D78;
-                    --salvia: #4F6B58; }
+            @font-face { font-family: 'Anton'; font-weight: 400; font-display: swap;
+                         src: url('/website_dcasa/static/src/fonts/anton-latin.woff2') format('woff2'); }
+            @font-face { font-family: 'Oswald'; font-weight: 400 700; font-display: swap;
+                         src: url('/website_dcasa/static/src/fonts/oswald-latin-var.woff2') format('woff2'); }
+            @font-face { font-family: 'Inter'; font-weight: 400 700; font-display: swap;
+                         src: url('/website_dcasa/static/src/fonts/inter-latin-var.woff2') format('woff2'); }
+            :root { --azul: #1340B1; --azul-osc: #0F3591; --amarillo: #FED00F; --navy: #0E2A6B; --tinta: #1B2233;
+                    --hueso: #F6F5F2; --hueso-2: #E9E7E1; --filo: #E3E1DB; --gris: #4A5163; --control: #8C93A6; }
             *, *::before, *::after { box-sizing: border-box; }
             html { -webkit-text-size-adjust: 100%; }
-            body { margin: 0; background: var(--crema); color: var(--navy); overflow-wrap: anywhere;
-                   font: 16px/1.45 Montserrat, system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif; }
+            body { margin: 0; background: var(--hueso); color: var(--tinta); overflow-wrap: anywhere;
+                   font: 16px/1.45 Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif; }
             .caja { max-width: 560px; margin: 0 auto; padding: 0 16px 32px; }
-            .cab { background: var(--superficie); border-bottom: 1px solid var(--linea); padding: 12px 0; }
+            .cab { background: var(--azul); padding: 12px 0; }
             .cab .caja { padding-bottom: 0; }
-            .marca { margin: 0; color: var(--naranja-fuerte); font-size: 12px; font-weight: 700;
-                     text-transform: uppercase; letter-spacing: .14em; }
+            .marca { margin: 0; color: var(--amarillo); font: 600 14px/1.2 Oswald, Inter, sans-serif;
+                     text-transform: uppercase; letter-spacing: .12em; }
             .o_dcasa_icono { width: 1.4em; height: 1.4em; flex-shrink: 0; }
-            .titulo { display: flex; align-items: center; gap: 12px; margin: 18px 0 14px; font-weight: 700;
-                      font-size: 1.5rem; line-height: 1.2; letter-spacing: -.02em; }
+            .titulo { display: flex; align-items: center; gap: 12px; margin: 18px 0 14px; color: var(--navy);
+                      font: 400 1.6rem/1.15 Anton, Oswald, sans-serif; text-transform: uppercase; letter-spacing: .01em; }
             .burbuja { display: inline-flex; align-items: center; justify-content: center; width: 52px; height: 52px;
-                       border-radius: 50%; background: var(--naranja); color: var(--navy); flex-shrink: 0; }
+                       border-radius: 50%; background: var(--azul); color: var(--amarillo); flex-shrink: 0; }
             .burbuja .o_dcasa_icono { width: 28px; height: 28px; }
             .boton { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%;
-                     min-height: 56px; margin: 12px 0 0; padding: 0 20px; border: 0; border-radius: 999px;
-                     background: var(--naranja); color: var(--navy); cursor: pointer; text-decoration: none;
+                     min-height: 56px; margin: 12px 0 0; padding: 0 20px; border: 2px solid var(--azul);
+                     border-radius: 999px; background: var(--azul); color: #fff; cursor: pointer; text-decoration: none;
                      font: inherit; font-weight: 700; font-size: 1.15rem; text-align: center; }
-            .boton:hover { background: var(--naranja-puntero); }
+            .boton:hover { background: var(--azul-osc); border-color: var(--azul-osc); }
             .boton:focus-visible, .campo:focus, .opcion:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
             .boton[disabled] { opacity: .4; cursor: not-allowed; }
-            .boton.contorno { background: transparent; border: 2px solid var(--navy); }
+            .boton.contorno { background: #fff; color: var(--azul); }
+            .boton.contorno:hover { background: var(--hueso-2); color: var(--azul-osc); }
             .campo { width: 100%; min-height: 52px; padding: 12px 14px; border: 1px solid var(--control);
-                     border-radius: 14px; background: #fff; color: var(--navy); font: inherit; font-size: 16px; }
+                     border-radius: 14px; background: #fff; color: var(--tinta); font: inherit; font-size: 16px; }
             .con-icono { position: relative; margin: 14px 0 0; }
             .con-icono > .o_dcasa_icono { position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
                                            color: var(--gris); pointer-events: none; }
             .con-icono .campo { padding-left: 48px; }
-            .etiqueta { display: flex; align-items: center; gap: 8px; margin: 18px 0 8px; font-weight: 700; }
-            .mapa-marco { position: relative; margin: 14px 0 0; border: 1px solid var(--linea); border-radius: 18px;
-                          overflow: hidden; background: var(--superficie); }
+            .etiqueta { display: flex; align-items: center; gap: 8px; margin: 18px 0 8px; color: var(--navy);
+                        font: 600 1.05rem/1.25 Oswald, Inter, sans-serif; }
+            .mapa-marco { position: relative; margin: 14px 0 0; border: 1px solid var(--filo); border-radius: 18px;
+                          overflow: hidden; background: var(--hueso-2); }
             .mapa-marco.sin-mapa { display: none; }
             .mapa { width: 100%; height: 52vh; min-height: 280px; max-height: 480px; }
             .pin { position: absolute; left: 50%; top: 50%; width: 40px; height: 54px; margin: -54px 0 0 -20px;
                    pointer-events: none; z-index: 2; }
             .pista { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); z-index: 2;
                      display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px;
-                     background: rgba(249, 246, 237, .95); border: 1px solid var(--linea); font-size: 14px;
-                     font-weight: 600; pointer-events: none; white-space: nowrap; }
-            .aviso { min-height: 1.4em; margin: 8px 0 0; color: var(--naranja-fuerte); font-weight: 600; }
+                     background: var(--azul); color: #fff; font-size: 14px; font-weight: 600; pointer-events: none;
+                     white-space: nowrap; }
+            .aviso { min-height: 1.4em; margin: 8px 0 0; color: var(--azul); font-weight: 600; }
             .lista { list-style: none; margin: 6px 0 0; padding: 0; }
             .opcion { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; margin: 6px 0 0;
-                      padding: 10px 14px; text-align: left; border: 1px solid var(--linea); border-radius: 14px;
-                      background: #fff; color: var(--navy); font: inherit; cursor: pointer; }
+                      padding: 10px 14px; text-align: left; border: 1px solid var(--filo); border-radius: 14px;
+                      background: #fff; color: var(--tinta); font: inherit; cursor: pointer; }
             .opcion small { display: block; color: var(--gris); }
-            .tarjeta { margin: 16px 0 0; padding: 14px 16px; border: 2px solid var(--naranja); border-radius: 18px;
+            .tarjeta { margin: 16px 0 0; padding: 14px 16px; border: 2px solid var(--azul); border-radius: 18px;
                        background: #fff; }
-            .dato { display: flex; align-items: center; gap: 12px; margin: 4px 0; font-weight: 600; }
+            .dato { display: flex; align-items: center; gap: 12px; margin: 4px 0; color: var(--navy); font-weight: 600; }
+            .dato .o_dcasa_icono { color: var(--azul); }
             .dato.precio { font-size: 1.35rem; font-weight: 700; }
             .listo { margin: 32px 0 0; text-align: center; }
             .listo .dato { justify-content: center; }
             .check { display: inline-flex; align-items: center; justify-content: center; width: 96px; height: 96px;
-                     border-radius: 50%; background: var(--salvia); color: #fff; }
+                     border-radius: 50%; background: var(--azul); color: #fff; }
             .check .o_dcasa_icono { width: 56px; height: 56px; }
-            .grande { margin: 16px 0 4px; font-size: 1.6rem; font-weight: 700; line-height: 1.2; }
+            .grande { margin: 16px 0 4px; color: var(--navy); font: 400 1.9rem/1.15 Anton, Oswald, sans-serif;
+                      text-transform: uppercase; letter-spacing: .01em; }
             .sub { color: var(--gris); }
             .fila { display: flex; gap: 12px; flex-wrap: wrap; }
             .fila .boton { flex: 1 1 200px; }
-            .ojo { display: flex; align-items: center; gap: 8px; color: var(--naranja-fuerte); font-weight: 700; }
+            .ojo { display: flex; align-items: center; gap: 8px; color: var(--navy); font-weight: 700; }
             .dato-mot { display: flex; gap: 12px; margin: 12px 0 0; }
-            .dato-mot .o_dcasa_icono { color: var(--naranja-fuerte); margin-top: 2px; }
-            .dato-mot b { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .1em; color: var(--gris); }
-            .tarjeta.suave { border: 1px solid var(--linea); background: var(--superficie); }
+            .dato-mot .o_dcasa_icono { color: var(--azul); margin-top: 2px; }
+            .dato-mot b { display: block; color: var(--gris); font: 600 13px/1.3 Oswald, Inter, sans-serif;
+                          text-transform: uppercase; letter-spacing: .08em; }
+            .tarjeta.suave { border: 1px solid var(--filo); background: #fff; }
             .paso { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px;
-                    border-radius: 50%; background: var(--navy); color: var(--crema); font-size: 15px; font-weight: 700;
+                    border-radius: 50%; background: var(--navy); color: #fff; font-size: 15px; font-weight: 700;
                     flex-shrink: 0; }
+            /* Dentro del botón azul, el paso en amarillo (el amarillo solo sobre azul). */
+            .boton:not(.contorno) .paso { background: var(--amarillo); color: var(--navy); }
             .mini { margin: 8px 0 0; text-align: center; font-size: 15px; }
             .respaldo { margin: 14px 0 0; padding: 12px; border: 1px dashed var(--control); border-radius: 14px; }
             .respaldo p { margin: 0 0 4px; text-align: center; color: var(--gris); font-size: 15px; }
@@ -92,21 +105,29 @@
                   clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
             .sr:focus-visible + .boton { outline: 2px solid var(--navy); outline-offset: 2px; }
             .foto-vista { display: block; width: 100%; height: auto; max-height: 240px; object-fit: contain;
-                          margin: 10px 0 0; border: 1px solid var(--linea); border-radius: 14px;
-                          background: var(--superficie); }
-            .aviso.bien { color: var(--salvia); }
+                          margin: 10px 0 0; border: 1px solid var(--filo); border-radius: 14px;
+                          background: var(--hueso-2); }
+            .aviso.bien { color: var(--navy); }
             /* Lo que falta para «Sí, aquí es» (apagado): una línea corta justo encima. */
-            .falta { margin: 14px 0 0; text-align: center; color: var(--naranja-fuerte); font-weight: 600; }
+            .falta { margin: 14px 0 0; text-align: center; color: var(--azul); font-weight: 600; }
             .falta:empty { display: none; }
             /* La página del chofer: la foto de la casa y los botones del teléfono de respaldo. */
             .fachada { margin: 16px 0 0; }
-            .fachada img { display: block; width: 100%; height: auto; border: 1px solid var(--linea);
-                           border-radius: 18px; background: var(--superficie); }
+            .fachada img { display: block; width: 100%; height: auto; border: 1px solid var(--filo);
+                           border-radius: 18px; background: var(--hueso-2); }
             .fachada figcaption { display: flex; align-items: center; gap: 8px; margin: 6px 0 0; color: var(--gris);
                                   font-size: 15px; font-weight: 600; }
             .fila.dos .boton { flex: 1 1 120px; gap: 8px; padding: 0 12px; white-space: nowrap; }
             .respaldo-mot { margin: 16px 0 0; }
             .respaldo-mot .dato-mot { margin: 0; }
+            /* «Ruta sin corredores» (los choferes de D'CASA no usan corredores): una franja azul bien visible arriba;
+               el título en amarillo (sobre azul) y la nota en blanco. */
+            .corredores { display: flex; gap: 12px; align-items: flex-start; margin: 0 0 14px; padding: 12px 16px;
+                          border-radius: 18px; background: var(--azul); color: #fff; }
+            .corredores .o_dcasa_icono { color: var(--amarillo); margin-top: 2px; }
+            .corredores strong { display: block; color: var(--amarillo); font: 600 1.15rem/1.2 Oswald, Inter, sans-serif;
+                                 text-transform: uppercase; letter-spacing: .04em; }
+            .corredores span { display: block; margin-top: 2px; font-size: 15px; font-weight: 600; }
             /* Cómo permitir la ubicación (sin permiso) y la salida por WhatsApp de lo que no está en la tabla. */
             .permiso { margin: 4px 0 0; color: var(--gris); font-size: 15px; }
             .permiso:empty { display: none; }
@@ -114,11 +135,12 @@
         ]]></style>
     </template>
 
-    <!-- El pin fijo del centro del mapa (el mapa se mueve debajo). -->
+    <!-- El pin fijo del centro del mapa (el mapa se mueve debajo): azul con el filo azul noche y el centro amarillo
+         (el amarillo sobre azul, nunca sobre blanco). -->
     <template id="pin_svg" name="Ubicación: pin del mapa">
         <svg class="pin" viewBox="0 0 36 48" aria-hidden="true">
-            <path d="M18 1C8.6 1 1 8.4 1 17.6 1 30 18 47 18 47s17-17 17-29.4C35 8.4 27.4 1 18 1z" fill="#EE924A" stroke="#1B3246" stroke-width="2"/>
-            <circle cx="18" cy="17" r="6" fill="#1B3246"/>
+            <path d="M18 1C8.6 1 1 8.4 1 17.6 1 30 18 47 18 47s17-17 17-29.4C35 8.4 27.4 1 18 1z" fill="#1340B1" stroke="#0E2A6B" stroke-width="2"/>
+            <circle cx="18" cy="17" r="6" fill="#FED00F"/>
         </svg>
     </template>
 
@@ -127,7 +149,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1"/>
         <meta name="robots" content="noindex, nofollow"/>
         <meta name="referrer" content="strict-origin"/>
-        <meta name="theme-color" content="#F9F6ED"/>
+        <meta name="theme-color" content="#1340B1"/>
         <t t-call="dcasa_ubicacion.paginas_estilos"/>
     </template>
 
@@ -575,6 +597,12 @@
                 <span class="burbuja"><t t-call="dcasa_ubicacion.icono"><t t-set="icono" t-value="'camion'"/></t></span>
                 Entrega <t t-esc="datos['pedido']"/>
             </h1>
+            <!-- Los choferes de D'CASA no usan corredores. Los enlaces de Waze y Google Maps NO evitan los peajes por sí
+                 solos (no lo prometemos): el chofer lo activa en su teléfono antes de salir. Bien visible, arriba. -->
+            <p class="corredores" id="o_dcasa_corredores" role="note">
+                <t t-call="dcasa_ubicacion.icono"><t t-set="icono" t-value="'ir'"/></t>
+                <span><strong>Ruta sin corredores</strong><span>Activa “Evitar peajes” en tu teléfono antes de salir</span></span>
+            </p>
             <t t-set="sin_punto" t-value="not datos['tiene_punto']"/>
             <!-- Sin punto o con un punto aproximado (una barriada buscada, un GPS impreciso), lo primero es llamar
                  (auditorías 1 y 2): «Llamar» arriba como botón principal. Con un punto bueno, Waze y Google Maps. -->

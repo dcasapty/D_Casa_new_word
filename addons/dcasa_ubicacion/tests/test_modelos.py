@@ -102,7 +102,7 @@ class TestEnlaceDelChat(UbicacionCase):
         mensaje = self.env['dcasa.mensaje'].sudo().search([('conversacion_id', '=', conv.id), ('origen', '=', 'odoo'),
                                                            ('tipo', '=', 'mensaje')], order='id desc', limit=1)
         self.assertEqual(mensaje.autor, 'bot', 'lo escribe el asistente: Juan sigue atendiendo')
-        self.assertIn('Recibimos su ubicación: Villa Prueba II, La Chorrera.', mensaje.texto)
+        self.assertIn('Recibimos tu ubicación: Villa Prueba II, La Chorrera.', mensaje.texto)
         self.assertIn('🚚 Envío', mensaje.texto)
         self.assertIn(self.precio_de(self.villa), mensaje.texto)
         self.assertNotIn('8.9012', mensaje.texto, 'nunca las coordenadas en el chat')

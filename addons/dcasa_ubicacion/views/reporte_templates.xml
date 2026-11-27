@@ -4,21 +4,23 @@
          «Llamar»). Va en el comprobante y en la nota de entrega cuando la venta va a domicilio y el cliente tiene
          dirección. El PDF se arma en una transacción de solo lectura: aquí solo se LEE la entrega (la arman la
          confirmación de la venta, la publicación del comprobante o el punto nuevo del cliente).
-         Variable: registro (el comprobante o la salida de bodega). Estilos en línea (wkhtmltopdf). -->
+         Variable: registro (el comprobante o la salida de bodega). Estilos en línea (wkhtmltopdf), con los colores de
+         D'CASA (azul #1340B1 el filo, azul noche #0E2A6B el texto). -->
     <template id="bloque_chofer" name="Ubicación: QR para el chofer">
         <t t-set="dcasa_entrega" t-value="registro._dcasa_entrega_para_el_qr()"/>
         <t t-if="dcasa_entrega">
             <t t-set="dcasa_datos" t-value="dcasa_entrega._para_el_chofer()"/>
             <div class="o_dcasa_chofer avoid-page-break-inside" name="dcasa_chofer"
-                 style="margin: 14px 0 6px; padding: 10px 12px; border: 1px solid #DEDED9; border-radius: 10px;">
+                 style="margin: 14px 0 6px; padding: 10px 12px; border: 1px solid #1340B1; border-radius: 10px;">
                 <table style="width: 100%; border-collapse: collapse;">
                     <tr>
                         <td style="width: 30mm; vertical-align: top; padding: 0 10px 0 0;">
                             <img t-att-src="dcasa_entrega._qr_src()" alt="Código QR de la entrega" style="width: 28mm; height: 28mm;"/>
                         </td>
-                        <td style="vertical-align: top; color: #1B3246; font-size: 12px; line-height: 1.45;">
+                        <td style="vertical-align: top; color: #0E2A6B; font-size: 12px; line-height: 1.45;">
                             <strong style="font-size: 13px;">Para el chofer</strong><br/>
                             Escanea el código: abre la ruta en Waze o en Google Maps, la dirección y el teléfono.<br/>
+                            <strong>Ruta sin corredores:</strong> activa “Evitar peajes” en tu teléfono antes de salir.<br/>
                             <t t-if="dcasa_datos['zona']">Zona: <t t-esc="dcasa_datos['zona'].replace(' · ', ', ')"/><br/></t>
                             <t t-if="dcasa_datos['referencia']">Cómo reconocer el sitio: <t t-esc="dcasa_datos['referencia']"/><br/></t>
                             <t t-if="dcasa_datos.get('recibe')">Recibe: <t t-esc="dcasa_datos['recibe']"/><br/></t>

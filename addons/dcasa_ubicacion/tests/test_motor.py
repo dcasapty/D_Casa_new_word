@@ -76,7 +76,7 @@ class TestGeo(BaseCase):
         distritos = ['La Chorrera', 'Arraiján', 'San Miguelito']
         aviso = geo.aviso_de_cruce('Calle 5, casa 12, Arraijan', zona, distritos)
         self.assertIn('está en La Chorrera', aviso)
-        self.assertIn('escribió Arraiján', aviso)
+        self.assertIn('escribiste Arraiján', aviso)
         self.assertEqual(geo.aviso_de_cruce('Calle 5, LA CHORRERA', zona, distritos), '')
         self.assertEqual(geo.aviso_de_cruce('Calle 5, casa 12', zona, distritos), '',
                          'sin distrito escrito no hay aviso')

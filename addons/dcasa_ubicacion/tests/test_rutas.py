@@ -162,7 +162,7 @@ class TestRutas(HttpCase):
         datos = self.make_jsonrpc_request('/tienda/ubicacion/zona', {'lat': CERCA[0], 'lon': CERCA[1],
                                                                      'texto': 'Calle 3, Arraiján'})
         self.assertEqual(datos['distrito'], 'La Chorrera')
-        self.assertIn('escribió Arraiján', datos['aviso'])
+        self.assertIn('escribiste Arraiján', datos['aviso'])
         self.assertTrue(datos['precio'])
         lugares = self.make_jsonrpc_request('/tienda/ubicacion/buscar', {'texto': 'villa prueba'})['lugares']
         self.assertTrue(lugares)

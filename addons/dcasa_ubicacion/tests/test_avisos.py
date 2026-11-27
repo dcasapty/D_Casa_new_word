@@ -226,8 +226,8 @@ class TestPedirUbicacionAlComprar(AvisosCase):
         enlace = self.Enlace.search([('orden_id', '=', orden.id)])
         enlace._confirmar(*CERCA, 'gps', precision=8, referencia='Casa 24')
         listo = self.del_bot(conv)[-1]
-        self.assertEqual(listo.texto, '✅ ¡Listo! Ya tenemos su casa: Villa Prueba II, La Chorrera. 🏠 Casa 24. '
-                                      f'Su pedido {orden.name} irá a esa dirección.')
+        self.assertEqual(listo.texto, '✅ ¡Listo! Ya tenemos tu casa: Villa Prueba II, La Chorrera. 🏠 Casa 24. '
+                                      f'Tu pedido {orden.name} irá a esa dirección.')
         self.assertEqual(listo.autor, 'bot')
         # Lo cobrado no se toca; el equipo ve en la venta el envío de la tabla.
         self.assertFalse(orden.order_line.filtered('is_delivery'), 'la venta confirmada no se recalcula')

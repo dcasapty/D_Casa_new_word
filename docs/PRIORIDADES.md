@@ -10,6 +10,21 @@ la producción. Apruébalo y punto.»); la revisión adversarial no se salta (re
 **Excepción desde el 2026-11-20: todo cambio de diseño se le muestra en capturas antes/después y espera su «sí»** («antes de cualquier cosa o
 cambio en el diseño me gustaría verlo antes»; ver LEEME_PRIMERO §2).
 
+## Estado al 2026-11-27: ubicación exacta de entrega (en la rama `claude/ubicacion-dcasa`, SIN desplegar)
+
+- **Fase 1 (aprobada el 2026-11-26): dejar D'CASA al nivel de Baby Caleb en ubicación y envíos.** El cliente marca su casa en un mapa (checkout, «¡Gracias!», página del pedido, enlace por el chat),
+  el precio del envío sale del punto, el comprobante y la nota de entrega llevan un QR para el chofer y hay dos avisos encendidos (pedir la ubicación al confirmar y «Sale hoy»). Detalle en
+  [UBICACION.md](UBICACION.md); diseño y plan en `superpowers/specs/2026-11-26-ubicacion-dcasa-diseno.md` y `superpowers/plans/2026-11-26-ubicacion-dcasa-plan.md`; estado vivo en `superpowers/ESTADO.md`.
+- **Falta, en este orden:** (1) capturas antes/después (computadora y celular, datos de prueba) para Gerencia y su «sí» al diseño; (2) las claves de Google (`GOOGLE_MAPS_CLAVE_NAVEGADOR`,
+  `GOOGLE_MAPS_CLAVE_SERVIDOR`) en el Worker `dcasa-staging` y luego en `dcasa`, **nunca por el chat**, con la restricción de la del navegador a `dcasapty.com/*`, `www.dcasapty.com/*`,
+  `staging.dcasapty.com/*`, `dcasa.dcasapty.workers.dev/*` y `dcasa-staging.dcasapty.workers.dev/*` (hoy sin crear: el mapa real **no está probado**); (3) con el «sí» explícito, CI a staging y
+  comprar de verdad en staging (mapa con la clave, punto lejano «Fuera de nuestra lista», comprobante y QR); (4) producción por la receta, con el «sí» de Gerencia a las capturas.
+- **Pendiente, fuera de este encargo: volver a medir los km de la tabla de envíos sin corredores.** La tabla actual se midió en carro, por corredores (autopistas de peaje), y los choferes de D'CASA no los usan. Necesita el
+  archivo `envios-dcasa.html` de Gerencia y una clave temporal de Routes API; el método está en `docs/ENVIOS.md` de Baby Caleb, «Medir el archivo para otro punto de salida». Los enlaces de Waze y Google
+  Maps **no** se afirma que eviten peajes: cada chofer activa «Evitar peajes» en su teléfono.
+- **Decisión de la persona responsable:** la tarifa de envíos sigue «en revisión»: hasta que Gerencia la apruebe, el mapa dice «por cotizar». No se cambiaron precios.
+- **Privacidad:** se guarda el punto exacto de la casa (cambia la regla del issue #25) y la política de privacidad ya lo dice; el modelo de IA no recibe el punto, Google sí.
+
 ## Estado al 2026-11-22
 
 - **Nuevo (pedido del jefe, 2026-11-22): «Rotación» del inventario.** Qué productos no se mueven (30, 60, 90, 180 días o más sin vender), cuánto capital hay parado,

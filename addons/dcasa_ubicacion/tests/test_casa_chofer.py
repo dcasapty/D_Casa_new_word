@@ -78,7 +78,7 @@ class TestMotorCasa(BaseCase):
         self.assertEqual(casa.numero_whatsapp('+1 305 555 1234'), '13055551234')
         self.assertEqual(casa.numero_whatsapp('234-5678'), '', 'un fijo no tiene WhatsApp')
         self.assertEqual(casa.numero_whatsapp(''), '')
-        texto = 'Hola Ana, ya llegué con su pedido S00042 📦'
+        texto = 'Hola Ana, ya llegué con tu pedido S00042 📦'
         enlace = casa.enlace_whatsapp('50761234567', texto)
         self.assertTrue(enlace.startswith('https://api.whatsapp.com/send?phone=50761234567&text='))
         self.assertEqual(unquote(enlace.split('&text=', 1)[1]), texto)
@@ -205,7 +205,7 @@ class TestQuienRecibeYFoto(UbicacionCase):
         datos = entrega._para_el_chofer()
         self.assertTrue(datos['avisar_llegue'].startswith('https://api.whatsapp.com/send?phone=50761234567&text='))
         self.assertEqual(unquote(datos['avisar_llegue'].split('&text=', 1)[1]),
-                         f'Hola Ana, soy el chofer de {tienda}. Ya llegué con su pedido {orden.name} 📦')
+                         f'Hola Ana, soy el chofer de {tienda}. Ya llegué con tu pedido {orden.name} 📦')
         self.assertEqual((datos['recibe'], datos['respaldo'], datos['respaldo_tel']),
                          ('Rosa, su mamá', '+507 6999-8888', '+50769998888'))
         self.assertTrue(datos['respaldo_whatsapp'].startswith('https://api.whatsapp.com/send?phone=50769998888&text='))

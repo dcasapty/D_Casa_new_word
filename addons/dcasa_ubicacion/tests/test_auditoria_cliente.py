@@ -529,8 +529,8 @@ class TestNavegadorDelCliente(_SinClaves, ChromeMovilCase):
         self.assertEqual(r['clave_rechazada'][:3], [True, False, 'clave'])
         self.assertIn('El mapa no cargó', r['clave_rechazada'][3])
         self.assertEqual(r['impreciso'][:2], [False, 'impreciso_sin_mapa'])
-        self.assertIn('Active la ubicación precisa y toque «Mi ubicación» en su puerta', r['impreciso'][2])
-        self.assertNotIn('Use su celular', r['impreciso'][2])
+        self.assertIn('Activa la ubicación precisa y toca «Mi ubicación» en tu puerta', r['impreciso'][2])
+        self.assertNotIn('usa tu celular', r['impreciso'][2])
         self.assertEqual(r['aproximado'][:2], [True, True])
         self.assertIn('aproximado', r['aproximado'][2])
 
@@ -543,7 +543,7 @@ class TestNavegadorDelCliente(_SinClaves, ChromeMovilCase):
         tarjeta_oculta, falta, apagado, respaldo_oculto, aviso = r['malo']
         self.assertTrue(tarjeta_oculta, 'sin precio con un GPS de ±800 m')
         self.assertEqual((falta, apagado, respaldo_oculto), ('📍 Falta tu ubicación exacta', True, True))
-        self.assertIn('Su teléfono no da la ubicación exacta', aviso)
+        self.assertIn('Tu teléfono no da la ubicación exacta', aviso)
         tarjeta_oculta, precio, falta, respaldo_oculto = r['bueno']
         self.assertFalse(tarjeta_oculta)
         self.assertTrue(precio.startswith('Envío $'), precio)

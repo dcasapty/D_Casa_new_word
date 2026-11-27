@@ -31,7 +31,7 @@ class TestChatDeJuan(UbicacionCase):
         Herramientas = self.env['brian.herramientas'].with_context(juan_conversacion_id=conv.id)
         datos = Herramientas._juan_enlace_de_ubicacion(para_otra_casa=True)
         self.assertNotIn('boton_whatsapp', datos, 'el botón mandaría la ubicación del teléfono, no la de esa casa')
-        self.assertIn('Busque la barriada', datos['frase_para_el_cliente'])
+        self.assertIn('Busca la barriada', datos['frase_para_el_cliente'])
         self.assertNotIn('Mi ubicación', datos['frase_para_el_cliente'])
         for linea in datos['frase_para_el_cliente'].split('\n')[1:]:
             self.assertRegex(linea, r'^[123]️⃣ ', 'un paso por línea: el Worker conserva así sus íconos')

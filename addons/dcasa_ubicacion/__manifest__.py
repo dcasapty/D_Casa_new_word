@@ -3,7 +3,8 @@
     'summary': 'El cliente marca su punto en el mapa (web o enlace del chat) o lo comparte por WhatsApp; el envío se '
                'cotiza solo y el comprobante lleva un QR con Waze y Google Maps para el chofer',
     'description': """
-Pedido del dueño de Baby Caleb (2026-11-25), con la idea de Nébula y sus fallas corregidas. Ver docs/UBICACION.md.
+Adaptado de otra tienda (pedido de su dueño, 2026-11-25), con la idea de Nébula y sus fallas corregidas. De tú, como
+habla D'CASA. Ver docs/UBICACION.md.
 
 * **Checkout**: «¿Dónde te entregamos?» con «Marcar en el mapa» (Google Maps, pin fijo, «Usar mi ubicación», buscador
   de barriadas y lugares de la tabla de envíos, «¿Es aquí?») o «Escribirla». La zona (barriada, corregimiento,
@@ -12,7 +13,8 @@ Pedido del dueño de Baby Caleb (2026-11-25), con la idea de Nébula y sus falla
   escribe con la zona y el precio) y ``POST /dcasa/juan/v1/ubicacion`` para la ubicación de WhatsApp o un enlace de
   mapa. ``cotizar_envio`` sin lugar usa el punto guardado.
 * **Chofer**: el QR del comprobante y de la nota de entrega abre ``/entrega/<secreto>`` (Waze, Google Maps,
-  dirección, referencia, llamar). Vence a los 30 días y no cambia nada.
+  dirección, referencia, llamar) con «Ruta sin corredores» (que active «Evitar peajes» en su teléfono: los enlaces
+  de Waze y Google Maps no lo hacen solos). Vence a los 30 días y no cambia nada.
 * **Brian / MCP**: ``ubicacion_de_entrega``, ``enlace_de_ubicacion_para_cliente`` y ``poner_ubicacion_de_entrega``.
 * **Para que no vuelva el pedido**: quién recibe y un teléfono de respaldo (checkout, enlace, Juan con
   ``guardar_quien_recibe``, Brian con ``poner_quien_recibe``), la foto de la fachada (sin EXIF; la ve el chofer

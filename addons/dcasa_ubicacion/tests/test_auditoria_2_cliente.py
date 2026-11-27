@@ -4,7 +4,7 @@ número.
 * Por HTTP: el servidor exige el «📍 Es aquí» del aviso de cruce (1), la tarjeta «¿Te entregamos ahí?» de
   /shop/checkout con el punto del chat (4), WhatsApp sin ``wa.me`` (5), la invitada que vuelve atrás (8), «Marcar mi
   casa» antes de firmar o pagar y «Cambiar» de 48 px (9, 11), Andrés con un GPS impreciso guarda la casa (17), el
-  chofer con un punto aproximado llama primero y de usted (18, 19) y el tope de visitas con su plantilla (3, 21).
+  chofer con un punto aproximado llama primero y de tú (18, 19) y el tope de visitas con su plantilla (3, 21).
 * En Chrome (el teléfono emulado, con un Google Maps falso cuando hace falta): «Confirmar» no se salta el cruce (1), un
   arrastre sin querer no cambia la casa (2), sin señal y sin permiso (3, 7), «Escribir» (14) y la página /u (3, 6, 7,
   12, 15, 16).
@@ -86,7 +86,7 @@ class TestAuditoria2Http(_SinClaves, HttpCase):
         regalo = {'street': 'San Ensayito, calle 8', 'city': 'San Miguelito'}
         r = self.mapa(token, *CERCA, **regalo)
         self.assertTrue(r.get('messages'), r)
-        self.assertIn('escribió San Miguelito', r['messages'][0])
+        self.assertIn('escribiste San Miguelito', r['messages'][0])
         self.partner.invalidate_recordset()
         self.assertFalse(self.partner.dcasa_ubic_origen, 'sin el «sí» del cruce no se guardó nada')
         r = self.mapa(token, *CERCA, dcasa_ubic_cruce_ok='1', **regalo)
@@ -97,7 +97,7 @@ class TestAuditoria2Http(_SinClaves, HttpCase):
         r = self.mapa(token, *CERCA, street='Villa Prueba II, Barrio Prueba', city='La Chorrera')
         self.assertFalse(r.get('messages'), r)
 
-    def test_1_lo_que_lleno_el_mapa_no_cuenta_y_sin_mapa_no_dice_mueva_el_mapa(self):
+    def test_1_lo_que_lleno_el_mapa_no_cuenta_y_sin_mapa_no_dice_mueve_el_mapa(self):
         distritos = ['Colón', 'La Chorrera', 'San Miguelito']
         zona = {'barriada': 'Barrio Colón', 'corregimiento': 'Barrio Colón', 'distrito': 'La Chorrera'}
         # La calle la llenó el mapa (nombra «Colón») y la ciudad la escribió ella sin el nombre del distrito: la página
@@ -106,15 +106,15 @@ class TestAuditoria2Http(_SinClaves, HttpCase):
         self.assertEqual(checkout.texto_escrito(lleno, zona), 'Chorrera')
         self.assertEqual(checkout.cruce_sin_responder(lleno, zona, distritos), '')
         escrito = {'street': 'Calle 8', 'city': 'San Miguelito'}
-        self.assertIn('escribió San Miguelito', checkout.cruce_sin_responder(escrito, zona, distritos))
+        self.assertIn('escribiste San Miguelito', checkout.cruce_sin_responder(escrito, zona, distritos))
         con_mapa = geo.aviso_de_cruce('Calle 8, San Miguelito', zona, distritos)
         sin_mapa = geo.aviso_de_cruce('Calle 8, San Miguelito', zona, distritos, con_mapa=False)
-        self.assertIn('Mueva el mapa o corrija la dirección.', con_mapa)
-        self.assertIn('Busque la barriada o corrija la dirección.', sin_mapa)
+        self.assertIn('Mueve el mapa o corrige la dirección.', con_mapa)
+        self.assertIn('Busca la barriada o corrige la dirección.', sin_mapa)
         self.assertNotIn('mapa o', sin_mapa)
         datos = self.make_jsonrpc_request('/tienda/ubicacion/zona', {'lat': CERCA[0], 'lon': CERCA[1],
                                                                      'texto': 'Calle 3, Arraiján', 'con_mapa': False})
-        self.assertIn('Busque la barriada', datos['aviso'])
+        self.assertIn('Busca la barriada', datos['aviso'])
 
     # --- 4: el punto que dio en el chat de la tienda, con cuenta ------------------------------------------------------
 
@@ -219,12 +219,12 @@ class TestAuditoria2Http(_SinClaves, HttpCase):
         self.assertIn('class="boton"', llamar, '«Llamar» arriba y como botón principal')
         self.assertLess(html.index('id="o_dcasa_llamar"'), html.index('Abrir en Waze'))
         self.assertRegex(html, r'class="boton contorno"[^>]*href="https://waze\.com/')
-        self.assertIn('llame para confirmarlo', html)
-        for tu in ('confírmalo', 'llama antes', 'Pide el comprobante', 'tienda'):
-            self.assertNotIn(tu, html, 'de usted y sin «tienda»: Baby Caleb vende en línea')
+        self.assertIn('llama para confirmarlo', html)
+        for usted in ('confírmelo', 'llame antes', 'llame para', 'Pida el comprobante', 'tienda'):
+            self.assertNotIn(usted, html, 'de tú (D\'CASA tutea) y sin «tienda»')
         vencida = self.url_open('/entrega/inventadoXXXXXXXXXXXXXXXX').text
         self.assertIn('<h1 class="grande">Este código ya no sirve</h1>', vencida)
-        self.assertIn('Pida el comprobante otra vez.', vencida)
+        self.assertIn('Pide el comprobante otra vez.', vencida)
         self.assertNotIn('tienda', vencida)
 
     # --- 3 y 21: el tope de visitas y el h1 --------------------------------------------------------------------------
@@ -695,15 +695,15 @@ class TestNavegadorAuditoria2(_SinClaves, ChromeMovilCase):
             avanzo = browser._wait_ready("location.pathname === '/shop/checkout'", timeout=15)
         self.assertEqual(r['mini'], '¿Es para otra casa? Búscala 👇')
         self.assertGreaterEqual(r['alto_gps'], 56, 'punto 10: «Mi ubicación» de 56 px (no 44)')
-        self.assertIn('escribió San Miguelito', r['cruce'])
-        self.assertIn('Busque la barriada o corrija la dirección.', r['cruce'], 'sin mapa no dice «mueva el mapa»')
+        self.assertIn('escribiste San Miguelito', r['cruce'])
+        self.assertIn('Busca la barriada o corrige la dirección.', r['cruce'], 'sin mapa no dice «mueve el mapa»')
         self.assertEqual(r['botones'], [False, True, True], '«📍 Es aquí» / «🏠 Es otra casa» en lugar de «Sí»')
         self.assertGreaterEqual(r['alto_es_aqui'], 48)
         confirmada, cruce_ok, foco = r['tras_confirmar']
         self.assertEqual((confirmada, cruce_ok), ('', ''), '«Confirmar» no cuenta como el sí con el cruce')
         self.assertIn('o_dcasa_ubic_cruce_si', foco)
         self.assertIn('o_dcasa_ubic_buscar', r['otra_casa'][0], '«Es otra casa» lleva al buscador')
-        self.assertIn('Busque la barriada de esa casa', r['otra_casa'][1])
+        self.assertIn('Busca la barriada de esa casa', r['otra_casa'][1])
         self.assertEqual(r['es_aqui'], ['1', '1', True])
         self.assertTrue(avanzo, 'con «Es aquí», «Confirmar» sigue')
         destino = self.env['res.partner'].search([('email', '=', 'ana.nav2@example.com')], limit=1)
@@ -743,7 +743,7 @@ class TestNavegadorAuditoria2(_SinClaves, ChromeMovilCase):
         self.assertEqual(falta, '🔍 Busca tu barriada (o toca «Escribir»)')
         self.assertIn('o_dcasa_ubic_buscar', foco, 'el foco va al buscador')
         self.assertIn('Sin permiso de ubicación', aviso)
-        self.assertIn('permita la ubicación', permiso)
+        self.assertIn('permite la ubicación', permiso)
         self.assertEqual(r['sin_senal'], [True, '📶 Sin señal. Toca para reintentar', False])
         self.assertEqual(r['confirmar'], '⏳ Un momento: estamos viendo tu zona', '«Confirmar» la vuelve a pedir')
         self.assertIn('Villa Prueba II', r['volvio'][0])
@@ -799,9 +799,9 @@ class TestNavegadorAuditoria2(_SinClaves, ChromeMovilCase):
             self.abrir_enlace(browser)
             r = self._evaluar(browser, PAGINA_U)
         falta, foco, permiso, wa_oculto = r['sin_permiso']
-        self.assertEqual(falta, '🔍 Busca tu barriada arriba 👆', 'punto 7: sin decir «toque Mi ubicación»')
+        self.assertEqual(falta, '🔍 Busca tu barriada arriba 👆', 'punto 7: sin decir «toca Mi ubicación»')
         self.assertEqual(foco, 'o_dcasa_buscar')
-        self.assertIn('permita la ubicación', permiso)
+        self.assertIn('permite la ubicación', permiso)
         self.assertFalse(wa_oculto, 'punto 6: hay salida por WhatsApp')
         oculto, enlace = r['whatsapp']
         self.assertFalse(oculto)
@@ -828,4 +828,4 @@ class TestNavegadorAuditoria2(_SinClaves, ChromeMovilCase):
             tactil, aviso = self._evaluar(browser, COMPUTADORA)
         self.assertFalse(tactil)
         self.assertIn('La computadora no da la ubicación exacta', aviso)
-        self.assertNotIn('Su teléfono', aviso)
+        self.assertNotIn('Tu teléfono', aviso)
