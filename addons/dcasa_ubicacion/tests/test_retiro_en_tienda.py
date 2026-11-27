@@ -1,5 +1,5 @@
-"""«Retiro en tienda» (D'CASA tiene tienda física; Baby Caleb no): marcar la casa en el mapa elige sola la entrega a
-domicilio, y quien retira en la tienda no pide mapa, ni lleva el QR, ni recibe los avisos de entrega (docs/UBICACION.md)."""
+"""«Retiro en tienda» (D'CASA tiene tienda física): marcar la casa en el mapa elige sola la entrega a domicilio, y
+quien retira en la tienda no pide mapa, ni lleva el QR, ni recibe los avisos de entrega (docs/UBICACION.md)."""
 from unittest.mock import patch
 
 from odoo.tests import tagged
@@ -18,7 +18,8 @@ class TestRetiroEnTienda(UbicacionCase):
         cls.domicilio = Carrier.search([('dcasa_por_cotizar', '=', True), ('is_published', '=', True)], limit=1)
         cls.retiro = Carrier.search([('dcasa_por_cotizar', '=', False), ('is_published', '=', True),
                                      ('delivery_type', '=', 'fixed')], limit=1)
-        cls.producto = cls.env['product.product'].create({'name': 'Mueble de prueba', 'type': 'consu', 'list_price': 100})
+        cls.producto = cls.env['product.product'].create(
+            {'name': 'Mueble de prueba', 'type': 'consu', 'list_price': 100})
 
     def _carrito(self, carrier):
         orden = self.env['sale.order'].create({

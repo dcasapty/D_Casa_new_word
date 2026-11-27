@@ -58,7 +58,8 @@ class TestWebsitePages(HttpCase):
         self.assertIn('Suma puntos y gana invitando', home)
         response = self.url_open('/socios')
         self.assertEqual(response.status_code, 200)
-        self.assertIn('https://api.whatsapp.com/send?phone=50760261919', response.text, 'La app del socio usa el mismo sitio y pie')
+        self.assertIn('https://api.whatsapp.com/send?phone=50760261919', response.text,
+                      'La app del socio usa el mismo sitio y pie')
 
     def test_terminos_de_odoo_llevan_a_los_reales(self):
         """La factura y el portal enlazan /terms: la plantilla de Odoo trae términos inventados en inglés."""

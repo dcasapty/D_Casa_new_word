@@ -102,7 +102,7 @@ class SaleOrder(models.Model):
         donde = ', '.join(p for p in (lugar, pendiente['referencia']) if p)
         actual = ((destino.dcasa_ubic_zona or '').split(' · ')[0] or destino.street or destino.city or '').strip()
         return {
-            'donde': geo.texto_corto(donde, MAX_LUGAR_TARJETA) or self.env._('su ubicación'),
+            'donde': geo.texto_corto(donde, MAX_LUGAR_TARJETA) or self.env._('tu ubicación'),
             'actual': geo.texto_corto(actual, MAX_LUGAR_TARJETA),
             'url_si': f'/shop/address?partner_id={destino.id}&address_type=delivery&dcasa_chat=1',
         }

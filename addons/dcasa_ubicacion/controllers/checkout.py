@@ -21,7 +21,7 @@ dirección) y, si Odoo aceptó la dirección, se guardan en la dirección de ent
   devuelve el formulario con el aviso, sin guardar nada.
 * Guardado, el punto que dio en el chat de la tienda (el «pendiente» del carrito) se olvida: si no, volvería a ganarle
   a lo que acaba de confirmar. Con cuenta, Odoo no pasa por aquí: la tarjeta de arriba de ``/shop/checkout`` pregunta
-  «¿Le entregamos ahí?» y «No» lo olvida (``/tienda/ubicacion/olvidar-chat``).
+  «¿Te entregamos ahí?» y «No» lo olvida (``/tienda/ubicacion/olvidar-chat``).
 * Una invitada que vuelve atrás desde «Método de entrega» llega a ``/shop/address`` sin ``partner_id`` (un formulario
   vacío: perdía el punto, la casa y quién recibe): va a «Editar» su dirección de entrega (auditoría 2).
 
@@ -45,8 +45,8 @@ ORIGENES_WEB = ('gps', 'pin', 'busqueda')
 # El punto que ya tenía guardado (lo compartió por el chat o pegó un enlace de mapa): el checkout abre con él.
 ORIGENES_GUARDADOS = ('whatsapp', 'enlace')
 MISMO_PUNTO_GRADOS = 1e-6          # ≈ 10 cm: el mismo punto que está guardado
-FALTA_EL_PUNTO = 'Marque su casa en el mapa y toque «Sí, aquí es» (o elija «Escribir»).'
-FALTAN_INDICACIONES = 'Escriba el número de casa y las indicaciones para el chofer.'
+FALTA_EL_PUNTO = 'Marca tu casa en el mapa y toca «Sí, aquí es» (o elige «Escribir»).'
+FALTAN_INDICACIONES = 'Escribe el número de casa y las indicaciones para el chofer.'
 CAMPOS_CASA = ('dcasa_recibe', 'dcasa_tel_respaldo')
 SIN_PENDIENTE = {'dcasa_ubic_pend_lat': 0.0, 'dcasa_ubic_pend_lon': 0.0, 'dcasa_ubic_pend_precision': 0,
                  'dcasa_ubic_pend_referencia': False}
@@ -215,7 +215,7 @@ class UbicacionCheckout(DcasaCheckout):
     @route('/tienda/ubicacion/olvidar-chat', type='http', auth='public', website=True, methods=['POST'],
            sitemap=False)
     def olvidar_punto_del_chat(self, **_kw):
-        """«No, en …» de la tarjeta «¿Le entregamos ahí?» de ``/shop/checkout``: olvida el punto que dio en el chat de
+        """«No, en …» de la tarjeta «¿Te entregamos ahí?» de ``/shop/checkout``: olvida el punto que dio en el chat de
         la tienda (solo el de SU carrito; con el CSRF del sitio) y vuelve al checkout."""
         orden = request.cart
         if orden and orden.state in ('draft', 'sent') and orden.sudo()._dcasa_ubic_hay_pendiente():
