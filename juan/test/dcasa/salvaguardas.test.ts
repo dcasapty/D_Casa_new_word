@@ -260,6 +260,13 @@ describe("regla 11 · voz de la marca", () => {
     expect(limpiarForma(frase)).not.toMatch(/\p{Extended_Pictographic}|\u20E3/u);
   });
 
+  it("las frases fijas con ícono de Juan pasan enteras, también la que lleva la zona en su hueco", () => {
+    const fijas = ["🏠 ¿Número de casa o indicaciones para el chofer?", "📍 ¿Te lo llevamos a [la zona], como la vez pasada?"];
+    expect(limpiarForma("Listo.\n🏠 ¿Número de casa o indicaciones para el chofer?", fijas)).toBe("Listo.\n🏠 ¿Número de casa o indicaciones para el chofer?");
+    expect(limpiarForma("📍 ¿Te lo llevamos a Villa Lucre, como la vez pasada?", fijas)).toBe("📍 ¿Te lo llevamos a Villa Lucre, como la vez pasada?");
+    expect(limpiarForma("📍 ¿Te lo mando a Villa Lucre?", fijas)).toBe("¿Te lo mando a Villa Lucre?");
+  });
+
   it("una línea que el modelo reescribió ya no es de Odoo y pierde sus íconos; el «visto» se quita siempre, también de una frase de Odoo", () => {
     const frase = "📍 Marca tu casa en el mapa:\n1️⃣ Abre el enlace\n2️⃣ Toca «Mi ubicación»";
     expect(limpiarForma(`Con gusto 👼🏻\n${frase}\nListo 🙌🏻`, [frase])).toBe(`Con gusto\n${frase}\nListo`);

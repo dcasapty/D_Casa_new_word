@@ -13,7 +13,7 @@
 import { APICallError, generateText, hasToolCall, jsonSchema, LoadAPIKeyError, stepCountIs, tool, type LanguageModel, type ModelMessage, type ToolSet } from "ai";
 import { dentroDeHorario, diaDelNegocio, mesDelNegocio, type Config } from "../config";
 import { pideUnaPersona } from "../dcasa/intencion";
-import { HERRAMIENTAS_DEL_CONTRATO, NOMBRES_DE_HERRAMIENTAS_LOCALES } from "../dcasa/prompt";
+import { FRASES_FIJAS_CON_ICONO, HERRAMIENTAS_DEL_CONTRATO, NOMBRES_DE_HERRAMIENTAS_LOCALES } from "../dcasa/prompt";
 import { analizar, quitarGraves, type ContextoRevision, type TipoProblema } from "../dcasa/salvaguardas";
 import { CORCHETES, CORCHETES_QUE_CIERRAN, enmascararSensibles, textoParaElModelo } from "../dcasa/sensibles";
 import { normalizar, oraciones } from "../dcasa/texto";
@@ -1040,7 +1040,7 @@ export class MotorTienda {
       textoDelPrompt: fugas,
       envio: registro.envio,
       haySinPublicar: registro.haySinPublicar,
-      frasesDeLaTienda: registro.frases,
+      frasesDeLaTienda: [...registro.frases, ...FRASES_FIJAS_CON_ICONO],
     });
 
     let respuesta = salida.respuesta ?? leerRespuestaDelModelo({ texto: salida.texto });

@@ -79,6 +79,17 @@ const PREGUNTAS_DE_LA_UBICACION = `Preguntas de la ubicación (dilas tal cual, c
  */
 export const GRACIAS_DEL_AVISO_DE_ENTREGA = "🙌🏻 ¡Perfecto, gracias por confirmar!";
 export const PREGUNTA_DEL_CAMBIO_DE_ENTREGA = "¿Qué te cambiamos: 🕐 el día o la hora, o 📍 el lugar?";
+/**
+ * Las frases fijas con ícono que el prompt manda decir «tal cual»: la guardia de la salida (`limpiarForma`) las deja pasar con sus
+ * íconos junto con las que escribe Odoo. Lo que lleva «[…]» (la zona) se compara con cualquier texto en ese lugar.
+ */
+export const FRASES_FIJAS_CON_ICONO: readonly string[] = [
+  PREGUNTA_DE_INDICACIONES,
+  PREGUNTA_DE_LA_VEZ_PASADA,
+  PREGUNTA_DEL_CLIP,
+  GRACIAS_DEL_AVISO_DE_ENTREGA,
+  PREGUNTA_DEL_CAMBIO_DE_ENTREGA,
+];
 const FRASES_DEL_AVISO_DE_ENTREGA = `Respuestas al aviso de entrega (dilas tal cual, con su ícono): si confirma que habrá alguien, «${GRACIAS_DEL_AVISO_DE_ENTREGA}»; si solo dice que quiere cambiar algo, «${PREGUNTA_DEL_CAMBIO_DE_ENTREGA}».`;
 
 const CANAL_LEGIBLE: Record<CanalId, string> = {

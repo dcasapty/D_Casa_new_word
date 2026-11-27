@@ -810,9 +810,23 @@ function sinEmojis(texto: string, frasesDeLaTienda: readonly string[] = []): str
       .filter((l) => l && new RegExp(EMOJI.source, "u").test(l)),
   );
   if (deLaTienda.size === 0) return sinVisto.replace(EMOJI, "");
+  // Una frase con «[…]» (la zona de «como la vez pasada») vale con cualquier texto en ese lugar.
+  const conHueco = [...deLaTienda].filter((l) => /\[[^\]]+\]/.test(l)).map((l) => new RegExp("^" + l.split(/\[[^\]]+\]/).map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join(".{1,80}") + "$", "u"));
+  const esDeLaTienda = (linea: string) => {
+    const l = lineaComparable(linea);
+    return deLaTienda.has(l) || conHueco.some((r) => r.test(l));
+  };
+  // El modelo a veces pega la pregunta fija al final de la línea del precio («… cuesta $5. 🏠 ¿Número de casa…?»): la frase
+  // queda con su ícono y lo anterior se limpia.
+  const fijas = [...deLaTienda].filter((l) => !/\[[^\]]+\]/.test(l));
   return sinVisto
     .split("\n")
-    .map((linea) => (deLaTienda.has(lineaComparable(linea)) ? linea : linea.replace(EMOJI, "")))
+    .map((linea) => {
+      if (esDeLaTienda(linea)) return linea;
+      const l = lineaComparable(linea);
+      const cola = fijas.find((f) => l.endsWith(f));
+      return cola ? l.slice(0, l.length - cola.length).replace(EMOJI, "") + cola : linea.replace(EMOJI, "");
+    })
     .join("\n");
 }
 

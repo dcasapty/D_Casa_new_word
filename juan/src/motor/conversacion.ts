@@ -18,7 +18,7 @@ import { VIDA_DE_UN_COMENTARIO_MS } from "../canales/metaComentarios";
 import { EnvioParcialError, enlaceDeMedio, partirPorLargo, sinNegritas } from "../canales/tipos";
 import { crudoDe, entranteDeCrudo, prepararEntrante } from "../canales/preparar";
 import { noQuiereSeguimiento, pideUnaPersona } from "../dcasa/intencion";
-import { contextoDelChat, promptEstable, promptParaFugas, promptSeguimiento, presentacionPorDefecto } from "../dcasa/prompt";
+import { FRASES_FIJAS_CON_ICONO, contextoDelChat, promptEstable, promptParaFugas, promptSeguimiento, presentacionPorDefecto } from "../dcasa/prompt";
 import { analizar, detectarSerHumano, notaDeCorreccion, quitarGraves, TEXTO_FUGA, TEXTO_SIN_DATO, limpiarForma, type ContextoRevision } from "../dcasa/salvaguardas";
 import { pinesEscritos, taparPines, textoParaElModelo } from "../dcasa/sensibles";
 import { TEXTO_FALLO_TECNICO, TEXTO_TOPE_DIARIO, textoPasoAVendedora } from "../dcasa/textos";
@@ -2162,7 +2162,7 @@ export class MotorConversacion {
       secretos: registro.pines,
       envio: registro.envio,
       haySinPublicar: registro.haySinPublicar,
-      frasesDeLaTienda: registro.frases,
+      frasesDeLaTienda: [...registro.frases, ...FRASES_FIJAS_CON_ICONO],
     });
     let analisis = analizar(salida.texto, contextoDeRevision());
     const reparables = analisis.graves.filter((g) => g.tipo !== "fuga");
