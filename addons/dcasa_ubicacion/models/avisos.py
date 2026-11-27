@@ -186,7 +186,7 @@ class SaleOrderAvisos(models.Model):
 
     def _dcasa_personas_de_la_compra(self):
         """A quién le escriben los avisos: el cliente que compró (y su empresa) y la dirección de entrega solo si es
-        suya (una dirección hija). Si es un regalo para otra persona, a ella no: «¡Gracias por su compra!» le contaría
+        suya (una dirección hija). Si es un regalo para otra persona, a ella no: «¡Gracias por tu compra!» le contaría
         la sorpresa (auditoría 1)."""
         self.ensure_one()
         orden = self.sudo()

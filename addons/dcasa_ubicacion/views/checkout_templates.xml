@@ -59,8 +59,8 @@
                             <div class="o_dcasa_ubic_mapa" role="application" aria-label="Mapa: muévelo hasta tu puerta"/>
                             <span class="o_dcasa_ubic_pista"><t t-call="dcasa_ubicacion.icono"><t t-set="icono" t-value="'mover'"/></t>Mueve el mapa</span>
                             <svg class="o_dcasa_ubic_pin" viewBox="0 0 36 48" aria-hidden="true">
-                                <path d="M18 1C8.6 1 1 8.4 1 17.6 1 30 18 47 18 47s17-17 17-29.4C35 8.4 27.4 1 18 1z" fill="#EE924A" stroke="#1B3246" stroke-width="2"/>
-                                <circle cx="18" cy="17" r="6" fill="#1B3246"/>
+                                <path d="M18 1C8.6 1 1 8.4 1 17.6 1 30 18 47 18 47s17-17 17-29.4C35 8.4 27.4 1 18 1z" fill="#1340B1" stroke="#0E2A6B" stroke-width="2"/>
+                                <circle cx="18" cy="17" r="6" fill="#FED00F"/>
                             </svg>
                         </div>
                         <p class="o_dcasa_ubic_aviso" aria-live="polite"/>

@@ -32,9 +32,9 @@ class ResPartner(models.Model):
     dcasa_ubic_zona = fields.Char('Zona de entrega', readonly=True,
                                   help='Barriada · corregimiento · distrito · provincia, deducidos del punto.')
     dcasa_barriada = fields.Char('Barriada')
-    dcasa_corregimiento = fields.Char('Corregimiento')
-    dcasa_distrito = fields.Char('Distrito')
-    dcasa_provincia = fields.Char('Provincia')
+    dcasa_corregimiento = fields.Char('Corregimiento (de la ubicación)')
+    dcasa_distrito = fields.Char('Distrito (de la ubicación)')
+    dcasa_provincia = fields.Char('Provincia (de la ubicación)')
     dcasa_otra_casa = fields.Boolean(
         'Otra casa (regalo)', readonly=True, copy=False,
         help='Dirección aparte que creó «para otra casa» (un regalo, la abuela, el trabajo): nunca es la dirección de '

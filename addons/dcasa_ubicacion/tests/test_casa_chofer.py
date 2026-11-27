@@ -7,6 +7,7 @@ repositorio es público: ninguna foto ni dato real)."""
 import io
 import json
 import os
+import re
 from datetime import timedelta
 from unittest.mock import patch
 from urllib.parse import unquote
@@ -25,6 +26,13 @@ from odoo.tests import BaseCase, HttpCase, new_test_user, tagged
 from ..controllers.checkout import quien_recibe_del_formulario
 from ..motor import casa
 from .common import CERCA, UbicacionCase
+
+# Los choferes de D'CASA no usan corredores, pero los enlaces de Waze y Google Maps NO evitan los peajes por sí solos:
+# ningún texto del módulo puede prometerlo (una negación, «no evitan», sí se puede escribir).
+PROMESA_SIN_PEAJES = re.compile(r'(waze|google(?: maps)?)([^.\n]{0,80}?)\b(evita\w*|sin)\s+(?:los\s+|el\s+)?'
+                                r'(peajes?|corredor\w*)')
+RUTA_SIN_CORREDORES = 'Ruta sin corredores'
+NOTA_PEAJES = 'Activa “Evitar peajes” en tu teléfono antes de salir'
 
 COMENTARIO_CON_GPS = b'GPS 8.9012,-79.8013'
 SIN_CLAVES = {'GOOGLE_MAPS_CLAVE_NAVEGADOR': '', 'GOOGLE_MAPS_CLAVE_SERVIDOR': ''}
@@ -71,6 +79,28 @@ class TestMotorCasa(BaseCase):
                 self.assertIsNone(casa.telefono_de_respaldo(malo))
         self.assertTrue(casa.mismo_telefono('+507 6123-4567', '61234567'))
         self.assertFalse(casa.mismo_telefono('6123-4567', '6999-8888'))
+
+    def test_ningun_texto_dice_que_waze_o_google_evitan_peajes(self):
+        modulo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        revisados = 0
+        for carpeta, subcarpetas, archivos in os.walk(modulo):
+            subcarpetas[:] = [c for c in subcarpetas if c not in ('tests', '__pycache__')]
+            for nombre in archivos:
+                if not nombre.endswith(('.py', '.xml', '.js', '.scss', '.csv')):
+                    continue
+                ruta = os.path.join(carpeta, nombre)
+                with open(ruta, encoding='utf-8') as archivo:
+                    texto = archivo.read().lower()
+                revisados += 1
+                for promesa in PROMESA_SIN_PEAJES.finditer(texto):
+                    with self.subTest(archivo=os.path.relpath(ruta, modulo), texto=promesa.group(0)):
+                        self.assertRegex(promesa.group(2), r'\bno\b',
+                                         'los enlaces de Waze y Google Maps no evitan peajes ni corredores')
+        self.assertGreater(revisados, 10, 'revisó los archivos del módulo')
+        # Y la regla atrapa lo que debe atrapar (y deja pasar la negación).
+        self.assertTrue(PROMESA_SIN_PEAJES.search('abrir en waze (evita los peajes)'))
+        self.assertTrue(PROMESA_SIN_PEAJES.search('google maps, sin corredores'))
+        self.assertRegex(PROMESA_SIN_PEAJES.search('waze y google maps no evitan los peajes').group(2), r'\bno\b')
 
     def test_el_whatsapp_del_chofer(self):
         self.assertEqual(casa.numero_whatsapp('+507 6123-4567'), '50761234567')
@@ -240,7 +270,7 @@ class TestQuienRecibeYFoto(UbicacionCase):
                           side_effect=AssertionError('el PDF no crea nada')):
             html = str(self.env['ir.qweb']._render('dcasa_ubicacion.bloque_chofer', {'registro': factura}))
         for texto in ('Para el chofer', 'Recibe: Rosa, su mamá', 'Si no contesta: +507 6999-8888',
-                      'Con foto de la casa'):
+                      'Con foto de la casa', RUTA_SIN_CORREDORES + ':', 'activa “Evitar peajes” en tu teléfono'):
             self.assertIn(texto, html)
 
     def test_al_confirmar_el_enlace_guarda_quien_recibe_y_avisa_al_equipo(self):
@@ -425,6 +455,24 @@ class TestRutasDeLaCasa(HttpCase):
         entrega.order_id.picking_ids.filtered(lambda p: p.picking_type_code == 'outgoing').sudo().write(
             {'state': 'done', 'date_done': fields.Datetime.now() - timedelta(days=4)})
         self.assertEqual(self.url_open(f'/entrega/{token}/fachada').status_code, 404, 'se cierra con la página')
+
+    def test_la_pagina_del_chofer_pide_ruta_sin_corredores(self):
+        """Los choferes de D'CASA no usan corredores: la página lo dice arriba, bien visible, con la nota de activar
+        «Evitar peajes» en el teléfono (los enlaces de Waze y Google Maps no lo hacen solos). Con punto y sin punto."""
+        orden = self.venta_confirmada()
+        entrega = self.env['dcasa.ubicacion.entrega']._de_la_venta(orden)
+        sin_punto = self.url_open('/entrega/' + entrega.sudo().token).text
+        self.cliente._dcasa_poner_ubicacion(*CERCA, 'pin', referencia='Portón negro')
+        con_punto = self.url_open('/entrega/' + entrega.sudo().token).text
+        for html in (sin_punto, con_punto):
+            self.assertIn('id="o_dcasa_corredores"', html)
+            self.assertIn(f'<strong>{RUTA_SIN_CORREDORES}</strong>', html)
+            self.assertIn(NOTA_PEAJES, html)
+            self.assertLess(html.index(RUTA_SIN_CORREDORES), html.index('<div class="tarjeta suave">'),
+                            'arriba: antes de los datos de la entrega')
+        self.assertLess(con_punto.index(RUTA_SIN_CORREDORES), con_punto.index('Abrir en Waze'),
+                        'antes de los botones de Waze y Google Maps')
+        self.assertIsNone(PROMESA_SIN_PEAJES.search(con_punto.lower()), 'la página no promete evitar peajes')
 
     def test_al_pagar_sale_la_tarjeta_para_marcar_la_casa(self):
         sesion = self.authenticate(None, None)

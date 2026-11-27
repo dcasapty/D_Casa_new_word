@@ -1,13 +1,16 @@
 // «¿Dónde te entregamos?» en el checkout (views/checkout_templates.xml). Pedido del dueño (2026-11-25): íconos grandes y
-// pocas palabras («un niño de 5 años pueda comprar»). Marca Baby Caleb (docs/MARCA_BABY_CALEB.md): crema, letra navy, el
-// naranja de relleno con letra navy, pastillas, plano; 48 px o más en lo táctil y 16 px en los campos.
-$dcasa-ubic-navy: #1B3246;
-$dcasa-ubic-naranja: #EE924A;
-$dcasa-ubic-naranja-fuerte: #985D2F;
-$dcasa-ubic-superficie: #F2EFE5;
-$dcasa-ubic-linea: #DEDED9;
-$dcasa-ubic-gris: #5E6D78;
-$dcasa-ubic-salvia: #4F6B58;
+// pocas palabras («un niño de 5 años pueda comprar»). Marca D'CASA (CLAUDE.md): las variables de website_dcasa
+// (static/src/scss/dcasa.scss, en el mismo paquete y antes que este archivo): azul #1340B1 de relleno con letra
+// blanca, el amarillo #FED00F SOLO sobre azul (la burbuja), texto sobre blanco en azul o azul noche; Anton para el
+// título (caja alta), Oswald para las etiquetas, Inter (la del sitio) para el cuerpo; pastillas, plano, sin degradados
+// ni sombras; 48 px o más en lo táctil y 16 px en los campos.
+$dcasa-ubic-azul: $dcasa-azul;              // #1340B1
+$dcasa-ubic-amarillo: $dcasa-amarillo;      // #FED00F: solo sobre azul
+$dcasa-ubic-navy: $dcasa-navy;              // #0E2A6B
+$dcasa-ubic-superficie: $dcasa-hueso;       // #F6F5F2
+$dcasa-ubic-linea: $dcasa-filo;             // #E3E1DB
+$dcasa-ubic-gris: $dcasa-gris;              // #4A5163 (7.9:1 sobre blanco)
+$dcasa-ubic-control: #8C93A6;               // borde de un campo: 3:1 sobre blanco (como pago.scss)
 
 .o_dcasa_ubicacion {
     .o_dcasa_icono {
@@ -28,8 +31,12 @@ $dcasa-ubic-salvia: #4F6B58;
         align-items: center;
         gap: 12px;
         margin-bottom: 14px;
-        font-weight: 700;
-        font-size: 1.25rem;
+        font-family: 'Anton', 'Oswald', sans-serif;
+        font-weight: 400;
+        font-size: 1.4rem;
+        line-height: 1.15;
+        text-transform: uppercase;
+        letter-spacing: .01em;
         color: $dcasa-ubic-navy;
     }
 
@@ -40,8 +47,8 @@ $dcasa-ubic-salvia: #4F6B58;
         width: 48px;
         height: 48px;
         border-radius: 50%;
-        background: $dcasa-ubic-naranja;
-        color: $dcasa-ubic-navy;
+        background: $dcasa-ubic-azul;
+        color: $dcasa-ubic-amarillo;
         flex-shrink: 0;
 
         .o_dcasa_icono {
@@ -78,9 +85,9 @@ $dcasa-ubic-salvia: #4F6B58;
     }
 
     .btn-check:checked + .o_dcasa_ubic_modo {
-        background: $dcasa-ubic-naranja;
-        border-color: $dcasa-ubic-navy;
-        color: $dcasa-ubic-navy;
+        background: $dcasa-ubic-azul;
+        border-color: $dcasa-ubic-azul;
+        color: #fff;
     }
 
     .o_dcasa_ubic_gps,
@@ -163,8 +170,8 @@ $dcasa-ubic-salvia: #4F6B58;
         gap: 6px;
         padding: 6px 12px;
         border-radius: 999px;
-        background: rgba(249, 246, 237, .95);
-        border: 1px solid $dcasa-ubic-linea;
+        background: $dcasa-ubic-azul;
+        color: #fff;
         font-size: 14px;
         font-weight: 600;
         pointer-events: none;
@@ -175,7 +182,7 @@ $dcasa-ubic-salvia: #4F6B58;
     .o_dcasa_ubic_cruce {
         min-height: 1.2em;
         margin: 8px 0 0;
-        color: $dcasa-ubic-naranja-fuerte;
+        color: $dcasa-ubic-azul;
         font-weight: 600;
     }
 
@@ -235,7 +242,7 @@ $dcasa-ubic-salvia: #4F6B58;
     .o_dcasa_ubic_tarjeta {
         margin-top: 12px;
         padding: 14px 16px;
-        border: 2px solid $dcasa-ubic-naranja;
+        border: 2px solid $dcasa-ubic-azul;
         border-radius: 18px;
         background: #fff;
     }
@@ -305,24 +312,26 @@ $dcasa-ubic-salvia: #4F6B58;
         margin: 10px 0 0;
         font-weight: 700;
         font-size: 1.1rem;
-        color: $dcasa-ubic-salvia;
+        color: $dcasa-ubic-navy;
     }
 
     .o_dcasa_ubic_etiqueta {
         display: flex;
         align-items: center;
         gap: 8px;
-        font-weight: 700;
+        font-family: 'Oswald', sans-serif;
+        font-weight: 600;
+        color: $dcasa-ubic-navy;
     }
 
     // Lo que falta cuando toca «Confirmar» sin el punto o sin el número de casa: en el bloque, a la vista.
     .o_dcasa_ubic_falta {
         margin: 0 0 12px;
         padding: 10px 14px;
-        border: 2px solid $dcasa-ubic-naranja-fuerte;
+        border: 2px solid $dcasa-ubic-azul;
         border-radius: 14px;
         background: #fff;
-        color: $dcasa-ubic-naranja-fuerte;
+        color: $dcasa-ubic-azul;
         font-weight: 700;
 
         &:focus {
@@ -360,7 +369,7 @@ $dcasa-ubic-salvia: #4F6B58;
 // /shop/checkout: «¿Te entregamos ahí?» con lo que dio en el chat de la tienda (auditoría 2).
 .o_dcasa_chat_pendiente {
     padding: 16px;
-    border: 2px solid $dcasa-ubic-naranja;
+    border: 2px solid $dcasa-ubic-azul;
     border-radius: 18px;
     background: $dcasa-ubic-superficie;
 
@@ -432,7 +441,7 @@ $dcasa-ubic-salvia: #4F6B58;
 // La página del pedido (el link de pago): la tarjeta «¿Dónde te entregamos?» o la línea con la zona y la casa.
 .o_dcasa_pedido_ubic {
     padding: 16px;
-    border: 2px solid $dcasa-ubic-naranja;
+    border: 2px solid $dcasa-ubic-azul;
     border-radius: 18px;
     background: $dcasa-ubic-superficie;
 }
@@ -459,7 +468,7 @@ $dcasa-ubic-salvia: #4F6B58;
         min-height: 48px;
         margin: 8px 0;
         padding: 10px 12px;
-        border: 1px solid #7F8A91;
+        border: 1px solid $dcasa-ubic-control;
         border-radius: 12px;
         background: #fff;
         color: $dcasa-ubic-navy;
@@ -469,7 +478,7 @@ $dcasa-ubic-salvia: #4F6B58;
     .o_dcbt_ind_estado {
         min-height: 1.2em;
         margin: 6px 0 0;
-        color: $dcasa-ubic-naranja-fuerte;
+        color: $dcasa-ubic-azul;
         font-weight: 600;
     }
 
