@@ -3,6 +3,7 @@ quien retira en la tienda no pide mapa, ni lleva el QR, ni recibe los avisos de 
 from unittest.mock import patch
 
 from odoo.tests import tagged
+from odoo.tools import mute_logger
 
 from .common import CERCA, UbicacionCase
 
@@ -82,6 +83,8 @@ class TestUnErrorDelQrNoTumbaLaVenta(UbicacionCase):
             'order_line': [(0, 0, {'product_id': producto.id, 'product_uom_qty': 1})],
         })
         orden._set_delivery_method(domicilio)
-        with patch.object(type(orden), '_dcasa_entrega_chofer', side_effect=ValueError('prueba')):
+        # El error se registra a propósito (ERROR): scripts/test.sh falla con cualquier ERROR sin silenciar en el log.
+        with patch.object(type(orden), '_dcasa_entrega_chofer', side_effect=ValueError('prueba')), \
+                mute_logger('odoo.addons.dcasa_ubicacion.models.entrega'):
             orden.action_confirm()
         self.assertEqual(orden.state, 'sale', 'un error del QR nunca hace fallar la venta')
